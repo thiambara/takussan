@@ -3088,41 +3088,61 @@
     },
     "upgrade": {
       "page": {
-        "eyebrow": "My agency",
         "title": "Upgrade to a professional agency",
         "subtitle": "Unlock team features: invite collaborators, delegate roles and share your portfolio.",
         "already_standard": {
           "title": "Your agency is already professional",
-          "body": "No action required — every team feature is already active."
+          "body": "No action required — every team feature is already active.",
+          "approuvee": "Request approved on {date}."
         },
         "benefits": {
-          "aria_label": "Benefits of a professional agency",
           "title": "Why upgrade?",
           "items": {
             "team": "Invite a team of agents and delegate the day-to-day management.",
             "multi_admin": "Co-administrate the agency with multiple admins.",
             "custom_roles": "Define custom roles to structure your organisation."
+          }
+        },
+        "acquis": {
+          "titre": "What going pro unlocked",
+          "equipe": {
+            "titre": "A team of agents",
+            "detail": "Invite, delegate property follow-up",
+            "detailCompte": "{n, plural, =0 {No agents} one {# agent} other {# agents}} · invite, delegate property follow-up"
           },
-          "sla": "Our team reviews every request; you receive its decision by email and in your notifications."
+          "coAdministration": {
+            "titre": "Co-administration",
+            "detail": "Run the agency with several administrators"
+          },
+          "roles": {
+            "titre": "Custom roles",
+            "detail": "Structure your organisation"
+          }
+        },
+        "offre": {
+          "titre": "Plan and going pro",
+          "texte": "Your plan, what it includes and how much of it you use."
+        },
+        "prix": {
+          "parMois": "{prix} / month",
+          "suite": "and {taux}% on payments collected online. Your subscription starts on approval.",
+          "absent": "The price of the professional plan is not available at the moment.",
+          "illisible": "The plan price could not be loaded. Reload the page to see it before sending your request."
+        },
+        "lectureImpossible": {
+          "titre": "Your request could not be loaded",
+          "texte": "We cannot tell whether a request is already under review, so the form stays closed to avoid sending a second one. Reload the page in a moment."
         }
       },
       "form": {
-        "aria_label": "Upgrade request form",
         "loading": "Loading your draft…",
         "fields": {
-          "rc": "RC number",
-          "ninea": "NINEA",
-          "rib_pro": "Professional bank account (RIB)",
-          "company_legal_name": "Legal company name",
-          "address_fiscale": "Tax address",
-          "planned_agents_count": "Estimated number of agents (optional)",
-          "statuts_doc": "Legal statutes (PDF or image)"
+          "planned_agents_count": "Estimated number of agents (optional)"
         },
         "hints": {
           "planned_agents_count": "Helps us size your future organisation.",
           "statuts_doc": "PDF, JPG or PNG. 10 MB max."
         },
-        "file_selected": "Selected file: {name}",
         "cta": {
           "submit": "Submit request",
           "submitting": "Sending…"
@@ -3132,7 +3152,6 @@
           "file_too_large": "File exceeds 10 MB.",
           "unauthorized": "You must be signed in to submit the request.",
           "forbidden": "You are not allowed to submit this request.",
-          "generic": "Something went wrong. Please try again.",
           "draft_not_saved_title": "Submission stopped: your draft wasn’t saved",
           "draft_not_saved_body": "Saving your draft was refused (lost connection or expired session). Check your connection, sign back in if needed, then click “Submit request” again — your entries are still here."
         },
@@ -3143,7 +3162,6 @@
         }
       },
       "status": {
-        "aria_label": "Upgrade request status",
         "headings": {
           "pending": "Request pending",
           "approved": "Request approved",
@@ -3158,9 +3176,7 @@
         },
         "submitted_at": "Submitted on {date}",
         "body": {
-          "pending": "Our team is reviewing your request. You will be notified as soon as it is processed.",
           "approved": "Your agency is now professional (approved on {date}).",
-          "rejected": "Your request was rejected on {date}. See the comment below; you may submit a new one.",
           "revoked": "You revoked this request. You can submit a new one at any time."
         },
         "cta": {
@@ -3169,7 +3185,49 @@
         },
         "toasts": {
           "revoked": "Request revoked.",
-          "error": "Could not revoke."
+          "echecRevocation": "The request was not withdrawn",
+          "echecRevocationRepli": "It is still under review. Check your connection, then try again."
+        },
+        "corps": {
+          "refusee": "Your request was declined on {date}. Read the comment, replace the document, then send it again: everything else is kept.",
+          "enCours": "Our team is reviewing your request; you will receive the decision by email and in your notifications. While it is under review, you can withdraw it."
+        },
+        "motif": "“{motif}”",
+        "soumiseEtDecidee": "Submitted on {date} · decision by the Takussan team",
+        "confirmation": {
+          "titre": "Withdraw your request?",
+          "texte": "Our team will stop reviewing it. To go pro afterwards, you will need to send a new request, articles of association included.",
+          "garder": "Keep the request",
+          "revoquer": "Withdraw"
+        }
+      },
+      "demande": {
+        "aria": "Request form to go pro",
+        "titre": "Your request",
+        "texte": "Your legal details prefill the request: check them, then add your business bank details and articles of association.",
+        "texteReprise": "Your answers from {date} are kept: only the declined document needs replacing.",
+        "champs": {
+          "company_legal_name": "Company name",
+          "rc": "RCCM",
+          "ninea": "NINEA",
+          "rib_pro": "Business bank details (RIB)",
+          "address_fiscale": "Tax address",
+          "statuts_doc": "Articles of association (PDF or image)"
+        },
+        "reprisDeLaFiche": "Taken from your agency details",
+        "aideAdresse": "Your head office address, if it is the same.",
+        "conserve": "Kept from your request: leave blank to keep it.",
+        "conserveMasque": "Kept from your request ({valeur}): leave blank to keep it.",
+        "aRemplacer": "to replace",
+        "fichierChoisi": "File selected · {taille}",
+        "changer": "Change",
+        "prendrePhoto": "Take a photo",
+        "choisirFichier": "Choose a file",
+        "photoAria": "Take a photo of the articles of association",
+        "fichierAria": "Choose the articles of association file",
+        "suivi": "Our team reviews every request; you will receive the decision by email and in your notifications. While it is under review, you can withdraw it from here.",
+        "erreurs": {
+          "envoi": "The request was not sent. Your answers are kept: check your connection, then send it again."
         }
       }
     },
@@ -8121,6 +8179,9 @@
         "title": "Integrations",
         "subtitle": "Your payment, SMS and email services, and their notification addresses. Secrets are never shown again once saved.",
         "loadError": "The integrations could not be loaded: {message}"
+      },
+      "verification": {
+        "title": "Agency verification"
       }
     },
     "team": {
@@ -8469,7 +8530,8 @@
             "titre": "Plan and going pro",
             "titreCourt": "Plan",
             "detail": "Professional agency",
-            "detailIndividuelle": "Become a professional agency"
+            "detailIndividuelle": "Become a professional agency",
+            "titreIndividuelle": "Going pro"
           }
         },
         "detail": {
@@ -14291,6 +14353,21 @@
         "paySelfRefused": "You approved this payout: someone else must mark it paid.",
         "refundedSincePaid": "{count, plural, one {One line has been refunded since the payout was paid: {references}.} other {# lines have been refunded since the payout was paid: {references}.}} No amount is withheld automatically."
       }
+    },
+    "offre": {
+      "titre": "Your plan",
+      "factures": "Subscription and invoices",
+      "parMois": "/ month",
+      "commission": "and {taux}% on payments collected online.",
+      "biens": "Listings online",
+      "agents": "Agents",
+      "succursales": "Branches",
+      "jusquA": "up to {limite}",
+      "illimite": "Unlimited",
+      "utiliseSur": "<b>{used}</b> of {limit}",
+      "utiliseSansLimite": "<b>{used}</b> · {illimite}",
+      "consommationIndisponible": "Your usage could not be loaded. Reload the page to try again.",
+      "rechargez": "Reload the page to try again."
     }
   },
   "serverActions": {
@@ -14746,6 +14823,121 @@
       "rib_pro": "Business bank details (RIB)",
       "alreadyHeldBy": "identifier already held by:",
       "hint": "A signal for the review, not a reason to reject on its own."
+    },
+    "verification": {
+      "titre": "Agency verification",
+      "texte": "Takussan verifies your company once, then each time a document expires. Your RCCM and NINEA numbers are those of your legal notices: you only enter them once.",
+      "chargement": "The verification file could not be loaded.",
+      "reessayer": "Try again",
+      "etat": {
+        "a_fournir": {
+          "titre": "Send your company’s documents",
+          "texte": "The RCCM, the NINEA and an identity document of the director. Once all three are added, submit the file."
+        },
+        "pret": {
+          "titre": "Your file is ready",
+          "texte": "All three documents are here. Submit the file: Takussan reviews it and answers by email and in your notifications."
+        },
+        "en_examen": {
+          "titre": "Your file is under review",
+          "texte": "Sent on {date}. The decision reaches you by email and in your notifications.",
+          "texteSansDate": "The decision reaches you by email and in your notifications."
+        },
+        "verifiee": {
+          "titre": "Your agency is verified",
+          "texte": "The “Verified agency” badge shows on your public profile and your listings."
+        },
+        "refusee": {
+          "titre": "Your file was rejected",
+          "texte": "Read the reason, replace the document concerned, then send the file again: the other documents are kept."
+        },
+        "a_renouveler": {
+          "titre": "A document has expired",
+          "texte": "Until it is replaced, <b>your Takussan payouts are suspended</b> and the “Verified agency” badge no longer shows on your public profile.",
+          "titreBientot": "The director’s document expires on {date}",
+          "texteBientot": "Replace it before that date: otherwise <b>your Takussan payouts will be suspended</b> and the “Verified agency” badge will no longer show on your public profile."
+        }
+      },
+      "statut": {
+        "a_fournir": "To provide",
+        "pret": "Ready to submit",
+        "en_examen": "Under review",
+        "verifiee": "Verified",
+        "refusee": "Rejected",
+        "a_renouveler": "To renew"
+      },
+      "actions": {
+        "remplacerPieceIdentite": "Replace the identity document",
+        "soumettre": "Submit the file",
+        "renvoyer": "Send the file again",
+        "corriger": "Fix",
+        "envoyerPiece": "Send the document",
+        "envoiEnCours": "Sending…",
+        "prendrePhoto": "Take a photo",
+        "choisirFichier": "Choose a file",
+        "changer": "Change",
+        "voir": "View",
+        "voirAria": "View the document: {piece}",
+        "remplacer": "Replace",
+        "remplacerAria": "Replace the document: {piece}",
+        "photoAria": "Take a photo: {piece}",
+        "fichierAria": "Choose a file: {piece}"
+      },
+      "soumettreBloque": "First add: {liste}.",
+      "envoi": {
+        "fichierManquant": "First choose a file, or take a photo.",
+        "dateManquante": "Enter the document’s expiry date.",
+        "tropLourd": "This file is over {max} MB: choose a lighter one.",
+        "formats": "PDF, JPG, PNG or WEBP, {max} MB at most.",
+        "formatsDirigeant": "Identity card or passport of the director, still valid · PDF, JPG, PNG or WEBP, {max} MB at most.",
+        "fichierChoisi": "File selected · {taille}",
+        "echec": "The document was not sent.",
+        "reussi": "Document sent",
+        "reussiExamen": "Document sent: your file goes back under review."
+      },
+      "soumission": {
+        "echec": "The file was not submitted.",
+        "reussie": "File submitted: Takussan is reviewing it."
+      },
+      "numero": {
+        "rccm": "RCCM number",
+        "ninea": "NINEA number",
+        "aide": "Also used for your legal notices."
+      },
+      "pieces": {
+        "titre": "File documents",
+        "rccm": "RCCM",
+        "ninea": "NINEA",
+        "director_id": "Director’s document",
+        "noteVerifiee": "Verified · also used for your legal notices",
+        "noteFournie": "Provided · also used for your legal notices",
+        "aFournir": "To provide",
+        "expiree": "Expired",
+        "expireeLe": "Expired on {date}",
+        "valableJusquau": "Valid until {date}"
+      },
+      "historique": {
+        "titre": "History",
+        "resume": {
+          "verifie": "verified on {date}",
+          "refuse": "rejected on {date}",
+          "envoye": "sent on {date}",
+          "ouvert": "opened on {date}",
+          "expire": "expired on {date}"
+        },
+        "evenement": {
+          "ouvert": "File opened",
+          "envoye": "File sent",
+          "verifie": "Agency verified",
+          "refuse": "File rejected",
+          "expire": "Director’s document expired"
+        }
+      },
+      "apport": {
+        "titre": "What verification gives you",
+        "badge": "The “Verified agency” badge on your public profile and your listings.",
+        "reversements": "Takussan payouts to your account, without blocking."
+      }
     }
   },
   "publicProfile": {

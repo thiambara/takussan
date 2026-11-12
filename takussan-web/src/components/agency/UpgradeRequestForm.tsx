@@ -1,133 +1,159 @@
 'use client';
 
 /**
- * TCK-267 — agency upgrade-request form (`individual → standard`).
+ * TCK-267, TCK-2671 — la demande de passage en pro (`individual → standard`).
  *
- * Single-step legal form. Reuses {@link useWizardDraft} for resumable
- * autosave under the key `agency-upgrade-{agency_id}`, so an admin who
- * starts typing the RC / legal name / address and leaves the page comes back
- * to that state. TCK-989 — the NINEA and the RIB are NOT autosaved (see
- * `brouillonUpgradeDepuisFormulaire`). The uploaded PDF is intentionally NOT
- * persisted across sessions — binary blobs don't belong in the
- * wizard-drafts JSON column, the user re-attaches the file when they
- * resume.
+ * Un formulaire légal en une étape, PRÉREMPLI (ADR-0104 § 2) :
+ *
+ * - **Première demande** : la raison sociale, le RCCM, le NINEA et l'adresse du siège viennent des
+ *   colonnes de l'agence (`prefill`, la source unique), et l'écran le dit (« Repris de votre fiche »).
+ * - **Demande refusée** (`refusee`, ADR-0104 § 5) : le RCCM, la raison sociale, l'adresse et le
+ *   nombre d'agents reprennent la demande refusée. Le NINEA et le RIB n'en reviennent jamais en clair
+ *   (masqués par l'API) : leurs champs s'ouvrent VIDES, l'écran dit qu'ils sont conservés, et l'envoi
+ *   (`renvoyerUneDemandeRefusee`) ne porte que ce qui a changé — sans `ninea` ni `rib_pro` tant que
+ *   l'admin ne les retape pas (AC4). Les statuts sont toujours fournis à nouveau.
+ *
+ * Le brouillon (`agency-upgrade-{agency_id}`, {@link useWizardDraft}) est gardé tel quel :
+ * TCK-989 — ni NINEA ni RIB dedans ; TCK-566 — ouvrir la page n'écrit rien. L'état « vierge » qui
+ * décide d'écrire est le formulaire tel qu'il s'ouvre, préremplissage compris : sans quoi la seule
+ * ouverture d'un formulaire prérempli écrirait un brouillon. Le fichier des statuts n'y est jamais.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { Camera, FileText, Upload } from 'lucide-react';
+
+import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { useWizardDraft } from '@/hooks/useWizardDraft';
 import { serialiserEtatBrouillon, useAutosaveBrouillon } from '@/hooks/useAutosaveBrouillon';
-import { ApiError } from '@/lib/api';
-import { submitAgencyUpgradeRequest } from '@/lib/queries/agency-upgrade';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useWizardDraft } from '@/hooks/useWizardDraft';
 import {
   FORMULAIRE_UPGRADE_VIERGE,
   brouillonUpgradeDepuisFormulaire,
   formulaireUpgradeDepuisBrouillon,
   type BrouillonUpgrade,
 } from '@/lib/agency-upgrade-brouillon';
-import type { AgencyUpgradeRequestFormFields } from '@/types/agency-upgrade';
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { ApiError } from '@/lib/api';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { renvoyerUneDemandeRefusee, submitAgencyUpgradeRequest } from '@/lib/queries/agency-upgrade';
+import { cn } from '@/lib/utils';
+import type { AgencyUpgradeRequest, AgencyUpgradeRequestFormFields } from '@/types/agency-upgrade';
+
+/** Les mentions légales de l'agence, telles que `GET /api/agencies/{agency}` les rend. */
+export interface PreremplissageDeLaDemande {
+  readonly company_legal_name?: string | null;
+  readonly rc?: string | null;
+  readonly ninea?: string | null;
+  readonly address_fiscale?: string | null;
+}
 
 export type UpgradeRequestFormProps = {
   readonly agencyId: number;
+  readonly prefill?: PreremplissageDeLaDemande;
+  /** La dernière demande, refusée : le formulaire la reprend (`resubmit_of`). */
+  readonly refusee?: AgencyUpgradeRequest | null;
 };
 
-/**
- * Le formulaire vide et sa relecture typée vivent dans
- * `lib/agency-upgrade-brouillon.ts` : le tableau de bord juge le « vide » avec
- * la même règle pour ne pas proposer de reprendre une démarche sans saisie.
- */
-const EMPTY_FORM = FORMULAIRE_UPGRADE_VIERGE;
-
-/** TCK-566 — le formulaire tel qu'il s'ouvre, sans saisie : il n'est pas une démarche. */
-const ETAT_VIERGE = serialiserEtatBrouillon(0, brouillonUpgradeDepuisFormulaire(EMPTY_FORM));
-
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB — mirrors backend cap.
+/** 10 Mo — le `max:10240` de `SubmitAgencyUpgradeRequestRequest` (`statuts_doc`). */
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+/** `mimes:pdf,jpg,jpeg,png` du même FormRequest. */
 const ACCEPT_MIME = 'application/pdf,image/jpeg,image/png';
+const ACCEPT_PHOTO = 'image/jpeg,image/png';
 
-export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
+type Champ = keyof AgencyUpgradeRequestFormFields;
+const CHAMPS_TEXTE = ['company_legal_name', 'rc', 'ninea', 'rib_pro', 'address_fiscale'] as const;
+
+/** Le formulaire tel qu'il s'ouvre, avant tout brouillon. */
+function formulaireDeDepart(prefill: PreremplissageDeLaDemande | undefined, refusee: AgencyUpgradeRequest | null): AgencyUpgradeRequestFormFields {
+  if (refusee) {
+    return {
+      ...FORMULAIRE_UPGRADE_VIERGE,
+      rc: refusee.rc ?? '',
+      company_legal_name: refusee.company_legal_name ?? '',
+      address_fiscale: refusee.address_fiscale ?? '',
+      planned_agents_count: refusee.planned_agents_count,
+    };
+  }
+  return {
+    ...FORMULAIRE_UPGRADE_VIERGE,
+    company_legal_name: prefill?.company_legal_name ?? '',
+    rc: prefill?.rc ?? '',
+    ninea: prefill?.ninea ?? '',
+    address_fiscale: prefill?.address_fiscale ?? '',
+  };
+}
+
+/** Un brouillon relu complète le départ : un champ vide du brouillon laisse le préremplissage. */
+function fusionner(depart: AgencyUpgradeRequestFormFields, brouillon: AgencyUpgradeRequestFormFields): AgencyUpgradeRequestFormFields {
+  const texte = Object.fromEntries(CHAMPS_TEXTE.map((c) => [c, brouillon[c] !== '' ? brouillon[c] : depart[c]]));
+  return { ...depart, ...texte, planned_agents_count: brouillon.planned_agents_count ?? depart.planned_agents_count };
+}
+
+export function UpgradeRequestForm({ agencyId, prefill, refusee = null }: UpgradeRequestFormProps) {
   const t = useTranslations('agency.upgrade.form');
+  const td = useTranslations('agency.upgrade.demande');
   const messageErreur = useMessageErreurApi();
+  const fmt = useFormatteurs();
   const { token } = useAuth();
   const toast = useToast();
   const router = useRouter();
+  const id = useId();
+  const formId = `${id}-formulaire`;
 
   const draftKey = `agency-upgrade-${agencyId}`;
-  const { draft, isLoading, save, flush, clear } =
-    useWizardDraft<BrouillonUpgrade>(draftKey);
+  const { draft, isLoading, save, flush, clear } = useWizardDraft<BrouillonUpgrade>(draftKey);
 
-  const [form, setForm] = useState<AgencyUpgradeRequestFormFields>(EMPTY_FORM);
+  const [depart] = useState(() => formulaireDeDepart(prefill, refusee));
+  const [form, setForm] = useState<AgencyUpgradeRequestFormFields>(depart);
   const [hydrated, setHydrated] = useState(false);
   const [brouillonServeurExiste, setBrouillonServeurExiste] = useState(false);
   const [statutsDoc, setStatutsDoc] = useState<File | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const photoRef = useRef<HTMLInputElement | null>(null);
+  const fichierRef = useRef<HTMLInputElement | null>(null);
 
-  // Hydratation depuis le brouillon serveur, au premier chargement.
-  //
-  // TCK-316 — pendant le RENDU, pas dans un effet. L'effet peignait d'abord le
-  // formulaire vide, puis le remplissait au tick suivant : l'utilisateur voyait
-  // ses champs se remplir après coup, et un `onChange` tapé dans cet intervalle
-  // était écrasé par l'hydratation. L'écriture converge (`hydrated` passe à
-  // `true` et n'en revient pas), ce que React autorise explicitement.
+  // TCK-316 — l'hydratation se fait pendant le RENDU, pas dans un effet (aucun remplissage après
+  // coup, aucune frappe écrasée). Elle converge : `hydrated` passe à `true` et n'en revient pas.
   if (!hydrated && !isLoading) {
     setHydrated(true);
     setBrouillonServeurExiste(Boolean(draft?.data));
-    if (draft?.data) {
-      setForm(formulaireUpgradeDepuisBrouillon(draft.data));
-    }
+    if (draft?.data) setForm(fusionner(depart, formulaireUpgradeDepuisBrouillon(draft.data)));
   }
 
-  // Autosave on every change (debounced inside the hook).
-  //
-  // ⚠ TCK-566 — l'effet écrivait `save(0, EMPTY_FORM)` dès l'hydratation : ouvrir
-  // cette page depuis la notification « Passer en pro », sans taper une lettre,
-  // créait le brouillon `agency-upgrade-{id}` que le tableau de bord présentait
-  // comme « 1 démarche en cours — Passage en pro ». Seule une saisie écrit
-  // désormais le brouillon ; revenir au formulaire vide le supprime, et un
-  // brouillon vide hérité de l'ancien comportement est supprimé à l'ouverture.
-  //
-  // TCK-989 — l'autosave reçoit le formulaire SANS RIB ni NINEA : ce qui part
-  // dans le PUT, et ce que l'état vierge compare. Un objet neuf par rendu ne
-  // réécrit rien : le hook compare des états sérialisés.
-  const donneesBrouillon = brouillonUpgradeDepuisFormulaire(form);
+  // TCK-566, TCK-989 — l'autosave reçoit le formulaire SANS RIB ni NINEA, et ne compare qu'à l'état
+  // d'ouverture : ouvrir la page n'écrit rien, revenir à l'état d'ouverture supprime le brouillon.
+  const etatVierge = serialiserEtatBrouillon(0, brouillonUpgradeDepuisFormulaire(depart));
   useAutosaveBrouillon({
     hydrated,
     step: 0,
-    data: donneesBrouillon,
-    etatVierge: ETAT_VIERGE,
+    data: brouillonUpgradeDepuisFormulaire(form),
+    etatVierge,
     brouillonServeurExiste,
     save,
     clear,
   });
 
-  function update<K extends keyof AgencyUpgradeRequestFormFields>(
-    key: K,
-    value: AgencyUpgradeRequestFormFields[K],
-  ) {
+  function update<K extends Champ>(key: K, value: AgencyUpgradeRequestFormFields[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    if (fieldErrors[key as string]) {
+    setErreurGenerale(null);
+    if (fieldErrors[key]) {
       setFieldErrors((prev) => {
         const next = { ...prev };
-        delete next[key as string];
+        delete next[key];
         return next;
       });
     }
   }
 
-  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      setStatutsDoc(null);
-      return;
-    }
+  function choisir(file: File | undefined) {
+    if (!file) return;
     if (file.size > MAX_FILE_BYTES) {
       setFieldErrors((prev) => ({ ...prev, statuts_doc: [t('errors.file_too_large')] }));
       setStatutsDoc(null);
@@ -141,89 +167,71 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
     setStatutsDoc(file);
   }
 
-  function fieldError(key: string): string | undefined {
-    return fieldErrors[key]?.[0];
+  const fieldError = (key: string): string | undefined => fieldErrors[key]?.[0];
+
+  /** Ce qui a changé par rapport à la demande refusée ; le NINEA et le RIB, seulement retapés. */
+  function modifies(): Partial<AgencyUpgradeRequestFormFields> {
+    const sortie: Partial<Record<Champ, string | number | null>> = {};
+    for (const champ of CHAMPS_TEXTE) {
+      if (form[champ].trim() !== depart[champ].trim()) sortie[champ] = form[champ];
+    }
+    if (form.planned_agents_count !== depart.planned_agents_count) sortie.planned_agents_count = form.planned_agents_count;
+    return sortie as Partial<AgencyUpgradeRequestFormFields>;
   }
 
-  const handleSubmit = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (submitting) return;
-      if (!token) {
-        toast.add({ title: t('errors.unauthorized'), type: 'error' });
-        return;
-      }
-      if (!statutsDoc) {
-        setFieldErrors((prev) => ({ ...prev, statuts_doc: [t('errors.file_required')] }));
-        return;
-      }
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
+    setErreurGenerale(null);
+    if (!token) {
+      setErreurGenerale(t('errors.unauthorized'));
+      return;
+    }
+    if (!statutsDoc) {
+      setFieldErrors((prev) => ({ ...prev, statuts_doc: [t('errors.file_required')] }));
+      return;
+    }
 
-      setSubmitting(true);
-      try {
-        // ── TCK-482 (3ᵉ exemplaire du défaut de TCK-475) ────────────────────
-        // `flush()` était appelé pour son seul effet de bord, son sort jeté.
-        // Depuis TCK-465 il REND `{ ok, ecrit }` et ne LÈVE PAS : le `catch`
-        // ci-dessous, qui a tout l'air d'être la parade, n'est branché sur
-        // rien. Une écriture refusée traversait donc le `try` intacte, la
-        // demande partait, puis `clear()` DÉTRUISAIT le brouillon serveur —
-        // la seule copie des saisies d'une personne dont le lien vient de
-        // lâcher. On lit le résultat, et on s'arrête avant.
-        //
-        // Le remède énoncé est celui du réseau et de la session : la
-        // persistance est un PUT vers `/api/me/wizard-drafts/{key}`, il n'y a
-        // aucun `localStorage` sur ce chemin (TCK-475, note d'implémentation).
-        // Le bouton reste actionnable, la saisie reste en mémoire, et le
-        // brouillon serveur — périmé mais présent — n'est pas supprimé.
-        const ecriture = await flush();
-        if (!ecriture.ok) {
-          toast.add({
-            title: t('errors.draft_not_saved_title'),
-            description: t('errors.draft_not_saved_body'),
-            type: 'error',
-          });
-          return;
-        }
-        await submitAgencyUpgradeRequest(token, agencyId, form, statutsDoc);
-        const brouillonEfface = await clear();
-        toast.add({ title: t('toasts.submitted'), type: 'success' });
-        // P237.04 (TCK-2371) — la demande est partie ; seul son brouillon a survécu au DELETE, et
-        // le bandeau des démarches le reproposerait. Le dire, sans démentir l'envoi.
-        if (!brouillonEfface) {
-          toast.add({
-            title: t('toasts.draft_not_cleared_title'),
-            description: t('toasts.draft_not_cleared_body'),
-            type: 'warning',
-          });
-        }
-        router.refresh();
-      } catch (error) {
-        if (error instanceof ApiError) {
-          if (error.status === 422 && error.validationErrors) {
-            setFieldErrors(error.validationErrors);
-            return;
-          }
-          if (error.status === 403) {
-            toast.add({
-              title: t('errors.forbidden'),
-              description: messageErreur(error),
-              type: 'error',
-            });
-            return;
-          }
-          toast.add({
-            title: t('errors.generic'),
-            description: messageErreur(error),
-            type: 'error',
-          });
-          return;
-        }
-        toast.add({ title: t('errors.generic'), type: 'error' });
-      } finally {
-        setSubmitting(false);
+    setSubmitting(true);
+    try {
+      // TCK-482 — `flush()` REND `{ ok, ecrit }` et ne lève pas : une écriture refusée arrête
+      // l'envoi AVANT que `clear()` ne détruise la seule copie des saisies.
+      const ecriture = await flush();
+      if (!ecriture.ok) {
+        toast.add({ title: t('errors.draft_not_saved_title'), description: t('errors.draft_not_saved_body'), type: 'error' });
+        return;
       }
-    },
-    [submitting, token, statutsDoc, flush, agencyId, form, clear, toast, t, router, messageErreur],
-  );
+      if (refusee) {
+        await renvoyerUneDemandeRefusee(token, agencyId, refusee.id, modifies(), statutsDoc);
+      } else {
+        await submitAgencyUpgradeRequest(token, agencyId, form, statutsDoc);
+      }
+      const brouillonEfface = await clear();
+      toast.add({ title: t('toasts.submitted'), type: 'success' });
+      // P237.04 (TCK-2371) — la demande est partie ; seul son brouillon a survécu au DELETE.
+      if (!brouillonEfface) {
+        toast.add({ title: t('toasts.draft_not_cleared_title'), description: t('toasts.draft_not_cleared_body'), type: 'warning' });
+      }
+      router.refresh();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 422 && error.validationErrors) {
+        const erreurs = error.validationErrors;
+        setFieldErrors(erreurs);
+        // Une erreur sans champ à l'écran (`resubmit_of` : la demande refusée n'est plus la
+        // dernière) se dit au-dessus du bouton, jamais en silence.
+        const sansChamp = Object.keys(erreurs).filter((cle) => !(cle in FORMULAIRE_UPGRADE_VIERGE) && cle !== 'statuts_doc');
+        if (sansChamp.length > 0) setErreurGenerale(erreurs[sansChamp[0]]?.[0] ?? td('erreurs.envoi'));
+        return;
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        setErreurGenerale(`${t('errors.forbidden')} ${messageErreur(error, '')}`.trim());
+        return;
+      }
+      setErreurGenerale(messageErreur(error, td('erreurs.envoi')));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (!hydrated) {
     return (
@@ -233,149 +241,207 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
     );
   }
 
+  /** « Repris de votre fiche » tant que la valeur est celle des mentions légales. */
+  const repris = (champ: 'company_legal_name' | 'rc' | 'ninea' | 'address_fiscale'): string | null =>
+    !refusee && depart[champ] !== '' && form[champ] === depart[champ] ? td('reprisDeLaFiche') : null;
+
+  const champ = (cle: 'company_legal_name' | 'rc' | 'ninea' | 'rib_pro' | 'address_fiscale', aide: string | null, className?: string) => {
+    const idChamp = `${id}-${cle}`;
+    const erreur = fieldError(cle);
+    const decrit = [aide ? `${idChamp}-aide` : null, erreur ? `${idChamp}-erreur` : null].filter(Boolean).join(' ') || undefined;
+    return (
+      <div className={cn('space-y-1.5', className)}>
+        <label htmlFor={idChamp} className="block text-sm font-medium">
+          {td(`champs.${cle}`)}
+        </label>
+        <Input
+          id={idChamp}
+          required={!refusee}
+          value={form[cle]}
+          autoComplete="off"
+          className={cn(cle === 'rib_pro' && 'tabular-nums')}
+          onChange={(e) => update(cle, e.target.value)}
+          aria-invalid={!!erreur}
+          aria-describedby={decrit}
+        />
+        {aide ? (
+          <p id={`${idChamp}-aide`} className="text-xs text-muted-foreground">
+            {aide}
+          </p>
+        ) : null}
+        {erreur ? (
+          <p id={`${idChamp}-erreur`} className="text-xs text-destructive">
+            {erreur}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
+
+  const conserve = (cle: 'ninea' | 'rib_pro'): string | null => {
+    if (!refusee || form[cle] !== '') return null;
+    const masque = refusee[cle];
+    return masque ? td('conserveMasque', { valeur: masque }) : td('conserve');
+  };
+
+  const erreurStatuts = fieldError('statuts_doc');
+  const libelleEnvoi = submitting ? t('cta.submitting') : t('cta.submit');
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
-      aria-label={t('aria_label')}
-      noValidate
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="upgrade-rc">{t('fields.rc')}</Label>
-          <Input
-            id="upgrade-rc"
-            required
-            value={form.rc ?? ''}
-            onChange={(e) => update('rc', e.target.value)}
-            aria-invalid={!!fieldError('rc')}
-            aria-describedby={fieldError('rc') ? 'upgrade-rc-error' : undefined}
-          />
-          {fieldError('rc') ? (
-            <p id="upgrade-rc-error" className="text-xs text-destructive">{fieldError('rc')}</p>
-          ) : null}
+    <>
+      <form id={formId} onSubmit={handleSubmit} aria-label={td('aria')} noValidate>
+        <div className="mb-4">
+          <h2 className="font-display text-titre-court font-semibold tracking-titre">{td('titre')}</h2>
+          <p className="mt-1 text-sm text-pretty text-muted-foreground">
+            {refusee ? td('texteReprise', { date: refusee.submitted_at ? fmt.jourMois(refusee.submitted_at) : '—' }) : td('texte')}
+          </p>
+        </div>
+        <div className="space-y-4">
+          {champ('company_legal_name', repris('company_legal_name'))}
+          <div className="grid items-start gap-4 min-[90rem]:grid-cols-2">
+            {champ('rc', repris('rc'))}
+            {champ('ninea', conserve('ninea') ?? repris('ninea'))}
+          </div>
+          {champ('rib_pro', conserve('rib_pro'))}
+          {champ('address_fiscale', refusee ? null : (repris('address_fiscale') ?? td('aideAdresse')))}
+
+          <div className="space-y-1.5">
+            <label htmlFor={`${id}-agents`} className="block text-sm font-medium">
+              {t('fields.planned_agents_count')}
+            </label>
+            <Input
+              id={`${id}-agents`}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={10000}
+              className="lg:max-w-60"
+              value={form.planned_agents_count ?? ''}
+              onChange={(e) => update('planned_agents_count', e.target.value === '' ? null : Number(e.target.value))}
+              aria-invalid={!!fieldError('planned_agents_count')}
+              aria-describedby={`${id}-agents-aide${fieldError('planned_agents_count') ? ` ${id}-agents-erreur` : ''}`}
+            />
+            <p id={`${id}-agents-aide`} className="text-xs text-muted-foreground">
+              {t('hints.planned_agents_count')}
+            </p>
+            {fieldError('planned_agents_count') ? (
+              <p id={`${id}-agents-erreur`} className="text-xs text-destructive">
+                {fieldError('planned_agents_count')}
+              </p>
+            ) : null}
+          </div>
+
+          <fieldset aria-describedby={`${id}-statuts-aide${erreurStatuts ? ` ${id}-statuts-erreur` : ''}`}>
+            <legend className="mb-1.5 flex items-center gap-2 text-sm font-medium">
+              {td('champs.statuts_doc')}
+              {refusee ? <span className="rounded-full bg-warning/20 px-1.5 py-px text-legende font-medium">{td('aRemplacer')}</span> : null}
+            </legend>
+            {/* Deux vrais champs fichier, masqués : la caméra (`capture`) et le sélecteur. */}
+            <input
+              ref={photoRef}
+              type="file"
+              accept={ACCEPT_PHOTO}
+              capture="environment"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              data-champ="statuts-photo"
+              onChange={(e) => {
+                choisir(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            <input
+              ref={fichierRef}
+              type="file"
+              accept={ACCEPT_MIME}
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              data-champ="statuts-fichier"
+              onChange={(e) => {
+                choisir(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+            <div className={cn('space-y-2 rounded-xl border bg-card p-2.5', erreurStatuts ? 'border-destructive/50' : 'border-border')}>
+              {statutsDoc ? (
+                <div className="flex items-center gap-2.5 rounded-lg border border-success/30 bg-success/10 px-3 py-2" aria-live="polite">
+                  <FileText className="size-icone flex-none text-success" strokeWidth={1.75} aria-hidden="true" />
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-sm font-medium">{statutsDoc.name}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{td('fichierChoisi', { taille: tailleLisible(statutsDoc.size) })}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="flex-none rounded-sm text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    onClick={() => fichierRef.current?.click()}
+                  >
+                    {td('changer')}
+                  </button>
+                </div>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="min-w-0 px-2"
+                  aria-label={td('photoAria')}
+                  onClick={() => photoRef.current?.click()}
+                >
+                  <Camera className="size-4 flex-none" aria-hidden="true" />
+                  <span className="truncate">{td('prendrePhoto')}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="min-w-0 px-2"
+                  aria-label={td('fichierAria')}
+                  onClick={() => fichierRef.current?.click()}
+                >
+                  <Upload className="size-4 flex-none" aria-hidden="true" />
+                  <span className="truncate">{td('choisirFichier')}</span>
+                </Button>
+              </div>
+            </div>
+            <p id={`${id}-statuts-aide`} className="mt-1 text-xs text-muted-foreground">
+              {t('hints.statuts_doc')}
+            </p>
+            {erreurStatuts ? (
+              <p id={`${id}-statuts-erreur`} className="mt-1 text-xs text-destructive">
+                {erreurStatuts}
+              </p>
+            ) : null}
+          </fieldset>
         </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="upgrade-ninea">{t('fields.ninea')}</Label>
-          <Input
-            id="upgrade-ninea"
-            required
-            value={form.ninea ?? ''}
-            onChange={(e) => update('ninea', e.target.value)}
-            aria-invalid={!!fieldError('ninea')}
-            aria-describedby={fieldError('ninea') ? 'upgrade-ninea-error' : undefined}
-          />
-          {fieldError('ninea') ? (
-            <p id="upgrade-ninea-error" className="text-xs text-destructive">{fieldError('ninea')}</p>
-          ) : null}
+        {erreurGenerale ? (
+          <p role="alert" className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-pretty">
+            {erreurGenerale}
+          </p>
+        ) : null}
+
+        {/* Au bureau, l'envoi et ce qui suit ; au téléphone, la barre collante du bas. */}
+        <div className="mt-5 flex items-center gap-4 max-md:hidden">
+          <Button type="submit" size="xl" className="flex-none px-6" aria-busy={submitting || undefined}>
+            {libelleEnvoi}
+          </Button>
+          <p className="min-w-0 flex-1 text-ui text-pretty text-muted-foreground">{td('suivi')}</p>
         </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="upgrade-rib-pro">{t('fields.rib_pro')}</Label>
-        <Input
-          id="upgrade-rib-pro"
-          required
-          value={form.rib_pro ?? ''}
-          onChange={(e) => update('rib_pro', e.target.value)}
-          aria-invalid={!!fieldError('rib_pro')}
-          aria-describedby={fieldError('rib_pro') ? 'upgrade-rib_pro-error' : undefined}
-        />
-        {fieldError('rib_pro') ? (
-          <p id="upgrade-rib_pro-error" className="text-xs text-destructive">{fieldError('rib_pro')}</p>
-        ) : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="upgrade-company-legal-name">
-          {t('fields.company_legal_name')}
-        </Label>
-        <Input
-          id="upgrade-company-legal-name"
-          required
-          value={form.company_legal_name ?? ''}
-          onChange={(e) => update('company_legal_name', e.target.value)}
-          aria-invalid={!!fieldError('company_legal_name')}
-          aria-describedby={fieldError('company_legal_name') ? 'upgrade-company_legal_name-error' : undefined}
-        />
-        {fieldError('company_legal_name') ? (
-          <p id="upgrade-company_legal_name-error" className="text-xs text-destructive">{fieldError('company_legal_name')}</p>
-        ) : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="upgrade-address-fiscale">{t('fields.address_fiscale')}</Label>
-        <Input
-          id="upgrade-address-fiscale"
-          required
-          value={form.address_fiscale ?? ''}
-          onChange={(e) => update('address_fiscale', e.target.value)}
-          aria-invalid={!!fieldError('address_fiscale')}
-          aria-describedby={fieldError('address_fiscale') ? 'upgrade-address_fiscale-error' : undefined}
-        />
-        {fieldError('address_fiscale') ? (
-          <p id="upgrade-address_fiscale-error" className="text-xs text-destructive">{fieldError('address_fiscale')}</p>
-        ) : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="upgrade-planned-agents">
-          {t('fields.planned_agents_count')}
-        </Label>
-        <Input
-          id="upgrade-planned-agents"
-          type="number"
-          min={1}
-          max={10000}
-          value={form.planned_agents_count ?? ''}
-          onChange={(e) =>
-            update(
-              'planned_agents_count',
-              e.target.value === '' ? null : Number(e.target.value),
-            )
-          }
-          aria-invalid={!!fieldError('planned_agents_count')}
-          aria-describedby={fieldError('planned_agents_count') ? 'upgrade-planned_agents_count-error' : undefined}
-        />
-        <p className="text-xs text-muted-foreground">
-          {t('hints.planned_agents_count')}
-        </p>
-        {fieldError('planned_agents_count') ? (
-          <p id="upgrade-planned_agents_count-error" className="text-xs text-destructive">
-            {fieldError('planned_agents_count')}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="upgrade-statuts-doc">{t('fields.statuts_doc')}</Label>
-        <Input
-          ref={fileInputRef}
-          id="upgrade-statuts-doc"
-          type="file"
-          required
-          accept={ACCEPT_MIME}
-          onChange={handleFileChange}
-          aria-invalid={!!fieldError('statuts_doc')}
-          aria-describedby={fieldError('statuts_doc') ? 'upgrade-statuts_doc-error' : undefined}
-        />
-        <p className="text-xs text-muted-foreground">{t('hints.statuts_doc')}</p>
-        {statutsDoc ? (
-          <p className="text-xs text-muted-foreground" aria-live="polite">
-            {t('file_selected', { name: statutsDoc.name })}
-          </p>
-        ) : null}
-        {fieldError('statuts_doc') ? (
-          <p id="upgrade-statuts_doc-error" className="text-xs text-destructive">{fieldError('statuts_doc')}</p>
-        ) : null}
-      </div>
-
-      <div className="flex items-center justify-end gap-2 pt-2">
-        <Button type="submit" size="lg" disabled={submitting}>
-          {submitting ? t('cta.submitting') : t('cta.submit')}
+        <p className="mt-4 text-ui text-pretty text-muted-foreground md:hidden">{td('suivi')}</p>
+      </form>
+      <BarreDAction>
+        <Button type="submit" form={formId} aria-busy={submitting || undefined}>
+          {libelleEnvoi}
         </Button>
-      </div>
-    </form>
+      </BarreDAction>
+    </>
   );
+}
+
+function tailleLisible(octets: number): string {
+  const mo = octets / (1024 * 1024);
+  return mo >= 1 ? `${mo.toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(octets / 1024))} Ko`;
 }

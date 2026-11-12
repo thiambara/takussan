@@ -3045,41 +3045,61 @@
     },
     "upgrade": {
       "page": {
-        "eyebrow": "Mon agence",
         "title": "Passer en agence professionnelle",
         "subtitle": "Activez les fonctionnalités équipe : invitez des collaborateurs, déléguez des rôles et partagez votre portefeuille.",
         "already_standard": {
           "title": "Votre agence est déjà professionnelle",
-          "body": "Aucune action n'est requise — toutes les fonctionnalités équipe sont actives."
+          "body": "Aucune action n’est requise — toutes les fonctionnalités équipe sont actives.",
+          "approuvee": "Demande approuvée le {date}."
         },
         "benefits": {
-          "aria_label": "Avantages d'une agence professionnelle",
           "title": "Pourquoi passer en pro ?",
           "items": {
-            "team": "Inviter une équipe d'agents et leur déléguer le suivi de vos biens.",
-            "multi_admin": "Co-administrer l'agence à plusieurs (multi-admins).",
+            "team": "Inviter une équipe d’agents et leur déléguer le suivi de vos biens.",
+            "multi_admin": "Co-administrer l’agence à plusieurs (multi-admins).",
             "custom_roles": "Définir des rôles personnalisés pour structurer votre organisation."
+          }
+        },
+        "acquis": {
+          "titre": "Ce que le passage en pro a ouvert",
+          "equipe": {
+            "titre": "Une équipe d’agents",
+            "detail": "Inviter, déléguer le suivi des biens",
+            "detailCompte": "{n, plural, =0 {Aucun agent} one {# agent} other {# agents}} · inviter, déléguer le suivi des biens"
           },
-          "sla": "Notre équipe examine chaque demande ; sa décision vous parvient par e-mail et dans vos notifications."
+          "coAdministration": {
+            "titre": "Co-administration",
+            "detail": "Administrer l’agence à plusieurs"
+          },
+          "roles": {
+            "titre": "Rôles personnalisés",
+            "detail": "Structurer votre organisation"
+          }
+        },
+        "offre": {
+          "titre": "Offre et passage en pro",
+          "texte": "Votre offre, ce qu’elle comprend et ce que vous en utilisez."
+        },
+        "prix": {
+          "parMois": "{prix} / mois",
+          "suite": "et {taux} % sur les paiements encaissés en ligne. Votre abonnement commence à l’approbation.",
+          "absent": "Le prix de l’offre professionnelle n’est pas disponible pour le moment.",
+          "illisible": "Le prix de l’offre n’a pas pu être lu. Rechargez la page pour le voir avant d’envoyer votre demande."
+        },
+        "lectureImpossible": {
+          "titre": "Votre demande n’a pas pu être lue",
+          "texte": "Nous ne savons pas si une demande est déjà en cours : le formulaire reste fermé pour ne pas en envoyer une seconde. Rechargez la page dans un instant."
         }
       },
       "form": {
-        "aria_label": "Formulaire de demande d'upgrade",
         "loading": "Chargement de votre brouillon…",
         "fields": {
-          "rc": "Numéro RC",
-          "ninea": "NINEA",
-          "rib_pro": "RIB professionnel",
-          "company_legal_name": "Raison sociale",
-          "address_fiscale": "Adresse fiscale",
-          "planned_agents_count": "Nombre estimé d'agents (optionnel)",
-          "statuts_doc": "Statuts juridiques (PDF ou image)"
+          "planned_agents_count": "Nombre estimé d'agents (optionnel)"
         },
         "hints": {
           "planned_agents_count": "Pour dimensionner votre future organisation.",
           "statuts_doc": "PDF, JPG ou PNG. 10 Mo max."
         },
-        "file_selected": "Fichier sélectionné : {name}",
         "cta": {
           "submit": "Envoyer la demande",
           "submitting": "Envoi en cours…"
@@ -3089,7 +3109,6 @@
           "file_too_large": "Le fichier dépasse 10 Mo.",
           "unauthorized": "Vous devez être connecté pour soumettre la demande.",
           "forbidden": "Vous n'avez pas la permission de soumettre cette demande.",
-          "generic": "Une erreur est survenue. Réessayez dans quelques instants.",
           "draft_not_saved_title": "Envoi interrompu : brouillon non enregistré",
           "draft_not_saved_body": "L'enregistrement de votre brouillon a été refusé (connexion perdue ou session expirée). Vérifiez votre connexion, reconnectez-vous si besoin, puis cliquez de nouveau sur « Envoyer la demande » — vos saisies sont toujours là."
         },
@@ -3100,7 +3119,6 @@
         }
       },
       "status": {
-        "aria_label": "État de la demande d'upgrade",
         "headings": {
           "pending": "Demande en cours",
           "approved": "Demande approuvée",
@@ -3115,9 +3133,7 @@
         },
         "submitted_at": "Soumise le {date}",
         "body": {
-          "pending": "Notre équipe examine votre demande. Vous recevrez une notification dès qu'elle sera traitée.",
           "approved": "Votre agence est désormais professionnelle (validée le {date}).",
-          "rejected": "Votre demande a été refusée le {date}. Consultez le commentaire ci-dessous puis soumettez-en une nouvelle si besoin.",
           "revoked": "Vous avez révoqué cette demande. Vous pouvez en soumettre une nouvelle à tout moment."
         },
         "cta": {
@@ -3126,7 +3142,49 @@
         },
         "toasts": {
           "revoked": "Demande révoquée.",
-          "error": "Erreur lors de la révocation."
+          "echecRevocation": "La demande n’a pas été révoquée",
+          "echecRevocationRepli": "Elle reste en cours d’examen. Vérifiez votre connexion, puis réessayez."
+        },
+        "corps": {
+          "refusee": "Votre demande a été refusée le {date}. Lisez le commentaire, remplacez la pièce, puis renvoyez-la : le reste est conservé.",
+          "enCours": "Notre équipe examine votre demande ; sa décision vous parvient par e-mail et dans vos notifications. Tant qu’elle est en cours d’examen, vous pouvez la révoquer."
+        },
+        "motif": "« {motif} »",
+        "soumiseEtDecidee": "Soumise le {date} · décision de l’équipe Takussan",
+        "confirmation": {
+          "titre": "Révoquer votre demande ?",
+          "texte": "Notre équipe cessera de l’examiner. Pour passer en pro ensuite, il faudra envoyer une nouvelle demande, statuts compris.",
+          "garder": "Garder la demande",
+          "revoquer": "Révoquer"
+        }
+      },
+      "demande": {
+        "aria": "Formulaire de demande de passage en pro",
+        "titre": "Votre demande",
+        "texte": "Vos mentions légales préremplissent la demande : vérifiez-les, ajoutez votre RIB professionnel et vos statuts.",
+        "texteReprise": "Vos réponses du {date} sont conservées : seule la pièce refusée est à remplacer.",
+        "champs": {
+          "company_legal_name": "Raison sociale",
+          "rc": "RCCM",
+          "ninea": "NINEA",
+          "rib_pro": "RIB professionnel",
+          "address_fiscale": "Adresse fiscale",
+          "statuts_doc": "Statuts juridiques (PDF ou image)"
+        },
+        "reprisDeLaFiche": "Repris de votre fiche",
+        "aideAdresse": "Celle de votre siège, si elle est la même.",
+        "conserve": "Conservé de votre demande : laissez vide pour le garder.",
+        "conserveMasque": "Conservé de votre demande ({valeur}) : laissez vide pour le garder.",
+        "aRemplacer": "à remplacer",
+        "fichierChoisi": "Fichier sélectionné · {taille}",
+        "changer": "Changer",
+        "prendrePhoto": "Prendre en photo",
+        "choisirFichier": "Choisir un fichier",
+        "photoAria": "Prendre en photo les statuts juridiques",
+        "fichierAria": "Choisir le fichier des statuts juridiques",
+        "suivi": "Notre équipe examine chaque demande ; sa décision vous parvient par e-mail et dans vos notifications. Tant qu’elle est en cours d’examen, vous pouvez la révoquer d’ici.",
+        "erreurs": {
+          "envoi": "La demande n’est pas partie. Vos réponses sont conservées : vérifiez votre connexion, puis renvoyez-la."
         }
       }
     },
@@ -8121,6 +8179,9 @@
         "title": "Intégrations",
         "subtitle": "Vos services de paiement, de SMS et d'e-mail, et leurs adresses de notification. Les secrets ne sont jamais réaffichés après enregistrement.",
         "loadError": "Impossible de charger les intégrations : {message}"
+      },
+      "verification": {
+        "title": "Vérification de l’agence"
       }
     },
     "team": {
@@ -8469,7 +8530,8 @@
             "titre": "Offre et passage en pro",
             "titreCourt": "Offre",
             "detail": "Agence professionnelle",
-            "detailIndividuelle": "Passer en agence professionnelle"
+            "detailIndividuelle": "Passer en agence professionnelle",
+            "titreIndividuelle": "Passage en pro"
           }
         },
         "detail": {
@@ -14291,6 +14353,21 @@
         "paySelfRefused": "Vous avez approuvé ce reversement : une autre personne doit le marquer payé.",
         "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
+    },
+    "offre": {
+      "titre": "Votre offre",
+      "factures": "Abonnement et factures",
+      "parMois": "/ mois",
+      "commission": "et {taux} % sur les paiements encaissés en ligne.",
+      "biens": "Biens en ligne",
+      "agents": "Agents",
+      "succursales": "Succursales",
+      "jusquA": "jusqu’à {limite}",
+      "illimite": "Illimité",
+      "utiliseSur": "<b>{used}</b> sur {limit}",
+      "utiliseSansLimite": "<b>{used}</b> · {illimite}",
+      "consommationIndisponible": "Votre consommation n’a pas pu être lue. Rechargez la page pour réessayer.",
+      "rechargez": "Rechargez la page pour réessayer."
     }
   },
   "serverActions": {
@@ -14737,7 +14814,7 @@
       "soonBadge": "Expire bientôt",
       "expiresOn": "Expire le {date}",
       "dossierValidUntil": "Vérification valable jusqu'au {date}",
-      "fieldLabel": "Date d'expiration de la pièce",
+      "fieldLabel": "Date d’expiration de la pièce",
       "fieldAria": "Date d'expiration : {document}",
       "fieldHint": "Obligatoire pour la pièce du dirigeant : la date de fin de validité inscrite sur la pièce."
     },
@@ -14746,6 +14823,121 @@
       "rib_pro": "RIB professionnel",
       "alreadyHeldBy": "identifiant déjà porté par :",
       "hint": "Un signal pour la revue, pas un motif de refus à lui seul."
+    },
+    "verification": {
+      "titre": "Vérification de l’agence",
+      "texte": "Takussan vérifie votre société une fois, puis à chaque pièce qui expire. Vos numéros RCCM et NINEA sont ceux de vos mentions légales : vous ne les saisissez qu’une fois.",
+      "chargement": "Le dossier de vérification n’a pas pu être lu.",
+      "reessayer": "Réessayer",
+      "etat": {
+        "a_fournir": {
+          "titre": "Envoyez les pièces de votre société",
+          "texte": "Le RCCM, le NINEA et une pièce d’identité du dirigeant. Une fois les trois pièces ajoutées, soumettez le dossier."
+        },
+        "pret": {
+          "titre": "Votre dossier est prêt",
+          "texte": "Les trois pièces sont là. Soumettez le dossier : Takussan l’examine et vous répond par e-mail et dans vos notifications."
+        },
+        "en_examen": {
+          "titre": "Votre dossier est en cours d’examen",
+          "texte": "Envoyé le {date}. La décision vous parvient par e-mail et dans vos notifications.",
+          "texteSansDate": "La décision vous parvient par e-mail et dans vos notifications."
+        },
+        "verifiee": {
+          "titre": "Votre agence est vérifiée",
+          "texte": "Le badge « Agence vérifiée » s’affiche sur votre fiche publique et vos annonces."
+        },
+        "refusee": {
+          "titre": "Votre dossier a été refusé",
+          "texte": "Lisez le motif, remplacez la pièce concernée, puis renvoyez le dossier : les autres pièces sont conservées."
+        },
+        "a_renouveler": {
+          "titre": "Une pièce a expiré",
+          "texte": "Tant qu’elle n’est pas remplacée, <b>vos reversements Takussan sont suspendus</b> et le badge « Agence vérifiée » ne s’affiche plus sur votre fiche publique.",
+          "titreBientot": "La pièce du dirigeant expire le {date}",
+          "texteBientot": "Remplacez-la avant cette date : sinon <b>vos reversements Takussan seront suspendus</b> et le badge « Agence vérifiée » ne s’affichera plus sur votre fiche publique."
+        }
+      },
+      "statut": {
+        "a_fournir": "À fournir",
+        "pret": "Prêt à soumettre",
+        "en_examen": "En examen",
+        "verifiee": "Vérifiée",
+        "refusee": "Refusée",
+        "a_renouveler": "À renouveler"
+      },
+      "actions": {
+        "remplacerPieceIdentite": "Remplacer la pièce d’identité",
+        "soumettre": "Soumettre le dossier",
+        "renvoyer": "Renvoyer le dossier",
+        "corriger": "Corriger",
+        "envoyerPiece": "Envoyer la pièce",
+        "envoiEnCours": "Envoi en cours…",
+        "prendrePhoto": "Prendre en photo",
+        "choisirFichier": "Choisir un fichier",
+        "changer": "Changer",
+        "voir": "Voir",
+        "voirAria": "Voir la pièce : {piece}",
+        "remplacer": "Remplacer",
+        "remplacerAria": "Remplacer la pièce : {piece}",
+        "photoAria": "Prendre en photo : {piece}",
+        "fichierAria": "Choisir un fichier : {piece}"
+      },
+      "soumettreBloque": "Ajoutez d’abord : {liste}.",
+      "envoi": {
+        "fichierManquant": "Choisissez d’abord un fichier, ou prenez une photo.",
+        "dateManquante": "Indiquez la date d’expiration de la pièce.",
+        "tropLourd": "Ce fichier dépasse {max} Mo : choisissez-en un plus léger.",
+        "formats": "PDF, JPG, PNG ou WEBP, {max} Mo au plus.",
+        "formatsDirigeant": "Carte d’identité ou passeport du dirigeant, en cours de validité · PDF, JPG, PNG ou WEBP, {max} Mo au plus.",
+        "fichierChoisi": "Fichier sélectionné · {taille}",
+        "echec": "La pièce n’a pas été envoyée.",
+        "reussi": "Pièce envoyée",
+        "reussiExamen": "Pièce envoyée : votre dossier repasse en examen."
+      },
+      "soumission": {
+        "echec": "Le dossier n’a pas été soumis.",
+        "reussie": "Dossier soumis : Takussan l’examine."
+      },
+      "numero": {
+        "rccm": "Numéro RCCM",
+        "ninea": "Numéro NINEA",
+        "aide": "Sert aussi à vos mentions légales."
+      },
+      "pieces": {
+        "titre": "Pièces du dossier",
+        "rccm": "RCCM",
+        "ninea": "NINEA",
+        "director_id": "Pièce du dirigeant",
+        "noteVerifiee": "Vérifié · sert aussi à vos mentions légales",
+        "noteFournie": "Fourni · sert aussi à vos mentions légales",
+        "aFournir": "À fournir",
+        "expiree": "Expirée",
+        "expireeLe": "Expirée le {date}",
+        "valableJusquau": "Valable jusqu’au {date}"
+      },
+      "historique": {
+        "titre": "Historique",
+        "resume": {
+          "verifie": "vérifiée le {date}",
+          "refuse": "refusée le {date}",
+          "envoye": "envoyée le {date}",
+          "ouvert": "ouverte le {date}",
+          "expire": "expirée le {date}"
+        },
+        "evenement": {
+          "ouvert": "Dossier ouvert",
+          "envoye": "Dossier envoyé",
+          "verifie": "Agence vérifiée",
+          "refuse": "Dossier refusé",
+          "expire": "Pièce du dirigeant expirée"
+        }
+      },
+      "apport": {
+        "titre": "Ce que la vérification vous apporte",
+        "badge": "Le badge « Agence vérifiée » sur votre fiche publique et vos annonces.",
+        "reversements": "Les reversements de Takussan vers votre compte, sans blocage."
+      }
     }
   },
   "publicProfile": {

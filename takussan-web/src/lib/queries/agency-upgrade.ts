@@ -35,6 +35,8 @@ export const AGENCY_UPGRADE_REQUEST_FIELDS = [
   'reviewed_by',
   'reviewed_at',
   'review_comment',
+  // TCK-2669 — la demande refusée qu'une demande reprend.
+  'resubmit_of_id',
   'created_at',
   'updated_at',
 ] as const;
@@ -80,6 +82,37 @@ export async function submitAgencyUpgradeRequest(
   form.append('address_fiscale', fields.address_fiscale);
   if (fields.planned_agents_count !== null) {
     form.append('planned_agents_count', String(fields.planned_agents_count));
+  }
+  form.append('statuts_doc', statutsDoc);
+
+  return apiRequest<ApiResponse<AgencyUpgradeRequest>>(
+    cheminApi`/api/agencies/${agencyId}/upgrade-requests`,
+    { token, method: 'POST', body: form, formData: true },
+  );
+}
+
+/**
+ * TCK-2671 (ADR-0104 § 5) — renvoie la DERNIÈRE demande refusée (`resubmit_of`) sans tout retaper :
+ * seuls les champs que l'admin a changés partent, avec la nouvelle pièce `statuts_doc`, toujours
+ * exigée. Les autres sont repris par l'API — le NINEA et le RIB, qui ne reviennent jamais en clair
+ * au navigateur, ne transitent donc pas. Un champ vidé ne part pas : l'API le reprendrait de toute
+ * façon, et la demande d'origine le portait.
+ */
+export async function renvoyerUneDemandeRefusee(
+  token: string,
+  agencyId: number,
+  resubmitOf: number,
+  modifies: Partial<AgencyUpgradeRequestFormFields>,
+  statutsDoc: File,
+): Promise<ApiResponse<AgencyUpgradeRequest>> {
+  const form = new FormData();
+  form.append('resubmit_of', String(resubmitOf));
+  for (const cle of ['rc', 'ninea', 'rib_pro', 'company_legal_name', 'address_fiscale'] as const) {
+    const valeur = modifies[cle]?.trim();
+    if (valeur) form.append(cle, valeur);
+  }
+  if (typeof modifies.planned_agents_count === 'number') {
+    form.append('planned_agents_count', String(modifies.planned_agents_count));
   }
   form.append('statuts_doc', statutsDoc);
 

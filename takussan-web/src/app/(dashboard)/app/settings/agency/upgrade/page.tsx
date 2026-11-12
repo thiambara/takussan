@@ -1,14 +1,19 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { Check } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
+import { fetchAbonnement, fetchOffreDePassage, fetchQuotaDeLAgence } from '@/lib/queries/offre';
+import { AvantagesDuPassage } from '@/components/agency/AvantagesDuPassage';
+import { OffreDeLAgencePro } from '@/components/agency/OffreDeLAgencePro';
 import { UpgradeRequestForm } from '@/components/agency/UpgradeRequestForm';
 import { UpgradeRequestStatus } from '@/components/agency/UpgradeRequestStatus';
-import { PageHeader } from '@/components/console';
+import { CadreDeLaFiche } from '@/components/admin-agency/fiche/CadreDeLaFiche';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
+import { origineSite } from '@/lib/config-publique';
+import { peutEcrireLaVitrine } from '@/lib/vitrine-agence';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.upgrade');
@@ -21,11 +26,11 @@ export const dynamic = 'force-dynamic';
  *
  * Visibility:
  *  - Reachable only by the active agency's `agency_admin` (or super_admin).
- *  - When the agency is already `standard`, we render a "no-op" success
- *    panel rather than redirecting — links from the dashboard banner can
- *    still land here without an error.
- *  - When `individual`: shows the active pending request status (if any)
- *    OR the legal submission form.
+ *  - When the agency is already `standard`: TCK-2671, the « Offre » screen — « déjà
+ *    professionnelle », the plan's price and gauges, what going pro unlocked.
+ *  - When `individual`: the latest request's state first (a declined one is taken up again by
+ *    the form, `resubmit_of`), the price read from the API (`GET /api/me/upgrade-offer`), and the
+ *    prefilled form — unless a request is pending.
  *
  * The backend re-asserts every gate via {@see App\Policies\AgencyUpgradeRequestPolicy}.
  */
@@ -39,9 +44,11 @@ export default async function Page() {
   const agencyId = user.agency_id;
   if (!token || !agencyId) return null;
 
+  // TCK-2671 — une liste illisible est un ÉTAT, jamais le formulaire vide : sans elle, on ne sait
+  // pas si une demande est déjà en cours.
   const [agency, listing] = await Promise.all([
     resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade', 'decision'),
-    fetchAgencyUpgradeRequests(token, agencyId),
+    fetchAgencyUpgradeRequests(token, agencyId).catch(() => null),
   ]);
 
   // `decision`, et cette page est la seule des trois « non gardées » à le mériter.
@@ -65,6 +72,9 @@ export default async function Page() {
   if (!agency) return null;
 
   const t = await getTranslations('agency.upgrade.page');
+  // TCK-2671 — la section « Offre » de la fiche de l'agence : son cadre (tête, jauge, navigation).
+  const vitrine = peutEcrireLaVitrine(await capacitesDuProfilActif(), agency, user.id);
+  const cadre = { agency, vitrine, origineSite: origineSite(), section: 'offre' as const };
 
   // Already standard — surface a calm confirmation message instead of
   // redirecting (the link still works from notifications / banners).
@@ -72,58 +82,64 @@ export default async function Page() {
   // rembourrage aussi — le `p-6 mx-auto` d'ici décalait le titre de 171 px à 1366 et rognait
   // 48 px de plus à 360.
   if (agency.kind === 'standard') {
+    // TCK-2671 — l'écran « Offre » : ce que l'agence paie et ce qu'elle consomme. Une lecture qui
+    // échoue se dit à sa place ; elle ne fait pas tomber la page.
+    const [abonnement, quota] = await Promise.all([
+      fetchAbonnement(token).catch(() => 'illisible' as const),
+      fetchQuotaDeLAgence(token).catch(() => null),
+    ]);
+    const approuvee = listing?.data.find((r) => r.status === 'approved') ?? null;
     return (
-      <div className="max-w-3xl">
-        <PageHeader
-          eyebrow={t('eyebrow')}
-          title={t('already_standard.title')}
-          description={<span className="text-pretty">{t('already_standard.body')}</span>}
-        />
-      </div>
+      <CadreDeLaFiche {...cadre} titre={t('offre.titre')} texte={t('offre.texte')} jauge>
+        <OffreDeLAgencePro abonnement={abonnement} quota={quota} approuveeLe={approuvee?.reviewed_at ?? null} />
+      </CadreDeLaFiche>
     );
   }
 
+  if (!listing) {
+    return (
+      <CadreDeLaFiche {...cadre} titre={t('title')} texte={t('subtitle')}>
+        <section role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <h2 className="text-corps font-semibold">{t('lectureImpossible.titre')}</h2>
+          <p className="mt-1 text-sm text-pretty text-muted-foreground">{t('lectureImpossible.texte')}</p>
+        </section>
+      </CadreDeLaFiche>
+    );
+  }
+
+  const offre = await fetchOffreDePassage(token).catch(() => 'illisible' as const);
   const pending = listing.data.find((r) => r.status === 'pending') ?? null;
-  // Otherwise show the latest historical request (most recent first —
-  // the API already sorts by `-submitted_at`).
+  // Sinon la dernière demande (l'API trie par `-submitted_at`).
   const latest = pending ?? listing.data[0] ?? null;
+  // ADR-0104 § 5 — seule la DERNIÈRE demande, refusée, se reprend (`resubmit_of`).
+  const refusee = latest?.status === 'rejected' ? latest : null;
 
+  // TCK-2671 (maquette `app-identite-agence`, écran 9) — l'état de la demande puis le prix, en tête
+  // au téléphone ; au bureau dès `xl`, une colonne de 20 rem à droite du formulaire, qui reste
+  // visible. L'ordre du DOM est celui du téléphone : le motif d'un refus se lit avant tout (AC4).
   return (
-    <div className="max-w-3xl space-y-6">
-      <PageHeader
-        eyebrow={t('eyebrow')}
-        title={t('title')}
-        description={<span className="text-pretty">{t('subtitle')}</span>}
-      />
-
-      <section
-        aria-label={t('benefits.aria_label')}
-        className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
-      >
-        <h2 className="text-base font-semibold text-foreground">
-          {t('benefits.title')}
-        </h2>
-        <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-          {(['team', 'multi_admin', 'custom_roles'] as const).map((cle) => (
-            <li key={cle} className="flex gap-2">
-              <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-              <span className="text-pretty">{t(`benefits.items.${cle}`)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 text-xs text-pretty text-muted-foreground">
-          {t('benefits.sla')}
-        </p>
-      </section>
-
-      {latest ? (
-        <UpgradeRequestStatus agencyId={agencyId} request={latest} />
-      ) : null}
-
-      {/* Form is hidden while a pending request is in flight — the user
-          must revoke the current one first (also enforced server-side
-          with a 422). */}
-      {!pending ? <UpgradeRequestForm agencyId={agencyId} /> : null}
-    </div>
+    <CadreDeLaFiche {...cadre} titre={t('title')} texte={t('subtitle')}>
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        <div className="space-y-4 xl:order-2 xl:w-80 xl:flex-none">
+          {latest ? <UpgradeRequestStatus agencyId={agencyId} request={latest} /> : null}
+          <AvantagesDuPassage offre={offre} />
+        </div>
+        {/* Une demande en cours ferme le formulaire : la révoquer d'abord (l'API répond 422 aussi). */}
+        {!pending ? (
+          <div className="min-w-0 flex-1 xl:order-1">
+            <UpgradeRequestForm
+              agencyId={agencyId}
+              refusee={refusee}
+              prefill={{
+                company_legal_name: agency.legal_name,
+                rc: agency.rccm,
+                ninea: agency.ninea,
+                address_fiscale: agency.legal_address,
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
+    </CadreDeLaFiche>
   );
 }

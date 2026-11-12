@@ -94,11 +94,27 @@ const ICONES: Readonly<Record<SectionDeLaFiche, LucideIcon>> = {
   offre: Briefcase,
 };
 
-/** Les deux sections qui sont des PAGES (TCK-2671) : leur ligne y mène. */
-function lienExterne(section: SectionDeLaFiche, individuelle: boolean): string | null {
+/**
+ * Les deux sections qui sont des PAGES (TCK-2671) : leur ligne y mène, et ces pages posent le même
+ * cadre ({@link CadreDeLaFiche}). L'offre est une page pour toute agence : « déjà professionnelle »
+ * et son offre pour une agence `standard` (avec son lien vers l'abonnement), le passage en pro pour
+ * une `individual`.
+ */
+export function lienExterne(section: SectionDeLaFiche): string | null {
   if (section === 'verification') return '/app/agency/kyc';
-  if (section === 'offre') return individuelle ? '/app/settings/agency/upgrade' : '/app/agency/billing';
+  if (section === 'offre') return '/app/settings/agency/upgrade';
   return null;
+}
+
+/** Le titre d'une section : la facturation et l'offre d'une agence individuelle ont le leur. */
+export function titreDeLaSection(
+  tFiche: ReturnType<typeof useTranslations<'admin.agencyConfig.fiche'>>,
+  section: SectionDeLaFiche,
+  individuelle: boolean,
+): string {
+  if (individuelle && section === 'facturation') return tFiche('sections.facturation.titreIndividuelle');
+  if (individuelle && section === 'offre') return tFiche('sections.offre.titreIndividuelle');
+  return tFiche(`sections.${section}.titre`);
 }
 
 /** Le libellé de chaque champ, pour la barre du bureau (« 2 modifications · Téléphone, Site internet »). */
@@ -255,7 +271,7 @@ export function FicheDeLAgence({ agency, vitrine, filigranes, origineSite }: Fic
   // La section courante : celle de l'URL, si la fiche la montre et qu'elle a un écran ici.
   const demandee = parametres?.get('section');
   const section: SectionDeLaFiche | null =
-    estSectionDeLaFiche(demandee) && montrees.includes(demandee) && lienExterne(demandee, individuelle) === null ? demandee : null;
+    estSectionDeLaFiche(demandee) && montrees.includes(demandee) && lienExterne(demandee) === null ? demandee : null;
   const affichee: SectionDeLaFiche = section ?? 'identite';
 
   function allerA(cible: SectionDeLaFiche | null, champ: string | null = null) {
@@ -312,8 +328,7 @@ export function FicheDeLAgence({ agency, vitrine, filigranes, origineSite }: Fic
     };
   }
 
-  const titreDeSection = (s: SectionDeLaFiche) =>
-    s === 'facturation' && individuelle ? tFiche('sections.facturation.titreIndividuelle') : tFiche(`sections.${s}.titre`);
+  const titreDeSection = (s: SectionDeLaFiche) => titreDeLaSection(tFiche, s, individuelle);
 
   const libelleDuChamp = (champ: string): string => {
     const cle = LIBELLES_DES_CHAMPS[champ];
@@ -418,7 +433,7 @@ export function FicheDeLAgence({ agency, vitrine, filigranes, origineSite }: Fic
               etats={etats}
               titre={titreDeSection}
               detail={detail}
-              lien={(s) => lienExterne(s, individuelle)}
+              lien={lienExterne}
               surLien={surLienDeSection}
             />
           ) : null}
@@ -431,7 +446,7 @@ export function FicheDeLAgence({ agency, vitrine, filigranes, origineSite }: Fic
                 active={affichee}
                 etats={etats}
                 titre={titreDeSection}
-                lien={(s) => lienExterne(s, individuelle)}
+                lien={lienExterne}
                 surLien={surLienDeSection}
               />
               <form id={ID_DU_FORMULAIRE} onSubmit={(ev) => void soumettre(ev)} noValidate className="min-w-0 flex-1">
@@ -507,7 +522,14 @@ export function FicheDeLAgence({ agency, vitrine, filigranes, origineSite }: Fic
  * Le sommaire (téléphone), la jauge et la navigation (bureau)
  * ──────────────────────────────────────────────────────────────────────────────────────────── */
 
-type SurLien = (cible: SectionDeLaFiche | null, champ?: string | null) => (ev: EvenementSouris<HTMLAnchorElement>) => void;
+/**
+ * L'interception d'un lien de section, qui garde le formulaire monté (`history.pushState`). `null`
+ * hors de la fiche ({@link CadreDeLaFiche}) : le lien est une navigation vers `/app/agency`.
+ */
+type SurLien = ((cible: SectionDeLaFiche | null, champ?: string | null) => (ev: EvenementSouris<HTMLAnchorElement>) => void) | null;
+
+/** La racine des liens de section : relative dans la fiche, `/app/agency` depuis une page du cadre. */
+const RACINE_DE_LA_FICHE = '/app/agency';
 
 function hrefDe(section: SectionDeLaFiche, champ?: string | null): string {
   return `?section=${section}${champ ? `#${idDuChamp(champ)}` : ''}`;
@@ -543,6 +565,13 @@ function LienDEntree({
       </Link>
     );
   }
+  if (surLien === null) {
+    return (
+      <Link href={`${RACINE_DE_LA_FICHE}${hrefDe(section, champ)}`} className={className}>
+        {children}
+      </Link>
+    );
+  }
   return (
     <a href={hrefDe(section, champ)} onClick={surLien(section, champ)} className={className}>
       {children}
@@ -573,7 +602,7 @@ function SommaireDuTelephone({
   readonly titre: (s: SectionDeLaFiche) => string;
   readonly detail: (s: SectionDeLaFiche) => string;
   readonly lien: (s: SectionDeLaFiche) => string | null;
-  readonly surLien: SurLien;
+  readonly surLien: NonNullable<SurLien>;
 }) {
   const t = useTranslations('admin.agencyConfig.fiche');
   const entrees = completude ? entreesARemplir(completude.manquants) : [];
@@ -702,7 +731,7 @@ function SommaireDuTelephone({
   );
 }
 
-function JaugeDuBureau({ completude, surLien }: { readonly completude: Completude | null; readonly surLien: SurLien }) {
+export function JaugeDuBureau({ completude, surLien }: { readonly completude: Completude | null; readonly surLien: SurLien }) {
   const t = useTranslations('admin.agencyConfig.fiche');
   if (completude === null) {
     return (
@@ -747,7 +776,7 @@ function JaugeDuBureau({ completude, surLien }: { readonly completude: Completud
   );
 }
 
-function NavigationDesSections({
+export function NavigationDesSections({
   montrees,
   active,
   etats,
@@ -788,12 +817,16 @@ function NavigationDesSections({
             {etats ? <PointDEtat etat={etats[s]} /> : null}
           </>
         );
-        return externe ? (
-          <Link key={s} href={externe} className={classes}>
-            {contenu}
-          </Link>
-        ) : (
-          <a key={s} href={hrefDe(s)} onClick={surLien(s)} aria-current={estActive ? 'page' : undefined} className={classes}>
+        const courante = estActive ? ('page' as const) : undefined;
+        if (externe || surLien === null) {
+          return (
+            <Link key={s} href={externe ?? `${RACINE_DE_LA_FICHE}${hrefDe(s)}`} aria-current={courante} className={classes}>
+              {contenu}
+            </Link>
+          );
+        }
+        return (
+          <a key={s} href={hrefDe(s)} onClick={surLien(s)} aria-current={courante} className={classes}>
             {contenu}
           </a>
         );

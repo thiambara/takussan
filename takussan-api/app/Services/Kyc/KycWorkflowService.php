@@ -13,6 +13,7 @@ use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,25 @@ class KycWorkflowService
 
     /** TCK-2669 — la seule pièce qui expire, donc la seule qui se renouvelle sur un dossier vérifié. */
     public const RENEWABLE_DOCUMENT = 'director_id';
+
+    /**
+     * TCK-2671 — le premier jour où la pièce du dirigeant d'un dossier VÉRIFIÉ se remplace : le jour
+     * où l'échéance du dossier tombe à {@see self::RENEWAL_WINDOW_DAYS} jours ou moins. `null` pour
+     * un dossier non vérifié ou sans échéance (verrouillé). C'est la règle que juge
+     * {@see self::assertNotVerified()}, et la seule : `KycDossierResource::renewal` la sert au front,
+     * qui n'en recopie rien.
+     */
+    public static function renewalOpensOn(KycDossier $dossier): ?CarbonImmutable
+    {
+        if ($dossier->status !== KycDossierStatus::Verified || $dossier->expires_at === null) {
+            return null;
+        }
+
+        // `début du jour + N j >= échéance` : le premier minuit qui le tient.
+        $limite = CarbonImmutable::instance($dossier->expires_at)->subDays(self::RENEWAL_WINDOW_DAYS);
+
+        return $limite->equalTo($limite->startOfDay()) ? $limite : $limite->startOfDay()->addDay();
+    }
 
     public function __construct(private readonly NotificationService $notifications) {}
 
@@ -274,9 +294,10 @@ class KycWorkflowService
             return;
         }
 
+        $opensOn = self::renewalOpensOn($dossier);
         $renewable = $documentType === self::RENEWABLE_DOCUMENT
-            && $dossier->expires_at !== null
-            && $dossier->expires_at->lte(now()->startOfDay()->addDays(self::RENEWAL_WINDOW_DAYS));
+            && $opensOn !== null
+            && now()->startOfDay()->gte($opensOn);
         if (! $renewable) {
             abort_code(422, self::CODE_LOCKED);
         }

@@ -88,4 +88,28 @@ Fonctions existantes à garder (`kyc/page.tsx`, `AgencyKycClient.tsx`, `kyc-comp
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Vérification de l'agence** (`/app/agency/kyc`, `src/components/kyc/VerificationDeLAgence.tsx`, `src/lib/verification-de-l-agence.ts`) : un état (à fournir · prêt · en examen · vérifiée · refusée · à renouveler), une phrase, une action ; pièces avec leur numéro (prérempli des mentions légales, ADR-0104), pièce du dirigeant avec sa date d'expiration, « Prendre en photo » à côté de « Choisir un fichier », historique replié des seules dates que l'API rend. `AgencyKycClient` est retiré.
+
+**Le renouvellement n'a qu'une source** (décision Q4 a du team-lead, 2026-11-12) : `KycWorkflowService::renewalOpensOn()` donne le premier jour où la pièce du dirigeant d'un dossier vérifié se remplace ; `assertNotVerified()` la juge par elle, et `KycDossierResource::renewal` la sert (`{document_type, opens_on}`, `calendarDate`, ADR-0018). Le front ne recopie ni la durée ni la pièce : la constante `FENETRE_DE_RENOUVELLEMENT_JOURS` et son test de parité sont supprimés. Tests : `KycRenewalWhileVerifiedTest` (le jour servi est celui où l'API accepte, la veille `kyc.locked` ; échéance en cours de journée ; `null` sans vérification ou sans échéance), ablation rouge.
+
+**Offre** : `BlocDeLOffre` (prix `monthly_price_xof` en F CFA « / mois », commission, jauges « {used} sur {limit} » ou « Illimité », succursales par leur limite seule — décision 13 a) en tête de l'Abonnement et dans l'écran « déjà professionnelle » (`OffreDeLAgencePro`, avec « Abonnement et factures » et ce que le passage a ouvert). Un abonnement illisible se dit à sa place.
+
+**Passage en pro** (hôte) : état de la dernière demande d'abord (motif d'un refus, révocation confirmée), « Pourquoi passer en pro ? » avec le prix lu de `GET /api/me/upgrade-offer` (décision 14 ; aucun « 50 000 » dans le diff, vérifié par recherche), formulaire prérempli des mentions légales ; une demande refusée se reprend (`resubmit_of`) sans ressaisir NINEA ni RIB (« Conservé… », clés absentes du corps, ADR-0104 § 5) ; statuts en photo ou en fichier ; une liste illisible est un état d'erreur, jamais le formulaire vide.
+
+**Le cadre de la fiche** : la vérification et l'offre sont des pages, posées dans le cadre de la fiche de l'agence (`CadreDeLaFiche` : tête « Mon agence », jauge, navigation des sections ; au téléphone, l'écran de la section et son retour au sommaire). Hors de la fiche, un lien de section mène à `/app/agency?section=…`. La ligne « Offre » de la fiche mène à `/app/settings/agency/upgrade` pour toute agence (elle menait à l'Abonnement pour une agence `standard`) ; pour une agence individuelle, elle s'appelle « Passage en pro ».
+
+**Les boutons de la pièce à 360 px** (AC6) : mesurés par CDP, « Prendre en photo » et « Choisir un fichier » faisaient 143 px chacun et leurs libellés étaient tronqués à 320 et 360 px. Ils passent à la ligne (`min-h-11`, `whitespace-normal`) : 143 × 45 px à 360, entiers, côte à côte, `scrollWidth − innerWidth = 0` ; 158 × 44 px à 390.
+
+**La jauge** suit les maquettes : présente sur l'offre d'une agence déjà professionnelle (a-8), absente de la vérification (a-5) et du passage en pro de l'hôte (a-9) — `CadreDeLaFiche` prend `jauge`, faux par défaut.
+
+**Fidélité** (`docs/qa/audit-ux-2026-11/fidelite/TCK-2671.json`, rideaux sous `takussan-web/.fidelite/TCK-2671/cmp-v4-a{5,9}-…` et `cmp-v2-a8-…`) — conformes · écarts · absents · % pixels :
+
+| Écran | Téléphone 390 | Bureau 1440 | Bureau 1280 |
+|---|---|---|---|
+| a-5 Vérification (admin) | 26 · 25 · 12 · 8,64 % | 65 · 174 · 32 · 7,04 % | 64 · 173 · 32 · 7,82 % |
+| a-8 Offre, agence pro (admin) | 24 · 22 · 6 · 13,66 % | 64 · 178 · 33 · 13,1 % | 13,08 % |
+| a-9 Passage en pro (hôte) | 17 · 15 · 23 · 22,74 % | 31 · 128 · 75 · 9,92 % | 31 · 121 · 67 · 10,7 % |
+
+Les écarts restants sont au tableau de la fiche : surtout des données (dossier `pending` au lieu de vérifié-expiré, plan et quota de l'API, « 120 » biens pour 100), et le relevé a-9 fait sur la demande `pending` de la démo — décision du team-lead (2026-11-12) : aucun refus n'est écrit en base, l'état refusé est prouvé par les tests (AC4). Largeurs intermédiaires (AC-F6) : `fidelite balayer --largeurs 360,768,1024` sur la vérification et l'offre (admin, hôte), débord 0 et coupes 0.
+
+**Hors du produit** : aucune phrase que le produit ne tient pas (« sans engagement », « le premier mois… ») ; « Votre abonnement commence à l'approbation » après TCK-2681. Aucune écriture dans la base de démo.

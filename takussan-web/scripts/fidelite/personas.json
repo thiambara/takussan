@@ -40,6 +40,10 @@
     "deux_espaces": {
       "email": "audit-ux-f3-deux-espaces@exemple.test",
       "disposition": "bailleur"
+    },
+    "hote": {
+      "email": "admin@studio-aminata.sn",
+      "disposition": "admin-agence"
     }
   },
   "dispositions": {

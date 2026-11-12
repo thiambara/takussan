@@ -1001,41 +1001,61 @@
     },
     "upgrade": {
       "page": {
-        "eyebrow": "Sama agence",
         "title": "Yokku ci agence professionnelle",
         "subtitle": "Yokk fonctionnalités équipe : woo collaborateurs, délégué fonctions, partagé biens.",
         "already_standard": {
           "title": "Sa agence agagi am na fonctionnalités professionnelles",
-          "body": "Liggéey la la nga war ñaaw — fonctionnalités yi ñoom dañu sax."
+          "body": "Liggéey la la nga war ñaaw — fonctionnalités yi ñoom dañu sax.",
+          "approuvee": "Demande approuvée le {date}."
         },
         "benefits": {
-          "aria_label": "Avantages agence professionnelle",
           "title": "Lan moo tax mu yokku ci pro ?",
           "items": {
             "team": "Woo agent yu bari, jox léen liggéey.",
             "multi_admin": "Multi-admins ngir ko yorr ci ñépp.",
             "custom_roles": "Bind fonctions personnalisés."
+          }
+        },
+        "acquis": {
+          "titre": "Ce que le passage en pro a ouvert",
+          "equipe": {
+            "titre": "Une équipe d’agents",
+            "detail": "Inviter, déléguer le suivi des biens",
+            "detailCompte": "{n, plural, =0 {Aucun agent} one {# agent} other {# agents}} · inviter, déléguer le suivi des biens"
           },
-          "sla": "Sunu ekib dina seetlu bépp laaj ; dinga jot tontu bi ci e-mail ak ci say yégle."
+          "coAdministration": {
+            "titre": "Co-administration",
+            "detail": "Administrer l’agence à plusieurs"
+          },
+          "roles": {
+            "titre": "Rôles personnalisés",
+            "detail": "Structurer votre organisation"
+          }
+        },
+        "offre": {
+          "titre": "Offre et passage en pro",
+          "texte": "Votre offre, ce qu’elle comprend et ce que vous en utilisez."
+        },
+        "prix": {
+          "parMois": "{prix} / mois",
+          "suite": "et {taux} % sur les paiements encaissés en ligne. Votre abonnement commence à l’approbation.",
+          "absent": "Le prix de l’offre professionnelle n’est pas disponible pour le moment.",
+          "illisible": "Le prix de l’offre n’a pas pu être lu. Rechargez la page pour le voir avant d’envoyer votre demande."
+        },
+        "lectureImpossible": {
+          "titre": "Votre demande n’a pas pu être lue",
+          "texte": "Nous ne savons pas si une demande est déjà en cours : le formulaire reste fermé pour ne pas en envoyer une seconde. Rechargez la page dans un instant."
         }
       },
       "form": {
-        "aria_label": "Formulaire demaande upgrade",
         "loading": "Loading brouillon bi…",
         "fields": {
-          "rc": "Limeer RC",
-          "ninea": "NINEA",
-          "rib_pro": "RIB professionnel",
-          "company_legal_name": "Tëraab agence",
-          "address_fiscale": "Adresse fiscale",
-          "planned_agents_count": "Lim agents (optionnel)",
-          "statuts_doc": "Statuts (PDF / image)"
+          "planned_agents_count": "Lim agents (optionnel)"
         },
         "hints": {
           "planned_agents_count": "Ngir xam organisation bi.",
           "statuts_doc": "PDF, JPG, walla PNG. 10 Mo max."
         },
-        "file_selected": "Fichier tànn na : {name}",
         "cta": {
           "submit": "Yónni demaande bi",
           "submitting": "Yónni…"
@@ -1045,7 +1065,6 @@
           "file_too_large": "Fichier bi épp na 10 Mo.",
           "unauthorized": "Dafa nga war duggu.",
           "forbidden": "Amul nga ndombo-tànk ngir loolu.",
-          "generic": "Am na njumte. Jëkkël tey.",
           "draft_not_saved_title": "Yónni bi taxaw na : brouillon bi dencuñu ko",
           "draft_not_saved_body": "Denc brouillon bi dañu ko bañ (kotëk bi dagg na walla sa session jeex na). Seetal sa kotëk, duggati su soxlawoon, ba noppi bësaat ci « Yónni demaande bi » — say mbind mu ngi fi."
         },
@@ -1056,7 +1075,6 @@
         }
       },
       "status": {
-        "aria_label": "Etat demaande upgrade",
         "headings": {
           "pending": "Demaande dafa nekk ci en attente",
           "approved": "Demaande validé na",
@@ -1071,9 +1089,7 @@
         },
         "submitted_at": "Yónni la ci {date}",
         "body": {
-          "pending": "Equipe bi xool na. Dees na la xamal su mu noppee.",
           "approved": "Agence bi ag professionnelle la léegi (validé ci {date}).",
-          "rejected": "Demaande bi bañ ñu ci {date}. Xoolal commentaire bi.",
           "revoked": "Yaay révoque demaande bi. Mën nga yónni beneen."
         },
         "cta": {
@@ -1082,7 +1098,49 @@
         },
         "toasts": {
           "revoked": "Demaande bi révoque na.",
-          "error": "Mënul a révoque."
+          "echecRevocation": "La demande n’a pas été révoquée",
+          "echecRevocationRepli": "Elle reste en cours d’examen. Vérifiez votre connexion, puis réessayez."
+        },
+        "corps": {
+          "refusee": "Votre demande a été refusée le {date}. Lisez le commentaire, remplacez la pièce, puis renvoyez-la : le reste est conservé.",
+          "enCours": "Notre équipe examine votre demande ; sa décision vous parvient par e-mail et dans vos notifications. Tant qu’elle est en cours d’examen, vous pouvez la révoquer."
+        },
+        "motif": "« {motif} »",
+        "soumiseEtDecidee": "Soumise le {date} · décision de l’équipe Takussan",
+        "confirmation": {
+          "titre": "Révoquer votre demande ?",
+          "texte": "Notre équipe cessera de l’examiner. Pour passer en pro ensuite, il faudra envoyer une nouvelle demande, statuts compris.",
+          "garder": "Garder la demande",
+          "revoquer": "Révoquer"
+        }
+      },
+      "demande": {
+        "aria": "Formulaire de demande de passage en pro",
+        "titre": "Votre demande",
+        "texte": "Vos mentions légales préremplissent la demande : vérifiez-les, ajoutez votre RIB professionnel et vos statuts.",
+        "texteReprise": "Vos réponses du {date} sont conservées : seule la pièce refusée est à remplacer.",
+        "champs": {
+          "company_legal_name": "Raison sociale",
+          "rc": "RCCM",
+          "ninea": "NINEA",
+          "rib_pro": "RIB professionnel",
+          "address_fiscale": "Adresse fiscale",
+          "statuts_doc": "Statuts juridiques (PDF ou image)"
+        },
+        "reprisDeLaFiche": "Repris de votre fiche",
+        "aideAdresse": "Celle de votre siège, si elle est la même.",
+        "conserve": "Conservé de votre demande : laissez vide pour le garder.",
+        "conserveMasque": "Conservé de votre demande ({valeur}) : laissez vide pour le garder.",
+        "aRemplacer": "à remplacer",
+        "fichierChoisi": "Fichier sélectionné · {taille}",
+        "changer": "Changer",
+        "prendrePhoto": "Prendre en photo",
+        "choisirFichier": "Choisir un fichier",
+        "photoAria": "Prendre en photo les statuts juridiques",
+        "fichierAria": "Choisir le fichier des statuts juridiques",
+        "suivi": "Notre équipe examine chaque demande ; sa décision vous parvient par e-mail et dans vos notifications. Tant qu’elle est en cours d’examen, vous pouvez la révoquer d’ici.",
+        "erreurs": {
+          "envoi": "La demande n’est pas partie. Vos réponses sont conservées : vérifiez votre connexion, puis renvoyez-la."
         }
       }
     },
@@ -6034,6 +6092,9 @@
         "title": "Jokkale yi",
         "subtitle": "Jottalikat yu biti (pey, SMS, imeel) ak seen webhook. Sekere yi, duñu leen wonewaat bu ñu leen dencee.",
         "loadError": "Mënuñu yeb jokkale yi : {message}"
+      },
+      "verification": {
+        "title": "Vérification de l’agence"
       }
     },
     "team": {
@@ -6382,7 +6443,8 @@
             "titre": "Offre et passage en pro",
             "titreCourt": "Offre",
             "detail": "Agence professionnelle",
-            "detailIndividuelle": "Passer en agence professionnelle"
+            "detailIndividuelle": "Passer en agence professionnelle",
+            "titreIndividuelle": "Passage en pro"
           }
         },
         "detail": {
@@ -14291,6 +14353,21 @@
         "paySelfRefused": "Yaa nangu reversement bii : keneen moo war a ko màndargaal ni fey nañu ko.",
         "refundedSincePaid": "{count, plural, one {Une ligne a été remboursée depuis le versement : {references}.} other {# lignes ont été remboursées depuis le versement : {references}.}} Aucun montant n'est retenu automatiquement."
       }
+    },
+    "offre": {
+      "titre": "Votre offre",
+      "factures": "Abonnement et factures",
+      "parMois": "/ mois",
+      "commission": "et {taux} % sur les paiements encaissés en ligne.",
+      "biens": "Biens en ligne",
+      "agents": "Agents",
+      "succursales": "Succursales",
+      "jusquA": "jusqu’à {limite}",
+      "illimite": "Illimité",
+      "utiliseSur": "<b>{used}</b> sur {limit}",
+      "utiliseSansLimite": "<b>{used}</b> · {illimite}",
+      "consommationIndisponible": "Votre consommation n’a pas pu être lue. Rechargez la page pour réessayer.",
+      "rechargez": "Rechargez la page pour réessayer."
     }
   },
   "serverActions": {
@@ -14746,6 +14823,121 @@
       "rib_pro": "RIB bu liggéey",
       "alreadyHeldBy": "beneen ajaas am na xibaar bii :",
       "hint": "Ab xamle ngir saytu bi, du ab tax ngir bañ ko."
+    },
+    "verification": {
+      "titre": "Vérification de l’agence",
+      "texte": "Takussan vérifie votre société une fois, puis à chaque pièce qui expire. Vos numéros RCCM et NINEA sont ceux de vos mentions légales : vous ne les saisissez qu’une fois.",
+      "chargement": "Le dossier de vérification n’a pas pu être lu.",
+      "reessayer": "Réessayer",
+      "etat": {
+        "a_fournir": {
+          "titre": "Envoyez les pièces de votre société",
+          "texte": "Le RCCM, le NINEA et une pièce d’identité du dirigeant. Une fois les trois pièces ajoutées, soumettez le dossier."
+        },
+        "pret": {
+          "titre": "Votre dossier est prêt",
+          "texte": "Les trois pièces sont là. Soumettez le dossier : Takussan l’examine et vous répond par e-mail et dans vos notifications."
+        },
+        "en_examen": {
+          "titre": "Votre dossier est en cours d’examen",
+          "texte": "Envoyé le {date}. La décision vous parvient par e-mail et dans vos notifications.",
+          "texteSansDate": "La décision vous parvient par e-mail et dans vos notifications."
+        },
+        "verifiee": {
+          "titre": "Votre agence est vérifiée",
+          "texte": "Le badge « Agence vérifiée » s’affiche sur votre fiche publique et vos annonces."
+        },
+        "refusee": {
+          "titre": "Votre dossier a été refusé",
+          "texte": "Lisez le motif, remplacez la pièce concernée, puis renvoyez le dossier : les autres pièces sont conservées."
+        },
+        "a_renouveler": {
+          "titre": "Une pièce a expiré",
+          "texte": "Tant qu’elle n’est pas remplacée, <b>vos reversements Takussan sont suspendus</b> et le badge « Agence vérifiée » ne s’affiche plus sur votre fiche publique.",
+          "titreBientot": "La pièce du dirigeant expire le {date}",
+          "texteBientot": "Remplacez-la avant cette date : sinon <b>vos reversements Takussan seront suspendus</b> et le badge « Agence vérifiée » ne s’affichera plus sur votre fiche publique."
+        }
+      },
+      "statut": {
+        "a_fournir": "À fournir",
+        "pret": "Prêt à soumettre",
+        "en_examen": "En examen",
+        "verifiee": "Vérifiée",
+        "refusee": "Refusée",
+        "a_renouveler": "À renouveler"
+      },
+      "actions": {
+        "remplacerPieceIdentite": "Remplacer la pièce d’identité",
+        "soumettre": "Soumettre le dossier",
+        "renvoyer": "Renvoyer le dossier",
+        "corriger": "Corriger",
+        "envoyerPiece": "Envoyer la pièce",
+        "envoiEnCours": "Envoi en cours…",
+        "prendrePhoto": "Prendre en photo",
+        "choisirFichier": "Choisir un fichier",
+        "changer": "Changer",
+        "voir": "Voir",
+        "voirAria": "Voir la pièce : {piece}",
+        "remplacer": "Remplacer",
+        "remplacerAria": "Remplacer la pièce : {piece}",
+        "photoAria": "Prendre en photo : {piece}",
+        "fichierAria": "Choisir un fichier : {piece}"
+      },
+      "soumettreBloque": "Ajoutez d’abord : {liste}.",
+      "envoi": {
+        "fichierManquant": "Choisissez d’abord un fichier, ou prenez une photo.",
+        "dateManquante": "Indiquez la date d’expiration de la pièce.",
+        "tropLourd": "Ce fichier dépasse {max} Mo : choisissez-en un plus léger.",
+        "formats": "PDF, JPG, PNG ou WEBP, {max} Mo au plus.",
+        "formatsDirigeant": "Carte d’identité ou passeport du dirigeant, en cours de validité · PDF, JPG, PNG ou WEBP, {max} Mo au plus.",
+        "fichierChoisi": "Fichier sélectionné · {taille}",
+        "echec": "La pièce n’a pas été envoyée.",
+        "reussi": "Pièce envoyée",
+        "reussiExamen": "Pièce envoyée : votre dossier repasse en examen."
+      },
+      "soumission": {
+        "echec": "Le dossier n’a pas été soumis.",
+        "reussie": "Dossier soumis : Takussan l’examine."
+      },
+      "numero": {
+        "rccm": "Numéro RCCM",
+        "ninea": "Numéro NINEA",
+        "aide": "Sert aussi à vos mentions légales."
+      },
+      "pieces": {
+        "titre": "Pièces du dossier",
+        "rccm": "RCCM",
+        "ninea": "NINEA",
+        "director_id": "Pièce du dirigeant",
+        "noteVerifiee": "Vérifié · sert aussi à vos mentions légales",
+        "noteFournie": "Fourni · sert aussi à vos mentions légales",
+        "aFournir": "À fournir",
+        "expiree": "Expirée",
+        "expireeLe": "Expirée le {date}",
+        "valableJusquau": "Valable jusqu’au {date}"
+      },
+      "historique": {
+        "titre": "Historique",
+        "resume": {
+          "verifie": "vérifiée le {date}",
+          "refuse": "refusée le {date}",
+          "envoye": "envoyée le {date}",
+          "ouvert": "ouverte le {date}",
+          "expire": "expirée le {date}"
+        },
+        "evenement": {
+          "ouvert": "Dossier ouvert",
+          "envoye": "Dossier envoyé",
+          "verifie": "Agence vérifiée",
+          "refuse": "Dossier refusé",
+          "expire": "Pièce du dirigeant expirée"
+        }
+      },
+      "apport": {
+        "titre": "Ce que la vérification vous apporte",
+        "badge": "Le badge « Agence vérifiée » sur votre fiche publique et vos annonces.",
+        "reversements": "Les reversements de Takussan vers votre compte, sans blocage."
+      }
     }
   },
   "publicProfile": {

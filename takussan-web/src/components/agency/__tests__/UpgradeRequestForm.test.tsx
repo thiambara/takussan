@@ -6,9 +6,11 @@ import frMessages from '@/messages/fr.json';
 
 // Mock the query layer so the form never hits the network.
 const submitAgencyUpgradeRequest = vi.fn();
+const renvoyerUneDemandeRefusee = vi.fn();
 vi.mock('@/lib/queries/agency-upgrade', () => ({
   submitAgencyUpgradeRequest: (...args: unknown[]) =>
     submitAgencyUpgradeRequest(...args),
+  renvoyerUneDemandeRefusee: (...args: unknown[]) => renvoyerUneDemandeRefusee(...args),
   revokeAgencyUpgradeRequest: vi.fn(),
 }));
 
@@ -83,8 +85,13 @@ function withIntl(node: React.ReactNode) {
   );
 }
 
+/** TCK-2671 — deux champs fichier masqués (photo, fichier) derrière deux boutons : on vise le sélecteur. */
+function fichierDesStatuts(): HTMLInputElement {
+  return document.querySelector('input[data-champ="statuts-fichier"]') as HTMLInputElement;
+}
+
 function fillRequiredText() {
-  fireEvent.change(screen.getByLabelText(/Numéro RC/i), { target: { value: 'RC-123' } });
+  fireEvent.change(screen.getByLabelText(/^RCCM/), { target: { value: 'RC-123' } });
   fireEvent.change(screen.getByLabelText(/^NINEA/i), { target: { value: '0123456789012' } });
   fireEvent.change(screen.getByLabelText(/RIB professionnel/i), {
     target: { value: 'SN012 01234 0123456789012 34' },
@@ -146,7 +153,7 @@ describe('<UpgradeRequestForm>', () => {
     fillRequiredText();
 
     const file = new File(['%PDF-1.4'], 'statuts.pdf', { type: 'application/pdf' });
-    const fileInput = screen.getByLabelText(/Statuts juridiques/i) as HTMLInputElement;
+    const fileInput = fichierDesStatuts();
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     fireEvent.submit(screen.getByRole('form', { name: /Formulaire de demande/i }));
@@ -187,7 +194,7 @@ describe('<UpgradeRequestForm>', () => {
     render(withIntl(<UpgradeRequestForm agencyId={42} />));
     fillRequiredText();
     const file = new File(['%PDF-1.4'], 'statuts.pdf', { type: 'application/pdf' });
-    fireEvent.change(screen.getByLabelText(/Statuts juridiques/i), { target: { files: [file] } });
+    fireEvent.change(fichierDesStatuts(), { target: { files: [file] } });
     fireEvent.submit(screen.getByRole('form', { name: /Formulaire de demande/i }));
 
     await waitFor(() => {
@@ -214,7 +221,7 @@ describe('<UpgradeRequestForm>', () => {
     render(withIntl(<UpgradeRequestForm agencyId={42} />));
     fillRequiredText();
     const file = new File(['%PDF-1.4'], 'statuts.pdf', { type: 'application/pdf' });
-    fireEvent.change(screen.getByLabelText(/Statuts juridiques/i), {
+    fireEvent.change(fichierDesStatuts(), {
       target: { files: [file] },
     });
 
@@ -238,9 +245,9 @@ describe('<UpgradeRequestForm>', () => {
     // il ne doit pas avoir été appelé. On l'assert, pas seulement le toast.
     expect(brouillon.clear).not.toHaveBeenCalled();
     // Le bouton reste actionnable : la personne peut réessayer.
-    expect(screen.getByRole('button', { name: /Envoyer la demande/i })).not.toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /Envoyer la demande/i })[0]).not.toBeDisabled();
     // La saisie est intacte à l'écran.
-    expect(screen.getByLabelText(/Numéro RC/i)).toHaveValue('RC-123');
+    expect(screen.getByLabelText(/^RCCM/)).toHaveValue('RC-123');
   });
 
   it('surfaces 422 validation errors inline', async () => {
@@ -254,7 +261,7 @@ describe('<UpgradeRequestForm>', () => {
     render(withIntl(<UpgradeRequestForm agencyId={42} />));
     fillRequiredText();
     const file = new File(['%PDF-1.4'], 'statuts.pdf', { type: 'application/pdf' });
-    fireEvent.change(screen.getByLabelText(/Statuts juridiques/i), {
+    fireEvent.change(fichierDesStatuts(), {
       target: { files: [file] },
     });
 
@@ -308,21 +315,21 @@ describe('<UpgradeRequestForm>', () => {
     it('ouvrir le formulaire sans rien saisir n’écrit aucun brouillon', () => {
       render(withIntl(<UpgradeRequestForm agencyId={42} />));
 
-      expect(screen.getByLabelText(/Numéro RC/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^RCCM/)).toBeInTheDocument();
       expect(brouillon.save).not.toHaveBeenCalled();
       expect(brouillon.clear).not.toHaveBeenCalled();
     });
 
     it('la première saisie écrit le brouillon', () => {
       render(withIntl(<UpgradeRequestForm agencyId={42} />));
-      fireEvent.change(screen.getByLabelText(/Numéro RC/i), { target: { value: 'RC-1' } });
+      fireEvent.change(screen.getByLabelText(/^RCCM/), { target: { value: 'RC-1' } });
 
       expect(brouillon.save).toHaveBeenCalledWith(0, expect.objectContaining({ rc: 'RC-1' }));
     });
 
     it('effacer la saisie jusqu’au formulaire vide supprime le brouillon', () => {
       render(withIntl(<UpgradeRequestForm agencyId={42} />));
-      const rc = screen.getByLabelText(/Numéro RC/i);
+      const rc = screen.getByLabelText(/^RCCM/);
       fireEvent.change(rc, { target: { value: 'R' } });
       fireEvent.change(rc, { target: { value: '' } });
 
@@ -354,7 +361,7 @@ describe('<UpgradeRequestForm>', () => {
       expect(brouillon.clear).toHaveBeenCalledTimes(1);
       expect(brouillon.save).not.toHaveBeenCalled();
       // Les champs s'affichent vides, jamais « null ».
-      expect(screen.getByLabelText(/Numéro RC/i)).toHaveValue('');
+      expect(screen.getByLabelText(/^RCCM/)).toHaveValue('');
     });
 
     it('un brouillon vide hérité portant des clés inconnues est supprimé aussi', () => {
@@ -369,7 +376,7 @@ describe('<UpgradeRequestForm>', () => {
       brouillon.draft = { step: 0, data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE, rc: 'RC-9' } };
       render(withIntl(<UpgradeRequestForm agencyId={42} />));
 
-      expect(screen.getByLabelText(/Numéro RC/i)).toHaveValue('RC-9');
+      expect(screen.getByLabelText(/^RCCM/)).toHaveValue('RC-9');
       expect(screen.getByLabelText(/^NINEA/i)).toHaveValue('');
       expect(brouillon.clear).not.toHaveBeenCalled();
       expect(brouillon.save).not.toHaveBeenCalled();
@@ -379,7 +386,7 @@ describe('<UpgradeRequestForm>', () => {
       brouillon.draft = { step: 0, data: { ...BROUILLON_VIDE_TEL_QUE_STOCKE, rc: 'RC-9' } };
       render(withIntl(<UpgradeRequestForm agencyId={42} />));
 
-      fireEvent.change(screen.getByLabelText(/Numéro RC/i), { target: { value: '' } });
+      fireEvent.change(screen.getByLabelText(/^RCCM/), { target: { value: '' } });
 
       expect(brouillon.clear).toHaveBeenCalledTimes(1);
       expect(brouillon.save).not.toHaveBeenCalled();
