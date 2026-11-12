@@ -23,8 +23,8 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   updatePropertyStatusAction: vi.fn(),
   updatePropertyVisibilityAction: vi.fn(),
 }));
-// Réserve de verif-patrimoine (2026-11-12) — l'en-tête de la fiche dit l'issue d'un geste par un
-// toast ; la ligne de liste, à côté d'elle.
+// Réserve de verif-patrimoine (2026-11-12) — l'en-tête de la fiche et la ligne de liste disent
+// l'issue d'un geste par un toast.
 const toast = vi.hoisted(() => ({ add: vi.fn() }));
 vi.mock('@/components/ui/toast', async (original) => ({
   ...(await original<typeof import('@/components/ui/toast')>()),
@@ -52,14 +52,7 @@ const MENU_DU_BIEN = (nom: string) => nom === 'Plus d’actions' || nom === `Plu
 
 type Ton = 'success' | 'error';
 
-/** La ligne de liste écrit l'issue à côté d'elle (`role="status"` ou `"alert"`). */
-const aCoteDuMenu = {
-  dit: async (ton: Ton, texte: string | RegExp) =>
-    expect(await screen.findByRole(ton === 'success' ? 'status' : 'alert')).toHaveTextContent(texte),
-  rienDit: () => expect(screen.queryByRole('status')).not.toBeInTheDocument(),
-};
-
-/** L'en-tête de la fiche la dit par un toast : au téléphone, le menu vit dans la feuille « ⋯ ». */
+/** Les deux menus disent l'issue d'un geste par un toast (`useGestesRapides`). */
 const parUnToast = {
   dit: (ton: Ton, texte: string | RegExp) =>
     waitFor(() =>
@@ -71,7 +64,7 @@ const parUnToast = {
 };
 
 const MENUS = {
-  'ligne de la liste': { rendre: () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />, ...aCoteDuMenu },
+  'ligne de la liste': { rendre: () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />, ...parUnToast },
   'en-tête de la fiche': { rendre: () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />, ...parUnToast },
 };
 

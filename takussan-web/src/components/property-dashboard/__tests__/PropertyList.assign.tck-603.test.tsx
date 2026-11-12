@@ -21,6 +21,12 @@ import type { PropertyListItem, PropertyOwnerLite } from '@/types/property';
 
 const { refresh, bulkAssign } = vi.hoisted(() => ({ refresh: vi.fn(), bulkAssign: vi.fn() }));
 
+// Réserve de verif-patrimoine (2026-11-12) — les gestes de la ligne disent leur issue par un toast
+// (`useGestesRapides`) ; le `ToastProvider` vit dans la coque, pas dans ce rendu (Base UI #73).
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => ({ add: vi.fn() }),
+}));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh }),

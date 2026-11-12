@@ -194,3 +194,18 @@ Décisions de la session :
     POST de plus).
   - Chaque fois : toast « Le serveur est injoignable… », zéro erreur en console, la page reste.
 
+**Suite, décision a : la liste des biens dans le même lot (2026-11-12).** Le menu de ligne
+`PropertyRowActions` présentait le même défaut : Archiver et Dépublier partaient sans confirmation,
+et les `await` n'étaient pas rattrapés. Les deux menus passent désormais par un seul hook,
+`src/components/property-dashboard/useGestesRapides.tsx`. Il porte le rattrapage, les toasts, les
+dialogues Archiver, Dépublier et Supprimer, ainsi que la publication et les statuts. Chaque menu ne
+lui donne que la phrase de suppression (`deleteBodyRow` ou `deleteBodyDetail`) et ce qui suit une
+suppression : la fiche quitte la page, la liste se rafraîchit. Les messages en ligne de la ligne
+(span, bulle du `menu`) sont retirés. `PropertyHeaderActions.gestes.test.tsx` joue ses 14 cas sur
+les deux menus, soit 28 tests ; le cas « Dupliquer en panne réseau → toast, la page reste » en fait
+partie. Sept tests de `PropertyList*` et `nom-contextuel` reçoivent un double de `useToast`, faute de
+quoi le rendu hors coque lève Base UI #73. Les 38 fichiers qui rendent ces menus passent (202 tests).
+Sept ablations sur le hook et les deux menus, toutes rouges puis restaurées. Navigateur, requêtes
+non-GET bloquées, `/app/properties`, à 390 et à 1440 px : Dupliquer, Archiver, Dépublier et
+En maintenance rendent un toast, sans aucune erreur en console.
+

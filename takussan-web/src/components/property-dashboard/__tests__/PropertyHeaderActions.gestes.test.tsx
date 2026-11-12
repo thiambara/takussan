@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
+import { PropertyRowActions } from '@/components/property-dashboard/PropertyRowActions';
 import {
   deletePropertyAction,
   duplicatePropertyAction,
@@ -11,11 +12,13 @@ import {
 } from '@/app/actions/dashboard-properties';
 import { changePropertyStatusAction, publishPropertyAction } from '@/app/actions/publish-property';
 import { withIntl } from '@/test/intl';
-import type { PropertyDetail } from '@/types/property';
+import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
 /**
- * Réserve de verif-patrimoine (2026-11-12), décisions de la session — les gestes de la fiche du
- * bien, au téléphone (feuille « ⋯ ») comme au bureau : c'est le même composant.
+ * Réserve de verif-patrimoine (2026-11-12), décisions de la session — les gestes rapides d'un
+ * bien, depuis la fiche (au téléphone dans la feuille « ⋯ », au bureau dans l'en-tête : c'est le
+ * même composant) ET depuis la ligne de la liste des biens (décision a : même lot, mêmes règles).
+ * Les deux menus passent par `useGestesRapides`.
  *
  * Relevé au navigateur avant le correctif, non-GET bloqués : « Dupliquer » levait
  * `TypeError: Failed to fetch` hors de tout `catch`, la frontière `(dashboard)/error.tsx` le
@@ -36,6 +39,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: m.push, replace: vi.fn(), refresh: m.refresh }),
 }));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));
+vi.mock('@/components/boost/BoostDialog', () => ({ BoostDialog: () => null }));
 vi.mock('@/components/ui/toast', async (original) => ({
   ...(await original<typeof import('@/components/ui/toast')>()),
   useToast: () => m.toast,
@@ -59,13 +63,26 @@ const HORS_LIGNE = { ...EN_LIGNE, visibility: 'private' };
 const PANNE = () => new TypeError('Failed to fetch');
 const INJOIGNABLE = 'Le serveur est injoignable pour le moment. Réessayez dans un instant.';
 
-function rendre(bien: Record<string, unknown> = EN_LIGNE) {
-  render(withIntl(<PropertyHeaderActions property={bien as unknown as PropertyDetail} />));
+const MENUS = {
+  'en-tête de la fiche': (bien: Record<string, unknown>) => (
+    <PropertyHeaderActions property={bien as unknown as PropertyDetail} />
+  ),
+  'ligne de la liste': (bien: Record<string, unknown>) => (
+    <PropertyRowActions property={bien as unknown as PropertyListItem} layout="card" />
+  ),
+};
+type NomDuMenu = keyof typeof MENUS;
+
+/** L'en-tête de la fiche dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035). */
+const MENU_DU_BIEN = (nom: string) => nom === 'Plus d’actions' || nom === `Plus d’actions — ${EN_LIGNE.title}`;
+
+function rendre(menu: NomDuMenu, bien: Record<string, unknown> = EN_LIGNE) {
+  render(withIntl(MENUS[menu](bien)));
   return userEvent.setup();
 }
 
 async function choisir(user: ReturnType<typeof userEvent.setup>, geste: string) {
-  await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+  await user.click(screen.getByRole('button', { name: MENU_DU_BIEN }));
   await user.click(await screen.findByRole('menuitem', { name: geste }));
 }
 
@@ -81,22 +98,24 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('les gestes de la fiche du bien : rattrapés, dits par un toast', () => {
+const NOMS = Object.keys(MENUS) as NomDuMenu[];
+
+describe.each(NOMS)('les gestes du bien depuis « %s » : rattrapés, dits par un toast', (menu) => {
   it('« Dupliquer » en panne réseau : un toast d’erreur, la page reste', async () => {
     vi.mocked(duplicatePropertyAction).mockRejectedValue(PANNE());
-    const user = rendre();
+    const user = rendre(menu);
 
     await choisir(user, 'Dupliquer');
 
     await toastAttendu('error', INJOIGNABLE);
     expect(duplicatePropertyAction).toHaveBeenCalledWith(47);
     expect(m.push).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Plus d’actions' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: MENU_DU_BIEN })).toBeEnabled();
   });
 
   it('« Dupliquer » réussi : un geste, sans dialogue, confirmé par un toast', async () => {
     vi.mocked(duplicatePropertyAction).mockResolvedValue({ ok: true, data: { id: 48 } as unknown as PropertyDetail });
-    const user = rendre();
+    const user = rendre(menu);
 
     await choisir(user, 'Dupliquer');
 
@@ -107,7 +126,7 @@ describe('les gestes de la fiche du bien : rattrapés, dits par un toast', () =>
 
   it('un statut en panne réseau : un toast d’erreur', async () => {
     vi.mocked(changePropertyStatusAction).mockRejectedValue(PANNE());
-    const user = rendre();
+    const user = rendre(menu);
 
     await choisir(user, 'En maintenance');
 
@@ -117,7 +136,7 @@ describe('les gestes de la fiche du bien : rattrapés, dits par un toast', () =>
 
   it('un statut réussi : un geste, sans dialogue, confirmé par un toast', async () => {
     vi.mocked(changePropertyStatusAction).mockResolvedValue({ ok: true, data: { id: 47, status: 'under_maintenance' } as never });
-    const user = rendre();
+    const user = rendre(menu);
 
     await choisir(user, 'En maintenance');
 
@@ -127,7 +146,7 @@ describe('les gestes de la fiche du bien : rattrapés, dits par un toast', () =>
 
   it('« Publier » refusé par l’API : son message, en toast', async () => {
     vi.mocked(publishPropertyAction).mockResolvedValue({ ok: false, status: 403, message: 'Action non autorisée.', missing: null, contactIsSelf: true } as never);
-    const user = rendre(HORS_LIGNE);
+    const user = rendre(menu, HORS_LIGNE);
 
     await choisir(user, 'Publier');
 
@@ -136,7 +155,7 @@ describe('les gestes de la fiche du bien : rattrapés, dits par un toast', () =>
 
   it('« Supprimer » en panne réseau : l’erreur dans le dialogue, rattrapée', async () => {
     vi.mocked(deletePropertyAction).mockRejectedValue(PANNE());
-    const user = rendre();
+    const user = rendre(menu);
 
     await choisir(user, 'Supprimer');
     const dialogue = await screen.findByRole('dialog', { name: 'Supprimer ce bien ?' });
@@ -147,8 +166,10 @@ describe('les gestes de la fiche du bien : rattrapés, dits par un toast', () =>
   });
 });
 
-describe.each([
+describe.each(
+  NOMS.flatMap((menu) => [
   {
+    menu,
     geste: 'Archiver',
     bien: EN_LIGNE,
     titre: 'Archiver ce bien ?',
@@ -157,6 +178,7 @@ describe.each([
     succes: 'Bien archivé.',
   },
   {
+    menu,
     geste: 'Dépublier',
     bien: EN_LIGNE,
     titre: 'Dépublier ce bien ?',
@@ -164,9 +186,10 @@ describe.each([
     appel: [47, 'private'],
     succes: 'Bien dépublié.',
   },
-])('« $geste » demande une confirmation', ({ geste, bien, titre, action, appel, succes }) => {
+  ]),
+)('« $geste » depuis « $menu » demande une confirmation', ({ menu, geste, bien, titre, action, appel, succes }) => {
   it('le dialogue nomme le bien et l’effet ; rien ne part avant la confirmation', async () => {
-    const user = rendre(bien);
+    const user = rendre(menu, bien);
 
     await choisir(user, geste);
 
@@ -177,7 +200,7 @@ describe.each([
   });
 
   it('« Annuler » ne fait rien', async () => {
-    const user = rendre(bien);
+    const user = rendre(menu, bien);
 
     await choisir(user, geste);
     const dialogue = await screen.findByRole('dialog', { name: titre });
@@ -190,7 +213,7 @@ describe.each([
 
   it('confirmé : l’action part, un toast le dit, le dialogue se ferme', async () => {
     action().mockResolvedValue({ ok: true, data: { status: 'archived' } } as never);
-    const user = rendre(bien);
+    const user = rendre(menu, bien);
 
     await choisir(user, geste);
     const dialogue = await screen.findByRole('dialog', { name: titre });
@@ -203,7 +226,7 @@ describe.each([
 
   it('confirmé en panne réseau : un toast d’erreur, rien ne remonte', async () => {
     action().mockRejectedValue(PANNE());
-    const user = rendre(bien);
+    const user = rendre(menu, bien);
 
     await choisir(user, geste);
     const dialogue = await screen.findByRole('dialog', { name: titre });
