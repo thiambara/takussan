@@ -94,6 +94,14 @@ Les pastilles : Plus de 30 j = `days_late_min=31` (AC3) ; 8–30 j = 8 à 30 ; M
 (`impayes/tranches.ts`) ; leurs comptes sont trois requêtes `per_page=1` en parallèle (`meta.total`),
 « Tous » leur somme ; une requête en échec laisse sa pastille sans chiffre, rien d'autre.
 
+**Deux découpages des tranches coexistent sur l'écran, délibérément** (relevé à la vérification du
+2026-11-12) : les pastilles de « Par locataire » coupent en **1–7 / 8–30 / 31+ jours** (la maquette,
+`impayes/tranches.ts`, pour choisir qui relancer d'abord), alors que les tuiles de « Par bailleur » et
+l'« Ancienneté du dû » du dossier gardent la balance âgée en **1–30 / 31–60 / 61–90 / 90+** (celle de
+`OverduePaymentsTable`, `GET agencies/{id}/finance/aging`, la même que la comptabilité). Les deux ne
+se recoupent pas : « 8–30 j » chevauche « 1–30 », « 31+ » couvre trois tuiles. Un total se compare
+d'un écran à l'autre (les deux comptent les mêmes échéances), une tranche non.
+
 **Une carte par échéance** (pas par locataire, décision 2) : compteur = `meta.total`, « Voir plus » par 20.
 Les autres échéances dues du locataire sont dans son dossier (« Échéances dues », même règle, `payer_id`).
 
@@ -142,6 +150,13 @@ toast retiré de la note (rouge) ; « Ancienneté du dû » retirée du dossier 
 largeurs 360 · 768 · 1024 · 1280). Aucun relevé n'écrit : `POST …/payment-link` intercepté (URL fictive)
 et `POST …/reminders` refusé dans la page, journal dans `perturbation.interceptions`, aucun POST dans
 `meta.reseau` ; wa.me et `tel:` jamais suivis. AC1 est prouvé par les tests, pas par un relevé.
+
+**Reprise après vérification (2026-11-12)** — `impayes/__tests__/impayes.verif.tck-2660.test.tsx` (5)
+tient ce que la vérification avait trouvé vert sous mutation : les « Échéances dues » du dossier sont
+celles du seul locataire (`filter[payer_id]`, F9) ; « Appeler » du dossier au bureau note la relance
+(`call`), plus après encaissement (F10) ; le lien de paiement ne part qu'à l'ouverture, jamais au rendu de
+la liste ni d'une relance montée fermée (F7, par le crochet `useRelanceDUnImpaye`) ; les trois comptes
+des pastilles sont sans `include` (F11). Ablations : les cinq mutations rougissent.
 
 Hors du ticket, laissés ouverts dans le produit : les coches et la barre de sélection (TCK-2682 — la
 première colonne est celle du locataire, une coche s'ajoutera devant), la bascule SMS / E-mail, « Lu le ».
