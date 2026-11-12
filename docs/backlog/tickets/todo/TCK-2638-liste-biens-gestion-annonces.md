@@ -144,3 +144,32 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+### Suite back — « vacant » ne compte que les biens à louer (2026-11-12, décisions du porteur Q1a, Q2a, Q3a)
+
+- **Un seul prédicat** : `Property::scopeForRent()` (`contract_type = rent`, toutes périodes). `occupied`, `notice`
+  et `vacant` de `scopeOccupancyState()` le composent ; le nouvel état `not_rental` en est la **négation**
+  (`whereNot`), jamais une copie. Il sert `filter[occupancy]=not_rental`, la tuile `for_sale` du résumé, et l'état du
+  bloc `occupancy` : `PropertyOccupancy::attach()` le relit par une requête (constante, une par page) plutôt que par
+  la colonne chargée, que `fields[properties]` peut omettre. Occupés + vacants + à vendre = tous.
+- **Une vente avec un bail courant** (27 sur la démo, données du seeder) est `not_rental`, `vacant_since` nul ; ses
+  blocs `lease`, `tenant`, `rent`, `current_month` restent servis à qui peut lire le bail — le bail est un fait.
+  `filter[rent_late]` est **inchangé** (Q2a : l'argent dû est réel, quel que soit le contrat). **Écart d'affichage
+  pour le lot B** : la ligne d'une vente n'affiche aucune puce du mois (`etatDuMois()` rend `null` pour une vente),
+  alors qu'elle compte dans « En retard » quand son loyer l'est.
+- **Limite connue (Q1a)** : une courte durée (`daily`, `weekly`) sans bail est `vacant` **sans** `vacant_since`, donc
+  comptée parmi les vacants mais jamais dans `vacant_over_60_days`. 0 cas sur la démo au 2026-11-12. Les tableaux de
+  bord, eux, excluent les courtes durées de leur taux (`PortfolioMetrics`, mensuel et annuel seulement).
+- **Laissés à leur sens, délibérément** :
+  - `RentMonthStatus::of()` → `month_status = 'vacant'` est un autre concept (un mois sans échéance d'un bail non
+    occupant, dans le relevé du bailleur, `OwnerStatementService::monthStatus()`) ; `PropertyOccupancy` l'appelle avec
+    `occupied = true`, il n'y rend jamais `vacant`.
+  - `OwnerDirectory.occupied_properties_count` (`Occupation::whereOccupied()`) compte les biens qui ont un bail en
+    cours, ventes comprises : il ne lit pas « vacant », et un bailleur dont la vente est louée a bien un bien occupé.
+  - `PortfolioMetrics` (taux d'occupation des tableaux de bord, KPI, alertes de seuil) a sa propre éligibilité et ne
+    lit pas le scope.
+- **Front** : `types/property.ts` doit recevoir `'not_rental'` dans l'union de `state` et `for_sale` dans le résumé —
+  fichier du lot A, édité après son commit. `etat-locatif.ts` teste déjà la vente avant l'état.
+- Tests : `tests/Feature/Property/OccupationHorsLocationTest.php` (filtre, bloc de la liste, fiche, résumé et
+  concordance tuile/liste, bailleur, valeur inconnue). Ablations 5/5 rouges : sans `forRent` sur `vacant`, sans
+  `not_rental` dans `attach`, sans `for_sale`, `vacant_since` d'une vente, état lu par la colonne chargée.

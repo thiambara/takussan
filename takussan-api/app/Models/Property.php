@@ -25,6 +25,7 @@ use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Payments\RentMonthStatus;
 use App\Services\Property\Occupation;
+use App\Services\Property\PropertyOccupancy;
 use App\Sorts\PropertyRentLateSort;
 use App\Support\CaseInsensitive;
 use App\Support\DayRange;
@@ -282,8 +283,11 @@ class Property extends AbstractModel implements HasMedia
      */
     public const OUT_OF_PORTFOLIO_STATUSES = [PropertyStatus::Archived, PropertyStatus::Sold];
 
-    /** TCK-2637 — les valeurs de `filter[occupancy]` ({@see scopeOccupancyState()}). */
-    public const OCCUPANCY_STATES = ['occupied', 'notice', 'vacant'];
+    /**
+     * TCK-2637 — les valeurs de `filter[occupancy]` ({@see scopeOccupancyState()}). TCK-2638 :
+     * `not_rental`, un bien qui n'est pas à louer (à vendre), hors de l'occupation.
+     */
+    public const OCCUPANCY_STATES = ['occupied', 'notice', 'vacant', 'not_rental'];
 
     public const TYPE_SEARCH_ALIASES = [
         // TCK-506 — alias enrichis APRÈS mesure de collision de corpus (la
@@ -722,9 +726,14 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
-     * TCK-2637 — `filter[occupancy]` et les tuiles de `portfolio-summary` : `occupied` (un bail
-     * courant, préavis COMPRIS — occupés + vacants = tous), `notice` (bail courant en préavis),
-     * `vacant` (aucun bail courant). Le bail courant est {@see currentLease()}.
+     * TCK-2637 — `filter[occupancy]`, les tuiles de `portfolio-summary` et l'état du bloc
+     * `occupancy` ({@see PropertyOccupancy::attach()}) : `occupied` (un bail
+     * courant, préavis COMPRIS), `notice` (bail courant en préavis), `vacant` (aucun bail courant).
+     * Le bail courant est {@see currentLease()}.
+     *
+     * TCK-2638 — ces trois états ne valent que pour un bien À LOUER ({@see scopeForRent()}) ; tout
+     * autre bien est `not_rental`, bail courant ou non (une vente dont le locataire reste dans les
+     * lieux) : occupés + vacants + hors location = tous.
      *
      * @param  Builder<Property>  $query
      * @return Builder<Property>
@@ -732,10 +741,25 @@ class Property extends AbstractModel implements HasMedia
     public function scopeOccupancyState(Builder $query, string $state): Builder
     {
         return match ($state) {
-            'occupied' => $query->whereHas('currentLease'),
-            'notice' => $query->whereHas('currentLease', fn (Builder $lease) => Occupation::onNotice($lease)),
-            'vacant' => $query->whereDoesntHave('currentLease'),
+            'occupied' => $query->forRent()->whereHas('currentLease'),
+            'notice' => $query->forRent()->whereHas('currentLease', fn (Builder $lease) => Occupation::onNotice($lease)),
+            'vacant' => $query->forRent()->whereDoesntHave('currentLease'),
+            'not_rental' => $query->whereNot(fn (Builder $q) => $q->forRent()),
         };
+    }
+
+    /**
+     * TCK-2638 — LE prédicat de l'occupation : un bien à louer (`contract_type = rent`), toutes
+     * périodes confondues (décision du porteur, Q1a). `not_rental` en est la négation, jamais une
+     * copie. Limite connue : une courte durée sans bail est `vacant` sans `vacant_since`, donc
+     * jamais dans les vacances longues.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeForRent(Builder $query): Builder
+    {
+        return $query->where($query->qualifyColumn('contract_type'), ContractType::Rent->value);
     }
 
     /**

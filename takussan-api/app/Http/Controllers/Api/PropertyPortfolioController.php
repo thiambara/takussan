@@ -26,8 +26,12 @@ use Illuminate\Http\Request;
  * |---|---|
  * | `total` | — |
  * | `occupied` (préavis compris), `vacant`, `notice` | `filter[occupancy]` |
+ * | `for_sale` (TCK-2638 : tout bien qui n'est pas à louer) | `filter[occupancy]=not_rental` |
  * | `rent_late` | `filter[rent_late]=1` |
  * | `online` | `filter[public]=1` |
+ *
+ * `occupied`, `vacant` et `notice` ne comptent que les biens à louer ({@see Property::scopeForRent()}) :
+ * occupés + vacants + à vendre = tous.
  *
  * `vacant_over_60_days` (vacants dont le dernier bail a pris fin il y a 60 jours ou plus ; un bien
  * jamais loué n'y entre pas) et `rent_late_amount` (la somme des `current_month.amount_due` des
@@ -58,6 +62,7 @@ class PropertyPortfolioController extends Controller
             'vacant' => $count(fn (Builder $q) => $q->occupancyState('vacant')),
             'vacant_over_60_days' => $count(fn (Builder $q) => $q->vacantForAtLeast(self::LONG_VACANCY_DAYS)),
             'notice' => $count(fn (Builder $q) => $q->occupancyState('notice')),
+            'for_sale' => $count(fn (Builder $q) => $q->occupancyState('not_rental')),
             'rent_late' => $count(fn (Builder $q) => $q->rentLate($user)),
             'rent_late_amount' => round((float) $latePayments->sum(fn (LeasePayment $p) => $this->gateway->amountDue($p) ?? 0), 2),
             'online' => $count(fn (Builder $q) => $q->public()),
