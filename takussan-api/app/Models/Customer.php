@@ -357,7 +357,9 @@ class Customer extends AbstractModel
         }
 
         $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+        // TCK-2757 — l'auteur n'est jamais le sujet : même règle que `CustomerPolicy::isAuthorStillMember()`.
         $ownAdds = fn (Builder $q) => $q->where('added_by_id', $user->id)
+            ->where(fn (Builder $s) => $s->whereNull('user_id')->orWhere('user_id', '!=', $user->id))
             ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
 
         $staffAgencyId = $user->staffAgencyId();

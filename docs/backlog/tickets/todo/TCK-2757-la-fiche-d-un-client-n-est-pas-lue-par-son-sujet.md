@@ -78,3 +78,11 @@ partout (il n'est pas membre). Démo : 0 fiche où `added_by_id = user_id` ; auc
 
 ## Notes d'implémentation
 
+- 2026-11-12 — policy et scope corrigés (`CustomerPolicy::isAuthorStillMember()`, `Customer::scopeVisibleTo()` branche
+  `$ownAdds`) ; `tests/Feature/Crm/CustomerAuthorIsNotSubjectTest.php` (5 tests) rouge avant le correctif (3 rouges),
+  vert après. Ablations : condition de la policy retirée → 2 rouges (routes, fiche née de `findOrCreateFromUser`) ;
+  condition du scope retirée → 1 rouge (liste). Non-régression : les 74 classes qui citent `CustomerPolicy`,
+  `visibleTo(` ou `/api/customers` — 608 verts.
+- Cas relevé en écrivant le test : `findOrCreateFromUser` sans bien pose `agency_id` = l'agence du profil actif, et une
+  fiche sans agence passait `isAuthorStillMember` sans condition d'appartenance ; la condition « pas le sujet » la ferme
+  aussi.

@@ -42,9 +42,17 @@ class CustomerPolicy extends BasePolicy
             || $this->seesWholeCrm($user, $model);
     }
 
+    /**
+     * TCK-2757 — l'auteur d'une fiche n'en est jamais le SUJET : la fiche née de la candidature, de la
+     * réservation ou de la demande de visite d'un bailleur dans sa propre agence a pour auteur ce
+     * bailleur (`CustomerService::findOrCreateFromUser`), et son `OwnerProfile` le fait membre. Sans
+     * cette condition, il lisait ce que le personnel écrit de lui et modifiait sa fiche. Même règle
+     * dans `Customer::scopeVisibleTo()`, pour que la liste et la fiche disent la même chose.
+     */
     private function isAuthorStillMember(User $user, Customer $customer): bool
     {
         return $customer->added_by_id === $user->id
+            && (int) $customer->user_id !== (int) $user->id
             && ($customer->agency_id === null
                 || app(MembershipCapabilityResolver::class)->isMemberAt($user, (int) $customer->agency_id));
     }
