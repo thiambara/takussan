@@ -373,14 +373,16 @@ class PropertyVisitController extends Controller
     }
 
     /**
-     * TCK-2744 — la ligne de la visite, verrouillée puis relue, PREMIER verrou de la transaction :
-     * l'ordre des verrous est alors celui de `confirmOrFail` (la visite, les visites confirmées du
-     * bien, puis l'agent). Verrouiller l'agent d'abord croisait une confirmation concurrente qui tient
-     * déjà la visite (interblocage), et le statut se jugeait sur le modèle lu avant la transaction.
+     * TCK-2744 — le bien puis la visite, verrouillés puis relus, PREMIERS verrous de la transaction :
+     * l'ordre unique de tous les écrivains ({@see VisitSchedulingService::verrouillerBienPuisVisite()} :
+     * le bien, la visite, puis l'agent). Verrouiller l'agent d'abord croisait une confirmation
+     * concurrente qui tient déjà la visite, et verrouiller la visite avant le bien croisait un second
+     * `update` sur une autre visite du même bien (d1, 40P01) ; le statut se jugeait en outre sur le
+     * modèle lu avant la transaction.
      */
     private function relireSousVerrou(PropertyVisit $visit): void
     {
-        PropertyVisit::query()->whereKey($visit->getKey())->lockForUpdate()->first(['id']);
+        $this->scheduling->verrouillerBienPuisVisite($visit);
         $visit->refresh();
     }
 

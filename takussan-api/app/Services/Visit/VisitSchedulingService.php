@@ -125,9 +125,12 @@ class VisitSchedulingService
      * confirmed visit on the same property. Accepts optional override
      * values for reschedule scenarios (update endpoint).
      *
-     * Pass `$lockForUpdate = true` when called inside a DB transaction
-     * to pessimistically lock the candidate rows and close the TOCTOU
-     * window between the read and the subsequent status flip.
+     * Pass `$lockForUpdate = true` when called inside a DB transaction: the PROPERTY row is locked
+     * (a no-op when the caller already holds it, which every writer does —
+     * {@see self::verrouillerBienPuisVisite()}), closing the TOCTOU window between the read and the
+     * write, inserts included. TCK-2744 (d1) — it used to lock the OTHER confirmed visits of the
+     * property instead: two `update`s on two visits of the same property, each holding its own visit,
+     * then waited for each other's (PostgreSQL 40P01, 19 runs out of 20).
      */
     public function assertNoOverlap(
         PropertyVisit $visit,
@@ -142,6 +145,10 @@ class VisitSchedulingService
         $duration = $durationMinutes ?? $visit->duration_minutes ?? self::DEFAULT_DURATION_MINUTES;
         $end = $start->copy()->addMinutes($duration);
 
+        if ($lockForUpdate) {
+            $this->verrouillerBien((int) $visit->property_id);
+        }
+
         $query = PropertyVisit::query()
             ->where('property_id', $visit->property_id)
             // TCK-590 — une visite pas encore enregistrée (planification console) n'a pas d'id :
@@ -151,10 +158,6 @@ class VisitSchedulingService
             ->whereNotNull('scheduled_at')
             // TCK-2502 — ni une visite à tranche, dont l'heure n'est pas fixée.
             ->whereNull('preferred_window');
-
-        if ($lockForUpdate) {
-            $query->lockForUpdate();
-        }
 
         $overlap = $query
             ->get(['id', 'scheduled_at', 'duration_minutes'])
@@ -225,6 +228,32 @@ class VisitSchedulingService
     }
 
     /**
+     * TCK-2744 (d1) — L'ORDRE DES VERROUS de tout écrivain d'une visite, et il n'y en a qu'un : la
+     * ligne du BIEN, puis celle de la visite, puis ({@see self::assertAgentFree()}) celle de l'agent.
+     * Le bien est le point de sérialisation des visites d'un bien (`takussan-api/CLAUDE.md`, piège
+     * n° 2 : la ligne parent) ; deux écrivains d'un même bien s'y attendent au lieu de se croiser sur
+     * leurs visites. `confirmOrFail`, `rescheduleOrFail`, `update`, `claim` et `bulk-assign` passent
+     * ici ; `createConfirmedOrFail` n'a pas encore de visite et verrouille le bien seul. Un écrivain
+     * qui ne tient qu'UNE ligne (`cancelOrFail`, le compte rendu) ne peut pas fermer de cycle.
+     * `VisitAgentOverlapTest::test_chaque_ecrivain_verrouille_le_bien_puis_la_visite_puis_l_agent`
+     * épingle l'ordre, chemin par chemin.
+     *
+     * @return PropertyVisit la visite relue sous verrou
+     */
+    public function verrouillerBienPuisVisite(PropertyVisit $visit): PropertyVisit
+    {
+        $this->verrouillerBien((int) $visit->property_id);
+
+        return PropertyVisit::query()->whereKey($visit->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    /** La ligne du bien sous verrou, corbeille comprise : un bien supprimé garde ses visites. */
+    private function verrouillerBien(int $propertyId): void
+    {
+        Property::withTrashed()->whereKey($propertyId)->lockForUpdate()->first(['id']);
+    }
+
+    /**
      * Transactional confirm: re-read the visit with a row lock, run the
      * overlap guard against freshly-locked candidate rows, then flip the
      * status to `confirmed` inside the same transaction.
@@ -236,10 +265,7 @@ class VisitSchedulingService
     public function confirmOrFail(PropertyVisit $visit, ?CarbonInterface $scheduledAt = null): PropertyVisit
     {
         return DB::transaction(function () use ($visit, $scheduledAt) {
-            $fresh = PropertyVisit::query()
-                ->whereKey($visit->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $fresh = $this->verrouillerBienPuisVisite($visit);
 
             abort_code_unless(
                 $fresh->status === VisitStatus::Scheduled,
@@ -444,6 +470,8 @@ class VisitSchedulingService
     public function createConfirmedOrFail(Property $property, ?User $visitor, array $attributes): PropertyVisit
     {
         return DB::transaction(function () use ($property, $visitor, $attributes) {
+            // TCK-2744 (d1) — le bien d'abord, puis l'agent : l'ordre de tous les écrivains.
+            $this->verrouillerBien((int) $property->getKey());
             $this->assertQuota($property, $visitor, $attributes['customer_id'] ?? null, lockForUpdate: true);
 
             $candidate = new PropertyVisit($attributes);
@@ -464,7 +492,7 @@ class VisitSchedulingService
     public function rescheduleOrFail(PropertyVisit $visit, CarbonInterface $scheduledAt): PropertyVisit
     {
         return DB::transaction(function () use ($visit, $scheduledAt) {
-            $fresh = PropertyVisit::query()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
+            $fresh = $this->verrouillerBienPuisVisite($visit);
 
             abort_code_unless(
                 in_array($fresh->status, self::ACTIVE_STATUSES, true),

@@ -384,4 +384,93 @@ class VisitAgentOverlapTest extends ApiTestCase
             $visite->update(['status' => VisitStatus::Cancelled]);
         }
     }
+
+    /**
+     * TCK-2744 (d1, verif-commercial) — UN ordre de verrous pour tous les écrivains d'une visite : le
+     * BIEN, puis la VISITE, puis l'AGENT ({@see VisitSchedulingService::verrouillerBienPuisVisite()}).
+     * La visite verrouillée avant le bien, puis les autres visites confirmées du bien, faisaient
+     * s'interbloquer deux `update` simultanés sur deux visites d'un même bien (40P01, 19 fois sur 20,
+     * course à deux processus du vérificateur ; 20 sur 20 passent bien d'abord). La course ne tient
+     * pas dans `RefreshDatabase` (une connexion) : l'ordre est épinglé ici, chemin par chemin, par les
+     * premiers `FOR UPDATE` de chaque table, et aucune autre visite que la sienne n'est verrouillée.
+     */
+    public function test_chaque_ecrivain_verrouille_le_bien_puis_la_visite_puis_l_agent(): void
+    {
+        $agentY = $this->personnel($this->x);
+        $confirmee = fn (array $attributs = []) => $this->visite($this->a, 11, 0, ['status' => VisitStatus::Confirmed] + $attributs);
+        $chemins = [
+            'confirmer' => [fn () => $this->visite($this->a, 11), fn (PropertyVisit $v) => $this->confirmer($v), ['properties', 'property_visits', 'users']],
+            'confirmer en lot' => [fn () => $this->visite($this->a, 11), function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->postJson('/api/property-visits/bulk-confirm', ['visits' => [['id' => $v->id]]])->assertJsonPath('data.0.ok', true);
+            }, ['properties', 'property_visits', 'users']],
+            'modifier la durée' => [$confirmee, function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->patchJson("/api/property-visits/{$v->id}", ['duration_minutes' => 45]);
+            }, ['properties', 'property_visits', 'users']],
+            'modifier l’agent' => [fn () => $confirmee(['agent_id' => $agentY->id]), function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->patchJson("/api/property-visits/{$v->id}", ['agent_id' => $this->agentX->id]);
+            }, ['properties', 'property_visits', 'users']],
+            'prendre en charge' => [fn () => $confirmee(['agent_id' => null]), function (PropertyVisit $v) {
+                Sanctum::actingAs($this->agentX);
+
+                return $this->postJson("/api/property-visits/{$v->id}/claim");
+            }, ['properties', 'property_visits', 'users']],
+            'attribuer en lot' => [fn () => $confirmee(['agent_id' => $agentY->id]), function (PropertyVisit $v) {
+                Sanctum::actingAs($this->admin);
+
+                return $this->postJson('/api/property-visits/bulk-assign', ['ids' => [$v->id], 'agent_id' => $this->agentX->id])->assertJsonPath('data.0.ok', true);
+            }, ['properties', 'property_visits', 'users']],
+            'proposer un autre créneau' => [$confirmee, function (PropertyVisit $v) {
+                app(VisitSchedulingService::class)->rescheduleOrFail($v, $this->h(14));
+
+                return null;
+            }, ['properties', 'property_visits']],
+            'planifier confirmée' => [fn () => null, function () {
+                Sanctum::actingAs($this->admin);
+
+                return $this->postJson('/api/property-visits', [
+                    'property_id' => $this->a->id, 'agent_id' => $this->agentX->id, 'scheduled_at' => $this->h(11)->toIso8601String(),
+                    'visitor_name' => 'Awa Diop', 'visitor_phone' => '+221771234567',
+                ]);
+            }, ['properties', 'users']],
+        ];
+
+        foreach ($chemins as $nom => [$decor, $geste, $attendu]) {
+            $visite = $decor();
+            $verrous = [];
+            DB::listen(function ($q) use (&$verrous): void {
+                if (preg_match('/from "(properties|property_visits|users)" where (.*) for update/', $q->sql, $m) === 1) {
+                    $verrous[] = ['table' => $m[1], 'where' => $m[2], 'bindings' => $q->bindings];
+                }
+            });
+
+            $reponse = $geste($visite);
+            if ($reponse !== null) {
+                $this->assertContains($reponse->status(), [200, 201], "{$nom} : ".$reponse->getContent());
+            }
+
+            $premiers = [];
+            foreach ($verrous as $i => $verrou) {
+                $premiers[$verrou['table']] ??= $i;
+            }
+            $this->assertSame($attendu, array_keys($premiers), "{$nom} : l’ordre des premiers verrous");
+
+            foreach ($verrous as $verrou) {
+                if ($verrou['table'] === 'properties') {
+                    $this->assertSame([$this->a->id], $verrou['bindings'], "{$nom} : seul le bien de la visite");
+                }
+                if ($verrou['table'] === 'property_visits') {
+                    $this->assertStringStartsWith('"property_visits"."id" = ?', $verrou['where'], "{$nom} : aucune autre visite du bien n’est verrouillée");
+                    $this->assertSame([$visite->id], $verrou['bindings'], $nom);
+                }
+            }
+
+            PropertyVisit::query()->where('property_id', $this->a->id)->update(['status' => VisitStatus::Cancelled]);
+        }
+    }
 }
