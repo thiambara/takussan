@@ -118,6 +118,10 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
   const selectedId = Number.parseInt(url.lire('selected'), 10) || null;
 
   const [coches, setCoches] = useState<ReadonlySet<number>>(new Set());
+  // TCK-2673 d1 — ce que « Tout cocher » a réellement coché : la lecture ne rend que les avis
+  // publiables, ce que le total de la file ne dit pas (un avis sur l'agence elle-même y figure,
+  // `can_moderate` faux). `null` tant qu'aucune lecture n'a abouti sous ces filtres.
+  const [nbDeToutCocher, setNbDeToutCocher] = useState<number | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [erreurDuLot, setErreurDuLot] = useState<string | null>(null);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
@@ -172,6 +176,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
     },
     onSuccess: (ids) => {
       setErreurDuLot(null);
+      setNbDeToutCocher(ids.length);
       setCoches(new Set(ids));
     },
     onError: () => setErreurDuLot(tFile('toutCocherEchec')),
@@ -181,6 +186,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
     mutationFn: (ids: readonly number[]) => avecGardeDoubleFacteur(() => moderateReviewBatch(ids, token ?? ''), garde),
     onSuccess: (reponse) => {
       setCoches(new Set());
+      setNbDeToutCocher(null);
       setErreurDuLot(null);
       setAnnonce(tFile('lotPublie', { n: reponse.data.count }));
       void queryClient.invalidateQueries({ queryKey: ['reviews-moderation'] });
@@ -188,6 +194,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
     onError: (err) => {
       if (err instanceof ApiError && err.status === 422) {
         setErreurDuLot(tFile('lotRefuse'));
+        setNbDeToutCocher(null);
         void queryClient.invalidateQueries({ queryKey: ['reviews-moderation'] });
         return;
       }
@@ -201,6 +208,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
   if (cleCochee !== cleFiltres) {
     setCleCochee(cleFiltres);
     setCoches(new Set());
+    setNbDeToutCocher(null);
   }
 
   const ouvrir = (avis: ModerationReview) => {
@@ -319,7 +327,10 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
       </div>
     );
 
-  const nbAuPlus = Math.min(totalSansRisque, MAX_AVIS_PAR_LOT);
+  // Le plafond d'une sélection : après « Tout cocher », ce qu'il a coché ; avant, le total sans
+  // risque moins les avis déjà lus qu'on ne peut pas publier (exact dès que la file est lue entière).
+  const nonPubliablesLus = avisSansRisque.filter((a) => !publiableParLot(a)).length;
+  const nbAuPlus = nbDeToutCocher ?? Math.min(Math.max(totalSansRisque - nonPubliablesLus, 0), MAX_AVIS_PAR_LOT);
   const toutEstCoche = selection.length > 0 && selection.length >= nbAuPlus;
   const caseDeTout = () => (
     <Checkbox

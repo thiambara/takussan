@@ -370,6 +370,45 @@ describe('<ModerationWorkspace> — le lot (TCK-2673)', () => {
     expect(mockBatch.mock.calls[0][0]).not.toContain(200);
   });
 
+  it('TCK-2673 d1 — un avis non publiable dans la file (sur l’agence) : « Tout cocher » passe à « Tout décocher », la case maîtresse est pleine', async () => {
+    serveur = { high: [], low: [...plage(100, 3), avis(200, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })] };
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    await user.click(screen.getByRole('button', { name: 'Tout cocher' }));
+    expect(await screen.findByRole('button', { name: 'Tout décocher' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Cocher tous les avis sans risque' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'Publier la sélection · 3 avis' })).toBeInTheDocument();
+  });
+
+  it('TCK-2673 d1 — téléphone : « Tout cocher (n) » ne compte que les avis publiables', async () => {
+    ecran = 'telephone';
+    urlCourante = 'filter[risk]=low';
+    serveur = { high: [], low: [...plage(100, 3), avis(200, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })] };
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    expect(screen.getByRole('button', { name: 'Tout cocher (3)' })).toBeInTheDocument();
+  });
+
+  it('les cases cochées ne survivent pas à un changement de filtre : rien de ce qui a quitté l’écran ne se publierait', async () => {
+    serveur = { high: [], low: plage(100, 3) };
+    const user = userEvent.setup();
+    const { rerender } = render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    await user.click(screen.getByRole('checkbox', { name: 'Cocher l’avis de Auteur 100' }));
+    expect(screen.getByRole('button', { name: 'Publier la sélection · 1 avis' })).toBeInTheDocument();
+
+    urlCourante = 'filter[reported]=1';
+    rerender(wrap(<ModerationWorkspace />));
+    await waitFor(() => expect(paramsDe('low')).toMatchObject({ reported: true }));
+    await screen.findByTestId('moderation-queue-item-100');
+    expect(screen.getByRole('button', { name: 'Publier la sélection · 0 avis' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Cocher l’avis de Auteur 100' })).toHaveAttribute('aria-checked', 'false');
+  });
+
   it('un lot refusé (422) ne publie rien, relit la file et le dit', async () => {
     serveur = { high: [], low: plage(100, 3) };
     mockBatch.mockRejectedValue(new ApiError(422, { code: 'review.batch_not_moderatable', message: 'refus' }));
