@@ -350,6 +350,21 @@ class ConversationListFiltersTest extends TestCase
         $this->getJson('/api/conversations?filter[participant][]=1')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
     }
 
+    /**
+     * Vérification adverse de TCK-2632 — `filter[participant]=<soi>` : l'appelant est membre de tous ses
+     * fils, et le filtre élargit la page aux archives (décision b) — la liste entière, archives
+     * comprises, sans fuite mais sans objet. Le front ne l'envoie jamais : c'est une erreur du client.
+     */
+    public function test_participant_soi_meme_rend_422(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $this->getJson('/api/conversations?filter[participant]='.$this->agent->id)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('filter.participant');
+        $this->getJson('/api/conversations?filter[participant]='.$this->malick->id)->assertOk();
+    }
+
     private function creerFils(int $n): void
     {
         for ($i = 0; $i < $n; $i++) {

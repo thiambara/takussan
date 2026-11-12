@@ -41,8 +41,11 @@ use RecursiveIteratorIterator;
  * (`self::CHAMP => ['required', 'date']`) : seules les clés littérales entre guillemets simples le sont
  * (Pint réécrit les doubles). Le lecteur est reconnu par le TYPE de son paramètre (`StoreTaskRequest
  * $request`) : une requête relue par `app(StoreTaskRequest::class)` ou passée sans type ne l'est pas, et
- * `input()` / `all()` ne sont pas jugés — ils lisent aussi les champs qui ne sont pas des dates. La garde
- * est un plancher.
+ * `input()` / `all()` ne sont pas jugés — ils lisent aussi les champs qui ne sont pas des dates. Les
+ * lectures sont cherchées sur le NOM du paramètre typé : un alias (`$r = $request; $r->validated()`)
+ * échappe au refus de `validated()`, et un appel à `validatedAvecInstants()` dont le résultat n'est pas
+ * utilisé — un appel mort, suivi de la lecture de l'alias — compte comme un lecteur (vérification adverse
+ * de TCK-2743). La garde est un plancher.
  */
 class InstantRecuConvertiTest extends TestCase
 {

@@ -54,7 +54,9 @@ class ListConversationsRequest extends BaseFormRequest
             'filter.type' => ['sometimes', 'nullable', Rule::in(self::TYPES)],
             // TCK-2632 — « Nouvelle conversation » cherche le fil direct déjà ouvert avec une
             // personne. Un identifiant, jamais un nom : deux homonymes ne se confondent pas.
-            'filter.participant' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            // Jamais l'appelant (vérification adverse) : membre de tous ses fils, il rendrait sa liste
+            // entière, archives comprises (le filtre les ouvre) — 422, comme toute saisie sans objet.
+            'filter.participant' => ['sometimes', 'nullable', 'integer', 'min:1', Rule::notIn(array_filter([$this->user()?->id]))],
         ];
     }
 

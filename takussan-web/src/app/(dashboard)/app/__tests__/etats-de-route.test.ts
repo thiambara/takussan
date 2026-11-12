@@ -396,7 +396,11 @@ function seGardeParLaTableDesPages(page: Page): boolean {
  *   - une balise venue d'un paquet (`next/link`, `react`) n'est pas lue : un paquet n'expose pas de
  *     composant serveur qui attend notre API ;
  *   - une attente cachée derrière un appel de fonction sans `await` ni `.then` dans la page (une
- *     promesse rendue en enfant, `{lire()}`) n'est pas vue.
+ *     promesse rendue en enfant, `{lire()}`) n'est pas vue ;
+ *   - cinq écritures artificielles d'une attente échappent au relevé des noms attendus (contre-vérification
+ *     de TCK-2677) : `await(fetch(…))` sans espace, `await [fetch(…)][0]`, `await (0, fetch)(…)`, et
+ *     `use(fetch(…))` de React, dans la page comme dans un composant local. Aucune n'est une forme du
+ *     dépôt ; la règle 1 ne lit que `await`, une espace, puis un nom (une parenthèse ouvrante admise).
  */
 const ATTENTES_SANS_RESEAU = new Set(['getMeAction', 'aiguillerVersLArgent', 'getTranslations', 'searchParams', 'params']);
 

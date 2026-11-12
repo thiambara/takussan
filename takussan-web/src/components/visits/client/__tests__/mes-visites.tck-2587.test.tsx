@@ -340,3 +340,28 @@ describe('les passées', () => {
     expect(screen.queryByRole('heading', { name: /Passées/ })).toBeNull();
   });
 });
+
+// Contre-vérification de TCK-2587 — le plafond de 24 h n'était épinglé que par la fonction
+// (`heuresRestantesPourLAvis`) : la CARTE est jugée ici, aux deux bords de la fenêtre.
+describe('TCK-2587 — la fenêtre d’avis, sur la carte', () => {
+  it('une visite close il y a 25 h n’a plus de carte d’avis : elle se lit dans « Passées »', async () => {
+    const VINGT_CINQ_H = visite({ id: 940, status: 'completed', scheduled_at: '2026-11-09T08:30:00Z', completed_at: '2026-11-09T09:12:00Z' });
+    etat.terminees = [VINGT_CINQ_H];
+    etat.passees = [VINGT_CINQ_H];
+    monter();
+    const passees = (await screen.findByRole('heading', { name: 'Passées' })).closest('section') as HTMLElement;
+    expect(within(passees).getByText('Appartement neuf')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="avis-du-client"]')).toBeNull();
+    expect(screen.queryByText(/avis à donner/)).toBeNull();
+  });
+
+  it('une clôture datée dans le futur ouvre la carte, sans jamais promettre plus de 24 h', async () => {
+    const FUTURE = visite({ id: 941, status: 'completed', scheduled_at: '2026-11-10T06:00:00Z', completed_at: '2026-11-11T16:12:00Z' });
+    etat.terminees = [FUTURE];
+    etat.passees = [FUTURE];
+    monter();
+    const carte = (await screen.findByText('encore 24 h')).closest('[data-slot="avis-du-client"]');
+    expect(carte).not.toBeNull();
+    expect(screen.queryByText('encore 54 h')).toBeNull();
+  });
+});
