@@ -1,13 +1,13 @@
 ---
 id: TCK-2703
 title: "Une location porte toujours sa période : seeders alignés sur l'invariant du modèle, et les biens `rent` sans `rent_period` rattrapés"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 87
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 depends_on: []
 blocks: []
 spec_refs:
