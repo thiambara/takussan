@@ -1,6 +1,6 @@
 # ADR-0105 — La relance d'un impayé part du téléphone de l'agence ; Takussan la note et ne l'envoie pas
 
-- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 13 (a) : *par WhatsApp, message prérempli*) — modalités : décisions de la session, à revoir ; **amendé le 2026-11-10** (la relance en lot entre dans le lot, comme une file guidée : cf. § *Amendement du 2026-11-10*)
+- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 13 (a) : *par WhatsApp, message prérempli*) — modalités : décisions de la session, à revoir ; **amendé le 2026-11-10** (la relance en lot entre dans le lot, comme une file guidée : cf. § *Amendement du 2026-11-10*) ; **amendé le 2026-11-12** (le lien de paiement n'est créé qu'à l'envoi, et le message nomme l'agence : cf. § *Amendement du 2026-11-12*)
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2658 (API : relances journalisées), TCK-2660 (impayés : relancer sur WhatsApp), TCK-2682 (relance en lot, file guidée), TCK-2644 (liste des baux : « À traiter » et relance) ; la lisent : TCK-2624 (accueil de l'admin), TCK-2629 (onglet Impayés de Rapports)
 - **S'appuie sur** : [ADR-0051](0051-lien-porteur-de-paiement-et-journal-des-webhooks.md) (lien porteur de paiement d'une échéance), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (l'API n'écrit pas de prose)
@@ -71,8 +71,47 @@ Le porteur a retenu le 2026-11-10 l'option (a) : *la relance se fait par WhatsAp
 1. L'agence coche des impayés, puis « Relancer la sélection » ouvre une **file** : une échéance à la fois, avec son message prérempli (dans la langue du locataire), son lien de paiement et « Ouvrir WhatsApp ».
 2. Chaque ouverture de WhatsApp **note la relance de cette échéance** (`channel: whatsapp`), comme une relance unitaire. La file passe ensuite à l'échéance suivante ; « Passer » la saute sans rien noter.
 3. Une échéance sans téléphone, ou dont le lien répond 409 (plus payable en ligne), est **sautée avec sa raison**, jamais retirée en silence ; le récapitulatif de fin le dit.
-4. Le lien de paiement est demandé **échéance par échéance**, au moment où elle s'affiche, par la route existante : aucune route de lot n'est créée, et un lien n'est jamais créé pour une échéance qu'on n'a pas ouverte.
+4. Le lien de paiement est demandé **échéance par échéance**, au moment où elle s'affiche, par la route existante : aucune route de lot n'est créée, et un lien n'est jamais créé pour une échéance qu'on n'a pas ouverte. *Amendé le 2026-11-12 : le lien n'est plus demandé à l'affichage, mais à l'envoi (cf. § Amendement du 2026-11-12, point 1).*
 5. Le récapitulatif de fin compte les relances notées, les échéances passées et les sautées, avec leur raison.
 
 **Ce qui ne change pas.** La note, la lecture unique (§ 3) et le journal (§ 4). Un envoi par Takussan reste un autre ADR.
 
+
+## Amendement du 2026-11-12 — le lien de paiement n'est créé qu'à l'envoi, et le message nomme l'agence
+
+- **Tickets** : [TCK-2660](../backlog/tickets/todo/TCK-2660-impayes-relance-whatsapp.md), [TCK-2682](../backlog/tickets/todo/TCK-2682-relance-des-impayes-en-lot.md) ; le message partagé sert aussi TCK-2639 (fiche bien) et TCK-2644 (liste des baux).
+- **Décisions du porteur** (2026-11-12, soir) : n° 1 (a), *le lien de paiement n'est créé qu'à l'ENVOI de la relance, jamais à l'ouverture de la feuille : une lecture n'écrit pas* ; n° 3 (a), *le message nomme l'agence*. Le mécanisme ci-dessous est celui que back-4 a implémenté et éprouvé par ablation. Ce sont des décisions de la session, à revoir.
+
+**Constat.** Le point 4 de l'amendement du 2026-11-10 demandait le lien « au moment où l'échéance s'affiche ». Le § 1 le disait « créé ou repris » sans dire quand. Les écrans demandaient donc le lien (`POST /api/lease-payments/{payment}/payment-link`) à l'ouverture de la feuille, du dossier ou d'une échéance de la file. Ce `POST` écrit : il crée un lien porteur ([ADR-0051](0051-lien-porteur-de-paiement-et-journal-des-webhooks.md)). Regarder un impayé créait donc un lien de paiement, même quand personne ne relançait.
+
+**Décision.**
+
+1. **Le lien se crée au geste d'envoi, et à lui seul.** Deux gestes créent le lien :
+   - « Ouvrir WhatsApp » ;
+   - « Copier » le lien.
+
+   Aucun autre n'en crée :
+   - l'ouverture de la feuille, du dossier ou d'une échéance de la file ;
+   - « Passer » ;
+   - « Appeler ».
+
+   Le point 4 de l'amendement du 2026-11-10 est remplacé : la file ne demande plus le lien quand une échéance s'affiche.
+2. **Le message attend son lien.** Il est composé avec un **repère** à la place du lien (« [lien de paiement ajouté à l'envoi] »). Au clic, « Ouvrir WhatsApp » fait quatre choses, dans cet ordre :
+   - il **ouvre l'onglet au moment même de l'appui**, avant toute requête, par un `window.open('', '_blank')` synchrone. Le navigateur voit ainsi un geste de l'utilisateur, et non une ouverture différée ;
+   - il crée le lien ;
+   - il remplace le repère par l'URL. Un repère que l'agent a effacé laisse son texte tel quel ;
+   - il pose l'adresse `wa.me` dans l'onglet déjà ouvert, puis note la relance (§ 2).
+3. **Un 409 n'arrive qu'à l'envoi.** S'il arrive (l'échéance ne se paie plus en ligne), ou si la création du lien échoue, l'onglet ouvert à l'appui se referme et rien n'est noté. Dans la file, l'échéance est sautée avec sa raison (point 3 de l'amendement du 2026-11-10, inchangé).
+4. **L'envoi abandonné ne laisse rien partir.** Si l'agent quitte l'échéance pendant la création du lien (« Passer », « Arrêter », feuille refermée), l'onglet ouvert d'avance se referme, et rien n'est noté : le lien revenu n'y est pas posé. Un second clic pendant la création, ou juste après l'ouverture, ne crée, n'ouvre ni ne note rien.
+5. **L'onglet refusé.** Le repli ne sert que si le navigateur refuse **quand même** l'onglet ouvert à l'appui (`window.open` rend `null`). Dans ce cas, une fois le lien créé, un lien `wa.me` prêt remplace le bouton : « Touchez encore pour ouvrir WhatsApp ». C'est ce second appui qui ouvre et qui note.
+   - **Non mesuré sur un vrai navigateur** : la part des navigateurs, Safari iOS en tête, qui refusent même un onglet ouvert de façon synchrone à l'appui. Le repli n'est éprouvé qu'en test.
+6. **Le message nomme l'agence** (décision 3) : les gabarits finissent par « De la part de {agence}. », l'agence du profil actif.
+   - L'aide qui compose le message reste **unique** (§ 1), donc les quatre écrans qui relancent (TCK-2660, TCK-2682, TCK-2639, TCK-2644) le disent ensemble.
+   - Le texte reste au front (principe 5), et il n'est toujours pas stocké.
+
+**Conséquences.**
+- **Une lecture n'écrit plus.** Ouvrir les impayés, un dossier ou la file ne crée aucun lien. Les liens créés correspondent aux relances envoyées ou copiées.
+- **« Copier » crée un lien qui peut ne jamais partir.** Copier n'est pas noter : la note ne suit que l'ouverture de WhatsApp (§ 2). Un lien copié et jamais collé reste un lien porteur valide jusqu'à son expiration, comme tout lien d'[ADR-0051](0051-lien-porteur-de-paiement-et-journal-des-webhooks.md).
+- **WhatsApp attend une requête.** L'onglet s'ouvre à l'appui, mais WhatsApp n'y arrive qu'une fois le lien créé. C'est le prix du point 1. L'onglet ouvert d'avance évite le blocage d'une ouverture différée, et le repli du point 5 couvre le reste.
+
+**Ce qui ne change pas.** Takussan n'envoie toujours rien. La note (§ 2), la lecture unique (§ 3), le journal (§ 4) et la file guidée (amendement du 2026-11-10, points 1 à 3 et 5) restent tels quels.
