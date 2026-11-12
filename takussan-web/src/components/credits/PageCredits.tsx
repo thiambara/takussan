@@ -110,6 +110,14 @@ function PanneauDesCredits({
   );
 }
 
+/** La page ne leur est pas ouverte : pas un échec de chargement, pas de « Réessayer ». */
+function estReservee(erreur: unknown): boolean {
+  if (!(erreur instanceof ApiError)) return false;
+  if (erreur.status === 403) return true;
+  const code = erreur.data && typeof erreur.data === 'object' ? (erreur.data as { code?: unknown }).code : undefined;
+  return erreur.status === 422 && code === 'credits.no_space';
+}
+
 export function PageCredits() {
   const t = useTranslations('credits');
   const f = useFormatteurs();
@@ -118,7 +126,9 @@ export function PageCredits() {
   // est `agency_admin` de son propre espace — mesuré sur l'hôte de démo — et lit « de votre espace ».
   const profils = useMyProfiles();
   const credits = useCredits(true, 1);
-  const reserve = credits.error instanceof ApiError && credits.error.status === 403;
+  // Réservée : 403 (le personnel sans `boost.spend`, le bailleur) ET 422 `credits.no_space` (le
+  // prestataire, le client : aucun espace) — mesuré sur la démo. Ni l'un ni l'autre n'est une panne.
+  const reserve = estReservee(credits.error);
   const accessible = credits.isSuccess;
 
   const produits = useBoostProducts(accessible);

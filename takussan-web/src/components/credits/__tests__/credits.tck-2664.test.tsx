@@ -94,13 +94,18 @@ interface Options {
   readonly boosts?: readonly unknown[];
   /** Les boosts en place du bien choisi (GET /properties/{id}/boosts). */
   readonly enPlace?: readonly unknown[];
+  /** Après un refus : le solde que rend la relecture (défaut : celui du refus, 3). */
+  readonly soldeRelu?: number;
+  /** Après un refus : la relecture des crédits attend cette porte. */
+  readonly porte?: Promise<void>;
 }
 
 const meta = (total: number, parPage: number, page = 1) => ({ current_page: page, last_page: Math.max(1, Math.ceil(total / parPage)), per_page: parPage, total, from: 1, to: Math.min(total, parPage) });
 
-function routeur({ solde: soldeInitial = 60, produits = PRODUITS, statutCredits = 200, refusAchat = false, boosts = [BOOST_TERMINE], enPlace = [] }: Options = {}) {
+function routeur({ solde: soldeInitial = 60, produits = PRODUITS, statutCredits = 200, refusAchat = false, boosts = [BOOST_TERMINE], enPlace = [], soldeRelu, porte }: Options = {}) {
   const appels: Appel[] = [];
   let solde = soldeInitial;
+  let refuse = false;
   vi.stubGlobal(
     'fetch',
     vi.fn(async (entree: RequestInfo | URL, init?: RequestInit) => {
@@ -115,8 +120,9 @@ function routeur({ solde: soldeInitial = 60, produits = PRODUITS, statutCredits 
       else if (url.includes('/api/credits')) {
         if (statutCredits !== 200) {
           statut = statutCredits;
-          corps = { message: 'This action is unauthorized.' };
+          corps = statut === 422 ? { message: 'No space.', code: 'credits.no_space' } : { message: 'This action is unauthorized.' };
         } else {
+          if (refuse && porte) await porte;
           const parPage = Number(/per_page=(\d+)/.exec(url)?.[1] ?? 20);
           corps = { data: { balance: solde, lots: [{ ...LOT, remaining_amount: solde }] }, movements: [MOUVEMENT], meta: meta(42, parPage) };
         }
@@ -125,8 +131,12 @@ function routeur({ solde: soldeInitial = 60, produits = PRODUITS, statutCredits 
         if (methode === 'POST') {
           const p = produits.find((x) => (x as { id: number }).id === (JSON.parse(String(init?.body)) as { product_id: number }).product_id) as { price_credits: number };
           if (refusAchat) {
+            // Le solde a baissé ailleurs (60 → 3) : le serveur refuse et dit le solde vrai.
+            solde = 3;
+            refuse = true;
             statut = 422;
-            corps = { code: 'credits.insufficient', params: { missing: 7, balance: solde } };
+            corps = { code: 'credits.insufficient', params: { missing: p.price_credits - solde, balance: solde } };
+            if (soldeRelu !== undefined) solde = soldeRelu;
           } else {
             solde -= p.price_credits;
             corps = { data: { id: 99 }, balance: solde };
@@ -242,8 +252,37 @@ describe('TCK-2664 — la page Crédits', () => {
     expect(within(dialogue).getByRole('radio', { name: /Urgent/ })).not.toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('le refus « solde insuffisant » du serveur est dit dans le parcours', async () => {
-    routeur({ refusAchat: true });
+  it('le refus « solde insuffisant » : le manque seul, sans « Il vous restera », Confirmer fermé, et le solde relu', async () => {
+    let ouvrir = () => {};
+    const porte = new Promise<void>((r) => (ouvrir = r));
+    const appels = routeur({ refusAchat: true, porte });
+    const u = userEvent.setup();
+    rendre();
+    await u.click(await screen.findByRole('button', { name: 'Mettre un bien en avant' }));
+    const dialogue = await screen.findByRole('dialog');
+    await u.click(await within(dialogue).findByRole('radio', { name: /Deux-pièces rénové/ }));
+    await u.click(within(dialogue).getByRole('radio', { name: /Urgent/ }));
+    const confirmer = within(dialogue).getByRole('button', { name: 'Mettre en avant · 10 crédits' });
+    await waitFor(() => expect(confirmer).toBeEnabled());
+    expect(within(dialogue).getByText(/Il vous restera/)).toHaveTextContent('Il vous restera 50 crédits sur 60');
+    const lecturesAvant = appels.filter((a) => a.methode === 'GET' && /\/api\/credits\?/.test(a.url)).length;
+    await u.click(confirmer);
+
+    expect(await within(dialogue).findAllByText('Il vous manque 7 crédits')).not.toHaveLength(0);
+    // AVANT que la relecture réponde (la porte est fermée) : le solde du refus fait déjà foi.
+    expect(within(dialogue).queryByText(/Il vous restera/)).toBeNull();
+    expect(confirmer).toBeDisabled();
+    ouvrir();
+    // Les crédits sont relus après le refus, et l'écran suit le solde relu (3), pas l'ancien (60).
+    await waitFor(() => expect(appels.filter((a) => a.methode === 'GET' && /\/api\/credits\?/.test(a.url)).length).toBeGreaterThan(lecturesAvant));
+    await waitFor(() => expect(soldeAffiche()).toHaveTextContent('3'));
+    expect(within(dialogue).queryByText(/Il vous restera/)).toBeNull();
+    expect(confirmer).toBeDisabled();
+    expect(appels.filter((a) => a.methode === 'POST')).toHaveLength(1);
+  });
+
+  it('après un refus, un solde relu qui couvre l’offre rouvre la confirmation (le refus ne fige pas l’écran)', async () => {
+    routeur({ refusAchat: true, soldeRelu: 25 });
     const u = userEvent.setup();
     rendre();
     await u.click(await screen.findByRole('button', { name: 'Mettre un bien en avant' }));
@@ -253,7 +292,9 @@ describe('TCK-2664 — la page Crédits', () => {
     const confirmer = within(dialogue).getByRole('button', { name: 'Mettre en avant · 10 crédits' });
     await waitFor(() => expect(confirmer).toBeEnabled());
     await u.click(confirmer);
-    expect(await within(dialogue).findByRole('alert')).toHaveTextContent('Il vous manque 7 crédits');
+    await waitFor(() => expect(soldeAffiche()).toHaveTextContent('25'));
+    await waitFor(() => expect(confirmer).toBeEnabled());
+    expect(within(dialogue).getByText(/Il vous restera/)).toHaveTextContent('Il vous restera 15 crédits sur 25');
   });
 
   it('« Remonter · 5 » ouvre le parcours sur ce bien et la Remontée ; « Relancer » sur l’offre active de même durée', async () => {
@@ -363,6 +404,15 @@ describe('TCK-2664 — la page Crédits', () => {
 
   it('AC5 — un membre sans `boost.spend` (403) lit que la page est réservée, sans erreur générique, et rien d’autre ne part', async () => {
     const appels = routeur({ statutCredits: 403 });
+    rendre();
+    expect(await screen.findByText('Cette page est réservée aux administrateurs de l’espace')).toBeInTheDocument();
+    expect(screen.queryByText('Impossible de charger les crédits.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Réessayer/ })).not.toBeInTheDocument();
+    expect(appels.some((a) => /credits\/(boosts|suggestions)|boost-products|\/api\/properties/.test(a.url))).toBe(false);
+  });
+
+  it('le prestataire et le client (422 `credits.no_space`, aucun espace) lisent la même page réservée, sans erreur', async () => {
+    const appels = routeur({ statutCredits: 422 });
     rendre();
     expect(await screen.findByText('Cette page est réservée aux administrateurs de l’espace')).toBeInTheDocument();
     expect(screen.queryByText('Impossible de charger les crédits.')).not.toBeInTheDocument();

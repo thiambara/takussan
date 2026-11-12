@@ -17,6 +17,11 @@ import { manqueDeCredits, type BoostProduct } from './types';
  * une réponse perdue ne débite pas deux fois, et choisir un autre bien ou une autre offre est un autre
  * achat (l'API refuserait un corps différent sous la même clé). Elle renaît après un achat réussi et à
  * la fermeture (`reinitialiser`).
+ *
+ * Un refus `credits.insufficient` (le solde a changé entre l'affichage et la confirmation) fait foi :
+ * le solde est celui que le serveur vient de dire, jusqu'à ce que la relecture des crédits arrive —
+ * le manque se recalcule, « Il vous restera » disparaît, la confirmation se ferme. La relecture faite,
+ * le refus s'efface : c'est le solde relu qui parle (vérification de TCK-2664).
  */
 function nouvelleOuverture(): string {
   return globalThis.crypto.randomUUID();
@@ -40,7 +45,8 @@ export function useAchatDeBoost({
   const enPlace = usePropertyBoosts(propertyId ?? 0, ouvert && propertyId !== null);
   const [maintenant] = useState(() => Date.now());
 
-  const solde = credits.data?.data.balance ?? 0;
+  const refusSolde = manqueDeCredits(achat.error);
+  const solde = refusSolde ? refusSolde.balance : (credits.data?.data.balance ?? 0);
   const liste = offres.data?.data ?? [];
   const offre = liste.find((p) => p.id === choix) ?? null;
   const manqueDe = (p: BoostProduct) => Math.max(0, p.price_credits - solde);
@@ -56,7 +62,7 @@ export function useAchatDeBoost({
     manque: offre ? manqueDe(offre) : 0,
     manqueDe,
     /** Le refus du serveur, si le solde a changé entre l'affichage et la confirmation. */
-    refusSolde: manqueDeCredits(achat.error),
+    refusSolde,
     effet: effetAchat(offre, enPlace.data?.data ?? [], enPlace.data?.bump_available_at ?? null, maintenant),
     chargement: credits.isLoading || offres.isLoading || (propertyId !== null && enPlace.isLoading),
     echec: credits.isError || offres.isError || (propertyId !== null && enPlace.isError),
@@ -81,6 +87,11 @@ export function useAchatDeBoost({
           onSuccess: () => {
             setOuverture(nouvelleOuverture());
             onSuccess?.();
+          },
+          onError: (erreur) => {
+            // Relire LA lecture des crédits (`['credits', 1]`, celle de la page Crédits aussi) : le solde
+            // affiché suit, puis le refus s'efface.
+            if (manqueDeCredits(erreur)) void Promise.resolve(credits.refetch()).then(() => achat.reset());
           },
         },
       );

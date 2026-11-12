@@ -129,9 +129,8 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
                 <p className="text-muted-foreground">{t('dialog.noPurchase')}</p>
               </div>
             ) : null}
-            {refusSolde ? (
-              <p role="alert" className="text-sm font-medium text-destructive">{t('dialog.missing', { count: refusSolde.missing })}</p>
-            ) : achat.error ? (
+            {/* Un refus `credits.insufficient` se lit dans le manque ci-dessus (le solde du refus fait foi). */}
+            {refusSolde ? null : achat.error ? (
               <p role="alert" className="text-sm text-destructive">{messageErreur(achat.error, t('dialog.failed'))}</p>
             ) : null}
             {fait ? (

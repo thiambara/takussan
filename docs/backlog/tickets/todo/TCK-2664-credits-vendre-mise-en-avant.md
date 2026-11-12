@@ -134,3 +134,15 @@ Fonctions existantes à garder (`credits/page.tsx`, `CreditsPanel.tsx`, `boost/a
   tête de la liste quelle que soit la recherche (on n'achète jamais pour un bien qu'on ne voit plus). Relevé du panneau « Historique » à 390 : 42
   opérations, deux lignes au plus, aucun détail coupé (les motifs de démo sont courts : 31 caractères au plus). Fiche :
   `docs/qa/audit-ux-2026-11/fidelite/TCK-2664.json`.
+
+**Reprise après vérification (2026-11-12, `$S/impl/verif/TCK-2664-verif.json`).**
+- **Refus `credits.insufficient`** : le solde que le refus porte (`params.balance`) fait foi dans `useAchatDeBoost`
+  dès la réponse — le manque se recalcule, « Il vous restera » disparaît, Confirmer se ferme, dans le parcours comme
+  dans `BoostDialog` (qui ne répète plus le manque deux fois). Les crédits sont relus (`credits.refetch()` : la même
+  lecture `['credits', 1]` que la carte du solde de la page), puis le refus s'efface et le solde relu parle — un solde
+  relu qui couvre l'offre rouvre la confirmation. Tests : relecture retenue (le solde du refus fait foi avant elle),
+  puis solde relu 3 ; solde relu 25 → « Il vous restera 15 crédits sur 25 ».
+- **Prestataire et client** : `GET /api/credits` leur rend 422 `credits.no_space` (mesuré : prestataire, client ;
+  403 pour l'agent et le bailleur, 200 pour l'hôte). La page leur montre le même état réservé, sans « Réessayer »,
+  et ne lit rien d'autre. Test ; une autre panne garde l'erreur.
+
