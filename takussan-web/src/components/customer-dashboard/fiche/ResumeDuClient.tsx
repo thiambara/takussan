@@ -28,6 +28,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { useEnregistrerContactClient } from '@/lib/queries/customer-gestures';
+import { nomAffichable, prenomDe } from '@/lib/identite';
 import { fetchCustomerTasks } from '@/lib/queries/pipeline';
 import { useConfirmVisit } from '@/lib/queries/visits';
 import { jourADakar } from '@/lib/visites/par-le-temps';
@@ -144,27 +145,35 @@ function LigneDeTache({ tache, separee }: { readonly tache: Pick<Task, 'title' |
  */
 function RappelerLaVisite({ customer, visite, jour, heure }: { readonly customer: CustomerDetail; readonly visite: ProchaineVisite; readonly jour: string; readonly heure: string }) {
   const t = useTranslations('crm.fiche.prochaine');
+  const tFiche = useTranslations('crm.fiche');
   const enregistrement = useEnregistrerContactClient();
   const phone = customer.phone;
   if (!visite.confirmee || !isReachable(phone)) return null;
-  const nom = [customer.first_name, customer.last_name].map((x) => x?.trim()).filter(Boolean).join(' ');
-  const prenom = customer.first_name?.trim() || nom;
+  const nom = nomAffichable(customer);
+  const prenom = prenomDe(customer) ?? nom;
   const message = visite.bien ? t('rappelMessage', { prenom, jour, heure, bien: visite.bien }) : t('rappelMessageSansBien', { prenom, jour, heure });
   return (
-    <a
-      href={whatsappHref(phone, message)}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => {
-        if (lecteurDuPersonnel(customer)) enregistrement.mutate({ id: customer.id, channel: 'whatsapp' });
-      }}
-      aria-label={t('rappelerAria', { nom })}
-      data-slot="rappeler-la-visite"
-      className="mt-3 flex h-11 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 text-corps font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
-    >
-      <IconeWhatsApp className="size-icone flex-none text-success lg:size-icone" />
-      {t('rappeler')}
-    </a>
+    <>
+      <a
+        href={whatsappHref(phone, message)}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => {
+          if (lecteurDuPersonnel(customer)) enregistrement.mutate({ id: customer.id, channel: 'whatsapp' });
+        }}
+        aria-label={t('rappelerAria', { nom })}
+        data-slot="rappeler-la-visite"
+        className="mt-3 flex h-11 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 text-corps font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+      >
+        <IconeWhatsApp className="size-icone flex-none text-success lg:size-icone" />
+        {t('rappeler')}
+      </a>
+      {enregistrement.isError ? (
+        <p role="alert" className="mt-2 text-ui text-destructive">
+          {tFiche('gestesNonNotes')}
+        </p>
+      ) : null}
+    </>
   );
 }
 

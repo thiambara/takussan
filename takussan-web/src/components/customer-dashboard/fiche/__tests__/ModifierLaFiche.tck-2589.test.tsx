@@ -134,7 +134,7 @@ describe('TCK-2589 (lot D2) — « Modifier » de la fiche client', () => {
   it('8a / AC3 — aucune étape dans la feuille ; l’envoi porte les champs moins l’étape, le statut compris', async () => {
     const user = userEvent.setup();
     render(withIntl(<Tenue />));
-    expect(within(panneau()).queryByText('Étape du pipeline')).toBeNull();
+    expect(within(panneau()).queryByText('Étape')).toBeNull();
     expect(within(panneau()).queryByRole('combobox', { name: /Étape/ })).toBeNull();
 
     await user.clear(within(panneau()).getByLabelText(/^Prénom/));

@@ -82,13 +82,13 @@ export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Pro
     <Filtre libelle={t('stage')} valeur={f.stage ? tStage.has(f.stage) ? tStage(f.stage) : f.stage : null} actif={Boolean(f.stage)} pleine={feuille}>
       {(fermer) => (
         <>
-          <Option choisie={!f.stage} onClick={() => (f.poser('pipeline_stage', null), fermer())}>
+          <OptionDeFiltre choisie={!f.stage} onClick={() => (f.poser('pipeline_stage', null), fermer())}>
             {t('allStages')}
-          </Option>
+          </OptionDeFiltre>
           {pipelineStageValues.map((v) => (
-            <Option key={v} choisie={f.stage === v} onClick={() => (f.poser('pipeline_stage', v), fermer())}>
+            <OptionDeFiltre key={v} choisie={f.stage === v} onClick={() => (f.poser('pipeline_stage', v), fermer())}>
               {tStage(v)}
-            </Option>
+            </OptionDeFiltre>
           ))}
         </>
       )}
@@ -99,13 +99,13 @@ export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Pro
     <Filtre libelle={t('statusPlaceholder')} valeur={f.status ? (tStatus.has(f.status) ? tStatus(f.status) : f.status) : null} actif={Boolean(f.status)} pleine={feuille}>
       {(fermer) => (
         <>
-          <Option choisie={!f.status} onClick={() => (f.poser('status', null), fermer())}>
+          <OptionDeFiltre choisie={!f.status} onClick={() => (f.poser('status', null), fermer())}>
             {t('allStatuses')}
-          </Option>
+          </OptionDeFiltre>
           {customerStatusValues.map((v) => (
-            <Option key={v} choisie={f.status === v} onClick={() => (f.poser('status', v), fermer())}>
+            <OptionDeFiltre key={v} choisie={f.status === v} onClick={() => (f.poser('status', v), fermer())}>
               {tStatus(v)}
-            </Option>
+            </OptionDeFiltre>
           ))}
         </>
       )}
@@ -120,9 +120,9 @@ export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Pro
           <>
             <p className="px-2.5 pt-1.5 pb-1 text-xs font-semibold text-muted-foreground">{t('customerTags')}</p>
             {crmTags.map((tag) => (
-              <Option key={tag.id} choisie={f.tags.includes(tag.name)} onClick={() => f.basculerEtiquette(tag.name)} caseACocher>
+              <OptionDeFiltre key={tag.id} choisie={f.tags.includes(tag.name)} onClick={() => f.basculerEtiquette(tag.name)} caseACocher>
                 {libelleEquipement(tag, tEtiquette)}
-              </Option>
+              </OptionDeFiltre>
             ))}
             {f.tags.length > 0 ? (
               <>
@@ -200,7 +200,7 @@ function Filtre({
   );
 }
 
-function Option({
+export function OptionDeFiltre({
   choisie,
   onClick,
   caseACocher,

@@ -1,7 +1,7 @@
 /**
  * TCK-2093 (P199.06) — l'onglet « Activité » de la fiche client se relit après chaque geste de la
- * fiche qui journalise : une note (tiroir du pipeline ; la page a son fil depuis TCK-2589), une étape, une tâche (création et
- * bascule). Avant, la clé `AGENT_CRM_QUERY_KEY.activity` n'était invalidée nulle part : le geste
+ * fiche qui journalise : une étape, une tâche (création et bascule). Le cas de la note du tiroir du
+ * pipeline est parti avec l'ancien kanban (TCK-2592 décision 9a) ; la fiche a son fil depuis TCK-2589. Avant, la clé `AGENT_CRM_QUERY_KEY.activity` n'était invalidée nulle part : le geste
  * n'apparaissait dans le fil qu'après le `staleTime` de cinq minutes.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -14,7 +14,6 @@ import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { withIntl } from '@/test/intl';
 import { CustomerStageControl } from '../CustomerStageControl';
 import { CustomerTasksPanel } from '../CustomerTasksPanel';
-import { CustomerDetailSheet } from '@/components/pipeline/CustomerDetailSheet';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 1 }, token: 'jeton', isLoading: false }),
@@ -88,16 +87,6 @@ describe('TCK-2093 — le fil d’activité se relit après les gestes de la fic
     const { activiteInvalidee } = monter(<CustomerTasksPanel customerId={CLIENT} />);
     await userEvent.click(await screen.findByLabelText('Marquer « Rappeler » comme faite'));
     await waitFor(() => expect(pipeline.updateTask).toHaveBeenCalled());
-    await waitFor(() => expect(activiteInvalidee()).toBe(true));
-  });
-
-  it('note ajoutée depuis le tiroir du pipeline', async () => {
-    const user = userEvent.setup();
-    const { activiteInvalidee } = monter(<CustomerDetailSheet customerId={CLIENT} onOpenChange={() => {}} />);
-    await user.click(screen.getByRole('tab', { name: /Notes/ }));
-    await user.type(await screen.findByPlaceholderText('Écrivez une note…'), 'Appel fait');
-    await user.click(screen.getByRole('button', { name: 'Ajouter une note' }));
-    await waitFor(() => expect(customers.createCustomerNote).toHaveBeenCalled());
     await waitFor(() => expect(activiteInvalidee()).toBe(true));
   });
 });

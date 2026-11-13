@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
  * formulaire, pas une page quittée) et `hors-app` (le site public, l'authentification, l'onboarding et
  * `/super-admin`, hors du périmètre de la coque — leurs retours suivent leurs propres tickets).
  */
-type Categorie = 'flèche unique' | 'periode' | 'pagination' | 'carrousel' | 'calendrier' | 'etape' | 'registre' | 'hors-app';
+type Categorie = 'flèche unique' | 'periode' | 'pagination' | 'carrousel' | 'calendrier' | 'etape' | 'repli' | 'registre' | 'hors-app';
 
 const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/navigation-publique/FlecheDeRetour.tsx': 'flèche unique',
@@ -53,6 +53,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyMobileGallery.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx': 'carrousel',
   'src/components/wizard/WizardReprenable.tsx': 'etape',
+  // TCK-2592 — le chevron qui replie la colonne Gagné / Perdu du kanban en bandeau : un repli, pas un retour.
+  'src/components/pipeline/etapes/ColonneDuPipeline.tsx': 'repli',
   'src/components/bookings/BookingTunnel.tsx': 'hors-app',
   // TCK-2598 — la pastille « ← Retour au site » de la barre de bureau des écrans d'entrée ; au
   // téléphone, la flèche unique (`LienFlecheDeRetour`). `OnboardingShell` est sorti de la liste : la

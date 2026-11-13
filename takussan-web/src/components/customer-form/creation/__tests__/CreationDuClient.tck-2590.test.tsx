@@ -198,7 +198,7 @@ describe('rien ne se perd du formulaire d’avant', () => {
     for (const libelle of ['Profession', 'Chambres, au moins', 'Numéro', 'Budget minimum (FCFA)', 'Villes']) {
       expect(screen.getByLabelText(libelle)).toBeInTheDocument();
     }
-    for (const libelle of ['Langue des messages', 'Pièce d’identité', 'Étape du pipeline']) {
+    for (const libelle of ['Langue des messages', 'Pièce d’identité', 'Étape']) {
       expect(screen.getAllByText(libelle).length).toBeGreaterThan(0);
     }
   });

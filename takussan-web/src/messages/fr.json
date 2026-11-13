@@ -2383,11 +2383,11 @@
       "occupancyHeading": "Occupation — 12 derniers mois"
     },
     "pipelineStages": {
-      "lead": "Leads",
+      "lead": "Nouveaux",
       "prospect": "Prospects",
       "qualified": "Qualifiés",
       "negotiating": "Négociation",
-      "converted": "Convertis",
+      "converted": "Gagnés",
       "lost": "Perdus"
     },
     "taskPriority": {
@@ -2401,13 +2401,13 @@
       "metaTitle": "Statistiques",
       "title": "Vue agent",
       "loadError": "Impossible de charger les données.",
-      "subtitle": "Pipeline CRM et activité — {start} au {end}",
+      "subtitle": "Prospects et activité — {start} au {end}",
       "managed": "Biens gérés",
       "commissionsMonth": "Commissions mois",
       "openTasks": "Tâches ouvertes",
       "overdueHint": "{count} en retard",
       "visits7d": "Visites 7j",
-      "pipelinePriorities": "Priorités pipeline",
+      "pipelinePriorities": "Prospects prioritaires",
       "pendingRequests": "Demandes en attente",
       "leasesToSign": "Baux à signer",
       "tasksToday": "Tâches du jour",
@@ -2425,7 +2425,7 @@
       "open": "Ouvrir",
       "recentActivity": "Activité récente",
       "noActivity": "Aucune activité récente sur vos dossiers.",
-      "pipelineChart": "Pipeline CRM",
+      "pipelineChart": "Prospects par étape",
       "pipelineSeries": "Clients",
       "chartTitle": "Commissions et baux signés sur 12 mois",
       "chartCommissions": "Commissions",
@@ -2685,7 +2685,7 @@
       },
       "customers": {
         "title": "Clients",
-        "subtitle": "Suivez vos contacts, leurs étapes de pipeline et leurs documents.",
+        "subtitle": "Suivez vos contacts, leur étape et leurs documents.",
         "add": "Ajouter un client",
         "pipelineView": "Étapes",
         "metaTitle": "Clients"
@@ -2785,7 +2785,7 @@
         "metaTitle": "Passer en pro"
       },
       "crmPipeline": {
-        "metaTitle": "Pipeline de prospects"
+        "metaTitle": "Prospects"
       },
       "documentDetail": {
         "metaTitle": "Fiche document"
@@ -2838,7 +2838,7 @@
       "portfolio": "Portefeuille",
       "cashflowMonth": "Cashflow du mois",
       "managed": "Biens gérés",
-      "pipeline": "Pipeline",
+      "pipeline": "Prospects",
       "openTasks": "Tâches ouvertes",
       "overdueTasksHint": "{count} en retard",
       "commissionsMonth": "Commissions du mois",
@@ -2873,7 +2873,7 @@
           "cta": "Voir les tickets"
         },
         "customers": {
-          "label": "Clients (CRM)",
+          "label": "Clients",
           "cta": "Gérer le CRM"
         },
         "team": {
@@ -3389,16 +3389,16 @@
   },
   "crm": {
     "pipeline": {
-      "title": "Pipeline de prospects",
+      "title": "Prospects",
       "subtitle": "Suivez vos contacts CRM par étape, déplacez les cartes pour les faire avancer.",
       "empty": "Aucun élément à afficher.",
       "emptyColumn": "Aucun client",
       "stage": {
-        "lead": "Lead",
+        "lead": "Nouveau",
         "prospect": "Prospect",
         "qualified": "Qualifié",
         "negotiating": "Négociation",
-        "converted": "Converti",
+        "converted": "Gagné",
         "lost": "Perdu"
       },
       "stats": {
@@ -3423,9 +3423,9 @@
       },
       "reasonDialog": {
         "title": "Passer en {stage} — préciser la raison",
-        "descriptionConverted": "Précisez pourquoi ce client est converti.",
+        "descriptionConverted": "Précisez ce qui a décidé ce client.",
         "descriptionLost": "Précisez pourquoi ce client est perdu.",
-        "placeholder": "Ex. : converti suite à signature du bail le 10 mai…"
+        "placeholder": "Ex. : bail signé le 10 mai…"
       },
       "tabs": {
         "overview": "Aperçu",
@@ -3451,7 +3451,178 @@
         "addedBy": "par",
         "openTasks": "Tâches en cours"
       },
-      "loadingColumn": "Chargement des clients…"
+      "loadingColumn": "Chargement des clients…",
+      "titre": {
+        "moi": "Mes prospects",
+        "agence": "Prospects"
+      },
+      "sousTitre": {
+        "agence": "toute l’agence",
+        "moi": "mes prospects",
+        "etapes": "{portee} · glisser une carte, ou ← → au clavier",
+        "liste": "{portee} · {actifs, plural, one {# prospect actif} other {# prospects actifs}} · {relancer} à relancer · triés par urgence"
+      },
+      "vue": {
+        "aria": "Présentation",
+        "liste": "Liste",
+        "etapes": "Étapes"
+      },
+      "portee": {
+        "aria": "Voir les prospects de",
+        "moi": "Moi",
+        "agence": "Agence",
+        "referent": "Référent"
+      },
+      "court": {
+        "lead": "Nouveau",
+        "prospect": "Prospect",
+        "qualified": "Qualifié",
+        "negotiating": "Négo",
+        "converted": "Gagné",
+        "lost": "Perdu"
+      },
+      "portefeuille": {
+        "actifs": "{count, plural, one {# prospect actif} other {# prospects actifs}}",
+        "sorties": "{gagnes, plural, one {# gagné} other {# gagnés}} · {perdus, plural, one {# perdu} other {# perdus}}",
+        "sortiesAria": "Voir les gagnés et les perdus",
+        "etapeAria": "{stage} : {count}"
+      },
+      "relances": {
+        "titre": "À relancer",
+        "tri": "Le plus ancien d’abord",
+        "aJour": "À jour",
+        "rienEnRetard": "Rien en retard",
+        "etAutres": "{noms} et {count, plural, one {# autre} other {# autres}}",
+        "balayer": "Glisser une ligne vers la gauche : étape suivante, ou reporter.",
+        "vide": "Personne à relancer.",
+        "deplier": "Voir les prospects à jour",
+        "replier": "Replier les prospects à jour"
+      },
+      "retard": {
+        "unite": "{days, plural, one {jour} other {jours}}",
+        "aria": "Dû depuis {days, plural, one {# jour} other {# jours}}"
+      },
+      "quoi": {
+        "report_missing": "Écrire le compte rendu",
+        "no_contact": "Reprendre contact",
+        "overdue_task": "Tâche en retard"
+      },
+      "alerte": {
+        "no_contact": "Sans contact depuis {days} j",
+        "report_missing": "Compte rendu manquant",
+        "overdue_task": "Tâche en retard {days, plural, one {d’un jour} other {de # j}}"
+      },
+      "prochaine": {
+        "visite": "Visite {jour} {heure}",
+        "visiteAujourdhui": "Visite aujourd’hui {heure}",
+        "tache": "Tâche du {jour}"
+      },
+      "quand": {
+        "aujourdhui": "aujourd’hui",
+        "hier": "hier",
+        "jours": "il y a {n} j"
+      },
+      "dernier": {
+        "contacte": "Contacté {quand}",
+        "cree": "Créé {quand}",
+        "libelle": "Dernier contact : {quand}"
+      },
+      "colonne": {
+        "mediane": "médiane {n} j",
+        "medianeEtape": "médiane {n} j dans l’étape",
+        "deposer": "Déposer une carte ici",
+        "chargerPlus": "Charger plus ({shown}/{total})"
+      },
+      "bandeau": {
+        "deposer": "Déposer : motif demandé",
+        "deplier": "Déplier {stage} ({count})",
+        "replier": "Replier {stage}"
+      },
+      "carte": {
+        "fiche": "Fiche",
+        "ficheAria": "Ouvrir la fiche de {name}",
+        "retardAria": "{alerte}",
+        "saisir": "Déplacer {name}"
+      },
+      "suggestion": {
+        "visit_confirmed": "{prenom} a une visite confirmée : la passer en {stage} ?",
+        "visit_interested": "{prenom} a visité : la passer en {stage} ?",
+        "application_created": "{prenom} a candidaté : la passer en {stage} ?",
+        "offer_created": "{prenom} a fait une offre : la passer en {stage} ?",
+        "lease_signed": "Le bail de {prenom} est signé : la passer en {stage} ?",
+        "oui": "Oui",
+        "plusTard": "Plus tard",
+        "ecartee": "La proposition a changé entre-temps : relisez la carte."
+      },
+      "indicateurs": {
+        "actifs": "Prospects actifs",
+        "actifsDetail": "hors Gagné et Perdu",
+        "passages": "Passages d’étape",
+        "passagesDetail": "sur 30 jours",
+        "conversion": "Conversion des sorties",
+        "conversionDetail": "Gagné {gagnes} · Perdu {perdus} sur la période",
+        "mediane": "Durée médiane par étape",
+        "jours": "{n} j",
+        "aucun": "—"
+      },
+      "filtres": {
+        "referent": "Référent",
+        "etiquette": "Étiquette",
+        "etiquetteToutes": "Toutes les étiquettes",
+        "etape": "Étape",
+        "etapeToutes": "Toutes les étapes",
+        "relance": "À relancer seulement",
+        "recherche": "Nom, téléphone…",
+        "rechercheAria": "Rechercher un prospect"
+      },
+      "segments": {
+        "aria": "Relances",
+        "aRelancer": "À relancer",
+        "aJour": "À jour",
+        "tous": "Tous"
+      },
+      "liste": {
+        "client": "Client",
+        "etape": "Étape",
+        "cherche": "Cherche",
+        "chercheDernier": " · dernier contact",
+        "dernier": "Dernier contact",
+        "prochaine": "Prochaine action",
+        "referent": "Réf.",
+        "referentAria": "Référent : {name}",
+        "gestes": "Gestes",
+        "vide": "Aucun prospect ici."
+      },
+      "compteRendu": {
+        "libelle": "Compte rendu",
+        "aria": "Écrire le compte rendu de la visite de {name}"
+      },
+      "changer": {
+        "libelle": "Changer d’étape",
+        "deplacer": "Déplacer {prenom} vers",
+        "motifRequis": "Gagné et Perdu demandent un motif.",
+        "actuelle": "{stage}, étape actuelle"
+      },
+      "geste": {
+        "etapeSuivante": "Étape suivante",
+        "reporter": "Reporter"
+      },
+      "motif": {
+        "titrePerdu": "Pourquoi {prenom} ne donne pas suite ?",
+        "titreGagne": "Ce qui a décidé {prenom}",
+        "motifsAria": "Motif",
+        "motifs": {
+          "prix": "Prix",
+          "ailleurs": "A trouvé ailleurs",
+          "financement": "Financement",
+          "silence": "Ne répond plus",
+          "autre": "Autre"
+        },
+        "precision": "Précision",
+        "facultative": "facultative",
+        "note": "Le motif devient une note épinglée sur la fiche de {prenom} et compte dans la conversion du mois. Annuler remet la carte en {etape}.",
+        "enregistrer": "Enregistrer"
+      }
     },
     "list": {
       "columns": {
@@ -3608,7 +3779,7 @@
       "locale": "Langue des messages",
       "localeDefault": "Par défaut (français)",
       "crmSection": "Suivi CRM",
-      "pipelineStage": "Étape du pipeline",
+      "pipelineStage": "Étape",
       "status": "Statut",
       "idSection": "Pièce d'identité",
       "idType": "Type de pièce",
@@ -3627,11 +3798,11 @@
     "filters": {
       "searchLabel": "Rechercher un client",
       "searchPlaceholder": "Nom, téléphone, e-mail…",
-      "pipelinePlaceholder": "Pipeline",
+      "pipelinePlaceholder": "Étape",
       "statusPlaceholder": "Statut",
       "all": "Tous",
       "tags": "Étiquettes",
-      "filterByTags": "Filtrer par tags",
+      "filterByTags": "Filtrer par étiquettes",
       "customerTags": "Étiquettes des clients",
       "clearAll": "Tout effacer",
       "allStages": "Toutes les étapes",
@@ -3639,12 +3810,12 @@
       "stage": "Étape"
     },
     "tags": {
-      "sectionTitle": "Tags",
-      "addPlaceholder": "Ajouter un tag…",
-      "maxReachedPlaceholder": "Max 10 tags",
-      "removeAria": "Retirer le tag {tag}",
-      "inputLabel": "Ajouter un tag au client",
-      "filterAria": "Voir les clients tagués {tag}",
+      "sectionTitle": "Étiquettes",
+      "addPlaceholder": "Ajouter une étiquette…",
+      "maxReachedPlaceholder": "10 étiquettes au plus",
+      "removeAria": "Retirer l’étiquette {tag}",
+      "inputLabel": "Ajouter une étiquette au client",
+      "filterAria": "Voir les clients avec l’étiquette {tag}",
       "ligne": {
         "titre": "Étiquettes",
         "ajouter": "+ Étiquette",
@@ -10374,8 +10545,8 @@
         "anonymousNoContact": "Coordonnées anonymes incomplètes."
       },
       "feedback": {
-        "locked": "La fenêtre de feedback est fermée pour cette visite.",
-        "title": "Feedback post-visite",
+        "locked": "Le compte rendu ne peut plus être écrit pour cette visite.",
+        "title": "Compte rendu de visite",
         "window": "Vous avez {hours}h après la visite pour laisser votre retour.",
         "avisClient": "Avis du client",
         "avisAgent": "Retour de l’agent",
@@ -10417,7 +10588,7 @@
       "hybrid": "Hybride"
     },
     "feedbackForm": {
-      "error": "Erreur lors de l’envoi du feedback.",
+      "error": "Erreur lors de l’envoi du compte rendu.",
       "success": "Merci ! Votre retour {role} a bien été enregistré.",
       "roleVisitor": "visiteur",
       "roleAgent": "agent",
@@ -10429,7 +10600,7 @@
       "placeholderCustomer": "Ce que vous avez pensé du bien…",
       "placeholderAgent": "Retour sur le déroulement de la visite…",
       "submitting": "Envoi…",
-      "submit": "Envoyer le feedback"
+      "submit": "Envoyer le compte rendu"
     },
     "parLeTemps": {
       "vuesLabel": "Vues des visites",

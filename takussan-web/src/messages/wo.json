@@ -1311,11 +1311,11 @@
       "empty": "Amul lu nu wone.",
       "emptyColumn": "Amul kiliyaan",
       "stage": {
-        "lead": "Lead",
+        "lead": "Nouveau",
         "prospect": "Prospect",
         "qualified": "Qualifié",
         "negotiating": "Waxtaan",
-        "converted": "Converti",
+        "converted": "Gagné",
         "lost": "Reer"
       },
       "stats": {
@@ -1340,7 +1340,7 @@
       },
       "reasonDialog": {
         "title": "Wéyal ci {stage} — joxal raison bi",
-        "descriptionConverted": "Précisez pourquoi ce client est converti.",
+        "descriptionConverted": "Précisez ce qui a décidé ce client.",
         "descriptionLost": "Précisez pourquoi ce client est perdu.",
         "placeholder": "Misaal: converti gnaan lay signe bail bi 10 mee…"
       },
@@ -1368,7 +1368,178 @@
         "addedBy": "ci",
         "openTasks": "Task yi ubbeeku"
       },
-      "loadingColumn": "Kiliyaan yi ngi yéeg…"
+      "loadingColumn": "Kiliyaan yi ngi yéeg…",
+      "titre": {
+        "moi": "Mes prospects",
+        "agence": "Prospects"
+      },
+      "sousTitre": {
+        "agence": "toute l’agence",
+        "moi": "mes prospects",
+        "etapes": "{portee} · glisser une carte, ou ← → au clavier",
+        "liste": "{portee} · {actifs, plural, one {# prospect actif} other {# prospects actifs}} · {relancer} à relancer · triés par urgence"
+      },
+      "vue": {
+        "aria": "Présentation",
+        "liste": "Liste",
+        "etapes": "Étapes"
+      },
+      "portee": {
+        "aria": "Voir les prospects de",
+        "moi": "Moi",
+        "agence": "Agence",
+        "referent": "Référent"
+      },
+      "court": {
+        "lead": "Nouveau",
+        "prospect": "Prospect",
+        "qualified": "Qualifié",
+        "negotiating": "Négo",
+        "converted": "Gagné",
+        "lost": "Perdu"
+      },
+      "portefeuille": {
+        "actifs": "{count, plural, one {# prospect actif} other {# prospects actifs}}",
+        "sorties": "{gagnes, plural, one {# gagné} other {# gagnés}} · {perdus, plural, one {# perdu} other {# perdus}}",
+        "sortiesAria": "Voir les gagnés et les perdus",
+        "etapeAria": "{stage} : {count}"
+      },
+      "relances": {
+        "titre": "À relancer",
+        "tri": "Le plus ancien d’abord",
+        "aJour": "À jour",
+        "rienEnRetard": "Rien en retard",
+        "etAutres": "{noms} et {count, plural, one {# autre} other {# autres}}",
+        "balayer": "Glisser une ligne vers la gauche : étape suivante, ou reporter.",
+        "vide": "Personne à relancer.",
+        "deplier": "Voir les prospects à jour",
+        "replier": "Replier les prospects à jour"
+      },
+      "retard": {
+        "unite": "{days, plural, one {jour} other {jours}}",
+        "aria": "Dû depuis {days, plural, one {# jour} other {# jours}}"
+      },
+      "quoi": {
+        "report_missing": "Écrire le compte rendu",
+        "no_contact": "Reprendre contact",
+        "overdue_task": "Tâche en retard"
+      },
+      "alerte": {
+        "no_contact": "Sans contact depuis {days} j",
+        "report_missing": "Compte rendu manquant",
+        "overdue_task": "Tâche en retard {days, plural, one {d’un jour} other {de # j}}"
+      },
+      "prochaine": {
+        "visite": "Visite {jour} {heure}",
+        "visiteAujourdhui": "Visite aujourd’hui {heure}",
+        "tache": "Tâche du {jour}"
+      },
+      "quand": {
+        "aujourdhui": "aujourd’hui",
+        "hier": "hier",
+        "jours": "il y a {n} j"
+      },
+      "dernier": {
+        "contacte": "Contacté {quand}",
+        "cree": "Créé {quand}",
+        "libelle": "Dernier contact : {quand}"
+      },
+      "colonne": {
+        "mediane": "médiane {n} j",
+        "medianeEtape": "médiane {n} j dans l’étape",
+        "deposer": "Déposer une carte ici",
+        "chargerPlus": "Charger plus ({shown}/{total})"
+      },
+      "bandeau": {
+        "deposer": "Déposer : motif demandé",
+        "deplier": "Déplier {stage} ({count})",
+        "replier": "Replier {stage}"
+      },
+      "carte": {
+        "fiche": "Fiche",
+        "ficheAria": "Ouvrir la fiche de {name}",
+        "retardAria": "{alerte}",
+        "saisir": "Déplacer {name}"
+      },
+      "suggestion": {
+        "visit_confirmed": "{prenom} a une visite confirmée : la passer en {stage} ?",
+        "visit_interested": "{prenom} a visité : la passer en {stage} ?",
+        "application_created": "{prenom} a candidaté : la passer en {stage} ?",
+        "offer_created": "{prenom} a fait une offre : la passer en {stage} ?",
+        "lease_signed": "Le bail de {prenom} est signé : la passer en {stage} ?",
+        "oui": "Oui",
+        "plusTard": "Plus tard",
+        "ecartee": "La proposition a changé entre-temps : relisez la carte."
+      },
+      "indicateurs": {
+        "actifs": "Prospects actifs",
+        "actifsDetail": "hors Gagné et Perdu",
+        "passages": "Passages d’étape",
+        "passagesDetail": "sur 30 jours",
+        "conversion": "Conversion des sorties",
+        "conversionDetail": "Gagné {gagnes} · Perdu {perdus} sur la période",
+        "mediane": "Durée médiane par étape",
+        "jours": "{n} j",
+        "aucun": "—"
+      },
+      "filtres": {
+        "referent": "Référent",
+        "etiquette": "Étiquette",
+        "etiquetteToutes": "Toutes les étiquettes",
+        "etape": "Étape",
+        "etapeToutes": "Toutes les étapes",
+        "relance": "À relancer seulement",
+        "recherche": "Nom, téléphone…",
+        "rechercheAria": "Rechercher un prospect"
+      },
+      "segments": {
+        "aria": "Relances",
+        "aRelancer": "À relancer",
+        "aJour": "À jour",
+        "tous": "Tous"
+      },
+      "liste": {
+        "client": "Client",
+        "etape": "Étape",
+        "cherche": "Cherche",
+        "chercheDernier": " · dernier contact",
+        "dernier": "Dernier contact",
+        "prochaine": "Prochaine action",
+        "referent": "Réf.",
+        "referentAria": "Référent : {name}",
+        "gestes": "Gestes",
+        "vide": "Aucun prospect ici."
+      },
+      "compteRendu": {
+        "libelle": "Compte rendu",
+        "aria": "Écrire le compte rendu de la visite de {name}"
+      },
+      "changer": {
+        "libelle": "Changer d’étape",
+        "deplacer": "Déplacer {prenom} vers",
+        "motifRequis": "Gagné et Perdu demandent un motif.",
+        "actuelle": "{stage}, étape actuelle"
+      },
+      "geste": {
+        "etapeSuivante": "Étape suivante",
+        "reporter": "Reporter"
+      },
+      "motif": {
+        "titrePerdu": "Pourquoi {prenom} ne donne pas suite ?",
+        "titreGagne": "Ce qui a décidé {prenom}",
+        "motifsAria": "Motif",
+        "motifs": {
+          "prix": "Prix",
+          "ailleurs": "A trouvé ailleurs",
+          "financement": "Financement",
+          "silence": "Ne répond plus",
+          "autre": "Autre"
+        },
+        "precision": "Précision",
+        "facultative": "facultative",
+        "note": "Le motif devient une note épinglée sur la fiche de {prenom} et compte dans la conversion du mois. Annuler remet la carte en {etape}.",
+        "enregistrer": "Enregistrer"
+      }
     },
     "list": {
       "columns": {
@@ -1544,7 +1715,7 @@
     "filters": {
       "searchLabel": "Seet benn kiliyaan",
       "searchPlaceholder": "Sant, tur, e-mail, telefon…",
-      "pipelinePlaceholder": "Pipeline",
+      "pipelinePlaceholder": "Étape",
       "statusPlaceholder": "Nekkin",
       "all": "Ñépp",
       "tags": "Tag yi",
@@ -14567,7 +14738,7 @@
       "open": "Ubbi",
       "recentActivity": "Jëf yu yees",
       "noActivity": "Amul jëf bu yees ci say dosye.",
-      "pipelineChart": "Pipeline CRM",
+      "pipelineChart": "Prospects par étape",
       "pipelineSeries": "Kiliyaan yi",
       "chartTitle": "Komisioŋ ak kontaraa yu ñu xaatim ci 12 weer",
       "chartCommissions": "Komisioŋ yi",
@@ -14985,7 +15156,7 @@
       "portfolio": "Portfey bi",
       "cashflowMonth": "Xaalis bu weer wi",
       "managed": "Kër yu ñuy topptoo",
-      "pipeline": "Pipeline",
+      "pipeline": "Prospects",
       "openTasks": "Liggéey yu ubbeeku",
       "overdueTasksHint": "{count} yeex na",
       "commissionsMonth": "Komisioŋu weer wi",

@@ -80,9 +80,13 @@ vi.mock('@/i18n/messages', () => ({ messagesPour: async () => ({}) }));
 // Les enfants montent des arbres entiers (kanban avec glisser-déposer, formulaire client,
 // listes paginées). Le refus se décide AVANT eux : des marqueurs suffisent, et leur absence
 // dans la sortie est précisément ce qui prouve qu'aucun contenu privé n'a été rendu.
-vi.mock('@/components/pipeline/PipelineKanban', () => ({
-  PipelineKanban: () => <div data-testid="pipeline-kanban" />,
+vi.mock('@/components/pipeline/PageDuPipeline', () => ({
+  PageDuPipeline: () => <div data-testid="pipeline-kanban" />,
 }));
+// TCK-2592 — la page du pipeline lit le jeton (étiquettes, nom de l'agence) et les capacités du profil
+// (la lecture de l'agence) : sans requête, ni l'un ni l'autre — `null` et `[]`, comme une panne qu'elle tolère.
+vi.mock('@/lib/session', () => ({ getToken: async () => null }));
+vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: async () => [] }));
 vi.mock('@/components/customer-form', () => ({
   CustomerForm: () => <div data-testid="customer-form" />,
 }));

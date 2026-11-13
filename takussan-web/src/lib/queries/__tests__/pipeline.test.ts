@@ -11,12 +11,16 @@ describe('pipeline queries', () => {
     expect(qs.get('filter[pipeline_stage]')).toBe('qualified');
     expect(qs.get('filter[status]')).toBe('active');
     expect(qs.get('fields[customers]')).toBe(
-      // TCK-591 — `phone` : « Appeler » / « WhatsApp » sur la carte.
-      'id,first_name,last_name,phone,pipeline_stage,updated_at,created_at,added_by_id',
+      // TCK-591 — `phone` : « Appeler » / « WhatsApp » sur la carte. TCK-2592 — la carte enrichie.
+      'id,first_name,last_name,phone,pipeline_stage,updated_at,created_at,added_by_id,' +
+        'seeking_contract_type,budget_max,seeking_property_types,seeking_cities,seeking_neighborhoods,' +
+        'last_contacted_at,next_action,follow_up,referent,suggested_stage',
     );
-    expect(qs.get('fields[users]')).toBe('id,first_name,last_name');
-    expect(qs.get('include')).toBe('addedBy,tasksCount');
-    expect(qs.get('sort')).toBe('-updated_at');
+    // TCK-2592 — le référent (calculé) remplace l'auteur : plus d'`addedBy`.
+    expect(qs.get('fields[users]')).toBeNull();
+    expect(qs.get('include')).toBe('tasksCount');
+    // TCK-2592 — la relance la plus ancienne d'abord, comme la liste.
+    expect(qs.get('sort')).toBe('-follow_up_days');
     expect(qs.get('per_page')).toBe('25');
     expect(qs.get('page')).toBeNull();
   });

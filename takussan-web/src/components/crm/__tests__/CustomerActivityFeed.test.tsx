@@ -57,7 +57,7 @@ describe('CustomerActivityFeed', () => {
     expect(screen.queryByText("Aucune activité pour l'instant.")).not.toBeInTheDocument();
 
     await userEvent.setup().click(relancer);
-    expect(await screen.findByText('Awa Diop a fait passer le client de « Lead » à « Prospect »')).toBeInTheDocument();
+    expect(await screen.findByText('Awa Diop a fait passer le client de « Nouveau » à « Prospect »')).toBeInTheDocument();
     expect(fetchCustomerActivity).toHaveBeenCalledWith('jeton', 7, 1);
   });
 

@@ -2426,11 +2426,11 @@
       "occupancyHeading": "Occupancy — last 12 months"
     },
     "pipelineStages": {
-      "lead": "Leads",
+      "lead": "New",
       "prospect": "Prospects",
       "qualified": "Qualified",
       "negotiating": "Negotiating",
-      "converted": "Converted",
+      "converted": "Won",
       "lost": "Lost"
     },
     "taskPriority": {
@@ -2444,13 +2444,13 @@
       "metaTitle": "Statistics",
       "title": "Agent overview",
       "loadError": "The data could not be loaded.",
-      "subtitle": "CRM pipeline and activity — {start} to {end}",
+      "subtitle": "Prospects and activity — {start} to {end}",
       "managed": "Managed properties",
       "commissionsMonth": "Commissions this month",
       "openTasks": "Open tasks",
       "overdueHint": "{count} overdue",
       "visits7d": "Visits (7d)",
-      "pipelinePriorities": "Pipeline priorities",
+      "pipelinePriorities": "Priority prospects",
       "pendingRequests": "Pending requests",
       "leasesToSign": "Leases to sign",
       "tasksToday": "Today's tasks",
@@ -2468,7 +2468,7 @@
       "open": "Open",
       "recentActivity": "Recent activity",
       "noActivity": "No recent activity on your files.",
-      "pipelineChart": "CRM pipeline",
+      "pipelineChart": "Prospects by stage",
       "pipelineSeries": "Customers",
       "chartTitle": "Commissions and signed leases over 12 months",
       "chartCommissions": "Commissions",
@@ -2728,7 +2728,7 @@
       },
       "customers": {
         "title": "Customers",
-        "subtitle": "Track your contacts, their pipeline stages and their documents.",
+        "subtitle": "Track your contacts, their stage and their documents.",
         "add": "Add a customer",
         "pipelineView": "Stages",
         "metaTitle": "Customers"
@@ -2828,7 +2828,7 @@
         "metaTitle": "Upgrade to Pro"
       },
       "crmPipeline": {
-        "metaTitle": "Prospect pipeline"
+        "metaTitle": "Prospects"
       },
       "documentDetail": {
         "metaTitle": "Document file"
@@ -2881,7 +2881,7 @@
       "portfolio": "Portfolio",
       "cashflowMonth": "Cash flow this month",
       "managed": "Managed properties",
-      "pipeline": "Pipeline",
+      "pipeline": "Prospects",
       "openTasks": "Open tasks",
       "overdueTasksHint": "{count} overdue",
       "commissionsMonth": "Commissions this month",
@@ -2916,7 +2916,7 @@
           "cta": "View the tickets"
         },
         "customers": {
-          "label": "Clients (CRM)",
+          "label": "Clients",
           "cta": "Manage the CRM"
         },
         "team": {
@@ -3432,16 +3432,16 @@
   },
   "crm": {
     "pipeline": {
-      "title": "Prospect pipeline",
+      "title": "Prospects",
       "subtitle": "Track your CRM contacts by stage, drag cards to move them forward.",
       "empty": "Nothing to show.",
       "emptyColumn": "No customers",
       "stage": {
-        "lead": "Lead",
+        "lead": "New",
         "prospect": "Prospect",
         "qualified": "Qualified",
         "negotiating": "Negotiating",
-        "converted": "Converted",
+        "converted": "Won",
         "lost": "Lost"
       },
       "stats": {
@@ -3466,9 +3466,9 @@
       },
       "reasonDialog": {
         "title": "Move to {stage} — give a reason",
-        "descriptionConverted": "Explain why this customer converted.",
+        "descriptionConverted": "Say what made this client decide.",
         "descriptionLost": "Explain why this customer was lost.",
-        "placeholder": "e.g. converted after lease signed on May 10…"
+        "placeholder": "e.g. lease signed on May 10…"
       },
       "tabs": {
         "overview": "Overview",
@@ -3494,7 +3494,178 @@
         "addedBy": "by",
         "openTasks": "Open tasks"
       },
-      "loadingColumn": "Loading customers…"
+      "loadingColumn": "Loading customers…",
+      "titre": {
+        "moi": "My prospects",
+        "agence": "Prospects"
+      },
+      "sousTitre": {
+        "agence": "the whole agency",
+        "moi": "my prospects",
+        "etapes": "{portee} · drag a card, or ← → on the keyboard",
+        "liste": "{portee} · {actifs, plural, one {# active prospect} other {# active prospects}} · {relancer} to follow up · sorted by urgency"
+      },
+      "vue": {
+        "aria": "Layout",
+        "liste": "List",
+        "etapes": "Stages"
+      },
+      "portee": {
+        "aria": "Show the prospects of",
+        "moi": "Me",
+        "agence": "Agency",
+        "referent": "Referent"
+      },
+      "court": {
+        "lead": "New",
+        "prospect": "Prospect",
+        "qualified": "Qualified",
+        "negotiating": "Nego.",
+        "converted": "Won",
+        "lost": "Lost"
+      },
+      "portefeuille": {
+        "actifs": "{count, plural, one {# active prospect} other {# active prospects}}",
+        "sorties": "{gagnes} won · {perdus} lost",
+        "sortiesAria": "Show won and lost",
+        "etapeAria": "{stage}: {count}"
+      },
+      "relances": {
+        "titre": "To follow up",
+        "tri": "Oldest first",
+        "aJour": "Up to date",
+        "rienEnRetard": "Nothing overdue",
+        "etAutres": "{noms} and {count, plural, one {# other} other {# others}}",
+        "balayer": "Swipe a row left: next stage, or postpone.",
+        "vide": "Nobody to follow up.",
+        "deplier": "Show up-to-date prospects",
+        "replier": "Collapse up-to-date prospects"
+      },
+      "retard": {
+        "unite": "{days, plural, one {day} other {days}}",
+        "aria": "Due for {days, plural, one {# day} other {# days}}"
+      },
+      "quoi": {
+        "report_missing": "Write the visit report",
+        "no_contact": "Get back in touch",
+        "overdue_task": "Overdue task"
+      },
+      "alerte": {
+        "no_contact": "No contact for {days} d",
+        "report_missing": "Visit report missing",
+        "overdue_task": "Task overdue by {days, plural, one {a day} other {# d}}"
+      },
+      "prochaine": {
+        "visite": "Visit {jour} {heure}",
+        "visiteAujourdhui": "Visit today {heure}",
+        "tache": "Task due {jour}"
+      },
+      "quand": {
+        "aujourdhui": "today",
+        "hier": "yesterday",
+        "jours": "{n} d ago"
+      },
+      "dernier": {
+        "contacte": "Contacted {quand}",
+        "cree": "Created {quand}",
+        "libelle": "Last contact: {quand}"
+      },
+      "colonne": {
+        "mediane": "median {n} d",
+        "medianeEtape": "median {n} d in this stage",
+        "deposer": "Drop a card here",
+        "chargerPlus": "Load more ({shown}/{total})"
+      },
+      "bandeau": {
+        "deposer": "Drop: reason required",
+        "deplier": "Expand {stage} ({count})",
+        "replier": "Collapse {stage}"
+      },
+      "carte": {
+        "fiche": "Record",
+        "ficheAria": "Open {name}’s record",
+        "retardAria": "{alerte}",
+        "saisir": "Move {name}"
+      },
+      "suggestion": {
+        "visit_confirmed": "{prenom} has a confirmed visit: move to {stage}?",
+        "visit_interested": "{prenom} has visited: move to {stage}?",
+        "application_created": "{prenom} has applied: move to {stage}?",
+        "offer_created": "{prenom} made an offer: move to {stage}?",
+        "lease_signed": "{prenom}’s lease is signed: move to {stage}?",
+        "oui": "Yes",
+        "plusTard": "Later",
+        "ecartee": "The suggestion changed in the meantime: check the card again."
+      },
+      "indicateurs": {
+        "actifs": "Active prospects",
+        "actifsDetail": "excluding Won and Lost",
+        "passages": "Stage changes",
+        "passagesDetail": "over 30 days",
+        "conversion": "Exit conversion",
+        "conversionDetail": "Won {gagnes} · Lost {perdus} over the period",
+        "mediane": "Median time per stage",
+        "jours": "{n} d",
+        "aucun": "—"
+      },
+      "filtres": {
+        "referent": "Referent",
+        "etiquette": "Tag",
+        "etiquetteToutes": "All tags",
+        "etape": "Stage",
+        "etapeToutes": "All stages",
+        "relance": "Follow-ups only",
+        "recherche": "Name, phone…",
+        "rechercheAria": "Search a prospect"
+      },
+      "segments": {
+        "aria": "Follow-ups",
+        "aRelancer": "To follow up",
+        "aJour": "Up to date",
+        "tous": "All"
+      },
+      "liste": {
+        "client": "Client",
+        "etape": "Stage",
+        "cherche": "Looking for",
+        "chercheDernier": " · last contact",
+        "dernier": "Last contact",
+        "prochaine": "Next action",
+        "referent": "Ref.",
+        "referentAria": "Referent: {name}",
+        "gestes": "Actions",
+        "vide": "No prospect here."
+      },
+      "compteRendu": {
+        "libelle": "Visit report",
+        "aria": "Write the report of {name}’s visit"
+      },
+      "changer": {
+        "libelle": "Change stage",
+        "deplacer": "Move {prenom} to",
+        "motifRequis": "Won and Lost require a reason.",
+        "actuelle": "{stage}, current stage"
+      },
+      "geste": {
+        "etapeSuivante": "Next stage",
+        "reporter": "Postpone"
+      },
+      "motif": {
+        "titrePerdu": "Why isn’t {prenom} going ahead?",
+        "titreGagne": "What made {prenom} decide",
+        "motifsAria": "Reason",
+        "motifs": {
+          "prix": "Price",
+          "ailleurs": "Found elsewhere",
+          "financement": "Financing",
+          "silence": "No longer responding",
+          "autre": "Other"
+        },
+        "precision": "Details",
+        "facultative": "optional",
+        "note": "The reason becomes a pinned note on {prenom}’s record and counts in this month’s conversion. Cancel puts the card back in {etape}.",
+        "enregistrer": "Save"
+      }
     },
     "list": {
       "columns": {
@@ -3651,7 +3822,7 @@
       "locale": "Message language",
       "localeDefault": "Default (French)",
       "crmSection": "CRM tracking",
-      "pipelineStage": "Pipeline stage",
+      "pipelineStage": "Stage",
       "status": "Status",
       "idSection": "Identity document",
       "idType": "Document type",
@@ -3670,7 +3841,7 @@
     "filters": {
       "searchLabel": "Search for a customer",
       "searchPlaceholder": "Name, phone, email…",
-      "pipelinePlaceholder": "Pipeline",
+      "pipelinePlaceholder": "Stage",
       "statusPlaceholder": "Status",
       "all": "All",
       "tags": "Tags",

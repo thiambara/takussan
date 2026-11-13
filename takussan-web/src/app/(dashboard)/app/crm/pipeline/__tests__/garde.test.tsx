@@ -36,9 +36,12 @@ vi.mock('next/navigation', () => ({
 
 const me = vi.hoisted(() => ({ user: null as User | null }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => me.user }));
-vi.mock('@/components/pipeline/PipelineKanban', () => ({
-  PipelineKanban: () => null,
+vi.mock('@/components/pipeline/PageDuPipeline', () => ({
+  PageDuPipeline: () => null,
 }));
+// TCK-2592 — la page lit le jeton, les capacités, les étiquettes et l'agence : sans jeton, rien ne part.
+vi.mock('@/lib/session', () => ({ getToken: async () => null }));
+vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: async () => [] }));
 // `getTranslations` est une API serveur ; sous jsdom, next-intl la refuse. On ne teste pas les
 // libellés ici — seulement QUI passe le garde, qui s'exécute AVANT cette ligne.
 vi.mock('next-intl/server', () => ({

@@ -379,14 +379,6 @@
       "count": 2
     }
   },
-  "src/components/pipeline/PipelineCard.tsx": {
-    "jsx-a11y/no-noninteractive-tabindex": {
-      "count": 1
-    },
-    "jsx-a11y/no-static-element-interactions": {
-      "count": 2
-    }
-  },
   "src/components/profile/ProfileContactSection.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 1
