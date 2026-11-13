@@ -1,5 +1,5 @@
 {
-  "_lisez-moi": "Personas de l'outil de fidélité (TCK-2684). Ni jeton ni mot de passe ici : les jetons sont frappés par `fidelite.mjs jetons`, hors du dépôt. `disposition` est la persona de la coque que le compte doit rendre (src/lib/navigation/dispositions.ts) ; le relevé la vérifie par les liens visibles (`dispositions` ci-dessous) avant de comparer. Les preuves ne lisent que les liens de la navigation (`nav`) : un locataire garde « Mes recherches » (favoris, visites) dans sa barre latérale, repliée ; ce qui le distingue d'un client, ce sont ses paiements et sa maintenance.",
+  "_lisez-moi": "Personas de l'outil de fidélité (TCK-2684). Ni jeton ni mot de passe ici : les jetons sont frappés par `fidelite.mjs jetons`, hors du dépôt. `disposition` est la persona de la coque que le compte doit rendre (src/lib/navigation/dispositions.ts) ; le relevé la vérifie par les liens visibles (`dispositions` ci-dessous) avant de comparer. Les preuves ne lisent que les liens de la navigation (`nav`) : un locataire garde « Mes recherches » (favoris, visites) dans sa barre latérale, repliée ; ce qui le distingue d'un client, ce sont ses paiements et sa maintenance. Les personas `personas-*` (TCK-2798) sont semées par `PersonasDeFideliteSeeder` (takussan-api, `php artisan db:seed --class='Database\\\\Seeders\\\\Demo\\\\PersonasDeFideliteSeeder'`) : rôle et écran servi de chacune au ticket TCK-2798, § « Personas ». `invitations` : des invités SANS compte — pas de jeton, mais l'invitation encore utilisable, relue par `jetons` et posée par `--invitation <nom>` à la place de `{invitation}` dans la requête de `--url` (avec `--persona aucune`, ou un compte pour l'écran « connecté »).",
   "comptes": {
     "admin": {
       "email": "admin@dakarimmo.sn",
@@ -48,6 +48,38 @@
     "hote": {
       "email": "admin@studio-aminata.sn",
       "disposition": "admin-agence"
+    },
+    "personas-gerant": {
+      "email": "gerant@personas.takussan.test",
+      "disposition": "admin-agence"
+    },
+    "personas-prestataire-intervention": {
+      "email": "prestataire-intervention@personas.takussan.test",
+      "disposition": "prestataire"
+    },
+    "personas-orientation-awa": {
+      "email": "orientation-awa@personas.takussan.test"
+    },
+    "personas-orientation-sans-prenom": {
+      "email": "orientation-sans-prenom@personas.takussan.test"
+    },
+    "personas-hote": {
+      "email": "hote@personas.takussan.test",
+      "disposition": "admin-agence"
+    }
+  },
+  "invitations": {
+    "personas-bailleur-invite": {
+      "email": "bailleur-invite@personas.takussan.test",
+      "role": "owner"
+    },
+    "personas-agent-invite": {
+      "email": "agent-invite@personas.takussan.test",
+      "role": "agent"
+    },
+    "personas-prestataire-invite": {
+      "email": "prestataire-invite@personas.takussan.test",
+      "role": "service_provider"
     }
   },
   "dispositions": {

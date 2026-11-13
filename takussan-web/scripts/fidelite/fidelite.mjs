@@ -15,6 +15,8 @@
  *            [--base-maquettes <url>]        le front qui sert les maquettes (arbre principal) ; défaut :3000
  *            [--defiler <px>] [--perturber <script>] [--bloquer <motifs d'URL>] [--rem 14.4] [--attente <ms>] [--sans-attente-donnees]
  *            [--disposition <persona de coque>]  exige cette disposition (défaut : celle du compte)
+ *            [--invitation <persona invitée>]  remplace `{invitation}` dans la REQUÊTE de --url par le jeton de son
+ *                                            invitation (TCK-2798) ; le relevé garde le gabarit, jamais le jeton
  *            [--via visionneuse [--fenetre 1800x1300]]  relève DANS l'iframe de la visionneuse
  *   compare  maquette (référence gelée ou relevé) contre produit
  *            --maquette <réf.json|préfixe> --produit <préfixe> --out <dossier> [--roles <fiche.json>]
@@ -26,7 +28,9 @@
  *            Un écran de maquette qui charge encore après 15 s est un état DESSINÉ : relevé tel quel,
  *            `meta.chargementDessine`, et `"etat": "chargement"` dans gel.json.
  *   journal  régénère references/JOURNAL.md depuis les références présentes
- *   jetons   frappe les jetons des personas (hors du dépôt, 0600) [--renouveler]
+ *   jetons   frappe les jetons qui manquent au fichier (hors du dépôt, 0600) ; rien de présent n'est révoqué
+ *            [--persona a,b]                  ces personas seulement
+ *            [--persona a,b --renouveler]     les refrappe (révoque LEURS jetons en base) — jamais sans noms (TCK-2798)
  *   balayer  débord, coupe nette, ellipse, à plusieurs largeurs
  *            (--maquette … --a … [--e …] | --url … --persona …) [--largeurs 390,768,1024,1280,1440]
  *
@@ -43,6 +47,7 @@ import { fileURLToPath } from 'node:url';
 import { comparerReleves, extraireLibelles, fusionnerRoles, ligneResumee, motifsDeDisposition, motifsDeRejet, rapportMarkdown } from './comparer.mjs';
 import { BALAYAGE, CHARGE, DEFILER, ETAT, FEUILLE_DETERMINISME, INVENTAIRE, LIENS_VISIBLES, SANS_BUREAU, injecterFeuille } from './inventaire.mjs';
 import { dormir, evaluer, ouvrirChrome } from './navigateur.mjs';
+import { masquer, personasAFrapper, remplirInvitation } from './personas.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const WEB = resolve(ICI, '../..');
@@ -100,21 +105,42 @@ function lireJetons() {
   }
 }
 
-/** Frappe les jetons (tous, ou les personas données). N'imprime que des noms. */
-function frapperJetons(noms = Object.keys(PERSONAS.comptes)) {
+const INVITATIONS = PERSONAS.invitations ?? {};
+
+/**
+ * Frappe les jetons des personas NOMMÉES — jamais « toutes » par défaut : `jetons.php` révoque en base les jetons
+ * de chaque compte frappé, ceux des autres agents compris (TCK-2798). Une persona invitée (sans compte) n'a pas de
+ * jeton : on relit le jeton de son invitation encore utilisable. N'imprime que des noms.
+ */
+function frapperJetons(noms) {
+  if (!noms?.length) throw new Error('frapperJetons : aucune persona nommée');
   const api = process.env.FIDELITE_API_DIR ?? join(RACINE, 'takussan-api');
   if (!existsSync(join(api, 'vendor'))) throw new Error(`API introuvable (${api}/vendor) : posez FIDELITE_API_DIR sur un takussan-api installé`);
   mkdirSync(dirname(FICHIER_JETONS), { recursive: true, mode: 0o700 });
   const comptes = Object.fromEntries(noms.map((n) => [n, PERSONAS.comptes[n]?.email]).filter(([, e]) => e));
+  const invitations = Object.fromEntries(noms.map((n) => [n, INVITATIONS[n]?.email]).filter(([, e]) => e));
   const sortie = execFileSync('php', ['artisan', 'tinker', '--execute', `require '${join(ICI, 'jetons.php')}';`], {
     cwd: api,
-    env: { ...process.env, FIDELITE_COMPTES: JSON.stringify(comptes), FIDELITE_SORTIE: FICHIER_JETONS },
+    env: { ...process.env, FIDELITE_COMPTES: JSON.stringify(comptes), FIDELITE_INVITATIONS: JSON.stringify(invitations), FIDELITE_SORTIE: FICHIER_JETONS },
     stdio: ['ignore', 'pipe', 'pipe'],
     timeout: 120_000,
   }).toString();
   chmodSync(FICHIER_JETONS, 0o600);
   // jetons.php n'écrit que des noms ; on ne relaie que ses lignes connues, par précaution.
-  for (const l of sortie.split('\n')) if (/^(jetons frappés|comptes absents)/.test(l)) console.log(l);
+  for (const l of sortie.split('\n')) if (/^(jetons frappés|comptes absents|invitations relues|invitations absentes)/.test(l)) console.log(l);
+}
+
+/**
+ * Le jeton de l'invitation d'une persona invitée (`personas.json` → `invitations`), RELU DE LA BASE à chaque appel :
+ * après un retrait puis un semis, l'invitation a un jeton neuf, et l'ancien ouvrirait l'écran « lien invalide » en
+ * 200 — un relevé réussi sur le mauvais écran. Une relecture ne révoque rien.
+ */
+function jetonDInvitation(nom) {
+  if (!INVITATIONS[nom]) throw new Error(`persona invitée inconnue « ${nom} » (${Object.keys(INVITATIONS).join(', ')})`);
+  frapperJetons([nom]);
+  const j = lireJetons()[nom]?.invitation;
+  if (!j) throw new Error(`aucune invitation utilisable pour « ${nom} » : semer les personas (PersonasDeFideliteSeeder, TCK-2798)`);
+  return j;
 }
 
 function jetonDe(persona) {
@@ -148,6 +174,8 @@ export async function relever(o) {
   const { cdp, ecouteurs, fermer } = await ouvrirChrome({ policeNavigateur: o.policeNavigateur });
   try {
     const reseau = new Set();
+    // Le jeton d'une invitation ouvre la page ; il n'entre ni dans `meta.reseau`, ni dans une sortie.
+    const secrets = o.invitation ? [jetonDInvitation(o.invitation)] : [];
     const enVol = new Set();
     let dernierMouvement = Date.now();
     let statut = null;
@@ -155,7 +183,7 @@ export async function relever(o) {
       if (m.method === 'Network.requestWillBeSent') enVol.add(m.params.requestId);
       if (m.method === 'Network.loadingFinished' || m.method === 'Network.loadingFailed') enVol.delete(m.params.requestId);
       if (m.method.startsWith('Network.')) dernierMouvement = Date.now();
-      if (m.method === 'Network.requestWillBeSent' && /\/api\//.test(m.params.request.url)) reseau.add(`${m.params.request.method} ${new URL(m.params.request.url).pathname}`);
+      if (m.method === 'Network.requestWillBeSent' && /\/api\//.test(m.params.request.url)) reseau.add(masquer(`${m.params.request.method} ${new URL(m.params.request.url).pathname}`, secrets));
       if (m.method === 'Network.responseReceived' && m.params.type === 'Document' && statut === null) statut = m.params.response.status;
     });
     await cdp('Page.enable');
@@ -205,9 +233,10 @@ export async function relever(o) {
       await cdp('Network.setCookie', { name: 'NEXT_LOCALE', value: 'fr', url: baseProduit, path: '/' });
       // `--persona aucune` : une page publique, visitée sans compte (TCK-2692).
       if (persona !== 'aucune') await cdp('Network.setCookie', { name: 'auth_token', value: jetonDe(persona), url: baseProduit, httpOnly: true, path: '/' });
-      url = `${baseProduit}${o.url}`;
-      chemin = new URL(url).pathname;
-      source = { type: 'produit', url: o.url, persona };
+      // Le chemin attendu se lit sur le GABARIT : `{invitation}` n'a sa place que dans la requête.
+      chemin = new URL(`${baseProduit}${o.url}`).pathname;
+      url = `${baseProduit}${remplirInvitation(o.url, secrets[0])}`;
+      source = { type: 'produit', url: o.url, persona, ...(o.invitation ? { invitation: o.invitation } : {}) };
     }
 
     let charge = false;
@@ -326,6 +355,7 @@ async function cmdReleve() {
     rem: opt('rem'),
     attente: opt('attente'),
     disposition: opt('disposition'),
+    invitation: opt('invitation'),
     via: opt('via'),
     fenetre: opt('fenetre'),
     sansAttenteDonnees: drapeau('sans-attente-donnees'),
@@ -597,8 +627,8 @@ async function cmdBalayer() {
           const base = (opt('base') ?? 'http://localhost:3000').replace(/\/$/, '');
           // Comme `releve` : sans locale posée, la page sort dans la langue du compte (l'anglais des personas).
           await cdp('Network.setCookie', { name: 'NEXT_LOCALE', value: 'fr', url: base, path: '/' });
-          await cdp('Network.setCookie', { name: 'auth_token', value: jetonDe(opt('persona', 'admin')), url: base, httpOnly: true, path: '/' });
-          url = `${base}${opt('url')}`;
+          if (opt('persona', 'admin') !== 'aucune') await cdp('Network.setCookie', { name: 'auth_token', value: jetonDe(opt('persona', 'admin')), url: base, httpOnly: true, path: '/' });
+          url = `${base}${remplirInvitation(opt('url'), opt('invitation') ? jetonDInvitation(opt('invitation')) : undefined)}`;
         }
         let charge = false;
         ecouteurs.push((m) => m.method === 'Page.loadEventFired' && (charge = true));
@@ -622,9 +652,10 @@ const COMMANDES = {
   geler: cmdGeler,
   journal: async () => (ecrireJournal(), console.log(`ok ${join(REFERENCES, 'JOURNAL.md')}`)),
   jetons: async () => {
-    const manquants = drapeau('renouveler') ? Object.keys(PERSONAS.comptes) : Object.keys(PERSONAS.comptes).filter((n) => !lireJetons()[n]?.token);
-    if (manquants.length) frapperJetons(manquants);
-    else console.log('jetons déjà présents (--renouveler pour les refrapper)');
+    const demandes = opt('persona') ? opt('persona').split(',').map((n) => n.trim()).filter(Boolean) : null;
+    const noms = personasAFrapper({ demandes, renouveler: drapeau('renouveler'), connues: [...Object.keys(PERSONAS.comptes), ...Object.keys(INVITATIONS)], jetons: lireJetons() });
+    if (noms.length) frapperJetons(noms);
+    else console.log('jetons déjà présents (--persona <nom> --renouveler pour en refrapper un)');
   },
   balayer: cmdBalayer,
 };
