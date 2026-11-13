@@ -43,9 +43,9 @@ Constat (relevé le 2026-11-12, HEAD 3796d9052, rapport de back-4 sur TCK-2747) 
   - 422 `lease.abandon_has_payments` s'il porte un paiement non annulé ;
   - 403 hors de la règle d'autorisation.
 
-## Recommandation : suppression douce, plutôt qu'un statut « abandonné »
+## Décision : suppression douce, plutôt qu'un statut « abandonné »
 
-**Recommandé : la suppression douce (`deleted_at`).** Quatre raisons :
+**Retenu : la suppression douce (`deleted_at`)**, validée par le porteur le 2026-11-12 (nuit, point 6 de ses huit validations). Trois raisons, et un coût :
 
 - **Un brouillon n'a engagé personne.** Rien n'est signé, rien n'est dû, aucun échéancier n'existe. Le faire disparaître des listes est juste, et l'histoire reste en base (`withTrashed`, journal).
 - **Aucun lecteur ne change.** `bauxQuiOccupent`, les listes, la file « À traiter », les comptes et les rapports écartent déjà les lignes supprimées par Eloquent. Un statut neuf devrait, lui, entrer dans chaque lecteur de `LeaseStatus` :

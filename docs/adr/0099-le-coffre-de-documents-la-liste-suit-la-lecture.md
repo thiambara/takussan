@@ -1,6 +1,6 @@
 # ADR-0099 — Le coffre de documents : la liste suit la lecture, et les documents générés sont listés depuis leur source, jamais copiés
 
-- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*)
+- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12)
 - **Amende** : la règle posée par TCK-820 (liste restreinte aux téléversements de l'appelant), **sans la révoquer**
@@ -72,7 +72,12 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
 
 ## Amendement du 2026-11-12 — le document interne de la fiche client (TCK-2759)
 
-- **Décidé par le porteur le 2026-11-12** (décision 9 (b), contre la recommandation de la session, qui proposait de garder la règle et d'écrire « visible par le client » au téléversement). Les modalités ci-dessous sont des décisions de la session, à revoir.
+- **Décidé par le porteur le 2026-11-12** (décision 9 (b), contre la recommandation de la session, qui proposait de garder la règle et d'écrire « visible par le client » au téléversement).
+- **Validé par le porteur le 2026-11-12** (nuit, points 1 et 2 de ses huit validations) :
+  - l'export d'un dossier garde les **métadonnées** d'un document interne (nom, date, type), jamais son contenu (§ 8) ;
+  - un document déposé par le personnel sur une fiche client est **interne par défaut** (§ 5) ;
+  - l'existant **n'est pas migré** (§ 6).
+- Les autres modalités (l'endpoint de bascule, les codes de refus, l'évènement de journal, la révocation des liens du sujet) restent des décisions de la session, à revoir.
 
 ### Contexte
 
@@ -123,7 +128,8 @@ Relevé sur `feat/audit-ux-app-lot-2` (0bec981e2) le 2026-11-12, en lecture seul
    - Les liens publiés par le personnel restent : c'est une décision de l'agence, déjà prise.
 8. **L'export des données personnelles garde les métadonnées** (type, nom, date) d'un document interne de la fiche du titulaire, sans le fichier, comme aujourd'hui pour toute pièce qu'un autre a déposée (ADR-0070, amendement du 2026-10-25).
    - « Interne » est une décision d'écran : le droit d'accès aux données (loi n° 2008-12) ne la connaît pas.
-   - **⚠ Point ouvert au porteur** (recommandation de la session, acceptée par team-lead le 2026-11-12, non tranchée par le porteur) : la loi n° 2008-12 du 25 janvier 2008 sur la protection des données à caractère personnel donne au client un droit d'accès aux données qui le concernent. Un document interne de sa fiche le concerne. La recommandation garde donc ses métadonnées dans l'export, sans le fichier. **Le porteur peut dire non** : exclure le document interne de l'export serait un amendement à part, qui relève du droit et non de l'écran, et l'AC10 de TCK-2759 changerait avec lui.
+   - **Validé par le porteur le 2026-11-12** (nuit, point 1) : l'export garde les métadonnées (nom, date, type) du document interne, **jamais son contenu**.
+   - *Pourquoi* : la loi n° 2008-12 du 25 janvier 2008 sur la protection des données à caractère personnel donne au client un droit d'accès aux données qui le concernent. Un document interne de sa fiche le concerne. L'export dit donc qu'il existe, sans livrer le fichier.
 
 ### Ce que le § 1 devient
 
@@ -144,6 +150,8 @@ La phrase « sur une cible fixe, `reaches` est une constante » reste vraie pour
 - **Une énumération de visibilité** : plusieurs niveaux pour un seul public à écarter (§ 1).
 - **Le drapeau sur tous les porteurs** : un drapeau sans effet sur cinq porteurs sur six (§ 2).
 - **Défaut « visible » au téléversement du personnel** : l'oubli devient une fuite irréparable (§ 5).
+- **Exclure le document interne de l'export des données personnelles** : le client ne saurait pas qu'une pièce de sa fiche existe, alors que le droit d'accès porte sur les données qui le concernent (§ 8).
+- **Livrer le fichier d'un document interne dans l'export** : l'export rouvrirait au sujet ce que l'écran lui ferme (§ 8).
 - **Migrer l'existant vers « interne »** : rien de ce que le client a vu ne se reprend, et le personnel perdrait ce qu'il croyait avoir partagé (§ 6).
 - **Un second modèle (« pièce interne de la fiche »)** : une deuxième famille de fichiers, sans versions, sans coffre, sans partage, pour une différence d'audience.
 

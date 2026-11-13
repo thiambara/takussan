@@ -168,7 +168,7 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
 
 ## Hors périmètre
 
-- **Le retour d'un bailleur parti** (une invitation qui réactive le même profil, ADR-0108 § 9) : un ticket à écrire quand le cas se présente.
+- **Le retour d'un bailleur parti** : écarté par le porteur le 2026-11-12, un profil retiré ne revient pas (ADR-0108 § 9). Ce ticket sert seulement le refus de l'invitation, qui dit qu'il **a quitté** l'agence. Un retour voulu un jour serait un amendement de l'ADR, pas un ticket de suite.
 - **Le changement de titulaire d'un bien** d'un bailleur à un autre (TCK-999 ne va que du personnel vers un bailleur).
 - **Une surface où le bailleur parti relit ses relevés** : l'agence les lui envoie.
 - **La suspension et la réactivation** : TCK-2641.

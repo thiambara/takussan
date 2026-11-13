@@ -1,6 +1,6 @@
 # ADR-0100 — L'argent a une page par public : « Paiements » pour le locataire, « Loyers » pour le bailleur, « Argent » pour l'agence
 
-- **Statut** : Accepté le 2026-11-10 (décision 4 (a) de la famille 4, décision n° 12 (a) pour l'onglet « Argent », décision n° 8 (a) pour le total du locataire — recommandations validées par le porteur) — modalités : décisions de la session, à revoir ; § 3 et § 6 décidés par le porteur le 2026-11-10 (« Loyers » ; les charges du bail dans ce lot, TCK-2679) ; **§ 2 amendé le 2026-11-12** : le reste à verser est un solde cumulé, lu au jour (cf. § *Amendement du 2026-11-12 — le reste à verser est un solde cumulé*)
+- **Statut** : Accepté le 2026-11-10 (décision 4 (a) de la famille 4, décision n° 12 (a) pour l'onglet « Argent », décision n° 8 (a) pour le total du locataire — recommandations validées par le porteur) — modalités : décisions de la session, à revoir ; § 3 et § 6 décidés par le porteur le 2026-11-10 (« Loyers » ; les charges du bail dans ce lot, TCK-2679) ; **§ 2 amendé le 2026-11-12** : le reste à verser est un solde cumulé, lu au jour (cf. § *Amendement du 2026-11-12 — le reste à verser est un solde cumulé*), **validé par le porteur le 2026-11-12** (arrêté au jour, partout)
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2649 (API : total dû, reste à verser), TCK-2650 (Paiements du locataire), TCK-2651 (page du bailleur), TCK-2657 et TCK-2659 (Argent de l'agence), TCK-2618 (onglets et entrées de menu), TCK-2677 (redirection du personnel), TCK-2679 (les charges, terme du bail), TCK-2760 (le reste à verser cumulé, amendement du 2026-11-12)
 - **S'appuie sur** : [ADR-0089](0089-le-menu-de-app-se-derive-du-profil-actif.md) (persona du profil actif), [ADR-0064](0064-l-administration-d-agence-vit-dans-app.md) (l'administration d'agence vit sous `/app/agency/*`), [ADR-0039](0039-les-sorties-d-argent.md) (reversements, reprises)
@@ -69,7 +69,9 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
 
 ## Amendement du 2026-11-12 — le reste à verser est un solde cumulé (TCK-2760)
 
-- **Décidé par le porteur le 2026-11-12** (décision 4 (a)) : « Reste à vous verser » est le solde **cumulé**, soit tout le net dû moins tout le versé. Les modalités ci-dessous (date d'arrêté, champ, lecteurs) sont des décisions de la session, à revoir.
+- **Décidé par le porteur le 2026-11-12** (décision 4 (a)) : « Reste à vous verser » est le solde **cumulé**, soit tout le net dû moins tout le versé.
+- **Validé par le porteur le 2026-11-12** (nuit, point 3 de ses huit validations) : le solde est **arrêté à la date du jour**, quel que soit le mois choisi (§ 2), et c'est le même nombre **partout** : la page « Loyers » (le relevé), la fiche bailleur et le carnet (§ 5).
+- Les autres modalités (le nom du champ `balance`, son retrait de l'instantané, le signe) restent des décisions de la session, à revoir.
 
 ### Contexte
 

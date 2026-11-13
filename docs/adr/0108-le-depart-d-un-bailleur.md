@@ -1,6 +1,6 @@
 # ADR-0108 — Le départ d'un bailleur : refusé tant qu'il laisse quelque chose en cours, puis son profil devient inactif et son histoire reste
 
-- **Statut** : Accepté le 2026-11-12 (décision 5 (a) du porteur : « refusé tant qu'il reste biens, baux en cours ou reste à verser ; profil → inactive ; journal et relevés gardés ; geste dédié, admin seul, double authentification ») — modalités : décisions de la session, à revoir
+- **Statut** : Accepté le 2026-11-12 (décision 5 (a) du porteur : « refusé tant qu'il reste biens, baux en cours ou reste à verser ; profil → inactive ; journal et relevés gardés ; geste dédié, admin seul, double authentification ») ; **validé par le porteur le 2026-11-12** (nuit, point 4 de ses huit validations) : un bien archivé bloque (§ 1), ce que le bailleur doit à l'agence ne bloque pas (§ 3), aucun retrait par soi-même (§ 7), pas de retour d'un profil retiré (§ 9) — autres modalités (appels, codes, journal) : décisions de la session, à revoir
 - **Date** : 2026-11-12
 - **Tickets** : TCK-2753 ; s'appuie sur TCK-2760 (le solde cumulé)
 - **S'appuie sur** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (un profil non actif ne confère rien ; le bailleur de tout statut garde son argent), [ADR-0100](0100-une-page-paiements-par-public.md), amendement du 2026-11-12 (le reste à verser est un solde cumulé), [ADR-0039](0039-les-sorties-d-argent.md) (reprises)
@@ -34,6 +34,7 @@ Relevé sur `feat/audit-ux-app-lot-2` (0bec981e2) le 2026-11-12, en lecture seul
 ### 1. Les biens : le départ est refusé tant qu'il en reste
 
 - **Compte** : tout bien **non supprimé** de l'agence dont il est le bailleur (`properties.user_id` = lui, au sens de `BailleurDuBien`), **quel que soit son statut**, archivé et vendu compris.
+- **Validé par le porteur le 2026-11-12** : un bien archivé bloque le départ.
 - **Pourquoi l'archivé compte** : un bien archivé reste dans l'agence et peut être republié. Laissé à un bailleur parti, il serait un bien sans titulaire joignable.
 - **Sortie** : supprimer le bien. La suppression est douce : l'histoire du bien, ses baux et ses paiements restent, et le relevé les relit avec `withTrashed`. Aucun changement de titulaire d'un bailleur à un autre n'est servi (TCK-999 ne le fait pas). S'il est voulu, ce sera un ticket à part.
 
@@ -51,7 +52,7 @@ Trois conditions, chacune avec son compte :
 - **un reversement à lui est en cours** : statut de `PayoutStatus::upcoming()`, à approuver, en attente, programmé ou en traitement. De l'argent est en mouvement ;
 - **une pièce reversable n'est encore portée par aucun reversement** : la règle de `AccountDeletionService::agenciesOwingPayout`, extraite et partagée, jamais recopiée.
 
-**Ce que le bailleur doit à l'agence ne bloque pas.** Cela couvre deux cas :
+**Ce que le bailleur doit à l'agence ne bloque pas** (validé par le porteur le 2026-11-12). Cela couvre deux cas :
 
 - une **reprise en attente** (ADR-0039) : le reliquat de `PayoutClawbacks::outstanding`, qu'aucun reversement n'a encore absorbé. Elle ne se lit pas dans le solde : une reprise diminue le net et le versé du même montant (ADR-0100, amendement du 2026-11-12, § 1) ;
 - un **trop-versé** : un solde négatif.
@@ -103,7 +104,7 @@ Le même inventaire se lit **avant** le geste par `GET /api/owners/{ownerProfile
   - un profil d'administrateur **actif** dans l'agence du profil (`isAgencyAdminAt`), ou le super-admin ;
   - ce n'est **pas une capacité** : un rôle personnalisé ne le délègue pas à un agent. C'est le précédent de `CustomerPolicy::viewSensitive`.
 - **La double authentification** : l'action entre dans `ProtectedActions::AGENCY_TWO_FACTOR`, et son contrôleur dans `FAMILY_CONTROLLERS`, puisque `owners.php` n'est pas une famille. `ProtectedActionsCoverageTest` le garde.
-- **Les refus propres** :
+- **Les refus propres** (le retrait par soi-même, validé par le porteur le 2026-11-12, est refusé sous ses deux formes : `owner.departure_self` et `owner.departure_individual`) :
   - un profil `draft` (invitation non acceptée) : 422 `owner.departure_draft`, il faut révoquer l'invitation ;
   - un profil déjà `inactive` : 422 `owner.already_departed` ;
   - **soi-même** : 422 `owner.departure_self`, comme `team.suspension_self`. Un autre administrateur le fait ;
@@ -118,8 +119,9 @@ Le même inventaire se lit **avant** le geste par `GET /api/owners/{ownerProfile
 
 ### 9. Le retour d'un bailleur parti (la sixième question)
 
-- **Il n'est pas servi par TCK-2753.** Quand il le sera, le retour **réactivera le même profil** (`unique(user_id, agency_id)` interdit un second profil), par une invitation que le bailleur accepte. Ce ne sera pas un clic de l'agence : c'est un nouveau mandat, il faut son accord.
-- **D'ici là**, l'invitation d'un bailleur parti reste refusée en 409. Le message dit qu'il **a quitté** l'agence, et non qu'il en est « déjà membre » : le message d'aujourd'hui serait faux pour lui.
+- **Validé par le porteur le 2026-11-12 : pas de retour d'un profil retiré.** Aucun geste ne rend `active` un profil `inactive` : ni « Réactiver » (§ 5), ni une invitation.
+- **L'invitation d'un bailleur parti est refusée en 409.** Le message dit qu'il **a quitté** l'agence, et non qu'il en est « déjà membre » : le message d'aujourd'hui serait faux pour lui.
+- **Si un retour est voulu un jour**, ce sera une décision du porteur et un amendement, pas un ticket de suite. La contrainte à connaître : `unique(user_id, agency_id)` interdit un second profil, donc un retour devrait réactiver le même, par une invitation que le bailleur accepte (un nouveau mandat demande son accord).
 
 ## Conséquences
 
