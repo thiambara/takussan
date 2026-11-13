@@ -4261,14 +4261,15 @@
         "plafond": "Au-dessus de {seuil}, votre mandat prévoit votre accord.",
         "approuver": "Approuver {montant}",
         "refuser": "Refuser",
-        "motif": "Un refus demande un motif.",
+        "motif": "Un refus demande un motif ; un nouveau devis pourra vous être soumis.",
         "echec": "Le devis n’a pas pu être approuvé."
       },
       "enCours": {
         "titre": "En cours sur vos biens",
         "toutVoir": "Tout voir",
         "passage": "{jour, select, aujourdhui {Aujourd’hui à {heure}} demain {Demain à {heure}} hier {Hier à {heure}} other {Le {date} à {heure}}}",
-        "approuve": "Devis approuvé le {date}"
+        "approuve": "Devis approuvé le {date}",
+        "sousLeSeuil": "Sous le seuil : sans accord"
       }
     },
     "prestataire": {

@@ -66,7 +66,7 @@
       "produit": {
         "route": "/app/maintenance",
         "persona": "proprietaire (persona `proprietaire` de personas.json)",
-        "etat": "La démo n'a AUCUN devis en `awaiting_owner` ni aucun plafond fixé (sonde GET des personas proprietaire et proprietaire2, 2026-11-13), et le relevé n'écrit rien : les trois GET de la vue — liste des devis à décider, liste en cours, fiche du devis — sont DOUBLÉS dans la page par doublure-bailleur.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Étanchéité de la terrasse, 485 000, plafond 150 000, les deux photos de public/maquettes ; Peinture du séjour, Serrure du portail). La coque, /me et le reste sont réels. Ce relevé mesure la MISE EN PAGE ; les données, elles, sont éprouvées par interventions-du-bailleur.tck-2654.test.tsx. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v9 du 2026-11-13 (16 h 28 – 16 h 29, terrain-6, takussan-web/.fidelite/TCK-2654/v9) : telephone 20 conformes · 11 écarts · 7 absents (27,83 % de pixels) ; bureau-1440 42 conformes · 83 écarts · 31 absents (9,07 % de pixels) ; bureau-1280 42 conformes · 83 écarts · 31 absents (10,05 % de pixels). Au bureau, deux colonnes comme la maquette : le devis (x320 à 1440) et « En cours sur vos biens » (x982) ; les photos à gauche des lignes du devis dès xl. Balayage 390/768/1024/1280/1440 (16 h 30, même doublure) : aucun débord, aucune coupe ; seules ellipses, 25 à 768 : les libellés du rail replié de la coque."
+        "etat": "La démo n'a AUCUN devis en `awaiting_owner` ni aucun plafond fixé (sonde GET des personas proprietaire et proprietaire2, 2026-11-13), et le relevé n'écrit rien : les trois GET de la vue — liste des devis à décider, liste en cours, fiche du devis — sont DOUBLÉS dans la page par doublure-bailleur.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Étanchéité de la terrasse, 485 000, plafond 150 000, les deux photos de public/maquettes ; Peinture du séjour, Serrure du portail — chaque ligne en cours lit SA fiche, qui sert le plafond de 150 000). La coque, /me et le reste sont réels. Ce relevé mesure la MISE EN PAGE ; les données, elles, sont éprouvées par interventions-du-bailleur.tck-2654.test.tsx. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v12 du 2026-11-13 (17 h 49, terrain-6, takussan-web/.fidelite/TCK-2654/v12) : telephone 20 conformes · 11 écarts · 7 absents (28,33 % de pixels) ; bureau-1440 44 conformes · 82 écarts · 31 absents (9,08 % de pixels) ; bureau-1280 45 conformes · 81 écarts · 31 absents (9,8 % de pixels). Au bureau, deux colonnes comme la maquette : le devis (x320 à 1440) et « En cours sur vos biens » (x982) ; les photos à gauche des lignes du devis dès xl. Balayage 390/768/1024/1280/1440 (16 h 30, même doublure) : aucun débord, aucune coupe ; seules ellipses, 25 à 768 : les libellés du rail replié de la coque (relevé v12, 17 h 49, après L3b : la décision du devis vit dans DecisionDuDevis, « Sous le seuil : sans accord » à x1266 y248 comme la maquette)."
       }
     },
     {
@@ -280,7 +280,7 @@
       "element": "« ; l'agence vous proposera une autre solution » après « Un refus demande un motif »",
       "propriete": "texte",
       "exception": "donnée",
-      "motif": "aucun mécanisme ne garantit cette proposition (décision 2)"
+      "motif": "aucun mécanisme ne garantit cette proposition : la machine d'état (MaintenanceStateMachine) mène rejected → quote_submitted | cancelled ; le produit écrit ce que la transition garantit, « ; un nouveau devis pourra vous être soumis » (décision b de team-lead)"
     },
     {
       "ecran": "app-interventions a-6-*",
@@ -288,13 +288,6 @@
       "propriete": "texte",
       "exception": "donnée",
       "motif": "aucune date de fin prévue n'est servie ; le produit écrit le passage (`scheduled_at`) : « Aujourd'hui à 10:00 »"
-    },
-    {
-      "ecran": "app-interventions a-6-*",
-      "element": "« Sous le seuil : sans accord »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "le plafond n'est servi qu'au détail (décision 1a), jamais sur une liste : la ligne en cours ne peut pas le comparer"
     },
     {
       "ecran": "app-interventions a-6-*",
@@ -449,7 +442,7 @@
       "ecran": "app-interventions a-6-*",
       "element": "« Devis DV-2026-118 (PDF) » (lucide-download)",
       "propriete": "présence",
-      "attente": "décision de team-lead (question du 2026-11-13)",
+      "attente": "export accepté par team-lead (2026-11-13) : livré avec le hunk de QuoteActions.tsx, après le commit de TCK-2653 lots 2 et 3",
       "motif": "le bouton PDF existe (QuotePdfButton, components/maintenance/QuoteActions.tsx) mais n'est pas exporté, et ce fichier porte le lot d'un autre agent"
     }
   ]

@@ -5,6 +5,7 @@ import {
   CHAMPS_DES_INTERVENTIONS_DU_BAILLEUR,
   montantDUneLigne,
   plafondARappeler,
+  sousLeSeuil,
   STATUT_DU_DEVIS_A_DECIDER,
   STATUTS_EN_COURS_DU_BAILLEUR,
   type FicheDuBailleur,
@@ -35,5 +36,14 @@ describe('devis du bailleur — TCK-2654, lot 3', () => {
     expect(plafondARappeler(fiche(null))).toBeNull();
     expect(plafondARappeler({ id: 1 } as unknown as FicheDuBailleur)).toBeNull();
     expect(plafondARappeler(undefined)).toBeNull();
+  });
+
+  it('« sous le seuil » : au plus égal au plafond (ADR-0037 § 2, `exceeds` est strict) ; faux sans plafond ou sans devis', () => {
+    expect(sousLeSeuil(65000, 150000)).toBe(true);
+    expect(sousLeSeuil(150000, 150000)).toBe(true);
+    expect(sousLeSeuil('150000.00', 150000)).toBe(true);
+    expect(sousLeSeuil(150000.01, 150000)).toBe(false);
+    expect(sousLeSeuil(65000, null)).toBe(false);
+    expect(sousLeSeuil(null, 150000)).toBe(false);
   });
 });

@@ -54,3 +54,15 @@ export function plafondARappeler(fiche: FicheDuBailleur | undefined): number | n
   const plafond = fiche?.owner_approval_threshold;
   return typeof plafond === 'number' ? plafond : null;
 }
+
+/**
+ * « Sous le seuil : sans accord » : un devis au plus égal au plafond du bailleur s'approuve sans lui.
+ * C'est la règle d'`approveQuote` (`MaintenanceQuoteWorkflow`) : l'approbation de l'agence ne passe en
+ * `awaiting_owner` que STRICTEMENT au-delà du plafond (`OwnerApprovalThreshold::exceeds`, ADR-0037 § 2 —
+ * égal, c'est dans l'accord). Faux sans plafond servi et fixé, ou sans devis.
+ */
+export function sousLeSeuil(quoteAmount: number | string | null | undefined, plafond: number | null): boolean {
+  if (plafond === null || quoteAmount === null || quoteAmount === undefined) return false;
+  const montant = Number(quoteAmount);
+  return Number.isFinite(montant) && montant <= plafond;
+}

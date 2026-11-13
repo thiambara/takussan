@@ -15,6 +15,10 @@ const reseau = vi.hoisted(() => ({
   devis: [] as unknown[],
   enCours: [] as unknown[],
   fiche: null as Record<string, unknown> | null,
+  /** Les fiches propres à une ligne « en cours » ; à défaut, `fiche`. */
+  fiches: {} as Record<number, Record<string, unknown>>,
+  /** Les fiches dont la lecture échoue. */
+  fichesEnEchec: [] as number[],
 }));
 
 vi.mock('@/lib/api', async (importOriginal) => {
@@ -30,7 +34,12 @@ vi.mock('@/lib/api', async (importOriginal) => {
         const data = lu.includes('filter[status]=awaiting_owner') ? reseau.devis : reseau.enCours;
         return { data, meta: { total: data.length, per_page: 10, current_page: 1, last_page: 1 } };
       }
-      if (/^\/api\/maintenance-requests\/\d+(\?|$)/.test(lu)) return { data: reseau.fiche };
+      const detail = lu.match(/^\/api\/maintenance-requests\/(\d+)(\?|$)/);
+      if (detail) {
+        const id = Number(detail[1]);
+        if (reseau.fichesEnEchec.includes(id)) throw new Error('fiche illisible');
+        return { data: reseau.fiches[id] ?? reseau.fiche };
+      }
       throw new Error(`requête inattendue : ${method} ${lu}`);
     }),
   };
@@ -94,6 +103,8 @@ describe('InterventionsDuBailleur — TCK-2654', () => {
     reseau.devis = [LIGNE_DU_DEVIS];
     reseau.enCours = [];
     reseau.fiche = fiche();
+    reseau.fiches = {};
+    reseau.fichesEnEchec = [];
   });
 
   it('les devis à décider sont FILTRÉS par l’API, et « en cours » ne les reprend pas', async () => {
@@ -197,10 +208,45 @@ describe('InterventionsDuBailleur — TCK-2654', () => {
     expect(document.querySelector('[data-slot="devis-a-decider"]')).toBeNull();
   });
 
+  it('en cours : « Sous le seuil : sans accord » quand le devis ne dépasse pas le plafond de la fiche — égal compris (ADR-0037 § 2)', async () => {
+    reseau.devis = [];
+    const enCours = (id: number, quote_amount: number) => ({ ...LIGNE_DU_DEVIS, id, title: `Ligne ${id}`, status: 'assigned', quote_amount, quote_decision_at: null });
+    reseau.enCours = [enCours(11, 65000), enCours(12, 150000), enCours(13, 150001)];
+    for (const l of reseau.enCours as { id: number; quote_amount: number }[]) reseau.fiches[l.id] = fiche({ ...l, owner_approval_threshold: 150000 });
+    monter();
+    const ligne = async (id: number) =>
+      (await waitFor(() => {
+        const a = screen.getByRole('link', { name: `Ligne ${id}` });
+        return a.closest('[data-slot="bailleur-en-cours"]');
+      })) as HTMLElement;
+    await waitFor(async () => expect((await ligne(11)).querySelector('[data-slot="sous-le-seuil"]')?.textContent).toBe('Sous le seuil : sans accord'));
+    await waitFor(async () => expect((await ligne(12)).querySelector('[data-slot="sous-le-seuil"]')).not.toBeNull());
+    await waitFor(() => expect(reseau.appels.some((a) => a.path.startsWith('/api/maintenance-requests/13'))).toBe(true));
+    expect((await ligne(13)).querySelector('[data-slot="sous-le-seuil"]')).toBeNull();
+  });
+
+  it('en cours : sans plafond servi, ou fiche illisible, la mention seule manque — sans erreur à l’écran', async () => {
+    reseau.devis = [];
+    reseau.enCours = [
+      { ...LIGNE_DU_DEVIS, id: 21, title: 'Sans plafond', status: 'assigned', quote_amount: 65000, quote_decision_at: null },
+      { ...LIGNE_DU_DEVIS, id: 22, title: 'Illisible', status: 'assigned', quote_amount: 65000, quote_decision_at: null },
+    ];
+    reseau.fiches[21] = fiche({ id: 21, owner_approval_threshold: null });
+    reseau.fichesEnEchec = [22];
+    monter();
+    await screen.findByRole('link', { name: 'Illisible' });
+    await waitFor(() => expect(reseau.appels.filter((a) => /^\/api\/maintenance-requests\/2[12]/.test(a.path))).toHaveLength(2));
+    expect(document.querySelector('[data-slot="sous-le-seuil"]')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Sans plafond' })).toBeTruthy();
+  });
+
   it('sans rien sur ses biens : un état vide', async () => {
     reseau.devis = [];
     reseau.enCours = [];
     monter();
     expect(await screen.findByText('Aucune intervention sur vos biens')).toBeTruthy();
+    // Liste vide : aucune fiche n'est lue.
+    expect(reseau.appels.some((a) => /^\/api\/maintenance-requests\/\d/.test(a.path))).toBe(false);
   });
 });

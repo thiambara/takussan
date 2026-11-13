@@ -6391,14 +6391,15 @@
         "plafond": "Above {seuil}, your mandate requires your approval.",
         "approuver": "Approve {montant}",
         "refuser": "Decline",
-        "motif": "Declining requires a reason.",
+        "motif": "Declining requires a reason; a new quote may then be submitted to you.",
         "echec": "The quote could not be approved."
       },
       "enCours": {
         "titre": "In progress on your properties",
         "toutVoir": "See all",
         "passage": "{jour, select, aujourdhui {Today at {heure}} demain {Tomorrow at {heure}} hier {Yesterday at {heure}} other {On {date} at {heure}}}",
-        "approuve": "Quote approved on {date}"
+        "approuve": "Quote approved on {date}",
+        "sousLeSeuil": "Below the threshold: no approval needed"
       }
     },
     "prestataire": {
