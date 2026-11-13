@@ -223,3 +223,15 @@ Fixture commune : une agence A, une fiche client C d'A dont le sujet est le comp
 
 
 - **AC5, amendé (décision relayée par team-lead, 2026-11-13, option a)** : la liste d'une fiche n'est jamais plus large que la lecture du sujet. Le super-admin ne liste pas un document interne par sa cible ; il l'ouvre par son identifiant, et cette lecture est journalisée (ADR-0099 § 1). L'export garde les métadonnées d'un document interne, jamais son contenu, sans branche nouvelle : c'est le comportement actuel de `DataExportBuilder`, épinglé par `test_ac10`.
+
+### Suivi (2026-11-13) — r1 et t1 de la vérification de cd48b8f57/44f6de314 (back-4)
+
+- **r1, une offre qui ne ment pas.** Sur la pièce visible téléversée par le sujet, `abilities.set_visibility` valait `true` pour le personnel, puis « Garder pour l'agence » rendait 422 `document.internal_own_upload`.
+  - La règle vit dans `DocumentVisibility::basculeOfferte()` : un document interne offre « Rendre visible », un document visible offre « Garder pour l'agence » sauf s'il est une pièce du sujet. `change()` lit le même prédicat (`estUnePieceDuSujet`).
+  - `DocumentResource` et `CustomerResource` (`include=documents`) la lisent après la policy. La policy `setVisibility` ne change pas, et le PATCH non plus : il rend toujours 422 sur ce cas.
+  - Front : aucun changement. La ligne ne monte la bascule que sur `abilities.set_visibility`, et c'est déjà épinglé par `visibilite-interne.tck-2759` « sans le verdict de l'API, ni pastille ni bascule ».
+  - Épinglé par `DocumentInterneEcritureTest::test_r1_la_piece_visible_du_sujet_n_offre_pas_une_bascule_refusee`, sur la ligne, la liste de la fiche et `include=documents`. Le test vérifie aussi que le dépôt visible de X garde son offre et qu'une pièce du sujet restée interne offre « Rendre visible », qui passe.
+  - Ablations, toutes rouges : `CustomerResource` sans la règle ; `DocumentResource` sans la règle ; la règle qui ignore l'état interne.
+- **t1.** `test_ac3` s'étend au coffre (`/api/me/document-vault`) et à l'accueil (`/api/dashboard/tenant`) de l'agent sujet. Un témoin visible prouve que ces deux chemins lisent bien sa fiche.
+  - Ablation C3 (la forme SQL perd sa garde du sujet) : rouge, d'abord sur le coffre.
+  - Le contrôle de l'accueil suit la même forme SQL ; il n'a pas été ablaté séparément.

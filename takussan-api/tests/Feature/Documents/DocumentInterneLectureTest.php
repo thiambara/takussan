@@ -157,9 +157,19 @@ class DocumentInterneLectureTest extends TestCase
         $this->getJson("/api/documents/{$surLeBailleur}")->assertForbidden();
         $this->assertNotContains($surLeBailleur, $this->listeDeLaFiche($ficheDuBailleur));
 
+        // TCK-2759 (t1 de la vérification de cd48b8f57) — le coffre et l'accueil de l'agent sujet : la
+        // forme SQL y garde le sujet même membre du personnel. Le témoin visible prouve que ces deux
+        // chemins lisent bien les documents de sa fiche.
+        $this->connecter($this->agent);
+        $temoin = $this->televerser($ficheDeLAgent, ['is_internal' => '0'])->assertCreated()->json('data.id');
+
         $this->connecter($this->agent2);
         $this->getJson("/api/documents/{$surLAgent}")->assertForbidden();
         $this->assertNotContains($surLAgent, $this->listeDeLaFiche($ficheDeLAgent));
+        $this->assertContains($temoin, $this->idsDuCoffre(), 'le témoin visible est au coffre');
+        $this->assertNotContains($surLAgent, $this->idsDuCoffre(), 'coffre');
+        $this->assertContains($temoin, $this->recentsDeLAccueil(), 'le témoin visible est à l\'accueil');
+        $this->assertNotContains($surLAgent, $this->recentsDeLAccueil(), 'accueil');
         // Le même agent lit le document interne d'une fiche dont il n'est pas le sujet.
         $this->getJson("/api/documents/{$this->interne->id}")->assertOk();
     }

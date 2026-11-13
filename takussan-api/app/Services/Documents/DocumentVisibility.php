@@ -24,15 +24,30 @@ use Illuminate\Support\Facades\DB;
  */
 final class DocumentVisibility
 {
+    /**
+     * TCK-2759 (r1 de la vérification de cd48b8f57) — la bascule que la ligne peut OFFRIR depuis son
+     * état : « Rendre visible » sur un document interne, « Garder pour l'agence » sur un document
+     * visible qui n'est pas une pièce du sujet. Sur une pièce visible du sujet, la seule bascule
+     * serait vers « interne », que {@see self::change()} refuse (422 `document.internal_own_upload`) :
+     * rien ne s'offre. `DocumentResource` et `CustomerResource` la lisent, après la policy
+     * (`setVisibility`), pour que `abilities.set_visibility` ne promette pas un geste refusé.
+     */
+    public static function basculeOfferte(Document $document, Customer $customer): bool
+    {
+        return (bool) $document->is_internal || ! self::estUnePieceDuSujet($document, $customer);
+    }
+
+    /** Une pièce téléversée par le sujet de la fiche (§ 4) : elle n'est jamais interne. */
+    private static function estUnePieceDuSujet(Document $document, Customer $customer): bool
+    {
+        return $customer->user_id !== null && (int) $document->uploaded_by === (int) $customer->user_id;
+    }
+
     public function change(Document $document, bool $internal, User $actor): Document
     {
         $customer = $document->documentable;
         abort_code_unless($customer instanceof Customer, 422, 'document.internal_customer_only');
-        abort_code_if(
-            $internal && $customer->user_id !== null && (int) $document->uploaded_by === (int) $customer->user_id,
-            422,
-            'document.internal_own_upload',
-        );
+        abort_code_if($internal && self::estUnePieceDuSujet($document, $customer), 422, 'document.internal_own_upload');
 
         DB::transaction(function () use ($document, $customer, $internal, $actor): void {
             $locked = Document::query()->whereKey($document->getKey())->lockForUpdate()->firstOrFail();

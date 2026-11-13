@@ -10,6 +10,7 @@ use App\Policies\CustomerPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\PropertyVisitPolicy;
 use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Documents\DocumentVisibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
@@ -214,7 +215,8 @@ class CustomerResource extends BaseResource
                             'type' => $d->type?->value,
                             'is_internal' => (bool) $d->is_internal,
                             'created_at' => $this->iso($d->created_at),
-                            'abilities' => ['set_visibility' => $litLesInternes],
+                            // TCK-2759 r1 — ni sur une pièce visible du sujet ({@see DocumentVisibility::basculeOfferte()}).
+                            'abilities' => ['set_visibility' => $litLesInternes && DocumentVisibility::basculeOfferte($d, $this->resource)],
                         ])->values();
                 },
             ),

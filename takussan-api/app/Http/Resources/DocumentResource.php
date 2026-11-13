@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
+use App\Services\Documents\DocumentVisibility;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Http\ParametreUnique;
@@ -99,9 +100,12 @@ class DocumentResource extends BaseResource
                 'share' => $request->user()->can('share', $this->resource),
                 'delete' => $request->user()->can('delete', $this->resource),
                 // TCK-2759 — « Garder pour l'agence » / « Rendre visible au client » : sur une fiche
-                // client seulement (ailleurs, la bascule rend 422 et ne s'offre pas).
+                // client seulement (ailleurs, la bascule rend 422 et ne s'offre pas). Ni sur une pièce
+                // visible du sujet : la seule bascule y serait refusée (TCK-2759 r1, DocumentVisibility::basculeOfferte).
                 'set_visibility' => $this->documentable_type === Customer::class
-                    && $request->user()->can('setVisibility', $this->resource),
+                    && $request->user()->can('setVisibility', $this->resource)
+                    && $this->documentable instanceof Customer
+                    && DocumentVisibility::basculeOfferte($this->resource, $this->documentable),
             ]),
         ];
     }

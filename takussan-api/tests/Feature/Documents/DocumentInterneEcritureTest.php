@@ -99,6 +99,49 @@ class DocumentInterneEcritureTest extends TestCase
         $this->assertSame(0, $this->journalDeBascule($doc));
     }
 
+    /**
+     * TCK-2759 (r1 de la vérification de cd48b8f57) — `abilities.set_visibility` ne promet pas un geste
+     * refusé : sur la pièce visible du sujet, la seule bascule serait « Garder pour l'agence », que
+     * l'API refuse (422 `document.internal_own_upload`) ; elle ne s'offre donc ni à la ligne
+     * (`GET /api/documents/{id}`), ni à la liste de la fiche, ni à la fiche (`include=documents`). Le
+     * dépôt visible de X, lui, garde son offre. Une pièce du sujet restée interne (ligne héritée) offre
+     * « Rendre visible », que l'API accepte.
+     */
+    public function test_r1_la_piece_visible_du_sujet_n_offre_pas_une_bascule_refusee(): void
+    {
+        $this->connecter($this->tenant);
+        $sien = Document::query()->findOrFail($this->televerser('customer', $this->fiche)->assertCreated()->json('data.id'));
+        $deX = $this->deposeParX(false);
+
+        $offres = function (): array {
+            $ligne = fn (Document $d): bool => $this->getJson("/api/documents/{$d->id}")->assertOk()->json('data.abilities.set_visibility');
+            $liste = collect($this->getJson("/api/documents?filter[documentable_type]=customer&filter[documentable_id]={$this->fiche->id}")
+                ->assertOk()->json('data'))->keyBy('id');
+            $fiche = collect($this->getJson("/api/customers/{$this->fiche->id}?include=documents")->assertOk()->json('data.documents'))->keyBy('id');
+
+            return [$ligne, $liste, $fiche];
+        };
+
+        $this->connecter($this->agent);
+        [$ligne, $liste, $fiche] = $offres();
+        $this->assertFalse($ligne($sien), 'la ligne');
+        $this->assertFalse($liste[$sien->id]['abilities']['set_visibility'], 'la liste de la fiche');
+        $this->assertFalse($fiche[$sien->id]['abilities']['set_visibility'], 'include=documents');
+        $this->assertTrue($ligne($deX));
+        $this->assertTrue($liste[$deX->id]['abilities']['set_visibility']);
+        $this->assertTrue($fiche[$deX->id]['abilities']['set_visibility']);
+        // Ce qui ne s'offre pas est bien ce qui se refuse.
+        $this->basculer($sien, true)->assertUnprocessable()->assertJsonPath('code', 'document.internal_own_upload');
+
+        // Une pièce du sujet restée interne (aucun écrivain ne la pose plus) : « Rendre visible » s'offre et passe.
+        $sien->forceFill(['is_internal' => true])->save();
+        [$ligne, , $fiche] = $offres();
+        $this->assertTrue($ligne($sien));
+        $this->assertTrue($fiche[$sien->id]['abilities']['set_visibility']);
+        $this->basculer($sien, false)->assertOk()->assertJsonPath('data.is_internal', false);
+        $this->assertFalse($ligne($sien));
+    }
+
     /** AC7 — hors d'une fiche client, `is_internal=true` rend 422 et ne crée rien. */
     public function test_ac7_internal_only_holds_on_a_customer_fiche(): void
     {
