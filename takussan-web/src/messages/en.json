@@ -3759,7 +3759,13 @@
         "confirmationRefusee": "The viewing was not confirmed.",
         "tache": "Task · {jour}",
         "tacheSansTitre": "A task",
-        "rien": "Nothing planned."
+        "rien": "Nothing planned.",
+        "visiteDemain": "Viewing tomorrow · {jour} {heure}",
+        "confirmee": "Confirmed",
+        "rappeler": "Remind of the viewing",
+        "rappelerAria": "Remind {nom} of the viewing on WhatsApp",
+        "rappelMessage": "Hello {prenom}, a reminder of our viewing of {bien}, {jour} at {heure}. See you soon!",
+        "rappelMessageSansBien": "Hello {prenom}, a reminder of our viewing, {jour} at {heure}. See you soon!"
       },
       "cherche": {
         "titre": "Looking for",

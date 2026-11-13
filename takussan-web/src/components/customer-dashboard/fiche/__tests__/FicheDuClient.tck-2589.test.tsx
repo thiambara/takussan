@@ -6,6 +6,7 @@
  *  · 3a — la tâche suivante n'apparaît qu'une fois les tâches lues ;
  *  · 4a — le nombre de biens correspondants vient de `meta.total`, sinon la rangée reste sans nombre ;
  *  · le bailleur auteur : ni gestes enregistrés, ni origine, ni visite ;
+ *  · a-3 groupe 2 — « demain », « Confirmée » et « Rappeler la visite » (WhatsApp pré-rédigé, noté) ;
  *  · lot D — les actions secondaires (« Modifier », ⋯ : saisir une demande, ajouter un document), au
  *    bureau et dans la feuille du ⋯ de l'en-tête ; un document ajouté relit la page et ouvre sa ligne.
  */
@@ -13,7 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api';
 import { withIntl } from '@/test/intl';
@@ -206,7 +207,7 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     expect(screen.getAllByRole('combobox', { name: /^Étape de / })).toHaveLength(1);
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Étape de Mariama Fall' }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Converti' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Gagné' }));
     expect(lectures.etape).not.toHaveBeenCalled();
     await userEvent.type(await screen.findByTestId('reason-input'), 'Bail signé');
     await userEvent.click(screen.getByTestId('reason-submit'));
@@ -227,6 +228,16 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     rendu({ ...MARIAMA, upcoming_visits: [{ ...MARIAMA.upcoming_visits![0], manage: false }] });
     expect(screen.queryByRole('button', { name: 'Confirmer' })).toBeNull();
     expect(screen.getByText('À confirmer')).toBeInTheDocument();
+  });
+
+  it('a-3 « la veille » — une visite confirmée se montre sans « À confirmer » ni « Confirmer »', () => {
+    rendu({ ...MARIAMA, upcoming_visits: [{ ...MARIAMA.upcoming_visits![0], status: 'confirmed' }] });
+    const prochaine = document.querySelector('[data-slot="prochaine-action"]') as HTMLElement;
+    expect(within(prochaine).getByText(/^Visite .+ · \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(within(prochaine).getByText('Studio meublé · Mermoz')).toBeInTheDocument();
+    expect(within(prochaine).queryByText('À confirmer')).toBeNull();
+    expect(within(prochaine).queryByRole('button', { name: 'Confirmer' })).toBeNull();
+    expect(within(prochaine).queryByRole('link', { name: 'Fixer l’heure' })).toBeNull();
   });
 
   it('1a — une demande par tranche se confirme sur sa fiche, où l’heure se choisit', () => {
@@ -266,6 +277,28 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     expect(screen.queryByText(/biens? correspond/)).toBeNull();
   });
 
+  it('AC5 — la rangée de CHERCHE mène à « Biens correspondants » : ?section=biens, la ligne du dossier amenée à l’écran', async () => {
+    // jsdom n'a pas de scrollIntoView : un double, retiré à la fin.
+    const vue = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vue });
+    const image = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((f) => (f(0), 0));
+    try {
+      rendu();
+      const rangee = (await screen.findByText('3 biens correspondent')).closest('a') as HTMLAnchorElement;
+      expect(rangee).toHaveAttribute('href', '?section=biens');
+      // La cible existe : la ligne « Biens correspondants » du dossier, sous l'ancre que la rangée vise.
+      const ligne = document.getElementById('dossier-biens') as HTMLElement;
+      expect(ligne).toHaveAttribute('data-section', 'biens');
+
+      await userEvent.click(rangee);
+      expect(nav.replace).toHaveBeenCalledWith('?section=biens', { scroll: false });
+      expect(vue.mock.contexts).toContain(ligne);
+    } finally {
+      delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      image.mockRestore();
+    }
+  });
+
   it('l’origine cite le message de la demande', () => {
     rendu();
     expect(screen.getByText('« Une visite samedi est-elle possible ? »')).toBeInTheDocument();
@@ -299,6 +332,68 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     appeler.addEventListener('click', (e) => e.preventDefault());
     await userEvent.click(appeler);
     expect(geste.mutate).toHaveBeenCalledWith({ id: 7, channel: 'call' });
+  });
+});
+
+describe('TCK-2589 (a-3, groupe 2) — la fiche, la veille de la visite', () => {
+  const CONFIRMEE: CustomerDetail = { ...MARIAMA, upcoming_visits: [{ ...MARIAMA.upcoming_visits![0], status: 'confirmed' }] };
+  const prochaine = () => document.querySelector('[data-slot="prochaine-action"]') as HTMLElement;
+  // Seule l'horloge est simulée : les minuteurs restent réels pour userEvent et React Query.
+  const fixerMaintenant = (iso: string) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(iso));
+  };
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('la veille (jour de Dakar), la visite se dit « demain » ; la confirmée le dit sous le bien', () => {
+    fixerMaintenant('2030-11-13T23:30:00Z');
+    rendu(CONFIRMEE);
+    expect(within(prochaine()).getByText(/^Visite demain · .+ \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(within(prochaine()).getByText('Confirmée')).toBeInTheDocument();
+    expect(within(prochaine()).queryByText('À confirmer')).toBeNull();
+  });
+
+  it('le jour même ou deux jours avant, pas de « demain »', () => {
+    fixerMaintenant('2030-11-14T00:30:00Z');
+    const { unmount } = rendu(CONFIRMEE);
+    expect(within(prochaine()).queryByText(/demain/)).toBeNull();
+    unmount();
+    fixerMaintenant('2030-11-12T23:30:00Z');
+    rendu(CONFIRMEE);
+    expect(within(prochaine()).queryByText(/demain/)).toBeNull();
+    expect(within(prochaine()).getByText(/^Visite .+ · \d{2}:\d{2}$/)).toBeInTheDocument();
+  });
+
+  it('« Rappeler la visite » : WhatsApp au numéro du client, le bien, le jour et l’heure pré-rédigés, noté pour le personnel', async () => {
+    rendu(CONFIRMEE);
+    const rappeler = within(prochaine()).getByRole('link', { name: 'Rappeler la visite à Mariama Fall sur WhatsApp' });
+    const href = rappeler.getAttribute('href') ?? '';
+    expect(href.startsWith('https://wa.me/221706482056?text=')).toBe(true);
+    const message = decodeURIComponent(href.split('?text=')[1]);
+    expect(message).toMatch(/^Bonjour Mariama, je vous rappelle notre visite de Studio meublé · Mermoz, .+ à \d{2}:\d{2}\. À bientôt !$/);
+    rappeler.addEventListener('click', (e) => e.preventDefault());
+    await userEvent.click(rappeler);
+    expect(geste.mutate).toHaveBeenCalledWith({ id: 7, channel: 'whatsapp' });
+  });
+
+  it('pas de « Rappeler la visite » pour une visite à confirmer, ni sans numéro joignable', () => {
+    const { unmount } = rendu();
+    expect(within(prochaine()).queryByRole('link', { name: /^Rappeler la visite/ })).toBeNull();
+    unmount();
+    rendu({ ...CONFIRMEE, phone: '77 123' });
+    expect(within(prochaine()).getByText('Confirmée')).toBeInTheDocument();
+    expect(within(prochaine()).queryByRole('link', { name: /^Rappeler la visite/ })).toBeNull();
+  });
+
+  it('un lecteur hors du personnel n’enregistre pas le rappel', async () => {
+    const { visits_count: _v, ...horsPersonnel } = CONFIRMEE;
+    rendu(horsPersonnel);
+    const rappeler = within(prochaine()).getByRole('link', { name: /^Rappeler la visite/ });
+    rappeler.addEventListener('click', (e) => e.preventDefault());
+    await userEvent.click(rappeler);
+    expect(geste.mutate).not.toHaveBeenCalled();
   });
 });
 

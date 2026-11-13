@@ -7,14 +7,27 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, Loader2, Search } from 'lucide-react';
 
+import { isReachable, whatsappHref } from '@/components/crm/contact';
+import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { CitationDuMessage, Surtitre } from '@/components/leads/boite/pieces';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
-import { ANCRE_DES_BIENS, nombreDeCorrespondances, PARAMETRE_DE_SECTION, prochaineVisite, tacheSuivante, type ProchaineVisite } from '@/lib/crm/fiche-du-client';
+import {
+  ANCRE_DES_BIENS,
+  lecteurDuPersonnel,
+  lendemainADakar,
+  nombreDeCorrespondances,
+  PARAMETRE_DE_SECTION,
+  prochaineVisite,
+  tacheSuivante,
+  type ProchaineVisite,
+} from '@/lib/crm/fiche-du-client';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
+import { useEnregistrerContactClient } from '@/lib/queries/customer-gestures';
 import { fetchCustomerTasks } from '@/lib/queries/pipeline';
 import { useConfirmVisit } from '@/lib/queries/visits';
 import { jourADakar } from '@/lib/visites/par-le-temps';
@@ -124,6 +137,37 @@ function LigneDeTache({ tache, separee }: { readonly tache: Pick<Task, 'title' |
   );
 }
 
+/**
+ * « Rappeler la visite » (maquette a-3, « la veille ») : un WhatsApp pré-rédigé au client, pour une
+ * visite confirmée et un numéro joignable. Noté comme un geste WhatsApp pour le personnel, comme les
+ * gestes de la tête (TCK-2583) ; le bailleur auteur ne lit pas les visites de la fiche.
+ */
+function RappelerLaVisite({ customer, visite, jour, heure }: { readonly customer: CustomerDetail; readonly visite: ProchaineVisite; readonly jour: string; readonly heure: string }) {
+  const t = useTranslations('crm.fiche.prochaine');
+  const enregistrement = useEnregistrerContactClient();
+  const phone = customer.phone;
+  if (!visite.confirmee || !isReachable(phone)) return null;
+  const nom = [customer.first_name, customer.last_name].map((x) => x?.trim()).filter(Boolean).join(' ');
+  const prenom = customer.first_name?.trim() || nom;
+  const message = visite.bien ? t('rappelMessage', { prenom, jour, heure, bien: visite.bien }) : t('rappelMessageSansBien', { prenom, jour, heure });
+  return (
+    <a
+      href={whatsappHref(phone, message)}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => {
+        if (lecteurDuPersonnel(customer)) enregistrement.mutate({ id: customer.id, channel: 'whatsapp' });
+      }}
+      aria-label={t('rappelerAria', { nom })}
+      data-slot="rappeler-la-visite"
+      className="mt-3 flex h-11 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 text-corps font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+    >
+      <IconeWhatsApp className="size-icone flex-none text-success lg:size-icone" />
+      {t('rappeler')}
+    </a>
+  );
+}
+
 /** « Prochaine action » : la prochaine visite (ou tâche), et la tâche ouverte qui la suit. */
 export function ProchaineActionDuClient({ customer, className }: { readonly customer: CustomerDetail; readonly className?: string }) {
   const t = useTranslations('crm.fiche.prochaine');
@@ -134,23 +178,32 @@ export function ProchaineActionDuClient({ customer, className }: { readonly cust
     queryFn: () => fetchCustomerTasks(token ?? '', customer.id),
     enabled: !!token,
   });
+  const maintenant = useMinuteCourante();
   const visite = prochaineVisite(customer);
   const action = customer.next_action ?? null;
   const suivante = tacheSuivante(customer, taches.data);
 
   let corps: ReactNode;
   if (visite) {
-    const jour = jourEnClair(jourADakar(new Date(visite.at)), f.locale);
+    const jourDeLaVisite = jourADakar(new Date(visite.at));
+    const jour = jourEnClair(jourDeLaVisite, f.locale);
+    const heure = f.heure(visite.at);
+    // « demain » (maquette a-3) : le jour de Dakar de la visite est le lendemain de celui de maintenant.
+    const demain = jourDeLaVisite === lendemainADakar(maintenant, jourADakar);
     corps = (
-      <div className="mt-3 flex items-center gap-3">
-        <CaseDuJour at={visite.at} />
-        <div className="min-w-0 flex-1 leading-snug">
-          <p className="text-corps font-semibold tabular-nums">{t('visite', { jour, heure: f.heure(visite.at) })}</p>
-          {visite.bien ? <p className="truncate text-sm text-encre-douce">{visite.bien}</p> : null}
-          {visite.aConfirmer ? <p className="text-ui text-muted-foreground">{t('aConfirmer')}</p> : null}
+      <>
+        <div className="mt-3 flex items-center gap-3">
+          <CaseDuJour at={visite.at} />
+          <div className="min-w-0 flex-1 leading-snug">
+            <p className="text-corps font-semibold tabular-nums">{demain ? t('visiteDemain', { jour, heure }) : t('visite', { jour, heure })}</p>
+            {visite.bien ? <p className="truncate text-sm text-encre-douce">{visite.bien}</p> : null}
+            {visite.aConfirmer ? <p className="text-ui text-muted-foreground">{t('aConfirmer')}</p> : null}
+            {visite.confirmee ? <p className="text-ui text-muted-foreground">{t('confirmee')}</p> : null}
+          </div>
+          {visite.aConfirmer ? <ConfirmerLaVisite visite={visite} /> : null}
         </div>
-        {visite.aConfirmer ? <ConfirmerLaVisite visite={visite} /> : null}
-      </div>
+        <RappelerLaVisite customer={customer} visite={visite} jour={jour} heure={heure} />
+      </>
     );
   } else if (action?.type === 'task') {
     corps = (

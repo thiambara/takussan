@@ -1633,7 +1633,13 @@
         "confirmationRefusee": "La visite n’a pas été confirmée.",
         "tache": "Tâche · {jour}",
         "tacheSansTitre": "Une tâche",
-        "rien": "Rien de prévu."
+        "rien": "Rien de prévu.",
+        "visiteDemain": "Visite demain · {jour} {heure}",
+        "confirmee": "Confirmée",
+        "rappeler": "Rappeler la visite",
+        "rappelerAria": "Rappeler la visite à {nom} sur WhatsApp",
+        "rappelMessage": "Bonjour {prenom}, je vous rappelle notre visite de {bien}, {jour} à {heure}. À bientôt !",
+        "rappelMessageSansBien": "Bonjour {prenom}, je vous rappelle notre visite, {jour} à {heure}. À bientôt !"
       },
       "cherche": {
         "titre": "Sa recherche",

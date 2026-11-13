@@ -271,6 +271,11 @@ function SaisieDuFil({ customer, demande }: { readonly customer: CustomerDetail;
     champ.current?.focus({ preventScroll: true });
   }, [demande]);
 
+  // Deux soumissions dans la même tâche (deux `requestSubmit` dos à dos) liraient toutes deux
+  // `envoi.isPending` à faux, le rendu n'étant pas encore passé : la référence, elle, est posée
+  // AVANT `mutate` et relue aussitôt (contre-vérification de TCK-2589, 2 POST mesurés).
+  const enVol = useRef(false);
+
   const envoi = useMutation({
     mutationFn: async ({ m, corps, epinglee }: { readonly m: Mode; readonly corps: string; readonly epinglee: boolean }) => {
       if (m === 'tache') await createCustomerTask(token ?? '', customer.id, { title: corps });
@@ -292,17 +297,21 @@ function SaisieDuFil({ customer, demande }: { readonly customer: CustomerDetail;
         if (epinglee) router.refresh();
       }
     },
+    onSettled: () => {
+      enVol.current = false;
+    },
   });
 
   const envoyer = () => {
     // 3a — un double toucher n'envoie qu'une fois : l'envoi en cours bloque le suivant.
-    if (envoi.isPending) return;
+    if (enVol.current || envoi.isPending) return;
     const corps = texte.trim();
     if (!corps) {
       setVide(true);
       return;
     }
     setVide(false);
+    enVol.current = true;
     envoi.mutate({ m: mode, corps, epinglee: mode === 'note' && epingler });
   };
 

@@ -80,7 +80,7 @@ describe('les écrans CRM affichent l’étiquette du catalogue dans la langue d
     ));
 
     expect(screen.getByText('Hot lead')).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'stud' } });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'stud' } });
     expect(screen.getByText('Student')).toBeInTheDocument();
   });
 

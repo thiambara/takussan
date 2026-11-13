@@ -31,6 +31,8 @@ export interface ProchaineVisite {
   readonly bien: string | null;
   /** `scheduled` : demandée, à confirmer. */
   readonly aConfirmer: boolean;
+  /** `confirmed` : la visite est confirmée (maquette a-3, « la veille »). */
+  readonly confirmee: boolean;
   /** Le lecteur la gère (confirmer, fixer l'heure) : `upcoming_visits[].manage` de l'API. */
   readonly gere: boolean;
   /** Une tranche demandée : l'heure se fixe sur la page de la visite. */
@@ -50,6 +52,7 @@ export function prochaineVisite(customer: Pick<CustomerDetail, 'next_action' | '
     at: a.at,
     bien: a.label,
     aConfirmer: v?.status === 'scheduled',
+    confirmee: v?.status === 'confirmed',
     gere: v?.manage === true,
     aTranche: Boolean(v?.preferred_window),
   };
@@ -67,6 +70,11 @@ export function tacheSuivante(customer: Pick<CustomerDetail, 'next_action'>, tac
     .filter((t) => !(a?.type === 'task' && a.id === t.id))
     .toSorted((x, y) => (x.due_at ?? '').localeCompare(y.due_at ?? '') || x.id - y.id);
   return ouvertes[0] ?? null;
+}
+
+/** Le jour de Dakar (`AAAA-MM-JJ`) qui suit celui de `maintenant` ; Dakar vit en UTC toute l'année. */
+export function lendemainADakar(maintenant: Date, jourADakar: (d: Date) => string): string {
+  return jourADakar(new Date(maintenant.getTime() + 86_400_000));
 }
 
 /** Le nombre de biens correspondants, lu sur `meta.total` ; `null` s'il n'est pas connu. */

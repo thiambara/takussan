@@ -90,7 +90,130 @@ L'agent qui ouvre la fiche pendant que le client parle sait sans toucher qui il 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré en cinq lots, puis corrigé sur les réserves de verif-commercial. Les décisions ont été tranchées
+par team-lead sous la délégation du porteur. Chaque lot a sa propre numérotation : « B 6a » est la
+décision 6 du lot B.
+
+**Décisions du ticket, avant le lot A** :
+- 1a : le show des clients accepte dans `fields[customers]` les seuls noms de
+  `CustomerCommercialAttributes::FIELDS`, lus dans la constante. C'est une exception étroite à la
+  garde show-sans-fields.
+- 2b : un endpoint du fil côté serveur.
+- 3a : `bookings_count` et `leases_count` par `whenCounted`.
+- 4a : l'étape sort de la feuille « Modifier » et se change depuis la tête. La règle du motif de
+  Gagné et Perdu est gardée (test AC3).
+- 5a : « Écrire » par le fil direct, remplacé ensuite par B 6a.
+- 6a : une formulation neutre, avec les alias de fidélité « Sa recherche », « Référent » et « Client
+  depuis ».
+
+**Lot A — l'API du fil** (`06289fe4d`, `2e7130910`).
+- `GET /api/customers/{id}/timeline?filter[type]=note,visit,contact,stage` mêle notes, visites,
+  gestes de contact et changements d'étape côté serveur. Tri `occurs_at desc`, puis rang du type
+  (note, visite, contact, étape), puis `id desc` : l'ordre est total, et deux lectures paginées
+  rendent la même chose.
+- L'autorisation passe par `CustomerPolicy::view` avant la validation. Un test de parité show/timeline
+  couvre six lecteurs.
+- Une visite n'entre que pour le personnel (`viewVisitReports`), et seulement parmi celles que
+  `VisitesLisibles` rend au lecteur. La règle est extraite de `PropertyVisitController::indexScope`,
+  pas recopiée. Une visite ne sert jamais ses notes, son compte rendu ni son visiteur.
+- Un geste de contact n'entre que pour le personnel (lot A, point 1 a : « le bailleur lit sa fiche,
+  pas qui l'agence a appelé »). `/activity` a été aligné par TCK-2754.
+- `include=bookingsCount,leasesCount` rend `bookings_count` et `leases_count`, dans l'agence de la
+  fiche, au même lecteur que `visits_count`.
+- Le nombre de requêtes ne dépend pas du nombre d'entrées (test à 5 et 35 entrées).
+
+**Lot B — le résumé** (`7b08cfeb3`, `8bbd3b91a`).
+- La tête porte les initiales, l'étape en puce et le référent en carte.
+- « Prochaine action » montre la prochaine visite, puis la tâche ouverte qui la suit, sur une seconde
+  ligne (B 3a). Une visite `scheduled` se dit « À confirmer » (B 2a).
+- « Confirmer » passe par `useConfirmVisit`, puis la fiche se relit (B 1a). Il ne paraît que si
+  `upcoming_visits[].manage` (la règle de `PropertyVisitPolicy::gere()`, servie avec la fiche) et
+  qu'une heure est fixée. Une demande par tranche renvoie à `/app/visits/{id}`, où l'heure se choisit
+  (lot C2 : `preferred_window` et `manage` dans `upcoming_visits`).
+- CHERCHE compte les biens correspondants par `meta.total` (B 4a). ORIGINE cite la demande, sans prix
+  (B 5a).
+- « Écrire » reprend le patron de TCK-2641, `useTrouverLeFilDirect` et `BrouillonDirect` (B 6a). Il
+  est livré au lot E dans `components/messages/EcrireA.tsx`.
+- Une visite donne une entrée par jalon : demandée, confirmée, annulée (B 7a). Une visite confirmée
+  moins de 5 s après sa création a été créée confirmée, et ne donne qu'un jalon
+  (`CustomerTimeline::CREEE_CONFIRMEE_SECONDES`).
+
+**Lot C — le fil** (`f456af9c6`).
+- Une entrée de contact dit si le geste a été posé sur la demande ou sur la fiche (C 1a,
+  `on: lead|customer`, servi sur les seules entrées de contact).
+- Les notes épinglées sont en tête, dans une liste à part, et aussi à leur date (C 2b).
+- La saisie fait une note, épinglée ou non, ou une tâche. Une tâche prend le texte comme titre
+  (255 caractères), sans échéance. Un refus se dit sous la saisie, le texte est gardé, et le double
+  appui n'envoie qu'une fois (C 3a).
+- Les filtres Tout · Notes · Visites · Appels · Étapes vivent dans `?fil=` (C 4a).
+- Le fil a remplacé les onglets Notes et Activité dès le lot C (C 5a).
+- Les entrées sont formulées « Visite demandée / confirmée / annulée », avec « Compte rendu » et
+  « Étape ». Une visite mène à `/app/visits/{id}` pour qui peut l'ouvrir, et reste en texte simple
+  pour les autres (C 6a).
+- d1 a : le fil s'enrichit des entrées `record` (fiche créée, ou modifiée sur un champ de
+  `CHAMPS_DE_LA_FICHE`, avec les noms des champs et jamais les valeurs) et `task` (créée, faite ; titre
+  courant, jamais la description). Il est lu par tout lecteur de la fiche, comme `/activity`.
+- d2 : l'épingle part dans le corps (`pinned: true`).
+
+**Lot D — le dossier et « Modifier »** (`d062b67a4`, `33c7ea62e`).
+- Les anciens onglets deviennent des lignes repliées en fin de fiche : biens correspondants,
+  tâches, documents, relations, réservations, baux, pièce et compte (D 1a). Les étiquettes ne s'y
+  répètent pas (D 1a).
+- Réservations, Baux, Relations et Documents sont absents à 0, Tâches toujours présente (D 2a). Les
+  tâches s'ouvrent dans leur ligne (D 3a).
+- L'onglet Visites est retiré au profit du filtre du fil (D 4a).
+- Une seule ligne est ouverte à la fois, et elle vit dans `?section=` (D 5a). Un document ajouté
+  relit la fiche et ouvre `?section=documents` (D 6a). La rangée « N biens correspondent » de CHERCHE ouvre
+  `?section=biens` et amène la ligne à l'écran (AC5).
+- Au bureau, la tête porte « Modifier » et un « ⋯ » (Saisir, Ajouter un document). Au téléphone, les
+  trois sont dans la feuille du « ⋯ ». « Inviter » vit dans la ligne « Compte client » (D 7a).
+- « Modifier la fiche » s'ouvre en panneau de droite, en état local (D 10a). Le formulaire
+  `CustomerForm` prend une `forme: 'feuille'`, avec les sections Identité, Contact, Ce qu'il cherche
+  et Pièce (D 9a). L'étape n'y est pas, et le statut reste dans Identité (D 8a).
+- Une garde de sortie protège la saisie modifiée : « Abandonner les modifications ? ».
+
+**Lot E — le dernier lot** (`e91a3fd98`, `02b353ae6`).
+- Décisions :
+  - E 1a : a-1 est relevé PARTIEL sur les blocs sans donnée de la démo, que les tests de composants
+    couvrent.
+  - E 2a : « Statut » reste dans Identité.
+  - E 3a : `CustomerTagPicker forme="ligne"`.
+  - E 4a : la carte Référent reste en place au téléphone.
+  - E 5 : `PlanifierUneVisite variant="default"`.
+- « Écrire » ne paraît que si le serveur accepterait le fil direct. L'API sert pour cela
+  `GET /api/conversations/contacts?filter[id]=…` (`MessagingContactController`), et le front le lit par
+  `useEstJoignable`. « Écrire » ne s'adresse jamais à soi-même.
+- Correctif trouvé au relevé : toucher « ⋯ » au téléphone faisait tomber la page (MISSING_MESSAGE).
+  Les libellés sont désormais traduits dans l'arbre de la page.
+
+**Réserves de verif-commercial (2026-11-12)**
+- Clavier de `CustomerTagPicker` : le champ est un `combobox` et la liste un `listbox`. Les flèches
+  désignent une suggestion, et Entrée prend la suggestion désignée.
+- Après une fermeture (Échap, « Terminé »), le focus revient sur « + Étiquette ». Après un retrait,
+  il va sur la croix voisine, ou sur le champ.
+- Le fil n'envoie qu'une requête pour deux `requestSubmit` dans la même tâche (verrou `useRef` posé
+  avant `mutate`).
+- Un test épingle la rangée de CHERCHE vers `?section=biens` (AC5).
+- Une visite confirmée se montre sans « À confirmer » ni « Confirmer » (test « a-3 « la veille » »).
+- Groupe 2 de la décision a-3 (team-lead : a), dans « Prochaine action » de `ResumeDuClient` :
+  « Visite demain · {jour} {heure} » quand le jour de Dakar de la visite est le lendemain de
+  maintenant (`useMinuteCourante`), « Confirmée » sous le bien d'une visite `confirmed`, et
+  « Rappeler la visite », un WhatsApp pré-rédigé au numéro du client (prénom, bien, jour, heure).
+  Le geste n'existe que pour une visite confirmée et un numéro joignable. Il est noté comme un geste
+  WhatsApp, pour le seul personnel (`lecteurDuPersonnel`), comme les gestes de la tête. Cinq tests
+  « TCK-2589 (a-3, groupe 2) », ablations g1 à g6 rouges.
+- Toutes les ablations ont rougi, puis ont été restaurées.
+- Balayage au navigateur de `/app/customers/{120,90}`, la fiche puis « Modifier » ouvert. À 768 et
+  à 1024, `scrollWidth − innerWidth = 0`, sans coupe ni ellipse dans la fiche.
+- Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2589.json` apparie a-1, a-2 et a-3. Pour a-3,
+  « la veille », aucune visite confirmée n'existe sur la démo. Trois zones de pixels sont déclarées
+  (la barre de filtres du fil au bureau, à 1440 et à 1280 ; la barre du bas au téléphone).
+
+**Suivi** (décision a-3, team-lead, 2026-11-12) :
+- Groupe 1 (b, exclu) : données que l'API ne sert pas à la fiche, soit l'adresse de la visite,
+  « Itinéraire », « SMS envoyé » et « Déduit du bien de sa demande ». Elles vont à TCK-2761. Le
+  texte cité d'une réponse WhatsApp est exclu pour de bon, car l'échange se fait hors de Takussan.
+- Groupe 2 (a) : fait dans ce ticket, voir plus haut.
 
 **Réserve « titres de tâches » de la contre-vérification de verif-commercial (2026-11-12).** Avant ce
 correctif, le bailleur auteur d'une fiche et l'agent auteur sans `crm.view_all` lisaient au fil et

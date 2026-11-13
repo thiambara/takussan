@@ -118,7 +118,7 @@ describe('TCK-2589 — le fil de la fiche client', () => {
   it('l’étape se dit de l’une à l’autre', async () => {
     api.fil.mockResolvedValue(page([{ type: 'stage', id: 5, at: '2026-11-04T18:02:00+00:00', from: 'lead', to: 'prospect', causer: SOKHNA }]));
     rendu();
-    expect(await screen.findByText('Étape : Lead → Prospect')).toBeInTheDocument();
+    expect(await screen.findByText('Étape : Nouveau → Prospect')).toBeInTheDocument();
   });
 
   it('4a — le filtre se pose dans l’URL, et celui de l’URL part au serveur', async () => {
@@ -186,6 +186,31 @@ describe('TCK-2589 — le fil de la fiche client', () => {
     finir();
     await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(''));
     expect(nav.refresh).toHaveBeenCalled();
+  });
+
+  it('3a — deux soumissions dans la même tâche (deux requestSubmit dos à dos) n’envoient qu’une fois', async () => {
+    let finir: () => void = () => {};
+    api.note.mockReturnValue(new Promise<void>((r) => { finir = r; }));
+    rendu();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Ajouter une note sur Mouhamed…' }), 'Rappeler samedi');
+    const formulaire = document.querySelector<HTMLFormElement>('form[data-slot="saisie-du-fil"]')!;
+    // Hors d'act() : aucun rendu ne passe entre les deux, comme deux soumissions dans la même tâche du navigateur.
+    formulaire.requestSubmit();
+    formulaire.requestSubmit();
+    await waitFor(() => expect(api.note).toHaveBeenCalled());
+    expect(api.note).toHaveBeenCalledTimes(1);
+    finir();
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(''));
+  });
+
+  it('3a — après un envoi refusé, la soumission suivante repart (le verrou se relâche)', async () => {
+    api.note.mockRejectedValueOnce(new ApiError(503, { message: 'Le serveur est injoignable.' })).mockResolvedValueOnce({ id: 99 });
+    rendu();
+    await userEvent.type(screen.getByRole('textbox', { name: 'Ajouter une note sur Mouhamed…' }), 'Rappeler samedi');
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/.+/);
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(api.note).toHaveBeenCalledTimes(2));
   });
 
   it('3a — une tâche refusée : le refus se dit sur place, le texte reste', async () => {
@@ -273,7 +298,7 @@ describe('TCK-2589 (vérification C/C2, d1 a) — la vie de la fiche et de ses t
     ]));
     rendu();
     expect(await screen.findByText('Fiche modifiée : statut')).toBeInTheDocument();
-    expect(screen.getByText('Étape : Lead → Prospect')).toBeInTheDocument();
+    expect(screen.getByText('Étape : Nouveau → Prospect')).toBeInTheDocument();
   });
 
   it('« Tout » seul les montre : aucune puce de plus, ?fil=etapes ne demande que les étapes', async () => {
