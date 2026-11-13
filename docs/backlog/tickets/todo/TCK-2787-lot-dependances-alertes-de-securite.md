@@ -186,6 +186,13 @@ l'ouverture du ticket.
     entrée morte en sort. Ablations faites, chaque fichier rendu à son md5 : le guard `token` ajouté à
     `config/auth.php` rougit les deux premiers tests ; une route sous `auth:api` et une sous `auth` sans guard
     rougissent le troisième ; une route `api/*` sans authentification rougit le quatrième.
+  - Observation, relevée en lecture le 2026-11-13 : `broadcasting/auth` (déclarée par `channels:` de
+    `bootstrap/app.php`) est hors de `api/*` et n'a que le groupe `web` : elle juge par le guard `web` (session),
+    jamais par un guard `token`. Elle ne sert rien aujourd'hui : `takussan-web/src` n'importe ni `laravel-echo` ni
+    `pusher` et n'ouvre aucun canal (la messagerie relit par `refetchInterval`, `lib/queries/conversations.ts`), et
+    `BROADCAST_CONNECTION=null` en préproduction (`docs/infra/prod-drivers.json`, mesuré le 2026-11-01). Le canal
+    privé `App.Models.User.{userId}` (`routes/channels.php`) et les deux événements qui y diffusent (`NewNotification`,
+    `NewMessage`) restent déclarés. Le jour où un client temps réel s'y abonne, sa route passe sous `auth:sanctum`.
 - [ ] AC7 — La garde `IncludeNomDeMethodeRefuseTest` existe et elle est verte sur toutes les routes énumérées.
   Vérifiée par ablation : retirer le filtre `getRequestLoadable()` de
   `CustomerCommercialAttributes::clesEtrangeresDesIncludes()` la rend rouge (l'appel a lieu avant le refus de
