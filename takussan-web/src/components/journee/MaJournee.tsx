@@ -32,7 +32,7 @@ import {
 } from '@/lib/journee/journee';
 import { useCalendar } from '@/lib/queries/calendar';
 import { useEnregistrerContact } from '@/lib/queries/contact-leads';
-import { useCocherTache, useDemandesQuiAttendent, useRelancesACompter, useReporterTache, useTachesDeLaJournee } from '@/lib/queries/journee';
+import { useCocherTache, useDemandesQuiAttendent, useRelancesACompter, useReporterTache, useTachesDeLaJournee, useVisitesDeLaSemaine } from '@/lib/queries/journee';
 import { useVisitesDeLaVue } from '@/lib/queries/visits';
 import { FUSEAU_DES_VISITES } from '@/lib/visites/heure-de-dakar';
 import { cn } from '@/lib/utils';
@@ -78,7 +78,9 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
   const aClore = useVisitesDeLaVue({ to_close: '1', mine: '1' }, '-scheduled_at', {}, 1, 5);
   const taches = useTachesDeLaJournee();
   const demandes = useDemandesQuiAttendent(avant);
-  const agenda = useCalendar({ start_date: semaine[0]!, end_date: semaine[6]!, mine: true, types: ['visit', 'task'] });
+  // La bande compte les tâches de l'agenda, et les visites à la source de la chronologie (r1 de faf3f10da).
+  const agenda = useCalendar({ start_date: semaine[0]!, end_date: semaine[6]!, mine: true, types: ['task'] });
+  const visitesDeLaSemaine = useVisitesDeLaSemaine(semaine[0]!, semaine[6]!);
   const relances = useRelancesACompter();
 
   const cocher = useCocherTache();
@@ -104,7 +106,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
   const evenements = agenda.data?.data ?? [];
   const enRetard = tachesEnRetard(lesTaches, maintenant);
   const moments = chronologieDuJour(visites.data?.data ?? [], estAujourdhui ? tachesDuJour(lesTaches, jour) : tachesDeLAgenda(evenements, jour));
-  const resume = resumeDeLaSemaine(evenements, semaine);
+  const resume = resumeDeLaSemaine(evenements, visitesDeLaSemaine.data?.data ?? [], semaine);
   const totalAClore = aClore.data?.meta.total ?? aClore.data?.data.length ?? 0;
   const totalDemandes = demandes.data?.meta.total ?? demandes.data?.data.length ?? 0;
   const aRegler = totalAClore + totalDemandes + enRetard.length;

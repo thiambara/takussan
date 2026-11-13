@@ -16,6 +16,8 @@ import { MaJournee } from '../MaJournee';
 const etat = vi.hoisted(() => ({
   appels: [] as { chemin: string; methode: string; corps: unknown }[],
   vide: false,
+  /** r2 — chaque source rend un numéro qu'on ne peut pas joindre (masqué, ou hors E.164). */
+  injoignable: false,
   titre: null as string | null,
 }));
 
@@ -62,6 +64,13 @@ const TACHES: AgentTask[] = [
   tache({ id: 2, title: 'Faire signer l’état des lieux d’entrée', due_at: '2026-10-17T09:00:00Z', taskable: { type: 'property', id: 8, label: 'F2 Grand Yoff', phone: null } }),
   tache({ id: 3, title: 'Relancer Yacine (offre villa)', due_at: '2026-11-10T18:00:00Z', taskable: { type: 'customer', id: 4, label: 'Yacine Diouf', phone: '+221706190713' } }),
 ];
+/** La semaine de la bande (r1) : une visite faite le 11, une annulée le 13, une demande par tranche le 14. */
+const FAITE_LE_11 = visite({ id: 2300, status: 'completed', scheduled_at: '2026-11-11T11:00:00Z', visitor_display: visiteur('Awa Ndiaye') });
+const ANNULEE_LE_13 = visite({ id: 2301, status: 'cancelled', scheduled_at: '2026-11-13T09:00:00Z' });
+const TRANCHE_LE_14 = visite({ id: 2302, status: 'scheduled', scheduled_at: '2026-11-14T09:00:00Z', preferred_window: 'morning' });
+/** r2 — un numéro masqué par `visitor_display` (`VisitorDisplay`), et deux numéros hors E.164. */
+const MASQUE = '+221 77 *** ** 52';
+const injoignable = (v: PropertyVisit) => ({ ...v, visitor_display: { ...v.visitor_display!, phone: MASQUE } });
 const MOUHAMED = { id: 41, name: 'Mouhamed Dieng', phone: '+221770000001', created_at: '2026-11-02T09:00:00Z', property: { id: 7, title: 'Pièce indépendante', slug: 'p' } };
 
 vi.mock('@/lib/api', async (original) => {
@@ -78,10 +87,15 @@ vi.mock('@/lib/api', async (original) => {
       if (route === '/api/property-visits') {
         if (etat.vide) return page([]);
         if (p.get('filter[to_close]')) return page([LIBERTE]);
-        return page(p.get('filter[day]') === '2026-11-10' ? [TERRAIN, PLATEAU] : []);
+        if (p.get('filter[scheduled_at_min]')) return page([PLATEAU, TERRAIN, FAITE_LE_11, ANNULEE_LE_13, TRANCHE_LE_14]);
+        const duJour = p.get('filter[day]') === '2026-11-10' ? [TERRAIN, PLATEAU] : [];
+        return page(etat.injoignable ? duJour.map(injoignable) : duJour);
       }
-      if (route === '/api/tasks') return page(etat.vide ? [] : TACHES);
-      if (route === '/api/contact-leads') return page(etat.vide ? [] : [MOUHAMED]);
+      if (route === '/api/tasks') {
+        if (etat.vide) return page([]);
+        return page(etat.injoignable ? TACHES.map((t) => (t.taskable?.type === 'customer' ? { ...t, taskable: { ...t.taskable, phone: '706190713' } } : t)) : TACHES);
+      }
+      if (route === '/api/contact-leads') return page(etat.vide ? [] : [etat.injoignable ? { ...MOUHAMED, phone: '77 000 00 01' } : MOUHAMED]);
       if (route === '/api/customers') return page([{ id: 1 }], 6);
       if (route === '/api/calendar') {
         return {
@@ -91,6 +105,8 @@ vi.mock('@/lib/api', async (original) => {
                 { id: 2291, type: 'visit', title: 'v', start: '2026-11-10 10:57:00', end: null, status: 'confirmed', all_day: false, resource_url: '' },
                 { id: 3, type: 'task', title: 'Relancer Yacine', start: '2026-11-10 18:00:00', end: null, status: 'open', all_day: false, resource_url: '' },
                 { id: 5, type: 'task', title: 'Préparer le bail de Mariama', start: '2026-11-12 14:00:00', end: null, status: 'open', all_day: false, resource_url: '' },
+                // L'agenda rendrait aussi des visites : la bande ne les compte plus (r1), elles ne s'ajoutent pas.
+                { id: 2299, type: 'visit', title: 'v', start: '2026-11-13 15:00:00', end: null, status: 'confirmed', all_day: false, resource_url: '' },
               ],
         };
       }
@@ -116,7 +132,7 @@ const bureau = () => document.querySelector<HTMLElement>('[data-slot="journee-bu
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], vide: false, titre: null });
+  Object.assign(etat, { appels: [], vide: false, injoignable: false, titre: null });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -150,7 +166,70 @@ describe('les sources composées', () => {
 
     const [agenda] = lectures('/api/calendar');
     expect([agenda?.get('start_date'), agenda?.get('end_date'), agenda?.get('mine')]).toEqual(['2026-11-09', '2026-11-15', '1']);
-    expect(agenda?.getAll('types[]')).toEqual(['visit', 'task']);
+    // r1 de faf3f10da — l'agenda ne sert plus que les tâches ; les visites de la semaine viennent de
+    // la source de la chronologie, mes visites bornées à la semaine de Dakar, colonnes de la bande seules.
+    expect(agenda?.getAll('types[]')).toEqual(['task']);
+    await waitFor(() => expect(lectures('/api/property-visits').some((p) => p.get('filter[scheduled_at_min]'))).toBe(true));
+    const semaine = lectures('/api/property-visits').find((p) => p.get('filter[scheduled_at_min]'))!;
+    expect([semaine.get('filter[scheduled_at_min]'), semaine.get('filter[scheduled_at_max]'), semaine.get('filter[mine]')]).toEqual(['2026-11-09T00:00:00Z', '2026-11-15T23:59:59Z', '1']);
+    expect(semaine.get('fields[property_visits]')).toBe('id,scheduled_at,status,preferred_window');
+    expect(semaine.get('include')).toBeNull();
+  });
+});
+
+describe('r1 de faf3f10da — la bande dit ce que la chronologie montre', () => {
+  it('une visite faite le 11 compte dans la bande ; une annulée et une demande par tranche non ; les visites de l’agenda ne s’ajoutent pas', async () => {
+    monter();
+    const bande = within(telephone().querySelector<HTMLElement>('[data-slot="bande-de-semaine"]')!);
+    await waitFor(() => expect(bande.getByRole('button', { name: 'Mercredi 11 novembre : 1 visite' })).toBeInTheDocument());
+    expect(bande.getByRole('button', { name: 'Mardi 10 novembre : 2 visites · 1 tâche' })).toBeInTheDocument();
+    expect(bande.getByRole('button', { name: 'Vendredi 13 novembre : Libre' })).toBeInTheDocument();
+    expect(bande.getByRole('button', { name: 'Samedi 14 novembre : Libre' })).toBeInTheDocument();
+    // Le bureau lit le même résumé.
+    expect(within(bureau()).getByRole('button', { name: 'Mercredi 11 novembre : 1 visite' })).toBeInTheDocument();
+  });
+});
+
+describe('r2 de faf3f10da — WhatsApp seulement vers un numéro joignable (E.164)', () => {
+  const liensWhatsApp = (racine: HTMLElement) => [...racine.querySelectorAll<HTMLAnchorElement>('a[href*="wa.me"]')];
+
+  it('témoin — numéros joignables : la demande, la visite et la tâche ont chacune leur WhatsApp', async () => {
+    monter();
+    const t = telephone();
+    await waitFor(() => expect(within(t).getByRole('link', { name: 'Écrire à Mouhamed Dieng sur WhatsApp' })).toBeInTheDocument());
+    expect(within(t).getByRole('link', { name: 'Écrire à Abdoulaye Cissé sur WhatsApp' })).toBeInTheDocument();
+    expect(within(t).getByRole('link', { name: 'Écrire à Yacine Diouf sur WhatsApp' })).toBeInTheDocument();
+    // Le sélecteur des cas injoignables voit bien ces liens : son « aucun » n'est pas vide par construction.
+    expect(liensWhatsApp(t).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('la demande dont le numéro n’est pas E.164 : pas de WhatsApp, « Ouvrir » mène à la demande', async () => {
+    etat.injoignable = true;
+    monter();
+    const bloc = await waitFor(() => {
+      const b = telephone().querySelector<HTMLElement>('[data-slot="a-regler"]');
+      expect(b).not.toBeNull();
+      return b!;
+    });
+    await waitFor(() => expect(within(bloc).getByText('Mouhamed Dieng attend depuis 8 j')).toBeInTheDocument());
+    expect(within(bloc).queryByRole('link', { name: /Mouhamed Dieng sur WhatsApp/ })).toBeNull();
+    expect(within(bloc).getByRole('link', { name: 'Ouvrir' })).toHaveAttribute('href', '/app/leads?lead=41');
+  });
+
+  it('la visite au numéro masqué et la tâche d’un client hors E.164 : ni WhatsApp ni Appeler dans la chronologie', async () => {
+    etat.injoignable = true;
+    monter();
+    const chrono = await waitFor(() => {
+      const c = telephone().querySelector<HTMLElement>('[data-slot="chronologie"]');
+      expect(c?.querySelectorAll('[data-slot="carte-visite"]')).toHaveLength(2);
+      expect(c?.querySelector('[data-slot="carte-tache"]')).not.toBeNull();
+      return c!;
+    });
+    expect(liensWhatsApp(chrono)).toEqual([]);
+    expect(chrono.querySelector('a[href^="tel:"]')).toBeNull();
+    // Et nulle part ailleurs à l'écran, au téléphone comme au bureau.
+    expect(liensWhatsApp(telephone())).toEqual([]);
+    expect(liensWhatsApp(bureau())).toEqual([]);
   });
 });
 

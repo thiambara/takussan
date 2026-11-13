@@ -97,18 +97,43 @@ describe('la chronologie', () => {
 });
 
 describe('la bande de la semaine', () => {
-  it('compte visites et tâches au jour de Dakar de leur début, et ignore le reste de l’agenda', () => {
+  it('compte les tâches de l’agenda au jour de Dakar de leur début, et ignore le reste de l’agenda', () => {
     const evenements = [
-      { type: 'visit', start: '2026-11-10 10:57:00' },
-      { type: 'visit', start: '2026-11-10 16:55:00' },
       { type: 'task', start: '2026-11-10 18:00:00' },
       { type: 'task', start: '2026-11-12 09:00:00' },
       { type: 'booking', start: '2026-11-12 00:00:00' },
-      { type: 'visit', start: '2026-11-20 10:00:00' },
+      // Une visite de l'agenda ne compte pas : les visites viennent de la source de la chronologie.
+      { type: 'visit', start: '2026-11-13 10:00:00' },
+      { type: 'task', start: '2026-11-20 10:00:00' },
     ] as CalendarEvent[];
-    const r = resumeDeLaSemaine(evenements, semaineDe('2026-11-10'));
-    expect(r['2026-11-10']).toEqual({ visites: 2, taches: 1 });
+    const r = resumeDeLaSemaine(evenements, [], semaineDe('2026-11-10'));
+    expect(r['2026-11-10']).toEqual({ visites: 0, taches: 1 });
     expect(r['2026-11-12']).toEqual({ visites: 0, taches: 1 });
+    expect(r['2026-11-13']).toEqual({ visites: 0, taches: 0 });
     expect(r['2026-11-15']).toEqual({ visites: 0, taches: 0 });
+  });
+
+  it('r1 de faf3f10da — les visites se comptent par la règle de la chronologie : faite et manquée comptent, annulée et tranche non', () => {
+    const visites = [
+      visite({ id: 1, scheduled_at: '2026-11-10T10:57:00Z' }),
+      visite({ id: 2, scheduled_at: '2026-11-10T16:55:00Z', status: 'scheduled' }),
+      // Le 11 : la visite faite que l'agenda taisait (la bande disait « Libre »).
+      visite({ id: 3, scheduled_at: '2026-11-11T11:00:00Z', status: 'completed' }),
+      visite({ id: 4, scheduled_at: '2026-11-12T09:00:00Z', status: 'no_show' }),
+      visite({ id: 5, scheduled_at: '2026-11-13T09:00:00Z', status: 'cancelled' }),
+      visite({ id: 6, scheduled_at: '2026-11-14T09:00:00Z', status: 'scheduled', preferred_window: 'morning' }),
+      visite({ id: 7, scheduled_at: '2026-11-16T09:00:00Z' }),
+    ];
+    const r = resumeDeLaSemaine([], visites, semaineDe('2026-11-10'));
+    expect(r['2026-11-10']!.visites).toBe(2);
+    expect(r['2026-11-11']!.visites).toBe(1);
+    expect(r['2026-11-12']!.visites).toBe(1);
+    expect(r['2026-11-13']!.visites).toBe(0);
+    expect(r['2026-11-14']!.visites).toBe(0);
+    // Chaque jour, la bande dit ce que la chronologie montre.
+    for (const jour of semaineDe('2026-11-10')) {
+      const duJour = visites.filter((v) => v.scheduled_at!.startsWith(jour));
+      expect(r[jour]!.visites).toBe(chronologieDuJour(duJour, []).length);
+    }
   });
 });

@@ -61,19 +61,37 @@ export interface ResumeDuJour {
 }
 
 /**
- * Ce qui se passe chaque jour de la semaine (« 2 visites · 3 tâches »), compté sur les événements de
- * `/api/calendar?mine=1` : visites et tâches, au jour de Dakar de leur début.
+ * Une visite a sa place dans la journée : elle a une heure, elle n'est pas annulée, et ce n'est pas
+ * une demande « scheduled » par tranche sans heure fixée (`preferred_window`). Faite (`completed`) ou
+ * manquée (`no_show`), elle reste : elle a eu lieu ce jour-là. UNE règle pour la chronologie, le
+ * sous-titre et la bande de la semaine (réserve r1 de faf3f10da).
  */
-export function resumeDeLaSemaine(evenements: readonly CalendarEvent[], semaine: readonly string[]): Readonly<Record<string, ResumeDuJour>> {
+export function visiteALHeure(v: PropertyVisit): v is PropertyVisit & { scheduled_at: string } {
+  return !!v.scheduled_at && v.status !== 'cancelled' && !(v.status === 'scheduled' && v.preferred_window);
+}
+
+/**
+ * Ce qui se passe chaque jour de la semaine (« 2 visites · 3 tâches »), au jour de Dakar :
+ *  - les visites de `/api/property-visits` (la source de la chronologie), retenues par `visiteALHeure`
+ *    — jamais celles de l'agenda, qui tait les visites faites ;
+ *  - les tâches de `/api/calendar?mine=1` (le reste de l'agenda est ignoré).
+ */
+export function resumeDeLaSemaine(
+  evenements: readonly CalendarEvent[],
+  visites: readonly PropertyVisit[],
+  semaine: readonly string[],
+): Readonly<Record<string, ResumeDuJour>> {
   const resume: Record<string, { visites: number; taches: number }> = {};
   for (const jour of semaine) resume[jour] = { visites: 0, taches: 0 };
+  for (const v of visites) {
+    if (!visiteALHeure(v)) continue;
+    const r = resume[jourADakar(new Date(v.scheduled_at))];
+    if (r) r.visites += 1;
+  }
   for (const e of evenements) {
-    if (!e.start || (e.type !== 'visit' && e.type !== 'task')) continue;
-    const jour = jourADakar(instantDeLEvenement(e.start));
-    const r = resume[jour];
-    if (!r) continue;
-    if (e.type === 'visit') r.visites += 1;
-    else r.taches += 1;
+    if (!e.start || e.type !== 'task') continue;
+    const r = resume[jourADakar(instantDeLEvenement(e.start))];
+    if (r) r.taches += 1;
   }
   return resume;
 }
@@ -98,7 +116,7 @@ export type Moment =
 export function chronologieDuJour(visites: readonly PropertyVisit[], taches: readonly TacheDuJour[]): readonly Moment[] {
   const moments: Moment[] = [];
   for (const v of visites) {
-    if (!v.scheduled_at || v.status === 'cancelled' || (v.status === 'scheduled' && v.preferred_window)) continue;
+    if (!visiteALHeure(v)) continue;
     moments.push({ genre: 'visite', instant: Date.parse(v.scheduled_at), visite: v });
   }
   for (const t of taches) moments.push({ genre: 'tache', instant: Date.parse(t.echeance), tache: t });
