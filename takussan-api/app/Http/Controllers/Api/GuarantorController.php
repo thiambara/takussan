@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\ExactIdentifierFilter;
 use App\Http\Requests\Api\StoreGuarantorRequest;
 use App\Http\Requests\Api\UpdateGuarantorRequest;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Policies\GuarantorPolicy;
@@ -13,6 +14,7 @@ use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\Masking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class GuarantorController extends Controller
 {
@@ -89,15 +91,41 @@ class GuarantorController extends Controller
         ]);
     }
 
+    /**
+     * TCK-2762 — le contrat imprime le nom, l'adresse et le téléphone du garant
+     * ({@see self::PRINTED_FIELDS}, `pdf.leases.contract`) : les changer défige, dans la même
+     * transaction, le contrat de chaque bail en attente de signature qui le porte, comme le font le
+     * rattachement et le retrait (`LeaseController::attachGuarantor()`, `detachGuarantor()`). Le garant
+     * est PARTAGÉ : la modification touche tous ses baux. Les baux sont verrouillés AVANT l'écriture du
+     * garant (et de son journal, qui prend l'agence) : l'ordre bien → bail → agence (piège n° 10). Une
+     * colonne que le contrat n'imprime pas (notes, revenu, pièce) ne défige rien.
+     */
     public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): JsonResponse
     {
-
         $data = $request->validated();
 
-        $guarantor->fill($data)->save();
+        DB::transaction(function () use ($guarantor, $data): void {
+            $enAttente = Lease::query()
+                ->where('status', LeaseStatus::PendingSignature)
+                ->whereHas('guarantors', fn ($q) => $q->whereKey($guarantor->getKey()))
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $guarantor->fill($data);
+            $imprime = $guarantor->isDirty(self::PRINTED_FIELDS);
+            $guarantor->save();
+
+            if ($imprime) {
+                $enAttente->each(fn (Lease $lease) => $lease->unfreezeContract());
+            }
+        });
 
         return $this->json(['data' => $this->format($guarantor->refresh())]);
     }
+
+    /** TCK-2762 — ce que le contrat imprime du garant (`pdf.leases.contract`, bloc « Garants »). */
+    public const PRINTED_FIELDS = ['first_name', 'last_name', 'email', 'phone'];
 
     public function destroy(Request $request, Guarantor $guarantor): JsonResponse
     {

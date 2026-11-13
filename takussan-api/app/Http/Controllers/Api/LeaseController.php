@@ -340,14 +340,29 @@ class LeaseController extends Controller
     {
         $this->authorize('view', $lease);
 
-        $guarantors = $lease->guarantors()->get()->map(fn (Guarantor $g) => [
-            'id' => $g->id,
-            'first_name' => $g->first_name,
-            'last_name' => $g->last_name,
-            'email' => $g->email,
-            'phone' => $g->phone,
-            'role' => $g->pivot->role ?? null,
-        ])->values();
+        // TCK-2762 — ce que la fiche du bail fait du garant : `can_edit` par ligne, jugé par la policy du
+        // GARANT (`GuarantorPolicy::update`, celle de `PUT /api/guarantors/{id}`), et non par celle du
+        // bail. Sur une ligne modifiable seulement : `id_on_file` (une pièce est renseignée — jamais son
+        // numéro, même masqué : cette route est ouverte au locataire) et `leases_count` (le garant est
+        // partagé, le modifier touche tous ses baux).
+        $user = $request->user();
+        $guarantors = $lease->guarantors()->withCount('leasesPivot')->get()->map(function (Guarantor $g) use ($user): array {
+            $modifiable = $user->can('update', $g);
+
+            return [
+                'id' => $g->id,
+                'first_name' => $g->first_name,
+                'last_name' => $g->last_name,
+                'email' => $g->email,
+                'phone' => $g->phone,
+                'role' => $g->pivot->role ?? null,
+                'can_edit' => $modifiable,
+                ...($modifiable ? [
+                    'id_on_file' => $g->id_type !== null && is_string($g->id_number) && trim($g->id_number) !== '',
+                    'leases_count' => (int) $g->leases_pivot_count,
+                ] : []),
+            ];
+        })->values();
 
         return $this->json(['data' => $guarantors]);
     }

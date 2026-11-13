@@ -40,6 +40,18 @@ Relevé du 2026-11-12 : la fiche livrée par TCK-2645 garde `GuarantorSection`, 
 - La feuille du garant (`FeuilleDuBas`) reprend ce que fait `GuarantorSection` : voir, ajouter et modifier selon `abilities.update`.
 - La carte « Garants » quitte la fiche.
 
+## Décisions (team-lead, 2026-11-13)
+
+Le relevé du 2026-11-13 a trouvé trois manques, tranchés ainsi :
+
+1. **La modification est neuve, pas reprise.** `GuarantorSection` ne faisait que lister et ajouter. Elle passe par `PUT /api/guarantors/{id}`.
+   - **Le garant est PARTAGÉ** : un même garant porte plusieurs baux (pivot `lease_guarantor`). Le modifier depuis la fiche d'un bail le modifie sur TOUS ses baux. La feuille le dit quand il en porte plus d'un (`leases_count`).
+   - Le contrat imprime le nom, l'adresse et le téléphone du garant. Les changer défige, dans la même transaction, le contrat de chaque bail `pending_signature` qui le porte. Ces baux sont verrouillés avant l'écriture du garant, comme le rattachement et le retrait. Une colonne non imprimée ne défige rien.
+   - Seuls les champs changés partent. La pièce et le revenu, chiffrés et servis masqués, ne s'écrasent pas d'un champ vide.
+   - `can_edit` est servi par ligne par `GET /api/leases/{id}/guarantors`. Il vient de la policy du garant (celle de `PUT`), pas de `abilities.update` du bail.
+2. **L'état de la pièce** : `id_on_file` (type et numéro renseignés), sur les seules lignes modifiables, jamais le numéro, même masqué. Le libellé est « pièce d'identité renseignée / manquante ». L'API sait qu'un numéro est saisi, pas qu'un document est reçu : l'écart avec « reçue » de la maquette est noté dans la fiche de fidélité.
+3. **Sans garant**, une ligne « Ajouter un garant », pour `abilities.update` seulement : dans « Parties » au bureau, au dossier au téléphone.
+
 ## Critères d'acceptation
 
 - [ ] AC1 — Un bail avec un garant : la ligne figure dans « Parties » au bureau et dans « Garant (1) » au dossier du téléphone. Sans garant, aucune ligne ne s'affiche, et l'ajout reste offert à qui a `abilities.update`.
