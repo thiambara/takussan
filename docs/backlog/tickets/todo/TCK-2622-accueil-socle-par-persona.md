@@ -109,4 +109,50 @@ Aucun endpoint neuf dans ce ticket.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Prémisse re-mesurée le 2026-11-13** : l'accueil portait encore `PageHeader` avec « Vue d'ensemble de votre activité », la carte `MiseEnService` de sept lignes, `DashboardMeKpis` (tuiles sans lien), `DashboardShortcuts` choisis par rôles. L'agent arrivait déjà sur sa journée (TCK-2596) : AC3 était acquis.
+
+- **Le socle** (`components/accueil/SocleDeLAccueil.tsx`, composant serveur) :
+  - au téléphone, la ligne de mise en service PUIS le salut (maquette `AccueilAdminMobile`) ;
+  - au bureau, `PageHeader` avec la ligne en `bandeau` ;
+  - puis les bandeaux existants, l'emplacement des blocs du persona (`blocs`), « Ce mois ».
+  - Un H1 exposé par largeur : le salut du téléphone est `md:hidden`, l'en-tête de page `max-md:hidden`. L'en-tête de coque de forme `accueil` n'a pas de H1.
+- **La date** : `jourEnClair(locale, jour)` (`lib/journee/jour-en-clair.ts`), calculée au serveur au jour de Dakar. `useJourEnClair` de « Ma journée » y délègue.
+  - Le résumé (« · 3 demandes… ») viendra des blocs de TCK-2624/2625 : aucune source dans ce ticket.
+- **La mise en service en une ligne** (`components/accueil/BandeauMiseEnService.tsx`) :
+  - la règle des étapes est extraite de `MiseEnService` dans `components/dashboard/admin/etapes-de-mise-en-service.ts` : applicables selon le `kind`, 2FA en tête, total du serveur ;
+  - la carte reste sur `/app/overview/agency` ;
+  - l'étape nommée est la première connue qui reste à faire, et le lien y mène ;
+  - sans étape connue à faire (clé inconnue seule), rien ne se rend ;
+  - libellés impératifs neufs `accueil.miseEnService.etapes.*` et, au bureau, `enPhrase.*`.
+- **« Ce mois »** :
+  - `lib/accueil/chiffres-du-mois.ts` (pur) choisit les chiffres, `components/accueil/CeMois.tsx` les rend : puces défilantes au téléphone, tuiles à flèche au bureau, chacun un `<Link>` ;
+  - le choix se fait par **persona** : la vue `tenant` de `/dashboard/me` est servie à tout compte sans autre profil (TCK-595), donc les chiffres du locataire ne se rendent qu'au persona `locataire`. Un client avec une fiche mais sans bail n'a aucun chiffre, ni lien vers `/app/leases` ou `/app/payments` (AC4).
+  - Les liens :
+
+    | Chiffre | Admin d'agence standard | Hôte | Bailleur |
+    |---|---|---|---|
+    | Encaissé | `/app/agency/finances` (point du mois) | `/app/payments?status=paid` | `/app/payments?status=paid` |
+    | Impayés | `/app/agency/finances?tab=impayes` (comme `AgencyQueues`) | `/app/payments?status=late` | « En retard » : `/app/payments?status=late` |
+    | Occupation | `/app/properties?mode=gestion&occupancy=occupied` | idem | — |
+    | Baux actifs | `/app/leases?status=active` | idem | idem |
+    | Biens | — | — | `/app/properties` |
+
+  - Le locataire : `/app/leases`, `/app/payments`, `/app/documents`.
+  - Les **KPI personnalisés** (TCK-2373) remplacent les chiffres par défaut de l'admin quand l'agence en a activé, au plus quatre. Ils sont lus par `GET /api/kpi-configs` (activés, triés, `fields[kpi_configs]`), un endpoint existant. Leurs valeurs viennent de `/dashboard/me` (même `KpiResolver::flatten`), et une métrique non servie n'est pas rendue.
+- **Un bloc en échec n'éteint pas la page** : une panne de `/dashboard/me` (qui faisait tomber tout l'accueil) est rattrapée. « Ce mois » dit « Impossible de charger les chiffres du mois. · Réessayer » (`router.refresh()`), et l'agent garde sa journée, chiffres en « — ».
+  - AC5 : `WizardDraftsBanner` avale déjà un 500 ; c'est désormais éprouvé (`WizardDraftsBanner.panne.tck-2622.test.tsx`).
+- **États livrés pour TCK-2624/2625** : `ErreurDeBloc`, `SqueletteDeCarte`, `SqueletteDesChiffres`, `ToutEstAJour` (`components/accueil/EtatsDeBloc.tsx`). **« Tout est à jour » n'est pas rendu tant qu'aucun bloc « À faire » n'existe** : il le dirait à un admin qui a 16 impayés.
+- **Raccourcis retirés** : `DashboardShortcuts` et `DashboardMeKpis` sont supprimés, avec leurs tests et les clés `dashboard.shortcuts.*`, `dashboard.me.*`, `dashboard.pages.home.subtitle`.
+  - `raccourcis-dans-le-menu.tck-2622.test.ts` fige l'ancienne table par compte et exige chaque destination au menu composé du persona. Toutes y sont.
+  - Le menu du client ouvre délibérément « Baux » et « Paiements » (`catalogue.ts`, ADR-0089) : seuls les raccourcis de l'accueil disparaissent.
+- **Client et prestataire sans chiffres** : `DashboardEmpty` est gardé en attendant leurs blocs (TCK-2625), décision de la session.
+- **`<title>`** : « Accueil », et « Aujourd'hui » chez l'agent (`accueilNommeAujourdhui`).
+- **Écarts au texte du ticket, la maquette faisant foi** :
+  - deux colonnes dès `xl` et non `lg` (note de la maquette : « à 1024, une seule colonne », et AC-F6) ;
+  - montants en « F » et non « F CFA » (décision du porteur, TCK-2685 : « F » dans `/app`) — l'AC2 est tenu par « échéances » et « F » ;
+  - l'aplat sage de la ligne de mise en service et de « Tout est à jour » passe en `success` (`bg-accent/<n>` refusé par la garde des valeurs arbitraires : l'accent est réservé aux badges *featured*).
+- **Vérification par ablation** (17 mutants, un à la fois) : 16 rougissent. Deux tests ont dû être durcis pour ça :
+  - « étape inconnue seule : rien » restait vert sur un bandeau qui se rendait quand même — le test attendait l'appel parti, pas la réponse lue ; il attend désormais l'état `success` de la requête, sous une frontière d'erreur (un rendu qui plante n'est pas un rendu vide) ;
+  - la panne des brouillons relancée rougit par un rejet non géré (sortie 1), pas par une assertion.
+  - Le mutant « `!res.ok` ne lève plus » de `fetchKpisActifs` est équivalent : le `catch` rend `[]` dans les deux cas.
+- **Fidélité** (`docs/qa/audit-ux-2026-11/fidelite/TCK-2622.json`) : relevés a-1 et a-6 aux trois largeurs. Le socle (ligne de mise en service, salut, date, « Ce mois ») est conforme ; les absents sont les blocs de TCK-2624. a-7 n'est pas relevé (les squelettes et la panne par bloc sont ceux de TCK-2624).

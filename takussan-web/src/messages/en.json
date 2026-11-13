@@ -2909,8 +2909,7 @@
         "noAgency": "Dashboard",
         "greeting": "Hello {name}",
         "greetingNoName": "Hello",
-        "subtitle": "An overview of your activity",
-        "metaTitle": "Dashboard"
+        "metaTitle": "Home"
       },
       "propertyDetail": {
         "metaTitle": "Property record",
@@ -2971,26 +2970,6 @@
       "userBody": "Browse the available properties or complete your profile to get started.",
       "adminCta": "Go to administration",
       "userCta": "Browse properties"
-    },
-    "shortcuts": {
-      "heading": "Shortcuts",
-      "myCrm": "My CRM",
-      "myPayments": "My payments"
-    },
-    "me": {
-      "properties": "Properties",
-      "activeLeases": "Active leases",
-      "revenueMonth": "Revenue this month",
-      "overdue": "Overdue",
-      "portfolio": "Portfolio",
-      "cashflowMonth": "Cash flow this month",
-      "managed": "Managed properties",
-      "pipeline": "Prospects",
-      "openTasks": "Open tasks",
-      "overdueTasksHint": "{count} overdue",
-      "commissionsMonth": "Commissions this month",
-      "nextDue": "Next due date",
-      "recentDocs": "Recent documents"
     },
     "agencyDegraded": {
       "title": "Indicators hidden",
@@ -19611,6 +19590,78 @@
         "demain": "tomorrow",
         "lundi": "Monday"
       }
+    }
+  },
+  "accueil": {
+    "metaAujourdhui": "Today",
+    "miseEnService": {
+      "titre": "Agency setup",
+      "compteLong": "{fait, plural, one {# step} other {# steps}} of {total}",
+      "continuer": "Continue",
+      "resteUne": "One step left: {etape}.",
+      "prochaine": "Next step: {etape}.",
+      "lien": "Agency setup, {fait} of {total}: {etape}",
+      "etapes": {
+        "kyc_verified": "Submit the agency’s KYC file",
+        "logo": "Add the agency logo",
+        "commission_rate": "Set the commission rate",
+        "payment_integration": "Connect a payment method",
+        "first_member": "Invite a first team member",
+        "first_published_property": "Publish a first property",
+        "admin_two_factor": "Turn on two-factor authentication"
+      },
+      "enPhrase": {
+        "kyc_verified": "submit the agency’s KYC file",
+        "logo": "add the agency logo",
+        "commission_rate": "set the agency’s commission rate",
+        "payment_integration": "connect a payment method",
+        "first_member": "invite a first member to the team",
+        "first_published_property": "publish a first property",
+        "admin_two_factor": "turn on two-factor authentication for the administrator"
+      }
+    },
+    "ceMois": {
+      "titre": "This month",
+      "rapport": "See the monthly report",
+      "rapportCourt": "Report",
+      "libelles": {
+        "encaisse": "Collected",
+        "impayes": "Unpaid",
+        "occupation": "Occupancy",
+        "bauxActifs": "Active leases",
+        "biens": "Properties",
+        "enRetard": "Overdue",
+        "prochaineEcheance": "Next payment",
+        "documentsRecents": "Recent documents"
+      },
+      "puces": {
+        "encaisse": "collected",
+        "impayes": "unpaid",
+        "occupation": "occupancy",
+        "bauxActifs": "active leases",
+        "biens": "properties",
+        "enRetard": "overdue",
+        "prochaineEcheance": "next payment",
+        "documentsRecents": "recent documents"
+      },
+      "contextes": {
+        "echeances": "{n, plural, =0 {no payments} one {# payment} other {# payments}}",
+        "biensLoues": "{n, plural, =0 {no property rented} one {# property rented} other {# properties rented}}",
+        "louesLibres": "{n} rented · {libres} vacant",
+        "surAttendus": "of {montant} expected",
+        "leJour": "on {jour}"
+      }
+    },
+    "blocs": {
+      "erreur": "Couldn’t load {quoi}.",
+      "resteAJour": "The rest of the page is up to date.",
+      "reessayer": "Try again",
+      "quoi": {
+        "ceMois": "this month’s figures"
+      }
+    },
+    "toutEstAJour": {
+      "titre": "All caught up"
     }
   }
 }

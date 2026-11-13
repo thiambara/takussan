@@ -28,13 +28,15 @@ vi.mock('@/components/journee/MaJournee', () => ({
     </div>
   ),
 }));
-vi.mock('@/components/dashboard/admin/MiseEnService', () => ({ MiseEnService: () => <div data-testid="mise-en-service" /> }));
+vi.mock('@/components/accueil/BandeauMiseEnService', () => ({ BandeauMiseEnService: () => <div data-testid="mise-en-service" /> }));
+vi.mock('@/lib/session', () => ({ getActiveProfileId: async () => null }));
+vi.mock('@/lib/queries/kpis', () => ({ fetchKpisActifs: async () => [] }));
 vi.mock('@/components/agency/BrandingBanner', () => ({ BrandingBanner: () => null }));
 vi.mock('@/components/wizard/WizardDraftsBanner', () => ({ WizardDraftsBanner: () => <div data-testid="brouillons" /> }));
 vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({ TenantOnboardingChecklistWidget: () => null }));
 vi.mock('@/components/dashboard/DashboardEmpty', () => ({ DashboardEmpty: () => null }));
-vi.mock('@/components/dashboard/DashboardMeKpis', () => ({ DashboardMeKpis: () => <div data-testid="tuiles" /> }));
-vi.mock('@/components/dashboard/DashboardShortcuts', () => ({ DashboardShortcuts: () => <div data-testid="raccourcis" /> }));
+// TCK-2622 — les tuiles de l'ancien accueil vivent dans « Ce mois » ; les raccourcis sont retirés.
+vi.mock('@/components/accueil/CeMois', () => ({ CeMois: () => <div data-testid="tuiles" /> }));
 vi.mock('@/components/console', () => ({ PageHeader: () => <header data-testid="entete" /> }));
 
 import DashboardPage from '../page';
@@ -60,6 +62,5 @@ describe('accueil — la journée de l’agent', () => {
     render(await DashboardPage());
     expect(screen.queryByTestId('ma-journee')).toBeNull();
     expect(screen.getByTestId('tuiles')).toBeInTheDocument();
-    expect(screen.getByTestId('raccourcis')).toBeInTheDocument();
   });
 });

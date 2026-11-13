@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { FUSEAU_DES_VISITES } from '@/lib/visites/heure-de-dakar';
 import { jourADakar, type ResumeDuJour } from '@/lib/journee/journee';
+import { jourEnClair } from '@/lib/journee/jour-en-clair';
 import { cn } from '@/lib/utils';
 
 /**
@@ -22,11 +23,7 @@ export function dateDuJour(jour: string): Date {
 /** « Mardi 10 novembre » : le jour, en toutes lettres, au calendrier de Dakar. */
 export function useJourEnClair() {
   const locale = useLocale();
-  const format = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: FUSEAU_DES_VISITES });
-  return (jour: string) => {
-    const texte = format.format(dateDuJour(jour));
-    return texte.charAt(0).toLocaleUpperCase(locale) + texte.slice(1);
-  };
+  return (jour: string) => jourEnClair(locale, jour);
 }
 
 /** L'intertitre d'un bloc : petites capitales, son compte, et à droite une action (lien). */

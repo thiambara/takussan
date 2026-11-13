@@ -2866,8 +2866,7 @@
         "noAgency": "Tableau de bord",
         "greeting": "Bonjour {name}",
         "greetingNoName": "Bonjour",
-        "subtitle": "Vue d'ensemble de votre activité",
-        "metaTitle": "Tableau de bord"
+        "metaTitle": "Accueil"
       },
       "propertyDetail": {
         "metaTitle": "Fiche bien",
@@ -2928,26 +2927,6 @@
       "userBody": "Explorez les biens disponibles ou complétez votre profil pour commencer.",
       "adminCta": "Aller à l'administration",
       "userCta": "Explorer les biens"
-    },
-    "shortcuts": {
-      "heading": "Raccourcis",
-      "myCrm": "Mon CRM",
-      "myPayments": "Mes paiements"
-    },
-    "me": {
-      "properties": "Biens",
-      "activeLeases": "Baux actifs",
-      "revenueMonth": "Revenus du mois",
-      "overdue": "Impayés",
-      "portfolio": "Portefeuille",
-      "cashflowMonth": "Cashflow du mois",
-      "managed": "Biens gérés",
-      "pipeline": "Prospects",
-      "openTasks": "Tâches ouvertes",
-      "overdueTasksHint": "{count} en retard",
-      "commissionsMonth": "Commissions du mois",
-      "nextDue": "Prochaine échéance",
-      "recentDocs": "Documents récents"
     },
     "agencyDegraded": {
       "title": "Indicateurs masqués",
@@ -19611,6 +19590,78 @@
         "demain": "demain",
         "lundi": "lundi"
       }
+    }
+  },
+  "accueil": {
+    "metaAujourdhui": "Aujourd’hui",
+    "miseEnService": {
+      "titre": "Mise en service de l’agence",
+      "compteLong": "{fait, plural, one {# étape} other {# étapes}} sur {total}",
+      "continuer": "Continuer",
+      "resteUne": "Il reste une étape : {etape}.",
+      "prochaine": "Prochaine étape : {etape}.",
+      "lien": "Mise en service de l’agence, {fait} sur {total} : {etape}",
+      "etapes": {
+        "kyc_verified": "Envoyez le dossier KYC de l’agence",
+        "logo": "Ajoutez le logo de l’agence",
+        "commission_rate": "Renseignez le taux de commission",
+        "payment_integration": "Connectez un moyen de paiement",
+        "first_member": "Invitez un premier membre",
+        "first_published_property": "Publiez un premier bien",
+        "admin_two_factor": "Activez la double authentification"
+      },
+      "enPhrase": {
+        "kyc_verified": "envoyez le dossier KYC de l’agence",
+        "logo": "ajoutez le logo de l’agence",
+        "commission_rate": "renseignez le taux de commission de l’agence",
+        "payment_integration": "connectez un moyen de paiement",
+        "first_member": "invitez un premier membre dans l’équipe",
+        "first_published_property": "publiez un premier bien",
+        "admin_two_factor": "activez la double authentification de l’administrateur"
+      }
+    },
+    "ceMois": {
+      "titre": "Ce mois",
+      "rapport": "Voir le rapport du mois",
+      "rapportCourt": "Rapport",
+      "libelles": {
+        "encaisse": "Encaissé",
+        "impayes": "Impayés",
+        "occupation": "Occupation",
+        "bauxActifs": "Baux actifs",
+        "biens": "Biens",
+        "enRetard": "En retard",
+        "prochaineEcheance": "Prochaine échéance",
+        "documentsRecents": "Documents récents"
+      },
+      "puces": {
+        "encaisse": "encaissés",
+        "impayes": "d’impayés",
+        "occupation": "d’occupation",
+        "bauxActifs": "baux actifs",
+        "biens": "biens",
+        "enRetard": "en retard",
+        "prochaineEcheance": "à la prochaine échéance",
+        "documentsRecents": "documents récents"
+      },
+      "contextes": {
+        "echeances": "{n, plural, =0 {aucune échéance} one {# échéance} other {# échéances}}",
+        "biensLoues": "{n, plural, =0 {aucun bien loué} one {# bien loué} other {# biens loués}}",
+        "louesLibres": "{n, plural, one {# loué} other {# loués}} · {libres, plural, one {# libre} other {# libres}}",
+        "surAttendus": "sur {montant} attendus",
+        "leJour": "le {jour}"
+      }
+    },
+    "blocs": {
+      "erreur": "Impossible de charger {quoi}.",
+      "resteAJour": "Le reste de la page est à jour.",
+      "reessayer": "Réessayer",
+      "quoi": {
+        "ceMois": "les chiffres du mois"
+      }
+    },
+    "toutEstAJour": {
+      "titre": "Tout est à jour"
     }
   }
 }

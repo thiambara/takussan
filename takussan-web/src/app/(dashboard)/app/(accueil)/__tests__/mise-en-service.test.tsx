@@ -2,13 +2,14 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * TCK-777 (P15.08) — la carte « Mise en service » est montée EN TÊTE de l'accueil (`/app`) pour
- * tout admin d'agence, `individual` compris : elle n'était montée que sur `/app/overview/agency`,
- * réservé aux agences `standard`, si bien que l'hôte solo ne la voyait jamais. Elle y reste aussi
+ * TCK-777 (P15.08) — la mise en service est montée EN TÊTE de l'accueil (`/app`) pour tout admin
+ * d'agence, `individual` compris : elle n'était montée que sur `/app/overview/agency`, réservé aux
+ * agences `standard`, si bien que l'hôte solo ne la voyait jamais. Elle y reste aussi
  * (`overview/agency/__tests__/page.test.tsx`).
  *
- * Les composants enfants sont des bouchons : ce test regarde CE QUE la page monte, et dans quel
- * ordre, pas ce que chacun rend.
+ * TCK-2622 — sur l'accueil, elle est repliée en UNE ligne (`BandeauMiseEnService`) : au téléphone
+ * au-dessus du salut, au bureau en bandeau de l'en-tête de page. Ce test regarde CE QUE la page monte,
+ * et où ; ce que la ligne rend est éprouvé par `BandeauMiseEnService.tck-2622.test.tsx`.
  */
 const { ETAT } = vi.hoisted(() => ({
   ETAT: {
@@ -20,13 +21,14 @@ const { ETAT } = vi.hoisted(() => ({
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ETAT.user }));
 vi.mock('@/app/actions/admin-agency', () => ({ fetchAgencyAction: async () => ETAT.agence }));
+vi.mock('@/lib/session', () => ({ getActiveProfileId: async () => null }));
 vi.mock('@/lib/queries/dashboard-me', () => ({
   fetchDashboardMe: async () => null,
   aDesChiffres: () => false,
 }));
-vi.mock('@/components/dashboard/admin/MiseEnService', () => ({
-  MiseEnService: ({ agencyId, kind }: { agencyId: number | null; kind?: string | null }) => (
-    <div data-testid="mise-en-service" data-agency={String(agencyId)} data-kind={String(kind)} />
+vi.mock('@/components/accueil/BandeauMiseEnService', () => ({
+  BandeauMiseEnService: ({ agencyId, kind, large }: { agencyId: number; kind: string | null; large?: boolean }) => (
+    <div data-testid={large ? 'mise-en-service-bureau' : 'mise-en-service'} data-agency={String(agencyId)} data-kind={String(kind)} />
   ),
 }));
 vi.mock('@/components/agency/BrandingBanner', () => ({ BrandingBanner: () => <div data-testid="bloc" /> }));
@@ -35,9 +37,14 @@ vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({
   TenantOnboardingChecklistWidget: () => <div data-testid="bloc" />,
 }));
 vi.mock('@/components/dashboard/DashboardEmpty', () => ({ DashboardEmpty: () => <div data-testid="bloc" /> }));
-vi.mock('@/components/dashboard/DashboardMeKpis', () => ({ DashboardMeKpis: () => <div data-testid="bloc" /> }));
-vi.mock('@/components/dashboard/DashboardShortcuts', () => ({ DashboardShortcuts: () => <div data-testid="bloc" /> }));
-vi.mock('@/components/console', () => ({ PageHeader: () => <header data-testid="entete" /> }));
+vi.mock('@/components/console', () => ({
+  PageHeader: ({ title, bandeau }: { title: string; bandeau?: React.ReactNode }) => (
+    <div data-testid="entete">
+      {bandeau}
+      <h1>{title}</h1>
+    </div>
+  ),
+}));
 
 import DashboardPage from '../page';
 
@@ -46,15 +53,18 @@ beforeEach(() => {
   ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
 });
 
-describe('accueil — la carte « Mise en service »', () => {
-  it('admin d’une agence individuelle : montée en tête, avec l’agence et son kind', async () => {
+describe('accueil — la mise en service, en une ligne', () => {
+  it('admin d’une agence individuelle : au téléphone AVANT le salut, au bureau dans le bandeau de l’en-tête', async () => {
     render(await DashboardPage());
 
-    const carte = screen.getByTestId('mise-en-service');
-    expect(carte).toHaveAttribute('data-agency', '7');
-    expect(carte).toHaveAttribute('data-kind', 'individual');
-    // En tête : juste après l'en-tête de page, avant tout autre bloc.
-    expect(screen.getByTestId('entete').nextElementSibling).toBe(carte);
+    const ligne = screen.getByTestId('mise-en-service');
+    expect(ligne).toHaveAttribute('data-agency', '7');
+    expect(ligne).toHaveAttribute('data-kind', 'individual');
+    const [salutTelephone] = screen.getAllByRole('heading', { level: 1 });
+    // Au téléphone, la ligne précède le H1 « Bonjour … » (maquette `AccueilAdminMobile`).
+    expect(ligne.compareDocumentPosition(salutTelephone!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Au bureau, en bandeau de l'en-tête de page (`TeteDePage bandeau`).
+    expect(screen.getByTestId('entete')).toContainElement(screen.getByTestId('mise-en-service-bureau'));
   });
 
   it('admin d’une agence standard : montée aussi', async () => {
@@ -69,5 +79,6 @@ describe('accueil — la carte « Mise en service »', () => {
     render(await DashboardPage());
 
     expect(screen.queryByTestId('mise-en-service')).toBeNull();
+    expect(screen.queryByTestId('mise-en-service-bureau')).toBeNull();
   });
 });

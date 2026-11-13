@@ -27,9 +27,10 @@ describe('aDesChiffres — l’accueil a-t-il des chiffres à montrer', () => {
     expect(aDesChiffres(null)).toBe(false);
   });
 
-  it('l’accueil emploie bien ce prédicat pour choisir entre tuiles et état vide', () => {
+  it('l’accueil emploie bien ce prédicat pour choisir entre « Ce mois » et état vide', () => {
+    // TCK-2622 — les tuiles sont devenues « Ce mois » (`chiffresDuMois`), toujours derrière ce prédicat.
     const source = readFileSync(join(process.cwd(), 'src/app/(dashboard)/app/(accueil)/page.tsx'), 'utf8');
-    expect(source).toContain('{aDesChiffres(payload) ? (');
+    expect(source).toMatch(/aDesChiffres\(payload\)\s*\?\s*chiffresDuMois\(/);
     expect(source).toContain('<DashboardEmpty roles={user.roles} />');
   });
 });
