@@ -8,6 +8,7 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Models\Enums\LastContactChannel;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Crm\CustomerNextActionQuery;
@@ -104,6 +105,8 @@ class Customer extends AbstractModel
         'min_bedrooms' => 'integer',
         // TCK-2583 — écrite par `ContactGestureService::touchCustomer()` seulement, jamais fillable.
         'last_contacted_at' => 'datetime',
+        // TCK-2766 — le canal du dernier contact, écrit avec `last_contacted_at` par la même requête.
+        'last_contact_channel' => LastContactChannel::class,
         // TCK-2582 — écrites par `ContactLeadService` seul (conversion, rattachement), jamais fillable.
         'source_contact_lead_id' => 'integer',
         'interested_property_id' => 'integer',

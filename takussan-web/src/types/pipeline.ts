@@ -10,6 +10,19 @@ export interface CustomerSuggestedStage {
   readonly at: string;
 }
 
+/** TCK-2766 — par quel moyen s'est fait le dernier contact (`customers.last_contact_channel`). */
+export const CANAUX_DU_DERNIER_CONTACT = ['whatsapp', 'call', 'email', 'sms', 'note', 'visit'] as const;
+export type CanalDuDernierContact = (typeof CANAUX_DU_DERNIER_CONTACT)[number];
+
+/**
+ * TCK-2766 — le dernier contact et son canal, au seul personnel de l'agence de la fiche (`null` sinon,
+ * comme pour une fiche jamais contactée). `channel` est `null` pour un contact antérieur au canal.
+ */
+export interface DernierContactDuClient {
+  readonly channel: CanalDuDernierContact | null;
+  readonly at: string;
+}
+
 export interface PipelineCustomerCard {
   id: number;
   first_name: string;
@@ -28,7 +41,7 @@ export interface PipelineCustomerCard {
     full_name?: string;
   } | null;
   /** TCK-2592 — la carte enrichie : dernier contact, prochaine action, relance, référent, proposition. */
-  last_contacted_at?: string | null;
+  last_contact?: DernierContactDuClient | null;
   next_action?: CustomerNextAction | null;
   follow_up?: CustomerFollowUp | null;
   referent?: CustomerReferent | null;

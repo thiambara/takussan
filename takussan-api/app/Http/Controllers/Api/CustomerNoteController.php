@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreCustomerNoteRequest;
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Models\Enums\LastContactChannel;
 use App\Services\Crm\ContactGestureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class CustomerNoteController extends Controller
         ]));
 
         // TCK-2583 — une note écrite sur la fiche est un contact : le dernier contact avance.
-        $gestures->touchCustomer($customer, $note->created_at);
+        $gestures->touchCustomer($customer, LastContactChannel::Note, $note->created_at);
 
         return $this->json(['data' => $this->format($note)], 201);
     }

@@ -7,7 +7,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 import { jourEnClair } from '@/lib/visites/planification';
 import type { CustomerListItem } from '@/types/customer';
-import type { PipelineCustomerCard } from '@/types/pipeline';
+import { CANAUX_DU_DERNIER_CONTACT, type PipelineCustomerCard } from '@/types/pipeline';
 
 /**
  * TCK-2592 — ce qu'une carte et une ligne du pipeline disent d'un prospect, déjà formulé (maquette
@@ -20,9 +20,12 @@ export interface LectureDuProspect {
   readonly initiales: string;
   /** « Villa Almadies · offre 85 000 000 F » ; `null` si rien n'est renseigné (ou hors personnel). */
   readonly cherche: string | null;
-  /** « Contacté il y a 9 j », sinon « Créé hier » (la fiche n'a jamais été contactée). */
+  /**
+   * « Appel il y a 9 j » quand le canal est connu (TCK-2766), « Contacté il y a 9 j » sinon, « Créé hier »
+   * pour une fiche jamais contactée.
+   */
   readonly dernier: string;
-  /** La même date, pour « Dernier contact : il y a 9 j » (vue Étapes du téléphone). */
+  /** Le même contact, pour « Dernier contact : appel il y a 9 j » (vue Étapes du téléphone) ; la durée seule sans canal. */
   readonly quand: string;
   /** Un contact est noté : sans lui, « Dernier contact : … » mentirait — on lit `dernier` (« Créé … »). */
   readonly contacte: boolean;
@@ -86,14 +89,21 @@ export function useLecteurDuProspect(maintenant: Date) {
         ? t('quoi.report_missing')
         : (p && c.next_action?.type === 'task' ? p.texte : null) ?? t(`quoi.${r.reason}`)
       : (p?.texte ?? null);
-    const dernierContact = c.last_contacted_at ?? null;
+    const dernierContact = c.last_contact?.at ?? null;
+    // TCK-2766 — le canal du dernier contact ; un canal absent (contact antérieur) ou inconnu laisse la durée seule.
+    const canal = CANAUX_DU_DERNIER_CONTACT.find((x) => x === c.last_contact?.channel);
+    const contact = dernierContact
+      ? canal
+        ? t('dernier.canal', { canal: t(`canal.${canal}`), quand: quand(dernierContact) })
+        : quand(dernierContact)
+      : null;
     return {
       nom: client.nom,
       prenom: client.prenom,
       initiales: client.initiales,
       cherche: client.cherche ? [client.cherche.quoi, client.cherche.budget].filter(Boolean).join(' · ') || null : null,
-      dernier: dernierContact ? t('dernier.contacte', { quand: quand(dernierContact) }) : t('dernier.cree', { quand: quand(c.created_at) }),
-      quand: quand(dernierContact ?? c.created_at),
+      dernier: contact ? (canal ? contact : t('dernier.contacte', { quand: contact })) : t('dernier.cree', { quand: quand(c.created_at) }),
+      quand: contact ?? quand(c.created_at),
       contacte: dernierContact !== null,
       alerte,
       prochaine: p,

@@ -64,3 +64,15 @@ Relevé le 2026-11-12 sur l'arbre de `feat/audit-ux-app-lot-2`.
 
 - Le tri ou le filtre par canal.
 - La reprise de l'historique depuis `activity_log`. Elle serait possible pour les gestes, jamais pour les notes et les visites. Elle est écartée : une reprise partielle mêlerait deux vérités.
+
+## Décisions (team-lead, 2026-11-13)
+
+- **Périmètre : le pipeline seul (a).** Relevé du 2026-11-13 sur HEAD : la fiche client ne dit nulle part son dernier contact. `ATTRIBUTS_CALCULES_DE_LA_FICHE` (`src/lib/queries/customers.ts`) demande `next_action`, `follow_up` et `referent`, jamais `last_contacted_at`. Aucun fichier de `components/customer-dashboard/fiche/` ne lit `follow_up` ni `last_contacted_at`, et la maquette de la fiche (`app-clients-fiche.tsx`) n'a pas de ligne « dernier contact » : seul le fil y dit « Appel sortant · 4 min ». Le canal se lit donc là où la durée se lisait déjà : la carte du kanban, la liste du bureau et la vue Étapes du téléphone, toutes trois par `components/pipeline/lecture.ts`.
+- **Migration** appliquée par back-3 sur la base de dev le 2026-11-13, avec l'accord de team-lead : elle était la seule en attente. Aucune reprise de l'existant, aucune écriture sur les lignes.
+
+## Notes d'implémentation
+
+- Le canal a son propre type, `LastContactChannel` (les quatre gestes, plus `note` et `visit`), distinct de `ContactGestureChannel`. Ainsi `note` et `visit` ne deviennent pas des gestes qu'on poste (`StoreContactGestureRequest`).
+- `last_contact` est un attribut calculé de `CustomerCommercialAttributes` (`FIELDS`). Il est lu par sa propre requête pour la page, car la liste ne charge que les colonnes demandées (TCK-2756). Son lecteur est celui de `last_contacted_at` (`Customer::criteriaBelongTo`, dont l'auteur d'une fiche sans agence), et `at` passe par `BaseResource::instantOnWire`.
+- Le pipeline demande `last_contact` à la place de `last_contacted_at`, dont il porte l'instant. Un canal `null` (contact antérieur) laisse la durée seule : « Contacté il y a 8 j ».
+- Tests : `tests/Feature/Crm/DernierContactEtSonCanalTest.php` (AC1 à AC4, 9 tests, chaque contact partant d'un canal différent de celui attendu) et `PageDuPipeline.tck-2592.test.tsx` (AC5). Douze ablations API et quatre ablations front sont rouges (AC6).

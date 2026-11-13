@@ -1442,7 +1442,8 @@
       "dernier": {
         "contacte": "Contacté {quand}",
         "cree": "Créé {quand}",
-        "libelle": "Dernier contact : {quand}"
+        "libelle": "Dernier contact : {quand}",
+        "canal": "{canal} {quand}"
       },
       "colonne": {
         "mediane": "médiane {n} j",
@@ -1539,6 +1540,14 @@
         "facultative": "facultative",
         "note": "Le motif devient une note épinglée sur la fiche de {prenom} et compte dans la conversion du mois. Annuler remet la carte en {etape}.",
         "enregistrer": "Enregistrer"
+      },
+      "canal": {
+        "call": "appel",
+        "whatsapp": "WhatsApp",
+        "email": "e-mail",
+        "sms": "SMS",
+        "note": "note",
+        "visit": "visite"
       }
     },
     "list": {

@@ -19,6 +19,7 @@ use App\Http\Requests\Api\VisitSlotsRequest;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LastContactChannel;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
@@ -732,7 +733,7 @@ class PropertyVisitController extends Controller
 
         // TCK-2583 — une visite menée est un contact : le dernier contact de la fiche avance.
         if ($visit->customer_id !== null) {
-            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, $visit->completed_at);
+            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, LastContactChannel::Visit, $visit->completed_at);
         }
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);

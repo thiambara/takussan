@@ -2,6 +2,7 @@
 
 namespace App\Services\Crm;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\Enums\RelationshipStatus;
@@ -27,7 +28,8 @@ use Illuminate\Http\Request;
 final class CustomerCommercialAttributes
 {
     // TCK-2591 — `suggested_stage` ({@see CustomerSuggestedStageQuery}).
-    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage'];
+    // TCK-2766 — `last_contact` ({@see self::lastContacts()}).
+    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage', 'last_contact'];
 
     private const REQUESTED = 'tck2588.commercial.requested';
 
@@ -166,7 +168,43 @@ final class CustomerCommercialAttributes
                 : (new CustomerSuggestedStageQuery)->forPage($staffIds);
         }
 
+        if (in_array('last_contact', $requested, true)) {
+            $values['last_contact'] = self::lastContacts($viewer, $ids);
+        }
+
         $request->attributes->set(self::VALUES, $values);
+    }
+
+    /**
+     * TCK-2766 — le dernier contact d'une fiche, avec son canal : `{channel, at}`, `channel` à `null`
+     * pour une fiche contactée avant que le canal ne soit tenu. Au seul lecteur de
+     * `last_contacted_at` dans `CustomerResource` (`readsVisits` : {@see Customer::criteriaBelongTo()},
+     * le personnel de l'agence de la fiche, le super-admin, l'auteur d'une fiche sans agence) ; `null`
+     * sinon, comme pour une fiche jamais contactée. Lu par sa propre requête : la liste ne charge que
+     * les colonnes demandées (TCK-2756).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, array{channel: ?string, at: ?string}>
+     */
+    public static function lastContacts(User $viewer, array $ids): array
+    {
+        $staffAgencyIds = $viewer->isSuperAdmin() ? [] : app(MembershipCapabilityResolver::class)->staffAgencyIds($viewer);
+
+        $out = [];
+        Customer::query()
+            ->whereKey($ids)
+            ->whereNotNull('last_contacted_at')
+            ->get(['id', 'agency_id', 'added_by_id', 'last_contacted_at', 'last_contact_channel'])
+            ->each(function (Customer $c) use ($viewer, $staffAgencyIds, &$out): void {
+                if ($c->criteriaBelongTo($viewer, $staffAgencyIds)) {
+                    $out[(int) $c->id] = [
+                        'channel' => $c->last_contact_channel?->value,
+                        'at' => BaseResource::instantOnWire($c->last_contacted_at),
+                    ];
+                }
+            });
+
+        return $out;
     }
 
     /**

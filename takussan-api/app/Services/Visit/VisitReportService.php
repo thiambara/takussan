@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\LastContactChannel;
 use App\Models\Enums\VisitReportOutcome;
 use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
@@ -77,7 +78,7 @@ class VisitReportService
 
             // TCK-2583 — un compte rendu est un contact : le dernier contact de la fiche avance.
             if ($customer !== null) {
-                app(ContactGestureService::class)->touchCustomer($customer);
+                app(ContactGestureService::class)->touchCustomer($customer, LastContactChannel::Visit);
             }
 
             return [

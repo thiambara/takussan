@@ -14,7 +14,7 @@ describe('pipeline queries', () => {
       // TCK-591 — `phone` : « Appeler » / « WhatsApp » sur la carte. TCK-2592 — la carte enrichie.
       'id,first_name,last_name,phone,pipeline_stage,updated_at,created_at,added_by_id,' +
         'seeking_contract_type,budget_max,seeking_property_types,seeking_cities,seeking_neighborhoods,' +
-        'last_contacted_at,next_action,follow_up,referent,suggested_stage',
+        'last_contact,next_action,follow_up,referent,suggested_stage',
     );
     // TCK-2592 — le référent (calculé) remplace l'auteur : plus d'`addedBy`.
     expect(qs.get('fields[users]')).toBeNull();

@@ -36,7 +36,8 @@ export const PIPELINE_CARD_FIELDS = [
   'seeking_property_types',
   'seeking_cities',
   'seeking_neighborhoods',
-  'last_contacted_at',
+  // TCK-2766 — le dernier contact ET son canal (« Appel il y a 9 j ») ; remplace `last_contacted_at`, dont il porte l'instant.
+  'last_contact',
   'next_action',
   'follow_up',
   'referent',

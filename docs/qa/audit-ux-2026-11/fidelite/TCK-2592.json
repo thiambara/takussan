@@ -88,9 +88,8 @@
       "ecran": "app-pipeline a-*",
       "element": "« Dernier contact : appel il y a 9 j », « Appel il y a 3 j » (le canal du dernier contact)",
       "propriete": "texte",
-      "exception": "contrat",
-      "motif": "l'API ne rend que `last_contacted_at`, sans canal (décision 5 a, 2026-11-12) : le produit dit « il y a 9 j », « hier »",
-      "suivi": "ticket back à écrire (team-lead) : `last_contact {channel, at}` sur la ressource client — le canal du dernier geste consigné (appel, WhatsApp, visite), pour « Appel il y a 9 j »"
+      "exception": "donnée",
+      "motif": "écart « décision 5 a » levé par TCK-2766 : l'API sert `last_contact {channel, at}` et le pipeline écrit « appel il y a 9 j » (capitale par `first-letter:uppercase`, comme la maquette), « WhatsApp hier », « Dernier contact : appel il y a 9 j » au téléphone. Éprouvé en test de composant (`PageDuPipeline.tck-2592.test.tsx`, ablations rouges). Sur la démo, les fiches gardent la durée seule (« Contacté il y a 9 j ») : le canal n'est tenu que depuis la migration du 2026-11-13, sans reprise de l'existant (le journal n'a pas le canal des notes ni des visites), et la mesure est en lecture seule. Restent hors du contrat les formes « bail il y a 9 j », « candidature hier », « demande il y a 8 j » et « visite lun. 9 nov. » (une date, pas une durée) : ce ne sont pas des contacts tenus par `touchCustomer()`. Une visite se dit « visite il y a N j »"
     },
     {
       "ecran": "app-pipeline a-0-bureau-*, a-1-bureau-*, a-2-bureau-*",

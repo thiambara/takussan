@@ -79,7 +79,7 @@ const carte = (id: number, prenom: string, autre: Partial<PipelineCustomerCard> 
   updated_at: IL_Y_A(3),
   added_by_id: null,
   tasks_count: 0,
-  last_contacted_at: null,
+  last_contact: null,
   next_action: null,
   follow_up: null,
   referent: null,
@@ -127,7 +127,7 @@ describe('<PageDuPipeline> (TCK-2592)', () => {
         stage === 'negotiating'
           ? [
               carte(11, 'Awa'),
-              carte(12, 'Moussa', { last_contacted_at: IL_Y_A(2), suggested_stage: { to: 'converted', reason: 'offer_created', at: IL_Y_A(1) } }),
+              carte(12, 'Moussa', { last_contact: { channel: null, at: IL_Y_A(2) }, suggested_stage: { to: 'converted', reason: 'offer_created', at: IL_Y_A(1) } }),
             ]
           : [],
       ),
@@ -450,6 +450,34 @@ describe('<PageDuPipeline> — ce que l’ancien kanban éprouvait (TCK-2592)', 
     expect(ligne.textContent).toMatch(/^Villa · Almadies · /);
     expect(ligne.textContent).toMatch(/85/);
     expect(ligne.textContent).not.toMatch(/property\.|nav\.|crm\./);
+  });
+
+  it('TCK-2766 — le dernier contact dit son canal (« Appel il y a 9 j ») ; sans canal, la durée seule', async () => {
+    mocks.fetchPipelineColumn.mockImplementation((_t: string, { stage }: { stage: string }) =>
+      Promise.resolve(
+        stage === 'negotiating'
+          ? [
+              carte(21, 'Yacine', { last_contact: { channel: 'call', at: IL_Y_A(9) } }),
+              carte(22, 'Lamine', { last_contact: { channel: 'whatsapp', at: IL_Y_A(1) } }),
+              carte(23, 'Rokhaya', { last_contact: { channel: null, at: IL_Y_A(8) } }),
+            ]
+          : [],
+      ),
+    );
+    rendu(AGENT, 'vue=etapes&etape=negotiating');
+
+    const auTelephone = async (nom: string) =>
+      (await within(telephone()).findByText(`${nom} Ndiaye`)).closest('[data-slot="carte-etape"]') as HTMLElement;
+    expect(within(await auTelephone('Yacine')).getByText('Dernier contact : appel il y a 9 j')).toBeInTheDocument();
+    expect(within(await auTelephone('Lamine')).getByText('Dernier contact : WhatsApp hier')).toBeInTheDocument();
+    expect(within(await auTelephone('Rokhaya')).getByText('Dernier contact : il y a 8 j')).toBeInTheDocument();
+
+    const auBureau = (id: number) => bureau().querySelector<HTMLElement>(`[data-slot="carte-pipeline"][data-customer-id="${id}"]`) as HTMLElement;
+    await waitFor(() => expect(auBureau(21)).not.toBeNull());
+    // La carte écrit « appel il y a 9 j » et la capitale vient de `first-letter:uppercase`, comme la maquette.
+    expect(within(auBureau(21)).getByText('appel il y a 9 j')).toHaveClass('first-letter:uppercase');
+    expect(within(auBureau(22)).getByText('WhatsApp hier')).toBeInTheDocument();
+    expect(within(auBureau(23)).getByText('Contacté il y a 8 j')).toBeInTheDocument();
   });
 
   it('sans statistiques, des tirets dans les tuiles', async () => {

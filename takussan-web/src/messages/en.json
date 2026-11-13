@@ -3568,7 +3568,8 @@
       "dernier": {
         "contacte": "Contacted {quand}",
         "cree": "Created {quand}",
-        "libelle": "Last contact: {quand}"
+        "libelle": "Last contact: {quand}",
+        "canal": "{canal} {quand}"
       },
       "colonne": {
         "mediane": "median {n} d",
@@ -3665,6 +3666,14 @@
         "facultative": "optional",
         "note": "The reason becomes a pinned note on {prenom}’s record and counts in this month’s conversion. Cancel puts the card back in {etape}.",
         "enregistrer": "Save"
+      },
+      "canal": {
+        "call": "call",
+        "whatsapp": "WhatsApp",
+        "email": "email",
+        "sms": "SMS",
+        "note": "note",
+        "visit": "visit"
       }
     },
     "list": {
