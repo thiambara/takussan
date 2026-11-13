@@ -195,14 +195,14 @@ structurel : nommer le constructeur `Intl` comme type fait rougir `check-locale-
 - **Les exports de l'API ne groupent pas tous par l'espace ordinaire** : les vues PDF
   (`number_format(…, ',', ' ')`) oui, mais `App\Services\Formatting\CurrencyFormatter` (la
   directive `@currency`, sept notifications, le reçu de réservation) passe par ICU `fr` → U+202F.
-  Hors périmètre (ticket : PDF, CSV et e-mails de l'API) ; signalé à la session.
+  Hors périmètre ; signalé à la session — suite : TCK-2794.
 
 **Hors périmètre relevé (une seule convention par écran, à décider ailleurs).**
 
 - `format.number()` de next-intl : le solde de crédits (`AppSidebar`, `MenuDuCompte`,
   `FeuilleDuCompte`, `MenuMonEspace`, `EcranDuCompte`), trois panneaux IA du super-admin, et
   `{count, number}` / `{max, number}` / `{pdf, number}` (exports) gardent U+202F au-delà de 999.
-  Ce ne sont pas des montants ; next-intl ne laisse pas choisir le caractère de groupe.
+  Ce ne sont pas des montants ; next-intl ne laisse pas choisir le caractère de groupe. Suite : TCK-2795.
 - `details-du-sommaire.ts` (moyenne à une décimale) et `tailleLisible` (`piece-jointe.ts`, moins de
   1 024 ko) n'atteignent jamais un groupe.
 - `CompareColonnes.tsx:108` : relu, inchangé — `(\d)[\u00a0\u202f](?=\D)` ne vise que l'espace

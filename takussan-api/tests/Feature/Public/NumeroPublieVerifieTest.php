@@ -339,6 +339,8 @@ class NumeroPublieVerifieTest extends TestCase
             'api/public/properties/{slug}/status' => ['appels' => $parBien('/status'), 'preuve' => 'bien-particulier'],
             'api/public/properties/{slug}/visit-slots' => ['appels' => $parBien('/visit-slots', '?date='.$demain), 'preuve' => $demain],
             'api/public/property-types' => ['appels' => ['api/public/property-types'], 'preuve' => 'apartment'],
+            // TCK-2603 — un total de ville et rien d'autre : la preuve est la clé du chiffre.
+            'api/public/publish/demand' => ['appels' => ['api/public/publish/demand'], 'preuve' => 'searches_7d'],
             'api/public/search-alerts/capabilities' => ['appels' => ['api/public/search-alerts/capabilities'], 'preuve' => 'channels'],
             // TCK-2513 — l'alerte sans compte lue par son jeton : l'abonné porte le numéro NON vérifié comme contact.
             'api/public/search-alerts/by-token' => ['appels' => ['api/public/search-alerts/by-token?token='.$this->alerteParNumero()], 'preuve' => 'alerte-balayee'],

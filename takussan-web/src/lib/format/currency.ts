@@ -18,7 +18,7 @@
  *
  * The Blade `@currency` directive (`App\Services\Formatting\CurrencyFormatter`) shared this exact
  * contract. ⚠ TCK-2714 broke it on purpose for the thousands groups: the front groups by U+00A0
- * (`./groupes`), the API still by ICU's U+202F — reported, not decided here. Symbol, position and
+ * (`./groupes`), the API still by ICU's U+202F until TCK-2794 aligns it. Symbol, position and
  * decimals still match.
  *
  * TCK-917 — s'appelait `formatCurrency`, comme celui de `lib/format.ts`, dont le second argument

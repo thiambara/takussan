@@ -111,6 +111,8 @@ class AucunGuardTokenTest extends TestCase
         'POST api/public/properties/{slug}/visit-request' => self::PUBLIQUE,
         'GET api/public/properties/{slug}/visit-slots' => self::PUBLIQUE,
         'GET api/public/property-types' => self::PUBLIQUE,
+        // TCK-2603 — le total des recherches d'une ville au départ de la publication (ADR-0088, cinquième sortie).
+        'GET api/public/publish/demand' => self::PUBLIQUE,
         'POST api/public/reviews/{review}/report' => self::PUBLIQUE,
         'POST api/public/search-alerts' => self::PUBLIQUE,
         'GET api/public/search-alerts/capabilities' => self::PUBLIQUE,

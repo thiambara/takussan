@@ -18110,6 +18110,9 @@
         "note": "Your listing is saved in your account: it will open in the space you choose, ready to publish.",
         "revenir": "Back to the listing"
       }
+    },
+    "preuves": {
+      "recherches": "searches in {ville} this week"
     }
   },
   "layout": {

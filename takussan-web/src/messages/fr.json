@@ -18110,6 +18110,9 @@
         "note": "Votre annonce est gardée dans votre compte : elle s’ouvrira dans l’espace choisi, prête à publier.",
         "revenir": "Revenir à l’annonce"
       }
+    },
+    "preuves": {
+      "recherches": "recherches à {ville} cette semaine"
     }
   },
   "layout": {
