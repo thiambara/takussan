@@ -91,9 +91,10 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
   condition dans les deux sens : rouge). L'écran rend alors la maquette telle quelle : « Facultatif · Si vos biens sont
   en société », hors du compte (« 1 sur 2 ») et du reste à fournir. Relevé des autres juges de « pièces complètes » :
   `submitKyc` ne juge rien (il liste les sortes présentes) ; aucun pourcentage de complétude ne lit le NINEA ; aucune
-  garde de parité ne recopie la liste. **Reste l'assistant `/onboarding/owner`** (`OwnerOnboardingWizard`, `allUploaded`
-  exige CNI + RIB + NINEA avant « Soumettre ») : laissé tel quel (contrainte « l'assistant ne change pas », TCK-2613),
-  il demande encore le NINEA au particulier — sans effet sur l'étape `kyc`, faite dès CNI + RIB.
+  garde de parité ne recopie la liste. **L'assistant `/onboarding/owner` suit aussi (r2, team-lead : « 2b vaut
+  partout »)** : la page lit `required` du NINEA de CE profil (`GET /api/me/pieces`, `X-Profile-Id`, `nineaRequis()`)
+  et `OwnerOnboardingWizard` n'exige le NINEA avant « Envoyer mes pièces » que s'il est requis — sans autre changement
+  de l'assistant (TCK-2613 le refera). Une lecture en échec le laisse requis, comme avant.
 - Décision 6a — `GET /api/me/pieces` sert au seul titulaire `file` (`name`, `size`, `sent_at`) et `number_masked`
   (`Masking::tail`) ; `null` sous impersonation (`MePiecesFichierTest`). `docs/models-spec.md` (« État par pièce ») est à
   faire converger (`/sync-specs`).

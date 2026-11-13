@@ -53,6 +53,8 @@ import type { OwnerPropertyEntry } from '@/lib/owner-onboarding';
  */
 export type OwnerOnboardingWizardProps = {
   ownerProfileId: number;
+  /** TCK-2614 (décision 2b) — `required` du NINEA de CE profil (`GET /api/me/pieces`) ; requis à défaut. */
+  nineaRequis?: boolean;
 };
 
 type WizardData = {
@@ -81,7 +83,7 @@ function relireBrouillon(data: WizardData): WizardData {
   };
 }
 
-export function OwnerOnboardingWizard({ ownerProfileId }: OwnerOnboardingWizardProps) {
+export function OwnerOnboardingWizard({ ownerProfileId, nineaRequis = true }: OwnerOnboardingWizardProps) {
   const t = useTranslations('owners.onboarding');
   const router = useRouter();
   const toast = useToast();
@@ -158,6 +160,7 @@ export function OwnerOnboardingWizard({ ownerProfileId }: OwnerOnboardingWizardP
             data={data}
             setData={setData}
             ownerProfileId={ownerProfileId}
+            nineaRequis={nineaRequis}
           />
         ),
       },
@@ -174,7 +177,7 @@ export function OwnerOnboardingWizard({ ownerProfileId }: OwnerOnboardingWizardP
         render: () => <RecapStep ownerProfileId={ownerProfileId} />,
       },
     ],
-    [ownerProfileId, t],
+    [ownerProfileId, nineaRequis, t],
   );
 
   return (
@@ -339,7 +342,8 @@ function KycStep({
   data,
   setData,
   ownerProfileId,
-}: StepProps & { ownerProfileId: number }) {
+  nineaRequis,
+}: StepProps & { ownerProfileId: number; nineaRequis: boolean }) {
   const t = useTranslations('owners.onboarding.steps.kyc');
   const toast = useToast();
   const [submitPending, startSubmit] = useTransition();
@@ -367,8 +371,9 @@ function KycStep({
     });
   };
 
+  // TCK-2614 (décision 2b) — le NINEA n'est exigé que d'une société, comme `GET /api/me/pieces` le dit.
   const allUploaded =
-    data.kyc.cni_uploaded && data.kyc.rib_uploaded && data.kyc.ninea_uploaded;
+    data.kyc.cni_uploaded && data.kyc.rib_uploaded && (!nineaRequis || data.kyc.ninea_uploaded);
 
   return (
     <div className="flex flex-col gap-5">

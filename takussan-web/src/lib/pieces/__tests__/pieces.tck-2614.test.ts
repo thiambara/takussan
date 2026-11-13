@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compteDesPieces, envoisAFaire, motDEtat, nineaCompact, nineaValide, profilDesPieces, type PieceDuProfil } from '../pieces';
+import { compteDesPieces, envoisAFaire, motDEtat, nineaCompact, nineaRequis, nineaValide, profilDesPieces, type PieceDuProfil } from '../pieces';
 
 const p = (code: string, state: PieceDuProfil['state'], required = true): PieceDuProfil => ({ code, state, required, kind: 'file' });
 
@@ -16,6 +16,13 @@ describe('TCK-2614 — les pièces d’un profil', () => {
     expect(compteDesPieces([p('cni', 'rejected'), p('insurance', 'sent', false)])).toEqual({ envoyees: 0, requises: 1 });
     // Décision 2b — le NINEA d'un particulier (« 1 sur 2 » de la maquette a-3).
     expect(compteDesPieces([p('cni', 'missing'), p('rib', 'sent'), p('ninea', 'missing', false)])).toEqual({ envoyees: 1, requises: 2 });
+  });
+
+  it('décision 2b — `nineaRequis` lit `required` du NINEA ; sans ligne ni réponse, requis', () => {
+    expect(nineaRequis([p('cni', 'missing'), p('ninea', 'missing', false)])).toBe(false);
+    expect(nineaRequis([p('ninea', 'missing', true)])).toBe(true);
+    expect(nineaRequis([p('cni', 'missing')])).toBe(true);
+    expect(nineaRequis(null)).toBe(true);
   });
 
   it('le mot de chaque état, `rejected` compris', () => {

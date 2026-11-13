@@ -272,3 +272,34 @@ describe('<OwnerOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
     expect(screen.getByRole('button', { name: PHONE.sendCta })).toBeEnabled();
   });
 });
+
+/**
+ * TCK-2614 (r2, décision 2b du porteur, 2026-11-13) — le NINEA n'est exigé que d'une société : avec la CNI et le RIB
+ * reçus, « Envoyer mes pièces » s'ouvre pour un particulier (`nineaRequis` faux, lu par la page sur `GET /api/me/pieces`)
+ * et reste fermé pour une société — rien d'autre ne change à l'étape (TCK-2613 la refera).
+ */
+describe('<OwnerOnboardingWizard> — le NINEA requis d’une société seulement (TCK-2614)', () => {
+  const KYC = frMessages.owners.onboarding.steps.kyc;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    brouillon = { step: 1, data: { kyc: { cni_uploaded: true, rib_uploaded: true, ninea_uploaded: false, submitted: false } } };
+  });
+
+  afterEach(() => {
+    brouillon = null;
+  });
+
+  it('particulier : CNI et RIB suffisent', async () => {
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} nineaRequis={false} />));
+    expect(await screen.findByRole('button', { name: KYC.submitCta })).toBeEnabled();
+  });
+
+  it('société (et par défaut) : le NINEA manque, l’envoi reste fermé', async () => {
+    const { unmount } = render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} nineaRequis />));
+    expect(await screen.findByRole('button', { name: KYC.submitCta })).toBeDisabled();
+    unmount();
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
+    expect(await screen.findByRole('button', { name: KYC.submitCta })).toBeDisabled();
+  });
+});
