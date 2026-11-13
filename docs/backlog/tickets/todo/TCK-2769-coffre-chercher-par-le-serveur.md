@@ -26,6 +26,8 @@ générés par Takussan, pas seulement les pièces qu'ils ont eux-mêmes dépos�
 
 ## Contrat de données
 
+**Décision.** Porteur, 2026-11-13, liste du soir n° 14 : ticket de suivi (recherche dans le coffre).
+
 **Constat (2026-11-13).** La maquette du coffre (`app-documents` a) porte un champ « Chercher un document ».
 `GET /api/me/document-vault` n'a aucun filtre de recherche. TCK-2656 (décision 2, option (c), tranchée par
 le chef d'équipe) a donc posé à la place un geste « Rechercher ». Il ouvre `/app/documents?vue=recherche` :

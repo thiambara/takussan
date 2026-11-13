@@ -25,6 +25,8 @@ de bien, des avis ou des réservations.
 
 ## Contexte mesuré (2026-11-13, arbre de TCK-2600)
 
+**Décision.** Porteur, 2026-11-13, liste du soir n° 31 : ticket de suivi (découper l'espace de traductions `property`).
+
 - Depuis TCK-2600, `/publish` monte l'assistant entier (`AssistantDePublication`). La frontière
   `publish` de `src/i18n/namespaces.json` sert alors 7 espaces : `auth media nav owners profile
   property publishRedirect`, soit **20,1 % du dictionnaire** (41 941 o gzip). Le cliquet était à

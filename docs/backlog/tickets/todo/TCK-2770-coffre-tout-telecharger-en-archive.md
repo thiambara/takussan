@@ -25,6 +25,8 @@ en un seul geste depuis le dossier « Quittances 2026 ». Il n'a pas à les tél
 
 ## Contrat de données
 
+**Décision.** Porteur, 2026-11-13, liste du soir n° 14 : ticket de suivi (archive .zip).
+
 **Constat (2026-11-13).** La maquette du coffre (`app-documents` a) porte « Tout télécharger » sur le dossier
 replié des quittances. Aucun endpoint ne sert d'archive. TCK-2656 (décision 3 (a)) a donc retiré le geste.
 
