@@ -491,6 +491,25 @@ describe('l’en-tête et les onglets', () => {
     expect(within(carte).getByTestId('echeancier-toutes').textContent).toBe('true');
   });
 
+  it('TCK-2644 — `?echeancier=toutes` (« Relancer » d’une pénalité, depuis la file) : l’échéancier s’ouvre déplié et la page s’y porte', () => {
+    etat.paiements = Array.from({ length: 8 }, (_, i) => echeance({ id: 100 + i, period_start: debutDeMois(i), due_date: debutDeMois(i) }));
+    etat.params = new URLSearchParams('echeancier=toutes');
+    const porte = vi.fn();
+    const avant = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      porte(this.id);
+    };
+    try {
+      monter();
+    } finally {
+      Element.prototype.scrollIntoView = avant;
+    }
+    const carte = document.getElementById('echeancier')!;
+    expect(within(carte).getByTestId('echeancier-toutes').textContent).toBe('true');
+    expect(within(carte).getByRole('button', { name: 'Les prochaines seulement' }).getAttribute('aria-expanded')).toBe('true');
+    expect(porte).toHaveBeenCalledWith('echeancier');
+  });
+
   it('six échéances ou moins : ni action à la carte, ni « prochaines » dans le titre', () => {
     etat.paiements = [echeance({ id: 1 }), echeance({ id: 2, period_start: debutDeMois(2), due_date: debutDeMois(2) })];
     monter();

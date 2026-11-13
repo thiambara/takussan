@@ -199,7 +199,6 @@ const RESTANTS: Readonly<Record<string, number>> = {
   'components/admin/super/GlobalSearch.tsx': 1,
   'components/admin/super/agency-detail.tsx': 1,
   'components/favorites/FavoritesPopover.tsx': 1,
-  'components/leases/LeasesList.tsx': 1,
   'components/legal/TexteJuridique.tsx': 1,
   'components/messages/MessagesPage.tsx': 1,
   'components/property/cards/CardMeta.tsx': 1,

@@ -32,6 +32,10 @@ const EXCEPTIONS: ReadonlyMap<string, string> = new Map([
     "redirection permanente vers /app/customers : elle n'existe que pour les signets déjà pris (TCK-042), la citer dans un menu serait le défaut inverse",
   ],
   [
+    '/app/leases/onboarding-pending',
+    "redirection vers l'onglet « En attente du locataire » de /app/leases (TCK-2644) : elle n'existe que pour les liens déjà envoyés — notification et courriel AgentTenantInventoryReminderNotification —, la citer dans un menu serait le défaut inverse",
+  ],
+  [
     '/app/payments/return',
     "URL de retour de la passerelle de paiement : c'est le prestataire externe qui y renvoie le navigateur, aucun écran du produit ne peut ni ne doit y mener",
   ],

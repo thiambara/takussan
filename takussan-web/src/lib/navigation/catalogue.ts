@@ -301,14 +301,6 @@ const TABLE = [
     icone: ClipboardCheck,
     accessible: (ctx) => client(ctx) || personnel(ctx.roles) || isOwner(ctx.roles),
   },
-  // TCK-266 — les locataires dont l'état des lieux d'entrée attend depuis plus de 7 jours.
-  {
-    id: 'entrees-en-attente',
-    href: '/app/leases/onboarding-pending',
-    cle: 'onboardingPending',
-    icone: ClipboardCheck,
-    accessible: ({ roles }) => personnel(roles),
-  },
   // TCK-379 — aucun tableau de bord pour le prestataire (`docs/features.md` §2.5).
   // Revue de TCK-2478 (M2) — la condition EXACTE de la garde d'`app/(dashboard)/app/overview/page.tsx` :
   // l'admin, l'agent et le bailleur y sont aiguillés vers leur vue ; sinon, seul le prestataire non

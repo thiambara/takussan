@@ -18,7 +18,6 @@ const APP = [
   '/app/properties',
   '/app/properties/new',
   '/app/leases',
-  '/app/leases/onboarding-pending',
   '/app/maintenance',
   '/app/maintenance/providers',
   '/app/overview',
@@ -34,7 +33,8 @@ describe('resolveActiveHref — le plus long préfixe, et lui seul', () => {
     ['/app/properties/new', '/app/properties/new'],
     ['/app/leases/7', '/app/leases'],
     ['/app/leases/new', '/app/leases'],
-    ['/app/leases/onboarding-pending', '/app/leases/onboarding-pending'],
+    // TCK-2644 — l'ancienne page des entrées en attente n'a plus d'entrée : elle redirige vers l'onglet.
+    ['/app/leases/onboarding-pending', '/app/leases'],
     ['/app/maintenance/9', '/app/maintenance'],
     ['/app/maintenance/providers', '/app/maintenance/providers'],
     ['/app/overview/exports', '/app/overview/exports'],

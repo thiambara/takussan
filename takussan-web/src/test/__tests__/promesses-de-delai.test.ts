@@ -72,12 +72,12 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // par `PhoneChangeGuard::authorize`.
   'profile.contact.changeProofCodeSent':
     'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, posé à :207 via PhoneChangeGuard::sendCode',
-  'agency.tenantOnboardingPending.emptyDescription':
-    'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
-  'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
-  // TCK-2483 — la ligne d'aide du module « Entrées en attente » décrit le même seuil.
-  'admin.agencyConfig.modules.items.move_in_follow_up.hint':
-    'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:54 — seuil subDays(7)',
+  // TCK-2644 — la règle de la file « À traiter » de la liste des baux, et l'onglet « En attente du
+  // locataire » (qui remplace `agency.tenantOnboardingPending` et `dashboard.onboardingPending`).
+  'lease.liste.regle':
+    'takussan-api/app/Services/Lease/LeaseAttention.php:62 — SIGNATURE_AFTER_DAYS = 3, :64 ENDING_WITHIN_MONTHS = 4 ; takussan-api/app/Models/TenantOnboardingChecklist.php:58 — PENDING_AFTER_DAYS = 7 (scopePending)',
+  'lease.liste.vide.en_attenteTexte':
+    'takussan-api/app/Models/TenantOnboardingChecklist.php:58 — PENDING_AFTER_DAYS = 7, appliqué par scopePending (filter[onboarding_pending]=1)',
   // TCK-2584 (ADR-0103 § 7) — un seuil mesuré, pas une promesse : la boîte « Demandes » compte les
   // demandes à traiter créées avant l'instant moins 24 h (`filter[created_at_max]`), la borne que
   // l'API applique aussi à `open_over_24h_count` de `response-stats`.
@@ -175,8 +175,8 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'onboarding.host.steps.identity.otp.sentBody': 5,
   'profile.contact.otpSent': 5,
   'profile.contact.changeProofCodeSent': 5,
-  'agency.tenantOnboardingPending.emptyDescription': 7,
-  'dashboard.onboardingPending.subtitle': 7,
+  'lease.liste.regle': [3, 4, 7],
+  'lease.liste.vide.en_attenteTexte': 7,
   'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': [90, 30],
   'superAdmin.pages.users.impersonateDescription': 15,

@@ -22,8 +22,9 @@ describe('TCK-2477 — le catalogue des destinations', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('compte les 41 destinations (les 29 de dev 0b7deae44, « Mes tâches », « Chercher un bien », 10 pages d’agence)', () => {
-    expect(CATALOGUE).toHaveLength(41);
+  // TCK-2644 — « Entrées en attente » est devenue l'onglet « En attente du locataire » des baux : 40.
+  it('compte les 40 destinations (les 29 de dev 0b7deae44, « Mes tâches », « Chercher un bien », 10 pages d’agence, moins « Entrées en attente »)', () => {
+    expect(CATALOGUE).toHaveLength(40);
   });
 
   it('deux destinations d’un même href ne sont jamais accessibles ensemble', () => {

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
-import { CalendarDays, ClipboardCheck, Coins, EyeOff, Gauge, Hourglass, Star, Wrench, type LucideIcon } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, Coins, EyeOff, Gauge, Star, Wrench, type LucideIcon } from 'lucide-react';
 
 import type { ValeursDeLaFiche } from '@/lib/agence/fiche';
 import { composerMenu } from '@/lib/navigation/composer-menu';
@@ -14,11 +14,10 @@ import { cn } from '@/lib/utils';
 import { useFiche } from './contexte';
 import { CadreDApercu, TitreDeSection } from './pieces';
 
-/** Les icônes des sept modules, celles de la maquette (`app-identite-agence`, « Menu de l'équipe »). */
+/** Les icônes des six modules (TCK-2644 : `move_in_follow_up` retiré), celles de la maquette (`app-identite-agence`, « Menu de l'équipe »). */
 const ICONES: Readonly<Record<CodeDeModule, LucideIcon>> = {
   commissions: Coins,
   inventories: ClipboardCheck,
-  move_in_follow_up: Hourglass,
   provider_book: Wrench,
   calendar: CalendarDays,
   credits: Star,
@@ -26,7 +25,7 @@ const ICONES: Readonly<Record<CodeDeModule, LucideIcon>> = {
 };
 
 /**
- * TCK-2670 — « Menu de l'équipe » (TCK-2483) : les sept modules, cochés = affichés. Un réglage
+ * TCK-2670 — « Menu de l'équipe » (TCK-2483) : les six modules, cochés = affichés. Un réglage
  * d'AFFICHAGE : aucun droit ne change. L'aperçu compose le menu d'un agent avec la saisie en cours.
  */
 export function SectionMenu() {

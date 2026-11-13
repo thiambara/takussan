@@ -68,6 +68,22 @@ describe('TCK-2483 — les modules d’agence', () => {
     expect([...destinationsMasquees(['analytics', 'obsolete'])].sort()).toEqual(['alertes', 'exports', 'kpis']);
     expect(destinationsMasquees([]).size).toBe(0);
   });
+
+  // TCK-2644 (AC8) — `move_in_follow_up` a quitté la liste : une agence qui l'avait enregistré garde
+  // un menu entier, sans erreur, et la valeur ne masque rien.
+  it('une agence dont `hidden_modules` vaut ["move_in_follow_up"] : la valeur est ignorée, le menu se rend entier', () => {
+    expect(CODES_DE_MODULE).not.toContain('move_in_follow_up');
+    const lus = modulesMasquesDe({ hidden_modules: ['move_in_follow_up'] });
+    expect(lus).toEqual([]);
+    expect(modulesMasquesDe({ hidden_modules: ['move_in_follow_up', 'calendar'] })).toEqual(['calendar']);
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: [] };
+    for (const persona of ['agent', 'admin-agence'] as const) {
+      const sans = entreesDuMenu(composerMenu({ ...ctx, masquees: destinationsMasquees([]) }, persona)).map((e) => e.id);
+      const avec = entreesDuMenu(composerMenu({ ...ctx, masquees: destinationsMasquees(lus) }, persona)).map((e) => e.id);
+      expect(avec, persona).toEqual(sans);
+      expect(avec, persona).toContain('baux');
+    }
+  });
 });
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');

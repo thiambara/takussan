@@ -306,7 +306,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       [null, false, 'Aujourd’hui', 'Messagerie', 'Tâches'],
       ['Prospection', false, 'Demandes de contact', 'Clients', 'Visites', 'Calendrier'],
       ['Catalogue', false, 'Mes biens', 'Réservations'],
-      ['Gestion', false, 'Baux', 'Entrées en attente', 'États des lieux', 'Interventions', 'Commissions'],
+      ['Gestion', false, 'Baux', 'États des lieux', 'Interventions', 'Commissions'],
       ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
     ],
   },
@@ -318,7 +318,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     groupes: [
       [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
-      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux', 'Entrées en attente'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
       ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
       ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
@@ -338,7 +338,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       ['Mon espace', false, 'Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations'],
       [
         'Plus', true, 'Clients', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
-        'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions', 'Entrées en attente',
+        'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions',
         'Vue agence', 'Propriétaires',
       ],
     ],
@@ -360,7 +360,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     groupes: [
       [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
-      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux', 'Entrées en attente'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
@@ -709,7 +709,6 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
   // page, c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   it.each([
     ['/app/properties/new', 'Publier un bien'],
-    ['/app/leases/onboarding-pending', 'Entrées en attente'],
     ['/app/maintenance/providers', 'Carnet prestataires'],
     ['/app/overview/kpis', 'KPIs'],
     ['/app/overview/exports', 'Exports'],

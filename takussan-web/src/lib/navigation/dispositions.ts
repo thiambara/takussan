@@ -93,7 +93,7 @@ const ACTIVITE_ADMIN: GroupeDeDisposition = {
 const PORTEFEUILLE_ADMIN: GroupeDeDisposition = {
   id: 'portefeuille',
   titre: 'portefeuille',
-  entrees: ['mes-biens', 'proprietaires', 'clients', 'baux', 'entrees-en-attente'],
+  entrees: ['mes-biens', 'proprietaires', 'clients', 'baux'],
 };
 
 /** Les groupes de l'admin APRÈS « Activité » et « Portefeuille » ; la tête et le tableau de bord diffèrent (TCK-2489). */
@@ -178,7 +178,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie', 'taches'] },
       { id: 'prospection', titre: 'prospection', entrees: ['demandes', 'clients', 'visites', 'calendrier'] },
       { id: 'catalogue', titre: 'catalogue', entrees: ['mes-biens', 'reservations'] },
-      { id: 'gestion', titre: 'gestion', entrees: ['baux', 'entrees-en-attente', 'etats-des-lieux', 'maintenance', 'commissions'] },
+      { id: 'gestion', titre: 'gestion', entrees: ['baux', 'etats-des-lieux', 'maintenance', 'commissions'] },
     ],
     plus: ['avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
     libelles: { 'tableau-de-bord': 'today', taches: 'tasks', maintenance: 'interventions' },

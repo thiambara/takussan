@@ -173,7 +173,7 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
 });
 
 describe('TCK-2483 — les modules masqués par l’agence', () => {
-  const TOUS = ['commissions', 'inventories', 'move_in_follow_up', 'provider_book', 'calendar', 'credits', 'analytics'];
+  const TOUS = ['commissions', 'inventories', 'provider_book', 'calendar', 'credits', 'analytics'];
   const ids = (menu: ReturnType<typeof composerMenu>) => [
     ...entreesDuMenu(menu).map((e) => e.id),
     ...(menu.action ? [menu.action.id] : []),

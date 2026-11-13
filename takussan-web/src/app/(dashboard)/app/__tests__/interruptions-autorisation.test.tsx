@@ -90,9 +90,6 @@ vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: asyn
 vi.mock('@/components/customer-form', () => ({
   CustomerForm: () => <div data-testid="customer-form" />,
 }));
-vi.mock('@/components/leases/TenantOnboardingPendingList', () => ({
-  TenantOnboardingPendingList: () => <div data-testid="onboarding-pending-list" />,
-}));
 vi.mock('@/components/console', () => ({
   PageHeader: () => <div data-testid="page-header" />,
 }));
@@ -115,6 +112,8 @@ const PAGES: {
    * au-dessus du repli d'un descendant.
    */
   chargerLayout: () => Promise<{ default: LayoutServeur }>;
+  /** TCK-2644 — l'écran devenu un onglet ailleurs : le rôle admis y est REDIRIGÉ, vers cette adresse. */
+  admisVers?: string;
 }[] = [
   {
     nom: '/app/customers/new',
@@ -133,6 +132,7 @@ const PAGES: {
     chemin: 'app/leases/onboarding-pending/layout.tsx',
     charger: () => import('../leases/onboarding-pending/page'),
     chargerLayout: () => import('../leases/onboarding-pending/layout'),
+    admisVers: '/app/leases?vue=en_attente',
   },
 ];
 
@@ -162,6 +162,17 @@ describe('TCK-378 — refus par redirection, jamais par interruption', () => {
           getMeAction.mockResolvedValue(utilisateur([role]));
           const { default: Layout } = await page.chargerLayout();
           const { default: Page } = await page.charger();
+
+          if (admis && page.admisVers) {
+            // TCK-2644 — le layout laisse passer, puis la page (sans repli au-dessus d'elle) mène à
+            // l'onglet qui a remplacé l'écran.
+            await expect(Layout({ children: null })).resolves.toBeTruthy();
+            expect(redirect).not.toHaveBeenCalled();
+            await expect(Page()).rejects.toThrow(/NEXT_REDIRECT/);
+            expect(redirect).toHaveBeenCalledWith(page.admisVers);
+            expect(redirect).not.toHaveBeenCalledWith('/app');
+            return;
+          }
 
           if (admis) {
             // Les deux, et dans cet ordre : le layout laisse passer, la page rend.
@@ -198,16 +209,14 @@ describe('TCK-378 — refus par redirection, jamais par interruption', () => {
     });
   }
 
-  it('le super_admin sans agence garde son écran « pas d’agence » sur onboarding-pending', async () => {
-    // Cette branche précède la garde de rôle et devait rester intacte : la déplacer aurait
-    // redirigé un super-admin légitime. TCK-426 l'a laissée DANS la page, à dessein — c'est un
-    // CONTENU (« vous n'avez pas d'agence »), pas un refus, et un contenu n'a rien à faire
-    // au-dessus d'une frontière de suspension.
+  it('le super_admin sans agence est mené à la liste des baux, qui lui rend son écran « pas d’agence »', async () => {
+    // TCK-2644 — l'écran « pas d'agence » vit désormais sur `/app/leases` ((liste)/page.tsx, TCK-115) :
+    // la redirection n'en saute aucun, elle le précède.
     getMeAction.mockResolvedValue({ id: '1', roles: ['super_admin'] as UserRole[], agency_id: null });
     const { default: Layout } = await import('../leases/onboarding-pending/layout');
     const { default: Page } = await import('../leases/onboarding-pending/page');
     await expect(Layout({ children: null })).resolves.toBeTruthy();
-    await expect(Page()).resolves.toBeTruthy();
-    expect(redirect).not.toHaveBeenCalled();
+    await expect(Page()).rejects.toThrow(/NEXT_REDIRECT/);
+    expect(redirect).toHaveBeenCalledWith('/app/leases?vue=en_attente');
   });
 });

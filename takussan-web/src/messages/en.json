@@ -150,7 +150,6 @@
       "owners": "Owners",
       "crm": "Clients",
       "calendar": "Calendar",
-      "onboardingPending": "Pending onboardings",
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
       "counters": {
@@ -502,13 +501,12 @@
         "maintenance": "repair, fix, work order, plumbing, electrical",
         "carnet-prestataires": "providers, contractors, plumber, electrician",
         "demandes": "leads, enquiries, prospects, contacts",
-        "baux": "lease, contract, tenancy agreement",
+        "baux": "lease, contract, tenancy agreement, move-in",
         "paiements": "rent, pay, receipt, invoice, payment",
         "avis": "ratings, comments, feedback",
         "commissions": "fees, earnings",
         "documents": "files, papers, attachments",
         "etats-des-lieux": "inventory, check-in, check-out, condition report",
-        "entrees-en-attente": "move-in, onboarding",
         "statistiques": "stats, figures, reports, analytics",
         "exports": "export, csv, excel, download",
         "vue-agence": "agency, performance",
@@ -2756,11 +2754,6 @@
       "back": "Back",
       "metaTitle": "Maintenance request"
     },
-    "onboardingPending": {
-      "metaTitle": "Pending onboardings",
-      "title": "Pending onboardings",
-      "subtitle": "Tenants whose onboarding checklist has been open for more than 7 days."
-    },
     "pages": {
       "bookings": {
         "metaTitle": "Bookings",
@@ -3188,21 +3181,6 @@
         "titleNoName": "Welcome to Takussan",
         "body": "{agencyName}’s workspace is ready. One quick step before you head into it.",
         "cta": "Continue"
-      }
-    },
-    "tenantOnboardingPending": {
-      "error": "Couldn't load the list right now.",
-      "emptyTitle": "No overdue onboarding",
-      "emptyDescription": "Onboardings opened less than 7 days ago are not listed here.",
-      "leaseReference": "Lease {reference}",
-      "signedAt": "Signed on {date}",
-      "missing": "Still missing: {items}",
-      "daysOpen": "{count, plural, =0 {today} one {# day} other {# days}}",
-      "items": {
-        "welcome_seen_at": "Welcome",
-        "inventory_completed_at": "Inventory",
-        "first_payment_at": "First payment",
-        "documents_acknowledged_at": "Documents"
       }
     },
     "standardWelcome": {
@@ -5846,6 +5824,153 @@
       "abandonne": "Draft abandoned.",
       "abandonneEtFerme": "Draft abandoned, and application closed.",
       "fermetureEchouee": "Draft abandoned, but the application could not be closed. Close it from its page."
+    },
+    "liste": {
+      "titre": "Leases",
+      "nouveauBail": "New lease",
+      "sousTitre": "{total, plural, one {# lease} other {# leases}} · {actifs} active · {aTraiter, plural, =0 {none needs action} one {# needs action} other {# need action}}",
+      "onglets": {
+        "label": "Lease views",
+        "a_traiter": "To handle",
+        "actifs": "Active",
+        "en_attente": "Waiting on tenant",
+        "termines": "Ended"
+      },
+      "recherche": "Tenant, property, reference…",
+      "filtres": {
+        "label": "Filters",
+        "titre": "Filter leases",
+        "motif": "Reason",
+        "tousLesMotifs": "All reasons",
+        "type": "Type",
+        "tousLesTypes": "All types",
+        "bien": "Property",
+        "tousLesBiens": "All properties",
+        "bienRecherche": "Search a property",
+        "statut": "Status",
+        "tousLesStatuts": "All statuses",
+        "appliquer": "Show leases",
+        "effacer": "Clear filters",
+        "agent": "Agent",
+        "tousLesAgents": "All agents"
+      },
+      "motifsDuFiltre": {
+        "signature_pending": "Signature pending",
+        "notice_received": "Notice received",
+        "rent_late": "Unpaid rent",
+        "late_fee_unpaid": "Unpaid late fee",
+        "rent_review_open": "Rent review open",
+        "deposit_to_refund": "Deposit to refund",
+        "ending_soon": "Ending soon",
+        "onboarding_incomplete": "Move-in incomplete"
+      },
+      "motifs": {
+        "signature_pending": "Awaiting the tenant’s signature",
+        "notice_received": "Notice received · moving out {date}",
+        "rent_late": "{mois} rent overdue · {montant}",
+        "rent_late_plusieurs": "{n} rents overdue · {montant}",
+        "late_fee_unpaid": "Late fee unpaid · {montant}",
+        "rent_review_open": "Rent review possible",
+        "deposit_to_refund": "Deposit to refund · moved out {date}",
+        "ending_soon": "Lease ends {date}",
+        "onboarding_incomplete": "Move-in incomplete",
+        "onboarding_incomplete_n": "{n, plural, one {# move-in step missing} other {# move-in steps missing}}"
+      },
+      "ages": {
+        "depuis": "for {n} d",
+        "recu": "received {n} d ago",
+        "depuisLe": "since {date}",
+        "dans": "in {n, plural, one {# month} other {# months}}"
+      },
+      "gestes": {
+        "signature_pending": "Chase the signature",
+        "notice_received": "Schedule the inspection",
+        "rent_late": "Send a reminder",
+        "late_fee_unpaid": "Send a reminder",
+        "rent_review_open": "Review",
+        "ending_soon": "Offer a renewal",
+        "deposit_to_refund": "Refund the deposit",
+        "onboarding_incomplete": "Remind the tenant"
+      },
+      "gestesCourts": {
+        "signature_pending": "Chase signature",
+        "notice_received": "Schedule move-out",
+        "rent_late": "Remind",
+        "late_fee_unpaid": "Remind",
+        "rent_review_open": "Review",
+        "ending_soon": "Renew",
+        "deposit_to_refund": "Refund deposit",
+        "onboarding_incomplete": "Remind"
+      },
+      "regle": "A lease is “to handle” when a signature has been waiting more than 3 days, notice has been received, rent or a late fee is unpaid, a rent review is open, a deposit remains to be refunded, the lease ends in less than 4 months, or the tenant’s move-in has stayed incomplete more than 7 days.",
+      "colonnes": {
+        "locataire": "Tenant",
+        "bien": "Property",
+        "ceQuiAttend": "What’s waiting",
+        "statut": "Status",
+        "loyer": "Rent",
+        "debut": "Start",
+        "fin": "End",
+        "agent": "Agent",
+        "action": "Action"
+      },
+      "caption": "Leases",
+      "parMois": "/ month",
+      "prixDeVente": "sale price",
+      "sansFin": "Open-ended",
+      "locataireSansNom": "Tenant #{id}",
+      "bienSansTitre": "Property #{id}",
+      "referenceDeRepli": "Lease #{id}",
+      "signeLe": "Signed {date}",
+      "ilReste": "Still to do: {elements}",
+      "compte": {
+        "a_traiter": "{count, plural, one {# lease to handle} other {# leases to handle}}",
+        "actifs": "{count, plural, one {# active lease} other {# active leases}}",
+        "en_attente": "{count, plural, one {# move-in waiting} other {# move-ins waiting}}",
+        "termines": "{count, plural, one {# ended lease} other {# ended leases}}",
+        "statut": "{count, plural, one {# lease} other {# leases}}"
+      },
+      "afficherLesAutres": "Show {n, plural, one {the other one} other {the # others}}",
+      "erreur": "Couldn’t load the leases. Check your connection, then try again.",
+      "vide": {
+        "a_traiter": "Nothing to handle",
+        "a_traiterTexte": "No lease needs action today.",
+        "voirActifs": "See active leases",
+        "en_attente": "No move-in waiting",
+        "en_attenteTexte": "Move-ins open for less than 7 days don’t show here.",
+        "portion": "No lease here"
+      },
+      "relance": {
+        "signatureRelancee": "Signature reminder sent",
+        "signatureEchec": "The signature reminder couldn’t be sent",
+        "echeanceIntrouvable": "No overdue instalment to chase on this lease.",
+        "lienEchec": "The payment link couldn’t be created",
+        "copierLeLien": "Copy the payment link",
+        "lienCopie": "Link copied",
+        "sansTelephone": "No reachable number for this tenant: copy the link and send it yourself.",
+        "sansTelephoneMessage": "No reachable number for this tenant: call them or complete their record.",
+        "message": {
+          "vous": "Hello",
+          "agence": "From {agence}.",
+          "entree": "Hello {prenom}, to complete your move-in at {bien}, still to do: {elements}. You can do it from your Takussan account.",
+          "entreeSansDetail": "Hello {prenom}, your move-in at {bien} isn’t complete yet. You can finish it from your Takussan account."
+        },
+        "elements": {
+          "welcome_seen_at": "read the welcome message",
+          "inventory_completed_at": "approve the move-in inspection",
+          "first_payment_at": "make the first payment",
+          "documents_acknowledged_at": "review the documents"
+        }
+      },
+      "elements": {
+        "welcome_seen_at": "Welcome message",
+        "inventory_completed_at": "Move-in inspection",
+        "first_payment_at": "First payment",
+        "documents_acknowledged_at": "Documents"
+      },
+      "motifsCourts": {
+        "rent_late": "{mois} rent overdue"
+      }
     }
   },
   "maintenance": {
@@ -9661,10 +9786,6 @@
           "inventories": {
             "label": "Condition reports",
             "hint": "Move-in and move-out condition reports."
-          },
-          "move_in_follow_up": {
-            "label": "Pending onboardings",
-            "hint": "Tenants whose move-in condition report has been pending for more than 7 days."
           },
           "provider_book": {
             "label": "Provider directory",

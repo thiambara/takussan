@@ -150,7 +150,6 @@
       "owners": "Propriétaires",
       "crm": "Clients",
       "calendar": "Calendrier",
-      "onboardingPending": "Entrées en attente",
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
       "counters": {
@@ -502,13 +501,12 @@
         "maintenance": "panne, réparation, intervention, travaux, plomberie, électricité",
         "carnet-prestataires": "prestataires, artisans, plombier, électricien",
         "demandes": "prospects, leads, contacts, demandes de contact",
-        "baux": "bail, contrat, contrat de location",
+        "baux": "bail, contrat, contrat de location, emménagement, entrée dans les lieux",
         "paiements": "loyer, loyers, payer, quittance, facture, encaissement, versement",
         "avis": "notes, commentaires, évaluations",
         "commissions": "honoraires, rémunération",
         "documents": "fichiers, pièces, papiers",
         "etats-des-lieux": "état des lieux, inventaire, edl, entrée, sortie",
-        "entrees-en-attente": "emménagement, entrée dans les lieux, onboarding",
         "statistiques": "stats, chiffres, rapports",
         "exports": "export, csv, excel, télécharger",
         "vue-agence": "agence, performance, activité de l’agence",
@@ -2713,11 +2711,6 @@
       "back": "Retour",
       "metaTitle": "Demande de maintenance"
     },
-    "onboardingPending": {
-      "metaTitle": "Entrées en attente",
-      "title": "Entrées en attente",
-      "subtitle": "Locataires dont la liste d’entrée dans les lieux est ouverte depuis plus de 7 jours."
-    },
     "pages": {
       "bookings": {
         "metaTitle": "Réservations",
@@ -3145,21 +3138,6 @@
         "titleNoName": "Bienvenue sur Takussan",
         "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant d’y entrer.",
         "cta": "Continuer"
-      }
-    },
-    "tenantOnboardingPending": {
-      "error": "Impossible de charger la liste pour le moment.",
-      "emptyTitle": "Aucune entrée en retard",
-      "emptyDescription": "Les entrées ouvertes depuis moins de 7 jours n'apparaissent pas ici.",
-      "leaseReference": "Bail {reference}",
-      "signedAt": "Signé le {date}",
-      "missing": "Il reste : {items}",
-      "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}",
-      "items": {
-        "welcome_seen_at": "Welcome",
-        "inventory_completed_at": "EDL",
-        "first_payment_at": "Premier paiement",
-        "documents_acknowledged_at": "Documents"
       }
     },
     "standardWelcome": {
@@ -5803,6 +5781,153 @@
       "abandonne": "Brouillon abandonné.",
       "abandonneEtFerme": "Brouillon abandonné, et candidature fermée.",
       "fermetureEchouee": "Brouillon abandonné, mais la candidature n'a pas pu être fermée. Fermez-la depuis sa fiche."
+    },
+    "liste": {
+      "titre": "Baux",
+      "nouveauBail": "Nouveau bail",
+      "sousTitre": "{total, plural, one {# bail} other {# baux}} · {actifs, plural, one {# actif} other {# actifs}} · {aTraiter, plural, =0 {aucun ne demande d’action} one {# demande une action} other {# demandent une action}}",
+      "onglets": {
+        "label": "Vues des baux",
+        "a_traiter": "À traiter",
+        "actifs": "Actifs",
+        "en_attente": "En attente du locataire",
+        "termines": "Terminés"
+      },
+      "recherche": "Locataire, bien, référence…",
+      "filtres": {
+        "label": "Filtres",
+        "titre": "Filtrer les baux",
+        "motif": "Motif",
+        "tousLesMotifs": "Tous les motifs",
+        "type": "Type",
+        "tousLesTypes": "Tous les types",
+        "bien": "Bien",
+        "tousLesBiens": "Tous les biens",
+        "bienRecherche": "Chercher un bien",
+        "statut": "Statut",
+        "tousLesStatuts": "Tous les statuts",
+        "appliquer": "Voir les baux",
+        "effacer": "Effacer les filtres",
+        "agent": "Agent",
+        "tousLesAgents": "Tous les agents"
+      },
+      "motifsDuFiltre": {
+        "signature_pending": "Signature en attente",
+        "notice_received": "Préavis reçu",
+        "rent_late": "Loyer impayé",
+        "late_fee_unpaid": "Pénalité impayée",
+        "rent_review_open": "Révision ouverte",
+        "deposit_to_refund": "Caution à restituer",
+        "ending_soon": "Fin proche",
+        "onboarding_incomplete": "Entrée incomplète"
+      },
+      "motifs": {
+        "signature_pending": "À signer par le locataire",
+        "notice_received": "Préavis reçu · sortie le {date}",
+        "rent_late": "Loyer de {mois} en retard · {montant}",
+        "rent_late_plusieurs": "{n} loyers en retard · {montant}",
+        "late_fee_unpaid": "Pénalité non réglée · {montant}",
+        "rent_review_open": "Révision de loyer possible",
+        "deposit_to_refund": "Caution à restituer · sorti le {date}",
+        "ending_soon": "Fin du bail le {date}",
+        "onboarding_incomplete": "Entrée dans les lieux incomplète",
+        "onboarding_incomplete_n": "{n, plural, one {# étape d’entrée manquante} other {# étapes d’entrée manquantes}}"
+      },
+      "ages": {
+        "depuis": "depuis {n} j",
+        "recu": "reçu il y a {n} j",
+        "depuisLe": "depuis le {date}",
+        "dans": "dans {n} mois"
+      },
+      "gestes": {
+        "signature_pending": "Relancer la signature",
+        "notice_received": "Programmer l’état des lieux",
+        "rent_late": "Relancer",
+        "late_fee_unpaid": "Relancer",
+        "rent_review_open": "Réviser",
+        "ending_soon": "Proposer le renouvellement",
+        "deposit_to_refund": "Restituer la caution",
+        "onboarding_incomplete": "Relancer le locataire"
+      },
+      "gestesCourts": {
+        "signature_pending": "Relancer la signature",
+        "notice_received": "Programmer la sortie",
+        "rent_late": "Relancer",
+        "late_fee_unpaid": "Relancer",
+        "rent_review_open": "Réviser",
+        "ending_soon": "Renouveler",
+        "deposit_to_refund": "Restituer la caution",
+        "onboarding_incomplete": "Relancer"
+      },
+      "regle": "Un bail est « à traiter » quand une signature attend depuis plus de 3 jours, qu’un préavis est reçu, qu’un loyer ou une pénalité est impayé, qu’une révision est ouverte, qu’une caution reste à restituer, que le bail finit dans moins de 4 mois, ou que l’entrée du locataire reste incomplète plus de 7 jours.",
+      "colonnes": {
+        "locataire": "Locataire",
+        "bien": "Bien",
+        "ceQuiAttend": "Ce qui attend",
+        "statut": "Statut",
+        "loyer": "Loyer",
+        "debut": "Début",
+        "fin": "Fin",
+        "agent": "Agent",
+        "action": "Action"
+      },
+      "caption": "Baux",
+      "parMois": "/ mois",
+      "prixDeVente": "prix de vente",
+      "sansFin": "Sans fin",
+      "locataireSansNom": "Locataire #{id}",
+      "bienSansTitre": "Bien #{id}",
+      "referenceDeRepli": "Bail #{id}",
+      "signeLe": "Signé le {date}",
+      "ilReste": "Il reste : {elements}",
+      "compte": {
+        "a_traiter": "{count, plural, one {# bail à traiter} other {# baux à traiter}}",
+        "actifs": "{count, plural, one {# bail actif} other {# baux actifs}}",
+        "en_attente": "{count, plural, one {# entrée en attente} other {# entrées en attente}}",
+        "termines": "{count, plural, one {# bail terminé} other {# baux terminés}}",
+        "statut": "{count, plural, one {# bail} other {# baux}}"
+      },
+      "afficherLesAutres": "Afficher {n, plural, one {l’autre} other {les # autres}}",
+      "erreur": "Impossible de charger les baux. Vérifiez votre connexion, puis réessayez.",
+      "vide": {
+        "a_traiter": "Rien à traiter",
+        "a_traiterTexte": "Aucun bail ne demande d’action aujourd’hui.",
+        "voirActifs": "Voir les baux actifs",
+        "en_attente": "Aucune entrée en attente",
+        "en_attenteTexte": "Les entrées ouvertes depuis moins de 7 jours n’apparaissent pas ici.",
+        "portion": "Aucun bail ici"
+      },
+      "relance": {
+        "signatureRelancee": "Signature relancée",
+        "signatureEchec": "La signature n’a pas pu être relancée",
+        "echeanceIntrouvable": "Aucune échéance en retard à relancer sur ce bail.",
+        "lienEchec": "Le lien de paiement n’a pas pu être créé",
+        "copierLeLien": "Copier le lien de paiement",
+        "lienCopie": "Lien copié",
+        "sansTelephone": "Aucun numéro joignable pour ce locataire : copiez le lien et envoyez-le-lui vous-même.",
+        "sansTelephoneMessage": "Aucun numéro joignable pour ce locataire : appelez-le ou complétez sa fiche.",
+        "message": {
+          "vous": "Madame, Monsieur",
+          "agence": "De la part de {agence}.",
+          "entree": "Bonjour {prenom}, pour finaliser votre entrée dans {bien}, il reste : {elements}. Vous pouvez le faire depuis votre espace Takussan.",
+          "entreeSansDetail": "Bonjour {prenom}, votre entrée dans {bien} n’est pas encore finalisée. Vous pouvez la terminer depuis votre espace Takussan."
+        },
+        "elements": {
+          "welcome_seen_at": "lire le message d’accueil",
+          "inventory_completed_at": "valider l’état des lieux d’entrée",
+          "first_payment_at": "régler le premier paiement",
+          "documents_acknowledged_at": "prendre connaissance des documents"
+        }
+      },
+      "elements": {
+        "welcome_seen_at": "Message d’accueil",
+        "inventory_completed_at": "État des lieux d’entrée",
+        "first_payment_at": "Premier paiement",
+        "documents_acknowledged_at": "Documents"
+      },
+      "motifsCourts": {
+        "rent_late": "Loyer de {mois} en retard"
+      }
     }
   },
   "maintenance": {
@@ -9661,10 +9786,6 @@
           "inventories": {
             "label": "États des lieux",
             "hint": "Les états des lieux d’entrée et de sortie."
-          },
-          "move_in_follow_up": {
-            "label": "Entrées en attente",
-            "hint": "Les locataires dont l’état des lieux d’entrée attend depuis plus de 7 jours."
           },
           "provider_book": {
             "label": "Carnet prestataires",

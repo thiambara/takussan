@@ -139,7 +139,7 @@ const ATTENDU: Record<Persona, string[]> = {
   agent: [
     '/app/properties/new',
     '/app', '/app/messages', '/app/tasks', '/app/leads', '/app/customers', '/app/visits', '/app/calendar',
-    '/app/properties', '/app/bookings', '/app/leases', '/app/leases/onboarding-pending', '/app/inventories',
+    '/app/properties', '/app/bookings', '/app/leases', '/app/inventories',
     '/app/maintenance', '/app/commissions', '/app/profile/reviews', '/app/documents', '/app/overview',
     '/app/overview/exports', '/app/favorites', '/app/saved-searches',
   ],
@@ -147,7 +147,7 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
     '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
-    '/app/leases/onboarding-pending', '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
+    '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
     '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
     '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
     '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
@@ -159,7 +159,7 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/credits', ...PAGES_DE_L_HOTE, '/app/customers', '/app/overview', '/app/overview/exports',
     '/app/overview/kpis', '/app/overview/alerts', '/app/profile/reviews', '/app/documents', '/app/tasks',
     '/app/favorites', '/app/saved-searches', '/app/payments', '/app/commissions',
-    '/app/leases/onboarding-pending', '/app/overview/agency', '/app/owners',
+    '/app/overview/agency', '/app/owners',
   ],
   // Son métier en tête — interventions, messagerie, documents (§1.8 de features.md) —, et sous
   // « Plus » ce que le plancher `customer` lui ouvre.
@@ -171,7 +171,7 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
     '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
-    '/app/leases/onboarding-pending', '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
+    '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
     '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
     '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
     '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',

@@ -45,7 +45,7 @@ describe('Fiche de l’agence — menu de l’équipe (TCK-2483)', () => {
     expect(Object.keys(M.items)).toEqual([...CODES_DE_MODULE]);
   });
 
-  it('une agence sans la clé : les sept modules sont affichés (cases cochées)', () => {
+  it('une agence sans la clé : les six modules sont affichés (cases cochées)', () => {
     ouvrir(AGENCE);
     expect(screen.getByRole('heading', { level: 2, name: fr.admin.agencyConfig.fiche.menu.titre })).toBeInTheDocument();
     for (const code of CODES_DE_MODULE) expect(caseDe(code), code).toBeChecked();

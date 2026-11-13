@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Banknote,
@@ -175,6 +175,7 @@ export function LeaseDetail({ leaseId, historique = false }: LeaseDetailProps) {
       onglet={onglet}
       historique={historique}
       gesteDeLUrl={gesteDeLUrl}
+      echeancierDeLUrl={params.get('echeancier') === 'toutes'}
       fournisseurs={providers}
       remplacer={remplacer}
     />
@@ -190,11 +191,17 @@ interface FicheDuBailProps {
   readonly onglet: Onglet;
   readonly historique: boolean;
   readonly gesteDeLUrl: GesteSecondaire | null;
+  /**
+   * TCK-2644 — `?echeancier=toutes` : « Relancer » d'une pénalité restée due, depuis la file « À traiter »,
+   * mène ici. L'échéancier s'ouvre déplié (l'échéance payée qui porte la pénalité est rangée après les
+   * dues, souvent au-delà des six premières) et la page s'y porte.
+   */
+  readonly echeancierDeLUrl: boolean;
   readonly fournisseurs: ReturnType<typeof usePaymentProviders>['providers'];
   readonly remplacer: ReturnType<typeof useVueDansLUrl>['remplacer'];
 }
 
-function FicheDuBail({ lease, paiements, locataire, principal, secondaires, onglet, historique, gesteDeLUrl, fournisseurs, remplacer }: FicheDuBailProps) {
+function FicheDuBail({ lease, paiements, locataire, principal, secondaires, onglet, historique, gesteDeLUrl, echeancierDeLUrl, fournisseurs, remplacer }: FicheDuBailProps) {
   const tLease = useTranslations('lease');
   const t = useTranslations('lease.fiche');
   const tStatus = useTranslations('lease.status');
@@ -209,7 +216,11 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const [feuilleGestes, setFeuilleGestes] = useState(false);
   const [erreurEcheancier, setErreurEcheancier] = useState<string | null>(null);
   // TCK-2645 (lot 3) — « Les n échéances » est l'action de la carte (maquette a-1) : la fiche tient l'état.
-  const [toutesLesEcheances, setToutesLesEcheances] = useState(false);
+  const [toutesLesEcheances, setToutesLesEcheances] = useState(echeancierDeLUrl);
+  // La fiche se lit côté client : l'ancre `#echeancier` n'existerait pas encore au chargement.
+  useEffect(() => {
+    if (echeancierDeLUrl) document.getElementById('echeancier')?.scrollIntoView({ block: 'start' });
+  }, [echeancierDeLUrl]);
   // TCK-2762 — les garants se lisent une fois, pour « Parties » (bureau), le dossier (téléphone) et leur
   // feuille : le dossier est rendu deux fois (`xl:hidden`, `max-xl:hidden`), l'état n'y vit donc pas.
   const garants = useLeaseGuarantors(lease.id).data?.data ?? [];

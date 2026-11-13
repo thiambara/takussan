@@ -44,8 +44,9 @@ export function assertCanReachAgentArea(roles: UserRole[]): void {
  * `super_admin` — le bailleur EXCLU.
  *
  * ⚠ Cette garde existe parce que le périmètre est réellement plus étroit, pas par symétrie.
- * `/app/leases/onboarding-pending` liste les checklists d'entrée en retard : c'est un écran de
- * relance interne. Factoriser les deux gardes en une seule ÉLARGIRAIT cet écran-là — TCK-378
+ * `/app/leases/onboarding-pending` listait les checklists d'entrée en retard (c'est aujourd'hui
+ * l'onglet « En attente du locataire » de `/app/leases`, vers lequel elle redirige — TCK-2644) :
+ * un écran de relance interne. Factoriser les deux gardes en une seule ÉLARGIRAIT cet écran-là — TCK-378
  * l'interdit explicitement.
  *
  * ⚠ Cette phrase a déjà été fausse, et c'était la classe de faux que TCK-378 existe pour
@@ -63,6 +64,16 @@ export function assertCanReachAgencyStaffArea(roles: UserRole[]): void {
   if (!(isAgent(roles) || isAdmin(roles))) {
     redirect('/app');
   }
+}
+
+/**
+ * TCK-2644 (AC5) — le lecteur de `/app/leases` qui n'est ni du personnel ni bailleur : le locataire.
+ * Ce n'est PAS un refus — la liste lui reste ouverte —, mais `(liste)/layout.tsx` le mène à la
+ * fiche de son bail quand il n'en a qu'un. La décision sur le rôle vit ici, avec les autres
+ * (check-auth-interrupts, cliquet D).
+ */
+export function litLaListeDesBauxEnLocataire(roles: UserRole[]): boolean {
+  return !(isAgent(roles) || isAdmin(roles) || isOwner(roles));
 }
 
 /**
