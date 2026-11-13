@@ -595,6 +595,8 @@ async function cmdBalayer() {
           racine = L < 768 ? null : '.maquettes-cadre .maquette-defile';
         } else {
           const base = (opt('base') ?? 'http://localhost:3000').replace(/\/$/, '');
+          // Comme `releve` : sans locale posée, la page sort dans la langue du compte (l'anglais des personas).
+          await cdp('Network.setCookie', { name: 'NEXT_LOCALE', value: 'fr', url: base, path: '/' });
           await cdp('Network.setCookie', { name: 'auth_token', value: jetonDe(opt('persona', 'admin')), url: base, httpOnly: true, path: '/' });
           url = `${base}${opt('url')}`;
         }
