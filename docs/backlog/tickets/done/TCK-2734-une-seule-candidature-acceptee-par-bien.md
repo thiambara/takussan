@@ -189,7 +189,7 @@ Ablations (une à la fois, md5 vérifié avant restauration) :
 - **Mesuré.** Une sonde `DB::listen` a relevé toutes les écritures avec leur `transactionLevel`. Sous le verrou du bien, l'envoi en signature et la signature sur papier touchent l'agence de deux façons :
   - par le journal : `activity_log.agency_id` porte la clé étrangère `activity_log_agency_fk`, donc un `KEY SHARE` sur la ligne de l'agence ;
   - par le compteur de `LeaseObserver` (`update "agencies"`).
-- **Le cycle.** `BoostPurchaseService::lock()` prenait l'agence (`for update`) puis le bien : sur un même bien, cela formait un cycle avec l'envoi — déduit de la séquence mesurée, la course n'a pas été rejouée.
+- **Le cycle.** `BoostPurchaseService::lock()` prenait l'agence (`for update`) puis le bien : sur un même bien, cela formait un cycle avec l'envoi.
 - **Correctif retenu : le boost prend le bien, puis l'agence.** Deux voies ont été écartées :
   - **« L'agence d'abord » à l'envoi** aurait ouvert un cycle neuf avec tout écrivain qui tient un bien puis journalise (`BookingService::confirm`, par exemple).
   - **Sortir le compteur de la transaction** ne suffisait pas : le cycle passe aussi par le journal.
@@ -198,4 +198,4 @@ Ablations (une à la fois, md5 vérifié avant restauration) :
   - les deux tests d'ordre de `BailFermeLesAutresCandidaturesTest` affirment désormais que rien ne touche l'agence (`for update`, `update "agencies"`, insertion à `agency_id`) avant le verrou du bien : rouges sous « agence d'abord » à l'envoi.
 - **Documentation.** Le piège n° 10 de `takussan-api/CLAUDE.md` est complété (place du bail, des réservations et de l'agence).
 - **Reste ouvert**, et antérieur : `PayoutService` (agence → bail) contre `sign()` (bail → agence par l'observateur).
-- **Non mesuré** : la course à deux processus, que verif-patrimoine doit rejouer.
+- **Mesuré ensuite** par verif-patrimoine (2026-11-13), à deux processus, avec `request()` contre `purchase()` réels : 0 interblocage sur 2164 itérations après 1ca16f458, et 53 achats tués (`40P01`) sur 120 sous l'ordre inverse.

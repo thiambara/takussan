@@ -918,7 +918,8 @@ rien attraper.*
     l'agence, qui heurte son `for update`) et par le compteur de `LeaseObserver`. Presque tout écrivain
     journalise : **l'agence vient donc après le bien, même quand elle sert de point de sérialisation**.
     L'achat de boost la prenait avant (`BoostPurchaseService::lock()`) : un cycle avec l'envoi sur un même
-    bien, DÉDUIT de la séquence mesurée de l'envoi (course à deux processus non rejouée au 2026-11-13) ;
+    bien — mesuré le 2026-11-13 par une course à deux processus (`request()` contre `purchase()` réels) :
+    53 achats tués (`40P01`) sur 120 dans l'ancien ordre, 0 sur 2164 itérations dans le nouveau ;
     il prend désormais le bien d'abord. Ne pas « corriger » un tel cycle en verrouillant
     l'agence en tête de l'autre écrivain : on en ouvre un neuf avec tous ceux qui tiennent un bien et
     journalisent ensuite. Reste ouvert, antérieur : `PayoutService` (agence → bail) contre `sign()`

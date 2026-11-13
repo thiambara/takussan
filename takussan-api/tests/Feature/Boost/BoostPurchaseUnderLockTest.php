@@ -82,7 +82,9 @@ class BoostPurchaseUnderLockTest extends ApiTestCase
      * TCK-2734 (réserve r2 de la vérification de d87e423e7) — l'achat verrouille le BIEN avant l'agence, dans
      * l'ordre global (`takussan-api/CLAUDE.md`, piège n° 10) : l'envoi d'un bail en signature tient le bien
      * puis touche l'agence (journal à clé étrangère, compteur des baux) ; l'ordre inverse formait un cycle
-     * avec lui sur un même bien (déduit de la séquence mesurée, course non rejouée). Aucun verrou ni écriture sur l'agence ne précède celui du bien.
+     * avec lui sur un même bien — mesuré à deux processus par verif-patrimoine le 2026-11-13 : 53 achats
+     * tués sur 120 sous l'ordre inverse, 0 sur 2164 itérations dans celui-ci. Ce test séquentiel n'épingle
+     * que l'ordre : aucun verrou ni écriture sur l'agence ne précède celui du bien.
      */
     public function test_l_achat_verrouille_le_bien_avant_l_agence(): void
     {
