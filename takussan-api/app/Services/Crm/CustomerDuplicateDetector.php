@@ -2,6 +2,7 @@
 
 namespace App\Services\Crm;
 
+use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Models\Customer;
 use App\Models\User;
 use App\Services\Notifications\Sms\PhoneNumber;
@@ -9,6 +10,8 @@ use App\Support\AdvisoryLock;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * TCK-591 — un client existe-t-il déjà dans cette agence, au même téléphone normalisé ou au même
@@ -176,6 +179,46 @@ class CustomerDuplicateDetector
      * complet de personne. Lu aussi par le limiteur `customer-duplicate-probe-full-number`
      * (décision 8 du porteur, 2026-11-12) : seule une sonde au numéro complet y compte.
      */
+    /**
+     * TCK-2590 (décision 8 du porteur ; troisième porte, 2026-11-12) — le budget de tout signalement
+     * d'une fiche MASQUÉE (tout à `null`) : vingt par heure et par personne, UN seau
+     * ({@see self::LIMITEUR_DU_NUMERO_COMPLET}) pour la sonde, la création, la mise à jour et la
+     * conversion d'une demande de contact ou d'une visite en fiche (`ContactLeadService::convert`).
+     *
+     * Le numéro complet et l'e-mail complet sont le même oracle (décision 8 du porteur, nuit du
+     * 2026-11-12) : une identité masquée au téléphone puise une unité, une identité masquée à
+     * l'e-mail une autre. `$telephoneDejaCompte` : la sonde a déjà compté le numéro complet par le
+     * limiteur de sa route, qui compte toute sonde au numéro complet, masquée ou non.
+     *
+     * Le budget épuisé, rien ne sort : 429 générique (`too_many_requests`), sans un mot de la fiche,
+     * et l'appelant ne crée rien (l'exception défait la transaction). Une réponse sans fiche masquée
+     * ne consomme rien et n'est jamais bloquée ; les fiches que l'appelant lit ne lui apprennent rien.
+     *
+     * @param  list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>  $existing
+     * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>
+     */
+    public static function budgeterLesSignalementsMasques(array $existing, User $appelant, bool $telephoneDejaCompte = false): array
+    {
+        $masquee = fn (string $sur): bool => array_filter(
+            $existing,
+            fn (array $e): bool => $e['id'] === null && $e['matched_on'] === $sur,
+        ) !== [];
+        $unites = ($masquee('phone') && ! $telephoneDejaCompte ? 1 : 0) + ($masquee('email') ? 1 : 0);
+        if ($unites === 0) {
+            return $existing;
+        }
+
+        $seau = ThrottleRequestsByNetwork::namedLimiterKey(self::LIMITEUR_DU_NUMERO_COMPLET, self::seauDuNumeroComplet($appelant->id));
+        if (RateLimiter::attempts($seau) + $unites > self::NUMEROS_COMPLETS_PAR_HEURE) {
+            throw new ThrottleRequestsException('Too Many Attempts.', null, ['Retry-After' => RateLimiter::availableIn($seau)]);
+        }
+        for ($i = 0; $i < $unites; $i++) {
+            RateLimiter::hit($seau, 3600);
+        }
+
+        return $existing;
+    }
+
     /** TCK-2590 — le seau de l'appelant sous {@see self::LIMITEUR_DU_NUMERO_COMPLET}. */
     public static function seauDuNumeroComplet(int|string $appelant): string
     {

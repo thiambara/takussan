@@ -198,3 +198,33 @@ de 20 recherches au numéro complet par heure et par personne** (option a, avec 
   - **b6 — budget jugé sur tout numéro** (le numéro libre bloqué) : 3 rouges.
 - Ablations : **a9 — le préfixe consomme aussi le budget** → 2 rouges (« vingt sondes… », « le préfixe ne consomme
   pas… ») ; **a10 — limiteur horaire sans limite** → 1 rouge (« vingt sondes… »).
+
+### Troisième porte — la demande de contact (2026-11-12, nuit ; décision 8 du porteur, points 1 à 3 de team-lead)
+
+- **Constat** (verif-commercial, `eca5ff201`) : seau vidé, un membre sans vue globale du CRM, destinataire d'une
+  demande de contact, lisait encore la fiche cachée — `known_customer {id: null…}` sur la boîte et le détail
+  (`null` pour un numéro libre), et `POST /contact-leads/{id}/convert` (ou une visite `create_customer`) rendait
+  409 `customer.duplicate` masqué, sans 429. Le formulaire public ajoute 30 numéros par heure et par adresse,
+  sans plafond par personne.
+- **`known_customer` ne signale que ce que le lecteur lit** (`ContactLeadKnownCustomers`) : seules les fiches
+  `visibleTo` concourent, téléphone d'abord puis e-mail. Une fiche cachée n'est pas signalée du tout : la clé vaut
+  `null`, comme pour un numéro libre. La boîte ne consomme donc rien.
+- **Un seul budget, un seul endroit** : `CustomerDuplicateDetector::budgeterLesSignalementsMasques()` (déplacé
+  du contrôleur des clients). Il est appelé par la création et la mise à jour (`CustomerController`), par la
+  conversion d'une demande (`ContactLeadService::refuseDuplicate`, que la visite `create_customer` emprunte) et
+  par la sonde. Une identité masquée au téléphone puise une unité, une identité masquée à l'e-mail une autre.
+  Budget épuisé : 429 générique, rien de la fiche, et la transaction de `convert` défait tout (aucune fiche). La
+  sonde passe `telephoneDejaCompte: true` : le limiteur de sa route a déjà compté le numéro complet.
+- **L'e-mail complet est le même oracle** (décision 8, nuit du 2026-11-12) : à la sonde, un e-mail qui désigne
+  une fiche cachée consomme une unité après coup, et rend 429 sans rien de la fiche quand le seau est vide ; à la
+  création, de même (E5). Un e-mail sans fiche cachée, ou d'une fiche que l'appelant lit, ne consomme rien.
+- Tous les appelants du détecteur sont couverts : `CreateCustomerFromVisit` passe par `POST /customers`.
+- Front non touché : la branche « fiche masquée » de `DejaConnu` (`DemandeOuverte.tsx`, `knownTitleHidden`) n'est
+  plus atteinte ; le type `DemandeDejaCliente` admet encore `id: null`.
+- Tests : `tests/Feature/Crm/SignalementMasqueTroisiemePorteTest.php`, 7 tests (la boîte et le détail sans
+  signalement, la première fiche lisible nommée, la conversion, la visite, E5 à la création, E5 à la sonde, le
+  numéro jamais compté deux fois à la sonde). Les 40 classes qui touchent demandes, sonde, doublons et visites
+  `create_customer` sont vertes (433 tests).
+- Ablations, toutes rouges : **c1 — fiche cachée admise dans `known_customer`** : 2 rouges ; **c2 — conversion
+  sans budget** : 2 rouges (demande et visite) ; **c3 — l'e-mail ne consomme pas** (E5) : 2 rouges ; **c4 — le
+  numéro recompté à la sonde** : 1 rouge.

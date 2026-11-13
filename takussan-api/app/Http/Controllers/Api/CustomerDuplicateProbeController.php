@@ -24,12 +24,15 @@ class CustomerDuplicateProbeController extends Controller
     {
         $user = $request->user();
 
-        $matches = $duplicates->probe(
+        // TCK-2590 (décision 8 du porteur, nuit du 2026-11-12) — l'e-mail complet qui désigne une fiche
+        // masquée puise dans le même seau que le numéro complet ; le numéro, lui, est déjà compté par le
+        // limiteur de la route. Budget épuisé : 429, et rien de la fiche ne sort.
+        $matches = CustomerDuplicateDetector::budgeterLesSignalementsMasques($duplicates->probe(
             $user->staffAgencyId(),
             $request->validated('phone'),
             $request->validated('email'),
             $user,
-        );
+        ), $user, telephoneDejaCompte: true);
 
         return $this->json([
             'data' => array_map(fn (array $m) => [

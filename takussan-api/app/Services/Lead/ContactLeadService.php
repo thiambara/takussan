@@ -430,8 +430,14 @@ class ContactLeadService
             return;
         }
 
-        $existing = app(CustomerDuplicateDetector::class)
-            ->find($lead->agency_id, $lead->phone, $lead->email, $actor);
+        // TCK-2590 (décision 8 du porteur, troisième porte) — la conversion d'une demande, ou d'une visite
+        // qui crée sa fiche, suit la règle de `POST /customers` : un signalement masqué puise dans le
+        // seau de la sonde, et le budget épuisé rend 429 générique — la transaction de `convert` défait
+        // tout, aucune fiche n'est créée.
+        $existing = CustomerDuplicateDetector::budgeterLesSignalementsMasques(
+            app(CustomerDuplicateDetector::class)->find($lead->agency_id, $lead->phone, $lead->email, $actor),
+            $actor,
+        );
         if ($existing !== []) {
             throw (new ApiError(409, 'customer.duplicate'))->with(['existing' => $existing]);
         }

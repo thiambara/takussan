@@ -668,9 +668,11 @@ class AppServiceProvider extends ServiceProvider
         // priorité des middlewares).
         // TCK-2590 (décision 8 du porteur, 2026-11-12) — la sonde de doublon au numéro COMPLET peut
         // signaler une fiche que l'appelant ne lit pas (tout à `null`) : vingt par HEURE et par
-        // personne, en plus des vingt par minute de la route. Le préfixe et l'e-mail n'y comptent pas
-        // (`CustomerDuplicateDetector::numeroComplet()`, le prédicat même de la sonde).
-        // Le même compteur sert à la création (`CustomerController::refuseDuplicate`, seconde porte).
+        // personne, en plus des vingt par minute de la route. Le préfixe n'y compte pas
+        // (`CustomerDuplicateDetector::numeroComplet()`, le prédicat même de la sonde). L'e-mail complet
+        // qui désigne une fiche masquée puise dans le même seau, mais après la sonde, dans son contrôleur
+        // (troisième porte, nuit du 2026-11-12) ; la création, la mise à jour et la conversion d'une demande
+        // aussi (`CustomerDuplicateDetector::budgeterLesSignalementsMasques`).
         RateLimiter::for(CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET, fn (Request $request) => CustomerDuplicateDetector::numeroComplet(
             is_string($request->query('phone')) ? $request->query('phone') : null,
         ) !== null

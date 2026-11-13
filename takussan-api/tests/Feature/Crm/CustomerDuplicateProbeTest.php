@@ -255,7 +255,8 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $refus = $this->getJson('/api/customers/duplicates?phone=%2B221706482056')->assertStatus(429);
         $this->assertNotNull($refus->headers->get('Retry-After'));
 
-        // Ni le préfixe ni l'e-mail ne comptent : ils ne livrent pas de fiche cachée.
+        // Ni le préfixe ni l'e-mail d'une fiche qu'il lit ne comptent : ils ne livrent pas de fiche cachée
+        // (l'e-mail d'une fiche CACHÉE, lui, puise dans le seau : `SignalementMasqueTroisiemePorteTest`).
         $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk();
         $this->getJson('/api/customers/duplicates?email=mariama.fall@example.com')->assertOk();
 
