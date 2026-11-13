@@ -5827,7 +5827,7 @@
         "resilier": "Terminate the lease",
         "abandonner": "Abandon the draft",
         "abandonEmpeche": "This draft carries a recorded due, such as a deposit: it cannot be abandoned. Cancel or refund it first.",
-        "abandonEmpecheEtatDesLieux": "An inventory has been drawn up on this draft: it cannot be abandoned, as the inventory would be left without a lease."
+        "abandonEmpecheEtatDesLieux": "A committed inventory — sent for signature, signed or disputed — has been drawn up on this draft: it cannot be abandoned, as the inventory cannot disappear with it."
       },
       "dossier": {
         "titre": "The file",

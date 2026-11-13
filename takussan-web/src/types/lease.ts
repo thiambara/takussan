@@ -121,8 +121,9 @@ export type Lease = {
    */
   origin_booking?: { readonly id: number; readonly status: BookingStatus } | null;
   /**
-   * TCK-2764 r1 — un état des lieux existe sur le brouillon : l'API refuse l'abandon
-   * (`lease.abandon_has_inventory`). Même lecteur que `origin_booking`.
+   * TCK-2764 r1, puis 4a — un état des lieux ENGAGÉ existe sur le brouillon (envoyé en signature, signé,
+   * contesté, ou portant une signature) : l'API refuse l'abandon (`lease.abandon_has_inventory`). Un état
+   * des lieux encore brouillon ne compte pas : il part avec le bail. Même lecteur que `origin_booking`.
    */
   has_inventory?: boolean;
   /** TCK-2679 — les charges mensuelles, terme du bail ; `null` sur un bail antérieur. TCK-2645 : la carte « Charges ». */

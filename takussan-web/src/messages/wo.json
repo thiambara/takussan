@@ -3702,7 +3702,7 @@
         "resilier": "Résilier le bail",
         "abandonner": "Abandonner le brouillon",
         "abandonEmpeche": "Ce brouillon porte une échéance saisie, comme une caution : il ne s'abandonne pas. Annulez ou remboursez-la d'abord.",
-        "abandonEmpecheEtatDesLieux": "Un état des lieux est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux resterait sans bail."
+        "abandonEmpecheEtatDesLieux": "Un état des lieux engagé — envoyé en signature, signé ou contesté — est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux ne disparaît pas avec lui."
       },
       "dossier": {
         "titre": "Le dossier",

@@ -150,8 +150,9 @@ export type RaisonDAbandonEmpeche = 'echeance' | 'etatDesLieux';
  * pourquoi :
  * - `echeance` : une échéance non annulée, de tout type (une caution saisie avant l'activation, P46.04),
  *   422 `lease.abandon_has_payments` ;
- * - `etatDesLieux` : un état des lieux, signé ou non (réserve r1 de la vérification d'ace044c18,
- *   `has_inventory`), 422 `lease.abandon_has_inventory`.
+ * - `etatDesLieux` : un état des lieux engagé — sorti du brouillon ou signé (réserve r1 de la
+ *   vérification d'ace044c18, puis décision 4a : un brouillon d'état des lieux part avec le bail),
+ *   `has_inventory`, 422 `lease.abandon_has_inventory`.
  *
  * `null` tant que les échéances chargent : rien n'est alors offert.
  */

@@ -114,7 +114,7 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
   - Le brouillon porte une échéance `deposit` `pending` → 422 `lease.abandon_has_payments`, et L reste.
   - Une fois cette échéance `cancelled`, l'abandon passe.
   - Ablation : retirer ce contrôle rend le test rouge.
-  - **Un état des lieux** sur le brouillon, signé ou non → 422 `lease.abandon_has_inventory`, et L reste (décision du 2026-11-13, réserve r1 de la vérification d'ace044c18).
+  - **Un état des lieux engagé** sur le brouillon — sorti du brouillon (`pending_signature`, `signed`, `disputed`) ou portant une signature — → 422 `lease.abandon_has_inventory`, et L reste, comme ses états des lieux. Des états des lieux encore brouillons et jamais signés sont supprimés en douceur avec L ; un seul engagé les retient tous (décision du 2026-11-13, réserve r1 de la vérification d'ace044c18 ; amendé le 2026-11-13, décision 4a).
 - [ ] **AC6 — Qui.**
   - Le personnel actif de l'agence de L → 200.
   - Le bailleur de L (bien sans agence, bailleur particulier) → 200.
@@ -128,7 +128,7 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
 - [ ] **AC9 — Le front.**
   - L'action n'est rendue que sur un brouillon.
   - Avec une caution saisie, elle est remplacée par sa raison.
-  - Avec un état des lieux (`has_inventory`), elle est remplacée par sa raison propre.
+  - Avec un état des lieux engagé (`has_inventory`), elle est remplacée par sa raison propre (amendé le 2026-11-13, décision 4a).
   - Le dialogue nomme la candidature d'origine, et sa case est décochée.
   - Décochée, un seul `DELETE` part. Cochée sur une candidature `confirmed`, `DELETE` puis `POST …/cancel`.
 
@@ -162,10 +162,11 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
   - `has_inventory` toujours faux → `test_r1_la_fiche_dit_qu_un_etat_des_lieux_existe` rouge ;
   - front, la raison `etatDesLieux` retirée → 1 rouge dans chacun des deux fichiers ;
   - front, le libellé unique → 1 rouge dans la fiche.
-- **Limite.** Un brouillon qui porte un état des lieux ne s'abandonne plus, et aucune route ne supprime un état des
-  lieux. Une seule sortie reste : envoyer le bail en signature, puis le résilier (`terminate` accepte
-  `pending_signature`). Mais cet envoi ferme les autres candidatures du bien (décision 7, TCK-2734). Le cas est remonté
-  à team-lead le 2026-11-13.
+- **Limite** (amendé le 2026-11-13, décision 4a). Seul un brouillon qui porte un état des lieux **engagé** (envoyé en
+  signature, signé, contesté, ou portant une signature) ne s'abandonne plus ; un état des lieux encore brouillon part
+  avec le bail. Pour un état des lieux engagé, aucune route ne le supprime, et une seule sortie reste : envoyer le bail
+  en signature, puis le résilier (`terminate` accepte `pending_signature`) — cet envoi ferme les autres candidatures du
+  bien (décision 7, TCK-2734).
 
 ### Décision 4a du porteur (2026-11-13 ~18:50) — les brouillons d'état des lieux partent avec le bail (back-4)
 
@@ -174,8 +175,7 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
   (`tenant_signed`, `owner_signed`, `tenant_signed_at`, `owner_signed_at`, `signed_at`). Le prédicat est écrit une
   fois, `Inventory::engage()`, et lu par l'abandon comme par la fiche. Des brouillons jamais signés sont supprimés en
   douceur avec le bail, dans la même transaction ; tout ou rien : un seul état des lieux engagé retient aussi les
-  brouillons. ⚠ La ligne d'AC5 « un état des lieux, signé ou non → 422 » et la « Limite » de r1 ci-dessus ne valent
-  plus que pour un état des lieux engagé.
+  brouillons. AC5, AC9 et la « Limite » de r1 ci-dessus sont réécrits selon cette règle.
 - **Les verrous.** Bien → bail → états des lieux du bail (`lockForUpdate`, par `id`), puis les écritures. Tout
   écrivain d'un état des lieux (`InventoryService::underLock` : modifier, soumettre, contester, photos ;
   `InventorySignatureService::sign`) prend la ligne de l'état des lieux seule, sans bail ni bien ensuite (relu :
