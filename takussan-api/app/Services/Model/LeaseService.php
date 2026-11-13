@@ -129,6 +129,11 @@ class LeaseService
      * du bail, relue. `PropertyOwnerTransfer` écrit les baux après le bien, et `BookingService::confirm()`
      * les réservations après lui : prendre le bail avant le bien inverserait l'ordre. Dans la transaction
      * de l'appelant.
+     *
+     * L'AGENCE vient après (réserve r2 de la vérification de d87e423e7) : l'envoi la touche par le journal
+     * (clé étrangère `activity_log.agency_id`) et par le compteur de `LeaseObserver`. Ne pas la verrouiller
+     * ici en tête : tout écrivain qui tient un bien puis journalise s'interbloquerait avec. C'est l'achat de
+     * boost qui a changé d'ordre (`BoostPurchaseService::lock()`, bien puis agence).
      */
     public static function verrouillerLeBienPuisLeBail(Lease $lease): Lease
     {

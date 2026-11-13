@@ -147,11 +147,21 @@ final class BoostPurchaseService
         abort_code_unless((bool) $active, 422, 'boost.product_inactive');
     }
 
-    /** @return array{0: Agency, 1: Property} */
+    /**
+     * TCK-2734 (réserve r2 de la vérification de d87e423e7) — le BIEN avant l'agence, dans l'ordre global
+     * des verrous (`takussan-api/CLAUDE.md`, piège n° 10). Un écrivain qui tient un bien touche ensuite son
+     * agence : par le journal (`activity_log.agency_id` porte une clé étrangère, donc un `KEY SHARE` sur la
+     * ligne de l'agence), par un compteur (`LeaseObserver`), par le grand livre. L'envoi d'un bail en
+     * signature fait bien → bail → journal → agence (séquence mesurée) : un achat qui prenait l'agence puis
+     * le bien formait un cycle avec lui sur un même bien (déduit, course non rejouée au 2026-11-13). Le grand livre reprend son propre verrou sur l'agence
+     * (`CreditLedger`) : il vient après le bien, comme ici.
+     *
+     * @return array{0: Agency, 1: Property}
+     */
     private function lock(Property $property): array
     {
-        $agency = Agency::query()->whereKey($property->agency_id)->lockForUpdate()->firstOrFail();
         $locked = Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+        $agency = Agency::query()->whereKey($property->agency_id)->lockForUpdate()->firstOrFail();
 
         return [$agency, $locked];
     }

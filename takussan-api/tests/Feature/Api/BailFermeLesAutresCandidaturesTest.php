@@ -392,10 +392,44 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
                 $verrous[] = [$m[1], $m[2]];
             }
         });
+        $agence = $this->toucherDeLAgence();
         $this->envoyerEnSignature($bail)->assertOk();
 
         $this->assertSame(['properties', 'leases', 'bookings'], array_slice(array_column($verrous, 0), 0, 3));
         $this->assertStringEndsWith('order by "id" asc', $verrous[2][1]);
+        $this->assertLAgenceApresLeBien($agence());
+    }
+
+    /**
+     * TCK-2734 (réserve r2 de la vérification de d87e423e7) — ce que l'envoi fait à la ligne de l'AGENCE,
+     * dans l'ordre : son `for update`, l'`update` du compteur (`LeaseObserver`) et toute insertion qui pose
+     * un `agency_id` (le journal porte une clé étrangère : `KEY SHARE` sur l'agence). Les `for update` du bien
+     * sont notés aussi, pour l'ordre. C'est ce que l'épingle des seuls `select … for update` ne voyait pas
+     * (piège n° 10, « L'épingle ne voit pas tout »).
+     *
+     * @return \Closure(): list<string>
+     */
+    private function toucherDeLAgence(): \Closure
+    {
+        $vus = [];
+        DB::listen(function ($q) use (&$vus): void {
+            if (preg_match('/from "properties" where .* for update/', $q->sql) === 1) {
+                $vus[] = 'bien';
+            } elseif (preg_match('/^(update "agencies"|insert into "\w+" \(.*"agency_id")|from "agencies" where .* for (update|share|no key update)/', $q->sql) === 1) {
+                $vus[] = 'agence';
+            }
+        });
+
+        return function () use (&$vus): array {
+            return $vus;
+        };
+    }
+
+    /** @param  list<string>  $vus */
+    private function assertLAgenceApresLeBien(array $vus): void
+    {
+        $this->assertContains('agence', $vus, 'la sonde voit bien l\'agence (journal, compteur)');
+        $this->assertSame('bien', $vus[0], 'rien ne touche l\'agence avant le verrou du bien : l\'achat de boost prend le bien, puis l\'agence');
     }
 
     /** Même ordre pour la voie papier. */
@@ -410,8 +444,10 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
                 $verrous[] = $m[1];
             }
         });
+        $agence = $this->toucherDeLAgence();
         app(LeaseSignatureService::class)->signOnPaper($bail, UploadedFile::fake()->create('b.pdf', 20, 'application/pdf'), User::query()->findOrFail($this->location->user_id));
 
         $this->assertSame(['properties', 'leases', 'bookings'], array_slice($verrous, 0, 3));
+        $this->assertLAgenceApresLeBien($agence());
     }
 }

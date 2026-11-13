@@ -33,12 +33,15 @@ class BoostPurchaseUnderLockTest extends ApiTestCase
         $this->apiActingAsRole('agency_admin', ['agency' => $this->agency]);
     }
 
-    /** Écrit `$change` une fois, juste avant le `FOR UPDATE` sur l'espace : entre le contrôle et le verrou. */
+    /**
+     * Écrit `$change` une fois, juste avant le premier verrou de l'achat — celui du bien depuis TCK-2734 (r2) :
+     * entre le contrôle et le verrou.
+     */
     private function avantLeVerrou(callable $change): void
     {
         $fait = false;
         DB::beforeExecuting(function (string $sql) use (&$fait, $change): void {
-            if (! $fait && str_contains($sql, 'from "agencies"') && str_contains($sql, 'for update')) {
+            if (! $fait && str_contains($sql, 'from "properties"') && str_contains($sql, 'for update')) {
                 $fait = true;
                 $change();
             }
@@ -73,6 +76,30 @@ class BoostPurchaseUnderLockTest extends ApiTestCase
 
         $this->assertSame(500, app(CreditLedger::class)->balance($this->agency->id));
         $this->assertSame(0, PropertyBoost::query()->count());
+    }
+
+    /**
+     * TCK-2734 (réserve r2 de la vérification de d87e423e7) — l'achat verrouille le BIEN avant l'agence, dans
+     * l'ordre global (`takussan-api/CLAUDE.md`, piège n° 10) : l'envoi d'un bail en signature tient le bien
+     * puis touche l'agence (journal à clé étrangère, compteur des baux) ; l'ordre inverse formait un cycle
+     * avec lui sur un même bien (déduit de la séquence mesurée, course non rejouée). Aucun verrou ni écriture sur l'agence ne précède celui du bien.
+     */
+    public function test_l_achat_verrouille_le_bien_avant_l_agence(): void
+    {
+        $vus = [];
+        DB::listen(function ($q) use (&$vus): void {
+            if (preg_match('/from "(properties|agencies)" where .* for update/', $q->sql, $m) === 1) {
+                $vus[] = $m[1];
+            } elseif (preg_match('/^(update "agencies"|insert into "\w+" \(.*"agency_id")/', $q->sql) === 1) {
+                $vus[] = 'agencies';
+            }
+        });
+
+        $this->apiPost("/api/properties/{$this->property->id}/boosts", ['product_id' => $this->vedette()->id])
+            ->assertCreated();
+
+        $this->assertContains('agencies', $vus);
+        $this->assertSame('properties', $vus[0] ?? null, 'le premier verrou de l\'achat est celui du bien');
     }
 
     public function test_sans_changement_l_achat_passe(): void

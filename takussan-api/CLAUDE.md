@@ -911,6 +911,19 @@ rien attraper.*
     de ces biens, 4 à 9 interblocages sur 20 sans lui. Plusieurs lignes d'une même table : par
     identifiant croissant (`orderBy('id')`).
 
+    **Le bail, ses réservations et l'agence viennent après le bien** (TCK-2734, réserve r2 de la
+    vérification de d87e423e7) : l'envoi en signature et la signature sur papier prennent bien → bail →
+    réservations (`LeaseService::verrouillerLeBienPuisLeBail()`), puis touchent l'agence — par le journal
+    (`activity_log.agency_id` porte une clé étrangère : chaque ligne écrite prend un `KEY SHARE` sur
+    l'agence, qui heurte son `for update`) et par le compteur de `LeaseObserver`. Presque tout écrivain
+    journalise : **l'agence vient donc après le bien, même quand elle sert de point de sérialisation**.
+    L'achat de boost la prenait avant (`BoostPurchaseService::lock()`) : un cycle avec l'envoi sur un même
+    bien, DÉDUIT de la séquence mesurée de l'envoi (course à deux processus non rejouée au 2026-11-13) ;
+    il prend désormais le bien d'abord. Ne pas « corriger » un tel cycle en verrouillant
+    l'agence en tête de l'autre écrivain : on en ouvre un neuf avec tous ceux qui tiennent un bien et
+    journalisent ensuite. Reste ouvert, antérieur : `PayoutService` (agence → bail) contre `sign()`
+    (bail → agence par l'observateur).
+
     ⚠ **Une ÉCRITURE verrouille sa ligne comme un `for update`.** Un `update()` ou un `delete()` — de
     modèle ou de masse — sur un bien, après la ligne `users`, inverse l'ordre aussi sûrement qu'un
     `lockForUpdate()`. (Un `UPDATE` qui ne touche pas de clé prend `FOR NO KEY UPDATE` : il ne heurte
