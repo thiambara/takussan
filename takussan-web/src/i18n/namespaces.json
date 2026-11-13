@@ -76,7 +76,8 @@
       "visits"
     ],
     "(dashboard)/app/tasks": [
-      "agentCrm"
+      "journee",
+      "taches"
     ],
     "[locale]/(public)/pay": [
       "lienPublic",
@@ -340,7 +341,7 @@
     "(dashboard)/app/leads": 33,
     "(dashboard)/app/tasks": 26,
     "[locale]/(public)/pay": 24,
-    "(dashboard)/app/agency": 58,
+    "(dashboard)/app/agency": 57,
     "(dashboard)/app/leases": 32,
     "(dashboard)/app/owners": 51,
     "(dashboard)/app/visits": 33,
@@ -365,8 +366,8 @@
     "(super-admin)/super-admin": 56,
     "[locale]/(public)/account": 26,
     "(dashboard)/app/properties": 64,
-    "[locale]/(public)/agencies": 26,
-    "[locale]/(public)/bookings": 26,
+    "[locale]/(public)/agencies": 25,
+    "[locale]/(public)/bookings": 25,
     "(dashboard)/app/commissions": 26,
     "(dashboard)/app/inventories": 31,
     "(dashboard)/app/maintenance": 29,

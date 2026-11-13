@@ -1,30 +1,30 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { PageHeader } from '@/components/console';
-import { MyTasks } from '@/components/crm/MyTasks';
-import { TASK_DUE_FILTERS } from '@/lib/queries/agent-crm';
+import { getMeAction } from '@/app/actions/auth';
+import { PageDesTaches } from '@/components/taches/PageDesTaches';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
+import { isAdmin } from '@/lib/roles';
+import { lireEtat } from '@/lib/taches/taches';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('agentCrm.myTasks');
-  return { title: t('metaTitle') };
+  const t = await getTranslations('taches');
+  return { title: t('titre') };
 }
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-/** TCK-591 §3 — « Mes tâches ». `?filter[due]=today` est la cible de la tuile « Tâches du jour ». */
+/**
+ * TCK-2596 (lot 2) — « Tâches ». L'URL garde son contrat (TCK-591, TCK-1733) : `?filter[due]=today`
+ * et `?filter[assigned_to]=me` (la tuile « Tâches du jour ») ouvrent la liste comme avant ; sans
+ * échéance, elle s'ouvre sur En retard + Aujourd'hui. `?nouvelle=1` ouvre « Nouvelle tâche ». Le
+ * filtre d'équipe n'est offert qu'au lecteur de l'agence (`crm.view_all`, que `filter[team]=1` exige).
+ */
 export default async function Page({ searchParams }: { searchParams: SearchParams }) {
-  const t = await getTranslations('agentCrm.myTasks');
   const params = await searchParams;
-  const raw = params['filter[due]'];
-  const due = TASK_DUE_FILTERS.find((f) => f === raw) ?? null;
-  // TCK-1733 (P167.04) — la portée de la tuile « Tâches du jour » : les tâches qui me sont assignées.
-  const assignedToMe = params['filter[assigned_to]'] === 'me';
+  const user = await getMeAction();
+  const admin = isAdmin(user.roles);
+  const capacites = admin ? await capacitesDuProfilActif().catch(() => null) : null;
 
-  return (
-    <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('description')} />
-      <MyTasks initialDue={due} initialAssignedToMe={assignedToMe} />
-    </div>
-  );
+  return <PageDesTaches etatInitial={lireEtat(params)} ouvrirNouvelle={params.nouvelle === '1'} equipeVisible={(capacites ?? []).includes('crm.view_all')} />;
 }

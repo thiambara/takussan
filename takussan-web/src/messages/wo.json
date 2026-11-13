@@ -2161,52 +2161,6 @@
       },
       "stageFailed": "Soppi tolluwaay bi antuwul."
     },
-    "myTasks": {
-      "metaTitle": "Samay liggéey",
-      "title": "Samay liggéey",
-      "description": "Li nga war a def, kiliyaan ak kiliyaan, kër ak kër.",
-      "filterLabel": "Àpp",
-      "filter": {
-        "all": "Yépp",
-        "overdue": "Yi yéex",
-        "today": "Tey",
-        "upcoming": "Yi di ñëw",
-        "none": "Yi amul àpp"
-      },
-      "empty": {
-        "all": "Amul benn liggéey.",
-        "overdue": "Amul liggéey bu yéex.",
-        "today": "Amul dara tey.",
-        "upcoming": "Amul liggéey bu di ñëw.",
-        "none": "Amul liggéey bu amul àpp."
-      },
-      "loadFailed": "Sa liggéey yi yebuwuñu.",
-      "retry": "Jéemaat",
-      "loadMore": "Gis yeneen",
-      "toggle": "Bind ne « {title} » jeex na",
-      "toggleFailed": "Liggéey bi soppiwul.",
-      "noDue": "Amul àpp",
-      "hidden": {
-        "customer": "Ab kiliyaan",
-        "property": "Ab kër"
-      },
-      "create": {
-        "title": "Liggéey bu bees",
-        "taskTitle": "Lan mooy war a def ?",
-        "attachTo": "Takk ko ak",
-        "type": {
-          "customer": "Ab kiliyaan",
-          "property": "Ab kër"
-        },
-        "search": {
-          "customer": "Seet ab kiliyaan ci turam",
-          "property": "Seet ab kër ci turam"
-        },
-        "change": "Soppi",
-        "submit": "Sos liggéey bi",
-        "failed": "Liggéey bi sosuwul."
-      }
-    },
     "calendar": {
       "mine": "Samay ndaje",
       "types": {
@@ -19377,6 +19331,146 @@
       "week": "Sem.",
       "month": "Mois",
       "list": "Liste"
+    }
+  },
+  "taches": {
+    "titre": "Tâches",
+    "echecCoche": "La tâche n’a pas pu être mise à jour.",
+    "resume": {
+      "retard": "{n} en retard",
+      "aujourdhui": "{n} aujourd’hui",
+      "aVenir": "{n} à venir"
+    },
+    "assigneesAMoi": "Assignées à moi",
+    "chargement": "Chargement des tâches",
+    "echecChargement": "Les tâches n’ont pas pu être chargées.",
+    "reessayer": "Réessayer",
+    "vide": {
+      "overdue": "Aucune tâche en retard.",
+      "today": "Aucune tâche pour aujourd’hui.",
+      "upcoming": "Aucune tâche à venir.",
+      "none": "Aucune tâche sans échéance.",
+      "plusieurs": "Rien à faire sur ces échéances.",
+      "toutes": "Aucune tâche.",
+      "faites": "Aucune tâche faite."
+    },
+    "groupe": {
+      "retard": "En retard",
+      "aujourdhui": "Aujourd’hui",
+      "semaine": "Cette semaine",
+      "plusTard": "Plus tard",
+      "sans": "Sans échéance",
+      "faites": "Faites"
+    },
+    "pastilles": {
+      "libelle": "Échéance",
+      "overdue": "En retard",
+      "today": "Aujourd’hui",
+      "upcoming": "À venir",
+      "none": "Sans échéance",
+      "done": "Faites",
+      "all": "Toutes"
+    },
+    "equipe": {
+      "libelle": "Assignée à",
+      "mesTaches": "Mes tâches",
+      "toute": "Toute l’équipe"
+    },
+    "voirPlus": "Voir plus",
+    "ligne": {
+      "sansEcheance": "Sans échéance",
+      "enRetardDepuis": "En retard depuis le {date}",
+      "aujourdhuiA": "Aujourd’hui, {heure}",
+      "cache": {
+        "customer": "Un client",
+        "property": "Un bien"
+      },
+      "fait": "Fait",
+      "reporter": "Reporter",
+      "cocher": "Marquer « {titre} » comme faite",
+      "rouvrir": "Rouvrir « {titre} »",
+      "appeler": "Appeler {nom}",
+      "whatsapp": "Écrire à {nom} sur WhatsApp",
+      "messageWhatsApp": "Bonjour {prenom},"
+    },
+    "fiche": {
+      "titreFeuille": "Tâche",
+      "echec": "La tâche n’a pas pu être mise à jour.",
+      "moi": "Moi",
+      "cocher": "Marquer « {titre} » comme faite",
+      "rouvrir": "Rouvrir « {titre} »",
+      "titre": "Titre de la tâche",
+      "enregistrer": "Enregistrer",
+      "modifierLeTitre": "Modifier le titre",
+      "reporterA": "Reporter à",
+      "report": {
+        "demain": "Demain",
+        "lundi": "Lundi",
+        "semaine": "Dans une semaine",
+        "choisir": "Choisir…",
+        "valider": "Reporter"
+      },
+      "rattacheeA": "Rattachée à",
+      "cache": {
+        "customer": "Un client",
+        "property": "Un bien"
+      },
+      "assigneeA": "Assignée à",
+      "personne": "Personne",
+      "creee": "Créée",
+      "creeeLePar": "{date}, par {nom}",
+      "appeler": "Appeler {prenom}",
+      "whatsapp": "WhatsApp",
+      "messageWhatsApp": "Bonjour {prenom}, je reviens vers vous au sujet de : {titre}.",
+      "supprimer": "Supprimer la tâche",
+      "confirmerSuppression": "Confirmer la suppression",
+      "annuler": "Annuler",
+      "echecSuppression": "La tâche n’a pas pu être supprimée.",
+      "marquerFaite": "Marquer faite",
+      "rouvrirLaTache": "Rouvrir la tâche"
+    },
+    "nouvelle": {
+      "titreFeuille": "Nouvelle tâche",
+      "moi": "Moi",
+      "moiNomme": "Moi ({nom})",
+      "echec": "La tâche n’a pas pu être créée.",
+      "titre": "Titre",
+      "titreExemple": "Relancer Mariama après la visite",
+      "echeance": "Échéance",
+      "jour": {
+        "aujourdhui": "Aujourd’hui",
+        "demain": "Demain",
+        "lundi": "Lundi",
+        "date": "Date…"
+      },
+      "ajouterUneHeure": "+ Heure",
+      "heure": "Heure",
+      "rattacheeA": "Rattachée à",
+      "prerempli": {
+        "customer": "Client · prérempli depuis sa fiche",
+        "property": "Bien · prérempli depuis sa fiche"
+      },
+      "genre": {
+        "customer": "Client",
+        "property": "Bien"
+      },
+      "changer": "Changer",
+      "un": {
+        "customer": "Un client",
+        "property": "Un bien"
+      },
+      "chercher": {
+        "customer": "Chercher un client (2 lettres au moins)",
+        "property": "Chercher un bien (2 lettres au moins)"
+      },
+      "assigneeA": "Assignée à",
+      "creer": "Créer la tâche",
+      "creerPour": "Créer la tâche · {jour}",
+      "pour": {
+        "aujourdhui": "aujourd’hui",
+        "demain": "demain",
+        "lundi": "lundi"
+      }
     }
   }
 }
