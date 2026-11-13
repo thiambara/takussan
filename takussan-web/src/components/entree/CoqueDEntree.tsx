@@ -97,6 +97,13 @@ export interface DeclarationDEntree {
    * sont inertes — `aria-disabled`, hors de la tabulation, le clic ne mène nulle part.
    */
   readonly sortieBloquee?: boolean;
+  /**
+   * TCK-2611 — l'objet à GAUCHE au bureau large (dès `xl`, maquette `app-entree-invitation`,
+   * `DeuxColonnes`) : 1080 px au plus, l'objet en piste souple, le formulaire en colonne de 400 px à
+   * droite. Sous 1280, l'objet n'est pas rendu : la page le dit elle-même dans sa colonne (l'agence qui
+   * invite, au téléphone). Absent : l'objet reste à droite de la colonne, ou dessous (TCK-2598).
+   */
+  readonly objetAGauche?: boolean;
 }
 
 /**
@@ -150,10 +157,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee } = declaration;
+  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee });
-  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee]);
+    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche });
+  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -231,6 +238,7 @@ export function CoqueDEntree({
   const pleinEcran = declaree.pleinEcran === true;
   const noteDeBarre = declaree.noteDeBarre ?? null;
   const sortieBloquee = declaree.sortieBloquee === true;
+  const objetAGauche = declaree.objetAGauche === true || parDefaut.objetAGauche === true;
 
   const decalage = useDecalageDuClavier();
 
@@ -382,17 +390,28 @@ export function CoqueDEntree({
             className={cn('flex-1 px-4 pb-8 pt-5', 'lg:px-8 lg:pb-16 lg:pt-16', panneau ? 'xl:px-10 xl:pt-12' : null)}
           >
             {/* Sous 1280, la colonne et l'objet s'empilent : aucun panneau ne reste à côté du contenu. */}
-            <div className={cn('mx-auto w-full', objet && !panneau ? 'xl:flex xl:max-w-[65rem] xl:items-start xl:gap-20' : null)}>
+            <div
+              className={cn(
+                'mx-auto w-full',
+                objet && !panneau ? (objetAGauche ? 'xl:flex xl:max-w-[67.5rem] xl:items-start xl:gap-20' : 'xl:flex xl:max-w-[65rem] xl:items-start xl:gap-20') : null,
+              )}
+            >
+              {objet && !panneau && objetAGauche ? (
+                // TCK-2611 — à gauche dès 1280, absent en dessous (la page le dit dans sa colonne).
+                <aside data-objet-de-l-intention="" className="hidden min-w-0 xl:block xl:flex-1">
+                  {objet}
+                </aside>
+              ) : null}
               <div
                 className={cn(
                   'mx-auto w-full',
                   largeur === 'etroite' ? 'max-w-[30rem]' : 'max-w-4xl',
-                  panneau ? 'xl:max-w-[25rem]' : objet ? 'xl:mx-0 xl:w-[30rem] xl:flex-none' : null,
+                  panneau ? 'xl:max-w-[25rem]' : objet ? (objetAGauche ? 'xl:mx-0 xl:w-[25rem] xl:flex-none xl:pt-4' : 'xl:mx-0 xl:w-[30rem] xl:flex-none') : null,
                 )}
               >
                 {children}
               </div>
-              {objet && !panneau ? (
+              {objet && !panneau && !objetAGauche ? (
                 <aside data-objet-de-l-intention="" className="mx-auto mt-10 hidden w-full max-w-[30rem] lg:block xl:sticky xl:top-24 xl:mt-0 xl:max-w-none xl:min-w-0 xl:flex-1">
                   {objet}
                 </aside>

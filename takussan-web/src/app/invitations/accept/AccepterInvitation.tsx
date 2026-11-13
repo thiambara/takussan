@@ -1,12 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { accepterInvitationAction } from '@/app/actions/invitations';
+import { BoutonCollant } from '@/components/auth/BoutonCollant';
+
+import { BOUTON_D_INVITATION } from './PiecesDeLInvitation';
+import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { fieldDensityScope } from '@/components/ui/field-density';
@@ -18,6 +23,7 @@ import { destinationDInvitation } from '@/lib/invitation-destination';
 import type { NomsPreremplis } from '@/lib/invitation-prerempli';
 import { avecRedirection } from '@/lib/redirection-interne';
 import { hrefConnexionPour } from '@/components/auth/lien-connexion';
+import { cn } from '@/lib/utils';
 
 /**
  * `profilesKeys.all` de `useProfiles`, redéclarée comme dans `credits-solde.ts` : importer le hook
@@ -35,16 +41,42 @@ const CLE_PROFILS = ['me', 'profiles'] as const;
  *   s'ouvre avec ce mot de passe. « J'ai déjà un compte » passe par la connexion, qui ramène ici.
  *
  * Dans les deux cas, on finit dans l'assistant du profil que l'invitation active.
+ *
+ * TCK-2611 — la page d'invitation (`EntreeDInvitation`) monte ce composant pour ses deux voies sans
+ * code : la voie mot de passe, repliée derrière « Utiliser un mot de passe » (l'œil compris), et le
+ * compte connecté (« Rejoindre Dakar Immo », collé au-dessus du clavier, « Ce n'est pas moi » sous le
+ * bouton). Ses props facultatives n'en changent que les libellés et la place du bouton : les appels,
+ * les destinations et la connexion restent ceux de TCK-626.
  */
+interface AccepterInvitationProps {
+  readonly jeton: string;
+  readonly connecte: boolean;
+  readonly prerempli?: NomsPreremplis | null;
+  /** Le libellé du geste connecté (« Rejoindre Dakar Immo ») ; défaut « Accepter l'invitation ». */
+  readonly libelleAccepter?: string;
+  /** Le texte au-dessus des noms d'un compte connecté sans nom ; défaut `confirmName`. */
+  readonly aideDuNom?: string;
+  /** Sous le bouton, dans la même barre (« Ce n'est pas moi — changer de compte »). */
+  readonly apres?: ReactNode;
+  /** Le bouton collé au-dessus du clavier au téléphone (`BoutonCollant`). */
+  readonly collant?: boolean;
+  /** Voie mot de passe : un lien de plus à côté de « J'ai déjà un compte » (« Recevoir plutôt un code »). */
+  readonly autreVoie?: ReactNode;
+  /** TCK-2611 — refus 403 (le compte connecté n'est pas le destinataire) : « Changer de compte ». */
+  readonly onChangerDeCompte?: () => void;
+}
+
 export function AccepterInvitation({
   jeton,
   connecte,
   prerempli = null,
-}: {
-  readonly jeton: string;
-  readonly connecte: boolean;
-  readonly prerempli?: NomsPreremplis | null;
-}) {
+  libelleAccepter,
+  aideDuNom,
+  apres = null,
+  collant = false,
+  autreVoie = null,
+  onChangerDeCompte,
+}: AccepterInvitationProps) {
   const t = useTranslations('invitationAccept');
   const router = useRouter();
   const locale = useCurrentLocale();
@@ -55,7 +87,10 @@ export function AccepterInvitation({
   const [motDePasse, setMotDePasse] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [aConnecter, setAConnecter] = useState(false);
+  const [aChanger, setAChanger] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [enCours, demarrer] = useTransition();
+  const decalage = useDecalageDuClavier();
 
   const ici = `/invitations/accept?token=${encodeURIComponent(jeton)}`;
   // TCK-2604 — l'action interrompue suit : la connexion dit « Votre invitation ».
@@ -68,6 +103,7 @@ export function AccepterInvitation({
       if (!resultat.ok) {
         setErreur(resultat.message);
         setAConnecter(resultat.seConnecter);
+        setAChanger(!resultat.seConnecter && resultat.changerDeCompte === true);
         return;
       }
       const destination = destinationDInvitation(resultat.invitation.role, resultat.invitation.invitable_id);
@@ -115,8 +151,29 @@ export function AccepterInvitation({
           {t('signIn')}
         </Link>
       ) : null}
+      {aChanger && onChangerDeCompte ? (
+        <button type="button" onClick={onChangerDeCompte} className="w-fit font-medium text-primary underline-offset-4 hover:underline">
+          {t('connecte.changer')}
+        </button>
+      ) : null}
     </div>
   ) : null;
+
+  const libelleDuGeste = libelleAccepter ?? t('accept');
+  /** Le geste connecté : dans le flux, ou collé au-dessus du clavier avec ce qui le suit. */
+  function geste(bouton: ReactNode) {
+    if (!collant) return bouton;
+    return (
+      <>
+        {/* Clavier fermé, le pied garde le retrait bas de la maquette de l'invitation (16 px) ; ouvert, celui de la famille. */}
+        <BoutonCollant decalage={decalage} className={cn('max-lg:mt-6 lg:mt-5', decalage > 0 ? null : 'max-lg:pb-4')}>
+          {bouton}
+          {apres}
+        </BoutonCollant>
+        {apres ? <div aria-hidden="true" className="h-11 flex-none lg:hidden" /> : null}
+      </>
+    );
+  }
 
   const champsDuNom = (
     <div className="grid gap-5 sm:grid-cols-2">
@@ -145,12 +202,15 @@ export function AccepterInvitation({
         noValidate
         className="flex flex-col gap-5"
       >
-        <p className="text-sm text-muted-foreground">{t('confirmName')}</p>
+        <p className="text-sm text-muted-foreground">{aideDuNom ?? t('confirmName')}</p>
         {champsDuNom}
         {alerte}
-        <Button type="submit" size="lg" className="h-11 px-6 sm:self-start" disabled={enCours}>
-          {enCours ? t('accepting') : t('accept')}
-        </Button>
+        {geste(
+          <Button type="submit" size="lg" className={collant ? BOUTON_D_INVITATION : 'h-11 px-6 sm:self-start'} disabled={enCours}>
+            {enCours ? t('accepting') : libelleDuGeste}
+          </Button>,
+        )}
+        {collant ? null : apres}
       </form>
     );
   }
@@ -159,9 +219,12 @@ export function AccepterInvitation({
     return (
       <div className="flex flex-col gap-4">
         {alerte}
-        <Button type="button" size="lg" className="h-11 px-6 sm:self-start" disabled={enCours} onClick={() => accepter()}>
-          {enCours ? t('accepting') : t('accept')}
-        </Button>
+        {geste(
+          <Button type="button" size="lg" className={collant ? BOUTON_D_INVITATION : 'h-11 px-6 sm:self-start'} disabled={enCours} onClick={() => accepter()}>
+            {enCours ? t('accepting') : libelleDuGeste}
+          </Button>,
+        )}
+        {collant ? null : apres}
       </div>
     );
   }
@@ -171,9 +234,17 @@ export function AccepterInvitation({
       {champsDuNom}
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-mot-de-passe">{t('password')}</Label>
-        <Input id="invitation-mot-de-passe" type="password" autoComplete="new-password" maxLength={72}
-          value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} disabled={enCours}
-          aria-describedby="invitation-mot-de-passe-aide" />
+        {/* TCK-2611 — l'œil : le mot de passe se relit avant d'être envoyé (« avec l'œil », ticket). */}
+        <div className="relative">
+          <Input id="invitation-mot-de-passe" type={visible ? 'text' : 'password'} autoComplete="new-password" maxLength={72}
+            value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} disabled={enCours}
+            aria-describedby="invitation-mot-de-passe-aide" className="pr-11" />
+          <button type="button" onClick={() => setVisible((v) => !v)} aria-pressed={visible}
+            aria-label={visible ? t('motDePasse.masquer') : t('motDePasse.afficher')}
+            className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring">
+            {visible ? <EyeOff className="size-[1.125rem]" strokeWidth={1.75} aria-hidden="true" /> : <Eye className="size-[1.125rem]" strokeWidth={1.75} aria-hidden="true" />}
+          </button>
+        </div>
         <p id="invitation-mot-de-passe-aide" className="text-xs text-muted-foreground">{t('passwordHint')}</p>
       </div>
       {alerte}
@@ -185,6 +256,7 @@ export function AccepterInvitation({
           className="flex min-h-11 items-center justify-center rounded-lg px-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
           {t('haveAccount')}
         </Link>
+        {autreVoie}
       </div>
     </form>
   );

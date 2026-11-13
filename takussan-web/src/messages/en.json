@@ -19232,9 +19232,6 @@
   },
   "invitationAccept": {
     "metaTitle": "Accept an invitation",
-    "title": "An agency has invited you to Takussan",
-    "subtitleSignedIn": "Accept to join the space that invited you.",
-    "subtitleSignedOut": "Create your account to join the space that invited you.",
     "accept": "Accept the invitation",
     "accepting": "One moment…",
     "firstName": "First name",
@@ -19246,9 +19243,188 @@
     "haveAccount": "I already have an account",
     "signIn": "Sign in",
     "required": "Enter your first name and a password.",
-    "missingToken": "This invitation link is incomplete. Open it again from the message you received.",
     "errors": {
-      "generic": "The invitation could not be accepted. Try again."
+      "generic": "The invitation could not be accepted. Try again.",
+      "tropDeDemandes": "Too many requests. Wait a moment before trying again.",
+      "numeroInvalide": "This number is not valid.",
+      "echec": "Something went wrong. Try again.",
+      "secondFacteurInvalide": "This code is not valid.",
+      "autreCompte": "This invitation was sent to another account ({email}). Sign in with that one to accept it.",
+      "autreCompteSans": "This invitation was sent to another account. Sign in with that one to accept it.",
+      "fermee": "This invitation can no longer be accepted.",
+      "mauvaisCompte": "This invitation does not match the signed-in account. Switch account to accept it.",
+      "verrouille": "Too many attempts: this number is blocked for a while. Try again later.",
+      "bloque": "This account is suspended.",
+      "codeInvalide": "That is not the right code. Check it, or ask for another one."
+    },
+    "rejoindre": "Join {agence}",
+    "meConnecter": "Sign in",
+    "compteExistant": "An account already exists with this address. Sign in to accept the invitation.",
+    "envoi": "Sending…",
+    "continuer": "Continue with my number",
+    "continuerAide": "You get a code by text message. No password to make up.",
+    "voies": {
+      "code": "Get a code instead",
+      "motDePasse": "Use a password"
+    },
+    "titre": {
+      "invitant": "{prenom} invites you as <role>{libelle}</role>",
+      "sansInvitant": "An invitation as <role>{libelle}</role>",
+      "chez": "at {agence}",
+      "rejoignez": "Join {agence}"
+    },
+    "roles": {
+      "owner": "landlord",
+      "tenant": "tenant",
+      "agent": "agent",
+      "agent_senior": "senior agent",
+      "agent_manager": "team manager",
+      "agency_admin": "agency manager",
+      "service_provider": "service provider",
+      "super_admin": "Takussan team member",
+      "autre": "member"
+    },
+    "agence": {
+      "verifiee": "Verified agency",
+      "verifieeLigne": "verified agency",
+      "biens": "{n, plural, one {# property} other {# properties}}"
+    },
+    "attente": {
+      "titre": "What awaits you",
+      "owner": {
+        "biens": "{n, plural, one {# property managed by the agency} other {# properties managed by the agency}}",
+        "biensSans": "Your properties, managed by the agency",
+        "biensDetail": "Their rentals, leases and repairs",
+        "loyers": "Your rents and payouts",
+        "loyersDetail": "What is collected, what is paid out to you, and when",
+        "quittances": "Your rent receipts",
+        "quittancesDetail": "Every month, without asking"
+      },
+      "tenant": {
+        "bail": "Your lease",
+        "bailDetail": "Its dates, rent and documents",
+        "loyers": "Your rent",
+        "loyersDetail": "What is due, what is paid, and when",
+        "quittances": "Your rent receipts",
+        "quittancesDetail": "Every month, without asking"
+      },
+      "agent": {
+        "prospects": "The prospects the agency assigns to you",
+        "prospectsDetail": "Their requests and your exchanges, in one place",
+        "biens": "The agency’s properties",
+        "biensDetail": "Listings, viewings and files",
+        "agenda": "Your viewing calendar",
+        "agendaDetail": "Every appointment, in the right place"
+      },
+      "prestataire": {
+        "intervention": "A job is waiting for you",
+        "interventions": "The jobs the agency assigns to you",
+        "interventionsDetail": "The place, the problem, and who to contact",
+        "devis": "Your quotes and invoices",
+        "devisDetail": "Sent and tracked in one place"
+      }
+    },
+    "pourQui": {
+      "complet": "Invitation for <fort>{pour}</fort> · <ligne>valid until {date}</ligne>",
+      "seul": "Invitation for <fort>{pour}</fort>",
+      "date": "<ligne>Valid until {date}</ligne>"
+    },
+    "noms": {
+      "nom": "Last name",
+      "aide": "Filled in by {agence}. Correct it if needed.",
+      "aideSans": "Filled in by the agency. Correct it if needed."
+    },
+    "numero": {
+      "libelle": "Your number",
+      "aideSms": "Given by {agence}. It is the number you will sign in with.",
+      "aideSmsSans": "Given by the agency. It is the number you will sign in with.",
+      "aideEmail": "You will sign in with this number: the code is sent to it."
+    },
+    "code": {
+      "retour": "Back",
+      "pastille": "<fort>{agence}</fort> · invitation as {role}",
+      "titre": "Enter your code",
+      "envoye": "Code sent to <fort>{numero}</fort>",
+      "modifier": "Change",
+      "libelle": "Code received by text message",
+      "rienRecu": "Nothing received?",
+      "renvoyer": "Resend the code",
+      "renvoyerDans": "Resend the code in {temps}",
+      "ensuite": "This code verifies your number and lets you in in one step. Right after: <fort>your space</fort>.",
+      "ensuiteBiens": "This code verifies your number and lets you in in one step. Right after: <fort>{n, plural, one {your property} other {your # properties}}</fort>.",
+      "verification": "Checking…"
+    },
+    "conditions": {
+      "titre": "Terms of use",
+      "intro": "Before you come in, accept Takussan’s terms of use. Your code is still valid.",
+      "accepter": "I accept the <lien>terms of use</lien>",
+      "continuer": "Continue"
+    },
+    "secondFacteur": {
+      "titre": "Two-step verification",
+      "intro": "Enter the code from your authenticator app.",
+      "introSecours": "Enter one of your recovery codes.",
+      "libelle": "6-digit code",
+      "libelleSecours": "Recovery code",
+      "verifier": "Verify",
+      "utiliserApp": "Use the app",
+      "utiliserSecours": "Use a recovery code"
+    },
+    "test": {
+      "titre": "Test environment.",
+      "texte": "No text message is sent from here.",
+      "code": "Your code: <fort>{code}</fort>"
+    },
+    "connecte": {
+      "compte": "Signed-in account",
+      "pasMoi": "Not me — switch account",
+      "changer": "Switch account",
+      "sansNom": "Your account has no name yet: {agence} suggested this one. Confirm or correct it."
+    },
+    "motDePasse": {
+      "afficher": "Show password",
+      "masquer": "Hide password"
+    },
+    "ferme": {
+      "expiree": {
+        "titre": "This invitation has expired",
+        "texte": "{agence} sent it to you on {date}. Invitations stay valid for 7 days. Nothing is lost: the agency can send you a new one in one step.",
+        "texteSans": "Invitations stay valid for 7 days. Nothing is lost: the agency can send you a new one in one step.",
+        "demander": "Ask for a new invitation",
+        "aide": "The request goes to the agency: you have nothing to write.",
+        "envoyee": "Request sent. {agence} can now send you a new invitation.",
+        "envoyeeSans": "Request sent. The agency can now send you a new invitation.",
+        "trop": "Too many requests. Try again in a moment.",
+        "echec": "The request was not sent. Try again."
+      },
+      "annulee": {
+        "titre": "This invitation was cancelled",
+        "texte": "{agence} withdrew this invitation. The agency can tell you more.",
+        "texteSans": "The agency withdrew this invitation.",
+        "action": "Call the agency"
+      },
+      "acceptee": {
+        "titre": "This invitation has already been used",
+        "texte": "The account that accepted it is already part of {agence}. Sign in to find it.",
+        "texteSans": "The account that accepted it already exists. Sign in to find it.",
+        "action": "Sign in"
+      },
+      "inconnue": {
+        "titre": "This invitation link is unknown",
+        "texte": "Check the link you received: it may have been cut off."
+      },
+      "incomplet": {
+        "titre": "Incomplete link",
+        "texte": "This invitation link is incomplete. Open it again from the message you received."
+      },
+      "indisponible": {
+        "titre": "The invitation can’t open right now",
+        "texte": "The service is not responding. Try again in a moment.",
+        "action": "Try again"
+      },
+      "appeler": "Or call the agency:",
+      "accueil": "Go to the home page",
+      "carte": "Invitation of {date}"
     }
   },
   "radarClaim": {

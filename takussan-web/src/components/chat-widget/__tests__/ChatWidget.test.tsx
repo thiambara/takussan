@@ -108,6 +108,12 @@ describe('<ChatWidget> visibility', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('TCK-2611 — ne rend rien sur la page d’invitation, page d’entrée', () => {
+    usePathnameMock.mockReturnValue('/invitations/accept');
+    const { container } = render(wrap(<ChatWidget />));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders nothing on /maintenance', () => {
     usePathnameMock.mockReturnValue('/maintenance');
     const { container } = render(wrap(<ChatWidget />));

@@ -23,7 +23,11 @@ export type AccepterInvitationResultat =
    * sert à DIRE à quel compte se connecter, jamais à préremplir le formulaire de connexion.
    */
   | { ok: false; seConnecter: true; emailMasque: string | null; message: string }
-  | { ok: false; seConnecter: false; message: string };
+  /**
+   * TCK-2611 — `changerDeCompte` : 403 `invitation.email_mismatch` / `phone_mismatch`, le compte connecté
+   * n'est pas le destinataire (ADR-0094 § 7) ; l'écran propose de changer de compte.
+   */
+  | { ok: false; seConnecter: false; changerDeCompte?: boolean; message: string };
 
 /**
  * TCK-626 — `POST /api/invitations/{token}/accept`, avec le jeton de session s'il y en a un.
@@ -57,6 +61,10 @@ export async function accepterInvitationAction(
           emailMasque: corps.email ?? null,
           message: messageErreurApi(err, tRacine, repli),
         };
+      }
+      const code = (err.data ?? {}) as { code?: unknown };
+      if (err.status === 403 && (code.code === 'invitation.email_mismatch' || code.code === 'invitation.phone_mismatch')) {
+        return { ok: false, seConnecter: false, changerDeCompte: true, message: t('errors.mauvaisCompte') };
       }
       return { ok: false, seConnecter: false, message: messageErreurApi(err, tRacine, repli) };
     }

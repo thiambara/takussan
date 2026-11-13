@@ -59,6 +59,10 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   // TCK-2601 — « Revenir à l'annonce » du panneau de compte (bureau) : referme le panneau sur l'étape
   // de l'assistant qu'il remplace, dans la même page — un pas dans le formulaire, pas une page quittée.
   'src/components/publication/CadreDeLaFeuille.tsx': 'etape',
+  // TCK-2611 — l'écran du code de l'invitation : la flèche de sa barre (téléphone) et « Retour »
+  // (bureau) ramènent à l'étape du numéro, dans la même page — un pas dans l'entrée, pas une
+  // page quittée (la page entière est hors de /app).
+  'src/app/invitations/accept/EntreeDInvitation.tsx': 'etape',
   // TCK-2592 — le chevron qui replie la colonne Gagné / Perdu du kanban en bandeau : un repli, pas un retour.
   'src/components/pipeline/etapes/ColonneDuPipeline.tsx': 'repli',
   'src/components/bookings/BookingTunnel.tsx': 'hors-app',

@@ -19232,9 +19232,6 @@
   },
   "invitationAccept": {
     "metaTitle": "Nangu ab woo",
-    "title": "Woo nañu la ci Takussan",
-    "subtitleSignedIn": "Nangul ngir boole ak bérëb bi la woo.",
-    "subtitleSignedOut": "Sosal sa kont ngir boole ak bérëb bi la woo.",
     "accept": "Nangu woo bi",
     "accepting": "Xaaral tuuti…",
     "firstName": "Tur",
@@ -19246,9 +19243,188 @@
     "haveAccount": "Am naa kont ba pare",
     "signIn": "Dugg",
     "required": "Bindal sa tur ak benn baatu jàll.",
-    "missingToken": "Lëkkalekaay bii matul. Ubbiwaatal ko ci bataaxal bi nga jot.",
     "errors": {
-      "generic": "Mënunu nangu woo bi. Jéemaatal."
+      "generic": "Mënunu nangu woo bi. Jéemaatal.",
+      "tropDeDemandes": "Trop de demandes. Patientez un instant avant de réessayer.",
+      "numeroInvalide": "Ce numéro n’est pas valide.",
+      "echec": "Une erreur est survenue. Réessayez.",
+      "secondFacteurInvalide": "Ce code n’est pas valide.",
+      "autreCompte": "Cette invitation a été envoyée à un autre compte ({email}). Connectez-vous avec celui-là pour l’accepter.",
+      "autreCompteSans": "Cette invitation a été envoyée à un autre compte. Connectez-vous avec celui-là pour l’accepter.",
+      "fermee": "Cette invitation ne peut plus être acceptée.",
+      "mauvaisCompte": "Cette invitation ne correspond pas au compte connecté. Changez de compte pour l’accepter.",
+      "verrouille": "Trop d’essais : ce numéro est bloqué un moment. Réessayez plus tard.",
+      "bloque": "Ce compte est suspendu.",
+      "codeInvalide": "Ce n’est pas le bon code. Vérifiez-le, ou demandez-en un autre."
+    },
+    "rejoindre": "Rejoindre {agence}",
+    "meConnecter": "Me connecter",
+    "compteExistant": "Un compte existe déjà avec cette adresse. Connectez-vous pour accepter l’invitation.",
+    "envoi": "Envoi…",
+    "continuer": "Continuer avec mon numéro",
+    "continuerAide": "Vous recevez un code par SMS. Aucun mot de passe à inventer.",
+    "voies": {
+      "code": "Recevoir plutôt un code",
+      "motDePasse": "Utiliser un mot de passe"
+    },
+    "titre": {
+      "invitant": "{prenom} vous invite comme <role>{libelle}</role>",
+      "sansInvitant": "Une invitation comme <role>{libelle}</role>",
+      "chez": "chez {agence}",
+      "rejoignez": "Rejoignez {agence}"
+    },
+    "roles": {
+      "owner": "bailleur",
+      "tenant": "locataire",
+      "agent": "agent",
+      "agent_senior": "agent senior",
+      "agent_manager": "responsable d’équipe",
+      "agency_admin": "responsable de l’agence",
+      "service_provider": "prestataire",
+      "super_admin": "membre de l’équipe Takussan",
+      "autre": "membre"
+    },
+    "agence": {
+      "verifiee": "Agence vérifiée",
+      "verifieeLigne": "agence vérifiée",
+      "biens": "{n, plural, one {# bien} other {# biens}}"
+    },
+    "attente": {
+      "titre": "Ce qui vous attend",
+      "owner": {
+        "biens": "{n, plural, one {# bien suivi par l’agence} other {# biens suivis par l’agence}}",
+        "biensSans": "Vos biens, suivis par l’agence",
+        "biensDetail": "Leur location, leurs baux et leurs interventions",
+        "loyers": "Vos loyers et versements",
+        "loyersDetail": "Ce qui est encaissé, ce qui vous est reversé, et quand",
+        "quittances": "Vos quittances",
+        "quittancesDetail": "Chaque mois, sans les demander"
+      },
+      "tenant": {
+        "bail": "Votre bail",
+        "bailDetail": "Ses dates, son loyer et ses documents",
+        "loyers": "Vos loyers",
+        "loyersDetail": "Ce qui est dû, ce qui est payé, et quand",
+        "quittances": "Vos quittances",
+        "quittancesDetail": "Chaque mois, sans les demander"
+      },
+      "agent": {
+        "prospects": "Les prospects que l’agence vous confie",
+        "prospectsDetail": "Leurs demandes et vos échanges, au même endroit",
+        "biens": "Les biens de l’agence",
+        "biensDetail": "Annonces, visites et dossiers",
+        "agenda": "Votre agenda de visites",
+        "agendaDetail": "Chaque rendez-vous, au bon endroit"
+      },
+      "prestataire": {
+        "intervention": "Une intervention vous attend",
+        "interventions": "Les interventions que l’agence vous confie",
+        "interventionsDetail": "Le lieu, le problème, et qui contacter",
+        "devis": "Vos devis et vos factures",
+        "devisDetail": "Envoyés et suivis au même endroit"
+      }
+    },
+    "pourQui": {
+      "complet": "Invitation pour <fort>{pour}</fort> · <ligne>valable jusqu’au {date}</ligne>",
+      "seul": "Invitation pour <fort>{pour}</fort>",
+      "date": "<ligne>Valable jusqu’au {date}</ligne>"
+    },
+    "noms": {
+      "nom": "Nom",
+      "aide": "Rempli par {agence}. Corrigez si besoin.",
+      "aideSans": "Rempli par l’agence. Corrigez si besoin."
+    },
+    "numero": {
+      "libelle": "Votre numéro",
+      "aideSms": "Donné par {agence}. C’est avec lui que vous vous connecterez.",
+      "aideSmsSans": "Donné par l’agence. C’est avec lui que vous vous connecterez.",
+      "aideEmail": "Vous vous connecterez avec ce numéro : le code y est envoyé."
+    },
+    "code": {
+      "retour": "Retour",
+      "pastille": "<fort>{agence}</fort> · invitation comme {role}",
+      "titre": "Saisissez votre code",
+      "envoye": "Code envoyé au <fort>{numero}</fort>",
+      "modifier": "Modifier",
+      "libelle": "Code reçu par SMS",
+      "rienRecu": "Rien reçu ?",
+      "renvoyer": "Renvoyer le code",
+      "renvoyerDans": "Renvoyer le code dans {temps}",
+      "ensuite": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : <fort>votre espace</fort>.",
+      "ensuiteBiens": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : <fort>{n, plural, one {votre bien} other {vos # biens}}</fort>.",
+      "verification": "Vérification…"
+    },
+    "conditions": {
+      "titre": "Conditions d’utilisation",
+      "intro": "Avant d’entrer, acceptez les conditions d’utilisation de Takussan. Votre code reste valable.",
+      "accepter": "J’accepte les <lien>conditions d’utilisation</lien>",
+      "continuer": "Continuer"
+    },
+    "secondFacteur": {
+      "titre": "Vérification en deux étapes",
+      "intro": "Saisissez le code de votre application d’authentification.",
+      "introSecours": "Saisissez l’un de vos codes de secours.",
+      "libelle": "Code à 6 chiffres",
+      "libelleSecours": "Code de secours",
+      "verifier": "Vérifier",
+      "utiliserApp": "Utiliser l’application",
+      "utiliserSecours": "Utiliser un code de secours"
+    },
+    "test": {
+      "titre": "Environnement de test.",
+      "texte": "Aucun SMS ne part d’ici.",
+      "code": "Votre code : <fort>{code}</fort>"
+    },
+    "connecte": {
+      "compte": "Compte connecté",
+      "pasMoi": "Ce n’est pas moi — changer de compte",
+      "changer": "Changer de compte",
+      "sansNom": "Votre compte n’a pas encore de nom : {agence} a proposé celui-ci. Confirmez-le ou corrigez-le."
+    },
+    "motDePasse": {
+      "afficher": "Afficher le mot de passe",
+      "masquer": "Masquer le mot de passe"
+    },
+    "ferme": {
+      "expiree": {
+        "titre": "Cette invitation a expiré",
+        "texte": "{agence} vous l’a envoyée le {date}. Les invitations restent valables 7 jours. Rien n’est perdu : l’agence peut vous en renvoyer une en un geste.",
+        "texteSans": "Les invitations restent valables 7 jours. Rien n’est perdu : l’agence peut vous en renvoyer une en un geste.",
+        "demander": "Demander une nouvelle invitation",
+        "aide": "La demande part chez l’agence : vous n’avez rien à écrire.",
+        "envoyee": "Demande envoyée. {agence} peut maintenant vous renvoyer une invitation.",
+        "envoyeeSans": "Demande envoyée. L’agence peut maintenant vous renvoyer une invitation.",
+        "trop": "Trop de demandes. Réessayez dans un moment.",
+        "echec": "La demande n’est pas partie. Réessayez."
+      },
+      "annulee": {
+        "titre": "Cette invitation a été annulée",
+        "texte": "{agence} a retiré cette invitation. L’agence peut vous en dire plus.",
+        "texteSans": "L’agence a retiré cette invitation.",
+        "action": "Appeler l’agence"
+      },
+      "acceptee": {
+        "titre": "Cette invitation a déjà servi",
+        "texte": "Le compte qui l’a acceptée fait déjà partie de {agence}. Connectez-vous pour le retrouver.",
+        "texteSans": "Le compte qui l’a acceptée existe déjà. Connectez-vous pour le retrouver.",
+        "action": "Me connecter"
+      },
+      "inconnue": {
+        "titre": "Ce lien d’invitation est inconnu",
+        "texte": "Vérifiez le lien reçu : il a peut-être été coupé."
+      },
+      "incomplet": {
+        "titre": "Lien incomplet",
+        "texte": "Ce lien d’invitation est incomplet. Rouvrez-le depuis le message reçu."
+      },
+      "indisponible": {
+        "titre": "L’invitation ne peut pas s’ouvrir pour le moment",
+        "texte": "Le service ne répond pas. Réessayez dans un instant.",
+        "action": "Réessayer"
+      },
+      "appeler": "Ou appelez l’agence :",
+      "accueil": "Aller à l’accueil",
+      "carte": "Invitation du {date}"
     }
   },
   "radarClaim": {

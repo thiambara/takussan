@@ -147,6 +147,9 @@ export function CorpsDuWidget() {
     pathname.startsWith('/app/messages/') ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/onboarding/') ||
+    // TCK-2611 — la page d'invitation est une page d'entrée (coque d'onboarding) : la bulle se posait sur
+    // son pied collé, au téléphone.
+    pathname.startsWith('/invitations/') ||
     // TCK-631 — le parcours de publication est plein écran : la bulle se posait sur son pied.
     estPleinEcran(pathname) ||
     // TCK-2619 — la console, à toute largeur. `ChatWidget` ne monte déjà plus ce corps sous `/app` ;
