@@ -166,10 +166,15 @@ trait HasQueryBuilder
      * explicite est présent, donc un tri demandé par le client reste souverain
      * (AC4) et la pertinence ne s'applique qu'à défaut.
      *
-     * @param  string  ...$fallback  Les tris à appliquer hors recherche.
+     * Relevé de back-3 (2026-11-13) — un tri par défaut en CHAÎNE devient `AllowedSort::field()` chez
+     * spatie, jamais le tri personnalisé du même nom : `'-priority'` triait la priorité comme du texte
+     * à côté d'un `sort=-priority` par rang. Une colonne à tri personnalisé passe donc ici son
+     * `AllowedSort` (`'-nom'` pour l'ordre décroissant), comme `MaintenanceRequest::triParDefaut()`.
+     *
+     * @param  AllowedSort|string  ...$fallback  Les tris à appliquer hors recherche.
      * @return array<int, AllowedSort|string>
      */
-    public static function defaultSortsWithRelevance(string ...$fallback): array
+    public static function defaultSortsWithRelevance(AllowedSort|string ...$fallback): array
     {
         $ids = static::$searchRelevanceIds[static::class] ?? null;
 

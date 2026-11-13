@@ -59,7 +59,7 @@ class MaintenanceRequestController extends Controller
         $query = MaintenanceRequest::buildQuery($base, $request);
 
         $paginator = $query
-            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
             ->paginate();
 
         // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
@@ -108,7 +108,7 @@ class MaintenanceRequestController extends Controller
         $query = MaintenanceRequest::buildQuery($base, $request);
 
         $paginator = $query
-            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
             ->paginate();
 
         return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));

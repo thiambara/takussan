@@ -64,6 +64,25 @@ class PersonNameCollatedSortTest extends ApiTestCase
         $this->assertSame($attendu, $this->saisis($membres, $admin));
     }
 
+    /**
+     * Relevé du tri par défaut en chaîne (2026-11-13, suite du relevé de back-3 sur la maintenance) —
+     * sans `sort=`, les cibles d'attribution (`/members` lu par un agent qui détient `crm.assign`,
+     * P120.05) se triaient par `defaultSort('first_name')`, soit `AllowedSort::field()` : l'ordre des
+     * octets, « awa » et « Élodie » après « Zeynab ». Le tri par défaut passe par le tri collationné.
+     */
+    public function test_les_cibles_d_attribution_sans_tri_suivent_la_collation(): void
+    {
+        $agent = $this->actingAsRole('agent', ['agency' => $this->agency, 'first_name' => 'Awa'], 'sanctum');
+
+        $prenoms = collect($this->getJson("/api/agencies/{$this->agency->id}/members?per_page=100")
+            ->assertOk()
+            ->json('data'))
+            ->reject(fn (array $membre) => $membre['id'] === $agent->id)
+            ->pluck('first_name')->values()->all();
+
+        $this->assertSame(self::ORDRE, $prenoms);
+    }
+
     #[DataProvider('sens')]
     public function test_l_equipe_de_l_agence(string $tri, array $attendu): void
     {

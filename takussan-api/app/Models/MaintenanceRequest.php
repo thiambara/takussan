@@ -165,6 +165,27 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         return $dated ?? $this->created_at;
     }
 
+    /**
+     * Le tri par RANG de priorité ({@see MaintenancePrioritySort}) : `sort=priority` et le tri par
+     * défaut. `'-priority'` le rend décroissant par défaut (urgent d'abord).
+     */
+    public static function prioritySort(string $nom = 'priority'): AllowedSort
+    {
+        return AllowedSort::custom($nom, new MaintenancePrioritySort);
+    }
+
+    /**
+     * Relevé de back-3 (2026-11-13) — le tri par défaut des deux listes : la priorité par RANG, puis
+     * les plus récentes. En chaîne, `'-priority'` passait par `AllowedSort::field()` de spatie et
+     * triait le texte (`urgent`, `normal`, `low`, `high`).
+     *
+     * @return list<AllowedSort|string>
+     */
+    public static function triParDefaut(): array
+    {
+        return [static::prioritySort('-priority'), '-created_at'];
+    }
+
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
         $subject = $baseQuery ?? static::class;
@@ -176,7 +197,7 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
                 'created_at',
                 'scheduled_at',
                 'status',
-                AllowedSort::custom('priority', new MaintenancePrioritySort),
+                static::prioritySort(),
             )
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
