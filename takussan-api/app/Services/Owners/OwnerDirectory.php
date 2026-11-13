@@ -157,10 +157,18 @@ final class OwnerDirectory
      * calculés se gardent dans les attributs de la requête courante, par agence et par bailleur ; seuls
      * les bailleurs absents se calculent, en une passe.
      *
-     * Bornée à la requête, jamais au-delà : un attribut de requête meurt avec elle (une requête de test
-     * comprise). Une instance `scoped` aurait vécu d'une requête à l'autre d'un même test, et la requête
-     * factice de la console d'une tâche à l'autre. Une requête qui ÉCRIRAIT un reversement puis relirait
+     * Bornée à la requête HTTP : un attribut de requête meurt avec elle, et chaque appel d'un test en
+     * est une neuve (épinglé : « la requête suivante recalcule »). Une instance `scoped` aurait vécu
+     * d'une requête à l'autre d'un même test. Une requête qui ÉCRIRAIT un reversement puis relirait
      * le carnet lirait le solde d'avant : le carnet n'est servi que par des `GET`.
+     *
+     * ⚠ Hors HTTP, c'est l'inverse (réserve r2 de la vérification de 5f26092e4) : la requête factice
+     * d'une commande ou d'un worker de file vit tout le processus, ses attributs avec elle — alors
+     * que le worker oublie les instances `scoped` entre deux jobs (`QueueServiceProvider`,
+     * `forgetScopedInstances()`). Un job ou une commande qui appellerait un jour `remainingToPay()`,
+     * `remainingToPayIn()` ou `monthFigures()` relirait les soldes du job précédent. Aujourd'hui,
+     * seuls `OwnerProfileController` (`GET /api/owners`) et le filtre `has_remaining` du modèle
+     * les appellent.
      *
      * @param  list<int>  $landlordIds
      * @return array<int, array{remaining_to_pay: float, as_of: string}> par bailleur

@@ -6829,14 +6829,15 @@
         "commission": "Commission",
         "dejaVerse": "Already paid out",
         "dejaVerseLe": "Paid out on {date}",
-        "reste": "Left to pay out",
+        "reste": "Left to pay out to date",
         "sansReleve": "No statement for this month: the landlord has no account yet.",
         "releveDe": "{mois} management statement",
         "releveDetail": "Line by line, property by property · PDF",
         "creerReversement": "Create the payout",
         "commissionAgence": "Agency commission",
         "tauxDetail": "{taux}% of rents",
-        "leDate": "on {date}"
+        "leDate": "on {date}",
+        "duMois": "In {mois}"
       },
       "reglages": {
         "titre": "Mandate settings",

@@ -102,6 +102,25 @@ describe('TCK-2641 — la fiche du bailleur', () => {
     expect(releve().getAllByText('Déjà versé le 5 nov.').length).toBeGreaterThan(0);
   });
 
+  it('« Reste à verser à ce jour » se tient hors des trois chiffres du mois, groupés sous « En novembre » (TCK-2760 r1)', () => {
+    const { unmount } = monter();
+    // Le solde cumulé ne suit pas le mois : il le dit, et ne se range pas sous la soustraction du mois.
+    expect(releve().getAllByText('Reste à verser à ce jour')).toHaveLength(2);
+    expect(releve().queryByText('Reste à verser')).toBeNull();
+    const groupes = releve().getAllByRole('group', { name: 'En novembre' });
+    expect(groupes).toHaveLength(2);
+    for (const groupe of groupes) {
+      expect(within(groupe).getAllByText(montant('11 437 597')).length).toBeGreaterThan(0);
+      expect(within(groupe).getAllByText(montant('− 1 143 760')).length).toBeGreaterThan(0);
+      expect(groupe.querySelector('[data-slot^="reste-a-verser"]')).toBeNull();
+      expect(groupe).not.toHaveTextContent(montant('4 250 000'));
+    }
+    unmount();
+    monter({}, { locale: 'en' });
+    expect(releve().getAllByText('Left to pay out to date')).toHaveLength(2);
+    expect(releve().getAllByRole('group', { name: 'In November' })).toHaveLength(2);
+  });
+
   it('le mois se nomme dans la langue de l’application, sans champ type="month"', () => {
     const { unmount } = monter();
     expect(releve().getAllByText('novembre 2026').length).toBeGreaterThan(0);

@@ -206,6 +206,48 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         $this->assertCount(count($with) + count($without), $this->rows('&filter[has_remaining]=1,0'));
     }
 
+    /**
+     * TCK-2760 (suivi, t1) — la mémoire des soldes de la requête est rangée PAR AGENCE : le même
+     * bailleur, servi par deux agences, a deux soldes. Le super-admin lit le carnet sans filtre
+     * d'agence — les deux lignes dans la même requête : chacune garde le solde de son agence, à la
+     * lecture, au tri et sous `filter[has_remaining]`. Un second bailleur n'a rien à verser dans B :
+     * sa ligne de B ne prend pas le solde de A.
+     */
+    public function test_le_meme_bailleur_dans_deux_agences_garde_deux_soldes(): void
+    {
+        $a = $this->moneyAgency();
+        $b = $this->moneyAgency();
+        $landlord = $this->landlordOf($a);
+        OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $b->id]);
+        $this->leasePayment($this->leaseOf($a, $landlord, 10), 100_000);
+        $this->leasePayment($this->leaseOf($b, $landlord, 10), 300_000);
+        $second = $this->landlordOf($a);
+        OwnerProfile::factory()->create(['user_id' => $second->id, 'agency_id' => $b->id]);
+        $this->leasePayment($this->leaseOf($a, $second, 10), 100_000);
+
+        $this->apiActingAsRole('super_admin');
+        $rows = $this->rows();
+        $this->assertEquals(90000, $rows[$this->profileOf($landlord, $a)->id]['remaining_to_pay']);
+        $this->assertEquals(270000, $rows[$this->profileOf($landlord, $b)->id]['remaining_to_pay']);
+        $this->assertEquals(90000, $rows[$this->profileOf($second, $a)->id]['remaining_to_pay']);
+        $this->assertEquals(0, $rows[$this->profileOf($second, $b)->id]['remaining_to_pay']);
+
+        $ids = collect($this->apiGet('/api/owners?per_page=100&sort=-remaining_to_pay')->assertOk()->json('data'))->pluck('id')->all();
+        $this->assertSame($this->profileOf($landlord, $b)->id, $ids[0], 'la ligne de B (270 000) passe devant');
+        $this->assertLessThan(
+            array_search($this->profileOf($second, $b)->id, $ids, true),
+            array_search($this->profileOf($landlord, $a)->id, $ids, true),
+            'la ligne de A (90 000) passe devant celle de B à zéro',
+        );
+
+        $with = $this->rows('&filter[has_remaining]=1');
+        $this->assertArrayHasKey($this->profileOf($landlord, $a)->id, $with);
+        $this->assertArrayHasKey($this->profileOf($landlord, $b)->id, $with);
+        $this->assertArrayHasKey($this->profileOf($second, $a)->id, $with);
+        $this->assertArrayNotHasKey($this->profileOf($second, $b)->id, $with, 'B n\'a rien à lui verser');
+        $this->assertEquals(270000, $with[$this->profileOf($landlord, $b)->id]['remaining_to_pay']);
+    }
+
     /** AC5 — « sene » trouve « Mouhamed SÈNE » ; le nom saisi à l'invitation et le téléphone aussi. */
     public function test_la_recherche_ignore_casse_et_accents(): void
     {

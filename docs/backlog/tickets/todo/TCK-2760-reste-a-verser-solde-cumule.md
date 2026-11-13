@@ -224,3 +224,16 @@ Non corrigé : c'est le texte du front, pas le contrat de ce ticket.
   - `FicheDuBailleur.tck-2641.test.tsx` donne un solde distinct de l'écart du mois. Ablation où la fiche relit `figures` : rouge.
 - **Jeu de démo** : `PayoutSeeder` ne crée plus de reversement `completed` à `processed_at` futur. Le mois en cours n'est pas encore reversé ; ce sont les 119 reversements du 1er au 5 décembre relevés plus haut. Épinglé par `PayoutSeederSansReversementFuturTest` (ablation : rouge).
 - **Hors front de l'agence** : aucun écran du bailleur n'affiche encore « Reste à vous verser » (`OwnerStatementPanel` ne lit aucun reste ; seules les maquettes le montrent).
+
+### Suivi (2026-11-13) — r1 de la contre-revue : la fiche ne présente plus le solde comme le résultat du mois
+
+- Constat (contre-revue de 5f26092e4, r1) : le bloc « Relevé du mois » alignait Encaissé, − Commission et − Déjà versé **du mois**, puis « Reste à verser » = solde cumulé au jour. La soustraction affichée ne tombait plus juste, et le chiffre ne bougeait pas avec le mois.
+- `owners.fiche.releve.reste` dit « Reste à verser à ce jour » (en : « Left to pay out to date »), comme le carnet.
+- Les trois chiffres du mois forment un groupe nommé par son mois, `owners.fiche.releve.duMois` (« En novembre », en : « In November »), au téléphone comme au bureau. Le reste se tient hors de ce groupe. Au bureau, le groupe prend deux tiers de la largeur et le reste un tiers séparé par un filet, soit les mêmes largeurs qu'avant (3 : 1,5), sans valeur arbitraire ajoutée.
+- Épinglé par `FicheDuBailleur.tck-2641` « « Reste à verser à ce jour » se tient hors des trois chiffres du mois… ». Quatre ablations, toutes rouges : l'ancien libellé, le reste rangé dans le groupe du téléphone, puis dans celui du bureau, et le groupe sans son mois.
+
+### Suivi (2026-11-13) — t1, t2 et r2 de la contre-revue de 5f26092e4 (back-4)
+
+- **t1** : `OwnerProfileListFiguresTest::test_le_meme_bailleur_dans_deux_agences_garde_deux_soldes`. Un même bailleur est servi par deux agences, avec 100 000 encaissés dans A et 300 000 dans B. Un second bailleur n'a rien à verser dans B. Le super-admin lit le carnet sans filtre d'agence : la lecture rend 90 000 et 270 000, la ligne de B à zéro reste à zéro, et l'ordre du tri `-remaining_to_pay` comme le filtre `has_remaining` suivent ces soldes. Ablation `$memo[0]` au lieu de `$memo[(int) $agency->id]` dans `soldesDeLaRequete()` : rouge, et seul ce test rougit.
+- **t2** : `OwnerStatementBalanceTest::test_le_solde_ignore_ce_qui_est_date_apres_aujourd_hui`. Lu le 20 novembre, le solde vaut 90 000. Un reversement versé daté du 27 (30 000) et un loyer encaissé daté du 25 (200 000) n'y entrent pas, ni au relevé ni à la ligne du carnet. Le 28, ils comptent : 240 000, ce qui prouve qu'ils entrent bien dans la fenêtre le jour venu. Ablation `->endOfMonth()` au lieu de `->endOfDay()` dans `balances()` : rouge, à 60 000 au lieu de 90 000 dès l'étape du reversement. L'étape du loyer n'a pas été ablatée seule.
+- **r2** : le docblock de `soldesDeLaRequete()` a été corrigé. Hors HTTP, c'est l'inverse : la requête factice d'une commande ou d'un worker vit tout le processus, alors que le worker oublie les instances `scoped` entre deux jobs. Le docblock nomme les seuls appelants d'aujourd'hui. Aucun code n'a changé.

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
@@ -364,8 +364,10 @@ function LigneDuReleve({ period, landlordId, nom }: { readonly period: string; r
 }
 
 /**
- * Le relevé du mois : le mois choisi (`?period=`), « Reste à verser » en tête, puis Encaissé ·
- * Commission · Déjà versé. Le sélecteur est celui de l'application — un pas de mois en arrière ou en
+ * Le relevé du mois : le mois choisi (`?period=`), « Reste à verser à ce jour » en tête, puis Encaissé ·
+ * Commission · Déjà versé DU MOIS, sous « En novembre ». Le reste est le solde cumulé au jour (TCK-2760,
+ * décision 3) : il ne suit pas le mois, et ne se lit pas comme la différence des trois lignes — il se
+ * tient hors de leur groupe, qui se nomme par son mois. Le sélecteur est celui de l'application — un pas de mois en arrière ou en
  * avant, libellé par `useFormatteurs()` (« novembre 2026 » en `fr`, « November 2026 » en `en`,
  * quelle que soit la langue du navigateur) — jamais `<input type="month">` (P2 de l'audit).
  */
@@ -375,6 +377,8 @@ function ReleveDuMois({ owner, period, moisCourant, onReverser, className }: { r
   const { remplacer } = useVueDansLUrl();
   const figures = owner.figures;
   const mois = f.date(dateDuMois(period), { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const duMois = t('duMois', { mois: f.date(dateDuMois(period), { month: 'long', timeZone: 'UTC' }) });
+  const idDuMois = useId();
   const devise = figures?.currency ?? 'XOF';
   const nom = owner.company_name ?? owner.contact.full_name ?? '';
   const aller = (cible: string) => remplacer({ period: cible === moisCourant ? null : cible });
@@ -448,25 +452,38 @@ function ReleveDuMois({ owner, period, moisCourant, onReverser, className }: { r
             <p className="mt-1 font-display text-3xl leading-none font-semibold tracking-titre tabular-nums" data-slot="reste-a-verser">
               {reste}
             </p>
-            <dl className="mt-4 border-t border-border pt-1.5">
-              {lignes.map((l) => (
-                <div key={l.cle} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-                  <dt className="min-w-0 truncate text-muted-foreground">{l.telephone}</dt>
-                  <dd className="font-medium tabular-nums">{l.valeur}</dd>
-                </div>
-              ))}
-            </dl>
+            <div role="group" aria-labelledby={`${idDuMois}-telephone`} data-slot="mouvements-du-mois" className="mt-4 border-t border-border pt-3">
+              <p id={`${idDuMois}-telephone`} className="text-legende text-muted-foreground">
+                {duMois}
+              </p>
+              <dl className="pt-0.5">
+                {lignes.map((l) => (
+                  <div key={l.cle} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
+                    <dt className="min-w-0 truncate text-muted-foreground">{l.telephone}</dt>
+                    <dd className="font-medium tabular-nums">{l.valeur}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
-          {/* Bureau : les trois chiffres, puis la case « Reste à verser » qui porte le reversement. */}
-          <div className="hidden lg:grid lg:grid-cols-3 w1440:grid-cols-[1fr_1fr_1fr_1.5fr]">
-            {lignes.map((l, i) => (
-              <div key={l.cle} className={cn('border-border px-5 py-4', i < 2 ? 'border-r' : 'w1440:border-r')}>
-                <p className="text-ui text-muted-foreground">{l.bureau}</p>
-                <p className="mt-1 text-lg font-semibold whitespace-nowrap tabular-nums">{l.valeur}</p>
-                {l.detail ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{l.detail}</p> : null}
+          {/* Bureau : les trois chiffres du mois, nommés par leur mois, puis — hors de leur groupe — la
+              case « Reste à verser à ce jour » qui porte le reversement. Mêmes largeurs qu'avant (3 : 1,5). */}
+          <div className="hidden lg:grid lg:grid-cols-1 w1440:grid-cols-3">
+            <div role="group" aria-labelledby={`${idDuMois}-bureau`} data-slot="mouvements-du-mois-bureau" className="w1440:col-span-2">
+              <p id={`${idDuMois}-bureau`} className="px-5 pt-3 text-legende text-muted-foreground">
+                {duMois}
+              </p>
+              <div className="grid grid-cols-3">
+                {lignes.map((l, i) => (
+                  <div key={l.cle} className={cn('border-border px-5 pt-1 pb-4', i < 2 && 'border-r')}>
+                    <p className="text-ui text-muted-foreground">{l.bureau}</p>
+                    <p className="mt-1 text-lg font-semibold whitespace-nowrap tabular-nums">{l.valeur}</p>
+                    {l.detail ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{l.detail}</p> : null}
+                  </div>
+                ))}
               </div>
-            ))}
-            <div className="col-span-3 flex items-center gap-4 border-t border-border bg-secondary/50 px-5 py-4 w1440:col-span-1 w1440:block w1440:border-t-0">
+            </div>
+            <div className="flex items-center gap-4 border-t border-border bg-secondary/50 px-5 py-4 w1440:block w1440:border-t-0 w1440:border-l">
               <div className="min-w-0 flex-1">
                 <p className="text-ui text-muted-foreground">{t('reste')}</p>
                 <p className="mt-1 font-display text-2xl leading-none font-semibold tracking-titre whitespace-nowrap tabular-nums" data-slot="reste-a-verser-bureau">

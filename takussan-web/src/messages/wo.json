@@ -4703,14 +4703,15 @@
         "commission": "Commission",
         "dejaVerse": "Déjà versé",
         "dejaVerseLe": "Déjà versé le {date}",
-        "reste": "Reste à verser",
+        "reste": "Reste à verser à ce jour",
         "sansReleve": "Aucun relevé pour ce mois : le bailleur n’a pas encore de compte.",
         "releveDe": "Relevé de gérance de {mois}",
         "releveDetail": "Ligne par ligne, bien par bien · PDF",
         "creerReversement": "Créer le reversement",
         "commissionAgence": "Commission d’agence",
         "tauxDetail": "{taux} % des loyers",
-        "leDate": "le {date}"
+        "leDate": "le {date}",
+        "duMois": "En {mois}"
       },
       "reglages": {
         "titre": "Réglages du mandat",

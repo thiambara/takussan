@@ -379,6 +379,35 @@ class OwnerStatementBalanceTest extends ApiTestCase
         $this->assertSame($two, $six, "2 bailleurs : {$two} requêtes ; 6 : {$six}");
     }
 
+    /**
+     * TCK-2760 (suivi, t2) — le solde s'arrête AU JOUR (Dakar), pas à la fin du mois courant : un
+     * reversement versé et un loyer encaissé datés plus tard dans le mois (saisie anticipée) n'y
+     * entrent pas — ni au relevé, ni à la ligne du carnet. Chaque pièce, seule, déplacerait le solde
+     * d'une fenêtre qui finirait au 30 : le reversement le baisserait de 30 000, le loyer le
+     * monterait de 180 000.
+     */
+    public function test_le_solde_ignore_ce_qui_est_date_apres_aujourd_hui(): void
+    {
+        [$agency, $landlord, $lease] = $this->fixtureL();
+        $solde = fn (): float => (float) $this->statement($agency, $landlord, '2026-11')['balance']['remaining_to_pay'];
+        $this->assertEquals(90000, $solde());
+
+        Payout::factory()->create([
+            'agency_id' => $agency->id, 'landlord_id' => $landlord->id, 'payee_role' => PayeeRole::Landlord,
+            'status' => PayoutStatus::Completed, 'processed_at' => '2026-11-27 09:00:00', 'net_amount' => 30_000,
+        ]);
+        $this->assertEquals(90000, $solde(), 'un reversement versé le 27 ne compte pas le 20');
+
+        $this->rent($lease, 200_000, '2026-11-25 10:00:00');
+        $this->assertEquals(90000, $solde(), 'un loyer encaissé le 25 ne compte pas le 20');
+        $this->assertEquals(90000, $this->rows($agency)[$this->profileOf($landlord, $agency)->id]['remaining_to_pay']);
+        $this->assertSame('2026-11-20', $this->statement($agency, $landlord, '2026-11')['balance']['as_of']);
+
+        // Le jour venu, ils comptent : 90 000 − 30 000 + 180 000.
+        $this->travelTo('2026-11-28 10:00:00');
+        $this->assertEquals(240000, $solde());
+    }
+
     private function refundByWebhook(LeasePayment $payment, int $amount): int
     {
         $payment->refresh();
