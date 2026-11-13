@@ -187,10 +187,21 @@ describe('TCK-2639 — l’onglet Location', () => {
     expect(screen.queryByRole('button', { name: /Relancer|Encaisser/ })).toBeNull();
   });
 
-  it('AC7 — le bailleur voit son locataire, sans « Encaisser » ni « Relancer »', () => {
+  it('AC7 — le bailleur voit son locataire ; sans `record_payment`, ni « Encaisser » ni « Relancer »', () => {
+    etat.bail = { data: { id: 7, abilities: { record_payment: false } } };
     location(bien(occupe({})), false);
     expect(screen.getAllByTestId('nom-du-locataire')[0]).toHaveTextContent('Mariama Sow');
     expect(screen.queryByRole('button', { name: /Relancer|Encaisser/ })).toBeNull();
+  });
+
+  it('TCK-2645 (décision 2) — le bailleur à qui l’API accorde l’encaissement a « Encaisser », jamais « Relancer »', () => {
+    // `LeasePolicy::recordPayment` : le bailleur qui écrit sur son bail encaisse (TCK-587) ; la fiche
+    // suit `abilities.record_payment`, comme celle du bail. La relance reste un geste du personnel.
+    location(bien(occupe({})), false);
+    const pile = screen.getByTestId('nom-du-locataire').closest('[data-slot="location-pile"]') as HTMLElement;
+    fireEvent.click(within(pile).getByRole('button', { name: /Encaisser/ }));
+    expect(etat.encaisser).toHaveBeenCalledWith(7, 501);
+    expect(screen.queryByRole('button', { name: /Relancer/ })).toBeNull();
   });
 
   it('le personnel sans le droit d’encaisser sur ce bail n’a pas les gestes (l’API en juge)', () => {
@@ -236,7 +247,8 @@ describe('TCK-2639 — la carte « Occupation » (bureau)', () => {
     expect(screen.getByRole('link', { name: 'Mouhamed Sène' })).toHaveAttribute('href', '/app/owners/31');
   });
 
-  it('AC7 — le bailleur n’y a pas « Encaisser », et son nom n’y mène nulle part sans la fiche du bailleur', () => {
+  it('AC7 — le bailleur sans `record_payment` n’y a pas « Encaisser », et son nom n’y mène nulle part sans la fiche du bailleur', () => {
+    etat.bail = { data: { id: 7, abilities: { record_payment: false } } };
     render(withIntl(<CarteOccupation property={bien(occupe({}))} personnel={false} lienVersLeBailleur={false} />));
     expect(screen.queryByRole('button', { name: /Encaisser/ })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Mouhamed Sène' })).toBeNull();

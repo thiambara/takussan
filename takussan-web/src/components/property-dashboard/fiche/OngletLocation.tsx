@@ -45,8 +45,9 @@ const FeuilleDeRelance = dynamic(() => import('@/components/admin/finances/impay
  *  · Vacant : « Vacant depuis N j » (« Sans locataire » pour un bien jamais loué), « Créer un bail »
  *    (`/app/leases/new?property={id}`, TCK-2643) et « Publier l'annonce » s'il n'est pas en ligne.
  *  · Une vente sans bail renvoie à l'onglet « Annonce » ; une vente LOUÉE garde ses blocs.
- *  · « Encaisser » et « Relancer » : le personnel, sur un bail dont l'API accorde l'encaissement
- *    (`abilities.record_payment`), et une échéance du mois à régler — jamais par le seul rôle.
+ *  · « Encaisser » : à qui l'API accorde l'encaissement (`abilities.record_payment`, bailleur qui
+ *    écrit compris — TCK-2645, décision 2) ; « Relancer » : le personnel, avec le même droit ; tous
+ *    deux sur une échéance du mois à régler — jamais par le seul rôle.
  */
 export function OngletLocation({
   property,
@@ -125,7 +126,7 @@ function CeMoisAvecGestes({ property, location, aujourdhui }: { readonly propert
   const encaisser = useEncaissement(location);
   const ligne = location.ligneDuMois;
   const statut = location.occupation?.current_month?.status;
-  const relancable = ligne !== null && location.peutEncaisser && (statut === 'late' || statut === 'partial');
+  const relancable = ligne !== null && location.peutRelancer && (statut === 'late' || statut === 'partial');
   return (
     <>
       <BlocCeMois

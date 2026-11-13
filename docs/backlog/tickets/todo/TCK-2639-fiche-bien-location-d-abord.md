@@ -209,3 +209,15 @@ Sept ablations sur le hook et les deux menus, toutes rouges puis restaurées. Na
 non-GET bloquées, `/app/properties`, à 390 et à 1440 px : Dupliquer, Archiver, Dépublier et
 En maintenance rendent un toast, sans aucune erreur en console.
 
+
+**« Encaisser » suit `abilities.record_payment`, bailleur compris (2026-11-13, TCK-2645 décision 2).**
+Le porteur a décidé, pour la fiche du bail, que « Encaisser » suit l'API : `LeasePolicy::recordPayment`
+l'accorde au bailleur qui écrit sur son bail (TCK-587). La fiche du bien s'aligne : `peutEncaisser`
+ne demande plus d'être du personnel, seulement `record_payment` sur le bail. Cela vaut pour la pile
+du téléphone et pour la carte « Occupation » du bureau. AC7 est amendé en conséquence : sans `record_payment`, le
+bailleur n'a ni « Encaisser » ni « Relancer » ; avec, il a « Encaisser ». « Relancer » reste un geste
+du personnel (`peutRelancer`), et la place tenue pendant la lecture (`gestesEnLecture`, CLS) aussi :
+pour le bailleur, « Encaisser » arrive sans place réservée. Tests : AC7 (pile et carte) avec
+`record_payment` faux, et un cas neuf « bailleur avec `record_payment` : Encaisser, jamais
+Relancer ». Deux ablations rouges puis restaurées : `peutEncaisser` à nouveau réservé au personnel,
+et la relance de nouveau sur `peutEncaisser`. 31 fichiers `property-dashboard`, 250 tests verts.

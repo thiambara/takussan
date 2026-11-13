@@ -36,8 +36,14 @@ export interface LocationDuBien {
   readonly ligneDuMois: PaymentHistoryRow | null;
   /** L'échéance de la période précédente, si elle est réglée (« octobre payé le 29 oct. ») ; `null` sinon. */
   readonly precedentRegle: PaymentHistoryRow | null;
-  /** « Encaisser » et « Relancer » : le personnel, sur un bail dont l'API accorde l'encaissement. */
+  /**
+   * « Encaisser » : quiconque l'API accorde l'encaissement de CE bail (`abilities.record_payment`) — le
+   * personnel qui en a la capacité, et le bailleur qui écrit sur son bail (`LeasePolicy::recordPayment`,
+   * TCK-587). La fiche du bail en juge de même (TCK-2645, décision 2).
+   */
   readonly peutEncaisser: boolean;
+  /** « Relancer » : un geste du personnel, sur un bail dont l'API lui accorde l'encaissement. */
+  readonly peutRelancer: boolean;
   /** Le mois reste à régler : « Encaisser » a un objet. */
   readonly resteDu: boolean;
   /**
@@ -107,7 +113,8 @@ export function useLocationDuBien(property: PropertyDetail, personnel: boolean):
     etatDesLieux,
     ligneDuMois,
     precedentRegle,
-    peutEncaisser: personnel && bail.data?.data.abilities?.record_payment === true,
+    peutEncaisser: bail.data?.data.abilities?.record_payment === true,
+    peutRelancer: personnel && bail.data?.data.abilities?.record_payment === true,
     resteDu,
     gestesEnLecture: personnel && resteDu && bailId !== null && (bail.isPending || echeances.isPending),
     prochainLoyer: occupe ? prochainLoyerDe(occupation) : null,
