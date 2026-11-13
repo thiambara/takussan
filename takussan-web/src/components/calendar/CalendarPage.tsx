@@ -51,6 +51,7 @@ import type { PropertyVisit } from '@/types/visit';
 import { paletteFor } from './event-colors';
 import { ListView } from './ListView';
 import { useDatesCalendrier } from './dates';
+import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
 
 const VIEWS: readonly CalendarView[] = ['month', 'week', 'day', 'list'];
 
@@ -59,12 +60,9 @@ const BUREAU = '(width >= 48rem)';
 /** Le panneau droit dès 1280 ; la feuille du bas en dessous. */
 const PANNEAU = '(width >= 80rem)';
 
-/** `AAAA-MM-JJ` valide, ou `null`. */
+/** `AAAA-MM-JJ` que l'API admet (TCK-2768 q2 : jour réel ET années de `JourIso`), ou `null`. */
 function jourDeLUrl(valeur: string | null): string | null {
-  const m = valeur ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(valeur) : null;
-  if (!m) return null;
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  return d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]) ? valeur : null;
+  return jourDeLApiOuRien(valeur) ?? null;
 }
 
 /** L'écran, lu après l'hydratation : le serveur ne le connaît pas (`null`), et rien ne se lit avant. */

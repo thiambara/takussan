@@ -74,7 +74,7 @@ class StoreBookingRequest extends BaseFormRequest
             // TCK-2579 — la validité d'une offre, dernier jour inclus (heure de Dakar).
             // TCK-2752 — un JOUR, le seul que le front envoie : un instant près de minuit rangeait un autre
             // jour dans `offer_expires_at` (colonne `date`) que dans `expires_at` (`FinInclusive::de()`).
-            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date_format:Y-m-d', new JourIso, 'after_or_equal:today'],
             // TCK-1066 (P62.02) — plus de `exists:` : un 422 pour un identifiant absent contre un
             // 403 pour un client tiers ou un bien privé faisait de la création un ORACLE
             // d'existence. L'absence se juge dans le contrôleur et le service, avec la réponse du

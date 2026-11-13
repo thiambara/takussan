@@ -6,6 +6,7 @@ use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
 use App\Rules\CreneauDeVisite;
 use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use App\Rules\TelephoneJoignable;
 use App\Rules\TrancheDeVisite;
 use App\Support\InstantRecu;
@@ -52,7 +53,7 @@ class VisitRequestPublicPropertyRequest extends PublicPropertySlugRequest
             // `nullable` : un `scheduled_at: null` envoyé avec une tranche vaut absent (revue) ;
             // seul, `required_without_all` le refuse toujours.
             'scheduled_at' => ['nullable', 'required_without_all:date,preferred_window', 'prohibits:date,preferred_window', 'date', new InstantIso, 'after:now', new CreneauDeVisite],
-            'date' => ['required_with:preferred_window', 'prohibits:scheduled_at', 'date_format:Y-m-d', new TrancheDeVisite],
+            'date' => ['required_with:preferred_window', 'prohibits:scheduled_at', 'date_format:Y-m-d', new JourIso, new TrancheDeVisite],
             'preferred_window' => ['required_with:date', 'prohibits:scheduled_at', Rule::enum(VisitWindow::class), new TrancheDeVisite],
             'type' => ['nullable', Rule::enum(VisitType::class)],
             'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:240'],

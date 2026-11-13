@@ -77,7 +77,7 @@ class JourIsoRecuTest extends ApiTestCase
 
         $bail = Lease::query()->sole();
         $this->assertSame('2026-11-12', $bail->start_date->toDateString());
-        $this->assertSame('2125-11-11', $bail->end_date->toDateString(), 'Un bail long (emphytéotique) passe sous le plafond provisoire.');
+        $this->assertSame('2125-11-11', $bail->end_date->toDateString(), 'Un bail long (emphytéotique) passe sous le plafond (2199).');
     }
 
     #[DataProvider('formesRefusees')]

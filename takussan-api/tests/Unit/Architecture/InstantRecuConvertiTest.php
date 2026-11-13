@@ -57,6 +57,10 @@ use RecursiveIteratorIterator;
  * de `app/` porte {@see JourIso} (un jour) ou {@see InstantIso} (un jour ou un instant)
  * ({@see self::test_aucune_date_recue_n_est_nue()}). La lecture est par TABLEAU, donc par branche, et vaut
  * hors des FormRequests (`Validator::make`, filtres, critères sauvegardés).
+ *
+ * TCK-2768 (r1 de la vérification de 7981e617d) — même règle pour `date_format:Y-m-d`, qui admet toute année à
+ * quatre chiffres (l'an 1, 9999) : il porte {@see JourIso}. Les autres `date_format` (des mois) sont épinglés
+ * ({@see self::FORMATS_HORS_JOUR}).
  */
 class InstantRecuConvertiTest extends TestCase
 {
@@ -325,7 +329,20 @@ class InstantRecuConvertiTest extends TestCase
     private const DATES_HORS_FORM_REQUESTS = [
         'Http/Filters/DateBoundaryFilter.php' => 1,
         'Http/Filters/RangeFilter.php' => 1,
+        'Models/PropertyVisit.php' => 1, // TCK-2768 r1 — `filter.day` en `date_format:Y-m-d`
         'Support/SavedSearchCriteria.php' => 1,
+    ];
+
+    /**
+     * TCK-2768 r1 — les `date_format` qui ne désignent pas un JOUR (`Y-m` : un mois de relevé), épinglés par
+     * fichier. Ils ne s'écrivent nulle part : une lecture au mois. Un `date_format` neuf qui n'est pas `Y-m-d`
+     * rougit ici, pour qu'on décide de sa forme bornée au lieu de le laisser passer.
+     *
+     * @var array<string, list<string>>
+     */
+    private const FORMATS_HORS_JOUR = [
+        'Http/Requests/Api/Commissions/CommissionSummaryRequest.php' => ["'date_format:Y-m'"],
+        'Http/Requests/Api/ShowTeamPerformanceRequest.php' => ["'date_format:Y-m'"],
     ];
 
     /**
@@ -340,17 +357,23 @@ class InstantRecuConvertiTest extends TestCase
 
         $fautes = [];
         $tableaux = 0;
+        $tableauxJour = 0; // TCK-2768 r1
         $horsRequetes = [];
+        $horsJour = []; // TCK-2768 r1
         foreach ($this->fichiers($app) as $chemin) {
             $relatif = substr($chemin, strlen($app) + 1);
             $code = $this->sansCommentaires((string) file_get_contents($chemin));
+            if (($formats = $this->formatsHorsJour($code)) !== []) {
+                $horsJour[$relatif] = $formats;
+            }
             foreach ($this->tableauxDeReglesDate($code) as $tableau) {
                 $tableaux++;
+                $tableauxJour += str_contains($tableau, "'date_format:Y-m-d'") ? 1 : 0;
                 if (! str_starts_with($relatif, 'Http/Requests/')) {
                     $horsRequetes[$relatif] = ($horsRequetes[$relatif] ?? 0) + 1;
                 }
                 if (! $this->porteUneForme($tableau)) {
-                    $fautes[] = "{$relatif} : `date` nue dans ".preg_replace('/\s+/', ' ', $tableau).' — poser `new JourIso` (un jour) ou `new InstantIso` (un jour ou un instant) juste après.';
+                    $fautes[] = "{$relatif} : `date` nue dans ".preg_replace('/\s+/', ' ', $tableau).' — poser `new JourIso` (un jour ; seul admis après `date_format:Y-m-d`) ou `new InstantIso` (un jour ou un instant) juste après.';
                 }
             }
             foreach ($this->reglesEnChaineDate($code) as $regle) {
@@ -359,6 +382,9 @@ class InstantRecuConvertiTest extends TestCase
         }
 
         $this->assertGreaterThan(80, $tableaux, 'Trop peu de tableaux de règles `date` lus : la lecture ne voit plus les règles.');
+        $this->assertGreaterThanOrEqual(19, $tableauxJour, 'Trop peu de `date_format:Y-m-d` lus : la lecture ne les voit plus (TCK-2768 r1).');
+        ksort($horsJour);
+        $this->assertSame(self::FORMATS_HORS_JOUR, $horsJour, 'Un `date_format` qui n\'est pas un jour a changé : lui donner une forme bornée, ou l\'épingler (TCK-2768 r1).');
         $this->assertSame(self::DATES_HORS_FORM_REQUESTS, $horsRequetes, 'Les `date` hors FormRequest ont changé : épingler la nouvelle occurrence ici (et lui donner sa forme).');
         $this->assertSame([], $fautes, "Date reçue sans sa forme stricte (TCK-2768) :\n".implode("\n", $fautes));
     }
@@ -380,17 +406,26 @@ class InstantRecuConvertiTest extends TestCase
                 'e' => $x ? ['string', 'date'] : ['numeric'],
                 'f' => ['nullable', 'date_format:Y-m-d'],
                 'g' => [Rule::requiredIf($k), 'nullable', 'date', new JourIso, 'after_or_equal:today'],
+                'k' => ['nullable', 'date_format:Y-m-d', new JourIso],
+                'l' => ['nullable', 'date_format:Y-m-d', new InstantIso],
+                'm' => ['nullable', 'date_format:Y-m'],
+                'date_format' => ['required', 'string', 'max:32'],
             ];
-            $chaine = ['h' => 'nullable|date', 'i' => 'date|after:now', 'j' => 'required_without_all:date,x'];
+            protected $guarded = ['date', 'date_format:Y-m-d'];
+            $paye = ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.$jour];
+            $chaine = ['h' => 'nullable|date', 'i' => 'date|after:now', 'j' => 'required_without_all:date,x', 'n' => 'nullable|date_format:Y-m-d'];
             PHP;
 
+        // TCK-2768 r1 : f, k, l, m (`date_format`) et `$paye` (un tableau posé dans une variable) sont lus ;
+        // `date_format` sans `JourIso`, ou avec `InstantIso` seul, rougit ; un mois n'a rien à porter.
         $tableaux = $this->tableauxDeReglesDate($code);
         $this->assertSame(
-            [false, true, true, false, true, false, true],
+            [false, true, true, false, true, false, false, true, true, false, true, false],
             array_map(fn (string $t): bool => $this->porteUneForme($t), $tableaux),
-            'Six tableaux de règles (d compte une fois), ni $fillable, ni upsert, ni in_array, ni return.',
+            'Douze tableaux de règles (d compte une fois), ni $fillable, ni $guarded, ni upsert, ni in_array, ni return, ni la clé `date_format`.',
         );
-        $this->assertSame(["'nullable|date'", "'date|after:now'"], $this->reglesEnChaineDate($code));
+        $this->assertSame(["'nullable|date'", "'date|after:now'", "'nullable|date_format:Y-m-d'"], $this->reglesEnChaineDate($code));
+        $this->assertSame(["'date_format:Y-m'"], $this->formatsHorsJour($code));
     }
 
     public function test_la_lecture_de_la_forme_iso_voit_chaque_branche(): void
@@ -449,10 +484,15 @@ class InstantRecuConvertiTest extends TestCase
     private function tableauxDeReglesDate(string $code): array
     {
         $tableaux = [];
-        preg_match_all("/(?<=[\[,])\s*'date'\s*(?=[,\]])/", $code, $m, PREG_OFFSET_CAPTURE);
+        preg_match_all(self::ELEMENT_DATE, $code, $m, PREG_OFFSET_CAPTURE);
         foreach ($m[0] as [, $position]) {
             $ouverture = $this->ouvertureDuTableau($code, $position);
-            if ($ouverture === null || preg_match('/(=>|\?|(?<!:):)\s*$/', substr($code, max(0, $ouverture - 40), min(40, $ouverture))) !== 1) {
+            $avant = $ouverture === null ? '' : substr($code, max(0, $ouverture - 80), min(80, $ouverture));
+            // TCK-2768 r1 — une affectation à une variable (`$paye = [`) est un tableau de règles ; une
+            // déclaration de propriété (`protected $fillable = [`) ne l'est pas.
+            if ($ouverture === null
+                || preg_match('/(=>|\?|(?<!:):|(?<![=!<>])=)\s*$/', $avant) !== 1
+                || preg_match('/\b(?:public|protected|private|var|const)\s+(?:static\s+)?(?:[\w?\\\\|]+\s+)?\$?\w+\s*=\s*$/', $avant) === 1) {
                 continue;
             }
             $tableaux[$ouverture] = $this->tableauEntier($code, $ouverture);
@@ -508,19 +548,35 @@ class InstantRecuConvertiTest extends TestCase
         return substr($code, $ouverture, $j - $ouverture + 1);
     }
 
-    /** Chaque `date` du tableau a sa forme : autant de `new JourIso` / `new InstantIso` que de `'date'`. */
+    /** TCK-2768 — l'ÉLÉMENT `'date'` ou `'date_format:…'` d'un tableau (r1 : `date_format` compris). */
+    private const ELEMENT_DATE = "/(?<=[\[,])\s*'(?:date|date_format:[^']*)'\s*(?=[,\]])/";
+
+    /**
+     * Chaque `date` du tableau a sa forme : autant de `new JourIso` / `new InstantIso` que de `'date'` et de
+     * `'date_format:Y-m-d'`, et pour chaque `date_format:Y-m-d` un `new JourIso` (TCK-2768 r1 : c'est un jour).
+     */
     private function porteUneForme(string $tableau): bool
     {
         $dates = preg_match_all("/(?<=[\[,])\s*'date'\s*(?=[,\]])/", $tableau);
+        $jours = preg_match_all("/(?<=[\[,])\s*'date_format:Y-m-d'\s*(?=[,\]])/", $tableau);
         $formes = preg_match_all('/new\s+(?:\\\\?App\\\\Rules\\\\)?(?:InstantIso|JourIso)\b/', $tableau);
+        $joursIso = preg_match_all('/new\s+(?:\\\\?App\\\\Rules\\\\)?JourIso\b/', $tableau);
 
-        return $dates > 0 && $formes >= $dates;
+        return $formes >= $dates + $jours && $joursIso >= $jours;
     }
 
-    /** @return list<string> les règles en chaîne qui contiennent la règle `date` (`'nullable|date'`). */
+    /** @return list<string> TCK-2768 r1 — les `'date_format:…'` qui ne sont pas un jour (`Y-m-d`). */
+    private function formatsHorsJour(string $code): array
+    {
+        preg_match_all("/'date_format:(?!Y-m-d')[^']*'/", $code, $m);
+
+        return $m[0];
+    }
+
+    /** @return list<string> les règles en chaîne qui contiennent `date` ou `date_format:…` (`'nullable|date'`). */
     private function reglesEnChaineDate(string $code): array
     {
-        preg_match_all("/'(?:[\w:,.*-]+\|)+date(?:\|[\w:,.*-]+)*'|'date(?:\|[\w:,.*-]+)+'/", $code, $m);
+        preg_match_all("/'(?:[\w:,.*-]+\|)+date(?:_format:[\w-]+)?(?:\|[\w:,.*-]+)*'|'date(?:_format:[\w-]+)?(?:\|[\w:,.*-]+)+'/", $code, $m);
 
         return $m[0];
     }

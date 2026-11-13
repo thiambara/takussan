@@ -10,6 +10,7 @@ use App\Models\Enums\VisitReportOutcome;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
+use App\Rules\JourIso;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\CaseInsensitive;
@@ -263,7 +264,7 @@ class PropertyVisit extends AbstractModel
         $filters[] = AllowedFilter::callback('day', function (Builder $q, mixed $value) {
             // Comme `RangeFilter` : une valeur mal formée (ou un tableau) rend 422 sur `filter.day`.
             Validator::make(['filter' => ['day' => $value]], [
-                'filter.day' => ['string', 'date_format:Y-m-d'],
+                'filter.day' => ['string', 'date_format:Y-m-d', new JourIso], // TCK-2768 r1 — l'année bornée
             ])->validate();
             $parsed = CarbonImmutable::createFromFormat('!Y-m-d', (string) $value, VisitSchedulingService::TIMEZONE);
             $q->where('property_visits.scheduled_at', '>=', $parsed->utc())

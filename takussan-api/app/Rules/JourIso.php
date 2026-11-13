@@ -7,8 +7,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
  * TCK-2768 — la FORME d'une date reçue qui désigne un JOUR (colonne `date`, ou borne lue au jour) :
- * `AAAA-MM-JJ` exactement, jour qui existe, année bornée. Posée avec `date` ; la garde
- * `InstantRecuConvertiTest::test_aucune_date_recue_n_est_nue` exige elle ou {@see InstantIso} sur chaque `date`.
+ * `AAAA-MM-JJ` exactement, jour qui existe, année bornée. Posée avec `date`, ou avec `date_format:Y-m-d` (r1 de la
+ * vérification de 7981e617d : ce format admet l'an 1 et 9999) ; la garde
+ * `InstantRecuConvertiTest::test_aucune_date_recue_n_est_nue` exige elle ou {@see InstantIso} sur chaque `date`, et
+ * elle seule sur chaque `date_format:Y-m-d`.
  *
  * La règle `date` de Laravel relit de travers « 99999-01-01 » (2009-01-01), « 10000-01-01 » (2000-01-01),
  * « 12/11/2026 » (le 11 décembre), « 2026-W46 », « 1 Nov 2026 ». `date_format:Y-m-d` seul les refuse, mais
@@ -16,9 +18,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * `validateDateFormat`) : d'où la borne d'années.
  *
  * Le plancher est celui d'{@see InstantIso} (avant 1970, aucun écran n'écrit de jour). Le plafond est PROPRE
- * au jour et PROVISOIRE : 2199, en attendant la décision du porteur (TCK-2768, « Contraintes strictes ») —
- * aucune règle ne borne la durée d'un bail, et un bail emphytéotique (jusqu'à 99 ans) signé en 2026 finit
- * après 2100. Changer le plafond, c'est changer cette seule constante.
+ * au jour : 2199, décision du porteur du 2026-11-13 (TCK-2768, option b, plancher 1970) — aucune règle ne
+ * borne la durée d'un bail, et un bail emphytéotique (jusqu'à 99 ans) signé en 2026 finit après 2100. Changer
+ * le plafond, c'est changer cette constante et son miroir du front (`ANNEE_MAX_DE_L_API`), que lie un test.
  *
  * `null` n'est pas jugé ici (`nullable` en répond) ; toute autre valeur qui n'est pas une chaîne est refusée.
  */

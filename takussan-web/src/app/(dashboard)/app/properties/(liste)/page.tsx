@@ -43,6 +43,7 @@ import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { RESERVE_SOUS_LANCEUR } from '@/components/chat-widget/reserve';
 import { cn } from '@/lib/utils';
 import type { ResumeDuPortefeuille } from '@/types/property';
+import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.properties');
@@ -126,8 +127,9 @@ export default async function Page({
     user_id: asString(params.only_mine) === '1' ? String(user.id) : asString(params.user_id),
     price_min: asString(params.price_min),
     price_max: asString(params.price_max),
-    created_from: asString(params.created_from),
-    created_to: asString(params.created_to),
+    // TCK-2768 (q2) — une borne que l'API refuserait (un favori « 12/11/2026 ») est ignorée, pas relayée en 422.
+    created_from: jourDeLApiOuRien(asString(params.created_from)),
+    created_to: jourDeLApiOuRien(asString(params.created_to)),
     include_archived: asString(params.include_archived),
   };
   const sort = asString(params.sort);

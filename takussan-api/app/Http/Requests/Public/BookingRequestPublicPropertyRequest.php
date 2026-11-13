@@ -25,7 +25,7 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'offer_amount' => ['required', 'numeric', 'min:1'],
                 // TCK-2752 — la validité est un JOUR (le seul que le tunnel envoie) : un instant près de
                 // minuit rangeait un autre jour dans `offer_expires_at` que dans `expires_at`.
-                'offer_expires_at' => ['required', 'date_format:Y-m-d', 'after:today'],
+                'offer_expires_at' => ['required', 'date_format:Y-m-d', new JourIso, 'after:today'],
                 'terms_accepted' => ['required', 'accepted'],
                 'message' => ['nullable', 'string', 'max:1000'],
             ]

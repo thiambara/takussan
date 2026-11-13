@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Commissions;
 
 use App\Models\CommissionEntry;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\JourIso;
 use App\Services\Commission\CommissionLedgerService;
 use Illuminate\Validation\Rule;
 
@@ -21,7 +22,7 @@ trait CommissionPaymentRules
      */
     protected function paymentRules(?string $earnedDay = null): array
     {
-        $paidAt = ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now(CommissionEntry::DATE_TIMEZONE)->toDateString()];
+        $paidAt = ['nullable', 'date_format:Y-m-d', new JourIso, 'before_or_equal:'.now(CommissionEntry::DATE_TIMEZONE)->toDateString()];
         if ($earnedDay !== null) {
             $paidAt[] = 'after_or_equal:'.$earnedDay;
         }

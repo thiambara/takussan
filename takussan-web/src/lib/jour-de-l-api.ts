@@ -38,7 +38,7 @@ export function jourEnDateLocale(jour: string): Date {
 
 /**
  * TCK-2768 — les bornes d'années d'un jour que l'API admet. ⚠ Miroir de `App\Rules\JourIso::ANNEE_MIN`
- * et `::ANNEE_MAX` (PHP) : le plafond y est PROVISOIRE (2199, en attente du porteur) et se change dans
+ * et `::ANNEE_MAX` (PHP) : le plafond (2199, décision du porteur du 2026-11-13) se change dans
  * les deux à la fois.
  */
 export const ANNEE_MIN_DE_L_API = 1970;
@@ -56,4 +56,13 @@ export function estUnJourDeLApi(valeur: string): boolean {
   if (a < ANNEE_MIN_DE_L_API || a > ANNEE_MAX_DE_L_API) return false;
   const d = new Date(Date.UTC(a, mo - 1, j));
   return d.getUTCFullYear() === a && d.getUTCMonth() === mo - 1 && d.getUTCDate() === j;
+}
+
+/**
+ * TCK-2768 (q2) — `valeur` si l'API l'admet comme jour ({@link estUnJourDeLApi}), sinon `undefined` : la forme
+ * qu'un écran emploie pour une borne LUE DANS L'URL (un favori, un lien copié). Une borne refusée est ignorée,
+ * comme la recherche publique écarte un `available_from` refusé, au lieu d'un 422 et d'une liste vide.
+ */
+export function jourDeLApiOuRien(valeur: string | null | undefined): string | undefined {
+  return typeof valeur === 'string' && estUnJourDeLApi(valeur) ? valeur : undefined;
 }

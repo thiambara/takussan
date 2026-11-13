@@ -26,6 +26,7 @@ import {
   PAYMENT_STATUS_TONE,
   type PaymentStatus,
 } from './constants';
+import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
 
 export function PaymentsHistoryTable() {
   const locale = useLocale() as Locale;
@@ -45,8 +46,9 @@ export function PaymentsHistoryTable() {
     const entity_id = entity_id_raw
       ? Number.parseInt(entity_id_raw, 10) || undefined
       : undefined;
-    const date_from = searchParams.get('date_from') ?? undefined;
-    const date_to = searchParams.get('date_to') ?? undefined;
+    // TCK-2768 (q2) — une borne que l'API refuserait (un favori « 12/11/2026 ») est ignorée, pas relayée en 422.
+    const date_from = jourDeLApiOuRien(searchParams.get('date_from'));
+    const date_to = jourDeLApiOuRien(searchParams.get('date_to'));
     return {
       page,
       per_page: 20,

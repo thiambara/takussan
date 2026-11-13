@@ -1,4 +1,5 @@
 import { bornesDuMois, estMois } from './mois';
+import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
 
 /**
  * TCK-2659 — ce que l'adresse de « Argent » (`/app/agency/finances`) ouvre.
@@ -63,8 +64,9 @@ export function bornesDesEncaissements(
   params: ParametresLus,
   courant: string,
 ): { readonly du?: string; readonly au?: string; readonly mois: string | null } {
-  const du = params.get('date_from') || undefined;
-  const au = params.get('date_to') || undefined;
+  // TCK-2768 (q2) — une borne que l'API refuserait (un favori « 12/11/2026 ») est ignorée.
+  const du = jourDeLApiOuRien(params.get('date_from'));
+  const au = jourDeLApiOuRien(params.get('date_to'));
   if (du || au) return { du, au, mois: null };
   const periode = params.get('period');
   if (estMois(periode)) return { ...bornesDuMois(periode), mois: periode };

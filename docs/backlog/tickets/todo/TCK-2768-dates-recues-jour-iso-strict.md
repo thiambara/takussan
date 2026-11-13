@@ -120,7 +120,7 @@ Les lecteurs de `MapPublicPropertyRequest`, `PriceDistributionRequest` et `Sugge
   la famille I, tout instant que `InstantIso` admet reste accepté.
 - **Le plancher est celui d'`InstantIso`** (`ANNEE_MIN` = 1970), lu par référence et jamais recopié. Aucune des
   colonnes visées ne porte une date de naissance ni une date historique.
-- **⚠ Le plafond est à trancher avant le code.** La demande était 2100, comme `InstantIso::ANNEE_MAX`. Mais
+- **Le plafond : tranché par le porteur le 2026-11-13, option (b), 2199, plancher 1970.** La demande était 2100, comme `InstantIso::ANNEE_MAX`. Mais
   aucune règle ne borne aujourd'hui la durée d'un bail : `StoreLeaseRequest` et `RenewLeaseRequest` acceptent
   un `end_date` en 2125. Un bail emphytéotique (jusqu'à 99 ans) signé en 2026 finit après 2100, et un
   `expiry_date` de pièce peut suivre ce bail. 2100 refuserait une valeur juste, admise aujourd'hui.
@@ -279,7 +279,7 @@ sur les quatre écrivains et le calendrier.
 
 - `App\Rules\JourIso` : `\A(\d{4})-(\d{2})-(\d{2})\z`, `checkdate`, années de `InstantIso::ANNEE_MIN` (lu par
   référence) à `JourIso::ANNEE_MAX`. `estAdmis()` est statique, pour qu'un lecteur hors validation l'emploie.
-- **Plafond : 2199, PROVISOIRE**, en attendant la décision du porteur (baux emphytéotiques de 99 ans, cf.
+- **Plafond : 2199, décision du porteur du 2026-11-13 (option b, plancher 1970)** (baux emphytéotiques de 99 ans, cf.
   « Contraintes strictes »). C'est une seule constante côté API, et une côté front (`ANNEE_MAX_DE_L_API` de
   `src/lib/jour-de-l-api.ts`). Un test de parité lit la constante PHP depuis le test front : changer l'une sans
   l'autre fait rougir le test.
@@ -359,9 +359,95 @@ erreur, dans `.next/types/validator.ts` : c'est un artefact périmé de `next de
 
 **Limites.**
 
-- Le plafond est provisoire (2199) : la décision du porteur reste ouverte, et elle change deux constantes.
+- Le plafond (2199) est tranché par le porteur le 2026-11-13. Le changer, c'est changer deux constantes, que lie un test.
 - La garde lit par nom de champ et par jeton. Une règle construite par une méthode lui échappe, comme pour
   TCK-2743 et TCK-2752.
 - Un écran du personnel qui relaie à la main une date d'URL mal formée rend désormais 422 au lieu d'un mauvais jour
   (hors périmètre).
 - Au front, seul `available_from` est filtré : c'est le seul jour qu'une URL publique porte jusqu'à l'API.
+
+### Reprise r1 et q1 (vérification de 7981e617d, 2026-11-13)
+
+**r1 : `date_format:Y-m-d` échappait à la règle et à la garde.** Ce format refuse les formes relues de travers, mais
+admet toute année à quatre chiffres. Mesuré par la vérification : `POST /api/properties/{id}/unavailabilities` avec
+`starts_on=0001-01-01` → 201, écrit tel quel.
+
+- **20 règles reçoivent `new JourIso` juste après le format** : les 19 des FormRequests (dont le versement
+  `paid_at`, construit dans une variable locale) et `filter.day` de `PropertyVisit`.
+  - Écrivains : indisponibilité (`starts_on`, `ends_on`), offre (`offer_expires_at`, publique et du personnel),
+    pièce KYC (`expires_at`), versement de commission (`paid_at`), visite publique (`date`).
+  - Lectures : créneaux de visite, disponibilité publique, indisponibilités, relevés bancaires, tableau de bord
+    IA, statistiques de boost, `filter[day]` des visites.
+- **Prémisse différente sur `paid_at`.** L'an 1 n'y était pas écrit : le service le refuse par
+  `commission.paid_before_earned`, et `earned_at` est NOT NULL. Il passait la validation et atteignait le service.
+  Il est désormais refusé à la validation, sur `paid_at`.
+- **La garde lit maintenant `date_format`.**
+  - L'élément `'date_format:Y-m-d'` exige `new JourIso`, et `InstantIso` seul ne suffit pas : c'est un jour.
+  - Un tableau posé dans une variable (`$paidAt = [...]`) est lu. Une déclaration de propriété (`$fillable`,
+    `$guarded`) ne l'est pas.
+  - Une règle en chaîne `'…|date_format:Y-m-d'` rougit.
+  - Les deux `date_format:Y-m` (des mois : `CommissionSummaryRequest.month`, `ShowTeamPerformanceRequest.period`)
+    sont épinglés dans `FORMATS_HORS_JOUR`. Tout autre `date_format` neuf rougit jusqu'à ce qu'on décide de sa forme.
+  - Nouveau plancher : au moins 19 tableaux en `date_format:Y-m-d` lus.
+  - La clé `'date_format'` du mappage CSV bancaire n'est pas lue comme une règle.
+- **Test HTTP** : `tests/Feature/Validation/JourIsoFormatRecuTest.php`, 8 tests.
+  - Indisponibilité : l'an 1 et 1969 rendent 422, rien n'est écrit, et un jour admis est relu.
+  - Solde de commissions (`/api/commissions/settle`) : l'an 1 et 1969 rendent 422 sur `paid_at`.
+  - Offre publique : 9999-12-31 et 2200-01-01 rendent 422, rien n'est écrit, et un jour admis est relu.
+  - Pièce KYC : 9999 et 2200 rendent 422, un jour admis passe.
+
+**q1 : le rejeu des recherches sauvegardées.** `PropertySearchService::buildFilter`, que suivent l'alerte e-mail
+(`alertMatches`) et le compte de résultats (`search`), n'applique `available_from` que si `JourIso::estAdmis()` l'admet.
+Une valeur ancienne (« 99999-01-01 », « 12/11/2026 ») est ignorée, comme au front, au lieu d'être relue en 2009 ou au
+11 décembre. Test : `tests/Feature/Search/AlerteRejoueeJourIsoTest.php` (5 valeurs refusées, plus un jour admis
+rejoué tel quel). `FiltresDeLaCarte` n'est pas touché : la carte ne reçoit que des valeurs validées
+(`MapPublicPropertyRequest` hérite de `SearchPublicPropertyRequest`).
+
+**Ablations** (chacune rouge, puis restaurée et vérifiée par md5) :
+
+- Écrivains : `JourIso` retiré de l'indisponibilité, de l'offre publique, de la pièce KYC et de `paid_at`. Chaque
+  fois, 2 rouges HTTP.
+- Garde :
+  - `JourIso` retiré de `PropertyVisit.filter.day`, de `BoostStatsRequest.from` et de `paid_at` (variable locale) ;
+  - `JourIso` remplacé par `InstantIso` sur la pièce KYC ;
+  - un `Y-m` passé en `Y-m-d` sans `JourIso`.
+- Lecture de la garde :
+  - `date_format` non lu, qui fait aussi rougir le plancher du test principal ;
+  - `InstantIso` admis après `date_format:Y-m-d` ;
+  - affectation à une variable non lue ;
+  - déclaration de propriété lue ;
+  - règle en chaîne `date_format` non vue ;
+  - formats hors jour non relevés.
+- q1 : le rejeu sans `JourIso::estAdmis` rend 5 rouges.
+
+**Reste.** `date_format:Y-m` (les mois) admet encore l'an 1. Ces champs ne sont lus qu'au mois et ne s'écrivent nulle
+part, d'où l'épingle plutôt qu'une règle.
+
+### Reprise q2 : écrans de la console qui relaient une date lue dans l'URL
+
+**Ce qui change pour l'utilisateur.** Depuis la règle, un favori ou un lien copié qui porte une date mal formée
+(« 12/11/2026 », « 2026-02-30 », « 0001-01-01 ») recevait un 422, et l'écran affichait une liste vide sans rien
+dire. Désormais, chaque écran ignore la borne que l'API refuserait et reprend son défaut, comme la recherche publique
+écarte un `available_from` refusé. Le seul juge est `jourDeLApiOuRien()` (`src/lib/jour-de-l-api.ts`, la règle de
+`JourIso` au front). `estMois()` borne les années de la même façon.
+
+| Écran | Paramètres d'URL | Avant | Test |
+|---|---|---|---|
+| Journal d'activité (`AuditTrail`) | `from`, `to` | forme seule : « 2026-02-30 » partait | `AuditTrail.jour-admis.tck-2768.test.tsx` |
+| Historique des paiements (`PaymentsHistoryTable`) | `date_from`, `date_to` | relayés tels quels | `PaymentsHistoryTable.jour-admis.tck-2768.test.tsx` |
+| « Argent », registre des encaissements (`bornesDesEncaissements`), et son lien d'export qui en dérive | `date_from`, `date_to`, `period` | relayés tels quels ; « 0001-01 » donnait `0001-01-01` | `lib/finances/__tests__/jour-admis.tck-2768.test.ts` |
+| Liste des biens (`/app/properties`) | `created_from`, `created_to` | relayés tels quels | `properties/(liste)/__tests__/bornes-de-creation.tck-2768.test.tsx` |
+| Agenda (`CalendarPage`) | `date` | jour réel, sans borne d'années | `CalendarPage.jour-admis.tck-2768.test.tsx` |
+| Le mois (`estMois`) : « Argent » `period`, commissions `mois`, rapprochement `period`, fiche du bailleur | `period`, `mois` | forme seule : « 0001-01 » admis | `lib/finances/__tests__/jour-admis.tck-2768.test.ts` (`estMois`, `moisAffiche`, `vueDesCommissions`) |
+
+**Ce qui n'a pas de test d'écran.** Le rapprochement (`ResteARapprocher`) et la fiche du bailleur
+(`owners/[id]`) n'ont rien à eux : ils lisent `period` par `estMois` seul. Ils sont couverts par le test d'`estMois`,
+pas par un rendu de l'écran.
+
+**Écartés après lecture :**
+
+- `ExportForm` lit un formulaire, pas l'URL.
+- La console super-admin des agences tient ses dates en état, pas dans l'URL.
+- Les visites (`MesVisites`, `par-le-temps`), la journée et la boîte des demandes posent des bornes calculées.
+- La route `/api/export/[entity]` relaie l'URL que l'écran a construite à partir de ses paramètres, désormais
+  filtrés.
