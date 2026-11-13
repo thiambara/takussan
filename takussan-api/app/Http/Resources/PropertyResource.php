@@ -115,6 +115,10 @@ class PropertyResource extends BaseResource
             // contrôleur (`include=online`, `include=occupancy`) : rien sinon.
             ...($this->resource instanceof Property && $this->resource->onlineFlag() !== null
                 ? ['is_online' => $this->resource->onlineFlag()] : []),
+            // TCK-2678 (ADR-0097 § 5) — les codes de motif d'un bien hors ligne (`include=offlineReasons`),
+            // posés par le seul `PropertyController` : ni une route publique ni un lecteur imbriqué ne les pose.
+            ...($this->resource instanceof Property && $this->resource->offlineReasonsFlag() !== null
+                ? ['offline_reasons' => $this->resource->offlineReasonsFlag()] : []),
             ...($this->resource instanceof Property && $this->resource->occupancyBlock() !== null
                 ? ['occupancy' => $this->buildOccupancy($this->resource->occupancyBlock())] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),

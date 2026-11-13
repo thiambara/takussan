@@ -2177,6 +2177,23 @@
           "definition": "Available, approved or pending"
         },
         "boostee": "Boosted until {date}"
+      },
+      "horsLigne": {
+        "phrase": {
+          "agency_inactive": "Agency suspended: its properties are no longer visible to the public.",
+          "status_draft": "Draft — publish the listing when it is ready.",
+          "status_sold": "Sold — the listing is no longer offered.",
+          "status_rented": "Rented — back online when the lease ends.",
+          "status_archived": "Archived — unarchive it to put it back online.",
+          "status_under_maintenance": "Under maintenance — back online once available.",
+          "status_unavailable": "Unavailable — back online once available.",
+          "status_pending_review": "Awaiting approval by the agency.",
+          "status_rejected": "Rejected at review — fix the listing, then submit it again.",
+          "not_published": "Never published — publish the listing to put it online.",
+          "private": "Private — make it public to put it online.",
+          "test": "Test property — never visible to the public.",
+          "inconnu": "Offline."
+        }
       }
     },
     "visibility": {

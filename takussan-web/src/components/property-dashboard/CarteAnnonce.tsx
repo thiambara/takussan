@@ -7,9 +7,11 @@ import { useTranslations } from 'next-intl';
 import { Eye, Rocket } from 'lucide-react';
 
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import type { Locale } from '@/i18n/config';
 import { etatDAnnonce, statutAMontrer, type EtatDAnnonce } from '@/lib/biens/etat-d-annonce';
+import { phrasesDesMotifs } from '@/lib/biens/motifs-hors-ligne';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { PropertyListItem } from '@/types/property';
@@ -120,6 +122,7 @@ export function CarteAnnonce({
           ) : null}
           {statutAMontrer(property) ? <PropertyStatusBadge status={property.status} /> : null}
         </div>
+        {etat === 'horsLigne' && property.offline_reasons?.length ? <MotifDeLaCarte motifs={property.offline_reasons} /> : null}
         {/* Les deux noms se lisent entiers : la ligne passe à la ligne plutôt que de couper « Agent responsable : S… »
             (balayage du lot B, 390 et 1280 px). */}
         <ProprietaireEtResponsable property={property} currentUserId={currentUserId} className="mt-2 whitespace-normal" />
@@ -197,4 +200,42 @@ function relatif(date: Date, locale: Locale): string {
   if (abs < 86400 * 30) return rtf.format(Math.round(ecart / 86400), 'day');
   if (abs < 86400 * 365) return rtf.format(Math.round(ecart / (86400 * 30)), 'month');
   return rtf.format(Math.round(ecart / (86400 * 365)), 'year');
+}
+
+/**
+ * TCK-2678 (ADR-0097 § 5) — sous la pastille « Hors ligne », le PREMIER motif, sur une ligne coupée
+ * proprement ; tous les motifs au survol et au focus clavier (une infobulle ne s'ouvre pas au toucher :
+ * au téléphone, le premier motif seul). Les motifs suivants sont lus aux lecteurs d'écran.
+ */
+function MotifDeLaCarte({ motifs }: { readonly motifs: readonly string[] }) {
+  const t = useTranslations('property.dashboard.horsLigne');
+  const phrases = phrasesDesMotifs(motifs, (cle) => t(cle));
+  if (phrases.length === 0) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          // Un bouton sans action : le déclencheur d'une infobulle doit prendre le focus clavier, et un `<p>`
+          // focalisable n'est pas un élément interactif (jsx-a11y). Au-dessus du lien étiré de la carte.
+          <button
+            type="button"
+            data-testid="motif-hors-ligne"
+            className="relative z-10 mt-1.5 block w-full truncate rounded-sm text-left text-xs text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring"
+          />
+        }
+      >
+        {phrases[0]}
+        {phrases.length > 1 ? <span className="sr-only"> {phrases.slice(1).join(' ')}</span> : null}
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        <span role="list" className="block space-y-0.5">
+          {phrases.map((phrase) => (
+            <span role="listitem" key={phrase} className="block">
+              {phrase}
+            </span>
+          ))}
+        </span>
+      </TooltipContent>
+    </Tooltip>
+  );
 }

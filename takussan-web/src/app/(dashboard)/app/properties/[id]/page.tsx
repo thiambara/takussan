@@ -8,11 +8,13 @@ import { getMeAction } from '@/app/actions/auth';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { getToken } from '@/lib/session';
+import { phrasesDesMotifs } from '@/lib/biens/motifs-hors-ligne';
 import { lireBienDuRendu } from '@/lib/detail/ressource-de-detail';
 import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { CarteOccupation } from '@/components/property-dashboard/fiche/CarteOccupation';
+import { MotifsHorsLigne } from '@/components/property-dashboard/fiche/MotifsHorsLigne';
 import { BlocResponsable } from '@/components/property-dashboard/fiche/PiecesDeLaLocation';
 import { PhotosDuBien } from '@/components/property-dashboard/fiche/PhotosDuBien';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
@@ -138,6 +140,9 @@ export default async function Page({ params, searchParams }: { params: Params; s
     ) : null;
 
   const tFiche = await getTranslations('property.dashboard.fiche.identite');
+  const tMotif = await getTranslations('property.dashboard.horsLigne');
+  // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`).
+  const motifs = property.is_online === false ? phrasesDesMotifs(property.offline_reasons ?? [], (cle) => tMotif(cle)) : [];
   const tListe = await getTranslations('dashboard.properties');
   const tConsole = await getTranslations('console.pageHeader');
   // TCK-2639 — l'identité du bien (maquette `app-biens` a-2) : « Villa · 320 m² · TK-51720 », puis ses
@@ -197,6 +202,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
         <div className="px-4 pt-3" aria-hidden="true">
           <p className="text-ui text-muted-foreground">{identite}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">{pastilles}</div>
+          <MotifsHorsLigne phrases={motifs} className="mt-1.5" />
           {locatif ? null : proprietaireEtResponsable('mt-2 block whitespace-normal')}
           {enAttenteDe ? <p className="mt-2 text-xs text-muted-foreground">{enAttenteDe}</p> : null}
         </div>
@@ -211,6 +217,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
               {identite}
               {pastilles}
             </span>
+            <MotifsHorsLigne phrases={motifs} className="mt-1.5" />
             {/* TCK-603 — la fiche, comme la liste, nomme le propriétaire ET l'agent responsable. */}
             {proprietaireEtResponsable(cn('mt-1 block whitespace-normal', locatif && 'xl:hidden'))}
             {enAttenteDe ? (

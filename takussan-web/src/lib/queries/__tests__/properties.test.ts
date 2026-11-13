@@ -87,12 +87,12 @@ describe('fetchDashboardProperties — spatie conventions', () => {
 });
 
 describe('fetchDashboardProperty', () => {
-  it('lit le `show` sans `fields` (P60.03), avec l\'occupation et « En ligne » (TCK-2639), et déballe { data }', async () => {
+  it('lit le `show` sans `fields` (P60.03), avec l\'occupation, « En ligne » (TCK-2639) et les motifs hors ligne (TCK-2678), et déballe { data }', async () => {
     const fetchSpy = mockFetch({ data: { id: 5, title: 'Villa' } });
     const result = await fetchDashboardProperty('tok', 5);
     expect(result).toEqual({ id: 5, title: 'Villa' });
     const url = String(fetchSpy.mock.calls[0][0]);
-    expect(url).toMatch(/\/api\/properties\/5\?include=occupancy%2Conline$/);
+    expect(url).toMatch(/\/api\/properties\/5\?include=occupancy%2Conline%2CofflineReasons$/);
     expect(url).not.toContain('fields');
   });
 });

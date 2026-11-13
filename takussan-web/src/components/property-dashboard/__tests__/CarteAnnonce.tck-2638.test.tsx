@@ -250,3 +250,25 @@ describe('« Boostée » (lot B2, décision du porteur : la mise en avant payée
     expect(boostEnCours({ sponsored_until: undefined }, maintenant)).toBeNull();
   });
 });
+
+describe('CarteAnnonce — le motif d’une annonce hors ligne (TCK-2678)', () => {
+  const motif = (carte: HTMLElement) => within(carte).queryByTestId('motif-hors-ligne');
+
+  it('hors ligne, la carte dit le premier motif ; les suivants restent lisibles par les lecteurs d’écran', () => {
+    rendre([bien({ is_online: false, status: 'rented', offline_reasons: ['status_rented', 'private'] })]);
+    const ligne = motif(cartes()[0]!);
+    expect(ligne?.textContent).toContain('Loué — remis en ligne à la fin du bail.');
+    expect(ligne?.className.split(/\s+/)).toContain('truncate');
+    expect(cartes()[0]).toHaveTextContent('Privé — rendez-le public pour le mettre en ligne.');
+  });
+
+  it('jamais sur une carte en ligne, ni sur un brouillon, ni sans motif servi', () => {
+    rendre([
+      bien({ is_online: true, offline_reasons: [] }),
+      bien({ is_online: true, offline_reasons: ['private'] }),
+      bien({ is_online: false, status: 'draft', offline_reasons: ['status_draft'] }),
+      bien({ is_online: false, status: 'available' }),
+    ]);
+    expect(cartes().map(motif)).toEqual([null, null, null, null]);
+  });
+});

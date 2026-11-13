@@ -75,6 +75,14 @@ class Property extends AbstractModel implements HasMedia
      */
     private ?bool $onlineFlag = null;
 
+    /**
+     * TCK-2678 (ADR-0097 § 5) — `offline_reasons`, posé pour une page entière par
+     * {@see markOfflineReasons()} sur `include=offlineReasons` ; `null` : non demandé.
+     *
+     * @var list<string>|null
+     */
+    private ?array $offlineReasons = null;
+
     /** TCK-2637 — le bloc `occupancy` posé par `PropertyOccupancy`, ou `null` s'il n'a pas été demandé. */
     private ?array $occupancyBlock = null;
 
@@ -199,6 +207,9 @@ class Property extends AbstractModel implements HasMedia
             ...parent::getAllowedQueryIncludes(),
             AllowedInclude::custom('occupancy', new InclusionLueParLeControleur),
             AllowedInclude::custom('online', new InclusionLueParLeControleur),
+            // TCK-2678 — `offline_reasons` ({@see offlineReasonsAmong()}), à part de `online` : ses
+            // lecteurs actuels ne paient pas ses requêtes.
+            AllowedInclude::custom('offlineReasons', new InclusionLueParLeControleur),
         ];
     }
 
@@ -670,22 +681,34 @@ class Property extends AbstractModel implements HasMedia
             ->orWhereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', AgencyStatus::Active)));
     }
 
+    /**
+     * TCK-2678 (ADR-0097 § 1 et § 5) — LES conditions de « en ligne », une par motif, dans l'ordre où
+     * les motifs se disent. {@see scopePublic()} les applique toutes ; {@see offlineReasonsAmong()}
+     * rend, pour chaque bien, celles qu'il ne remplit pas. Ajouter une condition ici change d'un coup
+     * le filtre, `is_online`, la tuile « En ligne » et le motif — il n'y a pas d'autre définition.
+     *
+     * `status` rend `status_<valeur>` (`status_rented`, `status_pending_review`…).
+     *
+     * @return array<string, \Closure(Builder<Property>): mixed>
+     */
+    public static function conditionsEnLigne(): array
+    {
+        return [
+            'agency_inactive' => fn (Builder $q) => $q->ofPublicAgency(),
+            'status' => fn (Builder $q) => $q->whereNotIn('status', self::NON_PUBLIC_STATUSES),
+            'not_published' => fn (Builder $q) => $q->whereNotNull('published_at'),
+            'private' => fn (Builder $q) => $q->where('visibility', PropertyVisibility::Public),
+            'test' => fn (Builder $q) => $q->where('is_test', false),
+        ];
+    }
+
     public function scopePublic(Builder $query): Builder
     {
-        return $query->ofPublicAgency()
-            ->where('visibility', PropertyVisibility::Public)
-            ->where('is_test', false)
-            ->whereNotNull('published_at')
-            ->whereNotIn('status', [
-                PropertyStatus::Draft,
-                PropertyStatus::Sold,
-                PropertyStatus::Rented,
-                PropertyStatus::Archived,
-                PropertyStatus::UnderMaintenance,
-                PropertyStatus::Unavailable,
-                PropertyStatus::PendingReview,
-                PropertyStatus::Rejected,
-            ]);
+        foreach (self::conditionsEnLigne() as $condition) {
+            $condition($query);
+        }
+
+        return $query;
     }
 
     /**
@@ -744,6 +767,57 @@ class Property extends AbstractModel implements HasMedia
     {
         return $ids === [] ? [] : static::query()->public()->whereIn('properties.id', $ids)
             ->pluck('properties.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * TCK-2678 (ADR-0097 § 5) — pour chaque bien de `$ids`, les codes des conditions de
+     * {@see conditionsEnLigne()} qu'il ne remplit pas, dans leur ordre ; `[]` pour un bien en ligne.
+     * Une requête par condition, plus une pour le statut, quel que soit le nombre de biens. Chaque
+     * condition est jugée par l'identifiant des biens qui la REMPLISSENT, jamais par sa négation SQL
+     * (une colonne nulle ferait tomber un bien des deux côtés à la fois).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, list<string>>
+     */
+    public static function offlineReasonsAmong(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        // Lu ici et non sur les instances : une liste à `fields[properties]` n'a pas forcément chargé `status`.
+        $statuts = static::query()->whereIn('properties.id', $ids)->toBase()->pluck('status', 'id');
+        $motifs = array_fill_keys($ids, []);
+        foreach (self::conditionsEnLigne() as $code => $condition) {
+            $q = static::query()->whereIn('properties.id', $ids);
+            $condition($q);
+            $remplie = array_flip($q->pluck('properties.id')->map(fn ($id) => (int) $id)->all());
+            foreach ($ids as $id) {
+                if (! isset($remplie[$id])) {
+                    $motifs[$id][] = $code === 'status' ? 'status_'.$statuts[$id] : $code;
+                }
+            }
+        }
+
+        return $motifs;
+    }
+
+    /** TCK-2678 — les motifs de CE bien ({@see offlineReasonsAmong()}). */
+    public function offlineReasons(): array
+    {
+        return self::offlineReasonsAmong([(int) $this->getKey()])[(int) $this->getKey()] ?? [];
+    }
+
+    /** @param  list<string>  $reasons */
+    public function markOfflineReasons(array $reasons): void
+    {
+        $this->offlineReasons = $reasons;
+    }
+
+    /** @return list<string>|null */
+    public function offlineReasonsFlag(): ?array
+    {
+        return $this->offlineReasons;
     }
 
     /** TCK-2637 — pose `is_online` sur une instance de la page (`PropertyController`). */

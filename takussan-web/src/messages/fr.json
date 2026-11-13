@@ -2134,6 +2134,23 @@
           "definition": "Disponibles, validées ou en attente"
         },
         "boostee": "Boostée jusqu’au {date}"
+      },
+      "horsLigne": {
+        "phrase": {
+          "agency_inactive": "Agence suspendue : ses biens ne sont plus visibles du public.",
+          "status_draft": "Brouillon — publiez l’annonce quand elle est prête.",
+          "status_sold": "Vendu — l’annonce n’est plus proposée.",
+          "status_rented": "Loué — remis en ligne à la fin du bail.",
+          "status_archived": "Archivé — désarchivez-le pour le remettre en ligne.",
+          "status_under_maintenance": "En maintenance — remis en ligne une fois disponible.",
+          "status_unavailable": "Indisponible — remis en ligne une fois disponible.",
+          "status_pending_review": "En attente de validation par l’agence.",
+          "status_rejected": "Refusé à la validation — corrigez l’annonce puis soumettez-la de nouveau.",
+          "not_published": "Jamais publié — publiez l’annonce pour la mettre en ligne.",
+          "private": "Privé — rendez-le public pour le mettre en ligne.",
+          "test": "Bien de test — jamais visible du public.",
+          "inconnu": "Hors ligne."
+        }
       }
     },
     "visibility": {

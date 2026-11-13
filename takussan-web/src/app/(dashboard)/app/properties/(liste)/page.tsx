@@ -178,7 +178,8 @@ export default async function Page({
               ? asString(params.listing)
               : undefined,
           },
-          inclusions: ['online'],
+          // TCK-2678 — la carte d'un bien hors ligne dit son premier motif.
+          inclusions: ['online', 'offlineReasons'],
         };
 
   const agence = estDeLAgence(user.roles);

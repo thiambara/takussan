@@ -108,9 +108,10 @@ export interface DashboardPropertyFilters {
 /**
  * TCK-2638 — les blocs que les modes ajoutent à la ligne : l'occupation (`occupancy`, TCK-2637, mode
  * Gestion seulement : son calcul lit les baux de la page) et « En ligne » (`online` → `is_online`,
- * ADR-0097), que lisent les deux modes.
+ * ADR-0097), que lisent les deux modes ; le motif d'un bien hors ligne (`offlineReasons`, TCK-2678), que
+ * lit la carte du mode Annonces.
  */
-export type InclusionDeGestion = 'occupancy' | 'online';
+export type InclusionDeGestion = 'occupancy' | 'online' | 'offlineReasons';
 
 export interface FetchDashboardPropertiesParams {
   readonly page?: number;
@@ -193,14 +194,15 @@ export async function fetchPortfolioSummary(
 
 /**
  * La fiche d'un bien du tableau de bord. TCK-2639 — avec `include=occupancy,online` (TCK-2637) :
- * l'onglet « Location » lit l'occupant, le bail et l'état du mois, l'en-tête « En ligne ».
+ * l'onglet « Location » lit l'occupant, le bail et l'état du mois, l'en-tête « En ligne ». TCK-2678 —
+ * et `offlineReasons` : sous « Hors ligne », une phrase par motif.
  */
 export async function fetchDashboardProperty(
   token: string,
   idOrSlug: string | number,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    cheminApi`/api/properties/${idOrSlug}${requete(buildQueryString({ include: ['occupancy', 'online'] }))}`,
+    cheminApi`/api/properties/${idOrSlug}${requete(buildQueryString({ include: ['occupancy', 'online', 'offlineReasons'] }))}`,
     { token },
   );
   return res.data;

@@ -24,6 +24,7 @@ use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\MotifsHorsLigne;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkAssignService;
@@ -219,6 +220,14 @@ class PropertyController extends Controller
         if (in_array('online', $includes, true)) {
             $property->markOnline($property->isOnline());
         }
+        // TCK-2678 — le motif d'un bien hors ligne, au seul personnel de son agence et à son bailleur
+        // (`MotifsHorsLigne`) ; jamais aux routes publiques.
+        if (in_array('offlineReasons', $includes, true)) {
+            $motifs = app(MotifsHorsLigne::class)->pour($request->user(), [(int) $property->getKey()]);
+            if (isset($motifs[(int) $property->getKey()])) {
+                $property->markOfflineReasons($motifs[(int) $property->getKey()]);
+            }
+        }
         if (in_array('occupancy', $includes, true)) {
             app(PropertyOccupancy::class)->attach(collect([$property]), $request->user());
         }
@@ -244,6 +253,16 @@ class PropertyController extends Controller
         if (in_array('online', $includes, true)) {
             $online = array_flip(Property::onlineAmong($biens->map(fn (Property $p) => (int) $p->getKey())->all()));
             $biens->each(fn (Property $p) => $p->markOnline(isset($online[(int) $p->getKey()])));
+        }
+
+        // TCK-2678 — une ligne que l'appelant ne lit pas en personnel ni en bailleur ne porte pas la clé.
+        if (in_array('offlineReasons', $includes, true)) {
+            $motifs = app(MotifsHorsLigne::class)->pour($request->user(), $biens->map(fn (Property $p) => (int) $p->getKey())->all());
+            $biens->each(function (Property $p) use ($motifs) {
+                if (isset($motifs[(int) $p->getKey()])) {
+                    $p->markOfflineReasons($motifs[(int) $p->getKey()]);
+                }
+            });
         }
 
         if (in_array('occupancy', $includes, true)) {

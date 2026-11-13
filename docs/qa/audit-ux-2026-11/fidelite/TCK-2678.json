@@ -1,0 +1,95 @@
+{
+  "ticket": "TCK-2678",
+  "ecrans": [
+    {
+      "page": "app-biens",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Liste — mode Annonces",
+      "references": {
+        "telephone": "references/app-biens/a-1-telephone.json",
+        "bureau-1440": "references/app-biens/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-biens/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/properties?mode=annonces&listing=offline",
+        "persona": "admin",
+        "etat": "le portefeuille de démo de l'agence Dakar Immo, pastille « Hors ligne » active (la maquette dessine « En ligne », dont les cartes n'ont pas de motif) : 20 cartes, 20 lignes de motif (« Bien de test — jamais visible du public. », « Loué — remis en ligne à la fin du bail. », « En maintenance — remis en ligne une fois disponible. ») ; aucun bouchon, `offline_reasons` est celui de l'API (`include=online,offlineReasons`)"
+      }
+    },
+    {
+      "page": "app-biens",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Fiche — onglet Location",
+      "references": {
+        "telephone": "references/app-biens/a-2-telephone.json",
+        "bureau-1440": "references/app-biens/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-biens/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/properties/6",
+        "persona": "admin",
+        "etat": "le bien 6 de la démo (Dakar Immo), loué donc hors ligne (`offline_reasons = [\"status_rented\"]`, relu le 2026-11-13) : « Loué — remis en ligne à la fin du bail. » sous les pastilles ; aucun bouchon"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/properties?mode=annonces&listing=offline · /app/properties/6",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-biens a-1-*",
+      "element": "ligne du motif sous les pastilles d'une carte hors ligne",
+      "propriete": "élément absent de la maquette",
+      "exception": "donnée",
+      "motif": "ADR-0097 § 5 (décidé par le porteur le 2026-11-10) : la maquette a-1 ne dessine que des cartes en ligne, qui n'ont pas de motif. Relevé : 12 px/400 au téléphone (10,8 px au bureau, densité ×0,9), rgb(110,101,90) (muted-foreground, la couleur de la ligne « Propriétaire · Agent »), une ligne de 16 px (14 px au bureau), coupée par ellipse si elle dépasse ; la carte grandit d'autant"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "phrase du motif sous les pastilles de la fiche (« Loué — remis en ligne à la fin du bail. »)",
+      "propriete": "élément absent de la maquette",
+      "exception": "donnée",
+      "motif": "ADR-0097 § 5 : la maquette a-2 ne dit pas pourquoi un bien est hors ligne. Relevé : 13 px/400, rgb(110,101,90), 19,5 px de haut au téléphone (18,6 px au bureau) ; au bureau, la galerie et les onglets descendent d'autant par rapport au relevé de TCK-2639"
+    },
+    {
+      "ecran": "app-biens a-1-*, a-2-*",
+      "element": "biens, montants, comptes, photos, pastilles d'état",
+      "propriete": "libellés et nombres",
+      "exception": "donnée",
+      "motif": "mêmes écarts de donnée que TCK-2638 (a-1) et TCK-2639 (a-2) ; sur a-1, la pastille active est « Hors ligne » et non « En ligne » : les cartes montrées ne sont pas celles de la maquette"
+    }
+  ],
+  "mesures": {
+    "date": "2026-11-13",
+    "garde": "garde.js chargée avant la page : 2 écritures refusées et 0 erreur sur chacun des 6 relevés",
+    "lignes": {
+      "a-1-telephone": "30 conformes · 28 écarts · 23 absents · 47.6 % pixels",
+      "a-1-bureau-1440": "38 conformes · 172 écarts · 73 absents · 46.96 % pixels",
+      "a-1-bureau-1280": "37 conformes · 181 écarts · 83 absents · 45.9 % pixels",
+      "a-2-telephone": "28 conformes · 27 écarts · 22 absents · 33.04 % pixels",
+      "a-2-bureau-1440": "70 conformes · 170 écarts · 55 absents · 25.07 % pixels",
+      "a-2-bureau-1280": "61 conformes · 162 écarts · 55 absents · 23.6 % pixels"
+    },
+    "lecture": "les chiffres de a-1 viennent surtout de la pastille « Hors ligne » (cartes, photos et pastilles différentes de la maquette) ; ils ne se comparent pas à ceux de TCK-2638, relevés sur « En ligne ». Rapports : .fidelite non versionné, comparaisons dans le scratchpad de la session (fid2678/cmp)",
+    "ac5": "balayage de /app/properties?mode=annonces&listing=offline à 390, 768, 1024, 1280 et 1440 : débord 0, aucune coupe ; à 390, la ligne du motif tient sur une ligne (324 px dans une carte de 358 px, 16 px de haut), un seul motif par carte"
+  },
+  "hors_perimetre": [
+    "le quota de biens (ADR-0097 § 6)",
+    "un geste de remise en ligne depuis le motif, au-delà des gestes existants"
+  ],
+  "reference": "les références gelées du 2026-11-11 de app-biens approche a (a-1 et a-2), celles de TCK-2638 (a-1) et TCK-2639 (a-2), décision du team-lead du 2026-11-13 ; pas la maquette app-biens&a=b citée par le ticket"
+}

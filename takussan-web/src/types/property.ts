@@ -136,6 +136,11 @@ export interface PropertyListItem {
   /** TCK-2637 (ADR-0097) — « En ligne », le prédicat du catalogue ; servi sur `include=online`. */
   is_online?: boolean;
   /**
+   * TCK-2678 (ADR-0097 § 5) — pourquoi le bien est hors ligne : des codes (`lib/biens/motifs-hors-ligne`),
+   * dans l'ordre d'affichage ; `[]` pour un bien en ligne. Servi sur `include=offlineReasons` seulement.
+   */
+  offline_reasons?: readonly string[];
+  /**
    * TCK-2638 (lot B2) — la fin de la mise en avant payée (`BoostLifecycle`), ISO 8601 ; nulle sans boost,
    * ABSENTE hors de la liste pro (`fields[properties]`, jamais sur la surface publique). « Boostée » =
    * en cours, `sponsored_until` > maintenant (décision du porteur).
