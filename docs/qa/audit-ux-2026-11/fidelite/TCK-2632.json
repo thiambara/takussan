@@ -297,6 +297,13 @@
    "motif": "sur ces écrans la zone est l'en-tête du fil : nom, avatar, sous-ligne (bien ou « 4 personnes ») sont ceux du fil de démo ; la flèche, le téléphone et « ⋯ » sont aux mêmes places."
   },
   {
+   "ecran": "a-4-telephone",
+   "element": "zones de la coque : « coque · en-tête » 0,89 % et « coque · barre d'onglets » 0,88 % de pixels (> 0,5 %)",
+   "propriete": "pixels",
+   "exception": "donnée",
+   "motif": "relevé du 2026-11-12 après d7a76f4ec (29 conformes · 9 écarts · 0,35 % de l'écran), coque inchangée depuis au HEAD c161fe5ef. En-tête : la pastille de la cloche lit le compte de l'agent de démo, « 9+ » au lieu du « 7 » dessiné — plus large, son texte part 4 px plus à gauche (362 au lieu de 366). Barre d'onglets : la maquette dessine une pastille « 2 » sur « Messages » (x 277) ; l'état de l'écran réécrit `GET /api/conversations` à vide, compteurs à 0 (`ecrans[4].produit.etat`), donc aucune pastille de non-lus. Le reste des deux zones est déjà couvert : traits et encre des icônes (« règle du design system », ligne « a-* » plus bas) ; libellés, icônes et positions des cinq onglets et du titre « Messages » conformes."
+  },
+  {
    "ecran": "a-0-bureau-*, a-2-bureau-*",
    "element": "colonne de contexte : « Projet », « Dernière visite », « Premier contact », demande de contact liée, ville du bien ; d'où « Planifier une visite » plus haut (Δ y ≈ −100 px)",
    "propriete": "absents, y",

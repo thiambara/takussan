@@ -230,6 +230,20 @@
       "propriete": "présent dans le produit seul, dès qu'une ligne de la sélection est annulée (jamais dans les relevés : la démo n'a aucune ligne annulée)",
       "exception": "décision produit",
       "motif": "décision 7 b de la session : le total « Annulé » de l'ancien grand livre est une contrainte du ticket ; gardé en texte secondaire, sans carte, à toute largeur"
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "menu de période « Depuis janvier » (« Toutes les dates », chevron) sous les puces ; tout ce qui suit descend de 48 px (« Due », « Tout voir », « Dernières payées », la dernière « Payée » passe sous le pli)",
+      "propriete": "présent dans le produit seul ; y (+48 px)",
+      "exception": "décision produit",
+      "motif": "décision du team-lead (2026-11-12, e23d326e9) : une même URL, un même résultat à toute largeur. La vue de l'agent borne ses lignes et ses puces à l'année de l'URL (`annee`, l'année en cours par défaut) au téléphone comme au bureau, et `periode=tout` la lève partout ; le téléphone doit donc dire la borne qu'il applique et permettre de la lever. La maquette du téléphone ne dessine aucune borne. Le menu est celui du bureau (`ChoixDePeriode`), à la hauteur de l'échelle du téléphone (h-9, 36 px). Test : mêmes comptes à 390 et à 1440 sur la même URL, avec et sans `periode=tout` (commissions.tck-2662.test.tsx). Relevé v9 du 2026-11-13 : 25 conformes · 24 écarts · 10 absents · 9,7 % ; hors coque, ces écarts sont ce décalage et les règles du design system déjà écrites (pastilles, encres, traits)."
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "zone « coque · en-tête » : 0,59 % de pixels (> 0,5 %)",
+      "propriete": "pixels",
+      "exception": "donnée",
+      "motif": "la pastille de la cloche lit le compte de l'agent de démo, « 9+ » au lieu du « 7 » dessiné : plus large, son texte part 4 px plus à gauche (362 au lieu de 366). Les deux autres écarts de la zone, encre des icônes « search » et « bell » (rgb 76,70,65 au lieu de foreground/80), sont l'écart « encres secondaires » (règle du design system) ; le titre « Mes commissions » est conforme. Mesuré v5, v8 et v9 (après e23d326e9) : 0,59 % à chaque fois. La barre d'onglets (1,31 %) est dans `ignorer` (famille 3)."
     }
   ],
   "comparaisons": {
@@ -254,6 +268,17 @@
     },
     "largeurs": "1280, 1024, 768, 390 : `scrollWidth − innerWidth = 0` sur `/app/commissions` (agent et admin), `?vue=lignes`, `?agent=3`, `?solder=3`",
     "reseau": "AC3 : « Solder Sokhna Sene », 3 lignes cochées, la 2e décochée, Espèces → `POST /api/commissions/settle` intercepté avant le réseau (corps `entry_ids` [26, 63], `beneficiary_id` 3, `payment_method` cash, `payment_reference` null), bouton « Confirmer le paiement de 910 000 F » (620 000 + 290 000) ; aucun POST n'a atteint le réseau (CDP : seuls des OPTIONS de lecture), au bureau 1280 et au téléphone 390. AC6 : « Relevé » de l'agent → `GET /api/export/commissions?format=csv&from=2026-01-01&to=2026-12-31` 200, `text/csv`, pièce jointe, 16 lignes",
-    "format": "conformes · écarts · absents · % pixels ; la majorité des écarts restants sont la coque (barre latérale, barre d'onglets : éléments ignorés) et les données de démo (y décalés par le nombre de lignes)"
+    "format": "conformes · écarts · absents · % pixels ; la majorité des écarts restants sont la coque (barre latérale, barre d'onglets : éléments ignorés) et les données de démo (y décalés par le nombre de lignes)",
+    "apres_e23d326e9": {
+      "le": "2026-11-13, sur l'arbre de travail au HEAD c161fe5ef (seuls les jetons d'avatar de TCK-2589/2590, non commités, y diffèrent du HEAD ; les relevés du bureau rendent les mêmes comptes qu'en v7), avec `--roles` de cette fiche",
+      "dossier": "takussan-web/.fidelite/TCK-2662/cmp-v9-a0-*",
+      "resultats": {
+        "a0-telephone": "25 · 24 · 10 · 9,7 % (v9 ; v8 : 28 · 24 · 4 · 3,99 %) — le menu de période et le décalage de 48 px qui suit (écart accepté) ; coque · en-tête 0,59 %, coque · barre d'onglets 1,31 % (ignorée)",
+        "a0-bureau-1440": "79 · 163 · 28 · 6,1 % (inchangé depuis v7)",
+        "a0-bureau-1280": "79 · 154 · 31 · 6,91 % (inchangé)"
+      },
+      "portee": "e23d326e9 ne touche que la vue de l'agent (VueAgent.tsx) et le squelette d'hydratation (Commissions.tsx, sans rendu visible) : a1 à a4 (vue admin) ne changent pas et gardent leurs relevés v5/v7/v8.",
+      "solder_390_768": "« Solder {montant} » présent à 390 sur `?agent=3`, absent dès 768 sur `?vue=lignes&agent=3` : voulu, et c'est ce que dessinent les maquettes. Sous `md` (la barre d'onglets), `?agent=` ouvre le détail d'UN agent, avec « Solder 1 204 000 F » en bas (a-3 téléphone) ; dès `md`, la même URL est le registre de l'agence filtré sur ce bénéficiaire (a-3 bureau), sans « Solder » : on solde un agent depuis « Par agent » (a-1 bureau, un « Solder » par rangée), et une ligne due du registre garde « Marquer payée » et « Annuler » dans son « … » (VueAdmin.tsx : branche `telephone && vue.agent !== null`, registre `vue.lignes`)."
+    }
   }
 }
