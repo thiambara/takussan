@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Payments\StoreLeasePaymentLinkRequest;
+use App\Models\Enums\PaymentLinkSubject;
 use App\Models\LeasePayment;
 use App\Services\Payments\LeasePaymentLinkService;
 use App\Services\Payments\PaymentGatewayService;
@@ -27,23 +28,32 @@ class LeasePaymentLinkController extends Controller
         $this->authorize('update', $payment);
         // Un lien ne s'émet que pour ce qui se paie : une caution rendue, une échéance remboursée
         // ou soldée n'en reçoit pas (la quittance d'une échéance payée part d'elle-même).
-        abort_code_unless($this->links->isPayableByNature($payment) && $this->gateway->isPayable($payment), 409, 'payment.not_payable');
+        // TCK-2778 — sauf la pénalité de retard restée due sur un loyer payé : un lien pour elle
+        // seule (`subject: late_fee`), si l'agence encaisse ses pénalités en ligne.
+        $subject = $this->links->subjectFor($payment);
+        abort_code_if($subject === null, 409, 'payment.not_payable');
+        abort_code_if(
+            $subject === PaymentLinkSubject::LateFee && ! $this->gateway->lateFeeAloneCollectibleOnline($payment),
+            409,
+            'payment.late_fee_not_collected_online',
+        );
 
         $url = $request->boolean('regenerate')
-            ? $this->links->regenerate($payment, $request->user())
-            : $this->links->urlFor($payment, $request->user());
+            ? $this->links->regenerate($payment, $request->user(), $subject)
+            : $this->links->urlFor($payment, $request->user(), subject: $subject);
         $link = $this->links->active($payment);
 
         activity('LeasePayment')
             ->causedBy($request->user())
             ->performedOn($payment)
-            ->withProperties(['regenerated' => $request->boolean('regenerate')])
+            ->withProperties(['regenerated' => $request->boolean('regenerate'), 'subject' => $subject->value])
             ->event('lease_payment_link_issued')
             ->log('lease_payment_link_issued');
 
         return $this->json(['data' => [
             'url' => $url,
             'expires_at' => $this->instant($link?->expires_at),
+            'subject' => $subject->value,
         ]]);
     }
 

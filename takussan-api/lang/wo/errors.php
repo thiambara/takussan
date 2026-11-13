@@ -483,6 +483,8 @@ return [
         'integration_agency_missing' => 'Intégration fay bi méngoowul ak benn agence.',
         'integration_credential_missing' => 'Intégration fay bi matul: benn identifiant amul.',
         'integration_missing' => 'Amul benn intégration fay buy dox ci prestataire bii.',
+        // TCK-2778 — le lien de la pénalité seule, pour une agence qui ne l'encaisse pas en ligne.
+        'late_fee_not_collected_online' => 'Votre agence n\'encaisse pas ses pénalités de retard en ligne sur son propre compte de paiement : relancez sans lien, la pénalité se règle à l\'agence.',
         'not_payable' => 'Fey bii mënatul a fey ci internet : fey nañ ko ba noppi, delloo nañ ko, walla amul dara lu ñu war a fey.',
         'paid_amount_invalid' => 'Xaalis bi ñu fay mënul a nekk ci suufu tus.',
         'provider_failed' => 'Prestataire fay :provider mënul def laaj bi.',

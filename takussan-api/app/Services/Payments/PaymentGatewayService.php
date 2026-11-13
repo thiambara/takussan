@@ -52,6 +52,10 @@ use Symfony\Component\HttpFoundation\InputBag;
  */
 class PaymentGatewayService
 {
+    // TCK-2778 — la pénalité de retard SEULE, restée due sur un loyer payé : son initiation, sa
+    // vérification et ses événements, sans toucher au règlement du loyer.
+    use LateFeeAloneCheckout;
+
     /** Passe 2, N4 — la valeur de `gateway.settled_by` d'un règlement manuel. */
     public const SETTLED_MANUALLY = 'manual';
 
@@ -169,10 +173,28 @@ class PaymentGatewayService
      */
     public function initiate(Model $payment, PaymentProvider $provider, array $meta = []): CheckoutSession
     {
-        $reservation = DB::transaction(function () use ($payment, $provider): CheckoutSession|array {
+        return $this->initiateWith(
+            $payment,
+            $meta,
+            fn (): CheckoutSession|array => $this->reserveInitiation($payment, $provider),
+            fn (CheckoutSession $session, array $reservation): CheckoutSession|ApiError => $this->recordReservedInitiation($payment, $provider, $session, $reservation),
+        );
+    }
+
+    /**
+     * Les trois temps de {@see initiate()}, communs au loyer et à la pénalité seule (TCK-2778) :
+     * `$reserve` sous verrou, l'appel au fournisseur hors transaction, `$record` sous verrou.
+     *
+     * @param  array<string,mixed>  $meta
+     * @param  callable(): (CheckoutSession|array<string,mixed>)  $reserve
+     * @param  callable(CheckoutSession, array<string,mixed>): (CheckoutSession|ApiError)  $record
+     */
+    private function initiateWith(Model $payment, array $meta, callable $reserve, callable $record): CheckoutSession
+    {
+        $reservation = DB::transaction(function () use ($payment, $reserve): CheckoutSession|array {
             $this->lockAndRefresh($payment);
 
-            return $this->reserveInitiation($payment, $provider);
+            return $reserve();
         });
 
         if ($reservation instanceof CheckoutSession) {
@@ -189,10 +211,10 @@ class PaymentGatewayService
 
         // L'issue se décide sous verrou, mais un refus ne s'y lève pas : il annulerait aussi la
         // levée de la réservation.
-        $outcome = DB::transaction(function () use ($payment, $provider, $session, $reservation): CheckoutSession|ApiError {
+        $outcome = DB::transaction(function () use ($payment, $session, $reservation, $record): CheckoutSession|ApiError {
             $this->lockAndRefresh($payment);
 
-            return $this->recordReservedInitiation($payment, $provider, $session, $reservation);
+            return $record($session, $reservation);
         });
 
         if ($outcome instanceof ApiError) {
@@ -248,6 +270,38 @@ class PaymentGatewayService
             $this->refuseReservation($payment, $pending);
         }
 
+        $integration = $this->usableIntegration($payment, $provider);
+
+        // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
+        // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
+        $amountCents = (int) round($amount * 100);
+        // TCK-593 — un montant dû nul n'est pas une donnée invalide, c'est une échéance soldée.
+        abort_code_if($amountCents <= 0, 409, 'payment.not_payable');
+
+        $driver = $this->driverFor($integration);
+
+        // Le montant et la part de pénalité sont FIGÉS ici, avec le montant demandé au
+        // fournisseur : l'étape 3 les enregistre tels quels, même si un réglage change entre-temps.
+        $lateFeeIncluded = $payment instanceof LeasePayment && $this->lateFeeIncluded($payment);
+
+        return [
+            'token' => $this->reserve($payment, $provider, $amount),
+            'driver' => $driver,
+            'integration' => $integration,
+            'amount' => $amount,
+            'amount_cents' => $amountCents,
+            'currency' => $this->paymentCurrency($payment),
+            'late_fee_included' => $lateFeeIncluded,
+            'late_fee_amount' => $lateFeeIncluded ? $this->roundToCurrencyUnit($payment->lateFeeOutstanding(), $payment) : 0.0,
+        ];
+    }
+
+    /**
+     * L'intégration qui servira ce fournisseur pour ce payable, ou le refus : devise refusée,
+     * fournisseur non proposé. Extrait de {@see reserveInitiation()} (TCK-2778), inchangé.
+     */
+    private function usableIntegration(Model $payment, PaymentProvider $provider): Integration
+    {
         $agencyId = $this->paymentAgencyId($payment);
         $currency = $this->paymentCurrency($payment);
         if (! $provider->supportsCurrency($currency)) {
@@ -267,19 +321,16 @@ class PaymentGatewayService
         // proposé rend 422 AVANT tout appel au fournisseur (intégration absente, inactive, ou aux
         // identifiants incomplets — elle cassait au clic).
         abort_code_unless(in_array($provider, $this->availableProviders($payment), true), 422, 'payment.provider_not_available', ['provider' => $provider->value]);
-        $integration = $this->resolveIntegration($provider, $agencyId);
 
-        // Règle n°3 du CLAUDE.md : le montant est décimal en base et entier ×100 à la
-        // frontière du driver. XOF n'a pas de sous-unité — chaque driver local re-divise.
-        $amountCents = (int) round($amount * 100);
-        // TCK-593 — un montant dû nul n'est pas une donnée invalide, c'est une échéance soldée.
-        abort_code_if($amountCents <= 0, 409, 'payment.not_payable');
+        return $this->resolveIntegration($provider, $agencyId);
+    }
 
-        $driver = $this->driverFor($integration);
-
-        // Le montant et la part de pénalité sont FIGÉS ici, avec le montant demandé au
-        // fournisseur : l'étape 3 les enregistre tels quels, même si un réglage change entre-temps.
-        $lateFeeIncluded = $payment instanceof LeasePayment && $this->lateFeeIncluded($payment);
+    /**
+     * Pose la réservation de l'étape 1 sur la ligne et rend son jeton. Extrait de
+     * {@see reserveInitiation()} (TCK-2778), inchangé.
+     */
+    private function reserve(Model $payment, PaymentProvider $provider, float $amount): string
+    {
         $token = bin2hex(random_bytes(16));
         $now = now();
 
@@ -296,16 +347,7 @@ class PaymentGatewayService
         // Un marqueur de travail, pas une écriture métier : ni observateur ni journal d'activité.
         $payment->forceFill(['metadata' => $metadata])->saveQuietly();
 
-        return [
-            'token' => $token,
-            'driver' => $driver,
-            'integration' => $integration,
-            'amount' => $amount,
-            'amount_cents' => $amountCents,
-            'currency' => $currency,
-            'late_fee_included' => $lateFeeIncluded,
-            'late_fee_amount' => $lateFeeIncluded ? $this->roundToCurrencyUnit($payment->lateFeeOutstanding(), $payment) : 0.0,
-        ];
+        return $token;
     }
 
     /**
@@ -452,6 +494,15 @@ class PaymentGatewayService
             return null;
         }
 
+        return $this->verifyTransaction($payment, $providerValue, $transactionId);
+    }
+
+    /**
+     * La vérification forcée d'UNE transaction du payable, chez son fournisseur. Extrait de
+     * {@see verify()} (TCK-2778, qui vérifie aussi le checkout de la pénalité seule), inchangé.
+     */
+    private function verifyTransaction(Model $payment, string $providerValue, string $transactionId): ?PaymentDriverStatus
+    {
         $provider = PaymentProvider::tryFrom($providerValue);
         if ($provider === null) {
             return null;
@@ -674,6 +725,15 @@ class PaymentGatewayService
         // P206.04 — la part de pénalité rendue compte au remboursement : le constaté le porte entier.
         $refundedBefore = (float) ($payment->refund_amount ?? 0)
             + ($payment instanceof LeasePayment ? (float) ($payment->late_fee_refund_amount ?? 0) : 0.0);
+
+        // TCK-2778 — un événement du checkout de la pénalité SEULE ne dit rien du loyer : il ne
+        // passe ni par la matrice des statuts, ni par `settled_by`, ni par le remboursement du loyer
+        // (le repli de `isSettledBy` sur `gateway_events` le prendrait pour le règlement du loyer).
+        if ($payment instanceof LeasePayment && $this->isLateFeeAloneTransaction($existingMeta, $transactionId)) {
+            $this->applyLateFeeAloneStatus($payment, $providerStatus, $metadata, (string) $transactionId, $existingMeta);
+
+            return;
+        }
 
         // Already paid / refunded — never regress to pending. We still log
         // the late event in metadata for traceability.
@@ -1150,6 +1210,19 @@ class PaymentGatewayService
     public function openCheckout(Model $payment): ?array
     {
         $gateway = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway'] ?? null) : null;
+
+        return $this->liveCheckout($gateway);
+    }
+
+    /**
+     * Les règles d'un checkout encore ouvert, sur l'emplacement `$gateway` qui le décrit (celui du
+     * loyer, `metadata.gateway` ; celui de la pénalité seule, `metadata.gateway.late_fee_checkout`,
+     * TCK-2778). Extrait de {@see openCheckout()}, inchangé.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function liveCheckout(mixed $gateway): ?array
+    {
         if (! is_array($gateway) || empty($gateway['initiated_at']) || empty($gateway['checkout_url']) || empty($gateway['transaction_id'])) {
             return null;
         }
@@ -1326,7 +1399,9 @@ class PaymentGatewayService
      */
     protected function isSettledBy(array $meta, ?string $transactionId): bool
     {
-        if ($transactionId === null) {
+        // TCK-2778 — un checkout de la pénalité SEULE n'a jamais soldé le loyer, même si son `paid`
+        // est journalisé dans `gateway_events` (le repli ci-dessous l'y prendrait).
+        if ($transactionId === null || $this->isLateFeeAloneTransaction($meta, $transactionId)) {
             return false;
         }
 

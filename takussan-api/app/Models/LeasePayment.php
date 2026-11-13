@@ -102,6 +102,18 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     }
 
     /**
+     * TCK-2778 — la pénalité de retard est-elle SEULE due : le loyer est soldé (`paid`) et la
+     * pénalité reste à régler (`lateFeeOutstanding() > 0`). C'est l'unique cas où un lien de
+     * paiement fait payer la pénalité sans le loyer, et où une relance notée porte `late_fee`. Une
+     * échéance encore due relève du loyer (pénalité comprise) ; une échéance payée sans pénalité
+     * due n'a rien à relancer.
+     */
+    public function lateFeeAloneOutstanding(): bool
+    {
+        return $this->status === PaymentStatus::Paid && $this->lateFeeOutstanding() > 0;
+    }
+
+    /**
      * TCK-1831 (P183.01) — l'échéance est-elle en retard, à la règle de `scopeOverdue` : `late`, ou
      * `pending`/`partially_paid` dont la date d'échéance est AVANT aujourd'hui. L'échéance du jour
      * n'est pas en retard (la première relance part à J+1, `SendLeasePaymentReminders`). Une

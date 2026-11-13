@@ -4,6 +4,7 @@ namespace App\Services\Payments;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Jobs\SendLeasePaymentReminders;
+use App\Models\Enums\PaymentLinkSubject;
 use App\Models\LeasePayment;
 use App\Models\LeasePaymentReminder;
 use Carbon\CarbonImmutable;
@@ -17,7 +18,8 @@ use Throwable;
  * `metadata.reminder_{jalon}_sent_at`. De la plus récente à la plus ancienne ; à date égale, la
  * relance notée d'abord.
  *
- * Une entrée : `{at, source, channel, by {id, name}, note, milestone}` — `milestone` (`due_soon`,
+ * Une entrée : `{at, source, channel, subject, by {id, name}, note, milestone}` — `subject` (`rent`,
+ * `late_fee`, TCK-2778) dit ce que la relance relançait ; `milestone` (`due_soon`,
  * `overdue_1`, `overdue_7`) ne vaut que pour un rappel automatique, `channel`, `by` et `note` que
  * pour une relance notée. Seulement des codes : le front écrit le texte (principe 5).
  */
@@ -85,7 +87,7 @@ class LeasePaymentReminderReader
             $entries = $this->merge($payment, $manual->get($payment->id, collect()));
             $last = $entries[0] ?? null;
             $out[$payment->id] = [
-                'last_reminder' => $last !== null ? array_intersect_key($last, array_flip(['at', 'source', 'channel', 'by'])) : null,
+                'last_reminder' => $last !== null ? array_intersect_key($last, array_flip(['at', 'source', 'channel', 'subject', 'by'])) : null,
                 'reminders_count' => count($entries),
             ];
         }
@@ -106,6 +108,8 @@ class LeasePaymentReminderReader
                 'at' => $reminder->created_at,
                 'source' => 'manual',
                 'channel' => $reminder->channel?->value,
+                // TCK-2778 — ce que la relance relançait : `rent` ou `late_fee`.
+                'subject' => $reminder->subject?->value ?? PaymentLinkSubject::Rent->value,
                 'by' => $author !== null ? ['id' => $author->id, 'name' => $author->full_name] : null,
                 'note' => $reminder->note,
                 'milestone' => null,
@@ -116,7 +120,8 @@ class LeasePaymentReminderReader
         foreach (self::automaticKeys() as $milestone => $key) {
             $at = $this->instant($metadata[$key] ?? null);
             if ($at !== null) {
-                $entries[] = ['at' => $at, 'source' => 'automatic', 'channel' => null, 'by' => null, 'note' => null, 'milestone' => $milestone];
+                // Un rappel automatique relance toujours le loyer (TCK-2778, « Hors périmètre »).
+                $entries[] = ['at' => $at, 'source' => 'automatic', 'channel' => null, 'subject' => PaymentLinkSubject::Rent->value, 'by' => null, 'note' => null, 'milestone' => $milestone];
             }
         }
 

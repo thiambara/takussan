@@ -126,7 +126,10 @@ class PaymentGatewayController extends Controller
     private static function penaliteDuCheckout(array $gateway, mixed $transactionId): float
     {
         $transactions = array_values(array_filter(is_array($gateway['transactions'] ?? null) ? $gateway['transactions'] : [], 'is_array'));
-        $courante = collect($transactions)->last(fn (array $t): bool => ($t['transaction_id'] ?? null) === $transactionId) ?? end($transactions);
+        // TCK-2778 — le repli prend la dernière entrée du LOYER : un checkout de la pénalité seule
+        // (`subject: late_fee`) n'est pas le checkout de cette ligne.
+        $duLoyer = array_values(array_filter($transactions, fn (array $t): bool => ($t['subject'] ?? null) !== PaymentGatewayService::SUBJECT_LATE_FEE));
+        $courante = collect($transactions)->last(fn (array $t): bool => ($t['transaction_id'] ?? null) === $transactionId) ?? end($duLoyer);
 
         return is_array($courante) && is_numeric($courante['late_fee_amount'] ?? null) ? (float) $courante['late_fee_amount'] : 0.0;
     }

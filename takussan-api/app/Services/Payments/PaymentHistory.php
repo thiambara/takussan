@@ -604,8 +604,8 @@ class PaymentHistory
     }
 
     /**
-     * TCK-2658 (ADR-0105 § 3) — `include=reminders` : `last_reminder {at, source, channel, by}` et
-     * `reminders_count` sur une ligne de bail, lus par la lecture unique des relances (notées et
+     * TCK-2658 (ADR-0105 § 3) — `include=reminders` : `last_reminder {at, source, channel, subject,
+     * by}` (`subject` depuis TCK-2778) et `reminders_count` sur une ligne de bail, lus par la lecture unique des relances (notées et
      * automatiques) ; une réservation n'a pas de relance (`null`, 0).
      *
      * @param  Collection<int, array<string, mixed>>  $items

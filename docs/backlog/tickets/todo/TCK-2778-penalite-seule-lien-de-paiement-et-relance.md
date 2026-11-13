@@ -68,6 +68,9 @@ pénalité de retard de tel mois, et non le loyer.
 - **Une agence qui n'encaisse pas ses pénalités en ligne** (`collectsLateFeesOnline() === false`) ne crée pas de
   lien de pénalité : 409 `payment.late_fee_not_collected_online`. La relance notée reste permise : un message
   sans lien.
+  (amendé le 2026-11-13, décision 1a) Il en va de même quand aucun fournisseur ne l'encaisserait sur une intégration
+  DE L'AGENCE : le repli sur l'intégration globale de la plateforme n'est pas proposé pour la pénalité seule. Le cas
+  plateforme et le rapprochement de cette part sont l'objet de TCK-2793.
 - **La relance notée** est admise sur une échéance payée dont la pénalité reste due. Elle porte un champ qui dit ce
   qu'elle relance (`subject` : `rent` | `late_fee`). L'historique de l'échéance (`GET …/reminders`) la rend, et
   « Dernière relance » de « Impayés » la lit.
@@ -102,8 +105,9 @@ pénalité de retard de tel mois, et non le loyer.
 ## Critères d'acceptation
 
 - [ ] AC1 — Sur une échéance `paid` dont `late_fee_amount = 5 000` et `late_fee_paid_at` est nul, avec une agence
-  qui encaisse ses pénalités en ligne : `POST …/payment-link` rend 201. Le paiement initié par ce lien porte
-  5 000, et non le loyer plus 5 000.
+  qui encaisse ses pénalités en ligne : `POST …/payment-link` rend 200, la même forme que le lien de loyer, avec
+  `subject: late_fee` (amendé le 2026-11-13 : 201 → 200, décision 3 de team-lead). Le paiement initié par ce lien
+  porte 5 000, et non le loyer plus 5 000.
 - [ ] AC2 — Le webhook de succès de ce paiement pose `late_fee_paid_at`. Après lui, `status`, `paid_at` et
   `amount` de l'échéance sont identiques à leurs valeurs d'avant, et aucune deuxième ligne d'encaissement du loyer
   n'existe.
@@ -131,4 +135,29 @@ pénalité de retard de tel mois, et non le loyer.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### 2026-11-13 — back-4, l'API (lot 2)
+
+**Fait (API seule ; le front — feuille « Relancer » d'une ligne `late_fee_unpaid`, clé de message, page publique — n'est pas fait).**
+
+- Migration `2026_11_13_200000_add_subject_to_lease_payment_links_and_reminders` : `subject` (string 16, défaut `rent`) sur les deux tables, `down()` retire les deux colonnes. Enum `PaymentLinkSubject` (`rent`, `late_fee`).
+- `LeasePayment::lateFeeAloneOutstanding()` : loyer `paid` et `lateFeeOutstanding() > 0` — la seule règle de « pénalité seule », lue par la relance, le lien, la ressource et la passerelle.
+- Relance notée : le sujet se déduit de l'échéance (`rent` si `OverdueInstalment::daysLate()`, `late_fee` si `lateFeeAloneOutstanding()`, sinon 409 `lease_payment.not_overdue`), jamais du corps. `subject` est fillable, casté, dans `AUDIT_ONLY`, rendu par `GET …/reminders` et par `last_reminder` de `include=reminders` (« Dernière relance ») ; un rappel automatique vaut `rent`.
+- Lien : `LeasePaymentLinkService::subjectFor()` ; le contrôleur passe le sujet, rejugé sous le verrou de l'échéance. Sans sujet (quittance, relance automatique), le lien du loyer comme avant. Un lien actif d'un autre sujet est révoqué et remplacé, jamais réaffecté (le SMS du loyer déjà envoyé rend 410). Une agence qui n'encaisse pas ses pénalités en ligne, ou dont aucun fournisseur ne les encaisserait sur une intégration DE L'AGENCE (décision 1a : jamais le repli global ; `lateFeeAloneProviders()`), reçoit 409 `payment.late_fee_not_collected_online` (fr/en/wo, wo = fr). La réponse reste 200 (décision 3) et porte `subject`.
+- `effectiveExpiry` : un lien `late_fee` compte ses 30 jours de lecture depuis `late_fee_paid_at`, pas depuis le paiement du loyer (sinon caduc à la naissance sur un loyer payé il y a plus de 30 jours).
+- Passerelle : trait `LateFeeAloneCheckout` (utilisé par `PaymentGatewayService`). Le checkout de la pénalité seule ne touche à AUCUN champ du règlement du loyer (`transaction_id`, `payment_method`, `gateway_expected_amount`, `late_fee_included`, `gateway.settled_by|provider|transaction_id|checkout_url`) : il vit dans `gateway.late_fee_checkout` et dans une entrée `subject: late_fee` de `gateway.transactions` (le webhook retrouve l'échéance par cet historique). Montant = `lateFeeOutstanding()` arrondi, figé, ×100 au pilote. Succès : `late_fee_paid_at`, `late_fee_payment_method`, `gateway.late_fee_settled_by` ; rejeu sans effet ; pénalité déjà réglée ou plus due → doublon `kind: late_fee` signalé. Échec : sur son seul checkout. Remboursement : `late_fee_refund_amount`, jamais `status` ni `refund_amount` du loyer (le repli de `isSettledBy` sur `gateway_events` l'aurait pris pour le règlement du loyer). `applyStatusToPayment` aiguille l'événement vers ce chemin avant toute autre règle.
+- Refactor mécanique du service, sans changement de comportement (suites voisines vertes) : `initiateWith`, `usableIntegration`, `reserve`, `verifyTransaction`, `liveCheckout` extraits.
+- « Marquer la pénalité réglée » (`LateFeeSettlement`) refuse aussi un checkout ouvert de la pénalité seule (409 `payment.checkout_in_progress`), sauf passage outre, qui l'écarte (`superseded_at`).
+- Page publique : `subject`, `late_fee_paid_at` ; pour un lien `late_fee`, `amount_due`, `providers`, `late_fee_payable_online`, l'initiation et la vérification sont ceux de la pénalité seule. Pénalité réglée (webhook ou agence) : `amount_due` 0, aucun fournisseur, 200 (AC7).
+- `LeasePaymentResource` : `late_fee_reminder_allowed`, `late_fee_link_allowed` (`LeasePaymentResourceContractTest` amendé).
+- `PaymentGatewayController::penaliteDuCheckout` (TCK-2650) : le repli sur la dernière entrée saute les entrées `late_fee`.
+- `isSettledBy` écarte explicitement une transaction `late_fee`, même si son `paid` est journalisé dans `gateway_events`.
+
+**Décisions de team-lead, 2026-11-13 :** 1a (intégration de l'agence seule ; le cas de la plateforme et le rapprochement de cette part vont dans **TCK-2793**, sous todo/), 2a (le lien du loyer est révoqué : son ancien SMS rend 410, testé), 3 (200 gardé, AC1 amendé), 4 (migrate local ci-dessous).
+
+**Tests.** `LienDePaiementPenaliteSeuleTest` (16) et `RelancePenaliteSeuleTest` (5) : 21 verts. Amendés : `LeasePaymentResourceContractTest` (deux clés), `LeasePaymentReminderTest` (ordre des clés d'une entrée : `subject`). Voisins verts : 198 + 178 + 143 (paiements, liens, webhooks, remboursements, rapprochement, reversements, relances automatiques, gardes de langue `LangGroupParityTest`, `ApiErrorCodeTest`). Les épingles demandées : le remboursement de la pénalité ne touche ni `status` ni `refund_amount` du loyer ; `isSettledBy`, `expectedBankAmount` / `whereExpectedAmountNear`, `isSettledByPlatform` / `whereNotSettledByPlatform` lisent toujours le règlement du loyer (ici un loyer encaissé par la plateforme, une pénalité par l'agence).
+
+**Ablations : 20 sur 20 rouges**, une à la fois, restaurées au md5 (montant = loyer + pénalité → AC1 rouge ; webhook qui pose `paid_at` → AC2 rouge ; remboursement imputé au loyer ; aiguillage de `applyStatusToPayment` retiré ; `transaction_id` du loyer écrasé ; plafond de 30 jours depuis le paiement du loyer ; agence hors ligne admise ; relance sur toute échéance payée ; fournisseurs toujours proposés après règlement ; `subject` absent de « Dernière relance » ; garde du checkout ouvert retirée de « Marquer la pénalité réglée » ; lien du loyer réaffecté ; verdict du lien sans le réglage ; repli de `penaliteDuCheckout` sur l'entrée `late_fee` ; vérification sur le checkout du loyer ; doublon non signalé ; repli global proposé ; `isSettledBy` sans garde ; la pénalité qui pose `settled_by` ; l'initiation qui accepte le fournisseur global). Une première version du test 1a se trompait d'identifiants Orange Money et laissait vert le dernier mutant : corrigé, avec un témoin (`availableProviders` contient bien Orange Money), puis le mutant rejoué rouge.
+
+**Base de démo locale (décision 4).** Migration purement additive. `migrate --path=…` : `subject` présent sur les deux tables, les 34 liens existants valent `rent`. `migrate:rollback --path=…` : les deux colonnes retirées, 34 lignes intactes. `migrate --path=…` : de nouveau présentes (lot 18). Aucun `migrate:fresh`.
+
+**Reste.** Le front (feuille « Relancer » d'une ligne `late_fee_unpaid` à partir de `late_fee_reminder_allowed` et `late_fee_link_allowed`, la clé de message de la pénalité, la page publique qui dit « pénalité de retard » à partir de `subject`) : AC8 ouvert. `/sync-specs` après fusion : `subject` sur `LeasePaymentLink` et `LeasePaymentReminder` (models-spec §84, §125), et le lien de pénalité seule (features §15).
