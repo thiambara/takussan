@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
+use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\GroupConversationService;
 use App\Support\CaseInsensitive;
@@ -209,13 +210,13 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function store(StoreConversationRequest $request, GroupConversationService $groups, DirectConversationService $directes): JsonResponse
+    public function store(StoreConversationRequest $request, GroupConversationService $groups, DirectConversationService $directes, ConversationWriter $writer): JsonResponse
     {
         // TCK-085 — group requests get the dedicated FormRequest
         // (subject required, 3..20 total participants).
         $type = $request->input('type', ConversationType::Direct->value);
         if ($type === ConversationType::Group->value) {
-            return $this->storeGroup($request, $groups);
+            return $this->storeGroup($request, $groups, $writer);
         }
 
         $data = $request->validated();
@@ -229,14 +230,17 @@ class ConversationController extends Controller
         abort_code_if(count($participantIds) === 0, 422, 'conversation.participant_required');
         $data['participants'] = $participantIds;
 
-        $initialMessage = null;
         $creee = false;
 
         // Contre-vérification de TCK-2632 — une directe n'est PAS recréée : la directe existante
         // entre les deux mêmes personnes, dans le même contexte, est rendue (200), son message
         // initial y est posté. Une directe relie l'acteur et UNE autre personne
         // (`StoreConversationRequest`), jamais un bien (TCK-888). Le verrou de la paire ferme la course.
-        $conversation = DB::transaction(function () use ($data, $user, $directes, &$initialMessage, &$creee) {
+        //
+        // TCK-2782 — le message initial passe par `ConversationWriter`, jugé comme un envoi
+        // (`ConversationAccess::allowsWriting`) : une directe REPRISE où l'auteur lit sans écrire rend
+        // 403, sans message ni notification ; une directe neuve refusée est annulée avec lui.
+        $conversation = DB::transaction(function () use ($data, $user, $directes, $writer, &$creee) {
             [$conversation, $creee] = $directes->firstOrCreate(
                 $user,
                 (int) $data['participants'][0],
@@ -245,29 +249,17 @@ class ConversationController extends Controller
             );
 
             if (! empty($data['initial_message'])) {
-                $message = $conversation->messages()->create([
-                    'sender_id' => $user->id,
+                // TCK-805 (P38.03) — notifié comme tout message, après le COMMIT (`ConversationWriter`).
+                $writer->post($user, $conversation, [
                     'content' => $data['initial_message'],
                     'type' => MessageType::Text->value,
                 ]);
-                $conversation->update([
-                    'last_message_id' => $message->id,
-                    'last_message_preview' => mb_substr($message->content, 0, 255),
-                    'last_message_at' => now(),
-                ]);
-                $initialMessage = $message;
             }
 
             return $conversation;
         });
 
-        // TCK-805 (P38.03) — the initial message is notified like any other, after the commit
-        // (same path as sendMessage()).
-        if ($initialMessage !== null) {
-            NotifyNewMessageJob::dispatch($initialMessage->id);
-        }
-
-        $conversation->loadMissing('property');
+        $conversation->refresh()->loadMissing('property');
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->resolve($request),
@@ -281,7 +273,7 @@ class ConversationController extends Controller
      * required, 2..19 *other* participants → 3..20 total). The creator is
      * promoted to admin automatically by the service.
      */
-    protected function storeGroup(Request $request, GroupConversationService $groups): JsonResponse
+    protected function storeGroup(Request $request, GroupConversationService $groups, ConversationWriter $writer): JsonResponse
     {
         // Re-validate via the dedicated FormRequest. We instantiate it
         // manually because we branched off `Request` after the route hit
@@ -293,25 +285,20 @@ class ConversationController extends Controller
 
         $user = $request->user();
 
+        // TCK-2782 — le message initial s'écrit dans la transaction de création, AVANT les invitations,
+        // par `ConversationWriter` (jugé comme un envoi) : un refus (403) ne laisse ni groupe vide ni
+        // invitation. TCK-805 (P38.03) : notifié comme tout message, après le COMMIT.
+        $initial = $data['initial_message'] ?? null;
         $conversation = $groups->create(
             $user,
             $data['subject'],
             array_map('intval', $data['participants']),
             $data['property_id'] ?? null,
             $data['lease_id'] ?? null,
+            avantLesInvitations: empty($initial) ? null : function (Conversation $groupe) use ($writer, $user, $initial): void {
+                $writer->post($user, $groupe, ['content' => $initial, 'type' => MessageType::Text->value]);
+            },
         );
-
-        if (! empty($data['initial_message'])) {
-            $message = $conversation->messages()->create([
-                'sender_id' => $user->id,
-                'content' => $data['initial_message'],
-                'type' => MessageType::Text->value,
-            ]);
-            $conversation->refresh();
-
-            // TCK-805 (P38.03) — same notification path as sendMessage().
-            NotifyNewMessageJob::dispatch($message->id);
-        }
 
         $conversation->loadMissing('property');
 
@@ -431,16 +418,12 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function sendMessage(SendMessageConversationRequest $request, Conversation $conversation): JsonResponse
+    public function sendMessage(SendMessageConversationRequest $request, Conversation $conversation, ConversationWriter $writer): JsonResponse
     {
-
         $data = $request->validated();
 
         $sender = $request->user();
 
-        // Group the message insert, conversation pointer update, sender
-        // read-marker and participant auto-unarchive in one transaction so
-        // a mid-write failure can't leave half of them applied.
         // TCK-592 — ADR-0038 : une note vocale porte son fichier (collection privée `attachments`)
         // et sa durée déclarée ; son texte est un aperçu neutre pour la liste des conversations.
         $isAudio = ($data['type'] ?? null) === MessageType::Audio->value;
@@ -449,16 +432,17 @@ class ConversationController extends Controller
         // transaction : une photo illisible est refusée sans message ni fichier.
         $piece = $this->pieceJointe($request);
 
-        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio, $piece) {
-            $message = $conversation->messages()->create([
-                'sender_id' => $sender->id,
-                // TCK-2631 — la légende d'une pièce est facultative ; `content` n'est pas nullable, et
-                // une pièce sans légende porte une chaîne vide (son aperçu est `neutralPreview()`).
-                'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
-                'type' => $data['type'] ?? MessageType::Text->value,
-                'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
-            ]);
-
+        // TCK-2782 — LE point d'écriture (`ConversationWriter`) : message, pointeur du fil, lecture de
+        // l'auteur et désarchivage en une transaction, puis `NotifyNewMessageJob` après le COMMIT. La
+        // pièce est rangée dans la transaction, avant le pointeur ; `authorize()` a déjà jugé
+        // `allowsWriting`, que le service rejoue (la même règle pour le message initial).
+        $message = $writer->post($sender, $conversation, [
+            // TCK-2631 — la légende d'une pièce est facultative ; `content` n'est pas nullable, et
+            // une pièce sans légende porte une chaîne vide (son aperçu est `neutralPreview()`).
+            'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
+            'type' => $data['type'] ?? MessageType::Text->value,
+            'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
+        ], function (Message $message) use ($audio, $piece): void {
             if ($audio !== null) {
                 $message->addMedia($audio)->toMediaCollection('attachments');
             }
@@ -469,35 +453,7 @@ class ConversationController extends Controller
                     ->usingFileName($piece['file_name'])
                     ->toMediaCollection('attachments');
             }
-
-            $conversation->update([
-                'last_message_id' => $message->id,
-                // TCK-2631 — l'aperçu d'une pièce est neutre (« Photo », « Document »), légende ou non.
-                'last_message_preview' => mb_substr($message->neutralPreview() ?? $message->content, 0, 255),
-                'last_message_at' => now(),
-            ]);
-
-            // Auto-mark the sender's own read pointer so the new message
-            // doesn't show up as unread on the sender's side.
-            $conversation->participants()->updateExistingPivot($sender->id, [
-                'last_read_at' => now(),
-                'archived_at' => null,
-            ]);
-
-            // Un-archive the conversation for other participants so a new
-            // incoming message makes the thread reappear in their list.
-            DB::table('conversation_participants')
-                ->where('conversation_id', $conversation->id)
-                ->where('user_id', '!=', $sender->id)
-                ->update(['archived_at' => null]);
-
-            return $message;
         });
-
-        // Fire-and-forget notification so we don't block the response on
-        // mail / broadcasting I/O. Dispatched after the transaction commits
-        // so the worker is guaranteed to see the persisted message.
-        NotifyNewMessageJob::dispatch($message->id);
 
         return $this->json([
             'data' => MessageResource::make($message)->resolve($request),
