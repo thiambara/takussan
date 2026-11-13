@@ -16,6 +16,7 @@ import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useTelechargementApi } from '@/hooks/useTelechargementApi';
 import { voirLeCoffre, type DossierVu, type EntreeVue } from '@/lib/documents/coffre';
+import { ciblesDeRangement } from '@/lib/documents/rangement';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useCoffreDeDocuments } from '@/lib/queries/coffre';
 import { cn } from '@/lib/utils';
@@ -24,8 +25,8 @@ import { jourADakar } from '@/lib/visites/par-le-temps';
 import { useLibellesDuCoffre } from './libelles';
 import { LigneDuCoffre, TuileDEntree, useMarques } from './LigneDuCoffre';
 
-/** TCK-1041 — le formulaire de dépôt n'est chargé qu'à sa première ouverture. */
-const DocumentUploadDialog = dynamic(() => import('../DocumentUploadDialog').then((m) => m.DocumentUploadDialog));
+/** TCK-1041, TCK-2656 (lot 2) — l'ajout en deux temps n'est chargé qu'à sa première ouverture. */
+const AjoutAuCoffre = dynamic(() => import('./ajout/AjoutAuCoffre').then((m) => m.AjoutAuCoffre));
 
 /**
  * TCK-2656 (lot 1) — le coffre de documents du locataire, du bailleur et du prestataire :
@@ -91,9 +92,9 @@ export function CoffreDeDocuments() {
 
   const coffre = requete.data.data;
   const vu = voirLeCoffre(coffre, jourADakar(new Date()));
-  const pieces = coffre.folders.find((d) => d.kind === 'pieces');
-  // Sous impersonation, l'API ne rend aucune cible rattachable : rien ne s'ajoute.
-  const peutAjouter = pieces?.target != null && coffre.attachable_targets.length > 0;
+  // Sous impersonation, l'API ne rend aucune cible rattachable : rien ne s'ajoute. Un dossier en
+  // lecture seule (TCK-2729) n'en offre pas non plus.
+  const peutAjouter = ciblesDeRangement(coffre).length > 0;
   const vide = vu.total === 0;
   // L'accueil du coffre vide est celui du locataire : un bailleur ou un prestataire a ses dossiers.
   const accueil = vide && coffre.folders.every((d) => d.kind === 'lease' || d.kind === 'receipts' || d.kind === 'pieces');
@@ -321,13 +322,8 @@ export function CoffreDeDocuments() {
 
       {peutAjouter ? <BarreDAction taille="action">{boutonAjout(undefined, true)}</BarreDAction> : null}
 
-      {ajoutMonte && pieces?.target ? (
-        <DocumentUploadDialog
-          open={ajout}
-          onOpenChange={setAjout}
-          onUploaded={() => void requete.refetch()}
-          defaultDocumentable={{ type: 'user', id: pieces.target.id, label: t('dossiers.mesPieces') }}
-        />
+      {ajoutMonte && peutAjouter ? (
+        <AjoutAuCoffre open={ajout} onOpenChange={setAjout} coffre={coffre} vu={vu} onAjoute={() => void requete.refetch()} />
       ) : null}
     </div>
   );

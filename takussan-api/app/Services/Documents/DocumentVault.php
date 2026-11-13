@@ -173,7 +173,9 @@ final class DocumentVault
         $this->folderOfTarget = [];
         $this->targetsOf = [];
 
-        $attachable = [['type' => 'user', 'id' => $user->id, 'folder' => 'pieces', 'name' => null]];
+        // TCK-2656 (lot 2) — `reference` : le numéro d'un bail, qui distingue deux baux d'un même bien dans
+        // « Rangé dans » (un bail clos et le bail en cours) ; `null` pour toute autre cible.
+        $attachable = [['type' => 'user', 'id' => $user->id, 'folder' => 'pieces', 'name' => null, 'reference' => null]];
 
         $leases = $this->tenantLeases();
         foreach ($leases as $lease) {
@@ -224,6 +226,7 @@ final class DocumentVault
                         'id' => $target->id,
                         'folder' => $this->folderOfTarget["{$type}:{$target->id}"] ?? 'pieces',
                         'name' => $target instanceof Lease ? $target->property?->title : $target->title,
+                        'reference' => $target instanceof Lease ? $target->reference_number : null,
                     ];
                 }
             }

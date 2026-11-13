@@ -54,6 +54,8 @@ export interface CibleRattachable {
   /** La clé du dossier où un document rattaché à cette cible se range. */
   readonly folder: string;
   readonly name: string | null;
+  /** TCK-2656 (lot 2) — le numéro d'un bail (`LS-…`), `null` pour toute autre cible. */
+  readonly reference?: string | null;
 }
 
 export interface CoffreDeDocuments {

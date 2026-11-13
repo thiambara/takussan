@@ -68,6 +68,40 @@
         "persona": "prestataire",
         "etat": "le prestataire de fidélité : « Mes pièces » seul (le profil actif n'est pas le profil prestataire de l'agence, pas de « Mes factures ») — l'état vide du locataire n'est pas rendu pour lui"
       }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Ajouter (photo ou fichier)",
+      "references": {
+        "telephone": "references/app-documents/a-1-telephone.json",
+        "bureau-1440": "references/app-documents/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents",
+        "persona": "locataire",
+        "etat": "la feuille d'ajout ouverte par « Ajouter un document » (téléphone) ; la modale avec son dépôt (bureau) — script `--perturber` qui clique l'ajout"
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Nommer et ranger",
+      "references": {
+        "telephone": "references/app-documents/a-2-telephone.json",
+        "bureau-1440": "references/app-documents/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents",
+        "persona": "locataire",
+        "etat": "une photo JPEG de 800×520 posée par `DataTransfer` dans l'entrée `capture` (téléphone) ou l'entrée de fichier (bureau), « carte-identite-2026.jpg » ; aucun envoi"
+      }
     }
   ],
   "produit": {
@@ -240,6 +274,111 @@
       "propriete": "absent de la maquette",
       "exception": "décision produit",
       "motif": "décision 2 (c) de TCK-2656 : il tient la place du champ « Chercher un document » de la maquette, que l'API du coffre ne sert pas ; il ouvre la recherche serveur (`/app/documents?vue=recherche`). Absent d'un coffre vide (a-9 prestataire de la démo)."
+    },
+    {
+      "ecran": "app-documents a-1-*",
+      "element": "« Redressée et recadrée toute seule » (tuile photo)",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "aucun redressement ni recadrage n'existe : la tuile dit « Avec l’appareil photo du téléphone »."
+    },
+    {
+      "ecran": "app-documents a-1-*",
+      "element": "« PDF, JPG ou PNG · 10 Mo au plus »",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "l'API accepte aussi WebP, HEIC, Word, Excel, texte et CSV (`DOCUMENT_MIME_ACCEPT`) : « PDF, photo ou document · 10 Mo au plus »."
+    },
+    {
+      "ecran": "app-documents a-1-telephone",
+      "element": "« À renouveler » et la feuille plus courte",
+      "propriete": "absent",
+      "exception": "vérité des données",
+      "motif": "locataire-f4 n'a aucune pièce téléversée qui expire dans la fenêtre de 60 jours ; la section est rendue quand il y en a une (test `AjoutAuCoffre.tck-2656`)."
+    },
+    {
+      "ecran": "app-documents a-1-*",
+      "element": "« … et visible par votre agence, Dakar Immo »",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "le coffre ne rend pas le nom de l'agence ; la note dit où le document sera rangé et qu'un autre dossier se choisit à l'étape suivante."
+    },
+    {
+      "ecran": "app-documents a-2-*",
+      "element": "« Lu sur la photo. Nous vous préviendrons 60 jours avant. »",
+      "propriete": "absent",
+      "exception": "vérité des données",
+      "motif": "aucune lecture du texte de la photo, et aucun rappel d'expiration de document n'existe dans l'API."
+    },
+    {
+      "ecran": "app-documents a-2-*",
+      "element": "interrupteur « Remplace la carte qui expire »",
+      "propriete": "absent",
+      "exception": "décision produit",
+      "motif": "décision L2-1 (a) : le remplacement est une nouvelle version, portée par la fiche de la pièce (lot 3) ; « Remplacer » de « À renouveler » y mène."
+    },
+    {
+      "ecran": "app-documents a-2-*",
+      "element": "pastille « Justificatif de revenus » ; « Plus de catégories »",
+      "propriete": "texte / absent de la maquette",
+      "exception": "décision produit",
+      "motif": "décision L2-2 (a) : les pastilles sont des valeurs de l'API (`id_card`, `passport`, `insurance`, `other`) ; aucune catégorie « justificatif de revenus » n'existe. « Plus de catégories » ouvre la liste entière des types téléversables."
+    },
+    {
+      "ecran": "app-documents a-2-*",
+      "element": "« Précision pour l’agence (facultatif) »",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "un bailleur ou un prestataire sans agence ajoute aussi : « Précision (facultatif) »."
+    },
+    {
+      "ecran": "app-documents a-2-*",
+      "element": "nom, catégorie et seconde ligne de « Rangé dans » préremplis",
+      "propriete": "contenu",
+      "exception": "donnée",
+      "motif": "la maquette montre un état saisi ; le produit préremplit le nom d'un fichier par son nom de fichier (pas d'une photo), la catégorie « Autre », et la seconde ligne ne se rend que pour un bien ou son bail."
+    },
+    {
+      "ecran": "app-documents a-2-bureau-*",
+      "element": "champs de 32,4 px (maquette 39,6)",
+      "propriete": "hauteur",
+      "exception": "primitive du système",
+      "motif": "`Input` et le déclencheur de date gardent leur hauteur de primitive au bureau (garde check-champs-uniformes, TCK-2460)."
+    },
+    {
+      "ecran": "app-documents a-1-bureau-*, a-2-bureau-*",
+      "element": "fond derrière la modale (% pixels de 69 à 78)",
+      "propriete": "pixels",
+      "exception": "primitive du système",
+      "motif": "le voile de `Dialog` floute la page (`backdrop-blur-xs`) et la page dessous est le coffre réel de locataire-f4, pas celui de la maquette ; la modale elle-même est à 600 px, posée à 16 pas du haut comme la maquette."
+    },
+    {
+      "ecran": "app-documents a-2-telephone",
+      "element": "carte du fichier à y 76 (maquette 72), pied de 69 px (maquette 73)",
+      "propriete": "position, hauteur",
+      "exception": "primitive du système",
+      "motif": "le corps et le pied de `PanneauDroit formulaire` gardent leurs marges de primitive (20 px en haut, pied de 69 px) ; les champs suivent avec ce décalage."
+    },
+    {
+      "ecran": "app-documents a-2-bureau-*",
+      "element": "aperçu du fichier 93,6 × 61,2 (maquette 104 × 68)",
+      "propriete": "taille",
+      "exception": "densité du bureau",
+      "motif": "`w-26 h-17` suit `--spacing` (×0,9 dès `lg`, ADR-0107) ; la maquette est en pixels fixes."
+    },
+    {
+      "ecran": "app-documents a-2-telephone",
+      "element": "nœuds « absent de la maquette » (barre d'onglets, puces, « Mon bail », lignes du coffre…)",
+      "propriete": "absent de la maquette",
+      "exception": "relevé",
+      "motif": "la page sous le panneau plein écran est relevée côté produit (racine = document), la maquette ne montre que l'écran d'ajout ; ces nœuds sont couverts par le panneau."
+    },
+    {
+      "ecran": "app-documents a-2-*",
+      "element": "seconde ligne de « Rangé dans » : « Le bail LS-… de ce bien »",
+      "propriete": "texte",
+      "exception": "décision produit",
+      "motif": "chez le bailleur, un bien et ses baux se rangent dans le même dossier ; le numéro du bail (`reference`, ajouté à `attachable_targets`) distingue un bail clos du bail en cours."
     }
   ],
   "hors_perimetre": [
@@ -252,7 +391,9 @@
   "decisions": {
     "1": "(a), chef d'équipe 2026-11-13 — biens sans document comptés, non listés",
     "2": "(c), chef d'équipe 2026-11-13 — « Rechercher » ouvre la recherche serveur des documents (TCK-2769 pour le coffre entier)",
-    "3": "(a), chef d'équipe 2026-11-13 — pas de « Tout télécharger » (TCK-2770)"
+    "3": "(a), chef d'équipe 2026-11-13 — pas de « Tout télécharger » (TCK-2770)",
+    "L2-1": "(a), validée par le chef d'équipe le 2026-11-13 — « Remplace » non rendu ; « Remplacer » mène à la fiche (versions au lot 3)",
+    "L2-2": "(a), validée par le chef d'équipe le 2026-11-13 — pastilles = types de l'API, jamais de catégorie inventée"
   },
   "mesures": {
     "l1": {
@@ -291,6 +432,21 @@
       "balayer": "/app/documents locataire et bailleur à 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe, ellipses à 768 dans le rail seulement ; /app/documents?vue=recherche (locataire) aux mêmes largeurs : débord 0 ; le titre « Rechercher dans mes documents » s'ellipsait à 390 dans la barre du haut → « Chercher un document », re-balayé à 390 et 1024 : aucune ellipse",
       "note": "« absents » compte désormais les deux sens (outil). Le bouton « Rechercher » est la seule ancre neuve relevée « absent de la maquette » (écart accepté). Lecture seule : aucun compte de démo n'a de profil bailleur bloqué ; prouvé par test (CoffreDeDocuments.tck-2656, coffre.tck-2656).",
       "rideaux": "$S/impl/lot2/2656/fid3/cmp*/rideau.html (hors du dépôt)"
+    },
+    "l2": {
+      "date": "2026-11-13",
+      "commit_de_base": "01a7d458b + arbre de travail",
+      "compare": {
+        "a-1-telephone": "26 conformes · 38 écarts · 34 absents · 32,11 % pixels",
+        "a-1-bureau-1440": "58 conformes · 176 écarts · 66 absents · 72,42 % pixels",
+        "a-1-bureau-1280": "52 conformes · 178 écarts · 66 absents · 68,96 % pixels",
+        "a-2-telephone": "4 conformes · 19 écarts · 68 absents · 12,47 % pixels",
+        "a-2-bureau-1440": "56 conformes · 173 écarts · 68 absents · 78,21 % pixels",
+        "a-2-bureau-1280": "49 conformes · 176 écarts · 68 absents · 75,4 % pixels"
+      },
+      "notes": "Relevé sur l'état final. Corrigé après le premier relevé : modale posée à 16 pas du haut, avec un corps qui défile entre un en-tête et un pied fixes ; « Changer de fichier » à droite au bureau ; taille en Ko sous 1 Mo ; précision sur une ligne ; ordre nom, catégorie, expiration au téléphone ; aperçu de l'image ; « Photo prise à l’instant » et « Reprendre ». Lecture d'a-2 au téléphone : les « absents » sont surtout les nœuds de la page sous le panneau (relevés côté produit seulement). L'écart du panneau lui-même : 4 px de marge de primitive en haut ; puis l'interrupteur « Remplace » et la ligne « Lu sur la photo », absents par décision ; la carte du fichier prend 3 px de plus. Au bureau, le pourcentage de pixels vient du voile flouté de Dialog et de la page dessous.",
+      "releves": "scratchpad terrain-4 impl/lot2/2656/fid4/",
+      "modale_haute": "1280×900 et 1024×900, bailleur, « Changer » et « Plus de catégories » ouverts : bas du bouton « Ajouter au coffre » à 832 px, visible ; le corps défile ; débord horizontal 0 (perturbateur fid4/haut.js)"
     }
   },
   "ecrans_supplementaires_releves": [

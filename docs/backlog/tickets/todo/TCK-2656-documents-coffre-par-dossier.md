@@ -220,3 +220,62 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
     « Chercher un document » ;
   - limite connue : locataire-f4 n'a rien téléversé, sa recherche est vide alors que son coffre compte 26
     documents (TCK-2769).
+
+### Lot 2 (2026-11-13) — l'ajout en deux temps
+
+- **Ce qui change.** L'ajout du coffre (`coffre/ajout/AjoutAuCoffre.tsx`, chargé à la première ouverture)
+  remplace la boîte de dépôt de la bibliothèque, qui ne visait que « Mes pièces ».
+  - Téléphone : une feuille « Prendre une photo » (`accept="image/*"`, `capture="environment"`) ou
+    « Choisir un fichier ». Elle liste aussi « À renouveler », les pièces expirées ou dans la fenêtre, la
+    plus pressée d'abord, avec « Remplacer » vers leur fiche. Puis l'écran plein « Ajouter un document » :
+    le fichier (aperçu, « Reprendre » ou « Changer de fichier »), Nom, Catégorie, Expire le, Rangé dans,
+    Précision.
+  - Bureau (dès `md`) : une modale de 600 px posée à 16 pas du haut. Son corps défile entre un en-tête et
+    un pied fixes. Elle offre le dépôt par glisser et « Parcourir ».
+  - Un fichier de plus de 10 Mo est refusé avant tout envoi.
+  - Au clavier, les tuiles, « Parcourir », « Changer de fichier » et « Reprendre » sont des boutons qui
+    ouvrent les entrées de fichier cachées. « Changer » porte le focus sur le dossier coché. Les flèches
+    choisissent sans refermer la liste ; Entrée ou Échap la referment et rendent le focus à « Changer ».
+- **« Rangé dans ».** `lib/documents/rangement.ts` le construit à partir des seules `attachable_targets` de
+  l'API.
+  - Il dédoublonne et écarte les types hors du coffre et tout dossier en lecture seule.
+  - Il garde un bien qui n'a pas encore de dossier.
+  - La précision « Le bien » ou « Le bail LS-… de ce bien » se lit à la clé du dossier (`property:`), et non
+    à la présence du dossier.
+  - Par défaut : « Mes pièces ».
+  - **Aucun champ d'identifiant n'est rendu** : le type et l'identifiant voyagent avec le dossier choisi
+    (AC2).
+- **API (additif).** `attachable_targets` porte `reference`, le `reference_number` d'un bail, `null` pour
+  les autres cibles (`DocumentVault`). Un bien peut avoir plusieurs baux hors brouillon (un bail clos, le
+  bail en cours), et rien d'autre ne les distinguait. `DocumentVaultOwnerTest` : +1 test (ablation rouge),
+  et l'assertion exacte de la cible « pièces » prend la clé.
+- **Décisions, validées par le chef d'équipe le 2026-11-13 : (a) et (a).**
+  - L2-1 (a) : l'interrupteur « Remplace … » n'est pas rendu. Le remplacement est une version, portée
+    par la fiche (lot 3).
+  - L2-2 (a) : les pastilles sont des types de l'API (pièce d'identité, passeport, assurance, autre),
+    plus « Plus de catégories ». « Justificatif de revenus » n'existe pas et n'est pas inventé.
+- **Écarts de vérité.** Ni redressement, ni « Lu sur la photo », ni « Nous vous préviendrons 60 jours
+  avant » (aucun rappel d'expiration de document dans l'API), ni le nom de l'agence. Détail :
+  `TCK-2656.json` § `ecarts_acceptes`.
+- **Suite possible, remontée au porteur par le chef d'équipe : le rappel d'expiration d'un document.**
+  L'API n'en envoie aucun. `expiry_date` ne sert qu'à la marque « expire dans N jours », au compte
+  `expiring_soon` et à « À renouveler », tous lus à l'ouverture du coffre : personne n'est prévenu
+  60 jours avant. La maquette le promet (« Nous vous préviendrons 60 jours avant »), et la promesse est
+  retirée de l'écran tant que le rappel n'existe pas.
+- **Tests.**
+  - `AjoutAuCoffre.tck-2656.test.tsx` : 9 tests. Ils couvrent la capture, la taille (Ko et Mo), le refus
+    au-delà de 10 Mo, le dossier choisi envoyé sans champ d'identifiant, la photo non nommée, « Plus de
+    catégories », les tuiles au clavier, « Changer » au clavier et la modale du bureau.
+  - `rangement.tck-2656.test.ts` : 4 tests.
+  - API : `DocumentVaultOwnerTest`, `DocumentVaultTenantTest` et `DocumentVaultImpersonationTest`, 13 verts.
+- **Ablations : 21, toutes rouges, restaurées par md5.**
+  - Front, 20 : sans `capture` ; choix du dossier ignoré ; sans contrôle de taille ; photo nommée d'après
+    le fichier ; dépôt muet ; pastille muette ; « Remplacer » sans lien ; flèches qui referment ; sans
+    focus dans la liste ; taille toujours en Mo ; tuile muette ; numéro de bail non affiché ; Entrée qui
+    ne replie pas ; « À renouveler » hors lecture seule ; cibles en lecture seule gardées ; sans
+    dédoublonnage ; défaut sur la première cible ; types hors du coffre gardés ; précision lue à la
+    présence du dossier ; numéro ignoré.
+  - API, 1 : `reference` à `null`.
+- **Relevé (2026-11-13), sur l'état final.** a-1 et a-2, avec `--perturber`, à 390, 1440 et 1280. Les
+  chiffres et leur lecture sont dans `TCK-2656.json` § `mesures.l2`. La modale est contrôlée formulaire
+  déplié à 1280 et 1024 : son pied reste visible et son corps défile.

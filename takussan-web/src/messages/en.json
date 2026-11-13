@@ -10882,7 +10882,47 @@
         "aucun": "None of your documents match this search.",
         "vide": "You haven’t added any documents yet."
       },
-      "dossierLectureSeule": "Read only"
+      "dossierLectureSeule": "Read only",
+      "ajout": {
+        "titre": "Add a document",
+        "photo": {
+          "titre": "Take a photo",
+          "texte": "With your phone’s camera"
+        },
+        "fichier": {
+          "titre": "Choose a file",
+          "texte": "PDF, photo or document · 10 MB max"
+        },
+        "aRenouveler": "To renew",
+        "rangeParDefaut": "The document will be filed in “{dossier}”; you can choose another folder at the next step.",
+        "etapePhoto": "Photo just taken",
+        "etapeFichier": "File just chosen",
+        "reprendre": "Retake",
+        "changerDeFichier": "Change file",
+        "taille": "{format} · {taille} of 10 MB",
+        "deposer": "Drop a file here",
+        "parcourir": "Browse",
+        "nom": "Name",
+        "nomExemple": "ID card, certificate…",
+        "expire": "Expires on",
+        "facultatif": "Optional",
+        "categorie": "Category",
+        "plusDeCategories": "More categories",
+        "rangeDans": "Filed in",
+        "changer": "Change",
+        "changerLeDossier": "Change the filing folder",
+        "leBien": "The property",
+        "leBail": "This property’s lease",
+        "precision": "Note (optional)",
+        "precisionExemple": "For example: new card, received on 9 November",
+        "envoyer": "Add to my documents",
+        "envoi": "Adding…",
+        "tropLourd": "This file is over 10 MB. Choose a smaller file.",
+        "sansFichier": "First choose a file or take a photo.",
+        "tailleMo": "{n} MB",
+        "tailleKo": "{n} KB",
+        "leBailNumero": "This property’s lease {reference}"
+      }
     }
   },
   "bookings": {

@@ -10245,7 +10245,47 @@
         "aucun": "Aucun de vos documents ne correspond à cette recherche.",
         "vide": "Vous n’avez encore ajouté aucun document."
       },
-      "dossierLectureSeule": "Lecture seule"
+      "dossierLectureSeule": "Lecture seule",
+      "ajout": {
+        "titre": "Ajouter un document",
+        "photo": {
+          "titre": "Prendre une photo",
+          "texte": "Avec l’appareil photo du téléphone"
+        },
+        "fichier": {
+          "titre": "Choisir un fichier",
+          "texte": "PDF, photo ou document · 10 Mo au plus"
+        },
+        "aRenouveler": "À renouveler",
+        "rangeParDefaut": "Le document sera rangé dans « {dossier} » ; vous pourrez choisir un autre dossier à l’étape suivante.",
+        "etapePhoto": "Photo prise à l’instant",
+        "etapeFichier": "Fichier choisi à l’instant",
+        "reprendre": "Reprendre",
+        "changerDeFichier": "Changer de fichier",
+        "taille": "{format} · {taille} sur 10 Mo",
+        "deposer": "Déposez un fichier ici",
+        "parcourir": "Parcourir",
+        "nom": "Nom",
+        "nomExemple": "Carte d’identité, attestation…",
+        "expire": "Expire le",
+        "facultatif": "Facultatif",
+        "categorie": "Catégorie",
+        "plusDeCategories": "Plus de catégories",
+        "rangeDans": "Rangé dans",
+        "changer": "Changer",
+        "changerLeDossier": "Changer le dossier de rangement",
+        "leBien": "Le bien",
+        "leBail": "Le bail de ce bien",
+        "precision": "Précision (facultatif)",
+        "precisionExemple": "Par exemple : nouvelle carte, reçue le 9 novembre",
+        "envoyer": "Ajouter au coffre",
+        "envoi": "Ajout en cours…",
+        "tropLourd": "Ce fichier dépasse 10 Mo. Choisissez un fichier plus léger.",
+        "sansFichier": "Choisissez d’abord un fichier ou prenez une photo.",
+        "tailleMo": "{n} Mo",
+        "tailleKo": "{n} Ko",
+        "leBailNumero": "Le bail {reference} de ce bien"
+      }
     }
   },
   "bookings": {

@@ -66,6 +66,22 @@ class DocumentVaultOwnerTest extends TestCase
         $this->assertNotContains($this->idCard->id, $all);
     }
 
+    public function test_r_tck2656_a_lease_target_carries_its_reference_to_tell_two_leases_of_a_property_apart(): void
+    {
+        $this->connecter($this->landlord, $this->ownerProfile);
+        $cibles = collect($this->coffre()['attachable_targets']);
+
+        $bail = $cibles->first(fn (array $c) => $c['type'] === 'lease' && $c['id'] === $this->lease->id);
+        $this->assertNotNull($bail);
+        $this->assertNotNull($this->lease->reference_number);
+        $this->assertSame($this->lease->reference_number, $bail['reference']);
+        $this->assertSame("property:{$this->property->id}", $bail['folder']);
+        $autre = $cibles->first(fn (array $c) => $c['type'] === 'lease' && $c['id'] === $this->otherLease->id);
+        $this->assertSame($this->otherLease->reference_number, $autre['reference']);
+        $this->assertNotSame($bail['reference'], $autre['reference']);
+        $cibles->reject(fn (array $c) => $c['type'] === 'lease')->each(fn (array $c) => $this->assertNull($c['reference']));
+    }
+
     public function test_the_sent_statements_and_the_annual_attestation_of_a_closed_year(): void
     {
         $snapshots = app(OwnerStatementSnapshots::class);
@@ -108,7 +124,7 @@ class DocumentVaultOwnerTest extends TestCase
 
         $this->assertSame(['pieces'], array_column($vault['folders'], 'key'));
         $this->assertSame([], $this->entrees($vault));
-        $this->assertSame([['type' => 'user', 'id' => $stranger->id, 'folder' => 'pieces', 'name' => null]], $vault['attachable_targets']);
+        $this->assertSame([['type' => 'user', 'id' => $stranger->id, 'folder' => 'pieces', 'name' => null, 'reference' => null]], $vault['attachable_targets']);
     }
 
     /**
