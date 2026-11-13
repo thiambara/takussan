@@ -105,7 +105,9 @@ police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour 
   `background`, 7,9:1 sur `muted`), parce qu'une encre de texte ne s'atténue pas par l'opacité (TCK-658).
   `text-encre-douce-inverse` (`background` à 70 % sur `foreground`) sert au compte d'une puce active.
 - **Les formats** viennent de `useFormatteurs`, jamais écrits en dur : `montantCourt` « 1 355 000 F »
-  (groupes U+202F, symbole collé par U+00A0), `montantAbrege` « 3,9 M F », `jourMois` « 4 nov. »
+  (groupes **et** symbole par l'insécable U+00A0 — pas l'espace fine U+202F d'`Intl`, illisible au
+  téléphone : décision n° 11 du porteur, TCK-2714 ; un seul point de passage, `lib/format/groupes.ts`),
+  `montantAbrege` « 3,9 M F », `jourMois` « 4 nov. »
   (« 4 déc. 2025 » hors de l'année en cours), `heure` « 09:00 », `pourcentage` « 87 % » (U+00A0).
   « F » dans `/app`, « F CFA » sur l'offre et l'abonnement (`montant()`, inchangé).
 - **Le point de rupture `w1440:`** (90rem) traduit le `min-[1440px]:` des maquettes « bureau 1280 »

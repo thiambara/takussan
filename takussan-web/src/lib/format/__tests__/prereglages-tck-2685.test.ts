@@ -11,19 +11,20 @@ import { DATE_COURTE, formatteursPour, VALEUR_ABSENTE } from '../useFormatteurs'
  */
 const fr = formatteursPour('fr');
 const en = formatteursPour('en');
-const FINE = ' ';
+/** TCK-2714 — les groupes de milliers : l'insécable U+00A0, comme le symbole. */
+const GROUPE = '\u00a0';
 const INSEC = ' ';
 
 /** Une horloge figée en 2026, au fuseau de Dakar (UTC+0 toute l'année). */
 const EN_2026 = new Date('2026-11-11T12:00:00Z');
 
 describe('TCK-2685 — montant court et abrégé', () => {
-  it('« 1 355 000 F » : groupes U+202F, symbole collé par U+00A0', () => {
-    expect(fr.montantCourt(1_355_000)).toBe(`1${FINE}355${FINE}000${INSEC}F`);
+  it('« 1 355 000 F » : groupes et symbole collés par U+00A0 (TCK-2714)', () => {
+    expect(fr.montantCourt(1_355_000)).toBe(`1${GROUPE}355${GROUPE}000${INSEC}F`);
   });
 
   it('le franc CFA d’Afrique centrale aussi ; une autre devise garde son symbole', () => {
-    expect(fr.montantCourt(1_000, 'XAF')).toBe(`1${FINE}000${INSEC}F`);
+    expect(fr.montantCourt(1_000, 'XAF')).toBe(`1${GROUPE}000${INSEC}F`);
     expect(fr.montantCourt(12.5, 'EUR')).toBe(`12,50${INSEC}€`);
     expect(en.montantCourt(12.5, 'USD')).toBe('$12.50');
   });
@@ -40,7 +41,7 @@ describe('TCK-2685 — montant court et abrégé', () => {
   });
 
   it('`montant()` sans préréglage rend toujours « 1 355 000 F CFA »', () => {
-    expect(fr.montant(1_355_000)).toBe(`1${FINE}355${FINE}000${INSEC}F CFA`);
+    expect(fr.montant(1_355_000)).toBe(`1${GROUPE}355${GROUPE}000${INSEC}F CFA`);
   });
 });
 

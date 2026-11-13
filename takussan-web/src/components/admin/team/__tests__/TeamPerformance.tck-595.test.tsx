@@ -83,7 +83,7 @@ describe('TeamPerformanceTable', () => {
     const url = String((spy.mock.calls[0] as unknown[])[0]);
     expect(url).toMatch(/\/api\/agencies\/5\/team-performance\?period=\d{4}-\d{2}$/);
     const ligne = screen.getByText('Awa Diop').closest('tr')!;
-    expect(within(ligne).getAllByRole('cell').map((c) => c.textContent)).toContain('90 000 F CFA');
+    expect(within(ligne).getAllByRole('cell').map((c) => c.textContent)).toContain('90 000 F CFA');
   });
 
   it('trie par colonne : par défaut les commissions, puis les visites', async () => {

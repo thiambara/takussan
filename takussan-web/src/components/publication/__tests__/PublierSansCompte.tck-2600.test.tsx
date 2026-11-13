@@ -233,7 +233,7 @@ describe('le brouillon survit au rechargement (AC2)', () => {
     expect(photos?.map((p) => p.nom)).toEqual(['reduite-salon.jpg', 'reduite-cuisine.jpg', 'reduite-chambre.jpg']);
 
     await user.click(screen.getByRole('button', { name: /^précédent$/i })); // → le prix
-    expect((screen.getByLabelText(/^loyer|^prix/i) as HTMLInputElement).value).toBe('250 000');
+    expect((screen.getByLabelText(/^loyer|^prix/i) as HTMLInputElement).value).toBe('250 000');
     expect(screen.getByRole('combobox', { name: /fréquence/i })).toHaveTextContent('Année');
   });
 });

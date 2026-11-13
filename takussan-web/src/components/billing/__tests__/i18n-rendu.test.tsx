@@ -205,11 +205,11 @@ describe('les dates et les montants suivent la LOCALE, pas un littéral', () => 
     expect(cellulesEn[0]).toBe('01 Jul 2026 → 31 Jul 2026');
 
     // ⚠️ Trois espaces INVISIBLEMENT différentes dans cette seule chaîne, toutes mesurées par
-    //    `codePointAt` et non lues : le séparateur de milliers est l'espace fine insécable
-    //    (U+202F) en `fr-SN` et la VIRGULE en `en-GB`, et le symbole est collé par une insécable
-    //    (U+00A0) dans les deux. Les écrire en échappement est le seul moyen que l'écart soit
+    //    `codePointAt` et non lues : le séparateur de milliers est l'espace insécable (U+00A0)
+    //    en `fr-SN` (TCK-2714) et la VIRGULE en `en-GB`, le symbole est collé par une insécable
+    //    (U+00A0) dans les deux, et « F CFA » garde son espace ordinaire. Les écrire en échappement est le seul moyen que l'écart soit
     //    lisible : collées au clavier, elles s'affichent « expected '500 000' to be '500 000' ».
-    expect(cellulesFr[2]).toBe('500\u202f000\u00a0F CFA');
+    expect(cellulesFr[2]).toBe('500\u00a0000\u00a0F CFA');
     expect(cellulesEn[2]).toBe('500,000\u00a0F CFA');
   });
 

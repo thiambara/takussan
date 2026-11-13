@@ -1,5 +1,6 @@
 import { TIMEZONE, type Locale } from '@/i18n/config';
 import { formatMontant } from './format/currency';
+import { formaterGroupesLisibles } from './format/groupes';
 
 /**
  * Locale-aware formatters wrapping {@link Intl.DateTimeFormat} and
@@ -138,6 +139,9 @@ export function formatDateTime(
 /**
  * Format a number using the given locale. Leaves `null`/`undefined`
  * untouched so callers can guard in the JSX.
+ *
+ * TCK-2714 — les groupes de milliers sortent en U+00A0, pas en U+202F (`./format/groupes`) ; le
+ * reste de la chaîne est celui d'`Intl` (l'espace avant « % », la notation compacte).
  */
 export function formatNumber(
   value: number | null | undefined,
@@ -145,7 +149,7 @@ export function formatNumber(
   options: Intl.NumberFormatOptions = {},
 ): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '';
-  return new Intl.NumberFormat(toIntlLocale(locale), options).format(value);
+  return formaterGroupesLisibles(new Intl.NumberFormat(toIntlLocale(locale), options), value);
 }
 
 /**

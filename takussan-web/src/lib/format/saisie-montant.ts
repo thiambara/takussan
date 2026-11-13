@@ -42,7 +42,11 @@ export function separateurDecimal(locale: Locale): string {
   return formatNumber(1.5, locale).replace(/\d/g, '') || ',';
 }
 
-/** Le séparateur de milliers de la locale — mesuré de même (U+202F en `fr-SN`, `,` en anglais). */
+/**
+ * Le séparateur de milliers de la locale — mesuré de même (U+00A0 en `fr-SN` depuis TCK-2714, `,` en
+ * anglais). Ce qu'on AFFICHE ; à la lecture, toute espace groupe — U+202F, U+00A0, U+0020 —, car
+ * `marqueDecimale` ne retient que le point et la virgule comme marque possible.
+ */
 export function separateurDeMilliers(locale: Locale): string {
   return formatNumber(1000, locale).replace(/\d/g, '');
 }

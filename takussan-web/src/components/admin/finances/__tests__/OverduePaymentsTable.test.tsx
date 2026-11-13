@@ -68,15 +68,15 @@ function renderTable() {
 
 /**
  * La tuile dont le libellé est `libelle` : son texte entier. Les espaces insécables de
- * `formatCurrency` (U+202F, U+00A0) se comparent tels quels.
+ * `formatCurrency` (U+00A0 entre les groupes depuis TCK-2714, et avant le symbole) se comparent tels quels.
  */
 function tuile(libelle: string): string {
   const etiquette = screen.getAllByText(libelle).find((el) => el.tagName === 'P');
   return etiquette?.parentElement?.parentElement?.textContent ?? '';
 }
 
-const F_100K = '100 000 F CFA';
-const F_400K = '400 000 F CFA';
+const F_100K = '100 000 F CFA';
+const F_400K = '400 000 F CFA';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -105,7 +105,7 @@ describe('TCK-595 — onglet Impayés : la balance âgée (AC18)', () => {
       expect(tuile(tranche)).toContain(F_100K);
     }
     expect(tuile('Total des impayés')).toContain(F_400K);
-    expect(tuile('Cautions détenues')).toContain('50 000 F CFA');
+    expect(tuile('Cautions détenues')).toContain('50 000 F CFA');
     expect(screen.getByRole('link', { name: 'Fatou Sall' })).toHaveAttribute('href', '/app/customers/21');
   });
 

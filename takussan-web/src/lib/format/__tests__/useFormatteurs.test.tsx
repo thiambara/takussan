@@ -138,6 +138,12 @@ describe('formatteursPour — la partie pure', () => {
     expect(espaces(formatteursPour('en').montant(12.5, 'USD'))).toBe('$12.50');
   });
 
+  it('TCK-2714 — montant() groupe par U+00A0 en fr et en wo, par la virgule en en', () => {
+    expect(formatteursPour('fr').montant(150_000, 'XOF')).toBe('150\u00a0000\u00a0F CFA');
+    expect(formatteursPour('wo').montant(150_000, 'XOF')).toBe('150\u00a0000\u00a0F CFA');
+    expect(formatteursPour('en').montant(150_000, 'XOF')).toBe('150,000\u00a0F CFA');
+  });
+
   it('garde le franc CFA sans décimale', () => {
     expect(espaces(formatteursPour('fr').montant(150_000.4, 'XOF'))).toBe('150 000 F CFA');
   });
