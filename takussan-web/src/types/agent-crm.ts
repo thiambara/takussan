@@ -1,22 +1,7 @@
 /**
- * TCK-591 — formes des réponses du CRM de l'agent (journal de la fiche, rapprochement, passation,
+ * TCK-591 — formes des réponses du CRM de l'agent (rapprochement, passation,
  * absences, flux d'agenda, actions en masse). Alignées sur les contrôleurs de `takussan-api`.
  */
-
-export type ActivitySubject = 'customer' | 'note' | 'task' | 'other';
-
-export interface CustomerActivityEntry {
-  id: number;
-  subject: ActivitySubject;
-  subject_id: number | null;
-  event: string | null;
-  changes: {
-    attributes: Record<string, unknown> | null;
-    old: Record<string, unknown> | null;
-  };
-  causer: { id: number; name: string } | null;
-  created_at: string;
-}
 
 export interface MatchingProperty {
   id: number;

@@ -4097,32 +4097,6 @@
       }
     },
     "activity": {
-      "loadFailed": "This customer's activity could not be loaded.",
-      "retry": "Retry",
-      "empty": "No activity yet.",
-      "loadMore": "Show more",
-      "someone": "Someone",
-      "customer": {
-        "created": "{actor} created the record",
-        "deleted": "{actor} deleted the record",
-        "restored": "{actor} restored the record",
-        "stage": "{actor} moved the customer from “{from}” to “{to}”",
-        "fields": "{actor} changed: {fields}",
-        "updated": "{actor} updated the record"
-      },
-      "note": {
-        "created": "{actor} added a note",
-        "deleted": "{actor} deleted a note",
-        "pinned": "{actor} pinned a note",
-        "updated": "{actor} edited a note"
-      },
-      "task": {
-        "created": "{actor} created the task “{title}”",
-        "done": "{actor} completed the task “{title}”",
-        "deleted": "{actor} deleted the task “{title}”",
-        "updated": "{actor} updated the task “{title}”"
-      },
-      "generic": "{actor} updated the record",
       "fields": {
         "first_name": "first name",
         "last_name": "last name",

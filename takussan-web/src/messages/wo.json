@@ -1971,32 +1971,6 @@
       }
     },
     "activity": {
-      "loadFailed": "Mënuñu a yeb li kiliyaan bii def.",
-      "retry": "Jéemaat",
-      "empty": "Amagul dara ba leegi.",
-      "loadMore": "Gis yeneen",
-      "someone": "Kenn",
-      "customer": {
-        "created": "{actor} sos na fiise bi",
-        "deleted": "{actor} far na fiise bi",
-        "restored": "{actor} delloo na fiise bi",
-        "stage": "{actor} jële na kiliyaan bi ci « {from} » yóbbu ko ci « {to} »",
-        "fields": "{actor} soppi na : {fields}",
-        "updated": "{actor} soppi na fiise bi"
-      },
-      "note": {
-        "created": "{actor} yokk na ab bind",
-        "deleted": "{actor} far na ab bind",
-        "pinned": "{actor} téye na ab bind",
-        "updated": "{actor} soppi na ab bind"
-      },
-      "task": {
-        "created": "{actor} sos na liggéey bi « {title} »",
-        "done": "{actor} matal na liggéey bi « {title} »",
-        "deleted": "{actor} far na liggéey bi « {title} »",
-        "updated": "{actor} soppi na liggéey bi « {title} »"
-      },
-      "generic": "{actor} soppi na fiise bi",
       "fields": {
         "first_name": "tur",
         "last_name": "sant",

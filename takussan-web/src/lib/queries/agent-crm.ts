@@ -8,14 +8,13 @@ import type {
   AgentAbsence,
   BulkResult,
   CalendarFeedState,
-  CustomerActivityEntry,
   CustomerLinkedRecord,
   MatchingCustomer,
   MatchingProperty,
   MemberPortfolio,
   PortfolioCategory,
 } from '@/types/agent-crm';
-import { cheminApi, requete } from '@/lib/chemin-api';
+import { cheminApi } from '@/lib/chemin-api';
 import { nomAffichable } from '@/lib/identite';
 import { lireToutesLesPages, PAR_PAGE_MAX } from '@/lib/queries/toutes-les-pages';
 
@@ -132,18 +131,6 @@ export async function setCustomerPrimaryContact(token: string, customerId: numbe
     body: { user_id: userId },
     token,
   });
-}
-
-export async function fetchCustomerActivity(
-  token: string,
-  customerId: number,
-  page = 1,
-): Promise<PaginatedResponse<CustomerActivityEntry>> {
-  const qs = buildQueryString({ page, per_page: 20 });
-  return apiRequest<PaginatedResponse<CustomerActivityEntry>>(
-    cheminApi`/api/customers/${customerId}/activity${requete(qs)}`,
-    { token },
-  );
 }
 
 export async function fetchMatchingProperties(

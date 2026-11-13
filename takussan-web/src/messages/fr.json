@@ -4054,32 +4054,6 @@
       }
     },
     "activity": {
-      "loadFailed": "Le journal de ce client n'a pas pu être chargé.",
-      "retry": "Réessayer",
-      "empty": "Aucune activité pour l'instant.",
-      "loadMore": "Voir plus",
-      "someone": "Quelqu'un",
-      "customer": {
-        "created": "{actor} a créé la fiche",
-        "deleted": "{actor} a supprimé la fiche",
-        "restored": "{actor} a restauré la fiche",
-        "stage": "{actor} a fait passer le client de « {from} » à « {to} »",
-        "fields": "{actor} a modifié : {fields}",
-        "updated": "{actor} a modifié la fiche"
-      },
-      "note": {
-        "created": "{actor} a ajouté une note",
-        "deleted": "{actor} a supprimé une note",
-        "pinned": "{actor} a épinglé une note",
-        "updated": "{actor} a modifié une note"
-      },
-      "task": {
-        "created": "{actor} a créé la tâche « {title} »",
-        "done": "{actor} a terminé la tâche « {title} »",
-        "deleted": "{actor} a supprimé la tâche « {title} »",
-        "updated": "{actor} a modifié la tâche « {title} »"
-      },
-      "generic": "{actor} a modifié la fiche",
       "fields": {
         "first_name": "prénom",
         "last_name": "nom",
