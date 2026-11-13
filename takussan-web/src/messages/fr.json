@@ -10771,7 +10771,7 @@
         "fichier": "Fichier",
         "reference": "Référence"
       },
-      "voirLesAutres": "Voir les {count} autres",
+      "voirLesAutres": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
       "biensSansDocument": "{count, plural, one {# bien sans document} other {# biens sans document}}",
       "rechercher": "Rechercher",
       "lectureSeule": "Votre accès bailleur est suspendu : ces documents restent consultables, mais rien ne peut y être ajouté.",

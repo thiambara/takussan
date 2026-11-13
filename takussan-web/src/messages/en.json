@@ -10771,7 +10771,7 @@
         "fichier": "File",
         "reference": "Reference"
       },
-      "voirLesAutres": "See the other {count}",
+      "voirLesAutres": "{count, plural, one {See the other one} other {See the other #}}",
       "biensSansDocument": "{count, plural, one {# property without documents} other {# properties without documents}}",
       "rechercher": "Search",
       "lectureSeule": "Your landlord access is suspended: you can still view these documents, but nothing can be added.",
