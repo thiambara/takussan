@@ -143,7 +143,7 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
   - U avec un profil actif dans une autre agence : ils restent.
 - [ ] **AC8 — Qui.**
   - Un agent d'A dont le rôle personnalisé porte **toutes** les capacités → 403, sur `DELETE` comme sur `…/departure`.
-  - Un administrateur d'une autre agence → 403.
+  - Un administrateur d'une autre agence → **404** (amendé le 2026-11-13 : la réponse ne dit pas que le profil existe ; `OwnerDepartureRequest` rend 404 hors de l'agence, avant la policy).
   - Ad sans double authentification sur la session → refus de la garde 2FA, avec le code que lit le front (TCK-1203).
   - Le super-admin, 2FA saisie sur sa session → 200.
   - Retirer l'entrée de `AGENCY_TWO_FACTOR` rend `ProtectedActionsCoverageTest` ou le test 2FA rouge.
@@ -157,6 +157,7 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
   - Après le départ, `GET /api/owners` ne liste pas P, et `filter[status]=inactive` le liste.
   - `summary.owners` a baissé de 1.
   - `GET /api/owners/{P}` reste lisible par Ad (200).
+  - Sous `filter[has_remaining]=1`, un bailleur parti à qui il reste de l'argent à verser est listé : il compte dans `summary.with_remaining` (décision du 2026-11-13). `filter[has_remaining]=0` l'écarte comme le carnet seul.
 - [ ] **AC11 — L'invitation.**
   - Inviter U dans A, par son e-mail puis par son numéro vérifié → 409, avec le message « a quitté » (clé distincte de `already_member`).
   - Un bailleur actif d'A reçoit toujours `already_member`.
@@ -175,4 +176,15 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Décisions du 2026-11-13 (relayées par team-lead)
+
+- **AC8, administrateur d'une autre agence : 404, et non 403.** Le refus ne dit pas que le profil existe. L'AC est amendé.
+- **`filter[has_remaining]=1` liste aussi les bailleurs partis.** C'était la recommandation de l'implémentation. Un
+  parti à qui un arriéré encaissé après son départ reste à verser compte dans `summary.with_remaining` et
+  `remaining_to_pay`, et la liste que ces chiffres annoncent le montre. `OwnerProfileController::index` n'écarte
+  donc plus `inactive` quand ce filtre est vrai. `=0` garde l'exclusion : un parti n'est pas « à jour ». Épinglé par
+  `OwnerDepartedTest::test_ac10_un_parti_a_qui_il_reste_a_verser_se_liste_sous_has_remaining`, rouge sous les deux
+  ablations : exclusion rétablie, ou levée aussi pour `=0`.
+- **Suivi : pas de vue « Partis » pour l'instant.** Aucun écran ne liste les bailleurs partis. Ils se relisent par
+  `filter[status]=inactive` côté API, et sous « Avec reste à verser » quand il leur reste de l'argent. Une vue
+  dédiée sera un ticket à part, si le besoin apparaît.

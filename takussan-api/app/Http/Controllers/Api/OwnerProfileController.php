@@ -75,7 +75,10 @@ class OwnerProfileController extends Controller
         $base = $this->visibleScope($user, $request);
         // TCK-2753 (ADR-0108 § 6) — un bailleur parti (`inactive`) quitte le carnet ; il se relit par
         // `filter[status]=inactive`, et sa fiche reste lisible. Tout autre `filter[status]` fait foi.
-        if (! $request->filled('filter.status')) {
+        // Sauf sous `filter[has_remaining]=1` (décision du 2026-11-13) : un parti à qui il reste de
+        // l'argent à verser compte dans `summary.with_remaining` et `remaining_to_pay`, et la liste
+        // que ces chiffres annoncent le montre. `=0` garde l'exclusion : un parti n'est pas « à jour ».
+        if (! $request->filled('filter.status') && ! $this->demandeLesRestesAVerser($request)) {
             $base->where('owner_profiles.status', '<>', OwnerProfileStatus::Inactive->value);
         }
         $query = OwnerProfile::buildQuery($base, $request)->defaultSort('-created_at');
@@ -249,5 +252,13 @@ class OwnerProfileController extends Controller
         $agencyId = $user->agency_id;
 
         return OwnerProfile::query()->where('agency_id', $agencyId);
+    }
+
+    /** `filter[has_remaining]` vrai, lu comme le filtre du modèle ({@see OwnerProfile::customQueryFilters()}). */
+    private function demandeLesRestesAVerser(Request $request): bool
+    {
+        $brut = ParametreUnique::valeur($request->input('filter.has_remaining'));
+
+        return $brut !== null && filter_var($brut, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
     }
 }

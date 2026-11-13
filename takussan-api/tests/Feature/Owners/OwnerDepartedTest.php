@@ -199,6 +199,28 @@ class OwnerDepartedTest extends ApiTestCase
             ->assertJsonPath('data.departed_at', now()->toIso8601String());
     }
 
+    /**
+     * AC10 (décision du 2026-11-13) — un parti à qui il reste à verser compte dans `with_remaining` : la liste
+     * `filter[has_remaining]=1` qu'annonce ce chiffre le montre. Le carnet seul et `=0` l'écartent toujours.
+     */
+    public function test_ac10_un_parti_a_qui_il_reste_a_verser_se_liste_sous_has_remaining(): void
+    {
+        $this->depart();
+        // Rien à lui verser encore : `=0` ne le rend pas « à jour », il reste hors du carnet.
+        $this->asAdmin();
+        $this->assertNotContains($this->profile->id, array_column($this->getJson('/api/owners?filter[has_remaining]=0')->assertOk()->json('data'), 'id'));
+
+        $this->travelTo('2026-11-25 10:00:00');
+        $this->arrears->forceFill(['status' => PaymentStatus::Paid, 'paid_at' => now()])->save();
+
+        $avecReste = $this->getJson('/api/owners?filter[has_remaining]=1')->assertOk();
+        $ids = array_column($avecReste->json('data'), 'id');
+        $this->assertContains($this->profile->id, $ids);
+        $this->assertCount($avecReste->json('meta.summary.with_remaining'), $ids);
+
+        $this->assertNotContains($this->profile->id, array_column($this->getJson('/api/owners')->assertOk()->json('data'), 'id'));
+    }
+
     /** La fiche d'un bailleur présent ne porte pas de date de départ. */
     public function test_la_fiche_d_un_bailleur_present_n_a_pas_de_depart(): void
     {
