@@ -9,6 +9,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
+use App\Rules\InstantIso;
 use App\Services\Booking\BookingMoneyAccess;
 use Illuminate\Validation\Rule;
 
@@ -82,7 +83,7 @@ class StoreBookingPaymentRequest extends BaseFormRequest
             // d'encaissement : gardée, elle survivait au règlement par la passerelle
             // (`paid_at ??= now()`). 422, comme la ligne de bail (TCK-681). Sans `status`, la ligne
             // naît `paid` et garde sa date : d'où `prohibited_if` et non `prohibited_unless`.
-            'paid_at' => ['nullable', 'date', 'prohibited_if:status,'.PaymentStatus::Pending->value],
+            'paid_at' => ['nullable', 'date', new InstantIso, 'prohibited_if:status,'.PaymentStatus::Pending->value],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];

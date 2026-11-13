@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\InstantIso;
 use App\Support\InstantRecu;
 use Carbon\CarbonImmutable;
 
@@ -27,7 +28,7 @@ class ConfirmPropertyVisitRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'scheduled_at' => ['nullable', 'date', 'after:now'],
+            'scheduled_at' => ['nullable', 'date', new InstantIso, 'after:now'],
         ];
     }
 

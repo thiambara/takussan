@@ -7,6 +7,7 @@ use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Payout;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -67,7 +68,7 @@ class StorePayoutRequest extends BaseFormRequest
             'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'scheduled_at' => ['nullable', 'date'],
+            'scheduled_at' => ['nullable', 'date', new InstantIso],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

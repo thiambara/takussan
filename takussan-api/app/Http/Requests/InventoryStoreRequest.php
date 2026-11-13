@@ -7,6 +7,7 @@ use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
+use App\Rules\InstantIso;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -63,7 +64,7 @@ class InventoryStoreRequest extends FormRequest
             // un bail tiers passait la validation. Le contrôleur rend le refus aux deux.
             'lease_id' => ['required', 'integer'],
             'type' => ['required', Rule::enum(InventoryType::class)],
-            'conducted_at' => ['nullable', 'date'],
+            'conducted_at' => ['nullable', 'date', new InstantIso],
             // TCK-2646 — une sortie sans pièces reprend celles de l'entrée signée du bail (son état
             // général aussi) ; sans entrée signée, le service rend 422 sur le champ manquant.
             'general_condition' => ['required_unless:type,move_out', Rule::enum(InventoryCondition::class)],

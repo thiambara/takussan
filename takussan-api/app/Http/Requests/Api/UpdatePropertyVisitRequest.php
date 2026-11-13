@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\VisitType;
 use App\Models\PropertyVisit;
+use App\Rules\InstantIso;
 use App\Rules\PersonnelDeLAgence;
 use App\Support\InstantRecu;
 use Carbon\CarbonImmutable;
@@ -46,7 +47,7 @@ class UpdatePropertyVisitRequest extends BaseFormRequest
         $agencyId = $visit instanceof PropertyVisit ? $visit->property?->agency_id : null;
 
         return [
-            'scheduled_at' => ['sometimes', 'date', 'after:now'],
+            'scheduled_at' => ['sometimes', 'date', new InstantIso, 'after:now'],
             'agent_id' => ['sometimes', 'nullable', 'integer', new PersonnelDeLAgence($agencyId)],
             // TCK-1836 (P184.03) — le plafond de la création : sans lui, le `PATCH` rouvrait le
             // blocage du bien par une visite confirmée de 100 000 minutes.

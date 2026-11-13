@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\InstantIso;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Validation\Rule;
 
@@ -65,7 +66,7 @@ class MarkPaidLeasePaymentRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'paid_at' => ['nullable', 'date'],
+            'paid_at' => ['nullable', 'date', new InstantIso],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             // Passe 2, M5 — passer outre au checkout ouvert, motif obligatoire.

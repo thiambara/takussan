@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\InstantIso;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Validation\Rule;
 
@@ -56,7 +57,7 @@ class MarkLateFeePaidRequest extends BaseFormRequest
     {
         return [
             // TCK-593 (vérification adverse, V7) — un règlement ne se date pas dans le futur.
-            'paid_at' => ['nullable', 'date', 'before_or_equal:now'],
+            'paid_at' => ['nullable', 'date', new InstantIso, 'before_or_equal:now'],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             // Passe 2, M5 — passer outre au checkout ouvert, motif obligatoire.
             'override_open_checkout' => ['sometimes', 'boolean'],

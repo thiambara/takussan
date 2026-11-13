@@ -5,6 +5,7 @@ namespace App\Http\Requests\Permissions;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Rules\InstantIso;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -27,8 +28,8 @@ class StoreRoleDelegationRequest extends FormRequest
         return [
             'user_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
             'role' => ['required', 'string', Rule::in(config('role_delegations.delegable_roles', []))],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at', "before_or_equal:$maxEndDate"],
+            'starts_at' => ['nullable', 'date', new InstantIso],
+            'ends_at' => ['required', 'date', new InstantIso, 'after:starts_at', "before_or_equal:$maxEndDate"],
             'reason' => ['nullable', 'string', 'max:500'],
         ];
     }

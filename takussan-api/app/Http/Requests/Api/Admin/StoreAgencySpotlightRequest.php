@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\AgencySpotlight;
+use App\Rules\InstantIso;
 use App\Support\InstantRecu;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -28,8 +29,8 @@ class StoreAgencySpotlightRequest extends BaseFormRequest
         return [
             'agency_id' => ['required', 'integer', Rule::exists('agencies', 'id')->whereNull('deleted_at')],
             'geo_city_id' => ['present', 'nullable', 'integer', Rule::exists('geo_cities', 'id')],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'starts_at' => ['required', 'date', new InstantIso],
+            'ends_at' => ['required', 'date', new InstantIso, 'after:starts_at'],
             'note' => ['required', 'string', 'min:5', 'max:255'],
         ];
     }

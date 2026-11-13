@@ -7,6 +7,7 @@ use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PrivacyRequestChannel;
 use App\Models\Enums\PrivacyRequestType;
 use App\Models\PrivacyRequest;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /** TCK-601 (G) — une demande de droits reçue hors de l'application, saisie par le super-admin. */
@@ -28,7 +29,7 @@ class StorePrivacyRequestRequest extends BaseFormRequest
             'requester_name' => ['required', 'string', 'max:255'],
             'requester_contact' => ['nullable', 'string', 'max:255'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
-            'received_at' => ['nullable', 'date', 'before_or_equal:today'],
+            'received_at' => ['nullable', 'date', new InstantIso, 'before_or_equal:today'],
         ];
     }
 

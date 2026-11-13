@@ -355,8 +355,13 @@ class PropertyBookingRequestTest extends TestCase
         ])->assertNotFound();
     }
 
-    /** TCK-2743 (lot 3) — l'offre publique valable jusqu'à un INSTANT (avec décalage) : l'instant désigné. */
-    public function test_une_offre_valable_jusqu_a_un_instant_avec_decalage_est_cet_instant(): void
+    /**
+     * TCK-2743 (lot 3), amendé par TCK-2752 (décision du 2026-11-13) — la validité d'une offre publique
+     * est un JOUR (`date_format:Y-m-d`), le seul que le tunnel envoie ; un instant y est refusé (422).
+     * L'intention de TCK-2743 tient : l'échéance stockée est l'instant que la validité désigne, la fin du
+     * jour dit à Dakar.
+     */
+    public function test_une_offre_valable_jusqu_a_un_jour_echeance_a_la_fin_de_ce_jour(): void
     {
         $this->travelTo(Carbon::parse('2026-10-20 10:00:00', 'Africa/Dakar'));
         $property = Property::factory()->published()->create([
@@ -368,8 +373,17 @@ class PropertyBookingRequestTest extends TestCase
             'offer_amount' => 110_000_000,
             'offer_expires_at' => '2026-10-21T18:00:00+01:00',
             'terms_accepted' => true,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['offer_expires_at']);
+        $this->assertSame(0, Booking::query()->count());
+
+        $this->postJson("/api/public/properties/{$property->slug}/booking-request", [
+            'offer_amount' => 110_000_000,
+            'offer_expires_at' => '2026-10-21',
+            'terms_accepted' => true,
         ])->assertCreated();
 
-        $this->assertSame('2026-10-21 17:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+        $booking = Booking::query()->sole();
+        $this->assertSame('2026-10-21 23:59:59', substr((string) $booking->getRawOriginal('expires_at'), 0, 19));
+        $this->assertSame('2026-10-21', substr((string) $booking->getRawOriginal('offer_expires_at'), 0, 10));
     }
 }

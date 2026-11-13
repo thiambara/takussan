@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\Currency;
 use App\Models\Property;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -70,7 +71,9 @@ class StoreBookingRequest extends BaseFormRequest
             // TCK-2579 (ADR-0102) — la nature saisie ; sans elle, celle du bien (`BookingKind`).
             'kind' => ['nullable', Rule::enum(BookingKind::class)],
             // TCK-2579 — la validité d'une offre, dernier jour inclus (heure de Dakar).
-            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date', 'after_or_equal:today'],
+            // TCK-2752 — un JOUR, le seul que le front envoie : un instant près de minuit rangeait un autre
+            // jour dans `offer_expires_at` (colonne `date`) que dans `expires_at` (`FinInclusive::de()`).
+            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date_format:Y-m-d', 'after_or_equal:today'],
             // TCK-1066 (P62.02) — plus de `exists:` : un 422 pour un identifiant absent contre un
             // 403 pour un client tiers ou un bien privé faisait de la création un ORACLE
             // d'existence. L'absence se juge dans le contrôleur et le service, avec la réponse du
@@ -98,7 +101,7 @@ class StoreBookingRequest extends BaseFormRequest
             // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
-            'expires_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date', new InstantIso],
         ];
     }
 

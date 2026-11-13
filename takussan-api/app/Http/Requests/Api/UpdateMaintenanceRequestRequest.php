@@ -6,6 +6,7 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenancePriority;
 use App\Rules\AssignableProvider;
 use App\Rules\DansLHorizonDuPassage;
+use App\Rules\InstantIso;
 use App\Services\Maintenance\CurrencyUnit;
 use Illuminate\Validation\Rule;
 
@@ -121,7 +122,7 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
             'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             // TCK-2715 — la même borne qu'à l'acceptation (même colonne) ; pas d'`after:now` ici : une
             // heure passée peut consigner un passage déjà fait (hors périmètre).
-            'scheduled_at' => ['sometimes', 'nullable', 'date', new DansLHorizonDuPassage],
+            'scheduled_at' => ['sometimes', 'nullable', 'date', new InstantIso, new DansLHorizonDuPassage],
             'started_at' => ['prohibited'],
             'completed_at' => ['prohibited'],
             'resolution_notes' => ['sometimes', 'nullable', 'string'],

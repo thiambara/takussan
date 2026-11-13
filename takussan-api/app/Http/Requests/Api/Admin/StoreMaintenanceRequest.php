@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -32,8 +33,8 @@ class StoreMaintenanceRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'starts_at' => ['required', 'date', 'after_or_equal:now'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'starts_at' => ['required', 'date', new InstantIso, 'after_or_equal:now'],
+            'ends_at' => ['required', 'date', new InstantIso, 'after:starts_at'],
             'mode' => ['required', Rule::in(['banner', 'read_only', 'down'])],
             'severity' => ['required', Rule::in(['info', 'scheduled', 'interruption'])],
             'messages' => ['required', 'array'],

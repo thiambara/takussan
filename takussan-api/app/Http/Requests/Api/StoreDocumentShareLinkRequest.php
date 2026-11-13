@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
+use App\Rules\InstantIso;
 
 /**
  * TCK-305 — extrait de DocumentShareLinkController::store(), où les règles étaient écrites en ligne.
@@ -39,7 +40,7 @@ class StoreDocumentShareLinkRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'expires_at' => ['nullable', 'date', 'after:now'],
+            'expires_at' => ['nullable', 'date', new InstantIso, 'after:now'],
             'max_downloads' => ['nullable', 'integer', 'min:1'],
             'password' => ['nullable', 'string', 'min:4'],
         ];

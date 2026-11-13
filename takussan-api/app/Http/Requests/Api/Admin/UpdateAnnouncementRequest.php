@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Announcement;
+use App\Rules\InstantIso;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -32,8 +33,8 @@ class UpdateAnnouncementRequest extends StoreAnnouncementRequest
             'segment.agency_ids' => ['nullable', 'array', 'max:1000'],
             'segment.agency_ids.*' => ['integer', Rule::exists('agencies', 'id')->withoutTrashed()],
             'segment.rollout_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'starts_at' => ['sometimes', 'date'],
-            'ends_at' => ['nullable', 'date', 'after:starts_at'],
+            'starts_at' => ['sometimes', 'date', new InstantIso],
+            'ends_at' => ['nullable', 'date', new InstantIso, 'after:starts_at'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

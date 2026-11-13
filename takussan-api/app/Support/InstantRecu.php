@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Rules\InstantIso;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 
@@ -21,7 +22,8 @@ use DateTimeInterface;
  * LA conversion du dépôt : chaque FormRequest qui reçoit une date-heure destinée à une colonne
  * `datetime` l'expose par un accesseur qui passe par ici, et la règle de validation, la comparaison
  * (« l'heure a-t-elle changé ? ») et l'écriture lisent alors le même instant. Elle ne valide rien :
- * la forme reçue est jugée par la règle `date` en amont.
+ * la forme reçue est jugée en amont par `date` ET par {@see InstantIso} (TCK-2752 : ISO 8601
+ * strict, années bornées — `date` seule laissait passer « 99999-01-01 », relu 2009-01-01).
  */
 final class InstantRecu
 {

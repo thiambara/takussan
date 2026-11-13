@@ -26,6 +26,8 @@ return [
         'strong_password' => 'The password must contain at least 8 characters, including one uppercase letter, one lowercase letter, one digit and one special character.',
         // TCK-598 — l'hôte d'une visite virtuelle hors de la liste d'autorisation (`config/catalogue.php`).
         'virtual_tour_host' => 'This virtual tour link is not accepted: only YouTube, Vimeo, Matterport and Kuula links are, over https.',
+        // TCK-2752 — the shape of a received date-time (App\Rules\InstantIso).
+        'instant' => 'The :attribute field must be a date (YYYY-MM-DD) or an ISO 8601 date-time (YYYY-MM-DDTHH:MM, seconds and offset optional), between 1970 and 2100.',
     ],
     'max_guarantors_reached' => 'A lease cannot have more than 3 guarantors.',
     'bounds_format' => 'The :attribute must be four comma-separated numbers: sw_lat,sw_lng,ne_lat,ne_lng.',

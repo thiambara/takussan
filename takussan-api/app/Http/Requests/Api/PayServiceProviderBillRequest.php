@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /** TCK-594 (ADR-0039 §8) — le reversement au prestataire, soumis aux règles de tout reversement. */
@@ -23,7 +24,7 @@ class PayServiceProviderBillRequest extends BaseFormRequest
         return [
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'payout_method_id' => ['nullable', 'integer'],
-            'scheduled_at' => ['nullable', 'date'],
+            'scheduled_at' => ['nullable', 'date', new InstantIso],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }

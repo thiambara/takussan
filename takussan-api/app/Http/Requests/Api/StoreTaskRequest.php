@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use App\Models\Property;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -55,7 +56,7 @@ class StoreTaskRequest extends BaseFormRequest
             // rendait 422 pour un compte absent et laissait tout compte connecté énumérer `users`.
             // `TaskController::authorizeAssignee()` rend déjà `task.assignee_not_staff` à un absent.
             'assigned_to_id' => ['nullable', 'integer'],
-            'due_at' => ['nullable', 'date'],
+            'due_at' => ['nullable', 'date', new InstantIso],
             'status' => ['nullable', Rule::enum(TaskStatus::class)],
             'priority' => ['nullable', Rule::enum(TaskPriority::class)],
         ];

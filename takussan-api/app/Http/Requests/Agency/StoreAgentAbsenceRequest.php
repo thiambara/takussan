@@ -5,6 +5,7 @@ namespace App\Http\Requests\Agency;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Agency;
 use App\Models\RoleDelegation;
+use App\Rules\InstantIso;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -37,8 +38,8 @@ class StoreAgentAbsenceRequest extends FormRequest
         return [
             'user_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
             'substitute_id' => ['required', 'integer', Rule::exists('users', 'id')->withoutTrashed(), 'different:user_id'],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['required', 'date', 'after:now', 'after:starts_at', "before_or_equal:$maxEndDate"],
+            'starts_at' => ['nullable', 'date', new InstantIso],
+            'ends_at' => ['required', 'date', new InstantIso, 'after:now', 'after:starts_at', "before_or_equal:$maxEndDate"],
             'reason' => ['nullable', 'string', 'max:500'],
             'substitute_can_act' => ['sometimes', 'boolean'],
         ];

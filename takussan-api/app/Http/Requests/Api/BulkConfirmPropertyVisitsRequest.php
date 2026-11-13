@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\InstantIso;
 use App\Support\InstantRecu;
 use Carbon\CarbonImmutable;
 
@@ -28,7 +29,7 @@ class BulkConfirmPropertyVisitsRequest extends BaseFormRequest
             'visits' => ['required', 'array', 'min:1', 'max:'.self::MAX],
             'visits.*' => ['required', 'array:id,scheduled_at'],
             'visits.*.id' => ['required', 'integer', 'min:1', 'distinct'],
-            'visits.*.scheduled_at' => ['nullable', 'date', 'after:now'],
+            'visits.*.scheduled_at' => ['nullable', 'date', new InstantIso, 'after:now'],
         ];
     }
 

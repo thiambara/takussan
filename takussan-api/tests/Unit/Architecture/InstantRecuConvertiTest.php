@@ -3,6 +3,7 @@
 namespace Tests\Unit\Architecture;
 
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
+use App\Rules\InstantIso;
 use App\Support\FinInclusive;
 use App\Support\InstantRecu;
 use PHPUnit\Framework\TestCase;
@@ -46,6 +47,10 @@ use RecursiveIteratorIterator;
  * échappe au refus de `validated()`, et un appel à `validatedAvecInstants()` dont le résultat n'est pas
  * utilisé — un appel mort, suivi de la lecture de l'alias — compte comme un lecteur (vérification adverse
  * de TCK-2743). La garde est un plancher.
+ *
+ * TCK-2752 — chaque champ relevé porte aussi la FORME ISO 8601 stricte ({@see InstantIso}), dans chaque
+ * branche d'une règle conditionnelle, exceptions et fins inclusives comprises
+ * ({@see self::test_toute_date_heure_recue_porte_la_forme_iso()}). Mêmes limites de lecture.
  */
 class InstantRecuConvertiTest extends TestCase
 {
@@ -274,6 +279,62 @@ class InstantRecuConvertiTest extends TestCase
         return $types;
     }
 
+    /**
+     * TCK-2752 (AC3) — chaque date-heure que cette garde relève porte AUSSI la forme ISO 8601 stricte
+     * ({@see InstantIso}) : `date` laisse passer « 99999-01-01 », relu 2009-01-01. Aucune liste
+     * n'en exempte : `FINS_INCLUSIVES`, `CONVERTIS_A_L_ECRITURE` et `EXCEPTIONS` dispensent de la
+     * CONVERSION, pas de la forme reçue.
+     */
+    public function test_toute_date_heure_recue_porte_la_forme_iso(): void
+    {
+        $app = dirname(__DIR__, 3).'/app';
+        $colonnes = $this->colonnesDatetime($app.'/Models');
+
+        $fautes = [];
+        $vus = 0;
+        foreach ($this->fichiers($app.'/Http/Requests') as $chemin) {
+            $relatif = substr($chemin, strlen($app) + 1);
+            $code = $this->sansCommentaires((string) file_get_contents($chemin));
+            foreach ($this->reglesDate($code) as $champ => $regle) {
+                if (! isset($colonnes[preg_replace('/^.*\./', '', $champ)])) {
+                    continue;
+                }
+                $vus++;
+                if (! $this->porteLaFormeIso($regle)) {
+                    $fautes[] = "{$relatif}:{$champ} : règle `date` sans `new InstantIso` (dans chaque branche) — `date` relit « 99999-01-01 » en 2009-01-01.";
+                }
+            }
+        }
+
+        $this->assertGreaterThan(35, $vus, 'Trop peu de champs date-heure relevés : la lecture des règles ne voit plus les champs.');
+        $this->assertSame([], $fautes, "Date-heure reçue sans sa forme ISO 8601 stricte (TCK-2752) :\n".implode("\n", $fautes));
+    }
+
+    public function test_la_lecture_de_la_forme_iso_voit_chaque_branche(): void
+    {
+        $code = <<<'PHP'
+            <?php
+            return [
+                'a_at' => ['required', 'date', new InstantIso, 'after:now'],
+                'b_at' => ['required', 'date'],
+                'c_at' => $manager
+                    ? ['required', 'date', new InstantIso]
+                    : ['required', 'date', new Regle],
+                'd_at' => $manager
+                    ? ['required', 'date', new InstantIso]
+                    : ['required', 'date', new \App\Rules\InstantIso, new Regle],
+                'e_at' => 'nullable|date',
+                'f_at' => ['nullable', 'required_without_all:date,x', 'date', new InstantIso],
+            ];
+            PHP;
+
+        $regles = $this->reglesDate($code);
+        $this->assertSame(
+            ['a_at' => true, 'b_at' => false, 'c_at' => false, 'd_at' => true, 'e_at' => false, 'f_at' => true],
+            array_map(fn (string $r): bool => $this->porteLaFormeIso($r), $regles),
+        );
+    }
+
     public function test_la_lecture_des_regles_voit_les_formes_du_depot(): void
     {
         $code = <<<'PHP'
@@ -316,17 +377,41 @@ class InstantRecuConvertiTest extends TestCase
      */
     private function champsDate(string $code): array
     {
-        $champs = [];
+        return array_keys($this->reglesDate($code));
+    }
+
+    /**
+     * TCK-2752 — {@see champsDate()}, avec l'expression de la règle de chaque champ (les expressions
+     * d'un champ déclaré deux fois sont mises bout à bout).
+     *
+     * @return array<string, string>
+     */
+    private function reglesDate(string $code): array
+    {
+        $regles = [];
         preg_match_all("/(?:'([\\w.*]+)'\\s*=>|\\[\\s*'([\\w.*]+)'\\s*\\]\\s*=(?!=))\\s*/", $code, $m, PREG_OFFSET_CAPTURE);
         foreach ($m[0] as $i => [$tout, $position]) {
             $champ = $m[1][$i][0] !== '' ? $m[1][$i][0] : $m[2][$i][0];
             $regle = $this->expression($code, $position + strlen($tout));
             if (preg_match("/'date'|['|]date['|]|Rule::date\\(/", $regle) === 1 && ! str_contains($regle, 'date_format')) {
-                $champs[] = $champ;
+                $regles[$champ] = isset($regles[$champ]) ? $regles[$champ]."\n".$regle : $regle;
             }
         }
 
-        return array_values(array_unique($champs));
+        return $regles;
+    }
+
+    /**
+     * TCK-2752 — chaque `date` de l'expression a sa règle {@see InstantIso} : une règle conditionnelle
+     * la porte dans CHAQUE branche. Une règle en chaîne (`'nullable|date'`) ne peut pas porter un objet :
+     * elle compte zéro, et se réécrit en tableau.
+     */
+    private function porteLaFormeIso(string $regle): bool
+    {
+        $dates = preg_match_all("/(?<=['|])date(?=['|])|Rule::date\\(/", $regle);
+        $formes = preg_match_all('/new\s+(?:\\\\?App\\\\Rules\\\\)?InstantIso\b/', $regle);
+
+        return $dates > 0 && $formes >= $dates;
     }
 
     private function expression(string $code, int $debut): string

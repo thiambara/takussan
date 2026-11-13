@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\CreneauDeVisite;
+use App\Rules\InstantIso;
 use App\Support\InstantRecu;
 use Carbon\CarbonImmutable;
 
@@ -25,7 +26,7 @@ class ReschedulePropertyVisitRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'scheduled_at' => ['required', 'date', 'after:now', new CreneauDeVisite],
+            'scheduled_at' => ['required', 'date', new InstantIso, 'after:now', new CreneauDeVisite],
         ];
     }
 

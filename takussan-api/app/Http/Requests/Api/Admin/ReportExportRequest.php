@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Rules\InstantIso;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReportExportRequest extends FormRequest
@@ -21,8 +22,8 @@ class ReportExportRequest extends FormRequest
             'cohort_basis' => ['nullable', 'in:signup_month'],
             'depth' => ['nullable', 'integer', 'min:1', 'max:24'],
             // TCK-361 — l'export suit l'écran : la plage libre doit pouvoir l'accompagner.
-            'starts_at' => ['nullable', 'date', 'required_with:ends_at'],
-            'ends_at' => ['nullable', 'date', 'required_with:starts_at'],
+            'starts_at' => ['nullable', 'date', new InstantIso, 'required_with:ends_at'],
+            'ends_at' => ['nullable', 'date', new InstantIso, 'required_with:starts_at'],
         ];
     }
 }

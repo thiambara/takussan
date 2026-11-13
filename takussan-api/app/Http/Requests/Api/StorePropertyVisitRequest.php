@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Rules\ClientDeLAgence;
 use App\Rules\CreneauDeVisite;
+use App\Rules\InstantIso;
 use App\Rules\PersonnelDeLAgence;
 use App\Rules\TelephoneJoignable;
 use App\Support\InstantRecu;
@@ -173,8 +174,8 @@ class StorePropertyVisitRequest extends BaseFormRequest
                 ? ['nullable', 'integer', new PersonnelDeLAgence($agencyId)]
                 : ['nullable'],
             'scheduled_at' => $manager
-                ? ['required', 'date', 'after:now']
-                : ['required', 'date', 'after:now', new CreneauDeVisite],
+                ? ['required', 'date', new InstantIso, 'after:now']
+                : ['required', 'date', new InstantIso, 'after:now', new CreneauDeVisite],
             'type' => ['nullable', Rule::enum(VisitType::class)],
             // Vérification adverse (m5) — le plafond de la route publique : une visite de 100 000
             // minutes, une fois confirmée, bloquait le bien.
