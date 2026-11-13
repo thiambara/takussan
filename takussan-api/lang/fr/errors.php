@@ -448,6 +448,14 @@ return [
         'service_provider_not_owner' => 'Vous ne pouvez pas modifier ce profil prestataire.',
         'service_provider_suspended' => "Ce profil prestataire est suspendu : la fin d'inscription ne le réactive pas.",
     ],
+    'owner' => [
+        'already_departed' => 'Ce propriétaire a déjà quitté l\'agence.',
+        'departure_draft' => 'Ce propriétaire n\'a pas encore rejoint l\'agence : révoquez son invitation plutôt.',
+        'departure_individual' => 'Dans une agence individuelle, l\'hôte est aussi le propriétaire : il ne peut pas être retiré de sa propre agence.',
+        'departure_not_empty' => 'Ce propriétaire ne peut pas quitter l\'agence tant qu\'il y a des biens, des baux en cours ou de l\'argent qui lui est dû.',
+        'departure_self' => 'Vous ne pouvez pas retirer votre propre profil de propriétaire : un autre administrateur doit le faire.',
+        'invite_departed' => 'Ce propriétaire a quitté l\'agence : il ne peut pas y être invité de nouveau.',
+    ],
     'password_reset' => [
         'invalid_link' => 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',
     ],

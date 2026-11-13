@@ -277,7 +277,8 @@ final class OwnerDirectory
      * TCK-2641 (décision 4a) — le résumé du carnet (`meta.summary` de `GET /api/owners`), sur un
      * périmètre que ni la recherche, ni une vue, ni la page ne restreignent :
      *
-     * - `owners` : les bailleurs (tout profil hors brouillon), `invitations` : les brouillons ;
+     * - `owners` : les bailleurs (tout profil hors brouillon et hors départ — TCK-2753, ADR-0108 : un
+     *   profil `inactive` a quitté l'agence), `invitations` : les brouillons ;
      * - `properties` : la somme des `properties_count` des lignes (biens ni archivés ni supprimés
      *   du bailleur, dans l'agence du profil) ;
      * - `remaining_to_pay` : la somme des restes à verser POSITIFS — TCK-2760 : les soldes cumulés au
@@ -293,7 +294,7 @@ final class OwnerDirectory
     {
         $draft = OwnerProfileStatus::Draft->value;
         $counts = (clone $perimeter)->reorder()->toBase()
-            ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status <> ?) AS owners', [$draft])
+            ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status NOT IN (?, ?)) AS owners', [$draft, OwnerProfileStatus::Inactive->value])
             ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status = ?) AS invitations', [$draft])
             ->first();
 
@@ -461,6 +462,8 @@ final class OwnerDirectory
             'agency_id' => $profile->agency_id,
             'status' => $profile->status?->value,
             'joined_at' => $profile->created_at,
+            // TCK-2753 (ADR-0108 § 7) — la date du départ, `null` tant qu'il n'est pas parti.
+            'departed_at' => OwnerDepartureService::departedAt($profile),
             'owner_type' => self::metadataString($profile, 'owner_type') ?? 'individual',
             'company_name' => $profile->companyName(),
             'contact' => [

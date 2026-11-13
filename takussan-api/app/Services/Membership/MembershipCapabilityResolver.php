@@ -665,11 +665,11 @@ class MembershipCapabilityResolver
         }
 
         if ($kind === 'blocked_owner' && $amorce['blocked_owner'] === null) {
-            // Même portée que `User::isBlockedOwnerAt()`.
+            // Même portée que `User::isBlockedOwnerAt()` : suspendu ou parti (TCK-2753).
             $amorce['blocked_owner'] = OwnerProfile::query()
                 ->whereIn('user_id', array_keys($amorce['users']))
                 ->whereIn('agency_id', array_keys($amorce['agencies']))
-                ->where('status', OwnerProfileStatus::Blocked->value)
+                ->whereIn('status', OwnerProfileStatus::valeursSansEcriture())
                 ->get(['user_id', 'agency_id'])
                 ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
                 ->all();

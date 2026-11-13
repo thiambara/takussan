@@ -61,6 +61,12 @@ class DocumentVaultPrimedVerdictParityTest extends TestCase
         $blockedProperty = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $blocked->id]);
         $blockedLease = $this->leaseFor(User::factory()->create(), $blockedProperty, LeaseStatus::Active);
 
+        // TCK-2753 (ADR-0108 § 5) — bailleur PARTI de A (`inactive`) : il lit comme le bloqué, n'écrit pas.
+        $departed = User::factory()->create();
+        $departedProfile = OwnerProfile::query()->create(['user_id' => $departed->id, 'agency_id' => $this->agency->id, 'status' => OwnerProfileStatus::Inactive]);
+        $departedProperty = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $departed->id]);
+        $departedLease = $this->leaseFor(User::factory()->create(), $departedProperty, LeaseStatus::Terminated);
+
         // Profil propriétaire supprimé : plus bailleur de rien.
         $gone = User::factory()->create();
         OwnerProfile::query()->create(['user_id' => $gone->id, 'agency_id' => $this->agency->id])->delete();
@@ -97,6 +103,7 @@ class DocumentVaultPrimedVerdictParityTest extends TestCase
         $this->personas = [
             'bailleur' => [$this->landlord, [null, $landlordProfile]],
             'bailleur bloqué' => [$blocked, [null, $blockedProfile]],
+            'bailleur parti' => [$departed, [null, $departedProfile]],
             'profil supprimé' => [$gone, [null]],
             'locataire' => [$this->tenant, [null]],
             'autre locataire' => [$this->otherTenant, [null]],
@@ -110,8 +117,8 @@ class DocumentVaultPrimedVerdictParityTest extends TestCase
 
         $this->targets = [
             'bail' => $this->lease, 'autre bail' => $this->otherLease, 'bail brouillon' => $this->draftLease,
-            'bail du bloqué' => $blockedLease, 'bail de B' => $doubleLease, 'bail saisi' => $seizedLease, 'bail sans agence' => $privateLease,
-            'bien' => $this->property, 'autre bien' => $this->otherProperty, 'bien du bloqué' => $blockedProperty,
+            'bail du bloqué' => $blockedLease, 'bail du parti' => $departedLease, 'bail de B' => $doubleLease, 'bail saisi' => $seizedLease, 'bail sans agence' => $privateLease,
+            'bien' => $this->property, 'autre bien' => $this->otherProperty, 'bien du bloqué' => $blockedProperty, 'bien du parti' => $departedProperty,
             'bien du supprimé' => $goneProperty, 'bien de B' => $doubleProperty, 'bien saisi' => $seizedProperty, 'bien sans agence' => $privateProperty,
             'edl signé' => $this->signedInventory, 'edl brouillon' => $this->draftInventory, 'edl du bailleur' => $landlordInventory,
             'fiche client' => Customer::query()->findOrFail($this->lease->tenant_id),
@@ -184,6 +191,10 @@ class DocumentVaultPrimedVerdictParityTest extends TestCase
         $this->assertTrue($this->verdicts($blocked, null)['bien du bloqué']['reads']);
         $this->assertTrue($this->verdicts($blocked, null)['bail du bloqué']['view']);
         $this->assertFalse($this->verdicts($blocked, null)['bien du bloqué']['attachTo']);
+        [$departed] = $this->personas['bailleur parti'];
+        $this->assertTrue($this->verdicts($departed, null)['bail du parti']['view']);
+        $this->assertFalse($this->verdicts($departed, null)['bien du parti']['attachTo']);
+        $this->assertFalse($this->verdicts($departed, null)['bail du parti']['attachTo']);
         $this->assertFalse($this->verdicts($gone, null)['bien du supprimé']['reads']);
         $this->assertTrue($this->verdicts($delegate, $this->personas['délégué'][1][1])['bail']['view']);
         $this->assertTrue($this->verdicts($seizer, $this->personas['agent saisisseur'][1][1])['bail saisi']['view']);

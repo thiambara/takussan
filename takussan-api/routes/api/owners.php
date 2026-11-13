@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\OwnerDepartureController;
 use App\Http\Controllers\Api\OwnerProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,4 +24,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::patch('owners/{ownerProfile}', [OwnerProfileController::class, 'update'])
         ->whereNumber('ownerProfile')
         ->name('owners.update');
+    // TCK-2753 (ADR-0108) — le départ d'un bailleur : ce qui le bloque encore, puis le geste (admin de
+    // l'agence du profil, double authentification).
+    Route::get('owners/{ownerProfile}/departure', [OwnerDepartureController::class, 'show'])
+        ->whereNumber('ownerProfile')
+        ->name('owners.departure.show');
+    Route::delete('owners/{ownerProfile}', [OwnerDepartureController::class, 'destroy'])
+        ->whereNumber('ownerProfile')
+        ->name('owners.departure.destroy');
 });

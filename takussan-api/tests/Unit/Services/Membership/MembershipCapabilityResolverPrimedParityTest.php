@@ -88,6 +88,10 @@ class MembershipCapabilityResolverPrimedParityTest extends TestCase
         $bloque = User::factory()->withOwnerProfile($this->agency)->create();
         OwnerProfile::query()->where('user_id', $bloque->id)->update(['status' => OwnerProfileStatus::Blocked->value]);
         $this->membres['bailleur bloqué'] = $bloque;
+        // TCK-2753 (ADR-0108 § 5) — le bailleur PARTI n'écrit pas plus que le bloqué, amorce comprise.
+        $parti = User::factory()->withOwnerProfile($this->agency)->create();
+        OwnerProfile::query()->where('user_id', $parti->id)->update(['status' => OwnerProfileStatus::Inactive->value]);
+        $this->membres['bailleur parti'] = $parti;
 
         // Prestataires : une collaboration active à rôle restreint ; une en pause à rôle large ; un
         // profil de prestataire SUPPRIMÉ dont la collaboration reste active.
@@ -191,6 +195,7 @@ class MembershipCapabilityResolverPrimedParityTest extends TestCase
         $this->assertFalse($tient('super-admin révoqué', Capability::TeamInvite));
         $this->assertTrue($tient('agent et bailleur', Capability::PropertiesUpdateOwn));
         $this->assertFalse($tient('bailleur bloqué', Capability::PropertiesUpdateOwn));
+        $this->assertFalse($tient('bailleur parti', Capability::PropertiesUpdateOwn));
     }
 
     public function test_filter_allowed_et_allows_directly_jugent_pareil_avec_et_sans_amorce(): void

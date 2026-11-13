@@ -448,6 +448,14 @@ return [
         'service_provider_not_owner' => 'You cannot edit this service provider profile.',
         'service_provider_suspended' => 'This service provider profile is suspended: completing onboarding does not reactivate it.',
     ],
+    'owner' => [
+        'already_departed' => 'This owner has already left the agency.',
+        'departure_draft' => 'This owner has not joined the agency yet: revoke their invitation instead.',
+        'departure_individual' => 'In an individual agency, the host is also the owner and cannot be removed from their own agency.',
+        'departure_not_empty' => 'This owner cannot leave the agency while they still have properties, ongoing leases or money owed to them.',
+        'departure_self' => 'You cannot remove your own owner profile: another administrator must do it.',
+        'invite_departed' => 'This owner has left the agency and cannot be invited again.',
+    ],
     'password_reset' => [
         'invalid_link' => 'This reset link is invalid or has expired. Request a new one.',
     ],

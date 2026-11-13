@@ -8,6 +8,7 @@ use App\Http\Requests\Api\Owners\UpdateOwnerProfileRequest;
 use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\OwnerProfileResource;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -72,6 +73,11 @@ class OwnerProfileController extends Controller
         }
 
         $base = $this->visibleScope($user, $request);
+        // TCK-2753 (ADR-0108 § 6) — un bailleur parti (`inactive`) quitte le carnet ; il se relit par
+        // `filter[status]=inactive`, et sa fiche reste lisible. Tout autre `filter[status]` fait foi.
+        if (! $request->filled('filter.status')) {
+            $base->where('owner_profiles.status', '<>', OwnerProfileStatus::Inactive->value);
+        }
         $query = OwnerProfile::buildQuery($base, $request)->defaultSort('-created_at');
 
         // TCK-601 — les colonnes sensibles ne sont plus demandables par `fields[]` ; elles sont

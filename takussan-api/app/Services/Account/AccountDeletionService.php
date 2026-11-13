@@ -35,6 +35,7 @@ use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
+use App\Services\Payout\PiecesNonReversees;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\TitulaireALaSaisie;
 use App\Services\Visit\VisitReportService;
@@ -714,7 +715,7 @@ class AccountDeletionService
      */
     private function agenciesOwingPayout(User $user): Collection
     {
-        $calculator = app(PayoutCalculator::class);
+        $pieces = app(PiecesNonReversees::class);
         $agencyIds = Lease::query()->where('landlord_id', $user->id)->whereNotNull('agency_id')->distinct()->pluck('agency_id')
             ->merge(Booking::query()
                 ->join('properties', 'properties.id', '=', 'bookings.property_id')
@@ -723,9 +724,8 @@ class AccountDeletionService
                 ->distinct()
                 ->pluck('bookings.agency_id'))
             ->unique()
-            ->filter(fn ($agencyId) => BeneficiaireDuReversement::est($user, (int) $agencyId)
-                && ($calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
-                    || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists()))
+            // TCK-2753 — la règle est partagée avec le départ d'un bailleur ({@see PiecesNonReversees}).
+            ->filter(fn ($agencyId) => $pieces->existe($user, (int) $agencyId))
             ->values();
 
         return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);

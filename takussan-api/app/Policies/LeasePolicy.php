@@ -52,7 +52,7 @@ class LeasePolicy extends BasePolicy
      * TCK-1722), extraite pour que `GET /api/leases/defaults` juge comme la création. `create()`
      * ci-dessus ne voit que la capacité, et refuserait le bailleur que la création admet.
      *
-     * Le bailleur du bien (ni bloqué dans son agence), ou le PERSONNEL de l'agence du bien tenant
+     * Le bailleur du bien (ni bloqué ni parti de son agence, TCK-2753), ou le PERSONNEL de l'agence du bien tenant
      * `leases.create` — la clause « même agence » laissait un autre bailleur de l'agence ouvrir un
      * bail sur le bien d'un autre (ADR-0031). Le super-admin passe aussi par `Gate::before`.
      */

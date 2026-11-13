@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\LeaseDepositRefundController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
+use App\Http\Controllers\Api\OwnerDepartureController;
 use App\Http\Controllers\Api\OwnerProfileController;
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\PayoutMethodController;
@@ -123,6 +124,8 @@ final class ProtectedActions
         // chacune leur fichier, et un déplacement ne doit pas les faire sortir de la famille.
         AgentHandoverController::class,
         AgentAbsenceController::class,
+        // TCK-2753 (ADR-0108 § 7) — le départ d'un bailleur : `owners.php` n'est pas une famille.
+        OwnerDepartureController::class,
     ];
 
     /**
@@ -171,6 +174,8 @@ final class ProtectedActions
         AgencyController::class.'@removeAgent',
         TeamMemberSuspensionController::class.'@suspend',
         TeamMemberSuspensionController::class.'@reactivate',
+        // TCK-2753 (ADR-0108 § 7) — le départ d'un bailleur, geste de l'administrateur seul.
+        OwnerDepartureController::class.'@destroy',
         AgentProfileController::class.'@suspend',
         AgentProfileController::class.'@destroy',
         // TCK-2364 (P241.02) — le taux de l'agent est sa part de chaque commission qu'il négocie.

@@ -16,8 +16,8 @@ use App\Services\Property\BailleurDuBien;
  * Trois voies, et le client n'en est aucune pour le remboursement :
  *
  *   - le **bailleur direct** du bien (`properties.user_id`, s'il y est propriétaire :
- *     {@see BailleurDuBien}), sauf s'il est suspendu dans l'agence du bien : il reste partie, il
- *     perd les écritures (ADR-0031 §2) ;
+ *     {@see BailleurDuBien}), sauf s'il est suspendu ou parti (TCK-2753) dans l'agence du bien : il
+ *     reste partie, il perd les écritures (ADR-0031 §2, ADR-0108 § 5) ;
  *   - le **personnel de l'agence de la réservation** (prédicat TCK-587 `isStaffAt`, jamais
  *     l'accesseur d'agence unique de l'utilisateur) — pour rembourser, titulaire de `bookings.refund` dans CETTE agence ;
  *   - le super-admin.

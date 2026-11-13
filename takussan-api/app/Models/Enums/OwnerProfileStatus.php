@@ -10,4 +10,24 @@ enum OwnerProfileStatus: string
     case Active = 'active';
     case Inactive = 'inactive';
     case Blocked = 'blocked';
+
+    /**
+     * TCK-2753 (ADR-0108 § 5) — les statuts où le bailleur garde la LECTURE de ce qui le désigne
+     * (`BailleurDuBien`, de tout statut) mais n'ÉCRIT plus rien dans l'agence : suspendu (`blocked`,
+     * TCK-587) ou parti (`inactive`, le départ). La seule définition de la garde d'écriture du
+     * bailleur, lue par `HasProfiles::isBlockedOwnerAt()` et par son amorce
+     * (`MembershipCapabilityResolver::amorce('blocked_owner')`).
+     *
+     * @return list<self>
+     */
+    public static function sansEcriture(): array
+    {
+        return [self::Blocked, self::Inactive];
+    }
+
+    /** @return list<string> les valeurs de {@see self::sansEcriture()} */
+    public static function valeursSansEcriture(): array
+    {
+        return array_map(fn (self $s): string => $s->value, self::sansEcriture());
+    }
 }

@@ -85,6 +85,19 @@ class OwnerProfilePolicy
     }
 
     /**
+     * TCK-2753 (ADR-0108 § 7) — le départ d'un bailleur (`DELETE /api/owners/{id}`) et sa lecture
+     * préalable (`GET /api/owners/{id}/departure`) : un profil d'administrateur ACTIF dans l'agence du
+     * profil, celle du profil actif, comme la fiche ({@see self::viewDetail()}). Ce n'est PAS une
+     * capacité : un rôle personnalisé ne le délègue pas à un agent (précédent de
+     * `CustomerPolicy::viewSensitive`). Le super-admin passe par `Gate::before`.
+     */
+    public function depart(User $user, OwnerProfile $profile): bool
+    {
+        return $user->staffAgencyId() === (int) $profile->agency_id
+            && $user->isAgencyAdminAt((int) $profile->agency_id);
+    }
+
+    /**
      * TCK-2640 — régler ce que l'agence tient sur le bailleur (le plafond de travaux) : la capacité
      * `owners.update` dans l'agence du profil, celle du profil actif.
      */
