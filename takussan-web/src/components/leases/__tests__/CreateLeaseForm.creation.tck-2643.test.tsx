@@ -256,11 +256,15 @@ describe('CreateLeaseForm — « Envoyer à la signature » (TCK-2643, AC4)', ()
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm propertyId={11} customerId={7} />));
     await waitFor(() => expect(espaces(valeur(/^Caution/))).toBe('1 340 000'));
+    const avis = 'L’envoi en signature clôturera 1 autre candidature en cours sur ce bien.';
+    expect(screen.getByText(avis)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Début'), '2026-12-01');
     await user.click(screen.getByRole('button', { name: 'Envoyer à la signature' }));
 
     const alerte = await screen.findByText(/Le brouillon du bail est créé, mais l’envoi à la signature a échoué/);
+    // L'envoi est fermé (bouton désactivé) : l'avis de ce qu'il ferait se tait avec lui.
+    expect(screen.queryByText(avis)).not.toBeInTheDocument();
     expect(within(alerte.parentElement!).getByRole('link', { name: 'Ouvrir le brouillon' })).toHaveAttribute('href', '/app/leases/1');
     expect(ROUTEUR.push).not.toHaveBeenCalled();
     expect(CREATION.mutateAsync).toHaveBeenCalledTimes(1);

@@ -652,8 +652,10 @@ function FormulaireDuBail({
   const avisDEnvoi = (
     <div className="space-y-2">
       {/* TCK-2734, décision 7b — les autres candidatures se closent à l’ENVOI en signature, plus à la création
-          du brouillon : l’avis ne se dit que si l’envoi est ouvert (un locataire sans compte le ferme). */}
-      {candidatures > 0 && !sansCompte ? (
+          du brouillon : l’avis ne se dit que si l’envoi est ouvert (un locataire sans compte le ferme, et
+          un brouillon déjà créé dont l’envoi a échoué aussi : « Envoyer à la signature » est alors désactivé,
+          l’envoi se reprend depuis la fiche du brouillon). */}
+      {candidatures > 0 && !sansCompte && bailCree === null ? (
         <p className="flex gap-2.5 text-ui leading-relaxed text-muted-foreground">
           <Info className="mt-0.5 size-4 flex-none" strokeWidth={1.75} aria-hidden="true" />
           {t('candidatures', { count: candidatures })}
