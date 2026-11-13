@@ -42,7 +42,7 @@ vi.mock('@/lib/queries/customers', () => ({
   fetchCrmTags: async () => [],
 }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({ CustomerTagPicker: () => null }));
-vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
+vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null, useInvitationDuClient: () => ({ etat: 'aucune' }) }));
 vi.mock('@/components/crm/CustomerReferent', () => ({ CustomerReferent: () => null }));
 vi.mock('@/components/crm/CustomerStageControl', () => ({ CustomerStageControl: () => null }));
 vi.mock('@/components/bookings/EntreeSaisieDemande', () => ({ EntreeSaisieDemande: () => null }));
