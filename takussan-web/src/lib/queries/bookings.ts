@@ -7,6 +7,7 @@ import type { SpatieQueryParams } from '@/types/api';
 import { cheminApi } from '@/lib/chemin-api';
 import type { CorpsDeLaDemande } from '@/lib/reservations/saisie-de-demande';
 import type { ComptesDesReservations, NatureDeReservation } from '@/lib/reservations/liste-des-reservations';
+import type { PAYMENT_METHOD_VALUES } from '@/components/payments/constants';
 
 /**
  * React Query hooks for the Booking resource.
@@ -164,7 +165,8 @@ export type CreateBookingPaymentPayload = {
    * l'autre : l'API les dérive (acompte, puis reste dû) et ignore ce qu'il enverrait.
    */
   amount?: number;
-  payment_method?: 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
+  /** TCK-2594 — les huit moyens que `StoreBookingPaymentRequest` accepte (`PaymentMethod`). */
+  payment_method?: (typeof PAYMENT_METHOD_VALUES)[number];
   payment_type?: 'deposit' | 'advance' | 'fee';
   /**
    * TCK-172 — set to `pending` for the customer self-service gateway flow. TCK-1266 — sans
