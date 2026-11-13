@@ -192,7 +192,6 @@ final class TitulaireALaSaisie
         }
     }
 
-    /** Un profil propriétaire ACTIF dans l'agence, et aucun profil actif de personnel. */
     /**
      * TCK-2753 (r1 de la contre-vérification, ADR-0108 § 5) — le bailleur qui reçoit un bien est
      * rejugé APRÈS l'écriture qui le lui donne, dans la même transaction, son profil relu sous
@@ -217,6 +216,7 @@ final class TitulaireALaSaisie
         abort_code_unless($actif, 422, 'property.owner_not_in_agency');
     }
 
+    /** Un profil propriétaire ACTIF dans l'agence, et aucun profil actif de personnel. */
     public function bailleurActif(int $userId, int $agencyId): bool
     {
         $user = User::query()->find($userId);
