@@ -1155,7 +1155,9 @@
  * `tailwind-merge` (`PRIMITIVES_DE_L_APP`) pour que la classe de l'appelant les REMPLACE.
  *
  * Les tailles d'avatar (`size="28"` à `"48"`) sont en `rem` FIXES : la maquette les pose en px
- * (`style`), elles ne rétrécissent pas au bureau. La police du repli vaut 0,36 × la taille.
+ * (`style`), elles ne rétrécissent pas au bureau. La police du repli vaut 0,36 × la taille, ARRONDIE
+ * au px entier comme la maquette (`Math.round(taille × 0,36)`, chrome-app.tsx) : 32 → 12, pas 11,52.
+ * 52 : la tête de la fiche client au téléphone (TCK-2589) — jetons seuls, la primitive n'a pas de taille 52.
  */
 @theme {
   --spacing-avatar-28: 1.75rem;
@@ -1164,12 +1166,14 @@
   --spacing-avatar-40: 2.5rem;
   --spacing-avatar-44: 2.75rem;
   --spacing-avatar-48: 3rem;
-  --text-avatar-28: 0.63rem; /* 10,08 px */
-  --text-avatar-32: 0.72rem; /* 11,52 px */
-  --text-avatar-36: 0.81rem; /* 12,96 px */
-  --text-avatar-40: 0.9rem; /* 14,4 px */
-  --text-avatar-44: 0.99rem; /* 15,84 px */
-  --text-avatar-48: 1.08rem; /* 17,28 px */
+  --spacing-avatar-52: 3.25rem;
+  --text-avatar-28: 0.625rem; /* 10 px */
+  --text-avatar-32: 0.75rem; /* 12 px */
+  --text-avatar-36: 0.8125rem; /* 13 px */
+  --text-avatar-40: 0.875rem; /* 14 px */
+  --text-avatar-44: 1rem; /* 16 px */
+  --text-avatar-48: 1.0625rem; /* 17 px */
+  --text-avatar-52: 1.1875rem; /* 19 px */
   /* Le repli : hors portée, celui d'avant (`bg-muted text-muted-foreground`). Sa graisse passe par
      `portee-app:font-semibold` : hors portée, le repli n'en pose AUCUNE et hérite (un jeton à 400
      l'aurait fixée). */

@@ -225,9 +225,9 @@
     {
       "ecran": "a-1-*, a-2-*",
       "element": "table : rangées, en-têtes, avatars de 32 px",
-      "propriete": "marges des cellules, hauteur d'en-tête, taille des initiales (12 → 11,5 px), fond de la rangée sélectionnée",
+      "propriete": "marges des cellules, hauteur d'en-tête, fond de la rangée sélectionnée",
       "exception": "règle du design system",
-      "motif": "`DataTable`, seule table de la console (TCK-2688), et `Avatar taille=\"32\"` ; le fond de la rangée sélectionnée appartient à la sélection (TCK-2682) ; au téléphone, `Avatar` de 40 px : initiales à 14,4 au lieu de 14 px"
+      "motif": "`DataTable`, seule table de la console (TCK-2688), et `Avatar taille=\"32\"` ; le fond de la rangée sélectionnée appartient à la sélection (TCK-2682) ; les initiales (12 px à 32, 14 px à 40) sont exactes depuis l'arrondi des jetons `text-avatar-N` (TCK-2590)"
     },
     {
       "ecran": "a-1-bureau-*",

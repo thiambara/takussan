@@ -114,9 +114,11 @@ export function InitialesDuClient({ texte, taille }: { readonly texte: string; r
       aria-hidden="true"
       className={cn(
         'inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar font-semibold text-encre-avatar',
-        // Maquette : 44 px et 16 px sous le pouce ; 32 px et 12 px au bureau (densité ×0,9 : 8,89 pas ; le texte
-        // au jeton `text-legende`, 11 px — un `text-[…]` est refusé par check-valeurs-arbitraires-app).
-        taille === 52 ? 'size-13 text-lg' : taille === 44 ? 'size-11 text-base' : 'size-[calc(var(--spacing)*8.89)] text-legende',
+        // L'avatar de la maquette (`Math.round(taille × 0,36)`) : 32 → 12 px, 44 → 16, 52 → 19. Les jetons de la
+        // primitive (`size-avatar-N`, `text-avatar-N`) sont en rem fixes : ni la densité ×0,9 du bureau ni un
+        // pas calculé ne s'en mêlent. Pas de primitive Avatar ici : son liseré (`after:border`) n'est pas
+        // dans la maquette.
+        taille === 52 ? 'size-avatar-52 text-avatar-52' : taille === 44 ? 'size-avatar-44 text-avatar-44' : 'size-avatar-32 text-avatar-32',
       )}
     >
       {texte}

@@ -256,13 +256,6 @@
     },
     {
       "ecran": "app-clients a-0-bureau-*",
-      "element": "initiales des rangées (32 px) et avatar du référent",
-      "propriete": "taille de police (12 → 11 px ; 10 px exacts au référent)",
-      "exception": "règle du design system",
-      "motif": "`check-valeurs-arbitraires-app` refuse tout `text-[…]` ; au bureau aucun jeton ne vaut 12 px (`text-xs` 10,8, `text-legende` 11, `text-sm` 12,6). `text-legende` aux initiales, `text-pastille` au référent — EN ATTENTE de décision (team-lead, point 3)"
-    },
-    {
-      "ecran": "app-clients a-0-bureau-*",
       "element": "avatar du référent",
       "propriete": "aplat vert (`bg-accent/15`) → `bg-fond-avatar`",
       "exception": "règle du design system",

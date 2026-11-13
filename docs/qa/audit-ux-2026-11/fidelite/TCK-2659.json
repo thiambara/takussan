@@ -220,13 +220,6 @@
       "motif": "la colonne « Relancer » est hors du ticket (TCK-2660, cf. `ignorer`) : sans elle la grille garde ses deux colonnes de droite (116 et 124 px de maquette) et le montant se range où était la relance. TCK-2660 réinsère la colonne"
     },
     {
-      "ecran": "a-0-bureau-*, a-3-bureau-*",
-      "element": "initiales des avatars de 32 px",
-      "propriete": "taille de police (12 → 11,5 px)",
-      "exception": "règle du design system",
-      "motif": "`Avatar` `taille=\"32\"`, jeton `text-avatar-32` : la primitive de toute la console"
-    },
-    {
       "ecran": "a-3-bureau-*",
       "element": "registre : première colonne et rangées",
       "propriete": "retrait du payeur (−2,6 px), hauteur d'une rangée à deux étages (63,5 px au lieu de 56 sous 1440, quand la référence passe sous le statut)",

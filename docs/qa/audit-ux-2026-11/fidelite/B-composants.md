@@ -336,7 +336,7 @@ annoncée. À trancher (D6).
 #### Avatar — 22 p., 43 t.
 
 Maquette : `chrome-app.tsx:721` (`Avatar` : `rounded-full bg-secondary font-semibold
-text-primary-deep`, taille en `style`, police = 0,36 × taille). Produit : `ui/avatar.tsx:20,49`
+text-primary-deep`, taille en `style`, police = `Math.round(0,36 × taille)` : 10 / 12 / 13 / 14 / 16 / 17 px de 28 à 48, `chrome-app.tsx:734`). Produit : `ui/avatar.tsx:20,49`
 (`size-8`, `sm` 24, `lg` 40 ; repli `bg-muted text-sm text-muted-foreground` 400 ; anneau
 `after:border-border`). Mesuré `/app/agency/team` : 36 px tél. (surcharge d'appelant), repli
 `bg-muted`, 14 px, 400.
@@ -478,7 +478,7 @@ maquettes retenues ; une case « D » renvoie à une décision du § 7 qui peut 
 | 4 | **StatusBadge** | (ii) + D3 | `h-6` (24), `px-2`, `text-xs` 500, `gap-1`, pilule ; tons : `neutral` `text-foreground/75` ; + ton `primary` (`bg-secondary text-primary-deep`) ; aplats selon D3 | 26 | 54 | S |
 | 5 | **Card** | (ii) | `rounded-xl border border-border bg-card` (au lieu de `ring-1 ring-foreground/10`), `CardHeader` à filet `px-4 py-3 border-b`, `CardTitle` `text-[15px] font-semibold` (sans), action `text-sm font-medium text-primary` | 33 | 61 | S |
 | 6 | **Puce de filtre** (`FilterChip` + rangée défilante) | **(iii)** | `h-9 rounded-full border px-3.5 text-sm font-medium gap-1.5` ; repos `border-border bg-card` ; actif `border-foreground bg-foreground text-background`, compte `/70` ; taille `sm` `h-8 px-3 text-[13px]` ; `aria-pressed` ; rangée `gap-2 px-4 py-2.5 overflow-x-auto` sans barre ; cible selon D6 | 27 | 53 | M |
-| 7 | **Avatar** | (ii) + D5 | repli `bg-secondary text-primary-deep font-semibold`, police 0,36 × taille ; tailles 28 / 32 / 36 / 40 / 44 / 48 | 22 | 43 | S |
+| 7 | **Avatar** | (ii) + D5 | repli `bg-secondary text-primary-deep font-semibold`, police arrondie de 0,36 × taille (jetons `text-avatar-N`, TCK-2590) ; tailles 28 / 32 / 36 / 40 / 44 / 48 | 22 | 43 | S |
 | 8 | **Tabs `variant="line"`** | (ii) | `gap-6`, sans `px`, `pb-3`, `text-sm` 500 ; actif `text-foreground` + trait **2 px `bg-primary`** à `-bottom-px` ; filet de liste `border-b border-border` ; inactif `text-muted-foreground` (re-mesurer TCK-359) ; compte `ml-1.5 text-xs text-muted-foreground` | 15 | 31 | S |
 | 9 | **Feuille du bas** (`FeuilleDuBas` sur `Sheet side="bottom"`) | **(iii)** | voile `foreground/35` (ou garder `scrim/30`, D7) ; `rounded-t-2xl bg-card max-h-[90dvh]` ; poignée 32 × 4 `bg-border mt-2` ; en-tête `py-1 pl-4 pr-1`, titre `text-[17px] font-semibold truncate`, fermer 44 px `X size-5` ; corps `px-4 pb-4` ; pied `border-t px-4 py-3` + zone sûre | 15 | 33 | M |
 | 10 | **Barre d'action collante** | **(iii)** | `border-t border-border bg-card px-4 py-3`, ombre `0 -6px 16px -12px shadow-color/40`, bouton `xl` plein largeur, `pb-[env(safe-area-inset-bottom)]` | 20 | 38 | S |
