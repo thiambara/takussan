@@ -207,6 +207,78 @@ describe('CouvrirUneAbsence', () => {
     expect(updateAbsence.mock.calls[0].slice(1)).toEqual([AGENCE, 30, { ends_at: '2026-12-20 23:59:59' }]);
   });
 
+  // Vérification de 230586c22 (D5, la feuille) — un nom vide rend « — », jamais un trou, et le
+  // remplaçant d'une absence modifiée reste nommé quand il n'est plus parmi les candidats.
+  describe('D5 — les noms de la feuille', () => {
+    const ABSENCE_HORS_LISTE: AgentAbsence = {
+      id: 40,
+      absent: { id: 4, name: 'Pape Cissé' },
+      substitute: { id: 7, name: 'Abdoulaye Gueye' },
+      starts_at: '2026-12-22T00:00:00Z',
+      ends_at: '2026-12-26T23:59:59Z',
+      status: 'scheduled',
+      reason: null,
+      substitute_can_act: false,
+    };
+
+    it('ouverte depuis le bandeau pour un absent sans nom (et hors de la liste) : « — » en tête et dans l’aide', async () => {
+      const absence: AgentAbsence = { ...ABSENCE_HORS_LISTE, absent: { id: 9, name: '' }, substitute: { id: 5, name: 'Khady Diallo' } };
+      monter(true, { absentId: 9, absentNom: '', absence });
+
+      await screen.findByRole('radio', { name: /Khady Diallo/ });
+      const tete = screen.getByText('—', { selector: 'p' });
+      expect(tete).toHaveClass('font-semibold');
+      expect(screen.getByText(/ce qui est en cours reste à —\./)).toBeInTheDocument();
+    });
+
+    it('le remplaçant qui n’est plus parmi les candidats reste nommé : au-dessus de la liste, et dans la case', async () => {
+      monter(true, { ...CIBLE, absence: ABSENCE_HORS_LISTE });
+      await screen.findByRole('radio', { name: /Khady Diallo/ });
+
+      expect(screen.getByTestId('remplacant-hors-liste')).toHaveTextContent(
+        'Abdoulaye Gueye reprend aujourd’hui ses nouvelles demandes, mais n’est plus parmi le personnel proposé',
+      );
+      expect(screen.getByRole('checkbox', { name: /Abdoulaye Gueye peut agir à sa place pendant l’absence/ })).toBeInTheDocument();
+      expect(screen.getByText(/Abdoulaye Gueye reçoit le rôle « Agent » de Pape dans l’agence/)).toBeInTheDocument();
+    });
+
+    it('un remplaçant toujours parmi les candidats n’a pas de note, pas même pendant la lecture de l’équipe', async () => {
+      let lire: (v: unknown) => void = () => {};
+      fetchAdminUsers.mockReturnValueOnce(new Promise((r) => (lire = r)));
+      monter(true, { ...CIBLE, absence: { ...ABSENCE_HORS_LISTE, substitute: { id: 5, name: 'Khady Diallo' } } });
+
+      expect(screen.getByRole('checkbox', { name: /Khady Diallo peut agir à sa place/ })).toBeInTheDocument();
+      expect(screen.queryByTestId('remplacant-hors-liste')).toBeNull();
+      lire({ data: [PAPE, KHADY, MAMADOU], meta: { current_page: 1, last_page: 1, total: 3 } });
+      expect(await screen.findByRole('radio', { name: /Khady Diallo/ })).toBeChecked();
+      expect(screen.queryByTestId('remplacant-hors-liste')).toBeNull();
+    });
+
+    it('un autre choisi dans la liste le remplace dans la case, et la note s’efface', async () => {
+      monter(true, { ...CIBLE, absence: ABSENCE_HORS_LISTE });
+      await userEvent.click(await screen.findByRole('radio', { name: /Khady Diallo/ }));
+
+      expect(screen.getByRole('checkbox', { name: /Khady peut agir à sa place/ })).toBeInTheDocument();
+      expect(screen.queryByTestId('remplacant-hors-liste')).toBeNull();
+    });
+
+    it('son nom vide rend « — », pas un trou', async () => {
+      monter(true, { ...CIBLE, absence: { ...ABSENCE_HORS_LISTE, substitute: { id: 7, name: '  ' } } });
+
+      expect(await screen.findByTestId('remplacant-hors-liste')).toHaveTextContent(/^— reprend aujourd’hui/);
+      expect(screen.getByRole('checkbox', { name: /^— peut agir à sa place/ })).toBeInTheDocument();
+    });
+
+    it('sans personne de choisi, la case parle de « la personne choisie » et ne prête aucun rôle', async () => {
+      monter(true);
+      await screen.findByRole('radio', { name: /Khady Diallo/ });
+
+      expect(screen.getByRole('checkbox', { name: /La personne choisie peut agir à sa place/ })).toBeInTheDocument();
+      expect(screen.queryByText(/reçoit le rôle/)).toBeNull();
+      expect(screen.queryByTestId('remplacant-hors-liste')).toBeNull();
+    });
+  });
+
   it('une modification sans changement ne part pas et ferme', async () => {
     const ABSENCE: AgentAbsence = {
       id: 30,

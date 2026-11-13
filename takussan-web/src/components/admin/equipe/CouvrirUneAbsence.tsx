@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgentAbsence } from '@/types/agent-crm';
 
-import { roleDuMembre } from './etat-de-l-equipe';
+import { nomOuTiret, roleDuMembre } from './etat-de-l-equipe';
 
 /**
  * TCK-2668 — « Couvrir une absence » (maquette `app-equipe`, a, « Couvrir une absence » :
@@ -227,8 +227,17 @@ function Formulaire({ id, agencyId, peutDeleguer, cible, onFermer, onEnCours }: 
     (a, b) => Number(prevues(a) !== null) - Number(prevues(b) !== null) || (a.properties_followed_count ?? 0) - (b.properties_followed_count ?? 0),
   );
   const choisi = lignes.find((m) => m.id === remplacant) ?? null;
-  const prenomChoisi = choisi ? choisi.first_name || nomAffichable(choisi) : (absence?.substitute?.name ?? '');
-  const prenomAbsent = absent ? absent.first_name || nomAffichable(absent) : cible.absentNom;
+  // Vérification de 230586c22 (D5, la feuille) — le remplaçant d'une absence qu'on modifie peut ne plus
+  // être parmi les candidats (suspendu, parti) : tant qu'on le garde, il reste nommé, par le nom que
+  // l'absence porte — « — » s'il est vide, jamais un trou. `null` : personne n'est choisi. La note
+  // « n'est plus proposé » attend la liste lue : pendant le chargement, tout remplaçant en serait absent.
+  const remplacantEnregistre = absence?.substitute && remplacant === absence.substitute.id ? nomOuTiret(absence.substitute.name) : null;
+  const prenomChoisi = choisi ? choisi.first_name || nomAffichable(choisi) : remplacantEnregistre;
+  const remplacantHorsListe = personnel.isSuccess && !choisi ? remplacantEnregistre : null;
+  // L'absent peut manquer à la liste, lui aussi (la feuille ouverte depuis le bandeau passe
+  // `absence.absent.name` brut) : un nom vide rend « — », comme dans le bandeau, la fiche et la table.
+  const nomAbsent = absent ? nomAffichable(absent) : nomOuTiret(cible.absentNom);
+  const prenomAbsent = absent ? absent.first_name || nomAffichable(absent) : nomAbsent;
   const roleAbsent = absent ? roleDuMembre(absent, agencyId) : null;
 
   const enregistrer = useMutation<unknown, ApiError, void>({
@@ -293,7 +302,7 @@ function Formulaire({ id, agencyId, peutDeleguer, cible, onFermer, onEnCours }: 
           <AvatarFallback>{absent ? (initialesDe(absent) ?? '·') : '·'}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-corps font-semibold">{absent ? nomAffichable(absent) : cible.absentNom}</p>
+          <p className="truncate text-corps font-semibold">{nomAbsent}</p>
           {absent && roleAbsent ? (
             <p className="text-ui text-muted-foreground">
               {t('teteDetail', { role: tEquipe(`role.${roleAbsent}`), n: absent.properties_followed_count ?? 0 })}
@@ -333,6 +342,11 @@ function Formulaire({ id, agencyId, peutDeleguer, cible, onFermer, onEnCours }: 
 
       <fieldset>
         <legend className="mb-2 text-sm font-medium">{t('quiReprend')}</legend>
+        {remplacantHorsListe ? (
+          <p data-testid="remplacant-hors-liste" className="mb-2 rounded-lg bg-muted/60 px-3 py-2 text-ui">
+            {t('remplacantHorsListe', { nom: remplacantHorsListe })}
+          </p>
+        ) : null}
         {personnel.isError ? (
           <ErrorState
             message={messageErreur(personnel.error, t('personnelIllisible'))}
@@ -346,7 +360,7 @@ function Formulaire({ id, agencyId, peutDeleguer, cible, onFermer, onEnCours }: 
             ))}
           </div>
         ) : ordonnes.length === 0 ? (
-          <p className="text-ui text-muted-foreground">{t('personne')}</p>
+          remplacantHorsListe ? null : <p className="text-ui text-muted-foreground">{t('personne')}</p>
         ) : (
           <RadioGroup
             value={remplacant === null ? '' : String(remplacant)}
@@ -402,7 +416,7 @@ function Formulaire({ id, agencyId, peutDeleguer, cible, onFermer, onEnCours }: 
             <Checkbox checked={peutAgir} onCheckedChange={(c) => setPeutAgir(c === true)} />
           </span>
           <span className="min-w-0 flex-1 text-sm font-medium">
-            {choisi || absence?.substitute ? t('peutAgir', { prenom: prenomChoisi }) : t('peutAgirSansNom')}
+            {prenomChoisi ? t('peutAgir', { prenom: prenomChoisi }) : t('peutAgirSansNom')}
             <span className="mt-0.5 block text-ui font-normal text-muted-foreground">
               {roleAbsent && prenomChoisi ? (
                 <>{t('peutAgirRole', { remplacant: prenomChoisi, role: tEquipe(`role.${roleAbsent}`), prenom: prenomAbsent })} </>

@@ -9097,7 +9097,8 @@
           "peutAgirFinSansDate": "This right ends by itself with the absence.",
           "motif": "Reason (optional)",
           "motifAide": "Visible to administrators only.",
-          "echec": "The absence could not be saved. Try again."
+          "echec": "The absence could not be saved. Try again.",
+          "remplacantHorsListe": "{nom} currently takes over their new requests but is no longer among the staff offered: keep this choice, or choose someone else."
         },
         "absences": {
           "titre": "Absences",

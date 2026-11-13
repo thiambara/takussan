@@ -9097,7 +9097,8 @@
           "peutAgirFinSansDate": "Ce droit s’arrête seul avec l’absence.",
           "motif": "Motif (facultatif)",
           "motifAide": "Visible des administrateurs seulement.",
-          "echec": "L’absence n’a pas pu être enregistrée. Réessayez."
+          "echec": "L’absence n’a pas pu être enregistrée. Réessayez.",
+          "remplacantHorsListe": "{nom} reprend aujourd’hui ses nouvelles demandes, mais n’est plus parmi le personnel proposé : gardez ce choix, ou choisissez une autre personne."
         },
         "absences": {
           "titre": "Absences",
