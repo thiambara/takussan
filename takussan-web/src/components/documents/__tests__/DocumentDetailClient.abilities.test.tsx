@@ -51,6 +51,10 @@ vi.mock('@/components/documents/DocumentVersionsList', () => ({
   ),
 }));
 
+// TCK-2656 — les gestes de la fiche (Télécharger, Partager, Supprimer) ont leur propre test
+// (GestesDuDocument.tck-2656) ; ici seule compte la gestion des versions.
+vi.mock('@/components/documents/GestesDuDocument', () => ({ GestesDuDocument: () => null }));
+
 import { DocumentDetailClient } from '../DocumentDetailClient';
 
 describe('<DocumentDetailClient> — gestion des versions par `abilities.update`', () => {
