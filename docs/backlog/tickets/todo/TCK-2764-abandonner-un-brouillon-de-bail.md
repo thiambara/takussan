@@ -114,6 +114,7 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
   - Le brouillon porte une échéance `deposit` `pending` → 422 `lease.abandon_has_payments`, et L reste.
   - Une fois cette échéance `cancelled`, l'abandon passe.
   - Ablation : retirer ce contrôle rend le test rouge.
+  - **Un état des lieux** sur le brouillon, signé ou non → 422 `lease.abandon_has_inventory`, et L reste (décision du 2026-11-13, réserve r1 de la vérification d'ace044c18).
 - [ ] **AC6 — Qui.**
   - Le personnel actif de l'agence de L → 200.
   - Le bailleur de L (bien sans agence, bailleur particulier) → 200.
@@ -127,6 +128,7 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
 - [ ] **AC9 — Le front.**
   - L'action n'est rendue que sur un brouillon.
   - Avec une caution saisie, elle est remplacée par sa raison.
+  - Avec un état des lieux (`has_inventory`), elle est remplacée par sa raison propre.
   - Le dialogue nomme la candidature d'origine, et sa case est décochée.
   - Décochée, un seul `DELETE` part. Cochée sur une candidature `confirmed`, `DELETE` puis `POST …/cancel`.
 
@@ -138,4 +140,29 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Réserve r1 de la vérification d'ace044c18 — l'état des lieux (décision du 2026-11-13)
+
+- **Le constat.** Un état des lieux pouvait se créer sur un brouillon (`InventoryController::store` autorise par
+  `update` du bail, quel que soit son statut). Après l'abandon, il restait sans bail : sa fiche rendait `lease: null`,
+  et il restait listé. Aucune route ne supprime un état des lieux.
+- **La règle.** `LeaseService::abandonDraft()` refuse en 422 `lease.abandon_has_inventory` tant qu'un état des lieux
+  existe sur le brouillon, signé ou non. Le contrôle suit celui des échéances, sous le même verrou. La prose est en
+  fr/en/wo dans `lang/*/errors.php`.
+- **La course inverse.** `InventoryService::create()` prend maintenant le bien puis le bail
+  (`LeaseService::verrouillerLeBienPuisLeBail()`) avant d'écrire. De l'abandon et de la création lancés ensemble, le
+  second relit la ligne : l'abandon voit l'état des lieux (422), ou la création ne trouve plus le bail (404).
+- **La fiche.** `has_inventory` sert le même lecteur qu'`origin_booking`. `raisonDAbandonEmpeche()`
+  (`fiche/gestes.ts`) remplace le geste par sa raison : l'échéance d'abord, puis l'état des lieux
+  (`lease.fiche.gestes.abandonEmpecheEtatDesLieux`).
+- **Les tests.** API, `LeaseDraftAbandonTest::test_r1_*` (4). Front, un cas dans
+  `AbandonnerLeBrouillon.tck-2764.test.tsx` et un dans `LeaseDetail.fiche.tck-2645.test.tsx`.
+- **Les ablations, toutes rouges puis restaurées :**
+  - contrôle retiré de `abandonDraft` → `test_r1_un_etat_des_lieux_refuse_l_abandon` rouge ;
+  - verrou retiré de `create` → 2 rouges (`ne_nait_pas_sur_un_brouillon_abandonne`, `prend_le_bien_puis_le_bail`) ;
+  - `has_inventory` toujours faux → `test_r1_la_fiche_dit_qu_un_etat_des_lieux_existe` rouge ;
+  - front, la raison `etatDesLieux` retirée → 1 rouge dans chacun des deux fichiers ;
+  - front, le libellé unique → 1 rouge dans la fiche.
+- **Limite.** Un brouillon qui porte un état des lieux ne s'abandonne plus, et aucune route ne supprime un état des
+  lieux. Une seule sortie reste : envoyer le bail en signature, puis le résilier (`terminate` accepte
+  `pending_signature`). Mais cet envoi ferme les autres candidatures du bien (décision 7, TCK-2734). Le cas est remonté
+  à team-lead le 2026-11-13.

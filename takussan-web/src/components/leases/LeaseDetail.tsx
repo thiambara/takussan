@@ -68,13 +68,14 @@ import { FeuilleDeRevision } from './fiche/FeuilleDeRevision';
 import { OngletDocumentsDuBail, OngletHistoriqueDuBail } from './fiche/OngletsDuBail';
 import { Carte, Partie, TitreBloc, type PartieDuBail } from './fiche/PiecesDuBail';
 import {
-  abandonEmpeche,
   echeanceAPayer,
   estLeLocataireDuBail,
   gestePrincipal,
   gestesSecondaires,
+  raisonDAbandonEmpeche,
   type GestePrincipal,
   type GesteSecondaire,
+  type RaisonDAbandonEmpeche,
 } from './fiche/gestes';
 
 /**
@@ -214,8 +215,8 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const nomLocataire = nomCompletDe(lease.tenant);
   const titre = locataire ? t('monBail') : nomLocataire ? t('titre', { nom: nomLocataire }) : reference;
   const a = lease.abilities;
-  // TCK-2764 — le brouillon porte une échéance saisie : l'abandon n'est pas offert, sa raison l'est.
-  const empeche = abandonEmpeche(lease, paiements);
+  // TCK-2764 — une échéance saisie ou un état des lieux empêche l'abandon : il n'est pas offert, sa raison l'est.
+  const empeche = raisonDAbandonEmpeche(lease, paiements);
   const peutTelechargerLeContrat = a?.download_contract === true;
   const peutDeposer = a?.add_document === true;
   const lignes = paiements ? ordreDeLEcheancier(paiements) : [];
@@ -650,7 +651,7 @@ const ICONES: Record<GesteSecondaire, typeof Wallet> = {
  * Les gestes de « ⋯ » (feuille du téléphone) et de la carte « Actions » (bureau). La résiliation est
  * dernière et séparée ; le préavis du locataire est précédé de son délai et de son indemnité (AC6).
  * Sur un brouillon, l'abandon tient cette place (TCK-2764) — ou sa raison, quand une échéance est
- * saisie (`abandonEmpeche`).
+ * saisie ou qu'un état des lieux existe (`raisonDAbandonEmpeche`).
  */
 function ListeDesGestes({
   lease,
@@ -665,7 +666,7 @@ function ListeDesGestes({
   readonly onGeste: (geste: GesteSecondaire) => void;
   readonly enCours: boolean;
   readonly forme: 'lignes' | 'boutons';
-  readonly abandonEmpeche: boolean;
+  readonly abandonEmpeche: RaisonDAbandonEmpeche | null;
 }) {
   const t = useTranslations('lease.fiche.gestes');
   const libelle = (g: GesteSecondaire) => (g === 'generer' && enCours ? t('generation') : t(g));
@@ -674,7 +675,7 @@ function ListeDesGestes({
   const fin = gestes.find(estDeFin) ?? null;
   const raison = abandonEmpeche ? (
     <p className="text-ui text-muted-foreground" data-testid="abandon-empeche">
-      {t('abandonEmpeche')}
+      {t(abandonEmpeche === 'etatDesLieux' ? 'abandonEmpecheEtatDesLieux' : 'abandonEmpeche')}
     </p>
   ) : null;
   const conditions =

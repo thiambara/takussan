@@ -9,6 +9,9 @@ use App\Models\Document;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\InventoryCondition;
+use App\Models\Enums\InventoryStatus;
+use App\Models\Enums\InventoryType;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
@@ -16,12 +19,15 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Guarantor;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Model\InventoryService;
 use App\Services\Model\LeaseService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -362,5 +368,95 @@ class LeaseDraftAbandonTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.abilities.abandon', false)
             ->assertJsonMissingPath('data.origin_booking');
+    }
+
+    private function etatDesLieux(InventoryStatus $statut): Inventory
+    {
+        return Inventory::factory()->create([
+            'lease_id' => $this->brouillon->id,
+            'property_id' => $this->bien->id,
+            'tenant_id' => $this->clientA->id,
+            'type' => InventoryType::MoveIn,
+            'status' => $statut,
+        ]);
+    }
+
+    /**
+     * Réserve r1 de la vérification d'ace044c18 (décision du 2026-11-13) — un état des lieux sur le
+     * brouillon, signé ou non, refuse l'abandon : aucune route ne le supprime, et il restait sans bail.
+     */
+    public function test_r1_un_etat_des_lieux_refuse_l_abandon(): void
+    {
+        foreach ([InventoryStatus::Draft, InventoryStatus::Signed] as $statut) {
+            $edl = $this->etatDesLieux($statut);
+
+            $this->abandonner($this->brouillon)->assertStatus(422)->assertJsonPath('code', 'lease.abandon_has_inventory');
+            $this->assertNotSoftDeleted('leases', ['id' => $this->brouillon->id]);
+
+            $edl->forceDelete();
+        }
+        $this->assertSame(0, Activity::query()->where('event', 'lease_draft_abandoned')->count());
+
+        // Témoin : sans état des lieux, le même brouillon s'abandonne.
+        $this->abandonner($this->brouillon)->assertOk();
+    }
+
+    /** r1 — la fiche le dit à qui peut abandonner : `has_inventory`, pour remplacer le geste par sa raison. */
+    public function test_r1_la_fiche_dit_qu_un_etat_des_lieux_existe(): void
+    {
+        $this->actingAsApi($this->agent)->getJson("/api/leases/{$this->brouillon->id}")
+            ->assertOk()->assertJsonPath('data.has_inventory', false);
+
+        $this->etatDesLieux(InventoryStatus::Draft);
+
+        $this->actingAsApi($this->agent)->getJson("/api/leases/{$this->brouillon->id}")
+            ->assertOk()->assertJsonPath('data.has_inventory', true);
+
+        $locataire = User::factory()->create();
+        $this->clientA->update(['user_id' => $locataire->id]);
+        $this->assertArrayNotHasKey('has_inventory', $this->actingAsApi($locataire)->getJson("/api/leases/{$this->brouillon->id}")->assertOk()->json('data'));
+    }
+
+    /**
+     * r1 — la course dans l'autre sens : un état des lieux créé avec une instance lue AVANT l'abandon ne
+     * naît pas sur le brouillon supprimé (`InventoryService::create()` relit le bail sous verrou).
+     */
+    public function test_r1_un_etat_des_lieux_ne_nait_pas_sur_un_brouillon_abandonne(): void
+    {
+        $perime = Lease::query()->findOrFail($this->brouillon->id);
+        $this->abandonner($this->brouillon)->assertOk();
+
+        try {
+            app(InventoryService::class)->create($perime, $this->agent, [
+                'type' => InventoryType::MoveIn->value,
+                'general_condition' => InventoryCondition::Good->value,
+                'rooms' => [['name' => 'Salon', 'condition' => 'good']],
+            ]);
+            $this->fail('un état des lieux ne naît pas sur un brouillon abandonné');
+        } catch (ModelNotFoundException) {
+        }
+        $this->assertSame(0, Inventory::query()->count());
+    }
+
+    /** r1 — l'état des lieux prend le bien puis le bail avant d'écrire, comme l'abandon (piège n° 10). */
+    public function test_r1_l_etat_des_lieux_prend_le_bien_puis_le_bail_avant_d_ecrire(): void
+    {
+        $journal = [];
+        DB::listen(function ($q) use (&$journal): void {
+            if (preg_match('/from "(properties|leases)" where .* for update/', $q->sql, $m) === 1) {
+                $journal[] = 'verrou '.$m[1];
+            } elseif (preg_match('/^insert into "inventories"/', $q->sql) === 1) {
+                $journal[] = 'écriture inventories';
+            }
+        });
+
+        $this->actingAsApi($this->agent)->postJson('/api/inventories', [
+            'lease_id' => $this->brouillon->id,
+            'type' => InventoryType::MoveIn->value,
+            'general_condition' => InventoryCondition::Good->value,
+            'rooms' => [['name' => 'Salon', 'condition' => 'good']],
+        ])->assertCreated();
+
+        $this->assertSame(['verrou properties', 'verrou leases', 'écriture inventories'], $journal);
     }
 }

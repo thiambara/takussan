@@ -3484,7 +3484,8 @@
         "indemniteMois": "Indemnité de {mois} mois de loyer",
         "resilier": "Résilier le bail",
         "abandonner": "Abandonner le brouillon",
-        "abandonEmpeche": "Ce brouillon porte une échéance saisie, comme une caution : il ne s'abandonne pas. Annulez ou remboursez-la d'abord."
+        "abandonEmpeche": "Ce brouillon porte une échéance saisie, comme une caution : il ne s'abandonne pas. Annulez ou remboursez-la d'abord.",
+        "abandonEmpecheEtatDesLieux": "Un état des lieux est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux resterait sans bail."
       },
       "dossier": {
         "titre": "Le dossier",

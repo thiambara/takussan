@@ -142,13 +142,32 @@ export type GesteSecondaire =
   | 'resilier'
   | 'abandonner';
 
+/** Ce qui empêche l'abandon d'un brouillon : une échéance saisie, ou un état des lieux. */
+export type RaisonDAbandonEmpeche = 'echeance' | 'etatDesLieux';
+
 /**
- * TCK-2764 — le brouillon porte une échéance non annulée, de tout type (une caution saisie avant
- * l'activation, P46.04) : l'API refuserait l'abandon (422 `lease.abandon_has_payments`). L'écran ne
- * l'offre pas, et dit pourquoi. `false` tant que les échéances chargent : rien n'est alors offert.
+ * TCK-2764 — pourquoi l'API refuserait l'abandon d'un brouillon, que l'écran ne l'offre pas et dise
+ * pourquoi :
+ * - `echeance` : une échéance non annulée, de tout type (une caution saisie avant l'activation, P46.04),
+ *   422 `lease.abandon_has_payments` ;
+ * - `etatDesLieux` : un état des lieux, signé ou non (réserve r1 de la vérification d'ace044c18,
+ *   `has_inventory`), 422 `lease.abandon_has_inventory`.
+ *
+ * `null` tant que les échéances chargent : rien n'est alors offert.
  */
+export function raisonDAbandonEmpeche(
+  lease: LeaseWithRelations,
+  paiements: readonly LeasePayment[] | undefined,
+): RaisonDAbandonEmpeche | null {
+  if (lease.status !== 'draft' || lease.abilities?.abandon !== true || paiements === undefined) return null;
+  if (paiements.some((p) => p.status !== 'cancelled')) return 'echeance';
+  if (lease.has_inventory === true) return 'etatDesLieux';
+  return null;
+}
+
+/** L'abandon est empêché, pour l'une des raisons de {@link raisonDAbandonEmpeche}. */
 export function abandonEmpeche(lease: LeaseWithRelations, paiements: readonly LeasePayment[] | undefined): boolean {
-  return lease.status === 'draft' && lease.abilities?.abandon === true && paiements !== undefined && paiements.some((p) => p.status !== 'cancelled');
+  return raisonDAbandonEmpeche(lease, paiements) !== null;
 }
 
 /**
@@ -177,7 +196,7 @@ export function gestesSecondaires(lease: LeaseWithRelations, paiements: readonly
     gestes.push(estLeLocataireDuBail(lease) ? 'preavis' : 'resilier');
   }
   // TCK-2764 — sur un brouillon seulement, dernier et séparé comme la résiliation, et jamais pendant que
-  // les échéances chargent ni quand l'une d'elles est saisie (`abandonEmpeche`).
+  // les échéances chargent ni quand une échéance ou un état des lieux l'empêche (`abandonEmpeche`).
   if (a.abandon && lease.status === 'draft' && paiements !== undefined && !abandonEmpeche(lease, paiements)) gestes.push('abandonner');
   return gestes;
 }

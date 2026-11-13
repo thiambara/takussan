@@ -15,7 +15,7 @@ import { withIntl } from '@/test/intl';
 import type { BookingStatus } from '@/types/booking';
 import type { LeaseAbilities, LeasePayment } from '@/types/lease';
 import { AbandonnerLeBrouillon } from '../AbandonnerLeBrouillon';
-import { abandonEmpeche, gestesSecondaires } from '../gestes';
+import { abandonEmpeche, gestesSecondaires, raisonDAbandonEmpeche } from '../gestes';
 
 const apiRequestMock = vi.fn();
 vi.mock('@/lib/api', async (importOriginal) => ({
@@ -82,6 +82,16 @@ describe('gestesSecondaires — l’abandon', () => {
     const annulee = [echeance({ status: 'cancelled' })];
     expect(gestesSecondaires(bail(), annulee)).toContain('abandonner');
     expect(abandonEmpeche(bail(), annulee)).toBe(false);
+  });
+
+  it('un état des lieux (r1 de la vérification d’ace044c18) remplace aussi l’action par sa raison ; l’échéance passe d’abord', () => {
+    const avecEdl = bail({ has_inventory: true });
+    expect(gestesSecondaires(avecEdl, [])).not.toContain('abandonner');
+    expect(raisonDAbandonEmpeche(avecEdl, [])).toBe('etatDesLieux');
+    expect(raisonDAbandonEmpeche(avecEdl, [echeance({ status: 'pending' })])).toBe('echeance');
+    expect(raisonDAbandonEmpeche(bail({ has_inventory: false }), [])).toBeNull();
+    // Pendant que les échéances chargent, rien n'est offert ni dit.
+    expect(raisonDAbandonEmpeche(avecEdl, undefined)).toBeNull();
   });
 });
 

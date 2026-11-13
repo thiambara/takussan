@@ -582,7 +582,7 @@ class LeaseService
      * (404).
      *
      * Une échéance non annulée, de tout type, refuse l'abandon : de l'argent saisi ne disparaît pas
-     * avec un brouillon.
+     * avec un brouillon. Un état des lieux aussi (`lease.abandon_has_inventory`) : il resterait orphelin.
      */
     public function abandonDraft(Lease $lease, User $by, ?string $reason = null): Lease
     {
@@ -595,6 +595,11 @@ class LeaseService
                 422,
                 'lease.abandon_has_payments'
             );
+            // TCK-2764 r1 (décision du 2026-11-13) — un état des lieux, signé ou non, refuse aussi l'abandon :
+            // aucune route ne le supprime, et il restait sans bail (`lease: null`) dans la liste.
+            // `InventoryService::create()` prend le même bien puis le même bail : de deux ordres
+            // concurrents, le second voit l'autre.
+            abort_code_if($locked->inventories()->exists(), 422, 'lease.abandon_has_inventory');
 
             $locked->delete();
 

@@ -573,6 +573,17 @@ describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
     expect(within(screen.getByTestId('feuille-gestes')).getByText(fr.lease.fiche.gestes.abandonEmpeche)).toBeInTheDocument();
   });
 
+  it('avec un état des lieux, l’action cède la place à sa raison propre (r1 de la vérification d’ace044c18)', () => {
+    etat.lease = bail(BROUILLON, { status: 'draft', has_inventory: true });
+    monter();
+
+    expect(within(carteActions()!).queryByRole('button', { name: fr.lease.fiche.gestes.abandonner })).not.toBeInTheDocument();
+    expect(within(carteActions()!).getByText(fr.lease.fiche.gestes.abandonEmpecheEtatDesLieux)).toBeInTheDocument();
+    expect(screen.queryByText(fr.lease.fiche.gestes.abandonEmpeche)).not.toBeInTheDocument();
+    ouvrirLesGestes();
+    expect(within(screen.getByTestId('feuille-gestes')).getByText(fr.lease.fiche.gestes.abandonEmpecheEtatDesLieux)).toBeInTheDocument();
+  });
+
   it('hors d’un brouillon, ni l’action ni sa raison', () => {
     etat.lease = bail(BROUILLON, { status: 'pending_signature' });
     etat.paiements = [echeance({ payment_type: 'deposit', status: 'pending' })];

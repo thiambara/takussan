@@ -120,6 +120,11 @@ export type Lease = {
    * la fermer par son propre geste.
    */
   origin_booking?: { readonly id: number; readonly status: BookingStatus } | null;
+  /**
+   * TCK-2764 r1 — un état des lieux existe sur le brouillon : l'API refuse l'abandon
+   * (`lease.abandon_has_inventory`). Même lecteur que `origin_booking`.
+   */
+  has_inventory?: boolean;
   /** TCK-2679 — les charges mensuelles, terme du bail ; `null` sur un bail antérieur. TCK-2645 : la carte « Charges ». */
   monthly_charges?: number | null;
   /** TCK-2642 — le plafond de révision que CE bail exécute (figé, sinon l'agence, sinon le global) ; détail seul. */

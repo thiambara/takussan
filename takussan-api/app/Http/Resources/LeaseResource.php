@@ -161,6 +161,10 @@ class LeaseResource extends BaseResource
             // le bail n'est tiré d'aucune réservation.
             'origin_booking' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
                 fn (): ?array => $this->booking_id === null ? null : $this->candidatureDOrigine()),
+            // TCK-2764 r1 — un état des lieux sur le brouillon refuse l'abandon (`lease.abandon_has_inventory`) :
+            // la fiche remplace le geste par sa raison. Même lecteur que `origin_booking`.
+            'has_inventory' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
+                fn (): bool => $this->resource->inventories()->exists()),
             // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de
             // son agence, sinon le global : `RentReviewService::maxPctFor`), pour la feuille de révision.
             // Sur le détail seul : le réglage d'agence se lit une fois par bail.
