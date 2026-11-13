@@ -1,13 +1,13 @@
 ---
 id: TCK-2664
 title: "Crédits : vendre la mise en avant depuis la page du solde"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 90
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-13
 depends_on: [TCK-2663, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
