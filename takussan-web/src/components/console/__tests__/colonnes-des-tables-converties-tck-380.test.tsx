@@ -120,12 +120,17 @@ describe('AC3 — les colonnes des tables converties', () => {
       />,
     );
 
-    // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) est un AJOUT délibéré,
-    // après le nom ; les cinq colonnes relevées à `73ca883b` restent, dans leur ordre.
-    const entetes = enTetesDe('Carnet prestataires');
-    expect(entetes).toHaveLength(6);
-    expect(entetes[0]).toBe('Nom');
-    expect(entetes[1]).toBe('Téléphone');
-    expect(entetes[5]).toBe('Actions');
+    // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) était un AJOUT délibéré.
+    // TCK-2653 (carnet de la maquette « Agence — carnet des prestataires ») recompose la table : la
+    // légende devient « Prestataires », et « Nom » et « Métiers » se lisent dans la cellule
+    // « Prestataire » (nom, puis métiers dessous). « Note » et « Interventions » s'ajoutent. Aucune
+    // information relevée à `73ca883b` ne se perd : les métiers sont éprouvés dans la cellule.
+    const entetes = enTetesDe('Prestataires');
+    expect(entetes).toEqual(['Prestataire', 'Zones', 'Téléphone', 'Note', 'Interventions', 'Statut', 'Actions']);
+    const premiere = within(screen.getByRole('table', { name: 'Prestataires' })).getAllByRole('row')[1];
+    const cellule = within(premiere).getAllByRole('cell')[0];
+    expect(cellule).toHaveTextContent('Modou Fall');
+    expect(cellule).toHaveTextContent('Plomberie');
+    expect(within(premiere).getAllByRole('cell')[1]).toHaveTextContent('Dakar');
   });
 });
