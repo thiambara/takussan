@@ -46,6 +46,21 @@ final class ScopedSetting
     }
 
     /**
+     * r6 (vérification de TCK-2643, étendu aux plafonds de bail) — la valeur NUMÉRIQUE propre à l'agence,
+     * déballée par {@see self::value()} ; `null` quand l'agence n'a pas de ligne, ou une ligne sans valeur
+     * numérique (`{"value": null}`, `{}`). Un tel lecteur retombe alors sur le global du catalogue, jamais
+     * sur sa constante : `value()` rendait `null`, que le lecteur lisait 0, puis son défaut codé en dur.
+     * Le global passé à `value()` est un témoin, rendu tel quel seulement sans ligne d'agence.
+     */
+    public static function numericAgencyValue(string $key, ?int $agencyId): int|float|string|null
+    {
+        $temoin = new \stdClass;
+        $value = self::value($key, $agencyId, $temoin);
+
+        return $value !== $temoin && is_numeric($value) ? $value : null;
+    }
+
+    /**
      * TCK-964 (P47.04) — le déballage seul, que `StoreSettingRequest` applique aussi avant de juger
      * une ligne d'agence : la valeur validée est celle que `value()` rendra.
      */
