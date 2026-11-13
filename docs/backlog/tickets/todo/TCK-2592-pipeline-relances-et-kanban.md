@@ -93,6 +93,9 @@ déplient bornés aux sorties des 30 derniers jours.
   la liste. Hors personnel, le filtre ne rend rien, comme `follow_up=1`.
 - Front : `filtresDUneColonne`, `cleDUneColonne` et `totalDUneEtape` (`lib/crm/pipeline.ts`). La
   mise à jour optimiste d'un changement d'étape vise aussi la colonne bornée.
+- Une colonne bornée se compte par sa propre pagination (`meta.total`, `fetchPipelineColumnPage`,
+  `useColonnesDuPipeline().totalLu`), jamais par `exits_last_30d` : la tuile compte des passages, la
+  colonne des fiches. « Charger plus » ne s'offre que si la colonne a une autre page à lire.
 - « Déplier » et l'en-tête du portefeuille gardent `sorties=1` : les colonnes entières, comptées par
   `stage_counts`.
 - Le compte de la tuile compte des passages. Une fiche sortie deux fois dans la période compte deux

@@ -148,7 +148,8 @@ export function filtresDesColonnes(etat: EtatDuPipeline): FiltresDuPipeline {
   return { ...filtresDeLaBarre(etat), ...(referent ? { referent } : {}) };
 }
 
-function borneeALaPeriode(etat: EtatDuPipeline, stage: CustomerPipelineStage): boolean {
+/** Gagné et Perdu sous `sorties=30` : la colonne ne lit que les sorties de la période. */
+export function borneeALaPeriode(etat: EtatDuPipeline, stage: CustomerPipelineStage): boolean {
   return etat.sortiesDeLaPeriode && (ETAPES_TERMINALES as readonly CustomerPipelineStage[]).includes(stage);
 }
 
@@ -165,11 +166,13 @@ export function cleDUneColonne(etat: EtatDuPipeline, stage: CustomerPipelineStag
 }
 
 /**
- * Le compte d'une étape, lu dans les statistiques (TCK-591) : `stage_counts`, ou — colonne bornée —
- * les sorties de la période (`exits_last_30d`), le nombre même de la tuile qui l'a ouverte.
+ * Le compte d'une étape, lu dans les statistiques (TCK-591) : `stage_counts`. Une colonne bornée n'en a
+ * aucun ici : `exits_last_30d` compte des sorties du journal, pas les fiches que la colonne lit (une
+ * fiche archivée, ou ressortie deux fois, l'écarte) — elle se compte par sa propre pagination
+ * (`useColonnesDuPipeline().totalLu`).
  */
 export function totalDUneEtape(etat: EtatDuPipeline, stats: PipelineStats | undefined, stage: CustomerPipelineStage): number | undefined {
-  if (borneeALaPeriode(etat, stage)) return stats?.exits_last_30d?.[stage as 'converted' | 'lost'];
+  if (borneeALaPeriode(etat, stage)) return undefined;
   return stats?.stage_counts?.[stage];
 }
 

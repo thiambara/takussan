@@ -173,7 +173,7 @@
     {
       "decision": "1 b (team-lead, 2026-11-12)",
       "element": "tuile « Conversion des sorties » du bureau (AC4)",
-      "etat": "elle ouvre `sorties=30` : Gagné et Perdu dépliés et BORNÉS aux sorties des 30 derniers jours (`filter[exited_within_days]=30`, lu dans le journal par `PipelineStatsService::sortiesRecentes`, la définition même de `exits_last_30d`), comptés par `exits_last_30d` ; « Déplier » et l'en-tête du portefeuille gardent `sorties=1`, les colonnes entières comptées par `stage_counts`",
+      "etat": "elle ouvre `sorties=30` : Gagné et Perdu dépliés et BORNÉS aux sorties des 30 derniers jours (`filter[exited_within_days]=30`, lu dans le journal par `PipelineStatsService::sortiesRecentes`, la définition même de `exits_last_30d`), comptés par leur propre pagination (`meta.total`), jamais par `exits_last_30d` qui compte des passages — « Charger plus » seulement s'il reste une page ; « Déplier » et l'en-tête du portefeuille gardent `sorties=1`, les colonnes entières comptées par `stage_counts`",
       "ecart": "le compte de la tuile est un compte de PASSAGES : une fiche sortie deux fois dans la période compte deux fois et paraît une fois ; une fiche rouverte compte et ne paraît dans aucune colonne ; une fiche créée directement Gagné compte comme une sortie (pour la tuile comme pour le filtre)"
     },
     {

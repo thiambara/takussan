@@ -9,8 +9,8 @@ import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { useCustomerStageMutation } from '@/hooks/useCustomerStageMutation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
-import { cleDeLaListe, cleDesFiltres, cleDUneColonne, ETAPES_TERMINALES, type EtatDuPipeline, filtresDeLaListe, filtresDUneColonne, parametresDesStats, type SegmentDuPipeline } from '@/lib/crm/pipeline';
-import { PIPELINE_COLUMN_PAGE_SIZE, type PagePipeline, dismissSuggestedStage, fetchPipelineColumn, fetchPipelineList, fetchPipelineStats } from '@/lib/queries/pipeline';
+import { borneeALaPeriode, cleDeLaListe, cleDesFiltres, cleDUneColonne, ETAPES_TERMINALES, type EtatDuPipeline, filtresDeLaListe, filtresDUneColonne, parametresDesStats, type SegmentDuPipeline } from '@/lib/crm/pipeline';
+import { PIPELINE_COLUMN_PAGE_SIZE, type PagePipeline, dismissSuggestedStage, fetchPipelineColumn, fetchPipelineColumnPage, fetchPipelineList, fetchPipelineStats } from '@/lib/queries/pipeline';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
 
@@ -34,6 +34,10 @@ export function useStatsDuPipeline(etat: EtatDuPipeline) {
 /**
  * Une colonne par étape demandée, sous la clé de ses filtres. Une relecture (focus après le
  * `staleTime`, remontage) relit autant de pages que « Charger plus » en a ajouté (TCK-1913).
+ *
+ * Une colonne bornée (Gagné, Perdu sous `sorties=30`) n'a de compte que sa pagination : chaque page lue
+ * en réécrit le `meta.total` sous `columnTotal`, que `totalLu` rend — et la colonne n'offre « Charger
+ * plus » que s'il dépasse ce qu'elle a chargé.
  */
 export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly CustomerPipelineStage[]) {
   const { token } = useAuth();
@@ -46,6 +50,25 @@ export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly Cus
   const [chargeant, setChargeant] = useState<CustomerPipelineStage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
+  // Une page : le compte d'une colonne bornée s'écrit AVANT ses cartes, pour que le rendu qu'elles
+  // provoquent le lise déjà.
+  const lirePage = async (jeton: string, stage: CustomerPipelineStage, page?: number): Promise<PipelineCustomerCard[]> => {
+    const params = page && page > 1 ? { stage, filtres: filtres(stage), page } : { stage, filtres: filtres(stage) };
+    if (!borneeALaPeriode(etat, stage)) return fetchPipelineColumn(jeton, params);
+    const lue = await fetchPipelineColumnPage(jeton, params);
+    queryClient.setQueryData(PIPELINE_QUERY_KEY.columnTotal(stage, cle(stage)), lue.total);
+    return lue.cartes;
+  };
+
+  // Abonné au compte (sans le lire au réseau) : une relecture qui ne change que lui redessine la colonne.
+  const totaux = useQueries({
+    queries: etapes.map((stage) => ({
+      queryKey: PIPELINE_QUERY_KEY.columnTotal(stage, cle(stage)),
+      queryFn: () => queryClient.getQueryData<number>(PIPELINE_QUERY_KEY.columnTotal(stage, cle(stage))) ?? null,
+      enabled: false,
+    })),
+  });
+
   const colonnes = useQueries({
     queries: etapes.map((stage) => ({
       queryKey: PIPELINE_QUERY_KEY.column(stage, cle(stage)),
@@ -54,7 +77,7 @@ export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly Cus
         const deja = queryClient.getQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage, cle(stage)));
         const pages = Math.max(1, Math.ceil((deja?.length ?? 0) / PIPELINE_COLUMN_PAGE_SIZE));
         const lues = await Promise.all(
-          Array.from({ length: pages }, (_, i) => fetchPipelineColumn(token, i === 0 ? { stage, filtres: filtres(stage) } : { stage, filtres: filtres(stage), page: i + 1 })),
+          Array.from({ length: pages }, (_, i) => lirePage(token, stage, i + 1)),
         );
         const vus = new Set<number>();
         return lues.flat().filter((c) => (vus.has(c.id) ? false : (vus.add(c.id), true)));
@@ -78,7 +101,7 @@ export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly Cus
     setChargeant(stage);
     try {
       const page = Math.floor(deja.length / PIPELINE_COLUMN_PAGE_SIZE) + 1;
-      const suite = await fetchPipelineColumn(token, { stage, filtres: filtres(stage), page });
+      const suite = await lirePage(token, stage, page);
       queryClient.setQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage, cle(stage)), (old) => {
         const vus = new Set((old ?? []).map((c) => c.id));
         return [...(old ?? []), ...suite.filter((c) => !vus.has(c.id))];
@@ -90,7 +113,14 @@ export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly Cus
     }
   };
 
-  return { cartes, etatDe, chargerPlus, chargeant, erreur, effacerErreur: () => setErreur(null) };
+  /** Le compte d'une colonne bornée, lu dans sa pagination ; `undefined` ailleurs (les statistiques comptent). */
+  const totalLu = (stage: CustomerPipelineStage): number | undefined => {
+    if (!borneeALaPeriode(etat, stage)) return undefined;
+    const lu = totaux[etapes.indexOf(stage)]?.data;
+    return typeof lu === 'number' ? lu : undefined;
+  };
+
+  return { cartes, etatDe, chargerPlus, totalLu, chargeant, erreur, effacerErreur: () => setErreur(null) };
 }
 
 export interface MotifEnAttente {

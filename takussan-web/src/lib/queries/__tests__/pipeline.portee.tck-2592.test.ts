@@ -8,7 +8,7 @@ vi.mock('@/lib/api', async () => {
   return { ...reel, apiRequest: (...args: unknown[]) => mockApiRequest(...args) };
 });
 
-const { dismissSuggestedStage, fetchPipelineColumn, fetchPipelineList, fetchPipelineStats } = await import('@/lib/queries/pipeline');
+const { dismissSuggestedStage, fetchPipelineColumn, fetchPipelineColumnPage, fetchPipelineList, fetchPipelineStats } = await import('@/lib/queries/pipeline');
 
 const params = (url: string) => new URLSearchParams(url.split('?')[1] ?? '');
 
@@ -30,6 +30,18 @@ describe('pipeline — lectures de TCK-2592', () => {
     expect(p.get('filter[tags]')).toBe('vip');
     expect(p.get('filter[follow_up]')).toBe('1');
     expect(p.get('filter[status]')).toBe('active');
+  });
+
+  it('une page de colonne rend son compte, `meta.total`, celui d’une colonne bornée (décision 1b)', async () => {
+    mockApiRequest.mockResolvedValue({ data: [{ id: 1 }, { id: 2 }], meta: { total: 51 } });
+    const page = await fetchPipelineColumnPage('jeton', { stage: 'converted', filtres: { status: 'active', exited_within_days: '30' }, page: 2 });
+    expect(page).toEqual({ cartes: [{ id: 1 }, { id: 2 }], total: 51 });
+    const p = params(String(mockApiRequest.mock.calls[0][0]));
+    expect(p.get('filter[exited_within_days]')).toBe('30');
+    expect(p.get('page')).toBe('2');
+    // Sans `meta`, la page est tout ce qu'il y a : aucune autre à lire.
+    mockApiRequest.mockResolvedValue({ data: [{ id: 3 }] });
+    expect((await fetchPipelineColumnPage('jeton', { stage: 'lost' })).total).toBe(1);
   });
 
   it('la liste lit les étapes vivantes, triée par retard, et rend son total', async () => {

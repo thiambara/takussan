@@ -132,15 +132,16 @@ describe('les colonnes terminales sous `sorties=30` (décision 1b)', () => {
     exits_last_30d: { converted: 4, lost: 3 },
   } as unknown as PipelineStats;
 
-  it('bornent Gagné et Perdu à la période, sous leur propre clé, et se comptent comme la tuile', () => {
+  it('bornent Gagné et Perdu à la période, sous leur propre clé, sans compte tiré des statistiques', () => {
     const e = lirePipeline({ sorties: '30' }, ADMIN);
     expect(filtresDUneColonne(e, 'converted')).toEqual({ status: 'active', exited_within_days: '30' });
     expect(filtresDUneColonne(e, 'lost')).toEqual({ status: 'active', exited_within_days: '30' });
     expect(filtresDUneColonne(e, 'lead')).toEqual(filtresDesColonnes(e));
     expect(cleDUneColonne(e, 'converted')).not.toBe(cleDUneColonne(lirePipeline({ sorties: '1' }, ADMIN), 'converted'));
     expect(cleDUneColonne(e, 'lead')).toBe(cleDesFiltres(e));
-    expect(totalDUneEtape(e, stats, 'converted')).toBe(4);
-    expect(totalDUneEtape(e, stats, 'lost')).toBe(3);
+    // `exits_last_30d` compte des sorties du journal, pas les fiches de la colonne : elle se compte seule.
+    expect(totalDUneEtape(e, stats, 'converted')).toBeUndefined();
+    expect(totalDUneEtape(e, stats, 'lost')).toBeUndefined();
     expect(totalDUneEtape(e, stats, 'lead')).toBe(3);
   });
 

@@ -19,6 +19,12 @@ export const PIPELINE_QUERY_KEY = {
   columnsOf: (stage: CustomerPipelineStage) => ['crm-pipeline', 'column', stage] as const,
   column: (stage: CustomerPipelineStage, filtres = '') =>
     ['crm-pipeline', 'column', stage, filtres] as const,
+  /**
+   * Le compte d'une colonne bornée, lu dans sa pagination (`meta.total`) : hors du préfixe `column`, la
+   * mise à jour optimiste n'y touche pas ; la relecture de la colonne le réécrit.
+   */
+  columnTotal: (stage: CustomerPipelineStage, filtres = '') =>
+    ['crm-pipeline', 'column-total', stage, filtres] as const,
   /** Le préfixe de toutes les listes (relances du téléphone, vue Liste du bureau). */
   listsAll: () => ['crm-pipeline', 'liste'] as const,
   list: (filtres: string, segment: string) => ['crm-pipeline', 'liste', filtres, segment] as const,

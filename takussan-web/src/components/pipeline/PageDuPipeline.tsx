@@ -229,7 +229,7 @@ export function PageDuPipeline({ lecteur, moi, agence, crmTags }: PageDuPipeline
             sections={sectionsDuTelephone.map((s) => ({
               stage: s,
               cartes: colonnesDuTelephone.cartes(s),
-              total: totalDUneEtape(etat, stats.data, s),
+              total: totalDUneEtape(etat, stats.data, s) ?? colonnesDuTelephone.totalLu(s),
               mediane: etat.sorties ? undefined : stats.data?.median_days_in_stage?.[s],
               ...colonnesDuTelephone.etatDe(s),
               onLoadMore: () => void colonnesDuTelephone.chargerPlus(s),

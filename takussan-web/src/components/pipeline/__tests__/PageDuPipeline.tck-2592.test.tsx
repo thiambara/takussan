@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   fetchPipelineStats: vi.fn(),
   fetchPipelineColumn: vi.fn(),
+  fetchPipelineColumnPage: vi.fn(),
   fetchPipelineList: vi.fn(),
   patchCustomerPipelineStage: vi.fn(),
   dismissSuggestedStage: vi.fn(),
@@ -59,6 +60,7 @@ vi.mock('@/lib/queries/pipeline', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/pipeline')>()),
   fetchPipelineStats: mocks.fetchPipelineStats,
   fetchPipelineColumn: mocks.fetchPipelineColumn,
+  fetchPipelineColumnPage: mocks.fetchPipelineColumnPage,
   fetchPipelineList: mocks.fetchPipelineList,
   patchCustomerPipelineStage: mocks.patchCustomerPipelineStage,
   dismissSuggestedStage: mocks.dismissSuggestedStage,
@@ -117,7 +119,7 @@ const bureau = () => document.querySelector<HTMLElement>('[data-slot="pipeline-b
 
 describe('<PageDuPipeline> (TCK-2592)', () => {
   beforeEach(() => {
-    for (const m of [mocks.replace, mocks.fetchPipelineStats, mocks.fetchPipelineColumn, mocks.fetchPipelineList, mocks.patchCustomerPipelineStage, mocks.dismissSuggestedStage, mocks.noter]) m.mockReset();
+    for (const m of [mocks.replace, mocks.fetchPipelineStats, mocks.fetchPipelineColumn, mocks.fetchPipelineColumnPage, mocks.fetchPipelineList, mocks.patchCustomerPipelineStage, mocks.dismissSuggestedStage, mocks.noter]) m.mockReset();
     mocks.fetchPipelineStats.mockResolvedValue(STATS);
     mocks.fetchPipelineList.mockResolvedValue({ lignes: [], total: 0 });
     mocks.fetchPipelineColumn.mockImplementation((_t: string, { stage }: { stage: string }) =>
@@ -272,20 +274,44 @@ describe('<PageDuPipeline> (TCK-2592)', () => {
     expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining('sorties=30'), { scroll: false });
   });
 
-  it('sous `sorties=30`, Gagné et Perdu ne lisent que les sorties de la période, comptées comme la tuile (AC4)', async () => {
+  it('sous `sorties=30`, Gagné et Perdu ne lisent que les sorties de la période, comptées par leur pagination, jamais par `exits_last_30d` (AC4)', async () => {
+    const user = userEvent.setup();
+    // Les statistiques disent 4 et 3 sorties (le journal) ; les colonnes bornées lisent 51 et 2 fiches.
     mocks.fetchPipelineStats.mockResolvedValue({ ...STATS, stage_counts: { ...STATS.stage_counts, converted: 40, lost: 30 } });
+    const sortie = (id: number, stage: 'converted' | 'lost') => carte(id, 'Sortie', { last_name: `n°${id}`, pipeline_stage: stage });
+    mocks.fetchPipelineColumnPage.mockImplementation((_t: string, { stage, page }: { stage: string; page?: number }) => {
+      if (stage === 'lost') return Promise.resolve({ cartes: [sortie(201, 'lost'), sortie(202, 'lost')], total: 2 });
+      if (page === 2) return Promise.resolve({ cartes: [sortie(151, 'converted')], total: 51 });
+      return Promise.resolve({ cartes: Array.from({ length: 50 }, (_, i) => sortie(101 + i, 'converted')), total: 51 });
+    });
     rendu(ADMIN, 'vue=etapes&sorties=30');
     const gagne = (await within(bureau()).findByTestId('pipeline-column-converted')) as HTMLElement;
     const perdu = within(bureau()).getByTestId('pipeline-column-lost');
-    await waitFor(() => expect(within(gagne).getByText('4')).toBeInTheDocument());
-    expect(within(perdu).getByText('3')).toBeInTheDocument();
-    const filtresDe = (stage: string) =>
-      mocks.fetchPipelineColumn.mock.calls.filter(([, p]) => (p as { stage: string }).stage === stage).map(([, p]) => (p as { filtres: Record<string, string> }).filtres);
-    await waitFor(() => expect(filtresDe('converted').length).toBeGreaterThan(0));
-    expect(filtresDe('converted').every((f) => f.exited_within_days === '30')).toBe(true);
-    expect(filtresDe('lost').every((f) => f.exited_within_days === '30')).toBe(true);
-    // Les étapes vivantes ne sont pas bornées.
-    expect(filtresDe('lead').some((f) => 'exited_within_days' in f)).toBe(false);
+    await waitFor(() => expect(within(gagne).getByText('51')).toBeInTheDocument());
+    await waitFor(() => expect(within(perdu).getByText('2')).toBeInTheDocument());
+    expect(within(gagne).queryByText('4')).not.toBeInTheDocument();
+    expect(within(perdu).queryByText('3')).not.toBeInTheDocument();
+    // Perdu n'a pas d'autre page : pas de « Charger plus », quoi que dise `exits_last_30d` (3 > 2).
+    expect(within(perdu).queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument();
+    // Le téléphone lit les mêmes colonnes bornées, et les compte de même.
+    const telDe = (stage: string) => telephone().querySelector<HTMLElement>(`section[data-stage="${stage}"]`) as HTMLElement;
+    expect(telDe('lost')).not.toBeNull();
+    expect(within(telDe('lost')).getByText('2')).toBeInTheDocument();
+    expect(within(telDe('lost')).queryByText('3')).not.toBeInTheDocument();
+    expect(within(telephone()).getByRole('button', { name: 'Charger plus (50/51)' })).toBeInTheDocument();
+    // Gagné en a une : « Charger plus » lit la page 2, bornée elle aussi, puis s'efface.
+    await user.click(within(gagne).getByRole('button', { name: 'Charger plus (50/51)' }));
+    expect(await within(gagne).findByText('Sortie n°151')).toBeInTheDocument();
+    expect(mocks.fetchPipelineColumnPage).toHaveBeenCalledWith('jeton', expect.objectContaining({ stage: 'converted', page: 2, filtres: expect.objectContaining({ exited_within_days: '30' }) }));
+    expect(within(gagne).queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument();
+    const filtresDe = (m: typeof mocks.fetchPipelineColumn, stage: string) =>
+      m.mock.calls.filter(([, p]) => (p as { stage: string }).stage === stage).map(([, p]) => (p as { filtres: Record<string, string> }).filtres);
+    expect(filtresDe(mocks.fetchPipelineColumnPage, 'converted').every((f) => f.exited_within_days === '30')).toBe(true);
+    expect(filtresDe(mocks.fetchPipelineColumnPage, 'lost').every((f) => f.exited_within_days === '30')).toBe(true);
+    expect(filtresDe(mocks.fetchPipelineColumn, 'converted')).toEqual([]);
+    // Les étapes vivantes ne sont pas bornées, et se lisent comme avant.
+    expect(filtresDe(mocks.fetchPipelineColumn, 'lead').some((f) => 'exited_within_days' in f)).toBe(false);
+    expect(filtresDe(mocks.fetchPipelineColumnPage, 'lead')).toEqual([]);
     expect(within(bureau()).getByRole('button', { name: /Conversion des sorties/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -304,7 +330,7 @@ describe('<PageDuPipeline> — ce que l’ancien kanban éprouvait (TCK-2592)', 
   const lead = (id: number) => carte(id, 'Client', { last_name: `n°${id}`, pipeline_stage: 'lead' });
 
   beforeEach(() => {
-    for (const m of [mocks.replace, mocks.fetchPipelineStats, mocks.fetchPipelineColumn, mocks.fetchPipelineList, mocks.patchCustomerPipelineStage, mocks.dismissSuggestedStage, mocks.noter]) m.mockReset();
+    for (const m of [mocks.replace, mocks.fetchPipelineStats, mocks.fetchPipelineColumn, mocks.fetchPipelineColumnPage, mocks.fetchPipelineList, mocks.patchCustomerPipelineStage, mocks.dismissSuggestedStage, mocks.noter]) m.mockReset();
     mocks.fetchPipelineStats.mockResolvedValue({ ...STATS, stage_counts: { ...STATS.stage_counts, lead: 73 } });
     mocks.fetchPipelineList.mockResolvedValue({ lignes: [], total: 0 });
     mocks.fetchPipelineColumn.mockImplementation((_t: string, { stage, page }: { stage: string; page?: number }) => {

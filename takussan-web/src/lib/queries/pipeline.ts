@@ -89,12 +89,26 @@ export async function fetchPipelineColumn(
   token: string,
   params: FetchPipelineColumnParams,
 ): Promise<PipelineCustomerCard[]> {
+  return (await fetchPipelineColumnPage(token, params)).cartes;
+}
+
+export interface PageDeColonne {
+  readonly cartes: PipelineCustomerCard[];
+  /** `meta.total` de la lecture : ce que la colonne compte, toutes pages comprises. */
+  readonly total: number;
+}
+
+/**
+ * Une page de colonne ET son compte : une colonne bornée (`sorties=30`) n'a pas d'autre compte que sa
+ * propre pagination — « Charger plus » ne s'offre que si elle a une autre page à lire.
+ */
+export async function fetchPipelineColumnPage(token: string, params: FetchPipelineColumnParams): Promise<PageDeColonne> {
   const qs = buildQueryString(buildPipelineColumnParams(params));
-  const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: unknown }>(
+  const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: { total?: number } }>(
     cheminApi`/api/customers${requete(qs)}`,
     { token },
   );
-  return res.data;
+  return { cartes: res.data, total: res.meta?.total ?? res.data.length };
 }
 
 export interface FetchPipelineListParams {

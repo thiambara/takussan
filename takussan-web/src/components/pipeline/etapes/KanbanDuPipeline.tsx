@@ -90,7 +90,8 @@ export function KanbanDuPipeline({ etat, stats, lire, changer, plusTard, noter, 
     if (to !== carte.pipeline_stage) changer(carte, to);
   };
 
-  const compte = (s: CustomerPipelineStage) => totalDUneEtape(etat, stats, s);
+  // Une colonne bornée (`sorties=30`) se compte par sa pagination, jamais par `exits_last_30d`.
+  const compte = (s: CustomerPipelineStage) => totalDUneEtape(etat, stats, s) ?? colonnes.totalLu(s);
   const mediane = (s: CustomerPipelineStage) => stats?.median_days_in_stage?.[s] ?? null;
 
   const colonne = (stage: CustomerPipelineStage, replier?: () => void) => {
