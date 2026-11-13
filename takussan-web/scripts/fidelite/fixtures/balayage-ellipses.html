@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Cas éprouvés du détecteur d'ellipses de BALAYAGE (inventaire.mjs) — vérifiés par verifier-balayage.mjs.
+  Chaque élément porte data-attendu="ellipse" s'il DOIT être signalé, "entier" sinon. Les styles sont
+  ceux que Tailwind pose : « truncate » (overflow hidden, text-overflow ellipsis, nowrap) et
+  « line-clamp-2 » (overflow hidden, display -webkit-box, -webkit-box-orient vertical, -webkit-line-clamp 2).
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { margin: 0; font: 16px/24px sans-serif; width: 360px; }
+      p { margin: 0 0 16px; width: 200px; }
+      .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    </style>
+  </head>
+  <body>
+    <p class="line-clamp-2" data-attendu="ellipse">CLAMPE-DEBORDE trois lignes au moins tiennent dans ce texte, dont la troisième se cache sous les points de suspension du bloc.</p>
+    <p class="line-clamp-2" data-attendu="entier">CLAMPE-TIENT court.</p>
+    <p class="line-clamp-2" data-attendu="entier">CLAMPE-DEUX-LIGNES juste deux lignes ici.</p>
+    <p class="truncate" data-attendu="ellipse">TRONQUE-DEBORDE une ligne bien trop longue pour deux cents pixels.</p>
+    <p class="truncate" data-attendu="entier">TRONQUE-TIENT court.</p>
+  </body>
+</html>

@@ -151,7 +151,11 @@ export const BALAYAGE = String.raw`(racineSel) => {
     const s = getComputedStyle(el);
     if (s.visibility === 'hidden') continue;
     if (r.right > W + 1 && !defile(el)) { depasse++; if (r.right - W > pire) { pire = Math.round(r.right - W); exemple = (el.innerText || el.tagName).trim().slice(0, 40); } }
-    if (s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) ellipses.push((el.innerText || '').trim().slice(0, 50));
+    // Deux ellipses : celle d'une ligne (« truncate », débord en LARGEUR) et celle de « line-clamp-N », dont
+    // « text-overflow » reste « clip » et dont le débord est en HAUTEUR — sans ce second test, une 3e ligne
+    // cachée sous « … » passait pour un texte entier (cas éprouvé : fixtures/balayage-ellipses.html).
+    const clampe = (s.getPropertyValue('-webkit-line-clamp') || 'none') !== 'none';
+    if ((s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) || (clampe && el.scrollHeight > el.clientHeight + 1)) ellipses.push((el.innerText || '').trim().slice(0, 50));
   }
   const coupes = [];
   for (const el of racine.querySelectorAll('*')) {
