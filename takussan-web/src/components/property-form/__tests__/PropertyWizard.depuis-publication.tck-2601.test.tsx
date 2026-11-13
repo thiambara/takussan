@@ -153,6 +153,15 @@ beforeEach(() => {
   profil.ecrire.mockImplementation(async (p: Record<string, unknown>) => ({ ok: true, user: { ...compte.user, ...p } }));
 });
 
+describe('PropertyWizard — /app/properties/new hors du cadre d’entrée (TCK-2600)', () => {
+  it('connecté, même venu de /publish : ni cadre ni grille d’entrée, l’aperçu dans sa colonne latérale hors de la zone défilante', async () => {
+    await allerAuBout(true);
+    expect(document.querySelector('[data-wizard-panneau]')).not.toHaveAttribute('data-cadre-d-entree');
+    expect(document.querySelector('[class*="grid-cols-[minmax(0,35rem)_25rem]"]')).toBeNull();
+    expect(document.querySelector('[data-wizard-scroll]')!.contains(screen.getByRole('complementary', { name: 'Aperçu de l’annonce' }))).toBe(false);
+  });
+});
+
 describe('PropertyWizard — l’annonce reprise depuis /publish (TCK-2601, AC3)', () => {
   it('sans le paramètre : la clé de toujours, et le brouillon local n’est pas lu', async () => {
     await allerAuBout(false);

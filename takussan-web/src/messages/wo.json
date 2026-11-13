@@ -18111,6 +18111,12 @@
       "choix": {
         "note": "Votre annonce est gardée dans votre compte : elle s’ouvrira dans l’espace choisi, prête à publier.",
         "revenir": "Revenir à l’annonce"
+      },
+      "pied": {
+        "bien": "Aucun compte à créer pour commencer : votre numéro est demandé à la fin, au moment de publier.",
+        "lieu": "La ville suffit pour continuer : la rue et le repère sur la carte sont facultatifs.",
+        "caracteristiques": "Seule la surface compte vraiment ; le reste aide votre annonce à ressortir dans les filtres.",
+        "photos": "Étape facultative : « Plus tard » passe au titre, vous ajouterez des photos depuis votre espace."
       }
     },
     "preuves": {

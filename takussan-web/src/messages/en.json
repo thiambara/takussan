@@ -18111,6 +18111,12 @@
       "choix": {
         "note": "Your listing is saved in your account: it will open in the space you choose, ready to publish.",
         "revenir": "Back to the listing"
+      },
+      "pied": {
+        "bien": "No account to create to get started: your number is asked at the end, when you publish.",
+        "lieu": "The city is enough to continue: the street and the pin on the map are optional.",
+        "caracteristiques": "Only the floor area really matters; the rest helps your listing stand out in the filters.",
+        "photos": "Optional step: “Later” moves on to the title, and you can add photos from your space."
       }
     },
     "preuves": {

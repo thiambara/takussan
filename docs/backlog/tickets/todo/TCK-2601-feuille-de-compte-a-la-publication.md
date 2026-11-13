@@ -129,14 +129,14 @@ Maquette `app-entree-publier`, approche a, écrans 6 (« Le compte, à la public
 
 | Écran | Téléphone 390 | Bureau 1440 | Bureau 1280 |
 |---|---|---|---|
-| a-6 Le compte | 14 · 11 · 6 · 20,48 % (avant : 3 · 19 · 28 · 26,86 %) | 8 · 19 · 4 · 15,35 % | 8 · 19 · 4 · 15,73 % |
-| a-7 Code, prénom, nom | 24 · 10 · 3 · 9,42 % | 15 · 21 · 1 · 15,17 % | 15 · 21 · 1 · 15,48 % |
+| a-6 Le compte | 15 · 10 · 6 · 16,88 % (avant : 3 · 19 · 28 · 26,86 %) | 13 · 14 · 4 · 10,03 % (avant le cadre de TCK-2600 : 8 · 19 · 4 · 15,35 %) | 13 · 14 · 4 · 11,28 % (avant : 15,73 %) |
+| a-7 Code, prénom, nom | 28 · 6 · 3 · 5,19 % | 23 · 13 · 1 · 9,66 % (avant : 15 · 21 · 1 · 15,17 %) | 23 · 13 · 1 · 10,87 % (avant : 15,48 %) |
 
 Rideaux : bloc-notes de la session, `impl/lot2/2601/fidelite/cmp-a-{6,7}-{telephone,bureau-1440,bureau-1280}/rideau.html` (avec `rapport.md` et `cote-a-cote.png`). Le porteur valide sur le rideau (AC-F5).
 
-- **Ce qui fait les pourcentages** : au téléphone sur a-6, l'absence de Google (TCK-2777 ; « Recevoir un code » 48 px plus bas, au pied collé) ; au bureau, la colonne de l'assistant sans compte (TCK-2600) qui porte le panneau 52 px plus à droite et plus bas, et 30 px plus large ; le contenu du panneau en est une translation pure (+52,8 px, à 0,1 près), sauf −1,9 px après l'aide de l'indicatif (`PhoneInput`). Les écarts comptés au bureau sont donc surtout des positions absolues.
-- **Écarts de primitive, signalés et non corrigés ici** : le ✕ de `FeuilleDuBas` à 40 px (la maquette 44 ; en-tête de 48 au lieu de 52, d'où les y de −4 à −10) ; le préfixe et l'aide de `PhoneInput` ; le trait de `Checkbox` (2,5, TCK-2690).
-- **Écart ouvert, à trancher** : l'interligne de « Modifier » (20 au lieu de 22,5). C'est un `<button>`, inline-block, dont la boîte vaut l'interligne ; à 20, sa boîte et son texte coïncident avec le `<span>` de la maquette, sur une ligne qui garde ses 22,5 (fiche, `ecarts_ouverts`).
+- **Ce qui fait les pourcentages** : au téléphone sur a-6, l'absence de Google (TCK-2777 ; « Recevoir un code » 48 px plus bas, au pied collé) ; au bureau, la colonne d'aperçu de l'assistant sans compte autour du panneau (carte et « Pour publier », partagées avec /app/properties/new : écarts ouverts de la fiche TCK-2600). Depuis le cadre d'entrée de TCK-2600 (2026-11-13, `GabaritBureau` : colonne de 560 px), le panneau est à la position et à la largeur de la maquette — le décalage de +52 / +52,8 px et les 30 px de trop ont disparu ; reste −1,9 px après l'aide de l'indicatif (`PhoneInput`).
+- **Écarts de primitive** : le ✕ de `FeuilleDuBas` rendait 40 px hors de la portée `/app` (en-tête de 48 au lieu de 52, d'où les y de −4 à −10) — corrigé dans la primitive (TCK-2688, `max-md:size-11`), les chiffres du téléphone ci-dessus sont pris après ; restent le préfixe et l'aide de `PhoneInput`, et le trait de `Checkbox` (2,5, TCK-2690).
+- **Écart accepté par team-lead (2026-11-13)** : l'interligne de « Modifier » (20 au lieu de 22,5). C'est un `<button>`, inline-block, dont la boîte vaut l'interligne ; à 20, sa boîte et son texte coïncident avec le `<span>` de la maquette, sur une ligne qui garde ses 22,5.
 - **AC-F6** : balayage 390, 768, 1024, 1280 et 1440, aux deux écrans — débord 0, dépassement 0, aucune coupe ; la feuille sous 1280, le panneau dès 1280 ; seule ellipse, le titre saisi à 390.
 - **Ablations** (chacune rouge, fichier restauré, md5 vérifié) : « Revenir » rendu au téléphone ; « Pour publier » sans l'étape en cours ; le titre « Dernière étape » au téléphone ; l'indicatif dans « Code envoyé au » ; la phrase sous le geste, au téléphone et au bureau (`PanneauDeCompte`) ; la hauteur de 80 dvh.
 

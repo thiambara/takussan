@@ -124,7 +124,7 @@ describe('le départ, sans compte', () => {
     monter(moteurEnMemoire());
     expect(await screen.findByRole('heading', { level: 1, name: 'Publiez votre bien gratuitement' })).toBeInTheDocument();
     expect(screen.getByText('En ligne aujourd’hui · 5 minutes · un code SMS suffit')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Créer un compte pro' })).toHaveAttribute('href', '/auth/login?redirect=%2Fonboarding%2Fagency-admin');
+    expect(screen.getByRole('link', { name: 'Créer un compte pro' })).toHaveAttribute('href', '/auth/login?redirect=%2Fonboarding%2Fintention%3Fetape%3Dpro');
     expect(screen.getByRole('link', { name: 'Me connecter' })).toHaveAttribute('href', '/auth/login?redirect=%2Fpublish&intention=publication');
     expect(routeur.push).not.toHaveBeenCalled();
     expect(routeur.replace).not.toHaveBeenCalled();

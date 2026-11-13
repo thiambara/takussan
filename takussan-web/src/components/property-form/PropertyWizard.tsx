@@ -236,6 +236,11 @@ export interface ModeAnonyme {
   ) => void | Promise<void>;
   readonly depart: { readonly titre: string; readonly sousTitre: string; readonly dessous: ReactNode };
   readonly finition: ReactNode;
+  /**
+   * TCK-2600 — ce que le pied dit sous l'aperçu au bureau (le cadre d'entrée de `WizardShell`), selon
+   * l'étape (`bien`, `lieu`, `caracteristiques`, `prix`, `photos`, `finition`).
+   */
+  readonly noteDuPied?: (etape: string) => ReactNode;
   /** La ligne de « Pour publier » qui suit les six étapes (« Votre numéro · à la fin »). */
   readonly pourPublierEnPlus: { readonly libelle: string; readonly note: string };
   /** L'étape courante, pour l'avancement de la barre de la coque. */
@@ -769,6 +774,7 @@ export function AssistantDePublication({
     {
       id: 'bien',
       part: PARTIE_PAR_ETAPE[0],
+      accueil: anonyme !== undefined,
       // TCK-2600 — sans compte, la première question est le départ : « Publiez votre bien gratuitement ».
       title: anonyme ? anonyme.depart.titre : t('steps.bien.title'),
       subtitle: anonyme ? anonyme.depart.sousTitre : t('steps.bien.subtitle'),
@@ -992,6 +998,9 @@ export function AssistantDePublication({
         // TCK-2601 (AC5) — dès 1280 px, la feuille de compte prend la place de l'étape.
         refDuPanneau={setCibleDuPanneau}
         panneauOuvert={!proposition && feuille.ouverte}
+        // TCK-2600 — sans compte (`/publish`), le cadre des écrans d'entrée dès `lg` (maquette a-0 à a-5).
+        cadreDEntree={anonyme !== undefined}
+        noteDuPied={anonyme?.noteDuPied?.(etapes[index].id)}
         bandeau={aDesAlertes ? (
           <>
             {envoiPhotos ? (

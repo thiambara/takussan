@@ -44,17 +44,17 @@
     "defiler": null,
     "perturber": "scratchpad de terrain-9, impl/lot2/2601/fidelite/ : a6.js et a7.js (base.part.js + a6.end.js / a7.end.js), injectés par relever.zsh, qui prend le verrou de mesure et BLOQUE au réseau request-code, verify-code, auto-onboard, wizard-drafts et auth/profile ; la surcharge de fetch répond request-code (202) dans la page. Balayage AC-F6 (balayer.mjs) 390, 768, 1024, 1280, 1440 aux deux écrans : débord 0, dépassement 0, aucune coupe, requêtes autres que GET : [] ; la feuille sous 1280, le panneau dès 1280 ; seule ellipse, le titre saisi (une donnée) à 390.",
     "releves": {
-      "dossiers": "scratchpad de terrain-9, impl/lot2/2601/fidelite/prod-a-{6,7}-{telephone,bureau-1440,bureau-1280} et cmp-a-{6,7}-*/ (rapport.md, rideau.html, cote-a-cote.png) — téléphone : tout5.log ; bureau : tout6.log, après le resserrement titre → corps du panneau (mt-3), 2026-11-13",
+      "dossiers": "scratchpad de terrain-9, impl/lot2/2601/fidelite/prod-a-{6,7}-{telephone,bureau-1440,bureau-1280} et cmp-a-{6,7}-*/ (rapport.md, rideau.html, cote-a-cote.png) — téléphone : tout7.log, après le ✕ de 44 px (TCK-2688) ; bureau : 2600f/final-2601.log et final-2601-a6.log, après le cadre d'entrée de TCK-2600 (GabaritBureau), 2026-11-13 — les relevés d'avant sont gardés sous 2601/fidelite/avant-2600f/",
       "resultats": {
         "a-6": {
-          "telephone": "14 conformes · 11 écarts · 6 absents · 20,48 % pixels (avant : 3 · 19 · 28 · 26,86 %) — Google absent : « Recevoir un code » 48 px plus bas",
-          "bureau-1440": "8 · 19 · 4 · 15,35 %",
-          "bureau-1280": "8 · 19 · 4 · 15,73 %"
+          "telephone": "15 conformes · 10 écarts · 6 absents · 16,88 % pixels (r4 : 14 · 11 · 6 · 20,48 % ; avant : 3 · 19 · 28 · 26,86 %) — Google absent : « Recevoir un code » 48 px plus bas",
+          "bureau-1440": "13 · 14 · 4 · 10,03 % (avant le cadre de TCK-2600 : 8 · 19 · 4 · 15,35 %)",
+          "bureau-1280": "13 · 14 · 4 · 11,28 % (avant : 8 · 19 · 4 · 15,73 %)"
         },
         "a-7": {
-          "telephone": "24 · 10 · 3 · 9,42 %",
-          "bureau-1440": "15 · 21 · 1 · 15,17 %",
-          "bureau-1280": "15 · 21 · 1 · 15,48 %"
+          "telephone": "28 · 6 · 3 · 5,19 % (r4 : 24 · 10 · 3 · 9,42 %)",
+          "bureau-1440": "23 · 13 · 1 · 9,66 % (avant : 15 · 21 · 1 · 15,17 %)",
+          "bureau-1280": "23 · 13 · 1 · 10,87 % (avant : 15 · 21 · 1 · 15,48 %)"
         }
       },
       "ecritures": "aucune ne peut sortir : relever.zsh bloque au réseau request-code, verify-code, auto-onboard, wizard-drafts et auth/profile, et la page répond request-code elle-même ; le balayage AC-F6 (même perturbateur) a relevé les requêtes : autres que GET, []"
@@ -186,15 +186,15 @@
     },
     {
       "ecran": "a-6, a-7 (téléphone)",
-      "element": "bouton « Fermer » (✕) de la feuille ; en-tête ; largeur du titre",
-      "propriete": "✕ absent de la maquette (relevé 40 × 40) ; titre 322 au lieu de 318 ; y de −4 sous le titre",
-      "exception": "composant partagé (FeuilleDuBas, TCK-2688)",
-      "motif": "le ✕ de `FeuilleDuBas` mesure 40 px, la maquette en dessine 44 : l'en-tête a 48 px au lieu de 52, d'où −4 px sur tout ce qui suit le titre (« Votre numéro », « Modifier », « Prénom », « Nom », l'aide des noms), et le titre gagne les 4 px que le ✕ ne prend pas. Signalé à team-lead : à porter par la primitive, pas par cette feuille"
+      "element": "bouton « Fermer » (✕) de la feuille (ancre boîte)",
+      "propriete": "absent de la maquette (relevé 44 × 44 à 342 ; 184,8)",
+      "exception": "aucune — appariement du relevé",
+      "motif": "le relevé de la maquette n'a pas de boîte « Fermer » à cet endroit, seulement l'icône du ✕ (lucide-x, 20 × 20 à 354 ; 196,8, conforme) : rien à apparier à la boîte du produit. Depuis TCK-2688 (✕ à 44 px au téléphone hors de la portée /app aussi), la case (342 ; 184,8, 44 × 44, centrée sur la même icône), l'en-tête de 52 px et la largeur du titre suivent la maquette"
     },
     {
       "ecran": "a-6 (téléphone, bureau)",
       "element": "« +221 » (préfixe) et l'aide « +221 est déjà posé… »",
-      "propriete": "préfixe : retrait 16 au lieu de 31, graisse 400 au lieu de 500, gris ; aide 12/16 au lieu de 13/17,9 ; d'où −1,9 px sur tout ce qui suit l'aide (WhatsApp, CGU, le geste ; −6 à −9,7 au téléphone avec l'en-tête)",
+      "propriete": "préfixe : retrait 16 au lieu de 31, graisse 400 au lieu de 500, gris ; aide 12/16 au lieu de 13/17,9 ; d'où −1,9 px sur tout ce qui suit l'aide (WhatsApp −3,9, CGU −5,7 au téléphone avec la ligne de la case)",
       "exception": "composant partagé (PhoneInput)",
       "motif": "`PhoneInput` (préfixe `pl-2.5` atténué, aide en text-xs) est partagé par toutes les entrées : cette fiche ne le redessine pas pour un écran"
     },
@@ -235,10 +235,10 @@
     },
     {
       "ecran": "a-6, a-7 (bureau)",
-      "element": "panneau de compte : position et largeur ; « Revenir à l’annonce »",
-      "propriete": "x +52, y +52,8 (contenu du panneau translaté d'autant, à 0,1 px près) ; largeur 590 au lieu de 560",
-      "exception": "hors périmètre (TCK-2600)",
-      "motif": "la colonne qui porte le panneau est celle de l'assistant sans compte (`WizardShell`, TCK-2600), plus large et plus bas que celle de la maquette ; le contenu est une translation pure de +52,8 px (seule exception : −1,9 après l'aide de l'indicatif, ci-dessus). Le cadre de TCK-2600 diverge de `GabaritBureau`, et TCK-2600 n'a pas de fiche : signalé à team-lead"
+      "element": "« Revenir à l’annonce » : position",
+      "propriete": "x −7,2, y −10,8",
+      "exception": "aucune — appariement du relevé",
+      "motif": "le relevé prend la cible de 44 px (×0,9 : 39,6) pour le texte : elle déborde de 10,8 au-dessus du texte et de 7,2 à sa gauche (rembourrage) ; le texte lui-même est à la place de la maquette (x 192,8, y 93,6). Le panneau est à la position et à la largeur de la maquette depuis le cadre d'entrée de TCK-2600 (colonne de 560 px, fiche TCK-2600.json) : le décalage de +52 / +52,8 px relevé jusque-là a disparu"
     },
     {
       "ecran": "a-6, a-7 (bureau)",
@@ -271,9 +271,9 @@
     {
       "ecran": "a-6, a-7 (bureau)",
       "element": "« Votre numéro · en cours » dans « Pour publier »",
-      "propriete": "graisse 500 au lieu de 600, largeur, x",
-      "exception": "hors périmètre (TCK-2600)",
-      "motif": "style de la liste « Pour publier » de TCK-2600 (`ListePourPublier`) ; l'état (toutes franchies, « Votre numéro » en cours) est éprouvé par PropertyWizard.panneau.tck-2601.test.tsx"
+      "propriete": "graisse 500 au lieu de 600, largeur, x ; y +40,2 (la carte d'aperçu au-dessus est plus haute)",
+      "exception": "hors périmètre (TCK-2600, écart ouvert)",
+      "motif": "style de la liste « Pour publier » (`ListePourPublier`) et de la carte d'aperçu, partagés avec /app/properties/new : écarts ouverts de la fiche TCK-2600 (colonne d'aperçu). L'état (toutes franchies, « Votre numéro » en cours) est éprouvé par PropertyWizard.panneau.tck-2601.test.tsx"
     },
     {
       "ecran": "a-6 (téléphone, bureau)",
@@ -281,13 +281,20 @@
       "propriete": "non relevé",
       "exception": "aucune — état de capture",
       "motif": "la page relevée n'a pas le focus (pageAuFocus false) : aucun anneau n'est peint, ni d'un côté ni de l'autre"
+    },
+    {
+      "ecran": "a-7 (téléphone, bureau)",
+      "element": "« Modifier »",
+      "propriete": "interligne 20 au lieu de 22,5",
+      "exception": "décision de la session (team-lead, 2026-11-13)",
+      "motif": "dans la maquette, « Modifier » est un <span> inline : sa boîte est sa zone de contenu (20 px) et il hérite de l'interligne 22,5 de la ligne. Dans le produit c'est un <button> (un geste), inline-block : sa boîte vaut son interligne. À 22,5 il serait 2,5 px plus haut et 1 px plus tôt que celui de la maquette ; à 20 (`leading-[1.25rem]`), sa boîte (h 20) et la position du texte (y = ligne + 1) coïncident avec la maquette, sur une ligne qui garde ses 22,5. Seule la valeur calculée d'interligne diffère : accepté par team-lead le 2026-11-13"
     }
   ],
   "hors_perimetre": [
     {
       "ecran": "a-6-*, a-7-*",
       "element": "tout ce qui est sous le voile (téléphone) et le cadre de l'assistant (bureau) : barre, « Effacer ce brouillon », colonne d'aperçu, « Pour publier »",
-      "motif": "TCK-2600 (assistant sans compte, ADR-0093), sans fiche à ce jour"
+      "motif": "TCK-2600 (assistant sans compte, ADR-0093) : fiche TCK-2600.json"
     },
     {
       "ecran": "a-6-*",
@@ -302,15 +309,8 @@
   ],
   "coque": false,
   "notes": [
-    "« Revenir à l’annonce » est retiré au téléphone (décision de team-lead, 2026-11-13 : le ✕ de 44 px suffit) ; dès 768 px (panneau latéral et feuille de tablette) il reste au pied. Éprouvé par PropertyWizard.panneau.tck-2601.test.tsx, ablation rouge."
+    "« Revenir à l’annonce » est retiré au téléphone (décision de team-lead, 2026-11-13 : le ✕ de 44 px suffit) ; dès 768 px (panneau latéral et feuille de tablette) il reste au pied. Éprouvé par PropertyWizard.panneau.tck-2601.test.tsx, ablation rouge.",
+    "Le cadre de l'assistant autour du panneau est celui de TCK-2600 (`cadreDEntree` de `WizardShell`) : `PanneauDeCompte` ne porte plus sa propre colonne, il prend celle du nœud qui le reçoit — 560 px dans le cadre d'entrée, la colonne plein écran de /app/properties/new sinon ; « Revenir à l’annonce » y remonte en haut de la colonne (`in-data-cadre-d-entree:-mt-3`)."
   ],
-  "ecarts_ouverts": [
-    {
-      "ecran": "a-7 (téléphone, bureau)",
-      "element": "« Modifier »",
-      "propriete": "interligne 20 au lieu de 22,5",
-      "proposition": "accepter (technique)",
-      "motif": "dans la maquette, « Modifier » est un <span> inline : sa boîte est sa zone de contenu (20 px) et il hérite de l'interligne 22,5 de la ligne. Dans le produit c'est un <button> (un geste), inline-block : sa boîte vaut son interligne. À 22,5 il serait 2,5 px plus haut et 1 px plus tôt que celui de la maquette ; à 20 (`leading-[1.25rem]`), sa boîte (h 20) et la position du texte (y = ligne + 1) coïncident avec la maquette, sur une ligne qui garde ses 22,5. Seule la valeur calculée d'interligne diffère : à trancher par team-lead"
-    }
-  ]
+  "ecarts_ouverts": []
 }

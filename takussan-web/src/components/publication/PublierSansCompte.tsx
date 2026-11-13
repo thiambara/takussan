@@ -10,12 +10,15 @@ import { useTranslations } from 'next-intl';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
 import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelephone';
 import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ListeDesEspaces } from '@/components/publication/ListeDesEspaces';
 import type { ContactSurPlace } from '@/components/contact/ContactsSurPlace';
 import { AssistantDePublication, type ModeAnonyme } from '@/components/property-form/PropertyWizard';
 import { useAuth } from '@/context/AuthContext';
 import { fetchProfilesViaProxy, profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { espacesDePublication, PUBLISH_TARGETS, type EspaceDePublication } from '@/hooks/usePublishIntent';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useEquipementsApprouves } from '@/lib/queries/referentiel-public';
 import { CLE_BROUILLON_DE_PUBLICATION, LIEN_DE_REPRISE, verserAuBrouillonServeur } from '@/lib/publication/brouillon-de-publication';
 import { valeursDeLAnnonce, type BrouillonLocal } from '@/lib/publication/brouillon-local';
@@ -50,8 +53,11 @@ export interface AnnonceAPublier {
   readonly effacerLeBrouillon: () => Promise<void>;
 }
 
-/** La porte pro n'existe pas encore (TCK-2608) : l'assistant d'agence d'aujourd'hui, après la connexion. */
-const LIEN_PRO = '/auth/login?redirect=%2Fonboarding%2Fagency-admin';
+/**
+ * TCK-2608 — la porte pro du site : après la connexion, l'orientation ouvre d'emblée l'écran du professionnel
+ * (`?etape=pro` : créer son agence ou en rejoindre une) ; `/onboarding/agency-admin` n'est plus l'entrée.
+ */
+const LIEN_PRO = '/auth/login?redirect=%2Fonboarding%2Fintention%3Fetape%3Dpro';
 /** Un brouillon commencé connecté se reprend dans l'assistant connecté : `/publish` y mène. */
 const LIEN_CONNEXION = '/auth/login?redirect=%2Fpublish&intention=publication';
 
@@ -70,6 +76,11 @@ export function PublierSansCompte({
 }) {
   const t = useTranslations('publishRedirect.sansCompte');
   const tPage = useTranslations('publishRedirect');
+  const tFeuille = useTranslations('property.wizard.feuille');
+  // TCK-2600 — dès 1280 px (maquette a-0 à a-5), « Effacer ce brouillon » passe dans la barre, à côté
+  // de « Brouillon gardé dans ce navigateur » : la ligne d'état sous la barre, que la maquette n'a
+  // pas, descendait la question de 40 px. Un seul bouton à la fois (jamais deux « Effacer »).
+  const large = useMatchesMedia('(width >= 80rem)');
   const router = useRouter();
   const brouillon = useBrouillonLocal<Partial<PropertyFormValues>>(brouillonLocal);
   const equipements = useEquipementsApprouves();
@@ -230,6 +241,29 @@ export function PublierSansCompte({
         </div>
       ),
     },
+    // TCK-2600 — la note du pied, sous l'aperçu (maquette a-0 à a-5, dès `lg`).
+    noteDuPied: (etape) =>
+      etape === 'finition' ? (
+        // Maquette a-5 : la phrase des conditions garde sa taille de partout (`PhraseCGU` : 12 px, 1,625).
+        <span className="block text-xs leading-relaxed">
+          {tFeuille.rich('mention', {
+            terms: (morceau) => (
+              <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="underline underline-offset-2">
+                {morceau}
+              </LienLocalise>
+            ),
+            privacy: (morceau) => (
+              <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="underline underline-offset-2">
+                {morceau}
+              </LienLocalise>
+            ),
+          })}
+        </span>
+      ) : etape === 'prix' ? (
+        t('brouillon.pied')
+      ) : etape === 'bien' || etape === 'lieu' || etape === 'caracteristiques' || etape === 'photos' ? (
+        t(`pied.${etape}`)
+      ) : null,
     finition: (
       <>
         {/*
@@ -258,6 +292,18 @@ export function PublierSansCompte({
     setGeneration((g) => g + 1);
   }
 
+  const effacerLeBrouillon = (
+    <button
+      type="button"
+      // TCK-2601 (AC5) — pas d'effacement sous le panneau de compte ni pendant les écritures.
+      disabled={verrouille}
+      onClick={() => void effacer()}
+      className="ml-auto min-h-11 flex-none underline underline-offset-4 hover:text-foreground disabled:pointer-events-none disabled:opacity-50 xl:ml-0"
+    >
+      {t('brouillon.effacer')}
+    </button>
+  );
+
   return (
     <>
       <DeclarerEntree
@@ -266,9 +312,15 @@ export function PublierSansCompte({
         pas={pas}
         total={total}
         noteDeBarre={
-          <span className="hidden items-center gap-1.5 text-sm text-muted-foreground xl:flex">
+          <span className="hidden items-center gap-1.5 text-ui text-muted-foreground xl:flex">
             <Check className="size-3.5 text-accent" strokeWidth={2.5} aria-hidden="true" />
-            {memoire ? etatDuBrouillon : t('brouillon.navigateur')}
+            <span>{memoire ? etatDuBrouillon : t('brouillon.navigateur')}</span>
+            {large && brouillon.aDuContenu ? (
+              <>
+                <span aria-hidden="true">·</span>
+                {effacerLeBrouillon}
+              </>
+            ) : null}
           </span>
         }
       />
@@ -279,7 +331,7 @@ export function PublierSansCompte({
           brouillon » s'y range à toute largeur : dans le flux, sous l'assistant, il remontait le
           pied de 52 px dès la première photo (relevé à 390, TCK-2600).
         */}
-        <div className={`flex min-h-11 flex-none items-center gap-x-4 px-4 text-xs text-muted-foreground sm:px-8 xl:justify-end ${brouillon.aDuContenu ? '' : 'xl:hidden'}`}>
+        <div className="flex min-h-11 flex-none items-center gap-x-4 px-4 text-xs text-muted-foreground sm:px-8 xl:hidden">
           <p className="flex min-w-0 items-center gap-1.5 xl:hidden">
             {memoire ? (
               etatDuBrouillon
@@ -292,17 +344,7 @@ export function PublierSansCompte({
               </>
             )}
           </p>
-          {brouillon.aDuContenu ? (
-            <button
-              type="button"
-              // TCK-2601 (AC5) — pas d'effacement sous le panneau de compte ni pendant les écritures.
-              disabled={verrouille}
-              onClick={() => void effacer()}
-              className="ml-auto min-h-11 flex-none underline underline-offset-4 hover:text-foreground disabled:pointer-events-none disabled:opacity-50 xl:ml-0"
-            >
-              {t('brouillon.effacer')}
-            </button>
-          ) : null}
+          {brouillon.aDuContenu && !large ? effacerLeBrouillon : null}
         </div>
         {memoire ? (
           <p role="status" className="sr-only">

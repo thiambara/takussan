@@ -132,8 +132,8 @@ const page = vi.hoisted(() => ({
   surVerrou: vi.fn(),
 }));
 
-function monter() {
-  brouillon.etat.draft = { step: 5, data: COMPLET };
+function monter(etape = 5) {
+  brouillon.etat.draft = { step: etape, data: COMPLET };
   const anonyme: ModeAnonyme = {
     photosInitiales: [],
     surPhotos: () => {},
@@ -145,6 +145,7 @@ function monter() {
     entreeParTelephone: page.entreeParTelephone,
     preparerLEspace: page.preparerLEspace,
     surVerrou: page.surVerrou,
+    noteDuPied: (id) => `note de l’étape ${id}`,
   };
   const user = userEvent.setup();
   render(withIntl(<Session><AssistantDePublication brouillon={brouillon.etat as never} anonyme={anonyme} fraisDAgence={false} /></Session>));
@@ -205,6 +206,21 @@ async function ouvrirLePanneau(user: ReturnType<typeof userEvent.setup>) {
   return { panneau, publier };
 }
 
+describe('PropertyWizard sans compte — le cadre d’entrée (TCK-2600)', () => {
+  it('l’assistant sans compte est dans le cadre d’entrée ; le pied porte la note de l’étape courante', () => {
+    monter();
+    expect(document.querySelector('[data-wizard-panneau]')).toHaveAttribute('data-cadre-d-entree', '');
+    expect(document.querySelector('[data-wizard-footer]')).toHaveTextContent('note de l’étape finition');
+  });
+
+  it('le départ est l’étape d’accueil : titre de a-0, sans surtitre', () => {
+    monter(0);
+    expect(screen.getByRole('heading', { level: 1, name: 'Publiez votre bien' })).toHaveClass('lg:text-affiche-32');
+    expect(screen.queryByText(/^Partie 1 sur/)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-wizard-footer]')).toHaveTextContent('note de l’étape bien');
+  });
+});
+
 describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', () => {
   it('« Publier » ouvre le panneau À LA PLACE de l’étape et du pied, sans dialogue ; l’aperçu reste ; le focus va au titre', async () => {
     const user = monter();
@@ -215,7 +231,8 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     expect(document.querySelector('[data-wizard-panneau]')).toHaveClass('xl:block');
     // L'étape et le pied se cachent dès xl (la largeur où le panneau est le régime), pas avant.
     expect(document.querySelector('[data-wizard-footer]')).toHaveClass('xl:hidden');
-    expect(document.querySelector('[data-wizard-scroll] > [data-wizard-panneau] + div')).toHaveClass('xl:hidden');
+    // TCK-2600 — dans le cadre d'entrée, le panneau et l'étape partagent la colonne de la question.
+    expect(document.querySelector('[data-wizard-scroll] [data-wizard-panneau] + div')).toHaveClass('xl:hidden');
     // L'aperçu reste à droite pendant tout le compte.
     expect(screen.getByRole('complementary', { name: 'Aperçu de l’annonce' })).toBeInTheDocument();
 
@@ -287,6 +304,18 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     expect(page.surVerrou).toHaveBeenLastCalledWith(true);
     cleanup();
     expect(page.surVerrou).toHaveBeenLastCalledWith(false);
+  });
+
+  it('TCK-2600 — dans le cadre d’entrée, le panneau prend la colonne de la question ; « Revenir » remonte en haut de la colonne', async () => {
+    const user = monter();
+    const { panneau } = await ouvrirLePanneau(user);
+    const section = panneau.closest('[data-panneau-de-compte]')!;
+    // La colonne est celle du nœud qui reçoit le panneau (560 px dans le cadre) : la section n'en porte pas.
+    expect(section.className).toBe('');
+    expect(section.parentElement).toHaveAttribute('data-cadre-d-entree', '');
+    expect(section.parentElement).not.toHaveClass('px-4');
+    // Maquette a-6 / a-7 : le texte de « Revenir » au haut de la colonne, sa cible de 44 px débordant au-dessus.
+    expect(within(panneau).getByRole('button', { name: 'Revenir à l’annonce' })).toHaveClass('in-data-cadre-d-entree:-mt-3', 'in-data-cadre-d-entree:-mb-1.5', 'min-h-11');
   });
 
   it('« Revenir à l’annonce » rend l’étape et le pied, et le focus à « Publier »', async () => {

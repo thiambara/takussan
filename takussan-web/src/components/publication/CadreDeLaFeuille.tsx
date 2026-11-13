@@ -156,16 +156,16 @@ function PanneauDeCompte({ titre, surtitre, revenir, occupe, onFermer, action, m
   }, []);
 
   return (
-    <section
-      aria-labelledby={idTitre}
-      data-panneau-de-compte=""
-      className="mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14"
-    >
+    // La colonne (marges, largeur) est celle du nœud de `WizardShell` qui reçoit le panneau : la colonne
+    // plein écran de `/app/properties/new`, ou la colonne de 560 px du cadre d'entrée (`/publish`, TCK-2600).
+    <section aria-labelledby={idTitre} data-panneau-de-compte="">
       <button
         type="button"
         disabled={occupe}
         onClick={onFermer}
-        className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+        // Dans le cadre d'entrée (maquette a-6 / a-7), le texte de « Revenir » est en haut de la colonne et
+        // la carte 37 px plus bas : la cible de 44 px déborde de 11 px au-dessus et de 5 en dessous.
+        className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 in-data-cadre-d-entree:-mt-3 in-data-cadre-d-entree:-mb-1.5"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         {revenir}
