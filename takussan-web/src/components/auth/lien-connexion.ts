@@ -1,5 +1,6 @@
 import { decouperLocale, estCheminLocalisable } from '@/i18n/routing';
 import { destinationInterne } from '@/lib/redirection-interne';
+import { estSlugDeBien } from '@/lib/slug-de-bien';
 
 /**
  * Revenir là d'où l'on vient après la connexion — retour testeur du 2026-09-23 (TCK-568, M2).
@@ -46,4 +47,66 @@ export function hrefConnexion(cheminCourant: string): string {
   const chemin = cheminSeul(cheminCourant);
   if (!estCheminLocalisable(chemin) || decouperLocale(chemin).chemin === '/') return '/auth/login';
   return `/auth/login?redirect=${encodeURIComponent(cheminCourant)}`;
+}
+
+/**
+ * TCK-2604 — CE QUE le visiteur était en train de faire quand on lui a demandé un compte : une liste
+ * FERMÉE, posée par l'appelant en `?intention=`. L'écran de connexion la dit (« Votre réservation »)
+ * au-dessus du bien quitté. Une valeur inconnue est ignorée ; aucun texte de l'URL n'est affiché.
+ *
+ * ⚠ `intention`, pas `action` : la fiche porte déjà `?action=reserver` DANS `redirect` (TCK-589).
+ */
+export const ACTIONS_D_ENTREE = ['reservation', 'visite', 'candidature', 'alerte', 'favori', 'publication', 'invitation'] as const;
+
+export type ActionDEntree = (typeof ACTIONS_D_ENTREE)[number];
+
+export function lireActionDEntree(brute: string | null | undefined): ActionDEntree | null {
+  return ACTIONS_D_ENTREE.find((action) => action === brute) ?? null;
+}
+
+/**
+ * Le lien de connexion d'un geste interrompu : la page à rouvrir (assainie à l'arrivée par
+ * `destinationInterne`) et l'action, quand l'appelant en a une.
+ */
+export function hrefConnexionPour(retour: string, action?: ActionDEntree | null): string {
+  return `/auth/login?redirect=${encodeURIComponent(retour)}${action ? `&intention=${action}` : ''}`;
+}
+
+/** `/[locale]/properties/<slug>` ou `/[locale]/bookings?property=<slug>` (le tunnel de réservation). */
+const FICHE = /^\/properties\/([^/]+)\/?$/;
+
+/**
+ * Le slug du bien que `redirect` rouvrira, ou `null` : la fiche, ou le tunnel de réservation. La
+ * valeur passe d'abord par `destinationInterne` ; le slug n'est rendu que s'il en a la FORME
+ * (`FORME_DE_SLUG`) — c'est lui qui part ensuite dans le chemin d'un appel à l'API.
+ */
+export function slugDuBienQuitte(redirect: string | null | undefined): string | null {
+  const interne = destinationInterne(redirect, '');
+  if (interne === '') return null;
+  const url = new URL(interne, 'http://interne.invalid');
+  const { chemin } = decouperLocale(url.pathname);
+  const fiche = FICHE.exec(chemin);
+  let slug: string | null = null;
+  if (fiche) {
+    try {
+      slug = decodeURIComponent(fiche[1] ?? '');
+    } catch {
+      return null;
+    }
+  } else if (chemin === '/bookings') {
+    slug = url.searchParams.get('property');
+  }
+  return estSlugDeBien(slug) ? slug : null;
+}
+
+/** La date de début que porte `redirect` (`debut=AAAA-MM-JJ`), pour la dire à côté du prix. */
+export function debutDuGesteQuitte(redirect: string | null | undefined): { debut: string; fin: string | null } | null {
+  const interne = destinationInterne(redirect, '');
+  if (interne === '') return null;
+  const params = new URL(interne, 'http://interne.invalid').searchParams;
+  const jour = /^\d{4}-\d{2}-\d{2}$/;
+  const debut = params.get('debut');
+  if (!debut || !jour.test(debut)) return null;
+  const fin = params.get('fin');
+  return { debut, fin: fin && jour.test(fin) && fin > debut ? fin : null };
 }

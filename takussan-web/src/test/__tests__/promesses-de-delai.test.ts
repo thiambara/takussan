@@ -36,7 +36,8 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'admin.team.equipe.invitations.formulaire.validite':
     'takussan-api/app/Services/Invitation/InvitationService.php:139 — DEFAULT_TTL_DAYS = 7, posé à :247 (send)',
   'crm.customerDetail.inviteAccount.relancee': 'idem — InvitationService.php:139, reposé à :571 (resend)',
-  'auth.forgotPassword.sentBody': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
+  // TCK-2606 — « Lien envoyé » de l'oubli (remplace `auth.forgotPassword.sentBody`).
+  'auth.oubli.envoye.sousTitre': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
     'takussan-api/app/Services/Account/DeletionStepUpService.php:38 — CODE_TTL_SECONDS = 300, usage unique',
   // TCK-596 §4B (ADR-0042 §2) — le code de signature d'un bail.
@@ -57,9 +58,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 'idem — PhoneVerificationService.php:22',
   'onboarding.host.steps.identity.otp.sentBody': 'idem — PhoneVerificationService.php:22',
   'profile.contact.otpSent': 'idem — PhoneVerificationService.php:22',
-  // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
-  'auth.phoneLogin.codeSentTo':
-    'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
+  // TCK-589, TCK-2604 — le code de connexion par téléphone (« Valable 5 minutes » de l'écran du code,
+  // qui remplace `auth.phoneLogin.codeSentTo`) : même service, sujet « numéro » (`sendCodeTo`).
+  'auth.porte.code.valable':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:39 — CODE_TTL_SECONDS = 300, via PhoneLoginService.php:85 (sendCodeTo)',
   // TCK-2510 — le code du tunnel de réservation : le même point d'entrée que la connexion par
   // téléphone (`demanderCodeTelephone` → `POST /api/auth/phone/request-code` →
   // `PhoneLoginService::requestCode` → `sendCodeTo('login', …)`), donc le même TTL.
@@ -164,7 +166,7 @@ const REGISTRE: Readonly<Record<string, string>> = {
  * jours pour la messagerie ») : le texte doit porter exactement ces chiffres, dans cet ordre.
  */
 const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
-  'auth.forgotPassword.sentBody': 60,
+  'auth.oubli.envoye.sousTitre': 60,
   'account.deletion.dialog.codeSentHint': 5,
   'profile.sommaire.aides.suppression': 30,
   'owners.onboarding.steps.phone.sent.body': 5,
@@ -179,6 +181,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'superAdmin.integrations.webhooks.retention': [90, 30],
   'superAdmin.pages.users.impersonateDescription': 15,
   'bookings.tunnel.identity.codeSentTo': 5,
+  'auth.porte.code.valable': 5,
   'lienPublic.paiement.quittanceDelai': 30,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,

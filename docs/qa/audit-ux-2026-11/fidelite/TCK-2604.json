@@ -1,0 +1,257 @@
+{
+  "ticket": "TCK-2604",
+  "ecrans": [
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Numéro (venant d’une visite)",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-0-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-0-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/login?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite",
+        "persona": "aucune",
+        "etat": "visiteur sans compte venu de « Demander une visite » sur un bien publié de la démo (seul bien de location public relevé : « Micro Studio 10m² », 500 000 F CFA / mois, agence « Studio de Aminata ») ; numéro « 77 123 45 67 » posé dans le champ ; téléphone : clavier émulé de 236 px (le pavé dessiné par la maquette)"
+      }
+    },
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Numéro (arrivée directe)",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-1-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-1-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/login",
+        "persona": "aucune",
+        "etat": "arrivée directe, sans intention ; même numéro, même clavier émulé"
+      }
+    },
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Code",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-2-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-2-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/login?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite",
+        "persona": "aucune",
+        "etat": "écran du code AVEC l’aperçu de préproduction (« 598715 ») et « 598 » saisi, comme la maquette ; la demande de code est servie DANS la page (réponse 202 locale, `otp_preview`), `request-code` et `verify-code` bloqués au réseau (`--bloquer`) : aucun SMS, aucune écriture (relevés : 0 requête autre que GET) ; téléphone : clavier émulé de 282 px (pavé 236 + barre de suggestion « Depuis Messages » 46, dessinés par la maquette)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/auth/login",
+    "persona": "aucune",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad terrain-5/2604/mesures/numero.js (bureau : le numéro posé, rien d’envoyé) ; clavier-236.js (téléphone a-0, a-1) ; code.js / code-282.js (a-2 : fetch de request-code servi localement, verify-code jamais résolu) ; AC2 : clavier-336.js ; AC-F6 : largeur.js, l768.mjs"
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Entre ton numéro": "Entrez votre numéro",
+    "Ton numéro": "Votre numéro",
+    "Ton numéro ·": "Votre numéro ·",
+    "Ta demande de visite": "Votre demande de visite",
+    "+221 est déjà posé. À l’étranger ? Commence par +": "+221 est déjà posé. À l’étranger ? Commencez par +",
+    "En continuant , tu acceptes les et la .": "En continuant, vous acceptez les et la .",
+    "Tu reprends là où tu t’es arrêtée": "Vous reprenez là où vous en étiez",
+    "Pour demander la visite, entre ton numéro.": "Pour demander la visite, entrez votre numéro.",
+    "Studio meublé · Mermoz": "Micro Studio 10m²",
+    "250 000 F CFA / mois": "500 000 F CFA / mois",
+    "250 000 F CFA / mois · samedi 15 nov.": "500 000 F CFA / mois",
+    "Ta demande de visite part chez Dakar Immo": "Votre demande de visite part chez Studio de Aminata",
+    "Avec Dakar Immo · réponse en 2 h environ": "Avec Studio de Aminata"
+  },
+  "alias_motifs": {
+    "vouvoiement": "« tu » → « vous » : règle des libellés du produit (« Ton numéro » → « Votre numéro », « Tu reprends là où tu t’es arrêtée » → « Vous reprenez là où vous en étiez », sans accord au féminin)",
+    "donnée": "titre, prix et agence du bien : ceux du bien de démo relevé ; ils viennent de la fiche publique (`bienQuitte`), jamais d’un texte de l’URL. La date et le délai de réponse : cf. `ecarts_acceptes`"
+  },
+  "ancres": [],
+  "ignorer": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "6",
+    "7",
+    "Depuis Messages",
+    "lucide-delete"
+  ],
+  "ignorer_motif": "le pavé numérique et la barre de suggestion du système, DESSINÉS par la maquette : le produit ne les rend pas, le clavier émulé en réserve la hauteur (« 5 », « 9 », « 8 » restent comparés : ce sont les chiffres saisis dans les cases)",
+  "zones_motif": "aucune zone n’a un contenu identique sur les trois écrans d’un appareil (la fiche ne déclare une zone que par appareil) : la photo, le titre et le prix sont une donnée, la colonne du formulaire porte les alias de vouvoiement. Mesure à part sur a-2 au bureau, par une fiche étendue de trois zones explicites : 0,01 %, 0 % et 3,54 % (le décompte) — cf. l’écart « Valable 5 minutes »",
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-1-telephone",
+      "element": "en-tête d’accueil (photo de ville de 176 px, marque claire, « Tes visites, tes favoris, tes annonces. »)",
+      "propriete": "présence, hauteur",
+      "exception": "donnée",
+      "motif": "le ticket : « sans intention, aucune villa ni slogan : la marque seule (une photo de Dakar libre de droits, fournie par le porteur ; sans elle, la marque seule) ». Aucune photo fournie : la barre de 56 px de la coque (TCK-2598, même écart dans TCK-2598.json). Le slogan va avec la photo ; conséquence : tout l’écran remonte de 116 à 118 px (titre à 76 au lieu de 192), et la flèche et la marque suivent la barre de la coque"
+    },
+    {
+      "ecran": "a-1-bureau-1440",
+      "element": "panneau photo de 45 % à gauche",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "même motif ; sans photo, le formulaire seul (colonne de 480 px de la coque, TCK-2598) ; conséquence : la colonne est centrée (x 480, 480 px) au lieu d’être à droite du panneau (x 844, 400 px), et « Retour au site » est la pastille de la coque à gauche"
+    },
+    {
+      "ecran": "a-0 et a-2, bureau",
+      "element": "pastille « Retour à l’annonce »",
+      "propriete": "hauteur 39,6 au lieu de 32,4, y −3,6",
+      "exception": "accessibilité",
+      "motif": "le plancher de 44 px de `RetourAuth` (TCK-560, W3), gardé par RetourAuth.test.tsx ; même écart accepté dans TCK-2598.json (a-5)"
+    },
+    {
+      "ecran": "a-0 (téléphone et bureau)",
+      "element": "la date de la visite (« · samedi 15 nov. », « Visite demandée pour samedi 15 nov. »)",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "une demande de visite ne porte AUCUNE date avant la connexion : seul le retour du tunnel de réservation en porte (`?debut=&fin=`, TCK-589), et la connexion la dit alors (« Du … au … », éprouvé par porte-par-numero.tck-2604 « le tunnel de réservation … ses dates dites »)"
+    },
+    {
+      "ecran": "a-0-bureau-1440",
+      "element": "« · réponse en 2 h environ » après l’agence",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucun délai de réponse n’est mesuré ni exposé par l’API ; l’agence seule (« Avec Studio de Aminata »)"
+    },
+    {
+      "ecran": "a-0 et a-1, téléphone",
+      "element": "« Avec un e-mail » (texte 99 × 20 au lieu de 161 × 44)",
+      "propriete": "boîte du texte",
+      "exception": "structure",
+      "motif": "le libellé est dans un `<span>` (deux libellés : « Avec un e-mail » au téléphone, « Utiliser un e-mail et un mot de passe » au bureau) ; le bouton lui-même est conforme (position, taille, bord)"
+    },
+    {
+      "ecran": "a-0 et a-1",
+      "element": "« conditions générales » x +12,7 à +13,9",
+      "propriete": "x",
+      "exception": "alias",
+      "motif": "suit « vous acceptez », plus long que « tu acceptes »"
+    },
+    {
+      "ecran": "a-2",
+      "element": "« Valable 5 minutes · Renvoyer le code dans 54 s »",
+      "propriete": "un texte côté maquette, deux côté produit",
+      "exception": "structure",
+      "motif": "le renvoi est un VRAI bouton (actif à la fin du décompte) : « Valable 5 minutes · » et le bouton sont deux nœuds, au même y (361,8), même corps (12,6), même graisse (400 pendant le décompte), même couleur. Mesuré au bureau (fiche étendue d’une zone explicite, scratchpad terrain-5/2604/mesures/zone-a2-bureau.json) : colonne du code hors décompte 0,01 % (titre, « Modifier », cases, aperçu) et 0 % (« Me connecter », l’aide) ; la ligne du décompte seule 3,54 % — attribué au lissage sous-pixel d’une zone de 26 px faite de texte : c’est une INFÉRENCE, appuyée sur le même y, le même corps, la même graisse et la même couleur, non sur une mesure du lissage. Le décompte (53 ou 54 s) dépend de l’instant du relevé"
+    },
+    {
+      "ecran": "a-2",
+      "element": "« Modifier » hauteur 22,5 au lieu de 20",
+      "propriete": "hauteur",
+      "exception": "structure",
+      "motif": "un `<button>` (bloc en ligne, hauteur = interligne) là où la maquette dessine un `<span>` ; position conforme"
+    },
+    {
+      "ecran": "a-0, a-1 (téléphone)",
+      "element": "chiffres du numéro à 20 px au lieu de 22",
+      "propriete": "taille de police",
+      "exception": "jeton",
+      "motif": "`text-xl` : 22 px est une valeur arbitraire refusée par check-valeurs-arbitraires-app (le champ est une primitive de components/ui, dans le périmètre de /app)"
+    },
+    {
+      "ecran": "a-0 et a-1, bureau",
+      "element": "« 77 123 45 67 » (a-0, valeur) et « 77 000 00 00 » (a-1, exemple) dans le champ",
+      "propriete": "absent des textes",
+      "exception": "structure",
+      "motif": "la valeur et l’exemple (`placeholder`) d’un `<input>` ne sont pas des nœuds de texte ; la maquette les dessine dans un `<span>`. Corps, graisse et couleur du champ suivent la maquette (16 px au bureau, `text-action`). Même raison pour le retrait de « +221 » au bureau (857,6 contre 844 : la boîte du préfixe porte son rembourrage de 12,6 px, le texte est à 856,6)"
+    },
+    {
+      "ecran": "tous",
+      "element": "ombre de la barre du bouton",
+      "propriete": "oklab(…) au lieu de color(srgb …)",
+      "exception": "aucune — même couleur",
+      "motif": "`--shadow-color` à 40 % des deux côtés, écrit dans deux espaces colorimétriques : rgb(31,24,18) dans les deux cas"
+    },
+    {
+      "ecran": "a-0-bureau-1440",
+      "element": "« Continuer avec Google » (retrait 976 au lieu de 844)",
+      "propriete": "boîte du texte",
+      "exception": "structure",
+      "motif": "comme « Avec un e-mail » : le libellé est dans un `<span>` (deux libellés selon la largeur) ; le bouton (position, 400 × 39,6, bord, rayon, rembourrage de 18) est conforme"
+    },
+    {
+      "ecran": "a-0-bureau-1440",
+      "element": "« Utiliser un e-mail et un mot de passe » hauteur 18 au lieu de 16",
+      "propriete": "hauteur",
+      "exception": "structure",
+      "motif": "un `<button>` de 44 px de cible (TCK-560) dont le texte prend l’interligne de `text-sm` ; position conforme (y 514,7 ± 2)"
+    },
+    {
+      "ecran": "a-0-bureau-1440",
+      "element": "carte du bien remontée de 27 px (« Votre demande de visite » à y 720 au lieu de 693)",
+      "propriete": "y",
+      "exception": "donnée",
+      "motif": "conséquence de la date absente (cf. plus haut) : la carte est posée en bas du panneau et perd une ligne"
+    },
+    {
+      "ecran": "a-2-bureau-1440",
+      "element": "bloc « Vous reprenez là où vous en étiez » remonté de 11,2 px",
+      "propriete": "y",
+      "exception": "donnée",
+      "motif": "la troisième étape, « Votre demande de visite part chez Studio de Aminata », tient sur deux lignes (le nom de l’agence de démo est plus long que « Dakar Immo ») ; le bloc est centré verticalement, il remonte de la moitié de la ligne ajoutée"
+    },
+    {
+      "ecran": "tous, téléphone (et a-2 au bureau)",
+      "element": "« Votre numéro », « Code reçu par SMS » (1 × 1 px)",
+      "propriete": "présents du seul produit",
+      "exception": "accessibilité",
+      "motif": "les libellés des deux champs, lus par le lecteur d’écran et invisibles (`sr-only`) : la maquette n’en dessine pas, le champ en a besoin d’un"
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "« Retour à l’annonce » (44 × 44 sur la photo)",
+      "propriete": "présent du seul produit",
+      "exception": "accessibilité",
+      "motif": "la flèche de la maquette est un `<span>` de 40 px sans nom ; le produit pose un lien nommé de 44 px (plancher de `LienFlecheDeRetour`, TCK-560), même centre à 2 px près"
+    },
+    {
+      "ecran": "a-2, bureau 1280",
+      "element": "panneau de reprise (« Vous reprenez là où vous en étiez », la carte, les trois temps)",
+      "propriete": "y −171 px pour tout le bloc",
+      "exception": "structure",
+      "motif": "le panneau centre son contenu dans sa hauteur (`justify-center`, comme la maquette) ; le cadre de la maquette à 1280 mesure 1 220 px de haut (nœud racine du relevé de la visionneuse), la fenêtre du produit 900. Centré dans 900, le bloc remonte de (1 220 − 900) / 2 ≈ 160 px, plus la différence de hauteur du bloc (l’étape 3 tient sur deux lignes : « Votre demande de visite part chez Studio de Aminata »). Relevés : scratchpad terrain-5/2604/mesures/m-a2-1280.json et p-a2-1280.json"
+    },
+    {
+      "ecran": "a-2-bureau-1440",
+      "element": "étapes « Votre numéro · 77 123 45 67 » et « Votre demande de visite part chez … », et « Me connecter » désactivé",
+      "propriete": "couleur rgb(110,101,90) au lieu de foreground à 75 % (étapes) et à 40 % (bouton désactivé)",
+      "exception": "accessibilité",
+      "motif": "une encre de texte ne s’atténue pas par l’opacité (TCK-658, garde `encre-sans-alpha.contraste.test.ts`, WCAG 2.2 §1.4.3) : l’encre douce opaque `text-muted-foreground` (relevé du 2026-11-13 après correction : 37 conformes · 15 écarts · 1 absent · 2,01 %, contre 41 · 11 · 1 · 1,97 % avant)"
+    },
+    {
+      "ecran": "a-0 et a-1, téléphone",
+      "element": "indicatif « +221 » du grand champ",
+      "propriete": "couleur",
+      "exception": "accessibilité",
+      "motif": "même règle : `text-muted-foreground` (opaque) au lieu de `text-foreground/60` ; l’indicatif n’est pas une ancre du relevé (comptes inchangés au relevé du 2026-11-13)"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "écrans a-3 à a-7 (voie e-mail, créer, mot de passe oublié, lien envoyé, vérifier l’adresse)",
+      "ticket": "TCK-2606",
+      "motif": "la voie e-mail est à TCK-2606 ; ici, l’inscription par e-mail reste joignable depuis la connexion (« S’inscrire »), sans être refaite"
+    },
+    {
+      "element": "chemin « e-mail d’abord » (ouvert par « Avec un e-mail ») : « Impossible de charger les fournisseurs d’authentification. » et le séparateur « ou continuer avec email » (relevés en anglais par un navigateur sans API : « Could not load the authentication providers », « OR CONTINUE WITH EMAIL »)",
+      "ticket": "TCK-2606",
+      "motif": "ces deux textes viennent de `OAuthButtons` (`auth.oauth.loadFailed`, `auth.oauth.separator`), monté par le formulaire e-mail (`FormulaireDeConnexion`, `InscriptionParEmail`), pas par la porte par numéro ; la voie e-mail est refaite par TCK-2606. La porte par numéro, elle, retire le bouton du fournisseur en silence (`AutresVoies`)"
+    }
+  ]
+}

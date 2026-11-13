@@ -6,7 +6,14 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { destinationPublique, hrefConnexion } from '../lien-connexion';
+import {
+  debutDuGesteQuitte,
+  destinationPublique,
+  hrefConnexion,
+  hrefConnexionPour,
+  lireActionDEntree,
+  slugDuBienQuitte,
+} from '../lien-connexion';
 
 describe('hrefConnexion — le lien « Connexion » emporte la page courante', () => {
   it('une recherche filtrée part AVEC ses filtres', () => {
@@ -58,5 +65,54 @@ describe('destinationPublique — ce vers quoi « Retour » peut mener', () => {
     expect(destinationPublique(null)).toBeNull();
     expect(destinationPublique(undefined)).toBeNull();
     expect(destinationPublique('')).toBeNull();
+  });
+});
+
+// TCK-2604 — l'action interrompue (liste fermée) et le bien quitté, lus par la connexion.
+describe('l’intention d’entrée', () => {
+  it('une action de la liste fermée, rien d’autre', () => {
+    for (const action of ['reservation', 'visite', 'alerte', 'favori', 'publication', 'invitation']) {
+      expect(lireActionDEntree(action)).toBe(action);
+    }
+    for (const brute of [null, '', 'RESERVATION', 'reserver', '<script>', 'reservation ']) {
+      expect(lireActionDEntree(brute)).toBeNull();
+    }
+  });
+
+  it('hrefConnexionPour : la page encodée, l’action en clair', () => {
+    expect(hrefConnexionPour('/fr/properties/x?action=reserver', 'reservation')).toBe(
+      '/auth/login?redirect=%2Ffr%2Fproperties%2Fx%3Faction%3Dreserver&intention=reservation',
+    );
+    expect(hrefConnexionPour('/publish')).toBe('/auth/login?redirect=%2Fpublish');
+  });
+
+  it('le slug du bien : la fiche (langue ou non), le tunnel de réservation', () => {
+    expect(slugDuBienQuitte('/fr/properties/villa-a-fann-x1?action=reserver')).toBe('villa-a-fann-x1');
+    expect(slugDuBienQuitte('/properties/villa-a-fann-x1')).toBe('villa-a-fann-x1');
+    expect(slugDuBienQuitte('/wo/bookings?property=studio-a1&debut=2099-01-10')).toBe('studio-a1');
+  });
+
+  it('rien d’autre qu’un slug de bien, et jamais hors du site', () => {
+    for (const brute of [
+      null,
+      '/fr/properties',
+      '/fr/properties?type=villa',
+      '/fr/properties/a/b',
+      '/fr/properties/..',
+      '/fr/properties/%2E%2E',
+      '/fr/bookings?property=../x',
+      '/app/properties/12',
+      '//evil.example/properties/x',
+      'https://evil.example/properties/x',
+    ]) {
+      expect(slugDuBienQuitte(brute), String(brute)).toBeNull();
+    }
+  });
+
+  it('les dates du geste : un début valide, une fin seulement après lui', () => {
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2099-01-10&fin=2099-01-14')).toEqual({ debut: '2099-01-10', fin: '2099-01-14' });
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2099-01-10&fin=2099-01-01')).toEqual({ debut: '2099-01-10', fin: null });
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=demain')).toBeNull();
+    expect(debutDuGesteQuitte('/fr/properties/x')).toBeNull();
   });
 });

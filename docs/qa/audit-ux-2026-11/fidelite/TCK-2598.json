@@ -202,8 +202,8 @@
  "hors_perimetre": [
   {
    "element": "a-5 · libellé et destination du retour (« Retour à la connexion »)",
-   "ticket": "TCK-2604",
-   "motif": "le retour de `/auth/forgot-password` mène aujourd'hui au site public (TCK-568, `PAGES_AVEC_RETOUR`) ; ramener à la connexion change sa destination, c'est l'écran de TCK-2604. Comparé ici avec le libellé de la maquette posé par perturbation (scratchpad terrain-5/2598/libelle-retour.js) : zone de barre à 0,85 %, contre 2,54 % sans"
+   "ticket": "TCK-2606",
+   "motif": "le retour de `/auth/forgot-password` mène aujourd'hui au site public (TCK-568, `PAGES_AVEC_RETOUR`) ; ramener à la connexion change sa destination, c'est l'écran de TCK-2606 (« Mot de passe oublié » ; TCK-2604 ne porte que le numéro et le code). Comparé ici avec le libellé de la maquette posé par perturbation (scratchpad terrain-5/2598/libelle-retour.js) : zone de barre à 0,85 %, contre 2,54 % sans"
   },
   {
    "element": "contenu de chaque écran sous la barre (titre, champ, boutons, voies, CGU)",

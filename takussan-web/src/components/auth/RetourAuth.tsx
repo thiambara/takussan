@@ -77,9 +77,11 @@ interface RetourAuthProps {
    * `libelle`) ; `pastille` (défaut) : « ← Retour au site » en texte, la barre du bureau.
    */
   readonly forme?: 'pastille' | 'fleche';
+  /** TCK-2604 — la flèche posée sur la photo du bien quitté : rond plein (`LienFlecheDeRetour`). */
+  readonly surPhoto?: boolean;
 }
 
-function Retour({ libelle, className, forme = 'pastille' }: RetourAuthProps) {
+function Retour({ libelle, className, forme = 'pastille', surPhoto = false }: RetourAuthProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -98,7 +100,15 @@ function Retour({ libelle, className, forme = 'pastille' }: RetourAuthProps) {
 
   // La même règle d'historique que la pastille : le site PUBLIC seul, jamais la console.
   if (forme === 'fleche') {
-    return <LienFlecheDeRetour repli={repli} libelle={libelle} peutRevenir={entreePrecedenteEstPublique} className={className} />;
+    return (
+      <LienFlecheDeRetour
+        repli={repli}
+        libelle={libelle}
+        surPhoto={surPhoto}
+        peutRevenir={entreePrecedenteEstPublique}
+        className={className}
+      />
+    );
   }
 
   function auClic(evenement: MouseEvent<HTMLAnchorElement>) {

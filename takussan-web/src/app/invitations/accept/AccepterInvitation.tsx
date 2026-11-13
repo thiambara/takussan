@@ -17,6 +17,7 @@ import { isTwoFactorChallenge, login } from '@/lib/auth';
 import { destinationDInvitation } from '@/lib/invitation-destination';
 import type { NomsPreremplis } from '@/lib/invitation-prerempli';
 import { avecRedirection } from '@/lib/redirection-interne';
+import { hrefConnexionPour } from '@/components/auth/lien-connexion';
 
 /**
  * `profilesKeys.all` de `useProfiles`, redéclarée comme dans `credits-solde.ts` : importer le hook
@@ -57,7 +58,8 @@ export function AccepterInvitation({
   const [enCours, demarrer] = useTransition();
 
   const ici = `/invitations/accept?token=${encodeURIComponent(jeton)}`;
-  const lienConnexion = avecRedirection('/auth/login', ici);
+  // TCK-2604 — l'action interrompue suit : la connexion dit « Votre invitation ».
+  const lienConnexion = hrefConnexionPour(ici, 'invitation');
 
   function accepter(champs?: { first_name: string; last_name: string; password?: string }) {
     setErreur(null);

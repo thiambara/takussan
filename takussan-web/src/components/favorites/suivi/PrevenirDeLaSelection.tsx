@@ -9,6 +9,7 @@ import { PublicSearchAlertForm } from '@/components/favorites/PublicSearchAlertF
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { alerteDeLaSelection } from '@/lib/favoris-suivi';
 import type { PropertyListItem } from '@/types/property';
+import { hrefConnexionPour } from '@/components/auth/lien-connexion';
 
 export interface PrevenirDeLaSelectionProps {
   /** La sélection de l'appareil, plus récent d'abord. */
@@ -75,7 +76,7 @@ export function PrevenirDeLaSelection({ biens }: PrevenirDeLaSelectionProps) {
           <PublicSearchAlertForm
             criteria={alerte.criteria as Record<string, unknown>}
             name={t('nom', { lieu: alerte.lieu })}
-            loginHref={`/auth/login?redirect=${encodeURIComponent(pathname)}`}
+            loginHref={hrefConnexionPour(pathname, 'alerte')}
             onClose={() => setOuvert(false)}
           />
         </SheetContent>

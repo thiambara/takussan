@@ -643,20 +643,8 @@
   },
   "auth": {
     "login": {
-      "title": "Dalal jàmm ba tey",
-      "submit": "Dugg",
-      "email": "Email",
-      "password": "Baatu-jub",
-      "subtitle": "Duggal ngir agsi ci sa bérébu Takussan.",
       "resetSuccess": "Sa baatu-jub soppiku na. Mën nga dugg léegi.",
-      "emailPlaceholder": "yow@misaal.com",
-      "forgotPassword": "Fàtte nga sa baatu-jub ?",
-      "showPassword": "Wone baatu-jub bi",
-      "hidePassword": "Nëbb baatu-jub bi",
       "submitting": "Dugg…",
-      "noAccount": "Amoo kont ba tey ?",
-      "registerCta": "Bindu",
-      "register": "Sos ab kont",
       "oauthError": {
         "oauth_invalid": "Duggu ak jëfandikukat bi antuwul : lëkkalekaay bi matul. Jéemaat, walla duggal ak sa email.",
         "oauth_failed": "Jëfandikukat bi bañ na duggu bi, walla jot gi jeex na. Jéemaat, walla duggal ak sa email.",
@@ -714,22 +702,13 @@
       "superAdminBody": "Konsol platform bi, ñaareelu sumb rekk lay ubbi. Defaral ko ngir wéy."
     },
     "phoneLogin": {
-      "loginTitle": "Duggal ak sa nimero",
-      "loginSubtitle": "Dinañu la yónne ab koddu ci SMS: amul baatu jàll boo war a fàttaliku.",
-      "registerTitle": "Sosal sa kont ak sa nimero",
-      "registerSubtitle": "Koddu bu ñu la yónne ci SMS doy na: sa kont dina pare su ko wóoralee.",
-      "phoneLabel": "Nimero telefon",
       "sendCode": "Jot ab koddu",
       "sending": "Ñu ngi koy yónne…",
-      "codeSentTo": "Bu nimero bii mënee jot SMS, koddu bu 6 chiffres yónne nañu ko ci {phone}. Dina baax 5 simili.",
       "codeLabel": "Koddu bi nga jot ci SMS",
-      "verify": "Wóoral",
       "verifying": "Ñu ngi seetlu…",
       "resendIn": "Yónneeti koddu bi ci {seconds} s",
       "resend": "Yónneeti koddu bi",
       "changeNumber": "Soppi nimero",
-      "useEmail": "Jëfandikoo email ak baatu jàll",
-      "usePhone": "Jëfandikoo sama nimero telefon",
       "invalidPhone": "Nimero bii baaxul. Seetal indikatif bi ak chiffres yi.",
       "codeInvalid": "Koddu bi baaxul walla jeex na. Seetal ko, walla laajal bu bees.",
       "locked": "Jéem yi bari nañu: duggu bi taxaw na ay simili. Jéemaatal ci kanam tuuti.",
@@ -758,12 +737,6 @@
         "verifyEmail": "Vérification de l'e-mail"
       }
     },
-    "layout": {
-      "visualAlt": "Wiila bu bees ci Senegaal",
-      "headline": "Sa buntu dugg ci kër yu Senegaal.",
-      "subheadline": "Junniy kër, jumtukaay bu rafet, nawle yu wóor.",
-      "back": "Dellu"
-    },
     "twoFactorChallenge": {
       "title": "Ñaari yoon ngir seetlu",
       "appIntro": "Bindal koddu 6 chiffres bi sa application 2FA def.",
@@ -780,37 +753,8 @@
       "invalidCode": "Kodd bi baaxul."
     },
     "register": {
-      "title": "Sos sa kont",
-      "subtitle": "Bokkal ci Takussan te toppatoo say seet ak say kër ci yombal.",
-      "firstName": "Tur",
-      "lastName": "Sant",
-      "email": "Email",
-      "emailPlaceholder": "yow@misaal.com",
-      "password": "Baatu-jub",
-      "passwordPlaceholder": "Lu yem ci 8 araf",
-      "passwordConfirmation": "Dëgëral baatu-jub bi",
-      "passwordConfirmationPlaceholder": "Bindaat baatu-jub bi",
-      "showPassword": "Wone baatu-jub bi",
-      "hidePassword": "Nëbb baatu-jub bi",
-      "showConfirmation": "Wone dëgëral bi",
-      "hideConfirmation": "Nëbb dëgëral bi",
       "acceptTerms": "Nangu naa <terms>sart yi</terms> ak <privacy>politigu sutura</privacy>.",
-      "submit": "Sos sama kont",
-      "submitting": "Sos…",
-      "oauthSeparator": "walla sos ab kont ak",
-      "hasAccount": "Am nga kont ba noppi ?",
-      "loginCta": "Dugg"
-    },
-    "forgotPassword": {
-      "title": "Fàtte baatu-jub",
-      "subtitle": "Bindal sa email te dinanu la yónnee ab lëkkalekaay ngir soppi sa baatu-jub.",
-      "email": "Email",
-      "emailPlaceholder": "yow@misaal.com",
-      "submit": "Yónnee lëkkalekaay bi",
-      "submitting": "Yónnee…",
-      "sentTitle": "Xoolal sa boyetu email",
-      "sentBody": "Su fekkee am na kont ci <b>{email}</b>, yónnee nanu la ab lëkkalekaay ngir soppi. Dina jëf 60 simili.",
-      "backToLogin": "← Dellu ci dugg bi"
+      "submitting": "Sos…"
     },
     "resetPassword": {
       "title": "Baatu-jub bu bees",
@@ -832,15 +776,6 @@
       "networkFailed": "Jokkoo ak serwëer bi antuwul. Seetal sa jokkoo internet te jéematal.",
       "backToLogin": "← Dellu ci dugg bi"
     },
-    "verifyEmail": {
-      "title": "Seetlul sa email",
-      "body": "Yónnee nanu ab lëkkalekaayu seetlu ci sa email. Bësal ci lëkkalekaay bi ngir ubbi sa kont.",
-      "resent": "Yónneewaat nanu email bu seetlu bi. Xoolal it sa boyetu spam.",
-      "resendFailed": "Mënunu yónneewaat email bi. Jéematal ci ab saa.",
-      "resend": "Yónneewaat email bu seetlu bi",
-      "sending": "Yónnee…",
-      "continue": "Kontine, dinaa ko seetlu ginaaw"
-    },
     "verifyEmailLink": {
       "successTitle": "Email bi seetlu nañu ko",
       "successBody": "Sa email dëggal nañu ko.",
@@ -858,13 +793,174 @@
     },
     "oauth": {
       "continueWith": "Toxal ak {provider}",
-      "loading": "Yëngu joxekat yi…",
-      "loadFailed": "Mënunu yeb joxekatu seetlu yi.",
-      "startFailed": "Mënunu tambali dugg bi. Jéematal ci ab saa.",
-      "noneConfigured": "Amul benn joxekat OAuth bu ñu tëral ci bérébu bii.",
-      "separator": "walla toxal ak email"
+      "startFailed": "Mënunu tambali dugg bi. Jéematal ci ab saa."
     },
-    "sessionExpired": "Sa sesioŋ jeex na. Duggaatal su la neexee."
+    "sessionExpired": "Sa sesioŋ jeex na. Duggaatal su la neexee.",
+    "porte": {
+      "titre": "Entrez votre numéro",
+      "sousTitre": "Nouveau ou déjà inscrit : un code par SMS suffit.",
+      "numero": "Votre numéro",
+      "numeroComplet": "Numéro complet",
+      "ou": "ou",
+      "avec": "Avec {provider}",
+      "avecEmail": "Avec un e-mail",
+      "utiliserEmail": "Utiliser un e-mail et un mot de passe",
+      "retourALAnnonce": "Retour à l’annonce",
+      "code": {
+        "titre": "Code envoyé au <numero>{phone}</numero>",
+        "pasLeBon": "Ce n’est pas le bon numéro ?",
+        "modifier": "Modifier",
+        "valable": "Valable 5 minutes",
+        "seConnecter": "Me connecter",
+        "automatique": "Le code part tout seul au sixième chiffre.",
+        "reprise": "Vous reprenez là où vous en étiez",
+        "etapeNumero": "Votre numéro · <numero>{phone}</numero>",
+        "etapeCode": "Le code reçu par SMS",
+        "etapeRetour": "Retour à l’annonce, là où vous en étiez",
+        "etapeEnvoi": {
+          "visite": "Votre demande de visite part chez {agence}",
+          "reservation": "Votre demande de réservation part chez {agence}",
+          "candidature": "Votre dossier part chez {agence}"
+        }
+      },
+      "periode": {
+        "daily": "{prix} / jour",
+        "weekly": "{prix} / semaine",
+        "monthly": "{prix} / mois",
+        "yearly": "{prix} / an"
+      },
+      "dates": {
+        "du": "Du {debut} au {fin}",
+        "aPartirDu": "À partir du {debut}"
+      },
+      "actions": {
+        "reservation": {
+          "titre": "Votre réservation",
+          "carte": "Pour réserver, entrez votre numéro."
+        },
+        "visite": {
+          "titre": "Votre demande de visite",
+          "carte": "Pour demander la visite, entrez votre numéro."
+        },
+        "alerte": {
+          "titre": "Votre alerte",
+          "carte": "Pour créer l’alerte, entrez votre numéro."
+        },
+        "favori": {
+          "titre": "Votre favori",
+          "carte": "Pour garder ce bien, entrez votre numéro."
+        },
+        "publication": {
+          "titre": "Publier votre bien",
+          "carte": "Pour publier votre bien, entrez votre numéro."
+        },
+        "invitation": {
+          "titre": "Votre invitation",
+          "carte": "Pour rejoindre l’agence, entrez votre numéro."
+        },
+        "candidature": {
+          "titre": "Votre candidature",
+          "carte": "Pour déposer votre dossier, entrez votre numéro."
+        }
+      },
+      "oauthError": {
+        "oauth_invalid": "La connexion avec le fournisseur n’a pas abouti : le lien de retour était incomplet. Réessayez, ou entrez votre numéro.",
+        "oauth_failed": "Le fournisseur a refusé la connexion ou elle a expiré. Réessayez, ou entrez votre numéro.",
+        "oauth_unknown": "La connexion n’a pas pu être finalisée. Vérifiez votre connexion internet et réessayez, ou entrez votre numéro."
+      },
+      "aideIndicatif": "+221 est déjà posé. À l’étranger ? Commencez par +",
+      "avecAgence": "Avec {agence}",
+      "exempleNumero": "77 000 00 00"
+    },
+    "voieEmail": {
+      "titre": "Avec votre e-mail",
+      "onglets": {
+        "connexion": "J’ai un compte",
+        "creation": "Créer un compte"
+      },
+      "email": "E-mail",
+      "motDePasse": "Mot de passe",
+      "oublie": "Mot de passe oublié ?",
+      "seConnecter": "Me connecter",
+      "creer": "Créer mon compte",
+      "regle": "8 caractères minimum, avec une lettre et un chiffre.",
+      "prenomEnsuite": "Votre prénom vous sera demandé à l’écran suivant — rien d’autre.",
+      "prenomEnsuiteCourt": "Votre prénom vous sera demandé juste après — rien d’autre.",
+      "utiliserLeNumero": "Utiliser plutôt mon numéro",
+      "versLeNumero": "Revenir au numéro",
+      "afficher": "Afficher le mot de passe",
+      "masquer": "Masquer le mot de passe"
+    },
+    "boite": {
+      "titre": "Dans votre boîte de réception",
+      "expediteur": "Takussan",
+      "instant": "à l’instant",
+      "renvoyer": "Renvoyer le lien",
+      "renvoyerDans": "Renvoyer dans {secondes} s",
+      "possibleDans": "Possible dans {secondes} s",
+      "possibleMaintenant": "Possible maintenant",
+      "corriger": "Corriger l’adresse",
+      "ouvrirGmail": "Ouvrir Gmail"
+    },
+    "oubli": {
+      "titre": "Mot de passe oublié",
+      "sousTitre": "Entrez l’e-mail de votre compte : nous vous envoyons un lien pour en choisir un nouveau.",
+      "email": "E-mail",
+      "envoyer": "Envoyer le lien",
+      "envoi": "Envoi…",
+      "retourConnexion": "Retour à la connexion",
+      "corrigerAide": "Une faute de frappe ? Revenez la changer.",
+      "renvoye": "Lien renvoyé.",
+      "envoye": {
+        "titre": "Lien envoyé à {adresse}",
+        "sousTitre": "Si cette adresse a un compte, ouvrez le lien pour choisir un nouveau mot de passe. Il reste valable 60 minutes."
+      },
+      "message": {
+        "objet": "Réinitialisation de votre mot de passe",
+        "extrait": "Vous recevez cet e-mail car nous avons reçu une demande de réinitialisation de mot de passe pour votre compte."
+      },
+      "sms": {
+        "titre": "Vous avez un numéro sur votre compte ?",
+        "texte": "Recevez plutôt un code par SMS — sans rien réinitialiser.",
+        "lien": "Recevoir un code"
+      }
+    },
+    "verification": {
+      "titre": "Vérifiez votre adresse",
+      "texte": "Un lien est parti à <b>{adresse}</b>. Vous pouvez continuer : nous vous le rappellerons.",
+      "continuer": "Continuer",
+      "reprise": "Vous reprenez",
+      "compteOuvert": "<b>Votre compte est ouvert.</b> Vous reprenez là où vous en étiez dès que vous continuez.",
+      "gmailAide": "Le message vous y attend déjà.",
+      "corrigerAide": "Une faute de frappe ? Changez-la ici.",
+      "renvoye": "Un nouveau lien est parti à {adresse}.",
+      "corrige": "Adresse corrigée : un nouveau lien est parti à {adresse}.",
+      "renvoiEchoue": "Impossible de renvoyer le lien. Réessayez dans quelques instants.",
+      "message": {
+        "objet": "Confirmez votre adresse e-mail",
+        "extrait": "Veuillez confirmer votre adresse e-mail en cliquant sur le bouton ci-dessous."
+      },
+      "correction": {
+        "libelle": "Votre adresse e-mail",
+        "envoyer": "Envoyer le lien ici",
+        "annuler": "Annuler"
+      },
+      "repriseAction": {
+        "visite": "Vous reprenez votre demande",
+        "reservation": "Vous reprenez votre réservation",
+        "candidature": "Vous reprenez votre dossier"
+      },
+      "continuerAction": {
+        "visite": "Continuer ma demande de visite",
+        "reservation": "Continuer ma réservation",
+        "candidature": "Continuer mon dossier"
+      },
+      "compteOuvertAction": {
+        "visite": "<b>Votre compte est ouvert.</b> Vous reprenez votre demande de visite dès que vous continuez.",
+        "reservation": "<b>Votre compte est ouvert.</b> Vous reprenez votre réservation dès que vous continuez.",
+        "candidature": "<b>Votre compte est ouvert.</b> Vous reprenez votre dossier dès que vous continuez."
+      }
+    }
   },
   "errors": {
     "generic": "Am na jafe-jafe. Jéemat.",

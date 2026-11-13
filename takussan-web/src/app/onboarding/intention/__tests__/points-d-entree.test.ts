@@ -29,7 +29,8 @@ const POINTS_D_ENTREE: ReadonlyArray<readonly [string, string]> = [
   ['la confirmation du lien e-mail', '(auth)/auth/verify-email/[id]/[hash]/page.tsx'],
   // TCK-624 — la connexion (e-mail, second facteur, téléphone) sort par la même porte : c'est elle
   // qui demande un prénom à un compte qui n'en a pas.
-  ['la connexion', '(auth)/auth/login/page.tsx'],
+  // TCK-2604 — le formulaire a quitté la page (serveur, qui lit l'intention) pour un fichier client.
+  ['la connexion', '(auth)/auth/login/FormulaireDeConnexion.tsx'],
 ];
 
 describe('les chemins d’inscription mènent tous à la question d’orientation', () => {
@@ -51,7 +52,7 @@ describe('les chemins d’inscription mènent tous à la question d’orientatio
 
 describe('TCK-624 — la connexion ne court-circuite plus la porte de sortie', () => {
   it('aucune voie de la connexion ne mène directement à la destination demandée', () => {
-    const source = readFileSync(join(RACINE, '(auth)/auth/login/page.tsx'), 'utf8');
+    const source = readFileSync(join(RACINE, '(auth)/auth/login/FormulaireDeConnexion.tsx'), 'utf8');
     expect(source).toContain("avecRedirection('/onboarding/intention'");
     expect(source).not.toMatch(/router\.push\(redirectTo\)/);
   });

@@ -62,6 +62,20 @@ export interface DeclarationDEntree {
   readonly pied?: ReactNode;
   /** L'objet de l'intention, en panneau voisin au bureau (dès `lg`). */
   readonly objet?: ReactNode;
+  /**
+   * TCK-2604 — l'en-tête du téléphone, À LA PLACE de la barre de 56 px : la photo du bien quitté
+   * (176 px, `EnTeteBien`) ou la barre du bien (`BarreIntention`). Il défile avec la page — collé,
+   * il mangerait la place que le clavier laisse.
+   */
+  readonly enTete?: ReactNode;
+  /**
+   * TCK-2604 — au bureau (dès `lg`), le panneau de GAUCHE de la maquette `DeuxColonnes` : 45 % de
+   * la largeur, pleine hauteur, et la barre passe dans la colonne de droite (retour à gauche,
+   * marque à droite), au-dessus d'un formulaire de 400 px. Un pourcentage, jamais une piste fixe.
+   */
+  readonly panneau?: ReactNode;
+  /** La pastille de retour du bureau, quand la page en dit une plus juste (« Retour à l'annonce »). */
+  readonly retourBureau?: ReactNode;
 }
 
 /**
@@ -115,10 +129,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, pas, total, saisie, reprise, pied, objet } = declaration;
+  const { titre, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, pas, total, saisie, reprise, pied, objet });
-  }, [declarer, id, titre, pas, total, saisie, reprise, pied, objet]);
+    declarer(id, { titre, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau });
+  }, [declarer, id, titre, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -178,6 +192,9 @@ export function CoqueDEntree({
   const total = declaree.total ?? parDefaut.total;
   const pied = declaree.pied ?? parDefaut.pied;
   const objet = declaree.objet ?? parDefaut.objet;
+  const enTete = declaree.enTete ?? parDefaut.enTete;
+  const panneau = declaree.panneau ?? parDefaut.panneau;
+  const retourBureau = declaree.retourBureau ?? parDefaut.retourBureau ?? retour?.bureau;
   const saisie = declaree.saisie === true;
 
   const decalage = useDecalageDuClavier();
@@ -215,97 +232,130 @@ export function CoqueDEntree({
 
   return (
     <ContexteDeclarer.Provider value={declarer}>
-      <div className="flex min-h-dvh flex-col bg-background" data-coque-d-entree="">
-        {/* Téléphone : 56 px — retour, « ✕ » ou la marque ; l'intention ; l'avancement, la sortie. */}
-        <header className="sticky top-0 z-20 flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:hidden">
-          {retour ? (
-            retour.telephone
-          ) : sortie?.forme === 'quitter' ? (
-            <NextLink
-              href={sortie.href}
-              onClick={auClicDeSortie}
-              aria-label={libelles.fermer}
-              className="inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X className="size-5" aria-hidden="true" />
-            </NextLink>
-          ) : (
-            <Marque nom={libelles.marque} className="ml-3" />
-          )}
-          {/* L'intention au téléphone quand la barre s'ouvre sur un retour ou « ✕ » (maquettes
-              `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
-              l'avancement (orientation a-0/a-1) — l'intention passe à la barre du bureau. */}
-          {titre && (retour || sortie?.forme === 'quitter') ? (
-            <p className="min-w-0 flex-1 truncate text-action font-semibold">{titre}</p>
-          ) : retour ? (
-            // `first:pl-3` : là où le retour ne paraît pas (vérification d'e-mail, réinitialisation,
-            // retour OAuth), la marque ouvre la barre et garde la marge de la maquette.
-            <span className="flex flex-1 items-center first:pl-3">
-              <Marque nom={libelles.marque} />
-            </span>
-          ) : (
-            <span className="flex-1" />
-          )}
-          {avancement || retourAuSite ? (
-            <span className="flex flex-none items-center gap-2 pr-3">
-              {avancement}
-              {retourAuSite}
-            </span>
-          ) : null}
-        </header>
-
-        {/* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie. */}
-        <header className="sticky top-0 z-20 hidden h-16 flex-none items-center border-b border-border bg-background px-8 lg:flex">
-          <div className="flex flex-1 items-center gap-5">
-            {retour ? retour.bureau : null}
-            <Marque nom={libelles.marque} />
-          </div>
-          {titre ? (
-            <div className="flex items-center gap-3.5">
-              <p className="text-corps font-semibold">{titre}</p>
-              {avancement}
-            </div>
-          ) : null}
-          <div className="flex flex-1 items-center justify-end gap-4">
-            {sortie?.forme === 'quitter' ? (
-              <NextLink
-                href={sortie.href}
-                onClick={auClicDeSortie}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-input/45 bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-              >
-                {libelles.quitter}
-              </NextLink>
-            ) : (
-              retourAuSite
-            )}
-          </div>
-        </header>
-
-        <main {...(densiteDesChamps ? fieldDensityScope() : {})} className="flex-1 px-4 pb-8 pt-5 lg:px-8 lg:pb-16 lg:pt-16">
-          {/* Sous 1280, la colonne et l'objet s'empilent : aucun panneau ne reste à côté du contenu. */}
-          <div className={cn('mx-auto w-full', objet ? 'xl:flex xl:max-w-[65rem] xl:items-start xl:gap-20' : null)}>
-            <div className={cn('mx-auto w-full', largeur === 'etroite' ? 'max-w-[30rem]' : 'max-w-4xl', objet ? 'xl:mx-0 xl:w-[30rem] xl:flex-none' : null)}>
-              {children}
-            </div>
-            {objet ? (
-              <aside data-objet-de-l-intention="" className="mx-auto mt-10 hidden w-full max-w-[30rem] lg:block xl:sticky xl:top-24 xl:mt-0 xl:max-w-none xl:min-w-0 xl:flex-1">
-                {objet}
-              </aside>
-            ) : null}
-          </div>
-        </main>
-
-        {pied ? (
-          // Téléphone : collé en bas, et remonté de ce que le clavier cache (`visualViewport`). Au
-          // bureau, sous la colonne, dans le flux.
-          <div
-            data-pied-d-entree=""
-            style={{ bottom: decalage }}
-            className="sticky z-20 flex-none border-t border-border bg-card px-4 pb-5 pt-3 shadow-barre-collante lg:static lg:mx-auto lg:w-full lg:max-w-[30rem] lg:border-0 lg:bg-transparent lg:px-0 lg:pb-16 lg:pt-0 lg:shadow-none"
+      <div className="flex min-h-dvh bg-background" data-coque-d-entree="">
+        {panneau ? (
+          <aside
+            data-panneau-d-entree=""
+            className="sticky top-0 hidden h-dvh w-[45%] flex-none self-start overflow-hidden lg:block"
           >
-            {pied}
-          </div>
+            {panneau}
+          </aside>
         ) : null}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {enTete ? (
+            <div data-en-tete-d-entree="" className="flex-none lg:hidden">
+              {enTete}
+            </div>
+          ) : (
+            /* Téléphone : 56 px — retour, « ✕ » ou la marque ; l'intention ; l'avancement, la sortie. */
+            <header className="sticky top-0 z-20 flex h-14 flex-none items-center gap-1 border-b border-border/70 bg-background px-1 lg:hidden">
+              {retour ? (
+                retour.telephone
+              ) : sortie?.forme === 'quitter' ? (
+                <NextLink
+                  href={sortie.href}
+                  onClick={auClicDeSortie}
+                  aria-label={libelles.fermer}
+                  className="inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-5" aria-hidden="true" />
+                </NextLink>
+              ) : (
+                <Marque nom={libelles.marque} className="ml-3" />
+              )}
+              {/* L'intention au téléphone quand la barre s'ouvre sur un retour ou « ✕ » (maquettes
+                  `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
+                  l'avancement (orientation a-0/a-1) — l'intention passe à la barre du bureau. */}
+              {titre && (retour || sortie?.forme === 'quitter') ? (
+                <p className="min-w-0 flex-1 truncate text-action font-semibold">{titre}</p>
+              ) : retour ? (
+                // `first:pl-3` : là où le retour ne paraît pas (vérification d'e-mail, réinitialisation,
+                // retour OAuth), la marque ouvre la barre et garde la marge de la maquette.
+                <span className="flex flex-1 items-center first:pl-3">
+                  <Marque nom={libelles.marque} />
+                </span>
+              ) : (
+                <span className="flex-1" />
+              )}
+              {avancement || retourAuSite ? (
+                <span className="flex flex-none items-center gap-2 pr-3">
+                  {avancement}
+                  {retourAuSite}
+                </span>
+              ) : null}
+            </header>
+          )}
+
+          {panneau ? (
+            /* Bureau à deux colonnes (`DeuxColonnes`) : la barre de la colonne de droite, sans filet. */
+            <header className="hidden h-16 flex-none items-center justify-between px-10 lg:flex">
+              {retourBureau ?? <span />}
+              <Marque nom={libelles.marque} />
+            </header>
+          ) : (
+            /* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie. */
+            <header className="sticky top-0 z-20 hidden h-16 flex-none items-center border-b border-border bg-background px-8 lg:flex">
+              <div className="flex flex-1 items-center gap-5">
+                {retourBureau ?? null}
+                <Marque nom={libelles.marque} />
+              </div>
+              {titre ? (
+                <div className="flex items-center gap-3.5">
+                  <p className="text-corps font-semibold">{titre}</p>
+                  {avancement}
+                </div>
+              ) : null}
+              <div className="flex flex-1 items-center justify-end gap-4">
+                {sortie?.forme === 'quitter' ? (
+                  <NextLink
+                    href={sortie.href}
+                    onClick={auClicDeSortie}
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-input/45 bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                  >
+                    {libelles.quitter}
+                  </NextLink>
+                ) : (
+                  retourAuSite
+                )}
+              </div>
+            </header>
+          )}
+
+          <main
+            {...(densiteDesChamps ? fieldDensityScope() : {})}
+            className={cn('flex-1 px-4 pb-8 pt-5', panneau ? 'lg:px-10 lg:pb-16 lg:pt-12' : 'lg:px-8 lg:pb-16 lg:pt-16')}
+          >
+            {/* Sous 1280, la colonne et l'objet s'empilent : aucun panneau ne reste à côté du contenu. */}
+            <div className={cn('mx-auto w-full', objet && !panneau ? 'xl:flex xl:max-w-[65rem] xl:items-start xl:gap-20' : null)}>
+              <div
+                className={cn(
+                  'mx-auto w-full',
+                  largeur === 'etroite' ? 'max-w-[30rem]' : 'max-w-4xl',
+                  panneau ? 'lg:max-w-[25rem]' : objet ? 'xl:mx-0 xl:w-[30rem] xl:flex-none' : null,
+                )}
+              >
+                {children}
+              </div>
+              {objet && !panneau ? (
+                <aside data-objet-de-l-intention="" className="mx-auto mt-10 hidden w-full max-w-[30rem] lg:block xl:sticky xl:top-24 xl:mt-0 xl:max-w-none xl:min-w-0 xl:flex-1">
+                  {objet}
+                </aside>
+              ) : null}
+            </div>
+          </main>
+
+          {pied ? (
+            // Téléphone : collé en bas, et remonté de ce que le clavier cache (`visualViewport`). Au
+            // bureau, sous la colonne, dans le flux.
+            <div
+              data-pied-d-entree=""
+              style={{ bottom: decalage }}
+              className="sticky z-20 flex-none border-t border-border bg-card px-4 pb-5 pt-3 shadow-barre-collante lg:static lg:mx-auto lg:w-full lg:max-w-[30rem] lg:border-0 lg:bg-transparent lg:px-0 lg:pb-16 lg:pt-0 lg:shadow-none"
+            >
+              {pied}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {enAttente ? (

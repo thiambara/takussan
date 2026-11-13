@@ -652,20 +652,8 @@
   },
   "auth": {
     "login": {
-      "title": "Content de vous revoir",
-      "submit": "Se connecter",
-      "email": "Adresse email",
-      "password": "Mot de passe",
-      "forgotPassword": "Mot de passe oublié ?",
-      "noAccount": "Pas encore de compte ?",
-      "register": "Créer un compte",
-      "subtitle": "Connectez-vous pour accéder à votre espace Takussan.",
       "resetSuccess": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.",
-      "emailPlaceholder": "vous@exemple.com",
-      "showPassword": "Afficher le mot de passe",
-      "hidePassword": "Masquer le mot de passe",
       "submitting": "Connexion…",
-      "registerCta": "S'inscrire",
       "oauthError": {
         "oauth_invalid": "La connexion avec le fournisseur n'a pas abouti : le lien de retour était incomplet. Réessayez, ou connectez-vous avec votre email.",
         "oauth_failed": "Le fournisseur a refusé la connexion ou elle a expiré. Réessayez, ou connectez-vous avec votre email.",
@@ -673,26 +661,8 @@
       }
     },
     "register": {
-      "title": "Créez votre compte",
-      "submit": "Créer mon compte",
-      "firstName": "Prénom",
-      "lastName": "Nom",
-      "passwordConfirmation": "Confirmer le mot de passe",
-      "hasAccount": "Déjà un compte ?",
-      "subtitle": "Rejoignez Takussan et gérez vos recherches et vos biens en toute simplicité.",
-      "email": "Adresse email",
-      "emailPlaceholder": "vous@exemple.com",
-      "password": "Mot de passe",
-      "passwordPlaceholder": "8 caractères minimum, avec une lettre et un chiffre.",
-      "passwordConfirmationPlaceholder": "Répétez le mot de passe",
-      "showPassword": "Afficher le mot de passe",
-      "hidePassword": "Masquer le mot de passe",
-      "showConfirmation": "Afficher la confirmation du mot de passe",
-      "hideConfirmation": "Masquer la confirmation du mot de passe",
       "acceptTerms": "J'accepte les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
-      "submitting": "Création…",
-      "oauthSeparator": "ou créer un compte avec",
-      "loginCta": "Se connecter"
+      "submitting": "Création…"
     },
     "logout": "Se déconnecter",
     "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
@@ -746,22 +716,13 @@
       "superAdminBody": "La console de la plateforme n’est accessible qu’avec un second facteur. Configurez-le pour continuer."
     },
     "phoneLogin": {
-      "loginTitle": "Connectez-vous avec votre numéro",
-      "loginSubtitle": "Nous vous envoyons un code par SMS : aucun mot de passe à retenir.",
-      "registerTitle": "Créez votre compte avec votre numéro",
-      "registerSubtitle": "Un code reçu par SMS suffit : votre compte est prêt dès qu’il est confirmé.",
-      "phoneLabel": "Numéro de téléphone",
       "sendCode": "Recevoir un code",
       "sending": "Envoi…",
-      "codeSentTo": "Si ce numéro peut recevoir des SMS, un code à 6 chiffres vient d’être envoyé au {phone}. Il reste valable 5 minutes.",
       "codeLabel": "Code reçu par SMS",
-      "verify": "Vérifier le code",
       "verifying": "Vérification…",
       "resendIn": "Renvoyer le code dans {seconds} s",
       "resend": "Renvoyer le code",
       "changeNumber": "Changer de numéro",
-      "useEmail": "Utiliser plutôt un e-mail et un mot de passe",
-      "usePhone": "Utiliser plutôt mon numéro de téléphone",
       "invalidPhone": "Ce numéro n’est pas valide. Vérifiez l’indicatif et les chiffres.",
       "codeInvalid": "Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.",
       "locked": "Trop de tentatives : l’accès est suspendu quelques minutes. Réessayez un peu plus tard.",
@@ -790,12 +751,6 @@
         "verifyEmail": "Vérification de l'e-mail"
       }
     },
-    "layout": {
-      "visualAlt": "Villa contemporaine au Sénégal",
-      "headline": "Votre porte d'entrée vers l'immobilier du Sénégal.",
-      "subheadline": "Des milliers de biens, une expérience soignée, des partenaires de confiance.",
-      "back": "Retour"
-    },
     "twoFactorChallenge": {
       "title": "Authentification à deux facteurs",
       "appIntro": "Entrez le code à 6 chiffres généré par votre application d’authentification.",
@@ -810,17 +765,6 @@
       "useRecovery": "Utiliser un code de récupération",
       "cancel": "Annuler",
       "invalidCode": "Code invalide."
-    },
-    "forgotPassword": {
-      "title": "Mot de passe oublié",
-      "subtitle": "Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
-      "email": "Adresse email",
-      "emailPlaceholder": "vous@exemple.com",
-      "submit": "Envoyer le lien",
-      "submitting": "Envoi en cours…",
-      "sentTitle": "Vérifiez votre boîte mail",
-      "sentBody": "Si un compte existe pour <b>{email}</b>, un lien de réinitialisation vient de vous être envoyé. Il est valable 60 minutes.",
-      "backToLogin": "← Retour à la connexion"
     },
     "resetPassword": {
       "title": "Nouveau mot de passe",
@@ -842,15 +786,6 @@
       "networkFailed": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
       "backToLogin": "← Retour à la connexion"
     },
-    "verifyEmail": {
-      "title": "Vérifiez votre adresse email",
-      "body": "Nous avons envoyé un lien de vérification à votre adresse email. Cliquez sur le lien dans le message pour activer votre compte.",
-      "resent": "Email de vérification renvoyé. Pensez à vérifier votre dossier spam.",
-      "resendFailed": "Impossible de renvoyer l'email. Réessayez dans quelques instants.",
-      "resend": "Renvoyer l'email de vérification",
-      "sending": "Envoi en cours…",
-      "continue": "Continuer, je vérifierai plus tard"
-    },
     "verifyEmailLink": {
       "successTitle": "Adresse email vérifiée",
       "successBody": "Votre adresse est confirmée.",
@@ -868,11 +803,172 @@
     },
     "oauth": {
       "continueWith": "Continuer avec {provider}",
-      "loading": "Chargement des fournisseurs…",
-      "loadFailed": "Impossible de charger les fournisseurs d'authentification.",
-      "startFailed": "Impossible d'initier la connexion. Réessayez dans quelques instants.",
-      "noneConfigured": "Aucun fournisseur OAuth n'est configuré sur cet environnement.",
-      "separator": "ou continuer avec email"
+      "startFailed": "Impossible d'initier la connexion. Réessayez dans quelques instants."
+    },
+    "porte": {
+      "titre": "Entrez votre numéro",
+      "sousTitre": "Nouveau ou déjà inscrit : un code par SMS suffit.",
+      "numero": "Votre numéro",
+      "numeroComplet": "Numéro complet",
+      "ou": "ou",
+      "avec": "Avec {provider}",
+      "avecEmail": "Avec un e-mail",
+      "utiliserEmail": "Utiliser un e-mail et un mot de passe",
+      "retourALAnnonce": "Retour à l’annonce",
+      "code": {
+        "titre": "Code envoyé au <numero>{phone}</numero>",
+        "pasLeBon": "Ce n’est pas le bon numéro ?",
+        "modifier": "Modifier",
+        "valable": "Valable 5 minutes",
+        "seConnecter": "Me connecter",
+        "automatique": "Le code part tout seul au sixième chiffre.",
+        "reprise": "Vous reprenez là où vous en étiez",
+        "etapeNumero": "Votre numéro · <numero>{phone}</numero>",
+        "etapeCode": "Le code reçu par SMS",
+        "etapeRetour": "Retour à l’annonce, là où vous en étiez",
+        "etapeEnvoi": {
+          "visite": "Votre demande de visite part chez {agence}",
+          "reservation": "Votre demande de réservation part chez {agence}",
+          "candidature": "Votre dossier part chez {agence}"
+        }
+      },
+      "periode": {
+        "daily": "{prix} / jour",
+        "weekly": "{prix} / semaine",
+        "monthly": "{prix} / mois",
+        "yearly": "{prix} / an"
+      },
+      "dates": {
+        "du": "Du {debut} au {fin}",
+        "aPartirDu": "À partir du {debut}"
+      },
+      "actions": {
+        "reservation": {
+          "titre": "Votre réservation",
+          "carte": "Pour réserver, entrez votre numéro."
+        },
+        "visite": {
+          "titre": "Votre demande de visite",
+          "carte": "Pour demander la visite, entrez votre numéro."
+        },
+        "alerte": {
+          "titre": "Votre alerte",
+          "carte": "Pour créer l’alerte, entrez votre numéro."
+        },
+        "favori": {
+          "titre": "Votre favori",
+          "carte": "Pour garder ce bien, entrez votre numéro."
+        },
+        "publication": {
+          "titre": "Publier votre bien",
+          "carte": "Pour publier votre bien, entrez votre numéro."
+        },
+        "invitation": {
+          "titre": "Votre invitation",
+          "carte": "Pour rejoindre l’agence, entrez votre numéro."
+        },
+        "candidature": {
+          "titre": "Votre candidature",
+          "carte": "Pour déposer votre dossier, entrez votre numéro."
+        }
+      },
+      "oauthError": {
+        "oauth_invalid": "La connexion avec le fournisseur n’a pas abouti : le lien de retour était incomplet. Réessayez, ou entrez votre numéro.",
+        "oauth_failed": "Le fournisseur a refusé la connexion ou elle a expiré. Réessayez, ou entrez votre numéro.",
+        "oauth_unknown": "La connexion n’a pas pu être finalisée. Vérifiez votre connexion internet et réessayez, ou entrez votre numéro."
+      },
+      "aideIndicatif": "+221 est déjà posé. À l’étranger ? Commencez par +",
+      "avecAgence": "Avec {agence}",
+      "exempleNumero": "77 000 00 00"
+    },
+    "voieEmail": {
+      "titre": "Avec votre e-mail",
+      "onglets": {
+        "connexion": "J’ai un compte",
+        "creation": "Créer un compte"
+      },
+      "email": "E-mail",
+      "motDePasse": "Mot de passe",
+      "oublie": "Mot de passe oublié ?",
+      "seConnecter": "Me connecter",
+      "creer": "Créer mon compte",
+      "regle": "8 caractères minimum, avec une lettre et un chiffre.",
+      "prenomEnsuite": "Votre prénom vous sera demandé à l’écran suivant — rien d’autre.",
+      "prenomEnsuiteCourt": "Votre prénom vous sera demandé juste après — rien d’autre.",
+      "utiliserLeNumero": "Utiliser plutôt mon numéro",
+      "versLeNumero": "Revenir au numéro",
+      "afficher": "Afficher le mot de passe",
+      "masquer": "Masquer le mot de passe"
+    },
+    "boite": {
+      "titre": "Dans votre boîte de réception",
+      "expediteur": "Takussan",
+      "instant": "à l’instant",
+      "renvoyer": "Renvoyer le lien",
+      "renvoyerDans": "Renvoyer dans {secondes} s",
+      "possibleDans": "Possible dans {secondes} s",
+      "possibleMaintenant": "Possible maintenant",
+      "corriger": "Corriger l’adresse",
+      "ouvrirGmail": "Ouvrir Gmail"
+    },
+    "oubli": {
+      "titre": "Mot de passe oublié",
+      "sousTitre": "Entrez l’e-mail de votre compte : nous vous envoyons un lien pour en choisir un nouveau.",
+      "email": "E-mail",
+      "envoyer": "Envoyer le lien",
+      "envoi": "Envoi…",
+      "retourConnexion": "Retour à la connexion",
+      "corrigerAide": "Une faute de frappe ? Revenez la changer.",
+      "renvoye": "Lien renvoyé.",
+      "envoye": {
+        "titre": "Lien envoyé à {adresse}",
+        "sousTitre": "Si cette adresse a un compte, ouvrez le lien pour choisir un nouveau mot de passe. Il reste valable 60 minutes."
+      },
+      "message": {
+        "objet": "Réinitialisation de votre mot de passe",
+        "extrait": "Vous recevez cet e-mail car nous avons reçu une demande de réinitialisation de mot de passe pour votre compte."
+      },
+      "sms": {
+        "titre": "Vous avez un numéro sur votre compte ?",
+        "texte": "Recevez plutôt un code par SMS — sans rien réinitialiser.",
+        "lien": "Recevoir un code"
+      }
+    },
+    "verification": {
+      "titre": "Vérifiez votre adresse",
+      "texte": "Un lien est parti à <b>{adresse}</b>. Vous pouvez continuer : nous vous le rappellerons.",
+      "continuer": "Continuer",
+      "reprise": "Vous reprenez",
+      "compteOuvert": "<b>Votre compte est ouvert.</b> Vous reprenez là où vous en étiez dès que vous continuez.",
+      "gmailAide": "Le message vous y attend déjà.",
+      "corrigerAide": "Une faute de frappe ? Changez-la ici.",
+      "renvoye": "Un nouveau lien est parti à {adresse}.",
+      "corrige": "Adresse corrigée : un nouveau lien est parti à {adresse}.",
+      "renvoiEchoue": "Impossible de renvoyer le lien. Réessayez dans quelques instants.",
+      "message": {
+        "objet": "Confirmez votre adresse e-mail",
+        "extrait": "Veuillez confirmer votre adresse e-mail en cliquant sur le bouton ci-dessous."
+      },
+      "correction": {
+        "libelle": "Votre adresse e-mail",
+        "envoyer": "Envoyer le lien ici",
+        "annuler": "Annuler"
+      },
+      "repriseAction": {
+        "visite": "Vous reprenez votre demande",
+        "reservation": "Vous reprenez votre réservation",
+        "candidature": "Vous reprenez votre dossier"
+      },
+      "continuerAction": {
+        "visite": "Continuer ma demande de visite",
+        "reservation": "Continuer ma réservation",
+        "candidature": "Continuer mon dossier"
+      },
+      "compteOuvertAction": {
+        "visite": "<b>Votre compte est ouvert.</b> Vous reprenez votre demande de visite dès que vous continuez.",
+        "reservation": "<b>Votre compte est ouvert.</b> Vous reprenez votre réservation dès que vous continuez.",
+        "candidature": "<b>Votre compte est ouvert.</b> Vous reprenez votre dossier dès que vous continuez."
+      }
     }
   },
   "property": {

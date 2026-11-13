@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { savedSearchPayloadSchema } from '@/lib/schemas/search';
 import { traduireMessageValidation } from '@/lib/schemas/messages';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
+import { hrefConnexionPour } from '@/components/auth/lien-connexion';
 
 /**
  * TCK-1037 (P69.04) — le dialogue de {@link SaveSearchButton}, dans son propre module.
@@ -134,7 +135,8 @@ function CorpsDuDialogue({
   const redirectHref = (() => {
     const qs = searchParams.toString();
     const current = qs ? `${pathname}?${qs}` : pathname;
-    return `/auth/login?redirect=${encodeURIComponent(current)}`;
+    // TCK-2604 — l'action interrompue suit : la connexion dit « Votre alerte ».
+    return hrefConnexionPour(current, 'alerte');
   })();
 
   async function handleSubmit(event: React.FormEvent) {

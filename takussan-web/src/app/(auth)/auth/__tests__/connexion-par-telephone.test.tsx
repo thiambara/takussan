@@ -30,14 +30,12 @@ vi.mock('@/lib/connexion-telephone', async (importOriginal) => ({
   verifierCodeTelephone: (...a: unknown[]) => verifier(...a),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ openSession: openSessionMock }) }));
-vi.mock('@/components/auth/OAuthButtons', () => ({ OAuthButtons: () => <div />, OAuthSeparator: () => <div /> }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
   useSearchParams: () => searchParams,
 }));
 
-const { default: LoginPage } = await import('../login/page');
-const { default: RegisterPage } = await import('../register/page');
+const { FormulaireDeConnexion: LoginPage } = await import('../login/FormulaireDeConnexion');
 
 beforeEach(() => {
   pushMock.mockReset();
@@ -56,17 +54,16 @@ async function monter(page: React.ReactElement) {
 }
 
 describe('drapeau éteint (AC2b) : rien ne change', () => {
-  it.each([
-    ['connexion', <LoginPage key="l" />],
-    ['inscription', <RegisterPage key="r" />],
-  ])('%s : le formulaire e-mail, aucun champ téléphone, aucun lien vers lui', async (_nom, page) => {
+  // TCK-2604 — `/auth/register` redirige vers la connexion : une seule page à éprouver.
+  it('connexion : le formulaire e-mail, aucun champ téléphone, aucun lien vers lui', async () => {
     actif.mockResolvedValue(false);
-    await monter(page);
+    await monter(<LoginPage />);
     await waitFor(() => expect(actif).toHaveBeenCalled());
 
-    expect(screen.getByLabelText(/^Adresse email/)).toBeInTheDocument();
-    expect(screen.queryByLabelText('Numéro de téléphone')).toBeNull();
-    expect(screen.queryByRole('button', { name: /mon numéro de téléphone/ })).toBeNull();
+    // TCK-2606 — la voie e-mail est alors la porte : ses deux onglets, sans renvoi vers le numéro.
+    expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Votre numéro')).toBeNull();
+    expect(screen.queryByRole('button', { name: /mon numéro/ })).toBeNull();
   });
 });
 
@@ -75,13 +72,16 @@ describe('drapeau allumé (AC2b)', () => {
     actif.mockResolvedValue(true);
     await monter(<LoginPage />);
 
-    const champ = await screen.findByLabelText('Numéro de téléphone');
+    const champ = await screen.findByLabelText('Votre numéro');
     expect(champ).toBeInTheDocument();
-    expect(screen.queryByLabelText(/^Adresse email/)).toBeNull();
+    expect(screen.queryByLabelText('E-mail')).toBeNull();
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Utiliser plutôt un e-mail et un mot de passe' }));
-    expect(screen.getByLabelText(/^Adresse email/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Utiliser plutôt mon numéro de téléphone' })).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Avec un e-mail/ }));
+    expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
+    // TCK-2606 — « Utiliser plutôt mon numéro » ramène au numéro.
+    await user.click(screen.getByRole('button', { name: 'Utiliser plutôt mon numéro' }));
+    expect(await screen.findByLabelText('Votre numéro')).toBeInTheDocument();
   });
 
   it('numéro → code (texte neutre, compte à rebours) → session ouverte → destination', async () => {
@@ -93,12 +93,12 @@ describe('drapeau allumé (AC2b)', () => {
     verifier.mockResolvedValue({ token: 'jeton', expires_at: '2026-11-06T12:00:00Z', user: compte, is_new_account: false });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
 
     expect(demander).toHaveBeenCalledWith('+221771234567', 'fr');
-    // Aucune fuite : le texte est le même que le numéro porte un compte ou non.
-    expect(await screen.findByText(/Si ce numéro peut recevoir des SMS/)).toBeInTheDocument();
+    // Aucune fuite : le texte est le même que le numéro porte un compte ou non (TCK-2604, AC5).
+    expect(await screen.findByRole('heading', { name: 'Code envoyé au 77 123 45 67' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Renvoyer le code dans 60 s' })).toBeDisabled();
     // TCK-620 — sans `otp_preview` (la production), aucun code n'est affiché.
     expect(screen.queryByTestId('code-de-preproduction')).not.toBeInTheDocument();
@@ -106,8 +106,8 @@ describe('drapeau allumé (AC2b)', () => {
     const code = screen.getByLabelText('Code reçu par SMS');
     expect(code).toHaveAttribute('autocomplete', 'one-time-code');
     expect(code).toHaveAttribute('inputmode', 'numeric');
+    // TCK-2604 — envoyé au sixième chiffre, sans bouton à toucher.
     await user.type(code, '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     // TCK-624 — compte ancien ou neuf, même porte de sortie : elle rend ensuite la destination.
     await waitFor(() =>
@@ -124,16 +124,14 @@ describe('drapeau allumé (AC2b)', () => {
     verifier.mockResolvedValue({ token: 'jeton', user: { id: 7 }, is_new_account: false });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
 
     const apercu = await screen.findByTestId('code-de-preproduction');
     expect(apercu).toHaveTextContent('Environnement de test');
     expect(apercu).toHaveTextContent('482913');
+    // TCK-2604 — le code posé fait six chiffres : il part, comme tapé.
     await user.click(screen.getByRole('button', { name: 'Utiliser ce code' }));
-    expect(screen.getByLabelText('Code reçu par SMS')).toHaveValue('482913');
-
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await waitFor(() => expect(verifier).toHaveBeenCalledWith({ phone: '+221771234567', code: '482913' }, 'fr'));
   });
 
@@ -143,13 +141,12 @@ describe('drapeau allumé (AC2b)', () => {
     actif.mockResolvedValue(true);
     demander.mockResolvedValue({ attente: 60, codeApercu: null });
     verifier.mockResolvedValue({ token: 'jeton', user: { id: 4 }, is_new_account: true });
-    await monter(<RegisterPage />);
+    // TCK-2604 — une seule porte : le compte naît du code, sur la connexion, sans autre titre.
+    await monter(<LoginPage />);
 
-    expect(await screen.findByText('Créez votre compte avec votre numéro')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith('/onboarding/intention?redirect=%2Fproperties%2Fx'),
@@ -165,10 +162,9 @@ describe('drapeau allumé (AC2b)', () => {
       .mockResolvedValueOnce({ token: 'jeton', user: { id: 5 } });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await user.type(await screen.findByLabelText('Code à 6 chiffres'), '654321');
     await user.click(screen.getByRole('button', { name: 'Vérifier' }));
@@ -189,10 +185,9 @@ describe('drapeau allumé (AC2b)', () => {
       .mockResolvedValueOnce({ token: 'jeton', user: { id: 9 }, is_new_account: false });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     // Aucune session tant que les conditions ne sont pas acceptées : la case, puis le bouton.
     expect(await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' })).toBeInTheDocument();
@@ -222,10 +217,9 @@ describe('drapeau allumé (AC2b)', () => {
       .mockResolvedValueOnce({ token: 'jeton', user: { id: 5 } });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await user.click(await screen.findByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
     await user.click(screen.getByRole('button', { name: 'Accepter et continuer' }));
 
@@ -249,10 +243,9 @@ describe('drapeau allumé (AC2b)', () => {
       .mockResolvedValueOnce({ token: 'jeton', user: { id: 9 }, is_new_account: false });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await user.click(await screen.findByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
     await user.click(screen.getByRole('button', { name: 'Accepter et continuer' }));
 
@@ -263,7 +256,6 @@ describe('drapeau allumé (AC2b)', () => {
     expect(demander).toHaveBeenCalledTimes(2);
 
     await user.type(screen.getByLabelText('Code reçu par SMS'), '654321');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     // Les conditions déjà acceptées accompagnent le nouveau code : elles ne sont pas redemandées.
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/onboarding/intention'));
@@ -280,22 +272,20 @@ describe('drapeau allumé (AC2b)', () => {
     verifier.mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' });
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' });
 
     await user.click(screen.getByRole('button', { name: 'Renvoyer le code' }));
     expect(demander).toHaveBeenCalledTimes(2);
     expect(await screen.findByLabelText('Code reçu par SMS')).toHaveValue('');
 
-    await user.type(screen.getByLabelText('Code reçu par SMS'), '111111');
     verifier.mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' });
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
+    await user.type(screen.getByLabelText('Code reçu par SMS'), '111111');
     await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' });
     await user.click(screen.getByRole('button', { name: 'Changer de numéro' }));
-    expect(await screen.findByLabelText('Numéro de téléphone')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Votre numéro')).toBeInTheDocument();
     expect(openSessionMock).not.toHaveBeenCalled();
   });
 
@@ -310,10 +300,9 @@ describe('drapeau allumé (AC2b)', () => {
     verifier.mockRejectedValue(refus);
     await monter(<LoginPage />);
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     expect(await screen.findByText(new RegExp(attendu))).toBeInTheDocument();
     expect(openSessionMock).not.toHaveBeenCalled();

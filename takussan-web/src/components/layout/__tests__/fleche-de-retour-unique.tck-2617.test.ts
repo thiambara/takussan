@@ -62,6 +62,10 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   // téléphone, la flèche unique (`LienFlecheDeRetour`). `OnboardingShell` est sorti de la liste : la
   // coque d'entrée (`entree/CoqueDEntree.tsx`) n'a plus de flèche propre.
   'src/components/auth/RetourAuth.tsx': 'hors-app',
+  // TCK-2606 — la pastille « ← Retour à la connexion » de l'oubli au bureau (vers `/auth/login`, pas
+  // vers le site : ni `RetourAuth` ni `BoutonRetour`, dont l'historique ramènerait ailleurs) ; au
+  // téléphone, la flèche unique (`BoutonFlecheDeRetour`).
+  'src/components/auth/RetourDEntree.tsx': 'hors-app',
   'src/components/home/Navbar.tsx': 'hors-app',
   'src/components/layout/SuperAdminSidebar.tsx': 'hors-app',
   'src/app/(super-admin)/super-admin/agency-upgrade-requests/[id]/page.tsx': 'hors-app',
