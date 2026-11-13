@@ -6554,6 +6554,140 @@
         "erreur": "Vos factures n’ont pas pu être chargées.",
         "aPercevoirCompte": "{n, plural, one {# facture} other {# factures}}"
       }
+    },
+    "fiche": {
+      "titre": "Intervention — {titre}",
+      "titreCourt": "Intervention",
+      "fil": "Fil d’Ariane",
+      "signaleeLePar": "Signalée le {date} à {heure} par {nom}",
+      "signaleeLe": "Signalée le {date} à {heure}",
+      "laDemande": "La demande",
+      "bienAbsent": "Bien non chargé",
+      "demandeur": "{nom} · demandeur",
+      "demandeurAbsent": "Demandeur non chargé",
+      "statut": "Statut",
+      "notesDeResolution": "Notes de résolution",
+      "choix": {
+        "titre": "Prestataire et créneau",
+        "titreReassigner": "Réassigner",
+        "suggestions": "{n, plural, one {Un prestataire du carnet fait ce métier : {metier}.} other {# prestataires du carnet font ce métier : {metier}.}}",
+        "aucuneSuggestion": "Aucun prestataire du carnet ne déclare ce métier ({metier}) : choisissez dans le carnet.",
+        "voirLeCarnet": "Voir tout le carnet",
+        "inviter": "Inviter un prestataire",
+        "carnet": "Carnet des prestataires",
+        "equipe": "Équipe de l’agence",
+        "carnetVide": "Le carnet est vide : invitez un prestataire.",
+        "carnetIndisponible": "Le carnet n’a pas pu être chargé.",
+        "creneau": "Créneau proposé",
+        "creneaux": {
+          "label": "Créneau proposé",
+          "aujourdhui16": "Auj. 16 h – 18 h",
+          "demain9": "Demain 9 h – 11 h",
+          "demain14": "Demain 14 h – 16 h",
+          "autre": "Autre…"
+        },
+        "acceptation": "{nom} doit accepter avant de voir l’adresse et le numéro du demandeur.",
+        "envoyer": "Envoyer à {nom}",
+        "choisirDAbord": "Choisissez un prestataire",
+        "echec": "L’envoi a échoué. Réessayez.",
+        "pasEncoreNote": "Pas encore noté",
+        "interventions": "{count, plural, one {# intervention} other {# interventions}}",
+        "couvre": "couvre {zone}",
+        "choisir": "Choisir",
+        "choisie": "Choisi",
+        "titreTelephone": "Prestataire suggéré"
+      },
+      "geste": {
+        "retard": {
+          "titre": "En retard"
+        },
+        "suivi": {
+          "titre": "En cours"
+        },
+        "confieeA": "Confiée à {nom}",
+        "reassigner": "Réassigner",
+        "relancer": "Relancer",
+        "appeler": "Appeler",
+        "sansNumero": "{nom} n’a pas de numéro joignable dans le carnet : relancez-le autrement.",
+        "horsCarnet": "{nom} n’est pas dans le carnet actif : aucun numéro à relancer.",
+        "messageDeRelance": "Bonjour {nom}, l’intervention « {titre} » était prévue le {date} à {heure}. Pouvez-vous nous dire quand vous passez ?",
+        "messageDeRelanceSansCreneau": "Bonjour {nom}, où en est l’intervention « {titre} » ?",
+        "devis": {
+          "titre": "Devis à décider",
+          "texte": "{nom} propose {montant}.",
+          "texteSansMontant": "Un devis attend votre décision."
+        },
+        "bailleur": {
+          "titre": "Chez le bailleur",
+          "texte": "Le devis de {montant} attend la décision du bailleur.",
+          "texteSansMontant": "Le devis attend la décision du bailleur."
+        },
+        "voirDevis": "Voir le devis",
+        "confirmer": {
+          "titre": "À confirmer",
+          "texte": "Le demandeur confirme que c’est réparé ; sans réponse, la demande se clôt d’elle-même."
+        },
+        "aucun": {
+          "titre": "Intervention {statut}",
+          "texte": "Aucun geste n’est attendu de l’agence."
+        }
+      },
+      "autre": {
+        "bouton": "Autre action",
+        "echec": "L’action a échoué. Vérifiez les permissions et réessayez.",
+        "devis": {
+          "titre": "Demander un devis d’abord",
+          "texte": "Le prestataire chiffre avant d’intervenir"
+        },
+        "priorite": {
+          "titre": "Changer la priorité",
+          "texte": "Urgente, élevée, normale ou faible"
+        },
+        "rapport": {
+          "titre": "Saisir le rapport de fin",
+          "texte": "Notes, coût et photos : la demande passe à confirmer"
+        },
+        "transitions": {
+          "acknowledged": {
+            "titre": "Prendre en compte",
+            "texte": "Dire au demandeur que vous vous en occupez, sans choisir encore"
+          },
+          "in_progress": {
+            "titre": "Marquer en cours",
+            "texte": "Les travaux ont commencé"
+          },
+          "open": {
+            "titre": "Rouvrir",
+            "texte": "La demande revient à dispatcher"
+          },
+          "closed": {
+            "titre": "Clôturer",
+            "texte": "La demande est réglée et archivée"
+          },
+          "autre": {
+            "titre": "Passer en « {statut} »",
+            "texte": "Transition permise par le serveur"
+          }
+        },
+        "annuler": {
+          "titre": "Annuler la demande",
+          "texte": "La demande est close sans intervention",
+          "confirmerTitre": "Annuler la demande ?",
+          "confirmerTexte": "« {titre} » sera annulée et quittera les files. Ce geste ne s’annule pas.",
+          "garder": "Garder la demande",
+          "confirmer": "Annuler la demande"
+        }
+      },
+      "frise": {
+        "label": "Étapes de l’intervention",
+        "signalee": "Signalée",
+        "chez_le_bailleur": "Chez le bailleur",
+        "en_cours": "En cours",
+        "en_retard": "En retard",
+        "a_confirmer": "À confirmer",
+        "terminee": "Terminée",
+        "sansObjet": "sans objet : aucun devis"
+      }
     }
   },
   "homepage": {
@@ -8080,6 +8214,33 @@
       "switch": {
         "label": "Changer d'agence partenaire",
         "empty": "Aucune agence partenaire pour le moment."
+      }
+    },
+    "carnet": {
+      "titre": "Prestataires",
+      "actifs": "{count, plural, one {# actif} other {# actifs}}",
+      "invitations": "{count, plural, one {# invitation en attente} other {# invitations en attente}}",
+      "inviter": "Inviter un prestataire",
+      "colonnes": {
+        "prestataire": "Prestataire",
+        "note": "Note",
+        "interventions": "Interventions"
+      },
+      "pasEncoreNote": "Pas encore noté",
+      "interventions": "{count, plural, one {# intervention} other {# interventions}}",
+      "invitationEnvoyee": "Invitation envoyée",
+      "inviteLe": "Invité le {date} · pas encore de compte",
+      "appeler": "Appeler {nom}",
+      "whatsapp": "Écrire à {nom} sur WhatsApp",
+      "messageWhatsApp": "Bonjour {nom}, ici votre agence sur Takussan.",
+      "sansTelephone": "Pas de numéro",
+      "aucunPourCeFiltre": "Aucun prestataire pour ce filtre.",
+      "filtres": {
+        "metier": "Métier",
+        "statut": "Statut",
+        "tous": "Tous",
+        "tousLesMetiers": "Tous les métiers",
+        "tousLesStatuts": "Tous les statuts"
       }
     }
   },

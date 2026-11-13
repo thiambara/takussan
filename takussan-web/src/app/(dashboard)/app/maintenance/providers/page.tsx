@@ -4,7 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchServiceProviders } from '@/lib/queries/service-providers';
-import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
+import { PAR_PAGE, ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
 import { isAdmin } from '@/lib/roles';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { getTranslations } from 'next-intl/server';
@@ -47,7 +47,8 @@ export default async function Page() {
   // (« Une erreur est survenue »), c'est-à-dire qu'un refus attendu se lisait comme une panne.
   const [agency, providers, capacites] = await Promise.all([
     resolveAgencyOrNull(token, agencyId, 'maintenance/providers'),
-    fetchServiceProviders(token, { agencyId }).catch((error: unknown) => {
+    // TCK-2653 — le carnet d'un bloc : les comptes du sous-titre et les métiers des filtres en viennent.
+    fetchServiceProviders(token, { agencyId, perPage: PAR_PAGE }).catch((error: unknown) => {
       if (error instanceof ApiError && error.status === 403) return null;
       throw error;
     }),

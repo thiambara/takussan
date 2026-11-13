@@ -6597,6 +6597,140 @@
         "erreur": "Your invoices could not be loaded.",
         "aPercevoirCompte": "{n, plural, one {# invoice} other {# invoices}}"
       }
+    },
+    "fiche": {
+      "titre": "Maintenance — {titre}",
+      "titreCourt": "Maintenance",
+      "fil": "Breadcrumb",
+      "signaleeLePar": "Reported on {date} at {heure} by {nom}",
+      "signaleeLe": "Reported on {date} at {heure}",
+      "laDemande": "The request",
+      "bienAbsent": "Property not loaded",
+      "demandeur": "{nom} · requester",
+      "demandeurAbsent": "Requester not loaded",
+      "statut": "Status",
+      "notesDeResolution": "Resolution notes",
+      "choix": {
+        "titre": "Provider and time slot",
+        "titreReassigner": "Reassign",
+        "suggestions": "{n, plural, one {One provider in your directory does this trade: {metier}.} other {# providers in your directory do this trade: {metier}.}}",
+        "aucuneSuggestion": "No provider in your directory lists this trade ({metier}): pick one from the directory.",
+        "voirLeCarnet": "See the whole directory",
+        "inviter": "Invite a provider",
+        "carnet": "Provider directory",
+        "equipe": "Agency team",
+        "carnetVide": "The directory is empty: invite a provider.",
+        "carnetIndisponible": "The directory could not be loaded.",
+        "creneau": "Proposed time slot",
+        "creneaux": {
+          "label": "Proposed time slot",
+          "aujourdhui16": "Today 4–6 pm",
+          "demain9": "Tomorrow 9–11 am",
+          "demain14": "Tomorrow 2–4 pm",
+          "autre": "Other…"
+        },
+        "acceptation": "{nom} must accept before seeing the address and the requester’s number.",
+        "envoyer": "Send to {nom}",
+        "choisirDAbord": "Choose a provider",
+        "echec": "Sending failed. Please try again.",
+        "pasEncoreNote": "Not rated yet",
+        "interventions": "{count, plural, one {# job} other {# jobs}}",
+        "couvre": "covers {zone}",
+        "choisir": "Choose",
+        "choisie": "Chosen",
+        "titreTelephone": "Suggested provider"
+      },
+      "geste": {
+        "retard": {
+          "titre": "Overdue"
+        },
+        "suivi": {
+          "titre": "In progress"
+        },
+        "confieeA": "Assigned to {nom}",
+        "reassigner": "Reassign",
+        "relancer": "Follow up",
+        "appeler": "Call",
+        "sansNumero": "{nom} has no reachable number in the directory: follow up another way.",
+        "horsCarnet": "{nom} is not in the active directory: no number to follow up.",
+        "messageDeRelance": "Hello {nom}, the job “{titre}” was scheduled on {date} at {heure}. Can you tell us when you will come?",
+        "messageDeRelanceSansCreneau": "Hello {nom}, how is the job “{titre}” going?",
+        "devis": {
+          "titre": "Quote to decide",
+          "texte": "{nom} quotes {montant}.",
+          "texteSansMontant": "A quote awaits your decision."
+        },
+        "bailleur": {
+          "titre": "With the landlord",
+          "texte": "The {montant} quote awaits the landlord’s decision.",
+          "texteSansMontant": "The quote awaits the landlord’s decision."
+        },
+        "voirDevis": "View the quote",
+        "confirmer": {
+          "titre": "To confirm",
+          "texte": "The requester confirms the fix; without an answer, the request closes by itself."
+        },
+        "aucun": {
+          "titre": "Request {statut}",
+          "texte": "No action is expected from the agency."
+        }
+      },
+      "autre": {
+        "bouton": "Other action",
+        "echec": "The action failed. Check the permissions and try again.",
+        "devis": {
+          "titre": "Ask for a quote first",
+          "texte": "The provider prices the job before starting"
+        },
+        "priorite": {
+          "titre": "Change the priority",
+          "texte": "Urgent, high, normal or low"
+        },
+        "rapport": {
+          "titre": "Enter the completion report",
+          "texte": "Notes, cost and photos: the request moves to confirmation"
+        },
+        "transitions": {
+          "acknowledged": {
+            "titre": "Acknowledge",
+            "texte": "Tell the requester you are on it, without choosing yet"
+          },
+          "in_progress": {
+            "titre": "Mark in progress",
+            "texte": "The work has started"
+          },
+          "open": {
+            "titre": "Reopen",
+            "texte": "The request goes back to dispatch"
+          },
+          "closed": {
+            "titre": "Close",
+            "texte": "The request is settled and archived"
+          },
+          "autre": {
+            "titre": "Move to “{statut}”",
+            "texte": "Transition allowed by the server"
+          }
+        },
+        "annuler": {
+          "titre": "Cancel the request",
+          "texte": "The request is closed without a job",
+          "confirmerTitre": "Cancel the request?",
+          "confirmerTexte": "“{titre}” will be cancelled and leave the queues. This cannot be undone.",
+          "garder": "Keep the request",
+          "confirmer": "Cancel the request"
+        }
+      },
+      "frise": {
+        "label": "Request steps",
+        "signalee": "Reported",
+        "chez_le_bailleur": "With the landlord",
+        "en_cours": "In progress",
+        "en_retard": "Overdue",
+        "a_confirmer": "To confirm",
+        "terminee": "Done",
+        "sansObjet": "not applicable: no quote"
+      }
     }
   },
   "recentlyViewed": {
@@ -8080,6 +8214,33 @@
       "switch": {
         "label": "Switch partner agency",
         "empty": "No partner agency yet."
+      }
+    },
+    "carnet": {
+      "titre": "Service providers",
+      "actifs": "{count, plural, one {# active} other {# active}}",
+      "invitations": "{count, plural, one {# pending invitation} other {# pending invitations}}",
+      "inviter": "Invite a provider",
+      "colonnes": {
+        "prestataire": "Provider",
+        "note": "Rating",
+        "interventions": "Jobs"
+      },
+      "pasEncoreNote": "Not rated yet",
+      "interventions": "{count, plural, one {# job} other {# jobs}}",
+      "invitationEnvoyee": "Invitation sent",
+      "inviteLe": "Invited on {date} · no account yet",
+      "appeler": "Call {nom}",
+      "whatsapp": "Message {nom} on WhatsApp",
+      "messageWhatsApp": "Hello {nom}, this is your agency on Takussan.",
+      "sansTelephone": "No number",
+      "aucunPourCeFiltre": "No provider for this filter.",
+      "filtres": {
+        "metier": "Trade",
+        "statut": "Status",
+        "tous": "All",
+        "tousLesMetiers": "All trades",
+        "tousLesStatuts": "All statuses"
       }
     }
   },

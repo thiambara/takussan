@@ -33,6 +33,7 @@ const LIBELLES = {
   en: ['Masonry', 'Climate control', 'Cleaning', 'Pest control'],
 } as const;
 
+// TCK-2653 — la liste se rend aussi en cartes au téléphone (`carteMobile`) : les requêtes visent la table.
 describe('<ServiceProvidersList> — libellés des métiers (TCK-2713)', () => {
   for (const locale of ['fr', 'en'] as const) {
     it(`libelle les quatre métiers en ${locale}, sans code brut`, async () => {
@@ -44,7 +45,7 @@ describe('<ServiceProvidersList> — libellés des métiers (TCK-2713)', () => {
         locale,
       ));
 
-      const ligne = (await screen.findByText('Fatou Sarr')).closest('tr') as HTMLElement;
+      const ligne = (await within(await screen.findByRole('table')).findByText('Fatou Sarr')).closest('tr') as HTMLElement;
       for (const libelle of LIBELLES[locale]) {
         expect(within(ligne).getByText(libelle)).toBeInTheDocument();
       }

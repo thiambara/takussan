@@ -67,6 +67,15 @@ export type ServiceProviderProfileSummary = {
     readonly last_name: string;
     readonly email: string;
   } | null;
+  /**
+   * TCK-2652 — le téléphone joignable (compte, sinon invitation), servi hors de `fields` comme les
+   * agrégats ci-dessous ; la note moyenne et le nombre des seuls avis approuvés (TCK-597) ; les
+   * interventions réalisées pour CETTE agence.
+   */
+  readonly phone?: string | null;
+  readonly average_rating?: number | string | null;
+  readonly reviews_count?: number;
+  readonly completed_interventions_count?: number;
 };
 
 export type InviteServiceProviderPayload = {
@@ -109,6 +118,8 @@ export interface FetchServiceProvidersParams {
   readonly sort?: string;
   readonly status?: ServiceProviderProfileStatus;
   readonly search?: string;
+  /** TCK-2653 — `filter[specialty]` : le carnet d'un métier (TCK-592). */
+  readonly specialty?: string;
 }
 
 function buildParams({
@@ -117,10 +128,12 @@ function buildParams({
   sort,
   status,
   search,
+  specialty,
 }: FetchServiceProvidersParams): SpatieQueryParams {
   const filter: Record<string, string | number> = {};
   if (status) filter.status = status;
   if (search) filter.search = search;
+  if (specialty) filter.specialty = specialty;
 
   return {
     fields: { service_provider_profiles: SERVICE_PROVIDER_PROFILE_FIELDS },

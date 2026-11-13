@@ -36,11 +36,12 @@ const donnees = {
 } as never;
 
 function ligneDe(nom: string): HTMLElement {
-  const row = screen.getByText(nom).closest('tr');
+  const row = within(screen.getByRole('table')).getByText(nom).closest('tr');
   if (!row) throw new Error(`ligne introuvable : ${nom}`);
   return row as HTMLElement;
 }
 
+// TCK-2653 — la liste se rend aussi en cartes au téléphone (`carteMobile`) : les requêtes visent la table.
 describe('<ServiceProvidersList> — copie de l’invitation en metadata', () => {
   it('un prestataire actif aux colonnes vides n’affiche ni métier ni zone de la copie', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -50,7 +51,7 @@ describe('<ServiceProvidersList> — copie de l’invitation en metadata', () =>
       </QueryClientProvider>,
     ));
 
-    await screen.findByText('Fatou Sarr');
+    await within(await screen.findByRole('table')).findByText('Fatou Sarr');
     const actif = within(ligneDe('Fatou Sarr'));
     expect(actif.queryByText('Plomberie')).not.toBeInTheDocument();
     expect(actif.queryByText('Dakar')).not.toBeInTheDocument();

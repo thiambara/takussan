@@ -268,9 +268,16 @@ const AMORCE_NOMMEE = String.raw`(?:délais?\b|temps\s+(?:de\s+|d['’])(?:répo
 const AMORCE_FORTE = String.raw`(?:${AMORCE_NOMMEE}|sous|en moins d['’]|en moins de|moins d['’]|moins de|d['’]ici|dans un délai (?:maximum |maximal |max )?d(?:e|['’])|au bout d['’]|au bout de|au plus tard|valable|within|in under|under|in less than|less than|valid for|expires in|diirub|≤)`;
 /** Les amorces faibles : « en », « in », « for »… précèdent aussi bien un article qu'une durée. */
 const AMORCE = String.raw`(?:${AMORCE_FORTE}|plus de|dans les|dans|après|en|jusqu['’]à|pendant|more than|up to|after|for|in|ci|ba|ëpp|dina jëf|dina dox)`;
+/**
+ * Une amorce commence un MOT : « in » ne se lit pas dans « Demain 9 h – 11 h » (TCK-2653, un créneau
+ * proposé pris pour une promesse), ni dans « Matin 9 h – 12 h ». La frontière est écrite en
+ * lettres Unicode (`\p{L}`, drapeau `u`) et non par `\b`, qui ne connaît que l'ASCII : avec `\b`,
+ * « é » n'est pas une lettre, et une amorce collée derrière lui passerait pour un début de mot.
+ */
+const DEBUT_DE_MOT = String.raw`(?<![\p{L}\p{N}])`;
 const FORME_DE_DELAI = new RegExp(
-  String.raw`(?:${AMORCE}\s*(?:(?:dernières?|derniers?|prochaine?s?|last|next)\s+)?\(?\s*${NOMBRE}|${AMORCE_FORTE}\s*${ARTICLE}${FOURCHETTE})\s?${UNITE}`,
-  'i',
+  String.raw`(?:${DEBUT_DE_MOT}${AMORCE}\s*(?:(?:dernières?|derniers?|prochaine?s?|last|next)\s+)?\(?\s*${NOMBRE}|${DEBUT_DE_MOT}${AMORCE_FORTE}\s*${ARTICLE}${FOURCHETTE})\s?${UNITE}`,
+  'iu',
 );
 
 type Dictionnaire = { readonly [cle: string]: string | Dictionnaire };
@@ -373,6 +380,9 @@ describe('promesses de délai des dictionnaires (TCK-575)', () => {
     'We reply within an hour.',
     'Réponse sous une heure.',
     'Réponse dans un délai d’une semaine.',
+    // TCK-2653 — la frontière de mot ne doit pas coûter l'amorce anglaise « in » elle-même.
+    'We reply in 2 days.',
+    'Réponse en 2 jours.',
   ])('reconnaît la forme d’une promesse : « %s »', (texte) => {
     expect(FORME_DE_DELAI.test(texte)).toBe(true);
   });
@@ -388,6 +398,11 @@ describe('promesses de délai des dictionnaires (TCK-575)', () => {
     'Free for one month.',
     'Offert en un mois de janvier.',
     'Publiez en une heure de travail.',
+    // TCK-2653 — une amorce dans un mot n'en est pas une : le « in » de « Demain » (un créneau
+    // proposé, pas un délai promis), celui de « Matin ».
+    'Demain 9 h – 11 h',
+    'Demain 14 h – 16 h',
+    'Matin 9 h – 12 h',
   ])('ne prend pas pour une promesse : « %s »', (texte) => {
     expect(FORME_DE_DELAI.test(texte)).toBe(false);
   });

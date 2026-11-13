@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -65,6 +65,7 @@ function monter(garde: GardeDoubleFacteurFn) {
   ));
 }
 
+// TCK-2653 — la liste se rend aussi en cartes au téléphone (`carteMobile`) : les requêtes visent la table.
 describe('<ServiceProvidersList> — invitations et second facteur', () => {
   beforeEach(() => {
     apiRequestMock.mockReset();
@@ -79,7 +80,7 @@ describe('<ServiceProvidersList> — invitations et second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
     monter(garde);
 
-    await userEvent.click(await screen.findByRole('button', { name: libelle }));
+    await userEvent.click(await within(await screen.findByRole('table')).findByRole('button', { name: libelle }));
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' })));
     expect(garde).toHaveBeenCalledWith('two_factor_required');
@@ -91,7 +92,7 @@ describe('<ServiceProvidersList> — invitations et second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => false);
     monter(garde);
 
-    await userEvent.click(await screen.findByRole('button', { name: "Renvoyer l'invitation" }));
+    await userEvent.click(await within(await screen.findByRole('table')).findByRole('button', { name: "Renvoyer l'invitation" }));
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
       type: 'error',

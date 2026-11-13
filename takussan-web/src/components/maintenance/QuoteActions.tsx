@@ -20,7 +20,14 @@ import { origineApi } from '@/lib/config-publique';
  * (`can_request_quote`) ; qui peut TRANCHER (`can_decide_quote` — en `awaiting_owner`, le seul
  * bailleur du bien) approuve ou refuse ; qui peut LIRE le devis en télécharge le PDF.
  */
-export function QuoteActions({ request }: { readonly request: MaintenanceRequest }) {
+export function QuoteActions({
+  request,
+  sansDemande = false,
+}: {
+  readonly request: MaintenanceRequest;
+  /** TCK-2653 — la fiche de l'agence demande le devis par « Autre action » : le bouton n'est pas doublé ici. */
+  readonly sansDemande?: boolean;
+}) {
   const t = useTranslations('maintenance.intervention.quote');
   const messageErreur = useMessageErreurApi();
   const requestQuote = useRequestMaintenanceQuote(request.id);
@@ -29,7 +36,8 @@ export function QuoteActions({ request }: { readonly request: MaintenanceRequest
   const abilities = request.abilities;
 
   if (!abilities) return null;
-  const { can_request_quote, can_decide_quote, can_view_quote_pdf } = abilities;
+  const { can_decide_quote, can_view_quote_pdf } = abilities;
+  const can_request_quote = abilities.can_request_quote && !sansDemande;
   if (!can_request_quote && !can_decide_quote && !can_view_quote_pdf) return null;
 
   const error = requestQuote.error ?? approve.error;
