@@ -4540,7 +4540,8 @@
       },
       "errors": {
         "already_member": "Nit kii am na ci sa ajance.",
-        "forbidden": "Amul nga sañ-sañ inviter borom kër."
+        "forbidden": "Amul nga sañ-sañ inviter borom kër.",
+        "departed": "Ce propriétaire a quitté votre agence : il ne peut pas y être invité de nouveau."
       }
     },
     "onboarding": {
@@ -4794,7 +4795,34 @@
         "echec": "L’accès n’a pas été modifié"
       },
       "particulier": "Particulier",
-      "societe": "Société"
+      "societe": "Société",
+      "depart": {
+        "retirer": "Retirer de l’agence",
+        "effetRetirer": "Met fin à son mandat. Possible quand il n’a plus de bien, de bail en cours ni d’argent à recevoir dans votre agence.",
+        "titre": "Retirer {nom} de l’agence ?",
+        "effet": "Il n’aura plus accès à votre agence.",
+        "historique": "Ses relevés, ses baux passés et son historique restent consultables. Rien n’est effacé.",
+        "aRecouvrer": "Il vous doit {montant} : cette somme est à recouvrer auprès de lui, hors de la plateforme.",
+        "bloqueIntro": "Il ne peut pas encore quitter l’agence :",
+        "impossible": "Ce bailleur ne peut pas être retiré de l’agence.",
+        "bloque": {
+          "properties": "{count, plural, one {# bien encore dans l’agence} other {# biens encore dans l’agence}}",
+          "leases": "{count, plural, one {# bail en cours} other {# baux en cours}}",
+          "positive_balance": "{montant} restent à lui verser",
+          "upcoming_payouts": "{count, plural, one {# reversement en cours} other {# reversements en cours}}",
+          "unpaid_out_pieces": "{count, plural, one {# encaissement pas encore reversé} other {# encaissements pas encore reversés}}"
+        },
+        "lectureEchouee": "Impossible de vérifier ce qui le retient dans l’agence.",
+        "annuler": "Annuler",
+        "fermer": "Fermer",
+        "confirmer": "Retirer de l’agence",
+        "enCours": "Retrait…",
+        "retire": "{nom} a quitté l’agence",
+        "echec": "Le bailleur n’a pas été retiré",
+        "partiLe": "Parti le {date}",
+        "parti": "A quitté l’agence",
+        "partiEffet": "Il n’a plus accès à votre agence. Ses relevés et son historique restent consultables."
+      }
     }
   },
   "ownerWelcome": {

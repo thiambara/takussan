@@ -252,6 +252,8 @@ export interface OwnerProfileDetail {
   readonly agency_id: number;
   readonly status: OwnerProfileStatus;
   readonly joined_at: string | null;
+  /** TCK-2753 (ADR-0108 § 7) — la date du départ de l'agence ; `null` tant qu'il n'est pas parti. */
+  readonly departed_at?: string | null;
   readonly owner_type: 'individual' | 'company';
   readonly company_name: string | null;
   readonly contact: {

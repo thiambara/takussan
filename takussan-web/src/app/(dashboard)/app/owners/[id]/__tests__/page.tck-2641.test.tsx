@@ -92,7 +92,8 @@ describe('/app/owners/[id] — la page', () => {
     vi.mocked(getMeAction).mockResolvedValue(admin as never);
     vi.mocked(capacitesDuProfilActif).mockResolvedValue(['payouts.create']);
     render((await Page({ params: params(), searchParams: avec() }))!);
-    expect(screen.getByText('2026-11 · reversement,sensible')).toBeInTheDocument();
+    // TCK-2753 — `depart` : l'admin actif de l'agence, celui que le layout laisse passer.
+    expect(screen.getByText('2026-11 · reversement,depart,sensible')).toBeInTheDocument();
     expect(fetchDashboardProperties).toHaveBeenCalledWith('jeton', expect.objectContaining({ filters: { user_id: '9' }, inclusions: ['occupancy'] }));
   });
 });

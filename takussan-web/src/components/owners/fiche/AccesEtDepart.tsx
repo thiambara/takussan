@@ -12,8 +12,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { OwnerProfileDetail } from '@/lib/queries/owners';
 import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/team-suspension';
+
+import { RetirerLeBailleur } from './RetirerLeBailleur';
 
 /**
  * TCK-2641 — « Accès et départ », en bas de la fiche : les gestes que la page Équipe portait pour un
@@ -24,19 +27,29 @@ import { postTeamSuspension, type TeamSuspensionAction } from '@/lib/queries/tea
  *  · Mêmes gardes que l'Équipe : confirmation qui dit l'effet avant d'agir (`ConfirmSuspendDialog`),
  *    double authentification de l'agence (TCK-1203, `avecGardeDoubleFacteur`).
  *
- * « Retirer de l'agence » n'est PAS ici : l'API refuse de retirer un bailleur qui n'est pas du
- * personnel (`agency_member.not_staff`), et la page Équipe ne le proposait pas. Ce que ce départ
- * voudrait dire (biens, baux, argent) attend sa décision : TCK-2753.
+ * TCK-2753 (ADR-0108) — « Retirer de l'agence » met fin au mandat (`RetirerLeBailleur`) : séparé de
+ * la suspension, plus bas, en ton destructif, rendu à l'administrateur de l'agence seul (`peutRetirer`).
+ * Après le départ (`inactive`), la section dit « Parti le … » et ne propose plus aucun geste : ni
+ * suspendre, ni réactiver, ni retirer.
  *
  * Un brouillon d'invitation n'a pas de compte : rien à suspendre, la section ne s'affiche pas.
  */
 interface Props {
   readonly owner: OwnerProfileDetail;
   readonly agencyId: number;
+  /** `team.suspend` : « Suspendre l'accès » / « Réactiver ». */
+  readonly peutSuspendre: boolean;
+  /** `OwnerProfilePolicy::depart` : l'administrateur actif de l'agence. */
+  readonly peutRetirer: boolean;
+  readonly devise: string;
+  /** Le nom de la fiche (`lectureDe(owner).nom` : raison sociale d'une société, sinon la personne). */
+  readonly nom: string;
 }
 
-export function AccesEtDepart({ owner, agencyId }: Props) {
+export function AccesEtDepart({ owner, agencyId, peutSuspendre, peutRetirer, devise, nom }: Props) {
   const t = useTranslations('owners.fiche.acces');
+  const tDepart = useTranslations('owners.fiche.depart');
+  const f = useFormatteurs();
   const tErr = useTranslations('errors');
   const toast = useToast();
   const messageErreur = useMessageErreurApi();
@@ -44,6 +57,7 @@ export function AccesEtDepart({ owner, agencyId }: Props) {
   const { token } = useAuth();
   const garde = useGardeDoubleFacteur();
   const [cible, setCible] = useState<TeamSuspensionAction | null>(null);
+  const [retirer, setRetirer] = useState(false);
 
   const userId = owner.user_id;
   const membre = {
@@ -70,6 +84,8 @@ export function AccesEtDepart({ owner, agencyId }: Props) {
   });
 
   if (userId === null || owner.status === 'draft') return null;
+  const parti = owner.status === 'inactive';
+  if (!parti && !peutSuspendre && !peutRetirer) return null;
   const suspendu = owner.status === 'blocked';
 
   return (
@@ -77,7 +93,16 @@ export function AccesEtDepart({ owner, agencyId }: Props) {
       <h2 id="acces-et-depart" className="text-ui font-semibold text-muted-foreground">
         {t('titre')}
       </h2>
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {parti ? (
+          <div className="px-4 py-3" data-testid="bailleur-parti">
+            <p className="text-sm font-medium">
+              {owner.departed_at ? tDepart('partiLe', { date: f.date(owner.departed_at, { day: 'numeric', month: 'long', year: 'numeric' }) }) : tDepart('parti')}
+            </p>
+            <p className="text-sm leading-snug text-encre-douce">{tDepart('partiEffet')}</p>
+          </div>
+        ) : null}
+        {!parti && peutSuspendre ? (
         <div className="flex flex-wrap items-center gap-3 px-4 py-3">
           <p className="min-w-0 flex-1 text-sm leading-snug text-encre-douce">{suspendu ? t('effetReactiver') : t('effetSuspendre')}</p>
           <button
@@ -92,7 +117,23 @@ export function AccesEtDepart({ owner, agencyId }: Props) {
             {suspendu ? t('reactiver') : t('suspendre')}
           </button>
         </div>
+        ) : null}
+        {!parti && peutRetirer ? (
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <p className="min-w-0 flex-1 text-sm leading-snug text-encre-douce">{tDepart('effetRetirer')}</p>
+            <button
+              type="button"
+              onClick={() => setRetirer(true)}
+              className="inline-flex h-11 flex-none items-center rounded-lg border border-destructive/40 px-4 text-sm font-medium text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-3 focus-visible:ring-ring"
+            >
+              {tDepart('retirer')}
+            </button>
+          </div>
+        ) : null}
       </div>
+      {!parti && peutRetirer ? (
+        <RetirerLeBailleur ownerProfileId={owner.id} nom={nom} devise={devise} open={retirer} onOpenChange={setRetirer} />
+      ) : null}
       <ConfirmSuspendDialog
         target={cible ? { member: membre, action: cible } : null}
         onCancel={() => setCible(null)}

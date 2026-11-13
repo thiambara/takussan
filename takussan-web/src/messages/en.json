@@ -6620,7 +6620,7 @@
       "status": {
         "draft": "Invited",
         "active": "Active",
-        "inactive": "Inactive",
+        "inactive": "Left",
         "blocked": "Suspended"
       },
       "columns": {
@@ -6666,7 +6666,8 @@
       },
       "errors": {
         "already_member": "This person is already an owner in your agency.",
-        "forbidden": "You do not have permission to invite an owner."
+        "forbidden": "You do not have permission to invite an owner.",
+        "departed": "This owner has left your agency and cannot be invited again."
       }
     },
     "onboarding": {
@@ -6920,7 +6921,34 @@
         "echec": "Access was not changed"
       },
       "particulier": "Individual",
-      "societe": "Company"
+      "societe": "Company",
+      "depart": {
+        "retirer": "Remove from agency",
+        "effetRetirer": "Ends their mandate. Possible once they have no property, ongoing lease or money to receive in your agency.",
+        "titre": "Remove {nom} from the agency?",
+        "effet": "They will no longer have access to your agency.",
+        "historique": "Their statements, past leases and history remain available. Nothing is deleted.",
+        "aRecouvrer": "They owe you {montant}: this amount must be recovered from them outside the platform.",
+        "bloqueIntro": "They cannot leave the agency yet:",
+        "impossible": "This owner cannot be removed from the agency.",
+        "bloque": {
+          "properties": "{count, plural, one {# property still in the agency} other {# properties still in the agency}}",
+          "leases": "{count, plural, one {# ongoing lease} other {# ongoing leases}}",
+          "positive_balance": "{montant} still to be paid to them",
+          "upcoming_payouts": "{count, plural, one {# payout in progress} other {# payouts in progress}}",
+          "unpaid_out_pieces": "{count, plural, one {# collection not yet paid out} other {# collections not yet paid out}}"
+        },
+        "lectureEchouee": "Could not check what still ties them to the agency.",
+        "annuler": "Cancel",
+        "fermer": "Close",
+        "confirmer": "Remove from agency",
+        "enCours": "Removing…",
+        "retire": "{nom} has left the agency",
+        "echec": "The owner was not removed",
+        "partiLe": "Left on {date}",
+        "parti": "Has left the agency",
+        "partiEffet": "They no longer have access to your agency. Their statements and history remain available."
+      }
     }
   },
   "ownerWelcome": {

@@ -68,6 +68,8 @@ export interface DroitsSurLaFiche {
   readonly reversement: boolean;
   /** `team.suspend` : « Suspendre l'accès » / « Réactiver ». */
   readonly suspension: boolean;
+  /** TCK-2753 — `OwnerProfilePolicy::depart` : « Retirer de l'agence », l'administrateur actif de l'agence. */
+  readonly depart?: boolean;
   /** `OwnerProfilePolicy::viewSensitive` : « Afficher » les identifiants. */
   readonly sensible: boolean;
 }
@@ -188,9 +190,9 @@ export function FicheDuBailleur({ owner, period, moisCourant, biens, agencyId, d
         </div>
       </div>
 
-      {droits.suspension ? (
+      {droits.suspension || droits.depart || owner.status === 'inactive' ? (
         <div className="px-4 pt-6 md:px-0">
-          <AccesEtDepart owner={owner} agencyId={agencyId} />
+          <AccesEtDepart owner={owner} agencyId={agencyId} peutSuspendre={droits.suspension} peutRetirer={droits.depart === true} devise={owner.figures?.currency ?? 'XOF'} nom={lecture.nom} />
         </div>
       ) : null}
 

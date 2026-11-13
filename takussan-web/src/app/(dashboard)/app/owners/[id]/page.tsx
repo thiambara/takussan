@@ -66,6 +66,8 @@ export default async function Page({ params, searchParams }: { readonly params: 
         plafond: peut('owners.update'),
         reversement: peut('payouts.create'),
         suspension: peut('team.suspend'),
+        // TCK-2753 — `OwnerProfilePolicy::depart` : l'admin actif de l'agence — celui que le layout laisse passer.
+        depart: true,
         // `OwnerProfilePolicy::viewSensitive` : l'admin actif de l'agence — celui que le layout laisse passer.
         sensible: true,
       }}
