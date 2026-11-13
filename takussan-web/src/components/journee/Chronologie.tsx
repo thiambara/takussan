@@ -44,6 +44,11 @@ function GestesDuContact({ telephone, nom, message }: { readonly telephone: stri
   );
 }
 
+/**
+ * TCK-2792 — le titre est un lien ÉTIRÉ sur la tête de la carte (« Visite », titre, adresse, visiteur), comme celui
+ * des cartes de baux : sa zone de frappe est la tête, pas la ligne de texte (20,6 px). Itinéraire, Appeler et
+ * WhatsApp sont hors de la tête.
+ */
 function CarteVisite({ v }: { readonly v: PropertyVisit }) {
   const t = useTranslations('journee.chronologie');
   const tJ = useTranslations('journee');
@@ -54,9 +59,12 @@ function CarteVisite({ v }: { readonly v: PropertyVisit }) {
   const itineraire = lienItineraire(v);
   return (
     <div data-slot="carte-visite" className="rounded-xl border border-border bg-card p-3.5 xl:flex xl:items-center xl:gap-4">
-      <div className="min-w-0 flex-1">
+      <div className="relative min-w-0 flex-1">
         <TypeEvenement type="visite" />
-        <Link href={`/app/visits/${v.id}`} className="mt-1 block text-corps font-semibold leading-snug outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
+        <Link
+          href={`/app/visits/${v.id}`}
+          className="mt-1 block text-corps font-semibold leading-snug outline-none after:absolute after:inset-0 hover:underline focus-visible:underline"
+        >
           {quartier && !titre.toLocaleLowerCase().includes(quartier.toLocaleLowerCase()) ? `${titre} · ${quartier}` : titre}
         </Link>
         {adresse || nom ? <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{[adresse, nom].filter(Boolean).join(' · ')}</p> : null}

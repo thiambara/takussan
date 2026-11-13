@@ -124,21 +124,26 @@ export function CarteProchaine({ v, maintenant }: { readonly v: PropertyVisit; r
   );
 }
 
-/** Une autre visite du jour : la même lecture (heure, bien, adresse, visiteur), en plus bas. */
+/**
+ * Une autre visite du jour : la même lecture (heure, bien, adresse, visiteur), en plus bas.
+ *
+ * TCK-2792 — le titre est un lien ÉTIRÉ sur la tête de la carte (heure, titre, adresse, visiteur), comme celui des
+ * cartes de baux : sa zone de frappe est la tête, pas la ligne de texte (21 px). Les gestes sont hors de la tête.
+ */
 export function CarteDuJour({ v }: { readonly v: PropertyVisit }) {
   const f = useFormatteurs();
   const duree = useDureeEnClair();
   const l = useLecture(v);
   return (
     <article data-slot="carte-du-jour" className={cn(CARTE, 'p-4')}>
-      <div className="flex gap-3">
+      <div className="relative flex gap-3">
         <div className="w-15 flex-none">
           <p className="font-display text-affiche-22 leading-none font-semibold tracking-titre tabular-nums text-foreground">{f.heure(v.scheduled_at)}</p>
           <p className="mt-1.5 text-ui text-muted-foreground">{duree(v.duration_minutes ?? 30)}</p>
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-base leading-snug font-semibold text-foreground">
-            <Link href={`/app/visits/${v.id}`} className="outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
+            <Link href={`/app/visits/${v.id}`} className="outline-none after:absolute after:inset-0 hover:underline focus-visible:underline">
               {l.titre}
             </Link>
           </p>
@@ -258,7 +263,12 @@ export function useTuileDuJour() {
   };
 }
 
-/** Une demande : la date en tuile, la tranche ou l'heure, et « Confirmer » sur la carte même. */
+/**
+ * Une demande : la date en tuile, la tranche ou l'heure, et « Confirmer » sur la carte même.
+ *
+ * TCK-2792 — le bien est un lien ÉTIRÉ sur la tête (date, heure, bien, visiteur) ; « Autre heure » et « Confirmer »,
+ * sous le filet, restent hors de la zone.
+ */
 export function CarteDemande({ v, gestes }: { readonly v: PropertyVisit; readonly gestes: GestesDesCartes | null }) {
   const t = useTranslations('visits.parLeTemps');
   const f = useFormatteurs();
@@ -271,7 +281,7 @@ export function CarteDemande({ v, gestes }: { readonly v: PropertyVisit; readonl
   const enCours = gestes?.enCours === v.id;
   return (
     <li data-slot="carte-demande" className={CARTE}>
-      <div className="flex gap-3 p-4 pb-3.5">
+      <div className="relative flex gap-3 p-4 pb-3.5">
         {date ? <TuileDate {...date} /> : null}
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-sm">
@@ -286,7 +296,7 @@ export function CarteDemande({ v, gestes }: { readonly v: PropertyVisit; readonl
             {v.type && v.type !== 'in_person' ? <TypeDeVisite type={v.type} className="ml-auto" /> : null}
           </p>
           <p className="mt-1 text-base leading-snug font-semibold text-foreground">
-            <Link href={`/app/visits/${v.id}`} className="outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
+            <Link href={`/app/visits/${v.id}`} className="outline-none after:absolute after:inset-0 hover:underline focus-visible:underline">
               {l.bien}
             </Link>
           </p>

@@ -205,6 +205,16 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
 
   {
+    fichier: 'src/test/lien-etire.ts',
+    motif: /^(le lien porte son pseudo-élément absolu|un ancêtre positionné porte la zone|la zone est en `relative`|la zone est dans la carte)$/,
+    famille: 'TECHNIQUE',
+    raison:
+      "Messages d'ÉCHEC d'assertions vitest (`expect(…, message)`) de l'aide de test de TCK-2792 : ils "
+      + "ne s'affichent que dans la sortie d'un test rouge, jamais sur un écran. Même cas que "
+      + '`src/test/analyse-statique.ts` : exception nommée plutôt qu\'exclusion de `src/test/**`.',
+  },
+
+  {
     fichier: 'src/lib/access/server-guards.ts',
     litteral: 'fetch failed',
     famille: 'TECHNIQUE',

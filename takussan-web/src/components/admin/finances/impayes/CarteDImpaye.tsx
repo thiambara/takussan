@@ -31,6 +31,10 @@ const GESTE = 'h-11 min-h-11 text-corps font-semibold';
  *
  * TCK-2682 — en mode sélection, une case devant l'avatar, dans une cible de 44 px (le `<label>` qui
  * l'enveloppe) ; la carte cochée prend le fond de la sélection.
+ *
+ * TCK-2792 — le nom est un lien ÉTIRÉ sur la tête de la carte (avatar, bien, reste dû, retard), comme celui
+ * des cartes de baux et de clients : sa zone de frappe est la tête (40 px et plus), pas la ligne de texte
+ * (18,8 px). La case, dans la tête, reste au-dessus (`relative z-10`) ; les deux gestes sont hors de la tête.
  */
 export function CarteDImpaye({
   row,
@@ -60,9 +64,9 @@ export function CarteDImpaye({
       aria-label={nom}
       className={cn('rounded-xl border border-border bg-card p-4', selection?.cochee && 'border-primary/40 bg-primary/5')}
     >
-      <div className="flex items-start gap-3">
+      <div className="relative flex items-start gap-3">
         {selection && row.source === 'lease' ? (
-          <label className="-my-0.5 -mr-1 -ml-2.5 flex size-11 flex-none cursor-pointer items-center justify-center" data-slot="coche-impaye">
+          <label className="relative z-10 -my-0.5 -mr-1 -ml-2.5 flex size-11 flex-none cursor-pointer items-center justify-center" data-slot="coche-impaye">
             <Checkbox
               checked={selection.cochee}
               onCheckedChange={(c) => selection.onCocher(c === true)}
@@ -73,7 +77,10 @@ export function CarteDImpaye({
         <AvatarDuPayeur nom={nom} />
         <div className="min-w-0 flex-1">
           {fiche ? (
-            <Link href={fiche} className="block truncate text-corps font-semibold leading-tight outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
+            <Link
+              href={fiche}
+              className="block truncate text-corps font-semibold leading-tight outline-none after:absolute after:inset-0 hover:underline focus-visible:underline"
+            >
               {nom}
             </Link>
           ) : (

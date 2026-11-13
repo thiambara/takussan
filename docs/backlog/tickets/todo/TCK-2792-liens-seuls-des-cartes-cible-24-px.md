@@ -60,21 +60,29 @@ l'alignement sur les cartes voisines, et le confort du pouce.
 
 ## Delta à produire
 
-- [ ] Impayés : la zone de frappe du nom du locataire dans la carte du téléphone.
-- [ ] Visites : la zone de frappe du titre dans les cartes « du jour » et « demande ».
-- [ ] Ma journée : la zone de frappe du titre de la carte de visite.
-- [ ] Tests : un par carte, qui échoue si la zone retombe à la boîte du texte.
+- [x] Impayés : la zone de frappe du nom du locataire dans la carte du téléphone.
+  - Preuve (2026-11-13) : `lien-etire.tck-2792` (impayés) vert ; ablations : lien sans `after:`, tête sans `relative`, case sans `relative z-10` → rouges.
+- [x] Visites : la zone de frappe du titre dans les cartes « du jour » et « demande ».
+  - Preuve (2026-11-13) : `lien-etire.tck-2792` (visites) vert ; ablations : tête « du jour » sans `relative`, lien « demande » sans `after:` → rouges.
+- [x] Ma journée : la zone de frappe du titre de la carte de visite.
+  - Preuve (2026-11-13) : `lien-etire.tck-2792` (journée) vert ; ablations : tête sans `relative`, zone posée sur la carte entière (gestes recouverts) → rouges.
+- [x] Tests : un par carte, qui échoue si la zone retombe à la boîte du texte.
+  - Preuve (2026-11-13) : trois fichiers `lien-etire.tck-2792.test.tsx` et l'assertion partagée `src/test/lien-etire.ts` ; 7 ablations, 7 rouges, fichiers rendus sur md5.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 360 px, pour chacune des quatre cartes du tableau, la zone de frappe du lien seul mesure au moins 24 px de haut
+- [x] AC1 — À 360 px, pour chacune des quatre cartes du tableau, la zone de frappe du lien seul mesure au moins 24 px de haut
   et de large. La zone de frappe est la boîte du lien, ou la boîte que couvre son pseudo-élément absolu (le lien étiré
   compte). `document.elementFromPoint` rend le lien (ou un de ses descendants) aux quatre coins de cette zone, à 1 px du bord.
-- [ ] AC2 — Dans ces mêmes cartes, chaque geste rend toujours son propre bouton ou lien à son centre (`elementFromPoint`) et
+  - Preuve (2026-11-13) : à 360, admin et agent : impayés 16 liens étirés, région ≥ 43 × 294 ; visites « du jour » 5 (≥ 91,3), « demande » 4 (≥ 98) ; Ma journée 2 (≥ 89) ; `elementFromPoint` rend le lien aux quatre coins de chaque région (0 échec). Sur HEAD, le même relevé donnait 18,8 px, non étirés.
+- [x] AC2 — Dans ces mêmes cartes, chaque geste rend toujours son propre bouton ou lien à son centre (`elementFromPoint`) et
   mesure toujours 44 px de haut.
-- [ ] AC3 — Un relevé à 360 px des listes du tableau et de celles déjà conformes (baux, `/app/customers`, maintenance,
+  - Preuve (2026-11-13) : mêmes relevés : chaque geste rend lui-même à son centre (0 échec sur 32 + 23 + 6), tous à 44 px.
+- [x] AC3 — Un relevé à 360 px des listes du tableau et de celles déjà conformes (baux, `/app/customers`, maintenance,
   bailleurs, prestataires, pipeline) ne trouve aucun lien seul de carte dont la zone de frappe fasse moins de 24 px.
-- [ ] AC4 — Les fiches de fidélité de TCK-2660 et TCK-2587 ne gagnent aucun écart à 390 × 844.
+  - Preuve (2026-11-13) : baux (`carte-d-attente` 40 px, `ligne-de-bail` 96), `/app/customers` (95), maintenance (186), bailleurs (105) étirés ; prestataires et pipeline sans lien seul de carte sous 24 px. Aux coins du bas, maintenance tombe sur un second lien étiré vers la même fiche, et les bailleurs sur une `section` : non modifiés ici, région au-dessus de 24 px.
+- [x] AC4 — Les fiches de fidélité de TCK-2660 et TCK-2587 ne gagnent aucun écart à 390 × 844.
+  - Preuve (2026-11-13) : avant (HEAD) / après, relevés `fidelite releve` à 390 × 844 à deux minutes d'écart puis `fidelite compare` : impayés 59 conformes · 0 écart · 0 % pixels ; visites 60 · 0 · 0 % ; Ma journée 51 · 0 · 0 %. Le correctif ne change aucun pixel au repos : aucune fiche ne peut gagner d'écart.
 
 ## Hors périmètre
 
@@ -88,4 +96,12 @@ l'alignement sur les cartes voisines, et le confort du pouce.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+- Patron recopié des cartes de baux et de clients : la tête de la carte en `relative`, le lien en
+  `after:absolute after:inset-0`, l'anneau de focus devenu `focus-visible:underline` (l'anneau d'un lien étiré ne
+  cernerait que le texte). Sur la carte d'impayé, la case de la file de relance (TCK-2682), dans la tête, passe en
+  `relative z-10` au-dessus de la zone ; les gestes restent sous la tête, hors de la zone.
+- `CarteProchaine` (visites) n'est pas touchée : son titre en `text-titre-court` dépasse 24 px, et la photo, au-dessus,
+  est déjà un lien de 128 px vers la même fiche.
+- La zone d'un lien étiré est la boîte de REMPLISSAGE du bloc positionné : mesurer la boîte de bordure fait tomber les
+  coins sur la bordure d'une carte (relevé du `ligne-de-bail`, corrigé dans la sonde).
+- Mesures et journaux : scratchpad de back-3, `verif2660/` (`region.mjs`, `region2.log`, `ab/`).
