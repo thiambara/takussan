@@ -19936,6 +19936,10 @@
           "31_60": "{n} between 31 and 60",
           "61_90": "{n} between 61 and 90",
           "90_plus": "{n} over 90"
+        },
+        "plafondAtteint": {
+          "titre": "The queue stops at the 100 most overdue instalments",
+          "detail": "Follow up on the others from the Unpaid screen."
         }
       },
       "resume": {

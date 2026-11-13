@@ -84,9 +84,13 @@ export function AFaireAdmin({ agencyId }: { readonly agencyId: number }) {
   const relancerTout = async () => {
     setLecture(true);
     try {
-      const rows = await lireLesEcheances();
+      const { rows, tronquee } = await lireLesEcheances();
       if (rows.length === 0) toast.add({ title: t('impayes.rienARelancer'), type: 'info' });
-      else fileApi.demarrer(ordreDeLaFile(rows));
+      else {
+        fileApi.demarrer(ordreDeLaFile(rows));
+        // Le plafond de l'API (100) est atteint : la file ne les a pas toutes, l'accueil le dit.
+        if (tronquee) toast.add({ title: t('impayes.plafondAtteint.titre'), description: t('impayes.plafondAtteint.detail'), type: 'info' });
+      }
     } catch {
       toast.add({ title: t('impayes.lectureEchouee'), type: 'error' });
     } finally {

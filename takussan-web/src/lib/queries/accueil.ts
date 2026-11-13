@@ -137,12 +137,16 @@ const PLAFOND_DE_LA_FILE = 100;
  * « Relancer tout » : les échéances à relancer, lues AU MOMENT DU GESTE (sous la clé de l'écran
  * Impayés), puis rangées par la file. Seules les échéances de BAIL se relancent (la règle de
  * `useEcheancesAffichees`).
+ *
+ * `tronquee` : l'API en compte plus que le plafond n'en rend (`meta.total` au-delà de la page lue).
+ * La file s'arrête alors aux 100 plus en retard, et l'accueil le dit — sans compte, puisque
+ * `meta.total` compte des échéances et la carte des locataires (décision du 2026-11-13).
  */
 export function useLireLesEcheancesARelancer() {
   const queryClient = useQueryClient();
   const locale = useLocale();
   const { token } = useAuth();
-  return async (): Promise<PaymentHistoryRow[]> => {
+  return async (): Promise<{ readonly rows: PaymentHistoryRow[]; readonly tronquee: boolean }> => {
     const params = { ...ECHEANCES_EN_RETARD, page: 1, per_page: PLAFOND_DE_LA_FILE } satisfies UsePaymentsHistoryParams;
     const qs = buildQueryString({ filter: filtresDeLHistorique(params), include: [...params.include], page: 1, per_page: params.per_page, sort: params.sort });
     const reponse = await queryClient.fetchQuery({
@@ -150,7 +154,7 @@ export function useLireLesEcheancesARelancer() {
       queryFn: () => apiRequest<PaymentHistoryResponse>(cheminApi`/api/payments/history${requete(qs)}`, { token: token ?? undefined, locale }),
       staleTime: 0,
     });
-    return reponse.data.filter((row) => row.source === 'lease');
+    return { rows: reponse.data.filter((row) => row.source === 'lease'), tronquee: reponse.meta.total > reponse.data.length };
   };
 }
 

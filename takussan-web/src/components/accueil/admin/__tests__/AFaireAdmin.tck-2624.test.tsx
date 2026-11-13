@@ -34,6 +34,8 @@ const etat = vi.hoisted(() => ({
   pannes: new Map<string, number>(),
   /** Les gestes refusés par l'API (403). */
   refus: new Set<string>(),
+  /** Les notifications émises (titre). */
+  toasts: [] as string[],
 }));
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1, roles: ['agency_admin'], agency_id: 7 }, token: 'jeton' }) }));
@@ -41,7 +43,7 @@ vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: etat.peutAttribuer, isL
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => false }));
 vi.mock('@/components/ui/toast', async (original) => ({
   ...(await original<typeof import('@/components/ui/toast')>()),
-  useToast: () => ({ add: vi.fn() }),
+  useToast: () => ({ add: ({ title }: { title: string }) => etat.toasts.push(title) }),
 }));
 vi.mock('@/lib/queries/kyc', () => ({ fetchAgencyKyc: async () => ({ data: { status: etat.kyc } }) }));
 vi.mock('@/components/leads/boite/AttribuerDialog', () => ({
@@ -215,7 +217,7 @@ const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], biens: 1, demandes: 3, visites: 12, avis: 5, invitations: 0, kyc: 'verified', impayes: 16, peutAttribuer: true, tranche: false, pannes: new Map(), refus: new Set() });
+  Object.assign(etat, { appels: [], biens: 1, demandes: 3, visites: 12, avis: 5, invitations: 0, kyc: 'verified', impayes: 16, peutAttribuer: true, tranche: false, pannes: new Map(), refus: new Set(), toasts: [] });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -392,6 +394,24 @@ describe('les gestes, sans quitter l’accueil', () => {
     expect((await screen.findByTestId('file-de-relance')).textContent).toBe('77,78');
     expect(lectures('/api/payments/history').some((p) => p.get('per_page') === '100')).toBe(true);
     expect(gestes()).toEqual([]);
+  });
+
+  it('« Relancer tout » au plafond de l’API (100) : la file part, et l’accueil dit qu’elle s’arrête là — sans compte', async () => {
+    etat.impayes = 140;
+    monter();
+    await screen.findAllByText('3 demandes à attribuer');
+    fireEvent.click(within(telephone()).getByRole('button', { name: 'Relancer' }));
+    expect((await screen.findByTestId('file-de-relance')).textContent).toBe('77,78');
+    expect(etat.toasts).toEqual(['La file s’arrête aux 100 échéances les plus en retard']);
+  });
+
+  it('… sous le plafond, aucune mention', async () => {
+    etat.impayes = 3;
+    monter();
+    await screen.findAllByText('3 demandes à attribuer');
+    fireEvent.click(within(telephone()).getByRole('button', { name: 'Relancer' }));
+    expect((await screen.findByTestId('file-de-relance')).textContent).toBe('77,78');
+    expect(etat.toasts).toEqual([]);
   });
 });
 
