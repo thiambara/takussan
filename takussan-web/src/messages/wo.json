@@ -5648,9 +5648,7 @@
       "no_lease_description": "Luwé bi mooy joxe kër gi ak luwékat bi. Tàmbalil état des lieux bi ci xëtu benn luwé.",
       "no_lease_cta": "Tannal benn luwé",
       "pickLeaseTitle": "Limu kër bu bees",
-      "pickLeaseSubtitle": "Tànnal benn kontaraa ngir tàmbali limu kër.",
-      "formTitle": "Limu kër bu bees",
-      "formSubtitle": "Néeg ci néeg, nekkin ak jumtukaay, nataal."
+      "pickLeaseSubtitle": "Tànnal benn kontaraa ngir tàmbali limu kër."
     },
     "detail": {
       "empty_rooms_title": "Amul néeg bu ñu bind",
@@ -5680,26 +5678,11 @@
       "roomPhotos": "Nataali néeg bi: {room}",
       "roomPhotoAlt": "Nataal {index} — {room}",
       "deleteRoomPhotoAria": "Far nataal {index} bu néeg bi {room}",
-      "deleteRoomPhotoFailed": "Mënuñu far nataal bi. Jéemaatal."
-    },
-    "roomEditor": {
-      "empty_title": "Amul néeg",
-      "empty_description": "Bësal ci « Yokk néeg » ngir tàmbali limu kër gi.",
-      "title": "Néeg yi",
-      "addRoom": "Yokk néeg",
-      "room": "Néeg #{n}",
-      "remove": "Dindi",
-      "roomName": "Turu néeg bi",
-      "roomNamePlaceholder": "Salon, Waañ, Néegu nelaw…",
-      "condition": "Nekkin wu mag",
-      "notes": "Notes (bu ñu soxlawul)",
-      "elements": "Jumtukaay yi",
-      "addElement": "Yokk jumtukaay",
-      "noElements": "Amul benn jumtukaay bu ñu bind ci néeg bii.",
-      "element": "Jumtukaay",
-      "state": "Nekkin",
-      "elementPlaceholder": "Sàqami, Frigo…",
-      "elementNotes": "Njàng-mar"
+      "deleteRoomPhotoFailed": "Mënuñu far nataal bi. Jéemaatal.",
+      "revoirLesPieces": "Revoir les pièces",
+      "nonQualifie": "Non qualifié",
+      "titreAvecBien": "{type} — {bien}",
+      "faireSignerSurPlace": "Faire signer sur place"
     },
     "fallbackReference": "Limu kër #{id}",
     "types": {
@@ -5724,14 +5707,6 @@
       "endommagé": "Yàqu",
       "manquant": "Amul"
     },
-    "form": {
-      "type": "Xeetu limu kër",
-      "generalCondition": "Nekkin wu mag",
-      "conductedAt": "Bis bi ñu ko defe",
-      "notes": "Notes yu mag",
-      "saving": "Denc…",
-      "submit": "Denc buruyoŋ bi"
-    },
     "signatures": {
       "title": "Xaatimu ñi ci bokk",
       "immutableNotice": "Xaatim bu ñu def <strong>du soppiku</strong>. Limu kër gi day tëj bu ñaari wàll yi xaatimee.",
@@ -5754,7 +5729,12 @@
       "helper": "Bindal sa xaatim ba noppi dëggal — jëf ji du soppiku.",
       "signFailed": "Xaatim bi mënul. Jéemaatal.",
       "onBehalfOf": "Ci turu {name}",
-      "signedOnBehalf": "Ki di yor kër gi moo xaatim ci turu boroom kër gi"
+      "signedOnBehalf": "Ki di yor kër gi moo xaatim ci turu boroom kër gi",
+      "roleEtNom": "{role} · {nom}",
+      "surPlace": "Signé sur place, avec le code reçu par SMS",
+      "surPlaceNumero": "Signé sur place, avec le code reçu au {numero}",
+      "surPlaceParEtNumero": "Signé sur place devant {agent}, avec le code reçu au {numero}",
+      "parAuTitreDuMandat": "Signé par {nom}, au titre du mandat de gestion"
     },
     "signaturePad": {
       "label": "Xaatimal fii",
@@ -5776,7 +5756,217 @@
       "emptyCta": "Xool bail yi",
       "error": "Mënul a yeb bail yi.",
       "loading": "Mi ngi yeb bail yi…",
-      "select": "Tàmbali"
+      "select": "Tàmbali",
+      "recherche": "Bail, logement ou locataire",
+      "aucunResultat": "Aucun bail ne correspond.",
+      "aucunResultatDescription": "Cherchez par référence, par logement ou par le nom du locataire.",
+      "locataireEtBail": "{locataire} · bail {reference}"
+    },
+    "terrain": {
+      "titre": {
+        "move_in": "État des lieux d’entrée",
+        "move_out": "État des lieux de sortie"
+      },
+      "fil": {
+        "liste": "États des lieux",
+        "nouveau": "Nouvel état des lieux",
+        "entree": "Entrée",
+        "sortie": "Sortie"
+      },
+      "contexte": {
+        "bienSansTitre": "Logement sans titre",
+        "locataireEtBail": "{locataire} · bail {reference}",
+        "bailSeul": "bail {reference}",
+        "entree": "Entrée",
+        "sortie": "Sortie",
+        "aujourdhui": "{type} · aujourd’hui, {heure}",
+        "leJour": "{type} · {jour}, {heure}"
+      },
+      "demarrer": {
+        "type": "Type",
+        "entree": "Entrée",
+        "sortie": "Sortie",
+        "dateHeure": "Date et heure",
+        "modele": "Modèle de logement",
+        "modeleIndisponible": "Les pièces proposées n’ont pas pu être chargées. Ajoutez vos pièces avec « Autre pièce ».",
+        "pieces": "Les pièces à visiter",
+        "autrePiece": "Autre pièce",
+        "nomDeLaPiece": "Nom de la pièce",
+        "ajouter": "Ajouter",
+        "compte": "<b>{pieces, plural, =0 {Aucune pièce} one {# pièce} other {# pièces}}</b> · {elements, plural, =0 {aucun élément proposé} one {# élément proposé} other {# éléments proposés}}",
+        "depuisLEntree": "Les pièces de l’entrée signée sont reprises : chaque élément part de son état d’entrée, vous ne notez que ce qui a changé.",
+        "brouillon": "Le brouillon s’enregistre à chaque pièce : après une coupure, vous reprenez à la pièce en cours.",
+        "commencer": "Commencer : {piece}",
+        "annuler": "Annuler",
+        "echec": "L’état des lieux n’a pas pu être créé. Réessayez."
+      },
+      "modeles": {
+        "studio": "Studio",
+        "f2": "F2 standard",
+        "f3": "F3 standard",
+        "f4_plus": "F4 et plus",
+        "villa": "Villa",
+        "shop": "Local commercial",
+        "office": "Bureau",
+        "generic": "Générique"
+      },
+      "etats": {
+        "bon": "Bon",
+        "use": "Usé",
+        "abime": "Abîmé",
+        "manquant": "Manquant",
+        "groupe": "État : {element}"
+      },
+      "piece": {
+        "prendrePhoto": "Prendre une photo",
+        "ajouterPhotos": "Ajouter des photos",
+        "photoAlt": "Photo {index} de la pièce {piece}",
+        "photoEnAttente": "Photo en attente d’envoi",
+        "photoElement": "Photo de l’élément : {element}",
+        "photosEtat": "{envoyees, plural, =0 {Aucune photo envoyée} one {# photo envoyée} other {# photos envoyées}}{attente, plural, =0 {} other { · # en attente du réseau}}",
+        "photosDeSortie": "{n, plural, =0 {Aucune photo de sortie} one {# photo de sortie} other {# photos de sortie}}",
+        "photosDEntree": "{n, plural, =0 {aucune photo d’entrée} one {# photo d’entrée à comparer} other {# photos d’entrée à comparer}}",
+        "reessayerPhotos": "Réessayer l’envoi",
+        "deposer": "Glisser des photos, ou parcourir",
+        "deposerAide": "Réduites sous 5 Mo, envoyées une par une",
+        "elements": "Les éléments",
+        "elementsSortie": "Les éléments — entrée du {date} rappelée",
+        "colElement": "Élément",
+        "colEtat": "État",
+        "colPrecision": "Précision",
+        "colPhoto": "Photo",
+        "colEntree": "Entrée · {date}",
+        "colSortie": "Sortie · {date}",
+        "colRetenue": "Retenue",
+        "precisez": "Précisez",
+        "precisezPour": "Précisez : {element}",
+        "precisezAide": "Précisez — ce texte figure dans les réserves",
+        "modifierElement": "Modifier l’élément {element}",
+        "ajouterElement": "Ajouter un élément",
+        "nomElement": "Nom de l’élément",
+        "ajouter": "Ajouter",
+        "note": "Note de la pièce",
+        "facultatif": "(facultatif)",
+        "notePlaceholder": "Ex. : peinture refaite en octobre",
+        "enCours": "En cours",
+        "rang": "{rang} / {total}",
+        "rangEtNom": "{rang}. {piece}",
+        "suivante": "Pièce suivante : {piece}",
+        "terminer": "Terminer les pièces",
+        "reessayer": "Réessayer",
+        "echec": "Le brouillon n’a pas pu être enregistré : votre saisie est gardée.",
+        "qualifies": "{n, plural, =0 {# élément} one {# élément} other {# éléments}} sur {total}",
+        "enregistreA": "brouillon enregistré à {heure}",
+        "precedente": "Pièce précédente",
+        "quitter": "Enregistrer et quitter",
+        "photosNonEnvoyees": "{n, plural, one {# photo n’est pas encore envoyée} other {# photos ne sont pas encore envoyées}} : gardez cet écran ouvert, l’envoi reprend au retour du réseau.",
+        "photoRefusee": "Une photo a été refusée. Reprenez-la, puis réessayez."
+      },
+      "liste": {
+        "titre": "Les pièces",
+        "faite": "terminée",
+        "detail": "{elements, plural, one {# élément} other {# éléments}}{photos, plural, =0 {} one { · # photo} other { · # photos}}"
+      },
+      "sortie": {
+        "entree": "Entrée : <b>{etat}</b>",
+        "degrade": "Dégradé",
+        "photoEntree": "Photo d’entrée : {element}",
+        "retenue": "Retenue sur la caution",
+        "ajouterRetenue": "Ajouter une retenue",
+        "retirer": "Retirer la retenue : {element}",
+        "montant": "Montant de la retenue : {element}",
+        "montantPlaceholder": "Montant en F",
+        "valider": "Valider",
+        "retenues": "Retenues proposées",
+        "surCaution": "sur {caution}",
+        "surCautionLong": "sur {caution} de caution",
+        "compareA": "comparé à l’entrée du {date}",
+        "usure": "« Usé » est une usure normale : aucune retenue n’est proposée. Les retenues sont soumises au bailleur avant la restitution de la caution."
+      },
+      "feuilleElement": {
+        "nom": "Nom de l’élément",
+        "manquant": "Manquant",
+        "note": "Note",
+        "retirer": "Retirer l’élément",
+        "fermer": "Fermer"
+      },
+      "feuillePiece": {
+        "modifier": "Modifier la pièce",
+        "nom": "Nom de la pièce",
+        "etat": "État de la pièce",
+        "nouvelle": "Ajouter une pièce",
+        "ajouter": "Ajouter",
+        "retirer": "Retirer la pièce"
+      },
+      "recap": {
+        "titre": "Récapitulatif et signatures",
+        "leLocataire": "Le locataire",
+        "chiffres": {
+          "pieces": "{n, plural, one {pièce} other {pièces}}",
+          "elements": "{n, plural, one {élément} other {éléments}}",
+          "photos": "{n, plural, one {photo} other {photos}}"
+        },
+        "etatGeneral": "État général du logement",
+        "reserves": "{n, plural, =0 {Aucune réserve} one {# réserve} other {# réserves}}",
+        "toutRelire": "Tout relire",
+        "photoDe": "Photo : {piece}, {element}",
+        "pieceEtElement": "{piece} — {element}",
+        "notesGenerales": "Notes générales (facultatif)",
+        "notesExemple": "Ex. : clés remises, relevé des compteurs",
+        "signaturesSurPlace": "Signatures sur place",
+        "signatures": "Signatures",
+        "revenirAuxPieces": "Revenir aux pièces",
+        "terminer": "Terminer",
+        "manque": {
+          "aucun": "Les deux parties ont signé : l’état des lieux est figé.",
+          "lesDeux": "Il manque {locataire} et la signature de l’agence",
+          "locataire": "Il manque {locataire}",
+          "agence": "Il manque la signature de l’agence",
+          "codeDe": "le code de {prenom}",
+          "codeDElide": "le code d’{prenom}",
+          "signatureDe": "la signature de {prenom}",
+          "signatureDElide": "la signature d’{prenom}"
+        }
+      },
+      "signatures": {
+        "locataire": "Locataire · {nom}",
+        "agencePourLeBailleur": "Agence, pour le bailleur · {nom}",
+        "bailleur": "Bailleur · {nom}",
+        "bailleurSansNom": "Bailleur",
+        "mandat": "Mandat de gestion de {nom}",
+        "depuisSonCompte": "Signe depuis son compte.",
+        "statut": {
+          "codeAttendu": "Code attendu",
+          "aSigner": "À signer",
+          "signe": "Signé"
+        },
+        "signerIci": "Signer ici",
+        "refaire": "Refaire",
+        "traceDe": "Signature de {nom}",
+        "envoyerCode": "Lui envoyer un code par SMS",
+        "envoiEnCours": "Envoi du code…",
+        "envoiImpossible": "Le code n’a pas pu être envoyé. Réessayez.",
+        "codeRecuPar": "Code reçu par {prenom} au <numero>{destination}</numero>",
+        "codeEnvoyeA": "Code reçu par {prenom} par SMS",
+        "signerAvantLeCode": "Faites d’abord tracer sa signature : le code partira avec elle.",
+        "verification": "Vérification du code…",
+        "rienRecu": "Rien reçu ?",
+        "renvoyer": "Renvoyer le code",
+        "dans": "(dans {delai})",
+        "signatureImpossible": "La signature n’a pas pu être enregistrée. Réessayez.",
+        "enregistrement": "Enregistrement de la signature…",
+        "signeSurPlace": "Signé sur place à {heure}, avec le code reçu par SMS",
+        "signeDepuisSonCompte": "Signé depuis son compte à {heure}",
+        "signeA": "Signé à {heure}",
+        "mentionFigee": "Une signature est définitive. L’état des lieux est figé dès que les deux parties ont signé ; le locataire et le bailleur peuvent ensuite le contester, avec un motif.",
+        "trace": {
+          "titre": "Signature de {nom}",
+          "aide": "Tracez la signature avec le doigt, puis validez.",
+          "paysage": "Tournez le téléphone pour plus de place.",
+          "effacer": "Effacer",
+          "valider": "Valider"
+        }
+      }
     }
   },
   "admin": {

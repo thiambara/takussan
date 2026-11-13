@@ -12,6 +12,7 @@ import {
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 /**
  * TCK-076 — compact touch/mouse canvas capture. Inspired by DocuSign /
@@ -37,6 +38,11 @@ export interface SignaturePadProps {
   readonly clearLabel?: string;
   readonly pending?: boolean;
   readonly errorMessage?: string | null;
+  /**
+   * TCK-2648 — le tracé PLEIN ÉCRAN de la signature sur place : le canevas prend la hauteur qu'on lui
+   * laisse, et « Effacer » et « Valider » passent à 44 px (cibles du pouce).
+   */
+  readonly grand?: boolean;
 }
 
 export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function SignaturePad(
@@ -49,6 +55,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     clearLabel: clearLabelProp,
     pending = false,
     errorMessage = null,
+    grand = false,
   },
   ref,
 ) {
@@ -88,15 +95,29 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   // Scale the canvas for crisp lines on HiDPI displays. Re-runs when the
   // element mounts so the first stroke already uses device pixels.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ratio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.max(1, Math.floor(rect.width * ratio));
-    canvas.height = Math.max(1, Math.floor(rect.height * ratio));
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.scale(ratio, ratio);
-  }, []);
+    const mesurer = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ratio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+      // `offsetWidth` et non le rectangle : une fenêtre qui s'ouvre en zoom (95 %) le fausserait.
+      const largeur = canvas.offsetWidth || canvas.getBoundingClientRect().width;
+      const hauteur = canvas.offsetHeight || canvas.getBoundingClientRect().height;
+      canvas.width = Math.max(1, Math.floor(largeur * ratio));
+      canvas.height = Math.max(1, Math.floor(hauteur * ratio));
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.scale(ratio, ratio);
+    };
+    mesurer();
+    if (!grand) return;
+    // TCK-2648 — plein écran, le téléphone qu'on tourne en paysage change la taille du canevas : il se
+    // remesure, et le tracé (devenu déformé) est à refaire.
+    const surRedimension = () => {
+      mesurer();
+      setHasInk(false);
+    };
+    window.addEventListener('resize', surRedimension);
+    return () => window.removeEventListener('resize', surRedimension);
+  }, [grand]);
 
   const getPoint = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -140,20 +161,20 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   };
 
   return (
-    <div className="space-y-3">
+    <div className={grand ? 'flex h-full min-h-0 flex-col gap-3' : 'space-y-3'}>
       <div>
         <p className="text-sm font-semibold text-foreground">{label}</p>
         {helperText ? (
           <p className="mt-0.5 text-xs text-muted-foreground">{helperText}</p>
         ) : null}
       </div>
-      <div className="rounded-xl border border-dashed border-border bg-card p-1">
+      <div className={cn('rounded-xl border border-dashed border-border bg-card p-1', grand && 'min-h-0 flex-1')}>
         <canvas
           ref={canvasRef}
           data-testid="signature-canvas"
           aria-label={label}
           role="img"
-          className="h-40 w-full touch-none rounded-lg bg-card"
+          className={cn('w-full touch-none rounded-lg bg-card', grand ? 'h-full min-h-48' : 'h-40')}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -161,11 +182,11 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
           onPointerLeave={onPointerUp}
         />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className={cn('flex flex-wrap items-center gap-2', grand && 'flex-none')}>
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size={grand ? 'lg' : 'sm'}
           disabled={disabled || pending || !hasInk}
           onClick={clear}
         >
@@ -173,7 +194,8 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
         </Button>
         <Button
           type="button"
-          size="sm"
+          size={grand ? 'lg' : 'sm'}
+          className={grand ? 'flex-1' : undefined}
           disabled={disabled || pending || !hasInk}
           onClick={handleConfirm}
         >

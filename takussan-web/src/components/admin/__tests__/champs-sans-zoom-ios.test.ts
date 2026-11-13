@@ -15,7 +15,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const FICHIERS = ['src/components/inventory/RoomEditor.tsx', 'src/components/admin/equipe/FormulaireDInvitation.tsx'];
+// TCK-2647 — `RoomEditor` a quitté le dépôt avec le formulaire d'état des lieux : sa saisie vit dans
+// l'écran d'une pièce du parcours de terrain, gardé à sa place.
+const FICHIERS = ['src/components/inventory/terrain/EcranDUnePiece.tsx', 'src/components/admin/equipe/FormulaireDInvitation.tsx'];
 
 /** Les classes de chaque `<input>` / `<textarea>` du fichier, avec la ligne de la balise. */
 function champs(source: string): { ligne: number; classes: string }[] {

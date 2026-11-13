@@ -283,6 +283,7 @@
       "console"
     ],
     "(dashboard)/app/inventories": [
+      "console",
       "inventory",
       "lease",
       "media"

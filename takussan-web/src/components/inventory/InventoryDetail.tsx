@@ -2,17 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { DoorOpen, Loader2, Trash2 } from 'lucide-react';
 
+import { PageHeader } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDateTime } from '@/lib/format';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import type { Locale } from '@/i18n/config';
+import { useFormatteurs, type Formatteurs } from '@/lib/format/useFormatteurs';
 import {
   useDeleteInventoryRoomPhoto,
   useDisputeInventory,
@@ -27,7 +28,8 @@ import type { Inventory, InventoryRoomPhoto } from '@/types/inventory';
  * l'affiche et réduit chaque photo jusque sous lui avant de valider : une photo de téléphone plus
  * lourde passe, réduite, au lieu d'être refusée.
  */
-export const INVENTORY_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+import { INVENTORY_PHOTO_MAX_BYTES } from './terrain/parcours';
+export { INVENTORY_PHOTO_MAX_BYTES };
 
 import {
   InventoryElementStateBadge,
@@ -36,23 +38,102 @@ import {
 } from './InventoryBadges';
 import { InventorySignatures } from './InventorySignatures';
 import { InventoryPdfButton } from './InventoryPdfButton';
+import { ParcoursDeTerrain } from './terrain/ParcoursDeTerrain';
+import { RecapEtSignatures } from './terrain/RecapEtSignatures';
 
+/**
+ * TCK-2647 — un BROUILLON que le lecteur peut modifier s'ouvre sur le parcours de terrain, à la
+ * première pièce non terminée (reprise après une coupure) ; `?piece=N` y revient sur une pièce.
+ * TCK-2648 — `?etape=signatures` ouvre le récapitulatif et les signatures sur place (la dernière pièce
+ * du parcours y mène). Sinon, la fiche : son en-tête nomme le logement (jamais « #25 »), et il n'est
+ * rendu que hors du parcours et du récapitulatif, qui portent le leur.
+ */
 export function InventoryDetail({ id }: { readonly id: number }) {
   const query = useInventory(id);
+  const parametres = useSearchParams();
+  const piece = Number(parametres?.get('piece') ?? '') || null;
+  const etape = parametres?.get('etape') ?? null;
 
   return (
     <QueryBoundary query={query}>
-      {(payload) => <InventoryBody inventory={payload.data} />}
+      {(payload) =>
+        enRecap(payload.data, etape) ? (
+          <RecapEtSignatures inventory={payload.data} />
+        ) : enTerrain(payload.data, piece) ? (
+          <ParcoursDeTerrain inventory={payload.data} pieceDemandee={piece} />
+        ) : (
+          <div className="space-y-6">
+            <EnTeteDeLaFiche inventory={payload.data} />
+            <InventoryBody inventory={payload.data} />
+          </div>
+        )
+      }
     </QueryBoundary>
   );
 }
 
+/**
+ * TCK-2648 — le récapitulatif s'ouvre à qui conduit l'état des lieux (`abilities.update`), tant qu'il
+ * se signe — et encore signé, pour que « Terminer » s'active sous les deux signatures. Le locataire et
+ * le bailleur qui ne le modifient pas restent sur la fiche, où chacun signe depuis son compte.
+ */
+function enRecap(inventory: Inventory, etape: string | null): boolean {
+  return (
+    etape === 'signatures' &&
+    inventory.abilities?.update === true &&
+    (inventory.status === 'draft' || inventory.status === 'pending_signature' || inventory.status === 'signed')
+  );
+}
+
+/** Le titre de la fiche : « État des lieux d'entrée — Appartement F3 · Mermoz ». */
+function titreDeLaFiche(inventory: Inventory, t: (cle: 'titreAvecBien', valeurs: Record<string, string>) => string, type: string): string {
+  const bien = inventory.property?.title;
+  return bien ? t('titreAvecBien', { type, bien }) : type;
+}
+
+function EnTeteDeLaFiche({ inventory }: { readonly inventory: Inventory }) {
+  const t = useTranslations('inventory.detail');
+  const tTerrain = useTranslations('inventory.terrain');
+  const tConsole = useTranslations('console.pageHeader');
+  const titre = titreDeLaFiche(inventory, t, tTerrain(inventory.type === 'move_out' ? 'titre.move_out' : 'titre.move_in'));
+  return (
+    <PageHeader
+      title={titre}
+      // TCK-2617 — plus de bouton « ← Retour » : la flèche de l'en-tête au téléphone, le fil dès `md`.
+      fil={{
+        label: tConsole('breadcrumb'),
+        etapes: [{ label: tTerrain('fil.liste'), href: '/app/inventories' }, { label: titre }],
+      }}
+    />
+  );
+}
+
+/**
+ * TCK-2648 (AC4) — une date sans « 00:00 » quand l'heure n'est pas connue : un instant posé à minuit
+ * (heure de Dakar) est une date saisie sans heure, et se dit comme telle.
+ */
+export function dateSansHeureFictive(f: Formatteurs, iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return f.heure(iso) === '00:00' ? f.date(iso) : f.dateTime(iso);
+}
+
+/**
+ * TCK-2647 — le brouillon s'ouvre dans le parcours de terrain quand une pièce y est EXPLICITEMENT
+ * inachevée (`completed: false`, posé par « Démarrer »), ou quand `?piece=` le demande (« Revoir les
+ * pièces »). Une pièce SANS la clé (brouillon antérieur au parcours) n'y envoie pas : sinon un
+ * brouillon dont le serveur ne garderait pas `completed` rouvrirait la pièce 1 sans fin.
+ */
+function enTerrain(inventory: Inventory, piece: number | null): boolean {
+  if (inventory.status !== 'draft' || inventory.abilities?.update !== true || inventory.rooms.length === 0) return false;
+  return piece !== null || inventory.rooms.some((r) => r.completed === false);
+}
+
 function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
   const t = useTranslations('inventory.detail');
-  const tRoot = useTranslations('inventory');
   const tLease = useTranslations('lease');
   const tConditions = useTranslations('inventory.conditions');
-  const locale = useLocale() as Locale;
+  const tTerrain = useTranslations('inventory.terrain');
+  const f = useFormatteurs();
   // TCK-1869 (P189.02) — le statut ET le verdict d'`InventoryPolicy::update` servi par l'API : le
   // locataire et le bailleur suspendu lisent le brouillon, ils ne le modifient pas.
   const canEditDraft = inventory.status === 'draft' && inventory.abilities?.update === true;
@@ -63,7 +144,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-lg font-semibold tracking-tight text-balance text-foreground">
-              {inventory.property?.title ?? tRoot('fallbackReference', { id: String(inventory.id) })}
+              {inventory.property?.title ?? tTerrain(inventory.type === 'move_out' ? 'titre.move_out' : 'titre.move_in')}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {inventory.property?.slug ? (
@@ -74,7 +155,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
                   {t('viewProperty')}
                 </Link>
               ) : (
-                <>{t('propertyFallback', { id: String(inventory.property_id) })}</>
+                <>{tTerrain('contexte.bienSansTitre')}</>
               )}
               {' · '}
               <Link
@@ -100,26 +181,9 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('conductedAt')}</dt>
-            <dd className="mt-0.5 text-foreground">
-              {inventory.conducted_at ? formatDateTime(inventory.conducted_at, locale) : '—'}
-            </dd>
+            <dd className="mt-0.5 text-foreground">{dateSansHeureFictive(f, inventory.conducted_at)}</dd>
           </div>
-          <div>
-            <dt className="font-semibold uppercase tracking-wide">{t('tenant')}</dt>
-            <dd className="mt-0.5 text-foreground">
-              {inventory.tenant_signed && inventory.tenant_signed_at
-                ? t('signedOn', { date: formatDateTime(inventory.tenant_signed_at, locale) })
-                : t('pending')}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold uppercase tracking-wide">{t('landlord')}</dt>
-            <dd className="mt-0.5 text-foreground">
-              {inventory.owner_signed && inventory.owner_signed_at
-                ? t('signedOn', { date: formatDateTime(inventory.owner_signed_at, locale) })
-                : t('pending')}
-            </dd>
-          </div>
+          {/* TCK-2648 (AC4) — les signatures se disent UNE fois, nommées, dans « Signatures des parties ». */}
         </dl>
 
         {inventory.notes ? (
@@ -133,7 +197,8 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
 
       <SignatureSection inventory={inventory} />
 
-      <section className="space-y-3">
+      {/* TCK-2648 — « Revenir aux pièces » du récapitulatif, une fois figé, relit les pièces ici. */}
+      <section id="pieces" className="scroll-mt-20 space-y-3">
         <h2 className="font-display text-base font-semibold text-foreground tabular-nums">
           {t('rooms', { count: String(inventory.rooms.length) })}
         </h2>
@@ -226,7 +291,7 @@ function RoomCard({
             >
               <span className="font-medium text-foreground">{el.label}</span>
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <InventoryElementStateBadge state={el.state} />
+                {el.state ? <InventoryElementStateBadge state={el.state} /> : <span className="text-xs text-muted-foreground">{t('nonQualifie')}</span>}
                 {el.notes ? (
                   <span className="text-xs text-muted-foreground">{el.notes}</span>
                 ) : null}
@@ -335,12 +400,21 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   const [showDispute, setShowDispute] = useState(false);
 
   const canSubmit = inventory.status === 'draft' && inventory.abilities?.update === true;
-  const canDispute = inventory.status === 'pending_signature' || inventory.status === 'signed';
+  // TCK-2648 (AC3) — « Contester » suit l'API (`abilities.dispute` : les deux parties seules, sur un
+  // état des lieux contestable) ; le statut seul l'offrait à l'agent, à l'admin et au super-admin.
+  const canDispute = inventory.abilities?.dispute === true;
+  // TCK-2648 — la signature sur place (code SMS au locataire, l'agence pour le bailleur).
+  const roles = inventory.can_sign_as ?? [];
+  const signable = inventory.status === 'draft' || inventory.status === 'pending_signature';
+  const surPlace =
+    signable && inventory.abilities?.update === true && (roles.includes('tenant_onsite') || (roles.includes('landlord') && inventory.sign_on_behalf_of != null));
+  // L'action principale quand rien n'est à soumettre ; secondaire à côté de « Soumettre ».
+  const varianteSurPlace = canSubmit ? 'outline' : 'default';
   // PDF download is surfaced here (always visible when signed) so it sits
   // next to the other actions. Signing itself happens in <SignatureSection>.
   const showPdfAction = inventory.signed_at !== undefined && inventory.signed_at !== null;
 
-  if (!canSubmit && !canDispute && !showPdfAction) {
+  if (!canSubmit && !canDispute && !showPdfAction && !surPlace) {
     return (
       <div className="rounded-xl bg-card p-4 text-sm text-muted-foreground sm:p-5">
         {t('terminalState', { status: tStatus(inventory.status) })}
@@ -351,6 +425,16 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   return (
     <div className="space-y-3 rounded-xl bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
+        {canSubmit ? (
+          <Link href={`/app/inventories/${inventory.id}?piece=1`} className={buttonVariants({ variant: 'outline' })}>
+            {t('revoirLesPieces')}
+          </Link>
+        ) : null}
+        {surPlace ? (
+          <Link href={`/app/inventories/${inventory.id}?etape=signatures`} className={buttonVariants({ variant: varianteSurPlace })}>
+            {t('faireSignerSurPlace')}
+          </Link>
+        ) : null}
         {canSubmit ? (
           <Button
             type="button"
@@ -451,6 +535,8 @@ function SignatureSection({ inventory }: { readonly inventory: Inventory }) {
       canSignTenant={signable && roles.includes('tenant')}
       canSignLandlord={signable && roles.includes('landlord')}
       landlordOnBehalfOf={inventory.sign_on_behalf_of?.full_name ?? null}
+      nomDuLocataire={inventory.tenant?.full_name ?? null}
+      nomDuBailleur={inventory.landlord?.full_name ?? null}
     />
   );
 }

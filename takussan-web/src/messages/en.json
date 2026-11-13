@@ -7774,9 +7774,7 @@
       "no_lease_description": "The lease determines the property and the tenant. Start an inventory report from a lease page.",
       "no_lease_cta": "Pick a lease",
       "pickLeaseTitle": "New inventory",
-      "pickLeaseSubtitle": "Select a lease to start an inventory.",
-      "formTitle": "New inventory",
-      "formSubtitle": "Room by room, condition and items, photos."
+      "pickLeaseSubtitle": "Select a lease to start an inventory."
     },
     "detail": {
       "empty_rooms_title": "No room recorded",
@@ -7806,26 +7804,11 @@
       "roomPhotos": "Photos of the {room}",
       "roomPhotoAlt": "Photo {index} — {room}",
       "deleteRoomPhotoAria": "Delete photo {index} of the {room}",
-      "deleteRoomPhotoFailed": "The photo could not be deleted. Try again."
-    },
-    "roomEditor": {
-      "empty_title": "No room",
-      "empty_description": "Click “Add a room” to start the inventory.",
-      "title": "Rooms",
-      "addRoom": "Add a room",
-      "room": "Room #{n}",
-      "remove": "Remove",
-      "roomName": "Room name",
-      "roomNamePlaceholder": "Living room, Kitchen, Bedroom…",
-      "condition": "Overall condition",
-      "notes": "Notes (optional)",
-      "elements": "Items",
-      "addElement": "Add an item",
-      "noElements": "No item detailed for this room.",
-      "element": "Item",
-      "state": "Condition",
-      "elementPlaceholder": "Sofa, Fridge…",
-      "elementNotes": "Notes"
+      "deleteRoomPhotoFailed": "The photo could not be deleted. Try again.",
+      "revoirLesPieces": "Review the rooms",
+      "nonQualifie": "Not assessed",
+      "titreAvecBien": "{type} — {bien}",
+      "faireSignerSurPlace": "Collect signatures on site"
     },
     "fallbackReference": "Inventory #{id}",
     "types": {
@@ -7850,14 +7833,6 @@
       "endommagé": "Damaged",
       "manquant": "Missing"
     },
-    "form": {
-      "type": "Inventory type",
-      "generalCondition": "Overall condition",
-      "conductedAt": "Date carried out",
-      "notes": "General notes",
-      "saving": "Saving…",
-      "submit": "Save the draft"
-    },
     "signatures": {
       "title": "Signatures of the parties",
       "immutableNotice": "A signature is <strong>immutable</strong> once given. The inventory is locked as soon as both parties have signed.",
@@ -7880,7 +7855,12 @@
       "helper": "Draw your signature then confirm — the action is final.",
       "signFailed": "Signature failed. Please try again.",
       "onBehalfOf": "On behalf of {name}",
-      "signedOnBehalf": "Signed by the property manager on behalf of the landlord"
+      "signedOnBehalf": "Signed by the property manager on behalf of the landlord",
+      "roleEtNom": "{role} · {nom}",
+      "surPlace": "Signed on site, with the code received by SMS",
+      "surPlaceNumero": "Signed on site, with the code received at {numero}",
+      "surPlaceParEtNumero": "Signed on site in front of {agent}, with the code received at {numero}",
+      "parAuTitreDuMandat": "Signed by {nom}, under the management mandate"
     },
     "signaturePad": {
       "label": "Sign here",
@@ -7902,7 +7882,217 @@
       "emptyCta": "See leases",
       "error": "Could not load leases.",
       "loading": "Loading leases…",
-      "select": "Start"
+      "select": "Start",
+      "recherche": "Lease, property or tenant",
+      "aucunResultat": "No lease matches.",
+      "aucunResultatDescription": "Search by reference, property or tenant name.",
+      "locataireEtBail": "{locataire} · lease {reference}"
+    },
+    "terrain": {
+      "titre": {
+        "move_in": "Move-in inspection",
+        "move_out": "Move-out inspection"
+      },
+      "fil": {
+        "liste": "Inspections",
+        "nouveau": "New inspection",
+        "entree": "Move-in",
+        "sortie": "Move-out"
+      },
+      "contexte": {
+        "bienSansTitre": "Untitled property",
+        "locataireEtBail": "{locataire} · lease {reference}",
+        "bailSeul": "lease {reference}",
+        "entree": "Move-in",
+        "sortie": "Move-out",
+        "aujourdhui": "{type} · today, {heure}",
+        "leJour": "{type} · {jour}, {heure}"
+      },
+      "demarrer": {
+        "type": "Type",
+        "entree": "Move-in",
+        "sortie": "Move-out",
+        "dateHeure": "Date and time",
+        "modele": "Property template",
+        "modeleIndisponible": "The suggested rooms could not be loaded. Add your rooms with “Other room”.",
+        "pieces": "Rooms to inspect",
+        "autrePiece": "Other room",
+        "nomDeLaPiece": "Room name",
+        "ajouter": "Add",
+        "compte": "<b>{pieces, plural, =0 {No rooms} one {# room} other {# rooms}}</b> · {elements, plural, =0 {no suggested items} one {# suggested item} other {# suggested items}}",
+        "depuisLEntree": "The rooms of the signed move-in are carried over: each item starts from its move-in condition, you only note what changed.",
+        "brouillon": "The draft is saved at every room: after a connection loss, you resume at the current room.",
+        "commencer": "Start: {piece}",
+        "annuler": "Cancel",
+        "echec": "The inspection could not be created. Please try again."
+      },
+      "modeles": {
+        "studio": "Studio",
+        "f2": "Standard 1-bedroom",
+        "f3": "Standard 2-bedroom",
+        "f4_plus": "3 bedrooms or more",
+        "villa": "Villa",
+        "shop": "Shop",
+        "office": "Office",
+        "generic": "Generic"
+      },
+      "etats": {
+        "bon": "Good",
+        "use": "Worn",
+        "abime": "Damaged",
+        "manquant": "Missing",
+        "groupe": "Condition: {element}"
+      },
+      "piece": {
+        "prendrePhoto": "Take a photo",
+        "ajouterPhotos": "Add photos",
+        "photoAlt": "Photo {index} of {piece}",
+        "photoEnAttente": "Photo waiting to be sent",
+        "photoElement": "Photo of the item: {element}",
+        "photosEtat": "{envoyees, plural, =0 {No photo sent} one {# photo sent} other {# photos sent}}{attente, plural, =0 {} other { · # waiting for the network}}",
+        "photosDeSortie": "{n, plural, =0 {No move-out photo} one {# move-out photo} other {# move-out photos}}",
+        "photosDEntree": "{n, plural, =0 {no move-in photo} one {# move-in photo to compare} other {# move-in photos to compare}}",
+        "reessayerPhotos": "Retry sending",
+        "deposer": "Drop photos, or browse",
+        "deposerAide": "Reduced under 5 MB, sent one by one",
+        "elements": "Items",
+        "elementsSortie": "Items — move-in of {date} shown",
+        "colElement": "Item",
+        "colEtat": "Condition",
+        "colPrecision": "Details",
+        "colPhoto": "Photo",
+        "colEntree": "Move-in · {date}",
+        "colSortie": "Move-out · {date}",
+        "colRetenue": "Deduction",
+        "precisez": "Add details",
+        "precisezPour": "Details: {element}",
+        "precisezAide": "Add details — this text appears in the reservations",
+        "modifierElement": "Edit the item {element}",
+        "ajouterElement": "Add an item",
+        "nomElement": "Item name",
+        "ajouter": "Add",
+        "note": "Room note",
+        "facultatif": "(optional)",
+        "notePlaceholder": "E.g. repainted in October",
+        "enCours": "In progress",
+        "rang": "{rang} / {total}",
+        "rangEtNom": "{rang}. {piece}",
+        "suivante": "Next room: {piece}",
+        "terminer": "Finish the rooms",
+        "reessayer": "Try again",
+        "echec": "The draft could not be saved: your input is kept.",
+        "qualifies": "{n} of {total, plural, one {# item} other {# items}}",
+        "enregistreA": "draft saved at {heure}",
+        "precedente": "Previous room",
+        "quitter": "Save and exit",
+        "photosNonEnvoyees": "{n, plural, one {# photo has not been sent yet} other {# photos have not been sent yet}}: keep this screen open, sending resumes when the network is back.",
+        "photoRefusee": "A photo was refused. Take it again, then try again."
+      },
+      "liste": {
+        "titre": "Rooms",
+        "faite": "done",
+        "detail": "{elements, plural, one {# item} other {# items}}{photos, plural, =0 {} one { · # photo} other { · # photos}}"
+      },
+      "sortie": {
+        "entree": "Move-in: <b>{etat}</b>",
+        "degrade": "Worse",
+        "photoEntree": "Move-in photo: {element}",
+        "retenue": "Deposit deduction",
+        "ajouterRetenue": "Add a deduction",
+        "retirer": "Remove the deduction: {element}",
+        "montant": "Deduction amount: {element}",
+        "montantPlaceholder": "Amount in F",
+        "valider": "Confirm",
+        "retenues": "Proposed deductions",
+        "surCaution": "of {caution}",
+        "surCautionLong": "of a {caution} deposit",
+        "compareA": "compared with the move-in of {date}",
+        "usure": "“Worn” is normal wear and tear: no deduction is proposed. Deductions are submitted to the landlord before the deposit is returned."
+      },
+      "feuilleElement": {
+        "nom": "Item name",
+        "manquant": "Missing",
+        "note": "Note",
+        "retirer": "Remove the item",
+        "fermer": "Close"
+      },
+      "feuillePiece": {
+        "modifier": "Edit the room",
+        "nom": "Room name",
+        "etat": "Room condition",
+        "nouvelle": "Add a room",
+        "ajouter": "Add",
+        "retirer": "Remove the room"
+      },
+      "recap": {
+        "titre": "Summary and signatures",
+        "leLocataire": "The tenant",
+        "chiffres": {
+          "pieces": "{n, plural, one {room} other {rooms}}",
+          "elements": "{n, plural, one {item} other {items}}",
+          "photos": "{n, plural, one {photo} other {photos}}"
+        },
+        "etatGeneral": "Overall condition of the home",
+        "reserves": "{n, plural, =0 {No reservations} one {# reservation} other {# reservations}}",
+        "toutRelire": "Review everything",
+        "photoDe": "Photo: {piece}, {element}",
+        "pieceEtElement": "{piece} — {element}",
+        "notesGenerales": "General notes (optional)",
+        "notesExemple": "E.g. keys handed over, meter readings",
+        "signaturesSurPlace": "On-site signatures",
+        "signatures": "Signatures",
+        "revenirAuxPieces": "Back to the rooms",
+        "terminer": "Finish",
+        "manque": {
+          "aucun": "Both parties have signed: the inventory is locked.",
+          "lesDeux": "Still missing: {locataire} and the agency’s signature",
+          "locataire": "Still missing: {locataire}",
+          "agence": "Still missing: the agency’s signature",
+          "codeDe": "{prenom}’s code",
+          "codeDElide": "{prenom}’s code",
+          "signatureDe": "{prenom}’s signature",
+          "signatureDElide": "{prenom}’s signature"
+        }
+      },
+      "signatures": {
+        "locataire": "Tenant · {nom}",
+        "agencePourLeBailleur": "Agency, for the landlord · {nom}",
+        "bailleur": "Landlord · {nom}",
+        "bailleurSansNom": "Landlord",
+        "mandat": "Management mandate from {nom}",
+        "depuisSonCompte": "Signs from their own account.",
+        "statut": {
+          "codeAttendu": "Code pending",
+          "aSigner": "To sign",
+          "signe": "Signed"
+        },
+        "signerIci": "Sign here",
+        "refaire": "Redo",
+        "traceDe": "Signature of {nom}",
+        "envoyerCode": "Send them a code by SMS",
+        "envoiEnCours": "Sending the code…",
+        "envoiImpossible": "The code could not be sent. Try again.",
+        "codeRecuPar": "Code received by {prenom} at <numero>{destination}</numero>",
+        "codeEnvoyeA": "Code received by {prenom} by SMS",
+        "signerAvantLeCode": "Have them draw their signature first: the code is sent with it.",
+        "verification": "Checking the code…",
+        "rienRecu": "Nothing received?",
+        "renvoyer": "Resend the code",
+        "dans": "(in {delai})",
+        "signatureImpossible": "The signature could not be saved. Try again.",
+        "enregistrement": "Saving the signature…",
+        "signeSurPlace": "Signed on site at {heure}, with the code received by SMS",
+        "signeDepuisSonCompte": "Signed from their account at {heure}",
+        "signeA": "Signed at {heure}",
+        "mentionFigee": "A signature is final. The inventory is locked once both parties have signed; the tenant and the landlord can then dispute it, giving a reason.",
+        "trace": {
+          "titre": "Signature of {nom}",
+          "aide": "Draw the signature with your finger, then confirm.",
+          "paysage": "Turn the phone sideways for more room.",
+          "effacer": "Clear",
+          "valider": "Confirm"
+        }
+      }
     }
   },
   "admin": {
