@@ -2396,7 +2396,13 @@
         "whatsappDuNumero": "Le {phone} reçoit WhatsApp",
         "nomsTitre": "Votre nom, pour les intéressés",
         "incomplet": "Il manque encore vos coordonnées pour publier : complétez-les, puis publiez. Votre annonce est gardée.",
-        "photosAilleurs": "Vos photos restent sur l’appareil où vous les avez ajoutées : ajoutez-les ici avant de publier."
+        "photosAilleurs": "Vos photos restent sur l’appareil où vous les avez ajoutées : ajoutez-les ici avant de publier.",
+        "surtitre": "Votre annonce est prête",
+        "titreDuPanneau": "Dernière étape : votre numéro",
+        "assurances": {
+          "motDePasse": "Pas de mot de passe à inventer",
+          "retirable": "Annonce retirable à tout moment"
+        }
       }
     },
     "titleTypes": {

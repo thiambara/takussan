@@ -91,6 +91,12 @@ export interface DeclarationDEntree {
   readonly pleinEcran?: boolean;
   /** TCK-2600 — au bureau, avant la sortie : l'état du brouillon (« Brouillon gardé dans ce navigateur »). */
   readonly noteDeBarre?: ReactNode;
+  /**
+   * TCK-2601 (AC5) — la page tient une tâche à finir à côté de la barre (le panneau de compte de
+   * `/publish`, au bureau, que plus aucun voile ne couvre ; ses écritures) : la sortie et la marque
+   * sont inertes — `aria-disabled`, hors de la tabulation, le clic ne mène nulle part.
+   */
+  readonly sortieBloquee?: boolean;
 }
 
 /**
@@ -144,10 +150,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre } = declaration;
+  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre });
-  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre]);
+    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee });
+  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -168,11 +174,19 @@ export function Pastilles({ pas, total, gabarit, className }: { readonly pas: nu
   );
 }
 
-function Marque({ nom, className }: { readonly nom: string; readonly className?: string }) {
+/** TCK-2601 (AC5) — un lien de sortie inerte : annoncé désactivé, hors de la tabulation, le clic retenu. */
+const PROPS_INERTES = {
+  'aria-disabled': true,
+  tabIndex: -1,
+  onClick: (evenement: MouseEvent<HTMLAnchorElement>) => evenement.preventDefault(),
+} as const;
+
+function Marque({ nom, className, bloquee = false }: { readonly nom: string; readonly className?: string; readonly bloquee?: boolean }) {
   return (
     <NextLink
       href="/"
-      className={cn('inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring', className)}
+      {...(bloquee ? PROPS_INERTES : {})}
+      className={cn('inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring aria-disabled:pointer-events-none aria-disabled:opacity-50', className)}
     >
       <Logo nom={nom} />
     </NextLink>
@@ -181,6 +195,8 @@ function Marque({ nom, className }: { readonly nom: string; readonly className?:
 
 const CLASSES_LIEN_TEXTE =
   'inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
+/** TCK-2601 (AC5) — une sortie inerte se voit (`sortieBloquee`). */
+const CLASSES_INERTES = 'aria-disabled:pointer-events-none aria-disabled:opacity-50';
 
 export function CoqueDEntree({
   libelles,
@@ -214,6 +230,7 @@ export function CoqueDEntree({
   const saisie = declaree.saisie === true;
   const pleinEcran = declaree.pleinEcran === true;
   const noteDeBarre = declaree.noteDeBarre ?? null;
+  const sortieBloquee = declaree.sortieBloquee === true;
 
   const decalage = useDecalageDuClavier();
 
@@ -222,6 +239,10 @@ export function CoqueDEntree({
   const laisserPasser = useRef(false);
 
   function auClicDeSortie(evenement: MouseEvent<HTMLAnchorElement>) {
+    if (sortieBloquee) {
+      evenement.preventDefault();
+      return;
+    }
     if (!saisie || laisserPasser.current) return;
     if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey || evenement.button !== 0) return;
     evenement.preventDefault();
@@ -240,10 +261,12 @@ export function CoqueDEntree({
     }
   }
 
+  // La sortie garde `auClicDeSortie` (qui retient aussi le clic bloqué) : seuls l'annonce et la tabulation s'ajoutent.
+  const inerte = sortieBloquee ? { 'aria-disabled': true, tabIndex: -1 } : {};
   const avancement = pas && total ? <Pastilles pas={pas} total={total} gabarit={libelles.avancement} /> : null;
   const retourAuSite =
     sortie?.forme === 'retour-au-site' ? (
-      <NextLink href={sortie.href} onClick={auClicDeSortie} className={CLASSES_LIEN_TEXTE}>
+      <NextLink href={sortie.href} onClick={auClicDeSortie} {...inerte} className={cn(CLASSES_LIEN_TEXTE, CLASSES_INERTES)}>
         {libelles.retourAuSite}
       </NextLink>
     ) : null;
@@ -273,13 +296,14 @@ export function CoqueDEntree({
                 <NextLink
                   href={sortie.href}
                   onClick={auClicDeSortie}
+                  {...inerte}
                   aria-label={libelles.fermer}
-                  className="inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className={cn('inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', CLASSES_INERTES)}
                 >
                   <X className="size-5" aria-hidden="true" />
                 </NextLink>
               ) : (
-                <Marque nom={libelles.marque} className="ml-3" />
+                <Marque nom={libelles.marque} className="ml-3" bloquee={sortieBloquee} />
               )}
               {/* L'intention au téléphone quand la barre s'ouvre sur un retour ou « ✕ » (maquettes
                   `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
@@ -290,7 +314,7 @@ export function CoqueDEntree({
                 // `first:pl-3` : là où le retour ne paraît pas (vérification d'e-mail, réinitialisation,
                 // retour OAuth), la marque ouvre la barre et garde la marge de la maquette.
                 <span className="flex flex-1 items-center first:pl-3">
-                  <Marque nom={libelles.marque} />
+                  <Marque nom={libelles.marque} bloquee={sortieBloquee} />
                 </span>
               ) : (
                 <span className="flex-1" />
@@ -308,7 +332,7 @@ export function CoqueDEntree({
             /* Bureau large à deux colonnes (`DeuxColonnes`) : la barre de la colonne de droite, sans filet. */
             <header className="hidden h-16 flex-none items-center justify-between px-10 xl:flex">
               {retourBureau ?? <span />}
-              <Marque nom={libelles.marque} />
+              <Marque nom={libelles.marque} bloquee={sortieBloquee} />
             </header>
           ) : null}
           {/* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie.
@@ -321,7 +345,7 @@ export function CoqueDEntree({
           >
             <div className="flex flex-1 items-center gap-5 whitespace-nowrap">
               {retourBureau ?? null}
-              <Marque nom={libelles.marque} />
+              <Marque nom={libelles.marque} bloquee={sortieBloquee} />
             </div>
             {titreDeBureau ? (
               /* Le titre seul se tronque : le retour et la marque gardent leur ligne (`whitespace-nowrap`), un titre long
@@ -337,7 +361,8 @@ export function CoqueDEntree({
                 <NextLink
                   href={sortie.href}
                   onClick={auClicDeSortie}
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-input/45 bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                  {...inerte}
+                  className={cn('inline-flex h-9 items-center justify-center rounded-full border border-input/45 bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring', CLASSES_INERTES)}
                 >
                   {libelles.quitter}
                 </NextLink>

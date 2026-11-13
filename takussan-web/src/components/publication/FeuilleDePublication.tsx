@@ -9,13 +9,13 @@ import { CasesDuCode, LONGUEUR_DU_CODE } from '@/components/auth/CasesDuCode';
 import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Button } from '@/components/ui/button';
-import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { useAuth } from '@/context/AuthContext';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { formaterTelephone, isE164 } from '@/lib/phone';
 
+import { CadreDeLaFeuille, usePanneauDeBureau } from './CadreDeLaFeuille';
 import type { ManqueDeLaFeuille } from './feuille-de-publication';
 
 /**
@@ -57,12 +57,15 @@ interface FeuilleDePublicationProps {
    */
   readonly onCompteRelu?: () => void;
   readonly onPublier: () => void | Promise<void>;
+  /** TCK-2601 (AC5) — la colonne de l'assistant où la feuille devient panneau dès 1280 px. */
+  readonly cible?: HTMLElement | null;
 }
 
-export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact, rappel, envoi, alerte = null, onCompteRelu, onPublier }: FeuilleDePublicationProps) {
+export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact, rappel, envoi, alerte = null, onCompteRelu, onPublier, cible = null }: FeuilleDePublicationProps) {
   const t = useTranslations('property.wizard.feuille');
   const tContact = useTranslations('property.form.publishContact');
   const { user, setUser, refreshUser } = useAuth();
+  const bureau = usePanneauDeBureau(cible);
 
   // Figés à l'ouverture (le parent remonte la feuille par `key` à chaque ouverture).
   const [demandes] = useState(manques);
@@ -144,32 +147,29 @@ export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact,
   const etapeDuNumero = demandeNumero && !codeEnvoye && !codeAccepte;
 
   return (
-    <FeuilleDuBas
-      open={ouverte}
-      onOpenChange={(suivante) => {
-        if (!suivante && !occupe) onFermer();
-      }}
+    <CadreDeLaFeuille
+      ouverte={ouverte}
+      onFermer={onFermer}
+      occupe={occupe}
+      bureau={bureau}
+      cible={cible}
       titre={t('titre')}
-      pied={
-        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row-reverse">
-          {etapeDuNumero ? (
-            <Button type="button" className="w-full md:w-auto" disabled={occupe || !isE164(telephone)} onClick={() => void envoyerCode()}>
-              {tContact('sendCode')}
-            </Button>
-          ) : (
-            <Button type="button" className="w-full md:w-auto" disabled={occupe || !pret} onClick={() => void publier()}>
-              {t('publier')}
-            </Button>
-          )}
-          <Button type="button" variant="ghost" className="w-full md:w-auto" disabled={occupe} onClick={onFermer}>
-            {t('revenir')}
+      // Le panneau ne dit « votre numéro » que s'il le demande : un compte connecté peut ne manquer que d'un nom.
+      titreDuPanneau={demandeNumero ? t('titreDuPanneau') : t('titre')}
+      rappel={rappel}
+      action={
+        etapeDuNumero ? (
+          <Button type="button" className="w-full md:w-auto" disabled={occupe || !isE164(telephone)} onClick={() => void envoyerCode()}>
+            {tContact('sendCode')}
           </Button>
-        </div>
+        ) : (
+          <Button type="button" className="w-full md:w-auto" disabled={occupe || !pret} onClick={() => void publier()}>
+            {t('publier')}
+          </Button>
+        )
       }
     >
       <div className="space-y-5" data-feuille-de-publication="">
-        <div className="rounded-xl border border-border bg-background p-3">{rappel}</div>
-
         {alerte ? (
           <p role="alert" className="text-sm text-foreground">
             {alerte}
@@ -184,9 +184,12 @@ export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact,
 
         {demandeNumero ? (
           <section className="space-y-3">
-            <h3 className="font-display text-base font-semibold text-foreground">
-              {t('numeroTitre')}
-            </h3>
+            {/* Au bureau, le titre du panneau dit déjà « votre numéro ». */}
+            {bureau ? null : (
+              <h3 className="font-display text-base font-semibold text-foreground">
+                {t('numeroTitre')}
+              </h3>
+            )}
             <p className="text-sm text-muted-foreground text-pretty">{t('numeroTexte')}</p>
             {codeEnvoye || codeAccepte ? (
               <div className="space-y-3">
@@ -296,6 +299,6 @@ export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact,
           </p>
         ) : null}
       </div>
-    </FeuilleDuBas>
+    </CadreDeLaFeuille>
   );
 }

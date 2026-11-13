@@ -9,13 +9,14 @@ import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { useEntreeParTelephone } from '@/components/auth/useEntreeParTelephone';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Button } from '@/components/ui/button';
-import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { useAuth } from '@/context/AuthContext';
 import type { AuthResponse } from '@/lib/auth';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { formaterTelephone, numeroComposable } from '@/lib/phone';
+
+import { CadreDeLaFeuille, usePanneauDeBureau } from './CadreDeLaFeuille';
 
 /**
  * TCK-2601 — la feuille de compte SANS compte (`/publish`, ADR-0093) : le numéro, le code, le prénom et
@@ -40,6 +41,8 @@ interface FeuilleSansCompteProps {
   /** Le drapeau `phone_login` s'est éteint entre l'affichage et l'envoi (404) : la voie e-mail. */
   readonly onEmail: () => void;
   readonly onPublier: () => void | Promise<void>;
+  /** TCK-2601 (AC5) — la colonne de l'assistant où la feuille devient panneau dès 1280 px. */
+  readonly cible?: HTMLElement | null;
 }
 
 type Compte = AuthResponse['user'];
@@ -53,12 +56,13 @@ export function profilAEcrire(compte: Partial<Compte>, saisie: { prenom: string;
   };
 }
 
-export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, onPublier }: FeuilleSansCompteProps) {
+export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, onPublier, cible = null }: FeuilleSansCompteProps) {
   const t = useTranslations('property.wizard.feuille');
   const tContact = useTranslations('property.form.publishContact');
   const tEntree = useTranslations('auth.phoneLogin');
   const t2fa = useTranslations('auth.twoFactorChallenge');
   const { setUser } = useAuth();
+  const bureau = usePanneauDeBureau(cible);
 
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
@@ -155,27 +159,25 @@ export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, o
   );
 
   return (
-    <FeuilleDuBas
-      open={ouverte}
-      onOpenChange={(suivante) => {
-        if (!suivante && !occupe) onFermer();
-      }}
+    <CadreDeLaFeuille
+      ouverte={ouverte}
+      onFermer={onFermer}
+      occupe={occupe}
+      bureau={bureau}
+      cible={cible}
       titre={t('titre')}
-      pied={
-        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row-reverse">
-          {pied}
-          <Button type="button" variant="ghost" className="w-full md:w-auto" disabled={occupe} onClick={onFermer}>
-            {t('revenir')}
-          </Button>
-        </div>
-      }
+      titreDuPanneau={t('titreDuPanneau')}
+      rappel={rappel}
+      action={pied}
+      // « Gratuit, sans commission » n'est pas écrit : la commission dépend de l'abonnement de
+      // l'espace qui publiera (plan `pro` à 3 %, dérogation du super-admin), inconnu avant le code.
+      assurances={[t('assurances.motDePasse'), t('assurances.retirable')]}
     >
       <div className="space-y-5" data-feuille-sans-compte="">
-        <div className="rounded-xl border border-border bg-background p-3">{rappel}</div>
-
         {entree.etape === 'numero' && !compte ? (
           <section className="space-y-3">
-            <h3 className="font-display text-base font-semibold text-foreground">{t('numeroTitre')}</h3>
+            {/* Au bureau, le titre du panneau dit déjà « votre numéro ». */}
+            {bureau ? null : <h3 className="font-display text-base font-semibold text-foreground">{t('numeroTitre')}</h3>}
             <p className="text-sm text-muted-foreground text-pretty">{t('numeroTexteSansCompte')}</p>
             <label htmlFor="feuille-telephone" className="sr-only">
               {tContact('phoneLabel')}
@@ -303,6 +305,6 @@ export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, o
           </p>
         ) : null}
       </div>
-    </FeuilleDuBas>
+    </CadreDeLaFeuille>
   );
 }

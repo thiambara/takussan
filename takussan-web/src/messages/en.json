@@ -2439,7 +2439,13 @@
         "whatsappDuNumero": "{phone} receives WhatsApp",
         "nomsTitre": "Your name, for interested people",
         "incomplet": "Your contact details are still missing: complete them, then publish. Your listing is kept.",
-        "photosAilleurs": "Your photos stay on the device where you added them: add them here before publishing."
+        "photosAilleurs": "Your photos stay on the device where you added them: add them here before publishing.",
+        "surtitre": "Your listing is ready",
+        "titreDuPanneau": "Last step: your number",
+        "assurances": {
+          "motDePasse": "No password to make up",
+          "retirable": "You can take the listing down at any time"
+        }
       }
     },
     "titleTypes": {

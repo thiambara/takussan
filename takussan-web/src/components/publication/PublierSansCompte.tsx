@@ -80,6 +80,8 @@ export function PublierSansCompte({
   const [pas, setPas] = useState(1);
   const [total, setTotal] = useState(6);
   const [efface, setEfface] = useState(false);
+  // TCK-2601 (AC5) — feuille de compte ouverte ou écritures en cours (`surVerrou` de l'assistant).
+  const [verrouille, setVerrouille] = useState(false);
   // Un brouillon effacé remonte l'assistant : il repart vide, à l'étape 1.
   const [generation, setGeneration] = useState(0);
   /** TCK-2601 (AC3) — plusieurs espaces : l'annonce est versée, la personne choisit où la reprendre. */
@@ -203,6 +205,7 @@ export function PublierSansCompte({
         },
       });
     },
+    surVerrou: setVerrouille,
     surEtape: (index, nombre) => {
       setPas(index + 1);
       setTotal(nombre);
@@ -259,6 +262,7 @@ export function PublierSansCompte({
     <>
       <DeclarerEntree
         pleinEcran
+        sortieBloquee={verrouille}
         pas={pas}
         total={total}
         noteDeBarre={
@@ -291,8 +295,10 @@ export function PublierSansCompte({
           {brouillon.aDuContenu ? (
             <button
               type="button"
+              // TCK-2601 (AC5) — pas d'effacement sous le panneau de compte ni pendant les écritures.
+              disabled={verrouille}
               onClick={() => void effacer()}
-              className="ml-auto min-h-11 flex-none underline underline-offset-4 hover:text-foreground xl:ml-0"
+              className="ml-auto min-h-11 flex-none underline underline-offset-4 hover:text-foreground disabled:pointer-events-none disabled:opacity-50 xl:ml-0"
             >
               {t('brouillon.effacer')}
             </button>

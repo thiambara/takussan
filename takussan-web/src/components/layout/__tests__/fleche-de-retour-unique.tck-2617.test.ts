@@ -56,6 +56,9 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyMobileGallery.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx': 'carrousel',
   'src/components/wizard/WizardReprenable.tsx': 'etape',
+  // TCK-2601 — « Revenir à l'annonce » du panneau de compte (bureau) : referme le panneau sur l'étape
+  // de l'assistant qu'il remplace, dans la même page — un pas dans le formulaire, pas une page quittée.
+  'src/components/publication/CadreDeLaFeuille.tsx': 'etape',
   // TCK-2592 — le chevron qui replie la colonne Gagné / Perdu du kanban en bandeau : un repli, pas un retour.
   'src/components/pipeline/etapes/ColonneDuPipeline.tsx': 'repli',
   'src/components/bookings/BookingTunnel.tsx': 'hors-app',

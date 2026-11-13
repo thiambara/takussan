@@ -75,11 +75,19 @@ export type WizardShellProps = {
   readonly barreApercu?: React.ReactNode;
   /** Les alertes du parcours (erreur globale, brouillon refusé…), au-dessus de la question. */
   readonly bandeau?: React.ReactNode;
+  /**
+   * TCK-2601 (AC5) — le nœud où la feuille de compte se rend en PANNEAU dès `xl` (1280 px) : à la
+   * place de l'étape et du pied, l'aperçu restant à droite. Le nœud est toujours monté (la feuille
+   * le lit pour son portail) ; il ne se montre, et l'étape et le pied ne se cachent, que dès `xl`
+   * quand `panneauOuvert` — sous 1280 px la feuille reste un dialogue, et rien ne change ici.
+   */
+  readonly refDuPanneau?: React.Ref<HTMLDivElement>;
+  readonly panneauOuvert?: boolean;
 };
 
 export function WizardShell({
   steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, parts,
-  entete, apercu, barreApercu, bandeau,
+  entete, apercu, barreApercu, bandeau, refDuPanneau, panneauOuvert = false,
 }: WizardShellProps) {
   const t = useTranslations('property.wizard');
   const etape = steps[index];
@@ -140,11 +148,13 @@ export function WizardShell({
 
           {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
           <div data-wizard-scroll className="min-h-0 flex-1 overflow-y-auto">
+            <div ref={refDuPanneau} data-wizard-panneau="" className={panneauOuvert ? 'hidden xl:block' : 'hidden'} />
             <div
               key={etape.id}
               className={cn(
                 'mx-auto w-full max-w-3xl px-4 pt-6 pb-10 sm:px-8 lg:pt-9 xl:px-14',
                 direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
+                panneauOuvert && 'xl:hidden',
               )}
             >
               {parts ? (
@@ -185,7 +195,10 @@ export function WizardShell({
           <div
             data-wizard-footer
             style={{ paddingBottom: pied.paddingBottom }}
-            className="shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+            className={cn(
+              'shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80',
+              panneauOuvert && 'xl:hidden',
+            )}
           >
             <div
               role="progressbar"

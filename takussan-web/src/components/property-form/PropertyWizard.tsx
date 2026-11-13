@@ -252,6 +252,12 @@ export interface ModeAnonyme {
    * tentative : un espace créé à la première ne se recrée pas à la seconde.
    */
   readonly preparerLEspace: (valeurs: Partial<PropertyFormValues>, etape: number) => Promise<'pret' | 'ailleurs' | { readonly erreur: string }>;
+  /**
+   * TCK-2601 (AC5) — la feuille de compte est ouverte, ou l'assistant écrit (espace, création,
+   * publication) : la page rend inertes ses sorties (« Quitter », la marque, « Effacer ce
+   * brouillon »), que le voile de la feuille couvrait et que le panneau de bureau laisse à côté.
+   */
+  readonly surVerrou?: (verrouille: boolean) => void;
 }
 
 interface PropsDeLAssistant {
@@ -371,6 +377,8 @@ export function AssistantDePublication({
    * à son montage) ; `apresRefus` : rouverte parce que l'API a refusé faute de coordonnées.
    */
   const [feuille, setFeuille] = useState({ cle: 0, ouverte: false, apresRefus: false, sansCompte: false });
+  // TCK-2601 (AC5) — la place du panneau de compte dans la colonne gauche (`WizardShell`).
+  const [cibleDuPanneau, setCibleDuPanneau] = useState<HTMLDivElement | null>(null);
   const { user } = useAuth();
   /**
    * TCK-2601 — sans compte, « Publier » remet l'annonce à la page ; une fois la session ouverte et
@@ -653,6 +661,15 @@ export function AssistantDePublication({
     surEtape?.(index, CLES_PAR_ETAPE.length);
   }, [surEtape, index]);
 
+  // TCK-2601 (AC5) — les sorties de la page attendent la fin du compte et des écritures ; un assistant
+  // démonté (brouillon effacé, page quittée) ne laisse pas la page verrouillée.
+  const surVerrou = anonyme?.surVerrou;
+  const verrouille = feuille.ouverte || isSubmitting || preparation;
+  useEffect(() => {
+    surVerrou?.(verrouille);
+  }, [surVerrou, verrouille]);
+  useEffect(() => () => surVerrou?.(false), [surVerrou]);
+
   /**
    * TCK-2600 (AC2) — sans compte, changer d'étape est écrit au brouillon, même sans valeur changée :
    * un rechargement rouvre À CETTE ÉTAPE (passer les photos sans en ajouter ne change aucune valeur).
@@ -873,7 +890,10 @@ export function AssistantDePublication({
     <ListePourPublier
       etapes={etapesDeListe}
       index={index}
-      desactivee={isSubmitting}
+      // TCK-2601 (AC5) — feuille ouverte, la liste ne mène nulle part : au bureau elle reste à côté
+      // du panneau (le voile ne la couvre plus), et changer d'étape sous lui ferait verser ou publier
+      // depuis une autre étape. « Revenir à l'annonce » est le chemin.
+      desactivee={isSubmitting || feuille.ouverte}
       enPlus={anonyme?.pourPublierEnPlus}
       onRouvrir={(i) => {
         apresGeste?.();
@@ -918,6 +938,9 @@ export function AssistantDePublication({
       */
       onSubmit={(e) => {
         e.preventDefault();
+        // TCK-2601 (AC5) — au bureau, la feuille est un panneau DANS ce formulaire : Entrée dans son
+        // numéro ne republie pas (ce qui remonterait la feuille par `cle` et viderait sa saisie).
+        if (feuille.ouverte) return;
         if (index === etapes.length - 1) void publier();
       }}
     >
@@ -964,6 +987,9 @@ export function AssistantDePublication({
             )}
           </BarreApercu>
         }
+        // TCK-2601 (AC5) — dès 1280 px, la feuille de compte prend la place de l'étape.
+        refDuPanneau={setCibleDuPanneau}
+        panneauOuvert={!proposition && feuille.ouverte}
         bandeau={aDesAlertes ? (
           <>
             {envoiPhotos ? (
@@ -1061,6 +1087,7 @@ export function AssistantDePublication({
         <FeuilleSansCompte
           key={feuille.cle}
           ouverte={feuille.ouverte}
+          cible={cibleDuPanneau}
           onFermer={() => setFeuille((f) => ({ ...f, ouverte: false }))}
           rappel={<RappelDeLAnnonce form={form} photos={photos} pret={t('feuille.pret')} />}
           envoi={isSubmitting || preparation}
@@ -1078,6 +1105,7 @@ export function AssistantDePublication({
         <FeuilleDePublication
           key={feuille.cle}
           ouverte={feuille.ouverte}
+          cible={cibleDuPanneau}
           onFermer={() => setFeuille((f) => ({ ...f, ouverte: false }))}
           manques={manquesFeuille}
           autreContact={autreContact}

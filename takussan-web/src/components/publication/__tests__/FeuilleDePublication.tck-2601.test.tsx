@@ -16,6 +16,7 @@ vi.mock('@/app/actions/security', () => ({ phoneSendOtpAction: vi.fn(), phoneVer
 vi.mock('@/app/actions/contact-preferences', () => ({ updateContactPreferencesAction: vi.fn() }));
 
 import { FeuilleDePublication } from '../FeuilleDePublication';
+import { REQUETE_DU_PANNEAU } from '../CadreDeLaFeuille';
 
 function feuille(manques: Parameters<typeof FeuilleDePublication>[0]['manques']) {
   return withIntl(
@@ -30,5 +31,34 @@ describe('FeuilleDePublication', () => {
 
     rerender(feuille([]));
     expect(screen.getByLabelText('Nom')).toBeInTheDocument();
+  });
+
+  it('AC5 — au bureau, le panneau ne dit « votre numéro » que s’il le demande, et sans assurance (le compte existe déjà)', () => {
+    const avant = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === REQUETE_DU_PANNEAU,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const cible = document.body.appendChild(document.createElement('div'));
+      const panneau = (manques: Parameters<typeof FeuilleDePublication>[0]['manques']) =>
+        withIntl(
+          <FeuilleDePublication ouverte onFermer={() => {}} manques={manques} autreContact={false} rappel={<p>rappel</p>} envoi={false} onPublier={() => {}} cible={cible} />,
+        );
+      const { unmount } = render(panneau(['first_name']));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(cible).toContainElement(screen.getByRole('heading', { level: 1, name: 'Dernière étape' }));
+      expect(screen.queryByText('rappel')).not.toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+      unmount();
+
+      render(panneau(['verified_phone']));
+      expect(screen.getByRole('heading', { level: 1, name: 'Dernière étape : votre numéro' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Votre numéro' })).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = avant;
+    }
   });
 });
