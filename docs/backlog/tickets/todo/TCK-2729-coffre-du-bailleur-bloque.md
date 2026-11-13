@@ -91,4 +91,35 @@ l'aperçu et le téléchargement fonctionnent comme ailleurs.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**API (2026-11-13).**
+
+- `DocumentVault::for()` lit une fois les agences des profils propriétaires `blocked` du compte
+  (`blockedOwnerAgencies()`), les ajoute aux agences amorcées, et `build()` range leurs biens par le chemin des biens
+  actifs (`ownerProperties()`, une requête pour toutes ces agences ; `addTargetFolder`, contrats, états des lieux,
+  téléversés), avec `read_only: true`. Ils restent hors des cibles où joindre et aucun relevé ne s'ajoute.
+- **Une seule forme** : chaque dossier porte `read_only` (faux par défaut).
+- **Décision (team-lead, 2026-11-13)** : les dossiers figés sont ceux de TOUS les profils propriétaires BLOQUÉS du
+  compte, **quel que soit le profil actif** ; `read_only` sur chaque dossier, une seule forme ; un bailleur parti
+  (`inactive`) ne reçoit rien (ADR-0108, « pas de surface »), un profil `draft` non plus. L'agent de A bailleur
+  bloqué de B voit B figé ; le bailleur actif dans A et bloqué dans B voit les deux, A normal.
+- **Décision (team-lead, 2026-11-13) — le gel est tenu par l'API, pas seulement masqué** : sur un dossier figé, le
+  bloqué n'ajoute aucun document (bien ou bail : 404 `document.owner_not_found`, comme un porteur introuvable),
+  aucune version, ne partage ni ne supprime (403) — même sa propre pièce, téléversée quand il était actif. C'est
+  la règle existante (`BasePolicy::landlordWrites`, `attachTo` en écriture) ; il n'existe pas de route de
+  renommage. Épinglé par `test_nothing_is_written_into_a_frozen_folder`, témoin actif d'abord ; rouge si
+  `landlordWrites` laisse passer le bloqué (ablation).
+- **Fuites** : un autre bailleur actif de l'agence, l'admin d'une autre agence et le locataire du bail ne voient
+  jamais ces dossiers (`test_no_one_else_sees_the_frozen_folders`). La garde est structurelle : les agences figées
+  sont lues sur le compte de l'appelant, ses biens par `BailleurDuBien::restreindre`.
+- `build()` garde un 3ᵉ argument optionnel (lues sans lui) : `DocumentVaultPrimedVaultParityTest` l'appelle sans
+  amorce, et compare donc aussi ces dossiers amorcés et non amorcés.
+- **AC3** : sur son bien, `view` refuse au bloqué ce qui tient à un bail d'un AUTRE bailleur (ancien bail du bien) :
+  ses pièces, son contrat, ses états des lieux restent dehors — le filtre des baux d'`ownerProperties()`, éprouvé par
+  ablation. Un document du bien lui-même, il le lit toujours (`BailleurDuBien`, de tout statut) : aucun n'y est refusé.
+- `DocumentVaultBlockedLandlordTest` (12). Ablations : biens figés retirés 7 rouges ; non marqués 5 ; parti compris 1 ;
+  baux non filtrés 1 ; `read_only` absent par défaut 1 ; agences bloquées non amorcées 1 (le test sous un profil
+  actif d'une autre agence : sans profil actif, `ownAgencies()` amorce déjà toutes les agences du compte). Les biens
+  figés offerts au rattachement : vert, la policy `attachTo` les refuse déjà (`bailleurEcrit`).
+
+**Front** : le dossier figé est porté par le coffre de TCK-2656 (`lib/documents/coffre.ts` lit déjà `read_only`).
+

@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -55,6 +56,13 @@ use Illuminate\Support\Facades\Gate;
  * toujours. Un document n'apparaît que dans UN dossier : celui de sa cible quand elle a un dossier,
  * sinon « mes pièces ».
  *
+ * **Le bailleur bloqué** (TCK-2729, décision (a) du porteur du 2026-11-11) : un profil propriétaire
+ * `blocked` ne s'active pas (`ResolveActiveProfile` → 403), mais `BailleurDuBien` lui laisse la
+ * lecture de ses biens. Les biens de ses profils bloqués ont donc leur dossier, quel que soit le profil
+ * actif, marqué `read_only` : les mêmes entrées, jugées par les mêmes policies, sans relevé ni cible où
+ * joindre un document. Le bailleur parti (`inactive`) n'en a pas (ADR-0108 : « pas de surface »).
+ * Chaque dossier porte `read_only`, faux hors de ce cas : une seule forme.
+ *
  * **Requêtes** : un nombre constant, quel que soit le nombre d'échéances (les quittances d'un bail sont
  * une requête), de documents, de biens, de baux et d'états des lieux : les règles de lecture sont
  * celles des policies, jugées sous amorce ({@see self::agenciesInPlay()}) — TCK-2655, vérification
@@ -84,11 +92,31 @@ final class DocumentVault
      */
     public function for(User $user, ?Model $activeProfile): array
     {
+        $blocked = $this->blockedOwnerAgencies($user);
+
         return MembershipCapabilityResolver::primed(
             [$user->id],
-            $this->agenciesInPlay($user),
-            fn (): array => $this->build($user, $activeProfile),
+            [...$this->agenciesInPlay($user), ...$blocked],
+            fn (): array => $this->build($user, $activeProfile, $blocked),
         );
+    }
+
+    /**
+     * TCK-2729 — les agences où l'appelant tient un profil propriétaire BLOQUÉ : ses biens y ont un
+     * dossier en lecture seule. Une requête, quel que soit le nombre de biens.
+     *
+     * @return list<int>
+     */
+    private function blockedOwnerAgencies(User $user): array
+    {
+        return OwnerProfile::query()
+            ->where('user_id', $user->id)
+            ->where('status', OwnerProfileStatus::Blocked->value)
+            ->whereNotNull('agency_id')
+            ->orderBy('agency_id')
+            ->pluck('agency_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     /**
@@ -120,7 +148,8 @@ final class DocumentVault
      * Pour le COFFRE, les agences de l'APPELANT suffisent, mesuré : les règles ne demandent une agence
      * que pour le personnel de l'appelant (`staffAgencyId()`, son agence) ou quand une colonne le
      * désigne lui-même (bailleur, conducteur, auteur) — et le coffre ne range que les biens de l'agence
-     * du profil actif. Y ajouter les agences des baux et des biens jugés (trois requêtes) n'a retiré
+     * du profil actif, plus ceux de ses profils propriétaires bloqués (TCK-2729), dont `for()` ajoute
+     * les agences. Y ajouter les agences des baux et des biens jugés (trois requêtes) n'a retiré
      * aucune requête aux décors de `DocumentVaultOwnerTest` et `DocumentVaultTenantTest` (ablation).
      * `documents/generated` vise une cible quelconque : il y ajoute les agences de la cible.
      *
@@ -132,10 +161,12 @@ final class DocumentVault
     }
 
     /**
+     * @param  list<int>|null  $blockedAgencies  {@see self::blockedOwnerAgencies()} ; lues ici sans elles
      * @return array{folders: list<array<string, mixed>>, counts: array{expiring_soon: int, unverified: int}, attachable_targets: list<array<string, mixed>>}
      */
-    private function build(User $user, ?Model $activeProfile): array
+    private function build(User $user, ?Model $activeProfile, ?array $blockedAgencies = null): array
     {
+        $blockedAgencies ??= $this->blockedOwnerAgencies($user);
         $this->user = $user;
         $this->policy = app(DocumentPolicy::class);
         $this->folders = [];
@@ -151,19 +182,25 @@ final class DocumentVault
 
         $properties = new Collection;
         if ($activeProfile instanceof OwnerProfile) {
-            $properties = $this->ownerProperties((int) $activeProfile->agency_id);
-            foreach ($properties as $property) {
-                $this->addTargetFolder('property', $property, $property->title, [['type' => 'property', 'id' => $property->id]]);
+            $properties = $this->ownerProperties([(int) $activeProfile->agency_id]);
+        }
+        // TCK-2729 — les biens des profils bloqués : rangés par le même chemin, en lecture seule, et
+        // jamais offerts comme cible où joindre (ils restent hors de `$properties`).
+        $frozen = $blockedAgencies === [] ? new Collection : $this->ownerProperties($blockedAgencies);
+        foreach ([[$properties, false], [$frozen, true]] as [$set, $readOnly]) {
+            foreach ($set as $property) {
+                $this->addTargetFolder('property', $property, $property->title, [['type' => 'property', 'id' => $property->id]], $readOnly);
                 foreach ($property->leases as $lease) {
                     $this->mapTarget('lease', $lease->id, "property:{$property->id}", [['type' => 'lease', 'id' => $lease->id], ['type' => 'property', 'id' => $property->id]]);
                 }
             }
         }
+        $allProperties = $properties->merge($frozen);
 
         $this->folders['pieces'] = ['key' => 'pieces', 'kind' => 'pieces', 'target' => ['type' => 'user', 'id' => $user->id], 'name' => null, 'year' => null, 'entries' => []];
 
         // Les générés de chaque dossier de cible.
-        $contractLeases = $leases->merge($properties->flatMap->leases)->unique('id');
+        $contractLeases = $leases->merge($allProperties->flatMap->leases)->unique('id');
         $this->addContracts($contractLeases);
         $this->addInventories($contractLeases);
         $this->addReceipts($leases);
@@ -175,7 +212,7 @@ final class DocumentVault
             $this->addBills();
         }
 
-        $documents = $this->uploadedDocuments($leases, $properties, $contractLeases);
+        $documents = $this->uploadedDocuments($leases, $allProperties, $contractLeases);
         $this->addUploaded($documents);
 
         if (! app(ImpersonationContext::class)->active()) {
@@ -197,7 +234,7 @@ final class DocumentVault
         return [
             // Un dossier de cible, « mes pièces » et « mes factures » existent même vides ; un dossier
             // d'année ou de relevés n'existe que par ses entrées.
-            'folders' => array_values($this->folders),
+            'folders' => array_map(fn (array $folder): array => $folder + ['read_only' => false], array_values($this->folders)),
             'counts' => $this->counts($documents),
             'attachable_targets' => $attachable,
         ];
@@ -270,11 +307,17 @@ final class DocumentVault
             ->values();
     }
 
-    /** @return Collection<int, Property> les biens du bailleur dans l'agence de son profil actif */
-    private function ownerProperties(int $agencyId): Collection
+    /**
+     * Les biens du bailleur dans ces agences : celle de son profil actif, ou celles de ses profils
+     * bloqués (TCK-2729). Une requête.
+     *
+     * @param  list<int>  $agencyIds
+     * @return Collection<int, Property>
+     */
+    private function ownerProperties(array $agencyIds): Collection
     {
         return BailleurDuBien::restreindre(Property::query(), $this->user)
-            ->where('agency_id', $agencyId)
+            ->whereIn('agency_id', $agencyIds)
             ->with(['leases' => fn ($q) => $q->where('status', '!=', LeaseStatus::Draft->value)->with(['property', 'tenant'])])
             ->orderBy('title')
             ->get()
@@ -285,10 +328,10 @@ final class DocumentVault
     }
 
     /** @param  list<array{type: string, id: int}>  $targets */
-    private function addTargetFolder(string $type, Model $target, ?string $name, array $targets): void
+    private function addTargetFolder(string $type, Model $target, ?string $name, array $targets, bool $readOnly = false): void
     {
         $key = "{$type}:{$target->getKey()}";
-        $this->folders[$key] = ['key' => $key, 'kind' => $type, 'target' => ['type' => $type, 'id' => (int) $target->getKey()], 'name' => $name, 'year' => null, 'entries' => []];
+        $this->folders[$key] = ['key' => $key, 'kind' => $type, 'target' => ['type' => $type, 'id' => (int) $target->getKey()], 'name' => $name, 'year' => null, 'read_only' => $readOnly, 'entries' => []];
         $this->mapTarget($type, (int) $target->getKey(), $key, $targets);
     }
 

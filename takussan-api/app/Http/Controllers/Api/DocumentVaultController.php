@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
  *
  *  - `GET /api/me/document-vault` : les dossiers de l'appelant selon son profil actif, leurs entrées
  *    `uploaded` et `generated`, les comptes `expiring_soon` / `unverified`, et `attachable_targets`.
+ *    Chaque dossier porte `read_only` : vrai pour les biens d'un profil propriétaire bloqué (TCK-2729).
  *  - `GET /api/documents/generated?target=lease:{id}|property:{id}` : les entrées générées d'une
  *    cible que l'appelant lit (`view` du bail ou du bien), chacune jugée par son endpoint.
  *
