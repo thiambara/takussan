@@ -18607,5 +18607,101 @@
       "partir": "Leave",
       "rester": "Stay"
     }
+  },
+  "journee": {
+    "aujourdhui": "Today",
+    "jourPrecedent": "Previous day",
+    "jourSuivant": "Next day",
+    "bienSansTitre": "A property",
+    "sousTitreLibre": "Free day",
+    "toutesLesTaches": "All tasks",
+    "erreur": "Your day could not be loaded.",
+    "reessayer": "Try again",
+    "ajouter": {
+      "libelle": "Add: visit, task or client",
+      "titre": "Add",
+      "bouton": "Add",
+      "visite": "Visit",
+      "tache": "Task",
+      "client": "Client"
+    },
+    "semaine": {
+      "libelle": "Choose a day of the week",
+      "libre": "Free",
+      "visites": "{n, plural, one {# visit} other {# visits}}",
+      "taches": "{n, plural, one {# task} other {# tasks}}"
+    },
+    "aRegler": {
+      "titre": "To handle",
+      "compte": "{n, plural, =0 {nothing to handle} one {# thing to handle} other {# things to handle}}",
+      "compteRendu": "Report to write",
+      "faire": "Write",
+      "aujourdhuiA": "today {heure}",
+      "hierA": "yesterday {heure}",
+      "leA": "{date} {heure}",
+      "quelquUn": "A contact",
+      "attend": "{nom} has been waiting {n} d",
+      "demande": "Enquiry",
+      "demandeSur": "Enquiry · {bien}",
+      "whatsapp": "Message {nom} on WhatsApp",
+      "messageWhatsApp": "Hello {nom}, I am getting back to you about your enquiry for “{bien}”.",
+      "ouvrir": "Open",
+      "marquerFaite": "Mark done: {titre}",
+      "enRetardDepuis": "Overdue since {date}",
+      "messageWhatsAppSansBien": "Hello {nom}, I am getting back to you about your enquiry."
+    },
+    "reporter": {
+      "reporter": "Postpone",
+      "libelle": "Postpone: {titre}",
+      "demain": "Tomorrow",
+      "lundi": "Monday",
+      "semaine": "In a week"
+    },
+    "chronologie": {
+      "titre": "My day",
+      "agenda": "Calendar",
+      "ouvrirAgenda": "Open the calendar",
+      "maintenant": "now",
+      "visite": "Visit",
+      "tache": "Task",
+      "duree": "{n} min",
+      "itineraire": "Directions",
+      "visiteur": "the visitor",
+      "appeler": "Call {nom}",
+      "whatsapp": "Message {nom} on WhatsApp",
+      "messageVisite": "Hello {nom}, I am confirming our visit of “{bien}”.",
+      "messageTache": "Hello {nom}, ",
+      "libreJusqua": "Free until {heure}",
+      "planifier": "Visit",
+      "rienCeJour": "Nothing planned that day."
+    },
+    "chiffres": {
+      "titre": "My figures",
+      "biens": "Managed properties",
+      "prospects": "Prospects",
+      "aRelancer": "{n} to follow up",
+      "taches": "Open tasks",
+      "dontEnRetard": "{n} overdue",
+      "aucuneEnRetard": "none overdue",
+      "commissions": "Commissions · {mois}",
+      "ouvrir": "{libelle}: {valeur}, open {vers}",
+      "vers": {
+        "biens": "My properties",
+        "prospects": "My clients",
+        "taches": "Tasks",
+        "commissions": "Commissions"
+      },
+      "rapport": "See this month’s report"
+    },
+    "libre": {
+      "titre": "Nothing planned today.",
+      "texte": "No visit, no task, nothing to handle. A chance to get ahead:",
+      "relancer": "{n, plural, one {# prospect to follow up} other {# prospects to follow up}}",
+      "relancerDetail": "Your clients waiting to hear from you",
+      "planifier": "Schedule a visit",
+      "planifierDetail": "The whole day is free",
+      "client": "Add a client",
+      "clientDetail": "A contact met in the field"
+    }
   }
 }

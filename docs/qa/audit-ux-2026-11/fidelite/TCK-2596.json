@@ -1,0 +1,319 @@
+{
+  "ticket": "TCK-2596",
+  "ecrans": [
+    {
+      "page": "app-aujourdhui",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Ma journée",
+      "references": {
+        "telephone": "references/app-aujourdhui/a-0-telephone.json",
+        "bureau-1440": "references/app-aujourdhui/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-aujourdhui/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent",
+        "etat": "agence Dakar Immo de la démo, persona agent (Sokhna Sene), le jour du relevé : deux comptes rendus à faire, quatre tâches en retard, deux visites du jour, aucune demande de plus de 24 h. La maquette (mar. 10 nov., 10:12) : un compte rendu, une demande de 8 j, deux tâches en retard, deux visites et une tâche à 18:00",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-aujourdhui",
+      "approche": "a",
+      "gele_le": "2026-11-11",
+      "ecran": 1,
+      "nom": "Toutes les tâches",
+      "references": {
+        "telephone": "references/app-aujourdhui/a-1-telephone.json",
+        "bureau-1440": "references/app-aujourdhui/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-aujourdhui/a-1-bureau-1280.json"
+      },
+      "produit": {
+        "route": "/app/tasks?filter[assigned_to]=me",
+        "persona": "agent",
+        "etat": "persona agent (Sokhna Sene) le jour du relevé, « Assignées à moi » : quatre tâches en retard (des biens), aucune du jour, aucune à venir, onze faites ; la maquette : 2 en retard, 3 du jour (dont des clients), 4 à venir",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-aujourdhui",
+      "approche": "a",
+      "gele_le": "2026-11-11",
+      "ecran": 2,
+      "nom": "Nouvelle tâche",
+      "references": {
+        "telephone": "references/app-aujourdhui/a-2-telephone.json",
+        "bureau-1440": "references/app-aujourdhui/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-aujourdhui/a-2-bureau-1280.json"
+      },
+      "produit": {
+        "route": "/app/tasks?filter[assigned_to]=me&nouvelle=1",
+        "persona": "agent",
+        "etat": "persona agent (Sokhna Sene) le jour du relevé, « Assignées à moi » : quatre tâches en retard (des biens), aucune du jour, aucune à venir, onze faites ; la maquette : 2 en retard, 3 du jour (dont des clients), 4 à venir ; feuille vide (la maquette : titre saisi, Mariama Fall préremplie)",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-aujourdhui",
+      "approche": "a",
+      "gele_le": "2026-11-11",
+      "ecran": 3,
+      "nom": "Tâche ouverte",
+      "references": {
+        "telephone": "references/app-aujourdhui/a-3-telephone.json",
+        "bureau-1440": "references/app-aujourdhui/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-aujourdhui/a-3-bureau-1280.json"
+      },
+      "produit": {
+        "route": "/app/tasks?filter[assigned_to]=me",
+        "persona": "agent",
+        "etat": "persona agent (Sokhna Sene) le jour du relevé, « Assignées à moi » : quatre tâches en retard (des biens), aucune du jour, aucune à venir, onze faites ; la maquette : 2 en retard, 3 du jour (dont des clients), 4 à venir ; la première tâche ouverte (« Faire passer un artisan », créée par Serigne Ndoye)",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS), puis toucher la première ligne de la liste"
+      }
+    },
+    {
+      "page": "app-aujourdhui",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Journée libre",
+      "references": {
+        "telephone": "references/app-aujourdhui/a-4-telephone.json",
+        "bureau-1440": "references/app-aujourdhui/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-aujourdhui/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent",
+        "etat": "non reproductible sur la démo (l'agent a toujours des tâches en retard) : couvert par le test de composant « journée libre » (MaJournee.tck-2596.test.tsx)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app",
+    "persona": "agent",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "bloc « À régler »",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Compte rendu à faire",
+        "min": 200
+      },
+      "produit": {
+        "slot": "a-regler",
+        "rang": 0
+      }
+    },
+    {
+      "nom": "première carte de visite de la chronologie (téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Itinéraire",
+        "min": 100
+      },
+      "produit": {
+        "slot": "carte-visite",
+        "rang": 0
+      }
+    },
+    {
+      "nom": "bloc « À régler » (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Compte rendu à faire",
+        "min": 200
+      },
+      "produit": {
+        "slot": "a-regler",
+        "rang": 1
+      }
+    },
+    {
+      "nom": "« Mes chiffres » (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Biens gérés",
+        "min": 150
+      },
+      "produit": {
+        "slot": "mes-chiffres",
+        "rang": 1
+      }
+    }
+  ],
+  "_roles": "Les rôles se lisent sur les données : la maquette par ses données fictives (Villa Liberté 6, Mouhamed Dieng, Abdoulaye Cissé), le produit par l'état de la démo du jour du relevé. Le téléphone et le bureau sont deux arbres dans le même document (`journee-telephone`, `journee-bureau`, l'un caché par CSS) : au bureau, le bloc rendu est le second (`rang: 1`).",
+  "zones": [],
+  "alias": {
+    "Mardi 10 novembre": "le jour du relevé, en toutes lettres (« Vendredi 13 novembre »)",
+    "2 visites · 3 tâches · 4 choses à régler": "les comptes du jour du relevé ; un compte nul se tait",
+    "Reporter": "« Reporter » ouvre un menu (Demain · Lundi · Dans une semaine) ; son nom accessible dit la tâche (« Reporter : Vérifier le titre foncier »)"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-aujourdhui a-0-*",
+      "element": "contenu de « À régler » et de la chronologie : deux comptes rendus, quatre tâches en retard, aucune demande (pas de pictogramme « boîte » ni de WhatsApp de demande), des visites à d'autres heures, sans tâche à heure fixe ; les titres de biens de la démo, plus longs",
+      "propriete": "texte, présence, ordonnée de ce qui suit",
+      "exception": "donnée",
+      "motif": "la démo n'a pas l'état de la maquette (sonde en lecture seule du 2026-11-13 : `GET /api/tasks?filter[assigned_to]=me&filter[due]=overdue,today` → 4 en retard, aucune du jour ; `GET /api/contact-leads?filter[mine]=1&filter[handled]=0&filter[created_at_max]=…` → 0)"
+    },
+    {
+      "ecran": "app-aujourdhui a-0-telephone",
+      "element": "en-tête de la coque : trait du « + » (1,75 au lieu de 2), couleur de « Aller à » et de la cloche",
+      "propriete": "trait, couleur",
+      "exception": "coque",
+      "motif": "rendus par `EnTeteMobile` (TCK-2617), communs à toutes les racines ; hors du périmètre de ce ticket"
+    },
+    {
+      "ecran": "app-aujourdhui a-0-bureau-*",
+      "element": "toutes les mesures en rem (rem 16 du produit contre 14,4 de la maquette gelée)",
+      "propriete": "tailles et positions",
+      "exception": "technique",
+      "motif": "la référence gelée est antérieure à TCK-2692 (ADR-0107) : le relevé l'annonce (« rem différent… attendu de part et d'autre de TCK-2692 ») ; densité 0,9 des deux côtés"
+    },
+    {
+      "ecran": "app-aujourdhui a-0-*",
+      "element": "ligne secondaire des lignes de « À régler » (bien · visiteur, bien de la tâche) et icônes de l'en-tête",
+      "propriete": "couleur : rgb(76,70,65) au lieu de rgba(31,24,19,0.7) / 0.8",
+      "exception": "décision",
+      "motif": "ADR-0106 § 2 c, TCK-2685 : les maquettes écrivent foreground/70 à /85, le produit n'a qu'une encre douce, opaque (`text-encre-douce`, #4c4641) — une encre de texte ne s'atténue pas par l'opacité (TCK-658)"
+    },
+    {
+      "ecran": "app-aujourdhui a-0-bureau-*",
+      "element": "deux colonnes (chronologie | À régler et Mes chiffres)",
+      "propriete": "seuil",
+      "exception": "décision",
+      "motif": "posées dès `xl` (1280), pas dès `lg` : à 1024 la largeur utile tombe à 694 px et la colonne de droite (100 pas d'espacement) ne laisserait que ~330 px à la chronologie ; AC5 (côte à côte à 1280) et AC-F6 (aucun panneau fixe à côté du contenu sous 1280) tenus"
+    },
+    {
+      "ecran": "app-aujourdhui a-1, a-2, a-3 (*)",
+      "element": "contenu de la liste : quatre tâches en retard rattachées à des biens, aucune du jour ni à venir ; comptes des pastilles (4 · 0 · 0 · 0 · 11)",
+      "propriete": "texte, présence, ordonnées",
+      "exception": "donnée",
+      "motif": "sonde en lecture seule du 2026-11-13 : `GET /api/tasks?filter[assigned_to]=me&filter[due]=…&filter[status]=open,in_progress&per_page=1` → 4 / 0 / 0 / 0, `filter[status]=done` → 11"
+    },
+    {
+      "ecran": "app-aujourdhui a-1, a-2, a-3 (telephone)",
+      "element": "en-tête : « Tâches » en titre de racine, sans flèche de retour, « + » en action",
+      "propriete": "forme de l'en-tête",
+      "exception": "coque",
+      "motif": "`formeDeLaRoute('/app/tasks')` rend `racine` (pas de parent) ; la forme se décide dans la coque"
+    },
+    {
+      "ecran": "app-aujourdhui a-1 (telephone)",
+      "element": "première ligne balayée (fond « Fait ») et l'aide « Balayer à droite : fait… »",
+      "propriete": "état",
+      "exception": "donnée",
+      "motif": "la maquette dessine un geste en cours ; le balayage est éprouvé par `issueDuBalayage` (test pur), le cercle et la feuille restent le chemin sans geste"
+    },
+    {
+      "ecran": "app-aujourdhui a-1-bureau-*",
+      "element": "têtes de colonne au bureau, « Assignées à moi »",
+      "propriete": "—",
+      "exception": "décision",
+      "motif": "AC5 : la page s'ouvre sur En retard + Aujourd'hui ; « Cette semaine » et « Plus tard » apparaissent avec la pastille « À venir » (même groupement)"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-0-*",
+      "element": "« 3 sans photo » sous Biens gérés et « 310 000 F à venir » sous Commissions",
+      "motif": "hors périmètre du ticket (sous-lignes sans donnée servie)"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "« Grouper par » et « Rattachée à » (filtres de la tête de page)",
+      "motif": "sans filtre servi par l'API pour le rattachement ; le groupement par échéance est le seul rendu"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "avatars (initiales) de « Rattachée à » et de « Assignée à »",
+      "motif": "la recherche de rattachement ne sert pas de photo ; pictogramme client/bien à la place"
+    }
+  ],
+  "mesures": {
+    "date": "2026-11-13",
+    "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare --roles TCK-2596.json",
+    "commit": "arbre de travail (lot 1 de TCK-2596 : « Ma journée »)",
+    "resultats": [
+      {
+        "ecran": "a-0-telephone",
+        "ligne": "36 conformes · 23 écarts · 25 absents · 19,41 % pixels",
+        "note": "« À régler » porte six lignes dans la démo (2 comptes rendus, 4 tâches en retard, aucune demande de plus de 24 h) contre quatre dans la maquette : les textes du bloc s'apparient par rang sur des lignes différentes, et tout ce qui suit descend de 199 px (la première carte de visite sort de l'écran) — donnée ; zone « coque · en-tête » à 8,03 % (EnTeteMobile, coque) ; ligne secondaire en encre douce (TCK-2685)"
+      },
+      {
+        "ecran": "a-0-bureau-1440",
+        "ligne": "42 conformes · 191 écarts · 34 absents · 12,88 % pixels",
+        "note": "barre latérale (coque) et rem 16 contre 14,4 (de part et d'autre de TCK-2692) ; reste la donnée de « À régler » et de la chronologie"
+      },
+      {
+        "ecran": "a-0-bureau-1280",
+        "ligne": "41 conformes · 192 écarts · 34 absents · 14,08 % pixels"
+      },
+      {
+        "ecran": "a-4",
+        "ligne": "non relevé",
+        "note": "la démo n'a pas de journée libre (quatre tâches en retard) ; couvert par le test de composant « journée libre » de MaJournee.tck-2596.test.tsx"
+      },
+      {
+        "ecran": "balayage /app (agent, fr)",
+        "ligne": "360, 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe ; ellipses seulement dans le rail de la barre latérale à 768 (coque)",
+        "note": "`balayer` ne pose pas le cookie NEXT_LOCALE (la page sort dans la langue du compte) : balayé avec une copie locale de l'outil qui le pose, comme `releve`"
+      },
+      {
+        "ecran": "a-1-telephone",
+        "ligne": "24 conformes · 17 écarts · 25 absents · 12,04 % pixels",
+        "note": "une seule section (En retard, 4 tâches de biens) contre deux dans la maquette, pas de gestes de contact (aucun client) — donnée ; en-tête de racine (la coque juge /app/tasks racine) au lieu de l'en-tête de détail"
+      },
+      {
+        "ecran": "a-1-bureau-1440",
+        "ligne": "39 conformes · 139 écarts · 55 absents · 5,48 % pixels",
+        "note": "une colonne (En retard) au lieu de trois et pas de « Plus tard » : la démo n'a rien d'autre ; barre latérale (coque), rem"
+      },
+      {
+        "ecran": "a-1-bureau-1280",
+        "ligne": "40 conformes · 138 écarts · 55 absents · 5,89 % pixels"
+      },
+      {
+        "ecran": "a-2-telephone",
+        "ligne": "24 conformes · 37 écarts · 30 absents · 21,2 % pixels",
+        "note": "feuille vide (titre et client non saisis) : bouton désactivé, recherche à la place du client prérempli"
+      },
+      {
+        "ecran": "a-2-bureau-1440",
+        "ligne": "42 conformes · 171 écarts · 47 absents · 8,54 % pixels"
+      },
+      {
+        "ecran": "a-2-bureau-1280",
+        "ligne": "42 conformes · 171 écarts · 47 absents · 9,14 % pixels"
+      },
+      {
+        "ecran": "a-3-telephone",
+        "ligne": "24 conformes · 38 écarts · 34 absents · 22,39 % pixels",
+        "note": "tâche d'un bien créée par un autre : ni Appeler/WhatsApp ni « Supprimer », « Créée … par Serigne Ndoye », assigné en liste (Moi)"
+      },
+      {
+        "ecran": "a-3-bureau-1440",
+        "ligne": "49 conformes · 166 écarts · 49 absents · 7,27 % pixels"
+      },
+      {
+        "ecran": "a-3-bureau-1280",
+        "ligne": "50 conformes · 165 écarts · 49 absents · 7,71 % pixels"
+      },
+      {
+        "ecran": "balayage /app/tasks (agent, fr)",
+        "ligne": "360, 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe ; ellipses seulement dans le rail de la coque à 768"
+      }
+    ]
+  }
+}

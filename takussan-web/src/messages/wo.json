@@ -18607,5 +18607,101 @@
       "partir": "Quitter",
       "rester": "Rester"
     }
+  },
+  "journee": {
+    "aujourdhui": "Aujourd’hui",
+    "jourPrecedent": "Jour précédent",
+    "jourSuivant": "Jour suivant",
+    "bienSansTitre": "Un bien",
+    "sousTitreLibre": "Journée libre",
+    "toutesLesTaches": "Toutes les tâches",
+    "erreur": "La journée n’a pas pu être chargée.",
+    "reessayer": "Réessayer",
+    "ajouter": {
+      "libelle": "Ajouter : visite, tâche ou client",
+      "titre": "Ajouter",
+      "bouton": "Ajouter",
+      "visite": "Visite",
+      "tache": "Tâche",
+      "client": "Client"
+    },
+    "semaine": {
+      "libelle": "Choisir un jour de la semaine",
+      "libre": "Libre",
+      "visites": "{n, plural, one {# visite} other {# visites}}",
+      "taches": "{n, plural, one {# tâche} other {# tâches}}"
+    },
+    "aRegler": {
+      "titre": "À régler",
+      "compte": "{n, plural, =0 {rien à régler} one {# chose à régler} other {# choses à régler}}",
+      "compteRendu": "Compte rendu à faire",
+      "faire": "Faire",
+      "aujourdhuiA": "aujourd’hui {heure}",
+      "hierA": "hier {heure}",
+      "leA": "{date} {heure}",
+      "quelquUn": "Un contact",
+      "attend": "{nom} attend depuis {n} j",
+      "demande": "Demande",
+      "demandeSur": "Demande · {bien}",
+      "whatsapp": "Écrire à {nom} sur WhatsApp",
+      "messageWhatsApp": "Bonjour {nom}, je reviens vers vous au sujet de votre demande pour « {bien} ».",
+      "ouvrir": "Ouvrir",
+      "marquerFaite": "Marquer faite : {titre}",
+      "enRetardDepuis": "En retard depuis le {date}",
+      "messageWhatsAppSansBien": "Bonjour {nom}, je reviens vers vous au sujet de votre demande."
+    },
+    "reporter": {
+      "reporter": "Reporter",
+      "libelle": "Reporter : {titre}",
+      "demain": "Demain",
+      "lundi": "Lundi",
+      "semaine": "Dans une semaine"
+    },
+    "chronologie": {
+      "titre": "Ma journée",
+      "agenda": "Agenda",
+      "ouvrirAgenda": "Ouvrir l’agenda",
+      "maintenant": "maintenant",
+      "visite": "Visite",
+      "tache": "Tâche",
+      "duree": "{n} min",
+      "itineraire": "Itinéraire",
+      "visiteur": "le visiteur",
+      "appeler": "Appeler {nom}",
+      "whatsapp": "Écrire à {nom} sur WhatsApp",
+      "messageVisite": "Bonjour {nom}, je vous confirme notre visite de « {bien} ».",
+      "messageTache": "Bonjour {nom}, ",
+      "libreJusqua": "Libre jusqu’à {heure}",
+      "planifier": "Visite",
+      "rienCeJour": "Rien de prévu ce jour-là."
+    },
+    "chiffres": {
+      "titre": "Mes chiffres",
+      "biens": "Biens gérés",
+      "prospects": "Prospects",
+      "aRelancer": "{n} à relancer",
+      "taches": "Tâches ouvertes",
+      "dontEnRetard": "dont {n} en retard",
+      "aucuneEnRetard": "aucune en retard",
+      "commissions": "Commissions · {mois}",
+      "ouvrir": "{libelle} : {valeur}, ouvrir {vers}",
+      "vers": {
+        "biens": "Mes biens",
+        "prospects": "Mes clients",
+        "taches": "Tâches",
+        "commissions": "Commissions"
+      },
+      "rapport": "Voir le rapport du mois"
+    },
+    "libre": {
+      "titre": "Rien de prévu aujourd’hui.",
+      "texte": "Ni visite, ni tâche, rien à régler. De quoi prendre de l’avance :",
+      "relancer": "{n, plural, one {# prospect à relancer} other {# prospects à relancer}}",
+      "relancerDetail": "Vos clients qui attendent un signe",
+      "planifier": "Planifier une visite",
+      "planifierDetail": "Toute la journée est libre",
+      "client": "Ajouter un client",
+      "clientDetail": "Un contact rencontré sur le terrain"
+    }
   }
 }

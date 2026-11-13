@@ -27,6 +27,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/calendar/CalendarPage.tsx': 'periode',
   // TCK-2641 — le sélecteur de mois du relevé du bailleur : « mois précédent », pas un retour.
   'src/components/owners/fiche/FicheDuBailleur.tsx': 'periode',
+  // TCK-2596 — « Jour précédent » de « Ma journée » (bureau) : un jour plus tôt, pas un retour.
+  'src/components/journee/pieces.tsx': 'periode',
   'src/components/ui/calendar.tsx': 'calendrier',
   'src/components/bookings/CalendrierDesNuits.tsx': 'calendrier',
   'src/components/console/Pagination.tsx': 'pagination',

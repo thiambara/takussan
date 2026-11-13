@@ -6,6 +6,7 @@ import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
 import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
 import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
 import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
+import { MaJournee } from '@/components/journee/MaJournee';
 import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
@@ -31,6 +32,14 @@ export default async function DashboardPage() {
   }
 
   const payload = await fetchDashboardMe();
+
+  // TCK-2596 (ADR-0096) — l'accueil de l'AGENT est sa journée : « À régler », la chronologie, ses
+  // chiffres en bas. Le rôle est celui du profil ACTIF (`dashboard/me`) : l'admin d'agence, le
+  // bailleur et le client gardent leur accueil. Le bandeau des brouillons d'assistant reste en tête.
+  if (aDesChiffres(payload) && payload.data.role === 'agent') {
+    return <MaJournee chiffres={payload.data.metrics} bandeau={<WizardDraftsBanner />} />;
+  }
+
   const prenom = prenomDe(user);
 
   // TCK-270 — Surface a "Personnalisez votre agence" banner when the
