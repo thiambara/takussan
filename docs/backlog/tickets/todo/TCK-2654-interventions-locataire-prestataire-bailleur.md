@@ -147,3 +147,41 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+### Prémisse re-mesurée (démo, lecture seule, 2026-11-13)
+
+- AC3 : #44 est `completed`, demandée par l'utilisateur 78 (persona `locataire2` de l'outil de fidélité, ajoutée pour ce ticket). AC4 : #32 est `closed`, assignée à 18 (persona `prestataire`).
+- AC6 : **aucune donnée de démo** — aucun `owner_profiles.works_approval_threshold` posé, aucune demande avec `quote_amount`. AC2 et AC6 écrivent : prouvés en vitest sur le corps envoyé, écart écrit ici (décision du 2026-11-13).
+
+### Décisions (porteur de session, 2026-11-13)
+
+1. **Seuil du bailleur** : servi par un delta API de ce ticket (`owner_approval_threshold` sur la demande), au bailleur du bien et au personnel de son agence seulement ; tests de fuite (locataire, prestataire, autre bailleur, autre agence) et ablation.
+2. **Aucun texte inventé** : chaque phrase de la maquette sans source (« répond d'ordinaire dans l'heure », « a consulté deux autres artisans », la note ★ du prestataire, « Depuis janvier », « Changer le créneau », « Relevé de mes factures ») devient un écart « donnée » motivé de la fiche de fidélité.
+3. **« En deux mots »** est la `description`, absente quand rien n'est écrit ; le titre se déduit de la catégorie, dans la langue de l'écran.
+4. **Le formulaire se choisit par le PERSONA de la coque**, pas par bail (`formulaireDuSignalement`, `resoudrePersona` au serveur dans `new/page.tsx`) : le persona `locataire` n'a ni profil bailleur, ni agent, ni admin dans son espace, donc `MaintenanceRequestPolicy::isPrincipalFor` ne lui est jamais vrai et l'API ne lui exige pas de description. Tout autre persona garde le formulaire du personnel (titre, description, neuf catégories, quatre priorités) — un agent ou un bailleur qui loue aussi n'y reçoit jamais de 422.
+5. **« Demande envoyée »** a son URL (`/app/maintenance/{id}/envoyee`), rendue au seul demandeur ; tout autre lecteur est renvoyé à la fiche par `router.replace` côté client, sur `requester_id` — un `redirect` serveur dans la page ou un layout sous `[id]/loading.tsx` casse la garde des états de route (le rendu en flux est déjà parti). Route à part plutôt que `?envoyee=1` sur `[id]/page.tsx`, que TCK-2653 tient.
+
+### Lot 1 — signalement du locataire et « demande envoyée »
+
+- `src/lib/maintenance/signalement.ts` (tuiles → énumération, urgence → priorité, corps sans description vide, photos AJOUTÉES sous la borne de 20, étapes du locataire), `src/lib/queries/maintenance-signalement.ts` (même POST, même idempotence que `useCreateMaintenanceRequest`, sans description exigée).
+- `src/components/maintenance/acteurs/SignalementDuLocataire.tsx` : bannière du logement (« Quel logement ? » d'abord quand il y en a plusieurs, puis « Changer », un bouton) ; entrée `capture="environment"` premier champ du formulaire (AC1), tuile « + » pour la galerie ; six tuiles et deux tuiles d'urgence en radios natives `sr-only` ; barre collante au téléphone (`BarreDAction`, `form=`), pied « Annuler / Envoyer » de la carte de 640 px au bureau. `MaintenanceForm` et `MaintenanceNewLauncher` inchangés.
+- `src/components/maintenance/acteurs/DemandeEnvoyee.tsx` : agence du bien, résumé, quatre étapes ; « Appeler l'agence » seulement si le résumé du loyer (`/api/me/rent-summary`) porte le MÊME bail et un numéro. Hors périmètre : note vocale (« Message vocal », « 1 message vocal »).
+
+- Fidélité : au téléphone, les deux écrans adoptent la pleine largeur (`PagePleineLargeur`, TCK-2691) et portent la marge de la maquette (16 px pour le signalement, 20 / 40 px pour « demande envoyée ») ; l'en-tête de page n'y est pas rendu (la barre du haut de la coque porte le titre). Au bureau, les cartes ont les gabarits fixes de la maquette, hors de l'échelle ×0,9 (ADR-0107 § 3) : `w-[40rem]` (640 px) et `w-[30rem]` (480 px).
+
+### Lot 2 — « mes demandes » du locataire
+
+- `src/lib/maintenance/mes-demandes.ts` : les colonnes lues (`CHAMPS_DES_DEMANDES_DU_LOCATAIRE`, aucune de coût ni de devis), la répartition en « à confirmer » (la plus récente d'abord) / « en cours » / « closes », le jour relatif (aujourd'hui, hier, demain). `useDemandesDuLocataire()` dans `src/lib/queries/maintenance-signalement.ts` : `include=property,assignee`, 50 par page, `-created_at`.
+- `src/components/maintenance/acteurs/MesDemandesDuLocataire.tsx` : la carte « L'intervention est terminée — {titre} : le problème est-il réglé ? » en tête, rendue seulement quand la fiche sert un geste (`abilities.can_confirm_resolution|can_contest_resolution`, lus sur `GET …/{id}`, la liste ne les sert pas) ; « C'est réparé » (`confirm-resolution`), « Le problème persiste » ouvre dans la carte le mot (≥ 3 caractères) et les photos à l'appareil (≤ 5, `capture="environment"`) ; le délai vient d'`auto_close_at` (TCK-2652). « En cours » : « Urgente », « Signalée … », l'artisan et son passage, les quatre étapes (`EtapesDeLaDemande`, partagé avec « demande envoyée ») ; la carte entière mène à la fiche. « Terminées » : trois, puis « Tout voir » → `/app/maintenance?status=closed,cancelled`, la liste complète (recherche et filtres conservés). État vide : « Un souci dans votre logement ? Signalez-le ici. »
+- `(liste)/page.tsx` : le persona locataire de la coque ouvre « mes demandes », sauf `?status=` ; le bailleur et le prestataire gardent `MaintenanceList` (lots 3 et 4).
+- Écarts de donnée, rien d'inventé (décision 2) : le métier de l'artisan (« plombière ») et la fenêtre du créneau (« entre 9 h et 11 h ») ne sont pas servis ; « Changer le créneau » n'a pas de route pour le locataire ; « Écrire à l'agence » est le fil de la fiche (`conversation_id`, servi au détail) ; la note « Les réparations de votre logement sont prises en charge selon votre bail » n'est pas sourcée (qui paie dépend du bail et du mandat) ; « close le » devient « terminée le » (`completed_at` : la date de clôture n'est pas servie).
+
+### Lot 3 — l'API du plafond (décision 1a)
+
+- `MaintenanceRequestResource` sert `owner_approval_threshold` (le plafond de travaux du bailleur, ADR-0037, `OwnerApprovalThreshold`) au DÉTAIL et au seul donneur d'ordre : le bailleur du bien et le personnel de son agence. La clé est ABSENTE pour le locataire, le prestataire, un autre bailleur de l'agence et une autre agence, et jamais présente sur une liste (`MaintenanceOwnerThresholdVisibilityTest`). Pour l'autre bailleur et l'autre agence, la policy refuse déjà la fiche (403/404) : le test accepte « refusé ou servi sans la clé ».
+- Reste : l'écran du devis du bailleur (rappel du seuil, « Approuver », AC6 en vitest) et « Mes interventions » du prestataire (AC4, AC5).
+
+### Fidélité (lots 1 et 2)
+
+- `docs/qa/audit-ux-2026-11/fidelite/TCK-2654.json` : écrans a-3, a-4 et a-5 d'`app-interventions`, relevé v6 du 2026-11-13, avec ses écarts acceptés.
+- Balayage aux largeurs 390, 768, 1024, 1280 et 1440 sur les trois routes : aucun débord, aucune coupe. Seules ellipses : celles du rail replié de la coque, à 768.

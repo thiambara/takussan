@@ -25,6 +25,10 @@
       "email": "locataire@agency1.demo.takussan.sn",
       "disposition": "locataire"
     },
+    "locataire2": {
+      "email": "mamadou-seck-uzvg@example.net",
+      "disposition": "locataire"
+    },
     "admin2": {
       "email": "admin@thies-properties.sn",
       "disposition": "admin-agence"

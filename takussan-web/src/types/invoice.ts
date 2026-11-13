@@ -309,3 +309,62 @@ export type ServiceProviderBill = {
   created_at: string | null;
 };
 
+
+/**
+ * TCK-2649 / TCK-2650 (ADR-0100) — `GET /api/me/rent-summary` : ce que doit le locataire connecté, en
+ * un montant calculé par l'API (pénalités comprises), et ce qui le compose. La page n'additionne rien.
+ */
+export type EtatDeLEcheancier = 'due' | 'up_to_date' | 'none';
+
+export interface LigneDuDu {
+  /** `rent`, `charges` (TCK-2679) ou `late_fee` : une pénalité restant due, même sur un loyer payé. */
+  readonly kind: 'rent' | 'charges' | 'late_fee' | string;
+  readonly lease_payment_id: number;
+  readonly lease_id: number;
+  readonly payment_type: string | null;
+  readonly due_date: string | null;
+  readonly period_start: string | null;
+  readonly period_end: string | null;
+  readonly amount: number;
+  readonly currency: string | null;
+  readonly days_late: number | null;
+  readonly payable_online: boolean;
+}
+
+export interface ProchainLoyer {
+  readonly lease_id: number;
+  readonly lease_payment_id: number;
+  readonly due_date: string;
+  readonly amount: number;
+  readonly charges_amount: number;
+  readonly currency: string | null;
+  readonly payable_online: boolean;
+}
+
+export interface MoyensHorsLigne {
+  readonly wave_number?: string;
+  readonly orange_money_number?: string;
+  readonly bank_details?: string;
+  readonly agency_phone?: string;
+}
+
+export interface ResumeDuLoyer {
+  readonly currency: string | null;
+  readonly total_due: number;
+  readonly parts: { readonly payable_online: number; readonly payable_at_agency: number };
+  readonly items: readonly LigneDuDu[];
+  readonly next_rent: ProchainLoyer | null;
+  /** `null` : aucun bail (un client de réservation). */
+  readonly schedule_state: EtatDeLEcheancier | null;
+  readonly lease: {
+    readonly id: number;
+    readonly reference_number: string | null;
+    readonly status: string | null;
+    readonly monthly_rent: number | null;
+    readonly monthly_charges: number | null;
+    readonly currency: string | null;
+    readonly property: { readonly id: number; readonly title: string } | null;
+    readonly agency: { readonly id: number; readonly name: string; readonly phone: string | null } | null;
+  } | null;
+  readonly offline_payment: MoyensHorsLigne | null;
+}

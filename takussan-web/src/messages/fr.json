@@ -6213,6 +6213,106 @@
         "effacer": "Effacer",
         "appliquer": "Voir les interventions"
       }
+    },
+    "locataire": {
+      "signaler": {
+        "titre": "Signaler un problème",
+        "sousTitre": "Une photo et deux réponses suffisent : votre agence s’occupe du reste.",
+        "logement": "Votre logement",
+        "changer": "Changer",
+        "quelLogement": "Quel logement ?",
+        "prendrePhoto": "Prendre une photo",
+        "retirerPhoto": "Retirer la photo {numero}",
+        "galerie": "Ajouter depuis la galerie",
+        "compte": "{count, plural, =0 {Aucune photo} one {# photo} other {# photos}} sur {max}",
+        "ouGalerie": "ou depuis la galerie",
+        "tropDePhotos": "{count, plural, one {# photo n’a pas été ajoutée} other {# photos n’ont pas été ajoutées}} : {max} au plus.",
+        "quoi": "C’est quoi ?",
+        "choisirQuoi": "Choisissez ce qui ne va pas.",
+        "tuiles": {
+          "plumbing": "Eau",
+          "electrical": "Électricité",
+          "locksmith": "Porte, serrure",
+          "pest_control": "Nuisibles",
+          "appliance": "Électroménager",
+          "other": "Autre"
+        },
+        "titres": {
+          "plumbing": "Problème d’eau",
+          "electrical": "Problème d’électricité",
+          "locksmith": "Problème de porte ou de serrure",
+          "pest_control": "Nuisibles",
+          "appliance": "Problème d’électroménager",
+          "other": "Autre problème"
+        },
+        "urgent": "C’est urgent ?",
+        "urgentOui": "Oui, ça ne peut pas attendre",
+        "urgentOuiAide": "Fuite, panne de courant, porte bloquée",
+        "urgentNon": "Ça peut attendre quelques jours",
+        "urgentNonAide": "L’agence convient d’un jour avec vous",
+        "deuxMots": "En deux mots",
+        "facultatif": "Facultatif",
+        "deuxMotsExemple": "Fuite sous l’évier…",
+        "envoyer": "Envoyer à l’agence",
+        "envoi": "Envoi…",
+        "erreur": "La demande n’a pas pu être envoyée. Réessayez."
+      },
+      "envoyee": {
+        "metaTitle": "Demande envoyée",
+        "titre": "Demande envoyée",
+        "recue": "{agence} a reçu votre demande",
+        "recueSansNom": "Votre agence a reçu votre demande",
+        "prevenu": "Vous serez prévenu quand un artisan est choisi.",
+        "resume": "{categorie} · {urgence} · {photos, plural, =0 {sans photo} one {# photo} other {# photos}}",
+        "urgence": {
+          "urgent": "urgent",
+          "normal": "sans urgence"
+        },
+        "envoyeeLe": "Envoyée {jour, select, aujourdhui {aujourd’hui} other {le {date}}} à {heure}",
+        "avancement": "Avancement de la demande",
+        "etapes": {
+          "recue": "Reçue",
+          "artisan": "Artisan choisi",
+          "visite": "Visite",
+          "confirmez": "Vous confirmez"
+        },
+        "voir": "Voir ma demande",
+        "appeler": "Appeler l’agence",
+        "erreur": "La demande n’a pas pu être chargée."
+      },
+      "demandes": {
+        "titre": "Interventions",
+        "signaler": "Signaler un problème",
+        "sousTitre": "{bien} — {attente, plural, =0 {aucune réponse attendue} one {# réponse attendue} other {# réponses attendues}}, {enCours, plural, =0 {aucune intervention en cours} one {# intervention en cours} other {# interventions en cours}}",
+        "sousTitreSansBien": "{attente, plural, =0 {Aucune réponse attendue} one {# réponse attendue} other {# réponses attendues}}, {enCours, plural, =0 {aucune intervention en cours} one {# intervention en cours} other {# interventions en cours}}",
+        "erreur": "Vos demandes ne se chargent pas.",
+        "vide": {
+          "titre": "Un souci dans votre logement ?",
+          "texte": "Signalez-le ici."
+        },
+        "aConfirmer": {
+          "question": "{titre} : le problème est-il réglé ?",
+          "termineePar": "{nom} a terminé l’intervention {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}} à {heure}.",
+          "terminee": "L’intervention s’est terminée {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}} à {heure}.",
+          "cloture": "{jours, plural, =0 {Sans réponse de votre part, la demande sera close aujourd’hui.} one {Sans réponse de votre part, la demande sera close dans # jour.} other {Sans réponse de votre part, la demande sera close dans # jours.}}",
+          "aidePersiste": "« Le problème persiste » vous laisse ajouter des photos et un mot pour l’agence.",
+          "photos": "{n, plural, one {# photo} other {# photos}}"
+        },
+        "enCours": {
+          "titre": "En cours",
+          "urgente": "Urgente",
+          "signalee": "Signalée {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}} à {heure}",
+          "passe": "<fort>{nom}</fort> passe <fort>{jour, select, aujourdhui {aujourd’hui} demain {demain} other {le {date}}} à {heure}</fort>.",
+          "sOccupe": "<fort>{nom}</fort> s’occupe de votre demande."
+        },
+        "closes": {
+          "titre": "Terminées",
+          "toutVoir": "Tout voir",
+          "termineeLe": "{categorie} · terminée le {date}",
+          "close": "{categorie} · close",
+          "annulee": "{categorie} · annulée"
+        }
+      }
     }
   },
   "homepage": {

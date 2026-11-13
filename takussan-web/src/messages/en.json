@@ -6256,6 +6256,106 @@
         "effacer": "Clear",
         "appliquer": "Show requests"
       }
+    },
+    "locataire": {
+      "signaler": {
+        "titre": "Report a problem",
+        "sousTitre": "A photo and two answers are enough: your agency takes care of the rest.",
+        "logement": "Your home",
+        "changer": "Change",
+        "quelLogement": "Which home?",
+        "prendrePhoto": "Take a photo",
+        "retirerPhoto": "Remove photo {numero}",
+        "galerie": "Add from the gallery",
+        "compte": "{count, plural, =0 {No photo} one {# photo} other {# photos}} of {max}",
+        "ouGalerie": "or from the gallery",
+        "tropDePhotos": "{count, plural, one {# photo was not added} other {# photos were not added}}: {max} at most.",
+        "quoi": "What is it?",
+        "choisirQuoi": "Choose what is wrong.",
+        "tuiles": {
+          "plumbing": "Water",
+          "electrical": "Electricity",
+          "locksmith": "Door, lock",
+          "pest_control": "Pests",
+          "appliance": "Appliances",
+          "other": "Other"
+        },
+        "titres": {
+          "plumbing": "Water problem",
+          "electrical": "Electrical problem",
+          "locksmith": "Door or lock problem",
+          "pest_control": "Pests",
+          "appliance": "Appliance problem",
+          "other": "Other problem"
+        },
+        "urgent": "Is it urgent?",
+        "urgentOui": "Yes, it can’t wait",
+        "urgentOuiAide": "Leak, power cut, door stuck",
+        "urgentNon": "It can wait a few days",
+        "urgentNonAide": "The agency agrees on a day with you",
+        "deuxMots": "In a few words",
+        "facultatif": "Optional",
+        "deuxMotsExemple": "Leak under the sink…",
+        "envoyer": "Send to the agency",
+        "envoi": "Sending…",
+        "erreur": "The request could not be sent. Please try again."
+      },
+      "envoyee": {
+        "metaTitle": "Request sent",
+        "titre": "Request sent",
+        "recue": "{agence} has received your request",
+        "recueSansNom": "Your agency has received your request",
+        "prevenu": "You will be told when a tradesperson is chosen.",
+        "resume": "{categorie} · {urgence} · {photos, plural, =0 {no photo} one {# photo} other {# photos}}",
+        "urgence": {
+          "urgent": "urgent",
+          "normal": "not urgent"
+        },
+        "envoyeeLe": "Sent {jour, select, aujourdhui {today} other {on {date}}} at {heure}",
+        "avancement": "Request progress",
+        "etapes": {
+          "recue": "Received",
+          "artisan": "Tradesperson chosen",
+          "visite": "Visit",
+          "confirmez": "You confirm"
+        },
+        "voir": "See my request",
+        "appeler": "Call the agency",
+        "erreur": "The request could not be loaded."
+      },
+      "demandes": {
+        "titre": "Repairs",
+        "signaler": "Report a problem",
+        "sousTitre": "{bien} — {attente, plural, =0 {no answer expected} one {# answer expected} other {# answers expected}}, {enCours, plural, =0 {no repair in progress} one {# repair in progress} other {# repairs in progress}}",
+        "sousTitreSansBien": "{attente, plural, =0 {No answer expected} one {# answer expected} other {# answers expected}}, {enCours, plural, =0 {no repair in progress} one {# repair in progress} other {# repairs in progress}}",
+        "erreur": "Your requests could not be loaded.",
+        "vide": {
+          "titre": "A problem in your home?",
+          "texte": "Report it here."
+        },
+        "aConfirmer": {
+          "question": "{titre}: is the problem fixed?",
+          "termineePar": "{nom} finished the work {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}} at {heure}.",
+          "terminee": "The work was finished {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}} at {heure}.",
+          "cloture": "{jours, plural, =0 {Without an answer from you, the request will be closed today.} one {Without an answer from you, the request will be closed in # day.} other {Without an answer from you, the request will be closed in # days.}}",
+          "aidePersiste": "“The problem persists” lets you add photos and a note for the agency.",
+          "photos": "{n, plural, one {# photo} other {# photos}}"
+        },
+        "enCours": {
+          "titre": "In progress",
+          "urgente": "Urgent",
+          "signalee": "Reported {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}} at {heure}",
+          "passe": "<fort>{nom}</fort> comes <fort>{jour, select, aujourdhui {today} demain {tomorrow} other {on {date}}} at {heure}</fort>.",
+          "sOccupe": "<fort>{nom}</fort> is handling your request."
+        },
+        "closes": {
+          "titre": "Finished",
+          "toutVoir": "See all",
+          "termineeLe": "{categorie} · finished on {date}",
+          "close": "{categorie} · closed",
+          "annulee": "{categorie} · cancelled"
+        }
+      }
     }
   },
   "recentlyViewed": {

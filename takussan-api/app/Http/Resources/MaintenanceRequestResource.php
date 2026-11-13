@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Http\Request;
@@ -99,6 +100,14 @@ class MaintenanceRequestResource extends BaseResource
             $data['media'] = $this->mediaBlock($user);
             $data['conversation_id'] = $this->conversationIdFor($user);
             $data['abilities'] = $this->abilitiesBlock($user);
+            // TCK-2654 (décision 1a) — le plafond de travaux du bailleur (ADR-0037), pour que l'écran du
+            // devis le rappelle : servi au seul donneur d'ordre (le bailleur du bien, le personnel de
+            // son agence), jamais au locataire, au prestataire, à un autre bailleur ni à une autre
+            // agence — clé ABSENTE. Au détail seulement : une lecture par demande.
+            if ($isPrincipal) {
+                $threshold = app(OwnerApprovalThreshold::class)->of($this->resource);
+                $data['owner_approval_threshold'] = $threshold !== null ? (float) $threshold : null;
+            }
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
             }

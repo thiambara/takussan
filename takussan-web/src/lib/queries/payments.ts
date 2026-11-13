@@ -18,6 +18,7 @@ import type {
   PayoutMethodKind,
   PayoutPreparation,
   PayoutStatus,
+  ResumeDuLoyer,
   ServiceProviderBill,
 } from '@/types/invoice';
 import { cheminApi } from '@/lib/chemin-api';
@@ -99,7 +100,15 @@ export const paymentsQueryKeys = {
     ['payout-methods', 'beneficiary', userId] as const,
   ownerStatement: (period: string, landlordId?: number) => ['owner-statements', period, landlordId ?? null] as const,
   serviceProviderBills: (params: UseServiceProviderBillsParams) => ['service-provider-bills', params] as const,
+  resumeDuLoyer: ['me', 'rent-summary'] as const,
 };
+
+/** TCK-2650 — ce que doit le locataire connecté, total compris, tel que l'API le calcule (TCK-2649). */
+export function useResumeDuLoyer(options: { readonly enabled?: boolean } = {}) {
+  return useApiQuery<ApiResponse<ResumeDuLoyer>>(paymentsQueryKeys.resumeDuLoyer, '/api/me/rent-summary', {
+    enabled: options.enabled ?? true,
+  });
+}
 
 /**
  * Les `filter[…]` de `GET /api/payments/history` pour ces paramètres. TCK-2721 — une seule écriture,
