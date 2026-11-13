@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 
 import { RappelDuSeuil } from '@/components/maintenance/acteurs/RappelDuSeuil';
+import { QuotePdfButton } from '@/components/maintenance/QuotePdfButton';
 import { Button } from '@/components/ui/button';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
@@ -39,7 +40,7 @@ export interface DecisionDuDevisProps {
  * TCK-2654 — la décision d'un devis qui attend l'accord du bailleur, en UN endroit : la carte de la
  * liste du bailleur (`InterventionsDuBailleur`) et la feuille de l'accueil (`FeuilleDuDevis`, TCK-2624)
  * la montent telle quelle. Elle porte le prestataire, les lignes et le total du devis (`quote_amount`,
- * jamais une somme refaite ici), le rappel du plafond (`RappelDuSeuil`), puis « Approuver {montant} »
+ * jamais une somme refaite ici), le rappel du plafond (`RappelDuSeuil`), le PDF du devis (`QuotePdfButton`), puis « Approuver {montant} »
  * et « Refuser » — seulement quand la fiche sert `abilities.can_decide_quote`.
  *
  * Même fiche et même mutation que tout écran du devis (`useMaintenanceRequest`,
@@ -106,6 +107,12 @@ export function DecisionDuDevis({ ligne, avecPhotos = false, onApprouve, onRefus
       </div>
 
       <RappelDuSeuil fiche={fiche} className="mt-3" />
+      {/* Le PDF du devis, sous `can_view_quote_pdf` : le lien de la maquette a-6, sans la référence « DV-… » que l'API ne sert pas. */}
+      {fiche?.abilities?.can_view_quote_pdf ? (
+        <div className="mt-1">
+          <QuotePdfButton id={ligne.id} forme="lien" />
+        </div>
+      ) : null}
 
       {peutDecider ? (
         <>

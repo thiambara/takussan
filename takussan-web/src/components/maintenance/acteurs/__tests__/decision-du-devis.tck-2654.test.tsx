@@ -109,4 +109,25 @@ describe('DecisionDuDevis — TCK-2654 (L3b)', () => {
     expect(screen.queryByRole('button', { name: 'Refuser' })).toBeNull();
     expect(document.querySelector('[data-slot="rappel-du-plafond"]')).toBeNull();
   });
+
+  it('L3b (2) — le PDF du devis sous `can_view_quote_pdf` : le lien télécharge …/quote/pdf ; sans le drapeau, rien', async () => {
+    const telecharge = vi.fn(async () => new Response(new Blob(['%PDF']), { status: 200 }));
+    vi.stubGlobal('fetch', telecharge);
+    URL.createObjectURL = vi.fn(() => 'blob:devis');
+    URL.revokeObjectURL = vi.fn();
+    reseau.fiche = fiche({ abilities: { can_decide_quote: true, can_view_quote_pdf: true } });
+    const { unmount } = monter();
+    const lien = await screen.findByRole('button', { name: 'Télécharger le devis (PDF)' });
+    expect(lien.closest('[data-slot="pdf-du-devis"]')).toBeTruthy();
+    fireEvent.click(lien);
+    await waitFor(() => expect(telecharge).toHaveBeenCalledTimes(1));
+    expect(String((telecharge.mock.calls[0] as unknown[])[0])).toMatch(/\/api\/maintenance-requests\/42\/quote\/pdf$/);
+    unmount();
+    vi.unstubAllGlobals();
+
+    reseau.fiche = fiche({ abilities: { can_decide_quote: true, can_view_quote_pdf: false } });
+    monter();
+    await screen.findByText('Membrane bitumineuse bicouche');
+    expect(screen.queryByRole('button', { name: 'Télécharger le devis (PDF)' })).toBeNull();
+  });
 });

@@ -3,22 +3,23 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { RappelDuSeuil } from '@/components/maintenance/acteurs/RappelDuSeuil';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import type { FicheDuBailleur } from '@/lib/maintenance/devis-du-bailleur';
 import {
   useApproveMaintenanceQuote,
   useRequestMaintenanceQuote,
 } from '@/lib/queries/maintenance';
 import type { MaintenanceRequest } from '@/types/maintenance';
 
+import { QuotePdfButton } from './QuotePdfButton';
 import { QuoteRejectionModal } from './QuoteRejectionModal';
-import { origineApi } from '@/lib/config-publique';
 
 /**
  * TCK-592 — les gestes du devis, chacun derrière son drapeau : le donneur d'ordre DEMANDE
  * (`can_request_quote`) ; qui peut TRANCHER (`can_decide_quote` — en `awaiting_owner`, le seul
- * bailleur du bien) approuve ou refuse ; qui peut LIRE le devis en télécharge le PDF.
+ * bailleur du bien) approuve ou refuse ; qui peut LIRE le devis en télécharge le PDF (`QuotePdfButton`).
  */
 export function QuoteActions({
   request,
@@ -48,6 +49,11 @@ export function QuoteActions({
         <p className="mb-3 text-sm text-muted-foreground">
           {can_decide_quote ? t('awaiting_owner_you') : t('awaiting_owner_other')}
         </p>
+      ) : null}
+      {/* TCK-2654 — le bailleur qui tranche (la notification `maintenance_quote.awaiting_owner` mène ici) lit son
+          plafond, comme sur sa liste ; jamais l'agence (« votre mandat » s'adresse au bailleur). */}
+      {request.status === 'awaiting_owner' && can_decide_quote ? (
+        <RappelDuSeuil fiche={request as FicheDuBailleur} className="mb-3" />
       ) : null}
       <div className="flex flex-wrap gap-2">
         {can_request_quote ? (
@@ -91,56 +97,5 @@ export function QuoteActions({
 
       <QuoteRejectionModal id={request.id} open={rejectOpen} onClose={() => setRejectOpen(false)} />
     </section>
-  );
-}
-
-/**
- * Le PDF est servi derrière le jeton : on le récupère en blob (patron d'`InventoryPdfButton`),
- * plutôt que d'ouvrir un onglet qui recevrait un 401.
- */
-function QuotePdfButton({ id }: { readonly id: number }) {
-  const t = useTranslations('maintenance.intervention.quote');
-  const messageErreur = useMessageErreurApi();
-  const { token } = useAuth();
-  const [downloading, setDownloading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const url = `${origineApi()}/api/maintenance-requests/${id}/quote/pdf`;
-
-  const download = async () => {
-    setDownloading(true);
-    setErrorMessage(null);
-    try {
-      const response = await fetch(url, {
-        headers: {
-          Accept: 'application/pdf',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!response.ok) {
-        throw new Error(t('pdf_failed'));
-      }
-      const objectUrl = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = `devis-intervention-${id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (err) {
-      setErrorMessage(messageErreur(err, t('pdf_failed')));
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  return (
-    <>
-      <Button type="button" variant="ghost" className="h-11 sm:h-9" disabled={downloading} onClick={() => void download()}>
-        {downloading ? t('pdf_downloading') : t('pdf')}
-      </Button>
-      {errorMessage ? <span className="self-center text-xs text-destructive">{errorMessage}</span> : null}
-    </>
   );
 }

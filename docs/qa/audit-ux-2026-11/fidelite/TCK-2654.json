@@ -66,7 +66,7 @@
       "produit": {
         "route": "/app/maintenance",
         "persona": "proprietaire (persona `proprietaire` de personas.json)",
-        "etat": "La démo n'a AUCUN devis en `awaiting_owner` ni aucun plafond fixé (sonde GET des personas proprietaire et proprietaire2, 2026-11-13), et le relevé n'écrit rien : les trois GET de la vue — liste des devis à décider, liste en cours, fiche du devis — sont DOUBLÉS dans la page par doublure-bailleur.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Étanchéité de la terrasse, 485 000, plafond 150 000, les deux photos de public/maquettes ; Peinture du séjour, Serrure du portail — chaque ligne en cours lit SA fiche, qui sert le plafond de 150 000). La coque, /me et le reste sont réels. Ce relevé mesure la MISE EN PAGE ; les données, elles, sont éprouvées par interventions-du-bailleur.tck-2654.test.tsx. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v12 du 2026-11-13 (17 h 49, terrain-6, takussan-web/.fidelite/TCK-2654/v12) : telephone 20 conformes · 11 écarts · 7 absents (28,33 % de pixels) ; bureau-1440 44 conformes · 82 écarts · 31 absents (9,08 % de pixels) ; bureau-1280 45 conformes · 81 écarts · 31 absents (9,8 % de pixels). Au bureau, deux colonnes comme la maquette : le devis (x320 à 1440) et « En cours sur vos biens » (x982) ; les photos à gauche des lignes du devis dès xl. Balayage 390/768/1024/1280/1440 (16 h 30, même doublure) : aucun débord, aucune coupe ; seules ellipses, 25 à 768 : les libellés du rail replié de la coque (relevé v12, 17 h 49, après L3b : la décision du devis vit dans DecisionDuDevis, « Sous le seuil : sans accord » à x1266 y248 comme la maquette)."
+        "etat": "La démo n'a AUCUN devis en `awaiting_owner` ni aucun plafond fixé (sonde GET des personas proprietaire et proprietaire2, 2026-11-13), et le relevé n'écrit rien : les trois GET de la vue — liste des devis à décider, liste en cours, fiche du devis — sont DOUBLÉS dans la page par doublure-bailleur.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Étanchéité de la terrasse, 485 000, plafond 150 000, les deux photos de public/maquettes ; Peinture du séjour, Serrure du portail — chaque ligne en cours lit SA fiche, qui sert le plafond de 150 000). La coque, /me et le reste sont réels. Ce relevé mesure la MISE EN PAGE ; les données, elles, sont éprouvées par interventions-du-bailleur.tck-2654.test.tsx. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v13 du 2026-11-13 (19 h 31, terrain-6, takussan-web/.fidelite/TCK-2654/v13, après L3b partie 2 : le lien du PDF du devis sous le rappel du plafond) : telephone 20 conformes · 12 écarts · 8 absents (25,73 % de pixels) ; bureau-1440 44 conformes · 82 écarts · 33 absents (5,9 % de pixels) ; bureau-1280 45 conformes · 81 écarts · 33 absents (7,01 % de pixels). Au bureau, deux colonnes comme la maquette : le devis (x320 à 1440) et « En cours sur vos biens » (x982) ; les photos à gauche des lignes du devis dès xl. Balayage 390/768/1024/1280/1440 (19 h 31, même doublure) : aucun débord, aucune coupe ; seules ellipses, 25 à 768 : les libellés du rail replié de la coque (relevé v13, après L3b : la décision du devis vit dans DecisionDuDevis, « Sous le seuil : sans accord » à x1266 y248 comme la maquette)."
       }
     },
     {
@@ -435,15 +435,14 @@
       "propriete": "seuil",
       "exception": "décision produit",
       "motif": "deux colonnes et la grille dès `xl` (1280), comme la maquette, et non dès `lg` comme l'écrivait le ticket : décision 3 a de team-lead ; sous `xl`, la semaine en liste par jour, comme au téléphone"
-    }
-  ],
-  "ecarts_ouverts": [
+    },
     {
       "ecran": "app-interventions a-6-*",
       "element": "« Devis DV-2026-118 (PDF) » (lucide-download)",
-      "propriete": "présence",
-      "attente": "export accepté par team-lead (2026-11-13) : livré avec le hunk de QuoteActions.tsx, après le commit de TCK-2653 lots 2 et 3",
-      "motif": "le bouton PDF existe (QuotePdfButton, components/maintenance/QuoteActions.tsx) mais n'est pas exporté, et ce fichier porte le lot d'un autre agent"
+      "propriete": "libellé : « Télécharger le devis (PDF) » ; trait de l'icône 1,75 / 1,5 contre 2",
+      "exception": "donnée",
+      "motif": "le lien est rendu (QuotePdfButton, forme « lien », sous can_view_quote_pdf, L3b partie 2) ; l'API ne sert aucune référence de devis (« DV-… ») : le libellé reprend la clé existante du geste de la fiche. Le trait suit TCK-2685 (A § 7)."
     }
-  ]
+  ],
+  "ecarts_ouverts": []
 }
