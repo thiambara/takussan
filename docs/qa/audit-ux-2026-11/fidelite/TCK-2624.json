@@ -1,0 +1,223 @@
+{
+ "ticket": "TCK-2624",
+ "ecrans": [
+  {
+   "page": "app-accueil",
+   "approche": "a",
+   "ecran": 1,
+   "nom": "Admin d’agence",
+   "references": {
+    "telephone": "references/app-accueil/a-1-telephone.json",
+    "bureau-1440": "references/app-accueil/a-1-bureau-1440.json",
+    "bureau-1280": "references/app-accueil/a-1-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "admin",
+    "etat": "agence Dakar Immo de la démo, admin (Admin Dakar Immo), relevé le 2026-11-13 : 1 bien à valider, 1 demande non attribuée (il y a 11 jours), 128 visites à confirmer, 55 avis à modérer, KYC de l'agence à compléter, 1 invitation sans réponse, 16 échéances impayées pour 33 715 000 F ; « Équipe aujourd’hui » servie. La maquette : Awa, 3 biens, 2 demandes, 6 visites, 12 impayés",
+    "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+   }
+  },
+  {
+   "page": "app-accueil",
+   "approche": "a",
+   "ecran": 2,
+   "nom": "Bailleur",
+   "references": {
+    "telephone": "references/app-accueil/a-2-telephone.json",
+    "bureau-1440": "references/app-accueil/a-2-bureau-1440.json",
+    "bureau-1280": "references/app-accueil/a-2-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "proprietaire",
+    "etat": "bailleur owner1 de la démo (Mouhamed Sene, Dakar Immo), relevé le 2026-11-13 : loyers de novembre 4 reçus sur 4 (8,1 M F), 8 visites à confirmer sur ses biens (aucune qu'il confirme : biens d'agence, décision 7), aucun devis en awaiting_owner, aucun loyer en retard dont il est le bailleur, rien « en cours sur vos biens ». La maquette : 8 reçus sur 14, 2 visites, 1 devis, 3 loyers en retard, 1 intervention",
+    "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+   }
+  },
+  {
+   "page": "app-accueil",
+   "approche": "a",
+   "ecran": 7,
+   "nom": "Chargement et erreur (admin)",
+   "references": {
+    "telephone": "references/app-accueil/a-7-telephone.json",
+    "bureau-1440": "references/app-accueil/a-7-bureau-1440.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "admin",
+    "etat": "même compte que a-1 ; « Équipe aujourd’hui » en panne : `--bloquer '*team-today*' --attente 12000` (la requête échoue, la file s'arrête après ses relances). Le chargement des blocs n'est pas un état stable du relevé (il dure moins que l'attente des données) : il est éprouvé en vitest (`AFaireAdmin`, `AFaireBailleur` : squelettes tant qu'une file charge)",
+    "bloquer": "*team-today*",
+    "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app",
+  "persona": "voir `ecrans[].produit`",
+  "disposition": null,
+  "etat": "voir `ecrans[].produit`",
+  "defiler": null,
+  "perturber": null
+ },
+ "coque": true,
+ "roles": [],
+ "_roles": "Aucun rôle apparié en plus des rôles communs de la coque : les cartes et rangées s'apparient par leurs libellés et icônes (ancres) ; les données diffèrent de la maquette (compte de démo, lecture seule), un rôle de carte comparerait des contenus différents.",
+ "zones": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "role": "coque · barre d'onglets"
+  }
+ ],
+ "alias": {
+  "Bonjour Awa": "le prénom du compte relevé (« Bonjour Admin », « Bonjour Mouhamed »)",
+  "Mardi 10 novembre": "le jour du relevé, en toutes lettres (« Vendredi 13 novembre »)",
+  "Sam. 14 nov. · 11:00 — Maison familiale avec jardin, Ouakam": "la visite relevée : jour et heure, puis le titre du bien, suivi de son quartier seulement quand le titre ne le porte pas (titreEtQuartier)",
+  "Proposée par Sokhna Sène · visiteur : Pape Gueye": "« {visiteur} · agent : {agent} » (lot 1, LigneDeVisite)"
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "app-accueil a-1-*, a-2-*, a-7-*",
+   "element": "noms, biens, montants, comptes, dates, nombre de cartes et de rangées, « Voir les N autres », ordonnées qui en découlent",
+   "propriete": "texte, y, nombre de rangées",
+   "exception": "donnée",
+   "motif": "comptes de démo en lecture seule (garde d'écriture), relevés le 2026-11-13 : voir `ecrans[].produit.etat`. Rien n'est bouchonné."
+  },
+  {
+   "ecran": "app-accueil a-2-*",
+   "element": "visites à confirmer du bailleur : « Voir » seul (téléphone : pleine largeur ; bureau : bouton tonal de la rangée) au lieu de « Autre créneau » + « Confirmer »",
+   "propriete": "présence, texte",
+   "exception": "donnée (règle d'autorisation)",
+   "motif": "décision 7 ratifiée : le bailleur d'un bien d'agence ne confirme pas une visite (`PropertyVisitPolicy::agitPourLeBien`) ; l'hôte, lui, a les deux gestes. « Voir » prend la place du bouton tonal (corrigé au lot 3 : il était discret)"
+  },
+  {
+   "ecran": "app-accueil a-2-*",
+   "element": "« Devis à valider » (carte, rangée, icône file-text), « En cours sur vos biens », « Prochain reversement »",
+   "propriete": "présence",
+   "exception": "donnée",
+   "motif": "aucun devis en awaiting_owner ni intervention en cours sur les biens d'owner1 ; éprouvés en vitest (AFaireBailleur.tck-2624 : 19 tests). « Prochain reversement » : l'API ne sert pas sa date (TCK-2623)"
+  },
+  {
+   "ecran": "app-accueil a-2-*",
+   "element": "Loyers de novembre : ni « 3 en retard » ni « 3 à venir », la colonne « Reçus » prend la largeur de la carte",
+   "propriete": "présence, largeur",
+   "exception": "donnée",
+   "motif": "décision 2 : rien d'inventé ; `rent_month` ne sert pas encore ces deux segments (TCK-2774) — rendus dès qu'ils le sont (test « les segments servis par l'API »)"
+  },
+  {
+   "ecran": "app-accueil a-2-bureau-*",
+   "element": "Loyers en retard : « {montant} · échu le {date} » au lieu de « relancé par l’agence le 8 nov. »",
+   "propriete": "texte",
+   "exception": "donnée",
+   "motif": "l'historique de relance de l'agence n'est pas servi au bailleur (hors périmètre : famille 6)"
+  },
+  {
+   "ecran": "app-accueil a-1-*, a-2-*",
+   "element": "boutons des cartes et rangées : bordure transparente de 1 px, écart 6 px, retrait 16 px pour la taille lg (largeur +2 px)",
+   "propriete": "bordure, écart, marges, largeur",
+   "exception": "règle du design system",
+   "motif": "primitive `Button` (`border border-transparent`, `gap-1.5`, `lg: px-4`), commune à toute l'application ; dans une cellule de grille à largeur fixe, le texte ne bouge pas"
+  },
+  {
+   "ecran": "app-accueil a-*-*",
+   "element": "trait des icônes lucide : 2 → 1,75 au téléphone, 1,5 dès md",
+   "propriete": "trait",
+   "exception": "règle du design system",
+   "motif": "trait par défaut de la portée `/app` (globals.css, `svg.lucide[stroke-width=\"2\"]`)"
+  },
+  {
+   "ecran": "app-accueil a-*-bureau-*",
+   "element": "toutes les mesures en rem (16 contre 14,4)",
+   "propriete": "tailles et positions",
+   "exception": "technique",
+   "motif": "référence gelée antérieure à TCK-2692 (ADR-0107)"
+  },
+  {
+   "ecran": "app-accueil a-*-*",
+   "element": "titres de bloc (« À faire maintenant ») : boîte pleine largeur à x = 0 au lieu du texte à x = 16",
+   "propriete": "largeur, x",
+   "exception": "technique",
+   "motif": "`TitreBloc` porte son retrait sur l'élément (px-4) ; le texte est rendu à x = 16 comme la maquette, seule la boîte relevée diffère"
+  },
+  {
+   "ecran": "app-accueil a-1-*, a-2-*, a-7-*",
+   "element": "ligne de mise en service / « Démarrer », « Ce mois », en-tête de la coque (avatar, nom du compte, loupe, cloche)",
+   "propriete": "position, texte, couleur",
+   "exception": "composant partagé",
+   "motif": "socle TCK-2622 et coque (TCK-2617) : hors du périmètre de ce ticket ; leurs écarts sont à la fiche TCK-2622"
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "ecran": "a-6-*",
+   "element": "« Rien à faire (bailleur) » : « Tout est à jour » et « Proposer un bien à mon agence »",
+   "motif": "aucun compte bailleur de la démo n'a toutes ses files à zéro (owner1 : 8 visites, owner2 : 7 visites et la visite guidée du premier passage), et un relevé n'écrit pas ; l'état est éprouvé en vitest (« bailleur sans rien en attente : Tout est à jour, et Proposer un bien à mon agence ») et rendu par `ToutEstAJour` (EtatsDeBloc, socle). Relevé owner2 conservé à titre de trace : 44,9 % / 91,6 % de pixels, dus à la visite guidée."
+  },
+  {
+   "ecran": "a-7-*",
+   "element": "squelettes de « À faire » et de « Ce mois »",
+   "motif": "« Ce mois » est lu par le serveur ; le chargement des files est plus court que l'attente du relevé : vitest (squelettes tant qu'une file charge)"
+  },
+  {
+   "ecran": "a-0, a-3, a-4, a-5",
+   "element": "agent, locataire, prestataire, client",
+   "motif": "TCK-2625"
+  }
+ ],
+ "mesures": {
+  "date": "2026-11-13",
+  "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare",
+  "commit": "arbre de travail (HEAD a3e7a3705 + lot 2 de TCK-2624 + L3b de TCK-2654)",
+  "resultats": [
+   {
+    "ecran": "a-1-telephone",
+    "ligne": "26 conformes · 21 écarts · 19 absents · 21,69 % pixels",
+    "note": "barre d'onglets 0 % ; boutons tonals +2 px (primitive) ; « Ce mois » sous les cartes (données)"
+   },
+   {
+    "ecran": "a-1-bureau-1440",
+    "ligne": "69 conformes · 202 écarts · 53 absents · 11,59 % pixels",
+    "note": "rem 16 contre 14,4"
+   },
+   {
+    "ecran": "a-1-bureau-1280",
+    "ligne": "69 conformes · 200 écarts · 55 absents · 12,72 % pixels"
+   },
+   {
+    "ecran": "a-2-telephone",
+    "ligne": "22 conformes · 17 écarts · 24 absents · 19,83 % pixels",
+    "note": "barre d'onglets 0 % ; « Voir » au lieu de « Autre créneau / Confirmer » (décision 7) ; pas de devis (donnée)"
+   },
+   {
+    "ecran": "a-2-bureau-1440",
+    "ligne": "43 conformes · 130 écarts · 76 absents · 12,49 % pixels",
+    "note": "après correction : « Voir » des rangées de visite tonal (seuls restent la bordure transparente et l'écart de la primitive) ; rem 16 contre 14,4"
+   },
+   {
+    "ecran": "a-2-bureau-1280",
+    "ligne": "41 conformes · 132 écarts · 76 absents · 12,9 % pixels"
+   },
+   {
+    "ecran": "a-7-telephone",
+    "ligne": "26 conformes · 6 écarts · 35 absents · 37,33 % pixels",
+    "note": "panne d'« Équipe aujourd’hui » rendue ; « À faire » chargé, pas en squelettes"
+   },
+   {
+    "ecran": "a-7-bureau-1440",
+    "ligne": "32 conformes · 93 écarts · 76 absents · 16,32 % pixels"
+   },
+   {
+    "ecran": "balayage /app (admin, proprietaire, hote)",
+    "ligne": "360, 390, 768, 1024, 1280, 1440 : débord 0, dépassement 0, aucune coupe",
+    "note": "ellipses seulement dans le rail à 768 (coque)"
+   }
+  ]
+ }
+}

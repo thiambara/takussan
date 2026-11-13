@@ -138,6 +138,11 @@
       "ecran": "a-7-*",
       "element": "squelettes et panne par bloc",
       "motif": "« Ce mois » est lu par le serveur (un perturbateur du navigateur ne le fait pas tomber) ; les squelettes et la panne concernent les blocs de TCK-2624. Les primitives `ErreurDeBloc`, `SqueletteDeCarte`, `SqueletteDesChiffres` et la panne de « Ce mois » (`chiffres === null`, « Réessayer ») sont testées (socle.tck-2622.test.tsx)"
+    },
+    {
+      "ecran": "persona hote (balayage /app ; pas d'écran de maquette)",
+      "element": "« Ce mois » de l'hôte : Biens 0, Baux actifs 0, Encaissé 0 F, au-dessus de visites à confirmer sur les biens de son agence",
+      "motif": "écart de la DÉMO, pas du produit (relevé en lecture seule le 2026-11-13) : `/api/dashboard/me` sert à l'hôte la vue bailleur voulue par TCK-595, mais l'agence `individual` de la démo (Studio de Aminata) a un admin sans `OwnerProfile` et 82 biens à trois autres bailleurs — forme qu'aucun parcours produit ne crée. Correction du seeder : TCK-2776"
     }
   ],
   "mesures": {

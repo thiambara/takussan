@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { CalendarClock } from 'lucide-react';
 
-import { RangeeAFaire } from '@/components/accueil/pieces';
+import { LienTonal, RangeeAFaire } from '@/components/accueil/pieces';
 import { ConfirmerALHeure } from '@/components/visits/par-le-temps/cartes';
 import { nomDuVisiteur, useHeuresProposees, type HeureProposee } from '@/components/visits/par-le-temps/pieces';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -77,7 +77,10 @@ export function LigneDeVisite({ v, refusee, onRefus }: { readonly v: PropertyVis
       detail={agent ? t('detailAvecAgent', { visiteur, agent }) : visiteur}
       gestes={
         refusee ? (
-          voir(t('voir'), `/app/visits/${v.id}`)
+          // Le seul geste qui reste prend la place du bouton tonal (maquette : « Voir » d'une rangée).
+          <LienTonal href={`/app/visits/${v.id}`} className="h-8 px-3 text-ui font-semibold">
+            {t('voir')}
+          </LienTonal>
         ) : (
           <>
             {voir(t('autreCreneau'), `/app/visits/${v.id}?heure=autre`)}
