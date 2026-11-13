@@ -2430,13 +2430,13 @@
       },
       "feuille": {
         "titre": "Last step",
-        "pret": "Ready to publish",
+        "pret": "ready to publish",
         "publier": "Publish my listing",
         "revenir": "Back to the listing",
         "numeroTitre": "Your number",
         "numeroTexte": "Visitors will call you or message you on WhatsApp. A code by SMS is all it takes.",
         "numeroTexteSansCompte": "Visitors will call you or message you on WhatsApp. New or already registered, a text-message code is all it takes.",
-        "codeEnvoyeAu": "Code sent to {phone}.",
+        "codeEnvoyeAu": "Code sent to <b>{phone}</b>",
         "modifier": "Change",
         "whatsappDuNumero": "{phone} receives WhatsApp",
         "nomsTitre": "Your name, for interested people",
@@ -2447,7 +2447,9 @@
         "assurances": {
           "motDePasse": "No password to make up",
           "retirable": "You can take the listing down at any time"
-        }
+        },
+        "mention": "By publishing, you accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>.",
+        "nomsAide": "They appear on your listing and in your messages."
       }
     },
     "titleTypes": {

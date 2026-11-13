@@ -10644,13 +10644,13 @@
       },
       "feuille": {
         "titre": "Dernière étape",
-        "pret": "Prête à publier",
+        "pret": "prête à publier",
         "publier": "Publier mon annonce",
         "revenir": "Revenir à l’annonce",
         "numeroTitre": "Votre numéro",
         "numeroTexte": "Les visiteurs vous appelleront ou vous écriront sur WhatsApp. Un code par SMS suffit.",
         "numeroTexteSansCompte": "Les visiteurs vous appelleront ou vous écriront sur WhatsApp. Nouveau ou déjà inscrit, un code par SMS suffit.",
-        "codeEnvoyeAu": "Code envoyé au {phone}.",
+        "codeEnvoyeAu": "Code envoyé au <b>{phone}</b>",
         "modifier": "Modifier",
         "whatsappDuNumero": "Le {phone} reçoit WhatsApp",
         "nomsTitre": "Votre nom, pour les intéressés",
@@ -10661,7 +10661,9 @@
         "assurances": {
           "motDePasse": "Pas de mot de passe à inventer",
           "retirable": "Annonce retirable à tout moment"
-        }
+        },
+        "mention": "En publiant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
+        "nomsAide": "Ils apparaissent sur votre annonce et dans vos messages."
       }
     },
     "titleTypes": {

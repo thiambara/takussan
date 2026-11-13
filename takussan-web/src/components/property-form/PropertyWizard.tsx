@@ -889,12 +889,14 @@ export function AssistantDePublication({
   const listePourPublier = (apresGeste?: () => void) => (
     <ListePourPublier
       etapes={etapesDeListe}
-      index={index}
+      // TCK-2601 — feuille de compte ouverte (sans compte) : tout est franchi, « Votre numéro » est en cours.
+      index={feuille.ouverte && anonyme ? etapesDeListe.length : index}
       // TCK-2601 (AC5) — feuille ouverte, la liste ne mène nulle part : au bureau elle reste à côté
       // du panneau (le voile ne la couvre plus), et changer d'étape sous lui ferait verser ou publier
       // depuis une autre étape. « Revenir à l'annonce » est le chemin.
       desactivee={isSubmitting || feuille.ouverte}
       enPlus={anonyme?.pourPublierEnPlus}
+      enPlusEnCours={feuille.ouverte && anonyme !== undefined}
       onRouvrir={(i) => {
         apresGeste?.();
         void naviguer(i, -1);

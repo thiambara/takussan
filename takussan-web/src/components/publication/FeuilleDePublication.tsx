@@ -194,7 +194,11 @@ export function FeuilleDePublication({ ouverte, onFermer, manques, autreContact,
             {codeEnvoye || codeAccepte ? (
               <div className="space-y-3">
                 <p className="text-sm text-foreground">
-                  {t('codeEnvoyeAu', { phone: formaterTelephone(telephone) })}{' '}
+                  {t.rich('codeEnvoyeAu', {
+                    phone: formaterTelephone(telephone),
+                    b: (morceau) => <span className="font-semibold tabular-nums">{morceau}</span>,
+                  })}{' '}
+                  ·{' '}
                   <button
                     type="button"
                     disabled={occupe || codeAccepte}

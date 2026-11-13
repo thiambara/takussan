@@ -152,7 +152,7 @@ function monter() {
 async function jusquAuCode(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
   await user.click(screen.getByRole('button', { name: 'Publier l’annonce' }));
-  const f = screen.getByRole('dialog', { name: 'Dernière étape' });
+  const f = screen.getByRole('dialog', { name: 'Dernière étape : votre numéro' });
   fireEvent.change(within(f).getByLabelText('Votre numéro'), { target: { value: '770000999' } });
   await user.click(within(f).getByRole('button', { name: 'Recevoir un code' }));
   await within(f).findByLabelText('Code reçu par SMS');
@@ -317,7 +317,7 @@ describe('PropertyWizard sans compte — la feuille de compte (TCK-2601)', () =>
     const user = monter();
     await screen.findByRole('progressbar', { value: { text: 'Étape 6 sur 6' } });
     await user.click(screen.getByRole('button', { name: 'Publier l’annonce' }));
-    const f = screen.getByRole('dialog', { name: 'Dernière étape' });
+    const f = screen.getByRole('dialog', { name: 'Dernière étape : votre numéro' });
     fireEvent.change(within(f).getByLabelText('Votre numéro'), { target: { value: '770000999' } });
     await user.click(within(f).getByRole('button', { name: 'Recevoir un code' }));
     await waitFor(() => expect(page.surPublier).toHaveBeenCalled());

@@ -176,7 +176,7 @@ describe('PropertyWizard — la feuille de compte (TCK-2601)', () => {
     await user.click(within(f).getByRole('button', { name: 'Recevoir un code' }));
 
     await waitFor(() => expect(securite.envoyer).toHaveBeenCalledWith('+221770000901'));
-    expect(await within(f).findByText(/Code envoyé au \+221 77 000 09 01/)).toBeInTheDocument();
+    expect(await within(f).findByText(/Code envoyé au/)).toHaveTextContent('Code envoyé au +221 77 000 09 01 · Modifier');
     // Le code affiché hors production (« Utiliser ce code ») reste servi.
     await user.click(within(f).getByRole('button', { name: /utiliser ce code/i }));
     await user.click(within(f).getByRole('button', { name: 'Publier mon annonce' }));
@@ -226,11 +226,12 @@ describe('PropertyWizard — la feuille de compte (TCK-2601)', () => {
     expect(within(feuille()).getByTestId('phrase-cgu-feuille')).toHaveTextContent(/En publiant, vous acceptez/);
   });
 
-  it('« Revenir à l’annonce » referme la feuille, rien ne part', async () => {
+  it('au téléphone, le ✕ seul referme la feuille (maquette a-6 : pas de « Revenir à l’annonce » au pied), rien ne part', async () => {
     compte.user = { ...AWA, last_name: '' };
     const user = await allerAuBout();
     await user.click(screen.getByRole('button', { name: 'Publier l’annonce' }));
-    await user.click(within(feuille()).getByRole('button', { name: 'Revenir à l’annonce' }));
+    expect(within(feuille()).queryByRole('button', { name: 'Revenir à l’annonce' })).not.toBeInTheDocument();
+    await user.click(within(feuille()).getByRole('button', { name: 'Fermer' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(createPropertyAction).not.toHaveBeenCalled();
   });
@@ -278,7 +279,7 @@ describe('PropertyWizard — la feuille de compte (TCK-2601)', () => {
     expect(within(f).getByRole('button', { name: 'Publier mon annonce' })).toBeDisabled();
 
     // Refermée, le bandeau dit la même chose — pas « complétez le bloc Vos coordonnées », parti.
-    await user.click(within(f).getByRole('button', { name: 'Revenir à l’annonce' }));
+    await user.click(within(f).getByRole('button', { name: 'Fermer' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByRole('alert')).toHaveTextContent(/Le contact de ce bien n’a pas encore de prénom/);
   });
@@ -295,7 +296,7 @@ describe('PropertyWizard — la feuille de compte (TCK-2601)', () => {
     await user.click(within(f).getByRole('button', { name: 'Publier mon annonce' }));
     expect(await within(f).findByText('Profil indisponible.')).toBeInTheDocument();
 
-    await user.click(within(f).getByRole('button', { name: 'Revenir à l’annonce' }));
+    await user.click(within(f).getByRole('button', { name: 'Fermer' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // Le bandeau renvoie à la feuille, pas au bloc « Vos coordonnées » qui a quitté l'assistant.
     expect(screen.getByRole('alert')).toHaveTextContent(/Il manque encore vos coordonnées pour publier/);

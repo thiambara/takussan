@@ -57,16 +57,20 @@ interface CadreDeLaFeuilleProps {
   readonly rappel: ReactNode;
   /** Le geste principal du moment (« Recevoir un code », « Publier mon annonce »…). */
   readonly action: ReactNode;
+  /** La mention écrite SOUS le geste (« En publiant, vous acceptez… », maquette a-7). */
+  readonly mention?: ReactNode;
   /** Les assurances écrites sous le panneau — seulement celles qui sont vraies (cf. le ticket). */
   readonly assurances?: readonly string[];
   readonly children: ReactNode;
 }
 
 export function CadreDeLaFeuille({
-  ouverte, onFermer, occupe, bureau, cible, titre, titreDuPanneau, rappel, action, assurances = [], children,
+  ouverte, onFermer, occupe, bureau, cible, titre, titreDuPanneau, rappel, action, mention, assurances = [], children,
 }: CadreDeLaFeuilleProps) {
   const t = useTranslations('property.wizard.feuille');
   const clavier = useDecalageDuClavier();
+  // Au téléphone, la maquette (a-6, a-7) n'a que le ✕ de 44 px : pas de « Revenir à l'annonce » au pied.
+  const pasTelephone = useMatchesMedia('(width >= 48rem)');
 
   if (bureau && cible) {
     return ouverte
@@ -78,6 +82,7 @@ export function CadreDeLaFeuille({
             occupe={occupe}
             onFermer={onFermer}
             action={action}
+            mention={mention}
             assurances={assurances}
           >
             {children}
@@ -94,18 +99,25 @@ export function CadreDeLaFeuille({
         if (!suivante && !occupe) onFermer();
       }}
       titre={titre}
+      // Maquette a-6 / a-7 : 80 % de la hauteur au téléphone, quel que soit le contenu (le pied reste
+      // en bas, le corps défile). Dès `md`, le panneau latéral de la primitive.
+      className="max-md:h-[80dvh]"
       style={clavier > 0 ? { bottom: clavier, maxHeight: `calc(90dvh - ${clavier}px)` } : undefined}
       pied={
-        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row-reverse">
+        <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row-reverse md:flex-wrap">
           {action}
-          <Button type="button" variant="ghost" className="w-full md:w-auto" disabled={occupe} onClick={onFermer}>
-            {t('revenir')}
-          </Button>
+          {/* Sous le geste, centrée (maquette a-7) ; dans la rangée du panneau latéral (`md`), une ligne à part. */}
+          {mention ? <div className="mt-0.5 text-center md:order-last md:w-full md:text-right">{mention}</div> : null}
+          {pasTelephone ? (
+            <Button type="button" variant="ghost" className="w-full md:w-auto" disabled={occupe} onClick={onFermer}>
+              {t('revenir')}
+            </Button>
+          ) : null}
         </div>
       }
     >
-      <div className="space-y-5">
-        <div className="rounded-xl border border-border bg-background p-3">{rappel}</div>
+      <div className="space-y-4">
+        {rappel}
         {children}
       </div>
     </FeuilleDuBas>
@@ -119,11 +131,12 @@ interface PanneauDeCompteProps {
   readonly occupe: boolean;
   readonly onFermer: () => void;
   readonly action: ReactNode;
+  readonly mention?: ReactNode;
   readonly assurances: readonly string[];
   readonly children: ReactNode;
 }
 
-function PanneauDeCompte({ titre, surtitre, revenir, occupe, onFermer, action, assurances, children }: PanneauDeCompteProps) {
+function PanneauDeCompte({ titre, surtitre, revenir, occupe, onFermer, action, mention, assurances, children }: PanneauDeCompteProps) {
   const idTitre = useId();
   const titreRef = useRef<HTMLHeadingElement>(null);
   // `undefined` = pas encore relevé. ⚠ Relevé UNE fois : sous le Strict Mode (actif en
@@ -158,7 +171,7 @@ function PanneauDeCompte({ titre, surtitre, revenir, occupe, onFermer, action, a
         {revenir}
       </button>
       <div className="mt-4 rounded-2xl border border-border bg-card p-8">
-        <p className="text-legende font-semibold tracking-surtitre text-muted-foreground uppercase">{surtitre}</p>
+        <p className="text-xs font-semibold tracking-surtitre text-muted-foreground uppercase">{surtitre}</p>
         <h1
           id={idTitre}
           ref={titreRef}
@@ -167,10 +180,11 @@ function PanneauDeCompte({ titre, surtitre, revenir, occupe, onFermer, action, a
         >
           {titre}
         </h1>
-        <div className="mt-5 space-y-5">{children}</div>
-        <div className="mt-6 flex items-center gap-4 [&_[data-slot=button]]:min-w-55" data-panneau-action="">
+        <div className="mt-3 space-y-5">{children}</div>
+        <div className="mt-6 flex items-center gap-4 [&_[data-slot=button]]:min-w-[13.75rem]" data-panneau-action="">
           {action}
         </div>
+        {mention ? <div className="mt-3">{mention}</div> : null}
       </div>
       {assurances.length > 0 ? (
         <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-ui text-muted-foreground">

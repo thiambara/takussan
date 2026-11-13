@@ -117,7 +117,28 @@ L'effacement réel reste dans `terminer()` de l'assistant connecté, qui emporte
 - **Mesure** (Chrome, `/publish` sans compte, Strict Mode de développement ; aucune écriture : `request-code` servi dans la page en 202 local, `verify-code` jamais résolu, les deux bloqués au réseau ; 0 requête autre que GET) : 1280 × 900 — panneau 114 → 806, aperçu 920 → 1280 aux états numéro et code, pied caché, débord 0, « Publier mon annonce » 605 → 641 ; focus au titre puis à « Publier l'annonce » après « Revenir » ; les cinq entrées de « Pour publier » désactivées. 390 × 844, clavier émulé de 336 px (zone visible 508) — « Recevoir un code » 408 → 448, « Publier mon annonce » 408 → 448.
 - **Non mesuré** : le panneau connecté (`/app/properties/new`, `FeuilleDePublication`) au navigateur — l'ouvrir demande un compte à qui il manque quelque chose, et le parcours écrit ; couvert en vitest seulement. La tablette tactile dès `md` avec clavier (la hauteur réduite peut laisser un vide au-dessus du clavier).
 - **Les sorties de `/publish` attendent** (décision de la session principale : le retrait du voile ne doit rien régresser) : feuille ouverte OU écritures en cours (`feuille.ouverte || isSubmitting || preparation`, remonté par `ModeAnonyme.surVerrou`), « Effacer ce brouillon » est désactivé, et « Quitter », « ✕ » et la marque de la coque sont inertes (`DeclarationDEntree.sortieBloquee` : `aria-disabled`, hors tabulation, clic retenu sans confirmation). Un assistant démonté rend la page. Mesuré à 1280 : panneau ouvert, « Quitter » `aria-disabled` et `pointer-events: none`, les trois marques inertes, « Effacer » désactivé ; refermé, tout revient.
-- Restent : la fidélité (AC-F1 à AC-F6), Google (absent de la feuille), la phrase des CGU sous « Publier mon annonce » de la maquette (la feuille la porte à l'étape du numéro).
+- Restaient alors : la fidélité, Google, la phrase des CGU sous « Publier mon annonce » — cf. § Fidélité ci-dessous.
+
+### Fidélité (AC-F1 à AC-F6) — 2026-11-13, terrain-9
+
+Maquette `app-entree-publier`, approche a, écrans 6 (« Le compte, à la publication ») et 7 (« Code, prénom et nom »), gelés le 2026-11-11. Fiche : [`TCK-2601.json`](../../../qa/audit-ux-2026-11/fidelite/TCK-2601.json) (rôles « feuille de compte » au téléphone, « panneau de compte » au bureau ; alias de vouvoiement ; ce qui entoure la feuille ignoré, cf. `ignorer_motif` ; quinze écarts acceptés avec leur motif ; aucune zone déclarée, d'où AC-F4 sans objet).
+
+**Ce qui a changé pour suivre la maquette** : titre « Dernière étape : votre numéro » au téléphone aussi ; le titre de section disparaît au profit du libellé visible « Votre numéro » et de l'aide de l'indicatif (ceux des écrans d'entrée) ; champs, gestes et case WhatsApp aux primitives des écrans d'entrée (`BOUTON_D_ENTREE`, `PhoneInput taille="grand"` au bureau, `Checkbox`) ; au bureau, 10,8 px entre le titre et le corps du panneau (`mt-3`, la maquette en a 10,7) ; « Code envoyé au **77 123 45 67** · Modifier » (sans l'indicatif national) ; aide sous le prénom et le nom ; la phrase des CGU passe SOUS « Publier mon annonce » à l'étape du code (`mention`), comme la maquette ; rappel de l'annonce en une ligne (« 250 000 F CFA /mois · prête à publier », pastille cochée) ; feuille à 80 dvh ; **« Revenir à l'annonce » retiré au téléphone** (décision de la session principale : le ✕ de 44 px suffit), gardé dès 768 px ; au bureau, « Pour publier » dit « Votre numéro · en cours », toutes les autres étapes franchies, panneau ouvert.
+
+**Mesure** (`fidelite compare` contre la référence gelée ; `/publish` sans compte, l'assistant rempli comme la maquette ; `request-code` répondu dans la page, `verify-code` jamais résolu, les deux bloqués au réseau ; aucune écriture, seuls des GET) — `conformes · écarts · absents · % pixels` :
+
+| Écran | Téléphone 390 | Bureau 1440 | Bureau 1280 |
+|---|---|---|---|
+| a-6 Le compte | 14 · 11 · 6 · 20,48 % (avant : 3 · 19 · 28 · 26,86 %) | 8 · 19 · 4 · 15,35 % | 8 · 19 · 4 · 15,73 % |
+| a-7 Code, prénom, nom | 24 · 10 · 3 · 9,42 % | 15 · 21 · 1 · 15,17 % | 15 · 21 · 1 · 15,48 % |
+
+Rideaux : bloc-notes de la session, `impl/lot2/2601/fidelite/cmp-a-{6,7}-{telephone,bureau-1440,bureau-1280}/rideau.html` (avec `rapport.md` et `cote-a-cote.png`). Le porteur valide sur le rideau (AC-F5).
+
+- **Ce qui fait les pourcentages** : au téléphone sur a-6, l'absence de Google (TCK-2777 ; « Recevoir un code » 48 px plus bas, au pied collé) ; au bureau, la colonne de l'assistant sans compte (TCK-2600) qui porte le panneau 52 px plus à droite et plus bas, et 30 px plus large ; le contenu du panneau en est une translation pure (+52,8 px, à 0,1 près), sauf −1,9 px après l'aide de l'indicatif (`PhoneInput`). Les écarts comptés au bureau sont donc surtout des positions absolues.
+- **Écarts de primitive, signalés et non corrigés ici** : le ✕ de `FeuilleDuBas` à 40 px (la maquette 44 ; en-tête de 48 au lieu de 52, d'où les y de −4 à −10) ; le préfixe et l'aide de `PhoneInput` ; le trait de `Checkbox` (2,5, TCK-2690).
+- **Écart ouvert, à trancher** : l'interligne de « Modifier » (20 au lieu de 22,5). C'est un `<button>`, inline-block, dont la boîte vaut l'interligne ; à 20, sa boîte et son texte coïncident avec le `<span>` de la maquette, sur une ligne qui garde ses 22,5 (fiche, `ecarts_ouverts`).
+- **AC-F6** : balayage 390, 768, 1024, 1280 et 1440, aux deux écrans — débord 0, dépassement 0, aucune coupe ; la feuille sous 1280, le panneau dès 1280 ; seule ellipse, le titre saisi à 390.
+- **Ablations** (chacune rouge, fichier restauré, md5 vérifié) : « Revenir » rendu au téléphone ; « Pour publier » sans l'étape en cours ; le titre « Dernière étape » au téléphone ; l'indicatif dans « Code envoyé au » ; la phrase sous le geste, au téléphone et au bureau (`PanneauDeCompte`) ; la hauteur de 80 dvh.
 
 ### Données locales créées par les mesures (base de développement, rien n'est supprimé)
 
@@ -129,8 +150,8 @@ L'effacement réel reste dans `terminer()` de l'assistant connecté, qui emporte
 ### Écarts au ticket
 
 - **« Gratuit, sans commission »** n'est pas écrit sous le panneau de bureau (cf. § AC5) : la commission dépend de l'abonnement de l'espace qui publiera, inconnu avant le code. Retrait ratifié par la session principale.
-- **Google** n'est pas dans la feuille.
+- **Google** n'est pas dans la feuille : écart de parcours (décision de la session principale du 2026-11-13), ticket de suivi [TCK-2777](TCK-2777-google-dans-la-feuille-de-compte-de-publish.md) (écrit par redac-1).
 - **Drapeau `auth.phone_login.enabled` éteint** : « Publier » mène à la connexion d'aujourd'hui, l'annonce restant dans ce navigateur ; revenu sur `/publish` avec elle, le visiteur connecté retrouve l'assistant et la feuille réduite à ce qui lui manque (numéro vérifié par le code sous session). La voie e-mail n'est pas DANS la feuille.
 - **TCK-643, AC4 — nouvelle lecture** (confirmée par la session principale le 2026-11-13). Le ticket dit : « La publication reste possible exactement dans les mêmes cas qu'avant ». Elle se lit désormais : *la publication reste possible dans tous les cas où l'API l'accepte, et la feuille ne s'ouvre jamais pour un compte que l'API publierait ; un auteur dont le numéro principal n'est pas vérifié — cas où l'API refusait en 422 — reçoit la feuille AVANT toute écriture, au lieu de la création puis du refus.* Seule exigence plus stricte que `PublishReadiness`, et voulue : le nom (décision 1a du porteur) et la réponse WhatsApp d'un numéro vérifié qui n'en a jamais reçu (« question posée une fois », ce ticket). Gardé dans `PropertyWizard.publication.tck-633.test.tsx` par l'`it.each` « AC4 » et son inverse « AC4 inverse » : WhatsApp oui, WhatsApp non, second numéro saisi non vérifié, second vérifié sans réponse WhatsApp, CGU jamais acceptées → pas de feuille, `POST …/publish` part. Ablations rouges : exiger aussi le second numéro vérifié, tenir « non » à WhatsApp pour un manque, exiger les CGU dans la feuille.
-- **Fidélité (AC-F1 à AC-F6)** : non faite.
+- **Fidélité (AC-F1 à AC-F6)** : faite, cf. § Fidélité ; reste la validation du porteur sur le rideau (AC-F5).
 
