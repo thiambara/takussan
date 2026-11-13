@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { creerRegistreEnVol } from '@/lib/registre-en-vol';
 
 /**
  * Le registre des gestes EN VOL d'un bien, par identifiant — au-dessus de tout démontage.
@@ -13,52 +13,19 @@ import { useSyncExternalStore } from 'react';
  * quoi qu'il arrive au composant qui l'a lancé : la fiche remontée le retrouve.
  *
  * Un compteur, pas un booléen : deux gestes du même bien (la fiche et une ligne de liste ouvertes
- * l'une après l'autre) ne se libèrent pas l'un l'autre.
+ * l'une après l'autre) ne se libèrent pas l'un l'autre. Le registre est {@link creerRegistreEnVol}.
  */
-const enVol = new Map<number, number>();
-const abonnes = new Set<() => void>();
-
-function prevenir(): void {
-  abonnes.forEach((abonne) => abonne());
-}
+const registre = creerRegistreEnVol<number>();
 
 /** Marque un geste du bien en vol ; la fonction rendue le libère (une seule fois). */
-export function marquerGesteEnVol(propertyId: number): () => void {
-  enVol.set(propertyId, (enVol.get(propertyId) ?? 0) + 1);
-  prevenir();
-  let libere = false;
-  return () => {
-    if (libere) return;
-    libere = true;
-    const reste = (enVol.get(propertyId) ?? 1) - 1;
-    if (reste <= 0) enVol.delete(propertyId);
-    else enVol.set(propertyId, reste);
-    prevenir();
-  };
-}
+export const marquerGesteEnVol: (propertyId: number) => () => void = registre.marquer;
 
 /** Le temps d'un geste serveur : marqué au départ, libéré à l'issue, échec compris. */
-export async function pendantLeGeste<T>(propertyId: number, geste: () => Promise<T>): Promise<T> {
-  const liberer = marquerGesteEnVol(propertyId);
-  try {
-    return await geste();
-  } finally {
-    liberer();
-  }
-}
-
-function abonner(abonne: () => void): () => void {
-  abonnes.add(abonne);
-  return () => {
-    abonnes.delete(abonne);
-  };
+export function pendantLeGeste<T>(propertyId: number, geste: () => Promise<T>): Promise<T> {
+  return registre.pendant(propertyId, geste);
 }
 
 /** `true` tant qu'un geste du bien est en vol, lancé par ce composant ou par un autre, démonté depuis. */
 export function useGesteEnVol(propertyId: number): boolean {
-  return useSyncExternalStore(
-    abonner,
-    () => enVol.has(propertyId),
-    () => false,
-  );
+  return registre.useEnVol(propertyId);
 }

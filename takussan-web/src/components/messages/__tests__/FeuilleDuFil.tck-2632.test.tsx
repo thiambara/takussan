@@ -4,8 +4,8 @@
  * `/context` rend : sans `customer` (un client, un bailleur), ni fiche ni numéro.
  */
 import { useState } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import { FeuilleDuFil } from '../FeuilleDuFil';
@@ -13,6 +13,8 @@ import { FeuilleDuFil } from '../FeuilleDuFil';
 let contexte: unknown;
 const sourdine = vi.fn();
 const geste = vi.fn();
+/** Les envois jamais rendus par l'espion : rendus après chaque test, pour qu'aucun verrou du registre (par client) ne survive. */
+const suspens = vi.hoisted(() => [] as (() => void)[]);
 const gesteEnCours = vi.hoisted(() => ({ valeur: false }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1 } }) }));
 let personnel = true;
@@ -39,7 +41,15 @@ vi.mock('@/lib/queries/conversations', () => ({
   }),
   useConversationContext: () => ({ data: contexte }),
   useToggleMute: () => ({ mutate: sourdine }),
-  useConsignerGesteDuClient: () => ({ mutate: geste, isPending: gesteEnCours.valeur }),
+  // `mutateAsync` (le verrou se libère à l'issue de la promesse) relayé à l'espion de la forme à rappels.
+  useConsignerGesteDuClient: () => ({
+    mutateAsync: (v: unknown) =>
+      new Promise<void>((onSuccess, onError) => {
+        suspens.push(() => onSuccess());
+        geste(v, { onSuccess: () => onSuccess(), onError: (e?: unknown) => onError(e) });
+      }),
+    isPending: gesteEnCours.valeur,
+  }),
 }));
 vi.mock('../ConversationList', () => ({ titreDeConversation: () => 'Malick Seck' }));
 
@@ -60,6 +70,13 @@ beforeEach(() => {
   sourdine.mockReset();
   geste.mockReset();
   gesteEnCours.valeur = false;
+});
+
+afterEach(async () => {
+  await act(async () => {
+    suspens.splice(0).forEach((rendre) => rendre());
+    await Promise.resolve();
+  });
 });
 
 describe('<FeuilleDuFil> (TCK-2632, téléphone)', () => {

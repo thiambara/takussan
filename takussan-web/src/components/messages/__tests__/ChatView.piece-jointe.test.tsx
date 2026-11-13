@@ -47,7 +47,7 @@ vi.mock('@/lib/queries/conversations', () => ({
   useSendAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   // TCK-2632 — l'en-tête du fil lit le contexte (appel, WhatsApp) et porte la sourdine.
   useConversationContext: () => ({ data: undefined }),
-  useConsignerGesteDuClient: () => ({ mutate: vi.fn() }),
+  useConsignerGesteDuClient: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
   useToggleMute: () => ({ mutate: vi.fn() }),
 }));
 

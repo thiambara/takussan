@@ -58,7 +58,7 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
   const { data: conversationData } = useConversation(conversationId);
   const { data: contexteData } = useConversationContext(conversationId);
   const basculerSourdine = useToggleMute(conversationId);
-  const { consigner, enCours } = useGesteDuClient();
+  const { consigner, enCours } = useGesteDuClient(contexteData?.data?.customer?.id ?? null);
   const personnel = usePersonnelActif();
   const [planifier, setPlanifier] = useState(false);
   const messageErreur = useMessageErreurApi();

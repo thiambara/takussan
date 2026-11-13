@@ -85,7 +85,7 @@ export function EnTeteDuFil({
   const [feuilleOuverte, setFeuilleOuverte] = useState(false);
   const { data: contexteData } = useConversationContext(conversationId);
   // Réserve de TCK-2632 : un second appui pendant que le geste est en cours est ignoré.
-  const { consigner: envoyer, enCours } = useGesteDuClient();
+  const { consigner: envoyer, enCours } = useGesteDuClient(contexteData?.data?.customer?.id ?? null);
   const basculerSourdine = useToggleMute(conversationId);
   const messageErreur = useMessageErreurApi();
   /**

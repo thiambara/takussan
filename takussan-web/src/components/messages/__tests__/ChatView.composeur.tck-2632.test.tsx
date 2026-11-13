@@ -32,7 +32,7 @@ vi.mock('@/lib/queries/conversations', () => ({
   useSendMessage: () => ({ mutateAsync: envoyerTexte, isPending: false }),
   useSendAttachment: () => ({ mutateAsync: envoyerPiece, isPending: false }),
   useConversationContext: () => ({ data: undefined }),
-  useConsignerGesteDuClient: () => ({ mutate: vi.fn() }),
+  useConsignerGesteDuClient: () => ({ mutateAsync: vi.fn(() => Promise.resolve()) }),
   useToggleMute: () => ({ mutate: vi.fn() }),
 }));
 // La réduction d'une image (canvas) n'existe pas sous jsdom : le test dit ce qu'elle rend.

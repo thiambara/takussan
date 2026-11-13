@@ -4,8 +4,8 @@
  * jamais) ; chaque geste consigné sur la fiche du client (délai de première réponse) ; « ⋯ » porte
  * les infos d'un groupe et la sourdine.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import type { Conversation } from '@/types/message';
@@ -14,11 +14,21 @@ import { EnTeteDuFil } from '../EnTeteDuFil';
 let contexte: unknown;
 let compact = false;
 const consigner = vi.fn();
+/** Les envois jamais rendus par l'espion : rendus après chaque test, pour qu'aucun verrou du registre (par client) ne survive. */
+const suspens = vi.hoisted(() => [] as (() => void)[]);
 const gesteEnCours = vi.hoisted(() => ({ valeur: false }));
 const sourdine = vi.fn();
 vi.mock('@/lib/queries/conversations', () => ({
   useConversationContext: () => ({ data: contexte }),
-  useConsignerGesteDuClient: () => ({ mutate: consigner, isPending: gesteEnCours.valeur }),
+  // `mutateAsync` (le verrou se libère à l'issue de la promesse) relayé à l'espion de la forme à rappels.
+  useConsignerGesteDuClient: () => ({
+    mutateAsync: (v: unknown) =>
+      new Promise<void>((onSuccess, onError) => {
+        suspens.push(() => onSuccess());
+        consigner(v, { onSuccess: () => onSuccess(), onError: (e?: unknown) => onError(e) });
+      }),
+    isPending: gesteEnCours.valeur,
+  }),
   useToggleMute: () => ({ mutate: sourdine }),
 }));
 // La feuille du bas lit `useMatchesMedia` pour sa propre forme : laissée au défaut.
@@ -84,6 +94,13 @@ beforeEach(() => {
   consigner.mockReset();
   gesteEnCours.valeur = false;
   sourdine.mockReset();
+});
+
+afterEach(async () => {
+  await act(async () => {
+    suspens.splice(0).forEach((rendre) => rendre());
+    await Promise.resolve();
+  });
 });
 
 describe('<EnTeteDuFil> (TCK-2632)', () => {
