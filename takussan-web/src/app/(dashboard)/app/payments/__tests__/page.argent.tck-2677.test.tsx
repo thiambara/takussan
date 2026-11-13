@@ -63,6 +63,13 @@ describe('TCK-2677 — l’admin de l’agence active est mené à « Argent »'
     expect(redirect).toHaveBeenCalledTimes(1);
   });
 
+  // TCK-2749 — l'admin qui est aussi bailleur y va : son relevé de gérance est dans « Reversements ».
+  it('l’admin aussi bailleur : ?tab=payouts → le registre « Reversements », où est son relevé', async () => {
+    await expect(ouvrir({ id: 4, roles: ['agency_admin', 'owner'], agency_id: 7 }, { tab: 'payouts' })).rejects.toThrow(
+      'NEXT_REDIRECT /app/agency/finances?tab=reversements',
+    );
+  });
+
   it('les filtres de l’historique suivent ; `page` et l’inconnu tombent', async () => {
     await expect(
       ouvrir(ADMIN, { status: 'late', entity_type: 'lease', entity_id: '4', date_from: '2026-10-01', page: '2', x: 'y' }),
@@ -74,7 +81,6 @@ describe('TCK-2677 — tous les autres profils gardent leur écran', () => {
   it.each([
     ['l’agent (qui émet des reversements depuis ?tab=payouts)', { id: 2, roles: ['agent', 'customer'], agency_id: 7 }, 'ecran-paiements'],
     ['le bailleur', { id: 3, roles: ['owner', 'customer'], agency_id: 7 }, 'ecran-paiements'],
-    ['l’admin aussi bailleur (son relevé de gérance)', { id: 4, roles: ['agency_admin', 'owner'], agency_id: 7 }, 'ecran-paiements'],
     ['le locataire', { id: 5, roles: ['tenant', 'customer'], agency_id: null }, 'vue-client'],
     ['le client', { id: 6, roles: ['customer'], agency_id: null }, 'vue-client'],
   ])('%s', async (_nom, user, ecran) => {

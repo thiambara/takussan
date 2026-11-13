@@ -34,6 +34,28 @@ TCK-2677 a exclu ce cas de la redirection (`isOwner` dans `menerALArgent`,
 
 ## Critères d'acceptation
 
-- [ ] AC1 — l'administrateur-bailleur reçoit un 307 de `/app/payments` vers « Argent », mesuré par une vraie requête.
-- [ ] AC2 — son relevé de bailleur reste à un geste depuis « Argent ».
-- [ ] AC3 — un administrateur qui n'est pas bailleur ne voit aucun relevé de bailleur.
+- [x] AC1 — l'administrateur-bailleur reçoit un 307 de `/app/payments` vers « Argent », mesuré par une vraie requête.
+- [x] AC2 — son relevé de bailleur reste à un geste depuis « Argent ».
+- [x] AC3 — un administrateur qui n'est pas bailleur ne voit aucun relevé de bailleur.
+
+## Notes d'implémentation (2026-11-13)
+
+- **Où vit le relevé.** Au registre « Reversements » de « Argent » (`AdminFinancesTabs`), au-dessus des
+  reversements de l'agence — l'ordre de l'onglet `payouts` de l'ancien écran (`PaymentsTabs`). C'est le même
+  composant, `OwnerStatementPanel` sans `landlordId` : le relevé du lecteur. Un geste depuis le point du mois :
+  l'onglet « Reversements » au bureau, la ligne « Reversements » au téléphone. `?tab=payouts` de l'ancien écran
+  mène au même registre (`adresseDeLArgent`).
+- **Qui le voit.** `isOwner(user.roles)`, et `roles` ne porte que les profils actifs de l'agence active
+  (`UserResource`, TCK-2002) : le bailleur d'une AUTRE agence ne le voit pas. « À approuver » reste la file de
+  l'agence, sans relevé.
+- **La redirection.** `menerALArgent` perd l'exclusion `isOwner`. L'hôte (agence `individual`) bailleur de son
+  propre parc garde `/app/payments` : la règle du `kind` s'applique avant (ADR-0100 § 5).
+- **AC1 — prouvé par les tests, écart écrit (décision de team-lead du 2026-11-13, option b).** Le 307 est prouvé
+  par la page rendue avec la vraie décision et la vraie traduction (`page.argent.tck-2677.test.tsx` : `?tab=payouts`
+  de l'admin bailleur → `/app/agency/finances?tab=reversements`) et par `mener-a-l-argent.tck-2677.test.ts`.
+  **Écart : mesure HTTP à faire** — aucune persona admin + bailleur dans une agence standard sur la démo (relevé en
+  lecture seule le 2026-11-13 : les deux seuls couples admin + bailleur, comptes 175 et 176, sont dans les agences
+  `individual` 5 et 6). Aucune écriture en base de démo pour la créer.
+- **AC2** : `GET /api/owner-statements?period=` sans `landlord_id` ni `agency_id` sert le relevé du lecteur dans
+  `staffAgencyId()`, l'agence de l'admin (`OwnerStatementRequest`) — lu dans le code, non mesuré sur un compte,
+  pour la même raison.

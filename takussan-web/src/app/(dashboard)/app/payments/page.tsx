@@ -28,8 +28,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * TCK-2677 (ADR-0100 § 4 et § 7) — l'admin de l'agence active (standard) n'a qu'une page pour
  * l'argent de l'agence : « Argent ». Un lien ancien, une notification (`?tab=payouts`,
  * `?tab=approvals`, `?tab=bills`) ou un favori l'y mène, sur l'onglet qui correspond, filtres de
- * l'historique compris (`adresseDeLArgent`). L'agent, l'hôte, le bailleur, le locataire et le client
- * restent ici (`aiguillerVersLArgent`, `menerALArgent`) ; `/app/payments/return` n'est pas concerné.
+ * l'historique compris (`adresseDeLArgent`) — l'admin qui est aussi bailleur compris, dont le relevé
+ * de gérance est au registre « Reversements » (TCK-2749). L'agent, l'hôte, le bailleur, le locataire
+ * et le client restent ici (`aiguillerVersLArgent`, `menerALArgent`) ; `/app/payments/return` n'est
+ * pas concerné.
  *
  * ⚠ La redirection se décide DANS la page et n'est sous AUCUN `loading.tsx` : un repli dans ce
  * segment (il y en avait un) change son 307 en 200 : le squelette part, puis le navigateur rebondit

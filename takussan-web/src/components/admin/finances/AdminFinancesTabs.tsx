@@ -5,9 +5,12 @@ import { useTranslations } from 'next-intl';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InvoicesTable } from '@/components/payments/InvoicesTable';
+import { OwnerStatementPanel } from '@/components/payments/OwnerStatementPanel';
 import { PayoutsTable } from '@/components/payments/PayoutsTable';
 import { ServiceProviderBillsTable } from '@/components/payments/ServiceProviderBillsTable';
+import { useAuth } from '@/context/AuthContext';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { isOwner } from '@/lib/roles';
 import type { OngletArgent } from '@/lib/finances/vue-argent';
 
 import { EncaissementsAgence } from './argent/EncaissementsAgence';
@@ -54,6 +57,11 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
   const t = useTranslations('admin.finances');
   const f = useFormatteurs();
   const ouvert = ongletPermis(onglet, gestes);
+  // TCK-2749 — l'admin qui est AUSSI bailleur dans l'agence active (`roles` : les profils de l'agence
+  // active, TCK-2002) trouve SON relevé de gérance au-dessus des reversements de l'agence, comme dans
+  // l'onglet `payouts` de `/app/payments` qu'il quitte pour « Argent » (`menerALArgent`).
+  const { user } = useAuth();
+  const estBailleur = isOwner(user?.roles ?? []);
   const compte = (n: number | undefined) =>
     n !== undefined && n > 0 ? <span className="text-xs tabular-nums text-muted-foreground">{f.nombre(n)}</span> : null;
 
@@ -90,6 +98,7 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
       </TabsContent>
 
       <TabsContent value="reversements" className="space-y-4 pt-4">
+        {estBailleur ? <OwnerStatementPanel /> : null}
         <PayoutsTable onSelect={gestes.ouvrirReversement} />
       </TabsContent>
 

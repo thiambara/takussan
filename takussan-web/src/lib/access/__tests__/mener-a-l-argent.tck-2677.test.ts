@@ -53,7 +53,13 @@ describe('TCK-2677 — menerALArgent', () => {
     expect(await menerALArgent(moi(['agency_admin']))).toBe(false);
   });
 
-  it('l’admin qui est aussi bailleur garde son relevé de gérance', async () => {
+  // TCK-2749 — il y va aussi : son relevé de gérance est dans « Argent », registre « Reversements ».
+  it('l’admin qui est aussi bailleur y va', async () => {
+    expect(await menerALArgent(moi(['agency_admin', 'owner']))).toBe(true);
+  });
+
+  it('l’admin bailleur d’une agence individual (l’hôte) garde /app/payments', async () => {
+    resolveAgency.mockResolvedValue({ id: 7, kind: 'individual' });
     expect(await menerALArgent(moi(['agency_admin', 'owner']))).toBe(false);
   });
 
