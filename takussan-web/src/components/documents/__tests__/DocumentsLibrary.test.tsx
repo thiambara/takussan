@@ -23,6 +23,9 @@ const authState = {
   user: null as User | null,
 };
 
+// TCK-2759 — le dialogue de dépôt lit le profil actif (React Query) pour la case « Visible par le client ».
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => false, useAgenceDuPersonnelActif: () => null }));
+
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: authState.user,
@@ -65,6 +68,7 @@ vi.mock('@/lib/queries/documents', async () => {
     useUploadDocument: () => mutation,
     useCreateShareLink: () => mutation,
     useRevokeShareLink: () => mutation,
+    useSetDocumentVisibility: () => ({ ...mutation, error: null }),
   };
 });
 
@@ -305,5 +309,52 @@ describe('<DocumentsLibrary> — gestes d’une ligne par `abilities` (TCK-1867,
     expect(
       screen.queryByRole('button', { name: fr.documents.library.delete_aria }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('<DocumentsLibrary> — le document interne d’une fiche client (TCK-2759, AC11)', () => {
+  function docDeFiche(is_internal: boolean, set_visibility: boolean): Document {
+    return {
+      id: 5,
+      documentable_id: 42,
+      documentable_type: 'App\\Models\\Customer',
+      uploaded_by: 1,
+      name: 'note-de-solvabilite',
+      type: 'other',
+      description: null,
+      is_verified: false,
+      is_internal,
+      verified_by: null,
+      verified_at: null,
+      expiry_date: null,
+      file_url: null,
+      file_name: 'note.pdf',
+      file_size: 1000,
+      mime_type: 'application/pdf',
+      created_at: '2026-11-12T10:00:00+00:00',
+      abilities: { update: true, share: true, delete: true, set_visibility },
+    };
+  }
+
+  beforeEach(() => {
+    authState.user = ownerUser();
+    documentsQuery.data.meta.total = 1;
+  });
+
+  it('le personnel voit la pastille « Interne » et la bascule', () => {
+    documentsQuery.data.data = [docDeFiche(true, true)];
+    render(wrap(<DocumentsLibrary />));
+
+    expect(screen.getByText(fr.documents.visibilite.interne)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: fr.documents.visibilite.rendre_visible })).toBeInTheDocument();
+  });
+
+  it('sans le verdict de l’API, pas de bascule ; un document visible ne porte pas la pastille', () => {
+    documentsQuery.data.data = [docDeFiche(false, false)];
+    render(wrap(<DocumentsLibrary />));
+
+    expect(screen.queryByText(fr.documents.visibilite.interne)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: fr.documents.visibilite.garder })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: fr.documents.visibilite.rendre_visible })).not.toBeInTheDocument();
   });
 });

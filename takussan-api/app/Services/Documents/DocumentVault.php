@@ -500,6 +500,10 @@ final class DocumentVault
             $query->excludingProfilePieces();
         }
 
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12) — un document interne de sa fiche n'entre
+        // jamais au coffre du sujet ; la forme SQL de `DocumentPolicy::readsInternalOf()`.
+        DocumentPolicy::restreindreAuxLecteursDInternes($query, $this->user);
+
         return $query->get();
     }
 

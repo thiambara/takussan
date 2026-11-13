@@ -16,6 +16,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('documents/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');
     Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+    // TCK-2759 (ADR-0099, amendement du 2026-11-12) — garder pour l'agence, ou montrer au client, un
+    // document de fiche client.
+    Route::patch('documents/{document}/visibility', [DocumentController::class, 'visibility'])->name('documents.visibility');
 
     // Document share links
     // TCK-078 — index lists active (non-revoked, non-expired) links for a document

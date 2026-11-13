@@ -201,6 +201,9 @@ return [
     ],
     'document' => [
         'file_missing' => 'Amul benn fichier bu ñu takk ci document bii.',
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12)
+        'internal_customer_only' => 'Seul un document de fiche client peut être gardé pour l\'agence.',
+        'internal_own_upload' => 'Une pièce déposée par le client lui-même reste visible pour lui.',
         // TCK-2655
         'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',

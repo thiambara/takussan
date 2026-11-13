@@ -51,6 +51,15 @@ class DocumentPolicy extends BasePolicy
             return false;
         }
 
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12, § 3) — un document INTERNE ne se lit que par le
+        // lecteur des documents internes de sa fiche : ni la branche du téléverseur ni celle du porteur
+        // ne valent pour lui (la seconde ouvrirait au sujet, la première au téléverseur parti).
+        if ($model->is_internal) {
+            $porteur = $model->documentable;
+
+            return $porteur instanceof Customer && $this->readsInternalOf($user, $porteur);
+        }
+
         // P218.06 (TCK-2295) — le téléverseur, selon la règle d'auteur (ADR-0031, amendement du
         // 2026-10-25, D3) : l'agent suspendu ou retiré n'y entre plus par sa seule signature.
         if ($user->isSuperAdmin() || $this->televerseurGarde($user, $model, writing: false)) {
@@ -106,11 +115,96 @@ class DocumentPolicy extends BasePolicy
         $porteur = $model->documentable;
         $agencyId = $this->agencyOf($model);
 
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12, § 7) — un document interne : la branche du
+        // titulaire du porteur (le sujet de la fiche) ne vaut pas ; son lecteur seul publie un lien.
+        if ($model->is_internal) {
+            return $porteur instanceof Customer && $this->readsInternalOf($user, $porteur);
+        }
+
         return $user->isSuperAdmin()
             || ($this->landlordWrites($user, $model->uploaded_by, $agencyId)
                 && $this->televerseurGarde($user, $model, writing: true))
             || ($porteur && isset($porteur->user_id) && $this->landlordWrites($user, $porteur->user_id, $agencyId))
             || ($porteur && isset($porteur->agency_id) && $this->isStaffOf($user, $porteur->agency_id));
+    }
+
+    /**
+     * TCK-2759 (ADR-0099, amendement du 2026-11-12, § 3) — LE lecteur des documents internes d'une
+     * fiche client, écrit une fois : le super-admin et le personnel ACTIF de l'agence de la fiche
+     * (`isStaffOf`, le téléverseur compris tant qu'il en est), et JAMAIS le sujet de la fiche
+     * (`customers.user_id`), même auteur de la fiche (`added_by_id`) ou membre du personnel. La
+     * règle est positive : elle énumère qui lit, au lieu de retirer la branche du client de
+     * `reaches()` — dont la branche « auteur encore membre » laisserait passer le bailleur auteur de
+     * sa propre fiche (TCK-2757).
+     *
+     * `view`, `listableOn`, `share`, `setVisibility` et le téléversement la lisent ; sa forme SQL est
+     * {@see self::restreindreAuxLecteursDInternes()}.
+     */
+    public function readsInternalOf(User $user, Customer $customer): bool
+    {
+        if ($customer->user_id !== null && (int) $customer->user_id === (int) $user->id) {
+            return false;
+        }
+
+        return $user->isSuperAdmin() || $this->isStaffOf($user, $customer->agency_id);
+    }
+
+    /**
+     * TCK-2759 — la forme SQL de {@see self::readsInternalOf()} pour une requête de documents : un
+     * document non interne passe ; un document interne ne passe que si sa fiche (non supprimée) est
+     * d'une agence dont l'appelant est le personnel actif — toute agence pour le super-admin — et que
+     * l'appelant n'en est pas le sujet. Le coffre, l'accueil du locataire et la liste de ses
+     * téléversements la posent.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    public static function restreindreAuxLecteursDInternes(Builder $query, User $user): Builder
+    {
+        $superAdmin = $user->isSuperAdmin();
+        $agencyId = $superAdmin ? null : $user->staffAgencyId();
+        $colonne = $query->getModel()->qualifyColumn('is_internal');
+
+        return $query->where(fn (Builder $q) => $q->where($colonne, false)
+            ->when($superAdmin || $agencyId !== null, fn (Builder $q) => $q->orWhereHasMorph(
+                'documentable',
+                [Customer::class],
+                fn (Builder $c) => $c
+                    ->when(! $superAdmin, fn (Builder $c) => $c->where('agency_id', $agencyId))
+                    ->where(fn (Builder $c) => $c->whereNull('user_id')->orWhere('user_id', '!=', $user->id)),
+            )));
+    }
+
+    /**
+     * TCK-2759 (§ 4) — garder pour l'agence un document qu'on téléverse sur ce porteur : une fiche
+     * client, par le lecteur de ses documents internes. Le contrôleur en tire aussi le défaut (vrai
+     * pour lui, faux pour tout autre).
+     */
+    public function keepsInternalOn(User $user, Model $documentable): bool
+    {
+        return $documentable instanceof Customer && $this->readsInternalOf($user, $documentable);
+    }
+
+    /**
+     * TCK-2759 (§ 4) — basculer la visibilité d'un document (`PATCH /api/documents/{id}/visibility`) :
+     * sur une fiche client, le lecteur de ses documents internes — tout le personnel actif de
+     * l'agence, pas seulement le téléverseur ; jamais le sujet, un bailleur ni une autre agence.
+     * `update` (le téléverseur seul) garde le fichier et ses versions. Sur un autre porteur, le
+     * personnel de son agence passe, et reçoit 422 `document.internal_customer_only` : le drapeau n'y
+     * vaut pas.
+     */
+    public function setVisibility(User $user, Model $model): bool
+    {
+        if (! $model instanceof Document) {
+            return false;
+        }
+
+        $porteur = $model->documentable;
+        if ($porteur instanceof Customer) {
+            return $this->readsInternalOf($user, $porteur);
+        }
+
+        return $user->isSuperAdmin() || $this->isStaffOf($user, $this->agencyOf($model));
     }
 
     /** L'agence du porteur : sa colonne `agency_id`, ou l'agence elle-même. Nulle pour un `User`. */
@@ -197,6 +291,9 @@ class DocumentPolicy extends BasePolicy
      * de la réservation ou de la fiche, titulaire du profil). Un porteur supprimé ne retire rien :
      * `view` le juge sans agence.
      *
+     * TCK-2759 — un document interne n'y passe que pour son lecteur
+     * ({@see self::restreindreAuxLecteursDInternes()}) : `view` ne l'ouvre pas au seul téléverseur.
+     *
      * @param  Builder<Document>  $query
      * @return Builder<Document>
      */
@@ -210,6 +307,8 @@ class DocumentPolicy extends BasePolicy
         $horsAgence = fn (Builder $q, string $colonne = 'agency_id') => $q
             ->whereNotNull($colonne)
             ->when($gardees !== [], fn (Builder $q) => $q->whereNotIn($colonne, $gardees));
+
+        self::restreindreAuxLecteursDInternes($query, $user);
 
         return $query
             ->where('uploaded_by', $user->id)
@@ -263,6 +362,12 @@ class DocumentPolicy extends BasePolicy
     public static function listableOn(Builder $query, User $user, Model $target): Builder
     {
         $query->where('documentable_type', $target::class)->where('documentable_id', $target->getKey());
+
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12, « Ce que le § 1 devient ») — sur une fiche
+        // client, la ligne compte aussi : qui n'en lit pas les documents internes n'en liste aucun.
+        if ($target instanceof Customer && ! app(self::class)->readsInternalOf($user, $target)) {
+            $query->where('is_internal', false);
+        }
 
         if (! $user->isSuperAdmin() && app(self::class)->readsTarget($user, $target)) {
             return $query;

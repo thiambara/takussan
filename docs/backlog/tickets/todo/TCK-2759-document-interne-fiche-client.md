@@ -138,10 +138,88 @@ Fixture commune : une agence A, une fiche client C d'A dont le sujet est le comp
 ## Hors périmètre
 
 - Le document interne sur un autre porteur que la fiche client (bail, bien, réservation) : un autre amendement (ADR-0099, amendement, § 2).
-- Exclure le document interne de l'export des données personnelles : une question de droit, laissée au porteur (§ 8).
+- Exclure le document interne de l'export des données personnelles : **écarté par le porteur le 2026-11-12** (l'export garde les métadonnées, jamais le contenu ; ADR-0099, amendement, § 8). L'AC10 est la règle validée.
 - La révocation, à la bascule, des liens publiés par le personnel.
 - La recherche de documents : elle ne rend que les téléversements de l'appelant, et le sujet n'a pas déposé les documents internes.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-12 (back-4).** Rien n'est commité ; la session déléguante commite.
+
+### Ce qui a été fait
+
+- **Le prédicat unique** : `DocumentPolicy::readsInternalOf(User, Customer)` — jamais le sujet
+  (`customers.user_id`), sinon le super-admin ou `isStaffOf` (personnel actif). Sa forme SQL,
+  `DocumentPolicy::restreindreAuxLecteursDInternes()`, est posée par le coffre
+  (`DocumentVault::uploadedDocuments`), l'accueil du locataire (`DashboardTenantService`) et la règle
+  des propres téléversements (`restreindreAuTeleverseur`). `view` et `share` commencent par une branche
+  « interne » qui ne lit qu'elle ; `listableOn` ajoute `is_internal = false` sur une fiche client pour
+  qui ne la passe pas ; `keepsInternalOn` (téléversement) et `setVisibility` (bascule) la lisent.
+- **Un septième chemin de lecture, absent du ticket** : `GET /api/customers/{id}?include=documents`
+  (la fiche client le lit). `CustomerResource` filtre désormais les documents internes pour qui ne les
+  lit pas (le verdict est jugé une fois pour la fiche), et sert `is_internal` et
+  `abilities.set_visibility` à chaque ligne. Sans ce filtre, l'admin d'une agence sujet d'une fiche de
+  sa propre agence (il voit tout le CRM) lisait le nom et le type du document interne. Épinglé par
+  `test_the_fiche_include_follows_the_same_rule`, rouge par ablation (m8).
+- `DocumentResource` : `is_internal`, et `abilities.set_visibility` (sur une fiche client seulement —
+  ailleurs la bascule rend 422 et ne s'offre pas). `DocumentAbilitiesTest` mis à jour en conséquence.
+- `PATCH /api/documents/{document}/visibility` : action `DocumentController::visibility`,
+  `UpdateDocumentVisibilityRequest` (`authorize` = `setVisibility`, donc 403 avant 422),
+  `App\Services\Documents\DocumentVisibility` (verrou de la ligne, révocation des liens du sujet,
+  journal `document_visibility_changed` avec `from`/`to` ; rien ne s'écrit si la valeur ne change pas).
+- **Export (AC10)** : aucun changement de code — la pièce déposée par un autre sur la fiche du titulaire
+  sort déjà en métadonnées (`DataExportBuilder::DOCUMENT_METADATA` : id, type, name, created_at).
+  Retirer le document interne de l'export serait UN filtre sur `is_internal` dans
+  `DataExportBuilder::documents()` ; `test_ac10_…` changerait alors de sens. Décision laissée au
+  porteur (§ 8).
+- **Front** : la case « Visible par le client » (décochée) dans `DocumentUploadDialog`, montrée au seul
+  personnel actif (`usePersonnelActif`) quand la cible est une fiche client — le panneau de la fiche et
+  la bibliothèque (cible « Client ») partagent ce dialogue. Décochée → `is_internal=1` dans le
+  `FormData`, cochée → `0`, sans la case → le champ ne part pas. La pastille « Interne » et la bascule
+  (`components/documents/VisibiliteDuDocument.tsx`) sur la ligne de la bibliothèque et du panneau, au
+  seul verdict de l'API ; « Rendre visible au client » passe par une confirmation, « Garder pour
+  l'agence » non.
+- **Le panneau de la fiche lisait des champs qu'aucune réponse ne portait** (`uploaded_at`, `size`,
+  `url` : date « Invalid », lien « Ouvrir » sans cible). `CustomerDocument` suit désormais ce que
+  `CustomerResource` sert, et « Ouvrir » mène à `/app/documents/{id}`. La clé
+  `crm.customerDetail.documents.sizeMb` n'est plus lue.
+
+### Écart à la lettre d'un AC
+
+- **AC5, super-admin** : il lit les trois documents de C (200) mais n'en liste aucun par la cible —
+  `listableOn` le renvoie à la règle de ses propres téléversements (ADR-0099 § 1 : « il ouvre un
+  document par son identifiant, journalisé », TCK-820), qui écarte même ses dépôts sur la fiche d'une
+  agence dont il n'est pas membre (règle d'auteur). Antérieur au ticket ; la parité tient pour U, X et
+  Y, et pour le super-admin la liste n'est jamais plus large que la lecture.
+- **AC3, ablation** : la règle est positive, et un bailleur n'est pas du personnel — retirer la
+  vérification du sujet de `readsInternalOf` (m5) rougit le cas de l'agent sujet et celui de l'admin
+  sujet (include), pas celui du bailleur, qui n'y passe à aucun titre. Le bailleur, lui, LISTE sur sa
+  propre fiche : `listableOn` sans le filtre (m2) rougit son cas.
+
+### Tests et mesures
+
+- Back : `tests/Feature/Documents/DocumentInterneLectureTest.php` (AC1, AC2 les cinq chemins plus
+  l'include, AC3, AC4, AC5, AC9 avec `down()`/`up()`, AC10, l'ability, la bibliothèque) et
+  `DocumentInterneEcritureTest.php` (AC6, AC7, AC8) — les trois classes nommées par le delta y sont
+  regroupées en deux. 16 tests verts.
+- Ablations, une à une, toutes rouges : m1 branche interne de `view` (4 rouges) · m2 filtre de
+  `listableOn` (3) · m3 forme SQL du coffre · m4 forme SQL de l'accueil · m5 vérification du sujet (2) ·
+  m6 branche interne de `share` · m7 révocation des liens du sujet · m8 filtre de l'include de fiche ·
+  m9 défaut au téléversement (6) · m10 branche « personnel » de la forme SQL (la bibliothèque du
+  téléverseur perd D). Front : f1 sens de la case (2 rouges), f2 garde du personnel (1).
+- Le sujet n'écrit rien sur D : `DELETE`, `POST …/versions` et `POST …/verify` → 403 (`update` est au
+  seul téléverseur, `verify` au super-admin). Aucun écouteur, aucune notification ni tâche planifiée ne
+  nomme un `Document` (relevé : `app/Listeners`, `app/Observers`, `app/Notifications`, `app/Jobs`,
+  `routes/console.php`) : pas de huitième chemin par envoi.
+- Existants : 46 classes qui citent `DocumentPolicy`, `/api/documents`, le coffre, l'accueil ou
+  l'export, plus les gardes (`ImpersonationReadSweep`, `ValeursEnListe`, `LangGroupParity`, les trois
+  d'architecture) : verts, hors `DateInventoryByValueTest` rouge à ce moment sur des clés d'autres tickets
+  (`InvitationResource::abilities`, `PropertyResource::sponsored_until`), vert à la relance suivante.
+- Front : `components/documents/__tests__/visibilite-interne.tck-2759.test.tsx` (9 tests : la case et
+  son sens, le `FormData`, le `PATCH`, la pastille, la confirmation, rien pour un client) et deux cas de
+  plus dans `DocumentsLibrary.test.tsx`. Les deux tests existants du dialogue doublent désormais
+  `usePersonnelActif` (le dialogue lit le profil actif). La cible du dialogue se lit par `useWatch`
+  (garde TCK-571). Gardes front et racine : aucun rouge ne cite un fichier de ce ticket.
+
+
+- **AC5, amendé (décision relayée par team-lead, 2026-11-13, option a)** : la liste d'une fiche n'est jamais plus large que la lecture du sujet. Le super-admin ne liste pas un document interne par sa cible ; il l'ouvre par son identifiant, et cette lecture est journalisée (ADR-0099 § 1). L'export garde les métadonnées d'un document interne, jamais son contenu, sans branche nouvelle : c'est le comportement actuel de `DataExportBuilder`, épinglé par `test_ac10`.

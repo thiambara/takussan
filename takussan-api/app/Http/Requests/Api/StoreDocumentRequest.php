@@ -38,6 +38,8 @@ class StoreDocumentRequest extends BaseFormRequest
             'description' => ['nullable', 'string'],
             'expiry_date' => ['nullable', 'date'],
             'file' => ['required', 'file', ...AcceptedUploads::document(10240)],
+            // TCK-2759 — gardé pour l'agence ; seul le personnel d'une fiche client le pose (DocumentController).
+            'is_internal' => ['sometimes', 'boolean'],
         ];
     }
 }

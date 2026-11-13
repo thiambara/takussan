@@ -33,11 +33,17 @@ class Document extends AbstractModel implements HasMedia
         'name', 'type', 'description',
         'is_verified', 'verified_by', 'verified_at',
         'expiry_date', 'metadata',
+        // TCK-2759 — un document de fiche client gardé pour l'agence (ADR-0099, amendement du 2026-11-12).
+        'is_internal',
     ];
+
+    /** TCK-2759 — la valeur de la colonne en mémoire aussi : un document créé sans le dire n'est pas interne. */
+    protected $attributes = ['is_internal' => false];
 
     protected $casts = [
         'type' => DocumentType::class,
         'is_verified' => 'boolean',
+        'is_internal' => 'boolean',
         'verified_at' => 'datetime',
         'expiry_date' => 'date',
         'metadata' => 'array',
@@ -168,6 +174,8 @@ class Document extends AbstractModel implements HasMedia
         'created_at', 'updated_at',
         // TCK-987 (P58.02) — la clé de `verifier`, que `DocumentResource` rend déjà.
         'verified_by',
+        // TCK-2759 — `DocumentResource` rend `is_internal`.
+        'is_internal',
     ];
 
     /** TCK-697 — pièce (`PIECE_TYPES`) rattachée à un profil (`PROFILE_TYPES`). */

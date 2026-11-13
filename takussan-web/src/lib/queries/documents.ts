@@ -133,6 +133,8 @@ export type UploadDocumentPayload = {
   readonly documentable_id: number;
   readonly description?: string;
   readonly expiry_date?: string;
+  /** TCK-2759 — sur une fiche client, par le personnel : `true` garde la pièce pour l'agence. */
+  readonly is_internal?: boolean;
 };
 
 export function useUploadDocument() {
@@ -150,8 +152,25 @@ export function useUploadDocument() {
         form.append('documentable_id', String(variables.documentable_id));
         if (variables.description) form.append('description', variables.description);
         if (variables.expiry_date) form.append('expiry_date', variables.expiry_date);
+        // TCK-2759 — `1`/`0`, que la règle `boolean` de Laravel accepte (`true`/`false` en texte, non).
+        if (variables.is_internal !== undefined) form.append('is_internal', variables.is_internal ? '1' : '0');
         return form;
       },
+    },
+    { invalidate: [['documents']] },
+  );
+}
+
+/**
+ * TCK-2759 (ADR-0099, amendement du 2026-11-12) — garder pour l'agence, ou rendre visible au client, un
+ * document de fiche client : `PATCH /api/documents/{id}/visibility`.
+ */
+export function useSetDocumentVisibility() {
+  return useApiMutation<ApiResponse<Document>, { id: number; is_internal: boolean }>(
+    {
+      path: ({ id }) => cheminApi`/api/documents/${id}/visibility`,
+      method: 'PATCH',
+      body: ({ is_internal }) => ({ is_internal }),
     },
     { invalidate: [['documents']] },
   );

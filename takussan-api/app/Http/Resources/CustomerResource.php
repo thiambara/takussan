@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Policies\CustomerPolicy;
+use App\Policies\DocumentPolicy;
 use App\Policies\PropertyVisitPolicy;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -194,14 +195,28 @@ class CustomerResource extends BaseResource
                     'color' => $t->color,
                 ])->values(),
             ),
+            // TCK-2759 (ADR-0099, amendement du 2026-11-12) — `include=documents` est un septième chemin
+            // de lecture : un document INTERNE n'y passe que pour le lecteur des documents internes de la
+            // fiche (`DocumentPolicy::readsInternalOf`, jugé une fois pour la fiche). Le bailleur auteur
+            // de sa propre fiche, ou l'agent qui en est le sujet, lisent la fiche sans lire ses internes.
+            // `set_visibility` est ce même verdict (`DocumentPolicy::setVisibility` sur une fiche).
             'documents' => $this->when(
                 $this->relationLoaded('documents'),
-                fn () => $this->documents->map(fn ($d) => [
-                    'id' => $d->id,
-                    'name' => $d->name,
-                    'type' => $d->type?->value,
-                    'created_at' => $this->iso($d->created_at),
-                ])->values(),
+                function () use ($request) {
+                    $user = $request->user();
+                    $litLesInternes = $user !== null && app(DocumentPolicy::class)->readsInternalOf($user, $this->resource);
+
+                    return $this->documents
+                        ->filter(fn ($d) => $litLesInternes || ! $d->is_internal)
+                        ->map(fn ($d) => [
+                            'id' => $d->id,
+                            'name' => $d->name,
+                            'type' => $d->type?->value,
+                            'is_internal' => (bool) $d->is_internal,
+                            'created_at' => $this->iso($d->created_at),
+                            'abilities' => ['set_visibility' => $litLesInternes],
+                        ])->values();
+                },
             ),
         ];
 

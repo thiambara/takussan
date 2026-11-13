@@ -51,7 +51,8 @@ class DocumentAbilitiesTest extends TestCase
         }
 
         Sanctum::actingAs($owner);
-        $gestes = ['update' => $attendu, 'share' => $attendu, 'delete' => $attendu];
+        // TCK-2759 — `set_visibility` ne s'offre que sur une fiche client : jamais sur un bien.
+        $gestes = ['update' => $attendu, 'share' => $attendu, 'delete' => $attendu, 'set_visibility' => false];
 
         $this->getJson("/api/documents/{$document->id}")->assertOk()
             ->assertJsonPath('data.abilities', $gestes);

@@ -50,6 +50,7 @@ import {
 } from './constants';
 import { DocumentShareDialog } from './DocumentShareDialog';
 import { DocumentsFilters } from './DocumentsFilters';
+import { BasculeDeVisibilite, PastilleInterne } from './VisibiliteDuDocument';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 
@@ -435,6 +436,8 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
               {doc.name}
             </span>
             {doc.is_verified ? <Badge variant="secondary">{t('verified')}</Badge> : null}
+            {/* TCK-2759 — gardé pour l'agence ; l'API ne sert jamais une telle ligne au client. */}
+            {doc.is_internal ? <PastilleInterne /> : null}
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
             {metaParts.join(' · ')}
@@ -485,6 +488,10 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
         ) : null}
         {/* TCK-1867 (P189.01) — les verdicts de `DocumentPolicy` que l'API sert sur la ligne : le
             téléverseur suspendu comme bailleur dans l'agence du porteur se voyait offrir les deux. */}
+        {/* TCK-2759 — la bascule, sur une fiche client et pour le personnel (verdict de l'API). */}
+        {doc.abilities?.set_visibility ? (
+          <BasculeDeVisibilite documentId={doc.id} nom={doc.name} interne={doc.is_internal === true} />
+        ) : null}
         {doc.abilities?.share ? (
           <Button type="button" size="sm" variant="outline" onClick={onShare}>
             <Share2 className="mr-1 size-4" aria-hidden="true" />

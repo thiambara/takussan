@@ -39,6 +39,8 @@ export type DocumentAbilities = {
   update: boolean;
   share: boolean;
   delete: boolean;
+  /** TCK-2759 — « Garder pour l'agence » / « Rendre visible au client » : sur une fiche client seulement. */
+  set_visibility?: boolean;
 };
 
 export type Document = {
@@ -50,6 +52,8 @@ export type Document = {
   type: DocumentType | null;
   description: string | null;
   is_verified: boolean;
+  /** TCK-2759 — gardé pour l'agence : seul le personnel le reçoit, le client de la fiche jamais. */
+  is_internal?: boolean;
   verified_by: number | null;
   verified_at: string | null;
   expiry_date: string | null;

@@ -17,6 +17,9 @@ vi.mock('@/lib/queries/documents', async (importOriginal) => ({
   useUploadDocument: () => ({ mutateAsync }),
 }));
 
+// TCK-2759 — la case « Visible par le client » lit le profil actif (React Query, hors de ce rendu).
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 3 }));
+
 describe('<DocumentUploadDialog> — onUploaded (TCK-700)', () => {
   it('appelle onUploaded après un dépôt réussi pour la fiche client', async () => {
     const onUploaded = vi.fn();

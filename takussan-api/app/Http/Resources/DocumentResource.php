@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Media\PrivateMediaAccess;
@@ -67,6 +68,8 @@ class DocumentResource extends BaseResource
             'type' => $this->type?->value,
             'description' => $this->description,
             'is_verified' => (bool) $this->is_verified,
+            // TCK-2759 — gardé pour l'agence : le sujet de la fiche ne le lit pas (seul le personnel le reçoit).
+            'is_internal' => (bool) $this->is_internal,
             'verified_by' => $this->verified_by,
             'verified_at' => $this->iso($this->verified_at),
             'expiry_date' => $this->calendarDate($this->expiry_date),
@@ -95,6 +98,10 @@ class DocumentResource extends BaseResource
                 'update' => $request->user()->can('update', $this->resource),
                 'share' => $request->user()->can('share', $this->resource),
                 'delete' => $request->user()->can('delete', $this->resource),
+                // TCK-2759 — « Garder pour l'agence » / « Rendre visible au client » : sur une fiche
+                // client seulement (ailleurs, la bascule rend 422 et ne s'offre pas).
+                'set_visibility' => $this->documentable_type === Customer::class
+                    && $request->user()->can('setVisibility', $this->resource),
             ]),
         ];
     }

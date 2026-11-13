@@ -10176,7 +10176,9 @@
       "entity_id_label": "Entity ID",
       "description_label": "Description",
       "submitting": "Sending…",
-      "submit": "Upload"
+      "submit": "Upload",
+      "visible_label": "Visible to the client",
+      "visible_hint": "Otherwise, only the agency can see it."
     },
     "download": {
       "inProgress": "Downloading…",
@@ -10185,6 +10187,16 @@
         "indisponible": "This document isn’t available yet.",
         "echec": "The download failed. Please try again."
       }
+    },
+    "visibilite": {
+      "interne": "Internal",
+      "rendre_visible": "Make visible to the client",
+      "garder": "Keep for the agency",
+      "confirmer_titre": "Make this document visible to the client?",
+      "confirmer_corps": "The client will be able to open “{name}”, download it and share it. What they keep cannot be taken back.",
+      "confirmer": "Make visible",
+      "en_cours": "Saving…",
+      "erreur": "The document’s visibility could not be changed."
     }
   },
   "bookings": {

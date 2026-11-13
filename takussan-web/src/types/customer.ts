@@ -136,13 +136,18 @@ export interface CustomerNote {
   updated_at: string;
 }
 
+/**
+ * Une pièce de la fiche, telle que `CustomerResource` la sert sous `include=documents` : ni taille ni
+ * URL de fichier — le document s'ouvre par sa page (`/app/documents/{id}`). TCK-2759 : `is_internal`
+ * (gardé pour l'agence ; le client de la fiche ne le reçoit pas) et le verdict de la bascule.
+ */
 export interface CustomerDocument {
   id: number;
   name: string;
-  type: string;
-  size: number;
-  url: string;
-  uploaded_at: string;
+  type: string | null;
+  created_at: string | null;
+  is_internal?: boolean;
+  abilities?: { set_visibility: boolean };
 }
 
 export interface CustomerRelationship {

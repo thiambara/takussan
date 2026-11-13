@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentRequest;
+use App\Http\Requests\Api\UpdateDocumentVisibilityRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Agency;
 use App\Models\Booking;
@@ -15,6 +16,7 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
+use App\Services\Documents\DocumentVisibility;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
@@ -116,6 +118,7 @@ class DocumentController extends Controller
             'documentable_id' => $model->getKey(),
             'documentable_type' => $fqcn,
             'uploaded_by' => $user->id,
+            'is_internal' => $this->internalAtUpload($request, $user, $model),
             'name' => $data['name'],
             'type' => $data['type'],
             'description' => $data['description'] ?? null,
@@ -128,6 +131,53 @@ class DocumentController extends Controller
         return $this->json([
             'data' => DocumentResource::make($document->refresh())->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2759 (ADR-0099, amendement du 2026-11-12, §§ 2, 4 et 5) — `is_internal` d'un téléversement :
+     *
+     * - sans le champ : vrai pour le lecteur des documents internes d'une fiche client (le personnel
+     *   qui dépose sur une fiche), faux partout ailleurs — le défaut tombe du côté réparable ;
+     * - `true` : 422 `document.internal_customer_only` hors d'une fiche client, puis 403 pour qui n'en
+     *   lit pas les documents internes (le client, un bailleur), et 422 `document.internal_own_upload`
+     *   pour le sujet de la fiche — rien n'est créé.
+     */
+    private function internalAtUpload(StoreDocumentRequest $request, User $user, Model $porteur): bool
+    {
+        if (! $request->has('is_internal')) {
+            return $porteur instanceof Customer && ! $this->isSubjectOf($user, $porteur)
+                && $user->can('keepsInternalOn', [Document::class, $porteur]);
+        }
+
+        if (! $request->boolean('is_internal')) {
+            return false;
+        }
+
+        abort_code_unless($porteur instanceof Customer, 422, 'document.internal_customer_only');
+        $this->authorize('keepsInternalOn', [Document::class, $porteur]);
+        abort_code_if($this->isSubjectOf($user, $porteur), 422, 'document.internal_own_upload');
+
+        return true;
+    }
+
+    /** TCK-2759 — le sujet de la fiche (`customers.user_id`), dont la pièce n'est jamais interne. */
+    private function isSubjectOf(User $user, Customer $customer): bool
+    {
+        return $customer->user_id !== null && (int) $customer->user_id === (int) $user->id;
+    }
+
+    /**
+     * TCK-2759 (ADR-0099, amendement du 2026-11-12) — `PATCH /api/documents/{document}/visibility` :
+     * garder pour l'agence, ou montrer au client, un document de fiche client
+     * ({@see DocumentVisibility}). Autorisé par `DocumentPolicy::setVisibility()`.
+     */
+    public function visibility(UpdateDocumentVisibilityRequest $request, Document $document, DocumentVisibility $visibility): JsonResponse
+    {
+        $document = $visibility->change($document, $request->boolean('is_internal'), $request->user());
+
+        return $this->json([
+            'data' => DocumentResource::make($document)->resolve($request),
+        ]);
     }
 
     public function show(Request $request, Document $document, PersonalDataAccessLogger $accessLog): JsonResponse

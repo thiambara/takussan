@@ -9511,7 +9511,9 @@
       "entity_id_label": "Nomboru mbir mi",
       "description_label": "Leeral",
       "submitting": "Yónnee…",
-      "submit": "Yeb"
+      "submit": "Yeb",
+      "visible_label": "Visible par le client",
+      "visible_hint": "Sinon, seule l’agence la voit."
     },
     "download": {
       "inProgress": "Yeb…",
@@ -9520,6 +9522,16 @@
         "indisponible": "Kayit bii jotagul.",
         "echec": "Yeb bi mënul. Jéemaatal."
       }
+    },
+    "visibilite": {
+      "interne": "Interne",
+      "rendre_visible": "Rendre visible au client",
+      "garder": "Garder pour l’agence",
+      "confirmer_titre": "Rendre ce document visible au client ?",
+      "confirmer_corps": "Le client pourra ouvrir « {name} », le télécharger et le partager. Ce qu’il en aura gardé ne se reprend pas.",
+      "confirmer": "Rendre visible",
+      "en_cours": "Enregistrement…",
+      "erreur": "La visibilité du document n’a pas pu être modifiée."
     }
   },
   "bookings": {

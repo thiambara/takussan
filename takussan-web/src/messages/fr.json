@@ -10176,7 +10176,9 @@
       "entity_id_label": "ID de l'entité",
       "description_label": "Description",
       "submitting": "Envoi…",
-      "submit": "Téléverser"
+      "submit": "Téléverser",
+      "visible_label": "Visible par le client",
+      "visible_hint": "Sinon, seule l’agence la voit."
     },
     "download": {
       "inProgress": "Téléchargement…",
@@ -10185,6 +10187,16 @@
         "indisponible": "Ce document n’est pas encore disponible.",
         "echec": "Le téléchargement a échoué. Réessayez."
       }
+    },
+    "visibilite": {
+      "interne": "Interne",
+      "rendre_visible": "Rendre visible au client",
+      "garder": "Garder pour l’agence",
+      "confirmer_titre": "Rendre ce document visible au client ?",
+      "confirmer_corps": "Le client pourra ouvrir « {name} », le télécharger et le partager. Ce qu’il en aura gardé ne se reprend pas.",
+      "confirmer": "Rendre visible",
+      "en_cours": "Enregistrement…",
+      "erreur": "La visibilité du document n’a pas pu être modifiée."
     }
   },
   "bookings": {

@@ -201,6 +201,9 @@ return [
     ],
     'document' => [
         'file_missing' => 'No file is attached to this document.',
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12)
+        'internal_customer_only' => 'Only a document on a customer record can be kept for the agency.',
+        'internal_own_upload' => 'A document uploaded by the customer stays visible to them.',
         // TCK-2655
         'invalid_target' => 'The expected target is “lease:{id}” or “property:{id}”.',
         'owner_not_found' => 'The item to attach the document to was not found.',

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { useWatch } from 'react-hook-form';
 import { useTranslations } from 'next-intl';
 import { UploadCloud, FileText, X } from 'lucide-react';
 
@@ -12,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   FormGlobalError,
   FormInput,
@@ -20,6 +22,7 @@ import {
 } from '@/components/forms';
 import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import { useApiForm } from '@/hooks/useApiForm';
+import { usePersonnelActif } from '@/hooks/usePersonnelActif';
 import {
   DOCUMENT_MAX_SIZE_BYTES,
   DOCUMENT_MIME_ACCEPT,
@@ -66,6 +69,10 @@ export function DocumentUploadDialog({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  // TCK-2759 (ADR-0099, amendement du 2026-11-12) — « Visible par le client », décochée par défaut :
+  // le personnel qui dépose sur une fiche client garde la pièce pour l'agence, sauf choix contraire.
+  const [visibleParLeClient, setVisibleParLeClient] = useState(false);
+  const personnel = usePersonnelActif();
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     DocumentUploadFormValues,
@@ -84,6 +91,7 @@ export function DocumentUploadDialog({
       if (!file) {
         throw new Error(t('no_file_error'));
       }
+      const caseMontree = personnel && values.documentable_type === 'customer';
       await uploadDocument.mutateAsync({
         file,
         name: values.name,
@@ -92,12 +100,16 @@ export function DocumentUploadDialog({
         documentable_id: values.documentable_id,
         description: values.description || undefined,
         expiry_date: values.expiry_date || undefined,
+        // TCK-2759 — la case n'existe que pour le personnel, sur une fiche client ; ailleurs, le champ
+        // ne part pas (l'API refuserait `true` hors d'une fiche, et le client ne le pose jamais).
+        is_internal: caseMontree ? !visibleParLeClient : undefined,
       });
       return undefined;
     },
     onSuccess: () => {
       form.reset();
       setFile(null);
+      setVisibleParLeClient(false);
       onOpenChange(false);
       onUploaded?.();
     },
@@ -108,6 +120,7 @@ export function DocumentUploadDialog({
       if (!next) {
         setFile(null);
         setFileError(null);
+        setVisibleParLeClient(false);
         form.reset({
           name: '',
           type: 'other',
@@ -148,6 +161,8 @@ export function DocumentUploadDialog({
   );
 
   const disableTargetType = Boolean(defaultDocumentable);
+  const cible = useWatch({ control: form.control, name: 'documentable_type' });
+  const montrerLaCase = personnel && cible === 'customer';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -283,6 +298,21 @@ export function DocumentUploadDialog({
             label={t('description_label')}
             rows={2}
           />
+
+          {/* TCK-2759 — la fiche client et la bibliothèque (cible « client ») ; jamais pour un client. */}
+          {montrerLaCase ? (
+            <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-border px-3 py-2.5">
+              <Checkbox
+                className="mt-0.5"
+                checked={visibleParLeClient}
+                onCheckedChange={(coche) => setVisibleParLeClient(coche === true)}
+              />
+              <span className="min-w-0 text-sm font-medium leading-tight text-foreground">
+                {t('visible_label')}
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{t('visible_hint')}</span>
+              </span>
+            </label>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
