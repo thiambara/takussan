@@ -188,6 +188,8 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     onglets: ['tableau-de-bord', 'demandes', 'clients', 'messagerie'],
     casesPubliques: ['demandes', 'visites'],
     priorites: ['unhandledLeads', 'pendingVisits', 'unreadMessages'],
+    // TCK-2614 (AC1, décision 2a) — l'étape « Pièces » de l'agent (TCK-2612) : l'API ne lui rend qu'elle.
+    demarrer: 'espace',
   },
   'admin-agence': {
     ...BASE_ADMIN,
@@ -227,6 +229,8 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     plus: [],
     onglets: ['tableau-de-bord', 'maintenance', 'messagerie', 'documents'],
     priorites: ['unreadMessages'],
+    // TCK-2614 (décision 2a) — l'étape « Pièces » du prestataire (TCK-2612) : l'API ne lui rend qu'elle.
+    demarrer: 'espace',
   },
   plateforme: {
     ...BASE_ADMIN,

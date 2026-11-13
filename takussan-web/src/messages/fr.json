@@ -276,14 +276,16 @@
           "espace": {
             "premier_bien": "Publier un premier bien",
             "kyc": "Faire vérifier l’agence",
-            "equipe": "Inviter un premier membre"
+            "equipe": "Inviter un premier membre",
+            "pieces": "Envoyer vos pièces"
           },
           "bailleur": {
             "premier_bien": "Proposer un premier bien",
             "kyc": "Envoyer vos pièces d’identité",
             "equipe": "Inviter un premier membre"
           }
-        }
+        },
+        "ecranPieces": "Vos pièces"
       },
       "preferences": {
         "echec": "Votre menu n’a pas pu être enregistré : il est revenu à son état précédent."
@@ -20451,5 +20453,80 @@
         "separateur": ", "
       }
     }
+  },
+  "pieces": {
+    "titre": "Vos pièces",
+    "fil": "Démarrer",
+    "compte": "{envoyees} sur {requises}",
+    "enAttendant": "Vous pouvez utiliser votre espace en attendant.",
+    "envoyer": "Envoyer mes pièces",
+    "reessayer": "Réessayer",
+    "aucune": "Aucune pièce à fournir pour cet espace.",
+    "legende": "Les trois états d’une pièce",
+    "facultative": "Facultative",
+    "remplacer": "Remplacer",
+    "reprendre": "Reprendre",
+    "apercu": "Aperçu de la pièce",
+    "pretAEnvoyer": "{taille} · prête à envoyer",
+    "envoyeeLe": "{taille} · {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}, {heure}",
+    "sansDetail": "Pièce envoyée",
+    "colonnes": {
+      "piece": "Pièce",
+      "etat": "État",
+      "action": "Action"
+    },
+    "etats": {
+      "aFournir": "À fournir",
+      "envoyee": "Envoyée",
+      "verifiee": "Vérifiée",
+      "aRefaire": "À refaire"
+    },
+    "noms": {
+      "cni": "Pièce d’identité",
+      "rib": "RIB",
+      "ninea": "NINEA",
+      "license": "Carte professionnelle",
+      "photo": "Photo de profil",
+      "insurance": "Assurance RC pro"
+    },
+    "details": {
+      "cni": "CNI ou passeport, recto et verso",
+      "rib": "Pour recevoir vos loyers",
+      "nineaFacultatif": "Si vos biens sont en société"
+    },
+    "gestes": {
+      "photo": "Prendre une photo",
+      "fichier": "Choisir un fichier",
+      "photoDe": "Prendre une photo : {piece}",
+      "fichierDe": "Choisir un fichier : {piece}",
+      "deposer": "Déposez le fichier ici ou",
+      "parcourir": "parcourez",
+      "parcourirLa": "Parcourir : {piece}"
+    },
+    "ninea": {
+      "libelle": "Numéro NINEA",
+      "exemple": "0 123 456 7G2",
+      "aide": "Un numéro, pas un fichier : 7 chiffres, puis 1 chiffre, 1 lettre et 1 chiffre.",
+      "malForme": "Ce NINEA n’a pas la bonne forme : 7 chiffres, puis 1 chiffre, 1 lettre et 1 chiffre.",
+      "joindre": "Joindre le fichier",
+      "enregistre": "Numéro enregistré"
+    },
+    "envoi": {
+      "enCours": "Envoi…",
+      "rien": "Choisissez d’abord une pièce à envoyer.",
+      "fait": "{n, plural, one {# pièce envoyée.} other {# pièces envoyées.}}",
+      "reste": "Reste à fournir : {pieces}.",
+      "tout": "Toutes vos pièces requises sont envoyées."
+    },
+    "erreurs": {
+      "tropLourd": "Ce fichier dépasse 8 Mo.",
+      "envoi": "L’envoi n’a pas abouti. Réessayez.",
+      "lecture": "Vos pièces n’ont pas pu être lues."
+    },
+    "taille": {
+      "ko": "{n} Ko",
+      "mo": "{n} Mo"
+    },
+    "facultatif": "Facultatif"
   }
 }

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
+import { CODES_D_ETAPE, etapesARendre } from '@/lib/navigation/demarrer';
 
 /**
  * TCK-379 — AC1 : aucune route de `/app` ne doit être injoignable.
@@ -169,9 +170,24 @@ const DESSERVIES_PAR_LA_SECTION_D_AGENCE: ReadonlySet<string> = new Set(
   PAGES_ADMIN.filter((page) => page.menu !== null).map((page) => page.chemin),
 );
 
+/**
+ * TCK-2614 — le second producteur de liens par table : le groupe « Démarrer » de la colonne rend en lien chaque
+ * étape à faire, son `href` tiré de `lienDe` (`lib/navigation/demarrer.ts`). DÉRIVÉ comme la section d'agence :
+ * toutes les étapes connues, pas faites, dans les deux modes — une route que plus aucune étape ne vise redevient
+ * orpheline, et rougit.
+ */
+const DESSERVIES_PAR_DEMARRER: ReadonlySet<string> = new Set(
+  (['espace', 'bailleur'] as const).flatMap((mode) =>
+    etapesARendre(CODES_D_ETAPE.map((code) => ({ code, faite: false })), mode).restantes.map((e) => e.href),
+  ),
+);
+
 function citations(route: string, dossierPropre: string): string[] {
   if (DESSERVIES_PAR_LA_SECTION_D_AGENCE.has(route)) {
     return ['lib/access/pages-admin.ts → components/layout/AppSidebar.tsx (section d’agence)'];
+  }
+  if (DESSERVIES_PAR_DEMARRER.has(route)) {
+    return ['lib/navigation/demarrer.ts → components/layout/DemarrerDeLEspace.tsx (groupe « Démarrer »)'];
   }
   const motif = new RegExp(
     route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w/-])',

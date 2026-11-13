@@ -19,7 +19,7 @@ use Tests\ApiTestCase;
  * les `Document` vivants du profil (`is_verified` porte la vérification, pièce par pièce) et, pour le NINEA du bailleur,
  * sur le numéro saisi (`tax_id`). Un profil sans pièces (admin, client) rend une liste vide.
  *
- * Rouge avant TCK-2612 : la route n'existait pas (404).
+ * Rouge avant TCK-2612 : la route n'existait pas (404). TCK-2614 : chaque pièce porte aussi `file` (`null` ici : les pièces de fabrique n'ont pas de média ; le fichier lui-même est éprouvé par MePiecesFichierTest).
  */
 class MePiecesTest extends ApiTestCase
 {
@@ -37,9 +37,10 @@ class MePiecesTest extends ApiTestCase
         $profil->forceFill(['tax_id' => '01234567G2'])->save();
 
         $this->apiGet(self::URL, $this->entete('owner', $profil->id))->assertOk()->assertExactJson(['data' => [
-            ['code' => 'cni', 'required' => true, 'kind' => 'file', 'state' => 'missing'],
-            ['code' => 'rib', 'required' => true, 'kind' => 'file', 'state' => 'sent'],
-            ['code' => 'ninea', 'required' => true, 'kind' => 'file_and_number', 'state' => 'sent'],
+            ['code' => 'cni', 'required' => true, 'kind' => 'file', 'state' => 'missing', 'file' => null],
+            ['code' => 'rib', 'required' => true, 'kind' => 'file', 'state' => 'sent', 'file' => null],
+            // TCK-2614 (décision 2b) — facultatif pour ce bailleur, qui n'est pas une société.
+            ['code' => 'ninea', 'required' => false, 'kind' => 'file_and_number', 'state' => 'sent', 'file' => null, 'number_masked' => '•••• 67G2'],
         ]]);
     }
 
@@ -65,9 +66,9 @@ class MePiecesTest extends ApiTestCase
         $profil = AgentProfile::query()->where('user_id', $agent->id)->sole();
 
         $this->apiGet(self::URL, $this->entete('agent', $profil->id))->assertOk()->assertExactJson(['data' => [
-            ['code' => 'license', 'required' => true, 'kind' => 'file', 'state' => 'missing'],
-            ['code' => 'cni', 'required' => true, 'kind' => 'file', 'state' => 'missing'],
-            ['code' => 'photo', 'required' => true, 'kind' => 'file', 'state' => 'missing'],
+            ['code' => 'license', 'required' => true, 'kind' => 'file', 'state' => 'missing', 'file' => null],
+            ['code' => 'cni', 'required' => true, 'kind' => 'file', 'state' => 'missing', 'file' => null],
+            ['code' => 'photo', 'required' => true, 'kind' => 'file', 'state' => 'missing', 'file' => null],
         ]]);
 
         $this->piece($profil, DocumentType::Photo, $agent);
@@ -83,8 +84,8 @@ class MePiecesTest extends ApiTestCase
         $this->piece($profil, DocumentType::Insurance, $prestataire);
 
         $this->apiGet(self::URL, $this->entete('service_provider', $profil->id))->assertOk()->assertExactJson(['data' => [
-            ['code' => 'cni', 'required' => true, 'kind' => 'file', 'state' => 'missing'],
-            ['code' => 'insurance', 'required' => false, 'kind' => 'file', 'state' => 'sent'],
+            ['code' => 'cni', 'required' => true, 'kind' => 'file', 'state' => 'missing', 'file' => null],
+            ['code' => 'insurance', 'required' => false, 'kind' => 'file', 'state' => 'sent', 'file' => null],
         ]]);
     }
 

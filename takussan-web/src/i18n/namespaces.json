@@ -119,6 +119,10 @@
       "property",
       "search"
     ],
+    "(dashboard)/app/pieces": [
+      "console",
+      "pieces"
+    ],
     "(dashboard)/app/visits": [
       "agentCrm",
       "compteRendu",
@@ -356,6 +360,7 @@
     "(dashboard)/app/agency": 56,
     "(dashboard)/app/leases": 32,
     "(dashboard)/app/owners": 50,
+    "(dashboard)/app/pieces": 24,
     "(dashboard)/app/visits": 31,
     "onboarding/super-admin": 47,
     "(dashboard)/app/account": 24,
@@ -382,7 +387,7 @@
     "[locale]/(public)/bookings": 25,
     "(dashboard)/app/commissions": 25,
     "(dashboard)/app/inventories": 30,
-    "(dashboard)/app/maintenance": 31,
+    "(dashboard)/app/maintenance": 30,
     "(dashboard)/app/leases/(liste)": 44,
     "(dashboard)/app/saved-searches": 35,
     "[locale]/(public)/notifications": 23,

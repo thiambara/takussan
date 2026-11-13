@@ -69,6 +69,9 @@ const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
   '/app/profile/reviews': { titre: { espace: SOMMAIRE, cle: 'avis' }, parent: '/app/profile' },
   '/app/profile/delete-account': { titre: { espace: 'profile.sommaire', cle: 'supprimer' }, parent: '/app/profile' },
   '/app/notifications': { titre: { espace: PAGES, cle: 'notifications.title' } },
+  // TCK-2614 — « Vos pièces », ouverte depuis « Démarrer » (qui n'est pas une page) : un détail de l'accueil, comme la
+  // maquette (« ← Vos pièces »). Le titre se lit dans le dictionnaire de la coque (`nav`), comme celui de la colonne.
+  '/app/pieces': { titre: { espace: 'nav.sidebar.demarrer', cle: 'ecranPieces' }, parent: '/app' },
   '/app/crm': { titre: { espace: 'nav.sidebar', cle: 'crm' } },
   '/app/crm/pipeline': { titre: { espace: PAGES, cle: 'crmPipeline.metaTitle' } },
   '/app/overview/owner': { titre: { espace: PAGES, cle: 'overviewOwner.metaTitle' } },

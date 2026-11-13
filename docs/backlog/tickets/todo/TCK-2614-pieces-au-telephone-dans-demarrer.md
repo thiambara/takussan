@@ -83,3 +83,18 @@ Pas de régression :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+- **Décision 2b, porteur, 2026-11-13 — le NINEA est FACULTATIF pour un bailleur personne physique**, requis pour une
+  société (`metadata.owner_type = company`, même règle qu'`OwnerProfile::companyName()` ; un profil sans `owner_type` est
+  un particulier). Portée par `PiecesDuProfil` (`required` de `GET /api/me/pieces`) ; `requisesEnvoyees()` lit la même
+  liste, donc l'étape `kyc` du bailleur dans « Démarrer » suit (`NineaFacultatifDuParticulierTest`, ablation de la
+  condition dans les deux sens : rouge). L'écran rend alors la maquette telle quelle : « Facultatif · Si vos biens sont
+  en société », hors du compte (« 1 sur 2 ») et du reste à fournir. Relevé des autres juges de « pièces complètes » :
+  `submitKyc` ne juge rien (il liste les sortes présentes) ; aucun pourcentage de complétude ne lit le NINEA ; aucune
+  garde de parité ne recopie la liste. **Reste l'assistant `/onboarding/owner`** (`OwnerOnboardingWizard`, `allUploaded`
+  exige CNI + RIB + NINEA avant « Soumettre ») : laissé tel quel (contrainte « l'assistant ne change pas », TCK-2613),
+  il demande encore le NINEA au particulier — sans effet sur l'étape `kyc`, faite dès CNI + RIB.
+- Décision 6a — `GET /api/me/pieces` sert au seul titulaire `file` (`name`, `size`, `sent_at`) et `number_masked`
+  (`Masking::tail`) ; `null` sous impersonation (`MePiecesFichierTest`). `docs/models-spec.md` (« État par pièce ») est à
+  faire converger (`/sync-specs`).
+- Décision 7a — aucun appel à `…/kyc/submit` depuis l'écran.

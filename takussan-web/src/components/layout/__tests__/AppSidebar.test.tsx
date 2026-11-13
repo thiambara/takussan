@@ -1230,7 +1230,7 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
 
   it.each([
     ['hote', 'espace', ['/app/properties/new', '/app/agency/kyc']],
-    ['bailleur', 'bailleur', ['/app/properties/new', '/onboarding/owner']],
+    ['bailleur', 'bailleur', ['/app/properties/new', '/app/pieces']],
   ] as const)('%s : ses étapes, dans son vocabulaire (mode %s)', (persona, _mode, hrefs) => {
     demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc'));
     renderSidebar(persona, '/app');
@@ -1261,11 +1261,21 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
     expect(within(groupe).getByText('0 sur 1')).toBeInTheDocument();
   });
 
-  it.each(['client', 'locataire', 'agent', 'prestataire', 'plateforme'] as const)('%s : ni groupe ni lecture', (persona) => {
+  // TCK-2614 (AC1, 2a) — l'agent et le prestataire ont désormais « Démarrer » : l'étape « Pièces » (ci-dessous).
+  it.each(['client', 'locataire', 'plateforme'] as const)('%s : ni groupe ni lecture', (persona) => {
     demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
     renderSidebar(persona, '/app');
     expect(demarrageMock).not.toHaveBeenCalled();
     expect(screen.queryByRole('group', { name: 'Démarrer' })).toBeNull();
+  });
+
+  it.each(['agent', 'prestataire'] as const)('TCK-2614 — %s : l’étape « Pièces », vers « Vos pièces »', (persona) => {
+    demarrageMock.mockReturnValue(etapes('pieces'));
+    renderSidebar(persona, '/app');
+    const groupe = screen.getByRole('group', { name: 'Démarrer' });
+    expect(within(groupe).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['Envoyer vos piècesÀ faire', '/app/pieces'],
+    ]);
   });
 
   it('espace suspendu : ni groupe ni lecture', () => {

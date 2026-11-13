@@ -10,6 +10,7 @@ export const HORS_MENU: Readonly<Record<string, string>> = {
   '/app/crm': 'Redirection permanente vers /app/customers (TCK-042), gardée pour les anciens favoris.',
   '/app/crm/pipeline': 'Atteinte depuis la liste des clients (le tableau du pipeline, TCK-083).',
   '/app/notifications': 'Atteinte par la cloche de la barre haute.',
+  '/app/pieces': 'Atteinte par l’étape « Pièces » (ou `kyc` du bailleur) du groupe « Démarrer » (TCK-2614).',
   '/app/profile': 'Atteinte par la carte du compte, en pied de barre latérale.',
   '/app/profile/contact': 'Rubrique du sommaire du profil, TCK-2635 (coordonnées : téléphone, courriel).',
   '/app/profile/delete-account': 'Rubrique du sommaire du profil, TCK-2635 (suppression du compte).',

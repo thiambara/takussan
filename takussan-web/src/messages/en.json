@@ -276,14 +276,16 @@
           "espace": {
             "premier_bien": "Publish a first property",
             "kyc": "Get the agency verified",
-            "equipe": "Invite a first member"
+            "equipe": "Invite a first member",
+            "pieces": "Send your documents"
           },
           "bailleur": {
             "premier_bien": "Propose a first property",
             "kyc": "Send your ID documents",
             "equipe": "Invite a first member"
           }
-        }
+        },
+        "ecranPieces": "Your documents"
       },
       "preferences": {
         "echec": "Your menu could not be saved: it is back to its previous state."
@@ -20451,5 +20453,80 @@
         "separateur": ", "
       }
     }
+  },
+  "pieces": {
+    "titre": "Your documents",
+    "fil": "Get started",
+    "compte": "{envoyees} of {requises}",
+    "enAttendant": "You can use your space in the meantime.",
+    "envoyer": "Send my documents",
+    "reessayer": "Try again",
+    "aucune": "No documents to provide for this space.",
+    "legende": "The three states of a document",
+    "facultative": "Optional",
+    "remplacer": "Replace",
+    "reprendre": "Retake",
+    "apercu": "Document preview",
+    "pretAEnvoyer": "{taille} · ready to send",
+    "envoyeeLe": "{taille} · {jour, select, aujourdhui {today} hier {yesterday} other {{date}}}, {heure}",
+    "sansDetail": "Document sent",
+    "colonnes": {
+      "piece": "Document",
+      "etat": "Status",
+      "action": "Action"
+    },
+    "etats": {
+      "aFournir": "To provide",
+      "envoyee": "Sent",
+      "verifiee": "Verified",
+      "aRefaire": "To redo"
+    },
+    "noms": {
+      "cni": "ID document",
+      "rib": "Bank details (RIB)",
+      "ninea": "NINEA",
+      "license": "Professional card",
+      "photo": "Profile photo",
+      "insurance": "Professional liability insurance"
+    },
+    "details": {
+      "cni": "ID card or passport, front and back",
+      "rib": "To receive your rent",
+      "nineaFacultatif": "If your properties are held by a company"
+    },
+    "gestes": {
+      "photo": "Take a photo",
+      "fichier": "Choose a file",
+      "photoDe": "Take a photo: {piece}",
+      "fichierDe": "Choose a file: {piece}",
+      "deposer": "Drop the file here or",
+      "parcourir": "browse",
+      "parcourirLa": "Browse: {piece}"
+    },
+    "ninea": {
+      "libelle": "NINEA number",
+      "exemple": "0 123 456 7G2",
+      "aide": "A number, not a file: 7 digits, then 1 digit, 1 letter and 1 digit.",
+      "malForme": "This NINEA is not in the right form: 7 digits, then 1 digit, 1 letter and 1 digit.",
+      "joindre": "Attach the file",
+      "enregistre": "Number saved"
+    },
+    "envoi": {
+      "enCours": "Sending…",
+      "rien": "First choose a document to send.",
+      "fait": "{n, plural, one {# document sent.} other {# documents sent.}}",
+      "reste": "Still to provide: {pieces}.",
+      "tout": "All your required documents are sent."
+    },
+    "erreurs": {
+      "tropLourd": "This file is over 8 MB.",
+      "envoi": "Sending failed. Try again.",
+      "lecture": "Your documents could not be loaded."
+    },
+    "taille": {
+      "ko": "{n} KB",
+      "mo": "{n} MB"
+    },
+    "facultatif": "Optional"
   }
 }
