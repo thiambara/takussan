@@ -308,11 +308,18 @@ export interface ContexteDuBail {
   readonly tenant?: { readonly first_name?: string | null; readonly last_name?: string | null } | null;
 }
 
-export function useContexteDuBail(leaseId: number | null | undefined) {
+/**
+ * Le contexte du bail d'un état des lieux. `avecLocataire: false` ne charge pas le locataire : le
+ * parcours et le récapitulatif lisent son nom sur l'état des lieux (`InventoryResource`, `{id, full_name,
+ * first_name}`), et `GET /api/leases/{id}` sert l'include `tenant` ENTIER, téléphone et e-mail compris,
+ * sans égard aux `fields` (q1 de la contre-vérification de 065941306). « Démarrer », avant tout état des
+ * lieux, le charge encore : écart consigné, il demande un changement de l'API.
+ */
+export function useContexteDuBail(leaseId: number | null | undefined, { avecLocataire = true }: { readonly avecLocataire?: boolean } = {}) {
   return useApiQuery<ApiResponse<ContexteDuBail>>(
-    ['inventory', 'contexte-du-bail', leaseId ?? 0],
+    ['inventory', 'contexte-du-bail', leaseId ?? 0, avecLocataire ? 'locataire' : 'sans-locataire'],
     cheminApi`/api/leases/${leaseId ?? 0}`,
-    { params: { include: ['tenant', 'property'] }, enabled: Boolean(leaseId) },
+    { params: { include: avecLocataire ? ['tenant', 'property'] : ['property'] }, enabled: Boolean(leaseId) },
   );
 }
 

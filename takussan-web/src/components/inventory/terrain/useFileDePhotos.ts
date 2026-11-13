@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { ApiError } from '@/lib/api';
 import { reduirePhotosSousPlafond } from '@/lib/reduire-photo';
@@ -20,10 +20,12 @@ export interface PhotoEnAttente {
 
 /**
  * Une réponse 4xx est un REFUS (la photo, ou la pièce qu'elle vise, n'est pas acceptée) : la renvoyer
- * ne changera rien. 408 et 429 restent des attentes, comme une panne du réseau.
+ * ne changera rien. 408 et 429 restent des attentes, comme une panne du réseau ; 401 aussi : la session
+ * expirée pendant une longue coupure relève de l'interception d'authentification, la photo attend la
+ * reconnexion au lieu de quitter la file (q3 de la contre-vérification de 065941306).
  */
 function estUnRefus(e: unknown): boolean {
-  return e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429;
+  return e instanceof ApiError && e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 408 && e.status !== 429;
 }
 
 /**
@@ -33,10 +35,12 @@ function estUnRefus(e: unknown): boolean {
  * refusée est réessayée une fois à la fin du passage ; si elle échoue encore, elle reste « en
  * attente du réseau », réessayée au retour du réseau (`online`) ou par « Réessayer ».
  *
- * `avantEnvoi` court avant chaque passage : l'API n'accepte une photo que pour une pièce (et un
- * élément) DÉJÀ enregistrés (`UploadRoomPhotosInventoryRequest`, `Rule::in`) — une pièce ajoutée ou un
- * élément nommé depuis le dernier `PATCH` s'enregistre d'abord. S'il échoue, le passage n'a pas lieu
- * et la file attend le réseau.
+ * `avantEnvoi` court avant CHAQUE photo, dans sa version du dernier rendu : l'API n'accepte une photo
+ * que pour une pièce (et un élément) DÉJÀ enregistrés (`UploadRoomPhotosInventoryRequest`, `Rule::in`)
+ * — une pièce ajoutée ou un élément nommé depuis le dernier `PATCH` s'enregistre d'abord. Le juger en
+ * tête du passage seulement laissait partir sans `PATCH` la photo d'un élément ajouté PENDANT qu'une
+ * autre était en vol : 422, et la photo quittait la file (contre-vérification de 065941306, r1). S'il
+ * échoue, la photo n'est pas envoyée et la file attend le réseau.
  *
  * Un REFUS (4xx) n'attend pas le réseau : la photo quitte la file, et `refus` le dit.
  *
@@ -51,6 +55,11 @@ export function useFileDePhotos(inventoryId: number, avantEnvoi?: () => Promise<
   const fileRef = useRef<readonly PhotoEnAttente[]>([]);
   const passe = useRef<Promise<void> | null>(null);
   const prochainId = useRef(1);
+  // La version du dernier rendu : un passage né avant l'ajout d'un élément juge les pièces d'aujourd'hui.
+  const avantEnvoiRef = useRef(avantEnvoi);
+  useLayoutEffect(() => {
+    avantEnvoiRef.current = avantEnvoi;
+  });
 
   const poser = (suivante: readonly PhotoEnAttente[]) => {
     fileRef.current = suivante;
@@ -80,18 +89,25 @@ export function useFileDePhotos(inventoryId: number, avantEnvoi?: () => Promise<
     }
   };
 
+  /** Les pièces enregistrées d'abord ; `false` : la file entière attend le réseau. */
+  const piecesPretes = async (): Promise<boolean> => {
+    const avant = avantEnvoiRef.current;
+    if (!avant || (await avant())) return true;
+    poser(fileRef.current.map((x) => ({ ...x, statut: 'attente' as const })));
+    return false;
+  };
+
   /** Un passage sur toute la file, puis un second sur les seules photos refusées au premier. */
   const passer = async () => {
-    if (avantEnvoi && !(await avantEnvoi())) {
-      poser(fileRef.current.map((x) => ({ ...x, statut: 'attente' as const })));
-      return;
-    }
     const refusees: PhotoEnAttente[] = [];
     for (let p = fileRef.current.find((x) => x.statut === 'envoi'); p; p = fileRef.current.find((x) => x.statut === 'envoi')) {
+      if (!(await piecesPretes())) return;
       if (!(await envoyerUne(p))) refusees.push(p);
     }
     for (const p of refusees) {
-      if (fileRef.current.some((x) => x.id === p.id)) await envoyerUne(p);
+      if (!fileRef.current.some((x) => x.id === p.id)) continue;
+      if (!(await piecesPretes())) return;
+      await envoyerUne(p);
     }
   };
 

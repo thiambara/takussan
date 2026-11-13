@@ -71,7 +71,7 @@ export function reservesDe(inventory: Inventory): Reserve[] {
 }
 
 export function RecapEtSignatures({ inventory }: { readonly inventory: Inventory }) {
-  const contexte = useContexteDuBail(inventory.lease_id);
+  const contexte = useContexteDuBail(inventory.lease_id, { avecLocataire: false });
   return <Recap inventory={inventory} bail={contexte.data?.data ?? null} />;
 }
 

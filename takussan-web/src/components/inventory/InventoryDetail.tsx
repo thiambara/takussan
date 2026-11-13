@@ -51,7 +51,8 @@ import { RecapEtSignatures } from './terrain/RecapEtSignatures';
 export function InventoryDetail({ id }: { readonly id: number }) {
   const query = useInventory(id);
   const parametres = useSearchParams();
-  const piece = Number(parametres?.get('piece') ?? '') || null;
+  const brut = parametres?.get('piece') ?? '';
+  const piece = /^\d{1,3}$/.test(brut) ? Number(brut) || null : null;
   const etape = parametres?.get('etape') ?? null;
 
   return (

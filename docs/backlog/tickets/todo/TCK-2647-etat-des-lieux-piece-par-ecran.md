@@ -204,3 +204,14 @@ Le reste des écarts vient de la coque, des données de démo (bien, locataire, 
   - `completed` retiré de la création ; `completed` retiré de la mise à jour ;
   - le PDF sans repli « — » ;
   - la reprise sans `?? null`.
+
+### Reprise après la contre-vérification de 065941306 (2026-11-13, terrain-8)
+
+- **r1, perte de photo** : `useFileDePhotos` jugeait l'enregistrement des pièces en tête d'un passage seulement, dans la version du rendu où le passage était né. La photo d'un élément ajouté pendant qu'une autre était en vol partait sans `PATCH`, l'API la refusait (422), et elle quittait la file. Désormais, `avantEnvoi` est lu par une ref mise à jour à chaque rendu et court avant CHAQUE photo, réessais compris.
+- **q3** : un 401 n'est plus un refus. La photo reste dans la file et attend la reconnexion.
+- **q4** : `?piece=` ne s'entend que comme un entier de [1, n]. `?piece=2.5` rendait un écran vide ; il reprend désormais à la première pièce non terminée.
+- **q2** : tant qu'une photo n'est pas partie, quitter la page (rechargement, onglet fermé) demande confirmation (`beforeunload`).
+  - **Écart** : la navigation DANS l'application n'est pas gardée. « Terminer » et « Enregistrer et quitter » vident la file avant de partir, mais un lien du menu ne la vide pas.
+- **q1** : le parcours ne demande plus le locataire du bail (`include=property` seul). Il le nomme depuis l'état des lieux (`tenant.full_name`).
+  - **Écart** : `GET /api/leases/{id}` sert l'include `tenant` entier, téléphone et e-mail compris, sans égard aux `fields`. « Démarrer », qui précède tout état des lieux, le charge encore. Corriger cela demande un changement de l'API.
+

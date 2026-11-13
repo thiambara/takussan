@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, CircleDashed, Plus } from 'lucide-react';
@@ -42,7 +42,7 @@ import { useFileDePhotos } from './useFileDePhotos';
  * d'onglets — l'en-tête de la pièce porte la flèche, comme celui d'un fil de la messagerie.
  */
 export function ParcoursDeTerrain({ inventory, pieceDemandee }: { readonly inventory: Inventory; readonly pieceDemandee?: number | null }) {
-  const contexte = useContexteDuBail(inventory.lease_id);
+  const contexte = useContexteDuBail(inventory.lease_id, { avecLocataire: false });
   const entree = useInventory(inventory.type === 'move_out' ? (inventory.entry_inventory_id ?? null) : null);
   const bail = contexte.data?.data ?? null;
   return <Parcours inventory={inventory} bail={bail} entree={entree.data?.data ?? null} pieceDemandee={pieceDemandee} />;
@@ -75,7 +75,8 @@ function Parcours({
   const enregistrees = useRef(JSON.stringify(piecesPourLeServeur(inventory.rooms, inventory.type)));
   const [photosRestees, setPhotosRestees] = useState(0);
   const [courant, setCourant] = useState(() => {
-    const demande = pieceDemandee && pieceDemandee >= 1 && pieceDemandee <= inventory.rooms.length ? pieceDemandee - 1 : null;
+    // Un entier dans [1, n] (q4 de la contre-vérification de 065941306 : `?piece=2.5` rendait un écran vide).
+    const demande = pieceDemandee && Number.isInteger(pieceDemandee) && pieceDemandee >= 1 && pieceDemandee <= inventory.rooms.length ? pieceDemandee - 1 : null;
     return demande ?? Math.min(indexDeReprise(inventory.rooms), Math.max(inventory.rooms.length - 1, 0));
   });
   const [enregistreA, setEnregistreA] = useState<Date | null>(null);
@@ -88,7 +89,7 @@ function Parcours({
   const suivante = rooms[courant + 1];
   const titre = t(sortie ? 'titre.move_out' : 'titre.move_in');
   const titreDuBien = bail?.property?.title ?? '';
-  const locataire = bail ? nomDuLocataire(bail.tenant) : '';
+  const locataire = inventory.tenant?.full_name || (bail ? nomDuLocataire(bail.tenant) : '');
   const caution = montant(bail?.deposit_amount);
   const retenues = totalDesRetenues(rooms);
 
@@ -111,6 +112,21 @@ function Parcours({
   const photos = useFileDePhotos(inventory.id, () =>
     JSON.stringify(piecesPourLeServeur(rooms, inventory.type)) === enregistrees.current ? Promise.resolve(true) : enregistrer(rooms),
   );
+
+  // La file vit en mémoire : un rechargement, la fermeture de l'onglet ou un retour hors du site la
+  // perdraient sans le dire. Le navigateur demande confirmation tant qu'une photo n'est pas partie (q2 de
+  // la contre-vérification de 065941306). La navigation DANS l'application n'est pas gardée ici :
+  // « Terminer » et « Enregistrer et quitter » vident la file avant de partir.
+  const photosEnFile = photos.file.length > 0;
+  useEffect(() => {
+    if (!photosEnFile) return;
+    const retenir = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', retenir);
+    return () => window.removeEventListener('beforeunload', retenir);
+  }, [photosEnFile]);
 
   /**
    * Avant de QUITTER le parcours : la file vit dans cet écran, partir la perdrait. Elle se vide d'abord ;

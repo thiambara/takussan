@@ -162,9 +162,13 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
   const [erreurEnvoi, setErreurEnvoi] = useState<string | null>(null);
   const [verrouille, setVerrouille] = useState(false);
   const [maintenant, setMaintenant] = useState(() => Date.now());
-  // Le dernier couple (code, tracé) envoyé : un code complet ne part qu'UNE fois — chaque essai faux
-  // compte pour le verrou de l'API.
-  const dernierEssai = useRef<string | null>(null);
+  // Le dernier code que l'API a REFUSÉ (422 sur `code`) pour ce SMS : il ne repart pas, chaque essai faux
+  // compte pour le verrou. La clé est le code SEUL — « Refaire » donne une autre image, et le code
+  // refusé repartait avec elle (r2 de la contre-vérification de 065941306). Une panne de transport
+  // n'est pas un verdict : le même code peut repartir, et « Réessayer » le dit (r3).
+  const codeRefuse = useRef<string | null>(null);
+  const enVol = useRef(false);
+  const [echecDeTransport, setEchecDeTransport] = useState(false);
 
   const restant = envoi ? Math.max(0, envoi.a + DELAI_DE_RENVOI_MS - maintenant) : 0;
   useEffect(() => {
@@ -187,7 +191,8 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
       setMaintenant(Date.now());
       setCode('');
       setErreurCode(null);
-      dernierEssai.current = null;
+      setEchecDeTransport(false);
+      codeRefuse.current = null;
     } catch (erreur) {
       // Un code est déjà parti il y a moins d'une minute (une page rechargée l'a oublié) : les cases
       // s'ouvrent quand même, le code reçu reste bon.
@@ -204,23 +209,31 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
   // Le tracé ET les six chiffres partent ensemble, au geste qui complète le second — le sixième
   // chiffre, ou « Valider » du tracé quand le code était déjà saisi.
   const tenter = (codeSaisi: string, traceGardee: string | null) => {
-    if (!traceGardee || codeSaisi.length !== LONGUEUR_DU_CODE || signer.isPending || verrouille) return;
-    const essai = `${codeSaisi}|${traceGardee}`;
-    if (dernierEssai.current === essai) return;
-    dernierEssai.current = essai;
+    if (!traceGardee || codeSaisi.length !== LONGUEUR_DU_CODE || signer.isPending || verrouille || enVol.current) return;
+    if (codeRefuse.current === codeSaisi) return;
+    enVol.current = true;
     setErreurCode(null);
-    signer.mutateAsync({ role: 'tenant', signature: traceGardee, code: codeSaisi }).catch((erreur: unknown) => {
-      if (erreur instanceof ApiError) {
-        // Le code faux est une erreur de validation du champ `code` (422) ; le verrou, un 423 codé.
-        const champ = erreur.validationErrors?.code?.[0];
-        if (erreur.status === 423) setVerrouille(true);
-        // Déjà signé (un autre téléphone, le compte du locataire) : la fiche se relit.
-        if (erreur.status === 409) void queryClient.invalidateQueries({ queryKey: inventoryKeys.detail(inventory.id) });
-        setErreurCode(champ ?? messageErreur(erreur, t('signatureImpossible')));
-        return;
-      }
-      setErreurCode(t('signatureImpossible'));
-    });
+    setEchecDeTransport(false);
+    signer
+      .mutateAsync({ role: 'tenant', signature: traceGardee, code: codeSaisi })
+      .catch((erreur: unknown) => {
+        const verdict = erreur instanceof ApiError && erreur.status >= 400 && erreur.status < 500 && ![401, 408, 429].includes(erreur.status);
+        if (erreur instanceof ApiError && verdict) {
+          // Le code faux est une erreur de validation du champ `code` (422) ; le verrou, un 423 codé.
+          const champ = erreur.validationErrors?.code?.[0];
+          if (champ) codeRefuse.current = codeSaisi;
+          if (erreur.status === 423) setVerrouille(true);
+          // Déjà signé (un autre téléphone, le compte du locataire) : la fiche se relit.
+          if (erreur.status === 409) void queryClient.invalidateQueries({ queryKey: inventoryKeys.detail(inventory.id) });
+          setErreurCode(champ ?? messageErreur(erreur, t('signatureImpossible')));
+          return;
+        }
+        setEchecDeTransport(true);
+        setErreurCode(t('signatureImpossible'));
+      })
+      .finally(() => {
+        enVol.current = false;
+      });
   };
 
   if (inventory.tenant_signed) {
@@ -288,9 +301,16 @@ export function SignatureDuLocataire({ inventory, nom, prenom, avantDeSigner, on
             aria-describedby={erreurCode ? idErreur : undefined}
           />
           {erreurCode ? (
-            <p id={idErreur} role="alert" className="mt-2 text-ui text-destructive">
-              {erreurCode}
-            </p>
+            <div className="mt-2">
+              <p id={idErreur} role="alert" className="text-ui text-destructive">
+                {erreurCode}
+              </p>
+              {echecDeTransport ? (
+                <Button type="button" variant="link" className="h-auto p-0 text-ui font-medium plancher-tactile-10" onClick={() => tenter(code, trace)} disabled={signer.isPending}>
+                  {t('reessayer')}
+                </Button>
+              ) : null}
+            </div>
           ) : !trace && code.length === LONGUEUR_DU_CODE ? (
             <p className="mt-2 text-ui text-muted-foreground">{t('signerAvantLeCode', { prenom })}</p>
           ) : signer.isPending ? (

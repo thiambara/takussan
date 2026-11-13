@@ -22,7 +22,7 @@ import { withIntl } from '@/test/intl';
 import type { Inventory, InventoryRoom } from '@/types/inventory';
 
 const { etat, envoyer, signer, soumettre, patch, routeur, journal } = vi.hoisted(() => ({
-  etat: { bureau: false },
+  etat: { bureau: false, contexte: [] as unknown[] },
   envoyer: { mutateAsync: vi.fn(), isPending: false },
   signer: { mutateAsync: vi.fn(), isPending: false },
   soumettre: { mutateAsync: vi.fn(), isPending: false },
@@ -34,7 +34,8 @@ const { etat, envoyer, signer, soumettre, patch, routeur, journal } = vi.hoisted
 
 vi.mock('@/lib/queries/inventory', () => ({
   inventoryKeys: { detail: (id: number) => ['inventory', 'detail', id] },
-  useContexteDuBail: () => ({
+  useContexteDuBail: (...args: unknown[]) => ({
+    _: (etat.contexte = args),
     data: {
       data: {
         id: 208,
@@ -172,6 +173,14 @@ beforeEach(() => {
   patch.mutateAsync.mockResolvedValue({ data: {} });
 });
 
+describe('q1 de 065941306 — le bail sans le locataire', () => {
+  it('le récapitulatif demande le bail SANS le locataire : son nom vient de l’état des lieux', () => {
+    ouvrir();
+    expect(etat.contexte).toEqual([208, { avecLocataire: false }]);
+    expect(screen.getByRole('heading', { name: 'Locataire · Aminata Diop' })).toBeInTheDocument();
+  });
+});
+
 describe('TCK-2648 — la signature du locataire sur place (AC1)', () => {
   it('le code part par SMS, puis le tracé et les six chiffres partent ensemble', async () => {
     const user = userEvent.setup();
@@ -221,6 +230,85 @@ describe('TCK-2648 — la signature du locataire sur place (AC1)', () => {
     await user.type(champ, '222222');
     await waitFor(() => expect(signer.mutateAsync).toHaveBeenCalledTimes(2));
     expect(signer.mutateAsync).toHaveBeenLastCalledWith({ role: 'tenant', signature: TRACE, code: '222222' });
+  });
+
+  it('un tracé REFAIT (une autre image) ne renvoie pas le code refusé : la clé est le code seul (r2 de 065941306)', async () => {
+    const user = userEvent.setup();
+    let n = 0;
+    HTMLCanvasElement.prototype.toDataURL = () => `data:image/png;base64,TRACE${++n}`;
+    signer.mutateAsync.mockRejectedValueOnce(new ApiError(422, { message: 'Code invalide ou expiré.', errors: { code: ['Code invalide ou expiré.'] } }));
+    ouvrir();
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await tracer(user, blocDuLocataire());
+    const champ = within(blocDuLocataire()).getByRole('textbox');
+    await user.type(champ, '111111');
+    await within(blocDuLocataire()).findByRole('alert');
+    expect(signer.mutateAsync).toHaveBeenCalledTimes(1);
+
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Refaire' }));
+    const fenetre = await screen.findByRole('dialog');
+    const canevas = within(fenetre).getByTestId('signature-canvas');
+    fireEvent.pointerDown(canevas, { clientX: 10, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(canevas, { clientX: 50, clientY: 20, pointerId: 1, buttons: 1 });
+    fireEvent.pointerUp(canevas, { clientX: 50, clientY: 20, pointerId: 1 });
+    await user.click(within(fenetre).getByRole('button', { name: 'Valider' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // Une autre image : le tracé a bien changé, et le code refusé ne repart pas avec lui.
+    expect(within(blocDuLocataire()).getByRole('img', { name: 'Signature de Aminata Diop' })).not.toHaveAttribute('src', 'data:image/png;base64,TRACE1');
+    expect(signer.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('une panne du réseau n’est pas un verdict : « Réessayer » renvoie le même code (r3 de 065941306)', async () => {
+    const user = userEvent.setup();
+    signer.mutateAsync.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    ouvrir();
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await tracer(user, blocDuLocataire());
+    await user.type(within(blocDuLocataire()).getByRole('textbox'), '123456');
+    expect(await within(blocDuLocataire()).findByRole('alert')).toBeInTheDocument();
+    expect(signer.mutateAsync).toHaveBeenCalledTimes(1);
+
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(signer.mutateAsync).toHaveBeenCalledTimes(2));
+    expect(signer.mutateAsync).toHaveBeenLastCalledWith({ role: 'tenant', signature: TRACE, code: '123456' });
+    await waitFor(() => expect(within(blocDuLocataire()).queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('après une panne du réseau, ressaisir le dernier chiffre renvoie le même code', async () => {
+    const user = userEvent.setup();
+    signer.mutateAsync.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    ouvrir();
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await tracer(user, blocDuLocataire());
+    const champ = within(blocDuLocataire()).getByRole('textbox');
+    await user.type(champ, '123456');
+    await within(blocDuLocataire()).findByRole('alert');
+    await user.type(champ, '{Backspace}6');
+    await waitFor(() => expect(signer.mutateAsync).toHaveBeenCalledTimes(2));
+  });
+
+  it('un essai en vol ne repart pas : ressaisir le dernier chiffre pendant l’envoi n’ajoute aucun appel', async () => {
+    const user = userEvent.setup();
+    signer.mutateAsync.mockImplementationOnce(() => new Promise(() => undefined));
+    ouvrir();
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await tracer(user, blocDuLocataire());
+    const champ = within(blocDuLocataire()).getByRole('textbox');
+    await user.type(champ, '123456');
+    await waitFor(() => expect(signer.mutateAsync).toHaveBeenCalledTimes(1));
+    await user.type(champ, '{Backspace}6');
+    expect(signer.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('un code faux n’offre pas « Réessayer » : le corriger est le seul geste', async () => {
+    const user = userEvent.setup();
+    signer.mutateAsync.mockRejectedValueOnce(new ApiError(422, { message: 'Code invalide ou expiré.', errors: { code: ['Code invalide ou expiré.'] } }));
+    ouvrir();
+    await user.click(within(blocDuLocataire()).getByRole('button', { name: 'Lui envoyer un code par SMS' }));
+    await tracer(user, blocDuLocataire());
+    await user.type(within(blocDuLocataire()).getByRole('textbox'), '111111');
+    await within(blocDuLocataire()).findByRole('alert');
+    expect(within(blocDuLocataire()).queryByRole('button', { name: 'Réessayer' })).not.toBeInTheDocument();
   });
 
   it('le code saisi avant le tracé part au « Valider » du tracé', async () => {

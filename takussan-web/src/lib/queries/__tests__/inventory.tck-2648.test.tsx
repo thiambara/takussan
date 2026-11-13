@@ -17,7 +17,7 @@ vi.mock('@/lib/api', async () => {
   return { ...reel, apiRequest: (...args: unknown[]) => mockApiRequest(...args) };
 });
 
-const { useEnvoyerCodeSurPlace, useInventoryTemplate, useSignInventory } = await import('@/lib/queries/inventory');
+const { useContexteDuBail, useEnvoyerCodeSurPlace, useInventoryTemplate, useSignInventory } = await import('@/lib/queries/inventory');
 
 function enveloppe({ children }: { readonly children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -64,5 +64,24 @@ describe('TCK-2647 — le modèle de pièces passe par cheminApi', () => {
   it('sans requête, aucun appel', () => {
     renderHook(() => useInventoryTemplate(null), { wrapper: enveloppe });
     expect(mockApiRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe('q1 de 065941306 — le contexte du bail sans le locataire', () => {
+  // `GET /api/leases/{id}` sert l'include `tenant` entier (téléphone, e-mail) sans égard aux `fields` :
+  // le parcours et le récapitulatif lisent le nom sur l'état des lieux, et ne le demandent pas.
+  it('`avecLocataire: false` n’inclut que le bien', async () => {
+    renderHook(() => useContexteDuBail(208, { avecLocataire: false }), { wrapper: enveloppe });
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalled());
+    const chemin = decodeURIComponent(mockApiRequest.mock.calls[0][0] as string);
+    expect(chemin).toMatch(/^\/api\/leases\/208\?/);
+    expect(chemin).toContain('include=property');
+    expect(chemin).not.toMatch(/tenant/);
+  });
+
+  it('par défaut (« Démarrer »), le locataire reste inclus', async () => {
+    renderHook(() => useContexteDuBail(208), { wrapper: enveloppe });
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalled());
+    expect(decodeURIComponent(mockApiRequest.mock.calls[0][0] as string)).toContain('tenant');
   });
 });

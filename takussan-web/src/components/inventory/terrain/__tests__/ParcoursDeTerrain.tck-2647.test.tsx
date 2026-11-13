@@ -22,7 +22,7 @@ import { withIntl } from '@/test/intl';
 import type { Inventory, InventoryRoom } from '@/types/inventory';
 
 const { etat, patch, upload, routeur, reduire, journal } = vi.hoisted(() => ({
-  etat: { bureau: false, bail: null as unknown, entree: null as unknown },
+  etat: { bureau: false, bail: null as unknown, entree: null as unknown, contexte: [] as unknown[] },
   patch: { mutateAsync: vi.fn(), isPending: false },
   upload: { mutateAsync: vi.fn(), isPending: false },
   routeur: { push: vi.fn(), replace: vi.fn() },
@@ -33,7 +33,10 @@ const { etat, patch, upload, routeur, reduire, journal } = vi.hoisted(() => ({
 
 vi.mock('@/lib/queries/inventory', () => ({
   inventoryKeys: { detail: (id: number) => ['inventory', 'detail', id] },
-  useContexteDuBail: () => ({ data: etat.bail ? { data: etat.bail } : undefined }),
+  useContexteDuBail: (...args: unknown[]) => {
+    etat.contexte = args;
+    return { data: etat.bail ? { data: etat.bail } : undefined };
+  },
   useInventory: () => ({ data: etat.entree ? { data: etat.entree } : undefined }),
   useUpdateInventory: () => patch,
   useUploadInventoryRoomPhotos: () => upload,
@@ -146,6 +149,15 @@ describe('TCK-2647 — une pièce par écran (AC3)', () => {
   });
 });
 
+describe('q1 de 065941306 — le locataire sans son téléphone ni son e-mail', () => {
+  it('le bail se demande SANS le locataire, et l’en-tête le nomme depuis l’état des lieux', () => {
+    etat.bail = { ...(etat.bail as object), tenant: undefined };
+    ouvrir(brouillon({ tenant: { id: 4, full_name: 'Aminata Diop', first_name: 'Aminata' } }));
+    expect(etat.contexte).toEqual([208, { avecLocataire: false }]);
+    expect(screen.getAllByText(/F3 Grand Yoff · Aminata Diop/).length).toBeGreaterThan(0);
+  });
+});
+
 describe('TCK-2647 — enregistrer avant d’avancer, et reprendre (AC5)', () => {
   it('« Pièce suivante » envoie UN `PATCH` (la pièce terminée) et n’avance qu’à sa réponse', async () => {
     const user = userEvent.setup();
@@ -192,6 +204,14 @@ describe('TCK-2647 — enregistrer avant d’avancer, et reprendre (AC5)', () =>
   it('`?piece=` l’emporte sur la reprise (« Revoir les pièces »)', () => {
     ouvrir(brouillon({ rooms: [piece('Séjour', true), piece('Cuisine', true), piece('Chambre 1', false)] }), 1);
     expect(titreDeLaPiece()).toBe('Séjour');
+  });
+
+  it('`?piece=` hors des entiers de [1, n] (2.5, 0, 9) reprend à la première pièce non terminée (q4 de 065941306)', () => {
+    for (const demandee of [2.5, 0, 9]) {
+      const { unmount } = ouvrir(brouillon({ rooms: [piece('Séjour', true), piece('Cuisine', false), piece('Chambre 1', false)] }), demandee);
+      expect(titreDeLaPiece()).toBe('Cuisine');
+      unmount();
+    }
   });
 
   it('la dernière pièce « Terminer les pièces » enregistre puis mène au récapitulatif et aux signatures (TCK-2648)', async () => {
@@ -301,6 +321,58 @@ describe('TCK-2647 — les photos sur le terrain (AC4)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('La photo est illisible.');
     expect(upload.mutateAsync).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/en attente du réseau/)).not.toBeInTheDocument();
+  });
+
+  it('une session expirée (401) n’est pas un refus : la photo reste dans la file (q3 de 065941306)', async () => {
+    const user = userEvent.setup();
+    upload.mutateAsync.mockRejectedValue(new ApiError(401, { message: 'Unauthenticated.' }));
+    const { container } = ouvrir(brouillon());
+    await user.upload(entreeAppareil(container), [photo(1)]);
+    expect(await screen.findByText(/1 en attente du réseau/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('la photo d’un élément ajouté PENDANT qu’une autre est en vol enregistre la pièce d’abord (r1 de 065941306)', async () => {
+    const user = userEvent.setup();
+    let liberer: (v: unknown) => void = () => undefined;
+    upload.mutateAsync.mockImplementationOnce((v: { roomName: string; elementLabel?: string }) => {
+      journal.push(`PHOTO ${v.roomName}${v.elementLabel ? ` / ${v.elementLabel}` : ''} (en vol)`);
+      return new Promise((r) => (liberer = r));
+    });
+    const { container } = ouvrir(brouillon());
+    await user.upload(entreeAppareil(container), [photo(1)]);
+    await waitFor(() => expect(upload.mutateAsync).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole('button', { name: 'Ajouter un élément' }));
+    await user.type(screen.getByRole('textbox', { name: 'Nom de l’élément' }), 'Climatiseur{Enter}');
+    await user.click(within(screen.getByRole('radiogroup', { name: 'État : Climatiseur' })).getByRole('radio', { name: 'Abîmé' }));
+    const entrees = container.querySelectorAll<HTMLInputElement>('input[data-slot="entree-appareil"]');
+    await user.upload(entrees[entrees.length - 1], photo(4));
+    await act(async () => liberer({ data: {} }));
+    await waitFor(() => expect(upload.mutateAsync).toHaveBeenCalledTimes(2));
+    expect(journal).toEqual(['PHOTO Séjour (en vol)', 'PATCH', 'PHOTO Séjour / Climatiseur']);
+    expect((dernierPatch().rooms[0].elements ?? []).map((e) => e.label)).toContain('Climatiseur');
+  });
+
+  it('tant qu’une photo n’est pas partie, quitter la page demande confirmation (q2 de 065941306)', async () => {
+    const user = userEvent.setup();
+    let liberer: (v: unknown) => void = () => undefined;
+    upload.mutateAsync.mockImplementationOnce(() => new Promise((r) => (liberer = r)));
+    const { container } = ouvrir(brouillon());
+    const quitter = () => {
+      const evenement = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(evenement);
+      return evenement.defaultPrevented;
+    };
+    expect(quitter()).toBe(false);
+
+    await user.upload(entreeAppareil(container), [photo(1)]);
+    await waitFor(() => expect(upload.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(quitter()).toBe(true);
+
+    await act(async () => liberer({ data: {} }));
+    await waitFor(() => expect(screen.queryByAltText('Photo en attente d’envoi')).not.toBeInTheDocument());
+    expect(quitter()).toBe(false);
   });
 
   it('« Terminer les pièces » ne quitte pas le parcours tant qu’une photo attend le réseau', async () => {

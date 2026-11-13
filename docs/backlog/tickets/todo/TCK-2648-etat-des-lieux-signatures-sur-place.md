@@ -193,3 +193,12 @@ Relevé en GET sur la démo le 2026-11-13, sans écriture :
   - k4 : e-mail ajouté au nom ;
   - k5 : la colonne du signataire locataire lue sur celle du bailleur ;
   - k6 : `on_behalf_of` lu sur le bailleur du bail.
+
+### Reprise après la contre-vérification de 065941306 (2026-11-13, terrain-8)
+
+- **r2** : un code que l'API a refusé (422 sur `code`) ne repart plus, même avec un tracé refait. La clé de l'essai était le couple (code, tracé), et « Refaire » donne une autre image ; c'est désormais le code seul. Chaque essai faux compte pour le verrou.
+- **r3** : une panne de transport, ou un 401, 408 ou 429, n'est plus un verdict.
+  - Le même code peut repartir, en ressaisissant le dernier chiffre ou par « Réessayer » sous l'alerte. La clé `inventory.terrain.signatures.reessayer` est neuve.
+  - Un essai en vol ne repart pas.
+- **q1** : le récapitulatif ne demande plus le locataire du bail. Son nom vient de l'état des lieux (`InventoryResource`, `{id, full_name, first_name}`).
+

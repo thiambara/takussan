@@ -8265,7 +8265,8 @@
           "paysage": "Turn the phone sideways for more room.",
           "effacer": "Clear",
           "valider": "Confirm"
-        }
+        },
+        "reessayer": "Try again"
       }
     }
   },
