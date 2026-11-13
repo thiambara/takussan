@@ -7,6 +7,7 @@ use App\Services\Invoice\OverdueReminderService;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseDefaults;
 use App\Services\Lease\RentReviewService;
+use App\Support\ScopedSetting;
 use Illuminate\Validation\Rule;
 
 /**
@@ -167,6 +168,26 @@ class EditablePlatformSettings
         }
 
         return $value;
+    }
+
+    /**
+     * r6 (r1 de la vérification de 65d3142b6) — la valeur atteint-elle le PLANCHER des règles de la clé
+     * (`min:x` : au moins x ; `gt:x` : plus que x) ? Une ligne d'agence sous le plancher n'est pas un
+     * réglage ({@see ScopedSetting::numericAgencyValue()}) : `{"value": 0}` sur une clé
+     * en `min:1` ou `gt:0` est une ligne écrite avant sa règle, et le global reprend la main. Au-dessus
+     * du plafond, {@see self::clamp()} la ramène : la ligne dit bien quelque chose de l'agence.
+     */
+    public static function atteintLePlancher(string $key, float $value): bool
+    {
+        foreach (self::get($key)['rules'] as $rule) {
+            if (is_string($rule) && preg_match('/^(min|gt):(-?[0-9.]+)$/', $rule, $m) === 1) {
+                if ($m[1] === 'min' ? $value < (float) $m[2] : $value <= (float) $m[2]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public static function has(string $key): bool

@@ -166,3 +166,22 @@ Fidélité (lot 4) — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (
 - **Bien et locataire choisis** : une ligne (`creation/LigneChoisie`, `data-slot="ligne-choisie"`) — vignette ou initiales, nom, « réf · bailleur · loyer annoncé » ou téléphone, et « Changer », qui rend le sélecteur. Les initiales ne s'importent pas de `customer-dashboard/liste/pieces` : ce module lit `crm`/`agentCrm`, que la frontière `(dashboard)/app/leases` ne transporte pas (`check:i18n-namespaces`).
 - **Mise en page** : page en `PagePleineLargeur`, colonne de droite `min(25rem, 36.5%)` (400 px de la maquette, et non 360) ; dates « 1 déc. 2026 » (`formatAffiche` additif de `FormDatePicker`) ; barre d'action du téléphone à la taille `action`, boutons `xl` ; « / mois » en `muted-foreground` ; Devise et Fréquence après les règles ; l'avis des garants rejoint ceux de l'envoi (décisions 11 et 12).
 - **Écarts acceptés** : listés avec leur motif dans la fiche (`ecarts_acceptes`) — dont la caution, qui garde un montant libre à côté du pas-à-pas (la maquette n'écrit que « = N F »), décision de session (team-lead, 2026-11-12) : pas de régression.
+
+### Suivi (2026-11-13) — r1 de la vérification de 65d3142b6 (r6) : une seule règle pour la valeur et la source (back-4)
+
+- **Constat.** Avec une ligne d'agence `{"value": 0}` sur l'indemnité ou la révision, `GET /api/leases/defaults` servait la valeur du global (7, 12,5) mais la source `agency`. Le formulaire annonçait alors des « réglages de l'agence ».
+  - La cause : `LeaseDefaults::agencyValue()`, double de `ScopedSetting::numericAgencyValue()`, n'appliquait pas le `> 0` des résolveurs.
+- **Règle unique.** `ScopedSetting::numericAgencyValue()` rend la valeur d'agence VALABLE : numérique, et au moins au plancher des règles du catalogue (`min:x`, `gt:x` : `EditablePlatformSettings::atteintLePlancher()`).
+  - Les résolveurs (`EarlyTerminationService::resolvePenaltyMonths`, `RentReviewService::resolveMaxPct`) et `LeaseDefaults` (valeur et `source`) la lisent. `LeaseDefaults::agencyValue()` est retiré.
+  - Au-dessus du plafond, `clamp()` ramène toujours la valeur : la ligne reste un réglage de l'agence.
+- **Effets.**
+  - Indemnité et révision : `{"value": 0}` donne le global et la source `platform`.
+  - Pénalité de retard (`min:0`) : 0 reste un réglage de l'agence (« pas de pénalité »).
+  - Une ligne héritée négative passe sous le plancher : le catalogue reprend la main, au lieu d'être ramenée à 0 et dite « de l'agence ».
+  - Les deux écrivains de lignes d'agence refusent déjà ces valeurs : seules les lignes héritées sont concernées.
+- **Épinglé par** `LeaseDefaultsTest::test_une_ligne_d_agence_sous_le_plancher_n_est_pas_un_reglage_de_l_agence` et par les cas r6 de `ScopedSettingReadersTest`.
+- **Ablations, toutes rouges :**
+  - sans plancher : 3 rouges ;
+  - la `source` jugée par l'ancienne règle : 1 rouge ;
+  - `gt` lu comme `min` : 2 rouges.
+- Prévenu : terrain-7 (`LeaseDefaults`).

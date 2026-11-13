@@ -17,6 +17,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\RentReviewService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -149,6 +150,34 @@ class LeaseDefaultsTest extends ApiTestCase
             'enveloppe value nulle' => [['value' => null]],
             'objet vide' => [[]],
         ];
+    }
+
+    /**
+     * r6, r1 de la vérification de 65d3142b6 — UNE règle pour la valeur et pour la source
+     * (`ScopedSetting::numericAgencyValue`) : une ligne d'agence sous le plancher du catalogue n'est pas
+     * un réglage. `{"value": 0}` sur l'indemnité (`min:1`) et la révision (`gt:0`) rend le global ET la
+     * source « platform » — le formulaire n'annonce plus un réglage de l'agence que le résolveur ignore.
+     * Sur la pénalité de retard (`min:0`), 0 est un réglage valable : « pas de pénalité », de l'agence.
+     * Une ligne héritée négative y est sous le plancher : le catalogue reprend la main.
+     */
+    public function test_une_ligne_d_agence_sous_le_plancher_n_est_pas_un_reglage_de_l_agence(): void
+    {
+        app(PlatformSettingService::class)->bulkUpdate([
+            EarlyTerminationService::SETTING_KEY => 7,
+            RentReviewService::SETTING_KEY => 12.5,
+            'lease.late_fee_percent' => 3,
+            'lease.late_fee_grace_days' => 4,
+        ], User::factory()->create());
+        foreach ([EarlyTerminationService::SETTING_KEY, RentReviewService::SETTING_KEY, 'lease.late_fee_percent'] as $cle) {
+            $this->reglageDAgence($cle, 0);
+        }
+        $this->reglageDAgence('lease.late_fee_grace_days', -2);
+
+        $this->defaults()->assertOk()
+            ->assertJsonPath('data.early_termination_penalty_months', ['value' => 7, 'source' => 'platform'])
+            ->assertJsonPath('data.rent_review_max_pct', ['value' => 12.5, 'source' => 'platform'])
+            ->assertJsonPath('data.late_fee_percent', ['value' => 0, 'source' => 'agency'])
+            ->assertJsonPath('data.late_fee_grace_days', ['value' => 4, 'source' => 'platform']);
     }
 
     public function test_l_indemnite_et_la_revision_disent_leur_source(): void
