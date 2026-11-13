@@ -20055,6 +20055,78 @@
       "conge": "En congé jusqu’au {jour}",
       "premiereVisite": "Première visite à {heure}",
       "journee": "{visites, plural, =0 {Aucune visite} one {# visite} other {# visites}}{demandes, plural, =0 {} one { · # demande} other { · # demandes}}"
+    },
+    "bailleur": {
+      "titre": "À faire maintenant",
+      "voir": "Voir",
+      "toutEstAJour": "Aucune visite à confirmer, aucun devis à valider. Votre agence vous préviendra ici.",
+      "toutEstAJourHote": "Aucune visite à confirmer, aucun devis à valider, aucune réservation ni aucun avis en attente.",
+      "proposerUnBien": "Proposer un bien à mon agence",
+      "groupes": {
+        "visites": "Visites à confirmer",
+        "devis": "Devis à valider",
+        "loyers": "Loyers en retard",
+        "reservations": "Réservations à traiter",
+        "avis": "Avis sans réponse"
+      },
+      "visite": {
+        "titre": "Visite à confirmer",
+        "detail": "{bien} · proposée par {agent}"
+      },
+      "visites": {
+        "autres": "{n, plural, one {Voir l’autre visite à confirmer} other {Voir les # autres visites à confirmer}}"
+      },
+      "devis": {
+        "titre": "Devis à valider",
+        "voir": "Voir le devis",
+        "valider": "Valider",
+        "autres": "{n, plural, one {Voir l’autre devis à valider} other {Voir les # autres devis à valider}}"
+      },
+      "loyers": {
+        "detail": "{montant} · échu le {echeance}",
+        "jours": "{n, plural, one {# jour} other {# jours}}",
+        "sansLocataire": "Locataire",
+        "autres": "{n, plural, one {Voir l’autre loyer en retard} other {Voir les # autres loyers en retard}}"
+      },
+      "reservations": {
+        "carte": "{n, plural, one {# réservation à traiter} other {# réservations à traiter}}",
+        "detail": "En attente de votre réponse"
+      },
+      "avis": {
+        "carte": "{n, plural, one {# avis sans réponse} other {# avis sans réponse}}",
+        "detail": "Sur vos biens",
+        "repondre": "Répondre"
+      },
+      "feuilleDuDevis": {
+        "titre": "Valider le devis",
+        "voir": "Voir le devis",
+        "valide": "Devis approuvé : {intervention}",
+        "refuse": "Vous ne pouvez pas valider ce devis."
+      },
+      "loyersDuMois": {
+        "titre": "{elision, select, oui {Loyers d’{mois}} other {Loyers de {mois}}}",
+        "voir": "Voir les loyers",
+        "recusSur": "{recus, plural, one {# reçu} other {# reçus}} <sur>sur {attendus}</sur>",
+        "barre": "{recus} loyers reçus sur {attendus}",
+        "recus": "Reçus",
+        "enRetard": "{n} en retard",
+        "aVenir": "{n} à venir"
+      },
+      "enCours": {
+        "titre": "En cours sur vos biens",
+        "titreEtBien": "{titre} · {bien}",
+        "passage": "{jour, select, aujourdhui {Passage aujourd’hui à {heure}} demain {Passage demain à {heure}} hier {Passage prévu hier à {heure}} passe {Passage prévu le {date} à {heure}} other {Passage le {date} à {heure}}}",
+        "passageDe": "{jour, select, aujourdhui {{nom} intervient aujourd’hui à {heure}} demain {{nom} intervient demain à {heure}} hier {{nom} · passage prévu hier à {heure}} passe {{nom} · passage prévu le {date} à {heure}} other {{nom} intervient le {date} à {heure}}}",
+        "aFixer": "Passage à fixer",
+        "aFixerAvec": "{nom} · passage à fixer"
+      },
+      "resume": {
+        "rien": "{jour} · rien n’attend votre réponse",
+        "loyers": "{recus, plural, one {# loyer reçu} other {# loyers reçus}} sur {attendus}",
+        "visites": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
+        "separateurDate": " · ",
+        "separateur": ", "
+      }
     }
   }
 }

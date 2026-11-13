@@ -50,6 +50,15 @@ vi.mock('@/components/console', () => ({
 vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <div data-testid="a-faire-admin" /> }));
 vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
 vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
+vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
+  AFaireBailleur: ({ confirmeLesVisites, hote }: { confirmeLesVisites: boolean; hote: unknown }) => (
+    <div data-testid="a-faire-bailleur" data-confirme={String(confirmeLesVisites)} data-hote={JSON.stringify(hote)} />
+  ),
+}));
+vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
+vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
+vi.mock('@/lib/access/tableau-du-bailleur', () => ({ vueBailleurOuverte: async () => true }));
+vi.mock('@/lib/queries/dashboard', () => ({ fetchOwnerDashboard: async () => ({ data: { bookings: { pending: 2 }, reviews: { unanswered: 1 } } }) }));
 
 import DashboardPage from '../page';
 

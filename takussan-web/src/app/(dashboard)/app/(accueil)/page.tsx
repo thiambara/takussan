@@ -6,6 +6,10 @@ import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { AFaireAdmin } from '@/components/accueil/admin/AFaireAdmin';
 import { EquipeDuJour } from '@/components/accueil/admin/EquipeDuJour';
 import { ResumeDuJour } from '@/components/accueil/admin/ResumeDuJour';
+import { AFaireBailleur, type FilesDeLHote } from '@/components/accueil/bailleur/AFaireBailleur';
+import { EnCoursSurVosBiens } from '@/components/accueil/bailleur/EnCoursSurVosBiens';
+import { LoyersDuMois } from '@/components/accueil/bailleur/LoyersDuMois';
+import { ResumeDuBailleur } from '@/components/accueil/bailleur/ResumeDuBailleur';
 import { CeMois } from '@/components/accueil/CeMois';
 import { SocleDeLAccueil } from '@/components/accueil/SocleDeLAccueil';
 import { BrandingBanner } from '@/components/agency/BrandingBanner';
@@ -15,6 +19,9 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { chiffresDuMois, rapportDuMois } from '@/lib/accueil/chiffres-du-mois';
+import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
+import { vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
+import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
 import { prenomDe } from '@/lib/identite';
 import { jourEnClair } from '@/lib/journee/jour-en-clair';
 import { jourADakar } from '@/lib/journee/journee';
@@ -46,6 +53,24 @@ async function lireLeTableau(): Promise<{ data: DashboardMePayload } | null | 'e
     return await fetchDashboardMe();
   } catch {
     return 'echec';
+  }
+}
+
+/**
+ * TCK-2624 (lot 2) — « Réservations à traiter » et « Avis sans réponse » de l'hôte, lus comme la Vue
+ * bailleur les lisait (`GET /api/dashboard/owner`, ouvert à qui `vueBailleurOuverte` admet). Une vue
+ * fermée : les deux files ne s'appliquent pas ; une panne : elles le disent (le bloc ne dit pas « Tout
+ * est à jour »).
+ */
+async function lireLesFilesDeLHote(user: Awaited<ReturnType<typeof getMeAction>>): Promise<FilesDeLHote | null> {
+  if ((await vueBailleurOuverte(user)) !== true) return null;
+  try {
+    const lue = await fetchOwnerDashboard({ include: [] });
+    if (!lue) return null;
+    const { data } = lue;
+    return { reservations: { etat: 'pret', total: data.bookings?.pending ?? 0 }, avis: { etat: 'pret', total: data.reviews?.unanswered ?? 0 } };
+  } catch {
+    return { reservations: { etat: 'echec' }, avis: { etat: 'echec' } };
   }
 }
 
@@ -109,12 +134,28 @@ export default async function DashboardPage() {
   // TCK-2624 — l'admin d'une agence (standard : l'agence individuelle est l'hôte) voit ce qui attend
   // sa décision, et son équipe du jour. Les lectures sont bornées à l'agence active par l'API.
   const accueilAdmin = persona === 'admin-agence' && adminDAgence ? user.agency_id! : null;
-  const jour = jourEnClair(locale, jourADakar(new Date()));
+  const aujourdhui = jourADakar(new Date());
+  const jour = jourEnClair(locale, aujourdhui);
+
+  // TCK-2624 (lot 2) — le bailleur et l'hôte voient ce qui attend LEUR réponse (visites, devis, loyers
+  // en retard), les loyers du mois et ce qui est en cours sur leurs biens. L'hôte confirme ses visites ;
+  // le bailleur d'un bien d'agence, non (`PropertyVisitPolicy::agitPourLeBien`, décision 7).
+  const accueilBailleur = persona === 'bailleur' || persona === 'hote';
+  const loyers = accueilBailleur && payload?.data.role === 'owner' ? lireLoyersDuMois(payload.data.metrics) : null;
+  const filesDeLHote = persona === 'hote' ? await lireLesFilesDeLHote(user) : null;
 
   return (
     <SocleDeLAccueil
       titre={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
-      ligne={accueilAdmin !== null ? <ResumeDuJour jour={jour} agencyId={accueilAdmin} /> : jour}
+      ligne={
+        accueilAdmin !== null ? (
+          <ResumeDuJour jour={jour} agencyId={accueilAdmin} />
+        ) : accueilBailleur ? (
+          <ResumeDuBailleur jour={jour} landlordId={user.id} loyers={loyers} />
+        ) : (
+          jour
+        )
+      }
       // TCK-777 (P15.08) — la mise en service, pour tout admin d'agence, individuelle comprise ; elle
       // disparaît une fois l'agence prête. TCK-2622 — repliée en une ligne.
       miseEnService={adminDAgence ? { agencyId: user.agency_id!, kind } : null}
@@ -131,11 +172,20 @@ export default async function DashboardPage() {
       // TCK-595 — un compte sans chiffres (client sans fiche, prestataire) garde son état vide, en
       // attendant les blocs de son persona (TCK-2625).
       vide={chiffres !== null && chiffres.length === 0 ? <DashboardEmpty roles={user.roles} /> : null}
-      blocs={accueilAdmin !== null ? <AFaireAdmin agencyId={accueilAdmin} /> : undefined}
-      colonne={accueilAdmin !== null ? <EquipeDuJour agencyId={accueilAdmin} /> : undefined}
+      blocs={
+        accueilAdmin !== null ? (
+          <AFaireAdmin agencyId={accueilAdmin} />
+        ) : accueilBailleur ? (
+          <>
+            {loyers ? <LoyersDuMois loyers={loyers} jour={aujourdhui} className="max-md:mx-4 md:mb-5" /> : null}
+            <AFaireBailleur landlordId={user.id} confirmeLesVisites={persona === 'hote'} hote={filesDeLHote} />
+          </>
+        ) : undefined
+      }
+      colonne={accueilAdmin !== null ? <EquipeDuJour agencyId={accueilAdmin} /> : accueilBailleur ? <EnCoursSurVosBiens /> : undefined}
       ceMois={
         chiffres === null || chiffres.length > 0 ? (
-          <CeMois chiffres={chiffres} rapport={payload ? rapportDuMois(payload.data.role) : null} pleineLargeur={accueilAdmin === null} />
+          <CeMois chiffres={chiffres} rapport={payload ? rapportDuMois(payload.data.role) : null} pleineLargeur={accueilAdmin === null && !accueilBailleur} />
         ) : null
       }
     />

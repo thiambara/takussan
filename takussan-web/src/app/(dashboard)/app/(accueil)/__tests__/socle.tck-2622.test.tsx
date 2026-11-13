@@ -48,6 +48,15 @@ vi.mock('@/components/journee/MaJournee', () => ({ MaJournee: () => <div data-te
 vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <div data-testid="a-faire-admin" /> }));
 vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
 vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
+vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
+  AFaireBailleur: ({ confirmeLesVisites, hote }: { confirmeLesVisites: boolean; hote: unknown }) => (
+    <div data-testid="a-faire-bailleur" data-confirme={String(confirmeLesVisites)} data-hote={JSON.stringify(hote)} />
+  ),
+}));
+vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
+vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
+vi.mock('@/lib/access/tableau-du-bailleur', () => ({ vueBailleurOuverte: async () => true }));
+vi.mock('@/lib/queries/dashboard', () => ({ fetchOwnerDashboard: async () => ({ data: { bookings: { pending: 2 }, reviews: { unanswered: 1 } } }) }));
 
 import DashboardPage, { generateMetadata } from '../page';
 
@@ -188,7 +197,7 @@ describe('TCK-2624 — les blocs de l’admin d’agence', () => {
     expect(document.querySelector('[data-slot="ce-mois"] ul.grid')?.className).not.toMatch(/xl:grid-cols-4/);
   });
 
-  it('ni l’hôte (agence individuelle), ni le bailleur, ni le client : leurs blocs viennent ailleurs (lot bailleur, TCK-2625)', async () => {
+  it('ni l’hôte (agence individuelle), ni le bailleur, ni le client : pas les blocs de l’admin', async () => {
     ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
     await monter();
     expect(screen.queryByTestId('a-faire-admin')).toBeNull();
@@ -198,5 +207,28 @@ describe('TCK-2624 — les blocs de l’admin d’agence', () => {
     await monter();
     expect(screen.queryByTestId('a-faire-admin')).toBeNull();
     expect(screen.queryByTestId('equipe-du-jour')).toBeNull();
+  });
+});
+
+describe('TCK-2624 (lot 2) — les blocs du bailleur et de l’hôte', () => {
+  it('AC4 — le bailleur : « Loyers de novembre : 8 reçus sur 14 » lu depuis `rent_month`, « À faire » sans confirmation des visites, « En cours » dans la colonne', async () => {
+    ETAT.user = { id: 4, roles: ['owner'], agency_id: null, first_name: 'Mouhamed' };
+    ETAT.lecture = { data: { role: 'owner', metrics: { rent_month: { received_count: 8, expected_count: 14, received_amount: 11_400_000 } }, sections: [] } };
+    await monter();
+    expect(screen.getByRole('region', { name: /^Loyers de / }).textContent).toContain('8 reçus sur 14');
+    expect(screen.getByTestId('a-faire-bailleur').dataset.confirme).toBe('false');
+    expect(screen.getByTestId('a-faire-bailleur').dataset.hote).toBe('null');
+    expect(screen.getByTestId('en-cours')).toBeInTheDocument();
+    expect(screen.queryByTestId('a-faire-admin')).toBeNull();
+  });
+
+  it('l’hôte (admin d’une agence individuelle) : il confirme ses visites, et garde réservations et avis de la Vue bailleur', async () => {
+    ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
+    await monter();
+    const bloc = screen.getByTestId('a-faire-bailleur');
+    expect(bloc.dataset.confirme).toBe('true');
+    expect(JSON.parse(bloc.dataset.hote!)).toEqual({ reservations: { etat: 'pret', total: 2 }, avis: { etat: 'pret', total: 1 } });
+    // Sans `rent_month` (vue `agency_admin`), aucune carte de loyers n'est inventée.
+    expect(screen.queryByRole('region', { name: /^Loyers d/ })).toBeNull();
   });
 });

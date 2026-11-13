@@ -20055,6 +20055,78 @@
       "conge": "On leave until {jour}",
       "premiereVisite": "First visit at {heure}",
       "journee": "{visites, plural, =0 {No visit} one {# visit} other {# visits}}{demandes, plural, =0 {} one { · # request} other { · # requests}}"
+    },
+    "bailleur": {
+      "titre": "To do now",
+      "voir": "View",
+      "toutEstAJour": "No visit to confirm, no quote to approve. Your agency will let you know here.",
+      "toutEstAJourHote": "No visit to confirm, no quote to approve, no booking or review waiting.",
+      "proposerUnBien": "Offer a property to my agency",
+      "groupes": {
+        "visites": "Visits to confirm",
+        "devis": "Quotes to approve",
+        "loyers": "Late rents",
+        "reservations": "Bookings to handle",
+        "avis": "Unanswered reviews"
+      },
+      "visite": {
+        "titre": "Visit to confirm",
+        "detail": "{bien} · proposed by {agent}"
+      },
+      "visites": {
+        "autres": "{n, plural, one {See the other visit to confirm} other {See the # other visits to confirm}}"
+      },
+      "devis": {
+        "titre": "Quote to approve",
+        "voir": "View the quote",
+        "valider": "Approve",
+        "autres": "{n, plural, one {See the other quote to approve} other {See the # other quotes to approve}}"
+      },
+      "loyers": {
+        "detail": "{montant} · due {echeance}",
+        "jours": "{n, plural, one {# day} other {# days}}",
+        "sansLocataire": "Tenant",
+        "autres": "{n, plural, one {See the other late rent} other {See the # other late rents}}"
+      },
+      "reservations": {
+        "carte": "{n, plural, one {# booking to handle} other {# bookings to handle}}",
+        "detail": "Waiting for your answer"
+      },
+      "avis": {
+        "carte": "{n, plural, one {# unanswered review} other {# unanswered reviews}}",
+        "detail": "On your properties",
+        "repondre": "Reply"
+      },
+      "feuilleDuDevis": {
+        "titre": "Approve the quote",
+        "voir": "View the quote",
+        "valide": "Quote approved: {intervention}",
+        "refuse": "You cannot approve this quote."
+      },
+      "loyersDuMois": {
+        "titre": "Rents for {mois}",
+        "voir": "View rents",
+        "recusSur": "{recus} received <sur>of {attendus}</sur>",
+        "barre": "{recus} rents received of {attendus}",
+        "recus": "Received",
+        "enRetard": "{n} late",
+        "aVenir": "{n} upcoming"
+      },
+      "enCours": {
+        "titre": "In progress on your properties",
+        "titreEtBien": "{titre} · {bien}",
+        "passage": "{jour, select, aujourdhui {Visit today at {heure}} demain {Visit tomorrow at {heure}} hier {Visit planned yesterday at {heure}} passe {Visit planned on {date} at {heure}} other {Visit on {date} at {heure}}}",
+        "passageDe": "{jour, select, aujourdhui {{nom} is coming today at {heure}} demain {{nom} is coming tomorrow at {heure}} hier {{nom} · visit planned yesterday at {heure}} passe {{nom} · visit planned on {date} at {heure}} other {{nom} is coming on {date} at {heure}}}",
+        "aFixer": "Visit to be scheduled",
+        "aFixerAvec": "{nom} · visit to be scheduled"
+      },
+      "resume": {
+        "rien": "{jour} · nothing is waiting for your answer",
+        "loyers": "{recus} of {attendus} rents received",
+        "visites": "{n, plural, one {# visit to confirm} other {# visits to confirm}}",
+        "separateurDate": " · ",
+        "separateur": ", "
+      }
     }
   }
 }

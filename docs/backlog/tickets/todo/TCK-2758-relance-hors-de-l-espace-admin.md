@@ -56,6 +56,10 @@ voit pas). `payments` est légitime (le dialogue d'encaissement) et reste.
   monte `FeuilleDeRelance` et `FileDeRelance` ; la frontière `(dashboard)/app/(accueil)` sert `admin`, `lease` et
   `payments` à 44,7 % (plafond relevé de 27 à 45). Elle quitte `admin` comme la fiche du bien, et son plafond est
   resserré sur la mesure. Alternative sans déplacer de clés : TCK-2775 (l'accueil mène à l'écran Impayés par l'URL).
+- [ ] **L'accueil sert aussi `maintenance`** (TCK-2624, lot 2, ratifié le 2026-11-13) : la feuille « Valider » du devis
+  du bailleur monte `DecisionDuDevis` (TCK-2654), qui lit `maintenance.bailleur.devis` ; la frontière `(dashboard)/app/(accueil)`
+  passe à 46,9 % du dictionnaire servi sur HEAD (47,3 % dans l'arbre partagé), plafond écrit par l'outil : 52 %. Le même
+  découpage (un espace de la décision du devis hors de `maintenance`) le ramènerait sur la mesure.
 - [ ] `src/i18n/namespaces.json` régénéré (`--update`) : `admin` quitte la frontière `(dashboard)/app/properties`,
   son plafond est resserré sur la mesure.
 - [ ] Les tests de la relance (écran Impayés, fiche du bien) passent sur les clés déplacées.
