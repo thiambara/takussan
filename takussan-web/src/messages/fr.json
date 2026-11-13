@@ -2382,6 +2382,21 @@
         "invite": "Inviter un nouveau bailleur",
         "invited": "Invitation envoyée à {name}. Le bien reste à l'agence jusqu'à ce que {name} accepte ; il lui passera alors.",
         "unlink": "Ne pas lier ce bien à cette invitation"
+      },
+      "feuille": {
+        "titre": "Dernière étape",
+        "pret": "Prête à publier",
+        "publier": "Publier mon annonce",
+        "revenir": "Revenir à l’annonce",
+        "numeroTitre": "Votre numéro",
+        "numeroTexte": "Les visiteurs vous appelleront ou vous écriront sur WhatsApp. Un code par SMS suffit.",
+        "numeroTexteSansCompte": "Les visiteurs vous appelleront ou vous écriront sur WhatsApp. Nouveau ou déjà inscrit, un code par SMS suffit.",
+        "codeEnvoyeAu": "Code envoyé au {phone}.",
+        "modifier": "Modifier",
+        "whatsappDuNumero": "Le {phone} reçoit WhatsApp",
+        "nomsTitre": "Votre nom, pour les intéressés",
+        "incomplet": "Il manque encore vos coordonnées pour publier : complétez-les, puis publiez. Votre annonce est gardée.",
+        "photosAilleurs": "Vos photos restent sur l’appareil où vous les avez ajoutées : ajoutez-les ici avant de publier."
       }
     },
     "titleTypes": {
@@ -6925,7 +6940,8 @@
         "agent-kyc": "Vos pièces justificatives (agent)",
         "sp-onboarding": "Création de votre espace prestataire",
         "agency-upgrade": "Passage en pro",
-        "property-create-wizard": "Publication d’un bien"
+        "property-create-wizard": "Publication d’un bien",
+        "property-create-wizard-publication": "Annonce commencée sans compte"
       }
     }
   },
@@ -17233,6 +17249,47 @@
       "title": "Création de votre espace…",
       "body": "Votre espace personnel se prépare : vous publiez juste après.",
       "error": "Votre espace n’a pas pu être créé. Réessayez."
+    },
+    "sansCompte": {
+      "depart": {
+        "titre": "Publiez votre bien gratuitement",
+        "sousTitre": "En ligne aujourd’hui · 5 minutes · un code SMS suffit",
+        "pro": "Vous êtes une agence ou un agent ?",
+        "proLien": "Créer un compte pro",
+        "reprise": "Un brouillon vous attend déjà ?",
+        "repriseLien": "Me connecter"
+      },
+      "brouillon": {
+        "navigateur": "Brouillon gardé dans ce navigateur",
+        "telephone": "Brouillon gardé sur ce téléphone",
+        "pied": "Brouillon gardé dans ce navigateur — il passera dans votre compte au moment de publier.",
+        "refus": "Ce navigateur ne garde pas le brouillon : votre annonce reste ici tant que l’onglet est ouvert.",
+        "quota": "Ce navigateur n’a plus de place pour le brouillon : votre annonce reste ici tant que l’onglet est ouvert.",
+        "purge": "Un brouillon resté plus de 30 jours sans changement a été effacé.",
+        "effacer": "Effacer ce brouillon",
+        "efface": "Brouillon effacé."
+      },
+      "numero": {
+        "libelle": "Votre numéro",
+        "note": "à la fin"
+      },
+      "finition": {
+        "fort": "C’est tout pour l’annonce.",
+        "texte": "Votre numéro et votre prénom vous sont demandés juste après, pour que les intéressés puissent vous joindre —",
+        "lien": "déjà un compte ?",
+        "contacts": "Ces contacts ne sont pas gardés si vous quittez la page."
+      },
+      "espace": {
+        "indisponible": "Votre annonce ne peut pas être publiée d’ici pour ce compte. Elle reste gardée dans ce navigateur.",
+        "bascule": "Impossible d’ouvrir votre espace pour publier. Votre annonce est gardée : réessayez.",
+        "plafond": "Votre compte garde déjà 20 brouillons : reprenez-en ou effacez-en un depuis votre espace. Votre annonce reste gardée dans ce navigateur.",
+        "taille": "Votre annonce est trop longue pour passer dans votre compte : raccourcissez la description. Elle reste gardée dans ce navigateur.",
+        "echec": "Votre annonce n’a pas pu passer dans votre compte. Elle reste gardée dans ce navigateur : réessayez."
+      },
+      "choix": {
+        "note": "Votre annonce est gardée dans votre compte : elle s’ouvrira dans l’espace choisi, prête à publier.",
+        "revenir": "Revenir à l’annonce"
+      }
     }
   },
   "layout": {

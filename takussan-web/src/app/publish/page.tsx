@@ -7,23 +7,29 @@
  * hôte, formulaire du bien) ou, quand la personne publie dans plusieurs agences, lui fait CHOISIR
  * l'espace — ici, sans détour. Le profil choisi devient actif avant le formulaire : c'est lui qui
  * décide dans quelle agence le bien est créé.
+ *
+ * TCK-2600 (ADR-0093) — SANS COMPTE, elle ne renvoie plus à la connexion : elle sert l'assistant,
+ * son brouillon gardé dans ce navigateur (`PublierSansCompte`). Le compte naît à la publication
+ * (TCK-2601), sans que la page ne démonte l'assistant ni ne décide plus rien.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Building2, ChevronRight, Home, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
+import { ListeDesEspaces } from '@/components/publication/ListeDesEspaces';
+import { PublierSansCompte } from '@/components/publication/PublierSansCompte';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
 import { useAuth } from '@/context/AuthContext';
 import { profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { PUBLISH_TARGETS, usePublishIntent, type EspaceDePublication } from '@/hooks/usePublishIntent';
+import { useBrouillonLocalPresent } from '@/lib/publication/useBrouillonLocalPresent';
 
 export default function PublishPage() {
   const t = useTranslations('publishRedirect');
-  const tTypes = useTranslations('profile.types');
   const router = useRouter();
   const decision = usePublishIntent();
   const basculer = useSwitchActiveProfile();
@@ -35,6 +41,18 @@ export default function PublishPage() {
   const [echecCreation, setEchecCreation] = useState<string | null>(null);
   // Dérivé, pas un état : l'effet qui lance la création ne pose rien de façon synchrone.
   const creation = decision.status === 'host-needed';
+
+  /**
+   * TCK-2601 — l'assistant sans compte reste monté quand la session s'ouvre SUR cette page (la feuille
+   * de compte) : la décision passe alors par « chargement », « aucun espace »… et la page ne la suit
+   * plus — c'est l'assistant qui publie. Un visiteur qui ARRIVE connecté avec une annonce gardée dans ce
+   * navigateur la retrouve de même. La page n'agit qu'une fois le brouillon local lu.
+   */
+  const brouillonLocal = useBrouillonLocalPresent();
+  const [assistantMonte, setAssistantMonte] = useState(false);
+  if (decision.status === 'anonymous' && !assistantMonte) setAssistantMonte(true);
+  const sansCompte = assistantMonte || decision.status === 'anonymous' || brouillonLocal === true;
+  const enAttente = sansCompte || brouillonLocal === null;
 
   /**
    * TCK-633 (lot C) — aucun espace où publier : on le crée sans question, puis on ouvre le
@@ -80,26 +98,28 @@ export default function PublishPage() {
   }
 
   useEffect(() => {
-    if (!decision.target || parti.current || decision.status === 'host-needed') return;
+    if (enAttente || !decision.target || parti.current || decision.status === 'host-needed' || decision.status === 'anonymous') return;
     parti.current = true;
     void partir(decision.target, decision.profilABasculer);
     // `partir` n'a d'autre dépendance que la décision : une seule navigation par décision.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision.target, decision.profilABasculer, decision.status]);
+  }, [decision.target, decision.profilABasculer, decision.status, enAttente]);
 
   // TCK-633 (lot C) — un effet à part pour l'espace créé sans question : une seule création par
   // décision, et l'effet de navigation ci-dessus reste tel qu'il était.
   useEffect(() => {
-    if (decision.status !== 'host-needed' || parti.current) return;
+    if (enAttente || decision.status !== 'host-needed' || parti.current) return;
     parti.current = true;
     void creerPuisPartir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision.status]);
+  }, [decision.status, enAttente]);
 
   function choisir(espace: EspaceDePublication) {
     setChoisi(espace.profile.id);
     void partir(PUBLISH_TARGETS.newProperty, espace.profile.id);
   }
+
+  if (sansCompte) return <PublierSansCompte />;
 
   return (
     // TCK-621 — un écran de passage, mais qu'on voit : il porte la marque comme ses voisins. Depuis
@@ -113,37 +133,7 @@ export default function PublishPage() {
             </h1>
             <p className="text-sm text-muted-foreground">{t('choose.body')}</p>
           </div>
-          <ul className="flex flex-col gap-3">
-            {decision.espaces.map((espace) => {
-              const personnel = espace.profile.agency?.kind === 'individual';
-              const Icone = personnel ? Home : Building2;
-              return (
-                <li key={espace.agencyId}>
-                  <button
-                    type="button"
-                    onClick={() => choisir(espace)}
-                    disabled={choisi !== null}
-                    className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60"
-                  >
-                    <Icone className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-foreground">
-                        {personnel ? t('choose.personal') : (espace.profile.agency?.name ?? t('choose.unnamed'))}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {tTypes(espace.profile.type)}
-                      </span>
-                    </span>
-                    {choisi === espace.profile.id ? (
-                      <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden="true" />
-                    ) : (
-                      <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <ListeDesEspaces espaces={decision.espaces} choisi={choisi} onChoisir={choisir} />
           {echec ? (
             <p role="alert" className="text-sm text-destructive">
               {t('choose.error')}

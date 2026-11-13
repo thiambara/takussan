@@ -16,6 +16,7 @@ import { isAdmin } from '@/lib/roles';
 import { modeDeCreationDeBien } from '@/lib/access/creation-de-bien';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { getToken } from '@/lib/session';
+import { PARAMETRE_DE_REPRISE } from '@/lib/publication/brouillon-de-publication';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.propertyNew');
@@ -71,10 +72,17 @@ export const dynamic = 'force-dynamic';
  * Le refus de quota, lui, n'a pas de parcours : il reçoit le même en-tête, pour que la route
  * garde une marque et une sortie maintenant que la console s'est retirée.
  */
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
+} = {}) {
   const t = await getTranslations('dashboard.pages.propertyNew');
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
+
+  // TCK-2601 (AC3) — l'annonce commencée sans compte, versée au brouillon serveur sous SA clé.
+  const depuisPublication = (await searchParams)?.[PARAMETRE_DE_REPRISE] === 'publication';
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' } });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
@@ -154,6 +162,7 @@ export default async function Page() {
   return (
     <div className="absolute inset-0">
       <PropertyWizard
+        depuisPublication={depuisPublication}
         tags={tags}
         proposition={proposition}
         fraisDAgence={fraisDAgence}

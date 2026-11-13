@@ -164,7 +164,8 @@ beforeEach(() => {
   brouillon.etat.error = null;
   brouillon.etat.flush.mockResolvedValue({ ok: true, ecrit: true });
   brouillon.etat.clear.mockResolvedValue(undefined);
-  auth.user = { id: 1, first_name: 'Awa', phone: '+221770000901', phone_verified_at: '2026-10-01T00:00:00Z', terms_accepted_at: null };
+  // TCK-2601 — prénom ET nom (décision 1a) : l'auteur à qui il en manque un voit la feuille de compte avant toute écriture.
+  auth.user = { id: 1, first_name: 'Awa', last_name: 'Diop', phone: '+221770000901', phone_verified_at: '2026-10-01T00:00:00Z', terms_accepted_at: null };
   requete.useQuery.mockImplementation(() => ({ data: BAILLEURS, isLoading: false }));
   vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } } as never);
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);

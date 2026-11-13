@@ -42,6 +42,7 @@ const SURFACES: Readonly<Record<string, readonly string[]>> = {
     'components/property-form/wizard',
     'components/contact/PublicationAvecCoordonnees.tsx',
     'components/contact/CoordonneesPublication.tsx',
+    'components/publication',
     'app/actions/auto-onboard.ts',
     'app/actions/publish-property.ts',
   ],

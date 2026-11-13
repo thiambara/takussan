@@ -14,7 +14,8 @@ export const profilesKeys = {
   all: CLE_PROFILS,
 };
 
-async function fetchProfilesViaProxy(): Promise<MyProfilesResponse> {
+/** Exportée pour TCK-2601 : la publication sans compte relit les espaces au moment de publier. */
+export async function fetchProfilesViaProxy(): Promise<MyProfilesResponse> {
   const res = await fetch('/api/me/profiles', { credentials: 'include' });
   if (!res.ok) {
     const data = await res.json().catch(() => null);

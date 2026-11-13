@@ -2425,6 +2425,21 @@
         "invite": "Invite a new landlord",
         "invited": "Invitation sent to {name}. The property stays with the agency until {name} accepts; it will then pass to them.",
         "unlink": "Do not link this property to this invitation"
+      },
+      "feuille": {
+        "titre": "Last step",
+        "pret": "Ready to publish",
+        "publier": "Publish my listing",
+        "revenir": "Back to the listing",
+        "numeroTitre": "Your number",
+        "numeroTexte": "Visitors will call you or message you on WhatsApp. A code by SMS is all it takes.",
+        "numeroTexteSansCompte": "Visitors will call you or message you on WhatsApp. New or already registered, a text-message code is all it takes.",
+        "codeEnvoyeAu": "Code sent to {phone}.",
+        "modifier": "Change",
+        "whatsappDuNumero": "{phone} receives WhatsApp",
+        "nomsTitre": "Your name, for interested people",
+        "incomplet": "Your contact details are still missing: complete them, then publish. Your listing is kept.",
+        "photosAilleurs": "Your photos stay on the device where you added them: add them here before publishing."
       }
     },
     "titleTypes": {
@@ -6925,7 +6940,8 @@
         "agent-kyc": "Agent KYC",
         "sp-onboarding": "Service provider onboarding",
         "agency-upgrade": "Upgrade to pro",
-        "property-create-wizard": "Listing a property"
+        "property-create-wizard": "Listing a property",
+        "property-create-wizard-publication": "Listing started without an account"
       }
     }
   },
@@ -17233,6 +17249,47 @@
       "title": "Creating your space…",
       "body": "Your personal space is being set up: you will publish right after.",
       "error": "We could not create your space. Try again."
+    },
+    "sansCompte": {
+      "depart": {
+        "titre": "List your property for free",
+        "sousTitre": "Online today · 5 minutes · one SMS code is all it takes",
+        "pro": "Are you an agency or an agent?",
+        "proLien": "Create a pro account",
+        "reprise": "Already have a draft waiting?",
+        "repriseLien": "Log in"
+      },
+      "brouillon": {
+        "navigateur": "Draft kept in this browser",
+        "telephone": "Draft kept on this phone",
+        "pied": "Draft kept in this browser — it moves to your account when you publish.",
+        "refus": "This browser doesn’t keep the draft: your listing stays here while the tab is open.",
+        "quota": "This browser has no room left for the draft: your listing stays here while the tab is open.",
+        "purge": "A draft left unchanged for more than 30 days was deleted.",
+        "effacer": "Delete this draft",
+        "efface": "Draft deleted."
+      },
+      "numero": {
+        "libelle": "Your number",
+        "note": "at the end"
+      },
+      "finition": {
+        "fort": "That’s all for the listing.",
+        "texte": "Your number and first name are asked right after, so interested people can reach you —",
+        "lien": "already have an account?",
+        "contacts": "These contacts are not kept if you leave the page."
+      },
+      "espace": {
+        "indisponible": "Your listing can’t be published from here for this account. It stays saved in this browser.",
+        "bascule": "We couldn’t open your space to publish. Your listing is saved: try again.",
+        "plafond": "Your account already keeps 20 drafts: resume or delete one from your space. Your listing stays saved in this browser.",
+        "taille": "Your listing is too long to move into your account: shorten the description. It stays saved in this browser.",
+        "echec": "Your listing couldn’t move into your account. It stays saved in this browser: try again."
+      },
+      "choix": {
+        "note": "Your listing is saved in your account: it will open in the space you choose, ready to publish.",
+        "revenir": "Back to the listing"
+      }
     }
   },
   "layout": {

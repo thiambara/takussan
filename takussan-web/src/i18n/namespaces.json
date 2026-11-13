@@ -17,7 +17,12 @@
       "auth"
     ],
     "publish": [
+      "auth",
+      "media",
+      "nav",
+      "owners",
       "profile",
+      "property",
       "publishRedirect"
     ],
     "onboarding": [
@@ -337,7 +342,7 @@
   "plafondsPourcent": {
     ".": 9,
     "(auth)": 11,
-    "publish": 13,
+    "publish": 26,
     "onboarding": 28,
     "(dashboard)": 11,
     "invitations": 10,

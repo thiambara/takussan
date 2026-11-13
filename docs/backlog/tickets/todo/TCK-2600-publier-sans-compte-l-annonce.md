@@ -7,7 +7,7 @@ family: front
 estimate: L
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-13
 depends_on: [TCK-2598, TCK-2599, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2601, TCK-2603]
 spec_refs:
@@ -90,4 +90,27 @@ Pas de régression — **toutes** les étapes et tous les champs de l'assistant 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Le cœur (2026-11-13, terrain-9)
+
+- **Un seul assistant.** `PropertyWizard` devient une enveloppe (brouillon serveur, `useWizardDraft`) autour d’`AssistantDePublication`, que `/publish` monte aussi avec un mode `anonyme` : départ, finition et ligne « Votre numéro · à la fin » déclarés par la page, aucune écriture (`onSubmit` remet l’annonce validée, ses photos et les contacts à `surPublier`). AC4 tient par construction, et `caracteristiques-identiques.tck-2600.test.tsx` le garde (libellés ET équipements proposés, studio en location).
+- **Le brouillon local** (`src/lib/publication/brouillon-local.ts`, ADR-0093) : IndexedDB `takussan-publication`, une liste FERMÉE de clés de l’annonce (`CLES_DE_L_ANNONCE` : ni frais d’agence, ni identité), 10 photos réduites à l’ajout, purge à 30 jours sans geste ; repli en mémoire (« refus », « quota ») qui emporte ce qui était déjà écrit, dit à l’écran et dans une région `status`. `useBrouillonLocal` a la forme de `useWizardDraft` ; écriture à 400 ms, immédiate en arrière-plan et au démontage.
+- **Hydratation** : l’état du stockage part de « dans ce navigateur » — le serveur n’a pas d’IndexedDB ; partir de `brouillon.etat()` rendait le message du repli côté serveur (« Hydration failed », puis « Encountered a script tag » par le re-rendu client). Relevé, corrigé, gardé par `useBrouillonLocal.tck-2600.test.ts`.
+- **« Effacer ce brouillon »** se range dans la ligne d’état sous la barre : sous l’assistant, il remontait le pied de 52 px dès la première photo (relevé à 390).
+- `useResolutionDeLien` : `/api/public/geo/resolve-link` sans compte (TCK-2599), la route sous session sinon.
+- **Les contacts sur place ne sont PAS gardés au brouillon** (ADR-0093 : ni numéro, ni nom — ceux d’un tiers moins que tout autre ; décision de la session principale du 2026-11-13) : passés à `surPublier`, perdus au rechargement, et **l’écran le dit** sous leur cadre (« Ces contacts ne sont pas gardés si vous quittez la page », `publishRedirect.sansCompte.finition.contacts`). Deux barrières indépendantes : l’assistant les tient hors du formulaire (état local), et la couche de stockage n’écrit que `CLES_DE_L_ANNONCE`. Le test « sous les contacts sur place » saisit un contact en dernier, ferme la page et relit le stockage : rien. Ablations : la ligne retirée → rouge ; l’assistant qui écrit les contacts au brouillon → vert (la liste fermée les écarte, c’est son rôle) ; les deux à la fois → rouge.
+- **Écart à ADR-0093 (« testée sous `fake-indexeddb` ou équivalent »)** : aucune dépendance ajoutée (décision du 2026-11-13). La couche reçoit un **moteur injectable** (`MoteurDeStockage` : lire, écrire, effacer) ; les tests passent `moteurEnMemoire()` ou un moteur qui refuse ou lève `QuotaExceededError`, et IndexedDB réel n’est éprouvé qu’au navigateur (AC2 ci-dessous : étape, valeurs et photos relues après rechargement dans un profil Chrome neuf). C’est « l’équivalent » de l’ADR, avec une limite dite : le code qui parle à `indexedDB` (ouverture, transaction, `onblocked`, `onabort`) n’est exercé par aucun test unitaire.
+- Les liens de la page gardent une encre opaque au survol (soulignement `decoration-primary/40` → `decoration-primary`, comme « Utiliser plutôt mon numéro ») : `hover:text-primary/80` faisait rougir `encre-sans-alpha.contraste.test.ts`.
+
+### Relevés navigateur (2026-11-13, profil Chrome neuf, IndexedDB réel, anonyme)
+
+Script : parcours studio · louer · « Utiliser Dakar, Dakar » · 250 000 F « Année » · 3 photos de 10,5 Mo · rechargement · « Précédent ».
+
+- AC1 : `/publish` → 200, aucune redirection, « Publiez votre bien gratuitement ».
+- AC2 (390 et 1280) : rechargement → « Ajoutez des photos », « 3 photos sur 10 », annonce de reprise ; au prix, « 250 000 » et « Année ». IndexedDB : étape 4, `rent_period: yearly`, photos réduites de 10,5 Mo à 3,2 Mo, clés de l’annonce seules.
+- AC3 : aucune requête vers `/api/me*`, `/api/properties*`, `wizard-drafts` ; aucune requête autre que GET ; lues : `/api/maintenance/status`, `/api/public/amenities`, `/api/public/geo/{regions,cities,neighborhoods}`. Console vide.
+- AC5 : à 390, « Continuer » (ou « Publier l’annonce ») de 784 à 828 sur 844 à chaque étape, document sans défilement (0) ; à 1280, l’aperçu est à droite (x 920, 360 px ; colonne jusqu’à 755) et passe de « Prix à venir » au prix à la frappe.
+- AC-F6 : débord 0 à 768, 1024, 1280 sur les six étapes.
+
+### Fidélité — à faire
+
+Premier relevé de a-0 contre la référence gelée : téléphone 3 conformes · 36 écarts · 26 absents · 23,9 % ; bureau 1440 : 4 · 51 · 34 · 15,8 %. Les écarts sont dans les étapes PARTAGÉES avec `/app/properties/new` (cartes du contrat et des types, pied, gabarit bureau, pastilles de fréquence) : périmètre demandé à la session principale.

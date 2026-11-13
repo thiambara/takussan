@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuth } from '@/context/AuthContext';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import type { GeoCity, GeoNeighborhood, GeoRegion, ResolutionDeLien } from '@/types/geo';
 
@@ -55,10 +56,16 @@ export function useReferentielGeo(regionId: number | null, villeId: number | nul
   };
 }
 
-/** TCK-633 (AC9) — un lien court (`maps.app.goo.gl`, `goo.gl/maps`) se suit côté serveur. */
+/**
+ * TCK-633 (AC9) — un lien court (`maps.app.goo.gl`, `goo.gl/maps`) se suit côté serveur.
+ *
+ * TCK-2600 — sans compte (l'assistant de `/publish`), par la route PUBLIQUE de TCK-2599
+ * (`/api/public/geo/resolve-link`, 10 par minute et par adresse) : la route sous session rendrait 401.
+ */
 export function useResolutionDeLien() {
+  const { user } = useAuth();
   return useApiMutation<Enveloppe<ResolutionDeLien>, { url: string }>({
-    path: '/api/geo/resolve-link',
+    path: user ? '/api/geo/resolve-link' : '/api/public/geo/resolve-link',
     method: 'POST',
   });
 }

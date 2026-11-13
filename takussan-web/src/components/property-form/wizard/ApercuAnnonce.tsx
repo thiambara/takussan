@@ -158,6 +158,44 @@ function AVenir({ children }: { readonly children: React.ReactNode }) {
   return <span className="rounded-md bg-muted px-1.5 text-muted-foreground">{children}</span>;
 }
 
+/**
+ * TCK-2601 — l'annonce en une ligne, en tête de la feuille de compte : la vignette, le titre, le prix
+ * et sa période, « prête à publier ». Mêmes données que la carte (`useDonneesApercu`).
+ */
+export function RappelDeLAnnonce({
+  form,
+  photos,
+  pret,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  readonly photos: readonly File[];
+  /** « Prête à publier ». */
+  readonly pret: string;
+}) {
+  const t = useTranslations('property.wizard.preview');
+  const d = useDonneesApercu(form);
+  return (
+    <div className="flex items-center gap-3" data-testid="rappel-de-l-annonce">
+      <span className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+        {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-sm font-semibold text-foreground">{d.titre || t('empty')}</span>
+        {d.prix ? (
+          <span className="truncate text-sm text-muted-foreground tabular-nums">
+            {d.prix}
+            {d.periode ? ` /${d.periode}` : ''}
+          </span>
+        ) : null}
+        <span className="flex items-center gap-1 text-xs font-medium text-success">
+          <Check className="size-3.5" strokeWidth={2.5} aria-hidden="true" />
+          {pret}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 /** La carte de l'annonce, au gabarit de `PropertyCardStandard`. */
 export function CarteApercu({
   form,
@@ -243,11 +281,14 @@ export function ListePourPublier({
   index,
   onRouvrir,
   desactivee = false,
+  enPlus,
 }: {
   readonly etapes: readonly EtapeDeListe[];
   readonly index: number;
   readonly onRouvrir: (index: number) => void;
   readonly desactivee?: boolean;
+  /** TCK-2600 — une dernière ligne, hors des étapes : « Votre numéro · à la fin » (sans compte). */
+  readonly enPlus?: { readonly libelle: string; readonly note: string };
 }) {
   const t = useTranslations('property.wizard');
 
@@ -303,6 +344,17 @@ export function ListePourPublier({
             </li>
           );
         })}
+        {enPlus ? (
+          <li>
+            <span className="flex min-h-9 items-center gap-2.5 px-1.5 text-sm">
+              <span aria-hidden="true" className="grid size-5 shrink-0 place-items-center rounded-full border border-border" />
+              <span className="min-w-0 text-pretty font-medium text-foreground">
+                {enPlus.libelle}
+                <span className="font-normal text-muted-foreground"> · {enPlus.note}</span>
+              </span>
+            </span>
+          </li>
+        ) : null}
       </ol>
     </nav>
   );

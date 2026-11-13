@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, Timer } from 'lucide-react';
 
@@ -12,15 +11,6 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { FormGlobalError } from '@/components/forms';
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { useAuth } from '@/context/AuthContext';
-import { useCurrentLocale } from '@/i18n/hooks';
-import { ApiError } from '@/lib/api';
-import {
-  demanderCodeTelephone,
-  exigeConditions,
-  exigeDoubleFacteur,
-  verifierCodeTelephone,
-} from '@/lib/connexion-telephone';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { formaterTelephone, numeroComposable } from '@/lib/phone';
 
@@ -29,6 +19,7 @@ import { BOUTON_D_ENTREE, BoutonCollant } from './BoutonCollant';
 import { CasesDuCode, LONGUEUR_DU_CODE } from './CasesDuCode';
 import { BarreDuBien, EnTeteDuBien, PanneauDeReprise, PanneauDuBien, avecBien, useTitreDeLaBarre, type IntentionAffichee } from './IntentionDEntree';
 import { RetourAuth } from './RetourAuth';
+import { useEntreeParTelephone } from './useEntreeParTelephone';
 
 /**
  * TCK-589 — connexion et inscription par numéro de téléphone (ADR-0033), en trois temps :
@@ -60,8 +51,6 @@ interface ConnexionParTelephoneProps {
   readonly erreurOAuth?: string | null;
 }
 
-type Etape = 'numero' | 'code' | 'conditions' | 'double-facteur';
-
 const CLASSE_LIEN_SECONDAIRE =
   'min-h-11 rounded-lg px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:text-muted-foreground disabled:no-underline';
 
@@ -76,149 +65,29 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
   const t = useTranslations('auth.phoneLogin');
   const t2fa = useTranslations('auth.twoFactorChallenge');
   const tPorte = useTranslations('auth.porte');
-  const locale = useCurrentLocale();
-  const { openSession } = useAuth();
-
-  const [etape, setEtape] = useState<Etape>('numero');
-  const [telephone, setTelephone] = useState('');
-  const [code, setCode] = useState('');
-  const [secondFacteur, setSecondFacteur] = useState('');
-  const [codeDeSecours, setCodeDeSecours] = useState(false);
-  const [attente, setAttente] = useState(0);
-  const [apercu, setApercu] = useState<string | null>(null);
-  const [envoi, setEnvoi] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  // TCK-2404 — la version que l'API présente, la case, et la version acceptée qui suit le code.
-  const [versionPresentee, setVersionPresentee] = useState<string | null>(null);
-  const [caseConditions, setCaseConditions] = useState(false);
-  const [versionAcceptee, setVersionAcceptee] = useState<string | null>(null);
-  // TCK-2604 — un code refusé laisse les six cases, en rouge, jusqu'à la frappe suivante.
-  const [codeRefuse, setCodeRefuse] = useState(false);
-  // TCK-2604 (AC3) — UNE vérification à la fois : le sixième chiffre, « Me connecter » et
-  // « Utiliser ce code » ne partent jamais deux fois. Une référence, lue avant le rendu suivant.
-  const verificationEnCours = useRef(false);
+  const {
+    etape,
+    telephone,
+    setTelephone,
+    code,
+    saisirCode,
+    codeRefuse,
+    secondFacteur,
+    setSecondFacteur,
+    codeDeSecours,
+    basculerCodeDeSecours,
+    attente,
+    apercu,
+    envoi,
+    erreur,
+    caseConditions,
+    setCaseConditions,
+    envoyerCode,
+    verifier,
+    accepterConditions,
+    revenirAuNumero,
+  } = useEntreeParTelephone({ onConnecte: (nouveauCompte) => onConnecte(nouveauCompte), onEmail });
   const decalage = useDecalageDuClavier();
-
-  // Compte à rebours du renvoi : `retry_after` est la seule source, jamais une durée supposée.
-  useEffect(() => {
-    if (attente <= 0) return;
-    const minuterie = window.setTimeout(() => setAttente((s) => Math.max(0, s - 1)), 1000);
-    return () => window.clearTimeout(minuterie);
-  }, [attente]);
-
-  function messageDemande(err: unknown): string {
-    if (err instanceof ApiError) {
-      if (err.status === 429) return t('tooMany');
-      if (err.status === 422) return t('invalidPhone');
-    }
-    return t('failed');
-  }
-
-  function messageVerification(err: unknown): string {
-    if (err instanceof ApiError) {
-      const codeErreur =
-        err.data && typeof err.data === 'object' ? (err.data as { code?: unknown }).code : undefined;
-      if (err.status === 423 || codeErreur === 'account_locked') return t('locked');
-      if (codeErreur === 'account_blocked') return t('blocked');
-      if (err.status === 429) return t('tooMany');
-      if (err.status === 422) return t('codeInvalid');
-    }
-    return t('failed');
-  }
-
-  async function envoyerCode(): Promise<void> {
-    setEnvoi(true);
-    setErreur(null);
-    try {
-      const demande = await demanderCodeTelephone(telephone, locale);
-      setAttente(demande.attente);
-      setApercu(demande.codeApercu);
-      setCode('');
-      setCodeRefuse(false);
-      setEtape('code');
-    } catch (err) {
-      // Drapeau éteint entre l'affichage et l'envoi : la voie e-mail reste la seule.
-      if (err instanceof ApiError && err.status === 404) {
-        onEmail();
-        return;
-      }
-      setErreur(messageDemande(err));
-    } finally {
-      setEnvoi(false);
-    }
-  }
-
-  async function verifier(
-    avecSecondFacteur: boolean,
-    conditions: string | null = versionAcceptee,
-    codeSaisi: string = code,
-  ): Promise<void> {
-    if (verificationEnCours.current) return;
-    verificationEnCours.current = true;
-    setEnvoi(true);
-    setErreur(null);
-    try {
-      const reponse = await verifierCodeTelephone(
-        {
-          phone: telephone,
-          code: codeSaisi,
-          ...(conditions ? { terms_version: conditions } : {}),
-          ...(avecSecondFacteur
-            ? codeDeSecours
-              ? { recovery_code: secondFacteur }
-              : { two_factor_code: secondFacteur }
-            : {}),
-        },
-        locale,
-      );
-      if (exigeConditions(reponse)) {
-        setVersionPresentee(reponse.terms_version);
-        setVersionAcceptee(null);
-        setCaseConditions(false);
-        setEtape('conditions');
-        return;
-      }
-      if (exigeDoubleFacteur(reponse)) {
-        if (avecSecondFacteur) setErreur(t2fa('invalidCode'));
-        setEtape('double-facteur');
-        return;
-      }
-      await openSession(reponse.token, reponse.user, reponse.expires_at);
-      onConnecte(reponse.is_new_account === true);
-    } catch (err) {
-      // TCK-2404 (vérification adverse I2) — un code expiré pendant la lecture des conditions : retour à l'étape du code,
-      // vidée, où se trouve le renvoi. La version acceptée reste, et accompagnera le code suivant.
-      if (etape === 'conditions' && err instanceof ApiError && err.status === 422) {
-        setCode('');
-        setEtape('code');
-      } else if (etape === 'code' && err instanceof ApiError && err.status === 422) {
-        setCodeRefuse(true);
-      }
-      setErreur(messageVerification(err));
-    } finally {
-      verificationEnCours.current = false;
-      setEnvoi(false);
-    }
-  }
-
-  /** La frappe dans les six cases — et l'envoi, au passage à six chiffres, une fois. */
-  function saisirCode(valeur: string): void {
-    // Un code en vol : la frappe est ignorée (les cases sont `figee`), pour qu'aucun code non vérifié ne
-    // s'affiche « incorrect » au refus du premier.
-    if (verificationEnCours.current) return;
-    const avant = code;
-    setCode(valeur);
-    setCodeRefuse(false);
-    if (valeur.length === LONGUEUR_DU_CODE && avant !== valeur) void verifier(false, versionAcceptee, valeur);
-  }
-
-  function revenirAuNumero(): void {
-    setEtape('numero');
-    setCode('');
-    setCodeRefuse(false);
-    setErreur(null);
-    setVersionAcceptee(null);
-  }
 
   // Le renvoi du code et le changement de numéro : à l'étape du code, et à celle des conditions (TCK-2404, I2), où un
   // code peut expirer pendant la lecture.
@@ -447,9 +316,7 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
           className="space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!caseConditions || !versionPresentee) return;
-            setVersionAcceptee(versionPresentee);
-            void verifier(false, versionPresentee);
+            accepterConditions();
           }}
         >
           <label className="flex cursor-pointer items-start gap-3 text-sm text-foreground">
@@ -540,11 +407,7 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
           <button
             type="button"
             className={`-ml-2 ${CLASSE_LIEN_SECONDAIRE}`}
-            onClick={() => {
-              setCodeDeSecours((v) => !v);
-              setSecondFacteur('');
-              setErreur(null);
-            }}
+            onClick={basculerCodeDeSecours}
           >
             {codeDeSecours ? t2fa('useApp') : t2fa('useRecovery')}
           </button>

@@ -84,6 +84,13 @@ export interface DeclarationDEntree {
   readonly panneau?: ReactNode;
   /** La pastille de retour du bureau, quand la page en dit une plus juste (« Retour à l'annonce »). */
   readonly retourBureau?: ReactNode;
+  /**
+   * TCK-2600 — la page remplit l'écran sous la barre (l'assistant de publication) : la coque devient
+   * une boîte bornée (`h-dvh`), sans colonne ni marges, et la page gère son défilement et son pied.
+   */
+  readonly pleinEcran?: boolean;
+  /** TCK-2600 — au bureau, avant la sortie : l'état du brouillon (« Brouillon gardé dans ce navigateur »). */
+  readonly noteDeBarre?: ReactNode;
 }
 
 /**
@@ -137,10 +144,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau } = declaration;
+  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau });
-  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau]);
+    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre });
+  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -205,6 +212,8 @@ export function CoqueDEntree({
   const panneau = declaree.panneau ?? parDefaut.panneau;
   const retourBureau = declaree.retourBureau ?? parDefaut.retourBureau ?? retour?.bureau;
   const saisie = declaree.saisie === true;
+  const pleinEcran = declaree.pleinEcran === true;
+  const noteDeBarre = declaree.noteDeBarre ?? null;
 
   const decalage = useDecalageDuClavier();
 
@@ -241,7 +250,7 @@ export function CoqueDEntree({
 
   return (
     <ContexteDeclarer.Provider value={declarer}>
-      <div className="flex min-h-dvh bg-background" data-coque-d-entree="">
+      <div className={cn('flex bg-background', pleinEcran ? 'h-dvh' : 'min-h-dvh')} data-coque-d-entree="">
         {panneau ? (
           <aside
             data-panneau-d-entree=""
@@ -250,7 +259,7 @@ export function CoqueDEntree({
             {panneau}
           </aside>
         ) : null}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className={cn('flex min-w-0 flex-1 flex-col', pleinEcran && 'min-h-0')}>
           {enTete ? (
             <div data-en-tete-d-entree="" className="flex-none lg:hidden">
               {enTete}
@@ -323,6 +332,7 @@ export function CoqueDEntree({
               </div>
             ) : null}
             <div className="flex flex-1 items-center justify-end gap-4">
+              {noteDeBarre}
               {sortie?.forme === 'quitter' ? (
                 <NextLink
                   href={sortie.href}
@@ -337,6 +347,11 @@ export function CoqueDEntree({
             </div>
           </header>
 
+          {pleinEcran ? (
+            <main {...(densiteDesChamps ? fieldDensityScope() : {})} className="flex min-h-0 flex-1 flex-col">
+              {children}
+            </main>
+          ) : (
           <main
             {...(densiteDesChamps ? fieldDensityScope() : {})}
             className={cn('flex-1 px-4 pb-8 pt-5', 'lg:px-8 lg:pb-16 lg:pt-16', panneau ? 'xl:px-10 xl:pt-12' : null)}
@@ -359,6 +374,7 @@ export function CoqueDEntree({
               ) : null}
             </div>
           </main>
+          )}
 
           {pied ? (
             // Téléphone : collé en bas, et remonté de ce que le clavier cache (`visualViewport`). Au

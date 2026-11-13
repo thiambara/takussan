@@ -158,6 +158,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
     'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
   'credits.flux.aucuneSuggestion':
     'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  // TCK-2600 (ADR-0093 § 5) — le brouillon de `/publish` sans compte, purgé après 30 jours sans geste :
+  // le constat d'une purge FAITE (relue à l'ouverture), pas une promesse.
+  'publishRedirect.sansCompte.brouillon.purge':
+    'takussan-web/src/lib/publication/brouillon-local.ts:65 — DUREE_DE_GARDE_MS = 30 jours, appliqué par ouvrirBrouillonLocal().ouvrir() (:269)',
 };
 
 /**
@@ -170,6 +174,7 @@ const REGISTRE: Readonly<Record<string, string>> = {
  */
 const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'auth.oubli.envoye.sousTitre': 60,
+  'publishRedirect.sansCompte.brouillon.purge': 30,
   'account.deletion.dialog.codeSentHint': 5,
   'profile.sommaire.aides.suppression': 30,
   'owners.onboarding.steps.phone.sent.body': 5,

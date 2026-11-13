@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export function manquesLocaux(user: Partial<User> | null): Array<'first_name' | 
   return manque;
 }
 
-type NumeroVerifie = {
+export type NumeroVerifie = {
   readonly kind: 'primary' | 'secondary';
   readonly phone: string;
   readonly whatsapp: boolean | null | undefined;
@@ -42,7 +42,7 @@ type NumeroVerifie = {
  * (`User::numeroPrincipalPublic` / `numeroSecondairePublic`) : non vide ET vérifié, sinon il n'est
  * pas servi, donc pas montré.
  */
-function numerosVerifies(user: Partial<User> | null): NumeroVerifie[] {
+export function numerosVerifies(user: Partial<User> | null): NumeroVerifie[] {
   if (!user) return [];
   const numeros: NumeroVerifie[] = [];
   if (user.phone && user.phone_verified_at) {
@@ -55,13 +55,70 @@ function numerosVerifies(user: Partial<User> | null): NumeroVerifie[] {
 }
 
 /**
+ * TCK-643 — la liste « Vos numéros vérifiés » : ce que les visiteurs appelleront. Servie par ce bloc
+ * et, depuis TCK-2601, par l'étape Finition de l'assistant (la feuille de compte n'y demande rien).
+ * `questionDuPrincipal` : la question WhatsApp se pose dans la ligne du numéro qu'elle vise.
+ */
+export function ListeDesNumerosVerifies({
+  numeros,
+  questionDuPrincipal = null,
+}: {
+  readonly numeros: readonly NumeroVerifie[];
+  readonly questionDuPrincipal?: ReactNode;
+}) {
+  const t = useTranslations('property.form.publishContact');
+  const tNumeros = useTranslations('property.contacts.public');
+  return (
+    <ul
+      aria-label={t('numbersAria')}
+      className="divide-y divide-border rounded-md border border-border bg-background"
+      data-testid="numeros-verifies"
+    >
+      {numeros.map((n) => (
+        <li
+          key={n.kind}
+          className="space-y-3 px-3 py-2.5"
+          data-testid={n.kind === 'primary' ? 'numero-verifie' : 'second-numero-verifie'}
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Phone className="size-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground tabular-nums">{formaterTelephone(n.phone)}</p>
+              <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                <span>{n.kind === 'primary' ? tNumeros('kind.primary') : tNumeros('kind.secondary')}</span>
+                {n.whatsapp ? (
+                  <span className="inline-flex items-center gap-1 text-success">
+                    <span className="size-1 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+                    <MessageCircle className="size-3.5" aria-hidden="true" />
+                    {tNumeros('whatsapp')}
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+              <BadgeCheck className="size-3.5" aria-hidden="true" />
+              {t('verifiedBadge')}
+            </span>
+          </div>
+
+          {n.kind === 'primary' ? questionDuPrincipal : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
  * TCK-633 (lot C, AC11) — « Vos coordonnées pour les intéressés », au dernier moment, dans le flux
  * de la publication : prénom et nom, numéro avec code, case WhatsApp, et la phrase des CGU avec
  * son lien. Jamais un détour par le profil. L'API reste juge (`PublishReadiness`) : si elle dit
  * que le contact est un AUTRE (agent principal), l'écran le dit au lieu de faire saisir.
  *
- * Monté par l'étape Finition de l'assistant ET par la boîte de dialogue des boutons « Publier »
- * de la liste et de l'en-tête d'un bien (`PublierAvecCoordonnees`, décision 3 du porteur).
+ * Monté par la boîte de dialogue des boutons « Publier » de la liste et de l'en-tête d'un bien
+ * (`PublierAvecCoordonnees`, décision 3 du porteur). L'assistant l'a quitté pour la feuille de compte
+ * (`FeuilleDePublication`, TCK-2601), qui collecte les mêmes données.
  */
 export function CoordonneesPublication({
   manquantsServeur,
@@ -71,7 +128,6 @@ export function CoordonneesPublication({
   readonly contactEstSoi: boolean;
 }) {
   const t = useTranslations('property.form.publishContact');
-  const tNumeros = useTranslations('property.contacts.public');
   const { user, setUser, refreshUser } = useAuth();
   const [prenom, setPrenom] = useState(user?.first_name ?? '');
   const [nom, setNom] = useState(user?.last_name ?? '');
@@ -180,57 +236,25 @@ export function CoordonneesPublication({
           <h3 className="font-display text-base font-semibold text-foreground">{t('title')}</h3>
           <p className="text-xs text-muted-foreground">{numeros.length > 1 ? t('subtitleMany') : t('subtitle')}</p>
 
+          {/* TCK-635 — la question porte sur un numéro : elle se pose dans SA ligne. Seule,
+              elle laissait deviner de quel numéro on parlait (retour du porteur). */}
           {numeros.length > 0 ? (
-            <ul
-              aria-label={t('numbersAria')}
-              className="divide-y divide-border rounded-md border border-border bg-background"
-              data-testid="numeros-verifies"
-            >
-              {numeros.map((n) => (
-                <li
-                  key={n.kind}
-                  className="space-y-3 px-3 py-2.5"
-                  data-testid={n.kind === 'primary' ? 'numero-verifie' : 'second-numero-verifie'}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Phone className="size-4" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground tabular-nums">{formaterTelephone(n.phone)}</p>
-                      <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                        <span>{n.kind === 'primary' ? tNumeros('kind.primary') : tNumeros('kind.secondary')}</span>
-                        {n.whatsapp ? (
-                          <span className="inline-flex items-center gap-1 text-success">
-                            <span className="size-1 rounded-full bg-muted-foreground/40" aria-hidden="true" />
-                            <MessageCircle className="size-3.5" aria-hidden="true" />
-                            {tNumeros('whatsapp')}
-                          </span>
-                        ) : null}
-                      </p>
-                    </div>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                      <BadgeCheck className="size-3.5" aria-hidden="true" />
-                      {t('verifiedBadge')}
-                    </span>
+            <ListeDesNumerosVerifies
+              numeros={numeros}
+              questionDuPrincipal={
+                whatsappSansReponse ? (
+                  <div role="group" aria-labelledby="coordonnees-whatsapp-question" className="flex flex-wrap items-center gap-2 sm:pl-12">
+                    <p id="coordonnees-whatsapp-question" className="text-sm text-foreground">{t('whatsappQuestion')}</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(true)} disabled={enCours}>
+                      {t('whatsappYes')}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(false)} disabled={enCours}>
+                      {t('whatsappNo')}
+                    </Button>
                   </div>
-
-                  {/* TCK-635 — la question porte sur un numéro : elle se pose dans SA ligne. Seule,
-                      elle laissait deviner de quel numéro on parlait (retour du porteur). */}
-                  {n.kind === 'primary' && whatsappSansReponse ? (
-                    <div role="group" aria-labelledby="coordonnees-whatsapp-question" className="flex flex-wrap items-center gap-2 sm:pl-12">
-                      <p id="coordonnees-whatsapp-question" className="text-sm text-foreground">{t('whatsappQuestion')}</p>
-                      <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(true)} disabled={enCours}>
-                        {t('whatsappYes')}
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => repondreWhatsApp(false)} disabled={enCours}>
-                        {t('whatsappNo')}
-                      </Button>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+                ) : null
+              }
+            />
           ) : null}
 
           {locaux.includes('first_name') ? (

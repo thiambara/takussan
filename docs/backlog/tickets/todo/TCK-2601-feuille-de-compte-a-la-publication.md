@@ -7,7 +7,7 @@ family: front
 estimate: L
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-13
 depends_on: [TCK-2600, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2602]
 spec_refs:
@@ -90,4 +90,27 @@ Endpoints existants, consommés dans cet ordre (re-mesuré sur `dev`, 1bce3798a)
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Ce qui est fait (2026-11-13, terrain-9)
+
+- **La feuille connectée** (`FeuilleDePublication`, `manquesDeLaFeuille`) remplace `CoordonneesPublication` dans l'assistant ; `CoordonneesDeLAssistant` garde, à la Finition, les numéros vérifiés du compte (`ListeDesNumerosVerifies`, exportée de `CoordonneesPublication`, qui reste servi tel quel par `PublicationAvecCoordonnees`) et la phrase des CGU. Le contact jugé est l'auteur, sauf bailleur désigné (`TitulaireALaSaisie`, `PrimaryPropertyContact`) : un bailleur désigné n'ouvre pas la feuille. Les champs sont figés au montage ; un refus de l'API (`missing`) rouvre la feuille sur ce qu'elle dit manquer, ou dit « le contact de ce bien est un autre ».
+- **La feuille sans compte** (`FeuilleSansCompte`) : numéro et case WhatsApp, puis code, prénom et nom côte à côte, « Publier mon annonce » qui vérifie. Les états de la connexion par téléphone sont ceux de `ConnexionParTelephone`, dont la logique est extraite telle quelle dans `useEntreeParTelephone` (option `auSixiemeChiffre`) : code faux, 422, 429, 423, suspendu, second facteur, conditions d'un compte né du Radar, code hors production, renvoi, changer de numéro ; session par `openSession` seulement. Après la session, `profilAEcrire` n'écrit que ce que le compte rendu n'a pas (un compte existant n'est pas écrasé).
+- **L'espace** (`PublierSansCompte.preparerLEspace`, rejugé sur les profils RELUS à chaque tentative) : aucun → `auto-onboard` (`disabled` → `/onboarding/host`, l'annonce reste dans ce navigateur) ; un seul espace `individual` où l'on n'est pas que bailleur → bascule si besoin, publication en place (un profil bailleur seul, même dans un espace `individual`, est versé : lecture prudente de « bailleur seul », l'en-tête de `usePublishIntent` le compte hôte) ; sinon (AC3 : agence `standard`, bailleur seul, plusieurs espaces) l'annonce est **versée au brouillon serveur sous la clé `property-create-wizard:publication`**, puis « Où publier ce bien ? » (plusieurs espaces, `ListeDesEspaces`, partagée avec `/publish`) et `/app/properties/new?brouillon=publication`. Aucun `POST …/publish` n'est émis sur ce chemin.
+- **Les quatre conditions de la clé à part** (décision de la session principale du 2026-11-13) : (1) avec `?brouillon=publication`, l'assistant connecté ne monte que `useWizardDraft('property-create-wizard:publication')` — `property-create-wizard` n'est jamais monté, donc ni lu, ni écrit, ni effacé (AC4) ; (2) un refus du versement (422 sur `key` : 20 brouillons ; sur `data` : 256 Ko) se dit et l'annonce reste dans ce navigateur, sans navigation ; (3) publié, la clé serveur ET le brouillon local s'effacent, après la publication, jamais avant ; (4) le bandeau de reprise a une ligne à elle (« Annonce commencée sans compte », règle exacte de `wizard-drafts.ts`). Relevé sur l'API locale : la clé encodée (`%3A`, comme le front) et la clé brute désignent la même ligne (PUT 201, GET 200, DELETE 204).
+- **Les photos** d'une annonce versée vivent dans le navigateur où elles ont été ajoutées (ADR-0093) : l'assistant connecté les reprend d'IndexedDB ; absentes (un autre appareil), l'écran le dit — seulement quand l'annonce versée a bien été reprise (après une publication ou une purge, rien à dire). Toutes les sorties réussies (en ligne, en vérification, proposition du bailleur, « continuer quand même » d'un échec partiel) passent par `terminer`, qui efface les deux brouillons.
+- Versé : les seules clés de l'annonce (`valeursDeLAnnonce`, la liste fermée d'ADR-0093) ; les contacts sur place ne passent pas la navigation (l'écran le disait déjà sous leur cadre).
+
+### Données locales créées par les mesures (base de développement, rien n'est supprimé)
+
+- `espace-apres-auto-onboard.py` (numéro neuf `+22177…` aléatoire → code → session → `auto-onboard` → création d'un bien) : utilisateur **185**, agence individuelle **7**, biens brouillons **583** et **584** titrés « Mesure 2601 ».
+- `plafond-brouillons.py` (forme du 422 au 21e brouillon et au-delà de 256 Ko) : un second compte de mesure à numéro aléatoire ; ses 20 brouillons `mesure-{0..19}` ont été effacés par le script, le compte reste.
+- `cle-encodee.py` (la clé `property-create-wizard%3Apublication` = la clé brute) : un brouillon écrit puis effacé (PUT 201, DELETE 204) sur le compte de démo dont le jeton est gardé hors du dépôt ; rien ne reste.
+- Les trois scripts sont dans le bloc-notes de la session (`impl/lot2/2601/mesures/`), lancés contre `http://127.0.0.1:8002/api` ; ils n'impriment que des statuts et des identifiants.
+
+### Écarts au ticket
+
+- **Panneau de bureau (AC5, 1280)** : non fait — la feuille reste la `FeuilleDuBas`, modale dès `md`. Les trois assurances sous le panneau, dont « Gratuit, sans commission », viennent avec lui.
+- **Google** n'est pas dans la feuille.
+- **Drapeau `auth.phone_login.enabled` éteint** : « Publier » mène à la connexion d'aujourd'hui, l'annonce restant dans ce navigateur ; revenu sur `/publish` avec elle, le visiteur connecté retrouve l'assistant et la feuille réduite à ce qui lui manque (numéro vérifié par le code sous session). La voie e-mail n'est pas DANS la feuille.
+- **TCK-643, AC4 — nouvelle lecture** (confirmée par la session principale le 2026-11-13). Le ticket dit : « La publication reste possible exactement dans les mêmes cas qu'avant ». Elle se lit désormais : *la publication reste possible dans tous les cas où l'API l'accepte, et la feuille ne s'ouvre jamais pour un compte que l'API publierait ; un auteur dont le numéro principal n'est pas vérifié — cas où l'API refusait en 422 — reçoit la feuille AVANT toute écriture, au lieu de la création puis du refus.* Seule exigence plus stricte que `PublishReadiness`, et voulue : le nom (décision 1a du porteur) et la réponse WhatsApp d'un numéro vérifié qui n'en a jamais reçu (« question posée une fois », ce ticket). Gardé dans `PropertyWizard.publication.tck-633.test.tsx` par l'`it.each` « AC4 » et son inverse « AC4 inverse » : WhatsApp oui, WhatsApp non, second numéro saisi non vérifié, second vérifié sans réponse WhatsApp, CGU jamais acceptées → pas de feuille, `POST …/publish` part. Ablations rouges : exiger aussi le second numéro vérifié, tenir « non » à WhatsApp pour un manque, exiger les CGU dans la feuille.
+- **Fidélité (AC-F1 à AC-F6)** : non faite.
+
