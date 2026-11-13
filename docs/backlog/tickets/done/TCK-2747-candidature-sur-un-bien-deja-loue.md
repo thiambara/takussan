@@ -1,13 +1,13 @@
 ---
 id: TCK-2747
 title: "Accepter une candidature sur un logement déjà loué : la refuser, sauf relocation après la fin du bail (décision du porteur)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 89
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
 depends_on: [TCK-2734]
 blocks: []
 spec_refs:
@@ -47,20 +47,20 @@ Les offres d'achat et les séjours ne sont pas concernés.
 
 ## Delta à produire (option a)
 
-- [ ] `BookingService::confirm()` : la règle ci-dessus, sous le verrou du bien
-- [ ] Le message du code : la prose localisée de l'API, rendue par `useMessageErreurApi` (pratique de TCK-2734)
-- [ ] Le seeder ne fabrique plus de candidature acceptée sur un bien loué (sinon la démo contredit la règle)
-- [ ] Tests : bail actif → 409 ; bail qui finit avant le début demandé → confirmée ; bail résilié ou expiré → confirmée ;
+- [x] `BookingService::confirm()` : la règle ci-dessus, sous le verrou du bien
+- [x] Le message du code : la prose localisée de l'API, rendue par `useMessageErreurApi` (pratique de TCK-2734)
+- [x] Le seeder ne fabrique plus de candidature acceptée sur un bien loué (sinon la démo contredit la règle)
+- [x] Tests : bail actif → 409 ; bail qui finit avant le début demandé → confirmée ; bail résilié ou expiré → confirmée ;
       offre et séjour non soumis
 
 ## Critères d'acceptation (option a)
 
-- [ ] AC1 — La prémisse est éprouvée avant le correctif : le test du bail actif, joué sur le code d'avant, est vert
+- [x] AC1 — La prémisse est éprouvée avant le correctif : le test du bail actif, joué sur le code d'avant, est vert
       pour la confirmation (elle passe)
-- [ ] AC2 — Bail actif, ou à venir, couvrant le début demandé → 409 `booking.property_already_leased`, la candidature
+- [x] AC2 — Bail actif, ou à venir, couvrant le début demandé → 409 `booking.property_already_leased`, la candidature
       reste `pending`
-- [ ] AC3 — Bail qui se termine avant le début demandé → la candidature se confirme
-- [ ] AC4 — Ablation : retirer la règle rougit AC2 et pas AC3
+- [x] AC3 — Bail qui se termine avant le début demandé → la candidature se confirme
+- [x] AC4 — Ablation : retirer la règle rougit AC2 et pas AC3
 
 ## Hors périmètre
 
@@ -111,3 +111,52 @@ Les offres d'achat et les séjours ne sont pas concernés.
   - la passe vidée.
 - **Reste connu** : `BookingPaymentSeeder` passe avant les fixtures. Une candidature fermée par la passe finale garde donc les paiements semés quand elle était acceptée : la clôture du seeder ne change que le statut, sans tâche de remboursement.
 - Les tests de seed voisins sont verts : `SeedingFeatureTables`, `SeedingInvariants`, `SeedingJourney`, `SeedingTextAndDeterminism`, `FilterCoverageTags`.
+
+## Vérification de clôture (2026-11-13)
+
+Re-mesurée contre `HEAD` = `ace044c18`, sans rien changer au code. La règle, le seeder et les tests sont commités
+(`933d75c88`, `d87e423e7`, `0d032cf64`).
+
+**Commandes jouées** (fichiers nommés seulement, aucune suite entière) :
+
+- `php artisan test tests/Feature/Api/CandidatureSurUnBienDejaLoueTest.php` → **13 verts**.
+- `php artisan test tests/Unit/Lang/LangGroupParityTest.php` → **4 verts**. Le code `booking.property_already_leased`
+  a sa prose dans `lang/{fr,en,wo}/errors.php`, ligne 126.
+- `npx vitest run src/components/bookings/__tests__/BookingDetail.erreur-geste.p182-01.test.tsx` → vert.
+
+**Les critères, un par un :**
+
+- **AC1 — la prémisse.** Sans `$this->assertPropertyNotLeased($booking);` dans `BookingService::confirm()`,
+  `test_un_bail_actif_refuse_la_confirmation` rougit sur « Expected response status code [409] but received 200 ».
+  La confirmation passe donc sur un bien loué quand la règle est absente.
+- **AC2 — bail actif ou à venir qui couvre le début demandé : 409, la candidature reste `pending`.**
+  `assertRefusee()` vérifie le 409, le code, puis `BookingStatus::Pending` après relecture. Six tests la portent :
+  - `test_un_bail_actif_refuse_la_confirmation` ;
+  - `test_un_bail_a_venir_ou_en_preavis_refuse_aussi` (brouillon, en signature, préavis) ;
+  - `test_bail_sans_fin_et_candidature_sans_date` ;
+  - `test_le_jour_de_fin_du_bail_est_couvert` ;
+  - `test_un_preavis_couvre_sa_date_d_effet` ;
+  - `test_la_regle_est_jugee_sous_le_verrou_du_bien`.
+- **AC3 — un bail qui finit avant le début demandé : la candidature se confirme.** Deux tests le portent :
+  `test_une_relocation_apres_la_fin_du_bail_se_confirme` et `test_un_preavis_finit_a_sa_date_d_effet`.
+  Les cas que la règle ne doit pas toucher sont aussi couverts :
+  - baux résiliés, expirés, ou d'un autre bien : `test_les_baux_clos_et_ceux_d_un_autre_bien_ne_refusent_rien` ;
+  - offres d'achat et séjours : `test_offres_et_sejours_ne_sont_pas_soumis` ;
+  - bail du candidat lui-même : `test_le_bail_du_candidat_ne_le_refuse_pas`.
+- **AC4 — l'ablation.** Même retrait que pour AC1, md5 du mutant vérifié avant la restauration. Résultat :
+  **6 rouges, 7 verts**. Les 6 rouges sont exactement les six tests d'AC2. Les deux tests d'AC3 restent verts.
+  Fichier restauré, md5 identique à celui d'avant l'ablation (`9b0412629dfb69caeb464c7affa936fc`).
+
+**Le reste du delta :**
+
+- **Le seeder.** `test_le_jeu_de_demo_ne_laisse_pas_de_candidature_acceptee_sur_un_bien_loue` et
+  `test_la_cloture_du_jeu_de_demo_se_rejoue_apres_les_fixtures` sont verts. Ils couvrent
+  `LeaseSeeder::fermerLesCandidaturesSurUnBienLoue()` et `ClotureDesCandidaturesSeeder` dans
+  `YearOfActivitySeeder::PIPELINE`. Le jeu entier n'a pas été rejoué en local : les seeders se jouent en CI.
+- **Le message affiché.** Le 409 porte sa prose localisée sans code connu du front. `ApiError.codeErreur` préfère donc
+  la prose (`proseServeur`), et le dialogue d'acceptation de `BookingDetail` l'affiche par `useMessageErreurApi`
+  (P182.01). Le test front éprouve ce chemin avec un autre statut (422) ; aucun test ne le joue sur ce 409 précis.
+- **La limite du brouillon abandonné est levée par TCK-2764** (`ace044c18`, `DELETE /api/leases/{id}`).
+  `tests/Feature/Lease/LeaseDraftAbandonTest.php` est vert (16) :
+  - `test_ac1_avant_l_abandon_le_brouillon_bloque_la_candidature_b` ;
+  - `test_ac2_l_abandon_retire_le_brouillon_et_debloque_le_bien`.
