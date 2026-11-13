@@ -133,8 +133,8 @@ class SignalementMasqueTroisiemePorteTest extends ApiTestCase
         $this->assertSame(1, Customer::query()->where('agency_id', $this->agence->id)->count(), 'aucune fiche créée');
         $this->assertNull($lead->fresh()->customer_id);
 
-        // Une demande au numéro libre se convertit toujours, sans rien consommer.
-        $this->postJson('/api/contact-leads/'.$this->demande('+221771112233')->id.'/convert')->assertCreated();
+        // Réserve r1 de b91c3654b — seau vide, une demande au numéro libre est refusée aussi.
+        $this->postJson('/api/contact-leads/'.$this->demande('+221771112233')->id.'/convert')->assertStatus(429);
     }
 
     /** Décision 2 — la visite qui crée la fiche de sa demande suit la même règle. */
@@ -167,8 +167,8 @@ class SignalementMasqueTroisiemePorteTest extends ApiTestCase
             ->assertStatus(429);
         $this->assertSame(1, Customer::query()->where('agency_id', $this->agence->id)->count());
 
-        // Un e-mail libre ne consomme rien et passe.
-        $this->postJson('/api/customers', ['first_name' => 'Libre', 'last_name' => 'Mail', 'email' => 'libre@example.com'])->assertCreated();
+        // Réserve r1 de b91c3654b — seau vide, un e-mail libre est refusé aussi.
+        $this->postJson('/api/customers', ['first_name' => 'Libre', 'last_name' => 'Mail', 'email' => 'libre@example.com'])->assertStatus(429);
     }
 
     /** E5, à la sonde — l'e-mail complet d'une fiche cachée consomme une unité ; vide, 429 sans rien de la fiche. */
@@ -186,6 +186,64 @@ class SignalementMasqueTroisiemePorteTest extends ApiTestCase
         $this->epuiser(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE - 1);
         $refus = $this->getJson('/api/customers/duplicates?email=mariama.fall@example.com')->assertStatus(429);
         $this->assertArrayNotHasKey('data', $refus->json());
+    }
+
+    /**
+     * Réserve r1 de la vérification de b91c3654b (décision de team-lead du 2026-11-13) — seau VIDE, toute
+     * identité complète rend 429, cachée ou libre, à chaque porte : la différence 429 / 200-201 était
+     * l'oracle, sans plafond. Rien n'est créé ni consommé de plus.
+     */
+    public function test_seau_vide_cachee_et_libre_rendent_le_meme_429(): void
+    {
+        Sanctum::actingAs($this->membre);
+        $sienne = $this->postJson('/api/customers', ['first_name' => 'Sa', 'last_name' => 'Fiche', 'phone' => '+221771110000', 'email' => 'sienne@example.com'])
+            ->assertCreated()->json('data.id');
+        $this->epuiser();
+        $fiches = Customer::query()->where('agency_id', $this->agence->id)->count();
+
+        foreach ([
+            'création au numéro' => fn (string $tel, string $mail) => $this->postJson('/api/customers', ['first_name' => 'E', 'last_name' => 'N', 'phone' => $tel]),
+            'création à l\'e-mail' => fn (string $tel, string $mail) => $this->postJson('/api/customers', ['first_name' => 'E', 'last_name' => 'M', 'email' => $mail]),
+            'mise à jour du numéro' => fn (string $tel, string $mail) => $this->patchJson("/api/customers/{$sienne}", ['phone' => $tel]),
+            'mise à jour de l\'e-mail' => fn (string $tel, string $mail) => $this->patchJson("/api/customers/{$sienne}", ['email' => $mail]),
+            'conversion d\'une demande' => fn (string $tel, string $mail) => $this->postJson('/api/contact-leads/'.$this->demande($tel)->id.'/convert'),
+            'sonde à l\'e-mail' => fn (string $tel, string $mail) => $this->getJson('/api/customers/duplicates?email='.urlencode($mail)),
+            'sonde au numéro' => fn (string $tel, string $mail) => $this->getJson('/api/customers/duplicates?phone='.urlencode($tel)),
+        ] as $porte => $appel) {
+            $cachee = $appel('+221706482056', 'mariama.fall@example.com');
+            $libre = $appel('+221779998877', 'libre.'.md5($porte).'@example.com');
+            $this->assertSame([429, 429], [$cachee->status(), $libre->status()], $porte);
+            $this->assertArrayNotHasKey('existing', $libre->json(), $porte);
+        }
+
+        $this->assertSame($fiches, Customer::query()->where('agency_id', $this->agence->id)->count(), 'rien de créé');
+        $this->assertSame(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE, $this->unitesConsommees(), 'rien de plus consommé');
+
+        // Une fiche qui GARDE son numéro et son e-mail n'est pas bloquée : seules les identités modifiées se jugent.
+        $this->patchJson("/api/customers/{$sienne}", ['phone' => '+221771110000', 'email' => 'sienne@example.com', 'first_name' => 'Renommee'])->assertOk();
+        // Ni une création sans numéro ni e-mail.
+        $this->postJson('/api/customers', ['first_name' => 'Sans', 'last_name' => 'Identite'])->assertCreated();
+    }
+
+    /**
+     * Le seau non vide : une identité libre ne consomme rien ; le dernier crédit suffit au signalement d'une
+     * identité masquée deux fois (numéro et e-mail), qui le prend seul — refuser l'une et pas l'autre à
+     * 19 serait un contraste répétable.
+     */
+    public function test_seau_non_vide_libre_gratuite_et_dernier_credit(): void
+    {
+        Sanctum::actingAs($this->membre);
+        $this->postJson('/api/customers', ['first_name' => 'Libre', 'last_name' => 'Un', 'phone' => '+221779998877'])->assertCreated();
+        $this->assertSame(0, $this->unitesConsommees());
+
+        // Deux fiches cachées : Mariama au numéro, une autre à l'e-mail — deux signalements, deux unités dues.
+        $this->ficheClient($this->agence, null, ['first_name' => 'Aida', 'last_name' => 'Sow', 'phone' => null, 'email' => 'aida.sow@example.com']);
+        $this->epuiser(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE - 1);
+        $reponse = $this->postJson('/api/customers', ['first_name' => 'Essai', 'last_name' => 'Deux', 'phone' => '+221706482056', 'email' => 'aida.sow@example.com'])
+            ->assertStatus(409);
+        $this->assertSame(['phone', 'email'], array_column($reponse->json('existing'), 'matched_on'));
+        $this->assertSame([null, null], array_column($reponse->json('existing'), 'id'));
+        $this->assertSame(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE, $this->unitesConsommees(), 'le dernier crédit, pas un de plus');
     }
 
     /** À la sonde, le numéro complet n'est compté qu'une fois : par le limiteur de la route, pas une seconde fois au signalement. */

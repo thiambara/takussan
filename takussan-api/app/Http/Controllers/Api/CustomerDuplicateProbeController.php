@@ -32,7 +32,7 @@ class CustomerDuplicateProbeController extends Controller
             $request->validated('phone'),
             $request->validated('email'),
             $user,
-        ), $user, telephoneDejaCompte: true);
+        ), $user, $request->validated('phone'), $request->validated('email'), telephoneDejaCompte: true);
 
         return $this->json([
             'data' => array_map(fn (array $m) => [

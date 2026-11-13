@@ -228,3 +228,21 @@ de 20 recherches au numéro complet par heure et par personne** (option a, avec 
 - Ablations, toutes rouges : **c1 — fiche cachée admise dans `known_customer`** : 2 rouges ; **c2 — conversion
   sans budget** : 2 rouges (demande et visite) ; **c3 — l'e-mail ne consomme pas** (E5) : 2 rouges ; **c4 — le
   numéro recompté à la sonde** : 1 rouge.
+
+### Troisième porte — r1 de la vérification de b91c3654b : l'oracle 429/200 (2026-11-13, back-4)
+
+- **Constat.** Une fois le seau de 20 épuisé, seule une identité qui touchait une fiche cachée rendait 429, et une identité libre passait (201/200). Le personnel lisait donc dans ce contraste si une fiche cachée portait le numéro ou l'e-mail.
+- **Décision de team-lead.** Seau vide, **toute identité complète** présentée à une porte de doublon rend le même 429 générique, masquée ou non : téléphone complet (hors préfixe seul) ou e-mail non vide. La consommation reste réservée aux identités masquées.
+- **Ce qui a changé.**
+  - `CustomerDuplicateDetector::budgeterLesSignalementsMasques()` reçoit le téléphone et l'e-mail présentés.
+  - Sans identité complète, rien ne change : une création sans identité rend 201, et un `PATCH` qui garde sa propre identité rend 200, parce que seuls les champs modifiés sont présentés.
+  - Seau non vide, le dernier crédit suffit, la consommation étant plafonnée au restant.
+  - Le téléphone d'une sonde est déjà jugé par le limiteur de la route. Il n'est pas recompté.
+- **Changement produit à connaître.** Seau vide, une identité qui touche une fiche **lisible** rend aussi 429, et plus 409. Le front peut désormais recevoir 429 sur une identité libre.
+- **Épinglé par** `SignalementMasqueTroisiemePorteTest`, qui couvre les sept portes (le même 429, cachée comme libre, et rien de créé ni de consommé) ainsi que le seau non vide et le dernier crédit, et par `CustomerDuplicateProbeTest`.
+- **Ablations, toutes rouges :**
+  - refuser seulement quand une fiche est trouvée : 4 rouges ;
+  - le contrôleur présente `$data` non filtré : 1 rouge ;
+  - consommation sans plafond : rouge depuis que le test emploie deux fiches cachées distinctes ;
+  - le téléphone de la sonde recompté : 4 rouges.
+- **Reste.** r2, le budget non atomique, est inchangé. Le commentaire du limiteur dans `AppServiceProvider`, fichier partagé, n'est pas mis à jour.

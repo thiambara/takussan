@@ -173,6 +173,8 @@ class CustomerController extends Controller
         $existing = CustomerDuplicateDetector::budgeterLesSignalementsMasques(
             $duplicates->find($agencyId, $phone, $email, $user, $current?->id),
             $user,
+            $phone,
+            $email,
         );
         if ($existing === []) {
             return;

@@ -437,6 +437,8 @@ class ContactLeadService
         $existing = CustomerDuplicateDetector::budgeterLesSignalementsMasques(
             app(CustomerDuplicateDetector::class)->find($lead->agency_id, $lead->phone, $lead->email, $actor),
             $actor,
+            $lead->phone,
+            $lead->email,
         );
         if ($existing !== []) {
             throw (new ApiError(409, 'customer.duplicate'))->with(['existing' => $existing]);

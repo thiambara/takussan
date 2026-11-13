@@ -255,10 +255,11 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $refus = $this->getJson('/api/customers/duplicates?phone=%2B221706482056')->assertStatus(429);
         $this->assertNotNull($refus->headers->get('Retry-After'));
 
-        // Ni le préfixe ni l'e-mail d'une fiche qu'il lit ne comptent : ils ne livrent pas de fiche cachée
-        // (l'e-mail d'une fiche CACHÉE, lui, puise dans le seau : `SignalementMasqueTroisiemePorteTest`).
+        // Le préfixe ne compte pas : il ne livre pas de fiche cachée. L'e-mail complet, lui, est refusé
+        // seau vide, même celui d'une fiche qu'il lit (réserve r1 de b91c3654b : seau vide, toute identité
+        // complète rend 429, sinon le contraste 429 / 200 est l'oracle).
         $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk();
-        $this->getJson('/api/customers/duplicates?email=mariama.fall@example.com')->assertOk();
+        $this->getJson('/api/customers/duplicates?email=mariama.fall@example.com')->assertStatus(429);
 
         // Par personne : un collègue garde ses vingt sondes.
         Sanctum::actingAs($this->personnel($this->agence));
@@ -309,8 +310,10 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $this->assertNotNull($vingtEtUnieme->headers->get('Retry-After'));
         $this->assertSame(1, Customer::query()->where('phone', '+221706482056')->count(), 'aucun doublon créé');
 
-        // Un numéro libre ne consomme rien et n'est jamais bloqué.
-        $this->postJson('/api/customers', ['first_name' => 'Libre', 'last_name' => 'Numero', 'phone' => '+221771112233'])->assertCreated();
+        // Réserve r1 de b91c3654b — seau vide, un numéro libre est refusé aussi : un 201 ici, contre le 429
+        // d'un numéro caché, serait l'oracle. Sans numéro ni e-mail, la création passe.
+        $this->postJson('/api/customers', ['first_name' => 'Libre', 'last_name' => 'Numero', 'phone' => '+221771112233'])->assertStatus(429);
+        $this->postJson('/api/customers', ['first_name' => 'Sans', 'last_name' => 'Identite'])->assertCreated();
 
         // Un seul compteur : la sonde au numéro complet est épuisée elle aussi.
         $this->travel(61)->seconds();
@@ -353,8 +356,12 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $this->assertSame('+221771112244', Customer::query()->findOrFail($id)->phone);
     }
 
-    /** Le budget ne tait que le masqué : une fiche que l'appelant lit reste signalée, budget épuisé. */
-    public function test_tck2590_budget_epuise_une_fiche_lisible_reste_signalee(): void
+    /**
+     * Réserve r1 de b91c3654b (décision de team-lead du 2026-11-13) — seau vide, toute identité complète
+     * rend 429, même celle d'une fiche que l'appelant lit : sinon le 409 d'une fiche lisible, à côté du 429
+     * d'une fiche cachée, rendrait au 409 d'une identité partagée l'entrée masquée qu'il porte.
+     */
+    public function test_tck2590_budget_epuise_une_fiche_lisible_ne_passe_plus(): void
     {
         Sanctum::actingAs($this->agent);
         for ($i = 0; $i < 20; $i++) {
@@ -364,7 +371,8 @@ class CustomerDuplicateProbeTest extends ApiTestCase
             $this->getJson('/api/customers/duplicates?phone=%2B2217064820'.str_pad((string) $i, 2, '0', STR_PAD_LEFT))->assertOk();
         }
 
-        $this->creerAuNumeroDeMariama(0)->assertStatus(409)->assertJsonPath('existing.0.id', $this->mariama->id);
+        $this->creerAuNumeroDeMariama(0)->assertStatus(429);
+        $this->assertSame(1, Customer::query()->where('phone', '+221706482056')->count());
     }
 
     /** Un numéro entamé, même à huit chiffres, ne consomme pas le budget du numéro complet. */

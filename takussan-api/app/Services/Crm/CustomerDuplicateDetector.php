@@ -190,33 +190,58 @@ class CustomerDuplicateDetector
      * l'e-mail une autre. `$telephoneDejaCompte` : la sonde a déjà compté le numéro complet par le
      * limiteur de sa route, qui compte toute sonde au numéro complet, masquée ou non.
      *
-     * Le budget épuisé, rien ne sort : 429 générique (`too_many_requests`), sans un mot de la fiche,
-     * et l'appelant ne crée rien (l'exception défait la transaction). Une réponse sans fiche masquée
-     * ne consomme rien et n'est jamais bloquée ; les fiches que l'appelant lit ne lui apprennent rien.
+     * **Le seau VIDE refuse toute identité complète** (réserve r1 de la vérification de b91c3654b,
+     * décision de team-lead du 2026-11-13) : un numéro complet ou un e-mail complet présenté par
+     * l'appelant rend 429 générique (`too_many_requests`), qu'une fiche masquée le porte ou non, jusqu'à
+     * ce que le seau se remplisse. Refuser la seule identité masquée faisait du contraste 429 / 200-201
+     * l'oracle, sans plafond. L'appelant ne crée rien (l'exception défait la transaction), et rien de la
+     * fiche ne sort. `$phone` et `$email` sont les identités JUGÉES : à la mise à jour, les seules qui
+     * changent — une fiche qui garde son numéro n'est jamais bloquée.
+     *
+     * Le seau non vide, seule une identité masquée consomme ; une identité libre ne consomme rien. Le
+     * dernier crédit suffit au signalement, qui le consomme seul (deux identités masquées, un crédit) :
+     * refuser alors l'une et pas l'autre serait un contraste répétable.
      *
      * @param  list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>  $existing
      * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>
      */
-    public static function budgeterLesSignalementsMasques(array $existing, User $appelant, bool $telephoneDejaCompte = false): array
+    public static function budgeterLesSignalementsMasques(array $existing, User $appelant, ?string $phone, ?string $email, bool $telephoneDejaCompte = false): array
     {
-        $masquee = fn (string $sur): bool => array_filter(
-            $existing,
-            fn (array $e): bool => $e['id'] === null && $e['matched_on'] === $sur,
-        ) !== [];
-        $unites = ($masquee('phone') && ! $telephoneDejaCompte ? 1 : 0) + ($masquee('email') ? 1 : 0);
-        if ($unites === 0) {
+        if (! self::identiteComplete($phone, $email)) {
             return $existing;
         }
 
         $seau = ThrottleRequestsByNetwork::namedLimiterKey(self::LIMITEUR_DU_NUMERO_COMPLET, self::seauDuNumeroComplet($appelant->id));
-        if (RateLimiter::attempts($seau) + $unites > self::NUMEROS_COMPLETS_PAR_HEURE) {
+        $restant = self::NUMEROS_COMPLETS_PAR_HEURE - RateLimiter::attempts($seau);
+        // À la sonde, le limiteur de la route a déjà compté ET jugé le numéro complet : il a pu prendre le
+        // dernier crédit pour cette requête même, qui reste due.
+        $dejaJuge = $telephoneDejaCompte && self::numeroComplet($phone) !== null;
+        if ($restant <= 0 && ! ($dejaJuge && self::emailComplet($email) === null)) {
             throw new ThrottleRequestsException('Too Many Attempts.', null, ['Retry-After' => RateLimiter::availableIn($seau)]);
         }
+
+        $masquee = fn (string $sur): bool => array_filter(
+            $existing,
+            fn (array $e): bool => $e['id'] === null && $e['matched_on'] === $sur,
+        ) !== [];
+        $unites = min(max($restant, 0), ($masquee('phone') && ! $telephoneDejaCompte ? 1 : 0) + ($masquee('email') ? 1 : 0));
         for ($i = 0; $i < $unites; $i++) {
             RateLimiter::hit($seau, 3600);
         }
 
         return $existing;
+    }
+
+    /** r1 (b91c3654b) — une identité que le détecteur compare à l'égalité : numéro complet (pas un préfixe), ou e-mail. */
+    private static function identiteComplete(?string $phone, ?string $email): bool
+    {
+        return (self::senegalPrefix($phone) === null && CustomerPhoneNormalizer::normalize($phone) !== null)
+            || self::emailComplet($email) !== null;
+    }
+
+    private static function emailComplet(?string $email): ?string
+    {
+        return $email !== null && trim($email) !== '' ? trim($email) : null;
     }
 
     /** TCK-2590 — le seau de l'appelant sous {@see self::LIMITEUR_DU_NUMERO_COMPLET}. */
