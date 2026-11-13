@@ -51,15 +51,32 @@
         "persona": "locataire2 (user 78)",
         "etat": "les demandes de la démo de user 78 (une terminée à confirmer, des closes, aucune en cours). Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v6 : telephone 14 conformes · 20 écarts · 17 absents (7,73 % de pixels) ; bureau-1440 31 conformes · 84 écarts · 41 absents (3,03 % de pixels) ; bureau-1280 31 conformes · 84 écarts · 41 absents (3,34 % de pixels). La carte « à confirmer » mesure 640 px au bureau, comme la maquette. Balayage 390/768/1024/1280/1440 (fidelite balayer, 15 h 05, même garde) : aucun débord, aucune coupe ; seules ellipses, 22 à 768 : les libellés du rail replié de la coque (comme TCK-2644)."
       }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Bailleur — devis à approuver",
+      "references": {
+        "telephone": "references/app-interventions/a-6-telephone.json",
+        "bureau-1440": "references/app-interventions/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance",
+        "persona": "proprietaire (persona `proprietaire` de personas.json)",
+        "etat": "La démo n'a AUCUN devis en `awaiting_owner` ni aucun plafond fixé (sonde GET des personas proprietaire et proprietaire2, 2026-11-13), et le relevé n'écrit rien : les trois GET de la vue — liste des devis à décider, liste en cours, fiche du devis — sont DOUBLÉS dans la page par doublure-bailleur.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Étanchéité de la terrasse, 485 000, plafond 150 000, les deux photos de public/maquettes ; Peinture du séjour, Serrure du portail). La coque, /me et le reste sont réels. Ce relevé mesure la MISE EN PAGE ; les données, elles, sont éprouvées par interventions-du-bailleur.tck-2654.test.tsx. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v9 du 2026-11-13 (16 h 28 – 16 h 29, terrain-6, takussan-web/.fidelite/TCK-2654/v9) : telephone 20 conformes · 11 écarts · 7 absents (27,83 % de pixels) ; bureau-1440 42 conformes · 83 écarts · 31 absents (9,07 % de pixels) ; bureau-1280 42 conformes · 83 écarts · 31 absents (10,05 % de pixels). Au bureau, deux colonnes comme la maquette : le devis (x320 à 1440) et « En cours sur vos biens » (x982) ; les photos à gauche des lignes du devis dès xl. Balayage 390/768/1024/1280/1440 (16 h 30, même doublure) : aucun débord, aucune coupe ; seules ellipses, 25 à 768 : les libellés du rail replié de la coque."
+      }
     }
   ],
   "produit": {
     "route": "/app/maintenance/new, /app/maintenance/44/envoyee, /app/maintenance",
-    "persona": "locataire, locataire2",
-    "disposition": "aucune (téléphone) / locataire au bureau",
+    "persona": "locataire, locataire2, proprietaire",
+    "disposition": "aucune (téléphone) / locataire et bailleur au bureau",
     "etat": "voir `ecrans[].produit`",
     "defiler": null,
-    "perturber": "scratchpad de terrain-6, impl/lot2/terrain-6/2654/fid/ : garde.js chargé AVANT la page par `FID_AVANT`, perturber-signaler.js, perturber-bienvenue.js ; releve-v6.sh"
+    "perturber": "scratchpad de terrain-6, impl/lot2/terrain-6/2654/fid/ : garde.js chargé AVANT la page par `FID_AVANT`, perturber-signaler.js, perturber-bienvenue.js, doublure-bailleur.js (a-6) ; releve-v6.sh, releve-a6.sh"
   },
   "coque": true,
   "roles": [],
@@ -87,14 +104,14 @@
       "motif": "le formulaire est ouvert plein écran par la coque (TCK-2617) : sans barre d'onglets, le bouton descend de sa hauteur"
     },
     {
-      "ecran": "app-interventions a-3-*, a-4-*, a-5-*",
-      "element": "boutons (« Envoyer à l'agence », « C'est réparé », « Le problème persiste », « Signaler un problème »)",
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*, a-6-*",
+      "element": "boutons (« Envoyer à l'agence », « C'est réparé », « Le problème persiste », « Signaler un problème », « Refuser »)",
       "propriete": "bordure 1 px, écart 8 px, marge intérieure 16 px contre 12",
       "exception": "règle du design system",
       "motif": "la primitive `Button` porte ces valeurs ; aucune surcharge locale (ADR-0106 § 2 c)"
     },
     {
-      "ecran": "app-interventions a-3-*, a-4-*, a-5-*",
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*, a-6-*",
       "element": "icônes lucide",
       "propriete": "épaisseur du trait 1,75 contre 1,5",
       "exception": "règle du design system",
@@ -108,7 +125,7 @@
       "motif": "la hauteur vient de la primitive `Input` (garde check-champs-uniformes, TCK-2460)"
     },
     {
-      "ecran": "app-interventions a-3-*, a-4-*, a-5-*",
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*, a-6-*",
       "element": "textes secondaires",
       "propriete": "couleur du texte",
       "exception": "charte",
@@ -197,7 +214,113 @@
       "propriete": "texte, présence, ordonnée",
       "exception": "donnée",
       "motif": "ceux de la démo (user 182 : « Bureaux à Grand Yoff ») ; la maquette dessine ses propres exemples"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "coque : barre latérale (rubriques, compteur « 3 », « Démarrer »), en-tête",
+      "propriete": "boîtes, libellés, tailles, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; les comptes sont ceux de la démo. L'outil apparie par rang les textes de la page aux rôles « coque · barre latérale › texte N » : les écarts ainsi nommés sur « Peinture du séjour », « 180 000 F », « Dépose… » sont du contenu de page décalé, pas la coque"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "montants (« 485 000 F »)",
+      "propriete": "texte, largeur",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 485 000 F CFA » par le formateur commun `f.montant`, comme toute la console"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« 3 biens gérés par Dakar Immo — » du sous-titre",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le sous-titre compte ce que les deux listes rendent (meta.total) ; le nombre de biens et l'agence ne sont pas lus par cette vue"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« , locataire » après le nom du demandeur",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'API ne sert pas le rôle du demandeur sur la demande"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "métier, note (★ 4,6) et nombre d'interventions de l'artisan dans l'en-tête du devis",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'API ne les sert pas au bailleur ; le produit écrit « Devis de <nom> »"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Dakar Immo a consulté deux autres artisans (…) et recommande ce devis »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucune source ne sert la mise en concurrence (décision 2 de team-lead : aucun texte inventé) ; le rappel du plafond, lui, est servi (owner_approval_threshold)"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« ; l'agence vous proposera une autre solution » après « Un refus demande un motif »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "aucun mécanisme ne garantit cette proposition (décision 2)"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Fin prévue ven. 13 nov. »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "aucune date de fin prévue n'est servie ; le produit écrit le passage (`scheduled_at`) : « Aujourd'hui à 10:00 »"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Sous le seuil : sans accord »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "le plafond n'est servi qu'au détail (décision 1a), jamais sur une liste : la ligne en cours ne peut pas le comparer"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "carte « Depuis janvier » (Interventions 12, dont 9 closes, À votre charge 1 521 000 F) et « Historique par bien »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucun agrégat annuel des interventions n'est servi au bailleur"
+    },
+    {
+      "ecran": "app-interventions a-6-telephone",
+      "element": "« En cours sur vos biens » (y 754)",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "la maquette la pose aussi, sous le pli (pages/app/app-interventions-autres.tsx, section après la carte du devis) ; elle remonte dans le pli du produit de la hauteur des textes de donnée absents de la carte (★ de l'artisan, « a consulté deux autres artisans », lien PDF), comme « Total du devis » et « Refuser » (y −22 et −84)"
+    },
+    {
+      "ecran": "app-interventions a-6-bureau-*",
+      "element": "« Approuver », « Refuser », « Un refus demande un motif »",
+      "propriete": "ordonnée (−57,5 px)",
+      "exception": "donnée",
+      "motif": "la ligne « Dakar Immo a consulté deux autres artisans… » et le lien PDF, absents (voir plus haut), remontent les gestes ; leurs x et tailles sont ceux de la maquette"
+    },
+    {
+      "ecran": "app-interventions a-6-bureau-*",
+      "element": "lignes « coque · barre latérale › texte N » portant un texte de page (« Peinture du séjour », « 180 000 F », « Depuis janvier », « 12 »…)",
+      "propriete": "toutes",
+      "exception": "technique",
+      "motif": "l'outil apparie par RANG les textes au rôle de la barre latérale ; comparés texte à texte (même clé des deux côtés, relevé v9), tous les textes communs ont le x, l'y, la taille, la graisse et la police de la maquette, hors encre (ligne « textes secondaires ») et ordonnée des gestes (ligne ci-dessus)"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "heures (« 15 h »)",
+      "propriete": "texte",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 15:00 » par le formateur commun `f.heure`"
     }
   ],
-  "ecarts_ouverts": []
+  "ecarts_ouverts": [
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Devis DV-2026-118 (PDF) » (lucide-download)",
+      "propriete": "présence",
+      "attente": "décision de team-lead (question du 2026-11-13)",
+      "motif": "le bouton PDF existe (QuotePdfButton, components/maintenance/QuoteActions.tsx) mais n'est pas exporté, et ce fichier porte le lot d'un autre agent"
+    }
+  ]
 }

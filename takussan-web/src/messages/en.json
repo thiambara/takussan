@@ -6356,6 +6356,35 @@
           "annulee": "{categorie} · cancelled"
         }
       }
+    },
+    "bailleur": {
+      "titre": "Repairs",
+      "sousTitre": "{devis, plural, =0 {No quote awaits your approval} one {# quote awaits your approval} other {# quotes await your approval}}, {enCours, plural, =0 {no repair in progress} one {# repair in progress} other {# repairs in progress}}",
+      "erreur": "The repairs could not be loaded.",
+      "vide": {
+        "titre": "No repairs on your properties",
+        "texte": "When a quote needs your approval, it will appear here."
+      },
+      "devis": {
+        "attendu": "Your approval is awaited · for {unite, select, minute {{n, plural, one {# minute} other {# minutes}}} hour {{n, plural, one {# hour} other {# hours}}} other {{n, plural, one {# day} other {# days}}}}",
+        "attenduSansDuree": "Your approval is awaited",
+        "lieuEtDemandeur": "{bien} · reported by {nom}",
+        "photo": "Photo of the request “{titre}”",
+        "de": "Quote from {nom}",
+        "duPrestataire": "Provider’s quote",
+        "total": "Quote total",
+        "plafond": "Above {seuil}, your mandate requires your approval.",
+        "approuver": "Approve {montant}",
+        "refuser": "Decline",
+        "motif": "Declining requires a reason.",
+        "echec": "The quote could not be approved."
+      },
+      "enCours": {
+        "titre": "In progress on your properties",
+        "toutVoir": "See all",
+        "passage": "{jour, select, aujourdhui {Today at {heure}} demain {Tomorrow at {heure}} hier {Yesterday at {heure}} other {On {date} at {heure}}}",
+        "approuve": "Quote approved on {date}"
+      }
     }
   },
   "recentlyViewed": {

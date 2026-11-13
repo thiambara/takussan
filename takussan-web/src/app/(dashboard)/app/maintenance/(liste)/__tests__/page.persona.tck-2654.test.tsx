@@ -5,8 +5,8 @@ import type { User } from '@/types/user';
 
 /**
  * TCK-2654 — `/app/maintenance` ouvre « mes demandes » au persona locataire de la coque ; `?status=`
- * (« Tout voir ») garde la liste complète. L'agent et l'admin gardent les files (TCK-2653), le
- * bailleur garde la liste.
+ * (« Tout voir ») garde la liste complète. Le bailleur ouvre ses interventions (lot 3), l'agent et
+ * l'admin gardent les files (TCK-2653).
  */
 const moi = vi.hoisted(() => ({ user: { id: 78, roles: ['customer', 'tenant'] } as Partial<User> }));
 const profil = vi.hoisted(() => ({ id: undefined as string | undefined }));
@@ -16,6 +16,7 @@ vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => moi.user }));
 vi.mock('@/lib/session', () => ({ getActiveProfileId: async () => profil.id }));
 vi.mock('@/components/console', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 vi.mock('@/components/maintenance/acteurs/MesDemandesDuLocataire', () => ({ MesDemandesDuLocataire: () => <div data-testid="locataire" /> }));
+vi.mock('@/components/maintenance/acteurs/InterventionsDuBailleur', () => ({ InterventionsDuBailleur: () => <div data-testid="bailleur" /> }));
 vi.mock('@/components/maintenance/MaintenanceList', () => ({ MaintenanceList: () => <div data-testid="liste" /> }));
 vi.mock('@/components/maintenance/files/InterventionsDeLAgence', () => ({ InterventionsDeLAgence: () => <div data-testid="files" /> }));
 vi.mock('@/components/payments/ServiceProviderBillsTable', () => ({ ServiceProviderBillsTable: () => <div data-testid="factures" /> }));
@@ -43,11 +44,19 @@ describe('/app/maintenance — la vue suit le persona (TCK-2654)', () => {
     expect(screen.queryByTestId('locataire')).toBeNull();
   });
 
-  it('le bailleur garde la liste', async () => {
+  it('le bailleur ouvre ses interventions (lot 3)', async () => {
     moi.user = { id: 23, roles: ['customer', 'owner'] };
     await rendre();
-    expect(screen.getByTestId('liste')).toBeInTheDocument();
+    expect(screen.getByTestId('bailleur')).toBeInTheDocument();
+    expect(screen.queryByTestId('liste')).toBeNull();
     expect(screen.queryByTestId('locataire')).toBeNull();
+  });
+
+  it('« Tout voir » du bailleur (?status=) garde la liste complète', async () => {
+    moi.user = { id: 23, roles: ['customer', 'owner'] };
+    await rendre({ status: 'open,acknowledged' });
+    expect(screen.getByTestId('liste')).toBeInTheDocument();
+    expect(screen.queryByTestId('bailleur')).toBeNull();
   });
 
   it('l’agent garde les files', async () => {

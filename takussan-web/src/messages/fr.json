@@ -6313,6 +6313,35 @@
           "annulee": "{categorie} · annulée"
         }
       }
+    },
+    "bailleur": {
+      "titre": "Interventions",
+      "sousTitre": "{devis, plural, =0 {Aucun devis n’attend votre accord} one {# devis attend votre accord} other {# devis attendent votre accord}}, {enCours, plural, =0 {aucune intervention en cours} one {# intervention en cours} other {# interventions en cours}}",
+      "erreur": "Les interventions n’ont pas pu être chargées.",
+      "vide": {
+        "titre": "Aucune intervention sur vos biens",
+        "texte": "Quand un devis demandera votre accord, il apparaîtra ici."
+      },
+      "devis": {
+        "attendu": "Votre accord est attendu · depuis {unite, select, minute {{n, plural, one {# minute} other {# minutes}}} hour {{n, plural, one {# heure} other {# heures}}} other {{n, plural, one {# jour} other {# jours}}}}",
+        "attenduSansDuree": "Votre accord est attendu",
+        "lieuEtDemandeur": "{bien} · signalée par {nom}",
+        "photo": "Photo de la demande « {titre} »",
+        "de": "Devis de {nom}",
+        "duPrestataire": "Devis du prestataire",
+        "total": "Total du devis",
+        "plafond": "Au-dessus de {seuil}, votre mandat prévoit votre accord.",
+        "approuver": "Approuver {montant}",
+        "refuser": "Refuser",
+        "motif": "Un refus demande un motif.",
+        "echec": "Le devis n’a pas pu être approuvé."
+      },
+      "enCours": {
+        "titre": "En cours sur vos biens",
+        "toutVoir": "Tout voir",
+        "passage": "{jour, select, aujourdhui {Aujourd’hui à {heure}} demain {Demain à {heure}} hier {Hier à {heure}} other {Le {date} à {heure}}}",
+        "approuve": "Devis approuvé le {date}"
+      }
     }
   },
   "homepage": {
