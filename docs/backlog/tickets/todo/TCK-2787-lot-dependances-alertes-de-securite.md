@@ -180,6 +180,16 @@ l'ouverture du ticket.
   Vérifiée par ablation : retirer le filtre `getRequestLoadable()` de
   `CustomerCommercialAttributes::clesEtrangeresDesIncludes()` la rend rouge (l'appel a lieu avant le refus de
   spatie).
+  - Garde écrite en avance du lot le 2026-11-13, <sha> à venir. Mesuré : **67 routes retenues** (le plancher
+    `RETENUES_MIN`), chaque nom envoyé seul et sous `fields[<table>]=id` de toutes les tables d'un modèle à
+    `buildQuery()`, comparé à un témoin `include=__sonde__` (les sources du Radar s'écrivent à la première lecture :
+    sans témoin, faux positif). Trois routes à `buildQuery(` où la sonde reste muette, nommées dans `SONDE_MUETTE`
+    avec leur raison (`maintenance-requests/summary` et `property-visits/counts` passent une requête neuve sans
+    include ; `me/service-provider/collaborations` rend vide avant pour un appelant sans profil de prestataire).
+    Ablation faite : sans le filtre, rouge sur `api/customers` sous `fields` seulement — `include=truncate` vide
+    `customers` et ses cascades, `include=unguard` lève la protection — alors que le statut reste 400 : le statut
+    seul ne l'aurait pas vu. La garde statique `JsonApiResource` est dans le même fichier, ablation faite (une sonde
+    dans `app/` la rend rouge).
 
 ## Hors périmètre
 
