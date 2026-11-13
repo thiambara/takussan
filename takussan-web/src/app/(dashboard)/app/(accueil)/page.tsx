@@ -25,12 +25,13 @@ import type { AgencyKind } from '@/types/agency';
 
 /** TCK-2622 — « Accueil — Takussan » ; « Aujourd'hui — Takussan » chez l'agent (TCK-2596, TCK-2618). */
 export async function generateMetadata(): Promise<Metadata> {
+  // Un traducteur nommé `t`, ouvert sur l'espace du titre : la forme que lit la garde des titres
+  // d'onglet (titres-onglets.test.ts, TCK-382 / AC4).
+  const t = await getTranslations('dashboard.pages.home');
+  const tAccueil = await getTranslations('accueil');
   const user = await getMeAction();
   const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));
-  if (accueilNommeAujourdhui({ roles: user.roles, typeProfilActif })) {
-    return { title: (await getTranslations('accueil'))('metaAujourdhui') };
-  }
-  return { title: (await getTranslations('dashboard.pages.home'))('metaTitle') };
+  return { title: accueilNommeAujourdhui({ roles: user.roles, typeProfilActif }) ? tAccueil('metaAujourdhui') : t('metaTitle') };
 }
 
 /**

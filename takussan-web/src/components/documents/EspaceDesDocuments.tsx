@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft } from 'lucide-react';
 
 import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
@@ -61,8 +60,9 @@ export function EspaceDesDocuments({ enTeteDeLaBibliotheque }: { readonly enTete
           title={t('titre')}
           description={t('description')}
           actions={
+            // TCK-2617 — une seule flèche de retour (celle de la coque) : ce lien dit « Retour aux
+            // documents » en toutes lettres, sans flèche.
             <Link href="/app/documents" className={buttonVariants({ variant: 'outline' })}>
-              <ArrowLeft data-icon="inline-start" aria-hidden="true" />
               {t('retour')}
             </Link>
           }
