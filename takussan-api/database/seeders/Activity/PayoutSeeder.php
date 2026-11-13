@@ -39,6 +39,7 @@ class PayoutSeeder extends Seeder
             ->groupBy(fn ($p) => CarbonImmutable::parse($p->period_start)->format('Y-m'));
 
         $commissionRate = (float) ($lease->commission_rate ?? 8.0) / 100;
+        $maintenant = CarbonImmutable::now();
 
         foreach ($paidPayments as $bucket => $payments) {
             $gross = (int) $payments->sum('amount');
@@ -49,6 +50,12 @@ class PayoutSeeder extends Seeder
             $net = $gross - $commission;
             $periodStart = CarbonImmutable::parse($bucket.'-01');
             $processedAt = $periodStart->endOfMonth()->addDays(mt_rand(1, 5));
+            // TCK-2760 — un reversement `completed` n'est pas daté dans le futur : le mois en cours n'est pas
+            // encore reversé (il le sera du 1er au 5 du mois suivant). Mesuré le 2026-11-12 : 119 reversements
+            // « faits » du 1er au 5 décembre, qui soldaient d'avance le reste à verser cumulé de la démo.
+            if ($processedAt->greaterThan($maintenant)) {
+                continue;
+            }
 
             $moyen = $this->ctx->moyensDeReversement[(int) $lease->landlord_id] ?? null;
             Payout::withoutEvents(function () use (

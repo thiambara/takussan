@@ -100,3 +100,14 @@ Les offres d'achat et les séjours ne sont pas concernés.
 - **a6 — exclusion du bail du candidat retirée** : 2 rouges (bail du candidat, jeu de démo).
 - **a7 — date d'effet du préavis ignorée** : 1 rouge (préavis).
 - **a8 — étape du seeder sans la règle de l'API** (tout bail du bien ferme) : 1 rouge (jeu de démo).
+
+### Réserve r1 de la vérification de d87e423e7 (2026-11-13)
+
+- `FilterCoverageSeeder` et `EdgeCaseSeeder` sèment des baux actifs (`LS-FC-*`, `LS-EC-*`) après `LeaseSeeder`. Leurs baux échappaient à la clôture des candidatures acceptées.
+- La clôture se rejoue maintenant après eux : `Database\Seeders\Support\ClotureDesCandidaturesSeeder`, placé dans `YearOfActivitySeeder::PIPELINE` après `EdgeCaseSeeder` et avant `PropertyMediaSeeder`. Elle applique la règle de `LeaseSeeder::fermerLesCandidaturesSurUnBienLoue()`, sans en faire une copie.
+- La clôture de `LeaseSeeder` reste en place : elle ferme le jeu réaliste avant que ses paiements ne soient semés.
+- Épinglé par `CandidatureSurUnBienDejaLoueTest::test_la_cloture_du_jeu_de_demo_se_rejoue_apres_les_fixtures`, qui vérifie l'ordre du pipeline et l'effet de la passe. Deux ablations, toutes deux rouges :
+  - la passe placée avant `EdgeCaseSeeder` ;
+  - la passe vidée.
+- **Reste connu** : `BookingPaymentSeeder` passe avant les fixtures. Une candidature fermée par la passe finale garde donc les paiements semés quand elle était acceptée : la clôture du seeder ne change que le statut, sans tâche de remboursement.
+- Les tests de seed voisins sont verts : `SeedingFeatureTables`, `SeedingInvariants`, `SeedingJourney`, `SeedingTextAndDeterminism`, `FilterCoverageTags`.

@@ -15,10 +15,15 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use Database\Seeders\Activity\LeaseSeeder;
+use Database\Seeders\Support\ClotureDesCandidaturesSeeder;
+use Database\Seeders\Support\EdgeCaseSeeder;
+use Database\Seeders\Support\FilterCoverageSeeder;
+use Database\Seeders\YearOfActivitySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
+use ReflectionClassConstant;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -241,5 +246,29 @@ class CandidatureSurUnBienDejaLoueTest extends ApiTestCase
         $this->assertSame(BookingStatus::Confirmed, $apres->refresh()->status);
         $this->assertSame(BookingStatus::Confirmed, $duLocataire->refresh()->status);
         $this->assertSame(BookingStatus::Pending, $enAttente->refresh()->status);
+    }
+
+    /**
+     * Réserve r1 de la vérification de d87e423e7 — `FilterCoverageSeeder` et `EdgeCaseSeeder` sèment des baux
+     * actifs APRÈS `LeaseSeeder` : la clôture se rejoue après eux (`ClotureDesCandidaturesSeeder`), par la même
+     * règle. Celle de `LeaseSeeder` reste, avant les paiements du jeu réaliste.
+     */
+    public function test_la_cloture_du_jeu_de_demo_se_rejoue_apres_les_fixtures(): void
+    {
+        $pipeline = (new ReflectionClassConstant(YearOfActivitySeeder::class, 'PIPELINE'))->getValue();
+        $cloture = array_search(ClotureDesCandidaturesSeeder::class, $pipeline, true);
+
+        $this->assertIsInt($cloture);
+        $this->assertGreaterThan(array_search(FilterCoverageSeeder::class, $pipeline, true), $cloture);
+        $this->assertGreaterThan(array_search(EdgeCaseSeeder::class, $pipeline, true), $cloture);
+
+        // Un bail semé par une fixture, après LeaseSeeder : la passe finale ferme la candidature qu'il couvre.
+        $this->bail(LeaseStatus::Active, 300, $this->client());
+        $couverte = $this->demande(debut: 60);
+        $couverte->forceFill(['status' => BookingStatus::Confirmed, 'confirmed_at' => now()])->save();
+
+        app()->call([app(ClotureDesCandidaturesSeeder::class), 'run']);
+
+        $this->assertSame(BookingStatus::Rejected, $couverte->refresh()->status);
     }
 }
