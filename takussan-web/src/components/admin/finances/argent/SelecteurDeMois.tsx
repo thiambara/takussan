@@ -18,7 +18,8 @@ import { cn } from '@/lib/utils';
  * - `bureau` : « Novembre 2026 ▾ », sélecteur de l'en-tête de page (maquette `Selecteur`).
  *
  * `mois` est `null` quand la page ne montre pas un mois (un lien d'entité, des bornes « Du / Au ») :
- * la pastille dit alors « Toutes les dates ».
+ * la pastille dit alors les bornes posées (`bornes`, « 1 janv. – … », le libellé de la pastille des
+ * dates), et « Toutes les dates » seulement sans borne.
  */
 export interface TextesDuSelecteurDeMois {
   readonly toutes: string;
@@ -36,8 +37,11 @@ export function SelecteurDeMois({
   courant,
   variante,
   textes,
+  bornes = null,
 }: {
   readonly mois: string | null;
+  /** Les bornes « Du / Au » posées, déjà dites (`libelleDesBornes`) ; `null` sans borne. */
+  readonly bornes?: string | null;
   readonly courant: string;
   readonly variante: 'telephone' | 'bureau';
   /**
@@ -67,7 +71,7 @@ export function SelecteurDeMois({
     router.replace(`${chemin}?${params.toString()}`, { scroll: false });
   };
 
-  const libelle = mois ? nommer(mois, variante === 'bureau') : textes.toutes;
+  const libelle = mois ? nommer(mois, variante === 'bureau') : (bornes ?? textes.toutes);
 
   return (
     <DropdownMenu>

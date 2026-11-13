@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { bornesDesEncaissements } from '@/lib/finances/vue-argent';
+import { bornesDesEncaissements, libelleDesBornes } from '@/lib/finances/vue-argent';
 import { dateDuMois } from '@/lib/finances/mois';
 import { usePaymentsHistory, type PaymentHistoryEntity, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
 import { cn } from '@/lib/utils';
@@ -155,7 +155,7 @@ export function EncaissementsAgence({
   const f = useFormatteurs();
   const { recherche, poser } = useAdresse();
   const params = parametresDesEncaissements(recherche, courant);
-  const { mois } = bornesDesEncaissements(recherche, courant);
+  const { mois, du: duBorne, au: auBorne } = bornesDesEncaissements(recherche, courant);
   const query = usePaymentsHistory(params);
   const avecTotaux = !telephone && variante === 'registre' && !params.status;
   // TCK-2659 (contre-vérification, N1) — chaque lecture de la bande suit la règle de D2 pour SON statut :
@@ -208,7 +208,8 @@ export function EncaissementsAgence({
         <p className="px-1 pb-1 text-ui text-muted-foreground">
           {t.rich('resume', {
             // En tête de phrase : « Novembre · 214 paiements · … ».
-            mois: nomDuMois ? nomDuMois.charAt(0).toLocaleUpperCase() + nomDuMois.slice(1) : t('toutesDates'),
+            // Des bornes « Du / Au » posées se disent telles quelles : ce ne sont pas « toutes dates ».
+            mois: nomDuMois ? nomDuMois.charAt(0).toLocaleUpperCase() + nomDuMois.slice(1) : (libelleDesBornes(duBorne, auBorne, (iso) => f.jourMois(iso)) ?? t('toutesDates')),
             count: meta.total,
             montant: f.montantCourt(totals?.paid_amount ?? 0),
             fort: (morceau) => <span className="font-semibold text-foreground tabular-nums">{morceau}</span>,
@@ -453,7 +454,7 @@ function ChoixDesDates({ poser }: { readonly poser: ProprietesDesFiltres['poser'
   const [ouvert, setOuvert] = useState(false);
   const du = recherche.get('date_from');
   const au = recherche.get('date_to');
-  const choisi = du || au ? [du ? f.jourMois(`${du}T12:00:00Z`) : '…', au ? f.jourMois(`${au}T12:00:00Z`) : '…'].join(' – ') : null;
+  const choisi = libelleDesBornes(du, au, (iso) => f.jourMois(iso));
   return (
     <Popover open={ouvert} onOpenChange={setOuvert}>
       <PopoverTrigger

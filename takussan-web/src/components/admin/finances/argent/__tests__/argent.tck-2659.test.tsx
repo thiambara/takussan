@@ -355,6 +355,28 @@ describe('vérification adverse de TCK-2659', () => {
     });
   });
 
+  // Contre-vérification (verif-patrimoine) — des bornes « Du / Au » posées ne sont pas « toutes les
+  // dates » : le sélecteur du bureau et le résumé du téléphone disaient « Toutes les dates » /
+  // « Toutes dates » pendant que la pastille des dates disait « 1 janv. – … ». Ils disent les bornes.
+  it('bornes posées (bureau) : le sélecteur dit les bornes, comme la pastille des dates — jamais « Toutes les dates »', async () => {
+    rendre('tab=encaissements&date_from=2026-01-01');
+
+    const pastille = await screen.findByRole('button', { name: /^Dates : / });
+    const bornes = pastille.textContent ?? '';
+    expect(bornes).toMatch(/^1 janv\.? – …$/);
+    expect(screen.getByRole('button', { name: `Mois : ${bornes}` })).toHaveTextContent(bornes);
+    expect(screen.queryByText('Toutes les dates')).toBeNull();
+  });
+
+  it('bornes posées (téléphone) : le résumé du registre s’ouvre sur les bornes, jamais sur « Toutes dates »', async () => {
+    ecran.telephone = true;
+    rendre('tab=encaissements&date_from=2026-01-01&date_to=2026-03-31');
+
+    // Le résumé : « <période> · N paiements · X encaissés ».
+    expect(await screen.findByText(/^1 janv\.? – 31 mars · \d+ paiements? ·/)).toBeInTheDocument();
+    expect(screen.queryByText(/Toutes dates/)).toBeNull();
+  });
+
   it('TCK-2721 (téléphone) — la ligne du point du mois exporte les encaissements du mois affiché', async () => {
     ecran.telephone = true;
     rendre('period=2026-10');

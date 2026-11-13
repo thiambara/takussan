@@ -71,3 +71,13 @@ export function bornesDesEncaissements(
   if (params.get('entity_type') && params.get('entity_id')) return { mois: null };
   return { ...bornesDuMois(courant), mois: courant };
 }
+
+/**
+ * Le libellé de bornes « Du / Au » posées — « 1 janv. – … », « 1 janv. – 31 mars » —, `null` sans borne.
+ * Le même partout où la page nomme sa période : la pastille des dates, le sélecteur de mois (qui
+ * disait « Toutes les dates » sous des bornes posées) et le résumé du téléphone (« Toutes dates »).
+ */
+export function libelleDesBornes(du: string | null | undefined, au: string | null | undefined, jourMois: (iso: string) => string): string | null {
+  if (!du && !au) return null;
+  return [du ? jourMois(`${du}T12:00:00Z`) : '…', au ? jourMois(`${au}T12:00:00Z`) : '…'].join(' – ');
+}

@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCan } from '@/hooks/useCan';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { bornesDesEncaissements, moisAffiche, vueDeLArgent, type OngletArgent } from '@/lib/finances/vue-argent';
+import { bornesDesEncaissements, libelleDesBornes, moisAffiche, vueDeLArgent, type OngletArgent } from '@/lib/finances/vue-argent';
 import { dateDuMois, moisCourant } from '@/lib/finances/mois';
 import { useFinanceSummary } from '@/lib/queries/agency-reporting';
 import { lienDExportDuRegistre } from '@/lib/queries/exports';
@@ -207,7 +207,13 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const actions =
     onglet === 'encaissements' ? (
       <>
-        <SelecteurDeMois mois={bornesExport.mois} courant={courant} variante="bureau" textes={textesDuMois} />
+        <SelecteurDeMois
+          mois={bornesExport.mois}
+          bornes={libelleDesBornes(recherche.get('date_from'), recherche.get('date_to'), (iso) => f.jourMois(iso))}
+          courant={courant}
+          variante="bureau"
+          textes={textesDuMois}
+        />
         {exporter}
       </>
     ) : onglet === 'factures' || onglet === 'reversements' || onglet === 'a-approuver' ? (
