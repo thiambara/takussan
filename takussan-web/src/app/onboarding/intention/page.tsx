@@ -46,6 +46,8 @@ export default async function PageDIntention({
   readonly searchParams: Promise<{ redirect?: string }>;
 }) {
   const t = await getTranslations('onboarding.intention');
+  // TCK-2598 — l'intention de la barre de la coque : le compte vient d'être créé, deux écrans au plus.
+  const tCoque = await getTranslations('coqueDEntree');
   const { redirect: brute } = await searchParams;
   // Le filtre est PARTAGÉ avec le callback OAuth (`lib/redirection-interne.ts`) :
   // cette page reçoit le paramètre de quatre chemins d'inscription, et un
@@ -67,7 +69,14 @@ export default async function PageDIntention({
   // si la destination ne dit pas déjà ce que la personne vient faire — l'orientation.
   if (!prenom) {
     return (
-      <OnboardingShell title={t('name.title')} subtitle={t('name.subtitle')}>
+      <OnboardingShell
+        title={t('name.title')}
+        subtitle={t('name.subtitle')}
+        intention={tCoque('compteCree')}
+        pas={1}
+        total={2}
+        largeur="etroite"
+      >
         <EtapePrenom />
       </OnboardingShell>
     );
@@ -89,6 +98,9 @@ export default async function PageDIntention({
       title={t('pageTitle', { name: prenom })}
       subtitle={t('pageSubtitle')}
       note={t('note')}
+      intention={tCoque('compteCree')}
+      pas={2}
+      total={2}
     >
       <QuestionDIntention apres={apres} />
     </OnboardingShell>

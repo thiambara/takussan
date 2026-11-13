@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Compass, Home } from 'lucide-react';
 
+import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
 import { Button } from '@/components/ui/button';
 import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { useAuth } from '@/context/AuthContext';
@@ -75,6 +76,8 @@ export function QuestionDIntention({ apres }: { readonly apres: string }) {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* TCK-2598 — un choix autre que celui proposé est une saisie : « Retour au site » confirme. */}
+      <DeclarerEntree saisie={choix !== 'search'} reprise={t('reprise')} />
       <ChoiceCardGroup legend={t('legend')}>
         <ChoiceCard
           name="entry-intent"

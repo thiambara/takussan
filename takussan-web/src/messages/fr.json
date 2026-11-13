@@ -7296,8 +7296,10 @@
         "submit": "Continuer",
         "submitting": "Un instant…",
         "required": "Indiquez votre prénom.",
-        "error": "Nous n’avons pas pu enregistrer votre prénom. Réessayez."
-      }
+        "error": "Nous n’avons pas pu enregistrer votre prénom. Réessayez.",
+        "reprise": "Votre prénom n'est pas enregistré : il vous sera redemandé à votre prochaine connexion."
+      },
+      "reprise": "Votre réponse n'est pas enregistrée : la question vous sera reposée à votre prochaine connexion."
     },
     "host": {
       "defaults": {
@@ -18151,5 +18153,19 @@
     "fil": "Chaque choix s’écrit dans le fil de la fiche.",
     "sansFiche": "{nom} n’a pas encore de fiche client.",
     "creerFiche": "Créer sa fiche"
+  },
+  "coqueDEntree": {
+    "retourAuSite": "Retour au site",
+    "fermer": "Fermer",
+    "quitter": "Quitter",
+    "avancement": "Étape {pas} sur {total}",
+    "publier": "Publier votre bien",
+    "compteCree": "Votre compte est créé",
+    "sortie": {
+      "titre": "Quitter sans terminer ?",
+      "texte": "Ce que vous avez saisi sur cet écran ne sera pas enregistré.",
+      "partir": "Quitter",
+      "rester": "Rester"
+    }
   }
 }

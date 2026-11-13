@@ -54,9 +54,11 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx': 'carrousel',
   'src/components/wizard/WizardReprenable.tsx': 'etape',
   'src/components/bookings/BookingTunnel.tsx': 'hors-app',
+  // TCK-2598 — la pastille « ← Retour au site » de la barre de bureau des écrans d'entrée ; au
+  // téléphone, la flèche unique (`LienFlecheDeRetour`). `OnboardingShell` est sorti de la liste : la
+  // coque d'entrée (`entree/CoqueDEntree.tsx`) n'a plus de flèche propre.
   'src/components/auth/RetourAuth.tsx': 'hors-app',
   'src/components/home/Navbar.tsx': 'hors-app',
-  'src/components/onboarding/OnboardingShell.tsx': 'hors-app',
   'src/components/layout/SuperAdminSidebar.tsx': 'hors-app',
   'src/app/(super-admin)/super-admin/agency-upgrade-requests/[id]/page.tsx': 'hors-app',
   'src/components/admin/super/agency-detail.tsx': 'hors-app',

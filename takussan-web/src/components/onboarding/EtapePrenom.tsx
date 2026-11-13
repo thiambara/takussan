@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { updateProfileAction } from '@/app/actions/auth';
+import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,6 +54,8 @@ export function EtapePrenom() {
 
   return (
     <form onSubmit={envoyer} noValidate className="flex flex-col gap-5">
+      {/* TCK-2598 — un nom tapé et pas encore envoyé : « Retour au site » demande confirmation. */}
+      <DeclarerEntree saisie={prenom.trim() !== '' || nom.trim() !== ''} reprise={t('reprise')} />
       <div className="flex flex-col gap-2">
         <Label htmlFor="etape-prenom">{t('firstName')}</Label>
         <Input

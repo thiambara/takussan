@@ -32,7 +32,7 @@ export default async function PageAccepterInvitation({
 
   if (!jeton) {
     return (
-      <OnboardingShell title={t('title')}>
+      <OnboardingShell title={t('title')} largeur="etroite">
         <p role="alert" className="text-sm text-destructive">{t('missingToken')}</p>
       </OnboardingShell>
     );
@@ -42,7 +42,7 @@ export default async function PageAccepterInvitation({
   const prerempli = session ? await lireNomsPreremplis(jeton, session) : null;
 
   return (
-    <OnboardingShell title={t('title')} subtitle={connecte ? t('subtitleSignedIn') : t('subtitleSignedOut')}>
+    <OnboardingShell title={t('title')} subtitle={connecte ? t('subtitleSignedIn') : t('subtitleSignedOut')} largeur="etroite">
       <AccepterInvitation jeton={jeton} connecte={connecte} prerempli={prerempli} />
     </OnboardingShell>
   );

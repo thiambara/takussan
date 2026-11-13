@@ -7296,8 +7296,10 @@
         "submit": "Continue",
         "submitting": "One moment…",
         "required": "Enter your first name.",
-        "error": "We could not save your first name. Try again."
-      }
+        "error": "We could not save your first name. Try again.",
+        "reprise": "Your first name is not saved: we will ask for it again the next time you sign in."
+      },
+      "reprise": "Your answer is not saved: we will ask again the next time you sign in."
     },
     "host": {
       "defaults": {
@@ -18151,5 +18153,19 @@
     "fil": "Each choice is written to the record's timeline.",
     "sansFiche": "{nom} has no client record yet.",
     "creerFiche": "Create their record"
+  },
+  "coqueDEntree": {
+    "retourAuSite": "Back to site",
+    "fermer": "Close",
+    "quitter": "Leave",
+    "avancement": "Step {pas} of {total}",
+    "publier": "Publish your property",
+    "compteCree": "Your account is ready",
+    "sortie": {
+      "titre": "Leave without finishing?",
+      "texte": "What you entered on this screen will not be saved.",
+      "partir": "Leave",
+      "rester": "Stay"
+    }
   }
 }

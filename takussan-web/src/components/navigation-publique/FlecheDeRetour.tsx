@@ -36,6 +36,12 @@ export interface LienFlecheDeRetourProps {
   /** Rond, sur fond de carte : posé sur une photo (44 px aussi : la cible tactile ne rétrécit pas). */
   readonly surPhoto?: boolean;
   readonly className?: string;
+  /**
+   * TCK-2598 — quand revenir par l'historique plutôt que suivre le lien. Défaut : une page du site
+   * précède (`peutRevenirSurLeSite`). La connexion la resserre au seul site PUBLIC
+   * (`entreePrecedenteEstPublique`, TCK-568) : après une déconnexion, la page précédente est la console.
+   */
+  readonly peutRevenir?: () => boolean;
 }
 
 /**
@@ -43,10 +49,10 @@ export interface LienFlecheDeRetourProps {
  * marchent —, qui revient en arrière quand la page précédente de l'onglet est du site (filtres et
  * défilement retrouvés), comme `BoutonRetour`.
  */
-export function LienFlecheDeRetour({ repli, libelle, surPhoto = false, className }: LienFlecheDeRetourProps) {
+export function LienFlecheDeRetour({ repli, libelle, surPhoto = false, className, peutRevenir = peutRevenirSurLeSite }: LienFlecheDeRetourProps) {
   function auClic(evenement: MouseEvent<HTMLAnchorElement>) {
     if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey || evenement.button !== 0) return;
-    if (!peutRevenirSurLeSite()) return;
+    if (!peutRevenir()) return;
     evenement.preventDefault();
     // `history.back()` et non `router.back()` : le routeur de Next écoute `popstate`, et un retour
     // sans routeur monté (rendu isolé d'une fiche, en test) ne lève pas.
