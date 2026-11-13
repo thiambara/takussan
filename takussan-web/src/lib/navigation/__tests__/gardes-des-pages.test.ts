@@ -2,7 +2,8 @@
  * Revue de TCK-2478 (M2, M3) — deux prédicats du catalogue qui contredisaient la garde de leur page :
  *
  *  · « Statistiques » (`/app/overview`) était ouverte à tout prestataire (plancher `customer`), que
- *    la page renvoie sur `/app` s'il n'est pas locataire — un lien vers une redirection ;
+ *    la page renvoie sur `/app` s'il n'est pas locataire — un lien vers une redirection (depuis
+ *    TCK-2625, la page renvoie sur `/app` tout compte qui n'est ni admin, ni agent, ni bailleur) ;
  *  · « Calendrier » (`/app/calendar`) était fermée au prestataire, que `assertCanReachCalendar` laisse
  *    entrer (TCK-591) — une page ouverte, absente du menu.
  *
@@ -70,9 +71,11 @@ describe('« Statistiques » — d’accord avec l’aiguillage de /app/overview
     expect(destination('statistiques').accessible({ roles, capacites: [] })).toBe(await laVueSOuvre(roles));
   });
 
-  it('le prestataire réel n’a pas « Statistiques », le prestataire locataire si', () => {
+  it('le prestataire n’a pas « Statistiques » ; TCK-2625 : le locataire et le client non plus (leur vue est l’accueil)', () => {
     expect(destination('statistiques').accessible({ roles: ['customer', 'service_provider'], capacites: [] })).toBe(false);
-    expect(destination('statistiques').accessible({ roles: ['customer', 'service_provider', 'tenant'], capacites: [] })).toBe(true);
+    expect(destination('statistiques').accessible({ roles: ['customer', 'service_provider', 'tenant'], capacites: [] })).toBe(false);
+    expect(destination('statistiques').accessible({ roles: ['customer', 'tenant'], capacites: [] })).toBe(false);
+    expect(destination('statistiques').accessible({ roles: ['customer', 'owner'], capacites: [] })).toBe(true);
   });
 });
 

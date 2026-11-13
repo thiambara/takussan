@@ -55,6 +55,20 @@ vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
 }));
 vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
 vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
+// TCK-2625 — les blocs du locataire, du client et du prestataire, doublés : la page les CHOISIT.
+vi.mock('@/components/accueil/locataire/CarteDuLoyer', () => ({ CarteDuLoyer: () => <div data-testid="carte-du-loyer" /> }));
+vi.mock('@/components/accueil/locataire/MonLogement', () => ({ MonLogement: () => <div data-testid="mon-logement" /> }));
+vi.mock('@/components/accueil/locataire/EcheancesDes30Jours', () => ({ EcheancesDes30Jours: () => <div data-testid="echeances-30-jours" /> }));
+vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLocataire: ({ jour }: { jour: string }) => jour }));
+vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
+vi.mock('@/components/accueil/client/VosRecherches', () => ({ VosRecherches: () => <div data-testid="vos-recherches" /> }));
+vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: () => <div data-testid="favoris-qui-bougent" /> }));
+vi.mock('@/components/accueil/prestataire/AccueilDuPrestataire', () => ({
+  JourneeDuPrestataire: () => <div data-testid="journee-du-prestataire" />,
+  AChiffrer: () => <div data-testid="a-chiffrer" />,
+  ResumeDuPrestataire: ({ jour }: { jour: string }) => jour,
+}));
+vi.mock('@/lib/queries/public-search', () => ({ rechercherBiensPublics: async () => ({ data: [] }) }));
 vi.mock('@/lib/access/tableau-du-bailleur', () => ({ vueBailleurOuverte: async () => true }));
 vi.mock('@/lib/queries/dashboard', () => ({ fetchOwnerDashboard: async () => ({ data: { bookings: { pending: 2 }, reviews: { unanswered: 1 } } }) }));
 
@@ -126,12 +140,18 @@ describe('TCK-2622 — AC4 : le client sans bail', () => {
     expect(container.querySelector('[data-slot="ce-mois"]')).toBeNull();
   });
 
-  it('le locataire, lui, garde ses chiffres en liens', async () => {
+  // TCK-2625 — le locataire n'a plus de « Ce mois » : ses chiffres (`overdue_amount`) contredisaient la carte
+  // du loyer (« En retard 0 F » à côté de « 338 250 F à régler »). Son bail se rejoint par le menu (« Mon bail »).
+  it('le locataire n’a pas de « Ce mois » : la carte du loyer porte seule le montant', async () => {
     ETAT.user = { id: 9, roles: ['customer', 'tenant'], agency_id: null, first_name: 'Ousmane' };
-    ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: true, leases_active: 1, overdue_amount: 0, recent_documents: [] }, sections: [] } };
-    await monter();
+    ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: true, leases_active: 1, overdue_amount: 50000, recent_documents: [] }, sections: [] } };
+    const { container } = await monter();
 
-    expect(chiffres().map((a) => a.getAttribute('href'))).toContain('/app/leases');
+    expect(screen.getByTestId('carte-du-loyer')).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="ce-mois"]')).toBeNull();
+    expect(chiffres()).toHaveLength(0);
+    // Pas de cellule vide à la place de « Ce mois » : la colonne commence à la hauteur de la carte.
+    expect(container.querySelector('[class~="max-xl:order-last"]')).toBeNull();
   });
 });
 
@@ -169,8 +189,9 @@ describe('TCK-2622 — le socle', () => {
     expect(container.textContent).not.toMatch(/Raccourcis|Vue d'ensemble de votre activité/);
   });
 
-  it('un compte sans chiffres (prestataire) garde son état vide, et rien de « Ce mois »', async () => {
-    ETAT.user = { id: 5, roles: ['service_provider', 'customer'], agency_id: null, first_name: 'Astou' };
+  it('un compte sans chiffres ni blocs de son persona (opérateur sans agence active) garde son état vide', async () => {
+    ETAT.user = { id: 5, roles: ['super_admin', 'customer'], agency_id: 3, first_name: 'Astou' };
+    ETAT.agence = { ok: true, data: { id: 3, kind: 'standard', logo_url: 'x.png' } };
     ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: false }, sections: [] } };
     const { container } = await monter();
 
@@ -230,5 +251,100 @@ describe('TCK-2624 (lot 2) — les blocs du bailleur et de l’hôte', () => {
     expect(JSON.parse(bloc.dataset.hote!)).toEqual({ reservations: { etat: 'pret', total: 2 }, avis: { etat: 'pret', total: 1 } });
     // Sans `rent_month` (vue `agency_admin`), aucune carte de loyers n'est inventée.
     expect(screen.queryByRole('region', { name: /^Loyers d/ })).toBeNull();
+  });
+});
+
+describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () => {
+  const SITUATION = {
+    has_customer_profile: true,
+    leases_active: 1,
+    overdue_amount: 0,
+    maintenance_open: 2,
+    bookings_pending: 1,
+    visits_upcoming: [{ id: 11, scheduled_at: '2026-11-12T10:00:00Z', status: 'confirmed', property: { id: 3, title: 'Studio Mermoz' } }],
+    recent_documents: [{ id: 8, name: 'Bail signé.pdf', type: 'lease', created_at: '2026-11-01T10:00:00Z' }],
+  };
+
+  it('AC4 — le locataire : la carte « Loyer » en tête, « Mon logement », et ce que « Ma situation » montrait', async () => {
+    ETAT.user = { id: 9, roles: ['customer', 'tenant'], agency_id: null, first_name: 'Ousmane' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: SITUATION, sections: [] } };
+    await monter();
+
+    expect(screen.getByTestId('carte-du-loyer')).toBeInTheDocument();
+    expect(screen.getByTestId('mon-logement')).toBeInTheDocument();
+    // Les échéances lisent les dus (décision 6), éprouvées par `EcheancesDes30Jours.tck-2625.test.tsx`.
+    expect(screen.getByTestId('echeances-30-jours')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Documents récents' })).toBeInTheDocument();
+    expect(screen.getByText('Bail signé.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ce qui m\'attend' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Réservations en attente/ }).getAttribute('href')).toBe('/app/bookings');
+    expect(screen.queryByTestId('etat-vide')).toBeNull();
+    // L'ordre du ticket au téléphone (et du document) : la carte, « Mon logement », les échéances, ce qui
+    // m'attend, les documents ; au bureau, la carte SEULE à gauche, le reste dans la colonne.
+    const ordre = [
+      screen.getByTestId('carte-du-loyer'),
+      screen.getByTestId('mon-logement'),
+      screen.getByTestId('echeances-30-jours'),
+      screen.getByRole('heading', { name: 'Ce qui m\'attend' }),
+      screen.getByRole('heading', { name: 'Documents récents' }),
+    ];
+    for (let i = 1; i < ordre.length; i++) {
+      expect(ordre[i - 1].compareDocumentPosition(ordre[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    expect(screen.getByTestId('mon-logement').closest('[class*="xl:row-span-2"]')).toBeNull();
+    expect(screen.getByTestId('carte-du-loyer').closest('[class*="xl:row-span-2"]')).not.toBeNull();
+  });
+
+  it('le locataire, `/dashboard/me` en panne : la carte, « Mon logement » et les échéances rendent ; « Ce qui m’attend » dit son erreur', async () => {
+    ETAT.user = { id: 9, roles: ['customer', 'tenant'], agency_id: null, first_name: 'Ousmane' };
+    ETAT.lecture = new Error('500');
+    await monter();
+
+    expect(screen.getByTestId('carte-du-loyer')).toBeInTheDocument();
+    expect(screen.getByTestId('mon-logement')).toBeInTheDocument();
+    // Les échéances lisent les dus, pas `/dashboard/me`.
+    expect(screen.getByTestId('echeances-30-jours')).toBeInTheDocument();
+    const [erreur] = screen.getAllByRole('alert');
+    expect(erreur).toHaveTextContent('Impossible de charger ce qui vous attend.');
+    fireEvent.click(within(erreur!).getByRole('button', { name: /Réessayer/ }));
+    expect(rafraichir).toHaveBeenCalledTimes(1);
+  });
+
+  it('le client : ses visites, ses recherches et l’invitation à chercher, sans carte du loyer ni état vide', async () => {
+    ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: { ...SITUATION, leases_active: 0 }, sections: [] } };
+    const { container } = await monter();
+
+    expect(screen.getByTestId('vos-visites').getAttribute('data-n')).toBe('1');
+    expect(screen.getByTestId('vos-recherches')).toBeInTheDocument();
+    // Les favoris qui bougent, entre les visites et les recherches (l'ordre de la maquette au téléphone).
+    const favoris = screen.getByTestId('favoris-qui-bougent');
+    expect(screen.getByTestId('vos-visites').compareDocumentPosition(favoris) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(favoris.compareDocumentPosition(screen.getByTestId('vos-recherches')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    expect(screen.queryByTestId('carte-du-loyer')).toBeNull();
+    expect(screen.queryByTestId('etat-vide')).toBeNull();
+  });
+
+  it('le client sans fiche : l’invitation à chercher, jamais l’état vide générique', async () => {
+    ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: false }, sections: [] } };
+    const { container } = await monter();
+
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    expect(screen.queryByTestId('etat-vide')).toBeNull();
+  });
+
+  it('AC6 — le prestataire : sa journée et « À chiffrer », ni état vide ni « Explorez les biens » ni « Ce mois »', async () => {
+    ETAT.user = { id: 5, roles: ['service_provider', 'customer'], agency_id: null, first_name: 'Astou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: false }, sections: [] } };
+    const { container } = await monter();
+
+    expect(screen.getByTestId('journee-du-prestataire')).toBeInTheDocument();
+    expect(screen.getByTestId('a-chiffrer')).toBeInTheDocument();
+    expect(screen.queryByTestId('etat-vide')).toBeNull();
+    expect(container.textContent).not.toMatch(/Explorez les biens/);
+    expect(container.querySelector('[data-slot="ce-mois"]')).toBeNull();
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).toBeNull();
   });
 });

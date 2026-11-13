@@ -2485,20 +2485,11 @@
       "cancelled": "Annulée"
     },
     "tenant": {
-      "title": "Ma situation",
-      "loadError": "Impossible de charger les données.",
-      "noProfile": "Aucun profil locataire n'est associé à votre compte. Contactez votre agence pour activer votre dossier.",
-      "subtitle": "Prochaines échéances, documents et demandes en cours.",
-      "activeLeases": "Baux actifs",
-      "nextRent": "Prochain loyer",
-      "overdue": "Impayés",
-      "lateFeesOutstanding": "Pénalités de retard à recouvrer",
       "pendingBookings": "Réservations en attente",
       "upcoming30d": "Échéances des 30 prochains jours",
       "noUpcoming": "Aucune échéance prévue.",
       "recentDocs": "Documents récents",
       "noDocs": "Aucun document.",
-      "noProfileInvite": "Aucun dossier client n'est encore ouvert à votre nom. Commencez par chercher un logement.",
       "whatAwaits": "Ce qui m'attend",
       "nextVisit": "Prochaine visite",
       "nextVisitAt": "{date} · {property}",
@@ -2508,7 +2499,8 @@
       "inviteRentIn": "Biens à {city} pour louer",
       "inviteBuyIn": "Biens à {city} pour acheter",
       "inviteSearch": "Trouver un logement",
-      "inviteCta": "Voir les annonces"
+      "inviteCta": "Voir les annonces",
+      "allDocs": "Tous les documents"
     },
     "agency": {
       "title": "Vue agence",
@@ -2924,9 +2916,6 @@
       },
       "overviewOwner": {
         "metaTitle": "Vue bailleur"
-      },
-      "overviewTenant": {
-        "metaTitle": "Ma situation"
       },
       "paymentReturn": {
         "metaTitle": "Retour de paiement"
@@ -20252,7 +20241,9 @@
         "ceMois": "les chiffres du mois",
         "aFaire": "ce qui vous attend",
         "uneFile": "une partie de ce qui vous attend",
-        "equipe": "l’équipe du jour"
+        "equipe": "l’équipe du jour",
+        "echeances": "les échéances à venir",
+        "favoris": "vos favoris"
       }
     },
     "toutEstAJour": {
@@ -20451,6 +20442,103 @@
         "visites": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
         "separateurDate": " · ",
         "separateur": ", "
+      }
+    },
+    "prestataire": {
+      "resume": "{jour} · {aujourdhui, plural, =0 {aucune intervention aujourd’hui} one {# intervention aujourd’hui} other {# interventions aujourd’hui}}{aVenir, plural, =0 {} one {, # à venir cette semaine} other {, # à venir cette semaine}}",
+      "quoi": "vos interventions",
+      "aAccepter": "{n, plural, one {# intervention à accepter} other {# interventions à accepter}}",
+      "aujourdhui": {
+        "titre": "Aujourd’hui",
+        "vide": "Rien de prévu aujourd’hui"
+      },
+      "aVenir": {
+        "titre": "À venir",
+        "toutes": "Toutes",
+        "quand": "{date} · {heure}"
+      },
+      "aChiffrer": {
+        "titre": "À chiffrer",
+        "quoi": "les devis à chiffrer",
+        "chiffrer": "Chiffrer",
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}demandé {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}"
+      },
+      "statut": {
+        "aAccepter": "À accepter",
+        "aCommencer": "À commencer",
+        "enCours": "En cours",
+        "planifiee": "Planifiée"
+      },
+      "gestes": {
+        "commencer": "Commencer",
+        "termine": "Terminé",
+        "repondre": "Répondre",
+        "echec": "L’intervention n’a pas pu commencer."
+      }
+    },
+    "client": {
+      "visites": {
+        "titre": "Vos démarches",
+        "toutes": "Toutes vos visites",
+        "quand": "Visite {date} · {heure}",
+        "sansDate": "Visite à planifier",
+        "confirmee": "Confirmée",
+        "aConfirmer": "En attente de confirmation",
+        "voir": "Voir la visite"
+      },
+      "recherches": {
+        "titre": "Vos recherches",
+        "toutes": "Toutes",
+        "nouveaux": "{n, plural, one {# nouveau} other {# nouveaux}}",
+        "moinsDe": "Moins de {prix}",
+        "alerte": {
+          "whatsapp": "alerte WhatsApp",
+          "email": "alerte e-mail",
+          "inapp": "alerte dans l’application",
+          "coupee": "alerte coupée"
+        }
+      },
+      "favoris": {
+        "titreBaisse": "Vos favoris · prix en baisse",
+        "titreBouge": "Vos favoris ont bougé",
+        "tous": "Tous vos favoris",
+        "periode": {
+          "daily": "/ jour",
+          "weekly": "/ semaine",
+          "monthly": "/ mois",
+          "yearly": "/ an"
+        }
+      }
+    },
+    "locataire": {
+      "carte": {
+        "quoi": "votre loyer",
+        "payer": "Payer",
+        "enRetard": "En retard de {n, plural, one {# jour} other {# jours}}",
+        "avant": "à payer avant le {date}",
+        "avantDans": "à payer avant le {date} · {jours, plural, =0 {aujourd’hui} one {demain} other {dans # jours}}",
+        "detail": "{n, plural, one {# échéance} other {# échéances}} · Voir le détail"
+      },
+      "logement": {
+        "titre": "Mon logement",
+        "bienSansTitre": "Votre logement",
+        "loyerParMois": "{loyer} par mois",
+        "gerePar": "Géré par {agence}",
+        "signaler": "Signaler un problème",
+        "signalerDetail": "Fuite, panne, serrure : l’agence est prévenue",
+        "quittance": "Dernière quittance",
+        "payeLe": "payé le {date}",
+        "contacter": "Contacter l’agence",
+        "telechargement": {
+          "enCours": "Téléchargement…",
+          "interdit": "Vous n’avez pas accès à cette quittance.",
+          "indisponible": "Cette quittance n’est pas encore disponible.",
+          "echec": "Le téléchargement a échoué. Réessayez."
+        }
+      },
+      "resume": {
+        "du": "{jour} · {montant} à régler",
+        "prochain": "{jour} · prochain loyer le {date}"
       }
     }
   },

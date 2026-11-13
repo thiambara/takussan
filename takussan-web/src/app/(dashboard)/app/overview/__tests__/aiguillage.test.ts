@@ -11,9 +11,12 @@ import type { User, UserRole } from '@/types/user';
  *
  * ⚠ Ce test EXÉCUTE la page. Une assertion sur le texte source (`expect(source).not.toContain`)
  * aurait été cochée par un déplacement de la ligne, et n'aurait rien dit du repli — or c'est le
- * repli qui compte : `/app/overview/page.tsx` finit par un `redirect('/app/overview/tenant')`
- * attrape-tout, donc supprimer la ligne coupable SANS rien mettre à la place laisse le
+ * repli qui compte : `/app/overview/page.tsx` finissait par un `redirect('/app/overview/tenant')`
+ * attrape-tout, donc supprimer la ligne coupable SANS rien mettre à la place laissait le
  * prestataire exactement là où il était.
+ *
+ * TCK-2625 — « Ma situation » est absorbée par l'accueil : le repli mène désormais à `/app`, et
+ * `/app/overview/tenant` ne rend plus qu'une redirection vers `/app` (AC4).
  */
 
 class RedirectionSimulee extends Error {
@@ -81,16 +84,16 @@ describe('/app/overview — aiguillage par rôle', () => {
   it('laisse intacts les aiguillages des autres rôles', async () => {
     // La contrepartie : une régression qui renverrait TOUT LE MONDE vers `/app` cocherait les
     // deux assertions ci-dessus sans en cocher une seule de celles-ci.
-    expect(await cibleDe(['customer'])).toBe('/app/overview/tenant');
-    expect(await cibleDe(['tenant'])).toBe('/app/overview/tenant');
+    expect(await cibleDe(['customer'])).toBe('/app');
+    expect(await cibleDe(['tenant'])).toBe('/app');
     expect(await cibleDe(['owner'])).toBe('/app/overview/owner');
     expect(await cibleDe(['agent'])).toBe('/app/overview/agent');
     expect(await cibleDe(['agency_admin'], 1)).toBe('/app/overview/agency');
   });
 
-  it('un prestataire qui est AUSSI locataire garde sa vue locataire', async () => {
-    // C'est son autre rôle qui la lui donne : la garde ne doit pas retirer un accès légitime.
-    expect(await cibleDe(['service_provider', 'tenant'])).toBe('/app/overview/tenant');
+  it('TCK-2625 — un prestataire qui est AUSSI locataire va à l’accueil, qui porte sa vue locataire', async () => {
+    // C'est son autre rôle qui la lui donne : l'accueil choisit les blocs du locataire.
+    expect(await cibleDe(['service_provider', 'tenant'])).toBe('/app');
   });
 
   it('TCK-595 (AC7) — l’hôte d’une agence `individual` atterrit sur la vue bailleur', async () => {

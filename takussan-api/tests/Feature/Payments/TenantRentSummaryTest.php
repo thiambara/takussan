@@ -265,6 +265,27 @@ class TenantRentSummaryTest extends TestCase
         $this->assertEquals(150000, $data['next_rent']['charges_amount']);
     }
 
+    /**
+     * TCK-2625 (AC3) — une restitution de caution n'est JAMAIS une échéance à payer : ni dans le total ni dans
+     * les lignes, échue ou non, et jamais « prochain loyer », même quand elle tombe avant lui. C'est ce que
+     * la carte « Loyer » de l'accueil lit (`items`, `next_rent`).
+     */
+    public function test_tck_2625_ac3_une_restitution_de_caution_n_est_jamais_a_payer(): void
+    {
+        $lease = $this->lease($this->agency());
+        $this->due($lease, ['payment_type' => LeasePaymentType::DepositRefund->value, 'amount' => 1_000_000, 'status' => PaymentStatus::Late, 'due_date' => '2026-11-01']);
+        $this->due($lease, ['payment_type' => LeasePaymentType::DepositRefund->value, 'amount' => 1_000_000, 'status' => PaymentStatus::Pending, 'due_date' => '2026-11-20']);
+        $loyer = $this->due($lease, ['amount' => 500_000, 'status' => PaymentStatus::Pending, 'due_date' => '2026-12-01', 'period_start' => '2026-12-01']);
+
+        $data = $this->summary();
+
+        $this->assertEquals(0, $data['total_due']);
+        $this->assertSame([], $data['items']);
+        $this->assertSame('up_to_date', $data['schedule_state']);
+        $this->assertSame($loyer->id, $data['next_rent']['lease_payment_id']);
+        $this->assertEquals(500000, $data['next_rent']['amount']);
+    }
+
     /** Un compte, deux fiches client (deux agences) : les deux baux comptent. */
     public function test_les_fiches_du_compte_dans_deux_agences_s_additionnent(): void
     {

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
@@ -11,6 +11,17 @@ import { EnCoursSurVosBiens } from '@/components/accueil/bailleur/EnCoursSurVosB
 import { LoyersDuMois } from '@/components/accueil/bailleur/LoyersDuMois';
 import { ResumeDuBailleur } from '@/components/accueil/bailleur/ResumeDuBailleur';
 import { CeMois } from '@/components/accueil/CeMois';
+import { FavorisQuiBougent } from '@/components/accueil/client/FavorisQuiBougent';
+import { InvitationARechercher, lireInvitationARechercher } from '@/components/accueil/client/InvitationARechercher';
+import { VosRecherches } from '@/components/accueil/client/VosRecherches';
+import { VosVisites, type VisiteAVenir } from '@/components/accueil/client/VosVisites';
+import { CarteDuLoyer } from '@/components/accueil/locataire/CarteDuLoyer';
+import { EcheancesDes30Jours } from '@/components/accueil/locataire/EcheancesDes30Jours';
+import { ErreurDeLaSituation } from '@/components/accueil/locataire/ErreurDeLaSituation';
+import { CeQuiMAttend, DocumentsRecents } from '@/components/accueil/locataire/MaSituation';
+import { MonLogement } from '@/components/accueil/locataire/MonLogement';
+import { ResumeDuLocataire } from '@/components/accueil/locataire/ResumeDuLocataire';
+import { AChiffrer, JourneeDuPrestataire, ResumeDuPrestataire } from '@/components/accueil/prestataire/AccueilDuPrestataire';
 import { SocleDeLAccueil } from '@/components/accueil/SocleDeLAccueil';
 import { BrandingBanner } from '@/components/agency/BrandingBanner';
 import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
@@ -18,6 +29,7 @@ import { MaJournee } from '@/components/journee/MaJournee';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
+import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { chiffresDuMois, rapportDuMois } from '@/lib/accueil/chiffres-du-mois';
 import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
 import { vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
@@ -27,7 +39,7 @@ import { jourEnClair } from '@/lib/journee/jour-en-clair';
 import { jourADakar } from '@/lib/journee/journee';
 import { accueilNommeAujourdhui } from '@/lib/navigation/accueil-nomme';
 import { profilLieDeLaCoque, resoudrePersona, typeDuProfilActif } from '@/lib/navigation/personas';
-import { aDesChiffres, fetchDashboardMe, type DashboardMePayload } from '@/lib/queries/dashboard-me';
+import { aDesChiffres, fetchDashboardMe, type DashboardMePayload, type DashboardMeRecentDocument } from '@/lib/queries/dashboard-me';
 import { fetchKpisActifs } from '@/lib/queries/kpis';
 import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
 import { getActiveProfileId } from '@/lib/session';
@@ -74,6 +86,23 @@ async function lireLesFilesDeLHote(user: Awaited<ReturnType<typeof getMeAction>>
   }
 }
 
+/**
+ * TCK-2625 — ce que « Ma situation » lisait de la vue `tenant` de `/dashboard/me` (`TenantMeMetrics`),
+ * typé une fois : les visites à venir, les échéances des 30 jours, les documents récents, les
+ * interventions ouvertes et les réservations en attente.
+ */
+function lireLaSituation(metrics: Record<string, unknown>) {
+  const liste = <T,>(v: unknown): readonly T[] => (Array.isArray(v) ? (v as T[]) : []);
+  const nombre = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return {
+    aUneFiche: metrics.has_customer_profile === true,
+    visites: liste<VisiteAVenir>(metrics.visits_upcoming),
+    documents: liste<DashboardMeRecentDocument>(metrics.recent_documents),
+    interventionsOuvertes: nombre(metrics.maintenance_open),
+    reservationsEnAttente: nombre(metrics.bookings_pending),
+  };
+}
+
 export default async function DashboardPage() {
   const t = await getTranslations('dashboard.pages.home');
   const user = await getMeAction();
@@ -115,7 +144,8 @@ export default async function DashboardPage() {
   }
 
   const prenom = prenomDe(user);
-  const locale = await getLocale();
+  // TCK-2625 — typée `Locale` : les blocs du locataire et du client formatent dates et montants avec.
+  const locale = await localeDeLaRequete();
 
   // « Ce mois » : `null` = la lecture a échoué (le bloc le dit), `[]` = rien à compter pour ce persona.
   const chiffres =
@@ -144,6 +174,16 @@ export default async function DashboardPage() {
   const loyers = accueilBailleur && payload?.data.role === 'owner' ? lireLoyersDuMois(payload.data.metrics) : null;
   const filesDeLHote = persona === 'hote' ? await lireLesFilesDeLHote(user) : null;
 
+  // TCK-2625 — le locataire et le client : « Ma situation » (`/app/overview/tenant`) est absorbée ici,
+  // rien ne s'y perd. Ses données sont celles de `/dashboard/me` (vue `tenant`), déjà lues ; le loyer
+  // vient du résumé de l'API (`CarteDuLoyer`). Le client reçoit l'invitation à chercher de TCK-595.
+  // Le prestataire arrive sur sa liste de travail (spec § 2.5 : ni tableau de bord ni rapports).
+  const accueilLocataire = persona === 'locataire';
+  const accueilClient = persona === 'client';
+  const accueilPrestataire = persona === 'prestataire';
+  const situation = (accueilLocataire || accueilClient) && payload?.data.role === 'tenant' ? lireLaSituation(payload.data.metrics) : null;
+  const invitation = accueilClient ? await lireInvitationARechercher(user.preferences, locale) : null;
+
   return (
     <SocleDeLAccueil
       titre={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
@@ -152,6 +192,10 @@ export default async function DashboardPage() {
           <ResumeDuJour jour={jour} agencyId={accueilAdmin} />
         ) : accueilBailleur ? (
           <ResumeDuBailleur jour={jour} landlordId={user.id} loyers={loyers} />
+        ) : accueilLocataire ? (
+          <ResumeDuLocataire jour={jour} />
+        ) : accueilPrestataire ? (
+          <ResumeDuPrestataire jour={jour} />
         ) : (
           jour
         )
@@ -169,9 +213,9 @@ export default async function DashboardPage() {
           {isTenant(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
         </>
       }
-      // TCK-595 — un compte sans chiffres (client sans fiche, prestataire) garde son état vide, en
-      // attendant les blocs de son persona (TCK-2625).
-      vide={chiffres !== null && chiffres.length === 0 ? <DashboardEmpty roles={user.roles} /> : null}
+      // TCK-595 — un compte sans chiffres ni blocs de son persona garde son état vide (TCK-2625 : le
+      // locataire, le client et le prestataire ont désormais les leurs).
+      vide={chiffres !== null && chiffres.length === 0 && !accueilClient && !accueilPrestataire ? <DashboardEmpty roles={user.roles} /> : null}
       blocs={
         accueilAdmin !== null ? (
           <AFaireAdmin agencyId={accueilAdmin} />
@@ -180,12 +224,69 @@ export default async function DashboardPage() {
             {loyers ? <LoyersDuMois loyers={loyers} jour={aujourdhui} className="max-md:mx-4 md:mb-5" /> : null}
             <AFaireBailleur landlordId={user.id} confirmeLesVisites={persona === 'hote'} hote={filesDeLHote} />
           </>
+        ) : accueilLocataire ? (
+          // TCK-2625 — la carte du loyer, SEULE à gauche au bureau (« la carte du loyer à gauche, le reste à
+          // droite ») ; au téléphone, la colonne suit : la carte, puis « Mon logement » et ses trois gestes,
+          // puis ce que « Ma situation » montrait — l'ordre du ticket et de la maquette (a-3).
+          <CarteDuLoyer className="max-md:mx-4" />
+        ) : accueilClient ? (
+          <>
+            <VosVisites visites={situation?.visites ?? []} />
+            <FavorisQuiBougent />
+            <VosRecherches />
+            {situation?.aUneFiche ? <DocumentsRecents documents={situation.documents} className="max-md:mx-4" /> : null}
+            {invitation ? <InvitationARechercher invitation={invitation} locale={locale} className="max-md:mx-4" /> : null}
+          </>
+        ) : accueilPrestataire ? (
+          <JourneeDuPrestataire />
         ) : undefined
       }
-      colonne={accueilAdmin !== null ? <EquipeDuJour agencyId={accueilAdmin} /> : accueilBailleur ? <EnCoursSurVosBiens /> : undefined}
+      colonne={
+        accueilAdmin !== null ? (
+          <EquipeDuJour agencyId={accueilAdmin} />
+        ) : accueilBailleur ? (
+          <EnCoursSurVosBiens />
+        ) : accueilLocataire ? (
+          <>
+            <MonLogement />
+            {/* Les échéances lisent les dus, pas `/dashboard/me` : elles rendent même quand celui-ci est en panne. */}
+            <EcheancesDes30Jours className="max-md:mx-4" />
+            {lecture === 'echec' ? <ErreurDeLaSituation className="max-md:mx-4" /> : null}
+            {situation ? (
+              <>
+                <CeQuiMAttend
+                  visites={situation.visites}
+                  interventionsOuvertes={situation.interventionsOuvertes}
+                  reservationsEnAttente={situation.reservationsEnAttente}
+                  locale={locale}
+                  className="max-md:mx-4"
+                />
+                <DocumentsRecents documents={situation.documents} className="max-md:mx-4" />
+              </>
+            ) : null}
+          </>
+        ) : accueilClient && situation?.aUneFiche ? (
+          <CeQuiMAttend
+            visites={situation.visites}
+            interventionsOuvertes={situation.interventionsOuvertes}
+            reservationsEnAttente={situation.reservationsEnAttente}
+            locale={locale}
+            className="max-md:mx-4"
+          />
+        ) : accueilPrestataire ? (
+          <AChiffrer />
+        ) : undefined
+      }
+      // TCK-2625 — pas de « Ce mois » pour le locataire : la maquette (a-3) n'en dessine pas, et ses chiffres
+      // (`overdue_amount` de `/dashboard/me`) contredisaient la carte du loyer — « En retard 0 F » à côté de
+      // « 338 250 F à régler » (relevé du 2026-11-13). Une seule vérité du montant : la carte.
       ceMois={
-        chiffres === null || chiffres.length > 0 ? (
-          <CeMois chiffres={chiffres} rapport={payload ? rapportDuMois(payload.data.role) : null} pleineLargeur={accueilAdmin === null && !accueilBailleur} />
+        !accueilLocataire && (chiffres === null || chiffres.length > 0) ? (
+          <CeMois
+            chiffres={chiffres}
+            rapport={payload ? rapportDuMois(payload.data.role) : null}
+            pleineLargeur={accueilAdmin === null && !accueilBailleur && !accueilLocataire && !accueilClient && !accueilPrestataire}
+          />
         ) : null
       }
     />

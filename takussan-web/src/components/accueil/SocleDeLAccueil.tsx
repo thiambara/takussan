@@ -73,7 +73,9 @@ export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, 
       {blocs ? (
         <div className="grid grid-cols-1 items-start gap-7 pt-6 md:gap-8 xl:grid-cols-[minmax(0,1fr)_min(calc(var(--spacing)*100),33%)] xl:grid-rows-[auto_1fr] xl:gap-y-5">
           <div className="min-w-0 space-y-5 xl:row-span-2">{blocs}</div>
-          <div className="min-w-0 space-y-5 max-xl:order-last">{ceMois}</div>
+          {/* TCK-2625 — sans « Ce mois » (le locataire), pas de cellule vide : elle prenait la première rangée de
+              la colonne et la décalait d'un gap-y-5 sous le haut de la carte (relevé à 1440 : 18 px). */}
+          {ceMois ? <div className="min-w-0 space-y-5 max-xl:order-last">{ceMois}</div> : null}
           {colonne ? <div className="min-w-0 space-y-5">{colonne}</div> : null}
         </div>
       ) : (

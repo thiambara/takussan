@@ -75,7 +75,6 @@ const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
   '/app/crm': { titre: { espace: 'nav.sidebar', cle: 'crm' } },
   '/app/crm/pipeline': { titre: { espace: PAGES, cle: 'crmPipeline.metaTitle' } },
   '/app/overview/owner': { titre: { espace: PAGES, cle: 'overviewOwner.metaTitle' } },
-  '/app/overview/tenant': { titre: { espace: PAGES, cle: 'overviewTenant.metaTitle' } },
   '/app/overview/agent': { titre: { espace: 'dashboard.agent', cle: 'title' } },
   '/app/settings/agency/upgrade': { titre: { espace: PAGES, cle: 'upgrade.metaTitle' } },
   '/app/payments/return': { titre: { espace: PAGES, cle: 'paymentReturn.metaTitle' }, parent: '/app/payments' },

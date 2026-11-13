@@ -57,8 +57,24 @@ vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
 }));
 vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
 vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
+// TCK-2625 — les blocs du locataire, du client et du prestataire, doublés : la page les CHOISIT.
+vi.mock('@/components/accueil/locataire/CarteDuLoyer', () => ({ CarteDuLoyer: () => <div data-testid="carte-du-loyer" /> }));
+vi.mock('@/components/accueil/locataire/MonLogement', () => ({ MonLogement: () => <div data-testid="mon-logement" /> }));
+vi.mock('@/components/accueil/locataire/EcheancesDes30Jours', () => ({ EcheancesDes30Jours: () => <div data-testid="echeances-30-jours" /> }));
+vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLocataire: ({ jour }: { jour: string }) => jour }));
+vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
+vi.mock('@/components/accueil/client/VosRecherches', () => ({ VosRecherches: () => <div data-testid="vos-recherches" /> }));
+vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: () => <div data-testid="favoris-qui-bougent" /> }));
+vi.mock('@/components/accueil/prestataire/AccueilDuPrestataire', () => ({
+  JourneeDuPrestataire: () => <div data-testid="journee-du-prestataire" />,
+  AChiffrer: () => <div data-testid="a-chiffrer" />,
+  ResumeDuPrestataire: ({ jour }: { jour: string }) => jour,
+}));
+vi.mock('@/lib/queries/public-search', () => ({ rechercherBiensPublics: async () => ({ data: [] }) }));
 vi.mock('@/lib/access/tableau-du-bailleur', () => ({ vueBailleurOuverte: async () => true }));
 vi.mock('@/lib/queries/dashboard', () => ({ fetchOwnerDashboard: async () => ({ data: { bookings: { pending: 2 }, reviews: { unanswered: 1 } } }) }));
+
+import { withIntl } from '@/test/intl';
 
 import DashboardPage from '../page';
 
@@ -90,7 +106,8 @@ describe('accueil — la mise en service, en une ligne', () => {
 
   it('un compte qui n’administre pas d’agence : absente', async () => {
     ETAT.user = { id: 2, roles: ['customer'], agency_id: 7, first_name: 'Awa' };
-    render(await DashboardPage());
+    // TCK-2625 — le client voit l’invitation à chercher, qui lit ses libellés par next-intl.
+    render(withIntl(await DashboardPage()));
 
     expect(screen.queryByTestId('mise-en-service')).toBeNull();
     expect(screen.queryByTestId('mise-en-service-bureau')).toBeNull();

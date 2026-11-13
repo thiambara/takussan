@@ -269,7 +269,8 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       [null, false, 'Tableau de bord'],
       // Arbitrage 1 : Baux, Paiements, Interventions (« Maintenance »), États des lieux restent au
       // client pur — sous « Plus ».
-      ['Plus', true, 'Documents', 'Mes avis', 'Statistiques', 'Maintenance', 'Mes baux', 'Paiements', 'États des lieux'],
+      // TCK-2625 — sans « Statistiques » : « Ma situation » est absorbée par l'accueil.
+      ['Plus', true, 'Documents', 'Mes avis', 'Maintenance', 'Mes baux', 'Paiements', 'États des lieux'],
     ],
   },
   locataire: {
@@ -281,7 +282,8 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       ['Mes recherches', true, 'Chercher un bien', 'Mes favoris', 'Recherches sauvegardées', 'Mes visites', 'Mes réservations'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
-      ['Plus', true, 'Mes avis', 'Statistiques'],
+      // TCK-2625 — sans « Statistiques », comme le client.
+      ['Plus', true, 'Mes avis'],
     ],
   },
   bailleur: {

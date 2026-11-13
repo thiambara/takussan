@@ -13,7 +13,8 @@ import { describe, expect, it } from 'vitest';
  * (l'ablation : remettre l'ancienne classe à côté de la nouvelle rougit) et la présence de la
  * paire `sm:grid-cols-2 lg:grid-cols-4` sur CHAQUE grille — une page en porte deux.
  */
-const PAGES = ['owner', 'tenant', 'agent'] as const;
+// TCK-2625 — `tenant` n'est plus une vue : « Ma situation » est absorbée par l'accueil (`/app`).
+const PAGES = ['owner', 'agent'] as const;
 
 describe('vues d’ensemble — les KPI passent en quatre colonnes à lg, pas à md (TCK-505 #9)', () => {
   it.each(PAGES)('overview/%s/page.tsx', (vue) => {

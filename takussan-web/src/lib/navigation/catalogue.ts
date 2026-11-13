@@ -303,16 +303,16 @@ const TABLE = [
   },
   // TCK-379 — aucun tableau de bord pour le prestataire (`docs/features.md` §2.5).
   // Revue de TCK-2478 (M2) — la condition EXACTE de la garde d'`app/(dashboard)/app/overview/page.tsx` :
-  // l'admin, l'agent et le bailleur y sont aiguillés vers leur vue ; sinon, seul le prestataire non
-  // locataire est renvoyé sur `/app`. `occupeUnLogement` l'ouvrait à tout prestataire (plancher
-  // `customer`) : un lien vers une redirection. Toucher l'une, c'est toucher l'autre.
+  // l'admin, l'agent et le bailleur y sont aiguillés vers leur vue ; tout autre compte est renvoyé sur
+  // `/app`. Toucher l'une, c'est toucher l'autre.
+  // TCK-2625 — « Ma situation » (`/app/overview/tenant`) est absorbée par l'accueil : le locataire et le
+  // client n'ont plus de vue ici, « Statistiques » serait pour eux un lien vers leur propre accueil.
   {
     id: 'statistiques',
     href: '/app/overview',
     cle: 'statistics',
     icone: BarChart3,
-    accessible: ({ roles }) =>
-      isAdmin(roles) || isAgent(roles) || isOwner(roles) || !(isServiceProvider(roles) && !isTenant(roles)),
+    accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles),
   },
   {
     id: 'exports',

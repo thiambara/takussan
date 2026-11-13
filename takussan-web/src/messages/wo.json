@@ -16090,20 +16090,11 @@
       "cancelled": "Neenal nañu ko"
     },
     "tenant": {
-      "title": "Sama nekkin",
-      "loadError": "Mënuñu yeb xibaar yi.",
-      "noProfile": "Amul profilu luwaakat bu boole ak sa kont. Jokkoo ak sa ajaas ngir ubbi sa dosye.",
-      "subtitle": "Bes yi ci kanam, dokimaa yi ak ñaan yu ubbeeku.",
-      "activeLeases": "Kontaraa yuy dox",
-      "nextRent": "Luwaas bi ci topp",
-      "overdue": "Yu ñu feyul",
-      "lateFeesOutstanding": "Pénalités de retard à recouvrer",
       "pendingBookings": "Réservasioŋ yuy xaar",
       "upcoming30d": "Bes yi ci 30 fan yu ñëw",
       "noUpcoming": "Amul bes bu ñu tëral.",
       "recentDocs": "Dokimaa yu yees",
       "noDocs": "Amul dokimaa.",
-      "noProfileInvite": "Amagul benn dosye kiliyaan ci sa tur. Tàmbalil ci seet benn kër.",
       "whatAwaits": "Li ma xaar",
       "nextVisit": "Seetlu bi ci topp",
       "nextVisitAt": "{date} · {property}",
@@ -16113,7 +16104,8 @@
       "inviteRentIn": "Kër yu ñuy luwe ci {city}",
       "inviteBuyIn": "Kër yu ñuy jaay ci {city}",
       "inviteSearch": "Seet benn kër",
-      "inviteCta": "Xool yéenekaay yi"
+      "inviteCta": "Xool yéenekaay yi",
+      "allDocs": "Tous les documents"
     },
     "agency": {
       "title": "Wonewu ajaas",
@@ -16529,9 +16521,6 @@
       },
       "overviewOwner": {
         "metaTitle": "Wonewu boroom kër"
-      },
-      "overviewTenant": {
-        "metaTitle": "Sama nekkin"
       },
       "paymentReturn": {
         "metaTitle": "Dellusiwu pey bi"
@@ -20252,7 +20241,9 @@
         "ceMois": "les chiffres du mois",
         "aFaire": "ce qui vous attend",
         "uneFile": "une partie de ce qui vous attend",
-        "equipe": "l’équipe du jour"
+        "equipe": "l’équipe du jour",
+        "echeances": "les échéances à venir",
+        "favoris": "vos favoris"
       }
     },
     "toutEstAJour": {
@@ -20451,6 +20442,103 @@
         "visites": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
         "separateurDate": " · ",
         "separateur": ", "
+      }
+    },
+    "prestataire": {
+      "resume": "{jour} · {aujourdhui, plural, =0 {aucune intervention aujourd’hui} one {# intervention aujourd’hui} other {# interventions aujourd’hui}}{aVenir, plural, =0 {} one {, # à venir cette semaine} other {, # à venir cette semaine}}",
+      "quoi": "vos interventions",
+      "aAccepter": "{n, plural, one {# intervention à accepter} other {# interventions à accepter}}",
+      "aujourdhui": {
+        "titre": "Aujourd’hui",
+        "vide": "Rien de prévu aujourd’hui"
+      },
+      "aVenir": {
+        "titre": "À venir",
+        "toutes": "Toutes",
+        "quand": "{date} · {heure}"
+      },
+      "aChiffrer": {
+        "titre": "À chiffrer",
+        "quoi": "les devis à chiffrer",
+        "chiffrer": "Chiffrer",
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}demandé {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}"
+      },
+      "statut": {
+        "aAccepter": "À accepter",
+        "aCommencer": "À commencer",
+        "enCours": "En cours",
+        "planifiee": "Planifiée"
+      },
+      "gestes": {
+        "commencer": "Commencer",
+        "termine": "Terminé",
+        "repondre": "Répondre",
+        "echec": "L’intervention n’a pas pu commencer."
+      }
+    },
+    "client": {
+      "visites": {
+        "titre": "Vos démarches",
+        "toutes": "Toutes vos visites",
+        "quand": "Visite {date} · {heure}",
+        "sansDate": "Visite à planifier",
+        "confirmee": "Confirmée",
+        "aConfirmer": "En attente de confirmation",
+        "voir": "Voir la visite"
+      },
+      "recherches": {
+        "titre": "Vos recherches",
+        "toutes": "Toutes",
+        "nouveaux": "{n, plural, one {# nouveau} other {# nouveaux}}",
+        "moinsDe": "Moins de {prix}",
+        "alerte": {
+          "whatsapp": "alerte WhatsApp",
+          "email": "alerte e-mail",
+          "inapp": "alerte dans l’application",
+          "coupee": "alerte coupée"
+        }
+      },
+      "favoris": {
+        "titreBaisse": "Vos favoris · prix en baisse",
+        "titreBouge": "Vos favoris ont bougé",
+        "tous": "Tous vos favoris",
+        "periode": {
+          "daily": "/ jour",
+          "weekly": "/ semaine",
+          "monthly": "/ mois",
+          "yearly": "/ an"
+        }
+      }
+    },
+    "locataire": {
+      "carte": {
+        "quoi": "votre loyer",
+        "payer": "Payer",
+        "enRetard": "En retard de {n, plural, one {# jour} other {# jours}}",
+        "avant": "à payer avant le {date}",
+        "avantDans": "à payer avant le {date} · {jours, plural, =0 {aujourd’hui} one {demain} other {dans # jours}}",
+        "detail": "{n, plural, one {# échéance} other {# échéances}} · Voir le détail"
+      },
+      "logement": {
+        "titre": "Mon logement",
+        "bienSansTitre": "Votre logement",
+        "loyerParMois": "{loyer} par mois",
+        "gerePar": "Géré par {agence}",
+        "signaler": "Signaler un problème",
+        "signalerDetail": "Fuite, panne, serrure : l’agence est prévenue",
+        "quittance": "Dernière quittance",
+        "payeLe": "payé le {date}",
+        "contacter": "Contacter l’agence",
+        "telechargement": {
+          "enCours": "Téléchargement…",
+          "interdit": "Vous n’avez pas accès à cette quittance.",
+          "indisponible": "Cette quittance n’est pas encore disponible.",
+          "echec": "Le téléchargement a échoué. Réessayez."
+        }
+      },
+      "resume": {
+        "du": "{jour} · {montant} à régler",
+        "prochain": "{jour} · prochain loyer le {date}"
       }
     }
   },

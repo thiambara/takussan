@@ -2528,20 +2528,11 @@
       "cancelled": "Cancelled"
     },
     "tenant": {
-      "title": "My situation",
-      "loadError": "The data could not be loaded.",
-      "noProfile": "No tenant profile is linked to your account. Contact your agency to activate your file.",
-      "subtitle": "Upcoming instalments, documents and open requests.",
-      "activeLeases": "Active leases",
-      "nextRent": "Next rent",
-      "overdue": "Overdue",
-      "lateFeesOutstanding": "Late fees to collect",
       "pendingBookings": "Pending bookings",
       "upcoming30d": "Instalments in the next 30 days",
       "noUpcoming": "No instalment scheduled.",
       "recentDocs": "Recent documents",
       "noDocs": "No document.",
-      "noProfileInvite": "No customer file is open in your name yet. Start by looking for a home.",
       "whatAwaits": "What's next for me",
       "nextVisit": "Next visit",
       "nextVisitAt": "{date} · {property}",
@@ -2551,7 +2542,8 @@
       "inviteRentIn": "Homes to rent in {city}",
       "inviteBuyIn": "Properties to buy in {city}",
       "inviteSearch": "Find a home",
-      "inviteCta": "Browse listings"
+      "inviteCta": "Browse listings",
+      "allDocs": "All documents"
     },
     "agency": {
       "title": "Agency overview",
@@ -2967,9 +2959,6 @@
       },
       "overviewOwner": {
         "metaTitle": "Landlord overview"
-      },
-      "overviewTenant": {
-        "metaTitle": "My situation"
       },
       "paymentReturn": {
         "metaTitle": "Payment return"
@@ -20252,7 +20241,9 @@
         "ceMois": "this month’s figures",
         "aFaire": "what is waiting for you",
         "uneFile": "part of what is waiting for you",
-        "equipe": "today’s team"
+        "equipe": "today’s team",
+        "echeances": "upcoming payments",
+        "favoris": "your favourites"
       }
     },
     "toutEstAJour": {
@@ -20451,6 +20442,103 @@
         "visites": "{n, plural, one {# visit to confirm} other {# visits to confirm}}",
         "separateurDate": " · ",
         "separateur": ", "
+      }
+    },
+    "prestataire": {
+      "resume": "{jour} · {aujourdhui, plural, =0 {no job today} one {# job today} other {# jobs today}}{aVenir, plural, =0 {} one {, # more this week} other {, # more this week}}",
+      "quoi": "your jobs",
+      "aAccepter": "{n, plural, one {# job to accept} other {# jobs to accept}}",
+      "aujourdhui": {
+        "titre": "Today",
+        "vide": "Nothing planned today"
+      },
+      "aVenir": {
+        "titre": "Coming up",
+        "toutes": "All",
+        "quand": "{date} · {heure}"
+      },
+      "aChiffrer": {
+        "titre": "To quote",
+        "quoi": "the quotes to prepare",
+        "chiffrer": "Quote",
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}requested {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}}"
+      },
+      "statut": {
+        "aAccepter": "To accept",
+        "aCommencer": "To start",
+        "enCours": "In progress",
+        "planifiee": "Scheduled"
+      },
+      "gestes": {
+        "commencer": "Start",
+        "termine": "Done",
+        "repondre": "Respond",
+        "echec": "The job could not be started."
+      }
+    },
+    "client": {
+      "visites": {
+        "titre": "Your appointments",
+        "toutes": "All your visits",
+        "quand": "Visit {date} · {heure}",
+        "sansDate": "Visit to be scheduled",
+        "confirmee": "Confirmed",
+        "aConfirmer": "Awaiting confirmation",
+        "voir": "View the visit"
+      },
+      "recherches": {
+        "titre": "Your searches",
+        "toutes": "All",
+        "nouveaux": "{n, plural, one {# new} other {# new}}",
+        "moinsDe": "Under {prix}",
+        "alerte": {
+          "whatsapp": "WhatsApp alert",
+          "email": "email alert",
+          "inapp": "in-app alert",
+          "coupee": "alert off"
+        }
+      },
+      "favoris": {
+        "titreBaisse": "Your favourites · price drops",
+        "titreBouge": "Your favourites have changed",
+        "tous": "All your favourites",
+        "periode": {
+          "daily": "/ day",
+          "weekly": "/ week",
+          "monthly": "/ month",
+          "yearly": "/ year"
+        }
+      }
+    },
+    "locataire": {
+      "carte": {
+        "quoi": "your rent",
+        "payer": "Pay",
+        "enRetard": "{n, plural, one {# day} other {# days}} late",
+        "avant": "due by {date}",
+        "avantDans": "due by {date} · {jours, plural, =0 {today} one {tomorrow} other {in # days}}",
+        "detail": "{n, plural, one {# instalment} other {# instalments}} · See details"
+      },
+      "logement": {
+        "titre": "My home",
+        "bienSansTitre": "Your home",
+        "loyerParMois": "{loyer} per month",
+        "gerePar": "Managed by {agence}",
+        "signaler": "Report a problem",
+        "signalerDetail": "Leak, breakdown, lock: the agency is notified",
+        "quittance": "Latest receipt",
+        "payeLe": "paid on {date}",
+        "contacter": "Contact the agency",
+        "telechargement": {
+          "enCours": "Downloading…",
+          "interdit": "You don’t have access to this receipt.",
+          "indisponible": "This receipt isn’t available yet.",
+          "echec": "The download failed. Try again."
+        }
+      },
+      "resume": {
+        "du": "{jour} · {montant} to pay",
+        "prochain": "{jour} · next rent on {date}"
       }
     }
   },

@@ -44,7 +44,9 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
         ['mes-demarches', 'mesDemarches', false, 'visites', 'reservations'],
         ['tableau-de-bord', null, false, 'tableau-de-bord'],
         // Arbitrage 1 : les quatre derniers restent accessibles au client pur.
-        ['plus', 'plus', true, 'documents', 'avis', 'statistiques', 'maintenance', 'baux', 'paiements', 'etats-des-lieux'],
+        // TCK-2625 — sans « Statistiques » : « Ma situation » est absorbée par l'accueil (`/app`), où
+        // `/app/overview` renvoie désormais le client (cf. `HREFS_RETIRES_PAR_TCK_2625`).
+        ['plus', 'plus', true, 'documents', 'avis', 'maintenance', 'baux', 'paiements', 'etats-des-lieux'],
       ],
     });
   });
@@ -58,7 +60,8 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
         ['mon-logement', 'monLogement', false, 'baux', 'paiements', 'maintenance', 'etats-des-lieux', 'documents'],
         ['mes-recherches', 'mesRecherches', true, 'chercher-bien', 'favoris', 'recherches', 'visites', 'reservations'],
         ['tableau-de-bord', null, false, 'tableau-de-bord'],
-        ['plus', 'plus', true, 'avis', 'statistiques'],
+        // TCK-2625 — sans « Statistiques », comme le client.
+        ['plus', 'plus', true, 'avis'],
       ],
     });
   });
@@ -282,13 +285,26 @@ const HREFS_AVANT_TCK_2618: Record<Persona, readonly string[]> = {
   plateforme: ['/app', '/app/agency', '/app/agency/audit', '/app/agency/billing', '/app/agency/finances', '/app/agency/integrations', '/app/agency/kyc', '/app/agency/moderation', '/app/agency/moderation/properties', '/app/agency/roles', '/app/agency/team', '/app/bookings', '/app/calendar', '/app/commissions', '/app/credits', '/app/customers', '/app/documents', '/app/favorites', '/app/inventories', '/app/leads', '/app/leases', '/app/maintenance', '/app/maintenance/providers', '/app/messages', '/app/overview', '/app/overview/agency', '/app/overview/alerts', '/app/overview/exports', '/app/overview/kpis', '/app/owners', '/app/profile/reviews', '/app/properties', '/app/properties/new', '/app/saved-searches', '/app/tasks', '/app/visits'],
 };
 
+/**
+ * TCK-2625 — la seule destination retirée DEPUIS, nommée ici plutôt que gommée du relevé ci-dessus :
+ * « Statistiques » (`/app/overview`) menait le client et le locataire à « Ma situation »
+ * (`/app/overview/tenant`), absorbée par l'accueil. L'aiguilleur les renvoie désormais sur `/app`, et
+ * la garde de la page et le catalogue doivent dire la même chose (`gardes-des-pages.test.ts`, M2) :
+ * l'entrée serait un lien vers leur propre accueil.
+ */
+const HREFS_RETIRES_PAR_TCK_2625: Partial<Record<Persona, readonly string[]>> = {
+  client: ['/app/overview'],
+  locataire: ['/app/overview'],
+};
+
 describe('TCK-2618 — AC3 : le menu composé garde chaque destination d’avant', () => {
   it.each(PERSONAS)('%s : même jeu d’`href`, aucune entrée en double', (persona) => {
     const menu = composerMenu(COMPTES[persona], persona);
     const hrefs = [menu.action?.href, menu.carte?.href, ...menu.groupes.flatMap((g) => g.entrees.map((e) => e.href))].filter(
       (h): h is string => Boolean(h),
     );
-    expect([...new Set(hrefs)].sort()).toEqual(HREFS_AVANT_TCK_2618[persona]);
+    const retires = HREFS_RETIRES_PAR_TCK_2625[persona] ?? [];
+    expect([...new Set(hrefs)].sort()).toEqual(HREFS_AVANT_TCK_2618[persona].filter((h) => !retires.includes(h)));
     // Une seule entrée par `href` dans les groupes : le doublon `/app` de l'agent a fusionné.
     const desGroupes = menu.groupes.flatMap((g) => g.entrees.map((e) => e.href));
     expect(new Set(desGroupes).size, persona).toBe(desGroupes.length);

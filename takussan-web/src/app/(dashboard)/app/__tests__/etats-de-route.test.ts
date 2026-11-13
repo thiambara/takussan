@@ -270,16 +270,19 @@ describe('TCK-382 — inventaire', () => {
     ).toEqual([]);
   });
 
-  it('trois pages seulement ne rendent aucun document, et ce sont des redirections nues', () => {
+  it('quatre pages seulement ne rendent aucun document, et ce sont des redirections nues', () => {
     // Ratchet : l'exemption des règles « titre » ci-dessous est DÉRIVÉE (aucun JSX rendu), pas
     // écrite. Ce test fige sa taille pour qu'une page muette de plus soit un acte conscient.
     const muettes = PAGES.filter(estUneRedirectionSeule).map((p) => p.rel);
     // TCK-2644 : `leases/onboarding-pending` est devenu un onglet de la liste des baux ; la route
     // reste pour les liens déjà envoyés (notifications, courriels).
+    // TCK-2625 : « Ma situation » (`overview/tenant`) est absorbée par l'accueil `/app` ; l'adresse
+    // reste pour les signets.
     expect(muettes.sort()).toEqual([
       'crm/page.tsx',
       'leases/onboarding-pending/page.tsx',
       'overview/page.tsx',
+      'overview/tenant/page.tsx',
     ]);
   });
 });

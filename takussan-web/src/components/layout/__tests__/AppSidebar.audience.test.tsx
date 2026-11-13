@@ -112,19 +112,22 @@ const COMPTES: Record<Persona, ContexteDeMenu> = {
  *  - Revue de TCK-2478 — prestataire encore : `/app/overview` QUITTE sa table (M2 : la garde de la
  *    page le renvoie sur `/app` s'il n'est pas locataire, le lien menait à une redirection) et
  *    `/app/calendar` Y ENTRE (M3 : `assertCanReachCalendar` lui ouvre la page, TCK-591).
+ *  - TCK-2625 — client et locataire : `/app/overview` QUITTE leur table. « Ma situation »
+ *    (`/app/overview/tenant`) est absorbée par l'accueil, et l'aiguilleur les renvoie sur `/app` :
+ *    même raison que M2 pour le prestataire.
  */
 const ATTENDU: Record<Persona, string[]> = {
   client: [
     '/properties', '/publish',
     '/app', '/app/messages', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/documents', '/app/profile/reviews', '/app/overview',
+    '/app/documents', '/app/profile/reviews',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
   ],
   locataire: [
     '/app/payments', '/publish',
     '/app', '/app/messages', '/app/leases', '/app/maintenance', '/app/inventories', '/app/documents',
     '/properties', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/profile/reviews', '/app/overview',
+    '/app/profile/reviews',
   ],
   // TCK-587 — `/app/properties/new` sous « Proposer un bien à mon agence » : le bailleur hors
   // personnel y PROPOSE un bien, le serveur impose brouillon + privé.
