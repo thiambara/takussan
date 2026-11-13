@@ -98,7 +98,8 @@ class OwnerProfile extends AbstractModel
 
     /**
      * TCK-2640 — la recherche du carnet (nom, téléphone, e-mail, sans casse ni accents) et
-     * `filter[has_remaining]=1|0` (un reste à verser du mois courant, positif ou non).
+     * `filter[has_remaining]=1|0` (un reste à verser positif ou non — TCK-2760 : le solde cumulé
+     * au jour, {@see OwnerDirectory::remainingToPay()}).
      *
      * @return array<int, AllowedFilter>
      */
@@ -138,7 +139,8 @@ class OwnerProfile extends AbstractModel
     }
 
     /**
-     * TCK-2640 — `sort=name` (le nom affiché) et `sort=-remaining_to_pay` (le reste à verser du mois).
+     * TCK-2640 — `sort=name` (le nom affiché) et `sort=-remaining_to_pay` (le reste à verser —
+     * TCK-2760 : le solde cumulé au jour).
      *
      * @return array<int, AllowedSort>
      */

@@ -64,6 +64,13 @@ class OwnerProfileController extends Controller
         // et n'atteint aucun autre rôle.
         AgencyKindGuard::ensureStandardForNonGlobal($user, $user->agency_id);
 
+        // TCK-2760 (suivi) — les soldes du périmètre du résumé, le plus large de la requête, d'abord : le
+        // filtre `has_remaining`, le tri, la ligne et la somme de tête les relisent ensuite sans les
+        // recalculer ({@see OwnerDirectory::remainingToPay()}), une passe par agence au lieu de trois.
+        if (OwnerDirectory::readsMoney($user) && ($perimeter = $this->summaryPerimeter($user, $request)) !== null) {
+            $this->directory->remainingToPayIn($perimeter);
+        }
+
         $base = $this->visibleScope($user, $request);
         $query = OwnerProfile::buildQuery($base, $request)->defaultSort('-created_at');
 
@@ -195,6 +202,19 @@ class OwnerProfileController extends Controller
      */
     private function summary(User $user, Request $request, bool $readsMoney): ?array
     {
+        $perimeter = $this->summaryPerimeter($user, $request);
+
+        return $perimeter === null ? null : $this->directory->summary($perimeter, $readsMoney);
+    }
+
+    /**
+     * Le périmètre du résumé ({@see self::summary()}), `null` pour le super-admin qui ne filtre pas UNE
+     * agence. Un périmètre neuf à chaque appel.
+     *
+     * @return Builder<OwnerProfile>|null
+     */
+    private function summaryPerimeter(User $user, Request $request): ?Builder
+    {
         $filtered = ParametreUnique::valeur($request->input('filter.agency_id'));
         $agencyId = $filtered !== null && ctype_digit($filtered) ? (int) $filtered : null;
         if ($agencyId === null && $user->isSuperAdmin()) {
@@ -206,7 +226,7 @@ class OwnerProfileController extends Controller
             $perimeter->where('owner_profiles.agency_id', $agencyId);
         }
 
-        return $this->directory->summary($perimeter, $readsMoney);
+        return $perimeter;
     }
 
     /**

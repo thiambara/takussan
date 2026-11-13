@@ -12,7 +12,8 @@ import { withIntl } from '@/test/intl';
 import { FicheDuBailleur, type DroitsSurLaFiche, type FicheDuBailleurProps } from '../FicheDuBailleur';
 
 /**
- * TCK-2641 — la fiche d'un bailleur : « Reste à verser » tel que l'API le rend (le relevé du mois),
+ * TCK-2641 — la fiche d'un bailleur : « Reste à verser » tel que l'API le rend (TCK-2760 : `balance`, le
+ * solde cumulé au jour ; les trois lignes restent celles du relevé du mois),
  * le mois nommé dans la langue de l'application et choisi par pas (jamais `type="month"`), le
  * plafond de travaux écrit par `PATCH` ou lu seulement, la suspension de l'accès sous la garde du
  * second facteur, et le reversement ouvert sur ce bailleur et ce mois.
@@ -51,6 +52,8 @@ function owner(surcharges: Partial<OwnerProfileDetail> = {}): OwnerProfileDetail
     contact: { first_name: 'Mouhamed', last_name: 'Sène', full_name: 'Mouhamed Sène', email: 'm.sene@example.test', phone: '+221703757526' },
     pending_invitation_id: null, properties_count: 7, occupied_properties_count: 6,
     figures: { period: '2026-11', currency: 'XOF', collected: 11437597, commission: 1143760, paid_out: 7176468, remaining_to_pay: 3117369 } as never,
+    // TCK-2760 — le solde cumulé au jour, distinct de l'écart du mois (`figures.remaining_to_pay`).
+    balance: { remaining_to_pay: 4250000, as_of: '2026-11-12' },
     last_payout: { id: 3, processed_at: '2026-11-05T10:00:00Z', net_amount: 7176468, payment_method: 'wave' },
     next_payout: null, works_approval_threshold: 100000, agency_commission_rate: 10, lease_commission_rates: [],
     rib_masked: null, tax_id_masked: null, id_document_number_masked: null,
@@ -89,8 +92,11 @@ beforeEach(() => {
 describe('TCK-2641 — la fiche du bailleur', () => {
   it('« Reste à verser » est celui de l’API, puis encaissé, commission et déjà versé', () => {
     monter();
-    expect(document.querySelector('[data-slot="reste-a-verser"]')).toHaveTextContent(montant('3 117 369'));
-    expect(document.querySelector('[data-slot="reste-a-verser-bureau"]')).toHaveTextContent(montant('3 117 369'));
+    // TCK-2760 (décision 4 (a)) — le solde cumulé au jour (`balance`), jamais l'écart du mois (`figures`).
+    expect(document.querySelector('[data-slot="reste-a-verser"]')).toHaveTextContent(montant('4 250 000'));
+    expect(document.querySelector('[data-slot="reste-a-verser-bureau"]')).toHaveTextContent(montant('4 250 000'));
+    expect(document.querySelector('[data-slot="reste-a-verser"]')).not.toHaveTextContent(montant('3 117 369'));
+    expect(document.querySelector('[data-slot="reste-a-verser-bureau"]')).not.toHaveTextContent(montant('3 117 369'));
     expect(releve().getAllByText(montant('11 437 597')).length).toBeGreaterThan(0);
     expect(releve().getAllByText(montant('− 1 143 760')).length).toBeGreaterThan(0);
     expect(releve().getAllByText('Déjà versé le 5 nov.').length).toBeGreaterThan(0);

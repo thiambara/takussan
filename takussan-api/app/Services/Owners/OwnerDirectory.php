@@ -15,6 +15,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerStatementPolicy;
 use App\Services\Invitation\InvitationService;
+use App\Services\Payout\OwnerStatementService;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\Occupation;
 use App\Services\Reporting\OverdueInstalment;
@@ -35,12 +36,23 @@ use Illuminate\Support\Str;
  * pour une page de la liste) — la fiche, la liste et `GET /api/owner-statements` rendent le même
  * chiffre pour la même période, instantané envoyé compris.
  *
+ * TCK-2760 (ADR-0100, amendement du 2026-11-12) — le RESTE À VERSER du carnet (la ligne, son filtre,
+ * son tri, la somme de tête) et le `balance` de la fiche sont le solde cumulé au jour
+ * ({@see OwnerStatementService::balances()}), le même que celui du relevé : jamais le reste du mois.
+ *
  * **Comptes** : un bien compte au bailleur quand il en est le titulaire (`properties.user_id`) dans
  * cette agence, non supprimé ni archivé ; « occupé » suit {@see Occupation}.
  */
 final class OwnerDirectory
 {
-    public function __construct(private readonly OwnerStatementSnapshots $statements) {}
+    /** TCK-2760 (suivi) — l'attribut de requête qui garde les soldes déjà calculés ({@see self::soldesDeLaRequete()}). */
+    public const SOLDES_DE_LA_REQUETE = 'owners.soldes_au_jour';
+
+    public function __construct(
+        private readonly OwnerStatementSnapshots $statements,
+        // TCK-2760 — le solde cumulé au jour.
+        private readonly OwnerStatementService $balances,
+    ) {}
 
     /**
      * Vérification adverse de TCK-2640 — les chiffres d'argent du carnet (reste à verser, dernier
@@ -121,25 +133,96 @@ final class OwnerDirectory
     }
 
     /**
-     * Le reste à verser du mois courant de chaque profil, ceux d'une page ou d'un périmètre
-     * entier : une passe par agence ({@see OwnerStatementSnapshots::servedTotals()}). Un profil
-     * sans compte (brouillon d'invitation) n'a pas de relevé : `null`.
+     * TCK-2760 — le reste à verser de chaque profil, ceux d'une page ou d'un périmètre entier : le
+     * SOLDE CUMULÉ AU JOUR du bailleur dans l'agence du profil
+     * ({@see OwnerStatementService::balances()}, une passe par agence), jamais le reste du mois. Il
+     * est vivant : un relevé envoyé ne le fige pas. Négatif s'il a été trop versé. Un profil sans
+     * compte (brouillon d'invitation) n'a pas de relevé : `null`.
      *
      * @param  Collection<int, OwnerProfile>  $profiles  avec `id`, `user_id`, `agency_id`
      * @return array<int, float|null> par id de profil
      */
-    public function remainingToPay(Collection $profiles, ?string $period = null): array
+    public function remainingToPay(Collection $profiles): array
     {
-        return array_map(
-            fn (?array $figures) => $figures['remaining_to_pay'] ?? null,
-            $this->monthFigures($profiles, $period),
+        return $this->byAgency($profiles, fn (Agency $agency, array $landlordIds): array => array_map(
+            fn (array $balance): float => $balance['remaining_to_pay'],
+            $this->soldesDeLaRequete($agency, $landlordIds),
+        ));
+    }
+
+    /**
+     * TCK-2760 (suivi) — un seul calcul des soldes par agence et par REQUÊTE HTTP : le tri, le filtre
+     * `has_remaining`, la ligne et la somme de tête de `GET /api/owners` lisent les mêmes soldes, et chacun
+     * repassait la fenêtre cumulée de l'agence (mesuré : 3 passes, 4 avec le filtre). Les soldes déjà
+     * calculés se gardent dans les attributs de la requête courante, par agence et par bailleur ; seuls
+     * les bailleurs absents se calculent, en une passe.
+     *
+     * Bornée à la requête, jamais au-delà : un attribut de requête meurt avec elle (une requête de test
+     * comprise). Une instance `scoped` aurait vécu d'une requête à l'autre d'un même test, et la requête
+     * factice de la console d'une tâche à l'autre. Une requête qui ÉCRIRAIT un reversement puis relirait
+     * le carnet lirait le solde d'avant : le carnet n'est servi que par des `GET`.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array{remaining_to_pay: float, as_of: string}> par bailleur
+     */
+    private function soldesDeLaRequete(Agency $agency, array $landlordIds): array
+    {
+        $attributes = request()->attributes;
+        /** @var array<int, array<int, array{remaining_to_pay: float, as_of: string}|null>> $memo */
+        $memo = $attributes->get(self::SOLDES_DE_LA_REQUETE, []);
+        $connus = $memo[(int) $agency->id] ?? [];
+
+        $manquants = array_values(array_filter($landlordIds, fn (int $id): bool => ! array_key_exists($id, $connus)));
+        if ($manquants !== []) {
+            $calcules = $this->balances->balances($agency, $manquants);
+            foreach ($manquants as $id) {
+                $connus[$id] = $calcules[$id] ?? null;
+            }
+            $memo[(int) $agency->id] = $connus;
+            $attributes->set(self::SOLDES_DE_LA_REQUETE, $memo);
+        }
+
+        return array_filter(
+            array_intersect_key($connus, array_flip($landlordIds)),
+            fn (?array $balance): bool => $balance !== null,
         );
     }
 
     /**
-     * TCK-2641 — les deux chiffres du mois d'une ligne du carnet, lus dans la même passe : le reste
-     * à verser et l'encaissé (`gross` du relevé servi, celui que la fiche rend en `collected`). Le
-     * relevé est celui de l'agence du profil : un loyer encaissé par une autre agence n'y entre
+     * Une valeur par profil, calculée une fois par agence pour tous ses bailleurs : `$compute` reçoit
+     * l'agence et les ids de ses bailleurs, et rend une valeur par bailleur. Un profil sans compte,
+     * ou dont le bailleur n'a pas de valeur, reçoit `null`.
+     *
+     * @param  Collection<int, OwnerProfile>  $profiles
+     * @param  callable(Agency, list<int>): array<int, mixed>  $compute
+     * @return array<int, mixed> par id de profil
+     */
+    private function byAgency(Collection $profiles, callable $compute): array
+    {
+        $values = [];
+        $agencies = Agency::query()->whereIn('id', $profiles->pluck('agency_id')->filter()->unique()->values())->get()->keyBy('id');
+
+        foreach ($profiles->groupBy('agency_id') as $agencyId => $rows) {
+            $agency = $agencies->get((int) $agencyId);
+            $landlordIds = $rows->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+            $byLandlord = $agency !== null && $landlordIds !== [] ? $compute($agency, $landlordIds) : [];
+            foreach ($rows as $profile) {
+                $values[(int) $profile->id] = $profile->user_id !== null ? ($byLandlord[(int) $profile->user_id] ?? null) : null;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * TCK-2641 — les deux chiffres d'une ligne du carnet :
+     *
+     * - `collected` : l'encaissé DU MOIS (`gross` du relevé servi de `$period`, le mois courant par
+     *   défaut ; celui que la fiche rend en `figures.collected`) ;
+     * - `remaining_to_pay` : TCK-2760 — le solde cumulé AU JOUR ({@see self::remainingToPay()}),
+     *   que `$period` ne change pas ; plus le reste du mois.
+     *
+     * Le relevé est celui de l'agence du profil : un loyer encaissé par une autre agence n'y entre
      * pas. Un profil sans compte (brouillon d'invitation) n'a pas de relevé : `null`.
      *
      * @param  Collection<int, OwnerProfile>  $profiles  avec `id`, `user_id`, `agency_id`
@@ -148,28 +231,28 @@ final class OwnerDirectory
     public function monthFigures(Collection $profiles, ?string $period = null): array
     {
         $period ??= self::currentPeriod();
-        $figures = [];
-        $agencies = Agency::query()->whereIn('id', $profiles->pluck('agency_id')->filter()->unique()->values())->get()->keyBy('id');
+        $collected = $this->byAgency($profiles, fn (Agency $agency, array $landlordIds): array => array_map(
+            fn (array $totals): float => (float) ($totals['gross'] ?? 0),
+            $this->statements->servedTotals($agency, $landlordIds, $period),
+        ));
+        $remaining = $this->remainingToPay($profiles);
 
-        foreach ($profiles->groupBy('agency_id') as $agencyId => $rows) {
-            $agency = $agencies->get((int) $agencyId);
-            $landlordIds = $rows->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
-            $totals = $agency !== null ? $this->statements->servedTotals($agency, $landlordIds, $period) : [];
-            foreach ($rows as $profile) {
-                $line = $profile->user_id !== null ? ($totals[(int) $profile->user_id] ?? null) : null;
-                $figures[(int) $profile->id] = $line === null ? null : [
-                    'remaining_to_pay' => (float) $line['remaining_to_pay'],
-                    'collected' => (float) ($line['gross'] ?? 0),
-                ];
-            }
+        $figures = [];
+        foreach ($profiles as $profile) {
+            $id = (int) $profile->id;
+            $figures[$id] = $remaining[$id] === null || $collected[$id] === null ? null : [
+                'remaining_to_pay' => (float) $remaining[$id],
+                'collected' => (float) $collected[$id],
+            ];
         }
 
         return $figures;
     }
 
     /**
-     * Le même calcul pour tout un périmètre de requête (le tri `remaining_to_pay`, le filtre
-     * `has_remaining` : ils jugent tous les profils, pas la page).
+     * Le même calcul — TCK-2760 : le solde cumulé au jour — pour tout un périmètre de requête (le tri
+     * `remaining_to_pay`, le filtre `has_remaining`, la somme de tête : ils jugent tous les profils,
+     * pas la page).
      *
      * @param  Builder<OwnerProfile>  $scope
      * @return array<int, float|null>
@@ -189,9 +272,10 @@ final class OwnerDirectory
      * - `owners` : les bailleurs (tout profil hors brouillon), `invitations` : les brouillons ;
      * - `properties` : la somme des `properties_count` des lignes (biens ni archivés ni supprimés
      *   du bailleur, dans l'agence du profil) ;
-     * - `remaining_to_pay` : la somme des restes à verser POSITIFS du mois courant (un trop-versé ne
-     *   diminue pas ce qui reste à verser aux autres), `with_remaining` : le nombre de bailleurs qui
-     *   en ont un — la règle de `filter[has_remaining]=1`. Tous deux `null` pour qui ne lit pas le
+     * - `remaining_to_pay` : la somme des restes à verser POSITIFS — TCK-2760 : les soldes cumulés au
+     *   jour ({@see self::remainingToPay()}), plus les restes du mois — (un trop-versé ne diminue
+     *   pas ce qui reste à verser aux autres), `with_remaining` : le nombre de bailleurs qui en ont
+     *   un — la règle de `filter[has_remaining]=1`. Tous deux `null` pour qui ne lit pas le
      *   relevé ({@see self::readsMoney()}), comme les chiffres de la ligne.
      *
      * @param  Builder<OwnerProfile>  $perimeter
@@ -392,9 +476,13 @@ final class OwnerDirectory
                 'fees' => (float) ($totals['fees'] ?? 0),
                 'net' => (float) ($totals['net'] ?? 0),
                 'paid_out' => (float) ($totals['paid_out'] ?? 0),
+                // L'écart DU MOIS (`net − paid_out` de la période) : le reste à verser est `balance`.
                 'remaining_to_pay' => (float) ($totals['remaining_to_pay'] ?? 0),
                 'from_snapshot' => ($statement['snapshot'] ?? null) !== null,
             ],
+            // TCK-2760 — le solde cumulé au jour, le même que le relevé et la ligne du carnet ;
+            // `null` sans la règle d'argent, comme `figures`.
+            'balance' => $statement['balance'] ?? null,
             'last_payout' => $lastPayout === null ? null : [
                 'id' => $lastPayout->id,
                 'processed_at' => $lastPayout->processed_at,

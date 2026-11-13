@@ -117,4 +117,110 @@ Fixture commune : un bailleur L d'une agence A, commission de 10 %.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Prémisse re-mesurée (2026-11-12)
+
+Dans `figures()`, `net = net_calculé − reprises datées` et `paid_out = Σ(net_amount + clawback_amount) − reprises datées`. Le reste `net − paid_out` vaut donc `net_calculé − Σ(net_amount + clawback_amount)` : les reprises s'annulent, imputées ou non. Une reprise ne rend pas le solde négatif (note de redac-1 confirmée, AC2 bis). Tous les postes de `figures()` sont additifs d'un mois à l'autre, donc la somme des restes mensuels rejoint le reste de la fenêtre cumulée (AC2).
+
+### Ce qui est fait
+
+- `OwnerStatementService` :
+  - `BALANCE_ORIGIN = '2000-01-01'` ;
+  - `balances(Agency, array)` et `balance(Agency, User)` : `remainingToPay()` sur les totaux de `figures()` de la fenêtre `[origine, aujourd'hui à Dakar]`, avec `as_of` = ce même jour (`OverdueInstalment::TIMEZONE`) ;
+  - `statement()` rend `balance`. Son paramètre `withBalance: false` l'omet : l'instantané ne le calcule pas.
+- `OwnerStatementSnapshots` : `record()` appelle `statement(…, withBalance: false)`, et `served()` sert `balance` depuis le calcul du jour. `rectification()` ne compare que `totals` et `lines`, donc le solde ne fait naître aucun rectificatif.
+- `OwnerDirectory` :
+  - `remainingToPay()` lit `balances()`, une passe par agence (helper `byAgency`), ce qui couvre le filtre `has_remaining`, le tri et la somme de tête ;
+  - `monthFigures()` garde `collected` du mois (`servedTotals`) et prend `remaining_to_pay` du solde ;
+  - la fiche gagne `balance`, `null` sans la règle d'argent (`readsMoney`), comme `figures`.
+- Docblocks : `remainingToPay` (les deux), `monthFigures`, `summary`, `remainingToPayIn`, l'en-tête d'`OwnerDirectory`, `OwnerRemainingToPaySort`, et le filtre et le tri d'`OwnerProfile`.
+
+### Tests
+
+- `tests/Feature/Payout/OwnerStatementBalanceTest.php` (nouveau, 7 tests). AC1 à AC6, en plus :
+  - `has_remaining=1` suit le solde (AC4) ;
+  - le solde servi avec un mois envoyé bouge quand un encaissement arrive, les totaux non (AC3).
+- La fixture d'AC2 passe par les gestes de l'application :
+  - `POST /api/payouts` pour les reversements ;
+  - une facture imputée par le reversement ;
+  - un remboursement par webhook, qui crée la reprise imputée au reversement suivant.
+- `OwnerProfileListFiguresTest::test_le_reste_a_verser_est_celui_du_releve_servi` : la moitié « la ligne est figée par l'instantané » contredit la décision 4 (a). Elle est réécrite : la ligne suit le solde du jour (+180 000), et les totaux du mois envoyé restent figés.
+- `OwnerDetailMoneyTest` : `balance` est nul sans `payouts.create` (GET et PATCH) et rendu à l'admin qui tient le relevé.
+- Tests verts :
+  - les 5 classes du delta et `OwnerStatementBalanceTest` ;
+  - `OwnerStatementTest`, `OwnerStatementSnapshotTest`, `PayoutClawbackTest`, `PayoutLateFeeTest`, `OwedRemainderTest`, `PenalitesARecouvrerTest`, `NomsVidesDesLecteursTest`, `LandlordCompanyNameTest`, `OwnerProfileShowTest`, `DocumentVaultOwnerTest`, `DocumentVaultPrimedVaultParityTest`, `EffacementBailleurReversementTest`, `ReleveDeGeranceMoisTest`, `OwnerStatementPropertiesTest`, `OwnerStatementBeneficiaryTest`.
+
+### Ablations, une à une, toutes rouges
+
+| Mutant | Rouge |
+|---|---|
+| m1 : `balance` = `totals.remaining_to_pay` | AC1, AC2, AC3, AC4 |
+| m2 : versé sans `clawback_amount` dans le seul solde | AC2 (225 000 contre 180 000) |
+| m3 : la ligne du carnet lit le reste du mois | AC4, AC5, AC6, `OwnerProfileListFiguresTest` (2) |
+| m4 : `balance` de la fiche = reste du mois | AC4 |
+| m5 : l'instantané garde `balance` | AC3 |
+| m6 : m5, et `served()` garde le solde de l'instantané | AC3 (à la 1ʳᵉ assertion ; les suivantes, `as_of` et 108 000, non mesurées seules) |
+| m7 : tri, filtre et somme lisent le reste du mois | AC4 (`has_remaining`), AC5 (tri) ; rejoué après avoir placé la somme de tête avant le tri : AC5 rouge sur la somme (90 000 contre 360 000) |
+
+### AC7 — le coût, mesuré
+
+Mesures sur la base de démo, machine **non au repos** (8 cœurs, `hw.ncpu` 8) :
+
+- agence 1 (owner1@dakarimmo.sn), 12 profils de bailleur ;
+- 4 appels par le noyau HTTP (`tinker --execute`), en lecture seule.
+
+| | Avant (22:33, `uptime` 5,45 9,03 10,82) | Après (22:46 et 22:47, `uptime` 6,17 8,76 9,71, puis 5,54 8,27 9,49) |
+|---|---|---|
+| `GET /api/owners?sort=-remaining_to_pay` | 572 à 738 ms | 1035 à 1989 ms, puis 1961 à 2058 ms |
+| `GET /api/owner-statements?period=2026-11` (owner1) | 207 à 281 ms | 133 à 174 ms, puis 163 à 252 ms (dans le bruit) |
+
+**Le carnet dépasse une seconde : à signaler au porteur.**
+
+- La page fait **trois passes cumulées** sur toute l'histoire de l'agence : le tri (`remainingToPayIn`), la ligne (`monthFigures`) et la somme de tête (`summary`). `filter[has_remaining]` en ajoute une **quatrième**. Avant, ces passes portaient sur un mois.
+- `balances()` sur l'agence entière seule : 417 à 480 ms.
+- Piste intermédiaire avant le report du solde : un mémo **par requête** des soldes par bailleur ramènerait les trois passes à une. Il n'est pas fait : le ticket réserve la suite au porteur, et un mémo mal borné (au processus) servirait un chiffre périmé.
+- Plafond des paramètres liés de PostgreSQL (65 535) dans `payoutsCarrying()` : sur la démo, l'agence 1 (la plus fournie, 214 biens) lie 392 pièces de loyer et 89 acomptes. Loin du plafond, mais il croît avec l'histoire de l'agence, sans borne.
+
+### Le solde sur la base de démo (lecture seule)
+
+Pour les 12 bailleurs de l'agence 1, le solde a été confronté à la somme des restes annuels 2023 à 2026, sur le calcul du jour.
+
+- **Il est égal pour 3 bailleurs.** Pour les 9 autres, l'écart vaut **exactement** le versé des reversements `completed` dont `processed_at` est **dans le futur** (du 1ᵉʳ au 5 décembre 2026). Exemple : le bailleur 17 a 9 reversements, soit 13 241 066 d'écart, au franc près.
+- Le solde, arrêté au jour, ne les compte pas. L'attestation 2026 les compte.
+- **Sur toute la base, 119 reversements sont dans cet état** : ils sont `completed` alors que leur date de versement n'est pas arrivée.
+- C'est un défaut du jeu de démo, pas du calcul : un reversement ne peut pas être versé demain. Il est hors de ce ticket, car les seeders n'y sont pas touchés.
+- Conséquence visible sur la démo : le reste de novembre d'un bailleur peut être négatif alors que son solde est de plusieurs millions. Exemple : le bailleur 16 a un reste de novembre de −2 700 683 et un solde de 29 138 357.
+
+Inventaire des dates (`DateInventoryByValueTest`) :
+
+- Il parcourt la fiche avec `readsMoney` vrai (`ResourceSubjects`, `OwnerProfileDetailResource`). Son assertion de forme (`$violations` vide), jouée **avant** la ligne rouge, passe : `balance.as_of` est conforme à ADR-0018.
+- Le rouge de la ligne 241 est `PropertyResource::sponsored_until`, de TCK-2638 (1f281281a). Les deux planchers qui suivent cette ligne n'ont pas tourné.
+
+### Hors périmètre, signalé
+
+`takussan-web/src/components/owners/fiche/FicheDuBailleur.tsx:405` lit encore `figures.remaining_to_pay`, désormais l'écart **du mois**, sous « Reste à verser ». Elle doit lire `balance.remaining_to_pay` (TCK-2641, ou un correctif d'une ligne). Le type `OwnerDetail` de `src/lib/queries/owners.ts` n'a pas encore `balance`.
+
+Le ticket dit « le carnet du front : rien à faire ». C'est vrai pour les valeurs, mais **un libellé ne l'est plus** :
+
+- `owners.carnet.resume.bureau` dit « {montant} à verser **en {mois}** », alors que la somme de tête est désormais un solde cumulé au jour ;
+- `owners.carnet.resume.telephone`, `colonnes.reste`, `triReste` et `vues.reste` ne nomment pas de mois.
+
+Non corrigé : c'est le texte du front, pas le contrat de ce ticket.
+
+### Suivi (2026-11-13) — une passe par requête, la fiche, le libellé, le jeu de démo
+
+- **Une seule passe des soldes par agence et par requête** : `OwnerDirectory::soldesDeLaRequete()` garde les soldes déjà calculés dans les attributs de la requête courante (`OwnerDirectory::SOLDES_DE_LA_REQUETE`) et ne calcule que les bailleurs absents. `OwnerProfileController::index()` calcule d'abord le périmètre du résumé, le plus large, que le filtre `has_remaining`, le tri, la ligne et la somme relisent ensuite. La mémoire est bornée à la requête : pas d'instance `scoped`, qui aurait vécu d'une requête à l'autre d'un même test, ni de la requête factice de la console.
+- **Épinglé** par `OwnerProfileListFiguresTest::test_les_soldes_se_calculent_une_fois_par_requete`. Le test compte les requêtes liées à `BALANCE_ORIGIN` et les compare à une passe directe de `balances()`. Trois ablations, toutes rouges :
+  - sans mémoire : 25 requêtes contre 5 (compte du mutant, qui garde le calcul préalable du périmètre ; avant le suivi : 3 passes, 4 avec le filtre) ;
+  - mémoire qui survit à la requête : 0 contre 5 ;
+  - sans le calcul préalable du périmètre du résumé : 10 contre 5 avec une recherche.
+- **Mesure** sur la démo, agence 1 (12 bailleurs, 392 loyers et 89 acomptes liés), 8 cœurs, `GET /api/owners?sort=-remaining_to_pay`, quatre appels chacun :
+  - avant : 946-1301 ms (2026-11-13 00:04, charge 1,89 2,73 3,22) ;
+  - après : 379-457 ms (00:06, charge 2,48 2,70 3,15) ;
+  - pour comparaison, le carnet faisait 572-738 ms avant TCK-2760.
+- **Front**
+  - La fiche du bailleur (`FicheDuBailleur.tsx`, une ligne) lit `balance.remaining_to_pay` sous « Reste à verser ».
+  - `OwnerProfileDetail` gagne `balance: OwnerBalance | null`.
+  - `owners.carnet.resume.bureau` dit « {montant} à verser à ce jour » (en : « to pay out to date »).
+  - `FicheDuBailleur.tck-2641.test.tsx` donne un solde distinct de l'écart du mois. Ablation où la fiche relit `figures` : rouge.
+- **Jeu de démo** : `PayoutSeeder` ne crée plus de reversement `completed` à `processed_at` futur. Le mois en cours n'est pas encore reversé ; ce sont les 119 reversements du 1er au 5 décembre relevés plus haut. Épinglé par `PayoutSeederSansReversementFuturTest` (ablation : rouge).
+- **Hors front de l'agence** : aucun écran du bailleur n'affiche encore « Reste à vous verser » (`OwnerStatementPanel` ne lit aucun reste ; seules les maquettes le montrent).

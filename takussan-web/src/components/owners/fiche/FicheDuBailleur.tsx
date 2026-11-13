@@ -402,7 +402,7 @@ function ReleveDuMois({ owner, period, moisCourant, onReverser, className }: { r
     </span>
   );
 
-  const reste = figures ? f.montantCourt(figures.remaining_to_pay, devise) : '—';
+  const reste = owner.balance ? f.montantCourt(owner.balance.remaining_to_pay, devise) : '—'; // TCK-2760 — le solde cumulé au jour, pas l'écart du mois
   const lignes = figures
     ? [
         { cle: 'encaisse', telephone: t('encaisse'), bureau: t('encaisse'), valeur: f.montantCourt(figures.collected, devise), detail: null },

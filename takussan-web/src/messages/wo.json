@@ -4503,7 +4503,7 @@
       "nBailleurs": "{n, plural, one {# bailleur} other {# bailleurs}}",
       "resume": {
         "telephone": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser} other {}}",
-        "bureau": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser en {mois}} other {}}"
+        "bureau": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser à ce jour} other {}}"
       },
       "triReste": "Tri : reste à verser",
       "mentionSensible": "RIB, NINEA et numéro de pièce se lisent sur la fiche du bailleur, masqués ; « Afficher » inscrit la consultation au journal.",

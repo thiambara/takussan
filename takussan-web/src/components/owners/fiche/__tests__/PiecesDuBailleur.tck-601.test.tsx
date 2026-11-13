@@ -36,7 +36,7 @@ function owner(surcharges: Partial<OwnerProfileDetail> = {}): OwnerProfileDetail
   return {
     id: 3, user_id: 9, agency_id: 7, status: 'active', joined_at: null, owner_type: 'individual', company_name: null,
     contact: { first_name: 'Fatou', last_name: 'Sarr', full_name: 'Fatou Sarr', email: 'f@example.test', phone: null },
-    pending_invitation_id: null, properties_count: 0, occupied_properties_count: 0, figures: null, last_payout: null,
+    pending_invitation_id: null, properties_count: 0, occupied_properties_count: 0, figures: null, balance: null, last_payout: null,
     next_payout: null, works_approval_threshold: null, agency_commission_rate: null, lease_commission_rates: [],
     rib_masked: 'SN•• •••• ••34', tax_id_masked: '•••• 4567', id_document_number_masked: null,
     ...surcharges,

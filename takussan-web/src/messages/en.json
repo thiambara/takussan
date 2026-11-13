@@ -6629,7 +6629,7 @@
       "nBailleurs": "{n, plural, one {# landlord} other {# landlords}}",
       "resume": {
         "telephone": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out} other {}}",
-        "bureau": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out in {mois}} other {}}"
+        "bureau": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out to date} other {}}"
       },
       "triReste": "Sorted by balance to pay",
       "mentionSensible": "IBAN, tax ID and ID number are on the landlord's page, masked; “Show” records the access in the agency log.",

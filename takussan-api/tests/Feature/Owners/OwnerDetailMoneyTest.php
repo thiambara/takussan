@@ -73,6 +73,9 @@ class OwnerDetailMoneyTest extends ApiTestCase
         $this->assertSame(1, $data['properties_count']);
         $this->assertArrayHasKey('figures', $data);
         $this->assertNull($data['figures']);
+        // TCK-2760 — le solde cumulé au jour suit la même règle d'argent.
+        $this->assertArrayHasKey('balance', $data);
+        $this->assertNull($data['balance']);
         $this->assertNull($data['last_payout']);
         $this->assertNull($data['next_payout']);
     }
@@ -106,6 +109,8 @@ class OwnerDetailMoneyTest extends ApiTestCase
         $data = $this->apiGet("/api/owners/{$this->profile->id}")->assertOk()->json('data');
 
         $this->assertEquals(198000 - 50000, $data['figures']['remaining_to_pay']);
+        // TCK-2760 — et le solde cumulé au jour (ici, toute l'histoire tient dans septembre).
+        $this->assertEquals(['remaining_to_pay' => 198000 - 50000, 'as_of' => '2026-09-20'], $data['balance']);
         $this->assertEquals(50000, $data['last_payout']['net_amount']);
     }
 }

@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
 use App\Services\Dashboard\PortfolioMetrics;
 use App\Services\Payments\RentMonthStatus;
+use App\Services\Reporting\OverdueInstalment;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,13 @@ final class OwnerStatementService
         LeaseStatus::Terminated->value, LeaseStatus::Renewed->value,
     ];
 
+    /**
+     * TCK-2760 (ADR-0100, amendement du 2026-11-12) — le premier jour de la fenêtre du solde
+     * cumulé ({@see self::balances()}) : antérieur à toute donnée, la plateforme n'a rien encaissé
+     * avant.
+     */
+    public const BALANCE_ORIGIN = '2000-01-01';
+
     public function __construct(
         private readonly PayoutCalculator $calculator,
         private readonly PayoutClawbacks $clawbacks,
@@ -62,8 +70,14 @@ final class OwnerStatementService
         return [$start, $start->endOfMonth(), false];
     }
 
-    /** @return array<string, mixed> */
-    public function statement(Agency $agency, User $landlord, string $period): array
+    /**
+     * TCK-2760 — `balance` (le solde cumulé au jour, {@see self::balance()}) ne dépend pas de la
+     * période. `$withBalance` faux l'omet : l'instantané envoyé ne le garde pas
+     * ({@see OwnerStatementSnapshots::record()}), et n'a donc pas à le calculer.
+     *
+     * @return array<string, mixed>
+     */
+    public function statement(Agency $agency, User $landlord, string $period, bool $withBalance = true): array
     {
         [$start, $end, $annual] = self::period($period);
 
@@ -91,6 +105,8 @@ final class OwnerStatementService
             'period_end' => $end->toDateString(),
             'currency' => $computation['currency'],
             'totals' => $totals,
+            // TCK-2760 — le solde cumulé au jour, à côté des totaux de la période.
+        ] + ($withBalance ? ['balance' => $this->balance($agency, $landlord)] : []) + [
             'next_payout' => $this->nextPayout($agency, $landlord),
             'properties' => $this->properties($agency, $landlord, $start, $end, $this->byProperty($computation['lines'])),
             'lines' => $computation['lines'],
@@ -124,6 +140,44 @@ final class OwnerStatementService
         [$start, $end] = self::period($period);
 
         return array_map(fn (array $f): array => $f['totals'], $this->figures($agency, $landlordIds, $start, $end));
+    }
+
+    /**
+     * TCK-2760 (ADR-0100, amendement du 2026-11-12, décision 4 (a) du porteur) — le reste à verser
+     * au bailleur est un SOLDE CUMULÉ arrêté au jour : ce que l'agence lui doit aujourd'hui, qu'elle
+     * verse dans le mois ou le mois suivant. C'est {@see self::remainingToPay()} appliqué aux totaux
+     * de {@see self::figures()} sur la fenêtre [{@see self::BALANCE_ORIGIN}, aujourd'hui à Dakar] —
+     * le même calcul que le reste d'une période, jamais une seconde formule : la somme des restes
+     * mensuels rejoint donc le solde. Il ne dépend d'aucune période, se lit dans l'agence du relevé,
+     * et garde son signe (négatif s'il a été trop versé). Une reprise s'annule dans `net − paid_out`
+     * (le versé la compte avant reprise) : imputée ou non, elle ne change pas le solde.
+     *
+     * Plusieurs bailleurs en un nombre de requêtes qui ne dépend pas de leur nombre, comme
+     * {@see self::totalsFor()} : le carnet le lit pour son périmètre entier.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array{remaining_to_pay: float, as_of: string}> par bailleur
+     */
+    public function balances(Agency $agency, array $landlordIds): array
+    {
+        $today = now(OverdueInstalment::TIMEZONE)->toDateString();
+        $start = CarbonImmutable::parse(self::BALANCE_ORIGIN)->startOfDay();
+        $end = CarbonImmutable::parse($today)->endOfDay();
+
+        return array_map(fn (array $f): array => [
+            'remaining_to_pay' => (float) $f['totals']['remaining_to_pay'],
+            'as_of' => $today,
+        ], $this->figures($agency, $landlordIds, $start, $end));
+    }
+
+    /**
+     * TCK-2760 — le solde cumulé au jour d'un bailleur ({@see self::balances()}).
+     *
+     * @return array{remaining_to_pay: float, as_of: string}
+     */
+    public function balance(Agency $agency, User $landlord): array
+    {
+        return $this->balances($agency, [(int) $landlord->id])[(int) $landlord->id];
     }
 
     /**
@@ -231,6 +285,9 @@ final class OwnerStatementService
     /**
      * TCK-2649 — `net − paid_out`, au centime. Public pour l'instantané d'avant ce champ
      * ({@see OwnerStatementSnapshots::served()}), qui le recompose sur ses propres totaux.
+     *
+     * TCK-2760 — sur les totaux d'une PÉRIODE, c'est l'écart du mois (`totals.remaining_to_pay`) ;
+     * sur la fenêtre cumulée, c'est le solde au jour ({@see self::balances()}). Une seule formule.
      *
      * @param  array<string, mixed>  $totals
      */

@@ -17,6 +17,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Payout\OwnerStatementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -26,7 +27,7 @@ use Tests\Concerns\BuildsMoneyOut;
 
 /**
  * TCK-2640 — les chiffres d'une ligne du carnet (`GET /api/owners`) : biens, biens occupés, reste à
- * verser du mois courant (celui du relevé servi), dernier versement ; la recherche sans casse ni
+ * verser (TCK-2760 : le solde cumulé au jour du relevé), dernier versement ; la recherche sans casse ni
  * accents ; `filter[has_remaining]` ; les tris `name` et `-remaining_to_pay` ; un nombre de requêtes
  * qui ne dépend pas de la taille de la page.
  */
@@ -55,12 +56,18 @@ class OwnerProfileListFiguresTest extends ApiTestCase
 
     private function statementTotals(User $landlord, string $period = '2026-09'): array
     {
+        return $this->statementOf($landlord, $period)['totals'];
+    }
+
+    /** @return array<string, mixed> */
+    private function statementOf(User $landlord, string $period = '2026-09'): array
+    {
         $previous = auth('sanctum')->user();
         Sanctum::actingAs($landlord);
-        $totals = $this->getJson("/api/owner-statements?period={$period}")->assertOk()->json('data.totals');
+        $statement = $this->getJson("/api/owner-statements?period={$period}")->assertOk()->json('data');
         Sanctum::actingAs($previous);
 
-        return $totals;
+        return $statement;
     }
 
     public function test_les_comptes_de_biens_et_le_dernier_versement(): void
@@ -96,9 +103,9 @@ class OwnerProfileListFiguresTest extends ApiTestCase
     }
 
     /**
-     * Le reste à verser de la ligne est celui du relevé du bailleur pour le mois courant — encaissé,
-     * commission, pénalité de retard, reversement versé — et, un mois dont le relevé est parti, celui
-     * de l'instantané envoyé.
+     * Le reste à verser de la ligne est celui du relevé du bailleur — encaissé, commission, pénalité
+     * de retard, reversement versé. TCK-2760 : c'est le solde cumulé au jour (`balance`), vivant —
+     * un relevé envoyé fige ses totaux, pas la ligne du carnet.
      */
     public function test_le_reste_a_verser_est_celui_du_releve_servi(): void
     {
@@ -118,18 +125,21 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         $rows = $this->rows();
         foreach ([$a, $b] as $landlord) {
             $this->assertEquals(
-                $this->statementTotals($landlord)['remaining_to_pay'],
+                $this->statementOf($landlord)['balance']['remaining_to_pay'],
                 $rows[$this->profileOf($landlord, $agency)->id]['remaining_to_pay'],
             );
         }
         $this->assertEquals(285000, $rows[$this->profileOf($b, $agency)->id]['remaining_to_pay']);
 
-        // Le relevé de septembre part ; un loyer encaissé ensuite ne change pas le chiffre servi.
+        // TCK-2760 — le relevé de septembre part ; un loyer encaissé ensuite ne change pas les totaux
+        // servis du mois envoyé, mais la ligne suit le solde du jour : + 180 000 (200 000 à 10 %).
         $this->artisan('payouts:send-owner-statements', ['--period' => '2026-09'])->assertSuccessful();
         $sent = $this->rows()[$this->profileOf($a, $agency)->id]['remaining_to_pay'];
+        $frozen = $this->statementTotals($a)['remaining_to_pay'];
         $pending->forceFill(['status' => PaymentStatus::Paid, 'paid_at' => '2026-09-19 10:00:00'])->save();
-        $this->assertEquals($sent, $this->rows()[$this->profileOf($a, $agency)->id]['remaining_to_pay']);
-        $this->assertEquals($this->statementTotals($a)['remaining_to_pay'], $sent);
+        $this->assertEquals($sent + 180000, $this->rows()[$this->profileOf($a, $agency)->id]['remaining_to_pay']);
+        $this->assertEquals($this->statementOf($a)['balance']['remaining_to_pay'], $sent + 180000);
+        $this->assertEquals($frozen, $this->statementTotals($a)['remaining_to_pay'], 'les totaux du mois envoyé restent figés');
 
         // Un brouillon d'invitation n'a pas de relevé.
         $draft = OwnerProfile::factory()->draft()->create(['agency_id' => $agency->id]);
@@ -260,6 +270,54 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         $thirty = $count();
 
         $this->assertSame($five, $thirty, "5 bailleurs : {$five} requêtes ; 30 : {$thirty}");
+    }
+
+    /**
+     * TCK-2760 (suivi) — le solde cumulé se calcule UNE fois par agence et par requête : le filtre
+     * `has_remaining`, le tri, la ligne et la somme de tête le relisent. Chaque passe relit la fenêtre
+     * cumulée depuis `BALANCE_ORIGIN` : on compte les requêtes qui la lient, contre une passe directe de
+     * `balances()` (mesuré avant : 4 passes avec le filtre et le tri, 1035-2058 ms sur la démo). Une
+     * seconde requête recalcule : la mémoire ne survit pas à la requête.
+     */
+    public function test_les_soldes_se_calculent_une_fois_par_requete(): void
+    {
+        $agency = $this->moneyAgency();
+        $landlords = [$this->landlordOf($agency), $this->landlordOf($agency), $this->landlordOf($agency)];
+        foreach ($landlords as $i => $landlord) {
+            $this->leasePayment($this->leaseOf($agency, $landlord, 10), 100_000 * ($i + 1));
+        }
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+
+        $passes = 0;
+        DB::listen(function ($q) use (&$passes): void {
+            foreach ($q->bindings as $binding) {
+                if (str_starts_with((string) $binding, OwnerStatementService::BALANCE_ORIGIN)) {
+                    $passes++;
+
+                    return;
+                }
+            }
+        });
+
+        app(OwnerStatementService::class)->balances($agency, array_map(fn (User $u): int => (int) $u->id, $landlords));
+        $unePasse = $passes;
+        $this->assertGreaterThan(0, $unePasse, 'la sonde voit la fenêtre cumulée');
+
+        $passes = 0;
+        $this->apiGet('/api/owners?per_page=1&filter[has_remaining]=1&sort=-remaining_to_pay')->assertOk()
+            ->assertJsonPath('meta.summary.with_remaining', 3);
+        $this->assertSame($unePasse, $passes, 'une seule passe des soldes pour le filtre, le tri, la ligne et la somme');
+
+        $passes = 0;
+        $this->apiGet('/api/owners?per_page=1&sort=-remaining_to_pay')->assertOk();
+        $this->assertSame($unePasse, $passes, 'la requête suivante recalcule : rien ne survit à la requête');
+
+        // Une recherche restreint les lignes, pas le résumé : le périmètre du résumé, le plus large, se
+        // calcule d'abord, et la recherche le relit (sinon : une passe pour elle, une pour le reste).
+        $passes = 0;
+        $this->apiGet('/api/owners?per_page=1&filter[has_remaining]=1&sort=-remaining_to_pay&filter[search]='.urlencode($landlords[0]->email))
+            ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.summary.with_remaining', 3);
+        $this->assertSame($unePasse, $passes, 'une recherche ne coûte pas une seconde passe');
     }
 
     /**

@@ -236,6 +236,16 @@ export interface OwnerMonthFigures {
   readonly from_snapshot: boolean;
 }
 
+/**
+ * TCK-2760 (décision 4 (a), ADR-0100 amendée) — le solde cumulé au jour : ce qui reste à verser au
+ * bailleur, toutes périodes confondues, arrêté à `as_of` (date de Dakar). Il ne dépend pas de `period`,
+ * et peut être négatif (trop versé). `null` pour qui ne lit pas le relevé.
+ */
+export interface OwnerBalance {
+  readonly remaining_to_pay: number;
+  readonly as_of: string;
+}
+
 export interface OwnerProfileDetail {
   readonly id: number;
   readonly user_id: number | null;
@@ -255,6 +265,8 @@ export interface OwnerProfileDetail {
   readonly properties_count: number;
   readonly occupied_properties_count: number;
   readonly figures: OwnerMonthFigures | null;
+  /** TCK-2760 — le reste à verser de la fiche ; `figures.remaining_to_pay` n'est que l'écart du mois. */
+  readonly balance: OwnerBalance | null;
   readonly last_payout: {
     readonly id: number;
     readonly processed_at: string | null;

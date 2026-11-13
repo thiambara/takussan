@@ -138,8 +138,9 @@ describe('TCK-2641 — le carnet des bailleurs', () => {
     const resume = { owners: 11, properties: 84, remaining_to_pay: 11991119, with_remaining: 5, invitations: 1 };
     monter({ initialData: { ...(donnees as object), meta: { ...(donnees as { meta: object }).meta, summary: resume } } as never });
     const montant = (n: string) => n.replace(/ /g, '[\\s\\u202f\\u00a0]');
-    // Bureau : en sous-titre, avec le mois ; téléphone : en tête de la liste des bailleurs.
-    expect(screen.getByText(new RegExp(`^11 bailleurs · 84 biens · ${montant('11 991 119 F')} à verser en \\p{L}+$`, 'u'))).toBeInTheDocument();
+    // Bureau : en sous-titre ; téléphone : en tête de la liste des bailleurs. TCK-2760 — le solde cumulé au
+    // jour, plus le reste d'un mois : « à verser à ce jour », plus « à verser en novembre ».
+    expect(screen.getByText(new RegExp(`^11 bailleurs · 84 biens · ${montant('11 991 119 F')} à verser à ce jour$`, 'u'))).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: new RegExp(`^11 bailleurs · 84 biens · ${montant('11 991 119 F')} à verser`) })).toBeInTheDocument();
     // « Tous » compte les bailleurs ET les invitations, comme la vue qui les montre tous.
     const compte = (nom: RegExp) => screen.getAllByRole('button', { name: nom })[0];
