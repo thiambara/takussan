@@ -256,27 +256,33 @@ describe('AC3 — `/onboarding/intention`, la vraie page', () => {
   }));
   vi.mock('@/app/actions/profiles', () => ({ getMyProfilesAction: async () => ({ ok: true, data: { data: [] } }) }));
 
+  // TCK-2608 — la liste des quartiers suggérés ne part pas sur le réseau : l'API locale n'est pas l'objet du test.
+  vi.mock('@/lib/api', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/api')>()),
+    apiFetch: async () => {
+      throw new Error('hors réseau');
+    },
+  }));
+
+  /**
+   * L'écran du prénom passe par `OnboardingShell` (composant serveur asynchrone, exécuté à la main) ;
+   * l'orientation (TCK-2608) monte la coque elle-même, sans sortie.
+   */
   async function monter() {
     const { default: Page } = await import('@/app/onboarding/intention/page');
     const { OnboardingShell } = await import('@/components/onboarding/OnboardingShell');
     const element = (await Page({ searchParams: Promise.resolve({}) })) as ReactElement<Parameters<typeof OnboardingShell>[0]>;
-    render(withIntl(await OnboardingShell(element.props)));
+    render(withIntl(element.type === OnboardingShell ? await OnboardingShell(element.props) : element));
   }
 
-  it('sans saisie, « Retour au site » sort directement', async () => {
+  it('TCK-2608 — l’orientation : la coque sans « Retour au site », la marque mène au site, « Plus tard » dans la barre', async () => {
     await monter();
     expect(screen.getAllByText(C.compteCree).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getAllByRole('link', { name: 'Retour au site' })[0]);
-    expect(clics).toEqual([{ href: '/', annule: false }]);
+    expect(screen.queryByRole('link', { name: 'Retour au site' })).not.toBeInTheDocument();
+    for (const marque of screen.getAllByRole('link', { name: /Takussan/ })) expect(marque).toHaveAttribute('href', '/');
+    expect(screen.getAllByRole('button', { name: frMessages.onboarding.orientation.plusTard })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: frMessages.onboarding.orientation.portes.publier.titre })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  });
-
-  it('un autre choix que celui proposé : « Retour au site » ouvre la confirmation', async () => {
-    await monter();
-    fireEvent.click(screen.getByRole('radio', { name: new RegExp(frMessages.onboarding.intention.options.publish.title) }));
-    fireEvent.click(screen.getAllByRole('link', { name: 'Retour au site' })[0]);
-    expect(clics).toEqual([{ href: '/', annule: true }]);
-    expect(within(screen.getByRole('dialog')).getByText(frMessages.onboarding.intention.reprise)).toBeInTheDocument();
   });
 
   it('l’écran du prénom : un nom tapé et pas encore envoyé est une saisie', async () => {
@@ -286,7 +292,7 @@ describe('AC3 — `/onboarding/intention`, la vraie page', () => {
     fireEvent.click(screen.getAllByRole('link', { name: 'Retour au site' })[0]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(frMessages.onboarding.intention.name.firstName), { target: { value: 'Awa' } });
+    fireEvent.change(screen.getByRole('textbox', { name: frMessages.onboarding.intention.name.firstName }), { target: { value: 'Awa' } });
     fireEvent.click(screen.getAllByRole('link', { name: 'Retour au site' })[0]);
     expect(clics.at(-1)).toEqual({ href: '/', annule: true });
     expect(within(screen.getByRole('dialog')).getByText(frMessages.onboarding.intention.name.reprise)).toBeInTheDocument();

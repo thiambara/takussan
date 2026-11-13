@@ -8248,36 +8248,18 @@
     },
     "intention": {
       "metaTitle": "What brings you to Takussan?",
-      "pageTitle": "Welcome, {name}",
-      "pageSubtitle": "One question, and we take you straight to the right place. You can always do both.",
-      "legend": "What you came to do",
-      "options": {
-        "search": {
-          "title": "I'm looking for a home",
-          "body": "Rent or buy — browse listings, request a viewing, follow your applications."
-        },
-        "publish": {
-          "title": "I want to list a property",
-          "body": "Put your property online and manage your bookings from your own space."
-        }
-      },
-      "submit": "Continue",
-      "submitting": "One moment…",
-      "skip": "I'll decide later",
-      "note": "This answer commits you to nothing — it only decides which screens you see first.",
-      "error": "We couldn't save your answer. Try again, or skip this step.",
       "name": {
         "title": "What is your name?",
         "subtitle": "Your first name appears on your listings and messages.",
         "firstName": "First name",
-        "lastName": "Last name (optional)",
         "submit": "Continue",
         "submitting": "One moment…",
         "required": "Enter your first name.",
         "error": "We could not save your first name. Try again.",
-        "reprise": "Your first name is not saved: we will ask for it again the next time you sign in."
-      },
-      "reprise": "Your answer is not saved: we will ask again the next time you sign in."
+        "reprise": "Your first name is not saved: we will ask for it again the next time you sign in.",
+        "nom": "Last name",
+        "facultatif": "(optional)"
+      }
     },
     "host": {
       "defaults": {
@@ -8622,6 +8604,148 @@
           },
           "fait": "Done"
         }
+      }
+    },
+    "orientation": {
+      "plusTard": "Later",
+      "passer": "Skip",
+      "retour": "Back",
+      "compteCree": "Your account is created",
+      "titre": "Welcome, {prenom}",
+      "question": "What brings you here?",
+      "lesTrois": "You can always do all three.",
+      "erreur": "We couldn't save your answer. Try again, or skip this step.",
+      "portes": {
+        "chercher": {
+          "titre": "I'm looking for a home",
+          "sous": "Rent or buy",
+          "promesse": "Two answers, and you leave with an alert on your neighbourhoods.",
+          "court": "You leave with an alert"
+        },
+        "publier": {
+          "titre": "I have a property to rent or sell",
+          "sous": "Individual · free",
+          "promesse": "Your listing online today, the requests on your phone.",
+          "court": "Online today"
+        },
+        "pro": {
+          "titre": "I'm a professional",
+          "sous": "Agent, agency, property manager",
+          "promesse": "Your agency space opens right away: your properties, your leases, your payments.",
+          "court": "Your pro space, right away"
+        },
+        "commencer": "Start"
+      },
+      "chercheur": {
+        "barre": "Your search",
+        "titre": "Where, and for how much?",
+        "sous": "Two answers, and we let you know as soon as a property matches.",
+        "contrat": "Rent or buy",
+        "louer": "Rent",
+        "acheter": "Buy",
+        "quartiers": "Neighbourhoods",
+        "choisis": "{n, plural, =0 {none chosen} one {# chosen} other {# chosen}}",
+        "autre": "Other",
+        "autreLibelle": "Another neighbourhood",
+        "ajouter": "Add",
+        "budget": "Budget per month",
+        "enCfa": "in CFA francs",
+        "tranches": {
+          "moins-150": "Under 150,000",
+          "150-300": "150,000 – 300,000",
+          "300-600": "300,000 – 600,000",
+          "plus-600": "Over 600,000"
+        },
+        "whatsapp": "We let you know on WhatsApp when a property matches",
+        "whatsappAide": "At {numero} · you can turn the alert off whenever you like.",
+        "voir": "{n, plural, =0 {See the properties} one {See the property} other {See the # properties}}",
+        "voirSansCompte": "See the properties",
+        "correspondent": "{n, plural, =0 {No property matches yet} one {# property matches} other {# properties match}}",
+        "aLouer": "To rent",
+        "aAcheter": "To buy",
+        "parMois": "/ month",
+        "autres": "{n, plural, =0 {The list follows your answers.} one {And # more. The list follows your answers.} other {And # more. The list follows your answers.}}",
+        "nom": {
+          "louer": "Rental",
+          "acheter": "Purchase",
+          "partout": "All neighbourhoods",
+          "budget": "{tranche} CFA francs"
+        },
+        "erreurAlerte": "We couldn't save your alert. Try again, or skip this step."
+      },
+      "pro": {
+        "barre": "Your professional space",
+        "titre": "Your agency on Takussan",
+        "sous": "Two minutes, and your space opens.",
+        "choix": "Create or join an agency",
+        "creer": {
+          "titre": "I'm creating my agency",
+          "sous": "You will run it"
+        },
+        "rejoindre": {
+          "titre": "I'm joining an agency",
+          "sous": "I received an invitation"
+        },
+        "nom": "Agency name",
+        "nomRequis": "Enter the agency name.",
+        "ville": "Main city",
+        "telephone": "Agency phone",
+        "telephoneAide": "Taken from your account. Another number can be given in the agency upgrade request.",
+        "deuxTemps": {
+          "titre": "In two steps",
+          "maintenant": "Right away",
+          "maintenantTexte": "Your space is ready: you add your properties and publish your listings.",
+          "ensuite": "Then",
+          "ensuiteTexte": "Takussan checks the agency (NINEA, trade register)."
+        },
+        "creerBouton": "Create my pro space",
+        "cgu": "By creating your space, you accept the <lien>terms of use</lien>.",
+        "ceQueVousAurez": "What you will get",
+        "avantages": {
+          "biens": {
+            "titre": "Your properties and listings",
+            "texte": "Publish, and follow requests and viewings in one place."
+          },
+          "baux": {
+            "titre": "Your leases",
+            "texte": "Renting, signing and due dates, followed end to end."
+          },
+          "encaissements": {
+            "titre": "Your payments",
+            "texte": "Rents received, receipts and what is still due."
+          },
+          "credits": {
+            "titre": "Promotion credits",
+            "texte": "Boost a listing on the day you choose."
+          }
+        },
+        "erreur": "We couldn't open your space. Try again.",
+        "lien": {
+          "titre": "Ask your agency for the link",
+          "texte": "Its administrator sends it from their Takussan space. Paste it here: your access opens straight away.",
+          "libelle": "Invitation link",
+          "coller": "Paste",
+          "refuse": "This is not a Takussan invitation link. Paste the link your agency sent you.",
+          "inviteSansDate": "Invites you as {role}",
+          "ferme": "This link no longer opens. Ask your agency for a new one.",
+          "rejoindre": "Join {agence}",
+          "rejoindreSans": "Open the invitation",
+          "pasEncore": "No link yet?",
+          "whatsapp": "Message your agency on WhatsApp",
+          "messageWhatsapp": "Hello, could you send me the invitation link to join your agency on Takussan?",
+          "envoyee": "{invitant, select, aucun {sent on {date}} other {sent by {invitant} on {date}}}"
+        },
+        "numero": {
+          "aide": "Takussan checks your account number by SMS before opening your space.",
+          "libelle": "Your number",
+          "envoyer": "Get the code",
+          "code": "Code received by SMS"
+        }
+      },
+      "prenom": {
+        "apercu": "What others will see",
+        "instant": "just now",
+        "message": "Hello, is the studio in Mermoz still available?"
       }
     }
   },

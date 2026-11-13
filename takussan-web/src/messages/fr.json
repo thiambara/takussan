@@ -8248,36 +8248,18 @@
     },
     "intention": {
       "metaTitle": "Que venez-vous faire sur Takussan ?",
-      "pageTitle": "Bienvenue, {name}",
-      "pageSubtitle": "Une question, et on vous emmène directement au bon endroit. Vous pourrez toujours faire les deux.",
-      "legend": "Ce que vous venez faire",
-      "options": {
-        "search": {
-          "title": "Je cherche un logement",
-          "body": "Location ou achat — parcourez les annonces, demandez une visite, suivez vos dossiers."
-        },
-        "publish": {
-          "title": "Je veux publier un bien",
-          "body": "Mettez votre logement en ligne et gérez vos réservations depuis votre espace."
-        }
-      },
-      "submit": "Continuer",
-      "submitting": "Un instant…",
-      "skip": "Je verrai plus tard",
-      "note": "Cette réponse ne vous engage à rien : elle sert seulement à vous montrer les bons écrans en premier.",
-      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape.",
       "name": {
         "title": "Comment vous appelez-vous ?",
         "subtitle": "Votre prénom apparaît sur vos annonces et vos messages.",
         "firstName": "Prénom",
-        "lastName": "Nom (facultatif)",
         "submit": "Continuer",
         "submitting": "Un instant…",
         "required": "Indiquez votre prénom.",
         "error": "Nous n’avons pas pu enregistrer votre prénom. Réessayez.",
-        "reprise": "Votre prénom n'est pas enregistré : il vous sera redemandé à votre prochaine connexion."
-      },
-      "reprise": "Votre réponse n'est pas enregistrée : la question vous sera reposée à votre prochaine connexion."
+        "reprise": "Votre prénom n'est pas enregistré : il vous sera redemandé à votre prochaine connexion.",
+        "nom": "Nom",
+        "facultatif": "(facultatif)"
+      }
     },
     "host": {
       "defaults": {
@@ -8622,6 +8604,148 @@
           },
           "fait": "Fait"
         }
+      }
+    },
+    "orientation": {
+      "plusTard": "Plus tard",
+      "passer": "Passer",
+      "retour": "Retour",
+      "compteCree": "Votre compte est créé",
+      "titre": "Bienvenue, {prenom}",
+      "question": "Qu’est-ce qui vous amène ?",
+      "lesTrois": "Vous pourrez toujours faire les trois.",
+      "erreur": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape.",
+      "portes": {
+        "chercher": {
+          "titre": "Je cherche un logement",
+          "sous": "Louer ou acheter",
+          "promesse": "Deux réponses, et vous repartez avec une alerte sur vos quartiers.",
+          "court": "Vous repartez avec une alerte"
+        },
+        "publier": {
+          "titre": "J’ai un bien à louer ou vendre",
+          "sous": "Particulier · gratuit",
+          "promesse": "Votre annonce en ligne aujourd’hui, les demandes sur votre téléphone.",
+          "court": "En ligne aujourd’hui"
+        },
+        "pro": {
+          "titre": "Je suis un professionnel",
+          "sous": "Agent, agence, gestionnaire",
+          "promesse": "Votre espace d’agence s’ouvre tout de suite : vos biens, vos baux, vos encaissements.",
+          "court": "Votre espace pro, tout de suite"
+        },
+        "commencer": "Commencer"
+      },
+      "chercheur": {
+        "barre": "Votre recherche",
+        "titre": "Où et pour combien ?",
+        "sous": "Deux réponses, et on vous prévient dès qu’un bien correspond.",
+        "contrat": "Louer ou acheter",
+        "louer": "Louer",
+        "acheter": "Acheter",
+        "quartiers": "Quartiers",
+        "choisis": "{n, plural, =0 {aucun choisi} one {# choisi} other {# choisis}}",
+        "autre": "Autre",
+        "autreLibelle": "Un autre quartier",
+        "ajouter": "Ajouter",
+        "budget": "Budget par mois",
+        "enCfa": "en F CFA",
+        "tranches": {
+          "moins-150": "Moins de 150 000",
+          "150-300": "150 000 – 300 000",
+          "300-600": "300 000 – 600 000",
+          "plus-600": "Plus de 600 000"
+        },
+        "whatsapp": "On vous prévient sur WhatsApp quand un bien correspond",
+        "whatsappAide": "Au {numero} · vous coupez l’alerte quand vous voulez.",
+        "voir": "{n, plural, =0 {Voir les biens} one {Voir le bien} other {Voir les # biens}}",
+        "voirSansCompte": "Voir les biens",
+        "correspondent": "{n, plural, =0 {Aucun bien ne correspond encore} one {# bien correspond} other {# biens correspondent}}",
+        "aLouer": "À louer",
+        "aAcheter": "À acheter",
+        "parMois": "/ mois",
+        "autres": "{n, plural, =0 {La liste suit vos réponses.} one {Et # autre. La liste suit vos réponses.} other {Et # autres. La liste suit vos réponses.}}",
+        "nom": {
+          "louer": "Location",
+          "acheter": "Achat",
+          "partout": "Tous les quartiers",
+          "budget": "{tranche} F CFA"
+        },
+        "erreurAlerte": "Nous n’avons pas pu enregistrer votre alerte. Réessayez, ou passez cette étape."
+      },
+      "pro": {
+        "barre": "Votre espace professionnel",
+        "titre": "Votre agence sur Takussan",
+        "sous": "Deux minutes, et votre espace s’ouvre.",
+        "choix": "Créer ou rejoindre une agence",
+        "creer": {
+          "titre": "Je crée mon agence",
+          "sous": "Vous l’administrerez"
+        },
+        "rejoindre": {
+          "titre": "Je rejoins une agence",
+          "sous": "J’ai reçu une invitation"
+        },
+        "nom": "Nom de l’agence",
+        "nomRequis": "Indiquez le nom de l’agence.",
+        "ville": "Ville principale",
+        "telephone": "Téléphone de l’agence",
+        "telephoneAide": "Repris de votre compte. Un autre numéro se donne dans la demande de passage en agence.",
+        "deuxTemps": {
+          "titre": "En deux temps",
+          "maintenant": "Tout de suite",
+          "maintenantTexte": "Votre espace est prêt : vous ajoutez vos biens et publiez vos annonces.",
+          "ensuite": "Ensuite",
+          "ensuiteTexte": "Takussan vérifie l’agence (NINEA, registre du commerce)."
+        },
+        "creerBouton": "Créer mon espace pro",
+        "cgu": "En créant votre espace, vous acceptez les <lien>conditions d’utilisation</lien>.",
+        "ceQueVousAurez": "Ce que vous aurez",
+        "avantages": {
+          "biens": {
+            "titre": "Vos biens et vos annonces",
+            "texte": "Publiez, suivez les demandes et les visites au même endroit."
+          },
+          "baux": {
+            "titre": "Vos baux",
+            "texte": "Location, signature et échéances, suivies de bout en bout."
+          },
+          "encaissements": {
+            "titre": "Vos encaissements",
+            "texte": "Les loyers reçus, les quittances et ce qu’il reste à encaisser."
+          },
+          "credits": {
+            "titre": "Des crédits de mise en avant",
+            "texte": "Faites remonter une annonce le jour où vous le décidez."
+          }
+        },
+        "erreur": "Nous n’avons pas pu ouvrir votre espace. Réessayez.",
+        "lien": {
+          "titre": "Demandez le lien à votre agence",
+          "texte": "Son administrateur vous l’envoie depuis son espace Takussan. Collez-le ici : votre accès s’ouvre aussitôt.",
+          "libelle": "Lien d’invitation",
+          "coller": "Coller",
+          "refuse": "Ce n’est pas un lien d’invitation Takussan. Collez le lien reçu de votre agence.",
+          "inviteSansDate": "Vous invite comme {role}",
+          "ferme": "Ce lien ne s’ouvre plus. Demandez-en un nouveau à votre agence.",
+          "rejoindre": "Rejoindre {agence}",
+          "rejoindreSans": "Ouvrir l’invitation",
+          "pasEncore": "Pas encore de lien ?",
+          "whatsapp": "Écrire à votre agence sur WhatsApp",
+          "messageWhatsapp": "Bonjour, pouvez-vous m’envoyer le lien d’invitation pour rejoindre votre agence sur Takussan ?",
+          "envoyee": "{invitant, select, aucun {envoyée le {date}} other {envoyée par {invitant} le {date}}}"
+        },
+        "numero": {
+          "aide": "Takussan vérifie le numéro de votre compte par SMS avant d’ouvrir votre espace.",
+          "libelle": "Votre numéro",
+          "envoyer": "Recevoir le code",
+          "code": "Code reçu par SMS"
+        }
+      },
+      "prenom": {
+        "apercu": "Ce que les autres verront",
+        "instant": "à l’instant",
+        "message": "Bonjour, le studio de Mermoz est-il toujours libre ?"
       }
     }
   },

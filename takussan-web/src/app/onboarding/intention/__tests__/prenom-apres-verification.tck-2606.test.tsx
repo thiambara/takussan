@@ -24,13 +24,10 @@ vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => moi() }));
 vi.mock('@/app/actions/profiles', () => ({ getMyProfilesAction: () => profils() }));
 vi.mock('@/components/onboarding/EtapePrenom', () => ({ EtapePrenom: () => <p>[étape prénom]</p> }));
-vi.mock('@/components/onboarding/QuestionDIntention', () => ({ QuestionDIntention: () => <p>[orientation]</p> }));
+vi.mock('@/components/onboarding/orientation/Orientation', () => ({ Orientation: () => <p>[orientation]</p> }));
 vi.mock('@/components/onboarding/OnboardingShell', () => ({
-  OnboardingShell: ({ title, children }: { readonly title: string; readonly children: ReactNode }) => (
-    <main>
-      <h1>{title}</h1>
-      {children}
-    </main>
+  OnboardingShell: ({ pas, children }: { readonly pas?: number; readonly children: ReactNode }) => (
+    <main data-pas={pas}>{children}</main>
   ),
 }));
 
@@ -47,8 +44,9 @@ describe('/onboarding/intention après la création par e-mail', () => {
     moi.mockResolvedValue({ id: 9, email: 'awa@example.com', first_name: null, last_name: null, email_verified_at: null });
     render(await PageDIntention({ searchParams: Promise.resolve({ redirect: '/properties/villa-ngor?action=reserver' }) }));
 
-    expect(screen.getByRole('heading', { name: 'Comment vous appelez-vous ?' })).toBeInTheDocument();
+    // TCK-2608 — le titre « Comment vous appelez-vous ? » est dans l'écran (`EtapePrenom.test.tsx`), plus dans la coque.
     expect(screen.getByText('[étape prénom]')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('data-pas', '1');
     expect(profils).not.toHaveBeenCalled();
   });
 

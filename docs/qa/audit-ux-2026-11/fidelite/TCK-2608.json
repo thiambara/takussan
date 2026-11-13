@@ -1,0 +1,406 @@
+{
+  "ticket": "TCK-2608",
+  "ecrans": [
+    {
+      "page": "app-entree-orientation",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Prénom",
+      "references": {
+        "telephone": "references/app-entree-orientation/a-0-telephone.json",
+        "bureau-1440": "references/app-entree-orientation/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-entree-orientation/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/intention",
+        "persona": "t8-sans-prenom",
+        "etat": "compte de démo 189 (sans prénom, aucune réponse, aucun profil) ; p-08-a0.js saisit « Awa » et « Diop » dans la page, « Continuer » n'est pas touché"
+      }
+    },
+    {
+      "page": "app-entree-orientation",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Trois portes",
+      "references": {
+        "telephone": "references/app-entree-orientation/a-1-telephone.json",
+        "bureau-1440": "references/app-entree-orientation/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-entree-orientation/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/intention",
+        "persona": "t8-awa",
+        "etat": "compte de démo 187 (Awa Diop, numéro fictif vérifié, aucune réponse, aucun profil)"
+      }
+    },
+    {
+      "page": "app-entree-orientation",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Chercheur : l’alerte",
+      "references": {
+        "telephone": "references/app-entree-orientation/a-2-telephone.json",
+        "bureau-1440": "references/app-entree-orientation/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-entree-orientation/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/intention?etape=chercheur",
+        "persona": "t8-awa",
+        "etat": "compte 187 ; p-08-a2.js touche « Je cherche un logement » (PATCH /api/me DOUBLÉ par garde2608.js : rien n'est écrit), puis Mermoz, Ngor (absent des quartiers de la démo) et 150 000 – 300 000 ; « Voir les biens » n'est pas touché (l'alerte n'est créée qu'à ce geste)"
+      }
+    },
+    {
+      "page": "app-entree-orientation",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Professionnel",
+      "references": {
+        "telephone": "references/app-entree-orientation/a-3-telephone.json",
+        "bureau-1440": "references/app-entree-orientation/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-entree-orientation/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/intention?etape=pro",
+        "persona": "t8-awa",
+        "etat": "compte 187 ; p-08-a3.js touche « Je suis un professionnel » (PATCH doublé), saisit « Keur Immo » ; « Créer mon espace pro » n'est pas touché"
+      }
+    },
+    {
+      "page": "app-entree-orientation",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Professionnel : rejoindre",
+      "references": {
+        "telephone": "references/app-entree-orientation/a-4-telephone.json",
+        "bureau-1440": "references/app-entree-orientation/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-entree-orientation/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/intention?etape=pro",
+        "persona": "t8-awa",
+        "etat": "compte 187 ; p-08-a4.js : porte pro (PATCH doublé), « Je rejoins une agence », un lien d'invitation FICTIF collé dans la page ; l'aperçu (GET /api/public/invitations/{jeton}) est DOUBLÉ par garde2608.js d'après la maquette (Dakar Immo, agent, Mamadou, 9 nov.) — aucune invitation créée ni lue"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/onboarding/intention",
+    "persona": "t8-awa / t8-sans-prenom",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-8, t8/fid/ : garde2608.js (chargé AVANT la page par `FID_AVANT`) refuse toute écriture (fetch, XHR, sendBeacon, server actions — création de l'espace et de l'alerte comprises) et DOUBLE deux réponses : `PATCH /api/me` (200, rien n'est écrit : les comptes de relevé restent sans réponse) et `GET /api/public/invitations/{jeton}` (un aperçu fictif d'après la maquette a-4) ; p-08-a0.js, p-08-a2.js, p-08-a3.js, p-08-a4.js (touchent les portes et saisissent dans la page ; aucun bouton d'envoi n'est touché) ; relevés releves2608.sh (jetons de relevé dans un fichier 0600, absents de toute sortie : compte vérifié à 0). Comptes de relevé : 187 (Awa Diop, téléphone fictif vérifié) et 189 (sans prénom), créés pour la mesure puis supprimés (voir le ticket). Balayage 390/768/1024/1280/1440 des deux comptes : aucun débord, aucune coupe.",
+    "releves": {
+      "dossiers": "scratchpad de terrain-8, t8/fid/e08-prod4 et e08-cmp4 (les quinze écrans, 2026-11-13, après les retouches des relevés 1 à 3)",
+      "resultats": {
+        "a-0": {
+          "telephone": "6 conformes · 9 écarts · 1 absents · 10,53 % pixels",
+          "bureau-1440": "4 conformes · 12 écarts · 0 absents · 5,61 % pixels",
+          "bureau-1280": "4 conformes · 12 écarts · 0 absents · 6,32 % pixels"
+        },
+        "a-1": {
+          "telephone": "24 conformes · 1 écarts · 0 absents · 1,11 % pixels",
+          "bureau-1440": "21 conformes · 12 écarts · 0 absents · 1,18 % pixels",
+          "bureau-1280": "21 conformes · 12 écarts · 0 absents · 1,33 % pixels"
+        },
+        "a-2": {
+          "telephone": "9 conformes · 15 écarts · 8 absents · 13,19 % pixels",
+          "bureau-1440": "23 conformes · 6 écarts · 12 absents · 5,63 % pixels",
+          "bureau-1280": "23 conformes · 6 écarts · 12 absents · 6,33 % pixels"
+        },
+        "a-3": {
+          "telephone": "13 conformes · 7 écarts · 3 absents · 6,83 % pixels",
+          "bureau-1440": "16 conformes · 12 écarts · 13 absents · 4,82 % pixels",
+          "bureau-1280": "16 conformes · 12 écarts · 13 absents · 5,43 % pixels"
+        },
+        "a-4": {
+          "telephone": "9 conformes · 8 écarts · 0 absents · 7,29 % pixels",
+          "bureau-1440": "18 conformes · 8 écarts · 10 absents · 3,09 % pixels",
+          "bureau-1280": "18 conformes · 8 écarts · 10 absents · 3,47 % pixels"
+        }
+      }
+    }
+  },
+  "coque": false,
+  "roles": [
+    {
+      "nom": "coque d'entrée · barre du téléphone",
+      "appareil": "mobile",
+      "maquette": {
+        "zone": {
+          "y": 0,
+          "h": 56,
+          "tol": 8,
+          "wMin": 380
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 0,
+          "h": 56,
+          "tol": 8,
+          "wMin": 380
+        }
+      },
+      "contenu": false
+    },
+    {
+      "nom": "coque d'entrée · barre du bureau",
+      "appareil": "desktop",
+      "maquette": {
+        "zone": {
+          "y": 0,
+          "h": 57.6,
+          "tol": 6,
+          "wMin": 1200
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 0,
+          "h": 57.6,
+          "tol": 6,
+          "wMin": 1200
+        }
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [
+    {
+      "appareil": "desktop",
+      "nom": "coque d'entrée · barre du bureau",
+      "role": "coque d'entrée · barre du bureau"
+    },
+    {
+      "appareil": "mobile",
+      "nom": "coque d'entrée · barre du téléphone",
+      "role": "coque d'entrée · barre du téléphone"
+    }
+  ],
+  "alias": {
+    "Comment tu t’appelles ?": "Comment vous appelez-vous ?",
+    "Ton prénom apparaît sur tes annonces et tes messages.": "Votre prénom apparaît sur vos annonces et vos messages.",
+    "Ton compte est créé": "Votre compte est créé",
+    "Qu’est-ce qui t’amène ?": "Qu’est-ce qui vous amène ?",
+    "Tu repars avec une alerte": "Vous repartez avec une alerte",
+    "Ton espace pro, tout de suite": "Votre espace pro, tout de suite",
+    "Tu pourras toujours faire les trois.": "Vous pourrez toujours faire les trois.",
+    "Deux réponses, et tu repars avec une alerte sur tes quartiers.": "Deux réponses, et vous repartez avec une alerte sur vos quartiers.",
+    "Ton annonce en ligne aujourd’hui, les demandes sur ton téléphone.": "Votre annonce en ligne aujourd’hui, les demandes sur votre téléphone.",
+    "Ta recherche": "Votre recherche",
+    "Deux réponses, et on te prévient dès qu’un bien correspond.": "Deux réponses, et on vous prévient dès qu’un bien correspond.",
+    "Ton espace professionnel": "Votre espace professionnel",
+    "Ton agence sur Takussan": "Votre agence sur Takussan",
+    "Deux minutes, et ton espace s’ouvre.": "Deux minutes, et votre espace s’ouvre.",
+    "Tu en seras l’administratrice": "Vous l’administrerez",
+    "Ce que tu auras": "Ce que vous aurez",
+    "Fais remonter une annonce le jour où tu le décides.": "Faites remonter une annonce le jour où vous le décidez.",
+    "Ton espace est prêt : tu ajoutes tes biens et ton équipe.": "Votre espace est prêt : vous ajoutez vos biens et publiez vos annonces.",
+    "Notre équipe vérifie l’agence (NINEA, registre du commerce).": "Takussan vérifie l’agence (NINEA, registre du commerce).",
+    "Repris de ton compte. Tu peux en mettre un autre.": "Repris de votre compte. Un autre numéro se donne dans la demande de passage en a",
+    "Ton espace d’agence s’ouvre tout de suite : équipe, bailleurs, mandats.": "Votre espace d’agence s’ouvre tout de suite : vos biens, vos baux, vos encaissem",
+    "Demande le lien à ton agence": "Demandez le lien à votre agence",
+    "Son administrateur te l’envoie depuis son espace (Équipe, puis « Inviter »). Col": "Son administrateur vous l’envoie depuis son espace Takussan. Collez-le ici : vot",
+    "Écris à ton agence sur WhatsApp": "Écrire à votre agence sur WhatsApp",
+    "T’invite comme agent · envoyée par Mamadou Sow le 9 nov.": "Vous invite comme agent · envoyée par Mamadou le 9 nov.",
+    "Et autres. La liste suit tes réponses.": "La liste suit vos réponses."
+  },
+  "alias_motifs": {
+    "Comment tu t’appelles ?": "vouvoiement",
+    "Ton prénom apparaît sur tes annonces et tes messages.": "vouvoiement",
+    "Ton compte est créé": "vouvoiement",
+    "Qu’est-ce qui t’amène ?": "vouvoiement",
+    "Tu repars avec une alerte": "vouvoiement",
+    "Ton espace pro, tout de suite": "vouvoiement",
+    "Tu pourras toujours faire les trois.": "vouvoiement",
+    "Deux réponses, et tu repars avec une alerte sur tes quartiers.": "vouvoiement",
+    "Ton annonce en ligne aujourd’hui, les demandes sur ton téléphone.": "vouvoiement",
+    "Ta recherche": "vouvoiement",
+    "Deux réponses, et on te prévient dès qu’un bien correspond.": "vouvoiement",
+    "Ton espace professionnel": "vouvoiement",
+    "Ton agence sur Takussan": "vouvoiement",
+    "Deux minutes, et ton espace s’ouvre.": "vouvoiement",
+    "Tu en seras l’administratrice": "vouvoiement, et sans accord au féminin (le genre du compte n’est pas connu)",
+    "Ce que tu auras": "vouvoiement",
+    "Fais remonter une annonce le jour où tu le décides.": "vouvoiement",
+    "Ton espace est prêt : tu ajoutes tes biens et ton équipe.": "vouvoiement ; décision : un espace individuel n’a pas d’équipe (« Inviter » est réservé à l’agence standard)",
+    "Notre équipe vérifie l’agence (NINEA, registre du commerce).": "décision : « Takussan » plutôt que « notre équipe » (la vérification est celle de la demande de passage en agence)",
+    "Repris de ton compte. Tu peux en mettre un autre.": "vouvoiement ; décision : l’ouverture de l’espace prend le numéro VÉRIFIÉ du compte (l’API n’exige le code que d’un numéro non vérifié) — un autre numéro se donne dans la demande",
+    "Ton espace d’agence s’ouvre tout de suite : équipe, bailleurs, mandats.": "vouvoiement ; décision : ce qu’ouvre un espace individuel (ni équipe ni mandats)",
+    "Demande le lien à ton agence": "vouvoiement",
+    "Son administrateur te l’envoie depuis son espace (Équipe, puis « Inviter »). Col": "vouvoiement ; le chemin « Équipe, puis Inviter » n’est pas nommé (il change avec la navigation de /app)",
+    "Écris à ton agence sur WhatsApp": "vouvoiement",
+    "T’invite comme agent · envoyée par Mamadou Sow le 9 nov.": "vouvoiement ; donnée : l’aperçu public ne porte que le PRÉNOM de qui invite (ADR-0094 § 3)",
+    "Et autres. La liste suit tes réponses.": "vouvoiement ; donnée : aucun bien de la démo dans la tranche 150 000 – 300 000, le nombre « et N autres » ne se dit pas"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "tous (téléphone, bureau)",
+      "element": "titres et phrases au vouvoiement (cf. `alias`), et tout ce qui les suit",
+      "propriete": "hauteur, largeur, y",
+      "exception": "donnée",
+      "motif": "le vouvoiement du produit allonge les phrases : « Comment vous appelez-vous ? » passe sur deux lignes (+31,3 au téléphone, +38,8 au bureau, tout l'écran a-0 suit d'autant) ; les promesses des portes au bureau sur trois lignes (+17,3 : « Commencer » et la note suivent) ; « Écrire à votre agence sur WhatsApp » ne tient plus sur la ligne de « Pas encore de lien ? » au téléphone (a-4) ; « En deux temps » et l'aide du numéro sur deux lignes (a-3). Les espacements entre blocs sont ceux de la maquette (relevé : les décalages sont constants d'un bloc au suivant)"
+    },
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "« Retour au site » dans la barre",
+      "propriete": "absent de la maquette / largeur, hauteur, x, y",
+      "exception": "incohérence des maquettes",
+      "motif": "TCK-2598 (écarts acceptés) : la coque d'entrée porte « Retour au site » avec la confirmation de sortie quand une saisie est en cours ; l'écran du prénom est monté par `OnboardingShell` avec sa sortie (la maquette a-0 n'en dessine pas). La pastille de bureau est celle de la coque (rembourrage, 39,6 px), acceptée là-bas"
+    },
+    {
+      "ecran": "tous (bureau)",
+      "element": "titre de la barre (« Votre compte est créé », « Votre recherche », « Votre espace professionnel ») ; zone « barre du bureau » à 0,9–1,9 % de pixels",
+      "propriete": "largeur, x",
+      "exception": "donnée",
+      "motif": "le titre est centré par la coque (TCK-2598) ; « Votre … » est plus long que « Ton … » : le centre est le même, le bord gauche recule de la moitié de la différence (6,8 à 11,5 px), et ces pixels sont ceux du texte de la zone"
+    },
+    {
+      "ecran": "a-0, a-3 (téléphone)",
+      "element": "ombre du pied collé (« Continuer », « Créer mon espace pro »)",
+      "propriete": "ombre",
+      "exception": "composant partagé",
+      "motif": "même ombre (0 −6 16 −12, 40 % de `--shadow-color`) : le jeton `--shadow-barre-collante` de la coque la mélange en srgb, la maquette en oklab ; la couleur rendue est la même au 1/255"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "segment « Louer » enfoncé",
+      "propriete": "ombre",
+      "exception": "composant partagé",
+      "motif": "jeton `--shadow-actif` du système (0 1px 2px) ; la maquette dessine 0 1px 3px"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "puce « Autre » (`PuceDeFiltre variante=\"ajouter\"`)",
+      "propriete": "couleur, trait de l'icône, x, y",
+      "exception": "composant partagé",
+      "motif": "la variante `ajouter` de la primitive (TCK-2688) pose son « + » (trait 2) et son texte en `foreground` ; la maquette les dessine à 75 % et 1,75. Sa place suit les quartiers de la démo (ligne ci-dessous)"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "quartiers proposés (« Almadies », « Ngor », « Ouakam », « Plateau », « Point E », « Parcelles ») et « 2 choisis »",
+      "propriete": "absent du produit / x, y",
+      "exception": "donnée",
+      "motif": "les huit quartiers sont ceux que la démo sert pour Dakar (`/public/properties/neighborhoods?city=Dakar` : Mermoz, Dakar-Plateau, Dieuppeul-Derklé, Grand Yoff, HLM, Liberté 6, Ouest Foire, Yoff) ; Ngor n'y est pas, d'où un seul choisi, une rangée de plus (+52 au téléphone) et « Autre » ailleurs"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "« Voir les 37 biens », l'aperçu des résultats (titres, « / mois », vignettes, « Et autres… »)",
+      "propriete": "absent du produit / absent de la maquette",
+      "exception": "donnée",
+      "motif": "aucun bien de la démo ne se loue entre 150 000 et 300 000 (les loyers commencent à 347 697) : le compte est 0, le bouton dit « Voir les biens » et l'aperçu « Aucun bien ne correspond encore ». Le nombre est lu de l'API : mesuré à 73 sans critère (« Voir les 73 biens », sonde du 2026-11-13) et à 5 pour Mermoz + Ngor (AC2). ⚠ NON MESURÉ : l'aperçu PEUPLÉ (titres, prix, « / mois », « et N autres ») n'a été comparé à aucune référence — l'état relevé n'avait aucun résultat ; il est éprouvé en vitest seulement (EtapeChercheur.tck-2608)"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "interrupteur WhatsApp (« On vous prévient sur WhatsApp… », « Activé », le numéro)",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "la capacité `search_alerts.whatsapp_enabled` est fermée sur la démo locale (`/public/search-alerts/capabilities` : email seul) : l'interrupteur ne promet que ce qui peut s'écrire. Ouverte, il s'affiche (vitest : EtapeChercheur, canalWhatsAppDuChercheur)"
+    },
+    {
+      "ecran": "a-3, a-4 (bureau)",
+      "element": "« Ce que vous aurez » : « Ton équipe », « Tes bailleurs », « Tes mandats » et leurs icônes (users, building2)",
+      "propriete": "absent du produit / absent de la maquette (« Vos biens et vos annonces », « Vos baux », « Vos encaissements », house, wallet)",
+      "exception": "incohérence des maquettes",
+      "motif": "AC3 du ticket : aucun texte n'annonce « équipe » avant la validation — l'espace qui s'ouvre est individuel (pas d'équipe, pas de mandats). La liste dit ce qu'il ouvre vraiment ; « Des crédits de mise en avant » reste ; d'où les icônes à d'autres rangs (lucide-file-pen-line sur « Vos baux », 2e, au lieu du 3e : −72,7) et la largeur des lignes (« Des crédits de mise en avant » +26,6 : la boîte suit sa phrase la plus longue, « Faites remonter une annonce le jour où vous le décidez. »)"
+    },
+    {
+      "ecran": "a-3 (téléphone, bureau)",
+      "element": "« Sous 48 h . » et « Notre équipe vérifie… »",
+      "propriete": "absent du produit / texte",
+      "exception": "incohérence des maquettes",
+      "motif": "aucun délai de vérification n'est garanti (aucune échéance d'instruction côté API ; la garde `src/test/__tests__/promesses-de-delai.test.ts` refuse un délai promis sans source) ; la vérification est celle de la demande de passage en agence, que Takussan instruit"
+    },
+    {
+      "ecran": "a-3 (téléphone, bureau)",
+      "element": "« Ville principale » en liste déroulante (« Dakar », lucide-chevron-down)",
+      "propriete": "absent du produit",
+      "exception": "technique",
+      "motif": "l'API d'ouverture prend une ville libre (`agency.primary_city`) et aucune liste de villes n'est servie pour elle : un champ texte prérempli « Dakar »"
+    },
+    {
+      "ecran": "a-3 (téléphone, bureau)",
+      "element": "« En créant votre espace, vous acceptez les conditions d’utilisation »",
+      "propriete": "absent de la maquette",
+      "exception": "incohérence des maquettes",
+      "motif": "décision produit : l'ouverture envoie `cgu_accepted: true` ; la ligne dit ce que le geste accepte, avec le lien des conditions"
+    },
+    {
+      "ecran": "a-3, a-4 (téléphone, bureau)",
+      "element": "« Je crée mon agence » / « Vous l’administrerez »",
+      "propriete": "largeur",
+      "exception": "donnée",
+      "motif": "la boîte suit la plus longue de ses deux lignes : « Vous l’administrerez » est plus courte que « Tu en seras l’administratrice »"
+    },
+    {
+      "ecran": "a-4 (téléphone, bureau)",
+      "element": "« Coller »",
+      "propriete": "largeur, hauteur, x, y",
+      "exception": "structure",
+      "motif": "« Coller » est un bouton de 36 px dans le champ (cible) : la boîte relevée est celle du bouton, la maquette relève le texte ; le texte est à la même place"
+    },
+    {
+      "ecran": "a-4 (téléphone, bureau)",
+      "element": "l'aperçu de l'invitation (« Mamadou » sans « Sow »)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'aperçu public ne sert que le prénom de qui invite (ADR-0094 § 3) ; l'aperçu est doublé au relevé (garde2608.js)"
+    },
+    {
+      "ecran": "a-1 (téléphone)",
+      "element": "« Vous pourrez toujours faire les trois. »",
+      "propriete": "x, y, largeur, hauteur",
+      "exception": "composant partagé",
+      "motif": "la maquette pose la note en pied d'écran sans filet ni fond ; le pied collé de la coque d'entrée (TCK-2598) porte un filet, un fond et une ombre, pensés pour une action : la note suit les cartes. AC4 tient (rien ne défile à 390 × 844 : la note finit à 553,6)"
+    },
+    {
+      "ecran": "a-2 (bureau)",
+      "element": "pastille « Nouveau » sur un résultat de l'aperçu",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "aucune notion de « nouveau » n'existe dans le contrat de la recherche publique ni dans les cartes de bien du produit (aucun champ, aucune règle de fraîcheur) : la pastille n'est pas inventée. Indépendant du compte à 0"
+    },
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "« (facultatif) »",
+      "propriete": "x, largeur",
+      "exception": "structure",
+      "motif": "la maquette met l'espace qui précède « (facultatif) » DANS le span (« ␣(facultatif) »), le produit l'écrit entre le libellé et le span : la boîte relevée commence 3,3 à 3,6 px plus loin et est d'autant plus étroite ; le texte visible est à la même place"
+    },
+    {
+      "ecran": "a-3 (bureau, téléphone)",
+      "element": "« En deux temps » et ses lignes (−10,7 au bureau, +12,2 au téléphone), « Créer mon espace pro » (+25,2 au bureau)",
+      "propriete": "y",
+      "exception": "donnée",
+      "motif": "au-dessus : l'aide du numéro (« Repris de votre compte. Un autre numéro se donne dans la demande de passage en agence. », cf. alias) n'a pas la hauteur de la maquette (28,8 au lieu de 35,8 au bureau, deux lignes au lieu d'une au téléphone) ; au-dessous : la ligne des conditions d'utilisation (écart accepté plus haut) pousse le bouton. « Ensuite . » remplace « Sous 48 h . » (écart accepté plus haut)"
+    },
+    {
+      "ecran": "a-4 (téléphone)",
+      "element": "« Lien d’invitation », le champ, « Coller », l'aperçu (lucide-check), « Pas encore de lien ? » : −19 à −29",
+      "propriete": "y",
+      "exception": "donnée",
+      "motif": "la phrase d'au-dessus est plus courte (« Son administrateur vous l’envoie depuis son espace Takussan… », cf. alias : le chemin « Équipe, puis Inviter » n'est pas nommé) : tout le bloc remonte d'autant ; les espacements internes sont ceux de la maquette"
+    },
+    {
+      "ecran": "tous",
+      "element": "zones « barre de la coque d'entrée » au-dessus de 0,5 % (téléphone a-0 : 2,55 % ; bureau : 0,95 à 2,09 %)",
+      "propriete": "pixels de zone",
+      "exception": "composant partagé",
+      "motif": "AC-F4 NON TENU sur ces zones, motivé : au téléphone, seul a-0 porte « Retour au site » (sortie de `OnboardingShell`, TCK-2598) ; au bureau, la pastille « Retour au site » (a-0) et le titre centré plus long au vouvoiement (« Votre … »). a-1 à a-4 au téléphone : 0 %"
+    }
+  ],
+  "ecarts_ouverts": [],
+  "notes": [
+    "Retouches tirées des relevés 1 à 3 (même jour) : l'action de la barre (« Plus tard », « Passer ») sans rembourrage horizontal et à 75 % du texte, à 15 px au bureau sur les écrans à retour ; « Retour » à 54,5 px ; les libellés de champ à la largeur de leur texte sur 20 px d'interligne, « Prénom * » et « Nom (facultatif) » comme la maquette ; les champs à 44 px (`densiteDesChamps`, `fieldDensityScope`) ; les promesses des portes à 85 % et l'interligne de leurs sous-titres ; « Ce que vous aurez » à 20 px ; la pastille « 2 » à 70 %.",
+    "AC4 : à 390 × 844, les trois cartes et « Plus tard » tiennent (dernier élément à 553,6) ; à 1280 et 1440, les trois cartes sont sur une ligne (« Commencer » au même y). AC-F6 : balayage sans débord ni coupe à 390, 768, 1024, 1280, 1440.",
+    "Réconciliation ligne à ligne des quinze rapports de e08-cmp4 (2026-11-13, 22:45) : chaque écart et chaque présent d'un seul côté a son entrée ci-dessus ou son alias. Limites connues : l'aperçu peuplé du chercheur n'est pas comparé (aucun résultat dans l'état relevé) ; l'interrupteur WhatsApp n'est pas comparé (capacité fermée en local).",
+    "⚠ Personas t8-awa et t8-sans-prenom : les comptes de démo 187 et 189 ont été SUPPRIMÉS après les relevés (2026-11-13, consigne de team-lead) — ces quinze relevés ne se rejouent pas tels quels ; les rejouer demande d'abord deux personas équivalentes (un compte vérifié sans réponse ni profil, l'un avec prénom, l'autre sans) fournies par le script idempotent des personas de démo (règle de cadence 6). Le téléphone est relevé à 390 × 844, la taille des références gelées : aucune référence à 360 n'existe, et le balayage à 360 n'a pas été fait."
+  ]
+}

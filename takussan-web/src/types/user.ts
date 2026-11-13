@@ -72,8 +72,11 @@ export type UserPreferences = {
   navigation?: unknown;
 };
 
-/** Les réponses possibles à la question d'orientation (TCK-493). */
-export const ENTRY_INTENTS = ['search', 'publish', 'skipped'] as const;
+/**
+ * Les réponses possibles à la question d'orientation (TCK-493). TCK-2608 — `professional`, la troisième
+ * porte (ajoutée côté API par TCK-2607, `UpdateMeRequest`).
+ */
+export const ENTRY_INTENTS = ['search', 'publish', 'professional', 'skipped'] as const;
 export type EntryIntent = (typeof ENTRY_INTENTS)[number];
 
 export type User = {

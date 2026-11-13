@@ -35,7 +35,8 @@ const getMyProfilesAction = vi.fn();
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMeAction() }));
 vi.mock('@/app/actions/profiles', () => ({ getMyProfilesAction: () => getMyProfilesAction() }));
 vi.mock('@/components/onboarding/EtapePrenom', () => ({ EtapePrenom: () => <p>prénom</p> }));
-vi.mock('@/components/onboarding/QuestionDIntention', () => ({ QuestionDIntention: () => <p>question</p> }));
+// TCK-2608 — la question est devenue l'orientation en trois portes.
+vi.mock('@/components/onboarding/orientation/Orientation', () => ({ Orientation: () => <p>question</p> }));
 vi.mock('@/components/onboarding/OwnerOnboardingWizard', () => ({ OwnerOnboardingWizard: () => <p>assistant</p> }));
 
 const NOTE = frMessages.onboarding.shell.autosave;

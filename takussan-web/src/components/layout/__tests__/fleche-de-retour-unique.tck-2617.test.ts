@@ -63,6 +63,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   // (bureau) ramènent à l'étape du numéro, dans la même page — un pas dans l'entrée, pas une
   // page quittée (la page entière est hors de /app).
   'src/app/invitations/accept/EntreeDInvitation.tsx': 'etape',
+  // TCK-2608 — « ← Retour » de l'orientation (bureau) : l'écran des trois portes, un état de la page.
+  'src/components/onboarding/orientation/BarreDOrientation.tsx': 'etape',
   // TCK-2592 — le chevron qui replie la colonne Gagné / Perdu du kanban en bandeau : un repli, pas un retour.
   'src/components/pipeline/etapes/ColonneDuPipeline.tsx': 'repli',
   'src/components/bookings/BookingTunnel.tsx': 'hors-app',

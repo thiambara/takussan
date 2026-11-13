@@ -104,7 +104,21 @@ export interface DeclarationDEntree {
    * invite, au téléphone). Absent : l'objet reste à droite de la colonne, ou dessous (TCK-2598).
    */
   readonly objetAGauche?: boolean;
+  /**
+   * TCK-2608 — la largeur de la colonne, quand elle change d'un écran à l'autre d'une même page
+   * (l'orientation : un composant client, trois écrans). L'emporte sur la prop du layout.
+   *  · `portes` : 880 px dès `lg` (les trois cartes de la maquette `app-entree-orientation` a-1) ;
+   *  · `volets` : 560 px dès `lg`, l'objet DESSOUS jusqu'à 1280, à DROITE dès `xl` dans 1040 px
+   *    (« DeuxVolets », a-2 à a-4).
+   */
+  readonly largeur?: LargeurDeColonne;
 }
+
+/**
+ * La largeur de la colonne. `etroite`, `large`, `assistant` : les valeurs du layout (cf.
+ * `CoqueDEntreeProps.largeur`) ; `portes` et `volets` (TCK-2608) : déclarées par un écran.
+ */
+export type LargeurDeColonne = 'etroite' | 'large' | 'assistant' | 'portes' | 'volets';
 
 /**
  * La sortie du segment : « Retour au site » (onboarding, invitation : un lien texte à droite), ou
@@ -159,10 +173,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche } = declaration;
+  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche });
-  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche]);
+    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur });
+  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -211,7 +225,7 @@ export function CoqueDEntree({
   libelles,
   retour,
   sortie,
-  largeur = 'etroite',
+  largeur: largeurDuLayout = 'etroite',
   densiteDesChamps = false,
   children,
   ...parDefaut
@@ -241,6 +255,9 @@ export function CoqueDEntree({
   const noteDeBarre = declaree.noteDeBarre ?? null;
   const sortieBloquee = declaree.sortieBloquee === true;
   const objetAGauche = declaree.objetAGauche === true || parDefaut.objetAGauche === true;
+  // TCK-2608 — la largeur déclarée par l'écran l'emporte sur celle du layout.
+  const largeur = declaree.largeur ?? largeurDuLayout;
+  const volets = largeur === 'volets';
 
   const decalage = useDecalageDuClavier();
 
@@ -389,7 +406,7 @@ export function CoqueDEntree({
           ) : (
           <main
             {...(densiteDesChamps ? fieldDensityScope() : {})}
-            className={cn('flex-1 px-4 pb-8 pt-5', 'lg:px-8 lg:pb-16 lg:pt-16', panneau ? 'xl:px-10 xl:pt-12' : null)}
+            className={cn('flex-1 px-4 pb-8 pt-5', 'lg:px-8 lg:pb-16 lg:pt-16', panneau ? 'xl:px-10 xl:pt-12' : null, volets ? 'lg:pt-14' : null)}
           >
             {/* Sous 1280, la colonne et l'objet s'empilent : aucun panneau ne reste à côté du contenu. */}
             <div
@@ -407,14 +424,25 @@ export function CoqueDEntree({
               <div
                 className={cn(
                   'mx-auto w-full',
-                  largeur === 'etroite' ? 'max-w-[30rem]' : largeur === 'assistant' ? 'max-w-[30rem] lg:max-w-[40rem] xl:max-w-[67.5rem]' : 'max-w-4xl',
-                  panneau ? 'xl:max-w-[25rem]' : objet ? (objetAGauche ? 'xl:mx-0 xl:w-[25rem] xl:flex-none xl:pt-4' : 'xl:mx-0 xl:w-[30rem] xl:flex-none') : null,
+                  largeur === 'etroite'
+                    ? 'max-w-[30rem]'
+                    : largeur === 'assistant'
+                      ? 'max-w-[30rem] lg:max-w-[40rem] xl:max-w-[67.5rem]'
+                      : largeur === 'portes'
+                        ? 'max-w-[30rem] lg:max-w-[55rem]'
+                        : volets
+                          ? 'max-w-[30rem] lg:max-w-[35rem]'
+                          : 'max-w-4xl',
+                  panneau ? 'xl:max-w-[25rem]' : objet ? (objetAGauche ? 'xl:mx-0 xl:w-[25rem] xl:flex-none xl:pt-4' : volets ? 'xl:mx-0 xl:w-[35rem] xl:flex-none' : 'xl:mx-0 xl:w-[30rem] xl:flex-none') : null,
                 )}
               >
                 {children}
               </div>
               {objet && !panneau && !objetAGauche ? (
-                <aside data-objet-de-l-intention="" className="mx-auto mt-10 hidden w-full max-w-[30rem] lg:block xl:sticky xl:top-24 xl:mt-0 xl:max-w-none xl:min-w-0 xl:flex-1">
+                <aside
+                  data-objet-de-l-intention=""
+                  className={cn('mx-auto mt-10 hidden w-full max-w-[30rem] lg:block xl:sticky xl:top-24 xl:mt-0 xl:max-w-none xl:min-w-0 xl:flex-1', volets ? 'lg:max-w-[35rem]' : null)}
+                >
                   {objet}
                 </aside>
               ) : null}

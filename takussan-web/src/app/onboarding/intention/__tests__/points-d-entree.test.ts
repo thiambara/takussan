@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
  * elle ne remplace donc pas un essai réel. Ce qu'elle attrape est la régression
  * probable : quelqu'un qui repointe un de ces chemins sur `/app` en le lisant
  * comme la destination « normale ». Le reste de la chaîne est tenu ailleurs —
- * `doitPoserLaQuestionDIntention` pour la décision, `QuestionDIntention.test.tsx`
+ * `doitPoserLaQuestionDIntention` pour la décision, `orientation/__tests__/Orientation.tck-2608.test.tsx`
  * pour les destinations.
  */
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');

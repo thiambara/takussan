@@ -34,8 +34,15 @@ export const dynamic = 'force-dynamic';
  *
  * The backend re-asserts every gate via {@see App\Policies\AgencyUpgradeRequestPolicy}.
  */
-export default async function Page() {
+/** TCK-2608 — la raison sociale proposée par l'orientation (« Keur Immo ») : bornée, et jamais au-dessus de la fiche. */
+function raisonSocialeProposee(brute: string | string[] | undefined): string | null {
+  const valeur = typeof brute === 'string' ? brute.trim() : '';
+  return valeur !== '' && valeur.length <= 160 ? valeur : null;
+}
+
+export default async function Page({ searchParams }: { readonly searchParams?: Promise<{ raison_sociale?: string | string[] }> } = {}) {
   const user = await getMeAction();
+  const proposee = raisonSocialeProposee((await searchParams)?.raison_sociale);
 
   // TCK-426 — les QUATRE refus de cette page (jeton absent, rôle non-admin, absence de contexte
   // d'agence, agence illisible) ont remonté dans `settings/agency/upgrade/layout.tsx`. Sous le
@@ -131,7 +138,8 @@ export default async function Page() {
               agencyId={agencyId}
               refusee={refusee}
               prefill={{
-                company_legal_name: agency.legal_name,
+                // TCK-2608 — le nom saisi à l'ouverture de l'espace, seulement quand la fiche n'en porte aucun.
+                company_legal_name: agency.legal_name || proposee,
                 rc: agency.rccm,
                 ninea: agency.ninea,
                 address_fiscale: agency.legal_address,

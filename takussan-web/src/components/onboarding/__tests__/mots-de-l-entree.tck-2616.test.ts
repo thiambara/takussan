@@ -35,7 +35,7 @@ const SURFACES: Readonly<Record<string, readonly string[]>> = {
   'mot de passe oublié': ['app/(auth)/auth/forgot-password', 'app/(auth)/auth/reset-password'],
   'vérification de l’adresse': ['app/(auth)/auth/verify-email'],
   'sécurité (second facteur exigé)': ['app/onboarding/securite', 'app/actions/security.ts'],
-  orientation: ['app/onboarding/intention', 'components/onboarding/EtapePrenom.tsx', 'components/onboarding/QuestionDIntention.tsx', 'components/onboarding/OnboardingShell.tsx'],
+  orientation: ['app/onboarding/intention', 'components/onboarding/EtapePrenom.tsx', 'components/onboarding/orientation', 'components/onboarding/OnboardingShell.tsx'],
   publier: [
     'app/publish',
     'components/property-form/PropertyWizard.tsx',
