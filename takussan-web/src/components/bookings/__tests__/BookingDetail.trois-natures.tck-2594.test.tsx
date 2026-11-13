@@ -214,8 +214,21 @@ describe('BookingDetail — trois natures (TCK-2594)', () => {
     const carte = document.querySelector<HTMLElement>('[data-slot="gestes-de-la-decision"]')!;
     const accepter = within(carte).getByRole('button', { name: /^Accepter 85\s000\s000\sF$/ });
     fireEvent.click(within(carte).getByRole('button', { name: fr.bookings.detail.actions.reject }));
-    expect(await screen.findByRole('dialog')).toHaveTextContent(fr.bookings.detail.decision.reject.title);
+    // La feuille de refus, dans les mots de l'offre : son titre et ses motifs en pastilles.
+    const feuille = await screen.findByRole('dialog');
+    expect(feuille).toHaveTextContent('Refuser l’offre');
+    expect(within(feuille).getByRole('radio', { name: 'Offre trop basse' })).toBeInTheDocument();
+    expect(within(feuille).getByRole('button', { name: 'Refuser et prévenir Ibrahima' })).toBeDisabled();
     expect(accepter).toBeInTheDocument();
+  });
+
+  it('« Enregistrer un paiement » d’un séjour s’ouvre prérempli du reste, en « Solde » une fois l’acompte payé', async () => {
+    rendre(SEJOUR);
+    fireEvent.click(screen.getByRole('button', { name: fr.bookings.paymentDialog.title }));
+    const feuille = await screen.findByRole('dialog');
+    expect(within(feuille).getByLabelText(new RegExp(`^${fr.bookings.feuilles.paiement.montant}`))).toHaveDisplayValue(/^115[\s\u00a0\u202f]?500$/);
+    expect(within(feuille).getByRole('button', { name: /^Enregistrer 115[\s\u00a0\u202f]500[\s\u00a0\u202f]F$/ })).toBeInTheDocument();
+    expect(within(feuille).getByRole('radio', { name: 'Solde' })).toBeChecked();
   });
 
   it('une offre déjà acceptée n’a plus de carte « Décision »', () => {

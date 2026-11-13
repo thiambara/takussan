@@ -10547,6 +10547,50 @@
         "creee": "{nature, select, stay {Demande de séjour envoyée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}} par {nom}",
         "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}"
       }
+    },
+    "feuilles": {
+      "paiement": {
+        "titre": "Enregistrer un paiement",
+        "enregistrer": "Enregistrer",
+        "enregistrerMontant": "Enregistrer {montant}",
+        "enregistrement": "Enregistrement…",
+        "montant": "Montant",
+        "montantAide": "Le solde restant, prérempli.",
+        "type": "Type",
+        "moyen": "Moyen",
+        "reference": "Référence",
+        "referenceAide": "Le numéro de la transaction {moyen}.",
+        "referenceCheque": "Le numéro du chèque.",
+        "referenceFacultative": "Facultative en espèces.",
+        "notes": "Notes",
+        "notesPlaceholder": "Facultatif.",
+        "recu": "Le reçu PDF se télécharge ensuite depuis les paiements de la fiche."
+      },
+      "rembourser": {
+        "titre": "Rembourser {nom}",
+        "montant": "Montant à rembourser",
+        "montantAide": "Au plus {montant} : ce que {prenom} a payé.",
+        "rembourserMontant": "Rembourser {montant}"
+      },
+      "decision": {
+        "refuser": {
+          "titre": "{nature, select, application {Refuser la candidature} offer {Refuser l’offre} stay {Refuser le séjour} other {Refuser la réservation}}",
+          "motif": "Motif",
+          "motifs": {
+            "dossierIncomplet": "Dossier incomplet",
+            "revenusInsuffisants": "Revenus insuffisants",
+            "bienAttribue": "Bien déjà attribué",
+            "offreTropBasse": "Offre trop basse",
+            "bienVendu": "Bien déjà vendu",
+            "datesIndisponibles": "Dates indisponibles",
+            "bienIndisponible": "Bien indisponible",
+            "autre": "Autre…"
+          },
+          "precision": "Précision",
+          "aide": "Facultative, sauf pour « Autre ». Le motif reste sur la réservation ; {prenom} reçoit un avis de refus.",
+          "envoyer": "Refuser et prévenir {prenom}"
+        }
+      }
     }
   },
   "visits": {

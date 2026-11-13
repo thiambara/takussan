@@ -87,4 +87,7 @@ L'agent voit ce qu'il doit décider — un séjour, une candidature, une offre �
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Fiche** (5ed84d4c1) : Qui · Quoi · Suite dans les mots de la nature ; la suite en barre collante au téléphone, en tête au bureau.
+- **Feuilles** (voie (a) : la fiche d'abord, les feuilles ensuite) : `FeuilleDeDecision` remplace le dialogue de décision — refus motivé en pastilles selon la nature (candidature : dossier incomplet, revenus insuffisants, bien déjà attribué ; offre : trop basse, bien déjà vendu ; séjour : dates ou bien indisponibles ; « Autre… » exige la précision), envoyé comme `reason` (« Motif — précision ») ; « Enregistrer un paiement » prérempli du reste à encaisser (total des nuits ou montant de la réservation, moins l'encaissé), en « Solde » une fois l'acompte payé, les huit moyens de `PaymentMethod` (API : `StoreBookingPaymentRequest`, `Rule::enum`) en pastilles, l'aide de référence selon le moyen ; « Rembourser {client} » dit son plafond (ce qui a été payé) et le montant dans le geste. Feuille du bas au téléphone, panneau droit dès `xl` (`FeuilleOuPanneau`).
+- **Onglet « Menu » de la barre du bas** : non allumé sur `/app/bookings/*` (la maquette l'allume) — c'est la coque qui décide de l'onglet actif d'une route hors barre ; repris à part, voir TCK-2618 et TCK-2635.
+- **AC4 (U+202F dans les montants)** : le formateur ne change pas dans ce lot ; écart accepté dans la fiche, question rattachée à TCK-2714.

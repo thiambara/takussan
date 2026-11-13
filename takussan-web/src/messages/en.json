@@ -11205,6 +11205,50 @@
         "creee": "{nature, select, stay {Stay request sent} application {Application submitted} offer {Offer submitted} other {Booking created}} by {nom}",
         "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}"
       }
+    },
+    "feuilles": {
+      "paiement": {
+        "titre": "Record a payment",
+        "enregistrer": "Record",
+        "enregistrerMontant": "Record {montant}",
+        "enregistrement": "Recording…",
+        "montant": "Amount",
+        "montantAide": "The remaining balance, prefilled.",
+        "type": "Type",
+        "moyen": "Method",
+        "reference": "Reference",
+        "referenceAide": "The {moyen} transaction number.",
+        "referenceCheque": "The cheque number.",
+        "referenceFacultative": "Optional for cash.",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional.",
+        "recu": "The PDF receipt can then be downloaded from the booking’s payments."
+      },
+      "rembourser": {
+        "titre": "Refund {nom}",
+        "montant": "Amount to refund",
+        "montantAide": "At most {montant}: what {prenom} paid.",
+        "rembourserMontant": "Refund {montant}"
+      },
+      "decision": {
+        "refuser": {
+          "titre": "{nature, select, application {Decline the application} offer {Decline the offer} stay {Decline the stay} other {Decline the booking}}",
+          "motif": "Reason",
+          "motifs": {
+            "dossierIncomplet": "Incomplete file",
+            "revenusInsuffisants": "Insufficient income",
+            "bienAttribue": "Property already let",
+            "offreTropBasse": "Offer too low",
+            "bienVendu": "Property already sold",
+            "datesIndisponibles": "Dates unavailable",
+            "bienIndisponible": "Property unavailable",
+            "autre": "Other…"
+          },
+          "precision": "Details",
+          "aide": "Optional, except for “Other”. The reason stays on the booking; {prenom} receives a decline notice.",
+          "envoyer": "Decline and notify {prenom}"
+        }
+      }
     }
   },
   "visits": {

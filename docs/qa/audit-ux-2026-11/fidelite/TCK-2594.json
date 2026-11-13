@@ -90,6 +90,24 @@
         "etat": "la persona « client » de la démo n'a aucune réservation (compteurs à 0 dans les six statuts des trois natures)",
         "perturber": "garde d'écriture du relevé"
       }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Enregistrer un paiement",
+      "references": {
+        "telephone": "references/app-reservations/a-6-telephone.json",
+        "bureau-1440": "references/app-reservations/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/300",
+        "persona": "agent",
+        "etat": "candidature acceptée de la démo (aucun séjour dans la démo), « Enregistrer un paiement » ouvert : rien d'encaissé, donc « Acompte » proposé et le total prérempli",
+        "perturber": "garde d'écriture du relevé, puis ouvre « Enregistrer un paiement » (bouton, ou « Autres gestes » au bureau)"
+      }
     }
   ],
   "produit": {
@@ -264,6 +282,27 @@
       "propriete": "largeur du séparateur : 1,6 à 1,9 px au lieu de 3,2 à 3,7 px",
       "exception": "technique",
       "motif": "AC4 mesuré (2026-11-13, police calculée de chaque montant) : le produit écrit U+202F (espace fine insécable, `Intl` en `fr`, figé par TCK-2685 dans `useFormatteurs`), la maquette une espace ordinaire. Le séparateur est dessiné partout, à la moitié de la largeur de la maquette en DM Sans ; dans le grand montant de l’offre (Bricolage 28 px semibold), U+202F mesure 6,7 px contre 6,1 pour l’espace de la maquette. Le changer relève du formateur partagé : décision remontée au chef d’équipe"
+    },
+    {
+      "ecran": "app-reservations a-6-*",
+      "element": "types de paiement (Acompte, Solde, Frais) et moyens (huit pastilles)",
+      "propriete": "texte, présence",
+      "exception": "vérité des données",
+      "motif": "l'API accepte `BookingPaymentType` deposit/advance/fee (pas « Caution » ni « Autre ») et les huit cas de `PaymentMethod` (StoreBookingPaymentRequest, Rule::enum) : la maquette en dessinait cinq"
+    },
+    {
+      "ecran": "app-reservations a-6-*",
+      "element": "montant, type et moyen choisis, référence remplie",
+      "propriete": "texte, état",
+      "exception": "donnée",
+      "motif": "relevé sur la candidature 300 (aucun séjour dans la démo) : rien d'encaissé, donc « Acompte » et le total ; « Solde » prérempli du reste une fois l'acompte payé est éprouvé en test (BookingDetail.trois-natures)"
+    },
+    {
+      "ecran": "app-reservations a-2-*, a-7-*",
+      "element": "feuilles « Refuser (motif) » et « Rembourser »",
+      "propriete": "relevé",
+      "exception": "donnée",
+      "motif": "la démo n'a ni demande en attente (l'offre 301 a expiré) ni remboursement à traiter : non relevées ; éprouvées par feuilles.tck-2594.test.tsx et BookingDetail.trois-natures / remboursement"
     }
   ],
   "hors_perimetre": [
@@ -344,6 +383,24 @@
       {
         "ecran": "a-4-bureau-1280",
         "ligne": "52 conformes · 140 écarts · 31 absents · 6,53 % pixels"
+      },
+      {
+        "ecran": "a-6-telephone",
+        "ligne": "23 conformes · 38 écarts · 55 absents · 14,73 % pixels",
+        "note": "huit moyens et trois types (API) au lieu de cinq et quatre : la feuille est plus haute ; état de la candidature 300 (Acompte, Espèces, référence vide)"
+      },
+      {
+        "ecran": "a-6-bureau-1440",
+        "ligne": "43 conformes · 192 écarts · 89 absents · 8,05 % pixels"
+      },
+      {
+        "ecran": "a-6-bureau-1280",
+        "ligne": "43 conformes · 192 écarts · 89 absents · 8,83 % pixels"
+      },
+      {
+        "ecran": "a-2, a-7",
+        "ligne": "non relevés",
+        "note": "aucune demande en attente ni remboursement dans la démo ; couverts par les tests de composant"
       }
     ],
     "balayage": "390, 768, 1024, 1280, 1440 : débord 0 et aucune coupe sur offres à décider, candidatures confirmées et à décider (agent), /app/bookings (client, propriétaire) ; fiches /app/bookings/300 et /301 (agent), 390 à 1440 : débord 0 ; seules ellipses : libellés du rail de la coque à 768"

@@ -19,15 +19,6 @@ import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
@@ -44,6 +35,7 @@ import type { Booking, BookingPayment } from '@/types/booking';
 import { BOOKING_PAYMENT_STATUS_TONE } from './booking-status';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
 import { BookingRefundPanel } from './BookingRefundPanel';
+import { FeuilleDeDecision } from './feuilles/FeuilleDeDecision';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { PAYMENT_METHOD_VALUES } from '@/components/payments/constants';
 import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
@@ -109,13 +101,6 @@ const PAYMENT_STATUS_LABEL_KEY: Record<string, string> = {
 export function estUnMoyenConnu(m: string | null | undefined): m is (typeof PAYMENT_METHOD_VALUES)[number] {
   return !!m && (PAYMENT_METHOD_VALUES as readonly string[]).includes(m);
 }
-
-/** Clé de la copie du dialogue de décision, relative à `bookings.detail`. */
-const ACTION_COPY_KEY = {
-  confirm: 'decision.confirm',
-  reject: 'decision.reject',
-  cancel: 'decision.cancel',
-} as const;
 
 type Nature = 'stay' | 'application' | 'offer' | 'autre';
 
@@ -276,6 +261,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const devise = booking.currency ?? booking.property?.currency ?? 'XOF';
   const montant = (v: number | null | undefined) => f.montantCourt(v, devise);
   const nom = nomDuClient(booking);
+  const prenom = booking.customer?.first_name?.trim() || nom;
   const titreDuBien = bienEtQuartier(booking);
   const m = montantDansLaNature(booking);
   const etat = (() => {
@@ -314,13 +300,16 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const titreDeLEnTete = tFiche(`enTete.${nature}`);
   const versLaListe = nature === 'autre' ? '/app/bookings' : `/app/bookings?kind=${nature}`;
   const messageWhatsApp = tFiche('qui.messageWhatsApp', {
-    prenom: booking.customer?.first_name?.trim() || nom,
+    prenom,
     nature,
     bien: booking.property?.title ?? titreDuBien,
   });
   const paiements = booking.booking_payments ?? [];
   const encaisse = paiements.filter((p) => p.status === 'paid').reduce((s, p) => s + Number(p.amount ?? 0), 0);
   const acompte = acomptePaye(booking);
+  /** TCK-2594 — ce qui reste à encaisser : le montant prérempli de « Enregistrer un paiement ». */
+  const totalDu = m.forme === 'nuits' && m.montant !== null ? m.montant : Number(booking.total_amount ?? 0);
+  const resteAEncaisser = totalDu > encaisse ? totalDu - encaisse : null;
 
   /** « Expire le » : une demande EN ATTENTE seulement (l'audit le relevait sur une confirmée). */
   const expireLe = booking.status === 'pending' ? (nature === 'offer' ? (booking.offer_expires_at ?? booking.expires_at) : booking.expires_at) : null;
@@ -534,9 +523,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   const dialogues = (
     <>
-      <BookingPaymentDialog bookingId={bookingId} open={paymentOpen} onOpenChange={setPaymentOpen} />
-      <BookingDecisionDialog
+      <BookingPaymentDialog
+        bookingId={bookingId}
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        restant={resteAEncaisser}
+        typeParDefaut={acompte ? 'advance' : 'deposit'}
+        devise={devise}
+      />
+      <FeuilleDeDecision
         action={action}
+        nature={nature}
+        prenom={prenom}
         onOpenChange={(open) => {
           if (!open) setAction(null);
         }}
@@ -833,90 +831,6 @@ function lignesDeLHistorique(
   return evenements
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
     .map((e) => ({ cle: e.cle, quoi: e.quoi, quand: instantEnClair(f, e.at) }));
-}
-
-function BookingDecisionDialog({
-  action,
-  pending,
-  onOpenChange,
-  onSubmit,
-}: {
-  action: 'confirm' | 'reject' | 'cancel' | null;
-  pending: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (reason?: string) => Promise<void>;
-}) {
-  const t = useTranslations('bookings.detail');
-  const tCommon = useTranslations('common');
-  const messageErreur = useMessageErreurApi();
-  const [reason, setReason] = useState('');
-  // P182.01 — l'erreur de l'API se dit dans le dialogue, qui reste ouvert (ADR-0019) : sans ce
-  // `catch`, la promesse rejetée n'était rattrapée par rien et le clic ne produisait aucun message.
-  const [erreur, setErreur] = useState<string | null>(null);
-  const open = action !== null;
-  const isReasonRequired = action === 'reject' || action === 'cancel';
-  const copyKey = action ? ACTION_COPY_KEY[action] : null;
-
-  async function handleSubmit() {
-    if (isReasonRequired && reason.trim().length === 0) return;
-    setErreur(null);
-    try {
-      await onSubmit(reason.trim() || undefined);
-    } catch (e) {
-      setErreur(messageErreur(e));
-      return;
-    }
-    setReason('');
-  }
-
-  function handleOpenChange(next: boolean) {
-    if (!next) setErreur(null);
-    onOpenChange(next);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{copyKey ? t(`${copyKey}.title`) : null}</DialogTitle>
-          <DialogDescription>{copyKey ? t(`${copyKey}.description`) : null}</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          <label htmlFor="booking-action-reason" className="text-sm font-medium text-foreground">
-            {copyKey ? t(`${copyKey}.label`) : null}
-          </label>
-          <Textarea
-            id="booking-action-reason"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            rows={4}
-            placeholder={copyKey ? t(`${copyKey}.placeholder`) : undefined}
-            required={isReasonRequired}
-          />
-          {isReasonRequired && reason.trim().length === 0 ? (
-            <p className="text-xs text-muted-foreground">{t('decision.reasonRequired')}</p>
-          ) : null}
-        </div>
-        {erreur ? (
-          <p role="alert" className="text-sm text-destructive">
-            {erreur}
-          </p>
-        ) : null}
-        <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-            {tCommon('actions.cancel')}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={pending || (isReasonRequired && reason.trim().length === 0)}
-          >
-            {pending ? t('decision.processing') : copyKey ? t(`${copyKey}.submit`) : null}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 function CustomerPayCta({
