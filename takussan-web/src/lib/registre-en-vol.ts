@@ -58,12 +58,19 @@ export function creerRegistreEnVol<K extends string | number>() {
   const estEnVol = (cle: K): boolean => enVol.has(cle);
 
   /** `true` tant qu'un geste de l'une des clés est en vol, lancé par ce composant ou par un autre, démonté depuis. */
-  const useEnVol = (...cles: readonly K[]): boolean =>
-    useSyncExternalStore(
+  //
+  // `'use no memo'` : le React Compiler sortait la flèche `(cle) => enVol.has(cle)` dans une
+  // fonction `_temp` au niveau du module, hors de la closure où vit `enVol` — `ReferenceError:
+  // enVol is not defined` à l'exécution (fiche d'un bien, liste en mode Annonces). Vitest ne passe
+  // pas par le compilateur : seule une page servie par Next le montre.
+  const useEnVol = (...cles: readonly K[]): boolean => {
+    'use no memo';
+    return useSyncExternalStore(
       abonner,
       () => cles.some((cle) => enVol.has(cle)),
       () => false,
     );
+  };
 
   return { marquer, pendant, estEnVol, useEnVol };
 }
