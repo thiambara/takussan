@@ -60,8 +60,18 @@ vi.mock('@/lib/queries/leases', () => ({
   useLeases: (p: { page?: number; per_page?: number }) => paginer(baux, p),
   useLeasePropertyOptions: () => ({ data: { data: [] } }),
 }));
+// TCK-2594 — la liste des réservations monte la saisie (TCK-2580), les filtres du bureau et lit le
+// profil actif : hors du sujet de la pagination.
+vi.mock('@/components/bookings/EntreeSaisieDemande', () => ({ EntreeSaisieDemande: () => null }));
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
+vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => ({ data: undefined, isFetching: false }), useApiMutation: vi.fn() }));
 vi.mock('@/lib/queries/bookings', () => ({
   useBookings: (p: { page?: number; per_page?: number }) => paginer(reservations, p),
+  // TCK-2594 — la liste ouvre sur la nature et le statut que ses compteurs désignent.
+  useBookingCounts: () => ({
+    data: { data: { stay: { pending: N, confirmed: 0, completed: 0, rejected: 0, cancelled: 0, expired: 0 }, application: { pending: 0, confirmed: 0, completed: 0, rejected: 0, cancelled: 0, expired: 0 }, offer: { pending: 0, confirmed: 0, completed: 0, rejected: 0, cancelled: 0, expired: 0 } } },
+    isError: false,
+  }),
 }));
 vi.mock('@/lib/queries/visits', () => ({
   useVisits: (p: { page?: number; per_page?: number }) => paginer(visites, p),
@@ -88,11 +98,12 @@ describe('TCK-2005 — quatre listes paginées', () => {
   });
 
   it('la liste des réservations atteint la 31ᵉ', () => {
-    render(withIntl(<BookingsList />));
-    const panneau = screen.getByRole('tabpanel');
-    expect(within(panneau).queryByText('Réservé 31')).toBeNull();
-    suivant(panneau);
-    expect(within(screen.getByRole('tabpanel')).getByText('Réservé 31')).toBeInTheDocument();
+    render(withIntl(<BookingsList titre="Réservations" />));
+    // TCK-2594 — la liste du téléphone (le tableau du bureau porte la même page, masqué sous `lg`).
+    const telephone = () => document.querySelector<HTMLElement>('[data-slot="liste-du-telephone"]')!;
+    expect(within(telephone()).queryByText('Réservé 31')).toBeNull();
+    suivant(telephone());
+    expect(within(telephone()).getByText('Réservé 31')).toBeInTheDocument();
   });
 
   it('la liste des visites atteint la 31ᵉ', () => {

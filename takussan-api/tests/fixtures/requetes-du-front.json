@@ -73,12 +73,57 @@
       "acteur": "agence",
       "chemin": "/api/bookings",
       "parametres": {
-        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,created_at,property_id,customer_id,agency_id",
-        "fields[properties]": "id,title,slug,price,currency",
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking",
+        "fields[properties]": "id,title,slug,price,currency,contract_type,rent_period",
         "include": "property",
         "sort": "-created_at",
         "page": "1",
         "per_page": "20"
+      }
+    },
+    {
+      "source": "useBookings(offres à décider, client, filtres du bureau)",
+      "acteur": "agence",
+      "chemin": "/api/bookings",
+      "parametres": {
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking",
+        "fields[properties]": "id,title,slug,price,currency,contract_type,rent_period",
+        "fields[customers]": "id,first_name,last_name,phone",
+        "filter[kind]": "offer",
+        "filter[status]": "pending",
+        "filter[managed_by]": "me",
+        "filter[search]": "Sarr",
+        "filter[property_id]": "1",
+        "filter[customer_id]": "1",
+        "include": "property,customer",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "20"
+      }
+    },
+    {
+      "source": "useBookings(Mes réservations, en cours)",
+      "acteur": "agence",
+      "chemin": "/api/bookings",
+      "parametres": {
+        "fields[bookings]": "id,reference_number,status,start_date,end_date,total_amount,deposit_amount,currency,created_at,property_id,customer_id,agency_id,kind,list_price_at_booking",
+        "fields[properties]": "id,title,slug,price,currency,contract_type,rent_period",
+        "filter[status]": "pending,confirmed",
+        "include": "property",
+        "sort": "-created_at",
+        "page": "1",
+        "per_page": "30"
+      }
+    },
+    {
+      "source": "useBookingCounts(filtres du bureau)",
+      "acteur": "agence",
+      "chemin": "/api/bookings/counts",
+      "parametres": {
+        "filter[managed_by]": "me",
+        "filter[search]": "Sarr",
+        "filter[property_id]": "1",
+        "filter[customer_id]": "1"
       }
     },
     {

@@ -10176,25 +10176,6 @@
     }
   },
   "bookings": {
-    "list": {
-      "empty": {
-        "pending": "Aucune réservation en attente",
-        "confirmed": "Aucune réservation confirmée",
-        "rejected": "Aucune réservation refusée",
-        "cancelled": "Aucune réservation annulée",
-        "expired": "Aucune réservation expirée"
-      },
-      "empty_description": "Parcourez le catalogue pour envoyer une demande de réservation.",
-      "depositPaid": "Acompte payé",
-      "tabs": {
-        "pending": "En attente",
-        "confirmed": "Confirmées",
-        "rejected": "Refusées",
-        "cancelled": "Annulées",
-        "expired": "Expirées"
-      },
-      "onlyMine": "Mes biens"
-    },
     "detail": {
       "error": "Réservation introuvable.",
       "back": "← Retour aux réservations",
@@ -10465,6 +10446,128 @@
         "description": "Un achat ne se réserve pas : faites une offre depuis la fiche du bien.",
         "cta": "Voir le bien"
       }
+    },
+    "liste": {
+      "natures": {
+        "label": "Nature des demandes",
+        "stay": "Séjours",
+        "application": "Candidatures",
+        "offer": "Offres"
+      },
+      "statuts": {
+        "label": "Statut",
+        "pending": "À décider",
+        "confirmed": "Confirmées",
+        "completed": "Terminées",
+        "rejected": "Refusées",
+        "cancelled": "Annulées",
+        "expired": "Expirées"
+      },
+      "etat": {
+        "pending": "À décider"
+      },
+      "mesBiens": "Mes biens",
+      "mesBiensSeulement": "Mes biens seulement",
+      "sousTitre": {
+        "aDecider": "{count, plural, one {# demande à décider} other {# demandes à décider}}",
+        "aucune": "Aucune demande à décider",
+        "confirmees": "{count, plural, one {# confirmée en cours} other {# confirmées en cours}}"
+      },
+      "compte": {
+        "stay": "{count, plural, one {# séjour} other {# séjours}}",
+        "application": "{count, plural, one {# candidature} other {# candidatures}}",
+        "offer": "{count, plural, one {# offre} other {# offres}}"
+      },
+      "pied": {
+        "stay": "{count, plural, one {# séjour {statut, select, pending {à décider} confirmed {confirmé} completed {terminé} rejected {refusé} cancelled {annulé} expired {expiré} other {}}} other {# séjours {statut, select, pending {à décider} confirmed {confirmés} completed {terminés} rejected {refusés} cancelled {annulés} expired {expirés} other {}}}} · le plus récent d’abord",
+        "application": "{count, plural, one {# candidature {statut, select, pending {à décider} confirmed {confirmée} completed {terminée} rejected {refusée} cancelled {annulée} expired {expirée} other {}}} other {# candidatures {statut, select, pending {à décider} confirmed {confirmées} completed {terminées} rejected {refusées} cancelled {annulées} expired {expirées} other {}}}} · la plus récente d’abord",
+        "offer": "{count, plural, one {# offre {statut, select, pending {à décider} confirmed {confirmée} completed {terminée} rejected {refusée} cancelled {annulée} expired {expirée} other {}}} other {# offres {statut, select, pending {à décider} confirmed {confirmées} completed {terminées} rejected {refusées} cancelled {annulées} expired {expirées} other {}}}} · la plus récente d’abord"
+      },
+      "montant": {
+        "nuits": "{nuits, plural, one {# nuit} other {# nuits}} · {montant}",
+        "loyer": "Loyer {montant}/mois",
+        "offre": "Offre {montant}"
+      },
+      "detail": {
+        "sejour": "{debut} → {fin}",
+        "entree": "Entrée {date}",
+        "offre": "Affiché {affiche} · {ecart}"
+      },
+      "recue": {
+        "min": "il y a {n} min",
+        "h": "il y a {n} h",
+        "hier": "hier",
+        "j": "il y a {n} j"
+      },
+      "colonnes": {
+        "client": "Client",
+        "bien": "Bien",
+        "montant": "Montant",
+        "statut": "Statut",
+        "recue": "Reçue"
+      },
+      "caption": "Demandes de réservation",
+      "recherche": "Client, bien, référence…",
+      "filtres": {
+        "bien": "Bien",
+        "client": "Client",
+        "tous": "Tous",
+        "bienRecherche": "Chercher un bien",
+        "clientRecherche": "Chercher un client"
+      },
+      "vide": {
+        "titre": "Aucune demande à décider.",
+        "texte": {
+          "stay": "Les demandes de séjour arrivent ici. {count, plural, =0 {Aucun séjour n’est confirmé.} one {Un séjour est confirmé.} other {# séjours sont confirmés.}}",
+          "application": "Les candidatures reçues arrivent ici. {count, plural, =0 {Aucune n’est confirmée.} one {Une est confirmée et attend son bail.} other {# sont confirmées et attendent leur bail.}}",
+          "offer": "Les offres reçues arrivent ici. {count, plural, =0 {Aucune n’est confirmée.} one {Une est confirmée.} other {# sont confirmées.}}"
+        },
+        "voirConfirmees": "Voir les confirmées",
+        "statut": {
+          "confirmed": "Aucune demande confirmée.",
+          "completed": "Aucune demande terminée.",
+          "rejected": "Aucune demande refusée.",
+          "cancelled": "Aucune demande annulée.",
+          "expired": "Aucune demande expirée."
+        },
+        "filtre": "Aucune demande ne correspond à ces filtres."
+      },
+      "erreur": "Les réservations n’ont pas pu être chargées.",
+      "clientSansNom": "Client #{id}"
+    },
+    "client": {
+      "titre": "Mes réservations",
+      "groupes": {
+        "label": "Réservations",
+        "en_cours": "En cours",
+        "terminees": "Terminées",
+        "annulees": "Annulées"
+      },
+      "sousTitre": "{count, plural, =0 {Aucune réservation en cours} one {# en cours} other {# en cours}}",
+      "nature": {
+        "stay": "Séjour",
+        "application": "Candidature",
+        "offer": "Offre"
+      },
+      "quand": {
+        "sejour": "{debut} → {fin} · {nuits, plural, one {# nuit} other {# nuits}}",
+        "deposee": "Déposée {age}"
+      },
+      "vide": {
+        "titre": "Vous n’avez pas encore réservé.",
+        "texte": "Un séjour, une candidature ou une offre : tout part de la fiche d’un bien.",
+        "action": "Parcourir les biens"
+      },
+      "videGroupe": {
+        "en_cours": "Aucune réservation en cours.",
+        "terminees": "Aucune réservation terminée.",
+        "annulees": "Aucune réservation annulée."
+      },
+      "actions": {
+        "voir": "Voir la réservation",
+        "avis": "Laisser un avis"
+      },
+      "erreur": "Vos réservations n’ont pas pu être chargées."
     }
   },
   "visits": {
