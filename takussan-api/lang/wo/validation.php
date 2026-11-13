@@ -184,6 +184,8 @@ return [
         'virtual_tour_host' => 'Lien bii du ñu ko nangu : YouTube, Vimeo, Matterport ak Kuula rekk lañuy nangu, ci https.',
         // TCK-2752 — la forme d'une date-heure reçue (App\Rules\InstantIso).
         'instant' => 'Le champ :attribute doit être une date (AAAA-MM-JJ) ou une date-heure ISO 8601 (AAAA-MM-JJTHH:MM, secondes et décalage facultatifs), entre 1970 et 2100.',
+        // TCK-2768 — la forme d'une date reçue qui désigne un jour (App\Rules\JourIso).
+        'jour' => 'Le champ :attribute doit être une date au format AAAA-MM-JJ, entre :min et :max.',
     ],
     'max_guarantors_reached' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
     'bounds_format' => 'Barabu :attribute bi war na am ñeent nimero ñu taxaw ci virgule : sw_lat,sw_lng,ne_lat,ne_lng.',

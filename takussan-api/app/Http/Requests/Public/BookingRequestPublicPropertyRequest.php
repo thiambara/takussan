@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Public;
 
+use App\Rules\JourIso;
+
 /**
  * TCK-305 — extrait de `PublicPropertyController::bookingRequest()`, où les règles étaient
  * construites dans une variable locale puis passées à `$request->validate($rules)`.
@@ -28,8 +30,8 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'message' => ['nullable', 'string', 'max:1000'],
             ]
             : [
-                'start_date' => ['required', 'date', 'after_or_equal:today'],
-                'end_date' => ['required', 'date', 'after:start_date'],
+                'start_date' => ['required', 'date', new JourIso, 'after_or_equal:today'],
+                'end_date' => ['required', 'date', new JourIso, 'after:start_date'],
                 'guests' => ['required', 'integer', 'min:1', 'max:50'],
                 'message' => ['nullable', 'string', 'max:1000'],
             ];

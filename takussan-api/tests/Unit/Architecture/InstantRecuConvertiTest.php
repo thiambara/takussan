@@ -4,6 +4,7 @@ namespace Tests\Unit\Architecture;
 
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use App\Support\FinInclusive;
 use App\Support\InstantRecu;
 use PHPUnit\Framework\TestCase;
@@ -51,6 +52,11 @@ use RecursiveIteratorIterator;
  * TCK-2752 — chaque champ relevé porte aussi la FORME ISO 8601 stricte ({@see InstantIso}), dans chaque
  * branche d'une règle conditionnelle, exceptions et fins inclusives comprises
  * ({@see self::test_toute_date_heure_recue_porte_la_forme_iso()}). Mêmes limites de lecture.
+ *
+ * TCK-2768 — AUCUNE date reçue n'est nue, quelle que soit sa colonne : chaque `date` d'un tableau de règles
+ * de `app/` porte {@see JourIso} (un jour) ou {@see InstantIso} (un jour ou un instant)
+ * ({@see self::test_aucune_date_recue_n_est_nue()}). La lecture est par TABLEAU, donc par branche, et vaut
+ * hors des FormRequests (`Validator::make`, filtres, critères sauvegardés).
  */
 class InstantRecuConvertiTest extends TestCase
 {
@@ -310,6 +316,83 @@ class InstantRecuConvertiTest extends TestCase
         $this->assertSame([], $fautes, "Date-heure reçue sans sa forme ISO 8601 stricte (TCK-2752) :\n".implode("\n", $fautes));
     }
 
+    /**
+     * TCK-2768 — les occurrences hors FormRequest, épinglées : une lecture qui ne les verrait plus rendrait
+     * un vert vide. Le fichier, puis le nombre de tableaux de règles qui y portent `date`.
+     *
+     * @var array<string, int>
+     */
+    private const DATES_HORS_FORM_REQUESTS = [
+        'Http/Filters/DateBoundaryFilter.php' => 1,
+        'Http/Filters/RangeFilter.php' => 1,
+        'Support/SavedSearchCriteria.php' => 1,
+    ];
+
+    /**
+     * TCK-2768 (AC4) — une `date` nue rougit, où qu'elle soit dans `app/` : chaque tableau de règles qui
+     * contient l'élément `'date'` contient aussi `new JourIso` ou `new InstantIso` (autant que de `date`).
+     * `date` seule relit « 99999-01-01 » en 2009 et « 12/11/2026 » le 11 décembre. Une règle en chaîne
+     * (`'nullable|date'`) ne peut pas porter d'objet : elle rougit toujours, et se réécrit en tableau.
+     */
+    public function test_aucune_date_recue_n_est_nue(): void
+    {
+        $app = dirname(__DIR__, 3).'/app';
+
+        $fautes = [];
+        $tableaux = 0;
+        $horsRequetes = [];
+        foreach ($this->fichiers($app) as $chemin) {
+            $relatif = substr($chemin, strlen($app) + 1);
+            $code = $this->sansCommentaires((string) file_get_contents($chemin));
+            foreach ($this->tableauxDeReglesDate($code) as $tableau) {
+                $tableaux++;
+                if (! str_starts_with($relatif, 'Http/Requests/')) {
+                    $horsRequetes[$relatif] = ($horsRequetes[$relatif] ?? 0) + 1;
+                }
+                if (! $this->porteUneForme($tableau)) {
+                    $fautes[] = "{$relatif} : `date` nue dans ".preg_replace('/\s+/', ' ', $tableau).' — poser `new JourIso` (un jour) ou `new InstantIso` (un jour ou un instant) juste après.';
+                }
+            }
+            foreach ($this->reglesEnChaineDate($code) as $regle) {
+                $fautes[] = "{$relatif} : règle en chaîne {$regle} — une chaîne ne porte pas d'objet ; la réécrire en tableau avec `new JourIso` ou `new InstantIso`.";
+            }
+        }
+
+        $this->assertGreaterThan(80, $tableaux, 'Trop peu de tableaux de règles `date` lus : la lecture ne voit plus les règles.');
+        $this->assertSame(self::DATES_HORS_FORM_REQUESTS, $horsRequetes, 'Les `date` hors FormRequest ont changé : épingler la nouvelle occurrence ici (et lui donner sa forme).');
+        $this->assertSame([], $fautes, "Date reçue sans sa forme stricte (TCK-2768) :\n".implode("\n", $fautes));
+    }
+
+    public function test_la_lecture_des_tableaux_de_regles_voit_les_formes_du_depot(): void
+    {
+        $code = <<<'PHP'
+            <?php
+            protected $fillable = ['property_boost_id', 'date', 'clicks'];
+            protected $casts = ['date' => 'date'];
+            $q->upsert([$v], ['date'], ['updated_at']);
+            if (in_array($champ, ['date', 'amount'], true)) { return ['date', true]; }
+            $regles = [
+                'a' => ['required', 'date'],
+                'b' => ['required', 'date', new JourIso],
+                "filter.{$p}" => ['string', 'date', new \App\Rules\InstantIso],
+                $attribut.'.c' => ['sometimes', 'nullable', 'date'],
+                'd' => $estUneDate ? ['string', 'date', $horodatage ? new InstantIso : new JourIso] : ['numeric'],
+                'e' => $x ? ['string', 'date'] : ['numeric'],
+                'f' => ['nullable', 'date_format:Y-m-d'],
+                'g' => [Rule::requiredIf($k), 'nullable', 'date', new JourIso, 'after_or_equal:today'],
+            ];
+            $chaine = ['h' => 'nullable|date', 'i' => 'date|after:now', 'j' => 'required_without_all:date,x'];
+            PHP;
+
+        $tableaux = $this->tableauxDeReglesDate($code);
+        $this->assertSame(
+            [false, true, true, false, true, false, true],
+            array_map(fn (string $t): bool => $this->porteUneForme($t), $tableaux),
+            'Six tableaux de règles (d compte une fois), ni $fillable, ni upsert, ni in_array, ni return.',
+        );
+        $this->assertSame(["'nullable|date'", "'date|after:now'"], $this->reglesEnChaineDate($code));
+    }
+
     public function test_la_lecture_de_la_forme_iso_voit_chaque_branche(): void
     {
         $code = <<<'PHP'
@@ -353,6 +436,93 @@ class InstantRecuConvertiTest extends TestCase
             PHP;
 
         $this->assertSame(['a_at', 'b_at', 'c_at', 'visits.*.e_at', 'g_at'], $this->champsDate($code));
+    }
+
+    /**
+     * TCK-2768 — les tableaux de règles qui contiennent l'ÉLÉMENT `'date'` (entre `[`/`,` et `,`/`]`, jamais
+     * une clé ni une valeur de clé). Un tableau est de règles quand il est la valeur d'une clé (`=> [`) ou
+     * une branche d'un ternaire (`? [`, `: [`) : ni `$fillable = [`, ni un argument (`upsert(…, ['date'])`),
+     * ni `in_array(…, ['date'])`, ni `return ['date', …]`.
+     *
+     * @return list<string>
+     */
+    private function tableauxDeReglesDate(string $code): array
+    {
+        $tableaux = [];
+        preg_match_all("/(?<=[\[,])\s*'date'\s*(?=[,\]])/", $code, $m, PREG_OFFSET_CAPTURE);
+        foreach ($m[0] as [, $position]) {
+            $ouverture = $this->ouvertureDuTableau($code, $position);
+            if ($ouverture === null || preg_match('/(=>|\?|(?<!:):)\s*$/', substr($code, max(0, $ouverture - 40), min(40, $ouverture))) !== 1) {
+                continue;
+            }
+            $tableaux[$ouverture] = $this->tableauEntier($code, $ouverture);
+        }
+
+        return array_values($tableaux);
+    }
+
+    /** La position du `[` qui ouvre le tableau contenant `$position`, ou null. */
+    private function ouvertureDuTableau(string $code, int $position): ?int
+    {
+        $profondeur = 0;
+        for ($j = $position - 1; $j >= 0; $j--) {
+            $c = $code[$j];
+            if (in_array($c, [']', ')', '}'], true)) {
+                $profondeur++;
+            } elseif (in_array($c, ['[', '(', '{'], true)) {
+                if ($profondeur === 0) {
+                    return $c === '[' ? $j : null;
+                }
+                $profondeur--;
+            }
+        }
+
+        return null;
+    }
+
+    /** Le tableau entier qui s'ouvre à `$ouverture`, crochets compris (guillemets respectés). */
+    private function tableauEntier(string $code, int $ouverture): string
+    {
+        $profondeur = 0;
+        $guillemet = null;
+        for ($j = $ouverture, $n = strlen($code); $j < $n; $j++) {
+            $c = $code[$j];
+            if ($guillemet !== null) {
+                if ($c === '\\') {
+                    $j++;
+                } elseif ($c === $guillemet) {
+                    $guillemet = null;
+                }
+
+                continue;
+            }
+            if ($c === "'" || $c === '"') {
+                $guillemet = $c;
+            } elseif (in_array($c, ['[', '(', '{'], true)) {
+                $profondeur++;
+            } elseif (in_array($c, [']', ')', '}'], true) && --$profondeur === 0) {
+                break;
+            }
+        }
+
+        return substr($code, $ouverture, $j - $ouverture + 1);
+    }
+
+    /** Chaque `date` du tableau a sa forme : autant de `new JourIso` / `new InstantIso` que de `'date'`. */
+    private function porteUneForme(string $tableau): bool
+    {
+        $dates = preg_match_all("/(?<=[\[,])\s*'date'\s*(?=[,\]])/", $tableau);
+        $formes = preg_match_all('/new\s+(?:\\\\?App\\\\Rules\\\\)?(?:InstantIso|JourIso)\b/', $tableau);
+
+        return $dates > 0 && $formes >= $dates;
+    }
+
+    /** @return list<string> les règles en chaîne qui contiennent la règle `date` (`'nullable|date'`). */
+    private function reglesEnChaineDate(string $code): array
+    {
+        preg_match_all("/'(?:[\w:,.*-]+\|)+date(?:\|[\w:,.*-]+)*'|'date(?:\|[\w:,.*-]+)+'/", $code, $m);
+
+        return $m[0];
     }
 
     /** @return array<string, true> */

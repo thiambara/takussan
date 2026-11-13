@@ -1,3 +1,5 @@
+import { estUnJourDeLApi } from '@/lib/jour-de-l-api';
+
 /**
  * La requête que `/properties` adresse à `GET /api/public/properties/search` — **une seule
  * définition, deux appelants** (TCK-432).
@@ -104,7 +106,7 @@ export function normaliserGeo(params: URLSearchParams): URLSearchParams {
  * Les paramètres d'URL de `/properties` traduits en requête d'API — la fonction que le rendu
  * serveur et `useSearch` appellent tous les deux.
  *
- * Trois transformations, dans cet ordre, et aucune n'est décorative :
+ * Quatre transformations, dans cet ordre, et aucune n'est décorative :
  *
  * 1. **`normaliserGeo`** — un état géographique que le serveur rendrait en 422 n'atteint jamais
  *    le réseau (TCK-346) ;
@@ -112,6 +114,9 @@ export function normaliserGeo(params: URLSearchParams): URLSearchParams {
  *    et un lien externe peut parfaitement porter `?search=villa` ;
  * 3. **le `per_page` par défaut** — posé explicitement, pour que la clef semée par le serveur et
  *    celle du client portent la même valeur (TCK-559).
+ * 4. **un `available_from` que l'API refuserait est écarté** (TCK-2768) — elle rend 422 sur un jour
+ *    qui n'est pas `AAAA-MM-JJ` réel (`JourIso`) ; un lien partagé ou une recherche sauvegardée sous
+ *    une forme antérieure ne finit pas en « 0 bien trouvé », il est servi sans ce critère.
  *
  * ⚠️ L'objet reçu n'est PAS muté : la copie est faite ici, une fois, pour que l'appelant serveur
  * puisse passer les `searchParams` de Next sans se demander qui les possède.
@@ -123,6 +128,7 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
     params.set('q', params.get('search') ?? '');
   }
   if (!params.has('per_page')) params.set('per_page', String(PER_PAGE_PAR_DEFAUT));
+  if (params.getAll('available_from').some((jour) => !estUnJourDeLApi(jour))) params.delete('available_from');
 
   return params;
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Api\StoreLeaseRequest;
+use App\Rules\JourIso;
 
 /**
  * TCK-089 — Validation du payload `POST /api/leases/{lease}/renew`.
@@ -33,8 +34,8 @@ class RenewLeaseRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'start_date' => ['sometimes', 'nullable', 'date'],
-            'end_date' => ['sometimes', 'nullable', 'date', 'after:start_date'],
+            'start_date' => ['sometimes', 'nullable', 'date', new JourIso],
+            'end_date' => ['sometimes', 'nullable', 'date', new JourIso, 'after:start_date'],
             'monthly_rent' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             // TCK-2679 — renégociables comme le loyer ; absentes, héritées du parent.
             'monthly_charges' => ['sometimes', 'nullable', 'numeric', 'min:0'],

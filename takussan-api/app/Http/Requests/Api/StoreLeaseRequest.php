@@ -7,6 +7,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Property;
+use App\Rules\JourIso;
 use App\Rules\PersonnelDeLAgence;
 use Illuminate\Validation\Rule;
 
@@ -49,8 +50,8 @@ class StoreLeaseRequest extends BaseFormRequest
             'booking_id' => ['nullable', 'integer'],
             'guarantor_id' => ['nullable', 'integer'],
             'type' => ['required', Rule::enum(LeaseType::class)],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date', 'after:start_date'],
+            'start_date' => ['required', 'date', new JourIso],
+            'end_date' => ['nullable', 'date', new JourIso, 'after:start_date'],
             'monthly_rent' => ['nullable', 'numeric', 'min:0'],
             // TCK-2679 — les charges mensuelles, terme imprimé au contrat et appelé par l'échéancier.
             'monthly_charges' => ['nullable', 'numeric', 'min:0'],

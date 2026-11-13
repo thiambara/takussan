@@ -268,4 +268,100 @@ Les lecteurs de `MapPublicPropertyRequest`, `PriceDistributionRequest` et `Sugge
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_2026-11-13, sur `feat/audit-ux-app-lot-2` (relevé sur d23dde767)._
+
+**Prémisse re-mesurée.** Le recensement tient : 41 champs `date` nus dans les FormRequests (36 jours, 5 instants)
+et 3 occurrences hors FormRequest (`DateBoundaryFilter::exiger`, `RangeFilter`, `SavedSearchCriteria`). Avant la
+règle, le test HTTP rendait 20 rouges : « 99999-01-01 », « 0099-01-01 », « 12/11/2026 » et un instant passaient
+sur les quatre écrivains et le calendrier.
+
+**Ce qui est posé.**
+
+- `App\Rules\JourIso` : `\A(\d{4})-(\d{2})-(\d{2})\z`, `checkdate`, années de `InstantIso::ANNEE_MIN` (lu par
+  référence) à `JourIso::ANNEE_MAX`. `estAdmis()` est statique, pour qu'un lecteur hors validation l'emploie.
+- **Plafond : 2199, PROVISOIRE**, en attendant la décision du porteur (baux emphytéotiques de 99 ans, cf.
+  « Contraintes strictes »). C'est une seule constante côté API, et une côté front (`ANNEE_MAX_DE_L_API` de
+  `src/lib/jour-de-l-api.ts`). Un test de parité lit la constante PHP depuis le test front : changer l'une sans
+  l'autre fait rougir le test.
+- Libellé `validation.rules.jour` en `fr`/`en`/`wo` (wo = français), avec `:min` et `:max`.
+- Famille J sur 36 champs et `SavedSearchCriteria`. Famille I sur `IndexAuditLogRequest` (`from`, `to`),
+  `ExportActivityLogRequest` (`filter.date_from`, `filter.date_to`), `published_after` et `DateBoundaryFilter`.
+  `RangeFilter` suit le cast de la colonne. Les deux règles en chaîne de `SearchPublicPropertyRequest` sont
+  réécrites en tableau, et le commentaire TCK-335 est gardé.
+- Garde `InstantRecuConvertiTest::test_aucune_date_recue_n_est_nue`, plus son test de lecture des formes. Elle lit
+  tout `app/` : la valeur d'un `=>` et chaque branche d'un `?:`. Elle exclut `$fillable`, les arguments d'`upsert`,
+  `in_array` et `return`. Elle épingle les trois occurrences hors FormRequest et exige plus de 80 tableaux de
+  règles relevés. Mes blocs y sont marqués TCK-2768, car le fichier est partagé avec TCK-2743 et TCK-2752.
+- Front : `estUnJourDeLApi()` dans `src/lib/jour-de-l-api.ts`.
+  - `parametresDeRecherche` écarte un `available_from` refusé (étape 4 de son docblock). Le rendu serveur, le
+    client et `/map` passent tous par lui.
+  - `SEARCH_FILTER_KEYS.available_from.lire` rend `undefined` sur une valeur refusée. Aucune puce ne s'affiche,
+    et `filtersToCriteria` ne l'enregistre pas.
+  - Le rejeu d'une recherche sauvegardée passe par `/properties?…`, donc par le même filtre.
+
+**Tests.**
+
+- `tests/Unit/Rules/JourIsoTest.php` : 29 verts.
+- `tests/Feature/Validation/JourIsoRecuTest.php` :
+  - quatre écrivains × quatre formes, puis le jour stocké ;
+  - un bail jusqu'en 2125 accepté ;
+  - le calendrier ;
+  - le journal (`filter[date_from]` et `from`) ;
+  - `published_after` ;
+  - `RangeFilter` sur une colonne `date` (`/api/admin/payouts`) et sur un horodatage (`/api/contact-leads`).
+- La garde et son test de lecture.
+- Front : `src/lib/__tests__/recherche-publique.jour-admis.tck-2768.test.ts`, 4 verts. Il couvre la règle, la
+  requête, le critère enregistré et la parité des bornes avec le PHP.
+- `ActivityLogEndpointTest` est vert **sans changement**, ce qui prouve que la famille I garde l'instant.
+
+**Voisins.** Côté API, 254 fichiers de test qui postent ou lisent l'un des champs ont été joués en 11 lots par
+`creneau.sh` : environ 2 490 tests, tous verts. **Aucun test voisin n'a eu à changer** : aucun ne postait un
+Carbon, un instant ou une forme relue sur un champ de la famille J. Les tests de parité de `lang` et
+`BaseFormRequestNormalizationTest` sont verts. Côté front : les 41 fichiers de test qui importent l'un des modules
+touchés (`jour-de-l-api`, `recherche-publique`, `types/search`, `SaveSearchButton`) ou nomment `available_from`,
+plus `useSearch*`, sont verts : 620 tests. ESLint passe sur les quatre fichiers. `tsc --noEmit` ne signale qu'une
+erreur, dans `.next/types/validator.ts` : c'est un artefact périmé de `next dev` qui vise
+`app/owners/page.js`, déplacé sous `(liste)`, et ce n'est pas ce ticket.
+
+**Ablations** (chacune rouge, puis restaurée et vérifiée par md5) :
+
+- Dans la règle :
+  - bornes retirées : 3 rouges ;
+  - `\z` remplacé par `$` : 1 rouge ;
+  - `checkdate` retiré : 3 rouges ;
+  - non-chaîne admise : 2 rouges.
+- Placement de la règle :
+  - `JourIso` retiré de `RadarObservatoryRequest.filter.since` : la garde rougit ;
+  - `JourIso` retiré de `StoreLeaseRequest.start_date` : 4 rouges HTTP ;
+  - `InstantIso` retiré de `DateBoundaryFilter` : rouge ;
+  - règle retirée de `RangeFilter` : rouge ;
+  - branche horodatage de `RangeFilter` passée à `JourIso` : rouge ;
+  - `IndexAuditLogRequest.from` : rouge ;
+  - `published_after` : rouge.
+- Dans la garde :
+  - lecture hors FormRequest neutralisée : rouge ;
+  - ternaire non lu : 2 rouges ;
+  - compte des formes neutralisé : le test de lecture rougit ;
+  - `'nullable|date'` remis en chaîne : la garde rougit.
+- Au front :
+  - filtre réduit à la seule forme : 3 rouges, dont `2026-02-30` ;
+  - jour réel retiré, bornes gardées : 3 rouges ;
+  - `parametresDeRecherche` sans filtre : 1 rouge ;
+  - `lire` nu : 1 rouge ;
+  - plafond du front à 2100 : 2 rouges (la règle et la parité).
+
+**AC6 : mesure des recherches sauvegardées** (lecture seule, transaction `READ ONLY`, script
+`JourIso::estAdmis`).
+
+- Base de démo `takussan` (PostgreSQL :5433), le 2026-11-13 : 57 recherches sauvegardées, **0** portent
+  `available_from`, donc **0** seraient refusées.
+- La préproduction est mesurée par la session, pas ici.
+
+**Limites.**
+
+- Le plafond est provisoire (2199) : la décision du porteur reste ouverte, et elle change deux constantes.
+- La garde lit par nom de champ et par jeton. Une règle construite par une méthode lui échappe, comme pour
+  TCK-2743 et TCK-2752.
+- Un écran du personnel qui relaie à la main une date d'URL mal formée rend désormais 422 au lieu d'un mauvais jour
+  (hors périmètre).
+- Au front, seul `available_from` est filtré : c'est le seul jour qu'une URL publique porte jusqu'à l'API.

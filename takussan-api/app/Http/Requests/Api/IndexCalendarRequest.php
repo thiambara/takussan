@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\AgenceNommeeParLeSuperAdmin;
+use App\Rules\JourIso;
 use App\Services\Calendar\CalendarEventCollector;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -33,8 +34,8 @@ class IndexCalendarRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_date' => ['required', 'date', new JourIso],
+            'end_date' => ['required', 'date', new JourIso, 'after_or_equal:start_date'],
             // TCK-1072 (P62.06) — pas d'`exists:properties,id` : un bien absent rendait 422, le
             // brouillon d'une agence tierce un agenda vide. Le collecteur borne déjà l'agenda à ce
             // que l'appelant voit, et rend le même agenda vide aux deux.

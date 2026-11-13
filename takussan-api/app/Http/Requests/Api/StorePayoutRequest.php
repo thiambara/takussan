@@ -8,6 +8,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Payout;
 use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -64,8 +65,8 @@ class StorePayoutRequest extends BaseFormRequest
             'gross_amount' => ['prohibited'],
             'commission_amount' => ['prohibited'],
             'fees_amount' => ['prohibited'],
-            'period_start' => ['nullable', 'date'],
-            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
+            'period_start' => ['nullable', 'date', new JourIso],
+            'period_end' => ['nullable', 'date', new JourIso, 'after_or_equal:period_start'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'scheduled_at' => ['nullable', 'date', new InstantIso],

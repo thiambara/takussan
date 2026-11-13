@@ -7,6 +7,7 @@ use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Rules\JourIso;
 use Closure;
 use Illuminate\Validation\Rule;
 
@@ -85,7 +86,7 @@ final class SavedSearchCriteria
             $attribute.'.furnished' => ['sometimes', 'nullable', 'boolean'],
             $attribute.'.featured' => ['sometimes', 'nullable', 'boolean'],
             $attribute.'.floor_number' => ['sometimes', 'nullable', 'integer'],
-            $attribute.'.available_from' => ['sometimes', 'nullable', 'date'],
+            $attribute.'.available_from' => ['sometimes', 'nullable', 'date', new JourIso], // TCK-2768
             $attribute.'.title_type' => ['sometimes', 'nullable', Rule::enum(TitleType::class)],
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\DocumentType;
+use App\Rules\JourIso;
 use App\Support\Uploads\AcceptedUploads;
 use Illuminate\Validation\Rule;
 
@@ -36,7 +37,7 @@ class StoreDocumentRequest extends BaseFormRequest
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(DocumentType::class)],
             'description' => ['nullable', 'string'],
-            'expiry_date' => ['nullable', 'date'],
+            'expiry_date' => ['nullable', 'date', new JourIso],
             'file' => ['required', 'file', ...AcceptedUploads::document(10240)],
             // TCK-2759 — gardé pour l'agence ; seul le personnel d'une fiche client le pose (DocumentController).
             'is_internal' => ['sometimes', 'boolean'],

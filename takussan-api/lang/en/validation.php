@@ -28,6 +28,8 @@ return [
         'virtual_tour_host' => 'This virtual tour link is not accepted: only YouTube, Vimeo, Matterport and Kuula links are, over https.',
         // TCK-2752 — the shape of a received date-time (App\Rules\InstantIso).
         'instant' => 'The :attribute field must be a date (YYYY-MM-DD) or an ISO 8601 date-time (YYYY-MM-DDTHH:MM, seconds and offset optional), between 1970 and 2100.',
+        // TCK-2768 — the shape of a received date that names a day (App\Rules\JourIso).
+        'jour' => 'The :attribute field must be a date in YYYY-MM-DD format, between :min and :max.',
     ],
     'max_guarantors_reached' => 'A lease cannot have more than 3 guarantors.',
     'bounds_format' => 'The :attribute must be four comma-separated numbers: sw_lat,sw_lng,ne_lat,ne_lng.',

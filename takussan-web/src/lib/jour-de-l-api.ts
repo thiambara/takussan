@@ -35,3 +35,25 @@ export function jourEnDateLocale(jour: string): Date {
   const [a, m, j] = jour.split('-').map((x) => Number.parseInt(x, 10));
   return new Date(a, m - 1, j);
 }
+
+/**
+ * TCK-2768 — les bornes d'années d'un jour que l'API admet. ⚠ Miroir de `App\Rules\JourIso::ANNEE_MIN`
+ * et `::ANNEE_MAX` (PHP) : le plafond y est PROVISOIRE (2199, en attente du porteur) et se change dans
+ * les deux à la fois.
+ */
+export const ANNEE_MIN_DE_L_API = 1970;
+export const ANNEE_MAX_DE_L_API = 2199;
+
+/**
+ * TCK-2768 — `valeur` est-elle un jour que l'API admet (`JourIso`) : `AAAA-MM-JJ` exactement, jour qui
+ * existe, année de {@link ANNEE_MIN_DE_L_API} à {@link ANNEE_MAX_DE_L_API} ? La forme seule ne suffit
+ * pas : « 2026-02-30 » a la bonne forme, et l'API le refuse (422).
+ */
+export function estUnJourDeLApi(valeur: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valeur);
+  if (!m) return false;
+  const [a, mo, j] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (a < ANNEE_MIN_DE_L_API || a > ANNEE_MAX_DE_L_API) return false;
+  const d = new Date(Date.UTC(a, mo - 1, j));
+  return d.getUTCFullYear() === a && d.getUTCMonth() === mo - 1 && d.getUTCDate() === j;
+}

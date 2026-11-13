@@ -8,6 +8,8 @@ use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -267,11 +269,14 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             // front affichait « 0 bien trouve ». La borne n'a de sens qu'a la SAISIE, pas a
             // la relecture d'une URL ecrite hier. `date` reste, elle garde le 422 sur
             // `available_from=not-a-date` (PublicPropertySearchFiltersTest).
-            'available_from' => 'nullable|date',
+            // TCK-2768 — et `JourIso` refuse ce que `date` relisait de travers (« 12/11/2026 » → le 11 décembre) :
+            // le front écarte d'abord une valeur d'URL que l'API refuserait, une recherche partagée ne pourrit pas.
+            'available_from' => ['nullable', 'date', new JourIso],
             // TCK-2496 — les biens publiés APRÈS cet instant (ISO 8601) : le front compte ainsi les biens nouveaux d'une
             // recherche récente (`per_page=1`, `meta.total`). Jamais dans le futur : rien n'y est publié, et un 0
             // silencieux y passerait pour une réponse.
-            'published_after' => 'nullable|date|before_or_equal:now',
+            // TCK-2768 — un instant (le front envoie `toISOString()`) : `InstantIso`, qui admet aussi un jour seul.
+            'published_after' => ['nullable', 'date', new InstantIso, 'before_or_equal:now'],
             // TCK-2517 — les biens d'une agence, d'un agent : le slug de leur fiche publique (`ProfilDuFiltre`). Un slug
             // inconnu ou hors ligne rend une liste vide, jamais une erreur. Sous l'un d'eux, la liste suit le prédicat du
             // portefeuille des fiches (public ET disponible).

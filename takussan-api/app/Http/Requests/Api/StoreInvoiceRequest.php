@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Currency;
 use App\Models\Invoice;
+use App\Rules\JourIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -37,8 +38,8 @@ class StoreInvoiceRequest extends BaseFormRequest
             'customer_id' => ['required', Rule::exists('customers', 'id')->withoutTrashed()],
             'invoiceable_type' => ['nullable', 'string', 'required_with:invoiceable_id'],
             'invoiceable_id' => ['nullable', 'integer', 'required_with:invoiceable_type'],
-            'issue_date' => ['required', 'date'],
-            'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
+            'issue_date' => ['required', 'date', new JourIso],
+            'due_date' => ['nullable', 'date', new JourIso, 'after_or_equal:issue_date'],
             // P133.02 (TCK-1377) — les lignes saisies font le sous-total, que l'API recompte
             // (`InvoiceService::priceLines`) : un `subtotal` fourni avec elles est ignoré. Sans
             // lignes, le sous-total reste requis. Bornes reprises de `SubmitQuoteRequest`.

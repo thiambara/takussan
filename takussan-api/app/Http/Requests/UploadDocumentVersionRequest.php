@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\JourIso;
 use App\Support\Uploads\AcceptedUploads;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -28,7 +29,7 @@ class UploadDocumentVersionRequest extends FormRequest
             'file' => ['required', 'file', ...AcceptedUploads::document(10240)],
             'comment' => ['nullable', 'string', 'max:500'],
             // TCK-2300 (P231.03) — l'échéance du nouveau fichier ; absente, elle se vide.
-            'expiry_date' => ['nullable', 'date'],
+            'expiry_date' => ['nullable', 'date', new JourIso],
         ];
     }
 }

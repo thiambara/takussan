@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Rules\JourIso;
 use App\Services\Export\ExportDataService;
 use Illuminate\Validation\Rule;
 
@@ -99,8 +100,8 @@ class ShowExportRequest extends BaseFormRequest
     {
         return [
             'format' => ['sometimes', Rule::in(['csv', 'xlsx', 'excel', 'pdf'])],
-            'from' => ['sometimes', 'date'],
-            'to' => ['sometimes', 'date'],
+            'from' => ['sometimes', 'date', new JourIso],
+            'to' => ['sometimes', 'date', new JourIso],
             // TCK-713 — le plafond dépend du format : 200 lignes en PDF (TCK-1306), 5 000 en XLSX
             // (TCK-1746), 10 000 en CSV.
             'limit' => ['sometimes', 'integer', 'min:1', 'max:'.ExportDataService::maxRows($this->input('format'))],

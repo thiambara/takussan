@@ -1,5 +1,6 @@
 import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
+import { estUnJourDeLApi } from '@/lib/jour-de-l-api';
 import { formatPrice } from '@/lib/utils';
 
 export type SuggestCity = {
@@ -489,7 +490,12 @@ export const SEARCH_FILTER_KEYS = {
   available_from: {
     role: 'filtre',
     params: ['available_from'],
-    lire: (sp: URLSearchParams) => litTexte(sp, 'available_from'),
+    // TCK-2768 — un jour que l'API refuserait (422 : « 12/11/2026 », « 2026-02-30 »…) n'est pas lu : la
+    // recherche ne le porte pas, et une recherche sauvegardée ne l'enregistre pas.
+    lire: (sp: URLSearchParams) => {
+      const jour = litTexte(sp, 'available_from');
+      return jour !== undefined && estUnJourDeLApi(jour) ? jour : undefined;
+    },
     ecrire: (v: string) => v,
     libelle: (v: string, t: TraducteursDeFiltre) =>
       t.tags('tags.availableFrom', {

@@ -9,6 +9,7 @@ use App\Models\Enums\BookingKind;
 use App\Models\Enums\Currency;
 use App\Models\Property;
 use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -95,8 +96,8 @@ class StoreBookingRequest extends BaseFormRequest
             // l'heure de Dakar).
             // TCK-2579 — la date d'entrée d'une candidature est `start_date`, et elle est requise ;
             // une candidature n'a pas de départ, une offre n'a aucune date.
-            'start_date' => [Rule::requiredIf($kind === BookingKind::Application->value), Rule::prohibitedIf($kind === BookingKind::Offer->value), 'nullable', 'date', 'after_or_equal:today'],
-            'end_date' => [Rule::prohibitedIf($recorded), 'nullable', 'date', 'after_or_equal:start_date'],
+            'start_date' => [Rule::requiredIf($kind === BookingKind::Application->value), Rule::prohibitedIf($kind === BookingKind::Offer->value), 'nullable', 'date', new JourIso, 'after_or_equal:today'],
+            'end_date' => [Rule::prohibitedIf($recorded), 'nullable', 'date', new JourIso, 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
             // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
