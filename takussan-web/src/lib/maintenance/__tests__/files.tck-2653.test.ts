@@ -14,7 +14,7 @@ import {
   joursAvant,
   type InterventionEnFile,
 } from '@/lib/maintenance/files';
-import { parametresDuResume, parametresDUneFile } from '@/lib/queries/maintenance-files';
+import { nomDuCarnet, parametresDuResume, parametresDUneFile } from '@/lib/queries/maintenance-files';
 
 const MAINTENANT = new Date('2026-11-10T12:00:00Z');
 const ilYA = (ms: number) => new Date(MAINTENANT.getTime() - ms).toISOString();
@@ -155,5 +155,15 @@ describe('les lectures', () => {
   it('« en attente d’un geste » somme les cinq files de l’agence, sans les terminées', () => {
     expect(FILES_DE_L_AGENCE).toEqual(['a_dispatcher', 'en_retard', 'chez_le_bailleur', 'en_cours', 'a_confirmer']);
     expect(enAttenteDUnGeste({ a_dispatcher: 3, en_retard: 1, chez_le_bailleur: 1, en_cours: 4, a_confirmer: 2, terminees: 38, a_accepter: 5 })).toBe(11);
+  });
+});
+
+describe('nomDuCarnet — le nom d’un prestataire du carnet', () => {
+  it('prend le nom du compte, sinon celui de l’invitation, sinon l’e-mail, sinon l’identifiant', () => {
+    const user = { id: 9, first_name: 'Awa', last_name: 'Diop', email: 'awa@example.net' };
+    expect(nomDuCarnet({ user, metadata: { first_name: 'Autre' }, user_id: 9 })).toBe('Awa Diop');
+    expect(nomDuCarnet({ user: { ...user, first_name: ' ', last_name: null }, metadata: { first_name: 'Modou', last_name: 'Fall' }, user_id: 9 })).toBe('Modou Fall');
+    expect(nomDuCarnet({ user: { ...user, first_name: null, last_name: null }, metadata: null, user_id: 9 })).toBe('awa@example.net');
+    expect(nomDuCarnet({ user: { ...user, first_name: null, last_name: null, email: '' }, metadata: { email: '' }, user_id: 9 })).toBe('9');
   });
 });

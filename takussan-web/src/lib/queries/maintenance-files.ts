@@ -16,6 +16,7 @@
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { cheminApi } from '@/lib/chemin-api';
+import { nomCompletDe } from '@/lib/identite';
 import { maintenanceKeys, type MaintenanceListResponse } from '@/lib/queries/maintenance';
 import {
   CHAMPS_D_UNE_CARTE,
@@ -145,7 +146,5 @@ export function useCarnetActif(agencyId: number | null) {
 
 /** Le nom d'une ligne du carnet : celui du compte, sinon celui de l'invitation (TCK-2136). */
 export function nomDuCarnet(l: Pick<LigneDuCarnet, 'user' | 'metadata' | 'user_id'>): string {
-  const compte = `${l.user?.first_name ?? ''} ${l.user?.last_name ?? ''}`.trim();
-  const invitation = `${l.metadata?.first_name ?? ''} ${l.metadata?.last_name ?? ''}`.trim();
-  return compte || invitation || l.user?.email || l.metadata?.email || String(l.user_id ?? '');
+  return nomCompletDe(l.user) ?? nomCompletDe(l.metadata) ?? (l.user?.email || l.metadata?.email || String(l.user_id ?? ''));
 }
