@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
-import { ETAPES_VIVANTES, type EtapeVivante, type LecteurDuPipeline, type PorteeDuPipeline, lirePipeline, porteeEnUrl } from '@/lib/crm/pipeline';
+import { ETAPES_VIVANTES, type EtapeVivante, JOURS_DES_SORTIES, type LecteurDuPipeline, type PorteeDuPipeline, lirePipeline, porteeEnUrl, totalDUneEtape } from '@/lib/crm/pipeline';
 import { initiales } from '@/lib/fiche-publique';
 import { fetchAgencyAgents } from '@/lib/queries/agent-crm';
 import { type CanalDeContactClient, useEnregistrerContactClient } from '@/lib/queries/customer-gestures';
@@ -144,7 +144,10 @@ export function PageDuPipeline({ lecteur, moi, agence, crmTags }: PageDuPipeline
     if (to) etapes.changer(x, to);
   };
   // « Reporter » : la tâche en retard passe à demain, 9 h (Dakar, UTC) ; rien d'autre ne se reporte.
-  const peutReporter = (x: PipelineCustomerCard) => x.follow_up?.reason === 'overdue_task' && x.next_action?.type === 'task' && x.next_action.overdue;
+  // « Reporter » écrit l'échéance de la tâche : seulement si le lecteur peut la modifier (décision 4,
+  // `next_action.manage` = `TaskPolicy::update`) ; une réponse sans `manage` ne l'offre pas.
+  const peutReporter = (x: PipelineCustomerCard) =>
+    x.follow_up?.reason === 'overdue_task' && x.next_action?.type === 'task' && x.next_action.overdue && x.next_action.manage === true;
   const reporter = async (x: PipelineCustomerCard) => {
     if (!token || !peutReporter(x) || !x.next_action) return;
     const demain = new Date(Date.parse(`${jourADakar(maintenant)}T09:00:00Z`) + 86_400_000).toISOString();
@@ -157,6 +160,8 @@ export function PageDuPipeline({ lecteur, moi, agence, crmTags }: PageDuPipeline
   };
 
   const ouvrirSorties = (ouvert: boolean) => remplacer({ sorties: ouvert ? '1' : null });
+  // La tuile « Conversion » (décision 1b, AC4) ouvre les sorties qu'elle compte : celles de la période.
+  const ouvrirSortiesDeLaPeriode = (ouvert: boolean) => remplacer({ sorties: ouvert ? String(JOURS_DES_SORTIES) : null });
   const deplies = etat.sorties ? (['converted', 'lost'] as const) : ([] as const);
 
   const basculeDuBureau = (
@@ -224,7 +229,7 @@ export function PageDuPipeline({ lecteur, moi, agence, crmTags }: PageDuPipeline
             sections={sectionsDuTelephone.map((s) => ({
               stage: s,
               cartes: colonnesDuTelephone.cartes(s),
-              total: stats.data?.stage_counts?.[s],
+              total: totalDUneEtape(etat, stats.data, s),
               mediane: etat.sorties ? undefined : stats.data?.median_days_in_stage?.[s],
               ...colonnesDuTelephone.etatDe(s),
               onLoadMore: () => void colonnesDuTelephone.chargerPlus(s),
@@ -256,9 +261,9 @@ export function PageDuPipeline({ lecteur, moi, agence, crmTags }: PageDuPipeline
                   stats={stats.data}
                   onActifs={() => remplacer({ relance: null, sorties: null })}
                   onPassages={() => remplacer({ vue: null, segment: null, relance: null })}
-                  onConversion={() => ouvrirSorties(!etat.sorties)}
+                  onConversion={() => ouvrirSortiesDeLaPeriode(!etat.sortiesDeLaPeriode)}
                   onMediane={() => remplacer({ sorties: null })}
-                  sortiesOuvertes={etat.sorties}
+                  sortiesOuvertes={etat.sortiesDeLaPeriode}
                 />
                 <BarreDuPipeline etat={etat} vue="etapes" portees={portees} porteeLibelle={porteeLibelle} choisirPortee={choisirPortee} crmTags={crmTags} poser={poser} />
               </div>

@@ -7,6 +7,8 @@ use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Agency\AgentAvailability;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -21,6 +23,12 @@ use Illuminate\Support\Carbon;
  * d'un collègue COMPTE — la fiche est lisible — mais son titre ne sort pas (contrainte du ticket :
  * rien de plus que ce que l'appelant lit déjà). Règle plus étroite que `TaskPolicy::view` (qui
  * admet aussi le remplaçant d'un absent) : jugée sans requête par ligne.
+ *
+ * `manage` (TCK-2592, décision 4) : sur une TÂCHE seulement, le lecteur peut-il la modifier — la
+ * règle de `TaskPolicy::update` (créateur membre de l'agence de la fiche, assigné qui en est le
+ * personnel, remplaçant d'un assigné absent ; le lecteur d'équipe `crm.view_all` lit sans modifier),
+ * jugée pour toute la page en quelques requêtes ({@see self::juges()}). Une visite n'en porte pas :
+ * `upcoming_visits[].manage` le dit déjà.
  *
  * UNE définition des deux viviers ({@see self::upcomingVisits()}, {@see self::openTasks()}) : la
  * page et `sort=next_action_at` les lisent tous deux. L'instant est celui de PHP.
@@ -37,8 +45,11 @@ final class CustomerNextActionQuery
 
     private readonly int $viewerId;
 
+    private readonly User $viewer;
+
     public function __construct(User $viewer, ?CarbonInterface $now = null)
     {
+        $this->viewer = $viewer;
         $this->now = Carbon::instance($now ?? now());
         $this->seesAll = $viewer->isSuperAdmin();
         $this->staffAgencyId = $viewer->staffAgencyId();
@@ -97,10 +108,11 @@ final class CustomerNextActionQuery
     }
 
     /**
-     * La prochaine action de chaque fiche de la page, en trois requêtes quelle que soit sa taille.
+     * La prochaine action de chaque fiche de la page, en un nombre de requêtes qui ne dépend ni de sa
+     * taille ni du nombre de ses agences (trois, plus celles de `manage` s'il y a une tâche).
      *
      * @param  list<int>  $ids
-     * @return array<int, array{type: string, id: int, at: string, label: ?string, overdue: bool}|null>
+     * @return array<int, array{type: string, id: int, at: string, label: ?string, overdue: bool, manage?: bool}|null>
      */
     public function forPage(array $ids): array
     {
@@ -141,17 +153,21 @@ final class CustomerNextActionQuery
                 ]);
             });
 
+        $juges = null;
         $this->openTasks()
             ->whereIn('tasks.taskable_id', $ids)
             ->get(['tasks.id', 'tasks.taskable_id', 'tasks.due_at', 'tasks.title', 'tasks.created_by_id', 'tasks.assigned_to_id'])
-            ->each(function (Task $t) use ($keep): void {
+            ->each(function (Task $t) use ($keep, $agencies, &$juges): void {
                 $reads = $this->seesAll
                     || (int) $t->created_by_id === $this->viewerId
                     || (int) $t->assigned_to_id === $this->viewerId;
+                $juges ??= $this->juges();
+                $agencyId = $agencies[$t->taskable_id] ?? null;
                 $keep((int) $t->taskable_id, $t->due_at, 1, [
                     'type' => 'task',
                     'id' => (int) $t->id,
                     'label' => $reads ? $t->title : null,
+                    'manage' => $this->manages($t, $agencyId === null ? null : (int) $agencyId, $juges),
                 ]);
             });
 
@@ -164,8 +180,53 @@ final class CustomerNextActionQuery
                 'label' => $entry['row']['label'],
                 'overdue' => $entry['at']->lessThan($this->now),
             ];
+            if (array_key_exists('manage', $entry['row'])) {
+                $out[$customerId]['manage'] = $entry['row']['manage'];
+            }
         }
 
         return $out;
+    }
+
+    /**
+     * Ce que `TaskPolicy::update` lit du lecteur, une fois pour la page : ses agences de membre et de
+     * personnel, et les absences qu'il couvre (`AgentAvailability::coveredBy`, mêmes conditions que
+     * `covers`). Rien pour le super-admin, qui modifie tout.
+     *
+     * @return array{member: list<int>, staff: list<int>, covered: array<string, true>}
+     */
+    private function juges(): array
+    {
+        if ($this->seesAll) {
+            return ['member' => [], 'staff' => [], 'covered' => []];
+        }
+        $membership = app(MembershipCapabilityResolver::class);
+        $staff = $membership->staffAgencyIds($this->viewer);
+        $covered = [];
+        foreach (app(AgentAvailability::class)->coveredBy($this->viewer) as $absence) {
+            $covered[$absence['absent_id'].'@'.$absence['agency_id']] = true;
+        }
+
+        return ['member' => $membership->memberAgencyIds($this->viewer), 'staff' => $staff, 'covered' => $covered];
+    }
+
+    /**
+     * `TaskPolicy::update` pour une tâche d'une fiche de la page (le parent existe : la fiche est
+     * lue). Agence nulle : le créateur et l'assigné passent, jamais le remplaçant (`covers` exige une
+     * agence).
+     *
+     * @param  array{member: list<int>, staff: list<int>, covered: array<string, true>}  $juges
+     */
+    private function manages(Task $t, ?int $agencyId, array $juges): bool
+    {
+        if ($this->seesAll) {
+            return true;
+        }
+        $creator = (int) $t->created_by_id === $this->viewerId;
+        $assignee = $t->assigned_to_id !== null && (int) $t->assigned_to_id === $this->viewerId;
+
+        return ($creator && ($agencyId === null || in_array($agencyId, $juges['member'], true)))
+            || ($assignee && ($agencyId === null || in_array($agencyId, $juges['staff'], true)))
+            || ($t->assigned_to_id !== null && $agencyId !== null && isset($juges['covered'][$t->assigned_to_id.'@'.$agencyId]));
     }
 }

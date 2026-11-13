@@ -57,6 +57,8 @@ export interface CustomerNextAction {
   readonly at: string;
   readonly label: string | null;
   readonly overdue: boolean;
+  /** TCK-2592 (décision 4) — une tâche : le lecteur peut-il la modifier (`TaskPolicy::update`) ; absent sur une visite. */
+  readonly manage?: boolean;
 }
 
 /** TCK-2588 — la relance due : tâche en retard, compte rendu manquant, ou sans contact depuis `days` jours. */

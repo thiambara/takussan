@@ -224,17 +224,24 @@ describe('<PageDuPipeline> (TCK-2592)', () => {
     mocks.updateTask.mockReset().mockResolvedValue({});
     const enRetard = carte(21, 'Fatou', {
       follow_up: { reason: 'overdue_task', since: IL_Y_A(2), days: 2 },
-      next_action: { type: 'task', id: 40, at: IL_Y_A(2), label: 'Rappeler', overdue: true },
+      next_action: { type: 'task', id: 40, at: IL_Y_A(2), label: 'Rappeler', overdue: true, manage: true },
     });
     const sansTache = carte(22, 'Ibou', { follow_up: { reason: 'no_contact', since: IL_Y_A(9), days: 9 } });
+    // Décision 4 — la tâche en retard d'un collègue : lue, pas modifiable (`TaskPolicy::update`).
+    const duCollegue = carte(23, 'Awa', {
+      follow_up: { reason: 'overdue_task', since: IL_Y_A(3), days: 3 },
+      next_action: { type: 'task', id: 41, at: IL_Y_A(3), label: null, overdue: true, manage: false },
+    });
     mocks.fetchPipelineList.mockImplementation((_t: string, { filtres }: { filtres: Record<string, string> }) =>
-      Promise.resolve(filtres.follow_up === '1' ? { lignes: [enRetard, sansTache], total: 2 } : { lignes: [], total: 0 }),
+      Promise.resolve(filtres.follow_up === '1' ? { lignes: [enRetard, sansTache, duCollegue], total: 3 } : { lignes: [], total: 0 }),
     );
     rendu(AGENT);
     const fatou = (await within(telephone()).findByText('Fatou Ndiaye')).closest('[data-slot="ligne-relance"]') as HTMLElement;
     const ibou = within(telephone()).getByText('Ibou Ndiaye').closest('[data-slot="ligne-relance"]') as HTMLElement;
-    // Rien ne se reporte sans tâche en retard.
+    const awa = within(telephone()).getByText('Awa Ndiaye').closest('[data-slot="ligne-relance"]') as HTMLElement;
+    // Rien ne se reporte sans tâche en retard, ni la tâche qu'on ne peut pas modifier.
     expect(within(ibou).queryByRole('button', { name: 'Reporter', hidden: true })).not.toBeInTheDocument();
+    expect(within(awa).queryByRole('button', { name: 'Reporter', hidden: true })).not.toBeInTheDocument();
     const lectures = mocks.fetchPipelineList.mock.calls.length;
 
     await user.click(within(fatou).getByRole('button', { name: 'Reporter', hidden: true }));
@@ -261,7 +268,35 @@ describe('<PageDuPipeline> (TCK-2592)', () => {
     const tuile = await within(bureau()).findByRole('button', { name: /Conversion des sorties/ });
     await waitFor(() => expect(tuile).toHaveTextContent('57 %'));
     await user.click(tuile);
-    expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining('sorties=1'), { scroll: false });
+    // Décision 1b — la tuile ouvre les sorties qu'elle compte : celles des 30 derniers jours.
+    expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining('sorties=30'), { scroll: false });
+  });
+
+  it('sous `sorties=30`, Gagné et Perdu ne lisent que les sorties de la période, comptées comme la tuile (AC4)', async () => {
+    mocks.fetchPipelineStats.mockResolvedValue({ ...STATS, stage_counts: { ...STATS.stage_counts, converted: 40, lost: 30 } });
+    rendu(ADMIN, 'vue=etapes&sorties=30');
+    const gagne = (await within(bureau()).findByTestId('pipeline-column-converted')) as HTMLElement;
+    const perdu = within(bureau()).getByTestId('pipeline-column-lost');
+    await waitFor(() => expect(within(gagne).getByText('4')).toBeInTheDocument());
+    expect(within(perdu).getByText('3')).toBeInTheDocument();
+    const filtresDe = (stage: string) =>
+      mocks.fetchPipelineColumn.mock.calls.filter(([, p]) => (p as { stage: string }).stage === stage).map(([, p]) => (p as { filtres: Record<string, string> }).filtres);
+    await waitFor(() => expect(filtresDe('converted').length).toBeGreaterThan(0));
+    expect(filtresDe('converted').every((f) => f.exited_within_days === '30')).toBe(true);
+    expect(filtresDe('lost').every((f) => f.exited_within_days === '30')).toBe(true);
+    // Les étapes vivantes ne sont pas bornées.
+    expect(filtresDe('lead').some((f) => 'exited_within_days' in f)).toBe(false);
+    expect(within(bureau()).getByRole('button', { name: /Conversion des sorties/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('« Déplier » (`sorties=1`) montre Gagné et Perdu entiers, comptés par étape', async () => {
+    mocks.fetchPipelineStats.mockResolvedValue({ ...STATS, stage_counts: { ...STATS.stage_counts, converted: 40, lost: 30 } });
+    rendu(ADMIN, 'vue=etapes&sorties=1');
+    const gagne = (await within(bureau()).findByTestId('pipeline-column-converted')) as HTMLElement;
+    await waitFor(() => expect(within(gagne).getByText('40')).toBeInTheDocument());
+    const appels = mocks.fetchPipelineColumn.mock.calls.filter(([, p]) => (p as { stage: string }).stage === 'converted');
+    expect(appels.some(([, p]) => 'exited_within_days' in (p as { filtres: Record<string, string> }).filtres)).toBe(false);
+    expect(within(bureau()).getByRole('button', { name: /Conversion des sorties/ })).toHaveAttribute('aria-pressed', 'false');
   });
 });
 

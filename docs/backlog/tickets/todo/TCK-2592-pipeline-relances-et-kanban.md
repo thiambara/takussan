@@ -84,4 +84,28 @@ L'agent ouvre le pipeline et sait qui relancer, le plus en retard d'abord ; l'ad
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décision 1b (AC4), la tuile « Conversion ».** La tuile ouvre `sorties=30`. Gagné et Perdu s'y
+déplient bornés aux sorties des 30 derniers jours.
+
+- API : `filter[exited_within_days]=N` (1 à 90) sur `GET /api/customers`. Le filtre lit le journal
+  par `PipelineStatsService::sortiesRecentes()`, la définition même de `exits_last_30d`.
+- Une valeur vide, faite d'espaces, nulle, hors bornes, décimale ou multiple rend 422, jamais toute
+  la liste. Hors personnel, le filtre ne rend rien, comme `follow_up=1`.
+- Front : `filtresDUneColonne`, `cleDUneColonne` et `totalDUneEtape` (`lib/crm/pipeline.ts`). La
+  mise à jour optimiste d'un changement d'étape vise aussi la colonne bornée.
+- « Déplier » et l'en-tête du portefeuille gardent `sorties=1` : les colonnes entières, comptées par
+  `stage_counts`.
+- Le compte de la tuile compte des passages. Une fiche sortie deux fois dans la période compte deux
+  fois et paraît une fois. Une fiche rouverte compte, mais ne paraît dans aucune colonne. Une fiche
+  créée directement Gagné compte comme une sortie, pour la tuile comme pour le filtre.
+
+**Décision 4, « Reporter ».** `next_action.manage` est servi sur une tâche seulement. Il vaut
+`TaskPolicy::update`, jugé pour toute la page en un nombre fixe de requêtes : créateur membre de
+l'agence de la fiche, assigné qui en est le personnel, remplaçant d'un absent. Le lecteur d'équipe
+lit la tâche sans la modifier. « Reporter » ne s'offre que si `manage` est vrai.
+
+- Tests : `CustomerExitedWithinDaysFilterTest`, `CustomerNextActionManageTest` (chaque cas comparé à
+  `Gate::allows('update')` et à la valeur attendue), `PageDuPipeline.tck-2592`,
+  `pipeline.tck-2592`, `useCustomerStageMutation.portee.tck-2592`.
+- Ablations : 9 côté API, 8 côté front, toutes rouges puis restaurées.
+- Non éprouvé : l'assigné dont le profil n'est plus actif. Il ne lit plus la liste.

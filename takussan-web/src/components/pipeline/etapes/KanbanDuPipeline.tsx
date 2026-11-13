@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { useTranslations } from 'next-intl';
 
-import { ETAPES_VIVANTES, type EtatDuPipeline } from '@/lib/crm/pipeline';
+import { ETAPES_VIVANTES, type EtatDuPipeline, totalDUneEtape } from '@/lib/crm/pipeline';
 import { type CanalDeContactClient } from '@/lib/queries/customer-gestures';
 import { PIPELINE_STAGES } from '@/lib/queries/pipeline';
 import { cn } from '@/lib/utils';
@@ -90,7 +90,7 @@ export function KanbanDuPipeline({ etat, stats, lire, changer, plusTard, noter, 
     if (to !== carte.pipeline_stage) changer(carte, to);
   };
 
-  const compte = (s: CustomerPipelineStage) => stats?.stage_counts?.[s];
+  const compte = (s: CustomerPipelineStage) => totalDUneEtape(etat, stats, s);
   const mediane = (s: CustomerPipelineStage) => stats?.median_days_in_stage?.[s] ?? null;
 
   const colonne = (stage: CustomerPipelineStage, replier?: () => void) => {

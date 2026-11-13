@@ -62,6 +62,25 @@ describe('useCustomerStageMutation — portée et listes (TCK-2592)', () => {
     expect(liste?.lignes.find((c) => c.id === 42)?.pipeline_stage).toBe('qualified');
   });
 
+  it('sous `sorties=30`, une sortie entre dans la colonne bornée ; un retour à une étape vivante, dans la colonne entière (décision 1b)', async () => {
+    patchMock.mockImplementation(enSuspens);
+    const { queryClient, hook } = monter();
+    const borne = 'referent=me&status=active&exited_within_days=30';
+    queryClient.setQueryData(PIPELINE_QUERY_KEY.column('converted', borne), [carte(9, 'converted')]);
+    act(() => hook.result.current.mutate({ customerId: 42, from: 'negotiating', to: 'converted', reason: 'Bail signé' }));
+    await waitFor(() => expect(queryClient.getQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column('converted', borne))?.map((c) => c.id)).toEqual([42, 9]));
+    // La colonne entière jamais lue n'est pas créée.
+    expect(queryClient.getQueryData(PIPELINE_QUERY_KEY.column('converted', 'referent=me&status=active'))).toBeUndefined();
+    rendre({ id: 42 });
+    await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
+
+    // De la colonne bornée vers une étape vivante : la cible est la colonne entière de l'étape.
+    hook.result.current.reset();
+    act(() => hook.result.current.mutate({ customerId: 9, from: 'converted', to: 'negotiating' }));
+    await waitFor(() => expect(queryClient.getQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column('negotiating', 'referent=me&status=active'))?.map((c) => c.id)).toContain(9));
+    expect(queryClient.getQueryData(PIPELINE_QUERY_KEY.column('negotiating', borne))).toBeUndefined();
+  });
+
   it('une sortie retire la ligne de la liste et en décompte le total', async () => {
     patchMock.mockImplementation(enSuspens);
     const { queryClient, hook } = monter();

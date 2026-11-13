@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import { SUFFIXE_DES_SORTIES_DE_LA_PERIODE } from '@/lib/crm/pipeline';
 import { type PagePipeline, patchCustomerPipelineStage } from '@/lib/queries/pipeline';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
@@ -79,11 +80,18 @@ export function useCustomerStageMutation() {
         queryClient.setQueryData<PipelineCustomerCard[]>(key, (old) => (old ?? []).filter((c) => c.id !== vars.customerId));
         if (!moved) continue;
         const filtres = typeof key[3] === 'string' ? key[3] : '';
-        const toKey = PIPELINE_QUERY_KEY.column(vars.to, filtres);
-        // Une colonne cible jamais lue (un bandeau replié) n'est pas créée : elle se lira à l'ouverture.
-        if (queryClient.getQueryData(toKey) === undefined) continue;
+        // Décision 1b — sous `sorties=30`, Gagné et Perdu ont une clé bornée : une sortie, datée de
+        // maintenant, entre dans la colonne entière ET dans la colonne bornée ; une étape vivante n'a
+        // que la clé entière.
+        const base = filtres.endsWith(SUFFIXE_DES_SORTIES_DE_LA_PERIODE) ? filtres.slice(0, -SUFFIXE_DES_SORTIES_DE_LA_PERIODE.length) : filtres;
+        const cibles = TERMINALES.includes(vars.to) ? [base, `${base}${SUFFIXE_DES_SORTIES_DE_LA_PERIODE}`] : [base];
         const updated: PipelineCustomerCard = { ...moved, pipeline_stage: vars.to, updated_at: maintenant, suggested_stage: null };
-        queryClient.setQueryData<PipelineCustomerCard[]>(toKey, (old) => [updated, ...(old ?? []).filter((c) => c.id !== vars.customerId)]);
+        for (const cible of cibles) {
+          const toKey = PIPELINE_QUERY_KEY.column(vars.to, cible);
+          // Une colonne cible jamais lue (un bandeau replié) n'est pas créée : elle se lira à l'ouverture.
+          if (queryClient.getQueryData(toKey) === undefined) continue;
+          queryClient.setQueryData<PipelineCustomerCard[]>(toKey, (old) => [updated, ...(old ?? []).filter((c) => c.id !== vars.customerId)]);
+        }
       }
 
       // Les listes ne portent que les étapes vivantes : une sortie (Gagné, Perdu) en retire la ligne.

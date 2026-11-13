@@ -89,6 +89,8 @@ class CustomerListQueryCountTest extends ApiTestCase
             $this->assertSame('task', $ligne['next_action']['type']);
             $this->assertNull($ligne['next_action']['label'], 'le titre de la tâche du collègue ne sort pas');
             $this->assertTrue($ligne['next_action']['overdue']);
+            // TCK-2592 (décision 4) — la tâche du collègue ne se modifie pas, jugé sans requête par ligne.
+            $this->assertFalse($ligne['next_action']['manage']);
             $this->assertSame('overdue_task', $ligne['follow_up']['reason']);
             $this->assertSame($this->agent->id, $ligne['referent']['id']);
             $this->assertCount(1, $ligne['upcoming_visits']);

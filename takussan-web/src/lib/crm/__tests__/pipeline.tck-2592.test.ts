@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { cleDeLaListe, cleDesFiltres, filtresDeLaListe, filtresDesColonnes, lirePipeline, parametresDesStats, porteeParDefaut } from '@/lib/crm/pipeline';
+import { cleDeLaListe, cleDesFiltres, cleDUneColonne, filtresDeLaListe, filtresDesColonnes, filtresDUneColonne, lirePipeline, parametresDesStats, porteeParDefaut, totalDUneEtape } from '@/lib/crm/pipeline';
+import type { PipelineStats } from '@/types/pipeline';
 
 /**
  * TCK-2592 — l'état du pipeline, lu dans l'URL : la portée (Moi / Agence / un agent), la vue (Liste |
@@ -55,6 +56,11 @@ describe('lirePipeline', () => {
     expect(e.relance).toBe(true);
     expect(e.sorties).toBe(false);
     expect(lirePipeline({ sorties: '1' }, ADMIN).sorties).toBe(true);
+    expect(lirePipeline({ sorties: '1' }, ADMIN).sortiesDeLaPeriode).toBe(false);
+    // Décision 1b — `sorties=30` : les mêmes étapes ouvertes, bornées à la période de la tuile.
+    expect(lirePipeline({ sorties: '30' }, ADMIN).sorties).toBe(true);
+    expect(lirePipeline({ sorties: '30' }, ADMIN).sortiesDeLaPeriode).toBe(true);
+    expect(lirePipeline({ sorties: '7' }, ADMIN).sorties).toBe(false);
     const f = lirePipeline({ segment: 'x', etape: 'converted', relance: 'oui' }, ADMIN);
     expect(f.segment).toBe('tous');
     // Le portefeuille ne choisit qu'une étape vivante.
@@ -117,5 +123,30 @@ describe('filtresDeLaListe', () => {
     expect(filtresDeLaListe(e, 'tous').follow_up).toBe('1');
     expect(filtresDeLaListe(e, 'a-jour').follow_up).toBe('0');
     expect(cleDeLaListe(e, 'a-jour')).not.toBe(cleDeLaListe(e, 'tous'));
+  });
+});
+
+describe('les colonnes terminales sous `sorties=30` (décision 1b)', () => {
+  const stats = {
+    stage_counts: { lead: 3, prospect: 1, qualified: 0, negotiating: 2, converted: 40, lost: 30 },
+    exits_last_30d: { converted: 4, lost: 3 },
+  } as unknown as PipelineStats;
+
+  it('bornent Gagné et Perdu à la période, sous leur propre clé, et se comptent comme la tuile', () => {
+    const e = lirePipeline({ sorties: '30' }, ADMIN);
+    expect(filtresDUneColonne(e, 'converted')).toEqual({ status: 'active', exited_within_days: '30' });
+    expect(filtresDUneColonne(e, 'lost')).toEqual({ status: 'active', exited_within_days: '30' });
+    expect(filtresDUneColonne(e, 'lead')).toEqual(filtresDesColonnes(e));
+    expect(cleDUneColonne(e, 'converted')).not.toBe(cleDUneColonne(lirePipeline({ sorties: '1' }, ADMIN), 'converted'));
+    expect(cleDUneColonne(e, 'lead')).toBe(cleDesFiltres(e));
+    expect(totalDUneEtape(e, stats, 'converted')).toBe(4);
+    expect(totalDUneEtape(e, stats, 'lost')).toBe(3);
+    expect(totalDUneEtape(e, stats, 'lead')).toBe(3);
+  });
+
+  it('`sorties=1` laisse les colonnes entières, comptées par étape', () => {
+    const e = lirePipeline({ sorties: '1' }, ADMIN);
+    expect(filtresDUneColonne(e, 'converted')).toEqual(filtresDesColonnes(e));
+    expect(totalDUneEtape(e, stats, 'converted')).toBe(40);
   });
 });

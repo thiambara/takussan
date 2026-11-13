@@ -13,17 +13,26 @@
  *  · `segment` : `a-relancer` · `a-jour` · `tous` (défaut, absent de l'URL) — la liste du bureau.
  *  · `etape` : une étape VIVANTE choisie au portefeuille du téléphone.
  *  · `search`, `tags`, `relance=1` (« À relancer seulement ») : la barre de filtres.
- *  · `sorties=1` : les étapes terminales ouvertes (la tuile « Conversion », l'en-tête du portefeuille).
+ *  · `sorties=1` : les étapes terminales ouvertes (« Déplier » du bureau, l'en-tête du portefeuille) ;
+ *    `sorties=30` : les mêmes, bornées aux sorties des 30 derniers jours — la tuile « Conversion »
+ *    (TCK-2592, décision 1b, AC4) ouvre les fiches qu'elle compte (`filter[exited_within_days]`).
  *
  * ⚠ Les colonnes et les statistiques reçoivent les MÊMES filtres : le compte d'une colonne vient des
  * statistiques (TCK-591), et « Charger plus (x/total) » mentirait sinon. La seule différence est la
  * portée : `scope=mine` refuse `filter[referent]` (`PipelineStatsRequest`), qu'il pose lui-même.
  */
 import type { CustomerPipelineStage } from '@/types/customer';
+import type { PipelineStats } from '@/types/pipeline';
 
 export const ETAPES_VIVANTES = ['lead', 'prospect', 'qualified', 'negotiating'] as const satisfies readonly CustomerPipelineStage[];
 export type EtapeVivante = (typeof ETAPES_VIVANTES)[number];
 export const ETAPES_TERMINALES = ['converted', 'lost'] as const satisfies readonly CustomerPipelineStage[];
+
+/** La période de la tuile « Conversion » : celle de `exits_last_30d` (`PipelineStatsService::exitsLast30Days`). */
+export const JOURS_DES_SORTIES = 30;
+
+/** Ce que la clé de cache d'une colonne bornée ajoute à celle de la colonne entière ({@link cleDUneColonne}). */
+export const SUFFIXE_DES_SORTIES_DE_LA_PERIODE = `&exited_within_days=${JOURS_DES_SORTIES}`;
 
 export const VUES_DU_PIPELINE = ['liste', 'etapes'] as const;
 export type VueDuPipeline = (typeof VUES_DU_PIPELINE)[number];
@@ -50,8 +59,10 @@ export interface EtatDuPipeline {
   readonly search: string | null;
   readonly tags: string | null;
   readonly relance: boolean;
-  /** `sorties=1` : Gagné et Perdu dépliés (bureau), ou montrés à la place des étapes vivantes (téléphone). */
+  /** `sorties=1` ou `30` : Gagné et Perdu dépliés (bureau), ou montrés à la place des étapes vivantes (téléphone). */
   readonly sorties: boolean;
+  /** `sorties=30` : ces deux étapes bornées aux sorties de la période (la tuile « Conversion »). */
+  readonly sortiesDeLaPeriode: boolean;
 }
 
 type Brut = Record<string, string | string[] | undefined | null>;
@@ -91,7 +102,8 @@ export function lirePipeline(brut: Brut, lecteur: LecteurDuPipeline): EtatDuPipe
     search: une(brut.search) ?? null,
     tags: une(brut.tags) ?? null,
     relance: personnel && une(brut.relance) === '1',
-    sorties: une(brut.sorties) === '1',
+    sorties: une(brut.sorties) === '1' || une(brut.sorties) === String(JOURS_DES_SORTIES),
+    sortiesDeLaPeriode: une(brut.sorties) === String(JOURS_DES_SORTIES),
   };
 }
 
@@ -111,6 +123,8 @@ export interface FiltresDuPipeline {
   readonly follow_up?: '1' | '0';
   /** La liste seule : l'étape choisie au portefeuille ou au filtre « Étape ». */
   readonly pipeline_stage?: EtapeVivante;
+  /** Une colonne terminale sous `sorties=30` : les sorties de la période (décision 1b). */
+  readonly exited_within_days?: string;
 }
 
 /** Les filtres de la barre, communs aux colonnes et aux statistiques (sans la portée). */
@@ -132,6 +146,31 @@ function referentDe(portee: PorteeDuPipeline | null): string | undefined {
 export function filtresDesColonnes(etat: EtatDuPipeline): FiltresDuPipeline {
   const referent = referentDe(etat.portee);
   return { ...filtresDeLaBarre(etat), ...(referent ? { referent } : {}) };
+}
+
+function borneeALaPeriode(etat: EtatDuPipeline, stage: CustomerPipelineStage): boolean {
+  return etat.sortiesDeLaPeriode && (ETAPES_TERMINALES as readonly CustomerPipelineStage[]).includes(stage);
+}
+
+/** Les filtres d'UNE colonne : ceux des colonnes, plus la période sur Gagné et Perdu sous `sorties=30`. */
+export function filtresDUneColonne(etat: EtatDuPipeline, stage: CustomerPipelineStage): FiltresDuPipeline {
+  const base = filtresDesColonnes(etat);
+  return borneeALaPeriode(etat, stage) ? { ...base, exited_within_days: String(JOURS_DES_SORTIES) } : base;
+}
+
+/** La clé de cache d'une colonne : une colonne bornée n'est pas la colonne entière. */
+export function cleDUneColonne(etat: EtatDuPipeline, stage: CustomerPipelineStage): string {
+  const cle = cleDesFiltres(etat);
+  return borneeALaPeriode(etat, stage) ? `${cle}${SUFFIXE_DES_SORTIES_DE_LA_PERIODE}` : cle;
+}
+
+/**
+ * Le compte d'une étape, lu dans les statistiques (TCK-591) : `stage_counts`, ou — colonne bornée —
+ * les sorties de la période (`exits_last_30d`), le nombre même de la tuile qui l'a ouverte.
+ */
+export function totalDUneEtape(etat: EtatDuPipeline, stats: PipelineStats | undefined, stage: CustomerPipelineStage): number | undefined {
+  if (borneeALaPeriode(etat, stage)) return stats?.exits_last_30d?.[stage as 'converted' | 'lost'];
+  return stats?.stage_counts?.[stage];
 }
 
 export interface ParametresDesStats {

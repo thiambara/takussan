@@ -9,7 +9,7 @@ import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { useCustomerStageMutation } from '@/hooks/useCustomerStageMutation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
-import { cleDeLaListe, cleDesFiltres, ETAPES_TERMINALES, type EtatDuPipeline, filtresDeLaListe, filtresDesColonnes, parametresDesStats, type SegmentDuPipeline } from '@/lib/crm/pipeline';
+import { cleDeLaListe, cleDesFiltres, cleDUneColonne, ETAPES_TERMINALES, type EtatDuPipeline, filtresDeLaListe, filtresDUneColonne, parametresDesStats, type SegmentDuPipeline } from '@/lib/crm/pipeline';
 import { PIPELINE_COLUMN_PAGE_SIZE, type PagePipeline, dismissSuggestedStage, fetchPipelineColumn, fetchPipelineList, fetchPipelineStats } from '@/lib/queries/pipeline';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
@@ -40,19 +40,22 @@ export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly Cus
   const queryClient = useQueryClient();
   const messageErreur = useMessageErreurApi();
   const t = useTranslations('crm.pipeline');
-  const cle = cleDesFiltres(etat);
-  const filtres = filtresDesColonnes(etat);
+  // Une clé et des filtres par colonne : Gagné et Perdu se bornent à la période sous `sorties=30`.
+  const cle = (stage: CustomerPipelineStage) => cleDUneColonne(etat, stage);
+  const filtres = (stage: CustomerPipelineStage) => filtresDUneColonne(etat, stage);
   const [chargeant, setChargeant] = useState<CustomerPipelineStage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
   const colonnes = useQueries({
     queries: etapes.map((stage) => ({
-      queryKey: PIPELINE_QUERY_KEY.column(stage, cle),
+      queryKey: PIPELINE_QUERY_KEY.column(stage, cle(stage)),
       queryFn: async () => {
         if (!token) return [] as PipelineCustomerCard[];
-        const deja = queryClient.getQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage, cle));
+        const deja = queryClient.getQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage, cle(stage)));
         const pages = Math.max(1, Math.ceil((deja?.length ?? 0) / PIPELINE_COLUMN_PAGE_SIZE));
-        const lues = await Promise.all(Array.from({ length: pages }, (_, i) => fetchPipelineColumn(token, i === 0 ? { stage, filtres } : { stage, filtres, page: i + 1 })));
+        const lues = await Promise.all(
+          Array.from({ length: pages }, (_, i) => fetchPipelineColumn(token, i === 0 ? { stage, filtres: filtres(stage) } : { stage, filtres: filtres(stage), page: i + 1 })),
+        );
         const vus = new Set<number>();
         return lues.flat().filter((c) => (vus.has(c.id) ? false : (vus.add(c.id), true)));
       },
@@ -75,8 +78,8 @@ export function useColonnesDuPipeline(etat: EtatDuPipeline, etapes: readonly Cus
     setChargeant(stage);
     try {
       const page = Math.floor(deja.length / PIPELINE_COLUMN_PAGE_SIZE) + 1;
-      const suite = await fetchPipelineColumn(token, { stage, filtres, page });
-      queryClient.setQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage, cle), (old) => {
+      const suite = await fetchPipelineColumn(token, { stage, filtres: filtres(stage), page });
+      queryClient.setQueryData<PipelineCustomerCard[]>(PIPELINE_QUERY_KEY.column(stage, cle(stage)), (old) => {
         const vus = new Set((old ?? []).map((c) => c.id));
         return [...(old ?? []), ...suite.filter((c) => !vus.has(c.id))];
       });

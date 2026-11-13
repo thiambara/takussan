@@ -12,6 +12,7 @@ use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Crm\CustomerNextActionQuery;
 use App\Services\Crm\CustomerPhoneNormalizer;
+use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
@@ -299,6 +300,25 @@ class Customer extends AbstractModel
                 (new CustomerFollowUpQuery($viewer))->filter($q, $due);
             }
         });
+
+        // TCK-2592 (décision 1b) — `filter[exited_within_days]=N` (1 à 90) : les fiches sorties
+        // (passées à Gagné ou Perdu) dans les N derniers jours, d'après le journal — la définition
+        // même de la tuile « Conversion » ({@see PipelineStatsService::sortiesRecentes()}). Une valeur
+        // vide, faite d'espaces, hors bornes ou multiple rend 422, jamais toute la liste (nullable :
+        // la valeur vide atteint la validation). Hors personnel, le journal des étapes est un fait
+        // interne de l'agence : le filtre ne rend rien, comme `follow_up=1`.
+        $filters[] = AllowedFilter::callback('exited_within_days', function (Builder $q, mixed $value) {
+            Validator::make(['filter' => ['exited_within_days' => $value]], [
+                'filter.exited_within_days' => ['required', 'integer', 'between:1,90'],
+            ])->validate();
+
+            if (! static::readsAgencyInternals(request()->user())) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->whereIn('customers.id', PipelineStatsService::sortiesRecentes((int) $value)->select('subject_id'));
+        })->nullable();
 
         // TCK-2588 — `filter[stage_group]=active` : les étapes vivantes (lead à négociation).
         $filters[] = AllowedFilter::callback('stage_group', function (Builder $q, mixed $value) {
