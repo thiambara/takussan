@@ -51,6 +51,10 @@ export const EXCEPTIONS = [
     raison: '« je vous écris au sujet de ma visite » : message que le CLIENT envoie à l’agent, à la 1ʳᵉ personne et qui vouvoie l’agent (TCK-2587).',
   },
   {
+    cle: 'payments.locataire.monBail.messageWhatsApp',
+    raison: '« je vous écris au sujet de mon bail » : message WhatsApp prérempli que le LOCATAIRE envoie à son agence, à la 1ʳᵉ personne et qui vouvoie l’agence (TCK-2650).',
+  },
+  {
     cle: 'favorites.selection.sousTitre',
     raison: '« Choisis sur Takussan et partagés avec vous » : participe passé (des biens choisis), pas un impératif.',
   },

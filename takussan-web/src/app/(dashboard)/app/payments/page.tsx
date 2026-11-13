@@ -49,7 +49,8 @@ export default async function Page({ searchParams }: { readonly searchParams: Pr
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('title')} description={client ? t('customerSubtitle') : t('subtitle')} />
+      {/* TCK-2650 — au téléphone, le locataire ouvre sur ce qu'il doit (maquette `app-paiements`) : la barre du haut porte déjà « Paiements », l'en-tête n'y reste que pour les lecteurs d'écran. */}
+      <PageHeader title={t('title')} description={client ? t('customerSubtitle') : t('subtitle')} className={client ? 'max-lg:sr-only' : undefined} />
       {client ? <CustomerPayments /> : <PaymentsTabs />}
     </div>
   );

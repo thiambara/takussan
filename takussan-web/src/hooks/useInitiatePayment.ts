@@ -1,6 +1,10 @@
 'use client';
 
+import type { Query } from '@tanstack/react-query';
+
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import type { ApiError } from '@/lib/api';
+import { cheminApi } from '@/lib/chemin-api';
 import type { ApiResponse } from '@/types/api';
 
 /**
@@ -39,6 +43,28 @@ export interface VerifyPaymentResult {
    * (échéance annulée par un renouvellement, ou déjà réglée) : l'agence doit le rembourser.
    */
   readonly refund_pending?: boolean;
+  /**
+   * TCK-2650 — ce que la page de retour nomme (montant, période, fournisseur, référence), lu sur le
+   * serveur, jamais dans l'adresse. Optionnel : absent, la page ne dit que l'issue.
+   */
+  readonly payment?: PaiementVerifie | null;
+}
+
+export interface PaiementVerifie {
+  readonly amount?: number | null;
+  /**
+   * Le montant demandé au dernier checkout : la ligne, plus la pénalité de retard quand l'agence
+   * l'encaisse en ligne. `null` sans checkout. C'est lui que le fournisseur débite.
+   */
+  readonly checkout_amount?: number | null;
+  readonly currency?: string | null;
+  readonly payment_type?: string | null;
+  readonly reference_number?: string | null;
+  readonly provider?: string | null;
+  readonly lease_id?: number | null;
+  readonly period_start?: string | null;
+  readonly period_end?: string | null;
+  readonly paid_at?: string | null;
 }
 
 const STORAGE_KEY = 'tks.payments.lastProvider';
@@ -78,6 +104,11 @@ export function useInitiatePayment(paymentType: GatewayPaymentType, paymentId: n
       return_url: variables.returnUrl,
       cancel_url: variables.cancelUrl,
     }),
+  }, {
+    // Un 409 (« déjà payée » : réglée ailleurs entre la lecture et le geste) relit le résumé du loyer et
+    // l'historique : la page cesse d'offrir un paiement qui n'a plus lieu d'être (TCK-2650, TCK-2625).
+    invalidate: [['me', 'rent-summary'], ['payments', 'history']],
+    relireSurErreur: true,
   });
 }
 
@@ -88,14 +119,18 @@ export function useInitiatePayment(paymentType: GatewayPaymentType, paymentId: n
 export function useVerifyPayment(
   paymentType: GatewayPaymentType,
   paymentId: number | null,
-  options?: { readonly enabled?: boolean; readonly refetchInterval?: number | false },
+  options?: {
+    readonly enabled?: boolean;
+    /** Un délai fixe, ou — TCK-2650 — une fonction qui lit la dernière réponse pour s'arrêter. */
+    readonly refetchInterval?: number | false | ((query: Query<ApiResponse<VerifyPaymentResult>, ApiError>) => number | false);
+  },
 ) {
   return useApiQuery<ApiResponse<VerifyPaymentResult>>(
     ['payments', 'verify', paymentType, paymentId] as const,
-    `/api/${paymentType}/${paymentId ?? 0}/verify`,
+    cheminApi`/api/${paymentType}/${paymentId ?? 0}/verify`,
     {
       enabled: Boolean(paymentId) && (options?.enabled ?? true),
-      refetchInterval: (options?.refetchInterval ?? false) as number | false,
+      refetchInterval: options?.refetchInterval ?? false,
     },
   );
 }

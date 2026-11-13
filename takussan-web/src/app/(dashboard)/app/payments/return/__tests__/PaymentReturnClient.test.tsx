@@ -18,7 +18,10 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('payment_type=lease-payments&payment_id=12&status=success'),
 }));
 vi.mock('@/hooks/useInitiatePayment', () => ({
-  useVerifyPayment: () => ({ data: etat.data, refetch: vi.fn() }),
+  useVerifyPayment: () => ({ data: etat.data, error: null, refetch: vi.fn() }),
+}));
+vi.mock('@/lib/queries/payments', () => ({
+  useResumeDuLoyer: () => ({ data: { data: { lease: { agency: { id: 1, name: 'Dakar Immo', phone: '+221338212100' } }, offline_payment: null } } }),
 }));
 
 async function rendre() {
@@ -41,25 +44,25 @@ describe('PaymentReturnClient — règlement à rembourser', () => {
     etat.data = { data: { status: 'cancelled', provider_status: 'success', refund_pending: true } };
     await rendre();
 
-    expect(screen.getByText('Paiement reçu, remboursement à venir')).toBeInTheDocument();
-    expect(screen.getByText('Paiement reçu sur une échéance annulée : l’agence vous remboursera.')).toBeInTheDocument();
-    expect(screen.queryByText('Paiement échoué')).toBeNull();
-    expect(screen.queryByText(/Vous pouvez réessayer/)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Actualiser' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Retour aux paiements' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cette échéance a été annulée : nous vous remboursons' })).toBeInTheDocument();
+    expect(screen.getByText('Votre paiement est arrivé sur une échéance annulée. L’agence vous le rendra.')).toBeInTheDocument();
+    expect(screen.queryByText('Paiement non abouti')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Réessayer' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Contacter l’agence' })).toHaveAttribute('href', 'tel:+221338212100');
+    expect(screen.getByRole('link', { name: 'Retour aux paiements' })).toHaveAttribute('href', '/app/payments');
   });
 
   it('échéance déjà réglée : le paiement en double est remboursé, pas « confirmé »', async () => {
     etat.data = { data: { status: 'paid', provider_status: 'success', refund_pending: true } };
     await rendre();
 
-    expect(screen.getByText('Cette échéance était déjà réglée : l’agence vous remboursera ce paiement.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ce loyer était déjà réglé : nous vous remboursons' })).toBeInTheDocument();
     expect(screen.queryByText('Paiement confirmé')).toBeNull();
   });
 
   it('sans drapeau, une échéance annulée reste un échec', async () => {
     etat.data = { data: { status: 'cancelled', provider_status: 'failed', refund_pending: false } };
     await rendre();
-    expect(screen.getByText('Paiement échoué')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Paiement non abouti' })).toBeInTheDocument();
   });
 });

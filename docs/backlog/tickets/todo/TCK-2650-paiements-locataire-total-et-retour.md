@@ -128,4 +128,104 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+_(terrain-8, 2026-11-13 — front ; le delta API `verify` → `payment` est de back-4.)_
+
+**Personas des critères** (décision de team-lead, 2026-11-13). AC2 se prouve sur `locataire-f4`
+(utilisateur 78, bail LS-0DPA75TK : `due`, 135 500 F = deux pénalités de 67 750 F, à l'agence).
+**AC3 ne se prouve plus sur `locataire-vrai`** : son bail LS-EC-IEJWXT est désormais `expired`, son
+résumé dit `up_to_date`. Il se prouve sur l'utilisateur 76 (bail LS-FC-MT5YXV, Dakar Immo, actif, sans
+échéance : `none`), en lecture seule. Écart consigné dans la fiche de fidélité.
+
+**Le retour de passerelle** (`components/payments/retour/issue-du-retour.ts`). L'issue se décide sur le
+statut SERVEUR seul, selon cet ordre :
+
+- `refund_pending` ou `refunded` → remboursement ;
+- `paid` → confirmé ;
+- `failed` ou `cancelled` → non abouti, définitif ;
+- 404 ou 403 → lien invalide ;
+- 5xx ou réseau → en cours.
+
+L'indice d'URL `status=failed|cancelled` (l'adresse d'annulation, TCK-1291) affiche « non abouti » quand
+le serveur dit encore `pending`, **mais l'interrogation continue** : un `paid` tardif l'emporte.
+`status=success` ne change jamais l'issue. L'adresse n'entre dans un chemin d'API qu'une fois lue :
+`lireLeLien` filtre les trois types connus et un identifiant `^\d{1,18}$`, entier sûr et positif.
+`1e3`, `0x1F` et `%2012` sont refusés, alors que `Number()` les accepterait.
+
+**La carte du retour** ne nomme que ce que `verify` sert dans `payment` : montant, période, fournisseur,
+référence, `paid_at`, et pour les loyers seulement `lease_id`. Tant que le delta de back-4 n'est pas
+fusionné, elle dit l'issue seule. Le disque du remboursement est `bg-muted text-accent`, pas
+`bg-accent/15` : `check-valeurs-arbitraires-app` réserve l'aplat d'accent aux badges *featured*.
+
+**La page du locataire**. La tête, le prochain loyer, l'historique, les échéances à venir et « Mon bail »
+se lisent sur `GET /api/me/rent-summary` (TCK-2649). Aucun montant n'y est additionné :
+
+- le total est `total_due` ;
+- le lieu (« à l'agence Dakar Immo », « en ligne », « dont … en ligne et … à l'agence ») se déduit
+  des deux `parts` ;
+- la composition (« 2 pénalités de retard (octobre et juillet) ») compte les `items`, sans les
+  sommer.
+
+Un client sans bail (`schedule_state` nul) ou un résumé illisible garde la tête d'avant
+(`ProchainPaiementHerite`) : rien ne se perd pour la réservation.
+
+**« Payer »** (`locataire/PayerUneEcheance.tsx`). Le paiement s'ouvre dans une feuille au téléphone et un
+panneau à droite dès `md` (`FeuilleDuBas`).
+
+- Seuls les fournisseurs que le serveur ouvre à CE paiement sont proposés
+  (`GET /api/lease-payments/{id}/providers`, TCK-602). L'ancienne vue passait `undefined` au
+  sélecteur, c'est-à-dire toutes les passerelles de la devise.
+- L'initiation et ses adresses de retour et d'annulation (TCK-1291) sont extraites dans
+  `useLancerLePaiement`, lu aussi par `PaymentProviderPicker` : une seule écriture.
+- `PayOnlineButton` est inchangé.
+
+**Historique**. La caution se nomme « Caution · Versée le … » et son justificatif est un « Reçu », le
+même PDF que la quittance (AC5). La caution rendue et la réservation n'ont pas de justificatif. La
+pénalité née d'un loyer se rappelle sous lui, due ou réglée. L'icône est `ReceiptText`, sans symbole
+monétaire.
+
+**`?moyen=agence`** est le « Payer à l'agence » de la page de retour. Il ouvre « Comment payer à
+l'agence » dès l'arrivée, avec les moyens que l'agence déclare (`offline_payment`) et rien d'autre.
+
+
+### Delta API — le paiement lu en base au retour (2026-11-13, back-4)
+
+`GET /api/{paymentType}/{paymentId}/verify` (`PaymentGatewayController::verify`) rend en plus `data.payment`, lu en
+base APRÈS la vérification, à la forme que le front consomme (`PaiementVerifie`, `hooks/useInitiatePayment.ts`,
+fixée avec terrain-8) : `amount` (nombre, montant de LA LIGNE en unités de la devise ; `total_amount` pour une
+facture), `checkout_amount` (ci-dessous), `currency`, `payment_type` (`null` pour une facture), `reference_number`, `provider` (code du dernier
+checkout, `metadata.gateway.provider`, rendu seulement s'il est un `PaymentProvider`), `paid_at` (ISO 8601) ; pour
+`lease-payments` SEULEMENT, `lease_id`, `period_start`, `period_end` (`AAAA-MM-JJ`). Pas de statut dans le bloc :
+le statut serveur reste `data.status`, que le front lit. Liste fermée : ni `metadata` (le fournisseur y laisse le
+numéro du payeur), ni payeur, ni téléphone, ni e-mail. Les clés existantes (`status`, `provider_status`,
+`transaction_id`, `refund_pending`) ne changent pas.
+
+L'autorisation existait (`authorize('update', …)` des trois policies, `findOrFail`) : un autre locataire → 403 sans
+`data`, un id inconnu → 404. Fixé par test, pas réécrit.
+
+Tests : `tests/Feature/Payments/VerifyPaiementLuEnBaseTest.php` (8) — échéance en cours puis payée (`paid_at` rendu),
+sans checkout le fournisseur est `null`, un code inconnu n'est pas rendu, ni téléphone ni e-mail dans le corps (clés
+du bloc comparées à la liste exacte), autre locataire 403, id inconnu 404, acompte de réservation et facture sans
+champ de bail. Ablations 9/9 rouges : bloc retiré, champs de bail pour tout type, fournisseur sans liste blanche
+(deux formes), montant du checkout au lieu de la ligne, `metadata` ajouté, `authorize` retiré, `findOrFail`
+contourné, `paid_at` nul. Voisins (8 classes qui appellent `verify`) : 79 verts.
+
+**`checkout_amount`** (ajouté le même jour, demandé par terrain-8, recommandation de team-lead — le porteur n'a pas
+encore tranché, point aa) : quand l'agence encaisse la pénalité en ligne, le checkout demande la ligne PLUS la
+pénalité (157 500 pour 150 000) ; la carte « en cours » ne doit pas dire 150 000. Le bloc rend donc, à côté
+d'`amount` (la ligne), `checkout_amount` : le montant FIGÉ du dernier checkout émis (`metadata.gateway_expected_amount`,
+écrit par `recordInitiation()`), `null` sans checkout (paiement saisi par l'agence). Les trois types le portent (même
+écriture pour tous). Tests : avec pénalité (157 500 contre 150 000), sans checkout (`null`) ; ablation : `checkout_amount`
+lu sur la ligne → rouge.
+
+**Côté front (terrain-8)** : sur la page de retour, le grand montant est `checkout_amount` quand il est présent,
+`amount` sinon. Quand le premier dépasse le second, une ligne « dont pénalité de retard : <écart> » s'ajoute. Sans
+`checkout_amount`, aucune pénalité n'est déduite et aucun texte n'est inventé (`CarteDuRetour.tsx`). Tests : deux
+cas dans `PaymentReturnClient.serveur.tck-2650.test.tsx` (157 500 dont 7 500 ; `null` → 150 000 sans ligne).
+Ablations 3/3 rouges : grand montant lu sur `amount`, ligne de pénalité tue, pénalité déduite sans `checkout_amount`.
+
+**Pour TCK-2625** (demandé par team-lead le 2026-11-13) :
+- `useDusDuLocataire()` (`src/lib/queries/dus-du-locataire.ts`) porte `STATUTS_DUS` et l'horizon de six mois, avec la même clé de cache et les mêmes paramètres qu'avant ; « Paiements » l'adopte.
+  - Il vit dans un module à part : les tests de la page doublent `@/lib/queries/payments` en entier, et le hook passe par SON `usePaymentsHistory`. Ces tests restent donc inchangés et verts.
+- `useInitiatePayment` relit `['me', 'rent-summary']` et `['payments', 'history']` sur erreur (`relireSurErreur`) : un 409 « déjà payée » recharge le résumé et l'historique.
+  - Test : `useInitiatePayment.relire-409.tck-2650.test.tsx`.
+  - Ablations, 3/3 rouges : sans `relireSurErreur`, sans l'historique, sans le résumé.

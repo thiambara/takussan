@@ -2601,38 +2601,6 @@
           "lemon_squeezy": "Kart (Lemon Squeezy)"
         }
       },
-      "return": {
-        "success": {
-          "title": "Pewam bi am na",
-          "body": "Jërejëf ! Pewam bi noon na."
-        },
-        "failed": {
-          "title": "Pewam dañu mënul",
-          "body": "Pewam bi mënul jeex. Mën nga ko jeem yeneen yoon."
-        },
-        "refund": {
-          "title": "Fey bi agsi na, dañuy delloo xaalis bi",
-          "bodyCancelled": "Fey bi agsi na ci ab fey bu ñu neenal : ajaas bi dina la delloo sa xaalis.",
-          "bodyAlreadyPaid": "Fey bii, fey nañu ko bu jëkk : ajaas bi dina la delloo xaalis bii."
-        },
-        "pending": {
-          "title": "Pewam ngiy taxaw",
-          "body": "Nu di ko seet ak fournisseur bi — mën na yagg lu tuuti."
-        },
-        "unknown": {
-          "title": "Statut bi kenn xamuko",
-          "body": "Mënuñu ko seet, jeem nga ko ndax."
-        },
-        "invalid": {
-          "title": "Lien bi aayoo",
-          "body": "Lien bi mënuñu jëfandikoo."
-        },
-        "actions": {
-          "backToPayments": "Dellu ci pewam yi",
-          "refresh": "Reefresh"
-        },
-        "verifying": "Ñu ngi seet paiement bi…"
-      },
       "error": {
         "generic": "Lu ñu xamul am na, jeemal ndax.",
         "checkoutInProgress": "Fey bu {amount} ci internet mu ngi dox ba tey ci bii fey. Mottaliléen ko, walla jéemaatal ginnaaw {time}."
@@ -2981,6 +2949,194 @@
         "rejected": "Bañ nañu ko",
         "paid": "Fey nañu ko",
         "cancelled": "Neenal nañu ko"
+      }
+    },
+    "retour": {
+      "titre": "Paiement",
+      "fil": {
+        "paiements": "Paiements",
+        "retour": "Retour de paiement"
+      },
+      "verification": "Vérification du paiement…",
+      "attente": {
+        "titre": "Paiement en cours de confirmation",
+        "texte": "Nous attendons la confirmation de votre paiement. Vous recevrez un SMS dès que c’est fait. Vous pouvez fermer cette page.",
+        "texteNomme": "{fournisseur} nous confirme votre paiement de {montant}. Vous recevrez un SMS dès que c’est fait. Vous pouvez fermer cette page.",
+        "texteEpuise": "La confirmation tarde. Votre paiement apparaîtra dans vos paiements dès que l’opérateur le confirme.",
+        "auto": "Vérification automatique toutes les 15 secondes"
+      },
+      "confirme": {
+        "titre": "Paiement confirmé",
+        "texte": "Votre paiement est bien reçu.",
+        "texteQuittance": "Votre paiement est bien reçu. Votre quittance est disponible."
+      },
+      "echec": {
+        "titre": "Paiement non abouti",
+        "texte": "Aucun montant n’a été débité.",
+        "texteNomme": "Aucun montant n’a été débité. {fournisseur} a interrompu le paiement avant sa validation."
+      },
+      "rembourse": {
+        "titre": "Ce paiement était déjà réglé : nous vous remboursons",
+        "titreLoyer": "Ce loyer était déjà réglé : nous vous remboursons",
+        "titreAnnulee": "Cette échéance a été annulée : nous vous remboursons",
+        "texte": "Votre paiement est arrivé sur une échéance déjà payée. L’agence vous le rendra.",
+        "texteAnnulee": "Votre paiement est arrivé sur une échéance annulée. L’agence vous le rendra."
+      },
+      "invalide": {
+        "titre": "Ce lien de retour ne correspond à aucun paiement",
+        "texte": "Si vous venez de payer, votre paiement apparaîtra dans vos paiements dès que l’opérateur le confirme."
+      },
+      "detail": {
+        "montant": "Montant",
+        "loyerDe": "{voyelle, select, oui {Loyer d’{mois}} other {Loyer de {mois}}}",
+        "moyen": "Moyen",
+        "reference": "Référence",
+        "statutLibelle": "Statut",
+        "statut": {
+          "attente": "En attente de confirmation",
+          "attenteDe": "En attente de {fournisseur}",
+          "paye": "Payé",
+          "payeLe": "Payé le {date} à {heure}",
+          "echec": "Échoué · rien n’a été débité",
+          "rembourse": "Remboursement à venir"
+        },
+        "dontPenalite": "dont pénalité de retard"
+      },
+      "actions": {
+        "retourAuxPaiements": "Retour aux paiements",
+        "voirMesPaiements": "Voir mes paiements",
+        "reessayer": "Réessayer",
+        "payerALAgence": "Payer à l’agence",
+        "telechargerQuittance": "Télécharger la quittance",
+        "contacterLAgence": "Contacter l’agence",
+        "verifierANouveau": "Vérifier à nouveau"
+      }
+    },
+    "locataire": {
+      "tete": {
+        "aRegler": "À régler",
+        "phrase": "{morceaux}, {lieu}.",
+        "morceaux": {
+          "loyers": "{n, plural, one {# loyer} other {# loyers}}",
+          "charges": "{n, plural, one {# échéance de charges} other {# échéances de charges}}",
+          "penalites": "{n, plural, one {# pénalité de retard} other {# pénalités de retard}}",
+          "penalitesDe": "{n, plural, one {# pénalité de retard} other {# pénalités de retard}} ({mois})"
+        },
+        "lieu": {
+          "agence": "à régler à l’agence",
+          "agenceNommee": "à régler à l’agence {agence}",
+          "enLigne": "à régler en ligne",
+          "mixte": "dont {enLigne} en ligne et {aLAgence} à l’agence"
+        },
+        "commentPayerALAgence": "Comment payer à l’agence",
+        "ligne": {
+          "penaliteDe": "Pénalité {voyelle, select, oui {d’} other {de }}{mois}",
+          "penalite": "Pénalité de retard",
+          "chargesDe": "Charges {voyelle, select, oui {d’} other {de }}{mois}",
+          "charges": "Charges",
+          "loyerDe": "Loyer {voyelle, select, oui {d’} other {de }}{mois}",
+          "loyer": "Loyer",
+          "loyerPayeLe": "Loyer payé le {date}{jours, plural, =0 {} one { · # jour de retard} other { · # jours de retard}}",
+          "echeanceDu": "Échéance du {date}",
+          "dueDepuis": "Échéance du {date} · {jours, plural, one {# jour de retard} other {# jours de retard}}"
+        },
+        "aJour": "Vous êtes à jour",
+        "prochainLoyer": "Prochain loyer",
+        "leDans": "le {date} · {jours, plural, =0 {aujourd’hui} one {demain} other {dans # jours}}",
+        "plusCharges": "+ {montant} de charges",
+        "aucunLoyerAVenir": "Aucun loyer à venir sur votre bail.",
+        "payerDAvance": "Payer d’avance",
+        "premierLoyerPasProgramme": "Votre premier loyer n’est pas encore programmé",
+        "bailEtLoyer": "Bail {reference} · {loyer} / mois.",
+        "bail": "Bail {reference}.",
+        "agencePrepare": "{agence} prépare votre échéancier : vous serez prévenu dès que la première échéance est émise.",
+        "agencePrepareSansNom": "Votre agence prépare votre échéancier : vous serez prévenu dès que la première échéance est émise.",
+        "contacterLAgence": "Contacter l’agence"
+      },
+      "prochain": {
+        "titre": "Prochain loyer",
+        "dans": "Prochain loyer · {jours, plural, =0 {aujourd’hui} one {demain} other {dans # jours}}",
+        "plusCharges": "+ {montant} de charges",
+        "payerMaintenant": "Payer maintenant",
+        "aVenir": "{n, plural, one {La prochaine échéance} other {Les # prochaines échéances}}",
+        "jusquAu": "jusqu’au {date}"
+      },
+      "aVenir": {
+        "titre": "Échéances à venir"
+      },
+      "historique": {
+        "titre": "Historique",
+        "caution": "Caution",
+        "cautionRendue": "Caution rendue",
+        "reservation": "Réservation",
+        "chargesDe": "Charges {voyelle, select, oui {d’} other {de }}{mois}",
+        "loyer": "Loyer",
+        "verseeLe": "Versée le {date}",
+        "payeLe": "Payé le {date}",
+        "penaliteDue": "Pénalité {montant}{jours, plural, =0 {} one { · # jour de retard} other { · # jours de retard}}",
+        "penaliteReglee": "Pénalité {montant} · réglée",
+        "due": "Due",
+        "echeanceLe": "Échéance le {date}",
+        "quittance": "Quittance",
+        "quittancePdf": "Quittance PDF",
+        "recu": "Reçu",
+        "recuPdf": "Reçu PDF",
+        "videTitre": "Aucun paiement pour l’instant",
+        "videTexte": "Vos paiements et leurs quittances apparaîtront ici.",
+        "colonnes": {
+          "periode": "Période",
+          "paye": "Payé",
+          "montant": "Montant",
+          "justificatif": "Justificatif"
+        }
+      },
+      "agence": {
+        "titre": "Comment payer à l’agence",
+        "montant": "À régler à l’agence : {montant}.",
+        "montantNomme": "À régler à l’agence {agence} : {montant}.",
+        "wave": "Wave : {numero}",
+        "orangeMoney": "Orange Money : {numero}",
+        "virement": "Virement : {coordonnees}",
+        "telephone": "Téléphone de l’agence : {numero}",
+        "aucunMoyenDeclare": "L’agence n’a pas encore indiqué de moyen de paiement à distance : appelez-la pour convenir du règlement.",
+        "appeler": "Appeler l’agence"
+      },
+      "monBail": {
+        "titre": "Mon bail",
+        "loyer": "Loyer",
+        "parMois": "{montant} / mois",
+        "echeance": "Échéance",
+        "leJour": "Le {jour} de chaque mois",
+        "pasEncoreEmise": "Pas encore émise",
+        "bail": "Bail",
+        "cautionVersee": "Caution versée",
+        "voirMonBail": "Voir mon bail",
+        "monAgence": "Mon agence",
+        "appeler": "Appeler",
+        "whatsapp": "WhatsApp",
+        "messageWhatsApp": "Bonjour, je vous écris au sujet de mon bail {reference}.",
+        "payerALAgence": "Payer à l’agence"
+      },
+      "payer": {
+        "titreLoyer": "Payer le loyer {voyelle, select, oui {d’} other {de }}{mois}",
+        "titreCharges": "Payer les charges {voyelle, select, oui {d’} other {de }}{mois}",
+        "titreLoyerSansMois": "Payer le loyer",
+        "titreChargesSansMois": "Payer les charges",
+        "loyerDe": "Loyer {voyelle, select, oui {d’} other {de }}{mois}",
+        "chargesDe": "Charges {voyelle, select, oui {d’} other {de }}{mois}",
+        "loyer": "Loyer",
+        "charges": "Charges",
+        "penalite": "Pénalité de retard",
+        "totalDebite": "Total débité",
+        "horsPaiement": "{montant} restent à régler à l’agence : ils ne sont pas compris dans ce paiement.",
+        "moyen": "Moyen de paiement",
+        "chargement": "Chargement des moyens de paiement…",
+        "aucunMoyen": "Votre agence ne propose pas de paiement en ligne pour cette échéance : réglez-la à l’agence.",
+        "suite": "Vous validez dans l’application {fournisseur}, puis vous revenez ici. La quittance arrive dès que {fournisseur} confirme.",
+        "annuler": "Annuler",
+        "redirection": "Redirection…",
+        "payerAvec": "Payer {montant} avec {fournisseur}",
+        "payer": "Payer {montant}"
       }
     }
   },

@@ -4731,38 +4731,6 @@
           "lemon_squeezy": "Card (Lemon Squeezy)"
         }
       },
-      "return": {
-        "success": {
-          "title": "Payment confirmed",
-          "body": "Thank you! Your payment has been recorded."
-        },
-        "failed": {
-          "title": "Payment failed",
-          "body": "The payment did not go through. You can try again."
-        },
-        "refund": {
-          "title": "Payment received, refund to follow",
-          "bodyCancelled": "Payment received on a cancelled instalment: the agency will refund you.",
-          "bodyAlreadyPaid": "This instalment was already settled: the agency will refund this payment."
-        },
-        "pending": {
-          "title": "Payment pending",
-          "body": "We are confirming the status with the provider — this may take a few seconds."
-        },
-        "unknown": {
-          "title": "Status unavailable",
-          "body": "We could not verify the status. Try again later."
-        },
-        "invalid": {
-          "title": "Invalid parameters",
-          "body": "Return link is malformed."
-        },
-        "actions": {
-          "backToPayments": "Back to payments",
-          "refresh": "Refresh"
-        },
-        "verifying": "Verifying the payment…"
-      },
       "error": {
         "generic": "Something went wrong, please try again.",
         "checkoutInProgress": "An online payment of {amount} is already in progress for this instalment. Complete it, or try again after {time}."
@@ -5111,6 +5079,194 @@
         "rejected": "Rejected",
         "paid": "Paid",
         "cancelled": "Cancelled"
+      }
+    },
+    "retour": {
+      "titre": "Payment",
+      "fil": {
+        "paiements": "Payments",
+        "retour": "Payment return"
+      },
+      "verification": "Checking your payment…",
+      "attente": {
+        "titre": "Payment being confirmed",
+        "texte": "We are waiting for your payment to be confirmed. You will receive a text message as soon as it is. You can close this page.",
+        "texteNomme": "{fournisseur} is confirming your payment of {montant}. You will receive a text message as soon as it is. You can close this page.",
+        "texteEpuise": "Confirmation is taking longer than usual. Your payment will appear in your payments as soon as the operator confirms it.",
+        "auto": "Checking automatically every 15 seconds"
+      },
+      "confirme": {
+        "titre": "Payment confirmed",
+        "texte": "Your payment has been received.",
+        "texteQuittance": "Your payment has been received. Your rent receipt is available."
+      },
+      "echec": {
+        "titre": "Payment not completed",
+        "texte": "No amount has been debited.",
+        "texteNomme": "No amount has been debited. {fournisseur} stopped the payment before it was validated."
+      },
+      "rembourse": {
+        "titre": "This payment was already settled: we are refunding you",
+        "titreLoyer": "This rent was already paid: we are refunding you",
+        "titreAnnulee": "This instalment was cancelled: we are refunding you",
+        "texte": "Your payment arrived on an instalment that was already paid. The agency will give it back to you.",
+        "texteAnnulee": "Your payment arrived on a cancelled instalment. The agency will give it back to you."
+      },
+      "invalide": {
+        "titre": "This return link does not match any payment",
+        "texte": "If you have just paid, your payment will appear in your payments as soon as the operator confirms it."
+      },
+      "detail": {
+        "montant": "Amount",
+        "loyerDe": "Rent for {mois}",
+        "moyen": "Method",
+        "reference": "Reference",
+        "statutLibelle": "Status",
+        "statut": {
+          "attente": "Awaiting confirmation",
+          "attenteDe": "Waiting for {fournisseur}",
+          "paye": "Paid",
+          "payeLe": "Paid on {date} at {heure}",
+          "echec": "Failed · nothing was debited",
+          "rembourse": "Refund pending"
+        },
+        "dontPenalite": "of which late fee"
+      },
+      "actions": {
+        "retourAuxPaiements": "Back to payments",
+        "voirMesPaiements": "See my payments",
+        "reessayer": "Try again",
+        "payerALAgence": "Pay at the agency",
+        "telechargerQuittance": "Download the receipt",
+        "contacterLAgence": "Contact the agency",
+        "verifierANouveau": "Check again"
+      }
+    },
+    "locataire": {
+      "tete": {
+        "aRegler": "To pay",
+        "phrase": "{morceaux}, {lieu}.",
+        "morceaux": {
+          "loyers": "{n, plural, one {# rent} other {# rents}}",
+          "charges": "{n, plural, one {# service charge} other {# service charges}}",
+          "penalites": "{n, plural, one {# late fee} other {# late fees}}",
+          "penalitesDe": "{n, plural, one {# late fee} other {# late fees}} ({mois})"
+        },
+        "lieu": {
+          "agence": "payable at the agency",
+          "agenceNommee": "payable at {agence}",
+          "enLigne": "payable online",
+          "mixte": "{enLigne} online and {aLAgence} at the agency"
+        },
+        "commentPayerALAgence": "How to pay the agency",
+        "ligne": {
+          "penaliteDe": "{mois} late fee",
+          "penalite": "Late fee",
+          "chargesDe": "{mois} service charges",
+          "charges": "Service charges",
+          "loyerDe": "{mois} rent",
+          "loyer": "Rent",
+          "loyerPayeLe": "Rent paid on {date}{jours, plural, =0 {} one { · # day late} other { · # days late}}",
+          "echeanceDu": "Due on {date}",
+          "dueDepuis": "Due on {date} · {jours, plural, one {# day late} other {# days late}}"
+        },
+        "aJour": "You are up to date",
+        "prochainLoyer": "Next rent",
+        "leDans": "on {date} · {jours, plural, =0 {today} one {tomorrow} other {in # days}}",
+        "plusCharges": "+ {montant} service charges",
+        "aucunLoyerAVenir": "No upcoming rent on your lease.",
+        "payerDAvance": "Pay in advance",
+        "premierLoyerPasProgramme": "Your first rent is not scheduled yet",
+        "bailEtLoyer": "Lease {reference} · {loyer} / month.",
+        "bail": "Lease {reference}.",
+        "agencePrepare": "{agence} is preparing your payment schedule: you will be notified as soon as the first instalment is issued.",
+        "agencePrepareSansNom": "Your agency is preparing your payment schedule: you will be notified as soon as the first instalment is issued.",
+        "contacterLAgence": "Contact the agency"
+      },
+      "prochain": {
+        "titre": "Next rent",
+        "dans": "Next rent · {jours, plural, =0 {today} one {tomorrow} other {in # days}}",
+        "plusCharges": "+ {montant} service charges",
+        "payerMaintenant": "Pay now",
+        "aVenir": "{n, plural, one {The next instalment} other {The next # instalments}}",
+        "jusquAu": "until {date}"
+      },
+      "aVenir": {
+        "titre": "Upcoming instalments"
+      },
+      "historique": {
+        "titre": "History",
+        "caution": "Security deposit",
+        "cautionRendue": "Deposit returned",
+        "reservation": "Booking",
+        "chargesDe": "{mois} service charges",
+        "loyer": "Rent",
+        "verseeLe": "Paid on {date}",
+        "payeLe": "Paid on {date}",
+        "penaliteDue": "Late fee {montant}{jours, plural, =0 {} one { · # day late} other { · # days late}}",
+        "penaliteReglee": "Late fee {montant} · settled",
+        "due": "Due",
+        "echeanceLe": "Due on {date}",
+        "quittance": "Receipt",
+        "quittancePdf": "Receipt PDF",
+        "recu": "Receipt",
+        "recuPdf": "Receipt PDF",
+        "videTitre": "No payments yet",
+        "videTexte": "Your payments and their receipts will appear here.",
+        "colonnes": {
+          "periode": "Period",
+          "paye": "Paid",
+          "montant": "Amount",
+          "justificatif": "Proof"
+        }
+      },
+      "agence": {
+        "titre": "How to pay the agency",
+        "montant": "Payable at the agency: {montant}.",
+        "montantNomme": "Payable at {agence}: {montant}.",
+        "wave": "Wave: {numero}",
+        "orangeMoney": "Orange Money: {numero}",
+        "virement": "Bank transfer: {coordonnees}",
+        "telephone": "Agency phone: {numero}",
+        "aucunMoyenDeclare": "The agency has not listed a remote payment method yet: call them to arrange payment.",
+        "appeler": "Call the agency"
+      },
+      "monBail": {
+        "titre": "My lease",
+        "loyer": "Rent",
+        "parMois": "{montant} / month",
+        "echeance": "Due date",
+        "leJour": "On day {jour} of each month",
+        "pasEncoreEmise": "Not issued yet",
+        "bail": "Lease",
+        "cautionVersee": "Deposit paid",
+        "voirMonBail": "View my lease",
+        "monAgence": "My agency",
+        "appeler": "Call",
+        "whatsapp": "WhatsApp",
+        "messageWhatsApp": "Hello, I am writing about my lease {reference}.",
+        "payerALAgence": "Pay the agency"
+      },
+      "payer": {
+        "titreLoyer": "Pay the {mois} rent",
+        "titreCharges": "Pay the {mois} service charges",
+        "titreLoyerSansMois": "Pay the rent",
+        "titreChargesSansMois": "Pay the service charges",
+        "loyerDe": "{mois} rent",
+        "chargesDe": "{mois} service charges",
+        "loyer": "Rent",
+        "charges": "Service charges",
+        "penalite": "Late fee",
+        "totalDebite": "Total charged",
+        "horsPaiement": "{montant} remain payable at the agency: they are not included in this payment.",
+        "moyen": "Payment method",
+        "chargement": "Loading payment methods…",
+        "aucunMoyen": "Your agency does not offer online payment for this instalment: please pay at the agency.",
+        "suite": "You confirm in the {fournisseur} app, then come back here. Your receipt arrives as soon as {fournisseur} confirms.",
+        "annuler": "Cancel",
+        "redirection": "Redirecting…",
+        "payerAvec": "Pay {montant} with {fournisseur}",
+        "payer": "Pay {montant}"
       }
     }
   },
