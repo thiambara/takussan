@@ -463,6 +463,29 @@ describe('<ModerationWorkspace> — le lot (TCK-2673)', () => {
     expect(screen.queryByRole('button', { name: 'Tout décocher' })).toBeNull();
     expect(screen.getByRole('checkbox', { name: 'Cocher tous les avis sans risque' })).toHaveAttribute('aria-checked', 'mixed');
   });
+
+  // Contre-vérification de fd3ae77b4 (verif-patrimoine, nit) — le compte lu par « Tout cocher » vaut
+  // pour la file telle qu'elle était lue : relue (un avis tranché à l'unité, une invalidation), sans
+  // changement de filtre, « Tout cocher (n) » au téléphone gardait l'ancien n.
+  it('TCK-2673 d1 — téléphone : la file relue sans changement de filtre, « Tout cocher (n) » suit le nouveau compte', async () => {
+    ecran = 'telephone';
+    urlCourante = 'filter[risk]=low';
+    serveur = { high: [], low: [...plage(100, 25), avis(200, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })] };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup();
+    render(withIntl(<QueryClientProvider client={client}><ModerationWorkspace /></QueryClientProvider>));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    expect(screen.getByRole('button', { name: 'Tout cocher (26)' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Tout cocher (26)' }));
+    await user.click(await screen.findByRole('button', { name: 'Tout décocher' }));
+    // La même file : le compte lu (25, l'avis sur l'agence écarté) reste le plus juste.
+    expect(await screen.findByRole('button', { name: 'Tout cocher (25)' })).toBeInTheDocument();
+
+    serveur = { high: [], low: [...plage(100, 25), ...plage(400, 2), avis(200, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })] };
+    await client.invalidateQueries({ queryKey: ['reviews-moderation'] });
+    expect(await screen.findByRole('button', { name: 'Tout cocher (28)' })).toBeInTheDocument();
+  });
 });
 
 describe('<ModerationWorkspace> — largeurs (TCK-2673)', () => {

@@ -120,8 +120,11 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
   const [coches, setCoches] = useState<ReadonlySet<number>>(new Set());
   // TCK-2673 d1 — ce que « Tout cocher » a réellement coché : la lecture ne rend que les avis
   // publiables, ce que le total de la file ne dit pas (un avis sur l'agence elle-même y figure,
-  // `can_moderate` faux). `null` tant qu'aucune lecture n'a abouti sous ces filtres.
-  const [nbDeToutCocher, setNbDeToutCocher] = useState<number | null>(null);
+  // `can_moderate` faux). `null` tant qu'aucune lecture n'a abouti sous ces filtres. Il vaut pour la
+  // file telle qu'elle était lue (`lecture` : son `dataUpdatedAt`) : relue sans changement de filtre
+  // (un avis tranché, une invalidation), c'est de nouveau le total qui compte (contre-vérification de
+  // fd3ae77b4). « Tout décocher » le garde : sur la même file, c'est le compte le plus juste.
+  const [nbDeToutCocher, setNbDeToutCocher] = useState<{ readonly n: number; readonly lecture: number } | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [erreurDuLot, setErreurDuLot] = useState<string | null>(null);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
@@ -176,7 +179,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
     },
     onSuccess: (ids) => {
       setErreurDuLot(null);
-      setNbDeToutCocher(ids.length);
+      setNbDeToutCocher({ n: ids.length, lecture: sansRisque.dataUpdatedAt });
       setCoches(new Set(ids));
     },
     onError: () => setErreurDuLot(tFile('toutCocherEchec')),
@@ -330,7 +333,8 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
   // Le plafond d'une sélection : après « Tout cocher », ce qu'il a coché ; avant, le total sans
   // risque moins les avis déjà lus qu'on ne peut pas publier (exact dès que la file est lue entière).
   const nonPubliablesLus = avisSansRisque.filter((a) => !publiableParLot(a)).length;
-  const nbAuPlus = nbDeToutCocher ?? Math.min(Math.max(totalSansRisque - nonPubliablesLus, 0), MAX_AVIS_PAR_LOT);
+  const nbLu = nbDeToutCocher !== null && nbDeToutCocher.lecture === sansRisque.dataUpdatedAt ? nbDeToutCocher.n : null;
+  const nbAuPlus = nbLu ?? Math.min(Math.max(totalSansRisque - nonPubliablesLus, 0), MAX_AVIS_PAR_LOT);
   const toutEstCoche = selection.length > 0 && selection.length >= nbAuPlus;
   const caseDeTout = () => (
     <Checkbox
