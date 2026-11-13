@@ -21,7 +21,8 @@ import { manqueDeCredits, type BoostProduct } from './types';
  * Un refus `credits.insufficient` (le solde a changé entre l'affichage et la confirmation) fait foi :
  * le solde est celui que le serveur vient de dire, jusqu'à ce que la relecture des crédits arrive —
  * le manque se recalcule, « Il vous restera » disparaît, la confirmation se ferme. La relecture faite,
- * le refus s'efface : c'est le solde relu qui parle (vérification de TCK-2664).
+ * le refus s'efface : c'est le solde relu qui parle (vérification de TCK-2664). Une relecture échouée
+ * ne l'efface pas : le solde du refus reste le dernier vrai.
  */
 function nouvelleOuverture(): string {
   return globalThis.crypto.randomUUID();
@@ -90,8 +91,13 @@ export function useAchatDeBoost({
           },
           onError: (erreur) => {
             // Relire LA lecture des crédits (`['credits', 1]`, celle de la page Crédits aussi) : le solde
-            // affiché suit, puis le refus s'efface.
-            if (manqueDeCredits(erreur)) void Promise.resolve(credits.refetch()).then(() => achat.reset());
+            // affiché suit, puis le refus s'efface. Une relecture qui ÉCHOUE garde le refus : effacé, il
+            // rendrait la parole au solde d'avant le refus, et « Il vous restera » reviendrait (`refetch()`
+            // se résout aussi sur un échec, l'erreur dans son résultat).
+            if (manqueDeCredits(erreur))
+              void Promise.resolve(credits.refetch()).then((relu) => {
+                if (relu.isSuccess) achat.reset();
+              });
           },
         },
       );
