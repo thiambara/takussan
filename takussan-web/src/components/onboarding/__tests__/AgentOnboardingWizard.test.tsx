@@ -1,15 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import frMessages from '@/messages/fr.json';
 
-// Mock all server actions before importing the component.
 const phoneSendOtpAction = vi.fn();
 const phoneVerifyOtpAction = vi.fn();
-const agentSubmitKycAction = vi.fn();
 const agentUpdateSpecializationAction = vi.fn();
 const agentOnboardCompleteAction = vi.fn();
 const getAgentFirstLeadAction = vi.fn();
@@ -20,31 +16,26 @@ vi.mock('@/app/actions/security', () => ({
 }));
 
 vi.mock('@/app/actions/agent-onboarding', () => ({
-  agentSubmitKycAction: (...args: unknown[]) => agentSubmitKycAction(...args),
-  agentUpdateSpecializationAction: (...args: unknown[]) =>
-    agentUpdateSpecializationAction(...args),
+  agentSubmitKycAction: vi.fn(),
+  agentUpdateSpecializationAction: (...args: unknown[]) => agentUpdateSpecializationAction(...args),
   agentOnboardCompleteAction: (...args: unknown[]) => agentOnboardCompleteAction(...args),
   getAgentFirstLeadAction: (...args: unknown[]) => getAgentFirstLeadAction(...args),
 }));
 
+const useAgentRoleCapabilities = vi.fn();
+vi.mock('@/hooks/useCan', () => ({
+  useAgentRoleCapabilities: (...args: unknown[]) => useAgentRoleCapabilities(...args),
+}));
+
 const refreshUser = vi.fn();
-// TCK-566 — mutable : le cas « aucun numéro enregistré » en a besoin.
 const UTILISATEUR_VERIFIE = {
-  phone: '+221770000000' as string | null,
+  first_name: 'Fatou',
+  phone: '+221775305678' as string | null,
   phone_verified_at: new Date().toISOString() as string | null,
 };
 let utilisateur = UTILISATEUR_VERIFIE;
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({
-    user: utilisateur,
-    token: 'token',
-    isLoading: false,
-    setUser: vi.fn(),
-    refreshUser,
-    login: vi.fn(),
-    register: vi.fn(),
-    logout: vi.fn(),
-  }),
+  useAuth: () => ({ user: utilisateur, token: 'token', isLoading: false, refreshUser }),
 }));
 
 const routerPush = vi.fn();
@@ -52,259 +43,266 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush, prefetch: vi.fn() }),
 }));
 
-// `useWizardDraft` autosaves drafts via fetch — short-circuit it so the
-// wizard hydrates with empty state and we can step through synchronously.
-// TCK-566 — piloté par test : le brouillon RELU est le sujet du dernier cas.
 let brouillon: { step: number; data: Record<string, unknown> } | null = null;
-// TCK-1362 — espion stable : le corps écrit dans le brouillon est le sujet d'un cas.
 const sauverBrouillon = vi.fn();
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: brouillon,
     isLoading: false,
     save: sauverBrouillon,
-    // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
-    // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
-    // `Promise<void>`. `undefined` ne simule pas le silence d'avant — c'est une
-    // valeur qu'aucun appelant ne sait lire, et elle est restée verte tant que
-    // personne ne lisait. Le jour où `WizardReprenable` s'est mis à consulter ce
-    // résultat, les trois assistants d'onboarding sont tombés en TypeError.
-    // `{ ok: true, ecrit: false }` est ce que la production rend au repos : rien
-    // en attente, aucun échec antérieur (`useWizardDraft.ts`, `flush()`).
     flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
     clear: vi.fn().mockResolvedValue(true),
   }),
 }));
 
-// Toast addition is invoked from inside the wizard — stub the provider
-// so we can assert on calls without rendering the actual portal.
 const toastAdd = vi.fn();
-vi.mock('@/components/ui/toast', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/components/ui/toast')>();
-  return {
-    ...actual,
-    useToast: () => ({ add: toastAdd }),
-  };
-});
+vi.mock('@/components/ui/toast', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/toast')>()),
+  useToast: () => ({ add: toastAdd }),
+}));
 
 import { AgentOnboardingWizard } from '../AgentOnboardingWizard';
 
-// TCK-589 — le récap lit `/api/me/capabilities` par React Query : il lui faut un client.
 function withIntl(node: React.ReactNode) {
   return (
-    <QueryClientProvider client={new QueryClient()}>
-      <NextIntlClientProvider locale="fr" messages={frMessages}>
-        {node}
-      </NextIntlClientProvider>
-    </QueryClientProvider>
+    <NextIntlClientProvider locale="fr" messages={frMessages} timeZone="Africa/Dakar">
+      {node}
+    </NextIntlClientProvider>
   );
 }
 
-describe('<AgentOnboardingWizard>', () => {
+const AGENT = frMessages.onboarding.invite.agent;
+const NUMERO = frMessages.onboarding.invite.numero;
+
+const PROSPECT = {
+  id: 42,
+  first_name: 'Mamadou',
+  last_name: 'Sarr',
+  full_name: 'Mamadou Sarr',
+  email: null,
+  phone: '+221775302148',
+  pipeline_stage: 'prospect',
+};
+
+function piece(code: string, state = 'missing') {
+  return { code, required: true, kind: 'file', state };
+}
+
+/**
+ * TCK-2613 — deux écrans : le numéro, puis « Bienvenue dans l’équipe, {prénom} » et le premier prospect confié.
+ * Plus de pièces ni de récapitulatif dans l’assistant ; chaque sortie de l’écran 2 finalise (`complete`) avant de
+ * naviguer ; les zones s’enregistrent sans jamais toucher au numéro de carte.
+ */
+describe('<AgentOnboardingWizard> — deux écrans (TCK-2613)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    agentSubmitKycAction.mockResolvedValue({
-      ok: true,
-      data: {
-        id: 11,
-        kyc: { submitted_at: null, docs: [] },
-      },
-    });
-    agentUpdateSpecializationAction.mockResolvedValue({
-      ok: true,
-      data: {
-        id: 11,
-        specialization: 'luxury',
-        intervention_zones: ['Almadies'],
-        license_number: null,
-      },
-    });
+    utilisateur = UTILISATEUR_VERIFIE;
+    brouillon = null;
+    sessionStorage.clear();
     agentOnboardCompleteAction.mockResolvedValue({
       ok: true,
-      data: {
-        agent_profile: { id: 11, status: 'active' },
-        active_profile_id: 'agent:11',
-        first_lead: null,
-      },
+      data: { agent_profile: { id: 11, status: 'active' }, active_profile_id: 'agent:11' },
     });
-    getAgentFirstLeadAction.mockResolvedValue({
-      ok: true,
-      data: {
-        customer: {
-          id: 42,
-          first_name: 'Mariama',
-          last_name: 'Ba',
-          full_name: 'Mariama Ba',
-          email: 'mb@example.com',
-          phone: '+221770000001',
-          pipeline_stage: 'qualified',
-        },
-      },
+    getAgentFirstLeadAction.mockResolvedValue({ ok: true, data: { customer: PROSPECT } });
+    useAgentRoleCapabilities.mockReturnValue({
+      data: { data: { agency_id: 3, capabilities: ['properties.create'] } },
+      isLoading: false,
+      isError: false,
     });
   });
 
-  it('navigates through all four steps and calls the agent onboarding actions on completion', async () => {
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
+  it('AC1 — numéro vérifié : l’écran 2 d’abord, le prospect en tête ; « Aller à mon espace » finalise et mène à /app', async () => {
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" specialite="residential" />));
 
-    // Step 1 (phone) — user already verified via the mocked AuthContext,
-    // canAdvance returns true. Move forward.
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bienvenue dans l’équipe, Fatou' })).toBeInTheDocument();
+    expect(document.querySelector('[data-etape-d-invite]')).toHaveAttribute('data-etape-d-invite', '2');
+    const carte = await screen.findByTestId('agent-first-lead-42');
+    expect(getAgentFirstLeadAction).toHaveBeenCalledWith(11);
+    expect(carte).toHaveTextContent('Mamadou Sarr');
+    expect(carte).toHaveTextContent('+221 77 530 21 48');
+    expect(carte).toHaveTextContent(AGENT.etapes.prospect);
+    expect(within(carte).getByRole('link', { name: AGENT.prospect.appeler })).toHaveAttribute('href', 'tel:+221775302148');
+    expect(within(carte).getByRole('link', { name: AGENT.prospect.whatsapp })).toHaveAttribute('href', 'https://wa.me/221775302148');
+    expect(screen.getByText('Dakar Immo vous a déjà confié un prospect. Il attend votre appel.')).toBeInTheDocument();
+    // Plus d'écran de pièces : ni numéro de carte, ni « Soumettre le dossier ».
+    expect(screen.queryByText(frMessages.agents.onboarding.steps.kyc.submitCta)).toBeNull();
+    expect(screen.queryByLabelText(frMessages.agents.onboarding.steps.kyc.licenseNumberLabel)).toBeNull();
 
-    // Step 2 (KYC) — non-blocking per spec, no canAdvance gate.
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    // Step 3 (specialization & zones) — pick a value via the Base UI Select
-    // (combobox + popup listbox), save, then advance.
-    const user = userEvent.setup();
-    await user.click(screen.getByLabelText(/Spécialisation/i));
-    const luxuryOption = await screen.findByRole('option', { name: /Luxe/i });
-    await user.click(luxuryOption);
-    fireEvent.click(screen.getByRole('button', { name: /^Enregistrer$/i }));
-    await waitFor(() => {
-      expect(agentUpdateSpecializationAction).toHaveBeenCalledWith(
-        11,
-        expect.objectContaining({ specialization: 'luxury' }),
-      );
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    // Step 4 (welcome) — first lead lookup fires on mount.
-    await waitFor(() => {
-      expect(getAgentFirstLeadAction).toHaveBeenCalledWith(11);
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Terminer/i }));
-
-    await waitFor(() => {
-      expect(agentOnboardCompleteAction).toHaveBeenCalledWith(11, undefined);
-    });
-
-    await waitFor(() => {
-      expect(routerPush).toHaveBeenCalledWith('/app');
-    });
-    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    fireEvent.click(screen.getByRole('button', { name: AGENT.allerAMonEspace }));
+    await waitFor(() => expect(agentOnboardCompleteAction).toHaveBeenCalledWith(11, undefined));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app'));
     expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
   });
 
-  // TCK-1779 (P149.05) — un numéro de carte vidé part en `null`, que l'API lit comme « effacer » :
-  // il partait `undefined`, et la carte saisie par erreur restait en base.
-  it('un numéro de carte vidé part en null', async () => {
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
+  it('« Voir la fiche » finalise puis ouvre la fiche du prospect', async () => {
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+    await screen.findByTestId('agent-first-lead-42');
 
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-    const carte = screen.getByLabelText('Numéro de carte professionnelle');
-    fireEvent.change(carte, { target: { value: 'AGT-2026-001' } });
-    fireEvent.change(carte, { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: AGENT.prospect.voirLaFiche })[0]!);
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/customers/42'));
+    expect(agentOnboardCompleteAction).toHaveBeenCalledTimes(1);
+  });
 
-    const user = userEvent.setup();
-    await user.click(screen.getByLabelText(/Spécialisation/i));
-    await user.click(await screen.findByRole('option', { name: /Luxe/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^Enregistrer$/i }));
+  it('aucun prospect confié : « Pas encore de prospect pour vous » et « Voir les demandes », qui finalise', async () => {
+    getAgentFirstLeadAction.mockResolvedValue({ ok: true, data: { customer: null } });
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
 
+    const vide = await screen.findByTestId('agent-sans-prospect');
+    expect(vide).toHaveTextContent(AGENT.sansProspect.titre);
+    fireEvent.click(within(vide).getByRole('button', { name: AGENT.sansProspect.demandes }));
+    await waitFor(() => expect(agentOnboardCompleteAction).toHaveBeenCalledWith(11, undefined));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/leads'));
+  });
+
+  it('une lecture du prospect en échec se dit, et ne prétend pas qu’il n’y en a pas', async () => {
+    getAgentFirstLeadAction.mockResolvedValue({ ok: false, message: 'Erreur serveur.' });
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(AGENT.prospect.erreur);
+    expect(screen.queryByText(AGENT.sansProspect.titre)).toBeNull();
+  });
+
+  it('les zones s’enregistrent d’un geste, SANS `license_number` : le numéro de carte n’est jamais effacé (TCK-1779)', async () => {
+    agentUpdateSpecializationAction.mockResolvedValue({
+      ok: true,
+      data: { id: 11, specialization: 'residential', intervention_zones: ['Mermoz'], license_number: 'AGT-1' },
+    });
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" specialite="residential" />));
+    await screen.findByTestId('agent-first-lead-42');
+    expect(screen.getByText(AGENT.zones.aucune)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: AGENT.zones.modifier }));
+    const champ = screen.getByLabelText(frMessages.agents.onboarding.steps.specialization.zonesLabel);
+    fireEvent.change(champ, { target: { value: 'Mermoz' } });
+    fireEvent.keyDown(champ, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: AGENT.zones.enregistrer }));
+
+    await waitFor(() => expect(agentUpdateSpecializationAction).toHaveBeenCalledTimes(1));
+    const [id, corps] = agentUpdateSpecializationAction.mock.calls[0] as [number, Record<string, unknown>];
+    expect(id).toBe(11);
+    expect(corps).toEqual({ specialization: 'residential', intervention_zones: ['Mermoz'] });
+    expect('license_number' in corps).toBe(false);
+
+    expect(await screen.findByText(AGENT.zones.enregistre)).toBeInTheDocument();
+    expect(screen.getByText(AGENT.zones.texte)).toBeInTheDocument();
+    // Le brouillon garde ce que l'API a enregistré.
     await waitFor(() => {
-      expect(agentUpdateSpecializationAction).toHaveBeenCalledWith(
-        11,
-        expect.objectContaining({ specialization: 'luxury', license_number: null }),
-      );
+      const dernier = sauverBrouillon.mock.calls.at(-1) as [number, { specialization?: { zones: string[]; saved: boolean } }];
+      expect(dernier[1].specialization).toEqual({ value: 'residential', zones: ['Mermoz'], saved: true });
     });
   });
-});
 
-/**
- * TCK-566 — le numéro TAPÉ à cette étape n'était jamais envoyé : l'envoi du code
- * appelait `phoneSendOtpAction()` sans argument, donc visait le numéro déjà
- * enregistré — et, sans numéro enregistré, rendait « No phone number on file. »
- * à quelqu'un qui venait de le taper. Le champ était un `<Input>` libre,
- * indicatif à la charge de la personne.
- */
-describe('<AgentOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
-  const PHONE = frMessages.agents.onboarding.steps.phone;
+  it('sans spécialisation, « Enregistrer » le dit sous le bloc et n’envoie rien', async () => {
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+    await screen.findByTestId('agent-first-lead-42');
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    utilisateur = { phone: null, phone_verified_at: null };
-    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true } });
+    fireEvent.click(screen.getByRole('button', { name: AGENT.zones.modifier }));
+    fireEvent.click(screen.getByRole('button', { name: AGENT.zones.enregistrer }));
+    expect(await screen.findByText(AGENT.zones.specialisationRequise)).toBeInTheDocument();
+    expect(agentUpdateSpecializationAction).not.toHaveBeenCalled();
   });
 
-  afterEach(() => {
-    utilisateur = UTILISATEUR_VERIFIE;
-    brouillon = null;
+  it('un échec d’enregistrement des zones se dit sous le bloc, et garde la saisie ouverte', async () => {
+    agentUpdateSpecializationAction.mockResolvedValue({ ok: false, message: 'Zone invalide.' });
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" specialite="luxury" />));
+    await screen.findByTestId('agent-first-lead-42');
+
+    fireEvent.click(screen.getByRole('button', { name: AGENT.zones.modifier }));
+    fireEvent.click(screen.getByRole('button', { name: AGENT.zones.enregistrer }));
+    const alertes = await screen.findAllByRole('alert');
+    expect(alertes.some((a) => a.textContent === 'Zone invalide.')).toBe(true);
+    expect(screen.getByRole('button', { name: AGENT.zones.enregistrer })).toBeInTheDocument();
   });
 
-  // TCK-1362 (P84.03) — le code est HACHÉ et à usage unique côté API ; le brouillon serveur, gardé
-  // jusqu'à 90 jours, n'en garde pas la copie en clair une fois le numéro vérifié.
-  it('le code vérifié ne reste pas dans le brouillon serveur', async () => {
-    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: {} });
-    const user = userEvent.setup();
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
-
-    await user.type(await screen.findByLabelText(PHONE.fields.phone), '770000000', {
-      initialSelectionStart: 0,
-      initialSelectionEnd: 0,
-    });
-    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
-    await user.type(await screen.findByLabelText(PHONE.fields.code), '123456');
-    await user.click(screen.getByRole('button', { name: PHONE.verifyCta }));
-
-    await waitFor(() => expect(phoneVerifyOtpAction).toHaveBeenCalledWith('123456'));
-    await waitFor(() => {
-      const dernier = sauverBrouillon.mock.calls.at(-1) as [number, Record<string, { verified?: boolean }>];
-      expect(dernier[1].phone?.verified).toBe(true);
-    });
-    expect(JSON.stringify(sauverBrouillon.mock.calls.at(-1))).not.toContain('123456');
+  it('les droits sont ceux du RÔLE de ce profil, repliés au téléphone', async () => {
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+    const droits = await screen.findByTestId('agent-capabilities');
+    expect(useAgentRoleCapabilities).toHaveBeenCalledWith(11);
+    const bascule = within(droits).getByRole('button', { name: /Ce que vous pouvez faire dans l’agence/ });
+    expect(bascule).toHaveAttribute('aria-expanded', 'false');
+    expect(bascule).toHaveTextContent('1 droit donné par l’agence');
+    fireEvent.click(bascule);
+    expect(bascule).toHaveAttribute('aria-expanded', 'true');
+    expect(within(droits).getByText('Créer un bien')).toBeVisible();
   });
 
-  it('envoie le code au numéro TAPÉ, indicatif en tête', async () => {
-    const user = userEvent.setup();
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
+  it('le rappel ne nomme que les pièces qui restent ; toutes envoyées, aucun rappel', async () => {
+    const { unmount } = render(
+      withIntl(
+        <AgentOnboardingWizard
+          agentProfileId={11}
+          agence="Dakar Immo"
+          pieces={[piece('license'), piece('cni', 'sent'), piece('photo')] as never}
+        />,
+      ),
+    );
+    const rappel = await screen.findByTestId('rappel-des-pieces');
+    expect(rappel).toHaveTextContent('Il vous reste 2 pièces à ajouter : votre carte professionnelle et votre photo de profil.');
+    unmount();
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    await user.type(champ, '770000000', { initialSelectionStart: 0, initialSelectionEnd: 0 });
-    expect(champ).toHaveValue('770000000');
-
-    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
-    await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
-    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221770000000');
+    render(
+      withIntl(
+        <AgentOnboardingWizard
+          agentProfileId={11}
+          agence="Dakar Immo"
+          pieces={[piece('license', 'sent'), piece('cni', 'verified'), piece('photo', 'sent')] as never}
+        />,
+      ),
+    );
+    await screen.findByTestId('agent-first-lead-42');
+    expect(screen.queryByTestId('rappel-des-pieces')).toBeNull();
   });
 
-  // Relevé par le vérificateur : seul l'assistant hôte gardait ce critère. Une
-  // régression vers `numero.trim() === ''` laissait partir « 7700000 » — sept
-  // chiffres, que l'API refuse désormais en 422 — sans qu'aucun test rougisse.
-  it('un numéro NON VIDE mais incomplet ne part pas : le bouton d’envoi reste inactif', async () => {
-    const user = userEvent.setup();
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
-
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    await user.type(champ, '7700000');
-    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
-    expect(envoyer).toBeDisabled();
-
-    await user.click(envoyer);
-    expect(phoneSendOtpAction).not.toHaveBeenCalled();
-
-    // Neuf chiffres après +221 : le numéro est composable, l'envoi s'ouvre.
-    await user.type(champ, '00');
-    expect(envoyer).toBeEnabled();
+  it('un échec de la fin de l’onboarding se dit et ne navigue pas', async () => {
+    agentOnboardCompleteAction.mockResolvedValue({ ok: false, message: 'Profil introuvable.' });
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+    fireEvent.click(await screen.findByRole('button', { name: AGENT.allerAMonEspace }));
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'error', description: 'Profil introuvable.' })));
+    expect(routerPush).not.toHaveBeenCalled();
   });
 
-  // Relevé par le vérificateur (déduit du code, reproduit ici) : seul
-  // `initialData` passait par `recomposerTelephone`. Un numéro relu d'un
-  // brouillon écrit par l'ancien champ libre — forme nationale, sans indicatif —
-  // s'affichait bien dans l'ordre, mais « Envoyer le code » restait INACTIF sans
-  // explication tant qu'on ne retouchait pas un chiffre.
-  it('un numéro relu d’un brouillon hérité, sans indicatif, est remis en E.164 et part', async () => {
-    brouillon = { step: 0, data: { phone: { number: '771234567', code: null, verified: false } } };
-    const user = userEvent.setup();
-    render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
+  it('un brouillon de l’assistant à quatre écrans reprend à l’écran 2, avec ses zones ENREGISTRÉES seulement', async () => {
+    brouillon = {
+      step: 3,
+      data: {
+        phone: { number: '+221775305678', code: '', verified: true },
+        kyc: { license_number: 'AGT-1', cni_uploaded: true },
+        specialization: { value: 'commercial', zones: ['Ngor'], saved: true },
+      },
+    };
+    const { unmount } = render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bienvenue dans l’équipe, Fatou' })).toBeInTheDocument();
+    expect(screen.getByText('Ngor')).toBeInTheDocument();
+    expect(screen.getByText(frMessages.agents.onboarding.steps.specialization.specializationValues.commercial)).toBeInTheDocument();
+    unmount();
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    expect(champ).toHaveValue('771234567');
-    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
-    expect(envoyer).toBeEnabled();
+    brouillon = {
+      step: 2,
+      data: { phone: { number: '+221775305678', code: '', verified: true }, specialization: { value: 'luxury', zones: ['Yoff'], saved: false } },
+    };
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" specialite="residential" />));
+    await screen.findByTestId('agent-first-lead-42');
+    expect(screen.queryByText('Yoff')).toBeNull();
+    expect(screen.getByText(frMessages.agents.onboarding.steps.specialization.specializationValues.residential)).toBeInTheDocument();
+  });
 
-    await user.click(envoyer);
-    await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
-    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221771234567');
+  it('numéro non vérifié : l’écran 1 d’abord ; le code accepté ouvre l’écran 2, et ne va jamais au brouillon', async () => {
+    utilisateur = { first_name: 'Fatou', phone: '+221775305678', phone_verified_at: null };
+    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true, codeApercu: null } });
+    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: null });
+    render(withIntl(<AgentOnboardingWizard agentProfileId={11} agence="Dakar Immo" />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: NUMERO.titre })).toBeInTheDocument();
+    expect(document.querySelector('[data-etape-d-invite]')).toHaveAttribute('data-etape-d-invite', '1');
+    expect(getAgentFirstLeadAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: NUMERO.recevoir }));
+    fireEvent.change(await screen.findByLabelText(NUMERO.codeLibelle), { target: { value: '482913' } });
+    fireEvent.click(screen.getByRole('button', { name: NUMERO.continuer }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bienvenue dans l’équipe, Fatou' })).toBeInTheDocument();
+    expect(screen.getByText(/Numéro vérifié/)).toHaveTextContent('77 •• •• 56 78');
+    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221775305678');
+    expect(JSON.stringify(sauverBrouillon.mock.calls)).not.toContain('482913');
   });
 });

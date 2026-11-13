@@ -6279,6 +6279,225 @@
       "metaTitle": "Génne sama kër bu njëkk",
       "pageTitle": "Génne sa kër bu njëkk",
       "pageSubtitle": "Ay etap yu néew ngir sàmp sa espace te wóoral sa nimero — ginnaaw loolu dañu lay yóbbu ci formileer bi."
+    },
+    "invite": {
+      "barre": {
+        "intention": "Rejoindre {agence}",
+        "intentionSans": "Rejoindre votre espace"
+      },
+      "numero": {
+        "titre": "Vérifiez votre numéro",
+        "texte": "C’est avec lui que vous vous connecterez. {agence} l’a déjà saisi : corrigez-le s’il est faux.",
+        "texteSans": "C’est avec lui que vous vous connecterez.",
+        "libelle": "Votre numéro",
+        "modifier": "Modifier",
+        "recevoir": "Recevoir le code",
+        "envoi": "Envoi…",
+        "envoye": "Code envoyé par SMS au <fort>{numero}</fort>",
+        "codeLibelle": "Code reçu par SMS",
+        "renvoiDans": "Rien reçu ? Vous pourrez renvoyer le code dans <chiffres>{delai}</chiffres>.",
+        "rienRecu": "Rien reçu ?",
+        "renvoyer": "Renvoyer le code",
+        "continuer": "Continuer",
+        "verification": "Vérification…",
+        "aideContinuer": "Le bouton s’allume au sixième chiffre.",
+        "trop": "Le SMS n’est pas parti : trop d’envois vers ce numéro. Réessayez dans {minutes} min, ou vérifiez le numéro.",
+        "verifie": "Numéro vérifié · <chiffres>{numero}</chiffres>"
+      },
+      "bailleur": {
+        "titre": "Vos biens chez {agence}",
+        "titreSans": "Vos biens",
+        "texte": "L’agence suit déjà {compte, plural, one {# bien} other {# biens}} pour vous. Voici où ils en sont aujourd’hui.",
+        "chargement": "Chargement de vos biens…",
+        "colonnes": {
+          "bien": "Bien",
+          "etat": "État",
+          "loyer": "Loyer"
+        },
+        "parMois": "{montant}/mois",
+        "horsLocation": "Hors location",
+        "voirTous": "Voir tous mes biens",
+        "ouvrir": "Ouvrir {titre}",
+        "proposer": {
+          "titre": "Vous avez un autre bien ?",
+          "texte": "Proposez-le à l’agence : {agence} le relit avant de le publier.",
+          "texteSans": "Proposez-le à votre agence : elle le relit avant de le publier.",
+          "action": "Proposer un bien"
+        },
+        "vide": {
+          "titre": "Votre agence n’a pas encore rattaché de bien",
+          "texte": "Dès que {agence} ajoute vos biens, ils apparaissent ici. Vous pouvez aussi en proposer un tout de suite.",
+          "texteSans": "Dès que votre agence ajoute vos biens, ils apparaissent ici. Vous pouvez aussi en proposer un tout de suite.",
+          "action": "Proposer mon premier bien"
+        },
+        "erreur": "Vos biens n’ont pas pu être chargés. Vous les retrouverez dans votre espace.",
+        "allerAMonEspace": "Aller à mon espace",
+        "ouverture": "Ouverture de votre espace…",
+        "piecesAttendent": "Vos pièces vous y attendent, dans « Démarrer ».",
+        "rappel": "<fort>Pour être payé, {compte, plural, one {il reste # pièce à envoyer} other {il reste # pièces à envoyer}}</fort> : {liste}. Elles vous attendent dans votre espace, sous « À faire ».",
+        "aFaire": {
+          "titre": "À faire pour être payé",
+          "texte": "Sans RIB, {agence} ne peut pas vous reverser vos loyers.",
+          "texteSans": "Sans RIB, votre agence ne peut pas vous reverser vos loyers.",
+          "delai": "Vous pouvez déjà utiliser votre espace sans elles.",
+          "ajouter": "Ajouter",
+          "saisir": "Saisir"
+        },
+        "pieces": {
+          "rib": {
+            "nom": "RIB",
+            "detail": "Pour recevoir vos loyers",
+            "court": "votre RIB"
+          },
+          "cni": {
+            "nom": "CNI ou passeport",
+            "detail": "Votre pièce d’identité",
+            "court": "votre pièce d’identité"
+          },
+          "ninea": {
+            "nom": "NINEA",
+            "detail": "Si vos biens sont en société",
+            "court": "votre NINEA"
+          }
+        },
+        "et": "{debut} et {fin}",
+        "etats": {
+          "available": "Disponible",
+          "rented": "Loué",
+          "sold": "Vendu",
+          "pending": "En attente",
+          "draft": "Brouillon",
+          "under_maintenance": "En travaux",
+          "unavailable": "Indisponible",
+          "archived": "Archivé",
+          "published": "Validé",
+          "pending_review": "En revue",
+          "rejected": "Refusé"
+        }
+      },
+      "agent": {
+        "titre": "Bienvenue dans l’équipe, {prenom}",
+        "titreSans": "Bienvenue dans l’équipe",
+        "texte": "{agence} vous a déjà confié un prospect. Il attend votre appel.",
+        "texteSans": "Votre agence vous a déjà confié un prospect. Il attend votre appel.",
+        "chargement": "Chargement de votre premier prospect…",
+        "prospect": {
+          "surtitre": "Votre premier prospect",
+          "appeler": "Appeler",
+          "whatsapp": "WhatsApp",
+          "voirLaFiche": "Voir la fiche",
+          "erreur": "Votre premier prospect n’a pas pu être chargé. Vous le retrouverez dans votre espace."
+        },
+        "sansProspect": {
+          "titre": "Pas encore de prospect pour vous",
+          "texte": "Dès qu’une demande arrive sur vos zones, elle apparaît dans « Demandes ». Vérifiez vos zones pour ne rien manquer.",
+          "texteCourt": "Bienvenue chez {agence}. Vos demandes arriveront ici dès qu’elles vous seront confiées.",
+          "texteCourtSans": "Vos demandes arriveront dans votre espace dès qu’elles vous seront confiées.",
+          "demandes": "Voir les demandes"
+        },
+        "zones": {
+          "titre": "Vos zones",
+          "texte": "Vous recevez les demandes de ces quartiers.",
+          "aucune": "Aucune zone choisie : ajoutez les quartiers que vous couvrez.",
+          "modifier": "Modifier",
+          "annuler": "Annuler",
+          "enregistrer": "Enregistrer",
+          "enregistrement": "Enregistrement…",
+          "enregistre": "Zones et spécialisation enregistrées.",
+          "specialisation": "Spécialisation",
+          "specialisationAucune": "À choisir",
+          "specialisationRequise": "Choisissez une spécialisation pour enregistrer."
+        },
+        "droits": {
+          "titre": "Ce que vous pouvez faire dans l’agence",
+          "compte": "{compte, plural, one {# droit donné par l’agence} other {# droits donnés par l’agence}}",
+          "pied": "Droits donnés par l’agence. Pour en changer, écrivez à son administrateur."
+        },
+        "rappel": "<fort>{compte, plural, one {Il vous reste # pièce à ajouter} other {Il vous reste # pièces à ajouter}}</fort> : {liste}. Depuis votre espace, sous « À faire » ; rien ne vous bloque d’ici là.",
+        "rappelBureau": "À ajouter ensuite, dans « Démarrer » : {liste}.",
+        "allerAMonEspace": "Aller à mon espace",
+        "ouverture": "Ouverture de votre espace…",
+        "etapes": {
+          "lead": "Nouveau",
+          "prospect": "Prospect",
+          "qualified": "Qualifié",
+          "negotiating": "Négociation",
+          "converted": "Gagné",
+          "lost": "Perdu"
+        },
+        "pieces": {
+          "license": "votre carte professionnelle",
+          "cni": "votre pièce d’identité",
+          "photo": "votre photo de profil"
+        },
+        "et": "{debut} et {fin}"
+      },
+      "prestataire": {
+        "titre": "Une intervention vous attend",
+        "texte": "{agence} vous a invité pour ce dépannage. Répondez d’abord, complétez votre profil ensuite.",
+        "texteSans": "Votre agence vous a invité pour ce dépannage. Répondez d’abord, complétez votre profil ensuite.",
+        "carte": {
+          "photo": "Photo envoyée avec la demande",
+          "photos": "{compte, plural, one {# photo} other {# photos}}",
+          "devis": "Devis : {montant}",
+          "demandeDe": "Demande de {agence}",
+          "sansTitre": "Intervention",
+          "adresseApres": "L’adresse et le contact du locataire s’ouvrent quand vous acceptez."
+        },
+        "accepter": "Accepter",
+        "proposer": "Proposer un créneau",
+        "acceptation": "Acceptation…",
+        "creneau": {
+          "libelle": "Date et heure de passage",
+          "aide": "Heure de Dakar. L’agence et le locataire la verront.",
+          "envoyer": "Accepter avec ce créneau",
+          "annuler": "Annuler",
+          "requis": "Choisissez une date et une heure."
+        },
+        "acceptee": {
+          "titre": "Intervention acceptée",
+          "passage": "Passage prévu le {date}",
+          "sansPassage": "Fixez la date de passage depuis l’intervention.",
+          "voir": "Voir l’intervention"
+        },
+        "plusTard": "Plus tard — aller à mon espace",
+        "allerAMonEspace": "Aller à mon espace",
+        "ouverture": "Ouverture de votre espace…",
+        "sans": {
+          "titre": "Bienvenue chez {agence}",
+          "titreSans": "Bienvenue dans votre espace prestataire",
+          "texte": "Complétez votre profil : l’agence vous confiera ses dépannages selon vos métiers et vos zones."
+        },
+        "profil": {
+          "titre": "Complétez votre profil pour en recevoir d’autres",
+          "titreSans": "Complétez votre profil",
+          "compte": "{faits} sur {total}",
+          "metiers": {
+            "nom": "Métiers",
+            "vide": "Les dépannages que vous faites"
+          },
+          "zones": {
+            "nom": "Zones",
+            "vide": "Les villes et quartiers où vous vous déplacez"
+          },
+          "tarifs": {
+            "nom": "Tarifs",
+            "vide": "Tarif horaire et frais de visite, en F CFA",
+            "fait": "{horaire} de l’heure · visite {visite}"
+          },
+          "disponibilites": {
+            "nom": "Disponibilités",
+            "vide": "Vos créneaux de la semaine",
+            "fait": "{compte, plural, one {# créneau par semaine} other {# créneaux par semaine}}"
+          },
+          "assurance": {
+            "nom": "Assurance RC pro",
+            "vide": "Facultative",
+            "fait": "Envoyée"
+          },
+          "fait": "Fait"
+        }
+      }
     }
   },
   "inventory": {
@@ -17027,7 +17246,8 @@
       "tradesFailed": "Mënunu denc say liggéey.",
       "availabilityFailed": "Mënunu denc waxtu yi nga jot.",
       "completeFailed": "Mënunu jeexal sa onboarding bu liggéeykat.",
-      "agenciesFailed": "Mënunu yeb say ajaas yu nawle."
+      "agenciesFailed": "Mënunu yeb say ajaas yu nawle.",
+      "acceptFailed": "L’intervention n’a pas pu être acceptée. Réessayez, ou ouvrez-la depuis votre espace."
     },
     "hostOnboarding": {
       "mustBeSignedInToContinue": "Fàww nga dugg ngir toxal.",

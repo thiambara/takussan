@@ -1,183 +1,106 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
-import { Label } from '@/components/ui/label';
-import { PhoneInput } from '@/components/ui/phone-input';
-import {
-  INDICATIF_PAR_DEFAUT,
-  numeroComposable,
-  recomposerTelephone,
-  relireTelephoneBrouillon,
-} from '@/lib/phone';
 import { useToast } from '@/components/ui/toast';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useAuth } from '@/context/AuthContext';
+import { WizardReprenable, type WizardStep } from '@/components/wizard/WizardReprenable';
+import { ownerOnboardCompleteAction } from '@/app/actions/owner-onboarding';
 import {
-  WizardReprenable,
-  type WizardStep,
-} from '@/components/wizard/WizardReprenable';
-import { KycUploader } from '@/components/kyc/KycUploader';
-import {
-  getOwnerPropertiesAction,
-  ownerOnboardCompleteAction,
-  ownerSubmitKycAction,
-} from '@/app/actions/owner-onboarding';
-import {
-  phoneSendOtpAction,
-  phoneVerifyOtpAction,
-} from '@/app/actions/security';
-import type { OwnerPropertyEntry } from '@/lib/owner-onboarding';
+  INDICATIF_PAR_DEFAUT,
+  recomposerTelephone,
+  relireTelephoneBrouillon,
+} from '@/lib/phone';
+import type { PieceDuProfil } from '@/lib/pieces/pieces';
+
+import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
+import { BiensDuBailleur } from './invite/BiensDuBailleur';
+import { EtapeDuNumero } from './invite/EtapeDuNumero';
 
 /**
- * TCK-257 — Owner post-acceptance onboarding wizard.
+ * TCK-257, refait par TCK-2613 — l'assistant du bailleur invité, en DEUX écrans (maquette
+ * `app-entree-assistants`, approche a) :
+ *   1. le numéro (obligatoire ; un numéro déjà vérifié saute l'écran) ;
+ *   2. la raison de venir : ses biens chez l'agence, « Proposer un bien », puis « Aller à mon espace ».
  *
- * Four steps (mirror of the SP wizard, TCK-261):
- *   1. Phone OTP (mandatory).
- *   2. KYC : upload CNI + RIB + NINEA. Each upload persists immediately.
- *      Bottom CTA submits the dossier (kyc.submitted_at ; no review queue
- *      reads it, TCK-685). Wizard is resumable — closing the tab keeps
- *      the uploaded docs.
- *   3. Product tour : 3 skippable slides ("Vos biens", "Vos paiements",
- *      "Vos messages").
- *   4. Recap : list of pre-attached properties. Final CTA → /app.
+ * Les pièces (CNI, RIB, NINEA) ne sont plus un écran : elles attendent dans l'espace, sous « Démarrer »
+ * (TCK-2612, TCK-2614), et l'écran 2 les rappelle. La visite guidée de trois diapositives a disparu (TCK-2615).
  *
- * KYC submission is **non-blocking** for activation per spec — the
- * `complete()` endpoint flips OwnerProfile.status = active regardless of
- * whether the dossier has been submitted yet.
+ * `complete()` passe le profil en `active` et pose le profil actif : TOUTE sortie de l'écran 2 l'appelle d'abord
+ * (`onAller`), puis va où la personne a demandé.
  */
 export type OwnerOnboardingWizardProps = {
   ownerProfileId: number;
-  /** TCK-2614 (décision 2b) — `required` du NINEA de CE profil (`GET /api/me/pieces`) ; requis à défaut. */
-  nineaRequis?: boolean;
-};
-
-type WizardData = {
-  phone: { number: string; code: string; verified: boolean };
-  kyc: {
-    cni_uploaded: boolean;
-    rib_uploaded: boolean;
-    ninea_uploaded: boolean;
-    submitted: boolean;
-  };
-  tour: { skipped: boolean; finished: boolean };
+  /** Le nom de l'agence qui invite (`Profile.agency.name`) ; `null` s'il n'est pas connu. */
+  agence?: string | null;
+  /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
+  pieces?: readonly PieceDuProfil[] | null;
 };
 
 /**
- * TCK-566 — un brouillon relu repasse par la même normalisation que
- * `initialData` : un numéro écrit par l'ancien champ libre (`771234567`, sans
- * indicatif) laissait « Envoyer le code » inactif sans explication.
+ * Le brouillon garde la forme d'avant (`kyc`, `tour` restent lisibles et ignorés) : un brouillon écrit par
+ * l'assistant à quatre écrans reprend à l'écran 2 (`etapeDInvite`).
  */
+type WizardData = {
+  phone: { number: string; code: string; verified: boolean };
+};
+
 function relireBrouillon(data: WizardData): WizardData {
   return {
     ...data,
     phone: {
       ...data.phone,
+      // TCK-1362 — un code d'un brouillon d'avant ne survit pas à la relecture.
+      code: '',
       number: relireTelephoneBrouillon(data.phone?.number, INDICATIF_PAR_DEFAUT),
     },
   };
 }
 
-export function OwnerOnboardingWizard({ ownerProfileId, nineaRequis = true }: OwnerOnboardingWizardProps) {
+export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = null }: OwnerOnboardingWizardProps) {
   const t = useTranslations('owners.onboarding');
   const router = useRouter();
   const toast = useToast();
   const { user, refreshUser } = useAuth();
+  // Où aller une fois l'onboarding fini : l'espace, un bien, la proposition d'un bien, les pièces.
+  const destination = useRef('/app');
 
   const initialData: WizardData = useMemo(
     () => ({
       phone: {
-        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et
-        // ne porte que la suite ; une valeur héritée hors format y est remise dans l'ordre.
+        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et ne porte que la suite.
         number: user?.phone ? recomposerTelephone(user.phone, INDICATIF_PAR_DEFAUT) : '',
         code: '',
         verified: Boolean(user?.phone_verified_at),
       },
-      kyc: {
-        cni_uploaded: false,
-        rib_uploaded: false,
-        ninea_uploaded: false,
-        submitted: false,
-      },
-      tour: { skipped: false, finished: false },
     }),
     [user],
   );
 
-  const handleComplete = useCallback(
-    async () => {
-      const completeRes = await ownerOnboardCompleteAction(
-        ownerProfileId,
-        // OTP already verified inline by `phoneVerifyOtpAction` — backend
-        // bypasses re-verification when `phone_verified_at` is set.
-        undefined,
-      );
-      if (!completeRes.ok) {
-        toast.add({
-          title: t('errors.completeTitle'),
-          description: completeRes.message,
-          type: 'error',
-        });
-        return;
-      }
+  const handleComplete = useCallback(async () => {
+    // Le code a été vérifié à l'écran 1 : l'API ne le redemande pas quand `phone_verified_at` est posé.
+    const completeRes = await ownerOnboardCompleteAction(ownerProfileId, undefined);
+    if (!completeRes.ok) {
+      toast.add({ title: t('errors.completeTitle'), description: completeRes.message, type: 'error' });
+      return;
+    }
 
-      await refreshUser();
-      toast.add({
-        title: t('success.title'),
-        description: t('success.body'),
-        type: 'success',
-      });
-
-      // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
-      marquerArriveeDeParcours('assistant');
-      router.push('/app');
-    },
-    [ownerProfileId, refreshUser, router, t, toast],
-  );
+    await refreshUser();
+    toast.add({ title: t('success.title'), description: t('success.body'), type: 'success' });
+    // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
+    marquerArriveeDeParcours('assistant');
+    router.push(destination.current);
+  }, [ownerProfileId, refreshUser, router, t, toast]);
 
   const steps: WizardStep<WizardData>[] = useMemo(
     () => [
-      {
-        id: 'phone',
-        title: t('steps.phone.title'),
-        subtitle: t('steps.phone.subtitle'),
-        canAdvance: (d) => d.phone.verified,
-        render: ({ data, setData }) => <PhoneStep data={data} setData={setData} />,
-      },
-      {
-        id: 'kyc',
-        title: t('steps.kyc.title'),
-        subtitle: t('steps.kyc.subtitle'),
-        // KYC is not blocking — the user may move on with a partial
-        // dossier, the backend does not gate activation on it.
-        render: ({ data, setData }) => (
-          <KycStep
-            data={data}
-            setData={setData}
-            ownerProfileId={ownerProfileId}
-            nineaRequis={nineaRequis}
-          />
-        ),
-      },
-      {
-        id: 'tour',
-        title: t('steps.tour.title'),
-        subtitle: t('steps.tour.subtitle'),
-        render: ({ data, setData }) => <TourStep data={data} setData={setData} />,
-      },
-      {
-        id: 'recap',
-        title: t('steps.recap.title'),
-        subtitle: t('steps.recap.subtitle'),
-        render: () => <RecapStep ownerProfileId={ownerProfileId} />,
-      },
+      { id: 'phone', title: 'phone', canAdvance: (d) => d.phone.verified, render: () => null },
+      { id: 'properties', title: 'properties', render: () => null },
     ],
-    [ownerProfileId, nineaRequis, t],
+    [],
   );
 
   return (
@@ -185,384 +108,36 @@ export function OwnerOnboardingWizard({ ownerProfileId, nineaRequis = true }: Ow
       storageKey={`owner-onboarding-${ownerProfileId}`}
       initialData={initialData}
       relireBrouillon={relireBrouillon}
+      etapeImposee={etapeDInvite}
       steps={steps}
       onComplete={handleComplete}
+      presentation={(api) => (
+        <AssistantDInvite etape={api.etape} agence={agence} pret={api.pret}>
+          {api.etape === 0 ? (
+            <EtapeDuNumero
+              numero={api.data.phone.number}
+              onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
+              agence={agence}
+              onVerifie={() => {
+                api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
+                api.allerA(1);
+              }}
+            />
+          ) : (
+            <BiensDuBailleur
+              ownerProfileId={ownerProfileId}
+              agence={agence}
+              telephone={api.data.phone.number || user?.phone || null}
+              pieces={pieces}
+              enCours={api.enCours}
+              onAller={(href) => {
+                destination.current = href;
+                void api.suivant();
+              }}
+            />
+          )}
+        </AssistantDInvite>
+      )}
     />
-  );
-}
-
-// ── Steps ────────────────────────────────────────────────────────────────
-
-type StepProps = { data: WizardData; setData: (next: WizardData) => void };
-
-function PhoneStep({ data, setData }: StepProps) {
-  const t = useTranslations('owners.onboarding.steps.phone');
-  const toast = useToast();
-  const [sendPending, startSend] = useTransition();
-  const [verifyPending, startVerify] = useTransition();
-  const [otpSent, setOtpSent] = useState(false);
-  // TCK-620 (ADR-0060) — le code que l'API rend hors production.
-  const [otpApercu, setOtpApercu] = useState<string | null>(null);
-
-  const handleSend = () => {
-    if (!numeroComposable(data.phone.number)) return;
-    startSend(async () => {
-      // TCK-566 — le numéro TAPÉ part avec la demande : sans lui, le code visait
-      // le numéro déjà enregistré, et l'API rendait « No phone number on file. »
-      // à qui venait de le saisir. L'API l'enregistre (et remet la vérification
-      // à zéro s'il change) avant d'envoyer le SMS.
-      const res = await phoneSendOtpAction(data.phone.number);
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.sendTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      setOtpSent(true);
-      setOtpApercu(res.data?.codeApercu ?? null);
-      toast.add({
-        title: t('sent.title'),
-        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
-        description: t('sent.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  const handleVerify = () => {
-    if (data.phone.code.length !== 6) return;
-    startVerify(async () => {
-      const res = await phoneVerifyOtpAction(data.phone.code);
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.verifyTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      // TCK-1362 (P84.03) — le code vérifié quitte l'état : sinon le brouillon serveur, gardé
-      // jusqu'à 90 jours, en gardait la seule copie en clair (l'API le garde haché, 5 min).
-      setData({ ...data, phone: { ...data.phone, code: '', verified: true } });
-      toast.add({
-        title: t('verified.title'),
-        description: t('verified.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="owner-phone">{t('fields.phone')}</Label>
-          <PhoneInput
-            id="owner-phone"
-            value={data.phone.number}
-            disabled={data.phone.verified}
-            onValueChange={(number) =>
-              setData({
-                ...data,
-                phone: { ...data.phone, number, verified: false },
-              })
-            }
-          />
-        </div>
-        {/* Aligné sur le CHAMP, pas sur la ligne d'aide de `<PhoneInput>` :
-            `text-sm leading-none` (14 px) + `gap-1` = 18 px (TCK-566). */}
-        <div className="flex items-start sm:mt-4.5">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full px-4 sm:w-auto"
-            onClick={handleSend}
-            disabled={sendPending || data.phone.verified || !numeroComposable(data.phone.number)}
-          >
-            {sendPending ? t('sending') : t('sendCta')}
-          </Button>
-        </div>
-      </div>
-
-      {otpSent && !data.phone.verified ? (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="owner-otp">{t('fields.code')}</Label>
-              <Input
-                id="owner-otp"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                className="tabular-nums tracking-widest"
-                value={data.phone.code}
-                onChange={(e) =>
-                  setData({
-                    ...data,
-                    phone: {
-                      ...data.phone,
-                      code: e.target.value.replace(/\D/g, '').slice(0, 6),
-                    },
-                  })
-                }
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="button"
-                className="h-11 w-full px-4 sm:w-auto"
-                onClick={handleVerify}
-                disabled={verifyPending || data.phone.code.length !== 6}
-              >
-                {verifyPending ? t('verifying') : t('verifyCta')}
-              </Button>
-            </div>
-          </div>
-          <CodeDePreproduction
-            code={otpApercu}
-            onUtiliser={(code) =>
-              setData({ ...data, phone: { ...data.phone, code } })
-            }
-          />
-        </>
-      ) : null}
-
-      {data.phone.verified ? (
-        <p role="status" className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
-          {t('verified.banner')}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function KycStep({
-  data,
-  setData,
-  ownerProfileId,
-  nineaRequis,
-}: StepProps & { ownerProfileId: number; nineaRequis: boolean }) {
-  const t = useTranslations('owners.onboarding.steps.kyc');
-  const toast = useToast();
-  const [submitPending, startSubmit] = useTransition();
-
-  const updateKyc = (next: Partial<WizardData['kyc']>) =>
-    setData({ ...data, kyc: { ...data.kyc, ...next } });
-
-  const handleSubmit = () => {
-    startSubmit(async () => {
-      const res = await ownerSubmitKycAction(ownerProfileId);
-      if (!res.ok) {
-        toast.add({
-          title: t('submittedTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      updateKyc({ submitted: true });
-      toast.add({
-        title: t('submittedTitle'),
-        description: t('submittedBody'),
-        type: 'success',
-      });
-    });
-  };
-
-  // TCK-2614 (décision 2b) — le NINEA n'est exigé que d'une société, comme `GET /api/me/pieces` le dit.
-  const allUploaded =
-    data.kyc.cni_uploaded && data.kyc.rib_uploaded && (!nineaRequis || data.kyc.ninea_uploaded);
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {data.kyc.submitted ? t('submittedBadge') : t('draftBadge')}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <KycUploader
-          profileId={ownerProfileId}
-          kind="cni"
-          endpoint="owner-profiles"
-          i18nNamespace="owners.onboarding.kyc"
-          onUploaded={() => updateKyc({ cni_uploaded: true })}
-        />
-        <KycUploader
-          profileId={ownerProfileId}
-          kind="rib"
-          endpoint="owner-profiles"
-          i18nNamespace="owners.onboarding.kyc"
-          onUploaded={() => updateKyc({ rib_uploaded: true })}
-        />
-        <KycUploader
-          profileId={ownerProfileId}
-          kind="ninea"
-          endpoint="owner-profiles"
-          i18nNamespace="owners.onboarding.kyc"
-          onUploaded={() => updateKyc({ ninea_uploaded: true })}
-        />
-      </div>
-
-      <div>
-        <Button
-          type="button"
-          className="h-11 px-5"
-          onClick={handleSubmit}
-          disabled={submitPending || !allUploaded || data.kyc.submitted}
-        >
-          {submitPending ? t('submitting') : t('submitCta')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function TourStep({ data, setData }: StepProps) {
-  const t = useTranslations('owners.onboarding.steps.tour');
-  const slides = useMemo(
-    () => [
-      { title: t('slides.properties.title'), body: t('slides.properties.body') },
-      { title: t('slides.payments.title'), body: t('slides.payments.body') },
-      { title: t('slides.messages.title'), body: t('slides.messages.body') },
-    ],
-    [t],
-  );
-  const [index, setIndex] = useState(0);
-  const isLast = index >= slides.length - 1;
-  const slide = slides[index];
-
-  const handleNext = () => {
-    if (isLast) {
-      setData({ ...data, tour: { skipped: false, finished: true } });
-    } else {
-      setIndex((i) => Math.min(i + 1, slides.length - 1));
-    }
-  };
-
-  const handleSkip = () => {
-    setData({ ...data, tour: { skipped: true, finished: false } });
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-muted/30 p-6">
-        <p className="font-medium text-foreground">{slide.title}</p>
-        <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground">{slide.body}</p>
-      </div>
-
-      {/* Des points DÉCORATIFS : ils se déclaraient `tablist` sans un seul `tab`, et un lecteur
-          d'écran annonçait une liste d'onglets vide. La position se dit en chiffres, une fois. */}
-      <p className="sr-only" aria-live="polite">
-        {index + 1} / {slides.length}
-      </p>
-      <div aria-hidden className="flex items-center justify-center gap-1.5 py-1">
-        {slides.map((_, i) => (
-          <span
-            key={i}
-            data-active={i === index || undefined}
-            className={
-              i === index
-                ? 'h-1.5 w-6 rounded-full bg-foreground transition-[width,background-color] duration-200 ease-out'
-                : 'h-1.5 w-1.5 rounded-full bg-foreground/25 transition-[width,background-color] duration-200 ease-out'
-            }
-          />
-        ))}
-      </div>
-
-      <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          type="button"
-          variant="link"
-          onClick={handleSkip}
-          className="h-11 text-muted-foreground"
-        >
-          {t('skip')}
-        </Button>
-        <Button type="button" onClick={handleNext} className="h-11 px-5">
-          {isLast ? t('finish') : t('next')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function RecapStep({ ownerProfileId }: { ownerProfileId: number }) {
-  const t = useTranslations('owners.onboarding.steps.recap');
-  const [properties, setProperties] = useState<OwnerPropertyEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const res = await getOwnerPropertiesAction(ownerProfileId);
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(res.message);
-        setProperties([]);
-        return;
-      }
-      setProperties(res.data.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ownerProfileId]);
-
-  if (properties === null) {
-    return (
-      <div className="rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground">
-        …
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-        {error}
-      </div>
-    );
-  }
-
-  if (properties.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border bg-background p-6 text-center">
-        <p className="font-medium text-foreground">{t('emptyTitle')}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t('emptyBody')}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <ul className="divide-y divide-border rounded-xl border border-border">
-        {properties.map((property) => (
-          <li
-            key={property.id}
-            data-testid={`owner-property-${property.id}`}
-            className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-          >
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate font-medium text-foreground">
-                {property.title ?? `#${property.id}`}
-              </span>
-              {property.city ? (
-                <span className="text-xs text-muted-foreground">{property.city}</span>
-              ) : null}
-            </div>
-            <a
-              href={`/app/properties/${property.id}`}
-              className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-            >
-              {t('viewAll')}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

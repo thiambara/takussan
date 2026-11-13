@@ -8404,6 +8404,225 @@
       "metaTitle": "Publish my first property",
       "pageTitle": "Publish your first property",
       "pageSubtitle": "A few steps to create your space and verify your number — you will then be redirected to the listing form."
+    },
+    "invite": {
+      "barre": {
+        "intention": "Join {agence}",
+        "intentionSans": "Join your space"
+      },
+      "numero": {
+        "titre": "Check your number",
+        "texte": "You will sign in with it. {agence} has already entered it: correct it if it is wrong.",
+        "texteSans": "You will sign in with it.",
+        "libelle": "Your number",
+        "modifier": "Edit",
+        "recevoir": "Get the code",
+        "envoi": "Sending…",
+        "envoye": "Code sent by SMS to <fort>{numero}</fort>",
+        "codeLibelle": "Code received by SMS",
+        "renvoiDans": "Nothing received? You can resend the code in <chiffres>{delai}</chiffres>.",
+        "rienRecu": "Nothing received?",
+        "renvoyer": "Resend the code",
+        "continuer": "Continue",
+        "verification": "Checking…",
+        "aideContinuer": "The button lights up at the sixth digit.",
+        "trop": "The SMS was not sent: too many messages to this number. Try again in {minutes} min, or check the number.",
+        "verifie": "Number verified · <chiffres>{numero}</chiffres>"
+      },
+      "bailleur": {
+        "titre": "Your properties with {agence}",
+        "titreSans": "Your properties",
+        "texte": "The agency already manages {compte, plural, one {# property} other {# properties}} for you. Here is where they stand today.",
+        "chargement": "Loading your properties…",
+        "colonnes": {
+          "bien": "Property",
+          "etat": "Status",
+          "loyer": "Rent"
+        },
+        "parMois": "{montant}/month",
+        "horsLocation": "Not for rent",
+        "voirTous": "See all my properties",
+        "ouvrir": "Open {titre}",
+        "proposer": {
+          "titre": "Do you have another property?",
+          "texte": "Suggest it to the agency: {agence} reviews it before publishing it.",
+          "texteSans": "Suggest it to your agency: it reviews it before publishing it.",
+          "action": "Suggest a property"
+        },
+        "vide": {
+          "titre": "Your agency has not linked any property yet",
+          "texte": "As soon as {agence} adds your properties, they appear here. You can also suggest one right away.",
+          "texteSans": "As soon as your agency adds your properties, they appear here. You can also suggest one right away.",
+          "action": "Suggest my first property"
+        },
+        "erreur": "Your properties could not be loaded. You will find them in your space.",
+        "allerAMonEspace": "Go to my space",
+        "ouverture": "Opening your space…",
+        "piecesAttendent": "Your documents are waiting for you there, under “Get started”.",
+        "rappel": "<fort>To get paid, {compte, plural, one {# document is still to be sent} other {# documents are still to be sent}}</fort>: {liste}. They are waiting for you in your space, under “To do”.",
+        "aFaire": {
+          "titre": "To do to get paid",
+          "texte": "Without bank details, {agence} cannot pay your rent to you.",
+          "texteSans": "Without bank details, your agency cannot pay your rent to you.",
+          "delai": "You can already use your space without them.",
+          "ajouter": "Add",
+          "saisir": "Enter"
+        },
+        "pieces": {
+          "rib": {
+            "nom": "Bank details (RIB)",
+            "detail": "To receive your rent",
+            "court": "your bank details"
+          },
+          "cni": {
+            "nom": "ID card or passport",
+            "detail": "Your ID document",
+            "court": "your ID document"
+          },
+          "ninea": {
+            "nom": "NINEA",
+            "detail": "If your properties are held by a company",
+            "court": "your NINEA"
+          }
+        },
+        "et": "{debut} and {fin}",
+        "etats": {
+          "available": "Available",
+          "rented": "Rented",
+          "sold": "Sold",
+          "pending": "Pending",
+          "draft": "Draft",
+          "under_maintenance": "Under works",
+          "unavailable": "Unavailable",
+          "archived": "Archived",
+          "published": "Approved",
+          "pending_review": "In review",
+          "rejected": "Rejected"
+        }
+      },
+      "agent": {
+        "titre": "Welcome to the team, {prenom}",
+        "titreSans": "Welcome to the team",
+        "texte": "{agence} has already given you a lead. They are waiting for your call.",
+        "texteSans": "Your agency has already given you a lead. They are waiting for your call.",
+        "chargement": "Loading your first lead…",
+        "prospect": {
+          "surtitre": "Your first lead",
+          "appeler": "Call",
+          "whatsapp": "WhatsApp",
+          "voirLaFiche": "View the file",
+          "erreur": "Your first lead could not be loaded. You will find it in your space."
+        },
+        "sansProspect": {
+          "titre": "No lead for you yet",
+          "texte": "As soon as a request arrives in your areas, it appears under “Requests”. Check your areas so you miss nothing.",
+          "texteCourt": "Welcome to {agence}. Your requests will arrive here as soon as they are assigned to you.",
+          "texteCourtSans": "Your requests will arrive in your space as soon as they are assigned to you.",
+          "demandes": "See the requests"
+        },
+        "zones": {
+          "titre": "Your areas",
+          "texte": "You receive the requests from these neighbourhoods.",
+          "aucune": "No area chosen: add the neighbourhoods you cover.",
+          "modifier": "Edit",
+          "annuler": "Cancel",
+          "enregistrer": "Save",
+          "enregistrement": "Saving…",
+          "enregistre": "Areas and specialisation saved.",
+          "specialisation": "Specialisation",
+          "specialisationAucune": "To choose",
+          "specialisationRequise": "Choose a specialisation to save."
+        },
+        "droits": {
+          "titre": "What you can do in the agency",
+          "compte": "{compte, plural, one {# right given by the agency} other {# rights given by the agency}}",
+          "pied": "Rights given by the agency. To change them, write to its administrator."
+        },
+        "rappel": "<fort>{compte, plural, one {# document left to add} other {# documents left to add}}</fort>: {liste}. From your space, under “To do”; nothing holds you back until then.",
+        "rappelBureau": "To add next, in “Get started”: {liste}.",
+        "allerAMonEspace": "Go to my space",
+        "ouverture": "Opening your space…",
+        "etapes": {
+          "lead": "New",
+          "prospect": "Prospect",
+          "qualified": "Qualified",
+          "negotiating": "Negotiating",
+          "converted": "Won",
+          "lost": "Lost"
+        },
+        "pieces": {
+          "license": "your professional card",
+          "cni": "your ID document",
+          "photo": "your profile photo"
+        },
+        "et": "{debut} and {fin}"
+      },
+      "prestataire": {
+        "titre": "A job is waiting for you",
+        "texte": "{agence} invited you for this repair. Reply first, complete your profile afterwards.",
+        "texteSans": "Your agency invited you for this repair. Reply first, complete your profile afterwards.",
+        "carte": {
+          "photo": "Photo sent with the request",
+          "photos": "{compte, plural, one {# photo} other {# photos}}",
+          "devis": "Quote: {montant}",
+          "demandeDe": "Request from {agence}",
+          "sansTitre": "Job",
+          "adresseApres": "The address and the tenant’s contact open once you accept."
+        },
+        "accepter": "Accept",
+        "proposer": "Suggest a time slot",
+        "acceptation": "Accepting…",
+        "creneau": {
+          "libelle": "Visit date and time",
+          "aide": "Dakar time. The agency and the tenant will see it.",
+          "envoyer": "Accept with this slot",
+          "annuler": "Cancel",
+          "requis": "Choose a date and a time."
+        },
+        "acceptee": {
+          "titre": "Job accepted",
+          "passage": "Visit planned on {date}",
+          "sansPassage": "Set the visit date from the job.",
+          "voir": "View the job"
+        },
+        "plusTard": "Later — go to my space",
+        "allerAMonEspace": "Go to my space",
+        "ouverture": "Opening your space…",
+        "sans": {
+          "titre": "Welcome to {agence}",
+          "titreSans": "Welcome to your service provider space",
+          "texte": "Complete your profile: the agency will assign you repairs based on your trades and areas."
+        },
+        "profil": {
+          "titre": "Complete your profile to receive more",
+          "titreSans": "Complete your profile",
+          "compte": "{faits} of {total}",
+          "metiers": {
+            "nom": "Trades",
+            "vide": "The repairs you do"
+          },
+          "zones": {
+            "nom": "Areas",
+            "vide": "The cities and neighbourhoods you travel to"
+          },
+          "tarifs": {
+            "nom": "Rates",
+            "vide": "Hourly rate and visit fee, in F CFA",
+            "fait": "{horaire} per hour · visit {visite}"
+          },
+          "disponibilites": {
+            "nom": "Availability",
+            "vide": "Your weekly time slots",
+            "fait": "{compte, plural, one {# slot per week} other {# slots per week}}"
+          },
+          "assurance": {
+            "nom": "Professional liability insurance",
+            "vide": "Optional",
+            "fait": "Sent"
+          },
+          "fait": "Done"
+        }
+      }
     }
   },
   "inventory": {
@@ -17027,7 +17246,8 @@
       "tradesFailed": "Could not save your trades.",
       "availabilityFailed": "Could not save your availability.",
       "completeFailed": "Could not complete your provider onboarding.",
-      "agenciesFailed": "Could not load your partner agencies."
+      "agenciesFailed": "Could not load your partner agencies.",
+      "acceptFailed": "The job could not be accepted. Try again, or open it from your space."
     },
     "hostOnboarding": {
       "mustBeSignedInToContinue": "You must be signed in to continue.",

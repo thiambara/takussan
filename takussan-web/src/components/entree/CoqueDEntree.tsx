@@ -126,8 +126,10 @@ export interface CoqueDEntreeProps extends Omit<DeclarationDEntree, 'saisie' | '
   /**
    * `etroite` : la colonne de 480 px des maquettes. `large` : la largeur des assistants d'onboarding
    * d'avant (rail d'étapes et formulaires à deux colonnes), tant que leurs tickets ne les refont pas.
+   * `assistant` (TCK-2613) : les assistants d'invité — `30rem` au téléphone, `40rem` de `lg` à `xl`, `67.5rem`
+   * dès `xl`, où l'écran pose sa colonne voisine (les 480, 640 et 1080 px de la maquette `app-entree-assistants`).
    */
-  readonly largeur?: 'etroite' | 'large';
+  readonly largeur?: 'etroite' | 'large' | 'assistant';
   /** Les champs à 44 px (`fieldDensityScope`), comme le panneau de connexion d'avant. */
   readonly densiteDesChamps?: boolean;
   readonly children: ReactNode;
@@ -405,7 +407,7 @@ export function CoqueDEntree({
               <div
                 className={cn(
                   'mx-auto w-full',
-                  largeur === 'etroite' ? 'max-w-[30rem]' : 'max-w-4xl',
+                  largeur === 'etroite' ? 'max-w-[30rem]' : largeur === 'assistant' ? 'max-w-[30rem] lg:max-w-[40rem] xl:max-w-[67.5rem]' : 'max-w-4xl',
                   panneau ? 'xl:max-w-[25rem]' : objet ? (objetAGauche ? 'xl:mx-0 xl:w-[25rem] xl:flex-none xl:pt-4' : 'xl:mx-0 xl:w-[30rem] xl:flex-none') : null,
                 )}
               >

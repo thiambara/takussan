@@ -268,15 +268,6 @@ export const EXCEPTIONS_JUSTIFIEES = [
       + "faux.",
   },
   {
-    fichier: 'src/components/onboarding/AgentOnboardingWizard.tsx',
-    litteral: 'placeholder="AGT-2026-001"',
-    famille: 'TECHNIQUE',
-    raison:
-      "Exemple du FORMAT d'un numéro de carte d'agent immobilier, pas une phrase. Le libellé et "
-      + "l'aide du champ, eux, passent par `t('licenseNumberLabel')` et `t('licenseNumberHint')` "
-      + "juste au-dessus et juste en dessous.",
-  },
-  {
     fichier: 'src/components/admin-settings/IntegrationsManager.tsx',
     litteral: 'placeholder="wave, stripe, mailgun…"',
     famille: 'TECHNIQUE',

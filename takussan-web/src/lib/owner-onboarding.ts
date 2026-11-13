@@ -43,6 +43,13 @@ export type OwnerPropertyEntry = {
   thumbnail_url?: string | null;
   status?: string | null;
   type?: string | null;
+  /** TCK-2613 — `rent` ou `sale` : le loyer ne se dit « /mois » que d'un bien en location au mois. */
+  contract_type?: string | null;
+  rent_period?: string | null;
+  /** TCK-2613 — la vignette (`PropertyResource::main_photo_url`). */
+  main_photo_url?: string | null;
+  /** TCK-2613 — le quartier de l'adresse (`include=address`). */
+  location?: { quarter?: string | null; city?: string | null } | null;
 };
 
 export type OwnerPropertiesResponse = {
@@ -75,10 +82,17 @@ export async function completeOwnerOnboarding(
   );
 }
 
+/**
+ * TCK-2613 — l'écran « Vos biens chez {agence} » : trois biens au plus (le compte vient de `meta.total`), avec ce
+ * qu'une ligne dit — vignette, type, quartier, état, loyer.
+ */
+export const BIENS_DU_BAILLEUR_REQUETE =
+  'fields[properties]=id,title,price,status,type,contract_type,rent_period&include=address&per_page=3';
+
 export async function fetchOwnerProperties(
   token: string,
   ownerProfileId: number,
-  query = 'fields[properties]=id,title,price,status,type',
+  query = BIENS_DU_BAILLEUR_REQUETE,
 ): Promise<OwnerPropertiesResponse> {
   return apiRequest<OwnerPropertiesResponse>(
     cheminApi`/api/me/owner-profiles/${ownerProfileId}/properties${requete(query)}`,

@@ -7,11 +7,13 @@ import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 import {
+  accepterIntervention,
   completeSpOnboarding,
   fetchSpAgencies,
   patchSpAvailability,
   patchSpTrades,
   type AvailabilitySlot,
+  type InterventionAcceptee,
   type OnboardCompleteResponse,
   type ServiceProviderAgenciesResponse,
   type TradesPayload,
@@ -31,7 +33,7 @@ export type ActionResult<T> =
   | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
 
 /** Clés de repli de `serverActions.serviceProviderOnboarding` — l'union tient lieu de contrôle de frappe. */
-type CleRepli = 'tradesFailed' | 'availabilityFailed' | 'completeFailed' | 'agenciesFailed';
+type CleRepli = 'tradesFailed' | 'availabilityFailed' | 'completeFailed' | 'agenciesFailed' | 'acceptFailed';
 
 async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<never>> {
   journaliserErreurInattendue('service-provider-onboarding', err);
@@ -132,5 +134,25 @@ export async function getSpAgenciesAction(): Promise<
     return { ok: true, data: res };
   } catch (err) {
     return failure(err, 'agenciesFailed');
+  }
+}
+
+/**
+ * TCK-2613 — l'intervention jointe à l'invitation, acceptée depuis l'écran 2 de l'assistant, avec ou sans créneau.
+ * Appelée APRÈS `spOnboardCompleteAction` : c'est la fin d'onboarding qui la lui assigne. Un 422 garde ses
+ * `errors` (`scheduled_at`), que l'écran écrit sous le champ.
+ */
+export async function spAccepterInterventionAction(
+  maintenanceRequestId: number,
+  scheduledAt: string | null,
+): Promise<ActionResult<InterventionAcceptee>> {
+  const token = await getToken();
+  if (!token) return nonConnecte();
+
+  try {
+    const res = await accepterIntervention(token, maintenanceRequestId, scheduledAt);
+    return { ok: true, data: { id: res.data.id, scheduled_at: res.data.scheduled_at ?? null, accepted_at: res.data.accepted_at ?? null } };
+  } catch (err) {
+    return failure(err, 'acceptFailed');
   }
 }

@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 
 import frMessages from '@/messages/fr.json';
+import type { InterventionDOrigine, ReglagesDuPrestataire } from '@/lib/service-provider-onboarding';
 
-// Mock all server actions before importing the component.
 const phoneSendOtpAction = vi.fn();
 const phoneVerifyOtpAction = vi.fn();
+const spOnboardCompleteAction = vi.fn();
+const spAccepterInterventionAction = vi.fn();
 const spPatchTradesAction = vi.fn();
 const spPatchAvailabilityAction = vi.fn();
-const spOnboardCompleteAction = vi.fn();
 
 vi.mock('@/app/actions/security', () => ({
   phoneSendOtpAction: (...args: unknown[]) => phoneSendOtpAction(...args),
@@ -18,29 +18,21 @@ vi.mock('@/app/actions/security', () => ({
 }));
 
 vi.mock('@/app/actions/service-provider-onboarding', () => ({
+  spOnboardCompleteAction: (...args: unknown[]) => spOnboardCompleteAction(...args),
+  spAccepterInterventionAction: (...args: unknown[]) => spAccepterInterventionAction(...args),
   spPatchTradesAction: (...args: unknown[]) => spPatchTradesAction(...args),
   spPatchAvailabilityAction: (...args: unknown[]) => spPatchAvailabilityAction(...args),
-  spOnboardCompleteAction: (...args: unknown[]) => spOnboardCompleteAction(...args),
 }));
 
 const refreshUser = vi.fn();
-// TCK-566 — mutable : le cas « aucun numéro enregistré » en a besoin.
 const UTILISATEUR_VERIFIE = {
-  phone: '+221770000000' as string | null,
+  first_name: 'Ibrahima',
+  phone: '+221775305678' as string | null,
   phone_verified_at: new Date().toISOString() as string | null,
 };
 let utilisateur = UTILISATEUR_VERIFIE;
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({
-    user: utilisateur,
-    token: 'token',
-    isLoading: false,
-    setUser: vi.fn(),
-    refreshUser,
-    login: vi.fn(),
-    register: vi.fn(),
-    logout: vi.fn(),
-  }),
+  useAuth: () => ({ user: utilisateur, token: 'token', isLoading: false, refreshUser }),
 }));
 
 const routerPush = vi.fn();
@@ -48,238 +40,277 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush, prefetch: vi.fn() }),
 }));
 
-// `useWizardDraft` autosaves drafts via fetch — short-circuit it so the
-// wizard hydrates with empty state and we can step through synchronously.
-// TCK-566 — piloté par test : le brouillon RELU est le sujet du dernier cas.
 let brouillon: { step: number; data: Record<string, unknown> } | null = null;
-// TCK-1362 — espion stable : le corps écrit dans le brouillon est le sujet d'un cas.
 const sauverBrouillon = vi.fn();
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: brouillon,
     isLoading: false,
     save: sauverBrouillon,
-    // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
-    // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
-    // `Promise<void>`. `undefined` ne simule pas le silence d'avant — c'est une
-    // valeur qu'aucun appelant ne sait lire, et elle est restée verte tant que
-    // personne ne lisait. Le jour où `WizardReprenable` s'est mis à consulter ce
-    // résultat, les trois assistants d'onboarding sont tombés en TypeError.
-    // `{ ok: true, ecrit: false }` est ce que la production rend au repos : rien
-    // en attente, aucun échec antérieur (`useWizardDraft.ts`, `flush()`).
     flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
     clear: vi.fn().mockResolvedValue(true),
   }),
 }));
 
-// Toast addition is invoked from inside the wizard — stub the provider
-// so we can assert on calls without rendering the actual portal.
 const toastAdd = vi.fn();
-vi.mock('@/components/ui/toast', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/components/ui/toast')>();
-  return {
-    ...actual,
-    useToast: () => ({ add: toastAdd }),
-  };
-});
+vi.mock('@/components/ui/toast', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/toast')>()),
+  useToast: () => ({ add: toastAdd }),
+}));
 
 import { ServiceProviderOnboardingWizard } from '../ServiceProviderOnboardingWizard';
 
 function withIntl(node: React.ReactNode) {
   return (
-    <NextIntlClientProvider locale="fr" messages={frMessages}>
+    <NextIntlClientProvider locale="fr" messages={frMessages} timeZone="Africa/Dakar">
       {node}
     </NextIntlClientProvider>
   );
 }
 
-describe('<ServiceProviderOnboardingWizard>', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    spPatchTradesAction.mockResolvedValue({ ok: true, data: { id: 1 } });
-    spPatchAvailabilityAction.mockResolvedValue({ ok: true, data: { id: 1 } });
-    spOnboardCompleteAction.mockResolvedValue({
-      ok: true,
-      data: {
-        sp_profile: { id: 42, status: 'active' },
-        active_profile_id: 'service_provider:42',
-        activated_collaborations: 1,
-        redirect_to_maintenance_request_id: 99,
-      },
-    });
-  });
+const P = frMessages.onboarding.invite.prestataire;
+const NUMERO = frMessages.onboarding.invite.numero;
 
-  it('navigates through all steps and calls the SP onboarding actions on completion', async () => {
-    render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
+const INTERVENTION: InterventionDOrigine = {
+  id: 501,
+  title: 'Fuite sous évier',
+  category: 'plumbing',
+  place: { quarter: 'Mermoz', city: 'Dakar' },
+  photo: { url: 'https://api.test/media/1', thumbnail_url: 'https://api.test/media/1/vignette', count: 3 },
+  quote: { amount: 45000, currency: 'XOF' },
+};
 
-    // Step 1 (phone) — user already verified via the mocked AuthContext,
-    // canAdvance returns true. Move forward.
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+const REGLAGES_VIDES: ReglagesDuPrestataire = {
+  id: 31,
+  trades: [],
+  intervention_zones: [],
+  hourly_rate: null,
+  visit_fee: null,
+  available_slots: [],
+};
 
-    // Step 2 (trades) — pick a trade + add a zone.
-    fireEvent.click(screen.getByTestId('trade-plumbing'));
-
-    const zonesInput = screen.getByLabelText(/Zones d'intervention/i);
-    fireEvent.change(zonesInput, { target: { value: 'Dakar' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    // Step 3 (availability) — toggle one slot to satisfy canAdvance.
-    fireEvent.click(screen.getByTestId('availability-monday-morning'));
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    // Step 4 (recap) — final CTA.
-    fireEvent.click(screen.getByRole('button', { name: /Terminer/i }));
-
-    await waitFor(() => {
-      expect(spPatchTradesAction).toHaveBeenCalledWith(
-        42,
-        expect.objectContaining({
-          trades: ['plumbing'],
-          intervention_zones: ['Dakar'],
-        }),
-      );
-    });
-
-    expect(spPatchAvailabilityAction).toHaveBeenCalledWith(
-      42,
-      expect.arrayContaining([
-        expect.objectContaining({ day: 'monday', from: '08:00', to: '12:00' }),
-      ]),
-    );
-
-    expect(spOnboardCompleteAction).toHaveBeenCalledWith(42, undefined);
-    await waitFor(() => {
-      // TCK-419 — cette assertion figeait un 404 : `/app/maintenance/requests/{id}` n'a jamais
-      // eu de `page.tsx`. Le détail d'une demande vit sous `app/maintenance/[id]`.
-      expect(routerPush).toHaveBeenCalledWith('/app/maintenance/99');
-    });
-    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
-    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
-  });
-});
-
-describe('<ServiceProviderOnboardingWizard> — montants (TCK-2616)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    utilisateur = UTILISATEUR_VERIFIE;
-    brouillon = null;
-  });
-
-  it('les tarifs se saisissent en « F CFA » et se relisent avec leur devise, jamais « XOF »', () => {
-    const { container } = render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    fireEvent.click(screen.getByTestId('trade-plumbing'));
-    fireEvent.change(screen.getByLabelText(/Zones d'intervention/i), { target: { value: 'Dakar' } });
-    fireEvent.change(screen.getByLabelText(/Tarif horaire/i), { target: { value: '15000' } });
-    expect(screen.getByLabelText('Tarif horaire (F CFA)')).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/XOF/);
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    fireEvent.click(screen.getByTestId('availability-monday-morning'));
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    // Récapitulatif : « 15 000 F CFA » (espaces insécables de `fr-SN`), et le frais vide reste « — ».
-    expect(screen.getByText(/^15\s000\sF\sCFA$/u)).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/XOF/);
-  });
-});
+function monter(props: Partial<React.ComponentProps<typeof ServiceProviderOnboardingWizard>> = {}) {
+  return render(
+    withIntl(
+      <ServiceProviderOnboardingWizard
+        spProfileId={31}
+        agence="Dakar Immo"
+        intervention={INTERVENTION}
+        categorie={frMessages.maintenance.category.plumbing}
+        reglages={REGLAGES_VIDES}
+        pieces={[{ code: 'insurance', required: false, kind: 'file', state: 'missing' }]}
+        {...props}
+      />,
+    ),
+  );
+}
 
 /**
- * TCK-566 — le numéro TAPÉ à cette étape n'était jamais envoyé : l'envoi du code
- * appelait `phoneSendOtpAction()` sans argument, donc visait le numéro déjà
- * enregistré — et, sans numéro enregistré, rendait « No phone number on file. »
- * à quelqu'un qui venait de le taper. Le champ était un `<Input>` libre,
- * indicatif à la charge de la personne.
+ * TCK-2613 — deux écrans : le numéro, puis « Une intervention vous attend » (la demande jointe à l'invitation),
+ * « Accepter » ou « Proposer un créneau » (décision du porteur du 2026-11-10, point 11 b), et « Complétez votre
+ * profil » qui dit ce qui reste. Plus de métiers, de disponibilités ni d'assurance dans l'assistant.
  */
-describe('<ServiceProviderOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
-  const PHONE = frMessages.serviceProviders.onboarding.steps.phone;
-
+describe('<ServiceProviderOnboardingWizard> — deux écrans (TCK-2613)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    utilisateur = { phone: null, phone_verified_at: null };
-    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true } });
-  });
-
-  afterEach(() => {
     utilisateur = UTILISATEUR_VERIFIE;
     brouillon = null;
-  });
-
-  // TCK-1362 (P84.03) — le code est HACHÉ et à usage unique côté API ; le brouillon serveur, gardé
-  // jusqu'à 90 jours, n'en garde pas la copie en clair une fois le numéro vérifié.
-  it('le code vérifié ne reste pas dans le brouillon serveur', async () => {
-    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: {} });
-    const user = userEvent.setup();
-    render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
-
-    await user.type(await screen.findByLabelText(PHONE.fields.phone), '770000000', {
-      initialSelectionStart: 0,
-      initialSelectionEnd: 0,
+    sessionStorage.clear();
+    spOnboardCompleteAction.mockResolvedValue({
+      ok: true,
+      data: { service_provider_profile: { id: 31, status: 'active' }, active_profile_id: 'service_provider:31', redirect_to_maintenance_request_id: 501 },
     });
-    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
-    await user.type(await screen.findByLabelText(PHONE.fields.code), '123456');
-    await user.click(screen.getByRole('button', { name: PHONE.verifyCta }));
+    spAccepterInterventionAction.mockResolvedValue({ ok: true, data: { id: 501, scheduled_at: null, accepted_at: '2026-11-13T10:00:00Z' } });
+  });
 
-    await waitFor(() => expect(phoneVerifyOtpAction).toHaveBeenCalledWith('123456'));
-    await waitFor(() => {
-      const dernier = sauverBrouillon.mock.calls.at(-1) as [number, Record<string, { verified?: boolean }>];
-      expect(dernier[1].phone?.verified).toBe(true);
+  it('numéro vérifié : l’écran 2 d’abord — la carte de l’intervention, sans adresse exacte ; l’ancien assistant n’y est plus', async () => {
+    monter();
+
+    expect(await screen.findByRole('heading', { level: 1, name: P.titre })).toBeInTheDocument();
+    expect(document.querySelector('[data-etape-d-invite]')).toHaveAttribute('data-etape-d-invite', '2');
+    const carte = screen.getByTestId('intervention-501');
+    expect(carte).toHaveTextContent('Fuite sous évier');
+    expect(carte).toHaveTextContent(`${frMessages.maintenance.category.plumbing} · Mermoz, Dakar`);
+    expect(carte).toHaveTextContent(/Devis : 45\s000\sF\sCFA/);
+    expect(carte).toHaveTextContent('3 photos');
+    expect(carte).toHaveTextContent(P.carte.adresseApres);
+    expect(carte).toHaveTextContent('Demande de Dakar Immo');
+    expect(within(carte).getByRole('img', { name: P.carte.photo })).toHaveAttribute('src', 'https://api.test/media/1/vignette');
+    expect(screen.getByText('Dakar Immo vous a invité pour ce dépannage. Répondez d’abord, complétez votre profil ensuite.')).toBeInTheDocument();
+    // Les écrans de l'ancien assistant ne sont plus là : ni métiers à cocher, ni grille, ni téléverseur.
+    expect(screen.queryByText(frMessages.serviceProviders.onboarding.steps.trades.title)).toBeNull();
+    expect(document.querySelector('input[type=file]')).toBeNull();
+  });
+
+  it('« Accepter » finalise PUIS accepte, sans créneau ; l’écran dit « Intervention acceptée » et mène à l’intervention', async () => {
+    monter();
+    fireEvent.click(await screen.findByRole('button', { name: P.accepter }));
+
+    await waitFor(() => expect(spAccepterInterventionAction).toHaveBeenCalledWith(501, null));
+    expect(spOnboardCompleteAction).toHaveBeenCalledWith(31, undefined);
+    // L'ordre est imposé par l'API : la demande n'est au prestataire qu'après la fin d'onboarding.
+    expect(spOnboardCompleteAction.mock.invocationCallOrder[0]).toBeLessThan(spAccepterInterventionAction.mock.invocationCallOrder[0]);
+    const acceptee = await within(screen.getByTestId('intervention-501')).findByRole('status');
+    expect(acceptee).toHaveTextContent(P.acceptee.titre);
+    expect(acceptee).toHaveTextContent(P.acceptee.sansPassage);
+    expect(routerPush).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: P.acceptee.voir }));
+    expect(routerPush).toHaveBeenCalledWith('/app/maintenance/501');
+    // Une seule fin d'onboarding : la sortie d'après n'a plus rien à écrire.
+    expect(spOnboardCompleteAction).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
+  });
+
+  it('la page re-rendue par la fin d’onboarding (cookie posé) relit une intervention `null` : l’écran garde sa carte et l’acceptation', async () => {
+    const { rerender } = monter();
+    fireEvent.click(await screen.findByRole('button', { name: P.accepter }));
+    await waitFor(() => expect(spAccepterInterventionAction).toHaveBeenCalled());
+    // Ce que rend la page re-rendue : le lien consommé, plus d'intervention d'origine.
+    rerender(
+      withIntl(<ServiceProviderOnboardingWizard spProfileId={31} agence="Dakar Immo" intervention={null} reglages={REGLAGES_VIDES} pieces={null} />),
+    );
+    expect(await within(screen.getByTestId('intervention-501')).findByRole('status')).toHaveTextContent(P.acceptee.titre);
+    expect(screen.getByTestId('intervention-501')).toHaveTextContent(frMessages.maintenance.category.plumbing);
+    expect(screen.getByRole('button', { name: P.acceptee.voir })).toBeInTheDocument();
+  });
+
+  it('« Proposer un créneau » envoie `scheduled_at` à l’heure de Dakar, et l’écran dit la date de passage', async () => {
+    spAccepterInterventionAction.mockResolvedValue({
+      ok: true,
+      data: { id: 501, scheduled_at: '2027-01-15T10:00:00Z', accepted_at: '2026-11-13T10:00:00Z' },
     });
-    expect(JSON.stringify(sauverBrouillon.mock.calls.at(-1))).not.toContain('123456');
+    monter();
+    fireEvent.click(await screen.findByRole('button', { name: P.proposer }));
+    const champ = screen.getByLabelText(P.creneau.libelle);
+    expect(champ).toHaveAttribute('type', 'datetime-local');
+    expect(champ.getAttribute('min')).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+
+    // Vide : rien ne part, la consigne s'écrit sous le champ.
+    fireEvent.click(screen.getByRole('button', { name: P.creneau.envoyer }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(P.creneau.requis);
+    expect(spOnboardCompleteAction).not.toHaveBeenCalled();
+
+    fireEvent.change(champ, { target: { value: '2027-01-15T10:00' } });
+    fireEvent.click(screen.getByRole('button', { name: P.creneau.envoyer }));
+    await waitFor(() => expect(spAccepterInterventionAction).toHaveBeenCalledWith(501, '2027-01-15T10:00:00Z'));
+    expect(await within(screen.getByTestId('intervention-501')).findByRole('status')).toHaveTextContent(
+      'Passage prévu le vendredi 15 janvier 2027',
+    );
   });
 
-  it('envoie le code au numéro TAPÉ, indicatif en tête', async () => {
-    const user = userEvent.setup();
-    render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
+  it('un créneau refusé (422) s’écrit SOUS le champ ; la fin d’onboarding ne se rejoue pas au second envoi', async () => {
+    spAccepterInterventionAction.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      message: 'Données invalides.',
+      errors: { scheduled_at: ['Le passage doit être dans les 60 prochains jours.'] },
+    });
+    monter();
+    fireEvent.click(await screen.findByRole('button', { name: P.proposer }));
+    const champ = screen.getByLabelText(P.creneau.libelle);
+    fireEvent.change(champ, { target: { value: '2027-06-15T10:00' } });
+    fireEvent.click(screen.getByRole('button', { name: P.creneau.envoyer }));
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    await user.type(champ, '770000000', { initialSelectionStart: 0, initialSelectionEnd: 0 });
-    expect(champ).toHaveValue('770000000');
+    const erreur = await screen.findByRole('alert');
+    expect(erreur).toHaveTextContent('Le passage doit être dans les 60 prochains jours.');
+    expect(erreur).toHaveAttribute('data-erreur-du-creneau');
+    expect(champ).toHaveAttribute('aria-invalid', 'true');
+    expect(champ.getAttribute('aria-describedby')).toBe(erreur.id);
+    expect(screen.queryByText(P.acceptee.titre)).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
-    await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
-    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221770000000');
+    fireEvent.change(champ, { target: { value: '2027-01-15T10:00' } });
+    fireEvent.click(screen.getByRole('button', { name: P.creneau.envoyer }));
+    await waitFor(() => expect(spAccepterInterventionAction).toHaveBeenCalledTimes(2));
+    expect(spOnboardCompleteAction).toHaveBeenCalledTimes(1);
   });
 
-  // Relevé par le vérificateur : seul l'assistant hôte gardait ce critère. Une
-  // régression vers `numero.trim() === ''` laissait partir « 7700000 » — sept
-  // chiffres, que l'API refuse désormais en 422 — sans qu'aucun test rougisse.
-  it('un numéro NON VIDE mais incomplet ne part pas : le bouton d’envoi reste inactif', async () => {
-    const user = userEvent.setup();
-    render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
-
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    await user.type(champ, '7700000');
-    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
-    expect(envoyer).toBeDisabled();
-
-    await user.click(envoyer);
-    expect(phoneSendOtpAction).not.toHaveBeenCalled();
-
-    // Neuf chiffres après +221 : le numéro est composable, l'envoi s'ouvre.
-    await user.type(champ, '00');
-    expect(envoyer).toBeEnabled();
+  it('un échec de la fin d’onboarding se dit et n’accepte rien', async () => {
+    spOnboardCompleteAction.mockResolvedValue({ ok: false, message: 'Profil introuvable.' });
+    monter();
+    fireEvent.click(await screen.findByRole('button', { name: P.accepter }));
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'error', description: 'Profil introuvable.' })));
+    expect(spAccepterInterventionAction).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
   });
 
-  // Relevé par le vérificateur (déduit du code, reproduit ici) : seul
-  // `initialData` passait par `recomposerTelephone`. Un numéro relu d'un
-  // brouillon écrit par l'ancien champ libre — forme nationale, sans indicatif —
-  // s'affichait bien dans l'ordre, mais « Envoyer le code » restait INACTIF sans
-  // explication tant qu'on ne retouchait pas un chiffre.
-  it('un numéro relu d’un brouillon hérité, sans indicatif, est remis en E.164 et part', async () => {
-    brouillon = { step: 0, data: { phone: { number: '771234567', code: null, verified: false } } };
-    const user = userEvent.setup();
-    render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
+  it('« Plus tard » finalise et mène à /app ; une ligne du profil finalise et mène à son réglage', async () => {
+    const { unmount } = monter();
+    fireEvent.click(await screen.findByRole('button', { name: P.plusTard }));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app'));
+    expect(spOnboardCompleteAction).toHaveBeenCalledWith(31, undefined);
+    expect(spAccepterInterventionAction).not.toHaveBeenCalled();
+    unmount();
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    expect(champ).toHaveValue('771234567');
-    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
-    expect(envoyer).toBeEnabled();
+    routerPush.mockClear();
+    monter();
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(P.profil.assurance.nom) }));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/pieces'));
+  });
 
-    await user.click(envoyer);
-    await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
-    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221771234567');
+  it('« Complétez votre profil » dit ce qui reste, depuis le profil et les pièces : n sur 5, l’assurance facultative', async () => {
+    monter({
+      reglages: {
+        id: 31,
+        trades: ['plumbing', 'electrical'],
+        intervention_zones: ['Mermoz', 'Ouakam'],
+        hourly_rate: '5000.00',
+        visit_fee: 3000,
+        available_slots: [],
+      },
+      pieces: [{ code: 'insurance', required: false, kind: 'file', state: 'missing' }],
+    });
+    const liste = await screen.findByTestId('profil-a-completer');
+    expect(within(liste).getByRole('heading', { level: 2 })).toHaveTextContent(P.profil.titre);
+    expect(liste).toHaveTextContent('3 sur 5');
+    expect(liste.querySelector('[data-ligne-du-profil=zones]')).toHaveTextContent('Mermoz, Ouakam');
+    expect(liste.querySelector('[data-ligne-du-profil=tarifs]')).toHaveTextContent(/5\s000\sF\sCFA de l’heure · visite 3\s000\sF\sCFA/);
+    expect(liste.querySelector('[data-ligne-du-profil=disponibilites]')).toHaveTextContent(P.profil.disponibilites.vide);
+    expect(liste.querySelector('[data-ligne-du-profil=assurance]')).toHaveTextContent(P.profil.assurance.vide);
+    expect(within(liste).getAllByText(P.profil.fait)).toHaveLength(3);
+  });
+
+  it('sans intervention jointe : « Bienvenue chez {agence} », la liste, et « Aller à mon espace »', async () => {
+    monter({ intervention: null, reglages: null, pieces: null });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bienvenue chez Dakar Immo' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: P.accepter })).toBeNull();
+    // Réglages illisibles : rien n'est coché, rien n'est inventé.
+    expect(screen.getByTestId('profil-a-completer')).toHaveTextContent('0 sur 5');
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${P.allerAMonEspace}`) }));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app'));
+  });
+
+  it('un brouillon de l’assistant à quatre écrans reprend à l’écran 2 ; ses métiers et sa grille sont ignorés', async () => {
+    brouillon = {
+      step: 3,
+      data: {
+        phone: { number: '+221775305678', code: '123456', verified: true },
+        trades: { list: ['plumbing'], intervention_zones: ['Yoff'], hourly_rate: '1', visit_fee: '1' },
+        availability: { mon: ['morning'] },
+      },
+    };
+    monter();
+    expect(await screen.findByRole('heading', { level: 1, name: P.titre })).toBeInTheDocument();
+    expect(screen.queryByText('Yoff')).toBeNull();
+    expect(spPatchTradesAction).not.toHaveBeenCalled();
+  });
+
+  it('numéro non vérifié : l’écran 1 d’abord ; le code accepté ouvre l’écran 2, et ne va jamais au brouillon', async () => {
+    utilisateur = { first_name: 'Ibrahima', phone: '+221775305678', phone_verified_at: null };
+    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true, codeApercu: null } });
+    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: null });
+    monter();
+
+    expect(await screen.findByRole('heading', { level: 1, name: NUMERO.titre })).toBeInTheDocument();
+    expect(document.querySelector('[data-etape-d-invite]')).toHaveAttribute('data-etape-d-invite', '1');
+
+    fireEvent.click(screen.getByRole('button', { name: NUMERO.recevoir }));
+    fireEvent.change(await screen.findByLabelText(NUMERO.codeLibelle), { target: { value: '482913' } });
+    fireEvent.click(screen.getByRole('button', { name: NUMERO.continuer }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: P.titre })).toBeInTheDocument();
+    expect(screen.getByText(/Numéro vérifié/)).toHaveTextContent('77 •• •• 56 78');
+    expect(phoneSendOtpAction).toHaveBeenCalledWith('+221775305678');
+    expect(JSON.stringify(sauverBrouillon.mock.calls)).not.toContain('482913');
   });
 });

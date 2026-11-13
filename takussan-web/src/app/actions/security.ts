@@ -149,14 +149,19 @@ export async function twoFactorRegenerateAction(): Promise<
 
 export async function phoneSendOtpAction(
   phone?: string,
-): Promise<ActionResult<EnvoiCodeSms>> {
+): Promise<ActionResult<EnvoiCodeSms> | { ok: false; message: string; attente: number }> {
   try {
     const token = await getToken();
     requireToken(token, await jetonManquant());
     const data = await phoneSendOtp(token, phone);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, 'sendOtpFailed');
+    const echec = await failure(err, 'sendOtpFailed');
+    // TCK-2613 — un 429 garde son délai : l'écran l'écrit sous le champ (« Réessayez dans 2 min »).
+    if (err instanceof ApiError && err.status === 429 && err.retryAfter !== undefined) {
+      return { ok: false, message: echec.message, attente: err.retryAfter };
+    }
+    return echec;
   }
 }
 

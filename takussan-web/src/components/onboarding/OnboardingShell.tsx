@@ -42,6 +42,7 @@ export async function OnboardingShell({
   pas,
   total,
   largeur = 'large',
+  sortie = 'retour-au-site',
   children,
 }: {
   /**
@@ -70,7 +71,12 @@ export async function OnboardingShell({
    * TCK-2598 — `etroite` : la colonne de 480 px des maquettes (prénom, invitation). Défaut `large` :
    * les assistants gardent leur largeur d'avant tant que leurs tickets ne les refont pas.
    */
-  readonly largeur?: 'etroite' | 'large';
+  readonly largeur?: 'etroite' | 'large' | 'assistant';
+  /**
+   * TCK-2613 — `quitter` : la barre des assistants d'invité (maquette `EnTeteFormulaire`) — « ✕ » et l'intention
+   * au téléphone, « Quitter » au bureau. Défaut : « Retour au site ».
+   */
+  readonly sortie?: 'retour-au-site' | 'quitter';
   readonly children: React.ReactNode;
 }) {
   const t = await getTranslations('onboarding.shell');
@@ -84,7 +90,7 @@ export async function OnboardingShell({
       pas={pas}
       total={total}
       largeur={largeur}
-      sortie={{ href: '/', forme: 'retour-au-site' }}
+      sortie={{ href: '/', forme: sortie }}
     >
       {title ? (
         <div className="mb-8 flex flex-col gap-3 sm:mb-10">

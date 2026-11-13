@@ -36,9 +36,13 @@ vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }))
 
 const RACINE = join(__dirname, '..', '..', 'onboarding');
 
+// TCK-2613 — AUCUN assistant ne monte plus de téléverseur : les pièces attendent dans l'espace, sous « Démarrer »
+// (écran « Vos pièces », TCK-2614), et l'assistant prestataire a perdu son écran « métiers et assurance » avec les
+// deux derniers montages. La lecture des sources ci-dessous le garde ; le ton de la pastille reste éprouvé sur les
+// jeux de props que ces montages passaient ({@link MONTAGES}).
 const ASSISTANTS = [
-  'AgentOnboardingWizard.tsx',
   'OwnerOnboardingWizard.tsx',
+  'AgentOnboardingWizard.tsx',
   'ServiceProviderOnboardingWizard.tsx',
 ] as const;
 
@@ -74,7 +78,11 @@ function montagesDe(assistant: string): Montage[] {
   });
 }
 
-const MONTAGES: Montage[] = ASSISTANTS.flatMap(montagesDe);
+/** Les deux derniers montages, ceux de l'assistant prestataire avant TCK-2613 : props par défaut du composant. */
+const MONTAGES: Montage[] = [
+  { assistant: 'ServiceProviderOnboardingWizard.tsx (avant TCK-2613)', kind: 'cni' },
+  { assistant: 'ServiceProviderOnboardingWizard.tsx (avant TCK-2613)', kind: 'insurance' },
+];
 
 async function televerseAvecSucces() {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(
@@ -93,13 +101,14 @@ function pastille(conteneur: HTMLElement): HTMLElement | null {
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('TCK-385 — la pastille « fourni » des assistants d\'onboarding', () => {
-  it('les trois assistants montent bien le téléverseur — compte DÉRIVÉ de leur source', () => {
+  it('aucun des trois assistants ne monte plus le téléverseur (TCK-2613) — lu dans leur source', () => {
     for (const assistant of ASSISTANTS) {
-      expect(montagesDe(assistant).length, `${assistant} ne monte plus KycUploader`)
-        .toBeGreaterThan(0);
+      expect(montagesDe(assistant), `${assistant} remonte KycUploader : une pièce redevient une étape`).toEqual([]);
     }
-    // Le total sert de garde-fou contre une extraction qui rendrait zéro sans le dire.
-    expect(MONTAGES.length).toBeGreaterThanOrEqual(ASSISTANTS.length);
+    // L'extraction elle-même est éprouvée : elle lit bien un montage quand il y en a un.
+    expect(
+      [...'<KycUploader profileId={1} kind="cni" />'.matchAll(/<KycUploader\b([\s\S]*?)\/>/g)],
+    ).toHaveLength(1);
   });
 
   it.each(MONTAGES)(

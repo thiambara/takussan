@@ -80,15 +80,6 @@ export function compteDesPieces(pieces: readonly PieceDuProfil[]): { readonly en
 /* ──────────────────────────────────────────── Le NINEA ──────────────────────────────────────────── */
 
 /**
- * Décision 2b (porteur, 2026-11-13) — le NINEA n'est requis que d'un bailleur société : l'API le dit dans `required`
- * (`PiecesDuProfil`, règle de `companyName()`). L'assistant `/onboarding/owner` le lit ici plutôt que de refaire la
- * règle. Sans réponse lisible (pas de ligne `ninea`, appel en échec), il reste requis : le comportement d'avant.
- */
-export function nineaRequis(pieces: readonly PieceDuProfil[] | null | undefined): boolean {
-  return pieces?.find((p) => p.code === 'ninea')?.required ?? true;
-}
-
-/**
  * La forme que l'API retient (`UpdateOwnerTaxIdRequest::FORMAT`) : 7 chiffres, puis un chiffre, une lettre, un chiffre.
  * Espaces tolérés, minuscule acceptée : `0 123 456 7g2` → `01234567G2`.
  */

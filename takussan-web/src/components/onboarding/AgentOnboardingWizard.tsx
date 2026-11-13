@@ -1,208 +1,123 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
-import { Label } from '@/components/ui/label';
-import { PhoneInput } from '@/components/ui/phone-input';
-import {
-  INDICATIF_PAR_DEFAUT,
-  numeroComposable,
-  recomposerTelephone,
-  relireTelephoneBrouillon,
-} from '@/lib/phone';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useAuth } from '@/context/AuthContext';
-import { useAgentRoleCapabilities } from '@/hooks/useCan';
-import {
-  WizardReprenable,
-  type WizardStep,
-} from '@/components/wizard/WizardReprenable';
-import { KycUploader } from '@/components/kyc/KycUploader';
-import { ZoneMultiSelect } from '@/components/agents/ZoneMultiSelect';
-import {
-  agentOnboardCompleteAction,
-  agentSubmitKycAction,
-  agentUpdateSpecializationAction,
-  getAgentFirstLeadAction,
-} from '@/app/actions/agent-onboarding';
-import {
-  phoneSendOtpAction,
-  phoneVerifyOtpAction,
-} from '@/app/actions/security';
-import type {
-  AgentFirstLeadEntry,
-  AgentSpecializationPayload,
-} from '@/lib/agent-onboarding';
+import { WizardReprenable, type WizardStep } from '@/components/wizard/WizardReprenable';
+import { agentOnboardCompleteAction } from '@/app/actions/agent-onboarding';
+import { INDICATIF_PAR_DEFAUT, recomposerTelephone, relireTelephoneBrouillon } from '@/lib/phone';
+import type { PieceDuProfil } from '@/lib/pieces/pieces';
+
+import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
+import { EtapeDuNumero } from './invite/EtapeDuNumero';
+import { ProspectDeLAgent, SPECIALISATIONS, type Specialisation } from './invite/ProspectDeLAgent';
 
 /**
- * TCK-259 — Agent post-acceptance onboarding wizard.
+ * TCK-259, refait par TCK-2613 — l'assistant de l'agent invité, en DEUX écrans (maquette `app-entree-assistants`,
+ * approche a) :
+ *   1. le numéro (obligatoire ; un numéro déjà vérifié saute l'écran) ;
+ *   2. la raison de venir : le premier prospect confié par l'agence, ses zones et sa spécialisation, les droits
+ *      que l'agence lui donne, puis « Aller à mon espace ».
  *
- * Four steps (mirror of the Owner wizard, TCK-257):
- *   1. Phone OTP (mandatory).
- *   2. KYC : license_number input + license card / CNI / photo uploads.
- *      Each upload persists immediately. Bottom CTA submits the dossier
- *      (kyc.submitted_at ; no review queue reads it, TCK-685). Wizard is resumable — closing the tab
- *      keeps the uploaded docs.
- *   3. Specialization & intervention zones — selection persists via the
- *      dedicated PATCH endpoint so zones are saved even if the user
- *      bails mid-wizard.
- *   4. Recap : assigned role + main permissions + first pre-assigned
- *      lead (if any). Final CTA → /app, where the welcome modale fires.
+ * La carte professionnelle, la pièce d'identité et la photo ne sont plus un écran : elles attendent dans l'espace,
+ * sous « Démarrer » (TCK-2612, TCK-2614), et l'écran 2 les rappelle. Plus de « Soumettre le dossier » : la
+ * soumission n'ouvrait aucune revue (TCK-685).
  *
- * KYC submission is **non-blocking** for activation per spec — the
- * `complete()` endpoint flips AgentProfile.status = active regardless
- * of whether the dossier has been submitted yet.
+ * `complete()` passe le profil en `active` et pose le profil actif : TOUTE sortie de l'écran 2 l'appelle d'abord,
+ * puis va où la personne a demandé (son espace, la fiche du prospect, les demandes).
  */
 export type AgentOnboardingWizardProps = {
   agentProfileId: number;
+  /** Le nom de l'agence qui invite (`Profile.agency.name`) ; `null` s'il n'est pas connu. */
+  agence?: string | null;
+  /** La spécialisation enregistrée sur le profil (`Profile.specialty`). */
+  specialite?: string | null;
+  /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
+  pieces?: readonly PieceDuProfil[] | null;
 };
-
-type Specialization = AgentSpecializationPayload['specialization'];
-
-type WizardData = {
-  phone: { number: string; code: string; verified: boolean };
-  kyc: {
-    license_number: string;
-    license_uploaded: boolean;
-    cni_uploaded: boolean;
-    photo_uploaded: boolean;
-    submitted: boolean;
-  };
-  specialization: {
-    value: Specialization | '';
-    zones: string[];
-    saved: boolean;
-  };
-};
-
-const SPECIALIZATIONS: Specialization[] = ['residential', 'commercial', 'luxury', 'mixed'];
 
 /**
- * TCK-566 — un brouillon relu repasse par la même normalisation que
- * `initialData` : un numéro écrit par l'ancien champ libre (`771234567`, sans
- * indicatif) laissait « Envoyer le code » inactif sans explication.
+ * Le brouillon garde la forme d'avant pour `phone` et `specialization` : un brouillon de l'assistant à quatre
+ * écrans reprend à l'écran 2 avec les zones qu'il avait ENREGISTRÉES (`saved`). `kyc` reste lisible et ignoré.
  */
-function relireBrouillon(data: WizardData): WizardData {
-  return {
-    ...data,
-    phone: {
-      ...data.phone,
-      number: relireTelephoneBrouillon(data.phone?.number, INDICATIF_PAR_DEFAUT),
-    },
-  };
+type WizardData = {
+  phone: { number: string; code: string; verified: boolean };
+  specialization: { value: Specialisation | ''; zones: string[]; saved: boolean };
+};
+
+function specialiteConnue(valeur: string | null | undefined): Specialisation | '' {
+  return (SPECIALISATIONS as readonly string[]).includes(valeur ?? '') ? (valeur as Specialisation) : '';
 }
 
-export function AgentOnboardingWizard({
-  agentProfileId,
-}: AgentOnboardingWizardProps) {
+export function AgentOnboardingWizard({ agentProfileId, agence = null, specialite = null, pieces = null }: AgentOnboardingWizardProps) {
   const t = useTranslations('agents.onboarding');
   const router = useRouter();
   const toast = useToast();
   const { user, refreshUser } = useAuth();
+  // Où aller une fois l'onboarding fini : l'espace, la fiche du prospect, les demandes.
+  const destination = useRef('/app');
+  const specialisationDuProfil = specialiteConnue(specialite);
 
   const initialData: WizardData = useMemo(
     () => ({
       phone: {
-        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et
-        // ne porte que la suite ; une valeur héritée hors format y est remise dans l'ordre.
+        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et ne porte que la suite.
         number: user?.phone ? recomposerTelephone(user.phone, INDICATIF_PAR_DEFAUT) : '',
         code: '',
         verified: Boolean(user?.phone_verified_at),
       },
-      kyc: {
-        license_number: '',
-        license_uploaded: false,
-        cni_uploaded: false,
-        photo_uploaded: false,
-        submitted: false,
-      },
-      specialization: { value: '', zones: [], saved: false },
+      specialization: { value: specialisationDuProfil, zones: [], saved: false },
     }),
-    [user],
+    [user, specialisationDuProfil],
+  );
+
+  const relireBrouillon = useCallback(
+    (data: WizardData): WizardData => ({
+      ...data,
+      phone: {
+        ...data.phone,
+        // TCK-1362 — un code d'un brouillon d'avant ne survit pas à la relecture.
+        code: '',
+        number: relireTelephoneBrouillon(data.phone?.number, INDICATIF_PAR_DEFAUT),
+      },
+      // Une saisie jamais enregistrée n'est pas ce que l'agence lit : l'écran montrerait des zones qu'aucune
+      // demande ne suit. Seul ce qui a été enregistré revient ; sinon, la spécialisation du profil.
+      specialization: data.specialization?.saved
+        ? {
+            value: specialiteConnue(data.specialization.value) || specialisationDuProfil,
+            zones: Array.isArray(data.specialization.zones) ? data.specialization.zones : [],
+            saved: true,
+          }
+        : { value: specialisationDuProfil, zones: [], saved: false },
+    }),
+    [specialisationDuProfil],
   );
 
   const handleComplete = useCallback(async () => {
+    // Le code a été vérifié à l'écran 1 : l'API ne le redemande pas quand `phone_verified_at` est posé.
     const completeRes = await agentOnboardCompleteAction(agentProfileId, undefined);
     if (!completeRes.ok) {
-      toast.add({
-        title: t('errors.completeTitle'),
-        description: completeRes.message,
-        type: 'error',
-      });
+      toast.add({ title: t('errors.completeTitle'), description: completeRes.message, type: 'error' });
       return;
     }
 
     await refreshUser();
-    toast.add({
-      title: t('success.title'),
-      description: t('success.body'),
-      type: 'success',
-    });
-
+    toast.add({ title: t('success.title'), description: t('success.body'), type: 'success' });
     // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
     marquerArriveeDeParcours('assistant');
-    router.push('/app');
+    router.push(destination.current);
   }, [agentProfileId, refreshUser, router, t, toast]);
 
   const steps: WizardStep<WizardData>[] = useMemo(
     () => [
-      {
-        id: 'phone',
-        title: t('steps.phone.title'),
-        subtitle: t('steps.phone.subtitle'),
-        canAdvance: (d) => d.phone.verified,
-        render: ({ data, setData }) => <PhoneStep data={data} setData={setData} />,
-      },
-      {
-        id: 'kyc',
-        title: t('steps.kyc.title'),
-        subtitle: t('steps.kyc.subtitle'),
-        // Non-blocking — the user may move on with a partial dossier,
-        // the backend doesn't gate activation on it.
-        render: ({ data, setData }) => (
-          <KycStep
-            data={data}
-            setData={setData}
-            agentProfileId={agentProfileId}
-          />
-        ),
-      },
-      {
-        id: 'specialization',
-        title: t('steps.specialization.title'),
-        subtitle: t('steps.specialization.subtitle'),
-        canAdvance: (d) => d.specialization.saved,
-        render: ({ data, setData }) => (
-          <SpecializationStep
-            data={data}
-            setData={setData}
-            agentProfileId={agentProfileId}
-          />
-        ),
-      },
-      {
-        id: 'welcome',
-        title: t('steps.welcome.title'),
-        subtitle: t('steps.welcome.subtitle'),
-        render: () => (
-          <WelcomeStep agentProfileId={agentProfileId} />
-        ),
-      },
+      { id: 'phone', title: 'phone', canAdvance: (d) => d.phone.verified, render: () => null },
+      { id: 'prospect', title: 'prospect', render: () => null },
     ],
-    [agentProfileId, t],
+    [],
   );
 
   return (
@@ -210,469 +125,44 @@ export function AgentOnboardingWizard({
       storageKey={`agent-onboarding-${agentProfileId}`}
       initialData={initialData}
       relireBrouillon={relireBrouillon}
+      etapeImposee={etapeDInvite}
       steps={steps}
       onComplete={handleComplete}
+      presentation={(api) => (
+        <AssistantDInvite etape={api.etape} agence={agence} pret={api.pret}>
+          {api.etape === 0 ? (
+            <EtapeDuNumero
+              numero={api.data.phone.number}
+              onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
+              agence={agence}
+              onVerifie={() => {
+                api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
+                api.allerA(1);
+              }}
+            />
+          ) : (
+            <ProspectDeLAgent
+              agentProfileId={agentProfileId}
+              agence={agence}
+              prenom={user?.first_name || null}
+              telephone={api.data.phone.number || user?.phone || null}
+              zones={{ specialisation: api.data.specialization.value, zones: api.data.specialization.zones }}
+              onZones={(zones) =>
+                api.setData({
+                  ...api.data,
+                  specialization: { value: zones.specialisation, zones: [...zones.zones], saved: true },
+                })
+              }
+              pieces={pieces}
+              enCours={api.enCours}
+              onAller={(href) => {
+                destination.current = href;
+                void api.suivant();
+              }}
+            />
+          )}
+        </AssistantDInvite>
+      )}
     />
-  );
-}
-
-// ── Steps ────────────────────────────────────────────────────────────────
-
-type StepProps = { data: WizardData; setData: (next: WizardData) => void };
-
-function PhoneStep({ data, setData }: StepProps) {
-  const t = useTranslations('agents.onboarding.steps.phone');
-  const toast = useToast();
-  const [sendPending, startSend] = useTransition();
-  const [verifyPending, startVerify] = useTransition();
-  const [otpSent, setOtpSent] = useState(false);
-  // TCK-620 (ADR-0060) — le code que l'API rend hors production.
-  const [otpApercu, setOtpApercu] = useState<string | null>(null);
-
-  const handleSend = () => {
-    if (!numeroComposable(data.phone.number)) return;
-    startSend(async () => {
-      // TCK-566 — le numéro TAPÉ part avec la demande : sans lui, le code visait
-      // le numéro déjà enregistré, et l'API rendait « No phone number on file. »
-      // à qui venait de le saisir. L'API l'enregistre (et remet la vérification
-      // à zéro s'il change) avant d'envoyer le SMS.
-      const res = await phoneSendOtpAction(data.phone.number);
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.sendTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      setOtpSent(true);
-      setOtpApercu(res.data?.codeApercu ?? null);
-      toast.add({
-        title: t('sent.title'),
-        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
-        description: t('sent.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  const handleVerify = () => {
-    if (data.phone.code.length !== 6) return;
-    startVerify(async () => {
-      const res = await phoneVerifyOtpAction(data.phone.code);
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.verifyTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      // TCK-1362 (P84.03) — le code vérifié quitte l'état : sinon le brouillon serveur, gardé
-      // jusqu'à 90 jours, en gardait la seule copie en clair (l'API le garde haché, 5 min).
-      setData({ ...data, phone: { ...data.phone, code: '', verified: true } });
-      toast.add({
-        title: t('verified.title'),
-        description: t('verified.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="agent-phone">{t('fields.phone')}</Label>
-          <PhoneInput
-            id="agent-phone"
-            value={data.phone.number}
-            disabled={data.phone.verified}
-            onValueChange={(number) =>
-              setData({
-                ...data,
-                phone: { ...data.phone, number, verified: false },
-              })
-            }
-          />
-        </div>
-        {/* Aligné sur le CHAMP, pas sur la ligne d'aide de `<PhoneInput>` :
-            `text-sm leading-none` (14 px) + `gap-1` = 18 px (TCK-566). */}
-        <div className="flex items-start sm:mt-4.5">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full px-4 sm:w-auto"
-            onClick={handleSend}
-            disabled={sendPending || data.phone.verified || !numeroComposable(data.phone.number)}
-          >
-            {sendPending ? t('sending') : t('sendCta')}
-          </Button>
-        </div>
-      </div>
-
-      {otpSent && !data.phone.verified ? (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="agent-otp">{t('fields.code')}</Label>
-              <Input
-                id="agent-otp"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                className="tabular-nums tracking-widest"
-                value={data.phone.code}
-                onChange={(e) =>
-                  setData({
-                    ...data,
-                    phone: {
-                      ...data.phone,
-                      code: e.target.value.replace(/\D/g, '').slice(0, 6),
-                    },
-                  })
-                }
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="button"
-                className="h-11 w-full px-4 sm:w-auto"
-                onClick={handleVerify}
-                disabled={verifyPending || data.phone.code.length !== 6}
-              >
-                {verifyPending ? t('verifying') : t('verifyCta')}
-              </Button>
-            </div>
-          </div>
-          <CodeDePreproduction
-            code={otpApercu}
-            onUtiliser={(code) =>
-              setData({ ...data, phone: { ...data.phone, code } })
-            }
-          />
-        </>
-      ) : null}
-
-      {data.phone.verified ? (
-        <p role="status" className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
-          {t('verified.banner')}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function KycStep({
-  data,
-  setData,
-  agentProfileId,
-}: StepProps & { agentProfileId: number }) {
-  const t = useTranslations('agents.onboarding.steps.kyc');
-  const toast = useToast();
-  const [submitPending, startSubmit] = useTransition();
-
-  const updateKyc = (next: Partial<WizardData['kyc']>) =>
-    setData({ ...data, kyc: { ...data.kyc, ...next } });
-
-  const handleSubmit = () => {
-    startSubmit(async () => {
-      const res = await agentSubmitKycAction(agentProfileId);
-      if (!res.ok) {
-        toast.add({
-          title: t('submittedTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      updateKyc({ submitted: true });
-      toast.add({
-        title: t('submittedTitle'),
-        description: t('submittedBody'),
-        type: 'success',
-      });
-    });
-  };
-
-  const allUploaded =
-    data.kyc.license_uploaded && data.kyc.cni_uploaded && data.kyc.photo_uploaded;
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {data.kyc.submitted ? t('submittedBadge') : t('draftBadge')}
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="agent-license-number">{t('licenseNumberLabel')}</Label>
-        <Input
-          id="agent-license-number"
-          value={data.kyc.license_number}
-          placeholder="AGT-2026-001"
-          onChange={(e) => updateKyc({ license_number: e.target.value })}
-        />
-        <span className="text-xs text-muted-foreground">{t('licenseNumberHint')}</span>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <KycUploader
-          profileId={agentProfileId}
-          kind="license"
-          endpoint="agent-profiles"
-          i18nNamespace="agents.onboarding.kyc"
-          onUploaded={() => updateKyc({ license_uploaded: true })}
-        />
-        <KycUploader
-          profileId={agentProfileId}
-          kind="cni"
-          endpoint="agent-profiles"
-          i18nNamespace="agents.onboarding.kyc"
-          onUploaded={() => updateKyc({ cni_uploaded: true })}
-        />
-        <KycUploader
-          profileId={agentProfileId}
-          kind="photo"
-          endpoint="agent-profiles"
-          i18nNamespace="agents.onboarding.kyc"
-          onUploaded={() => updateKyc({ photo_uploaded: true })}
-        />
-      </div>
-
-      <div>
-        <Button
-          type="button"
-          className="h-11 px-5"
-          onClick={handleSubmit}
-          disabled={submitPending || !allUploaded || data.kyc.submitted}
-        >
-          {submitPending ? t('submitting') : t('submitCta')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function SpecializationStep({
-  data,
-  setData,
-  agentProfileId,
-}: StepProps & { agentProfileId: number }) {
-  const t = useTranslations('agents.onboarding.steps.specialization');
-  const toast = useToast();
-  const [savePending, startSave] = useTransition();
-
-  const handleSave = () => {
-    if (data.specialization.value === '') return;
-    startSave(async () => {
-      const res = await agentUpdateSpecializationAction(agentProfileId, {
-        specialization: data.specialization.value as Specialization,
-        intervention_zones: data.specialization.zones,
-        // TCK-1779 (P149.05) — vidé, le numéro part en `null`, que l'API lit comme « effacer ».
-        license_number: data.kyc.license_number || null,
-      });
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.saveTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      setData({
-        ...data,
-        specialization: { ...data.specialization, saved: true },
-      });
-      toast.add({
-        title: t('saved.title'),
-        description: t('saved.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="agent-specialization">{t('specializationLabel')}</Label>
-        <Select
-          value={data.specialization.value || ''}
-          onValueChange={(value) =>
-            setData({
-              ...data,
-              specialization: {
-                ...data.specialization,
-                value: (value ?? '') as Specialization,
-                saved: false,
-              },
-            })
-          }
-          items={SPECIALIZATIONS.map((s) => ({
-            value: s,
-            label: t(`specializationValues.${s}`),
-          }))}
-        >
-          <SelectTrigger id="agent-specialization" className="w-full">
-            <SelectValue placeholder={t('specializationPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            {SPECIALIZATIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {t(`specializationValues.${s}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <ZoneMultiSelect
-        labelHtmlFor="agent-zones"
-        value={data.specialization.zones}
-        onChange={(zones) =>
-          setData({
-            ...data,
-            specialization: { ...data.specialization, zones, saved: false },
-          })
-        }
-      />
-
-      <div>
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={
-            savePending ||
-            data.specialization.value === '' ||
-            data.specialization.saved
-          }
-        >
-          {savePending
-            ? t('saving')
-            : data.specialization.saved
-              ? t('savedBadge')
-              : t('saveCta')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * TCK-589 — les capacités RÉELLES de l'agent dans l'agence de l'invitation, groupées par domaine.
- *
- * Le récap lisait `ROLE_PERMISSIONS`, une table écrite en dur que rien ne reliait au rôle
- * effectivement attribué (la page ne passait même pas `invitedRole`) : un rôle personnalisé
- * affichait les droits d'un agent de base. La source est désormais le rôle du profil
- * (`GET /api/me/agent-profiles/{id}/role-capabilities`),
- * libellée par le même dictionnaire que l'éditeur de rôles (`admin.roles.capabilities.*`).
- */
-function grouperCapacites(capacites: readonly string[]): ReadonlyArray<readonly [string, string[]]> {
-  const groupes = new Map<string, string[]>();
-  for (const capacite of capacites) {
-    const domaine = capacite.split('.')[0] ?? capacite;
-    groupes.set(domaine, [...(groupes.get(domaine) ?? []), capacite]);
-  }
-  return [...groupes.entries()];
-}
-
-function WelcomeStep({ agentProfileId }: { agentProfileId: number }) {
-  const t = useTranslations('agents.onboarding.steps.welcome');
-  const tRoles = useTranslations('admin.roles');
-  // Le rôle de CE profil, pas `GET /api/me/capabilities` : le profil est encore `draft` ici, et un
-  // profil non actif ne confère rien (ADR-0031 §3) — la liste y serait vide.
-  const capacitesQuery = useAgentRoleCapabilities(agentProfileId);
-  const groupes = grouperCapacites(capacitesQuery.data?.data.capabilities ?? []);
-  const [lead, setLead] = useState<AgentFirstLeadEntry | null | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const res = await getAgentFirstLeadAction(agentProfileId);
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(res.message);
-        setLead(null);
-        return;
-      }
-      setLead(res.data.customer);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [agentProfileId]);
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="rounded-xl border border-border bg-muted/30 p-5" data-testid="agent-capabilities">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t('capabilitiesLabel')}
-        </p>
-        {capacitesQuery.isLoading ? (
-          <p className="mt-2 text-sm text-muted-foreground">…</p>
-        ) : capacitesQuery.isError ? (
-          <p className="mt-2 text-sm text-destructive">{t('capabilitiesError')}</p>
-        ) : groupes.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t('capabilitiesEmpty')}</p>
-        ) : (
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {groupes.map(([domaine, capacites]) => (
-              <section key={domaine} aria-label={tRoles.has(`domains.${domaine}`) ? tRoles(`domains.${domaine}`) : domaine}>
-                <h3 className="text-sm font-semibold text-foreground">
-                  {tRoles.has(`domains.${domaine}`) ? tRoles(`domains.${domaine}`) : domaine}
-                </h3>
-                <ul className="mt-1 space-y-1 text-sm text-muted-foreground">
-                  {capacites.map((capacite) => (
-                    <li key={capacite} className="flex items-start gap-2">
-                      <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                      <span>
-                        {tRoles.has(`capabilities.${capacite}`)
-                          ? tRoles(`capabilities.${capacite}`)
-                          : capacite}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div data-testid="agent-first-lead-block">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t('firstLeadLabel')}
-        </p>
-        {lead === undefined ? (
-          <p className="mt-2 text-sm text-muted-foreground">…</p>
-        ) : error ? (
-          <div className="mt-2 rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        ) : lead === null ? (
-          <div className="mt-2 rounded-xl border border-dashed border-border bg-background p-4 text-sm text-muted-foreground">
-            {t('noLead')}
-          </div>
-        ) : (
-          <a
-            href={`/app/customers/${lead.id}`}
-            data-testid={`agent-first-lead-${lead.id}`}
-            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 text-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-          >
-            <div className="flex min-w-0 flex-col">
-              <span className="font-medium text-foreground">{lead.full_name}</span>
-              {lead.pipeline_stage ? (
-                <span className="text-xs text-muted-foreground">
-                  {t('stageLabel', { stage: lead.pipeline_stage })}
-                </span>
-              ) : null}
-            </div>
-            <span className="shrink-0 text-sm font-medium text-primary">{t('viewLead')}</span>
-          </a>
-        )}
-      </div>
-    </div>
   );
 }

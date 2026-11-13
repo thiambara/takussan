@@ -8,7 +8,7 @@ import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
-import { nineaRequis, type MesPiecesResponse } from '@/lib/pieces/pieces';
+import type { MesPiecesResponse } from '@/lib/pieces/pieces';
 
 /**
  * TCK-257 — Post-acceptance landing page for an invited Owner.
@@ -34,7 +34,6 @@ export default async function OwnerOnboardingPage({
 }: {
   readonly searchParams: Promise<{ owner?: string | string[] }>;
 }) {
-  const t = await getTranslations('owners.onboarding');
   const token = await getToken();
   if (!token) {
     redirect('/auth/login?redirect=%2Fonboarding%2Fowner');
@@ -50,16 +49,21 @@ export default async function OwnerOnboardingPage({
     redirect('/app');
   }
 
-  // TCK-2614 (décision 2b) — le NINEA n'est requis que d'une société : l'API le dit pour CE profil (`X-Profile-Id`),
-  // l'assistant ne refait pas la règle. Un échec de lecture le laisse requis (le comportement d'avant).
+  // TCK-2614 (décision 2b) — les pièces de CE profil (`X-Profile-Id`), dont le NINEA requis d'une société seule ;
+  // TCK-2613 — l'écran 2 les rappelle, sans en exiger aucune. Un échec de lecture ne rappelle rien.
   const pieces = await apiRequest<MesPiecesResponse>('/api/me/pieces', {
     token,
     headers: { 'X-Profile-Id': `owner:${owner.numeric_id}` },
   }).catch(() => null);
 
+  // TCK-2613 — deux écrans dans la coque d'entrée : chaque écran porte son titre, la barre dit l'agence et l'étape.
   return (
-    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')} brouillon>
-      <OwnerOnboardingWizard ownerProfileId={owner.numeric_id} nineaRequis={nineaRequis(pieces?.data)} />
+    <OnboardingShell brouillon sortie="quitter" largeur="assistant">
+      <OwnerOnboardingWizard
+        ownerProfileId={owner.numeric_id}
+        agence={owner.agency?.name ?? null}
+        pieces={pieces?.data ?? null}
+      />
     </OnboardingShell>
   );
 }
