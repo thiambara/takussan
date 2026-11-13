@@ -18,8 +18,8 @@ import { FenetreAdaptee } from './FenetreAdaptee';
 
 /**
  * TCK-2675 — chercher, pour un paiement déclaré, la ligne de banque qui le règle : les crédits des
- * relevés OUVERTS de l'agence (`GET …/bank-statement-lines`, TCK-2674), au montant du paiement à
- * un franc près, les plus récents d'abord. Le sens est fixé : un encaissement ne se rapproche que
+ * relevés OUVERTS de l'agence (`GET …/bank-statement-lines`, TCK-2674), au montant attendu en banque à
+ * un franc près (`expected_bank_amount`), les plus récents d'abord. Le sens est fixé : un encaissement ne se rapproche que
  * d'un crédit — l'API refuserait l'autre (422).
  *
  * Une ligne déjà rapprochée ou ignorée reste listée, avec son état, sans geste : la cacher ferait
@@ -43,8 +43,12 @@ export function ChercherUneLigne({
   const f = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const montantDuPaiement = enNombre(paiement.amount);
-  const [saisie, setSaisie] = useState(montantDuPaiement !== null ? String(montantDuPaiement) : '');
-  const [montant, setMontant] = useState<number | null>(montantDuPaiement);
+  // Contre-vérification de f05a8d1a5 (r1) — la recherche est au franc près : elle part du montant
+  // ATTENDU EN BANQUE (loyer + pénalité réglée le même jour, ou montant figé en ligne), celui que le
+  // matcher compare, et non de l'échéance seule, que la ligne de banque ne porte pas.
+  const montantAttendu = enNombre(paiement.expected_bank_amount ?? null) ?? montantDuPaiement;
+  const [saisie, setSaisie] = useState(montantAttendu !== null ? String(montantAttendu) : '');
+  const [montant, setMontant] = useState<number | null>(montantAttendu);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const resultats = useBankLineSearch(agencyId, montant, null, true);

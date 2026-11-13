@@ -73,15 +73,17 @@ interface Etat {
   releves: BankStatement[];
   liste: (url: URL) => { data: PendingPayment[]; meta: { total: number } };
   suggestions: PendingPayment[];
+  /** La lecture des suggestions par page (`page`, filtres) ; sans elle, `suggestions` en une page. */
+  lireSuggestions?: (url: URL) => { data: PendingPayment[]; meta: { current_page: number; last_page: number; per_page: number; total: number } };
   avecSuggestion: number;
-  lot: () => Response;
+  lot: () => Response | Promise<Response>;
 }
 
 let etat: Etat;
 const appels: { methode: string; url: URL; corps: unknown }[] = [];
 const json = (corps: unknown, statut = 200) => new Response(JSON.stringify(corps), { status: statut, headers: { 'Content-Type': 'application/json' } });
 
-function repondre(entree: RequestInfo | URL, init?: RequestInit): Response {
+function repondre(entree: RequestInfo | URL, init?: RequestInit): Response | Promise<Response> {
   const url = new URL(String(entree));
   const methode = init?.method ?? 'GET';
   appels.push({ methode, url, corps: init?.body ? JSON.parse(String(init.body)) : undefined });
@@ -92,7 +94,7 @@ function repondre(entree: RequestInfo | URL, init?: RequestInit): Response {
   if (chemin.endsWith('/bank-statements')) return json(page(etat.releves));
   if (chemin.endsWith('/reconciliation/pending-payments')) {
     if (url.searchParams.get('filter[has_suggestion]') === '1' && url.searchParams.get('per_page') === '1') return json(page([], etat.avecSuggestion));
-    if (url.searchParams.get('filter[has_suggestion]') === '1' && url.searchParams.get('per_page') === '100') return json(page(etat.suggestions));
+    if (url.searchParams.get('filter[has_suggestion]') === '1' && url.searchParams.get('per_page') === '100') return json(etat.lireSuggestions ? etat.lireSuggestions(url) : page(etat.suggestions));
     return json(etat.liste(url));
   }
   if (chemin.endsWith('/bank-statement-lines')) {
@@ -200,6 +202,72 @@ describe('ResteARapprocher — « Confirmer les N »', () => {
     expect(screen.getByTestId('reste-lease_payment-3')).toBeInTheDocument();
   });
 
+  // Contre-vérification de f05a8d1a5 (r3, r4) — quatre propriétés justes au navigateur, que rien ne
+  // gardait (ablations vertes) : le lot vient de TOUTES les pages des suggestions (F4), il reprend le
+  // filtre actif (F5), il est plafonné à 200 (F3), et les gestes d'une carte attendent sa fin (F9).
+  it('F3 — 250 lignes sûres : le lot en porte 200, le plafond de `confirm-batch`', () => {
+    const nombreux = Array.from({ length: 250 }, (_, i) => paiement(1000 + i, 95));
+    const ids = lignesSures(nombreux);
+    expect(ids).toHaveLength(200);
+    expect(ids[0]).toBe(1900);
+  });
+
+  it('F4 — le lot vient de toutes les pages des suggestions, pas de la seule page affichée', async () => {
+    etat.liste = () => page([paiement(1, 95)], 34);
+    etat.lireSuggestions = (url) => {
+      const n = Number(url.searchParams.get('page') ?? '1');
+      const data = n === 1 ? [paiement(1, 95), paiement(2, 95)] : [paiement(3, 95)];
+      return { data, meta: { current_page: n, last_page: 2, per_page: 100, total: 3 } };
+    };
+    etat.lot = () => json({ data: { line_ids: [901, 902, 903], count: 3 } });
+    const user = userEvent.setup();
+    monter();
+    const bandeau = await screen.findByTestId('bandeau-sures');
+    expect(bandeau).toHaveTextContent('3 suggestions à plus de 90 %');
+    await user.click(within(bandeau).getByRole('button', { name: 'Confirmer les 3' }));
+    await waitFor(() => expect(requetes('/confirm-batch', 'POST')).toHaveLength(1));
+    expect(requetes('/confirm-batch', 'POST')[0]?.corps).toEqual({ line_ids: [901, 902, 903] });
+  });
+
+  it('F5 — sous « Espèces », les suggestions lues portent le filtre, et le lot ne confirme que les espèces', async () => {
+    etat.liste = (url) => (url.searchParams.get('filter[payment_method]') === 'cash' ? page([paiement(12, 95)], 1) : page([paiement(1, 95)], 34));
+    etat.lireSuggestions = (url) => {
+      const data =
+        url.searchParams.get('filter[payment_method]') === 'cash'
+          ? [paiement(12, 95), paiement(13, 92)]
+          : [paiement(1, 95, { payment_method: 'bank_transfer' }), paiement(12, 95), paiement(13, 92)];
+      return { data, meta: { current_page: 1, last_page: 1, per_page: 100, total: data.length } };
+    };
+    etat.lot = () => json({ data: { line_ids: [912, 913], count: 2 } });
+    const user = userEvent.setup();
+    monter();
+    const groupe = await screen.findByRole('group', { name: 'Filtrer les paiements à rapprocher' });
+    await user.click(within(groupe).getByRole('button', { name: /Espèces/ }));
+    const bandeau = await screen.findByTestId('bandeau-sures');
+    await waitFor(() => expect(bandeau).toHaveTextContent('2 suggestions à plus de 90 %'));
+    await user.click(within(bandeau).getByRole('button', { name: 'Confirmer les 2' }));
+    await waitFor(() => expect(requetes('/confirm-batch', 'POST')).toHaveLength(1));
+    expect(requetes('/confirm-batch', 'POST')[0]?.corps).toEqual({ line_ids: [912, 913] });
+    const lues = requetes('/reconciliation/pending-payments').filter((a) => a.url.searchParams.get('filter[has_suggestion]') === '1' && a.url.searchParams.get('per_page') === '100');
+    expect(lues.at(-1)?.url.searchParams.get('filter[payment_method]')).toBe('cash');
+  });
+
+  it('F9 — pendant le lot, les gestes d’une carte attendent : « Confirmer » et « Autre ligne » désactivés', async () => {
+    let rendre: () => void = () => {};
+    etat.lot = () => new Promise<Response>((r) => (rendre = () => r(json({ data: { line_ids: [901, 902], count: 2 } }))));
+    const user = userEvent.setup();
+    monter();
+    const bandeau = await screen.findByTestId('bandeau-sures');
+    const carte = await screen.findByTestId('reste-lease_payment-3');
+    expect(within(carte).getByRole('button', { name: /Confirmer/ })).toBeEnabled();
+    await user.click(within(bandeau).getByRole('button', { name: 'Confirmer les 2' }));
+    await waitFor(() => expect(requetes('/confirm-batch', 'POST')).toHaveLength(1));
+    expect(within(carte).getByRole('button', { name: /Confirmer/ })).toBeDisabled();
+    expect(within(carte).getByRole('button', { name: 'Chercher une autre ligne pour Payeur 3' })).toBeDisabled();
+    rendre();
+    await waitFor(() => expect(within(screen.getByTestId('reste-lease_payment-3')).getByRole('button', { name: /Confirmer/ })).toBeEnabled());
+  });
+
   it('un refus (422) le dit, ne retire rien de lui-même et relit la liste', async () => {
     etat.lot = () => json({ code: 'reconciliation.batch_not_confirmable', message: 'Une des lignes n’est plus proposée.' }, 422);
     const user = userEvent.setup();
@@ -282,6 +350,19 @@ describe('ResteARapprocher — au bureau', () => {
     await user.click(await within(dialogue).findByRole('button', { name: 'Rapprocher' }));
     await waitFor(() => expect(requetes('/bank-statement-lines/77/match', 'POST')).toHaveLength(1));
     expect(requetes('/bank-statement-lines/77/match', 'POST')[0]?.corps).toEqual({ payment_type: 'lease_payment', payment_id: 4 });
+  });
+
+  // Contre-vérification de f05a8d1a5 (r1) — la banque porte le loyer ET la pénalité réglée le même
+  // jour : « Chercher » cherche `expected_bank_amount`, la règle du matcher, pas `amount`.
+  it('r1 — « Chercher » cherche le montant attendu en banque (pénalité du même jour comprise)', async () => {
+    etat.liste = () => page([paiement(4, null, { amount: '500000.00', expected_bank_amount: 525000 })], 1);
+    const user = userEvent.setup();
+    monter();
+    await user.click(await screen.findByRole('button', { name: 'Chercher une autre ligne pour Payeur 4' }));
+    const dialogue = await screen.findByRole('dialog');
+    await waitFor(() => expect(requetes('/bank-statement-lines')).toHaveLength(1));
+    expect(requetes('/bank-statement-lines')[0]!.url.searchParams.get('filter[amount]')).toBe('525000');
+    expect(within(dialogue).getByLabelText('Montant')).toHaveValue('525000');
   });
 
   it('« Paiements en ligne » : les fournisseurs connectés et ce qu’ils ont confirmé ce mois-ci', async () => {

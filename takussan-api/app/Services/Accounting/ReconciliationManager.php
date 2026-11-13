@@ -29,6 +29,9 @@ use Illuminate\Validation\ValidationException;
 
 class ReconciliationManager
 {
+    /** Le seuil d'une confirmation EN LOT, en pourcentage : celui du front (`SEUIL_SUR` de `ResteARapprocher`). */
+    public const BATCH_MIN_CONFIDENCE = 90;
+
     private const ALLOWED_PAYMENT_TYPES = [
         BookingPayment::class,
         LeasePayment::class,
@@ -229,6 +232,9 @@ class ReconciliationManager
      * d'une autre agence, d'un relevé clos ou qui n'est plus `suggested` (y compris parce que la
      * confirmation d'une ligne précédente du lot l'a libérée) → 422
      * `reconciliation.batch_not_confirmable` ; un refus du geste unitaire annule aussi le lot entier.
+     * Une ligne proposée sous {@see self::BATCH_MIN_CONFIDENCE} aussi (contre-vérification de f05a8d1a5,
+     * r2) : le seuil de « Confirmer les N » n'était tenu que par le front. Le geste unitaire `match`,
+     * choix lu ligne par ligne, n'a pas ce seuil.
      *
      * @param  list<int>  $lineIds
      * @return list<int> les lignes confirmées, dans l'ordre des identifiants
@@ -243,6 +249,7 @@ class ReconciliationManager
 
             $confirmable = fn (BankStatementLine $line): bool => $line->match_status === BankStatementLineMatchStatus::Suggested
                 && $line->matched_payment_type !== null && $line->matched_payment_id !== null
+                && (int) $line->match_confidence >= self::BATCH_MIN_CONFIDENCE
                 && (int) $line->statement?->agency_id === (int) $agency->id
                 && in_array($line->statement?->status, ReconciliationOverviewService::OPEN_STATEMENT_STATUSES, true);
 

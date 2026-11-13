@@ -140,6 +140,11 @@ export interface PendingPayment {
   payer: { id: number; name: string | null } | null;
   property: { id: number; title: string | null } | null;
   amount: number | string;
+  /**
+   * Ce que la banque doit porter (la règle du matcher) : la pénalité réglée le même jour comprise, ou
+   * le montant figé d'un règlement en ligne. Absent d'une API antérieure : `amount`.
+   */
+  expected_bank_amount?: number | string | null;
   currency: string | null;
   paid_at: string | null;
   payment_method: string | null;

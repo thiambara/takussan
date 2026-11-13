@@ -214,7 +214,12 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     /**
      * TCK-828 (P25.07) — le montant attendu sur le compte de l'agence, pour CETTE ligne : la même
      * règle que `scopeWhereExpectedAmountNear()`, lue en PHP. Le montant figé ne vaut que pour une
-     * échéance soldée en ligne ; sinon, `amount`.
+     * échéance soldée en ligne ; sinon, `amount`, plus la pénalité réglée le même jour que le loyer
+     * (TCK-833 : le même virement).
+     *
+     * Contre-vérification de f05a8d1a5 (r1) — cette seconde moitié manquait ici : le SQL l'ajoutait,
+     * le PHP non. L'écart consigné à la confirmation (`amount_gap`) accusait une bonne correspondance
+     * de 25 000, et le « Chercher » du reste à rapprocher, qui lit ce montant, ne trouvait pas la ligne.
      */
     public function expectedBankAmount(): float
     {
@@ -223,7 +228,10 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
             return (float) ($this->metadata['gateway_expected_amount'] ?? $this->amount);
         }
 
-        return (float) $this->amount;
+        $memeJour = $this->late_fee_paid_at !== null && $this->paid_at !== null
+            && $this->late_fee_paid_at->toDateString() === $this->paid_at->toDateString();
+
+        return (float) $this->amount + ($memeJour ? (float) ($this->late_fee_amount ?? 0) : 0.0);
     }
 
     /**

@@ -72,6 +72,28 @@ class BankStatementLinesConfirmBatchTest extends ApiTestCase
         $this->assertSame(BankStatementLineMatchStatus::Suggested, $a->fresh()->match_status);
     }
 
+    /**
+     * Contre-vérification de f05a8d1a5 (r2) — le seuil de « Confirmer les N » (90 %) n'était tenu que par
+     * le front : une ligne proposée à 40 % passait le lot. L'API le tient aussi, en défense en
+     * profondeur : une ligne sous le seuil refuse le lot ENTIER (422), et 90 tout juste passe.
+     */
+    public function test_une_ligne_sous_90_pour_cent_refuse_le_lot_entier(): void
+    {
+        $statement = $this->statement();
+        $sure = $this->suggestedLine($this->leasePayment(['amount' => 120000]), 95, statement: $statement);
+        $faible = $this->suggestedLine($this->leasePayment(['amount' => 130000]), 89, statement: $statement);
+
+        $this->confirm([$sure->id, $faible->id])->assertStatus(422)->assertJsonPath('code', 'reconciliation.batch_not_confirmable');
+        $this->assertSame(0, $this->confirmedCount());
+
+        $limite = $this->suggestedLine($this->leasePayment(['amount' => 140000]), 90, statement: $statement);
+        $this->confirm([$sure->id, $limite->id])->assertOk()->assertJsonPath('data.count', 2);
+
+        // Le geste unitaire, lui, confirme toujours une proposition plus faible : c'est un choix lu.
+        $this->actingAsApi($this->admin);
+        $this->postJson("/api/bank-statement-lines/{$faible->id}/match", ['payment_type' => 'lease_payment', 'payment_id' => $faible->matched_payment_id])->assertOk();
+    }
+
     public function test_une_ligne_d_une_autre_agence_ou_inconnue_et_rien_n_est_confirme(): void
     {
         $ours = $this->suggestedLine($this->leasePayment(), 95);

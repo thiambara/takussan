@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Accounting;
 
+use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
 use App\Models\Enums\BankStatementLineDirection;
+use App\Models\Enums\BankStatementLineMatchStatus;
 use App\Models\Enums\BankStatementStatus;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -61,6 +64,54 @@ class ReconciliationPendingPaymentsTest extends ApiTestCase
         $ids = collect($this->pending()->assertOk()->json('data'))->pluck('id')->all();
         $this->assertNotContains($payment->id, $ids);
         $this->getJson("/api/agencies/{$this->agency->id}/reconciliation/overview?period=2026-11")->assertJsonPath('data.to_reconcile.total', 1);
+    }
+
+    /**
+     * Contre-vérification de f05a8d1a5 (r1) — « Chercher » cherche au franc près : il doit chercher
+     * le montant ATTENDU EN BANQUE, pas `amount`. Hors ligne, une pénalité réglée le même jour que le
+     * loyer arrive dans le même virement (TCK-833) ; un autre jour, non. `expected_bank_amount` le dit,
+     * et c'est le montant que le matcher compare (`scopeWhereExpectedAmountNear`) : la ligne de banque
+     * le porte.
+     */
+    public function test_le_montant_attendu_en_banque_porte_la_penalite_reglee_le_meme_jour(): void
+    {
+        $memeJour = $this->leasePayment(['amount' => 500000, 'late_fee_amount' => 25000, 'late_fee_paid_at' => '2026-11-10 15:00:00']);
+        $autreJour = $this->leasePayment(['amount' => 400000, 'late_fee_amount' => 20000, 'late_fee_paid_at' => '2026-11-12 10:00:00']);
+        $sansPenalite = $this->leasePayment(['amount' => 300000]);
+
+        $rows = collect($this->pending()->assertOk()->json('data'))->keyBy('id');
+        $this->assertEquals(525000, $rows[$memeJour->id]['expected_bank_amount']);
+        $this->assertEquals(500000, $rows[$memeJour->id]['amount'], '`amount` reste l\'échéance');
+        $this->assertEquals(400000, $rows[$autreJour->id]['expected_bank_amount']);
+        $this->assertEquals(300000, $rows[$sansPenalite->id]['expected_bank_amount']);
+
+        // La recherche manuelle (le « Chercher » du front) trouve la ligne au montant servi.
+        $ligne = BankStatementLine::factory()->create([
+            'bank_statement_id' => $this->statement()->id, 'amount' => 525000, 'currency' => 'XOF',
+            'direction' => BankStatementLineDirection::Credit, 'posted_at' => '2026-11-11',
+            'match_status' => BankStatementLineMatchStatus::Unmatched,
+        ]);
+        $this->actingAsApi($this->admin);
+        $trouvees = $this->getJson("/api/agencies/{$this->agency->id}/bank-statement-lines?filter[direction]=credit&filter[amount]=".$rows[$memeJour->id]['expected_bank_amount'])
+            ->assertOk()->json('data');
+        $this->assertContains($ligne->id, collect($trouvees)->pluck('id')->all());
+    }
+
+    /**
+     * La même règle lue en PHP (`expectedBankAmount()`, l'écart consigné à la confirmation, TCK-828) et
+     * en SQL (`scopeWhereExpectedAmountNear`, le matcher) : la pénalité du même jour comptait d'un côté
+     * seulement, et l'audit d'une bonne correspondance consignait un écart de 25 000.
+     */
+    public function test_le_montant_attendu_se_lit_pareil_en_php_et_en_sql(): void
+    {
+        $memeJour = $this->leasePayment(['amount' => 500000, 'late_fee_amount' => 25000, 'late_fee_paid_at' => '2026-11-10 15:00:00']);
+        $autreJour = $this->leasePayment(['amount' => 400000, 'late_fee_amount' => 20000, 'late_fee_paid_at' => '2026-11-12 10:00:00']);
+        $enLigne = $this->leasePayment(['amount' => 300000, 'metadata' => $this->gatewaySettled('wave', 'wv_9') + ['gateway_expected_amount' => 315000]]);
+
+        foreach ([[$memeJour, 525000.0], [$autreJour, 400000.0], [$enLigne, 315000.0]] as [$paiement, $attendu]) {
+            $this->assertSame($attendu, $paiement->fresh()->expectedBankAmount());
+            $this->assertTrue(LeasePayment::query()->whereKey($paiement->id)->whereExpectedAmountNear($attendu, 0.5)->exists());
+        }
     }
 
     public function test_la_proposition_est_une_que_match_accepte_et_la_meilleure(): void
