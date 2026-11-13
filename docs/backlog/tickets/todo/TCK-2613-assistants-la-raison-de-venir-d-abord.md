@@ -159,8 +159,19 @@ Pas de régression — chaque fonction des assistants d'aujourd'hui reste, dépl
   - `KycUploader` n'est plus monté par aucun assistant ; `KycUploader.pastille-tck-385` garde désormais cette
     absence et éprouve le ton de la pastille sur les deux derniers jeux de props. Le composant n'a plus de montage
     dans `src/` : sa suppression est TCK-2796.
-- **Fidélité** : relevé psql en lecture du 2026-11-13 — aucun profil bailleur en brouillon, aucun prestataire en
-  brouillon, aucune invitation portant `from_maintenance_request_id` ; deux profils agent en brouillon. Les
-  écrans 0 (bailleur) et 2 (prestataire) ne se relèvent pas sans écrire une persona (en attente de l'accord de
-  team-lead) ; les écrans 1 (agent) et 4 (numéro) sont relevables sur un agent brouillon. Comme l'invité arrive
-  actif, une persona passe par `?owner=` / `?sp=` sur un profil actif.
+- **Fidélité** — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2613.json`, relevé v1 du 2026-11-13 (23:00-23:02),
+  téléphone 390 et bureau 1280 seulement (règles de cadence). Aucune persona de la démo n'atteint les écrans 0 et 2
+  sans écrire : écritures TEMPORAIRES autorisées par team-lead, base de démo locale (port 5433), journal :
+  - 23:01:08 — `users.phone_verified_at` des utilisateurs 3 (agent1), 8 (owner1) et 18 (provider1) : `NULL` →
+    `now()`.
+  - 23:01:08 — `INSERT invitations` id **190** : `service_provider`, agence 1, profil prestataire 1, utilisateur
+    18, `accepted`, `metadata = {"locale": "fr", "from_maintenance_request_id": 10}`.
+  - 23:02:33 — remise en état : les trois `phone_verified_at` → `NULL`, invitation 190 supprimée. Relu par psql :
+    trois `NULL`, aucune ligne 190, `max(id)` = 189, demande 10 `open` non assignée, profil prestataire 1
+    `active`. Seule trace : la séquence `invitations_id_seq` a avancé d'un cran.
+  - Aucune écriture depuis la page : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur
+    de lecture de l'écran (`getOwnerPropertiesAction`, `getAgentFirstLeadAction`) ; 0 écriture bloquée, 0 erreur de
+    console sur les huit relevés. Aucun SMS ni courriel : l'écran 4 est relevé à son état d'arrivée, avant tout envoi.
+  - Écarts ouverts (fiche) : « Étape N sur 2 » écrit dans la barre (la coque partagée ne montre que les
+    pastilles) ; la carte « Ton interlocutrice » du bailleur au bureau ; l'ordre « Accepter » / « Proposer un
+    créneau » au bureau ; les droits refusés de l'agent.
