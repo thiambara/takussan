@@ -85,7 +85,7 @@ describe('la purge (30 jours sans geste)', () => {
     const moteur = moteurEnMemoire();
     await ouvrirBrouillonLocal({ moteur, maintenant: () => 0 }).ecrireValeurs(2, { type: 'studio' });
     const ouvert = await ouvrirBrouillonLocal({ moteur, maintenant: () => DUREE_DE_GARDE_MS + JOUR }).ouvrir();
-    expect(ouvert).toEqual({ valeurs: null, photos: [], purge: true });
+    expect(ouvert).toEqual({ valeurs: null, photos: [], purge: true, verse: null });
     expect(await moteur.lire('valeurs')).toBeUndefined();
   });
 
@@ -114,7 +114,40 @@ describe('la purge (30 jours sans geste)', () => {
     await brouillon.ecrireValeurs(1, { type: 'studio' });
     await brouillon.ecrirePhotos([photo('salon')]);
     await brouillon.effacer();
-    expect(await ouvrirBrouillonLocal({ moteur }).ouvrir()).toEqual({ valeurs: null, photos: [], purge: false });
+    expect(await ouvrirBrouillonLocal({ moteur }).ouvrir()).toEqual({ valeurs: null, photos: [], purge: false, verse: null });
+  });
+});
+
+describe('TCK-2601 (r1) — la marque de versement', () => {
+  it('marquée versée, l’annonce reste entière (valeurs ET photos), et une autre ouverture lit la marque', async () => {
+    const moteur = moteurEnMemoire();
+    let t = 1_800_000_000_000;
+    const brouillon = ouvrirBrouillonLocal({ moteur, maintenant: () => t });
+    await brouillon.ecrireValeurs(5, { type: 'studio', title: 'Studio à Mermoz' });
+    await brouillon.ecrirePhotos([photo('salon')]);
+    t += 1000;
+    await brouillon.marquerVerse('property-create-wizard:publication');
+
+    const relu = await ouvrirBrouillonLocal({ moteur, maintenant: () => t }).ouvrir();
+    expect(relu.verse).toEqual({ le: t, cle: 'property-create-wizard:publication' });
+    expect(relu.valeurs).toMatchObject({ etape: 5, valeurs: { type: 'studio', title: 'Studio à Mermoz' } });
+    expect(relu.photos.map((p) => p.id)).toEqual(['salon']);
+  });
+
+  it('« effacer » (la publication réussie) emporte la marque avec l’annonce', async () => {
+    const moteur = moteurEnMemoire();
+    const brouillon = ouvrirBrouillonLocal({ moteur });
+    await brouillon.ecrireValeurs(5, { type: 'studio' });
+    await brouillon.marquerVerse('property-create-wizard:publication');
+    await brouillon.effacer();
+    expect((await ouvrirBrouillonLocal({ moteur }).ouvrir()).verse).toBeNull();
+  });
+
+  it('quota atteint en marquant : le repli en mémoire garde la marque', async () => {
+    const brouillon = ouvrirBrouillonLocal({ moteur: moteurQuiEchoue('quota') });
+    await brouillon.ouvrir();
+    await brouillon.marquerVerse('property-create-wizard:publication');
+    expect((await brouillon.ouvrir()).verse?.cle).toBe('property-create-wizard:publication');
   });
 });
 
@@ -132,7 +165,7 @@ describe('quand le stockage manque, l’annonce reste en mémoire et l’état l
   it('stockage refusé à la lecture : bascule en mémoire, raison « refus »', async () => {
     const brouillon = ouvrirBrouillonLocal({ moteur: moteurQuiEchoue('refus') });
     expect(brouillon.etat().persistance).toBe('navigateur');
-    expect(await brouillon.ouvrir()).toEqual({ valeurs: null, photos: [], purge: false });
+    expect(await brouillon.ouvrir()).toEqual({ valeurs: null, photos: [], purge: false, verse: null });
     expect(brouillon.etat()).toEqual({ persistance: 'memoire', raison: 'refus' });
   });
 

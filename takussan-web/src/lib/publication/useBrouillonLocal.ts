@@ -4,7 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ResultatEcritureBrouillon, UseWizardDraftResult } from '@/hooks/useWizardDraft';
 
-import { ouvrirBrouillonLocal, type BrouillonLocal, type EtatDuStockage, type PhotoGardee } from './brouillon-local';
+import {
+  ouvrirBrouillonLocal,
+  type BrouillonLocal,
+  type EtatDuStockage,
+  type MarqueDeVersement,
+  type PhotoGardee,
+} from './brouillon-local';
 
 /**
  * TCK-2600 — le brouillon local vu par l'assistant : la MÊME forme que `useWizardDraft` (le brouillon
@@ -23,6 +29,9 @@ export interface BrouillonLocalDeLAssistant<TData> extends UseWizardDraftResult<
   readonly purge: boolean;
   /** Il y a quelque chose à effacer : relu à l'ouverture, ou écrit depuis. */
   readonly aDuContenu: boolean;
+  /** TCK-2601 (r1) — l'annonce est déjà versée au brouillon serveur (relu, ou marqué depuis). */
+  readonly verse: MarqueDeVersement | null;
+  readonly marquerVerse: (cle: string) => Promise<void>;
 }
 
 const DELAI_MS = 400;
@@ -36,6 +45,7 @@ export function useBrouillonLocal<TData extends Record<string, unknown>>(
   const [photos, setPhotos] = useState<readonly PhotoGardee[]>([]);
   const [purge, setPurge] = useState(false);
   const [aDuContenu, setADuContenu] = useState(false);
+  const [verse, setVerse] = useState<MarqueDeVersement | null>(null);
   // « Dans ce navigateur » jusqu'à l'ouverture : le serveur n'a pas d'IndexedDB, et dire « ce
   // navigateur ne garde pas le brouillon » au premier rendu ferait diverger l'hydratation.
   const [stockage, setStockage] = useState<EtatDuStockage>({ persistance: 'navigateur', raison: null });
@@ -53,6 +63,7 @@ export function useBrouillonLocal<TData extends Record<string, unknown>>(
       );
       setPhotos(ouvert.photos);
       setPurge(ouvert.purge);
+      setVerse(ouvert.verse);
       // `aDuContenu` ne se relit pas ici : l'assistant réécrit le brouillon repris à son étape
       // (`sauverBrouillon`), ce qui le pose — gardé par « Effacer ce brouillon vide le brouillon ».
       setStockage(brouillon.etat());
@@ -96,9 +107,18 @@ export function useBrouillonLocal<TData extends Record<string, unknown>>(
     setDraft(null);
     setPhotos([]);
     setADuContenu(false);
+    setVerse(null);
     setStockage(brouillon.etat());
     return true;
   }, [brouillon]);
+
+  const marquerVerse = useCallback(
+    async (cle: string) => {
+      await brouillon.marquerVerse(cle);
+      setVerse({ le: Date.now(), cle });
+    },
+    [brouillon],
+  );
 
   const ecrirePhotos = useCallback(
     (suivantes: readonly PhotoGardee[]) => {
@@ -136,5 +156,7 @@ export function useBrouillonLocal<TData extends Record<string, unknown>>(
     flush: ecrireMaintenant,
     clear,
     ecrirePhotos,
+    verse,
+    marquerVerse,
   };
 }

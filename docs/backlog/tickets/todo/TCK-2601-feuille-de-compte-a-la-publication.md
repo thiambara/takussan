@@ -99,6 +99,15 @@ Endpoints existants, consommés dans cet ordre (re-mesuré sur `dev`, 1bce3798a)
 - **Les photos** d'une annonce versée vivent dans le navigateur où elles ont été ajoutées (ADR-0093) : l'assistant connecté les reprend d'IndexedDB ; absentes (un autre appareil), l'écran le dit — seulement quand l'annonce versée a bien été reprise (après une publication ou une purge, rien à dire). Toutes les sorties réussies (en ligne, en vérification, proposition du bailleur, « continuer quand même » d'un échec partiel) passent par `terminer`, qui efface les deux brouillons.
 - Versé : les seules clés de l'annonce (`valeursDeLAnnonce`, la liste fermée d'ADR-0093) ; les contacts sur place ne passent pas la navigation (l'écran le disait déjà sous leur cadre).
 
+### r1 — pas de second versement après « Précédent » (2026-11-13)
+
+Décision de la session principale : au versement réussi, le brouillon local est **marqué** (`verse: { le, cle }`, troisième clé du magasin IndexedDB) sans être effacé — ses photos n'existent que là. Deux barrières indépendantes :
+
+- `/publish` qui trouve un brouillon marqué (`useBrouillonLocalPresent` → `'verse'`) n'ouvre pas l'assistant sans compte et ne décide rien d'autre : `router.replace('/app/properties/new?brouillon=publication')`, connecté ou non (sans session, la connexion y ramène) ;
+- une page gardée telle quelle par le routeur, ou remontée sur le même navigateur, ne reverse pas : `preparerLEspace` saute le `PUT` quand la marque existe, et mène à la même reprise (avec le choix de l'espace s'il y en a plusieurs).
+
+L'effacement réel reste dans `terminer()` de l'assistant connecté, qui emporte la marque avec l'annonce. Un versement refusé (422) ne marque rien. Le repli en mémoire (quota) garde la marque. Non relevé au navigateur : il faudrait un compte d'agence et une écriture au brouillon serveur, à demander d'abord.
+
 ### Données locales créées par les mesures (base de développement, rien n'est supprimé)
 
 - `espace-apres-auto-onboard.py` (numéro neuf `+22177…` aléatoire → code → session → `auto-onboard` → création d'un bien) : utilisateur **185**, agence individuelle **7**, biens brouillons **583** et **584** titrés « Mesure 2601 ».

@@ -18,7 +18,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import type { ModeAnonyme } from '@/components/property-form/PropertyWizard';
-import { moteurEnMemoire, ouvrirBrouillonLocal } from '@/lib/publication/brouillon-local';
+import { moteurEnMemoire, ouvrirBrouillonLocal, type MoteurDeStockage } from '@/lib/publication/brouillon-local';
 
 const routeur = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => routeur, usePathname: () => '/publish', useSearchParams: () => new URLSearchParams() }));
@@ -85,12 +85,12 @@ afterEach(() => {
   globalThis.fetch = fetchOriginal;
 });
 
-async function monter(espaces: readonly unknown[], actif: string | null = null) {
+async function monter(espaces: readonly unknown[], actif: string | null = null, moteur: MoteurDeStockage = moteurEnMemoire()) {
   doublures.profils.mockResolvedValue({ data: espaces, meta: { active_profile_id: actif } });
   render(
     withIntl(
       <QueryClientProvider client={new QueryClient()}>
-        <PublierSansCompte surPublier={vi.fn()} brouillonLocal={() => ouvrirBrouillonLocal({ moteur: moteurEnMemoire() })} />
+        <PublierSansCompte surPublier={vi.fn()} brouillonLocal={() => ouvrirBrouillonLocal({ moteur })} />
       </QueryClientProvider>,
     ),
   );
@@ -156,6 +156,47 @@ describe('TCK-2601 — l’espace où publier l’annonce sans compte', () => {
     expect((issue as { erreur: string }).erreur).toMatch(/reste gardée dans ce navigateur/);
     expect(routeur.push).not.toHaveBeenCalled();
     expect(doublures.basculer).not.toHaveBeenCalled();
+  });
+
+  /**
+   * TCK-2601 (r1) — « Précédent » après le versement : la page revenue (montée de nouveau, ou gardée
+   * telle quelle par le routeur) ne reverse pas l'ancienne copie par-dessus ce qui a été saisi depuis
+   * dans l'assistant connecté. Le brouillon local, marqué, garde ses valeurs et ses photos.
+   */
+  it('r1 — versée une fois : marquée sans être effacée ; revenue par « Précédent », aucun second versement', async () => {
+    const moteur = moteurEnMemoire();
+    const anonyme = await monter([AGENCE], 'p-agence', moteur);
+    await expect(anonyme.preparerLEspace(VALEURS, 5)).resolves.toBe('ailleurs');
+    expect(versements).toHaveLength(1);
+    const relu = await ouvrirBrouillonLocal({ moteur }).ouvrir();
+    expect(relu.verse?.cle).toBe('property-create-wizard:publication');
+
+    // La même page, gardée par le routeur : « Publier » de nouveau.
+    await waitFor(() => expect(doublures.anonyme).not.toBe(anonyme));
+    await expect(doublures.anonyme!.preparerLEspace(VALEURS, 5)).resolves.toBe('ailleurs');
+    // Une page montée de nouveau sur le même navigateur.
+    cleanup();
+    doublures.anonyme = null;
+    const remontee = await monter([AGENCE], 'p-agence', moteur);
+    await waitFor(() => expect(doublures.anonyme).not.toBe(null));
+    await new Promise((r) => setTimeout(r, 0));
+    await expect(doublures.anonyme!.preparerLEspace({ ...VALEURS, title: 'Ancienne copie' }, 5)).resolves.toBe('ailleurs');
+    void remontee;
+
+    expect(versements).toHaveLength(1);
+    expect(routeur.push).toHaveBeenCalledTimes(3);
+    expect(routeur.push).toHaveBeenLastCalledWith('/app/properties/new?brouillon=publication');
+  });
+
+  it('r1 — un versement refusé ne marque rien : la tentative suivante verse', async () => {
+    reponseDuVersement = new Response(JSON.stringify({ errors: { key: ['refus'] } }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    const moteur = moteurEnMemoire();
+    const anonyme = await monter([AGENCE], 'p-agence', moteur);
+    await anonyme.preparerLEspace(VALEURS, 5);
+    expect((await ouvrirBrouillonLocal({ moteur }).ouvrir()).verse).toBeNull();
+    reponseDuVersement = new Response('{"data":{}}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    await expect(anonyme.preparerLEspace(VALEURS, 5)).resolves.toBe('ailleurs');
+    expect(versements).toHaveLength(2);
   });
 
   it('plusieurs espaces : versée, puis « Où publier ce bien ? » ; le choix bascule et ouvre l’assistant connecté', async () => {

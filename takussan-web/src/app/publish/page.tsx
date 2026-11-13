@@ -26,6 +26,7 @@ import { autoOnboardAction } from '@/app/actions/auto-onboard';
 import { useAuth } from '@/context/AuthContext';
 import { profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { PUBLISH_TARGETS, usePublishIntent, type EspaceDePublication } from '@/hooks/usePublishIntent';
+import { LIEN_DE_REPRISE } from '@/lib/publication/brouillon-de-publication';
 import { useBrouillonLocalPresent } from '@/lib/publication/useBrouillonLocalPresent';
 
 export default function PublishPage() {
@@ -51,8 +52,15 @@ export default function PublishPage() {
   const brouillonLocal = useBrouillonLocalPresent();
   const [assistantMonte, setAssistantMonte] = useState(false);
   if (decision.status === 'anonymous' && !assistantMonte) setAssistantMonte(true);
-  const sansCompte = assistantMonte || decision.status === 'anonymous' || brouillonLocal === true;
-  const enAttente = sansCompte || brouillonLocal === null;
+  /**
+   * TCK-2601 (r1) — l'annonce gardée ici a déjà été VERSÉE au brouillon serveur (agence, plusieurs
+   * espaces, bailleur seul) : elle se reprend dans l'assistant connecté. La page y mène sans rouvrir
+   * l'assistant sans compte — revenue par « Précédent », elle en reverserait l'ancienne copie
+   * par-dessus ce qui a été saisi depuis.
+   */
+  const verse = brouillonLocal === 'verse';
+  const sansCompte = !verse && (assistantMonte || decision.status === 'anonymous' || brouillonLocal === true);
+  const enAttente = sansCompte || brouillonLocal === null || verse;
 
   /**
    * TCK-633 (lot C) — aucun espace où publier : on le crée sans question, puis on ouvre le
@@ -114,6 +122,12 @@ export default function PublishPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [decision.status, enAttente]);
 
+  useEffect(() => {
+    if (!verse || parti.current) return;
+    parti.current = true;
+    router.replace(LIEN_DE_REPRISE);
+  }, [verse, router]);
+
   function choisir(espace: EspaceDePublication) {
     setChoisi(espace.profile.id);
     void partir(PUBLISH_TARGETS.newProperty, espace.profile.id);
@@ -125,7 +139,7 @@ export default function PublishPage() {
     // TCK-621 — un écran de passage, mais qu'on voit : il porte la marque comme ses voisins. Depuis
     // TCK-2598, la barre et le repère `<main>` sont ceux de la coque d'entrée (`layout.tsx`).
     <div className="flex justify-center">
-      {decision.status === 'choose-space' ? (
+      {decision.status === 'choose-space' && !verse ? (
         <section className="flex w-full max-w-md flex-col gap-6">
           <div className="space-y-2">
             <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">

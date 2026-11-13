@@ -88,7 +88,18 @@ interface PhotoRangee {
   readonly octets: Blob;
 }
 
-type Rangement = { readonly valeurs?: ValeursGardees; readonly photos?: readonly PhotoRangee[] };
+/**
+ * TCK-2601 (r1) — l'annonce a été VERSÉE au brouillon serveur (`cle`) : elle se reprend désormais
+ * dans l'assistant connecté. Le brouillon local n'est pas effacé pour autant — ses photos n'existent
+ * que là (ADR-0093) ; il s'efface quand l'assistant connecté publie (`terminer`).
+ */
+export interface MarqueDeVersement {
+  /** En millisecondes. */
+  readonly le: number;
+  readonly cle: string;
+}
+
+type Rangement = { readonly valeurs?: ValeursGardees; readonly photos?: readonly PhotoRangee[]; readonly verse?: MarqueDeVersement };
 type Cle = keyof Rangement;
 
 export interface MoteurDeStockage {
@@ -111,12 +122,16 @@ export interface BrouillonOuvert {
   readonly photos: readonly PhotoGardee[];
   /** Un brouillon de plus de 30 jours a été effacé à l'ouverture. */
   readonly purge: boolean;
+  /** TCK-2601 (r1) — versé au brouillon serveur : `/publish` ne le rouvre plus, il mène à sa reprise. */
+  readonly verse: MarqueDeVersement | null;
 }
 
 export interface BrouillonLocal {
   ouvrir(): Promise<BrouillonOuvert>;
   ecrireValeurs(etape: number, valeurs: Readonly<Record<string, unknown>>): Promise<void>;
   ecrirePhotos(photos: readonly PhotoGardee[]): Promise<void>;
+  /** TCK-2601 (r1) — l'annonce est passée au brouillon serveur `cle` : la marque, sans rien effacer. */
+  marquerVerse(cle: string): Promise<void>;
   effacer(): Promise<void>;
   etat(): EtatDuStockage;
 }
@@ -174,7 +189,7 @@ function requete<T>(r: IDBRequest<T>): Promise<T> {
 }
 
 /**
- * IndexedDB : une base, un magasin, deux clés. Ouvrir peut échouer (navigation privée, stockage
+ * IndexedDB : une base, un magasin, trois clés (les valeurs, les photos, la marque de versement). Ouvrir peut échouer (navigation privée, stockage
  * bloqué) : l'erreur remonte à `ouvrirBrouillonLocal`, qui bascule en mémoire.
  */
 export function moteurIndexedDB(fabrique: IDBFactory = indexedDB): MoteurDeStockage {
@@ -242,9 +257,10 @@ export function ouvrirBrouillonLocal({
     actif = moteurEnMemoire();
     if (connu.valeurs) await actif.ecrire('valeurs', connu.valeurs);
     if (connu.photos) await actif.ecrire('photos', connu.photos);
+    if (connu.verse) await actif.ecrire('verse', connu.verse);
   };
   // Ce que la couche a écrit ou lu en dernier : la copie que le repli emporte.
-  const connu: { valeurs?: ValeursGardees; photos?: readonly PhotoRangee[] } = {};
+  const connu: { valeurs?: ValeursGardees; photos?: readonly PhotoRangee[]; verse?: MarqueDeVersement } = {};
 
   const ecrire = async <C extends Cle>(cle: C, valeur: NonNullable<Rangement[C]>) => {
     (connu as Record<Cle, unknown>)[cle] = valeur;
@@ -259,12 +275,14 @@ export function ouvrirBrouillonLocal({
     async ouvrir() {
       let valeurs: ValeursGardees | undefined;
       let photos: readonly PhotoRangee[] | undefined;
+      let verse: MarqueDeVersement | undefined;
       try {
         valeurs = await actif.lire('valeurs');
         photos = await actif.lire('photos');
+        verse = await actif.lire('verse');
       } catch {
         await replier('refus', connu);
-        return { valeurs: null, photos: [], purge: false };
+        return { valeurs: null, photos: [], purge: false, verse: null };
       }
       if (valeurs && maintenant() - valeurs.majLe > DUREE_DE_GARDE_MS) {
         try {
@@ -272,14 +290,16 @@ export function ouvrirBrouillonLocal({
         } catch {
           await replier('refus', {});
         }
-        return { valeurs: null, photos: [], purge: true };
+        return { valeurs: null, photos: [], purge: true, verse: null };
       }
       if (valeurs) connu.valeurs = valeurs;
       if (photos) connu.photos = photos;
+      if (verse) connu.verse = verse;
       return {
         valeurs: valeurs ? { ...valeurs, valeurs: valeursDeLAnnonce(valeurs.valeurs) } : null,
         photos: (photos ?? []).slice(0, PHOTOS_MAX).map(depuisRangee),
         purge: false,
+        verse: verse ?? null,
       };
     },
     async ecrireValeurs(etape, valeurs) {
@@ -290,9 +310,13 @@ export function ouvrirBrouillonLocal({
       // Une photo ajoutée ou retirée est un geste : la purge se compte depuis lui.
       if (connu.valeurs) await ecrire('valeurs', { ...connu.valeurs, majLe: maintenant() });
     },
+    async marquerVerse(cle) {
+      await ecrire('verse', { le: maintenant(), cle });
+    },
     async effacer() {
       delete connu.valeurs;
       delete connu.photos;
+      delete connu.verse;
       try {
         await actif.effacer();
       } catch {

@@ -17,7 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { fetchProfilesViaProxy, profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { espacesDePublication, PUBLISH_TARGETS, type EspaceDePublication } from '@/hooks/usePublishIntent';
 import { useEquipementsApprouves } from '@/lib/queries/referentiel-public';
-import { LIEN_DE_REPRISE, verserAuBrouillonServeur } from '@/lib/publication/brouillon-de-publication';
+import { CLE_BROUILLON_DE_PUBLICATION, LIEN_DE_REPRISE, verserAuBrouillonServeur } from '@/lib/publication/brouillon-de-publication';
 import { valeursDeLAnnonce, type BrouillonLocal } from '@/lib/publication/brouillon-local';
 import { useBrouillonLocal } from '@/lib/publication/useBrouillonLocal';
 import { Button } from '@/components/ui/button';
@@ -146,8 +146,14 @@ export function PublierSansCompte({
       return 'pret';
     }
     // Ni l'onglet ni la mémoire de la page ne passent la navigation : le serveur, si.
-    const verse = await verserAuBrouillonServeur(etape, valeursDeLAnnonce(valeurs));
-    if (!verse.ok) return { erreur: t(`espace.${verse.raison}`) };
+    // TCK-2601 (r1) — UNE fois : le versement réussi marque le brouillon local (sans l'effacer, les
+    // photos n'existent que là). Une page revenue par « Précédent » ne reverse pas par-dessus ce qui a
+    // été saisi depuis dans l'assistant connecté : elle mène au même endroit.
+    if (!brouillon.verse) {
+      const verse = await verserAuBrouillonServeur(etape, valeursDeLAnnonce(valeurs));
+      if (!verse.ok) return { erreur: t(`espace.${verse.raison}`) };
+      await brouillon.marquerVerse(CLE_BROUILLON_DE_PUBLICATION);
+    }
     if (espaces.length > 1) {
       setChoix(espaces);
       return 'ailleurs';

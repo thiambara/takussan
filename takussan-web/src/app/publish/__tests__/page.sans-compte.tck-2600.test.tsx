@@ -34,7 +34,7 @@ vi.mock('@/hooks/useProfiles', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/hooks/useProfiles')>()),
   useSwitchActiveProfile: () => ({ mutateAsync: vi.fn() }),
 }));
-const local = vi.hoisted(() => ({ present: false as boolean | null }));
+const local = vi.hoisted(() => ({ present: false as boolean | 'verse' | null }));
 vi.mock('@/lib/publication/useBrouillonLocalPresent', () => ({ useBrouillonLocalPresent: () => local.present }));
 vi.mock('@/components/publication/PublierSansCompte', () => ({
   PublierSansCompte: () => <p>assistant sans compte</p>,
@@ -103,6 +103,24 @@ describe('/publish sans compte (TCK-2600, AC1)', () => {
     autoOnboard.mockResolvedValue({ ok: false, reason: 'disabled' });
     rerender(withIntl(<QueryClientProvider client={new QueryClient()}><PublishPage /></QueryClientProvider>));
     await waitFor(() => expect(autoOnboard).toHaveBeenCalledTimes(1));
+  });
+
+  // TCK-2601 (r1) — revenue par « Précédent » après le versement : ni l'assistant sans compte (qui
+  // reverserait l'ancienne copie), ni une autre décision — la reprise de l'annonce versée.
+  it.each([
+    ['connecté, plusieurs espaces', { status: 'choose-space', target: null, espaces: [], profilABasculer: null }],
+    ['connecté, un espace', { status: 'single-space', target: '/app/properties/new', espaces: [], profilABasculer: 'p-1' }],
+    ['sans session', { status: 'anonymous', target: '/auth/login?redirect=/publish&intention=publication', espaces: [], profilABasculer: null }],
+  ])('annonce déjà versée (%s) : la reprise dans l’assistant connecté, et rien d’autre', async (_cas, courante) => {
+    local.present = 'verse';
+    decision.courante = courante;
+    monter();
+    await waitFor(() => expect(routeur.replace).toHaveBeenCalledWith('/app/properties/new?brouillon=publication'));
+    expect(screen.queryByText('assistant sans compte')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Où publier ce bien ?' })).not.toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(routeur.replace).toHaveBeenCalledTimes(1);
+    expect(autoOnboard).not.toHaveBeenCalled();
   });
 
   it('connecté avec un seul espace : le formulaire du bien, comme aujourd’hui', async () => {
