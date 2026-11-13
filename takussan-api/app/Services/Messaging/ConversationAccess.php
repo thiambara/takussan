@@ -5,6 +5,7 @@ namespace App\Services\Messaging;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationType;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -165,6 +166,27 @@ class ConversationAccess
     {
         return $lease?->tenant_id !== null
             && DB::table('customers')->where('id', $lease->tenant_id)->where('user_id', $user->id)->exists();
+    }
+
+    /**
+     * TCK-2753 (S2 de la contre-vérification) — les agences où `$user` est un bailleur PARTI ou
+     * SUSPENDU ({@see OwnerProfileStatus::sansEcriture()}) sans y tenir aucun profil actif. Il n'y
+     * ouvre plus de fil et n'y ajoute plus personne ({@see MessagingReach::query()}), comme il n'écrit
+     * plus dans le fil de son bail ({@see self::contextAllowsWriting()}). Restreint aux bailleurs : un
+     * agent ou un administrateur suspendu relève de sa propre règle (P191.01).
+     *
+     * @return list<int>
+     */
+    public function agencesFermeesAuBailleur(User $user): array
+    {
+        $sansEcriture = OwnerProfile::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', OwnerProfileStatus::valeursSansEcriture())
+            ->pluck('agency_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $sansEcriture === [] ? [] : array_values(array_intersect($this->inactiveOnlyAgencyIds($user), $sansEcriture));
     }
 
     /**

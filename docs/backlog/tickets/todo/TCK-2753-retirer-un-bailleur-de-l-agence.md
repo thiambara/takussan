@@ -212,3 +212,18 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
   actif, sauf au locataire du bail. `abilities.can_send_message` suit. Le bailleur suspendu est traité de la même
   façon. Épinglé par `OwnerDepartedThreadTest`. Hors de ce point, non tranchés : l'ouverture d'un fil neuf par le
   bailleur parti, et l'ajout de participants.
+
+### S2 — le bailleur parti ou suspendu n'ouvre plus de fil ni n'ajoute personne (2026-11-13)
+
+- Mesuré avant : un bailleur parti joignait encore le locataire et l'agent de son ancien bail (directe 201, groupe
+  201) — toute l'atteinte venait du fil du bail, qu'il lit encore (q1).
+- `ConversationAccess::agencesFermeesAuBailleur()` : les agences où l'acteur tient un profil propriétaire parti ou
+  suspendu et aucun profil actif. `MessagingReach` y écarte les fils de bail ou de bien (sauf ceux d'un bail dont il
+  est le LOCATAIRE), les fiches clients de l'agence et l'équipe de l'agence du groupe qu'il complète. Les directes,
+  les groupes, l'ajout de participants et les deux sélecteurs de contacts lisent la même règle. Ses autres agences,
+  ce qu'il tient comme locataire et le locataire qui le joint ne changent pas. Épinglé par `OwnerDepartedReachTest`.
+- **Décision ouverte (team-lead, 2026-11-13, remontée au porteur)** : une conversation DIRECTE, sans bail ni bien,
+  déjà ouverte entre le bailleur parti et une personne de l'agence quittée, reste telle quelle — il peut y écrire,
+  et une « nouvelle » directe vers cette personne rend ce fil (`DirectConversationService::firstOrCreate`). Motif :
+  une conversation de personne à personne déjà ouverte, et l'agence peut encore avoir besoin de le joindre. Rien
+  n'est fermé tant que le porteur n'a pas tranché.

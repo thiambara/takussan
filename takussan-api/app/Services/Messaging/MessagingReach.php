@@ -94,6 +94,10 @@ class MessagingReach
         // copie, sans les délégations.
         $actorIsStaff = $agencyId !== null && $actor->staffAgencyId() === (int) $agencyId;
         $contextAgencyId = $conversation !== null ? $this->contextAgencyId($conversation) : null;
+        // TCK-2753 (S2) — les agences dont l'acteur est un bailleur parti ou suspendu : rien de ce qui
+        // l'y relie ne lui ouvre plus personne (fils de bail ou de bien, fiches de l'agence, équipe du
+        // groupe qu'il complète), sauf ce qu'il y tient comme LOCATAIRE. Ses autres agences ne changent pas.
+        $fermees = app(ConversationAccess::class)->agencesFermeesAuBailleur($actor);
 
         return User::query()
             ->whereKeyNot($actor->getKey())
@@ -101,19 +105,23 @@ class MessagingReach
             // (`User::canOpenSession()`, TCK-589) : il ne lirait jamais le fil où on l'ajoute.
             // `inactive` reste joignable : c'est un compte qui n'a pas encore servi.
             ->whereNotIn('users.status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
-            ->where(function (Builder $reach) use ($actor, $agencyId, $actorIsStaff, $contextAgencyId, $conversation) {
+            ->where(function (Builder $reach) use ($actor, $agencyId, $actorIsStaff, $contextAgencyId, $conversation, $fermees) {
                 // 1. Correspondants. TCK-592 (passe 2, N1) — par les seuls fils que la garde de
                 //    conversation lui ouvre : un fil d'intervention fermé ne garde pas le contact.
                 //    P51.02 — un participant RETIRÉ par un administrateur perd la relation née du
                 //    fil, dans les deux sens : le fil ne compte plus pour lui, ni lui pour les autres.
                 //    Seule exception : il reste proposé pour le groupe même qu'on complète, la
                 //    ré-invitation par un administrateur restant étant un chemin prévu.
-                $reach->whereIn('users.id', function (QueryBuilder $sub) use ($actor, $conversation) {
+                $reach->whereIn('users.id', function (QueryBuilder $sub) use ($actor, $conversation, $fermees) {
                     $sub->select('cpb.user_id')
                         ->from('conversation_participants as cpb')
                         ->whereIn('cpb.conversation_id', app(ConversationAccess::class)
                             ->participatingQuery($actor, activeOnly: false)
                             ->select('conversations.id'))
+                        ->when($fermees !== [], fn (QueryBuilder $q) => $q->whereNotIn(
+                            'cpb.conversation_id',
+                            fn (QueryBuilder $c) => $this->filsFermes($c, $actor, $fermees),
+                        ))
                         ->whereNotExists(fn (QueryBuilder $moi) => $this->removedByAdmin(
                             $moi->from('conversation_participants as cpa')
                                 ->whereColumn('cpa.conversation_id', 'cpb.conversation_id')
@@ -136,24 +144,26 @@ class MessagingReach
                 //    plus les clients dont il était référent, ni eux lui. P223.02 (TCK-2295) — une fiche
                 //    supprimée ne relie plus personne (`deleted_at IS NULL` sur les trois jointures).
                 //    a. une même fiche rattachée aux deux (le propriétaire et l'agent d'un client) ;
-                $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
+                $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor, $fermees) {
                     $sub->select('ucrb.user_id')
                         ->from('user_customer_relationships as ucra')
                         ->join('user_customer_relationships as ucrb', 'ucra.customer_id', '=', 'ucrb.customer_id')
                         ->join('customers as ca', 'ca.id', '=', 'ucra.customer_id')
                         ->whereNull('ca.deleted_at')
                         ->where('ucra.user_id', $actor->id);
+                    $this->horsDesAgencesFermees($sub, 'ca.agency_id', $fermees);
                     $this->liveAttachment($sub, 'ucra.user_id', 'ca.agency_id');
                     $this->liveAttachment($sub, 'ucrb.user_id', 'ca.agency_id');
                 });
                 //    b. le compte du client d'une fiche à laquelle l'acteur est rattaché ;
-                $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
+                $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor, $fermees) {
                     $sub->select('c.user_id')
                         ->from('user_customer_relationships as ucr')
                         ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
                         ->whereNull('c.deleted_at')
                         ->where('ucr.user_id', $actor->id)
                         ->whereNotNull('c.user_id');
+                    $this->horsDesAgencesFermees($sub, 'c.agency_id', $fermees);
                     $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
                 });
                 //    c. et, en retour, ceux qui sont rattachés à la fiche qui représente l'acteur.
@@ -167,6 +177,8 @@ class MessagingReach
                 });
 
                 // 3. L'agence active.
+                // TCK-2753 (S2) — jamais une agence de `$fermees` : le profil parti ou suspendu ne se
+                // désigne pas (`X-Profile-Id` → 403) et ne se résout jamais en profil actif.
                 if ($agencyId !== null) {
                     $this->orTeamOf($reach, $agencyId);
 
@@ -176,10 +188,45 @@ class MessagingReach
                 }
 
                 // 4. L'équipe de l'agence du bien de la conversation qu'on complète.
-                if ($contextAgencyId !== null && $contextAgencyId !== $agencyId) {
+                if ($contextAgencyId !== null && $contextAgencyId !== $agencyId && ! in_array($contextAgencyId, $fermees, true)) {
                     $this->orTeamOf($reach, $contextAgencyId);
                 }
             });
+    }
+
+    /**
+     * TCK-2753 (S2) — les fils rattachés à un bail ou à un bien d'une agence de `$fermees`, sauf le
+     * fil d'un bail dont l'acteur est le LOCATAIRE : la règle de {@see ConversationAccess::contextAllowsWriting()}.
+     *
+     * @param  list<int>  $fermees
+     */
+    private function filsFermes(QueryBuilder $c, User $actor, array $fermees): QueryBuilder
+    {
+        return $c->select('fc.id')
+            ->from('conversations as fc')
+            ->where(fn (QueryBuilder $w) => $w
+                ->whereIn('fc.lease_id', fn (QueryBuilder $l) => $l->select('fl.id')
+                    ->from('leases as fl')
+                    ->whereIn('fl.agency_id', $fermees)
+                    ->where(fn (QueryBuilder $t) => $t->whereNull('fl.tenant_id')
+                        ->orWhereNotIn('fl.tenant_id', fn (QueryBuilder $cu) => $cu->select('id')
+                            ->from('customers')
+                            ->where('user_id', $actor->id))))
+                ->orWhereIn('fc.property_id', fn (QueryBuilder $p) => $p->select('fp.id')
+                    ->from('properties as fp')
+                    ->whereIn('fp.agency_id', $fermees)));
+    }
+
+    /**
+     * TCK-2753 (S2) — la fiche d'une agence de `$fermees` ne relie plus l'acteur rattaché.
+     *
+     * @param  list<int>  $fermees
+     */
+    private function horsDesAgencesFermees(QueryBuilder $sub, string $agencyColumn, array $fermees): void
+    {
+        if ($fermees !== []) {
+            $sub->where(fn (QueryBuilder $w) => $w->whereNull($agencyColumn)->orWhereNotIn($agencyColumn, $fermees));
+        }
     }
 
     /**
