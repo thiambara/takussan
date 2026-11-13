@@ -51,28 +51,40 @@ L'admin qui voit un loyer en retard relance le locataire en deux touches, sur Wh
 
 ## Delta à produire
 
-- [ ] Liste des impayés par échéance, mobile en cartes, bureau en tableau, pastilles de retard filtrées côté serveur.
-- [ ] Feuille / panneau de relance : message prérempli et modifiable, lien de paiement, ouverture de WhatsApp, enregistrement de la relance.
-- [ ] Panneau « dossier de l'impayé » au bureau, avec l'historique des relances.
-- [ ] Tests : URL `wa.me` construite (numéro, texte encodé, lien de l'API) ; relance enregistrée ; bouton désactivé et sa raison sans numéro ; 409 du lien.
+- [x] Liste des impayés par échéance, mobile en cartes, bureau en tableau, pastilles de retard filtrées côté serveur.
+  - Preuve (2026-11-13, HEAD 7641542ea) : cartes à 360 et 768 (16), tableau à 1024 et 1280 dans un conteneur `overflow-x: auto` (mesure navigateur, lecture seule) ; filtre de retard côté serveur prouvé par AC3 (test + ablation).
+- [x] Feuille / panneau de relance : message prérempli et modifiable, lien de paiement, ouverture de WhatsApp, enregistrement de la relance.
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660`, `impayes.verif.tck-2660` et `actions/__tests__/relance.tck-2660` verts ; ablation `noterLaRelance('whatsapp')`→`'call'` : 2 rouges.
+- [x] Panneau « dossier de l'impayé » au bureau, avec l'historique des relances.
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660` vert ; ablations du pied du dossier (AC2) et de « Lu le » injecté dans `DossierDImpaye` (AC5) : rouges ; panneau de 480 px relevé à 1280 dans la fiche de fidélité.
+- [x] Tests : URL `wa.me` construite (numéro, texte encodé, lien de l'API) ; relance enregistrée ; bouton désactivé et sa raison sans numéro ; 409 du lien.
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660`, `impayes.verif.tck-2660`, `relance.tck-2660` verts (wa.me, note, bouton désactivé et sa raison, 409) ; API : `LeasePaymentReminderTest` et `LeasePaymentLinkTest` verts.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — « Ouvrir WhatsApp » ouvre `https://wa.me/221771234567?text=…` dont le texte décodé contient l'URL rendue par `POST …/payment-link` (vue au réseau), et un `POST …/reminders` part avec `channel: whatsapp` ; la carte affiche « relancé aujourd'hui » sans rechargement.
-- [ ] AC2 — Une échéance payée n'a pas de bouton « Relancer ».
-- [ ] AC3 — La pastille « Plus de 30 j » envoie `filter[days_late_min]=31` et le nombre de cartes égale `meta.total` de la réponse.
-- [ ] AC4 — À 360 px, les deux boutons d'une carte mesurent au moins 44 px de haut et la carte ne déborde pas.
-- [ ] AC5 — La chaîne « Lu le » n'apparaît nulle part dans le DOM de la page.
-- [ ] AC6 — Avec un locataire sans téléphone, le bouton WhatsApp est désactivé et `aria-describedby` pointe vers la phrase qui dit pourquoi.
+- [x] AC1 — « Ouvrir WhatsApp » ouvre `https://wa.me/221771234567?text=…` dont le texte décodé contient l'URL rendue par `POST …/payment-link` (vue au réseau), et un `POST …/reminders` part avec `channel: whatsapp` ; la carte affiche « relancé aujourd'hui » sans rechargement.
+  - Preuve (2026-11-13, HEAD 7641542ea) : URL `wa.me` avec le lien de l'API et `channel: whatsapp` prouvés par `impayes.tck-2660` + ablation `'whatsapp'`→`'call'` (2 rouges). **Réserve** : la requête n'a pas été vue au réseau — les POST `payment-link` et `reminders` étaient bloqués par la règle de lecture seule.
+- [x] AC2 — Une échéance payée n'a pas de bouton « Relancer ».
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660` ; ablation `{payee ? null : etat.relancer ?…}`→`{false ?…}` dans `Impayes.tsx` : AC2 rouge.
+- [x] AC3 — La pastille « Plus de 30 j » envoie `filter[days_late_min]=31` et le nombre de cartes égale `meta.total` de la réponse.
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660.test.tsx:225` (`filter[days_late_min]=31`, cartes = `meta.total`) ; ablation `plus30` `min: 31`→`30` : 2 rouges.
+- [x] AC4 — À 360 px, les deux boutons d'une carte mesurent au moins 44 px de haut et la carte ne déborde pas.
+  - Preuve (2026-11-13, HEAD 7641542ea) : mesure navigateur à 360 (fr, admin, lecture seule) : « Relancer sur WhatsApp » 44 × 175 et « Appeler » 44 × 111, aucune carte ne déborde, `scrollWidth = innerWidth`.
+- [x] AC5 — La chaîne « Lu le » n'apparaît nulle part dans le DOM de la page.
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660` ; ablation « Lu le 12 » injecté dans `DossierDImpaye` : AC5 rouge ; absent du DOM à 360 et 768.
+- [x] AC6 — Avec un locataire sans téléphone, le bouton WhatsApp est désactivé et `aria-describedby` pointe vers la phrase qui dit pourquoi.
+  - Preuve (2026-11-13, HEAD 7641542ea) : `impayes.tck-2660` ; ablation `aria-describedby={undefined}` dans `CarteDImpaye` : AC6 rouge.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2660.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2660.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+  - Preuve (2026-11-13, HEAD 7641542ea) : `docs/qa/audit-ux-2026-11/fidelite/TCK-2660.json` présent (a1/a2, téléphone, bureau 1440 et 1280).
 - [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
 - [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
 - [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
 - [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+  - Preuve (2026-11-13, HEAD 7641542ea) : mesure navigateur : `scrollWidth − innerWidth = 0` à 768, 1024 et 1280 ; table de 898 px (1024) et 946 px (1280) dans un parent `overflow-x: auto` ; dossier ouvert à 1024 : surcouche modale pleine largeur (`fixed`, `aria-modal`), `main` inchangé à 752 px — aucun panneau de 480 px à côté du contenu sous 1280 ; 1280 comparé à la maquette « bureau 1280 » dans la fiche (a1/a2).
 
 ## Hors périmètre
 
@@ -187,8 +199,9 @@ ci-dessus.
   - Envoi abandonné : si l'agent quitte l'échéance pendant la création du lien (« Passer », « Arrêter », feuille
     refermée), le lien revenu n'ouvre rien et ne note rien, et l'onglet vide est refermé. Deux gardes : le bouton démonté, et la relance devenue
     inactive dans `useRelanceDUnImpaye`.
-  - **ADR-0105, amendement du 2026-11-10, point 4** dit encore « le lien est demandé… au moment où elle s'affiche ».
-    Il est à amender (signalé à team-lead, non édité).
+  - **ADR-0105, amendement du 2026-11-10, point 4** disait « le lien est demandé… au moment où elle s'affiche ». Il
+    est remplacé par l'amendement du 2026-11-12 (« le lien de paiement n'est créé qu'à l'envoi, et le message nomme
+    l'agence », 150e016e1).
 - **Décision 3 (a) : le message nomme l'agence du profil actif** (`useMyProfiles`, déjà en cache dans le sélecteur
   d'espace). Les gabarits `message.loyer` et `message.autre` finissent par « De la part de {agence}. » (en : « On
   behalf of {agence}. »). Sans agence connue, ni ligne vide ni formule. L'aide est unique : 2660, la file de 2682 et
