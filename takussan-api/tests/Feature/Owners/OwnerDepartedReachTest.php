@@ -12,6 +12,7 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\ParticipantRole;
 use App\Models\Enums\RelationshipType;
 use App\Models\Lease;
+use App\Models\Message;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -284,6 +285,100 @@ class OwnerDepartedReachTest extends ApiTestCase
         $this->flushHeaders();
         $this->assertNotContains((int) $this->admin->id, $this->contacts());
         $this->directe($this->admin)->assertStatus(422)->assertJsonValidationErrors('participants');
+    }
+
+    /**
+     * r1 de la contre-vérification de 2eba3431c — les directes SIMPLES gardées ouvertes (décision du
+     * 2026-11-13) laissent l'agent et le locataire joignables ; elles ne doivent pas servir à rattacher
+     * un fil NEUF au bail ou au bien de l'agence quittée. Avant la garde : 201 et 201 (sonde p1, p2).
+     */
+    private function directeSimple(User $a, User $b): void
+    {
+        $c = Conversation::factory()->create(['created_by' => $a->id, 'type' => ConversationType::Direct]);
+        $c->participants()->attach($a->id, ['joined_at' => now()]);
+        $c->participants()->attach($b->id, ['joined_at' => now()]);
+    }
+
+    private function bailActif(): Lease
+    {
+        $bien = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $this->landlord->id]);
+
+        return Lease::factory()->create([
+            'property_id' => $bien->id, 'agency_id' => $this->agency->id, 'landlord_id' => $this->landlord->id,
+            'tenant_id' => $this->fiche->id, 'status' => LeaseStatus::Active, 'commission_rate' => 10,
+        ]);
+    }
+
+    private function directeRattachee(User $vers, Lease $bail): TestResponse
+    {
+        return $this->postJson('/api/conversations', ['participants' => [$vers->id], 'lease_id' => $bail->id, 'initial_message' => 'Bonjour']);
+    }
+
+    public function test_temoin_le_bailleur_actif_rattache_un_fil_a_son_bail(): void
+    {
+        $bail = $this->bailActif();
+        $this->asUser($this->landlord);
+
+        $this->directeRattachee($this->agent, $bail)->assertCreated();
+        $this->postJson('/api/conversations', [
+            'type' => 'group', 'subject' => 'G', 'participants' => [$this->agent->id, $this->tenant->id],
+            'lease_id' => $bail->id, 'property_id' => $bail->property_id,
+        ])->assertCreated();
+    }
+
+    public function test_p1_le_bailleur_suspendu_ne_rattache_plus_de_fil_a_son_bail_ni_a_son_bien(): void
+    {
+        $bail = $this->bailActif();
+        $this->directeSimple($this->landlord, $this->agent);
+        $this->directeSimple($this->landlord, $this->tenant);
+        $this->profile->forceFill(['status' => OwnerProfileStatus::Blocked])->save();
+        $this->asUser($this->landlord);
+        $avant = Conversation::query()->count();
+
+        $this->directeRattachee($this->agent, $bail)->assertStatus(422)->assertJsonValidationErrors('lease_id');
+        $this->postJson('/api/conversations', [
+            'type' => 'group', 'subject' => 'G', 'participants' => [$this->agent->id, $this->tenant->id],
+            'lease_id' => $bail->id, 'property_id' => $bail->property_id,
+        ])->assertStatus(422)->assertJsonValidationErrors(['lease_id', 'property_id']);
+        $this->postJson('/api/conversations', [
+            'type' => 'group', 'subject' => 'G', 'participants' => [$this->agent->id], 'property_id' => $bail->property_id,
+        ])->assertStatus(422)->assertJsonValidationErrors('property_id');
+        $this->assertSame($avant, Conversation::query()->count(), 'aucun fil ne naît');
+
+        // Les directes simples, elles, restent ouvertes (décision du 2026-11-13).
+        $this->postJson('/api/conversations', ['participants' => [$this->agent->id], 'initial_message' => 'Bonjour'])->assertSuccessful();
+    }
+
+    public function test_p2_le_parti_ne_rattache_plus_de_fil_ni_n_y_ecrit_par_le_message_initial(): void
+    {
+        $this->directeSimple($this->landlord, $this->agent);
+        $this->directeSimple($this->landlord, $this->tenant);
+        $bail = Lease::query()->firstOrFail();
+        $this->partir();
+        $avant = [Conversation::query()->count(), Message::query()->count()];
+
+        $this->directeRattachee($this->agent, $bail)->assertStatus(422)->assertJsonValidationErrors('lease_id');
+        $this->postJson('/api/conversations', [
+            'type' => 'group', 'subject' => 'G', 'participants' => [$this->agent->id, $this->tenant->id], 'lease_id' => $bail->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('lease_id');
+        $this->assertSame($avant, [Conversation::query()->count(), Message::query()->count()], 'ni fil ni message');
+    }
+
+    public function test_le_bail_dont_il_est_le_locataire_se_rattache_toujours(): void
+    {
+        $sonBailleur = User::factory()->withOwnerProfile($this->agency)->create();
+        $saFiche = Customer::factory()->create(['user_id' => $this->landlord->id, 'agency_id' => $this->agency->id]);
+        $bien = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $sonBailleur->id]);
+        $bail = Lease::factory()->create([
+            'property_id' => $bien->id, 'agency_id' => $this->agency->id, 'landlord_id' => $sonBailleur->id,
+            'tenant_id' => $saFiche->id, 'status' => LeaseStatus::Active, 'commission_rate' => 10,
+        ]);
+        $agentDuBail = $this->agencyAgent($this->agency);
+        $this->filDeBail($bail, [$this->landlord, $agentDuBail]);
+        $this->partir();
+
+        // 200 ou 201 : la directe existante est reprise (`firstOrCreate`) ; ce qui compte, aucun refus.
+        $this->directeRattachee($agentDuBail, $bail)->assertSuccessful();
     }
 
     /** @return list<int> */

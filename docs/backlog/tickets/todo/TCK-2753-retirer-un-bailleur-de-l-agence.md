@@ -227,3 +227,10 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
   et une « nouvelle » directe vers cette personne rend ce fil (`DirectConversationService::firstOrCreate`). Motif :
   une conversation de personne à personne déjà ouverte, et l'agence peut encore avoir besoin de le joindre. Rien
   n'est fermé tant que le porteur n'a pas tranché.
+- **r1 de la contre-vérification de 2eba3431c (2026-11-13)** : la règle fermait la joignabilité, pas le contexte.
+  Par les directes gardées ouvertes, l'agent et le locataire restaient ses correspondants, et `guardContext` ne
+  jugeait que le `view` du bail ou du bien, qu'il garde : `POST /api/conversations` rattachait une directe
+  (`lease_id`) et un groupe (`lease_id` + `property_id`) à son bail de l'agence quittée (201 et 201), et le message
+  initial s'écrivait là où `POST …/messages` rend 403. `GuardsConversationScope::guardContext` refuse désormais un
+  bail ou un bien d'une agence de `agencesFermeesAuBailleur`, sauf le bail dont l'acteur est le locataire — la
+  règle de `MessagingReach::filsFermes`. Les directes simples restent ouvertes (décision ci-dessus).
