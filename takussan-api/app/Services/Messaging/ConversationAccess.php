@@ -190,6 +190,56 @@ class ConversationAccess
     }
 
     /**
+     * TCK-2753 (r1 de la vérification de 8d4d0f5f9) — LA règle des contextes fermés au bailleur
+     * parti ou suspendu, écrite une seule fois : un bail ou un bien d'une agence de
+     * {@see self::agencesFermeesAuBailleur()} ne se rattache plus à un fil, sauf le bail dont
+     * `$user` est le LOCATAIRE (la règle de `MessagingReach::filsFermes()`).
+     *
+     * Elle restreint une requête : les listes de contextes du groupe
+     * (`ConversationContextController`) la posent telle quelle, et {@see self::contexteFerme()}, que la
+     * création d'un fil appelle (`GuardsConversationScope::guardContext()`), la rejoue sur la seule
+     * ligne jugée. La liste ne propose donc que ce que la création accepte, par construction.
+     *
+     * @param  Builder<Lease>|Builder<Property>  $query
+     * @param  list<int>|null  $fermees  {@see self::agencesFermeesAuBailleur()}, déjà calculé
+     */
+    public function restreindreAuxContextesOuverts(Builder $query, User $user, ?array $fermees = null): void
+    {
+        $fermees ??= $this->agencesFermeesAuBailleur($user);
+        if ($fermees === []) {
+            return;
+        }
+
+        $model = $query->getModel();
+        $table = $model->getTable();
+        $query->where(function (Builder $q) use ($model, $table, $fermees, $user) {
+            $q->whereNull("{$table}.agency_id")->orWhereNotIn("{$table}.agency_id", $fermees);
+            if ($model instanceof Lease) {
+                $q->orWhereHas('tenant', fn (Builder $t) => $t->where('user_id', $user->id));
+            }
+        });
+    }
+
+    /**
+     * Le bail ou le bien est-il fermé à `$user` ? {@see self::restreindreAuxContextesOuverts()} jugé
+     * sur cette seule ligne.
+     *
+     * @param  list<int>|null  $fermees
+     */
+    public function contexteFerme(User $user, Lease|Property $model, ?array $fermees = null): bool
+    {
+        $fermees ??= $this->agencesFermeesAuBailleur($user);
+        if ($fermees === []) {
+            return false;
+        }
+
+        $query = $model->newQuery()->withTrashed()->whereKey($model->getKey());
+        $this->restreindreAuxContextesOuverts($query, $user, $fermees);
+
+        return ! $query->exists();
+    }
+
+    /**
      * Les agences où `$user` tient un profil d'agent, d'administrateur ou de bailleur, mais aucun
      * d'actif : un membre suspendu (`TeamMemberSuspensionService`), pas un membre actif qui garde
      * par ailleurs un profil ancien.

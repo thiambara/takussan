@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Conversation\Concerns;
 
 use App\Models\Conversation;
-use App\Models\Customer;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
@@ -80,28 +79,15 @@ trait GuardsConversationScope
             }
 
             if ($model instanceof Lease || $model instanceof Property) {
-                $fermees ??= app(ConversationAccess::class)->agencesFermeesAuBailleur($actor);
-                if ($this->contexteFerme($actor, $model, $fermees)) {
+                // La règle vit dans ConversationAccess, une seule fois : les listes de contextes du
+                // groupe (`ConversationContextController`) posent la même (r1 de 8d4d0f5f9).
+                $access = app(ConversationAccess::class);
+                $fermees ??= $access->agencesFermeesAuBailleur($actor);
+                if ($access->contexteFerme($actor, $model, $fermees)) {
                     $v->errors()->add($field, __($messageKey));
                 }
             }
         }
-    }
-
-    /**
-     * Le bail ou le bien appartient à une agence de `$fermees`, et ce n'est pas un bail dont l'acteur
-     * est le locataire.
-     *
-     * @param  list<int>  $fermees
-     */
-    private function contexteFerme(User $actor, Lease|Property $model, array $fermees): bool
-    {
-        if ($fermees === [] || ! in_array((int) $model->agency_id, $fermees, true)) {
-            return false;
-        }
-
-        return ! ($model instanceof Lease && $model->tenant_id !== null
-            && Customer::query()->whereKey($model->tenant_id)->where('user_id', $actor->id)->exists());
     }
 
     /**

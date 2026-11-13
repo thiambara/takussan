@@ -381,6 +381,92 @@ class OwnerDepartedReachTest extends ApiTestCase
         $this->directeRattachee($agentDuBail, $bail)->assertSuccessful();
     }
 
+    /**
+     * r1 de la vérification de 8d4d0f5f9 — les listes de contextes du groupe
+     * (`GET /api/conversations/context/{leases,properties}`) ne proposent que ce que la création
+     * accepte : avant, le bailleur suspendu ou parti se voyait proposer le bail de l'agence quittée,
+     * que `POST /api/conversations` refuse (422). Le bail qu'il y LOUE reste proposé et accepté.
+     */
+    public function test_r1_le_suspendu_ne_se_voit_proposer_que_ce_que_la_creation_accepte(): void
+    {
+        $sonBail = $this->bailActif();
+        $loue = $this->bailQu_ilLoue();
+        $this->profile->forceFill(['status' => OwnerProfileStatus::Blocked])->save();
+        $this->asUser($this->landlord);
+
+        ['baux' => $baux, 'biens' => $biens] = $this->contextesProposes();
+        $this->assertNotContains((int) $sonBail->id, $baux, 'le bail de son bien dans l’agence quittée');
+        $this->assertNotContains((int) $sonBail->property_id, $biens, 'son bien dans l’agence quittée');
+        $this->assertContains((int) $loue->id, $baux, 'le bail qu’il loue reste proposé');
+        $this->assertListeIncluseDansLaCreation($baux, $biens);
+    }
+
+    public function test_r1_le_parti_non_plus(): void
+    {
+        $ancienBail = Lease::query()->firstOrFail();
+        $loue = $this->bailQu_ilLoue();
+        $this->partir();
+
+        ['baux' => $baux, 'biens' => $biens] = $this->contextesProposes();
+        $this->assertNotContains((int) $ancienBail->id, $baux);
+        $this->assertContains((int) $loue->id, $baux);
+        $this->assertListeIncluseDansLaCreation($baux, $biens);
+    }
+
+    public function test_r1_temoin_le_bailleur_actif_se_voit_proposer_son_bail_et_son_bien(): void
+    {
+        $sonBail = $this->bailActif();
+        $this->asUser($this->landlord);
+
+        ['baux' => $baux, 'biens' => $biens] = $this->contextesProposes();
+        $this->assertContains((int) $sonBail->id, $baux);
+        $this->assertContains((int) $sonBail->property_id, $biens);
+        $this->assertListeIncluseDansLaCreation($baux, $biens);
+    }
+
+    /** Un bail de l'agence dont le bailleur de la fixture est le LOCATAIRE. */
+    private function bailQu_ilLoue(): Lease
+    {
+        $sonBailleur = User::factory()->withOwnerProfile($this->agency)->create();
+        $saFiche = Customer::factory()->create(['user_id' => $this->landlord->id, 'agency_id' => $this->agency->id]);
+        $bien = Property::factory()->create(['agency_id' => $this->agency->id, 'user_id' => $sonBailleur->id]);
+
+        return Lease::factory()->create([
+            'property_id' => $bien->id, 'agency_id' => $this->agency->id, 'landlord_id' => $sonBailleur->id,
+            'tenant_id' => $saFiche->id, 'status' => LeaseStatus::Active, 'commission_rate' => 10,
+        ]);
+    }
+
+    /** @return array{baux: list<int>, biens: list<int>} */
+    private function contextesProposes(): array
+    {
+        $ids = fn (string $quoi) => collect($this->getJson("/api/conversations/context/{$quoi}")->assertOk()->json('data'))
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        return ['baux' => $ids('leases'), 'biens' => $ids('properties')];
+    }
+
+    /**
+     * Chaque contexte proposé passe la garde de la création : aucune erreur sur son champ (les
+     * participants peuvent en porter une autre, qui n'est pas jugée ici).
+     *
+     * @param  list<int>  $baux
+     * @param  list<int>  $biens
+     */
+    private function assertListeIncluseDansLaCreation(array $baux, array $biens): void
+    {
+        foreach ($baux as $id) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group', 'subject' => 'G', 'participants' => [$this->agent->id, $this->tenant->id], 'lease_id' => $id,
+            ])->assertJsonMissingValidationErrors('lease_id');
+        }
+        foreach ($biens as $id) {
+            $this->postJson('/api/conversations', [
+                'type' => 'group', 'subject' => 'G', 'participants' => [$this->agent->id, $this->tenant->id], 'property_id' => $id,
+            ])->assertJsonMissingValidationErrors('property_id');
+        }
+    }
+
     /** @return list<int> */
     private function contactsDu(Conversation $groupe): array
     {
