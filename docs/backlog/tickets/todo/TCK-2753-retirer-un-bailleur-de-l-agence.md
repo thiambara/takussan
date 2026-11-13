@@ -188,3 +188,27 @@ Fixture commune : une agence A, son administrateur actif Ad, le bailleur L d'A (
 - **Suivi : pas de vue « Partis » pour l'instant.** Aucun écran ne liste les bailleurs partis. Ils se relisent par
   `filter[status]=inactive` côté API, et sous « Avec reste à verser » quand il leur reste de l'argent. Une vue
   dédiée sera un ticket à part, si le besoin apparaît.
+
+### Contre-vérification de 97dfe6c35 — trois trous fermés et une décision (2026-11-13)
+
+- **r0 — un bail échu ne se renouvelle plus au nom d'un bailleur parti.** Avant, l'admin renouvelait le bail
+  `expired` d'un bailleur parti : un bail neuf naissait à son nom, sur un bien supprimé. `LeaseRenewalService::renew()`
+  refuse désormais, sous le verrou du bail parent, un bien supprimé (422 `lease.renewal_property_deleted`), puis un
+  bailleur dont le profil de l'agence est parti ou bloqué (422 `lease.renewal_owner_departed`, profil relu sous
+  `FOR SHARE`). Les autres naissances de bail ne recopient pas un `landlord_id` existant : `LeaseService` le prend sur
+  le bien vivant. Épinglé par `OwnerDepartedRenewalTest`.
+- **r1 — la course entre le départ et l'écriture d'un bien.** `bailleurActif()` jugeait le bailleur avant
+  l'écriture, sans verrou : un départ pouvait passer entre les deux. La saisie (bailleur désigné, lot qui hérite du
+  bailleur de son parent, proposition d'un bailleur) et le transfert (`PUT /api/properties/{id}/owner`) rejugent
+  maintenant le bailleur APRÈS l'écriture, dans la même transaction, profil sous `FOR SHARE`
+  (`TitulaireALaSaisie::exigerActifSousVerrou()`, 422 `property.owner_not_in_agency`). L'ordre est celui du départ :
+  bien, puis profil. Épinglé par `OwnerDepartedPropertyRaceTest`, qui fait courir le départ dans `creating` ou
+  `updating`. Le refus n'est plus journalisé comme un échec de création.
+- **r2 — le dossier d'un bailleur parti ou suspendu est figé.** `kyc/upload`, `kyc/submit` et `tax-id` rendent 403
+  `owner.profile_read_only` (`OwnerProfile::exigerEcrivable()`), avant la validation, au super-admin aussi.
+  Épinglé par `OwnerDepartedDossierTest`.
+- **q1 — décision de team-lead, en attente du porteur : le bailleur parti lit le fil de son bail, il n'y écrit plus.**
+  `ConversationAccess::allowsWriting()` refuse l'écriture à qui ne tient, dans l'agence du fil, qu'un profil non
+  actif, sauf au locataire du bail. `abilities.can_send_message` suit. Le bailleur suspendu est traité de la même
+  façon. Épinglé par `OwnerDepartedThreadTest`. Hors de ce point, non tranchés : l'ouverture d'un fil neuf par le
+  bailleur parti, et l'ajout de participants.

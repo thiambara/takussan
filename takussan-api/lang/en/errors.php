@@ -366,6 +366,9 @@ return [
         'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it, or start the renewal after it; a renewal already awaiting signature must be terminated, then a new one created.',
         'termination_overlaps_paid_schedule' => 'A rent due after the move-out date is already paid or being paid: the termination does not cancel it. Refund it, then terminate.',
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
+        // TCK-2753 (r0) — un bail échu ne se renouvelle ni sur un bien supprimé, ni au nom d'un bailleur parti.
+        'renewal_property_deleted' => 'This lease\'s property has been deleted: the lease can no longer be renewed. Create a new lease on one of the agency\'s properties.',
+        'renewal_owner_departed' => 'This lease\'s owner has left the agency, or their access is suspended: the lease can no longer be renewed in their name.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
         // P48.03 (TCK-2352) — le bail tiré d'une réservation.
@@ -458,6 +461,8 @@ return [
         'departure_not_empty' => 'This owner cannot leave the agency while they still have properties, ongoing leases or money owed to them.',
         'departure_self' => 'You cannot remove your own owner profile: another administrator must do it.',
         'invite_departed' => 'This owner has left the agency and cannot be invited again.',
+        // TCK-2753 (r2) — le dossier d'un bailleur parti ou suspendu est figé.
+        'profile_read_only' => 'This owner profile is no longer active in the agency (departed or suspended): its file can no longer be changed.',
     ],
     'password_reset' => [
         'invalid_link' => 'This reset link is invalid or has expired. Request a new one.',

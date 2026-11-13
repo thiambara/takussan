@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\AssignAgentPropertyRequest;
 use App\Http\Requests\Api\StorePropertyRequest;
@@ -143,12 +144,20 @@ class PropertyController extends Controller
         }
 
         try {
-            $property = DB::transaction(function () use ($data, $titulaire) {
+            $auteur = (int) $request->user()->id;
+            $property = DB::transaction(function () use ($data, $titulaire, $titulaires, $auteur, $isProposal) {
                 $property = Property::create(array_merge($data, [
                     'user_id' => $titulaire,
                     'status' => $data['status'] ?? PropertyStatus::Draft->value,
                     'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
                 ]));
+
+                // TCK-2753 (r1) — un bien qui naît au nom d'un bailleur (désigné, celui du parent, ou
+                // l'auteur d'une proposition) : le bailleur est rejugé sous verrou APRÈS l'insertion,
+                // contre un départ concurrent ({@see TitulaireALaSaisie::exigerActifSousVerrou()}).
+                if ($property->agency_id !== null && ($titulaire !== $auteur || $isProposal)) {
+                    $titulaires->exigerActifSousVerrou($titulaire, (int) $property->agency_id);
+                }
 
                 if (! empty($data['address'])) {
                     $property->address()->create($data['address']);
@@ -179,6 +188,10 @@ class PropertyController extends Controller
                 201
             );
         } catch (\Throwable $e) {
+            // TCK-2753 (r1) — un refus rendu sous verrou (422 codé) n'est pas un échec de création.
+            if ($e instanceof ApiError) {
+                throw $e;
+            }
             // TCK-601 (ADR-0044 §2) — ni la saisie (`$request->all()`), ni le message, qui la
             // recopie pour une erreur SQL : les CLÉS de la saisie et la forme sûre de l'exception.
             Log::error('[PropertyController::store] Failed to create property', [

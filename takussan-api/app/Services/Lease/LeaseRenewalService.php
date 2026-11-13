@@ -7,9 +7,12 @@ use App\Exceptions\ApiError;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
 use App\Services\Model\ReferenceNumberGenerator;
@@ -80,6 +83,7 @@ class LeaseRenewalService
             $parent = Lease::query()->lock('for no key update')->findOrFail($parent->id);
 
             $this->guardParentStatus($parent);
+            $this->guardParties($parent);
             $this->guardNoActiveChild($parent);
             $this->guardMaxChainDepth($parent);
 
@@ -431,6 +435,32 @@ class LeaseRenewalService
         }
 
         return $depth;
+    }
+
+    /**
+     * TCK-2753 (r0, ADR-0108) — un bail échu se renouvelle encore après le départ de son bailleur : sans
+     * cette garde, l'admin créait un bail au nom d'un propriétaire parti, sur un bien supprimé. Le bien
+     * supprimé (`lease.renewal_property_deleted`), puis le bailleur dont le profil de l'agence est sans
+     * écriture, parti ou bloqué (`lease.renewal_owner_departed`). Le profil est relu sous `FOR SHARE` (`sharedLock()`) :
+     * un départ concurrent (qui le prend `FOR UPDATE`) attend ce renouvellement, dont il voit ensuite le
+     * bail enfant ; ou ce renouvellement attend le départ, et lit le profil devenu inactif.
+     */
+    protected function guardParties(Lease $parent): void
+    {
+        $bien = Property::withTrashed()->find($parent->property_id);
+        abort_code_if($bien === null || $bien->trashed(), 422, 'lease.renewal_property_deleted');
+
+        if ($parent->agency_id === null || $parent->landlord_id === null) {
+            return;
+        }
+
+        $parti = OwnerProfile::query()
+            ->where('agency_id', $parent->agency_id)
+            ->where('user_id', $parent->landlord_id)
+            ->sharedLock()
+            ->get(['id', 'status'])
+            ->contains(fn (OwnerProfile $p): bool => in_array($p->status, OwnerProfileStatus::sansEcriture(), true));
+        abort_code_if($parti, 422, 'lease.renewal_owner_departed');
     }
 
     protected function guardParentStatus(Lease $parent): void

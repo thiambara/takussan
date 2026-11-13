@@ -366,6 +366,9 @@ return [
         'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko, walla nga tàmbali yeesal bi ginnaaw ko ; yeesal buy xaar xaatim, dañu koy dakkal, ba noppi defar beneen.',
         'termination_overlaps_paid_schedule' => 'Une échéance de loyer postérieure à la date de sortie est déjà réglée ou en cours de règlement : la résiliation ne l\'annule pas. Remboursez-la, puis résiliez.',
         'renewal_parent_not_renewable' => 'Bayle bi ñuy yeesal du dox ba tey (yégle walla dakkal) : yeesal bii mënul a am doole. Dakkal ko, ba noppi defar beneen su soxlawee.',
+        // TCK-2753 (r0) — un bail échu ne se renouvelle ni sur un bien supprimé, ni au nom d'un bailleur parti.
+        'renewal_property_deleted' => 'Le bien de ce bail a été supprimé : le bail ne se renouvelle plus. Créez un nouveau bail sur un bien de l\'agence.',
+        'renewal_owner_departed' => 'Le propriétaire de ce bail a quitté l\'agence, ou son accès est suspendu : le bail ne se renouvelle plus à son nom.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
         // P48.03 (TCK-2352) — le bail tiré d'une réservation.
@@ -458,6 +461,8 @@ return [
         'departure_not_empty' => 'Ce propriétaire ne peut pas quitter l\'agence tant qu\'il y a des biens, des baux en cours ou de l\'argent qui lui est dû.',
         'departure_self' => 'Vous ne pouvez pas retirer votre propre profil de propriétaire : un autre administrateur doit le faire.',
         'invite_departed' => 'Ce propriétaire a quitté l\'agence : il ne peut pas y être invité de nouveau.',
+        // TCK-2753 (r2) — le dossier d'un bailleur parti ou suspendu est figé.
+        'profile_read_only' => 'Ce profil de propriétaire n\'est plus actif dans l\'agence (départ ou suspension) : son dossier ne se modifie plus.',
     ],
     'password_reset' => [
         'invalid_link' => 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',

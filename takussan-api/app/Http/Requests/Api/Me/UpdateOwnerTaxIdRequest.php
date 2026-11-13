@@ -23,7 +23,14 @@ class UpdateOwnerTaxIdRequest extends BaseFormRequest
 
     public function authorize(): bool
     {
-        return $this->ownsProfile($this->route('owner_profile'));
+        $profil = $this->route('owner_profile');
+        if (! $this->ownsProfile($profil)) {
+            return false;
+        }
+        // TCK-2753 (r2) — le dossier d'un bailleur parti ou suspendu est figé.
+        $profil->exigerEcrivable();
+
+        return true;
     }
 
     protected function prepareForValidation(): void

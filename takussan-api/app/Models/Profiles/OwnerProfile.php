@@ -167,6 +167,17 @@ class OwnerProfile extends AbstractModel
         return $this->belongsTo(User::class, 'guarantor_user_id');
     }
 
+    /**
+     * TCK-2753 (r2 de la contre-vérification, ADR-0108 § 5) — le dossier d'un profil sans écriture
+     * (parti ou suspendu, {@see OwnerProfileStatus::sansEcriture()}) ne se modifie plus : ni pièce
+     * d'identité, ni soumission du dossier, ni NINEA. 403 `owner.profile_read_only`, pour tous, le
+     * super-admin compris : le dossier d'un bailleur parti est figé.
+     */
+    public function exigerEcrivable(): void
+    {
+        abort_code_if(in_array($this->status, OwnerProfileStatus::sansEcriture(), true), 403, 'owner.profile_read_only');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', OwnerProfileStatus::Active->value);

@@ -193,6 +193,30 @@ final class TitulaireALaSaisie
     }
 
     /** Un profil propriétaire ACTIF dans l'agence, et aucun profil actif de personnel. */
+    /**
+     * TCK-2753 (r1 de la contre-vérification, ADR-0108 § 5) — le bailleur qui reçoit un bien est
+     * rejugé APRÈS l'écriture qui le lui donne, dans la même transaction, son profil relu sous
+     * `FOR SHARE` : {@see self::bailleurActif()} le jugeait avant, sans verrou, et un départ
+     * concurrent (`OwnerDepartureService`) pouvait passer entre ce jugement et l'écriture — le
+     * bailleur parti gardait un bien vivant. Rejugé après l'écriture, aucun entrelacement ne reste :
+     *  - le départ tient déjà le profil (`FOR UPDATE`) : ce rejugement l'attend, lit `inactive`, et
+     *    la transaction de l'écriture est annulée (422 `property.owner_not_in_agency`) ;
+     *  - ce rejugement tient le profil : le départ l'attend, puis son inventaire voit le bien écrit
+     *    et refuse (`owner.departure_not_empty`).
+     * L'ordre des verrous est celui du départ, bien puis profil : l'écriture a déjà pris la ligne du
+     * bien (et la clé de son parent) quand elle arrive ici, jamais l'inverse.
+     */
+    public function exigerActifSousVerrou(int $userId, int $agencyId): void
+    {
+        $actif = OwnerProfile::query()
+            ->where('user_id', $userId)
+            ->where('agency_id', $agencyId)
+            ->sharedLock()
+            ->get(['id', 'status'])
+            ->contains(fn (OwnerProfile $p): bool => $p->status === OwnerProfileStatus::Active);
+        abort_code_unless($actif, 422, 'property.owner_not_in_agency');
+    }
+
     public function bailleurActif(int $userId, int $agencyId): bool
     {
         $user = User::query()->find($userId);

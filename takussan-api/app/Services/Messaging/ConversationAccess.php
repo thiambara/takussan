@@ -74,7 +74,17 @@ class ConversationAccess
             return false;
         }
 
-        if ($user->isSuperAdmin() || $conversation->maintenance_request_id === null) {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // TCK-2753 (q1 de la contre-vérification ; décision de team-lead du 2026-11-13, en attente
+        // du porteur) — le bailleur parti ou suspendu lit le fil de son bail, il n'y écrit plus.
+        if (! $this->contextAllowsWriting($user, $conversation)) {
+            return false;
+        }
+
+        if ($conversation->maintenance_request_id === null) {
             return true;
         }
 
@@ -97,8 +107,43 @@ class ConversationAccess
     /** La branche « contexte » seule (P191.01) : vrai pour tout fil sans bail ni bien. */
     public function contextAllows(User $user, Conversation $conversation): bool
     {
-        if ($conversation->lease_id === null && $conversation->property_id === null) {
+        $contexte = $this->contexteSansProfilActif($user, $conversation);
+        if ($contexte === null) {
             return true;
+        }
+        [$lease, $property] = $contexte;
+
+        // TCK-2275 (P232.03 ; ADR-0031, amendement du 2026-10-25, D1) — « partie » au bail ou au bien
+        // selon `BailleurDuBien` : l'agent suspendu qui les a saisis n'en est pas le bailleur.
+        return BailleurDuBien::est($user, $lease?->landlord_id, $lease?->agency_id)
+            || BailleurDuBien::est($user, $property?->user_id, $property?->agency_id)
+            || $this->estLocataire($user, $lease);
+    }
+
+    /**
+     * TCK-2753 (q1) — ÉCRIRE dans un fil de bail ou de bien, pour qui n'y tient plus qu'un profil non
+     * actif : le locataire seul. Le bailleur parti ou suspendu y garde la lecture
+     * ({@see self::contextAllows()}), comme il garde celle de ses baux (ADR-0108 § 5,
+     * `HasProfiles::isBlockedOwnerAt()`), et n'y écrit plus. Vrai pour tout fil sans bail ni bien,
+     * et pour qui tient un profil actif dans l'agence du fil.
+     */
+    public function contextAllowsWriting(User $user, Conversation $conversation): bool
+    {
+        $contexte = $this->contexteSansProfilActif($user, $conversation);
+
+        return $contexte === null || $this->estLocataire($user, $contexte[0]);
+    }
+
+    /**
+     * Le bail et le bien du fil quand `$user` ne tient, dans leur agence, qu'un profil non actif ;
+     * `null` pour un fil sans bail ni bien, ou pour qui y tient un profil actif.
+     *
+     * @return array{0: ?object, 1: ?object}|null
+     */
+    private function contexteSansProfilActif(User $user, Conversation $conversation): ?array
+    {
+        if ($conversation->lease_id === null && $conversation->property_id === null) {
+            return null;
         }
 
         $lease = $conversation->lease_id !== null
@@ -110,17 +155,16 @@ class ConversationAccess
 
         $agencyIds = array_values(array_filter([$lease?->agency_id, $property?->agency_id], fn ($id) => $id !== null));
         if (array_intersect($agencyIds, $this->inactiveOnlyAgencyIds($user)) === []) {
-            return true;
+            return null;
         }
 
-        $isTenant = $lease?->tenant_id !== null
-            && DB::table('customers')->where('id', $lease->tenant_id)->where('user_id', $user->id)->exists();
+        return [$lease, $property];
+    }
 
-        // TCK-2275 (P232.03 ; ADR-0031, amendement du 2026-10-25, D1) — « partie » au bail ou au bien
-        // selon `BailleurDuBien` : l'agent suspendu qui les a saisis n'en est pas le bailleur.
-        return BailleurDuBien::est($user, $lease?->landlord_id, $lease?->agency_id)
-            || BailleurDuBien::est($user, $property?->user_id, $property?->agency_id)
-            || $isTenant;
+    private function estLocataire(User $user, ?object $lease): bool
+    {
+        return $lease?->tenant_id !== null
+            && DB::table('customers')->where('id', $lease->tenant_id)->where('user_id', $user->id)->exists();
     }
 
     /**
