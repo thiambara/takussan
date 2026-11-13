@@ -7,9 +7,7 @@ import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import * as AuthContext from '@/context/AuthContext';
 import { OwnersList } from '@/components/owners/OwnersList';
-import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
-import type { PropertyListItem } from '@/types/property';
 
 /**
  * TCK-380 · AC3 — **chaque table convertie rend EXACTEMENT les mêmes colonnes, dans le même
@@ -29,13 +27,6 @@ import type { PropertyListItem } from '@/types/property';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock('@/app/actions/dashboard-properties', () => ({
-  deletePropertyAction: vi.fn(),
-  duplicatePropertyAction: vi.fn(),
-  updatePropertyStatusAction: vi.fn(),
-  updatePropertyVisibilityAction: vi.fn(),
 }));
 
 function monter(ui: ReactElement) {
@@ -69,59 +60,12 @@ describe('AC3 — les colonnes des tables converties', () => {
   // TCK-2590 — `CustomerList` n'existe plus : la liste des clients suit la maquette retenue
   // (`app-clients` a, ADR-0106), qui change ses colonnes par décision. Ses colonnes se gardent dans
   // `customer-dashboard/liste/__tests__/ListeDesClients.tck-2590.test.tsx`.
-
-  it('PropertyList : sélection · bien · prix · activité · statut · actions', () => {
-    const bien: PropertyListItem = {
-      id: 12,
-      reference_number: 'TK-2026-ABCD',
-      title: 'Villa Ngor',
-      slug: 'villa-ngor',
-      price: 250000,
-      currency: 'XOF',
-      type: 'villa',
-      contract_type: 'rent',
-      rent_period: 'monthly',
-      status: 'draft',
-      visibility: 'private',
-      views_count: 12,
-      favorites_count: 3,
-      location: {
-        quarter: 'Ngor',
-        city: 'Dakar',
-        region: null,
-        country: 'SN',
-        latitude: null,
-        longitude: null,
-      },
-      bedrooms: 3,
-      bathrooms: 2,
-      area: 120,
-      furnished: false,
-      featured: false,
-      main_photo_url: null,
-      published_at: null,
-      created_at: '2026-05-06T12:00:00.000Z',
-    } as PropertyListItem;
-
-    monter(
-      <PropertyList
-        page={{
-          data: [bien],
-          meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
-          links: { first: null, last: null, prev: null, next: null },
-        }}
-      />,
-    );
-
-    const entetes = enTetesDe('Liste des biens du tableau de bord');
-    expect(entetes).toHaveLength(6);
-    // La première colonne est un CONTRÔLE, pas un libellé : on l'éprouve par sa case à cocher.
-    const table = screen.getByRole('table', { name: 'Liste des biens du tableau de bord' });
-    expect(
-      within(table).getByRole('checkbox', { name: /sélectionner tous les biens/i }),
-    ).toBeInTheDocument();
-    expect(entetes.slice(1)).toEqual(['Bien', 'Prix', 'Activité', 'Statut', 'Actions']);
-  });
+  //
+  // TCK-2638 — la table de `PropertyList` (sélection · bien · prix · activité · statut · actions)
+  // n'existe plus : la liste des biens suit la maquette retenue (`app-biens`, deux modes). En Annonces,
+  // une carte par annonce à toute largeur (prix, vues et favoris, état, « ⋯ ») — gardée dans
+  // `property-dashboard/__tests__/CarteAnnonce.tck-2638.test.tsx` ; en Gestion, une table aux colonnes
+  // de la maquette, gardées dans `property-dashboard/__tests__/PropertyList.gestion.tck-2638.test.tsx`.
 
   it('OwnersList : bailleur · téléphone · biens · argent du mois · statut (TCK-2641)', () => {
     monter(
