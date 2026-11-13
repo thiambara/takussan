@@ -9385,7 +9385,8 @@
           "ajouter": "Add “{title}” to the selection",
           "ajouterCourt": "Add",
           "nombreDeBiens": "{n, plural, one {# property} other {# properties}}",
-          "accrocheIci": "Your tagline will appear here."
+          "accrocheIci": "Your tagline will appear here.",
+          "prixParPeriode": "{montant} / {periode, select, daily {day} weekly {week} yearly {year} other {month}}"
         },
         "facturation": {
           "titre": "Billing and legal details",

@@ -68,7 +68,7 @@ describe('Fiche de l’agence — la vitrine de la fiche publique (TCK-2524)', (
     expect(chemin).toContain('filter[public]=1');
     expect(chemin).toContain('filter[status]=available');
     expect(chemin).toContain('sort=-published_at,-created_at,-id');
-    expect(chemin).toContain('fields[properties]=id,title,reference_number');
+    expect(chemin).toContain('fields[properties]=id,title,reference_number,price,currency,contract_type,rent_period');
   });
 
   it('compte les caractères de l’accroche et des raisons, bornés à 120 et 80', async () => {
@@ -235,5 +235,50 @@ describe('Fiche de l’agence — la vitrine de la fiche publique (TCK-2524)', (
     expect(screen.queryByRole('heading', { level: 2, name: fr.admin.agencyConfig.fiche.sections.publique.titre })).toBeNull();
     await user.type(document.getElementById('field-name') as HTMLInputElement, ' Plateau');
     expect(await enregistrer(user)).toEqual({ name: 'Dakar Immo Plateau' });
+  });
+});
+
+describe('Fiche de l’agence — le prix des biens de la vitrine (TCK-2670, maquette a-2 : « TK-48213 · 650 000 F »)', () => {
+  const PRIX = [
+    { ...bien(10), price: 650000, currency: 'XOF', contract_type: 'rent', rent_period: 'monthly' },
+    { ...bien(11), price: 3500000, currency: 'XOF', contract_type: 'sale', rent_period: null },
+    { ...bien(12), price: 25000, currency: 'XOF', contract_type: 'rent', rent_period: 'daily' },
+    { ...bien(13), price: 380000, currency: 'XOF', contract_type: 'rent', rent_period: null },
+    { ...bien(14), price: null, currency: 'XOF', contract_type: 'sale', rent_period: null },
+    { ...bien(15), price: 0, currency: 'XOF', contract_type: 'rent', rent_period: 'monthly' },
+  ];
+  /** Les espaces insécables du montant (groupes et symbole) lus comme des espaces. */
+  const texte = (n: Element | null) => (n?.textContent ?? '').replace(/[\u00a0\u202f]/g, ' ');
+  const aChoisir = (id: number) => texte(screen.getByRole('button', { name: `Ajouter « Bien ${id} » à la sélection` }).closest('li'));
+
+  beforeEach(() => {
+    API.apiRequest.mockImplementation(async (chemin: string) => {
+      const ids = decodeURIComponent(chemin).match(/filter\[id\]=([^&]*)/)?.[1];
+      const voulus = ids ? ids.split(',').map(Number) : null;
+      const data = voulus ? PRIX.filter((b) => voulus.includes(b.id)) : PRIX;
+      return { data, meta: { total: data.length } };
+    });
+  });
+
+  it('la sélection et les biens à choisir disent la référence puis le prix ; une location, sa période', async () => {
+    ouvrir({ showcase_property_ids: [10] });
+    await screen.findByText('Bien 11');
+    const selection = screen.getByRole('list', { name: P.showcaseOrder });
+    await waitFor(() => expect(texte(within(selection).getByText('Bien 10').closest('li'))).toContain('PR-10 · 650 000 F / mois'));
+    expect(aChoisir(11)).toContain('PR-11 · 3 500 000 F');
+    expect(aChoisir(11)).not.toContain('/');
+    expect(aChoisir(12)).toContain('PR-12 · 25 000 F / jour');
+    // Une location sans période se lit au mois, comme partout dans /app (`loyerDuBien`).
+    expect(aChoisir(13)).toContain('PR-13 · 380 000 F / mois');
+  });
+
+  it('sans prix (absent ou à 0), la référence seule — jamais « 0 F » ni « — »', async () => {
+    ouvrir();
+    await screen.findByText('Bien 14');
+    expect(aChoisir(14)).toContain('PR-14');
+    expect(aChoisir(14)).not.toMatch(/·|F\b|—/);
+    // Un prix à 0 n'est pas un prix : jamais « 0 F / mois ».
+    expect(aChoisir(15)).toContain('PR-15');
+    expect(aChoisir(15)).not.toMatch(/·|F\b|mois/);
   });
 });

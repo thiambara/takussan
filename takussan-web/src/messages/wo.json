@@ -7259,7 +7259,8 @@
           "ajouter": "Ajouter « {title} » à la sélection",
           "ajouterCourt": "Ajouter",
           "nombreDeBiens": "{n, plural, one {# bien} other {# biens}}",
-          "accrocheIci": "Votre accroche paraîtra ici."
+          "accrocheIci": "Votre accroche paraîtra ici.",
+          "prixParPeriode": "{montant} / {periode, select, daily {jour} weekly {semaine} yearly {an} other {mois}}"
         },
         "facturation": {
           "titre": "Facturation et mentions légales",

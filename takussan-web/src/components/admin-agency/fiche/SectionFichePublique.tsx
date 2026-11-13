@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { idDuChamp, OU_SE_REMPLIT, type ValeursDeLaFiche } from '@/lib/agence/fiche';
 import { cn } from '@/lib/utils';
 import {
@@ -24,6 +25,7 @@ import {
   deplacerBien,
   parametresDeLaSelection,
   parametresDesBiensPublics,
+  prixDeLaVitrine,
   vitrineQueryKeys,
   type BienDeVitrine,
 } from '@/lib/vitrine-agence';
@@ -215,8 +217,8 @@ export function SectionFichePublique() {
                         <p className="line-clamp-2 text-sm font-medium leading-snug">{titre}</p>
                         {bien === undefined && selectionJugee ? (
                           <p className="text-ui text-muted-foreground">{t('notPublicAnymore')}</p>
-                        ) : bien?.reference_number ? (
-                          <p className="truncate text-ui tabular-nums text-muted-foreground">{bien.reference_number}</p>
+                        ) : bien ? (
+                          <ReferenceEtPrix bien={bien} />
                         ) : null}
                       </div>
                       <span className="flex flex-none gap-1">
@@ -368,7 +370,7 @@ function ListeDesBiens({
             <Vignette url={bien.main_photo_url} />
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 text-sm font-medium leading-snug">{titre}</p>
-              {bien.reference_number ? <p className="truncate text-ui tabular-nums text-muted-foreground">{bien.reference_number}</p> : null}
+              <ReferenceEtPrix bien={bien} />
             </div>
             <button
               type="button"
@@ -390,6 +392,26 @@ function ListeDesBiens({
       })}
     </ul>
   );
+}
+
+/**
+ * TCK-2670 — la deuxième ligne d'une rangée : « PR-48213 · 650 000 F / mois » (maquette a-2,
+ * `{reference} · {fcfa(prix)}`), la période d'une location en plus, comme la liste des biens
+ * (`MontantDuBien`). Ni référence ni prix : rien. La période se dit par une clé de la section
+ * (`prixParPeriode`), pas par `property.rentPeriodsShort` : cet espace n'est pas servi à
+ * `/app/settings`, qui monte aussi la fiche, et l'y ajouter pèserait tout l'espace pour un mot.
+ */
+function ReferenceEtPrix({ bien }: { readonly bien: BienDeVitrine }) {
+  const tFiche = useTranslations('admin.agencyConfig.fiche.publique');
+  const fmt = useFormatteurs();
+  const prix = prixDeLaVitrine(bien);
+  const montant = prix ? fmt.montantCourt(prix.montant, prix.devise) : null;
+  const morceaux = [
+    bien.reference_number || null,
+    prix && montant ? (prix.periode ? tFiche('prixParPeriode', { montant, periode: prix.periode }) : montant) : null,
+  ].filter((m): m is string => m !== null);
+  if (morceaux.length === 0) return null;
+  return <p className="truncate text-ui tabular-nums text-muted-foreground">{morceaux.join(' · ')}</p>;
 }
 
 /** L'aperçu de la couverture de la fiche publique, avec la saisie en cours. */

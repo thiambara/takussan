@@ -196,6 +196,20 @@
       "motif": "aides des champs existants du formulaire (clés antérieures au ticket), reliées par `aria-describedby` ; la maquette les remplit de valeurs à la place"
     },
     {
+      "ecran": "a-2",
+      "element": "« 64 autres biens publiés. Suggestion : vos biens les plus vus ce mois. Utiliser cette sélection » au pied de la liste des biens à choisir",
+      "propriete": "absent du produit (sous le pli : hors des références gelées, nommé ici d'après la maquette, `SelectionVitrine`)",
+      "exception": "donnée",
+      "motif": "aucune donnée ne dit « les plus vus ce mois » : l'API ne garde que `properties.views_count`, un cumul depuis la publication, sans vue datée (aucune table ni colonne d'événements de vue). Une suggestion « ce mois » serait inventée, et un classement sur le cumul dirait autre chose que la maquette. Le produit garde la recherche « Titre ou référence » et la liste des biens publiés, plus récents d'abord (`parametresDesBiensPublics`), seule voie pour ajouter un bien. Non construit (Notes du ticket)."
+    },
+    {
+      "ecran": "a-2",
+      "element": "deuxième ligne des rangées de la sélection et des biens à choisir : « PR-SDB2VYCR · 347 697 F / mois » au lieu de « TK-48213 · 650 000 F »",
+      "propriete": "texte (période après le loyer ; sous le pli, hors des références gelées)",
+      "exception": "décision produit",
+      "motif": "décision du team-lead (2026-11-13) : le prix est construit comme la maquette (`{reference} · {prix}`, `text-ui`, `text-muted-foreground`, comme la ligne de référence d'avant), et une location dit sa période (« / mois », « / jour »…, au mois quand l'annonce n'en porte pas, règle de `loyerDuBien`) : sans elle, un loyer se lirait comme un prix de vente, la liste mêlant ventes et locations. Sans prix (absent ou 0) : la référence seule. Mesuré sur la démo à 390 : « PR-L2KE6THD · 32 000 000 F », « PR-0YXBYTXK · 2 140 000 F / mois » ; balayage 390 à 1440 sans débord ni ellipse dans la section."
+    },
+    {
       "ecran": "a-6",
       "element": "« Une demande de relèvement du seuil à 1 000 000 F… » et « Confirmer »",
       "propriete": "absents du produit",

@@ -99,7 +99,7 @@ Fonctions existantes à garder, toutes (`agency/page.tsx`, `AgencyConfigForm.tsx
 - **4 a — hydratation** : test `renderToString` → `hydrateRoot`, aucune erreur récupérable. Non ablaté.
 - **5 b — la case du menu** reprend `modules.items.move_in_follow_up.label` (« Entrées en attente ») ; `fiche.menu.entreesAFinaliser` est supprimée (fait par le team-lead).
 
-**Non construit** : « Utiliser cette sélection » et les prix de l'aperçu de la fiche publique. **Aucune écriture** dans la base de démo : les relevés de fidélité refusent tout envoi non-GET dans la page.
+**Non construit** : « Utiliser cette sélection » — aucune donnée ne dit « les plus vus ce mois » (`views_count` est un cumul sans date ; écart « donnée » de la fiche de fidélité). **Prix des rangées construits le 2026-11-13** (décision du team-lead) : « PR-… · 650 000 F / mois », la période d'une location en plus de la maquette, au mois par défaut ; sans prix (absent ou 0), la référence seule — `prixDeLaVitrine` (lib/vitrine-agence.ts), clé `fiche.publique.prixParPeriode`, testé et ablaté (FicheDeLAgence.vitrine.test.tsx). **Aucune écriture** dans la base de démo : les relevés de fidélité refusent tout envoi non-GET dans la page.
 
 **Défauts corrigés en route** : seuil d'approbation `null` mal relu ; aperçu « 0 bien » de la sélection vide ; `Intl.ListFormat` figé en français (il suit `useLocale()`, `check-locale-figee`).
 
