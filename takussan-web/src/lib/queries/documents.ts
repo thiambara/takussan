@@ -43,6 +43,9 @@ export const DOCUMENT_LIST_FIELDS = [
   'is_verified',
   'expiry_date',
   'uploaded_by',
+  // Vérification de 416274da0 (TCK-2759, r1) — la pastille « Interne » et la bascule de la bibliothèque
+  // lisent `is_internal` : absent des `fields`, tout document revenait visible.
+  'is_internal',
   'created_at',
 ] as const;
 

@@ -206,6 +206,8 @@ class CustomerResource extends BaseResource
                 function () use ($request) {
                     $user = $request->user();
                     $litLesInternes = $user !== null && app(DocumentPolicy::class)->readsInternalOf($user, $this->resource);
+                    // Vérification de 416274da0 — le filtre et l'offre lisent la ligne, pas les `fields[documents]` demandés.
+                    DocumentVisibility::completerLesColonnes($this->documents);
 
                     return $this->documents
                         ->filter(fn ($d) => $litLesInternes || ! $d->is_internal)

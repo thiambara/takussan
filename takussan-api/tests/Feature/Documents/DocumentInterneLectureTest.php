@@ -204,6 +204,33 @@ class DocumentInterneLectureTest extends TestCase
         $this->getJson("/api/documents/{$interne}")->assertForbidden();
     }
 
+    /**
+     * Vérification de 416274da0 (r1, r2), le septième chemin — `include=documents` filtre les internes
+     * sur `is_internal` : des `fields[documents]` qui ne le demandent pas ne font pas passer le document
+     * interne au lecteur de la fiche qui ne lit pas les internes (l'admin d'A, sujet de la fiche), et
+     * l'agent X le lit marqué, la bascule offerte.
+     */
+    public function test_the_fiche_include_judges_the_database_not_the_requested_fields(): void
+    {
+        $ficheDeLAdmin = Customer::factory()->create([
+            'agency_id' => $this->agency->id, 'user_id' => $this->admin->id, 'added_by_id' => $this->agent->id,
+        ]);
+        $interne = $this->televerser($ficheDeLAdmin)->assertCreated()->json('data.id');
+        $visible = $this->televerser($ficheDeLAdmin, ['is_internal' => '0'])->assertCreated()->json('data.id');
+        $documents = fn (): array => collect(
+            $this->getJson("/api/customers/{$ficheDeLAdmin->id}?include=documents&fields[documents]=id,name,documentable_id,documentable_type")
+                ->assertOk()->json('data.documents')
+        )->keyBy('id')->all();
+
+        $vus = $documents();
+        $this->assertEqualsCanonicalizing([$interne, $visible], array_keys($vus), 'les fields demandés lisent bien les documents');
+        $this->assertTrue($vus[$interne]['is_internal']);
+        $this->assertTrue($vus[$interne]['abilities']['set_visibility']);
+
+        $this->connecter($this->admin);
+        $this->assertSame([$visible], array_keys($documents()));
+    }
+
     /** La ligne d'un document sert `abilities.set_visibility` : au personnel, sur une fiche client seulement. */
     public function test_the_document_row_offers_the_toggle_to_the_staff_only(): void
     {

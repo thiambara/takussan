@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -35,6 +36,50 @@ final class DocumentVisibility
     public static function basculeOfferte(Document $document, Customer $customer): bool
     {
         return (bool) $document->is_internal || ! self::estUnePieceDuSujet($document, $customer);
+    }
+
+    /**
+     * Ce que le jugement d'un document lit sur sa ligne : `is_internal` (le filtre des internes,
+     * l'offre de bascule) et `uploaded_by` (la pièce du sujet, {@see self::estUnePieceDuSujet()}).
+     */
+    public const COLONNES_DU_JUGEMENT = ['is_internal', 'uploaded_by'];
+
+    /**
+     * Vérification de 416274da0 (r1, r2) — un document lu sous `fields[documents]` n'a que les colonnes
+     * demandées : `is_internal` absent valait `false` (un interne servi comme visible, et passé au
+     * lecteur qui ne lit pas les internes par `include=documents`), `uploaded_by` absent cachait la pièce
+     * du sujet. Les colonnes manquantes de ces documents se lisent en UNE requête pour la page, et
+     * complètent les modèles sans les rendre sales. Le jugement porte ainsi sur la base, jamais sur ce
+     * que le client a demandé ; ce que la ressource rend de ces colonnes n'en devient que vrai.
+     *
+     * @param  Collection<int, Document>  $documents
+     * @param  list<string>  $colonnes
+     */
+    public static function completerLesColonnes(Collection $documents, array $colonnes = self::COLONNES_DU_JUGEMENT): void
+    {
+        $manquantes = static fn (Document $d): array => array_values(array_filter(
+            $colonnes,
+            static fn (string $c): bool => ! array_key_exists($c, $d->getAttributes()),
+        ));
+        $incomplets = $documents->filter(static fn (Document $d): bool => $d->getKey() !== null && $manquantes($d) !== []);
+        if ($incomplets->isEmpty()) {
+            return;
+        }
+
+        $lignes = Document::query()->withoutGlobalScopes()
+            ->whereKey($incomplets->map->getKey()->unique()->values()->all())
+            ->get(['id', ...$colonnes])
+            ->keyBy('id');
+        foreach ($incomplets as $document) {
+            $ligne = $lignes->get($document->getKey());
+            if ($ligne === null) {
+                continue;
+            }
+            foreach ($manquantes($document) as $colonne) {
+                $document->setRawAttributes([...$document->getAttributes(), $colonne => $ligne->getRawOriginal($colonne)]);
+                $document->syncOriginalAttribute($colonne);
+            }
+        }
     }
 
     /** Une pièce téléversée par le sujet de la fiche (§ 4) : elle n'est jamais interne. */

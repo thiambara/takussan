@@ -142,6 +142,68 @@ class DocumentInterneEcritureTest extends TestCase
         $this->assertFalse($ligne($sien));
     }
 
+    /**
+     * `fields[documents]` de la bibliothèque (`DOCUMENT_LIST_FIELDS`, takussan-web/src/lib/queries/documents.ts),
+     * à l'identique — `is_internal` compris depuis 2759 r1.
+     */
+    private const FIELDS_DU_FRONT = ['id', 'name', 'type', 'description', 'documentable_type', 'documentable_id', 'is_verified', 'expiry_date', 'uploaded_by', 'is_internal', 'created_at'];
+
+    /** @param  list<string>  $fields  @return array<int, array<string, mixed>> */
+    private function listeDeLaFicheSur(array $fields): array
+    {
+        return collect($this->getJson('/api/documents?fields[documents]='.implode(',', $fields)
+            ."&filter[documentable_type]=customer&filter[documentable_id]={$this->fiche->id}")
+            ->assertOk()->json('data'))->keyBy('id')->all();
+    }
+
+    /**
+     * Vérification de 416274da0, r1 — la bibliothèque demandait ses `fields` sans `is_internal` : tout
+     * document revenait `is_internal=false`, sans pastille « Interne », « Garder pour l'agence » offert
+     * sur un document déjà interne, et « Rendre visible » perdu sur la pièce du sujet restée interne.
+     * Avec les `fields` du front, et avec ceux d'avant le correctif : l'état et l'offre sont ceux de la
+     * base, que le client ait demandé la colonne ou non.
+     */
+    public function test_r1_la_bibliotheque_dit_l_interne_quels_que_soient_ses_fields(): void
+    {
+        $this->connecter($this->tenant);
+        $sien = Document::query()->findOrFail($this->televerser('customer', $this->fiche)->assertCreated()->json('data.id'));
+        $sien->forceFill(['is_internal' => true])->save(); // ligne héritée : la pièce du sujet restée interne
+        $interneDeX = $this->deposeParX(true);
+        $visibleDeX = $this->deposeParX(false);
+
+        $this->connecter($this->agent);
+        $avant = array_values(array_diff(self::FIELDS_DU_FRONT, ['is_internal']));
+        foreach (['le front' => self::FIELDS_DU_FRONT, 'le front d’avant r1' => $avant] as $quoi => $fields) {
+            $liste = $this->listeDeLaFicheSur($fields);
+            $this->assertTrue($liste[$interneDeX->id]['is_internal'], "{$quoi} : l'interne de X se dit interne");
+            $this->assertTrue($liste[$interneDeX->id]['abilities']['set_visibility'], "{$quoi} : « Rendre visible »");
+            $this->assertTrue($liste[$sien->id]['is_internal'], "{$quoi} : la pièce du sujet restée interne");
+            $this->assertTrue($liste[$sien->id]['abilities']['set_visibility'], "{$quoi} : « Rendre visible » sur la pièce du sujet");
+            $this->assertFalse($liste[$visibleDeX->id]['is_internal'], $quoi);
+        }
+        // Ce qui s'offre passe : « Rendre visible » sur la pièce du sujet.
+        $this->basculer($sien, false)->assertOk()->assertJsonPath('data.is_internal', false);
+    }
+
+    /**
+     * Vérification de 416274da0, r2 — l'offre se jugeait sur le modèle tel que spatie l'avait
+     * sélectionné : sans `uploaded_by` dans les `fields`, la pièce visible du sujet n'était plus
+     * reconnue et `set_visibility` promettait la bascule que l'API refuse (422).
+     */
+    public function test_r2_l_offre_ne_depend_pas_des_colonnes_demandees(): void
+    {
+        $this->connecter($this->tenant);
+        $sien = Document::query()->findOrFail($this->televerser('customer', $this->fiche)->assertCreated()->json('data.id'));
+
+        $this->connecter($this->agent);
+        $sansAuteur = array_values(array_diff(self::FIELDS_DU_FRONT, ['uploaded_by']));
+        foreach ([self::FIELDS_DU_FRONT, $sansAuteur, ['id', 'name', 'documentable_type', 'documentable_id', 'is_internal']] as $fields) {
+            $ligne = $this->listeDeLaFicheSur($fields)[$sien->id];
+            $this->assertFalse($ligne['abilities']['set_visibility'], 'fields='.implode(',', $fields));
+        }
+        $this->basculer($sien, true)->assertUnprocessable()->assertJsonPath('code', 'document.internal_own_upload');
+    }
+
     /** AC7 — hors d'une fiche client, `is_internal=true` rend 422 et ne crée rien. */
     public function test_ac7_internal_only_holds_on_a_customer_fiche(): void
     {

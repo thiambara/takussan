@@ -235,3 +235,21 @@ Fixture commune : une agence A, une fiche client C d'A dont le sujet est le comp
 - **t1.** `test_ac3` s'étend au coffre (`/api/me/document-vault`) et à l'accueil (`/api/dashboard/tenant`) de l'agent sujet. Un témoin visible prouve que ces deux chemins lisent bien sa fiche.
   - Ablation C3 (la forme SQL perd sa garde du sujet) : rouge, d'abord sur le coffre.
   - Le contrôle de l'accueil suit la même forme SQL ; il n'a pas été ablaté séparément.
+
+### Suivi (2026-11-13) — r1 et r2 de la vérification de 416274da0 : le jugement ne dépend plus des `fields`
+
+- **r1.** La bibliothèque demandait `fields[documents]` sans `is_internal`. Tout document revenait donc `is_internal=false` : pas de pastille « Interne », « Garder pour l'agence » offert sur un document déjà interne, et « Rendre visible » perdu sur la pièce du sujet restée interne. `DOCUMENT_LIST_FIELDS` porte maintenant `is_internal` (épinglé par `documents-fields.tck-2759.test.ts`).
+- **r2.** L'offre se jugeait sur le modèle tel que spatie l'avait sélectionné. Sans `uploaded_by`, la pièce visible du sujet promettait la bascule refusée.
+- **Côté API, des deux chemins.** `DocumentVisibility::completerLesColonnes()` relit, en UNE requête pour la page, les colonnes du jugement absentes des modèles (`is_internal`, `uploaded_by`). Elle est appelée :
+  - par `DocumentResource::page()`, avec en plus `documentable_type` et `documentable_id` ;
+  - par l'`include=documents` de `CustomerResource`, AVANT le filtre des internes.
+- **Fuite relevée.** Sur l'`include`, des `fields[documents]` sans `is_internal` faisaient passer le document interne à l'admin d'A, sujet de la fiche, qui ne lit pas les internes. Le test le reproduisait, rouge avant le correctif.
+- **Tests.**
+  - `DocumentInterneEcritureTest::test_r1_la_bibliotheque_dit_l_interne_quels_que_soient_ses_fields` : les `fields` du front, et ceux d'avant le correctif.
+  - `DocumentInterneEcritureTest::test_r2_l_offre_ne_depend_pas_des_colonnes_demandees`.
+  - `DocumentInterneLectureTest::test_the_fiche_include_judges_the_database_not_the_requested_fields`.
+- **Ablations, toutes rouges.**
+  - `page()` sans complétion : r1 et r2.
+  - `include` sans complétion : test de l'include.
+  - complétion sans `uploaded_by` : r2.
+  - front sans `is_internal` : les deux tests front.

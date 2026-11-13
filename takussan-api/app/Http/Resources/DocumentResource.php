@@ -31,6 +31,9 @@ class DocumentResource extends BaseResource
             return self::collection($paginator)->toArray($request);
         }
 
+        // Vérification de 416274da0 (r1, r2) — `abilities` se juge sur la ligne entière, quels que soient
+        // les `fields[documents]` : le porteur (ses deux clés), l'auteur et le drapeau interne.
+        DocumentVisibility::completerLesColonnes($documents, ['documentable_type', 'documentable_id', ...DocumentVisibility::COLONNES_DU_JUGEMENT]);
         $documents->loadMissing('documentable');
 
         return MembershipCapabilityResolver::primed(
