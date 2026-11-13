@@ -135,3 +135,88 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+### Lot 1 — le coffre du locataire, du bailleur et du prestataire (2026-11-13, terrain-4)
+
+- `/app/documents` choisit sur le profil ACTIF (`EspaceDesDocuments`) : le personnel actif d'une agence garde
+  la bibliothèque (vue agence : lot 4) ; tout autre profil ouvre son coffre (`GET /api/me/document-vault`).
+  Rien n'est rendu tant que les profils se lisent : les deux écrans lisent deux endpoints.
+- Module pur `src/lib/documents/coffre.ts` : ordre des dossiers (baux, biens, quittances de l'année récente
+  à l'ancienne, relevés, factures, pièces), libellés en CLÉS (`documents.coffre.*`), nature et geste de
+  chaque entrée, échéance au jour de Dakar (fenêtre de 60 jours de `Document::EXPIRING_SOON_DAYS`, bornes
+  comprises, comme `counts.expiring_soon`).
+- **Le titre d'une entrée générée n'est pas un libellé** (`LS-0DPA75TK`, `LPY-JMQLQ0`, `2026-10`) : le
+  libellé vient de la catégorie et de la date (« Quittance d'octobre », élision en français).
+- Geste : un généré se télécharge par son `download_path` ; une pièce téléversée ouvre sa fiche (son
+  `download_path` est la fiche JSON, pas le fichier) ; la facture d'intervention n'a pas de PDF : aucun geste.
+- Décisions, tranchées par le chef d'équipe le 2026-11-13 :
+  - 1 (a) : les biens du bailleur sans document ne sont pas listés, ils se comptent (« 2 biens sans document ») ;
+  - 2 (c) : pas de champ de recherche dans le coffre (aucun filtre côté API, jamais de filtre côté client). Un
+    geste « Rechercher » ouvre la recherche serveur que ces profils avaient (voir « Lot 1, suite ») ;
+  - 3 (a) : pas de « Tout télécharger » (aucune archive servie).
+  - Suites : [TCK-2769](TCK-2769-coffre-chercher-par-le-serveur.md) (chercher dans le coffre par le serveur) et
+    [TCK-2770](TCK-2770-coffre-tout-telecharger-en-archive.md) (archive .zip).
+- Bureau : trois colonnes dès `xl` (1280), comme la maquette ; sous `xl`, les puces tiennent lieu
+  d'arborescence et l'aperçu n'est pas rendu (les lignes font leur geste). Un dossier de plus de 4 entrées en
+  montre 3, puis « Voir les N autres ».
+- `OwnerDocumentsPrimer` reste à la bibliothèque : au coffre, les exemples passent dans le texte d'un dossier
+  vide (« Titre foncier, assurance, mandat : … »).
+- **Rien ne se perd** : la ligne de la bibliothèque offrait au locataire et au bailleur « Télécharger »,
+  « Partager » et « Supprimer ». Le coffre mène chaque pièce sur sa fiche, qui n'avait que les versions :
+  `GestesDuDocument` y ajoute les trois gestes, aux verdicts de l'API (`abilities.share`, `abilities.delete`),
+  suppression confirmée. La **recherche** de la bibliothèque reste accessible depuis le coffre (décision 2 (c),
+  « Lot 1, suite »).
+- L'ajout de ce lot range dans « Mes pièces » (cible `user`) par le dialogue existant ; « Nommer et ranger »
+  parmi `attachable_targets` est le lot 2.
+- Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2656.json` (écrans 0, 3, 8, 9) ; aucun débord de 390 à 1440.
+
+### Lot 1, suite (2026-11-13) — « Rechercher » et le dossier en lecture seule
+
+- **Décision 2 (c).** Le coffre d'un profil qui n'est pas du personnel porte « Rechercher » dans son en-tête,
+  sauf s'il est vide. Ce geste ouvre `/app/documents?vue=recherche`. `EspaceDesDocuments` y rend, sous l'en-tête
+  « Chercher un document » (le titre de la maquette, court pour la barre du haut) et un lien « Retour aux documents », la bibliothèque existante : `GET
+  /api/documents`, cherchée par `filter[search]` côté serveur, les paramètres gardés dans l'URL par
+  `DocumentsFilters`. Le coffre chargé n'est jamais filtré côté client.
+  - ⚠ Cette recherche ne voit que les téléversements que la liste rend à l'appelant : ni les documents
+    générés ni les pièces déposées par l'agence. C'est l'objet de TCK-2769.
+  - La bibliothèque y est en mode `recherche` : ni ajout, ni dépôt par glisser, ni mode d'emploi du bailleur. Un
+    résultat vide se dit « Aucun de vos documents ne correspond à cette recherche. », ou « Vous n’avez encore
+    ajouté aucun document. » sans requête. La pagination et les filtres gardent `vue=recherche`.
+  - Le personnel n'est pas concerné : sa bibliothèque porte déjà la recherche, `?vue=recherche` n'y change rien.
+- **Lecture seule (TCK-2729).** `read_only` est désormais un champ toujours présent du type `DossierDuCoffre`.
+  - Le dossier d'un bien d'un bailleur bloqué se lit comme les autres.
+  - Le coffre le dit une fois : « Votre accès bailleur est suspendu : ces documents restent consultables, mais
+    rien ne peut y être ajouté. » L'avis disparaît quand le filtre ne montre aucun dossier en lecture seule.
+  - Chaque dossier figé porte aussi la marque « Lecture seule » : dans un coffre mixte, l'avis seul ne nomme pas
+    lequel.
+  - Sur la fiche d'une pièce figée, `abilities` est jugé par `DocumentPolicy` (`landlordWrites` écarte le
+    bailleur bloqué) : ni « Nouvelle version », ni « Partager », ni « Supprimer ».
+  - La pièce de ce dossier qui expire bientôt garde son alerte, sans « Remplacer ».
+  - L'ajout ne vise que « Mes pièces », et l'API ne rend jamais la cible d'un dossier en lecture seule dans
+    `attachable_targets`.
+  - Un dossier de bien vide en lecture seule n'est pas listé (décision 1 (a)), mais il suffit à faire
+    afficher l'avis.
+- **Tests.**
+  - `coffre.tck-2656.test.ts` : +1 test, la lecture seule et l'alerte.
+  - `CoffreDeDocuments.tck-2656.test.tsx` : +3 tests, « Rechercher » et coffre vide, bailleur bloqué (avis,
+    marque au téléphone et au bureau).
+  - `EspaceDesDocuments.tck-2656.test.tsx` : +2 tests, `?vue=recherche` pour le locataire et pour le personnel.
+  - `DocumentsLibrary.recherche.tck-2656.test.tsx` : 3 tests, le mode `recherche`.
+  - Au total, 35 verts sur les cinq fichiers.
+- **Ablations : 10, toutes rouges, restaurées par md5.** En plus des six ci-dessous : marque du dossier
+  retirée ; ajout et état vide du mode `recherche` ; vue de recherche sans le mode.
+  - lecture seule du coffre forcée à faux ;
+  - « Remplacer » sans garde ;
+  - avis sans filtre ;
+  - « Rechercher » sur un coffre vide ;
+  - vue de recherche ignorée ;
+  - lecture seule d'un dossier forcée à faux.
+- **Autres vérifications.** ESLint à 0 sur les fichiers touchés. `tsc` ne relève aucune erreur dans ces
+  fichiers.
+- **Relevé (2026-11-13).** `TCK-2656.json`, § `mesures.l1_suite` :
+  - a-0, a-8 et a-9 re-relevés et comparés ; « Rechercher » est la seule ancre neuve, en écart accepté ;
+  - balayage de 390 à 1440 : débord 0 ;
+  - le titre « Rechercher dans mes documents » s'ellipsait à 390 dans la barre du haut : remplacé par
+    « Chercher un document » ;
+  - limite connue : locataire-f4 n'a rien téléversé, sa recherche est vide alors que son coffre compte 26
+    documents (TCK-2769).

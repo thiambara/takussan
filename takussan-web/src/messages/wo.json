@@ -10051,6 +10051,101 @@
       "confirmer": "Rendre visible",
       "en_cours": "Enregistrement…",
       "erreur": "La visibilité du document n’a pas pu être modifiée."
+    },
+    "coffre": {
+      "titre": "Documents",
+      "sousTitre": "{count, plural, =0 {Aucun document pour l’instant} one {# document} other {# documents}}",
+      "chargement": "Chargement de vos documents…",
+      "echec": "Vos documents n’ont pas pu être chargés.",
+      "reessayer": "Réessayer",
+      "ajouter": "Ajouter un document",
+      "ajouterPremiere": "Ajouter ma première pièce",
+      "tout": "Tout",
+      "tousLesDocuments": "Tous les documents",
+      "expireBientot": "Expire bientôt",
+      "filtres": "Filtrer par dossier",
+      "arbre": "Dossiers",
+      "dossiers": {
+        "monBail": "Mon bail",
+        "bailDe": "Bail · {nom}",
+        "quittances": "Quittances {annee}",
+        "quittancesSansAnnee": "Quittances",
+        "releves": "Relevés et attestations",
+        "factures": "Mes factures",
+        "mesPieces": "Mes pièces"
+      },
+      "ouvrirDossier": "Ouvrir le dossier {nom}",
+      "vide": {
+        "lease": "Votre contrat signé et l’état des lieux d’entrée arriveront ici tout seuls.",
+        "receipts": "Une quittance s’ajoute à chaque loyer payé.",
+        "pieces": "Pièce d’identité, attestation de travail, assurance : ce que l’agence vous demande.",
+        "property": "Titre foncier, assurance, mandat : ce que vous rangez pour ce bien.",
+        "statements": "Vos relevés mensuels arriveront ici.",
+        "bills": "Vos factures se rangent ici à chaque intervention terminée."
+      },
+      "accueil": {
+        "titre": "Vos pièces, votre contrat et vos quittances",
+        "texte": "Ce que Takussan produit pour votre bail se range ici tout seul. Vous n’ajoutez que les pièces que l’agence vous demande."
+      },
+      "alerte": {
+        "texte": "Votre <nom>{nom}</nom> {jours, plural, =0 {expire aujourd’hui} one {expire demain} other {expire dans # jours}}.",
+        "remplacer": "Remplacer"
+      },
+      "entrees": {
+        "contrat": "Contrat de bail signé",
+        "edlEntree": "État des lieux d’entrée",
+        "edlSortie": "État des lieux de sortie",
+        "quittance": "Quittance {elision, select, oui {d’{mois}} other {de {mois}}}",
+        "caution": "Reçu de caution",
+        "charges": "Reçu de charges {elision, select, oui {d’{mois}} other {de {mois}}}",
+        "regularisation": "Reçu de régularisation",
+        "penalite": "Reçu de pénalité",
+        "releve": "Relevé {elision, select, oui {d’{mois}} other {de {mois}}}",
+        "attestation": "Attestation annuelle {annee}",
+        "facture": "Facture {reference}",
+        "document": "Document"
+      },
+      "detail": {
+        "genere": "{date} · PDF",
+        "ajoute": "Ajout du {date}",
+        "typeEtAjout": "{type} · ajout du {date}"
+      },
+      "marques": {
+        "genere": "Généré par Takussan",
+        "genereCourt": "Généré",
+        "verifie": "Vérifié",
+        "attente": "Vérification en cours",
+        "expireDans": "{jours, plural, one {expire demain} other {expire dans # jours}}",
+        "expireAujourdhui": "expire aujourd’hui",
+        "expireLe": "expire le {date}",
+        "expireeLe": "expirée le {date}"
+      },
+      "resume": {
+        "caution": "caution"
+      },
+      "telecharger": "Télécharger",
+      "telechargerNomme": "Télécharger : {nom}",
+      "ouvrir": "Ouvrir la fiche",
+      "ouvrirNomme": "Ouvrir : {nom}",
+      "apercu": {
+        "titre": "Aperçu",
+        "date": "Date",
+        "rangeDans": "Rangé dans",
+        "fichier": "Fichier",
+        "reference": "Référence"
+      },
+      "voirLesAutres": "Voir les {count} autres",
+      "biensSansDocument": "{count, plural, one {# bien sans document} other {# biens sans document}}",
+      "rechercher": "Rechercher",
+      "lectureSeule": "Votre accès bailleur est suspendu : ces documents restent consultables, mais rien ne peut y être ajouté.",
+      "recherche": {
+        "titre": "Chercher un document",
+        "description": "Parmi les documents que vous avez ajoutés.",
+        "retour": "Retour aux documents",
+        "aucun": "Aucun de vos documents ne correspond à cette recherche.",
+        "vide": "Vous n’avez encore ajouté aucun document."
+      },
+      "dossierLectureSeule": "Lecture seule"
     }
   },
   "bookings": {

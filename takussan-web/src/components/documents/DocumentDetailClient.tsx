@@ -14,6 +14,7 @@ import type { DocumentType } from '@/types/document';
 import { DOCUMENT_TYPE_ORDER } from './constants';
 
 import { DocumentVersionsList } from '@/components/documents/DocumentVersionsList';
+import { GestesDuDocument } from '@/components/documents/GestesDuDocument';
 import { useDocumentWithVersions } from '@/lib/queries/documents';
 
 interface DocumentDetailClientProps {
@@ -122,6 +123,9 @@ export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) 
             {document.is_verified ? t('verified') : t('not_verified')}
           </span>
         </div>
+
+        {/* TCK-2656 — télécharger, partager, supprimer : le coffre mène ici chaque pièce téléversée. */}
+        <GestesDuDocument document={document} />
 
         {/* Active version info */}
         {document.active_version ? (

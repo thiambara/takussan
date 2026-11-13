@@ -1,0 +1,299 @@
+{
+  "ticket": "TCK-2656",
+  "ecrans": [
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Locataire — le coffre",
+      "references": {
+        "telephone": "references/app-documents/a-0-telephone.json",
+        "bureau-1440": "references/app-documents/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents",
+        "persona": "locataire",
+        "etat": "le coffre de démo du locataire de fidélité (bail 36, Bureaux à Grand Yoff) : « Mon bail » 3 entrées (contrat et état des lieux générés, contrat téléversé vérifié), « Quittances 2026 » 11, « Quittances 2025 » 12, « Mes pièces » vide ; aucun bouchon"
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Locataire — coffre encore vide",
+      "references": {
+        "telephone": "references/app-documents/a-3-telephone.json",
+        "bureau-1440": "references/app-documents/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents",
+        "persona": "—",
+        "etat": "aucun compte de démo n'a un coffre vide : rendu prouvé par test (CoffreDeDocuments.tck-2656, « le coffre vide accueille le locataire »), non relevé"
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Bailleur — un dossier par bien",
+      "references": {
+        "telephone": "references/app-documents/a-8-telephone.json",
+        "bureau-1440": "references/app-documents/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents",
+        "persona": "proprietaire",
+        "etat": "le bailleur de fidélité (Mouhamed Sene, Dakar Immo) : 25 documents sur ses biens qui en ont, les biens sans document comptés en bas (décision 1 (a)) ; aucun relevé envoyé, donc pas de dossier « Relevés et attestations »"
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 9,
+      "nom": "Prestataire — factures et pièces",
+      "references": {
+        "telephone": "references/app-documents/a-9-telephone.json",
+        "bureau-1440": "references/app-documents/a-9-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-9-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents",
+        "persona": "prestataire",
+        "etat": "le prestataire de fidélité : « Mes pièces » seul (le profil actif n'est pas le profil prestataire de l'agence, pas de « Mes factures ») — l'état vide du locataire n'est pas rendu pour lui"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/documents",
+    "persona": "locataire",
+    "disposition": "locataire",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "rangée de puces",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Tout",
+        "min": 350
+      },
+      "produit": {
+        "slot": "rangee-de-puces"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "barre d'action « Ajouter un document »",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Ajouter un document",
+        "min": 380
+      },
+      "produit": {
+        "slot": "barre-d-action"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "dossier « Mon bail »",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Contrat de bail signé",
+        "min": 340
+      },
+      "produit": {
+        "boiteDe": "Contrat de bail signé",
+        "min": 340
+      },
+      "contenu": false
+    },
+    {
+      "nom": "arborescence",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Tous les documents",
+        "min": 200
+      },
+      "produit": {
+        "boiteDe": "Tous les documents",
+        "min": 200
+      },
+      "contenu": false
+    },
+    {
+      "nom": "liste du premier dossier",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Contrat de bail signé",
+        "min": 500
+      },
+      "produit": {
+        "boiteDe": "Contrat de bail signé",
+        "min": 500
+      },
+      "contenu": false
+    },
+    {
+      "nom": "aperçu",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Télécharger",
+        "min": 300
+      },
+      "produit": {
+        "boiteDe": "Télécharger",
+        "min": 300
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Relevés et factures": "Relevés et attestations"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-documents a-0-*, a-8-*, a-9-*",
+      "element": "dossiers, entrées, comptes, dates, noms de biens, alerte d'expiration",
+      "propriete": "libellés et nombres",
+      "exception": "donnée",
+      "motif": "la démo sert 26 documents au locataire (quittances 2025 et 2026, aucune pièce téléversée, aucune expiration dans 60 jours) là où la maquette dessine 11 documents dont une carte d'identité qui expire dans 42 jours ; AC4 est prouvé par test (CoffreDeDocuments.tck-2656 AC4, coffre.tck-2656 « échéance au jour »)"
+    },
+    {
+      "ecran": "app-documents a-0-*, a-8-*, a-9-*",
+      "element": "champ « Chercher un document »",
+      "propriete": "absent",
+      "exception": "décision produit",
+      "motif": "décision 2 (c) de TCK-2656 (chef d'équipe, 2026-11-13) : `GET /api/me/document-vault` n'a pas de filtre de recherche et le coffre ne se filtre jamais côté client ; un bouton « Rechercher » de l'en-tête (coffre non vide) ouvre la recherche serveur des documents (`/app/documents?vue=recherche`, `filter[search]`) que ces profils avaient ; la recherche du coffre entier est TCK-2769"
+    },
+    {
+      "ecran": "app-documents a-0-*, a-8-*",
+      "element": "« Tout télécharger » / « Tout télécharger (.zip) »",
+      "propriete": "absent",
+      "exception": "décision produit",
+      "motif": "décision 3 (a) de TCK-2656 : aucune archive n'est servie par l'API ; suite : TCK-2770"
+    },
+    {
+      "ecran": "app-documents a-*",
+      "element": "marque « Généré par Takussan » / « Généré »",
+      "propriete": "couleur, fond",
+      "exception": "règle du design system",
+      "motif": "ton `info` de `StatusBadge` : la maquette écrit l'accent de MARQUE (`bg-accent/15 text-accent`), réservé aux badges *featured* (garde `aplat-accent`, TCK-2687)"
+    },
+    {
+      "ecran": "app-documents a-*",
+      "element": "marques (Généré, Vérifié, Vérification en cours, expire dans …)",
+      "propriete": "hauteur 24 au lieu de 20, bord transparent",
+      "exception": "composant partagé",
+      "motif": "`StatusBadge` sous la portée `/app` (TCK-2687) : `h-6`"
+    },
+    {
+      "ecran": "app-documents a-0-bureau-*, a-8-bureau-*, a-9-bureau-*",
+      "element": "aperçu de droite",
+      "propriete": "première page du PDF, « Partager »",
+      "exception": "donnée",
+      "motif": "aucune première page n'est servie : la tuile du document tient lieu d'aperçu ; un document généré ne se partage pas (ADR-0099), « Partager » d'une pièce vit sur sa fiche (lot 3)"
+    },
+    {
+      "ecran": "app-documents a-8-*",
+      "element": "sous-dossier « Bail de … » dans le dossier d'un bien",
+      "propriete": "absent",
+      "exception": "donnée",
+      "motif": "le coffre (TCK-2655) range les documents d'un bail dans le dossier de son bien, à plat"
+    },
+    {
+      "ecran": "app-documents a-0-telephone, a-8-telephone, a-9-telephone",
+      "element": "ligne « N documents » sous le titre",
+      "propriete": "présent dans le produit, absent de la maquette",
+      "exception": "décision produit",
+      "motif": "la description de l'en-tête de page (`PageHeader`) tient la place du champ de recherche écarté (décision 2 (c) : « Rechercher » à droite de l'en-tête) et porte le compte que l'AC1 exige sans « 0 document »"
+    },
+    {
+      "ecran": "app-documents a-0-*, a-8-*, a-9-*",
+      "element": "fin de ligne d'une pièce téléversée",
+      "propriete": "chevron au lieu de l'icône de téléchargement",
+      "exception": "vérité des données",
+      "motif": "le coffre ne sert pas le fichier d'une pièce (son `download_path` est la fiche JSON) : la ligne ouvre la fiche, qui porte « Télécharger », « Partager » et « Supprimer » aux verdicts de l'API (GestesDuDocument)"
+    },
+    {
+      "ecran": "app-documents a-9-*",
+      "element": "facture d'intervention (« Mes factures »)",
+      "propriete": "aucun geste de fin de ligne",
+      "exception": "vérité des données",
+      "motif": "aucune facture n'a de PDF (`service-provider-bills/{id}` est une fiche JSON) et aucune page ne la sert au prestataire ; non rendu sur la démo (le profil actif du prestataire de fidélité n'est pas le profil prestataire)"
+    },
+    {
+      "ecran": "app-documents a-0-*, a-8-*",
+      "element": "bouton « Rechercher » de l'en-tête (ancre texte et boîte « absent de la maquette » : téléphone 16,116 125.7×44 ; bureau 1440 1119.1,28.8 113.3×32.4 ; bureau 1280 959.1,28.8 113.3×32.4)",
+      "propriete": "absent de la maquette",
+      "exception": "décision produit",
+      "motif": "décision 2 (c) de TCK-2656 : il tient la place du champ « Chercher un document » de la maquette, que l'API du coffre ne sert pas ; il ouvre la recherche serveur (`/app/documents?vue=recherche`). Absent d'un coffre vide (a-9 prestataire de la démo)."
+    }
+  ],
+  "hors_perimetre": [
+    "écrans 1 et 2 (ajouter, nommer et ranger) : lot 2",
+    "écran 4 (agence par bien, par bail) : lot 4",
+    "écrans 5 à 7 (fiche, partage, lien copié) : lot 3",
+    "les écarts de la coque (barre latérale, en-tête du téléphone, barre d'onglets), relevés sans fiche de rôles",
+    "l'entrée « Documents » du menu du bailleur et du prestataire (famille 3)"
+  ],
+  "decisions": {
+    "1": "(a), chef d'équipe 2026-11-13 — biens sans document comptés, non listés",
+    "2": "(c), chef d'équipe 2026-11-13 — « Rechercher » ouvre la recherche serveur des documents (TCK-2769 pour le coffre entier)",
+    "3": "(a), chef d'équipe 2026-11-13 — pas de « Tout télécharger » (TCK-2770)"
+  },
+  "mesures": {
+    "l1": {
+      "date": "2026-11-13",
+      "commit_de_base": "831e66444 + arbre de travail",
+      "compare": {
+        "a-0-bureau-1280": "51 conformes · 155 écarts · 21 absents du produit · 28 absents de la maquette · 13,45 % pixels",
+        "a-0-bureau-1440": "57 conformes · 153 écarts · 21 absents du produit · 28 absents de la maquette · 12,54 % pixels",
+        "a-0-telephone": "13 conformes · 35 écarts · 26 absents du produit · 7 absents de la maquette · 20,3 % pixels",
+        "a-8-bureau-1280": "48 conformes · 164 écarts · 18 absents du produit · 32 absents de la maquette · 15,17 % pixels",
+        "a-8-bureau-1440": "54 conformes · 183 écarts · 21 absents du produit · 35 absents de la maquette · 15,33 % pixels",
+        "a-8-telephone": "22 conformes · 28 écarts · 9 absents du produit · 15 absents de la maquette · 22,07 % pixels",
+        "a-9-bureau-1280": "22 conformes · 64 écarts · 96 absents du produit · 24 absents de la maquette · 11,34 % pixels",
+        "a-9-bureau-1440": "22 conformes · 64 écarts · 96 absents du produit · 24 absents de la maquette · 10,76 % pixels",
+        "a-9-telephone": "24 conformes · 9 écarts · 35 absents du produit · 8 absents de la maquette · 23,88 % pixels"
+      },
+      "balayer": "locataire et bailleur à 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe ; ellipses à 768 dans la barre latérale (rail) seulement",
+      "note": "comparé AVEC la fiche de rôles (--roles TCK-2656.json, six rôles de page) ; la coque reste appariée par roles-coque.json. Le gros des « écarts » est la donnée (26 documents contre 11, aucune pièce téléversée ni expiration sur la démo). Structure conforme : trois colonnes dès 1280, marques sous le nom sous 1440 et à droite dès 1440, comme la maquette. Bouton collé du téléphone relevé à 48 px.",
+      "rideaux": "$S/impl/lot2/2656/fid2/cmp*/rideau.html (hors du dépôt)",
+      "fiche_d_une_piece": "relevé /app/documents/224 (locataire) et /app/documents/40 (bailleur) au téléphone : la fiche rend « Partager » au bailleur auteur, rien au locataire lecteur (verdicts de l'API) ; « Télécharger » absent des deux : la démo n'a aucun fichier (`file_url` nul, SEED_DOWNLOAD_MEDIA=false) — donnée"
+    },
+    "l1_suite": {
+      "date": "2026-11-13",
+      "commit_de_base": "4b426016c + arbre de travail",
+      "compare": {
+        "a-0-telephone": "26 conformes · 32 écarts · 25 absents · 16,29 % pixels",
+        "a-0-bureau-1440": "59 conformes · 151 écarts · 51 absents · 12,56 % pixels",
+        "a-0-bureau-1280": "52 conformes · 154 écarts · 51 absents · 13,48 % pixels",
+        "a-8-telephone": "24 conformes · 27 écarts · 23 absents · 17,99 % pixels",
+        "a-8-bureau-1440": "51 conformes · 187 écarts · 57 absents · 15,35 % pixels",
+        "a-8-bureau-1280": "51 conformes · 162 écarts · 51 absents · 15,19 % pixels",
+        "a-9-telephone": "24 conformes · 9 écarts · 43 absents · 23,88 % pixels",
+        "a-9-bureau-1440": "22 conformes · 64 écarts · 120 absents · 10,76 % pixels",
+        "a-9-bureau-1280": "22 conformes · 64 écarts · 120 absents · 11,34 % pixels"
+      },
+      "balayer": "/app/documents locataire et bailleur à 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe, ellipses à 768 dans le rail seulement ; /app/documents?vue=recherche (locataire) aux mêmes largeurs : débord 0 ; le titre « Rechercher dans mes documents » s'ellipsait à 390 dans la barre du haut → « Chercher un document », re-balayé à 390 et 1024 : aucune ellipse",
+      "note": "« absents » compte désormais les deux sens (outil). Le bouton « Rechercher » est la seule ancre neuve relevée « absent de la maquette » (écart accepté). Lecture seule : aucun compte de démo n'a de profil bailleur bloqué ; prouvé par test (CoffreDeDocuments.tck-2656, coffre.tck-2656).",
+      "rideaux": "$S/impl/lot2/2656/fid3/cmp*/rideau.html (hors du dépôt)"
+    }
+  },
+  "ecrans_supplementaires_releves": [
+    "/app/documents?vue=recherche (locataire) téléphone et 1440 : en-tête « Chercher un document », « Retour aux documents », la recherche serveur de la bibliothèque sans ajout ; vide pour locataire-f4 (aucun téléversement à lui) : « Vous n’avez encore ajouté aucun document. »"
+  ]
+}
