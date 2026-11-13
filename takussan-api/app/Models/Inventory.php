@@ -124,6 +124,23 @@ class Inventory extends AbstractModel implements HasMedia
         return $this->signed_at !== null || ($this->tenant_signed && $this->owner_signed);
     }
 
+    /**
+     * TCK-2764 4a (décision du porteur du 2026-11-13) — un état des lieux ENGAGÉ : sorti du brouillon
+     * (envoyé en signature, signé, contesté), ou portant une signature, quelle qu'elle soit. Un état des
+     * lieux engagé refuse l'abandon de son brouillon de bail (`lease.abandon_has_inventory`) ; un brouillon
+     * jamais signé part avec lui (`LeaseService::abandonDraft()`). Le seul lecteur de la règle : la fiche
+     * du bail (`has_inventory`) et l'abandon l'appellent tous deux.
+     */
+    public function engage(): bool
+    {
+        return $this->status !== InventoryStatus::Draft
+            || $this->tenant_signed
+            || $this->owner_signed
+            || $this->tenant_signed_at !== null
+            || $this->owner_signed_at !== null
+            || $this->signed_at !== null;
+    }
+
     /** TCK-2655 — {@see self::pdfAvailable()} en requête. */
     public function scopePdfAvailable(Builder $query): Builder
     {

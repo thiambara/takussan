@@ -370,47 +370,165 @@ class LeaseDraftAbandonTest extends ApiTestCase
             ->assertJsonMissingPath('data.origin_booking');
     }
 
-    private function etatDesLieux(InventoryStatus $statut): Inventory
+    /** @param  array<string, mixed>  $attributs */
+    private function etatDesLieux(InventoryStatus $statut, array $attributs = [], ?Lease $bail = null): Inventory
     {
-        return Inventory::factory()->create([
-            'lease_id' => $this->brouillon->id,
-            'property_id' => $this->bien->id,
-            'tenant_id' => $this->clientA->id,
+        $bail ??= $this->brouillon;
+
+        return Inventory::factory()->create($attributs + [
+            'lease_id' => $bail->id,
+            'property_id' => $bail->property_id,
+            'tenant_id' => $bail->tenant_id,
             'type' => InventoryType::MoveIn,
             'status' => $statut,
+            'tenant_signed' => false,
+            'owner_signed' => false,
+            'tenant_signed_at' => null,
+            'owner_signed_at' => null,
+            'signed_at' => null,
         ]);
     }
 
     /**
-     * Réserve r1 de la vérification d'ace044c18 (décision du 2026-11-13) — un état des lieux sur le
-     * brouillon, signé ou non, refuse l'abandon : aucune route ne le supprime, et il restait sans bail.
+     * Les états des lieux ENGAGÉS (`Inventory::engage()`) : sortis du brouillon, ou portant une
+     * signature, quelle qu'elle soit — un brouillon signé n'existe pas par l'API, mais la règle ne s'en
+     * remet pas à cette absence.
+     *
+     * @return array<string, array{InventoryStatus, array<string, mixed>}>
      */
-    public function test_r1_un_etat_des_lieux_refuse_l_abandon(): void
+    private static function etatsEngages(): array
     {
-        foreach ([InventoryStatus::Draft, InventoryStatus::Signed] as $statut) {
-            $edl = $this->etatDesLieux($statut);
+        return [
+            'envoyé en signature' => [InventoryStatus::PendingSignature, []],
+            'signé' => [InventoryStatus::Signed, ['tenant_signed' => true, 'owner_signed' => true, 'signed_at' => now()]],
+            'contesté' => [InventoryStatus::Disputed, []],
+            'brouillon signé du locataire' => [InventoryStatus::Draft, ['tenant_signed' => true]],
+            'brouillon signé du bailleur' => [InventoryStatus::Draft, ['owner_signed' => true]],
+            'brouillon horodaté côté locataire' => [InventoryStatus::Draft, ['tenant_signed_at' => now()]],
+            'brouillon horodaté côté bailleur' => [InventoryStatus::Draft, ['owner_signed_at' => now()]],
+            'brouillon clos' => [InventoryStatus::Draft, ['signed_at' => now()]],
+        ];
+    }
+
+    /**
+     * TCK-2764 4a (décision du porteur du 2026-11-13, qui assouplit la réserve r1 de la vérification
+     * d'ace044c18) — un état des lieux ENGAGÉ refuse l'abandon : il a engagé quelqu'un, il ne disparaît
+     * pas avec un brouillon. Rien ne bouge, ni le bail ni l'état des lieux, et aucun journal n'est écrit.
+     */
+    public function test_4a_un_etat_des_lieux_engage_refuse_l_abandon(): void
+    {
+        foreach (self::etatsEngages() as $cas => [$statut, $attributs]) {
+            $edl = $this->etatDesLieux($statut, $attributs);
 
             $this->abandonner($this->brouillon)->assertStatus(422)->assertJsonPath('code', 'lease.abandon_has_inventory');
             $this->assertNotSoftDeleted('leases', ['id' => $this->brouillon->id]);
+            $this->assertNotSoftDeleted('inventories', ['id' => $edl->id]);
 
             $edl->forceDelete();
         }
         $this->assertSame(0, Activity::query()->where('event', 'lease_draft_abandoned')->count());
-
-        // Témoin : sans état des lieux, le même brouillon s'abandonne.
-        $this->abandonner($this->brouillon)->assertOk();
     }
 
-    /** r1 — la fiche le dit à qui peut abandonner : `has_inventory`, pour remplacer le geste par sa raison. */
+    /**
+     * 4a — des brouillons d'état des lieux jamais signés partent avec le bail, en suppression douce : ils
+     * ne restent pas sans bail dans la liste, et se relisent par `withTrashed`. Celui d'un autre bail ne
+     * bouge pas ; le journal nomme ceux qui sont partis.
+     */
+    public function test_4a_les_brouillons_d_etat_des_lieux_partent_avec_le_bail(): void
+    {
+        $entree = $this->etatDesLieux(InventoryStatus::Draft);
+        $sortie = $this->etatDesLieux(InventoryStatus::Draft, ['type' => InventoryType::MoveOut]);
+        $autreBail = $this->bailDuBien($this->bien, LeaseStatus::Draft);
+        $voisin = $this->etatDesLieux(InventoryStatus::Draft, [], $autreBail);
+
+        $this->abandonner($this->brouillon)->assertOk();
+
+        $this->assertSoftDeleted('leases', ['id' => $this->brouillon->id]);
+        $this->assertSoftDeleted('inventories', ['id' => $entree->id]);
+        $this->assertSoftDeleted('inventories', ['id' => $sortie->id]);
+        $this->assertNotSoftDeleted('inventories', ['id' => $voisin->id]);
+        $this->assertSame(InventoryStatus::Draft, Inventory::withTrashed()->findOrFail($entree->id)->status);
+
+        $this->actingAsApi($this->agent)->getJson("/api/inventories/{$entree->id}")->assertNotFound();
+        $listes = collect($this->actingAsApi($this->agent)->getJson('/api/inventories')->assertOk()->json('data'))->pluck('id')->all();
+        $this->assertSame([$voisin->id], $listes);
+
+        $journal = Activity::query()->where('event', 'lease_draft_abandoned')->sole();
+        $this->assertEqualsCanonicalizing([$entree->id, $sortie->id], $journal->properties['inventory_ids']);
+    }
+
+    /** 4a — tout ou rien : un brouillon et un état des lieux engagé, rien ne part. */
+    public function test_4a_un_seul_etat_des_lieux_engage_retient_aussi_les_brouillons(): void
+    {
+        $brouillon = $this->etatDesLieux(InventoryStatus::Draft);
+        $envoye = $this->etatDesLieux(InventoryStatus::PendingSignature, ['type' => InventoryType::MoveOut]);
+
+        $this->abandonner($this->brouillon)->assertStatus(422)->assertJsonPath('code', 'lease.abandon_has_inventory');
+
+        $this->assertNotSoftDeleted('leases', ['id' => $this->brouillon->id]);
+        $this->assertNotSoftDeleted('inventories', ['id' => $brouillon->id]);
+        $this->assertNotSoftDeleted('inventories', ['id' => $envoye->id]);
+    }
+
+    /**
+     * 4a — l'engagement se juge sur la ligne RELUE sous verrou : un état des lieux envoyé en signature
+     * entre la lecture de l'appelant et l'abandon retient le bail.
+     */
+    public function test_4a_l_etat_des_lieux_se_juge_sur_la_ligne_relue(): void
+    {
+        $edl = $this->etatDesLieux(InventoryStatus::Draft);
+        $perime = Lease::query()->with('inventories')->findOrFail($this->brouillon->id);
+        Inventory::query()->whereKey($edl->id)->toBase()->update(['status' => InventoryStatus::PendingSignature->value]);
+
+        try {
+            app(LeaseService::class)->abandonDraft($perime, $this->agent);
+            $this->fail('un état des lieux envoyé en signature retient le brouillon');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+        $this->assertNotSoftDeleted('inventories', ['id' => $edl->id]);
+    }
+
+    /**
+     * 4a — l'ordre des verrous (piège n° 10) : le bien, le bail, puis les états des lieux, et rien n'est
+     * écrit avant. Tout écrivain d'un état des lieux prend sa ligne (`InventoryService::underLock`,
+     * `InventorySignatureService::sign`) : sous ce verrou, un envoi ou une signature concurrents passent
+     * avant l'abandon (422) ou après (404, la ligne est supprimée).
+     */
+    public function test_4a_l_abandon_verrouille_les_etats_des_lieux_avant_de_les_supprimer(): void
+    {
+        $this->etatDesLieux(InventoryStatus::Draft);
+        $journal = [];
+        DB::listen(function ($q) use (&$journal): void {
+            if (preg_match('/from "(properties|leases|inventories)" where .* for update/', $q->sql, $m) === 1) {
+                $journal[] = 'verrou '.$m[1];
+            } elseif (preg_match('/^update "(leases|inventories)"/', $q->sql, $m) === 1) {
+                $journal[] = 'écriture '.$m[1];
+            }
+        });
+
+        $this->abandonner($this->brouillon)->assertOk();
+
+        $this->assertSame(['verrou properties', 'verrou leases', 'verrou inventories', 'écriture inventories', 'écriture leases'], $journal);
+    }
+
+    /**
+     * r1, puis 4a — la fiche le dit à qui peut abandonner : `has_inventory` vaut pour un état des lieux
+     * ENGAGÉ, qui remplace le geste par sa raison ; un brouillon d'état des lieux ne le retient pas.
+     */
     public function test_r1_la_fiche_dit_qu_un_etat_des_lieux_existe(): void
     {
         $this->actingAsApi($this->agent)->getJson("/api/leases/{$this->brouillon->id}")
             ->assertOk()->assertJsonPath('data.has_inventory', false);
 
-        $this->etatDesLieux(InventoryStatus::Draft);
-
+        $edl = $this->etatDesLieux(InventoryStatus::Draft);
         $this->actingAsApi($this->agent)->getJson("/api/leases/{$this->brouillon->id}")
-            ->assertOk()->assertJsonPath('data.has_inventory', true);
+            ->assertOk()->assertJsonPath('data.has_inventory', false);
+
+        foreach (self::etatsEngages() as $cas => [$statut, $attributs]) {
+            $edl->forceFill($attributs + ['status' => $statut, 'tenant_signed' => false, 'owner_signed' => false, 'tenant_signed_at' => null, 'owner_signed_at' => null, 'signed_at' => null])->save();
+            $this->assertTrue($this->actingAsApi($this->agent)->getJson("/api/leases/{$this->brouillon->id}")->assertOk()->json('data.has_inventory'), $cas);
+        }
 
         $locataire = User::factory()->create();
         $this->clientA->update(['user_id' => $locataire->id]);

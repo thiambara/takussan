@@ -19,6 +19,7 @@ use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Guarantor;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
@@ -582,7 +583,8 @@ class LeaseService
      * (404).
      *
      * Une échéance non annulée, de tout type, refuse l'abandon : de l'argent saisi ne disparaît pas
-     * avec un brouillon. Un état des lieux aussi (`lease.abandon_has_inventory`) : il resterait orphelin.
+     * avec un brouillon. Un état des lieux ENGAGÉ aussi (`lease.abandon_has_inventory`) ; des brouillons
+     * d'état des lieux jamais signés, eux, sont supprimés en douceur avec le bail (TCK-2764 4a).
      */
     public function abandonDraft(Lease $lease, User $by, ?string $reason = null): Lease
     {
@@ -595,12 +597,21 @@ class LeaseService
                 422,
                 'lease.abandon_has_payments'
             );
-            // TCK-2764 r1 (décision du 2026-11-13) — un état des lieux, signé ou non, refuse aussi l'abandon :
-            // aucune route ne le supprime, et il restait sans bail (`lease: null`) dans la liste.
+            // TCK-2764 4a (décision du porteur du 2026-11-13, qui assouplit r1) — un état des lieux ENGAGÉ
+            // (`Inventory::engage()` : sorti du brouillon, ou portant une signature) refuse l'abandon ; des
+            // brouillons jamais signés partent avec le bail, en suppression douce, plutôt que de rester
+            // sans bail (`lease: null`) dans la liste. Ils se relisent ici, sous verrou, après le bien et le
+            // bail (piège n° 10) : tout écrivain d'un état des lieux (`InventoryService::underLock`,
+            // `InventorySignatureService::sign`) prend sa ligne d'abord, donc un envoi en signature ou une
+            // signature concurrents passent avant (422 ici) ou après (404 chez eux, la ligne est supprimée).
             // `InventoryService::create()` prend le même bien puis le même bail : de deux ordres
             // concurrents, le second voit l'autre.
-            abort_code_if($locked->inventories()->exists(), 422, 'lease.abandon_has_inventory');
+            $etatsDesLieux = $locked->inventories()->orderBy('id')->lockForUpdate()->get();
+            abort_code_if($etatsDesLieux->contains(fn (Inventory $etat): bool => $etat->engage()), 422, 'lease.abandon_has_inventory');
 
+            foreach ($etatsDesLieux as $etat) {
+                $etat->delete();
+            }
             $locked->delete();
 
             activity('Lease')
@@ -611,6 +622,8 @@ class LeaseService
                     'property_id' => $locked->property_id,
                     'booking_id' => $locked->booking_id,
                     'reason' => $reason,
+                    // TCK-2764 4a — les brouillons d'état des lieux partis avec le bail.
+                    'inventory_ids' => $etatsDesLieux->pluck('id')->all(),
                 ])
                 ->event('lease_draft_abandoned')
                 ->log('lease_draft_abandoned');

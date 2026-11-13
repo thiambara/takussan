@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\User;
@@ -161,10 +162,13 @@ class LeaseResource extends BaseResource
             // le bail n'est tiré d'aucune réservation.
             'origin_booking' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
                 fn (): ?array => $this->booking_id === null ? null : $this->candidatureDOrigine()),
-            // TCK-2764 r1 — un état des lieux sur le brouillon refuse l'abandon (`lease.abandon_has_inventory`) :
-            // la fiche remplace le geste par sa raison. Même lecteur que `origin_booking`.
+            // TCK-2764 r1, puis 4a (décision du porteur du 2026-11-13) — un état des lieux ENGAGÉ sur le
+            // brouillon (`Inventory::engage()` : sorti du brouillon, ou signé) refuse l'abandon
+            // (`lease.abandon_has_inventory`) : la fiche remplace le geste par sa raison. Un brouillon
+            // d'état des lieux jamais signé ne compte pas : il part avec le bail. Même lecteur que
+            // `origin_booking`.
             'has_inventory' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
-                fn (): bool => $this->resource->inventories()->exists()),
+                fn (): bool => $this->resource->inventories()->get()->contains(fn (Inventory $etat): bool => $etat->engage())),
             // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de
             // son agence, sinon le global : `RentReviewService::maxPctFor`), pour la feuille de révision.
             // Sur le détail seul : le réglage d'agence se lit une fois par bail.

@@ -166,3 +166,35 @@ Fixture : un bien P, une candidature A `confirmed` (client CA), un brouillon de 
   lieux. Une seule sortie reste : envoyer le bail en signature, puis le résilier (`terminate` accepte
   `pending_signature`). Mais cet envoi ferme les autres candidatures du bien (décision 7, TCK-2734). Le cas est remonté
   à team-lead le 2026-11-13.
+
+### Décision 4a du porteur (2026-11-13 ~18:50) — les brouillons d'état des lieux partent avec le bail (back-4)
+
+- **La règle, qui assouplit r1.** Seul un état des lieux **engagé** refuse l'abandon (422 `lease.abandon_has_inventory`) :
+  sorti du brouillon (`pending_signature`, `signed`, `disputed`), ou portant une signature quelle qu'elle soit
+  (`tenant_signed`, `owner_signed`, `tenant_signed_at`, `owner_signed_at`, `signed_at`). Le prédicat est écrit une
+  fois, `Inventory::engage()`, et lu par l'abandon comme par la fiche. Des brouillons jamais signés sont supprimés en
+  douceur avec le bail, dans la même transaction ; tout ou rien : un seul état des lieux engagé retient aussi les
+  brouillons. ⚠ La ligne d'AC5 « un état des lieux, signé ou non → 422 » et la « Limite » de r1 ci-dessus ne valent
+  plus que pour un état des lieux engagé.
+- **Les verrous.** Bien → bail → états des lieux du bail (`lockForUpdate`, par `id`), puis les écritures. Tout
+  écrivain d'un état des lieux (`InventoryService::underLock` : modifier, soumettre, contester, photos ;
+  `InventorySignatureService::sign`) prend la ligne de l'état des lieux seule, sans bail ni bien ensuite (relu :
+  `submit`/`dispute` n'écrivent que la ligne, sans toucher de clé étrangère ; `sign` lit le bien sans verrou ;
+  l'observateur d'onboarding n'écrit que la checklist) : aucun cycle avec l'ordre de l'abandon. Un envoi en signature
+  concurrent passe avant (l'abandon le relit, 422) ou après (sa ligne est supprimée, 404).
+- **Le journal** `lease_draft_abandoned` porte en plus `inventory_ids`, les brouillons partis avec le bail.
+- **La fiche.** `has_inventory` vaut désormais pour un état des lieux **engagé** : un brouillon d'état des lieux ne
+  remplace plus le geste par sa raison. Le texte de l'erreur (`lang/*/errors.php`) le dit (« un état des lieux
+  engagé — envoyé en signature, signé ou contesté »). Côté front, à reprendre (signalé à team-lead et terrain-8) :
+  `lease.fiche.gestes.abandonEmpecheEtatDesLieux` (« l'état des lieux resterait sans bail ») et le commentaire de
+  `types/lease.ts` ; le dialogue peut dire que les brouillons d'état des lieux partent avec le bail.
+- **Les tests** (`LeaseDraftAbandonTest`, 4a) : `test_4a_un_etat_des_lieux_engage_refuse_l_abandon` (huit formes
+  engagées), `test_4a_les_brouillons_d_etat_des_lieux_partent_avec_le_bail` (deux brouillons supprimés, celui d'un
+  autre bail intact, 404 au détail, absent de la liste, `inventory_ids` au journal),
+  `test_4a_un_seul_etat_des_lieux_engage_retient_aussi_les_brouillons`, `test_4a_l_etat_des_lieux_se_juge_sur_la_ligne_relue`,
+  `test_4a_l_abandon_verrouille_les_etats_des_lieux_avant_de_les_supprimer`, et `test_r1_la_fiche_dit_qu_un_etat_des_lieux_existe`
+  réécrit (brouillon → faux, chaque forme engagée → vrai). Voisins (états des lieux, fiche et abilities du bail) : 139 verts.
+- **Les ablations (4a), toutes rouges puis restaurées :** contrôle `engage()` retiré de l'abandon → 3 rouges ;
+  boucle de suppression retirée → 2 ; `lockForUpdate` des états des lieux retiré → 1 (l'épingle de l'ordre) ;
+  `has_inventory` remis à `exists()` → 1 ; `inventory_ids` retiré du journal → 1 ; une clause d'`engage()`
+  (`tenant_signed_at`) retirée → 2.

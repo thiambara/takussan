@@ -360,7 +360,8 @@ return [
         // TCK-2764 — abandonner un brouillon jamais envoyé en signature.
         'not_draft_abandon' => 'Only a draft lease, never sent for signature, can be abandoned: a lease that was sent or is in force is terminated.',
         'abandon_has_payments' => 'A due of this draft has been recorded: money recorded does not disappear with a draft. Cancel it, then abandon the draft.',
-        'abandon_has_inventory' => 'An inventory has been drawn up on this draft: it would be left without a lease. This draft therefore cannot be abandoned.',
+        // TCK-2764 4a — seul un état des lieux engagé retient le brouillon ; un brouillon d'état des lieux part avec lui.
+        'abandon_has_inventory' => 'An inventory on this draft has been committed — sent for signature, signed or disputed: it cannot disappear with the draft. This draft therefore cannot be abandoned.',
         'not_found' => 'Lease not found.',
         'rent_review_above_contract_cap' => 'The signed contract caps the rent review at :max %: this cap cannot be forced. Use a renewal or a signed amendment.',
         'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it, or start the renewal after it; a renewal already awaiting signature must be terminated, then a new one created.',
