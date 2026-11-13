@@ -114,3 +114,25 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+### Delta API (2026-11-13, back-4)
+
+- `InventoryResource`, sous `forViewer()` (la fiche `GET /api/inventories/{id}` seulement ; la liste n'en sert rien) :
+  - `abilities.dispute` : `InventoryPolicy::dispute` est appelée EN DIRECT, sans `Gate::before`, sur un statut `pending_signature` ou `signed`. Vrai pour le locataire et le bailleur. Faux pour l'agent, l'admin d'agence et le super-admin, et faux en brouillon comme une fois contesté. La route refuse aussi le super-admin (403).
+  - `tenant` {id, full_name, first_name}, depuis la fiche client du bail.
+  - `landlord` {id, full_name}.
+  - `tenant_signed_via`, `owner_signed_by` et `owner_signed_on_behalf_of` {id, full_name}, résolus depuis leurs colonnes d'id par trois relations neuves de `Inventory`. `full_name` vaut `User::nameWithoutContact()`.
+  - Jamais de téléphone ni d'e-mail.
+- `InventoryController::show` charge `lease.landlord`, `tenant` et les trois signataires.
+  - Sur un seul état des lieux, ce chargement ne change pas le nombre de requêtes : une requête par relation, chargée d'avance ou à la demande. Aucun test ne peut donc l'observer.
+- Épinglé par `tests/Feature/Api/InventoryFicheNommeeTest.php` (4 tests) :
+  - la signature sur place est réelle : code SMS, puis l'agent signe pour le compte du bailleur ;
+  - le prestataire et l'agent d'une autre agence reçoivent 403.
+- `InventoryAbilitiesTest` lit désormais `abilities.update`, et non plus l'objet entier. `DateInventoryByValueTest` déclare les cinq clés neuves.
+- Ablations, toutes rouges (k5 l'est devenu après le renfort du test) :
+  - k1 : dispute par la Gate ;
+  - k2 : sans condition de statut ;
+  - k3 : `tenant` hors `forViewer` ;
+  - k4 : e-mail ajouté au nom ;
+  - k5 : la colonne du signataire locataire lue sur celle du bailleur ;
+  - k6 : `on_behalf_of` lu sur le bailleur du bail.

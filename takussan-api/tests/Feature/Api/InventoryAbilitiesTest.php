@@ -46,11 +46,11 @@ class InventoryAbilitiesTest extends TestCase
 
         Sanctum::actingAs($owner);
         $this->getJson("/api/inventories/{$inventory->id}")->assertOk()
-            ->assertJsonPath('data.abilities', ['update' => true]);
+            ->assertJsonPath('data.abilities.update', true); // TCK-2648 : `abilities` porte aussi `dispute`
 
         Sanctum::actingAs($tenantUser);
         $this->getJson("/api/inventories/{$inventory->id}")->assertOk()
-            ->assertJsonPath('data.abilities', ['update' => false]);
+            ->assertJsonPath('data.abilities.update', false);
         $this->postJson("/api/inventories/{$inventory->id}/submit")->assertForbidden();
 
         OwnerProfile::query()->where('user_id', $owner->id)->where('agency_id', $agency->id)
@@ -58,7 +58,7 @@ class InventoryAbilitiesTest extends TestCase
 
         Sanctum::actingAs($owner);
         $this->getJson("/api/inventories/{$inventory->id}")->assertOk()
-            ->assertJsonPath('data.abilities', ['update' => false]);
+            ->assertJsonPath('data.abilities.update', false);
         $this->postJson("/api/inventories/{$inventory->id}/submit")->assertForbidden();
     }
 }

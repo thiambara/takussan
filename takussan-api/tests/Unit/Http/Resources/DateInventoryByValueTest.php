@@ -83,8 +83,20 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\InventoryResource::can_sign_as' => '`when()` sur un lecteur posé par `forViewer()`, '
             .'que seul `InventoryController::show` appelle (TCK-596) : une liste de rôles (`tenant`, `landlord`), '
             .'jamais une date.',
+        // TCK-2648 — les parties et les signataires nommés de la fiche, sous `forViewer()` seulement (rangés
+        // dans l'ordre alphabétique, autour de `sign_on_behalf_of`).
+        'App\Http\Resources\InventoryResource::landlord' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::owner_signed_by' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::owner_signed_on_behalf_of' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
         'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
             .'(TCK-596) : un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::tenant' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant, un nom et un prénom, jamais une date.',
+        'App\Http\Resources\InventoryResource::tenant_signed_via' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
         'App\Http\Resources\InvitationResource::abilities' => '`when()` sur un appelant connu ET une invitation née '
             .'d\'une fiche client (TCK-2668, D1) — le parcours n\'a ni l\'un ni l\'autre. Deux booléens (`resend`, '
             .'`revoke`), jamais une date.',
@@ -99,6 +111,9 @@ class DateInventoryByValueTest extends TestCase
             .'(`tenant`, `landlord`), jamais une date.',
         'App\Http\Resources\LeaseResource::early_termination_penalty_months' => '`when()` sur le même lecteur posé par '
             .'`forViewer()` (P98.05, TCK-1166) : un nombre de mois ENTIER (`penaltyMonthsFor(): int`), jamais une date.',
+        // TCK-2764 r1 (2881df543) — déclarée ici par back-4 (TCK-2648) : la garde rougissait sur HEAD sans elle.
+        'App\Http\Resources\LeaseResource::has_inventory' => '`when()` sur le lecteur d\'`origin_booking` (qui peut '
+            .'abandonner le brouillon) : un booléen, jamais une date.',
         'App\Http\Resources\LeaseResource::origin_booking' => '`when()` sur le même lecteur posé par `forViewer()` et '
             .'sur `can(\'abandon\')` (TCK-2764) : `{id, status}` de la réservation d\'origine, un entier et la valeur de '
             .'`BookingStatus`, ou `null` ; jamais une date.',

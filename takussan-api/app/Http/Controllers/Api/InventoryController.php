@@ -113,7 +113,9 @@ class InventoryController extends Controller
 
         // TCK-596 — `room_photos` (URL signées, par pièce) et `can_sign_as` ne sortent qu'ici,
         // jamais dans `index` : une URL signée par ligne de liste n'a pas de lecteur.
-        $inventory->load(['lease.tenant', 'property', 'media']);
+        // TCK-2648 — les noms que la fiche sert sous `forViewer` (le locataire, le bailleur, qui a signé
+        // et pour qui) : chargés ici, une requête par relation.
+        $inventory->load(['lease.tenant', 'lease.landlord', 'tenant', 'property', 'media', 'tenantSignedVia', 'ownerSignedBy', 'ownerSignedOnBehalfOf']);
 
         return $this->json([
             'data' => InventoryResource::make($inventory)

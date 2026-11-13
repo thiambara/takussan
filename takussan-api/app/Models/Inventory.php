@@ -147,6 +147,24 @@ class Inventory extends AbstractModel implements HasMedia
         return $this->belongsTo(Customer::class, 'tenant_id');
     }
 
+    /** TCK-2648 — le membre du personnel sur l'appareil duquel le locataire a signé (`onsite_otp`). */
+    public function tenantSignedVia(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'tenant_signed_via_user_id');
+    }
+
+    /** TCK-2648 — qui a signé pour le bailleur (lui-même, ou le personnel pour son compte). */
+    public function ownerSignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_signed_by_user_id');
+    }
+
+    /** TCK-2648 — le bailleur pour le compte de qui le personnel a signé (nul : il a signé lui-même). */
+    public function ownerSignedOnBehalfOf(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_signed_on_behalf_of_user_id');
+    }
+
     /** TCK-2646 — pour une sortie : l'entrée signée dont elle reprend les pièces et les états d'entrée. */
     public function entryInventory(): BelongsTo
     {
