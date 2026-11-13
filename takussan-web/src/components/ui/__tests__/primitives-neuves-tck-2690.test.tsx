@@ -110,6 +110,8 @@ describe('<FeuilleDuBas> (TCK-2690)', () => {
     // Le ✕ de la maquette est à l'encre principale : un `ghost` sous la portée prendrait l'encre
     // discrète (`rgb(76, 70, 65)`, relevé par la comparaison d'AC2).
     expect(classes(screen.getByRole('button', { name: 'Fermer' }))).toContain('text-foreground');
+    // 44 px au téléphone, sous la portée `/app` ET hors d'elle (`/publish`, le fil public) : `size-controle` n'y vaut que 40.
+    expect(classes(screen.getByRole('button', { name: 'Fermer' }))).toContain('max-md:size-11');
     const poignee = dialogue.querySelector('[data-slot="feuille-du-bas-poignee"]')!;
     expect(poignee.getAttribute('aria-hidden')).toBe('true');
     expect(classes(poignee)).toEqual(expect.arrayContaining(['h-1', 'w-8', 'mt-2', 'rounded-full', 'bg-border', 'md:hidden']));

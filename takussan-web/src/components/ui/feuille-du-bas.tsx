@@ -17,8 +17,11 @@ import { cn } from "@/lib/utils"
  *
  * Voile `foreground/35` ; panneau `rounded-t-2xl bg-card`, 90 % de la hauteur au plus, ombre
  * `shadow-feuille` (la valeur de `shadow-2xl`, que la charte refuse en classe) ; poignée 32 × 4 ;
- * en-tête `py-1 pl-4 pr-1`, titre de 17 px tronqué sur une ligne, fermer de 44 px (`size="icon"`
- * de la densité) ; corps `px-4 pb-4` qui défile ; pied facultatif `border-t px-4 py-3`. La zone sûre
+ * en-tête `py-1 pl-4 pr-1`, titre de 17 px tronqué sur une ligne, fermer de 44 px — `max-md:size-11`,
+ * et non le seul `size="icon"`, qui ne vaut 44 que SOUS la portée `/app` (`--spacing-controle`) : hors
+ * d'elle (`/publish`, le fil de messagerie du site public) il rendait 40, et l'en-tête 48 au lieu des 52
+ * de la maquette (mesuré à 390 sur `/publish` et sur la vitrine sans la portée) ; corps `px-4 pb-4`
+ * qui défile ; pied facultatif `border-t px-4 py-3`. La zone sûre
  * du bas (`env(safe-area-inset-bottom)`, absente de la maquette) s'ajoute au pied s'il existe, au
  * corps sinon — jamais aux deux.
  *
@@ -116,7 +119,7 @@ function FeuilleDuBas({
             <SheetTitle className="min-w-0 flex-1 truncate text-titre-court font-semibold">{titre}</SheetTitle>
             <SheetClose
               data-slot="feuille-du-bas-fermer"
-              render={<Button variant="ghost" size="icon" className="text-foreground" aria-label={t("close")} />}
+              render={<Button variant="ghost" size="icon" className="text-foreground max-md:size-11" aria-label={t("close")} />}
             >
               <XIcon className="size-5" aria-hidden="true" />
             </SheetClose>

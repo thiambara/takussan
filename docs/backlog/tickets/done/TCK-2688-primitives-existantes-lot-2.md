@@ -7,7 +7,7 @@ family: front
 estimate: M
 wave: 91
 created: 2026-11-10
-updated: 2026-11-11
+updated: 2026-11-13
 depends_on: [TCK-2685, TCK-2686]
 blocks: [TCK-2580, TCK-2581, TCK-2584, TCK-2586, TCK-2587, TCK-2589, TCK-2590, TCK-2592, TCK-2594, TCK-2596, TCK-2597, TCK-2598, TCK-2600, TCK-2601, TCK-2602, TCK-2603, TCK-2604, TCK-2606, TCK-2608, TCK-2611, TCK-2613, TCK-2614, TCK-2617, TCK-2618, TCK-2619, TCK-2621, TCK-2622, TCK-2624, TCK-2625, TCK-2628, TCK-2629, TCK-2632, TCK-2634, TCK-2635, TCK-2636, TCK-2638, TCK-2639, TCK-2641, TCK-2643, TCK-2644, TCK-2645, TCK-2647, TCK-2648, TCK-2650, TCK-2651, TCK-2653, TCK-2654, TCK-2656, TCK-2659, TCK-2660, TCK-2662, TCK-2664, TCK-2667, TCK-2668, TCK-2670, TCK-2671, TCK-2673, TCK-2675, TCK-2677, TCK-2678, TCK-2682]
 spec_refs:
@@ -254,3 +254,21 @@ arbre `git archive` de `3c6180e8c`, sans maquettes :
   (5,44:1) ou `--muted` (4,85:1), et dans le toast, sur sa racine `.dark` (7,71:1). Déclarer un
   fond pour chacun reviendrait à écrire un fond pour faire plaisir au compteur. C'est la règle
   écrite au 151 → 154 du même test.
+
+### Suivi : le ✕ de `FeuilleDuBas` à 44 px hors de la portée `/app` (2026-11-13, terrain-9)
+
+Demandé par la session principale après la fidélité de TCK-2601. Le fermer de la feuille était `size="icon"`, soit `size-controle`. Ce jeton ne vaut 44 px que sous la portée `/app` (`--spacing-controle: 2.75rem`, `:root:has([data-portee-app])`). Hors de cette portée, il vaut 40, et l'en-tête 48 px au lieu des 52 de la maquette. Le fermer porte désormais `max-md:size-11` : 44 px au téléphone, quelle que soit la portée. Rien ne change dès `md` (panneau latéral) ni au régime du bureau.
+
+- **Usages** : 37 fichiers montent `<FeuilleDuBas>`. Les importeurs, remontés jusqu'aux pages, en placent 35 sous `(dashboard)/app` seulement, où rien ne bouge. Deux sont rendus hors de la portée :
+  - `publication/CadreDeLaFeuille.tsx`, sur `/publish` (la feuille de compte sans compte) ;
+  - `messages/EnTeteDuFil.tsx`, la feuille « Joindre » du fil, atteinte par la messagerie du layout racine.
+- **Mesure à 390** (Chrome sans tête, verrou de mesure, toute requête autre que GET refusée au réseau : aucune). La vitrine (`/fr/playground/vitrine`), feuilles « Mon compte » et « Titre long et action », a été relevée sous la portée, puis portée retirée avant l'ouverture, pour reproduire `/publish` et le fil public.
+
+  | Cas | ✕ | En-tête | Titre | Effet |
+  |---|---|---|---|---|
+  | Sous la portée, avant comme après | 44 × 44 | 52 | 318 | aucun |
+  | Hors portée, avant | 40 × 40 | 48 | 322 | — |
+  | Hors portée, après | 44 × 44 | 52 | 318 | la feuille au contenu remonte de 4 px (272 au lieu de 268) ; la feuille pleine (90 dvh) donne 4 px de corps à l'en-tête |
+
+  Sur `/publish` (TCK-2601, maquette a-6 / a-7 au téléphone), les y de −4 à −10 sous le titre et la largeur du titre disparaissent. a-6 passe de 20,48 % à 16,88 % de pixels différents, a-7 de 9,42 % à 5,19 %.
+- **Tests** : aucun test n'épinglait 40. `primitives-neuves-tck-2690.test.tsx` épingle désormais `max-md:size-11`, et l'ablation le fait rougir.
