@@ -105,6 +105,13 @@
       "propriete": "texte",
       "exception": "donnée",
       "motif": "la règle ajoute la clause de l'entrée incomplète (« ou que l’entrée du locataire reste incomplète plus de 7 jours ») : c'est un motif de la file (LeaseAttention, onboarding_incomplete) que la maquette ne nomme pas ; « le locataire » au lieu de « la locataire » : le produit ne connaît pas le genre de la personne ; « Pénalité non réglée » sans mois (« Pénalité d’octobre non réglée ») : l'entrée d'attention ne porte pas l'échéance d'une pénalité. Les ancres de ces textes sont donc comptées absentes"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "liste « Pièces des baux » au bureau : cellules Bien, Début et Fin",
+      "propriete": "couleur du texte",
+      "exception": "charte",
+      "motif": "les maquettes écrivent text-foreground/80 et /85 ; le produit pose l’encre opaque text-encre-douce (#4c4641), comme le précédent de TCK-2596 (ADR-0106 § 2 c, TCK-2685) : une encre de texte ne s’atténue pas par l’opacité (TCK-658, garde encre-sans-alpha)"
     }
   ],
   "ecarts_ouverts": []

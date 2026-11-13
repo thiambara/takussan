@@ -258,7 +258,7 @@ export function TableDAttente({
               <td className="h-14 pr-3 pl-4">
                 <CelluleLocataire bail={bail} lecture={lecture} />
               </td>
-              <td className="h-14 max-w-50 truncate px-3 text-foreground">{lecture.bien(bail)}</td>
+              <td className="h-14 max-w-50 truncate px-3 text-encre-douce">{lecture.bien(bail)}</td>
               <td className="h-14 px-3">
                 {attente && ton ? (
                   <span className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export function TableDAttente({
               <td className="px-3 text-right">
                 <LoyerDuBail bail={bail} sansPeriode />
               </td>
-              <td className="px-3 whitespace-nowrap tabular-nums text-foreground">
+              <td className="px-3 whitespace-nowrap tabular-nums text-encre-douce">
                 {bail.end_date ? f.date(bail.end_date, { day: 'numeric', month: 'short', year: 'numeric' }) : t('sansFin')}
               </td>
               <td className="px-3">
@@ -319,15 +319,15 @@ export function TableDesBaux({ baux, lecture }: { readonly baux: readonly BailDe
             <td className="py-3 pr-3 pl-4">
               <CelluleLocataire bail={bail} lecture={lecture} />
             </td>
-            <td className="max-w-44 truncate px-3 text-foreground">{lecture.bien(bail)}</td>
+            <td className="max-w-44 truncate px-3 text-encre-douce">{lecture.bien(bail)}</td>
             <td className="px-3">
               <StatutDuBail statut={bail.status} />
             </td>
             <td className="px-3 text-right">
               <LoyerDuBail bail={bail} />
             </td>
-            <td className="px-3 whitespace-nowrap tabular-nums text-foreground">{date(bail.start_date)}</td>
-            <td className="px-3 whitespace-nowrap tabular-nums text-foreground">{bail.end_date ? date(bail.end_date) : t('sansFin')}</td>
+            <td className="px-3 whitespace-nowrap tabular-nums text-encre-douce">{date(bail.start_date)}</td>
+            <td className="px-3 whitespace-nowrap tabular-nums text-encre-douce">{bail.end_date ? date(bail.end_date) : t('sansFin')}</td>
             <td className="px-3">
               <CelluleAgent bail={bail} />
             </td>
