@@ -48,7 +48,7 @@ class RequestLoadableEmittedTest extends TestCase
         'PrivacyRequest' => ['user', 'handler'],
         // `tags` est émis sur la fiche par `when($isDetail)`, hors de `whenLoaded`.
         'Property' => ['tags', 'children', 'parent'],
-        'ServiceProviderBill' => ['maintenanceRequest', 'property', 'provider', 'payouts'],
+        'ServiceProviderBill' => ['provider', 'payouts'],
         'User' => ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', 'platformProfile'],
     ];
 
