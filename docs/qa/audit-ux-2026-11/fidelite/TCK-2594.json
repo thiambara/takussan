@@ -276,7 +276,7 @@
   "mesures": {
     "date": "2026-11-13",
     "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare --roles TCK-2594.json, puis balayer",
-    "commit": "44f6de314 + arbre de travail (lots 1 et 2, non commités)",
+    "commit": "cd1b2c83c (lot 1, la liste) + arbre de travail (lot 2, la fiche : a-3, a-4)",
     "resultats": [
       {
         "ecran": "a-0-telephone",

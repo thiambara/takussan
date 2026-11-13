@@ -10256,7 +10256,7 @@
       "deposit": "Acompte",
       "message": "Message",
       "payments": "Paiements",
-      "receipt": "Quittance PDF",
+      "receipt": "Reçu PDF",
       "noPayments": "Aucun paiement enregistré pour l'instant.",
       "reviewContext": "Votre séjour est terminé.",
       "actions": {
@@ -10638,6 +10638,108 @@
         "avis": "Laisser un avis"
       },
       "erreur": "Vos réservations n’ont pas pu être chargées."
+    },
+    "fiche": {
+      "enTete": {
+        "stay": "Séjour",
+        "application": "Candidature",
+        "offer": "Offre d’achat",
+        "autre": "Réservation"
+      },
+      "natureCourte": {
+        "stay": "Séjour",
+        "application": "Candidature",
+        "offer": "Offre",
+        "autre": "Réservation"
+      },
+      "titre": "{nature, select, stay {Séjour} application {Candidature} offer {Offre} other {Réservation}} {elision, select, oui {d’} other {de }}{nom}",
+      "etat": {
+        "recue": "reçue {age}",
+        "confirmee": "{nature, select, stay {confirmé} other {acceptée}} {quand}"
+      },
+      "quand": {
+        "aHeure": "à {heure}"
+      },
+      "affiche": {
+        "location": "À louer · {prix}/mois",
+        "vente": "À vendre · {prix}",
+        "sejour": "Séjour · {prix} la nuit"
+      },
+      "voirLeBien": "Voir le bien",
+      "sections": {
+        "qui": "Qui",
+        "quoi": "Quoi",
+        "montant": "Montant",
+        "paiements": "Paiements",
+        "historique": "Historique",
+        "autresGestes": "{n, plural, one {Autre geste} other {Autres gestes}}",
+        "decision": "Décision"
+      },
+      "qui": {
+        "appeler": "Appeler",
+        "whatsapp": "WhatsApp",
+        "fiche": "Fiche",
+        "dejaVisite": "A déjà visité ce bien.",
+        "visitesEnregistrees": "{n, plural, one {# visite enregistrée.} other {# visites enregistrées.}}",
+        "visites": "{n, plural, one {# visite} other {# visites}}",
+        "messageWhatsApp": "Bonjour {prenom}, je reviens vers vous au sujet de votre {nature, select, stay {demande de séjour} application {candidature} offer {offre} other {réservation}} pour {bien}."
+      },
+      "quoi": {
+        "loyerPropose": "Loyer proposé",
+        "lePrixAffiche": "· le prix affiché",
+        "loyer": "{montant}/mois",
+        "entree": "Entrée souhaitée",
+        "valable": "Valable jusqu’au",
+        "acompte": "Acompte",
+        "paye": "· payé",
+        "reference": "Référence"
+      },
+      "offre": {
+        "titre": "Offre d’achat",
+        "prixAffiche": "Prix affiché",
+        "ecart": "Écart",
+        "ecartValeur": "{montant} · {pourcentage}",
+        "enVenteDepuis": "{n, plural, =0 {Mis en vente aujourd’hui.} one {En vente depuis # jour.} other {En vente depuis # jours.}}"
+      },
+      "decision": {
+        "sous": "L’offre est à {pourcentage} sous le prix affiché.",
+        "dessus": "L’offre est à {pourcentage} au-dessus du prix affiché.",
+        "egale": "L’offre est au prix affiché.",
+        "jusquA": "Elle tient jusqu’au {date}.",
+        "accepter": "Accepter {montant}"
+      },
+      "sejour": {
+        "arrivee": "Arrivée",
+        "depart": "Départ",
+        "nuits": "{n, plural, one {# nuit} other {# nuits}}",
+        "nuitsFois": "{n, plural, one {# nuit} other {# nuits}} × {prix}",
+        "total": "Total",
+        "acompte": "Acompte ({pourcentage})",
+        "solde": "Solde",
+        "aLArrivee": "· à l’arrivée",
+        "recus": "{recu} reçus sur {total}"
+      },
+      "suiteBail": {
+        "titre": "Candidature acceptée",
+        "texte": "Reste à créer le bail : il est déjà rempli avec ce que la candidature sait.",
+        "locataire": "Locataire",
+        "bien": "Bien",
+        "loyer": "Loyer",
+        "debut": "Début",
+        "modifiable": "Tout reste modifiable avant l’envoi en signature."
+      },
+      "paiement": {
+        "ligne": "{type} · {montant}",
+        "reference": "Réf. {reference}"
+      },
+      "gestes": {
+        "annuler": "{nature, select, stay {Annuler le séjour} other {Annuler la réservation}}",
+        "annulerAide": "{nature, select, stay {Possible jusqu’à l’arrivée, {date}.} application {Avec un motif, tant que le bail n’a pas commencé.} other {Avec un motif.}}"
+      },
+      "historique": {
+        "creee": "{nature, select, stay {Demande de séjour envoyée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}} par {nom}",
+        "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}"
+      }
     }
   },
   "visits": {

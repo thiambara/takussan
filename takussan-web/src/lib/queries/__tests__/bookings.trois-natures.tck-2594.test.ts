@@ -42,12 +42,12 @@ describe('useBookings — trois natures (TCK-2594)', () => {
 describe('useBookingCounts (TCK-2594)', () => {
   beforeEach(() => useApiQuery.mockReset());
 
-  it('une seule lecture de /api/bookings/counts, sous la portée et la recherche de la liste', () => {
-    useBookingCounts({ onlyMine: true, search: 'Ba', propertyId: 3 });
+  it('une seule lecture de /api/bookings/counts, sous la portée, la recherche et les filtres Bien et Client de la liste', () => {
+    useBookingCounts({ onlyMine: true, search: 'Ba', propertyId: 3, customerId: 9 });
     expect(useApiQuery).toHaveBeenCalledTimes(1);
     const [, chemin, options] = useApiQuery.mock.calls[0]!;
     expect(chemin).toBe('/api/bookings/counts');
-    expect(options.params.filter).toEqual({ managed_by: 'me', search: 'Ba', property_id: 3 });
+    expect(options.params.filter).toEqual({ managed_by: 'me', search: 'Ba', property_id: 3, customer_id: 9 });
     expect(options.params.filter).not.toHaveProperty('kind');
     expect(options.params.filter).not.toHaveProperty('status');
   });

@@ -10638,6 +10638,108 @@
         "avis": "Leave a review"
       },
       "erreur": "Your bookings could not be loaded."
+    },
+    "fiche": {
+      "enTete": {
+        "stay": "Stay",
+        "application": "Application",
+        "offer": "Purchase offer",
+        "autre": "Booking"
+      },
+      "natureCourte": {
+        "stay": "Stay",
+        "application": "Application",
+        "offer": "Offer",
+        "autre": "Booking"
+      },
+      "titre": "{nom}’s {nature, select, stay {stay} application {application} offer {offer} other {booking}}",
+      "etat": {
+        "recue": "received {age}",
+        "confirmee": "{nature, select, stay {confirmed} other {accepted}} {quand}"
+      },
+      "quand": {
+        "aHeure": "at {heure}"
+      },
+      "affiche": {
+        "location": "For rent · {prix}/month",
+        "vente": "For sale · {prix}",
+        "sejour": "Stay · {prix} a night"
+      },
+      "voirLeBien": "View the property",
+      "sections": {
+        "qui": "Who",
+        "quoi": "What",
+        "montant": "Amount",
+        "paiements": "Payments",
+        "historique": "History",
+        "autresGestes": "{n, plural, one {Other action} other {Other actions}}",
+        "decision": "Decision"
+      },
+      "qui": {
+        "appeler": "Call",
+        "whatsapp": "WhatsApp",
+        "fiche": "Profile",
+        "dejaVisite": "Has already visited this property.",
+        "visitesEnregistrees": "{n, plural, one {# visit recorded.} other {# visits recorded.}}",
+        "visites": "{n, plural, one {# visit} other {# visits}}",
+        "messageWhatsApp": "Hello {prenom}, I am getting back to you about your {nature, select, stay {stay request} application {application} offer {offer} other {booking}} for {bien}."
+      },
+      "quoi": {
+        "loyerPropose": "Proposed rent",
+        "lePrixAffiche": "· the listed price",
+        "loyer": "{montant}/month",
+        "entree": "Desired move-in",
+        "valable": "Valid until",
+        "acompte": "Deposit",
+        "paye": "· paid",
+        "reference": "Reference"
+      },
+      "offre": {
+        "titre": "Purchase offer",
+        "prixAffiche": "Listed price",
+        "ecart": "Difference",
+        "ecartValeur": "{montant} · {pourcentage}",
+        "enVenteDepuis": "{n, plural, =0 {Listed for sale today.} one {For sale for # day.} other {For sale for # days.}}"
+      },
+      "decision": {
+        "sous": "The offer is {pourcentage} below the listed price.",
+        "dessus": "The offer is {pourcentage} above the listed price.",
+        "egale": "The offer matches the listed price.",
+        "jusquA": "It stands until {date}.",
+        "accepter": "Accept {montant}"
+      },
+      "sejour": {
+        "arrivee": "Arrival",
+        "depart": "Departure",
+        "nuits": "{n, plural, one {# night} other {# nights}}",
+        "nuitsFois": "{n, plural, one {# night} other {# nights}} × {prix}",
+        "total": "Total",
+        "acompte": "Deposit ({pourcentage})",
+        "solde": "Balance",
+        "aLArrivee": "· on arrival",
+        "recus": "{recu} received of {total}"
+      },
+      "suiteBail": {
+        "titre": "Application accepted",
+        "texte": "All that remains is to create the lease: it is already filled in with what the application holds.",
+        "locataire": "Tenant",
+        "bien": "Property",
+        "loyer": "Rent",
+        "debut": "Start",
+        "modifiable": "Everything can still be changed before it is sent for signature."
+      },
+      "paiement": {
+        "ligne": "{type} · {montant}",
+        "reference": "Ref. {reference}"
+      },
+      "gestes": {
+        "annuler": "{nature, select, stay {Cancel the stay} other {Cancel the booking}}",
+        "annulerAide": "{nature, select, stay {Possible until arrival, {date}.} application {With a reason, as long as the lease has not started.} other {With a reason.}}"
+      },
+      "historique": {
+        "creee": "{nature, select, stay {Stay request sent} application {Application submitted} offer {Offer submitted} other {Booking created}} by {nom}",
+        "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}"
+      }
     }
   },
   "visits": {
