@@ -138,20 +138,47 @@ interface CreateLeaseFormProps {
 }
 
 export function CreateLeaseForm({ bookingId, propertyId, customerId, personnel = false, retour = '/app/leases' }: CreateLeaseFormProps = {}) {
-  const commun = { personnel, retour, locatairePrechoisi: bookingId ? undefined : customerId };
+  const commun = { personnel, retour };
   if (bookingId) {
     return <CreateLeaseFormDepuisReservation bookingId={bookingId} {...commun} />;
   }
-  if (propertyId) {
-    return <CreateLeaseFormDepuisBien propertyId={propertyId} {...commun} />;
+  if (customerId) {
+    return <CreateLeaseFormAvecLocataire customerId={customerId} propertyId={propertyId} {...commun} />;
   }
-  return <FormulaireDuBail reservation={null} {...commun} />;
+  return <AiguillageDuBien propertyId={propertyId} {...commun} />;
 }
 
 interface Commun {
   readonly personnel: boolean;
   readonly retour: string;
   readonly locatairePrechoisi?: number;
+}
+
+function AiguillageDuBien({ propertyId, ...commun }: { readonly propertyId?: number } & Commun) {
+  if (propertyId) {
+    return <CreateLeaseFormDepuisBien propertyId={propertyId} {...commun} />;
+  }
+  return <FormulaireDuBail reservation={null} {...commun} />;
+}
+
+/**
+ * TCK-2643 (r4) — `?customer=` n'est retenu que s'il se LIT. Une fiche que l'API ne rend pas (autre
+ * agence, supprimée, identifiant inventé) faisait entrer aux conditions sans locataire montré, bouton
+ * de signature ouvert, pour un POST voué au 403 : l'étape du locataire reste à faire, rien n'est
+ * choisi. Même lecture que le formulaire (`useLeaseCustomer`, même clé) : la fiche lue sert ensuite
+ * depuis le cache.
+ */
+function CreateLeaseFormAvecLocataire({
+  customerId,
+  propertyId,
+  ...commun
+}: { readonly customerId: number; readonly propertyId?: number } & Commun) {
+  const query = useLeaseCustomer(customerId);
+  if (query.isLoading) {
+    return <Skeleton className="h-48 rounded-xl" />;
+  }
+  const lisible = query.data?.data?.id === customerId;
+  return <AiguillageDuBien propertyId={propertyId} {...commun} locatairePrechoisi={lisible ? customerId : undefined} />;
 }
 
 /** Attend les biens proposés avant de monter le formulaire : ses valeurs initiales ne se rejouent pas. */
@@ -193,24 +220,47 @@ function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormVa
 }
 
 /**
- * TCK-2643 — ce que `GET /api/leases/defaults` préremplit, champ par champ. Une valeur absente
- * (`null` : un bien loué à l'année n'a pas de loyer mensuel) ne remplace rien.
+ * TCK-2643 (r1) — les montants qui tiennent au BIEN : ils suivent le bien choisi, et un autre bien
+ * les remplace tous — par les siens, ou par le vide s'il n'en a pas. Une saisie faite pour le bien
+ * d'avant ne lui survit pas : la caution et les charges du premier bien partaient avec le bail du
+ * second (mesuré au navigateur, 3 750 000 F de caution sur un garage qui n'en demande pas).
+ */
+const MONTANTS_DU_BIEN = ['monthly_rent', 'monthly_charges', 'deposit_amount', 'sale_price'] as const;
+
+/** Leur valeur VIDE : celle du formulaire vierge (le loyer et la caution sont des nombres requis). */
+const MONTANTS_VIDES: Record<(typeof MONTANTS_DU_BIEN)[number], number | undefined> = {
+  monthly_rent: 0,
+  monthly_charges: undefined,
+  deposit_amount: 0,
+  sale_price: undefined,
+};
+
+/**
+ * TCK-2643 — ce que `GET /api/leases/defaults` préremplit, champ par champ. Un montant du bien absent
+ * (`null` : un bien sans caution, un bien loué à l'année n'a pas de loyer mensuel) se préremplit VIDE
+ * — la valeur du formulaire vierge —, jamais par celle du bien précédent.
  */
 function valeursPreremplies(d: LeaseDefaults): [FieldPath<CreateLeaseFormValues>, unknown][] {
   const devise = DEVISES.find((code) => code === d.currency);
   const valeurs: [FieldPath<CreateLeaseFormValues>, unknown][] = [
     ['type', d.type],
-    ['monthly_rent', d.monthly_rent?.value ?? 0],
+    ['monthly_rent', d.monthly_rent?.value ?? MONTANTS_VIDES.monthly_rent],
+    ['sale_price', d.sale_price?.value ?? MONTANTS_VIDES.sale_price],
+    ['monthly_charges', d.monthly_charges?.value ?? MONTANTS_VIDES.monthly_charges],
+    ['deposit_amount', d.deposit_amount?.value ?? MONTANTS_VIDES.deposit_amount],
     ['payment_day', d.payment_day.value],
     ['late_fee_percent', d.late_fee_percent.value],
     ['late_fee_grace_days', d.late_fee_grace_days.value],
     ['early_termination_penalty_months', d.early_termination_penalty_months.value],
   ];
   if (devise) valeurs.push(['currency', devise]);
-  if (d.sale_price) valeurs.push(['sale_price', d.sale_price.value]);
-  if (d.monthly_charges) valeurs.push(['monthly_charges', d.monthly_charges.value]);
-  if (d.deposit_amount) valeurs.push(['deposit_amount', d.deposit_amount.value]);
   return valeurs;
+}
+
+/** TCK-2643 (r2) — le nombre de mois que la caution représente, quand elle en est un multiple entier. */
+function moisEntiers(caution: unknown, loyer: unknown): number | null {
+  if (typeof loyer !== 'number' || loyer <= 0 || typeof caution !== 'number') return null;
+  return caution % loyer === 0 ? caution / loyer : null;
 }
 
 /** « F » pour le franc CFA dans `/app` (TCK-2685), le symbole sinon. */
@@ -391,10 +441,22 @@ function FormulaireDuBail({
   // `resetField` : ce dernier ignore un champ pas encore monté (le prix d'une vente, monté par le
   // type « Vente » prérempli au même passage). `keepDirty` : une saisie antérieure garde l'avertissement
   // de départ ; un formulaire intact reste intact.
+  //
+  // TCK-2643 (r1) — un AUTRE bien (pas le premier choisi, pas un rechargement des défauts du même) :
+  // ses montants remplacent aussi ceux que l'agent avait saisis pour le bien d'avant.
+  //
+  // TCK-2643 (r2) — `moisDeCautionSuivis` : tant que l'agent n'a pas SAISI la caution, elle suit le
+  // loyer (mois × loyer) ; le nombre de mois vient du préremplissage ou du pas-à-pas. Une saisie dans
+  // le champ de la caution le lâche (`null`) : elle ne bouge plus. Une ref et non un état : aucun
+  // rendu n'en dépend, le pas-à-pas relit les mois sur les montants.
   const defaultsQuery = useLeaseDefaults(selectedPropertyId);
   const defauts = defaultsQuery.data?.data?.property_id === selectedPropertyId ? defaultsQuery.data.data : null;
+  const bienDesDefauts = useRef<number | null>(null);
+  const moisDeCautionSuivis = useRef<number | null>(null);
   useEffect(() => {
     if (!defauts) return;
+    const autreBien = bienDesDefauts.current !== null && bienDesDefauts.current !== defauts.property_id;
+    bienDesDefauts.current = defauts.property_id;
     const deLaReservation = new Set(reservation ? Object.keys(valeursDeLaReservation(reservation)) : []);
     const preremplies = Object.fromEntries(valeursPreremplies(defauts).filter(([nom]) => !deLaReservation.has(nom)));
     form.reset({ ...form.formState.defaultValues, ...preremplies } as CreateLeaseFormValues, {
@@ -405,7 +467,59 @@ function FormulaireDuBail({
       keepIsSubmitted: true,
       keepSubmitCount: true,
     });
+    if (autreBien) {
+      for (const nom of MONTANTS_DU_BIEN) {
+        // Égale à sa nouvelle valeur par défaut, la valeur cesse d'être « modifiée » (`shouldDirty`).
+        if (nom in preremplies) form.setValue(nom, preremplies[nom] as never, { shouldDirty: true });
+      }
+    }
+    // Une caution que l'agent n'a pas saisie vaut les mois du bien × le loyer DU FORMULAIRE : celui
+    // du bien, ou celui que l'agent a tapé avant de le choisir, ou celui de la réservation.
+    if (!form.getFieldState('deposit_amount').isDirty) {
+      const loyerCourant = form.getValues('monthly_rent');
+      const mois = defauts.deposit_months?.value ?? moisEntiers(form.getValues('deposit_amount'), loyerCourant);
+      moisDeCautionSuivis.current = mois;
+      if (mois !== null && typeof loyerCourant === 'number' && loyerCourant > 0) {
+        form.setValue('deposit_amount', mois * loyerCourant);
+      }
+    }
   }, [defauts, form, reservation]);
+
+  /**
+   * TCK-2643 (r1) — un AUTRE bien choisi vide tout de suite ses montants : jusqu'à l'arrivée de ses
+   * défauts (réseau lent, lecture en échec), le formulaire ne porte plus ceux du bien d'avant.
+   */
+  const viderLesMontantsDuBienPrecedent = (id: number) => {
+    if (bienDesDefauts.current === null || bienDesDefauts.current === id) return;
+    for (const nom of MONTANTS_DU_BIEN) {
+      form.setValue(nom, MONTANTS_VIDES[nom] as never, { shouldDirty: true });
+    }
+    moisDeCautionSuivis.current = null;
+  };
+
+  // TCK-2643 (r2) — `type === 'change'` : une saisie de l'agent, jamais un `setValue` du formulaire.
+  useEffect(
+    () =>
+      form.subscribe({
+        name: ['monthly_rent', 'deposit_amount'],
+        formState: { values: true },
+        callback: ({ name, type, values }) => {
+          if (type !== 'change') return;
+          if (name === 'deposit_amount') {
+            moisDeCautionSuivis.current = null;
+            return;
+          }
+          const mois = moisDeCautionSuivis.current;
+          const nouveauLoyer = values.monthly_rent;
+          if (name === 'monthly_rent' && mois !== null && typeof nouveauLoyer === 'number' && nouveauLoyer > 0) {
+            // Hors de la notification en cours : un `setValue` imbriqué y laissait `useWatch` sur
+            // la caution d'avant (le pas-à-pas et le total la lisaient, le champ montrait la neuve).
+            queueMicrotask(() => form.setValue('deposit_amount', mois * nouveauLoyer, { shouldDirty: true }));
+          }
+        },
+      }),
+    [form],
+  );
 
   /** La source d'une valeur, tant qu'elle est celle qui a été préremplie. */
   const sourceDe = (
@@ -626,7 +740,10 @@ function FormulaireDuBail({
                       value: property.id,
                       label: formatPropertyLabel(property),
                     }))}
-                    onChoisi={() => setChangerLeBien(false)}
+                    onChoisi={(id) => {
+                      setChangerLeBien(false);
+                      viderLesMontantsDuBienPrecedent(id);
+                    }}
                     required
                   />
                 )}
@@ -809,6 +926,8 @@ function FormulaireDuBail({
                         desactive={loyerSaisi === null}
                         onChange={(mois) => {
                           if (loyerSaisi === null) return;
+                          // Réglée en mois, la caution suit le loyer (r2).
+                          moisDeCautionSuivis.current = mois;
                           form.setValue('deposit_amount', mois * loyerSaisi, { shouldDirty: true, shouldValidate: true });
                         }}
                       />
