@@ -99,6 +99,9 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
   const [suppression, setSuppression] = useState(false);
 
   const peutPartager = document.abilities?.share === true;
+  // TCK-2729 (5a) — le bailleur bloqué ne partage plus, mais voit et révoque les liens qu'il a créés : la liste
+  // sans « Partager » (ni en-tête, ni barre collante, ni feuille du bas).
+  const sesLiensSeuls = !peutPartager && document.abilities?.manage_own_share_links === true;
   const peutSupprimer = document.abilities?.delete === true;
   const peutRestaurer = document.abilities?.update === true;
   const moi = (id: number | null) => user !== null && id !== null && id === user.id;
@@ -248,7 +251,7 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
 
         <VersionsDuDocument documentId={document.id} peutAjouter={seVersionne(document)} peutRestaurer={peutRestaurer} echeanceActuelle={document.expiry_date} />
 
-        {peutPartager ? <LiensDePartage document={document} suivi={suivi} /> : null}
+        {peutPartager || sesLiensSeuls ? <LiensDePartage document={document} suivi={suivi} lesSiens={sesLiensSeuls} /> : null}
 
         {peutSupprimer ? (
           <button

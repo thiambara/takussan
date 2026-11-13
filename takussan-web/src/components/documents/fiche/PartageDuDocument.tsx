@@ -123,10 +123,16 @@ export function LiensDePartage({
   document,
   suivi,
   className,
+  lesSiens = false,
 }: {
   readonly document: Pick<Document, 'id'>;
   readonly suivi: SuiviDesLiens;
   readonly className?: string;
+  /**
+   * TCK-2729 (5a) — l'API ne rend au bailleur bloqué que les liens qu'il a créés : le titre et la liste vide le
+   * disent, pour qu'un « (0) » ne se lise pas « aucun lien sur ce document ».
+   */
+  readonly lesSiens?: boolean;
 }) {
   const t = useTranslations('documents.fiche.liens');
   const tCommon = useTranslations('common');
@@ -143,7 +149,15 @@ export function LiensDePartage({
 
   return (
     <section className={className} aria-labelledby="liens-du-document">
-      <TitreDeBloc id="liens-du-document">{requete.isSuccess ? t('titre', { n: liens.length }) : t('titreSeul')}</TitreDeBloc>
+      <TitreDeBloc id="liens-du-document">
+        {lesSiens
+          ? requete.isSuccess
+            ? t('lesVotres.titre', { n: liens.length })
+            : t('lesVotres.titreSeul')
+          : requete.isSuccess
+            ? t('titre', { n: liens.length })
+            : t('titreSeul')}
+      </TitreDeBloc>
       {erreur ? (
         <p role="alert" className="mt-2 text-ui text-destructive">
           {erreur}
@@ -161,7 +175,7 @@ export function LiensDePartage({
             <ErrorState message={t('erreur')} onRetry={() => void requete.refetch()} retryLabel={tCommon('actions.retry')} />
           </div>
         ) : liens.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-muted-foreground">{t('vide')}</p>
+          <p className="px-4 py-3 text-sm text-muted-foreground">{lesSiens ? t('lesVotres.vide') : t('vide')}</p>
         ) : (
           <ul className="divide-y divide-border">
             {liens.map((lien) => {

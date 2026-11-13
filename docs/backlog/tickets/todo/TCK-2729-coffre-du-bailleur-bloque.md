@@ -138,7 +138,7 @@ l'aperçu et le téléchargement fonctionnent comme ailleurs.
   document (après l'autorisation, comme avant). Les deux passent toujours par le relais `authorizeDocument`.
 - **La fiche** : `abilities.manage_own_share_links`, vrai pour lui sur la fiche d'un document (`avecAuteurs`), jugé
   seulement quand `share` est refusé — faux sur une liste, sans requête de plus. `abilities.share` reste faux : le
-  front n'offre pas « Partager », seulement la liste de ses liens et leur révocation (à faire côté front).
+  front n'offre pas « Partager », seulement la liste de ses liens et leur révocation (front livré le 2026-11-13, ci-dessous).
 - **Tests** : `tests/Feature/Documents/LiensDuBailleurBloqueTest.php` (8) — ses seuls liens sans le jeton des autres ;
   il révoque le sien, pas celui de l'agence ; il ne crée toujours rien ; son
   lien cité sous un autre document → 404 ; parti → 403 partout ; document interne → 403 ; document qu'il ne lit pas →
@@ -157,3 +157,13 @@ l'aperçu et le téléchargement fonctionnent comme ailleurs.
   `view` retiré de la règle → 1 ; filtre `created_by_id` de la liste retiré → 2 ; contrôle du créateur retiré de
   `revokeShareLink` → 1 ; `authorize('manageOwnShareLinks')` retiré de la liste → 3 ; ability de la fiche forcée à
   faux → 1.
+- **Front de 5a (2026-11-13)** : `DocumentAbilities.manage_own_share_links` (`types/document.ts`). Sur la fiche
+  (`DocumentDetailClient`), le bailleur bloqué (`share` faux, `manage_own_share_links` vrai) voit `LiensDePartage`
+  avec `lesSiens` — « Vos liens de partage (n) », « Aucun lien créé par vous n'est actif. » (trois clés
+  `documents.fiche.liens.lesVotres.*`), pour qu'un « (0) » ne se lise pas « aucun lien sur ce document » — et révoque
+  chacun ; « Partager » ne lui est offert nulle part (en-tête du bureau, barre collante, feuille du bas : toujours
+  sous `share`). Sans l'un ni l'autre, la liste ne se lit pas. Test
+  `src/components/documents/__tests__/liens-du-bailleur-bloque.tck-2729.test.tsx` (4) ; voisins (abilities, auteurs,
+  visibilité interne, partage et versions de la fiche) : 40 verts. Ablations, rouges puis restaurées : liste réservée
+  à `share` → 2 ; titre générique (`lesSiens` faux) → 2 ; « Partager » de la barre collante ouvert au bailleur bloqué
+  → 2 ; « Partager » de l'en-tête du bureau ouvert à lui → 1.

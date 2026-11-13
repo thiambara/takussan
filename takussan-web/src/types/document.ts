@@ -41,6 +41,11 @@ export type DocumentAbilities = {
   delete: boolean;
   /** TCK-2759 — « Garder pour l'agence » / « Rendre visible au client » : sur une fiche client seulement. */
   set_visibility?: boolean;
+  /**
+   * TCK-2729 (5a) — le bailleur bloqué voit et révoque les liens qu'il a créés, sans en créer : sur la fiche
+   * seule, et servie seulement quand `share` est refusé.
+   */
+  manage_own_share_links?: boolean;
 };
 
 /**

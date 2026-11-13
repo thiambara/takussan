@@ -10762,7 +10762,12 @@
         "revoquer": "Révoquer",
         "revoquerAria": "Révoquer le lien créé le {date}",
         "revocation": "Révocation…",
-        "creeLePar": "Créé le {date} par {qui}"
+        "creeLePar": "Créé le {date} par {qui}",
+        "lesVotres": {
+          "titre": "Vos liens de partage ({n})",
+          "titreSeul": "Vos liens de partage",
+          "vide": "Aucun lien créé par vous n’est actif."
+        }
       },
       "partage": {
         "titre": "Partager par lien",

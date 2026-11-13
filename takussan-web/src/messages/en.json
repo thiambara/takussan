@@ -11388,7 +11388,12 @@
         "revoquer": "Revoke",
         "revoquerAria": "Revoke the link created on {date}",
         "revocation": "Revoking…",
-        "creeLePar": "Created on {date} by {qui}"
+        "creeLePar": "Created on {date} by {qui}",
+        "lesVotres": {
+          "titre": "Your share links ({n})",
+          "titreSeul": "Your share links",
+          "vide": "None of the links you created is active."
+        }
       },
       "partage": {
         "titre": "Share by link",
