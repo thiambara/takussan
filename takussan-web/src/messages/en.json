@@ -8517,7 +8517,8 @@
         "suggested_stage_dismissed": "Suggested stage dismissed",
         "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade",
         "review_moderated": "Review published (batch)",
-        "booking_not_selected": "Application not selected"
+        "booking_not_selected": "Application not selected",
+        "document_visibility_changed": "Document visibility changed"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
