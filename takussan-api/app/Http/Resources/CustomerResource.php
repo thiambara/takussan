@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
+use App\Models\User;
 use App\Policies\CustomerPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\PropertyVisitPolicy;
@@ -205,7 +206,15 @@ class CustomerResource extends BaseResource
                 $this->relationLoaded('documents'),
                 function () use ($request) {
                     $user = $request->user();
-                    $litLesInternes = $user !== null && app(DocumentPolicy::class)->readsInternalOf($user, $this->resource);
+                    // TCK-2759 (r3, vérification de 90250c936) — la fiche est jugée sur sa ligne, comme le
+                    // document : un `fields[customers]` sans `user_id` faisait sauter « jamais le sujet »
+                    // (le sujet membre du personnel lisait ses internes), sans `agency_id` retirait les
+                    // internes au personnel. Relue au besoin, une fois par page en liste (`primeFiches`).
+                    // Une fiche que la relecture n'a pas trouvée (supprimée) reste partielle : rien d'interne,
+                    // aucune bascule — le jugement ferme, il ne retombe pas sur les colonnes demandées.
+                    $fiche = $this->ficheJugeable($request);
+                    $litLesInternes = $user !== null && self::porteLesTraitsJuges($fiche)
+                        && self::litLesInternesDe($request, $user, $fiche);
                     // Vérification de 416274da0 — le filtre et l'offre lisent la ligne, pas les `fields[documents]` demandés.
                     DocumentVisibility::completerLesColonnes($this->documents);
 
@@ -218,7 +227,7 @@ class CustomerResource extends BaseResource
                             'is_internal' => (bool) $d->is_internal,
                             'created_at' => $this->iso($d->created_at),
                             // TCK-2759 r1 — ni sur une pièce visible du sujet ({@see DocumentVisibility::basculeOfferte()}).
-                            'abilities' => ['set_visibility' => $litLesInternes && DocumentVisibility::basculeOfferte($d, $this->resource)],
+                            'abilities' => ['set_visibility' => $litLesInternes && DocumentVisibility::basculeOfferte($d, $fiche)],
                         ])->values();
                 },
             ),
@@ -316,6 +325,13 @@ class CustomerResource extends BaseResource
      */
     public static function primeFiches(Request $request, iterable $customers): void
     {
+        // TCK-2759 (r3) — et les colonnes du jugement des documents chargés par `include=documents`,
+        // pour la page entière : l'include les relisait sinon une fois par fiche.
+        DocumentVisibility::completerLesColonnes(collect($customers)
+            ->filter(fn (Customer $c): bool => $c->relationLoaded('documents'))
+            ->flatMap(fn (Customer $c) => $c->documents)
+            ->values());
+
         $ids = [];
         foreach ($customers as $customer) {
             if (! self::porteLesTraitsJuges($customer)
@@ -359,6 +375,22 @@ class CustomerResource extends BaseResource
         }
 
         return MembershipCapabilityResolver::primed([$request->user()->id], $agences, $render);
+    }
+
+    /**
+     * TCK-2759 (r3) — `readsInternalOf` ne lit de la fiche que son agence et son sujet : le verdict se
+     * garde pour la requête par (agence, l'appelant en est-il le sujet), et une page de fiches d'une
+     * même agence ne rejuge pas le personnel une fois par ligne.
+     */
+    private static function litLesInternesDe(Request $request, User $user, Customer $fiche): bool
+    {
+        $sujet = $fiche->user_id !== null && (int) $fiche->user_id === (int) $user->id;
+        $key = 'tck2759.lit_internes.'.$user->id.'.'.($fiche->agency_id ?? 'aucune').'.'.($sujet ? 'sujet' : 'tiers');
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(DocumentPolicy::class)->readsInternalOf($user, $fiche));
+        }
+
+        return $request->attributes->get($key);
     }
 
     private static function porteLesTraitsJuges(Customer $customer): bool

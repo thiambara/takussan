@@ -253,3 +253,39 @@ Fixture commune : une agence A, une fiche client C d'A dont le sujet est le comp
   - `include` sans complétion : test de l'include.
   - complétion sans `uploaded_by` : r2.
   - front sans `is_internal` : les deux tests front.
+
+### Suivi (2026-11-13) — r3 et r4 : la fiche jugée sur sa ligne, la recherche suit la lecture (vérification de 90250c936)
+- **r3, la fiche.** L'`include=documents` de `CustomerResource` jugeait `readsInternalOf` et `basculeOfferte` sur la fiche telle que `fields[customers]` l'avait sélectionnée.
+  - Sans `user_id`, « jamais le sujet » sautait : le membre du personnel sujet de la fiche lisait nom, type et date de ses documents internes.
+  - Sans `agency_id`, le personnel perdait les siens.
+  - Les deux jugements lisent maintenant `ficheJugeable()` (id, agence, auteur, sujet, relus au besoin).
+  - Une fiche que la relecture ne trouve pas (supprimée) n'est pas rejugée sur ses colonnes partielles : elle ne rend aucun interne et n'offre aucune bascule.
+  - **Coût en liste, mesuré.** Le nombre de requêtes est le même pour 2 et pour 6 fiches. Trois relectures sont désormais faites une fois par page :
+    - `primeFiches` relit les traits des fiches ;
+    - il complète aussi les colonnes du jugement des documents chargés (elles étaient relues une fois par fiche, s3 du vérificateur) ;
+    - le verdict « lit les internes » est gardé pour la requête par (agence, sujet ou non) : le personnel était rejugé une fois par fiche.
+- **r4, la recherche.** `GET /api/search/documents` ne bornait que `uploaded_by`. L'agent suspendu retrouvait l'interne qu'il avait déposé, avec un `file_url` signé ; le personnel parti, ses autres téléversements, que `view()` et la liste lui refusent.
+  - `DocumentSearchService` calcule en SQL l'écart entre le périmètre du moteur et la lecture. Pour le personnel : ses téléversements que `restreindreAuTeleverseur` retire. Pour le super-admin : les internes d'une fiche dont il est le sujet (`restreindreAuxLecteursDInternes`).
+  - L'écart est passé au moteur par `NOT id IN [...]` : le total et les pages restent justes.
+  - ⚠ Cette liste n'est pas bornée : pour le personnel parti, elle contient tous ses téléversements dans l'agence quittée.
+  - `id` devient filtrable sur l'index des documents (`config/scout.php`), comme sur ceux des biens et des comptes. `docker/release.sh` le pousse par `search:sync-index-settings`.
+  - ⚠ `config/scout.php` entre dans l'empreinte `.search-shape` (`Dockerfile`, ligne 113) : le déploiement suivant réimporte les index.
+  - ⚠ Un Meilisearch déjà peuplé (celui du développement) doit recevoir `php artisan search:sync-index-settings`. Sans cela, la recherche rend 500 dès que l'écart n'est pas vide.
+- **Tests.** `DocumentInterneFicheEtRechercheTest`, 8 tests, sur Meilisearch réel :
+  - sujet membre du personnel, sous quatre `fields[customers]`, en show et en liste ;
+  - personnel sans `agency_id` demandé ;
+  - pas de bascule offerte sur la pièce du sujet sans `user_id` ;
+  - fiche supprimée, lue partielle ;
+  - nombre de requêtes constant en liste ;
+  - agent suspendu, avec son interne puis son visible ;
+  - super-admin sujet d'une fiche.
+- **Ablations, toutes rouges, une à la fois, restaurées par md5.**
+  - `readsInternalOf` sur `$this->resource` : 2 rouges.
+  - `basculeOfferte` sur `$this->resource` : 1 rouge.
+  - pas de `whereNotIn` : 3 rouges.
+  - écart du super-admin vide : 1 rouge.
+  - `id` non filtrable : 3 rouges.
+  - sans la garde de la fiche partielle : 1 rouge.
+  - sans la complétion des documents dans `primeFiches` : 1 rouge.
+  - sans le verdict gardé : 1 rouge.
+  - sans l'appel de `primeFiches` dans `CustomerController::index` : 1 rouge.

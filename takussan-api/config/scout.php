@@ -271,7 +271,9 @@ return [
             ],
             Document::class => [
                 'searchableAttributes' => ['title', 'description'],
-                'filterableAttributes' => ['type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
+                // TCK-2759 (r4) — `id` : la recherche écarte par `NOT id IN [...]` les téléversements que
+                // la lecture refuse (règle d'auteur, documents internes), calculés en SQL.
+                'filterableAttributes' => ['id', 'type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,
