@@ -9,7 +9,7 @@ wave: 90
 created: 2026-11-12
 updated: 2026-11-12
 depends_on: [TCK-2743]
-blocks: []
+blocks: [TCK-2768]
 spec_refs:
   features:
     - "docs/features.md"
