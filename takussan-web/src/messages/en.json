@@ -2815,9 +2815,7 @@
         "customerSubtitle": "What you owe, your payments and your rent receipts."
       },
       "calendar": {
-        "metaTitle": "Calendar",
-        "title": "Calendar",
-        "subtitle": "Your bookings and scheduled visits in one unified view."
+        "metaTitle": "Calendar"
       },
       "messages": {
         "metaTitle": "Messages",
@@ -4372,20 +4370,24 @@
       },
       "feed": {
         "title": "Subscribe from another calendar",
-        "intro": "Your appointments in Google Calendar or your phone's calendar, kept up to date. The link is personal: do not share it.",
-        "onceOnly": "Copy this link now: it will not be shown again.",
-        "linkLabel": "Subscription link",
+        "intro": "Your appointments show up in your phone’s calendar and stay up to date on their own.",
+        "onceOnly": "Copy it now: it won’t be shown again. Anyone with this link sees your appointments: don’t share it.",
+        "linkLabel": "Your private link",
         "copy": "Copy",
         "copied": "Copied",
         "google": "Add to Google Calendar",
-        "apple": "Add to phone calendar",
-        "activeSince": "A link has been active since {date}.",
-        "lastAccess": "Last read: {date}.",
-        "create": "Create a subscription link",
+        "apple": "Add to Apple Calendar",
+        "create": "Create my link",
         "rotate": "Generate a new link",
         "rotateHint": "Generating a new link turns the old one off.",
-        "revoke": "Turn the link off",
-        "failed": "That did not work."
+        "revoke": "Revoke the link",
+        "failed": "That did not work.",
+        "revokeHint": "It stops working. “Create my link” takes its place.",
+        "createdAt": "Created on",
+        "lastAccessLabel": "Last access",
+        "never": "Never",
+        "contentLabel": "Content",
+        "content": "Your calendar appointments"
       }
     },
     "bulk": {
@@ -19211,6 +19213,170 @@
       "planifierDetail": "The whole day is free",
       "client": "Add a client",
       "clientDetail": "A contact met in the field"
+    }
+  },
+  "agenda": {
+    "titre": "Calendar",
+    "erreur": "Unable to load the calendar.",
+    "planifier": "Schedule a viewing",
+    "enAttente": "pending",
+    "modes": {
+      "libelle": "Calendar view",
+      "agenda": "My calendar",
+      "agendaAgence": "Agency calendar",
+      "occupation": "Occupancy",
+      "occupationLong": "Property occupancy"
+    },
+    "qui": {
+      "libelle": "Whose",
+      "moi": "Me",
+      "agence": "Agency",
+      "mesRendezVous": "My appointments",
+      "touteLAgence": "The whole agency"
+    },
+    "vues": {
+      "libelle": "View",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "list": "List",
+      "semaineAria": "Week, hour by hour"
+    },
+    "nav": {
+      "precedent": "Previous",
+      "suivant": "Next",
+      "aujourdhui": "Today"
+    },
+    "periode": {
+      "trenteJours": "30 days",
+      "quatorzeJours": "14 d",
+      "quatorzeJoursLong": "Fourteen days"
+    },
+    "resume": {
+      "cetteSemaine": "This week",
+      "visites": "{n, plural, one {# viewing} other {# viewings}}{aConfirmer, plural, =0 {} other {, # to confirm}}",
+      "taches": "{n, plural, one {# task} other {# tasks}}",
+      "rien": "nothing planned"
+    },
+    "types": {
+      "booking": "Stay",
+      "visit": "Viewing",
+      "task": "Task",
+      "lease_end": "Lease end",
+      "lease_renewal": "Renewal",
+      "maintenance": "Maintenance",
+      "lease": "Lease"
+    },
+    "typesPluriel": {
+      "booking": "Bookings",
+      "visit": "Viewings",
+      "task": "Tasks",
+      "lease_event": "Lease dates",
+      "maintenance": "Maintenance"
+    },
+    "legende": {
+      "enAttente": "Pending"
+    },
+    "statut": {
+      "confirme": "Confirmed",
+      "enAttente": "Pending"
+    },
+    "filtres": {
+      "titre": "Filters",
+      "titreBureau": "Filters and legend",
+      "bouton": "Filters",
+      "qui": "Whose",
+      "types": "Types",
+      "typesValeur": "{n} of {total}",
+      "reinitialiser": "Reset",
+      "unTypeAuMoins": "At least one type stays on.",
+      "bien": "Property",
+      "tous": "All",
+      "tousLesBiens": "All properties",
+      "bienAide": "Each property is listed by its title; type two letters to search.",
+      "aucunBien": "No property matches.",
+      "legende": "Legend",
+      "enAttente": "Hatched grey: awaiting confirmation",
+      "abonner": "Subscribe to my calendar (iCal)",
+      "afficher": "{n, plural, =0 {No events} one {Show # event} other {Show # events}}"
+    },
+    "abonnement": {
+      "titre": "iCal subscription",
+      "bouton": "Subscribe (iCal)"
+    },
+    "jour": {
+      "semaine": "Days of the week",
+      "jourEtCompte": "{jour}: {n, plural, =0 {nothing planned} one {# event} other {# events}}",
+      "aujourdhui": "Today",
+      "journee": "All day",
+      "sansHeure": "No time",
+      "heure": "{h}:00",
+      "enPlus": "+{n}",
+      "duree": "{n} min",
+      "visiteur": "the visitor",
+      "libreDe": "Free from {de} to {a}",
+      "rien": "Nothing planned this day",
+      "planifier": "Schedule",
+      "planifierCourt": "Schedule a viewing",
+      "planifierA": "Schedule a viewing at {heure}",
+      "planifierLe": "Schedule a viewing on {jour}",
+      "planifierCreneau": "Schedule a viewing on {jour} at {heure}"
+    },
+    "occupation": {
+      "enCours": "{n, plural, =0 {No stay in progress} one {# stay in progress} other {# stays in progress}}",
+      "lien": "Occupancy: {compte}",
+      "mouvements": "{arrivees, plural, =0 {No arrivals} one {# arrival} other {# arrivals}}, {departs, plural, =0 {no departures} one {# departure} other {# departures}} today",
+      "libres": "{n, plural, =0 {no property free tonight} one {# property free tonight} other {# properties free tonight}}",
+      "enAttente": "{n, plural, one {# stay request pending} other {# stay requests pending}}",
+      "nbBiens": "{n, plural, =0 {No properties} one {# property} other {# properties}}",
+      "aucunBien": "No rental property to show.",
+      "voirPlus": "Show more properties",
+      "toucher": "Tap a row to open the property.",
+      "sejour": "{nuits, plural, one {# night} other {# nights}} · {reference}",
+      "sejourEnAttente": "{nuits, plural, one {# night} other {# nights}} · pending",
+      "etat": {
+        "libre": "Free",
+        "occupe": "Occupied until the {jour}th",
+        "libreJusqua": "Free until the {jour}th"
+      },
+      "legende": {
+        "sejour": "Stay",
+        "enAttente": "Pending",
+        "echeance": "Lease date",
+        "intervention": "Maintenance",
+        "libre": "Free"
+      }
+    },
+    "fiche": {
+      "titre": "Event",
+      "quand": "When",
+      "duree": "Duration",
+      "minutes": "{n} min",
+      "adresse": "Address",
+      "visiteur": "Visitor",
+      "reference": "Reference",
+      "voirLeBien": "View the property",
+      "journee": "{jour} · all day",
+      "du": "From {de} to {a}",
+      "ouvrir": {
+        "booking": "Open the booking",
+        "visit": "Open the viewing",
+        "task": "Open the task",
+        "lease": "Open the lease",
+        "lease_event": "Open the lease",
+        "maintenance": "Open the maintenance request"
+      }
+    },
+    "mois": {
+      "aujourdhui": "{n} · today",
+      "sejour": "Stay · {titre}",
+      "sejoursEnPlus": "{n, plural, one {+# stay} other {+# stays}}"
+    },
+    "vuesCourtes": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "list": "List"
     }
   }
 }

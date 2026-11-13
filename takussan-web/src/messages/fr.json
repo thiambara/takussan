@@ -2772,9 +2772,7 @@
         "customerSubtitle": "Ce que vous devez, vos paiements et vos quittances."
       },
       "calendar": {
-        "metaTitle": "Calendrier",
-        "title": "Calendrier",
-        "subtitle": "Vos réservations et visites planifiées dans une vue unifiée."
+        "metaTitle": "Agenda"
       },
       "messages": {
         "metaTitle": "Messagerie",
@@ -4329,20 +4327,24 @@
       },
       "feed": {
         "title": "S'abonner depuis un autre agenda",
-        "intro": "Vos rendez-vous dans Google Agenda ou le calendrier de votre téléphone, mis à jour automatiquement. Le lien est personnel : ne le partagez pas.",
-        "onceOnly": "Copiez ce lien maintenant : il ne sera plus affiché.",
-        "linkLabel": "Lien d'abonnement",
+        "intro": "Vos rendez-vous s’affichent dans l’agenda de votre téléphone, à jour sans rien faire.",
+        "onceOnly": "Copiez-le maintenant : il ne sera plus affiché. Qui a ce lien voit vos rendez-vous : ne le partagez pas.",
+        "linkLabel": "Votre lien privé",
         "copy": "Copier",
         "copied": "Copié",
         "google": "Ajouter à Google Agenda",
-        "apple": "Ajouter au calendrier du téléphone",
-        "activeSince": "Un lien est actif depuis le {date}.",
-        "lastAccess": "Dernière lecture : {date}.",
-        "create": "Créer un lien d'abonnement",
+        "apple": "Ajouter à Apple Calendrier",
+        "create": "Créer mon lien",
         "rotate": "Générer un nouveau lien",
         "rotateHint": "Générer un nouveau lien éteint l'ancien.",
-        "revoke": "Désactiver le lien",
-        "failed": "L'opération n'a pas abouti."
+        "revoke": "Révoquer le lien",
+        "failed": "L'opération n'a pas abouti.",
+        "revokeHint": "Il cesse de fonctionner. « Créer mon lien » revient à sa place.",
+        "createdAt": "Créé le",
+        "lastAccessLabel": "Dernier accès",
+        "never": "Jamais",
+        "contentLabel": "Contenu",
+        "content": "Vos rendez-vous de l’agenda"
       }
     },
     "bulk": {
@@ -19211,6 +19213,170 @@
       "planifierDetail": "Toute la journée est libre",
       "client": "Ajouter un client",
       "clientDetail": "Un contact rencontré sur le terrain"
+    }
+  },
+  "agenda": {
+    "titre": "Agenda",
+    "erreur": "Impossible de charger l’agenda.",
+    "planifier": "Planifier une visite",
+    "enAttente": "en attente",
+    "modes": {
+      "libelle": "Vue de l’agenda",
+      "agenda": "Mon agenda",
+      "agendaAgence": "Agenda de l’agence",
+      "occupation": "Occupation",
+      "occupationLong": "Occupation des biens"
+    },
+    "qui": {
+      "libelle": "Qui",
+      "moi": "Moi",
+      "agence": "Agence",
+      "mesRendezVous": "Mes rendez-vous",
+      "touteLAgence": "Toute l’agence"
+    },
+    "vues": {
+      "libelle": "Vue",
+      "day": "Jour",
+      "week": "Semaine",
+      "month": "Mois",
+      "list": "Liste",
+      "semaineAria": "Semaine, heure par heure"
+    },
+    "nav": {
+      "precedent": "Précédent",
+      "suivant": "Suivant",
+      "aujourdhui": "Aujourd’hui"
+    },
+    "periode": {
+      "trenteJours": "30 jours",
+      "quatorzeJours": "14 j",
+      "quatorzeJoursLong": "Quatorze jours"
+    },
+    "resume": {
+      "cetteSemaine": "Cette semaine",
+      "visites": "{n, plural, one {# visite} other {# visites}}{aConfirmer, plural, =0 {} one {, dont # à confirmer} other {, dont # à confirmer}}",
+      "taches": "{n, plural, one {# tâche} other {# tâches}}",
+      "rien": "rien de prévu"
+    },
+    "types": {
+      "booking": "Séjour",
+      "visit": "Visite",
+      "task": "Tâche",
+      "lease_end": "Fin de bail",
+      "lease_renewal": "Renouvellement",
+      "maintenance": "Intervention",
+      "lease": "Bail"
+    },
+    "typesPluriel": {
+      "booking": "Réservations",
+      "visit": "Visites",
+      "task": "Tâches",
+      "lease_event": "Échéances de bail",
+      "maintenance": "Interventions"
+    },
+    "legende": {
+      "enAttente": "En attente"
+    },
+    "statut": {
+      "confirme": "{genre, select, f {Confirmée} other {Confirmé}}",
+      "enAttente": "En attente"
+    },
+    "filtres": {
+      "titre": "Filtres",
+      "titreBureau": "Filtres et légende",
+      "bouton": "Filtres",
+      "qui": "Qui",
+      "types": "Types",
+      "typesValeur": "{n} sur {total}",
+      "reinitialiser": "Réinitialiser",
+      "unTypeAuMoins": "Un type au moins reste allumé.",
+      "bien": "Bien",
+      "tous": "Tous",
+      "tousLesBiens": "Tous les biens",
+      "bienAide": "Chaque bien est nommé par son titre ; tapez deux lettres pour chercher.",
+      "aucunBien": "Aucun bien ne correspond.",
+      "legende": "Légende",
+      "enAttente": "Gris hachuré : en attente de confirmation",
+      "abonner": "S’abonner à mon agenda (iCal)",
+      "afficher": "{n, plural, =0 {Aucun événement} one {Afficher # événement} other {Afficher # événements}}"
+    },
+    "abonnement": {
+      "titre": "Abonnement iCal",
+      "bouton": "S’abonner (iCal)"
+    },
+    "jour": {
+      "semaine": "Jours de la semaine",
+      "jourEtCompte": "{jour} : {n, plural, =0 {rien de prévu} one {# événement} other {# événements}}",
+      "aujourdhui": "Aujourd’hui",
+      "journee": "Journée",
+      "sansHeure": "Sans heure",
+      "heure": "{h} h",
+      "enPlus": "+{n}",
+      "duree": "{n} min",
+      "visiteur": "le visiteur",
+      "libreDe": "Libre de {de} à {a}",
+      "rien": "Rien de prévu ce jour",
+      "planifier": "Planifier",
+      "planifierCourt": "Planifier une visite",
+      "planifierA": "Planifier une visite à {heure}",
+      "planifierLe": "Planifier une visite le {jour}",
+      "planifierCreneau": "Planifier une visite {jour} à {heure}"
+    },
+    "occupation": {
+      "enCours": "{n, plural, =0 {Aucun séjour en cours} one {# séjour en cours} other {# séjours en cours}}",
+      "lien": "Occupation : {compte}",
+      "mouvements": "{arrivees, plural, =0 {Aucune arrivée} one {# arrivée} other {# arrivées}}, {departs, plural, =0 {aucun départ} one {# départ} other {# départs}} aujourd’hui",
+      "libres": "{n, plural, =0 {aucun bien libre ce soir} one {# bien libre ce soir} other {# biens libres ce soir}}",
+      "enAttente": "{n, plural, one {# demande de séjour en attente} other {# demandes de séjour en attente}}",
+      "nbBiens": "{n, plural, =0 {Aucun bien} one {# bien} other {# biens}}",
+      "aucunBien": "Aucun bien en location à montrer.",
+      "voirPlus": "Voir plus de biens",
+      "toucher": "Toucher une ligne ouvre le bien.",
+      "sejour": "{nuits, plural, one {# nuit} other {# nuits}} · {reference}",
+      "sejourEnAttente": "{nuits, plural, one {# nuit} other {# nuits}} · en attente",
+      "etat": {
+        "libre": "Libre",
+        "occupe": "Occupé jusqu’au {jour}",
+        "libreJusqua": "Libre jusqu’au {jour}"
+      },
+      "legende": {
+        "sejour": "Séjour",
+        "enAttente": "En attente",
+        "echeance": "Échéance de bail",
+        "intervention": "Intervention",
+        "libre": "Libre"
+      }
+    },
+    "fiche": {
+      "titre": "Événement",
+      "quand": "Quand",
+      "duree": "Durée",
+      "minutes": "{n} min",
+      "adresse": "Adresse",
+      "visiteur": "Visiteur",
+      "reference": "Référence",
+      "voirLeBien": "Voir le bien",
+      "journee": "{jour} · journée entière",
+      "du": "Du {de} au {a}",
+      "ouvrir": {
+        "booking": "Ouvrir la réservation",
+        "visit": "Ouvrir la visite",
+        "task": "Ouvrir la tâche",
+        "lease": "Ouvrir le bail",
+        "lease_event": "Ouvrir le bail",
+        "maintenance": "Ouvrir l’intervention"
+      }
+    },
+    "mois": {
+      "aujourdhui": "{n} · aujourd’hui",
+      "sejour": "Séjour · {titre}",
+      "sejoursEnPlus": "{n, plural, one {+# séjour} other {+# séjours}}"
+    },
+    "vuesCourtes": {
+      "day": "Jour",
+      "week": "Sem.",
+      "month": "Mois",
+      "list": "Liste"
     }
   }
 }

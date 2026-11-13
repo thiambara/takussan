@@ -1,20 +1,18 @@
 /**
- * TCK-1187 (P101.01) — les vues mois et semaine déclarent `role="grid"` : ARIA exige
- * `grid > row > gridcell|columnheader`. Sans `row`, axe rendait `aria-required-children` sur la
- * grille et `aria-required-parent` sur ses 49 (mois) et 14 (semaine) nœuds, tous deux critiques.
+ * TCK-1187 (P101.01) — une grille ARIA à demi déclarée (`role="grid"` sans `row`) rendait axe
+ * critique (`aria-required-children`, `aria-required-parent`).
  *
- * Le test passe axe sur le composant rendu, règles nommées seulement, et vérifie en plus que
- * chaque en-tête et chaque cellule a un `row` pour parent DIRECT, dans la grille.
+ * TCK-2597 — le mois et la semaine de l'agenda ne sont plus des grilles ARIA : des groupes nommés,
+ * leurs jours et leurs créneaux en boutons nommés (« Mardi 10 novembre : 2 événements »,
+ * « Planifier une visite … à 15:00 »). Le test garde qu'aucune grille à demi déclarée ne revient.
  */
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import axe from 'axe-core';
 
+import { MoisCompact, MoisDeLAgenda } from '@/components/agenda/MoisDeLAgenda';
+import { SemaineDeLAgenda } from '@/components/agenda/SemaineDeLAgenda';
 import { withIntl } from '@/test/intl';
-import { MonthView } from '../MonthView';
-import { WeekView } from '../WeekView';
-
-const FOCUS = new Date(2026, 0, 15);
 
 async function violationsStructure(racine: Element): Promise<string[]> {
   const resultat = await axe.run(racine, {
@@ -24,34 +22,45 @@ async function violationsStructure(racine: Element): Promise<string[]> {
   return resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`));
 }
 
-function cellulesSansRangee(racine: Element): Element[] {
-  return Array.from(racine.querySelectorAll('[role="gridcell"], [role="columnheader"]')).filter(
-    (cellule) => cellule.parentElement?.getAttribute('role') !== 'row',
-  );
-}
+describe('grilles de l’agenda — structure ARIA (TCK-1187, TCK-2597)', () => {
+  it('mois du bureau : un groupe nommé, ses jours en boutons nommés, sans violation axe', async () => {
+    const { container, getByTestId } = render(withIntl(<MoisDeLAgenda jour="2026-01-15" aujourdhui="2026-01-15" evenements={[]} onOuvrir={() => {}} onChoisirJour={() => {}} />));
 
-describe('grilles du calendrier — structure ARIA (TCK-1187, P101.01)', () => {
-  it('vue mois : en-têtes et jours rangés dans des `row`, sans violation axe', async () => {
-    const { container } = render(withIntl(<MonthView focus={FOCUS} events={[]} onSelect={() => {}} />));
-
-    const grille = container.querySelector('[role="grid"]')!;
-    expect(grille.querySelectorAll('[role="gridcell"], [role="columnheader"]').length).toBeGreaterThanOrEqual(42);
-    expect(cellulesSansRangee(grille)).toEqual([]);
-    // Chaque rangée de jours porte une semaine entière.
-    const rangees = Array.from(grille.querySelectorAll(':scope > [role="row"]'));
-    expect(rangees[0].querySelectorAll('[role="columnheader"]')).toHaveLength(7);
-    for (const rangee of rangees.slice(1)) {
-      expect(rangee.querySelectorAll(':scope > [role="gridcell"]')).toHaveLength(7);
-    }
+    expect(container.querySelector('[role="grid"]')).toBeNull();
+    expect(container.querySelector('[role="group"]')).toHaveAttribute('aria-label', 'Janvier 2026');
+    expect(getByTestId('calendar-day-2026-01-15')).toHaveAccessibleName('Jeudi 15 janvier : rien de prévu');
     expect(await violationsStructure(container)).toEqual([]);
   });
 
-  it('vue semaine : en-têtes et jours rangés dans des `row`, sans violation axe', async () => {
-    const { container } = render(withIntl(<WeekView focus={FOCUS} events={[]} onSelect={() => {}} />));
+  it('mois du téléphone : le jour choisi est pressé', async () => {
+    const { container, getByTestId } = render(withIntl(<MoisCompact jour="2026-01-15" aujourdhui="2026-01-15" evenements={[]} onChoisirJour={() => {}} />));
 
-    const grille = container.querySelector('[role="grid"]')!;
-    expect(grille.querySelectorAll('[role="gridcell"], [role="columnheader"]')).toHaveLength(14);
-    expect(cellulesSansRangee(grille)).toEqual([]);
+    expect(getByTestId('calendar-day-2026-01-15')).toHaveAttribute('aria-pressed', 'true');
+    expect(getByTestId('calendar-day-2026-01-16')).toHaveAttribute('aria-pressed', 'false');
+    expect(await violationsStructure(container)).toEqual([]);
+  });
+
+  it('semaine : un groupe nommé, sans violation axe de structure', async () => {
+    const { container } = render(
+      withIntl(
+        <SemaineDeLAgenda
+          jour="2026-01-15"
+          aujourdhui="2026-01-15"
+          maintenant={new Date('2026-01-15T10:00:00Z')}
+          evenements={[]}
+          visites={new Map()}
+          sejoursDuJour={null}
+          ouvert={null}
+          onOuvrir={() => {}}
+          onChoisirJour={() => {}}
+          onPlanifier={() => {}}
+          onOccupation={null}
+        />,
+      ),
+    );
+
+    expect(container.querySelector('[role="grid"]')).toBeNull();
+    expect(container.querySelector('[role="group"]')).toHaveAttribute('aria-label', 'Semaine, heure par heure');
     expect(await violationsStructure(container)).toEqual([]);
   });
 });

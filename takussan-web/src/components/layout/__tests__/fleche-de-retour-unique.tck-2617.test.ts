@@ -24,7 +24,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/shared/BoutonRetour.tsx': 'flèche unique',
   // Le registre d'icônes réexporte lucide sans rien rendre.
   'src/components/icons.tsx': 'registre',
-  'src/components/calendar/CalendarPage.tsx': 'periode',
+  // TCK-2597 — « Précédent » de la barre de période de l'agenda : une période plus tôt, pas un retour.
+  'src/components/agenda/pieces.tsx': 'periode',
   // TCK-2641 — le sélecteur de mois du relevé du bailleur : « mois précédent », pas un retour.
   'src/components/owners/fiche/FicheDuBailleur.tsx': 'periode',
   // TCK-2596 — « Jour précédent » de « Ma journée » (bureau) : un jour plus tôt, pas un retour.

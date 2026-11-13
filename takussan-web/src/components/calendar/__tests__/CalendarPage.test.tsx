@@ -1,331 +1,335 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 import { withIntl } from '@/test/intl';
 import { navigationDeTest } from '@/test/navigation-url';
-import { CalendarPage } from '../CalendarPage';
-import type { CalendarEvent } from '@/types/calendar';
+import type { CalendarEvent, CalendarEventType } from '@/types/calendar';
+import { CalendarPage, type CalendarPageProps } from '../CalendarPage';
 
 /**
- * TCK-072 — Tests Vitest ciblés sur le composant CalendarPage.
- *
- * On mock `useCalendar` pour piloter le payload renvoyé et on vérifie :
- * - rendu mois par défaut + pills événements
- * - bascule mois/semaine/jour/liste conserve le filtre type
- * - click événement ouvre le panneau de détail avec le bon deeplink
- * - densité max : au-delà de 2 events par jour, affiche "+N autres"
+ * TCK-2597 — « Agenda » (maquette `app-agenda` a) : l'agent ouvre sa journée au téléphone et sa
+ * semaine au bureau, sans les séjours ; l'admin ouvre le mois, les séjours en barres ; « Occupation
+ * des biens » porte ce qui tient à un bien. Tout vit dans l'URL (TCK-1740).
  */
 
-type QueryResult = {
-  data?: { data: CalendarEvent[] };
-  isLoading: boolean;
-  isError: boolean;
-};
-
-const calendarResult: QueryResult = {
-  data: { data: [] },
-  isLoading: false,
-  isError: false,
-};
-
-// TCK-1740 — vue, date, types, bien et « Mes rendez-vous » se lisent et s'écrivent dans l'URL.
 vi.mock('next/navigation', async () => (await import('@/test/navigation-url')).moduleNavigation);
-beforeEach(() => navigationDeTest.reinitialiser());
 
-const { useCalendarMock } = vi.hoisted(() => ({
-  useCalendarMock: vi.fn(),
+type Resultat = { data?: { data: CalendarEvent[] }; isPending: boolean; isLoading: boolean; isError: boolean; refetch: () => void };
+const etat = vi.hoisted(() => ({
+  evenements: [] as CalendarEvent[],
+  sejoursDuJour: [] as CalendarEvent[],
+  pending: false,
+  erreur: false,
+  biensIndex: [] as { id: number; title: string }[],
+  locatifs: [] as { id: number; title: string }[],
+  concernes: [] as { id: number; title: string }[],
 }));
 
+const { useCalendarMock } = vi.hoisted(() => ({ useCalendarMock: vi.fn() }));
 vi.mock('@/lib/queries/calendar', () => ({
   useCalendar: useCalendarMock,
   calendarQueryKeys: { range: (p: unknown) => ['calendar', 'range', p] as const },
 }));
 
-function wrap(ui: React.ReactElement) {
+const { useBiensDeLAgendaMock } = vi.hoisted(() => ({ useBiensDeLAgendaMock: vi.fn() }));
+vi.mock('@/lib/queries/agenda', () => ({
+  useBiensDeLAgenda: useBiensDeLAgendaMock,
+  useBienDeLAgenda: (id: number | null) => ({ data: id === null ? undefined : { data: [{ id, title: `Bien ${id}` }] }, isPending: false }),
+  useBiensParIdentifiants: () => ({ data: { data: etat.concernes }, isPending: false }),
+  useBiensLocatifs: () => ({ data: { pages: [{ data: etat.locatifs }] }, isPending: false, hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() }),
+}));
+
+vi.mock('@/lib/queries/visits', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/visits')>()),
+  useVisitesDeLaVue: () => ({ data: undefined, isPending: true }),
+}));
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
+// Mardi 10 novembre 2026, 10 h à Dakar (UTC).
+vi.mock('@/hooks/useMinuteCourante', () => ({ useMinuteCourante: () => new Date('2026-11-10T10:00:00Z') }));
+vi.mock('@/components/visits/PlanifierUneVisite', () => ({
+  PlanifierUneVisite: () => <button type="button">Planifier une visite</button>,
+  PlanifierDialog: ({ jour, heure }: { jour?: string; heure?: string }) => <div data-testid="planifier" data-jour={jour} data-heure={heure ?? ''} />,
+}));
+vi.mock('@/components/crm/CalendarSubscription', () => ({
+  CalendarSubscription: () => <div data-testid="abonnement-ical" />,
+}));
+
+/** La largeur de la fenêtre, en px : les seuils de l'agenda s'écrivent `(width >= Nrem)`. */
+function largeur(px: number) {
+  window.matchMedia = ((query: string) => {
+    const m = /\(width >= ([\d.]+)rem\)/.exec(query);
+    return {
+      matches: m !== null && px >= Number(m[1]) * 16,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList;
+  }) as typeof window.matchMedia;
+}
+
+function monte(props: CalendarPageProps = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  // `withIntl` charge le VRAI `fr.json` : depuis TCK-291, le bloc d'erreur et les états vides du
-  // calendrier passent par next-intl, et `messages={{}}` rendrait la CLÉ au lieu du libellé.
-  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(withIntl(<QueryClientProvider client={client}><CalendarPage {...props} /></QueryClientProvider>));
 }
 
-function mkBooking(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
-  return {
-    id: 1,
-    type: 'booking',
-    title: 'Villa Almadies',
-    start: '2026-04-20 00:00:00',
-    end: '2026-04-25 00:00:00',
-    status: 'confirmed',
-    all_day: true,
-    property_id: 10,
-    property_slug: 'villa-almadies',
-    resource_url: '/app/bookings/1',
-    ...overrides,
-  };
-}
+type Appel = { start_date: string; end_date: string; types: CalendarEventType[]; mine?: boolean; property_id?: number; enabled?: boolean };
+const appels = () => useCalendarMock.mock.calls.map((c) => c[0] as Appel);
+/** La requête principale : celle qui n'est pas le compte des séjours du jour. */
+const principale = () => appels().filter((a) => !(a.types.length === 1 && a.types[0] === 'booking' && a.start_date === a.end_date)).at(-1)!;
 
-function mkVisit(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
+function visite(o: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
-    id: 2,
+    id: 429,
     type: 'visit',
-    title: 'Appart Point E',
-    start: '2026-04-22 10:00:00',
-    end: '2026-04-22 10:30:00',
-    status: 'confirmed',
+    title: 'Appartement F3 Plateau',
+    start: '2026-11-10 10:57:00',
+    end: '2026-11-10 11:27:00',
+    status: 'scheduled',
     all_day: false,
     duration_minutes: 30,
-    property_id: 11,
-    property_slug: 'appart-point-e',
-    resource_url: '/app/visits/2',
-    ...overrides,
+    property_id: 57,
+    visitor_name: 'Ndeye Wade',
+    address_line: 'Rue 10',
+    neighborhood: 'Dakar-Plateau',
+    resource_url: '/app/visits/429',
+    ...o,
   };
 }
 
-function mkLease(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
+function sejour(o: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
-    id: 3,
-    type: 'lease',
-    title: 'Bail Plateau',
-    start: '2026-04-01 00:00:00',
-    end: '2026-04-30 00:00:00',
-    status: 'active',
+    id: 900,
+    type: 'booking',
+    title: 'Villa Almadies',
+    start: '2026-11-03 00:00:00',
+    end: '2026-11-26 00:00:00',
+    status: 'confirmed',
     all_day: true,
-    property_id: 12,
-    property_slug: 'bail-plateau',
-    resource_url: '/app/leases/3',
-    ...overrides,
+    property_id: 22,
+    reference: 'RES-900',
+    resource_url: '/app/bookings/900',
+    ...o,
   };
 }
 
-const INITIAL_FOCUS = new Date(2026, 3, 24); // 2026-04-24 (Friday)
+beforeEach(() => {
+  navigationDeTest.reinitialiser();
+  largeur(390);
+  etat.evenements = [];
+  etat.sejoursDuJour = [];
+  etat.pending = false;
+  etat.erreur = false;
+  etat.biensIndex = [];
+  etat.locatifs = [];
+  etat.concernes = [];
+  useCalendarMock.mockReset();
+  useCalendarMock.mockImplementation((p: Appel): Resultat => {
+    const duJour = p.types.length === 1 && p.types[0] === 'booking' && p.start_date === p.end_date;
+    return { data: { data: duJour ? etat.sejoursDuJour : etat.evenements }, isPending: etat.pending, isLoading: etat.pending, isError: etat.erreur, refetch: vi.fn() };
+  });
+  useBiensDeLAgendaMock.mockReset();
+  useBiensDeLAgendaMock.mockImplementation(() => ({ data: { data: etat.biensIndex }, isFetching: false }));
+});
 
-describe('<CalendarPage>', () => {
-  beforeEach(() => {
-    calendarResult.isLoading = false;
-    calendarResult.isError = false;
-    calendarResult.data = { data: [mkBooking(), mkVisit()] };
-    useCalendarMock.mockClear();
-    useCalendarMock.mockImplementation(() => calendarResult);
+describe('<CalendarPage> — l’agent (TCK-2597)', () => {
+  it('ouvre sa journée au téléphone, sans URL de vue, avec ses visites et ses tâches seulement', () => {
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    etat.evenements = [visite()];
+    monte({ persona: 'agent', audience: 'staff', defaultMine: true });
+
+    expect(screen.getByTestId('calendar-event-row-visit-429')).toHaveTextContent('Ndeye Wade');
+    expect(principale()).toMatchObject({ types: ['visit', 'task'], mine: true, start_date: '2026-11-09', end_date: '2026-11-15' });
   });
 
-  it('renders a permanent legend for every type the page asks for', () => {
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+  it('« Mon agenda » ne demande pas les séjours : seul leur compte du jour, sur un jour', () => {
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    monte({ persona: 'agent', audience: 'staff', defaultMine: true });
 
-    // TCK-591 — tâches, échéances de bail et interventions s'ajoutent aux réservations et visites.
-    const legend = screen.getByTestId('calendar-legend');
-    for (const label of ['Réservations', 'Visites', 'Tâches', 'Échéances de bail', 'Interventions']) {
-      expect(within(legend).getByText(label)).toBeInTheDocument();
-    }
-    expect(within(legend).getByText(/signature encore en attente/i)).toBeInTheDocument();
+    expect(principale().types).not.toContain('booking');
+    const sejours = appels().filter((a) => a.types.includes('booking'));
+    expect(sejours.length).toBeGreaterThan(0);
+    for (const a of sejours) expect(a).toMatchObject({ types: ['booking'], start_date: '2026-11-10', end_date: '2026-11-10' });
   });
 
-  it('renders month view by default with both event pills', () => {
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+  it('respecte `?view=month` au téléphone', () => {
+    navigationDeTest.reinitialiser('view=month&date=2026-11-10');
+    monte({ persona: 'agent', audience: 'staff', defaultMine: true });
 
-    expect(screen.getByText(/avril 2026/i)).toBeInTheDocument();
-    // Bookings span multiple days → several pills. At least one each.
-    expect(screen.getAllByTestId('calendar-event-pill-booking-1').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('calendar-event-pill-visit-2').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('calendar-day-2026-11-10')).toBeInTheDocument();
+    expect(principale()).toMatchObject({ start_date: '2026-10-26' });
   });
 
-  it('switches to week view when clicked', async () => {
+  it('ouvre sa semaine au bureau ; le créneau vide du mercredi à 15 h ouvre la planification préremplie', async () => {
+    largeur(1440);
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    etat.evenements = [visite()];
+    monte({ persona: 'agent', audience: 'staff', defaultMine: true });
+
+    expect(screen.getByTestId('calendar-event-pill-visit-429')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByTestId('agenda-creneau-2026-11-11-15:00'));
+    expect(screen.getByTestId('planifier')).toHaveAttribute('data-jour', '2026-11-11');
+    expect(screen.getByTestId('planifier')).toHaveAttribute('data-heure', '15:00');
+  });
+
+  it('écrit la vue choisie dans l’URL, même quand c’est celle de l’ouverture', async () => {
+    largeur(1440);
+    monte({ persona: 'agent', audience: 'staff', defaultMine: true });
+
+    await userEvent.setup().click(screen.getByTestId('calendar-view-week'));
+    expect(navigationDeTest.requete()).toBe('view=week');
+  });
+
+  it('ouvre la fiche d’une visite, avec son lien', async () => {
+    largeur(1440);
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    etat.evenements = [visite()];
+    monte({ persona: 'agent', audience: 'staff', defaultMine: true });
+
+    await userEvent.setup().click(screen.getByTestId('calendar-event-pill-visit-429'));
+    const fiche = await screen.findByTestId('calendar-event-detail');
+    expect(fiche).toHaveTextContent('Ndeye Wade');
+    expect(screen.getByTestId('calendar-event-open-resource')).toHaveAttribute('href', '/app/visits/429');
+  });
+});
+
+describe('<CalendarPage> — l’admin et le bailleur (TCK-2597)', () => {
+  it('ouvre le mois ; un séjour de 23 nuits est UNE barre par semaine traversée, jamais un morceau par jour', () => {
+    largeur(1440);
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    etat.evenements = [sejour(), visite()];
+    monte({ persona: 'admin', audience: 'staff' });
+
+    expect(principale().types).toEqual(['booking', 'visit', 'task', 'lease_event', 'maintenance']);
+    // Nuits du 3 au 25 novembre : les semaines du 2, du 9, du 16 et du 23.
+    expect(screen.getAllByTestId('calendar-sejour-900')).toHaveLength(4);
+    expect(screen.queryByTestId('calendar-event-pill-booking-900')).not.toBeInTheDocument();
+    expect(screen.getByTestId('calendar-event-pill-visit-429')).toBeInTheDocument();
+  });
+
+  it('le mois ouvre seul ; deux puces par jour puis « +N », et toucher un jour ouvre son panneau', async () => {
+    largeur(1440);
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    etat.evenements = [visite(), visite({ id: 430, start: '2026-11-10 14:30:00' }), visite({ id: 431, start: '2026-11-10 16:55:00' })];
+    monte({ persona: 'admin', audience: 'staff' });
+
+    expect(screen.queryByTestId('calendar-selected-day')).not.toBeInTheDocument();
+    expect(screen.getByTestId('calendar-event-pill-visit-429')).toHaveTextContent('10:57 · Visite');
+    expect(screen.queryByTestId('calendar-event-pill-visit-431')).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByTestId('calendar-day-overflow-2026-11-10'));
+    expect(within(screen.getByTestId('calendar-selected-day')).getByText('Mardi 10 novembre')).toBeInTheDocument();
+  });
+
+  it('au téléphone, l’occupation dit sa plage courte et ses quatorze jours', () => {
+    navigationDeTest.reinitialiser('date=2026-11-10&mode=occupation');
+    monte({ persona: 'admin', audience: 'staff' });
+
+    expect(screen.getByTestId('calendar-focus-label')).toHaveTextContent('10–23 nov.');
+    expect(screen.getByLabelText('Quatorze jours')).toHaveTextContent('14 j');
+    expect(principale()).toMatchObject({ start_date: '2026-11-10', end_date: '2026-11-23' });
+  });
+
+  it('au téléphone, la semaine dit sa plage courte ; au bureau, la semaine entière', () => {
+    navigationDeTest.reinitialiser('date=2026-11-10&view=week');
+    const { unmount } = monte({ persona: 'agent', audience: 'staff' });
+    expect(screen.getByTestId('calendar-focus-label')).toHaveTextContent('9–15 nov.');
+    // Le menu dit « Sem. » : « Semaine » ne laissait que 47 px à la plage, coupée sur quatre lignes.
+    expect(screen.getByTestId('agenda-menu-vue')).toHaveTextContent(/^Sem\.$/);
+    unmount();
+
+    largeur(1440);
+    monte({ persona: 'agent', audience: 'staff' });
+    expect(screen.getByText('9–15 novembre 2026')).toBeInTheDocument();
+  });
+
+  it('« Occupation » demande séjours, échéances et interventions sur le mois, un bien par ligne', async () => {
+    largeur(1440);
+    navigationDeTest.reinitialiser('date=2026-11-10');
+    etat.evenements = [sejour()];
+    etat.concernes = [{ id: 22, title: 'Villa Almadies' }];
+    etat.locatifs = [{ id: 31, title: 'Studio Mermoz' }, { id: 22, title: 'Villa Almadies' }];
+    monte({ persona: 'admin', audience: 'staff' });
+
+    await userEvent.setup().click(screen.getByRole('radio', { name: 'Occupation des biens' }));
+    expect(navigationDeTest.requete()).toBe('date=2026-11-10&mode=occupation');
+    expect(principale()).toMatchObject({ types: ['booking', 'lease_event', 'maintenance'], start_date: '2026-11-01', end_date: '2026-11-30' });
+    expect(screen.getByTestId('occupation-bien-22')).toHaveTextContent('Occupé jusqu’au');
+    expect(screen.getByTestId('occupation-bien-31')).toHaveTextContent('Libre');
+    expect(screen.getAllByTestId('occupation-sejour-900')).toHaveLength(1);
+    // Au bureau, le résumé est la ligne de la tête de page.
+    expect(screen.getByText('1 séjour en cours · 1 bien libre ce soir')).toBeInTheDocument();
+  });
+
+  it('le filtre « Bien » liste l’index des biens par leur titre, y compris un bien sans événement', async () => {
+    largeur(1440);
+    etat.biensIndex = [{ id: 31, title: 'Studio Mermoz' }, { id: 57, title: 'Appartement F3 Plateau' }];
+    monte({ persona: 'admin', audience: 'staff' });
     const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
 
-    await user.click(screen.getByTestId('calendar-view-week'));
-
-    expect(screen.getByLabelText('Vue semaine')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Vue mois')).toBeNull();
-    // Events remain rendered in the new view
-    expect(screen.getAllByTestId('calendar-event-pill-visit-2').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: /^Bien/ }));
+    const champ = await screen.findByRole('combobox');
+    await user.click(champ);
+    expect(await screen.findByRole('option', { name: 'Studio Mermoz' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Studio Mermoz' }));
+    expect(navigationDeTest.requete()).toBe('property=31');
+    await waitFor(() => expect(principale()).toMatchObject({ property_id: 31 }));
   });
 
-  it('switches to day view showing a single date', async () => {
+  it('un type se bascule dans l’URL, et le dernier allumé ne s’éteint pas', async () => {
+    largeur(1440);
+    navigationDeTest.reinitialiser('types=visit');
+    monte({ persona: 'admin', audience: 'staff' });
     const user = userEvent.setup();
-    // Focus on 2026-04-22 where a visit exists
-    render(wrap(<CalendarPage initialFocus={new Date(2026, 3, 22)} />));
 
-    await user.click(screen.getByTestId('calendar-view-day'));
-
-    expect(screen.getByTestId('calendar-event-row-visit-2')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Types/ }));
+    expect(await screen.findByTestId('calendar-type-toggle-visit')).toHaveAttribute('data-disabled');
+    await user.click(screen.getByTestId('calendar-type-toggle-task'));
+    expect(navigationDeTest.requete()).toBe('types=visit%2Ctask');
   });
 
-  it('switches to list view and groups by day', async () => {
-    const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+  it('l’abonnement iCal s’ouvre en feuille depuis la tête de page', async () => {
+    largeur(1440);
+    monte({ persona: 'admin', audience: 'staff', abonnement: true });
 
-    await user.click(screen.getByTestId('calendar-view-list'));
-
-    expect(screen.getByTestId('calendar-list-row-booking-1')).toBeInTheDocument();
-    expect(screen.getByTestId('calendar-list-row-visit-2')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'S’abonner (iCal)' }));
+    expect(await screen.findByTestId('abonnement-ical')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Abonnement iCal' })).toBeInTheDocument();
   });
 
-  it('opens detail panel with deep-link when an event is clicked', async () => {
-    const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+  it('sans droit au lien, ni bouton ni feuille d’abonnement', () => {
+    largeur(1440);
+    monte({ persona: 'bailleur', audience: 'landlord' });
 
-    const pill = screen.getAllByTestId('calendar-event-pill-booking-1')[0];
-    await user.click(pill);
+    expect(screen.queryByRole('button', { name: 'S’abonner (iCal)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Planifier une visite' })).not.toBeInTheDocument();
+  });
+});
 
-    const panel = await screen.findByTestId('calendar-event-detail');
-    const openLink = within(panel).getByTestId('calendar-event-open-resource');
-    expect(openLink).toHaveAttribute('href', '/app/bookings/1');
-    expect(within(panel).getByText('Villa Almadies')).toBeInTheDocument();
+describe('<CalendarPage> — états', () => {
+  it('attend l’écran avant de lire, puis montre un squelette pendant le chargement', () => {
+    etat.pending = true;
+    const { container } = monte({ persona: 'admin', audience: 'staff' });
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
-  it('deduplicates events per day beyond the max density threshold', () => {
-    // 5 bookings that cover 2026-04-20 → default maxPerDay=2 ⇒ "+3 autres".
-    // The booking spans 6 days, so the overflow label appears on every day.
-    calendarResult.data = {
-      data: Array.from({ length: 5 }, (_, i) =>
-        mkBooking({ id: 10 + i, title: `Booking #${10 + i}` }),
-      ),
-    };
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-
-    expect(screen.getAllByText(/\+3 autres/i).length).toBeGreaterThan(0);
-    expect(screen.getByTestId('calendar-selected-day')).toHaveTextContent('5 événements');
+  it('dit l’échec de lecture', () => {
+    etat.erreur = true;
+    monte({ persona: 'admin', audience: 'staff' });
+    expect(screen.getByText('Impossible de charger l’agenda.')).toBeInTheDocument();
   });
 
-  it('opens the full selected day list from an overflow control', async () => {
-    const user = userEvent.setup();
-    calendarResult.data = {
-      data: Array.from({ length: 5 }, (_, i) =>
-        mkBooking({ id: 20 + i, title: `Booking #${20 + i}` }),
-      ),
-    };
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
+  it('le prestataire : ses interventions seules, sans « Occupation » ni bascule de types', () => {
+    largeur(1440);
+    monte({ persona: 'prestataire', audience: 'provider' });
 
-    await user.click(screen.getByTestId('calendar-day-overflow-2026-04-20'));
-
-    const panel = screen.getByTestId('calendar-selected-day');
-    expect(panel).toHaveTextContent('lundi 20 avril');
-    expect(panel).toHaveTextContent('5 événements');
-    expect(within(panel).getByTestId('calendar-selected-day-row-booking-20')).toBeInTheDocument();
-    expect(within(panel).getByTestId('calendar-selected-day-row-booking-24')).toBeInTheDocument();
-  });
-
-  // TCK-1191 (P101.04) — le panneau du jour est un second `aside` à côté de celui de la barre
-  // latérale : sans nom, axe rendait `landmark-unique`. Il prend le nom de son titre, le jour.
-  it('names the selected day panel after its heading', async () => {
-    const user = userEvent.setup();
-    calendarResult.data = { data: [mkBooking({ id: 30, title: 'Booking #30' })] };
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-
-    await user.click(screen.getByRole('button', { name: /20\/04\/2026/ }));
-
-    expect(screen.getByRole('complementary', { name: /lundi 20 avril/i })).toBe(
-      screen.getByTestId('calendar-selected-day'),
-    );
-  });
-
-  it('disables one type via the segmented control without emptying them all', async () => {
-    const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-
-    const bookingToggle = screen.getByTestId('calendar-type-toggle-booking');
-    expect(bookingToggle).toHaveAttribute('aria-pressed', 'true');
-
-    await user.click(bookingToggle);
-    // booking is now disabled, visit still active
-    expect(bookingToggle).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('calendar-type-toggle-visit')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-
-    // TCK-591 — trois types de plus : on les éteint pour que la visite reste seule.
-    for (const type of ['task', 'lease_event', 'maintenance']) {
-      await user.click(screen.getByTestId(`calendar-type-toggle-${type}`));
-    }
-
-    // Click the remaining active one — it should NOT deactivate (last one locked)
-    await user.click(screen.getByTestId('calendar-type-toggle-visit'));
-    expect(screen.getByTestId('calendar-type-toggle-visit')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-  });
-
-  it('exposes a property filter built from the returned events', async () => {
-    const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-
-    // The filter is a Base UI Select (combobox + popup listbox), not a native
-    // <select>. We click the trigger to open the popup, then read the rendered
-    // <option role> children.
-    await user.click(screen.getByTestId('calendar-property-filter'));
-    const options = await screen.findAllByRole('option');
-    const labels = options.map((o) => o.textContent?.trim());
-
-    expect(labels[0]).toBe('Tous les biens');
-    expect(labels).toContain('Villa Almadies');
-    expect(labels).toContain('Appart Point E');
-  });
-
-  it('updates the query and shows active state when the property filter changes', async () => {
-    const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-
-    await user.click(screen.getByTestId('calendar-property-filter'));
-    const villaOption = await screen.findByRole('option', { name: 'Villa Almadies' });
-    await user.click(villaOption);
-
-    await waitFor(() => {
-      expect(useCalendarMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({ property_id: 10 }),
-      );
-    });
-    expect(screen.getByTestId('calendar-active-filters')).toHaveTextContent(
-      'Bien : Villa Almadies',
-    );
-  });
-
-  it('can render lease events with a distinct detail link when returned by the API', async () => {
-    const user = userEvent.setup();
-    calendarResult.data = { data: [mkLease()] };
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-
-    await user.click(screen.getAllByTestId('calendar-event-pill-lease-3')[0]);
-
-    const panel = await screen.findByTestId('calendar-event-detail');
-    expect(within(panel).getAllByText('Bail').length).toBeGreaterThan(0);
-    expect(within(panel).getByTestId('calendar-event-open-resource')).toHaveAttribute(
-      'href',
-      '/app/leases/3',
-    );
-    expect(within(panel).getByTestId('calendar-event-open-resource')).toHaveTextContent(
-      'Ouvrir le bail',
-    );
-  });
-
-  it('shows a skeleton while loading', () => {
-    calendarResult.isLoading = true;
-    calendarResult.data = undefined;
-    const { container } = render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-    // Skeleton = div with animate-pulse
-    expect(container.querySelector('.animate-pulse')).not.toBeNull();
-  });
-
-  it('shows an error message when the query fails', () => {
-    calendarResult.isLoading = false;
-    calendarResult.isError = true;
-    calendarResult.data = undefined;
-    render(wrap(<CalendarPage initialFocus={INITIAL_FOCUS} />));
-    expect(screen.getByText(/impossible de charger/i)).toBeInTheDocument();
-  });
-
-  it('today button resets focus to the current month', async () => {
-    const user = userEvent.setup();
-    render(wrap(<CalendarPage initialFocus={new Date(2020, 0, 15)} />));
-    // Before: month label should be january 2020
-    expect(screen.getByTestId('calendar-focus-label').textContent?.toLowerCase()).toContain(
-      'janvier 2020',
-    );
-    await user.click(screen.getByRole('button', { name: /aujourd'hui/i }));
-    // After: focus label changed (new month, current year)
-    const after = screen.getByTestId('calendar-focus-label').textContent ?? '';
-    expect(after.toLowerCase()).not.toContain('janvier 2020');
+    expect(principale()).toMatchObject({ types: ['maintenance'], mine: false });
+    expect(screen.queryByRole('radio', { name: 'Occupation des biens' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Types/ })).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('calendar-legend')).getByText('Interventions')).toBeInTheDocument();
   });
 });
