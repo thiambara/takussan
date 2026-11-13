@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ActivateLeaseRequest;
+use App\Http\Requests\Api\AbandonLeaseDraftRequest;
 use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
 use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Http\Requests\Api\TerminateLeaseRequest;
 use App\Http\Requests\UpdateLeaseRequest;
 use App\Http\Resources\LeaseResource;
+use App\Models\Booking;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
@@ -176,6 +178,30 @@ class LeaseController extends Controller
         return $this->json([
             'data' => LeaseResource::make($lease)->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2764 — abandonner un brouillon jamais envoyé en signature (suppression douce). La réponse
+     * rend la candidature d'origine telle qu'elle est restée, pour que l'écran propose de la fermer
+     * par son propre geste (`reject` si `pending`, `cancel` si `confirmed`).
+     */
+    public function destroy(AbandonLeaseDraftRequest $request, Lease $lease): JsonResponse
+    {
+        $abandonne = $this->leases->abandonDraft($lease, $request->user(), $request->validated('reason'));
+
+        return $this->json(['data' => [
+            'id' => $abandonne->id,
+            'abandoned_at' => $this->instant($abandonne->deleted_at),
+            'origin_booking' => self::candidatureDOrigine($abandonne),
+        ]]);
+    }
+
+    /** @return array{id: int, status: string|null}|null */
+    private static function candidatureDOrigine(Lease $lease): ?array
+    {
+        $candidature = $lease->booking_id !== null ? Booking::query()->whereKey($lease->booking_id)->first(['id', 'status']) : null;
+
+        return $candidature === null ? null : ['id' => $candidature->id, 'status' => $candidature->status?->value];
     }
 
     public function terminate(TerminateLeaseRequest $request, Lease $lease): JsonResponse

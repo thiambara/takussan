@@ -355,6 +355,9 @@ return [
         'not_activatable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a doxal.',
         'not_active_schedule' => 'Bail buy dox rekk moo mën a defar échéancier.',
         'not_draft_activate' => 'Bail bu nekk brouillon rekk lañu mën a doxal.',
+        // TCK-2764 — abandonner un brouillon jamais envoyé en signature.
+        'not_draft_abandon' => 'Seul un bail en brouillon, jamais envoyé en signature, s\'abandonne : un bail envoyé ou en vigueur se résilie.',
+        'abandon_has_payments' => 'Une échéance de ce brouillon est saisie : de l\'argent saisi ne disparaît pas avec un brouillon. Annulez-la, puis abandonnez le brouillon.',
         'not_found' => 'Bail bi gisuñu ko.',
         'rent_review_above_contract_cap' => 'Kontra bi ñu xaatim dafa tëj soppi lowe bi ci :max % : mënuñu ko forcer. Jaaral ci yeesal bayle bi walla ab yokk bu ñu xaatim.',
         'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko, walla nga tàmbali yeesal bi ginnaaw ko ; yeesal buy xaar xaatim, dañu koy dakkal, ba noppi defar beneen.',

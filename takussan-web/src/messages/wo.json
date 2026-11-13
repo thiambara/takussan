@@ -3482,7 +3482,9 @@
         "preavis": "Donner mon préavis",
         "preavisJours": "Préavis de {jours} jours",
         "indemniteMois": "Indemnité de {mois} mois de loyer",
-        "resilier": "Résilier le bail"
+        "resilier": "Résilier le bail",
+        "abandonner": "Abandonner le brouillon",
+        "abandonEmpeche": "Ce brouillon porte une échéance saisie, comme une caution : il ne s'abandonne pas. Annulez ou remboursez-la d'abord."
       },
       "dossier": {
         "titre": "Le dossier",
@@ -3575,6 +3577,28 @@
         "seasonal_rent": "Saisonnier",
         "sale": "Vente"
       }
+    },
+    "abandon": {
+      "titre": "Abandonner le brouillon",
+      "effet": "Le brouillon disparaît des listes et le logement peut être proposé à un autre candidat. Rien n'est envoyé au locataire.",
+      "motif": "Motif (facultatif)",
+      "candidature": {
+        "confirmed": "Candidature de {nom}, acceptée",
+        "pending": "Candidature de {nom}, en attente"
+      },
+      "resteAcceptee": "Tant qu'elle reste acceptée, aucune autre candidature sur ce logement ne peut l'être.",
+      "fermer": "Fermer aussi cette candidature",
+      "fermerAide": {
+        "confirmed": "Elle sera annulée, et le candidat prévenu.",
+        "pending": "Elle sera refusée, et le candidat prévenu."
+      },
+      "annuler": "Annuler",
+      "confirmer": "Abandonner le brouillon",
+      "enCours": "Abandon en cours…",
+      "erreur": "Le brouillon n'a pas pu être abandonné.",
+      "abandonne": "Brouillon abandonné.",
+      "abandonneEtFerme": "Brouillon abandonné, et candidature fermée.",
+      "fermetureEchouee": "Brouillon abandonné, mais la candidature n'a pas pu être fermée. Fermez-la depuis sa fiche."
     }
   },
   "maintenance": {

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Booking;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\User;
@@ -132,6 +133,9 @@ class LeaseResource extends BaseResource
                 // garde, et l'agent sans `leases.terminate` voyait le préavis.
                 'request_early_termination' => $this->viewer->can('requestEarlyTermination', $this->resource),
                 'update' => $this->viewer->can('update', $this->resource),
+                // TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle d'`update` sur un
+                // `draft`. Les échéances saisies restent jugées par l'écran et par l'API, sous verrou.
+                'abandon' => $this->viewer->can('abandon', $this->resource),
                 // TCK-2642 — les quatre gestes que la fiche ouvrait encore par le rôle. `leave_review` et
                 // `give_notice` sont des gestes de PARTIE (le locataire) : lus sur la policy, hors de
                 // `Gate::before`, qui les accorderait au super-admin.
@@ -151,6 +155,12 @@ class LeaseResource extends BaseResource
                     : $this->viewer->isSuperAdmin())
                     && $this->resource->rent_review_max_pct === null,
             ]),
+            // TCK-2764 — la candidature d'où le bail est tiré, et son statut, pour que le dialogue
+            // d'abandon propose de la fermer par son geste (`reject` si `pending`, `cancel` si
+            // `confirmed`). À qui peut abandonner seulement, sur le détail (`forViewer`) ; `null` quand
+            // le bail n'est tiré d'aucune réservation.
+            'origin_booking' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
+                fn (): ?array => $this->booking_id === null ? null : $this->candidatureDOrigine()),
             // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de
             // son agence, sinon le global : `RentReviewService::maxPctFor`), pour la feuille de révision.
             // Sur le détail seul : le réglage d'agence se lit une fois par bail.
@@ -257,5 +267,13 @@ class LeaseResource extends BaseResource
         $staffAgencyId = $request->attributes->get($key);
 
         return $staffAgencyId !== null && $this->agency_id !== null && (int) $this->agency_id === $staffAgencyId;
+    }
+
+    /** @return array{id: int, status: string|null}|null */
+    private function candidatureDOrigine(): ?array
+    {
+        $candidature = Booking::query()->whereKey($this->booking_id)->first(['id', 'status']);
+
+        return $candidature === null ? null : ['id' => $candidature->id, 'status' => $this->enumValue($candidature->status)];
     }
 }

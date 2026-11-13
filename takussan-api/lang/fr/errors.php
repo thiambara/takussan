@@ -355,6 +355,9 @@ return [
         'not_activatable' => 'Seul un bail en brouillon ou en attente de signature peut être activé.',
         'not_active_schedule' => 'Seul un bail actif peut générer un échéancier.',
         'not_draft_activate' => 'Seul un bail en brouillon peut être activé.',
+        // TCK-2764 — abandonner un brouillon jamais envoyé en signature.
+        'not_draft_abandon' => 'Seul un bail en brouillon, jamais envoyé en signature, s\'abandonne : un bail envoyé ou en vigueur se résilie.',
+        'abandon_has_payments' => 'Une échéance de ce brouillon est saisie : de l\'argent saisi ne disparaît pas avec un brouillon. Annulez-la, puis abandonnez le brouillon.',
         'not_found' => 'Bail introuvable.',
         'rent_review_above_contract_cap' => 'Le contrat signé plafonne la révision du loyer à :max % : ce plafond ne se force pas. Passez par un renouvellement ou un avenant signé.',
         'renewal_overlaps_paid_schedule' => 'Une échéance du bail en cours, dans la période que le renouvellement reprend, est déjà réglée ou en cours de règlement : le renouvellement ne l\'annule pas. Remboursez-la, ou faites commencer le renouvellement après elle ; un renouvellement déjà en attente de signature se résilie, puis s\'en crée un autre.',

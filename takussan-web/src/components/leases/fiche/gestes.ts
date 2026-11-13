@@ -139,13 +139,23 @@ export type GesteSecondaire =
   | 'restituer'
   | 'generer'
   | 'preavis'
-  | 'resilier';
+  | 'resilier'
+  | 'abandonner';
+
+/**
+ * TCK-2764 — le brouillon porte une échéance non annulée, de tout type (une caution saisie avant
+ * l'activation, P46.04) : l'API refuserait l'abandon (422 `lease.abandon_has_payments`). L'écran ne
+ * l'offre pas, et dit pourquoi. `false` tant que les échéances chargent : rien n'est alors offert.
+ */
+export function abandonEmpeche(lease: LeaseWithRelations, paiements: readonly LeasePayment[] | undefined): boolean {
+  return lease.status === 'draft' && lease.abilities?.abandon === true && paiements !== undefined && paiements.some((p) => p.status !== 'cancelled');
+}
 
 /**
  * Les gestes de « ⋯ » (téléphone) et de la carte « Actions » (bureau), dans l'ordre du ticket :
  * Réviser, Renouveler, Ajouter un document, Restituer la caution, Générer l'échéancier (seulement
  * quand il n'existe pas, et jamais pendant que les échéances chargent), puis le préavis ou la
- * résiliation, dernier et séparé.
+ * résiliation, dernier et séparé — sur un brouillon, l'abandon (TCK-2764) tient cette place.
  */
 export function gestesSecondaires(lease: LeaseWithRelations, paiements: readonly LeasePayment[] | undefined): GesteSecondaire[] {
   const a = lease.abilities;
@@ -166,5 +176,8 @@ export function gestesSecondaires(lease: LeaseWithRelations, paiements: readonly
   if (a.request_early_termination && (enCours || lease.status === 'expired')) {
     gestes.push(estLeLocataireDuBail(lease) ? 'preavis' : 'resilier');
   }
+  // TCK-2764 — sur un brouillon seulement, dernier et séparé comme la résiliation, et jamais pendant que
+  // les échéances chargent ni quand l'une d'elles est saisie (`abandonEmpeche`).
+  if (a.abandon && lease.status === 'draft' && paiements !== undefined && !abandonEmpeche(lease, paiements)) gestes.push('abandonner');
   return gestes;
 }

@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Document;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\Property;
@@ -137,6 +138,21 @@ class LeasePolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin();
+    }
+
+    /**
+     * TCK-2764 — abandonner un brouillon jamais envoyé en signature : la règle de {@see update()}, plus
+     * la condition `draft`, pour que la fiche ne monte l'action que sur un brouillon
+     * (`abilities.abandon`). Pas de capacité neuve.
+     *
+     * ⚠ `DELETE /api/leases/{id}` n'autorise PAS par elle, mais par `update`
+     * (`AbandonLeaseDraftRequest`) : un bail qui n'est plus un brouillon y rend 422
+     * `lease.not_draft_abandon`, jugé sous verrou par `LeaseService::abandonDraft()`, et non 403. Le
+     * statut lu ici est celui de l'instance, sans verrou : un indice pour l'écran, jamais une garde.
+     */
+    public function abandon(User $user, Lease $lease): bool
+    {
+        return $lease->status === LeaseStatus::Draft && $this->update($user, $lease);
     }
 
     /**

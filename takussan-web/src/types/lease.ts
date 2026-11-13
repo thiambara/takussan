@@ -3,6 +3,8 @@
  * Aligned with `docs/models-spec.md#14-lease-`, `#15-leasepayment-`, `#27-guarantor-`.
  */
 
+import type { BookingStatus } from '@/types/booking';
+
 export type LeaseStatus =
   | 'draft'
   | 'pending_signature'
@@ -112,6 +114,12 @@ export type Lease = {
    * l'utilisateur courant. Rendus par le détail seul ; absents, rien n'est offert.
    */
   abilities?: LeaseAbilities;
+  /**
+   * TCK-2764 — la candidature d'où le bail est tiré et son statut, au seul lecteur qui peut abandonner
+   * (détail) ; `null` quand le bail n'est tiré d'aucune réservation. Le dialogue d'abandon propose de
+   * la fermer par son propre geste.
+   */
+  origin_booking?: { readonly id: number; readonly status: BookingStatus } | null;
   /** TCK-2679 — les charges mensuelles, terme du bail ; `null` sur un bail antérieur. TCK-2645 : la carte « Charges ». */
   monthly_charges?: number | null;
   /** TCK-2642 — le plafond de révision que CE bail exécute (figé, sinon l'agence, sinon le global) ; détail seul. */
@@ -159,6 +167,11 @@ export interface LeaseAbilities {
   readonly give_notice?: boolean;
   /** TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité ET plafond non figé. */
   readonly rent_review_force?: boolean;
+  /**
+   * TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle de `update`, sur un bail
+   * `draft`. Les échéances saisies se jugent à part (l'écran les lit, l'API les refuse en 422).
+   */
+  readonly abandon?: boolean;
 }
 
 /**

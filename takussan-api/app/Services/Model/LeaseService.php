@@ -569,6 +569,51 @@ class LeaseService
         };
     }
 
+    /**
+     * TCK-2764 (décision du porteur du 2026-11-12) — abandonner un brouillon jamais envoyé en signature :
+     * suppression DOUCE. La ligne reste (`deleted_at`), avec sa candidature d'origine, ses garants et
+     * ses documents ; elle cesse d'occuper le bien, parce que `BookingService::bauxQuiOccupent()` part
+     * de `Lease::query()`, qui écarte les lignes supprimées. Aucune candidature ne bouge — la fermer est
+     * un second geste, celui de l'écran (`reject` ou `cancel` de la réservation).
+     *
+     * Le bien puis le bail (`verrouillerLeBienPuisLeBail()`), comme l'envoi en signature : de deux
+     * ordres concurrents, le second relit la ligne. Un envoi passé d'abord laisse `pending_signature`
+     * (422 ci-dessous) ; un abandon passé d'abord laisse une ligne supprimée, que l'envoi ne trouve plus
+     * (404).
+     *
+     * Une échéance non annulée, de tout type, refuse l'abandon : de l'argent saisi ne disparaît pas
+     * avec un brouillon.
+     */
+    public function abandonDraft(Lease $lease, User $by, ?string $reason = null): Lease
+    {
+        return DB::transaction(function () use ($lease, $by, $reason): Lease {
+            $locked = self::verrouillerLeBienPuisLeBail($lease);
+
+            abort_code_if($locked->status !== LeaseStatus::Draft, 422, 'lease.not_draft_abandon');
+            abort_code_if(
+                $locked->payments()->where('status', '!=', PaymentStatus::Cancelled->value)->exists(),
+                422,
+                'lease.abandon_has_payments'
+            );
+
+            $locked->delete();
+
+            activity('Lease')
+                ->performedOn($locked)
+                ->causedBy($by)
+                ->withProperties([
+                    'lease_id' => $locked->id,
+                    'property_id' => $locked->property_id,
+                    'booking_id' => $locked->booking_id,
+                    'reason' => $reason,
+                ])
+                ->event('lease_draft_abandoned')
+                ->log('lease_draft_abandoned');
+
+            return $locked;
+        });
+    }
+
     public function terminate(Lease $lease, User $user, ?string $reason = null): Lease
     {
         // The status flip and the penalty charge must commit together: if the

@@ -6,6 +6,7 @@ import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError, type RequestOptions } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
+import type { BookingStatus } from '@/types/booking';
 import type { CustomerListItem } from '@/types/customer';
 import type { Guarantor, Lease, LeaseDefaults, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
@@ -706,5 +707,46 @@ export function useCancelEarlyTermination(leaseId: number) {
         ['leases', 'list'],
       ],
     },
+  );
+}
+
+/**
+ * TCK-2764 — la réponse de `DELETE /api/leases/{id}` : la candidature d'origine telle qu'elle est
+ * restée (l'abandon ne la ferme pas), `null` quand le bail n'est tiré d'aucune réservation.
+ */
+export type AbandonLeaseDraftResponse = {
+  readonly data: {
+    readonly id: number;
+    readonly abandoned_at: string;
+    readonly origin_booking: { readonly id: number; readonly status: BookingStatus } | null;
+  };
+};
+
+/**
+ * TCK-2764 — abandonner un brouillon jamais envoyé en signature (suppression douce). Seules les
+ * listes se relisent : le détail du bail rend désormais 404, et l'écran quitte la fiche.
+ */
+export function useAbandonLeaseDraft(leaseId: number) {
+  return useApiMutation<AbandonLeaseDraftResponse, { reason?: string }>(
+    { path: cheminApi`/api/leases/${leaseId}`, method: 'DELETE' },
+    { invalidate: [['leases', 'list']] },
+  );
+}
+
+/** TCK-2764 — le geste qui ferme la candidature d'origine : `reject` si `pending`, `cancel` si `confirmed`. */
+export type FermetureDeCandidature = { readonly id: number; readonly geste: 'reject' | 'cancel' };
+
+/**
+ * TCK-2764 — fermer la candidature d'origine APRÈS l'abandon, par son geste existant (et ses avis) :
+ * son identifiant n'est connu qu'à la réponse du `DELETE`, d'où le chemin composé à l'appel.
+ */
+export function useFermerLaCandidatureDOrigine() {
+  return useApiMutation<ApiResponse<unknown>, FermetureDeCandidature>(
+    {
+      path: ({ id, geste }) => (geste === 'reject' ? cheminApi`/api/bookings/${id}/reject` : cheminApi`/api/bookings/${id}/cancel`),
+      method: 'POST',
+      body: () => ({}),
+    },
+    { invalidate: [['bookings', 'list']] },
   );
 }

@@ -74,6 +74,9 @@ vi.mock('../LeasePaymentDialog', () => ({
     open ? <p>{`paiement reçu, échéance ${paiementInitial ?? 'à choisir'}`}</p> : null,
 }));
 vi.mock('../LeaseRenewalDialog', () => ({ LeaseRenewalDialog: ({ open }: { open: boolean }) => (open ? <p>dialogue de renouvellement</p> : null) }));
+vi.mock('../fiche/AbandonnerLeBrouillon', () => ({
+  AbandonnerLeBrouillon: ({ open }: { open: boolean }) => (open ? <p>dialogue d’abandon</p> : null),
+}));
 vi.mock('../EarlyTerminationDialog', () => ({ EarlyTerminationDialog: ({ open }: { open: boolean }) => (open ? <p>dialogue de préavis</p> : null) }));
 vi.mock('@/components/documents/DocumentUploadDialog', () => ({
   DocumentUploadDialog: ({ open }: { open: boolean }) => (open ? <p>dialogue de dépôt</p> : null),
@@ -540,5 +543,42 @@ describe('l’en-tête et les onglets', () => {
     monter(true);
     expect(screen.getByRole('tab', { name: fr.lease.fiche.onglets.historique })).toBeInTheDocument();
     expect(screen.getByText('onglet historique')).toBeInTheDocument();
+  });
+});
+
+describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
+  const BROUILLON: LeaseAbilities = { ...GESTION, abandon: true };
+
+  it('sur un brouillon, l’action est offerte en fin de carte et ouvre son dialogue', () => {
+    etat.lease = bail(BROUILLON, { status: 'draft' });
+    monter();
+
+    // En ton destructif, dernier et séparé comme la résiliation.
+    const action = within(carteActions()!).getByRole('button', { name: fr.lease.fiche.gestes.abandonner });
+    expect(action).toHaveClass('text-destructive');
+    expect(within(carteActions()!).getAllByRole('button').at(-1)).toBe(action);
+    fireEvent.click(action);
+    expect(screen.getByText('dialogue d’abandon')).toBeInTheDocument();
+    expect(screen.queryByTestId('abandon-empeche')).not.toBeInTheDocument();
+  });
+
+  it('avec une caution saisie, l’action cède la place à sa raison — au bureau comme dans « ⋯ »', () => {
+    etat.lease = bail(BROUILLON, { status: 'draft' });
+    etat.paiements = [echeance({ payment_type: 'deposit', status: 'pending' })];
+    monter();
+
+    expect(within(carteActions()!).queryByRole('button', { name: fr.lease.fiche.gestes.abandonner })).not.toBeInTheDocument();
+    expect(within(carteActions()!).getByText(fr.lease.fiche.gestes.abandonEmpeche)).toBeInTheDocument();
+    ouvrirLesGestes();
+    expect(within(screen.getByTestId('feuille-gestes')).getByText(fr.lease.fiche.gestes.abandonEmpeche)).toBeInTheDocument();
+  });
+
+  it('hors d’un brouillon, ni l’action ni sa raison', () => {
+    etat.lease = bail(BROUILLON, { status: 'pending_signature' });
+    etat.paiements = [echeance({ payment_type: 'deposit', status: 'pending' })];
+    monter();
+
+    expect(screen.queryByRole('button', { name: fr.lease.fiche.gestes.abandonner })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('abandon-empeche')).not.toBeInTheDocument();
   });
 });

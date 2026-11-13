@@ -19,6 +19,7 @@ import {
   RefreshCw,
   ScrollText,
   Send,
+  Trash2,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
@@ -61,11 +62,13 @@ import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { LeaseRenewalDialog } from './LeaseRenewalDialog';
 import { LeaseSchedule, ordreDeLEcheancier } from './LeaseSchedule';
 import { LeaseSignaturePanel } from './LeaseSignaturePanel';
+import { AbandonnerLeBrouillon } from './fiche/AbandonnerLeBrouillon';
 import { CarteCaution, CarteDuree, CarteLoyer } from './fiche/CartesDuBail';
 import { FeuilleDeRevision } from './fiche/FeuilleDeRevision';
 import { OngletDocumentsDuBail, OngletHistoriqueDuBail } from './fiche/OngletsDuBail';
 import { Carte, Partie, TitreBloc, type PartieDuBail } from './fiche/PiecesDuBail';
 import {
+  abandonEmpeche,
   echeanceAPayer,
   estLeLocataireDuBail,
   gestePrincipal,
@@ -211,6 +214,8 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const nomLocataire = nomCompletDe(lease.tenant);
   const titre = locataire ? t('monBail') : nomLocataire ? t('titre', { nom: nomLocataire }) : reference;
   const a = lease.abilities;
+  // TCK-2764 — le brouillon porte une échéance saisie : l'abandon n'est pas offert, sa raison l'est.
+  const empeche = abandonEmpeche(lease, paiements);
   const peutTelechargerLeContrat = a?.download_contract === true;
   const peutDeposer = a?.add_document === true;
   const lignes = paiements ? ordreDeLEcheancier(paiements) : [];
@@ -467,14 +472,14 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
                 ))}
               </Carte>
             ) : null}
-            {principal || secondaires.length > 0 ? (
+            {principal || secondaires.length > 0 || empeche ? (
               <Carte titre={t('gestes.actions')} className="order-4 max-md:hidden" data-testid="carte-actions">
                 <div className="space-y-2 p-4">
                   {principal ? <BoutonPrincipal {...principalProps} pleineLargeur /> : null}
                   {principal?.type === 'envoyer-signature' && principal.bloque ? (
                     <p className="text-ui text-muted-foreground">{t(`gestes.bloque.${principal.bloque}`)}</p>
                   ) : null}
-                  <ListeDesGestes lease={lease} gestes={secondaires} onGeste={lancer} enCours={generer.isPending} forme="boutons" />
+                  <ListeDesGestes lease={lease} gestes={secondaires} onGeste={lancer} enCours={generer.isPending} forme="boutons" abandonEmpeche={empeche} />
                 </div>
               </Carte>
             ) : null}
@@ -482,9 +487,9 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
         </div>
       )}
 
-      {principal || secondaires.length > 0 ? (
+      {principal || secondaires.length > 0 || empeche ? (
         <BarreDAction taille="action" secondaire={principal ? 'premier' : undefined}>
-          {secondaires.length > 0 ? (
+          {secondaires.length > 0 || empeche ? (
             <Button type="button" variant="outline" size="icon" aria-label={t('gestes.plus')} onClick={() => setFeuilleGestes(true)}>
               <MoreHorizontal className="size-5" aria-hidden="true" />
             </Button>
@@ -495,7 +500,7 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
 
       {feuilleGestes ? (
         <FeuilleDuBas open onOpenChange={(o) => (o ? undefined : setFeuilleGestes(false))} titre={t('gestes.titre')}>
-          <ListeDesGestes lease={lease} gestes={secondaires} onGeste={lancer} enCours={generer.isPending} forme="lignes" />
+          <ListeDesGestes lease={lease} gestes={secondaires} onGeste={lancer} enCours={generer.isPending} forme="lignes" abandonEmpeche={empeche} />
         </FeuilleDuBas>
       ) : null}
 
@@ -524,6 +529,7 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
           lease={lease}
         />
       ) : null}
+      {a?.abandon ? <AbandonnerLeBrouillon lease={lease} open={ouvert === 'abandonner'} onOpenChange={(o) => (o ? undefined : fermerLeGeste())} /> : null}
       {peutDeposer ? (
         <DocumentUploadDialog
           open={ouvert === 'document'}
@@ -637,11 +643,14 @@ const ICONES: Record<GesteSecondaire, typeof Wallet> = {
   generer: CalendarPlus,
   preavis: Send,
   resilier: LogOut,
+  abandonner: Trash2,
 };
 
 /**
  * Les gestes de « ⋯ » (feuille du téléphone) et de la carte « Actions » (bureau). La résiliation est
  * dernière et séparée ; le préavis du locataire est précédé de son délai et de son indemnité (AC6).
+ * Sur un brouillon, l'abandon tient cette place (TCK-2764) — ou sa raison, quand une échéance est
+ * saisie (`abandonEmpeche`).
  */
 function ListeDesGestes({
   lease,
@@ -649,17 +658,25 @@ function ListeDesGestes({
   onGeste,
   enCours,
   forme,
+  abandonEmpeche,
 }: {
   readonly lease: LeaseWithRelations;
   readonly gestes: readonly GesteSecondaire[];
   readonly onGeste: (geste: GesteSecondaire) => void;
   readonly enCours: boolean;
   readonly forme: 'lignes' | 'boutons';
+  readonly abandonEmpeche: boolean;
 }) {
   const t = useTranslations('lease.fiche.gestes');
   const libelle = (g: GesteSecondaire) => (g === 'generer' && enCours ? t('generation') : t(g));
-  const courants = gestes.filter((g) => g !== 'preavis' && g !== 'resilier');
-  const fin = gestes.find((g) => g === 'preavis' || g === 'resilier') ?? null;
+  const estDeFin = (g: GesteSecondaire) => g === 'preavis' || g === 'resilier' || g === 'abandonner';
+  const courants = gestes.filter((g) => !estDeFin(g));
+  const fin = gestes.find(estDeFin) ?? null;
+  const raison = abandonEmpeche ? (
+    <p className="text-ui text-muted-foreground" data-testid="abandon-empeche">
+      {t('abandonEmpeche')}
+    </p>
+  ) : null;
   const conditions =
     fin === 'preavis'
       ? [
@@ -696,6 +713,7 @@ function ListeDesGestes({
             </Button>
           </div>
         ) : null}
+        {raison ? <div className="mt-2 border-t border-border px-4 pt-3">{raison}</div> : null}
       </div>
     );
   }
@@ -719,6 +737,7 @@ function ListeDesGestes({
           </Button>
         </div>
       ) : null}
+      {raison ? <div className="pt-1 text-center">{raison}</div> : null}
     </>
   );
 }

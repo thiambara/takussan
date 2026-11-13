@@ -5608,7 +5608,9 @@
         "preavis": "Give my notice",
         "preavisJours": "{jours}-day notice",
         "indemniteMois": "Fee of {mois} months' rent",
-        "resilier": "Terminate the lease"
+        "resilier": "Terminate the lease",
+        "abandonner": "Abandon the draft",
+        "abandonEmpeche": "This draft carries a recorded due, such as a deposit: it cannot be abandoned. Cancel or refund it first."
       },
       "dossier": {
         "titre": "The file",
@@ -5701,6 +5703,28 @@
         "seasonal_rent": "Seasonal",
         "sale": "Sale"
       }
+    },
+    "abandon": {
+      "titre": "Abandon the draft",
+      "effet": "The draft disappears from the lists and the home can be offered to another applicant. Nothing is sent to the tenant.",
+      "motif": "Reason (optional)",
+      "candidature": {
+        "confirmed": "Application from {nom}, accepted",
+        "pending": "Application from {nom}, pending"
+      },
+      "resteAcceptee": "As long as it stays accepted, no other application for this home can be accepted.",
+      "fermer": "Also close this application",
+      "fermerAide": {
+        "confirmed": "It will be cancelled, and the applicant notified.",
+        "pending": "It will be declined, and the applicant notified."
+      },
+      "annuler": "Cancel",
+      "confirmer": "Abandon the draft",
+      "enCours": "Abandoning…",
+      "erreur": "The draft could not be abandoned.",
+      "abandonne": "Draft abandoned.",
+      "abandonneEtFerme": "Draft abandoned, and application closed.",
+      "fermetureEchouee": "Draft abandoned, but the application could not be closed. Close it from its page."
     }
   },
   "maintenance": {
