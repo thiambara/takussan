@@ -135,4 +135,72 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**2026-11-13 — terrain-8 (front), back-4 (delta API).**
+
+**Prémisse re-mesurée.** Les dépendances (TCK-2646, 2684, 2687, 2688, 2689, 2691) sont livrées. Le contrat de l'API ne permettait pas deux critères :
+
+- `rooms.*.elements.*.state` était exigé, donc aucun élément ne pouvait rester non qualifié (AC3) ;
+- `rooms.*.completed` n'avait pas de règle, et `validated()` le retirait (AC5).
+
+Delta API validé par team-lead, écrit par back-4 et commité avant le front :
+
+- `state` nullable dans les deux requêtes ;
+- `submit` rend 422 `inventory.unqualified_elements` tant qu'un élément n'a pas d'état ;
+- `rooms.*.completed` en `nullable|boolean`.
+
+**Écrans** (`takussan-web/src/components/inventory/terrain/`) :
+
+- `Demarrer` (a-0) et `ParcoursDeTerrain` (a-1, a-3) ; la page `[id]` passe par `EcranDUnePiece`.
+- Règles sans écran dans `parcours.ts`.
+- `useFileDePhotos` : file d'envoi une par une.
+- `InventoryForm` et `RoomEditor` sont retirés : leurs fonctions vivent dans les feuilles de l'élément et de la pièce.
+
+**Décisions validées par team-lead :**
+
+- `general_condition` et `rooms.*.condition` valent `good` par défaut ; ils se saisissent au récapitulatif (TCK-2648).
+- Deux colonnes dès **`xl`**, et non `lg` comme l'écrit la direction UX : à 1024, la largeur utile (694 px) ne tient pas la liste de 320 px et le tableau à pastilles.
+- Pas de dictionnaire front pour les modèles : l'API rend les noms de pièces et d'éléments dans la langue de la requête (TCK-2646).
+- La fiche de fidélité couvre a-0, a-1 et a-3 ; a-2 relève de TCK-2648.
+
+**Pièges payés :**
+
+- **La reprise ne s'ouvre que sur `completed: false` explicite**, ou sur `?piece=N` (« Revoir les pièces »). Un brouillon antérieur, dont les pièces n'ont pas la clé, garde la page de relecture : sinon un serveur qui perdrait la clé rouvrirait la pièce 1 sans fin.
+- **L'API n'accepte une photo que pour une pièce et un élément déjà enregistrés** (`UploadRoomPhotosInventoryRequest`, `Rule::in`). La file enregistre donc les pièces avant chaque passage quand elles ont changé ; sans cela, une 422 passait pour une panne réseau.
+- **Un 4xx est un refus**, dit à l'écran, jamais une attente du réseau.
+- **« Terminer » et « Enregistrer et quitter » ne partent pas avec des photos en attente** : la file vit dans l'écran.
+- `requete()` ne s'interpole que dans `cheminApi` : un gabarit nu envoie `[object Object]`, et tsc ne le voit pas.
+- Les valeurs de l'énumération (`usé`, `endommagé`) passent par des constantes (`ETAT_*` dans `parcours.ts`) : le scan i18n les lit comme du texte en dur.
+- La flèche de retour de l'en-tête de pièce est `BoutonFlecheDeRetour` (TCK-2617).
+
+**Tests.** 50 tests TCK-2647 : `parcours`, `Demarrer`, `ParcoursDeTerrain`, `InventoryDetail.terrain`. 27 ablations, toutes tuées. Deux tests existants retouchés : `code-mort.tck-917` (`useUpdateInventory` revient avec un appelant) et `parametre-de-bail` (le mock vise `Demarrer`).
+
+**Fidélité** (`docs/qa/audit-ux-2026-11/fidelite/TCK-2647.json`, 12 écarts acceptés motivés). La démo n'a aucun brouillon : a-1 et a-3 doublent en GET la seule lecture cliente d'un état des lieux existant. Résultats en conformes · écarts · absents (% de pixels) :
+
+| Écran | Téléphone | Bureau 1440 | Bureau 1280 |
+|---|---|---|---|
+| a-0, avant | 1 · 5 · 41 (28,97 %) | 28 · 115 · 54 (10,04 %) | 28 · 115 · 54 (11,32 %) |
+| a-0, après | 18 · 11 · 8 (3,59 %) | 41 · 127 · 21 (5,1 %) | 41 · 127 · 21 (5,74 %) |
+| a-1 | 20 · 29 · 7 (9,49 %) | 58 · 191 · 25 (9,19 %) | 58 · 191 · 25 (8,7 %) |
+| a-3 | 12 · 25 · 7 (6,64 %) | 46 · 186 · 28 (9,05 %) | 47 · 185 · 28 (11,79 %) |
+
+Le reste des écarts vient de la coque, des données de démo (bien, locataire, photos absentes) et des fonctions ajoutées. Balayage 390/768/1024/1280/1440 sur les trois routes : aucun débord, aucune coupe.
+
+### Delta API (2026-11-13, back-4)
+
+- **`rooms.*.elements.*.state` nullable** dans `InventoryStoreRequest` et `InventoryUpdateRequest`. L'énumération juge toujours une valeur non nulle.
+  - Ces deux requêtes ne visent que des brouillons : la création n'en fait que des brouillons, et la mise à jour refuse tout autre statut dans `InventoryService::update()` (`assertDraft`).
+  - Un élément peut aussi être envoyé sans clé `state`. Il est alors stocké sans elle et compte comme non qualifié.
+- **Soumission** : `InventoryService::submit()` rend 422 `inventory.unqualified_elements` tant qu'un élément a un état nul ou absent. Le libellé existe en fr, en et wo (wo = fr), et LangGroupParity est vert.
+- **`rooms.*.completed`** (`nullable|boolean`) dans les deux requêtes : stocké dans le JSON `rooms` et rendu tel quel par `InventoryResource`. Un non-booléen rend 422.
+- **Lecteurs de `state`** vérifiés sur un état nul ou absent :
+  - reprise de la sortie (`InventoryExitPrefill::roomsFrom` / `attach`) ;
+  - PDF (`report.blade.php`, « — ») ;
+  - ressource ;
+  - retenues : `InventoryRetention` ne lit pas `state`.
+- **Épinglé par** `tests/Feature/Api/InventoryPieceParPieceTest.php` (5 tests).
+- **Ablations, toutes rouges :**
+  - `state` requis à la création ; `state` requis à la mise à jour ;
+  - sans le refus de soumission ;
+  - `completed` retiré de la création ; `completed` retiré de la mise à jour ;
+  - le PDF sans repli « — » ;
+  - la reprise sans `?? null`.

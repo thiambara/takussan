@@ -296,6 +296,8 @@ return [
         'tenant_not_found' => 'The lease tenant was not found.',
         // TCK-2646 — the exit only takes over a signed entry of the lease or of a lease it renews.
         'entry_inventory_invalid' => 'Only a signed entry inventory of this lease, or of a lease it renews, can be taken over by the exit.',
+        // TCK-2647 — un brouillon garde des éléments sans état ; la soumission les refuse.
+        'unqualified_elements' => 'Every element needs a condition before the inventory is submitted for signature.',
     ],
     // TCK-2646 (ADR-0098) — the tenant signs on the agent's phone, with an SMS code.
     'inventory_signature' => [

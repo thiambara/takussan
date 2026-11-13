@@ -103,11 +103,32 @@ class InventoryService
                 422,
                 'inventory.not_draft_submit'
             );
+            // TCK-2647 — un brouillon peut garder des éléments sans état ; on ne signe pas un constat
+            // incomplet : chaque élément doit être qualifié avant la soumission.
+            abort_code_if(self::aDesElementsNonQualifies($locked->rooms), 422, 'inventory.unqualified_elements');
 
             $locked->update(['status' => InventoryStatus::PendingSignature]);
 
             return $locked->refresh();
         });
+    }
+
+    /**
+     * TCK-2647 — un élément dont l'état est nul ou absent (`rooms.*.elements.*.state`).
+     *
+     * @param  array<int, mixed>|null  $rooms
+     */
+    private static function aDesElementsNonQualifies(?array $rooms): bool
+    {
+        foreach ($rooms ?? [] as $room) {
+            foreach (is_array($room) && is_array($room['elements'] ?? null) ? $room['elements'] : [] as $element) {
+                if (is_array($element) && ($element['state'] ?? null) === null) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function dispute(Inventory $inventory, string $reason): Inventory

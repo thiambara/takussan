@@ -296,6 +296,8 @@ return [
         'tenant_not_found' => 'Luwekat bu bail bi gisuñu ko.',
         // TCK-2646 — la sortie ne reprend qu'une entrée signée du bail ou d'un bail qu'il renouvelle.
         'entry_inventory_invalid' => 'Seule une entrée signée de ce bail, ou d\'un bail qu\'il renouvelle, peut être reprise par la sortie.',
+        // TCK-2647 — un brouillon garde des éléments sans état ; la soumission les refuse.
+        'unqualified_elements' => 'Chaque élément doit avoir un état avant la soumission à signature.',
     ],
     // TCK-2646 (ADR-0098) — la signature du locataire sur le téléphone de l'agent, par code SMS.
     'inventory_signature' => [
