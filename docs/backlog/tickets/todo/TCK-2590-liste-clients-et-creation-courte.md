@@ -246,3 +246,4 @@ de 20 recherches au numéro complet par heure et par personne** (option a, avec 
   - consommation sans plafond : rouge depuis que le test emploie deux fiches cachées distinctes ;
   - le téléphone de la sonde recompté : 4 rouges.
 - **Reste.** r2, le budget non atomique, est inchangé. Le commentaire du limiteur dans `AppServiceProvider`, fichier partagé, n'est pas mis à jour.
+- **r1 de la vérification de affb8e269 (2026-11-13, back-4).** Au PATCH, l'e-mail « inchangé » se comparait en chaîne brute : changer seulement la casse de son propre e-mail présentait une identité neuve, et un seau vide rendait 429. `CustomerController::refuseDuplicate()` compare désormais `CaseInsensitive::fold(trim())` des deux côtés, comme le détecteur cherche. Épinglé dans `test_seau_vide_cachee_et_libre_rendent_le_meme_429` : `SIENNE@Example.COM` puis le retour à la forme d'origine rendent 200, sans rien consommer. Ablation (comparaison brute) : rouge, 429 au lieu de 200.

@@ -32,6 +32,7 @@ use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Services\Visit\VisitReportService;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -164,7 +165,11 @@ class CustomerController extends Controller
         if ($current !== null) {
             // À la mise à jour, seul un champ qui CHANGE peut créer un doublon.
             $phone = $phone !== null && $phone !== $current->phone ? $phone : null;
-            $email = $email !== null && $email !== $current->email ? $email : null;
+            // TCK-2590 (r1 de la vérification de affb8e269) — l'e-mail se compare replié des deux côtés,
+            // comme le détecteur le cherche : changer la seule casse ou les espaces de son propre e-mail
+            // ne présente pas une identité neuve (sinon : 429 seau vide).
+            $replie = fn (?string $e): ?string => $e !== null && trim($e) !== '' ? CaseInsensitive::fold(trim($e)) : null;
+            $email = $email !== null && $replie($email) !== $replie($current->email) ? $email : null;
         }
 
         // TCK-2590 (décision 8 du porteur, seconde et troisième portes) — le 409 qui signale une fiche

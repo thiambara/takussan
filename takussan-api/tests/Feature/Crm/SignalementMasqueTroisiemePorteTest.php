@@ -221,6 +221,11 @@ class SignalementMasqueTroisiemePorteTest extends ApiTestCase
 
         // Une fiche qui GARDE son numéro et son e-mail n'est pas bloquée : seules les identités modifiées se jugent.
         $this->patchJson("/api/customers/{$sienne}", ['phone' => '+221771110000', 'email' => 'sienne@example.com', 'first_name' => 'Renommee'])->assertOk();
+        // r1 de la vérification de affb8e269 — ni celle qui ne change que la casse de son e-mail : replié,
+        // c'est le même (le détecteur le cherche ainsi) ; puis le retour à la forme d'origine.
+        $this->patchJson("/api/customers/{$sienne}", ['email' => 'SIENNE@Example.COM'])->assertOk();
+        $this->patchJson("/api/customers/{$sienne}", ['email' => 'sienne@example.com'])->assertOk();
+        $this->assertSame(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE, $this->unitesConsommees(), 'rien de plus consommé');
         // Ni une création sans numéro ni e-mail.
         $this->postJson('/api/customers', ['first_name' => 'Sans', 'last_name' => 'Identite'])->assertCreated();
     }
