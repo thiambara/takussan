@@ -115,7 +115,7 @@ class DocumentVaultBlockedLandlordTest extends TestCase
         $vault = $this->coffre();
 
         $this->assertNotContains('statements', array_column($vault['folders'], 'key'));
-        $this->assertSame([['type' => 'user', 'id' => $this->landlord->id, 'folder' => 'pieces', 'name' => null]], $vault['attachable_targets']);
+        $this->assertSame([['type' => 'user', 'id' => $this->landlord->id, 'folder' => 'pieces', 'name' => null, 'reference' => null]], $vault['attachable_targets']);
 
         $paths = array_merge(
             array_column($this->dossier($vault, $this->property)['entries'], 'download_path'),
@@ -307,7 +307,7 @@ class DocumentVaultBlockedLandlordTest extends TestCase
 
         $this->assertTrue($this->dossier($vault, $this->property)['read_only']);
         $this->assertTrue($this->dossier($vault, $this->otherProperty)['read_only']);
-        $this->assertSame([['type' => 'user', 'id' => $this->landlord->id, 'folder' => 'pieces', 'name' => null]], $vault['attachable_targets']);
+        $this->assertSame([['type' => 'user', 'id' => $this->landlord->id, 'folder' => 'pieces', 'name' => null, 'reference' => null]], $vault['attachable_targets']);
     }
 
     /** Actif dans une agence, bloqué dans une autre : ses biens actifs normaux, les autres figés. */
