@@ -18,28 +18,35 @@ import { BandeauMiseEnService } from './BandeauMiseEnService';
  *  5. « Ce mois ».
  *
  * Au bureau, deux colonnes dès `xl` (la maquette : « à 1024, une seule colonne ») : les blocs à
- * gauche, « Ce mois » à droite sur 360 px. Sans bloc du persona, une seule colonne.
+ * gauche, « Ce mois » à droite sur 360 px, puis la colonne du persona dessous (TCK-2624 : « Équipe
+ * aujourd'hui »). Sous `xl`, une colonne : les blocs, la colonne du persona, puis « Ce mois » (le
+ * ticket : l'équipe « sous À faire au téléphone »). Sans bloc du persona, une seule colonne.
  *
  * Composant serveur : aucun état, il pose les pièces.
  */
 
 interface SocleDeLAccueilProps {
   readonly titre: string;
-  /** « Mardi 10 novembre », ou « Mardi 10 novembre · 3 demandes, 12 visites à confirmer ». */
-  readonly ligne: string;
+  /**
+   * « Mardi 10 novembre », ou « Mardi 10 novembre · 3 demandes, 12 visites à confirmer » — un nœud :
+   * le résumé du persona est un composant client qui lit les comptes de ses files (TCK-2624).
+   */
+  readonly ligne: ReactNode;
   /** L'agence dont montrer la mise en service ; `null` hors admin d'agence. */
   readonly miseEnService: { readonly agencyId: number; readonly kind: AgencyKind | null } | null;
   /** Les bandeaux existants ; chacun ne rend rien quand il n'a rien à dire. */
   readonly bandeaux: ReactNode;
   /** Les blocs « À faire » du persona (TCK-2624, TCK-2625) ; absents, « Ce mois » prend la largeur. */
   readonly blocs?: ReactNode;
+  /** La colonne de droite du persona sous « Ce mois » (TCK-2624 : « Équipe aujourd'hui »). */
+  readonly colonne?: ReactNode;
   /** L'état d'un accueil sans aucun chiffre (client, prestataire), en attendant leurs blocs. */
   readonly vide?: ReactNode;
   /** « Ce mois », ou `null` quand le persona n'a pas de chiffres. */
   readonly ceMois: ReactNode;
 }
 
-export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, vide, ceMois }: SocleDeLAccueilProps) {
+export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, colonne, vide, ceMois }: SocleDeLAccueilProps) {
   return (
     <PagePleineLargeur data-slot="accueil" className="max-md:pb-8">
       {/* ─── Le téléphone : la ligne de mise en service, puis le salut ─── */}
@@ -64,9 +71,10 @@ export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, 
       </div>
 
       {blocs ? (
-        <div className="grid grid-cols-1 items-start gap-7 pt-6 md:gap-8 xl:grid-cols-[minmax(0,1fr)_min(calc(var(--spacing)*100),33%)]">
-          <div className="min-w-0 space-y-5">{blocs}</div>
-          <div className="min-w-0 space-y-5">{ceMois}</div>
+        <div className="grid grid-cols-1 items-start gap-7 pt-6 md:gap-8 xl:grid-cols-[minmax(0,1fr)_min(calc(var(--spacing)*100),33%)] xl:grid-rows-[auto_1fr] xl:gap-y-5">
+          <div className="min-w-0 space-y-5 xl:row-span-2">{blocs}</div>
+          <div className="min-w-0 space-y-5 max-xl:order-last">{ceMois}</div>
+          {colonne ? <div className="min-w-0 space-y-5">{colonne}</div> : null}
         </div>
       ) : (
         <div className="space-y-7 pt-7 empty:hidden md:pt-6">

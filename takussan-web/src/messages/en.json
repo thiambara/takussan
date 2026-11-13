@@ -19826,11 +19826,133 @@
       "resteAJour": "The rest of the page is up to date.",
       "reessayer": "Try again",
       "quoi": {
-        "ceMois": "this month’s figures"
+        "ceMois": "this month’s figures",
+        "aFaire": "what is waiting for you",
+        "uneFile": "part of what is waiting for you",
+        "equipe": "today’s team"
       }
     },
     "toutEstAJour": {
       "titre": "All caught up"
+    },
+    "aFaire": {
+      "toutVoir": "See all",
+      "ilYa": {
+        "min": "{n} min ago",
+        "h": "{n} h ago",
+        "hier": "yesterday",
+        "j": "{n, plural, one {# day} other {# days}} ago"
+      },
+      "depuis": {
+        "min": "for {n} min",
+        "h": "for {n} h",
+        "hier": "since yesterday",
+        "j": "for {n, plural, one {# day} other {# days}}"
+      },
+      "duree": {
+        "min": "{n} min",
+        "h": "{n} h",
+        "hier": "1 day",
+        "j": "{n, plural, one {# day} other {# days}}"
+      }
+    },
+    "admin": {
+      "titre": "To do now",
+      "voir": "View",
+      "toutEstAJour": "No property, request, visit or review waiting. Anything that needs your decision will show up here.",
+      "groupes": {
+        "aValider": "To approve",
+        "demandes": "Unassigned requests",
+        "visites": "Visits to confirm",
+        "agence": "The agency",
+        "impayes": "Unpaid"
+      },
+      "bien": {
+        "carte": "{n, plural, one {# property to approve} other {# properties to approve}}",
+        "valider": "Approve",
+        "parQui": "{bien} · by {proprietaire}",
+        "propose": "Submitted by {proprietaire} · {prix}"
+      },
+      "feuilleDuBien": {
+        "titre": "Approve this property",
+        "valider": "Approve the property",
+        "ouvrir": "Open the listing",
+        "parQui": "Submitted by {proprietaire}",
+        "explication": "Once approved, the property leaves the moderation queue and becomes available.",
+        "valide": "“{bien}” is approved.",
+        "refuse": "You can’t approve this property.",
+        "erreur": "The property couldn’t be approved. Try again."
+      },
+      "demandes": {
+        "carte": "{n, plural, one {# request to assign} other {# requests to assign}}",
+        "plusAncienne": "Oldest: {quand}",
+        "attribuer": "Assign",
+        "autres": "{n, plural, one {See the other unassigned request} other {See the # other unassigned requests}}",
+        "sansNom": "Unnamed request",
+        "sansMessage": "No message"
+      },
+      "visites": {
+        "carte": "{n, plural, one {# visit to confirm} other {# visits to confirm}}",
+        "laPlusProche": "Next one: {quand}",
+        "autres": "{n, plural, one {See the other visit to confirm} other {See the # other visits to confirm}}",
+        "titre": "{jour} · {quand} — {bien}",
+        "detailAvecAgent": "{visiteur} · agent: {agent}",
+        "voir": "View",
+        "autreCreneau": "Other time",
+        "confirmer": "Confirm",
+        "confirmee": "Visit confirmed · {quand}",
+        "refusee": "You can’t confirm this visit."
+      },
+      "avis": {
+        "carte": "{n, plural, one {# review to moderate} other {# reviews to moderate}}",
+        "moderer": "Moderate",
+        "plusAncien": "Oldest: {duree}",
+        "attendDepuis": "The oldest has been waiting {duree}"
+      },
+      "kyc": {
+        "titre": "Agency KYC file",
+        "statut": {
+          "pending": "File to complete",
+          "rejected": "File to correct"
+        },
+        "completer": "Open"
+      },
+      "invitations": {
+        "carte": "{n, plural, one {# unanswered invitation} other {# unanswered invitations}}",
+        "detail": "Resend or cancel them from the team"
+      },
+      "impayes": {
+        "carte": "Unpaid · {n, plural, one {# instalment} other {# instalments}}",
+        "total": "{n, plural, one {# instalment} other {# instalments}} · {montant}",
+        "relancer": "Remind",
+        "relancerTout": "Remind all",
+        "relancerUn": "Remind",
+        "autres": "{n, plural, one {See the other unpaid instalment} other {See the # other unpaid instalments}}",
+        "jours": "{n, plural, one {# day} other {# days}}",
+        "rienARelancer": "No instalment to remind.",
+        "lectureEchouee": "The instalments couldn’t be loaded. Try again.",
+        "tranches": {
+          "1_30": "{n} under 30 days",
+          "31_60": "{n} between 31 and 60",
+          "61_90": "{n} between 61 and 90",
+          "90_plus": "{n} over 90"
+        }
+      },
+      "resume": {
+        "ligne": "{jour} · {resume}",
+        "demandes": "{n, plural, one {# unassigned request} other {# unassigned requests}}",
+        "visites": "{n, plural, one {# visit to confirm} other {# visits to confirm}}",
+        "separateur": ", "
+      }
+    },
+    "equipe": {
+      "titre": "Team today",
+      "calendrier": "Calendar",
+      "aucun": "No active agent in the agency.",
+      "sansNom": "Agent",
+      "conge": "On leave until {jour}",
+      "premiereVisite": "First visit at {heure}",
+      "journee": "{visites, plural, =0 {No visit} one {# visit} other {# visits}}{demandes, plural, =0 {} one { · # request} other { · # requests}}"
     }
   }
 }

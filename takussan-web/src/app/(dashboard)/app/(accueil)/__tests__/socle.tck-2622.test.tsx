@@ -44,6 +44,11 @@ vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({ TenantOn
 vi.mock('@/components/dashboard/DashboardEmpty', () => ({ DashboardEmpty: () => <div data-testid="etat-vide" /> }));
 vi.mock('@/components/journee/MaJournee', () => ({ MaJournee: () => <div data-testid="ma-journee" /> }));
 
+// TCK-2624 — les blocs de l'admin (client, react-query) sont éprouvés par leurs propres tests.
+vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <div data-testid="a-faire-admin" /> }));
+vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
+vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
+
 import DashboardPage, { generateMetadata } from '../page';
 
 const ADMIN = {
@@ -170,5 +175,28 @@ describe('TCK-2622 — le titre du document', () => {
     expect((await generateMetadata()).title).toBe('Accueil');
     ETAT.user = { id: 3, roles: ['agent', 'customer'], agency_id: 7, first_name: 'Sokhna' };
     expect((await generateMetadata()).title).toBe('Aujourd’hui');
+  });
+});
+
+describe('TCK-2624 — les blocs de l’admin d’agence', () => {
+  it('l’admin d’une agence standard : « À faire maintenant » à gauche, « Équipe aujourd’hui » dans la colonne, « Ce mois » en tuiles de colonne', async () => {
+    await monter();
+
+    expect(screen.getByTestId('a-faire-admin')).toBeInTheDocument();
+    expect(screen.getByTestId('equipe-du-jour')).toBeInTheDocument();
+    // Avec une colonne de droite, les tuiles ne s'étalent plus sur quatre colonnes au large.
+    expect(document.querySelector('[data-slot="ce-mois"] ul.grid')?.className).not.toMatch(/xl:grid-cols-4/);
+  });
+
+  it('ni l’hôte (agence individuelle), ni le bailleur, ni le client : leurs blocs viennent ailleurs (lot bailleur, TCK-2625)', async () => {
+    ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
+    await monter();
+    expect(screen.queryByTestId('a-faire-admin')).toBeNull();
+
+    ETAT.user = { id: 4, roles: ['owner'], agency_id: null, first_name: 'Mouhamed' };
+    ETAT.lecture = { data: { role: 'owner', metrics: {}, sections: [] } };
+    await monter();
+    expect(screen.queryByTestId('a-faire-admin')).toBeNull();
+    expect(screen.queryByTestId('equipe-du-jour')).toBeNull();
   });
 });

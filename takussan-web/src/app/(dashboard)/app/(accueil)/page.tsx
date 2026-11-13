@@ -3,6 +3,9 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
+import { AFaireAdmin } from '@/components/accueil/admin/AFaireAdmin';
+import { EquipeDuJour } from '@/components/accueil/admin/EquipeDuJour';
+import { ResumeDuJour } from '@/components/accueil/admin/ResumeDuJour';
 import { CeMois } from '@/components/accueil/CeMois';
 import { SocleDeLAccueil } from '@/components/accueil/SocleDeLAccueil';
 import { BrandingBanner } from '@/components/agency/BrandingBanner';
@@ -103,10 +106,15 @@ export default async function DashboardPage() {
           })
         : [];
 
+  // TCK-2624 — l'admin d'une agence (standard : l'agence individuelle est l'hôte) voit ce qui attend
+  // sa décision, et son équipe du jour. Les lectures sont bornées à l'agence active par l'API.
+  const accueilAdmin = persona === 'admin-agence' && adminDAgence ? user.agency_id! : null;
+  const jour = jourEnClair(locale, jourADakar(new Date()));
+
   return (
     <SocleDeLAccueil
       titre={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
-      ligne={jourEnClair(locale, jourADakar(new Date()))}
+      ligne={accueilAdmin !== null ? <ResumeDuJour jour={jour} agencyId={accueilAdmin} /> : jour}
       // TCK-777 (P15.08) — la mise en service, pour tout admin d'agence, individuelle comprise ; elle
       // disparaît une fois l'agence prête. TCK-2622 — repliée en une ligne.
       miseEnService={adminDAgence ? { agencyId: user.agency_id!, kind } : null}
@@ -123,7 +131,13 @@ export default async function DashboardPage() {
       // TCK-595 — un compte sans chiffres (client sans fiche, prestataire) garde son état vide, en
       // attendant les blocs de son persona (TCK-2625).
       vide={chiffres !== null && chiffres.length === 0 ? <DashboardEmpty roles={user.roles} /> : null}
-      ceMois={chiffres === null || chiffres.length > 0 ? <CeMois chiffres={chiffres} rapport={payload ? rapportDuMois(payload.data.role) : null} pleineLargeur /> : null}
+      blocs={accueilAdmin !== null ? <AFaireAdmin agencyId={accueilAdmin} /> : undefined}
+      colonne={accueilAdmin !== null ? <EquipeDuJour agencyId={accueilAdmin} /> : undefined}
+      ceMois={
+        chiffres === null || chiffres.length > 0 ? (
+          <CeMois chiffres={chiffres} rapport={payload ? rapportDuMois(payload.data.role) : null} pleineLargeur={accueilAdmin === null} />
+        ) : null
+      }
     />
   );
 }

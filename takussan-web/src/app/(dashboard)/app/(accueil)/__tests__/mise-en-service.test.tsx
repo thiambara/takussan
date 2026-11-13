@@ -46,6 +46,11 @@ vi.mock('@/components/console', () => ({
   ),
 }));
 
+// TCK-2624 — les blocs de l'admin (client, react-query) sont éprouvés par leurs propres tests.
+vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <div data-testid="a-faire-admin" /> }));
+vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
+vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
+
 import DashboardPage from '../page';
 
 beforeEach(() => {

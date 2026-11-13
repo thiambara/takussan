@@ -145,3 +145,4 @@ L'agent sur le terrain voit d'abord ses visites du jour dans l'ordre, avec l'heu
 
 - Des visites `completed` datées du 27 nov. (dans le futur) dans la base de démo sont comptées par `to_close`.
 - Pour un client, `counts` rend `to_close` = 1 (sa visite terminée du jour) : le front ne lui montre pas « À clore », mais la clé n'est pas bornée au personnel côté API.
+- **Reste (relevé de TCK-2624, 2026-11-13)** : `bienEtQuartier` (`components/visits/par-le-temps/pieces.tsx`) redit le quartier quand le titre du bien le porte déjà — « Appartement meublé Point E · Point E » sur la démo. L'accueil de l'admin passe par `titreEtQuartier` (`lib/accueil/a-faire.ts` : casse, accents et ligatures ignorés) ; la liste des visites garde le doublon. Correctif suggéré : faire de `bienEtQuartier` un appel à `titreEtQuartier`.

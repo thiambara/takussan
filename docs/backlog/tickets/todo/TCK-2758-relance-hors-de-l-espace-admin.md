@@ -52,6 +52,10 @@ voit pas). `payments` est légitime (le dialogue d'encaissement) et reste.
 - [ ] Les clés de la relance d'un impayé sortent de `admin` vers un espace de premier niveau qui leur est propre ;
   tous leurs lecteurs (écran Impayés, fiche du bien, relance en lot si TCK-2682 est livré) les lisent là.
 - [ ] La fiche du bien atteint la relance sans que son graphe d'imports atteigne un lecteur de `admin`.
+- [ ] **Même cas sur l'accueil** (TCK-2624, lot 1, plafond ratifié le 2026-11-13) : « Relancer » de l'accueil de l'admin
+  monte `FeuilleDeRelance` et `FileDeRelance` ; la frontière `(dashboard)/app/(accueil)` sert `admin`, `lease` et
+  `payments` à 44,7 % (plafond relevé de 27 à 45). Elle quitte `admin` comme la fiche du bien, et son plafond est
+  resserré sur la mesure. Alternative sans déplacer de clés : TCK-2775 (l'accueil mène à l'écran Impayés par l'URL).
 - [ ] `src/i18n/namespaces.json` régénéré (`--update`) : `admin` quitte la frontière `(dashboard)/app/properties`,
   son plafond est resserré sur la mesure.
 - [ ] Les tests de la relance (écran Impayés, fiche du bien) passent sur les clés déplacées.

@@ -128,6 +128,9 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'admin.finances.aging.buckets.31_60': 'tranche d\'ancienneté affichée, pas une promesse',
   'admin.finances.aging.buckets.61_90': 'tranche d\'ancienneté affichée, pas une promesse',
   'admin.finances.aging.buckets.90_plus': 'tranche d\'ancienneté affichée, pas une promesse',
+  // TCK-2624 — « Impayés » de l'accueil de l'admin : la même tranche d'ancienneté (« {n} de moins de 30 jours »),
+  // bornes de `AgingBalanceService::BUCKETS`, lues sur `finance/aging` (`buckets`). Une ANCIENNETÉ de retard, pas un délai promis.
+  'accueil.admin.impayes.tranches.1_30': 'tranche d\'ancienneté affichée, pas une promesse',
   // TCK-2659 — la tuile « Impayés en cours » d'« Argent » : « # de plus de 30 jours » compte la tranche
   // `over_30` que l'API mesure (`by_age.over_30.count`). Une ANCIENNETÉ de retard, pas un délai promis.
   'admin.finances.argent.tuiles.bauxEtAnciens':

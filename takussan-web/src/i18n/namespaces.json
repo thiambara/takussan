@@ -200,9 +200,14 @@
     ],
     "(dashboard)/app/(accueil)": [
       "accueil",
+      "admin",
+      "compteRendu",
       "console",
+      "contactLeads",
       "crm",
       "journee",
+      "lease",
+      "payments",
       "visitPlanning",
       "visits",
       "wizardDrafts"
@@ -360,7 +365,7 @@
     "(dashboard)/app/payments": 37,
     "(dashboard)/app/settings": 37,
     "[locale]/(public)/agents": 25,
-    "(dashboard)/app/(accueil)": 31,
+    "(dashboard)/app/(accueil)": 45,
     "(dashboard)/app/customers": 50,
     "(dashboard)/app/documents": 35,
     "(dashboard)/app/favorites": 35,

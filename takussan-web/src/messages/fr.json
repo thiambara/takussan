@@ -19826,11 +19826,133 @@
       "resteAJour": "Le reste de la page est à jour.",
       "reessayer": "Réessayer",
       "quoi": {
-        "ceMois": "les chiffres du mois"
+        "ceMois": "les chiffres du mois",
+        "aFaire": "ce qui vous attend",
+        "uneFile": "une partie de ce qui vous attend",
+        "equipe": "l’équipe du jour"
       }
     },
     "toutEstAJour": {
       "titre": "Tout est à jour"
+    },
+    "aFaire": {
+      "toutVoir": "Tout voir",
+      "ilYa": {
+        "min": "il y a {n} min",
+        "h": "il y a {n} h",
+        "hier": "hier",
+        "j": "il y a {n, plural, one {# jour} other {# jours}}"
+      },
+      "depuis": {
+        "min": "depuis {n} min",
+        "h": "depuis {n} h",
+        "hier": "depuis hier",
+        "j": "depuis {n, plural, one {# jour} other {# jours}}"
+      },
+      "duree": {
+        "min": "{n} min",
+        "h": "{n} h",
+        "hier": "1 jour",
+        "j": "{n, plural, one {# jour} other {# jours}}"
+      }
+    },
+    "admin": {
+      "titre": "À faire maintenant",
+      "voir": "Voir",
+      "toutEstAJour": "Aucun bien, aucune demande, visite ni avis en attente. Ce qui demandera votre décision arrivera ici.",
+      "groupes": {
+        "aValider": "À valider",
+        "demandes": "Demandes non attribuées",
+        "visites": "Visites à confirmer",
+        "agence": "L’agence",
+        "impayes": "Impayés"
+      },
+      "bien": {
+        "carte": "{n, plural, one {# bien à valider} other {# biens à valider}}",
+        "valider": "Valider",
+        "parQui": "{bien} · par {proprietaire}",
+        "propose": "Bien proposé par {proprietaire} · {prix}"
+      },
+      "feuilleDuBien": {
+        "titre": "Valider ce bien",
+        "valider": "Valider le bien",
+        "ouvrir": "Ouvrir la fiche",
+        "parQui": "Proposé par {proprietaire}",
+        "explication": "Une fois validé, le bien quitte la file de modération et devient disponible.",
+        "valide": "« {bien} » est validé.",
+        "refuse": "Vous ne pouvez pas valider ce bien.",
+        "erreur": "Le bien n’a pas pu être validé. Réessayez."
+      },
+      "demandes": {
+        "carte": "{n, plural, one {# demande à attribuer} other {# demandes à attribuer}}",
+        "plusAncienne": "Plus ancienne : {quand}",
+        "attribuer": "Attribuer",
+        "autres": "{n, plural, one {Voir l’autre demande non attribuée} other {Voir les # autres demandes non attribuées}}",
+        "sansNom": "Demande sans nom",
+        "sansMessage": "Sans message"
+      },
+      "visites": {
+        "carte": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
+        "laPlusProche": "La plus proche : {quand}",
+        "autres": "{n, plural, one {Voir l’autre visite à confirmer} other {Voir les # autres visites à confirmer}}",
+        "titre": "{jour} · {quand} — {bien}",
+        "detailAvecAgent": "{visiteur} · agent : {agent}",
+        "voir": "Voir",
+        "autreCreneau": "Autre créneau",
+        "confirmer": "Confirmer",
+        "confirmee": "Visite confirmée · {quand}",
+        "refusee": "Vous ne pouvez pas confirmer cette visite."
+      },
+      "avis": {
+        "carte": "{n, plural, one {# avis à modérer} other {# avis à modérer}}",
+        "moderer": "Modérer",
+        "plusAncien": "Le plus ancien : {duree}",
+        "attendDepuis": "Le plus ancien attend depuis {duree}"
+      },
+      "kyc": {
+        "titre": "Dossier KYC de l’agence",
+        "statut": {
+          "pending": "Dossier à compléter",
+          "rejected": "Dossier à corriger"
+        },
+        "completer": "Ouvrir"
+      },
+      "invitations": {
+        "carte": "{n, plural, one {# invitation sans réponse} other {# invitations sans réponse}}",
+        "detail": "Relancez-les ou annulez-les depuis l’équipe"
+      },
+      "impayes": {
+        "carte": "Impayés · {n, plural, one {# échéance} other {# échéances}}",
+        "total": "{n, plural, one {# échéance} other {# échéances}} · {montant}",
+        "relancer": "Relancer",
+        "relancerTout": "Relancer tout",
+        "relancerUn": "Relancer",
+        "autres": "{n, plural, one {Voir l’autre échéance impayée} other {Voir les # autres échéances impayées}}",
+        "jours": "{n, plural, one {# jour} other {# jours}}",
+        "rienARelancer": "Aucune échéance à relancer.",
+        "lectureEchouee": "Les échéances n’ont pas pu être lues. Réessayez.",
+        "tranches": {
+          "1_30": "{n} de moins de 30 jours",
+          "31_60": "{n} entre 31 et 60",
+          "61_90": "{n} entre 61 et 90",
+          "90_plus": "{n} de plus de 90"
+        }
+      },
+      "resume": {
+        "ligne": "{jour} · {resume}",
+        "demandes": "{n, plural, one {# demande non attribuée} other {# demandes non attribuées}}",
+        "visites": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
+        "separateur": ", "
+      }
+    },
+    "equipe": {
+      "titre": "Équipe aujourd’hui",
+      "calendrier": "Calendrier",
+      "aucun": "Aucun agent actif dans l’agence.",
+      "sansNom": "Agent",
+      "conge": "En congé jusqu’au {jour}",
+      "premiereVisite": "Première visite à {heure}",
+      "journee": "{visites, plural, =0 {Aucune visite} one {# visite} other {# visites}}{demandes, plural, =0 {} one { · # demande} other { · # demandes}}"
     }
   }
 }
