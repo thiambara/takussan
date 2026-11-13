@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Media\PublicPhotoUrl;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Visit\ProprietaireHorsConsole;
 use App\Services\Visit\VisitReadContext;
 use Illuminate\Http\Request;
@@ -285,27 +286,90 @@ class PropertyVisitResource extends BaseResource
      */
     private function contactDeLAgent(Request $request): array
     {
-        $ctx = $request->user() !== null ? VisitReadContext::for($request, $this->resource) : null;
-        if ($ctx === null || $ctx['agent_id'] === null || $ctx['agency_id'] === null || $ctx['scheduled_at'] === null
-            || $ctx['status'] !== VisitStatus::Confirmed->value
-            || ! Carbon::parse($ctx['scheduled_at'])->isFuture()
-            || ! $this->lecteurEstLeDemandeur($request)) {
+        $user = $request->user();
+        $ctx = $user !== null ? VisitReadContext::for($request, $this->resource) : null;
+        if ($ctx === null || ! self::contactServi($ctx, (int) $user->getKey())) {
             return [];
         }
 
-        $agent = User::query()->whereKey($ctx['agent_id'])->first();
-        if (! PersonnelDeLAgence::personnelActifDe($agent, $ctx['agency_id'])) {
-            return [];
-        }
-        $principal = $agent->numeroPrincipalPublic();
-        $second = $principal === null ? $agent->numeroSecondairePublic() : null;
+        return self::contactsDesAgents($request, (int) $user->getKey())[$ctx['agent_id'].':'.$ctx['agency_id']] ?? [];
+    }
 
-        return [
-            'phone' => $principal ?? $second,
-            'phone_whatsapp' => $principal !== null ? (bool) $agent->phone_whatsapp
-                : ($second !== null && (bool) $agent->secondary_phone_whatsapp),
-            'agency_name' => Agency::query()->whereKey($ctx['agency_id'])->value('name'),
-        ];
+    /**
+     * La visite ouvre-t-elle le contact de son agent à ce lecteur : confirmée, à venir, un agent et
+     * une agence connus, et le lecteur est le demandeur (visiteur, ou compte de la fiche).
+     *
+     * @param  array<string, mixed>  $ctx  une ligne de {@see VisitReadContext}
+     */
+    private static function contactServi(array $ctx, int $moi): bool
+    {
+        return $ctx['agent_id'] !== null && $ctx['agency_id'] !== null && $ctx['scheduled_at'] !== null
+            && $ctx['status'] === VisitStatus::Confirmed->value
+            && Carbon::parse($ctx['scheduled_at'])->isFuture()
+            && ($ctx['visitor_id'] === $moi || $ctx['customer_user_id'] === $moi);
+    }
+
+    /**
+     * Vérification du lot C (constat c) — le contact de chaque couple (agent, agence) des visites
+     * ÉLIGIBLES de la page, lu en une passe : les agents en une requête, les noms d'agence en une, le
+     * personnel sous l'amorce de {@see MembershipCapabilityResolver::primed()}. C'était trois lectures
+     * par ligne (l'agent, son statut de personnel — plusieurs requêtes de profils —, l'agence).
+     *
+     * L'agent est un TIERS : il se juge par {@see PersonnelDeLAgence::estPersonnel()}, sur TOUTES ses
+     * agences, et non par `personnelActifDe()`, prédicat de l'APPELANT qui lit l'agence de son profil
+     * actif — un agent également bailleur ailleurs n'en a pas, et n'était plus joint.
+     *
+     * Retenu par requête (comme `visits.staff_of`) : rien n'en survit à la réponse.
+     *
+     * @return array<string, array{phone?: ?string, phone_whatsapp?: bool, agency_name?: ?string}>
+     */
+    private static function contactsDesAgents(Request $request, int $moi): array
+    {
+        $connus = $request->attributes->get('visits.agent_contacts', []);
+
+        $couples = [];
+        foreach (VisitReadContext::rows($request) as $ctx) {
+            if (! self::contactServi($ctx, $moi)) {
+                continue;
+            }
+            $cle = $ctx['agent_id'].':'.$ctx['agency_id'];
+            if (! array_key_exists($cle, $connus)) {
+                $couples[$cle] = [(int) $ctx['agent_id'], (int) $ctx['agency_id']];
+            }
+        }
+        if ($couples === []) {
+            return $connus;
+        }
+
+        $agentIds = array_values(array_unique(array_column($couples, 0)));
+        $agencyIds = array_values(array_unique(array_column($couples, 1)));
+        $agents = User::query()->whereIn('id', $agentIds)->get()->keyBy('id');
+        $noms = Agency::query()->whereIn('id', $agencyIds)->pluck('name', 'id');
+
+        $personnel = MembershipCapabilityResolver::primed($agentIds, $agencyIds, fn (): array => array_map(
+            fn (array $couple): bool => PersonnelDeLAgence::estPersonnel($agents->get($couple[0]), $couple[1]),
+            $couples,
+        ));
+
+        foreach ($couples as $cle => [$agentId, $agencyId]) {
+            $agent = $agents->get($agentId);
+            if ($agent === null || ! $personnel[$cle]) {
+                $connus[$cle] = [];
+
+                continue;
+            }
+            $principal = $agent->numeroPrincipalPublic();
+            $second = $principal === null ? $agent->numeroSecondairePublic() : null;
+            $connus[$cle] = [
+                'phone' => $principal ?? $second,
+                'phone_whatsapp' => $principal !== null ? (bool) $agent->phone_whatsapp
+                    : ($second !== null && (bool) $agent->secondary_phone_whatsapp),
+                'agency_name' => $noms->get($agencyId),
+            ];
+        }
+        $request->attributes->set('visits.agent_contacts', $connus);
+
+        return $connus;
     }
 
     /** Personnel actif de l'agence, jugé une fois par agence et par requête (comme le compte rendu). */

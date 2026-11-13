@@ -33,12 +33,16 @@ export function Monogramme({ nom, className }: { readonly nom: string; readonly 
   );
 }
 
-/** Où en est la visite : quatre temps, celui d'aujourd'hui en terracotta. */
-export function Etapes({ courant }: { readonly courant: number }) {
+/**
+ * Où en est la visite : quatre temps, celui d'aujourd'hui en terracotta. Le dernier, « Compte rendu »,
+ * est celui de l'agence : seul le lecteur du compte rendu (`avecCompteRendu`, la clé `report` que l'API
+ * ne sert qu'au personnel) le voit ; les autres lisent trois temps, tous faits une fois la visite close.
+ */
+export function Etapes({ courant, avecCompteRendu }: { readonly courant: number; readonly avecCompteRendu: boolean }) {
   const t = useTranslations('visits.fiche.etapes');
-  const etapes = [t('demandee'), t('confirmee'), t('visite'), t('compteRendu')];
+  const etapes = [t('demandee'), t('confirmee'), t('visite'), ...(avecCompteRendu ? [t('compteRendu')] : [])];
   return (
-    <ol aria-label={t('label')} data-slot="etapes-de-la-visite" className="mt-5 grid grid-cols-4 gap-1.5">
+    <ol aria-label={t('label')} data-slot="etapes-de-la-visite" className={cn('mt-5 grid gap-1.5', avecCompteRendu ? 'grid-cols-4' : 'grid-cols-3')}>
       {etapes.map((e, i) => (
         <li key={e} aria-current={i === courant ? 'step' : undefined}>
           <span className={cn('block h-1 rounded-full', i < courant ? 'bg-foreground' : i === courant ? 'bg-primary' : 'bg-muted')} aria-hidden="true" />

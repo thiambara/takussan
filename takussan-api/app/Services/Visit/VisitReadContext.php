@@ -56,6 +56,17 @@ final class VisitReadContext
     }
 
     /**
+     * Toutes les visites déjà relues pour cette requête (la page entière, après `prime()`), par id —
+     * de quoi juger une règle pour la page plutôt que ligne par ligne (le contact de l'agent).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function rows(Request $request): array
+    {
+        return $request->attributes->get(self::ATTRIBUTE, []);
+    }
+
+    /**
      * @param  list<int>  $ids
      * @return array<int, array<string, mixed>>
      */

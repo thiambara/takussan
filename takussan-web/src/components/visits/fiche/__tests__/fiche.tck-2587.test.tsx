@@ -77,6 +77,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useAttribuerEnLot: () => autre,
   useCreateVisitReport: () => autre,
   useUpdateVisitReport: () => autre,
+  // La visite terminée du client rend sa carte d'avis (`AvisDuClient`).
+  useSubmitVisitFeedback: () => autre,
   useCreneauxDeVisite: (id: number | null, jour: string | null, agent?: number | null, duree?: number | null) => {
     etat.creneaux.push([id, jour, agent, duree]);
     if (jour && agent != null && agent === etat.agentParti) {

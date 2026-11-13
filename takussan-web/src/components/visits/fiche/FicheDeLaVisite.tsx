@@ -608,7 +608,7 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
           ) : null}
         </div>
         <p className="mt-2.5 text-corps text-encre-douce">{l.sousTitre}</p>
-        {l.etape !== null ? <Etapes courant={l.etape} /> : null}
+        {l.etape !== null ? <Etapes courant={l.etape} avecCompteRendu={p.compteRendu} /> : null}
       </div>
       <div className="space-y-4 px-4 pt-6">
         {etat === 'a-confirmer' && !p.visiteur ? (

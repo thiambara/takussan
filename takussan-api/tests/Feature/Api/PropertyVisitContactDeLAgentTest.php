@@ -4,11 +4,13 @@ namespace Tests\Feature\Api;
 
 use App\Models\Agency;
 use App\Models\Enums\VisitStatus;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
 use Tests\Support\FabriqueDemandesEtVisites;
@@ -222,5 +224,64 @@ class PropertyVisitContactDeLAgentTest extends ApiTestCase
             $this->assertSame(self::NUMERO, $agent['phone'], 'le principal vérifié passe avant le second');
             $this->assertFalse($agent['phone_whatsapp']);
         }
+    }
+
+    /**
+     * Vérification du lot C (constat c) — l'agent est un TIERS : il se juge sur TOUTES ses agences
+     * (`PersonnelDeLAgence::estPersonnel()`), pas sur l'agence de son profil actif, prédicat de
+     * l'APPELANT. Un agent qui est aussi bailleur dans une autre agence n'a pas d'agence active
+     * déductible (`agency_id` à `null` sur deux agences) : il restait injoignable.
+     */
+    public function test_un_agent_present_dans_deux_agences_reste_joint(): void
+    {
+        OwnerProfile::factory()->create(['user_id' => $this->agent->id, 'agency_id' => $this->agence()->id]);
+
+        foreach ($this->lectures($this->visiteur) as [, $agent]) {
+            $this->assertNotNull($agent);
+            $this->assertSame(self::NUMERO, $agent['phone'] ?? null, 'personnel actif de l’agence du bien : joint');
+            $this->assertSame('Agence Teranga', $agent['agency_name'] ?? null);
+        }
+    }
+
+    /**
+     * Vérification du lot C (constat c) — le contact se lit pour la PAGE : l'agent, son statut de
+     * personnel et le nom de l'agence ne sont plus relus ligne par ligne. Trois visites confirmées à
+     * venir, trois agents de trois agences : autant de requêtes qu'une seule.
+     */
+    public function test_le_contact_ne_coute_pas_une_requete_par_ligne(): void
+    {
+        $compter = function (): int {
+            Sanctum::actingAs($this->visiteur);
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->getJson('/api/property-visits'.self::COMME_LE_FRONT)->assertOk();
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $n;
+        };
+
+        $une = $compter();
+
+        foreach ([3, 4] as $jours) {
+            $agence = $this->agence();
+            $agence->forceFill(['name' => "Agence {$jours}"])->save();
+            $agent = $this->personnel($agence, attributes: ['phone_verified_at' => now()->subMonth()]);
+            PropertyVisit::factory()->create([
+                'property_id' => $this->bienDe($agence)->id,
+                'visitor_id' => $this->visiteur->id,
+                'agent_id' => $agent->id,
+                'status' => VisitStatus::Confirmed,
+                'scheduled_at' => $this->creneau($jours),
+            ]);
+        }
+
+        $liste = $compter();
+        $this->assertSame($une, $liste, 'le contact de l’agent se lit pour la page, pas par ligne');
+
+        Sanctum::actingAs($this->visiteur);
+        $noms = collect($this->getJson('/api/property-visits'.self::COMME_LE_FRONT)->assertOk()->json('data'))
+            ->pluck('agent.agency_name')->sort()->values()->all();
+        $this->assertSame(['Agence 3', 'Agence 4', 'Agence Teranga'], $noms, 'chaque ligne garde SON agence');
     }
 }

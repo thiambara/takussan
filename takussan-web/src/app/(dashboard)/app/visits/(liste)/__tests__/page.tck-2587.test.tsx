@@ -35,6 +35,16 @@ describe('/app/visits — la vue selon le profil', () => {
     expect(screen.queryByTestId('par-le-temps')).toBeNull();
   });
 
+  // Vérification du lot C (constat b) — voulu : le prestataire ne tient aucune capacité d'agence
+  // (`SystemRoleCapabilities::serviceProvider()` est vide, TCK-592) ; ses visites sont celles qu'il a
+  // demandées, comme un client. « Planifier une visite » ouvre le formulaire du personnel, qui ne le
+  // concerne pas.
+  it.each([['service_provider'], ['service_provider', 'customer'], ['tenant']])('le profil « %s » lit « Mes visites », comme un client', async (...roles) => {
+    await rendre(roles);
+    expect(screen.getByTestId('mes-visites')).toBeInTheDocument();
+    expect(screen.queryByTestId('par-le-temps')).toBeNull();
+  });
+
   it.each([['owner'], ['agent'], ['agency_admin']])('le profil « %s » garde les visites par le temps', async (role) => {
     await rendre([role]);
     expect(screen.getByTestId('par-le-temps')).toBeInTheDocument();
