@@ -28,7 +28,17 @@ class PropertyVisitResource extends BaseResource
         // fiche (demande publique) garde les siens. TCK-696 (P21.03) — même règle pour le bloc
         // `visitor` : une fiche liée à un compte pose `visitor_id` sur ce compte, et son nom, son
         // e-mail et son téléphone sortiraient sinon par `include=visitor`.
-        $visiteurLisible = $fiche || $this->customer_id === null;
+        // TCK-2779 — jugé sur la fiche RELUE : sous `fields[property_visits]` sans `customer_id`, la
+        // ligne rendue la disait absente et rendait `visitor_*` au bailleur.
+        $relue = $this->identiteRelue($request);
+        $visiteurLisible = $fiche || ($relue !== null && $relue['customer_id'] === null);
+        // TCK-2779 — le compte rendu est ABSENT aussi quand `fields[property_visits]` a retiré
+        // `reported_at` du SELECT : `report: null` se lirait « compte rendu à faire »
+        // (`compteRenduAFaire` du front), alors que rien n'en est su. Les deux conditions vont
+        // ensemble : un geste rend un modèle neuf sans `fields` (`report: null`, comme avant), et le
+        // détail charge la visite entière quel que soit `fields`.
+        $rapportLisible = ! $this->reportedAtRetireParFields($request)
+            && $this->compteRenduLisible($request);
 
         return [
             'id' => $this->id,
@@ -102,7 +112,7 @@ class PropertyVisitResource extends BaseResource
             ] : null),
             // TCK-2578 (ADR-0101 § 2) — le compte rendu de l'agence : clé ABSENTE hors du personnel de
             // l'agence du bien (visiteur, client, bailleur), en détail comme en liste.
-            'report' => $this->when($this->compteRenduLisible($request), fn (): ?array => $this->reported_at === null ? null : [
+            'report' => $this->when($rapportLisible, fn (): ?array => $this->reported_at === null ? null : [
                 'outcome' => $this->enumValue($this->report_outcome),
                 'objections' => array_values($this->report_objections ?? []),
                 'note' => $this->report_note,
@@ -403,8 +413,8 @@ class PropertyVisitResource extends BaseResource
 
     /**
      * TCK-2578 (ADR-0101 § 2) — la règle de `PropertyVisitPolicy::report` (super-admin, personnel
-     * actif de l'agence du bien), jugée sans relire le bien ligne par ligne : l'index pose
-     * `visits.property_agencies` et `visits.staff_agencies` ; ailleurs, le verdict est retenu par
+     * actif de l'agence du bien), jugée sans relire le bien ligne par ligne : l'agence du bien vient
+     * de {@see identiteRelue} (TCK-2779), l'index pose `visits.staff_agencies` ; ailleurs, le verdict est retenu par
      * agence pour la requête (`visits.staff_of`, partagé avec la fiche client). Un bien sans agence
      * n'a pas de compte rendu : rien n'est servi.
      */
@@ -418,14 +428,13 @@ class PropertyVisitResource extends BaseResource
             return true;
         }
 
-        $agences = $request->attributes->get('visits.property_agencies');
-        if (is_array($agences) && array_key_exists((int) $this->property_id, $agences)) {
-            $agencyId = $agences[(int) $this->property_id];
-        } elseif ($this->property !== null) {
-            $agencyId = $this->property->agency_id;
-        } else {
+        // TCK-2779 — l'agence du bien RELUE : sous `fields[property_visits]` sans `property_id`, la
+        // ligne ne la portait plus.
+        $ctx = $this->identiteRelue($request);
+        if ($ctx === null || ! $ctx['property_live']) {
             return false;
         }
+        $agencyId = $ctx['agency_id'];
 
         if ($agencyId === null) {
             return false;
@@ -452,8 +461,9 @@ class PropertyVisitResource extends BaseResource
      * comme le non-personnel qui planifie pour lui-même (B1). Le visiteur garde l'identifiant de
      * sa propre fiche. Un bien sans agence n'a pas de CRM d'agence : rien à masquer.
      *
-     * L'index pose l'agence de chaque bien de la page (`visits.property_agencies`) et les agences
-     * où le lecteur est personnel (`visits.staff_agencies`) : rien n'est relu ligne par ligne.
+     * L'agence de chaque bien vient de {@see identiteRelue} (TCK-2779, une requête pour la page) et
+     * l'index pose les agences où le lecteur est personnel (`visits.staff_agencies`) : rien n'est
+     * relu ligne par ligne.
      * Ailleurs, le verdict est retenu par agence pour la requête.
      *
      * Passes 4 et 5 (X1, X1′) — le personnel est jugé par `PersonnelDeLAgence::personnelActifDe`
@@ -461,7 +471,14 @@ class PropertyVisitResource extends BaseResource
      */
     private function ficheClientLisible(Request $request): bool
     {
-        if ($this->customer_id === null) {
+        // TCK-2779 — la fiche, le visiteur et l'agence du bien RELUS ({@see identiteRelue}) : la
+        // ligne rendue sous `fields[property_visits]` peut ne porter ni `customer_id`, ni
+        // `visitor_id`, ni `property_id`, et `customer_id` absent se lisait « sans fiche » — ouvert.
+        $ctx = $this->identiteRelue($request);
+        if ($ctx === null) {
+            return false;
+        }
+        if ($ctx['customer_id'] === null) {
             return true;
         }
 
@@ -470,18 +487,14 @@ class PropertyVisitResource extends BaseResource
             return false;
         }
 
-        if ($user->isSuperAdmin() || $this->visitor_id === $user->id) {
+        if ($user->isSuperAdmin() || $ctx['visitor_id'] === $user->id) {
             return true;
         }
 
-        $agences = $request->attributes->get('visits.property_agencies');
-        if (is_array($agences) && array_key_exists((int) $this->property_id, $agences)) {
-            $agencyId = $agences[(int) $this->property_id];
-        } elseif ($this->property !== null) {
-            $agencyId = $this->property->agency_id;
-        } else {
+        if (! $ctx['property_live']) {
             return false;
         }
+        $agencyId = $ctx['agency_id'];
 
         if ($agencyId === null) {
             return true;
@@ -499,5 +512,51 @@ class PropertyVisitResource extends BaseResource
         }
 
         return $verdicts[(int) $agencyId];
+    }
+
+    /**
+     * TCK-2779 — la fiche, le visiteur et le bien de la visite, tels que la BASE les porte : la ligne
+     * rendue n'a que les colonnes de `fields[property_visits]`. Relu par {@see VisitReadContext} (une
+     * requête pour la page, déjà payée par les autres règles de la ressource). Une visite absente de
+     * la base (rien à relire) se juge sur ses propres colonnes, si elle les porte toutes ; sinon
+     * rien n'est connu : `null`, et chaque règle se ferme.
+     *
+     * @return array{customer_id: ?int, visitor_id: ?int, agency_id: ?int, property_live: bool}|null
+     */
+    private function identiteRelue(Request $request): ?array
+    {
+        $ctx = VisitReadContext::for($request, $this->resource);
+        if ($ctx !== null) {
+            return $ctx;
+        }
+
+        $attributes = $this->resource->getAttributes();
+        foreach (['customer_id', 'visitor_id', 'property_id'] as $colonne) {
+            if (! array_key_exists($colonne, $attributes)) {
+                return null;
+            }
+        }
+        $property = $this->property;
+
+        return [
+            'customer_id' => $this->customer_id !== null ? (int) $this->customer_id : null,
+            'visitor_id' => $this->visitor_id !== null ? (int) $this->visitor_id : null,
+            'agency_id' => $property?->agency_id !== null ? (int) $property->agency_id : null,
+            'property_live' => $property !== null,
+        ];
+    }
+
+    /**
+     * TCK-2779 — `reported_at` manque à la ligne PARCE QUE `fields[property_visits]` l'a écarté.
+     */
+    private function reportedAtRetireParFields(Request $request): bool
+    {
+        if (array_key_exists('reported_at', $this->resource->getAttributes())) {
+            return false;
+        }
+        $fields = $request->query('fields');
+        $champs = is_array($fields) ? ($fields['property_visits'] ?? null) : null;
+
+        return is_string($champs) && $champs !== '';
     }
 }

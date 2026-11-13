@@ -72,14 +72,9 @@ class PropertyVisitController extends Controller
             ->defaultSort('-scheduled_at')
             ->paginate();
 
-        // Passe 3 (M7′) — l'agence de chaque bien de la page, en une requête : la ressource en
-        // décide si la fiche client est rendue, sans relire le bien ligne par ligne.
-        $request->attributes->set('visits.property_agencies', Property::query()
-            ->whereIn('id', $paginator->getCollection()->pluck('property_id')->filter()->unique())
-            ->pluck('agency_id', 'id')
-            ->map(fn ($id) => $id === null ? null : (int) $id)
-            ->all());
-
+        // TCK-2779 — l'agence de chaque bien n'est plus lue ici sur `property_id` (absent sous
+        // `fields[property_visits]`) : la ressource la relit par `VisitReadContext`, que `primePage`
+        // charge pour toute la page.
         $this->primePage($request, $paginator->getCollection());
 
         return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));

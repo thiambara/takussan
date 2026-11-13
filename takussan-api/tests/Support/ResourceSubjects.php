@@ -190,19 +190,17 @@ final class ResourceSubjects
      */
     public static function commeLeControleur(JsonResource $instance): JsonResource
     {
-        // TCK-2578 — `PropertyVisitController::index` pose l'agence de chaque bien de la page
-        // (`visits.property_agencies`) et celles où le lecteur est personnel (`visits.staff_agencies`) ;
-        // la ressource en décide du bloc `report`. Posées pour le sujet sur un bien d'agence, comme
-        // pour un lecteur du personnel de cette agence ; retirées sinon (la requête est partagée).
+        // TCK-2578 — `PropertyVisitController::index` pose les agences où le lecteur est personnel
+        // (`visits.staff_agencies`) ; la ressource en décide du bloc `report` (l'agence du bien, elle,
+        // est relue par `VisitReadContext` depuis TCK-2779). Posées pour le sujet sur un bien d'agence,
+        // comme pour un lecteur du personnel de cette agence ; retirées sinon (la requête est partagée).
         if ($instance instanceof PropertyVisitResource) {
             $requete = request();
             $propertyId = (int) $instance->resource->property_id;
             $agencyId = Property::query()->whereKey($propertyId)->value('agency_id');
             if ($agencyId !== null) {
-                $requete->attributes->set('visits.property_agencies', [$propertyId => (int) $agencyId]);
                 $requete->attributes->set('visits.staff_agencies', [(int) $agencyId]);
             } else {
-                $requete->attributes->remove('visits.property_agencies');
                 $requete->attributes->remove('visits.staff_agencies');
             }
 
