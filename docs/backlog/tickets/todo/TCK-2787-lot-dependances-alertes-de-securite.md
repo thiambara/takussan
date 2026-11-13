@@ -176,6 +176,16 @@ l'ouverture du ticket.
   avec ce qui reste ouvert.
 - [ ] AC6 — La garde `AucunGuardTokenTest` existe et elle est verte. Vérifiée par ablation : un guard
   `'api' => ['driver' => 'token', 'provider' => 'users']` ajouté à `config/auth.php` la rend rouge.
+  - Garde écrite en avance du lot le 2026-11-13, <sha> à venir, sous `tests/Feature/Architecture/` et non
+    `tests/Unit/` : elle lit la configuration et le routeur, donc étend `Tests\TestCase`. Quatre tests : les guards
+    sont exactement `web` (session) et `sanctum` ; aucun `TokenGuard`, `RequestGuard`, `createTokenDriver`,
+    `viaRequest`, `Auth::extend` ni `'driver' => 'token'` dans le code de `app/`, `config/`, `bootstrap/`,
+    `routes/` ; toute route dont la pile résolue porte un middleware d'authentification le porte sous le seul
+    guard `sanctum` (727 routes `api/*` le 2026-11-13) ; les 97 routes `api/*` sans authentification sont une liste
+    fermée, chacune avec sa raison (entrée de session, site public, jeton de capacité, URL signée, webhook), et une
+    entrée morte en sort. Ablations faites, chaque fichier rendu à son md5 : le guard `token` ajouté à
+    `config/auth.php` rougit les deux premiers tests ; une route sous `auth:api` et une sous `auth` sans guard
+    rougissent le troisième ; une route `api/*` sans authentification rougit le quatrième.
 - [ ] AC7 — La garde `IncludeNomDeMethodeRefuseTest` existe et elle est verte sur toutes les routes énumérées.
   Vérifiée par ablation : retirer le filtre `getRequestLoadable()` de
   `CustomerCommercialAttributes::clesEtrangeresDesIncludes()` la rend rouge (l'appel a lieu avant le refus de
