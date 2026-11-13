@@ -95,6 +95,36 @@ class DocumentInterneFicheEtRechercheTest extends TestCase
         }
     }
 
+    /**
+     * t1 (vérification de 73ae34ca9) — le verdict « lit les internes » est mémoïsé par requête : sa clé doit
+     * séparer la fiche dont l'appelant est le SUJET d'une fiche TIERCE de la même agence. Trié par
+     * `created_at`, la fiche tierce est jugée en premier (verdict vrai, l'admin est du personnel) ; une clé
+     * sans cette part le resservirait à sa propre fiche, dont l'interne apparaîtrait alors dans la liste.
+     */
+    public function test_t1_en_liste_une_fiche_tierce_jugee_avant_la_sienne_ne_lui_ouvre_pas_ses_internes(): void
+    {
+        $tierce = Customer::factory()->create([
+            'agency_id' => $this->agency->id, 'added_by_id' => $this->agent->id, 'created_at' => now()->subDays(2),
+        ]);
+        $sienne = Customer::factory()->create([
+            'agency_id' => $this->agency->id, 'user_id' => $this->admin->id, 'added_by_id' => $this->agent->id,
+            'created_at' => now()->subDay(),
+        ]);
+        $this->connecter($this->agent);
+        $interneTierce = $this->televerser($tierce, 'Note de solvabilité tierce');
+        $interne = $this->televerser($sienne, 'Note de solvabilité');
+        $visible = $this->televerser($sienne, 'Pièce visible', ['is_internal' => '0']);
+
+        $this->connecter($this->admin);
+        $liste = $this->getJson('/api/customers?include=documents&sort=created_at&per_page=100')->assertOk();
+        $ordre = collect($liste->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertLessThan($ordre->search($sienne->id), $ordre->search($tierce->id), 'la fiche tierce est jugée avant la sienne');
+
+        $this->assertContains($interneTierce, $this->documentsDeLaFiche($liste, $tierce->id), 'personnel : l’interne de la fiche tierce');
+        $this->assertSame([$visible], $this->documentsDeLaFiche($liste, $sienne->id), 'sujet : jamais ses internes');
+        $this->assertNotContains($interne, $this->documentsDeLaFiche($liste, $sienne->id));
+    }
+
     public function test_r3_le_personnel_garde_ses_internes_sans_agency_id_dans_les_fields(): void
     {
         $fiche = Customer::query()->where('user_id', $this->tenant->id)->where('agency_id', $this->agency->id)->firstOrFail();
