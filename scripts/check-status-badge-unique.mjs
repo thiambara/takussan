@@ -148,6 +148,12 @@ const TABLES_DE_TONS_CONNUES = new Map([
     "trois tons de la PASTILLE D'ICÔNE d'une suite à donner (neutre, conseillée, WhatsApp) : une "
     + 'action proposée, jamais un statut — la pastille ne porte pas de texte, elle est doublée par '
     + 'le titre de la ligne'],
+  // TCK-2654, lot 4 — la semaine du prestataire.
+  ['takussan-web/src/components/maintenance/acteurs/InterventionsDuPrestataire.tsx',
+    "trois GENRES d'un créneau (prévu, à accepter, fait) peints sur les BLOCS d'une grille de la "
+    + 'semaine — un aplat PLEIN, un bord en tirets, un fond éteint —, que `StatusBadge` ne rend pas : '
+    + 'ni pastille ni statut de l’API ; le bloc porte son titre, et nomme son genre en texte (« à accepter », '
+    + '« fait ») : la teinte n’est pas le seul canal'],
 ]);
 
 /** Les lignes de MESSAGE qui tombent dans la forme du contrôle B sans être des statuts. */

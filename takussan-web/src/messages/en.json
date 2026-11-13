@@ -6400,6 +6400,46 @@
         "passage": "{jour, select, aujourdhui {Today at {heure}} demain {Tomorrow at {heure}} hier {Yesterday at {heure}} other {On {date} at {heure}}}",
         "approuve": "Quote approved on {date}"
       }
+    },
+    "prestataire": {
+      "titre": "My jobs",
+      "sousTitre": "Week of {debut} to {fin} — {aAccepter, plural, =0 {nothing to accept} one {# to accept} other {# to accept}}, {prevues, plural, =0 {none scheduled} one {# scheduled} other {# scheduled}}",
+      "erreur": "Your jobs could not be loaded.",
+      "aAccepter": {
+        "titre": "To accept · {n}",
+        "urgente": "Urgent",
+        "agenceEtPhotos": "{agence}{photos, plural, =0 {} one { · # photo} other { · # photos}}",
+        "photos": "{photos, plural, one {# photo} other {# photos}}",
+        "quand": "{jour, select, aujourdhui {today,} demain {tomorrow,} hier {yesterday,} other {on}} {date} · {heure}",
+        "verrou": "Tenant’s address and contact visible once you accept"
+      },
+      "semaine": {
+        "titre": "This week",
+        "prochaines": "Next · {jour}",
+        "aujourdhui": "{jour} · today",
+        "heure": "{h}:00",
+        "grille": "Week of {debut} to {fin}",
+        "genre": {
+          "attente": "to accept",
+          "fait": "done"
+        },
+        "rienDePrevu": "{jours}: nothing scheduled",
+        "vide": "Nothing scheduled for the rest of the week",
+        "itineraire": "Directions",
+        "kit": "Access kit"
+      },
+      "factures": {
+        "titre": "My invoices",
+        "toutes": "All",
+        "envoyee": "Sent on {date}",
+        "validee": "Approved on {date}",
+        "aPercevoir": "To be received",
+        "vide": "No invoices yet",
+        "videTexte": "A job completed with its cost creates its invoice.",
+        "registre": "All my invoices",
+        "erreur": "Your invoices could not be loaded.",
+        "aPercevoirCompte": "{n, plural, one {# invoice} other {# invoices}}"
+      }
     }
   },
   "recentlyViewed": {

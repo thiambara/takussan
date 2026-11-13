@@ -307,6 +307,9 @@ export type ServiceProviderBill = {
   rechargeable_to_landlord: boolean;
   imputed_payout_id: number | null;
   created_at: string | null;
+  /** TCK-2654 — servis par `include=maintenanceRequest,property`, réduits au titre. */
+  maintenance_request?: { readonly id: number; readonly title: string } | null;
+  property?: { readonly id: number; readonly title: string } | null;
 };
 
 

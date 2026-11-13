@@ -6357,6 +6357,46 @@
         "passage": "{jour, select, aujourdhui {Aujourd’hui à {heure}} demain {Demain à {heure}} hier {Hier à {heure}} other {Le {date} à {heure}}}",
         "approuve": "Devis approuvé le {date}"
       }
+    },
+    "prestataire": {
+      "titre": "Mes interventions",
+      "sousTitre": "Semaine du {debut} au {fin} — {aAccepter, plural, =0 {rien à accepter} one {# à accepter} other {# à accepter}}, {prevues, plural, =0 {aucune prévue} one {# prévue} other {# prévues}}",
+      "erreur": "Vos interventions n’ont pas pu être chargées.",
+      "aAccepter": {
+        "titre": "À accepter · {n}",
+        "urgente": "Urgente",
+        "agenceEtPhotos": "{agence}{photos, plural, =0 {} one { · # photo} other { · # photos}}",
+        "photos": "{photos, plural, one {# photo} other {# photos}}",
+        "quand": "{jour, select, aujourdhui {aujourd’hui,} demain {demain,} hier {hier,} other {le}} {date} · {heure}",
+        "verrou": "Adresse et contact du locataire visibles après acceptation"
+      },
+      "semaine": {
+        "titre": "Cette semaine",
+        "prochaines": "Prochaines · {jour}",
+        "aujourdhui": "{jour} · aujourd’hui",
+        "heure": "{h} h",
+        "grille": "Semaine du {debut} au {fin}",
+        "genre": {
+          "attente": "à accepter",
+          "fait": "terminée"
+        },
+        "rienDePrevu": "{jours} : rien de prévu",
+        "vide": "Rien de prévu d’ici la fin de la semaine",
+        "itineraire": "Itinéraire",
+        "kit": "Kit d’accès"
+      },
+      "factures": {
+        "titre": "Mes factures",
+        "toutes": "Toutes",
+        "envoyee": "Envoyée le {date}",
+        "validee": "Validée le {date}",
+        "aPercevoir": "À percevoir",
+        "vide": "Aucune facture pour l’instant",
+        "videTexte": "Une intervention terminée avec son coût fait naître sa facture.",
+        "registre": "Toutes mes factures",
+        "erreur": "Vos factures n’ont pas pu être chargées.",
+        "aPercevoirCompte": "{n, plural, one {# facture} other {# factures}}"
+      }
     }
   },
   "homepage": {

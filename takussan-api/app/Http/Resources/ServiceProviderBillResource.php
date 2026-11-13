@@ -28,6 +28,17 @@ class ServiceProviderBillResource extends BaseResource
             'rechargeable_to_landlord' => (bool) $this->rechargeable_to_landlord,
             'imputed_payout_id' => $this->imputed_payout_id,
             'created_at' => $this->iso($this->created_at),
+            // TCK-2654 — « Mes factures » du prestataire nomme l'intervention et le bien. Servis
+            // seulement quand `include=` les charge, et réduits à leur titre : la ligne n'en dit pas
+            // plus que la fiche que le lecteur de la facture lit déjà.
+            'maintenance_request' => $this->whenLoaded('maintenanceRequest', fn (): ?array => $this->maintenanceRequest === null ? null : [
+                'id' => $this->maintenanceRequest->id,
+                'title' => $this->maintenanceRequest->title,
+            ]),
+            'property' => $this->whenLoaded('property', fn (): ?array => $this->property === null ? null : [
+                'id' => $this->property->id,
+                'title' => $this->property->title,
+            ]),
         ];
     }
 }
