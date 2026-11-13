@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
 import { MaintenanceList } from '@/components/maintenance/MaintenanceList';
+import { InterventionsDeLAgence } from '@/components/maintenance/files/InterventionsDeLAgence';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 import { ServiceProviderBillsTable } from '@/components/payments/ServiceProviderBillsTable';
-import { isServiceProvider } from '@/lib/roles';
+import { isAdmin, isAgent, isServiceProvider } from '@/lib/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.maintenance');
@@ -15,6 +16,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.maintenance');
   const user = await getMeAction();
+  // TCK-2653 — le personnel de l'agence ouvre les files d'attente (en-tête, filtres et « Signaler
+  // une intervention » dans la vue) ; le locataire, le bailleur et le prestataire gardent la liste
+  // (TCK-2654). Même partage que « Baux » (TCK-2644).
+  if (isAgent(user.roles) || isAdmin(user.roles)) {
+    return (
+      <div className="space-y-6">
+        <InterventionsDeLAgence />
+        {isServiceProvider(user.roles) ? <ServiceProviderBillsTable mode="provider" /> : null}
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />

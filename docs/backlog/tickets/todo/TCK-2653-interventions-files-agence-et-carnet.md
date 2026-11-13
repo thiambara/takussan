@@ -129,4 +129,14 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Lot 1 — les files (2026-11-13)
+
+- **Qui voit quoi.** `/app/maintenance` rend `InterventionsDeLAgence` à l'agent et à l'admin (même partage que « Baux », TCK-2644) ; le locataire, le bailleur et le prestataire gardent `MaintenanceList` (TCK-2654).
+- **Lectures.** Comptes des pastilles, des colonnes et du sous-titre : `GET …/summary`, un appel (AC2). Cartes : un `GET …?filter[file]=<file>` par file, au tri de l'API (`-priority`, `-created_at`) — #8 en tête d'« À dispatcher » sur la démo. Les champs (`CHAMPS_D_UNE_CARTE`) portent `status`, `assigned_to` et `scheduled_at`, sans lesquels l'API rend `file` à `null` ; un test les épingle.
+- **Vues** (`?vue=`) : Files (défaut), Liste (l'ancienne `MaintenanceList`, filtres statut et priorité, pagination ; `?status=` de TCK-1727 y ouvre directement), Terminées (la file `terminees`, vingt par page, avec le statut). « Urgences prioritaires » ne se rend plus pour l'agence (`urgencesAPart={false}`).
+- **Attente** (`attenteDe`) : « Ouverte depuis … » (à dispatcher), « Créneau du … dépassé de … » en rouge, « Chez le bailleur depuis … », « Devis à décider / demandé depuis … », « Prévue le … à … », « Terminée le … · clôture dans … ». **Ambre au-delà de 3 jours** quand l'agence ou le bailleur doit agir — décision n° 1 proposée au porteur, retenue par défaut. Durées par `useFormatteurs().nombre(n, { style: 'unit' })` (« 57 j », « 2 h »).
+- **Gestes de carte** : liens vers la fiche avec `?geste=choisir|relancer|reassigner|voirDevis` ; la fiche les exécute (lot 2). « Relancer le bailleur » est absent : l'API ne sert pas le contact du bailleur (décision n° 2).
+- **Écarts à la maquette, motivés** : recherche « Titre ou description… » (l'API ne cherche que là, pas « Bien, locataire, prestataire… ») ; « Terminées 40 » sans « en 2026 » (aucun compte par année, décision n° 5) ; ni poignée de glisser ni « Déposez une carte ici » (glisser-déposer hors périmètre) ; « Aucune demande » dans une file vide ; le quartier se tait quand le titre du bien le nomme déjà.
+- **Frontière i18n** : `console` déclaré sur `(dashboard)/app/maintenance` (recherche et pagination de la console).
+
+_(Lots 2 — fiche — et 3 — frise et carnet — à suivre.)_

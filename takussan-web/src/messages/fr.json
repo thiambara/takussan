@@ -6202,6 +6202,82 @@
       "list": {
         "agency": "Agence {name}"
       }
+    },
+    "files": {
+      "titre": "Interventions",
+      "sousTitre": "{attente} en attente d’un geste · {terminees} terminées",
+      "prestataires": "Prestataires",
+      "signaler": "Signaler une intervention",
+      "pastilles": "Files d’attente",
+      "termineesEtCloses": "Terminées et closes",
+      "fileVide": "Aucune demande",
+      "termineesVide": "Aucune intervention terminée",
+      "compteTerminees": "{count, plural, one {# intervention terminée} other {# interventions terminées}}",
+      "afficherLesAutres": "Afficher les {n} autres",
+      "erreur": "Les interventions n’ont pas pu être chargées.",
+      "erreurCourte": "Échec du chargement — réessayer",
+      "reessayer": "Réessayer",
+      "noms": {
+        "a_dispatcher": "À dispatcher",
+        "en_retard": "En retard",
+        "chez_le_bailleur": "Chez le bailleur",
+        "en_cours": "En cours",
+        "a_confirmer": "À confirmer",
+        "terminees": "Terminées"
+      },
+      "aides": {
+        "a_dispatcher": "Sans prestataire",
+        "en_retard": "Créneau dépassé",
+        "chez_le_bailleur": "Devis à approuver",
+        "en_cours": "Prestataire à l’œuvre",
+        "a_confirmer": "Réponse du locataire"
+      },
+      "attente": {
+        "ouverte": "Ouverte depuis {duree}",
+        "creneauDepasse": "Créneau du {date} dépassé de {duree}",
+        "chezLeBailleur": "Chez le bailleur depuis {duree}",
+        "devisADecider": "Devis à décider depuis {duree}",
+        "devisDemande": "Devis demandé depuis {duree}",
+        "confiee": "Confiée depuis {duree}",
+        "creneau": "Prévue le {date} à {heure}",
+        "aConfirmer": "Terminée le {date} · clôture dans {duree}",
+        "clotureAujourdhui": "Terminée le {date} · clôture aujourd’hui",
+        "termineeLe": "Terminée le {date}",
+        "terminee": "Terminée"
+      },
+      "gestes": {
+        "choisir": "Choisir un prestataire",
+        "relancer": "Relancer",
+        "reassigner": "Réassigner",
+        "voirDevis": "Voir le devis"
+      },
+      "carte": {
+        "confieeA": "Confiée à {nom}",
+        "devisDe": "Devis de {nom} : <b>{montant}</b>",
+        "devis": "Devis : <b>{montant}</b>",
+        "devisCourt": "Devis {montant}"
+      },
+      "vues": {
+        "label": "Affichage",
+        "files": "Files",
+        "liste": "Liste",
+        "terminees": "Terminées"
+      },
+      "filtres": {
+        "titre": "Filtres",
+        "telephone": "Priorité, métier",
+        "recherche": "Titre ou description…",
+        "priorite": "Priorité",
+        "toutesLesPriorites": "Toutes les priorités",
+        "metier": "Métier",
+        "tousLesMetiers": "Tous les métiers",
+        "bien": "Bien",
+        "tousLesBiens": "Tous les biens",
+        "bienChoisi": "Bien choisi",
+        "bienRecherche": "Chercher un bien…",
+        "effacer": "Effacer",
+        "appliquer": "Voir les interventions"
+      }
     }
   },
   "homepage": {

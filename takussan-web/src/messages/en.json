@@ -6245,6 +6245,82 @@
       "list": {
         "agency": "Agency {name}"
       }
+    },
+    "files": {
+      "titre": "Maintenance",
+      "sousTitre": "{attente} awaiting action · {terminees} completed",
+      "prestataires": "Service providers",
+      "signaler": "Report an issue",
+      "pastilles": "Queues",
+      "termineesEtCloses": "Completed and closed",
+      "fileVide": "No requests",
+      "termineesVide": "No completed requests",
+      "compteTerminees": "{count, plural, one {# completed request} other {# completed requests}}",
+      "afficherLesAutres": "Show the other {n}",
+      "erreur": "Maintenance requests could not be loaded.",
+      "erreurCourte": "Failed to load — retry",
+      "reessayer": "Retry",
+      "noms": {
+        "a_dispatcher": "To dispatch",
+        "en_retard": "Overdue",
+        "chez_le_bailleur": "With the landlord",
+        "en_cours": "In progress",
+        "a_confirmer": "To confirm",
+        "terminees": "Completed"
+      },
+      "aides": {
+        "a_dispatcher": "No provider",
+        "en_retard": "Slot missed",
+        "chez_le_bailleur": "Quote to approve",
+        "en_cours": "Provider at work",
+        "a_confirmer": "Tenant’s answer"
+      },
+      "attente": {
+        "ouverte": "Open for {duree}",
+        "creneauDepasse": "Slot of {date} missed by {duree}",
+        "chezLeBailleur": "With the landlord for {duree}",
+        "devisADecider": "Quote awaiting decision for {duree}",
+        "devisDemande": "Quote requested {duree} ago",
+        "confiee": "Assigned {duree} ago",
+        "creneau": "Scheduled {date} at {heure}",
+        "aConfirmer": "Completed {date} · closes in {duree}",
+        "clotureAujourdhui": "Completed {date} · closes today",
+        "termineeLe": "Completed {date}",
+        "terminee": "Completed"
+      },
+      "gestes": {
+        "choisir": "Choose a provider",
+        "relancer": "Follow up",
+        "reassigner": "Reassign",
+        "voirDevis": "View the quote"
+      },
+      "carte": {
+        "confieeA": "Assigned to {nom}",
+        "devisDe": "Quote from {nom}: <b>{montant}</b>",
+        "devis": "Quote: <b>{montant}</b>",
+        "devisCourt": "Quote {montant}"
+      },
+      "vues": {
+        "label": "View",
+        "files": "Queues",
+        "liste": "List",
+        "terminees": "Completed"
+      },
+      "filtres": {
+        "titre": "Filters",
+        "telephone": "Priority, trade",
+        "recherche": "Title or description…",
+        "priorite": "Priority",
+        "toutesLesPriorites": "All priorities",
+        "metier": "Trade",
+        "tousLesMetiers": "All trades",
+        "bien": "Property",
+        "tousLesBiens": "All properties",
+        "bienChoisi": "Selected property",
+        "bienRecherche": "Search a property…",
+        "effacer": "Clear",
+        "appliquer": "Show requests"
+      }
     }
   },
   "recentlyViewed": {
