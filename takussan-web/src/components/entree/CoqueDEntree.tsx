@@ -47,6 +47,12 @@ export interface LibellesDeLaCoque {
 export interface DeclarationDEntree {
   /** L'intention, titre de la barre (« Publier votre bien »). */
   readonly titre?: string;
+  /**
+   * TCK-2604 — le titre de la seule barre du bureau, quand il diffère de celui du téléphone : entre 1024
+   * et 1280, la barre de 64 px dit l'action ET le bien (« Votre demande de visite · Studio meublé »), que
+   * le panneau dit dès 1280 et l'en-tête du téléphone jusqu'à 1024. Absent : `titre`.
+   */
+  readonly titreDeBureau?: string;
   /** L'avancement du parcours ENTIER, compte compris. */
   readonly pas?: number;
   readonly total?: number;
@@ -69,9 +75,11 @@ export interface DeclarationDEntree {
    */
   readonly enTete?: ReactNode;
   /**
-   * TCK-2604 — au bureau (dès `lg`), le panneau de GAUCHE de la maquette `DeuxColonnes` : 45 % de
-   * la largeur, pleine hauteur, et la barre passe dans la colonne de droite (retour à gauche,
-   * marque à droite), au-dessus d'un formulaire de 400 px. Un pourcentage, jamais une piste fixe.
+   * TCK-2604 — au bureau LARGE (dès `xl`, 1280 px : « Bureau (≥ 1280 px) » du ticket), le panneau de
+   * GAUCHE de la maquette `DeuxColonnes` : 45 % de la largeur, pleine hauteur, et la barre passe dans
+   * la colonne de droite (retour à gauche, marque à droite), au-dessus d'un formulaire de 400 px. Un
+   * pourcentage, jamais une piste fixe. Entre 1024 et 1280, pas de panneau : la coque est celle d'une
+   * page sans panneau (barre de 64 px, `retourBureau` compris, colonne de 480 px).
    */
   readonly panneau?: ReactNode;
   /** La pastille de retour du bureau, quand la page en dit une plus juste (« Retour à l'annonce »). */
@@ -129,10 +137,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau } = declaration;
+  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau });
-  }, [declarer, id, titre, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau]);
+    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau });
+  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -188,6 +196,7 @@ export function CoqueDEntree({
   });
   const declaree = fusionner(declarations);
   const titre = declaree.titre ?? parDefaut.titre;
+  const titreDeBureau = declaree.titreDeBureau ?? parDefaut.titreDeBureau ?? titre;
   const pas = declaree.pas ?? parDefaut.pas;
   const total = declaree.total ?? parDefaut.total;
   const pied = declaree.pied ?? parDefaut.pied;
@@ -236,7 +245,7 @@ export function CoqueDEntree({
         {panneau ? (
           <aside
             data-panneau-d-entree=""
-            className="sticky top-0 hidden h-dvh w-[45%] flex-none self-start overflow-hidden lg:block"
+            className="sticky top-0 hidden h-dvh w-[45%] flex-none self-start overflow-hidden xl:block"
           >
             {panneau}
           </aside>
@@ -287,43 +296,50 @@ export function CoqueDEntree({
           )}
 
           {panneau ? (
-            /* Bureau à deux colonnes (`DeuxColonnes`) : la barre de la colonne de droite, sans filet. */
-            <header className="hidden h-16 flex-none items-center justify-between px-10 lg:flex">
+            /* Bureau large à deux colonnes (`DeuxColonnes`) : la barre de la colonne de droite, sans filet. */
+            <header className="hidden h-16 flex-none items-center justify-between px-10 xl:flex">
               {retourBureau ?? <span />}
               <Marque nom={libelles.marque} />
             </header>
-          ) : (
-            /* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie. */
-            <header className="sticky top-0 z-20 hidden h-16 flex-none items-center border-b border-border bg-background px-8 lg:flex">
-              <div className="flex flex-1 items-center gap-5">
-                {retourBureau ?? null}
-                <Marque nom={libelles.marque} />
+          ) : null}
+          {/* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie.
+              Avec un panneau, elle ne sert qu'entre 1024 et 1280, où le panneau ne paraît pas. */}
+          <header
+            className={cn(
+              'sticky top-0 z-20 hidden h-16 flex-none items-center border-b border-border bg-background px-8 lg:flex',
+              panneau ? 'xl:hidden' : null,
+            )}
+          >
+            <div className="flex flex-1 items-center gap-5 whitespace-nowrap">
+              {retourBureau ?? null}
+              <Marque nom={libelles.marque} />
+            </div>
+            {titreDeBureau ? (
+              /* Le titre seul se tronque : le retour et la marque gardent leur ligne (`whitespace-nowrap`), un titre long
+                 ne repliait pas le titre mais la pastille « Retour à l’annonce », sur deux lignes, collée à la marque. */
+              <div className="mx-6 flex min-w-0 items-center gap-3.5">
+                <p className="truncate text-corps font-semibold">{titreDeBureau}</p>
+                {avancement}
               </div>
-              {titre ? (
-                <div className="flex items-center gap-3.5">
-                  <p className="text-corps font-semibold">{titre}</p>
-                  {avancement}
-                </div>
-              ) : null}
-              <div className="flex flex-1 items-center justify-end gap-4">
-                {sortie?.forme === 'quitter' ? (
-                  <NextLink
-                    href={sortie.href}
-                    onClick={auClicDeSortie}
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-input/45 bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-                  >
-                    {libelles.quitter}
-                  </NextLink>
-                ) : (
-                  retourAuSite
-                )}
-              </div>
-            </header>
-          )}
+            ) : null}
+            <div className="flex flex-1 items-center justify-end gap-4">
+              {sortie?.forme === 'quitter' ? (
+                <NextLink
+                  href={sortie.href}
+                  onClick={auClicDeSortie}
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-input/45 bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                >
+                  {libelles.quitter}
+                </NextLink>
+              ) : (
+                retourAuSite
+              )}
+            </div>
+          </header>
 
           <main
             {...(densiteDesChamps ? fieldDensityScope() : {})}
-            className={cn('flex-1 px-4 pb-8 pt-5', panneau ? 'lg:px-10 lg:pb-16 lg:pt-12' : 'lg:px-8 lg:pb-16 lg:pt-16')}
+            className={cn('flex-1 px-4 pb-8 pt-5', 'lg:px-8 lg:pb-16 lg:pt-16', panneau ? 'xl:px-10 xl:pt-12' : null)}
           >
             {/* Sous 1280, la colonne et l'objet s'empilent : aucun panneau ne reste à côté du contenu. */}
             <div className={cn('mx-auto w-full', objet && !panneau ? 'xl:flex xl:max-w-[65rem] xl:items-start xl:gap-20' : null)}>
@@ -331,7 +347,7 @@ export function CoqueDEntree({
                 className={cn(
                   'mx-auto w-full',
                   largeur === 'etroite' ? 'max-w-[30rem]' : 'max-w-4xl',
-                  panneau ? 'lg:max-w-[25rem]' : objet ? 'xl:mx-0 xl:w-[30rem] xl:flex-none' : null,
+                  panneau ? 'xl:max-w-[25rem]' : objet ? 'xl:mx-0 xl:w-[30rem] xl:flex-none' : null,
                 )}
               >
                 {children}

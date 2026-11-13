@@ -47,6 +47,16 @@ function useDetailsDuBien(intention: IntentionAffichee): { readonly prix: string
   return { prix, date };
 }
 
+/**
+ * TCK-2604 — le titre de la barre du bureau entre 1024 et 1280 (« Votre demande de visite · Studio
+ * meublé à Mermoz ») : le panneau, qui dit le bien dès 1280, n'y paraît pas, et l'en-tête du
+ * téléphone s'arrête à 1024. Sans bien, `undefined` : la page déclare l'action seule.
+ */
+export function useTitreDeLaBarre(intention: (IntentionAffichee & { readonly bien: BienQuitte }) | null): string | undefined {
+  const t = useTranslations('auth.porte');
+  return intention ? `${t(`actions.${intention.action}.titre`)} · ${intention.bien.titre}` : undefined;
+}
+
 /** L'icône du geste : un dossier pour une candidature, le calendrier de la maquette pour le reste. */
 function IconeDuGeste({ action, className, strokeWidth }: { readonly action: ActionDEntree; readonly className: string; readonly strokeWidth: number }) {
   return action === 'candidature' ? (

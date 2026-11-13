@@ -121,10 +121,21 @@ et reste joignable depuis la connexion (« S'inscrire », ou `?voie=inscription`
   `/app` : tailles par jetons (`text-ui`, `text-legende`, `text-action`, `tracking-surtitre`), jamais en px.
 - L'agence du bien (`agency.name`, public) dit « Avec … » au bureau et « Votre demande de … part chez … » sur l'écran
   du code ; sans agence, « Retour à l'annonce, là où vous en étiez ».
-- `CoqueDEntree` (TCK-2598) reçoit `enTete` (remplace la barre du téléphone), `panneau` (45 % à gauche dès `lg`,
-  avec la barre de la colonne de droite) et `retourBureau`. Le panneau paraît dès 1024 et non dès 1280 (« Bureau
-  (≥ 1280 px) » ci-dessus) : décision réversible, signalée — il est fluide (45 %), la colonne garde 400 px, rien ne
-  déborde, et c'est le seuil de la coque de TCK-2598 ; le passer à `xl:` ne toucherait que `CoqueDEntree`.
+- `CoqueDEntree` (TCK-2598) reçoit `enTete` (remplace la barre du téléphone), `panneau` (45 % à gauche dès `xl`,
+  avec la barre de la colonne de droite) et `retourBureau`. **Le panneau paraît dès 1280, comme le dit « Bureau
+  (≥ 1280 px) » ci-dessus** (décision du 2026-11-13, suite du commit 861535de2 : la première livraison l'ouvrait dès
+  1024). Entre 1024 et 1280, la coque est celle d'une page sans panneau : barre de 64 px à filet, « Retour à
+  l'annonce » à gauche, colonne de 480 px. Seul `CoqueDEntree` change ; `CoqueDEntree.panneau-xl.tck-2604.test.tsx`
+  le tient à 390, 1024 et 1280 (quatre ablations rouges : panneau dès `lg`, barre de 64 px gardée à 1280, colonne de
+  400 px dès `lg`, barre sans filet dès `lg`).
+- **Entre 1024 et 1280, la barre de 64 px garde l'intention** (décision (b) du 2026-11-13) : sans panneau, rien n'y disait
+  plus le bien quitté. La page déclare `titreDeBureau` (« Votre réservation · Studio meublé lumineux à Mermoz »,
+  `useTitreDeLaBarre` d'`IntentionDEntree`), que seule cette barre affiche ; au téléphone, la barre garde le titre
+  court, et dès 1280 le panneau dit le bien. Le titre seul se tronque : le retour et la marque gardent leur ligne
+  (un titre long repliait d'abord la pastille « Retour à l'annonce » sur deux lignes, collée à la marque — vu à la
+  capture). Tests : `porte-par-numero` (« à 1024, la barre du bureau dit l'action et le bien quitté » : numéro, code,
+  voie e-mail, sans bien) et `CoqueDEntree.panneau-xl` ; trois ablations rouges (titre non déclaré par la porte du
+  numéro, puis par la voie e-mail ; coque qui affiche `titre`).
 
 **Ce que la prémisse ne disait pas.** `PublicPropertyController::show()` ignore `fields[]` : la réduction se fait côté
 serveur, pas par l'URL (l'ajouter aurait séparé le cache de celui de la fiche). Une demande de visite ne porte AUCUNE
@@ -163,9 +174,19 @@ demande de code servie dans la page : aucun SMS, aucune requête autre que GET d
 - AC-F6 — aucun défilement horizontal (`scrollWidth − innerWidth = 0`) à 1280, 1024 et 768, avec et sans intention,
   écran du code compris. À 768 : panneau caché, colonne de 480 px centrée, bouton de la barre aligné sur elle (x 144,
   480). À 1024 : panneau fluide de 45 % (461 px), colonne de 400 px — aucune piste fixe ni panneau de 480 px.
+  Re-mesuré après le passage du panneau à `xl` (2026-11-13), à 1024 et 1280, porte, code, voie e-mail (connexion et
+  création) avec intention, et porte sans intention : débord 0, aucun élément hors de la fenêtre, aucune coupe. À
+  1024, panneau monté mais non affiché, une seule barre (64 px de jeton, 57,6 px rendus, filet 1 px) qui porte
+  « Retour à l'annonce », colonne de 480 px ; à 1280, panneau de 576 px (45 %), barre sans filet, colonne de 400 px ;
+  sans intention, à 1024 comme à 1280, barre « Retour au site » et colonne de 480 px.
+  Le titre de la barre à 1024 (2026-11-13) : « Votre demande de visite · Micro Studio 10m² » sur la porte, le code
+  et les deux onglets e-mail, 318 px non tronqué ; un titre de 49 caractères (« Votre réservation · Villa
+  contemporaine 2 chambres - Dieuppeul-Derklé ») 514 px non tronqué ; le même triplé (1 585 px) tronqué à 603 px, la
+  pastille de retour à 40 px (une ligne), 22 px entre la marque et le titre, débord 0. À 1280, aucun titre dans la
+  barre : le panneau a pris le relais.
 
-**Tests** : `porte-par-numero.tck-2604.test.tsx` (29), `PropertyReservationDialog.intention.test.tsx` (+1), `bien-quitte.tck-2604.test.ts` (4), `lien-connexion.test.ts`
-(13) ; les tests d'auth existants passent sur la nouvelle porte (libellé « Votre numéro », envoi au sixième chiffre).
+**Tests** : `porte-par-numero.tck-2604.test.tsx` (33), `PropertyReservationDialog.intention.test.tsx` (+1), `bien-quitte.tck-2604.test.ts` (4), `lien-connexion.test.ts`
+(14) ; les tests d'auth existants passent sur la nouvelle porte (libellé « Votre numéro », envoi au sixième chiffre).
 `promesses-de-delai.test.ts` : « Valable 5 minutes » (`auth.porte.code.valable`) entre au registre, adossé à `CODE_TTL_SECONDS` (chiffre tenu : 5), à la place de `auth.phoneLogin.codeSentTo` retirée.
 Ablations (chacune rougit son test, restaurée au md5) : verrou synchrone, `codeRefuse`, liste fermée, forme du slug,
 forme et ordre des dates, l'entrée du registre des délais, retrait de Google sur échec, intention gardée par `/auth/register`, `aideNationale`,

@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoqueDEntree, type LibellesDeLaCoque } from '@/components/entree/CoqueDEntree';
 import { ApiError } from '@/lib/api';
 import type { BienQuitte } from '@/lib/queries/bien-quitte';
+import { afficheA } from '@/test/affiche-a';
 import { withIntl } from '@/test/intl';
 
 const pushMock = vi.fn();
@@ -196,6 +197,39 @@ describe('AC1 — l’intention et le bien quitté', () => {
     await ouvrir({ redirect: '/fr/properties/retire-a1b2c3', intention: 'visite' });
     expect(document.querySelector('[data-en-tete-du-bien]')).toBeNull();
     expect(document.querySelector('img')).toBeNull();
+  });
+});
+
+// Suite xl de TCK-2604, décision (b) : entre 1024 et 1280, le panneau d'intention est absent ; c'est la
+// barre de 64 px qui garde l'intention — l'action ET le bien quitté —, sur chaque écran de la porte.
+describe('à 1024, la barre du bureau dit l’action et le bien quitté', () => {
+  const TITRE_DE_BUREAU = `Votre réservation · ${STUDIO.titre}`;
+
+  function titreDeLaBarreA1024(): HTMLElement {
+    const titre = screen.getByText(TITRE_DE_BUREAU);
+    expect(afficheA(titre, 1024)).toBe(true);
+    expect(titre.closest('header')!.className).toMatch(/(^|\s)h-16(\s|$)/);
+    return titre;
+  }
+
+  it('la porte du numéro, puis l’écran du code', async () => {
+    const user = userEvent.setup();
+    await ouvrir({ redirect: '/fr/properties/studio-meuble-mermoz-a1b2c3?action=reserver', intention: 'reservation' });
+    titreDeLaBarreA1024();
+    await jusquAuCode(user);
+    titreDeLaBarreA1024();
+  });
+
+  it('la voie e-mail', async () => {
+    await ouvrir({ voie: 'email', redirect: '/fr/properties/studio-meuble-mermoz-a1b2c3', intention: 'reservation' });
+    await screen.findByRole('tab', { name: 'J’ai un compte' });
+    titreDeLaBarreA1024();
+  });
+
+  it('sans bien quitté, la barre ne dit que le titre de l’écran', async () => {
+    bienQuitteMock.mockResolvedValue(null);
+    await ouvrir({ redirect: '/fr/properties/retire-a1b2c3', intention: 'reservation' });
+    expect(screen.queryByText(/ · /)).toBeNull();
   });
 });
 

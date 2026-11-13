@@ -27,7 +27,7 @@ import { formaterTelephone, numeroComposable } from '@/lib/phone';
 import { AutresVoies } from './AutresVoies';
 import { BOUTON_D_ENTREE, BoutonCollant } from './BoutonCollant';
 import { CasesDuCode, LONGUEUR_DU_CODE } from './CasesDuCode';
-import { BarreDuBien, EnTeteDuBien, PanneauDeReprise, PanneauDuBien, avecBien, type IntentionAffichee } from './IntentionDEntree';
+import { BarreDuBien, EnTeteDuBien, PanneauDeReprise, PanneauDuBien, avecBien, useTitreDeLaBarre, type IntentionAffichee } from './IntentionDEntree';
 import { RetourAuth } from './RetourAuth';
 
 /**
@@ -245,11 +245,13 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
   const bien = avecBien(intention) ? intention : null;
   const retourALAnnonce = tPorte('retourALAnnonce');
   const titreDeLAction = intention ? tPorte(`actions.${intention.action}.titre`) : undefined;
+  const titreDeLaBarre = useTitreDeLaBarre(bien);
 
   // Ce que la coque montre autour : la photo du bien et sa pastille de retour à l'écran du numéro,
   // la barre du bien et la reprise ensuite. Une action sans bien : son nom dans la barre, rien de plus.
   const declaration = bien ? (
     <DeclarerEntree
+      titreDeBureau={titreDeLaBarre}
       enTete={
         etape === 'numero' ? (
           <EnTeteDuBien intention={bien} retour={<RetourAuth forme="fleche" surPhoto libelle={retourALAnnonce} />} />
