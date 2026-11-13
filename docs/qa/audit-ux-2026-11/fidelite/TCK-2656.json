@@ -102,6 +102,58 @@
         "persona": "locataire",
         "etat": "une photo JPEG de 800×520 posée par `DataTransfer` dans l'entrée `capture` (téléphone) ou l'entrée de fichier (bureau), « carte-identite-2026.jpg » ; aucun envoi"
       }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Fiche d'un document",
+      "references": {
+        "telephone": "references/app-documents/a-5-telephone.json",
+        "bureau-1440": "references/app-documents/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents/82",
+        "persona": "agent",
+        "etat": "fiche du document 82 de la démo (bien, type « autre », vérifié, sans fichier ni version : seed sans médias), un lien actif"
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Fiche — partager par lien",
+      "references": {
+        "telephone": "references/app-documents/a-6-telephone.json",
+        "bureau-1440": "references/app-documents/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents/82",
+        "persona": "agent",
+        "etat": "« Partager » touché (feuille du bas au téléphone, carte flottante au bureau), interrupteur « Protéger par un mot de passe » allumé ; aucun envoi (`partager.js`)"
+      }
+    },
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Fiche — lien copié",
+      "references": {
+        "telephone": "references/app-documents/a-7-telephone.json",
+        "bureau-1440": "references/app-documents/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-documents/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/documents/82",
+        "persona": "agent",
+        "etat": "non relevé au navigateur : l'écran suit un POST (création d'un lien), interdit pendant les relevés de démo ; éprouvé en vitest (`PartageDuDocument.tck-2656` : « Lien copié », adresse, détails, WhatsApp, « Révoquer ce lien »)"
+      },
+      "releve": false
     }
   ],
   "produit": {
@@ -379,21 +431,89 @@
       "propriete": "texte",
       "exception": "décision produit",
       "motif": "chez le bailleur, un bien et ses baux se rangent dans le même dossier ; le numéro du bail (`reference`, ajouté à `attachable_targets`) distingue un bail clos du bail en cours."
+    },
+    {
+      "ecran": "app-documents a-5-*, a-6-*",
+      "element": "« Rattaché à », « Bien », « Ajouté par Ousmane Niang », « Vérifié par Awa Diop », auteurs des versions, « Créé le … par Sokhna Sène »",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "l'API ne sert que des identifiants (`uploaded_by`, `verified_by`, `uploaded_by_id`, aucun créateur de lien) : « vous » quand c'est l'appelant, la date seule sinon (« Ajouté le », « Vérifié le ») ; suite TCK-2773 (décision L3-1)."
+    },
+    {
+      "ecran": "app-documents a-5-*, a-6-*",
+      "element": "aperçu, « Télécharger », « Version 2 · JPG · 2,4 Mo », « Versions (2) », « Actuelle », « Restaurer », « Pièce d’identité »",
+      "propriete": "texte et présence",
+      "exception": "donnée",
+      "motif": "le document 82 de la démo n'a ni fichier (seed sans médias), ni version, ni catégorie : tuile « Aucun fichier », « Aucune autre version… », catégorie « Autre » ; aperçu, versions et légende éprouvés en vitest (`DocumentDetailClient.abilities`, `VersionsDuDocument.tck-2656`)."
+    },
+    {
+      "ecran": "app-documents a-5-*, a-6-*",
+      "element": "fil « Documents › Villa 4 chambres › Bail … › Pièces du locataire »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le fil s'arrête à « Documents › nom » ; Bien › Bail › dossier vient avec la vue de l'agence (lot 4)."
+    },
+    {
+      "ecran": "app-documents a-5-telephone",
+      "element": "« ⋯ » de l'en-tête du téléphone",
+      "propriete": "absent du produit",
+      "exception": "décision produit",
+      "motif": "sa seule action serait « Supprimer », déjà au bas de la fiche (« Supprimer ce document ») ; la feuille « ⋯ » n'aurait rien d'autre à offrir."
+    },
+    {
+      "ecran": "app-documents a-5-*",
+      "element": "« Ajouter une version » et « Restaurer »",
+      "propriete": "hauteur",
+      "exception": "accessibilité",
+      "motif": "cible de 44 px (`min-h-11`, `-my-3` sur le titre de bloc pour garder la ligne) là où la maquette dessine un lien de 18-20 px."
+    },
+    {
+      "ecran": "app-documents a-6-*",
+      "element": "pastilles de durée",
+      "propriete": "nombre et largeur",
+      "exception": "décision produit",
+      "motif": "quatre durées (1 heure, 24 heures, 7 jours, 30 jours) contre trois : 1 heure existait (décision L3-2)."
+    },
+    {
+      "ecran": "app-documents a-6-*",
+      "element": "compteur « Téléchargements au plus »",
+      "propriete": "valeur",
+      "exception": "décision produit",
+      "motif": "« − » depuis 1 donne « Sans limite » : le partage sans plafond existait (décision L3-2)."
+    },
+    {
+      "ecran": "app-documents a-5-*, a-6-*",
+      "element": "coque (barre latérale, barre d'onglets) et ses entrées",
+      "propriete": "position, couleur, présence",
+      "exception": "relevé",
+      "motif": "la maquette dessine la coque de l'admin d'agence (Awa Diop), le relevé est fait sur l'agent de la démo (seul compte qui lit des documents) : entrées et comptes de la coque diffèrent."
+    },
+    {
+      "ecran": "app-documents a-6-bureau-*",
+      "element": "carte « Partager par lien »",
+      "propriete": "position",
+      "exception": "décision produit",
+      "motif": "ancrée sous « Partager » (`Popover`, aligné à droite, 8 px) là où la maquette la pose à 112 px du haut de la page : elle suit son déclencheur, à toute largeur."
     }
   ],
   "hors_perimetre": [
     "écrans 1 et 2 (ajouter, nommer et ranger) : lot 2",
     "écran 4 (agence par bien, par bail) : lot 4",
-    "écrans 5 à 7 (fiche, partage, lien copié) : lot 3",
     "les écarts de la coque (barre latérale, en-tête du téléphone, barre d'onglets), relevés sans fiche de rôles",
-    "l'entrée « Documents » du menu du bailleur et du prestataire (famille 3)"
+    "l'entrée « Documents » du menu du bailleur et du prestataire (famille 3)",
+    "écran 7 (lien copié) au navigateur : il suit une écriture en base (création d'un lien), éprouvé en vitest"
   ],
   "decisions": {
     "1": "(a), chef d'équipe 2026-11-13 — biens sans document comptés, non listés",
     "2": "(c), chef d'équipe 2026-11-13 — « Rechercher » ouvre la recherche serveur des documents (TCK-2769 pour le coffre entier)",
     "3": "(a), chef d'équipe 2026-11-13 — pas de « Tout télécharger » (TCK-2770)",
     "L2-1": "(a), validée par le chef d'équipe le 2026-11-13 — « Remplace » non rendu ; « Remplacer » mène à la fiche (versions au lot 3)",
-    "L2-2": "(a), validée par le chef d'équipe le 2026-11-13 — pastilles = types de l'API, jamais de catégorie inventée"
+    "L2-2": "(a), validée par le chef d'équipe le 2026-11-13 — pastilles = types de l'API, jamais de catégorie inventée",
+    "L3-1": "(a), chef d'équipe 2026-11-13 — noms absents, « vous » quand c'est l'appelant, lignes construites par les données ; suite TCK-2773 (règle de visibilité par acteur)",
+    "L3-2": "(a), chef d'équipe 2026-11-13 — 1 heure et « Sans limite » gardés (quatre pastilles, compteur qui peut valoir « Sans limite »)",
+    "L3-3": "(a), chef d'équipe 2026-11-13 — le menu « … » ne porte que « Supprimer »",
+    "L3-4": "(a), chef d'équipe 2026-11-13 — `DocumentShareDialog` inchangée jusqu'au lot 4, `buildShareUrl` extraite et partagée",
+    "L3-5": "chef d'équipe 2026-11-13 — « Ajouter une version » porte « Expire le », prérempli de l'échéance actuelle"
   },
   "mesures": {
     "l1": {
@@ -447,6 +567,21 @@
       "notes": "Relevé sur l'état final. Corrigé après le premier relevé : modale posée à 16 pas du haut, avec un corps qui défile entre un en-tête et un pied fixes ; « Changer de fichier » à droite au bureau ; taille en Ko sous 1 Mo ; précision sur une ligne ; ordre nom, catégorie, expiration au téléphone ; aperçu de l'image ; « Photo prise à l’instant » et « Reprendre ». Lecture d'a-2 au téléphone : les « absents » sont surtout les nœuds de la page sous le panneau (relevés côté produit seulement). L'écart du panneau lui-même : 4 px de marge de primitive en haut ; puis l'interrupteur « Remplace » et la ligne « Lu sur la photo », absents par décision ; la carte du fichier prend 3 px de plus. Au bureau, le pourcentage de pixels vient du voile flouté de Dialog et de la page dessous.",
       "releves": "scratchpad terrain-4 impl/lot2/2656/fid4/",
       "modale_haute": "1280×900 et 1024×900, bailleur, « Changer » et « Plus de catégories » ouverts : bas du bouton « Ajouter au coffre » à 832 px, visible ; le corps défile ; débord horizontal 0 (perturbateur fid4/haut.js)"
+    },
+    "l3": {
+      "date": "2026-11-13",
+      "commit_de_base": "7641542ea + arbre de travail",
+      "persona": "agent (document 82)",
+      "compare": {
+        "a-5-telephone": "13 conformes · 18 écarts · 41 absents · 14,54 % pixels",
+        "a-5-bureau-1440": "39 conformes · 100 écarts · 76 absents · 6,3 % pixels",
+        "a-5-bureau-1280": "39 conformes · 100 écarts · 76 absents · 7,05 % pixels",
+        "a-6-telephone": "23 conformes · 29 écarts · 44 absents · 8,33 % pixels",
+        "a-6-bureau-1440": "47 conformes · 129 écarts · 78 absents · 7,96 % pixels",
+        "a-6-bureau-1280": "47 conformes · 129 écarts · 78 absents · 8,92 % pixels"
+      },
+      "balayage": "360, 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe, aucune ellipse (/app/documents/82, agent)",
+      "notes": "Premier relevé : a-5 14,49 / 7,97 / 8,96 %, a-6 15,3 / 8,26 / 9,29 %. Corrigé ensuite : carte flottante et colonne de droite à 400 px au bureau (`calc(var(--spacing)*111)`, la maquette est en pixels fixes), aperçu de 520 px, titre « Partager par lien » à 17 px, aide du mot de passe à 12 px, « Créer le lien et le copier » de 48 px au téléphone, « Le lien expire dans » en bloc, « Ajouter une version » sans hauteur de ligne en plus. Lecture d'a-5 au téléphone : la barre d'onglets (coque de l'agent, 6,59 % de sa zone) et la tuile « Aucun fichier » à la place de l'image de la maquette font l'essentiel des pixels ; le reste est la donnée du document 82 (voir les écarts acceptés). a-7 (lien copié) n'est pas relevé : il suit un POST."
     }
   },
   "ecrans_supplementaires_releves": [

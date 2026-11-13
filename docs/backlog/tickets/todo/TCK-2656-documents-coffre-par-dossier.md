@@ -279,3 +279,81 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
 - **Relevé (2026-11-13), sur l'état final.** a-1 et a-2, avec `--perturber`, à 390, 1440 et 1280. Les
   chiffres et leur lecture sont dans `TCK-2656.json` § `mesures.l2`. La modale est contrôlée formulaire
   déplié à 1280 et 1024 : son pied reste visible et son corps défile.
+
+### Lot 3 (2026-11-13) — la fiche d'un document, le partage par lien
+
+- **Ce qui change.** `/app/documents/{id}` suit `FicheMobile` / `FicheBureau` de la maquette.
+  - Téléphone : l'en-tête dit « Document » ; l'aperçu bord à bord, puis le nom (titre de la page), ses
+    marques (« Vérifié » ou « Non vérifié », l'échéance du coffre : « expire dans 42 jours »…), la carte
+    des métadonnées, « Versions (n) », « Liens de partage (n) », « Supprimer ce document » ; la barre
+    collante « Télécharger » / « Partager ».
+  - Bureau : l'en-tête de page (fil « Documents › nom », nom, marques, « … », « Télécharger »,
+    « Partager »), puis dès `xl` l'aperçu (520 px de haut, légende « Version n · JPG · 2,4 Mo · ajoutée
+    le … ») à gauche et une colonne de 400 px à droite. Sous `xl`, la colonne passe sous l'aperçu.
+  - Aperçu : l'image elle-même quand le fichier en est une (URL signée servie `inline`), une tuile
+    « Fichier PDF » sinon, et la tuile aussi quand l'image ne se charge pas (HEIC, URL expirée).
+- **Partager** (`fiche/PartageDuDocument.tsx`). Une feuille du bas au téléphone, une carte flottante de
+  400 px sous « Partager » au bureau.
+  - « Le lien expire dans » (1 heure, 24 heures, 7 jours — coché —, 30 jours), « Téléchargements au
+    plus » (3 par défaut ; « − » depuis 1 donne « Sans limite »), « Protéger par un mot de passe »
+    (interrupteur, puis le champ et « À donner de vive voix… »). Allumé, il exige 4 caractères
+    (`min:4` de l'API) : rien ne part avant. Éteint, aucun mot de passe ne part, même saisi.
+  - « Créer le lien et le copier » : « Lien copié » seulement si `navigator.clipboard.writeText` a
+    réussi ; sinon « Lien créé » et le bouton « Copier le lien ». L'adresse (page de réception,
+    `buildShareUrl`, désormais dans `lib/documents/partage.ts` et partagé avec `DocumentShareDialog`),
+    « Valable jusqu’au … · 3 téléchargements au plus · protégé par mot de passe. », « Envoyer par
+    WhatsApp » (le lien, jamais le mot de passe), « Révoquer ce lien ».
+  - « Liens de partage (n) » : les liens ACTIFS que l'API rend (`GET /api/documents/{id}/share-links`,
+    nouveau `useShareLinks`), lus seulement avec `abilities.share` ; un lien créé y entre aussitôt
+    (« Créé à l’instant par vous », sur fond vert), un lien révoqué en sort aussitôt, puis la liste se
+    relit (invalidation de `['documents', 'share-links']` par la création et la révocation). Chaque
+    ligne : « Créé le 5 nov. », « Expire dans 2 jours · mot de passe » (aujourd'hui à HH:MM, dans N
+    jours jusqu'à 7, puis la date ; jours de Dakar), « 1 téléchargement sur 3 », « Révoquer ».
+- **Versions** (`fiche/VersionsDuDocument.tsx`, remplace l'accordéon `DocumentVersionsList`). « Version
+  n », « Actuelle », le commentaire, « Vous · date » ou la date seule, « Télécharger la version n »,
+  « Restaurer » (confirmé) et « Ajouter une version ».
+  - **« Ajouter une version » porte « Expire le », prérempli de l'échéance actuelle** (validé par le chef
+    d'équipe). `DocumentVersionService::uploadVersion` pose l'échéance envoyée et VIDE l'ancienne quand la
+    requête n'en porte pas (TCK-2300) : le formulaire d'avant, sans ce champ, effaçait en silence
+    l'échéance de toute pièce renouvelée. L'aide le dit : « Reprise de l’échéance actuelle : changez-la si
+    le nouveau fichier en a une autre. Laissée vide, le document n’en a plus. »
+  - **Pas d'« Ajouter une version » sur une pièce de profil** (`id_card`, `rib`, `ninea` rattachés à un
+    `…Profile`) : l'API la refuse en 422 (`document.profile_piece_not_versioned`). `seVersionne()`.
+- **Supprimer** : « Supprimer ce document » (téléphone) ou « … › Supprimer » (bureau), confirmé, au seul
+  `abilities.delete`, puis retour aux documents.
+- **Fichiers retirés** : `GestesDuDocument.tsx` (lot 1) et `DocumentVersionsList.tsx` (TCK-097), avec
+  leurs tests. La fiche sert aussi le personnel de l'agence : chaque cas est repris un pour un, même
+  scénario.
+  - `GestesDuDocument.tck-2656` → `DocumentDetailClient.abilities` : lecteur sans droit (télécharge, rien
+    d'autre), auteur (partage, suppression confirmée, retour aux documents), sans fichier ni droit (aucun
+    geste, aucune barre collante).
+  - `DocumentVersionsList.rejet-rattrape.p210-04` → `VersionsDuDocument.tck-2656` : ajout de version
+    refusé et restauration refusée, rejets rattrapés, boîte ouverte.
+- **Tests.**
+  - `partage.tck-2656` (9) et `fiche.tck-2656` (4) : modules purs.
+  - `PartageDuDocument.tck-2656` (8) : AC5 (7 jours, mot de passe, 3 téléchargements envoyés ; le lien
+    dans la liste ; « Révoquer » l'en retire), mot de passe vide ou court, presse-papiers refusé, WhatsApp
+    sans mot de passe, « Révoquer ce lien », ligne d'un lien lu, « Sans limite », carte du bureau.
+  - `VersionsDuDocument.tck-2656` (6) et `DocumentDetailClient.abilities` (10).
+  - Dossiers entiers `src/components/documents` et `src/lib/documents` : 17 fichiers, 118 verts.
+- **Ablations : 30, toutes rouges, restaurées par md5.** La première passe en laissait une verte (la borne
+  « aujourd'hui » / « dans 1 jour ») : un cas ajouté la ferme. Les six dernières visent les cas les plus
+  risqués pour le personnel : rejet d'ajout et de restauration non rattrapé ; partage, suppression et
+  restauration ouverts sans le verdict de l'API.
+- **Décisions, tranchées par le chef d'équipe le 2026-11-13 : (a) partout.**
+  - L3-1 (a) : les lignes de nom sont absentes, « vous » quand l'identifiant est celui de l'appelant ; elles
+    sont construites par les données. Montrer un nom à un locataire ou à un bailleur est une question de
+    visibilité : suite [TCK-2773](TCK-2773-fiche-document-noms-des-auteurs-par-acteur.md).
+  - L3-2 (a) : 1 heure et « sans limite » restent (sinon, une régression) ; le compteur peut valoir « Sans
+    limite ».
+  - L3-3 (a) : le menu « … » du bureau ne porte que « Supprimer » (aucune route de renommage) ; l'action
+    destructive reste derrière un clic de plus.
+  - L3-4 (a) : `DocumentShareDialog` (bibliothèque du personnel) reste inchangée jusqu'au lot 4 ; seule
+    `buildShareUrl` en est extraite et partagée. Son test (`DocumentShareDialog.url`) reste vert, intact.
+- **Écarts « donnée »** : l'API ne sert aucun nom (auteur, vérificateur, auteur d'une version, créateur
+  d'un lien) ni l'entité de rattachement : « Rattaché à », « Bien », « Ajouté par Ousmane Niang »,
+  « Vérifié par Awa Diop », « Créé … par Sokhna Sène » ne sont pas rendus ; « vous » quand c'est
+  l'appelant, la date seule sinon. Fil « Documents › nom » (Bien › Bail : lot 4).
+- **Relevé (2026-11-13), sur l'état final**, agent de la démo, document 82 : a-5 et a-6 à 390, 1440 et
+  1280 ; balayage de 360 à 1440, débord 0. Chiffres et lecture : `TCK-2656.json` § `mesures.l3`. a-7 (lien
+  copié) suit un POST et n'est éprouvé qu'en vitest.

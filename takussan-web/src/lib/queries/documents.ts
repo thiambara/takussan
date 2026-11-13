@@ -17,9 +17,8 @@ import { cheminApi } from '@/lib/chemin-api';
  * React Query hooks for the Document resource — TCK-062.
  *
  * The backend uses `spatie/laravel-query-builder`, so every call sends
- * sparse fieldsets + filters. The hook surface omits a "list active links"
- * query (even though the backend now exposes one) and instead keeps the
- * created links in the mutation cache.
+ * sparse fieldsets + filters. The active share links are read by
+ * `useShareLinks` (TCK-2656, lot 3).
  */
 
 /**
@@ -201,25 +200,49 @@ export type CreateShareLinkPayload = {
   readonly password?: string;
 };
 
+/**
+ * TCK-2656 (lot 3) — les liens ACTIFS d'un document (`GET /api/documents/{id}/share-links` : ni
+ * révoqués, ni expirés, ni épuisés), lus par la fiche. L'API la garde par `DocumentPolicy::share` :
+ * l'appelant ne la demande qu'avec `abilities.share`, sans quoi c'est un 403 certain.
+ */
+export const shareLinksQueryKeys = {
+  list: (documentId: number | null | undefined) => ['documents', 'share-links', documentId] as const,
+};
+
+export function useShareLinks(documentId: number | null | undefined, enabled = true) {
+  return useApiQuery<ApiResponse<DocumentShareLink[]>>(
+    shareLinksQueryKeys.list(documentId),
+    cheminApi`/api/documents/${documentId ?? 0}/share-links`,
+    { enabled: enabled && Boolean(documentId) },
+  );
+}
+
 export function useCreateShareLink() {
-  return useApiMutation<ApiResponse<DocumentShareLink>, CreateShareLinkPayload>({
-    path: ({ document_id }) => cheminApi`/api/documents/${document_id}/share`,
-    method: 'POST',
-    body: ({ expires_at, max_downloads, password }) => ({
-      expires_at,
-      max_downloads,
-      password,
-    }),
-  });
+  return useApiMutation<ApiResponse<DocumentShareLink>, CreateShareLinkPayload>(
+    {
+      path: ({ document_id }) => cheminApi`/api/documents/${document_id}/share`,
+      method: 'POST',
+      body: ({ expires_at, max_downloads, password }) => ({
+        expires_at,
+        max_downloads,
+        password,
+      }),
+    },
+    // TCK-2656 (lot 3) — la liste des liens actifs de la fiche se relit.
+    { invalidate: [['documents', 'share-links']] },
+  );
 }
 
 export function useRevokeShareLink() {
-  return useApiMutation<void, { document_id: number; link_id: number }>({
-    path: ({ document_id, link_id }) =>
-      cheminApi`/api/documents/${document_id}/share/${link_id}`,
-    method: 'DELETE',
-    body: () => undefined,
-  });
+  return useApiMutation<void, { document_id: number; link_id: number }>(
+    {
+      path: ({ document_id, link_id }) =>
+        cheminApi`/api/documents/${document_id}/share/${link_id}`,
+      method: 'DELETE',
+      body: () => undefined,
+    },
+    { invalidate: [['documents', 'share-links']] },
+  );
 }
 
 /**
@@ -286,6 +309,11 @@ export type UploadVersionPayload = {
   readonly document_id: number;
   readonly file: File;
   readonly comment?: string;
+  /**
+   * TCK-2656 (lot 3) — l'échéance du NOUVEAU fichier (`AAAA-MM-JJ`). L'API la pose telle quelle :
+   * absente, l'échéance du document se vide (TCK-2300, `DocumentVersionService::uploadVersion`).
+   */
+  readonly expiry_date?: string;
 };
 
 export function useUploadDocumentVersion() {
@@ -298,6 +326,7 @@ export function useUploadDocumentVersion() {
         const form = new FormData();
         form.append('file', variables.file);
         if (variables.comment) form.append('comment', variables.comment);
+        if (variables.expiry_date) form.append('expiry_date', variables.expiry_date);
         return form;
       },
     },
