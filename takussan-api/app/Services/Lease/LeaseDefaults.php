@@ -146,8 +146,8 @@ final class LeaseDefaults
     /** Le taux de pénalité qu'un bail neuf reprend : la ligne de l'agence, sinon le catalogue. */
     public function lateFeePercent(?int $agencyId): float|int
     {
-        $value = ScopedSetting::value('lease.late_fee_percent', $agencyId,
-            $this->platform->getValue('lease.late_fee_percent'));
+        // r6 — une ligne d'agence sans valeur numérique n'est pas un réglage : le catalogue reprend la main.
+        $value = $this->agencyValue('lease.late_fee_percent', $agencyId) ?? $this->platform->getValue('lease.late_fee_percent');
 
         return is_numeric($value)
             ? $this->number(EditablePlatformSettings::clamp('lease.late_fee_percent', (float) $value))
@@ -157,8 +157,7 @@ final class LeaseDefaults
     /** Les jours de grâce qu'un bail neuf reprend : la ligne de l'agence, sinon le catalogue. */
     public function lateFeeGraceDays(?int $agencyId): int
     {
-        $value = ScopedSetting::value('lease.late_fee_grace_days', $agencyId,
-            $this->platform->getValue('lease.late_fee_grace_days'));
+        $value = $this->agencyValue('lease.late_fee_grace_days', $agencyId) ?? $this->platform->getValue('lease.late_fee_grace_days');
 
         return is_numeric($value)
             ? (int) EditablePlatformSettings::clamp('lease.late_fee_grace_days', (float) $value)
@@ -212,8 +211,22 @@ final class LeaseDefaults
     {
         return [
             'value' => $value,
-            'source' => ScopedSetting::agencyRow($key, $agencyId) !== null ? self::SOURCE_AGENCY : self::SOURCE_PLATFORM,
+            'source' => $this->agencyValue($key, $agencyId) !== null ? self::SOURCE_AGENCY : self::SOURCE_PLATFORM,
         ];
+    }
+
+    /**
+     * La valeur propre à l'agence, déballée par le lecteur unique (TCK-778) ; `null` quand l'agence
+     * n'a pas de ligne, ou une ligne sans valeur numérique (`{"value": null}`, `{}` : r6, vérification
+     * de TCK-2643). Le global passé à `value()` est un témoin, qu'il ne rend tel quel que sans ligne
+     * d'agence : la ligne n'est jamais déballée ici. Les quatre clés que ce service lit sont numériques.
+     */
+    private function agencyValue(string $key, ?int $agencyId): int|float|string|null
+    {
+        $temoin = new \stdClass;
+        $value = ScopedSetting::value($key, $agencyId, $temoin);
+
+        return $value !== $temoin && is_numeric($value) ? $value : null;
     }
 
     /** Un montant arrondi à l'unité de sa devise (principe n° 3 : aucune décimale en F CFA). */

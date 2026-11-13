@@ -15,9 +15,11 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Admin\PlatformSettingService;
 use App\Services\Lease\EarlyTerminationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -115,6 +117,38 @@ class LeaseDefaultsTest extends ApiTestCase
         $this->defaults()->assertOk()
             ->assertJsonPath('data.late_fee_percent', ['value' => 5, 'source' => 'agency'])
             ->assertJsonPath('data.late_fee_grace_days', ['value' => 5, 'source' => 'agency']);
+    }
+
+    /**
+     * r6 (vérification de TCK-2643) — une ligne d'agence qui ne porte aucune valeur n'est pas un
+     * réglage de l'agence : la valeur ET la source retombent sur la plateforme, jamais « 0, agence ».
+     *
+     * @param  array<mixed>  $stocke
+     */
+    #[DataProvider('lignesDAgenceSansValeur')]
+    public function test_une_ligne_d_agence_sans_valeur_retombe_sur_la_plateforme(array $stocke): void
+    {
+        app(PlatformSettingService::class)->bulkUpdate(
+            ['lease.late_fee_percent' => 3, 'lease.late_fee_grace_days' => 4],
+            User::factory()->create(),
+        );
+        foreach (['lease.late_fee_percent', 'lease.late_fee_grace_days', 'lease.rent_review_max_pct'] as $cle) {
+            Setting::query()->create(['key' => $cle, 'value' => $stocke, 'scope' => SettingScope::Agency, 'scope_id' => $this->agence->id]);
+        }
+
+        $this->defaults()->assertOk()
+            ->assertJsonPath('data.late_fee_percent', ['value' => 3, 'source' => 'platform'])
+            ->assertJsonPath('data.late_fee_grace_days', ['value' => 4, 'source' => 'platform'])
+            ->assertJsonPath('data.rent_review_max_pct.source', 'platform');
+    }
+
+    /** @return array<string, array{0: array<mixed>}> */
+    public static function lignesDAgenceSansValeur(): array
+    {
+        return [
+            'enveloppe value nulle' => [['value' => null]],
+            'objet vide' => [[]],
+        ];
     }
 
     public function test_l_indemnite_et_la_revision_disent_leur_source(): void

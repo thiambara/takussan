@@ -115,7 +115,15 @@ class EditablePlatformSettings
                 'category' => 'rentals', 'type' => 'boolean', 'default' => false, 'public' => false,
                 'rules' => ['present', 'boolean'],
             ],
-            // TCK-2643 — la pénalité de retard qu'un bail NEUF reprend (`LeaseDefaults`, préremplissage
+            // `null` : aucun plafond (`LateFeeCalculator::capPercent`). Vide se lit « aucun plafond », pas 0.
+            'late_fees.cap_percent' => [
+                'category' => 'rentals', 'type' => 'decimal', 'nullable' => true,
+                'default' => null, 'public' => false,
+                'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
+            ],
+            // TCK-2643 — APRÈS le plafond : la catégorie se rend dans cet ordre, et `late_fees.cap_percent`
+            // garde son rang (`RentalSettingsCatalogueTest` le lit en `data.rentals.4`).
+            // La pénalité de retard qu'un bail NEUF reprend (`LeaseDefaults`, préremplissage
             // seul : `LateFeeCalculator` lit la colonne du bail). Défaut 0 = pas de pénalité (décision de
             // la session du 2026-11-12) ; bornes = celles du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`).
             'lease.late_fee_percent' => [
@@ -127,12 +135,6 @@ class EditablePlatformSettings
                 'category' => 'rentals', 'type' => 'integer',
                 'default' => LeaseDefaults::DEFAULT_LATE_FEE_GRACE_DAYS, 'public' => false,
                 'rules' => ['required', 'integer', 'min:0', 'max:30'],
-            ],
-            // `null` : aucun plafond (`LateFeeCalculator::capPercent`). Vide se lit « aucun plafond », pas 0.
-            'late_fees.cap_percent' => [
-                'category' => 'rentals', 'type' => 'decimal', 'nullable' => true,
-                'default' => null, 'public' => false,
-                'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
             ],
             // TCK-2394 (ADR-0079, proposé) — l'espace où le Radar publie sous mandat, par son identifiant ; 0 : aucun. Lu par
             // `App\Services\Radar\RadarMandate`, et seulement drapeau `radar_mandate` allumé.

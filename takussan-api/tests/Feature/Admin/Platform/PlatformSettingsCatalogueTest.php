@@ -24,9 +24,9 @@ class PlatformSettingsCatalogueTest extends TestCase
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
                 'lease.early_termination_penalty_months', 'lease.require_signature',
-                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend.
-                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 'late_fees.cap_percent',
+                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend, après le plafond.
+                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
                 'radar.mandate_agency_id',
                 // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
@@ -60,9 +60,9 @@ class PlatformSettingsCatalogueTest extends TestCase
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
                 'lease.early_termination_penalty_months', 'lease.require_signature',
-                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend.
-                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 'late_fees.cap_percent',
+                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend, après le plafond.
+                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
                 'radar.mandate_agency_id',
                 // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
