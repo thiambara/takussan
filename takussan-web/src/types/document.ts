@@ -43,11 +43,21 @@ export type DocumentAbilities = {
   set_visibility?: boolean;
 };
 
+/**
+ * TCK-2773 (ADR-0099, amendement du 2026-11-13) — un auteur tel que l'API le sert au lecteur : son nom
+ * (personnel actif de l'agence, super-admin, soi-même), ou un rôle (`platform` pour un opérateur de
+ * Takussan), jamais les deux. `null` : l'API ne le nomme pas.
+ */
+export type RoleDAuteur = 'platform' | 'agency' | 'landlord' | 'tenant' | 'customer';
+export type AuteurServi = { name: string | null; role: RoleDAuteur | null };
+
 export type Document = {
   id: number;
   documentable_id: number;
   documentable_type: string;
   uploaded_by: number | null;
+  /** TCK-2773 — sur la fiche (un document seul), jamais sur une liste. */
+  uploaded_by_person?: AuteurServi | null;
   name: string;
   type: DocumentType | null;
   description: string | null;
@@ -55,6 +65,8 @@ export type Document = {
   /** TCK-2759 — gardé pour l'agence : seul le personnel le reçoit, le client de la fiche jamais. */
   is_internal?: boolean;
   verified_by: number | null;
+  /** TCK-2773 — un opérateur : `platform` hors de la console. */
+  verified_by_person?: AuteurServi | null;
   verified_at: string | null;
   expiry_date: string | null;
   file_url: string | null;
@@ -75,6 +87,8 @@ export type DocumentShareLink = {
   has_password: boolean;
   revoked_at: string | null;
   created_at: string | null;
+  /** TCK-2773 — le créateur du lien, jugé pour le lecteur. */
+  created_by_person?: AuteurServi | null;
 };
 
 /**
@@ -87,6 +101,8 @@ export type DocumentVersion = {
   size: number;
   mime_type: string;
   uploaded_by_id: number | null;
+  /** TCK-2773 — l'auteur de la version, jugé pour le lecteur. */
+  uploaded_by_person?: AuteurServi | null;
   created_at: string | null;
   comment: string | null;
   is_active: boolean;

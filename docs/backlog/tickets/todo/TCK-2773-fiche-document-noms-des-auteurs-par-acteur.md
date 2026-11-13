@@ -93,4 +93,26 @@ porteur) : [ADR-0099, amendement du 2026-11-13](../../../adr/0099-le-coffre-de-d
 Le nom au personnel actif de l'agence, au super-admin et à soi ; un rôle (`agency`, `landlord`, `tenant`,
 `customer`) à tout autre lecteur ; `platform` pour un opérateur, à tout lecteur hors console.
 
+**Back (2026-11-13).** Le juge `App\Services\Documents\AuteurDuDocument` (une instance par fiche, chaque auteur
+jugé une fois) ; `uploaded_by_person` et `verified_by_person` sur un document seul (`show`, `store`, `verify`,
+`visibility` : `DocumentResource::avecAuteurs()`), jamais sur une liste ; `uploaded_by_person` de chaque version
+(`GET …/versions`, `store` et `restore` d'une version, `include=versions` de la fiche) ; `created_by_person` de chaque
+lien (liste et création). Le lien public (`/api/share/{token}`) ne porte aucun auteur.
+
+Tests : `tests/Feature/Documents/NomsDesAuteursParActeurTest.php`, 10 tests, 143 assertions — personnel, super-admin,
+locataire, bailleur, sujet d'une fiche client, personnel sujet de sa fiche, prestataire, auteur parti, liste et lien
+public ; chaque refus lu sur le corps brut (sous `include=uploader,verifier,versions`), apparié au personnel qui lit
+le nom. Ablations, une à une, juge restauré au md5 : le nom servi à tous → 5 rouges (locataire, bailleur, sujet,
+personnel sujet, auteur parti) ; sans `platform` → 3 rouges (personnel, locataire, prestataire) ; le sujet ignoré → 1
+rouge (personnel sujet de sa fiche) ; les auteurs servis aussi sur une liste → 1 rouge.
+
+**Front (2026-11-13, sur 5ee095698, le lot 3 de TCK-2656).** `fiche/auteur.ts` (`useNomDAuteur`) écrit le nom servi,
+sinon le rôle traduit (`documents.fiche.auteurs.role.*` au fil de la phrase, `.roleSeul.*` en tête de ligne), sinon
+rien : le front ne déduit jamais un nom d'un identifiant. La fiche écrit « Ajouté par Ousmane Niang, le 27 juin » /
+« Ajouté par l’agence, le … », « Vérifié par Takussan, le … », la légende « ajoutée le … par … », « Ousmane Niang ·
+28 juin » / « L’agence · 28 juin » sous chaque version, « Créé le 5 nov. par … » sur chaque lien ; sans auteur servi,
+la date seule, comme avant. Test : `src/components/documents/__tests__/auteurs.tck-2773.test.tsx` (3 tests : le
+personnel, le locataire, sans auteur). Ablations : les trois composants rendus à HEAD → 2 rouges ; le rôle ignoré → 2
+rouges ; restaurés à l'identique (`cmp`).
+
 **Reste** : l'entité de rattachement nommée (« Bail LS-… », le bien) — hors de ce lot (session, 2026-11-13).

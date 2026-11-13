@@ -78,6 +78,17 @@ class DateInventoryByValueTest extends TestCase
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
         'App\Http\Resources\CustomerResource::visits_count' => "`whenCounted('visits')` (TCK-2588, `include=visitsCount`) — "
             .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
+        // TCK-2773 (ADR-0099, amendement du 2026-11-13) — les auteurs d'un document jugés pour le lecteur, sur
+        // la fiche seule : `when()` sur `avecAuteurs()` (show, store, verify, visibility de `DocumentController`)
+        // ou sur `avecJuge()` (les versions de `DocumentVersionController`, et celles de la fiche). Le parcours
+        // résout la ressource seule, sans juge. Chacune vaut `{name: string|null, role: string|null}` ou `null`
+        // (`AuteurDuDocument::de()`) : un nom ou un code de rôle, jamais une date.
+        'App\Http\Resources\DocumentResource::uploaded_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '
+            .'ou `null` (`AuteurDuDocument::de()`), jamais une date. Le parcours ne passe pas par la fiche.',
+        'App\Http\Resources\DocumentResource::verified_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '
+            .'ou `null`, jamais une date. Même raison que `uploaded_by_person`.',
+        'App\Http\Resources\DocumentVersionResource::uploaded_by_person' => '`when()` sur `avecJuge()` (TCK-2773), que seuls '
+            .'`DocumentVersionController` et la fiche posent : `{name, role}` ou `null`, jamais une date.',
         'App\Http\Resources\InventoryResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P189.02) : '
             .'un booléen, jamais une date.',
         'App\Http\Resources\InventoryResource::can_sign_as' => '`when()` sur un lecteur posé par `forViewer()`, '

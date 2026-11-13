@@ -7,6 +7,7 @@ use App\Http\Requests\UploadDocumentVersionRequest;
 use App\Http\Resources\DocumentVersionResource;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
+use App\Services\Documents\AuteurDuDocument;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Http\JsonResponse;
@@ -34,9 +35,11 @@ class DocumentVersionController extends Controller
         $this->authorize('view', $document);
 
         $versions = $this->service->listVersions($document);
+        $juge = AuteurDuDocument::pour($document, $request->user());
 
         return $this->json([
-            'data' => DocumentVersionResource::collection($versions)->toArray($request),
+            // TCK-2773 — l'auteur de chaque version, jugé selon le lecteur, une fois par auteur.
+            'data' => $versions->map(fn ($version) => DocumentVersionResource::make($version)->avecJuge($juge)->resolve($request))->values()->all(),
         ]);
     }
 
@@ -58,7 +61,8 @@ class DocumentVersionController extends Controller
         );
 
         return $this->json([
-            'data' => DocumentVersionResource::make($media)->resolve($request),
+            // TCK-2773
+            'data' => DocumentVersionResource::make($media)->avecJuge(AuteurDuDocument::pour($document, $request->user()))->resolve($request),
         ], 201);
     }
 
@@ -93,7 +97,8 @@ class DocumentVersionController extends Controller
         $media = $this->service->restoreVersion($document, $versionId, $request->user());
 
         return $this->json([
-            'data' => DocumentVersionResource::make($media)->resolve($request),
+            // TCK-2773
+            'data' => DocumentVersionResource::make($media)->avecJuge(AuteurDuDocument::pour($document, $request->user()))->resolve($request),
         ]);
     }
 

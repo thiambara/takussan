@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
+use App\Services\Documents\AuteurDuDocument;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Http\JsonResponse;
@@ -28,9 +29,15 @@ class DocumentShareLinkController extends Controller
      */
     public function index(Request $request, Document $document): JsonResponse
     {
-        $this->authorizeDocument($request, $document);
+        // TCK-2729 5a — qui partage voit tous les liens actifs ; le bailleur bloqué, les seuls qu'il a
+        // créés (`DocumentPolicy::manageOwnShareLinks`), jamais les jetons des autres.
+        $tousLesLiens = $request->user()?->can('share', $document) === true;
+        if (! $tousLesLiens) {
+            $this->authorize('manageOwnShareLinks', $document);
+        }
 
         $links = $document->shareLinks()
+            ->when(! $tousLesLiens, fn ($q) => $q->where('created_by_id', $request->user()->id))
             ->whereNull('revoked_at')
             ->where(function ($q): void {
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
@@ -41,9 +48,12 @@ class DocumentShareLinkController extends Controller
             })
             ->orderByDesc('created_at')
             ->get();
+        $juge = AuteurDuDocument::pour($document, $request->user());
 
         return $this->json([
-            'data' => $links->map(fn (DocumentShareLink $l) => $this->format($l))->values(),
+            // TCK-2773 — le créateur de chaque lien, jugé selon le lecteur (`share` s'ouvre aussi au
+            // bailleur du bien et au sujet d'une fiche client, pas au seul personnel).
+            'data' => $links->map(fn (DocumentShareLink $l) => $this->format($l, $juge))->values(),
             'meta' => ['total' => $links->count()],
         ]);
     }
@@ -55,7 +65,7 @@ class DocumentShareLinkController extends Controller
 
         $link = $this->shareLinks->create($document, $request->user(), $data);
 
-        return $this->json(['data' => $this->format($link)], 201);
+        return $this->json(['data' => $this->format($link, AuteurDuDocument::pour($document, $request->user()))], 201);
     }
 
     public function show(Request $request, string $token): JsonResponse
@@ -102,7 +112,7 @@ class DocumentShareLinkController extends Controller
 
     public function destroy(Request $request, Document $document, DocumentShareLink $link): JsonResponse
     {
-        $this->authorizeDocument($request, $document);
+        $this->authorizeDocument($request, $document, $link);
         abort_unless($link->document_id === $document->id, 404);
 
         $this->shareLinks->revoke($link);
@@ -138,12 +148,17 @@ class DocumentShareLinkController extends Controller
      * exemption à son nom, qui rougit si la méthode disparaît, et une garde existante ne se
      * modifie pas dans ce ticket.
      */
-    protected function authorizeDocument(Request $request, Document $document): void
+    protected function authorizeDocument(Request $request, Document $document, ?DocumentShareLink $link = null): void
     {
-        $this->authorize('share', $document);
+        // TCK-2729 5a — révoquer un lien : la règle de sa création, ou le lien que le bailleur bloqué a
+        // lui-même créé (`DocumentPolicy::revokeShareLink`). Toujours un relais.
+        $link === null
+            ? $this->authorize('share', $document)
+            : $this->authorize('revokeShareLink', [$document, $link]);
     }
 
-    private function format(DocumentShareLink $link): array
+    /** TCK-2773 — `created_by_person` : le nom, un rôle ou rien, selon le lecteur ({@see AuteurDuDocument}). */
+    private function format(DocumentShareLink $link, AuteurDuDocument $juge): array
     {
         return [
             'id' => $link->id,
@@ -155,6 +170,7 @@ class DocumentShareLinkController extends Controller
             'has_password' => $link->password_hash !== null,
             'revoked_at' => $this->instant($link->revoked_at),
             'created_at' => $this->instant($link->created_at),
+            'created_by_person' => $juge->de($link->created_by_id),
         ];
     }
 }

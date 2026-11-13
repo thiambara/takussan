@@ -11334,7 +11334,8 @@
       "legende": {
         "version": "Version {n}",
         "ajoutee": "added on {date}",
-        "ajouteeParVous": "added by you on {date}"
+        "ajouteeParVous": "added by you on {date}",
+        "ajouteePar": "added by {qui} on {date}"
       },
       "plusDActions": "More actions",
       "supprimer": "Delete",
@@ -11348,7 +11349,8 @@
         "verifiePar": "Verified by",
         "verifieLe": "Verified on",
         "fichier": "File",
-        "precision": "Details"
+        "precision": "Details",
+        "quiLe": "{qui}, on {date}"
       },
       "versions": {
         "titre": "Versions ({n})",
@@ -11365,7 +11367,8 @@
         "erreur": "The versions could not be loaded.",
         "vide": "No other version: the file shown is the original one.",
         "expire": "Expires on",
-        "expireAide": "Taken from the current expiry date: change it if the new file has another one. Left empty, the document no longer has one."
+        "expireAide": "Taken from the current expiry date: change it if the new file has another one. Left empty, the document no longer has one.",
+        "parQui": "{qui} · {date}"
       },
       "liens": {
         "titre": "Share links ({n})",
@@ -11384,7 +11387,8 @@
         "usageSansLimite": "{n, plural, one {# download} other {# downloads}} · no limit",
         "revoquer": "Revoke",
         "revoquerAria": "Revoke the link created on {date}",
-        "revocation": "Revoking…"
+        "revocation": "Revoking…",
+        "creeLePar": "Created on {date} by {qui}"
       },
       "partage": {
         "titre": "Share by link",
@@ -11418,6 +11422,22 @@
         "messageWhatsApp": "Here is the document “{nom}”: {lien}",
         "revoquer": "Revoke this link",
         "revocation": "Revoking…"
+      },
+      "auteurs": {
+        "role": {
+          "platform": "Takussan",
+          "agency": "the agency",
+          "landlord": "your landlord",
+          "tenant": "your tenant",
+          "customer": "the client"
+        },
+        "roleSeul": {
+          "platform": "Takussan",
+          "agency": "The agency",
+          "landlord": "Your landlord",
+          "tenant": "Your tenant",
+          "customer": "The client"
+        }
       }
     }
   },

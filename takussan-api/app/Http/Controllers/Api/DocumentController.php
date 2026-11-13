@@ -129,7 +129,8 @@ class DocumentController extends Controller
         $document->addMediaFromRequest('file')->toMediaCollection('file');
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->resolve($request),
+            // TCK-2773 — un document seul : ses auteurs nommés selon le lecteur.
+            'data' => DocumentResource::make($document->refresh())->avecAuteurs()->resolve($request),
         ], 201);
     }
 
@@ -176,7 +177,8 @@ class DocumentController extends Controller
         $document = $visibility->change($document, $request->boolean('is_internal'), $request->user());
 
         return $this->json([
-            'data' => DocumentResource::make($document)->resolve($request),
+            // TCK-2773
+            'data' => DocumentResource::make($document)->avecAuteurs()->resolve($request),
         ]);
     }
 
@@ -186,7 +188,8 @@ class DocumentController extends Controller
         $accessLog->recordPlatformPieceRead($request->user(), $document);
 
         return $this->json([
-            'data' => DocumentResource::make($document)->resolve($request),
+            // TCK-2773 — la fiche : qui a ajouté, vérifié, versionné, selon le lecteur.
+            'data' => DocumentResource::make($document)->avecAuteurs()->resolve($request),
         ]);
     }
 
@@ -205,7 +208,8 @@ class DocumentController extends Controller
         ]);
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->resolve($request),
+            // TCK-2773
+            'data' => DocumentResource::make($document->refresh())->avecAuteurs()->resolve($request),
         ]);
     }
 

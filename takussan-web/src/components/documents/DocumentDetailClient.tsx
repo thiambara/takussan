@@ -25,6 +25,7 @@ import type { DocumentType, DocumentWithVersions } from '@/types/document';
 
 import { DOCUMENT_TYPE_ORDER } from './constants';
 import { ApercuDuDocument } from './fiche/ApercuDuDocument';
+import { useNomDAuteur } from './fiche/auteur';
 import { Carte, Paire } from './fiche/blocs';
 import { LiensDePartage, PartagerParLien, useSuiviDesLiens } from './fiche/PartageDuDocument';
 import { SuppressionDuDocument } from './fiche/SuppressionDuDocument';
@@ -90,6 +91,8 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
   const tConsole = useTranslations('console.pageHeader');
   const f = useFormatteurs();
   const { user } = useAuth();
+  // TCK-2773 — qui a ajouté, vérifié : le nom ou le rôle que l'API sert au lecteur.
+  const nomDe = useNomDAuteur();
   const bureau = useMatchesMedia('(width >= 48rem)');
   const suivi = useSuiviDesLiens();
   const [partage, setPartage] = useState(false);
@@ -133,6 +136,8 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
 
   const ajoute = document.created_at ? f.date(document.created_at) : null;
   const verifie = document.verified_at ? f.date(document.verified_at) : null;
+  const ajoutePar = nomDe(document.uploaded_by_person);
+  const verifiePar = nomDe(document.verified_by_person);
   const categorie = document.type
     ? DOCUMENT_TYPE_ORDER.includes(document.type as DocumentType)
       ? tTypes(document.type)
@@ -141,10 +146,19 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
 
   /* ── Légende de l'aperçu, au bureau ── */
   const version = document.active_version;
+  const dateDuFichier = version?.created_at ? f.date(version.created_at) : ajoute;
+  // TCK-2773 — l'auteur du fichier affiché : celui de la version active, sinon celui du document.
+  const auteurDuFichier = nomDe(version?.uploaded_by_id != null ? version.uploaded_by_person : document.uploaded_by_person);
   const legende = [
     version ? t('legende.version', { n: version.version_number }) : null,
     fichier || null,
-    ajoute ? (moi(version?.uploaded_by_id ?? document.uploaded_by) ? t('legende.ajouteeParVous', { date: version?.created_at ? f.date(version.created_at) : ajoute }) : t('legende.ajoutee', { date: version?.created_at ? f.date(version.created_at) : ajoute })) : null,
+    dateDuFichier
+      ? moi(version?.uploaded_by_id ?? document.uploaded_by)
+        ? t('legende.ajouteeParVous', { date: dateDuFichier })
+        : auteurDuFichier
+          ? t('legende.ajouteePar', { date: dateDuFichier, qui: auteurDuFichier })
+          : t('legende.ajoutee', { date: dateDuFichier })
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -212,6 +226,8 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
             {ajoute ? (
               moi(document.uploaded_by) ? (
                 <Paire libelle={t('meta.ajoutePar')}>{t('meta.vousLe', { date: ajoute })}</Paire>
+              ) : ajoutePar ? (
+                <Paire libelle={t('meta.ajoutePar')}>{t('meta.quiLe', { qui: ajoutePar, date: ajoute })}</Paire>
               ) : (
                 <Paire libelle={t('meta.ajouteLe')}>{ajoute}</Paire>
               )
@@ -219,6 +235,8 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
             {document.is_verified && verifie ? (
               moi(document.verified_by) ? (
                 <Paire libelle={t('meta.verifiePar')}>{t('meta.vousLe', { date: verifie })}</Paire>
+              ) : verifiePar ? (
+                <Paire libelle={t('meta.verifiePar')}>{t('meta.quiLe', { qui: verifiePar, date: verifie })}</Paire>
               ) : (
                 <Paire libelle={t('meta.verifieLe')}>{verifie}</Paire>
               )

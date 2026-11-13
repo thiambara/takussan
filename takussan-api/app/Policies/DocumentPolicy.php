@@ -7,6 +7,8 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\DocumentShareLink;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
@@ -126,6 +128,42 @@ class DocumentPolicy extends BasePolicy
                 && $this->televerseurGarde($user, $model, writing: true))
             || ($porteur && isset($porteur->user_id) && $this->landlordWrites($user, $porteur->user_id, $agencyId))
             || ($porteur && isset($porteur->agency_id) && $this->isStaffOf($user, $porteur->agency_id));
+    }
+
+    /**
+     * TCK-2729 5a (décision du porteur du 2026-11-13) — le bailleur BLOQUÉ dans l'agence du document
+     * (`OwnerProfileStatus::Blocked` ; le bailleur parti, `inactive`, n'écrit rien : ADR-0108 § 5) voit
+     * et révoque les liens de partage publics qu'il a lui-même créés (`created_by_id`) quand il était
+     * actif : un lien publié survit au blocage, et le révoquer réduit l'exposition. C'est la seule
+     * écriture qui lui reste — il ne crée aucun lien (`share`), et ne voit ni ne révoque ceux des
+     * autres. Il faut qu'il lise encore le document (`view`) ; jamais sur un document interne.
+     *
+     * L'ability juge le DOCUMENT ; chaque lien se juge par {@see self::revokeShareLink()}, et la liste se
+     * restreint à ses liens (`DocumentShareLinkController::index`).
+     */
+    public function manageOwnShareLinks(User $user, Model $model): bool
+    {
+        if (! $model instanceof Document || $model->is_internal) {
+            return false;
+        }
+
+        $agencyId = $this->agencyOf($model);
+
+        return $agencyId !== null
+            && $user->ownerProfiles()->where('agency_id', $agencyId)->where('status', OwnerProfileStatus::Blocked->value)->exists()
+            && $this->view($user, $model);
+    }
+
+    /**
+     * TCK-1144 (P82.03), puis TCK-2729 5a — révoquer un lien : la règle de sa création (`share`), ou,
+     * pour le bailleur bloqué, un lien qu'il a lui-même créé ({@see self::manageOwnShareLinks()}).
+     */
+    public function revokeShareLink(User $user, Model $model, DocumentShareLink $link): bool
+    {
+        return $this->share($user, $model)
+            || ($link->created_by_id !== null
+                && (int) $link->created_by_id === (int) $user->id
+                && $this->manageOwnShareLinks($user, $model));
     }
 
     /**

@@ -3,7 +3,8 @@
 - **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — délégations,
   colonnes d'auteur, colonnes de bailleur*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 —
   l'accès suit l'appartenance*, et § *Amendement du 2026-10-25 — le contact d'un bail ou d'une
-  réservation est une fiche de l'agence du bien*)
+  réservation est une fiche de l'agence du bien*), puis **le 2026-11-13** (§ 2, les liens de partage
+  du bailleur bloqué, TCK-2729)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-587](../backlog/tickets/done/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation »),
@@ -104,6 +105,12 @@ Précisions décidées par la session après la vérification adverse (2026-10-0
   reste partie au contrat. **Il y perd les écritures** : encaisser, modifier, renouveler, résilier,
   réviser, créer un bail. Ses droits de bailleur reposent sur l'identité (`landlord_id`) ; la
   suspension les borne à la lecture dans l'agence qui l'a suspendu, et ne change rien ailleurs.
+  *Amendé le 2026-11-13 (décision 5a du porteur, TCK-2729)* : il garde aussi la lecture et la
+  révocation de **ses** liens de partage publics — ceux qu'il a créés (`created_by_id`) quand il était
+  actif, sur un document qu'il lit encore et qui n'est pas interne. Un lien publié survit au blocage ;
+  le révoquer réduit l'exposition. C'est la seule écriture qui lui reste : il ne crée aucun lien, ne
+  voit ni ne révoque ceux des autres (`DocumentPolicy::manageOwnShareLinks`, `revokeShareLink`). Le
+  bailleur parti (`inactive`) n'en a aucune (ADR-0108 § 5).
 
 ### 3. Un profil non actif ne confère rien
 

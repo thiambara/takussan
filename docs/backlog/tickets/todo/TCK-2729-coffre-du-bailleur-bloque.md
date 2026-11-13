@@ -123,3 +123,37 @@ l'aperçu et le téléchargement fonctionnent comme ailleurs.
 
 **Front** : le dossier figé est porté par le coffre de TCK-2656 (`lib/documents/coffre.ts` lit déjà `read_only`).
 
+
+**Décision 5a du porteur (2026-11-13 ~18:50, point z) — le bailleur bloqué voit et révoque ses liens de partage (back-4).**
+- **Le constat** (q1, préexistant) : un lien de partage public créé avant le blocage sert toujours le document, et le
+  bailleur bloqué ne pouvait ni le voir ni le révoquer (`share` lui est refusé : `landlordWrites`, TCK-1144).
+- **La règle** : `DocumentPolicy::manageOwnShareLinks` — le bailleur **`blocked`** dans l'agence du document (pas le
+  bailleur parti, `inactive` : ADR-0108 § 5, il n'écrit rien), qui lit encore le document (`view`), jamais sur un
+  document interne. `DocumentPolicy::revokeShareLink` : `share`, ou un lien dont il est le créateur
+  (`created_by_id`) sous cette règle. C'est sa seule écriture : il ne crée toujours aucun lien, ne voit ni ne révoque
+  ceux des autres.
+- **`GET /api/documents/{id}/share-links`** : qui partage voit tous les liens actifs ; le bailleur bloqué, 200 avec ses
+  seuls liens (le jeton des autres n'est jamais dans le corps) ; tout autre, 403 comme avant.
+  **`DELETE /api/documents/{id}/share/{link}`** : 204 sur son lien, 403 sur celui d'un autre, 404 sous un autre
+  document (après l'autorisation, comme avant). Les deux passent toujours par le relais `authorizeDocument`.
+- **La fiche** : `abilities.manage_own_share_links`, vrai pour lui sur la fiche d'un document (`avecAuteurs`), jugé
+  seulement quand `share` est refusé — faux sur une liste, sans requête de plus. `abilities.share` reste faux : le
+  front n'offre pas « Partager », seulement la liste de ses liens et leur révocation (à faire côté front).
+- **Tests** : `tests/Feature/Documents/LiensDuBailleurBloqueTest.php` (8) — ses seuls liens sans le jeton des autres ;
+  il révoque le sien, pas celui de l'agence ; il ne crée toujours rien ; son
+  lien cité sous un autre document → 404 ; parti → 403 partout ; document interne → 403 ; document qu'il ne lit pas →
+  403 ; réactivé, il voit tout et partage. `TeamMemberSuspensionTest::test_un_bailleur_bloque_ne_liste_ni_ne_revoque_les_liens_de_partage`
+  amendé : la liste lui répond 200 et vide (le lien est celui de l'agence), la révocation reste 403.
+- **ADR-0031 § 2 amendé le 2026-11-13** (accord de team-lead) : le bailleur bloqué garde la lecture et la révocation de
+  SES liens de partage, seule écriture qui lui reste.
+- **L'ability de la fiche** (`abilities.manage_own_share_links`, `DocumentResource`) lit le marqueur de fiche
+  `avecAuteurs` de TCK-2773 : elle se livre avec 2773 ou après, avec son épingle (`DocumentAbilitiesTest` : vraie
+  sur la fiche du bailleur bloqué, fausse sur la liste, fausse pour le bailleur parti).
+- `DocumentAbilitiesTest` amendé (avec l'ability, après 2773) : la fiche du bailleur bloqué porte
+  `manage_own_share_links: true`, la liste `false`, le bailleur parti `false`.
+  Voisins (abilities, documents internes, coffre du bailleur bloqué, parité amorcée, budget de requêtes de la liste,
+  liens de partage, suspension, représentation des dates) : 117 verts.
+- **Ablations, toutes rouges puis restaurées** (mesurées quand le test de la fiche vivait encore dans `LiensDuBailleurBloqueTest`) **:** `blocked` élargi aux statuts sans écriture (parti compris) → 2 ;
+  `view` retiré de la règle → 1 ; filtre `created_by_id` de la liste retiré → 2 ; contrôle du créateur retiré de
+  `revokeShareLink` → 1 ; `authorize('manageOwnShareLinks')` retiré de la liste → 3 ; ability de la fiche forcée à
+  faux → 1.

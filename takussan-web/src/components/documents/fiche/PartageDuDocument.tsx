@@ -35,6 +35,7 @@ import { useCreateShareLink, useRevokeShareLink, useShareLinks } from '@/lib/que
 import { cn } from '@/lib/utils';
 import type { Document, DocumentShareLink } from '@/types/document';
 
+import { useNomDAuteur } from './auteur';
 import { Carte, TitreDeBloc } from './blocs';
 
 /**
@@ -130,6 +131,8 @@ export function LiensDePartage({
   const t = useTranslations('documents.fiche.liens');
   const tCommon = useTranslations('common');
   const f = useFormatteurs();
+  // TCK-2773 — le créateur du lien, nommé ou désigné par son rôle selon le lecteur.
+  const nomDe = useNomDAuteur();
   const libelleDExpiration = useLibelleDExpiration();
   const requete = useShareLinks(document.id);
   const { revoquer, enCours, erreur } = useRevoquer(document.id, suivi.surRevoque);
@@ -164,10 +167,11 @@ export function LiensDePartage({
             {liens.map((lien) => {
               const nouveau = nouveaux.has(lien.id);
               const cree = lien.created_at ? f.jourMois(lien.created_at) : null;
+              const parQui = nomDe(lien.created_by_person);
               return (
                 <li key={lien.id} data-testid="lien-actif" className={cn('flex items-center gap-3 px-4 py-3', nouveau && 'bg-success/10')}>
                   <span className="min-w-0 flex-1 leading-tight">
-                    <span className="block text-corps font-medium">{nouveau ? t('creeALInstant') : cree ? t('creeLe', { date: cree }) : t('cree')}</span>
+                    <span className="block text-corps font-medium">{nouveau ? t('creeALInstant') : cree ? (parQui ? t('creeLePar', { date: cree, qui: parQui }) : t('creeLe', { date: cree })) : t('cree')}</span>
                     <span className="mt-0.5 block text-ui text-muted-foreground">
                       {libelleDExpiration(lien.expires_at)}
                       {lien.has_password ? t('avecMotDePasse') : null}

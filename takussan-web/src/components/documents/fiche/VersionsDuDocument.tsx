@@ -23,6 +23,7 @@ import {
 } from '@/lib/queries/documents';
 import type { DocumentVersion } from '@/types/document';
 
+import { useNomDAuteur } from './auteur';
 import { Carte, TitreDeBloc } from './blocs';
 
 /**
@@ -34,8 +35,9 @@ import { Carte, TitreDeBloc } from './blocs';
  * nouvelle version avec commentaire — et désormais son échéance (`expiry_date`), que l'API vide quand
  * la requête n'en porte pas (TCK-2300).
  *
- * Les noms des auteurs ne sont pas servis (`uploaded_by_id` seul) : « Vous » quand c'est l'appelant,
- * la date seule sinon (écart « donnée » de la fiche de fidélité).
+ * L'auteur : « Vous » quand c'est l'appelant ; sinon le nom ou le rôle que l'API sert au lecteur
+ * (`uploaded_by_person`, TCK-2773 — « Ousmane Niang · 28 juin », « L’agence · 28 juin ») ; la date seule
+ * quand l'API ne le nomme pas.
  */
 export function VersionsDuDocument({
   documentId,
@@ -57,6 +59,7 @@ export function VersionsDuDocument({
   const tCommon = useTranslations('common');
   const f = useFormatteurs();
   const { user } = useAuth();
+  const nomDe = useNomDAuteur();
   const requete = useDocumentVersions(documentId);
   const [ajout, setAjout] = useState(false);
   const [aRestaurer, setARestaurer] = useState<DocumentVersion | null>(null);
@@ -65,6 +68,9 @@ export function VersionsDuDocument({
   const auteur = (v: DocumentVersion) => {
     const date = v.created_at ? f.date(v.created_at) : null;
     if (user && v.uploaded_by_id === user.id) return date ? t('parVous', { date }) : t('vous');
+    // TCK-2773 — le nom, ou le rôle en tête de ligne.
+    const qui = nomDe(v.uploaded_by_person, true);
+    if (qui) return date ? t('parQui', { qui, date }) : qui;
     return date;
   };
 

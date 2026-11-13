@@ -11334,7 +11334,8 @@
       "legende": {
         "version": "Version {n}",
         "ajoutee": "ajoutée le {date}",
-        "ajouteeParVous": "ajoutée le {date} par vous"
+        "ajouteeParVous": "ajoutée le {date} par vous",
+        "ajouteePar": "ajoutée le {date} par {qui}"
       },
       "plusDActions": "Plus d’actions",
       "supprimer": "Supprimer",
@@ -11348,7 +11349,8 @@
         "verifiePar": "Vérifié par",
         "verifieLe": "Vérifié le",
         "fichier": "Fichier",
-        "precision": "Précision"
+        "precision": "Précision",
+        "quiLe": "{qui}, le {date}"
       },
       "versions": {
         "titre": "Versions ({n})",
@@ -11365,7 +11367,8 @@
         "erreur": "Les versions n’ont pas pu être chargées.",
         "vide": "Aucune autre version : le fichier affiché est celui d’origine.",
         "expire": "Expire le",
-        "expireAide": "Reprise de l’échéance actuelle : changez-la si le nouveau fichier en a une autre. Laissée vide, le document n’en a plus."
+        "expireAide": "Reprise de l’échéance actuelle : changez-la si le nouveau fichier en a une autre. Laissée vide, le document n’en a plus.",
+        "parQui": "{qui} · {date}"
       },
       "liens": {
         "titre": "Liens de partage ({n})",
@@ -11384,7 +11387,8 @@
         "usageSansLimite": "{n, plural, one {# téléchargement} other {# téléchargements}} · sans limite",
         "revoquer": "Révoquer",
         "revoquerAria": "Révoquer le lien créé le {date}",
-        "revocation": "Révocation…"
+        "revocation": "Révocation…",
+        "creeLePar": "Créé le {date} par {qui}"
       },
       "partage": {
         "titre": "Partager par lien",
@@ -11418,6 +11422,22 @@
         "messageWhatsApp": "Voici le document « {nom} » : {lien}",
         "revoquer": "Révoquer ce lien",
         "revocation": "Révocation…"
+      },
+      "auteurs": {
+        "role": {
+          "platform": "Takussan",
+          "agency": "l’agence",
+          "landlord": "votre bailleur",
+          "tenant": "votre locataire",
+          "customer": "le client"
+        },
+        "roleSeul": {
+          "platform": "Takussan",
+          "agency": "L’agence",
+          "landlord": "Votre bailleur",
+          "tenant": "Votre locataire",
+          "customer": "Le client"
+        }
       }
     }
   },

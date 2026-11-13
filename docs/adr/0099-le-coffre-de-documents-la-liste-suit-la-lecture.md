@@ -1,8 +1,8 @@
 # ADR-0099 — Le coffre de documents : la liste suit la lecture, et les documents générés sont listés depuis leur source, jamais copiés
 
-- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré
+- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur
 - **Date** : 2026-11-10
-- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12)
+- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13)
 - **Amende** : la règle posée par TCK-820 (liste restreinte aux téléversements de l'appelant), **sans la révoquer**
 - **S'appuie sur** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (cloisonnement des bailleurs), [ADR-0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) (impersonation)
 
@@ -162,3 +162,56 @@ La phrase « sur une cible fixe, `reaches` est une constante » reste vraie pour
 - `StoreDocumentRequest`, `DocumentController::store`, `PATCH /api/documents/{document}/visibility`.
 - `DocumentVault::uploadedDocuments`, `DashboardTenantService`, `DocumentResource` (`is_internal` rendu au personnel).
 - Gardes (TCK-2759) : le test de parité étendu ; un test par lecteur ; le test du sujet auteur de sa fiche ; le test du défaut au téléversement ; chacun vérifié par ablation.
+
+## Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur (TCK-2773)
+
+- **Décisions de la session, recommandées par l'implémenteur et appliquées par défaut le 2026-11-13** (1b, 2a, 3a), portées sur la liste du porteur, qui peut les renverser.
+
+### Contexte
+
+Relevé sur `feat/audit-ux-app-lot-2` (7641542ea) le 2026-11-13, en lecture seule :
+
+- La fiche d'un document (`/app/documents/{id}`) n'écrit pas qui a ajouté la pièce, qui l'a vérifiée, qui a déposé chaque version ni qui a créé chaque lien : l'API ne sert que des identifiants (`DocumentResource.uploaded_by`, `.verified_by`, `DocumentVersionResource.uploaded_by_id`), et rien pour un lien. TCK-2656 n'a rendu que « vous » quand l'identifiant est celui de l'appelant.
+- **La colonne du créateur d'un lien existe déjà** : `document_share_links.created_by_id` (migration `2026_04_17_160026`), écrite par `DocumentShareLinkService::create`, relation `DocumentShareLink::creator()`.
+- **Le vérificateur d'un document est toujours un opérateur de la plateforme** : `DocumentController::verify` est réservé au super-admin, et c'est le seul écrivain de `documents.verified_by` (les versions et les pièces de profil le remettent à `null`, le KYC vérifie l'agence, pas le document). « Vérifié par l'agence » serait faux.
+- Une fiche de document s'ouvre à des lecteurs que rien d'autre ne réunit (`DocumentPolicy::view`) : le personnel de l'agence, le bailleur du bien, le locataire du bail, le client d'une réservation, le sujet d'une fiche client, le téléverseur parti de l'agence, le super-admin. La liste des liens (`DocumentPolicy::share`) s'ouvre aussi au titulaire du porteur : le bailleur d'un bien, le sujet d'une fiche client pour un document qui n'est pas interne.
+
+### Décision
+
+**Le nom d'un auteur (téléverseur, vérificateur, auteur d'une version, créateur d'un lien) se juge par un seul juge, selon le couple (lecteur, auteur) : l'API sert le nom, un rôle, ou rien.** Le juge est `App\Services\Documents\AuteurDuDocument`. Il sert `{name: string, role: null}`, `{name: null, role: <code>}` ou `null` ; le libellé du rôle appartient au front (principe 5).
+
+1. **Le nom** passe par `User::nameWithoutContact()` (TCK-815) : prénom et nom, jamais un numéro ni une adresse. Sans nom (« — »), l'auteur est traité comme absent du nom : le rôle, ou rien.
+2. **Un opérateur de la plateforme** (super-admin) auteur ou vérificateur est servi **`platform`** à tout lecteur hors de la plateforme, le personnel de l'agence compris (décisions 1b et 2a). Le nom d'un opérateur reste dans la console `/super-admin`.
+3. **Le nom est servi** :
+   - à l'auteur lui-même ;
+   - au super-admin ;
+   - au personnel **actif** de l'agence du document (`staffAgencyId`, la règle d'`isStaffOf`), sauf s'il est le **sujet** de la fiche client qui porte le document : il lit alors comme le sujet (la règle de `readsInternalOf`, § 3 de l'amendement du 2026-11-12).
+4. **À tout autre lecteur**, un **rôle**, jamais un nom (décision 3a : entre bailleur et locataire aussi) :
+   - `landlord` : l'auteur est le bailleur du porteur (`BailleurDuBien::est` sur `properties.user_id` ou `leases.landlord_id`, par le bien pour une réservation ou un état des lieux) ;
+   - `tenant` : l'auteur est le locataire du bail porteur ;
+   - `customer` : l'auteur est le sujet de la fiche client, ou le client de la réservation ;
+   - `agency` : l'auteur détient, ou a détenu (profil supprimé compris), un profil d'agent ou d'administrateur dans l'agence du document ;
+   - sinon **rien** (`null`) : un auteur que la règle ne situe pas n'est pas nommé, même par un rôle.
+5. **Où le juge s'applique** : la fiche (`GET /api/documents/{id}`, et les réponses à un document seul de `store`, `verify`, `visibility`), les versions (`GET /api/documents/{id}/versions` et les réponses de `store`/`restore` d'une version), la liste des liens d'un document et la réponse de leur création. **Les listes de documents (`index`, la recherche) ne portent pas ces champs** : aucun écran de liste ne les lit, et chaque ligne coûterait son jugement. Le lien public (`/api/share/{token}`) ne porte aucun auteur.
+6. **Les identifiants restent servis** (`uploaded_by`, `verified_by`, `uploaded_by_id`) : ils n'apprennent rien d'un nom, et le front s'en sert pour « vous ».
+
+### Conséquences
+
+- La fiche du personnel écrit « Ajouté par Ousmane Niang » ; celle du locataire écrit « Ajouté par l'agence » ; la vérification s'écrit « Vérifié par Takussan » partout hors de la console.
+- Le bailleur ne lit pas le nom de son locataire sur un document, alors qu'il peut le lire ailleurs : la règle est la plus étroite, et s'ouvrira sans rien casser si le porteur le décide.
+- Un écrivain neuf d'un auteur de document (une autre colonne `*_by`) passe par le juge, ou ne sert que l'identifiant.
+
+### Options écartées
+
+- **Servir le nom de l'opérateur au personnel de l'agence** (1a) : le nom d'un membre de l'équipe Takussan sortirait vers chaque agence dont il vérifie une pièce.
+- **« Vérifié par l'agence »** au bailleur et au locataire (2b) : faux, la vérification est celle de la plateforme.
+- **Le nom entre bailleur et locataire** (3b) : ils se connaissent par le bail, mais rien ne l'exige pour lire une fiche de document ; la décision reste ouverte.
+- **Le jugement dans chaque ressource** : trois endroits pour une règle, et la première divergence serait une fuite.
+- **Les champs sur les listes** : un coût par ligne pour un champ qu'aucun écran de liste ne lit.
+
+### Application
+
+- `App\Services\Documents\AuteurDuDocument` : le juge, mémoïsé par auteur pour une fiche.
+- `DocumentResource` (`uploaded_by_person`, `verified_by_person`, sur un document seul), `DocumentVersionResource` (`uploaded_by_person`), `DocumentShareLinkController::format` (`created_by_person`).
+- Le front de la fiche (`DocumentDetailClient`, `VersionsDuDocument`, `LiensDePartage`) : « Ajouté par », « Vérifié par », l'auteur de chaque version et de chaque lien, le rôle traduit.
+- Gardes (TCK-2773) : un test par lecteur, sur le corps brut de la réponse, chacun apparié au cas du personnel qui lit le nom ; le lien public sans auteur ; vérifiées par ablation du juge.
