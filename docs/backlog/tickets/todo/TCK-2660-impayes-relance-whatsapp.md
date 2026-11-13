@@ -218,3 +218,30 @@ ci-dessus.
   - **f8 — garde de la relance inactive retirée** : vert seule, car le démontage couvre ces cas dans jsdom. Elle
     existe pour la feuille encore montée pendant son animation de fermeture. **f7 + f8 ensemble** : 3 rouges (feuille
     refermée, « Passer », « Arrêter »).
+
+**2026-11-13 — décision 7 (a) : le prénom du payeur est servi au bailleur et au locataire.** `include=payer` de
+`GET /api/payments/history` garde son bloc de cinq clés (`id`, `name`, `phone`, `first_name`, `locale`) pour tout
+lecteur du cercle : le personnel de l'agence, le bailleur du bail (ou du bien, pour une réservation), le locataire
+lui-même, et l'auteur d'une réservation encore membre de l'agence. Le bailleur lisait déjà le nom et le téléphone du
+locataire, par ce bloc (`AFaireBailleur`) comme par le bail (TCK-2637). Le prénom n'expose donc rien de neuf. Aucun
+code ne change : le relevé n'a trouvé aucun lecteur hors du cercle qui reçoive le bloc.
+
+`PaymentHistoryPrenomDuPayeurTest` (4 tests) garde le cercle :
+
+- dans le cercle, le prénom est servi, le bloc a exactement ses cinq clés, et aucun e-mail n'y paraît ;
+- hors du cercle, aucun prénom, nom de famille, téléphone ni e-mail du payeur ne paraît dans la réponse brute. Les
+  lecteurs éprouvés sont l'autre bailleur et l'autre locataire de l'agence, un propriétaire de l'agence sans ce
+  bail, le client d'une réservation, le personnel d'une autre agence, un inconnu, l'opérateur `viewer`, et l'auteur
+  d'une réservation qui n'est plus membre. Pour ce dernier, un témoin le remet en activité, et il lit alors le
+  prénom.
+
+Six ablations de `PaymentHistory`, une à la fois, ont toutes rougi et ont été restaurées sur md5 :
+
+| Ablation | Ce qu'elle retire |
+|---|---|
+| a1 | bailleur quelconque |
+| a2 | tout locataire ayant un compte |
+| a3 | membre de l'agence au lieu du personnel |
+| a4 | e-mail ajouté au bloc |
+| a5 | bailleur de tout bien |
+| a6 | auteur de réservation sans condition de membre |
