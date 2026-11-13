@@ -34,7 +34,7 @@ import { CarteDeColonne, CarteDeFile, LigneDeFile, lienDeLaFiche, lieu } from '.
  * files ») : la page s'ouvre sur ce qui attend un geste, file par file.
  *
  *  · Comptes des pastilles et des colonnes par UN appel (`GET …/summary`, AC2) ; les cartes d'une
- *    file par `filter[file]`, au tri de l'API (priorité, puis ancienneté).
+ *    file par `filter[file]`, la plus pressante puis la plus ancienne d'abord (`TRI_D_UNE_FILE`).
  *  · Téléphone : pastilles comptées au-dessus des cinq files empilées (cartes pleines pour les files
  *    à geste, lignes compactes pour « En cours » et « À confirmer »), puis « Terminées et closes ».
  *  · Bureau (dès `lg`) : cinq colonnes ; sous `xl`, elles défilent dans leur conteneur plutôt que de
@@ -428,7 +428,7 @@ function FiltresDuBureau({ filtres }: { readonly filtres: FiltresDesFiles }) {
         onCommit={(q) => remplacer({ q: q.trim() || null, page: null })}
         placeholder={t('recherche')}
         aria-label={t('recherche')}
-        className="h-9 w-[calc(var(--spacing)*71.11)] text-sm"
+        className="h-9 w-64 text-sm"
       />
       <Filtre libelle={t('priorite')} valeur={priorite ? tPriorite(priorite) : t('toutesLesPriorites')} actif={priorite !== null}>
         {(fermer) => <Options tous={t('toutesLesPriorites')} valeurs={PRIORITES_DU_FILTRE} choisie={priorite} libelle={(v) => tPriorite(v)} onChoisir={(v) => (remplacer({ priorite: v, page: null }), fermer())} />}

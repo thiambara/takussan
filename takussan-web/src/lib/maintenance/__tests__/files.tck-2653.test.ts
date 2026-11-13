@@ -143,8 +143,8 @@ describe('les lectures', () => {
     expect(p.include).toEqual(['property', 'requester', 'assignee']);
     expect(p.fields?.maintenance_requests).toEqual([...CHAMPS_D_UNE_CARTE]);
     expect(p.per_page).toBe(10);
-    // Le tri est celui de l'API (priorité, puis ancienneté) : #8 en tête de « À dispatcher » sur la démo.
-    expect(p.sort).toBeUndefined();
+    // Le tri est explicite : celui de l'API par défaut range la priorité en texte (normal > low > high).
+    expect(p.sort).toBe('-priority,created_at');
   });
 
   it('le résumé : les filtres seuls, jamais `filter[file]`', () => {
