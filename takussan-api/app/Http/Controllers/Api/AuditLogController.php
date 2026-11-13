@@ -65,6 +65,13 @@ class AuditLogController extends Controller
                 'description' => $log->description,
                 'causer_type' => $log->causer_type,
                 'causer_id' => $log->causer_id,
+                // TCK-2763 — l'historique d'un objet dit QUI (l'onglet « Historique » de la fiche d'un
+                // bail) : l'identifiant et le nom, comme `index`, mais sans l'adresse. Un acte système
+                // ou un auteur supprimé : `null`. La relation est déjà chargée, aucune requête de plus.
+                'causer' => $log->causer ? [
+                    'id' => $log->causer->getKey(),
+                    'name' => $this->nomDeLAuteur($log),
+                ] : null,
                 'subject_type' => $log->subject_type,
                 'subject_id' => $log->subject_id,
                 'properties' => PropertyRedactor::redact($log->properties, $log->subject_type),
@@ -72,6 +79,17 @@ class AuditLogController extends Controller
             ])->all(),
             'meta' => $this->paginationMeta($paginator),
         ]);
+    }
+
+    /**
+     * TCK-1261 — `users` n'a pas de colonne `name` : le nom est `full_name`, nul s'il est vide pour
+     * que l'écran retombe sur l'adresse (piste d'audit) ou se taise (historique d'un objet).
+     */
+    private function nomDeLAuteur(Activity $log): ?string
+    {
+        $causer = $log->causer;
+
+        return ($causer instanceof User ? $causer->full_name : ($causer->name ?? null)) ?: null;
     }
 
     public function index(IndexAuditLogRequest $request): JsonResponse
@@ -174,9 +192,7 @@ class AuditLogController extends Controller
                 'causer_id' => $log->causer_id,
                 'causer' => $log->causer ? [
                     'id' => $log->causer->getKey(),
-                    // TCK-1261 — `users` n'a pas de colonne `name` : le nom est `full_name`,
-                    // nul s'il est vide pour que l'écran retombe sur l'adresse.
-                    'name' => ($log->causer instanceof User ? $log->causer->full_name : ($log->causer->name ?? null)) ?: null,
+                    'name' => $this->nomDeLAuteur($log),
                     'email' => $log->causer->email ?? null,
                 ] : null,
                 'subject_type' => $log->subject_type,

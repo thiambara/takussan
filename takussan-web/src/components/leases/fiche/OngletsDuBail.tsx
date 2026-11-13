@@ -118,6 +118,8 @@ interface EvenementDuBail {
   readonly event: string | null;
   readonly properties: Record<string, unknown> | null;
   readonly created_at: string | null;
+  /** TCK-2763 — l'auteur de l'événement ; `null` pour un acte système ou un auteur supprimé. */
+  readonly causer?: { readonly id: number; readonly name: string | null } | null;
 }
 
 /** Les événements que l'API journalise sur un bail (modèle et services `Lease*`), relevés le 2026-11-12. */
@@ -169,11 +171,17 @@ export function OngletHistoriqueDuBail({ lease }: { readonly lease: LeaseWithRel
               code === 'lease_rent_reviewed' && typeof ancien === 'number' && typeof nouveau === 'number'
                 ? t('revise', { ancien: f.montantCourt(ancien, lease.currency), nouveau: f.montantCourt(nouveau, lease.currency) })
                 : null;
+            // TCK-2763 — qui : le nom de l'auteur, « Automatique » pour un acte sans auteur (`causer: null`).
+            // Un auteur sans nom (compte sans prénom ni nom) ne se dit pas : ce n'est pas un acte système.
+            const auteur = e.causer === null ? t('automatique') : (e.causer?.name ?? null);
             return (
               <li key={e.id} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
                 <History className="size-icone flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
                 <span className="min-w-0 flex-1 leading-snug">
-                  <span className="block truncate text-sm font-medium">{t(`events.${code}`)}</span>
+                  <span className="block truncate text-sm">
+                    <span className="font-medium">{t(`events.${code}`)}</span>
+                    {auteur ? <span className="text-muted-foreground"> · {auteur}</span> : null}
+                  </span>
                   {revision ? <span className="block truncate text-ui text-muted-foreground tabular-nums">{revision}</span> : null}
                 </span>
                 {e.created_at ? <span className="flex-none text-ui text-muted-foreground tabular-nums">{f.jourMois(e.created_at)}</span> : null}
