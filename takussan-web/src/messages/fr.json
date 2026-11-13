@@ -8517,7 +8517,8 @@
         "agency_upgrade_subscription_assigned": "Abonnement pro attribué au passage en agence professionnelle",
         "review_moderated": "Avis publié (lot)",
         "booking_not_selected": "Candidature non retenue",
-        "document_visibility_changed": "Visibilité d'un document changée"
+        "document_visibility_changed": "Visibilité d'un document changée",
+        "lease_draft_abandoned": "Brouillon de bail abandonné"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",

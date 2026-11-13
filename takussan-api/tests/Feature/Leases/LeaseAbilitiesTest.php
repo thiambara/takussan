@@ -69,6 +69,8 @@ class LeaseAbilitiesTest extends ApiTestCase
             'refund_deposit' => false,
             'request_early_termination' => false,
             'update' => true,
+            // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
+            'abandon' => false,
             // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
             'add_document' => true,
             'download_contract' => true,
@@ -88,6 +90,8 @@ class LeaseAbilitiesTest extends ApiTestCase
             'refund_deposit' => false,
             'request_early_termination' => false,
             'update' => true,
+            // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
+            'abandon' => false,
             // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
             'add_document' => true,
             'download_contract' => true,
@@ -114,6 +118,8 @@ class LeaseAbilitiesTest extends ApiTestCase
                 'refund_deposit' => true,
                 'request_early_termination' => true,
                 'update' => true,
+                // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
+                'abandon' => false,
                 // TCK-2642 — les gestes que la fiche ouvrait encore par le rôle.
                 'add_document' => true,
                 'download_contract' => true,
