@@ -6,11 +6,13 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Enums\VisitStatus;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\PropertyVisit;
 use App\Models\RoleDelegation;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Crm\CustomerNextActionQuery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -129,6 +131,43 @@ class CustomerNextActionManageTest extends ApiTestCase
         $bailleur = $this->bailleur($this->agence);
         $fiche = $this->ficheClient($this->agence, null, ['added_by_id' => $bailleur->id]);
         $this->jugeComme(true, $fiche, $this->tacheSur($fiche, $bailleur, $bailleur), $bailleur);
+    }
+
+    /**
+     * Vérification de c4a5d9937, r2 (mutant M2) — l'assigné ne modifie que s'il est du PERSONNEL de
+     * l'agence de la fiche : un bailleur en est MEMBRE, lit sa fiche, et la tâche qu'un agent lui
+     * assigne dessus ne se reporte pas (`TaskPolicy::isStaffOfParent`).
+     */
+    public function test_l_assigne_membre_sans_etre_du_personnel_ne_modifie_pas(): void
+    {
+        $bailleur = $this->bailleur($this->agence);
+        $fiche = $this->ficheClient($this->agence, null, ['added_by_id' => $bailleur->id]);
+        $this->jugeComme(false, $fiche, $this->tacheSur($fiche, $this->collegue, $bailleur), $bailleur);
+    }
+
+    /**
+     * Vérification de c4a5d9937, r2 (mutant M3) — le créateur ne modifie que s'il est MEMBRE de
+     * l'agence de la fiche (`TaskPolicy::isMemberOfParent`). Par HTTP, la condition ne se voit pas :
+     * lire une fiche d'agence exige déjà d'en être membre (`Customer::scopeVisibleTo`). Elle se juge
+     * donc sur la requête elle-même, pour l'agent qui a créé la tâche puis quitté l'agence — témoin :
+     * la même tâche, avant son départ, se modifie.
+     */
+    public function test_le_createur_qui_a_quitte_l_agence_ne_modifie_plus(): void
+    {
+        $fiche = $this->ficheClient($this->agence, null, ['added_by_id' => $this->collegue->id]);
+        $tache = $this->tacheSur($fiche, $this->agent, $this->collegue);
+        $manage = fn (): mixed => (new CustomerNextActionQuery($this->agent->fresh()))->forPage([$fiche->id])[$fiche->id]['manage'] ?? null;
+
+        $this->assertTrue(Gate::forUser($this->agent->fresh())->allows('update', $tache->fresh()), 'témoin : membre, il modifie');
+        $this->assertTrue($manage(), 'témoin : membre, il modifie');
+
+        AgentProfile::query()->where('user_id', $this->agent->id)->delete();
+
+        $this->assertFalse(Gate::forUser($this->agent->fresh())->allows('update', $tache->fresh()), 'la politique elle-même');
+        $this->assertFalse($manage(), 'manage suit TaskPolicy::update');
+        // Et la fiche ne se lit plus : c'est pourquoi la page, seule, ne peut pas garder cette branche.
+        Sanctum::actingAs($this->agent->fresh());
+        $this->assertNotContains($fiche->id, $this->getJson('/api/customers?fields[customers]=id&per_page=100')->assertOk()->json('data.*.id'));
     }
 
     public function test_le_super_admin_modifie_tout(): void
