@@ -24,13 +24,20 @@ interface CasesDuCodeProps {
   /** Le code refusé : les six cases restent, en rouge, jusqu'à la frappe suivante. */
   readonly erreur?: boolean;
   readonly desactive?: boolean;
+  /**
+   * Un code est en vol : la saisie est ignorée, sans retirer le focus (le clavier numérique reste ouvert
+   * pour corriger au retour ; `disabled` le fermerait). Sans elle, un code corrigé pendant le vol n'était
+   * jamais envoyé, et s'affichait « incorrect » au refus du premier (r2 de la contre-vérification de
+   * 861535de2).
+   */
+  readonly figee?: boolean;
   readonly 'aria-describedby'?: string;
   readonly className?: string;
 }
 
 export const LONGUEUR_DU_CODE = 6;
 
-export function CasesDuCode({ id, valeur, onChange, erreur = false, desactive = false, className, ...aria }: CasesDuCodeProps) {
+export function CasesDuCode({ id, valeur, onChange, erreur = false, desactive = false, figee = false, className, ...aria }: CasesDuCodeProps) {
   // Le champ reçoit le focus à l'arrivée sur l'écran du code (le `autoFocus` du champ d'avant) : le
   // clavier numérique reste ouvert, et le SMS se propose.
   const champ = useRef<HTMLInputElement>(null);
@@ -74,6 +81,8 @@ export function CasesDuCode({ id, valeur, onChange, erreur = false, desactive = 
         maxLength={LONGUEUR_DU_CODE}
         required
         disabled={desactive}
+        readOnly={figee}
+        aria-busy={figee || undefined}
         aria-invalid={erreur || undefined}
         aria-describedby={aria['aria-describedby']}
         // Transparent et pleine taille (`size-full` bat la hauteur de la primitive ET celle de la portée

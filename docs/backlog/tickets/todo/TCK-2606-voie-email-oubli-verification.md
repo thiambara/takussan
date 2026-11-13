@@ -115,3 +115,11 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
   maquette). AC-F5 (rideau validé par le porteur) reste à faire.
 - **Pied du bouton au téléphone** : 12 px sous le bouton posé sur le clavier, 20 px sans clavier (maquette : `pb-3` sur ses
   écrans à clavier, `pb-5` ailleurs) — `BoutonCollant` le lit du décalage du clavier.
+- **« Mot de passe oublié » ne dit pas l'existence du compte par son temps de réponse** (r1 de la contre-vérification de
+  861535de2, 2026-11-13) : `sendResetLink` (jeton haché, écrit en base, minuté à 200 ms par le `Timebox` du courtier de
+  Laravel) part APRÈS la réponse, par `defer()` ; validation du format et `throttle:auth-password` restent avant. FrankenPHP
+  1.13.2 rend la réponse avant les rappels différés (`fastcgi_finish_request` y existe, mesuré dans l'image : 12 ms pour un
+  script qui dort 2 s après l'appel). Mesuré en base de test, `BCRYPT_ROUNDS=12`, 6 tours après chauffe, charge 9-10 sur
+  8 cœurs : jusqu'à la réponse, avant 206-216 ms (compte) et 206-220 (sans) ; après 6-9 ms et 6-13 ms. Le vérificateur avait
+  mesuré 360-425 contre 207-213 sous charge 13 : ici le minutage du courtier masquait l'écart, il ne le garantit pas.
+  `OubliSansFuiteDExistenceTest` prouve l'ORDRE (aucun jeton à `RequestHandled`, le jeton et le lien après), pas une durée.

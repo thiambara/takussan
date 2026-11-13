@@ -104,9 +104,26 @@ export function debutDuGesteQuitte(redirect: string | null | undefined): { debut
   const interne = destinationInterne(redirect, '');
   if (interne === '') return null;
   const params = new URL(interne, 'http://interne.invalid').searchParams;
-  const jour = /^\d{4}-\d{2}-\d{2}$/;
   const debut = params.get('debut');
-  if (!debut || !jour.test(debut)) return null;
+  if (!debut || !estJourReel(debut)) return null;
   const fin = params.get('fin');
-  return { debut, fin: fin && jour.test(fin) && fin > debut ? fin : null };
+  return { debut, fin: fin && estJourReel(fin) && fin > debut ? fin : null };
+}
+
+/** Les années qu'une date du geste quitté peut porter : au-delà, un lien fabriqué, pas une réservation. */
+const ANNEE_MIN = 2000;
+const ANNEE_MAX = 2100;
+
+/**
+ * `AAAA-MM-JJ` ET un jour du calendrier (r3 de la contre-vérification de 861535de2) : la forme seule
+ * laissait passer `2026-13-45` et `2026-99-99`, rendus « Invalid Date » à côté du prix. L'aller-retour
+ * par `Date.UTC` refuse un mois ou un jour hors calendrier (le 30 février comme le 13ᵉ mois).
+ */
+export function estJourReel(valeur: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valeur);
+  if (!m) return false;
+  const [annee, mois, jour] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (annee < ANNEE_MIN || annee > ANNEE_MAX) return false;
+  const date = new Date(Date.UTC(annee, mois - 1, jour));
+  return date.getUTCFullYear() === annee && date.getUTCMonth() === mois - 1 && date.getUTCDate() === jour;
 }

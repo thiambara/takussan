@@ -203,6 +203,9 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
 
   /** La frappe dans les six cases — et l'envoi, au passage à six chiffres, une fois. */
   function saisirCode(valeur: string): void {
+    // Un code en vol : la frappe est ignorée (les cases sont `figee`), pour qu'aucun code non vérifié ne
+    // s'affiche « incorrect » au refus du premier.
+    if (verificationEnCours.current) return;
     const avant = code;
     setCode(valeur);
     setCodeRefuse(false);
@@ -395,6 +398,7 @@ export function ConnexionParTelephone({ onConnecte, onEmail, intention = null, r
             valeur={code}
             onChange={saisirCode}
             erreur={codeRefuse}
+            figee={envoi}
             aria-describedby={erreur ? 'connexion-code-erreur' : undefined}
           />
           {erreur ? (

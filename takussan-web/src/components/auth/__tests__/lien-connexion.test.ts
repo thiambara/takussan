@@ -115,4 +115,15 @@ describe('l’intention d’entrée', () => {
     expect(debutDuGesteQuitte('/fr/properties/x?debut=demain')).toBeNull();
     expect(debutDuGesteQuitte('/fr/properties/x')).toBeNull();
   });
+
+  it('une date hors calendrier est écartée, jamais rendue « Invalid Date » (r3 de 861535de2)', () => {
+    // La forme AAAA-MM-JJ ne suffit pas : 13ᵉ mois, 45ᵉ jour, 30 février, année hors bornes.
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2026-13-45&fin=2026-99-99')).toBeNull();
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2027-02-30')).toBeNull();
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=1999-12-31')).toBeNull();
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2101-01-01')).toBeNull();
+    // Un début réel et une fin impossible : le début reste, la fin tombe.
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2026-12-05&fin=2026-12-32')).toEqual({ debut: '2026-12-05', fin: null });
+    expect(debutDuGesteQuitte('/fr/properties/x?debut=2028-02-29&fin=2028-03-01')).toEqual({ debut: '2028-02-29', fin: '2028-03-01' });
+  });
 });

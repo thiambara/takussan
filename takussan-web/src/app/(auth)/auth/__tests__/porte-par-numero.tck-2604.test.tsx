@@ -236,6 +236,30 @@ describe('AC3 — le code part au sixième chiffre, une fois', () => {
     expect(verifier).toHaveBeenCalledTimes(1);
   });
 
+  it('un code en vol fige les cases : une correction pendant le vol ne s’inscrit pas, et le refus porte sur le code envoyé', async () => {
+    // r2 de la contre-vérification de 861535de2 : « 123457 » s’affichait en rouge, « incorrect », sans
+    // avoir jamais été envoyé. Les cases restent focalisables (lecture seule, pas `disabled`).
+    const user = userEvent.setup();
+    let rejeter: (e: unknown) => void = () => undefined;
+    verifier.mockImplementationOnce(() => new Promise((_, rej) => (rejeter = rej)));
+    await ouvrir({});
+    const code = await jusquAuCode(user);
+    await user.type(code, '123456');
+    await waitFor(() => expect(verifier).toHaveBeenCalledTimes(1));
+
+    expect(code).toHaveAttribute('readonly');
+    expect(code).not.toBeDisabled();
+    await user.type(code, '{Backspace}7');
+    fireEvent.change(code, { target: { value: '123458' } });
+    expect(code).toHaveValue('123456');
+
+    await act(async () => rejeter(new ApiError(422, { code: 'phone_code_invalid' })));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Vérifiez-le, ou demandez-en un nouveau');
+    expect(code).toHaveValue('123456');
+    expect(code).not.toHaveAttribute('readonly');
+    expect(verifier.mock.calls.map((c) => (c[0] as { code: string }).code)).toEqual(['123456']);
+  });
+
   it('un code collé d’un coup part aussi, une fois', async () => {
     const user = userEvent.setup();
     verifier.mockResolvedValue({ token: 'jeton', user: { id: 1 } });
