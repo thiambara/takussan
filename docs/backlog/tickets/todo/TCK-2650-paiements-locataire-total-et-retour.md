@@ -217,6 +217,15 @@ d'`amount` (la ligne), `checkout_amount` : le montant FIGÉ du dernier checkout 
 écriture pour tous). Tests : avec pénalité (157 500 contre 150 000), sans checkout (`null`) ; ablation : `checkout_amount`
 lu sur la ligne → rouge.
 
+**`checkout_late_fee_amount`** (décision 6a du porteur, 2026-11-13 ~18:50 : « montant payé + dont pénalité ») : la part
+de pénalité du checkout courant, lue telle que `recordInitiation()` l'a figée (`late_fee_amount` de l'entrée de
+`metadata.gateway.transactions` dont le `transaction_id` est celui de la ligne, la dernière émise à défaut ; `0` si
+elle n'en porte pas) ; `null` sans checkout, comme `checkout_amount`. Le front peut donc dire « dont pénalité de
+retard : 7 500 » sans la déduire d'une soustraction. Tests : avec pénalité (157 500 dont 7 500), checkout sans
+pénalité (`0`), sans checkout (`null`). Ablation : la part forcée à `0` → rouge. Démo (lecture seule, échéance
+payée la plus récente de l'agence 1) : saisie par l'agence, donc `checkout_amount` et `checkout_late_fee_amount`
+à `null` — la démo ne porte aucun paiement en ligne.
+
 **Côté front (terrain-8)** : sur la page de retour, le grand montant est `checkout_amount` quand il est présent,
 `amount` sinon. Quand le premier dépasse le second, une ligne « dont pénalité de retard : <écart> » s'ajoute. Sans
 `checkout_amount`, aucune pénalité n'est déduite et aucun texte n'est inventé (`CarteDuRetour.tsx`). Tests : deux

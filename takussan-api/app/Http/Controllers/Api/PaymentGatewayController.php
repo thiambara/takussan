@@ -11,6 +11,8 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Services\Payments\PaymentGatewayService;
+use BackedEnum;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,8 +65,75 @@ class PaymentGatewayController extends Controller
                 'provider_status' => $status?->status,
                 'transaction_id' => $payment->transaction_id,
                 'refund_pending' => $status !== null && $this->isRefundPending($payment, $status->transactionId),
+                // TCK-2650 — ce que la page de retour nomme, lu en base : elle ne croit plus l'adresse.
+                'payment' => $this->paiementVerifie($payment),
             ],
         ]);
+    }
+
+    /**
+     * TCK-2650 — le paiement tel que la page de retour le nomme (`PaiementVerifie` côté front), LU EN
+     * BASE après la vérification : le montant de la ligne, celui du dernier checkout, sa devise, sa nature, sa référence, le code
+     * du fournisseur du dernier checkout (un code hors de {@see PaymentProvider} n'est pas rendu) et la
+     * date de paiement. Le bail et sa période pour une échéance de loyer SEULEMENT : la carte en tire
+     * « Loyer de décembre 2026 » et le lien de la quittance. Le statut serveur reste `data.status`.
+     *
+     * Liste fermée, délibérément : ni `metadata` (le fournisseur y laisse le numéro du payeur), ni payeur,
+     * ni téléphone, ni adresse.
+     *
+     * @return array<string, mixed>
+     */
+    private function paiementVerifie(Model $payment): array
+    {
+        $gateway = is_array($payment->metadata ?? null) && is_array($payment->metadata['gateway'] ?? null) ? $payment->metadata['gateway'] : [];
+        $fournisseur = is_string($gateway['provider'] ?? null) ? PaymentProvider::tryFrom($gateway['provider']) : null;
+        $montant = $payment->getAttribute($payment instanceof Invoice ? 'total_amount' : 'amount');
+        $attendu = is_array($payment->metadata ?? null) ? ($payment->metadata['gateway_expected_amount'] ?? null) : null;
+        $paidAt = $payment->getAttribute('paid_at');
+
+        $bloc = [
+            'amount' => is_numeric($montant) ? (float) $montant : null,
+            // Le montant FIGÉ du dernier checkout émis (TCK-593, `recordInitiation()`), pénalité encaissée
+            // en ligne comprise : ce que le fournisseur débite. `null` sans checkout (saisie à l'agence).
+            'checkout_amount' => is_numeric($attendu) ? (float) $attendu : null,
+            // Décision du porteur 6a (2026-11-13) — « dont pénalité de retard » : la part de pénalité FIGÉE
+            // de ce même checkout (`gateway.transactions[*].late_fee_amount`), `null` sans checkout.
+            'checkout_late_fee_amount' => is_numeric($attendu) ? self::penaliteDuCheckout($gateway, $payment->getAttribute('transaction_id')) : null,
+            'currency' => self::valeur($payment->getAttribute('currency')),
+            'payment_type' => $payment instanceof Invoice ? null : self::valeur($payment->getAttribute('payment_type')),
+            'reference_number' => $payment->getAttribute('reference_number'),
+            'provider' => $fournisseur?->value,
+            'paid_at' => $this->instant($paidAt instanceof DateTimeInterface ? $paidAt : null),
+        ];
+
+        if ($payment instanceof LeasePayment) {
+            $bloc += [
+                'lease_id' => $payment->lease_id,
+                'period_start' => $this->calendarDate($payment->period_start),
+                'period_end' => $this->calendarDate($payment->period_end),
+            ];
+        }
+
+        return $bloc;
+    }
+
+    /**
+     * La part de pénalité du checkout courant : l'entrée de `gateway.transactions` du `transaction_id`
+     * de la ligne (la dernière émise à défaut), `0.0` si elle n'en porte pas.
+     *
+     * @param  array<string, mixed>  $gateway
+     */
+    private static function penaliteDuCheckout(array $gateway, mixed $transactionId): float
+    {
+        $transactions = array_values(array_filter(is_array($gateway['transactions'] ?? null) ? $gateway['transactions'] : [], 'is_array'));
+        $courante = collect($transactions)->last(fn (array $t): bool => ($t['transaction_id'] ?? null) === $transactionId) ?? end($transactions);
+
+        return is_array($courante) && is_numeric($courante['late_fee_amount'] ?? null) ? (float) $courante['late_fee_amount'] : 0.0;
+    }
+
+    private static function valeur(mixed $valeur): mixed
+    {
+        return $valeur instanceof BackedEnum ? $valeur->value : $valeur;
     }
 
     /**
