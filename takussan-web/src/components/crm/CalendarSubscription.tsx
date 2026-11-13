@@ -84,10 +84,10 @@ export function CalendarSubscription() {
           <div>
             <p className="mb-1.5 text-sm font-medium">{t('linkLabel')}</p>
             <div className="flex items-center gap-2">
-              <Input readOnly value={issuedUrl} aria-label={t('linkLabel')} className="h-11 bg-muted/50" onFocus={(e) => e.currentTarget.select()} />
+              <Input readOnly value={issuedUrl} aria-label={t('linkLabel')} className="bg-muted/50" onFocus={(e) => e.currentTarget.select()} />
               <Button
                 type="button"
-                className="h-11 shrink-0 gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+                className="h-auto shrink-0 gap-1.5 self-stretch bg-foreground text-background hover:bg-foreground/90"
                 onClick={() => {
                   void navigator.clipboard?.writeText(issuedUrl).then(() => setCopied(true));
                 }}
