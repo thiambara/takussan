@@ -583,6 +583,12 @@ export type CreateGuarantorPayload = {
  */
 export type LeaseGuarantor = Pick<Guarantor, 'id' | 'first_name' | 'last_name' | 'phone' | 'email'> & {
   role: string | null;
+  /** TCK-2762 — le lecteur peut modifier ce garant (`GuarantorPolicy::update`, la règle de `PUT /api/guarantors/{id}`). */
+  can_edit?: boolean;
+  /** TCK-2762 — sur une ligne modifiable seulement : une pièce est renseignée (type et numéro), sans son numéro. */
+  id_on_file?: boolean;
+  /** TCK-2762 — sur une ligne modifiable seulement : les baux qui portent ce garant (il est partagé). */
+  leases_count?: number;
 };
 
 /**
@@ -604,6 +610,33 @@ export function useCreateGuarantor(leaseId: number) {
       invalidate: [
         ['leases', 'detail', leaseId],
         ['leases', 'guarantors', leaseId],
+      ],
+    },
+  );
+}
+
+/**
+ * TCK-2762 — la fiche d'un garant (`GET /api/guarantors/{id}`), pour préremplir sa modification : la
+ * pièce et le revenu n'y sont que masqués (ADR-0070).
+ */
+export function useGuarantor(guarantorId: number | null) {
+  return useApiQuery<ApiResponse<Guarantor>>(['guarantors', 'detail', guarantorId], cheminApi`/api/guarantors/${guarantorId ?? 0}`, {
+    enabled: guarantorId !== null,
+  });
+}
+
+/**
+ * TCK-2762 — modifier un garant (`PUT /api/guarantors/{id}`) depuis la fiche d'un bail. Le corps ne
+ * porte que les champs CHANGÉS : la pièce et le revenu chiffrés ne s'écrasent pas d'un champ vide.
+ */
+export function useUpdateGuarantor(guarantorId: number, leaseId: number) {
+  return useApiMutation<ApiResponse<Guarantor>, Partial<CreateGuarantorPayload>>(
+    { path: cheminApi`/api/guarantors/${guarantorId}`, method: 'PUT' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'guarantors', leaseId],
+        ['guarantors', 'detail', guarantorId],
       ],
     },
   );

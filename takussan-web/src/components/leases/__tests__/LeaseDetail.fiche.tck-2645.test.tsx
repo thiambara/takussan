@@ -26,6 +26,7 @@ const etat = vi.hoisted(() => ({
   fournisseurs: [] as string[],
   params: new URLSearchParams(),
   user: { id: 9, roles: ['customer'] as string[] },
+  garants: [] as unknown[],
 }));
 const revision = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 const generer = vi.hoisted(() => ({ mutate: vi.fn(), isPending: false }));
@@ -37,6 +38,7 @@ vi.mock('@/lib/queries/leases', () => ({
   useLeasePayments: () => ({ data: etat.paiements ? { data: etat.paiements } : undefined }),
   useGenerateSchedule: () => generer,
   useReviewLeaseRent: () => revision,
+  useLeaseGuarantors: () => ({ data: { data: etat.garants } }),
 }));
 vi.mock('@/lib/queries/documents', () => ({ useDocumentsGeneres: () => ({ data: { data: [] } }) }));
 vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: etat.fournisseurs, isLoading: false }) }));
@@ -56,8 +58,11 @@ vi.mock('../LeaseSchedule', async (importOriginal) => ({
 }));
 vi.mock('../LeaseSignaturePanel', () => ({ LeaseSignaturePanel: () => null }));
 vi.mock('../LeaseChainTimeline', () => ({ LeaseChainTimeline: () => null }));
-vi.mock('../GuarantorSection', () => ({
-  GuarantorSection: ({ canManage }: { canManage?: boolean }) => <p>{canManage ? 'garant : ajout offert' : 'garant : sans ajout'}</p>,
+vi.mock('../fiche/FeuilleDesGarants', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../fiche/FeuilleDesGarants')>()),
+  FeuilleDesGarants: ({ surLAjout, peutGerer, garants }: { surLAjout?: boolean; peutGerer: boolean; garants: readonly unknown[] }) => (
+    <p>{`feuille des garants : ${surLAjout ? 'ajout' : 'liste'}, ${garants.length}${peutGerer ? ', gestion' : ''}`}</p>
+  ),
 }));
 vi.mock('../DepositRefundBanner', () => ({
   DepositRefundBanner: ({ canRefund, ouvert }: { canRefund: boolean; ouvert?: boolean }) => (
@@ -186,6 +191,7 @@ beforeEach(() => {
   etat.fournisseurs = [];
   etat.params = new URLSearchParams();
   etat.user = { id: 9, roles: ['customer'] };
+  etat.garants = [];
   revision.mutateAsync.mockReset();
   generer.mutate.mockReset();
   remplacer.mockReset();
@@ -306,7 +312,7 @@ describe('la feuille « Gestes » et la carte « Actions »', () => {
   it('le garant et la bannière suivent `update` et `request_early_termination` (P189.03)', () => {
     etat.lease = bail({ ...RIEN, review_rent: true });
     monter();
-    expect(screen.getByText('garant : sans ajout')).toBeInTheDocument();
+    expect(screen.queryByText(fr.lease.guarantor.add)).toBeNull();
     expect(screen.getByText('bannière préavis : sans annulation, équipe')).toBeInTheDocument();
   });
 });
@@ -591,5 +597,79 @@ describe('TCK-2764 (AC9) — « Abandonner le brouillon »', () => {
 
     expect(screen.queryByRole('button', { name: fr.lease.fiche.gestes.abandonner })).not.toBeInTheDocument();
     expect(screen.queryByTestId('abandon-empeche')).not.toBeInTheDocument();
+  });
+});
+
+describe('TCK-2762 — le garant parmi les parties (bureau) et « Garant (n) » au dossier (téléphone)', () => {
+  const OUSMANE = { id: 5, first_name: 'Ousmane', last_name: 'Seck', phone: '+221770000005', email: null, role: null };
+  const dossierDuTelephone = () => screen.getAllByTestId('dossier-du-bail')[0]!;
+  const ligne = (el: HTMLElement) => el.closest('[data-slot="ligne-de-liste"]') as HTMLElement;
+
+  it('un bail avec un garant : sa ligne dans « Parties » au bureau, « Garant (1) » au dossier du téléphone', () => {
+    etat.garants = [OUSMANE];
+    monter();
+
+    const parties = screen.getByTestId('partie-bailleur').parentElement!;
+    const dansParties = within(parties).getByText('Ousmane Seck');
+    expect(ligne(dansParties).className).toContain('max-md:hidden');
+    expect(within(ligne(dansParties)).getByText(fr.lease.fiche.parties.garant)).toBeInTheDocument();
+
+    const auDossier = within(dossierDuTelephone()).getByText('Garant (1)');
+    expect(ligne(auDossier).className).toContain('md:hidden');
+    expect(within(ligne(auDossier)).getByText('Ousmane Seck')).toBeInTheDocument();
+  });
+
+  it('la ligne ouvre la feuille des garants, en lecture pour qui n’a pas `update`', () => {
+    etat.garants = [OUSMANE];
+    etat.lease = bail({ ...RIEN, download_contract: true });
+    monter();
+
+    fireEvent.click(within(dossierDuTelephone()).getByText('Garant (1)'));
+    expect(screen.getByText('feuille des garants : liste, 1')).toBeInTheDocument();
+  });
+
+  it('la feuille sait que le gestionnaire peut ajouter', () => {
+    etat.garants = [OUSMANE];
+    monter();
+
+    fireEvent.click(within(screen.getByTestId('partie-bailleur').parentElement!).getByText('Ousmane Seck'));
+    expect(screen.getByText('feuille des garants : liste, 1, gestion')).toBeInTheDocument();
+  });
+
+  it('sans garant : aucune ligne, et l’ajout offert à qui a `update`, qui ouvre la feuille sur le formulaire', () => {
+    monter();
+
+    expect(screen.queryByText(/^Garant \(/)).toBeNull();
+    // Une ligne dans « Parties » (bureau), une au dossier (téléphone).
+    const dansParties = within(screen.getByTestId('partie-bailleur').parentElement!).getByText(fr.lease.guarantor.add);
+    expect(ligne(dansParties).className).toContain('max-md:hidden');
+    expect(ligne(within(dossierDuTelephone()).getByText(fr.lease.guarantor.add)).className).toContain('md:hidden');
+    fireEvent.click(dansParties);
+    expect(screen.getByText('feuille des garants : ajout, 0, gestion')).toBeInTheDocument();
+  });
+
+  it('sans garant ni `update` : rien du garant', () => {
+    etat.lease = bail({ ...RIEN, download_contract: true });
+    monter();
+
+    expect(screen.queryByText(fr.lease.guarantor.add)).toBeNull();
+    expect(screen.queryByText(/^Garant/)).toBeNull();
+  });
+
+  it('à qui peut le modifier, la ligne dit l’état de la pièce (« renseignée », jamais « reçue »)', () => {
+    etat.garants = [{ ...OUSMANE, can_edit: true, id_on_file: true, leases_count: 1 }];
+    monter();
+
+    const dansParties = within(screen.getByTestId('partie-bailleur').parentElement!).getByText('Ousmane Seck');
+    expect(within(ligne(dansParties)).getByText('Garant · pièce d’identité renseignée')).toBeInTheDocument();
+    const auDossier = ligne(within(dossierDuTelephone()).getByText('Garant (1)'));
+    expect(within(auDossier).getByText('Ousmane Seck · pièce d’identité renseignée')).toBeInTheDocument();
+  });
+
+  it('la carte « Garants » a quitté la fiche', () => {
+    etat.garants = [OUSMANE];
+    monter();
+
+    expect(screen.queryByRole('heading', { name: fr.lease.guarantor.title })).toBeNull();
   });
 });

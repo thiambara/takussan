@@ -45,19 +45,19 @@ vi.mock('@/lib/queries/leases', () => ({
   useDemanderLaSignature: () => ({ mutateAsync: async () => ({ data: {} }) }),
 }));
 
-import { GuarantorSection } from '../GuarantorSection';
+import { FeuilleDesGarants } from '../fiche/FeuilleDesGarants';
 import { CreateLeaseForm } from '../CreateLeaseForm';
 
-describe('GuarantorSection — téléphone du garant (TCK-913)', () => {
+describe('FeuilleDesGarants — téléphone du garant (TCK-913, la carte « Garants » devenue feuille en TCK-2762)', () => {
   it('affiche le téléphone en lien tel:', () => {
-    render(withIntl(<GuarantorSection leaseId={42} canManage />));
+    render(withIntl(<FeuilleDesGarants leaseId={42} garants={GARANTS.data.data} peutGerer ouverte onFermer={() => {}} />));
     const lien = screen.getByRole('link', { name: '+221770000001' });
     expect(lien).toHaveAttribute('href', 'tel:+221770000001');
   });
 
   it('saisit le téléphone dans un champ tel, indicatif en préfixe', async () => {
     const user = userEvent.setup();
-    render(withIntl(<GuarantorSection leaseId={42} canManage />));
+    render(withIntl(<FeuilleDesGarants leaseId={42} garants={GARANTS.data.data} peutGerer ouverte onFermer={() => {}} />));
     await user.click(screen.getByRole('button', { name: 'Ajouter un garant' }));
 
     const champ = await screen.findByLabelText(/Téléphone/);

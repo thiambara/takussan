@@ -19,6 +19,7 @@ import {
   RefreshCw,
   ScrollText,
   Send,
+  ShieldCheck,
   Trash2,
   TrendingUp,
   Wallet,
@@ -49,14 +50,13 @@ import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { initialesDe, nomCompletDe } from '@/lib/identite';
 import { useDocumentsGeneres } from '@/lib/queries/documents';
-import { useGenerateSchedule, useLease, useLeasePayments, type LeaseWithRelations } from '@/lib/queries/leases';
+import { useGenerateSchedule, useLease, useLeaseGuarantors, useLeasePayments, type LeaseGuarantor, type LeaseWithRelations } from '@/lib/queries/leases';
 import { cn } from '@/lib/utils';
 import type { LeasePayment, LeaseStatus } from '@/types/lease';
 
 import { DepositRefundBanner } from './DepositRefundBanner';
 import { EarlyTerminationBanner } from './EarlyTerminationBanner';
 import { EarlyTerminationDialog } from './EarlyTerminationDialog';
-import { GuarantorSection } from './GuarantorSection';
 import { LeaseChainTimeline } from './LeaseChainTimeline';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { LeaseRenewalDialog } from './LeaseRenewalDialog';
@@ -65,6 +65,7 @@ import { LeaseSignaturePanel } from './LeaseSignaturePanel';
 import { AbandonnerLeBrouillon } from './fiche/AbandonnerLeBrouillon';
 import { CarteCaution, CarteDuree, CarteLoyer } from './fiche/CartesDuBail';
 import { FeuilleDeRevision } from './fiche/FeuilleDeRevision';
+import { FeuilleDesGarants, nomDuGarant, useEtatDeLaPiece } from './fiche/FeuilleDesGarants';
 import { OngletDocumentsDuBail, OngletHistoriqueDuBail } from './fiche/OngletsDuBail';
 import { Carte, Partie, TitreBloc, type PartieDuBail } from './fiche/PiecesDuBail';
 import {
@@ -209,6 +210,11 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const [erreurEcheancier, setErreurEcheancier] = useState<string | null>(null);
   // TCK-2645 (lot 3) — « Les n échéances » est l'action de la carte (maquette a-1) : la fiche tient l'état.
   const [toutesLesEcheances, setToutesLesEcheances] = useState(false);
+  // TCK-2762 — les garants se lisent une fois, pour « Parties » (bureau), le dossier (téléphone) et leur
+  // feuille : le dossier est rendu deux fois (`xl:hidden`, `max-xl:hidden`), l'état n'y vit donc pas.
+  const garants = useLeaseGuarantors(lease.id).data?.data ?? [];
+  const [feuilleGarants, setFeuilleGarants] = useState<'liste' | 'ajout' | null>(null);
+  const etatDeLaPiece = useEtatDeLaPiece();
   const ouvert = gesteOuvert ?? gesteDeLUrl;
 
   const reference = lease.reference_number || tLease('fallbackReference', { id: String(lease.id) });
@@ -219,6 +225,7 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const empeche = raisonDAbandonEmpeche(lease, paiements);
   const peutTelechargerLeContrat = a?.download_contract === true;
   const peutDeposer = a?.add_document === true;
+  const peutGererLesGarants = a?.update === true;
   const lignes = paiements ? ordreDeLEcheancier(paiements) : [];
   const type = lease.type ? (KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type) : null;
 
@@ -327,6 +334,9 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
       lignes={lignes}
       peutTelechargerLeContrat={peutTelechargerLeContrat}
       onDocuments={() => choisirOnglet('documents')}
+      garants={garants}
+      peutGererLesGarants={peutGererLesGarants}
+      onGarants={setFeuilleGarants}
     />
   );
 
@@ -449,9 +459,6 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
             </div>
             <div className="order-6">{echeancier}</div>
             <div className="max-xl:hidden">{dossier}</div>
-            <div className="order-7">
-              <GuarantorSection leaseId={lease.id} canManage={a?.update === true} />
-            </div>
             {/* P201.02 (TCK-2035) — l'avis n'est offert qu'au locataire du bail (`abilities.leave_review`). */}
             {a?.leave_review === true && canLeaseLeaveReview(lease) && lease.property?.slug ? (
               <div className="order-8">
@@ -465,12 +472,47 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
           </div>
 
           <aside className="contents xl:sticky xl:top-6 xl:block xl:space-y-4">
-            {parties.length > 0 ? (
-              <Carte titre={t('parties.titre')} enteteClassName="max-md:hidden" className="order-2 divide-y divide-border">
+            {parties.length > 0 || garants.length > 0 || peutGererLesGarants ? (
+              <Carte
+                titre={t('parties.titre')}
+                enteteClassName="max-md:hidden"
+                // Sans locataire ni bailleur, il ne reste que les lignes du bureau : la carte n'a rien à dire au téléphone.
+                className={cn('order-2 divide-y divide-border', parties.length === 0 && 'max-md:hidden')}
+              >
                 {parties.map((p) => (
                   // Maquette a-1 : au téléphone, la carte nomme le locataire et le bailleur ; l'agent, au bureau.
                   <Partie key={p.qualite} partie={p} className={p.qualite === 'agent' ? 'max-md:hidden' : undefined} />
                 ))}
+                {/* TCK-2762 — au bureau, chaque garant est une partie (maquette a-1) ; au téléphone, il est la
+                    ligne « Garant (n) » du dossier. Sans garant, l'ajout reste offert à qui gère le bail. */}
+                {garants.map((g) => (
+                  <LigneDeListe
+                    key={`garant-${g.id}`}
+                    className="max-md:hidden"
+                    debut={
+                      <IconeDeLigne>
+                        <ShieldCheck strokeWidth={1.75} />
+                      </IconeDeLigne>
+                    }
+                    titre={nomDuGarant(g)}
+                    detail={[t('parties.garant'), etatDeLaPiece(g)].filter(Boolean).join(' · ')}
+                    chevron
+                    onClick={() => setFeuilleGarants('liste')}
+                  />
+                ))}
+                {garants.length === 0 && peutGererLesGarants ? (
+                  <LigneDeListe
+                    className="max-md:hidden"
+                    debut={
+                      <IconeDeLigne>
+                        <ShieldCheck strokeWidth={1.75} />
+                      </IconeDeLigne>
+                    }
+                    titre={tLease('guarantor.add')}
+                    chevron
+                    onClick={() => setFeuilleGarants('ajout')}
+                  />
+                ) : null}
               </Carte>
             ) : null}
             {principal || secondaires.length > 0 || empeche ? (
@@ -505,6 +547,17 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
         </FeuilleDuBas>
       ) : null}
 
+      {feuilleGarants ? (
+        <FeuilleDesGarants
+          key={feuilleGarants}
+          leaseId={lease.id}
+          garants={garants}
+          peutGerer={peutGererLesGarants}
+          ouverte
+          surLAjout={feuilleGarants === 'ajout'}
+          onFermer={() => setFeuilleGarants(null)}
+        />
+      ) : null}
       {ouvert === 'reviser' ? (
         <FeuilleDeRevision
           lease={lease}
@@ -749,11 +802,17 @@ function DossierDuBail({
   lignes,
   peutTelechargerLeContrat,
   onDocuments,
+  garants,
+  peutGererLesGarants,
+  onGarants,
 }: {
   readonly lease: LeaseWithRelations;
   readonly lignes: readonly LeasePayment[];
   readonly peutTelechargerLeContrat: boolean;
   readonly onDocuments: () => void;
+  readonly garants: readonly LeaseGuarantor[];
+  readonly peutGererLesGarants: boolean;
+  readonly onGarants: (vue: 'liste' | 'ajout') => void;
 }) {
   const t = useTranslations('lease.fiche.dossier');
   const tLease = useTranslations('lease');
@@ -771,6 +830,7 @@ function DossierDuBail({
     </IconeDeLigne>
   );
   const clauses = [lease.terms ? tLease('terms') : null, lease.special_conditions ? tLease('specialConditions') : null].filter(Boolean);
+  const etatDeLaPiece = useEtatDeLaPiece();
 
   return (
     <Carte className="overflow-hidden [&>[data-slot=ligne-de-liste]:last-child]:border-b-0" data-testid="dossier-du-bail">
@@ -835,6 +895,20 @@ function DossierDuBail({
             </div>
           ) : null}
         </>
+      ) : null}
+      {/* TCK-2762 — maquette a-1, téléphone : « Garant (1) · Ousmane Seck » ; au bureau, les garants sont
+          dans « Parties ». Sans garant, la ligne n'existe que pour qui peut en ajouter un. */}
+      {garants.length > 0 ? (
+        <LigneDeListe
+          className="md:hidden"
+          debut={icone(ShieldCheck)}
+          titre={t('garants', { n: garants.length })}
+          detail={[nomDuGarant(garants[0]!), etatDeLaPiece(garants[0]!)].filter(Boolean).join(' · ')}
+          chevron
+          onClick={() => onGarants('liste')}
+        />
+      ) : peutGererLesGarants ? (
+        <LigneDeListe className="md:hidden" debut={icone(ShieldCheck)} titre={tLease('guarantor.add')} chevron onClick={() => onGarants('ajout')} />
       ) : null}
       <LigneDeListe className="md:hidden" debut={icone(FolderOpen)} titre={t('documents')} detail={t('documentsDetail')} chevron onClick={onDocuments} />
     </Carte>

@@ -5481,7 +5481,19 @@
         "id_card": "ID card",
         "passport": "Passport",
         "driving_license": "Driving licence"
-      }
+      },
+      "modifier": "Edit",
+      "modifierNomme": "Edit {nom}",
+      "modifierLeGarant": "Edit guarantor",
+      "enregistrer": "Save",
+      "enregistrement": "Saving…",
+      "pieceRenseignee": "ID document on file",
+      "pieceManquante": "ID document missing",
+      "partage": "{n, plural, one {This guarantor also backs another lease: the change applies to it too.} other {This guarantor also backs # other leases: the change applies to all of them.}}",
+      "pieceGardee": "On file: {masque}. Leave empty to keep it.",
+      "revenuGarde": "An income is on file. Leave empty to keep it.",
+      "lecture": "Loading guarantor…",
+      "lectureEchouee": "The guarantor could not be loaded."
     },
     "signature": {
       "title": "Lease signature",
@@ -5522,7 +5534,8 @@
         "whatsapp": "Message {nom} on WhatsApp",
         "locataire": "Tenant",
         "bailleur": "Landlord",
-        "agentResponsable": "Agent in charge"
+        "agentResponsable": "Agent in charge",
+        "garant": "Guarantor"
       },
       "loyer": {
         "titre": "Rent",
@@ -5627,7 +5640,8 @@
         "contratNonSigne": "Not signed yet",
         "conditions": "Terms and clauses",
         "documents": "Documents",
-        "documentsDetail": "Contract, inspections, uploaded files"
+        "documentsDetail": "Contract, inspections, uploaded files",
+        "garants": "Guarantor ({n})"
       },
       "onglets": {
         "libelle": "Lease views",

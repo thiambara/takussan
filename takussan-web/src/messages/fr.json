@@ -5438,7 +5438,19 @@
         "id_card": "CNI",
         "passport": "Passeport",
         "driving_license": "Permis de conduire"
-      }
+      },
+      "modifier": "Modifier",
+      "modifierNomme": "Modifier {nom}",
+      "modifierLeGarant": "Modifier le garant",
+      "enregistrer": "Enregistrer",
+      "enregistrement": "Enregistrement…",
+      "pieceRenseignee": "pièce d’identité renseignée",
+      "pieceManquante": "pièce d’identité manquante",
+      "partage": "{n, plural, one {Ce garant est aussi celui d’un autre bail : la modification vaut pour lui aussi.} other {Ce garant est aussi celui de # autres baux : la modification vaut pour tous.}}",
+      "pieceGardee": "Enregistré : {masque}. Laissez vide pour le garder.",
+      "revenuGarde": "Un revenu est enregistré. Laissez vide pour le garder.",
+      "lecture": "Lecture du garant…",
+      "lectureEchouee": "Le garant n’a pas pu être lu."
     },
     "signature": {
       "title": "Signature du bail",
@@ -5479,7 +5491,8 @@
         "whatsapp": "Écrire à {nom} sur WhatsApp",
         "locataire": "Locataire",
         "bailleur": "Bailleur",
-        "agentResponsable": "Agent responsable"
+        "agentResponsable": "Agent responsable",
+        "garant": "Garant"
       },
       "loyer": {
         "titre": "Loyer",
@@ -5584,7 +5597,8 @@
         "contratNonSigne": "Pas encore signé",
         "conditions": "Conditions et clauses",
         "documents": "Documents",
-        "documentsDetail": "Contrat, états des lieux, pièces déposées"
+        "documentsDetail": "Contrat, états des lieux, pièces déposées",
+        "garants": "Garant ({n})"
       },
       "onglets": {
         "libelle": "Vues du bail",

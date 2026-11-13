@@ -103,9 +103,9 @@
     {
       "ecran": "app-baux a-1-bureau-*",
       "element": "garant dans la carte « Parties » (bureau) et ligne « Garant (1) » du dossier (téléphone)",
-      "propriete": "absents ; carte « Garants » (`GuarantorSection`, « Ajouter un garant », « Aucun garant attaché à ce bail. ») absente de la maquette",
-      "exception": "donnée + écart ouvert",
-      "motif": "le bail 4 n'a aucun garant (GET /api/leases/4/guarantors : 0). La gestion des garants reste `GuarantorSection` (ajout, pièces) : la ramener dans « Parties » est une question posée à team-lead (a/b)"
+      "propriete": "écart levé (TCK-2762) ; reste le texte de la pièce : « pièce d’identité manquante » sur la démo, et « renseignée » (pas « reçue ») quand elle l'est",
+      "exception": "donnée",
+      "motif": "la carte « Garants » (`GuarantorSection`) est retirée : le garant est une ligne de « Parties » au bureau, « Garant (n) » au dossier sur téléphone, et la gestion (ajout, modification, pièce) passe par `FeuilleDesGarants`. Relevé a-1 en lecture seule (garde.js : 2 écritures refusées, 0 erreur) le 2026-11-13 sur les baux 1, 3 et 5 de la démo, qui portent chacun un garant (le bail 4 n'en a aucun). Au bureau, la ligne coïncide avec la maquette : x 1129,8 (1440) et 969,8 (1280), largeur 240,8, hauteur 17,9, DM Sans 13 px, graisse 400, couleur rgb(110,101,90), 20,6 px entre le nom et le détail dans les deux. Le décalage vertical de +13,8 px vient des lignes au-dessus (agent +10, bailleur +6), pas de la ligne du garant. Le comparateur apparie pourtant la ligne de la maquette (« reçue ») à un autre nœud, d'où les quatre écarts « texte 91 / 84 » du rapport : le texte diffère parce qu'aucun garant de la démo n'a de pièce au dossier, et la lecture seule interdit d'en ajouter une. Le libellé « renseignée » (`lease.guarantor.pieceRenseignee`) dit que le numéro est saisi, pas qu'une pièce a été reçue : on garde ce mot, puisque l'API ne sert qu'`id_on_file` (type et numéro présents). Sur téléphone, la ligne « Garant (1) » du dossier est sous les 844 px du relevé, comme dans la maquette. Relevés : scratchpad du lot 2, b3fid/prod{1,3,5} et cmp{1,3,5}"
     },
     {
       "ecran": "app-baux a-1-*",
