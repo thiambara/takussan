@@ -64,7 +64,7 @@ cette action ».
 - [x] AC3 — un 403 ne propose pas « Réessayer ».
   _Preuve_ : `QueryBoundary` (le bloc d'erreur des 17 vues qui l'emploient, dont la fiche d'intervention) ne rend plus la
   reprise sur un `ApiError` 403 ; `QueryBoundary.tck-2751.test.tsx` (ablation → rouge) ; 500 et erreur réseau la gardent.
-  _Limite_ : les vues de détail qui ont leur propre bloc d'erreur (bail, bien, demande) n'ont pas été relues ; la
+  _Limite_ : la fiche du bail (`LeaseDetail.tsx`), qui a son propre bloc d'erreur, proposait encore « Réessayer » sur un 403 — fermé par TCK-2814 (`natureDeLErreur`, relu le 2026-11-14) ; la page du bien juge le 403 côté serveur, la vue de la demande n'a pas de reprise ; la
   réservation et la visite traitaient déjà le 403 à part (« relève d'une autre agence »).
 
 ## Notes d'implémentation
@@ -113,7 +113,7 @@ Raisons :
 
 **Reste hors périmètre, relevé** (tickets à part, écrits par la session) : deux émetteurs de `payments` adressés au
 personnel ne posent pas `forAgency` (`SendLeasePaymentReminders` digest des retards, `PaymentGatewayService` doublon sans
-bail) ; les vues de détail qui ont leur propre bloc d'erreur sur un 403 (bail, bien, demande).
+bail). La reprise de la fiche du bail sur un 403 est fermée par TCK-2814.
 
 **Cas vérifié** : un prestataire assigné qui est aussi propriétaire dans l'agence reçoit la clé, la cloche le bascule sur
 son profil de propriétaire, et l'intervention s'y ouvre (son accès de prestataire ne dépend pas du profil actif).
