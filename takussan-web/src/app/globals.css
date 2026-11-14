@@ -349,6 +349,17 @@
   }
 }
 
+/* TCK-2825 (ADR-0091 § 4) — la pastille du comparateur, sous `/app` (la page des favoris), se pose
+   au-dessus de la barre d'onglets de la coque par la règle du dessus. Là où une page de la coque
+   retire la barre (conversation ouverte, formulaire : `data-barre-onglets` absent), une autre couche
+   tient le bas : la pastille s'efface avec la barre, comme sur le site public. Le plein écran est
+   jugé par le chemin (`CompareFloatingBar`). */
+@media (width < 48rem) {
+  [data-portee-app]:not([data-barre-onglets]) [data-pastille-comparateur] {
+    display: none;
+  }
+}
+
 /* TCK-2617 (décision 5 (a) du porteur) — UN SEUL H1 EXPOSÉ, à toute largeur. Sous `md`, l'en-tête
    d'une page RACINE porte le titre en `<h1>` (`EnTeteMobile`, `md:hidden` : il n'existe pas au-delà) ;
    celui du contenu y est masqué — dès `md`, c'est lui qui reste. Un détail, l'accueil et un formulaire

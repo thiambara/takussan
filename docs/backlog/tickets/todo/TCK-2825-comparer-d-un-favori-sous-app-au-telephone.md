@@ -17,7 +17,7 @@ spec_refs:
     - "docs/adr/0091-la-navigation-mobile-du-site-public-suit-le-profil.md"
   tickets:
     - docs/backlog/tickets/done/TCK-2618-menus-et-onglets-par-persona.md
-    - docs/backlog/tickets/todo/TCK-2738-listes-de-favoris-orphelines-et-outil-de-fidelite.md
+    - docs/backlog/tickets/done/TCK-2738-listes-de-favoris-orphelines-et-outil-de-fidelite.md
 tags: [front, defaut, comparateur, favoris, app, mobile, suivi-lot-2]
 ---
 
@@ -69,19 +69,26 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Selon la décision : la règle d'effacement de `CompareFloatingBar` connaît la coque de `/app` (a), ou
+- [x] Selon la décision : la règle d'effacement de `CompareFloatingBar` connaît la coque de `/app` (a), ou
       `CarteDeSuivi` ne rend pas « Comparer » sous `lg` dans `/app` (b).
-- [ ] Un test sur la page de route `/app/favorites` (montée comme dans `favoris-dans-la-coque.tck-2618.test.tsx`),
+- [x] Un test sur la page de route `/app/favorites` (montée comme dans `favoris-dans-la-coque.tck-2618.test.tsx`),
       sous `lg` : après « Comparer », la pastille est rendue et mène au comparatif (a), ou le bouton n'est pas rendu (b).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 390, sous `/app/favorites`, toucher « Comparer » sur un favori disponible rend un retour visible :
+- [x] AC1 — À 390, sous `/app/favorites`, toucher « Comparer » sur un favori disponible rend un retour visible :
       la pastille, au-dessus de la barre d'onglets, qui mène à `/compare` (a). Avec b, le bouton est absent.
-- [ ] AC2 — La pastille ne recouvre pas la barre d'onglets : son bas est au-dessus du haut de la barre (relevé à 390).
-- [ ] AC3 — Le site public est inchangé : `/fr/favorites` à 390 rend la pastille comme avant, et ses tests sont
+      *Preuve : `comparer-au-telephone.tck-2825.test.tsx` (layout + page de la route) ; CDP 390, persona agent,
+      geste réel : pastille « Comparer les biens sélectionnés (1) » → `/fr/compare` (aucune avant).*
+- [x] AC2 — La pastille ne recouvre pas la barre d'onglets : son bas est au-dessus du haut de la barre (relevé à 390).
+      *Preuve : CDP 390, bas de la pastille 764 px, haut de `[data-slot="barre-onglets"]` 780 px (16 px d'écart),
+      identique après défilement, `elementFromPoint` au centre = la pastille.*
+- [x] AC3 — Le site public est inchangé : `/fr/favorites` à 390 rend la pastille comme avant, et ses tests sont
       verts sans retouche.
-- [ ] AC4 — En bureau (1280), le dock de `/app/favorites` est inchangé.
+      *Preuve : relevé avant/après identique (`/fr/favorites` et `/fr/properties` à 390 : même boîte, même `bottom`) ;
+      `CompareFloatingBar.test.tsx` vert, md5 inchangé.*
+- [x] AC4 — En bureau (1280), le dock de `/app/favorites` est inchangé.
+      *Preuve : relevé avant/après identique à 1280 (`/app/favorites` et `/fr/properties`) ; test AC4 de la route.*
 
 ## Hors périmètre
 

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { fusionnerRestauration } from '@/components/compare/restauration';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { estPageDeLien, porteLaBarrePublique, REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
+import { porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
 
 /**
  * Logical height of the pill (px). Used by the FloatingDock to compute the
@@ -128,8 +129,12 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   // plus un dock de 170 px mais une PASTILLE repliée au-dessus de la barre d'onglets, qui mène au
   // comparatif. Là où la barre cède la place à une autre couche (fiche, tunnels, pages par lien),
   // la pastille s'efface avec elle. En bureau, le dock est inchangé.
+  // TCK-2825 — sous `/app` (la page des favoris, TCK-2618), la pastille se pose au-dessus de la barre
+  // d'onglets de la COQUE (`[data-barre-onglets]` relève `--floating-dock-base`, `globals.css`), et
+  // s'efface là où la coque n'en a pas : en plein écran (le chemin le dit), en conversation ou en
+  // formulaire (la page le déclare : `globals.css` la masque alors).
   const sousLg = useMatchesMedia(REQUETE_BARRE_PUBLIQUE);
-  const effaceeParUneAutreCouche = sousLg && !porteLaBarrePublique(chemin);
+  const effaceeParUneAutreCouche = sousLg && !porteLaBarrePublique(chemin) && !porteLaBarreDOnglets(chemin);
 
   const [reduite, setReduite] = useState(lireReduite);
   const idCorps = useId();
