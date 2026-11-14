@@ -103,7 +103,8 @@ class ServiceProviderProfile extends AbstractModel
      * `collaboration_status` est déclaré ici pour que spatie l'accepte, mais il n'agit PAS ici : un
      * profil collabore avec N agences, et le statut qui compte est celui du couple (profil, agence de
      * l'écran). C'est `ServiceProviderProfileController::scopeForAgency()` qui l'applique, défaut
-     * `active` compris — un filtre `whereHas` posé ici retiendrait une collaboration ACTIVE AILLEURS.
+     * compris (`active` + invitations en attente de l'agence, TCK-2829) — un filtre `whereHas` posé
+     * ici retiendrait une collaboration ACTIVE AILLEURS.
      *
      * @return array<int, AllowedFilter>
      */

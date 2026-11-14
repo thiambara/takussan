@@ -7,6 +7,7 @@ use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
 use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
@@ -81,27 +82,53 @@ class ServiceProviderProfileController extends Controller
      * `whereHas` plutôt qu'une jointure pour rester compatible avec
      * spatie/laravel-query-builder (les sparse fieldsets sont plus
      * propres sans aliasing manuel).
+     *
+     * TCK-592 — le statut DU COUPLE (profil, cette agence) : un prestataire dont la collaboration a
+     * pris fin ne figure plus dans le carnet, sauf à le demander.
+     *
+     * TCK-2829 — `$statuses === null` est le carnet PAR DÉFAUT : les collaborations `active` ET les
+     * invitations en attente de cette agence — un profil `draft` (pas encore accepté), sa
+     * collaboration `paused` avec elle, et une invitation `sent` de CETTE agence (celle que rend
+     * `pending_invitation_id`). Une collaboration `paused` d'un profil non `draft` est une
+     * suspension : hors du défaut. Le OU vit dans UN `where` groupé, pour que les filtres de spatie
+     * posés ensuite (recherche, zone, statut) s'appliquent aussi aux invitations.
+     *
+     * @param  list<string>|null  $statuses
      */
-    /**
-     * @param  list<string>  $statuses
-     */
-    protected function scopeForAgency(Agency $agency, array $statuses): Builder
+    protected function scopeForAgency(Agency $agency, ?array $statuses): Builder
     {
-        // TCK-592 — le statut DU COUPLE (profil, cette agence), défaut `active` : un prestataire dont
-        // la collaboration a pris fin ne figure plus dans le carnet, sauf à le demander.
-        return ServiceProviderProfile::query()
-            ->whereHas('agencyCollaborations', function (Builder $query) use ($agency, $statuses): void {
-                $query->where('agency_id', $agency->id)->whereIn('status', $statuses);
-            });
+        if ($statuses !== null) {
+            return ServiceProviderProfile::query()
+                ->whereHas('agencyCollaborations', function (Builder $query) use ($agency, $statuses): void {
+                    $query->where('agency_id', $agency->id)->whereIn('status', $statuses);
+                });
+        }
+
+        return ServiceProviderProfile::query()->where(function (Builder $carnet) use ($agency): void {
+            $carnet
+                ->whereHas('agencyCollaborations', function (Builder $query) use ($agency): void {
+                    $query->where('agency_id', $agency->id)->where('status', CollaborationStatus::Active->value);
+                })
+                ->orWhere(function (Builder $invitation) use ($agency): void {
+                    $invitation
+                        ->where('service_provider_profiles.status', ServiceProviderProfileStatus::Draft->value)
+                        ->whereHas('agencyCollaborations', function (Builder $query) use ($agency): void {
+                            $query->where('agency_id', $agency->id)->where('status', CollaborationStatus::Paused->value);
+                        })
+                        ->whereExists(Invitation::idEnvoyeePour(new ServiceProviderProfile)
+                            ->where('invitations.agency_id', $agency->id));
+                });
+        });
     }
 
     /**
      * `filter[collaboration_status]=active,paused` — liste à virgules, comme les autres filtres spatie.
-     * Une valeur inconnue est ignorée ; aucune valeur connue → `active`.
+     * Une valeur inconnue est ignorée ; aucune valeur connue → `null`, le carnet par défaut
+     * (`active` + invitations en attente, TCK-2829).
      *
-     * @return list<string>
+     * @return list<string>|null
      */
-    private function collaborationStatuses(Request $request): array
+    private function collaborationStatuses(Request $request): ?array
     {
         $raw = $request->input('filter.collaboration_status');
         $values = is_array($raw) ? $raw : explode(',', (string) $raw);
@@ -113,6 +140,6 @@ class ServiceProviderProfileController extends Controller
             ->values()
             ->all();
 
-        return $statuses === [] ? [CollaborationStatus::Active->value] : $statuses;
+        return $statuses === [] ? null : $statuses;
     }
 }
