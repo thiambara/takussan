@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { comparerReleves, egalCouleur, ecartsDe, extraireLibelles, motifsDeDisposition, motifsDeRejet, rapportMarkdown, TOLERANCES } from '../../scripts/fidelite/comparer.mjs';
+import { choisir, comparerReleves, egalCouleur, ecartsDe, extraireLibelles, motifsDeDisposition, motifsDeRejet, rapportMarkdown, TOLERANCES } from '../../scripts/fidelite/comparer.mjs';
 
 const ICI = join(__dirname, '../../scripts/fidelite');
 const lire = (f: string) => JSON.parse(readFileSync(join(ICI, f), 'utf8'));
@@ -19,7 +19,17 @@ const perturbe = lire('fixtures/notifications-a-1-telephone-perturbe.json');
 const fiche = lire('fixtures/roles-sensibilite.json');
 const coque = lire('roles-coque.json');
 const libelles = extraireLibelles(JSON.parse(readFileSync(join(__dirname, '../messages/fr.json'), 'utf8')));
-const roles = { ...fiche, roles: [...coque.roles, ...fiche.roles], zones: coque.zones };
+/**
+ * TCK-2738 — les deux fixtures sont des relevés de MAQUETTE, l'un tenant lieu de produit : leur barre
+ * d'onglets ne porte pas `data-slot="barre-onglets"`, que le rôle commun vise côté produit. Le côté
+ * produit de ce rôle reprend donc ici le sélecteur de la maquette ; le sélecteur réel est éprouvé
+ * plus bas (« le rôle commun vise la barre d'onglets par son slot »).
+ */
+type Role = { nom: string; maquette: unknown; produit: unknown };
+const rolesDeCoqueDesFixtures = (coque.roles as Role[]).map((r) =>
+  r.nom === "coque · barre d'onglets" ? { ...r, produit: r.maquette } : r,
+);
+const roles = { ...fiche, roles: [...rolesDeCoqueDesFixtures, ...fiche.roles], zones: coque.zones };
 
 type Ligne = { origine: string; nom: string; statut: string; ecarts: { propriete: string }[] };
 const ecartsDuRapport = (lignes: Ligne[]) => lignes.filter((l) => l.statut === 'écart').flatMap((l) => l.ecarts.map((e) => `${l.nom} :: ${e.propriete}`));
@@ -179,5 +189,33 @@ describe('fidélité — échec bruyant', () => {
     expect(motifsDeDisposition(['/app', '/app/favorites', '/app/visits', '/app/messages'], locataire, 'locataire').length).toBeGreaterThan(0);
     expect(motifsDeDisposition(['/app', '/app/favorites', '/app/visits', '/app/messages'], client, 'client')).toEqual([]);
     expect(motifsDeDisposition(['/app', '/app/payments', '/app/maintenance', '/app/messages'], client, 'client').length).toBeGreaterThan(0);
+  });
+});
+
+describe('fidélité — le rôle commun vise la barre d’onglets par son slot (TCK-2738)', () => {
+  /**
+   * L'accueil admin au téléphone, réduit à ce qui comptait : la carte « Impayés » (171×128), qui
+   * défile SOUS la barre fixe, contient elle aussi « Menu » dans sa clé de texte — et c'est la plus
+   * petite boîte d'au moins 56 px qui le contient. `boiteDe: "Menu"` la retenait, pas la barre.
+   */
+  const texte = (id: number, cle: string, r: { x: number; y: number; w: number; h: number }) => ({ id, type: 'texte', cle, r });
+  const boite = (id: number, cle: string, r: { x: number; y: number; w: number; h: number }, slot: string | null = null) => ({ id, type: 'boite', cle, r, slot, fid: null, tag: 'div' });
+  const noeuds = [
+    boite(0, 'page', { x: 0, y: 0, w: 390, h: 844 }),
+    boite(1, 'Impayés Menu', { x: 16, y: 700, w: 171, h: 128 }),
+    texte(2, 'Menu', { x: 40, y: 760, w: 40, h: 20 }),
+    boite(3, 'Accueil Argent Biens Messages Menu', { x: 0, y: 780, w: 390, h: 64 }, 'barre-onglets'),
+    texte(4, 'Menu', { x: 330, y: 800, w: 40, h: 20 }),
+  ];
+  const role = (coque.roles as Role[]).find((r) => r.nom === "coque · barre d'onglets")!;
+
+  it('côté produit, la barre (`data-slot="barre-onglets"`, 64 px en bas du viewport), pas la carte « Impayés »', () => {
+    const n = choisir(noeuds, role.produit) as { id: number; r: { y: number; h: number } } | null;
+    expect(n?.id).toBe(3);
+    expect(n!.r.y + n!.r.h).toBe(844);
+  });
+
+  it('témoin : l’ancien sélecteur `boiteDe: "Menu"` retient bien la carte', () => {
+    expect((choisir(noeuds, { boiteDe: 'Menu', min: 56 }) as { id: number }).id).toBe(1);
   });
 });

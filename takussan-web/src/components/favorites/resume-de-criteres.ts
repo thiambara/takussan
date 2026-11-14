@@ -11,8 +11,9 @@ import { requeteDesCriteres as criteriaToQueryString } from '@/lib/favoris-suivi
 
 /*
  * TCK-2508 — module à part, et non export de `SavedSearchesList` : l'onglet « Recherches » de la
- * page publique Favoris importe ce résumé, et importer la liste de la console ferait entrer ses
- * couleurs dans le périmètre de contraste de la surface publique (`surface-publique.contraste`).
+ * page publique Favoris importe ce résumé, et importer la liste de la console aurait fait entrer
+ * ses couleurs dans le périmètre de contraste de la surface publique (`surface-publique.contraste`).
+ * Cette liste n'était plus rendue par aucune page : retirée par TCK-2738.
  */
 
 /**
@@ -46,8 +47,8 @@ function humaniseCriteria(
 }
 
 /**
- * TCK-2508 — le résumé d'une recherche sauvegardée, tel que cette liste l'écrit : l'onglet
- * « Recherches » de la page Favoris le reprend au lieu d'en tenir une seconde version.
+ * TCK-2508 — le résumé d'une recherche sauvegardée, écrit une seule fois : l'onglet « Recherches »
+ * de la page Favoris et l'accueil du client le lisent au lieu d'en tenir une seconde version.
  */
 export function useResumeDeCriteres(): (criteria: Record<string, unknown>) => string {
   const t = useTranslations('search.saved');

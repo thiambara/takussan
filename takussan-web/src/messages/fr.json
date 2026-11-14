@@ -5979,7 +5979,6 @@
       "removedTitle": "Annonce retirée",
       "remove": "Retirer",
       "removeError": "Impossible de retirer ce favori. Réessayez.",
-      "similar": "Voir des biens similaires",
       "note": {
         "add": "Ajouter une note",
         "edit": "Modifier",
@@ -6124,12 +6123,7 @@
       "relaxationText": "Sans « {text} »"
     },
     "saved": {
-      "empty_title": "Aucune recherche sauvegardée",
-      "empty_description": "Depuis la page de résultats, cliquez sur « Sauvegarder la recherche » pour la retrouver ici.",
-      "empty_cta": "Lancer une recherche",
-      "error": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez.",
       "noCriteria": "Aucun critère",
-      "relaunch": "Relancer",
       "deleteAria": "Supprimer {name}",
       "frequency": {
         "off": "Coupée",

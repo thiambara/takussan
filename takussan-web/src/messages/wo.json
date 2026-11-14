@@ -4800,7 +4800,6 @@
       "removedTitle": "Yéenekaay bi dindi nañu ko",
       "remove": "Dindi",
       "removeError": "Mënuñu dindi bëgg-bëgg bii. Jéemaatal.",
-      "similar": "Xool kër yu ko niru",
       "note": {
         "add": "Yokk ab bind",
         "edit": "Soppi",
@@ -4945,12 +4944,7 @@
       "relaxationText": "Sans « {text} »"
     },
     "saved": {
-      "empty_title": "Amul seet bu ñu denc",
-      "empty_description": "Ci xëtu résultat bi, bësal « Denc seet bi » ngir gis ko fii.",
-      "empty_cta": "Tàmbali benn seet",
-      "error": "Mënunu yebal say seet. Xoolal sa konexion, ba noppi jéemaat.",
       "noCriteria": "Amul tànneef",
-      "relaunch": "Jéemaat",
       "deleteAria": "Far {name}",
       "frequency": {
         "off": "Fay nañu ko",

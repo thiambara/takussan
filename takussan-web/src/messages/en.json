@@ -5979,7 +5979,6 @@
       "removedTitle": "Listing removed",
       "remove": "Remove",
       "removeError": "Could not remove this favorite. Please try again.",
-      "similar": "See similar properties",
       "note": {
         "add": "Add a note",
         "edit": "Edit",
@@ -6124,12 +6123,7 @@
       "relaxationText": "Without “{text}”"
     },
     "saved": {
-      "empty_title": "No saved search",
-      "empty_description": "From the results page, click “Save this search” to find it back here.",
-      "empty_cta": "Start a search",
-      "error": "Could not load your searches. Check your connection, then try again.",
       "noCriteria": "No criteria",
-      "relaunch": "Run again",
       "deleteAria": "Delete {name}",
       "frequency": {
         "off": "Off",

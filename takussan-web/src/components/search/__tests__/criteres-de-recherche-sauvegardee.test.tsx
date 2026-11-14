@@ -37,7 +37,17 @@ vi.mock('@/lib/queries/saved-searches', () => ({
 }));
 
 const { SaveSearchButton } = await import('@/components/favorites/SaveSearchButton');
-const { SavedSearchesList } = await import('@/components/favorites/SavedSearchesList');
+const { useResumeDeCriteres } = await import('@/components/favorites/resume-de-criteres');
+
+/**
+ * TCK-2738 — le résumé s'éprouve sur le module que les écrans vivants lisent (l'onglet « Recherches »
+ * de la page des favoris, l'accueil du client) : `SavedSearchesList`, qui le portait ici, n'était
+ * plus rendu par aucune page et a été retiré.
+ */
+function Resume({ criteria }: { readonly criteria: Record<string, unknown> }) {
+  const resume = useResumeDeCriteres();
+  return <p>{resume(criteria)}</p>;
+}
 
 function wrap(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -81,15 +91,9 @@ describe('<SaveSearchButton> — ce qui entre dans `criteria`', () => {
   });
 });
 
-describe('<SavedSearchesList> — le résumé d’une recherche sauvegardée', () => {
+describe('useResumeDeCriteres — le résumé d’une recherche sauvegardée', () => {
   function monteAvec(criteria: Record<string, unknown>) {
-    useSavedSearchesQuery.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: { data: [{ id: 1, name: 'Ma recherche', criteria, notification_frequency: 'off' }] },
-      refetch: vi.fn(),
-    });
-    render(wrap(<SavedSearchesList />));
+    render(wrap(<Resume criteria={criteria} />));
   }
 
   /**

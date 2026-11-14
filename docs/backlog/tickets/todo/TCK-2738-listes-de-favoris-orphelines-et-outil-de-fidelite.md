@@ -76,23 +76,28 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Retirer `components/favorites/FavoritesList.tsx`, `components/favorites/SavedSearchesList.tsx` et leurs cinq
+- [x] Retirer `components/favorites/FavoritesList.tsx`, `components/favorites/SavedSearchesList.tsx` et leurs cinq
       fichiers de test ; retirer les clés orphelines dans `src/messages/{fr,en,wo}.json` ; régénérer
       `src/i18n/namespaces.json` si un espace de noms disparaît.
-- [ ] `scripts/fidelite/roles-coque.json` : rôle « coque · barre d'onglets », côté produit, sélecteur
+- [x] `scripts/fidelite/roles-coque.json` : rôle « coque · barre d'onglets », côté produit, sélecteur
       `slot: barre-onglets`.
-- [ ] `scripts/fidelite/fidelite.mjs` `cmdBalayer` : locale `fr-FR` (et `NEXT_LOCALE=fr`), comme la capture.
-- [ ] Rejouer la comparaison de coque de l'accueil admin au téléphone. Si un écart de TCK-2617 tenait à l'artefact,
+- [x] `scripts/fidelite/fidelite.mjs` `cmdBalayer` : locale `fr-FR` (et `NEXT_LOCALE=fr`), comme la capture.
+- [x] Rejouer la comparaison de coque de l'accueil admin au téléphone. Si un écart de TCK-2617 tenait à l'artefact,
       le dire dans son rapport, sans rouvrir le ticket.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -rn "FavoritesList\|SavedSearchesList" takussan-web/src` ne rend que des commentaires
+- [x] AC1 — `grep -rn "FavoritesList\|SavedSearchesList" takussan-web/src` ne rend que des commentaires
       historiques. `npx tsc --noEmit`, `npm run lint`, `node scripts/check-i18n.mjs` et la suite front sont verts.
-- [ ] AC2 — Aucune clé retirée n'est lue ailleurs : chaque clé retirée, cherchée dans `src/`, ne rend rien.
-- [ ] AC3 — Sur l'accueil admin au téléphone, le rôle « coque · barre d'onglets » retient côté produit la boîte
+      Preuve (2026-11-14) : le grep ne rend que des commentaires historiques ; `tsc` sans erreur hors
+      `.next/types` périmé ; ESLint vert sur les fichiers touchés ; `check-i18n` : parité verte, 0 écart
+      hors `playground/maquettes` (105 écarts tous sous ces maquettes locales non suivies, comme pour
+      TCK-2821) ; vitest sur 7 cibles, 50 fichiers et 443 tests verts. `npm run lint` entier et la suite
+      front entière : laissés à la CI.
+- [x] AC2 — Aucune clé retirée n'est lue ailleurs : chaque clé retirée, cherchée dans `src/`, ne rend rien.
+- [x] AC3 — Sur l'accueil admin au téléphone, le rôle « coque · barre d'onglets » retient côté produit la boîte
       `data-slot="barre-onglets"` (hauteur de la barre, en bas du viewport), pas la carte « Impayés ».
-- [ ] AC4 — `balayer` sur une page de `/app` relève des libellés français. Par exemple, dans la barre
+- [x] AC4 — `balayer` sur une page de `/app` relève des libellés français. Par exemple, dans la barre
       d'onglets de l'admin, « Accueil » et « Argent », et non « Home » et « Money ».
 
 ## Hors périmètre
@@ -104,10 +109,63 @@ Aucun.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Re-mesure de la prémisse au HEAD (1db3d00ca, 2026-11-14).**
+
+- (1) Tenue, avec un **sixième** importeur que le ticket ne listait pas :
+  `components/search/__tests__/criteres-de-recherche-sauvegardee.test.tsx`, par **import dynamique**
+  (`await import('@/components/favorites/SavedSearchesList')`). Aucun import statique ni dynamique hors
+  des tests ; aucune mention dans `scripts/` sauf un commentaire d'exemples (`check-enum-namespaces.mjs`).
+- (3) À moitié close : `48eae9295` posait déjà `NEXT_LOCALE=fr` dans `cmdBalayer`. Il ne manquait que
+  `Emulation.setLocaleOverride { locale: 'fr-FR' }` (la locale d'`Intl`, celle des formats de date et de
+  nombre).
+
+**Retiré.** `FavoritesList.tsx`, `SavedSearchesList.tsx`, `FavoritesList.test.tsx`,
+`SavedSearchesList.{alerte,equipements,suppression-refusee.p210-03,villes.tck-2061}.test.tsx`, et
+`CARD_SIZES_FAVORITES_DASHBOARD` (`property/card-image-sizes.ts`), que `FavoritesList` était seule à lire.
+Clés (fr, en, wo, retrait ligne à ligne, JSON vérifié égal au reste près) :
+`search.saved.{empty_title,empty_description,empty_cta,error,relaunch}` et `favorites.page.similar`.
+Cherchées par espace de noms (lecteurs de `search.saved` : `resume-de-criteres`, `ReglageDAlerte`,
+`OngletRecherches` ; de `favorites.page` : `SuiviDesFavoris`, `CarteDeSuivi`) : aucune n'est lue.
+Restent lues : `search.saved.{noCriteria,deleteAria,frequency,alertAria,alertOff,alertChannels,alertError}`,
+`favorites.page.{error,empty,emptyHint,discoverCta,availability,removedTitle,remove,removeError,note}`.
+`favorites.page.{title,subtitle,subtitleLoading}` ne sont lues par aucun fichier, mais ne l'étaient pas
+non plus par les deux composants : hors de ce ticket. Aucun espace de noms ne disparaît :
+`check-i18n-namespaces` vert sans `--update`.
+
+**Porté avant le retrait** (rejoué sur les composants vivants) :
+- `app/favorites/__tests__/rien-ne-se-perd.tck-2738.test.tsx`, sur les pages de route : pagination
+  (`page=2` demandé, ablation `onPage(page)` → rouge), note modifiée par `PATCH /api/favorites/10`, favori
+  retiré (`property: null`) et loué à côté d'un disponible, sans prix ni lieu, `DELETE /api/favorites/11`
+  exact, alerte réglée sur « hebdomadaire » (`PATCH` sur la recherche 8), canaux effectifs seuls ;
+- `favorites/__tests__/resume-de-criteres.tck-2738.test.tsx`, sur `useResumeDeCriteres` : équipements en
+  en/wo/fr (TCK-633), villes du profil et les deux tests purs d'aller-retour (P185.02) ;
+- `criteres-de-recherche-sauvegardee.test.tsx` : ses quatre tests de résumé (TCK-340) visent le même module.
+
+**Outil.** `roles-coque.json` : la barre d'onglets côté produit est `{ "slot": "barre-onglets" }`, la
+maquette garde `boiteDe: "Menu"`. `fidelite-comparer.test.ts` : les deux fixtures sont des relevés de
+maquette (sans slot), le côté produit du rôle y reprend le sélecteur de maquette ; un cas synthétique (la
+carte « Impayés » qui contient « Menu » sous la barre) éprouve le sélecteur réel — ablation (retour à
+`boiteDe`) → rouge. `balayer` pose la locale et écrit `langue` sur chaque ligne (`document`, `intl`,
+libellés de la barre d'onglets quand elle est rendue, `null` dès `md`).
+
+**Mesures (390, persona admin, `/app`, 2026-11-14).**
+- AC3 : sur le relevé réel, le rôle retient `slot=barre-onglets`, 390×64 à y=780 (bas à 844). Sur les
+  données du jour, l'ancien sélecteur retenait aussi la barre : l'artefact ne se reproduit plus en
+  direct, le cas synthétique le garde.
+- AC4 : `langue: { document: "fr", intl: "fr-FR", onglets: [Accueil, Argent, Biens, Messages, Menu] }` ;
+  sans la locale, `intl: "en-US"` ; sans locale ni cookie, `document: "en"` et `[Home, Money, Properties, …]`.
+- Comparaison de coque rejouée (`app-coque/a/0` téléphone contre le produit) : la barre d'onglets est
+  conforme, et seule la pastille « 2 » (une donnée) manque. L'artefact ne se reproduit plus sur les
+  données du jour : les écarts passés de TCK-2617 ne peuvent être attribués ni à lui ni à autre chose
+  depuis ce relevé. Le rapport de TCK-2617 n'est pas versionné, il n'a pas été annoté.
+
+**Non traité, signalé** (ajouts de la vérification de TCK-2618, hors du Delta) : la zone « barre
+latérale » à borner à la colonne (outil ; la maquette n'a pas de slot de colonne, il faut donc une
+borne de zone nouvelle dans `choisir` — ticket à part), et « Comparer » sous `lg` dans `/app` (un écran,
+voisin de TCK-2741) : ticket de suite TCK-2825.
 
 ## Ajouts de la vérification de TCK-2618 (2026-11-11)
 
-- [ ] Avant de supprimer `FavoritesList` : porter sur la page vivante (`SuiviDesFavoris`) les tests de la pagination (`page=2`) et de l'édition de la note d'un favori. Aujourd'hui, ces deux comportements ne sont testés que par `FavoritesList.test`.
+- [x] Avant de supprimer `FavoritesList` : porter sur la page vivante (`SuiviDesFavoris`) les tests de la pagination (`page=2`) et de l'édition de la note d'un favori. Aujourd'hui, ces deux comportements ne sont testés que par `FavoritesList.test`.
 - [ ] Outil de fidélité : la zone « barre latérale » couvre tout le cadre 1280×900. Les écarts de bureau ne mesurent donc pas la colonne. Il faut borner la zone à la colonne.
 - [ ] Sous /app au téléphone, « Comparer » sur une carte de favori ne mène nulle part : ni barre, ni toast. Ce défaut existait avant TCK-2618. Il faut soit monter la pastille, soit retirer le bouton sous `lg`, conformément à l'ADR-0091 § 4.
