@@ -37,6 +37,11 @@ class ServiceProviderDirectoryResource extends BaseResource
             $data['completed_interventions_count'] = (int) $data['completed_interventions_count'];
         }
 
+        // TCK-2772 — le délai de réponse médian en minutes, nul sans mesure.
+        if (array_key_exists('response_delay_minutes', $data)) {
+            $data['response_delay_minutes'] = $data['response_delay_minutes'] === null ? null : (int) $data['response_delay_minutes'];
+        }
+
         if (array_key_exists('metadata', $data) && is_array($data['metadata'])) {
             $data['metadata'] = array_intersect_key($data['metadata'], array_flip(self::METADATA_KEYS));
         }

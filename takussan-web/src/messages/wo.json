@@ -6146,7 +6146,8 @@
       "colonnes": {
         "prestataire": "Prestataire",
         "note": "Note",
-        "interventions": "Interventions"
+        "interventions": "Interventions",
+        "delai": "Délai de réponse"
       },
       "pasEncoreNote": "Pas encore noté",
       "interventions": "{count, plural, one {# intervention} other {# interventions}}",
@@ -6162,7 +6163,19 @@
         "statut": "Statut",
         "tous": "Tous",
         "tousLesMetiers": "Tous les métiers",
-        "tousLesStatuts": "Tous les statuts"
+        "tousLesStatuts": "Tous les statuts",
+        "zone": "Zone",
+        "toutesLesZones": "Toutes les zones"
+      },
+      "repondEn": "Répond en {duree}",
+      "duree": {
+        "minutes": "~{n} min",
+        "heures": "~{n} h",
+        "jours": "~{n} j"
+      },
+      "recherche": {
+        "placeholder": "Nom, téléphone, quartier",
+        "label": "Rechercher un prestataire"
       }
     }
   },

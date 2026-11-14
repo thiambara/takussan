@@ -7325,7 +7325,8 @@
       "colonnes": {
         "prestataire": "Provider",
         "note": "Rating",
-        "interventions": "Jobs"
+        "interventions": "Jobs",
+        "delai": "Response time"
       },
       "pasEncoreNote": "Not rated yet",
       "interventions": "{count, plural, one {# job} other {# jobs}}",
@@ -7341,7 +7342,19 @@
         "statut": "Status",
         "tous": "All",
         "tousLesMetiers": "All trades",
-        "tousLesStatuts": "All statuses"
+        "tousLesStatuts": "All statuses",
+        "zone": "Area",
+        "toutesLesZones": "All areas"
+      },
+      "repondEn": "Replies in {duree}",
+      "duree": {
+        "minutes": "~{n} min",
+        "heures": "~{n} h",
+        "jours": "~{n} d"
+      },
+      "recherche": {
+        "placeholder": "Name, phone, area",
+        "label": "Search for a provider"
       }
     }
   },

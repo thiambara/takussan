@@ -89,7 +89,8 @@
     "Choisie": "Choisi",
     "Dire au locataire que vous vous en occupez, sans choisir encore": "Dire au demandeur que vous vous en occupez, sans choisir encore",
     "Le locataire est prévenu, avec votre motif": "La demande est close sans intervention",
-    "Deux plombiers du carnet couvrent Sacré-Cœur.": "Un prestataire du carnet fait ce métier : Plomberie."
+    "Deux plombiers du carnet couvrent Sacré-Cœur.": "Un prestataire du carnet fait ce métier : Plomberie.",
+    "Nom, métier, quartier": "Nom, téléphone, quartier"
   },
   "ancres": [],
   "ignorer": [],
@@ -166,24 +167,31 @@
     },
     {
       "ecran": "a-8 (trois appareils)",
-      "element": "recherche « Nom, métier, quartier »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "`filter[search]` du carnet ne cherche que `insurance_policy_id` (`ServiceProviderProfile::$requestSearchFields`) : une recherche par nom demande l'API, et filtrer la liste reçue est proscrit (sparse fieldsets, filtres serveur). Signalé"
+      "element": "champ « Nom, téléphone, quartier »",
+      "propriete": "présence (texte), position, taille de police",
+      "exception": "primitive",
+      "motif": "TCK-2772 : la consigne est l’attribut `placeholder` du champ de la primitive `DebouncedSearchInput` (non relevé comme texte), au dessin de la primitive (exception c) ; même boîte 358×44 au téléphone, descendue par le sous-titre « 6 actifs » de la tête de page"
     },
     {
       "ecran": "a-8 (bureau)",
       "element": "« Toutes les zones »",
       "propriete": "présence",
       "exception": "donnée",
-      "motif": "`filter[zone]` existe mais aucune liste de zones n'est servie ; les zones sont libres, saisies à l'invitation"
+      "motif": "TCK-2772 : la liste se lit dans `meta.zones` et `filter[zone]` filtre au serveur, mais les prestataires de la démo n’ont aucune zone : le sélecteur ne s’affiche qu’avec au moins une zone"
     },
     {
       "ecran": "a-8 (trois appareils)",
-      "element": "« Délai de réponse », « Répond en … », « 1 créneau dépassé »",
+      "element": "« Délai de réponse », « Répond en … »",
       "propriete": "présence",
       "exception": "donnée",
-      "motif": "non servis par l'API (TCK-2652 ne les calcule pas)"
+      "motif": "TCK-2772 : servi (`response_delay_minutes`, médiane assignation → acceptation lue au journal de l’intervention) et affiché ; la démo n’a aucune acceptation (0 `accepted_at` sur 122 demandes, mesuré le 2026-11-14) ni entrée `status.assigned` : la colonne montre « — » et la carte n’a pas la ligne"
+    },
+    {
+      "ecran": "a-8 (trois appareils)",
+      "element": "« 1 créneau dépassé »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "non servi par prestataire (TCK-2652 ne le calcule pas ; hors de TCK-2772)"
     },
     {
       "ecran": "a-8 (bureau)",

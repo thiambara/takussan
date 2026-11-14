@@ -68,6 +68,20 @@ final class CaseInsensitive
     }
 
     /**
+     * TCK-2772 — la même expression sur une clé texte d'une colonne JSON (`metadata->>'first_name'`).
+     * Même contrôle des identifiants que {@see self::sql()} : la clé part dans du SQL brut.
+     */
+    public static function sqlCleJson(string $colonne, string $cle): string
+    {
+        if (preg_match('/^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$/i', $colonne) !== 1
+            || preg_match('/^[a-z_][a-z0-9_]*$/i', $cle) !== 1) {
+            throw new InvalidArgumentException("Identifiant de colonne ou de clé invalide : {$colonne}->{$cle}");
+        }
+
+        return sprintf('LOWER((%s->>\'%s\') COLLATE "%s")', $colonne, $cle, self::COLLATION);
+    }
+
+    /**
      * Le repli côté PHP — le pendant de {@see self::sql()}.
      *
      * `mb_strtolower`, jamais `strtolower` : le second est ASCII-only et reproduirait,

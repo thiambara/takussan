@@ -38,7 +38,8 @@ class ServiceProviderProfileController extends Controller
             throw new AuthorizationException;
         }
 
-        $base = $this->scopeForAgency($agency, $this->collaborationStatuses($request));
+        $statuses = $this->collaborationStatuses($request);
+        $base = $this->scopeForAgency($agency, $statuses);
         $paginator = ServiceProviderProfile::buildQuery($base, $request)
             ->defaultSort('-created_at')
             // TCK-597 (ADR-0043 §2) — la note moyenne des seuls avis approuvés, lue à la demande.
@@ -55,6 +56,8 @@ class ServiceProviderProfileController extends Controller
             ->addSelect([
                 'account_phone' => ServiceProviderProfile::accountPhoneSubquery(),
                 'completed_interventions_count' => ServiceProviderProfile::completedInterventionsSubquery($agency->id),
+                // TCK-2772 — le délai de réponse médian sur les interventions de CETTE agence.
+                'response_delay_minutes' => ServiceProviderProfile::responseDelaySubquery($agency->id),
             ])
             ->paginate($this->tailleDePage($request, 20));
 
@@ -62,7 +65,14 @@ class ServiceProviderProfileController extends Controller
         IncludedUserResource::preload($paginator->items());
 
         // P21.06 (TCK-904) — ni `insurance_policy_id`, ni les sous-clés de `metadata` qu'aucun écran ne lit.
-        return $this->paginated($paginator, ServiceProviderDirectoryResource::collection($paginator)->toArray($request));
+        // TCK-2772 — `meta.zones` : les zones du carnet de l'agence, lues sur une requête NEUVE du
+        // périmètre (agence, statuts de collaboration) et non sur la requête filtrée : le sélecteur de
+        // zone ne rétrécit pas sous une recherche ou une zone choisie.
+        return $this->paginated(
+            $paginator,
+            ServiceProviderDirectoryResource::collection($paginator)->toArray($request),
+            ['zones' => ServiceProviderProfile::zonesOf($this->scopeForAgency($agency, $statuses))],
+        );
     }
 
     /**
