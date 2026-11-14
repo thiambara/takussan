@@ -365,7 +365,7 @@ class LeasePolicy extends BasePolicy
     /**
      * TCK-596 §4B (ADR-0042 §4) — signer un bail pour une partie : `tenant` = le locataire DU bail ;
      * `landlord` = {@see LandlordSignatory::allows()} (le bailleur, ou le personnel de l'agence du
-     * bail titulaire de `leases.sign` pour son compte).
+     * bail titulaire de `leases.sign` pour son compte — au sens du profil actif, comme `view`, TCK-2810).
      *
      * ⚠ `Gate::before` accorde tout au super-admin avant d'arriver ici : le service revérifie le
      * signataire ({@see LeaseSignatureService::assertSigner()}).

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Lease;
 
+use App\Http\Requests\InventorySignRequest;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Activity;
 use App\Models\Agency;
@@ -21,7 +22,9 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\LeaseSignatureCodeNotification;
+use App\Policies\InventoryPolicy;
 use App\Policies\LeasePolicy;
+use App\Services\Inventory\InventorySignatureService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureOtpService;
 use App\Services\Lease\LeaseSignatureService;
@@ -110,6 +113,9 @@ class BailLocataireDeLaListeEtDesGestesTest extends TestCase
     /**
      * AC1 — tout utilisateur qu'une porte de geste admet, `LeasePolicy::view` l'admet aussi : la réponse
      * du geste ne sort jamais à quelqu'un qui ne lirait pas le bail par `GET /api/leases/{id}`.
+     *
+     * TCK-2810 (AC1, AC2) — la signature d'état des lieux pour le bailleur entre dans la même
+     * confrontation, contre `InventoryPolicy::view` : `LandlordSignatory` y est la SEULE garde.
      */
     public function test_ac1_chaque_porte_de_geste_est_incluse_dans_view(): void
     {
@@ -157,6 +163,17 @@ class BailLocataireDeLaListeEtDesGestesTest extends TestCase
             'inconnu' => [fn () => User::factory()->create(), $this->lease],
         ];
 
+        // TCK-2810 (AC2) — un état des lieux par bail confronté. Son conducteur n'est aucun des profils :
+        // `InventoryPolicy::view` admet le conducteur encore membre, ce qui masquerait une divergence.
+        $conducteur = User::factory()->create();
+        $etats = [];
+        foreach ([$this->lease, $bailDeLAgent] as $bailConfronte) {
+            $etats[$bailConfronte->id] = Inventory::factory()->pendingSignature()->create([
+                'lease_id' => $bailConfronte->id, 'property_id' => $bailConfronte->property_id,
+                'tenant_id' => $this->tenant->id, 'conducted_by' => $conducteur->id,
+            ]);
+        }
+
         $fuites = [];
         foreach ($cas as $qui => [$fabrique, $bail]) {
             $user = $fabrique();
@@ -167,14 +184,17 @@ class BailLocataireDeLaListeEtDesGestesTest extends TestCase
                     $fuites[] = "{$porte} admet « {$qui} », que view refuse";
                 }
             }
+            $etat = $etats[$bail->id]->fresh();
+            if (app(InventorySignatureService::class)->canSignAs($etat, $user, InventorySignRequest::ROLE_LANDLORD)
+                && ! app(InventoryPolicy::class)->view($user, $etat)) {
+                $fuites[] = "POST inventories/{id}/sign (bailleur) admet « {$qui} », que view refuse";
+            }
         }
 
-        // La seule divergence admise, nommée (décision 3 du rapport de TCK-2803) : le personnel de deux
-        // agences, sans profil actif dans celle du bail. `view` juge le personnel par le profil ACTIF
-        // (`staffAgencyId`, ADR-0031 §3) ; la signature pour le bailleur par `isStaffAt` dans l'agence du
-        // bail. Il est du personnel de cette agence, et lit le bail en y basculant : pas un accès hors
-        // droit. La réponse ne porte plus le locataire (AC5). Toute autre divergence rougit.
-        $this->assertSame(['POST signature (bailleur) admet « personnel de deux agences », que view refuse'], $fuites);
+        // TCK-2810 — plus aucune divergence : le personnel de deux agences, sans profil actif dans celle
+        // du bail, que TCK-2803 nommait comme seule exception, ne signe plus (ADR-0042, amendement du
+        // 2026-11-14 bis) ; le personnel mandaté se juge par le profil actif, comme `view`.
+        $this->assertSame([], $fuites);
     }
 
     /**

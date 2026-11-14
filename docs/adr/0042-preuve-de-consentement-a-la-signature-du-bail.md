@@ -1,8 +1,8 @@
 # ADR-0042 — Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier »
 
-- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14** (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`*)
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14**, deux fois (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`* et § *Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/todo/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/todo/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe), [TCK-2810](../backlog/tickets/todo/TCK-2810-signature-du-personnel-au-profil-actif.md) (le personnel signe depuis le profil actif)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -242,7 +242,49 @@ locataire entier). Il signait aussi l'état des lieux pour le bailleur, dont c'�
 3. **`onBehalfOf` garde sa comparaison brute** : l'agent créateur en poste qui signe par mandat reste
    enregistré « pour lui-même », comme avant. Aucune preuve déjà écrite ne change.
 
-**Ce qui n'est pas décidé.** Le personnel de deux agences, sans profil actif dans celle du bail, signe
-encore pour le bailleur (`isStaffAt`) alors que `view` le refuse (profil actif, ADR-0031 §3). Ce n'est
-pas un accès hors droit. Il est nommé comme exception dans le test de TCK-2803, et l'alignement se
-traite dans un ticket à part.
+**Ce qui n'était pas décidé**, et l'est depuis. Le personnel de deux agences, sans profil actif dans
+celle du bail, signait encore pour le bailleur (`isStaffAt`) alors que `view` le refusait (profil
+actif, ADR-0031 §3). Ce n'était pas un accès hors droit. Il était nommé comme exception dans le test de
+TCK-2803 ; l'alignement est décidé par l'amendement suivant (TCK-2810).
+
+## Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif
+
+- **Ticket** : [TCK-2810](../backlog/tickets/todo/TCK-2810-signature-du-personnel-au-profil-actif.md).
+- **Décision du porteur du lot** (2026-11-14) : l'exception nommée par TCK-2803 se ramène à zéro.
+- **Précise** : le § 4 (« le personnel de l'agence signe pour le compte du bailleur ») et la décision 1
+  de l'amendement précédent.
+
+**Constat** (relu sur `765093279`, 2026-11-14). La lecture du bail juge le personnel sur le **profil
+actif** : `LeasePolicy::view` → `BasePolicy::isStaffOf` → `User::staffAgencyId()` (ADR-0031 §1 et §3).
+La voie 2 de `LandlordSignatory` le jugeait sur **toute** agence où il est personnel
+(`MembershipCapabilityResolver::isStaffAt($user, $lease->agency_id)`). Le personnel de A et de B, profil
+actif B, recevait donc le code (`signature/otp` 202) et signait pour le bailleur un bail de A qu'il ne
+lisait pas (`GET leases/{lease}` 403). La signature d'état des lieux, dont `LandlordSignatory` est la
+seule garde, l'admettait de même. La voie papier était déjà alignée : `ActivateLeaseRequest` exige aussi
+`LeasePolicy::update`, qui juge le personnel par `isStaffOf`.
+
+**Décision.**
+
+1. **Le personnel mandaté se juge comme dans `view`** : personnel de l'agence du bail **au sens du
+   profil actif** (`$user->staffAgencyId() === $lease->agency_id`), et `leases.sign` dans cette agence
+   (`canActAt`, inchangé). La délégation de rôle en vigueur compte toujours : `staffAgencyId` la lit par
+   `isStaffAt`, restreint à l'agence du profil actif.
+2. **La règle est plus large que « personnel de deux agences »** : perd aussi la signature le personnel
+   de A dont le profil actif est un profil de bailleur dans B, et le compte de plusieurs agences sans
+   profil résolu (aucune auto-bascule, donc aucun périmètre). Dans chacun de ces cas, `view` le refuse
+   déjà ; il signe en basculant sur son profil de A, d'où il lit le bail.
+3. **Elle vaut pour toutes les portes qui partagent `LandlordSignatory`** : le code et la signature du
+   bail (`LeasePolicy::sign`, `LeaseSignatureService::assertSigner`), `rolesFor` et `can_sign_as`, la
+   signature d'état des lieux (`InventorySignatureService::canSignAs`), et la voie papier (déjà fermée
+   par `update`, inchangée).
+4. **La voie du bailleur ne change pas** (`BailleurDuBien::est`, amendement précédent) : un bailleur
+   signe pour lui-même quel que soit son profil actif. `onBehalfOf` et tout ce qui s'enregistre
+   (preuves, `on_behalf_of`, `owner_signed_by`, `owner_signed_on_behalf_of`) ne changent pas pour le
+   personnel dont le profil actif est l'agence du bail.
+
+**Hors de la décision.** Les autres usages d'`isStaffAt` jugent un TIERS (la cible d'une affectation)
+et restent voulus. Aucune bascule automatique de profil depuis l'écran de signature.
+
+**Application.** `app/Services/Lease/LandlordSignatory.php::isMandatedStaff()` ; la confrontation de
+toutes les portes à `view` (`BailLocataireDeLaListeEtDesGestesTest::test_ac1_chaque_porte_de_geste_est_incluse_dans_view`,
+qui attend désormais `[]`, état des lieux compris) et `tests/Feature/Lease/SignatureAuProfilActifTest.php`.

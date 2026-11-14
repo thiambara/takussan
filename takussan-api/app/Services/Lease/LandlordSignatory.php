@@ -6,7 +6,6 @@ use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Lease;
 use App\Models\User;
-use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 
 /**
@@ -18,9 +17,11 @@ use App\Services\Property\BailleurDuBien;
  *      lui-même — sauf s'il est suspendu ou parti (TCK-2753) dans l'agence du bail : il reste partie
  *      et lecteur, il perd les écritures
  *      (ADR-0031 §2, ADR-0108 § 5) ;
- *   2. un membre du **personnel de l'agence du bail** (prédicat TCK-587 `isStaffAt`, jamais
- *      l'accesseur d'agence unique de l'utilisateur) titulaire de `leases.sign` dans CETTE agence signe **pour son compte**,
- *      au titre du mandat de gestion. La preuve enregistre alors `on_behalf_of`.
+ *   2. un membre du **personnel de l'agence du bail AU SENS DU PROFIL ACTIF** (`User::staffAgencyId()`,
+ *      ADR-0031 §1 et §3 : la règle de `LeasePolicy::view`, délégation en vigueur comprise) titulaire
+ *      de `leases.sign` dans CETTE agence signe **pour son compte**, au titre du mandat de gestion. La
+ *      preuve enregistre alors `on_behalf_of`. TCK-2810 (ADR-0042, amendement du 2026-11-14 bis) : le
+ *      personnel de deux agences ne signe un bail de A que depuis son profil de A, d'où il le lit.
  *
  * Personne d'autre. Ni un collaborateur du bien, quel que soit son rôle (`viewer`, `co_owner`,
  * `agent`, `manager`) : un collaborateur qui est aussi du personnel passe par la voie 2. Ni le
@@ -71,8 +72,10 @@ final class LandlordSignatory
             return false;
         }
 
-        // TCK-587 — « personnel de l'agence » : agent ou admin d'agence actif, ou délégation active.
-        return app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agency->id)
+        // TCK-2810 — « personnel de l'agence » comme dans `view` : l'agence du PROFIL ACTIF, s'il y est
+        // agent ou admin actif, ou délégué en vigueur. Plus `isStaffAt` sur toute agence : il admettait
+        // le personnel de A et de B, profil actif B, à qui `GET leases/{lease}` rend 403.
+        return $user->staffAgencyId() === (int) $agency->id
             && $user->canActAt(Capability::LeasesSign, $agency);
     }
 }
