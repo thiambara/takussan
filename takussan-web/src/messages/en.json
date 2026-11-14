@@ -1362,7 +1362,8 @@
         "period": "Frequency",
         "availableFrom": "Available from",
         "title": "Listing title",
-        "description": "Description"
+        "description": "Description",
+        "rent": "Rent"
       },
       "contract": {
         "sale": "Sell",
@@ -1383,7 +1384,7 @@
       },
       "geoSuggestFull": "Use {city}, {region}",
       "geoSuggestCity": "Use {city}",
-      "geoDefaultsNote": "Listings are published in Senegal: the country is already filled in. Prices are in CFA francs.",
+      "geoDefaultsNote": "Property located in Senegal: the country is already set, prices are in CFA francs.",
       "addressDetailsShow": "Add street and postal code",
       "addressDetailsHide": "Hide street and postal code",
       "useMyPosition": "Use my current position",
@@ -1416,7 +1417,7 @@
         },
         "prix": {
           "title": "At what price?",
-          "subtitleRent": "The rent, how often it is due, and when the property becomes free.",
+          "subtitleRent": "The rent, then what the tenant pays on moving in.",
           "subtitleSale": "The asking price. You can change it after publishing.",
           "short": "Price"
         },
@@ -1472,7 +1473,13 @@
         "advance": "Months in advance",
         "deposit": "Months of deposit",
         "agencyFee": "Agency fee (in months of rent)",
-        "monthlyCharges": "Monthly charges"
+        "monthlyCharges": "Monthly charges",
+        "boxHint": "What the tenant pays at signing",
+        "total": "Total on move-in",
+        "decrease": "Remove a month",
+        "increase": "Add a month",
+        "decreaseHalf": "Remove half a month",
+        "increaseHalf": "Add half a month"
       },
       "virtualTour": {
         "label": "Virtual tour or video (link)",
@@ -1496,8 +1503,8 @@
       "moreTypes": "More types ({count})",
       "fewerTypes": "Fewer types",
       "contractHint": {
-        "rent": "A rent and how often it is due, an availability date.",
-        "sale": "An asking price, editable after publishing."
+        "rent": "A rent and how often it is paid",
+        "sale": "An asking price"
       },
       "header": {
         "publish": "List a property",
@@ -1515,18 +1522,17 @@
         "photoLater": "Your photos will go here",
         "placeLater": "Location to come",
         "priceLater": "Price to come",
-        "entryTitle": "Move-in cost",
         "entryAdvance": "{count, plural, one {# month in advance} other {# months in advance}}",
         "entryDeposit": "{count, plural, one {# month of deposit} other {# months of deposit}}",
         "entryFee": "{count, plural, one {# month of agency fees} other {# months of agency fees}}",
         "entryCharges": "{amount} of charges per month",
         "entryNote": "Indicative amount based on your answers; the published listing is authoritative.",
-        "entryTotal": "Total on move-in: {amount}",
         "checklist": "Before publishing",
         "current": "in progress",
         "optional": "optional",
         "reopen": "Go back to: {step}",
-        "photoCount": "{current} / {total}"
+        "photoCount": "{current} / {total}",
+        "entryLine": "On move-in: {amount}"
       },
       "photosProgress": "Uploading photos: {sent} of {total}",
       "owner": {
@@ -1620,6 +1626,29 @@
           "parking": "parking space",
           "other": "property"
         }
+      },
+      "currencyUnit": "F CFA",
+      "periodPrefix": "Per",
+      "periodChips": {
+        "monthly": "Month",
+        "weekly": "Week",
+        "daily": "Day",
+        "yearly": "Year"
+      },
+      "contractQuestion": "You want to…",
+      "addressDetailsTitle": "Street and postcode",
+      "addressDetailsToggleShow": "Add",
+      "addressDetailsToggleHide": "Hide",
+      "mapTitle": "On the map",
+      "mapIntro": "Optional. A well-placed pin saves you the “where exactly is it?” calls.",
+      "photos": {
+        "gallery": "Choose from gallery",
+        "size": "10 MB",
+        "dropHint": "or click to select — {size} max, up to {max} files.",
+        "formats": "JPG, PNG or WebP · {size} max per photo.",
+        "firstIsCover": "The first one is the main photo",
+        "cover": "Cover",
+        "add": "Add"
       }
     },
     "titleTypes": {

@@ -6,13 +6,13 @@ import { useWatch, type UseFormReturn } from 'react-hook-form';
 import { Check, Eye, ImageIcon, MapPin } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { coutDEntreeTotal } from '@/lib/cout-d-entree';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import { cn } from '@/lib/utils';
 
 import { isFieldRelevant } from '../field-matrix';
 import { PROPERTY_ENUM_NAMESPACES } from '../options';
+import { useCoutDEntree } from './EncadreCoutDEntree';
 import { suggestTitle } from './suggest-title';
 
 /**
@@ -25,12 +25,12 @@ import { suggestTitle } from './suggest-title';
  * Le titre est celui que l'utilisateur a écrit, sinon celui que la dernière étape lui proposera
  * (`suggestTitle`) : la carte montre dès l'étape 1 ce qu'elle deviendra.
  *
- * Le coût d'entrée : ses composantes, et son TOTAL indicatif (TCK-633, retour du porteur) — que la
- * maquette réduit à « À l'entrée : … » ; ils restent ici jusqu'au lot 2 de TCK-2819 (cf. plus bas).
- * Le total vient de `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API : les deux sont jugées par la même fixture (tâche 17), de sorte
- * qu'un écart d'un franc rougit une suite. La règle de TCK-598 (« aucun écran ne refait l'addition »)
- * est levée pour l'aperçu SEUL, qui l'affiche avant que le bien existe ; la fiche publiée lit toujours
- * le total de l'API, et la note le dit (« l'annonce publiée fait foi »).
+ * Le coût d'entrée : la carte n'en dit que le TOTAL indicatif, « À l’entrée : … » (maquette `CarteApercu`,
+ * TCK-2819 lot 2). Ses composantes et la note « l'annonce publiée fait foi » (TCK-633) vivent dans
+ * l'encadré de l'étape du prix (`EncadreCoutDEntree`), qui calcule par le même `useCoutDEntree` :
+ * `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API, jugées par la même
+ * fixture (tâche 17). La règle de TCK-598 (« aucun écran ne refait l'addition ») est levée pour
+ * l'assistant SEUL, avant que le bien existe ; la fiche publiée lit toujours le total de l'API.
  *
  * ⚠ Toutes les lectures passent par `useWatch` (TCK-564) : un `watch()` lu pendant le rendu se
  * figeait une fois compilé.
@@ -51,7 +51,6 @@ interface DonneesApercu {
   readonly lieu: string;
   readonly chiffres: readonly string[];
   readonly prix: string | null;
-  readonly coutDEntree: readonly string[];
   readonly periode: string | null;
   /** TCK-633 — le total à l'entrée, mis en forme ; `null` sans composante ou à zéro. */
   readonly totalDEntree: string | null;
@@ -65,13 +64,12 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
   const fmt = useFormatteurs();
   const [
     type, contrat, ville, quartier, surface, chambres, sallesDeBain, meuble, prix, devise, periode,
-    titreSaisi, avance, caution, frais, charges,
+    titreSaisi,
   ] = useWatch({
     control: form.control,
     name: [
       'type', 'contract_type', 'city', 'quarter', 'area', 'bedrooms', 'bathrooms', 'furnished',
-      'price', 'currency', 'rent_period', 'title', 'advance_months', 'deposit_months',
-      'agency_fee_months', 'monthly_charges',
+      'price', 'currency', 'rent_period', 'title',
     ],
   });
 
@@ -111,27 +109,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
   // porte toujours sa période.
   const periodeAffichee = isFieldRelevant('rent_period', ctx) ? tPeriode(periode ?? 'monthly') : null;
 
-  // TCK-2819 — la maquette ne dit que le total ; décision de team-lead (2026-11-14) : aucune information
-  // ne quitte le parcours, donc les composantes et la note restent sous la carte TANT QUE l'encadré
-  // « Total à l'entrée » de l'étape du prix (lot 2) ne les porte pas. Écart ouvert de la fiche.
-  const coutDEntree: string[] = [];
-  let totalDEntree: string | null = null;
-  if (isFieldRelevant('deposit_months', ctx)) {
-    if (nombre(avance)) coutDEntree.push(t('preview.entryAdvance', { count: nombre(avance)! }));
-    if (nombre(caution)) coutDEntree.push(t('preview.entryDeposit', { count: nombre(caution)! }));
-    if (nombre(frais)) coutDEntree.push(t('preview.entryFee', { count: nombre(frais)! }));
-    if (nombre(charges)) {
-      coutDEntree.push(t('preview.entryCharges', { amount: fmt.montant(nombre(charges)!, devise) }));
-    }
-    // `nombre()` : `useWatch` rend ces champs en `unknown` (schéma à coercition) ; zéro et vide
-    // valent « absent », ce que `coutDEntreeTotal` lit de même.
-    const total = coutDEntreeTotal({
-      price: nombre(prix), currency: devise, contract_type: contrat, rent_period: periode,
-      advance_months: nombre(avance), deposit_months: nombre(caution),
-      agency_fee_months: nombre(frais), monthly_charges: nombre(charges),
-    });
-    if (total !== null && total > 0) totalDEntree = fmt.montant(total, devise);
-  }
+  const entree = useCoutDEntree(form);
 
   return {
     type,
@@ -142,10 +120,9 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
     lieuCourt: quartier?.trim() || ville?.trim() || '',
     lieu: [quartier?.trim(), ville?.trim()].filter(Boolean).join(', '),
     chiffres,
-    coutDEntree,
     prix: nombre(prix) ? fmt.montant(nombre(prix)!, devise) : null,
     periode: periodeAffichee,
-    totalDEntree,
+    totalDEntree: entree.total,
   };
 }
 
@@ -154,7 +131,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
  * révoquée avec lui. Un `setState` dans l'effet serait refusé (`react-hooks/set-state-in-effect`),
  * et jsdom ne connaît pas `URL.createObjectURL` — d'où la garde.
  */
-function VignetteFichier({ fichier }: { readonly fichier: File }) {
+export function VignetteFichier({ fichier }: { readonly fichier: File }) {
   const image = useRef<HTMLImageElement>(null);
   useEffect(() => {
     if (!image.current || typeof URL.createObjectURL !== 'function') return;
@@ -252,24 +229,19 @@ export function CarteApercu({
           <MapPin className="size-3.5 flex-none" aria-hidden="true" />
           {d.lieu || t('placeLater')}
         </p>
-        {d.chiffres.length > 0 ? <p className="mt-1 text-ui text-muted-foreground">{d.chiffres.join(' · ')}</p> : null}
+        {/* Maquette : les chiffres tant qu'il n'y a pas de prix (a-2), le prix et l'entrée ensuite (a-3 à a-5) —
+            la règle du résumé du téléphone (`BarreApercu`). La colonne garde ainsi sa hauteur. */}
+        {d.chiffres.length > 0 && !d.prix ? <p className="mt-1 text-ui text-muted-foreground">{d.chiffres.join(' · ')}</p> : null}
         <p
           className={cn('mt-2.5 font-display tabular-nums', d.prix ? 'text-xl font-semibold text-primary-deep' : 'text-base text-muted-foreground')}
           data-testid="apercu-prix"
         >
           {d.prix ? `${d.prix}${d.periode ? ` / ${d.periode}` : ''}` : t('priceLater')}
         </p>
-        {d.coutDEntree.length > 0 ? (
-          <div className="mt-3 border-t border-border pt-3 text-ui leading-snug">
-            <p className="font-medium text-foreground">{t('entryTitle')}</p>
-            <p className="text-muted-foreground">{d.coutDEntree.join(', ')}</p>
-            {d.totalDEntree ? (
-              <p className="mt-1 font-medium text-foreground tabular-nums" data-testid="apercu-total-entree">
-                {t('entryTotal', { amount: d.totalDEntree })}
-              </p>
-            ) : null}
-            <p className="mt-1 text-xs text-muted-foreground">{t('entryNote')}</p>
-          </div>
+        {d.totalDEntree ? (
+          <p className="mt-0.5 text-ui text-muted-foreground tabular-nums" data-testid="apercu-total-entree">
+            {t('entryLine', { amount: d.totalDEntree })}
+          </p>
         ) : null}
       </div>
     </div>

@@ -1,15 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
 
-import { FormAmountInput, FormInput, FormSelect } from '@/components/forms';
+import { FormAmountInput, FormInput } from '@/components/forms';
 import { FormDatePicker } from '@/components/forms/FormDatePicker';
 import type { PropertyFormValues } from '@/lib/schemas/property';
-import { PROPERTY_ENUM_NAMESPACES, rentPeriodOptions as fabriqueRentPeriodOptions } from '../../options';
 import { isFieldRelevant } from '../../field-matrix';
+import { ChoiceChips } from '../ChoiceChips';
+import { EncadreCoutDEntree, useRetirerLesFraisDAgence } from '../EncadreCoutDEntree';
 import { WizardCollapsibleSection } from '../WizardCollapsibleSection';
+
+/**
+ * TCK-2819 (lot 2) — les quatre valeurs de `rentPeriodValues`, dans l'ordre de la maquette (« Par
+ * Mois · Semaine · Jour · An ») : le mois d'abord, c'est le cas courant.
+ */
+const PERIODES = ['monthly', 'weekly', 'daily', 'yearly'] as const;
 
 /**
  * TCK-464 — le prix, et les deux champs qui n'existent qu'en location.
@@ -37,13 +43,8 @@ export function EntryCostFields({
   readonly fraisDAgence?: boolean;
 }) {
   const t = useTranslations('property.wizard.entryCost');
-  const { control, setValue } = form;
-  const frais = useWatch({ control, name: 'agency_fee_months' });
-
-  useEffect(() => {
-    if (fraisDAgence || frais === undefined || frais === null) return;
-    setValue('agency_fee_months', undefined, { shouldDirty: true });
-  }, [fraisDAgence, frais, setValue]);
+  const { control } = form;
+  useRetirerLesFraisDAgence(form, fraisDAgence);
 
   return (
     <fieldset className="space-y-3 pt-1">
@@ -67,17 +68,24 @@ export function EntryCostFields({
   );
 }
 
+/**
+ * TCK-2819 (lot 2) — l'étape du prix d'après la maquette `app-entree-publier` (écran a-3) : le loyer en
+ * F CFA, sa fréquence en pastilles (« Par Mois · Semaine · Jour · An ») au lieu d'une liste, la date de
+ * disponibilité, puis l'encadré « Coût d’entrée » (`EncadreCoutDEntree`) et son « Total à l’entrée ».
+ *
+ * La fréquence garde la sémantique d'un groupe de radios (choix unique, flèches), et son nom accessible
+ * reste « Fréquence » : « Par » n'est que le début de la phrase qu'on lit à l'écran.
+ */
 export function StepPrix({
   form,
   fraisDAgence = true,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
-  /** TCK-633 — faux pour un indépendant : cf. `EntryCostFields`. */
+  /** TCK-633 — faux pour un indépendant : cf. `EncadreCoutDEntree`. */
   readonly fraisDAgence?: boolean;
 }) {
   const t = useTranslations('property.wizard');
-  const tPeriode = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
-  const { control } = form;
+  const { control, setValue } = form;
   // TCK-564 — `useWatch`, jamais `watch()` lu pendant le rendu (cf. `StepBien`). La devise n'est
   // plus un choix (TCK-633, ADR-0061) mais reste lue : elle décide des décimales du montant.
   const [type, contrat, devise, periode] = useWatch({
@@ -93,38 +101,43 @@ export function StepPrix({
   return (
     <>
       {/*
-        TCK-564 — le montant se relit pendant la frappe (« 49 000 000 »), et le formulaire reçoit
-        toujours un NOMBRE. La devise décide des décimales : aucune en franc CFA. TCK-633 — la
-        devise ne se choisit plus : le prix se publie en francs CFA (ADR-0061), le serveur l'impose.
+        TCK-564 — le montant se relit pendant la frappe (« 250 000 »), et le formulaire reçoit toujours
+        un NOMBRE. TCK-633 — la devise ne se choisit plus (ADR-0061) : « F CFA » est l'unité du champ.
       */}
-      <FormAmountInput
-        control={control}
-        name="price"
-        label={t('fields.price')}
-        required
-        currency={devise}
-        example={location ? 350_000 : 25_000_000}
-      />
-
-      <WizardCollapsibleSection open={location} testId="bloc-location">
-        <div className="space-y-5 pt-1">
-          <FormSelect
-            control={control}
-            name="rent_period"
-            label={t('fields.period')}
-            options={fabriqueRentPeriodOptions(tPeriode)}
-            placeholder={t('placeholders.period')}
-          />
-          <FormDatePicker
-            control={control}
-            name="available_from"
-            label={t('fields.availableFrom')}
-          />
-        </div>
+      {/* Au bureau, le loyer et sa fréquence sur une ligne (maquette : `grid-cols-[1fr_auto]`). */}
+      <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-5 lg:space-y-0">
+        <FormAmountInput
+          control={control}
+          name="price"
+          label={location ? t('fields.rent') : t('fields.price')}
+          required
+          currency={devise}
+          unite={t('currencyUnit')}
+          example={location ? 350_000 : 25_000_000}
+        />
+        <WizardCollapsibleSection open={location} testId="bloc-location">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="mr-1 text-sm text-muted-foreground">{t('periodPrefix')}</span>
+            <ChoiceChips
+              id="wizard-rent-period"
+              label={t('fields.period')}
+              labelMasque
+              radioGroup
+              value={periode ?? 'monthly'}
+              onChange={(v) =>
+                setValue('rent_period', v as PropertyFormValues['rent_period'], { shouldDirty: true })
+              }
+              options={PERIODES.map((v) => ({ value: v, label: t(`periodChips.${v}`) }))}
+            />
+          </div>
+        </WizardCollapsibleSection>
+      </div>
+      <WizardCollapsibleSection open={location} testId="bloc-disponibilite">
+        <FormDatePicker control={control} name="available_from" label={t('fields.availableFrom')} />
       </WizardCollapsibleSection>
 
       <WizardCollapsibleSection open={coutDEntree} testId="bloc-cout-d-entree">
-        <EntryCostFields form={form} devise={devise} fraisDAgence={fraisDAgence} />
+        <EncadreCoutDEntree form={form} fraisDAgence={fraisDAgence} />
       </WizardCollapsibleSection>
     </>
   );

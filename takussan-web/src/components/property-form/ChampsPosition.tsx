@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import { horsDuSenegal, reconnaitrePosition, type Coordonnees } from '@/lib/geo/reconnaitre-position';
 import type { PropertyFormValues } from '@/lib/schemas/property';
+import { cn } from '@/lib/utils';
 import { useReferentielGeo, useResolutionDeLien } from './useReferentielGeo';
 
 type Identifiant = number | null | undefined;
@@ -38,12 +39,19 @@ function nombreOuNul(brut: string): number | string | null {
 export function ChampsPosition({
   form,
   indiceCarte,
+  presentation = 'edition',
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   /** La consigne affichée sous la carte — propre à chaque écran. */
   readonly indiceCarte: string;
+  /**
+   * TCK-2819 — `assistant` : la mise en page de la maquette `app-entree-publier` (geste en pastille,
+   * collage et geste côte à côte dès le bureau). La page d'édition garde la sienne.
+   */
+  readonly presentation?: 'edition' | 'assistant';
 }) {
   const t = useTranslations('property.form.address');
+  const assistant = presentation === 'assistant';
   const { control, setValue } = form;
   const [regionIdSuivi, villeIdSuivi, latSuivie, lngSuivie] = useWatch({
     control,
@@ -117,7 +125,7 @@ export function ChampsPosition({
         <label htmlFor="champ-collage" className="mb-1.5 block text-sm font-medium">
           {t('pasteLabel')}
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className={cn('flex flex-col gap-2', assistant ? 'lg:flex-row' : 'sm:flex-row')}>
           <Input
             id="champ-collage"
             value={collage}
@@ -132,7 +140,8 @@ export function ChampsPosition({
           <Button
             type="button"
             variant="outline"
-            className="min-h-11 shrink-0"
+            // TCK-2819 — dans l'assistant, la pastille de la maquette (« Placer sur la carte »).
+            className={cn('min-h-11 shrink-0', assistant && 'rounded-full')}
             onClick={() => lire(collage)}
             disabled={resolution.isPending}
           >

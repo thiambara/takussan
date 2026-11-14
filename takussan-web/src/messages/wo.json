@@ -9824,7 +9824,8 @@
         "period": "Jamono",
         "availableFrom": "Jotna ci",
         "title": "Boppu anons bi",
-        "description": "Leeral"
+        "description": "Leeral",
+        "rent": "Loyer"
       },
       "contract": {
         "sale": "Jaay",
@@ -9934,7 +9935,13 @@
         "advance": "Weer yu ñu jiital",
         "deposit": "Weeru kosioŋ",
         "agencyFee": "Peyu ajaas (ci weeru loyer)",
-        "monthlyCharges": "Sarsu weer wu nekk"
+        "monthlyCharges": "Sarsu weer wu nekk",
+        "boxHint": "Ce que le locataire verse à la signature",
+        "total": "Total à l’entrée",
+        "decrease": "Retirer un mois",
+        "increase": "Ajouter un mois",
+        "decreaseHalf": "Retirer un demi-mois",
+        "increaseHalf": "Ajouter un demi-mois"
       },
       "virtualTour": {
         "label": "Seetlu ci internet walla widewoo (lëkkalekaay)",
@@ -9977,18 +9984,17 @@
         "photoLater": "Sa nataal yi dinañu nekk fii",
         "placeLater": "Fi mu nekk, ci kanam",
         "priceLater": "Njëg gi, ci kanam",
-        "entryTitle": "Ci dugg",
         "entryAdvance": "{count} weer avance",
         "entryDeposit": "{count} weer kosiyoŋ",
         "entryFee": "{count} weer frais d’agence",
         "entryCharges": "{amount} sars ci weer wu nekk",
         "entryNote": "Xaalis bu ñu xayma ci say tontu ; anons bi ñu teg moo wóor.",
-        "entryTotal": "Mbooloo ci dugg gi : {amount}",
         "checklist": "Balaa ñuy teg",
         "current": "ñu ngi ci",
         "optional": "doyul waar",
         "reopen": "Dellu ci : {step}",
-        "photoCount": "{current} / {total}"
+        "photoCount": "{current} / {total}",
+        "entryLine": "À l’entrée : {amount}"
       },
       "photosProgress": "Yónnee nataal yi : {sent} ci {total}",
       "owner": {
@@ -10082,6 +10088,29 @@
           "parking": "Parking",
           "other": "Autre"
         }
+      },
+      "currencyUnit": "F CFA",
+      "periodPrefix": "Par",
+      "periodChips": {
+        "monthly": "Mois",
+        "weekly": "Semaine",
+        "daily": "Jour",
+        "yearly": "An"
+      },
+      "contractQuestion": "Vous voulez…",
+      "addressDetailsTitle": "La rue et le code postal",
+      "addressDetailsToggleShow": "Ajouter",
+      "addressDetailsToggleHide": "Masquer",
+      "mapTitle": "Sur la carte",
+      "mapIntro": "Facultatif. Un repère bien posé évite les appels « c’est où exactement ? ».",
+      "photos": {
+        "gallery": "Choisir dans la galerie",
+        "size": "10 Mo",
+        "dropHint": "ou cliquez pour sélectionner — {size} max, jusqu’à {max} fichiers.",
+        "formats": "JPG, PNG ou WebP · {size} max par photo.",
+        "firstIsCover": "La première est la photo principale",
+        "cover": "Couverture",
+        "add": "Ajouter"
       }
     },
     "titleTypes": {

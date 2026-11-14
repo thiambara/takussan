@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 /**
@@ -35,9 +35,10 @@ export function GeoSuggestionChip({
       type="button"
       data-testid="geo-suggestion"
       onClick={onAccept}
-      className="flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-dashed border-accent bg-accent/10 px-3 py-2.5 text-left text-sm text-accent transition-colors hover:bg-accent/15 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+      // TCK-2819 (lot 2) — maquette a-1 : une pastille `primary`, à sa largeur, l'étincelle d'une proposition.
+      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-primary/35 bg-primary/7 px-4 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
     >
-      <MapPin className="shrink-0" aria-hidden="true" />
+      <Sparkles className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
       <span>{region ? t('geoSuggestFull', { city, region }) : t('geoSuggestCity', { city })}</span>
     </button>
   );
