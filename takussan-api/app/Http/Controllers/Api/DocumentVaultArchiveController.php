@@ -78,7 +78,7 @@ class DocumentVaultArchiveController extends Controller
             }
         }
 
-        return $this->json(['data' => (new DocumentVaultArchiveResource($enCours))->toArray($request)], 202);
+        return $this->json(['data' => (new DocumentVaultArchiveResource($enCours))->resolve($request)], 202);
     }
 
     public function index(Request $request): JsonResponse

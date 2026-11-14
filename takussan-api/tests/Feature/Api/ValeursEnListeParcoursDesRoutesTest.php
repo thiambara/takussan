@@ -90,6 +90,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',
         'api/kyc/documents/{media}' => '{media} : Media sans fabrique',
+        'api/me/document-vault/archives/{archive}/download' => '{archive} : sans liaison de modèle',
         'api/me/payouts/{payout}' => '{payout} : sans liaison de modèle',
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
         'api/media/{media}/sign' => '{media} : Media sans fabrique',
