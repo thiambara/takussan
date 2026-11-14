@@ -62,23 +62,23 @@ dont elle parle. S'il n'est plus membre de cette agence, la notification se lit 
 
 ## Delta à produire
 
-- [ ] `NotificationTarget::derive()` / `fromReferenceable()` : la branche de chaque genre de section rend la cible
+- [x] `NotificationTarget::derive()` / `fromReferenceable()` *(décision (b) : `null`)* : la branche de chaque genre de section rend la cible
   avec l'agence de l'objet, ou `null`.
-- [ ] Préchargement des agences de ces objets pour une page, à côté de celui des objets d'agence.
-- [ ] Une garde : tout genre de `AgenceDeLaCible::SECTIONS` que `derive()` peut produire porte une agence ou rien.
-- [ ] Tests `CiblesDeduitesDeSectionPortentLeurAgenceTest`.
+- [ ] ~~Préchargement des agences~~ *(sans objet après la décision (b))* Préchargement des agences de ces objets pour une page, à côté de celui des objets d'agence.
+- [x] Une garde : tout genre de `AgenceDeLaCible::SECTIONS` que `derive()` peut produire porte une agence ou rien.
+- [x] Tests `CiblesDeduitesDeSectionPortentLeurAgenceTest`, et côté front `NotificationRow.section-sans-agence.tck-2813.test.tsx` (ligne ancienne sans cible : lue, ni lien, ni verbe, ni chevron).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour chacun des quatre genres, une ligne SANS `target` (construite comme les lignes anciennes), lue par
+- [x] AC1 — *(relu par la décision (b) : `target` = `null`, membre sous le profil de B comme sous celui de A ; `CiblesDeduitesDeSectionPortentLeurAgenceTest`::test_les_quatre_lignes_anciennes…)* — Pour chacun des quatre genres, une ligne SANS `target` (construite comme les lignes anciennes), lue par
   un membre actif de l'agence de l'objet dont le profil actif est une AUTRE agence : `GET /api/notifications` rend
   `target` = `{kind, id: null, path, agency_id: <agence de l'objet>}`, à la valeur exacte.
-- [ ] AC2 — La même ligne lue par un lecteur qui n'a pas de profil actif dans cette agence : `target` est `null`.
-- [ ] AC3 — Une ligne `lease_payment_id` dont l'échéance n'existe plus : `target` est `null` pour tout lecteur.
-- [ ] AC4 — Une page de 20 lignes mêlant les quatre genres : le nombre de requêtes est le même qu'avec 4 lignes.
-- [ ] AC5 — La garde rougit quand une branche de section de `derive()` renvoie une cible sans agence (ablation : la
+- [x] AC2 — *(même test, lecteur sans profil dans l'agence)* — La même ligne lue par un lecteur qui n'a pas de profil actif dans cette agence : `target` est `null`.
+- [x] AC3 — *(`test_une_echeance_disparue…` ; et `data.lease_payment_id` disparu dans AC1)* — Une ligne `lease_payment_id` dont l'échéance n'existe plus : `target` est `null` pour tout lecteur.
+- [x] AC4 — *(réduit : 20 lignes `referenceable` KYC/relevé/délégation = 4 lignes, en requêtes ; la branche `lease_payment_id` reste à une requête par ligne, voir les notes)* — Une page de 20 lignes mêlant les quatre genres : le nombre de requêtes est le même qu'avec 4 lignes.
+- [x] AC5 — *(ablation jouée le 2026-11-14 : `BankStatement::class => new self('finances', null)` → la garde rougit, et AC1 et AC4 avec elle ; fichier restauré, md5 vérifié)* — La garde rougit quand une branche de section de `derive()` renvoie une cible sans agence (ablation : la
   branche `finances` remise à `new self('finances', null)`).
-- [ ] AC6 — Ablation : la cible de section rendue telle quelle rend AC1 et AC2 rouges.
+- [x] AC6 — *(relu : la même ablation rend AC1/AC2 rouges)* — Ablation : la cible de section rendue telle quelle rend AC1 et AC2 rouges.
 
 ## Hors périmètre
 
@@ -87,4 +87,21 @@ dont elle parle. S'il n'est plus membre de cette agence, la notification se lit 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Mesure (2026-11-14, cibles-2813), base de démo locale, lecture seule.** 3661 lignes `app_notifications`,
+dont 71 sans `target` : `referenceable_type` NULL pour les 71 (65 `booking`, 3 `maintenance`, 3 `system`), et aucune
+ne porte `data.lease_payment_id`. Les seuls `referenceable` de la base désignent `SavedSearch` (2). Les quatre branches
+de section produisent donc **0 ligne en démo**. Aucun émetteur actuel de `app/` n'écrit ces `referenceable`. Ils
+venaient de l'ancien `NotificationService::notify()` (`RoleDelegation` ×6 appels, `BankStatement` ×3, `'kyc_dossier'`
+×2), d'avril-mai jusqu'au 2026-10-07, où **9151876ed (TCK-588)** les a retirés.
+
+**Décision (b) du 2026-11-14 (team-lead) : le ticket se réduit à une garde.** Un lien vers la section d'une agence qui
+n'est peut-être pas la bonne est pire que pas de lien. `derive()` / `fromReferenceable()` rendent `null` pour les quatre
+cas : la ligne se lit, elle n'ouvre rien, quel que soit le lecteur. On ne précharge aucune agence : il n'y a plus rien
+à résoudre. Les AC1, AC2, AC4 et AC6 sont relus dans ce sens ; les cases ci-dessous disent ce qui est prouvé.
+
+**Inconnu.** Les lignes de préproduction de septembre-octobre (préproduction servie depuis le 2026-09-13, émetteurs
+retirés le 2026-10-07) ne sont **pas mesurées**. Celles qui existent perdent leur lien, alors qu'elles ouvraient
+jusqu'ici la section de l'agence du profil actif.
+
+**Ce qui reste hors garde.** La branche `lease_payment_id` de `derive()` relit toujours l'échéance ligne par ligne
+(une requête par ligne qui porte cette clé, antérieure au ticket). Aucune ligne n'en porte en démo.
