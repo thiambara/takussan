@@ -10,6 +10,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
 import { propertyModerationCountQueryOptions } from '@/lib/queries/agency-queues';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
 
@@ -131,7 +132,9 @@ vi.mock('@/lib/api', async (original) => {
         if (route === '/api/property-visits/501/confirm') etat.visites -= 1;
         return { data: {} };
       }
-      const page = (data: unknown[], total: number) => ({ data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1, pending_count: total } });
+      // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
+      const page = (data: unknown[], total: number) => servir(chemin, { data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1, pending_count: total } });
       switch (route) {
         case '/api/properties/moderation':
           return page([BIEN], etat.biens);
@@ -218,8 +221,13 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
   Object.assign(etat, { appels: [], biens: 1, demandes: 3, visites: 12, avis: 5, invitations: 0, kyc: 'verified', impayes: 16, peutAttribuer: true, tranche: false, pannes: new Map(), refus: new Set(), toasts: [] });
+  oublierLesLectures();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
+  expect(lecturesHorsFields()).toEqual([]);
+});
 
 describe('les files lues', () => {
   it('chaque file part avec le filtre de sa pastille, en `per_page` court', async () => {

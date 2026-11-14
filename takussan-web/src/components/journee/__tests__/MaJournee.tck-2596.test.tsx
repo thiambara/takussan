@@ -8,6 +8,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
 import type { AgentTask } from '@/types/agent-crm';
 import type { PropertyVisit } from '@/types/visit';
 
@@ -83,7 +84,9 @@ vi.mock('@/lib/api', async (original) => {
       if (methode !== 'GET') return { data: {} };
       const [route, qs] = chemin.split('?');
       const p = new URLSearchParams(qs ?? '');
-      const page = (data: unknown[], total = data.length) => ({ data, meta: { total, per_page: 30, current_page: 1, last_page: 1 } });
+      // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
+      const page = (data: unknown[], total = data.length) => servir(chemin, { data, meta: { total, per_page: 30, current_page: 1, last_page: 1 } });
       if (route === '/api/property-visits') {
         if (etat.vide) return page([]);
         if (p.get('filter[to_close]')) return page([LIBERTE]);
@@ -133,8 +136,13 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
   Object.assign(etat, { appels: [], vide: false, injoignable: false, titre: null });
+  oublierLesLectures();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
+  expect(lecturesHorsFields()).toEqual([]);
+});
 
 describe('les sources composées', () => {
   it('chaque lecture part avec ses filtres côté serveur', async () => {

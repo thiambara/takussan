@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Http\Filters\RangeFilter;
+use App\Http\Resources\PropertyVisitResource;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\VisitFollowUp;
@@ -20,8 +21,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class PropertyVisit extends AbstractModel
 {
@@ -149,6 +152,19 @@ class PropertyVisit extends AbstractModel
         'reported_at', 'reported_by_id',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-2797 — spatie ne voit que des colonnes : les clés calculées de `fields[property_visits]`
+     * (`visitor_display`, `report`, `abilities`) sortent d'une COPIE de la requête, remplacées par les
+     * colonnes qu'elles lisent ({@see PropertyVisitResource::requeteDesColonnes()}). La ressource les
+     * relit dans la requête d'origine, intacte. Même patron que `Customer::buildQuery()`.
+     *
+     * @param  Builder<static>|null  $baseQuery
+     */
+    public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
+    {
+        return parent::buildQuery($baseQuery, PropertyVisitResource::requeteDesColonnes($request ?? request()));
+    }
 
     /**
      * TCK-590 — `filter[unassigned]=1` : les visites sans agent, à prendre en charge ;

@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
 import type { PropertyVisit } from '@/types/visit';
 
 import { MesVisites } from '../MesVisites';
@@ -44,6 +45,8 @@ vi.mock('@/lib/api', async (original) => {
       const [route, qs] = chemin.split('?');
       const p = new URLSearchParams(qs ?? '');
       if (route === '/api/property-visits' && methode === 'GET') {
+        // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
         const statut = p.get('filter[status]');
         const min = p.get('filter[scheduled_at_min]');
         const data =
@@ -61,9 +64,9 @@ vi.mock('@/lib/api', async (original) => {
         if (!statut && p.get('filter[scheduled_at_max]') && etat.passeesPage2.length > 0) {
           const page = Number(p.get('page') ?? '1');
           const lignes = page === 2 ? etat.passeesPage2 : etat.passees;
-          return { data: lignes, meta: { total: etat.passees.length + etat.passeesPage2.length, per_page: 20, current_page: page, last_page: 2 } };
+          return servir(chemin, { data: lignes, meta: { total: etat.passees.length + etat.passeesPage2.length, per_page: 20, current_page: page, last_page: 2 } });
         }
-        return { data, meta: { total: data.length, per_page: 20, current_page: 1, last_page: 1 } };
+        return servir(chemin, { data, meta: { total: data.length, per_page: 20, current_page: 1, last_page: 1 } });
       }
       if (methode === 'POST') return { data: {} };
       return { data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } };
@@ -135,8 +138,13 @@ beforeEach(() => {
   vi.setSystemTime(MAINTENANT);
   Object.assign(etat, { appels: [], confirmees: [], demandees: [], terminees: [], closesAVenir: [], passees: [], passeesPage2: [] });
   toastAdd.mockClear();
+  oublierLesLectures();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
+  expect(lecturesHorsFields()).toEqual([]);
+});
 
 describe('AC6 — un client sans visite à venir', () => {
   beforeEach(() => {

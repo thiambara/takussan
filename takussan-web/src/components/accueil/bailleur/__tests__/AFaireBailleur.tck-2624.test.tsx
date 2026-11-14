@@ -9,6 +9,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
 import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
 
 import { AFaireBailleur, type FilesDeLHote } from '../AFaireBailleur';
@@ -103,7 +104,9 @@ vi.mock('@/lib/api', async (original) => {
         if (route === '/api/property-visits/601/confirm') etat.visites -= 1;
         return { data: {} };
       }
-      const page = (data: unknown[], total: number) => ({ data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
+      // TCK-2797 — les visites servies comme l'API : les seules clés de `fields[property_visits]`.
+      const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
+      const page = (data: unknown[], total: number) => servir(chemin, { data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
       switch (route) {
         case '/api/property-visits':
           return page([VISITE, { ...VISITE, id: 602, scheduled_at: '2026-11-16T17:00:00Z' }].slice(0, etat.visites), etat.visites);
@@ -139,8 +142,13 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
   Object.assign(etat, { appels: [], visites: 2, devis: 1, loyers: 4, enCours: 1, peutDecider: true, plafond: null, pannes: new Map(), refus: new Set() });
+  oublierLesLectures();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
+  expect(lecturesHorsFields()).toEqual([]);
+});
 
 describe('les files du bailleur', () => {
   it('« Loyers en retard » ne lit que les échéances DONT IL EST LE BAILLEUR, sans la relance de l’agence', async () => {

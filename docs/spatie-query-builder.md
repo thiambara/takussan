@@ -237,6 +237,22 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 
 `GET /api/bookings/counts` (TCK-2593) rend `{data: {stay|application|offer: {pending, confirmed, rejected, cancelled, completed, expired}}}` sous la portée et les MÊMES filtres que l'index (`filter[managed_by]=me`, `filter[search]`…) : chaque case égale le `meta.total` de l'index filtré sur cette nature et ce statut. `include=customer` porte, pour le personnel de l'agence, `customer.phone`, `customer.pipeline_stage` et `visits_on_property` (visites terminées du client sur le bien) ; le bailleur du bien lit `customer.phone` et `customer.pipeline_stage`, pas `visits_on_property` (décision du porteur, 2026-11-11).
 
+### Visites — `GET /api/property-visits` (TCK-2797)
+
+Sous `fields[property_visits]`, la réponse ne porte que `id`, les clés nommées et les blocs de `include=`
+(`property`, `visitor`, `agent`, `customer`). Sans `fields`, elle est entière. Le détail
+(`GET /api/property-visits/{id}`) suit la même règle.
+
+| Clé calculée | Ce qu'elle rend | Colonnes lues sans être demandées |
+|---|---|---|
+| `visitor_display` | la carte du visiteur `{name, phone, kind, visits_on_property}` ou `null` | aucune (`VisitReadContext`) |
+| `report` | le compte rendu, `null` s'il n'est pas écrit ; clé absente hors du personnel de l'agence du bien | `reported_at`, `report_*`, `reported_by_id` |
+| `abilities` | `{manage, feedback_customer, create_customer}`, au détail seulement | aucune |
+
+Ces clés ne sortent que **nommées**. `PropertyVisit::buildQuery()` les retire avant spatie
+(`PropertyVisitResource::FIELDS`), et un autre nom inconnu rend toujours 400. Une clé demandée n'ouvre aucun
+droit : les règles de lecture de la ressource jugent chaque valeur sur la visite relue, jamais sur le `SELECT`.
+
 ### Agency
 | Param | Type | Description |
 |---|---|---|

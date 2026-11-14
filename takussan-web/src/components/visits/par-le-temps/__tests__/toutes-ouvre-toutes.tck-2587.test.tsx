@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { navigationDeTest } from '@/test/navigation-url';
 import { withIntl } from '@/test/intl';
+import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitesParLeTemps } from '../VisitesParLeTemps';
@@ -65,7 +66,8 @@ vi.mock('@/lib/api', async (original) => {
       const p = new URLSearchParams(qs ?? '');
       if (route === '/api/property-visits/counts') return { data: COMPTES };
       if (route === '/api/property-visits') {
-        return { data: [UNE], meta: { total: totalDe(p), per_page: 30, current_page: 1, last_page: 1 } };
+        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
+        return servir(chemin, { data: [UNE], meta: { total: totalDe(p), per_page: 30, current_page: 1, last_page: 1 } });
       }
       return { data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } };
     }),
@@ -88,8 +90,13 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-11-10T10:12:00Z'));
   etat.large = true;
   etat.appels = [];
+  oublierLesLectures();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas.
+  expect(lecturesHorsFields()).toEqual([]);
+});
 
 describe('« Toutes N » ouvre N (TCK-2587, q1)', () => {
   it('au bureau, « Toutes 13 » ouvre l’onglet « Toutes » : 13, lu sans filter[status], sur la portée du compte', async () => {

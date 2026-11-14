@@ -19,6 +19,13 @@ export const ATTRIBUTS_CALCULES: Record<string, { readonly source: string; reado
     // Un APPEL sur la requête, pas la mention `{@see …::strip()}` du docblock.
     appel: /=\s*CustomerCommercialAttributes::strip\(\$request\b/,
   },
+  // TCK-2797 — `visitor_display`, `report`, `abilities` : `PropertyVisit::buildQuery()` les retire de
+  // `fields[property_visits]` avant spatie, et `PropertyVisitResource` ne les rend que nommés.
+  property_visits: {
+    source: 'Http/Resources/PropertyVisitResource.php',
+    modele: 'Models/PropertyVisit.php',
+    appel: /parent::buildQuery\(\$baseQuery,\s*PropertyVisitResource::requeteDesColonnes\(\$request\b/,
+  },
 };
 
 export function attributsCalcules(table: string): string[] {

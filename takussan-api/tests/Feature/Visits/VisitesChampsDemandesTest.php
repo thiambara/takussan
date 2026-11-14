@@ -71,11 +71,15 @@ class VisitesChampsDemandesTest extends ApiTestCase
     /** @return array<string, array{string}> */
     public static function champsEtroits(): array
     {
+        // TCK-2797 — la réponse ne rend plus que les clés nommées : `visitor_display` et `report` y
+        // sont NOMMÉS, sans quoi leur refus serait vrai faute de demande, et non par la garde. Aucun
+        // ne remet au `SELECT` la colonne que chaque cas retire (`report` y ajoute `reported_at` et
+        // `report_*`, ni `customer_id`, ni `property_id`, ni `visitor_id`).
         return [
-            'sans customer_id' => ['id,status,property_id,visitor_id,visitor_name,visitor_phone,visitor_email,notes,metadata,reported_at'],
-            'sans property_id' => ['id,status,customer_id,visitor_id,visitor_name,visitor_phone,visitor_email,notes,metadata,reported_at'],
-            'sans visitor_id' => ['id,status,property_id,customer_id,visitor_name,visitor_phone,visitor_email,notes,metadata,reported_at'],
-            'le visiteur seul' => ['id,visitor_name,visitor_phone,visitor_email'],
+            'sans customer_id' => ['id,status,property_id,visitor_id,visitor_name,visitor_phone,visitor_email,notes,metadata,reported_at,visitor_display,report'],
+            'sans property_id' => ['id,status,customer_id,visitor_id,visitor_name,visitor_phone,visitor_email,notes,metadata,reported_at,visitor_display,report'],
+            'sans visitor_id' => ['id,status,property_id,customer_id,visitor_name,visitor_phone,visitor_email,notes,metadata,reported_at,visitor_display,report'],
+            'le visiteur seul' => ['id,visitor_name,visitor_phone,visitor_email,visitor_display,notes,metadata,report'],
         ];
     }
 
@@ -142,16 +146,19 @@ class VisitesChampsDemandesTest extends ApiTestCase
         $this->assertSame('+221771112233', $ligne['visitor_phone']);
     }
 
-    public function test_le_compte_rendu_suit_le_personnel_sans_property_id_et_reste_absent_sans_reported_at(): void
+    public function test_le_compte_rendu_suit_le_personnel_sans_property_id_et_ne_sort_que_nomme(): void
     {
-        $avec = $this->ligne($this->agent, 'fields[property_visits]=id,status,reported_at,report_outcome');
+        // TCK-2797 — `report` nommé suffit : la ressource met au `SELECT` `reported_at` et `report_*`,
+        // que l'appelant n'a pas à demander.
+        $avec = $this->ligne($this->agent, 'fields[property_visits]=id,status,report');
         $this->assertSame('interested', $avec['report']['outcome'] ?? null);
+        $this->assertSame($this->agent->id, $avec['report']['reported_by']['id'] ?? null);
 
-        // `report: null` se lirait « compte rendu à faire » : sans `reported_at`, rien n'en est su.
-        $sans = $this->ligne($this->agent, 'fields[property_visits]=id,status');
+        // Non nommé : la clé n'est pas rendue (`report: null` se lirait « compte rendu à faire »).
+        $sans = $this->ligne($this->agent, 'fields[property_visits]=id,status,reported_at');
         $this->assertArrayNotHasKey('report', $sans);
 
-        $bailleur = $this->ligne($this->bailleur, 'fields[property_visits]=id,status,reported_at,report_outcome');
+        $bailleur = $this->ligne($this->bailleur, 'fields[property_visits]=id,status,report');
         $this->assertArrayNotHasKey('report', $bailleur);
     }
 
@@ -222,5 +229,109 @@ class VisitesChampsDemandesTest extends ApiTestCase
 
         $this->assertSame($une, $vingt);
         $this->assertLessThanOrEqual($sansChamps, $vingt);
+        // TCK-2797 (AC6) — le relevé de TCK-2779, sous les clés calculées nommées comme sans elles.
+        $this->assertLessThanOrEqual(12, $vingt);
+        $this->assertLessThanOrEqual(12, $compter('per_page=20&fields[property_visits]=id,status,visitor_display,report'));
+    }
+
+    /* ─────────── TCK-2797 — la réponse ne rend que `id` et les clés de `fields[property_visits]` ─────────── */
+
+    /** @return list<string> */
+    private static function cles(array $ligne): array
+    {
+        $cles = array_keys($ligne);
+        sort($cles);
+
+        return $cles;
+    }
+
+    public function test_ac1_la_ligne_ne_rend_que_les_cles_demandees(): void
+    {
+        foreach ([$this->agent, $this->bailleur] as $lecteur) {
+            $ligne = $this->ligne($lecteur, 'fields[property_visits]=id,scheduled_at,status,preferred_window');
+
+            $this->assertSame(['id', 'preferred_window', 'scheduled_at', 'status'], self::cles($ligne));
+        }
+    }
+
+    public function test_les_blocs_de_relation_suivent_include_et_non_fields(): void
+    {
+        $ligne = $this->ligne($this->agent, 'include=property,agent&fields[property_visits]=id,status,property_id,agent_id&fields[properties]=id,title&fields[users]=id,first_name,last_name');
+
+        $this->assertSame(['agent', 'agent_id', 'id', 'property', 'property_id', 'status'], self::cles($ligne));
+        $this->assertSame($this->bien->id, $ligne['property']['id'] ?? null);
+    }
+
+    public function test_id_est_toujours_rendu(): void
+    {
+        $ligne = $this->ligne($this->agent, 'fields[property_visits]=status');
+
+        $this->assertSame(['id', 'status'], self::cles($ligne));
+    }
+
+    public function test_ac2_visitor_display_se_demande_et_se_juge_comme_sans_fields(): void
+    {
+        $sansFiche = PropertyVisit::factory()->create([
+            'property_id' => $this->bien->id, 'agent_id' => null, 'visitor_id' => null, 'customer_id' => null,
+            'status' => VisitStatus::Scheduled, 'scheduled_at' => now()->addDays(2),
+            'visitor_name' => 'Awa Ndiaye', 'visitor_phone' => '+221775556677',
+        ]);
+
+        foreach ([$this->agent, $this->bailleur] as $lecteur) {
+            Sanctum::actingAs($lecteur);
+            $sans = collect($this->getJson('/api/property-visits')->assertOk()->json('data'))->keyBy('id');
+            $avec = collect($this->getJson('/api/property-visits?fields[property_visits]=id,visitor_display')->assertOk()->json('data'))->keyBy('id');
+
+            foreach ([$this->visite->id, $sansFiche->id] as $id) {
+                $this->assertSame(['id', 'visitor_display'], self::cles($avec[$id]));
+                $this->assertSame($sans[$id]['visitor_display'], $avec[$id]['visitor_display'], "lecteur {$lecteur->id}, visite {$id}");
+            }
+        }
+
+        // Le jumeau et le refus, nommés : le personnel lit la carte, le bailleur la carte réduite
+        // d'une demande sans fiche, et rien d'une visite à fiche de l'agence.
+        Sanctum::actingAs($this->agent);
+        $agent = collect($this->getJson('/api/property-visits?fields[property_visits]=id,visitor_display')->json('data'))->keyBy('id');
+        $this->assertSame('customer', $agent[$this->visite->id]['visitor_display']['kind'] ?? null);
+        Sanctum::actingAs($this->bailleur);
+        $bailleur = collect($this->getJson('/api/property-visits?fields[property_visits]=id,visitor_display')->json('data'))->keyBy('id');
+        $this->assertNull($bailleur[$this->visite->id]['visitor_display']);
+        $this->assertSame('+221775556677', $bailleur[$sansFiche->id]['visitor_display']['phone'] ?? null);
+    }
+
+    public function test_un_nom_inconnu_reste_refuse_et_abilities_ne_sort_pas_d_une_liste(): void
+    {
+        Sanctum::actingAs($this->agent);
+        $this->getJson('/api/property-visits?fields[property_visits]=id,nexistepas')->assertStatus(400);
+
+        $ligne = $this->ligne($this->agent, 'fields[property_visits]=id,abilities');
+        $this->assertSame(['id'], self::cles($ligne));
+    }
+
+    public function test_le_detail_suit_fields_et_rend_abilities_nomme(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $nomme = $this->getJson("/api/property-visits/{$this->visite->id}?fields[property_visits]=id,status,abilities")->assertOk()->json('data');
+        $this->assertSame(['abilities', 'agent', 'customer', 'id', 'property', 'status', 'visitor'], self::cles($nomme));
+        $this->assertTrue($nomme['abilities']['manage']);
+
+        $sans = $this->getJson("/api/property-visits/{$this->visite->id}?fields[property_visits]=id,status")->assertOk()->json('data');
+        $this->assertArrayNotHasKey('abilities', $sans);
+    }
+
+    public function test_report_nomme_rend_null_quand_rien_n_est_ecrit(): void
+    {
+        // « Compte rendu à faire » : la clé est là, et vide — la visite n'en a pas.
+        $aFaire = PropertyVisit::factory()->create([
+            'property_id' => $this->bien->id, 'agent_id' => $this->agent->id, 'visitor_id' => null, 'customer_id' => null,
+            'status' => VisitStatus::Completed, 'scheduled_at' => now()->subDay(),
+        ]);
+        Sanctum::actingAs($this->agent);
+        $ligne = collect($this->getJson('/api/property-visits?fields[property_visits]=id,status,report')->assertOk()->json('data'))
+            ->firstWhere('id', $aFaire->id);
+
+        $this->assertArrayHasKey('report', $ligne);
+        $this->assertNull($ligne['report']);
     }
 }

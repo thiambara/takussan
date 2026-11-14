@@ -20,7 +20,93 @@ use Illuminate\Support\Carbon;
 
 class PropertyVisitResource extends BaseResource
 {
+    /**
+     * TCK-2797 — les clés CALCULÉES, que `fields[property_visits]` peut nommer sans qu'elles soient des
+     * colonnes : spatie ne les voit jamais ({@see requeteDesColonnes}, appelée par
+     * `PropertyVisit::buildQuery()`), et la ressource ne les rend que nommées. Lue par la garde du
+     * front `fields-demandables` : une liste à plat.
+     */
+    public const FIELDS = ['visitor_display', 'report', 'abilities'];
+
+    /**
+     * Les colonnes que `report` lit, mises au `SELECT` sans que l'appelant les demande.
+     * `visitor_display` lit `VisitReadContext`, `abilities` la visite de la route : aucune.
+     */
+    private const COLONNES_DU_COMPTE_RENDU = ['reported_at', 'report_outcome', 'report_objections', 'report_note', 'report_follow_up', 'reported_by_id'];
+
+    /** TCK-2797 — les blocs de relation suivent `include=`, pas `fields` (`whenLoaded`). */
+    private const BLOCS_DE_RELATION = ['property', 'visitor', 'agent', 'customer'];
+
+    /**
+     * TCK-2797 — les clés que `fields[property_visits]` demande, `id` compris ; `null` sans `fields` :
+     * la réponse entière. Lu dans la chaîne de requête D'ORIGINE (sur le modèle de
+     * {@see AppNotificationResource::requestedFields()}), celle qui nomme encore les clés calculées.
+     * Une clé demandée n'ouvre aucun droit : les règles de `toArray` jugent chaque valeur, le filtre
+     * ne fait que retirer.
+     *
+     * @return list<string>|null
+     */
+    public static function requestedFields(Request $request): ?array
+    {
+        $noms = self::nomsDemandes($request);
+
+        return $noms === null ? null : array_values(array_unique(['id', ...$noms]));
+    }
+
+    /**
+     * TCK-2797 — la requête que spatie lit : les clés calculées retirées de `fields[property_visits]`,
+     * remplacées par les colonnes qu'elles lisent, et `id` toujours au `SELECT` (`VisitReadContext`
+     * relit la page par lui). Une copie : la requête d'origine garde les noms que la ressource lit
+     * ensuite. Un nom inconnu reste à spatie, qui le refuse (400), comme avant.
+     */
+    public static function requeteDesColonnes(Request $request): Request
+    {
+        $noms = self::nomsDemandes($request);
+        if ($noms === null) {
+            return $request;
+        }
+
+        $colonnes = ['id'];
+        foreach ($noms as $nom) {
+            if ($nom === 'report') {
+                array_push($colonnes, ...self::COLONNES_DU_COMPTE_RENDU);
+            } elseif (! in_array($nom, self::FIELDS, true)) {
+                $colonnes[] = $nom;
+            }
+        }
+        $query = $request->query->all();
+        $query['fields']['property_visits'] = implode(',', array_values(array_unique($colonnes)));
+
+        return $request->duplicate($query);
+    }
+
+    /** @return list<string>|null */
+    private static function nomsDemandes(Request $request): ?array
+    {
+        $fields = $request->query('fields');
+        $brut = is_array($fields) ? ($fields['property_visits'] ?? null) : null;
+        if (! is_string($brut)) {
+            return null;
+        }
+        $noms = array_values(array_filter(array_map('trim', explode(',', $brut)), fn (string $nom) => $nom !== ''));
+
+        return $noms === [] ? null : $noms;
+    }
+
     public function toArray(Request $request): array
+    {
+        $tout = $this->toutesLesCles($request);
+        $demandes = self::requestedFields($request);
+        if ($demandes === null) {
+            return $tout;
+        }
+
+        // TCK-2797 — `id`, les clés nommées, et les blocs que `include=` a chargés.
+        return array_intersect_key($tout, array_flip([...$demandes, ...self::BLOCS_DE_RELATION]));
+    }
+
+    /** @return array<string, mixed> */
+    private function toutesLesCles(Request $request): array
     {
         $fiche = $this->ficheClientLisible($request);
         // Passe 4 (M7″) — planifier pour une fiche recopie son nom, son téléphone et son e-mail
@@ -32,13 +118,10 @@ class PropertyVisitResource extends BaseResource
         // ligne rendue la disait absente et rendait `visitor_*` au bailleur.
         $relue = $this->identiteRelue($request);
         $visiteurLisible = $fiche || ($relue !== null && $relue['customer_id'] === null);
-        // TCK-2779 — le compte rendu est ABSENT aussi quand `fields[property_visits]` a retiré
-        // `reported_at` du SELECT : `report: null` se lirait « compte rendu à faire »
-        // (`compteRenduAFaire` du front), alors que rien n'en est su. Les deux conditions vont
-        // ensemble : un geste rend un modèle neuf sans `fields` (`report: null`, comme avant), et le
-        // détail charge la visite entière quel que soit `fields`.
-        $rapportLisible = ! $this->reportedAtRetireParFields($request)
-            && $this->compteRenduLisible($request);
+        // TCK-2797 — `report` ne sort que nommé dans `fields`, et le nommer met `reported_at` et
+        // `report_*` au `SELECT` ({@see COLONNES_DU_COMPTE_RENDU}) : le cas « absent faute de `reported_at` »
+        // de TCK-2779 n'existe plus.
+        $rapportLisible = $this->compteRenduLisible($request);
 
         return [
             'id' => $this->id,
@@ -544,19 +627,5 @@ class PropertyVisitResource extends BaseResource
             'agency_id' => $property?->agency_id !== null ? (int) $property->agency_id : null,
             'property_live' => $property !== null,
         ];
-    }
-
-    /**
-     * TCK-2779 — `reported_at` manque à la ligne PARCE QUE `fields[property_visits]` l'a écarté.
-     */
-    private function reportedAtRetireParFields(Request $request): bool
-    {
-        if (array_key_exists('reported_at', $this->resource->getAttributes())) {
-            return false;
-        }
-        $fields = $request->query('fields');
-        $champs = is_array($fields) ? ($fields['property_visits'] ?? null) : null;
-
-        return is_string($champs) && $champs !== '';
     }
 }

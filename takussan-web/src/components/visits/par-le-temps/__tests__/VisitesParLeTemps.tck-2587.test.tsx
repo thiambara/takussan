@@ -9,6 +9,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { lecturesHorsFields, oublierLesLectures } from '@/test/visites-comme-l-api';
 import type { PropertyVisit } from '@/types/visit';
 
 import { VisitesParLeTemps } from '../VisitesParLeTemps';
@@ -132,7 +133,9 @@ vi.mock('@/lib/api', async (original) => {
       }
       if (route === '/api/property-visits') {
         const data = liste(p);
-        return { data, meta: { total: data.length, per_page: 30, current_page: 1, last_page: 1 } };
+        // TCK-2797 — servies comme l'API : les seules clés de `fields[property_visits]`.
+        const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
+        return servir(chemin, { data, meta: { total: data.length, per_page: 30, current_page: 1, last_page: 1 } });
       }
       if (route === '/api/property-visits/bulk-confirm') return etat.lot;
       // L'attribution en lot répond comme la confirmation en lot : une ligne par visite, et ses comptes.
@@ -163,8 +166,13 @@ beforeEach(() => {
   remplacer.mockClear();
   pousser.mockClear();
   toastAdd.mockClear();
+  oublierLesLectures();
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  // TCK-2797 — l'écran ne lit aucune clé de visite qu'il ne demande pas (`VISIT_TIME_FIELDS`).
+  expect(lecturesHorsFields()).toEqual([]);
+});
 
 describe('les pastilles', () => {
   it('AC2 — une seule lecture de comptes au montage, et chaque pastille dit le nombre exact', async () => {

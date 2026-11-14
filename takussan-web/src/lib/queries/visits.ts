@@ -387,7 +387,13 @@ export function useUpdateVisitReport(id: number) {
 
 /* ─────────────────────────── TCK-2587 — les Visites par le temps ─────────────────────────── */
 
-/** Les colonnes d'une carte « par le temps » : l'heure, la tranche, le visiteur et son mot. */
+/**
+ * Les colonnes d'une carte « par le temps » : l'heure, la tranche, le visiteur et son mot.
+ *
+ * TCK-2797 — l'API ne rend plus que les clés nommées ici : `visitor_display` (la carte du visiteur,
+ * son rang « 1re visite » / « revient ») est une clé CALCULÉE, qui ne sort que demandée
+ * (`PropertyVisitResource::FIELDS`). `nomDuVisiteur` et `telephoneDuVisiteur` la lisent d'abord.
+ */
 export const VISIT_TIME_FIELDS: string[] = [
   'id',
   'property_id',
@@ -404,6 +410,7 @@ export const VISIT_TIME_FIELDS: string[] = [
   'duration_minutes',
   'notes',
   'created_at',
+  'visitor_display',
 ];
 
 /** Les affinages du bureau, communs à la liste et aux comptes (`filter[...]`). */
