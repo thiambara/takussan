@@ -1,7 +1,7 @@
 ---
 id: TCK-2836
 title: "Au téléphone, la barre d'actions groupées prend la place de la barre d'onglets pendant une sélection — un mécanisme de coque commun aux écrans à sélection"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M

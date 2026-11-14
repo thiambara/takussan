@@ -1,7 +1,7 @@
 ---
 id: TCK-2832
 title: "Modifier les réglages de bail de l'agence, depuis l'encart « Réglages de l'agence appliqués » du nouveau bail"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
@@ -111,4 +111,4 @@ n'a plus à corriger ces valeurs bail par bail.
 - Bornes de l'indemnité de départ anticipé. Le catalogue accepte 1 à 24 mois, alors que le bail
   (préremplissage et validation) accepte 0 à 12. L'écran affiche les bornes du catalogue, avec une
   aide qui dit qu'un bail neuf en reprend au plus 12. La borne unique et le sens du 0 sont traités à
-  part : [TCK-2842](TCK-2842-une-seule-borne-pour-l-indemnite-de-depart-anticipe.md).
+  part : [TCK-2842](../todo/TCK-2842-une-seule-borne-pour-l-indemnite-de-depart-anticipe.md).

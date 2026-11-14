@@ -1,7 +1,7 @@
 ---
 id: TCK-2828
 title: "L'outil de fidélité borne la zone « barre latérale » à la colonne, pas à tout le cadre 1280"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: S

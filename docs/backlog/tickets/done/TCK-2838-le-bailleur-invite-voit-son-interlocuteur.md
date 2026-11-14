@@ -1,7 +1,7 @@
 ---
 id: TCK-2838
 title: "Le bailleur invité voit son interlocuteur à l'agence — nom, rôle, Appeler, WhatsApp"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M

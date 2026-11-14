@@ -1,7 +1,7 @@
 ---
 id: TCK-2834
 title: "Carnet des prestataires : l'invitation d'un prestataire déjà inscrit ailleurs paraît en attente, sans rien montrer de son profil"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
