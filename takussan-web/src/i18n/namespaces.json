@@ -378,7 +378,7 @@
     "[locale]/(public)/claim": 25,
     "[locale]/(public)/legal": 22,
     "[locale]/(public)/share": 23,
-    "(dashboard)/app/bookings": 30,
+    "(dashboard)/app/bookings": 31,
     "(dashboard)/app/calendar": 30,
     "(dashboard)/app/messages": 42,
     "(dashboard)/app/payments": 37,

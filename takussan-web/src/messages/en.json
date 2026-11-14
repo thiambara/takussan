@@ -3233,6 +3233,10 @@
         "titleNoName": "Welcome to Takussan",
         "body": "{agencyName}’s workspace is ready. One quick step before you head into it.",
         "cta": "Continue"
+      },
+      "sortie": {
+        "configuration": "Two-factor authentication is not enabled yet: its setup will start over, with a new QR code.",
+        "codes": "Your recovery codes will not be shown again. Write them down before leaving this page."
       }
     },
     "standardWelcome": {
@@ -20089,6 +20093,9 @@
       "appeler": "Or call the agency:",
       "accueil": "Go to the home page",
       "carte": "Invitation of {date}"
+    },
+    "sortie": {
+      "reprise": "Nothing has been saved yet. Your invitation link will bring you back here for as long as it is valid."
     }
   },
   "radarClaim": {

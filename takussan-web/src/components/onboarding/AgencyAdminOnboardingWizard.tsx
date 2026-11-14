@@ -6,7 +6,8 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { TotpEnrollment } from '@/components/auth/TotpEnrollment';
+import { TotpEnrollment, type EtapeDEnrolement } from '@/components/auth/TotpEnrollment';
+import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { cn } from '@/lib/utils';
 
@@ -42,7 +43,11 @@ export function AgencyAdminOnboardingWizard({
 }: AgencyAdminOnboardingWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>('welcome');
+  const [enrolement, setEnrolement] = useState<EtapeDEnrolement>('intro');
   const t = useTranslations('agency.onboarding');
+  // TCK-2598 (r2) — rien n'est enregistré au fil de l'assistant : dès que le code QR est montré (un
+  // secret est écrit), quitter demande, et dit ce qui se perd ; l'intro seule sort sans demander.
+  const saisie = step === 'two-factor' && enrolement !== 'intro';
 
   function finish() {
     // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
@@ -52,6 +57,10 @@ export function AgencyAdminOnboardingWizard({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 sm:gap-8">
+      <DeclarerEntree
+        saisie={saisie || undefined}
+        reprise={enrolement === 'success' ? t('sortie.codes') : t('sortie.configuration')}
+      />
       {/* Deux étapes, dites en pastilles. La flèche vivait ENTRE deux `<li>`, enfant direct de
           l'`<ol>` — HTML invalide, et une icône annoncée au milieu de la liste. */}
       <ol className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground">
@@ -109,7 +118,7 @@ export function AgencyAdminOnboardingWizard({
           <h1 id="agency-admin-onboarding-2fa" className="sr-only">
             {t('steps.twoFactor')}
           </h1>
-          <TotpEnrollment mode="forced" onComplete={finish} />
+          <TotpEnrollment mode="forced" onComplete={finish} onEtape={setEnrolement} />
         </section>
       ) : null}
     </div>

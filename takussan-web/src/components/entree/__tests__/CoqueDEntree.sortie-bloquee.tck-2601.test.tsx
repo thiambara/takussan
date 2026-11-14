@@ -90,11 +90,15 @@ describe('la sortie bloquée (TCK-2601, AC5)', () => {
     rerender(withIntl(<Page bloquee={false} />));
     const quitter = screen.getByRole('link', { name: 'Quitter' });
     expect(quitter).not.toHaveAttribute('aria-disabled');
+    // TCK-2598 (r1) — levée, la marque redevient une sortie GARDÉE : une saisie existe, elle demande
+    // (elle sortait sans demander, et ce test l'acceptait).
     for (const marque of screen.getAllByRole('link', { name: 'Takussan' })) {
       expect(marque).not.toHaveAttribute('aria-disabled');
       fireEvent.click(marque);
+      expect(screen.getByText(C.sortie.titre)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: C.sortie.rester }));
     }
-    expect(clics.every((c) => !c.annule)).toBe(true);
+    expect(clics.every((c) => c.annule)).toBe(true);
     fireEvent.click(quitter);
     // Une saisie existe : la sortie demande confirmation, comme avant.
     expect(clics.at(-1)?.annule).toBe(true);

@@ -3190,6 +3190,10 @@
         "titleNoName": "Bienvenue sur Takussan",
         "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant d’y entrer.",
         "cta": "Continuer"
+      },
+      "sortie": {
+        "configuration": "La double authentification n’est pas encore activée : sa configuration reprendra au début, avec un nouveau code QR.",
+        "codes": "Vos codes de secours ne seront plus affichés. Notez-les avant de quitter cette page."
       }
     },
     "standardWelcome": {
@@ -20089,6 +20093,9 @@
       "appeler": "Ou appelez l’agence :",
       "accueil": "Aller à l’accueil",
       "carte": "Invitation du {date}"
+    },
+    "sortie": {
+      "reprise": "Rien n’est encore enregistré. Le lien de votre invitation vous ramènera ici tant qu’elle reste valable."
     }
   },
   "radarClaim": {

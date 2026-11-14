@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, ShieldCheck, Loader2 } from 'lucide-react';
 
@@ -39,9 +39,16 @@ export interface TotpEnrollmentProps {
   readonly onComplete: () => void;
   /** Only honoured when `mode === 'recommended'` — wired to the "Plus tard" button. */
   readonly onSkip?: () => void;
+  /**
+   * TCK-2598 (r2) — l'étape courante, pour qui monte l'enrôlement sous une sortie gardée (l'assistant de
+   * l'admin d'agence) : dès `scanning`, un secret est écrit et le code QR montré ; à `success`, les codes
+   * de secours ne s'affichent qu'une fois. Facultatif : les autres montages n'en font rien.
+   */
+  readonly onEtape?: (etape: EtapeDEnrolement) => void;
 }
 
 type Stage = 'intro' | 'scanning' | 'success';
+export type EtapeDEnrolement = Stage;
 
 interface SetupPayload {
   readonly secret: string;
@@ -49,7 +56,7 @@ interface SetupPayload {
   readonly qrUrl: string;
 }
 
-export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps) {
+export function TotpEnrollment({ mode, onComplete, onSkip, onEtape }: TotpEnrollmentProps) {
   const t = useTranslations('auth.twoFactor');
   const [stage, setStage] = useState<Stage>('intro');
   const [setup, setSetup] = useState<SetupPayload | null>(null);
@@ -58,6 +65,10 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    onEtape?.(stage);
+  }, [onEtape, stage]);
 
   const handleStart = useCallback(() => {
     setError(null);
