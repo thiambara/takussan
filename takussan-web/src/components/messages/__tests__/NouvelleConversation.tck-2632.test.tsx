@@ -19,7 +19,7 @@ const PERSONNES = [
 // TCK-2830 — sans recherche, chaque section lit sa requête : ces deux personnes sans relation ne
 // sont rendues que par la section « autre », comme le ferait le serveur.
 // TCK-2830 — la ligne de détail lit l'espace actif (nom de l'agence de l'équipe) ; non exercée ici.
-vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ data: undefined }) }));
+vi.mock('@/hooks/useNomDeLAgenceActive', () => ({ useNomDeLAgenceActive: () => null }));
 vi.mock('@/lib/queries/conversations', () => ({
   useMessagingContacts: (_terme: string, options: { section?: string } = {}) => {
     const data = options.section === undefined || options.section === 'autre' ? PERSONNES : [];

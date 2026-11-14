@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { useMyProfiles } from '@/hooks/useProfiles';
+import { useNomDeLAgenceActive } from '@/hooks/useNomDeLAgenceActive';
 import type { MessagingContact } from '@/lib/queries/conversations';
 
 /**
@@ -12,13 +12,12 @@ import type { MessagingContact } from '@/lib/queries/conversations';
  * ligne non plus (pas de « — ») ; sans ville, le titre seul.
  *
  * L'équipe, c'est l'agence ACTIVE de l'appelant (`MessagingRelation::EQUIPE`) : son nom est celui
- * de l'espace actif (`useMyProfiles`, le cache du changement d'espace), d'où « Agent · Dakar Immo »
+ * de l'espace actif (`useNomDeLAgenceActive`, le cache des espaces), d'où « Agent · Dakar Immo »
  * comme la maquette ; sans nom lisible, le rôle seul.
  */
 export function useLigneDeContact(): (contact: MessagingContact) => string | null {
   const t = useTranslations('messaging.nouvelle.detail');
-  const { data: profils } = useMyProfiles();
-  const agence = profils?.data.find((p) => p.id === profils.meta.active_profile_id)?.agency?.name ?? null;
+  const agence = useNomDeLAgenceActive();
   return (contact) => {
     const detail = contact.detail;
     if (!detail) return null;

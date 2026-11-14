@@ -9,11 +9,12 @@
  * une section vient de SA requête, jamais d'un tri d'une liste déjà reçue.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import type { MessagingContact } from '@/lib/queries/conversations';
+import { CLE_PROFILS } from '@/lib/cache-d-espace';
 import { NouvelleConversation } from '../NouvelleConversation';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -53,14 +54,6 @@ function mockApi() {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input), 'http://localhost');
       urls.push(url);
-      // L'espace actif (`useMyProfiles`) : le nom de l'agence de l'équipe, lu par le front.
-      if (url.pathname === '/api/me/profiles') {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({ data: [{ id: 3, type: 'agent', agency: { id: 1, name: agence } }], meta: { active_profile_id: 3 } }),
-        };
-      }
       let rendus = [...perimetre];
       const relation = url.searchParams.get('filter[relation]');
       if (relation === 'autre') rendus = rendus.filter((p) => !FORTES.includes(p.relation ?? ''));
@@ -80,6 +73,11 @@ function mockApi() {
 
 function monter(extra: { bureau?: boolean; onNouveauGroupe?: () => void } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // L'espace actif, tel que la coque de `/app` le met en cache (`CLE_PROFILS`) : la ligne de détail
+  // de l'équipe y lit le nom de l'agence, sans le demander elle-même.
+  if (agence !== null) {
+    client.setQueryData(CLE_PROFILS, { data: [{ id: '3', type: 'agent', agency: { id: 1, name: agence } }], meta: { active_profile_id: '3', count: 1 } });
+  }
   render(
     withIntl(
       <QueryClientProvider client={client}>
@@ -157,17 +155,21 @@ describe('<NouvelleConversation> — rangée en sections (TCK-2830)', () => {
   });
 
   it('avec une recherche : une seule liste par pertinence, sans section, avec la ligne de détail', async () => {
-    const user = userEvent.setup();
     monter();
     await screen.findByRole('heading', { name: 'Autres personnes' });
 
-    await user.type(screen.getByRole('searchbox'), 'awa');
-    await screen.findByRole('heading', { name: 'Personnes' });
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Clients récents' })).not.toBeInTheDocument());
+    // Cause de l'intermittence (reproduite en retardant de 200 ms la seule réponse de la recherche) :
+    // le titre « Personnes » paraît dès que le terme est posé, sa liste encore en chargement ; les
+    // assertions lues juste après ce titre trouvaient « Recherche… » et aucun bouton. On attend donc
+    // l'ÉTAT FINAL, la liste de « awa ». Le terme part d'un coup : une seule recherche, sans les
+    // termes intermédiaires de `user.type` sous un debounce réel.
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'awa' } });
 
-    expect(screen.getAllByRole('region')).toHaveLength(1);
-    const liste = screen.getByRole('region', { name: 'Personnes' });
-    expect(within(liste).getAllByRole('button').map(rangee)).toEqual(['Awa Ndiaye | Studio meublé · Mermoz', 'Awa Diop | Administrateur · Dakar Immo']);
+    await waitFor(() => {
+      expect(screen.getAllByRole('region')).toHaveLength(1);
+      const liste = screen.getByRole('region', { name: 'Personnes' });
+      expect(within(liste).getAllByRole('button').map(rangee)).toEqual(['Awa Ndiaye | Studio meublé · Mermoz', 'Awa Diop | Administrateur · Dakar Immo']);
+    });
     const cherche = urls.filter((u) => u.searchParams.get('filter[search]') === 'awa');
     expect(cherche.length).toBeGreaterThan(0);
     expect(cherche.every((u) => u.searchParams.get('filter[relation]') === null)).toBe(true);
