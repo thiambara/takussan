@@ -58,7 +58,7 @@ passe 018 ; la pratique prime).
 
 ## Delta à produire
 
-- [ ] `.agent/skills/syncing-specs/SKILL.md` — la compétence, avec :
+- [x] `.agent/skills/syncing-specs/SKILL.md` — la compétence, avec :
   - les sources : le code fusionné, les migrations du lot, `docs/spatie-query-builder.md`, les rapports de
     vérification et le journal du plan du lot ;
   - la méthode : le schéma migration par migration, puis le comportement, chaque affirmation relue dans le code
@@ -68,20 +68,20 @@ passe 018 ; la pratique prime).
     `node docs/gen-features-by-actor.mjs` puis `--check` ;
   - le commit : `docs(specs): …`, local, sans push sauf demande explicite ;
   - le mode passe d'audit, si l'option (b) est retenue
-- [ ] `.agent/workflows/sync-specs.md` — le relais, sur le modèle de `.agent/workflows/implement-spec.md`
-- [ ] `.claude/commands/sync-specs.md` — réduit au relais (une ligne, comme `implement-spec.md`)
-- [ ] `scripts/check-skills-dir.mjs` — `syncing-specs` dans la non-vacuité, avec les deux autres
-- [ ] `CLAUDE.md` racine, § Workflows : la ligne `/sync-specs` dit « reporte le livré dans … » (et la passe sur
+- [x] `.agent/workflows/sync-specs.md` — le relais, sur le modèle de `.agent/workflows/implement-spec.md`
+- [x] `.claude/commands/sync-specs.md` — réduit au relais (une ligne, comme `implement-spec.md`)
+- [x] `scripts/check-skills-dir.mjs` — `syncing-specs` dans la non-vacuité, avec les deux autres
+- [x] `CLAUDE.md` racine, § Workflows : la ligne `/sync-specs` dit « reporte le livré dans … » (et la passe sur
       demande, si (b))
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `.claude/commands/sync-specs.md` ne contient plus de consigne propre. Il relaie vers
+- [x] AC1 — `.claude/commands/sync-specs.md` ne contient plus de consigne propre. Il relaie vers
       `.agent/workflows/sync-specs.md`, qui relaie vers `.agent/skills/syncing-specs/SKILL.md`.
-- [ ] AC2 — La compétence n'ordonne aucun push et n'interdit pas l'édition des specs en mode report.
-- [ ] AC3 — `node scripts/check-skills-dir.mjs` est vert.
-- [ ] AC4 — Ablation : renommer `.agent/skills/syncing-specs/` rougit la garde (non-vacuité).
-- [ ] AC5 — `node docs/backlog/gen-index.mjs --check`, `ranger-tickets.mjs --check` et `check-backlog.mjs` restent
+- [x] AC2 — La compétence n'ordonne aucun push et n'interdit pas l'édition des specs en mode report.
+- [x] AC3 — `node scripts/check-skills-dir.mjs` est vert.
+- [x] AC4 — Ablation : renommer `.agent/skills/syncing-specs/` rougit la garde (non-vacuité).
+- [x] AC5 — `node docs/backlog/gen-index.mjs --check`, `ranger-tickets.mjs --check` et `check-backlog.mjs` restent
       verts.
 
 ## Hors périmètre
@@ -91,4 +91,24 @@ passe 018 ; la pratique prime).
 
 ## Notes d'implémentation
 
-_(À remplir pendant l'implémentation.)_
+- **Prémisse re-mesurée au HEAD (745e3fa3f, 2026-11-14)** : `.claude/commands/sync-specs.md` portait toujours la
+  passe numérotée, l'interdiction d'éditer les specs et le push automatique ; ni `.agent/workflows/sync-specs.md`
+  ni `.agent/skills/syncing-specs/` n'existaient ; `EXIGEES` ne nommait que `implementing-specs` et `writing-specs`.
+- **Option (b) retenue** (décision du team-lead) : mode « report du livré » par défaut, mode « passe d'audit » sur
+  demande, qui reprend l'ancienne commande sans le push et sans la ligne `Co-Authored-By` en dur (le pied
+  d'attribution est celui que la session prescrit).
+- **Chaîne de relais** : la commande relaie vers `.agent/workflows/sync-specs.md`, qui relaie vers la compétence
+  (AC1). `implement-spec.md` et `write-spec.md` relaient, eux, directement vers la compétence ; laissés tels quels
+  (hors périmètre).
+- **Preuves** :
+  - AC1 : `.claude/commands/sync-specs.md` = frontmatter + une ligne de relais.
+  - AC2 : la compétence ne contient aucune consigne de push ; elle dit « commit local, sans push » dans les deux
+    modes, et le mode report édite les specs.
+  - AC3 : `node scripts/check-skills-dir.mjs` → `✓ … 16 compétence(s)`. La garde lit `git ls-files` : tant que la
+    compétence n'est pas indexée, elle est rouge en local ; mesurée verte sous un index temporaire
+    (`GIT_INDEX_FILE`, copie de l'index), et le sera au commit.
+  - AC4 : ablation, `.agent/skills/syncing-specs/` renommé en `syncing-specs-ABL` (index temporaire) → exit 1,
+    « `.agent/skills/syncing-specs/SKILL.md` est introuvable » ; restauré → vert.
+  - AC5 : `gen-index.mjs --check`, `ranger-tickets.mjs --check`, `check-backlog.mjs` → exit 0.
+- Les autres gardes `scripts/check-*.mjs` rouges au moment de la mesure ne portent que sur
+  `takussan-web/src/app/[locale]/(public)/playground/maquettes/` (hors ticket).

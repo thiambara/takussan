@@ -440,7 +440,9 @@ Par `.claude/commands/` (Claude Code) — `.windsurf/` a été retiré le 2026-1
 
 - `/write-spec` — crée un ticket, ne touche jamais au code.
 - `/implement-spec` — implémente un ticket, ne modifie jamais les specs.
-- `/sync-specs` — fait converger `docs/features.md` et `docs/models-spec.md`.
+- `/sync-specs` — reporte le livré dans `docs/features.md` et `docs/models-spec.md` (commit local
+  `docs(specs): …`, sans push) ; sur demande, une passe d'audit sous `docs/sync-passes/` qui ne touche
+  pas les specs.
 
 Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire
 directement le workflow correspondant.
