@@ -295,3 +295,25 @@ describe('TCK-2660 (vérification) — les comptes des tranches', () => {
     for (const compte of historiques().filter((p) => p.get('per_page') === '1')) expect(compte.get('include')).toBeNull();
   });
 });
+
+describe('TCK-2660 (fidélité a-2) — l’aperçu du message montre le lien comme la maquette', () => {
+  it('le repère, puis le lien créé par « Copier », se lisent dans `lien-du-message` ; le texte de l’aperçu ne change pas', async () => {
+    lignes = [ligne(1, 34)];
+    const utilisateur = rendre();
+    const carte = await screen.findByRole('article', { name: 'Locataire 1' });
+    await utilisateur.click(within(carte).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+
+    const apercu = await waitFor(() => {
+      const a = document.querySelector<HTMLElement>('[data-slot="apercu-du-message"]');
+      expect(a).not.toBeNull();
+      return a!;
+    });
+    const avant = apercu.textContent;
+    expect(apercu.querySelector('[data-slot="lien-du-message"]')).toHaveTextContent('[lien de paiement ajouté à l’envoi]');
+
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(async () => undefined) } });
+    await utilisateur.click(screen.getByRole('button', { name: /Copier/ }));
+    await waitFor(() => expect(apercu.querySelector('[data-slot="lien-du-message"]')).toHaveTextContent(LIEN));
+    expect(apercu.textContent).toBe(avant!.replace('[lien de paiement ajouté à l’envoi]', LIEN));
+  });
+});

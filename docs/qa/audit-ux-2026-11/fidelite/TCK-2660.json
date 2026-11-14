@@ -30,9 +30,9 @@
       },
       "gele_le": "2026-11-11",
       "produit": {
-        "route": "/app/agency/finances?tab=impayes",
+        "route": "/app/agency/finances?tab=impayes&relance=602 (téléphone) ; /app/agency/finances?tab=impayes (bureau)",
         "persona": "admin",
-        "etat": "téléphone : « Relancer sur WhatsApp » de la 3ᵉ carte (aucune n'a 34 j de retard dans la base : Yacine Diallo, 160 j), la feuille composée, lien prêt (`relance-tel.js`). Bureau : le dossier ouvert par le nom de la 3ᵉ rangée, comme la maquette (pied « Appeler · Encaisser un paiement · Relancer », `relance-bureau.js`). Rien n'est cliqué dans la feuille ni le dossier"
+        "etat": "2026-11-14, après 38bac668d et 7ed7f3073. Téléphone : la feuille ouverte PAR L'ADRESSE (`?tab=impayes&relance=602`, TCK-2775 ; échéance de Yacine Diallo, 162 j, aucune n'a 34 j dans la base), TELLE QU'OUVERTE : le message porte le repère « [lien de paiement ajouté à l’envoi] » et le cadre « Créé à l’envoi de la relance » (décision 1 : aucun lien n'est créé à l'ouverture). Bureau 1280 : le dossier ouvert par le nom de la 3ᵉ rangée, tel qu'ouvert (pied « Appeler · Encaisser un paiement · Relancer »). Rien n'est cliqué dans la feuille ni le dossier. Relevé secondaire (preuve, pas comparaison de référence) : le même état après « Copier », qui crée le lien (POST intercepté) — le lien remplace le repère et le cadre le montre, comme la maquette"
       }
     }
   ],
@@ -42,14 +42,15 @@
     "disposition": "admin-agence",
     "etat": "voir `ecrans[].produit`",
     "defiler": null,
-    "perturber": "scratchpad du lot 2, terrain-5/2660/fid/ : intercepter.js (préfixe des trois : `window.fetch` répond au seul POST …/payment-link par une URL fictive, celle de la maquette, et REFUSE tout POST …/reminders ; un clic sur un lien wa.me ou tel: est annulé ; chaque interception est journalisée et rendue dans `perturbation.interceptions` du relevé) ; liste-filet.js (a-1) ; relance-tel.js et relance-bureau.js (a-2)",
+    "perturber": "scratchpad du lot 2. a-1 (2026-11-12) : terrain-5/2660/fid/intercepter.js + liste-filet.js. a-2 (2026-11-14) : impl/lot2/w-2660/fid/ouverte-tel.js et ouvert-bureau.js (relevés de référence, aucun clic), relance-tel.js et relance-bureau.js (relevés secondaires, clic sur « Copier »). Préfixe commun (prefixe.js) : `window.fetch` répond au seul POST …/payment-link par une URL fictive et REFUSE tout POST …/reminders ; un clic sur wa.me ou tel: est annulé ; `navigator.clipboard.writeText` est refusé (le relevé n'écrit pas le presse-papiers) ; chaque interception est rendue dans `perturbation.interceptions`",
     "bloquer": "*/api/lease-payments/*/payment-link"
   },
   "preuve_aucune_ecriture": {
     "decision": "décision 7 du chef d'équipe : les deux POST bloqués pendant les relevés, AC1 prouvé par le journal d'interception, jamais wa.me ni tel: suivis",
     "journal": {
       "a-1 (trois appareils)": "interceptions [] ; aucun POST dans `meta.reseau`",
-      "a-2 (trois appareils)": "interceptions [« POST /api/lease-payments/602/payment-link → 200 simulé »] ; aucun POST dans `meta.reseau` (le POST n'a pas quitté la page) ; au bureau, `GET …/602/reminders` (une lecture : l'historique du dossier)"
+      "a-2 (trois appareils)": "2026-11-12, avant 38bac668d : interceptions [« POST /api/lease-payments/602/payment-link → 200 simulé »] ; aucun POST dans `meta.reseau` (le POST n'a pas quitté la page) ; au bureau, `GET …/602/reminders` (une lecture : l'historique du dossier)",
+      "a-2 (2026-11-14, 390 et 1280)": "telle qu'ouverte : interceptions [] ; aucun POST dans `meta.reseau` (26 requêtes au téléphone, 30 au bureau). Après « Copier » (secondaire) : interceptions [« POST /api/lease-payments/602/payment-link → 200 simulé », « presse-papiers → refusé »], aucun POST dans `meta.reseau`"
     },
     "ac1": "AC1 (« Ouvrir WhatsApp » ouvre wa.me au numéro, avec le lien, puis note la relance) est prouvé par les tests — `impayes.tck-2660.test.tsx`, « AC1 — … » : `href` = https://wa.me/221771234567, texte décodé contenant le lien, POST …/reminders `{channel: whatsapp}`, carte « relancé aujourd’hui » sans relecture de la liste — et non par un relevé, qui n'écrit jamais"
   },
@@ -99,15 +100,15 @@
   "ignorer": [
     {
       "element": "colonne de coches, « 4 sélectionnés · 11 750 000 F », « Relancer la sélection… » (WhatsApp · SMS · E-mail · « Tout désélectionner ») (a-1 bureau)",
-      "motif": "relance en lot : TCK-2682 (décision 6). La première colonne est celle du locataire ; une colonne de coche s'y ajoutera devant sans rien déplacer — d'où le retrait de −36 px de tout le contenu de la colonne Locataire et les largeurs de colonnes, et le décalage de −45 px des rangées (barre de sélection absente)"
+      "motif": "relance en lot : TCK-2682 (décision 6). La première colonne est celle du locataire ; une colonne de coche s'y ajoutera devant sans rien déplacer — d'où le retrait de −36 px de tout le contenu de la colonne Locataire et les largeurs de colonnes, et le décalage de −45 px des rangées (barre de sélection absente) — la maquette retouchée le retire : ticket de suite TCK-2822"
     },
     {
       "element": "bascule « WhatsApp · SMS · E-mail » de la feuille (a-2 téléphone)",
-      "motif": "hors du ticket (décision 6) : Takussan n'envoie rien (ADR-0105), seul WhatsApp s'ouvre depuis le téléphone de l'agence. La feuille, plus courte de cette rangée, monte de son contenu"
+      "motif": "hors du ticket (décision 6) : Takussan n'envoie rien (ADR-0105), seul WhatsApp s'ouvre depuis le téléphone de l'agence. La feuille, plus courte de cette rangée, monte de son contenu — la maquette retouchée le retire : ticket de suite TCK-2822"
     },
     {
       "element": "« Lu le 3 nov. à 18:02 · sans réponse », « Remis » (historique des relances, a-2 bureau)",
-      "motif": "hors du ticket (décision 6, AC5) : rien ne mesure la lecture d'un message envoyé depuis le WhatsApp de l'agence. Un test garde l'absence de « Lu le »"
+      "motif": "hors du ticket (décision 6, AC5) : rien ne mesure la lecture d'un message envoyé depuis le WhatsApp de l'agence. Un test garde l'absence de « Lu le » — la maquette retouchée le retire : ticket de suite TCK-2822"
     },
     {
       "element": "« Novembre 2026 » et « Exporter » de l'en-tête (a-1, a-2 bureau)",
@@ -115,7 +116,7 @@
     },
     {
       "element": "« ⋯ » de l'en-tête du téléphone (lucide-ellipsis)",
-      "motif": "aucun geste de plus sur l'écran des impayés : le menu de la maquette ne porte rien que la page n'offre déjà — sans lui, le titre de l’en-tête prend sa place (largeur 286 → 334 px)"
+      "motif": "aucun geste de plus sur l'écran des impayés : le menu de la maquette ne porte rien que la page n'offre déjà. Depuis TCK-2682, sa place est prise par « Sélectionner » (relance en lot) ; le titre mesure 216,8 px au lieu de 286. La maquette retouchée le dessinera : ticket de suite TCK-2822"
     },
     {
       "element": "barre d'onglets du téléphone (« Messages » / « Messagerie », pastille) et barre latérale du bureau",
@@ -127,23 +128,35 @@
     },
     {
       "element": "« Remis », l’icône SMS (lucide-message-square-text) de l’historique des relances",
-      "motif": "hors du ticket : Takussan n’envoie ni SMS ni e-mail de relance manuelle (ADR-0105), et rien ne mesure la remise d’un message"
+      "motif": "hors du ticket : Takussan n’envoie ni SMS ni e-mail de relance manuelle (ADR-0105), et rien ne mesure la remise d’un message — la maquette retouchée le retire : ticket de suite TCK-2822"
+    },
+    {
+      "element": "« Sélectionner » de l'en-tête du téléphone, case « Sélectionner toutes les échéances affichées » (a-1, a-2)",
+      "motif": "relance en lot (TCK-2682) ; dessinés par la maquette retouchée : ticket de suite TCK-2822"
+    },
+    {
+      "element": "onglet « Interventions » du registre d'« Argent » (bureau), et le décalage de +88 px de l'onglet « Impayés »",
+      "motif": "ajouté par TCK-2677 (e2292ce31, factures des prestataires) après le gel ; dessiné par la maquette retouchée : ticket de suite TCK-2822"
+    },
+    {
+      "element": "« Rappel automatique » dans la colonne « Dernière relance » (bureau)",
+      "motif": "vérité des données : la base de démo du 2026-11-14 porte des relances automatiques sur ces échéances (`last_reminder.source = automatic`)"
     }
   ],
   "ecarts_acceptes": [
     {
-      "ecran": "a-1-*, a-2-*",
-      "element": "la feuille de relance (téléphone) et la relance du dossier (bureau) : le message et le cadre du lien de paiement",
-      "propriete": "texte : l'URL du lien (« takussan.com/pay/… ») → le repère « [lien de paiement ajouté à l’envoi] » dans le message, et « Créé à l’envoi de la relance » dans le cadre du lien",
-      "exception": "décision du porteur (décision 1, 2026-11-12)",
-      "motif": "décision 1 du porteur (2026-11-12) : le lien de paiement n'est créé qu'à l'ENVOI de la relance (clic sur « Ouvrir WhatsApp », ou « Copier »), jamais à l'ouverture de la feuille ou du dossier — une lecture n'écrit pas. Le message porte un repère que l'envoi remplace par l'URL (clés `admin.finances.impayes.message.repereDuLien` et `relancer.lienACreer`)"
+      "ecran": "a-2-*",
+      "element": "le message et le cadre du lien de paiement, tels qu'ouverts",
+      "propriete": "texte : l'URL (« takussan.com/pay/… ») → le repère « [lien de paiement ajouté à l’envoi] » (absent de la maquette) ; « Créé à l’envoi de la relance » dans le cadre (absent de la maquette)",
+      "exception": "ticket de suite TCK-2822",
+      "motif": "décision 1 du porteur (2026-11-12, ADR-0105 amendement) postérieure au gel : le lien n'est créé qu'à l'envoi (« Ouvrir WhatsApp », « Copier »). Hors des trois exceptions d'ADR-0106 § 2 : la maquette retouchée dessinera cet état. Le dessin du lien est tenu : le repère occupe la place et le style du lien de la maquette (15 px, 500, rgb(63,107,69), souligné ; y 558,5 = maquette, 2026-11-14) ; après « Copier », l'URL y prend sa place et le cadre la montre (relevé secondaire)"
     },
     {
       "ecran": "a-1-*, a-2-*",
       "element": "une carte (téléphone) ou une rangée (bureau) PAR LOCATAIRE, « 3 échéances » sous le montant",
       "propriete": "nombre de cartes et texte (« 3 échéances » → « Loyer de juin »)",
-      "exception": "décision produit",
-      "motif": "décision 2 : une carte par ÉCHÉANCE, compteur = `meta.total` de `GET /api/payments/history`, « Voir plus » par 20. Chaque échéance a son lien de paiement et sa relance ; les autres échéances dues du même locataire sont dans son dossier (« Échéances dues »). Grouper par locataire est un delta d'API (pagination par payeur) : reste"
+      "exception": "ticket de suite TCK-2822",
+      "motif": "décision 2 du porteur (une carte par ÉCHÉANCE, compteur = `meta.total`, « Voir plus » par 20), postérieure au gel ; la maquette retouchée la dessinera"
     },
     {
       "ecran": "a-1-*, a-2-*",
@@ -169,16 +182,16 @@
     {
       "ecran": "a-2-*",
       "element": "le message de relance",
-      "propriete": "texte (« … — Dakar Immo », « Wave ou Orange Money, sans compte »)",
-      "exception": "décision produit",
-      "motif": "le message est composé par l'action serveur dans la langue du LOCATAIRE (ADR-0105 § 1 ; wolof en pause : un locataire `wo` reçoit le français, test « wolof en pause ») ; il ne nomme aucun moyen de paiement (le lien ne dit pas lesquels il propose) et ne signe pas : il part du WhatsApp de l'agence, qui est sa signature. Le message reste modifiable"
+      "propriete": "texte : « — Dakar Immo » → « De la part de Dakar Immo. » ; « Vous pouvez payer par Wave ou Orange Money ici » → « Vous pouvez le payer en ligne ici » ; « du Studio de Sacré-Cœur » → « du bien « … » » ; « 250 000 F » → « … F CFA » ; montant sans graisse 600",
+      "exception": "ticket de suite TCK-2822",
+      "motif": "ADR-0105, amendement du 2026-11-12, point 6 (« De la part de {agence}. », gardé par relance.tck-2660 et impayes-en-lot.tck-2682) ; le ticket : aucun moyen de paiement tant que le lien ne dit pas lesquels il propose ; le message quitte `/app` pour le WhatsApp du locataire (« F CFA »). Les noms, mois, montants, bien et date sont des données. La maquette retouchée portera ce gabarit"
     },
     {
       "ecran": "a-2-bureau-*",
       "element": "voile sombre derrière le panneau",
       "propriete": "fond de toute la page (≈ 65 à 69 % des pixels de l'écran)",
-      "exception": "décision produit",
-      "motif": "le panneau de droite est sans voile et non modal — décision du porteur du 2026-11-10 (`ui/panneau-droit.tsx`), déjà acceptée pour TCK-2584 ; la maquette, antérieure, le dessine"
+      "exception": "ticket de suite TCK-2822",
+      "motif": "panneau de droite sans voile et non modal : décision du porteur du 2026-11-10 (`ui/panneau-droit.tsx`), postérieure au dessin de la maquette ; la maquette retouchée le retirera"
     },
     {
       "ecran": "a-2-bureau-*",
@@ -268,8 +281,8 @@
       "ecran": "a-1-bureau-*, a-2-bureau-*",
       "element": "pied de table « 1 à 8 sur 16 · Page 1 / 2 » et ses chevrons",
       "propriete": "absents de l’écran (sous la ligne de flottaison)",
-      "exception": "décision produit",
-      "motif": "une page de 20 échéances (décision 2, `IMPAYES_PAR_PAGE`) : les 16 de la base tiennent sur une page, et le pied tombe sous 900 px ; la maquette pagine par 8"
+      "exception": "ticket de suite TCK-2822",
+      "motif": "pages de 20 échéances (décision 2, `IMPAYES_PAR_PAGE`) : les 16 de la base tiennent sur une page et le pied tombe sous 900 px ; la maquette retouchée paginera par 20"
     },
     {
       "ecran": "a-1-bureau-*, a-2-bureau-*",
@@ -303,15 +316,15 @@
       "ecran": "a-2-bureau-*",
       "element": "« Wave ou Orange Money, sans compte. » sous le lien",
       "propriete": "texte (« Le paiement solde l’échéance et prévient l’agence. »)",
-      "exception": "décision produit",
-      "motif": "le lien ne dit pas les moyens qu’il propose (cf. le message) : la phrase garde ce que le paiement fait"
+      "exception": "ticket de suite TCK-2822",
+      "motif": "le lien ne dit pas les moyens qu'il propose (même règle que le message) : la phrase garde ce que le paiement fait ; la maquette retouchée la portera"
     },
     {
       "ecran": "a-2-bureau-*",
       "element": "« Ancienneté du dû » (1 à 30, 31 à 60, 61 à 90, plus de 90 jours) au bas du dossier",
       "propriete": "présent dans le produit seul",
-      "exception": "décision produit",
-      "motif": "décision 3 du chef d’équipe (« rien ne se perd ») : l’ancienne vue par locataire de l’âge des créances donnait le dû de chaque locataire par tranche ; la liste par échéance l’a remplacée, le dossier le garde. Posé APRÈS les relances pour ne rien déplacer de la maquette au-dessus"
+      "exception": "ticket de suite TCK-2822",
+      "motif": "décision 3 du chef d'équipe (« rien ne se perd ») : le dû d'un locataire par tranche, que montrait l'ancienne vue par locataire, vit au bas du dossier (posé après les relances, rien ne bouge au-dessus) ; la maquette retouchée le dessinera"
     },
     {
       "ecran": "a-2-bureau-*",
@@ -330,14 +343,14 @@
   ],
   "comparaisons": {
     "dossier": "takussan-web/.fidelite/TCK-2660/cmp-a{1,2}-{telephone,bureau-1440,bureau-1280}/",
-    "le": "2026-11-12 (dernière passe après les corrections ci-dessous), avec `--roles` de cette fiche et `--bloquer '*/api/lease-payments/*/payment-link'`",
+    "le": "a-1 et a-2 bureau 1440 : 2026-11-12 (non re-mesurés) ; a-2 téléphone et bureau 1280 : 2026-11-14 (après 38bac668d et 7ed7f3073)",
     "resultats": {
       "a1-telephone": "28 conformes · 38 écarts · 29,98 % (décalage de +36 à +38 px de la caution passée à la ligne ; les cartes, une par échéance, ne sont pas celles de la maquette)",
-      "a2-telephone": "25 conformes · 53 écarts · 22,72 % (feuille plus courte : sans la bascule SMS / E-mail)",
+      "a2-telephone": "2026-11-14, telle qu'ouverte par l'adresse : 24 conformes · 53 écarts · 17 absents · 22,81 % (dossier : scratchpad impl/lot2/w-2660/fid/cmp-ouv3-a2-telephone, refait à 13:13 sous verrou après l’effacement du verrou de 13:06 : identique). Nouveaux depuis le 2026-11-12 : « Créé à l’envoi de la relance », le repère (décision 1), « Sélectionner » (TCK-2682) — tous dans `ecarts_acceptes`/`ignorer`. Après « Copier » : 24 · 53 · 15 · 17,6 % (cmp-a2-telephone)",
       "a1-bureau-1440": "41 conformes · 296 écarts · 79 absents · 15,32 % (dont la barre latérale, ignorée, et la colonne de sélection, TCK-2682)",
       "a1-bureau-1280": "40 conformes · 295 écarts · 79 absents · 16,26 %",
-      "a2-bureau-1440": "44 conformes · 310 écarts · 65 absents · 69,24 % (voile du panneau absent : décision du porteur du 2026-11-10)",
-      "a2-bureau-1280": "43 conformes · 309 écarts · 65 absents · 65,4 %"
+      "a2-bureau-1440": "44 conformes · 310 écarts · 65 absents · 69,24 % (voile du panneau absent : décision du porteur du 2026-11-10) — 2026-11-12, non re-mesuré (ADR-0106 : 390 et 1280 seulement pour la clôture)",
+      "a2-bureau-1280": "2026-11-14, dossier tel qu'ouvert : 47 conformes · 306 écarts · 69 absents · 65,37 % (cmp-ouv3-a2-bureau-1280, refait à 13:13 sous verrou : identique). Nouveaux : « Créé à l’envoi de la relance », « Interventions » (TCK-2677), « Rappel automatique » (données), case de sélection (TCK-2682). Après « Copier » : 47 · 306 · 68 · 65,4 %"
     },
     "corriges_pendant_la_passe": [
       "le lien de paiement apparaissait deux fois dans le panneau quand la relance y était composée (dans la relance, puis dans le dossier) : le dossier ne le répète plus (test « Relancer d’une ligne »)",
@@ -348,9 +361,11 @@
       "logo WhatsApp de « Relancer » (rangée, pied, historique) à sa taille : `IconeWhatsApp` porte `lg:size-5`, qui survivait au `size-*` passé (18 → 12,6 px ; « Relancer » 100 → 94,6 px)",
       "loupe de la recherche à 18 px et texte du champ à 37,8 px du bord, comme la maquette",
       "« Échéances dues » à `mt-8` (−8 → 0 px)",
-      "« Ancienneté du dû » posée au bas du dossier (posée plus haut, elle repoussait le lien et les relances de 250 px)"
+      "« Ancienneté du dû » posée au bas du dossier (posée plus haut, elle repoussait le lien et les relances de 250 px)",
+      "2026-11-14 : dans l'aperçu du message, le lien (ou son repère avant l'envoi) au dessin de la maquette — `lien-du-message`, 15 px, 500, vert, souligné, au même y (RelanceDUnImpaye.tsx ; test « l’aperçu du message montre le lien comme la maquette », ablation rouge)"
     ],
-    "passe": "chaque rapport du bureau relu en entier hors barre latérale (écarts ET présents d’un seul côté, regroupés par élément : scratchpad terrain-5/2660/fid/passe.cjs) ; 1280 ne porte aucune classe d’écart que 1440 n’ait pas. Chaque classe est corrigée, ou nommée ci-dessus (ignorer / écarts acceptés)"
+    "passe": "chaque rapport du bureau relu en entier hors barre latérale (écarts ET présents d’un seul côté, regroupés par élément : scratchpad terrain-5/2660/fid/passe.cjs) ; 1280 ne porte aucune classe d’écart que 1440 n’ait pas. Chaque classe est corrigée, ou nommée ci-dessus (ignorer / écarts acceptés)",
+    "passe_2026_11_14": "classes de « statut | élément » des rapports du 2026-11-14 diffées contre ceux du 2026-11-12 (téléphone, bureau 1280) : chaque classe nouvelle est nommée ci-dessus ; aucune n'a disparu hors de « Vue agence » (retirée, TCK-2799)"
   },
   "_roles": "Les rôles nomment la 1re carte (téléphone) et la 1re rangée (bureau) par leur locataire : la maquette par ses données fictives, le produit par la base de démo du 2026-11-12 (agence 1, tri par retard décroissant). Une autre base change ces deux noms, pas la structure.",
   "largeurs": {

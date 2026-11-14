@@ -84,7 +84,7 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
           data-slot="apercu-du-message"
           className="mt-2 whitespace-pre-line rounded-2xl rounded-tl-md bg-success/10 px-3.5 py-3 text-corps leading-relaxed text-foreground"
         >
-          {relance.message}
+          <MessageAvecSonLien texte={relance.message} lien={relance.url ?? relance.repere} />
         </p>
       )}
 
@@ -109,6 +109,31 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * TCK-2660 (fidélité, a-2) — dans l'aperçu, le lien de paiement se lit comme dans la maquette : en
+ * vert, souligné. Avant l'envoi, c'est son REPÈRE qui tient sa place (décision 1 du porteur), au même
+ * dessin. Le texte reste celui qui partira ; seul le rendu change. Un texte modifié sans le lien est
+ * rendu tel quel.
+ */
+function MessageAvecSonLien({ texte, lien }: { readonly texte: string; readonly lien: string | null }) {
+  if (!lien || !texte.includes(lien)) return <>{texte}</>;
+  const morceaux = texte.split(lien);
+  return (
+    <>
+      {morceaux.map((morceau, i) => (
+        <span key={i}>
+          {i > 0 ? (
+            <span data-slot="lien-du-message" className="font-medium text-success underline underline-offset-2">
+              {lien}
+            </span>
+          ) : null}
+          {morceau}
+        </span>
+      ))}
+    </>
   );
 }
 
