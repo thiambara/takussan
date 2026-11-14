@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -217,4 +217,44 @@ l'ouverture du ticket.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### 2026-11-14 — montée, branche `fix/dependances-tck-2787`
+
+**Relevé initial (2026-11-14, avant toute montée).** Dependabot : 85 ouvertes (8 critiques, 25 hautes,
+41 moyennes, 11 basses). `npm audit` du front : 37 (hors développement : 2 critiques, 11 hautes). `npm audit` de
+l'API : 4 (2 critiques, 2 hautes). `composer audit` : 23 avis (1 critique, 5 hautes).
+
+**Versions installées, lues dans les locks.**
+
+- Front : `next` 16.3.1 → **16.4.6** (exact), `eslint-config-next` 16.4.6, `react` 19.2.8, `shadcn` ^4.23.0 (ne tire
+  plus `@modelcontextprotocol/sdk`), `zod` 4.6.7, `sharp` 0.35.5 (exact), puis `npm audit fix` sans majeure.
+- API composer, `update` ciblé `-w` dans les lignes majeures (`brick/math` tenu en `~0.18`,
+  `guzzlehttp/uri-template` en `^1.0`, pour éviter deux majeures) : `laravel/framework` v13.25.0 → **v13.42.0**,
+  `symfony/*` 8.1.9 à 8.1.11, `league/commonmark` 2.10.7, `league/flysystem` 3.36.0,
+  `phpoffice/phpspreadsheet` 5.11.0, `phpseclib/phpseclib` 3.0.58 (et `aws-sdk-php`, `guzzle`, `carbon`, `monolog`
+  en mineure ou correctif).
+- API npm : `concurrently` 10.0.7, `shell-quote` 1.12.0, `vite` 8.3.8, `source-map-js` 1.2.2.
+
+**Relevé final local (2026-11-14).**
+
+- AC1 : `npm audit --omit=dev` du front : 0 critique, 0 haute (4 moyennes, 2 basses, via `shadcn`, `ts-morph`,
+  `minimatch`, `deepmerge`). `npm audit` complet : 16 (2 basses, 14 moyennes).
+- AC2 : `composer audit` : 0 avis.
+- AC3 : `npm audit` de l'API : 0.
+- Restent ouverts, en développement : `vitest` (le correctif est la v5, majeure : ticket à part),
+  `typescript-eslint` / `minimatch` (aucune version corrigée compatible).
+- Exposition `TokenGuard` / inclusion de relation re-vérifiée par `grep` avant la montée : verdict inchangé (le seul
+  `api_token` du code est `config/cdn.php`, le jeton Cloudflare).
+
+**Preuves locales (2026-11-14), sans suite entière.**
+
+- `npx tsc --noEmit` : propre ; `npm run lint` : 0 erreur ;
+  `npm run build` : réussi (133 pages, compilé en 72 s).
+- `./vendor/bin/pint --test` : passed ; `php artisan route:list` charge (841 routes).
+- AC6/AC7 : `AucunGuardTokenTest` (4) et `IncludeNomDeMethodeRefuseTest` (2) verts sous laravel 13.42.0.
+- Authentification : 14 fichiers ciblés (`Auth/*` login, session, inscription, 2FA, OAuth, réinitialisation,
+  `Session/TokenLifetimeTest`, `Session/IdleTokenPruneTest`, `BlockedUserTokenRejectedTest`,
+  `LocaleBearerTokenTest`…) : 104 tests verts.
+
+**Reste, après la PR** : AC4 (CI verte sur les trois workflows, `smoke-web.sh` sur l'image du front), AC5
+(décompte Dependabot de fin, à relever après fusion sur `dev`, l'alerte ne se fermant qu'une fois le lock sur la
+branche par défaut), et les 3 alertes fantômes de `package.json` racine (« dismiss » sur demande du porteur).
