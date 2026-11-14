@@ -78,7 +78,7 @@ Rien de neuf côté API : la file réutilise, échéance par échéance, les rou
 
 ## Critères d'acceptation
 
-- [x] AC1 — Sélectionner 3 impayés puis « Relancer la sélection » : le réseau montre **un seul** `POST …/payment-link` avant la première « Ouvrir WhatsApp », et pas les trois.
+- [x] AC1 — Sélectionner 3 impayés puis « Relancer la sélection » : le réseau ne montre **aucun** `POST …/payment-link` avant le premier « Ouvrir WhatsApp », puis **un** par clic sur « Ouvrir WhatsApp » (décision 1 du porteur, TCK-2660) — jamais en lot à l'ouverture de la file. *Preuve : relevé du 2026-11-14, 0 · 1 · 2 sur une file de 3 ; test `impayes-en-lot.tck-2682.test.tsx` (« aucun lien à l'affichage »).*
 - [x] AC2 — Sur la file de 3 (une normale, une sans téléphone, une à 409), le récapitulatif dit « 1 relancé · 0 passé · 2 sautés » et nomme les deux raisons ; un seul `POST …/reminders` est parti.
 - [x] AC3 — Aucune requête vers une route d'envoi de message (SMS, WhatsApp de la plateforme) n'apparaît au réseau pendant la file.
 - [x] AC4 — À 390 px, « Ouvrir WhatsApp » est visible sans défiler sur chaque échéance de la file ; à 1280 px, la liste reste visible à côté de la file.
@@ -218,3 +218,15 @@ Les tests de `impayes-en-lot.tck-2682.test.tsx` sont réécrits en conséquence 
 - deux clics pendant la création du lien : un seul lien.
 
 Ablations : voir TCK-2660 (f1, f4, f5 rougissent ce fichier).
+
+**2026-11-14 — re-mesure au HEAD (8d983abe4), après TCK-2775, TCK-2824 et TCK-2827.** Aucun code changé : la
+prémisse « à implémenter » ne tenait plus. `src/components/admin/finances` : 17 fichiers, 145 tests verts. Au navigateur
+(lien et note simulés dans la page, `window.open` remplacé par un faux onglet, routes bloquées ; détail dans la fiche,
+`preuve_aucune_ecriture.journal` et `comparaisons_2026_11_14`) :
+- AC1 : 0 lien avant le premier clic, un par clic ; variante d'AC2 (aucune échéance sans numéro dans la base ; AC2 lui-même est tenu par le test) : avec un 409 simulé, « 2 relancés · 0 passé · 1 sauté » et sa raison ; AC3 : non-GET limités au lien, à la note et à `composerLaRelanceAction` ;
+- AC4 : à 390, « Ouvrir WhatsApp » et « Suivant » d'un saut en bas à 780 px sur 844 ; à 1280, le panneau non modal couvre la droite de la table, Locataire et Bien restent visibles, rangée surlignée, même disposition qu'au 2026-11-12 ; aucun débord ;
+- AC5 : « relancé aujourd’hui » sur les seules relancées après « Terminer », sans rechargement ;
+- d1 sous `window.open`, au second tour (messages composés) : un second clic à 140 ms sur le bouton actif de l'échéance suivante est refusé (1 lien, 1 note, 1 onglet) ;
+- retour pendant la file (390) : la file se ferme, la sélection reste ; `?relance=file` (TCK-2775) ouvre CETTE file, sans lien, et un retour la ferme. Non mesuré : « ✕ » ou « Arrêter », puis le retour.
+- AC1 réécrit le 2026-11-14 (team-lead) : il disait « un seul `POST …/payment-link` avant la première « Ouvrir WhatsApp » », libellé antérieur à la décision 1 (lien créé à l'envoi) ; il dit maintenant zéro à l'affichage, un par clic.
+- Fidélité à 390 et 1280 : mêmes comptes qu'au 2026-11-12 à quelques unités près ; chaque absent nouveau est la décision 1 (`ecarts_acceptes`, renvoi à TCK-2822 : la maquette retouchée, comme pour TCK-2660), un onglet ou la barre latérale (autres tickets) ou une donnée. AC-F2 à AC-F5 restent ouverts : ils demandent le tableau de la PR et la validation du porteur.

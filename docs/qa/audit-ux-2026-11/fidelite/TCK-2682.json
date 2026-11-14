@@ -32,7 +32,7 @@
       "produit": {
         "route": "/app/agency/finances?tab=impayes",
         "persona": "admin",
-        "etat": "la file ouverte sur la 1re des quatre échéances cochées, son lien (simulé) prêt et son message composé : « 1 sur 4 ». Téléphone : « Sélectionner », quatre cartes cochées, « Relancer la sélection (4) » de la barre collante (`file-tel.js`). Bureau : quatre rangées cochées, « WhatsApp » de la barre (`file-bureau.js`). Rien n'est cliqué dans la file. La maquette ne dessine pas la file (ticket § Direction : « elle reprend la feuille de relance unitaire de TCK-2660, avec un en-tête « 3 sur 12 » ») : la référence est la feuille (téléphone) et le dossier (bureau) d'a-2"
+        "etat": "la file ouverte sur la 1re des quatre échéances cochées, le bouton « Ouvrir WhatsApp » prêt et son message composé avec le repère « [lien de paiement ajouté à l’envoi] » — aucun lien n'est demandé à l'affichage (décision 1 du porteur, 38bac668d) : « 1 sur 4 ». Téléphone : « Sélectionner », quatre cartes cochées, « Relancer la sélection (4) » de la barre collante (`file-tel.js`). Bureau : quatre rangées cochées, « WhatsApp » de la barre (`file-bureau.js`). Rien n'est cliqué dans la file. La maquette ne dessine pas la file (ticket § Direction : « elle reprend la feuille de relance unitaire de TCK-2660, avec un en-tête « 3 sur 12 » ») : la référence est la feuille (téléphone) et le dossier (bureau) d'a-2 — l'écart dû à la décision 1 renvoie à TCK-2822 (maquette retouchée)"
       }
     }
   ],
@@ -49,8 +49,9 @@
     "decision": "décision 7 du chef d'équipe (TCK-2660), reprise : les deux POST interceptés avant le réseau pendant tout relevé et tout parcours, jamais wa.me ni tel: suivis ; `parcours.mjs` bloque en plus les deux routes au niveau du navigateur (`Network.setBlockedURLs`)",
     "journal": {
       "a-1 (trois appareils)": "interceptions [] ; aucun POST",
-      "a-2 (trois appareils)": "interceptions [« POST /api/lease-payments/16/payment-link → 200 simulé »] : UN seul lien demandé à l'ouverture de la file de 4 (AC1)",
-      "parcours bureau 1280 (3 échéances, « Ouvrir WhatsApp » à chaque pas)": "3 × (POST …/payment-link → 200 simulé, clic wa.me annulé, POST …/reminders → refusé) ; le lien de la 2ᵉ n'est demandé qu'après le clic sur la 1re ; le numéro du lien wa.me est, à chaque pas, celui de la rangée surlignée (`memeNumero: true` ×3) ; récapitulatif « 3 relancés · 0 passé · 0 sauté » et les trois « relance non notée » (les notes ont été refusées)"
+      "a-2 (trois appareils)": "2026-11-12 : « POST /api/lease-payments/16/payment-link → 200 simulé » à l'ouverture de la file. PÉRIMÉ depuis 38bac668d (décision 1). 2026-11-14, a-2 à 390 et 1280 : interceptions [] — AUCUN lien demandé à l'affichage (AC1 : zéro POST …/payment-link avant le premier « Ouvrir WhatsApp »)",
+      "parcours bureau 1280 (3 échéances, « Ouvrir WhatsApp » à chaque pas)": "3 × (POST …/payment-link → 200 simulé, clic wa.me annulé, POST …/reminders → refusé) ; le lien de la 2ᵉ n'est demandé qu'après le clic sur la 1re ; le numéro du lien wa.me est, à chaque pas, celui de la rangée surlignée (`memeNumero: true` ×3) ; récapitulatif « 3 relancés · 0 passé · 0 sauté » et les trois « relance non notée » (les notes ont été refusées)",
+      "parcours 2026-11-14 (HEAD 8d983abe4, bouton + window.open)": "scratchpad impl/lot2/w-2682/nav/parcours.mjs : window.open remplacé par un faux onglet qui journalise l'adresse (rien ne s'ouvre), lien et note simulés DANS la page (note : succès simulé, pour AC5), routes bloquées au navigateur (`Network.setBlockedURLs`). Bureau 1280, 3 cochées, 2ᵉ lien → 409 simulé : liens demandés avant chaque clic 0 · 1 · 2 (un par clic) ; pas 1 et 3 : l'adresse wa.me est posée pendant que l'échéance cliquée est présentée (`memeEcheance` ×2), au numéro de la rangée surlignée ; pas 2 : onglet refermé, « Cette échéance ne se paie plus en ligne : elle est sautée. » + « Suivant » ; récapitulatif « 2 relancés · 0 passé · 1 sauté », Coumba Diop « ne se paie plus en ligne » ; après « Terminer » : « relancé aujourd’hui » sur les deux relancées seules, la sautée reste cochée, sans rechargement (AC5). Double clic à 140 ms (1280), au SECOND tour (premier tour à « Passer » ×3, puis « Terminer » et « WhatsApp » : messages déjà composés) : le second clic tombe sur le bouton ACTIF (`disabled` false) de l'échéance suivante et est refusé par l'armement — 1 lien, 1 note, 1 onglet, file à « 2 sur 3 » (d1 tient sous window.open). Non mesuré au navigateur : « ✕ » ou « Arrêter », puis le geste retour. Non-GET du parcours : POST …/payment-link, POST …/reminders, POST /app/agency/finances (composerLaRelanceAction) seulement (AC3)"
     },
     "ac3": "AC3 — les seules requêtes non-GET du parcours sont POST …/payment-link, POST …/reminders et POST /app/agency/finances : cette dernière est l'action serveur Next `composerLaRelanceAction` (le message composé dans la langue du locataire, TCK-2660), qui n'appelle aucune route d'envoi. Le test « AC1, AC2, AC3 » refuse toute route hors de la liste blanche (historique, balance âgée, lien, note)"
   },
@@ -359,6 +360,13 @@
       "propriete": "fond rgba(162,93,46,0.04) → rgba(177,78,59,0.05)",
       "exception": "règle du design system",
       "motif": "`bg-primary/5` : une opacité en entier (garde `check-valeurs-arbitraires-app`, « opacite-crochets ») au lieu du `bg-primary/[0.045]` de la maquette ; la teinte est la `--primary` du produit"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "le message et le cadre du lien de paiement de la file, tels qu'affichés",
+      "propriete": "texte : l'URL (« takussan.com/pay/… ») → le repère « [lien de paiement ajouté à l’envoi] » ; « Créé à l’envoi de la relance » dans le cadre (tous deux absents de la maquette)",
+      "exception": "ticket de suite TCK-2822",
+      "motif": "décision 1 du porteur (2026-11-12, ADR-0105 amendement), postérieure au gel : le lien n'est créé qu'à l'envoi (« Ouvrir WhatsApp »). Même écart que la fiche de TCK-2660. La maquette retouchée (repère et cadre « Créé à l’envoi ») est l'objet de TCK-2822, comme pour TCK-2660."
     }
   ],
   "comparaisons": {
@@ -383,5 +391,17 @@
     "1280": "AC4 — la file dans le panneau de 480 px, la liste visible à côté, la rangée présentée surlignée (`aria-current`) ; scrollWidth − innerWidth = 0",
     "le": "2026-11-12",
     "outil": "scratchpad du lot 2, terrain-5/2682/fid/parcours.mjs (bureau, telephone, tablette, bureau-1024)"
-  }
+  },
+  "comparaisons_2026_11_14": {
+    "dossier": "takussan-web/.fidelite/TCK-2682-20261114/cmp-a-{1,2}-{telephone,bureau-1280}/ (rideau.html dans chacun)",
+    "le": "2026-11-14, HEAD 8d983abe4, sous le verrou de mesure, `--roles` de cette fiche ; perturbateurs : scratchpad impl/lot2/w-2682/fid/ (a-2 : le bouton « Ouvrir WhatsApp » attendu au lieu de l'ancre). 390 et 1280 seulement (ADR-0106, règle de cadence 7)",
+    "resultats": {
+      "a-1-telephone (au repos)": "27 conformes · 38 écarts · 10 absents · 30,09 % — identique au 2026-11-12",
+      "a-1-bureau-1280 (4 cochées)": "47 conformes · 301 écarts · 70 absents · 16,02 % (2026-11-12 : 43 · 304 · 69 · 15,4 %). Nouveaux absents : « Interventions » (onglet de TCK-2677), « Rappel automatique » (données), icône de la barre latérale (ignorée) ; disparus : « Crédits », « Rapports », « Vue agence » (barre latérale)",
+      "a-2-telephone (la file, 1 sur 4)": "17 conformes · 59 écarts · 27 absents · 57,23 % (2026-11-12 : 17 · 59 · 25 · 54,41 %). Nouveaux absents : « Créé à l’envoi de la relance » et le repère « [lien de paiement ajouté à l’envoi] » (décision 1, `ecarts_acceptes`) — repère seulement : la file est plein écran",
+      "a-2-bureau-1280 (la file, 1 sur 4)": "46 conformes · 302 écarts · 82 absents · 68,4 % (2026-11-12 : 41 · 306 · 79 · 67,56 %). Nouveaux absents : les deux de la décision 1, « Interventions », « Rappel automatique », icône de la barre latérale — repère seulement : le panneau porte la relance composée, pas le dossier d’a-2"
+    },
+    "largeurs_ac4": "390 : « Ouvrir WhatsApp » bas à 780 px sur 844 à chaque pas, « Suivant » d'un saut 409 aussi (780) ; scrollWidth − innerWidth = 0. 1280 : panneau de 480 px à x 800, rangée présentée surlignée (`aria-current`) ; le panneau, non modal, couvre la droite de la table : les colonnes Locataire et Bien restent visibles (x 303 → 800), comme au 2026-11-12 (captures prod-a-2-bureau-1280 des deux dates, même disposition), scrollWidth − innerWidth = 0. Retour pendant la file (390) : la file se ferme, 3 cochées restent, même URL ; `?relance=file` (390) : la file s'ouvre sans demander de lien, l'adresse est nettoyée, un retour la ferme"
+  },
+  "zones_motif": "aucune zone déclarée : la coque (barre latérale, barre d'onglets) et la tête de page sont mesurées par TCK-2691 et TCK-2660, communes à tout /app ; la barre de filtres porte des comptes de la base (données). AC-F4 n'est pas jugé par cette fiche"
 }
