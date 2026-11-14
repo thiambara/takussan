@@ -48,6 +48,7 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
+use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -830,6 +831,12 @@ class AppServiceProvider extends ServiceProvider
         RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
+        // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
+        foreach (array_keys(DocumentsDuPorteurObserver::COLONNES) as $porteur) {
+            $porteur::observe(DocumentsDuPorteurObserver::class);
+        }
 
         // TCK-266 — onboarding checklist auto-completion observers.
         // Inventory.signed (move-in) → inventory_completed item ;

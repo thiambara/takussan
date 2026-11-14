@@ -271,9 +271,14 @@ return [
             ],
             Document::class => [
                 'searchableAttributes' => ['title', 'description'],
-                // TCK-2759 (r4) — `id` : la recherche écarte par `NOT id IN [...]` les téléversements que
-                // la lecture refuse (règle d'auteur, documents internes), calculés en SQL.
-                'filterableAttributes' => ['id', 'type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at'],
+                // TCK-2781 — la lecture s'écrit au moteur par un filtre borné par les agences du lecteur
+                // (`DocumentSearchService::filtreDeLecture`) : `is_internal` et les faits du porteur
+                // (`Document::porteurPourLIndex`). `id` n'est plus filtrable : le `NOT id IN [...]` de
+                // TCK-2759 (r4), qui grandissait avec les téléversements, ne peut pas revenir en silence.
+                'filterableAttributes' => [
+                    'type', 'documentable_type', 'documentable_id', 'uploaded_by', 'created_at',
+                    'is_internal', 'carrier_present', 'carrier_agency_id', 'subject_user_id',
+                ],
                 'sortableAttributes' => ['created_at'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 'pagination' => $pagination,

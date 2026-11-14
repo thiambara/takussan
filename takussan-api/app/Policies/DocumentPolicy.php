@@ -337,10 +337,7 @@ class DocumentPolicy extends BasePolicy
      */
     public static function restreindreAuTeleverseur(Builder $query, User $user): Builder
     {
-        $resolver = app(MembershipCapabilityResolver::class);
-        $gardees = collect($resolver->memberAgencyIds($user))
-            ->merge($user->ownerProfiles()->pluck('agency_id'))
-            ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $gardees = self::agencesGardeesDuTeleverseur($user);
 
         $horsAgence = fn (Builder $q, string $colonne = 'agency_id') => $q
             ->whereNotNull($colonne)
@@ -371,6 +368,22 @@ class DocumentPolicy extends BasePolicy
                     default => $horsAgence($q),
                 };
             }));
+    }
+
+    /**
+     * P218.06 (TCK-2295) — les agences où la règle d'auteur garde les téléversements de l'appelant :
+     * celles dont il est membre ({@see MembershipCapabilityResolver::memberAgencyIds()}), plus celles où
+     * il tient un profil de bailleur DE TOUT STATUT (l'exception de l'état des lieux, B.3). Bornée par
+     * ses agences, jamais par ses documents : {@see self::restreindreAuTeleverseur()} et le filtre de la
+     * recherche (TCK-2781, `DocumentSearchService::filtreDeLecture`) la lisent.
+     *
+     * @return list<int>
+     */
+    public static function agencesGardeesDuTeleverseur(User $user): array
+    {
+        return collect(app(MembershipCapabilityResolver::class)->memberAgencyIds($user))
+            ->merge($user->ownerProfiles()->pluck('agency_id'))
+            ->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 
     /**
