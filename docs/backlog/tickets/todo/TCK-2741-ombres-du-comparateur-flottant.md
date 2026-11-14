@@ -59,19 +59,19 @@ la mesure avant/après.
 
 ## Delta à produire
 
-- [ ] Des jetons d'ombre pour les rôles du comparateur dans `globals.css`, ajoutés à `OMBRES`, et documentés
+- [x] Des jetons d'ombre pour les rôles du comparateur dans `globals.css`, ajoutés à `OMBRES`, et documentés
       sous « les ombres nommées » de `docs/design-guidelines.md`.
-- [ ] `CompareFloatingBar.tsx` les emploie. Son entrée de `check-valeurs-arbitraires-app.consigne.json` disparaît.
-- [ ] Une capture avant/après du comparateur ouvert (deux biens), site public et `/app`, à 390 et 1440, en clair
+- [x] `CompareFloatingBar.tsx` les emploie. Son entrée de `check-valeurs-arbitraires-app.consigne.json` disparaît.
+- [x] Une capture avant/après du comparateur ouvert (deux biens), site public et `/app`, à 390 et 1440, en clair
       et en sombre : 0 écart.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -n 'shadow-\[' takussan-web/src/components/compare/CompareFloatingBar.tsx` ne rend rien.
-- [ ] AC2 — `node scripts/check-valeurs-arbitraires-app.mjs` est vert, et la consigne n'a plus d'entrée pour ce
+- [x] AC1 — `grep -n 'shadow-\[' takussan-web/src/components/compare/CompareFloatingBar.tsx` ne rend rien.
+- [x] AC2 — `node scripts/check-valeurs-arbitraires-app.mjs` est vert, et la consigne n'a plus d'entrée pour ce
       fichier.
-- [ ] AC3 — La comparaison avant/après du comparateur ouvert donne 0 écart, sur les huit captures.
-- [ ] AC4 — `cn('shadow-<neuf>', 'shadow-sm')` rend `shadow-sm` seul, pour chaque jeton neuf (test de
+- [x] AC3 — La comparaison avant/après du comparateur ouvert donne 0 écart, sur les huit captures.
+- [x] AC4 — `cn('shadow-<neuf>', 'shadow-sm')` rend `shadow-sm` seul, pour chaque jeton neuf (test de
       `jetons-de-l-app`).
 
 ## Hors périmètre
@@ -82,4 +82,23 @@ la mesure avant/après.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail.)_
+Livré le 2026-11-14 sur `feat/audit-ux-app-lot-3`.
+
+- **Cinq jetons pour six ombres** (la barre du bureau et sa pastille repliée partagent la même valeur) :
+  `shadow-barre-flottante`, `shadow-pastille-flottante`, `shadow-contour-vignette`,
+  `shadow-contour-vignette-sombre`, `shadow-pastille-retrait` — dans le `@theme` de `globals.css`, dans
+  `OMBRES`, et sous « les ombres nommées » de `docs/design-guidelines.md`.
+- **Le contour de vignette garde deux noms** : un jeton `@theme` ne bascule pas de thème ; l'appelant écrit
+  `shadow-contour-vignette dark:shadow-contour-vignette-sombre`, comme avant.
+- **`pastille-flottante` reste en `in oklab`**, la valeur remplacée, au lieu de la convention `in srgb` :
+  le rendu est identique dans les deux cas, mais seule la valeur exacte donne 0 écart sur la chaîne calculée.
+  `src/app/__tests__/jetons-de-l-app.test.ts` en fait une exception nommée, avec les deux contours
+  (sur `--scrim` et `--foreground`, pas sur `--shadow-color`).
+- **Preuves.** AC1 : le `grep` ne rend rien. AC2 : `node scripts/check-valeurs-arbitraires-app.mjs` vert,
+  entrée du fichier retirée de la consigne. AC4 : `src/lib/__tests__/cn-jetons-de-l-app.test.ts`, un cas par
+  jeton neuf. AC3 : relevé avant/après par CDP (styles calculés `box-shadow` + capture de la zone du
+  comparateur), deux biens, `/fr/properties` et `/app/favorites`, 390 et 1280, clair et sombre, barre
+  dépliée et repliée au bureau : **26 éléments, 0 écart de style calculé, 10 captures identiques à l'octet**.
+  Les cinq valeurs sont toutes couvertes (le contour sombre en thème sombre, la pastille sous `lg`).
+- **Écart au ticket** : 1280 au lieu de 1440 (ADR-0106, consigne du lot) ; à 390, `/app/favorites`
+  n'affiche pas le comparateur (hors périmètre, mineur m4 de TCK-2618) : 0 élément avant comme après.

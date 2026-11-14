@@ -143,8 +143,17 @@ describe('TCK-2685 — espacement des lettres, icône, ombres', () => {
   it('chaque ombre nommée compose `--shadow-color` en `in srgb` ; la feuille garde la valeur de `shadow-2xl`', () => {
     const ombres = declarations('shadow');
     const deuxXl = theme.match(/--shadow-2xl:\s*([^;]+);/)![1]!.trim();
+    // TCK-2741 — trois ombres du comparateur flottant sortent de la règle, chacune à la valeur EXACTE
+    // qu'elle a remplacée (rendu identique, relevé avant/après) : la pastille sombre composée en
+    // `in oklab`, et le contour intérieur de vignette, sur `--scrim` en clair et `--foreground` en sombre.
+    const HORS_REGLE: Record<string, string> = {
+      '--shadow-pastille-flottante': '0 8px 20px -8px color-mix(in oklab, var(--shadow-color) 55%, transparent)',
+      '--shadow-contour-vignette': 'inset 0 0 0 1px color-mix(in srgb, var(--scrim) 12%, transparent)',
+      '--shadow-contour-vignette-sombre': 'inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent)',
+    };
     for (const [nom, valeur] of ombres) {
       if (nom === '--shadow-feuille') expect(valeur).toBe(deuxXl);
+      else if (nom in HORS_REGLE) expect(valeur, nom).toBe(HORS_REGLE[nom]);
       // Une ombre à plusieurs couches (TCK-2587, `carte-levee`) : chaque couche suit la même règle.
       else for (const couche of valeur.split(/(?<=\)),\s*/)) expect(couche, nom).toMatch(/^[-\d\s.px]+color-mix\(in srgb, var\(--shadow-color\) \d+%, transparent\)$/);
     }
@@ -157,6 +166,11 @@ describe('TCK-2685 — espacement des lettres, icône, ombres', () => {
     expect(ombres.get('--shadow-panneau')).toContain('-24px 0 48px -32px');
     // TCK-2621 — la carte de « Choisir un espace » au bureau : la valeur exacte de la maquette.
     expect(ombres.get('--shadow-carte-d-entree')).toBe('0 24px 60px -28px color-mix(in srgb, var(--shadow-color) 45%, transparent)');
+    // TCK-2741 — la barre flottante et la pastille de retrait : les valeurs exactes remplacées.
+    expect(ombres.get('--shadow-barre-flottante')).toBe(
+      '0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent), 0 12px 32px color-mix(in srgb, var(--shadow-color) 14%, transparent)',
+    );
+    expect(ombres.get('--shadow-pastille-retrait')).toBe('0 1px 3px color-mix(in srgb, var(--shadow-color) 28%, transparent)');
     for (const nom of OMBRES) expect(regle(`shadow-${nom}`)).toContain('box-shadow');
   });
 

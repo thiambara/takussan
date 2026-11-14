@@ -99,7 +99,13 @@ police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour 
   `shadow-2xl`, noir à 25 %, que la maquette rend ; la **classe** `shadow-2xl` reste interdite),
   `shadow-carte-d-entree` (la carte centrée d'un écran d'entrée au bureau, « Choisir un espace »,
   TCK-2621), `shadow-carte-levee` (la carte de la prochaine visite, levée au-dessus de la liste du
-  jour, TCK-2587).
+  jour, TCK-2587). Le comparateur flottant, partagé par le site public et `/app` (TCK-2741) :
+  `shadow-barre-flottante` (sa barre du bureau et sa pastille repliée, deux couches),
+  `shadow-pastille-flottante` (sa pastille sombre sous `lg`, composée en `in_oklab`, valeur reprise
+  telle quelle), `shadow-contour-vignette` + `dark:shadow-contour-vignette-sombre` (le liseré intérieur
+  d'une vignette de bien : `--scrim` à 12 % en clair, `--foreground` à 14 % en sombre — un jeton
+  `@theme` ne bascule pas de thème, d'où deux noms) et `shadow-pastille-retrait` (la pastille
+  « retirer » posée sur la vignette).
 - **L'encre douce** `text-encre-douce` remplace les `foreground/70` à `/85` des maquettes : une seule
   encre, **opaque** (`foreground` à 80 % composé sur `--card`, `#4c4641` : 9,3:1 sur `card`, 8,8:1 sur
   `background`, 7,9:1 sur `muted`), parce qu'une encre de texte ne s'atténue pas par l'opacité (TCK-658).

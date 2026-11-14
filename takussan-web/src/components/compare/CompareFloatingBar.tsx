@@ -285,7 +285,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           aria-label={t('expandAria', { count: ids.length })}
           className={cn(
             'flex h-12 items-center gap-2 rounded-full border border-border bg-card/95 py-1.5 pl-1.5 pr-3 backdrop-blur-md',
-            'shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent),0_12px_32px_color-mix(in_srgb,var(--shadow-color)_14%,transparent)]',
+            'shadow-barre-flottante',
             'text-foreground hover:bg-muted',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
             'transition-[background-color,scale] duration-150 active:scale-[0.96]',
@@ -335,7 +335,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
       <div
         className={cn(
           'rounded-2xl border border-border bg-card/95 p-2 backdrop-blur-md',
-          'shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent),0_12px_32px_color-mix(in_srgb,var(--shadow-color)_14%,transparent)]',
+          'shadow-barre-flottante',
         )}
       >
         <div className="flex items-center gap-2.5">
@@ -505,7 +505,7 @@ function PastilleDuComparateur({
         aria-label={t('aria', { count: nombre })}
         className={cn(
           'inline-flex h-11 items-center gap-2 rounded-full bg-foreground pl-3.5 pr-4 text-sm font-semibold text-background',
-          'shadow-[0_8px_20px_-8px_color-mix(in_oklab,var(--shadow-color)_55%,transparent)]',
+          'shadow-pastille-flottante',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           'transition-[scale] duration-150 active:scale-[0.96]',
         )}
@@ -571,8 +571,8 @@ function Vignette({
         // ⚠ Ne pas écrire la classe refusée EN TOUTES LETTRES ici, fût-ce pour l'expliquer :
         // cette garde ne dépouille pas les commentaires, délibérément, et la première
         // version de ce bloc l'a fait rougir sur sa propre justification.
-        'shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--scrim)_12%,transparent)]',
-        'dark:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--foreground)_14%,transparent)]',
+        'shadow-contour-vignette',
+        'dark:shadow-contour-vignette-sombre',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'transition-[scale] duration-150 active:scale-[0.96]',
       )}
@@ -606,7 +606,7 @@ function Vignette({
         aria-hidden
         className={cn(
           'absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full',
-          'bg-card text-foreground shadow-[0_1px_3px_color-mix(in_srgb,var(--shadow-color)_28%,transparent)]',
+          'bg-card text-foreground shadow-pastille-retrait',
           'transition-[opacity,background-color,color] duration-150',
           // ⚠ La media query ne se répète PAS sur la ligne de révélation : Tailwind v4
           // enveloppe `group-hover:` dans `@media (hover: hover)` de lui-même — vérifié
