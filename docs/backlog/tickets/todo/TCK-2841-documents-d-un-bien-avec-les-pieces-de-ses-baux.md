@@ -8,8 +8,8 @@ estimate: M
 wave: null
 created: 2026-11-14
 updated: 2026-11-14
-depends_on: [TCK-2639]
-blocks: []
+depends_on: []
+blocks: [TCK-2639]
 spec_refs:
   features:
     - "docs/features.md#110-documents--contrats"
