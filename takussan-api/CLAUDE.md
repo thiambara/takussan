@@ -147,8 +147,9 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 `?profile_id` (403 si non possédé) → header `X-Active-Profile-Hint` (ignoré si invalide) → cookie
 `active_profile_id` → **dernier espace retenu** sur le compte (`users.metadata.last_active_profile`,
 ignoré s'il n'est plus un profil actif du compte, jamais lu sous impersonation — TCK-2620) →
-auto-bascule si l'utilisateur n'a de profils que dans **une** agence → rien. L'ordre et ses raisons :
-[ADR-0004](../docs/adr/0004-profil-actif-resolu-par-middleware.md), amendement du 2026-11-10.
+auto-bascule si l'utilisateur n'a de profils que dans **une** agence, ou n'a qu'**un** profil (le
+prestataire, sans agence — TCK-2800) → rien. L'ordre et ses raisons :
+[ADR-0004](../docs/adr/0004-profil-actif-resolu-par-middleware.md), amendements du 2026-11-10 et du 2026-11-14.
 `/api/auth/me` rend le profil lié (`active_profile_id`).
 
 Le profil est stocké dans `$request->attributes['active_profile']` et lu par la macro

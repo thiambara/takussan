@@ -574,6 +574,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         //
         // TCK-587 (ADR-0031 §3) — profils ACTIFS seulement, même règle que l'auto-bascule du
         // middleware : un profil suspendu ne donne plus d'agence, donc plus de périmètre.
+        //
+        // TCK-2800 — le middleware lie aussi un prestataire seul (aucune agence) : ce repli n'a
+        // rien à mirer, il rend `null` pour lui comme avant.
         $profiles = $this->profiles()
             ->filter(fn ($p) => ActiveProfileResolver::isActiveProfile($p));
         $agencyIds = $profiles
