@@ -1,6 +1,6 @@
 /**
  * TCK-2645 — la fiche d'un bail, « dossier du bail » : un geste principal par état et par lecteur,
- * la feuille « Gestes », la révision en feuille (plus de `window.prompt`), le contrat offert à toute
+ * la feuille « Gestes », la révision en feuille (plus de boîte de saisie du navigateur), le contrat offert à toute
  * partie qui a `download_contract`, et rien avant les capacités.
  *
  * Reprend les garanties des tests de l'ancienne fiche (P152.02 capacités, P189.03 préavis, P201.02
@@ -400,7 +400,7 @@ describe('AC1 — le contrat PDF à toute partie qui a `download_contract`', () 
   });
 });
 
-describe('AC2 — « Réviser le loyer » en feuille, plus de `window.prompt`', () => {
+describe('AC2 — « Réviser le loyer » en feuille, plus de boîte de saisie du navigateur', () => {
   const effet = debutDeMois(2);
   beforeEach(() => {
     etat.paiements = [echeance({ id: 31, period_start: effet, due_date: effet })];
@@ -705,5 +705,83 @@ describe('TCK-2762 — le garant parmi les parties (bureau) et « Garant (n) » 
     monter();
 
     expect(screen.queryByRole('heading', { name: fr.lease.guarantor.title })).toBeNull();
+  });
+});
+
+/**
+ * AC4 (2026-11-14) — « la barre collée porte un seul bouton principal », dans chaque état du tableau du ticket.
+ * Un seul contrôle dans la barre en dehors du « ⋯ », qui y est un contour (jamais `bg-primary`). La carte « Actions » rend le même geste au bureau : elle est cachée au téléphone (`max-md:hidden`),
+ * sinon le téléphone en montrerait deux. La position « sans défiler » à 390 px est un relevé du navigateur, pas
+ * ce test (notes du ticket, 2026-11-14).
+ */
+describe('AC4 — un seul bouton principal dans la barre collée, dans chaque état', () => {
+  const quittance = (id: number) => echeance({ id, status: 'paid', paid_at: '2026-10-03', receipt_available: true, due_date: debutDeMois(-1), period_start: debutDeMois(-1) });
+  it.each([
+    ['gestion, bail actif → Encaisser', () => {
+      etat.paiements = [echeance({ id: 29, status: 'late', is_overdue: true, due_date: debutDeMois(-1) })];
+    }],
+    ['brouillon → Envoyer à la signature', () => {
+      etat.lease = bail(GESTION, { status: 'draft', can_request_signature: true });
+    }],
+    ['en attente de signature → Relancer la signature', () => {
+      etat.lease = bail(GESTION, { status: 'pending_signature', can_request_signature: true, can_sign_as: [], signatures: [] });
+    }],
+    ['locataire, échéance due, paiement en ligne → Payer', () => {
+      etat.lease = bail(LOCATAIRE);
+      etat.fournisseurs = ['wave'];
+      etat.paiements = [echeance({ id: 29, amount_due: 672000, is_overdue: true, status: 'late' })];
+    }],
+    ['locataire à jour → Télécharger ma quittance', () => {
+      etat.lease = bail(LOCATAIRE);
+      etat.paiements = [quittance(31)];
+    }],
+    ['locataire sans paiement en ligne → Télécharger mon contrat', () => {
+      etat.lease = bail(LOCATAIRE);
+      etat.paiements = [echeance({ id: 29, amount_due: 672000 })];
+    }],
+  ])('%s', (_cas, preparer) => {
+    preparer();
+    monter();
+    // Tout contrôle de la barre est soit le « ⋯ » (contour, jamais plein), soit LE geste principal.
+    const controles = [...barre()!.querySelectorAll('button, a')];
+    const plus = controles.filter((el) => el.getAttribute('aria-label') === fr.lease.fiche.gestes.plus);
+    for (const el of plus) expect(el.className).not.toMatch(/\bbg-primary\b/);
+    expect(controles.filter((el) => !plus.includes(el))).toHaveLength(1);
+    const actions = carteActions();
+    if (actions) expect(actions.className).toMatch(/\bmax-md:hidden\b/);
+  });
+});
+
+/**
+ * Contre-vérification de 585b261a4 (2026-11-14) — `?geste=` est le point d'entrée dont la file de TCK-2644 a
+ * besoin (`GesteDuBail.tsx`). Seul `reviser` était éprouvé, et seulement dans son refus : chaque geste ouvrable
+ * par lien s'ouvre à qui l'a, et à lui seul.
+ */
+describe('`?geste=` — chaque geste ouvrable par lien, à qui l’a seulement', () => {
+  it('`?geste=renouveler` ouvre le renouvellement avec `renew`, rien sans', () => {
+    etat.params = new URLSearchParams('geste=renouveler');
+    const { unmount } = monter();
+    expect(screen.getByText('dialogue de renouvellement')).toBeInTheDocument();
+    unmount();
+    etat.lease = bail({ ...GESTION, renew: false });
+    monter();
+    expect(screen.queryByText('dialogue de renouvellement')).toBeNull();
+  });
+
+  it('`?geste=restituer` ouvre la restitution d’un bail terminé avec `refund_deposit`, rien sans', () => {
+    etat.params = new URLSearchParams('geste=restituer');
+    etat.lease = bail(GESTION, { status: 'terminated', deposit_refunded_amount: 0 });
+    const { unmount } = monter();
+    expect(screen.getByText('restitution offerte, dialogue ouvert')).toBeInTheDocument();
+    unmount();
+    etat.lease = bail(GESTION, { status: 'active' });
+    monter();
+    expect(screen.queryByText(/dialogue ouvert/)).toBeNull();
+  });
+
+  it('un geste hors de la liste des liens (`resilier`) ne s’ouvre jamais par l’URL', () => {
+    etat.params = new URLSearchParams('geste=resilier');
+    monter();
+    expect(screen.queryByText('dialogue de préavis')).toBeNull();
   });
 });

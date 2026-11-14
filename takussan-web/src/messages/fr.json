@@ -5861,7 +5861,8 @@
         "penaliteDue": "Pénalité <m>{montant}</m> due · total <m>{total}</m>",
         "paye": "{mois} : payé le {date}",
         "aVenir": "{mois} : à régler le {date}",
-        "aRegler": "À régler auprès de votre agence"
+        "aRegler": "À régler auprès de votre agence",
+        "echeancesEnRetard": "{n, plural, one {# échéance en retard} other {# échéances en retard}}"
       },
       "duree": {
         "titre": "Durée",

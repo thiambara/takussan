@@ -27,8 +27,8 @@ import type { LeasePayment } from '@/types/lease';
 import { aujourdhuiADakar } from './CartesDuBail';
 
 /**
- * TCK-2645 (AC5) — « Réviser le loyer » : la feuille de la maquette (`app-baux` a-4, `CorpsRevision`)
- * à la place des deux `window.prompt` de l'ancienne fiche.
+ * TCK-2645 (AC2) — « Réviser le loyer » : la feuille de la maquette (`app-baux` a-4, `CorpsRevision`)
+ * à la place des deux boîtes de saisie du navigateur de l'ancienne fiche.
  *
  * Nouveau loyer (le montant qui se relit), l'écart au loyer actuel en franc et en pourcentage, le
  * plafond que l'API dit exécuter pour CE bail (`rent_review_cap_pct`), la date d'effet, le motif.

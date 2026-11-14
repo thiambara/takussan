@@ -9,7 +9,7 @@ wave: 90
 created: 2026-11-10
 updated: 2026-11-10
 depends_on: [TCK-2657, TCK-2658, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
-blocks: [TCK-2624, TCK-2682]
+blocks: [TCK-2624, TCK-2682, TCK-2818]
 spec_refs:
   features:
     - "docs/features.md#15-transactions--paiements"

@@ -5904,7 +5904,8 @@
         "penaliteDue": "Late fee <m>{montant}</m> due · total <m>{total}</m>",
         "paye": "{mois}: paid on {date}",
         "aVenir": "{mois}: due on {date}",
-        "aRegler": "To be paid to your agency"
+        "aRegler": "To be paid to your agency",
+        "echeancesEnRetard": "{n, plural, one {# overdue payment} other {# overdue payments}}"
       },
       "duree": {
         "titre": "Term",

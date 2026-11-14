@@ -8,8 +8,8 @@ estimate: L
 wave: 88
 created: 2026-11-10
 updated: 2026-11-10
-depends_on: [TCK-2642, TCK-2644, TCK-2679, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
-blocks: []
+depends_on: [TCK-2642, TCK-2679, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
+blocks: [TCK-2644, TCK-2818]
 spec_refs:
   features:
     - "docs/features.md#14-location-longue-durée-baux"
@@ -134,13 +134,13 @@ Autres contraintes :
 - [ ] AC1 — Le bailleur ouvre le bail 80 : « Contrat PDF » est présent, et son clic fait `GET /api/leases/80/contract/pdf` → 200.
 - [ ] AC2 — Réviser à 700 000 F à partir du 1ᵉʳ janvier envoie `PATCH /api/leases/{id}/rent` avec `{new_rent: 700000, reason, effective_date: "…-01-01"}`. Au-delà du plafond, l'erreur s'affiche sous le champ montant. `grep -n "window.prompt" components/leases` ne rend rien.
 - [ ] AC3 — Un rendu de la fiche par l'admin, avec un profil encore vide, ne montre à aucun moment « Donner mon préavis » ni « Laisser un avis ». Test qui rend la fiche avant le chargement des capacités.
-- [ ] AC4 — À 390 px :
+- [x] AC4 — À 390 px *(prouvé le 2026-11-14, voir les notes du jour)* :
   - le locataire, le bien et l'état du mois sont visibles sans défiler ;
   - la barre collée porte un seul bouton principal ;
   - sur un bail dont l'échéancier existe, « Générer l'échéancier » n'apparaît nulle part.
-- [ ] AC5 — La caution s'affiche dans sa carte (« Caution · 2 710 000 F · encaissée le 1 juil. ») et ne figure pas parmi les loyers. Le statut « Payé » porte la couleur `--success`.
+- [x] AC5 *(prouvé le 2026-11-14, voir les notes du jour)* — La caution s'affiche dans sa carte (« Caution · 2 710 000 F · encaissée le 1 juil. ») et ne figure pas parmi les loyers. Le statut « Payé » porte la couleur `--success`.
 - [ ] AC6 — Chez le locataire, le premier écran à 390 px ne contient pas de bouton « Donner mon préavis ». Dans « ⋯ », le geste est précédé de son délai et de sa pénalité.
-- [ ] AC7 — Sur un bail en retard, « Relancer » produit la même URL `wa.me` que la file de TCK-2644 (même aide).
+- ~~AC7 — Sur un bail en retard, « Relancer » produit la même URL `wa.me` que la file de TCK-2644 (même aide).~~ **Déplacé dans TCK-2644 (AC9) le 2026-11-14, puis dans [TCK-2818](TCK-2818-fiche-bail-relance-impaye.md) le même jour**, avec la dépendance inversée (décision de la session du 2026-11-12) : ce ticket ne le porte plus et ne se juge plus sur lui.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
@@ -243,3 +243,98 @@ Au bureau, l'essentiel des écarts vient de la coque (hors périmètre). Chaque 
 Les écarts nouveaux sont des données du bail 4 (une échéance, pénalité non encaissable en ligne, 7 jours de retard) et la forme de la primitive de téléchargement, motivés dans la fiche de fidélité, qui n'a plus d'écart ouvert. Balayage 390/768/1024/1280/1440 (admin) et 390/768/1024 (agent) : aucun débord, aucune coupe.
 
 La pastille « n en retard » de l'en-tête (TCK-1833) est retirée pour suivre la maquette. Le compte, toujours lu sur `is_overdue`, vit à la ligne « Échéancier » du dossier et à la carte Loyer.
+
+### 2026-11-14 — preuves d'AC4 et d'AC5, dépendance inversée, contre-vérification de 585b261a4
+
+**Dépendance** : le frontmatter suit la décision de la session (`decisions-2645`). Ce ticket ne dépend plus de
+TCK-2644 et le bloque (`blocks: [TCK-2644]`). Re-mesuré au HEAD 687016bd3 : la file mène à la fiche par
+`?geste=reviser|renouveler|restituer` (`components/leases/liste/GesteDuBail.tsx:89`). L'AC7 est déplacé dans
+TCK-2644, où il devient l'AC9, non coché.
+
+**AC4, prouvé en trois volets.**
+
+- *Sans défiler* : c'est un relevé du navigateur, pas un test jsdom. Conditions : bail 4 de la démo (actif,
+  novembre en retard, pénalité due, le cas le plus haut), persona `agent`, 390 × 844, le 2026-11-14 à 11 h 10 UTC,
+  sur 687016bd3 plus l'arbre de travail. Positions en px depuis le haut de l'écran :
+  - en-tête de la coque « Bail de Fatou Wade » : 0-56 ;
+  - bien « Appartement lumineux F2 à Grand Yoff » : 69-100 ;
+  - partie « Fatou Wade · Locataire » : 145-210 ;
+  - état du mois « Novembre : en retard de 9 j · Pénalité 32 000 F due » : 371-438 ;
+  - haut de la barre d'action collée : 707.
+
+  Les trois sont donc entre le bas de l'en-tête et le haut de la barre. Aucun bail portant une bannière
+  (résiliation, restitution) n'a été relevé : ces bannières passent avant les cartes.
+- *Un seul bouton principal* : `LeaseDetail.fiche.tck-2645.test.tsx`, « AC4 — un seul bouton principal dans la
+  barre collée, dans chaque état ». Les six états du tableau sont couverts. Hors du « ⋯ », qui reste un contour, la
+  barre porte un seul contrôle. La carte « Actions » est cachée au téléphone. Ablations, chacune rouge : le geste
+  rendu deux fois dans la barre (12 rouges), et `max-md:hidden` retiré de la carte « Actions » (6 rouges).
+- *« Générer l'échéancier » nulle part* : la feuille et la carte « Actions » sont tenues par le test existant « l'ordre du
+  ticket … absent quand il existe (AC4) ». Ablation, rouge : `!echeancierExiste` retiré de `gestesSecondaires`.
+  Le vrai `LeaseSchedule` n'offre aucun geste de génération quand des lignes existent : seul son état vide en parle.
+  Le relevé n'en compte aucun de visible.
+- *Limite, lue dans le code et non mesurée* : sans échéance de loyer du mois en cours ni retard (bail sans échéancier,
+  premier loyer le mois suivant), `echeanceDuMois` rend `null` et la carte Loyer ne dit aucun état du mois. AC4 ne
+  s'y juge que sur le locataire et le bien.
+
+**AC5, prouvé.**
+
+- `fiche/__tests__/CartesDuBail.tck-2645.test.tsx` rend la vraie `CarteCaution`. Elle affiche « Caution · 2 mois »,
+  « 2 710 000 F » et « Encaissée le 1 juil. » en `text-success` (`--color-success: var(--success)`). Le même
+  fichier couvre aussi :
+  - la date lue sur l'échéance de caution, pas sur un loyer ;
+  - « À encaisser » sans la teinte du succès ;
+  - une caution annulée, qui ne compte pas ;
+  - une caution restituée.
+- « Pas parmi les loyers » et « Payé » en `--success` sont tenus par `LeaseSchedule.test.tsx`, « AC5 — la caution
+  n'est pas parmi les loyers ».
+- Ablations, chacune rouge :
+  - la branche « encaissée » retirée ;
+  - le ton neutre au lieu du succès ;
+  - la date prise sur une autre échéance que la caution ;
+  - le filtre de la caution retiré de l'échéancier ;
+  - `paid` en attention.
+- Écart de lettre, sans effet sur le fond : la carte tient sur trois lignes, pas sur une. Son titre dit
+  « Caution · 2 mois » quand la caution est un multiple entier du loyer.
+
+**Contre-vérification de 585b261a4, faite au HEAD, en lecture adverse.**
+
+1. **« N échéances en retard » n'est plus visible dès `xl`** (1280 px et plus) — lu dans le code, non mesuré au navigateur. Le compte vit à la ligne
+   « Échéancier » du dossier, qui porte `xl:hidden` dans ses deux copies. La carte Loyer ne dit que la plus ancienne
+   échéance en retard. Le test « l'alerte des retards comptée » passe parce que jsdom ignore les classes. Avec un
+   seul retard (bail 4), rien ne se perd. Avec deux retards ou plus, le compte n'est plus écrit au bureau : seules
+   les lignes « En retard de N j » restent, en tête de l'échéancier. C'est la contrainte « Rien ne se perd », alerte
+   des retards : question posée à team-lead le 2026-11-14.
+2. **`?geste=`** : seul le refus de `reviser` était testé. Ajouté : `renouveler` et `restituer` s'ouvrent à qui a
+   le geste et pas à un autre, et `resilier` ne s'ouvre jamais par l'URL. Ablations, chacune rouge : la garde
+   `secondaires.includes` (2 rouges), puis la liste `GESTES_PAR_LIEN` (1 rouge).
+3. **Une échéance `paid` sans `paid_at`** : la carte Loyer écrirait « Novembre : payé le — », et la carte Caution
+   « À encaisser ». C'est un cas de bord de données, non recherché en démo et non corrigé.
+4. **Les gestes « quittance » et « contrat » de la barre** ne portent pas `data-testid="geste-principal"`, que les
+   autres gestes portent : `BoutonTelechargement` ne le reçoit pas. Ce n'est pas visible à l'écran. Le test d'AC4
+   compte donc les contrôles de la barre, pas cet attribut.
+5. **Vérifié sans défaut** :
+   - `give_notice` est `isTenantOf` (`LeasePolicy.php:346`), indépendant du statut : un locataire garde « Mon bail »
+     sur un bail en signature, expiré ou résilié.
+   - Le 403 du téléchargement retiré des tests de la fiche est bien tenu par `BoutonTelechargement.test.tsx:71`.
+6. **Lettre d'AC2** : `git grep window.prompt -- takussan-web/src/components/leases` rend toujours trois commentaires.
+   Question posée à team-lead le 2026-11-14.
+
+**Décisions de team-lead du 2026-11-14 (1 a, 2 a, 3 b, 4 a), appliquées**
+
+- **1 a, le compte des retards au bureau** : la carte Loyer dit « N échéances en retard » sous l'état du mois quand
+  N > 1. La ligne est `max-xl:hidden`, puisqu'au téléphone et sous `xl` la ligne « Échéancier » du dossier le dit déjà.
+  Le compte est lu comme celui du dossier : hors caution, sur `is_overdue`. La clé est
+  `lease.fiche.loyer.echeancesEnRetard` (ICU `plural` ; le `wo` porte le texte français).
+  - Tests : `CartesDuBail.tck-2645.test.tsx`, trois cas.
+  - Ablations, chacune rouge : seuil à 0 (2 rouges), compte visible au téléphone, caution comptée, compte sans
+    `is_overdue`.
+- **2 a, la lettre d'AC2** : les trois commentaires sont reformulés (« boîte de saisie du navigateur »), et
+  `git grep window.prompt -- takussan-web/src/components/leases` ne rend plus rien. Le docblock de
+  `FeuilleDeRevision` citait « AC5 » pour la révision : il cite maintenant AC2.
+- **3 b, les dépendances de l'AC9 de TCK-2644** : TCK-2644 dépend de TCK-2660, qui le bloque.
+  **TCK-2758 n'est pas ajouté, parce qu'il fermerait un cycle** : TCK-2644 dépendrait de TCK-2758, qui dépend de
+  TCK-2639, qui dépend de TCK-2644. `check-backlog.mjs` ne cherche pas les cycles et l'aurait laissé passer.
+  Question reposée à team-lead.
+- **4 a** : AC5 reste coché, avec l'écart de lettre noté plus haut.
+- **Question 5, réponse b (2026-11-14)** : l'ex-AC7 sort de TCK-2644 vers le ticket neuf TCK-2818, qui dépend de
+  TCK-2645 et de TCK-2660, sans cycle. La voie de relance (TCK-2758 ou TCK-2775) y attend la décision du porteur.

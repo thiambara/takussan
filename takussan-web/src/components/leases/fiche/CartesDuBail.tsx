@@ -68,6 +68,9 @@ export function CarteLoyer({
   const aujourdhui = aujourdhuiADakar();
   const mois = !vente && paiements ? echeanceDuMois(paiements, aujourdhui) : null;
   const charges = !vente && typeof lease.monthly_charges === 'number' && lease.monthly_charges > 0 ? lease.monthly_charges : null;
+  // TCK-2645 (2026-11-14, décision 1 a) — le compte des retards, lu comme la ligne « Échéancier » du dossier
+  // (hors caution, sur `is_overdue`) : au bureau, cette ligne est cachée dès `xl`, la carte le dit à sa place.
+  const retards = !vente && paiements ? paiements.filter((p) => p.payment_type !== 'deposit' && p.payment_type !== 'deposit_refund' && p.is_overdue).length : 0;
 
   return (
     <Carte className={cn('p-4', className)} data-testid="carte-loyer">
@@ -81,13 +84,24 @@ export function CarteLoyer({
       {charges !== null ? (
         <p className="mt-1 text-ui text-muted-foreground tabular-nums">{t('charges', { montant: f.montantCourt(charges, lease.currency) })}</p>
       ) : null}
-      {mois ? <EtatDuMois echeance={mois} mois={moisDe(mois.due_date ?? mois.period_start)} aujourdhui={aujourdhui} /> : null}
+      {mois ? <EtatDuMois echeance={mois} mois={moisDe(mois.due_date ?? mois.period_start)} aujourdhui={aujourdhui} retards={retards} /> : null}
       {aRegler ? <p className="mt-2 text-ui text-muted-foreground">{t('aRegler')}</p> : null}
     </Carte>
   );
 }
 
-function EtatDuMois({ echeance, mois, aujourdhui }: { readonly echeance: LeasePayment; readonly mois: string; readonly aujourdhui: string }) {
+function EtatDuMois({
+  echeance,
+  mois,
+  aujourdhui,
+  retards,
+}: {
+  readonly echeance: LeasePayment;
+  readonly mois: string;
+  readonly aujourdhui: string;
+  /** Les échéances en retard du bail ; dites dès `xl` quand il y en a plus d'une (décision 1 a). */
+  readonly retards: number;
+}) {
   const t = useTranslations('lease.fiche.loyer');
   const f = useFormatteurs();
   const penalite = echeance.late_fee_outstanding > 0 ? echeance.late_fee_outstanding : null;
@@ -99,6 +113,11 @@ function EtatDuMois({ echeance, mois, aujourdhui }: { readonly echeance: LeasePa
           <AlertTriangle className="size-4 flex-none" strokeWidth={2} aria-hidden="true" />
           {jours > 0 ? t('enRetard', { mois, jours }) : t('enRetardSansJours', { mois })}
         </p>
+        {retards > 1 ? (
+          <p className="mt-1 pl-6 text-ui font-medium text-destructive max-xl:hidden" data-testid="retards-du-loyer">
+            {t('echeancesEnRetard', { n: retards })}
+          </p>
+        ) : null}
         {penalite !== null ? (
           <p className="mt-1 pl-6 text-ui text-foreground">
             {t.rich('penaliteDue', {
