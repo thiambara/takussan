@@ -7459,31 +7459,6 @@
     "onboarding": {
       "pageTitle": "Bienvenue dans votre espace propriétaire",
       "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, transmettre vos pièces et découvrir vos biens.",
-      "kyc": {
-        "labels": {
-          "cni": "Pièce d'identité (CNI ou passeport)",
-          "rib": "RIB",
-          "ninea": "NINEA"
-        },
-        "hints": {
-          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
-          "rib": "Pour recevoir vos paiements (loyers, ventes).",
-          "ninea": "Numéro d'identification fiscale (utile pour les biens en société)."
-        },
-        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
-        "uploading": "Envoi en cours…",
-        "uploadedBadge": "Reçu",
-        "removeAria": "Retirer le fichier",
-        "errors": {
-          "title": "Envoi du fichier impossible",
-          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
-          "uploadFailed": "Une erreur est survenue. Réessayez."
-        },
-        "success": {
-          "title": "Document reçu",
-          "body": "Le fichier {name} a été enregistré."
-        }
-      },
       "steps": {
         "phone": {
           "title": "Vérifiez votre téléphone",
@@ -7757,31 +7732,6 @@
     "onboarding": {
       "pageTitle": "Bienvenue dans votre espace agent",
       "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, transmettre vos pièces et configurer votre périmètre d'activité.",
-      "kyc": {
-        "labels": {
-          "license": "Carte professionnelle",
-          "cni": "Pièce d'identité (CNI ou passeport)",
-          "photo": "Photo de profil"
-        },
-        "hints": {
-          "license": "Scan ou photo de votre carte d'agent immobilier — moins de 8 Mo.",
-          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
-          "photo": "Une photo récente, visage visible. JPG ou PNG."
-        },
-        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
-        "uploading": "Envoi en cours…",
-        "uploadedBadge": "Reçu",
-        "removeAria": "Retirer le fichier",
-        "errors": {
-          "title": "Envoi du fichier impossible",
-          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
-          "uploadFailed": "Une erreur est survenue. Réessayez."
-        },
-        "success": {
-          "title": "Document reçu",
-          "body": "Le fichier {name} a été enregistré."
-        }
-      },
       "steps": {
         "phone": {
           "title": "Vérifiez votre téléphone",
@@ -8100,31 +8050,6 @@
       "success": {
         "title": "Bienvenue !",
         "body": "Votre profil prestataire est actif."
-      },
-      "kyc": {
-        "labels": {
-          "cni": "Pièce d'identité (CNI)",
-          "insurance": "Assurance RC pro",
-          "rib": "RIB"
-        },
-        "hints": {
-          "cni": "JPG, PNG ou PDF — moins de 8 Mo.",
-          "insurance": "Optionnel mais valorisé — affiche le badge Assuré sur votre profil.",
-          "rib": "Pour les futurs paiements."
-        },
-        "dropZone": "Glissez un fichier ici ou cliquez pour parcourir.",
-        "uploading": "Envoi en cours…",
-        "uploadedBadge": "Reçu",
-        "removeAria": "Retirer le fichier",
-        "errors": {
-          "title": "Envoi du fichier impossible",
-          "fileTooLarge": "Fichier trop volumineux (8 Mo max).",
-          "uploadFailed": "Une erreur est survenue. Réessayez."
-        },
-        "success": {
-          "title": "Document reçu",
-          "body": "Le fichier {name} a été enregistré."
-        }
       },
       "trades": {
         "legend": "Métiers proposés",

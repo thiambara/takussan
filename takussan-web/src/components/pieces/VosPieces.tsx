@@ -38,7 +38,7 @@ import { CLE_DEMARRAGE } from '@/lib/queries/demarrage-espace';
 import { CLE_PIECES, EchecDEnvoi, enregistrerLeNinea, envoyerLaPiece, useMesPieces } from '@/lib/queries/pieces';
 import { cn } from '@/lib/utils';
 
-/** La taille maximale qu'accepte l'envoi (`AcceptedUploads::kyc(8192)`), comme `KycUploader`. */
+/** La taille maximale qu'accepte l'envoi (`AcceptedUploads::kyc(8192)`), gardée par `seuils-de-saisie.parity.test.ts`. */
 const TAILLE_MAX = 8 * 1024 * 1024;
 
 const ICONES: Readonly<Record<CodeDePiece, ComponentType<{ className?: string; strokeWidth?: number }>>> = {

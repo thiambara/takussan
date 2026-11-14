@@ -7459,31 +7459,6 @@
     "onboarding": {
       "pageTitle": "Welcome to your owner space",
       "pageSubtitle": "Four guided steps to verify your identity, upload your documents and discover your properties.",
-      "kyc": {
-        "labels": {
-          "cni": "ID document (CNI or passport)",
-          "rib": "Bank details (RIB)",
-          "ninea": "NINEA"
-        },
-        "hints": {
-          "cni": "JPG, PNG or PDF — under 8 MB.",
-          "rib": "To receive your payments (rents, sales).",
-          "ninea": "Tax ID (useful for properties owned by a company)."
-        },
-        "dropZone": "Drag a file here or click to browse.",
-        "uploading": "Uploading…",
-        "uploadedBadge": "Received",
-        "removeAria": "Remove file",
-        "errors": {
-          "title": "Could not upload file",
-          "fileTooLarge": "File too large (8 MB max).",
-          "uploadFailed": "An error occurred. Please retry."
-        },
-        "success": {
-          "title": "Document received",
-          "body": "{name} has been saved."
-        }
-      },
       "steps": {
         "phone": {
           "title": "Verify your phone",
@@ -7757,31 +7732,6 @@
     "onboarding": {
       "pageTitle": "Welcome to your agent space",
       "pageSubtitle": "Four guided steps to verify your identity, upload your documents and configure your scope of activity.",
-      "kyc": {
-        "labels": {
-          "license": "Professional licence card",
-          "cni": "ID document (CNI or passport)",
-          "photo": "Profile picture"
-        },
-        "hints": {
-          "license": "Scan or photo of your real-estate licence card — under 8 MB.",
-          "cni": "JPG, PNG or PDF — under 8 MB.",
-          "photo": "A recent photo with your face visible. JPG or PNG."
-        },
-        "dropZone": "Drag a file here or click to browse.",
-        "uploading": "Uploading…",
-        "uploadedBadge": "Received",
-        "removeAria": "Remove file",
-        "errors": {
-          "title": "Could not upload file",
-          "fileTooLarge": "File too large (8 MB max).",
-          "uploadFailed": "An error occurred. Please retry."
-        },
-        "success": {
-          "title": "Document received",
-          "body": "{name} has been saved."
-        }
-      },
       "steps": {
         "phone": {
           "title": "Verify your phone",
@@ -8100,31 +8050,6 @@
       "success": {
         "title": "Welcome!",
         "body": "Your service provider profile is now active."
-      },
-      "kyc": {
-        "labels": {
-          "cni": "ID document",
-          "insurance": "Liability insurance",
-          "rib": "Bank account"
-        },
-        "hints": {
-          "cni": "JPG, PNG or PDF — under 8 MB.",
-          "insurance": "Optional but valued — displays the Insured badge on your profile.",
-          "rib": "For future payouts."
-        },
-        "dropZone": "Drop a file here or click to browse.",
-        "uploading": "Uploading…",
-        "uploadedBadge": "Received",
-        "removeAria": "Remove file",
-        "errors": {
-          "title": "Upload failed",
-          "fileTooLarge": "File too large (8 MB max).",
-          "uploadFailed": "An error occurred. Please try again."
-        },
-        "success": {
-          "title": "Document received",
-          "body": "{name} has been saved."
-        }
       },
       "trades": {
         "legend": "Trades offered",

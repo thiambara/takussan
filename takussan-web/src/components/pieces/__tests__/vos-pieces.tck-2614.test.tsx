@@ -3,8 +3,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { KYC_MIME_ACCEPT } from '@/components/kyc/kyc-mime-accept';
-import { withIntl } from '@/test/intl';
-import { VosPieces } from '../VosPieces';
+import { litUtilitaireDeCouleur, resoudreCouleur } from '@/test/contraste-wcag';
+import { withIntl, type LocaleDeTest } from '@/test/intl';
+import { PastilleDePiece, VosPieces } from '../VosPieces';
 
 /**
  * TCK-2614 — « Vos pièces ». La couche RÉSEAU est doublée (`apiRequest` pour la lecture et le NINEA, `fetch` pour le
@@ -72,9 +73,9 @@ const piece = (code: string, state = 'missing', extra: Partial<Piece> = {}): Pie
   ...extra,
 });
 
-function rendre() {
+function rendre(locale: LocaleDeTest = 'fr') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(withIntl(<QueryClientProvider client={client}>{<VosPieces />}</QueryClientProvider>));
+  return render(withIntl(<QueryClientProvider client={client}>{<VosPieces />}</QueryClientProvider>, locale));
 }
 
 /** Les cartes du téléphone (le tableau du bureau porte les mêmes pièces, caché sous `lg` par CSS). */
@@ -300,5 +301,99 @@ describe('« Vos pièces » — TCK-2614', () => {
     rendre();
     expect(await screen.findByText('Aucune pièce à fournir pour cet espace.')).toBeInTheDocument();
     for (const b of screen.getAllByRole('button', { name: 'Envoyer mes pièces' })) expect(b).toBeDisabled();
+  });
+});
+
+/**
+ * TCK-2796 — ce que tenaient les tests du téléverseur des anciens assistants, retiré faute de montage :
+ * « Vos pièces » est désormais le SEUL chemin qui envoie une pièce, et ces propriétés y sont gardées.
+ *
+ *  · Les erreurs de l'envoi dites à la personne, dans sa langue (TCK-292, AC7) : le relais BFF ne fabrique plus de prose,
+ *    il rend un code que ce dépôt traduit, ou le message de Laravel, déjà localisé.
+ *  · Le TON de chaque état de pièce, décidé par `StatusBadge` et par lui seul (TCK-385) : aucune famille verte de
+ *    l'échelle Tailwind, des jetons de `globals.css`.
+ *  · Les formats proposés : CHAQUE champ fichier de l'écran (photo et fichier au téléphone, « parcourir » au bureau).
+ */
+describe('« Vos pièces » — ce que gardaient les tests du téléverseur des assistants (TCK-2796)', () => {
+  /** Le relais d'envoi répond `statut` avec `corps` ; la lecture des pièces reste servie par `apiRequest`. */
+  function relaisRepond(statut: number, corps: string) {
+    globalThis.fetch = vi.fn(async () => new Response(corps, { status: statut, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+  }
+
+  /** Prépare la pièce d'identité et soumet le formulaire — sans passer par un libellé, pour valoir en toute langue. */
+  async function envoieLaCni(): Promise<HTMLElement> {
+    const c = await carte('cni');
+    const champ = c.querySelector<HTMLInputElement>('input[type=file]:not([capture])')!;
+    fireEvent.change(champ, { target: { files: [new File(['x'], 'cni.png', { type: 'image/png' })] } });
+    fireEvent.submit(document.querySelector('form#vos-pieces')!);
+    return c;
+  }
+
+  it.each([
+    ['401 : le libellé FRANÇAIS', 'fr', 401, { code: 'unauthenticated' }, 'Votre session a expiré. Reconnectez-vous.'],
+    ['401 sous locale en : l’ANGLAIS', 'en', 401, { code: 'unauthenticated' }, 'Your session has expired. Please sign in again.'],
+    ['400 `invalid_profile_id` traduit', 'fr', 400, { code: 'invalid_profile_id' }, 'Ce profil est introuvable.'],
+    ['422 : la prose de Laravel passe telle quelle', 'fr', 422, { message: 'Le fichier dépasse la taille autorisée.' }, 'Le fichier dépasse la taille autorisée.'],
+  ] as const)('erreur d’envoi — %s, sous la pièce', async (_cas, locale, statut, corps, attendu) => {
+    reseau.pieces = [piece('cni')];
+    relaisRepond(statut, JSON.stringify(corps));
+    rendre(locale);
+    const c = await envoieLaCni();
+    expect(await within(c).findByRole('alert')).toHaveTextContent(attendu);
+  });
+
+  it('erreur d’envoi — 401 : ni la prose anglaise du relais, ni le code brut', async () => {
+    reseau.pieces = [piece('cni')];
+    relaisRepond(401, JSON.stringify({ code: 'unauthenticated' }));
+    rendre('fr');
+    const alerte = await within(await envoieLaCni()).findByRole('alert');
+    expect(alerte).not.toHaveTextContent(/not authenticated/i);
+    expect(alerte).not.toHaveTextContent(/unauthenticated/);
+    expect(alerte).not.toHaveTextContent(/API error/i);
+    expect(document.body.textContent).not.toMatch(/Not authenticated/i);
+  });
+
+  it('erreur d’envoi — un corps illisible (502 HTML) retombe sur le libellé de l’écran', async () => {
+    reseau.pieces = [piece('cni')];
+    relaisRepond(502, '<html>502</html>');
+    rendre('fr');
+    expect(await within(await envoieLaCni()).findByRole('alert')).toHaveTextContent('L’envoi n’a pas abouti. Réessayez.');
+  });
+
+  it('le ton de chaque état est celui de `StatusBadge` — la table ENTIÈRE, en jetons du design system', () => {
+    const tons: Record<string, string | null> = {};
+    for (const etat of ['missing', 'sent', 'verified', 'rejected'] as const) {
+      const { container, unmount } = render(withIntl(<PastilleDePiece etat={etat} />));
+      const badge = container.querySelector<HTMLElement>('[data-tone]');
+      tons[etat] = badge?.getAttribute('data-tone') ?? null;
+      const classes = Array.from(badge?.classList ?? []);
+      const aplat = classes.map((c) => litUtilitaireDeCouleur(c, 'bg')).find((u) => u !== null && u.variante === '');
+      const encre = classes.map((c) => litUtilitaireDeCouleur(c, 'text')).find((u) => u !== null && u.variante === '');
+      expect(aplat, `${etat} : un aplat inconditionnel`).not.toBeUndefined();
+      expect(encre, `${etat} : une encre inconditionnelle`).not.toBeUndefined();
+      // `resoudreCouleur` LÈVE sur un jeton absent de `globals.css` : une famille de l'échelle Tailwind rougit avec son nom.
+      expect(() => resoudreCouleur(aplat!.jeton)).not.toThrow();
+      expect(() => resoudreCouleur(encre!.jeton)).not.toThrow();
+      unmount();
+    }
+    expect(tons).toEqual({ missing: 'neutral', sent: 'info', verified: 'success', rejected: 'danger' });
+  });
+
+  it('aucun nœud de l’écran ne porte une famille verte de l’échelle Tailwind', async () => {
+    reseau.pieces = [piece('cni', 'verified', { file: { name: 'cni.pdf', size: 1024, sent_at: null } }), piece('rib', 'sent'), piece('photo')];
+    const { container } = rendre();
+    await carte('cni');
+    const classes = [...container.querySelectorAll('*')].map((n) => n.getAttribute('class') ?? '').join(' ');
+    expect(classes).not.toMatch(/-(emerald|green)-[0-9]{2,3}\b/);
+  });
+
+  it('CHAQUE champ fichier de l’écran propose les formats de l’envoi — carte et tableau', async () => {
+    reseau.pieces = [piece('cni'), piece('rib')];
+    rendre();
+    await carte('cni');
+    const champs = [...document.querySelectorAll<HTMLInputElement>('input[type=file]')];
+    // Deux pièces : photo + fichier dans chaque carte, « parcourir » dans chaque ligne du tableau.
+    expect(champs).toHaveLength(6);
+    for (const champ of champs) expect(champ).toHaveAttribute('accept', KYC_MIME_ACCEPT);
   });
 });

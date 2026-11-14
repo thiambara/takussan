@@ -63,21 +63,46 @@ n'est pas d'alléger une garde :
 
 ## Delta à produire
 
-- [ ] Inventaire écrit dans le ticket : fichiers qui citent `KycUploader`, clés i18n que lui seul lit.
-- [ ] Chaque propriété du tableau reportée sur `VosPieces` (ou constatée déjà tenue, avec le test qui la tient).
-- [ ] Suppression de `KycUploader.tsx` et de ses deux tests propres ; des clés mortes.
-- [ ] Commentaires de renvoi réécrits.
+- [x] Inventaire écrit dans le ticket : fichiers qui citent `KycUploader`, clés i18n que lui seul lit.
+- [x] Chaque propriété du tableau reportée sur `VosPieces` (ou constatée déjà tenue, avec le test qui la tient).
+- [x] Suppression de `KycUploader.tsx` et de ses deux tests propres ; des clés mortes.
+- [x] Commentaires de renvoi réécrits.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -rn "KycUploader" src` ne rend plus que le cas d'épreuve de `i18n-namespaces-scan.test.ts`.
-- [ ] AC2 — Ablation : retirer `MAX_BYTES`, l'`accept` ou la réduction de photo de `VosPieces` fait rougir une garde. Une garde
+- [x] AC1 — `grep -rn "KycUploader" src` ne rend plus que le cas d'épreuve de `i18n-namespaces-scan.test.ts`.
+  Preuve (2026-11-14, après suppression et réécriture des commentaires) : `rg -n KycUploader takussan-web/src` →
+  `src/i18n/__tests__/i18n-namespaces-scan.test.ts:80` et `:81`, rien d'autre.
+- [x] AC2 — Ablation : retirer `MAX_BYTES`, l'`accept` ou la réduction de photo de `VosPieces` fait rougir une garde. Une garde
   qui ne citait que le composant supprimé ne suffit pas.
-- [ ] AC3 — Les trois assistants (`OwnerOnboardingWizard`, `AgentOnboardingWizard`, `ServiceProviderOnboardingWizard`) ne
+  Preuve (2026-11-14, 12 mutants, tous ROUGES, fichiers restaurés au md5) : `TAILLE_MAX` à 9 Mo ou renommée →
+  `seuils-de-saisie.parity` ; refus de taille retiré → `vos-pieces.tck-2614` (8 Mo) ; chacun des trois `accept` en
+  `image/*`, un à la fois → `accept-des-televersements.parity.tck-1888` (lu dans la source) et `vos-pieces` (rendu) ;
+  erreur d'envoi sans `messageCorpsErreurBff` → 4 cas d'erreur ; « Vérifiée » en ton `info` ou en `bg-emerald-100`
+  → `vos-pieces`. ⚠ **Réduction de photo** : `VosPieces` n'en a pas, et la garde (TCK-542) tient l'inverse — une pièce
+  part telle quelle. `VosPieces.tsx` et `lib/queries/pieces.ts` entrent dans `PIECES_JUSTIFICATIVES` ; l'ablation est
+  donc d'AJOUTER un import de `reduire-photo` (à chacun des deux) → `reduire-photo.branchement` rouge.
+- [x] AC3 — Les trois assistants (`OwnerOnboardingWizard`, `AgentOnboardingWizard`, `ServiceProviderOnboardingWizard`) ne
   montent aucun champ fichier. Cette absence reste gardée.
-- [ ] AC4 — Prestataire actif de la démo, `/app/pieces` : la pièce d'identité (requise) et l'assurance (facultative) s'y
+  Preuve : `components/onboarding/__tests__/assistants-sans-champ-fichier.tck-2796.test.ts` lit chaque assistant ET ses
+  étapes locales (`./invite/…`, de proche en proche, témoins compris) et refuse `type="file"`, `KYC_MIME_ACCEPT`,
+  `envoyerLaPiece`/`kyc/upload` et l'import d'un téléverseur connu. Ablation : `<input type="file" />` posé dans
+  `invite/BiensDuBailleur.tsx` → rouge.
+- [x] AC4 — Prestataire actif de la démo, `/app/pieces` : la pièce d'identité (requise) et l'assurance (facultative) s'y
   listent et s'y envoient. Relevé au navigateur, réseau compris.
-- [ ] AC5 — `npm run check:i18n`, `check-i18n-namespaces`, `tsc --noEmit`, `npm run lint` : aucun écart neuf.
+  Relevé (2026-11-14, Chrome sans tête par CDP, 390 px, persona `prestataire`). ⚠ Le script POSE le cookie
+  `active_profile_id=service_provider:1` : sans lui, ce compte de démo (`meta.active_profile_id` nul) voit « Aucune pièce
+  à fournir pour cet espace », alors que `GET /api/me/pieces` sous `X-Profile-Id: service_provider:1` rend `cni`
+  requise et `insurance` facultative. Avec le cookie :
+  `GET /api/me/pieces` 200 ; « Pièce d’identité » « À fournir » (ton `neutral`), « Assurance RC pro » « Facultative »,
+  deux champs fichier chacune, en-tête « 0 sur 1 ». Un PDF factice préparé sur l'assurance → « rc-factice.pdf · prête à
+  envoyer » ; « Envoyer mes pièces » émet `POST /api/me/profiles/1/kyc/upload` en `multipart/form-data`, **bloqué par
+  l'inspecteur avant le serveur**. 201 non relevé, décision team-lead : aucune écriture en base pour un retrait de code
+  mort. Relevé et capture conservés hors du dépôt (dossier de travail de la session).
+- [x] AC5 — `npm run check:i18n`, `check-i18n-namespaces`, `tsc --noEmit`, `npm run lint` : aucun écart neuf.
+  Preuve : `check-i18n-namespaces` vert (50 frontières) ; `check:i18n` : 105 écarts, tous sous
+  `playground/maquettes/` (maquettes locales, ignorées par git) ; `tsc --noEmit` : aucune erreur dans `src/` (seules
+  celles de `.next/types`, périmé) ; ESLint propre sur les fichiers touchés.
 
 ## Hors périmètre
 
@@ -86,4 +111,32 @@ n'est pas d'alléger une garde :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Inventaire (2026-11-14, avant toute suppression)
+
+**Aucun montage.** `rg -n "<KycUploader|from '@/components/kyc/KycUploader'|from '\.\./KycUploader'" takussan-web/src`
+hors `__tests__` → rien. Les seuls importeurs sont trois tests : `KycUploader.erreurs`, `KycUploader.pastille-tck-385`
+et `accept-des-televersements.parity.tck-1888`. `rg "kyc-uploader-|kyc-remove-"` (ses `data-testid`) → le composant seul.
+
+**Fichiers qui citent le nom** (`rg -n KycUploader` sur le dépôt, `docs/` exclus) :
+
+| Fichier | Nature | Sort |
+|---|---|---|
+| `takussan-web/src/components/kyc/KycUploader.tsx` | le composant | supprimé |
+| `…/kyc/__tests__/KycUploader.erreurs.test.tsx` | 6 cas d'erreur d'envoi | supprimé, porté sur `VosPieces` |
+| `…/kyc/__tests__/KycUploader.pastille-tck-385.test.tsx` | absence dans les assistants, ton de la pastille, pas de vert Tailwind | supprimé, porté (garde des assistants + `VosPieces`) |
+| `…/console/__tests__/StatusBadge.contraste-tck-450.test.tsx:157` | site de la surface `bg-muted/30` sur `--background` | site réel : `onboarding/HostIndividualWizard.tsx:481` |
+| `…/lib/__tests__/reduire-photo.branchement.test.ts:31` | pièce justificative qui ne réduit pas | `pieces/VosPieces.tsx` + `lib/queries/pieces.ts` |
+| `…/lib/__tests__/seuils-de-saisie.parity.test.ts:92` | `MAX_BYTES` = `AcceptedUploads::kyc(8192)` | `TAILLE_MAX` de `VosPieces.tsx` |
+| `…/lib/queries/__tests__/accept-des-televersements.parity.tck-1888.test.tsx` | `accept` = `KYC_MIMETYPES` | import de `kyc-mime-accept`, et chaque champ fichier de `VosPieces` |
+| `…/i18n/__tests__/i18n-namespaces-scan.test.ts:80` | chaîne d'épreuve du dérivateur | **gardé** |
+| `scripts/check-super-admin-tokens.mjs:1583,1638` | périmètre `file` ET témoin de l'espace « assistants d'onboarding » | périmètre retiré ; témoin remplacé par `app/onboarding/host/page.tsx` (fichier vivant de l'espace), plancher inchangé (8) |
+| commentaires : `VosPieces.tsx:41`, `QuoteSubmitForm.tsx:99`, `lib/queries/pieces.ts:34`, `kyc-mime-accept.ts:6`, `lib/api.ts:588`, `scripts/i18n-namespaces-scan.mjs:250`, `scripts/check-super-admin-tokens.mjs:372,1553,1849`, `takussan-api/…/ServiceProviderProfileController.php:40` | renvois | réécrits |
+
+**Clés que lui seul lit** : les sous-arbres entiers `owners.onboarding.kyc`, `agents.onboarding.kyc`,
+`serviceProviders.onboarding.kyc` (`labels`, `hints`, `dropZone`, `uploading`, `uploadedBadge`, `removeAria`,
+`errors.*`, `success.*`), en `fr`, `en` et `wo`. Aucun autre lecteur : les assistants lisent `<rôle>.onboarding` sans
+jamais demander `kyc.…` (`rg "['\"\`]kyc\." src` → rien sous `onboarding`), et le seul lecteur dynamique est la prop
+`i18nNamespace` du composant supprimé. `…onboarding.steps.kyc` n'est PAS lu par `KycUploader` : hors de ce ticket.
+
+**Surfaces de la pastille de `VosPieces`** : `--card` (carte au téléphone, tableau au bureau), déjà mesurée par
+`StatusBadge.contraste-tck-450`.

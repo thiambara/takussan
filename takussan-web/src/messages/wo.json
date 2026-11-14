@@ -5296,31 +5296,6 @@
     "onboarding": {
       "pageTitle": "Dalal jamm ci sa espace borom kër",
       "pageSubtitle": "Ñeenti etap ngir verifier sa identité, yónni sa kayit yi te xam sa biens.",
-      "kyc": {
-        "labels": {
-          "cni": "Kayitu identité (CNI walla passeport)",
-          "rib": "RIB",
-          "ninea": "NINEA"
-        },
-        "hints": {
-          "cni": "JPG, PNG walla PDF — moo gën 8 Mo.",
-          "rib": "Ngir jot sa paiements yi.",
-          "ninea": "Numéro fiscal (ñu ko jëfandikoo ngir biens yi sosete moo yor)."
-        },
-        "dropZone": "Wàccal fichier ci bii walla bësal ngir tànn.",
-        "uploading": "Yónnee na…",
-        "uploadedBadge": "Jot na",
-        "removeAria": "Dindi fichier",
-        "errors": {
-          "title": "Yónni fichier mënul",
-          "fileTooLarge": "Fichier dafa rëy lool (8 Mo max).",
-          "uploadFailed": "Am na njumte. Jéem leneen."
-        },
-        "success": {
-          "title": "Kayit jot na",
-          "body": "{name} dañu ko denc."
-        }
-      },
       "steps": {
         "phone": {
           "title": "Verifie sa téléphone",
@@ -5594,31 +5569,6 @@
     "onboarding": {
       "pageTitle": "Dalal jamm ci sa espace agent",
       "pageSubtitle": "Ñeenti étape ngir vérifier sa identité, yónn sa pieces, te taxoo sa zones.",
-      "kyc": {
-        "labels": {
-          "license": "Karte professionnelle",
-          "cni": "CNI walla passeport",
-          "photo": "Foto"
-        },
-        "hints": {
-          "license": "Scan walla foto sa karte d'agent — su tudd 8 Mo.",
-          "cni": "JPG, PNG walla PDF — su tudd 8 Mo.",
-          "photo": "Foto bu xeebal — kanam bi gën a leer. JPG walla PNG."
-        },
-        "dropZone": "Sàcc fichier walla cliquer ngir parcourir.",
-        "uploading": "Yónn naa…",
-        "uploadedBadge": "Jot na",
-        "removeAria": "Rëdd fichier bi",
-        "errors": {
-          "title": "Yónn fichier bi du mën",
-          "fileTooLarge": "Fichier bi rëy lool (8 Mo lañu mën).",
-          "uploadFailed": "Am na njumte. Jëfandikoo waxtu bi."
-        },
-        "success": {
-          "title": "Document jot na",
-          "body": "{name} dañu ko denc."
-        }
-      },
       "steps": {
         "phone": {
           "title": "Vérifie sa téléphone",
@@ -5937,31 +5887,6 @@
       "success": {
         "title": "Dalal jamm!",
         "body": "Sa profil prestataire dox na."
-      },
-      "kyc": {
-        "labels": {
-          "cni": "Carte d'identité",
-          "insurance": "Assurance RC pro",
-          "rib": "RIB"
-        },
-        "hints": {
-          "cni": "JPG, PNG mbaa PDF — 8 Mo max.",
-          "insurance": "Optionnel waaye baax na — wone na badge Assuré ci sa profil.",
-          "rib": "Ngir paie yi diy ñëw."
-        },
-        "dropZone": "Sàcc fichier fii mbaa cliquez ngir tànn.",
-        "uploading": "Yónnee…",
-        "uploadedBadge": "Jot nañu",
-        "removeAria": "Far fichier bi",
-        "errors": {
-          "title": "Yónneewul",
-          "fileTooLarge": "Fichier bi rëy na (8 Mo max).",
-          "uploadFailed": "Am na njumte. Jéem leen waxtu jënd."
-        },
-        "success": {
-          "title": "Document jot nañu ko",
-          "body": "Fichier {name} jot nañu ko."
-        }
       },
       "trades": {
         "legend": "Liggéey yi nga mën a def",

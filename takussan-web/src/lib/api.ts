@@ -585,7 +585,7 @@ export class ApiError extends Error {
  *
  * ⚠️ Racine, et non un espace de noms : les clés de {@link CLE_I18N_ERREUR_BFF} sont des chemins
  * absolus (`errors.api.unauthenticated`). Un composant qui tient déjà un
- * `useTranslations('agents.onboarding.kyc')` ne peut donc PAS s'en servir ici — il lui faut, en
+ * `useTranslations('pieces')` ne peut donc PAS s'en servir ici — il lui faut, en
  * plus, un `useTranslations()` sans argument.
  */
 export type TraducteurRacine = (cle: string, valeurs?: Record<string, string | number>) => string;

@@ -30,8 +30,8 @@ export class EchecDEnvoi extends Error {
 }
 
 /**
- * Une pièce envoyée par le relais multipart same-origin (`src/app/api/me/<segment>/[id]/kyc/upload`), comme
- * `KycUploader` : les server actions ne relaient pas proprement un corps `multipart/form-data`.
+ * Une pièce envoyée par le relais multipart same-origin (`src/app/api/me/<segment>/[id]/kyc/upload`), et non par une
+ * server action : celles-ci ne relaient pas proprement un corps `multipart/form-data`.
  */
 export async function envoyerLaPiece(profil: ProfilDesPieces, code: string, fichier: File): Promise<void> {
   const corps = new FormData();

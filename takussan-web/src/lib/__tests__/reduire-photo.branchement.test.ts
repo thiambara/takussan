@@ -28,7 +28,10 @@ const ECRANS_DE_PHOTOS = [
 ] as const;
 
 const PIECES_JUSTIFICATIVES = [
-  'components/kyc/KycUploader.tsx',
+  // TCK-2796 — les pièces du profil partent de « Vos pièces » (l'écran, puis l'envoi qu'il appelle) ; le téléverseur
+  // des anciens assistants (`components/kyc/`) est retiré.
+  'components/pieces/VosPieces.tsx',
+  'lib/queries/pieces.ts',
   'components/documents/DocumentUploadDialog.tsx',
   'components/maintenance/QuoteSubmitForm.tsx',
   'components/leases/DepositRefundModal.tsx',

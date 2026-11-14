@@ -36,8 +36,9 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  *  - **kyc**        → `App\Models\Document` polymorph attached to the
  *                     SP profile, with `type` mapped from the upload `kind`.
  *                     Files are stored via the medialibrary `file` collection
- *                     already configured on `Document`. **TCK-257 will
- *                     reuse the same `KycUploader` UI + this endpoint.**
+ *                     already configured on `Document`. Called by « Vos
+ *                     pièces » (`/app/pieces`, TCK-2614), the only screen
+ *                     that uploads a profile's pieces (TCK-2796).
  */
 class ServiceProviderProfileController extends Controller
 {

@@ -211,9 +211,9 @@ describe('<DocumentsLibrary> — pièces RIB et NINEA (TCK-1272, P134.02)', () =
     render(wrap(<DocumentsLibrary />));
 
     const titres = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(titres).toContain(fr.owners.onboarding.kyc.labels.rib);
+    expect(titres).toContain(fr.documents.types.rib);
     expect(titres.indexOf(fr.documents.types.lease_contract)).toBeLessThan(
-      titres.indexOf(fr.owners.onboarding.kyc.labels.rib),
+      titres.indexOf(fr.documents.types.rib),
     );
   });
 
