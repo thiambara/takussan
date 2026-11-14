@@ -124,7 +124,8 @@ export function apparier(a, b, type) {
  * Le nœud désigné par un sélecteur de rôle :
  * - `{ boiteDe: "texte", min?, rang? }` : la plus petite boîte qui contient ce texte ;
  * - `{ slot: "card", tag?, rang? }`, `{ fid: "…" }` : par `data-slot` (shadcn) ou `data-fid` ;
- * - `{ zone: { y, h, tol?, wMin? } }` : la première boîte à cette hauteur ;
+ * - `{ zone: { y, h, tol?, wMin?, wMax? } }` : la première boîte à cette hauteur, de largeur bornée
+ *   (`wMax` retient une colonne pleine hauteur plutôt que le cadre entier, TCK-2828) ;
  * - `{ texte, type?, rang? }` : le premier nœud dont la clé contient ce texte.
  */
 export function choisir(noeuds, sel) {
@@ -140,7 +141,7 @@ export function choisir(noeuds, sel) {
     return noeuds.filter((n) => n.type === 'boite' && (!sel.slot || n.slot === sel.slot) && (!sel.fid || n.fid === sel.fid) && (!sel.tag || n.tag === sel.tag))[sel.rang ?? 0] ?? null;
   if (sel.zone) {
     const t = sel.zone.tol ?? 4;
-    return noeuds.filter((n) => n.type === 'boite' && Math.abs(n.r.y - sel.zone.y) <= t && Math.abs(n.r.h - sel.zone.h) <= t && n.r.w >= (sel.zone.wMin ?? 0))[0] ?? null;
+    return noeuds.filter((n) => n.type === 'boite' && Math.abs(n.r.y - sel.zone.y) <= t && Math.abs(n.r.h - sel.zone.h) <= t && n.r.w >= (sel.zone.wMin ?? 0) && n.r.w <= (sel.zone.wMax ?? Infinity))[0] ?? null;
   }
   if (sel.texte) return noeuds.filter((n) => (!sel.type || n.type === sel.type) && n.cle.includes(sel.texte))[sel.rang ?? 0] ?? null;
   return null;

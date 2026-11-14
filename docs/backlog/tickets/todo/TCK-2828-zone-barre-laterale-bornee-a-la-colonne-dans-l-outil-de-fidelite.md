@@ -39,10 +39,16 @@ qui l'exprime.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — sur un relevé réel à 1280 (persona admin, `/app`), le rôle retient la colonne (largeur de l'ordre
+- [x] AC1 — sur un relevé réel à 1280 (persona admin, `/app`), le rôle retient la colonne (largeur de l'ordre
   de celle de la barre latérale, pas 1280). Preuve : relevé et boîte retenue.
-- [ ] AC2 — le même relevé, avant ce ticket, retenait le cadre entier. Le test est rouge sans la borne
+  *Preuve (2026-11-14)* : relevé produit admin `/app` du 2026-11-13 (17:52 Z) et maquette
+  `app-accueil/a-0-bureau-1280` — le rôle retient `aside 0,0 272×900` des deux côtés. Sur la comparaison
+  entière de ces deux relevés, les lignes du rôle passent de 149 (129 en écart) à 58 (35 en écart).
+- [x] AC2 — le même relevé, avant ce ticket, retenait le cadre entier. Le test est rouge sans la borne
   (ablation).
+  *Preuve* : avant, `body 0,0 1280×900` (produit) et `div 0,0 1280×900` (maquette). Ablations, une à la fois :
+  `wMax` retiré de `roles-coque.json` → 2 rouges ; la borne retirée de `choisir` → 3 rouges ; fichiers
+  restaurés, md5 vérifiés.
 
 ## Hors périmètre
 
@@ -50,4 +56,7 @@ qui l'exprime.
 
 ## Notes d'implémentation
 
-_(vide)_
+- Borne retenue : `wMax` (largeur maximale) dans le sélecteur `zone`, optionnelle — les autres zones sont
+  inchangées. `wMax: 400` des deux côtés : écarte le cadre (1280) et le `main` (1008), garde la colonne (272).
+- Une barre latérale repliée (plus étroite que `wMin: 200`) ne trouve toujours aucune boîte : le rôle rend
+  absent, plutôt que de retomber sur le cadre comme avant.
