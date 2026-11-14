@@ -17,6 +17,7 @@ import { AvatarDuPayeur } from '../argent/LigneDEncaissement';
 import { useNoterLaRelance } from './useNoterLaRelance';
 import { useLectureDImpaye } from './lecture';
 import { RETARD_GRAVE } from './tranches';
+import { CLASSE_JAMAIS_EN_ALERTE, useJamaisRelanceEnAlerte } from './ton-de-la-relance';
 
 /** Le geste d'une carte : 44 px au moins (AC4), pleine largeur partagée. */
 const GESTE = 'h-11 min-h-11 text-corps font-semibold';
@@ -56,6 +57,8 @@ export function CarteDImpaye({
   const joignable = isReachable(telephone);
   const fiche = row.payer?.id ? `/app/customers/${row.payer.id}` : null;
   const meta = [l.periode(row), l.relance(row), row.landlord?.name ?? null].filter(Boolean).join(' · ');
+  // TCK-2629 — « jamais relancé » en ton d'alerte quand le montage le demande (Rapports).
+  const jamaisEnAlerte = useJamaisRelanceEnAlerte() && !row.last_reminder;
 
   return (
     <article
@@ -100,7 +103,17 @@ export function CarteDImpaye({
       <p className="mt-3 flex items-center gap-1.5 text-ui leading-normal text-muted-foreground">
         <History className="size-3.5 flex-none" aria-hidden="true" />
         <span className="truncate" data-slot="meta-impaye">
-          {meta}
+          {jamaisEnAlerte ? (
+            <>
+              {l.periode(row) ? `${l.periode(row)} · ` : null}
+              <span className={CLASSE_JAMAIS_EN_ALERTE} data-slot="jamais-relance">
+                {l.relance(row)}
+              </span>
+              {row.landlord?.name ? ` · ${row.landlord.name}` : null}
+            </>
+          ) : (
+            meta
+          )}
         </span>
       </p>
       <div className="mt-3 flex gap-2">

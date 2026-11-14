@@ -1,9 +1,16 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import fr from '@/messages/fr.json';
 import { withIntl } from '@/test/intl';
 import { ExportForm } from '../ExportForm';
+
+/** TCK-2629 — le téléchargement relit « Derniers exports » : le formulaire vit sous un `QueryClient`. */
+function avecClient(ui: ReactElement) {
+  return <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
+}
 
 /**
  * TCK-1308 (piste P112.03) — un export coupé au plafond le dit à l'écran. Le formulaire télécharge
@@ -29,18 +36,19 @@ describe('ExportForm — coupure signalée (TCK-1308)', () => {
   it('dit que le fichier est coupé, et à combien de lignes', async () => {
     const fetchSpy = reponse({ 'x-export-truncated': '5000', 'content-disposition': 'attachment; filename="payments-1.csv"' });
     vi.stubGlobal('fetch', fetchSpy);
-    render(withIntl(<ExportForm staff />));
+    render(withIntl(avecClient(<ExportForm staff />)));
 
     fireEvent.click(screen.getByRole('button', { name: T.download }));
 
     expect(await screen.findByTestId('exports-truncated')).toHaveTextContent(/5\s000 lignes/);
-    expect(String((fetchSpy.mock.calls[0] as unknown[])[0])).toContain('/api/export/payments?format=csv');
+    // TCK-2629 — Excel et le mois dernier par défaut (préréglage de la maquette).
+    expect(String((fetchSpy.mock.calls[0] as unknown[])[0])).toMatch(/^\/api\/export\/payments\?format=xlsx&from=\d{4}-\d{2}-01&to=/);
   });
 
   it('ne dit rien quand l’export est entier', async () => {
     const fetchSpy = reponse({});
     vi.stubGlobal('fetch', fetchSpy);
-    render(withIntl(<ExportForm staff />));
+    render(withIntl(avecClient(<ExportForm staff />)));
 
     fireEvent.click(screen.getByRole('button', { name: T.download }));
 
@@ -51,7 +59,7 @@ describe('ExportForm — coupure signalée (TCK-1308)', () => {
 
   it('dit l’échec d’un téléchargement refusé', async () => {
     vi.stubGlobal('fetch', reponse({}, 403));
-    render(withIntl(<ExportForm staff />));
+    render(withIntl(avecClient(<ExportForm staff />)));
 
     fireEvent.click(screen.getByRole('button', { name: T.download }));
 

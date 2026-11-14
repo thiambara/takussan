@@ -102,12 +102,12 @@ L'admin compare ses agents sur un tableau. Il voit ses impayés par ancienneté 
 
 ## Delta à produire
 
-- [ ] Onglet « Équipe » (tableau au bureau, cartes au téléphone).
-- [ ] Onglet « Impayés » : tranches, liste par échéance, dernière relance, « Relancer » (geste de la famille 6).
-- [ ] Onglet « Exports » : cartes prêtes, export personnalisé avec préréglages, derniers exports et « Refaire ».
-- [ ] Onglet « Alertes » : valeur actuelle et seuil, dernier déclenchement, destinataires, canal, création et modification.
-- [ ] Mode « Personnaliser » de la vue d'ensemble : ordre, masquage, ajout, aperçu.
-- [ ] Tests :
+- [x] Onglet « Équipe » (tableau au bureau, cartes au téléphone). — `components/rapports/equipe/EquipeDuRapport.tsx`
+- [x] Onglet « Impayés » : tranches, liste par échéance, dernière relance, « Relancer » (geste de la famille 6). — le composant d'« Argent » (`admin/finances/impayes/Impayes.tsx`) avec `tranches="anciennete"` et `jamaisRelanceEnAlerte` ; « Argent » inchangé.
+- [x] Onglet « Exports » : cartes prêtes, export personnalisé avec préréglages, derniers exports et « Refaire ». — `components/rapports/exports/ExportsDuRapport.tsx`, `lib/rapports/exports.ts`
+- [x] Onglet « Alertes » : valeur actuelle et seuil, dernier déclenchement, destinataires, canal, création et modification. — `components/rapports/alertes/AlertList.tsx` ; destinataires et canal en lecture (leur choix est hors périmètre).
+- [x] Mode « Personnaliser » de la vue d'ensemble : ordre, masquage, ajout, aperçu. — `components/rapports/indicateurs/ReglageDesChiffres.tsx`
+- [x] Tests :
   - une carte prête interdite n'est pas rendue ;
   - « Refaire » rejoue les mêmes paramètres ;
   - « Jamais relancé » en ton d'alerte ;
@@ -118,12 +118,12 @@ L'admin compare ses agents sur un tableau. Il voit ses impayés par ancienneté 
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Admin : la carte « Paiements du mois dernier · Excel » lance `GET /api/export/payments?format=xlsx&from=2026-10-01&to=2026-10-31` (réseau, le 2026-11-10). Le fichier porte le nom rendu par l'API, et la ligne apparaît en tête de « Derniers exports » après rechargement.
-- [ ] AC2 — Bailleur : l'onglet « Exports » ne propose que paiements, baux et biens (compte = 3 types), en cartes comme en formulaire.
-- [ ] AC3 — Alerte « Taux d'impayés > 10 % » jamais déclenchée : la ligne dit « 3,91 % », « seuil 10 % » et « jamais ». Les destinataires sont les admins actifs (nombre égal à `recipients.count`).
-- [ ] AC4 — Dans « Impayés », la tranche « 31–60 j » filtre la liste sur les échéances de 31 à 60 jours (paramètres vus au réseau). Une échéance sans relance porte « Jamais relancé ».
-- [ ] AC5 — En mode « Personnaliser », glisser « Taux d'impayés » en premier puis « Terminé » envoie `PATCH kpi-configs/{id}` avec le nouveau `sort_order`. Après rechargement, la tuile est la première de la vue d'ensemble.
-- [ ] AC6 — Un agent qui détient `reports.view_agency` n'a pas d'onglet « Équipe ». `team-performance` ne part pas de sa page (réseau).
+- [ ] AC1 — Admin : la carte « Paiements du mois dernier · Excel » lance `GET /api/export/payments?format=xlsx&from=2026-10-01&to=2026-10-31` (réseau, le 2026-11-10). Le fichier porte le nom rendu par l'API, et la ligne apparaît en tête de « Derniers exports » après rechargement. — **Partiel (L1)** : prouvé au test sauf « en tête après rechargement », qui dépend du journal de l'API et se relève au navigateur en L2. **Preuve** (vitest, réseau doublé) : `rapports/exports/__tests__/ExportsDuRapport.tck-2629.test.tsx` « AC1 » — URL exacte au 2026-11-10, `download` = nom du `Content-Disposition`, puis relecture de `['me','exports']` (ablation de l'invalidation : rouge). L'ordre « en tête » est celui de `GET /api/me/exports` ; le rechargement réel se relève en L2.
+- [x] AC2 — Bailleur : l'onglet « Exports » ne propose que paiements, baux et biens (compte = 3 types), en cartes comme en formulaire. — **Preuve** : même fichier, « AC2 » (cartes paiements + baux, formulaire = 3 types, même avec `reports.export`) et `ExportForm.capacites.test.tsx` ; ablation d'`exportsPermis` : 4 rouges.
+- [x] AC3 — Alerte « Taux d'impayés > 10 % » jamais déclenchée : la ligne dit « 3,91 % », « seuil 10 % » et « jamais ». Les destinataires sont les admins actifs (nombre égal à `recipients.count`). — **Preuve** : `rapports/alertes/__tests__/AlertList.tck-2629.test.tsx` « AC3 » et `lib/rapports/__tests__/alertes.tck-2629.test.ts` ; `current_value` nul → aucune jauge, jamais 0 (ablation `?? 0` : 2 rouges).
+- [x] AC4 — Dans « Impayés », la tranche « 31–60 j » filtre la liste sur les échéances de 31 à 60 jours (paramètres vus au réseau). Une échéance sans relance porte « Jamais relancé ». — **Preuve** : `admin/finances/impayes/__tests__/impayes-anciennete.tck-2629.test.tsx` « AC4 » (`filter[days_late_min]=31`, `filter[days_late_max]=60` relevés sur `apiRequest`) ; « jamais relancé » en `text-destructive` au bureau et au téléphone, gris dans « Argent » (ablations du fournisseur, du défaut, de la table, de la carte : rouges).
+- [ ] AC5 — En mode « Personnaliser », glisser « Taux d'impayés » en premier puis « Terminé » envoie `PATCH kpi-configs/{id}` avec le nouveau `sort_order`. Après rechargement, la tuile est la première de la vue d'ensemble. — **Partiel (L1)** : prouvé au test sauf « après rechargement, la tuile est la première », relevé au navigateur en L2. **Preuve** : `rapports/indicateurs/__tests__/ReglageDesChiffres.tck-2629.test.tsx` « AC5 » (PATCH `sort_order` des seules lignes changées, rien avant « Enregistrer »/« Terminé », puis `router.refresh`) ; échec → ordre rendu et écritures passées défaites (ablation : rouge). La tuile en tête vient de `EnsembleAgence` qui lit les KPI dans leur ordre (`chiffres.tck-2628.test.ts`).
+- [x] AC6 — Un agent qui détient `reports.view_agency` n'a pas d'onglet « Équipe ». `team-performance` ne part pas de sa page (réseau). — **Preuve** : `lib/navigation/__tests__/rapports.tck-2628.test.ts` (table des onglets, ablation `agent: […, 'equipe']` : rouge) ; `rapports/ensemble/__tests__/agent-sans-equipe.tck-2629.test.ts` : le graphe d'imports d'`EnsembleAgent`, de la coque de « Rapports » et des onglets de l'agent (commissions, pipeline, exports) n'appelle ni `useTeamPerformance` ni `useDelaisDeReponse` (ablation par import d'`OngletEquipe` : rouge). Le relevé réseau au navigateur se fait en L2.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
@@ -142,4 +142,27 @@ L'admin compare ses agents sur un tableau. Il voit ses impayés par ancienneté 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**L1 (2026-11-14) — les cinq parties fonctionnelles ; la fidélité (AC-F1 à AC-F6) est la L2.**
+
+- **Impayés** : un seul composant avec « Argent » (ADR-0096 § 5). Deux propriétés : `tranches="anciennete"` (pastilles 1–30 · 31–60 · 61–90 · > 90 j, chacune comptée par sa lecture `per_page=1`, et la balance âgée `BalanceAgee` lue de `finance/aging`) et `jamaisRelanceEnAlerte` (contexte `ton-de-la-relance.ts`). Sans elles, « Argent » rend exactement ce qu'il rendait.
+- **Exports** : une carte prête est un export comme un autre, filtrée par `exportsPermis` ; le bailleur a ses trois types quelles que soient ses capacités. « Baux » et non « Baux actifs » : l'export n'a pas de filtre de statut. « Refaire » (et non « Retélécharger », aucun fichier n'est conservé) n'existe que si type et format sont connus et le type permis AUJOURD'HUI.
+- **Alertes** : jauge à 1,5 × le seuil, trait aux deux tiers ; `current_value` nul → « — », jamais 0. `include=triggers` pour le dernier déclenchement. Destinataires et canal en lecture (choix hors périmètre).
+- **Équipe** : nouveau composant sur la même lecture `team-performance` (`TeamPerformanceTable` d'Équipe inchangé) ; la colonne du délai n'existe que si `response-stats` répond, et dit « médiane sur N jours » sous le tableau (fenêtre glissante, colonnes mensuelles).
+- **Personnaliser** : rendu et lu seulement si `indicateursOuverts` (`vues/__tests__/LienDesIndicateurs.tck-2629.test.tsx`, ablation : 4 rouges). Le réglage s'ouvre sur la page (feuille au téléphone, panneau à droite au bureau) ; `/app/reports/indicators` reste et monte le même réglage. `KpiConfigList` supprimé ; sa borne de libellé (120, TCK-1491) est reprise dans le test du réglage, et la garde TCK-868 (`erreurs-de-champ-reliees.test.ts`) vise désormais `ReglageDesChiffres.tsx`.
+- Décisions D1 à D7 validées par la session déléguante le 2026-11-14 (« jamais relancé » : `text-destructive`, encre opaque).
+
+**Pour la L2 (fiche de fidélité et relevés 390/1280) — ce que la L1 a rendu en lecture seule, retiré ou renommé par rapport à la maquette (D7), avec le motif de chacun.** Chaque ligne est un alias ou un « absent motivé » à reporter dans `fidelite/TCK-2629.json` :
+
+| Écran | Élément de maquette | Rendu | Motif |
+|---|---|---|---|
+| Exports, cartes prêtes | nombre de lignes de chaque carte | retiré | aucune lecture ne donne le compte avant l'export ; l'API ne le rend qu'au journal, après coup (`row_count` de `GET /api/me/exports`) |
+| Exports, cartes prêtes | « Baux actifs » | renommé « Baux » | l'export `leases` n'a pas de filtre de statut : le titre mentirait |
+| Exports, derniers exports | « envoyé à … » (destinataire d'un export) | retiré | un export est un téléchargement ; Takussan n'envoie rien (envoi programmé hors périmètre) |
+| Exports, derniers exports | « Retélécharger » | renommé « Refaire » | aucun fichier n'est conservé : le geste relance le même export (type, format, période), sous les capacités du jour |
+| Exports, derniers exports | « Refaire » sur chaque ligne | absent sur certaines lignes | absent si le type ou le format est inconnu de l'onglet (exports d'« Argent »), ou si le type n'est plus permis aujourd'hui |
+| Alertes, formulaire | choix des destinataires | en lecture (« 2 administrateurs ») | hors périmètre du ticket ; l'API fixe les admins actifs (`recipients`) |
+| Alertes, formulaire | choix du canal | en lecture | même motif ; le canal est celui que rend l'API (`channels`) |
+| Alertes, liste | jauge | absente quand `current_value` est nul (« — ») | jamais 0 à la place d'une mesure absente |
+| Équipe | colonne « Délai de réponse » | libellé + « médiane sur N jours » sous le tableau ; colonne absente si `response-stats` échoue | fenêtre glissante de l'API à côté de colonnes mensuelles : la différence est dite |
+| Impayés, téléphone | balance âgée en cartes | barre seule au téléphone | place ; les pastilles de tranche portent les comptes |
+| Personnaliser | « Terminé » au téléphone, « Annuler / Enregistrer » au bureau | tel quel | feuille du bas au téléphone, panneau à droite au bureau (`/app/reports/indicators` monte le même réglage, D6) |

@@ -17,6 +17,7 @@ import { AvatarDuPayeur } from '../argent/LigneDEncaissement';
 import { useNoterLaRelance } from './useNoterLaRelance';
 import { useLectureDImpaye } from './lecture';
 import { RETARD_GRAVE } from './tranches';
+import { CLASSE_JAMAIS_EN_ALERTE, useJamaisRelanceEnAlerte } from './ton-de-la-relance';
 
 /**
  * TCK-2660 — les impayés au bureau (`lg` et au-delà), maquette `TableImpayes` : Locataire · Bien ·
@@ -56,6 +57,7 @@ export function TableDesImpayes({
   const tPagination = useTranslations('console.pagination');
   const l = useLectureDImpaye();
   const noter = useNoterLaRelance();
+  const jamaisEnAlerte = useJamaisRelanceEnAlerte();
   const page = meta?.current_page ?? 1;
   const derniere = meta?.last_page ?? 1;
   const debut = (page - 1) * (meta?.per_page ?? 20) + 1;
@@ -163,7 +165,9 @@ export function TableDesImpayes({
             <span className="mt-0.5 block truncate text-ui text-muted-foreground">{l.canal(row.last_reminder)}</span>
           </span>
         ) : (
-          <span className="text-muted-foreground">{l.relance(row)}</span>
+          <span className={jamaisEnAlerte ? CLASSE_JAMAIS_EN_ALERTE : 'text-muted-foreground'} data-slot="jamais-relance">
+            {l.relance(row)}
+          </span>
         ),
     },
     {

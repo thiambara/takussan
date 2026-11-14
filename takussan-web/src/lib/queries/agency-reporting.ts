@@ -50,6 +50,8 @@ export interface TeamPerformanceRow {
   readonly commissions_earned: number;
   readonly properties_managed: number;
   readonly tasks_overdue: number;
+  /** TCK-2626 — les demandes de contact que l’agent a marquées traitées (`handled_by_id`) dans le mois. */
+  readonly leads_handled?: number;
 }
 
 export interface TeamPerformance {

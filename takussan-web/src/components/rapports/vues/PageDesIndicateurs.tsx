@@ -1,12 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 
-import { KpiConfigList } from '@/components/rapports/indicateurs/KpiConfigList';
+import { ReglageEnPage } from '@/components/rapports/indicateurs/ReglageDesChiffres';
 import { fetchKpiConfigs, fetchKpiMetricsCatalog } from '@/lib/queries/kpis';
 
 /**
- * TCK-2628 (décision 3) — « Indicateurs » : la personnalisation des chiffres de l'agence (TCK-032 P3),
- * sortie de `overview/kpis/page.tsx`, sous `/app/reports/indicators`. Pas un onglet : on y arrive depuis
- * la vue d'ensemble, en attendant le réglage sur la page (TCK-2629). TCK-284 — pas de restriction `kind`.
+ * TCK-2628 (décision 3) — « Indicateurs », sous `/app/reports/indicators` (cible de l'ancienne
+ * `/app/overview/kpis`). TCK-284 — pas de restriction `kind`.
+ *
+ * TCK-2629 — le MÊME réglage que « Personnaliser » de la vue d'ensemble (ordre, masquage, ajout,
+ * suppression), posé sur la page : une interface, deux entrées.
  */
 export async function PageDesIndicateurs() {
   const [t, configs, catalog] = await Promise.all([
@@ -22,7 +24,7 @@ export async function PageDesIndicateurs() {
         </h2>
         <p className="mt-1 text-sm text-pretty text-muted-foreground">{t('subtitleFull')}</p>
       </div>
-      <KpiConfigList initialConfigs={configs?.data ?? []} catalog={catalog?.data ?? []} />
+      <ReglageEnPage configs={configs?.data ?? []} catalog={catalog?.data ?? []} />
     </section>
   );
 }

@@ -9456,7 +9456,11 @@
           "tous": "All",
           "plus30": "Over 30 days",
           "de8a30": "8–30 days",
-          "moins8": "Under 8 days"
+          "moins8": "Under 8 days",
+          "de1a30": "1–30 d",
+          "de31a60": "31–60 d",
+          "de61a90": "61–90 d",
+          "plus90": "> 90 d"
         },
         "recherche": "Search a tenant or a property",
         "bailleur": {
@@ -9595,6 +9599,12 @@
             "garde": "Skipped and left-out instalments stay selected.",
             "terminer": "Done"
           }
+        },
+        "anciennete": {
+          "label": "Unpaid by age",
+          "carte": "{tranche} late",
+          "echeances": "{count, plural, one {# instalment} other {# instalments}}",
+          "part": "{pourcent}% of {total}"
         }
       }
     },
@@ -21334,7 +21344,27 @@
       "erreur": "Unable to load the team’s performance.",
       "resume": "{baux, plural, =0 {No lease} one {# lease} other {# leases}} · {visites, plural, =0 {no viewing} one {# viewing} other {# viewings}}",
       "invitations": "{n, plural, one {# unanswered invitation.} other {# unanswered invitations.}}",
-      "voirLEquipe": "See the team"
+      "voirLEquipe": "See the team",
+      "performance": "Team performance",
+      "colonnes": {
+        "name": "Agent",
+        "properties_managed": "Properties managed",
+        "leads_handled": "Requests handled",
+        "visits_completed": "Visits",
+        "leases_signed": "Leases signed",
+        "commissions_earned": "Commissions generated",
+        "delai": "Response time"
+      },
+      "resumeTelephone": "{baux, plural, =0 {No leases} one {# lease} other {# leases}} · {visites, plural, =0 {no visits} one {# visit} other {# visits}} · {commissions}",
+      "voir": "View",
+      "voirAria": "View {nom} in the team",
+      "pied": "Team · {n, plural, one {# agent} other {# agents}} · {mois}.",
+      "mediane": "Response time: median of {delai} over {jours} days.",
+      "delai": {
+        "minutes": "{m} min",
+        "heuresMinutes": "{h} h {m}",
+        "heures": "{h} h"
+      }
     },
     "enChiffres": "In figures",
     "chiffresCles": "Key figures · this month",
@@ -21344,6 +21374,115 @@
     },
     "tous": "All",
     "commissionsDuMois": "Commissions this month",
-    "penalitesARecouvrer": "Late fees to recover"
+    "penalitesARecouvrer": "Late fees to recover",
+    "exports": {
+      "prets": "Ready to download",
+      "personnalise": "Custom export",
+      "personnaliseDetail": "{n, plural, one {# type} other {# types}} · format and period of your choice",
+      "pdfAuTelephone": "On a phone, PDF reads best.",
+      "periode": "Period",
+      "prereglages": {
+        "moisDernier": "Last month",
+        "ceMois": "This month",
+        "annee": "Year {annee}"
+      },
+      "telechargerAria": "Download {titre} as {format}",
+      "cartes": {
+        "paiements": "Payments",
+        "baux": "Leases",
+        "balance": "Aged balance",
+        "reversements": "Payouts",
+        "commissions": "Commissions",
+        "cautions": "Deposits held"
+      },
+      "details": {
+        "baux": "All leases · as of {jour}",
+        "balance": "As of {jour}",
+        "cautions": "As of {jour}",
+        "annee": "Year {annee}"
+      },
+      "typeInconnu": "Other export",
+      "periodeDuAu": "{du} to {au}",
+      "periodeDepuis": "Since {du}",
+      "periodeJusquAu": "Until {au}",
+      "periodeToute": "All time",
+      "refaire": "Redo",
+      "refaireAria": "Redo the {type} export, {periode}",
+      "derniers": "Recent exports",
+      "derniersErreur": "Your recent exports could not be loaded.",
+      "derniersVide": "No exports yet: the ones you run appear here.",
+      "typeEtPeriode": "{type} · {periode}",
+      "ligneTelephone": "{date} · {format} · {lignes} {n, plural, one {row} other {rows}}",
+      "colonnes": {
+        "date": "Date",
+        "type": "Type",
+        "periode": "Period",
+        "format": "Format",
+        "lignes": "Rows",
+        "gestes": "Actions"
+      },
+      "pied": "No file is kept: “Redo” runs the export again with the same settings. At most {max, number} rows, {pdf, number} as PDF."
+    },
+    "alertes": {
+      "declencheeLe": "Triggered on {date}",
+      "jamais": "never",
+      "sansNom": "No name",
+      "destinatairesCompte": "{n, plural, =0 {Nobody} one {# administrator} other {# administrators}}",
+      "canaux": {
+        "email": "email",
+        "inapp": "notification"
+      },
+      "seuil": "threshold {valeur}",
+      "delai": "{h} h",
+      "menuAria": "Edit or delete “{titre}”",
+      "modifier": "Edit",
+      "modifierTitre": "Edit alert",
+      "nouvelle": "New alert",
+      "resume": "{n, plural, =0 {No alerts} one {# alert} other {# alerts}} · {declenchees, plural, =0 {none crossed} one {# crossed} other {# crossed}} · measures checked every hour",
+      "suppressionEchec": "Deletion failed. Please try again.",
+      "videDescription": "Create an alert: administrators are notified when the indicator crosses the threshold. Measures are checked every hour.",
+      "actuel": "Current",
+      "previent": "Notifies {qui} · {canal}",
+      "auPlusUne": "At most one alert every {delai}",
+      "caption": "Agency threshold alerts",
+      "colonnes": {
+        "alerte": "Alert",
+        "actuelle": "Current value",
+        "declenchement": "Last triggered",
+        "destinataires": "Recipients",
+        "canal": "Channel",
+        "delai": "Cooldown",
+        "gestes": "Actions"
+      },
+      "note": "Measures are checked every hour. The line on each gauge is the threshold; a crossed alert notifies at most once per cooldown.",
+      "recents": "Recent triggers",
+      "condition": "Condition",
+      "quiEstPrevenu": "Who is notified",
+      "quiEstPrevenuValeur": "The agency’s active administrators, by notification and email.",
+      "relueToutesLesHeures": "The measure is checked every hour.",
+      "modificationEchec": "The change failed. Please try again.",
+      "enregistrer": "Save"
+    },
+    "reglage": {
+      "titre": "Customise the figures",
+      "affiches": "Shown · {n} of {total}",
+      "vide": "No custom figures: the overview shows its six figures. Add one below.",
+      "ordreAria": "Order of the figures",
+      "aAjouter": "To add",
+      "ajouterAria": "Add {metrique}",
+      "aide": "Drag the handle, or use the arrows, to change the order; the switch hides a figure without deleting it.",
+      "echec": "The order could not be saved: the previous order is restored. Please try again.",
+      "suppressionEchec": "Deletion failed. Please try again.",
+      "glisserAria": "Move {libelle}",
+      "monterAria": "Move {libelle} up",
+      "descendreAria": "Move {libelle} down",
+      "afficherAria": "Show {libelle}",
+      "supprimerAria": "Delete {libelle}",
+      "ajouter": "Add the figure",
+      "enregistrer": "Save",
+      "termine": "Done",
+      "annuler": "Cancel",
+      "enregistre": "Saved."
+    }
   }
 }

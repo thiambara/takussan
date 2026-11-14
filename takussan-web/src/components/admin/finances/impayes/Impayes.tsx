@@ -37,7 +37,9 @@ import { ComposerLaRelance, OuvrirWhatsApp } from './RelanceDUnImpaye';
 import { ordreDeLaFile, useEcheancesAffichees, useSelectionDesImpayes, type SelectionDesImpayes } from './selection';
 import { BarreDeSelection, TeteDeSelection } from './SelectionDesImpayes';
 import { TableDesImpayes } from './TableDesImpayes';
-import { IMPAYES_PAR_PAGE, TRANCHES, tranche, type CleDeTranche } from './tranches';
+import { IMPAYES_PAR_PAGE, JEUX_DE_TRANCHES, tranche, type CleDeTranche, type JeuDeTranches } from './tranches';
+import { BalanceAgee } from './BalanceAgee';
+import { JamaisRelanceEnAlerte } from './ton-de-la-relance';
 import { useRelanceDUnImpaye, type RelanceDePenalite } from './useRelanceDUnImpaye';
 
 /** `md` n'est pas le bureau : le tableau et le panneau commencent à `lg` (ticket, Direction UX). */
@@ -87,10 +89,20 @@ function parametres(filtres: Filtres, page: number, perPage: number = IMPAYES_PA
 export function Impayes({
   agencyId,
   resume = 'telephone',
+  tranches: jeu = 'argent',
+  jamaisRelanceEnAlerte = false,
 }: {
   readonly agencyId: number | undefined;
   /** Le grand total et les cautions en tête : au téléphone seulement (le bureau les dit dans l'en-tête de page), ou toujours. */
   readonly resume?: 'telephone' | 'toujours';
+  /**
+   * TCK-2629 — les pastilles de retard : celles d'« Argent » (> 30 · 8–30 · < 8 j), ou l'ANCIENNETÉ de la
+   * balance âgée (1–30 · 31–60 · 61–90 · > 90 j), que l'onglet de Rapports pose en tête, chaque tranche
+   * filtrant la liste. Mêmes filtres serveur, même liste.
+   */
+  readonly tranches?: JeuDeTranches;
+  /** TCK-2629 — « jamais relancé » en ton d'alerte (maquette de Rapports) ; gris par défaut (« Argent »). */
+  readonly jamaisRelanceEnAlerte?: boolean;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const bureau = useMatchesMedia(REQUETE_DU_BUREAU);
@@ -139,7 +151,7 @@ export function Impayes({
   };
 
   const premiere = usePaymentsHistory(parametres(actifs, bureau ? pageBureau : 1));
-  const comptes = useComptesDesTranches(actifs);
+  const comptes = useComptesDesTranches(actifs, jeu);
 
   // Les échéances affichées : la page du tableau, ou les pages 1 à n des cartes.
   const pagesAffichees = vue !== 'locataire' ? [] : bureau ? [pageBureau] : Array.from({ length: pagesTelephone }, (_, i) => i + 1);
@@ -168,169 +180,181 @@ export function Impayes({
     ) : undefined;
 
   return (
-    <div data-slot="impayes" className="space-y-0">
-      {/* Au téléphone, « Sélectionner » / « Annuler » à droite de l'en-tête (à la place du « ⋯ » de la maquette). */}
-      <DeclarerEnTete droite={boutonDeMode} />
-      <ResumeDesImpayes agencyId={agencyId} className={resume === 'telephone' ? 'lg:hidden' : undefined} />
-
-      <Tabs value={vue} onValueChange={(v) => setVue(v as 'locataire' | 'bailleur')}>
-        <div className={cn('flex flex-col lg:flex-row lg:items-center lg:gap-2 lg:max-xl:flex-wrap', resume === 'telephone' ? 'max-lg:mt-4' : 'mt-4')}>
-          <TabsList aria-label={t('vues.label')} size={bureau ? 'sm' : 'default'} className={bureau ? undefined : 'w-full'}>
-            <TabsTrigger value="locataire">{t('vues.locataire')}</TabsTrigger>
-            <TabsTrigger value="bailleur">{t('vues.bailleur')}</TabsTrigger>
-          </TabsList>
-          {vue === 'locataire' ? (
-            <>
-              <span className="mx-1 hidden h-5 w-px bg-border lg:block" aria-hidden="true" />
-              <RangeeDePuces aria-label={t('tranches.label')} className="-mx-4 pt-3 pb-1.5 lg:mx-0 lg:p-0">
-                {TRANCHES.map((tr) => (
-                  <PuceDeFiltre
-                    key={tr.cle}
-                    taille={bureau ? 'sm' : 'default'}
-                    active={filtres.tranche === tr.cle}
-                    compte={comptes.texte(tr.cle, bureau)}
-                    onClick={() => changerDeFiltres({ tranche: tr.cle })}
-                  >
-                    {t(`tranches.${tr.cle}`)}
-                  </PuceDeFiltre>
-                ))}
-              </RangeeDePuces>
-              {!bureau && boutonDeMode ? <span className="ml-auto max-md:hidden">{boutonDeMode}</span> : null}
-              {bureau ? (
-                <div className="relative ml-auto w-[17.5rem] min-w-0">
-                  <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                  <Input
-                    type="search"
-                    value={frappe}
-                    onChange={(e) => {
-                      setFrappe(e.target.value);
-                      setPageBureau(1);
-                    }}
-                    placeholder={t('recherche')}
-                    aria-label={t('recherche')}
-                    className="pl-10.5"
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : null}
-        </div>
-
-        <TabsContent value="locataire">
-          {filtres.bailleur ? (
-            <div className="mt-3 flex">
-              <PuceDeFiltre active onClick={() => changerDeFiltres({ bailleur: null })} aria-label={t('bailleur.retirer', { nom: filtres.bailleur.nom })}>
-                {t('bailleur.filtre', { nom: filtres.bailleur.nom })}
-                <X className="size-3.5" aria-hidden="true" />
-              </PuceDeFiltre>
-            </div>
-          ) : null}
-          {bureau && selection.n > 0 ? (
-            <BarreDeSelection
-              n={selection.n}
-              montant={montantDeLaSelection}
-              nonAffiches={nonAffiches}
-              onRelancer={relancerLaSelection}
-              onToutDeselectionner={selection.vider}
-            />
-          ) : null}
-          {modeEffectif ? (
-            <div className="mt-1">
-              <TeteDeSelection
-                n={selection.n}
-                montant={montantDeLaSelection}
-                nonAffiches={nonAffiches}
-                toutesCochees={toutesCochees}
-                onToutSelectionner={() => selection.changer(affichees.lignes(), true)}
-                onRelancer={relancerLaSelection}
-              />
-            </div>
-          ) : null}
-          <QueryBoundary
-            query={premiere}
-            // Au téléphone : 6 px sous la rangée de puces (le halo de focus, 3 px, tient dans son `overflow-x-auto`) + le `gap-2` de `Tabs` = 14 px jusqu’à la 1re carte, comme la maquette.
-            className={bureau ? 'mt-4' : undefined}
-            loadingFallback={
-              <div className="space-y-3" data-testid="impayes-chargement">
-                {[0, 1, 2].map((i) => (
-                  <Skeleton key={i} className={bureau ? 'h-14 rounded-lg' : 'h-40 rounded-xl'} />
-                ))}
-              </div>
-            }
-          >
-            {(reponse) =>
-              reponse.data.length === 0 ? (
-                <EmptyState
-                  className="mt-4"
-                  data-testid="impayes-vide"
-                  icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
-                  title={filtres.tranche === 'tous' && !filtres.bailleur && !actifs.recherche ? t('vide.titre') : t('vide.titreFiltre')}
-                  description={t('vide.description')}
-                />
-              ) : bureau ? (
-                <div className="mt-4">
-                  <TableDesImpayes
-                    rows={reponse.data}
-                    meta={reponse.meta}
-                    totalDu={comptes.montantDe(filtres.tranche)}
-                    onPage={setPageBureau}
-                    onOuvrir={(row, relancer) => {
-                      if (fileApi.file) return;
-                      setDossier({ row, relancer, ouvert: true });
-                    }}
-                    selection={{ coche: selection.coche, changer: selection.changer, figee: fileApi.file !== null }}
-                    enCours={fileApi.enCours?.id ?? null}
-                  />
-                </div>
-              ) : (
-                <ListeDeCartes
-                  premiere={reponse.data}
-                  total={reponse.meta.total}
-                  pages={pagesTelephone}
-                  filtres={actifs}
-                  onVoirPlus={() => setPagesTelephone((n) => n + 1)}
-                  onRelancer={(row) => setARelancer({ row, ouverte: true })}
-                  selection={modeEffectif ? selection : undefined}
-                />
-              )
-            }
-          </QueryBoundary>
-        </TabsContent>
-        <TabsContent value="bailleur" className="pt-4">
-          <OverduePaymentsTable
-            regroupement="landlord"
-            surBailleur={(bailleur) => {
-              changerDeFiltres({ bailleur, tranche: 'tous' });
+    <JamaisRelanceEnAlerte.Provider value={jamaisRelanceEnAlerte}>
+      <div data-slot="impayes" className="space-y-0">
+        {/* Au téléphone, « Sélectionner » / « Annuler » à droite de l'en-tête (à la place du « ⋯ » de la maquette). */}
+        <DeclarerEnTete droite={boutonDeMode} />
+        <ResumeDesImpayes agencyId={agencyId} className={resume === 'telephone' ? 'lg:hidden' : undefined} />
+        {jeu === 'anciennete' ? (
+          <BalanceAgee
+            agencyId={agencyId}
+            active={filtres.tranche}
+            onChoisir={(cle) => {
+              changerDeFiltres({ tranche: cle });
               setVue('locataire');
             }}
           />
-        </TabsContent>
-      </Tabs>
+        ) : null}
 
-      {aRelancer ? (
-        <FeuilleDeRelance
-          row={aRelancer.row}
-          ouverte={aRelancer.ouverte}
-          onFermer={() => setARelancer((a) => (a ? { ...a, ouverte: false } : a))}
+        <Tabs value={vue} onValueChange={(v) => setVue(v as 'locataire' | 'bailleur')}>
+          <div className={cn('flex flex-col lg:flex-row lg:items-center lg:gap-2 lg:max-xl:flex-wrap', resume === 'telephone' ? 'max-lg:mt-4' : 'mt-4')}>
+            <TabsList aria-label={t('vues.label')} size={bureau ? 'sm' : 'default'} className={bureau ? undefined : 'w-full'}>
+              <TabsTrigger value="locataire">{t('vues.locataire')}</TabsTrigger>
+              <TabsTrigger value="bailleur">{t('vues.bailleur')}</TabsTrigger>
+            </TabsList>
+            {vue === 'locataire' ? (
+              <>
+                <span className="mx-1 hidden h-5 w-px bg-border lg:block" aria-hidden="true" />
+                <RangeeDePuces aria-label={t('tranches.label')} className="-mx-4 pt-3 pb-1.5 lg:mx-0 lg:p-0">
+                  {JEUX_DE_TRANCHES[jeu].map((tr) => (
+                    <PuceDeFiltre
+                      key={tr.cle}
+                      taille={bureau ? 'sm' : 'default'}
+                      active={filtres.tranche === tr.cle}
+                      compte={comptes.texte(tr.cle, bureau)}
+                      onClick={() => changerDeFiltres({ tranche: tr.cle })}
+                    >
+                      {t(`tranches.${tr.cle}`)}
+                    </PuceDeFiltre>
+                  ))}
+                </RangeeDePuces>
+                {!bureau && boutonDeMode ? <span className="ml-auto max-md:hidden">{boutonDeMode}</span> : null}
+                {bureau ? (
+                  <div className="relative ml-auto w-[17.5rem] min-w-0">
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <Input
+                      type="search"
+                      value={frappe}
+                      onChange={(e) => {
+                        setFrappe(e.target.value);
+                        setPageBureau(1);
+                      }}
+                      placeholder={t('recherche')}
+                      aria-label={t('recherche')}
+                      className="pl-10.5"
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+
+          <TabsContent value="locataire">
+            {filtres.bailleur ? (
+              <div className="mt-3 flex">
+                <PuceDeFiltre active onClick={() => changerDeFiltres({ bailleur: null })} aria-label={t('bailleur.retirer', { nom: filtres.bailleur.nom })}>
+                  {t('bailleur.filtre', { nom: filtres.bailleur.nom })}
+                  <X className="size-3.5" aria-hidden="true" />
+                </PuceDeFiltre>
+              </div>
+            ) : null}
+            {bureau && selection.n > 0 ? (
+              <BarreDeSelection
+                n={selection.n}
+                montant={montantDeLaSelection}
+                nonAffiches={nonAffiches}
+                onRelancer={relancerLaSelection}
+                onToutDeselectionner={selection.vider}
+              />
+            ) : null}
+            {modeEffectif ? (
+              <div className="mt-1">
+                <TeteDeSelection
+                  n={selection.n}
+                  montant={montantDeLaSelection}
+                  nonAffiches={nonAffiches}
+                  toutesCochees={toutesCochees}
+                  onToutSelectionner={() => selection.changer(affichees.lignes(), true)}
+                  onRelancer={relancerLaSelection}
+                />
+              </div>
+            ) : null}
+            <QueryBoundary
+              query={premiere}
+              // Au téléphone : 6 px sous la rangée de puces (le halo de focus, 3 px, tient dans son `overflow-x-auto`) + le `gap-2` de `Tabs` = 14 px jusqu’à la 1re carte, comme la maquette.
+              className={bureau ? 'mt-4' : undefined}
+              loadingFallback={
+                <div className="space-y-3" data-testid="impayes-chargement">
+                  {[0, 1, 2].map((i) => (
+                    <Skeleton key={i} className={bureau ? 'h-14 rounded-lg' : 'h-40 rounded-xl'} />
+                  ))}
+                </div>
+              }
+            >
+              {(reponse) =>
+                reponse.data.length === 0 ? (
+                  <EmptyState
+                    className="mt-4"
+                    data-testid="impayes-vide"
+                    icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
+                    title={filtres.tranche === 'tous' && !filtres.bailleur && !actifs.recherche ? t('vide.titre') : t('vide.titreFiltre')}
+                    description={t('vide.description')}
+                  />
+                ) : bureau ? (
+                  <div className="mt-4">
+                    <TableDesImpayes
+                      rows={reponse.data}
+                      meta={reponse.meta}
+                      totalDu={comptes.montantDe(filtres.tranche)}
+                      onPage={setPageBureau}
+                      onOuvrir={(row, relancer) => {
+                        if (fileApi.file) return;
+                        setDossier({ row, relancer, ouvert: true });
+                      }}
+                      selection={{ coche: selection.coche, changer: selection.changer, figee: fileApi.file !== null }}
+                      enCours={fileApi.enCours?.id ?? null}
+                    />
+                  </div>
+                ) : (
+                  <ListeDeCartes
+                    premiere={reponse.data}
+                    total={reponse.meta.total}
+                    pages={pagesTelephone}
+                    filtres={actifs}
+                    onVoirPlus={() => setPagesTelephone((n) => n + 1)}
+                    onRelancer={(row) => setARelancer({ row, ouverte: true })}
+                    selection={modeEffectif ? selection : undefined}
+                  />
+                )
+              }
+            </QueryBoundary>
+          </TabsContent>
+          <TabsContent value="bailleur" className="pt-4">
+            <OverduePaymentsTable
+              regroupement="landlord"
+              surBailleur={(bailleur) => {
+                changerDeFiltres({ bailleur, tranche: 'tous' });
+                setVue('locataire');
+              }}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {aRelancer ? (
+          <FeuilleDeRelance
+            row={aRelancer.row}
+            ouverte={aRelancer.ouverte}
+            onFermer={() => setARelancer((a) => (a ? { ...a, ouverte: false } : a))}
+          />
+        ) : null}
+        {dossier ? (
+          <PanneauDuDossier
+            agencyId={agencyId}
+            etat={dossier}
+            onChanger={(suivant) => setDossier((d) => (d ? { ...d, ...suivant } : d))}
+            // Une échéance encaissée quitte la sélection.
+            onEncaisse={(paymentId) => selection.retirer([paymentId])}
+          />
+        ) : null}
+        <FileDeRelance
+          api={fileApi}
+          onTerminer={(aGarder) => {
+            selection.garder(aGarder);
+            if (aGarder.length === 0) setModeSelection(false);
+          }}
         />
-      ) : null}
-      {dossier ? (
-        <PanneauDuDossier
-          agencyId={agencyId}
-          etat={dossier}
-          onChanger={(suivant) => setDossier((d) => (d ? { ...d, ...suivant } : d))}
-          // Une échéance encaissée quitte la sélection.
-          onEncaisse={(paymentId) => selection.retirer([paymentId])}
-        />
-      ) : null}
-      <FileDeRelance
-        api={fileApi}
-        onTerminer={(aGarder) => {
-          selection.garder(aGarder);
-          if (aGarder.length === 0) setModeSelection(false);
-        }}
-      />
-    </div>
+      </div>
+    </JamaisRelanceEnAlerte.Provider>
   );
 }
 
@@ -373,27 +397,35 @@ function ResumeDesImpayes({ agencyId, className }: { readonly agencyId: number |
 }
 
 /**
- * Les comptes des pastilles : trois requêtes `per_page=1` EN PARALLÈLE (une par tranche bornée), qui
- * lisent `meta.total` et `meta.totals.remaining_amount`. « Tous » est leur somme : les trois tranches
- * partitionnent la règle. Une requête en échec : sa pastille n'a pas de compte, rien d'autre ne casse.
+ * Les comptes des pastilles : une requête `per_page=1` EN PARALLÈLE par tranche bornée du jeu (trois pour
+ * « Argent », quatre pour l'ancienneté), qui lisent `meta.total` et `meta.totals.remaining_amount`. « Tous »
+ * est leur somme : les tranches bornées partitionnent la règle. Une requête en échec : sa pastille n'a pas
+ * de compte, rien d'autre ne casse.
+ *
+ * Quatre emplacements fixes (l'ordre des hooks ne change pas) ; celui qu'un jeu n'occupe pas ne lit rien.
  */
-function useComptesDesTranches(filtres: Filtres) {
+
+function useComptesDesTranches(filtres: Filtres, jeu: JeuDeTranches) {
   const f = useFormatteurs();
-  const plus30 = usePaymentsHistory({ ...parametres({ ...filtres, tranche: 'plus30' }, 1, 1), include: undefined });
-  const de8a30 = usePaymentsHistory({ ...parametres({ ...filtres, tranche: 'de8a30' }, 1, 1), include: undefined });
-  const moins8 = usePaymentsHistory({ ...parametres({ ...filtres, tranche: 'moins8' }, 1, 1), include: undefined });
-  const lu = (q: typeof plus30) => (q.data ? { n: q.data.meta.total, montant: q.data.meta.totals?.remaining_amount ?? null } : null);
-  const parTranche: Record<CleDeTranche, { n: number; montant: number | null } | null> = {
-    plus30: lu(plus30),
-    de8a30: lu(de8a30),
-    moins8: lu(moins8),
-    tous: null,
+  const bornees = JEUX_DE_TRANCHES[jeu].filter((tr) => tr.cle !== 'tous');
+  const lecture = (i: 0 | 1 | 2 | 3) => {
+    const tr = bornees[i];
+    return { ...parametres({ ...filtres, tranche: tr?.cle ?? 'tous' }, 1, 1), include: undefined, enabled: tr !== undefined };
   };
-  const bornees = [parTranche.plus30, parTranche.de8a30, parTranche.moins8];
-  if (bornees.every((b) => b !== null)) {
-    const montants = bornees.map((b) => b!.montant);
+  const q0 = usePaymentsHistory(lecture(0));
+  const q1 = usePaymentsHistory(lecture(1));
+  const q2 = usePaymentsHistory(lecture(2));
+  const q3 = usePaymentsHistory(lecture(3));
+  const lu = (q: typeof q0) => (q.data ? { n: q.data.meta.total, montant: q.data.meta.totals?.remaining_amount ?? null } : null);
+  const parTranche: Partial<Record<CleDeTranche, { n: number; montant: number | null } | null>> = {};
+  const lus = [q0, q1, q2, q3].slice(0, bornees.length).map(lu);
+  bornees.forEach((tr, i) => {
+    parTranche[tr.cle] = lus[i] ?? null;
+  });
+  if (lus.every((b) => b !== null)) {
+    const montants = lus.map((b) => b!.montant);
     parTranche.tous = {
-      n: bornees.reduce((s, b) => s + b!.n, 0),
+      n: lus.reduce((s, b) => s + b!.n, 0),
       montant: montants.every((m) => m !== null) ? montants.reduce<number>((s, m) => s + (m ?? 0), 0) : null,
     };
   }

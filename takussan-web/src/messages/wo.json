@@ -7293,7 +7293,11 @@
           "tous": "Tous",
           "plus30": "Plus de 30 j",
           "de8a30": "8–30 j",
-          "moins8": "Moins de 8 j"
+          "moins8": "Moins de 8 j",
+          "de1a30": "1–30 j",
+          "de31a60": "31–60 j",
+          "de61a90": "61–90 j",
+          "plus90": "> 90 j"
         },
         "recherche": "Chercher un locataire, un bien",
         "bailleur": {
@@ -7432,6 +7436,12 @@
             "garde": "Les échéances passées et sautées restent sélectionnées.",
             "terminer": "Terminer"
           }
+        },
+        "anciennete": {
+          "label": "Ancienneté des impayés",
+          "carte": "{tranche} de retard",
+          "echeances": "{count, plural, one {# échéance} other {# échéances}}",
+          "part": "{pourcent} % des {total}"
         }
       }
     },
@@ -21334,7 +21344,27 @@
       "erreur": "Impossible de charger la performance de l’équipe.",
       "resume": "{baux, plural, =0 {Aucun bail} one {# bail} other {# baux}} · {visites, plural, =0 {aucune visite} one {# visite} other {# visites}}",
       "invitations": "{n, plural, one {# invitation sans réponse.} other {# invitations sans réponse.}}",
-      "voirLEquipe": "Voir l’équipe"
+      "voirLEquipe": "Voir l’équipe",
+      "performance": "Performance de l’équipe",
+      "colonnes": {
+        "name": "Agent",
+        "properties_managed": "Biens gérés",
+        "leads_handled": "Demandes traitées",
+        "visits_completed": "Visites",
+        "leases_signed": "Baux signés",
+        "commissions_earned": "Commissions générées",
+        "delai": "Délai de réponse"
+      },
+      "resumeTelephone": "{baux, plural, =0 {Aucun bail} one {# bail} other {# baux}} · {visites, plural, =0 {aucune visite} one {# visite} other {# visites}} · {commissions}",
+      "voir": "Voir",
+      "voirAria": "Voir {nom} dans l’équipe",
+      "pied": "Équipe · {n, plural, one {# agent} other {# agents}} · {mois}.",
+      "mediane": "Délai de réponse : médiane de {delai} sur {jours} jours.",
+      "delai": {
+        "minutes": "{m} min",
+        "heuresMinutes": "{h} h {m}",
+        "heures": "{h} h"
+      }
     },
     "enChiffres": "En chiffres",
     "chiffresCles": "Chiffres clés · ce mois",
@@ -21344,6 +21374,115 @@
     },
     "tous": "Tous",
     "commissionsDuMois": "Commissions du mois",
-    "penalitesARecouvrer": "Pénalités à recouvrer"
+    "penalitesARecouvrer": "Pénalités à recouvrer",
+    "exports": {
+      "prets": "Prêts à télécharger",
+      "personnalise": "Export personnalisé",
+      "personnaliseDetail": "{n, plural, one {# type} other {# types}} · format et période au choix",
+      "pdfAuTelephone": "Au téléphone, le PDF se lit le mieux.",
+      "periode": "Période",
+      "prereglages": {
+        "moisDernier": "Mois dernier",
+        "ceMois": "Ce mois",
+        "annee": "Année {annee}"
+      },
+      "telechargerAria": "Télécharger {titre} en {format}",
+      "cartes": {
+        "paiements": "Paiements",
+        "baux": "Baux",
+        "balance": "Balance âgée",
+        "reversements": "Reversements",
+        "commissions": "Commissions",
+        "cautions": "Cautions détenues"
+      },
+      "details": {
+        "baux": "Tous les baux · au {jour}",
+        "balance": "Au {jour}",
+        "cautions": "Au {jour}",
+        "annee": "Année {annee}"
+      },
+      "typeInconnu": "Autre export",
+      "periodeDuAu": "Du {du} au {au}",
+      "periodeDepuis": "Depuis le {du}",
+      "periodeJusquAu": "Jusqu’au {au}",
+      "periodeToute": "Toute la période",
+      "refaire": "Refaire",
+      "refaireAria": "Refaire l’export {type}, {periode}",
+      "derniers": "Derniers exports",
+      "derniersErreur": "Impossible de lire vos derniers exports.",
+      "derniersVide": "Aucun export pour l’instant : ceux que vous lancez apparaissent ici.",
+      "typeEtPeriode": "{type} · {periode}",
+      "ligneTelephone": "{date} · {format} · {lignes} {n, plural, one {ligne} other {lignes}}",
+      "colonnes": {
+        "date": "Date",
+        "type": "Type",
+        "periode": "Période",
+        "format": "Format",
+        "lignes": "Lignes",
+        "gestes": "Actions"
+      },
+      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max, number} lignes au plus, {pdf, number} en PDF."
+    },
+    "alertes": {
+      "declencheeLe": "Déclenchée le {date}",
+      "jamais": "jamais",
+      "sansNom": "Sans nom",
+      "destinatairesCompte": "{n, plural, =0 {Personne} one {# administrateur} other {# administrateurs}}",
+      "canaux": {
+        "email": "E-mail",
+        "inapp": "notification"
+      },
+      "seuil": "seuil {valeur}",
+      "delai": "{h} h",
+      "menuAria": "Modifier ou supprimer « {titre} »",
+      "modifier": "Modifier",
+      "modifierTitre": "Modifier l’alerte",
+      "nouvelle": "Nouvelle alerte",
+      "resume": "{n, plural, =0 {Aucune alerte} one {# alerte} other {# alertes}} · {declenchees, plural, =0 {aucune franchie} one {# franchie} other {# franchies}} · mesures relues toutes les heures",
+      "suppressionEchec": "La suppression a échoué. Réessayez.",
+      "videDescription": "Créez une alerte : les administrateurs seront prévenus quand l’indicateur franchit le seuil. Les mesures sont relues toutes les heures.",
+      "actuel": "Actuel",
+      "previent": "Prévient {qui} · {canal}",
+      "auPlusUne": "Au plus une alerte toutes les {delai}",
+      "caption": "Alertes de seuil de l’agence",
+      "colonnes": {
+        "alerte": "Alerte",
+        "actuelle": "Valeur actuelle",
+        "declenchement": "Dernier déclenchement",
+        "destinataires": "Destinataires",
+        "canal": "Canal",
+        "delai": "Délai",
+        "gestes": "Actions"
+      },
+      "note": "Mesures relues toutes les heures. Le trait de chaque jauge est le seuil ; une alerte franchie prévient au plus une fois par délai.",
+      "recents": "Déclenchements récents",
+      "condition": "Condition",
+      "quiEstPrevenu": "Qui est prévenu",
+      "quiEstPrevenuValeur": "Les administrateurs actifs de l’agence, par notification et par e-mail.",
+      "relueToutesLesHeures": "La mesure est relue toutes les heures.",
+      "modificationEchec": "La modification a échoué. Réessayez.",
+      "enregistrer": "Enregistrer"
+    },
+    "reglage": {
+      "titre": "Personnaliser les chiffres",
+      "affiches": "Affichés · {n} sur {total}",
+      "vide": "Aucun chiffre personnalisé : la vue d’ensemble montre ses six chiffres. Ajoutez-en un ci-dessous.",
+      "ordreAria": "Ordre des chiffres",
+      "aAjouter": "À ajouter",
+      "ajouterAria": "Ajouter {metrique}",
+      "aide": "Glissez la poignée, ou utilisez les flèches, pour changer l’ordre ; l’interrupteur masque un chiffre sans le supprimer.",
+      "echec": "L’ordre n’a pas pu être enregistré : l’ordre d’avant est rétabli. Réessayez.",
+      "suppressionEchec": "La suppression a échoué. Réessayez.",
+      "glisserAria": "Déplacer {libelle}",
+      "monterAria": "Monter {libelle}",
+      "descendreAria": "Descendre {libelle}",
+      "afficherAria": "Afficher {libelle}",
+      "supprimerAria": "Supprimer {libelle}",
+      "ajouter": "Ajouter le chiffre",
+      "enregistrer": "Enregistrer",
+      "termine": "Terminé",
+      "annuler": "Annuler",
+      "enregistre": "Enregistré."
+    }
   }
 }

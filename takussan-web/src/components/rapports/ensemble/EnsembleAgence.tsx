@@ -18,6 +18,7 @@ import type { LectureAmorcee } from '@/lib/queries/lectures-amorcees';
 import { cleMiseEnService, fetchMiseEnService } from '@/lib/queries/mise-en-service';
 import { chiffresDeLAgence, type ChiffreDuRapport } from '@/lib/rapports/chiffres';
 import { lireLeContexteDesRapports } from '@/lib/rapports/contexte-serveur';
+import { apercusDuResume } from '@/lib/rapports/indicateurs';
 import { isSuperAdmin } from '@/lib/roles';
 import { getToken } from '@/lib/session';
 
@@ -107,7 +108,7 @@ export async function EnsembleAgence() {
             <h2 id="rapports-chiffres-cles" className="text-ui font-semibold text-muted-foreground">
               {t('chiffresCles')}
             </h2>
-            <LienDesIndicateurs />
+            <LienDesIndicateurs apercus={apercusDuResume(data)} />
           </div>
           <TuilesDuRapport chiffres={chiffres} colonnes={6} visiblesAuTelephone={4} />
         </section>

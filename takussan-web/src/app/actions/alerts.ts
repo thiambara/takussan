@@ -36,6 +36,35 @@ export async function createThresholdAlertAction(
   }
 }
 
+/**
+ * TCK-2629 — modifier une alerte (métrique, opérateur, seuil, sévérité, délai) : `PATCH`, que l'API
+ * accepte depuis TCK-032 (`UpdateThresholdAlertRequest`). La réponse est relue par l'onglet, valeur
+ * actuelle comprise.
+ */
+export async function updateThresholdAlertAction(
+  id: number,
+  input: Partial<ThresholdAlertInput>,
+): Promise<{ ok: true; data: ThresholdAlert } | { ok: false; message: string }> {
+  const token = await getToken();
+  if (!token) {
+    const tErr = await getTranslations('errors');
+    return { ok: false, message: tErr('missingToken') };
+  }
+
+  try {
+    const res = await apiRequest<{ data: ThresholdAlert }>(cheminApi`/api/threshold-alerts/${id}`, {
+      token,
+      method: 'PATCH',
+      body: input,
+    });
+    revalidatePath('/app/reports/alerts');
+    return { ok: true, data: res.data };
+  } catch (err) {
+    journaliserErreurInattendue('alerts', err);
+    return { ok: false, message: (err as Error).message };
+  }
+}
+
 export async function deleteThresholdAlertAction(id: number): Promise<{ ok: boolean }> {
   const token = await getToken();
   if (!token) return { ok: false };

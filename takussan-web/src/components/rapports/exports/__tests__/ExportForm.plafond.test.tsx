@@ -1,8 +1,15 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { ReactElement } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
 import { ExportForm } from '../ExportForm';
+
+/** TCK-2629 — le téléchargement relit « Derniers exports » : le formulaire vit sous un `QueryClient`. */
+function avecClient(ui: ReactElement) {
+  return <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>;
+}
 
 /**
  * TCK-1306 (piste P112.01) — le plafond de lignes se dit à l'écran : 5 000 par fichier (le défaut
@@ -13,7 +20,7 @@ vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false 
 
 describe('ExportForm — plafond de lignes affiché (TCK-1306)', () => {
   it('dit le plafond d’un fichier, et celui du PDF', () => {
-    render(withIntl(<ExportForm staff />));
+    render(withIntl(avecClient(<ExportForm staff />)));
 
     expect(screen.getByTestId('exports-row-cap')).toHaveTextContent(
       /au plus 5\s000 lignes, 200 en PDF/,
