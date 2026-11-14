@@ -28,13 +28,18 @@ import type { User } from '@/types/user';
  *
  * TCK-284 — la garde SSR n'est pas non plus une autorisation : elle protège
  * l'écran, pas la donnée. Chaque route listée ici doit AUSSI être refusée par
- * l'API qu'elle appelle. C'est le cas de `/app/overview/agency`
- * (`DashboardAgencyController`) et, depuis ce ticket, de `/app/owners`
+ * l'API qu'elle appelle. C'est le cas de `/app/owners`
  * (`OwnerProfileController::index` + `AgencyKindGuard`).
+ *
+ * TCK-2628 — `/app/overview/agency` n'est plus ici : la vue d'agence est la vue d'ensemble de
+ * « Rapports » (`/app/reports`), page PARTAGÉE avec l'hôte d'une agence `individual`, qui y lit sa vue
+ * de bailleur. Un cadenas sur l'entrée la fermerait à qui l'ouvre. La restriction `standard` vit dans la
+ * garde de la vue (`garderLaVueDEnsemble`, `lib/rapports/gardes-serveur.ts`), et l'API la tient
+ * toujours (`DashboardAgencyController`).
  */
 export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // /app/... — espace perso agency_admin. Gardées EN LIGNE dans leur page :
-  //   app/overview/agency/page.tsx · app/owners/(liste)/page.tsx
+  //   app/owners/(liste)/page.tsx
   //
   // Sans numéros de ligne, DÉLIBÉRÉMENT. Ceux qui figuraient ici étaient déjà faux dans le
   // commit qui les introduisait : les commentaires explicatifs ajoutés par ce même commit
@@ -49,7 +54,6 @@ export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // disponibles ») les rend explicitement disponibles. Le cadenas était l'ajout, pas la
   // garde manquante. *Un verrou qu'aucune règle ne réclame finit par se faire lire comme
   // la règle.*
-  '/app/overview/agency',
   '/app/owners',
   // TCK-633 (lot B) — les pages d'administration NE SONT PAS ICI. Elles vivent dans `PAGES_ADMIN`
   // ⚠ Pas d'astérisque après une barre oblique dans ce bloc : `check-pro-routes.mjs` retire les

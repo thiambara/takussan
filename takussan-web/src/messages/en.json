@@ -307,7 +307,8 @@
         "compte": "{nombre} of {max} · drag to reorder",
         "terminer": "Done",
         "deplacer": "Move {libelle} (up and down arrows)"
-      }
+      },
+      "reports": "Reports"
     },
     "admin": {
       "team": "Team",
@@ -509,11 +510,6 @@
         "commissions": "fees, earnings",
         "documents": "files, papers, attachments",
         "etats-des-lieux": "inventory, check-in, check-out, condition report",
-        "statistiques": "stats, figures, reports, analytics",
-        "exports": "export, csv, excel, download",
-        "vue-agence": "agency, performance",
-        "kpis": "indicators, metrics, kpi",
-        "alertes": "anomalies, warnings",
         "proprietaires": "landlords, owners",
         "clients": "customers, crm, contacts, buyers",
         "calendrier": "schedule, agenda, availability",
@@ -526,7 +522,8 @@
         "agence-moderation-avis": "moderation, reviews",
         "agence-moderation-biens": "moderation, listings to approve",
         "agence-journal": "audit, log, history",
-        "agence-integrations": "api, webhooks, connectors"
+        "agence-integrations": "api, webhooks, connectors",
+        "rapports": "stats, statistics, figures, analytics, performance, export, csv, excel, download, indicators, metrics, kpi, alerts, anomalies, warnings"
       }
     },
     "coque": {
@@ -2611,7 +2608,9 @@
       "commissionsMonthMine": "My commissions this month",
       "commissionsMonthAgency": "Agency commissions this month",
       "commissionsAgency": "Agency commissions",
-      "commissionsDetail": "Breakdown by lease"
+      "commissionsDetail": "Breakdown by lease",
+      "pipelineEmpty": "No leads in the pipeline for this period.",
+      "pipelineOpen": "Open the pipeline"
     },
     "owner": {
       "title": "Landlord overview",
@@ -21287,5 +21286,96 @@
       "mo": "{n} MB"
     },
     "facultatif": "Optional"
+  },
+  "rapports": {
+    "titre": "Reports",
+    "ongletsAria": "Report sections",
+    "personnaliser": "Customise the figures",
+    "onglets": {
+      "ensemble": "Overview",
+      "equipe": "Team",
+      "impayes": "Unpaid",
+      "commissions": "Commissions",
+      "pipeline": "Pipeline",
+      "reversements": "Payouts",
+      "exports": "Exports",
+      "alertes": "Alerts"
+    },
+    "meta": {
+      "ensemble": "Reports — overview",
+      "equipe": "Reports — team",
+      "impayes": "Reports — unpaid",
+      "commissions": "Reports — commissions",
+      "pipeline": "Reports — pipeline",
+      "reversements": "Reports — payouts",
+      "exports": "Reports — exports",
+      "alertes": "Reports — alerts",
+      "indicateurs": "Reports — indicators"
+    },
+    "chiffres": {
+      "libelles": {
+        "encaisse": "Collected",
+        "impayes": "Unpaid",
+        "occupation": "Occupancy",
+        "bauxActifs": "Active leases",
+        "biensPublies": "Published properties",
+        "tauxImpayes": "Unpaid rate",
+        "commissions": "Commissions",
+        "bauxSignes": "Leases signed",
+        "visites": "Viewings",
+        "prospects": "Leads",
+        "portefeuille": "My portfolio"
+      },
+      "contextes": {
+        "variation": "{signe}{pourcent}% on {mois}",
+        "echeances": "{n, plural, =0 {No overdue instalment} one {# overdue instalment} other {# overdue instalments}}",
+        "loues": "{occupes, plural, one {# property let} other {# properties let}} out of {eligibles} for rent",
+        "publies": "out of {total, plural, one {# property} other {# properties}}",
+        "surAttendus": "out of {montant} expected",
+        "cetteAnnee": "{montant} this year",
+        "bauxCetteAnnee": "this month · {n} this year",
+        "septJours": "over the next 7 days",
+        "portefeuille": "{loues} let · {libres} free · {autres} other"
+      },
+      "tous": "All {n} figures",
+      "moins": "Fewer figures"
+    },
+    "graphiques": {
+      "titres": {
+        "encaisse": "Collected · last 12 months",
+        "occupation": "Occupancy · last 12 months",
+        "commissions": "Commissions · last 12 months",
+        "bauxSignes": "Leases signed · last 12 months",
+        "cashflow": "Collected · last 12 months"
+      },
+      "courts": {
+        "encaisse": "Collected",
+        "occupation": "Occupancy",
+        "commissions": "Commissions",
+        "bauxSignes": "Leases signed",
+        "cashflow": "Collected"
+      },
+      "choix": "Chart shown",
+      "variationMois": "{mois}: {pourcent}% on {precedent}",
+      "variationPoints": "{ecart} points over a year",
+      "depuisJanvier": "of which {montant} since January"
+    },
+    "equipe": {
+      "titre": "Team this month",
+      "onglet": "Team tab",
+      "erreur": "Unable to load the team’s performance.",
+      "resume": "{baux, plural, =0 {No lease} one {# lease} other {# leases}} · {visites, plural, =0 {no viewing} one {# viewing} other {# viewings}}",
+      "invitations": "{n, plural, one {# unanswered invitation.} other {# unanswered invitations.}}",
+      "voirLEquipe": "See the team"
+    },
+    "enChiffres": "In figures",
+    "chiffresCles": "Key figures · this month",
+    "periode": "From {debut} to {fin}",
+    "pipeline": {
+      "prospects": "{n, plural, =0 {No lead} one {# lead} other {# leads}}"
+    },
+    "tous": "All",
+    "commissionsDuMois": "Commissions this month",
+    "penalitesARecouvrer": "Late fees to recover"
   }
 }

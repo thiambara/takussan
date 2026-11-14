@@ -48,4 +48,4 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
 // appelant (`grep -rnE '\bcreateThresholdAlert\b' src/` → la définition seule) : les vraies
 // écritures vivent dans `src/app/actions/alerts.ts`, qui refait l'appel lui-même et traduit son
 // message par `getTranslations('errors')`. Ne subsistent ici que la lecture, réellement appelée
-// par `app/(dashboard)/app/overview/alerts/page.tsx`, et les types que l'action importe.
+// par `components/rapports/vues/OngletAlertes.tsx` (TCK-2628), et les types que l'action importe.

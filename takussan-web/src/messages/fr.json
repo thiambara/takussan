@@ -307,7 +307,8 @@
         "compte": "{nombre} sur {max} · glissez pour ordonner",
         "terminer": "Terminé",
         "deplacer": "Déplacer {libelle} (flèches haut et bas)"
-      }
+      },
+      "reports": "Rapports"
     },
     "admin": {
       "team": "Équipe",
@@ -509,11 +510,6 @@
         "commissions": "honoraires, rémunération",
         "documents": "fichiers, pièces, papiers",
         "etats-des-lieux": "état des lieux, inventaire, edl, entrée, sortie",
-        "statistiques": "stats, chiffres, rapports",
-        "exports": "export, csv, excel, télécharger",
-        "vue-agence": "agence, performance, activité de l’agence",
-        "kpis": "indicateurs, kpi, objectifs",
-        "alertes": "anomalies, signaux",
         "proprietaires": "bailleurs, propriétaires, mandants",
         "clients": "crm, contacts, acheteurs, prospects",
         "calendrier": "agenda, planning, disponibilités",
@@ -526,7 +522,8 @@
         "agence-moderation-avis": "modération, avis à valider",
         "agence-moderation-biens": "modération, biens à valider, validation",
         "agence-journal": "audit, historique, traces, journal",
-        "agence-integrations": "api, webhooks, connecteurs"
+        "agence-integrations": "api, webhooks, connecteurs",
+        "rapports": "stats, statistiques, chiffres, performance, activité de l’agence, export, csv, excel, télécharger, indicateurs, kpi, objectifs, alertes, anomalies, signaux"
       }
     },
     "coque": {
@@ -2568,7 +2565,9 @@
       "commissionsMonthMine": "Mes commissions du mois",
       "commissionsMonthAgency": "Commissions de l'agence du mois",
       "commissionsAgency": "Commissions de l'agence",
-      "commissionsDetail": "Détail par bail"
+      "commissionsDetail": "Détail par bail",
+      "pipelineEmpty": "Aucun prospect dans le pipeline sur la période.",
+      "pipelineOpen": "Ouvrir le pipeline"
     },
     "owner": {
       "title": "Vue bailleur",
@@ -21287,5 +21286,96 @@
       "mo": "{n} Mo"
     },
     "facultatif": "Facultatif"
+  },
+  "rapports": {
+    "titre": "Rapports",
+    "ongletsAria": "Sections du rapport",
+    "personnaliser": "Personnaliser les chiffres",
+    "onglets": {
+      "ensemble": "Vue d’ensemble",
+      "equipe": "Équipe",
+      "impayes": "Impayés",
+      "commissions": "Commissions",
+      "pipeline": "Pipeline",
+      "reversements": "Reversements",
+      "exports": "Exports",
+      "alertes": "Alertes"
+    },
+    "meta": {
+      "ensemble": "Rapports — vue d’ensemble",
+      "equipe": "Rapports — équipe",
+      "impayes": "Rapports — impayés",
+      "commissions": "Rapports — commissions",
+      "pipeline": "Rapports — pipeline",
+      "reversements": "Rapports — reversements",
+      "exports": "Rapports — exports",
+      "alertes": "Rapports — alertes",
+      "indicateurs": "Rapports — indicateurs"
+    },
+    "chiffres": {
+      "libelles": {
+        "encaisse": "Encaissé",
+        "impayes": "Impayés",
+        "occupation": "Occupation",
+        "bauxActifs": "Baux actifs",
+        "biensPublies": "Biens publiés",
+        "tauxImpayes": "Taux d’impayés",
+        "commissions": "Commissions",
+        "bauxSignes": "Baux signés",
+        "visites": "Visites",
+        "prospects": "Prospects",
+        "portefeuille": "Mon portefeuille"
+      },
+      "contextes": {
+        "variation": "{signe}{pourcent} % sur {mois}",
+        "echeances": "{n, plural, =0 {Aucune échéance en retard} one {# échéance en retard} other {# échéances en retard}}",
+        "loues": "{occupes, plural, one {# bien loué} other {# biens loués}} sur {eligibles} en location",
+        "publies": "sur {total, plural, one {# bien} other {# biens}}",
+        "surAttendus": "sur {montant} attendus",
+        "cetteAnnee": "{montant} cette année",
+        "bauxCetteAnnee": "ce mois · {n} cette année",
+        "septJours": "sur les 7 prochains jours",
+        "portefeuille": "{loues} loués · {libres} libres · {autres} autres"
+      },
+      "tous": "Les {n} chiffres",
+      "moins": "Moins de chiffres"
+    },
+    "graphiques": {
+      "titres": {
+        "encaisse": "Encaissé · 12 derniers mois",
+        "occupation": "Occupation · 12 derniers mois",
+        "commissions": "Commissions · 12 derniers mois",
+        "bauxSignes": "Baux signés · 12 derniers mois",
+        "cashflow": "Encaissé · 12 derniers mois"
+      },
+      "courts": {
+        "encaisse": "Encaissé",
+        "occupation": "Occupation",
+        "commissions": "Commissions",
+        "bauxSignes": "Baux signés",
+        "cashflow": "Encaissé"
+      },
+      "choix": "Graphique affiché",
+      "variationMois": "{mois} : {pourcent} % sur {precedent}",
+      "variationPoints": "{ecart} points en un an",
+      "depuisJanvier": "dont {montant} depuis janvier"
+    },
+    "equipe": {
+      "titre": "Équipe ce mois",
+      "onglet": "Onglet Équipe",
+      "erreur": "Impossible de charger la performance de l’équipe.",
+      "resume": "{baux, plural, =0 {Aucun bail} one {# bail} other {# baux}} · {visites, plural, =0 {aucune visite} one {# visite} other {# visites}}",
+      "invitations": "{n, plural, one {# invitation sans réponse.} other {# invitations sans réponse.}}",
+      "voirLEquipe": "Voir l’équipe"
+    },
+    "enChiffres": "En chiffres",
+    "chiffresCles": "Chiffres clés · ce mois",
+    "periode": "Du {debut} au {fin}",
+    "pipeline": {
+      "prospects": "{n, plural, =0 {Aucun prospect} one {# prospect} other {# prospects}}"
+    },
+    "tous": "Tous",
+    "commissionsDuMois": "Commissions du mois",
+    "penalitesARecouvrer": "Pénalités à recouvrer"
   }
 }

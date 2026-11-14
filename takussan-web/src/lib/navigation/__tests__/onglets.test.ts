@@ -99,7 +99,7 @@ describe('TCK-2481 — un onglet inaccessible cède sa place, jamais cadenassé'
     // Admin ET bailleur de la même agence : « Paiements » n'est ouverte que par le profil bailleur.
     const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin', 'owner'], capacites: ['properties.create'], cheminsAdmin: [] };
     expect(lire('admin-agence', ctx, ['tableau-de-bord', 'paiements', 'mes-biens', 'messagerie']).map(([id]) => id))
-      .toEqual(['tableau-de-bord', 'vue-agence', 'mes-biens', 'messagerie']);
+      .toEqual(['tableau-de-bord', 'rapports', 'mes-biens', 'messagerie']);
   });
 
   it('moins de destinations que d’onglets : un onglet de moins, aucune case vide', () => {

@@ -252,8 +252,10 @@ beforeEach(() => {
  *   ont toujours leur bouton (décision de la session du 2026-11-05).
  * - Les entrées sous « Plus » sont celles que la table y cite, puis celles que le catalogue ouvre
  *   au persona sans que la disposition les place, dans l'ordre du catalogue.
- * - « Vue agence » et « Propriétaires » de l'hôte sont cadenassées (`isProRouteLocked`) : elles
- *   restent au menu, lues ici par leur libellé.
+ * - « Propriétaires » de l'hôte est cadenassée (`isProRouteLocked`) : elle reste au menu, lue ici par
+ *   son libellé. TCK-2628 — « Vue agence », l'autre, est devenue l'onglet « Vue d'ensemble » de « Rapports ».
+ * - TCK-2628 — « Statistiques », « Vue agence », « KPIs », « Alertes » et « Exports » sont UNE entrée,
+ *   « Rapports » (ses onglets) ; le groupe « Pilotage » de l'admin a disparu.
  *
  * ⚠ Les compteurs de l'AC6 se DÉDUISENT de cette table ({@link COMPTEUR_PAR_LIBELLE}) : éditer une
  * ligne ici change aussi ce que la barre doit sonder pour ce persona.
@@ -294,8 +296,8 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       ['Mon patrimoine', false, 'Mes biens', 'Baux', 'Loyers', 'États des lieux'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier', 'Interventions'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
-      [null, false, 'Tableau de bord'],
-      ['Plus', true, 'Clients', 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées', 'Mes tâches'],
+      [null, false, 'Tableau de bord', 'Rapports'],
+      ['Plus', true, 'Clients', 'Avis reçus', 'Documents', 'Mes favoris', 'Recherches sauvegardées', 'Mes tâches'],
     ],
   },
   // Relevé de TCK-2478 : aucun parcours de création de visite sous `/app` — l'action de l'agent
@@ -308,8 +310,8 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       [null, false, 'Aujourd’hui', 'Messagerie', 'Tâches'],
       ['Prospection', false, 'Demandes de contact', 'Clients', 'Visites', 'Calendrier'],
       ['Catalogue', false, 'Mes biens', 'Réservations'],
-      ['Gestion', false, 'Baux', 'États des lieux', 'Interventions', 'Commissions'],
-      ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
+      ['Gestion', false, 'Baux', 'États des lieux', 'Interventions', 'Commissions', 'Rapports'],
+      ['Plus', true, 'Avis reçus', 'Documents', 'Mes favoris', 'Recherches sauvegardées'],
     ],
   },
   'admin-agence': {
@@ -318,12 +320,11 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     // TÊTE, juste après l'action et « Aller à » : hors du groupe de tête.
     enTete: 'Tableau de bord',
     groupes: [
-      [null, false, 'Vue agence', 'Messagerie'],
+      [null, false, 'Rapports', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
       ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
       ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
-      ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
       ['Plus', true, 'Maintenance', 'Carnet prestataires', 'États des lieux', 'Documents', 'Avis reçus', 'Mes tâches', 'Mes favoris', 'Recherches sauvegardées'],
     ],
   },
@@ -336,12 +337,12 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       // « Plus », libellés « Paiements ».
       ['Mes locations', false, 'Baux', "Finances de l'agence", 'États des lieux', 'Interventions', 'Carnet prestataires'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
-      [null, false, 'Tableau de bord'],
+      [null, false, 'Tableau de bord', 'Rapports'],
       ['Mon espace', false, 'Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations'],
       [
-        'Plus', true, 'Clients', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
+        'Plus', true, 'Clients', 'Avis reçus', 'Documents',
         'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions',
-        'Vue agence', 'Propriétaires',
+        'Propriétaires',
       ],
     ],
   },
@@ -360,14 +361,13 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
   plateforme: {
     action: 'Publier un bien',
     groupes: [
-      [null, false, 'Vue agence', 'Messagerie'],
+      [null, false, 'Rapports', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
       ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
       ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
-      ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
       ['Plus', true, 'Maintenance', 'Carnet prestataires', 'États des lieux', 'Documents', 'Avis reçus', 'Mes tâches', 'Mes favoris', 'Recherches sauvegardées'],
     ],
   },
@@ -400,7 +400,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     for (let i = 1; i < chaine.length; i++) expect(avant(chaine[i - 1]!, chaine[i]!), `maillon ${i}`).toBe(true);
     // Une seule fois : il a quitté le groupe de tête, qui garde le reste dans son ordre.
     expect(aside.querySelectorAll('a[href="/app"]:not([data-slot="marque"])')).toHaveLength(1);
-    expect(groupesRendus(container)[0]).toEqual([null, false, 'Vue agence', 'Messagerie']);
+    expect(groupesRendus(container)[0]).toEqual([null, false, 'Rapports', 'Messagerie']);
   });
 
   // Suite de la revue adverse (a) — hissé, il reste une entrée de NAVIGATION : un seul repère pour la
@@ -610,12 +610,13 @@ describe('TCK-2478 — l’entrée active n’est jamais cachée (AC4)', () => {
   });
 
   it('à la navigation aussi : la barre survit au changement de page, le groupe s’ouvre', () => {
+    // TCK-2628 — « Agence », le groupe replié qui reste à l'admin depuis que « Pilotage » est devenu « Rapports ».
     const { rerender } = renderSidebar('admin-agence', '/app');
-    expect(screen.getByRole('button', { name: 'Pilotage' })).toHaveAttribute('aria-expanded', 'false');
-    pathname = '/app/overview/kpis';
+    expect(screen.getByRole('button', { name: 'Agence' })).toHaveAttribute('aria-expanded', 'false');
+    pathname = '/app/agency/roles';
     rerender(barre(COMPTES['admin-agence']));
-    expect(screen.getByRole('button', { name: 'Pilotage' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('link', { name: 'KPIs' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Agence' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Rôles' })).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -706,14 +707,16 @@ describe('AC1 — surlignage sur une page fille', () => {
 describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', () => {
   // Cinq couples, pas trois : le ticket n'en nommait que trois et manquait
   // `/app/maintenance` ⊃ `/app/maintenance/providers` et `/app/overview` ⊃ ses quatre filles.
+  // TCK-2628 — `/app/overview` est devenu `/app/reports`, UNE entrée : ses onglets et la page des indicateurs
+  // n'allument qu'elle.
   //
   // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du menu : sur sa
   // page, c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   it.each([
     ['/app/properties/new', 'Publier un bien'],
     ['/app/maintenance/providers', 'Carnet prestataires'],
-    ['/app/overview/kpis', 'KPIs'],
-    ['/app/overview/exports', 'Exports'],
+    ['/app/reports/indicators', 'Rapports'],
+    ['/app/reports/exports', 'Rapports'],
   ])('%s n’allume que « %s »', (route, label) => {
     renderSidebar('admin-agence', route);
     expect(activeLabels()).toEqual([label]);
@@ -964,10 +967,10 @@ describe('accessibilité de la barre', () => {
 
   it('l’entrée cadenassée garde sa sémantique et perd son opacité illisible', () => {
     renderSidebar('hote', '/app');
-    // DEUX entrées sont cadenassées pour l'hôte (agence `individual`) : « Vue agence » et
-    // « Propriétaires », toutes deux sous « Plus » (TCK-2478).
+    // UNE entrée est cadenassée pour l'hôte (agence `individual`) : « Propriétaires », sous « Plus »
+    // (TCK-2478). TCK-2628 — « Vue agence », l'autre, est devenue un onglet de « Rapports », jamais cadenassé.
     const cadenasses = screen.getAllByTitle('Réservé aux comptes pro');
-    expect(cadenasses).toHaveLength(2);
+    expect(cadenasses).toHaveLength(1);
     for (const entree of cadenasses) {
       expect(entree).toHaveAttribute('aria-disabled', 'true');
       expect(entree.querySelector('svg')).not.toBeNull();
@@ -979,7 +982,7 @@ describe('accessibilité de la barre', () => {
   it('l’entrée cadenassée se joint au clavier et dit pourquoi (TCK-754)', () => {
     renderSidebar('hote', '/app');
     const cadenasses = screen.getAllByTitle('Réservé aux comptes pro');
-    expect(cadenasses).toHaveLength(2);
+    expect(cadenasses).toHaveLength(1);
     for (const entree of cadenasses) {
       expect(entree).toHaveAttribute('tabindex', '0');
       expect(entree.querySelector('.sr-only')).toHaveTextContent('Réservé aux comptes pro');

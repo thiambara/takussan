@@ -248,8 +248,9 @@ describe('TCK-2493 / TCK-2494 — une entrée cadenassée n’est JAMAIS propos�
   ] as const)('%s (%s) — ni dans « Moi », ni dans « Mon espace » : %s', (persona, standard, _cas) => {
     const groupes = verrouilles(persona, standard);
     const cadenasses = groupes.flatMap((g) => g.entrees).filter((e) => e.locked).map((e) => e.id);
-    // Le cas existe : sans entrée cadenassée, ce test ne garderait rien.
-    expect(cadenasses).toContain('vue-agence');
+    // Le cas existe : sans entrée cadenassée, ce test ne garderait rien. TCK-2628 — « Vue agence » est devenue
+    // l'onglet « Vue d'ensemble » de « Rapports », qui ne se cadenasse pas : reste « Propriétaires ».
+    expect(cadenasses).toContain('proprietaires');
 
     const moi = sectionsDeMoi(groupes).flatMap((sec) => ids(sec.entrees));
     const { lignes, messagerie, suite } = lignesDeMonEspace(groupes, persona);

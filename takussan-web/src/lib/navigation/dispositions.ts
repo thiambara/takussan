@@ -82,6 +82,13 @@ const PUBLIER: readonly IdDestination[] = ['publier-bien', 'proposer-bien'];
 const TABLEAU_DE_BORD: GroupeDeDisposition = { id: 'tableau-de-bord', titre: null, entrees: ['tableau-de-bord'] };
 
 /**
+ * TCK-2628 (décision du porteur, ADR-0096 § 3) — le bailleur et l'hôte trouvent « Rapports » juste après
+ * l'accueil (maquette `chrome-app`, `bailleur`). « Statistiques », « Exports », « Indicateurs » et « Alertes »
+ * ont quitté le menu : ce sont des onglets de la page, ou un lien de la vue d'ensemble.
+ */
+const TABLEAU_DE_BORD_ET_RAPPORTS: GroupeDeDisposition = { id: 'tableau-de-bord', titre: null, entrees: ['tableau-de-bord', 'rapports'] };
+
+/**
  * L'admin d'agence et la plateforme partagent le menu (TCK-2478) ; TCK-2479 les sépare sur la bande
  * « À traiter » et « Démarrer », que chacun reçoit dans `DISPOSITIONS`.
  */
@@ -110,7 +117,6 @@ const BASE_ADMIN: Omit<Disposition, 'priorites' | 'demarrer'> = {
         'agence-moderation-avis', 'agence-moderation-biens', 'agence-journal', 'agence-integrations',
       ],
     },
-    { id: 'pilotage', titre: 'pilotage', replie: true, entrees: ['statistiques', 'kpis', 'alertes', 'exports'] },
   ],
   plus: ['maintenance', 'carnet-prestataires', 'etats-des-lieux', 'documents', 'avis'],
   libelles: { 'mes-biens': 'allProperties' },
@@ -127,7 +133,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'mes-demarches', titre: 'mesDemarches', entrees: ['visites', 'reservations'] },
       TABLEAU_DE_BORD,
     ],
-    plus: ['documents', 'avis', 'statistiques'],
+    plus: ['documents', 'avis'],
     onglets: ['tableau-de-bord', 'favoris', 'visites', 'messagerie'],
     priorites: ['unreadMessages'],
   },
@@ -146,7 +152,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       },
       TABLEAU_DE_BORD,
     ],
-    plus: ['avis', 'statistiques'],
+    plus: ['avis'],
     libelles: { baux: 'myLease', maintenance: 'interventions' },
     onglets: ['tableau-de-bord', 'paiements', 'maintenance', 'messagerie'],
     priorites: ['unreadMessages'],
@@ -157,9 +163,9 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'tete', titre: null, entrees: ['messagerie'] },
       { id: 'mon-patrimoine', titre: 'monPatrimoine', entrees: ['mes-biens', 'baux', 'paiements', 'etats-des-lieux'] },
       { id: 'activite', titre: 'activite', entrees: ['demandes', 'visites', 'reservations', 'calendrier', 'maintenance'] },
-      TABLEAU_DE_BORD,
+      TABLEAU_DE_BORD_ET_RAPPORTS,
     ],
-    plus: ['clients', 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
+    plus: ['clients', 'avis', 'documents', 'favoris', 'recherches'],
     // TCK-2618 — « Loyers », mot décidé par le porteur le 2026-11-10 (ADR-0100 § 3).
     libelles: { maintenance: 'interventions', paiements: 'rents' },
     icones: { paiements: Wallet },
@@ -178,9 +184,10 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie', 'taches'] },
       { id: 'prospection', titre: 'prospection', entrees: ['demandes', 'clients', 'visites', 'calendrier'] },
       { id: 'catalogue', titre: 'catalogue', entrees: ['mes-biens', 'reservations'] },
-      { id: 'gestion', titre: 'gestion', entrees: ['baux', 'etats-des-lieux', 'maintenance', 'commissions'] },
+      // TCK-2628 (décision du porteur) — « Rapports » de l'agent dans « Gestion », après les commissions.
+      { id: 'gestion', titre: 'gestion', entrees: ['baux', 'etats-des-lieux', 'maintenance', 'commissions', 'rapports'] },
     ],
-    plus: ['avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
+    plus: ['avis', 'documents', 'favoris', 'recherches'],
     libelles: { 'tableau-de-bord': 'today', taches: 'tasks', maintenance: 'interventions' },
     icones: { 'tableau-de-bord': Sun },
     libellesDOnglets: { 'tableau-de-bord': 'today' },
@@ -195,7 +202,8 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ...BASE_ADMIN,
     // TCK-2489 — la seule persona dont le tableau de bord ouvre le menu.
     groupes: [
-      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'vue-agence', 'messagerie'] },
+      // TCK-2628 — « Rapports » remplace « Vue agence » en tête, juste après l'accueil (AC1).
+      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'rapports', 'messagerie'] },
       ACTIVITE_ADMIN,
       PORTEFEUILLE_ADMIN,
       ...BASE_ADMIN.groupes,
@@ -214,10 +222,10 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'tete', titre: null, entrees: ['messagerie'] },
       { id: 'mes-biens', titre: 'mesBiens', entrees: ['mes-biens', 'reservations', 'visites', 'calendrier', 'demandes'] },
       { id: 'mes-locations', titre: 'mesLocations', entrees: ['baux', 'agence-finances', 'etats-des-lieux', 'maintenance', 'carnet-prestataires'] },
-      TABLEAU_DE_BORD,
+      TABLEAU_DE_BORD_ET_RAPPORTS,
       { id: 'mon-espace', titre: 'monEspace', entrees: ['agence-fiche', 'agence-kyc', 'agence-facturation', 'credits', 'agence-integrations'] },
     ],
-    plus: ['clients', 'statistiques', 'exports', 'kpis', 'alertes', 'avis', 'documents'],
+    plus: ['clients', 'avis', 'documents'],
     libelles: { maintenance: 'interventions', paiements: 'payments', 'agence-facturation': 'payouts' },
     onglets: ['tableau-de-bord', 'mes-biens', 'reservations', 'messagerie'],
     priorites: ['unreadMessages', 'unhandledLeads', 'pendingVisits'],
@@ -235,7 +243,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
   plateforme: {
     ...BASE_ADMIN,
     groupes: [
-      { id: 'tete', titre: null, entrees: ['vue-agence', 'messagerie'] },
+      { id: 'tete', titre: null, entrees: ['rapports', 'messagerie'] },
       ACTIVITE_ADMIN,
       PORTEFEUILLE_ADMIN,
       TABLEAU_DE_BORD,

@@ -28,7 +28,7 @@ export async function createThresholdAlertAction(
       method: 'POST',
       body: input,
     });
-    revalidatePath('/app/overview/alerts');
+    revalidatePath('/app/reports/alerts');
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('alerts', err);
@@ -42,7 +42,7 @@ export async function deleteThresholdAlertAction(id: number): Promise<{ ok: bool
 
   try {
     await apiRequest(cheminApi`/api/threshold-alerts/${id}`, { token, method: 'DELETE' });
-    revalidatePath('/app/overview/alerts');
+    revalidatePath('/app/reports/alerts');
     return { ok: true };
   } catch (err) {
     journaliserErreurInattendue('alerts', err);

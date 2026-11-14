@@ -41,6 +41,34 @@ const EXCEPTIONS: ReadonlyMap<string, string> = new Map([
     "redirection vers l'accueil /app, qui absorbe « Ma situation » du locataire et du client (TCK-2625) : elle n'existe que pour les signets déjà pris, la citer dans un menu serait le défaut inverse",
   ],
   [
+    '/app/overview',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
+    '/app/overview/agency',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
+    '/app/overview/agent',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
+    '/app/overview/alerts',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
+    '/app/overview/exports',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
+    '/app/overview/kpis',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
+    '/app/overview/owner',
+    "redirection vers l'onglet équivalent de « Rapports » (TCK-2628, ADR-0096 § 4) : elle n'existe que pour les signets, les e-mails et les notifications déjà envoyés, la citer dans un menu serait le défaut inverse",
+  ],
+  [
     '/app/payments/return',
     "URL de retour de la passerelle de paiement : c'est le prestataire externe qui y renvoie le navigateur, aucun écran du produit ne peut ni ne doit y mener",
   ],

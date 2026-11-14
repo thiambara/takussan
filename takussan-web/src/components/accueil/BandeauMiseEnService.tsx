@@ -12,8 +12,8 @@ import type { AgencyKind } from '@/types/agency';
 
 /**
  * TCK-2622 — la mise en service de l'agence sur l'accueil : UNE ligne (maquette `LigneDemarrage`),
- * jamais la carte de sept lignes, qui reste sur `/app/overview/agency` (`MiseEnService`). Elle nomme
- * l'étape suivante — la 2FA d'abord (TCK-761) — et y MÈNE, avec le compte « 6/7 » (téléphone) ou
+ * jamais la carte de sept lignes, qui reste en tête de la vue d'ensemble de « Rapports » (`/app/reports`,
+ * `MiseEnService`, TCK-2628). Elle nomme l'étape suivante — la 2FA d'abord (TCK-761) — et y MÈNE, avec le compte « 6/7 » (téléphone) ou
  * « 6 étapes sur 7 » (bureau).
  *
  * Même requête et même règle que la carte (`etapes-de-mise-en-service.ts`) : elle disparaît une fois

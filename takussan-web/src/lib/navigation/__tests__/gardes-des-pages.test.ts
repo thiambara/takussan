@@ -3,7 +3,9 @@
  *
  *  · « Statistiques » (`/app/overview`) était ouverte à tout prestataire (plancher `customer`), que
  *    la page renvoie sur `/app` s'il n'est pas locataire — un lien vers une redirection (depuis
- *    TCK-2625, la page renvoie sur `/app` tout compte qui n'est ni admin, ni agent, ni bailleur) ;
+ *    TCK-2625, la page renvoie sur `/app` tout compte qui n'est ni admin, ni agent, ni bailleur).
+ *    TCK-2628 — l'entrée est devenue « Rapports » (`/app/reports`) : son prédicat se juge sur la garde
+ *    de la section, `garderLesRapports`, avec la VRAIE résolution de la persona (`lireLeContexteDesRapports`) ;
  *  · « Calendrier » (`/app/calendar`) était fermée au prestataire, que `assertCanReachCalendar` laisse
  *    entrer (TCK-591) — une page ouverte, absente du menu.
  *
@@ -27,7 +29,12 @@ vi.mock('next/navigation', () => ({
 // `agency_id: null` : la page n'aiguille l'admin sur son agence que s'il en a une ; sans agence, il va
 // droit à la vue agence. Aucune lecture réseau.
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ({ id: 1, roles: moi.roles, agency_id: null }) }));
-vi.mock('@/lib/session', () => ({ getToken: async () => null }));
+vi.mock('@/lib/session', () => ({ getToken: async () => null, getActiveProfileId: async () => undefined }));
+vi.mock('@/lib/access/pages-admin-server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/access/pages-admin-server')>()),
+  accesAdmin: async () => ({ chemins: [], espaceIndividuel: false }),
+  capacitesDuProfilActif: async () => [],
+}));
 vi.mock('@/lib/access/server-guards', () => ({ resolveAgencyOrNull: async () => null }));
 vi.mock('@/lib/access/tableau-du-bailleur', () => ({
   vueBailleurOuverte: async () => true,
@@ -35,7 +42,7 @@ vi.mock('@/lib/access/tableau-du-bailleur', () => ({
 }));
 
 const { assertCanReachCalendar } = await import('@/lib/auth/guards');
-const { default: OverviewPage } = await import('@/app/(dashboard)/app/overview/page');
+const { garderLesRapports } = await import('@/lib/rapports/gardes-serveur');
 const { CATALOGUE } = await import('../catalogue');
 
 const COMBINAISONS: UserRole[][] = Array.from({ length: 2 ** USER_ROLES.length }, (_, masque) =>
@@ -44,16 +51,17 @@ const COMBINAISONS: UserRole[][] = Array.from({ length: 2 ** USER_ROLES.length }
 const nom = (roles: UserRole[]) => roles.join('+') || '(aucun rôle)';
 const destination = (id: string) => CATALOGUE.find((d) => d.id === id)!;
 
-/** `/app/overview` est un aiguillage : « ouverte » = il mène à une vue, pas de retour sur `/app`. */
-async function laVueSOuvre(roles: UserRole[]): Promise<boolean> {
+/** « Rapports » s'ouvre-t-il ? La garde de la section passe, ou renvoie sur `/app` (persona sans rapports). */
+async function lesRapportsSOuvrent(roles: UserRole[]): Promise<boolean> {
   moi.roles = roles;
   try {
-    await OverviewPage();
+    await garderLesRapports();
+    return true;
   } catch (e) {
     if (!(e instanceof Redirection)) throw e;
-    return e.vers !== '/app';
+    if (e.vers !== '/app') throw new Error(`redirection inattendue : ${e.vers}`);
+    return false;
   }
-  throw new Error('la page d’aiguillage a rendu sans rediriger');
 }
 
 function leCalendrierSOuvre(roles: UserRole[]): boolean {
@@ -66,16 +74,16 @@ function leCalendrierSOuvre(roles: UserRole[]): boolean {
   }
 }
 
-describe('« Statistiques » — d’accord avec l’aiguillage de /app/overview (M2)', () => {
+describe('« Rapports » — d’accord avec la garde de /app/reports (M2, TCK-2628)', () => {
   it.each(COMBINAISONS.map((roles) => [nom(roles), roles] as const))('%s', async (_nom, roles) => {
-    expect(destination('statistiques').accessible({ roles, capacites: [] })).toBe(await laVueSOuvre(roles));
+    expect(destination('rapports').accessible({ roles, capacites: [] })).toBe(await lesRapportsSOuvrent(roles));
   });
 
-  it('le prestataire n’a pas « Statistiques » ; TCK-2625 : le locataire et le client non plus (leur vue est l’accueil)', () => {
-    expect(destination('statistiques').accessible({ roles: ['customer', 'service_provider'], capacites: [] })).toBe(false);
-    expect(destination('statistiques').accessible({ roles: ['customer', 'service_provider', 'tenant'], capacites: [] })).toBe(false);
-    expect(destination('statistiques').accessible({ roles: ['customer', 'tenant'], capacites: [] })).toBe(false);
-    expect(destination('statistiques').accessible({ roles: ['customer', 'owner'], capacites: [] })).toBe(true);
+  it('le prestataire n’a pas « Rapports » ; TCK-2625 : le locataire et le client non plus (leur vue est l’accueil)', () => {
+    expect(destination('rapports').accessible({ roles: ['customer', 'service_provider'], capacites: [] })).toBe(false);
+    expect(destination('rapports').accessible({ roles: ['customer', 'service_provider', 'tenant'], capacites: [] })).toBe(false);
+    expect(destination('rapports').accessible({ roles: ['customer', 'tenant'], capacites: [] })).toBe(false);
+    expect(destination('rapports').accessible({ roles: ['customer', 'owner'], capacites: [] })).toBe(true);
   });
 });
 

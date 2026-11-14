@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { composerMenu } from '../composer-menu';
 import { DISPOSITIONS } from '../dispositions';
 import { PERSONAS, type Persona } from '../personas';
+import { indicateursOuverts, ongletsDesRapports, type IdOnglet } from '../rapports';
 import type { ContexteDeMenu } from '../types';
 
 const TOUTES_LES_PAGES_D_AGENCE = [
@@ -74,8 +75,9 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
         ['tete', null, false, 'messagerie'],
         ['mon-patrimoine', 'monPatrimoine', false, 'mes-biens', 'baux', 'paiements', 'etats-des-lieux'],
         ['activite', 'activite', false, 'demandes', 'visites', 'reservations', 'calendrier', 'maintenance'],
-        ['tableau-de-bord', null, false, 'tableau-de-bord'],
-        ['plus', 'plus', true, 'clients', 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches', 'taches'],
+        // TCK-2628 — « Rapports » juste après l'accueil (maquette `chrome-app`, `bailleur`).
+        ['tableau-de-bord', null, false, 'tableau-de-bord', 'rapports'],
+        ['plus', 'plus', true, 'clients', 'avis', 'documents', 'favoris', 'recherches', 'taches'],
       ],
     });
   });
@@ -89,8 +91,9 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
         ['tete', null, false, 'tableau-de-bord', 'messagerie', 'taches'],
         ['prospection', 'prospection', false, 'demandes', 'clients', 'visites', 'calendrier'],
         ['catalogue', 'catalogue', false, 'mes-biens', 'reservations'],
-        ['gestion', 'gestion', false, 'baux', 'etats-des-lieux', 'maintenance', 'commissions'],
-        ['plus', 'plus', true, 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
+        // TCK-2628 — « Rapports » de l'agent dans « Gestion », après les commissions.
+        ['gestion', 'gestion', false, 'baux', 'etats-des-lieux', 'maintenance', 'commissions', 'rapports'],
+        ['plus', 'plus', true, 'avis', 'documents', 'favoris', 'recherches'],
       ],
     });
   });
@@ -100,12 +103,12 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
       action: ['publier-bien', 'publishProperty'],
       carte: null,
       groupes: [
-        ['tete', null, false, 'tableau-de-bord', 'vue-agence', 'messagerie'],
+        // TCK-2628 — « Rapports » remplace « Vue agence » ; le groupe « Pilotage » est devenu ses onglets.
+        ['tete', null, false, 'tableau-de-bord', 'rapports', 'messagerie'],
         ['activite', 'activite', false, 'demandes', 'visites', 'reservations', 'calendrier'],
         ['portefeuille', 'portefeuille', false, 'mes-biens', 'proprietaires', 'clients', 'baux'],
         ['finances', 'finances', false, 'agence-finances', 'commissions', 'credits', 'agence-facturation'],
         ['agence', 'agence', true, 'agence-equipe', 'agence-roles', 'agence-fiche', 'agence-kyc', 'agence-moderation-avis', 'agence-moderation-biens', 'agence-journal', 'agence-integrations'],
-        ['pilotage', 'pilotage', true, 'statistiques', 'kpis', 'alertes', 'exports'],
         ['plus', 'plus', true, 'maintenance', 'carnet-prestataires', 'etats-des-lieux', 'documents', 'avis', 'taches', 'favoris', 'recherches'],
       ],
     });
@@ -119,10 +122,10 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
         ['tete', null, false, 'messagerie'],
         ['mes-biens', 'mesBiens', false, 'mes-biens', 'reservations', 'visites', 'calendrier', 'demandes'],
         ['mes-locations', 'mesLocations', false, 'baux', 'agence-finances', 'etats-des-lieux', 'maintenance', 'carnet-prestataires'],
-        ['tableau-de-bord', null, false, 'tableau-de-bord'],
+        ['tableau-de-bord', null, false, 'tableau-de-bord', 'rapports'],
         ['mon-espace', 'monEspace', false, 'agence-fiche', 'agence-kyc', 'agence-facturation', 'credits', 'agence-integrations'],
         // Arbitrage 4 : les paiements du bailleur, libellés « Paiements ».
-        ['plus', 'plus', true, 'clients', 'statistiques', 'exports', 'kpis', 'alertes', 'avis', 'documents', 'taches', 'favoris', 'recherches', 'paiements', 'commissions', 'vue-agence', 'proprietaires'],
+        ['plus', 'plus', true, 'clients', 'avis', 'documents', 'taches', 'favoris', 'recherches', 'paiements', 'commissions', 'proprietaires'],
       ],
     });
   });
@@ -137,7 +140,7 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
     const admin = lecture('admin-agence').groupes.map((g) => g[0]);
     const plateforme = lecture('plateforme').groupes;
     expect(plateforme.map((g) => g[0])).toEqual([...admin.slice(0, 3), 'tableau-de-bord', ...admin.slice(3)]);
-    expect(plateforme[0]).toEqual(['tete', null, false, 'vue-agence', 'messagerie']);
+    expect(plateforme[0]).toEqual(['tete', null, false, 'rapports', 'messagerie']);
     expect(plateforme[3]).toEqual(['tableau-de-bord', null, false, 'tableau-de-bord']);
   });
 });
@@ -169,8 +172,10 @@ describe('TCK-2489 → TCK-2618 — le tableau de bord n’ouvre le menu que pou
       return;
     }
     // Les autres : un groupe sans titre, à lui seul, juste après le groupe titré que la règle désigne.
+    // TCK-2628 — chez le bailleur et l'hôte, « Rapports » le suit dans ce groupe (maquette `chrome-app`).
     const i = groupes.findIndex((g) => g.id === apres);
-    expect(groupes[i + 1]).toEqual({ id: 'tableau-de-bord', titre: null, entrees: ['tableau-de-bord'] });
+    const entrees = persona === 'bailleur' || persona === 'hote' ? ['tableau-de-bord', 'rapports'] : ['tableau-de-bord'];
+    expect(groupes[i + 1]).toEqual({ id: 'tableau-de-bord', titre: null, entrees });
   });
 
   it.each(PERSONAS)('AC1 — %s : la place lue sur le menu composé', (persona) => {
@@ -297,16 +302,50 @@ const HREFS_RETIRES_PAR_TCK_2625: Partial<Record<Persona, readonly string[]>> = 
   locataire: ['/app/overview'],
 };
 
+/**
+ * TCK-2628 (ADR-0096 § 4) — les cinq destinations de pilotage sont devenues UNE entrée, « Rapports »
+ * (`/app/reports`), et chacune y a son onglet. Nommées ici, avec leur onglet, plutôt que gommées du relevé :
+ * le test ci-dessous vérifie que l'onglet est OUVERT pour la persona qui avait l'ancienne entrée.
+ */
+const REMPLACEES_PAR_TCK_2628: Readonly<Record<string, IdOnglet | 'indicateurs'>> = {
+  '/app/overview': 'ensemble',
+  '/app/overview/agency': 'ensemble',
+  '/app/overview/exports': 'exports',
+  '/app/overview/alerts': 'alertes',
+  '/app/overview/kpis': 'indicateurs',
+};
+
+function hrefsAttendus(persona: Persona): string[] {
+  const retires = HREFS_RETIRES_PAR_TCK_2625[persona] ?? [];
+  const avant = HREFS_AVANT_TCK_2618[persona].filter((h) => !retires.includes(h));
+  return [...new Set(avant.map((h) => (h in REMPLACEES_PAR_TCK_2628 ? '/app/reports' : h)))].sort();
+}
+
 describe('TCK-2618 — AC3 : le menu composé garde chaque destination d’avant', () => {
   it.each(PERSONAS)('%s : même jeu d’`href`, aucune entrée en double', (persona) => {
     const menu = composerMenu(COMPTES[persona], persona);
     const hrefs = [menu.action?.href, menu.carte?.href, ...menu.groupes.flatMap((g) => g.entrees.map((e) => e.href))].filter(
       (h): h is string => Boolean(h),
     );
-    const retires = HREFS_RETIRES_PAR_TCK_2625[persona] ?? [];
-    expect([...new Set(hrefs)].sort()).toEqual(HREFS_AVANT_TCK_2618[persona].filter((h) => !retires.includes(h)));
+    expect([...new Set(hrefs)].sort()).toEqual(hrefsAttendus(persona));
     // Une seule entrée par `href` dans les groupes : le doublon `/app` de l'agent a fusionné.
     const desGroupes = menu.groupes.flatMap((g) => g.entrees.map((e) => e.href));
     expect(new Set(desGroupes).size, persona).toBe(desGroupes.length);
+  });
+});
+
+describe('TCK-2628 — chaque ancienne entrée de pilotage a son onglet, ouvert pour la persona qui l’avait', () => {
+  it.each(PERSONAS)('%s', (persona) => {
+    const retires = HREFS_RETIRES_PAR_TCK_2625[persona] ?? [];
+    const anciennes = HREFS_AVANT_TCK_2618[persona].filter((h) => h in REMPLACEES_PAR_TCK_2628 && !retires.includes(h));
+    const contexte = { persona, cheminsAdmin: COMPTES[persona].cheminsAdmin ?? [], capacites: COMPTES[persona].capacites };
+    const ouverts = ongletsDesRapports(contexte);
+    const fermes = anciennes.filter((h) => {
+      const onglet = REMPLACEES_PAR_TCK_2628[h]!;
+      return onglet === 'indicateurs' ? !indicateursOuverts(contexte) : !ouverts.includes(onglet);
+    });
+    expect(fermes).toEqual([]);
+    // Le cas existe pour chaque persona du personnel et le bailleur : sans ancienne entrée, rien n'est gardé.
+    if (!['client', 'locataire', 'prestataire'].includes(persona)) expect(anciennes.length).toBeGreaterThan(0);
   });
 });

@@ -11,7 +11,7 @@ import { DESTINATIONS_DE_MISE_EN_SERVICE as DESTINATIONS, etatDeMiseEnService } 
 
 /**
  * TCK-589 — la carte « Mise en service » en tête du tableau de bord d'agence (`/app/overview/agency`
- * depuis TCK-647 ; ses libellés ont quitté `admin.pages.setupStatus` pour `dashboard.agencySetup`,
+ * depuis TCK-647, la vue d'ensemble de « Rapports », `/app/reports`, depuis TCK-2628 ; ses libellés ont quitté `admin.pages.setupStatus` pour `dashboard.agencySetup`,
  * l'espace `admin` n'étant pas servi sous `/app`).
  *
  * Une ligne par étape que l'API déclare (`GET /api/agencies/{agency}/setup-status`) : cochée quand
@@ -28,7 +28,7 @@ interface MiseEnServiceProps {
   readonly agencyId: number | null;
   /**
    * Le `kind` de l'agence, qui filtre les étapes. `standard` par défaut : c'est la seule agence
-   * que sert `/app/overview/agency`.
+   * dont la vue d'ensemble de « Rapports » la monte (`garderLaVueDEnsemble`).
    */
   readonly kind?: AgencyKind | null;
 }

@@ -7,6 +7,7 @@ import { composerMenu, entreesDuMenu } from '../composer-menu';
 import { DISPOSITIONS } from '../dispositions';
 import { CODES_DE_MODULE, destinationsMasquees, MODULES_D_AGENCE, modulesMasquesDe } from '../modules';
 import { PERSONAS } from '../personas';
+import { MODULE_DE_L_ONGLET } from '../rapports';
 import type { ContexteDeMenu } from '../types';
 
 /**
@@ -19,8 +20,13 @@ const MASQUABLES = CODES_DE_MODULE.flatMap((c) => MODULES_D_AGENCE[c]);
 const JAMAIS: readonly IdDestination[] = ['tableau-de-bord', 'messagerie', 'mes-biens', 'baux', 'paiements', 'demandes'];
 
 describe('TCK-2483 — les modules d’agence', () => {
-  it('chaque module retire au moins une destination, et une destination n’est que dans un module', () => {
-    for (const code of CODES_DE_MODULE) expect(MODULES_D_AGENCE[code].length, code).toBeGreaterThan(0);
+  // TCK-2628 — `analytics` ne retire plus d'entrée du menu : Exports, Alertes et Indicateurs sont devenus des
+  // onglets de « Rapports », que le module retire de la barre d'onglets (`MODULE_DE_L_ONGLET`).
+  it('chaque module retire au moins une destination ou un onglet de « Rapports », et une destination n’est que dans un module', () => {
+    const DES_ONGLETS = new Set(Object.values(MODULE_DE_L_ONGLET));
+    for (const code of CODES_DE_MODULE) expect(MODULES_D_AGENCE[code].length + (DES_ONGLETS.has(code) ? 1 : 0), code).toBeGreaterThan(0);
+    expect(MODULES_D_AGENCE.analytics).toEqual([]);
+    expect(Object.entries(MODULE_DE_L_ONGLET).filter(([, c]) => c === 'analytics').map(([id]) => id)).toEqual(['exports', 'alertes']);
     expect(new Set(MASQUABLES).size).toBe(MASQUABLES.length);
   });
 
@@ -65,7 +71,7 @@ describe('TCK-2483 — les modules d’agence', () => {
   });
 
   it('destinationsMasquees déroule les modules et ignore un code inconnu', () => {
-    expect([...destinationsMasquees(['analytics', 'obsolete'])].sort()).toEqual(['alertes', 'exports', 'kpis']);
+    expect([...destinationsMasquees(['credits', 'analytics', 'obsolete'])].sort()).toEqual(['credits']);
     expect(destinationsMasquees([]).size).toBe(0);
   });
 
@@ -147,10 +153,14 @@ describe('TCK-2483 — le masquage ne se contourne pas', () => {
   // Relevé le 2026-11-06 : le layout de `/app` (qui le passe à la coque), la fiche de l'agence (qui
   // l'édite, par `reglagesDeLaFiche()` de `lib/schemas/agency.ts` depuis TCK-2486), le hook du menu
   // (qui le passe au compositeur) — et `modules.ts`, qui les définit.
-  it('le masque n’est lu (`modulesMasquesDe`, `destinationsMasquees`) que par le menu et la fiche', () => {
+  //
+  // TCK-2628 — et le contexte de « Rapports », qui retire de la BARRE d'onglets ceux que l'agence masque, comme le
+  // menu ; aucune de ses gardes ne le lit (`lib/rapports/__tests__/gardes-serveur`, « `analytics` masqué »).
+  it('le masque n’est lu (`modulesMasquesDe`, `destinationsMasquees`) que par le menu, la fiche et la barre de « Rapports »', () => {
     expect(appelantsDe('modulesMasquesDe')).toEqual([
       'app/(dashboard)/app/layout.tsx',
       'lib/navigation/modules.ts',
+      'lib/rapports/contexte-serveur.ts',
       'lib/schemas/agency.ts',
     ]);
     expect(appelantsDe('destinationsMasquees')).toEqual(['components/layout/useMenuDeLEspace.ts', 'lib/navigation/modules.ts']);

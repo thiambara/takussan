@@ -115,6 +115,9 @@ const COMPTES: Record<Persona, ContexteDeMenu> = {
  *  - TCK-2625 — client et locataire : `/app/overview` QUITTE leur table. « Ma situation »
  *    (`/app/overview/tenant`) est absorbée par l'accueil, et l'aiguilleur les renvoie sur `/app` :
  *    même raison que M2 pour le prestataire.
+ *  - TCK-2628 — bailleur, agent, admin, hôte, plateforme : les cinq vues de pilotage (`/app/overview`,
+ *    `/agency`, `/kpis`, `/alerts`, `/exports`) sont UNE entrée, « Rapports » (`/app/reports`), dont elles
+ *    sont les onglets (`dispositions-validees.test.ts` vérifie que chaque onglet est ouvert).
  */
 const ATTENDU: Record<Persona, string[]> = {
   client: [
@@ -135,7 +138,7 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/messages', '/app/properties', '/app/leases', '/app/payments', '/app/inventories',
     '/app/leads', '/app/visits', '/app/bookings', '/app/calendar', '/app/maintenance',
-    '/app/customers', '/app/profile/reviews', '/app/documents', '/app/overview', '/app/overview/exports',
+    '/app/customers', '/app/profile/reviews', '/app/documents', '/app/reports',
     '/app/favorites', '/app/saved-searches', '/app/tasks',
   ],
   // TCK-595 (AC17 bis) — pas de « Vue agence » : l'API la refuse à l'agent.
@@ -143,15 +146,14 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/messages', '/app/tasks', '/app/leads', '/app/customers', '/app/visits', '/app/calendar',
     '/app/properties', '/app/bookings', '/app/leases', '/app/inventories',
-    '/app/maintenance', '/app/commissions', '/app/profile/reviews', '/app/documents', '/app/overview',
-    '/app/overview/exports', '/app/favorites', '/app/saved-searches',
+    '/app/maintenance', '/app/commissions', '/app/profile/reviews', '/app/documents', '/app/reports',
+    '/app/favorites', '/app/saved-searches',
   ],
   'admin-agence': [
     '/app/properties/new',
-    '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
+    '/app', '/app/reports', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
     '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
     '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
-    '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
     '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
     '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
   ],
@@ -159,10 +161,10 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/messages', '/app/properties', '/app/bookings', '/app/visits', '/app/calendar',
     '/app/leads', '/app/leases', '/app/inventories', '/app/maintenance', '/app/maintenance/providers',
-    '/app/credits', ...PAGES_DE_L_HOTE, '/app/customers', '/app/overview', '/app/overview/exports',
-    '/app/overview/kpis', '/app/overview/alerts', '/app/profile/reviews', '/app/documents', '/app/tasks',
+    '/app/credits', ...PAGES_DE_L_HOTE, '/app/customers', '/app/reports',
+    '/app/profile/reviews', '/app/documents', '/app/tasks',
     '/app/favorites', '/app/saved-searches', '/app/payments', '/app/commissions',
-    '/app/overview/agency', '/app/owners',
+    '/app/owners',
   ],
   // Son métier en tête — interventions, messagerie, documents (§1.8 de features.md) —, et sous
   // « Plus » ce que le plancher `customer` lui ouvre.
@@ -172,10 +174,9 @@ const ATTENDU: Record<Persona, string[]> = {
   ],
   plateforme: [
     '/app/properties/new',
-    '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
+    '/app', '/app/reports', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
     '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
     '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
-    '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
     '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
     '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
   ],
@@ -304,7 +305,7 @@ describe('AppSidebar — table des href par persona (TCK-2478)', () => {
       .map((a) => a.getAttribute('href'))
       .filter((h): h is string => Boolean(h));
 
-    for (const interdit of ['/app/bookings', '/app/leases', '/app/visits', '/app/overview']) {
+    for (const interdit of ['/app/bookings', '/app/leases', '/app/visits', '/app/reports']) {
       expect(rendus, `${interdit} ne concerne pas un prestataire`).not.toContain(interdit);
     }
     // …et il garde bien son métier : le retrait ne doit pas vider la barre.

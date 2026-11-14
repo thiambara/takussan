@@ -24,7 +24,7 @@ export const CIBLES_DES_CHIFFRES = {
   prospects: '/app/customers?vue=mes-clients',
   taches: '/app/tasks?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me',
   commissions: '/app/commissions',
-  rapport: '/app/overview/agent',
+  rapport: '/app/reports',
 } as const;
 
 interface MesChiffresProps {

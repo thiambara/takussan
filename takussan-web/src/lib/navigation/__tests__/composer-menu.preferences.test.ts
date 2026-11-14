@@ -62,11 +62,12 @@ describe('TCK-2480 — composerMenu applique les préférences du persona (ADR-0
     expect(groupe(menu, 'gestion')).toMatchObject({ replie: true, replieParDefaut: false });
     expect(groupe(menu, 'plus')).toMatchObject({ replie: false, replieParDefaut: true });
     expect(groupe(menu, 'tete')).toMatchObject({ replie: false });
-    // « Pilotage » (replié par défaut chez l'admin) — pas « Agence » : sans `cheminsAdmin`, ses pages
-    // d'agence sont fermées et le groupe vide ne se rend pas.
-    const admin = composerMenu(ADMIN, 'admin-agence', undefined, { ouverts: ['pilotage'] });
-    expect(groupe(admin, 'pilotage')).toMatchObject({ replie: false, replieParDefaut: true });
-    expect(groupe(composerMenu(ADMIN, 'admin-agence'), 'pilotage')).toMatchObject({ replie: true, replieParDefaut: true });
+    // « Agence » (replié par défaut chez l'admin), ouverte par une page d'agence de `cheminsAdmin` : sans elle, le
+    // groupe vide ne se rend pas. TCK-2628 — « Pilotage », l'autre groupe replié, a quitté le menu pour « Rapports ».
+    const avecEquipe = { ...ADMIN, cheminsAdmin: ['/app/agency/team'] };
+    const admin = composerMenu(avecEquipe, 'admin-agence', undefined, { ouverts: ['agence'] });
+    expect(groupe(admin, 'agence')).toMatchObject({ replie: false, replieParDefaut: true });
+    expect(groupe(composerMenu(avecEquipe, 'admin-agence'), 'agence')).toMatchObject({ replie: true, replieParDefaut: true });
   });
 
   it('« Démarrer » masqué par l’utilisateur : `demarrer` est nul (TCK-2479 l’enregistre ici)', () => {

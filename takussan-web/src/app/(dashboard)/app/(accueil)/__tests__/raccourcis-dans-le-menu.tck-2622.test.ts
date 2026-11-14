@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
 import { composerMenu, entreesDuMenu } from '@/lib/navigation/composer-menu';
+import { ongletsDesRapports } from '@/lib/navigation/rapports';
 import { resoudrePersona } from '@/lib/navigation/personas';
 import type { ContexteDeMenu } from '@/lib/navigation/types';
 import type { UserRole } from '@/types/user';
@@ -39,9 +40,22 @@ function hrefsDuMenu(roles: UserRole[]): Set<string> {
   return new Set([...entreesDuMenu(menu).map((e) => e.href), ...(menu.carte ? [menu.carte.href] : []), ...(menu.action ? [menu.action.href] : [])]);
 }
 
+/**
+ * TCK-2628 (ADR-0096 § 4) — « Statistiques » et « Exports » sont devenus « Rapports » et son onglet Exports :
+ * l'ancien raccourci est dans le menu quand « Rapports » y est ET que l'onglet est ouvert pour la persona.
+ */
+const DEVENUS_DES_ONGLETS: Readonly<Record<string, 'ensemble' | 'exports'>> = { '/app/overview': 'ensemble', '/app/overview/exports': 'exports' };
+
 describe('TCK-2622 — chaque destination d’un ancien raccourci reste dans le menu composé', () => {
   it.each(ANCIENS_RACCOURCIS)('$nom', ({ roles, hrefs }) => {
     const menu = hrefsDuMenu(roles);
-    for (const href of hrefs) expect(menu.has(href), `${roles.join('+')} — ${href}`).toBe(true);
+    const persona = resoudrePersona({ roles, typeProfilActif: null, agenceIndividuelle: false });
+    for (const href of hrefs) {
+      const onglet = DEVENUS_DES_ONGLETS[href];
+      if (onglet) {
+        expect(menu.has('/app/reports'), `${roles.join('+')} — ${href} → /app/reports`).toBe(true);
+        expect(ongletsDesRapports({ persona, cheminsAdmin: PAGES_ADMIN.map((p) => p.chemin), capacites: [] }), href).toContain(onglet);
+      } else expect(menu.has(href), `${roles.join('+')} — ${href}`).toBe(true);
+    }
   });
 });

@@ -150,6 +150,14 @@
       "property",
       "serviceProviders"
     ],
+    "(dashboard)/app/reports": [
+      "admin",
+      "console",
+      "lease",
+      "payments",
+      "rapports",
+      "team"
+    ],
     "[locale]/(public)/claim": [
       "auth",
       "lienPublic",
@@ -185,9 +193,6 @@
       "property",
       "visitPlanning",
       "visits"
-    ],
-    "(dashboard)/app/overview": [
-      "charts"
     ],
     "(dashboard)/app/payments": [
       "console",
@@ -367,20 +372,20 @@
     "(dashboard)/app/account": 23,
     "(dashboard)/app/credits": 24,
     "(dashboard)/app/profile": 34,
+    "(dashboard)/app/reports": 41,
     "[locale]/(public)/claim": 25,
     "[locale]/(public)/legal": 22,
     "[locale]/(public)/share": 23,
     "(dashboard)/app/bookings": 30,
     "(dashboard)/app/calendar": 30,
     "(dashboard)/app/messages": 42,
-    "(dashboard)/app/overview": 23,
-    "(dashboard)/app/payments": 37,
+    "(dashboard)/app/payments": 36,
     "(dashboard)/app/settings": 35,
     "[locale]/(public)/agents": 23,
     "(dashboard)/app/(accueil)": 52,
     "(dashboard)/app/customers": 48,
     "(dashboard)/app/documents": 34,
-    "(dashboard)/app/favorites": 34,
+    "(dashboard)/app/favorites": 33,
     "(super-admin)/super-admin": 52,
     "[locale]/(public)/account": 25,
     "(dashboard)/app/properties": 62,
@@ -390,7 +395,7 @@
     "(dashboard)/app/inventories": 29,
     "(dashboard)/app/maintenance": 29,
     "(dashboard)/app/leases/(liste)": 43,
-    "(dashboard)/app/saved-searches": 34,
+    "(dashboard)/app/saved-searches": 33,
     "[locale]/(public)/notifications": 23,
     "[locale]/(public)/search-alerts": 23,
     "[locale]/(public)/properties/[slug]": 23,

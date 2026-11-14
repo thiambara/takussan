@@ -49,7 +49,8 @@ export type DashboardAgencySummary = {
     unpaid_rate_percent: number | null;
   };
   /** `null` sans bien éligible longue durée : pas de dénominateur (TCK-1114). */
-  occupancy: { rate_percent: number | null };
+  /** TCK-2626 — la base du taux (biens en location longue, et ceux occupés aujourd'hui) : « 18 loués sur 23 » (TCK-2628, AC4). */
+  occupancy: { rate_percent: number | null; eligible_count?: number; occupied_count?: number };
   /** TCK-2373 — les indicateurs activés, dans l'ordre ; vide sans configuration (tuiles par défaut). */
   kpis?: DashboardAgencyKpi[];
 };

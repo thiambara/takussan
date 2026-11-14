@@ -28,7 +28,7 @@ export async function createKpiConfigAction(
       method: 'POST',
       body: input,
     });
-    revalidatePath('/app/overview/kpis');
+    revalidatePath('/app/reports/indicators');
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('kpis', err);
@@ -42,7 +42,7 @@ export async function deleteKpiConfigAction(id: number): Promise<{ ok: boolean }
 
   try {
     await apiRequest(cheminApi`/api/kpi-configs/${id}`, { token, method: 'DELETE' });
-    revalidatePath('/app/overview/kpis');
+    revalidatePath('/app/reports/indicators');
     return { ok: true };
   } catch (err) {
     journaliserErreurInattendue('kpis', err);

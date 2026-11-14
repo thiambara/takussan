@@ -3,9 +3,9 @@ import { isAdmin, isOwner, isSuperAdmin } from '@/lib/roles';
 import type { User } from '@/types/user';
 
 /**
- * TCK-2260 (P116.07) — qui ouvre la vue bailleur (`/app/overview/owner`), comme l'API
+ * TCK-2260 (P116.07) — qui ouvre la vue bailleur (vue d'ensemble de `/app/reports`, TCK-2628), comme l'API
  * (`DashboardOwnerController`) : le bailleur par son profil, le super-admin, et l'admin qui détient
- * `reports.view_agency`. Lu par le layout de la vue et par l'aiguillage de `/app/overview`.
+ * `reports.view_agency`. Lu par la garde de la vue (`garderLaVueDEnsemble`) et de l'onglet Reversements.
  *
  * `null` : capacités illisibles (panne) — à chaque appelant de dire s'il refuse ou dégrade.
  */

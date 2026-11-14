@@ -251,7 +251,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
               </div>
             ) : null}
             <div>
-              <Etiquette action={<Link href="/app/overview/agent">{t('chiffres.rapport')}</Link>}>{t('chiffres.titre')}</Etiquette>
+              <Etiquette action={<Link href="/app/reports">{t('chiffres.rapport')}</Link>}>{t('chiffres.titre')}</Etiquette>
               <MesChiffres chiffres={chiffres} aRelancer={aRelancer} mois={mois} sansPied className="mt-3" />
             </div>
           </div>

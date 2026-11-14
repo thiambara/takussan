@@ -34,7 +34,8 @@ export type OwnerDashboard = {
     deposits_held?: number;
   };
   /** `rate_percent` est `null` sans bien éligible longue durée (TCK-1114). */
-  occupancy?: { rate_percent: number | null; short_stay_percent?: number | null };
+  /** `eligible_count` / `occupied_count` : la base du taux, que la vue d'ensemble du bailleur affiche (TCK-2626, TCK-2628 AC4). */
+  occupancy?: { rate_percent: number | null; short_stay_percent?: number | null; eligible_count?: number; occupied_count?: number };
   /** TCK-595 (AC8) — les nombres des cartes actionnables. */
   maintenance?: { quotes_pending: number };
   visits?: { to_confirm: number };

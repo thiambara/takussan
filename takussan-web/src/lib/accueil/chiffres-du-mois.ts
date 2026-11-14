@@ -85,7 +85,7 @@ export const LISTES = {
   reservations: '/app/bookings?status=pending',
   interventions: '/app/maintenance',
   commissions: '/app/commissions',
-  rapport: '/app/overview',
+  rapport: '/app/reports',
 } as const;
 
 function chiffresDeLAgence(m: Record<string, unknown>, standard: boolean): ChiffreDuMois[] {

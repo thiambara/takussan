@@ -34,8 +34,10 @@ export const MODULES_D_AGENCE: Readonly<Record<CodeDeModule, readonly IdDestinat
   provider_book: ['carnet-prestataires'],
   calendar: ['calendrier'],
   credits: ['credits'],
-  // Les statistiques (`/app/overview`) et la vue d'agence restent : ce module est le pilotage AVANCÉ.
-  analytics: ['kpis', 'alertes', 'exports'],
+  // TCK-2628 (amendement du 2026-11-10 d'ADR-0089, § 3) — le pilotage avancé n'a plus d'entrée de menu :
+  // Indicateurs, Alertes et Exports sont des onglets de « Rapports », que ce module retire de la BARRE
+  // d'onglets (`ongletsDesRapports`, `indicateursOuverts`). « Rapports » reste tant qu'il reste un onglet.
+  analytics: [],
 };
 
 /** Les personas dont la DISPOSITION se masque. Les autres ne perdent que leur complément « Aussi … ». */

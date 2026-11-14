@@ -317,7 +317,7 @@ describe('le téléphone', () => {
       '/app/customers?vue=mes-clients',
       '/app/tasks?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me',
       '/app/commissions',
-      '/app/overview/agent',
+      '/app/reports',
     ]);
     expect(liens[0]).toHaveAccessibleName('Biens gérés : 25, ouvrir Mes biens');
     await waitFor(() => expect(within(chiffres).getByText('6 à relancer')).toBeInTheDocument());
@@ -348,7 +348,7 @@ describe('le bureau', () => {
     // Un autre jour sans tâche : le compte nul se tait (« 1 tâche », pas « 0 visite »).
     fireEvent.click(within(b).getByRole('button', { name: /^Jeudi 12 novembre/ }));
     await waitFor(() => expect(within(b).getAllByText('1 tâche').some((e) => e.tagName === 'P')).toBe(true));
-    expect(within(b).getByRole('link', { name: 'Voir le rapport du mois' })).toHaveAttribute('href', '/app/overview/agent');
+    expect(within(b).getByRole('link', { name: 'Voir le rapport du mois' })).toHaveAttribute('href', '/app/reports');
   });
 
   it('« Jour suivant » relit les visites du lendemain', async () => {

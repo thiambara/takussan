@@ -267,15 +267,17 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     expect(screen.getByRole('button', { name: 'Épingler Mon bail' })).toBeInTheDocument();
   });
 
-  it('A7 — une ligne cadenassée ne s’épingle pas (« Vue agence » de l’hôte, agence `individual`)', () => {
+  // TCK-2628 — « Vue agence » est devenue un onglet de « Rapports », jamais cadenassé : la ligne
+  // cadenassée qui reste à l'hôte d'une agence `individual` est « Propriétaires ».
+  it('A7 — une ligne cadenassée ne s’épingle pas (« Propriétaires » de l’hôte, agence `individual`)', () => {
     render(element(['customer', 'agency_admin', 'owner'], 'hote', { agencyIsStandard: false }));
     entrerEnEdition();
-    // Les deux lignes cadenassées de l'hôte sont sous « Plus », replié : `hidden: true`.
+    // La ligne cadenassée de l'hôte est sous « Plus », replié : `hidden: true`.
     const cadenassees = screen.getAllByTitle(fr.nav.sidebar.proLocked);
     expect(cadenassees.map((c) => c.textContent)).toEqual(
-      expect.arrayContaining([expect.stringContaining('Vue agence')]),
+      expect.arrayContaining([expect.stringContaining('Propriétaires')]),
     );
-    expect(screen.queryByRole('button', { name: 'Épingler Vue agence', hidden: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Épingler Propriétaires', hidden: true })).toBeNull();
     expect(screen.getByRole('button', { name: 'Épingler Messagerie' })).toBeInTheDocument();
   });
 
@@ -683,7 +685,7 @@ describe('TCK-2480 — M1 : barre réduite, la ligne cadenassée a son infobulle
   const bulles = () => [...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent);
   const rendreLHote = (modeIcones: ModeIcones) =>
     render(element(['customer', 'agency_admin', 'owner'], 'hote', { agencyIsStandard: false, modeIcones, navigation }));
-  const cadenassee = () => screen.getByRole('link', { name: new RegExp(`^Vue agence`) });
+  const cadenassee = () => screen.getByRole('link', { name: new RegExp(`^Propriétaires`) });
 
   it('au survol : le libellé ET la raison du cadenas', async () => {
     const user = utilisateur();
@@ -693,14 +695,14 @@ describe('TCK-2480 — M1 : barre réduite, la ligne cadenassée a son infobulle
     expect(cadenassee()).not.toHaveAttribute('title');
     await user.hover(cadenassee());
     await waitFor(() => expect(bulles()).toHaveLength(1));
-    expect(bulles()[0]).toContain('Vue agence');
+    expect(bulles()[0]).toContain('Propriétaires');
     expect(bulles()[0]).toContain(fr.nav.sidebar.proLocked);
   });
 
   it('au focus clavier aussi', async () => {
     rendreLHote('icones');
     act(() => cadenassee().focus());
-    await waitFor(() => expect(bulles().join(' ')).toContain('Vue agence'));
+    await waitFor(() => expect(bulles().join(' ')).toContain('Propriétaires'));
   });
 
   it('témoin : une ligne ordinaire a la même infobulle (son libellé)', async () => {

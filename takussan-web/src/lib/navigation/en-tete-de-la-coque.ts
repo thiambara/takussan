@@ -42,8 +42,11 @@ const SOMMAIRE = 'profile.sommaire.rangees';
 /**
  * Les routes qu'aucune entrée du menu ne porte, avec le titre de leur page (`generateMetadata` ou
  * `PageHeader` : le même libellé). Une racine ici (sans `parent`) n'est le détail de personne, même
- * sous un préfixe du menu (`/app/overview/owner` n'est pas un détail des statistiques).
+ * sous un préfixe du menu.
  */
+/** TCK-2628 — le titre des onglets de « Rapports » : celui de la page. */
+const RAPPORTS: PageHorsMenu = { titre: { espace: 'nav.sidebar', cle: 'reports' } };
+
 const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
   // TCK-2635 — « Profil », comme la maquette et le titre du bureau.
   '/app/profile': { titre: { espace: 'profile.sommaire', cle: 'titre' } },
@@ -74,8 +77,21 @@ const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
   '/app/pieces': { titre: { espace: 'nav.sidebar.demarrer', cle: 'ecranPieces' }, parent: '/app' },
   '/app/crm': { titre: { espace: 'nav.sidebar', cle: 'crm' } },
   '/app/crm/pipeline': { titre: { espace: PAGES, cle: 'crmPipeline.metaTitle' } },
-  '/app/overview/owner': { titre: { espace: PAGES, cle: 'overviewOwner.metaTitle' } },
-  '/app/overview/agent': { titre: { espace: 'dashboard.agent', cle: 'title' } },
+  // TCK-2628 — les onglets de « Rapports » sont des RACINES : un onglet n'est pas le détail de la vue
+  // d'ensemble (pas de flèche de retour au téléphone, maquette `EcranRapports`), et tous portent le titre de
+  // la page. Lu dans le dictionnaire de la coque (`nav.sidebar`, le libellé de l'entrée), pas dans `rapports`,
+  // que seule la frontière de `/app/reports` sert. « Indicateurs » reste un détail de la vue d'ensemble.
+  '/app/reports/team': RAPPORTS,
+  '/app/reports/unpaid': RAPPORTS,
+  '/app/reports/commissions': RAPPORTS,
+  '/app/reports/pipeline': RAPPORTS,
+  '/app/reports/payouts': RAPPORTS,
+  '/app/reports/exports': RAPPORTS,
+  '/app/reports/alerts': RAPPORTS,
+  // TCK-2628 (ADR-0096 § 4) — les anciennes adresses de `/app/overview` ne rendent qu'une redirection (vers
+  // « Rapports », ou `/app` pour `tenant` et une persona sans rapports) : le titre n'est jamais affiché, mais la
+  // route garde le sien, celui de la section qui l'a absorbée. Les sous-routes le prennent de leur parent.
+  '/app/overview': { titre: { espace: 'nav.sidebar', cle: 'reports' } },
   '/app/settings/agency/upgrade': { titre: { espace: PAGES, cle: 'upgrade.metaTitle' } },
   '/app/payments/return': { titre: { espace: PAGES, cle: 'paymentReturn.metaTitle' }, parent: '/app/payments' },
   // TCK-2675 — le titre se lit dans le dictionnaire de la COQUE (`nav`), pas dans `admin` : l'en-tête est

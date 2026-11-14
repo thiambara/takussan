@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  BellRing,
   BookmarkCheck,
   Building2,
   CalendarCheck,
@@ -8,10 +7,8 @@ import {
   CalendarDays,
   ClipboardCheck,
   CreditCard,
-  Download,
   FileText,
   FolderOpen,
-  Gauge,
   Heart,
   Inbox,
   LayoutDashboard,
@@ -302,30 +299,12 @@ const TABLE = [
     accessible: (ctx) => client(ctx) || personnel(ctx.roles) || isOwner(ctx.roles),
   },
   // TCK-379 — aucun tableau de bord pour le prestataire (`docs/features.md` §2.5).
-  // Revue de TCK-2478 (M2) — la condition EXACTE de la garde d'`app/(dashboard)/app/overview/page.tsx` :
-  // l'admin, l'agent et le bailleur y sont aiguillés vers leur vue ; tout autre compte est renvoyé sur
-  // `/app`. Toucher l'une, c'est toucher l'autre.
-  // TCK-2625 — « Ma situation » (`/app/overview/tenant`) est absorbée par l'accueil : le locataire et le
-  // client n'ont plus de vue ici, « Statistiques » serait pour eux un lien vers leur propre accueil.
-  {
-    id: 'statistiques',
-    href: '/app/overview',
-    cle: 'statistics',
-    icone: BarChart3,
-    accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles),
-  },
-  {
-    id: 'exports',
-    href: '/app/overview/exports',
-    cle: 'exports',
-    icone: Download,
-    accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles),
-  },
-  // TCK-595 (AC17 bis) — plus pour l'agent : `reports.view_agency`, rôle d'admin d'agence.
-  { id: 'vue-agence', href: '/app/overview/agency', cle: 'agencyView', icone: BarChart3, accessible: ({ roles }) => isAdmin(roles) },
-  // TCK-284 — PAS standard-only (`docs/features.md` §1.12, liste fermée).
-  { id: 'kpis', href: '/app/overview/kpis', cle: 'kpis', icone: Gauge, accessible: ({ roles }) => isAdmin(roles) },
-  { id: 'alertes', href: '/app/overview/alerts', cle: 'alerts', icone: BellRing, accessible: ({ roles }) => isAdmin(roles) },
+  // TCK-2628 (ADR-0096 § 3) — « Rapports » remplace « Statistiques », « Vue agence », « Indicateurs »,
+  // « Alertes » et « Exports », devenus des onglets (`lib/navigation/rapports.ts`). La condition est celle
+  // de la table des onglets : une persona qui a une vue d'ensemble (admin, agent, bailleur, hôte, plateforme)
+  // — la garde de `/app/reports` (`garderLesRapports`) juge la même chose. Le locataire, le client et le
+  // prestataire n'en ont pas (AC6).
+  { id: 'rapports', href: '/app/reports', cle: 'reports', icone: BarChart3, accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles) },
   // TCK-256 — l'annuaire des propriétaires ; standard-only par la page et par l'API.
   { id: 'proprietaires', href: '/app/owners', cle: 'owners', icone: Users, accessible: ({ roles }) => isAdmin(roles) },
   { id: 'clients', href: '/app/customers', cle: 'crm', icone: Users, accessible: ({ roles }) => personnel(roles) || isOwner(roles) },

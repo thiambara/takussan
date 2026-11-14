@@ -140,8 +140,8 @@ describe('les liens', () => {
   });
 
   it('« Voir le rapport du mois » : l’admin et le bailleur, pas le locataire', () => {
-    expect(rapportDuMois('agency_admin')).toBe('/app/overview');
-    expect(rapportDuMois('owner')).toBe('/app/overview');
+    expect(rapportDuMois('agency_admin')).toBe('/app/reports');
+    expect(rapportDuMois('owner')).toBe('/app/reports');
     expect(rapportDuMois('tenant')).toBeNull();
   });
 });
