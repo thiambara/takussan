@@ -11,8 +11,15 @@
  */
 const ROUTES_PLEIN_ECRAN: readonly string[] = ['/app/properties/new'];
 
+/**
+ * TCK-2602 — « Votre annonce est en ligne », la sortie de la publication d'un espace particulier :
+ * l'écran porte la coque d'entrée (sa barre, sa sortie « Aller à mon espace »). Un motif ancré, pour
+ * la même raison que l'égalité stricte : la fiche `/app/properties/{id}` garde sa coque.
+ */
+const MOTIFS_PLEIN_ECRAN: readonly RegExp[] = [/^\/app\/properties\/\d+\/en-ligne$/];
+
 export function estPleinEcran(pathname: string | null | undefined): boolean {
-  return pathname != null && ROUTES_PLEIN_ECRAN.includes(pathname);
+  return pathname != null && (ROUTES_PLEIN_ECRAN.includes(pathname) || MOTIFS_PLEIN_ECRAN.some((motif) => motif.test(pathname)));
 }
 
 /**

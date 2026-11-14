@@ -165,6 +165,8 @@ export default async function Page({
         depuisPublication={depuisPublication}
         tags={tags}
         proposition={proposition}
+        // TCK-2602 — un espace particulier lu avec certitude : la publication mène à « en ligne ».
+        espaceParticulier={agence?.kind === 'individual'}
         fraisDAgence={fraisDAgence}
         agenceDuChoixDuBailleur={agenceDuChoixDuBailleur}
         peutInviterUnBailleur={peutInviterUnBailleur}

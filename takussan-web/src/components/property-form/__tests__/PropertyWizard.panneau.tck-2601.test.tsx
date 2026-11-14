@@ -258,7 +258,8 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     await user.type(within(panneau).getByLabelText('Nom'), 'Diop');
     await user.click(within(panneau).getByRole('button', { name: 'Publier mon annonce' }));
 
-    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    // TCK-2602 — l'espace particulier créé ou rendu actif : l'écran « en ligne », plus la fiche.
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42/en-ligne'));
     expect(profil.ecrire).toHaveBeenCalledWith({ first_name: 'Awa', last_name: 'Diop', phone_whatsapp: false });
     expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true });
   });
@@ -295,7 +296,8 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     expect(screen.queryByRole('region', { name: 'Dernière étape : votre numéro' })).not.toBeInTheDocument();
     expect(page.surVerrou).toHaveBeenLastCalledWith(true);
     await act(async () => repondre('pret'));
-    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    // TCK-2602 — l'espace particulier créé ou rendu actif : l'écran « en ligne », plus la fiche.
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42/en-ligne'));
   });
 
   it('un assistant démonté feuille ouverte (brouillon effacé, page quittée) ne laisse pas la page verrouillée', async () => {

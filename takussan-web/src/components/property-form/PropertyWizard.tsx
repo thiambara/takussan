@@ -297,6 +297,13 @@ interface PropsDeLAssistant {
    * en `visibility: 'private'` (`toCreatePayload`).
    */
   readonly proposition?: boolean;
+  /**
+   * TCK-2602 — l'auteur publie dans un espace PARTICULIER (`kind: 'individual'`, la page le lit) : la
+   * publication réussie mène à « Votre annonce est en ligne » (`/app/properties/{id}/en-ligne`) au lieu
+   * du toast et de la fiche. Faux par défaut : une agence illisible garde la sortie d'avant. Sans compte
+   * (`anonyme`), l'espace est particulier par construction (`preparerLEspace` ne rend `pret` que là).
+   */
+  readonly espaceParticulier?: boolean;
 }
 
 /**
@@ -314,6 +321,7 @@ export function PropertyWizard({ depuisPublication = false, ...props }: PropsDeL
 export function AssistantDePublication({
   tags = [],
   proposition = false,
+  espaceParticulier = false,
   quotaNote,
   fraisDAgence = true,
   agenceDuChoixDuBailleur = null,
@@ -419,14 +427,17 @@ export function AssistantDePublication({
   const tContacts = useTranslations('property.contacts');
   const tPublication = useTranslations('property.form.publishContact');
 
-  /** La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre. */
-  const terminer = async (id: number) => {
+  /**
+   * La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre — sa fiche, ou l'écran
+   * « en ligne » d'un espace particulier (TCK-2602, `destination`).
+   */
+  const terminer = async (id: number, destination = `/app/properties/${id}`) => {
     await effacerBrouillon();
     // TCK-2601 (AC3) — l'annonce venue de `/publish` : sa clé serveur (ci-dessus) ET son brouillon local.
     if (depuisPublication) await ouvrirBrouillonLocal().effacer();
     // TCK-2615 — l'arrivée qui suit la publication n'ouvre aucune fenêtre de bienvenue.
     marquerArriveeDeParcours('publication');
-    router.push(`/app/properties/${id}`);
+    router.push(destination);
     router.refresh();
   };
 
@@ -553,6 +564,15 @@ export function AssistantDePublication({
         setManquants(null);
         statut = r.data?.status ?? 'available';
         setStatutPublie(statut);
+      }
+
+      // TCK-2602 — l'espace particulier : « Votre annonce est en ligne » (partager, compléter, booster)
+      // au lieu du toast. L'écran relit le bien et dit lui-même « en vérification » (`pending_review`).
+      // Seulement ici, après toutes les écritures : un échec partiel est sorti plus haut, avertissement
+      // compris. Une proposition ne publie pas : elle garde le toast et la fiche.
+      if (!proposition && (anonyme !== undefined || espaceParticulier)) {
+        await terminer(bien.id, `/app/properties/${bien.id}/en-ligne`);
+        return;
       }
 
       // TCK-633 (décision 5 du porteur) — une annonce en ligne se booste depuis le message même.

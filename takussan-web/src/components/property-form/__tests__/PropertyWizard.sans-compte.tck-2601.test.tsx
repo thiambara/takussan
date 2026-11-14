@@ -194,7 +194,8 @@ describe('PropertyWizard sans compte — la feuille de compte (TCK-2601)', () =>
     await user.type(within(f).getByLabelText('Nom'), 'Diop');
     await user.click(publierMonAnnonce);
 
-    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    // TCK-2602 — l'espace particulier créé ou rendu actif : l'écran « en ligne », plus la fiche.
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42/en-ligne'));
     expect(tel.verifier).toHaveBeenCalledWith(expect.objectContaining({ phone: '+221770000999', code: '123456' }), 'fr');
     expect(profil.ecrire).toHaveBeenCalledWith({ first_name: 'Awa', last_name: 'Diop', phone_whatsapp: false });
     expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true });
@@ -278,7 +279,8 @@ describe('PropertyWizard sans compte — la feuille de compte (TCK-2601)', () =>
 
     // La session est ouverte : « Publier » rejuge l'espace, et publie.
     await user.click(screen.getByRole('button', { name: 'Publier l’annonce' }));
-    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    // TCK-2602 — l'espace particulier créé ou rendu actif : l'écran « en ligne », plus la fiche.
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42/en-ligne'));
     expect(page.preparerLEspace).toHaveBeenCalledTimes(2);
     expect(tel.verifier).toHaveBeenCalledTimes(1);
   });
