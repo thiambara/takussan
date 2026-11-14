@@ -452,6 +452,10 @@ function FormulaireDuBail({
   const defaultsQuery = useLeaseDefaults(selectedPropertyId);
   const defauts = defaultsQuery.data?.data?.property_id === selectedPropertyId ? defaultsQuery.data.data : null;
   const bienDesDefauts = useRef<number | null>(null);
+  // TCK-2643 (r1-bis) — le bien CHOISI, pas celui dont les défauts sont arrivés : si ceux du premier
+  // bien n'arrivent jamais (lecture en échec, réseau lent), la caution tapée pour lui ne part pas avec
+  // le bail du suivant.
+  const bienChoisi = useRef<number | null>(reservation?.property_id ?? bienPrechoisi ?? null);
   const moisDeCautionSuivis = useRef<number | null>(null);
   useEffect(() => {
     if (!defauts) return;
@@ -490,7 +494,10 @@ function FormulaireDuBail({
    * défauts (réseau lent, lecture en échec), le formulaire ne porte plus ceux du bien d'avant.
    */
   const viderLesMontantsDuBienPrecedent = (id: number) => {
-    if (bienDesDefauts.current === null || bienDesDefauts.current === id) return;
+    // Une saisie faite AVANT tout choix de bien reste : il n'y a pas de bien précédent.
+    const precedent = bienChoisi.current ?? bienDesDefauts.current;
+    bienChoisi.current = id;
+    if (precedent === null || precedent === id) return;
     for (const nom of MONTANTS_DU_BIEN) {
       form.setValue(nom, MONTANTS_VIDES[nom] as never, { shouldDirty: true });
     }
