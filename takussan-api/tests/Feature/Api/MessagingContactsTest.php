@@ -145,7 +145,7 @@ class MessagingContactsTest extends ApiTestCase
             ->assertJsonPath('data.0.id', $correspondant->id)
             ->assertJsonPath('data.0.name', 'Awa Sarr');
 
-        $this->assertSame(['avatar_url', 'id', 'name'], collect($response->json('data.0'))->keys()->sort()->values()->all());
+        $this->assertSame(['avatar_url', 'detail', 'id', 'name', 'relation'], collect($response->json('data.0'))->keys()->sort()->values()->all());
         $this->assertStringNotContainsString('awa.sarr@example.test', $response->getContent());
         $this->assertStringNotContainsString('770000001', $response->getContent());
     }
@@ -185,7 +185,7 @@ class MessagingContactsTest extends ApiTestCase
 
             $this->assertSame('pseudo_seul', $noms[$pseudo->id], $query);
             $this->assertSame('—', $noms[$anonyme->id], $query);
-            $this->assertSame(['avatar_url', 'id', 'name'], collect($response->json('data.0'))->keys()->sort()->values()->all(), $query);
+            $this->assertSame(['avatar_url', 'detail', 'id', 'name', 'relation'], collect($response->json('data.0'))->keys()->sort()->values()->all(), $query);
             $this->assertStringNotContainsString('example.test', $response->getContent(), $query);
             $this->assertStringNotContainsString('77000000', $response->getContent(), $query);
         }
