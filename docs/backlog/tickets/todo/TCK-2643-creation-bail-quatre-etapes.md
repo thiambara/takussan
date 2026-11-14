@@ -99,12 +99,16 @@ Autres contraintes :
 
 ## Delta à produire
 
-- [ ] Back : `StoreLeaseRequest` élargi. `GET /api/leases/defaults` (`LeaseDefaultsController`, policy `create` sur `Lease`). Clés `ScopedSetting` `lease.late_fee_percent` et `lease.late_fee_grace_days` au catalogue.
-- [ ] Back, tests :
+- [x] Back : `StoreLeaseRequest` élargi. `GET /api/leases/defaults` (`LeaseDefaultsController`, policy `create` sur `Lease`). Clés `ScopedSetting` `lease.late_fee_percent` et `lease.late_fee_grace_days` au catalogue.
+  - Preuve : 14c8f0a19 ; la policy est `LeasePolicy::createOn` (décision 4), même règle que la création.
+- [x] Back, tests :
+  - Preuve : `tests/Feature/Lease/LeaseDefaultsTest.php` (16 méthodes) et `StoreLeaseWithLateFeeTest.php`, verts au HEAD 58c870a28.
   - `LeaseDefaultsTest` : bien à 2 mois de caution donne caution = 2 × loyer ; défaut d'agence puis repli au catalogue ; source rendue ; appelant hors agence 403 ;
   - `StoreLeaseWithLateFeeTest`.
-- [ ] Front : parcours en quatre étapes (téléphone) et en une page (bureau). Entrées `?property=`, `?customer=` et `?booking_id=`.
-- [ ] Front, tests :
+- [x] Front : parcours en quatre étapes (téléphone) et en une page (bureau). Entrées `?property=`, `?customer=` et `?booking_id=`.
+  - Preuve : 8c469da8c, e69154bd8, f5f8b2d23 ; `?property=` c9e87782d.
+- [x] Front, tests :
+  - Preuve : `CreateLeaseForm.creation.tck-2643.test.tsx`, `.verification.`, `.dates.`, `.bien-prechoisi.`, `.depuis-reservation.p48-03` ; avec `leases/new/__tests__/page.tck-2643.test.tsx` : `components/leases/__tests__` et `leases/new`, 36 fichiers, 245 tests verts (2026-11-14).
   - préremplissage depuis le bien ;
   - une valeur saisie n'est pas écrasée ;
   - « Envoyer à la signature » enchaîne les deux appels ;
@@ -113,21 +117,31 @@ Autres contraintes :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Depuis la fiche d'un bien à 670 000 F / mois avec 2 mois de caution, l'étape 3 affiche « Caution 2 mois = 1 340 000 F » sans saisie. Le POST envoie `deposit_amount: 1340000`.
-- [ ] AC2 — Une agence dont le réglage `lease.late_fee_percent` vaut 5 préremplit « 5 % ». Une agence sans réglage prend la valeur du catalogue, et l'écran dit « réglage de la plateforme ».
-- [ ] AC3 — Le bail créé porte `late_fee_percent` et `late_fee_grace_days` dès le POST, sans PATCH ultérieur (vérifié au réseau et en base).
-- [ ] AC4 — « Envoyer à la signature » produit, dans l'ordre, `POST /api/leases` puis `POST /api/leases/{id}/signature-request`. Le bail est `pending_signature`.
-- [ ] AC5 — À 390 px, chaque étape tient son bouton « Continuer » visible sans défiler. À 1280 px, le total à l'entrée reste visible pendant la saisie.
-- [ ] AC6 — `/app/leases/new?booking_id=…` préremplit encore le bien, le locataire, les dates et le loyer.
+- [x] AC1 — Depuis la fiche d'un bien à 670 000 F / mois avec 2 mois de caution, l'étape 3 affiche « Caution 2 mois = 1 340 000 F » sans saisie. Le POST envoie `deposit_amount: 1340000`.
+  - Preuve : `LeaseDefaultsTest::test_deux_mois_de_caution_donnent_deux_fois_le_loyer_depuis_l_annonce` ; front « AC1 — 2 mois de caution… » et « AC3 — le brouillon part avec la caution… » (`deposit_amount: 1340000`).
+- [x] AC2 — Une agence dont le réglage `lease.late_fee_percent` vaut 5 préremplit « 5 % ». Une agence sans réglage prend la valeur du catalogue, et l'écran dit « réglage de la plateforme ».
+  - Preuve : `LeaseDefaultsTest::test_la_penalite_de_retard_vient_de_l_agence_puis_du_catalogue` (source `agency` puis `platform`) ; front « AC2 — la source se dit… ».
+- [x] AC3 — Le bail créé porte `late_fee_percent` et `late_fee_grace_days` dès le POST, sans PATCH ultérieur (vérifié au réseau et en base).
+  - Preuve : en base, `StoreLeaseWithLateFeeTest` (les termes écrits dès le POST, aucun PATCH) ; au réseau, le corps du POST en jsdom (test AC3). Aucun relevé réseau sur la démo : la base de démo ne s'écrit pas.
+- [x] AC4 — « Envoyer à la signature » produit, dans l'ordre, `POST /api/leases` puis `POST /api/leases/{id}/signature-request`. Le bail est `pending_signature`.
+  - Preuve : front « POST du bail, PUIS demande de signature du bail créé » et « un échec de la signature laisse le brouillon… » ; API `BailFermeLesAutresCandidaturesTest` (`pending_signature`).
+- [x] AC5 — À 390 px, chaque étape tient son bouton « Continuer » visible sans défiler. À 1280 px, le total à l'entrée reste visible pendant la saisie.
+  - Preuve : relevé du 2026-11-14 au HEAD 58c870a28, sans écriture. 390 × 844 : « Continuer » en 784-832 / 844 à scrollY 0 aux étapes 1, 2 et 3. Étape 4 : « Envoyer à la signature » (728-776) et « Créer le brouillon » (784-832). 1280 × 900 : total en 127-255, puis en 22-149 après saisie du loyer et défilement complet ; le montant est recalculé.
+- [x] AC6 — `/app/leases/new?booking_id=…` préremplit encore le bien, le locataire, les dates et le loyer.
+  - Preuve : `CreateLeaseForm.depuis-reservation.p48-03.test.tsx` et « les valeurs de la réservation l'emportent sur celles du bien » ; page : `?booking_id=` passé au formulaire (`leases/new/__tests__/page.tck-2643.test.tsx`).
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+  - Preuve : la fiche ; `_zones` motive l'absence de zone déclarée.
 - [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
-- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+- [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+  - Preuve : `TCK-2643.absents.json` donne un motif à chacun des 72 absents des trois rapports (alias, écart accepté, vérité des données ou coque).
 - [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+  - Non coché : l’outil mesure l’en-tête de la coque du téléphone à 1,34 % (> 0,5 %), écart motivé (« Brouillon », trait de ×) mais non soldé ; à trancher par le porteur (cf. `_zones` de la fiche).
 - [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+  - Preuve : `fidelite balayer` à 768 et 1024 : débord 0, aucune coupe ; innerWidth = scrollWidth à 390, 1024 et 1280 (relevés qui impriment les deux : le viewport n'est pas élargi) ; à 1024 la colonne du total passe sous le formulaire (collante dès `xl`, écart du lot 3). À 1280, l'écran est comparé à la maquette « bureau 1280 ».
 
 ## Hors périmètre
 
@@ -185,3 +199,34 @@ Fidélité (lot 4) — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (
   - la `source` jugée par l'ancienne règle : 1 rouge ;
   - `gt` lu comme `min` : 2 rouges.
 - Prévenu : terrain-7 (`LeaseDefaults`).
+
+### Clôture (2026-11-14) — re-mesure au HEAD 58c870a28
+
+- **Prémisse** : aucun fichier de la création du bail n'a bougé depuis 98608127e. Les réserves de la vérification adverse des lots 1 à 3 (terrain-5) sont fermées au HEAD :
+  - r1 à r4 par f5f8b2d23 ;
+  - r5 par ee5324269 (TCK-2767) ;
+  - r6 par bfca8d72d ;
+  - la caution libre et le format de date par 2ce1c2242 ;
+  - l'avis des candidatures par 98608127e.
+- **Ablations de droits** (rejouées après TCK-2767, une à la fois, md5 restauré) :
+  - retirer la capacité `leases.create` de `createOn` restait vert : test ajouté (`test_un_agent_de_l_agence_sans_la_capacite_de_creer_un_bail_est_refuse`), désormais rouge ;
+  - le bailleur bloqué restait vert : test ajouté (`test_le_bailleur_bloque_dans_l_agence_du_bien_est_refuse`), désormais rouge ;
+  - les autres gardes rougissent : personnel et capacité retirés ensemble (5 rouges), bailleur toujours admis (6), commission rendue au bailleur (1), bien absent admis (1).
+  - Retirer le contrôle de personnel seul reste vert : la capacité est jugée dans l'agence du bien, la défense est double.
+- **Rien ne se perd**, nouveaux tests :
+  - conditions générales et particulières, fréquence et devise partent au POST, et le garant est annoncé ;
+  - page : état « sans agence », « Annuler » vers la fiche du bien ou la liste, entrées passées au formulaire.
+- **Fidélité** : mêmes comptes qu'au 2026-11-12 (fiche, `mesures`) ; au bureau, 123 des 147 écarts sont dans la coque.
+- **Reste** :
+  - AC-F2, AC-F4 et AC-F5 : le porteur valide sur le rideau les écarts motivés « décision produit », « garde de dépôt » et « composant partagé », qui sont hors des trois exceptions d'ADR-0106 § 2, et l'en-tête de coque du téléphone à 1,34 % ;
+  - « Modifier » des réglages d'agence (décision 7) : suivi écrit, [TCK-2832](TCK-2832-modifier-les-reglages-de-bail-de-l-agence.md) ;
+  - **contre-vérification à faire** (confiée par team-lead à un vérificateur) de f5f8b2d23, 2ce1c2242 et 98608127e, que personne n'a encore contre-vérifiés :
+    - f5f8b2d23 (`CreateLeaseForm.tsx`, `hooks/useApiForm.ts` et son test, `CreateLeaseForm.verification.tck-2643.test.tsx`) :
+      - changer de bien remet loyer, caution, charges et prix de vente à ceux du NOUVEAU bien, ou vides : AC1, « préremplir n'est pas imposer » ;
+      - la caution non saisie suit le loyer, et ne bouge plus une fois saisie ;
+      - deux clics dans la même tâche n'envoient qu'un bail (ref synchrone de `useApiForm`) : `useApiForm` est PARTAGÉ, chercher les régressions chez ses autres appelants ;
+      - un `?customer=` illisible ne saute pas à « Conditions » : aucune impasse, aucun locataire étranger affiché.
+    - 2ce1c2242 (test seul, `CreateLeaseForm.dates.tck-2643.test.tsx`) : il épingle « 1 déc. 2026 » sur le vrai `FormDatePicker` et la durée de l'étape « Vérifier » ; vérifier qu'il rougit sous ablation du format (`formatAffiche`, `DATE_DU_BAIL`).
+    - 98608127e (`CreateLeaseForm.tsx`, `CreateLeaseForm.creation.tck-2643.test.tsx`) : l'avis « L'envoi en signature clôturera N candidatures » se tait quand l'envoi est fermé (locataire sans compte, ou brouillon créé dont l'envoi a échoué) : AC4, décision 7b.
+    - Droits (rien n'y a touché, à reconfirmer) : `LeasePolicy::createOn`, `LeaseDefaultsRequest::authorize`, `agency_commission_rate` tu au bailleur ; ablations de ce lot dans le manifeste.
+

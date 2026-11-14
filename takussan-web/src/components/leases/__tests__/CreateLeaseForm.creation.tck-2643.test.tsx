@@ -222,6 +222,28 @@ describe('CreateLeaseForm — préremplissage depuis le bien (TCK-2643)', () => 
     expect(ROUTEUR.push).toHaveBeenCalledWith('/app/leases/1');
   });
 
+  it('rien ne se perd : conditions générales et particulières, fréquence et devise partent avec le POST ; le garant est annoncé', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<CreateLeaseForm propertyId={11} customerId={7} />));
+    await waitFor(() => expect(espaces(valeur(/^Caution/))).toBe('1 340 000'));
+
+    expect(screen.getByLabelText('Fréquence')).toBeInTheDocument();
+    expect(screen.getAllByText('Les garants pourront être ajoutés sur la fiche du bail une fois le brouillon créé.').length).toBeGreaterThan(0);
+
+    await user.type(screen.getByLabelText('Début'), '2026-12-01');
+    await user.type(screen.getByLabelText('Conditions générales'), 'Usage d’habitation');
+    await user.type(screen.getByLabelText('Conditions particulières'), 'Peinture à la charge du bailleur');
+    await user.click(screen.getByRole('button', { name: 'Créer le brouillon' }));
+
+    await waitFor(() => expect(CREATION.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(CREATION.mutateAsync.mock.calls[0]![0]).toMatchObject({
+      terms: 'Usage d’habitation',
+      special_conditions: 'Peinture à la charge du bailleur',
+      payment_frequency: 'monthly',
+      currency: 'XOF',
+    });
+  });
+
   it('la caution se règle au pas-à-pas : 3 mois = 2 010 000', async () => {
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm propertyId={11} customerId={7} />));
