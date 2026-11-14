@@ -6653,16 +6653,6 @@
             "verifyTitle": "Invalid code"
           }
         },
-        "kyc": {
-          "title": "Your supporting documents",
-          "subtitle": "Upload your ID, bank details and NINEA. You may complete this in several sessions.",
-          "draftBadge": "Draft",
-          "submittedBadge": "Submitted",
-          "submitCta": "Submit my documents",
-          "submitting": "Submitting…",
-          "submittedTitle": "Documents submitted",
-          "submittedBody": "You can continue."
-        },
         "tour": {
           "title": "Discover your space",
           "subtitle": "Three key features to manage your portfolio.",
@@ -6925,18 +6915,6 @@
             "sendTitle": "Could not send code",
             "verifyTitle": "Invalid code"
           }
-        },
-        "kyc": {
-          "title": "Your supporting documents",
-          "subtitle": "Licence card, ID and profile picture. You may complete this in several sessions.",
-          "draftBadge": "Draft",
-          "submittedBadge": "Submitted",
-          "submitCta": "Submit my documents",
-          "submitting": "Submitting…",
-          "submittedTitle": "Documents submitted",
-          "submittedBody": "You can continue.",
-          "licenseNumberLabel": "Licence number",
-          "licenseNumberHint": "Use the number printed on your professional card."
         },
         "specialization": {
           "title": "Your specialization and zones",

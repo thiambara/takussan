@@ -5474,16 +5474,6 @@
             "verifyTitle": "Kod bi baaxul"
           }
         },
-        "kyc": {
-          "title": "Sa kayit justification",
-          "subtitle": "Yónni sa CNI, sa RIB ak sa NINEA. Mën nga ko def ñaari yoon.",
-          "draftBadge": "Buruyoŋ",
-          "submittedBadge": "Yónni",
-          "submitCta": "Yónni sa dossier KYC",
-          "submitting": "Yónnee na…",
-          "submittedTitle": "Dossier KYC yónni nañu ko",
-          "submittedBody": "Mën nga jëkk."
-        },
         "tour": {
           "title": "Xamal sa espace",
           "subtitle": "Ñetti tool yu am solo ngir toppatoo sa alal.",
@@ -5746,18 +5736,6 @@
             "sendTitle": "Yónn code du mën",
             "verifyTitle": "Code dafa baaxul"
           }
-        },
-        "kyc": {
-          "title": "Sa pieces justificatives",
-          "subtitle": "Karte professionnelle, pièce d'identité ak foto. Mën nga ko mottali ñu bari.",
-          "draftBadge": "Buruyoŋ",
-          "submittedBadge": "Soumis",
-          "submitCta": "Yónn sa dossier KYC",
-          "submitting": "Yónn naa…",
-          "submittedTitle": "Dossier KYC yónn na",
-          "submittedBody": "Mën nga continuer.",
-          "licenseNumberLabel": "Numero karte professionnelle",
-          "licenseNumberHint": "Bind fi numero bi nekk ci sa karte d'agent."
         },
         "specialization": {
           "title": "Sa spécialisation ak sa zones",

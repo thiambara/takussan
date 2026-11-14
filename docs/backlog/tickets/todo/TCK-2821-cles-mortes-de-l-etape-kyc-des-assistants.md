@@ -55,19 +55,46 @@ Aucun endpoint touché.
 
 ## Delta à produire
 
-- [ ] Inventaire des lecteurs (littéraux et dynamiques) écrit dans le ticket.
-- [ ] Retrait de `owners.onboarding.steps.kyc` et `agents.onboarding.steps.kyc` de `fr.json`, `en.json`, `wo.json` ;
+- [x] Inventaire des lecteurs (littéraux et dynamiques) écrit dans le ticket (« Notes d'implémentation »).
+- [x] Retrait de `owners.onboarding.steps.kyc` et `agents.onboarding.steps.kyc` de `fr.json`, `en.json`, `wo.json` ;
   `src/i18n/namespaces.json` régénéré si besoin.
-- [ ] Les trois tests réécrits ou retirés comme dit au tableau.
+- [x] Les trois tests réécrits ou retirés comme dit au tableau.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `rg "steps\.kyc" takussan-web/src` ne rend plus rien, hors du test de garde ci-dessous.
-- [ ] AC2 — Les tests des assistants du bailleur et de l'agent affirment toujours l'absence de l'étape de pièces (un
+- [x] AC1 — `rg "steps\.kyc" takussan-web/src` ne rend plus rien, hors du test de garde ci-dessous.
+  *Preuve : `grep -rn "steps\.kyc" takussan-web/src` → une seule ligne, le commentaire d'en-tête de `kyc-sans-promesse-de-revue.test.ts`.*
+- [x] AC2 — Les tests des assistants du bailleur et de l'agent affirment toujours l'absence de l'étape de pièces (un
   assistant qui remonterait un champ fichier ou « Envoyer mes pièces » les fait rougir — ablation).
+  *Preuve : absence affirmée en clair (`queryByText(/Envoyer mes pièces/i)`, `queryByLabelText(/carte professionnelle/i)`,
+  `input[type="file"]`). Ablations dans `invite/AssistantDInvite.tsx` : un `<input type="file">` → 2 rouges (bailleur,
+  agent) ; un bouton « Envoyer mes pièces » → 2 rouges ; md5 restauré.*
 - [ ] AC3 — Aucun `MISSING_MESSAGE` au navigateur sur `/onboarding/owner` et `/onboarding/agent`, à chaque étape.
-- [ ] AC4 — La règle de TCK-685 (aucune promesse de revue) reste gardée quelque part, ou le ticket écrit pourquoi elle
+- [x] AC4 — La règle de TCK-685 (aucune promesse de revue) reste gardée quelque part, ou le ticket écrit pourquoi elle
   n'a plus d'objet.
+  *Preuve : elle a toujours un objet (`OwnerProfileController` et `AgentProfileController` : « no queue reads this
+  dossier »). `kyc-sans-promesse-de-revue.test.ts` la garde désormais sur le texte vivant — `pieces` (hors `pieces.etats`,
+  état rapporté par le serveur), `owners.onboarding`, `agents.onboarding`, en fr/en/wo — par motifs de promesse.
+  Ablation : `pieces.enAttendant` → « Votre agence va les vérifier sous 48 h. » → `fr · pieces` rouge ; md5 restauré.*
+
+## Notes d'implémentation
+
+**Inventaire des lecteurs au 2026-11-14 (HEAD de `feat/audit-ux-app-lot-3`), avant suppression :**
+
+- Littéral : `grep -rnE "steps\.kyc" takussan-web/src` → les trois tests du tableau, aucun composant.
+- Dynamique : `grep -rnE "steps\.\$\{|\`steps\.|onboarding\.\$\{|\.steps\["` → `PropertyWizard.tsx:960`
+  (`property.wizard`) et `MiseEnService.tsx:85,96` (`dashboard.agencySetup`), hors sujet. Aucun `t()` à clé non
+  littérale dans `OwnerOnboardingWizard.tsx` ni `AgentOnboardingWizard.tsx`.
+- Espaces : `useTranslations('owners.onboarding')` et `('agents.onboarding')` n'existent que dans les deux assistants ;
+  `agents.onboarding.steps.{specialization,welcome}` (ZoneMultiSelect, ProspectDeLAgent) ne lisent pas `kyc`. Aucun
+  `useTranslations('owners'|'agents')` nu, aucune forme `{ namespace: … }`.
+- Accès objet : `frMessages.<rôle>.onboarding.steps.kyc` dans les deux tests d'assistant seulement.
+
+Retrait chirurgical (les trois dictionnaires portent des changements d'autres tickets) : 10 lignes par sous-arbre et
+par langue, diff de pure suppression ; `check-i18n-namespaces` vert sans `--update`, parité intacte.
+
+AC3 n'est pas relevé au navigateur : aucun lecteur n'existe (inventaire ci-dessus) et les tests des deux assistants
+rendent leurs écrans avec le vrai `fr.json`.
 
 ## Hors périmètre
 

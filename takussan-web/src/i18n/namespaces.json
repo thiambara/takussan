@@ -403,7 +403,7 @@
     "(dashboard)/app/payments": 32,
     "(dashboard)/app/settings": 34,
     "[locale]/(public)/agents": 19,
-    "(dashboard)/app/(accueil)": 37,
+    "(dashboard)/app/(accueil)": 38,
     "(dashboard)/app/customers": 46,
     "(dashboard)/app/documents": 29,
     "(dashboard)/app/favorites": 29,

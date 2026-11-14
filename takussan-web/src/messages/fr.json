@@ -6653,16 +6653,6 @@
             "verifyTitle": "Code invalide"
           }
         },
-        "kyc": {
-          "title": "Vos pièces justificatives",
-          "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
-          "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis",
-          "submitCta": "Envoyer mes pièces",
-          "submitting": "Envoi…",
-          "submittedTitle": "Pièces envoyées",
-          "submittedBody": "Vous pouvez continuer."
-        },
         "tour": {
           "title": "Découvrez votre espace",
           "subtitle": "Trois fonctions clés pour suivre votre patrimoine.",
@@ -6925,18 +6915,6 @@
             "sendTitle": "Envoi du code impossible",
             "verifyTitle": "Code invalide"
           }
-        },
-        "kyc": {
-          "title": "Vos pièces justificatives",
-          "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
-          "draftBadge": "Brouillon",
-          "submittedBadge": "Soumis",
-          "submitCta": "Envoyer mes pièces",
-          "submitting": "Envoi…",
-          "submittedTitle": "Pièces envoyées",
-          "submittedBody": "Vous pouvez continuer.",
-          "licenseNumberLabel": "Numéro de carte professionnelle",
-          "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
         },
         "specialization": {
           "title": "Votre spécialisation et vos zones",
