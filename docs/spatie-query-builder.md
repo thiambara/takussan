@@ -302,7 +302,44 @@ compte des messages, hors sourdine (TCK-2630).
 reference_number, price, status, cover_url}`, `lease {id, status, reference, tenant_name}`,
 `maintenance {id, status, title, scheduled_at}`, chacun `null` s'il est absent ou interdit, et —
 au seul personnel de l'agence du fil, sur une directe — `customer {id, full_name, stage, phone,
-assigned_agent {id, name}}` ; la clé `customer` est absente pour tout autre lecteur (TCK-2630).
+assigned_agent {id, name}}` ; la clé `customer` est absente pour tout autre lecteur (TCK-2630). Il rend aussi
+`participants` : pour chaque membre actuel, `{user_id, relation}` — `prestataire` (avec `category`, la
+catégorie de l'intervention), `locataire`, `proprietaire` ou `agent`, une seule, dans cet ordre de
+priorité —, dérivé et jamais stocké, chaque relation ne se lisant que si l'appelant lit l'objet dont
+elle vient (bail, intervention, bien) (`RelationsAuFil`, TCK-2748).
+
+### Contacts de messagerie — `GET /api/conversations/contacts` (TCK-2745, TCK-2830)
+
+Liste blanche propre (`MessagingContactController`), tout autre paramètre → 400. Le périmètre est
+celui de `MessagingReach` ; aucune coordonnée n'est rendue ni cherchable.
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[search]` | Scout | prénom et nom seulement ; ordre de pertinence restitué |
+| `filter[exclude]` | ids | personnes déjà choisies (TCK-973) |
+| `filter[id]` | id | une personne précise (TCK-2589) |
+| `filter[relation]` | callback | une section de « Nouvelle conversation » : `equipe`, `proprietaire`, `client`, `prestataire` (la relation rendue, après priorité), ou `autre` — ni équipe, ni propriétaire, ni client : prestataire ou sans relation (TCK-2745, TCK-2830) |
+| `sort` | `first_name`, `last_name`, `-last_exchange_at` | `last_exchange_at` : le dernier échange avec l'appelant (`LastExchangeSort`) ; sans recherche ni tri, ordre alphabétique |
+| `fields[users]` | `id`, `first_name`, `last_name` | |
+
+Chaque ligne porte `relation` (une seule, priorité équipe, propriétaire, client, prestataire ; aucune
+pour un simple correspondant) et sa ligne de détail en données (bien et ville du dernier échange,
+rôle, nombre de biens d'un propriétaire).
+
+### Carnet des prestataires — `GET /api/agencies/{agency}/service-providers` (TCK-592, TCK-2772, TCK-2829)
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[collaboration_status]` | exact | le statut du couple (profil, agence de l'écran), appliqué par `scopeForAgency` ; absent : les collaborations `active` **et les invitations en attente de l'agence** (profil `draft`, collaboration `paused` avec elle, invitation `sent` de cette agence) — une collaboration `paused` d'un profil non `draft` (suspension) en est exclue (TCK-2829) |
+| `filter[specialty]` | callback | un ou plusieurs métiers (OU) |
+| `filter[zone]` | callback | une ou plusieurs zones de `service_areas` (OU) |
+| `filter[search]` | search | `insurance_policy_id`, prénom, nom et téléphone du compte, sinon ceux de l'invitation (`metadata`), et les zones ; casse repliée ; un terme fait de chiffres cherche aussi le numéro sans séparateurs (TCK-2772) |
+| `sort` | `id`, `created_at`, `status` | défaut `-created_at` |
+| `include` | `user`, `agencyCollaborations`, `agencies`, `invitations` | |
+
+`meta.zones` : les zones distinctes du carnet de l'agence (même périmètre de statuts), lues hors de la
+recherche et du filtre de zone ; chaque ligne porte `response_delay_minutes` (délai médian de réponse
+sur les interventions de l'agence, `null` sans mesure) et `pending_invitation_id` (TCK-2772, TCK-2371).
 
 ### Notifications — `GET /api/notifications` (TCK-2633)
 
