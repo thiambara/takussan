@@ -92,11 +92,11 @@ Autres contraintes :
 
 ## Delta à produire
 
-- [ ] Fonction de décision du retour, réécrite : statut serveur d'abord, l'URL jamais pour un succès. Écrans « en cours », « non abouti » et « lien invalide ».
-- [ ] Carte de tête selon `schedule_state`, total et détail, « Comment payer à l'agence ».
-- [ ] Carte « Prochain loyer », choix du moyen, historique avec la caution nommée.
-- [ ] Carte « Mon bail » au bureau.
-- [ ] Tests :
+- [x] Fonction de décision du retour, réécrite : statut serveur d'abord, l'URL jamais pour un succès. Écrans « en cours », « non abouti » et « lien invalide ». — `components/payments/retour/issue-du-retour.ts`, `CarteDuRetour.tsx`.
+- [x] Carte de tête selon `schedule_state`, total et détail, « Comment payer à l'agence ». — `locataire/TeteDesPaiements.tsx`, `CommentPayerALAgence.tsx`.
+- [x] Carte « Prochain loyer », choix du moyen, historique avec la caution nommée. — `TeteDesPaiements.tsx` (`CarteDuProchainLoyer`), `PayerUneEcheance.tsx`, `HistoriqueDuLocataire.tsx`.
+- [x] Carte « Mon bail » au bureau. — `locataire/MonBail.tsx` (dès `lg`, à côté de la colonne dès `xl`).
+- [x] Tests (`issue-du-retour.tck-2650.test.ts`, `CustomerPayments.tck-2650.test.tsx`, `PaymentReturnClient.serveur.tck-2650.test.tsx`) :
   - table de décision du retour (statut serveur × indice d'URL × paiement introuvable) ;
   - trois états de tête ;
   - total lu sur l'API ;
@@ -105,20 +105,29 @@ Autres contraintes :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `/app/payments/return?payment_type=lease-payments&payment_id=999999&status=success` n'affiche jamais « Paiement confirmé ». Un paiement `pending` côté serveur, avec `status=success` dans l'URL, affiche « en cours de confirmation » et continue d'interroger. Test de la fonction de décision, chaque statut serveur croisé avec chaque indice.
-- [ ] AC2 — `locataire-f4` : la carte de tête affiche « À régler », le total servi par l'API (135 500 F sur la démo) et « à régler à l'agence ». Le texte « Vous êtes à jour » n'est pas dans le DOM.
-- [ ] AC3 — `locataire-vrai` (bail actif, aucune échéance) : « Votre premier loyer n'est pas encore programmé », sans « à jour ».
-- [ ] AC4 — À 390 px, le total et son geste sont visibles sans défilement.
-- [ ] AC5 — La caution de la démo s'affiche « Caution · … », et jamais « Loyer du 1 juil. 2026 au 1 juil. 2026 ».
+- [x] AC1 — `/app/payments/return?payment_type=lease-payments&payment_id=999999&status=success` n'affiche jamais « Paiement confirmé ». Un paiement `pending` côté serveur, avec `status=success` dans l'URL, affiche « en cours de confirmation » et continue d'interroger. Test de la fonction de décision, chaque statut serveur croisé avec chaque indice.
+  - *Preuve (r2, 2026-11-13)* : relevé en direct à 390 (locataire-f4, vraie API, aucune doublure) : « Ce lien de retour ne correspond à aucun paiement » et « Voir mes paiements », « Paiement confirmé » absent. Table : `issue-du-retour.tck-2650.test.ts` (7 indices × `paid`, `pending`, `partially_paid`, `late`, absent, vide, inconnu, `failed`, `cancelled`, 404, 403, 5xx, réseau) ; à l'écran : `PaymentReturnClient.serveur.tck-2650.test.tsx`. Ablations r1 A1 à A4, rouges (journaux relus en r2).
+- [x] AC2 — `locataire-f4` : la carte de tête affiche « À régler », le total servi par l'API (135 500 F sur la démo) et « à régler à l'agence ». Le texte « Vous êtes à jour » n'est pas dans le DOM.
+  - *Preuve (r2)* : relevé en direct à 390 et à 1280 (utilisateur 78, bail 22) : « À régler », « 135 500 F », « 2 pénalités de retard (octobre et juillet), à régler à l’agence Dakar Immo. » ; « à jour » absent des deux relevés. DOM : test `AC2 — due` (`queryByText` nul), ablations r1 B2 (total additionné) et B3 (lieu non nommé), rouges.
+- [x] AC3 — `locataire-vrai` (bail actif, aucune échéance) : « Votre premier loyer n'est pas encore programmé », sans « à jour ».
+  - *Preuve (r2)* : prouvé sur l'utilisateur 76 (décision de team-lead, cf. notes) : relevé en direct à 390, « Votre premier loyer n’est pas encore programmé », « Bail LS-FC-MT5YXV · 500 000 F / mois. Dakar Immo prépare votre échéancier… », « Contacter l’agence » ; « à jour » absent. Test `AC3 — none`, ablation r1 B1 (`none` rend « à jour »), rouge.
+- [x] AC4 — À 390 px, le total et son geste sont visibles sans défilement.
+  - *Preuve (r2)* : relevé à 390 × 844 de locataire-f4 : le total occupe y 127-167, « Comment payer à l’agence » y 360-404 ; la barre d'onglets commence à y 780.
+- [x] AC5 — La caution de la démo s'affiche « Caution · … », et jamais « Loyer du 1 juil. 2026 au 1 juil. 2026 ».
+  - *Preuve (r2)* : la démo sert à locataire-f4 une ligne `deposit` du 2026-07-01 au 2026-07-01. Le relevé à 1280 la rend « Caution · LPY-JMQLQ0 · Versée le 1 juil. · Reçu PDF », et « Loyer du » n'apparaît dans aucun relevé. Test `AC5`, ablation r1 B5.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2650.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2650.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+  - *Preuve (r2)* : la fiche liste les neuf écrans implémentés (a-0 à a-3, a-5 à a-9 ; a-4 est le bailleur, TCK-2651), leur référence gelée du 2026-11-11, la persona, la route et l'état reproduit, 28 écarts acceptés et 1 écart ouvert. Rôles et zones : ceux de la coque (`roles-coque.json`) ; aucun alias (la maquette vouvoie déjà, aucun renommage décidé).
 - [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+  - *État (r2)* : relevé final, 27 relevés (9 écrans × 3 appareils, `r2-2650/cmp4…cmp6`) : 1 194 conformes, 1 686 écarts et 608 absents (des deux côtés), contre 859, 2 025 et 635 en r1 ; les écrans du retour au téléphone passent de 5-10 % à 0,2-1,7 % de pixels (a-8 : 5,2 %). Les groupes d'écarts restants (coque, translation de +8 px de l'enveloppe, données de démo, primitives, trait, titres en bloc) ont été relus et rapprochés des entrées de la fiche, sans contrôle mécanique ligne à ligne ; un écart reste ouvert (« Appeler », « WhatsApp » : couleur de bordure lue absente, cause non établie), et « Payer maintenant » de la carte est un arbitrage téléphone contre bureau. Ouvert jusqu'à la lecture du porteur au rideau (AC-F5).
 - [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
 - [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+  - *État (r2)* : non tenu. L'en-tête de la coque est à 0,94 % au téléphone sur a-0 à a-3 (les icônes de recherche et de cloche à `rgb(76,70,65)` contre `rgba(31,24,17,0,8)` : encre opaque de la coque, TCK-2617), et la barre d'onglets à 13,99 % sur a-1 (le voile de la feuille la couvre). Ni l'un ni l'autre n'est de ce ticket.
 - [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+  - *Preuve (r2)* : `balayer` à 390, 768, 1024, 1280 et 1440 sur `/app/payments` (locataire-f4) et sur le retour (`payment_id=999999`) : débord 0, aucune coupe ; seules ellipses, les libellés du rail replié de la coque à 768. Sous `xl`, « Mon bail » passe sous la colonne (`flex-col`), aucun panneau ne reste à côté du contenu ; à 1280, la page suit la maquette « bureau 1280 » (colonne et « Mon bail » à leurs cotes).
 
 ## Hors périmètre
 
@@ -238,3 +247,29 @@ Ablations 3/3 rouges : grand montant lu sur `amount`, ligne de pénalité tue, p
 - `useInitiatePayment` relit `['me', 'rent-summary']` et `['payments', 'history']` sur erreur (`relireSurErreur`) : un 409 « déjà payée » recharge le résumé et l'historique.
   - Test : `useInitiatePayment.relire-409.tck-2650.test.tsx`.
   - Ablations, 3/3 rouges : sans `relireSurErreur`, sans l'historique, sans le résumé.
+
+### r2 (2026-11-13, tck-2650-r2) — la pénalité figée, les cotes de la maquette, les preuves
+
+**Décision 6a, côté front.** « dont pénalité de retard » se lit sur `checkout_late_fee_amount`, la part que
+le serveur a figée pour CE checkout (`PaiementVerifie`, `CarteDuRetour.tsx`) — plus jamais sur l'écart
+`checkout_amount − amount`. Une part à `0`, `null` ou absente (API d'avant) ne dit rien. Tests :
+`PaymentReturnClient.serveur.tck-2650.test.tsx` (157 500 dont 7 500 ; checkout au-dessus de la ligne avec
+une part à 0 : aucune ligne ; part absente : aucune ligne ; sans checkout : 150 000). Ablations 2/2 rouges :
+la soustraction remise, la ligne tue.
+
+**Fidélité (ADR-0106, ADR-0107 § 3-4).** r1 avait converti les largeurs fixes de la maquette en pas de
+4 px (`max-w-180`, `w-85`, `w-68`, `w-60`, `max-w-120`), que la densité du bureau rend à 90 % : 648 px au
+lieu de 720, 306 au lieu de 340, etc. Ce sont des gabarits en px, hors de l'échelle ×0,9 : ils passent en
+`rem` calculés (`xl:max-w-[45rem]`, `xl:w-[21.25rem]`, `lg:w-[16.875rem]`, `lg:w-[15rem]`,
+`max-w-[30rem]`), et abscisses et largeurs de la colonne, du tableau et de « Mon bail » deviennent
+conformes. Les gestes pleine largeur que la maquette dessine en « Bouton taille grand » passent en
+`size="xl"` (48 px, TCK-2686) : la carte du retour, « Payer d'avance », « Payer maintenant » de la carte,
+« Contacter l'agence » ; « Télécharger la quittance » est primaire et pleine largeur. « Comment payer à
+l'agence » occupe sa ligne ; les icônes de la note de pénalité du tableau passent à `size-3` ; la carte du
+retour au téléphone prend la marge de la maquette (x 20, 40 px sous l'en-tête). Chaque écart restant est
+consigné à la fiche, avec son exception.
+
+**Personas.** Les jetons de `locataire_f4` et `locataire_76` (outil de terrain-8, fichier de jetons
+privé) répondaient 200 au relevé : ils n'ont pas été renouvelés — `locataire_f4` est le compte de
+`locataire2` (utilisateur 78), un renouvellement aurait révoqué le jeton des autres agents.
+`locataire_76` n'existe pas dans `scripts/fidelite/personas.json`.

@@ -39,6 +39,7 @@ export function PayerUneEcheance({
   aLAgence,
   libelle,
   variant = 'default',
+  size = 'lg',
   className,
 }: {
   readonly echeance: EcheanceAPayer;
@@ -46,12 +47,14 @@ export function PayerUneEcheance({
   readonly aLAgence: number;
   readonly libelle: string;
   readonly variant?: 'default' | 'outline';
+  /** `xl` : le geste pleine largeur de la carte (48 px, maquette « grand ») ; `lg` dans une rangée. */
+  readonly size?: 'lg' | 'xl';
   readonly className?: string;
 }) {
   const [ouverte, setOuverte] = useState(false);
   return (
     <>
-      <Button type="button" variant={variant} size="lg" className={className} onClick={() => setOuverte(true)}>
+      <Button type="button" variant={variant} size={size} className={className} onClick={() => setOuverte(true)}>
         {libelle}
       </Button>
       {ouverte ? <FeuilleDePaiement echeance={echeance} aLAgence={aLAgence} open={ouverte} onOpenChange={setOuverte} /> : null}

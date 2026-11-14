@@ -57,6 +57,11 @@ export interface PaiementVerifie {
    * l'encaisse en ligne. `null` sans checkout. C'est lui que le fournisseur débite.
    */
   readonly checkout_amount?: number | null;
+  /**
+   * La part de pénalité de retard de ce checkout, telle que l'initiation l'a figée (décision 6a du
+   * porteur) : `0` sans pénalité, `null` sans checkout. Jamais déduite d'une soustraction.
+   */
+  readonly checkout_late_fee_amount?: number | null;
   readonly currency?: string | null;
   readonly payment_type?: string | null;
   readonly reference_number?: string | null;

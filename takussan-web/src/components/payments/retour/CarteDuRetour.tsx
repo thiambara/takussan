@@ -28,10 +28,13 @@ const DISQUES: Record<IssueDuRetour, { readonly icone: ReactNode; readonly class
   invalide: { icone: <CircleHelp className="size-7" strokeWidth={1.5} aria-hidden="true" />, classe: 'bg-muted text-muted-foreground' },
 };
 
-/** Les variantes des liens-boutons, hors des `className` (la garde des classes émises lit leurs littéraux). */
-const LIEN_PRINCIPAL = buttonVariants({ variant: 'default', size: 'lg' });
-const LIEN_CONTOUR = buttonVariants({ variant: 'outline', size: 'lg' });
-const LIEN_DISCRET = buttonVariants({ variant: 'ghost', size: 'lg' });
+/**
+ * Les variantes des liens-boutons, hors des `className` (la garde des classes émises lit leurs littéraux).
+ * `xl` : l'action principale de 48 px (TCK-2686), le « Bouton taille grand » de la maquette.
+ */
+const LIEN_PRINCIPAL = buttonVariants({ variant: 'default', size: 'xl' });
+const LIEN_CONTOUR = buttonVariants({ variant: 'outline', size: 'xl' });
+const LIEN_DISCRET = buttonVariants({ variant: 'ghost', size: 'xl' });
 
 const TITRES = {
   attente: 'attente.titre',
@@ -77,14 +80,15 @@ export function CarteDuRetour({
   const f = useFormatteurs();
   const loyer = lien?.type === 'lease-payments';
   const fournisseur = estFournisseur(paiement?.provider) ? tPasserelle(`picker.providers.${paiement.provider}`) : null;
-  // Le grand montant est celui que le fournisseur débite (`checkout_amount`), la ligne seule à défaut ;
-  // l'écart entre les deux est la pénalité de retard encaissée avec elle. Sans `checkout_amount`, rien
-  // n'est déduit.
+  // Le grand montant est celui que le fournisseur débite (`checkout_amount`), la ligne seule à défaut.
+  // « dont pénalité de retard » est la part que le serveur a figée pour CE checkout
+  // (`checkout_late_fee_amount`, décision 6a) : jamais déduite d'un écart de montants, tue à 0 ou absente.
   const debite = typeof paiement?.checkout_amount === 'number' ? paiement.checkout_amount : typeof paiement?.amount === 'number' ? paiement.amount : null;
   const montant = debite !== null ? f.montantCourt(debite, paiement?.currency) : null;
+  const partDePenalite = paiement?.checkout_late_fee_amount;
   const penalite =
-    typeof paiement?.checkout_amount === 'number' && typeof paiement.amount === 'number' && paiement.checkout_amount > paiement.amount
-      ? f.montantCourt(paiement.checkout_amount - paiement.amount, paiement.currency)
+    typeof paiement?.checkout_amount === 'number' && typeof partDePenalite === 'number' && partDePenalite > 0
+      ? f.montantCourt(partDePenalite, paiement.currency)
       : null;
   const annulee = (statutServeur ?? '').toLowerCase() === 'cancelled';
 
@@ -142,7 +146,7 @@ export function CarteDuRetour({
       ? { chemin: cheminApi`/api/leases/${paiement.lease_id}/receipts/${lien.id}/pdf`, nom: `quittance-${paiement.reference_number ?? lien.id}.pdf` }
       : null;
   const telephone = isReachable(telephoneDeLAgence) ? telephoneDeLAgence : null;
-  const grand = 'h-11 w-full';
+  const grand = 'w-full';
 
   return (
     <div className="flex flex-col items-center text-center" data-slot="carte-du-retour" data-issue={issue}>
@@ -170,13 +174,17 @@ export function CarteDuRetour({
 
       <div className="mt-6 w-full space-y-2.5">
         {quittance ? (
-          <BoutonTelechargement chemin={quittance.chemin} nomFichier={quittance.nom} size="lg" className={grand}>
-            {t('actions.telechargerQuittance')}
-          </BoutonTelechargement>
+          // L'enveloppe de `BoutonTelechargement` est `inline-flex items-start` : étirée ici, le bouton prend la
+          // largeur de la carte comme les autres gestes (maquette : « Bouton taille grand w-full »).
+          <div className="*:w-full *:items-stretch">
+            <BoutonTelechargement chemin={quittance.chemin} nomFichier={quittance.nom} variant="default" size="xl" className={grand}>
+              {t('actions.telechargerQuittance')}
+            </BoutonTelechargement>
+          </div>
         ) : null}
         {issue === 'echec' ? (
           <>
-            <Button type="button" size="lg" className={grand} onClick={onReessayer}>
+            <Button type="button" size="xl" className={grand} onClick={onReessayer}>
               {t('actions.reessayer')}
             </Button>
             {loyer ? (
@@ -188,12 +196,12 @@ export function CarteDuRetour({
         ) : null}
         {issue === 'rembourse' && telephone ? (
           <a href={telHref(telephone)} className={cn(LIEN_CONTOUR, grand)}>
-            <MessageSquare className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            <MessageSquare className="size-icone" strokeWidth={1.75} aria-hidden="true" />
             {t('actions.contacterLAgence')}
           </a>
         ) : null}
         {issue === 'attente' && epuise ? (
-          <Button type="button" size="lg" className={grand} onClick={onVerifierANouveau}>
+          <Button type="button" size="xl" className={grand} onClick={onVerifierANouveau}>
             {t('actions.verifierANouveau')}
           </Button>
         ) : null}

@@ -101,13 +101,13 @@ function NoteDePenalite({ penalite, compacte }: { readonly penalite: { readonly 
   const t = useTranslations('payments.locataire.historique');
   return penalite.due ? (
     <p className={compacte ? 'mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-warning/10 px-2 py-1 text-xs' : 'mt-2.5 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-ui'} data-slot="penalite-due">
-      <CircleAlert className="size-3.5 flex-none text-warning" aria-hidden="true" />
+      <CircleAlert className={compacte ? 'size-3 flex-none text-warning' : 'size-3.5 flex-none text-warning'} aria-hidden="true" />
       <span className="min-w-0 flex-1">{penalite.texte}</span>
       <span className="flex-none font-semibold text-warning">{t('due')}</span>
     </p>
   ) : (
     <p className={compacte ? 'mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-muted/70 px-2 py-1 text-xs text-encre-douce' : 'mt-2.5 flex items-center gap-2 rounded-lg bg-muted/70 px-3 py-2 text-ui text-encre-douce'} data-slot="penalite-reglee">
-      <Check className="size-3.5 flex-none text-success" aria-hidden="true" />
+      <Check className={compacte ? 'size-3 flex-none text-success' : 'size-3.5 flex-none text-success'} aria-hidden="true" />
       <span className="min-w-0 flex-1">{penalite.texte}</span>
     </p>
   );

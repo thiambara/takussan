@@ -92,7 +92,7 @@ export function CustomerPayments() {
   return (
     // Bureau (maquette) : la colonne de 720 px et « Mon bail » à droite dès 1280 ; dessous entre `lg` et 1280.
     <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-      <div className="min-w-0 space-y-6 xl:max-w-180 xl:flex-1">
+      <div className="min-w-0 space-y-6 xl:max-w-[45rem] xl:flex-1">
         {resumeQ.isLoading ? (
           <Skeleton className="h-40 rounded-2xl" />
         ) : resume && etat ? (

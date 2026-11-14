@@ -136,7 +136,9 @@ describe('TCK-2650 — la carte nomme ce que le serveur a rendu', () => {
   });
 
   it('le grand montant est celui que le fournisseur débite (`checkout_amount`), la pénalité dite à part', async () => {
-    etat.data = { data: { status: 'pending', payment: { amount: 150_000, checkout_amount: 157_500, currency: 'XOF', provider: 'wave', period_start: '2026-12-01' } } };
+    etat.data = {
+      data: { status: 'pending', payment: { amount: 150_000, checkout_amount: 157_500, checkout_late_fee_amount: 7_500, currency: 'XOF', provider: 'wave', period_start: '2026-12-01' } },
+    };
     await ouvrir('payment_type=lease-payments&payment_id=12');
     const espaces = { normalizer: (t: string) => t.replace(/\s/gu, ' ') };
     expect(screen.getByText('Wave nous confirme votre paiement de 157 500 F. Vous recevrez un SMS dès que c’est fait. Vous pouvez fermer cette page.', espaces)).toBeInTheDocument();
@@ -144,8 +146,26 @@ describe('TCK-2650 — la carte nomme ce que le serveur a rendu', () => {
     expect(screen.getByText('7 500 F', espaces)).toBeInTheDocument();
   });
 
+  it('décision 6a — la pénalité est celle que le serveur fige, jamais l’écart entre le checkout et la ligne', async () => {
+    // Le checkout dépasse la ligne (une autre part, ex. des charges), mais sa part de pénalité est 0.
+    etat.data = {
+      data: { status: 'pending', payment: { amount: 150_000, checkout_amount: 157_500, checkout_late_fee_amount: 0, currency: 'XOF', provider: 'wave', period_start: '2026-12-01' } },
+    };
+    await ouvrir('payment_type=lease-payments&payment_id=12');
+    expect(screen.getByText('Wave nous confirme votre paiement de 157 500 F. Vous recevrez un SMS dès que c’est fait. Vous pouvez fermer cette page.', { normalizer: (t) => t.replace(/\s/gu, ' ') })).toBeInTheDocument();
+    expect(screen.queryByText('dont pénalité de retard')).toBeNull();
+  });
+
+  it('décision 6a — une part de pénalité absente (API d’avant) n’est pas reconstituée', async () => {
+    etat.data = { data: { status: 'pending', payment: { amount: 150_000, checkout_amount: 157_500, currency: 'XOF', provider: 'wave', period_start: '2026-12-01' } } };
+    await ouvrir('payment_type=lease-payments&payment_id=12');
+    expect(screen.queryByText('dont pénalité de retard')).toBeNull();
+  });
+
   it('sans `checkout_amount`, le montant de la ligne, et aucune pénalité déduite', async () => {
-    etat.data = { data: { status: 'pending', payment: { amount: 150_000, checkout_amount: null, currency: 'XOF', provider: 'wave', period_start: '2026-12-01' } } };
+    etat.data = {
+      data: { status: 'pending', payment: { amount: 150_000, checkout_amount: null, checkout_late_fee_amount: null, currency: 'XOF', provider: 'wave', period_start: '2026-12-01' } },
+    };
     await ouvrir('payment_type=lease-payments&payment_id=12');
     expect(screen.getByText('Wave nous confirme votre paiement de 150 000 F. Vous recevrez un SMS dès que c’est fait. Vous pouvez fermer cette page.', { normalizer: (t) => t.replace(/\s/gu, ' ') })).toBeInTheDocument();
     expect(screen.queryByText('dont pénalité de retard')).toBeNull();

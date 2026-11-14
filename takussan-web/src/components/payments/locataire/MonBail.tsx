@@ -42,7 +42,7 @@ export function MonBail({ resume, caution }: { readonly resume: ResumeDuLoyer; r
   const echeance = resume.schedule_state === 'none' ? t('pasEncoreEmise') : jour ? t('leJour', { jour }) : null;
 
   return (
-    <aside aria-label={t('titre')} className="hidden w-full flex-none space-y-4 lg:block xl:w-85" data-slot="mon-bail">
+    <aside aria-label={t('titre')} className="hidden w-full flex-none space-y-4 lg:block xl:w-[21.25rem]" data-slot="mon-bail">
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="text-xs text-muted-foreground">{t('titre')}</p>
         {bail.property ? <p className="text-corps font-semibold text-foreground">{bail.property.title}</p> : null}

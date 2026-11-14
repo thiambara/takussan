@@ -24,7 +24,7 @@ import { aujourdHuiADakar, commenceParUneVoyelle, compositionDuDu, joursJusquA, 
  *
  * `null` (aucun bail : un client de réservation) ne rend aucune tête.
  */
-const LIEN_CONTOUR = buttonVariants({ variant: 'outline', size: 'lg' });
+const LIEN_CONTOUR = buttonVariants({ variant: 'outline', size: 'xl' });
 
 /** La ligne de l'historique qui porte l'échéance : `amount_due` est ce que la passerelle encaissera. */
 function montantDe(row: PaymentHistoryRow | undefined) {
@@ -95,7 +95,7 @@ function TeteDu({ resume, dus, historique, onCommentPayerALAgence }: Omit<TetePr
       data-etat="due"
       className="rounded-2xl border border-warning/25 bg-warning/10 p-5 lg:flex lg:items-start lg:gap-10 lg:p-6"
     >
-      <div className="lg:w-68 lg:flex-none">
+      <div className="lg:w-[16.875rem] lg:flex-none">
         <p id="tete-a-regler" className="flex items-center gap-1.5 text-sm font-semibold text-warning">
           <CircleAlert className="size-4" strokeWidth={1.75} aria-hidden="true" />
           {t('aRegler')}
@@ -115,7 +115,7 @@ function TeteDu({ resume, dus, historique, onCommentPayerALAgence }: Omit<TetePr
           <button
             type="button"
             onClick={onCommentPayerALAgence}
-            className="mt-1 flex h-11 items-center gap-1 text-corps font-semibold text-primary-deep outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
+            className="mt-1 flex h-11 w-full items-center gap-1 text-corps font-semibold text-primary-deep outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
           >
             {t('commentPayerALAgence')}
             <ChevronRight className="size-4" aria-hidden="true" />
@@ -238,7 +238,7 @@ function TeteAJour({ resume, dus, aujourdHui }: { readonly resume: ResumeDuLoyer
         )}
       </div>
       {prochain?.payable_online ? (
-        <div className="mt-4 lg:mt-0 lg:w-60 lg:flex-none">
+        <div className="mt-4 lg:mt-0 lg:w-[15rem] lg:flex-none">
           <BoutonPayerLeProchain prochain={prochain} dus={dus} libelle={t('payerDAvance')} secondaire aLAgence={resume.parts.payable_at_agency} />
         </div>
       ) : null}
@@ -276,9 +276,9 @@ function TeteSansEcheance({ resume }: { readonly resume: ResumeDuLoyer }) {
         </p>
       </div>
       {isReachable(telephone) ? (
-        <div className="mt-4 lg:mt-0 lg:w-60 lg:flex-none">
+        <div className="mt-4 lg:mt-0 lg:w-[15rem] lg:flex-none">
           <a href={telHref(telephone)} className={cn(LIEN_CONTOUR, 'w-full')}>
-            <MessageSquare className="size-4" strokeWidth={1.75} aria-hidden="true" />
+            <MessageSquare className="size-icone" strokeWidth={1.75} aria-hidden="true" />
             {t('contacterLAgence')}
           </a>
         </div>
@@ -314,6 +314,7 @@ function BoutonPayerLeProchain({
       aLAgence={aLAgence}
       libelle={libelle}
       variant={secondaire ? 'outline' : 'default'}
+      size="xl"
       className="w-full"
     />
   );

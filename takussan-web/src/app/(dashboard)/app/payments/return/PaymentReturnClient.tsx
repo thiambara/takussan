@@ -85,8 +85,8 @@ function PaymentReturnInner() {
         etapes={[{ label: t('fil.paiements'), href: '/app/payments' }, { label: t('fil.retour') }]}
       />
       <p className="mb-6 font-display text-2xl font-semibold tracking-titre text-foreground max-md:hidden">{t('titre')}</p>
-      <div className="flex justify-center pb-16 max-md:pt-6 md:pt-4">
-        <div className="w-full max-w-120 md:rounded-2xl md:border md:border-border md:bg-card md:p-8">
+      <div className="flex justify-center pt-4 pb-16 max-md:px-1">
+        <div className="w-full max-w-[30rem] md:rounded-2xl md:border md:border-border md:bg-card md:p-8">
           {enVerification ? (
             <div className="flex flex-col items-center py-10 text-center" role="status" aria-live="polite">
               <Loader2 className="size-10 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
