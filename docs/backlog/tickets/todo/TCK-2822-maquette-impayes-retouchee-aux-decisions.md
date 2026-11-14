@@ -53,12 +53,38 @@ mettre à jour `docs/qa/audit-ux-2026-11/fidelite/TCK-2660.json` (nouvelle date 
 
 ## Critères d'acceptation
 
-- [ ] AC1 — La référence a-2 téléphone regelée, comparée au relevé « telle qu'ouverte » (`?tab=impayes&relance=<échéance>`),
+- [x] AC1 — La référence a-2 téléphone regelée, comparée au relevé « telle qu'ouverte » (`?tab=impayes&relance=<échéance>`),
   n'a plus de ligne « absent de la maquette » pour « Créé à l'envoi de la relance », ni « absent du produit » pour
   « WhatsApp », « SMS », « E-mail ».
-- [ ] AC2 — La fiche TCK-2660 ne porte plus aucune entrée renvoyant à TCK-2822, et chaque entrée restante cite une
+  *Preuve (2026-11-14, HEAD 928e9c810)* : relevé `?tab=impayes&relance=602` (feuille telle qu'ouverte, aucun clic,
+  interceptions vides, aucun POST) comparé à la référence regelée : 28 conformes · 53 écarts · 2 absents du produit
+  (« Messages » de la barre d'onglets, ignorée) · 5 absents de la maquette (« Messages », « Aller au contenu
+  principal », « Par bailleur », « Fermer ») ; le MÊME relevé contre l'ancienne référence portait « WhatsApp »,
+  « SMS », « E-mail » absents du produit et « Créé à l’envoi de la relance » absent de la maquette.
+- [x] AC2 — La fiche TCK-2660 ne porte plus aucune entrée renvoyant à TCK-2822, et chaque entrée restante cite une
   des trois exceptions d'ADR-0106 § 2 ou une donnée.
-- [ ] AC3 — Les références de a-0 et a-3 sont inchangées (`git diff --stat` ne les nomme pas).
+  *Preuve (2026-11-14)* : `grep -c 2822 docs/qa/audit-ux-2026-11/fidelite/TCK-2660.json` → 0 (7 entrées
+  d'`ignorer` et 7 d'`ecarts_acceptes` retirées, chacune mesurée absente des rapports contre la référence regelée) ;
+  les 25 écarts acceptés, relus un à un contre ces rapports, citent « règle du design system », « technique » ou
+  « vérité des données » (4 nouveaux mesurés, 7 corrigés). Des 4 entrées d’`ignorer` restantes, « Rappel automatique » est une donnée ; la coque, le mois
+  et l’export de l’en-tête, le « ⋯ » des rangées sont des décisions du porteur, qui a validé le 2026-11-14 la
+  maquette retouchée avec ces choix (`exception` : « décision du porteur (validation du 2026-11-14) »). Les deux
+  écarts mesurés non acceptés (hauteur des lignes du dossier, +16 px du contenu au téléphone) restent dans
+  `ecarts_ouverts` → TCK-2840. Même passe sur TCK-2682.json : `grep -c 2822` → 0.
+- [x] AC3 — Les références de a-0 et a-3 sont inchangées (`git diff --stat` ne les nomme pas).
+  *Preuve* : `git diff --stat -- docs/qa/audit-ux-2026-11/fidelite/references` ne nomme que les six JSON d'a-1 et
+  a-2 et `JOURNAL.md` (ligne app-argent : dates « 2026-11-11, 2026-11-14 ») ; md5 avant/après identiques pour
+  a-0-*, a-3-* (JSON et PNG de `takussan-web/.fidelite/references/`) et `gel.json`. Le gel a été borné en
+  écartant les six JSON d'a-1 et a-2 puis en lançant `geler --page app-argent --appareils
+  telephone,bureau-1440,bureau-1280` SANS `--force` (« 6 relevés écrits, 6 déjà présents ») : `--force` re-relève
+  toute la page, a-0 et a-3 compris.
+
+## Notes
+
+- Maquette validée par le porteur le 2026-11-14 (`app-argent-a.tsx`, md5 96de45586e6da103aeabfc3f5ec34536, au
+  moment du gel). Les six références regelées ont des nœuds identiques aux relevés de la maquette montrés au porteur.
+- `meta.gel.revue` des références cite encore la revue du 2026-11-11 : l'outil la lit dans
+  `references/retenues.json`. La nouvelle date et la validation sont nommées dans les fiches TCK-2660 et TCK-2682.
 
 ## Hors périmètre
 

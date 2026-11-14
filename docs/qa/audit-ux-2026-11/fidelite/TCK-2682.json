@@ -11,12 +11,13 @@
         "bureau-1440": "references/app-argent/a-1-bureau-1440.json",
         "bureau-1280": "references/app-argent/a-1-bureau-1280.json"
       },
-      "gele_le": "2026-11-11",
+      "gele_le": "2026-11-14",
       "produit": {
         "route": "/app/agency/finances?tab=impayes",
         "persona": "admin",
-        "etat": "agence 1 de démo, « Par locataire », « Tous » : 16 échéances échues, 33 715 000 F. Bureau : les QUATRE premières rangées cochées, comme la maquette (`SELECTION` : ses quatre premiers locataires) — `selection-bureau.js`. Téléphone : la liste AU REPOS, hors mode sélection (condition 1 du chef d'équipe : « l'écran a-1 du téléphone reste identique ») — `liste-filet.js` de TCK-2660. Le mode sélection du téléphone n'a pas de maquette : relevé à part (`prod-selection-telephone`), sans comparaison"
-      }
+        "etat": "agence 1 de démo, « Par locataire », « Tous » : 16 échéances échues, 33 715 000 F. Depuis le regel du 2026-11-14 (maquette validée par le porteur ce jour-là), la référence a-1 dessine l’écran AU REPOS (colonne de coches, rien de coché, sans barre) : le relevé COMPARÉ est la liste au repos, aux trois appareils (`liste-filet.js`, relevés `takussan-web/.fidelite/TCK-2660-20261114/prod-a-1-*`). La sélection (bureau : quatre rangées cochées, `selection-bureau.js` ; téléphone : mode sélection, `prod-selection-telephone`) est RELEVÉE SANS COMPARAISON : aucune maquette ne la dessine plus — décision du chef d’équipe du 2026-11-14"
+      },
+      "reference": "regelée le 2026-11-14 sur la maquette « Impayés » retouchée aux décisions du porteur (validée par le porteur le 2026-11-14) : a-1 au repos (colonne de coches, rien de coché, sans barre de sélection), « Sélectionner » à la place du « ⋯ » au téléphone ; a-2 avec le repère et « Créé à l’envoi de la relance »"
     },
     {
       "page": "app-argent",
@@ -28,12 +29,13 @@
         "bureau-1440": "references/app-argent/a-2-bureau-1440.json",
         "bureau-1280": "references/app-argent/a-2-bureau-1280.json"
       },
-      "gele_le": "2026-11-11",
+      "gele_le": "2026-11-14",
       "produit": {
         "route": "/app/agency/finances?tab=impayes",
         "persona": "admin",
-        "etat": "la file ouverte sur la 1re des quatre échéances cochées, le bouton « Ouvrir WhatsApp » prêt et son message composé avec le repère « [lien de paiement ajouté à l’envoi] » — aucun lien n'est demandé à l'affichage (décision 1 du porteur, 38bac668d) : « 1 sur 4 ». Téléphone : « Sélectionner », quatre cartes cochées, « Relancer la sélection (4) » de la barre collante (`file-tel.js`). Bureau : quatre rangées cochées, « WhatsApp » de la barre (`file-bureau.js`). Rien n'est cliqué dans la file. La maquette ne dessine pas la file (ticket § Direction : « elle reprend la feuille de relance unitaire de TCK-2660, avec un en-tête « 3 sur 12 » ») : la référence est la feuille (téléphone) et le dossier (bureau) d'a-2 — l'écart dû à la décision 1 renvoie à TCK-2822 (maquette retouchée)"
-      }
+        "etat": "la file ouverte sur la 1re des quatre échéances cochées, le bouton « Ouvrir WhatsApp » prêt et son message composé avec le repère « [lien de paiement ajouté à l’envoi] » — aucun lien n'est demandé à l'affichage (décision 1 du porteur, 38bac668d) : « 1 sur 4 ». Téléphone : « Sélectionner », quatre cartes cochées, « Relancer la sélection (4) » de la barre collante (`file-tel.js`). Bureau : quatre rangées cochées, « WhatsApp » de la barre (`file-bureau.js`). Rien n'est cliqué dans la file. La maquette ne dessine pas la file (ticket § Direction : « elle reprend la feuille de relance unitaire de TCK-2660, avec un en-tête « 3 sur 12 » ») : la référence est la feuille (téléphone) et le dossier (bureau) d'a-2 — la référence regelée le 2026-11-14 dessine le repère et le cadre de la décision 1"
+      },
+      "reference": "regelée le 2026-11-14 sur la maquette « Impayés » retouchée aux décisions du porteur (validée par le porteur le 2026-11-14) : a-1 au repos (colonne de coches, rien de coché, sans barre de sélection), « Sélectionner » à la place du « ⋯ » au téléphone ; a-2 avec le repère et « Créé à l’envoi de la relance »"
     }
   ],
   "produit": {
@@ -360,13 +362,6 @@
       "propriete": "fond rgba(162,93,46,0.04) → rgba(177,78,59,0.05)",
       "exception": "règle du design system",
       "motif": "`bg-primary/5` : une opacité en entier (garde `check-valeurs-arbitraires-app`, « opacite-crochets ») au lieu du `bg-primary/[0.045]` de la maquette ; la teinte est la `--primary` du produit"
-    },
-    {
-      "ecran": "a-2-*",
-      "element": "le message et le cadre du lien de paiement de la file, tels qu'affichés",
-      "propriete": "texte : l'URL (« takussan.com/pay/… ») → le repère « [lien de paiement ajouté à l’envoi] » ; « Créé à l’envoi de la relance » dans le cadre (tous deux absents de la maquette)",
-      "exception": "ticket de suite TCK-2822",
-      "motif": "décision 1 du porteur (2026-11-12, ADR-0105 amendement), postérieure au gel : le lien n'est créé qu'à l'envoi (« Ouvrir WhatsApp »). Même écart que la fiche de TCK-2660. La maquette retouchée (repère et cadre « Créé à l’envoi ») est l'objet de TCK-2822, comme pour TCK-2660."
     }
   ],
   "comparaisons": {
@@ -403,5 +398,14 @@
     },
     "largeurs_ac4": "390 : « Ouvrir WhatsApp » bas à 780 px sur 844 à chaque pas, « Suivant » d'un saut 409 aussi (780) ; scrollWidth − innerWidth = 0. 1280 : panneau de 480 px à x 800, rangée présentée surlignée (`aria-current`) ; le panneau, non modal, couvre la droite de la table : les colonnes Locataire et Bien restent visibles (x 303 → 800), comme au 2026-11-12 (captures prod-a-2-bureau-1280 des deux dates, même disposition), scrollWidth − innerWidth = 0. Retour pendant la file (390) : la file se ferme, 3 cochées restent, même URL ; `?relance=file` (390) : la file s'ouvre sans demander de lien, l'adresse est nettoyée, un retour la ferme"
   },
-  "zones_motif": "aucune zone déclarée : la coque (barre latérale, barre d'onglets) et la tête de page sont mesurées par TCK-2691 et TCK-2660, communes à tout /app ; la barre de filtres porte des comptes de la base (données). AC-F4 n'est pas jugé par cette fiche"
+  "zones_motif": "aucune zone déclarée : la coque (barre latérale, barre d'onglets) et la tête de page sont mesurées par TCK-2691 et TCK-2660, communes à tout /app ; la barre de filtres porte des comptes de la base (données). AC-F4 n'est pas jugé par cette fiche",
+  "comparaisons_regel_2026_11_14": {
+    "produit": "les relevés du produit du 2026-11-14 (takussan-web/.fidelite/TCK-2682-20261114/prod-a-*), comparés sans nouveau relevé à la référence regelée, avec `--roles` de cette fiche",
+    "resultats": {
+      "a-2-telephone (la file, 1 sur 4)": "17 conformes · 62 écarts · 19 absents · 56,05 % (ancienne référence : 17 · 59 · 27 · 57,23 %). Le repère et « Créé à l’envoi de la relance » ne sont plus absents de la maquette : restent leurs écarts de position (y), la file étant plein écran — repère seulement. Nouveau : « Sélectionner » absent du produit (la file couvre l'en-tête)",
+      "a-2-bureau-1280 (la file, 1 sur 4)": "42 conformes · 353 écarts · 111 absents · 18,59 % (ancienne : 46 · 302 · 82 · 68,4 %, le voile en moins). « Créé à l’envoi » n'est plus absent de la maquette ; les lignes du dossier d'a-2 (pénalité, ancienneté, « Le paiement solde… ») sont absentes du produit, le panneau portant la relance composée — repère seulement",
+      "a-1-bureau-1280 (4 cochées)": "relevée sans comparaison depuis le regel (pour mémoire, contre la référence regelée : 45 · 323 · 100 · 16,99 % — la barre et les coches pleines y sont « absentes de la maquette », ce qui est attendu). Motif : la maquette validée le 2026-11-14 ne dessine que l’écran au repos ; décision du chef d’équipe du 2026-11-14",
+      "a-1 au repos (relevé comparé)": "téléphone 30 conformes · 37 écarts · 6 absents · 23,37 % ; bureau 1440 48 · 326 · 92 · 13,07 % ; bureau 1280 47 · 325 · 90 · 14,07 % (mêmes relevés et rapports que la fiche TCK-2660, `takussan-web/.fidelite/TCK-2660-20261114/cmp-a-1-*`)"
+    }
+  }
 }
