@@ -4913,7 +4913,8 @@
         "paye": "{mois}: paid on {date}",
         "aVenir": "{mois}: due on {date}",
         "aRegler": "To be paid to your agency",
-        "echeancesEnRetard": "{n, plural, one {# overdue payment} other {# overdue payments}}"
+        "echeancesEnRetard": "{n, plural, one {# overdue payment} other {# overdue payments}}",
+        "relancer": "Remind"
       },
       "duree": {
         "titre": "Term",
@@ -5076,7 +5077,8 @@
         "periodeRiche": "<t>{type} · </t><m>{mois}</m>",
         "enRetardDe": "{jours} d overdue",
         "payeLe": "Paid on {date}",
-        "quittance": "Receipt"
+        "quittance": "Receipt",
+        "relancer": "Remind"
       },
       "types": {
         "residential_rent": "Residential",

@@ -3734,7 +3734,8 @@
         "paye": "{mois} : payé le {date}",
         "aVenir": "{mois} : à régler le {date}",
         "aRegler": "À régler auprès de votre agence",
-        "echeancesEnRetard": "{n, plural, one {# échéance en retard} other {# échéances en retard}}"
+        "echeancesEnRetard": "{n, plural, one {# échéance en retard} other {# échéances en retard}}",
+        "relancer": "Relancer"
       },
       "duree": {
         "titre": "Durée",
@@ -3897,7 +3898,8 @@
         "periodeRiche": "<t>{type} · </t><m>{mois}</m>",
         "enRetardDe": "En retard de {jours} j",
         "payeLe": "Payé le {date}",
-        "quittance": "Quittance"
+        "quittance": "Quittance",
+        "relancer": "Relancer"
       },
       "types": {
         "residential_rent": "Habitation",
