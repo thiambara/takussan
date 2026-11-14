@@ -9,6 +9,7 @@ use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
 use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Http\Requests\Api\TerminateLeaseRequest;
 use App\Http\Requests\UpdateLeaseRequest;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LeaseResource;
 use App\Models\Booking;
 use App\Models\Enums\LeaseStatus;
@@ -78,13 +79,18 @@ class LeaseController extends Controller
         $this->authorize('view', $lease);
 
         // TCK-2642 — la fiche ne passe pas par `buildQuery()` : ses inclusions se lisent à la main.
+        // TCK-2780 — `tenant` en est une : rendu sous `include=tenant` seulement, et borné par
+        // `fields[customers]` (le nom que valide la liste). Chargé entier : les gardes de
+        // `CustomerResource` se jugent sur la fiche complète, le bornage ne vaut que pour le rendu.
         $includes = $this->requestedIncludes($request);
-        $lease->load(array_values(array_intersect(['landlord', 'agent'], $includes)));
+        $avecLocataire = in_array('tenant', $includes, true);
+        $lease->load(array_values(array_intersect(['landlord', 'agent', 'tenant'], $includes)));
         $this->attachComputed($lease->newCollection([$lease]), $request);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'signatures.signer', 'signatures.onBehalfOf']))
+            'data' => LeaseResource::make($lease->load(['property.address', 'signatures.signer', 'signatures.onBehalfOf']))
                 ->forViewer($request->user())
+                ->avecLocataire($avecLocataire, $avecLocataire ? CustomerResource::champsDemandesDuBloc($request) : null)
                 ->resolve($request),
         ]);
     }

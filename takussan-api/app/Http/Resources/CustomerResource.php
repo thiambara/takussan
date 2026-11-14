@@ -13,6 +13,7 @@ use App\Policies\PropertyVisitPolicy;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Documents\DocumentVisibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Support\Http\ParametreUnique;
 use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -36,6 +37,13 @@ class CustomerResource extends BaseResource
      * ({@see self::ficheJugeable()}).
      */
     private const TRAITS_JUGES = ['id', 'agency_id', 'added_by_id', 'user_id'];
+
+    /**
+     * TCK-2780 — les clés de CE bloc ({@see self::borneeAuxChamps()}) ; `null` : le bloc entier.
+     *
+     * @var list<string>|null
+     */
+    private ?array $champsDuBloc = null;
 
     /**
      * TCK-2756 (décision du porteur : a) — la LISTE du CRM rend les seules colonnes que
@@ -66,6 +74,48 @@ class CustomerResource extends BaseResource
     public static function noterLesChampsDemandes(Request $request, array $colonnes): void
     {
         $request->attributes->set(self::CHAMPS_DEMANDES, $colonnes);
+    }
+
+    /**
+     * TCK-2780 — les clés que `fields[customers]` demande pour un bloc imbriqué rendu à la main (le
+     * `tenant` de `GET /api/leases/{id}`), `id` en tête ; `null` sans demande. Même nom de clé que la
+     * liste des baux, où spatie la valide. Reçue en liste (`fields[customers][]=…`), la demande vaut
+     * absente (ADR-0075) : le bloc entier, celui que le lecteur reçoit sans `fields`.
+     *
+     * @return list<string>|null
+     */
+    public static function champsDemandesDuBloc(Request $request): ?array
+    {
+        $brut = ParametreUnique::chaine($request, 'fields.customers');
+        if ($brut === null || trim($brut) === '') {
+            return null;
+        }
+        $noms = array_filter(array_map('trim', explode(',', $brut)), fn (string $nom) => $nom !== '');
+
+        return array_values(array_unique(['id', ...$noms]));
+    }
+
+    /**
+     * TCK-2780 — borne CE bloc à `id` et aux clés demandées. Le bornage s'applique au rendu, après les
+     * gardes jugées sur la fiche complète (`litLaFiche`, `notesLisibles`, `readsVisits`…) : une clé
+     * demandée qu'une garde a retirée reste absente, aucune n'ouvre un droit. `null` : le bloc entier.
+     *
+     * @param  list<string>|null  $champs
+     */
+    public function borneeAuxChamps(?array $champs): static
+    {
+        $this->champsDuBloc = $champs;
+
+        return $this;
+    }
+
+    /**
+     * @param  array<string, mixed>  $rendu
+     * @return array<string, mixed>
+     */
+    private function borner(array $rendu): array
+    {
+        return $this->champsDuBloc === null ? $rendu : array_intersect_key($rendu, array_flip($this->champsDuBloc));
     }
 
     public function toArray(Request $request): array
@@ -234,7 +284,7 @@ class CustomerResource extends BaseResource
         ];
 
         if (! self::champsStricts($request)) {
-            return $rendu;
+            return $this->borner($rendu);
         }
 
         // TCK-2756 — une colonne de la fiche que la lecture n'a pas chargée n'est pas rendue. Les
@@ -246,12 +296,12 @@ class CustomerResource extends BaseResource
         $demandees = $request->attributes->get(self::CHAMPS_DEMANDES);
         $lues = $this->resource->getAttributes();
 
-        return array_filter(
+        return $this->borner(array_filter(
             $rendu,
             fn (string $cle) => ! in_array($cle, $colonnes, true)
                 || (is_array($demandees) ? in_array($cle, $demandees, true) : array_key_exists($cle, $lues)),
             ARRAY_FILTER_USE_KEY,
-        );
+        ));
     }
 
     /**

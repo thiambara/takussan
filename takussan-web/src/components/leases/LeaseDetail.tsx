@@ -124,7 +124,7 @@ interface LeaseDetailProps {
 export function LeaseDetail({ leaseId, historique = false }: LeaseDetailProps) {
   const tLease = useTranslations('lease');
   const tCommon = useTranslations('common');
-  const leaseQuery = useLease(leaseId);
+  const leaseQuery = useLease(leaseId, { avecLocataire: true });
   const { data, isLoading, isError } = leaseQuery;
   const { data: paymentsData } = useLeasePayments(leaseId);
   const lease = data?.data;

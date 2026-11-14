@@ -21,12 +21,36 @@ class LeaseResource extends BaseResource
     private ?User $viewer = null;
 
     /**
+     * TCK-2780 — le bloc `tenant` du détail : `null` sur la liste (la relation chargée décide,
+     * `whenLoaded`), sinon la décision du contrôleur — `inclus` (la requête porte `include=tenant`) et
+     * `champs` (`fields[customers]`, ou `null` pour le bloc entier). Jamais l'état de la relation :
+     * `LeasePolicy::view` lit `$lease->tenant` pour reconnaître le locataire, ce qui la charge avant le
+     * rendu.
+     *
+     * @var array{inclus: bool, champs: list<string>|null}|null
+     */
+    private ?array $locataire = null;
+
+    /**
      * TCK-596 §4B — ce que l'utilisateur courant peut faire de la signature : les rôles pour
      * lesquels il signe, et s'il peut lancer la demande. Seulement sur le détail.
      */
     public function forViewer(?User $viewer): static
     {
         $this->viewer = $viewer;
+
+        return $this;
+    }
+
+    /**
+     * TCK-2780 — le locataire du détail, rendu sous `include=tenant` seulement, et borné aux champs
+     * demandés ({@see CustomerResource::borneeAuxChamps()}).
+     *
+     * @param  list<string>|null  $champs
+     */
+    public function avecLocataire(bool $inclus, ?array $champs): static
+    {
+        $this->locataire = ['inclus' => $inclus, 'champs' => $champs];
 
         return $this;
     }
@@ -92,7 +116,11 @@ class LeaseResource extends BaseResource
             'early_termination_penalty_months' => $this->when($this->viewer !== null,
                 fn (): int => app(EarlyTerminationService::class)->penaltyMonthsFor($this->resource)),
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
-            'tenant' => $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant)),
+            'tenant' => $this->locataire === null
+                ? $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant))
+                : $this->when($this->locataire['inclus'], fn () => $this->tenant === null
+                    ? null
+                    : CustomerResource::make($this->tenant)->borneeAuxChamps($this->locataire['champs'])),
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
             'renewals' => $this->whenLoaded('renewals', fn () => self::collection($this->renewals)),
             'renewals_count' => $this->whenCounted('renewals'),

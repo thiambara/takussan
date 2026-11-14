@@ -32,9 +32,14 @@ const revision = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 const generer = vi.hoisted(() => ({ mutate: vi.fn(), isPending: false }));
 const remplacer = vi.hoisted(() => vi.fn());
 const toastAdd = vi.hoisted(() => vi.fn());
+// TCK-2780 — les options avec lesquelles la fiche lit son bail.
+const optionsDeLecture = vi.hoisted(() => [] as unknown[]);
 
 vi.mock('@/lib/queries/leases', () => ({
-  useLease: () => ({ data: { data: etat.lease }, isLoading: false, isError: false, refetch: vi.fn() }),
+  useLease: (_id: unknown, options?: unknown) => {
+    optionsDeLecture.push(options);
+    return { data: { data: etat.lease }, isLoading: false, isError: false, refetch: vi.fn() };
+  },
   useLeasePayments: () => ({ data: etat.paiements ? { data: etat.paiements } : undefined }),
   useGenerateSchedule: () => generer,
   useReviewLeaseRent: () => revision,
@@ -219,6 +224,16 @@ describe('AC3 — rien avant les capacités, et jamais par les rôles', () => {
     etat.user = { id: 9, roles: ['customer'] };
     monter();
     expect(within(barre()!).getByText(fr.lease.fiche.gestes.encaisser)).toBeInTheDocument();
+  });
+});
+
+describe('TCK-2780 — la fiche demande le locataire qu’elle nomme', () => {
+  it('lit le bail avec `avecLocataire` : `show` ne rend plus le locataire sans `include=tenant`', () => {
+    optionsDeLecture.length = 0;
+    etat.lease = bail(GESTION);
+    monter();
+    expect(optionsDeLecture.length).toBeGreaterThan(0);
+    expect(optionsDeLecture.every((o) => (o as { avecLocataire?: boolean } | undefined)?.avecLocataire === true)).toBe(true);
   });
 });
 

@@ -68,8 +68,7 @@ describe('TCK-2647 — le modèle de pièces passe par cheminApi', () => {
 });
 
 describe('q1 de 065941306 — le contexte du bail sans le locataire', () => {
-  // `GET /api/leases/{id}` sert l'include `tenant` entier (téléphone, e-mail) sans égard aux `fields` :
-  // le parcours et le récapitulatif lisent le nom sur l'état des lieux, et ne le demandent pas.
+  // Le parcours et le récapitulatif lisent le nom sur l'état des lieux, et ne demandent pas le locataire.
   it('`avecLocataire: false` n’inclut que le bien', async () => {
     renderHook(() => useContexteDuBail(208, { avecLocataire: false }), { wrapper: enveloppe });
     await waitFor(() => expect(mockApiRequest).toHaveBeenCalled());
@@ -79,9 +78,14 @@ describe('q1 de 065941306 — le contexte du bail sans le locataire', () => {
     expect(chemin).not.toMatch(/tenant/);
   });
 
-  it('par défaut (« Démarrer »), le locataire reste inclus', async () => {
+  // TCK-2780 — `show` ne rend le locataire que sous `include=tenant`, borné par `fields[customers]` :
+  // « Démarrer » le demande avec son seul nom, sans téléphone ni e-mail.
+  it('par défaut (« Démarrer »), le locataire est inclus avec son seul nom', async () => {
     renderHook(() => useContexteDuBail(208), { wrapper: enveloppe });
     await waitFor(() => expect(mockApiRequest).toHaveBeenCalled());
-    expect(decodeURIComponent(mockApiRequest.mock.calls[0][0] as string)).toContain('tenant');
+    const requete = new URLSearchParams(decodeURIComponent(mockApiRequest.mock.calls[0][0] as string).split('?')[1]);
+    expect(requete.get('include')?.split(',')).toEqual(expect.arrayContaining(['tenant', 'property']));
+    expect(requete.get('fields[customers]')).toBe('id,first_name,last_name');
+    expect(requete.get('fields[customers]')).not.toMatch(/phone|email/);
   });
 });

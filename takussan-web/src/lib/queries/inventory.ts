@@ -288,7 +288,8 @@ export function useInventoryTemplate(requete: Record<string, string> | null) {
 /**
  * TCK-2647 — le bail d'un état des lieux, pour l'en-tête qui le nomme de bout en bout (P1 de
  * l'audit) : le bien (titre, photo, type, chambres), le locataire, la référence ; et ce qui déduit
- * le type (statut) et borne les retenues (caution). `show` lit ses champs à la main : pas de `fields`.
+ * le type (statut) et borne les retenues (caution). `show` lit ses champs à la main : pas de
+ * `fields[leases]` ; seul `fields[customers]` borne le locataire (TCK-2780).
  */
 export interface ContexteDuBail {
   readonly id: number;
@@ -308,18 +309,26 @@ export interface ContexteDuBail {
   readonly tenant?: { readonly first_name?: string | null; readonly last_name?: string | null } | null;
 }
 
+/** TCK-2780 — ce que « Démarrer » lit du locataire : son nom (`nomDuLocataire`), ni téléphone ni e-mail. */
+export const CHAMPS_DU_LOCATAIRE_DU_CONTEXTE = ['id', 'first_name', 'last_name'];
+
 /**
  * Le contexte du bail d'un état des lieux. `avecLocataire: false` ne charge pas le locataire : le
  * parcours et le récapitulatif lisent son nom sur l'état des lieux (`InventoryResource`, `{id, full_name,
- * first_name}`), et `GET /api/leases/{id}` sert l'include `tenant` ENTIER, téléphone et e-mail compris,
- * sans égard aux `fields` (q1 de la contre-vérification de 065941306). « Démarrer », avant tout état des
- * lieux, le charge encore : écart consigné, il demande un changement de l'API.
+ * first_name}`). « Démarrer », avant tout état des lieux, le demande, borné à son nom : depuis TCK-2780,
+ * `GET /api/leases/{id}` ne rend le locataire que sous `include=tenant`, et seulement les clés de
+ * `fields[customers]` (l'écart q1 de la contre-vérification de 065941306 est fermé).
  */
 export function useContexteDuBail(leaseId: number | null | undefined, { avecLocataire = true }: { readonly avecLocataire?: boolean } = {}) {
   return useApiQuery<ApiResponse<ContexteDuBail>>(
     ['inventory', 'contexte-du-bail', leaseId ?? 0, avecLocataire ? 'locataire' : 'sans-locataire'],
     cheminApi`/api/leases/${leaseId ?? 0}`,
-    { params: { include: avecLocataire ? ['tenant', 'property'] : ['property'] }, enabled: Boolean(leaseId) },
+    {
+      params: avecLocataire
+        ? { include: ['tenant', 'property'], fields: { customers: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE } }
+        : { include: ['property'] },
+      enabled: Boolean(leaseId),
+    },
   );
 }
 

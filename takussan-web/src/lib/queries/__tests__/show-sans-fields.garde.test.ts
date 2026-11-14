@@ -29,12 +29,21 @@
  * `fields: { customers: [...ATTRIBUTS_CALCULES_DE_LA_FICHE] }` et rien d'autre, et que chaque nom de
  * cette constante (lue dans `lib/queries/customers.ts`) est dans `CustomerCommercialAttributes::FIELDS`
  * (lue dans l'API). Un nom de colonne glissé dans la constante, ou à côté d'elle, refait rougir.
+ *
+ * ## Et une seconde (TCK-2780)
+ *
+ * Le show du bail (`/api/leases/${id}`) borne le locataire de `include=tenant` par `fields[customers]` :
+ * l'API le lit (`CustomerResource::champsDemandesDuBloc($request)` dans `LeaseController.php`) et ne
+ * rend que `id` et les clés demandées. L'exception ne vaut que si la déclaration envoie
+ * `fields: { customers: CHAMPS_DU_LOCATAIRE_… }` (une constante nommée ainsi) et rien d'autre en
+ * `fields`, et que l'API lit toujours cette demande. Un autre show, une autre table, ou une API qui
+ * cesserait de la lire refont rougir.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { attributsCalcules } from './attributs-calcules-de-l-api';
+import { attributsCalcules, RACINE_DU_DEPOT } from './attributs-calcules-de-l-api';
 
 const RACINE = process.cwd();
 const SRC = join(RACINE, 'src');
@@ -88,16 +97,31 @@ function nomsNonCalcules(noms: readonly string[], calcules: readonly string[]): 
   return noms.filter((n) => !calcules.includes(n));
 }
 
-function excusee(bloc: string, constanteSaine: boolean): boolean {
-  if (!constanteSaine || !SHOW_CLIENT.test(bloc)) return false;
-  const reste = bloc.replace(ENVOI_DES_CALCULES, '');
-  return reste !== bloc && !/\bfields\b/.test(reste);
+/** TCK-2780 — la seconde forme admise : le show du bail, avec les seuls champs du locataire. */
+const SHOW_BAIL = /\/api\/leases\/\$\{[^}]+\}(?=`|\?|\$\{requete)/;
+const ENVOI_DU_LOCATAIRE = /\bfields:\s*\{\s*customers:\s*CHAMPS_DU_LOCATAIRE_[A-Z_]+\s*,?\s*\}/g;
+
+/** L'API borne-t-elle encore le locataire du show du bail ? Un APPEL dans le contrôleur, pas un docblock. */
+function bailLitLesChampsDuLocataire(php: string): boolean {
+  return /CustomerResource::champsDemandesDuBloc\(\$request\)/.test(php.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''));
 }
 
-function fautifs(chemin: string, texte: string, constanteSaine = false): string[] {
+function excusee(bloc: string, constanteSaine: boolean, bailBorne: boolean): boolean {
+  if (constanteSaine && SHOW_CLIENT.test(bloc)) {
+    const reste = bloc.replace(ENVOI_DES_CALCULES, '');
+    if (reste !== bloc && !/\bfields\b/.test(reste)) return true;
+  }
+  if (bailBorne && SHOW_BAIL.test(bloc) && !SHOW_CLIENT.test(bloc)) {
+    const reste = bloc.replace(ENVOI_DU_LOCATAIRE, '');
+    if (reste !== bloc && !/\bfields\b/.test(reste)) return true;
+  }
+  return false;
+}
+
+function fautifs(chemin: string, texte: string, constanteSaine = false, bailBorne = false): string[] {
   return declarations(texte)
     .map(sansCommentaires)
-    .filter((bloc) => CHEMIN_DE_DETAIL.test(bloc) && /\bfields\b/.test(bloc) && !excusee(bloc, constanteSaine))
+    .filter((bloc) => CHEMIN_DE_DETAIL.test(bloc) && /\bfields\b/.test(bloc) && !excusee(bloc, constanteSaine, bailBorne))
     .map((bloc) => `${chemin} : ${bloc.match(CHEMIN_DE_DETAIL)?.[0]}`);
 }
 
@@ -110,6 +134,9 @@ const FICHIERS = sources(SRC).map((f) => ({
 const noms = nomsDeLaConstante(readFileSync(join(SRC, 'lib', 'queries', 'customers.ts'), 'utf8'));
 const calcules = attributsCalcules('customers');
 const constanteSaine = noms !== null && noms.length > 0 && nomsNonCalcules(noms, calcules).length === 0;
+// TCK-2780 — le contrôleur du bail, lu dans l'API.
+const CONTROLEUR_DU_BAIL = readFileSync(join(RACINE_DU_DEPOT, 'takussan-api', 'app', 'Http', 'Controllers', 'Api', 'LeaseController.php'), 'utf8');
+const bailBorne = bailLitLesChampsDuLocataire(CONTROLEUR_DU_BAIL);
 
 describe('P60.03 — aucun `fields[...]` envoyé à un `show`', () => {
   it('reconnaît la forme qu’elle refuse (témoins)', () => {
@@ -135,7 +162,7 @@ describe('P60.03 — aucun `fields[...]` envoyé à un `show`', () => {
   });
 
   it('aucune déclaration du code ne l’envoie', () => {
-    const tous = FICHIERS.flatMap(({ chemin, texte }) => fautifs(chemin, texte, constanteSaine));
+    const tous = FICHIERS.flatMap(({ chemin, texte }) => fautifs(chemin, texte, constanteSaine, bailBorne));
     expect(tous).toEqual([]);
   });
 
@@ -162,6 +189,28 @@ describe('P60.03 — aucun `fields[...]` envoyé à un `show`', () => {
       // Une constante qui porterait un nom que l'API ne calcule pas retire l'exception.
       expect(fautifs('t.ts', declaration('fields: { customers: [...ATTRIBUTS_CALCULES_DE_LA_FICHE] }'), false)).toHaveLength(1);
       expect(nomsNonCalcules(['next_action', 'first_name'], ['next_action'])).toEqual(['first_name']);
+    });
+  });
+
+  describe('TCK-2780 — l’exception du show du bail', () => {
+    const declaration = (envoi: string, chemin = '/api/leases/') =>
+      `export function f() {\n  return useApiQuery(k, cheminApi\`${chemin}\${id ?? 0}\`, { params: { include: ['tenant'], ${envoi} } });\n}\n`;
+
+    it('lit l’appel dans le contrôleur du bail, pas un commentaire', () => {
+      expect(bailBorne, 'LeaseController::show ne lit plus CustomerResource::champsDemandesDuBloc($request)').toBe(true);
+      expect(bailLitLesChampsDuLocataire('// CustomerResource::champsDemandesDuBloc($request)\n')).toBe(false);
+      expect(bailLitLesChampsDuLocataire('/** {@see CustomerResource::champsDemandesDuBloc($request)} */')).toBe(false);
+    });
+
+    it('n’excuse que les champs du locataire, seuls, vers le seul show du bail (témoins)', () => {
+      expect(fautifs('t.ts', declaration('fields: { customers: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE }'), false, true)).toEqual([]);
+      // Une autre table, une liste écrite à la main, une table de plus, un autre show : refusés.
+      expect(fautifs('t.ts', declaration('fields: { leases: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE }'), false, true)).toHaveLength(1);
+      expect(fautifs('t.ts', declaration("fields: { customers: ['id', 'first_name'] }"), false, true)).toHaveLength(1);
+      expect(fautifs('t.ts', declaration("fields: { customers: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE, leases: ['id'] }"), false, true)).toHaveLength(1);
+      expect(fautifs('t.ts', declaration('fields: { customers: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE }', '/api/bookings/'), false, true)).toHaveLength(1);
+      // Une API qui ne borne plus le locataire retire l'exception.
+      expect(fautifs('t.ts', declaration('fields: { customers: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE }'), false, false)).toHaveLength(1);
     });
   });
 });

@@ -7,7 +7,7 @@ family: full
 estimate: S
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -63,28 +63,40 @@ de 065941306).
 
 ## Delta à produire
 
-- [ ] `LeaseController::show()` : `tenant` sort de la liste chargée d'office et n'est chargé que sous
+- [x] `LeaseController::show()` : `tenant` sort de la liste chargée d'office et n'est chargé que sous
   `include=tenant`.
-- [ ] `CustomerResource` (ou une méthode partagée) : lecture de `fields[customers]` qui garde `id`, comme
+- [x] `CustomerResource` (ou une méthode partagée) : lecture de `fields[customers]` qui garde `id`, comme
   `AppNotificationResource::requestedFields()`. Elle est appliquée au bloc `tenant` du bail.
-- [ ] Inventaire des appelants front de `GET /api/leases/{id}` (`cheminApi\`/api/leases/${…}\``). Pour chacun : ce
+- [x] Inventaire des appelants front de `GET /api/leases/{id}` (`cheminApi\`/api/leases/${…}\``). Pour chacun : ce
   qu'il lit du locataire, puis `include` et `fields` réduits à cela.
-- [ ] Le commentaire de `useContexteDuBail` est réécrit : l'écart qu'il consigne est fermé.
-- [ ] Tests `BailLocataireALaDemandeTest`, pour chacun des quatre lecteurs :
+- [x] Le commentaire de `useContexteDuBail` est réécrit : l'écart qu'il consigne est fermé.
+- [x] Tests `BailLocataireALaDemandeTest`, pour chacun des quatre lecteurs :
   - sans `include=tenant` : pas de clé `tenant` ;
   - avec `include=tenant&fields[customers]=id,first_name,last_name` : ni `phone` ni `email` dans le bloc.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/leases/{id}` sans `include` ne contient pas la clé `tenant`, pour chacun des quatre lecteurs.
-- [ ] AC2 — `GET /api/leases/{id}?include=tenant&fields[customers]=id,first_name,last_name` rend un bloc `tenant`
+- [x] AC1 — `GET /api/leases/{id}` sans `include` ne contient pas la clé `tenant`, pour chacun des quatre lecteurs.
+  Preuve : `BailLocataireALaDemandeTest::test_sans_include_la_cle_tenant_est_absente` (sans `include`, `include=property`,
+  `include=property,landlord,agent` ; ni le téléphone ni l'e-mail nulle part dans la réponse).
+- [x] AC2 — `GET /api/leases/{id}?include=tenant&fields[customers]=id,first_name,last_name` rend un bloc `tenant`
   aux seules clés `id`, `first_name` et `last_name`. Le test vérifie que `phone` et `email` sont **absents** : il ne
   se contente pas de compter les clés.
-- [ ] AC3 — `include=tenant` sans `fields` rend le même bloc qu'aujourd'hui, à l'instantané.
-- [ ] AC4 — Le parcours « Démarrer » un état des lieux, puis la fiche du bail, n'affichent aucune régression. Leurs
+  Preuve : `test_les_champs_demandes_bornent_le_bloc` (`assertArrayNotHasKey` puis le bloc exact), et
+  `test_une_cle_demandee_n_ouvre_aucun_droit` (le bailleur qui demande la pièce, le contact d'urgence et le budget ne
+  reçoit que `id` et `phone`).
+- [x] AC3 — `include=tenant` sans `fields` rend le même bloc qu'aujourd'hui, à l'instantané.
+  Preuve : `test_sans_fields_le_bloc_est_celui_d_avant` — les clés de chaque lecteur, relevées sur l'arbre d'avant le
+  changement (vert sur l'arbre d'avant, AC1 et AC2 rouges), et l'égalité avec le bloc de la liste.
+- [x] AC4 — Le parcours « Démarrer » un état des lieux, puis la fiche du bail, n'affichent aucune régression. Leurs
   tests vitest restent verts, et le réseau d'un « Démarrer » ne contient plus le téléphone ni l'e-mail du locataire.
-- [ ] AC5 — Vérifié par ablation. Un `show` qui recharge `tenant` d'office rend AC1 rouge. Un bloc qui ignore
-  `fields` rend AC2 rouge.
+  Preuve : `components/leases`, `components/inventory/terrain`, `components/property-dashboard/fiche` et
+  `lib/queries/__tests__` verts ; « Démarrer » envoie `include=tenant,property&fields[customers]=id,first_name,last_name`
+  (`inventory.tck-2648`) ; `test_la_requete_de_demarrer_ne_porte_aucune_coordonnee_du_locataire` joue cette requête
+  exacte pour les quatre lecteurs, signature du locataire comprise, et ne trouve son téléphone ni son e-mail nulle part
+  dans la réponse. Relevé par les tests, pas au navigateur.
+- [x] AC5 — Vérifié par ablation. Un `show` qui recharge `tenant` d'office rend AC1 rouge. Un bloc qui ignore
+  `fields` rend AC2 rouge. Preuve : ablations a1 à a6 et f1 à f4, dans les notes.
 
 ## Hors périmètre
 
@@ -94,4 +106,55 @@ de 065941306).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**La forme lue : `fields[customers]`** (le nom de la table). Mesuré le 2026-11-14 sur la liste
+(`GET /api/leases?include=tenant`, lecteur : le personnel) :
+
+- `fields[customers]=id,first_name` → 200, mais le bloc `tenant` reste **entier** : spatie cherche les champs d'une
+  relation incluse sous le nom de la relation au pluriel (`tenants`, `convert_relation_table_name_strategy` à `null`) ;
+- `fields[tenants]=…` et `fields[tenant]=…` → 400 (`allowedFields` ne connaît que `customers.*`).
+
+La liste accepte donc `fields[customers]` et le valide, sans qu'il borne le locataire. La fiche lit la même clé, et
+elle la fait valoir. Le bornage de la liste est hors de ce ticket (écart noté au rapport).
+
+**Pourquoi une décision du contrôleur, et pas `whenLoaded`.** `LeasePolicy::view` lit `$lease->tenant` pour
+reconnaître le locataire, ce qui charge la relation avant le rendu. `LeaseResource::avecLocataire(bool, ?champs)`
+porte la décision du contrôleur ; la liste garde `whenLoaded` (`locataire === null`). Ablation a2 : sans cette
+décision, AC1 rougit même avec `tenant` retiré de la liste chargée d'office.
+
+**Le bornage.** `CustomerResource::champsDemandesDuBloc()` lit `fields.customers` par `ParametreUnique` (une liste
+`fields[customers][]=` vaut absente, bloc entier) et ajoute `id`. `borneeAuxChamps()` borne le rendu APRÈS les gardes,
+le locataire étant chargé entier : une clé demandée que la garde retire reste absente.
+
+**Appelants front de `GET /api/leases/{id}`** (inventaire refait : `leases-file.ts` appelle la LISTE, pas le show) :
+
+| Appelant | Ce qu'il lit du locataire | Requête |
+|---|---|---|
+| `useLease` sous `LeaseDetail` (fiche du bail : `LeaseDetail`, `gestes.ts`, `FeuilleDeRevision`, `AbandonnerLeBrouillon`) | `id`, `user_id`, `first_name`, `last_name`, `phone`, `email` (repli des initiales) | `useLease(id, { avecLocataire: true })` : `include=…,tenant&fields[customers]=` `CHAMPS_DU_LOCATAIRE_DE_LA_FICHE` |
+| `useLease` sous `useLocationDuBien` (onglet « Location » du bien) | rien | inchangé, sans `tenant` |
+| `useContexteDuBail` (« Démarrer ») | `first_name`, `last_name` | `include=tenant,property&fields[customers]=id,first_name,last_name` |
+| `useContexteDuBail(…, { avecLocataire: false })` (parcours, récapitulatif) | rien (le nom vient de l'état des lieux, `inventories.tenant_id` non nul) | inchangé |
+
+Avant ce ticket, `useLease` ne demandait pas `tenant` et le recevait quand même : sans la mise à jour de
+`LeaseDetail`, la fiche perdait le nom, le téléphone et le blocage « sans compte » de l'envoi en signature.
+
+**Garde et documentation.** `show-sans-fields.garde.test.ts` admet une seconde exception, étroite : vers
+`/api/leases/${id}`, `fields: { customers: CHAMPS_DU_LOCATAIRE_… }` seul, et tant que `LeaseController.php`
+appelle `CustomerResource::champsDemandesDuBloc($request)` (témoins). `docs/spatie-query-builder.md` le dit.
+
+**Tests de l'API mis à jour** : `CustomerIdNumberEncryptionTest` (deux lectures) et `CustomerScopeTest` (deux
+lectures) lisaient `data.tenant` d'un show sans `include` ; ils demandent désormais `include=tenant`, leurs
+assertions de non-fuite inchangées.
+
+**Ablations** (une à la fois, fichier restauré et md5 vérifié) :
+
+- a1 — `tenant` rendu d'office (`when(true)`) : AC1 rouge.
+- a2 — le show sans la décision du contrôleur (retour à `whenLoaded`) : AC1, AC2 et « aucun droit » rouges.
+- a3 — `borner()` rend tout : AC2, « aucun droit » et la requête de « Démarrer » (AC4) rouges.
+- a4 — `id` non ajouté aux champs : AC2 rouge.
+- a5 (sonde, pas un mutant tué) — locataire lu en `SELECT` partiel des champs demandés : reste VERT. Attendu : `CustomerResource` relit la fiche
+  quand les traits jugés manquent (`ficheJugeable`, TCK-2759), ses gardes ne dépendent pas du `SELECT`.
+- a6 — garde `litLaFiche` ouverte : « aucun droit » et AC3 rouges.
+- f1 — « Démarrer » sans `fields` : `inventory.tck-2648` rouge.
+- f2 — la fiche sans `avecLocataire` : `LeaseDetail.fiche.tck-2645` rouge.
+- f3 — `useLease` sans `fields` : `leases.locataire.tck-2780` rouge.
+- f4 — l'exception de la garde étendue à tout show : ses témoins rougissent.

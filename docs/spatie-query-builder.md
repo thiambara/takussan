@@ -67,6 +67,21 @@ garde. Relevé du 2026-10-19 : les `show` chargent des relations fixes et ignore
 `CustomerController::show` est le seul à passer par `buildQuery`, et trois `show` lisent encore
 `include=` (`Customer`, `MaintenanceRequest`, `BankStatement`).
 
+**Exception : le locataire du show du bail** (TCK-2780). `GET /api/leases/{id}` ne rend `tenant` que
+sous `include=tenant`, et `fields[customers]` en borne le bloc à `id` et aux clés demandées. Sans
+`fields`, le bloc est entier. Les gardes de `CustomerResource` se jugent sur la fiche complète : une
+clé demandée n'ouvre aucun droit. Le reste du bail n'est jamais borné (pas de `fields[leases]`). La
+garde du front n'admet que `fields: { customers: CHAMPS_DU_LOCATAIRE_… }` vers ce show.
+
+```
+GET /api/leases/42?include=property,tenant&fields[customers]=id,first_name,last_name
+```
+
+⚠ **Sur la liste (`GET /api/leases?include=tenant`), le même `fields[customers]` est validé mais ne
+borne rien** (mesuré le 2026-11-14) : spatie cherche les champs d'une relation incluse sous le nom de
+la relation au pluriel (`fields[tenants]`), qu'`allowedFields` refuse (400). Le bloc `tenant` de la
+liste reste entier, quel que soit `fields[customers]`.
+
 Pour une lecture légère d'une seule ligne (un titre d'onglet, un en-tête), passer par la liste
 filtrée par id, avec ses `fields` :
 

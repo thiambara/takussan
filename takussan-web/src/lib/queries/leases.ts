@@ -212,17 +212,25 @@ export type LeasePropertyLite = {
   main_photo_url: string | null;
 };
 
-// TCK-596 — `show` charge toujours le locataire (`LeaseController::show`). Seul `user_id` sert
-// ici : il désigne le compte du locataire, et c'est lui qui ouvre le geste de préavis.
+// TCK-2780 — `show` ne rend le locataire que sous `include=tenant`, borné par `fields[customers]` :
+// ce bloc n'a que les clés de `CHAMPS_DU_LOCATAIRE_DE_LA_FICHE`.
 export type LeaseTenantLite = {
   id: number;
+  // Le compte du locataire : « Envoyer pour signature » (bloqué sans compte), « Réviser » (locataire prévenu).
   user_id: number | null;
-  // TCK-2645 — `CustomerResource` : le nom (« Bail de … ») et le téléphone (Appeler / WhatsApp), servis
-  // à tout lecteur du bail.
+  // TCK-2645 — `CustomerResource` : le nom (« Bail de … ») et le téléphone (Appeler / WhatsApp).
   first_name?: string | null;
   last_name?: string | null;
   phone?: string | null;
+  // Les initiales d'un locataire sans nom (`initialesDe`).
+  email?: string | null;
 };
+
+/**
+ * TCK-2780 — ce que la fiche du bail lit du locataire (`LeaseDetail`, `gestes.ts`, `FeuilleDeRevision`,
+ * `AbandonnerLeBrouillon`) : `show` ne rend que ces clés sous `include=tenant` (`fields[customers]`).
+ */
+export const CHAMPS_DU_LOCATAIRE_DE_LA_FICHE = ['id', 'user_id', 'first_name', 'last_name', 'phone', 'email'];
 
 export type LeaseWithRelations = Lease & {
   tenant?: LeaseTenantLite | null;
@@ -230,16 +238,24 @@ export type LeaseWithRelations = Lease & {
   property?: LeasePropertyLite;
 };
 
-export function useLease(id: number | null | undefined) {
+/**
+ * `GET /api/leases/{id}`. TCK-2780 — `avecLocataire` : la fiche du bail, qui nomme le locataire et
+ * l'appelle, le demande avec ses seules clés ; l'onglet « Location » du bien (`useLocationDuBien`) n'en
+ * lit rien et ne le reçoit pas. Le segment de clé vient après l'identifiant : les invalidations par
+ * préfixe `['leases', 'detail', id]` atteignent les deux lectures.
+ */
+export function useLease(id: number | null | undefined, { avecLocataire = false }: { readonly avecLocataire?: boolean } = {}) {
   const spatieParams: SpatieQueryParams = {
     // TCK-2645 — les parties nommées de l'en-tête (TCK-2642 : `landlord` et `agent` lus à la main par
     // `show`). Ni `attention` (les motifs de la file, au personnel), ni `due_summary` : l'état du mois
     // se lit sur les échéances, qui portent l'identifiant que les gestes visent.
-    include: ['property', 'landlord', 'agent'],
+    ...(avecLocataire
+      ? { include: ['property', 'landlord', 'agent', 'tenant'], fields: { customers: CHAMPS_DU_LOCATAIRE_DE_LA_FICHE } }
+      : { include: ['property', 'landlord', 'agent'] }),
   };
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(
-    ['leases', 'detail', id],
+    ['leases', 'detail', id, avecLocataire ? 'locataire' : 'sans-locataire'],
     cheminApi`/api/leases/${id ?? 0}`,
     {
       params: spatieParams,
