@@ -44,7 +44,7 @@ type EmptyStateProps = Omit<ComponentPropsWithoutRef<'div'>, 'title'> & {
  * ## Ce qu'il faut lui laisser passer
  *
  * Les props résiduelles sont spread sur le conteneur, et ce n'est pas de la complaisance :
- * `TeamConsole` ancre un `data-testid` sur son état vide, et `PropertiesDiscoveryPage` rend le
+ * `ConsoleDeLEquipe` ancre un `data-testid` sur son état vide, et `PropertiesDiscoveryPage` rend le
  * sien **dans une grille** et a besoin de `className="col-span-full"`. Sans l'un la migration
  * perdait un point d'ancrage de test, sans l'autre elle cassait une mise en page.
  */
