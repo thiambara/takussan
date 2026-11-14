@@ -1,13 +1,13 @@
 ---
 id: TCK-2653
 title: "Interventions de l'agence : files par état d'attente avec ancienneté, une fiche à un geste principal, « Autre action », et un carnet de prestataires qu'on peut appeler"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 88
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2652, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
