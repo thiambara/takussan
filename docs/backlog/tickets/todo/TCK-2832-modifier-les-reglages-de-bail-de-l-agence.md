@@ -9,7 +9,7 @@ wave: 88
 created: 2026-11-14
 updated: 2026-11-14
 depends_on: [TCK-2643]
-blocks: []
+blocks: [TCK-2842]
 spec_refs:
   features:
     - "docs/features.md#14-location-longue-durée-baux"
@@ -65,20 +65,50 @@ n'a plus à corriger ces valeurs bail par bail.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — L'admin d'une agence règle `lease.late_fee_percent` à 5 depuis l'écran. Le nouveau bail
+- [x] AC1 — L'admin d'une agence règle `lease.late_fee_percent` à 5 depuis l'écran. Le nouveau bail
   suivant préremplit « 5 % » avec la source « Réglage de l'agence ».
-- [ ] AC2 — « Revenir à la valeur de la plateforme » retire la ligne d'agence. Le nouveau bail reprend
+  *Preuve : `ReglagesDeBailDeLAgenceTest::test_ac1_…` (POST de l'admin → `defaults` rend `{5, agency}`) ;
+  `ReglagesDeBail.tck-2832.test.tsx` « AC1 » (l'écran envoie la clé et la valeur saisies).*
+- [x] AC2 — « Revenir à la valeur de la plateforme » retire la ligne d'agence. Le nouveau bail reprend
   la valeur du catalogue avec la source « Réglage de la plateforme ».
-- [ ] AC3 — L'encart du nouveau bail montre « Modifier » à l'admin qui peut configurer l'agence, et pas
+  *Preuve : `test_ac2_…` (DELETE → ligne absente, `defaults` rend `{3, platform}`) ; front « AC2 » (DELETE de
+  la ligne, aucune écriture).*
+- [x] AC3 — L'encart du nouveau bail montre « Modifier » à l'admin qui peut configurer l'agence, et pas
   à l'agent ni au bailleur. Le lien mène à l'écran de réglages.
-- [ ] AC4 — Un agent, un bailleur ou l'admin d'une autre agence reçoit 403 en écriture, avant toute
+  *Preuve : `can_edit_agency_settings` de `defaults` (`test_ac3_…` : vrai à l'admin, faux à l'agent et au
+  bailleur, faux hors de l'agence de l'appelant) ; `CreateLeaseForm.modifier-les-reglages.tck-2832.test.tsx`
+  (lien vers `/app/agency/lease-settings`, nouvel onglet, absent sans le drapeau). Ablations rouges.*
+- [x] AC4 — Un agent, un bailleur ou l'admin d'une autre agence reçoit 403 en écriture, avant toute
   validation. L'ablation de la garde rend ces tests rouges.
-- [ ] AC5 — Une valeur hors des règles du catalogue est refusée, avec le message du champ.
-- [ ] AC-F — Fidélité à la maquette retenue, à 390 et 1280, dès qu'une maquette existe (ADR-0106).
+  *Preuve : `test_ac4_…` (POST, PUT, DELETE avec une valeur hors catalogue → 403, ligne intacte) ;
+  ablations de `StoreSettingRequest`, `UpdateSettingRequest` et `SettingController::destroy` : 3/3 rouges.*
+- [x] AC5 — Une valeur hors des règles du catalogue est refusée, avec le message du champ.
+  *Preuve : `test_ac5_…` (4 clés, 422 sur `value`, aucune ligne) ; front « AC5 » (message de `errors.value`
+  sous le champ) et refus avant envoi sur les bornes du catalogue.*
+- [x] AC-F — Fidélité à la maquette retenue, à 390 et 1280, dès qu'une maquette existe (ADR-0106).
   Elle est à produire avant l'implémentation.
+  *Preuve (2026-11-14) : maquette `app-agence-reglages-bail`, approche A, écran 0, relevée contre
+  `/app/agency/lease-settings` (persona admin, Dakar Immo). Les réglages d'agence 5 % et 10 % ont été
+  écrits par l'écran lui-même (« Enregistrer », lignes 1 et 2), puis retirés par « Revenir à la
+  valeur de la plateforme » : les deux lignes n'existent plus. Mesures : à 390, 22 conformes et
+  11,17 % de pixels ; à 1280, 69 conformes et 7,48 % de pixels. Écarts justifiés :*
+  - *la ligne « S'applique aussi aux baux en cours… » (demandée) ;*
+  - *l'aide « un bail neuf en reprend 12 au plus » (en attendant TCK-2842) ;*
+  - *le délai de grâce de la maquette, 0 j « Réglage de l'agence » : il est égal à la plateforme,
+    donc l'écran n'écrit pas de ligne ;*
+  - *le champ garde la primitive `Input` (uniformité des champs) ;*
+  - *pas d'état lecture pour les agents ni d'encart « Reprendre le bail » (décision du porteur) ;*
+  - *la barre latérale porte les données de démo.*
 
 ## Hors périmètre
 
 - Les autres clés de `rentals` (rappels d'impayés, signature obligatoire, plafond des pénalités) :
   elles ont leur propre lecteur. L'écran peut les accueillir plus tard.
 - Le taux de commission de l'agence.
+
+## Notes
+
+- Bornes de l'indemnité de départ anticipé. Le catalogue accepte 1 à 24 mois, alors que le bail
+  (préremplissage et validation) accepte 0 à 12. L'écran affiche les bornes du catalogue, avec une
+  aide qui dit qu'un bail neuf en reprend au plus 12. La borne unique et le sens du 0 sont traités à
+  part : [TCK-2842](TCK-2842-une-seule-borne-pour-l-indemnite-de-depart-anticipe.md).

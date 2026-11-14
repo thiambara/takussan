@@ -306,4 +306,6 @@ export type LeaseDefaults = {
   readonly open_applications: readonly { readonly id: number; readonly customer_id: number }[];
   /** Au personnel seul, en INFORMATION : jamais un terme du bail (le bail suit le taux de l'agence). */
   readonly agency_commission_rate?: DefautDuBail | null;
+  /** TCK-2832 — l'appelant écrit les réglages de bail de l'agence du bien : l'encart montre « Modifier ». */
+  readonly can_edit_agency_settings?: boolean;
 };

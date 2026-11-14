@@ -2490,6 +2490,73 @@
       },
       "bauxDuMois": "{count, plural, one {# lease signed this month} other {# leases signed this month}}",
       "pourquoiNous": "Why us"
+    },
+    "reglagesDeBail": {
+      "titre": "Lease settings",
+      "description": "Every new lease starts from these values. You can still adjust them lease by lease.",
+      "bauxEnCours": "Also applies to current leases that have no value of their own.",
+      "sansAgence": "No agency is linked to your account.",
+      "agenceIllisible": "Your agency could not be loaded. Try again in a moment.",
+      "cles": {
+        "penalite": {
+          "titre": "Late fee",
+          "sujet": "The late fee",
+          "aide": "Share of the rent due, added after the grace period."
+        },
+        "grace": {
+          "titre": "Grace period",
+          "sujet": "The grace period",
+          "aide": "Days allowed after the due date before the late fee."
+        },
+        "indemnite": {
+          "titre": "Early termination fee",
+          "sujet": "The early termination fee",
+          "aide": "Months of rent due if the tenant leaves before the end of the lease. A new lease takes at most 12."
+        },
+        "revision": {
+          "titre": "Rent review cap",
+          "sujet": "The rent review cap",
+          "aide": "Maximum rent increase at each review."
+        }
+      },
+      "unites": {
+        "pourcent": "{valeur}%",
+        "jours": "{valeur, plural, one {# day} other {# days}}",
+        "mois": "{valeur, plural, one {# month} other {# months}}"
+      },
+      "suffixes": {
+        "pourcent": "%",
+        "jours": "{valeur, plural, one {day} other {days}}",
+        "mois": "{valeur, plural, one {month} other {months}}"
+      },
+      "source": {
+        "agence": "Agency setting",
+        "plateforme": "Platform setting"
+      },
+      "plateforme": "Platform value:",
+      "enregistrer": "Save",
+      "enregistrement": "Saving…",
+      "enregistre": "Settings saved. Your upcoming leases will use them.",
+      "revenir": "Revert to the platform value",
+      "revenu": "{reglage}: platform value restored.",
+      "bornes": {
+        "entre": "From {min} to {max}",
+        "superieurA": "Above {min}, up to {max}"
+      },
+      "refus": {
+        "nombre": "Enter a number.",
+        "entier": "{sujet} must be a whole number.",
+        "max": "{sujet} cannot exceed {max}.",
+        "min": "{sujet} cannot be below {min}.",
+        "superieurA": "{sujet} must be above {min}."
+      },
+      "barre": {
+        "aCorriger": "{n, plural, one {# value to fix} other {# values to fix}}",
+        "rienDEnregistre": "nothing is saved",
+        "aCorrigerBureau": "{n, plural, one {# value to fix} other {# values to fix}} before saving"
+      },
+      "erreurLecture": "The settings could not be loaded.",
+      "erreurEcriture": "The setting could not be saved."
     }
   },
   "compare": {
@@ -4782,7 +4849,9 @@
         "agence": "Agency settings applied",
         "plateforme": "Platform settings applied",
         "detail": "Due day, late fee and early termination fee",
-        "detailAvecCommission": "Due day, late fee, commission and early termination fee"
+        "detailAvecCommission": "Due day, late fee, commission and early termination fee",
+        "modifier": "Edit",
+        "nouvelOnglet": "agency settings (opens in a new tab)"
       },
       "echeance": "Due day",
       "echeanceAide": "Day of the month, 1 to 28",
@@ -9439,6 +9508,9 @@
       },
       "verification": {
         "title": "Agency verification"
+      },
+      "reglagesDeBail": {
+        "title": "Lease settings"
       }
     },
     "team": {
@@ -10087,6 +10159,11 @@
             "detail": "Professional agency",
             "detailIndividuelle": "Become a professional agency",
             "titreIndividuelle": "Going pro"
+          },
+          "bail": {
+            "titre": "Lease settings",
+            "titreCourt": "Lease settings",
+            "detail": "Late fee, grace period, termination fee, review"
           }
         },
         "detail": {

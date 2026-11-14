@@ -51,6 +51,7 @@ vi.mock('@/app/actions/admin-settings', () => ({
   fetchIntegrationWebhookEndpointAction: async () => ({ ok: false, message: '' }),
 }));
 vi.mock('@/components/admin-settings/IntegrationsManager', () => ({ IntegrationsManager: () => null }));
+vi.mock('@/components/admin-agency/reglages-de-bail/ReglagesDeBail', () => ({ ReglagesDeBail: () => null }));
 
 type PageServeur = (props: never) => Promise<unknown>;
 
@@ -83,6 +84,7 @@ const CAS: ReadonlyArray<readonly [string, string, () => Promise<{ default: unkn
   ],
   ['/app/agency/audit', 'audit/page.tsx', () => import('../audit/page'), undefined],
   ['/app/agency/integrations', 'integrations/page.tsx', () => import('../integrations/page'), undefined],
+  ['/app/agency/lease-settings', 'lease-settings/page.tsx', () => import('../lease-settings/page'), undefined],
 ];
 
 describe('TCK-633 / TCK-649 — chaque page /app/agency/* appelle garderPageAdmin EN PREMIER', () => {

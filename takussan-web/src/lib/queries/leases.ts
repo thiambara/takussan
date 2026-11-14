@@ -416,7 +416,9 @@ export function useLeaseDefaults(propertyId: number | null | undefined) {
   return useApiQuery<ApiResponse<LeaseDefaults>>(
     ['leases', 'defaults', propertyId ?? 0],
     cheminApi`/api/leases/defaults${requete(new URLSearchParams({ property_id: String(propertyId ?? 0) }))}`,
-    { enabled: Boolean(propertyId && propertyId > 0) },
+    // TCK-2832 — relus au retour sur l'onglet : « Modifier » ouvre les réglages de l'agence dans un
+    // autre onglet, et le réglage changé là préremplit ici les champs que l'agent n'a pas touchés.
+    { enabled: Boolean(propertyId && propertyId > 0), staleTime: 0 },
   );
 }
 

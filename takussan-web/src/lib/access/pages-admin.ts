@@ -111,6 +111,11 @@ const TABLE = [
     exige: { role: 'admin', capacite: 'payments.reconcile' },
     menu: null,
   },
+  // TCK-2832 — les réglages de bail de l'agence : atteinte par « Modifier » de l'encart du nouveau
+  // bail, pas une entrée de menu. L'API juge `AgencyPolicy::configure` (l'admin ET `agency.update`,
+  // l'admin PRINCIPAL passant sans elle) : comme `/app/agency`, la table n'exige que le rôle — une
+  // capacité ici fermerait la page à l'admin principal à qui l'encart montre « Modifier ».
+  { chemin: '/app/agency/lease-settings', exige: { role: 'admin' }, menu: null },
   // TCK-597 (ADR-0043 §1) — l'admin d'agence `standard` modère les avis de SON agence.
   {
     chemin: '/app/agency/moderation',

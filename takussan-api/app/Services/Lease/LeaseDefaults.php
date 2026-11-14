@@ -131,6 +131,9 @@ final class LeaseDefaults
                 ->get(['id', 'customer_id'])
                 ->map(fn (Booking $b) => ['id' => (int) $b->id, 'customer_id' => (int) $b->customer_id])
                 ->all(),
+            // TCK-2832 — l'encart « Réglages de l'agence appliqués » ne montre « Modifier » qu'à qui
+            // écrira ces réglages : la règle des routes d'écriture, jamais une déduction du rôle au front.
+            'can_edit_agency_settings' => ReglagesDeBailDeLAgence::peutModifier($user, $agencyId),
         ];
 
         // Décision 3 — une information pour le personnel, jamais un terme prérempli du bail.

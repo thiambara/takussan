@@ -18,14 +18,17 @@ import { AdresseEnLigne } from './AdresseEnLigne';
 import { JaugeDuBureau, lienExterne, NavigationDesSections, titreDeLaSection } from './FicheDeLAgence';
 import { TitreDeSection } from './pieces';
 
+/** TCK-2832 — l'emplacement, sous la page, de la barre d'enregistrement d'une section-page. */
+export const ID_DU_BAS_DU_CADRE = 'bas-du-cadre-de-la-fiche';
+
 interface CadreDeLaFicheProps {
   readonly agency: Agency;
   /** `peutEcrireLaVitrine` : la section « Fiche publique » n'apparaît qu'à qui l'écrit. */
   readonly vitrine: boolean;
   /** L'origine du site public (`origineSite()`), lue côté serveur. */
   readonly origineSite: string;
-  /** Les deux sections de la fiche qui sont des pages. */
-  readonly section: 'verification' | 'offre';
+  /** Les sections de la fiche qui sont des pages (`bail` : TCK-2832). */
+  readonly section: 'verification' | 'offre' | 'bail';
   /** Le titre et le texte de la section, au bureau (le téléphone a le titre dans son en-tête). */
   readonly titre: string;
   readonly texte?: string;
@@ -96,6 +99,9 @@ export function CadreDeLaFiche({ agency, vitrine, origineSite, section, titre, t
           </div>
         </div>
       </div>
+      {/* TCK-2832 — la barre d'enregistrement d'une section-page (réglages de bail) s'y rend en portail :
+          collante sur TOUTE la largeur de la page, comme celle de la fiche, et non dans la colonne. */}
+      <div id={ID_DU_BAS_DU_CADRE} data-slot="bas-du-cadre-de-la-fiche" />
     </PagePleineLargeur>
   );
 }
