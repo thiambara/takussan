@@ -1,13 +1,13 @@
 ---
 id: TCK-2771
 title: "/publish ne reçoit plus tout l'espace `property` : l'assistant n'en lit qu'un tiers"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 86
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2600]
 blocks: []
 spec_refs:
@@ -55,14 +55,14 @@ de bien, des avis ou des réservations.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node scripts/check-i18n-namespaces.mjs --report` : la frontière `publish` ne sert plus
+- [x] AC1 — `node scripts/check-i18n-namespaces.mjs --report` : la frontière `publish` ne sert plus
   `property.dashboard`, `property.detail` ni `property.reviews`, et sa part du dictionnaire baisse
   d'au moins 5 points par rapport aux 20,1 % du 2026-11-13.
-- [ ] AC2 — Aucun libellé de l'assistant ne s'affiche en chemin de clé brut : `/publish` (sans
+- [x] AC2 — Aucun libellé de l'assistant ne s'affiche en chemin de clé brut : `/publish` (sans
   compte) et `/app/properties/new` (connecté) parcourus jusqu'à « Publier l'annonce » au navigateur,
   en `fr` et en `en`. Le relevé du DOM ne trouve aucune chaîne `property.` ni aucun nouveau nom
   d'espace.
-- [ ] AC3 — `npm run check:i18n` (parité) et `npm run check:i18n-namespaces` sont verts, et les
+- [x] AC3 — `npm run check:i18n` (parité) et `npm run check:i18n-namespaces` sont verts, et les
   tests de l'assistant passent sans changement de leurs attentes de libellés.
 
 ## Hors périmètre
@@ -137,3 +137,19 @@ Ablations :
 ⚠ Un ticket non encore commité qui ajoute une clé sous `property.dashboard` (ou un autre sous-arbre
 déplacé) la recréerait à son commit : la greffe de son manifeste viserait l'ancien chemin. Le script
 le refuse avant l'application. Après l'application, cette clé doit viser `property<X>`.
+
+### Relevé au navigateur (2026-11-14, CDP direct, 1280 px, base de démo en lecture seule)
+
+- Pages rendues, fr ET en, zéro `MISSING_MESSAGE` / `IntlError`, aucune clé brute (motifs `property[A-Z]\w*\.` et `property\.\w+\.`), aucune erreur console : `/publish` (sans compte), `/app/properties/new` et `/app/properties` et `/app/properties/593` (persona `admin`), `/{fr,en}/properties/villa-ac1-2601-a-dakar-0zPlB7` (sans compte).
+- `/publish`, parcours réel fr et en (type + contrat, lieu, caractéristiques, prix, photos, titre) : aucune clé brute, aucune erreur Intl à aucun écran. Arrêt à l'écran « Un titre, et c'est prêt » : l'écran suivant demande le numéro et un code SMS, donc un envoi réel. « Publier l'annonce » n'a pas été atteint.
+- `/app/properties/new` : premier écran seulement (le brouillon connecté s'enregistre côté serveur = écriture).
+- AC1 : `check-i18n-namespaces.mjs --report` → `publish` : 7 espaces, 13 cumulés, 33 899 o gzip, **15,1 %** (plafond affiché 21 %, non encore abaissé à 20 % dans l'arbre).
+- AC3 : `npm run check:i18n-namespaces` vert (50 frontières). `npm run check:i18n` ROUGE : 105 écarts, tous des fichiers `playground/maquettes/pages/*.tsx` locaux hors baseline (maquettes non commitées), aucun lié à ce ticket. Tests de l'assistant : non rejoués ici.
+- AC2 et AC3 laissés non cochés : AC2 faute du dernier écran (SMS), AC3 faute d'un `check:i18n` vert dans cet arbre.
+
+### Suite du relevé (2026-11-14, écritures de démo autorisées par la session)
+
+- AC1 tenu : `publish` 20,1 % → 15,1 % (−5,0 points, 33 899 o gzip) ; `fr.json` n'a plus `property.dashboard`, `detail` ni `reviews` (devenus `propertyDashboard`, `propertyDetail`, `propertyReviews`). Le texte de l'AC ne parle pas du plafond affiché (21 %) : il n'exige pas 20 %. Marge de 0,0 point sur le seuil des 5 points.
+- AC2 tenu : `/publish` sans compte parcouru jusqu'au bout en fr ET en (type, lieu, caractéristiques, prix, photos, titre, numéro, code, prénom/nom, « Publier mon annonce ») puis « Votre annonce est en ligne » : zéro `MISSING_MESSAGE`/`IntlError`, zéro clé brute à chaque écran. `/app/properties/new` (compte 201) : tous les écrans jusqu'à « Publier l'annonce » (non cliqué), fr et en, même résultat.
+- Lignes écrites en base de démo (5433), à effacer à la réinitialisation : `users` 201 (tél. +221 77 123 45 67) et 202 (+221 77 123 45 68) ; leurs `owner_profiles` 38 et 39, `agency_admin_profiles` 17 et 18, agences 13 et 14 ; `properties` 594 et 595 ; `wizard_drafts` 26 (brouillon connecté du compte 201) ; `personal_access_tokens` (4 lignes, comptes 201 et 202, dont 101 et 102 posés par le relevé). Aucun SMS réel : aucune intégration `sms_*` en base, le code est lu dans l'aperçu hors production (`otp_preview`) et jamais imprimé.
+- 2026-11-14, session : AC3 tenu au HEAD 8edd98aea sur un extrait propre (`git archive`, sans maquettes locales) : `check:i18n` vert (parité 0/0 sur 16171 clés), `check:i18n-namespaces` vert ; les tests de l'assistant ont passé à la vérification du commit 19167d93a, et ses retouches de tests ne changent que des chemins de clés (`property.dashboard` → `propertyDashboard`…), aucun libellé attendu.

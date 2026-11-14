@@ -1,7 +1,7 @@
 ---
 id: TCK-2821
 title: "Les clés mortes `owners.onboarding.steps.kyc` et `agents.onboarding.steps.kyc` quittent le dictionnaire"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: S
@@ -69,7 +69,7 @@ Aucun endpoint touché.
   *Preuve : absence affirmée en clair (`queryByText(/Envoyer mes pièces/i)`, `queryByLabelText(/carte professionnelle/i)`,
   `input[type="file"]`). Ablations dans `invite/AssistantDInvite.tsx` : un `<input type="file">` → 2 rouges (bailleur,
   agent) ; un bouton « Envoyer mes pièces » → 2 rouges ; md5 restauré.*
-- [ ] AC3 — Aucun `MISSING_MESSAGE` au navigateur sur `/onboarding/owner` et `/onboarding/agent`, à chaque étape.
+- [x] AC3 — Aucun `MISSING_MESSAGE` au navigateur sur `/onboarding/owner` et `/onboarding/agent`, à chaque étape.
 - [x] AC4 — La règle de TCK-685 (aucune promesse de revue) reste gardée quelque part, ou le ticket écrit pourquoi elle
   n'a plus d'objet.
   *Preuve : elle a toujours un objet (`OwnerProfileController` et `AgentProfileController` : « no queue reads this
@@ -100,3 +100,16 @@ rendent leurs écrans avec le vrai `fr.json`.
 
 - `KycUploader` et les sous-arbres `<rôle>.onboarding.kyc` (TCK-2796).
 - `serviceProviders.onboarding.steps` : il n'a pas de sous-arbre `kyc`.
+
+### Relevé au navigateur (2026-11-14, CDP direct, 1280 px, base de démo en lecture seule)
+
+- Aucun compte de démo n'a de profil `draft` : `/onboarding/owner` et `/onboarding/agent` renvoient vers `/app`. Les pages ont été ouvertes par le lien de reprise `?owner=1` / `?agent=1` avec les personas `proprietaire` et `agent` (profils `active`, lecture seule).
+- fr ET en : écran 1 « Vérifiez votre numéro » / « Check your number » rendu pour les deux assistants, zéro `MISSING_MESSAGE` / `IntlError`, aucune clé brute. Seules erreurs console : deux 404 de ressource, sans lien avec l'i18n.
+- L'écran 2 ne s'atteint que numéro vérifié (`phone_verified_at`) : « Recevoir le code » envoie un SMS réel et le brouillon s'écrit côté serveur. Non parcouru.
+- AC3 laissé non coché : écran 1 seulement. Pour l'écran 2, il faut un compte de démo au téléphone déjà vérifié avec un profil `draft` (une écriture à demander à la session).
+
+### Suite du relevé (2026-11-14, écritures de démo autorisées par la session)
+
+- AC3 tenu : les deux écrans de chaque assistant, fr ET en, zéro `MISSING_MESSAGE`/`IntlError`, aucune clé brute. Bailleur (`/onboarding/owner?owner=39`, compte 202, numéro vérifié) : « Vos biens chez … » / « Your properties with … ». Agent (`/onboarding/agent?agent=24`, compte 202) : « Bienvenue dans l'équipe » / « Welcome to the team ». Écran 1 (numéro) relevé plus haut.
+- Constat : `GET /api/me/profiles` ne rend que les profils `active` (`MeProfilesController::isActive`), donc l'assistant ne se monte, par `profilAReprendre`, que sur un profil désigné par `?owner=` / `?agent=` ; le cas `draft` de la page n'est pas atteignable par cette liste. À juger hors de ce ticket.
+- Lignes écrites en démo : `users` 201 et 202 et leurs profils (voir TCK-2771) ; `agent_profiles` 24 (compte 202, agence 1, créé en `draft` puis passé `active`) ; `owner_profiles` 38 passé `draft` puis remis `active` ; `personal_access_tokens` 101 et 102.
