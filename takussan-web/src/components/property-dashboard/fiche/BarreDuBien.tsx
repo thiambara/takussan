@@ -60,8 +60,8 @@ export function BarreDuBien({
   /** « Publier l'annonce » / « Modifier l'annonce » : l'onglet Annonce, section voulue. */
   readonly onOuvrirLAnnonce: (section: 'apercu' | 'edit') => void;
 }) {
-  const t = useTranslations('property.dashboard.fiche');
-  const tGestion = useTranslations('property.dashboard.gestion');
+  const t = useTranslations('propertyDashboard.fiche');
+  const tGestion = useTranslations('propertyDashboard.gestion');
   const agence = agenceDuBien(property);
   const personnelActif = usePersonnelActif(agence);
   const [contacter, setContacter] = useState(false);

@@ -49,7 +49,7 @@ interface PropertyRowActionsProps {
 }
 
 export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActionsProps) {
-  const t = useTranslations('property.dashboard.actions');
+  const t = useTranslations('propertyDashboard.actions');
   const tBoost = useTranslations('boost');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();

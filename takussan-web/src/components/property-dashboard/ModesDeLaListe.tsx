@@ -40,7 +40,7 @@ import type { ResumeDuPortefeuille } from '@/types/property';
 
 /** Le contrôle segmenté : pleine largeur au téléphone, calé sur son contenu dès `lg`. */
 export function SelecteurDeMode({ mode, className }: { readonly mode: ModeDeListe; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.gestion.modes');
+  const t = useTranslations('propertyDashboard.gestion.modes');
   const router = useRouter();
   const searchParams = useSearchParams();
   const choisir = (valeur: unknown) => {
@@ -72,7 +72,7 @@ const COMPTE_DE: Record<PastilleGestion, keyof ResumeDuPortefeuille> = Object.fr
  * et « À vendre » quand le portefeuille en compte (TCK-2638).
  */
 export function PastillesGestion({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.gestion.pastilles');
+  const t = useTranslations('propertyDashboard.gestion.pastilles');
   const fmt = useFormatteurs();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -101,7 +101,7 @@ export function PastillesGestion({ resume, className }: { readonly resume: Resum
  * sont ni occupés ni vacants, et sa liste est `filter[occupancy]=not_rental`.
  */
 export function TuilesGestion({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.gestion.tuiles');
+  const t = useTranslations('propertyDashboard.gestion.tuiles');
   const fmt = useFormatteurs();
   const searchParams = useSearchParams();
   const params = new URLSearchParams(searchParams.toString());
@@ -199,7 +199,7 @@ const COMPTE_ANNONCES: Record<PastilleAnnonces, keyof ResumeDuPortefeuille> = Ob
  * « En ligne », « À valider », « Brouillons », « Hors ligne », comptées par `portfolio-summary`.
  */
 export function PastillesAnnonces({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.annonces.pastilles');
+  const t = useTranslations('propertyDashboard.annonces.pastilles');
   const fmt = useFormatteurs();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -227,7 +227,7 @@ export function PastillesAnnonces({ resume, className }: { readonly resume: Resu
  * « Toutes ». La rangée défile dans son cadre si elle manque de place, jamais la page.
  */
 export function OngletsAnnonces({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.annonces.pastilles');
+  const t = useTranslations('propertyDashboard.annonces.pastilles');
   const fmt = useFormatteurs();
   const searchParams = useSearchParams();
   const params = new URLSearchParams(searchParams.toString());
@@ -277,7 +277,7 @@ export function JaugeDuQuota({
   readonly presentation: 'telephone' | 'bureau';
   readonly className?: string;
 }) {
-  const t = useTranslations('property.dashboard.annonces.quota');
+  const t = useTranslations('propertyDashboard.annonces.quota');
   const texte = t('texte', { used, limit });
   const definition = t('definition');
   const jauge = (
@@ -311,7 +311,7 @@ export function JaugeDuQuota({
  * page reste la première. Au-delà de 100 biens montrés (la borne de l'API), la pagination reprend.
  */
 export function AfficherLesSuivants({ meta, className }: { readonly meta: PaginationMeta; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.pagination');
+  const t = useTranslations('propertyDashboard.pagination');
   const fmt = useFormatteurs();
   const searchParams = useSearchParams();
   if (!suivantsProposes(meta)) return null;

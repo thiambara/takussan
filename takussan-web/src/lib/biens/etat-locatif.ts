@@ -5,7 +5,7 @@ import type { PropertyListItem } from '@/types/property';
  * TCK-2638 — ce que la ligne du mode Gestion dit d'un bien, lu du bloc `occupancy` de TCK-2637 :
  * qui l'occupe, l'état du mois, le loyer AVEC sa période. Rien du métier n'est recalculé ici — le
  * bail courant, l'état du mois et la date de vacance sont ceux de l'API ; ce module ne fait que
- * choisir la phrase. Les clés rendues sont celles de `property.dashboard.gestion`.
+ * choisir la phrase. Les clés rendues sont celles de `propertyDashboard.gestion`.
  */
 
 export type PeriodeDuLoyer = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';

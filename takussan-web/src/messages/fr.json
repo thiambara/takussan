@@ -1060,14 +1060,6 @@
       "saleLong": "En vente",
       "rentLong": "En location"
     },
-    "portfolio": {
-      "empty_title": "Aucun bien dans votre portefeuille",
-      "empty_description": "Créez votre première annonce pour la diffuser auprès des locataires et acheteurs Takussan.",
-      "empty_cta": "Publier mon premier bien",
-      "filtered_empty_title": "Aucun bien ne correspond à vos filtres",
-      "filtered_empty_description": "Ajustez ou retirez certains filtres pour élargir votre recherche.",
-      "filtered_empty_cta": "Réinitialiser les filtres"
-    },
     "cards": {
       "bedroomsShort": "{count} ch",
       "bedroomsAbbrev": "{count} Ch.",
@@ -1083,19 +1075,6 @@
         "priceDrop": "Baisse de prix"
       }
     },
-    "row": {
-      "viewAll": "Tout voir",
-      "previous": "Précédent",
-      "next": "Suivant",
-      "empty": "Pas encore de biens dans cette sélection."
-    },
-    "discovery": {
-      "neighbourhoodsOf": "Quartiers de {city}",
-      "viewSwitchAria": "Vue des résultats",
-      "viewList": "Liste",
-      "viewMap": "Carte",
-      "outilsFlottantsAria": "Outils de recherche"
-    },
     "rentPeriodsShort": {
       "daily": "jour",
       "weekly": "sem.",
@@ -1108,350 +1087,6 @@
       "weekly": "Hebdo",
       "monthly": "Mensuel",
       "yearly": "Annuel"
-    },
-    "detail": {
-      "reviewsCount": "({count} avis)",
-      "viewsCount": "{count, plural, one {# vue} other {# vues}}",
-      "reference": "Réf. {value}",
-      "featured": "Mis en avant",
-      "shareAria": "Partager ce bien",
-      "share": "Partager",
-      "removeFavorite": "Retirer des favoris",
-      "addFavorite": "Ajouter aux favoris",
-      "characteristics": "Caractéristiques",
-      "rows": {
-        "type": "Type",
-        "contract": "Contrat",
-        "period": "Période",
-        "status": "Statut",
-        "floor": "Étage",
-        "yearBuilt": "Année de construction",
-        "parking": "Places de parking",
-        "furnished": "Meublé",
-        "titleDeed": "Titre foncier",
-        "condition": "État du bien",
-        "availability": "Disponibilité",
-        "availabilityNow": "Immédiatement",
-        "availabilityFrom": "À partir du {date}",
-        "yes": "Oui"
-      },
-      "specs": {
-        "bedrooms": "Chambres",
-        "bathrooms": "SDB",
-        "area": "Surface",
-        "floors": "Étages",
-        "year": "Année",
-        "parking": "Parking"
-      },
-      "description": "Description",
-      "collapse": "Réduire",
-      "readMore": "Lire la suite",
-      "amenities": "Équipements",
-      "breadcrumbAria": "Fil d'Ariane",
-      "priceHistory": "Historique du prix",
-      "documents": "Documents",
-      "download": "Télécharger",
-      "downloadAria": "Télécharger {name}",
-      "requestVisit": "Demander une visite",
-      "sendMessage": "Envoyer un message",
-      "noChargeNotice": "Vous ne serez pas débité avant la confirmation.",
-      "agent": {
-        "phoneUnavailable": "Numéro de téléphone indisponible pour ce bien.",
-        "phoneError": "Impossible de récupérer le numéro. Veuillez réessayer.",
-        "verifiedAria": "Agence vérifiée",
-        "independent": "Agent indépendant",
-        "private": "Particulier",
-        "callAria": "Appeler",
-        "call": "Appeler",
-        "calling": "Connexion…"
-      },
-      "breadcrumb": {
-        "home": "Accueil",
-        "rent": "Louer",
-        "buy": "Acheter"
-      },
-      "location": "Emplacement",
-      "addressHidden": "Adresse non communiquée.",
-      "viewOnOsm": "Voir sur OpenStreetMap",
-      "shareDialog": {
-        "title": "Partager cette annonce",
-        "description": "Envoyez le lien à vos proches.",
-        "linkAria": "Lien à partager",
-        "copied": "Copié",
-        "copy": "Copier"
-      },
-      "similar": "Biens similaires",
-      "previous": "Précédent",
-      "next": "Suivant",
-      "gallery": {
-        "close": "Fermer",
-        "viewerLabel": "Photos : {title}",
-        "previousPhoto": "Photo précédente",
-        "nextPhoto": "Photo suivante",
-        "noPhoto": "Aucune photo",
-        "noPhotoAvailable": "Aucune photo disponible",
-        "viewAll": "Voir toutes les photos ({count})",
-        "openPhoto": "Ouvrir la photo {index}",
-        "photoAlt": "{title} - photo {index}"
-      },
-      "bottomBar": {
-        "visit": "Visiter"
-      },
-      "notFound": "Bien introuvable.",
-      "similarError": "Impossible de charger les biens similaires.",
-      "contactInvalidResponse": "Réponse invalide.",
-      "primaryCta": {
-        "offer": "Faire une offre",
-        "reserve": "Réserver",
-        "apply": "Postuler"
-      },
-      "unavailableTitle": "Bien momentanément indisponible",
-      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants.",
-      "favoriteAddShort": "Ajouter",
-      "favoriteSavedShort": "Favori",
-      "descriptionLanguageNotice": "{langue, select, fr {Description rédigée en français par l'annonceur} en {Description rédigée en anglais par l'annonceur} wo {Description rédigée en wolof par l'annonceur} other {Description rédigée par l'annonceur, dans sa langue}}",
-      "entryCost": {
-        "title": "Coût d'entrée",
-        "advance": "Avance",
-        "deposit": "Caution",
-        "agencyFee": "Frais d'agence",
-        "monthlyCharges": "Charges mensuelles",
-        "months": "{count, plural, one {# mois} other {# mois}}",
-        "total": "Total à l'entrée",
-        "showDetails": "Voir le détail",
-        "hideDetails": "Masquer le détail"
-      },
-      "trust": {
-        "phoneVerified": "Téléphone vérifié",
-        "safetyTitle": "Conseil de prudence",
-        "safetyBody": "Ne versez jamais d'argent avant d'avoir visité le bien et rencontré la personne qui le propose."
-      },
-      "virtualTour": {
-        "video": "Voir la vidéo du bien",
-        "tour": "Visite virtuelle",
-        "loadHint": "Se charge seulement quand vous l'ouvrez",
-        "frameTitle": "Visite virtuelle — {title}",
-        "opensNewTab": "(s'ouvre dans un nouvel onglet)"
-      },
-      "actions": {
-        "whatsapp": "WhatsApp",
-        "write": "Écrire",
-        "alreadyVisited": "Déjà visité ?",
-        "submitApplication": "Déposer mon dossier",
-        "numbersTitle": "Appeler {name}",
-        "numbersDescription": "Choisissez le numéro à composer."
-      }
-    },
-    "reviews": {
-      "title": "Avis",
-      "countSuffix": "{count} avis",
-      "loading": "Chargement des avis…",
-      "empty": "Aucun avis pour l'instant.",
-      "notEligible": "Vous pourrez laisser un avis après une réservation honorée ou un bail sur ce bien.",
-      "alreadyReviewed": "Merci, vous avez déjà laissé un avis sur ce bien.",
-      "agentReply": "Réponse de l'agent",
-      "edit": "Modifier",
-      "reply": "Répondre",
-      "form": {
-        "ratingRequired": "Merci de choisir une note.",
-        "sendError": "Erreur lors de l'envoi.",
-        "aria": "Laisser un avis",
-        "title": "Laisser un avis",
-        "ratingAria": "Note sur 5",
-        "titlePlaceholder": "Titre (optionnel)",
-        "thanks": "Merci pour votre retour.",
-        "starsAria": "{count, plural, one {# étoile} other {# étoiles}}",
-        "contentOptionalPlaceholder": "Votre commentaire (facultatif)"
-      },
-      "replyForm": {
-        "editTitle": "Modifier ma réponse",
-        "newTitle": "Répondre à cet avis",
-        "editSubmit": "Modifier ma réponse",
-        "newSubmit": "Répondre publiquement",
-        "placeholder": "Répondez de manière claire et professionnelle…",
-        "contentAria": "Contenu de la réponse",
-        "cancel": "Annuler",
-        "publish": "Publier la réponse",
-        "sending": "Envoi…",
-        "save": "Enregistrer",
-        "contentRequired": "Écrivez une réponse avant de publier."
-      },
-      "loadError": "Impossible de charger les avis."
-    },
-    "report": {
-      "reasons": {
-        "misleading": "Annonce trompeuse",
-        "inappropriate": "Contenu inapproprié",
-        "spam": "Spam",
-        "fraud": "Arnaque / fraude",
-        "other": "Autre"
-      },
-      "trigger": "Signaler cette annonce",
-      "cancel": "Annuler",
-      "dialogTitle": "Signaler cette annonce",
-      "dialogBody": "Aidez-nous à maintenir la qualité de la plateforme.",
-      "reasonLabel": "Motif",
-      "detailsLabel": "Détails (optionnel)",
-      "detailsPlaceholder": "Précisez les éléments problématiques…",
-      "dialogBodyFull": "Aidez-nous à maintenir la qualité de la plateforme. Notre équipe examinera votre signalement.",
-      "sending": "Envoi…",
-      "submit": "Signaler",
-      "thanks": "Merci, nous allons examiner ce signalement.",
-      "thanksNotified": "Vous serez prévenu de l'issue.",
-      "close": "Fermer",
-      "honeypotLabel": "Société"
-    },
-    "visitDialog": {
-      "types": {
-        "in_person": {
-          "label": "En personne",
-          "description": "Visite accompagnée du propriétaire ou de l'agent."
-        },
-        "virtual": {
-          "label": "Virtuelle",
-          "description": "Visioconférence depuis chez vous."
-        },
-        "self_guided": {
-          "label": "Autonome",
-          "description": "Vous récupérez les clés sur place."
-        },
-        "hybrid": {
-          "label": "Hybride",
-          "description": "Première visio puis visite physique."
-        }
-      },
-      "title": "Demander une visite",
-      "typeLegend": "Type de visite",
-      "typeSelected": "{label} sélectionné",
-      "notesLabel": "Message",
-      "notesOptional": "(optionnel)",
-      "notesPlaceholder": "Précisions pour le propriétaire…",
-      "sending": "Envoi…",
-      "stepShort": "{current} / {total}",
-      "stepLabel": "Étape {current} sur {total}",
-      "when": {
-        "dayHeading": "Quel jour ?",
-        "today": "Aujourd’hui",
-        "tomorrow": "Demain",
-        "otherDate": "Autre date",
-        "otherDateHint": "Calendrier",
-        "otherDateChosen": "Autre date : {date}",
-        "windowHeading": "À quel moment ?",
-        "windowHint": "L’agence vous propose ensuite une heure précise.",
-        "windowStarted": "Déjà commencé",
-        "summary": "{day} · {window}",
-        "pickBoth": "Choisissez un jour et un moment.",
-        "windowJustStarted": "Ce moment de la journée vient de commencer : choisissez-en un autre."
-      },
-      "windows": {
-        "morning": {
-          "label": "Matin",
-          "range": "à partir de 9 h",
-          "phrase": "le matin"
-        },
-        "afternoon": {
-          "label": "Après-midi",
-          "range": "à partir de 14 h",
-          "phrase": "l’après-midi"
-        },
-        "evening": {
-          "label": "Fin de journée",
-          "range": "à partir de 17 h",
-          "phrase": "en fin de journée"
-        }
-      },
-      "continue": "Continuer",
-      "back": "Retour",
-      "send": "Envoyer la demande",
-      "who": {
-        "heading": "Comment vous joindre ?",
-        "edit": "Modifier",
-        "editAria": "Modifier le jour et le moment",
-        "noAccount": "Pas de compte à créer.",
-        "moreOptions": "Autre format ou message",
-        "moreOptionsHint": "(visio, remise de clés…)",
-        "optional": "(facultatif)"
-      },
-      "done": {
-        "subtitleSms": "Vous recevrez l’heure de la visite par SMS au {phone}.",
-        "subtitleAccount": "Vous recevrez l’heure de la visite dans votre espace et par e-mail.",
-        "received": "{name} reçoit votre demande",
-        "receivedGeneric": "L’annonceur reçoit votre demande",
-        "now": "Maintenant",
-        "proposes": "Une heure précise vous est proposée",
-        "reminder": "Un rappel la veille de la visite",
-        "reminderHint": "Une fois l’heure fixée",
-        "whenWindow": "{day}, {window} — heure à fixer",
-        "onBehalfOf": "Au nom de {name}",
-        "meanwhile": "En attendant",
-        "prepareFile": "Préparer mon dossier",
-        "prepareFileHint": "Prêt à déposer dès la visite faite.",
-        "alert": "Me prévenir des biens similaires",
-        "alertHint": "Voir les annonces de {place} et créer une alerte.",
-        "backToListing": "Retour à l’annonce"
-      }
-    },
-    "reservation": {
-      "offer": {
-        "dialogTitle": "Faire une offre",
-        "loginTitle": "Connectez-vous pour faire une offre",
-        "loginBody": "Vous devez être connecté pour soumettre une offre.",
-        "submit": "Envoyer l'offre"
-      },
-      "reserve": {
-        "dialogTitle": "Réserver ce bien",
-        "loginTitle": "Connectez-vous pour réserver",
-        "loginBody": "Vous devez être connecté pour faire une demande de réservation.",
-        "submit": "Envoyer la demande"
-      },
-      "apply": {
-        "dialogTitle": "Postuler à ce bien",
-        "loginTitle": "Connectez-vous pour postuler",
-        "loginBody": "Vous devez être connecté pour soumettre votre dossier de location.",
-        "submit": "Envoyer ma candidature"
-      },
-      "cancel": "Annuler",
-      "signIn": "Se connecter",
-      "createAccount": "Créer un compte",
-      "sending": "Envoi…",
-      "booking": {
-        "description": "Précisez vos dates et le nombre d'invités. Le propriétaire confirmera votre demande.",
-        "checkIn": "Arrivée",
-        "checkInPlaceholder": "Date d'arrivée",
-        "checkOut": "Départ",
-        "checkOutPlaceholder": "Date de départ",
-        "guests": "Invités",
-        "message": "Message (optionnel)",
-        "messagePlaceholder": "Présentez-vous, expliquez votre projet…",
-        "nightsLine": "{price} × {count, plural, =1 {# nuit} other {# nuits}}",
-        "estimatedTotal": "Total estimé",
-        "weeklyLine": "{price} / semaine, au prorata de {count, plural, =1 {# nuit} other {# nuits}}",
-        "deposit": "Acompte (30 %)",
-        "rentLine": "Loyer",
-        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif.",
-        "occupiedHint": "Les dates grisées sont déjà prises."
-      },
-      "offerForm": {
-        "invalidAmount": "Montant invalide.",
-        "description": "Prix d'affichage : {price}. Le propriétaire examinera votre offre avant son expiration.",
-        "amount": "Montant proposé ({currency})",
-        "validity": "Validité de l'offre",
-        "expiryPlaceholder": "Date d'expiration",
-        "message": "Message (optionnel)",
-        "messagePlaceholder": "Précisez les conditions ou le contexte de votre offre…",
-        "termsBefore": "J'ai lu et j'accepte les",
-        "termsLink": "conditions générales",
-        "termsAfter": "d'utilisation pour la soumission d'une offre d'achat."
-      }
-    },
-    "moderation": {
-      "pendingTitle": "En attente de validation",
-      "pendingBody": "Votre bien est en cours de vérification. Il sera en ligne dès qu’il sera approuvé.",
-      "rejectedTitle": "Publication refusée",
-      "resubmit": "Corriger et resoumettre",
-      "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
-      "approvedTitle": "Bien approuvé et publié",
-      "approvedOn": "Approuvé le {date}"
     },
     "form": {
       "missingIdError": "Le bien a été créé, mais l'identifiant serveur est absent.",
@@ -1627,531 +1262,6 @@
           "primary": "Numéro principal",
           "secondary": "Second numéro",
           "onSite": "Sur place"
-        }
-      }
-    },
-    "dashboard": {
-      "overview": {
-        "checklist": {
-          "description": "Rédiger une description (≥ 80 caractères)",
-          "gps": "Placer le marqueur GPS",
-          "cover": "Ajouter au moins une photo (couverture)",
-          "titleType": "Renseigner le type de titre foncier"
-        },
-        "views": "Vues",
-        "viewsHint": "Sur la fiche publique",
-        "favorites": "Favoris",
-        "favoritesHint": "Utilisateurs ayant épinglé",
-        "rating": "Note moyenne",
-        "ratingHint": "{count} avis",
-        "address": "Adresse",
-        "addressHint": "Localisation visible sur la fiche publique.",
-        "edit": "Modifier",
-        "addressMissing": "Adresse à compléter",
-        "gpsMissing": "Coordonnées GPS non renseignées",
-        "todo": "À régler",
-        "allDone": "Tout est en ordre.",
-        "remaining": "{count, plural, =1 {# élément à compléter.} other {# éléments à compléter.}}",
-        "complete": "Compléter",
-        "priceHistory": "Historique des prix",
-        "priceHistoryHint": "5 dernières évolutions enregistrées.",
-        "seeAll": "Voir tout",
-        "noPriceHistory": "Aucune évolution de prix enregistrée pour le moment.",
-        "unknownDate": "Date inconnue",
-        "availability": "Disponibilité",
-        "availabilityNow": "Immédiatement",
-        "availabilityFrom": "À partir du {date}"
-      },
-      "tabs": {
-        "overview": "Aperçu",
-        "edit": "Édition",
-        "media": "Médias ({count})",
-        "history": "Historique ({count})",
-        "fullPriceHistory": "Historique complet des prix",
-        "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
-        "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
-        "unknownDate": "Date inconnue",
-        "calendar": "Calendrier",
-        "label": "Onglets du bien",
-        "location": "Location",
-        "annonce": "Annonce",
-        "interventions": "Interventions",
-        "documents": "Documents",
-        "historique": "Historique",
-        "sections": "Sections de l’annonce"
-      },
-      "pagination": {
-        "aria": "Pagination",
-        "pageOf": "Page {current} sur {total}",
-        "results": "{count, plural, =1 {# résultat} other {# résultats}}",
-        "perPagePlaceholder": "20 / page",
-        "previous": "Précédent",
-        "next": "Suivant",
-        "affiches": "{shown} biens sur {total}",
-        "suivants": "{count, plural, one {Afficher le suivant} other {Afficher les # suivants}}"
-      },
-      "media": {
-        "photos": "Photos",
-        "loading": "Chargement…",
-        "title": "Photos du bien",
-        "hint": "Glissez pour réorganiser — la première photo devient la couverture."
-      },
-      "list": {
-        "selectAll": "Sélectionner tous les biens",
-        "selectOne": "Sélectionner {title}",
-        "ownerPrefix": "Propriétaire :",
-        "responsiblePrefix": "Agent responsable :",
-        "responsibleNone": "aucun",
-        "agentSelf": "{name} (moi)",
-        "bulkAria": "Actions groupées",
-        "bulkSelected": "{count, plural, =1 {# bien sélectionné} other {# biens sélectionnés}}",
-        "bulkArchive": "Archiver",
-        "bulkUnpublish": "Dépublier",
-        "bulkReassignPlaceholder": "Agent responsable…",
-        "bulkAssign": "Changer l'agent responsable",
-        "bulkClear": "Tout désélectionner",
-        "bulkError": "Action en lot impossible.",
-        "bulkArchived": "Biens archivés.",
-        "bulkUnpublished": "Biens dépubliés.",
-        "reference": "Réf. {value}"
-      },
-      "filters": {
-        "searchLabel": "Rechercher un bien",
-        "searchPlaceholder": "Rechercher par titre, référence, description…",
-        "sortLabel": "Tri",
-        "sortPlaceholder": "Tri",
-        "sort": {
-          "newest": "Plus récents",
-          "oldest": "Plus anciens",
-          "priceAsc": "Prix croissant",
-          "priceDesc": "Prix décroissant",
-          "viewsDesc": "Vues décroissantes",
-          "viewsAsc": "Vues croissantes",
-          "retard": "Retards d’abord",
-          "pertinence": "Pertinence"
-        },
-        "toggleMine": "Mes biens",
-        "toggleArchived": "Archivés",
-        "removeChip": "Retirer le filtre {label}",
-        "resetAll": "Tout réinitialiser",
-        "cityAria": "Ville",
-        "cityPlaceholder": "Ville",
-        "priceMinAria": "Prix minimum",
-        "priceMinPlaceholder": "Prix min",
-        "priceMaxAria": "Prix maximum",
-        "priceMaxPlaceholder": "Prix max",
-        "apply": "Appliquer",
-        "statusLabel": "Statut",
-        "statusAll": "Tous statuts",
-        "typeLabel": "Type",
-        "typeAll": "Tous types",
-        "contractLabel": "Contrat",
-        "contractAll": "Vente & location",
-        "visibilityLabel": "Visibilité",
-        "visibilityAll": "Toutes",
-        "agentLabel": "Agent assigné",
-        "agentAll": "Tous agents",
-        "createdFrom": "Créé après",
-        "createdTo": "Créé avant",
-        "chips": {
-          "search": "Recherche",
-          "status": "Statut",
-          "type": "Type",
-          "contract": "Contrat",
-          "visibility": "Visibilité",
-          "city": "Ville",
-          "priceMin": "Prix min",
-          "priceMax": "Prix max",
-          "createdFrom": "Créé après",
-          "createdTo": "Créé avant",
-          "agent": "Agent"
-        },
-        "mobile": {
-          "button": "Filtres",
-          "buttonAria": "Filtres et tri — {count, plural, =0 {aucun filtre actif} =1 {# filtre actif} other {# filtres actifs}}",
-          "title": "Filtres et tri",
-          "description": "Chaque choix s’applique aussitôt à la liste.",
-          "sortHeading": "Trier par",
-          "scopeHeading": "Afficher",
-          "criteriaHeading": "Critères",
-          "showResults": "Voir les résultats"
-        },
-        "panneau": {
-          "aria": "Filtres de la liste",
-          "titre": "Filtres",
-          "replier": "Replier les filtres",
-          "reinitialiser": "Réinitialiser",
-          "occupation": "Occupation",
-          "typeEtLieu": "Type et lieu",
-          "lieu": "Lieu",
-          "agentEtPortee": "Agent et portée",
-          "afficher": "Afficher",
-          "plus": "Plus de critères"
-        },
-        "total": "{count, plural, one {# bien} other {# biens}}"
-      },
-      "actions": {
-        "error": "Action impossible. Réessayez.",
-        "published": "Bien publié.",
-        "unpublished": "Bien dépublié.",
-        "statusUpdated": "Statut mis à jour.",
-        "archived": "Bien archivé.",
-        "duplicateFailed": "Duplication impossible.",
-        "deleteFailed": "Suppression impossible.",
-        "edit": "Modifier",
-        "viewPublic": "Voir la fiche publique",
-        "more": "Plus d’actions",
-        "moreFor": "Plus d’actions — {title}",
-        "quickActions": "Actions rapides",
-        "unpublish": "Dépublier",
-        "publish": "Publier",
-        "duplicate": "Dupliquer",
-        "statusHeading": "Statut",
-        "archive": "Archiver",
-        "delete": "Supprimer",
-        "deleteTitle": "Supprimer ce bien ?",
-        "deleteBodyRow": "Le bien <b>{title}</b> sera supprimé et retiré du site. Cette action est irréversible.",
-        "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille et retiré du site. Cette action est irréversible.",
-        "cancel": "Annuler",
-        "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé.",
-        "duplicated": "Bien dupliqué.",
-        "archiveTitle": "Archiver ce bien ?",
-        "archiveBody": "Le bien <b>{title}</b> sera archivé et ne sera plus visible sur le site.",
-        "unpublishTitle": "Dépublier ce bien ?",
-        "unpublishBody": "Le bien <b>{title}</b> ne sera plus visible sur le site. Vous pourrez le republier depuis ce menu."
-      },
-      "calendar": {
-        "title": "Calendrier du bien",
-        "description": "Réservations confirmées, dates bloquées et dates importées d'autres plateformes, sur douze mois.",
-        "legend": "Légende",
-        "legendBooked": "Réservé",
-        "legendBlocked": "Bloqué",
-        "legendImported": "Importé",
-        "genericError": "L'opération n'a pas abouti.",
-        "blockTitle": "Bloquer des dates",
-        "blockHint": "Les nuits bloquées ne sont plus réservables, ici comme sur les plateformes qui lisent votre lien d'export.",
-        "blockFrom": "Première nuit",
-        "blockTo": "Jour de reprise",
-        "blockReason": "Motif (facultatif, visible de vous seul)",
-        "blockSubmit": "Bloquer",
-        "blocksTitle": "Dates bloquées",
-        "blocksEmpty": "Aucune date bloquée sur les douze prochains mois.",
-        "range": "Du {from} au {to}",
-        "manual": "Blocage manuel",
-        "importedFrom": "Importé de {feed}",
-        "conflict": "Conflit avec une réservation",
-        "unblock": "Débloquer",
-        "feedsTitle": "Calendriers importés",
-        "feedsHint": "Collez le lien iCal d'Airbnb, de Booking.com ou d'un agenda : leurs dates prises sont bloquées ici toutes les heures. Une date importée se retire à la source.",
-        "feedUrl": "Lien iCal (https)",
-        "feedLabel": "Nom (facultatif)",
-        "feedAdd": "Importer",
-        "feedOk": "synchronisé",
-        "feedFailing": "en échec ({count, plural, =1 {# tentative} other {# tentatives}})",
-        "feedSync": "Synchroniser",
-        "feedRemove": "Retirer",
-        "exportTitle": "Lien d'export",
-        "exportHint": "Donnez ce lien aux autres plateformes pour qu'elles bloquent vos réservations Takussan. Il ne contient ni nom ni téléphone.",
-        "exportGenerate": "Générer un nouveau lien",
-        "exportUrl": "Lien d'export iCal",
-        "exportCopy": "Copier",
-        "exportCopied": "Copié",
-        "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent.",
-        "feedPending": "première synchronisation en cours"
-      },
-      "collaborators": {
-        "title": "Agent principal",
-        "explanation": "L'agent principal est la personne que la fiche publique du bien nomme, qui reçoit les messages et les demandes des visiteurs, et dont le numéro s'affiche.",
-        "source": {
-          "designated": "Choisi par l'agence.",
-          "invitation_order": "Aucun choix n'est posé : l'agent associé au bien le premier répond.",
-          "owner": "Aucun agent actif n'est associé à ce bien : le propriétaire répond.",
-          "designated_unavailable": "L'agent choisi par l'agence n'est plus actif : {repli, select, agent {l'agent associé au bien le premier répond à sa place} other {le propriétaire répond à sa place}}, jusqu'à ce qu'il le redevienne ou qu'un autre agent soit désigné."
-        },
-        "badge": {
-          "designated": "Agent principal",
-          "default": "Répond par défaut",
-          "unavailable": "Choisi, indisponible"
-        },
-        "roles": {
-          "agent": "Agent",
-          "manager": "Gestionnaire",
-          "co_owner": "Copropriétaire",
-          "viewer": "Lecteur (sans accès)"
-        },
-        "designate": "Désigner comme principal",
-        "designateFor": "Désigner {name} comme agent principal",
-        "empty": "Aucun collaborateur n'est associé à ce bien.",
-        "error": "La désignation n'a pas abouti. Réessayez.",
-        "lectureEnEchec": "Les intervenants du bien n’ont pas pu être lus."
-      },
-      "ownerTransfer": {
-        "trigger": "Changer le titulaire",
-        "title": "Changer le titulaire du bien",
-        "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
-        "ownerLabel": "Nouveau titulaire",
-        "ownerPlaceholder": "Choisir un bailleur actif",
-        "loadingOwners": "Chargement des bailleurs…",
-        "noOwners": "Aucun bailleur actif dans l'agence.",
-        "loadingPreview": "Calcul de ce qui suit le bien…",
-        "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
-        "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
-        "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
-        "payouts": "Les reversements déjà faits ne changent pas.",
-        "confirm": "Confirmer le changement",
-        "submitting": "Changement en cours…",
-        "cancel": "Annuler",
-        "success": "Le bien est désormais au nom de {name}.",
-        "error": "Changement impossible. Réessayez."
-      },
-      "gestion": {
-        "modes": {
-          "aria": "Mode de la liste",
-          "gestion": "Gestion",
-          "annonces": "Annonces"
-        },
-        "pastilles": {
-          "aria": "Filtrer par occupation",
-          "tous": "Tous",
-          "occupes": "Occupés",
-          "vacants": "Vacants",
-          "retard": "Loyer en retard",
-          "preavis": "Préavis",
-          "aVendre": "À vendre"
-        },
-        "tuiles": {
-          "aria": "Occupation du portefeuille — filtrer la liste",
-          "occupes": "Occupés",
-          "surTotal": "/ {total}",
-          "vacants": "Vacants",
-          "vacantsLongs": "{count, plural, =0 {Aucun depuis plus de 60 j} one {# depuis plus de 60 j} other {# depuis plus de 60 j}}",
-          "retard": "Loyers en retard",
-          "aEncaisser": "{montant} à encaisser",
-          "aJour": "Tous les loyers sont à jour",
-          "preavis": "Préavis",
-          "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}",
-          "partALouer": "{part} des biens à louer",
-          "aVendre": "À vendre",
-          "horsLocation": "Ni occupés ni vacants"
-        },
-        "ligne": {
-          "locataire": "{nom} · bail jusqu’au {date}",
-          "locataireSansFin": "{nom}",
-          "jusquAu": "jusqu’au {date}",
-          "occupe": "Occupé",
-          "sansLocataire": "Sans locataire",
-          "sansLocataireDe": "Sans locataire · {bailleur}",
-          "aVendre": "À vendre"
-        },
-        "etat": {
-          "paye": "Payé",
-          "enRetard": "En retard de {jours} j",
-          "partiel": "Payé en partie",
-          "aEcheance": "À échéance le {date}",
-          "aEcheanceSansDate": "À échéance",
-          "preavis": "Préavis · sortie le {date}",
-          "preavisSansDate": "Préavis",
-          "vacantDepuis": "Vacant depuis {jours} j",
-          "vacant": "Vacant"
-        },
-        "etatCourt": {
-          "paye": "Payé",
-          "enRetard": "Retard {jours} j",
-          "partiel": "Partiel",
-          "aEcheance": "Échéance {date}",
-          "aEcheanceSansDate": "À échéance",
-          "preavis": "Préavis",
-          "preavisSansDate": "Préavis",
-          "vacantDepuis": "Vacant {jours} j",
-          "vacant": "Vacant"
-        },
-        "loyer": {
-          "parPeriode": "{montant} / {periode}",
-          "prixDeVente": "Prix de vente"
-        },
-        "publier": "Publier l’annonce",
-        "publierPour": "Publier l’annonce — {title}",
-        "colonnes": {
-          "bien": "Bien",
-          "bailleur": "Bailleur",
-          "locataire": "Locataire et fin de bail",
-          "loyer": "Loyer / mois",
-          "ceMois": "Ce mois",
-          "agent": "Agent",
-          "actions": "Actions"
-        },
-        "agentAucun": "Aucun agent responsable",
-        "caption": "Biens en gestion"
-      },
-      "fiche": {
-        "occupant": {
-          "occupePar": "Occupé par",
-          "enPreavis": "En préavis",
-          "locataire": "Locataire",
-          "appeler": "Appeler {nom}",
-          "whatsapp": "Écrire à {nom} sur WhatsApp"
-        },
-        "bail": {
-          "illisible": "Le bail en cours ne se lit pas depuis votre compte.",
-          "periode": "{debut} → {fin}",
-          "depuis": "Depuis le {debut}",
-          "reference": "Bail {reference}",
-          "sansReference": "Bail en cours",
-          "echec": "Le bail n’a pas pu être lu.",
-          "cles": {
-            "reference": "Référence",
-            "type": "Type",
-            "duree": "Durée",
-            "caution": "Caution",
-            "preavis": "Préavis",
-            "preavisJours": "{count, plural, one {# jour} other {# jours}}"
-          }
-        },
-        "ceMois": {
-          "echeance": "{mois} · échéance le {jour}",
-          "sansEcheance": "Aucune échéance ce mois-ci",
-          "penalite": "Pénalité de retard due :",
-          "payeLe": "Payé le {date}",
-          "relancer": "Relancer",
-          "encaisser": "Encaisser",
-          "precedentPaye": "{mois} payé le {date}"
-        },
-        "aVenir": {
-          "prochainLoyer": "Prochain loyer le {date}",
-          "edl": {
-            "titre": "État des lieux d’entrée",
-            "signe": "Signé par les deux parties le {date}",
-            "signeSansDate": "Signé par les deux parties",
-            "enAttente": "En attente de signature",
-            "conteste": "Contesté",
-            "brouillon": "En préparation",
-            "aucun": "Aucun état des lieux d’entrée",
-            "echec": "L’état des lieux n’a pas pu être lu."
-          }
-        },
-        "bailleur": {
-          "titre": "Bailleur",
-          "inconnu": "Bailleur non renseigné"
-        },
-        "titres": {
-          "ceMois": "Ce mois",
-          "aVenir": "À venir",
-          "mandat": "Mandat",
-          "bailEnCours": "Bail en cours",
-          "occupation": "Occupation"
-        },
-        "gestes": {
-          "signaler": "Signaler un problème",
-          "creerUnBail": "Créer un bail",
-          "voirLeBail": "Voir le bail",
-          "contacter": "Contacter le locataire",
-          "planifier": "Planifier une visite",
-          "modifierLAnnonce": "Modifier l’annonce"
-        },
-        "vente": {
-          "titre": "Bien à vendre",
-          "detail": "Ce bien n’est pas en location : sa publication se règle dans l’onglet Annonce.",
-          "ouvrir": "Ouvrir l’annonce"
-        },
-        "vacant": {
-          "detail": "Aucun bail ne court sur ce bien."
-        },
-        "loyers": {
-          "titre": "Loyers",
-          "toutLEcheancier": "Tout l’échéancier ({count})",
-          "echec": "Les échéances n’ont pas pu être lues.",
-          "chargement": "Lecture des échéances…",
-          "vide": "Aucune échéance enregistrée.",
-          "recuLe": "Reçu le {date}",
-          "echeanceLe": "Échéance le {date}",
-          "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
-        },
-        "carte": {
-          "loyerDe": "Loyer de {mois}",
-          "montantDu": "Montant dû",
-          "prochainLoyer": "Prochain loyer",
-          "locataireTelephone": "Locataire · {telephone}"
-        },
-        "contacter": {
-          "titre": "Contacter {nom}",
-          "appeler": "Appeler",
-          "whatsapp": "Écrire sur WhatsApp"
-        },
-        "documents": {
-          "titre": "Documents",
-          "aide": "Les pièces du bien et de ses baux, et les documents générés par Takussan.",
-          "echec": "Les documents n’ont pas pu être lus.",
-          "chargement": "Lecture des documents…",
-          "vide": "Aucun document pour ce bien.",
-          "genere": "Généré par Takussan",
-          "genereLe": "Généré par Takussan · {date}",
-          "deposeLe": "Déposé le {date}",
-          "telecharger": "Télécharger",
-          "ouvrir": "Ouvrir",
-          "generes": {
-            "contrat": "Contrat de bail",
-            "contratRef": "Contrat de bail {reference}",
-            "edlEntree": "État des lieux d’entrée",
-            "edlSortie": "État des lieux de sortie",
-            "autre": "Document généré"
-          }
-        },
-        "photos": {
-          "position": "1 / {n}",
-          "nombre": "{count, plural, one {# photo} other {# photos}}"
-        },
-        "identite": {
-          "surface": "{area} m²",
-          "enLigne": "En ligne",
-          "horsLigne": "Hors ligne"
-        },
-        "responsable": {
-          "detail": "Agent responsable",
-          "aucun": "Non désigné"
-        }
-      },
-      "annonces": {
-        "pastilles": {
-          "aria": "Filtrer par état d’annonce",
-          "toutes": "Toutes",
-          "enLigne": "En ligne",
-          "aValider": "À valider",
-          "brouillons": "Brouillons",
-          "horsLigne": "Hors ligne",
-          "vendusLoues": "Vendus, loués",
-          "archives": "Archivés"
-        },
-        "etat": {
-          "enLigne": "En ligne",
-          "aValider": "À valider",
-          "brouillon": "Brouillon",
-          "horsLigne": "Hors ligne"
-        },
-        "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
-        "caption": "Annonces",
-        "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
-        "quota": {
-          "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
-          "aria": "Quota d’annonces de votre agence",
-          "definition": "Disponibles, validées ou en attente"
-        },
-        "boostee": "Boostée jusqu’au {date}"
-      },
-      "horsLigne": {
-        "phrase": {
-          "agency_inactive": "Agence suspendue : ses biens ne sont plus visibles du public.",
-          "status_draft": "Brouillon — publiez l’annonce quand elle est prête.",
-          "status_sold": "Vendu — l’annonce n’est plus proposée.",
-          "status_rented": "Loué — remis en ligne à la fin du bail.",
-          "status_archived": "Archivé — désarchivez-le pour le remettre en ligne.",
-          "status_under_maintenance": "En maintenance — remis en ligne une fois disponible.",
-          "status_unavailable": "Indisponible — remis en ligne une fois disponible.",
-          "status_pending_review": "En attente de validation par l’agence.",
-          "status_rejected": "Refusé à la validation — corrigez l’annonce puis soumettez-la de nouveau.",
-          "not_published": "Jamais publié — publiez l’annonce pour la mettre en ligne.",
-          "private": "Privé — rendez-le public pour le mettre en ligne.",
-          "test": "Bien de test — jamais visible du public.",
-          "inconnu": "Hors ligne."
         }
       }
     },
@@ -2465,47 +1575,6 @@
       "urgent_sale": "Vente urgente",
       "seasonal": "Saisonnier",
       "correction": "Correction"
-    },
-    "reviewReport": {
-      "trigger": "Signaler",
-      "triggerAria": "Signaler cet avis",
-      "dialogTitle": "Signaler cet avis",
-      "dialogBody": "Notre équipe examinera cet avis. Il reste affiché tant qu'il n'a pas été examiné.",
-      "reasons": {
-        "fraud": "Faux avis",
-        "offensive": "Propos injurieux",
-        "personal_data": "Données personnelles",
-        "conflict_of_interest": "Conflit d'intérêts",
-        "spam": "Spam",
-        "off_topic": "Hors sujet",
-        "other": "Autre"
-      }
-    },
-    "retired": {
-      "title": {
-        "rented": "Ce bien a été loué",
-        "sold": "Ce bien a été vendu",
-        "withdrawn": "Ce bien n'est plus proposé"
-      },
-      "body": "L'annonce que vous cherchez n'est plus disponible. Voici des biens proches qui pourraient vous convenir.",
-      "similarTitle": "Des biens similaires",
-      "searchQuarter": "Voir les biens à {quarter}, {city}",
-      "searchCity": "Voir les biens à {city}",
-      "searchAll": "Voir tous les biens",
-      "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires.",
-      "bodyNoSimilar": "L'annonce que vous cherchez n'est plus disponible.",
-      "alertQuarter": "M’alerter des nouveaux biens à {quarter}",
-      "alertCity": "M’alerter des nouveaux biens à {city}",
-      "alertAll": "M’alerter des nouveaux biens semblables"
-    },
-    "availabilityCheck": {
-      "title": "Ce bien est-il toujours disponible ?",
-      "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
-      "rented": "Il est loué",
-      "sold": "Il est vendu",
-      "available": "Toujours disponible",
-      "done": "Merci, votre réponse est enregistrée.",
-      "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
     }
   },
   "dashboard": {
@@ -21686,5 +20755,936 @@
       "last_month": "Mois dernier"
     },
     "chiffresClesMoisDernier": "Chiffres clés · mois dernier"
+  },
+  "propertyDashboard": {
+    "overview": {
+      "checklist": {
+        "description": "Rédiger une description (≥ 80 caractères)",
+        "gps": "Placer le marqueur GPS",
+        "cover": "Ajouter au moins une photo (couverture)",
+        "titleType": "Renseigner le type de titre foncier"
+      },
+      "views": "Vues",
+      "viewsHint": "Sur la fiche publique",
+      "favorites": "Favoris",
+      "favoritesHint": "Utilisateurs ayant épinglé",
+      "rating": "Note moyenne",
+      "ratingHint": "{count} avis",
+      "address": "Adresse",
+      "addressHint": "Localisation visible sur la fiche publique.",
+      "edit": "Modifier",
+      "addressMissing": "Adresse à compléter",
+      "gpsMissing": "Coordonnées GPS non renseignées",
+      "todo": "À régler",
+      "allDone": "Tout est en ordre.",
+      "remaining": "{count, plural, =1 {# élément à compléter.} other {# éléments à compléter.}}",
+      "complete": "Compléter",
+      "priceHistory": "Historique des prix",
+      "priceHistoryHint": "5 dernières évolutions enregistrées.",
+      "seeAll": "Voir tout",
+      "noPriceHistory": "Aucune évolution de prix enregistrée pour le moment.",
+      "unknownDate": "Date inconnue",
+      "availability": "Disponibilité",
+      "availabilityNow": "Immédiatement",
+      "availabilityFrom": "À partir du {date}"
+    },
+    "tabs": {
+      "overview": "Aperçu",
+      "edit": "Édition",
+      "media": "Médias ({count})",
+      "history": "Historique ({count})",
+      "fullPriceHistory": "Historique complet des prix",
+      "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
+      "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
+      "unknownDate": "Date inconnue",
+      "calendar": "Calendrier",
+      "label": "Onglets du bien",
+      "location": "Location",
+      "annonce": "Annonce",
+      "interventions": "Interventions",
+      "documents": "Documents",
+      "historique": "Historique",
+      "sections": "Sections de l’annonce"
+    },
+    "pagination": {
+      "aria": "Pagination",
+      "pageOf": "Page {current} sur {total}",
+      "results": "{count, plural, =1 {# résultat} other {# résultats}}",
+      "perPagePlaceholder": "20 / page",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "affiches": "{shown} biens sur {total}",
+      "suivants": "{count, plural, one {Afficher le suivant} other {Afficher les # suivants}}"
+    },
+    "media": {
+      "photos": "Photos",
+      "loading": "Chargement…",
+      "title": "Photos du bien",
+      "hint": "Glissez pour réorganiser — la première photo devient la couverture."
+    },
+    "list": {
+      "selectAll": "Sélectionner tous les biens",
+      "selectOne": "Sélectionner {title}",
+      "ownerPrefix": "Propriétaire :",
+      "responsiblePrefix": "Agent responsable :",
+      "responsibleNone": "aucun",
+      "agentSelf": "{name} (moi)",
+      "bulkAria": "Actions groupées",
+      "bulkSelected": "{count, plural, =1 {# bien sélectionné} other {# biens sélectionnés}}",
+      "bulkArchive": "Archiver",
+      "bulkUnpublish": "Dépublier",
+      "bulkReassignPlaceholder": "Agent responsable…",
+      "bulkAssign": "Changer l'agent responsable",
+      "bulkClear": "Tout désélectionner",
+      "bulkError": "Action en lot impossible.",
+      "bulkArchived": "Biens archivés.",
+      "bulkUnpublished": "Biens dépubliés.",
+      "reference": "Réf. {value}"
+    },
+    "filters": {
+      "searchLabel": "Rechercher un bien",
+      "searchPlaceholder": "Rechercher par titre, référence, description…",
+      "sortLabel": "Tri",
+      "sortPlaceholder": "Tri",
+      "sort": {
+        "newest": "Plus récents",
+        "oldest": "Plus anciens",
+        "priceAsc": "Prix croissant",
+        "priceDesc": "Prix décroissant",
+        "viewsDesc": "Vues décroissantes",
+        "viewsAsc": "Vues croissantes",
+        "retard": "Retards d’abord",
+        "pertinence": "Pertinence"
+      },
+      "toggleMine": "Mes biens",
+      "toggleArchived": "Archivés",
+      "removeChip": "Retirer le filtre {label}",
+      "resetAll": "Tout réinitialiser",
+      "cityAria": "Ville",
+      "cityPlaceholder": "Ville",
+      "priceMinAria": "Prix minimum",
+      "priceMinPlaceholder": "Prix min",
+      "priceMaxAria": "Prix maximum",
+      "priceMaxPlaceholder": "Prix max",
+      "apply": "Appliquer",
+      "statusLabel": "Statut",
+      "statusAll": "Tous statuts",
+      "typeLabel": "Type",
+      "typeAll": "Tous types",
+      "contractLabel": "Contrat",
+      "contractAll": "Vente & location",
+      "visibilityLabel": "Visibilité",
+      "visibilityAll": "Toutes",
+      "agentLabel": "Agent assigné",
+      "agentAll": "Tous agents",
+      "createdFrom": "Créé après",
+      "createdTo": "Créé avant",
+      "chips": {
+        "search": "Recherche",
+        "status": "Statut",
+        "type": "Type",
+        "contract": "Contrat",
+        "visibility": "Visibilité",
+        "city": "Ville",
+        "priceMin": "Prix min",
+        "priceMax": "Prix max",
+        "createdFrom": "Créé après",
+        "createdTo": "Créé avant",
+        "agent": "Agent"
+      },
+      "mobile": {
+        "button": "Filtres",
+        "buttonAria": "Filtres et tri — {count, plural, =0 {aucun filtre actif} =1 {# filtre actif} other {# filtres actifs}}",
+        "title": "Filtres et tri",
+        "description": "Chaque choix s’applique aussitôt à la liste.",
+        "sortHeading": "Trier par",
+        "scopeHeading": "Afficher",
+        "criteriaHeading": "Critères",
+        "showResults": "Voir les résultats"
+      },
+      "panneau": {
+        "aria": "Filtres de la liste",
+        "titre": "Filtres",
+        "replier": "Replier les filtres",
+        "reinitialiser": "Réinitialiser",
+        "occupation": "Occupation",
+        "typeEtLieu": "Type et lieu",
+        "lieu": "Lieu",
+        "agentEtPortee": "Agent et portée",
+        "afficher": "Afficher",
+        "plus": "Plus de critères"
+      },
+      "total": "{count, plural, one {# bien} other {# biens}}"
+    },
+    "actions": {
+      "error": "Action impossible. Réessayez.",
+      "published": "Bien publié.",
+      "unpublished": "Bien dépublié.",
+      "statusUpdated": "Statut mis à jour.",
+      "archived": "Bien archivé.",
+      "duplicateFailed": "Duplication impossible.",
+      "duplicated": "Bien dupliqué.",
+      "archiveTitle": "Archiver ce bien ?",
+      "archiveBody": "Le bien <b>{title}</b> sera archivé et ne sera plus visible sur le site.",
+      "unpublishTitle": "Dépublier ce bien ?",
+      "unpublishBody": "Le bien <b>{title}</b> ne sera plus visible sur le site. Vous pourrez le republier depuis ce menu.",
+      "deleteFailed": "Suppression impossible.",
+      "edit": "Modifier",
+      "viewPublic": "Voir la fiche publique",
+      "more": "Plus d’actions",
+      "moreFor": "Plus d’actions — {title}",
+      "quickActions": "Actions rapides",
+      "unpublish": "Dépublier",
+      "publish": "Publier",
+      "duplicate": "Dupliquer",
+      "statusHeading": "Statut",
+      "archive": "Archiver",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer ce bien ?",
+      "deleteBodyRow": "Le bien <b>{title}</b> sera supprimé et retiré du site. Cette action est irréversible.",
+      "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille et retiré du site. Cette action est irréversible.",
+      "cancel": "Annuler",
+      "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
+    },
+    "calendar": {
+      "title": "Calendrier du bien",
+      "description": "Réservations confirmées, dates bloquées et dates importées d'autres plateformes, sur douze mois.",
+      "legend": "Légende",
+      "legendBooked": "Réservé",
+      "legendBlocked": "Bloqué",
+      "legendImported": "Importé",
+      "genericError": "L'opération n'a pas abouti.",
+      "blockTitle": "Bloquer des dates",
+      "blockHint": "Les nuits bloquées ne sont plus réservables, ici comme sur les plateformes qui lisent votre lien d'export.",
+      "blockFrom": "Première nuit",
+      "blockTo": "Jour de reprise",
+      "blockReason": "Motif (facultatif, visible de vous seul)",
+      "blockSubmit": "Bloquer",
+      "blocksTitle": "Dates bloquées",
+      "blocksEmpty": "Aucune date bloquée sur les douze prochains mois.",
+      "range": "Du {from} au {to}",
+      "manual": "Blocage manuel",
+      "importedFrom": "Importé de {feed}",
+      "conflict": "Conflit avec une réservation",
+      "unblock": "Débloquer",
+      "feedsTitle": "Calendriers importés",
+      "feedsHint": "Collez le lien iCal d'Airbnb, de Booking.com ou d'un agenda : leurs dates prises sont bloquées ici toutes les heures. Une date importée se retire à la source.",
+      "feedUrl": "Lien iCal (https)",
+      "feedLabel": "Nom (facultatif)",
+      "feedAdd": "Importer",
+      "feedOk": "synchronisé",
+      "feedFailing": "en échec ({count, plural, =1 {# tentative} other {# tentatives}})",
+      "feedSync": "Synchroniser",
+      "feedRemove": "Retirer",
+      "exportTitle": "Lien d'export",
+      "exportHint": "Donnez ce lien aux autres plateformes pour qu'elles bloquent vos réservations Takussan. Il ne contient ni nom ni téléphone.",
+      "exportGenerate": "Générer un nouveau lien",
+      "exportUrl": "Lien d'export iCal",
+      "exportCopy": "Copier",
+      "exportCopied": "Copié",
+      "exportOnce": "Ce lien ne s'affiche qu'une fois. En générer un nouveau désactive le précédent.",
+      "feedPending": "première synchronisation en cours"
+    },
+    "collaborators": {
+      "title": "Agent principal",
+      "explanation": "L'agent principal est la personne que la fiche publique du bien nomme, qui reçoit les messages et les demandes des visiteurs, et dont le numéro s'affiche.",
+      "source": {
+        "designated": "Choisi par l'agence.",
+        "invitation_order": "Aucun choix n'est posé : l'agent associé au bien le premier répond.",
+        "owner": "Aucun agent actif n'est associé à ce bien : le propriétaire répond.",
+        "designated_unavailable": "L'agent choisi par l'agence n'est plus actif : {repli, select, agent {l'agent associé au bien le premier répond à sa place} other {le propriétaire répond à sa place}}, jusqu'à ce qu'il le redevienne ou qu'un autre agent soit désigné."
+      },
+      "badge": {
+        "designated": "Agent principal",
+        "default": "Répond par défaut",
+        "unavailable": "Choisi, indisponible"
+      },
+      "roles": {
+        "agent": "Agent",
+        "manager": "Gestionnaire",
+        "co_owner": "Copropriétaire",
+        "viewer": "Lecteur (sans accès)"
+      },
+      "designate": "Désigner comme principal",
+      "designateFor": "Désigner {name} comme agent principal",
+      "empty": "Aucun collaborateur n'est associé à ce bien.",
+      "error": "La désignation n'a pas abouti. Réessayez.",
+      "lectureEnEchec": "Les intervenants du bien n’ont pas pu être lus."
+    },
+    "ownerTransfer": {
+      "trigger": "Changer le titulaire",
+      "title": "Changer le titulaire du bien",
+      "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
+      "ownerLabel": "Nouveau titulaire",
+      "ownerPlaceholder": "Choisir un bailleur actif",
+      "loadingOwners": "Chargement des bailleurs…",
+      "noOwners": "Aucun bailleur actif dans l'agence.",
+      "loadingPreview": "Calcul de ce qui suit le bien…",
+      "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
+      "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
+      "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
+      "payouts": "Les reversements déjà faits ne changent pas.",
+      "confirm": "Confirmer le changement",
+      "submitting": "Changement en cours…",
+      "cancel": "Annuler",
+      "success": "Le bien est désormais au nom de {name}.",
+      "error": "Changement impossible. Réessayez."
+    },
+    "gestion": {
+      "modes": {
+        "aria": "Mode de la liste",
+        "gestion": "Gestion",
+        "annonces": "Annonces"
+      },
+      "pastilles": {
+        "aria": "Filtrer par occupation",
+        "tous": "Tous",
+        "occupes": "Occupés",
+        "vacants": "Vacants",
+        "retard": "Loyer en retard",
+        "preavis": "Préavis",
+        "aVendre": "À vendre"
+      },
+      "tuiles": {
+        "aria": "Occupation du portefeuille — filtrer la liste",
+        "occupes": "Occupés",
+        "surTotal": "/ {total}",
+        "partALouer": "{part} des biens à louer",
+        "vacants": "Vacants",
+        "vacantsLongs": "{count, plural, =0 {Aucun depuis plus de 60 j} one {# depuis plus de 60 j} other {# depuis plus de 60 j}}",
+        "retard": "Loyers en retard",
+        "aEncaisser": "{montant} à encaisser",
+        "aJour": "Tous les loyers sont à jour",
+        "preavis": "Préavis",
+        "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}",
+        "aVendre": "À vendre",
+        "horsLocation": "Ni occupés ni vacants"
+      },
+      "ligne": {
+        "locataire": "{nom} · bail jusqu’au {date}",
+        "locataireSansFin": "{nom}",
+        "jusquAu": "jusqu’au {date}",
+        "occupe": "Occupé",
+        "sansLocataire": "Sans locataire",
+        "sansLocataireDe": "Sans locataire · {bailleur}",
+        "aVendre": "À vendre"
+      },
+      "etat": {
+        "paye": "Payé",
+        "enRetard": "En retard de {jours} j",
+        "partiel": "Payé en partie",
+        "aEcheance": "À échéance le {date}",
+        "aEcheanceSansDate": "À échéance",
+        "preavis": "Préavis · sortie le {date}",
+        "preavisSansDate": "Préavis",
+        "vacantDepuis": "Vacant depuis {jours} j",
+        "vacant": "Vacant"
+      },
+      "etatCourt": {
+        "paye": "Payé",
+        "enRetard": "Retard {jours} j",
+        "partiel": "Partiel",
+        "aEcheance": "Échéance {date}",
+        "aEcheanceSansDate": "À échéance",
+        "preavis": "Préavis",
+        "preavisSansDate": "Préavis",
+        "vacantDepuis": "Vacant {jours} j",
+        "vacant": "Vacant"
+      },
+      "loyer": {
+        "parPeriode": "{montant} / {periode}",
+        "prixDeVente": "Prix de vente"
+      },
+      "publier": "Publier l’annonce",
+      "publierPour": "Publier l’annonce — {title}",
+      "colonnes": {
+        "bien": "Bien",
+        "bailleur": "Bailleur",
+        "locataire": "Locataire et fin de bail",
+        "loyer": "Loyer / mois",
+        "ceMois": "Ce mois",
+        "agent": "Agent",
+        "actions": "Actions"
+      },
+      "agentAucun": "Aucun agent responsable",
+      "caption": "Biens en gestion"
+    },
+    "fiche": {
+      "occupant": {
+        "occupePar": "Occupé par",
+        "enPreavis": "En préavis",
+        "locataire": "Locataire",
+        "appeler": "Appeler {nom}",
+        "whatsapp": "Écrire à {nom} sur WhatsApp"
+      },
+      "bail": {
+        "illisible": "Le bail en cours ne se lit pas depuis votre compte.",
+        "periode": "{debut} → {fin}",
+        "depuis": "Depuis le {debut}",
+        "reference": "Bail {reference}",
+        "sansReference": "Bail en cours",
+        "echec": "Le bail n’a pas pu être lu.",
+        "cles": {
+          "reference": "Référence",
+          "type": "Type",
+          "duree": "Durée",
+          "caution": "Caution",
+          "preavis": "Préavis",
+          "preavisJours": "{count, plural, one {# jour} other {# jours}}"
+        }
+      },
+      "ceMois": {
+        "echeance": "{mois} · échéance le {jour}",
+        "sansEcheance": "Aucune échéance ce mois-ci",
+        "penalite": "Pénalité de retard due :",
+        "payeLe": "Payé le {date}",
+        "relancer": "Relancer",
+        "encaisser": "Encaisser",
+        "precedentPaye": "{mois} payé le {date}"
+      },
+      "aVenir": {
+        "prochainLoyer": "Prochain loyer le {date}",
+        "edl": {
+          "titre": "État des lieux d’entrée",
+          "signe": "Signé par les deux parties le {date}",
+          "signeSansDate": "Signé par les deux parties",
+          "enAttente": "En attente de signature",
+          "conteste": "Contesté",
+          "brouillon": "En préparation",
+          "aucun": "Aucun état des lieux d’entrée",
+          "echec": "L’état des lieux n’a pas pu être lu."
+        }
+      },
+      "bailleur": {
+        "titre": "Bailleur",
+        "inconnu": "Bailleur non renseigné"
+      },
+      "titres": {
+        "ceMois": "Ce mois",
+        "aVenir": "À venir",
+        "mandat": "Mandat",
+        "bailEnCours": "Bail en cours",
+        "occupation": "Occupation"
+      },
+      "gestes": {
+        "signaler": "Signaler un problème",
+        "creerUnBail": "Créer un bail",
+        "voirLeBail": "Voir le bail",
+        "contacter": "Contacter le locataire",
+        "planifier": "Planifier une visite",
+        "modifierLAnnonce": "Modifier l’annonce"
+      },
+      "vente": {
+        "titre": "Bien à vendre",
+        "detail": "Ce bien n’est pas en location : sa publication se règle dans l’onglet Annonce.",
+        "ouvrir": "Ouvrir l’annonce"
+      },
+      "vacant": {
+        "detail": "Aucun bail ne court sur ce bien."
+      },
+      "loyers": {
+        "titre": "Loyers",
+        "toutLEcheancier": "Tout l’échéancier ({count})",
+        "echec": "Les échéances n’ont pas pu être lues.",
+        "chargement": "Lecture des échéances…",
+        "vide": "Aucune échéance enregistrée.",
+        "recuLe": "Reçu le {date}",
+        "echeanceLe": "Échéance le {date}",
+        "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
+      },
+      "carte": {
+        "loyerDe": "Loyer de {mois}",
+        "montantDu": "Montant dû",
+        "prochainLoyer": "Prochain loyer",
+        "locataireTelephone": "Locataire · {telephone}"
+      },
+      "contacter": {
+        "titre": "Contacter {nom}",
+        "appeler": "Appeler",
+        "whatsapp": "Écrire sur WhatsApp"
+      },
+      "documents": {
+        "titre": "Documents",
+        "aide": "Les pièces du bien et de ses baux, et les documents générés par Takussan.",
+        "echec": "Les documents n’ont pas pu être lus.",
+        "chargement": "Lecture des documents…",
+        "vide": "Aucun document pour ce bien.",
+        "genere": "Généré par Takussan",
+        "genereLe": "Généré par Takussan · {date}",
+        "deposeLe": "Déposé le {date}",
+        "telecharger": "Télécharger",
+        "ouvrir": "Ouvrir",
+        "generes": {
+          "contrat": "Contrat de bail",
+          "contratRef": "Contrat de bail {reference}",
+          "edlEntree": "État des lieux d’entrée",
+          "edlSortie": "État des lieux de sortie",
+          "autre": "Document généré"
+        }
+      },
+      "photos": {
+        "position": "1 / {n}",
+        "nombre": "{count, plural, one {# photo} other {# photos}}"
+      },
+      "identite": {
+        "surface": "{area} m²",
+        "enLigne": "En ligne",
+        "horsLigne": "Hors ligne"
+      },
+      "responsable": {
+        "detail": "Agent responsable",
+        "aucun": "Non désigné"
+      }
+    },
+    "annonces": {
+      "pastilles": {
+        "aria": "Filtrer par état d’annonce",
+        "toutes": "Toutes",
+        "enLigne": "En ligne",
+        "aValider": "À valider",
+        "brouillons": "Brouillons",
+        "horsLigne": "Hors ligne",
+        "vendusLoues": "Vendus, loués",
+        "archives": "Archivés"
+      },
+      "etat": {
+        "enLigne": "En ligne",
+        "aValider": "À valider",
+        "brouillon": "Brouillon",
+        "horsLigne": "Hors ligne"
+      },
+      "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
+      "caption": "Annonces",
+      "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
+      "quota": {
+        "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
+        "aria": "Quota d’annonces de votre agence",
+        "definition": "Disponibles, validées ou en attente"
+      },
+      "boostee": "Boostée jusqu’au {date}"
+    },
+    "horsLigne": {
+      "phrase": {
+        "agency_inactive": "Agence suspendue : ses biens ne sont plus visibles du public.",
+        "status_draft": "Brouillon — publiez l’annonce quand elle est prête.",
+        "status_sold": "Vendu — l’annonce n’est plus proposée.",
+        "status_rented": "Loué — remis en ligne à la fin du bail.",
+        "status_archived": "Archivé — désarchivez-le pour le remettre en ligne.",
+        "status_under_maintenance": "En maintenance — remis en ligne une fois disponible.",
+        "status_unavailable": "Indisponible — remis en ligne une fois disponible.",
+        "status_pending_review": "En attente de validation par l’agence.",
+        "status_rejected": "Refusé à la validation — corrigez l’annonce puis soumettez-la de nouveau.",
+        "not_published": "Jamais publié — publiez l’annonce pour la mettre en ligne.",
+        "private": "Privé — rendez-le public pour le mettre en ligne.",
+        "test": "Bien de test — jamais visible du public.",
+        "inconnu": "Hors ligne."
+      }
+    }
+  },
+  "propertyDetail": {
+    "reviewsCount": "({count} avis)",
+    "viewsCount": "{count, plural, one {# vue} other {# vues}}",
+    "reference": "Réf. {value}",
+    "featured": "Mis en avant",
+    "shareAria": "Partager ce bien",
+    "share": "Partager",
+    "removeFavorite": "Retirer des favoris",
+    "addFavorite": "Ajouter aux favoris",
+    "characteristics": "Caractéristiques",
+    "rows": {
+      "type": "Type",
+      "contract": "Contrat",
+      "period": "Période",
+      "status": "Statut",
+      "floor": "Étage",
+      "yearBuilt": "Année de construction",
+      "parking": "Places de parking",
+      "furnished": "Meublé",
+      "titleDeed": "Titre foncier",
+      "condition": "État du bien",
+      "availability": "Disponibilité",
+      "availabilityNow": "Immédiatement",
+      "availabilityFrom": "À partir du {date}",
+      "yes": "Oui"
+    },
+    "specs": {
+      "bedrooms": "Chambres",
+      "bathrooms": "SDB",
+      "area": "Surface",
+      "floors": "Étages",
+      "year": "Année",
+      "parking": "Parking"
+    },
+    "description": "Description",
+    "collapse": "Réduire",
+    "readMore": "Lire la suite",
+    "amenities": "Équipements",
+    "breadcrumbAria": "Fil d'Ariane",
+    "priceHistory": "Historique du prix",
+    "documents": "Documents",
+    "download": "Télécharger",
+    "downloadAria": "Télécharger {name}",
+    "requestVisit": "Demander une visite",
+    "sendMessage": "Envoyer un message",
+    "noChargeNotice": "Vous ne serez pas débité avant la confirmation.",
+    "agent": {
+      "phoneUnavailable": "Numéro de téléphone indisponible pour ce bien.",
+      "phoneError": "Impossible de récupérer le numéro. Veuillez réessayer.",
+      "verifiedAria": "Agence vérifiée",
+      "independent": "Agent indépendant",
+      "private": "Particulier",
+      "callAria": "Appeler",
+      "call": "Appeler",
+      "calling": "Connexion…"
+    },
+    "breadcrumb": {
+      "home": "Accueil",
+      "rent": "Louer",
+      "buy": "Acheter"
+    },
+    "location": "Emplacement",
+    "addressHidden": "Adresse non communiquée.",
+    "viewOnOsm": "Voir sur OpenStreetMap",
+    "shareDialog": {
+      "title": "Partager cette annonce",
+      "description": "Envoyez le lien à vos proches.",
+      "linkAria": "Lien à partager",
+      "copied": "Copié",
+      "copy": "Copier"
+    },
+    "similar": "Biens similaires",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "gallery": {
+      "close": "Fermer",
+      "viewerLabel": "Photos : {title}",
+      "previousPhoto": "Photo précédente",
+      "nextPhoto": "Photo suivante",
+      "noPhoto": "Aucune photo",
+      "noPhotoAvailable": "Aucune photo disponible",
+      "viewAll": "Voir toutes les photos ({count})",
+      "openPhoto": "Ouvrir la photo {index}",
+      "photoAlt": "{title} - photo {index}"
+    },
+    "bottomBar": {
+      "visit": "Visiter"
+    },
+    "notFound": "Bien introuvable.",
+    "similarError": "Impossible de charger les biens similaires.",
+    "contactInvalidResponse": "Réponse invalide.",
+    "primaryCta": {
+      "offer": "Faire une offre",
+      "reserve": "Réserver",
+      "apply": "Postuler"
+    },
+    "unavailableTitle": "Bien momentanément indisponible",
+    "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants.",
+    "favoriteAddShort": "Ajouter",
+    "favoriteSavedShort": "Favori",
+    "descriptionLanguageNotice": "{langue, select, fr {Description rédigée en français par l'annonceur} en {Description rédigée en anglais par l'annonceur} wo {Description rédigée en wolof par l'annonceur} other {Description rédigée par l'annonceur, dans sa langue}}",
+    "entryCost": {
+      "title": "Coût d'entrée",
+      "advance": "Avance",
+      "deposit": "Caution",
+      "agencyFee": "Frais d'agence",
+      "monthlyCharges": "Charges mensuelles",
+      "months": "{count, plural, one {# mois} other {# mois}}",
+      "total": "Total à l'entrée",
+      "showDetails": "Voir le détail",
+      "hideDetails": "Masquer le détail"
+    },
+    "trust": {
+      "phoneVerified": "Téléphone vérifié",
+      "safetyTitle": "Conseil de prudence",
+      "safetyBody": "Ne versez jamais d'argent avant d'avoir visité le bien et rencontré la personne qui le propose."
+    },
+    "virtualTour": {
+      "video": "Voir la vidéo du bien",
+      "tour": "Visite virtuelle",
+      "loadHint": "Se charge seulement quand vous l'ouvrez",
+      "frameTitle": "Visite virtuelle — {title}",
+      "opensNewTab": "(s'ouvre dans un nouvel onglet)"
+    },
+    "actions": {
+      "whatsapp": "WhatsApp",
+      "write": "Écrire",
+      "alreadyVisited": "Déjà visité ?",
+      "submitApplication": "Déposer mon dossier",
+      "numbersTitle": "Appeler {name}",
+      "numbersDescription": "Choisissez le numéro à composer."
+    }
+  },
+  "propertyVisitDialog": {
+    "types": {
+      "in_person": {
+        "label": "En personne",
+        "description": "Visite accompagnée du propriétaire ou de l'agent."
+      },
+      "virtual": {
+        "label": "Virtuelle",
+        "description": "Visioconférence depuis chez vous."
+      },
+      "self_guided": {
+        "label": "Autonome",
+        "description": "Vous récupérez les clés sur place."
+      },
+      "hybrid": {
+        "label": "Hybride",
+        "description": "Première visio puis visite physique."
+      }
+    },
+    "title": "Demander une visite",
+    "typeLegend": "Type de visite",
+    "typeSelected": "{label} sélectionné",
+    "notesLabel": "Message",
+    "notesOptional": "(optionnel)",
+    "notesPlaceholder": "Précisions pour le propriétaire…",
+    "sending": "Envoi…",
+    "stepShort": "{current} / {total}",
+    "stepLabel": "Étape {current} sur {total}",
+    "when": {
+      "dayHeading": "Quel jour ?",
+      "today": "Aujourd’hui",
+      "tomorrow": "Demain",
+      "otherDate": "Autre date",
+      "otherDateHint": "Calendrier",
+      "otherDateChosen": "Autre date : {date}",
+      "windowHeading": "À quel moment ?",
+      "windowHint": "L’agence vous propose ensuite une heure précise.",
+      "windowStarted": "Déjà commencé",
+      "summary": "{day} · {window}",
+      "pickBoth": "Choisissez un jour et un moment.",
+      "windowJustStarted": "Ce moment de la journée vient de commencer : choisissez-en un autre."
+    },
+    "windows": {
+      "morning": {
+        "label": "Matin",
+        "range": "à partir de 9 h",
+        "phrase": "le matin"
+      },
+      "afternoon": {
+        "label": "Après-midi",
+        "range": "à partir de 14 h",
+        "phrase": "l’après-midi"
+      },
+      "evening": {
+        "label": "Fin de journée",
+        "range": "à partir de 17 h",
+        "phrase": "en fin de journée"
+      }
+    },
+    "continue": "Continuer",
+    "back": "Retour",
+    "send": "Envoyer la demande",
+    "who": {
+      "heading": "Comment vous joindre ?",
+      "edit": "Modifier",
+      "editAria": "Modifier le jour et le moment",
+      "noAccount": "Pas de compte à créer.",
+      "moreOptions": "Autre format ou message",
+      "moreOptionsHint": "(visio, remise de clés…)",
+      "optional": "(facultatif)"
+    },
+    "done": {
+      "subtitleSms": "Vous recevrez l’heure de la visite par SMS au {phone}.",
+      "subtitleAccount": "Vous recevrez l’heure de la visite dans votre espace et par e-mail.",
+      "received": "{name} reçoit votre demande",
+      "receivedGeneric": "L’annonceur reçoit votre demande",
+      "now": "Maintenant",
+      "proposes": "Une heure précise vous est proposée",
+      "reminder": "Un rappel la veille de la visite",
+      "reminderHint": "Une fois l’heure fixée",
+      "whenWindow": "{day}, {window} — heure à fixer",
+      "onBehalfOf": "Au nom de {name}",
+      "meanwhile": "En attendant",
+      "prepareFile": "Préparer mon dossier",
+      "prepareFileHint": "Prêt à déposer dès la visite faite.",
+      "alert": "Me prévenir des biens similaires",
+      "alertHint": "Voir les annonces de {place} et créer une alerte.",
+      "backToListing": "Retour à l’annonce"
+    }
+  },
+  "propertyReservation": {
+    "offer": {
+      "dialogTitle": "Faire une offre",
+      "loginTitle": "Connectez-vous pour faire une offre",
+      "loginBody": "Vous devez être connecté pour soumettre une offre.",
+      "submit": "Envoyer l'offre"
+    },
+    "reserve": {
+      "dialogTitle": "Réserver ce bien",
+      "loginTitle": "Connectez-vous pour réserver",
+      "loginBody": "Vous devez être connecté pour faire une demande de réservation.",
+      "submit": "Envoyer la demande"
+    },
+    "apply": {
+      "dialogTitle": "Postuler à ce bien",
+      "loginTitle": "Connectez-vous pour postuler",
+      "loginBody": "Vous devez être connecté pour soumettre votre dossier de location.",
+      "submit": "Envoyer ma candidature"
+    },
+    "cancel": "Annuler",
+    "signIn": "Se connecter",
+    "createAccount": "Créer un compte",
+    "sending": "Envoi…",
+    "booking": {
+      "description": "Précisez vos dates et le nombre d'invités. Le propriétaire confirmera votre demande.",
+      "checkIn": "Arrivée",
+      "checkInPlaceholder": "Date d'arrivée",
+      "checkOut": "Départ",
+      "checkOutPlaceholder": "Date de départ",
+      "guests": "Invités",
+      "message": "Message (optionnel)",
+      "messagePlaceholder": "Présentez-vous, expliquez votre projet…",
+      "nightsLine": "{price} × {count, plural, =1 {# nuit} other {# nuits}}",
+      "estimatedTotal": "Total estimé",
+      "weeklyLine": "{price} / semaine, au prorata de {count, plural, =1 {# nuit} other {# nuits}}",
+      "deposit": "Acompte (30 %)",
+      "rentLine": "Loyer",
+      "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif.",
+      "occupiedHint": "Les dates grisées sont déjà prises."
+    },
+    "offerForm": {
+      "invalidAmount": "Montant invalide.",
+      "description": "Prix d'affichage : {price}. Le propriétaire examinera votre offre avant son expiration.",
+      "amount": "Montant proposé ({currency})",
+      "validity": "Validité de l'offre",
+      "expiryPlaceholder": "Date d'expiration",
+      "message": "Message (optionnel)",
+      "messagePlaceholder": "Précisez les conditions ou le contexte de votre offre…",
+      "termsBefore": "J'ai lu et j'accepte les",
+      "termsLink": "conditions générales",
+      "termsAfter": "d'utilisation pour la soumission d'une offre d'achat."
+    }
+  },
+  "propertyReviews": {
+    "title": "Avis",
+    "countSuffix": "{count} avis",
+    "loading": "Chargement des avis…",
+    "empty": "Aucun avis pour l'instant.",
+    "notEligible": "Vous pourrez laisser un avis après une réservation honorée ou un bail sur ce bien.",
+    "alreadyReviewed": "Merci, vous avez déjà laissé un avis sur ce bien.",
+    "agentReply": "Réponse de l'agent",
+    "edit": "Modifier",
+    "reply": "Répondre",
+    "form": {
+      "ratingRequired": "Merci de choisir une note.",
+      "sendError": "Erreur lors de l'envoi.",
+      "aria": "Laisser un avis",
+      "title": "Laisser un avis",
+      "ratingAria": "Note sur 5",
+      "titlePlaceholder": "Titre (optionnel)",
+      "thanks": "Merci pour votre retour.",
+      "starsAria": "{count, plural, one {# étoile} other {# étoiles}}",
+      "contentOptionalPlaceholder": "Votre commentaire (facultatif)"
+    },
+    "replyForm": {
+      "editTitle": "Modifier ma réponse",
+      "newTitle": "Répondre à cet avis",
+      "editSubmit": "Modifier ma réponse",
+      "newSubmit": "Répondre publiquement",
+      "placeholder": "Répondez de manière claire et professionnelle…",
+      "contentAria": "Contenu de la réponse",
+      "cancel": "Annuler",
+      "publish": "Publier la réponse",
+      "sending": "Envoi…",
+      "save": "Enregistrer",
+      "contentRequired": "Écrivez une réponse avant de publier."
+    },
+    "loadError": "Impossible de charger les avis."
+  },
+  "propertyReport": {
+    "reasons": {
+      "misleading": "Annonce trompeuse",
+      "inappropriate": "Contenu inapproprié",
+      "spam": "Spam",
+      "fraud": "Arnaque / fraude",
+      "other": "Autre"
+    },
+    "trigger": "Signaler cette annonce",
+    "cancel": "Annuler",
+    "dialogTitle": "Signaler cette annonce",
+    "dialogBody": "Aidez-nous à maintenir la qualité de la plateforme.",
+    "reasonLabel": "Motif",
+    "detailsLabel": "Détails (optionnel)",
+    "detailsPlaceholder": "Précisez les éléments problématiques…",
+    "dialogBodyFull": "Aidez-nous à maintenir la qualité de la plateforme. Notre équipe examinera votre signalement.",
+    "sending": "Envoi…",
+    "submit": "Signaler",
+    "thanks": "Merci, nous allons examiner ce signalement.",
+    "thanksNotified": "Vous serez prévenu de l'issue.",
+    "close": "Fermer",
+    "honeypotLabel": "Société"
+  },
+  "propertyRetired": {
+    "title": {
+      "rented": "Ce bien a été loué",
+      "sold": "Ce bien a été vendu",
+      "withdrawn": "Ce bien n'est plus proposé"
+    },
+    "body": "L'annonce que vous cherchez n'est plus disponible. Voici des biens proches qui pourraient vous convenir.",
+    "similarTitle": "Des biens similaires",
+    "searchQuarter": "Voir les biens à {quarter}, {city}",
+    "searchCity": "Voir les biens à {city}",
+    "searchAll": "Voir tous les biens",
+    "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires.",
+    "bodyNoSimilar": "L'annonce que vous cherchez n'est plus disponible.",
+    "alertQuarter": "M’alerter des nouveaux biens à {quarter}",
+    "alertCity": "M’alerter des nouveaux biens à {city}",
+    "alertAll": "M’alerter des nouveaux biens semblables"
+  },
+  "propertyAvailabilityCheck": {
+    "title": "Ce bien est-il toujours disponible ?",
+    "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
+    "rented": "Il est loué",
+    "sold": "Il est vendu",
+    "available": "Toujours disponible",
+    "done": "Merci, votre réponse est enregistrée.",
+    "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
+  },
+  "propertyReviewReport": {
+    "trigger": "Signaler",
+    "triggerAria": "Signaler cet avis",
+    "dialogTitle": "Signaler cet avis",
+    "dialogBody": "Notre équipe examinera cet avis. Il reste affiché tant qu'il n'a pas été examiné.",
+    "reasons": {
+      "fraud": "Faux avis",
+      "offensive": "Propos injurieux",
+      "personal_data": "Données personnelles",
+      "conflict_of_interest": "Conflit d'intérêts",
+      "spam": "Spam",
+      "off_topic": "Hors sujet",
+      "other": "Autre"
+    }
+  },
+  "propertyPortfolio": {
+    "empty_title": "Aucun bien dans votre portefeuille",
+    "empty_description": "Créez votre première annonce pour la diffuser auprès des locataires et acheteurs Takussan.",
+    "empty_cta": "Publier mon premier bien",
+    "filtered_empty_title": "Aucun bien ne correspond à vos filtres",
+    "filtered_empty_description": "Ajustez ou retirez certains filtres pour élargir votre recherche.",
+    "filtered_empty_cta": "Réinitialiser les filtres"
+  },
+  "propertyDiscovery": {
+    "neighbourhoodsOf": "Quartiers de {city}",
+    "viewSwitchAria": "Vue des résultats",
+    "viewList": "Liste",
+    "viewMap": "Carte",
+    "outilsFlottantsAria": "Outils de recherche"
+  },
+  "propertyRow": {
+    "viewAll": "Tout voir",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "empty": "Pas encore de biens dans cette sélection."
+  },
+  "propertyModeration": {
+    "pendingTitle": "En attente de validation",
+    "pendingBody": "Votre bien est en cours de vérification. Il sera en ligne dès qu’il sera approuvé.",
+    "rejectedTitle": "Publication refusée",
+    "resubmit": "Corriger et resoumettre",
+    "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
+    "approvedTitle": "Bien approuvé et publié",
+    "approvedOn": "Approuvé le {date}"
   }
 }

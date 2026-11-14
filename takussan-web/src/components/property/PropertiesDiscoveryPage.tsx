@@ -97,7 +97,7 @@ function ViewToggle({
   onChange: (v: View) => void;
   className?: string;
 }) {
-  const t = useTranslations('property.discovery');
+  const t = useTranslations('propertyDiscovery');
 
   return (
     <div
@@ -149,7 +149,7 @@ function ViewToggle({
  * aussi (`title`) ; et la pastille flottante, qui a la place, écrit « Carte » en toutes lettres.
  */
 function BasculeDeVue({ view, onChange }: { view: View; onChange: (v: View) => void }) {
-  const t = useTranslations('property.discovery');
+  const t = useTranslations('propertyDiscovery');
   const versLaCarte = view === 'list';
   const libelle = versLaCarte ? t('viewMap') : t('viewList');
   return (

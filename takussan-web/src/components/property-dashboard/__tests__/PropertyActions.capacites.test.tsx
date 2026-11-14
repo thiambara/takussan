@@ -36,7 +36,7 @@ vi.mock('@/components/ui/toast', async (original) => ({
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 vi.mock('@/hooks/useCan', () => ({ useCan: vi.fn() }));
 
-const A = fr.property.dashboard.actions;
+const A = fr.propertyDashboard.actions;
 const STATUT = fr.property.status;
 
 const BIEN = {

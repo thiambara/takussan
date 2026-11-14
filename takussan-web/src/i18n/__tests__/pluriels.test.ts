@@ -35,8 +35,8 @@ describe('pluriels ICU (TCK-752)', () => {
   it.each([
     ['fr', 'nav.propertiesCount', '1 bien', '2 biens'],
     ['en', 'nav.propertiesCount', '1 listing', '2 listings'],
-    ['fr', 'property.detail.viewsCount', '1 vue', '2 vues'],
-    ['en', 'property.detail.reviewsCount', '(1 review)', '(2 reviews)'],
+    ['fr', 'propertyDetail.viewsCount', '1 vue', '2 vues'],
+    ['en', 'propertyDetail.reviewsCount', '(1 review)', '(2 reviews)'],
     ['en', 'property.wizard.preview.entryDeposit', '1 month of deposit', '2 months of deposit'],
     ['fr', 'documents.library.count', '1 document', '2 documents'],
     ['en', 'documents.library.count', '1 document', '2 documents'],

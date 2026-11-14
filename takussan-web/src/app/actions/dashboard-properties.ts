@@ -231,7 +231,7 @@ export async function bulkAssignPropertiesAction(
   userId: number,
 ): Promise<ActionResult<BulkResult>> {
   if (!Array.isArray(propertyIds) || propertyIds.length === 0 || !propertyIds.every(estIdentifiant) || !estIdentifiant(userId)) {
-    const t = await getTranslations('property.dashboard.list');
+    const t = await getTranslations('propertyDashboard.list');
     return { ok: false, status: 422, message: t('bulkError') };
   }
   return runBulk((token) => bulkPropertyAssign(token, propertyIds, userId));

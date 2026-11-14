@@ -86,7 +86,7 @@ export function nomDuLocataire(occupation: OccupationDuBien | null): string | nu
 
 /** Les boutons ronds « Appeler » / « WhatsApp » d'un numéro joignable ; rien sans numéro. */
 export function Appels({ telephone, nom, petit = false }: { readonly telephone: string | null; readonly nom: string; readonly petit?: boolean }) {
-  const t = useTranslations('property.dashboard.fiche.occupant');
+  const t = useTranslations('propertyDashboard.fiche.occupant');
   if (!isReachable(telephone)) return null;
   const rond = cn(
     'inline-flex flex-none items-center justify-center rounded-full border border-border bg-card outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring',
@@ -135,7 +135,7 @@ export function AvatarDe({ initiales, taille = '44' }: { readonly initiales: str
 
 /** « Bail LS-… · type · début → fin › » : la ligne qui mène au bail (AC1). */
 export function LigneDuBail({ occupation, className }: { readonly occupation: OccupationDuBien; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.fiche.bail');
+  const t = useTranslations('propertyDashboard.fiche.bail');
   const tTypes = useTranslations('lease.types');
   const f = useFormatteurs();
   const bail = occupation.lease;
@@ -159,7 +159,7 @@ export function LigneDuBail({ occupation, className }: { readonly occupation: Oc
 
 /** « Occupé par … » avec Appeler / WhatsApp, puis la ligne du bail. */
 export function BlocOccupant({ occupation, className }: { readonly occupation: OccupationDuBien; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.fiche.occupant');
+  const t = useTranslations('propertyDashboard.fiche.occupant');
   const nom = nomDuLocataire(occupation);
   return (
     <Carte className={className}>
@@ -205,7 +205,7 @@ export function BlocCeMois({
   readonly gestes?: { readonly onRelancer: (() => void) | null; readonly onEncaisser: (() => void) | null } | null;
   readonly className?: string;
 }) {
-  const t = useTranslations('property.dashboard.fiche.ceMois');
+  const t = useTranslations('propertyDashboard.fiche.ceMois');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
   const f = useFormatteurs();
   const moisDe = useMoisDeLEcheance();
@@ -287,7 +287,7 @@ export function BlocCeMois({
 
 /** « À venir » : le prochain loyer et l'état des lieux d'entrée du bail. */
 export function BlocAVenir({ property, location, className }: { readonly property: PropertyDetail; readonly location: LocationDuBien; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.fiche.aVenir');
+  const t = useTranslations('propertyDashboard.fiche.aVenir');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
   const f = useFormatteurs();
   const loyer = location.occupation?.rent ?? null;
@@ -332,7 +332,7 @@ export function BlocAVenir({ property, location, className }: { readonly propert
 
 /** « Bailleur : … › » — vers la fiche du bailleur quand l'appelant l'ouvre (TCK-2641). */
 export function BlocBailleur({ property, lien, className }: { readonly property: PropertyDetail; readonly lien: boolean; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.fiche.bailleur');
+  const t = useTranslations('propertyDashboard.fiche.bailleur');
   const nom = property.owner?.name ?? null;
   const href = lien && property.owner_profile_id ? `/app/owners/${property.owner_profile_id}` : null;
   const corps = (
@@ -365,7 +365,7 @@ export function BlocBailleur({ property, lien, className }: { readonly property:
  * l'API ne dit pas d'où vient le contact.
  */
 export function BlocResponsable({ property, className }: { readonly property: PropertyDetail; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.fiche.responsable');
+  const t = useTranslations('propertyDashboard.fiche.responsable');
   const source = property.primary_contact_source;
   if (property.primary_contact === undefined || source === undefined) return null;
   const responsable = source === 'designated' || source === 'invitation_order' ? (property.primary_contact ?? null) : null;

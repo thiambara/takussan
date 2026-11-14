@@ -21,7 +21,7 @@ interface GestesSurPhotoProps {
  * pastille pleine comme le retour (`surPhoto`) ; le partage ouvre la boîte de la fiche.
  */
 export function GestesSurPhoto({ propertyId, prix, onShare }: GestesSurPhotoProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   return (
     <div data-slot="gestes-sur-photo" className="flex items-center gap-2 md:hidden">
       <button

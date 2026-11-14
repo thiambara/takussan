@@ -29,7 +29,7 @@ interface PropertyAgentCardProps {
  * (bureau) — `actions-de-la-fiche.ts` ; le geste d'appel, inchangé, dans `useAppelDuBien`.
  */
 export function PropertyAgentCard({ contact, agency, className }: PropertyAgentCardProps) {
-  const t = useTranslations('property.detail.agent');
+  const t = useTranslations('propertyDetail.agent');
   // TCK-1313 (P85.04) — un espace `individual` n'a pas de fiche d'agence (l'API la refuse en 404) :
   // son nom mène à la fiche de la personne, ou n'est qu'écrit sans slug de contact.
   const lienAgence = !agency

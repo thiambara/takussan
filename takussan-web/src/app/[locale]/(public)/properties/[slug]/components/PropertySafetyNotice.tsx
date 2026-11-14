@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
  * d'alerte, une phrase et un conseil.
  */
 export function PropertySafetyNotice({ className }: { readonly className?: string }) {
-  const t = useTranslations('property.detail.trust');
+  const t = useTranslations('propertyDetail.trust');
   // TCK-2501 — rendu deux fois (fin de colonne en mobile, sous la carte de contact en bureau).
   const titreId = useId();
 

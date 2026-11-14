@@ -67,7 +67,7 @@ describe('DeclarerEnTete — les nœuds déclarés se traduisent sous le diction
     monter({
       forme: 'detail',
       actions: <Traduit espace="visitPlanning.plan" cle="cta" />,
-      action: <Traduit espace="property.dashboard.actions" cle="published" />,
+      action: <Traduit espace="propertyDashboard.actions" cle="published" />,
       droite: <Traduit espace="visitPlanning.plan" cle="property" />,
     });
     expect(screen.getByTestId('actions')).toHaveTextContent('Planifier une visite');

@@ -35,8 +35,8 @@ export function CarteOccupation({
   readonly personnel: boolean;
   readonly lienVersLeBailleur: boolean;
 }) {
-  const t = useTranslations('property.dashboard.fiche');
-  const tGestion = useTranslations('property.dashboard.gestion');
+  const t = useTranslations('propertyDashboard.fiche');
+  const tGestion = useTranslations('propertyDashboard.gestion');
   const f = useFormatteurs();
   const moisDe = useMoisDeLEcheance();
   const location = useLocationDuBien(property, personnel);
@@ -143,7 +143,7 @@ export function CarteOccupation({
 }
 
 function OccupantDeLaCarte({ occupation }: { readonly occupation: NonNullable<PropertyDetail['occupancy']> }) {
-  const t = useTranslations('property.dashboard.fiche');
+  const t = useTranslations('propertyDashboard.fiche');
   const nom = nomDuLocataire(occupation);
   const telephone = occupation.tenant?.phone ?? null;
   return (

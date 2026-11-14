@@ -40,7 +40,7 @@ export function PropertyActionButton({
   court = false,
   className,
 }: PropertyActionButtonProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const Icone = ICONE_DE_L_ACTION[action];
   const cle = CLE_DE_L_ACTION[action];
   return (
@@ -65,7 +65,7 @@ export function PropertyCallButton({
   readonly enCours: boolean;
   readonly className?: string;
 }) {
-  const t = useTranslations('property.detail.agent');
+  const t = useTranslations('propertyDetail.agent');
   return (
     <Button
       type="button"
@@ -93,7 +93,7 @@ export function PropertyMessageButton({
   readonly variant?: 'ghost' | 'outline';
   readonly className?: string;
 }) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   return (
     <Button type="button" variant={variant} className={cn('h-11 gap-2', className)} onClick={onClick}>
       <MessageCircle className="size-4" aria-hidden />
@@ -110,7 +110,7 @@ export function PropertyApplyAfterVisit({
   readonly onRequestBooking: () => void;
   readonly className?: string;
 }) {
-  const t = useTranslations('property.detail.actions');
+  const t = useTranslations('propertyDetail.actions');
   return (
     <p className={cn('text-center text-sm text-muted-foreground', className)}>
       {t('alreadyVisited')}{' '}

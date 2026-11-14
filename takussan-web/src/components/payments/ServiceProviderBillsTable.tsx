@@ -297,7 +297,7 @@ function usePageDesFactures(mode: 'provider' | 'agency'): PageDesFactures {
 }
 
 function PaginationDesFactures({ meta, page }: { readonly meta: PaginationMeta; readonly page: PageDesFactures }) {
-  const t = useTranslations('property.dashboard.pagination');
+  const t = useTranslations('propertyDashboard.pagination');
   if (page.sorte === 'registre') return <PropertyPagination meta={meta} />;
   const derniere = Math.max(meta.last_page, 1);
   return (

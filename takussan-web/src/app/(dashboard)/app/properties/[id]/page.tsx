@@ -139,8 +139,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
       <ChangerLeTitulaire propertyId={property.id} agencyId={property.agency.id} />
     ) : null;
 
-  const tFiche = await getTranslations('property.dashboard.fiche.identite');
-  const tMotif = await getTranslations('property.dashboard.horsLigne');
+  const tFiche = await getTranslations('propertyDashboard.fiche.identite');
+  const tMotif = await getTranslations('propertyDashboard.horsLigne');
   // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`).
   const motifs = property.is_online === false ? phrasesDesMotifs(property.offline_reasons ?? [], (cle) => tMotif(cle)) : [];
   const tListe = await getTranslations('dashboard.properties');

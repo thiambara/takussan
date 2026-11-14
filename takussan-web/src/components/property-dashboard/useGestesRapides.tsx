@@ -73,7 +73,7 @@ export function useGestesRapides(
   readonly demanderSuppression: () => void;
   readonly dialogues: ReactNode;
 } {
-  const t = useTranslations('property.dashboard.actions');
+  const t = useTranslations('propertyDashboard.actions');
   const router = useRouter();
   const toast = useToast();
   const messageErreur = useMessageErreurApi();

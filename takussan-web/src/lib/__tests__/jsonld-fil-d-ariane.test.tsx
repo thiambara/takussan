@@ -94,7 +94,7 @@ function balise(
       .split('.')
       .reduce<unknown>(
         (n, k) => (n && typeof n === 'object' ? (n as Record<string, unknown>)[k] : undefined),
-        (fr as { property: { detail: Record<string, unknown> } }).property.detail,
+        (fr as { propertyDetail: Record<string, unknown> }).propertyDetail,
       );
     return typeof valeur === 'string' ? valeur : cle;
   };

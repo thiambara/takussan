@@ -42,7 +42,7 @@ const ROLES: readonly CollaboratorRole[] = ['agent', 'manager', 'co_owner', 'vie
  * refuse le reste de toute façon, et son refus s'affiche tel quel.
  */
 export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaboratorsPanelProps) {
-  const t = useTranslations('property.dashboard.collaborators');
+  const t = useTranslations('propertyDashboard.collaborators');
   const tRacine = useTranslations();
   const { token } = useAuth();
   const queryClient = useQueryClient();

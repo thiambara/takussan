@@ -26,7 +26,7 @@ export type MotifHorsLigne = (typeof MOTIFS_HORS_LIGNE)[number];
 const CONNUS: ReadonlySet<string> = new Set(MOTIFS_HORS_LIGNE);
 
 /**
- * La clé de la phrase d'un motif, sous `property.dashboard.horsLigne`. Un code que le front ne connaît
+ * La clé de la phrase d'un motif, sous `propertyDashboard.horsLigne`. Un code que le front ne connaît
  * pas encore se dit « Hors ligne. », sans erreur ni clé brute.
  */
 export function cleDuMotif(code: string): `phrase.${MotifHorsLigne | 'inconnu'}` {

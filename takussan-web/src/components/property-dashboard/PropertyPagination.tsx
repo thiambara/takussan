@@ -42,7 +42,7 @@ import { useTranslations } from 'next-intl';
  * calcule `page + 1` / `page - 1` en dehors de `console/Pagination` ») est tenue.
  *
  * ⚠ Les libellés viennent désormais de `console.pagination` et non de
- * `property.dashboard.pagination`. Vérifié clé par clé dans les TROIS locales avant la bascule :
+ * `propertyDashboard.pagination`. Vérifié clé par clé dans les TROIS locales avant la bascule :
  * `aria`, `previous`, `next` et `position`/`pageOf` portent des textes identiques en `fr`, `en` et
  * `wo`. Rien de visible ne change ; c'est une bascule de clé, pas de texte.
  */
@@ -50,7 +50,7 @@ import { useTranslations } from 'next-intl';
 const PER_PAGE_OPTIONS = ['10', '20', '50'] as const;
 
 export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
-  const t = useTranslations('property.dashboard.pagination');
+  const t = useTranslations('propertyDashboard.pagination');
   const tToolbar = useTranslations('search.toolbar');
   const router = useRouter();
   const searchParams = useSearchParams();

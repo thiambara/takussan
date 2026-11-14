@@ -16,7 +16,7 @@ import { integrationDeVisite } from '@/lib/property/visite-virtuelle';
  * que le front ne sait pas intégrer devient un lien sortant, jamais une iframe.
  */
 export function PropertyVirtualTour({ url, title }: { readonly url: string | null | undefined; readonly title: string }) {
-  const t = useTranslations('property.detail.virtualTour');
+  const t = useTranslations('propertyDetail.virtualTour');
   const [ouverte, setOuverte] = useState(false);
   const integration = integrationDeVisite(url);
   if (!integration) return null;

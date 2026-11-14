@@ -166,7 +166,7 @@ export function PropertyRow({
   allegee = false,
   apresLeTitre,
 }: PropertyRowProps) {
-  const t = useTranslations('property.row');
+  const t = useTranslations('propertyRow');
   const spec = VARIANTS[variant];
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);

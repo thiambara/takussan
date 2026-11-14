@@ -26,7 +26,7 @@ function codesDeLApi(): string[] {
 
 type Arbre = { readonly [cle: string]: string | Arbre };
 const phrase = (dico: Arbre, cle: string) =>
-  ['property', 'dashboard', 'horsLigne', ...cle.split('.')].reduce<string | Arbre | undefined>((a, k) => (typeof a === 'object' ? a[k] : undefined), dico);
+  ['propertyDashboard', 'horsLigne', ...cle.split('.')].reduce<string | Arbre | undefined>((a, k) => (typeof a === 'object' ? a[k] : undefined), dico);
 
 describe('motifs d’un bien hors ligne (TCK-2678)', () => {
   it('le front connaît exactement les codes de l’API, dans son ordre', () => {

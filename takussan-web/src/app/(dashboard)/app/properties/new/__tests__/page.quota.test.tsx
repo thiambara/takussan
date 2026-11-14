@@ -139,12 +139,12 @@ describe('TCK-2638 — la définition du quota couvre les deux attentes', () => 
   const CLES = [
     ['dashboard', 'pages', 'propertyNew', 'quota', 'definition'],
     ['dashboard', 'pages', 'propertyNew', 'quota', 'note'],
-    ['property', 'dashboard', 'annonces', 'quota', 'definition'],
+    ['propertyDashboard', 'annonces', 'quota', 'definition'],
   ] as const;
   const lire = (messages: unknown, chemin: readonly string[]) =>
     chemin.reduce<unknown>((noeud, cle) => (noeud as Record<string, unknown>)[cle], messages) as string;
 
-  it.each(CLES)('%s.%s.%s.%s.%s : « en attente », sans « de validation » (fr, en)', async (...chemin) => {
+  it.each(CLES.map((c) => [c.join('.'), c] as const))('%s : « en attente », sans « de validation » (fr, en)', async (_cle, chemin) => {
     const fr = (await import('@/messages/fr.json')).default;
     const en = (await import('@/messages/en.json')).default;
     expect(lire(fr, chemin)).toMatch(/[Dd]isponibles?, validée?s? ou en attente\b/);

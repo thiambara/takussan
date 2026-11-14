@@ -59,7 +59,7 @@ export type DocumentsDuBien = ReturnType<typeof useDocumentsDuBien>;
 
 /** Le libellé d'un document généré, par sa catégorie (`DocumentVault`). */
 function useLibelleGenere() {
-  const t = useTranslations('property.dashboard.fiche.documents.generes');
+  const t = useTranslations('propertyDashboard.fiche.documents.generes');
   return (doc: DocumentGenere) => {
     if (doc.category === 'lease_contract') return doc.title ? t('contratRef', { reference: doc.title }) : t('contrat');
     if (doc.category === 'inventory_move_in') return t('edlEntree');
@@ -69,7 +69,7 @@ function useLibelleGenere() {
 }
 
 export function OngletDocuments({ property, documents }: { readonly property: PropertyDetail; readonly documents: DocumentsDuBien }) {
-  const t = useTranslations('property.dashboard.fiche.documents');
+  const t = useTranslations('propertyDashboard.fiche.documents');
   const tTypes = useTranslations('documents.types');
   const tRacine = useTranslations();
   const f = useFormatteurs();

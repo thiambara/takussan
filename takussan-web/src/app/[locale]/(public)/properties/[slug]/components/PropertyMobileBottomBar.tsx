@@ -48,7 +48,7 @@ export function PropertyMobileBottomBar({
   onRequestVisit,
   onRequestBooking,
 }: PropertyMobileBottomBarProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const canal = canalPrincipal(contact, canMessage);
   const { primaire } = actionsDuContrat(property);
   const appel = useAppelDuBien(property.slug);

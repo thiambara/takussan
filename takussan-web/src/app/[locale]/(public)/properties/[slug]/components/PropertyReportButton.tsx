@@ -23,7 +23,7 @@ const REASON_KEYS: Array<{ value: string; cle: string }> = [
  * Le jeton part quand il existe (`submitPropertyReport`).
  */
 export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
-  const t = useTranslations('property.report');
+  const t = useTranslations('propertyReport');
   const reasons = REASON_KEYS.map((r) => ({ value: r.value, label: t(`reasons.${r.cle}`) }));
   const [open, setOpen] = useState(false);
 

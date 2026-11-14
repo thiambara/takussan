@@ -91,7 +91,7 @@ const BIENS_PROCHES = 3;
 
 /** Une FONCTION qui rend du JSX, pas un composant `async` : testable sous jsdom (patron de la page). */
 export async function bienRetire(etat: EtatRetire) {
-  const t = await getTranslations('property.retired');
+  const t = await getTranslations('propertyRetired');
   const tContrat = await getTranslations('property.contractTypes');
   const tTypes = await getTranslations('property.types');
   const { city, quarter } = etat.location;

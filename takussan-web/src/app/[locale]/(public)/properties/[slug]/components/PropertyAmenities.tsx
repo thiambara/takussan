@@ -5,7 +5,7 @@ import type { PropertyTag } from '@/types/property';
 import { getAmenityIcon } from './amenity-icons';
 
 export function PropertyAmenities({ tags }: { tags: PropertyTag[] }) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   // TCK-633 — le catalogue traduit par son slug ; l'équipement d'un annonceur, tel quel.
   const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
   const amenities = tags.filter((tag) => tag.type === 'amenity');

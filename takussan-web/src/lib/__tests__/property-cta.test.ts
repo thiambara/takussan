@@ -38,14 +38,14 @@ describe('getPrimaryCtaForProperty (TCK-165)', () => {
   /**
    * TCK-292 — le jeton `action` n'est plus seulement un discriminant de modal : c'est la CLÉ du
    * libellé. Un jeton sans entrée au dictionnaire rendrait la clé brute à l'écran, sans erreur.
-   * Ce test garde donc l'accord entre les trois `action` possibles et `property.detail.primaryCta`,
+   * Ce test garde donc l'accord entre les trois `action` possibles et `propertyDetail.primaryCta`,
    * et vérifie que les libellés français sont EXACTEMENT ceux d'avant la conversion (AC3).
    */
   it('every action resolves to its pre-conversion French label', () => {
     const table = (
-      fr as unknown as { property: { detail: { primaryCta: Record<string, string> } } }
-    ).property.detail.primaryCta;
-    expect(PRIMARY_CTA_NAMESPACE).toBe('property.detail');
+      fr as unknown as { propertyDetail: { primaryCta: Record<string, string> } }
+    ).propertyDetail.primaryCta;
+    expect(PRIMARY_CTA_NAMESPACE).toBe('propertyDetail');
     expect(table).toEqual({
       offer: 'Faire une offre',
       reserve: 'Réserver',

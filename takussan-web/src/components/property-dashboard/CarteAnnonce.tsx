@@ -55,10 +55,10 @@ export function CarteAnnonce({
   /** L'instant de référence de la liste (un seul pour toutes les cartes) : juge un boost en cours. */
   readonly maintenant: Date;
 }) {
-  const t = useTranslations('property.dashboard.annonces');
+  const t = useTranslations('propertyDashboard.annonces');
   const fmt = useFormatteurs();
   const finDuBoost = boostEnCours(property, maintenant);
-  const tListe = useTranslations('property.dashboard.list');
+  const tListe = useTranslations('propertyDashboard.list');
   const tVisibilite = useTranslations(PROPERTY_ENUM_NAMESPACES.visibilityScope);
   const lieu = lieuDuBien(property);
   const etat = etatDAnnonce(property);
@@ -208,7 +208,7 @@ function relatif(date: Date, locale: Locale): string {
  * au téléphone, le premier motif seul). Les motifs suivants sont lus aux lecteurs d'écran.
  */
 function MotifDeLaCarte({ motifs }: { readonly motifs: readonly string[] }) {
-  const t = useTranslations('property.dashboard.horsLigne');
+  const t = useTranslations('propertyDashboard.horsLigne');
   const phrases = phrasesDesMotifs(motifs, (cle) => t(cle));
   if (phrases.length === 0) return null;
   return (

@@ -16,7 +16,7 @@ function Row({ label, value }: { label: string; value: string | number | null | 
 }
 
 export function PropertyCharacteristics({ property }: { property: PropertyDetail }) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const localeBrute = useLocale();
   const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
   /**

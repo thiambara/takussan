@@ -30,7 +30,7 @@ export function ProprietaireEtResponsable({
   /** `span` quand l'hôte est déjà un paragraphe (la `description` de `PageHeader`) : pas de `<p>` dans un `<p>`. */
   readonly as?: 'p' | 'span';
 }) {
-  const t = useTranslations('property.dashboard.list');
+  const t = useTranslations('propertyDashboard.list');
   const owner = property.owner ?? null;
   const showOwner = owner !== null && currentUserId !== undefined && owner.id !== currentUserId;
   const source = property.primary_contact_source;

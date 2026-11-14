@@ -19,7 +19,7 @@ interface PropertyHeaderProps {
 }
 
 export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite }: PropertyHeaderProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
 
   return (

@@ -15,7 +15,7 @@ interface PropertyLightboxProps {
 }
 
 export function PropertyLightbox({ photos, open, startIndex, onClose, title }: PropertyLightboxProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const [index, setIndex] = useState(startIndex);
   const [lastStart, setLastStart] = useState(startIndex);
   const [lastOpen, setLastOpen] = useState(open);

@@ -31,7 +31,7 @@ interface ReviewReportButtonProps {
  * sans compte. Un signalement RANGE l'avis dans la file de modération ; il ne le masque pas.
  */
 export function ReviewReportButton({ reviewId, compact = false }: ReviewReportButtonProps) {
-  const t = useTranslations('property.reviewReport');
+  const t = useTranslations('propertyReviewReport');
   const [open, setOpen] = useState(false);
   const reasons = REVIEW_REPORT_REASONS.map((value) => ({ value, label: t(`reasons.${value}`) }));
 

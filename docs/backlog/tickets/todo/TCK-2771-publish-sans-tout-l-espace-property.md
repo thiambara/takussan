@@ -69,3 +69,71 @@ de bien, des avis ou des réservations.
 
 - Le contenu des libellés et le wolof (en pause).
 - Les autres frontières, même si la voie (b) leur profiterait.
+
+## Notes d'implémentation (2026-11-14)
+
+**Voie retenue : (a)**, décision de la session principale du 2026-11-14. Le dérivateur, `messagesPour`
+et la garde ne changent pas, donc pas d'ADR. La voie (b) aurait touché le dérivateur, la fusion
+d'`IntlProvider` et la règle d'identité des objets (`messagesPour` recopie des RÉFÉRENCES, TCK-1489) :
+un sous-arbre servi par deux frontières y aurait demandé une fusion profonde par frontière.
+
+**Ce qui sort de `property`.** Ce sont les treize sous-arbres que le graphe de `/publish` ne lit pas
+(relevé fichier par fichier sur les 183 fichiers atteints) : `dashboard`, `detail`, `visitDialog`,
+`reservation`, `reviews`, `report`, `retired`, `availabilityCheck`, `reviewReport`, `portfolio`,
+`discovery`, `row` et `moderation`. Chacun devient l'espace de premier niveau `property<X>`
+(`propertyDashboard`, `propertyDetail`…), dans les trois langues, sans changer aucun libellé.
+`property.dashboard` n'est lu, sous `/publish`, que par une action serveur (`getTranslations`), qui
+n'est pas servie au navigateur.
+- `list` reste dans `property` : sorti, il fait servir `propertyList` à la coque publique par la
+  section `playground`, et la règle E demande alors une frontière de plus. Gain : 132 o.
+- `fields` reste aussi : aucun appelant n'existe. Ce sont des clés mortes, dont le retrait relève du
+  contenu et sort du périmètre.
+
+**Comment.** Un script de renommage, rejouable, travaille PAR CLÉS, jamais par lignes. Il refuse
+un sous-arbre que l'arbre ne porte pas tel que HEAD le porte (par clés et par valeurs, l'ordre seul
+n'est qu'une note), et un fichier de code qui diffère de HEAD : le travail non commité d'un autre
+ticket ne part jamais sous celui-ci. Il est idempotent, et rien n'est écrit avant que tout soit vérifié. Il réécrit les appelants sous
+trois formes : chaîne (`'property.detail…'`), accès d'objet (`fr.property.dashboard`) et chemin en
+tableau (`['property', 'dashboard', …]`). Les nouveaux espaces se posent en fin de dictionnaire,
+exactement là où la greffe `cles_i18n` de commit-ticket.py les pose sur HEAD (vérifié octet pour
+octet sur `fr.json`).
+
+**Mesure à blanc** (extraction de HEAD 687016bd3, script appliqué, `--update`) : `/publish` sert
+**15,0 %** du dictionnaire (33 689 o sur 225 036 o gzip, 13 espaces cumulés), contre 19,1 % sur la même
+HEAD et 20,1 % le 2026-11-13. Le plafond régénéré passe à 20 %. Toutes les frontières restent
+conformes au graphe. Sur une copie de l'arbre de travail (maquettes locales comprises), même
+résultat : 15,0 % (33 644 o sur 224 734 o).
+
+**Marge sous 15,1 % : 0,13 point, et elle ne viendra pas de `property`.** Ce qui reste dans
+`property` (wizard, form, contacts, cards, amenityCatalog, énumérations) est lu par l'assistant. La
+marge est dans les autres espaces de la frontière, hors du périmètre de ce ticket :
+- `profile` : 7 606 o, dont l'assistant lit environ 1 211 o (`types`, `switcher`, `contact`) ;
+- `nav` : 5 162 o, dont environ 115 o lus (`coque`) ;
+- `owners` : 3 835 o, dont environ 501 o lus (`invite`, `update`).
+Le même découpage y rapporterait de l'ordre de 6 points. C'est une estimation : les lecteurs par
+gabarit de `profile` et `owners` n'ont pas été résolus. Il demande un ticket de suivi.
+
+**Vérifié dans l'extraction** :
+- `tsc --noEmit` et ESLint (87 fichiers) : propres ;
+- `vitest related` (206 fichiers, 1 685 tests) et les dossiers de l'assistant (58 fichiers, 588 tests,
+  attentes de libellés inchangées) : verts ;
+- `check:i18n`, `check:i18n-namespaces`, `check:vouvoiement`, et à la racine `check-enum-namespaces`,
+  `check-status-labels`, `check-status-unions`, `check-notification-codes` : verts.
+
+Ablations :
+- `BarreDuBien` remis sur `'property.dashboard.fiche'` fait rougir `property-dashboard/fiche`
+  (`MISSING_MESSAGE`), puis le fichier est restauré et son md5 vérifié ;
+- côté script, dans une copie : une valeur changée sous `property.dashboard`, une clé ajoutée sous
+  `property.reviews`, ou un fichier de code qui diffère de HEAD → REFUS, sortie 1, aucun fichier
+  écrit ;
+- l'application propre rejouée deux fois → « déjà fait », aucun fichier au second passage.
+
+**Reste à faire** :
+- appliquer le script dans l'arbre au créneau donné par la session (trois agents y écrivent encore) ;
+- AC2 au navigateur après l'application, sur `/publish` et `/app/properties/new`, et aussi sur
+  `/app/properties`, une fiche `/app/properties/[id]` et une fiche publique `/properties/[slug]`,
+  où vivent les espaces déplacés.
+
+⚠ Un ticket non encore commité qui ajoute une clé sous `property.dashboard` (ou un autre sous-arbre
+déplacé) la recréerait à son commit : la greffe de son manifeste viserait l'ancien chemin. Le script
+le refuse avant l'application. Après l'application, cette clé doit viser `property<X>`.

@@ -60,7 +60,7 @@ export function OngletLocation({
   readonly lienVersLeBailleur: boolean;
   readonly onOuvrirLAnnonce: () => void;
 }) {
-  const t = useTranslations('property.dashboard.fiche');
+  const t = useTranslations('propertyDashboard.fiche');
   const location = useLocationDuBien(property, personnel);
   const [aujourdhui] = useState(() => new Date());
   const occupation = location.occupation;
@@ -177,8 +177,8 @@ function LocationVacante({
   readonly lienVersLeBailleur: boolean;
   readonly onOuvrirLAnnonce: () => void;
 }) {
-  const t = useTranslations('property.dashboard.fiche');
-  const tGestion = useTranslations('property.dashboard.gestion');
+  const t = useTranslations('propertyDashboard.fiche');
+  const tGestion = useTranslations('propertyDashboard.gestion');
   const etat = etatDuMois(property, aujourdhui);
   const titre =
     etat?.cle === 'vacantDepuis' ? tGestion('etat.vacantDepuis', { jours: etat.jours }) : tGestion('ligne.sansLocataire');
@@ -226,8 +226,8 @@ function etatDeLEcheance(row: PaymentHistoryRow): 'paye' | 'enRetard' | 'partiel
 
 /** Bureau : « Loyers » — les dernières échéances du bail, et le lien vers tout l'échéancier. */
 function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
-  const t = useTranslations('property.dashboard.fiche.loyers');
-  const tEtat = useTranslations('property.dashboard.gestion.etat');
+  const t = useTranslations('propertyDashboard.fiche.loyers');
+  const tEtat = useTranslations('propertyDashboard.gestion.etat');
   const tRacine = useTranslations();
   const f = useFormatteurs();
   const moisDe = useMoisDeLEcheance();
@@ -302,7 +302,7 @@ function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
 
 /** Bureau : « Bail en cours » — référence, type, durée, caution, préavis (`GET /api/leases/{id}`). */
 function BailEnCours({ location }: { readonly location: LocationDuBien }) {
-  const t = useTranslations('property.dashboard.fiche.bail');
+  const t = useTranslations('propertyDashboard.fiche.bail');
   const tTypes = useTranslations('lease.types');
   const tRacine = useTranslations();
   const f = useFormatteurs();
