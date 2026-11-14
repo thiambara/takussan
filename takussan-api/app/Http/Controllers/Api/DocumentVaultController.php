@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\DocumentVaultRequest;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Services\Documents\DocumentVault;
@@ -16,6 +17,8 @@ use Illuminate\Http\Request;
  *  - `GET /api/me/document-vault` : les dossiers de l'appelant selon son profil actif, leurs entrées
  *    `uploaded` et `generated`, les comptes `expiring_soon` / `unverified`, et `attachable_targets`.
  *    Chaque dossier porte `read_only` : vrai pour les biens d'un profil propriétaire bloqué (TCK-2729).
+ *    Avec `filter[search]` (TCK-2769) : les entrées de ce même coffre qui correspondent, à plat,
+ *    chacune avec son `folder`, paginées par le serveur (`page`, `per_page`, `meta`).
  *  - `GET /api/documents/generated?target=lease:{id}|property:{id}` : les entrées générées d'une
  *    cible que l'appelant lit (`view` du bail ou du bien), chacune jugée par son endpoint.
  *
@@ -25,8 +28,13 @@ class DocumentVaultController extends Controller
 {
     public function __construct(private readonly DocumentVault $vault) {}
 
-    public function show(Request $request): JsonResponse
+    public function show(DocumentVaultRequest $request): JsonResponse
     {
+        $q = $request->recherche();
+        if ($q !== null) {
+            return $this->json($this->vault->search($request->user(), $request->activeProfile(), $q, $request->page(), $request->pageSize()));
+        }
+
         return $this->json(['data' => $this->vault->for($request->user(), $request->activeProfile())]);
     }
 

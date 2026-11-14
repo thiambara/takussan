@@ -4,9 +4,10 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Camera, ChevronDown, Download, ExternalLink, Folder, FolderOpen, Lock, Search, TriangleAlert } from 'lucide-react';
+import { Camera, ChevronDown, Download, ExternalLink, Folder, FolderOpen, Lock, TriangleAlert } from 'lucide-react';
 
 import { PageHeader } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { ErrorState } from '@/components/feedback';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -15,13 +16,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useTelechargementApi } from '@/hooks/useTelechargementApi';
-import { voirLeCoffre, type DossierVu, type EntreeVue } from '@/lib/documents/coffre';
+import { voirLeCoffre, voirLesTrouvees, type DossierVu, type EntreeVue } from '@/lib/documents/coffre';
 import { ciblesDeRangement } from '@/lib/documents/rangement';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { useCoffreDeDocuments } from '@/lib/queries/coffre';
+import { useCoffreDeDocuments, useRechercheDansLeCoffre } from '@/lib/queries/coffre';
 import { cn } from '@/lib/utils';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 
+import { ChampDeRecherche, useEcrireLaRecherche, useRechercheDansLURL } from './ChampDeRecherche';
 import { useLibellesDuCoffre } from './libelles';
 import { LigneDuCoffre, TuileDEntree, useMarques } from './LigneDuCoffre';
 
@@ -36,10 +38,12 @@ const AjoutAuCoffre = dynamic(() => import('./ajout/AjoutAuCoffre').then((m) => 
  * (`CoffreMobile`, `CoffreBureau`). Téléphone : puces par dossier, alerte d'expiration, dossiers
  * repliables, ajout collé en bas. Bureau ≥ 1280 (`xl`) : l'arborescence, la liste, l'aperçu.
  *
- * Écarts décidés (TCK-2656) : pas de champ « Chercher un document » dans le coffre — l'API du coffre n'a
- * pas de filtre de recherche, et il ne se filtre jamais côté client ; « Rechercher » ouvre la recherche
- * serveur des documents (`/app/documents?vue=recherche`, `filter[search]`), que ces profils avaient
- * avant le coffre (décision 2 (c)). Pas de « Tout télécharger » : aucune archive servie (décision 3 (a)).
+ * TCK-2769 — « Chercher un document », le champ de la maquette : la requête part au serveur
+ * (`filter[search]` de `GET /api/me/document-vault`, documents générés compris), gardée dans l'URL
+ * (`?q=`, `?page=`) ; le coffre chargé n'est jamais filtré côté client. Sous une recherche, les
+ * entrées trouvées remplacent les dossiers, avec le total et les pages du serveur. Il remplace le
+ * geste « Rechercher » de TCK-2656 (décision 2 (c)). Pas de « Tout télécharger » : aucune archive
+ * servie (décision 3 (a)).
  *
  * TCK-2729 — le dossier d'un bien d'un bailleur bloqué est en lecture seule : il se lit, rien ne s'y
  * ajoute ni ne s'y remplace, et le coffre le dit une fois.
@@ -66,6 +70,7 @@ export function CoffreDeDocuments() {
   const [ajout, setAjout] = useState(false);
   const ajoutMonte = useDejaOuvert(ajout);
   const { telecharger, enCours, echec } = useTelechargementApi();
+  const { q, page } = useRechercheDansLURL();
 
   if (requete.isPending) {
     return (
@@ -119,12 +124,9 @@ export function CoffreDeDocuments() {
     </Button>
   );
 
-  const rechercher = (
-    <Link href="/app/documents?vue=recherche" className={buttonVariants({ variant: 'outline' })}>
-      <Search data-icon="inline-start" aria-hidden="true" />
-      {t('rechercher')}
-    </Link>
-  );
+  // Rien à chercher dans un coffre vide — sauf une recherche déjà dans l'URL, qu'on doit pouvoir effacer.
+  const champ = !vide || q !== '' ? <ChampDeRecherche bureau={bureau} /> : null;
+  const nombreDeBaux = coffre.folders.filter((d) => d.kind === 'lease').length;
   const lectureSeuleVisible = vu.lectureSeule && (filtre === TOUT || visibles.some((d) => d.lectureSeule));
 
   return (
@@ -133,17 +135,20 @@ export function CoffreDeDocuments() {
         title={t('titre')}
         description={t('sousTitre', { count: vu.total })}
         actions={
-          !vide || peutAjouter ? (
+          (bureau && champ) || peutAjouter ? (
             <>
-              {vide ? null : rechercher}
+              {bureau ? champ : null}
               {peutAjouter ? boutonAjout('max-md:hidden') : null}
             </>
           ) : undefined
         }
       />
 
+      {/* Téléphone et bureau étroit : le champ sous l'en-tête, pleine largeur (maquette `CoffreMobile`). */}
+      {bureau ? null : champ}
+
       {/* Téléphone et bureau étroit : les puces tiennent lieu d'arborescence. */}
-      {!vide ? (
+      {!vide && q === '' ? (
         <RangeeDePuces aria-label={t('filtres')} className="-mx-4 -mt-2 xl:hidden">
           <PuceDeFiltre active={filtre === TOUT} compte={vu.total} onClick={() => setFiltre(TOUT)}>
             {t('tout')}
@@ -169,6 +174,9 @@ export function CoffreDeDocuments() {
         </p>
       ) : null}
 
+      {q !== '' ? (
+        <Trouvees q={q} page={page} nombreDeBaux={nombreDeBaux} bureau={bureau} onTelecharger={surTelecharger} />
+      ) : (
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         {/* L'arborescence : 220 px au bureau de la maquette (61 pas de 3,6 px). */}
         <nav aria-label={t('arbre')} className="hidden flex-none text-sm xl:block xl:w-[calc(var(--spacing)*61)]">
@@ -319,11 +327,97 @@ export function CoffreDeDocuments() {
           </aside>
         ) : null}
       </div>
+      )}
 
       {peutAjouter ? <BarreDAction taille="action">{boutonAjout(undefined, true)}</BarreDAction> : null}
 
       {ajoutMonte && peutAjouter ? (
         <AjoutAuCoffre open={ajout} onOpenChange={setAjout} coffre={coffre} vu={vu} onAjoute={() => void requete.refetch()} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * TCK-2769 — les entrées du coffre que le SERVEUR trouve pour `q`, à plat, chacune avec son dossier, le
+ * total et les pages de l'API. Au bureau, l'aperçu de l'entrée choisie, comme dans le coffre.
+ */
+function Trouvees({
+  q,
+  page,
+  nombreDeBaux,
+  bureau,
+  onTelecharger,
+}: {
+  readonly q: string;
+  readonly page: number;
+  readonly nombreDeBaux: number;
+  readonly bureau: boolean;
+  readonly onTelecharger: (chemin: string, nom: string) => void;
+}) {
+  const t = useTranslations('documents.coffre');
+  const libelles = useLibellesDuCoffre();
+  const requete = useRechercheDansLeCoffre(q, page);
+  const ecrire = useEcrireLaRecherche();
+  const [choisie, setChoisie] = useState<string | null>(null);
+
+  if (requete.isPending) {
+    return (
+      <div className="space-y-3" aria-busy="true">
+        <span className="sr-only">{t('recherche.chargement')}</span>
+        <Skeleton className="h-5 w-40 rounded-md" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (requete.isError || !requete.data) {
+    return <ErrorState message={t('recherche.echec')} onRetry={() => void requete.refetch()} retryLabel={t('reessayer')} />;
+  }
+
+  const { meta } = requete.data;
+  const trouvees = voirLesTrouvees(requete.data.data, jourADakar(new Date()), nombreDeBaux);
+  const enApercu = trouvees.find((x) => x.vue.cle === choisie) ?? trouvees[0] ?? null;
+
+  return (
+    <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+      <section aria-label={t('recherche.champ')} className="min-w-0 flex-1 space-y-3">
+        <p role="status" className="px-1 text-ui text-muted-foreground">
+          {t('recherche.resultats', { count: meta.total })}
+        </p>
+        {trouvees.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border px-4 py-3.5 text-sm leading-snug">
+            <p className="font-medium">{t('recherche.aucun', { q })}</p>
+            <p className="mt-1 text-muted-foreground">{t('recherche.conseil')}</p>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <ul className="divide-y divide-border">
+              {trouvees.map(({ vue, dossier }) => {
+                const nom = libelles.entree(vue);
+                return (
+                  <LigneDuCoffre
+                    key={vue.cle}
+                    vue={vue}
+                    nom={nom}
+                    detail={t('recherche.detail', { dossier: libelles.dossier(dossier), detail: libelles.detail(vue) })}
+                    bureau={bureau}
+                    choisie={bureau && enApercu?.vue.cle === vue.cle}
+                    onChoisir={() => setChoisie(vue.cle)}
+                    onTelecharger={onTelecharger}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        <Pagination page={meta.current_page} lastPage={meta.last_page} onChange={(suivante: number) => ecrire(q, suivante)} />
+      </section>
+
+      {bureau && enApercu ? (
+        <aside aria-label={t('apercu.titre')} className="flex-none xl:w-[calc(var(--spacing)*89)]">
+          <Apercu vue={enApercu.vue} nom={libelles.entree(enApercu.vue)} dossier={libelles.dossier(enApercu.dossier)} onTelecharger={onTelecharger} />
+        </aside>
       ) : null}
     </div>
   );

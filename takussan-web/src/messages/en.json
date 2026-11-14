@@ -11640,14 +11640,16 @@
       },
       "voirLesAutres": "{count, plural, one {See the other one} other {See the other #}}",
       "biensSansDocument": "{count, plural, one {# property without documents} other {# properties without documents}}",
-      "rechercher": "Search",
       "lectureSeule": "Your landlord access is suspended: you can still view these documents, but nothing can be added.",
       "recherche": {
-        "titre": "Find a document",
-        "description": "Among the documents you have added.",
-        "retour": "Back to documents",
-        "aucun": "None of your documents match this search.",
-        "vide": "You haven’t added any documents yet."
+        "champ": "Find a document",
+        "effacer": "Clear search",
+        "chargement": "Searching…",
+        "echec": "The search didn’t go through.",
+        "resultats": "{count, plural, =0 {No documents found} one {# document found} other {# documents found}}",
+        "aucun": "No document in your vault matches “{q}”.",
+        "conseil": "Search for a name, a category (receipt, lease, insurance) or a month.",
+        "detail": "{dossier} · {detail}"
       },
       "dossierLectureSeule": "Read only",
       "ajout": {

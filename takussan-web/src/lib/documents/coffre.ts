@@ -307,3 +307,51 @@ export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): Cof
     lectureSeule: coffre.folders.some((d) => d.read_only),
   };
 }
+
+/* ─────────────────────────────────────────── Recherche ─────────────────────────────────────────── */
+
+/**
+ * TCK-2769 — le dossier d'une entrée trouvée, tel que l'API l'écrit sous `filter[search]` : ce qu'il
+ * faut pour nommer le dossier à côté de l'entrée (« Quittances 2026 », « Villa Almadies »).
+ */
+export interface DossierDUneTrouvee {
+  readonly key: string;
+  readonly kind: GenreDeDossier;
+  readonly name: string | null;
+  readonly year: number | null;
+  readonly read_only: boolean;
+}
+
+export interface EntreeTrouvee extends EntreeDuCoffre {
+  readonly folder: DossierDUneTrouvee;
+}
+
+/** `GET /api/me/document-vault?filter[search]=` : les entrées du coffre qui correspondent, paginées par le serveur. */
+export interface RechercheDansLeCoffre {
+  readonly data: readonly EntreeTrouvee[];
+  readonly meta: { readonly total: number; readonly per_page: number; readonly current_page: number; readonly last_page: number };
+}
+
+export interface TrouveeVue {
+  readonly vue: EntreeVue;
+  readonly dossier: EtiquetteDeDossier;
+}
+
+/**
+ * Les entrées trouvées, mises en forme comme celles du coffre, dans l'ordre du serveur. Aucun filtre :
+ * la recherche est jugée par l'API (TCK-2769), jamais sur le coffre chargé.
+ *
+ * `nombreDeBaux` est celui du coffre : avec un seul bail, son dossier reste « Mon bail ».
+ */
+export function voirLesTrouvees(trouvees: readonly EntreeTrouvee[], aujourdhui: string, nombreDeBaux: number): TrouveeVue[] {
+  return trouvees.map((entree, rang) => ({
+    vue: {
+      cle: cleDeLEntree(entree.folder.key, entree, rang),
+      entree,
+      nature: natureDeLEntree(entree),
+      geste: gesteDeLEntree(entree),
+      echeance: entree.kind === 'uploaded' ? echeanceDe(entree.expiry_date, aujourdhui) : null,
+    },
+    dossier: etiquetteDuDossier({ ...entree.folder, target: null, entries: [] }, nombreDeBaux),
+  }));
+}

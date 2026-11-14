@@ -21,9 +21,16 @@ vi.mock('@/hooks/useTelechargementApi', () => ({
 const ecran = { bureau: false };
 vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.bureau }));
 
+// TCK-2769 — la recherche du coffre vit dans l'URL (`?q=`) ; sans elle, le coffre par dossier.
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(''),
+  usePathname: () => '/app/documents',
+}));
+
 const reponse: { data: { data: Coffre } | undefined } = { data: undefined };
 vi.mock('@/lib/queries/coffre', () => ({
   useCoffreDeDocuments: () => ({ isPending: false, isError: false, data: reponse.data, refetch: vi.fn() }),
+  useRechercheDansLeCoffre: () => ({ isPending: true }),
 }));
 
 import { CoffreDeDocuments } from '../CoffreDeDocuments';
@@ -319,14 +326,15 @@ describe('TCK-2656 — le coffre au bureau large', () => {
   });
 });
 
-describe('TCK-2656 — rechercher (décision 2 (c)) et le bailleur bloqué (TCK-2729)', () => {
-  it('« Rechercher » ouvre la recherche serveur des documents ; un coffre vide ne l’offre pas', () => {
+describe('TCK-2769 — chercher dans le coffre, et le bailleur bloqué (TCK-2729)', () => {
+  it('« Chercher un document » est dans le coffre, au téléphone comme au bureau ; plus de geste « Rechercher »', () => {
     rendre();
-    expect(screen.getByRole('link', { name: 'Rechercher' })).toHaveAttribute('href', '/app/documents?vue=recherche');
+    expect(screen.getByRole('searchbox', { name: 'Chercher un document' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Rechercher' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('coffre-lecture-seule')).not.toBeInTheDocument();
   });
 
-  it('un coffre vide n’offre pas « Rechercher »', () => {
+  it('un coffre vide n’offre pas de recherche', () => {
     reponse.data = {
       data: {
         folders: [{ key: 'pieces', kind: 'pieces', target: { type: 'user', id: 78 }, name: null, year: null, read_only: false, entries: [] }],
@@ -335,7 +343,7 @@ describe('TCK-2656 — rechercher (décision 2 (c)) et le bailleur bloqué (TCK-
       },
     };
     rendre();
-    expect(screen.queryByRole('link', { name: 'Rechercher' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
   });
 
   it('le dossier d’un bien en lecture seule se lit, le coffre le dit, et sa pièce qui expire ne se remplace pas', () => {

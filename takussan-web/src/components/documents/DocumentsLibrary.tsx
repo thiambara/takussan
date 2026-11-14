@@ -16,7 +16,6 @@ import {
   Plus,
   Home,
   FileCheck2,
-  Search,
 } from 'lucide-react';
 
 import { EmptyState, ErrorState } from '@/components/feedback';
@@ -69,15 +68,9 @@ function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
 }
 
-/**
- * TCK-2656, décision 2 (c) — `recherche` : la recherche serveur des documents, ouverte depuis le coffre
- * (`/app/documents?vue=recherche`). Ni ajout, ni dépôt par glisser, ni mode d'emploi du bailleur :
- * l'ajout passe par le coffre, et un résultat vide se dit comme tel.
- */
-export function DocumentsLibrary({ recherche = false }: { readonly recherche?: boolean } = {}) {
+export function DocumentsLibrary() {
   const locale = useLocale() as Locale;
   const t = useTranslations('documents.library');
-  const tRecherche = useTranslations('documents.coffre.recherche');
   const tTypes = useTranslations('documents.types');
   const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
@@ -166,28 +159,22 @@ export function DocumentsLibrary({ recherche = false }: { readonly recherche?: b
               : t('count', { count: totalFromMeta })}
           </p>
         </div>
-        {recherche ? null : (
-          <Button type="button" onClick={() => setUploadOpen(true)}>
-            <Plus className="mr-1 size-4" aria-hidden="true" />
-            {t('upload_cta')}
-          </Button>
-        )}
+        <Button type="button" onClick={() => setUploadOpen(true)}>
+          <Plus className="mr-1 size-4" aria-hidden="true" />
+          {t('upload_cta')}
+        </Button>
       </div>
 
       <DocumentsFilters />
 
       <div
         ref={dropZoneRef}
-        onDragOver={
-          recherche
-            ? undefined
-            : (e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }
-        }
-        onDragLeave={recherche ? undefined : () => setDragOver(false)}
-        onDrop={recherche ? undefined : handleDrop}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
         className={[
           'rounded-xl border border-dashed p-2 transition-colors',
           dragOver
@@ -205,11 +192,6 @@ export function DocumentsLibrary({ recherche = false }: { readonly recherche?: b
           <ErrorState
             icon={<AlertCircle className="size-4" aria-hidden="true" />}
             message={messageErreur(error, t('error'))}
-          />
-        ) : grouped.length === 0 && recherche ? (
-          <EmptyState
-            icon={<Search className="size-8" aria-hidden="true" />}
-            title={params.search ? tRecherche('aucun') : tRecherche('vide')}
           />
         ) : grouped.length === 0 ? (
           <DocumentsEmpty
@@ -253,7 +235,7 @@ export function DocumentsLibrary({ recherche = false }: { readonly recherche?: b
         <PropertyPagination meta={data.meta} />
       ) : null}
 
-      {uploadMonte && !recherche ? <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} /> : null}
+      {uploadMonte ? <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} /> : null}
       <Dialog
         open={pendingDelete !== null}
         onOpenChange={(open) => {

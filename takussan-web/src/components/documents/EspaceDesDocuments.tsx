@@ -1,12 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-
-import { PageHeader } from '@/components/console';
-import { buttonVariants } from '@/components/ui/button';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,13 +18,11 @@ import { DocumentsLibrary } from './DocumentsLibrary';
  * Tant que les profils ne sont pas lus, ni l'un ni l'autre : les deux écrans lisent deux endpoints
  * différents, et montrer le mauvais d'abord ferait partir sa requête pour rien.
  *
- * Décision 2 (c) : `?vue=recherche` rend à ces profils la recherche qu'ils avaient avant le coffre —
- * la liste de leurs documents, cherchée par le serveur (`filter[search]`), jamais le coffre filtré
- * côté client. Le personnel n'en a pas besoin : sa bibliothèque la porte déjà.
+ * TCK-2769 — la recherche de ces profils est celle du coffre (« Chercher un document », `?q=`), jugée
+ * par le serveur, documents générés compris : elle remplace `?vue=recherche` de TCK-2656, qui ne
+ * cherchait que les documents téléversés. Le personnel garde celle de sa bibliothèque.
  */
 export function EspaceDesDocuments({ enTeteDeLaBibliotheque }: { readonly enTeteDeLaBibliotheque: ReactNode }) {
-  const t = useTranslations('documents.coffre.recherche');
-  const recherche = useSearchParams().get('vue') === 'recherche';
   const { user } = useAuth();
   const profils = useMyProfiles();
   const agence = useAgenceDuPersonnelActif();
@@ -49,25 +41,6 @@ export function EspaceDesDocuments({ enTeteDeLaBibliotheque }: { readonly enTete
       <div className="space-y-6">
         {enTeteDeLaBibliotheque}
         <DocumentsLibrary />
-      </div>
-    );
-  }
-
-  if (recherche) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title={t('titre')}
-          description={t('description')}
-          actions={
-            // TCK-2617 — une seule flèche de retour (celle de la coque) : ce lien dit « Retour aux
-            // documents » en toutes lettres, sans flèche.
-            <Link href="/app/documents" className={buttonVariants({ variant: 'outline' })}>
-              {t('retour')}
-            </Link>
-          }
-        />
-        <DocumentsLibrary recherche />
       </div>
     );
   }

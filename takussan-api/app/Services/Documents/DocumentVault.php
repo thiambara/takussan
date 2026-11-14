@@ -88,6 +88,14 @@ final class DocumentVault
     private DocumentPolicy $policy;
 
     /**
+     * TCK-2769 — les porteurs dont le dernier coffre bâti lit les documents, par classe : le
+     * périmètre que la recherche dit au moteur ({@see RechercheDuCoffre::filtreDuMoteur()}).
+     *
+     * @var array<class-string, list<int>>
+     */
+    private array $readableTargets = [];
+
+    /**
      * @return array{folders: list<array<string, mixed>>, counts: array{expiring_soon: int, unverified: int}, attachable_targets: list<array<string, mixed>>}
      */
     public function for(User $user, ?Model $activeProfile): array
@@ -99,6 +107,20 @@ final class DocumentVault
             [...$this->agenciesInPlay($user), ...$blocked],
             fn (): array => $this->build($user, $activeProfile, $blocked),
         );
+    }
+
+    /**
+     * TCK-2769 — chercher dans le coffre : les entrées du coffre que {@see self::for()} rend à
+     * l'appelant et qui correspondent à `$q`, à plat, chacune avec son dossier, paginées par le serveur.
+     * La recherche ne JUGE rien : elle retient des entrées déjà jugées ({@see RechercheDuCoffre}).
+     *
+     * @return array{data: list<array<string, mixed>>, meta: array<string, mixed>}
+     */
+    public function search(User $user, ?Model $activeProfile, string $q, int $page, int $perPage): array
+    {
+        $vault = $this->for($user, $activeProfile);
+
+        return app(RechercheDuCoffre::class)->chercher($vault['folders'], $q, (int) $user->id, $this->readableTargets, $page, $perPage);
     }
 
     /**
@@ -529,6 +551,7 @@ final class DocumentVault
             Customer::class => $customers->pluck('id')->all(),
             User::class => [$this->user->id],
         ];
+        $this->readableTargets = array_map(fn (array $ids): array => array_values(array_map('intval', $ids)), $readable);
 
         $query = Document::query()
             ->where(function (Builder $any) use ($readable): void {

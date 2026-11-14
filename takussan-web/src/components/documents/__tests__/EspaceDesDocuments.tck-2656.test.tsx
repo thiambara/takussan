@@ -15,9 +15,7 @@ vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(e
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 1 } }) }));
 vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ isPending: etat.enCours }) }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ useAgenceDuPersonnelActif: () => etat.agence }));
-vi.mock('../DocumentsLibrary', () => ({
-  DocumentsLibrary: ({ recherche }: { recherche?: boolean }) => <p>{recherche ? 'bibliothèque en recherche' : 'bibliothèque'}</p>,
-}));
+vi.mock('../DocumentsLibrary', () => ({ DocumentsLibrary: () => <p>bibliothèque</p> }));
 vi.mock('../coffre/CoffreDeDocuments', () => ({ CoffreDeDocuments: () => <p>coffre</p> }));
 
 import { EspaceDesDocuments } from '../EspaceDesDocuments';
@@ -52,14 +50,12 @@ describe('TCK-2656 — la bibliothèque ou le coffre', () => {
   });
 });
 
-describe('TCK-2656, décision 2 (c) — la recherche des profils du coffre', () => {
-  it('`?vue=recherche` rend au locataire la recherche serveur de ses documents, et le chemin du retour', () => {
+describe('TCK-2769 — la recherche des profils du coffre est celle du coffre', () => {
+  it('`?vue=recherche` (TCK-2656) ne détourne plus vers la liste des téléversements : le coffre, qui porte sa recherche', () => {
     etat.vue = 'recherche';
     render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
-    expect(screen.getByText('bibliothèque en recherche')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Chercher un document' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Retour aux documents' })).toHaveAttribute('href', '/app/documents');
-    expect(screen.queryByText('coffre')).not.toBeInTheDocument();
+    expect(screen.getByText('coffre')).toBeInTheDocument();
+    expect(screen.queryByText('bibliothèque')).not.toBeInTheDocument();
   });
 
   it('le personnel garde sa bibliothèque sous son propre en-tête, même avec `?vue=recherche`', () => {
@@ -68,6 +64,5 @@ describe('TCK-2656, décision 2 (c) — la recherche des profils du coffre', () 
     render(<EspaceDesDocuments enTeteDeLaBibliotheque={<h1>Bibliothèque de l’agence</h1>} />);
     expect(screen.getByRole('heading', { name: 'Bibliothèque de l’agence' })).toBeInTheDocument();
     expect(screen.getByText('bibliothèque')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Chercher un document' })).not.toBeInTheDocument();
   });
 });
