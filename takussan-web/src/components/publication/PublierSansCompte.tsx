@@ -219,6 +219,25 @@ export function PublierSansCompte({
     }
   }
 
+  // Maquette a-5 : la phrase des conditions garde sa taille de partout (`PhraseCGU` : 12 px, 1,625) — note
+  // du pied au bureau (TCK-2600), ligne sous « Publier l’annonce » au téléphone (TCK-2819, lot 3).
+  const phraseDesConditions = (
+    <span className="block text-xs leading-relaxed text-muted-foreground">
+      {tFeuille.rich('mention', {
+        terms: (morceau) => (
+          <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="underline underline-offset-2">
+            {morceau}
+          </LienLocalise>
+        ),
+        privacy: (morceau) => (
+          <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="underline underline-offset-2">
+            {morceau}
+          </LienLocalise>
+        ),
+      })}
+    </span>
+  );
+
   const anonyme: ModeAnonyme = {
     entreeParTelephone,
     preparerLEspace,
@@ -277,26 +296,14 @@ export function PublierSansCompte({
     // TCK-2600 — la note du pied, sous l'aperçu (maquette a-0 à a-5, dès `lg`).
     noteDuPied: (etape) =>
       etape === 'finition' ? (
-        // Maquette a-5 : la phrase des conditions garde sa taille de partout (`PhraseCGU` : 12 px, 1,625).
-        <span className="block text-xs leading-relaxed">
-          {tFeuille.rich('mention', {
-            terms: (morceau) => (
-              <LienLocalise href={ROUTES_LEGALES.terms} target="_blank" rel="noopener" className="underline underline-offset-2">
-                {morceau}
-              </LienLocalise>
-            ),
-            privacy: (morceau) => (
-              <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="underline underline-offset-2">
-                {morceau}
-              </LienLocalise>
-            ),
-          })}
-        </span>
+        phraseDesConditions
       ) : etape === 'prix' ? (
         t('brouillon.pied')
       ) : etape === 'bien' || etape === 'lieu' || etape === 'caracteristiques' || etape === 'photos' ? (
         t(`pied.${etape}`)
       ) : null,
+    // TCK-2819 (lot 3) — au téléphone, la même phrase sous « Publier l’annonce » (maquette a-5, `PiedAssistant`).
+    sousLesGestes: (etape) => (etape === 'finition' ? phraseDesConditions : null),
     finition: (
       <>
         {/*

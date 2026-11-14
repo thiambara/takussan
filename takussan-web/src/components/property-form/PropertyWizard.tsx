@@ -246,6 +246,8 @@ export interface ModeAnonyme {
    * l'étape (`bien`, `lieu`, `caracteristiques`, `prix`, `photos`, `finition`).
    */
   readonly noteDuPied?: (etape: string) => ReactNode;
+  /** TCK-2819 (lot 3) — la ligne sous les gestes au téléphone, selon l'étape (la phrase des CGU à la finition). */
+  readonly sousLesGestes?: (etape: string) => ReactNode;
   /** La ligne de « Pour publier » qui suit les six étapes (« Votre numéro · à la fin »). */
   readonly pourPublierEnPlus: { readonly libelle: string; readonly note: string };
   /** L'étape courante, pour l'avancement de la barre de la coque. */
@@ -936,7 +938,8 @@ export function AssistantDePublication({
         <StepFinition form={form}>
           {proposition ? null : (
             <>
-              <ContactsSurPlace valeur={contactsSurPlace} onChange={setContactsSurPlace} />
+              {/* TCK-2819 (lot 3) — le dessin de la maquette a-5, aux DEUX entrées : un seul assistant. */}
+              <ContactsSurPlace presentation="assistant" valeur={contactsSurPlace} onChange={setContactsSurPlace} />
               {anonyme ? anonyme.finition : (
                 <CoordonneesDeLAssistant numeroAVerifier={manquesFeuille.includes('verified_phone')} contactEstSoi={contactEstSoi} />
               )}
@@ -1077,6 +1080,7 @@ export function AssistantDePublication({
         // TCK-2600 — sans compte (`/publish`), le cadre des écrans d'entrée dès `lg` (maquette a-0 à a-5).
         cadreDEntree={anonyme !== undefined}
         noteDuPied={anonyme?.noteDuPied?.(etapes[index].id)}
+        sousLesGestes={anonyme?.sousLesGestes?.(etapes[index].id)}
         bandeau={aDesAlertes ? (
           <>
             {envoiPhotos ? (
