@@ -383,18 +383,27 @@ describe('TCK-382 — inventaire', () => {
  * N'est retiré du balayage que cet appel-là : dans le corps de `generateMetadata`, avec le segment du
  * dossier, ET seulement si le layout du dossier fait le même appel. Le même appel dans le rendu de la
  * page, ou sans le layout qui décide, reste un fautif.
+ *
+ * TCK-2837 — **même exception pour le refus de RÔLE** : `assertCanReach<X>(` dans le corps de
+ * `generateMetadata`, retiré du balayage SEULEMENT si le layout du dossier appelle la même garde
+ * (`owners/[id]` : `assertCanReachOwnerAccount`, 404). Appel par appel : une autre garde dans le
+ * titre, ou la même dans le rendu de la page, reste un fautif.
  */
 function sansMiroirDuLayout(dossier: string, source: string): string {
-  const segment = basename(dirname(dossier));
-  const appel = `exigerRessource('${segment}'`;
   const layout = join(dossier, 'layout.tsx');
-  if (!existsSync(layout) || !readFileSync(layout, 'utf8').includes(appel)) return source;
+  if (!existsSync(layout)) return source;
+  const sourceDuLayout = readFileSync(layout, 'utf8');
   const debut = source.search(/export\s+(async\s+)?(function\s+generateMetadata|const\s+generateMetadata\s*=)/);
   if (debut < 0) return source;
   const fin = source.slice(debut).search(/\n\}[;\n]/);
   if (fin < 0) return source;
-  const bloc = source.slice(debut, debut + fin);
-  return source.slice(0, debut) + bloc.split(appel).join('MIROIR_DU_LAYOUT') + source.slice(debut + fin);
+  let bloc = source.slice(debut, debut + fin);
+  const ressource = `exigerRessource('${basename(dirname(dossier))}'`;
+  const miroirs = [ressource, ...new Set(bloc.match(/\bassertCanReach\w*\(/g) ?? [])].filter((appel) =>
+    sourceDuLayout.includes(appel),
+  );
+  for (const appel of miroirs) bloc = bloc.split(appel).join('MIROIR_DU_LAYOUT');
+  return source.slice(0, debut) + bloc + source.slice(debut + fin);
 }
 
 const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin|aiguillerVersLArgent)\s*\(/;

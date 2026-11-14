@@ -49,6 +49,12 @@ vi.mock('next-intl/server', () => ({
 // Le titre du bail lit sa référence au serveur : sans jeton, il rend « Bail #<id> » sans requête.
 vi.mock('@/lib/session', () => ({ getToken: async () => null, getActiveProfileId: async () => null }));
 
+// TCK-2837 — le titre de `owners/[id]` rappelle d'abord le refus de rôle du layout (`getMeAction`) : ce
+// fichier éprouve la sonde d'existence, donc pour un admin d'agence, que le refus laisse passer.
+vi.mock('@/app/actions/auth', () => ({
+  getMeAction: async () => ({ id: 2, agency_id: 7, roles: ['agency_admin', 'customer'] }),
+}));
+
 const APP = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Les segments `<s>/[id]` dont le layout décide l'introuvable par `exigerRessource('<s>'`. */

@@ -4,13 +4,18 @@ import { getTranslations } from 'next-intl/server';
 import { getMeAction } from '@/app/actions/auth';
 import { FicheDuBailleur } from '@/components/owners/fiche/FicheDuBailleur';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
+import { assertCanReachOwnerAccount } from '@/lib/auth/guards';
 import { exigerRessource, idDeDetail } from '@/lib/detail/ressource-de-detail';
 import { estMois, moisCourant } from '@/lib/finances/mois';
+import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { lireBailleurDuRendu } from '@/lib/owners/fiche-du-rendu';
 import { fetchDashboardProperties } from '@/lib/queries/properties-server';
 import { getToken } from '@/lib/session';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  // TCK-2837 — le refus de rôle du layout, AVANT la sonde, dans le même ordre : un agent refusé garde
+  // le titre de l'introuvable, sans lire l'API (`getMeAction` est mémoïsé, aucun /api/auth/me de plus).
+  assertCanReachOwnerAccount((await getMeAction()).roles);
   // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
   await exigerRessource('owners', (await params).id);
   const t = await getTranslations('dashboard.pages.ownerDetail');
@@ -27,8 +32,9 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
  *
  * Le refus (la fiche est celle de l'admin de l'agence, décision 3a) et l'introuvable (404 de l'API)
  * sont décidés par le `layout.tsx` de ce segment, seul endroit où ils rendent 404 (TCK-442). Il ne
- * reste ici que du NARROWING de type : aucun terminateur sous le `loading.tsx` de ce segment
- * (`etats-de-route.test.ts`).
+ * reste ici que du NARROWING de type : aucun terminateur dans le RENDU, sous le `loading.tsx` de ce
+ * segment (`etats-de-route.test.ts`). Le `generateMetadata` rappelle les deux décisions du layout,
+ * pour le seul titre de l'onglet (TCK-2831, TCK-2837) : le statut reste celui du layout.
  *
  * `?period=YYYY-MM` choisit le mois du relevé ; absent, mal formé ou à venir, c'est le mois en cours
  * — lu sans `period`, comme le layout, pour partager sa lecture.
@@ -36,7 +42,10 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export default async function Page({ params, searchParams }: { readonly params: Params; readonly searchParams?: SearchParams }) {
   const token = await getToken();
   if (!token) return null;
-  const { agency_id: agencyId } = await getMeAction();
+  const { agency_id: agencyId, roles } = await getMeAction();
+  // TCK-2837 — Next lance ce rendu EN PARALLÈLE du layout qui refuse : sans ce narrowing, l'agent refusé
+  // lisait encore la fiche (403 de l'API). Le 404 reste celui du layout ; ici, rien n'est plus lu.
+  if (!ouvreLaFicheDuBailleur(roles)) return null;
   const id = idDeDetail((await params).id);
   if (!agencyId || id === null) return null;
 

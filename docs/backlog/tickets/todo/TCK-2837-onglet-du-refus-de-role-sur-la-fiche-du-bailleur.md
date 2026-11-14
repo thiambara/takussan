@@ -63,15 +63,44 @@ Les lister dans ce ticket. Ne pas les corriger ici.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Persona agent, `/app/owners/<id existant>` : `document.title` vaut « Page introuvable — Takussan » après
+- [x] AC1 — Persona agent, `/app/owners/<id existant>` : `document.title` vaut « Page introuvable — Takussan » après
       l'hydratation (relevé au navigateur, 390 et 1280), et la réponse reste **404**.
-- [ ] AC2 — Persona admin d'agence : même titre qu'avant (« Fiche du bailleur — Takussan »), et même nombre de
+      *Preuve : relevé CDP, `/app/owners/30`, 390 et 1280 → 404, « Page introuvable — Takussan » de bout en bout (au HEAD :
+      « Fiche du bailleur — Takussan » après l'hydratation, relevé avant le correctif).*
+- [x] AC2 — Persona admin d'agence : même titre qu'avant (« Fiche du bailleur — Takussan »), et même nombre de
       requêtes à l'API par chargement.
-- [ ] AC3 — Une garde rougit si le `generateMetadata` de `owners/[id]/page.tsx` ne rappelle pas le refus de rôle de son
+      *Preuve : 390 et 1280 → 200, « Fiche du bailleur — Takussan » ; journal de l'API, 3 chargements avant et 3 après :
+      1 `/api/auth/me` et 1 `/api/owners/30` par chargement pour l'admin, avant comme après. Pour l'agent : 1 lecture
+      de la fiche avant, 0 après (voir les notes).*
+- [x] AC3 — Une garde rougit si le `generateMetadata` de `owners/[id]/page.tsx` ne rappelle pas le refus de rôle de son
       layout ; ablation consignée. La garde `etats-de-route.test.ts` rougit toujours sur le même appel placé dans le
       rendu de la page.
+      *Preuve : `app/__tests__/titre-du-refus-de-role.tck-2837.test.ts` (source, dérivée de `guards.ts` et des layouts ;
+      montage). Ablations : appel retiré du titre → 3 rouges ; appel dans le rendu → `etats-de-route` rouge ; appel
+      retiré du layout → 2 rouges ; autre garde (`assertCanReachAgentArea`) dans le titre → 4 rouges.*
 
 ## Hors périmètre
 
 - La fiche absente (fait par TCK-2831).
 - Le HTML du 404 (TCK-2740, décision 2 (a)).
+
+## Notes d'implémentation (2026-11-14)
+
+- **La piste a été vérifiée.** `generateMetadata` appelle `assertCanReachOwnerAccount((await getMeAction()).roles)` avant
+  `exigerRessource`, dans l'ordre du layout. L'agent refusé ne sonde donc plus l'API depuis le titre.
+- **Lectures de l'API.** `getMeAction` est mémoïsé par `cache()` : 1 `/api/auth/me` par chargement, avant comme après.
+- **Le rendu ne lit plus rien pour l'agent refusé (décision du porteur, prise dans ce ticket).** Next lance le rendu de
+  la page en parallèle du layout qui refuse. Une fois le titre corrigé, l'agent déclenchait encore
+  `GET /api/owners/<id>` depuis ce rendu : un 403 de `lireBailleurDuRendu`, journalisé `⨯ Error: API error 403`.
+  Le rendu rend désormais `null` hors de `ouvreLaFicheDuBailleur`, avant toute lecture. C'est un narrowing, pas un
+  refus : le 404 reste celui du layout. Journal de dev, 3 chargements par persona : l'admin garde 1 lecture de la fiche,
+  l'agent passe à 0, et plus aucune erreur n'est journalisée.
+- **Garde adaptée.** `sansMiroirDuLayout` (`etats-de-route.test.ts`) exempte aussi `assertCanReach<X>(`, appel par
+  appel, s'il est dans le corps de `generateMetadata` ET si le layout du dossier fait le même appel.
+- **Relevé demandé : les autres layouts de `/app` qui refusent par rôle en `notFound()`.** Il n'y en a **aucun**.
+  `assertCanReachOwnerAccount` est la seule garde de `guards.ts` qui rend `notFound()`, et seul `owners/[id]/layout.tsx`
+  l'appelle (la non-vacuité du test l'éprouve). Les autres refus de rôle passent par `redirect('/app')` et ne sont pas
+  concernés : `calendar`, `commissions`, `crm/pipeline`, `customers`, `leads`, `leases/onboarding-pending`, `properties`
+  et `tasks`. Une navigation remplace l'onglet. À côté : `agency/finances/reconciliation/[statementId]` rend `notFound()`
+  sur la forme de l'identifiant, pas sur le rôle.
+
