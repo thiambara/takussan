@@ -1,7 +1,7 @@
 ---
 id: TCK-2841
 title: "Documents d'un bien : une lecture par cible qui range aussi les pièces déposées sur ses baux, passés compris"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
@@ -17,7 +17,7 @@ spec_refs:
   models:
     - "docs/models-spec.md#3-property"
   tickets:
-    - docs/backlog/tickets/todo/TCK-2639-fiche-bien-location-d-abord.md
+    - docs/backlog/tickets/done/TCK-2639-fiche-bien-location-d-abord.md
     - docs/backlog/tickets/done/TCK-2655-documents-coffre-api.md
 tags: [api, documents, properties, leases, audit-ux, app]
 ---

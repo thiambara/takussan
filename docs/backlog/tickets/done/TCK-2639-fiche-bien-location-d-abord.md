@@ -1,7 +1,7 @@
 ---
 id: TCK-2639
 title: "Fiche du bien : l'onglet Location d'abord, des onglets par métier et deux gestes collés au téléphone"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
