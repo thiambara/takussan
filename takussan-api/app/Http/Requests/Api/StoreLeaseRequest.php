@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseType;
@@ -10,6 +11,7 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Rules\JourIso;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Lease\EarlyTerminationService;
 use Illuminate\Validation\Rule;
 
 /**
@@ -74,7 +76,7 @@ class StoreLeaseRequest extends BaseFormRequest
             // bornes d'`UpdateLeaseRequest` : ils ne s'écrivaient qu'après coup, par PATCH.
             'late_fee_percent' => ['nullable', 'numeric', 'between:0,50'],
             'late_fee_grace_days' => ['nullable', 'integer', 'between:0,30'],
-            'early_termination_penalty_months' => ['nullable', 'integer', 'between:0,12'],
+            'early_termination_penalty_months' => ['nullable', 'integer', ...EditablePlatformSettings::reglesDeBornes(EarlyTerminationService::SETTING_KEY)], // TCK-2842
             'rent_review_max_pct' => ['nullable', 'numeric', 'between:0,100'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],

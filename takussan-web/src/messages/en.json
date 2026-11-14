@@ -2511,7 +2511,7 @@
         "indemnite": {
           "titre": "Early termination fee",
           "sujet": "The early termination fee",
-          "aide": "Months of rent due if the tenant leaves before the end of the lease. A new lease takes at most 12."
+          "aide": "Months of rent due if the tenant leaves before the end of the lease."
         },
         "revision": {
           "titre": "Rent review cap",

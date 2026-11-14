@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Models\Lease;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Lease\EarlyTerminationService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -35,7 +37,7 @@ class UpdateLeaseRequest extends BaseFormRequest
             'late_fee_grace_days' => ['sometimes', 'nullable', 'integer', 'between:0,30'],
             // VERIF-596 passe 2 (N1) — termes imprimés et figés avec le contrat : modifiables tant
             // que le bail n'est pas signé, refusés ensuite (`lease.terms_locked`).
-            'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', 'between:0,12'],
+            'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', ...EditablePlatformSettings::reglesDeBornes(EarlyTerminationService::SETTING_KEY)], // TCK-2842
             'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             // TCK-2679 — les charges, terme imprimé : même régime (défigent avant signature, 422 après).
             'monthly_charges' => ['sometimes', 'nullable', 'numeric', 'min:0'],

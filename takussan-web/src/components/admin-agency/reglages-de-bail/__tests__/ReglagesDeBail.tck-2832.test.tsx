@@ -32,7 +32,7 @@ const { LECTURE, ENREGISTRER, REVENIR } = vi.hoisted(() => {
           settings: [
             reglage({ key: 'lease.late_fee_percent', value: 5, source: 'agency', platform_value: 0, setting_id: 41 }),
             reglage({ key: 'lease.late_fee_grace_days', type: 'integer', max: 30 }),
-            reglage({ key: 'lease.early_termination_penalty_months', value: 2, platform_value: 2, type: 'integer', min: 1, max: 24 }),
+            reglage({ key: 'lease.early_termination_penalty_months', value: 2, platform_value: 2, type: 'integer', min: 0, max: 12 }), // TCK-2842 : les bornes que l'API rend
             reglage({ key: 'lease.rent_review_max_pct', value: 10, source: 'agency', platform_value: 20, setting_id: 43, min_exclusive: true, max: 100 }),
           ],
         },
@@ -77,7 +77,8 @@ describe('ReglagesDeBail (TCK-2832, approche A)', () => {
     expect(within(carte('Pénalité de retard')).getByText('Réglage de l’agence')).toBeInTheDocument();
     expect(within(carte('Délai de grâce')).getByText('Réglage de la plateforme')).toBeInTheDocument();
     expect(within(carte('Pénalité de retard')).getByText('De 0 à 50 %')).toBeInTheDocument();
-    expect(within(carte('Indemnité de départ anticipé')).getByText('De 1 à 24 mois')).toBeInTheDocument();
+    expect(within(carte('Indemnité de départ anticipé')).getByText('De 0 à 12 mois')).toBeInTheDocument();
+    expect(carte('Indemnité de départ anticipé')).not.toHaveTextContent('au plus'); // TCK-2842 : l'aide ne recopie plus la borne
     expect(within(carte('Plafond de révision du loyer')).getByText('Plus de 0, jusqu’à 100 %')).toBeInTheDocument();
     expect(within(carte('Plafond de révision du loyer')).getByText('20 %')).toBeInTheDocument();
     expect(screen.getByText('S’applique aussi aux baux en cours qui n’ont pas leur propre valeur.')).toBeInTheDocument();
@@ -132,12 +133,12 @@ describe('ReglagesDeBail (TCK-2832, approche A)', () => {
     expect(ENREGISTRER.mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('l’indemnité se juge sur les bornes de l’API (1 à 24), en entier', async () => {
+  it('l’indemnité se juge sur les bornes de l’API (0 à 12), en entier', async () => {
     render(withIntl(<ReglagesDeBail />));
 
-    await saisir('Indemnité de départ anticipé', '0');
+    await saisir('Indemnité de départ anticipé', '13');
     await userEvent.click(enregistrer());
-    expect(within(carte('Indemnité de départ anticipé')).getByText('L’indemnité de départ ne peut pas descendre sous 1 mois.')).toBeInTheDocument();
+    expect(within(carte('Indemnité de départ anticipé')).getByText('L’indemnité de départ ne peut pas dépasser 12 mois.')).toBeInTheDocument();
 
     await saisir('Indemnité de départ anticipé', '2.5');
     await userEvent.click(enregistrer());

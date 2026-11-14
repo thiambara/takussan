@@ -2468,7 +2468,7 @@
         "indemnite": {
           "titre": "Indemnité de départ anticipé",
           "sujet": "L’indemnité de départ",
-          "aide": "Mois de loyer dus si le locataire part avant la fin du bail. Un nouveau bail en reprend 12 au plus."
+          "aide": "Mois de loyer dus si le locataire part avant la fin du bail."
         },
         "revision": {
           "titre": "Plafond de révision du loyer",

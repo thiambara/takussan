@@ -144,14 +144,15 @@ class ReglagesDeBailDeLAgenceTest extends ApiTestCase
     public function test_une_ligne_sous_le_plancher_se_dit_plateforme_et_reste_retirable(): void
     {
         $ligne = Setting::query()->create([
-            'key' => 'lease.early_termination_penalty_months', 'value' => ['value' => 0],
+            // TCK-2842 — l'indemnité admet 0 (« aucune indemnité ») ; la révision, en `gt:0`, non.
+            'key' => 'lease.rent_review_max_pct', 'value' => ['value' => 0],
             'scope' => SettingScope::Agency, 'scope_id' => $this->agence->id,
         ]);
 
         $this->actingAsApi($this->admin);
         $this->getJson('/api/settings/lease')->assertOk()
-            ->assertJsonPath('data.settings.2.source', 'platform')
-            ->assertJsonPath('data.settings.2.setting_id', $ligne->id);
+            ->assertJsonPath('data.settings.3.source', 'platform')
+            ->assertJsonPath('data.settings.3.setting_id', $ligne->id);
     }
 
     /** @return array<string, array{string}> */
@@ -244,7 +245,7 @@ class ReglagesDeBailDeLAgenceTest extends ApiTestCase
         return [
             'pénalité au-delà de 50' => ['lease.late_fee_percent', 51],
             'grâce au-delà de 30' => ['lease.late_fee_grace_days', 31],
-            'indemnité sous 1' => ['lease.early_termination_penalty_months', 0],
+            'indemnité au-delà de 12' => ['lease.early_termination_penalty_months', 13], // TCK-2842
             'révision à 0' => ['lease.rent_review_max_pct', 0],
         ];
     }
