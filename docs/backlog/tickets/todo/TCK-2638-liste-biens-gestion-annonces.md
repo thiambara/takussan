@@ -102,12 +102,12 @@ Autres contraintes :
 
 ## Delta à produire
 
-- [ ] Sélecteur de mode mémorisé, avec ses deux présentations au téléphone et au bureau.
-- [ ] Pastilles et tuiles du mode Gestion branchées sur `portfolio-summary`. Celles du mode Annonces branchées sur les filtres existants et `is_online`.
-- [ ] Carte et ligne de tableau du mode Gestion (occupation, état du mois) et carte du mode Annonces.
-- [ ] Vocabulaire « En ligne » / visibilité / statut aligné sur l'ADR, dans la liste, les filtres et les puces.
-- [ ] Écran de quota de l'entrée de création, réécrit pour le rôle.
-- [ ] Tests :
+- [x] Sélecteur de mode mémorisé, avec ses deux présentations au téléphone et au bureau. — lots A et B ; `ModesDeLaListe.tck-2638`, `gestion.tck-2638` (mémoire, URL).
+- [x] Pastilles et tuiles du mode Gestion branchées sur `portfolio-summary`. Celles du mode Annonces branchées sur les filtres existants et `is_online`. — lots A et B ; `ModesDeLaListe*.tck-2638`, `EtatDAnnonceTest`.
+- [x] Carte et ligne de tableau du mode Gestion (occupation, état du mois) et carte du mode Annonces. — lots A, B, B2 ; `PropertyList.gestion.tck-2638`, `CarteAnnonce.tck-2638`.
+- [x] Vocabulaire « En ligne » / visibilité / statut aligné sur l'ADR, dans la liste, les filtres et les puces. — lot B ; `CarteAnnonce.tck-2638` (« Publié » absent, « Validé »).
+- [x] Écran de quota de l'entrée de création, réécrit pour le rôle. — lot C ; `new/__tests__/page.quota.test.tsx`.
+- [x] Tests : — `gestes-des-deux-modes.tck-2638` (parcours), `ModesDeLaListe*` (comptes), `gestion.tck-2638` (mode), `CarteAnnonce.tck-2638` (« Publié »).
   - parcours des gestes dans les deux modes ;
   - parité des comptes ;
   - mode mémorisé et repris de l'URL ;
@@ -115,24 +115,24 @@ Autres contraintes :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 390 px en mode Gestion, au moins **6 biens** sont visibles dans le premier écran sous les pastilles (mesure au navigateur sur la démo).
-- [ ] AC2 — Pour le bailleur de la démo, le nombre de lignes qui portent la pastille « En ligne » sur une page égale le nombre de biens de cette page que rend `filter[public]=1`. Le texte « Publié » n'apparaît nulle part dans la liste (DOM).
-- [ ] AC3 — À l'ouverture du mode Gestion, le réseau montre **un** appel `portfolio-summary` et aucun appel `per_page=1` de comptage.
-- [ ] AC4 — Après une recherche « Mermoz » et un filtre « Vacants » en mode Gestion :
+- [x] AC1 — À 390 px en mode Gestion, au moins **6 biens** sont visibles dans le premier écran sous les pastilles (mesure au navigateur sur la démo). — *Preuve (2026-11-14, lot D)* : relevé 390 × 844, admin, « Retards d'abord » : sept cartes de 97 px, six titres au-dessus de la barre d'onglets (`.fidelite/TCK-2638/lot-D/gestion-telephone.json`), après la puce courte du retard (« Retard 9 j », phrase entière lue par les lecteurs d'écran) ; sans elle, 5 (cartes de 121 px). Tenu sur la démo sous le tri par défaut ; une puce longue (préavis, échéance) après un grand loyer peut encore passer à la ligne.
+- [x] AC2 — Pour le bailleur de la démo, le nombre de lignes qui portent la pastille « En ligne » sur une page égale le nombre de biens de cette page que rend `filter[public]=1`. Le texte « Publié » n'apparaît nulle part dans la liste (DOM). — *Preuve (2026-11-14, lot D)* : bailleur de la démo, mode Annonces, 1280, CDP : 4 pages (20, 20, 20, 11 cartes), « En ligne » = biens de la page dans `filter[public]=1` (3, 0, 0, 1 ; mêmes identifiants), aucun « Publié » dans `main`, ni en Annonces ni en Gestion (4 pages chacun, `includes('Publié')`) (`w-2638/ac2.json`) ; tests `CarteAnnonce.tck-2638` et `PropertyList.gestion.tck-2638`.
+- [x] AC3 — À l'ouverture du mode Gestion, le réseau montre **un** appel `portfolio-summary` et aucun appel `per_page=1` de comptage. — *Preuve* : `(liste)/__tests__/gestion.tck-2638.test.tsx` (« AC3 », Gestion et Annonces : un résumé, aucun `per_page=1`) ; les appels partent du serveur (RSC), le réseau du navigateur ne les voit pas.
+- [x] AC4 — Après une recherche « Mermoz » et un filtre « Vacants » en mode Gestion : — *Preuve* : lot B au navigateur (recherche « Mermoz » gardée d'un mode à l'autre) ; `ModesDeLaListe.tck-2638` (« AC4 ») et `gestion.tck-2638` (mémoire de l'appareil, l'URL prime).
   - passer en Annonces, puis revenir, garde la recherche ;
   - recharger la page garde le mode.
-- [ ] AC5 — Chacun des gestes listés dans *Contraintes strictes* est atteignable dans les deux modes, à 390 px et à 1280 px : menu « ⋯ » d'une ligne, actions groupées sur deux biens, pagination, réinitialisation des filtres. Un test parcourt chaque geste.
-- [ ] AC6 — À 1280 px, le tableau Gestion tient sans défilement horizontal, avec le « ⋯ » de fin de ligne entier.
-- [ ] AC7 — Aucun loyer ne s'affiche sans période (« 1 133 862 F CFA · Location » ne se reproduit pas sur la démo).
+- [x] AC5 — Chacun des gestes listés dans *Contraintes strictes* est atteignable dans les deux modes, à 390 px et à 1280 px : menu « ⋯ » d'une ligne, actions groupées sur deux biens, pagination, réinitialisation des filtres. Un test parcourt chaque geste. — *Preuve (2026-11-14, lot D)* : `gestes-des-deux-modes.tck-2638.test.tsx`, 32 tests (menu « ⋯ » : Modifier, Dupliquer, statut, Dépublier / Archiver / Supprimer confirmés ; lot sur deux biens : Archiver avec bilan, Dépublier, Changer l'agent, Tout désélectionner ; deux états vides) dans la carte et le tableau de la Gestion et la carte d'annonce ; au navigateur (CDP, admin), à 390 et 1280 dans les deux modes : 11 entrées du menu, barre groupée à 5 commandes, « Afficher les 20 suivants » / Précédent / Suivant, « Tout réinitialiser » (`w-2638/navigateur.json`).
+- [x] AC6 — À 1280 px, le tableau Gestion tient sans défilement horizontal, avec le « ⋯ » de fin de ligne entier. — *Preuve (2026-11-14)* : 1280, Gestion : `scrollWidth − innerWidth = 0`, la table ne défile pas dans sa carte (0), chaque « ⋯ » entier dans la table (`w-2638/navigateur.json`).
+- [x] AC7 — Aucun loyer ne s'affiche sans période (« 1 133 862 F CFA · Location » ne se reproduit pas sur la démo). — *Preuve* : `CarteAnnonce.tck-2638` et `PropertyList.gestion.tck-2638` (« AC7 », période écrite, vente sans période).
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2638.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2638.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé). — `docs/qa/audit-ux-2026-11/fidelite/TCK-2638.json`.
 - [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
 - [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
 - [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
 - [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur. — lot B (balayage 390/768/1024/1280/1440 des Annonces, 390/1024/1280 de la Gestion) ; 2026-11-14 : 0 débord à 390 et 1280 dans les deux modes.
 
 ## Hors périmètre
 
@@ -299,3 +299,39 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
   désormais « Pertinence » (option proposée pendant une recherche seulement, jamais envoyée), en Gestion comme en
   Annonces ; tout autre tri — « Retards d'abord » compris — s'écrit alors dans l'URL, « Pertinence » l'efface.
   `PanneauDeFiltres.tck-2638` +6 ; ablations 3/3 rouges.
+
+### Lot D — re-mesure au HEAD, AC5 parcouru, AC1 rétabli, P3 de la feuille (2026-11-14, biens-2638)
+
+- **Prémisse re-mesurée** : au HEAD (après TCK-2771, `property.dashboard` → `propertyDashboard`), les 52 fichiers de
+  `property-dashboard` et `app/properties` sont verts (358 tests). Restaient : AC5 jamais parcouru au navigateur, aucun
+  compare après B2, la coque à 0,82 % sans écart, et la P3 de la feuille.
+- **AC1 rougissait** depuis B2 : « Retards d'abord » par défaut met en tête des loyers à sept chiffres en retard ;
+  « 1 825 000 F / mois » + « En retard de 9 j » débordaient la ligne de 226 px, la puce passait dessous (cartes de
+  121 px au lieu de 97), cinq biens au premier écran. La carte du téléphone prend, pour le RETARD seul, la forme
+  courte du tableau (`PuceEtatDuMois retardCourt` → « Retard 9 j ») ; le préavis garde sa date. Six biens.
+- **P3 de l'audit** (« Chaque choix s'applique aussitôt » contre « Voir les résultats ») : la consigne dit désormais
+  « Chaque choix s'applique aussitôt ; la ville et les prix saisis, avec « Voir les résultats » » (listes, cases et dates partent au choix ; seules ville et prix attendent le bouton) — clé neuve
+  `propertyDashboard.filters.mobile.consigne` (wo = fr, wolof en pause), `mobile.description` retirée.
+- **Fidélité** (lot D, `.fidelite/TCK-2638/lot-D/`, persona admin) — `conformes · écarts · absents · % pixels` :
+  Gestion téléphone 29 · 20 · 29 · 21,45 % ; Gestion bureau 1280 35 · 236 · 60 · 14,01 % ; Annonces téléphone
+  31 · 28 · 17 · 48,66 % ; Annonces bureau 1280 38 · 185 · 64 · 45,77 %. Zones : en-tête 0,12 %, sélecteur 0 %,
+  barre d'onglets 0,82 % (pastille « 2 » de Messages : donnée, écart écrit). Fiche : alias périmé « Retards d'abord →
+  Plus récents » retiré (B2 a fait de « Retards d'abord » le défaut), écarts ajoutés (barre d'onglets, « ⋯ » 16 px /
+  trait 1,75 = règle du design system, puce courte du retard).
+- **Restent ouverts** : AC-F2 / AC-F3 — les écarts du bureau sont pour l'essentiel des données (biens, comptes,
+  densité ×0,9), couverts par catégories mais non rapprochés un à un ; AC-F4 / AC-F5 — validation du porteur sur le
+  rideau.
+- **Décisions du team-lead (2026-11-14)** :
+  - **« Validé » au visiteur → a)** : la fiche publique ne dit plus le statut d'un bien `published` ou `available`,
+    ni en pastille (`PropertyHeader`) ni en ligne « Statut » (`PropertyCharacteristics`). Elle le garde pour réservé,
+    vendu, loué. Une seule règle, `lib/biens/statut-au-visiteur.ts`. Test `statut-au-visiteur.tck-2638`, ablations
+    2/2 rouges (règle sans `published`, pastille rebranchée sur `status_label`). **Écart au périmètre** : la fiche
+    publique est hors du ticket (TCK-2639 pour la fiche pro), mais c'est l'ADR-0097 § 4, appliqué par ce ticket, qui l'y
+    faisait lire « Validé ». **Autres surfaces publiques relues : rien à corriger** — les cartes
+    (`components/property/cards`), le comparateur (`components/compare`) et le JSON-LD (`lib/jsonld-property.ts`)
+    n'affichent ni `status` ni `status_label`.
+  - **Puce du retard → a)** : à l'écran « Retard 9 j », aux lecteurs d'écran « En retard de 9 jours »
+    (`gestion.etatLu.enRetard`, pluriel ICU, en `sr-only`) ; le test vérifie les deux ; alias « En retard de 6 j » →
+    « Retard 6 j » dans la fiche de fidélité.
+  - **Barre d'actions groupées → écart + TCK-2836** (la barre à la place des onglets, par un mécanisme de coque commun
+    aux écrans à sélection).

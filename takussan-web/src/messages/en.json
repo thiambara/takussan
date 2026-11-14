@@ -20924,11 +20924,11 @@
         "button": "Filters",
         "buttonAria": "Filters and sort — {count, plural, =0 {no active filter} =1 {# active filter} other {# active filters}}",
         "title": "Filters and sort",
-        "description": "Each choice applies to the list right away.",
         "sortHeading": "Sort by",
         "scopeHeading": "Show",
         "criteriaHeading": "Criteria",
-        "showResults": "Show results"
+        "showResults": "Show results",
+        "consigne": "Each choice applies right away; the city and prices you type, with “Show results”."
       },
       "panneau": {
         "aria": "List filters",
@@ -21135,7 +21135,10 @@
         "actions": "Actions"
       },
       "agentAucun": "No responsible agent",
-      "caption": "Managed properties"
+      "caption": "Managed properties",
+      "etatLu": {
+        "enRetard": "{jours, plural, =1 {One day late} other {# days late}}"
+      }
     },
     "fiche": {
       "occupant": {

@@ -532,7 +532,7 @@ export function PropertyListFilters({
               <SheetTitle className="font-display text-xl font-semibold tracking-tight">
                 {t('mobile.title')}
               </SheetTitle>
-              <SheetDescription className="mt-0.5">{t('mobile.description')}</SheetDescription>
+              <SheetDescription className="mt-0.5">{t('mobile.consigne')}</SheetDescription>
             </div>
             {filtresActifs > 0 || activeFilters.length > 0 ? (
               <button

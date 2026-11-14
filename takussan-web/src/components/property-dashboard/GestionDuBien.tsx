@@ -46,11 +46,18 @@ export function PuceEtatDuMois({
   property,
   aujourdhui,
   court = false,
+  retardCourt = false,
   alerte = false,
 }: {
   readonly property: PropertyListItem;
   readonly aujourdhui: Date;
   readonly court?: boolean;
+  /**
+   * TCK-2638 (AC1) — la carte du téléphone : le RETARD seul prend sa forme courte (« Retard 9 j »).
+   * « En retard de 9 j » après un loyer à sept chiffres ne tenait pas sur la ligne de 226 px : la
+   * puce passait dessous et la carte gagnait 24 px. Les autres états gardent leur forme longue.
+   */
+  readonly retardCourt?: boolean;
   /** TCK-2639 — la fiche (« Ce mois ») marque le retard d'un triangle ; la liste, non (maquette a-0). */
   readonly alerte?: boolean;
 }) {
@@ -58,7 +65,7 @@ export function PuceEtatDuMois({
   const fmt = useFormatteurs();
   const etat = etatDuMois(property, aujourdhui);
   if (!etat) return null;
-  const forme = court ? 'etatCourt' : 'etat';
+  const forme = court || (retardCourt && etat.cle === 'enRetard') ? 'etatCourt' : 'etat';
   const t = (cle: string, valeurs?: Record<string, string | number>) => tGestion(`${forme}.${cle}`, valeurs);
   let libelle: string;
   switch (etat.cle) {
@@ -85,7 +92,17 @@ export function PuceEtatDuMois({
           <AlertTriangle className="size-3.5" strokeWidth={2} aria-hidden="true" />
         ) : undefined
       }
-      label={libelle}
+      label={
+        retardCourt && !court && etat.cle === 'enRetard' ? (
+          // À l'écran la forme courte ; aux lecteurs d'écran la phrase entière (« En retard de 9 jours »).
+          <>
+            <span aria-hidden="true">{libelle}</span>
+            <span className="sr-only">{tGestion('etatLu.enRetard', { jours: etat.jours ?? 0 })}</span>
+          </>
+        ) : (
+          libelle
+        )
+      }
       className="whitespace-nowrap"
       data-testid="etat-du-mois"
     />
@@ -312,7 +329,7 @@ export function CarteGestion({
         {occupant ? <p className="truncate text-ui text-muted-foreground">{occupant}</p> : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <MontantDuBien property={property} className="text-sm" />
-          <PuceEtatDuMois property={property} aujourdhui={aujourdhui} />
+          <PuceEtatDuMois property={property} aujourdhui={aujourdhui} retardCourt />
         </div>
         <PublierLAnnonce property={property} />
       </div>

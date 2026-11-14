@@ -3,6 +3,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
 import { disponibiliteDe } from '@/lib/property-availability';
+import { statutPourLeVisiteur } from '@/lib/biens/statut-au-visiteur';
 import type { PropertyDetail } from '@/types/property';
 
 function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -31,7 +32,8 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
     { label: t('rows.type'), value: property.type_label },
     { label: t('rows.contract'), value: property.contract_type_label },
     { label: t('rows.period'), value: property.rent_period_label },
-    { label: t('rows.status'), value: property.status_label },
+    // TCK-2638 — ni « Validé » ni « Disponible » au visiteur (`statutPourLeVisiteur`).
+    { label: t('rows.status'), value: statutPourLeVisiteur(property) },
     {
       label: t('rows.floor'),
       value:

@@ -20924,11 +20924,11 @@
         "button": "Filtres",
         "buttonAria": "Filtres et tri — {count, plural, =0 {aucun filtre actif} =1 {# filtre actif} other {# filtres actifs}}",
         "title": "Filtres et tri",
-        "description": "Chaque choix s’applique aussitôt à la liste.",
         "sortHeading": "Trier par",
         "scopeHeading": "Afficher",
         "criteriaHeading": "Critères",
-        "showResults": "Voir les résultats"
+        "showResults": "Voir les résultats",
+        "consigne": "Chaque choix s’applique aussitôt ; la ville et les prix saisis, avec « Voir les résultats »."
       },
       "panneau": {
         "aria": "Filtres de la liste",
@@ -21135,7 +21135,10 @@
         "actions": "Actions"
       },
       "agentAucun": "Aucun agent responsable",
-      "caption": "Biens en gestion"
+      "caption": "Biens en gestion",
+      "etatLu": {
+        "enRetard": "{jours, plural, =1 {En retard d’un jour} other {En retard de # jours}}"
+      }
     },
     "fiche": {
       "occupant": {

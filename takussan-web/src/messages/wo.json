@@ -20924,11 +20924,11 @@
         "button": "Filtre yi",
         "buttonAria": "Filtre ak toftal — {count, plural, =0 {benn filtre doxul} =1 {# filtre moo dox} other {# filtre ñoo dox}}",
         "title": "Filtre ak toftal",
-        "description": "Bépp tànn dina dox ci saa si ci lim bi.",
         "sortHeading": "Toftale ko ci",
         "scopeHeading": "Wone",
         "criteriaHeading": "Natt yi",
-        "showResults": "Xool njureef yi"
+        "showResults": "Xool njureef yi",
+        "consigne": "Chaque choix s’applique aussitôt ; la ville et les prix saisis, avec « Voir les résultats »."
       },
       "panneau": {
         "aria": "Filtres de la liste",
@@ -21135,7 +21135,10 @@
         "actions": "Actions"
       },
       "agentAucun": "Aucun agent responsable",
-      "caption": "Biens en gestion"
+      "caption": "Biens en gestion",
+      "etatLu": {
+        "enRetard": "{jours, plural, =1 {En retard d’un jour} other {En retard de # jours}}"
+      }
     },
     "fiche": {
       "occupant": {
