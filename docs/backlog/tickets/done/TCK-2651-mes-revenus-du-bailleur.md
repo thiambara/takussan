@@ -1,13 +1,13 @@
 ---
 id: TCK-2651
 title: "« Loyers » : le bailleur lit d'abord ce qui reste à lui verser, puis chaque bien, et les opérations sans identifiant technique"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 88
 created: 2026-11-10
-updated: 2026-11-12
+updated: 2026-11-14
 depends_on: [TCK-2649, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691, TCK-2760]
 blocks: []
 spec_refs:
@@ -104,10 +104,10 @@ Autres contraintes :
 
 - [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2651.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
   - **Preuve** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2651.json`. L'écran a-4 y est listé avec ses trois références gelées le 2026-11-11, la persona `proprietaire`, la route, l'état reproduit, l'alias « Mes revenus » → « Loyers », dix écarts acceptés avec leur motif et deux écarts ouverts (hauteur des onglets au téléphone, qui relève de TCK-2804 ; trait des icônes de la coque).
-- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
-- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
-- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
-- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
+- [x] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+- [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+- [x] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+- [x] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
 - [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
   - **Preuve** : `fidelite balayer --url /app/payments --persona proprietaire` à 390, 768, 1024 et 1280 : débord 0, aucune coupe, aucune ellipse hors du rail de la coque à 768. La grille ne pose ses colonnes que dès `lg`, en `minmax(0,…)`. La table « Par bien » tient dans sa carte à 1280 et à 1440, même avec un titre et un nom de locataire de 80 caractères (scrollWidth = clientWidth, relevé sous verrou). Sous 1280, elle défile dans son conteneur (`overflow-x-auto`).
 
@@ -144,3 +144,5 @@ Autres contraintes :
 - **Hors écran bailleur** : `OwnerStatementPanel` (personnel, `type="month"`) n'est pas touché.
 - **Démo, 2026-11-14** (`proprietaire`) : relevé PDF du mois 200 `application/pdf`, CSV 200 `text/csv`. Attestation annuelle (`period=2026`) : 200 `application/pdf` (83 438 octets). Un premier essai, juste après le PDF du mois, avait rendu 500 `CouldNotGeneratePdf` (« Rate limit exceeded » du pilote Cloudflare) : c'est une limite du service externe, pas l'écran.
 - **Fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2651.json`, relevés à 390 et 1280 seulement (1440 non relevé).
+
+- 2026-11-14 : relevés de clôture au HEAD 928e9c810 (fiche de fidélité à jour), AC-F validés par le porteur sur le rideau (« je valide tout ») ; tableau par écran et appareil dans la PR #1671. Ticket clos.

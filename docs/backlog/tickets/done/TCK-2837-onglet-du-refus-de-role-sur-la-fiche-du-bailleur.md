@@ -1,7 +1,7 @@
 ---
 id: TCK-2837
 title: "Sur owners/[id], le refus de rôle (404) garde « Page introuvable » dans l'onglet après l'hydratation"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -28,7 +28,7 @@ chargée.
 
 ## Contexte
 
-Constaté pendant [TCK-2831](../done/TCK-2831-onglet-d-une-fiche-absente-dit-page-introuvable.md) le 2026-11-14 (serveur de
+Constaté pendant [TCK-2831](TCK-2831-onglet-d-une-fiche-absente-dit-page-introuvable.md) le 2026-11-14 (serveur de
 dev, persona agent, `/app/owners/30`, fiche existante, à 390 et 1280). La réponse est un **404**, le `<title>` du HTML
 dit « Page introuvable — Takussan », puis **après l'hydratation l'onglet devient « Fiche du bailleur — Takussan »**.
 

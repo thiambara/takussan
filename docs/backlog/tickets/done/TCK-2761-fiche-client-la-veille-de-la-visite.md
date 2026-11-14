@@ -1,13 +1,13 @@
 ---
 id: TCK-2761
 title: "Fiche client, la veille de la visite : l'adresse du bien, « Itinéraire » et la trace du SMS de confirmation ; une recherche déduite d'une demande se dit telle"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 89
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 depends_on: [TCK-2589]
 blocks: []
 spec_refs:

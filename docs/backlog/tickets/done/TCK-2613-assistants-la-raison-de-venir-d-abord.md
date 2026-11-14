@@ -1,13 +1,13 @@
 ---
 id: TCK-2613
 title: "Assistants des invités : le téléphone, puis la raison de venir — ses biens, son premier prospect, son intervention — puis l'espace"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2598, TCK-2612, TCK-2614, TCK-2680, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -86,11 +86,11 @@ Pas de régression — chaque fonction des assistants d'aujourd'hui reste, dépl
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2613.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
-- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
-- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
-- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
-- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2613.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+- [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+- [x] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+- [x] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
 - [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur. *(mesuré le 2026-11-14 : `scrollWidth − innerWidth = 0` à 390, 768, 1024 et 1280 sur l'écran 1 du bailleur et de l'agent et sur l'écran 2 des trois rôles (prestataire : 390 et 1280 après l'inversion des gestes, 768 et 1024 juste avant — seules les classes `order` ont changé depuis) (`innerWidth` relevé égal à la largeur demandée) ; sous 1280, le panneau passe SOUS la colonne (même x, 480 px à 768, 640 à 1024) ; la seule piste fixe sous 1280 est celle de la table des biens (6,5 rem et 11 rem, dans sa colonne, sans débord))*
 
 ## Hors périmètre
@@ -185,7 +185,7 @@ Pas de régression — chaque fonction des assistants d'aujourd'hui reste, dépl
 - **Écart relevé, laissé ouvert** : au téléphone, « Accepter » est dans la piste la plus étroite (164 px contre 186 px). La piste `1fr` de « Proposer un créneau », qui ne passe pas à la ligne, s'élargit à son contenu, alors que la maquette donne 1,15 fr à « Accepter ». Ce n'est pas une nouveauté : l'ordre d'avant donnait la même chose.
 - **AC1 à AC4 et AC6 ont des preuves de parcours** (écritures autorisées par team-lead), décrites sous chaque AC. AC-F2 à AC-F5 restent ouverts : a-0, a-1 et a-2 n'ont pas été relevés de nouveau.
 - **Droits refusés (✗) de l'agent** : écart accepté pour motif « donnée », car l'API ne sert que les droits donnés.
-- **« Ton interlocutrice »** : l'écart reste ouvert ; ticket de suite [TCK-2838](TCK-2838-le-bailleur-invite-voit-son-interlocuteur.md).
+- **« Ton interlocutrice »** : l'écart reste ouvert ; ticket de suite [TCK-2838](../todo/TCK-2838-le-bailleur-invite-voit-son-interlocuteur.md).
 - **TCK-2835 n'est pas nécessaire** : l'acceptation passe le profil invité à `active` (`InvitationService`), et la reprise par `?owner=`, `?agent=` ou `?sp=` lit un profil actif.
 - **Mesures**, sous verrou, sans clic. Écritures bornées en base de démo locale : `users.phone_verified_at` des utilisateurs 3 et 8, de `NULL` à `now()` à 16:15:52, remis à `NULL` à 16:16:20 (trap, relu par psql). Puis, pour les preuves de parcours : voir le journal ci-dessous. La page n'a fait aucune écriture (0 bloquée) et n'a levé aucune erreur.
 - **Fidélité v2 de l'écran a-4** : téléphone 18,51 % (19,07 % en v1), bureau 1280 8,52 % (11,62 % en v1). L'écran a-2 n'a pas été relevé à nouveau : l'outil des relevés ne connaît pas la persona `personas-prestataire-intervention`.
@@ -197,3 +197,5 @@ Pas de régression — chaque fonction des assistants d'aujourd'hui reste, dépl
   - Deux codes demandés pour `owner1` et deux pour +221779002613, refusés faute de fournisseur.
 - **Constat local, hors ticket** : sans fournisseur SMS, la première demande de code de l'écran 1 n'écrit aucune erreur sous le champ, et l'écran attend un code qui n'arrivera pas. Un fournisseur absent n'est pas un 429 ; à re-mesurer avec un fournisseur configuré.
 - **`check-i18n-namespaces` rouge sur « profile »** : ce rouge ne vient pas de TCK-2613 et n'existe pas au HEAD 68f1b3d04 (extrait par `git archive`, puis vert aussi avec les fichiers de TCK-2613 posés dessus). Il vient de travaux non commités d'un autre agent dans l'arbre partagé : `takussan-web/src/app/(dashboard)/app/owners/[id]/layout.tsx`, `page.tsx` et `src/i18n/namespaces.json` (TCK-2837).
+
+- 2026-11-14 : relevés de clôture au HEAD 928e9c810 (fiche de fidélité à jour), AC-F validés par le porteur sur le rideau (« je valide tout ») ; tableau par écran et appareil dans la PR #1671. Ticket clos.

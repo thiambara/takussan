@@ -66,7 +66,7 @@
    "produit": {
     "route": "/app/messages",
     "persona": "agent",
-    "etat": "« Nouvelle conversation » ouverte (`--perturber` : « ⊕ » de l'en-tête au téléphone, « Nouvelle » au bureau) ; 20 personnes du périmètre de l'agent. Au téléphone, `nouvelle-tel.js` masque la page que le dialogue plein écran recouvre (le relevé lirait sinon ses nœuds sous le dialogue) ; rien n'est retiré du dialogue."
+    "etat": "« Nouvelle conversation » ouverte (`--perturber` : « ⊕ » de l'en-tête au téléphone, « Nouvelle » au bureau) ; 20 personnes du périmètre de l'agent. Au téléphone, `nouvelle-tel.js` masque la page que le dialogue plein écran recouvre (le relevé lirait sinon ses nœuds sous le dialogue) ; rien n'est retiré du dialogue. Relevé du 2026-11-14 à 1440 × 900 (rem 16, densité ×0,9), HEAD 928e9c810, perturbateur `groupe-bureau.js` (mode groupe, TCK-2748) : bureau-1440 32 conformes · 106 écarts · 61 absents (38 du produit + 23 de la maquette) · 82,45 % de pixels (le voile du dialogue assombrit l'écran entier ; 80,43 % à 1280). Mêmes classes d'écarts qu'à 1280."
    }
   },
   {
@@ -100,7 +100,7 @@
    "produit": {
     "route": "/app/messages?conversation=32",
     "persona": "agent",
-    "etat": "fil de groupe de l'agent (4 participants) ; le composeur en note vocale par un micro bouchonné (`note-enregistrement.js` au téléphone : en cours ; `note-ecoute.js` au bureau : arrêtée, en écoute) — getUserMedia et MediaRecorder simulés, rien n'est envoyé. Aucune note vocale dans la base de démo, et en enregistrer une serait une écriture (cf. écarts)."
+    "etat": "fil de groupe de l'agent (4 participants) ; le composeur en note vocale par un micro bouchonné (`note-enregistrement.js` au téléphone : en cours ; `note-ecoute.js` au bureau : arrêtée, en écoute) — getUserMedia et MediaRecorder simulés, rien n'est envoyé. Aucune note vocale dans la base de démo, et en enregistrer une serait une écriture (cf. écarts). Relevé du 2026-11-14 à 1440 × 900 (rem 16, densité ×0,9), HEAD 928e9c810, colonne « Infos du groupe » ouverte : bureau-1440 9 conformes · 67 écarts · 55 absents · 17,98 % de pixels (bureau-1280 : 8 · 68 · 54 · 19,57 %). Mêmes classes d'écarts qu'à 1280."
    }
   }
  ],
@@ -486,5 +486,75 @@
    "par": "décision de la session (team-lead, 2026-11-12), recommandation (a) appliquée sous délégation du porteur",
    "motif": "envoyer une photo écrirait un message et un média dans la base de démo ; la règle du lot est de ne rien écrire. pret-pour-done.json notait qu'aucun rapport ne disait qui l'avait tranchée : c'est cette entrée."
   }
- ]
+ ],
+ "rangement_1440_tck2748": {
+  "ticket": "TCK-2748",
+  "date": "2026-11-14",
+  "commit": "928e9c810",
+  "appareil": "bureau-1440 (rem 16, densité ×0,9, ADR-0107)",
+  "ecrans": {
+   "a-3 (mode groupe)": "32 · 106 · 61 · 82,45 % (voile du dialogue)",
+   "a-5 (Infos du groupe)": "9 · 67 · 55 · 17,98 %"
+  },
+  "categories": [
+   {
+    "categorie": "voile du dialogue",
+    "portee": "a-3",
+    "lignes": "82,45 % de pixels : le voile assombrit tout l'écran derrière le dialogue ; 80,43 % à 1280, même cause. Tout ce qui est derrière (coque, liste, fil, contexte : encre, positions y) se lit sous le voile.",
+    "classe": "expliquée à 1280 (rideau a-3-bureau-1280)"
+   },
+   {
+    "categorie": "coque (barre latérale, en-tête, icônes de navigation : y, couleur, trait, largeur, rubriques « Prospection », « Catalogue », « Gestion », compteurs, « Démarrer », « Aller au contenu principal », « Réduire la barre »)",
+    "portee": "a-3, a-5",
+    "classe": "entrée « barre latérale et en-tête de la coque » (composant partagé, TCK-2617/2618/2619) et « traits des icônes » (règle du design system)"
+   },
+   {
+    "categorie": "densité ×0,9, traits d'icône et encre opaque (couleurs de composeur, de fiche du client, de « Toujours disponible… », de la rangée Malick Seck)",
+    "portee": "a-3, a-5",
+    "classe": "entrées « tailles ×0,9 » (ADR-0107) , « traits des icônes » et « encre douce pleine » (règle du design system)"
+   },
+   {
+    "categorie": "liste de conversations : rangée « Malick Seck » (fond, marges, graisses, couleurs), puces Tous · Non lus · Groupes (h-8), « Nouvelle » (bordure, largeur), absents « Hier », « Aujourd'hui », « Publié », « Qualifié », « Demandes de contact »",
+    "portee": "a-3, a-5",
+    "classe": "entrées « rangée Malick Seck » (donnée : autre fil, autre état), « puces de filtre » (composant partagé), « Button border-transparent » (composant partagé) et « noms, aperçus, heures » (donnée) ; la portée des deux premières, écrite a-0/a-2, vaut pour la même liste sous le voile (a-3) et à côté des infos (a-5)"
+   },
+   {
+    "categorie": "contexte du fil derrière le voile : fiche du client, carte du bien, « Dernière visite », « Premier contact », « Ni bail ni intervention pour l'instant. »",
+    "portee": "a-3",
+    "classe": "entrée « colonne de contexte » (donnée : /context ne porte pas ces champs)"
+   },
+   {
+    "categorie": "dialogue « Nouvelle conversation » en mode groupe : hauteur, rayon, ombre, puces de destinataires, nom du groupe, bien et bail rattachés, texte d'aide, « Activé d'office… »",
+    "portee": "a-3",
+    "classe": "entrées TCK-2748 « rayon et ombre » (composant partagé) et « puces de destinataires, nom… » (donnée : le relevé ouvre le formulaire vide) ; « Un nom, et un bien ou un bail rattaché. » et « L'équipe de votre agence… » sont des aides du produit absentes de la maquette"
+   },
+   {
+    "categorie": "Infos du groupe : relations des participants, positions y de « Ajouter un participant », « Quitter le groupe », « Sourdine » (hauteur de l'interrupteur), « Vous · admin du groupe », « Couper les notifications » (libellé existant)",
+    "portee": "a-5",
+    "classe": "entrées TCK-2748 « relations des participants » (donnée), « ligne de rôle » (décision produit), « rangée Sourdine » (composant partagé) et l'alias « Mettre en sourdine → Couper les notifications »"
+   },
+   {
+    "categorie": "Infos du groupe : « Renommer le groupe » (étiquette sr-only du champ et aria-label du bouton), « Plus d'actions », « Enregistrer / Envoyer la note vocale » (aria-label)",
+    "portee": "a-5, a-3",
+    "classe": "accessibilité : textes pour lecteur d'écran, sans équivalent visible dans la maquette ; le relevé les compte comme texte"
+   },
+   {
+    "categorie": "« Personne d'autre n'administre ce groupe : nommez un autre admin avant de partir. » (absent de la maquette)",
+    "portee": "a-5",
+    "classe": "état du produit : l'agent de démo est le seul admin du groupe 32 (`g.dernierAdmin`, InfosDuGroupe) ; la maquette dessine un groupe à plusieurs admins et son bouton « Quitter le groupe » ; garde de TCK-2748, pas un écart de mise en page"
+   },
+   {
+    "categorie": "forme d'onde, bulle de note vocale, « 0:14 », double coche, « lucide-play », « lucide-trash2 », « lucide-send-horizontal »",
+    "portee": "a-5",
+    "classe": "entrées « double coche… » (donnée) et « 0:14… » (technique : micro bouchonné)"
+   },
+   {
+    "categorie": "aides de champ « Chercher un nom, un bien… », « Écrivez un message… » en `placeholder`",
+    "portee": "a-3, a-5",
+    "classe": "entrée « textes d'aide » (technique)"
+   }
+  ],
+  "inexpliques": [],
+  "limite": "Rangement par catégorie, non ligne à ligne : 173 écarts et 116 absents, aucun ne tombe hors de ces classes (« Disponible », « Gagné », « À faire », « 99+ » : données de démo ou coque) ; les ensembles de lignes de 1280 et de 1440 sont les mêmes à quelques positions près (liste derrière le voile)."
+ }
 }

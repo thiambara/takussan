@@ -1,13 +1,13 @@
 ---
 id: TCK-2748
 title: "Messagerie au bureau : créer un groupe en un seul formulaire, et la colonne « Infos du groupe » avec le rôle de chaque participant"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 87
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 depends_on: [TCK-2632]
 blocks: []
 spec_refs:
@@ -77,9 +77,9 @@ dans `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` :
       *Relevé : oui, `GroupConversationService::removeParticipant` lève une 422
       (`messaging.errors.promote_admin_before_leaving`). Preuve : `InfosDuGroupe.tck-2748.test.tsx`
       (AC4, et le départ quand un autre admin existe), ablation rouge.*
-- [ ] **AC-F2** — `fidelite compare` sur a-3 et a-5 au bureau (1440 et 1280) : les écarts « décision
+- [x] **AC-F2** — `fidelite compare` sur a-3 et a-5 au bureau (1440 et 1280) : les écarts « décision
       produit » de `TCK-2632.json` qui citent ce ticket disparaissent.
-      *Partiel : relevé à 1280 seulement (brief du lot : 390/1280), 1440 non relevé. À 1280, les deux
+      *Relevé à 1280 et, le 2026-11-14, à 1440 × 900 (rem 16, densité ×0,9) : a-3 en mode groupe 32 · 106 · 61 (38 + 23) · 82,45 % ; a-5 avec « Infos du groupe » 9 · 67 · 55 (26 + 29) · 17,98 % (voile du dialogue : 80,43 % à 1280). Les écarts de 1440 sont les mêmes classes qu'à 1280 (aucune ligne de rôle ou d'écart neuve ; ne diffèrent que quelques positions de la liste derrière le voile) ; les 173 écarts et 116 absents de 1440 sont rangés par catégorie (voile du dialogue, coque, densité ×0,9 et encre opaque, liste de démo, contexte, dialogue de groupe vide, infos du groupe, étiquettes d'accessibilité, état « dernier admin ») au bloc `rangement_1440_tck2748` de `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` ; chaque catégorie correspond à une entrée de `ecarts_acceptes` déjà écrite pour 1280 ou à un motif écrit ; aucun écart inexpliqué. Rideaux : scratchpad `impl/lot2/cloture/2748/cmp-a-{3,5}-bureau-1440/rideau.html`. À 1280, les deux
       structures sont celles de la maquette (dialogue unique de 449,6 contre 446,9 px ; colonne de
       320 px) et les deux exceptions citant ce ticket sont retirées de `TCK-2632.json`, remplacées par
       cinq écarts nommés : contenu vide du formulaire et absence de relations dans la démo (donnée),
@@ -94,3 +94,5 @@ dans `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` :
 - Relation : `prestataire` > `locataire` > `proprietaire` > `agent` quand une personne en cumule.
 - Logique partagée : `useGestionDuGroupe` (feuille et colonne), `useCreationDeGroupe` (`NewGroupDialog`
   et le mode groupe de `NouvelleConversation`).
+
+- 2026-11-14 : relevés de clôture au HEAD 928e9c810 (fiche de fidélité à jour), AC-F validés par le porteur sur le rideau (« je valide tout ») ; tableau par écran et appareil dans la PR #1671. Ticket clos.
