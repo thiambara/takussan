@@ -302,16 +302,20 @@ class EarlyTerminationService
         // TCK-651 (ADR-0065) — le global et le défaut viennent du catalogue.
         // r6 (signalé par terrain-7) — une ligne d'agence sans valeur valable (`{"value": null}`, `{}`, 0)
         // n'est pas un réglage : le global du catalogue reprend la main, plus la constante. Le plancher
-        // (0 ne vaut pas) est celui du catalogue, jugé par `numericAgencyValue()` (r1 de 65d3142b6).
+        // est celui du catalogue, jugé par `numericAgencyValue()` (r1 de 65d3142b6) : 0 vaut depuis TCK-2842.
         $value = ScopedSetting::numericAgencyValue(self::SETTING_KEY, $agencyId);
         if ($value === null) {
             $value = app(PlatformSettingService::class)->getValue('lease.early_termination_penalty_months');
         }
 
-        $months = (int) $value;
+        // TCK-2842 — 0 est un réglage (« aucune indemnité ») : le plancher du catalogue est 0. Seule une
+        // valeur illisible reprend le défaut.
+        if (! is_numeric($value)) {
+            return self::SETTING_DEFAULT_MONTHS;
+        }
 
-        // TCK-964 (P47.04) — au plus la borne du catalogue, pour une ligne écrite avant sa règle.
-        return $months > 0 ? (int) EditablePlatformSettings::clamp(self::SETTING_KEY, $months) : self::SETTING_DEFAULT_MONTHS;
+        // TCK-964 (P47.04) — dans la borne du catalogue, pour une ligne écrite avant sa règle.
+        return (int) EditablePlatformSettings::clamp(self::SETTING_KEY, (int) $value);
     }
 
     protected function guardRequestable(Lease $lease): void

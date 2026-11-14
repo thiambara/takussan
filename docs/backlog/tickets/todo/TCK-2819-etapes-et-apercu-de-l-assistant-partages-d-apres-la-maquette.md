@@ -111,7 +111,34 @@ Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevé
 - AC4 — « Continuer » 48 px, visible sans défilement à chaque étape sous `lg` (balayage) ; classes épinglées aux deux
   montages par `WizardShell.pied-du-telephone.tck-2819.test.tsx`.
 
-**Ce qui reste (lot 2)** : le contenu des six étapes (premier point du delta, encore ouvert), dont dépendent le `y` de 104
+**Preuves (lot 2, 2026-11-14)** :
+
+- Contenu des étapes (premier point du delta, porté sauf ce que nomme « Ce qui reste (suite) ») — prix :
+  `…/property-form/__tests__/StepPrix.encadre.tck-2819.test.tsx` (« Loyer » en F CFA, « Par Mois · Semaine · Jour · An »
+  en groupe de radios, encadré à compteurs, total, charges) ; photos : `…/__tests__/DepotDePhotos.tck-2819.test.tsx`
+  (tuiles, zone, « Couverture », croix de 44 px, plafond) ; bien, caractéristiques et lieu : `StepBien.test`,
+  `PropertyWizard.test` (W9 : tuile retenue en anneau `primary`, pastille en encre pleine), `cibles-tactiles.test`
+  (compteurs et pastilles à 44 px). AC1 et AC2 restent verts ; AC2 relit en plus les compteurs, les charges, le total
+  de l'encadré et la pastille « Mois ».
+- Assertions de TCK-633 déplacées de la carte vers l'encadré, sans perte : composantes (« 2 mois d’avance, 1 mois de
+  caution, 1 mois de frais d’agence »), total (1 800 000 et 1 585 000 F), note « Montant indicatif… fait foi », purge
+  des frais d'un indépendant, hors location mensuelle. La carte garde le total (« À l’entrée : … », mêmes montants).
+  Ablations, chacune rouge : composantes retirées, note retirée, charges hors du total, purge des frais retirée,
+  plancher zéro du compteur levé ; « Couverture » sur la 2ᵉ vignette.
+- Colonne d'aperçu : la carte ne dit plus que « À l’entrée : … » (maquette `CarteApercu`), et ses chiffres
+  (« 38 m² ») seulement tant qu'il n'y a pas de prix (`ApercuAnnonce.maquette.tck-2819`) ; le `y` de 104 reste à
+  re-relever (case laissée ouverte).
+- Fidélité : relevés 390 et 1280 de a-0 à a-5 (fiche, `produit.releves.resultats_lot2`) — les absents baissent sur
+  a-0 à a-4, a-5 inchangé (contacts sur place, note de fin) ; a-3 bureau 4,5 → 5,4 % de pixels avec l'encadré complet (9,9 % avant la ligne loyer + fréquence).
+
+- AC3 / AC4 re-mesurés sur le DOM du lot 2 : débord 0 sur a-0 à a-5 aux six largeurs, « Continuer » 48 px visible à
+  chaque étape (fiche, `resultats_lot2.balayage`) ; `/app/properties/new` balayé à l'étape 1 seule.
+
+**Ce qui reste (suite, ticket à écrire)** : « Contacts sur place » et la note « C’est tout pour l’annonce » (composant
+partagé avec la fiche du bien), la phrase des CGU sous « Publier l’annonce » au téléphone, le repli de l'encadré du
+coût d'entrée, le `y` de 104 de la colonne collante à re-relever, AC-F1 à AC-F6 (écarts ouverts de la fiche).
+
+**Ce qui restait (lot 2)** : le contenu des six étapes (premier point du delta, encore ouvert), dont dépendent le `y` de 104
 de la colonne collante (deuxième point : la carte et « Pour publier » sont livrés, le `y` suit les étapes), la phrase des
 CGU sous « Publier l’annonce » au téléphone, la réduction du coût d'entrée de l'aperçu à « À l’entrée : … » (décision du 2026-11-14 : composantes et note restent sous la carte jusqu'à ce que l'encadré de l'étape du prix les porte ; les assertions de TCK-633 y suivront) et AC-F1 à AC-F6 (écarts ouverts nommés dans la fiche `TCK-2819.json`).
 

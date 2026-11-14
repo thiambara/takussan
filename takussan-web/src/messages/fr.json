@@ -1319,7 +1319,8 @@
         "period": "Fréquence",
         "availableFrom": "Disponible à partir du",
         "title": "Titre de l’annonce",
-        "description": "Description"
+        "description": "Description",
+        "rent": "Loyer"
       },
       "contract": {
         "sale": "Vendre",
@@ -1340,7 +1341,7 @@
       },
       "geoSuggestFull": "Utiliser {city}, {region}",
       "geoSuggestCity": "Utiliser {city}",
-      "geoDefaultsNote": "Les biens se publient au Sénégal : le pays est déjà renseigné. Les prix sont en francs CFA.",
+      "geoDefaultsNote": "Bien situé au Sénégal : le pays est déjà posé, les prix sont en francs CFA.",
       "addressDetailsShow": "Ajouter la rue et le code postal",
       "addressDetailsHide": "Masquer la rue et le code postal",
       "useMyPosition": "Utiliser ma position actuelle",
@@ -1351,7 +1352,7 @@
       "mapHint": "Touchez la carte pour placer le bien, ou déplacez le repère.",
       "titleTypeHint": "Le document qui atteste de la propriété du sol. Si vous ne le connaissez pas, laissez vide.",
       "conditionHint": "« Neuf » et « Sur plan » s’affichent en badge sur l’annonce. Facultatif : touchez à nouveau pour effacer.",
-      "titleComposedHint": "Titre proposé d'après vos réponses — modifiez-le librement.",
+      "titleComposedHint": "Titre proposé d’après vos réponses — modifiez-le librement.",
       "photosCounter": "{count, plural, =0 {Aucune photo pour l'instant — jusqu'à {max}} one {# photo sur {max}} other {# photos sur {max}}}",
       "descriptionCounter": "{count, plural, one {# caractère} other {# caractères}}",
       "steps": {
@@ -1373,7 +1374,7 @@
         },
         "prix": {
           "title": "À quel prix ?",
-          "subtitleRent": "Le loyer, sa fréquence, et la date à partir de laquelle le bien est libre.",
+          "subtitleRent": "Le loyer, puis ce que le locataire verse en entrant.",
           "subtitleSale": "Le prix demandé. Vous pourrez le modifier après publication.",
           "short": "Le prix"
         },
@@ -1426,10 +1427,16 @@
       "entryCost": {
         "legend": "Coût d’entrée",
         "hint": "Ce que le locataire verse pour emménager. Laissez vide ce qui ne s'applique pas.",
-        "advance": "Mois d'avance",
+        "advance": "Mois d’avance",
         "deposit": "Mois de caution",
-        "agencyFee": "Frais d'agence (en mois de loyer)",
-        "monthlyCharges": "Charges mensuelles"
+        "agencyFee": "Frais d’agence (en mois de loyer)",
+        "monthlyCharges": "Charges mensuelles",
+        "boxHint": "Ce que le locataire verse à la signature",
+        "total": "Total à l’entrée",
+        "decrease": "Retirer un mois",
+        "increase": "Ajouter un mois",
+        "decreaseHalf": "Retirer un demi-mois",
+        "increaseHalf": "Ajouter un demi-mois"
       },
       "virtualTour": {
         "label": "Visite virtuelle ou vidéo (lien)",
@@ -1453,8 +1460,8 @@
       "moreTypes": "Plus de types ({count})",
       "fewerTypes": "Moins de types",
       "contractHint": {
-        "rent": "Un loyer et sa fréquence, une date de disponibilité.",
-        "sale": "Un prix demandé, modifiable après publication."
+        "rent": "Un loyer et sa fréquence",
+        "sale": "Un prix demandé"
       },
       "header": {
         "publish": "Publier un bien",
@@ -1472,18 +1479,17 @@
         "photoLater": "Vos photos viendront ici",
         "placeLater": "Lieu à venir",
         "priceLater": "Prix à venir",
-        "entryTitle": "À l’entrée",
         "entryAdvance": "{count} mois d’avance",
         "entryDeposit": "{count} mois de caution",
         "entryFee": "{count} mois de frais d’agence",
         "entryCharges": "{amount} de charges par mois",
         "entryNote": "Montant indicatif, calculé d’après vos réponses ; l’annonce publiée fait foi.",
-        "entryTotal": "Total à l’entrée : {amount}",
         "checklist": "Pour publier",
         "current": "en cours",
         "optional": "facultatif",
         "reopen": "Revenir à : {step}",
-        "photoCount": "{current} / {total}"
+        "photoCount": "{current} / {total}",
+        "entryLine": "À l’entrée : {amount}"
       },
       "photosProgress": "Envoi des photos : {sent} sur {total}",
       "owner": {
@@ -1577,6 +1583,29 @@
           "parking": "Parking",
           "other": "Autre"
         }
+      },
+      "currencyUnit": "F CFA",
+      "periodPrefix": "Par",
+      "periodChips": {
+        "monthly": "Mois",
+        "weekly": "Semaine",
+        "daily": "Jour",
+        "yearly": "An"
+      },
+      "contractQuestion": "Vous voulez…",
+      "addressDetailsTitle": "La rue et le code postal",
+      "addressDetailsToggleShow": "Ajouter",
+      "addressDetailsToggleHide": "Masquer",
+      "mapTitle": "Sur la carte",
+      "mapIntro": "Facultatif. Un repère bien posé évite les appels « c’est où exactement ? ».",
+      "photos": {
+        "gallery": "Choisir dans la galerie",
+        "size": "10 Mo",
+        "dropHint": "ou cliquez pour sélectionner — {size} max, jusqu’à {max} fichiers.",
+        "formats": "JPG, PNG ou WebP · {size} max par photo.",
+        "firstIsCover": "La première est la photo principale",
+        "cover": "Couverture",
+        "add": "Ajouter"
       }
     },
     "titleTypes": {
@@ -2447,6 +2476,73 @@
       },
       "bauxDuMois": "{count, plural, one {# bail signé ce mois-ci} other {# baux signés ce mois-ci}}",
       "pourquoiNous": "Pourquoi nous"
+    },
+    "reglagesDeBail": {
+      "titre": "Réglages de bail",
+      "description": "Chaque nouveau bail reprend ces valeurs. Vous pouvez encore les ajuster bail par bail.",
+      "bauxEnCours": "S’applique aussi aux baux en cours qui n’ont pas leur propre valeur.",
+      "sansAgence": "Aucune agence n’est rattachée à votre compte.",
+      "agenceIllisible": "Votre agence n’a pas pu être chargée. Réessayez dans un instant.",
+      "cles": {
+        "penalite": {
+          "titre": "Pénalité de retard",
+          "sujet": "La pénalité de retard",
+          "aide": "Part du loyer dû, ajoutée après le délai de grâce."
+        },
+        "grace": {
+          "titre": "Délai de grâce",
+          "sujet": "Le délai de grâce",
+          "aide": "Jours laissés après l’échéance avant la pénalité."
+        },
+        "indemnite": {
+          "titre": "Indemnité de départ anticipé",
+          "sujet": "L’indemnité de départ",
+          "aide": "Mois de loyer dus si le locataire part avant la fin du bail."
+        },
+        "revision": {
+          "titre": "Plafond de révision du loyer",
+          "sujet": "Le plafond de révision",
+          "aide": "Hausse maximale du loyer à chaque révision."
+        }
+      },
+      "unites": {
+        "pourcent": "{valeur} %",
+        "jours": "{valeur, plural, one {# jour} other {# jours}}",
+        "mois": "{valeur} mois"
+      },
+      "suffixes": {
+        "pourcent": "%",
+        "jours": "{valeur, plural, one {jour} other {jours}}",
+        "mois": "mois"
+      },
+      "source": {
+        "agence": "Réglage de l’agence",
+        "plateforme": "Réglage de la plateforme"
+      },
+      "plateforme": "Valeur de la plateforme :",
+      "enregistrer": "Enregistrer",
+      "enregistrement": "Enregistrement…",
+      "enregistre": "Réglages enregistrés. Vos prochains baux les reprennent.",
+      "revenir": "Revenir à la valeur de la plateforme",
+      "revenu": "{reglage} : valeur de la plateforme rétablie.",
+      "bornes": {
+        "entre": "De {min} à {max}",
+        "superieurA": "Plus de {min}, jusqu’à {max}"
+      },
+      "refus": {
+        "nombre": "Saisissez un nombre.",
+        "entier": "{sujet} se saisit en nombre entier.",
+        "max": "{sujet} ne peut pas dépasser {max}.",
+        "min": "{sujet} ne peut pas descendre sous {min}.",
+        "superieurA": "{sujet} doit dépasser {min}."
+      },
+      "barre": {
+        "aCorriger": "{n, plural, one {# valeur à corriger} other {# valeurs à corriger}}",
+        "rienDEnregistre": "rien n’est enregistré",
+        "aCorrigerBureau": "{n, plural, one {# valeur à corriger} other {# valeurs à corriger}} avant d’enregistrer"
+      },
+      "erreurLecture": "Les réglages n’ont pas pu être chargés.",
+      "erreurEcriture": "Le réglage n’a pas pu être enregistré."
     }
   },
   "compare": {
@@ -4739,7 +4835,9 @@
         "agence": "Réglages de l’agence appliqués",
         "plateforme": "Réglages de la plateforme appliqués",
         "detail": "Échéance, pénalité de retard et indemnité de départ",
-        "detailAvecCommission": "Échéance, pénalité de retard, commission et indemnité de départ"
+        "detailAvecCommission": "Échéance, pénalité de retard, commission et indemnité de départ",
+        "modifier": "Modifier",
+        "nouvelOnglet": "les réglages de l’agence (s’ouvre dans un nouvel onglet)"
       },
       "echeance": "Échéance",
       "echeanceAide": "Jour du mois, de 1 à 28",
@@ -7435,7 +7533,8 @@
       "recherche": {
         "placeholder": "Nom, téléphone, quartier",
         "label": "Rechercher un prestataire"
-      }
+      },
+      "inviteLeDejaInscrit": "Invité le {date}"
     }
   },
   "onboarding": {
@@ -7677,6 +7776,16 @@
           "published": "Validé",
           "pending_review": "En revue",
           "rejected": "Refusé"
+        },
+        "interlocuteur": {
+          "titre": "Votre interlocuteur à l’agence",
+          "roles": {
+            "agent": "Agent",
+            "agency_admin": "Responsable de l’agence",
+            "agency": "Agence"
+          },
+          "appeler": "Appeler le {numero}",
+          "whatsapp": "WhatsApp"
         }
       },
       "agent": {
@@ -9428,6 +9537,9 @@
       },
       "verification": {
         "title": "Vérification de l’agence"
+      },
+      "reglagesDeBail": {
+        "title": "Réglages de bail"
       }
     },
     "team": {
@@ -10076,6 +10188,11 @@
             "detail": "Agence professionnelle",
             "detailIndividuelle": "Passer en agence professionnelle",
             "titreIndividuelle": "Passage en pro"
+          },
+          "bail": {
+            "titre": "Réglages de bail",
+            "titreCourt": "Réglages de bail",
+            "detail": "Pénalité, délai de grâce, indemnité, révision"
           }
         },
         "detail": {
@@ -21311,6 +21428,11 @@
           "edlEntree": "État des lieux d’entrée",
           "edlSortie": "État des lieux de sortie",
           "autre": "Document généré"
+        },
+        "bauxPrecedents": {
+          "ligne": "Pièces des baux précédents : sur chaque bail",
+          "bail": "Bail n° {id}",
+          "voirLesBaux": "Voir les baux"
         }
       },
       "photos": {

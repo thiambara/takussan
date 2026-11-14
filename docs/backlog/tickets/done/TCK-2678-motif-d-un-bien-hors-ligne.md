@@ -1,14 +1,14 @@
 ---
 id: TCK-2678
 title: "Un bien hors ligne dit pourquoi : des codes de motif servis par l'API, issus du même prédicat que « En ligne »"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 88
 created: 2026-11-10
-updated: 2026-11-10
-depends_on: [TCK-2637, TCK-2638, TCK-2639, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
+updated: 2026-11-14
+depends_on: [TCK-2637, TCK-2638, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
   features:
@@ -17,6 +17,9 @@ spec_refs:
     - "docs/models-spec.md#3-property"
 tags: [back, front, properties, en-ligne, audit-ux, app]
 ---
+
+> TCK-2639 n'est plus une dépendance : la fiche dont ce ticket a besoin est livrée. TCK-2639 reste ouvert sur son seul AC3
+> (pièces des baux clos), qui attend TCK-2841.
 
 ## Objectif utilisateur
 
@@ -59,9 +62,12 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
   liste des biens (`/fr/playground/maquettes?p=app-biens&a=b`) et fiche du bien
   (`?p=app-fiche-bien&a=a`), références de fidélité non versionnées (cf.
   [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes)).
-- **Fiche du bien** : sous la pastille « Hors ligne », une phrase par motif, du plus prioritaire au
-  moins, avec le geste quand il existe (« Privé — rendre public », « En attente de validation par
-  l'agence », « Loué — remis en ligne à la fin du bail », « Agence suspendue »).
+- **Fiche du bien** : une phrase par motif, du plus prioritaire au moins, avec le geste quand il existe
+  (« Privé — rendre public », « En attente de validation par l'agence », « Loué — remis en ligne à la
+  fin du bail », « Agence suspendue »). **Amendé le 2026-11-14 (team-lead)** : la maquette retenue
+  (app-biens a-2) ne dessine aucune ligne sous les pastilles ; les phrases vont en tête de l'onglet
+  Annonce > Aperçu, sous « Hors ligne » (la maquette b rattache l'état à l'annonce), et la pastille
+  « Hors ligne » de l'en-tête les porte en infobulle (survol, focus clavier). L'en-tête ne bouge pas.
 - **Liste** : la pastille « Hors ligne » porte le premier motif en sous-texte ; au bureau, le motif
   complet au survol et au focus clavier ; au téléphone (360-390 px), le premier motif seul, sur une
   ligne, tronqué proprement.
@@ -83,27 +89,32 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
 
 ## Delta à produire
 
-- [ ] API : prédicat décomposé (une source), `isOnline()` qui le lit, champ `offline_reasons` dans `PropertyResource`.
-- [ ] Front : motifs sur la fiche du bien et dans la liste, avec les gestes existants quand il y en a.
-- [ ] Tests API : `PropertyOfflineReasonsTest` — un cas par code ; plusieurs codes cumulés dans l'ordre ; parité `offline_reasons == []` ⇔ `is_online` ⇔ `filter[public]=1` sur le jeu croisé de TCK-2637.
-- [ ] Tests front : un libellé par code ; code inconnu → libellé générique.
+- [x] API : prédicat décomposé (une source), `isOnline()` qui le lit, champ `offline_reasons` dans `PropertyResource`.
+- [x] Front : motifs sur la fiche du bien et dans la liste, avec les gestes existants quand il y en a.
+- [x] Tests API : `PropertyOfflineReasonsTest` — un cas par code ; plusieurs codes cumulés dans l'ordre ; parité `offline_reasons == []` ⇔ `is_online` ⇔ `filter[public]=1` sur le jeu croisé de TCK-2637.
+- [x] Tests front : un libellé par code ; code inconnu → libellé générique.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur le jeu de 8 biens de TCK-2637 (AC2), pour chaque bien, `offline_reasons` est vide **si et seulement si** il figure dans `filter[public]=1`. Retirer une condition du prédicat décomposé fait rougir ce test (ablation).
-- [ ] AC2 — Un bien `pending_review`, privé, d'une agence suspendue rend exactement `["agency_inactive","status_pending_review","private"]`, dans cet ordre.
-- [ ] AC3 — `GET /api/public/properties/{slug}` d'un bien hors ligne rend 404 et la réponse ne contient pas `offline_reasons`.
-- [ ] AC4 — Sur la fiche d'un bien loué, la phrase « Loué » est rendue sous « Hors ligne », et aucun texte ne nomme « Publié ».
-- [ ] AC5 — À 390 px, la ligne de liste d'un bien hors ligne tient sur sa largeur (aucun défilement horizontal du document) et montre un seul motif.
+- [x] AC1 — Sur le jeu de 8 biens de TCK-2637 (AC2), pour chaque bien, `offline_reasons` est vide **si et seulement si** il figure dans `filter[public]=1`. Retirer une condition du prédicat décomposé fait rougir ce test (ablation).
+  *Preuve (2026-11-14) : `PropertyOfflineReasonsTest` 11/11 vert ; ablation de la condition `private` de `conditionsEnLigne()` → `ac1…` et `ac2…` rouges, fichier restauré (md5 vérifié).*
+- [x] AC2 — Un bien `pending_review`, privé, d'une agence suspendue rend exactement `["agency_inactive","status_pending_review","private"]`, dans cet ordre.
+  *Preuve : `test_ac2_les_motifs_se_cumulent_dans_l_ordre`, vert ; rouge sous la même ablation.*
+- [x] AC3 — `GET /api/public/properties/{slug}` d'un bien hors ligne rend 404 et la réponse ne contient pas `offline_reasons`.
+  *Preuve : `test_ac3_la_route_publique_ne_sert_jamais_de_motif` et les quatre tests de fuite (public, client, autre bailleur, agent sous profil bailleur), verts.*
+- [x] AC4 — *(reformulé le 2026-11-14, décision du team-lead)* Sur la fiche d'un bien loué, la phrase « Loué » est rendue en tête de l'onglet Annonce, sous « Hors ligne », et portée en infobulle par la pastille « Hors ligne » de l'en-tête (survol, focus clavier, texte lu aux lecteurs d'écran) ; aucune ligne ne s'ajoute sous les pastilles, et aucun texte ne nomme « Publié ».
+  *Preuve : `PropertyDetailTabs.motifs-hors-ligne.tck-2678.test.tsx` et `[id]/__tests__/motifs-hors-ligne.tck-2678.test.tsx`, verts (rouges avant le changement) ; ablation de la garde `is_online === false` de l'onglet → « rien pour un bien en ligne » rouge ; au focus clavier, l'infobulle porte la phrase (test rouge sans `TooltipContent`) ; relevé au navigateur à 1280 : focus sur la pastille, infobulle ouverte et non rognée (`.fidelite/TCK-2678/l3-infobulle-1280.png`).*
+- [x] AC5 — À 390 px, la ligne de liste d'un bien hors ligne tient sur sa largeur (aucun défilement horizontal du document) et montre un seul motif.
+  *Preuve (2026-11-14) : `fidelite balayer` de `/app/properties?mode=annonces&listing=offline` à 390 → débord 0, aucune coupe ; un seul motif visible par carte : `CarteAnnonce.tck-2638.test.tsx`, vert.*
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
-- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
-- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
-- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
-- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % (26,34 % le 12) ; à 1280 : 18,57 % (18,64 %) ; en-tête identique au pixel — `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json`.
+- [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % (26,34 % le 12) ; à 1280 : 18,57 % (18,64 %) ; en-tête identique au pixel — `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json`.
+- [x] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % (26,34 % le 12) ; à 1280 : 18,57 % (18,64 %) ; en-tête identique au pixel — `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json`.
+- [x] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % (26,34 % le 12) ; à 1280 : 18,57 % (18,64 %) ; en-tête identique au pixel — `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json`.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % (26,34 % le 12) ; à 1280 : 18,57 % (18,64 %) ; en-tête identique au pixel — `docs/qa/audit-ux-2026-11/fidelite/TCK-2678.json`.
 
 ## Hors périmètre
 
@@ -136,8 +147,10 @@ condition, plus une qui lit le statut) hors des appelants actuels d'`include=onl
   lecteur public. La branche est épinglée : la retirer fait rougir les trois tests AC1/AC2 qui lisent
   en super-admin.
 - **Front** : `src/lib/biens/motifs-hors-ligne.ts` traduit les codes (`property.dashboard.horsLigne.phrase.*`,
-  code inconnu → « Hors ligne. ») ; la fiche les liste sous la pastille « Hors ligne » (téléphone et
-  bureau), la carte du mode Annonces porte le premier motif sur une ligne tronquée, les autres en texte
+  code inconnu → « Hors ligne. ») ; la fiche les liste en tête de l'onglet Annonce > Aperçu
+  (`PropertyDetailTabs`, bloc `annonce-hors-ligne`) et la pastille « Hors ligne » de l'en-tête les porte
+  en infobulle (`fiche/PastilleHorsLigne.tsx` ; la copie du téléphone, tue aux lecteurs d'écran, reste une
+  pastille simple) — 2026-11-14, pour que l'en-tête reste celui de la maquette a-2, la carte du mode Annonces porte le premier motif sur une ligne tronquée, les autres en texte
   lu par les lecteurs d'écran et le tout dans l'infobulle (survol et focus clavier). Le front ne lit que
   `offline_reasons`, jamais le statut ni la visibilité.
 - **Gestes** : la phrase nomme le geste (« Privé — rendez-le public pour le mettre en ligne. ») ; les

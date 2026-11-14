@@ -21,17 +21,19 @@ vi.mock('@/app/actions/profiles', () => ({
   }),
 }));
 
-const reponse = vi.hoisted(() => ({ pieces: null as unknown, echec: false, appels: [] as { path: string; headers?: Record<string, string> }[] }));
+const reponse = vi.hoisted(() => ({ pieces: null as unknown, interlocuteur: null as unknown, echec: false, appels: [] as { path: string; headers?: Record<string, string> }[] }));
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: vi.fn(async (path: string, options: { headers?: Record<string, string> } = {}) => {
     reponse.appels.push({ path, headers: options.headers });
     if (reponse.echec) throw new Error('réseau');
+    // TCK-2838 — la page lit aussi l'interlocuteur du bailleur.
+    if (path.startsWith('/api/me/owner-profiles/')) return { data: reponse.interlocuteur };
     return { data: reponse.pieces };
   }),
 }));
 
-type PropsDeLAssistant = { ownerProfileId: number; agence?: string | null; pieces?: unknown };
+type PropsDeLAssistant = { ownerProfileId: number; agence?: string | null; pieces?: unknown; interlocuteur?: unknown };
 const props = vi.hoisted(() => ({ derniers: null as null | { ownerProfileId: number } }));
 vi.mock('@/components/onboarding/OwnerOnboardingWizard', () => ({
   OwnerOnboardingWizard: (p: { ownerProfileId: number }) => {
@@ -53,18 +55,28 @@ describe('/onboarding/owner — les pièces et l’agence passées à l’assist
   beforeEach(() => {
     reponse.appels = [];
     reponse.echec = false;
+    reponse.interlocuteur = null;
     props.derniers = null;
   });
 
   it('les pièces de CE profil, telles que l’API les juge (NINEA facultatif d’un particulier), et l’agence', async () => {
     const pieces = [piece('cni', true), piece('rib', true), piece('ninea', false)];
     reponse.pieces = pieces;
-    expect(await propsDeLAssistant()).toEqual({ ownerProfileId: 9, agence: 'Dakar Immo', pieces });
-    expect(reponse.appels).toEqual([{ path: '/api/me/pieces', headers: { 'X-Profile-Id': 'owner:9' } }]);
+    expect(await propsDeLAssistant()).toEqual({ ownerProfileId: 9, agence: 'Dakar Immo', pieces, interlocuteur: null });
+    expect(reponse.appels.filter((a) => a.path === '/api/me/pieces')).toEqual([{ path: '/api/me/pieces', headers: { 'X-Profile-Id': 'owner:9' } }]);
   });
 
   it('la lecture échoue : aucune pièce rappelée, l’assistant s’ouvre quand même', async () => {
     reponse.echec = true;
-    expect(await propsDeLAssistant()).toEqual({ ownerProfileId: 9, agence: 'Dakar Immo', pieces: null });
+    expect(await propsDeLAssistant()).toEqual({ ownerProfileId: 9, agence: 'Dakar Immo', pieces: null, interlocuteur: null });
+  });
+
+  it('TCK-2838 — l’interlocuteur de CE profil, sous sparse fieldsets, passé à l’assistant', async () => {
+    const interlocuteur = { source: 'inviter', first_name: 'Awa', last_name: 'Diop', role: 'agent', phone: '+221771230001', whatsapp: true };
+    reponse.interlocuteur = interlocuteur;
+    expect((await propsDeLAssistant()).interlocuteur).toEqual(interlocuteur);
+    expect(reponse.appels.map((a) => a.path)).toContain(
+      '/api/me/owner-profiles/9/interlocuteur?fields[interlocuteur]=first_name,last_name,role,phone,whatsapp',
+    );
   });
 });

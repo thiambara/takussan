@@ -159,7 +159,8 @@ class LeaseDefaultsTest extends ApiTestCase
      * (`ScopedSetting::numericAgencyValue`) : une ligne d'agence sous le plancher du catalogue n'est pas
      * un réglage. `{"value": 0}` sur l'indemnité (`min:1`) et la révision (`gt:0`) rend le global ET la
      * source « platform » — le formulaire n'annonce plus un réglage de l'agence que le résolveur ignore.
-     * Sur la pénalité de retard (`min:0`), 0 est un réglage valable : « pas de pénalité », de l'agence.
+     * Sur la pénalité de retard et l'indemnité de départ (`min:0`, TCK-2842), 0 est un réglage valable :
+     * « pas de pénalité », « aucune indemnité », de l'agence.
      * Une ligne héritée négative y est sous le plancher : le catalogue reprend la main.
      */
     public function test_une_ligne_d_agence_sous_le_plancher_n_est_pas_un_reglage_de_l_agence(): void
@@ -176,7 +177,7 @@ class LeaseDefaultsTest extends ApiTestCase
         $this->reglageDAgence('lease.late_fee_grace_days', -2);
 
         $this->defaults()->assertOk()
-            ->assertJsonPath('data.early_termination_penalty_months', ['value' => 7, 'source' => 'platform'])
+            ->assertJsonPath('data.early_termination_penalty_months', ['value' => 0, 'source' => 'agency'])
             ->assertJsonPath('data.rent_review_max_pct', ['value' => 12.5, 'source' => 'platform'])
             ->assertJsonPath('data.late_fee_percent', ['value' => 0, 'source' => 'agency'])
             ->assertJsonPath('data.late_fee_grace_days', ['value' => 4, 'source' => 'platform']);
@@ -193,7 +194,7 @@ class LeaseDefaultsTest extends ApiTestCase
         $this->defaults()->assertOk()->assertJsonPath('data.rent_review_max_pct', ['value' => 8, 'source' => 'agency']);
     }
 
-    /** Le catalogue admet 24 mois, le bail 12 : la valeur préremplie ne doit pas faire refuser le POST. */
+    /** Une ligne écrite avant la borne (TCK-2842 : 12, celle du bail) : la valeur préremplie ne doit pas faire refuser le POST. */
     public function test_une_indemnite_d_agence_au_dela_de_douze_mois_est_ramenee_a_douze(): void
     {
         $this->reglageDAgence(EarlyTerminationService::SETTING_KEY, 18);

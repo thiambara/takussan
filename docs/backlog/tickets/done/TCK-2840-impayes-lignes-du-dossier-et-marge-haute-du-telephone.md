@@ -1,7 +1,7 @@
 ---
 id: TCK-2840
 title: "Impayés : lignes du dossier sans min-h-11 au bureau, marge haute du téléphone à 20 px au lieu de 36"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S

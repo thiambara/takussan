@@ -1,7 +1,7 @@
 ---
 id: TCK-2833
 title: "Le titre proposé d'une annonce se compose dans la langue de l'interface, sans « de », « à » ni « chambre » en dur"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S

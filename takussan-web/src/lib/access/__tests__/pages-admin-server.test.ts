@@ -196,6 +196,7 @@ describe('accesAdmin', () => {
         '/app/agency/billing',
         '/app/agency/finances',
         '/app/agency/finances/reconciliation',
+        '/app/agency/lease-settings',
         '/app/agency/integrations',
       ],
       espaceIndividuel: true,

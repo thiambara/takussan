@@ -5,7 +5,6 @@ import {
   Briefcase,
   Building2,
   DoorOpen,
-  Ellipsis,
   Tag,
   KeyRound,
   Factory,
@@ -15,6 +14,7 @@ import {
   LandPlot,
   type LucideIcon,
   MapPin,
+  Plus,
   SquareParking,
   Store,
   TreePalm,
@@ -48,7 +48,7 @@ const ICONES: Partial<Record<(typeof propertyTypeValues)[number], LucideIcon>> =
 
 function iconeDe(type: (typeof propertyTypeValues)[number]) {
   const Icone = ICONES[type];
-  return Icone ? <Icone className="size-6" strokeWidth={1.75} /> : undefined;
+  return Icone ? <Icone className="size-5" strokeWidth={1.5} /> : undefined;
 }
 
 type TypeDeBien = (typeof propertyTypeValues)[number];
@@ -114,7 +114,7 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
     <>
       <ChoiceChips
         id="wizard-contract"
-        label={t('fields.contract')}
+        label={t('contractQuestion')}
         radioGroup
         variant="cartes"
         value={contrat}
@@ -147,14 +147,15 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
             type="button"
             aria-expanded={deplie}
             onClick={() => setPlusDeTypes((v) => !v)}
-            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            // TCK-2819 (lot 2) — maquette : une pastille pleine, « + Plus de types (7) ».
+            className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
           >
-            <Ellipsis className="size-4" aria-hidden="true" />
+            <Plus className="size-4" aria-hidden="true" />
             {deplie ? t('fewerTypes') : t('moreTypes', { count: AUTRES_TYPES.length })}
           </button>
         )}
       </div>
-      <p className="text-xs leading-relaxed text-pretty text-muted-foreground">{t('geoDefaultsNote')}</p>
+      <p className="text-ui leading-snug text-pretty text-muted-foreground">{t('geoDefaultsNote')}</p>
     </>
   );
 }

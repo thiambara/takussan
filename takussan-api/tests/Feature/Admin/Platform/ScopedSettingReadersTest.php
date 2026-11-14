@@ -256,7 +256,8 @@ class ScopedSettingReadersTest extends TestCase
      * r6, étendu aux deux plafonds de bail (signalé par terrain-7, sur le modèle de `LeaseDefaults`, acee36b80) —
      * une ligne d'agence sans valeur valable n'est pas un réglage : le plafond retombe sur le GLOBAL du
      * catalogue, jamais sur la constante du service. `{"value": null}` et `{}` se lisaient 0, donc la
-     * constante ; 0 est hors des règles du catalogue (`gt:0`, `min:1`), une ligne écrite avant elles.
+     * constante ; 0 est hors des règles du catalogue de la révision (`gt:0`), une ligne écrite avant elles.
+     * TCK-2842 — 0 est un réglage de l'indemnité (« aucune indemnité », `min:0`) : `BorneDeLIndemniteDeDepartTest`.
      *
      * @return array<string, array{string, mixed, Closure(?int): mixed}>
      */
@@ -268,7 +269,6 @@ class ScopedSettingReadersTest extends TestCase
         return [
             'pénalité, {"value": null}' => [EarlyTerminationService::SETTING_KEY, ['value' => null], 7, $resiliation],
             'pénalité, {}' => [EarlyTerminationService::SETTING_KEY, [], 7, $resiliation],
-            'pénalité, {"value": 0}' => [EarlyTerminationService::SETTING_KEY, ['value' => 0], 7, $resiliation],
             'révision, {"value": null}' => [RentReviewService::SETTING_KEY, ['value' => null], 12.5, $revision],
             'révision, {}' => [RentReviewService::SETTING_KEY, [], 12.5, $revision],
             'révision, {"value": 0}' => [RentReviewService::SETTING_KEY, ['value' => 0], 12.5, $revision],

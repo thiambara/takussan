@@ -36,6 +36,7 @@ const PAGES_DU_SOLO = [
   '/app/agency/billing',
   '/app/agency/finances',
   '/app/agency/finances/reconciliation',
+  '/app/agency/lease-settings',
   '/app/agency/integrations',
 ];
 
@@ -63,6 +64,7 @@ describe('PAGES_ADMIN', () => {
       ['/app/agency/billing', { role: 'admin', capacite: 'agency.update_billing' }],
       ['/app/agency/finances', { role: 'admin' }],
       ['/app/agency/finances/reconciliation', { role: 'admin', capacite: 'payments.reconcile' }],
+      ['/app/agency/lease-settings', { role: 'admin' }],
       ['/app/agency/moderation', { role: 'admin', agence: 'standard' }],
       ['/app/agency/moderation/properties', { role: 'admin', agence: 'standard' }],
       ['/app/agency/audit', { role: 'admin', agence: 'standard', capacite: 'reports.view_agency' }],

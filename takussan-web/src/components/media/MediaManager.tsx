@@ -543,6 +543,53 @@ function MediaTile({
 }
 
 /**
+ * La validation d'un dépôt de fichiers locaux (sans envoi) : le plafond du nombre, la réduction des
+ * photos, le type et le poids. Partagée par `MediaDropzone` et, TCK-2819, par le dépôt de photos de
+ * l'assistant d'annonce (`wizard/DepotDePhotos`), qui a son propre dessin et les mêmes règles.
+ */
+export function useDepotDeFichiers({
+  files,
+  onChange,
+  accept = DEFAULT_ACCEPT,
+  maxSize = DEFAULT_MAX_SIZE,
+  maxFiles = DEFAULT_MAX_FILES,
+}: {
+  readonly files: readonly File[];
+  readonly onChange: (files: File[]) => void;
+  readonly accept?: readonly string[];
+  readonly maxSize?: number;
+  readonly maxFiles?: number;
+}) {
+  const t = useTranslations('media');
+  const [error, setError] = useState<string | null>(null);
+
+  const deposer = async (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    if (list.length + files.length > maxFiles) {
+      setError(t('max_files', { max: maxFiles }));
+      return;
+    }
+    // TCK-596 — réduites AVANT la validation, comme `MediaManager` (TCK-542), et jusque sous le
+    // plafond : une photo de téléphone de 7 Mo passe sous les 5 Mo de l'état des lieux au lieu
+    // d'être refusée.
+    const reduites = await reduirePhotosSousPlafond(Array.from(list), maxSize);
+    const next: File[] = [];
+    for (const f of reduites) {
+      const err = validateFile(f, accept, maxSize, t);
+      if (err) {
+        setError(err);
+        return;
+      }
+      next.push(f);
+    }
+    setError(null);
+    onChange(next);
+  };
+
+  return { error, deposer, accept, maxSize, maxFiles };
+}
+
+/**
  * Minimal self-contained export for consumers that simply want to
  * remove files from a local pending list (see PropertyForm) without
  * persisting to a server. Keeps PropertyForm change-surface small.
@@ -571,34 +618,11 @@ export function MediaDropzone({
 }) {
   const t = useTranslations('media');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, deposer: validateAndEmit } = useDepotDeFichiers({ files, onChange, accept, maxSize, maxFiles });
   // TCK-596 — un identifiant PAR zone. Un id fixe faisait désigner au `<label for>` de chaque zone
   // le premier input de la page : toucher la zone de la pièce N remplissait la pièce 1.
   const inputId = useId();
   const cameraId = useId();
-
-  const validateAndEmit = async (list: FileList | null) => {
-    if (!list || list.length === 0) return;
-    if (list.length + files.length > maxFiles) {
-      setError(t('max_files', { max: maxFiles }));
-      return;
-    }
-    // TCK-596 — réduites AVANT la validation, comme `MediaManager` (TCK-542), et jusque sous le
-    // plafond : une photo de téléphone de 7 Mo passe sous les 5 Mo de l'état des lieux au lieu
-    // d'être refusée.
-    const reduites = await reduirePhotosSousPlafond(Array.from(list), maxSize);
-    const next: File[] = [];
-    for (const f of reduites) {
-      const err = validateFile(f, accept, maxSize, t);
-      if (err) {
-        setError(err);
-        return;
-      }
-      next.push(f);
-    }
-    setError(null);
-    onChange(next);
-  };
 
   return (
     <div>

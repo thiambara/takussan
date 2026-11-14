@@ -7,8 +7,8 @@ family: front
 estimate: L
 wave: 88
 created: 2026-11-10
-updated: 2026-11-10
-depends_on: [TCK-2637, TCK-2643, TCK-2644, TCK-2655, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
+updated: 2026-11-14
+depends_on: [TCK-2637, TCK-2643, TCK-2644, TCK-2655, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691, TCK-2841]
 blocks: [TCK-2678]
 spec_refs:
   features:
@@ -110,28 +110,32 @@ Autres contraintes :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sur un bien loué dont le loyer est en retard de 6 jours, l'onglet Location, ouvert par défaut, montre :
+- [x] AC1 — Sur un bien loué dont le loyer est en retard de 6 jours, l'onglet Location, ouvert par défaut, montre :
   - le locataire, et la référence du bail en lien vers `/app/leases/{id}` ;
   - « En retard de 6 j » et la pénalité due.
   « Relancer » ouvre `https://wa.me/221…` avec le message prérempli de TCK-2644 (URL vérifiée).
-- [ ] AC2 — Sur un bien vacant, « Créer un bail » mène à `/app/leases/new?property={id}`, et le bien y est préchoisi (TCK-2643).
+- [x] AC2 — Sur un bien vacant, « Créer un bail » mène à `/app/leases/new?property={id}`, et le bien y est préchoisi (TCK-2643).
 - [ ] AC3 — L'onglet Documents liste les documents du bien **et** de ses baux (appel réseau de TCK-2655). « Ajouter un document » ouvre le dialogue préattaché, sans champ d'identifiant.
-- [ ] AC4 — Sur un bien qui a 2 changements de prix et 3 interventions, les onglets affichent « Interventions (3) », et l'historique des prix 2 lignes. Chaque compteur égale le nombre de lignes rendues.
-- [ ] AC5 — À 390 px :
+  - **Écart validé par la session (2026-11-14, décision a)** : les pièces DÉPOSÉES sur un bail clos ne sont pas lues
+    ici (une cible par appel : le bien et le bail en cours). L'onglet le dit : « Pièces des baux précédents : sur chaque
+    bail », avec un lien vers l'onglet Documents de chaque bail clos (« Voir les baux » si leur lecture échoue). Suite :
+    [TCK-2841](TCK-2841-documents-d-un-bien-avec-les-pieces-de-ses-baux.md).
+- [x] AC4 — Sur un bien qui a 2 changements de prix et 3 interventions, les onglets affichent « Interventions (3) », et l'historique des prix 2 lignes. Chaque compteur égale le nombre de lignes rendues.
+- [x] AC5 — À 390 px :
   - aucun bouton ne précède le titre et l'occupation ;
   - la barre collée porte exactement deux boutons ;
   - la zone d'en-tête ne bouge pas quand « Planifier une visite » arrive : CLS de la zone égal à 0, mesuré au navigateur avec le profil chargé en différé.
-- [ ] AC6 — À 1280 px, la carte « Occupation » reste visible quand on fait défiler l'onglet Annonce.
-- [ ] AC7 — Ouverte par le bailleur, la fiche ne rend ni « Encaisser » ni « Planifier une visite », et rend le nom de son locataire.
+- [x] AC6 — À 1280 px, la carte « Occupation » reste visible quand on fait défiler l'onglet Annonce.
+- [x] AC7 — Ouverte par le bailleur, la fiche ne rend ni « Encaisser » ni « Planifier une visite », et rend le nom de son locataire.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
-- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
-- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
-- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
-- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % ; à 1280 : 18,57 % après TCK-2678 — `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json`.
+- [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % ; à 1280 : 18,57 % après TCK-2678 — `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json`.
+- [x] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % ; à 1280 : 18,57 % après TCK-2678 — `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json`.
+- [x] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % ; à 1280 : 18,57 % après TCK-2678 — `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json`.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur. — **Validé par le porteur le 2026-11-14** (« je valide tout, pour les fidélité ») ; fiche à 390 : 26,46 % ; à 1280 : 18,57 % après TCK-2678 — `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json`.
 
 ## Hors périmètre
 
@@ -221,3 +225,44 @@ pour le bailleur, « Encaisser » arrive sans place réservée. Tests : AC7 (pil
 `record_payment` faux, et un cas neuf « bailleur avec `record_payment` : Encaisser, jamais
 Relancer ». Deux ablations rouges puis restaurées : `peutEncaisser` à nouveau réservé au personnel,
 et la relance de nouveau sur `peutEncaisser`. 31 fichiers `property-dashboard`, 250 tests verts.
+
+**Vérification du lot 3 (2026-11-14, arbre `d3392fad2` + travail partagé non commité, charge 12-38 sur 8 cœurs).**
+Passage de vérification : le code est celui de 0542a8e25 et de ses suites ; seules des preuves manquaient.
+
+- AC1 — test `FicheDuBien.tck-2639` « AC1 — en retard de 6 j » ; au navigateur (admin, bien 6, 390 px, requêtes
+  non-GET échouées) : « En retard de 9 j », « Relancer » ouvre la feuille « Relancer Aliou Toure » au message de
+  TCK-2644 (« Bonjour Aliou, le loyer de novembre (1 825 000 F CFA) reste à régler depuis le 5 novembre… »),
+  « Ouvrir WhatsApp » actif. L'URL `wa.me/221…` naît d'une création de lien (écriture) : non rejouée ici, prouvée par
+  `impayes.tck-2660` (« AC1 — « Ouvrir WhatsApp » crée le lien… ouvre wa.me au numéro… » : origine
+  `https://wa.me/221…` et texte « Bonjour Prénom1, le loyer d’octobre… ») et au navigateur le 2026-11-12 (ci-dessus).
+  Rejoués verts le 2026-11-14 avec les tests de TCK-2643 et de TCK-2009 cités ici (5 fichiers, 40 tests).
+- AC2 — test « AC2 — vacant » (lien `/app/leases/new?property=9`) ; le préchoix : `CreateLeaseForm.bien-prechoisi.tck-2643`
+  et `leases/new/__tests__/page.tck-2643` (TCK-2643, `done`).
+- AC3 — **non coché** : le dialogue préattaché sans champ d'identifiant est prouvé (`DocumentUploadDialog.onUploaded`,
+  « ne montre ni le type ni l'identifiant… » ; `property:9` dans le test AC4), mais les pièces DÉPOSÉES sur un bail
+  passé ne sont pas lues (`GET /api/documents` ne prend qu'une cible : le bien et le bail en cours ; les GÉNÉRÉS de
+  tous les baux le sont, `documents/generated?target=property`). Écart validé (a) : ligne de vérité « Pièces des
+  baux précédents : sur chaque bail » (`useBauxPrecedents`, `GET /api/leases?filter[property_id]=…&filter[status]=
+  expired,terminated,renewed`), liens vers `/app/leases/{id}?onglet=documents` — la liste des baux ne filtre pas par
+  bien, d'où un lien par bail. Tests « AC3 (écart…) » (2), ablation rouge (ligne jamais rendue). Suite : TCK-2841.
+- AC4 — test « AC4 — chaque compteur… » (Interventions 3, Documents 3 = 3 lignes) et test neuf « AC4 — Historique (2)
+  rend deux changements de prix » (2 lignes dans le panneau).
+- AC5 — au navigateur, 390 px, `/api/me/profiles` retenu 3 s : barre « Signaler un problème » + « Contacter le
+  locataire » (deux boutons), aucun bouton dans `<main>` avant les onglets, CLS 0,00018 (une source hors de `<main>`,
+  `dy` 0), identité immobile à 56 px. Moins de deux boutons existe hors de l'écran de la maquette (bien occupé sans bail
+  lisible, bailleur d'un bien en ligne vacant, bien à vendre hors personnel) : `gestesDeLaBarre`, test « jamais plus
+  de deux gestes ».
+- AC6 — au navigateur, 1280 px, onglet Annonce défilé de 386 px : la carte « Occupation » à 22 px du haut, visible.
+- AC7 — tests « AC7 » (pile et carte : ni « Encaisser » ni « Relancer » sans `record_payment`, nom du locataire rendu)
+  et test neuf de page `bailleur-sans-gestes.tck-2639` : pour le bailleur, ni clients correspondants ni place réservée
+  de « Planifier une visite » (le bouton : `PlanifierUneVisite.place-reservee`, « ne rend plus rien… pour qui n'est pas
+  du personnel »). Deux ablations rouges puis restaurées (md5) : `staff ?` des clients correspondants → `true ?`,
+  `planifier(staff)` → `planifier(true)`.
+- AC-F1 — la fiche existe ; mesures du 2026-11-14 ajoutées (`a-2-telephone-2026-11-14`, `a-2-bureau-1280-2026-11-14`).
+- AC-F2 à F5 — **non cochés** : à 390, 28 · 27 · 22 · 33,04 % ; à 1280, 60 · 164 · 53 · 23,56 %. Les écarts neufs
+  depuis le 12 sont la ligne du motif hors ligne (TCK-2678, postérieure à la maquette) et la barre latérale de la coque
+  (famille 3) ; zones de la coque à 8,86 % et 0,82 % (données). 1440 non re-mesuré (consigne : 390 et 1280). La
+  validation sur le rideau est au porteur.
+- AC-F6 — **non cochée** : sa première clause se juge au `compare` à 1280 (ouvert, ci-dessus). Débord : `fidelite
+  balayer` à 390, 768, 1024, 1280 et 1440, 0 partout ; les « coupes » à 390 (« Loué », « Public », « Hors ligne ») sont
+  probablement les pastilles de la copie `sr-only` du `PageHeader` — le `compare` place « Loué » et « Public » à x = −1.

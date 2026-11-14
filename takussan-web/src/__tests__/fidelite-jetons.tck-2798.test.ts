@@ -55,6 +55,9 @@ describe('personas.json', () => {
     const personas = JSON.parse(readFileSync(join(__dirname, '../../scripts/fidelite/personas.json'), 'utf8'));
     const semees = Object.entries<{ email: string }>(personas.comptes).filter(([n]) => n.startsWith('personas-'));
     expect(semees.map(([n]) => n).sort()).toEqual([
+      // TCK-2838 : le compte du bailleur invité, une fois l'invitation consommée (relevé de la carte de
+      // l'interlocuteur). Il porte un nom distinct de l'invitation, qui reste « à part ».
+      'personas-bailleur-invite-compte',
       'personas-gerant',
       'personas-hote',
       'personas-orientation-awa',
