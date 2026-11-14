@@ -112,6 +112,13 @@
       "propriete": "rétrécissables (max-w-0, deux lignes au plus, texte entier en title) ; la pastille du mois passe à la ligne ; gap-3 de la maquette",
       "exception": "données de démo",
       "motif": "les montants (U+00A0, nowrap) gardent leur largeur ; un titre ou un nom long ne peut plus élargir la table. Relevé sous verrou le 2026-11-14 avec un titre et un nom de locataire de 80 caractères : scrollWidth = clientWidth (527 à 1280, 687 à 1440), « Net pour vous » entier (bord droit 1250,2 pour une carte à 1251,2). Avec les 72 biens d'owner1, les titres de plus de deux lignes sont tronqués (…) à 1280. À 1024 la table défile de 5 px dans sa carte (ADR-0106 § 4)"
+    },
+    {
+      "ecran": "a-4 (téléphone)",
+      "element": "onglets « Revenus · Versements · Factures · Opérations »",
+      "propriete": "collants sous l’en-tête au défilement ; la maquette les pose dans le contenu qui défile",
+      "exception": "règle du gabarit (TCK-2804)",
+      "motif": "décision 2a de team-lead (2026-11-14) : une seule règle pour toute page à onglets — le marqueur `ONGLETS_DE_PAGE` et l’enveloppe — et l’objectif du ticket (garder les onglets sous le pouce). Au repos, rien ne diffère de la maquette : rangée à y = 56, onglets à y = 70"
     }
   ],
   "ecarts_ouverts": [
@@ -126,8 +133,8 @@
       "element": "onglets « Revenus · Versements · Factures · Opérations »",
       "propriete": "hauteur 44 contre 32 et y +10, d'où le décalage de tout ce qui suit",
       "motif": "cible tactile de 44 px gardée par `OngletsDesLoyers` ; relève de TCK-2804 (décision de team-lead, 2026-11-14), non traité ici",
-      "statut": "fermé (TCK-2804)",
-      "preuve": "TCK-2804, relevés du 2026-11-14 à 390 : onglets à y = 70, h = 32 (avant y = 80, h = 44 ; maquette 70 et 32), rangée à y = 56 avec `pt-3.5` ; l’appui reste à 44 px (un `::before` transparent prolonge chaque lien de 12 px vers le haut, dans le `pt-3.5`). Défilé de 700 px : la rangée reste collée à y = 56. À 1280 : 245 nœuds sur 245 inchangés"
+      "statut": "fermé (TCK-2804) pour la hauteur et la position des onglets ; le contenu sous les onglets reste à + 4 px (`space-y-5` de la page contre `pt-4` de la maquette), hors TCK-2804",
+      "preuve": "TCK-2804, relevés du 2026-11-14 à 390 : onglets à y = 70, h = 32 (avant y = 80, h = 44 ; maquette 70 et 32), rangée à y = 56 avec `pt-3.5` ; l’appui reste à 44 px (un `::before` transparent prolonge chaque lien de 12 px vers le haut, dans le `pt-3.5`). Défilé de 700 px : la rangée reste collée à y = 56. À 1280 : 245 nœuds sur 245 inchangés ; sonde `elementFromPoint` : chaque onglet répond de y = 58 à 101 (44 px). Compare a-4 : 25 · 27 · 11 (20,18 %) avant, 26 · 26 · 14 (19,2 %) après"
     }
   ]
 }
