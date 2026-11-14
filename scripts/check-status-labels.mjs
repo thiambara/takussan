@@ -90,10 +90,8 @@ const LIBELLES = {
   DataExportStatus: [{ chemin: 'privacy.dataExports.status', lu: 'components/privacy/DataExportsPanel.tsx' }],
   InventoryStatus: [{ chemin: 'inventory.status', lu: 'components/inventory/InventoryBadges.tsx' }],
   InvoiceStatus: [{ chemin: 'payments.invoiceStatus', lu: 'components/admin/reconciliation/PayableStatusBadge.tsx' }],
-  KycDossierStatus: [
-    { chemin: 'kyc.status', lu: 'app/(super-admin)/super-admin/kyc/page.tsx' },
-    { chemin: 'dashboard.agencyQueues.kycStatus', lu: 'components/dashboard/admin/AgencyQueues.tsx' },
-  ],
+  // TCK-2799 — `dashboard.agencyQueues.kycStatus` est parti avec le bloc de files de l'ancienne vue d'agence.
+  KycDossierStatus: [{ chemin: 'kyc.status', lu: 'app/(super-admin)/super-admin/kyc/page.tsx' }],
   LeaseStatus: [{ chemin: 'lease.status', lu: 'components/leases/LeasesList.tsx' }],
   MaintenanceStatus: [
     { chemin: 'maintenance.status', lu: 'components/maintenance/MaintenanceStatusBadge.tsx' },

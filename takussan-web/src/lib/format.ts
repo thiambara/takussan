@@ -57,7 +57,7 @@ import { formaterGroupesLisibles } from './format/groupes';
  *
  *   1. **date-fns ne fournit AUCUNE locale wolof** (cf. `./format/dateFnsLocale.ts`). Un `wo` réel
  *      côté `Intl` ne peut donc pas être suivi par les dates de `date-picker`, `date-time-picker`
- *      ni de `AgencyRevenueSnapshot` : il produirait une incohérence de plus, pas une de moins.
+ *      ni de l'axe des graphiques mensuels : il produirait une incohérence de plus, pas une de moins.
  *   2. **Les données CLDR de `wo` ne sont pas sénégalaises sur ce qui compte ici** : séparateur de
  *      milliers `.` (Sénégal écrit l'espace), et une date `medium` de forme anglaise
  *      (`14 Mar, 2026`), à quoi `wo-SN` ne change rien — mesuré, il rend exactement la même chose.

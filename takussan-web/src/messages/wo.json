@@ -139,12 +139,7 @@
       "providerBook": "Téereb liggéeykat",
       "messaging": "Bataaxal",
       "documents": "Kayit yi",
-      "statistics": "Limu yi",
-      "exports": "Génne",
-      "agencyView": "Gis-gisu ajaas",
       "credits": "Kredi",
-      "kpis": "KPI yi",
-      "alerts": "Yëgle yi",
       "owners": "Boroom kër yi",
       "crm": "Kiliyaan (CRM)",
       "calendar": "Arminaat",
@@ -17184,77 +17179,21 @@
       "title": "Natt yi ñu leen nëbb",
       "body": "Amuloo sañ-sañu xool rapoor yu ajaans bii. Soo xalaatee ne njumte la, jokkool ak njiit bi."
     },
-    "agencyKpis": {
-      "properties": "Kër yi",
-      "publishedHint": "{count} la ñu génne",
-      "activeLeases": "Kontaraa yuy dox",
-      "occupancyRate": "Peggu dalal",
-      "revenueMonth": "Njariñu weer wi",
-      "overdue": "Yu ñu feyul",
-      "lateFeesHint": "Pénalités à recouvrer : {amount}",
-      "unpaidRate": "Peggu pey yu ñu feyul",
-      "rentedHint": "{count} kër la ñu luwaa",
-      "commissionHint": "Komisioŋ : {amount}"
-    },
     "agencyActivity": {
-      "heading": "Jëf yu yees",
       "items": {
         "bookings": {
-          "label": "Réservasioŋ yuy xaar",
-          "cta": "Toppatoo ñaan yi"
+          "label": "Réservasioŋ yuy xaar"
         },
         "maintenance": {
-          "label": "Liggéey yu ubbeeku",
-          "cta": "Xool tikeet yi"
+          "label": "Liggéey yu ubbeeku"
         },
         "customers": {
-          "label": "Kiliyaan (CRM)",
-          "cta": "Jaaweel CRM bi"
+          "label": "Kiliyaan (CRM)"
         },
         "team": {
-          "label": "Bokku ajaans bi",
-          "cta": "Jaaweel ekib bi"
+          "label": "Bokku ajaans bi"
         }
       }
-    },
-    "agencyQueues": {
-      "heading": "Yu war a jàppale",
-      "subheading": "Li di xaar dogal ci ajaans bi.",
-      "empty": "Amul dara lu war a jàppale",
-      "unavailable": "Limu bi jotul",
-      "kycStatus": {
-        "pending": "Dosye bi war nañu koy matal",
-        "submitted": "Ñu ngi koy seetlu",
-        "verified": "Dosye bi dëggal na",
-        "rejected": "Dosye bi war nañu koy defaraat"
-      },
-      "items": {
-        "kyc": {
-          "label": "Dosye KYC bu ajaans bi",
-          "cta": "Ubbi dosye bi"
-        },
-        "moderation": {
-          "label": "Kër yuy xaar moderasioŋ",
-          "cta": "Moderee",
-          "count": "{count, plural, other {# kër yu war a moderee}}"
-        },
-        "invitations": {
-          "label": "Woote yu amul tontu",
-          "cta": "Xool ekib bi",
-          "count": "{count, plural, other {# woote yuy xaar}}"
-        },
-        "overdue": {
-          "label": "Bes yu ñu feyul",
-          "cta": "Xool yu ñu feyul",
-          "count": "{count, plural, other {# bes yu ñu feyul}}"
-        }
-      }
-    },
-    "agencyRevenue": {
-      "heading": "Njariñ — 12 weer yu mujj",
-      "empty": "Amul xibaar bu ñu man a wone ba tey.",
-      "total": "Lëmboo lépp :",
-      "seriesName": "Njariñ"
     },
     "notFound": {
       "title": "Gisuñu ko",

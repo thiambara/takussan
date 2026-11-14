@@ -19,8 +19,8 @@ import { Impayes } from './impayes/Impayes';
 
 /**
  * Les valeurs acceptées par `?tab=` — déclarées dans `lib/finances/vue-argent.ts` depuis TCK-2659,
- * réexportées ici pour les importeurs d'avant (TCK-375 : `AgencyQueues` renvoie vers
- * `?tab=impayes`, l'invariant se vérifie contre CETTE table).
+ * réexportées ici pour les importeurs d'avant (TCK-375 : l'ancien bloc de files d'attente de la vue
+ * d'agence renvoyait vers `?tab=impayes`, l'invariant se vérifiait contre CETTE table ; retiré par TCK-2799).
  */
 export { TAB_VALUES } from '@/lib/finances/vue-argent';
 

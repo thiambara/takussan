@@ -40,7 +40,8 @@ describe('pluriels ICU (TCK-752)', () => {
     ['en', 'property.wizard.preview.entryDeposit', '1 month of deposit', '2 months of deposit'],
     ['fr', 'documents.library.count', '1 document', '2 documents'],
     ['en', 'documents.library.count', '1 document', '2 documents'],
-    ['fr', 'dashboard.agencyKpis.rentedHint', '1 bien loué', '2 biens loués'],
+    // TCK-2799 — à la place de `dashboard.agencyKpis.rentedHint`, retirée avec l'ancienne vue d'agence.
+    ['fr', 'superAdmin.properties.table.confirm.unpublishTitle', 'Dépublier 1 bien', 'Dépublier 2 biens'],
     ['fr', 'superAdmin.pages.upgradeRequests.plannedAgents', ' · 1 agent prévu', ' · 2 agents prévus'],
     ['en', 'serviceProviders.multiAgency.subtitle', 'You now collaborate with 1 agency.', 'You now collaborate with 2 agencies.'],
     ['fr', 'superAdmin.pages.radar.listing.matches.seeMore', 'Voir l’autre', 'Voir les 2 autres'],
@@ -61,7 +62,8 @@ describe('pluriels ICU (TCK-752)', () => {
   });
 
   it('formate le nombre selon la langue, au lieu de le recevoir déjà formaté', () => {
-    expect(rendre('fr', 'dashboard.agencyKpis.publishedHint', { count: 1500 })).toMatch(/^1\s500 publiés$/u);
+    // TCK-2799 — `dashboard.agencyKpis.publishedHint` est retirée : la même forme (« # publiées »), ailleurs.
+    expect(rendre('fr', 'superAdmin.pages.radar.observatory.ranking.published', { count: 1500 })).toMatch(/^1\s500 publiées$/u);
   });
 });
 
