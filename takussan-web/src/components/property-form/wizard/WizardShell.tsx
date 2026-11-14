@@ -282,7 +282,10 @@ export function WizardShell({
                   // parcours (il disait « Publier un bien » une troisième fois). La question est le
                   // titre de la route.
                   className={cn(
-                    'font-display text-[calc(var(--spacing)*6.5)] leading-8 font-bold tracking-tight text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10',
+                    'font-display font-semibold tracking-titre text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10',
+                    // TCK-2819 (lot 2) — maquette, téléphone : la question en 26 px, 600, interligne 1,15 ;
+                    // l'accueil (a-0) en 28 px. Aux deux entrées : un seul assistant.
+                    etape.accueil ? 'text-affiche-28 leading-[1.12]' : 'text-affiche-26 leading-[1.15]',
                     // Maquette a-1 à a-5 : 32 px, 600, interligne 1,1 ; a-0 (l'accueil) : 36 px, 1,08.
                     cadreDEntree &&
                       (etape.accueil
@@ -294,7 +297,8 @@ export function WizardShell({
                 </h1>
                 <p
                   className={cn(
-                    'mt-2 text-sm leading-relaxed text-pretty text-muted-foreground sm:text-base',
+                    // TCK-2819 (lot 2) — la phrase de la question, 15 px au téléphone (maquette `TitreQuestion`).
+                    'mt-1.5 text-corps leading-snug text-pretty text-muted-foreground sm:mt-2 sm:text-base sm:leading-relaxed',
                     cadreDEntree &&
                       (etape.accueil ? 'lg:mt-3 lg:text-titre-court lg:leading-normal' : 'lg:mt-1.5 lg:text-corps lg:leading-snug'),
                   )}

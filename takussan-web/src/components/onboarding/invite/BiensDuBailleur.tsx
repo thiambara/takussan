@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button';
 import { getOwnerPropertiesAction } from '@/app/actions/owner-onboarding';
 import type { Locale } from '@/i18n/config';
 import { formatCurrency } from '@/lib/format';
-import type { OwnerPropertyEntry } from '@/lib/owner-onboarding';
+import type { InterlocuteurDuBailleur, OwnerPropertyEntry } from '@/lib/owner-onboarding';
 import { aDonner, type PieceDuProfil } from '@/lib/pieces/pieces';
 import { cn } from '@/lib/utils';
 
+import { CarteDeLInterlocuteur } from './CarteDeLInterlocuteur';
 import { NumeroVerifie, TitreDInvite } from './pieces';
 
 /**
@@ -32,6 +33,8 @@ interface BiensDuBailleurProps {
   readonly telephone: string | null;
   /** Les pièces du profil (`GET /api/me/pieces`) ; `null` si la lecture a échoué — aucun rappel alors. */
   readonly pieces: readonly PieceDuProfil[] | null;
+  /** TCK-2838 — l'interlocuteur à l'agence, au-dessus d'« À faire pour être payé » dès `xl` ; `null` : aucune carte. */
+  readonly interlocuteur?: InterlocuteurDuBailleur | null;
   readonly onAller: (href: string) => void;
   /** La fin de l'onboarding est en vol : les gestes attendent. */
   readonly enCours: boolean;
@@ -101,7 +104,7 @@ function Vignette({ src, className }: { readonly src: string | null | undefined;
 const CIBLE = 'rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 const LIEN = cn('inline-flex min-h-11 items-center text-sm font-medium underline decoration-1 underline-offset-4 disabled:opacity-50', CIBLE);
 
-export function BiensDuBailleur({ ownerProfileId, agence, telephone, pieces, onAller, enCours }: BiensDuBailleurProps) {
+export function BiensDuBailleur({ ownerProfileId, agence, telephone, pieces, interlocuteur = null, onAller, enCours }: BiensDuBailleurProps) {
   const t = useTranslations('onboarding.invite.bailleur');
   const locale = useLocale() as Locale;
   const decalage = useDecalageDuClavier();
@@ -306,9 +309,12 @@ export function BiensDuBailleur({ ownerProfileId, agence, telephone, pieces, onA
         )}
       </div>
 
-      {aDonnerAuBureau.length > 0 ? (
-        <aside className="hidden space-y-4 pt-13 xl:block" data-testid="a-faire-pour-etre-paye">
-          <div className="rounded-2xl border border-border bg-card p-5">
+      {aDonnerAuBureau.length > 0 || interlocuteur ? (
+        <aside className="hidden space-y-4 pt-13 xl:block">
+          {/* TCK-2838 — au bureau seulement : au téléphone, rien de neuf (ticket). */}
+          {interlocuteur ? <CarteDeLInterlocuteur interlocuteur={interlocuteur} agence={agence} /> : null}
+          {aDonnerAuBureau.length > 0 ? (
+          <div className="rounded-2xl border border-border bg-card p-5" data-testid="a-faire-pour-etre-paye">
             <p className="text-[0.9375rem] font-semibold">{t('aFaire.titre')}</p>
             <p className="mt-1 text-sm text-muted-foreground">{agence ? t('aFaire.texte', { agence }) : t('aFaire.texteSans')}</p>
             <ul className="mt-4 divide-y divide-border border-y border-border">
@@ -334,6 +340,7 @@ export function BiensDuBailleur({ ownerProfileId, agence, telephone, pieces, onA
               {t('aFaire.delai')}
             </p>
           </div>
+          ) : null}
         </aside>
       ) : null}
     </div>

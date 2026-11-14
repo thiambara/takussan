@@ -32,7 +32,8 @@ import { NB_POINTS, chargeUtileVitrine } from '@/lib/vitrine-agence';
 
 /**
  * L'ordre du sommaire. `verification` et `offre` sont des liens vers leurs pages (TCK-2671) : ils
- * n'ont aucun champ dans ce formulaire.
+ * n'ont aucun champ dans ce formulaire. `bail` aussi (TCK-2832) : les réglages de bail s'écrivent
+ * par `POST /api/settings`, pas par le `PATCH` de l'agence.
  */
 export const SECTIONS_DE_LA_FICHE = [
   'identite',
@@ -41,6 +42,7 @@ export const SECTIONS_DE_LA_FICHE = [
   'facturation',
   'verification',
   'regles',
+  'bail',
   'menu',
   'offre',
 ] as const;
@@ -62,6 +64,9 @@ export interface ContexteDesSections {
 export function sectionsMontrees(contexte: ContexteDesSections): SectionDeLaFiche[] {
   return SECTIONS_DE_LA_FICHE.filter((s) => {
     if (s === 'publique') return contexte.vitrine;
+    // TCK-2832 — « Réglages de bail » : à qui configure l'agence, seul (`AgencyPolicy::configure`, la
+    // même règle que `peutEcrireLaVitrine`). L'API refuse la lecture aux autres : pas d'état lecture.
+    if (s === 'bail') return contexte.vitrine;
     if (s === 'menu') return !contexte.individuelle;
     return true;
   });

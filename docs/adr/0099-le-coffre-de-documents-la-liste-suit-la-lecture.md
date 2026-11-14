@@ -1,8 +1,8 @@
 # ADR-0099 — Le coffre de documents : la liste suit la lecture, et les documents générés sont listés depuis leur source, jamais copiés
 
-- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — l'archive préparée d'un dossier du coffre*), décisions de la session appliquées par défaut
+- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — l'archive préparée d'un dossier du coffre*), décisions de la session appliquées par défaut ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — un bien et ses baux, en une lecture*), décision de la session appliquée par défaut
 - **Date** : 2026-11-10
-- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13) ; TCK-2812 (archive préparée, amendement du 2026-11-14)
+- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13) ; TCK-2812 (archive préparée, amendement du 2026-11-14) ; TCK-2841 (un bien et ses baux, amendement du 2026-11-14)
 - **Amende** : la règle posée par TCK-820 (liste restreinte aux téléversements de l'appelant), **sans la révoquer**
 - **S'appuie sur** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (cloisonnement des bailleurs), [ADR-0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) (impersonation)
 
@@ -258,3 +258,36 @@ La file `media` est servie par la connexion `database`, dont le délai de repris
 - `ArchiveDuCoffre::construire()` reçoit son plafond. `verifierLaDemande()` juge la demande sans en garder les entrées.
 - Front : `CoffreDeDocuments` (« Tout télécharger » au-delà de 40 entrées : préparation, prête, échec avec « Réessayer »), `lib/queries/coffre.ts`.
 - Gardes : `ArchiveAsynchroneDuCoffreTest`, vérifiées par ablation du jugement à l'exécution, de la vérification du demandeur, de la signature et du refus sous impersonation.
+
+## Amendement du 2026-11-14 — un bien et ses baux, en une lecture (TCK-2841)
+
+- **Décision de la session, recommandée par l'implémenteur et validée par team-lead le 2026-11-14** (la forme du paramètre), portée sur la liste du porteur, qui peut la renverser.
+
+### Contexte
+
+Le § 1 prend **une** cible. L'onglet Documents de la fiche d'un bien lisait donc le bien et le bail en cours, et renvoyait à la fiche de chaque bail clos pour ses pièces (TCK-2639, AC3). Le coffre du bailleur range pourtant déjà les baux hors brouillon sous le dossier du bien (`DocumentVault`).
+
+### Décision
+
+1. **`GET /api/documents?filter[property_with_leases]=<id>`** rend les documents déposés sur le bien **et** sur ses baux hors brouillon (passés compris), paginés, avec les autres filtres, tris et `fields[documents]` de la liste. Une clé dédiée, et non `filter[with_leases]=1` à côté de `documentable_type`/`documentable_id` : ces deux filtres retireraient les lignes de bail après la garde ; ils gardent leur sens (et peuvent se combiner : `documentable_type=lease` n'y rend que les pièces des baux).
+2. **La garde est celle du § 1, appliquée à CHAQUE cible de l'arbre** : le bien d'abord, puis chaque bail. Une cible lisible (`readsTarget`) rend tous ses documents ; une cible illisible rend ceux que la règle d'auteur ouvre (`restreindreAuTeleverseur`). Le locataire d'un bail ne lit donc ni les pièces du bien ni celles d'un autre bail du même bien ; l'ancien bailleur d'un bail clos (`leases.landlord_id`) ne lit que ce bail. Le super-admin reste sur ses téléversements (TCK-820).
+3. **Un bail en brouillon n'y range rien**, comme au coffre.
+4. **Un identifiant mal formé ou inconnu ne rend rien** — ni 403, ni 404, ni repli sur la liste sans cible (TCK-732). Un bien qui existe mais que l'appelant ne lit pas suit le point 2 : la règle d'auteur, dans l'arbre.
+5. **Chaque ligne dont le porteur est un bail porte `lease`** (`id`, `reference_number`, `status`), lu sur le porteur que la page charge déjà : l'écran nomme la pièce avec son bail.
+6. **Un nombre de requêtes constant** de 1 à 9 baux : les baux sont lus une fois avec leur locataire, et les capacités jugées sous `MembershipCapabilityResolver::primed`.
+
+### Conséquences
+
+- L'onglet Documents du bien rend toutes ses pièces, rangées par bail ; la ligne « Pièces des baux précédents : sur chaque bail » disparaît.
+- Le § 1 garde sa forme à une cible. L'arbre bien → baux est la seule cible composée ; un autre arbre (une fiche client et ses réservations) demanderait un amendement.
+
+### Options écartées
+
+- **`filter[with_leases]=1` à côté de la cible** : oblige à neutraliser deux filtres existants quand le drapeau est présent, une exception que rien ne voit.
+- **Une lecture par bail côté front** : une requête par bail clos, et un compteur qui ne se ferme qu'à la dernière.
+
+### Application
+
+- `DocumentPolicy::listableOnPropertyAndLeases()`, appelée par `DocumentController::index` ; `filter[property_with_leases]` déclaré dans `Document::customQueryFilters()` (la borne vit dans la politique) ; `DocumentResource` (`lease`).
+- Front : `useDocumentsDuBien` (`OngletDocuments.tsx`), une lecture au lieu de deux, rangée par bail.
+- Gardes : `DocumentsDuBienEtDeSesBauxTest`, vérifiées par ablation du filtre d'agence, du `view` appliqué au bail et de l'exclusion des brouillons.

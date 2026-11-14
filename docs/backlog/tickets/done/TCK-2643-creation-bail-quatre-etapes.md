@@ -219,7 +219,7 @@ Fidélité (lot 4) — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (
 - **Fidélité** : mêmes comptes qu'au 2026-11-12 (fiche, `mesures`) ; au bureau, 123 des 147 écarts sont dans la coque.
 - **Reste** :
   - AC-F2, AC-F4 et AC-F5 : le porteur valide sur le rideau les écarts motivés « décision produit », « garde de dépôt » et « composant partagé », qui sont hors des trois exceptions d'ADR-0106 § 2, et l'en-tête de coque du téléphone à 1,34 % ;
-  - « Modifier » des réglages d'agence (décision 7) : suivi écrit, [TCK-2832](../todo/TCK-2832-modifier-les-reglages-de-bail-de-l-agence.md) ;
+  - « Modifier » des réglages d'agence (décision 7) : suivi écrit, [TCK-2832](TCK-2832-modifier-les-reglages-de-bail-de-l-agence.md) ;
   - **contre-vérification à faire** (confiée par team-lead à un vérificateur) de f5f8b2d23, 2ce1c2242 et 98608127e, que personne n'a encore contre-vérifiés :
     - f5f8b2d23 (`CreateLeaseForm.tsx`, `hooks/useApiForm.ts` et son test, `CreateLeaseForm.verification.tck-2643.test.tsx`) :
       - changer de bien remet loyer, caution, charges et prix de vente à ceux du NOUVEAU bien, ou vides : AC1, « préremplir n'est pas imposer » ;

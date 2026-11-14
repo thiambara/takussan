@@ -190,10 +190,20 @@ describe('sectionDeLaCle — un 422 tombe dans sa section', () => {
 });
 
 describe('sectionsMontrees', () => {
-  it('agence standard qui écrit la vitrine : les huit', () => {
-    expect(sectionsMontrees({ individuelle: false, vitrine: true })).toHaveLength(8);
+  it('agence standard qui écrit la vitrine : les neuf, réglages de bail compris (TCK-2832)', () => {
+    expect(sectionsMontrees({ individuelle: false, vitrine: true })).toEqual([
+      'identite',
+      'publique',
+      'paiement',
+      'facturation',
+      'verification',
+      'regles',
+      'bail',
+      'menu',
+      'offre',
+    ]);
   });
-  it('individuelle : pas de menu de l’équipe ; sans la vitrine : pas de fiche publique', () => {
+  it('individuelle : pas de menu de l’équipe ; sans configurer l’agence : ni fiche publique ni réglages de bail', () => {
     expect(sectionsMontrees({ individuelle: true, vitrine: false })).toEqual([
       'identite',
       'paiement',

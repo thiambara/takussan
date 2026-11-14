@@ -73,6 +73,16 @@ class OwnerProfilePolicy
     }
 
     /**
+     * TCK-2838 — l'interlocuteur de l'agence (`GET /api/me/owner-profiles/{id}/interlocuteur`) : le titulaire du
+     * profil seul. Ni un autre bailleur, ni le personnel de l'agence (qui a son carnet). Le super-admin passe par
+     * `Gate::before`.
+     */
+    public function viewInterlocutor(User $user, OwnerProfile $profile): bool
+    {
+        return $profile->user_id !== null && (int) $profile->user_id === (int) $user->id;
+    }
+
+    /**
      * TCK-2640 — la fiche (`GET /api/owners/{id}`) : l'admin actif de l'agence du profil, comme
      * {@see self::viewSensitive()}. Elle dit ce qui reste à verser au bailleur et son plafond de
      * travaux ; l'agent lit le carnet (`viewAny`), pas la fiche — l'accès de l'agent est hors du

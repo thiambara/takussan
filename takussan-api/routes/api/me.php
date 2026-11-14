@@ -142,6 +142,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('owner-profiles/{owner_profile}/properties', [MeOwnerProfileController::class, 'properties'])
         ->whereNumber('owner_profile')
         ->name('me.owner-profiles.properties');
+    // TCK-2838 — l'interlocuteur de l'agence, à l'écran 2 de l'assistant du bailleur invité (titulaire seul).
+    Route::get('owner-profiles/{owner_profile}/interlocuteur', [MeOwnerProfileController::class, 'interlocutor'])
+        ->whereNumber('owner_profile')
+        ->name('me.owner-profiles.interlocutor');
 
     // TCK-259 — wizard-side write endpoints on the freshly-claimed
     // AgentProfile. Mirror Owner / SP : mounted under

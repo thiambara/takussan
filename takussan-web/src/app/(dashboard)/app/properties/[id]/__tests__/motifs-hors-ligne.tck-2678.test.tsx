@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -53,22 +54,40 @@ async function fiche(extra: Record<string, unknown>) {
 }
 
 const listes = () => Array.from(document.querySelectorAll<HTMLElement>('[data-slot="motifs-hors-ligne"]'));
+const pastilles = () => Array.from(document.querySelectorAll<HTMLElement>('[data-slot="pastille-hors-ligne"]'));
 
+/**
+ * AC4 (reformulé le 2026-11-14, décision du team-lead) — la maquette retenue de la fiche (app-biens a-2)
+ * ne dessine aucune ligne sous les pastilles : l'en-tête n'en écrit plus (aucun pixel ne change), la
+ * pastille « Hors ligne » porte les motifs en infobulle (survol, focus clavier) et pour les lecteurs
+ * d'écran ; les phrases visibles vivent dans l'onglet Annonce (`PropertyDetailTabs.motifs-hors-ligne`).
+ */
 describe('TCK-2678 — la fiche dit pourquoi le bien est hors ligne', () => {
-  it('AC4 — un bien loué : « Loué — … » sous « Hors ligne », au téléphone comme au bureau, sans « Publié »', async () => {
+  it('AC4 — un bien loué : la pastille « Hors ligne » porte « Loué — … » ; aucune ligne sous les pastilles, jamais « Publié »', async () => {
     await fiche({ is_online: false, offline_reasons: ['status_rented'] });
-    expect(screen.getAllByText('Hors ligne').length).toBeGreaterThan(0);
-    expect(listes()).toHaveLength(2);
-    for (const liste of listes()) {
-      expect(liste).toHaveTextContent('Loué — remis en ligne à la fin du bail.');
-      expect(liste.previousElementSibling?.textContent ?? '').toContain('Hors ligne');
-    }
+    expect(listes()).toHaveLength(0);
+    const [pastille] = pastilles();
+    expect(pastille.tagName).toBe('BUTTON');
+    expect(pastille).toHaveTextContent('Hors ligne');
+    expect(pastille).toHaveTextContent('Loué — remis en ligne à la fin du bail.');
     expect(document.body.textContent).not.toMatch(/Publié/);
+  });
+
+  it('AC4 — au focus clavier, la pastille ouvre son infobulle : le motif s’y lit', async () => {
+    await fiche({ is_online: false, offline_reasons: ['status_rented'] });
+    const [pastille] = pastilles();
+    expect(document.querySelector('[data-slot="tooltip-content"]')).toBeNull();
+    const user = userEvent.setup();
+    for (let i = 0; i < 30 && document.activeElement !== pastille; i++) await user.tab();
+    expect(pastille).toHaveFocus();
+    await waitFor(() =>
+      expect(document.querySelector('[data-slot="tooltip-content"]')).toHaveTextContent('Loué — remis en ligne à la fin du bail.'),
+    );
   });
 
   it('plusieurs motifs : une phrase chacun, dans l’ordre de l’API ; un code inconnu se dit « Hors ligne. »', async () => {
     await fiche({ is_online: false, offline_reasons: ['agency_inactive', 'status_pending_review', 'private', 'nouveau_code'] });
-    const phrases = Array.from(listes()[0].querySelectorAll('[role="listitem"]')).map((li) => li.textContent);
+    const phrases = Array.from(pastilles()[0].querySelectorAll('[role="listitem"]')).map((li) => li.textContent);
     expect(phrases).toEqual([
       'Agence suspendue : ses biens ne sont plus visibles du public.',
       'En attente de validation par l’agence.',
@@ -80,5 +99,6 @@ describe('TCK-2678 — la fiche dit pourquoi le bien est hors ligne', () => {
   it('rien pour un bien en ligne, même si une liste de motifs traîne dans la réponse', async () => {
     await fiche({ is_online: true, offline_reasons: ['private'] });
     expect(listes()).toHaveLength(0);
+    expect(pastilles()).toHaveLength(0);
   });
 });

@@ -219,3 +219,34 @@ describe('fidélité — le rôle commun vise la barre d’onglets par son slot 
     expect((choisir(noeuds, { boiteDe: 'Menu', min: 56 }) as { id: number }).id).toBe(1);
   });
 });
+
+describe('fidélité — la barre latérale du bureau est la colonne, pas le cadre (TCK-2828)', () => {
+  /**
+   * L'accueil admin à 1280 (relevé réel du 2026-11-13), réduit à ses quatre boîtes pleine hauteur,
+   * dans l'ordre du relevé : le cadre (`body` côté produit, `div` côté maquette) passe le premier,
+   * puis la colonne `aside` (272) et le `main` (1008). La zone `{ y: 0, h: 900, wMin: 200 }` seule
+   * retenait le cadre : les écarts « barre latérale » mesuraient le 1280×900 entier.
+   */
+  const boite = (id: number, tag: string, r: { x: number; y: number; w: number; h: number }) => ({ id, type: 'boite', cle: tag, r, slot: null, fid: null, tag });
+  const noeuds = [
+    boite(0, 'body', { x: 0, y: 0, w: 1280, h: 900 }),
+    boite(1, 'div', { x: 0, y: 0, w: 1280, h: 900 }),
+    boite(2, 'aside', { x: 0, y: 0, w: 272, h: 900 }),
+    boite(3, 'main', { x: 272, y: 0, w: 1008, h: 900 }),
+  ];
+  const role = (coque.roles as Role[]).find((r) => r.nom === 'coque · barre latérale')!;
+
+  it.each(['maquette', 'produit'] as const)('côté %s, la colonne (272 de large), pas le cadre 1280', (cote) => {
+    const n = choisir(noeuds, role[cote]) as { id: number; r: { w: number } } | null;
+    expect(n?.id).toBe(2);
+    expect(n!.r.w).toBe(272);
+  });
+
+  it('témoin : sans borne de largeur, la zone retient le cadre', () => {
+    expect((choisir(noeuds, { zone: { y: 0, h: 900, tol: 40, wMin: 200 } }) as { id: number }).id).toBe(0);
+  });
+
+  it('`wMax` écarte toute boîte plus large', () => {
+    expect(choisir(noeuds, { zone: { y: 0, h: 900, tol: 40, wMin: 200, wMax: 271 } })).toBeNull();
+  });
+});

@@ -277,7 +277,8 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     return (
       <span className="flex flex-col items-start gap-1">
         <StatusBadge label={libelleDuStatut(sp.status)} tone={TON_DU_STATUT[sp.status]} />
-        {sp.status === 'draft' && sp.created_at ? <span className="text-xs text-muted-foreground">{tCarnet('inviteLe', { date: f.jourMois(sp.created_at) })}</span> : null}
+        {/* TCK-2834 — un prestataire déjà inscrit ailleurs a un compte : ni « pas encore de compte », ni rien de lui. */}
+        {sp.status === 'draft' && sp.created_at ? <span className="text-xs text-muted-foreground">{tCarnet(sp.pending_invitation_only ? 'inviteLeDejaInscrit' : 'inviteLe', { date: f.jourMois(sp.created_at) })}</span> : null}
       </span>
     );
   }
@@ -461,7 +462,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
           caption={tCarnet('titre')}
           columns={colonnes}
           rows={providers}
-          rowKey={(sp) => sp.id}
+          rowKey={cleDeLigne}
           carteMobile={carte}
           emptyState={<p className="p-6 text-center text-sm text-muted-foreground">{tCarnet('aucunPourCeFiltre')}</p>}
         />
@@ -489,6 +490,14 @@ const TON_DU_STATUT: Record<ServiceProviderProfileStatus, NonNullable<ComponentP
   inactive: 'neutral',
   suspended: 'danger',
 };
+
+/**
+ * TCK-2834 — une invitation à un prestataire déjà inscrit ailleurs n'a pas d'`id` de profil : sa clé
+ * est celle de l'invitation.
+ */
+function cleDeLigne(sp: ServiceProviderProfileSummary): string | number {
+  return sp.id ?? `invitation-${sp.pending_invitation_id ?? ''}`;
+}
 
 /** Le téléphone joignable : celui que l'API sert (TCK-2652), sinon celui de l'invitation (P234.04). */
 function telephoneDe(sp: ServiceProviderProfileSummary): string | null {

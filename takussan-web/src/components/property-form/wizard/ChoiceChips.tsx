@@ -58,6 +58,11 @@ type ChoiceChipsCommun = {
   readonly label: string;
   readonly id: string;
   readonly variant?: ChoiceChipsVariant;
+  /**
+   * TCK-2819 — le libellé ne se lit qu'au lecteur d'écran : la phrase visible le porte déjà (« Par
+   * Mois · Semaine… », la fréquence du loyer). Le groupe garde son nom accessible.
+   */
+  readonly labelMasque?: boolean;
 };
 
 export type ChoiceChipsProps =
@@ -103,6 +108,7 @@ export function ChoiceChips({
   id,
   radioGroup = false,
   variant = 'pastilles',
+  labelMasque = false,
 }: ChoiceChipsProps) {
   const estRetenue = (v: string) => (selected ? selected.includes(v) : value === v);
   const boutons = useRef<Array<HTMLButtonElement | null>>([]);
@@ -147,11 +153,9 @@ export function ChoiceChips({
     <div>
       <p
         id={id}
-        className={cn(
-          variant === 'pastilles'
-            ? 'mb-2 text-[calc(var(--spacing)*2.75)] font-bold uppercase tracking-[0.11em] text-muted-foreground'
-            : 'mb-3 text-sm font-semibold text-foreground',
-        )}
+        // TCK-2819 (lot 2) — un seul libellé de question, celui de la maquette (« État du bien »,
+        // « Type de bien ») : 14 px, 500, encre pleine — plus de surtitre en capitales pour les pastilles.
+        className={cn(labelMasque && 'sr-only', 'mb-2 text-sm font-medium text-foreground')}
       >
         {label}
       </p>
@@ -160,8 +164,10 @@ export function ChoiceChips({
         aria-labelledby={id}
         className={cn(
           variant === 'pastilles' && 'flex flex-wrap gap-2',
-          variant === 'cartes' && 'grid grid-cols-2 gap-3 sm:gap-4',
-          variant === 'tuiles' && 'grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 xl:grid-cols-5',
+          // TCK-2819 (lot 2) — maquette `QuestionBien` : deux cartes côte à côte, trois tuiles par
+          // ligne à toute largeur (le bureau les couche en lignes de 56 px, `dense`).
+          variant === 'cartes' && 'grid grid-cols-2 gap-3',
+          variant === 'tuiles' && 'grid grid-cols-3 gap-2.5 lg:gap-3',
         )}
       >
         {options.map((o, index) => {
@@ -193,24 +199,26 @@ export function ChoiceChips({
                 variant === 'pastilles' && [
                   // `min-h-11` = 44 px : la cible tactile minimale. En dessous, le doigt rate.
                   'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm',
+                  // TCK-2819 (lot 2) — maquette `Pastille` : la retenue en encre pleine, pas en `primary`.
+                  'font-medium',
                   actif
-                    ? 'border-primary bg-primary font-semibold text-primary-foreground'
+                    ? 'border-foreground bg-foreground text-background'
                     : 'border-border bg-card text-foreground hover:bg-muted',
                 ],
+                // TCK-2819 (lot 2) — l'état retenu de la maquette : bord et anneau d'1 px en `primary`,
+                // fond `secondary` adouci.
                 variant !== 'pastilles' && [
-                  'relative rounded-xl border bg-card text-left text-foreground',
+                  'relative min-w-0 rounded-xl border text-left text-foreground',
                   actif
-                    ? 'border-primary shadow-[inset_0_0_0_1px_var(--primary)]'
-                    : 'border-border hover:border-foreground/25',
+                    ? 'border-primary bg-secondary/60 ring-1 ring-primary'
+                    : 'border-border bg-card hover:border-foreground/25',
                 ],
-                variant === 'cartes' && [
-                  'flex min-h-11 flex-col items-start gap-2.5 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4',
-                  actif && 'shadow-[inset_0_0_0_1px_var(--primary),0_8px_24px_color-mix(in_srgb,var(--foreground)_8%,transparent)]',
-                ],
+                variant === 'cartes' && 'flex min-h-11 flex-col items-start p-3.5',
                 variant === 'tuiles' && [
-                  'flex min-h-20 flex-col items-center justify-center gap-2 px-1.5 py-3 text-center text-sm font-medium',
-                  'sm:min-h-24 sm:items-start sm:justify-between sm:p-4 sm:text-left',
-                  actif && 'bg-primary/5',
+                  // 76 px au téléphone, icône en haut et libellé en bas ; au bureau, une ligne de 56 px.
+                  'flex min-h-19 flex-col items-start justify-between p-2.5 text-sm',
+                  'lg:min-h-14 lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:px-3.5 lg:py-0',
+                  actif ? 'font-semibold' : 'font-medium',
                 ],
               )}
             >
@@ -220,19 +228,19 @@ export function ChoiceChips({
                     <span
                       aria-hidden="true"
                       className={cn(
-                        'grid size-10 shrink-0 place-items-center rounded-lg transition-colors sm:size-11',
+                        'grid size-10 shrink-0 place-items-center rounded-lg transition-colors',
                         actif ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
                       )}
                     >
                       {o.icon}
                     </span>
                   ) : null}
-                  <span className="flex min-w-0 flex-col gap-0.5 pr-6">
-                    <span id={idLibelle} className="font-display text-base font-semibold sm:text-lg">
+                  <span className="mt-3 flex min-w-0 flex-col gap-0.5 pr-6">
+                    <span id={idLibelle} className="text-base font-semibold">
                       {o.label}
                     </span>
                     {o.description ? (
-                      <span id={idDescription} className="text-xs leading-snug text-muted-foreground sm:text-sm">
+                      <span id={idDescription} className="text-ui leading-snug text-muted-foreground">
                         {o.description}
                       </span>
                     ) : null}
@@ -246,17 +254,18 @@ export function ChoiceChips({
                     doit rester le libellé seul.
                   */}
                   {o.icon ? (
-                    <span aria-hidden="true" className="inline-flex shrink-0">
+                    <span aria-hidden="true" className={cn('inline-flex shrink-0', variant === 'tuiles' && (actif ? 'text-primary' : 'text-muted-foreground'))}>
                       {o.icon}
                     </span>
                   ) : null}
                   <span className={cn(variant === 'tuiles' && 'leading-tight')}>{o.label}</span>
                 </>
               )}
-              {variant !== 'pastilles' && actif ? (
+              {/* La maquette ne coche que les cartes : une tuile retenue se dit par son anneau. */}
+              {variant === 'cartes' && actif ? (
                 <span
                   aria-hidden="true"
-                  className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground"
+                  className="absolute top-3 right-3 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground"
                 >
                   <Check className="size-3" strokeWidth={3} />
                 </span>

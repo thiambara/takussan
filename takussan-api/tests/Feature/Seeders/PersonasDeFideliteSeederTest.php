@@ -143,6 +143,14 @@ class PersonasDeFideliteSeederTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    /** TCK-2838 — l'agence des personas a un téléphone public : la carte de l'interlocuteur du bailleur invité le montre. */
+    public function test_l_agence_des_personas_a_un_telephone_public(): void
+    {
+        $this->seed(Personas::class);
+
+        $this->assertSame(Personas::TELEPHONE_DE_L_AGENCE, Agency::query()->where('slug', Personas::AGENCE)->sole()->phone);
+    }
+
     public function test_les_comptes_neufs_ont_un_numero_verifie_sans_intention_ni_profil(): void
     {
         $this->seed(Personas::class);

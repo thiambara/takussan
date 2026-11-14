@@ -84,6 +84,12 @@ async function relireLesValeurs(user: ReturnType<typeof userEvent.setup>) {
   expect((screen.getByLabelText(/^loyer|^prix/i) as HTMLInputElement).value).toMatch(/^250\s000$/);
   expect(screen.getAllByTestId('apercu-prix')[0]).toHaveTextContent(/250\s000\sF CFA \/ mois/);
   expect(screen.getAllByTestId('apercu-total-entree')[0]).toHaveTextContent(/1\s030\s000\sF CFA/);
+  // Lot 2 : l'encadré du coût d'entrée relit les mêmes mois et les mêmes charges.
+  expect(screen.getByRole('spinbutton', { name: 'Mois d’avance' })).toHaveAttribute('aria-valuenow', '2');
+  expect(screen.getByRole('spinbutton', { name: 'Mois de caution' })).toHaveAttribute('aria-valuenow', '2');
+  expect((screen.getByLabelText(/charges mensuelles/i) as HTMLInputElement).value).toMatch(/^15\s000$/);
+  expect(screen.getByTestId('total-a-l-entree')).toHaveTextContent(/^1\s030\s000\sF CFA$/);
+  expect(screen.getByRole('radio', { name: 'Mois' })).toHaveAttribute('aria-checked', 'true');
   await user.click(precedent()); //                                         → les caractéristiques
   await screen.findByRole('heading', { level: 1, name: /parlez-nous/i });
   expect(screen.getByLabelText(/surface habitable/i)).toHaveValue(38);

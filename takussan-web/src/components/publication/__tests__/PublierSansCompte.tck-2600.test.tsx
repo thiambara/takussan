@@ -106,8 +106,8 @@ async function remplir(user: ReturnType<typeof userEvent.setup>, { jusquAuTitre 
   await user.click(suivant()); //                              → les caractéristiques
   await user.click(suivant()); //                              → le prix
   await user.type(screen.getByLabelText(/^loyer|^prix/i), '250000');
-  await user.click(screen.getByRole('combobox', { name: /fréquence/i }));
-  await user.click(await screen.findByRole('option', { name: /^année$/i }));
+  // TCK-2819 (lot 2) — la fréquence se choisit en pastilles (« Par Mois · Semaine · Jour · An »).
+  await user.click(screen.getByRole('radio', { name: /^an$/i }));
   await user.click(suivant()); //                              → les photos
   await user.upload(
     screen.getByTestId('media-dropzone-input'),
@@ -234,7 +234,7 @@ describe('le brouillon survit au rechargement (AC2)', () => {
 
     await user.click(screen.getByRole('button', { name: /^précédent$/i })); // → le prix
     expect((screen.getByLabelText(/^loyer|^prix/i) as HTMLInputElement).value).toBe('250 000');
-    expect(screen.getByRole('combobox', { name: /fréquence/i })).toHaveTextContent('Année');
+    expect(within(screen.getByRole('radiogroup', { name: /fréquence/i })).getByRole('radio', { name: /^an$/i })).toHaveAttribute('aria-checked', 'true');
   });
 });
 

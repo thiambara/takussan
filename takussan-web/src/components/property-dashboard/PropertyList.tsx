@@ -8,6 +8,9 @@ import { Archive, Home, Loader2, X } from 'lucide-react';
 
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { useFloatingDockSlot } from '@/components/floating-dock';
+import { BarreDeSelectionDeLaCoque } from '@/components/layout/BarreDeSelectionDeLaCoque';
+import { REQUETE_DE_LA_BARRE } from '@/components/layout/plein-ecran';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { EmptyState } from '@/components/feedback';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -433,11 +436,15 @@ function BulkActionBar({
   // TCK-644 — un créneau du FloatingDock, AU-DESSUS du lanceur de messagerie (priorité 0) : posée
   // en `bottom-3` au même coin que lui, la barre passait dessous et sa croix devenait inatteignable.
   // La hauteur déclarée ne sert qu'aux créneaux posés au-dessus d'elle (aucun aujourd'hui).
+  // TCK-2836 — au téléphone, la barre prend la place de la barre d'onglets (`BarreDeSelectionDeLaCoque`,
+  // en flux au bas de la coque) ; elle ne réclame alors aucun créneau du dock.
+  const telephone = useMatchesMedia(REQUETE_DE_LA_BARRE);
   const creneau = useFloatingDockSlot({
     id: 'property-bulk-bar',
     corner: 'bottom-right',
     priority: 1,
     height: BULK_BAR_HEIGHT_PX,
+    enabled: !telephone,
   });
   const items = agentOptions.map((agent) => ({
     value: String(agent.id),
@@ -446,13 +453,8 @@ function BulkActionBar({
         ? t('agentSelf', { name: agent.name })
         : agent.name,
   }));
-  return (
-    <div
-      role="region"
-      aria-label={t('bulkAria')}
-      style={{ bottom: creneau.bottom }}
-      className="fixed inset-x-2 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-primary-foreground shadow-lg backdrop-blur md:inset-x-auto md:right-6"
-    >
+  const contenu = (
+    <>
       <span className="font-semibold">
         {t('bulkSelected', { count: selectedCount })}
       </span>
@@ -485,8 +487,11 @@ function BulkActionBar({
         </Button>
       ) : null}
       {agentOptions.length > 0 ? (
-        <div className="flex items-center gap-2">
-          <div className="min-w-[180px]">
+        // TCK-2836 — au téléphone, le groupe s'efface (`contents`) : le choix de l'agent prend toute sa rangée
+        // (invite lue en entière à 360 et 390), « Changer l'agent responsable » et la croix la suivante. En
+        // pleine largeur, côte à côte, le bouton débordait l'écran et l'invite se coupait (relevé à 390 px).
+        <div className="flex items-center gap-2 max-md:contents">
+          <div className="min-w-[180px] max-md:min-w-0 max-md:basis-full">
             <Select
               value={bulkAgentId}
               onValueChange={(v) => setBulkAgentId((v ?? '') as string)}
@@ -494,7 +499,7 @@ function BulkActionBar({
             >
               <SelectTrigger
                 aria-label={t('bulkReassignPlaceholder')}
-                className="border-card/30 bg-card/10 text-primary-foreground"
+                className="border-card/30 bg-card/10 text-primary-foreground max-md:w-full"
               >
                 <SelectValue placeholder={t('bulkReassignPlaceholder')} />
               </SelectTrigger>
@@ -544,6 +549,23 @@ function BulkActionBar({
       >
         <X aria-hidden="true" className="size-4" />
       </button>
+    </>
+  );
+  if (telephone) {
+    return (
+      <BarreDeSelectionDeLaCoque aria-label={t('bulkAria')} className="bg-foreground text-sm text-primary-foreground">
+        {contenu}
+      </BarreDeSelectionDeLaCoque>
+    );
+  }
+  return (
+    <div
+      role="region"
+      aria-label={t('bulkAria')}
+      style={{ bottom: creneau.bottom }}
+      className="fixed inset-x-2 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-primary-foreground shadow-lg backdrop-blur md:inset-x-auto md:right-6"
+    >
+      {contenu}
     </div>
   );
 }

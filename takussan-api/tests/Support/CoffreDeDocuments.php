@@ -166,6 +166,10 @@ trait CoffreDeDocuments
             'uploaded_by' => $author->id,
             'type' => $type,
             'name' => $name,
+            // Sans description : la fabrique en tire une phrase latine au hasard une fois sur deux, que
+            // l'index cherche. « quitus » trouve « quibusdam » à une faute près : la pièce d'un bail du
+            // bailleur sortait alors d'une recherche qui ne la visait pas (run 43621051034).
+            'description' => null,
             'expiry_date' => $expiry,
         ]);
     }

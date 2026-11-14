@@ -37,7 +37,11 @@ export type ServiceProviderProfileStatus =
   | 'suspended';
 
 export type ServiceProviderProfileSummary = {
-  readonly id: number;
+  /**
+   * TCK-2834 — nul sur une ligne d'invitation seule (`pending_invitation_only`) : l'invitation d'un
+   * prestataire déjà inscrit ailleurs ne porte pas l'identifiant de son profil.
+   */
+  readonly id: number | null;
   readonly user_id: number | null;
   readonly status: ServiceProviderProfileStatus;
   readonly specialties: readonly string[] | null;
@@ -61,6 +65,11 @@ export type ServiceProviderProfileSummary = {
    * La relance et la révocation partent par elle.
    */
   readonly pending_invitation_id?: number | null;
+  /**
+   * TCK-2834 — la ligne est une invitation à un prestataire déjà inscrit dans une autre agence,
+   * construite par l'API depuis l'invitation seule (`status: 'draft'`) : rien de son profil n'y figure.
+   */
+  readonly pending_invitation_only?: boolean;
   readonly user?: {
     readonly id: number;
     readonly first_name: string;

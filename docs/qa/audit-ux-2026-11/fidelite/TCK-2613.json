@@ -153,15 +153,14 @@
       "motif": "décision de team-lead (2026-11-14) : avant le code, le panneau (CeQuiVousAttend) ne montre rien que l'invité n'ait déjà vu — l'agence, le rôle, et le titre de l'intervention que la page d'invitation lui montrait (`awaiting.maintenance_request.title`) ; biens, loyer et pièces sont à l'écran 2"
     }
   ],
-  "ecarts_ouverts": [
+  "ecarts_ouverts": [],
+  "ecarts_resolus": [
     {
       "ecran": "app-entree-assistants a-0-bureau-1280",
       "element": "carte « Ton interlocutrice » (nom, rôle, Appeler, WhatsApp)",
-      "propriete": "absente du produit",
-      "recommandation": "ticket de suite (numéro demandé à team-lead) : servir au bailleur l'interlocuteur de l'agence (nom, rôle, téléphone public) — l'API ne le sert pas aujourd'hui (re-mesuré le 2026-11-14 : ni la page /onboarding/owner ni GET /api/me/owner-profiles ne portent invited_by ; seul l'aperçu public d'invitation dit le prénom de l'invitant) ; brouillon : impl/lot2/w-2613/ticket-interlocuteur.md"
-    }
-  ],
-  "ecarts_resolus": [
+      "resolu_le": "2026-11-14",
+      "comment": "TCK-2838 : `GET /api/me/owner-profiles/{id}/interlocuteur` + `CarteDeLInterlocuteur`, au-dessus d'« À faire pour être payé » dès xl. Relevé lecture seule (persona bailleur-invite, /onboarding/owner?owner=35, garde : 0 écriture, 0 erreur ; takussan-web/.fidelite/TCK-2838/{sans-numero,avec-numero}) : à 1280, Mariama Faye · « Responsable de l'agence · Agence des personas » ; avec numéro, « Appeler » tel:+221338279940, 352 px, non tronqué, pas de WhatsApp (numéro d'agence) ; sans numéro, la carte reste, sans geste ; à 390, colonne cachée. Le texte de l'en-tête suit le vouvoiement du produit (« Votre interlocuteur à l'agence »), et WhatsApp n'apparaît que sur un numéro de l'agent déclaré WhatsApp (décision de team-lead)."
+    },
     {
       "ecran": "app-entree-assistants a-* (barre)",
       "element": "« Étape N sur 2 » écrit",

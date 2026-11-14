@@ -107,10 +107,15 @@ class EditablePlatformSettings
                 'default' => RentReviewService::DEFAULT_MAX_PCT, 'public' => false,
                 'rules' => ['required', 'numeric', 'gt:0', 'max:100'],
             ],
+            // TCK-2842 — LA borne de l'indemnité de départ anticipé, déclarée ici seulement : la
+            // validation du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`, `RenewLeaseRequest`, par
+            // `reglesDeBornes()`), le préremplissage (`LeaseDefaults`) et la lecture à l'exécution
+            // (`EarlyTerminationService::resolvePenaltyMonths`, par `clamp()`) la lisent. 0 = aucune
+            // indemnité, valable pour une agence comme pour un bail ; 12, la borne que les baux portaient.
             'lease.early_termination_penalty_months' => [
                 'category' => 'rentals', 'type' => 'integer',
                 'default' => EarlyTerminationService::SETTING_DEFAULT_MONTHS, 'public' => false,
-                'rules' => ['required', 'integer', 'min:1', 'max:24'],
+                'rules' => ['required', 'integer', 'min:0', 'max:12'],
             ],
             'lease.require_signature' => [
                 'category' => 'rentals', 'type' => 'boolean', 'default' => false, 'public' => false,
@@ -188,6 +193,35 @@ class EditablePlatformSettings
         }
 
         return true;
+    }
+
+    /**
+     * TCK-2842 — la borne `min` (`min:x` ou `gt:x`) ou `max` des règles de la clé, `null` sans elle.
+     */
+    public static function borne(string $key, string $quelle): int|float|null
+    {
+        $motif = $quelle === 'max' ? 'max' : 'min|gt';
+        foreach (self::get($key)['rules'] as $rule) {
+            if (is_string($rule) && preg_match('/^('.$motif.'):(-?[0-9.]+)$/', $rule, $m) === 1) {
+                return str_contains($m[2], '.') ? (float) $m[2] : (int) $m[2];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * TCK-2842 — les règles de bornes de la clé (`min:`, `gt:`, `max:`), telles quelles, pour qu'une
+     * autre validation (celle du bail) applique la borne du catalogue au lieu de la recopier.
+     *
+     * @return list<string>
+     */
+    public static function reglesDeBornes(string $key): array
+    {
+        return array_values(array_filter(
+            self::get($key)['rules'],
+            fn (mixed $rule) => is_string($rule) && preg_match('/^(min|gt|max):-?[0-9.]+$/', $rule) === 1,
+        ));
     }
 
     public static function has(string $key): bool

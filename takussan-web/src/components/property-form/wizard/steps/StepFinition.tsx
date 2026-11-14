@@ -98,8 +98,9 @@ export function StepFinition({
   return (
     <>
       <FormInput control={control} name="title" label={t('fields.title')} required maxLength={200} />
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Sparkles className="size-3.5" aria-hidden="true" />
+      {/* TCK-2819 (lot 2) — maquette a-5 : 13 px, étincelle au trait de 1,75. */}
+      <p className="flex items-center gap-1.5 text-ui text-muted-foreground">
+        <Sparkles className="size-3.5 flex-none" strokeWidth={1.75} aria-hidden="true" />
         {t('titleComposedHint')}
       </p>
       <FormTextarea

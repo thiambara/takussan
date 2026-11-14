@@ -8,6 +8,7 @@ import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
+import { fetchInterlocuteurDuBailleur } from '@/lib/owner-onboarding';
 import type { MesPiecesResponse } from '@/lib/pieces/pieces';
 
 /**
@@ -51,10 +52,17 @@ export default async function OwnerOnboardingPage({
 
   // TCK-2614 (décision 2b) — les pièces de CE profil (`X-Profile-Id`), dont le NINEA requis d'une société seule ;
   // TCK-2613 — l'écran 2 les rappelle, sans en exiger aucune. Un échec de lecture ne rappelle rien.
-  const pieces = await apiRequest<MesPiecesResponse>('/api/me/pieces', {
-    token,
-    headers: { 'X-Profile-Id': `owner:${owner.numeric_id}` },
-  }).catch(() => null);
+  // TCK-2838 — l'interlocuteur à l'agence, lu ici (une lecture serveur, pas une action de plus à l'écran 2).
+  // Un échec de lecture ne montre aucune carte.
+  const [pieces, interlocuteur] = await Promise.all([
+    apiRequest<MesPiecesResponse>('/api/me/pieces', {
+      token,
+      headers: { 'X-Profile-Id': `owner:${owner.numeric_id}` },
+    }).catch(() => null),
+    fetchInterlocuteurDuBailleur(token, owner.numeric_id)
+      .then((res) => res.data)
+      .catch(() => null),
+  ]);
 
   // TCK-2613 — deux écrans dans la coque d'entrée : chaque écran porte son titre, la barre dit l'agence et l'étape.
   return (
@@ -63,6 +71,7 @@ export default async function OwnerOnboardingPage({
         ownerProfileId={owner.numeric_id}
         agence={owner.agency?.name ?? null}
         pieces={pieces?.data ?? null}
+        interlocuteur={interlocuteur}
       />
     </OnboardingShell>
   );

@@ -965,6 +965,11 @@ function FormulaireDuBail({
                 <ReglagesAppliques
                   titre={reglagesDeLAgence ? t('reglages.agence') : t('reglages.plateforme')}
                   detail={commission !== null ? t('reglages.detailAvecCommission') : t('reglages.detail')}
+                  modifier={
+                    defauts.can_edit_agency_settings
+                      ? { libelle: t('reglages.modifier'), nouvelOnglet: t('reglages.nouvelOnglet') }
+                      : undefined
+                  }
                   className="md:mt-1"
                 />
               ) : null}

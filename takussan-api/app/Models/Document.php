@@ -121,6 +121,10 @@ class Document extends AbstractModel implements HasMedia
                 )));
                 $classes === [] ? $q->whereRaw('1 = 0') : $q->whereIn($q->qualifyColumn('documentable_type'), $classes);
             })->delimiter(''),
+            // TCK-2841 (ADR-0099, amendement du 2026-11-14) — déclaré pour être accepté ; la borne de
+            // l'arbre (le bien et ses baux hors brouillon) et sa garde vivent dans la requête de base
+            // (`DocumentPolicy::listableOnPropertyAndLeases`), que `DocumentController::index` choisit.
+            AllowedFilter::callback('property_with_leases', function (): void {})->delimiter(''),
             AllowedFilter::callback('expiring_within_days', function (Builder $q, mixed $value): void {
                 $raw = ParametreUnique::valeur($value);
                 if ($raw === null || ! ctype_digit($raw) || strlen($raw) > 4) {

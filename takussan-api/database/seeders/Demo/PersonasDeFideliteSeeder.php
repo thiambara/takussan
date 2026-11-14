@@ -108,6 +108,12 @@ class PersonasDeFideliteSeeder extends Seeder
         self::HOTE => '+221700027930',
     ];
 
+    /**
+     * TCK-2838 — le téléphone public (fictif) de l'agence des personas : la carte « Votre interlocuteur à l'agence » du
+     * bailleur invité le montre quand la gérante, qui n'a pas de numéro, l'a invité.
+     */
+    public const TELEPHONE_DE_L_AGENCE = '+221338279940';
+
     /** Les modèles indexés que ce seeder écrit. */
     private const INDEXES = [User::class, Agency::class, Property::class, MaintenanceRequest::class];
 
@@ -122,6 +128,7 @@ class PersonasDeFideliteSeeder extends Seeder
 
             $gerant = $this->compte(self::GERANT, 'Mariama', 'Faye', null);
             $agence = $this->agence(self::AGENCE, 'Agence des personas', AgencyKind::Standard, $gerant);
+            $agence->forceFill(['phone' => self::TELEPHONE_DE_L_AGENCE])->save();
             $this->profil(AgencyAdminProfile::class, $gerant, $agence, AgencyAdminProfileStatus::Active->value);
 
             $this->invites($agence, $gerant);

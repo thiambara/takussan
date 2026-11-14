@@ -32,7 +32,7 @@
       "produit": {
         "route": "/app/properties/6",
         "persona": "admin",
-        "etat": "le bien 6 de la démo (Dakar Immo), loué donc hors ligne (`offline_reasons = [\"status_rented\"]`, relu le 2026-11-13) : « Loué — remis en ligne à la fin du bail. » sous les pastilles ; aucun bouchon"
+        "etat": "le bien 6 de la démo (Dakar Immo), loué donc hors ligne (`offline_reasons = [\"status_rented\"]`) : depuis le 2026-11-14, aucune ligne sous les pastilles (l'en-tête est celui de la maquette) ; la pastille « Hors ligne » porte le motif en infobulle (survol, focus) ; la phrase visible est en tête de l'onglet Annonce > Aperçu ; aucun bouchon"
       }
     }
   ],
@@ -59,11 +59,11 @@
       "motif": "ADR-0097 § 5 (décidé par le porteur le 2026-11-10) : la maquette a-1 ne dessine que des cartes en ligne, qui n'ont pas de motif. Relevé : 12 px/400 au téléphone (10,8 px au bureau, densité ×0,9), rgb(110,101,90) (muted-foreground, la couleur de la ligne « Propriétaire · Agent »), une ligne de 16 px (14 px au bureau), coupée par ellipse si elle dépasse ; la carte grandit d'autant"
     },
     {
-      "ecran": "app-biens a-2-*",
-      "element": "phrase du motif sous les pastilles de la fiche (« Loué — remis en ligne à la fin du bail. »)",
-      "propriete": "élément absent de la maquette",
+      "ecran": "app-biens a-2-* (hors maquette : onglet Annonce)",
+      "element": "bloc « Hors ligne » et sa phrase (« Loué — remis en ligne à la fin du bail. ») en tête de l'onglet Annonce > Aperçu ; infobulle de la pastille « Hors ligne » de l'en-tête ; le texte `sr-only` de la pastille (1 px), relevé « absent de la maquette » à 1280",
+      "propriete": "élément absent de la maquette (écran non dessiné)",
       "exception": "donnée",
-      "motif": "ADR-0097 § 5 : la maquette a-2 ne dit pas pourquoi un bien est hors ligne. Relevé : 13 px/400, rgb(110,101,90), 19,5 px de haut au téléphone (18,6 px au bureau) ; au bureau, la galerie et les onglets descendent d'autant par rapport au relevé de TCK-2639"
+      "motif": "ADR-0097 § 5 ; décision du team-lead du 2026-11-14 : la maquette retenue a-2 ne dessine aucune ligne sous les pastilles et ne dessine pas l'onglet Annonce ; la maquette b rattache l'état à l'annonce (« Annonce — Hors ligne · … »). L'en-tête ne change d'aucun pixel (le déclencheur d'infobulle a la taille exacte de la pastille). Relevé de l'onglet : .fidelite/TCK-2678/l3-annonce-{telephone,bureau-1280}.png"
     },
     {
       "ecran": "app-biens a-1-*, a-2-*",
@@ -80,12 +80,38 @@
       "a-1-telephone": "30 conformes · 28 écarts · 23 absents · 47.6 % pixels",
       "a-1-bureau-1440": "38 conformes · 172 écarts · 73 absents · 46.96 % pixels",
       "a-1-bureau-1280": "37 conformes · 181 écarts · 83 absents · 45.9 % pixels",
-      "a-2-telephone": "28 conformes · 27 écarts · 22 absents · 33.04 % pixels",
-      "a-2-bureau-1440": "70 conformes · 170 écarts · 55 absents · 25.07 % pixels",
-      "a-2-bureau-1280": "61 conformes · 162 écarts · 55 absents · 23.6 % pixels"
+      "a-2-telephone": "28 conformes · 27 écarts · 22 absents · 33.04 % pixels — PÉRIMÉ le 2026-11-14 : relevé avec la ligne du motif sous les pastilles, retirée depuis (voir a-2-*-2026-11-14)",
+      "a-2-bureau-1440": "70 conformes · 170 écarts · 55 absents · 25.07 % pixels — PÉRIMÉ le 2026-11-14 (même motif)",
+      "a-2-bureau-1280": "61 conformes · 162 écarts · 55 absents · 23.6 % pixels — PÉRIMÉ le 2026-11-14 (même motif)"
     },
     "lecture": "les chiffres de a-1 viennent surtout de la pastille « Hors ligne » (cartes, photos et pastilles différentes de la maquette) ; ils ne se comparent pas à ceux de TCK-2638, relevés sur « En ligne ». Rapports : .fidelite non versionné, comparaisons dans le scratchpad de la session (fid2678/cmp)",
-    "ac5": "balayage de /app/properties?mode=annonces&listing=offline à 390, 768, 1024, 1280 et 1440 : débord 0, aucune coupe ; à 390, la ligne du motif tient sur une ligne (324 px dans une carte de 358 px, 16 px de haut), un seul motif par carte"
+    "ac5": "balayage de /app/properties?mode=annonces&listing=offline à 390, 768, 1024, 1280 et 1440 : débord 0, aucune coupe ; à 390, la ligne du motif tient sur une ligne (324 px dans une carte de 358 px, 16 px de haut), un seul motif par carte",
+    "2026-11-14": {
+      "commit": "ab2b78e8a + arbre de travail partagé (lot 3)",
+      "comparateur": "le même pour les deux colonnes : le relevé du 12 (TCK-2639, produit-*.json) recomparé aujourd'hui (.fidelite/TCK-2678/recmp-12nov-*)",
+      "a-2-telephone": {
+        "12_nov": "43 conformes · 13 écarts · 23 absents · 26.34 % pixels",
+        "14_nov": "43 conformes · 13 écarts · 23 absents · 26.46 % pixels",
+        "rideau": ".fidelite/TCK-2678/l3-cmp-fiche-telephone/",
+        "lecture": "mêmes lignes au rapport que le relevé du 12 recomparé ; les boîtes des nœuds ne bougent d'aucun pixel en hauteur (0 déplacement vertical : la descente de 25,5 px a disparu). Restent 5 nœuds élargis ou décalés en x dans la carte « Ce mois » : « En retard de 9 j » au lieu de 7 j (donnée, la date a avancé) et le séparateur des milliers (« 1825000 F » → « 1 825 000 F », changement de rendu venu d'un autre ticket, pas de TCK-2678). 26,46 % > 26,34 % : l'écart de 0,12 point est là, à trancher par le team-lead"
+      },
+      "a-2-bureau-1280": {
+        "12_nov": "78 conformes · 144 écarts · 57 absents · 18.64 % pixels",
+        "14_nov": "77 conformes · 147 écarts · 55 absents · 18.57 % pixels",
+        "rideau": ".fidelite/TCK-2678/l3-cmp-fiche-bureau-1280/",
+        "lecture": "l'en-tête (titre, identité, pastilles) a les mêmes boîtes qu'au relevé du 12 ; ce qui bouge : la barre latérale (TCK-2836, hors périmètre), « 9 j », le séparateur des milliers. Le texte de l'infobulle, rendu `sr-only` dans le bouton pour les lecteurs d'écran (1 px), apparaît au rapport comme « absent de la maquette » : écart accepté ci-dessus"
+      },
+      "onglet-annonce": {
+        "telephone": ".fidelite/TCK-2678/l3-annonce-telephone.png",
+        "bureau-1280": ".fidelite/TCK-2678/l3-annonce-bureau-1280.png",
+        "lecture": "bloc « Hors ligne » + « Loué — remis en ligne à la fin du bail. » en tête de l'aperçu, avant les chiffres ; aucune maquette pour cet onglet"
+      },
+      "infobulle-1280": {
+        "releve": ".fidelite/TCK-2678/l3-infobulle-1280.png (perturbation p-infobulle.js : focus sur la pastille)",
+        "resultat": "focus sur le bouton, infobulle « Loué — remis en ligne à la fin du bail. » ouverte sous la pastille (665,116 204×29), non rognée par l'en-tête"
+      },
+      "decisions_team_lead": "2026-11-14 : écart de 0,12 point au téléphone accepté (donnée « 9 j » et rendu du séparateur des milliers) ; au téléphone, le motif se lit dans l'onglet Annonce (une infobulle ne s'ouvre pas au toucher) ; les « coupes » relevées à 390 sur les pastilles de l'en-tête sr-only sont voulues"
+    }
   },
   "hors_perimetre": [
     "le quota de biens (ADR-0097 § 6)",

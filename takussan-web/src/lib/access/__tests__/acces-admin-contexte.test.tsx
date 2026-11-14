@@ -38,6 +38,7 @@ describe('AccesAdminProvider (TCK-633)', () => {
       chemins: [
         '/app/agency',
         '/app/agency/finances',
+        '/app/agency/lease-settings',
         '/app/agency/integrations',
       ],
       espaceIndividuel: true,

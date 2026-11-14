@@ -32,7 +32,7 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10, audit UX famille 4 ([`04-patrimoine
 4. **Le libellé du statut `published`.** **Décidé par le porteur le 2026-11-10** : « Validé ». C'est le sens du statut dans le cycle de modération : le bien a passé la revue, il peut être en ligne. Le code et la valeur `published` ne changent pas, seul le libellé change. C'est le front qui porte le texte (principe 5).
 5. **Le motif d'un bien hors ligne.** Faut-il que la fiche dise *pourquoi* un bien est hors ligne : privé, en attente de validation, agence suspendue, loué, archivé ?
    - **Décidé par le porteur le 2026-11-10** : oui. L'API sert une liste de **codes de motif**, calculée par le **même** prédicat décomposé, jamais déduite par l'écran.
-   - Ce n'est pas dans TCK-2637. C'est un ticket à part, [TCK-2678](../backlog/tickets/todo/TCK-2678-motif-d-un-bien-hors-ligne.md), qui ne rouvre pas cet ADR.
+   - Ce n'est pas dans TCK-2637. C'est un ticket à part, [TCK-2678](../backlog/tickets/done/TCK-2678-motif-d-un-bien-hors-ligne.md), qui ne rouvre pas cet ADR.
 6. **Le quota ne change pas dans ce lot.**
    - Il continue de compter les biens « actifs » par statut. L'écran du quota dit ce qu'il compte (« biens actifs : disponibles, validés ou en attente »), au lieu de laisser croire qu'il compte les biens en ligne.
    - Passer à « en ligne » toucherait la facturation des abonnements (famille 6). **Décidé par le porteur le 2026-11-10** : le quota reste inchangé ; le changer demanderait un ADR qui amende celui-ci.

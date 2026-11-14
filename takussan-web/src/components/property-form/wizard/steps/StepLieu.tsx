@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Crosshair, Loader2 } from 'lucide-react';
+import { ChevronDown, Crosshair, Loader2 } from 'lucide-react';
 import { useFormState, type UseFormReturn } from 'react-hook-form';
 
 import { FormInput } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import type { PropertyFormValues } from '@/lib/schemas/property';
+import { cn } from '@/lib/utils';
 import { useGeoSuggestion } from '@/hooks/useGeoSuggestion';
 import { ChampsLieu } from '../../ChampsLieu';
 import { ChampsPosition } from '../../ChampsPosition';
@@ -140,66 +141,86 @@ export function StepLieu({
     : etatPosition === 'echec' ? t('useMyPositionFailed')
     : null;
 
+  // TCK-2819 (lot 2) — maquette a-1 : la suggestion en pastille, région / ville / quartier en grille
+  // (deux colonnes au bureau, le quartier sur toute la ligne), la rue dans un encadré repliable, puis
+  // « Sur la carte » et ses gestes en pastilles. `ChampsLieu` et `ChampsPosition` restent ceux de la
+  // page d'édition : seule leur mise en page change ici.
   return (
     <>
-      {suggestion ? (
-        <GeoSuggestionChip
-          city={suggestion.city}
-          region={suggestion.region}
-          onAccept={accepterSuggestion}
-          hidden={suggestionUtilisee}
-        />
-      ) : null}
+      <div className="space-y-5">
+        {suggestion ? (
+          <GeoSuggestionChip
+            city={suggestion.city}
+            region={suggestion.region}
+            onAccept={accepterSuggestion}
+            hidden={suggestionUtilisee}
+          />
+        ) : null}
 
-      <ChampsLieu form={form} flash={champsRemplis} />
+        <div className="grid gap-4 lg:grid-cols-2 lg:[&>*:nth-child(3)]:col-span-2">
+          <ChampsLieu form={form} flash={champsRemplis} />
+        </div>
 
-      <div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="min-h-11"
-          onClick={() => setDetailsOuverts((o) => !o)}
-          aria-expanded={detailsOuverts}
-          aria-controls="wizard-details-adresse"
-        >
-          {detailsOuverts ? t('addressDetailsHide') : t('addressDetailsShow')}
-        </Button>
-        <WizardCollapsibleSection
-          open={detailsOuverts}
-          id="wizard-details-adresse"
-          testId="details-adresse"
-        >
-          <div className="space-y-5 pt-3">
-            <FormInput
-              control={control}
-              name="street"
-              label={t('fields.street')}
-              placeholder={t('placeholders.street')}
+        <section className="rounded-xl border border-border bg-card">
+          <button
+            type="button"
+            className="flex min-h-12 w-full items-center gap-2 rounded-xl px-4 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            onClick={() => setDetailsOuverts((o) => !o)}
+            aria-expanded={detailsOuverts}
+            aria-controls="wizard-details-adresse"
+            aria-label={detailsOuverts ? t('addressDetailsHide') : t('addressDetailsShow')}
+          >
+            <span className="min-w-0 flex-1 text-corps font-medium text-foreground">{t('addressDetailsTitle')}</span>
+            <span className="text-ui text-muted-foreground">
+              {detailsOuverts ? t('addressDetailsToggleHide') : t('addressDetailsToggleShow')}
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('size-4 flex-none text-muted-foreground transition-transform', detailsOuverts && 'rotate-180')}
             />
-            <FormInput
-              control={control}
-              name="postal_code"
-              label={t('fields.postalCode')}
-              placeholder={t('placeholders.postalCode')}
-            />
-            <FormInput
-              control={control}
-              name="country"
-              label={t('fields.country')}
-              placeholder={t('placeholders.country')}
-              maxLength={2}
-            />
-          </div>
-        </WizardCollapsibleSection>
+          </button>
+          <WizardCollapsibleSection
+            open={detailsOuverts}
+            id="wizard-details-adresse"
+            testId="details-adresse"
+          >
+            <div className="grid grid-cols-2 gap-4 border-t border-border p-4 lg:grid-cols-[minmax(0,1fr)_8.75rem_8.75rem]">
+              <div className="col-span-2 lg:col-span-1">
+                <FormInput
+                  control={control}
+                  name="street"
+                  label={t('fields.street')}
+                  placeholder={t('placeholders.street')}
+                />
+              </div>
+              <FormInput
+                control={control}
+                name="postal_code"
+                label={t('fields.postalCode')}
+                placeholder={t('placeholders.postalCode')}
+              />
+              <FormInput
+                control={control}
+                name="country"
+                label={t('fields.country')}
+                placeholder={t('placeholders.country')}
+                maxLength={2}
+              />
+            </div>
+          </WizardCollapsibleSection>
+        </section>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-corps font-semibold text-foreground">{t('mapTitle')}</h2>
+          <p className="mt-1 text-ui leading-snug text-muted-foreground">{t('mapIntro')}</p>
+        </div>
         <Button
           type="button"
           variant="outline"
           size="lg"
-          className="min-h-11 w-full"
+          className="min-h-11 w-full rounded-full"
           data-testid="bouton-position"
           onClick={utiliserMaPosition}
           disabled={etatPosition === 'attente'}
@@ -216,7 +237,7 @@ export function StepLieu({
             {messagePosition}
           </p>
         ) : null}
-        <ChampsPosition form={form} indiceCarte={t('mapHint')} />
+        <ChampsPosition form={form} indiceCarte={t('mapHint')} presentation="assistant" />
       </div>
     </>
   );

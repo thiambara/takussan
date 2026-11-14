@@ -12,6 +12,8 @@ import { PropertyPriceHistoryList } from '@/components/property-dashboard/Proper
 import { OngletLocation } from '@/components/property-dashboard/fiche/OngletLocation';
 import { OngletDocuments, useDocumentsDuBien } from '@/components/property-dashboard/fiche/OngletDocuments';
 import { BarreDuBien } from '@/components/property-dashboard/fiche/BarreDuBien';
+import { MotifsHorsLigne } from '@/components/property-dashboard/fiche/MotifsHorsLigne';
+import { phrasesDesMotifs } from '@/lib/biens/motifs-hors-ligne';
 import { useMaintenanceHistoryForProperty } from '@/lib/queries/maintenance';
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
@@ -94,6 +96,10 @@ function Compte({ n }: { readonly n: number | null | undefined }) {
 
 export function PropertyDetailTabs({ property, tags, personnel = false, lienVersLeBailleur = false }: Props) {
   const t = useTranslations('propertyDashboard.tabs');
+  const tIdentite = useTranslations('propertyDashboard.fiche.identite');
+  const tMotif = useTranslations('propertyDashboard.horsLigne');
+  // TCK-2678 (AC4, 2026-11-14) — les motifs que l'API a jugés, jamais recomposés du statut ni de la visibilité.
+  const motifs = property.is_online === false ? phrasesDesMotifs(property.offline_reasons ?? [], (cle) => tMotif(cle)) : [];
   const searchParams = useSearchParams();
   // TCK-596 §3B — le calendrier d'hôte n'a de sens que pour un séjour court (nuit ou semaine).
   const hasCalendar =
@@ -197,6 +203,15 @@ export function PropertyDetailTabs({ property, tags, personnel = false, lienVers
         </div>
         {position.section === 'apercu' ? (
           <div className="space-y-6">
+            {/* TCK-2678 — pourquoi l'annonce est hors ligne, en tête de l'aperçu : la maquette retenue de la
+                fiche (app-biens a-2) n'en dessine rien sous les pastilles de l'en-tête, la maquette b le
+                rattache à l'annonce (« Annonce — Hors ligne »). Les gestes restent où ils sont. */}
+            {motifs.length > 0 ? (
+              <section data-slot="annonce-hors-ligne" className="rounded-xl bg-card p-5">
+                <h2 className="text-base font-semibold text-foreground">{tIdentite('horsLigne')}</h2>
+                <MotifsHorsLigne phrases={motifs} className="mt-1" />
+              </section>
+            ) : null}
             <PropertyOverviewPanel property={property} onJumpTo={sauter} />
             {/* TCK-504 — qui répond pour le bien, et le choisir : là où l'on relit le bien. */}
             <PropertyCollaboratorsPanel propertyId={property.id} />

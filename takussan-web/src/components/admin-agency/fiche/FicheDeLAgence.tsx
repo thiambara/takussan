@@ -12,6 +12,7 @@ import {
   Building2,
   ChevronRight,
   ExternalLink,
+  FileText,
   ListChecks,
   Loader2,
   Receipt,
@@ -90,6 +91,7 @@ const ICONES: Readonly<Record<SectionDeLaFiche, LucideIcon>> = {
   facturation: Receipt,
   verification: BadgeCheck,
   regles: Scale,
+  bail: FileText,
   menu: ListChecks,
   offre: Briefcase,
 };
@@ -103,6 +105,8 @@ const ICONES: Readonly<Record<SectionDeLaFiche, LucideIcon>> = {
 export function lienExterne(section: SectionDeLaFiche): string | null {
   if (section === 'verification') return '/app/agency/kyc';
   if (section === 'offre') return '/app/settings/agency/upgrade';
+  // TCK-2832 — les réglages de bail, une page de la fiche (le lien de l'encart du nouveau bail y mène).
+  if (section === 'bail') return '/app/agency/lease-settings';
   return null;
 }
 
@@ -377,6 +381,7 @@ export function FicheDeLAgence({ agency, vitrine, filigranes, origineSite }: Fic
     menu: <SectionMenu />,
     verification: null,
     offre: null,
+    bail: null,
   }[affichee];
 
   const enregistrer = (
@@ -902,6 +907,8 @@ function detailDeLaSection(
     }
     case 'regles':
       return individuelle ? tFiche('sections.regles.detailIndividuelle') : tFiche('sections.regles.detail');
+    case 'bail':
+      return tFiche('sections.bail.detail');
     case 'menu': {
       const total = CODES_DE_MODULE.length;
       const masques = reglagesDeLaFiche({

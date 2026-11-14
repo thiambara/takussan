@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -105,6 +106,9 @@ export function TeteDeSelection({
         </Button>
         <BoutonRelancerLaSelection n={n} onRelancer={onRelancer} className="flex-none max-md:hidden" />
       </div>
+      {/* TCK-2836 — le mode sélection est déclaré à la coque : au téléphone, la barre d'onglets s'efface et
+          la barre collante « Relancer la sélection » devient le bas de l'écran (zone sûre comprise). */}
+      <DeclarerEnTete selection />
       <BarreDAction>
         <BoutonRelancerLaSelection n={n} onRelancer={onRelancer} />
       </BarreDAction>

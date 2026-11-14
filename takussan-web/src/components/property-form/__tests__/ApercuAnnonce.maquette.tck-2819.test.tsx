@@ -60,9 +60,19 @@ describe('CarteApercu (maquette `CarteApercu`)', () => {
     expect(c.getByText('Mermoz, Dakar')).toBeInTheDocument();
     expect(c.getByTestId('apercu-prix')).toHaveTextContent(/^250\s000\sF CFA \/ mois$/);
     expect(c.getByTestId('apercu-prix')).toHaveClass('text-xl', 'font-semibold', 'text-primary-deep');
-    // (250 000 + 15 000) × 2 + 250 000 × 2 = 1 030 000. Composantes et note restent sous la carte jusqu'au
-    // lot 2 (décision de team-lead, 2026-11-14 : aucune information ne quitte le parcours) — TCK-633 les épingle.
-    expect(c.getByTestId('apercu-total-entree')).toHaveTextContent(/^Total à l’entrée : 1\s030\s000\sF CFA$/);
+    // (250 000 + 15 000) × 2 + 250 000 × 2 = 1 030 000. Lot 2 : la carte ne dit plus que la ligne de la
+    // maquette ; composantes et note sont à l'encadré de l'étape du prix (StepPrix.encadre.tck-2819).
+    expect(c.getByTestId('apercu-total-entree')).toHaveTextContent(/^À l’entrée : 1\s030\s000\sF CFA$/);
+    expect(c.getByTestId('apercu-total-entree')).toHaveClass('text-ui', 'text-muted-foreground');
+    expect(c.queryByText(/montant indicatif/i)).not.toBeInTheDocument();
+  });
+
+  it('les chiffres tant qu’il n’y a pas de prix, puis le prix et l’entrée à leur place (maquette a-2, a-3)', () => {
+    const { unmount } = render(withIntl(<Harnais valeurs={{ ...STUDIO, price: undefined, area: 38 }} rendu={(f) => <CarteApercu form={f} photos={[]} compact />} />));
+    expect(within(screen.getByTestId('apercu-annonce')).getByText('38 m²')).toBeInTheDocument();
+    unmount();
+    render(withIntl(<Harnais valeurs={{ ...STUDIO, area: 38 }} rendu={(f) => <CarteApercu form={f} photos={[]} compact />} />));
+    expect(within(screen.getByTestId('apercu-annonce')).queryByText('38 m²')).not.toBeInTheDocument();
   });
 
   it('avant toute réponse : ni pastille ni compteur, lieu et prix à venir', () => {

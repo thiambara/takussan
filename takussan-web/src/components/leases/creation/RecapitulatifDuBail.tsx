@@ -50,17 +50,25 @@ export function CarteDeRecapitulatif({
 }
 
 /**
- * TCK-2643 — « Réglages de l'agence appliqués » (maquette `ReglagesAgence`), SANS « Modifier »
- * (décision 7 de la session) : aucune page n'écrit encore un réglage d'agence. Le titre dit d'où
+ * TCK-2643 — « Réglages de l'agence appliqués » (maquette `ReglagesAgence`). Le titre dit d'où
  * viennent les valeurs — l'agence quand l'une d'elles en vient, la plateforme sinon.
+ *
+ * TCK-2832 — « Modifier » (maquette) mène à `/app/agency/lease-settings`, à qui l'API dit pouvoir
+ * écrire ces réglages (`can_edit_agency_settings`), jamais déduit du rôle. Il s'ouvre dans un NOUVEL
+ * onglet : la navigation interne ne déclenche pas l'avertissement de départ, et la saisie du bail
+ * serait perdue sans un mot. Au retour, les défauts se relisent (`useLeaseDefaults`, `staleTime: 0`)
+ * et le nouveau réglage préremplit les champs que l'agent n'a pas touchés.
  */
 export function ReglagesAppliques({
   titre,
   detail,
+  modifier,
   className,
 }: {
   readonly titre: string;
   readonly detail: string;
+  /** Le libellé du lien et son complément lu seul (« s'ouvre dans un nouvel onglet ») ; absent : pas de lien. */
+  readonly modifier?: { readonly libelle: string; readonly nouvelOnglet: string };
   readonly className?: string;
 }) {
   return (
@@ -72,6 +80,17 @@ export function ReglagesAppliques({
         <span className="block text-sm font-medium text-foreground">{titre}</span>
         {detail}
       </p>
+      {modifier ? (
+        <a
+          href="/app/agency/lease-settings"
+          target="_blank"
+          rel="noopener"
+          className="flex-none rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          {modifier.libelle}
+          <span className="sr-only"> {modifier.nouvelOnglet}</span>
+        </a>
+      ) : null}
     </div>
   );
 }

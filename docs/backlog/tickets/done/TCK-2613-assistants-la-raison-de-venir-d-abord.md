@@ -185,7 +185,7 @@ Pas de régression — chaque fonction des assistants d'aujourd'hui reste, dépl
 - **Écart relevé, laissé ouvert** : au téléphone, « Accepter » est dans la piste la plus étroite (164 px contre 186 px). La piste `1fr` de « Proposer un créneau », qui ne passe pas à la ligne, s'élargit à son contenu, alors que la maquette donne 1,15 fr à « Accepter ». Ce n'est pas une nouveauté : l'ordre d'avant donnait la même chose.
 - **AC1 à AC4 et AC6 ont des preuves de parcours** (écritures autorisées par team-lead), décrites sous chaque AC. AC-F2 à AC-F5 restent ouverts : a-0, a-1 et a-2 n'ont pas été relevés de nouveau.
 - **Droits refusés (✗) de l'agent** : écart accepté pour motif « donnée », car l'API ne sert que les droits donnés.
-- **« Ton interlocutrice »** : l'écart reste ouvert ; ticket de suite [TCK-2838](../todo/TCK-2838-le-bailleur-invite-voit-son-interlocuteur.md).
+- **« Ton interlocutrice »** : l'écart reste ouvert ; ticket de suite [TCK-2838](TCK-2838-le-bailleur-invite-voit-son-interlocuteur.md).
 - **TCK-2835 n'est pas nécessaire** : l'acceptation passe le profil invité à `active` (`InvitationService`), et la reprise par `?owner=`, `?agent=` ou `?sp=` lit un profil actif.
 - **Mesures**, sous verrou, sans clic. Écritures bornées en base de démo locale : `users.phone_verified_at` des utilisateurs 3 et 8, de `NULL` à `now()` à 16:15:52, remis à `NULL` à 16:16:20 (trap, relu par psql). Puis, pour les preuves de parcours : voir le journal ci-dessous. La page n'a fait aucune écriture (0 bloquée) et n'a levé aucune erreur.
 - **Fidélité v2 de l'écran a-4** : téléphone 18,51 % (19,07 % en v1), bureau 1280 8,52 % (11,62 % en v1). L'écran a-2 n'a pas été relevé à nouveau : l'outil des relevés ne connaît pas la persona `personas-prestataire-intervention`.

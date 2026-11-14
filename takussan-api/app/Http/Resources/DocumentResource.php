@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Lease;
 use App\Services\Document\DocumentVersionService;
 use App\Services\Documents\AuteurDuDocument;
 use App\Services\Documents\DocumentVisibility;
@@ -86,6 +87,16 @@ class DocumentResource extends BaseResource
             'id' => $this->id,
             'documentable_id' => $this->documentable_id,
             'documentable_type' => $this->documentable_type,
+            // TCK-2841 — le bail porteur, nommé à l'écran (l'onglet Documents d'un bien range ses pièces
+            // par bail) : lu sur le porteur que la page charge déjà, sans requête de plus.
+            'lease' => $this->when(
+                $this->documentable_type === Lease::class && $this->relationLoaded('documentable') && $this->documentable instanceof Lease,
+                fn (): array => [
+                    'id' => (int) $this->documentable->id,
+                    'reference_number' => $this->documentable->reference_number,
+                    'status' => $this->enumValue($this->documentable->status),
+                ],
+            ),
             'uploaded_by' => $this->uploaded_by,
             // TCK-2773 — le nom, un rôle ou rien, selon le lecteur ; absent d'une liste.
             'uploaded_by_person' => $this->when($juge !== null, fn () => $juge->de($this->uploaded_by)),

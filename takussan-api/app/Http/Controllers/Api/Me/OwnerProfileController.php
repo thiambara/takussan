@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\ShowInterlocuteurOwnerProfileRequest;
 use App\Http\Requests\Api\Me\UpdateOwnerTaxIdRequest;
 use App\Http\Requests\Api\Me\UploadKycOwnerProfileRequest;
 use App\Http\Resources\PropertyResource;
@@ -10,6 +11,7 @@ use App\Models\Document;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Services\Kyc\ProfilePieces;
+use App\Services\Owners\InterlocuteurDuBailleur;
 use App\Support\Masking;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
@@ -195,6 +197,24 @@ class OwnerProfileController extends Controller
         // suivi admin et bien de test, qu'aucune ressource n'émet. L'agence d'un `include=agency`
         // sort par sa projection publique (`buildAgency`), sans seuil des reversements (P61.02).
         return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * TCK-2838 — GET /api/me/owner-profiles/{owner_profile}/interlocuteur
+     *
+     * La personne qui, à l'agence, s'occupe du bailleur ({@see InterlocuteurDuBailleur}) : prénom, nom, rôle (un
+     * code, le front le dit), téléphone public et WhatsApp, sous `fields[interlocuteur]`. `{data: null}` quand il
+     * n'y a personne à montrer. Le titulaire du profil seul (`viewInterlocutor`, dans le FormRequest).
+     */
+    public function interlocutor(ShowInterlocuteurOwnerProfileRequest $request, OwnerProfile $owner_profile): JsonResponse
+    {
+        $interlocuteur = app(InterlocuteurDuBailleur::class)->pour($owner_profile);
+        if ($interlocuteur === null) {
+            return $this->json(['data' => null]);
+        }
+
+        return $this->json(['data' => ['source' => $interlocuteur['source']]
+            + array_intersect_key($interlocuteur, array_flip($request->champs()))]);
     }
 
     /**

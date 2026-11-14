@@ -186,7 +186,7 @@ describe('AC1 — publication : tous les champs sont à 44 px, et les pastilles 
     const boutons = Array.from(container.querySelectorAll('button'));
     expect(boutons.length, 'StepBien : aucun bouton trouvé').toBeGreaterThan(0);
     for (const b of boutons) {
-      expect(b.className, `StepBien : cible sous 44 px — "${b.textContent}"`).toMatch(/(^|\s)min-h-(11|20)(\s|$)/);
+      expect(b.className, `StepBien : cible sous 44 px — "${b.textContent}"`).toMatch(/(^|\s)min-h-(11|14|19|20)(\s|$)/);
     }
   });
 
@@ -214,7 +214,11 @@ describe('AC1 — publication : tous les champs sont à 44 px, et les pastilles 
   it('étape Prix — c’est ici que vit le `FormDatePicker`, le champ qu’aucune reprise locale n’atteignait', () => {
     const { container } = harnais({ contract_type: 'rent' }, (form) => <StepPrix form={form} />);
     expect(container.querySelector('[data-slot="date-picker-trigger"]')).not.toBeNull();
-    expect(container.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
+    // TCK-2819 (lot 2) — plus de liste au prix : la fréquence est en pastilles (44 px, `min-h-11`), les
+    // mois en compteurs dont les gestes − / + font 44 px.
+    expect(container.querySelector('[role="radiogroup"] [role="radio"]')).toHaveClass('min-h-11');
+    container.querySelectorAll('[data-compteur] button').forEach((b) => expect(b).toHaveClass('size-11'));
+    expect(container.querySelectorAll('[data-compteur] button').length).toBeGreaterThanOrEqual(4);
     exigeCiblesConfortables(container, 'StepPrix');
   });
 

@@ -40,6 +40,7 @@ const HORS_BUILD_QUERY: Record<string, string> = {
   profiles: 'Me\\MeProfilesController::index : profils assemblés à la main, aucune table `profiles`',
   personal_access_tokens: 'Admin\\UserDetailController::sessions : liste écrite à la main, aucun modèle à `$queryFields`',
   moderation: 'Admin\\ModerationQueueController::index : file assemblée à la main, aucune table `moderation`',
+  interlocuteur: 'Me\\OwnerProfileController::interlocutor (TCK-2838) : champs lus par ShowInterlocuteurOwnerProfileRequest::CHAMPS, aucune table `interlocuteur`',
   radar_observatory: 'Admin\\RadarObservatoryController::market (TCK-2393) : les SECTIONS du marché, lues par RadarObservatoryRequest — aucune table `radar_observatory`',
 };
 

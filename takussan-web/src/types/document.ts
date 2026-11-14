@@ -60,6 +60,8 @@ export type Document = {
   id: number;
   documentable_id: number;
   documentable_type: string;
+  /** TCK-2841 — le bail porteur, sur une ligne dont le porteur est un bail (lu sur la liste). */
+  lease?: { id: number; reference_number: string | null; status: string | null };
   uploaded_by: number | null;
   /** TCK-2773 — sur la fiche (un document seul), jamais sur une liste. */
   uploaded_by_person?: AuteurServi | null;

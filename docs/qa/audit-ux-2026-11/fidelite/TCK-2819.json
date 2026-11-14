@@ -139,7 +139,36 @@
      "bureau-1280": "31 · 25 · 15 · 7,34 % (avant : 14 · 38 · 20 · 14,74 %)"
     }
    },
-   "balayage": "balayer2.mjs (BALAYAGE de fidelite + géométrie, `innerWidth` relevé à chaque ligne : 360 → 360, 390 → 390), balayage-l1.jsonl : a0 à a5 × 360, 390, 768, 1024, 1280, 1440 — débord 0 et document sans défilement sur les 36 ; « Continuer » 48 px de haut et visible sous `lg` à chaque étape (y 776 sur 844), 172 de large (136 avec « Plus tard » à 390, 125 à 360, 181 pour « Publier l’annonce ») ; a-4 à 360 : « Continuer » finit à 344 = 360 − 16 après l'écart réduit (ré-relevé, 2026-11-14). Pied du téléphone 117 px. /app/properties/new (balayer --persona proprietaire, balayage-app-l1.jsonl, étape 1 seule : avancer écrirait un brouillon serveur) : débord 0 aux six largeurs. Ellipses : le résumé « Studio · En location · Dakar » à 360 (troncature voulue, comme la maquette), le titre long à 360/390 sur a-5. /app/properties/new relevé aussi (étape 1, persona proprietaire, wizard-drafts bloqué : d'où le bandeau « L’enregistrement automatique ne répond plus » de la capture) : app-new-mobile.{json,png} — « Continuer » 358 × 48 à y 776, pied 117 ; app-new-desktop.{json,png} à 1280 — pied plein écran d'avant (« Continuer » 158,4 × 39,6, « Précédent » à x 41,4), colonne d'aperçu à la carte de la maquette."
+   "balayage": "balayer2.mjs (BALAYAGE de fidelite + géométrie, `innerWidth` relevé à chaque ligne : 360 → 360, 390 → 390), balayage-l1.jsonl : a0 à a5 × 360, 390, 768, 1024, 1280, 1440 — débord 0 et document sans défilement sur les 36 ; « Continuer » 48 px de haut et visible sous `lg` à chaque étape (y 776 sur 844), 172 de large (136 avec « Plus tard » à 390, 125 à 360, 181 pour « Publier l’annonce ») ; a-4 à 360 : « Continuer » finit à 344 = 360 − 16 après l'écart réduit (ré-relevé, 2026-11-14). Pied du téléphone 117 px. /app/properties/new (balayer --persona proprietaire, balayage-app-l1.jsonl, étape 1 seule : avancer écrirait un brouillon serveur) : débord 0 aux six largeurs. Ellipses : le résumé « Studio · En location · Dakar » à 360 (troncature voulue, comme la maquette), le titre long à 360/390 sur a-5. /app/properties/new relevé aussi (étape 1, persona proprietaire, wizard-drafts bloqué : d'où le bandeau « L’enregistrement automatique ne répond plus » de la capture) : app-new-mobile.{json,png} — « Continuer » 358 × 48 à y 776, pied 117 ; app-new-desktop.{json,png} à 1280 — pied plein écran d'avant (« Continuer » 158,4 × 39,6, « Précédent » à x 41,4), colonne d'aperçu à la carte de la maquette.",
+   "resultats_lot2": {
+    "dossiers": "scratchpad de la session, impl/lot2/w2-2819/ : l2-prod-a-{0..5}-{telephone,bureau-1280} et l2-cmp-*/ (l2.log, 2026-11-14) ; a-3 re-relevé après la ligne loyer + fréquence du bureau : l2b-*. Perturbateurs a3/a4/a5 étendus : 2 + 2 mois et 15 000 F de charges (aucune écriture serveur, brouillon local du profil jetable). Lecture : conformes · écarts · absents · pixels.",
+    "a-0": {
+     "telephone": "7 · 37 · 12 · 13,75 % (lot 1 : 7 · 33 · 16 · 15,97 %)",
+     "bureau-1280": "14 · 64 · 11 · 8,55 % (lot 1 : 14 · 60 · 15 · 9,72 %)"
+    },
+    "a-1": {
+     "telephone": "7 · 18 · 18 · 10,96 % (lot 1 : 7 · 16 · 20 · 9,86 %)",
+     "bureau-1280": "26 · 39 · 15 · 6,91 % (lot 1 : 26 · 36 · 16 · 5,4 %)"
+    },
+    "a-2": {
+     "telephone": "7 · 31 · 18 · 13,26 % (lot 1 : 7 · 23 · 26 · 11,43 %)",
+     "bureau-1280": "15 · 53 · 20 · 7,47 % (lot 1 : 15 · 52 · 21 · 7,04 %)"
+    },
+    "a-3": {
+     "telephone": "7 · 35 · 8 · 10,77 % (lot 1 : 7 · 11 · 30 · 10,86 %)",
+     "bureau-1280": "19 · 52 · 10 · 5,44 % (lot 1 : 29 · 18 · 31 · 4,52 %)"
+    },
+    "a-4": {
+     "telephone": "7 · 25 · 2 · 32,65 % (lot 1 : 7 · 15 · 11 · 30,95 %)",
+     "bureau-1280": "18 · 39 · 6 · 7,77 % (lot 1 : 30 · 20 · 12 · 7,88 %)"
+    },
+    "a-5": {
+     "telephone": "2 · 15 · 13 · 18,62 % (lot 1 : 2 · 15 · 13 · 18,74 %)",
+     "bureau-1280": "17 · 39 · 15 · 7,23 % (lot 1 : 31 · 25 · 15 · 7,34 %)"
+    },
+    "lecture": "les absents baissent sur a-0 à a-4 (les nœuds des étapes s'apparient désormais : cartes, tuiles, compteurs, vignettes), d'où la hausse des écarts ; a-5 inchangé (13 et 15 absents : contacts sur place, note de fin, cf. ecarts_ouverts). Bureau a-3 à a-5 : « Pour publier » y descendait de 21 px — la carte disait à la fois les chiffres (« 38 m² ») et « À l’entrée » ; corrigé après ce relevé (les chiffres tant qu'il n'y a pas de prix, comme la maquette a-2 / a-3 et le résumé du téléphone). Les autres écarts restants sont surtout des y (ligne d'état « Brouillon gardé sur ce téléphone », état des perturbateurs : a-2 sans étage ni année, a-3 sans date) et ceux listés ci-dessous. a-4 téléphone : 32 % de pixels = les photos de la maquette contre les vignettes du produit.",
+    "balayage": "w2-2819/balayage-l2.jsonl (balayer2, /publish, a-0 à a-5 × 360, 390, 768, 1024, 1280, 1440, innerWidth relevé) : débord 0, débord interne 0, document sans défilement sur les 36 ; « Continuer » 48 px visible sous lg à chaque étape (y 776 sur 844) ; aucune requête autre que GET. Ellipses : le résumé à 360 (voulu), le titre long à 360/390 sur a-5, et deux nœuds vides sur a-4 (les champs de fichier sr-only). /app/properties/new (balayage-app-l2.txt, persona proprietaire) : débord 0 aux six largeurs, étape 1 seule — les étapes suivantes partagent les composants de /publish mais n'y sont pas balayées (l'outil n'avance pas l'assistant connecté)."
+   }
   }
  },
  "roles": [
@@ -259,6 +288,34 @@
    "propriete": "« Publier l’annonce » au lieu de « Publier » (181 × 48 au téléphone au lieu de 172)",
    "exception": "décision de la session du 2026-11-14 (ticket)",
    "motif": "libellé de l'assistant partagé (`finishLabel`), repris par la feuille de compte (TCK-2601)"
+  },
+  {
+   "ecran": "a-3 (téléphone, bureau)",
+   "element": "« Total à l’entrée »",
+   "propriete": "1 030 000 F au lieu de 1 015 000 F ; note « 2 mois d’avance, 2 mois de caution, 15 000 F CFA de charges par mois » + « Montant indicatif… fait foi » au lieu de « … + les charges du premier mois. Affiché sur ton annonce. »",
+   "exception": "règle métier (TCK-633, jumelle de CoutDEntree côté API)",
+   "motif": "la règle compte les charges de chaque mois d'avance : (250 000 + 15 000) × 2 + 250 000 × 2 = 1 030 000 ; la phrase dessinée décrirait un autre calcul. La note de TCK-633 (indicatif) quitte la carte pour l'encadré, aucune information ne quitte le parcours"
+  },
+  {
+   "ecran": "a-3 (téléphone, bureau)",
+   "element": "champ « Loyer »",
+   "propriete": "44 px, 16 px au lieu de 56 px, 26 px Bricolage",
+   "exception": "règle du design system (uniformité des champs, TCK-2460)",
+   "motif": "une hauteur de champ ne se décide que par la primitive et la portée de densité (check-champs-uniformes) ; l'unité « F CFA » est dans le champ comme la maquette"
+  },
+  {
+   "ecran": "a-0, a-2, a-3 (téléphone, bureau)",
+   "element": "pastilles retenues (« Mois », « Bon état »)",
+   "propriete": "conformes (encre pleine) ; « Fréquence » reste le nom accessible du groupe, « Par » n'est lu qu'à l'écran",
+   "exception": "accessibilité",
+   "motif": "le groupe de radios garde un nom qui dit ce qu'on choisit"
+  },
+  {
+   "ecran": "a-4 (bureau)",
+   "element": "« Prendre une photo » sous la zone de dépôt",
+   "propriete": "absent à la souris (présent au doigt)",
+   "exception": "décision TCK-913",
+   "motif": "sur un ordinateur `capture` est ignoré : le geste doublerait la zone (`pointer-fine:hidden`)"
   }
  ],
  "hors_perimetre": [
@@ -281,50 +338,65 @@
  "notes": [
   "Premier lot de TCK-2819 : le pied du téléphone (WizardShell sous `lg`, aux deux entrées), la colonne d'aperçu (`CarteApercu`, `ListePourPublier`) et le résumé du téléphone (`BarreApercu`). Le contenu des six étapes n'est pas porté : ses écarts sont l'essentiel de ce qui reste (ecarts_ouverts).",
   "Un seul assistant : `WizardShell` et `ApercuAnnonce` servent les deux entrées. `/app/properties/new` garde son pied plein écran dès `lg` (classes `lg:` d'avant, épinglées par WizardShell.pied-du-telephone.tck-2819 et WizardShell.cadre-d-entree.tck-2600) ; sous `lg` il prend le pied de la maquette, comme `/publish`.",
-  "Bureau a-0 et a-2 : +4 écarts pour −6 et −5 absents — des nœuds de la colonne que le relevé n'appariait pas avant (pastille, titre, puces de « Pour publier ») le sont désormais ; leurs écarts restants sont leur `y` (colonne collante, ecarts_ouverts) et l'encre douce des étapes à venir (ecarts_acceptes)."
+  "Bureau a-0 et a-2 : +4 écarts pour −6 et −5 absents — des nœuds de la colonne que le relevé n'appariait pas avant (pastille, titre, puces de « Pour publier ») le sont désormais ; leurs écarts restants sont leur `y` (colonne collante, ecarts_ouverts) et l'encre douce des étapes à venir (ecarts_acceptes).",
+  "Lot 2 (2026-11-14) : contenu des étapes — prix (loyer, pastilles de fréquence, encadré à compteurs et total), bien (cartes et tuiles), caractéristiques (grille, « Meublé » en case), lieu (grille, rue en encadré repliable, « Sur la carte », pastilles), photos (DepotDePhotos), finition (aide du titre). La page d'édition garde EntryCostFields, ChampsPosition (variante `presentation`) et MediaDropzone ; l'aperçu ne dit plus que « À l’entrée : … »."
  ],
  "ecarts_ouverts": [
-  {
-   "ecran": "a-0 à a-5 (bureau)",
-   "element": "carte d'aperçu : « À l’entrée », ses composantes, « Total à l’entrée : … » et la note « Montant indicatif… l’annonce publiée fait foi »",
-   "propriete": "présents sous la carte ; la maquette n'y dessine qu'une ligne « À l’entrée : total »",
-   "proposition": "décision de team-lead du 2026-11-14 : (a) à condition qu'aucune information ne quitte le parcours — gardés sous la carte jusqu'au lot 2, puis réduits à la ligne de la maquette quand l'encadré « Total à l’entrée » de l'étape du prix les portera (les assertions de TCK-633 suivront vers l'étape du prix)",
-   "motif": "la maquette fait foi (ADR-0106), mais le total est indicatif (TCK-598/633) et rien d'autre ne le dit avant le lot 2"
-  },
-  {
-   "ecran": "a-0 à a-5 (téléphone et bureau)",
-   "element": "le contenu des six étapes (`StepBien`, `ChampsLieu`/`StepLieu`, `StepCaracteristiques`, `StepPrix`, `MediaDropzone`/`StepPhotos`, `StepFinition`)",
-   "propriete": "l'essentiel des écarts restants de final-cmp-* : cartes du contrat et tuiles des types (a-0), région/ville/quartier en grille et pastilles de position (a-1), mesures en grille et « Meublé » (a-2), loyer + « Par Mois / Semaine / Jour / An », compteurs et « Total à l’entrée » (a-3), deux tuiles photo et « Couverture » (a-4), « Contacts sur place », note de fin (a-5)",
-   "proposition": "lot 2 de TCK-2819",
-   "motif": "hors du premier lot (ticket L) ; contraintes tenues d'avance par AC1 (etapes-identiques.tck-2819) et AC2 (brouillon-d-avant.tck-2819), qui rougissent si une étape se copie pour une entrée ou si un champ change de nom"
-  },
   {
    "ecran": "a-0, a-2, a-5 (bureau)",
    "element": "la colonne d'aperçu (« Aperçu de l’annonce » et au-dessous)",
    "propriete": "y 93,6 au lieu de 104",
-   "proposition": "suit le lot 2",
+   "proposition": "à re-relever avec la carte corrigée (les chiffres ne paraissent plus avec le prix)",
    "motif": "la colonne est collante à 104 px ; elle n'y descend que si la question est plus haute qu'elle — ce que les étapes redessinées rendront (fiche TCK-2600)"
   },
   {
    "ecran": "a-1 à a-5 (téléphone)",
    "element": "la ligne d'état « Brouillon gardé sur ce téléphone » au-dessus du résumé",
    "propriete": "ordre : la maquette pose le résumé sous la barre, puis la ligne dans la zone défilante",
-   "proposition": "à trancher avec le lot 2",
+   "proposition": "à trancher (touche la coque d’entrée, TCK-2600/2598)",
    "motif": "la ligne d'état est rendue par la coque d'entrée (TCK-2600/2598), au-dessus de l'assistant ; la déplacer touche la coque, pas l'assistant"
   },
   {
    "ecran": "a-5 (téléphone)",
    "element": "la phrase des CGU sous « Publier l’annonce » (`PiedAssistant`, `dessous`)",
    "propriete": "absente du pied au téléphone (le geste est à y 776 au lieu de 727)",
-   "proposition": "lot 2",
+   "proposition": "ticket de suite (WizardShell : une ligne sous les gestes au téléphone)",
    "motif": "au bureau la phrase est la note du pied (TCK-2600) ; au téléphone, `WizardShell` n'a pas encore de ligne sous les gestes"
   },
   {
    "ecran": "a-0 à a-5 (bureau)",
    "element": "« Aperçu de l’annonce » (surtitre de la colonne)",
    "propriete": "espacement des lettres 0,9 au lieu de 1,1 (largeur −4)",
-   "proposition": "lot 2",
+   "proposition": "ticket de suite",
    "motif": "`tracking-surtitre` du cadre d'entrée (TCK-2600) contre `tracking-[0.1em]` de la maquette"
+  },
+  {
+   "ecran": "a-5 (téléphone, bureau)",
+   "element": "« Contacts sur place » (titre 17 px Bricolage, carte « Qui ? » / « Numéro », « Ajouter un contact » en pastille 44 px) et la note « C’est tout pour l’annonce »",
+   "propriete": "dessin de `ContactsSurPlace` (partagé avec la fiche du bien) ; note absente de /publish",
+   "proposition": "ticket de suite : variante assistant de ContactsSurPlace, et la note de fin dans la finition de /publish",
+   "motif": "composant partagé hors de l'assistant ; redessiner en place changerait la fiche du bien, que la maquette ne couvre pas (décision a/b posée à team-lead : variante, pas redessin en place)"
+  },
+  {
+   "ecran": "a-3",
+   "element": "chevron de l'encadré « Coût d’entrée »",
+   "propriete": "absent (l'encadré ne se replie pas)",
+   "proposition": "à trancher : la maquette dessine un repli sans dire quand il se ferme",
+   "motif": "un repli qui cache le total irait contre TCK-633"
+  },
+  {
+   "ecran": "a-1",
+   "element": "aide du quartier « Introuvable ? Écrivez-le… », note des photos « restent dans ce navigateur »",
+   "propriete": "l'aide ne paraît que pour un quartier neuf ; la note des photos est absente",
+   "proposition": "à trancher",
+   "motif": "l'aide de ChampsLieu ne paraît que pour un quartier absent du référentiel ; la note des photos n'est vraie que sur /publish (le brouillon serveur de /app/properties/new ne garde pas les photos)"
+  },
+  {
+   "ecran": "a-5",
+   "element": "aide du lien de visite virtuelle",
+   "propriete": "12 px au lieu de 13",
+   "proposition": "suite",
+   "motif": "`VirtualTourField` est partagé avec la page d'édition"
   }
  ]
 }
