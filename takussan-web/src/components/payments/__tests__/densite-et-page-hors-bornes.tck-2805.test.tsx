@@ -31,7 +31,7 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'jeton', user: { id: 77, agency_id: 1, roles: ['agency_admin'] } }),
 }));
 
-const t = fr.payments.pageAuDela;
+const t = fr.console.pagination.pageAuDela;
 
 type Ligne = Record<string, unknown>;
 

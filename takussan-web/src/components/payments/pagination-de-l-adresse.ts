@@ -1,10 +1,15 @@
 /**
- * TCK-2805 — LA lecture de la page et de la densité dans l'adresse, pour tout `/app/payments`.
+ * TCK-2805 — LA lecture de la page et de la densité dans l'adresse, pour `/app/payments` et les listes
+ * de TCK-2815 ci-dessous.
  *
  * `PropertyPagination` ÉCRIT `?page=` et `?per_page=` (son sélecteur propose 10, 20 ou 50 lignes) ;
  * « Factures », « Reversements », l'historique des paiements et « Interventions » (agence) les
- * LISENT ici, et nulle part ailleurs. Jusqu'à TCK-2805, les trois premiers envoyaient `per_page: 20`
+ * LISENT ici. Jusqu'à TCK-2805, les trois premiers envoyaient `per_page: 20`
  * en dur : le sélecteur revenait à 20 et le choix n'avait aucun effet.
+ *
+ * TCK-2815 — le carnet des bailleurs (`lib/owners/carnet.ts`), la bibliothèque de documents du
+ * personnel et la liste des clients (« au-delà » seulement : sa densité passe par `parPageDeLUrl`)
+ * lisent ici aussi, avec `PageAuDelaDeLaDerniere`.
  *
  * ⚠ Ce module vit HORS de `PropertyPagination.tsx` : treize tests (2026-11-14) remplacent ce module-là
  * par `() => null`, et la lecture partirait avec lui.

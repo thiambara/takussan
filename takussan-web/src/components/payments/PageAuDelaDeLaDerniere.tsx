@@ -31,7 +31,9 @@ interface PageAuDelaDeLaDerniereProps {
  * (`/app/properties`, TCK-2638) : un lien partagé qui change de contenu sans le dire trompe autant.
  */
 export function PageAuDelaDeLaDerniere({ meta, allerA }: PageAuDelaDeLaDerniereProps) {
-  const t = useTranslations('payments.pageAuDela');
+  // TCK-2815 — sous `console.pagination` (servi partout où `PropertyPagination` se rend) : bailleurs,
+  // clients et documents l'affichent aussi, sans servir l'espace `payments` entier pour quatre libellés.
+  const t = useTranslations('console.pagination.pageAuDela');
   const router = useRouter();
   const adresse = useSearchParams();
   const derniere = Math.max(meta.last_page, 1);

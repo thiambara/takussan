@@ -53,7 +53,13 @@
       "previous": "Bi jiitu",
       "next": "Bi ci topp",
       "position": "Xët {page} ci {lastPage}",
-      "positionSlash": "Xët {page} / {lastPage}"
+      "positionSlash": "Xët {page} / {lastPage}",
+      "pageAuDela": {
+        "title": "Cette page n'existe pas",
+        "description": "La liste s'arrête à la page {derniere} : la page demandée est au-delà.",
+        "derniere": "Aller à la page {numero}",
+        "premiere": "Revenir à la première page"
+      }
     },
     "filterBar": {
       "results": "{count, plural, =0 {Amul benn njariñ} one {# njariñ} other {# njariñ}}",
@@ -3237,12 +3243,6 @@
         "locataire": "Locataire",
         "tousLesLocataires": "Tous les locataires"
       }
-    },
-    "pageAuDela": {
-      "title": "Cette page n'existe pas",
-      "description": "La liste s'arrête à la page {derniere} : la page demandée est au-delà.",
-      "derniere": "Aller à la page {numero}",
-      "premiere": "Revenir à la première page"
     }
   },
   "lease": {

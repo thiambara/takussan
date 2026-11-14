@@ -14,6 +14,8 @@ import { EmptyState } from '@/components/feedback';
 import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { PageAuDelaDeLaDerniere } from '@/components/payments/PageAuDelaDeLaDerniere';
+import { estAuDelaDeLaDernierePage } from '@/components/payments/pagination-de-l-adresse';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { buttonVariants } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
@@ -133,6 +135,9 @@ export function ListeDesClients(props: ListeDesClientsProps) {
   ) : undefined;
 
   const vide = clients.length === 0;
+  // TCK-2815 — aucune ligne sur une liste qui en compte : la page demandée est au-delà de la dernière
+  // (un lien gardé), pas « Pas encore de clients ». Jugé sur `meta.total`.
+  const auDela = estAuDelaDeLaDernierePage(clients.length, page.meta);
 
   return (
     <PagePleineLargeur data-slot="liste-des-clients" className="max-md:pb-6">
@@ -193,7 +198,11 @@ export function ListeDesClients(props: ListeDesClientsProps) {
         </p>
       ) : null}
 
-      {vide ? (
+      {auDela ? (
+        <div className="px-4 pt-6 md:px-0">
+          <PageAuDelaDeLaDerniere meta={page.meta} />
+        </div>
+      ) : vide ? (
         <ClientsVides personnel={personnel} filtre={props.filtre} onAjouter={() => setCreer(true)} />
       ) : (
         <>

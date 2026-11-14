@@ -30,6 +30,8 @@ import { EmptyState } from '@/components/feedback';
 import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { PageAuDelaDeLaDerniere } from '@/components/payments/PageAuDelaDeLaDerniere';
+import { estAuDelaDeLaDernierePage } from '@/components/payments/pagination-de-l-adresse';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { Button } from '@/components/ui/button';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
@@ -68,7 +70,7 @@ export interface OwnersListProps {
   readonly lectureArgent?: boolean;
 }
 
-const ETAT_PAR_DEFAUT: EtatDuCarnet = { recherche: '', vue: 'tous', page: 1 };
+const ETAT_PAR_DEFAUT: EtatDuCarnet = { recherche: '', vue: 'tous', page: 1, parPage: 20 };
 
 export function OwnersList({
   agencyId,
@@ -93,7 +95,8 @@ export function OwnersList({
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const ownersQuery = useQuery({
-    queryKey: ['owners', agencyId, etat.vue, etat.recherche, etat.page, lectureArgent],
+    // TCK-2815 — la densité est dans la clé : sans elle, le cache de 20 lignes répondrait à 50.
+    queryKey: ['owners', agencyId, etat.vue, etat.recherche, etat.page, etat.parPage, lectureArgent],
     queryFn: () => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       return fetchOwners(token, parametresDuCarnet(agencyId, etat, lectureArgent));
@@ -208,6 +211,9 @@ export function OwnersList({
   const choisirVue = (vue: VueDuCarnet) => remplacer({ vue: vue === 'tous' ? null : vue, page: null });
   const rechercher = (q: string) => remplacer({ q: q.trim() || null, page: null });
   const filtre = etat.vue !== 'tous' || etat.recherche !== '';
+  // TCK-2815 — une page au-delà de la dernière (un lien gardé, une liste qui a diminué) n'est pas un
+  // carnet vide : jugé sur `meta.total`, jamais sur le seul nombre de lignes.
+  const auDela = estAuDelaDeLaDernierePage(owners.length, page.meta);
 
   const inviter = canInvite ? (
     <Button onClick={() => setSheetOpen(true)}>
@@ -264,7 +270,11 @@ export function OwnersList({
         {pastilles('md:px-0')}
       </div>
 
-      {owners.length === 0 ? (
+      {auDela ? (
+        <div className="px-4 pt-4 md:px-0 lg:pt-6">
+          <PageAuDelaDeLaDerniere meta={page.meta} />
+        </div>
+      ) : owners.length === 0 ? (
         <div className="px-4 pt-4 md:px-0 lg:pt-6">
           <EmptyState
             icon={<UserRound className="size-8" aria-hidden="true" />}

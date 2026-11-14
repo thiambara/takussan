@@ -40,6 +40,12 @@ import {
   type UseDocumentsParams,
 } from '@/lib/queries/documents';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
+import { PageAuDelaDeLaDerniere } from '@/components/payments/PageAuDelaDeLaDerniere';
+import {
+  densiteDeLAdresse,
+  estAuDelaDeLaDernierePage,
+  pageDeLAdresse,
+} from '@/components/payments/pagination-de-l-adresse';
 import type { Locale } from '@/i18n/config';
 import type { Document, DocumentType, DocumentableType } from '@/types/document';
 
@@ -86,7 +92,10 @@ export function DocumentsLibrary() {
   const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
   const dropZoneRef = useRef<HTMLDivElement | null>(null);
 
-  const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  // TCK-2815 — la page et la densité que `PropertyPagination` écrit dans l'adresse (10, 20 ou 50) :
+  // `per_page: 30` partait en dur, hors des densités du sélecteur, qui ne pouvait donc rien dire.
+  const page = pageDeLAdresse(searchParams);
+  const parPage = densiteDeLAdresse(searchParams);
   const params: UseDocumentsParams = useMemo(() => {
     const search = searchParams.get('search') ?? undefined;
     const type = (searchParams.get('type') as DocumentType | null) ?? undefined;
@@ -94,12 +103,12 @@ export function DocumentsLibrary() {
       (searchParams.get('documentable_type') as DocumentableType | null) ?? undefined;
     return {
       page,
-      per_page: 30,
+      per_page: parPage,
       search: search || undefined,
       type: type || undefined,
       documentable_type: documentable_type || undefined,
     };
-  }, [page, searchParams]);
+  }, [page, parPage, searchParams]);
 
   const { data, isLoading, isError, error } = useDocuments(params);
   const deleteDocument = useDeleteDocument();
@@ -147,6 +156,9 @@ export function DocumentsLibrary() {
   );
 
   const totalFromMeta = data?.meta?.total ?? 0;
+  // TCK-2815 — la page demandée est au-delà de la dernière : la bibliothèque a des documents, pas
+  // cette page. Jugé sur `meta.total` : sans lui, l'état vide d'avant.
+  const auDela = estAuDelaDeLaDernierePage(data?.data?.length ?? 0, data?.meta);
   const ownerEmptyState = user ? isOwner(user.roles) : false;
 
   return (
@@ -193,6 +205,8 @@ export function DocumentsLibrary() {
             icon={<AlertCircle className="size-4" aria-hidden="true" />}
             message={messageErreur(error, t('error'))}
           />
+        ) : auDela && data?.meta ? (
+          <PageAuDelaDeLaDerniere meta={data.meta} />
         ) : grouped.length === 0 ? (
           <DocumentsEmpty
             onUpload={() => setUploadOpen(true)}
@@ -229,11 +243,12 @@ export function DocumentsLibrary() {
         )}
       </div>
 
-      {/* Une seule page : « Page 1 sur 1 » et deux boutons inertes n'apprennent rien — le compte
-          est déjà affiché en tête. */}
-      {data?.meta && data.meta.last_page > 1 ? (
-        <PropertyPagination meta={data.meta} />
-      ) : null}
+      {/* TCK-2815 — rendue dès qu'elle a quelque chose à dire : `PropertyPagination` se tait seule sur
+          une page unique de 10 lignes au plus (« Page 1 sur 1 » et deux boutons inertes n'apprennent
+          rien), mais au-delà de 10 lignes son sélecteur ouvre une seconde page. L'ancienne condition
+          `last_page > 1` cachait le sélecteur à qui avait choisi 50 sur 30 documents, et ne le
+          rendait plus jamais. Pas sous l'état « au-delà », qui porte ses propres chemins. */}
+      {data?.meta && !auDela ? <PropertyPagination meta={data.meta} /> : null}
 
       {uploadMonte ? <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} /> : null}
       <Dialog

@@ -64,13 +64,25 @@ de la dernière page, un état qui le dit et ramène à la première, distinct d
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Bailleurs et bibliothèque : avec `?per_page=50`, la requête porte `per_page=50` et le sélecteur affiche
+- [x] AC1 — Bailleurs et bibliothèque : avec `?per_page=50`, la requête porte `per_page=50` et le sélecteur affiche
   50. Avec `?per_page=37`, la requête porte `per_page=20`.
-- [ ] AC2 — Pour chacun des trois écrans, `?page=9` sous une réponse `data: []`, `meta.total = 12` : l'état « au-delà
+  *Preuve : `components/owners/__tests__/densite-et-page-hors-bornes.tck-2815.test.tsx` (le chemin de la page
+  serveur `lireLeCarnet` → `parametresDuCarnet` → `fetchOwners` contre un `fetch` doublé, puis `OwnersList` et le vrai
+  `PropertyPagination`) et `components/documents/__tests__/densite-et-page-hors-bornes.tck-2815.test.tsx` (le vrai
+  `useDocuments`) ; 37, 30, `abc` et 5000 rendent 20.*
+- [x] AC2 — Pour chacun des trois écrans, `?page=9` sous une réponse `data: []`, `meta.total = 12` : l'état « au-delà
   de la dernière page » est présent, et le texte de l'état vide de l'écran est ABSENT (vérifié par son texte).
-- [ ] AC3 — Pour chacun des trois écrans, `data: []`, `meta.total = 0` : l'état vide d'aujourd'hui, inchangé.
-- [ ] AC4 — Ablation : `perPage` remis à 20 dans les paramètres du carnet rend AC1 rouge ; le jugement sur
+  *Preuve : les deux fichiers ci-dessus et `customer-dashboard/liste/__tests__/page-hors-bornes.tck-2815.test.tsx` ;
+  bailleurs et clients sans et avec filtre (les deux textes d'état vide absents), « Revenir à la première page »
+  retire `?page=` et garde le filtre.*
+- [x] AC3 — Pour chacun des trois écrans, `data: []`, `meta.total = 0` : l'état vide d'aujourd'hui, inchangé.
+  *Preuve : mêmes fichiers ; les tests existants des trois écrans restent verts.*
+- [x] AC4 — Ablation : `perPage` remis à 20 dans les paramètres du carnet rend AC1 rouge ; le jugement sur
   `lignes === 0` seul rend AC2 rouge sur les trois écrans.
+  *Preuve, le 2026-11-14, une à une, md5 restauré : `perPage = 20` dans `parametresDuCarnet` → 2 rouges ; `auDela`
+  forcé à `false` → 2 rouges (bailleurs), 1 (documents), 2 (clients). En plus : la densité retirée de la clé
+  react-query du carnet → 1 rouge ; `per_page: 30` remis → 6 rouges ; la condition `last_page > 1` remise sur la
+  pagination des documents → 2 rouges.*
 
 ## Hors périmètre
 
@@ -79,4 +91,16 @@ de la dernière page, un état qui le dit et ramène à la première, distinct d
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Prémisse re-mesurée le 2026-11-14** : `perPage = 20` (carnet), `per_page: 30` (bibliothèque), `vide` sur le seul
+  nombre de lignes (clients) — inchangés depuis le relevé ; `ListeDesClients` transmet bien `per_page`.
+- **Les libellés de `PageAuDelaDeLaDerniere` passent de `payments.pageAuDela` à `console.pagination.pageAuDela`**
+  (fr, en, wo). Gardés sous `payments`, ils faisaient servir l'espace `payments` entier (3,1 points du dictionnaire)
+  aux frontières `/app/customers` et `/app/documents` pour quatre libellés ; `console` y est déjà servi partout où
+  `PropertyPagination` se rend. `namespaces.json` inchangé.
+- **Carnet** : `EtatDuCarnet` gagne `parPage`, lu par `densiteDeLAdresse` (la page par `pageDeLAdresse`) au moyen
+  d'un adaptateur `{ get }` sur le dictionnaire de `searchParams` ; il entre dans la clé react-query, sans quoi le
+  cache de 20 lignes répondait au choix de 50.
+- **Bibliothèque** : la pagination se rend dès que `meta` existe hors de l'état « au-delà » ;
+  `PropertyPagination` se tait seul sur une page unique de 10 lignes au plus. L'ancienne condition
+  `last_page > 1` cachait le sélecteur à qui avait choisi 50 sur 30 documents, sans retour possible.
+- **Clients** : la densité reste lue par `parPageDeLUrl` (TCK-2590), hors périmètre.
