@@ -7777,6 +7777,24 @@
           },
           "fait": "Done"
         }
+      },
+      "attente": {
+        "titre": "{agence} is waiting for you",
+        "titreSans": "Your agency is waiting for you",
+        "sousTitre": "Right after your code",
+        "bailleur": {
+          "titre": "Your properties with the agency",
+          "texte": "Those it manages for you, or how to offer it one"
+        },
+        "agent": {
+          "titre": "Your prospects",
+          "texte": "Those the agency assigns to you, your areas and your rights"
+        },
+        "prestataire": {
+          "titre": "A job is waiting for you",
+          "titreSans": "Your next jobs",
+          "texteSans": "The agency’s requests, once your profile is complete"
+        }
       }
     },
     "orientation": {

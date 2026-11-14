@@ -18,6 +18,7 @@ import type { PieceDuProfil } from '@/lib/pieces/pieces';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
 import { BiensDuBailleur } from './invite/BiensDuBailleur';
+import { CeQuiVousAttend } from './invite/CeQuiVousAttend';
 import { EtapeDuNumero } from './invite/EtapeDuNumero';
 
 /**
@@ -118,6 +119,7 @@ export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = 
               numero={api.data.phone.number}
               onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
               agence={agence}
+              panneau={<CeQuiVousAttend qui="bailleur" agence={agence} />}
               onVerifie={() => {
                 api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
                 api.allerA(1);

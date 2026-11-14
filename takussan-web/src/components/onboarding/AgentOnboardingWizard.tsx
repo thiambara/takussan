@@ -13,6 +13,7 @@ import { INDICATIF_PAR_DEFAUT, recomposerTelephone, relireTelephoneBrouillon } f
 import type { PieceDuProfil } from '@/lib/pieces/pieces';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
+import { CeQuiVousAttend } from './invite/CeQuiVousAttend';
 import { EtapeDuNumero } from './invite/EtapeDuNumero';
 import { ProspectDeLAgent, SPECIALISATIONS, type Specialisation } from './invite/ProspectDeLAgent';
 
@@ -135,6 +136,7 @@ export function AgentOnboardingWizard({ agentProfileId, agence = null, specialit
               numero={api.data.phone.number}
               onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
               agence={agence}
+              panneau={<CeQuiVousAttend qui="agent" agence={agence} />}
               onVerifie={() => {
                 api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
                 api.allerA(1);

@@ -56,6 +56,12 @@ export interface DeclarationDEntree {
   /** L'avancement du parcours ENTIER, compte compris. */
   readonly pas?: number;
   readonly total?: number;
+  /**
+   * TCK-2613 — « Étape 1 sur 2 » ÉCRIT à côté des pastilles (sous l'intention au téléphone), comme la barre des
+   * assistants d'invité de la maquette `app-entree-assistants`. Absent : les pastilles seules, dont le libellé
+   * reste le nom accessible — le texte écrit est masqué aux lecteurs d'écran, qui l'entendraient deux fois.
+   */
+  readonly avancementEcrit?: boolean;
   /** Une saisie existe : quitter demande confirmation. */
   readonly saisie?: boolean;
   /** Où la reprendre, dit par la confirmation (sinon le texte par défaut de la coque). */
@@ -194,10 +200,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur } = declaration;
+  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur });
-  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur]);
+    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur });
+  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -331,6 +337,10 @@ export function CoqueDEntree({
   // La sortie garde `auClicDeSortie` (qui retient aussi le clic bloqué) : seuls l'annonce et la tabulation s'ajoutent.
   const inerte = sortieBloquee ? { 'aria-disabled': true, tabIndex: -1 } : {};
   const avancement = pas && total ? <Pastilles pas={pas} total={total} gabarit={libelles.avancement} /> : null;
+  const etapeEcrite =
+    (declaree.avancementEcrit === true || parDefaut.avancementEcrit === true) && pas && total
+      ? libelles.avancement.replace('{pas}', String(pas)).replace('{total}', String(total))
+      : null;
   const retourAuSite =
     sortie?.forme === 'retour-au-site' ? (
       <NextLink href={sortie.href} onClick={auClicDeSortie} {...inerte} className={cn(CLASSES_LIEN_TEXTE, CLASSES_INERTES)}>
@@ -377,7 +387,16 @@ export function CoqueDEntree({
                   `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
                   l'avancement (orientation a-0/a-1) — l'intention passe à la barre du bureau. */}
               {titre && (retour || sortie?.forme === 'quitter') ? (
-                <p className="min-w-0 flex-1 truncate text-action font-semibold">{titre}</p>
+                etapeEcrite ? (
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-action font-semibold">{titre}</p>
+                    <p data-avancement-ecrit="" aria-hidden="true" className="text-ui text-muted-foreground">
+                      {etapeEcrite}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="min-w-0 flex-1 truncate text-action font-semibold">{titre}</p>
+                )
               ) : retour ? (
                 // `first:pl-3` : là où le retour ne paraît pas (vérification d'e-mail, réinitialisation,
                 // retour OAuth), la marque ouvre la barre et garde la marge de la maquette.
@@ -420,6 +439,11 @@ export function CoqueDEntree({
                  ne repliait pas le titre mais la pastille « Retour à l’annonce », sur deux lignes, collée à la marque. */
               <div className="mx-6 flex min-w-0 items-center gap-3.5">
                 <p className="truncate text-corps font-semibold">{titreDeBureau}</p>
+                {etapeEcrite ? (
+                  <span data-avancement-ecrit="" aria-hidden="true" className="flex-none text-sm text-muted-foreground">
+                    {etapeEcrite}
+                  </span>
+                ) : null}
                 {avancement}
               </div>
             ) : null}

@@ -7777,6 +7777,24 @@
           },
           "fait": "Fait"
         }
+      },
+      "attente": {
+        "titre": "{agence} vous attend",
+        "titreSans": "Votre agence vous attend",
+        "sousTitre": "Juste après votre code",
+        "bailleur": {
+          "titre": "Vos biens chez l’agence",
+          "texte": "Ceux qu’elle suit pour vous, ou de quoi lui en proposer un"
+        },
+        "agent": {
+          "titre": "Vos prospects",
+          "texte": "Ceux que l’agence vous confie, vos zones et vos droits"
+        },
+        "prestataire": {
+          "titre": "Une intervention vous attend",
+          "titreSans": "Vos prochaines interventions",
+          "texteSans": "Les demandes de l’agence, dès votre profil complété"
+        }
       }
     },
     "orientation": {
