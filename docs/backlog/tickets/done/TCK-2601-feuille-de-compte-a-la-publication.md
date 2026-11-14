@@ -1,13 +1,13 @@
 ---
 id: TCK-2601
 title: "Le compte au moment de publier : numéro, code, prénom et nom dans une feuille, puis l'annonce en ligne sans détour"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 86
 created: 2026-11-10
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2600, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2602]
 spec_refs:
@@ -153,8 +153,10 @@ Rideaux : bloc-notes de la session, `impl/lot2/2601/fidelite/cmp-a-{6,7}-{teleph
 ### Écarts au ticket
 
 - **« Gratuit, sans commission »** n'est pas écrit sous le panneau de bureau (cf. § AC5) : la commission dépend de l'abonnement de l'espace qui publiera, inconnu avant le code. Retrait ratifié par la session principale.
-- **Google** n'est pas dans la feuille : écart de parcours (décision de la session principale du 2026-11-13), ticket de suivi [TCK-2777](TCK-2777-google-dans-la-feuille-de-compte-de-publish.md) (écrit par redac-1).
+- **Google** n'est pas dans la feuille : écart de parcours (décision de la session principale du 2026-11-13), ticket de suivi [TCK-2777](../todo/TCK-2777-google-dans-la-feuille-de-compte-de-publish.md) (écrit par redac-1).
 - **Drapeau `auth.phone_login.enabled` éteint** : « Publier » mène à la connexion d'aujourd'hui, l'annonce restant dans ce navigateur ; revenu sur `/publish` avec elle, le visiteur connecté retrouve l'assistant et la feuille réduite à ce qui lui manque (numéro vérifié par le code sous session). La voie e-mail n'est pas DANS la feuille.
 - **TCK-643, AC4 — nouvelle lecture** (confirmée par la session principale le 2026-11-13). Le ticket dit : « La publication reste possible exactement dans les mêmes cas qu'avant ». Elle se lit désormais : *la publication reste possible dans tous les cas où l'API l'accepte, et la feuille ne s'ouvre jamais pour un compte que l'API publierait ; un auteur dont le numéro principal n'est pas vérifié — cas où l'API refusait en 422 — reçoit la feuille AVANT toute écriture, au lieu de la création puis du refus.* Seule exigence plus stricte que `PublishReadiness`, et voulue : le nom (décision 1a du porteur) et la réponse WhatsApp d'un numéro vérifié qui n'en a jamais reçu (« question posée une fois », ce ticket). Gardé dans `PropertyWizard.publication.tck-633.test.tsx` par l'`it.each` « AC4 » et son inverse « AC4 inverse » : WhatsApp oui, WhatsApp non, second numéro saisi non vérifié, second vérifié sans réponse WhatsApp, CGU jamais acceptées → pas de feuille, `POST …/publish` part. Ablations rouges : exiger aussi le second numéro vérifié, tenir « non » à WhatsApp pour un manque, exiger les CGU dans la feuille.
 - **Fidélité (AC-F1 à AC-F6)** : faite, cf. § Fidélité ; reste la validation du porteur sur le rideau (AC-F5).
 
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

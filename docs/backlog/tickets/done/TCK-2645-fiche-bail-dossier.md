@@ -140,7 +140,7 @@ Autres contraintes :
   - sur un bail dont l'échéancier existe, « Générer l'échéancier » n'apparaît nulle part.
 - [x] AC5 *(prouvé le 2026-11-14, voir les notes du jour)* — La caution s'affiche dans sa carte (« Caution · 2 710 000 F · encaissée le 1 juil. ») et ne figure pas parmi les loyers. Le statut « Payé » porte la couleur `--success`.
 - [ ] AC6 — Chez le locataire, le premier écran à 390 px ne contient pas de bouton « Donner mon préavis ». Dans « ⋯ », le geste est précédé de son délai et de sa pénalité.
-- ~~AC7 — Sur un bail en retard, « Relancer » produit la même URL `wa.me` que la file de TCK-2644 (même aide).~~ **Déplacé dans TCK-2644 (AC9) le 2026-11-14, puis dans [TCK-2818](../todo/TCK-2818-fiche-bail-relance-impaye.md) le même jour**, avec la dépendance inversée (décision de la session du 2026-11-12) : ce ticket ne le porte plus et ne se juge plus sur lui.
+- ~~AC7 — Sur un bail en retard, « Relancer » produit la même URL `wa.me` que la file de TCK-2644 (même aide).~~ **Déplacé dans TCK-2644 (AC9) le 2026-11-14, puis dans [TCK-2818](TCK-2818-fiche-bail-relance-impaye.md) le même jour**, avec la dépendance inversée (décision de la session du 2026-11-12) : ce ticket ne le porte plus et ne se juge plus sur lui.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 

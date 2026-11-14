@@ -1,7 +1,7 @@
 ---
 id: TCK-2660
 title: "Impayés : relancer sur WhatsApp avec le lien de paiement de l'échéance"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -266,3 +266,5 @@ Six ablations de `PaymentHistory`, une à la fois, ont toutes rougi et ont été
 | a4 | e-mail ajouté au bloc |
 | a5 | bailleur de tout bien |
 | a6 | auteur de réservation sans condition de membre |
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

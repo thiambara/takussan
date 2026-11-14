@@ -1,7 +1,7 @@
 ---
 id: TCK-2775
 title: "L'écran Impayés ouvre la relance depuis son URL : l'accueil y mène au lieu d'embarquer la relance"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -120,3 +120,5 @@ Aucun endpoint touché. Les lectures restent celles de l'écran Impayés (`payme
 - **Hors périmètre, signalé.** L'AC6 de TCK-2624 (« ouvre le geste de la famille 6 ») est désormais un lien vers
   l'écran qui l'ouvre. Aucun relevé de fidélité n'a été pris pour le passage bouton → lien : même `buttonVariants`,
   même classe ; à reprendre avec la fidélité de l'accueil.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

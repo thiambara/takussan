@@ -1,7 +1,7 @@
 ---
 id: TCK-2799
 title: "Une épingle sur une ancienne entrée de statistiques mène à « Rapports », et les restes de la vue agence quittent le dépôt"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -87,3 +87,5 @@ L'entrée `dashboard.agencyQueues.kycStatus` de `scripts/check-status-labels.mjs
 | `AgencyQueues.test` — `individual` sans modération ni invitations ; `kind` inconnu les garde ; sans agence pas de KYC | sur les options partagées | **porté** : `lib/queries/__tests__/agency-queues.test.ts` (« les options partagées ») |
 | `AgencyQueues.test` — le lien impayés vise un onglet qui existe ; `meta.total` | | `chiffres-du-mois.tck-2622.test.ts` (`?tab=impayes` dans `TAB_VALUES`) ; `meta.total` : `agency-queues.test.ts` |
 | `AgencyQueues.source-unique.test` — barre et bloc, UNE requête | AC5 de TCK-375 | **porté** autrement : aucun fichier de `src` n'écrit la clé du compte en ligne (`agency-queues.test.ts`) ; ablation (un fichier qui l'écrit) : rouge |
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

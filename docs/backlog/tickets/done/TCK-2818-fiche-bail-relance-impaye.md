@@ -1,7 +1,7 @@
 ---
 id: TCK-2818
 title: "La fiche du bail relance un impayé avec l'aide de relance commune"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S
@@ -94,3 +94,5 @@ TCK-2644 → TCK-2758 → TCK-2639 → TCK-2644 formait un cycle.
   n'est pas un impayé de l'écran : la fiche ne la relance pas.
 - Implémentation : `takussan-web/src/components/leases/fiche/RelanceDuLoyer.tsx` (`useRelanceDeLaFiche`,
   `RelancerLeLoyer`), branché dans `CartesDuBail.tsx`, `LeaseSchedule.tsx` et `LeaseDetail.tsx`.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

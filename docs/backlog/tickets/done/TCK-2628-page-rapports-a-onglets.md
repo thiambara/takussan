@@ -1,13 +1,13 @@
 ---
 id: TCK-2628
 title: "Une page « Rapports » à onglets remplace Vue agence, Statistiques, Indicateurs, Alertes et Exports — vue d'ensemble par persona, une série par graphique"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2618, TCK-2624, TCK-2625, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2629]
 spec_refs:
@@ -131,3 +131,5 @@ Aucun endpoint neuf dans ce ticket. Les lectures sont celles des vues actuelles 
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

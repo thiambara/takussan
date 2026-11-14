@@ -1,7 +1,7 @@
 ---
 id: TCK-2823
 title: "Rechargée à l'étape 6, l'annonce rouvre : le brouillon entre au formulaire avant les effets des étapes"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: S
@@ -68,3 +68,5 @@ Correctif à la cause : le `reset` du brouillon passe de `useEffect` à `useLayo
 Écarté : tolérer un type vide dans `suggestTitle` (ou `if (!type) return` dans `StepFinition`) — l'effet de
 l'étape a des dépendances stables et ne repasse pas après le `reset` : le titre proposé serait perdu (AC2 rouge),
 et toute autre étape à effet garderait le même écart. Couvre aussi l'assistant connecté (`useWizardDraft`, même code).
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

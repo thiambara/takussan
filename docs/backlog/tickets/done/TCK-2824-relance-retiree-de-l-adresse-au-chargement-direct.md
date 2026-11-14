@@ -1,7 +1,7 @@
 ---
 id: TCK-2824
 title: "Chargée directement, l'adresse `?relance=` ne revient plus dans la barre après un rendu du routeur"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: XS
@@ -55,3 +55,5 @@ et le rendu suivant du routeur (`router.refresh()`, rafraîchissement du serveur
 - Hors périmètre, constaté : après un `router.refresh()`, Next réécrit l'état de l'entrée courante sans la
   marque de `useFermeAuRetour` (`preserveCustomHistoryState` faux). Le retour ferme toujours la file (écoute
   de `popstate`), mais une fermeture par ✕ ne rendrait plus la sentinelle. À re-mesurer avant tout ticket.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

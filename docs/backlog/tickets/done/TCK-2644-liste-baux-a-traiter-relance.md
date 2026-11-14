@@ -117,7 +117,7 @@ Autres contraintes :
 - [ ] AC6 — Un locataire sans téléphone : sa carte d'impayé porte « Copier le lien de paiement » et la phrase qui dit pourquoi, et aucun lien `wa.me`.
 - [ ] AC7 — À 390 px, chaque carte porte exactement un bouton ≥ 44 px. À 1280 px, le tableau tient sans défilement horizontal.
 - [ ] AC8 — `move_in_follow_up` n'apparaît plus ni dans `AgencyModule::cases()` ni dans `MODULES_D_AGENCE`, ni dans la section « Menu de l'équipe ». Une agence dont `hidden_modules` vaut `["move_in_follow_up"]` ouvre `/app` et ses réglages sans erreur, et `PATCH` de ses modules masqués réussit.
-- ~~AC9 — Sur la fiche d'un bail en retard, « Relancer » produit la même URL `wa.me` que la file de ce ticket.~~ **Sorti en ticket propre le 2026-11-14 : [TCK-2818](../todo/TCK-2818-fiche-bail-relance-impaye.md)** (décision 5 b de team-lead). Ce ticket ne se juge plus sur lui.
+- ~~AC9 — Sur la fiche d'un bail en retard, « Relancer » produit la même URL `wa.me` que la file de ce ticket.~~ **Sorti en ticket propre le 2026-11-14 : [TCK-2818](TCK-2818-fiche-bail-relance-impaye.md)** (décision 5 b de team-lead). Ce ticket ne se juge plus sur lui.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 

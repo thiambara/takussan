@@ -1,13 +1,13 @@
 ---
 id: TCK-2741
 title: "Les six ombres du comparateur flottant ont un nom : des jetons partagés par /app et le site public, au lieu de valeurs entre crochets consignées"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: null
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-14
 depends_on: [TCK-2618]
 blocks: []
 spec_refs:
@@ -102,3 +102,5 @@ Livré le 2026-11-14 sur `feat/audit-ux-app-lot-3`.
   Les cinq valeurs sont toutes couvertes (le contour sombre en thème sombre, la pastille sous `lg`).
 - **Écart au ticket** : 1280 au lieu de 1440 (ADR-0106, consigne du lot) ; à 390, `/app/favorites`
   n'affiche pas le comparateur (hors périmètre, mineur m4 de TCK-2618) : 0 élément avant comme après.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

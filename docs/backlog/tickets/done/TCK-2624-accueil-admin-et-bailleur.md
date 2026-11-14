@@ -1,13 +1,13 @@
 ---
 id: TCK-2624
 title: "Accueil de l'admin d'agence et du bailleur : « À faire maintenant » avec son geste, l'équipe aujourd'hui, les loyers du mois"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2622, TCK-2623, TCK-2660, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2628]
 spec_refs:
@@ -125,3 +125,5 @@ tags: [front, accueil, dashboard, mobile, audit-ux, app]
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

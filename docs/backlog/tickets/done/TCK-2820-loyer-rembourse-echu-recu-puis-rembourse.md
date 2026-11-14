@@ -1,7 +1,7 @@
 ---
 id: TCK-2820
 title: "Un loyer échu remboursé se compte « reçu puis remboursé » à l'accueil du bailleur, et non « en retard »"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: S
@@ -96,3 +96,5 @@ refund_amount)`, soit le montant rendu. TCK-2623 (point 4) avait tranché le cas
 - Le reversement et la reprise d'un loyer remboursé (ADR-0039 et ses amendements).
 - Les autres vues qui comptent les impayés : l'écran Impayés lit `CollectedPayments::OWED_STATUSES` (`pending`,
   `partially_paid`, `late`), où `refunded` n'entre pas.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

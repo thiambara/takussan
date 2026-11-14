@@ -1,13 +1,13 @@
 ---
 id: TCK-2737
 title: "/sync-specs dit ce qu'on fait vraiment : la compétence sous .agent/skills/, le report du livré dans les specs, ni passe obligée ni push"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: null
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -112,3 +112,5 @@ passe 018 ; la pratique prime).
   - AC5 : `gen-index.mjs --check`, `ranger-tickets.mjs --check`, `check-backlog.mjs` → exit 0.
 - Les autres gardes `scripts/check-*.mjs` rouges au moment de la mesure ne portent que sur
   `takussan-web/src/app/[locale]/(public)/playground/maquettes/` (hors ticket).
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

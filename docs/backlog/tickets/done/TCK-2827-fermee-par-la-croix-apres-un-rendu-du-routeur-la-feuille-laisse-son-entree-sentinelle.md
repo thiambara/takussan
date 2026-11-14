@@ -1,7 +1,7 @@
 ---
 id: TCK-2827
 title: "Fermée par ✕ après un rendu du routeur, la file de relance laisse son entrée sentinelle dans l'historique"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: S
@@ -67,3 +67,5 @@ sentinelle : un retour de trop, qui ne fait rien.
   la file par l'adresse (rendu du routeur après la sentinelle) — le correctif couvre ce cas aussi.
 - Limite connue : au plafond de la pile du navigateur (50 entrées), une navigation à la MÊME adresse
   ne change pas la longueur ; la fermeture défairait alors cette navigation. Non traité.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).

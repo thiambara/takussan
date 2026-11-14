@@ -1,13 +1,13 @@
 ---
 id: TCK-2738
 title: "FavoritesList et SavedSearchesList, que plus rien ne rend, s'en vont ; l'outil de fidélité vise la barre d'onglets par son slot et balaye en français"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: null
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-14
 depends_on: [TCK-2618]
 blocks: []
 spec_refs:
@@ -169,3 +169,5 @@ voisin de TCK-2741) : ticket de suite TCK-2825.
 - [x] Avant de supprimer `FavoritesList` : porter sur la page vivante (`SuiviDesFavoris`) les tests de la pagination (`page=2`) et de l'édition de la note d'un favori. Aujourd'hui, ces deux comportements ne sont testés que par `FavoritesList.test`.
 - [ ] Outil de fidélité : la zone « barre latérale » couvre tout le cadre 1280×900. Les écarts de bureau ne mesurent donc pas la colonne. Il faut borner la zone à la colonne.
 - [ ] Sous /app au téléphone, « Comparer » sur une carte de favori ne mène nulle part : ni barre, ni toast. Ce défaut existait avant TCK-2618. Il faut soit monter la pastille, soit retirer le bouton sous `lg`, conformément à l'ADR-0091 § 4.
+
+- 2026-11-14 : clôturé — jugé au HEAD 0053d0bbd, tous les AC tenus avec preuve (verdict de clôture 2026-11-14-b).
