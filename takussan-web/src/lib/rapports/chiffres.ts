@@ -8,7 +8,8 @@ import { variationDuDernierMois } from './graduations';
  * pas inventé (« 4 à renouveler d'ici 30 j », « seuil d'alerte : 10 % », « +5 cette semaine » de la
  * maquette) : la tuile se rend sans, et la fiche de fidélité le dit (écart de donnée, ADR-0106 § 2).
  */
-export type FormeDuChiffre = 'nombre' | 'montant' | 'pourcent';
+/** TCK-2801 — `biens` : un compte de biens dit avec son nom (« 69 biens », le portefeuille de la maquette). */
+export type FormeDuChiffre = 'nombre' | 'montant' | 'pourcent' | 'biens';
 
 export type ContexteDuChiffre =
   | { readonly cle: 'variation'; readonly pourcent: number; readonly mois: string }
@@ -19,6 +20,7 @@ export type ContexteDuChiffre =
   | { readonly cle: 'cetteAnnee'; readonly montant: number }
   | { readonly cle: 'bauxCetteAnnee'; readonly n: number }
   | { readonly cle: 'septJours' }
+  | { readonly cle: 'seuil'; readonly valeur: number }
   | { readonly cle: 'portefeuille'; readonly loues: number; readonly libres: number; readonly autres: number };
 
 export interface ChiffreDuRapport {
@@ -45,6 +47,24 @@ export interface ListesOuvertes {
 }
 
 const TOUT_OUVERT: ListesOuvertes = { impayes: true, equipe: true };
+
+/** TCK-2801 — le seuil de l'alerte ACTIVE de chaque métrique (la première rendue), lu de `/api/threshold-alerts`. */
+export type SeuilsDesAlertes = Readonly<Partial<Record<string, number>>>;
+
+/**
+ * TCK-2801 (fiche TCK-2628, O6) — « seuil d'alerte : 10 % » sous « Taux d'impayés » : un sous-texte que l'API
+ * SERT, puisque l'agence a posé la règle. Une alerte désactivée ne dit rien ; un seuil illisible non plus.
+ */
+export function seuilsDesAlertes(
+  alertes: readonly { readonly metric: string; readonly threshold: number | string; readonly is_enabled: boolean }[],
+): SeuilsDesAlertes {
+  const seuils: Partial<Record<string, number>> = {};
+  for (const a of alertes) {
+    const seuil = Number(a.threshold);
+    if (a.is_enabled && Number.isFinite(seuil) && seuils[a.metric] === undefined) seuils[a.metric] = seuil;
+  }
+  return seuils;
+}
 
 /** Les listes que comptent les chiffres ; chaque paramètre est LU par la page qu'il vise. */
 export const LISTES_DES_CHIFFRES = {
@@ -120,7 +140,11 @@ export interface ResumeDAgence {
 export function chiffresDeLAgence(
   resume: ResumeDAgence,
   series?: { readonly months: readonly string[]; readonly revenue: readonly number[] },
-  { moisEnCours = null, ouvertes = TOUT_OUVERT }: { readonly moisEnCours?: string | null; readonly ouvertes?: ListesOuvertes } = {},
+  {
+    moisEnCours = null,
+    ouvertes = TOUT_OUVERT,
+    seuils = {},
+  }: { readonly moisEnCours?: string | null; readonly ouvertes?: ListesOuvertes; readonly seuils?: SeuilsDesAlertes } = {},
 ): ChiffreDuRapport[] {
   const impayes = ouvertes.impayes ? LISTES_DES_CHIFFRES.impayes : LISTES_DES_CHIFFRES.enRetard;
   const configures = resume.kpis ?? [];
@@ -131,6 +155,10 @@ export function chiffresDeLAgence(
       libelle: k.label,
       valeur: nombre(k.value),
       forme: FORMES[k.format] ?? 'nombre',
+      // TCK-2801 — le seuil suit « Taux d'impayés » aussi quand l'agence a choisi ses chiffres (relevé du 2026-11-14).
+      ...(k.metric === 'unpaid_rate_percent' && seuils.unpaid_rate_percent !== undefined
+        ? { contexte: { cle: 'seuil' as const, valeur: seuils.unpaid_rate_percent } }
+        : {}),
       ...lien(hrefDeLaMetrique(k.metric, ouvertes)),
     }));
   }
@@ -168,7 +196,13 @@ export function chiffresDeLAgence(
       contexte: { cle: 'publies', total: resume.properties.total },
       href: LISTES_DES_CHIFFRES.biensPublies,
     },
-    { cle: 'tauxImpayes', valeur: nombre(f.unpaid_rate_percent), forme: 'pourcent', href: impayes },
+    {
+      cle: 'tauxImpayes',
+      valeur: nombre(f.unpaid_rate_percent),
+      forme: 'pourcent',
+      ...(seuils.unpaid_rate_percent !== undefined ? { contexte: { cle: 'seuil' as const, valeur: seuils.unpaid_rate_percent } } : {}),
+      href: impayes,
+    },
   ];
 }
 
@@ -272,7 +306,7 @@ export function chiffresDuBailleur(resume: ResumeDuBailleur): ChiffreDuRapport[]
     {
       cle: 'portefeuille',
       valeur: total,
-      forme: 'nombre',
+      forme: 'biens',
       contexte: { cle: 'portefeuille', loues, libres, autres: Math.max(total - loues - libres, 0) },
       href: LISTES_DES_CHIFFRES.biens,
     },

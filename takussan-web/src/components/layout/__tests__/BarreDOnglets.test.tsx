@@ -285,6 +285,26 @@ describe('TCK-2481 — l’onglet actif, lisible sans la couleur seule', () => {
     monter('agent', '/app/leases');
     expect(barre().querySelectorAll('[aria-current]')).toHaveLength(0);
   });
+
+  // TCK-2801 (fiche TCK-2628, O7) — une page du menu qui n'est aucun des onglets : « Menu » se lit en avant
+  // (trait, gras, icône), comme dans les maquettes (`onglet="menu"`) ; une page qui EST un onglet l'éteint.
+  it('TCK-2801 — `/app/reports` (page du menu, aucun onglet) : « Menu » mis en avant, sans `aria-current`', () => {
+    monter('admin-agence', '/app/reports');
+    const menu = within(barre()).getByRole('button', { name: 'Menu' });
+    expect(menu).toHaveClass('font-semibold', 'text-foreground');
+    expect(menu.querySelector('[data-slot="indicateur-onglet"]')).not.toBeNull();
+    expect(menu.querySelector('[data-slot="icone-onglet"]')!.getAttribute('class')!.split(/\s+/)).toContain('text-primary');
+    expect(menu.hasAttribute('aria-current')).toBe(false);
+    expect(barre().querySelectorAll('[data-slot="indicateur-onglet"]')).toHaveLength(1);
+  });
+
+  it('TCK-2801 — une page qui est un onglet, ou hors du menu : « Menu » reste éteint', () => {
+    for (const chemin of ['/app', '/app/une-page-hors-du-menu']) {
+      const { unmount } = monter('admin-agence', chemin);
+      expect(within(barre()).getByRole('button', { name: 'Menu' })).not.toHaveClass('font-semibold');
+      unmount();
+    }
+  });
 });
 
 describe('TCK-2481 — les compteurs, ceux du menu', () => {

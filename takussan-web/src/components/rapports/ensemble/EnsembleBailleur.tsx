@@ -7,7 +7,7 @@ import { LienDesIndicateurs } from '@/components/rapports/vues/LienDesIndicateur
 import { PeriodeDuRapport } from '@/components/rapports/vues/pieces';
 import { buttonVariants } from '@/components/ui/button';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
-import { formatDate } from '@/lib/format';
+import { bornesLisibles } from '@/lib/rapports/periode';
 import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
 import { chiffresDuBailleur } from '@/lib/rapports/chiffres';
 import { isAdmin, isAgent } from '@/lib/roles';
@@ -42,10 +42,8 @@ export async function EnsembleBailleur() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PeriodeDuRapport>
-          {tRapports('periode', { debut: formatDate(data.period.start, locale), fin: formatDate(data.period.end, locale) })}
-        </PeriodeDuRapport>
+      <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+        <PeriodeDuRapport periode>{tRapports('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
         {/* L'hôte ouvre les indicateurs (TCK-284) ; le bailleur, non : le lien se juge seul. */}
         <LienDesIndicateurs />
       </div>
@@ -73,7 +71,11 @@ export async function EnsembleBailleur() {
             ]}
           />
         ) : null}
-        <ProchainsReversements />
+        {/* TCK-2801 (fiche TCK-2628, O5) — au téléphone, « Prochains reversements » suit les tuiles (maquette) ;
+            au bureau, la colonne de droite. */}
+        <div data-slot="bloc-reversements" className="max-xl:order-first">
+          <ProchainsReversements />
+        </div>
       </div>
     </div>
   );

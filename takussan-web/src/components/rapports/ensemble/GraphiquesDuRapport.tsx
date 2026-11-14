@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { BlocGraphique, type VariationDuBloc } from '@/components/rapports/graphiques/BlocGraphique';
 import { GraphiqueDuMois, type UniteDuGraphique } from '@/components/rapports/graphiques/GraphiqueDuMois';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { pourcentMesure } from '@/lib/rapports/pourcentages';
 import { variationDuMoisClos } from '@/lib/rapports/chiffres';
 import { cn } from '@/lib/utils';
 
@@ -49,7 +50,7 @@ export function GraphiquesDuRapport({ series, moisEnCours, className }: Graphiqu
   const [actif, setActif] = useState<IdDuGraphique | undefined>(series[0]?.id);
 
   const valeurLue = (v: number, unite: UniteDuGraphique) =>
-    unite === 'montant' ? f.montantAbrege(v, 'XOF') : unite === 'pourcent' ? f.pourcentage(v / 100) : f.nombre(v);
+    unite === 'montant' ? f.montantAbrege(v, 'XOF') : unite === 'pourcent' ? pourcentMesure(f, v) : f.nombre(v);
   const moisLong = (m: string) => f.date(`${m}-15T12:00:00Z`, { month: 'long' });
 
   const lire = (s: SerieDuRapport): { readonly total: string; readonly variation: VariationDuBloc | null } => {

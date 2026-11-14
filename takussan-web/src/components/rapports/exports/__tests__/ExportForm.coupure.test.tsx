@@ -38,7 +38,7 @@ describe('ExportForm — coupure signalée (TCK-1308)', () => {
     vi.stubGlobal('fetch', fetchSpy);
     render(withIntl(avecClient(<ExportForm staff />)));
 
-    fireEvent.click(screen.getByRole('button', { name: T.download }));
+    fireEvent.click(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport }));
 
     expect(await screen.findByTestId('exports-truncated')).toHaveTextContent(/5\s000 lignes/);
     // TCK-2629 — Excel et le mois dernier par défaut (préréglage de la maquette).
@@ -50,10 +50,10 @@ describe('ExportForm — coupure signalée (TCK-1308)', () => {
     vi.stubGlobal('fetch', fetchSpy);
     render(withIntl(avecClient(<ExportForm staff />)));
 
-    fireEvent.click(screen.getByRole('button', { name: T.download }));
+    fireEvent.click(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport }));
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByRole('button', { name: T.download })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport })).toBeEnabled());
     expect(screen.queryByTestId('exports-truncated')).not.toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe('ExportForm — coupure signalée (TCK-1308)', () => {
     vi.stubGlobal('fetch', reponse({}, 403));
     render(withIntl(avecClient(<ExportForm staff />)));
 
-    fireEvent.click(screen.getByRole('button', { name: T.download }));
+    fireEvent.click(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(T.failed);
   });

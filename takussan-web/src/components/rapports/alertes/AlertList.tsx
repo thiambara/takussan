@@ -13,10 +13,10 @@ import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
-import { PuceDeFiltre } from '@/components/ui/puce-de-filtre';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { pourcentMesure, pourcentSaisi } from '@/lib/rapports/pourcentages';
 import type { ThresholdAlert } from '@/lib/queries/alerts';
 import {
   METRIQUES_D_ALERTE,
@@ -27,6 +27,8 @@ import {
   type MetriqueDAlerte,
 } from '@/lib/rapports/alertes';
 import { cn } from '@/lib/utils';
+
+import { Segmente } from '../Segmente';
 
 /** La valeur envoyée à l'API, et la clé de son libellé (`>` n'est pas une clé de dictionnaire). */
 const OPERATORS = [
@@ -57,13 +59,15 @@ function useLectureDAlerte() {
   const tMetric = useTranslations('dashboard.kpis.metrics');
   const f = useFormatteurs();
   const metrique = (code: string) => ((METRIQUES_D_ALERTE as readonly string[]).includes(code) ? tMetric(code) : code);
-  const chiffre = (metric: string, v: number | string | null | undefined) => {
+  // TCK-2801 — la valeur MESURÉE à une décimale (« 3,9 % », comme la tuile), plus si l'arrondi tombait de l'autre
+  // côté du seuil (`pourcentMesure(f, n, seuil)`) ; le seuil SAISI tel quel.
+  const chiffre = (metric: string, v: number | string | null | undefined, { saisi = false, seuil }: { saisi?: boolean; seuil?: number | string } = {}) => {
     if (v === null || v === undefined || v === '') return '—';
     const n = Number(v);
     if (!Number.isFinite(n)) return '—';
     const forme = formeDeLaMetrique(metric);
     return forme === 'pourcent'
-      ? f.pourcentage(n / 100, { maximumFractionDigits: 2 })
+      ? (saisi ? pourcentSaisi(f, n) : pourcentMesure(f, n, seuil === undefined ? undefined : Number(seuil)))
       : forme === 'montant'
         ? f.montantAbrege(n, 'XOF')
         : f.nombre(n);
@@ -92,9 +96,9 @@ function useLectureDAlerte() {
     canal,
     severite,
     ton,
-    titre: (a: ThresholdAlert) => `${metrique(a.metric)} ${SYMBOLE[a.operator] ?? a.operator} ${chiffre(a.metric, a.threshold)}`,
-    actuel: (a: ThresholdAlert) => chiffre(a.metric, a.current_value),
-    seuil: (a: ThresholdAlert) => t('seuil', { valeur: chiffre(a.metric, a.threshold) }),
+    titre: (a: ThresholdAlert) => `${metrique(a.metric)} ${SYMBOLE[a.operator] ?? a.operator} ${chiffre(a.metric, a.threshold, { saisi: true })}`,
+    actuel: (a: ThresholdAlert) => chiffre(a.metric, a.current_value, { seuil: a.threshold }),
+    seuil: (a: ThresholdAlert) => t('seuil', { valeur: chiffre(a.metric, a.threshold, { saisi: true }) }),
     delai: (a: ThresholdAlert) => t('delai', { h: a.cooldown_hours }),
   };
 }
@@ -279,7 +283,7 @@ export function AlertList({ initialAlerts }: AlertListProps) {
               <li key={`${r.alerte.id}-${r.at}`} className="flex min-h-11 items-center gap-4 px-4">
                 <span className="w-28 flex-none tabular-nums text-muted-foreground">{f.jourMois(r.at)}</span>
                 <span className="min-w-0 flex-1 truncate font-medium">{l.titre(r.alerte)}</span>
-                <span className="w-24 flex-none text-right font-semibold tabular-nums">{l.chiffre(r.alerte.metric, r.value)}</span>
+                <span className="w-24 flex-none text-right font-semibold tabular-nums">{l.chiffre(r.alerte.metric, r.value, { seuil: r.alerte.threshold })}</span>
               </li>
             ))}
           </ul>
@@ -410,17 +414,17 @@ function FormulaireDAlerte({
           />
         </div>
       </div>
-      <div role="group" aria-labelledby={`${id}-severity`}>
+      <div>
         <p id={`${id}-severity`} className="mb-1.5 text-sm font-medium text-foreground">
           {tA('severity')}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {SEVERITIES.map((s) => (
-            <PuceDeFiltre key={s} active={severity === s} onClick={() => setSeverity(s)}>
-              {tA(`severities.${s}`)}
-            </PuceDeFiltre>
-          ))}
-        </div>
+        {/* TCK-2801 — une sévérité, et une seule : le contrôle segmenté de la maquette, plus des puces. */}
+        <Segmente
+          idDuLibelle={`${id}-severity`}
+          valeur={severity}
+          onChange={setSeverity}
+          options={SEVERITIES.map((s) => ({ valeur: s, libelle: tA(`severities.${s}`) }))}
+        />
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">{t('quiEstPrevenu')}</p>
@@ -428,17 +432,23 @@ function FormulaireDAlerte({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-cooldown`}>{tA('cooldown')}</Label>
-        <Input
-          id={`${id}-cooldown`}
-          type="number"
-          min="1"
-          max="720"
-          inputMode="numeric"
-          value={cooldownHours}
-          onChange={(e) => setCooldownHours(e.target.value)}
-          aria-describedby={`${id}-cooldown-hint`}
-          className="tabular-nums"
-        />
+        {/* TCK-2801 — « 24 heures » (maquette) : l'unité écrite à côté du champ, plus dans son libellé. */}
+        <div className="flex items-center gap-2">
+          <Input
+            id={`${id}-cooldown`}
+            type="number"
+            min="1"
+            max="720"
+            inputMode="numeric"
+            value={cooldownHours}
+            onChange={(e) => setCooldownHours(e.target.value)}
+            aria-describedby={`${id}-cooldown-unite ${id}-cooldown-hint`}
+            className="w-24 tabular-nums"
+          />
+          <span id={`${id}-cooldown-unite`} className="text-sm text-foreground">
+            {t('uniteHeures')}
+          </span>
+        </div>
         <p id={`${id}-cooldown-hint`} className="text-xs text-pretty text-muted-foreground">
           {t('relueToutesLesHeures')}
         </p>

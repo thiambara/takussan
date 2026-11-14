@@ -79,14 +79,22 @@ export function BlocPipeline({
       {etapes.length === 0 ? (
         <BlocVide message={vide} />
       ) : (
-        <ul className="mt-4 space-y-2.5">
+        // TCK-2801 (fiche TCK-2628, O5) — la barre PLEINE de la maquette (`BarresEtapes`), proportionnelle au
+        // compte de l'étape, le compte écrit au bout de la barre ; la plus longue prend les trois quarts de la
+        // place, le reste est pour le nombre.
+        <ul className="mt-5 space-y-2.5">
           {etapes.map(([etape, n]) => (
-            <li key={etape} data-etape={etape} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_2.5rem] items-center gap-3 text-ui">
-              <span className="truncate text-foreground">{nomDeLEtape(etape)}</span>
-              <span className="h-2 rounded-full bg-muted">
-                <span className="block h-full rounded-full bg-chart-1" style={{ width: `${(n / max) * 100}%` }} />
+            <li key={etape} data-etape={etape} className="flex items-center gap-3 text-ui">
+              <span className="w-24 flex-none truncate text-foreground">{nomDeLEtape(etape)}</span>
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span
+                  data-slot="barre-d-etape"
+                  className={`h-5 rounded-r-[0.25rem] bg-chart-1 ${n > 0 ? 'min-w-0.5' : ''}`}
+                  style={{ width: `${(n / max) * 75}%` }}
+                  aria-hidden="true"
+                />
+                <span className="flex-none font-semibold tabular-nums">{n}</span>
               </span>
-              <span className="text-right font-medium tabular-nums">{n}</span>
             </li>
           ))}
         </ul>

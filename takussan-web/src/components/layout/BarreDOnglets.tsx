@@ -101,6 +101,11 @@ export function BarreDOnglets({
     entrees.map((e) => e.href),
     APP_EXACT_ROOTS,
   );
+  // TCK-2801 (fiche TCK-2628, O7) — une page du menu qui n'est AUCUN des onglets (Rapports, Baux…) : c'est
+  // « Menu » qui dit où l'on est, comme dans les maquettes (`onglet="menu"`, 84 écrans). Une mise en avant
+  // visuelle seulement : « Menu » est un bouton, il ne porte pas `aria-current`.
+  const pageDuMenu = activeHref !== null && !onglets.some((o) => o.href === activeHref);
+  const menuEnAvant = menuOuvert || pageDuMenu;
   const libelleCompteur = (cle: NavCounterKey, count: number) =>
     COMPTEURS_DE_MODERATION.has(cle) ? tAdmin('pendingBadge', { count }) : t(`counters.${cle}`, { count });
 
@@ -182,14 +187,14 @@ export function BarreDOnglets({
             className={cn(
               STYLE_CASE,
               FOCUS_RING,
-              menuOuvert ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
+              menuEnAvant ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {menuOuvert ? (
+            {menuEnAvant ? (
               <span aria-hidden data-slot="indicateur-onglet" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primary" />
             ) : null}
             <Menu
-              className={cn('size-5', menuOuvert && 'text-primary')}
+              className={cn('size-5', menuEnAvant && 'text-primary')}
               strokeWidth={TRAIT_DES_ONGLETS}
               aria-hidden
               data-slot="icone-onglet"

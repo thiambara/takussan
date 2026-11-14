@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { ChiffreDuRapport } from '@/lib/rapports/chiffres';
+import { pourcentMesure, pourcentSaisi } from '@/lib/rapports/pourcentages';
 import { cn } from '@/lib/utils';
 
 interface TuilesDuRapportProps {
@@ -31,8 +32,10 @@ export function useTexteDuChiffreDuRapport() {
       : c.forme === 'montant'
         ? f.montantAbrege(c.valeur, 'XOF')
         : c.forme === 'pourcent'
-          ? f.pourcentage(c.valeur / 100)
-          : f.nombre(c.valeur);
+          ? pourcentMesure(f, c.valeur)
+          : c.forme === 'biens'
+            ? t('valeurs.biens', { n: c.valeur })
+            : f.nombre(c.valeur);
   const contexte = (c: ChiffreDuRapport): string | null => {
     const x = c.contexte;
     if (!x) return null;
@@ -66,6 +69,8 @@ export function useTexteDuChiffreDuRapport() {
         });
       case 'septJours':
         return t('contextes.septJours');
+      case 'seuil':
+        return t('contextes.seuil', { seuil: pourcentSaisi(f, x.valeur) });
     }
   };
   return {
@@ -94,6 +99,9 @@ export function TuilesDuRapport({ chiffres, colonnes = 4, visiblesAuTelephone, c
         {chiffres.map((c, i) => {
           const cache = replie && !deplie && i >= (visiblesAuTelephone ?? 0);
           const contexte = texte.contexte(c);
+          // TCK-2801 — le portefeuille du bailleur : au téléphone, une carte pleine largeur avec sa jauge empilée
+          // et sa légende (maquette `BarrePortefeuille`) ; au bureau, une tuile au texte (maquette du bureau).
+          const portefeuille = c.contexte?.cle === 'portefeuille' ? c.contexte : null;
           const corps = (
             <>
               <span className="flex items-center text-ui text-muted-foreground">
@@ -101,10 +109,12 @@ export function TuilesDuRapport({ chiffres, colonnes = 4, visiblesAuTelephone, c
                 {c.href ? <ArrowUpRight className="ml-auto size-3.5 flex-none" aria-hidden="true" /> : null}
               </span>
               <span className="mt-1 block font-display text-affiche-22 font-semibold tracking-titre tabular-nums">{texte.valeur(c)}</span>
+              {portefeuille ? <JaugeDuPortefeuille {...portefeuille} /> : null}
               {contexte ? (
                 <span
                   className={cn(
                     'mt-0.5 block text-xs',
+                    portefeuille && 'max-md:hidden',
                     c.ton === 'danger' ? 'font-medium text-destructive' : c.ton === 'succes' ? 'font-medium text-success' : 'text-muted-foreground',
                   )}
                 >
@@ -114,7 +124,7 @@ export function TuilesDuRapport({ chiffres, colonnes = 4, visiblesAuTelephone, c
             </>
           );
           return (
-            <li key={c.cle} className={cn('min-w-0', cache && 'max-md:hidden')}>
+            <li key={c.cle} className={cn('min-w-0', cache && 'max-md:hidden', portefeuille && 'max-md:col-span-2')}>
               {c.href ? (
                 <Link
                   href={c.href}
@@ -145,5 +155,42 @@ export function TuilesDuRapport({ chiffres, colonnes = 4, visiblesAuTelephone, c
         </button>
       ) : null}
     </>
+  );
+}
+
+/**
+ * TCK-2801 (fiche TCK-2628, O5) — la jauge du portefeuille au téléphone : loués en plein, libres et autres en
+ * retrait, chacun proportionnel au total, puis la légende avec les comptes. Décorative pour la jauge (la légende
+ * dit les mêmes nombres en mots) ; masquée dès `md`, où la tuile dit le texte de la maquette du bureau.
+ */
+function JaugeDuPortefeuille({ loues, libres, autres }: { readonly loues: number; readonly libres: number; readonly autres: number }) {
+  const t = useTranslations('rapports.chiffres.legende');
+  const total = loues + libres + autres;
+  const segments = [
+    { cle: 'loues', n: loues, fond: 'bg-chart-1' },
+    { cle: 'libres', n: libres, fond: 'bg-foreground/15' },
+    { cle: 'autres', n: autres, fond: 'bg-foreground/40' },
+  ] as const;
+  const gras = (morceaux: ReactNode) => <b className="font-semibold">{morceaux}</b>;
+  return (
+    <span className="mt-3 block md:hidden" data-slot="jauge-du-portefeuille">
+      {total > 0 ? (
+        <span className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden="true">
+          {segments
+            .filter((s) => s.n > 0)
+            .map((s) => (
+              <span key={s.cle} data-segment={s.cle} className={s.fond} style={{ width: `${(s.n / total) * 100}%` }} />
+            ))}
+        </span>
+      ) : null}
+      <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-ui tabular-nums">
+        {segments.map((s) => (
+          <span key={s.cle} className="inline-flex items-center gap-1.5">
+            <span className={cn('size-2 rounded-sm', s.fond)} aria-hidden="true" />
+            <span>{t.rich(s.cle, { n: s.n, b: gras })}</span>
+          </span>
+        ))}
+      </span>
+    </span>
   );
 }

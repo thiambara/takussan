@@ -41,14 +41,14 @@ describe('ExportForm — exports jugés par capacité (TCK-587)', () => {
     render(withIntl(avecClient(<ExportForm staff />)));
 
     expect(screen.getByTestId('exports-none')).toHaveTextContent(T.noneAllowed);
-    expect(screen.queryByRole('button', { name: T.download })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: fr.rapports.exports.telechargerLExport })).not.toBeInTheDocument();
   });
 
   it('le personnel qui tient crm.export seul se voit offrir les clients, d’emblée', () => {
     tenant(['crm.export']);
     render(withIntl(avecClient(<ExportForm staff />)));
 
-    expect(screen.getByRole('button', { name: T.download })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport })).toBeInTheDocument();
     // TCK-2629 — le type se choisit en puces : la seule offerte est enfoncée d'emblée.
     expect(screen.getByRole('group', { name: T.dataType })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: T.entities.customers })).toHaveAttribute('aria-pressed', 'true');
@@ -58,7 +58,7 @@ describe('ExportForm — exports jugés par capacité (TCK-587)', () => {
     tenant([]);
     render(withIntl(avecClient(<ExportForm staff={false} />)));
 
-    expect(screen.getByRole('button', { name: T.download })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: T.entities.payments })).toHaveAttribute('aria-pressed', 'true');
     // TCK-2629 (AC2) — trois types, et trois seulement.
     expect(within(screen.getByRole('group', { name: T.dataType })).getAllByRole('button')).toHaveLength(3);

@@ -45,10 +45,22 @@ beforeEach(() => {
 });
 
 describe('TCK-2629 — l’onglet « Alertes »', () => {
-  it('AC3 — « Taux d’impayés > 10 % » jamais déclenchée : « 3,91 % », « seuil 10 % », « jamais », et les destinataires comptés', () => {
+  // TCK-2801 — la valeur actuelle se lit « 3,9 % », comme la tuile et « Personnaliser » (une décimale pour une
+  // valeur MESURÉE) ; elle se lisait « 3,91 % » ici et « 4 % » sur la tuile.
+  // TCK-2801 (consigne de team-lead) — une valeur arrondie qui tombe sur le seuil garde assez de décimales pour
+  // dire de quel côté elle est : la règle partagée `pourcentMesure(f, valeur, seuil)`.
+  it('TCK-2801 — 3,95 mesuré pour un seuil de 3,95 : « 3,95 % », pas « 4 % »', () => {
+    render(withIntl(<AlertList initialAlerts={[{ ...TAUX, threshold: 3.95, current_value: 3.95 }]} />));
+    const ligne = screen.getAllByRole('listitem')[0];
+    expect(ligne).toHaveTextContent(/(?<![\d,])3,95\s%.*seuil 3,95\s%/u);
+    expect(ligne).not.toHaveTextContent(/(?<![\d,])4\s%/u);
+  });
+
+  it('AC3 — « Taux d’impayés > 10 % » jamais déclenchée : « 3,9 % », « seuil 10 % », « jamais », et les destinataires comptés', () => {
     render(withIntl(<AlertList initialAlerts={[TAUX]} />));
     const ligne = ligneDe(7);
-    expect(ligne).toHaveTextContent(/3,91\s%/u);
+    expect(ligne).toHaveTextContent(/(?<![\d,])3,9\s%/u);
+    expect(ligne).not.toHaveTextContent(/3,91/u);
     expect(ligne).toHaveTextContent(/seuil 10\s%/u);
     expect(within(ligne).getByText('jamais')).toBeInTheDocument();
     expect(ligne).toHaveTextContent('2 administrateurs');

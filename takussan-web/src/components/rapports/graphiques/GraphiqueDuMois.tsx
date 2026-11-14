@@ -3,6 +3,7 @@
 import { useState, type KeyboardEvent } from 'react';
 
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { pourcentMesure } from '@/lib/rapports/pourcentages';
 import { formatDate, formatNumber } from '@/lib/format';
 import { graduationsRondes } from '@/lib/rapports/graduations';
 import { cn } from '@/lib/utils';
@@ -60,7 +61,7 @@ export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libell
         ? formatNumber(v, f.locale, { notation: 'compact', maximumFractionDigits: 1 })
         : formatNumber(v, f.locale, { maximumFractionDigits: 0 });
   const valeurLue = (v: number | null): string =>
-    v === null ? '—' : unite === 'montant' ? f.montantAbrege(v, 'XOF') : unite === 'pourcent' ? f.pourcentage(v / 100) : f.nombre(v);
+    v === null ? '—' : unite === 'montant' ? f.montantAbrege(v, 'XOF') : unite === 'pourcent' ? pourcentMesure(f, v) : f.nombre(v);
   const moisCourt = (m: string) => {
     const d = dateDuMois(m);
     return d ? formatDate(d, f.locale, { dateStyle: undefined, month: 'short' }) : m;

@@ -2692,13 +2692,13 @@
       "operator": "Operator",
       "threshold": "Threshold",
       "severity": "Severity",
-      "cooldown": "Delay between alerts (h)",
+      "cooldown": "Delay between alerts",
       "create": "Create the alert",
       "activeTitle": "Active alerts",
       "empty": "No alert configured.",
       "delete": "Delete",
       "severities": {
-        "info": "Info",
+        "info": "Information",
         "warning": "Warning",
         "critical": "Critical"
       },
@@ -2769,12 +2769,12 @@
         "payouts": "Payouts",
         "invoices": "Invoices",
         "commissions": "Commissions",
-        "aging": "Overdue by age",
-        "deposits": "Deposits held"
+        "aging": "Aged balance",
+        "deposits": "Deposits"
       },
       "formats": {
         "csv": "CSV",
-        "xlsx": "Excel (xlsx)",
+        "xlsx": "Excel",
         "pdf": "PDF"
       }
     },
@@ -21314,10 +21314,19 @@
         "cetteAnnee": "{montant} this year",
         "bauxCetteAnnee": "this month · {n} this year",
         "septJours": "over the next 7 days",
-        "portefeuille": "{loues} let · {libres} free · {autres} other"
+        "portefeuille": "{loues} let · {libres} free · {autres} other",
+        "seuil": "alert threshold: {seuil}"
       },
       "tous": "All {n} figures",
-      "moins": "Fewer figures"
+      "moins": "Fewer figures",
+      "valeurs": {
+        "biens": "{n, plural, one {# property} other {# properties}}"
+      },
+      "legende": {
+        "loues": "<b>{n}</b> let",
+        "libres": "<b>{n}</b> free",
+        "autres": "<b>{n}</b> other"
+      }
     },
     "graphiques": {
       "titres": {
@@ -21422,7 +21431,8 @@
         "lignes": "Rows",
         "gestes": "Actions"
       },
-      "pied": "No file is kept: “Redo” runs the export again with the same settings. At most {max, number} rows, {pdf, number} as PDF."
+      "pied": "No file is kept: “Redo” runs the export again with the same settings. At most {max, number} rows, {pdf, number} as PDF.",
+      "telechargerLExport": "Download the export"
     },
     "alertes": {
       "declencheeLe": "Triggered on {date}",
@@ -21462,7 +21472,8 @@
       "quiEstPrevenuValeur": "The agency’s active administrators, by notification and email.",
       "relueToutesLesHeures": "The measure is checked every hour.",
       "modificationEchec": "The change failed. Please try again.",
-      "enregistrer": "Save"
+      "enregistrer": "Save",
+      "uniteHeures": "hours"
     },
     "reglage": {
       "titre": "Customise the figures",
@@ -21484,6 +21495,10 @@
       "termine": "Done",
       "annuler": "Cancel",
       "enregistre": "Saved."
-    }
+    },
+    "description": "{nom} · {periode}",
+    "descriptionPeriode": "from {debut} to {fin}",
+    "exporter": "Export",
+    "impayesCompte": ", {n, plural, one {# unpaid instalment} other {# unpaid instalments}}"
   }
 }

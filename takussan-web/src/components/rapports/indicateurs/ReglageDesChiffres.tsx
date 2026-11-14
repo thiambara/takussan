@@ -16,6 +16,7 @@ import { PuceDeFiltre } from '@/components/ui/puce-de-filtre';
 import { Switch } from '@/components/ui/switch';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { pourcentMesure } from '@/lib/rapports/pourcentages';
 import type { KpiConfig } from '@/lib/queries/kpis';
 import { deplacer, ecrituresDuReglage, formatParDefaut, inverse, ordonner, type ChiffreRegle, type Ecriture } from '@/lib/rapports/indicateurs';
 import { cn } from '@/lib/utils';
@@ -128,7 +129,7 @@ export function ListeDuReglage({ reglage, catalog, apercus }: { readonly reglage
     const v = apercus?.[metric];
     if (apercus === undefined || v === undefined) return null;
     if (v === null) return '—';
-    return format === 'currency' ? f.montantAbrege(v, 'XOF') : format === 'percent' ? f.pourcentage(v / 100, { maximumFractionDigits: 1 }) : f.nombre(v);
+    return format === 'currency' ? f.montantAbrege(v, 'XOF') : format === 'percent' ? pourcentMesure(f, v) : f.nombre(v);
   };
   const affiches = lignes.filter((c) => c.is_enabled).length;
   const configurees = new Set(lignes.map((c) => c.metric));

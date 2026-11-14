@@ -2649,13 +2649,13 @@
       "operator": "Opérateur",
       "threshold": "Seuil",
       "severity": "Sévérité",
-      "cooldown": "Délai entre deux alertes (h)",
+      "cooldown": "Délai entre deux alertes",
       "create": "Créer l'alerte",
       "activeTitle": "Alertes actives",
       "empty": "Aucune alerte configurée.",
       "delete": "Supprimer",
       "severities": {
-        "info": "Info",
+        "info": "Information",
         "warning": "Attention",
         "critical": "Critique"
       },
@@ -2726,12 +2726,12 @@
         "payouts": "Reversements",
         "invoices": "Factures",
         "commissions": "Commissions",
-        "aging": "Impayés par ancienneté",
-        "deposits": "Cautions détenues"
+        "aging": "Balance âgée",
+        "deposits": "Cautions"
       },
       "formats": {
         "csv": "CSV",
-        "xlsx": "Excel (xlsx)",
+        "xlsx": "Excel",
         "pdf": "PDF"
       }
     },
@@ -21314,10 +21314,19 @@
         "cetteAnnee": "{montant} cette année",
         "bauxCetteAnnee": "ce mois · {n} cette année",
         "septJours": "sur les 7 prochains jours",
-        "portefeuille": "{loues} loués · {libres} libres · {autres} autres"
+        "portefeuille": "{loues} loués · {libres} libres · {autres} autres",
+        "seuil": "seuil d’alerte : {seuil}"
       },
       "tous": "Les {n} chiffres",
-      "moins": "Moins de chiffres"
+      "moins": "Moins de chiffres",
+      "valeurs": {
+        "biens": "{n, plural, one {# bien} other {# biens}}"
+      },
+      "legende": {
+        "loues": "<b>{n}</b> {n, plural, one {loué} other {loués}}",
+        "libres": "<b>{n}</b> {n, plural, one {libre} other {libres}}",
+        "autres": "<b>{n}</b> {n, plural, one {autre} other {autres}}"
+      }
     },
     "graphiques": {
       "titres": {
@@ -21422,7 +21431,8 @@
         "lignes": "Lignes",
         "gestes": "Actions"
       },
-      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max, number} lignes au plus, {pdf, number} en PDF."
+      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max, number} lignes au plus, {pdf, number} en PDF.",
+      "telechargerLExport": "Télécharger l’export"
     },
     "alertes": {
       "declencheeLe": "Déclenchée le {date}",
@@ -21462,7 +21472,8 @@
       "quiEstPrevenuValeur": "Les administrateurs actifs de l’agence, par notification et par e-mail.",
       "relueToutesLesHeures": "La mesure est relue toutes les heures.",
       "modificationEchec": "La modification a échoué. Réessayez.",
-      "enregistrer": "Enregistrer"
+      "enregistrer": "Enregistrer",
+      "uniteHeures": "heures"
     },
     "reglage": {
       "titre": "Personnaliser les chiffres",
@@ -21484,6 +21495,10 @@
       "termine": "Terminé",
       "annuler": "Annuler",
       "enregistre": "Enregistré."
-    }
+    },
+    "description": "{nom} · {periode}",
+    "descriptionPeriode": "du {debut} au {fin}",
+    "exporter": "Exporter",
+    "impayesCompte": ", {n, plural, one {# échéance impayée} other {# échéances impayées}}"
   }
 }

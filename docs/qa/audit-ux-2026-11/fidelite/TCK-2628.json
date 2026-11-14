@@ -80,9 +80,36 @@
           "bureau-1280": "48 conformes · 172 écarts · 48 absents · 12.16 % pixels (écran entier, indicatif)"
         }
       },
-      "ecritures": "aucune : GET seulement",
+      "ecritures": "c1 : aucune (GET seulement). c2r : relevées le 2026-11-14 (TCK-2801, autorisées par team-lead) puis effacées par l’API dans la même tenue du verrou : 6 kpi-configs (ids 1–6), 2 alertes qui ne sonnent pas (ids 1–2 : unpaid_rate_percent > 10, occupancy_rate_percent < 20), 1 export (leases, csv, 5 lignes). Après effacement, GET /api/kpi-configs et /api/threshold-alerts rendent 0 ; RESTE la ligne « data_exported » du journal d’activité de l’export (non effaçable par l’API). Journal : impl/lot2/t2801/ecritures.json",
       "balayage": "AC-F6, 2026-11-14 (balayer, sous le verrou de mesure) : /app/reports pour admin, agent et proprietaire à 390, 768, 1024, 1280, 1440 — débord 0, dépassement 0, aucune coupe nette, à toutes les largeurs ; les seules ellipses sont les libellés de la barre latérale en rail à 768 (coque), aucune dans la page ; hote à 360 et 1280 : même résultat (impl/lot2/t2628/fid/releve.log). Journal : impl/lot2/fid-rapports/balayage.log",
-      "lecture": "« conformes · écarts · absents · % pixels » avec cette fiche (rôles filtrés par écran, alias, ignorés). Le détail de chaque écart (mesure maquette, mesure produit) est dans rapport.md de chaque dossier c1-* ; les écarts sont regroupés par cause dans `ecarts_acceptes` et `ecarts_ouverts`. Les chiffres comptent des propriétés mesurées (doublées par les icônes et ancres), pas des défauts : la coque, la donnée et les causes ouvertes les dominent."
+      "lecture": "« conformes · écarts · absents · % pixels » avec cette fiche (rôles filtrés par écran, alias, ignorés). Le détail de chaque écart (mesure maquette, mesure produit) est dans rapport.md de chaque dossier c1-* ; les écarts sont regroupés par cause dans `ecarts_acceptes` et `ecarts_ouverts`. Les chiffres comptent des propriétés mesurées (doublées par les icônes et ancres), pas des défauts : la coque, la donnée et les causes ouvertes les dominent.",
+      "apres_tck_2801": {
+        "dossiers": "takussan-web/.fidelite/TCK-2628/ prod2-a-* et c2-a-* (état de démo, après TCK-2801) ; prod2r-a-* et c2r-a-* (états remplis) ; c1-a-* gardés comme « avant ». Relevés du 2026-11-14 sous le verrou de mesure, commit 7ab194221 + arbre partagé (TCK-2801 non commité)",
+        "resultats": {
+          "a-0": {
+            "telephone": "15 conformes · 23 écarts · 53 absents · 18.46 % pixels (écran entier, indicatif)",
+            "bureau-1280": "66 conformes · 165 écarts · 121 absents · 12.14 % pixels (écran entier, indicatif)"
+          },
+          "a-0s": {
+            "telephone": "29 conformes · 34 écarts · 30 absents · 19.87 % pixels (écran entier, indicatif)",
+            "bureau-1280": "73 conformes · 262 écarts · 44 absents · 11.54 % pixels (écran entier, indicatif)"
+          },
+          "a-7": {
+            "telephone": "31 conformes · 39 écarts · 17 absents · 11.72 % pixels (écran entier, indicatif)",
+            "bureau-1280": "54 conformes · 313 écarts · 69 absents · 10.72 % pixels (écran entier, indicatif)"
+          },
+          "a-8": {
+            "telephone": "30 conformes · 32 écarts · 22 absents · 11.16 % pixels (écran entier, indicatif)",
+            "bureau-1280": "53 conformes · 170 écarts · 45 absents · 11.71 % pixels (écran entier, indicatif)"
+          }
+        },
+        "resultats_remplis": {
+          "a-0": {
+            "telephone": "13 conformes · 19 écarts · 56 absents · 18.46 % pixels (écran entier, indicatif)",
+            "bureau-1280": "58 conformes · 169 écarts · 126 absents · 12.4 % pixels (écran entier, indicatif)"
+          }
+        }
+      }
     }
   },
   "coque": true,
@@ -209,7 +236,6 @@
   "zones": [],
   "zones_motif": "aucune zone propre à la page : au téléphone la barre d’onglets de la page est 44 px plus bas que dans la maquette (écart ouvert O1) et au bureau l’en-tête de page n’a ni description ni actions (O2). Seules les zones de coque (roles-coque.json) sont jugées.",
   "alias": {
-    "Du 1 au 30 novembre 2026": "Du 1 nov. 2026 au 30 nov. 2026",
     "Mes prospects par étape": "Prospects par étape",
     "Ouvrir le suivi": "Ouvrir les étapes",
     "Personnaliser": "Personnaliser les chiffres",
@@ -223,7 +249,6 @@
     "Toutes": "Tous"
   },
   "alias_motifs": {
-    "date": "le produit écrit la période avec `formatDate` (mois abrégé) : « Du 1 nov. 2026 au 30 nov. 2026 » ; la maquette écrit le mois en toutes lettres. Aucune décision ne le tranche (voir O6)",
     "agent": "« Mes prospects par étape » → « Prospects par étape », « Ouvrir le suivi » → « Ouvrir les étapes » : libellés de la vue agent d’avant (clés `dashboard.agent.*`) ; l’onglet Pipeline les reprend",
     "equipe": "le ticket garde « Équipe ce mois » (lien vers l’onglet Équipe) ; ses colonnes sont celles de l’API (visites effectuées, commissions acquises) ; « Demandes traitées » et « Délai de réponse » sont de l’onglet Équipe (TCK-2629)",
     "graphiques": "« Encaissé et attendu » devient « Encaissé » : une série par graphique (ticket), pas de série « Attendu » (écart de donnée)"
@@ -325,56 +350,72 @@
       "ecran": "a-0, a-7, a-8 (téléphone)",
       "element": "barre d’onglets de la page",
       "mesure": "produit : nav à y = 100, texte à y ≈ 122 ; maquette : nav à y = 56, texte à y ≈ 78 (44 px de plus). Pas collante : au défilement elle part avec la page (relevé défilé de 700 px)",
-      "motif": "défaut. Le ticket dit « les onglets défilent horizontalement et collent sous l’en-tête ». Les 44 px = marge haute de `main` + `mt-5` du slot `dessous` de `PageHeader` (TCK-2687), titre masqué au téléphone ; vaut pour toute page à onglets du gabarit, pas pour Rapports seule"
+      "motif": "défaut. Le ticket dit « les onglets défilent horizontalement et collent sous l’en-tête ». Les 44 px = marge haute de `main` + `mt-5` du slot `dessous` de `PageHeader` (TCK-2687), titre masqué au téléphone ; vaut pour toute page à onglets du gabarit, pas pour Rapports seule",
+      "statut": "reporté — gabarit `PageHeader`, ticket à part (hors TCK-2801)",
+      "preuve": "c2-a-0-telephone : onglets toujours à y = 100 (maquette 56) ; masquer l’en-tête sous `md` n’y change rien : les 44 px sont la marge de `main` et le `mt-5` du slot `dessous`, communs à toutes les pages à onglets"
     },
     {
       "id": "O2",
       "ecran": "a-0, a-7, a-8 (bureau)",
       "element": "tête de page : description « Dakar Immo · du 1 au 30 novembre 2026 » et actions « Agence ▾ · Ce mois ▾ · Exporter »",
       "mesure": "le produit n’a que le titre « Rapports ». « Exporter » et « Agence » manquent aussi au téléphone (maquette : menu « ⋯ » de l’en-tête, bouton « Agence ▾ »)",
-      "motif": "à trancher : ni le ticket ni D7 ne les retirent. « Ce mois » suit O3"
+      "motif": "à trancher : ni le ticket ni D7 ne les retirent. « Ce mois » suit O3",
+      "statut": "fermé au bureau pour la description et « Exporter » (TCK-2801) ; « Ce mois ▾ », « Agence ▾ » et « Exporter » au téléphone motivés",
+      "preuve": "c2-a-0-bureau-1280 : « Dakar Immo · du 1 au 30 novembre 2026 » (y 61) et « Exporter » (y 29, lien vers /app/reports/exports) ; seul reste la couleur de bordure du bouton (variante `outline` du système). « Ce mois ▾ » attend TCK-2791 (aucun second mois servi) ; « Agence ▾ » non rendu : GET /api/dashboard/agency n’accepte qu’`agency_id`, l’agence se choisit dans la coque (TCK-2801, « Consigné »). Au téléphone, la ligne de période reste dans la page (« Du 1 au 30 novembre 2026 », c2-a-0-telephone y 169). Au téléphone, « Exporter » (menu « ⋯ » de l’en-tête dans la maquette) n’est pas rendu : l’en-tête de page est sans hauteur au téléphone (gabarit `PageHeader`, O1) ; l’export reste à un geste, onglet « Exports »"
     },
     {
       "id": "O3",
       "ecran": "a-0 (bureau)",
       "element": "pastille « 16 » de l’onglet « Impayés »",
       "mesure": "absente",
-      "motif": "défaut ou décision non écrite : le compte existe (`finance/aging`)"
+      "motif": "défaut ou décision non écrite : le compte existe (`finance/aging`)",
+      "statut": "fermé (TCK-2801)",
+      "preuve": "c2-a-0-bureau-1280 : « 16 » sur l’onglet Impayés (y 99), lu côté navigateur par la règle de l’onglet (payments/history, days_late_min=1, meta.total = 16) ; lecteur d’écran : « 16 échéances impayées ». Test AC3 + ablation de la garde d’échec rouge"
     },
     {
       "id": "O4",
       "ecran": "a-0, a-8",
       "element": "tuile « Taux d’impayés »",
       "mesure": "produit « 4 % » ; l’API rend `unpaid_rate_percent: 3.91` (GET /api/dashboard/agency, admin) ; la maquette et le panneau « Personnaliser » écrivent « 3,9 % »",
-      "motif": "défaut avéré : `TuilesDuRapport.tsx` rend la forme `pourcent` par `f.pourcentage(valeur / 100)` sans décimale. À corriger (une décimale), sinon « 4 % » en tuile et « 3,9 % » dans l’alerte (AC3 de TCK-2629)"
+      "motif": "défaut avéré : `TuilesDuRapport.tsx` rend la forme `pourcent` par `f.pourcentage(valeur / 100)` sans décimale. À corriger (une décimale), sinon « 4 % » en tuile et « 3,9 % » dans l’alerte (AC3 de TCK-2629)",
+      "statut": "fermé (TCK-2801)",
+      "preuve": "c2-a-0-bureau-1280 : « 3,9 % » et « 46,9 % » ; c2r-a-5 : « Actuel 3,9 % · seuil 10 % ». Une fonction (`pourcentMesure`) pour toute valeur mesurée ; ablation `maximumFractionDigits: 0` rouge (4 tests)"
     },
     {
       "id": "O5",
       "ecran": "a-7 (téléphone, bureau), a-8 (téléphone)",
       "element": "dessin du pipeline, du portefeuille et de l’ordre des blocs",
       "mesure": "pipeline : jauges de 8 px à droite du libellé, au lieu de barres pleines de 24 px proportionnelles ; portefeuille bailleur : tuile ordinaire (« 69 » · « 5 loués · 54 libres · 10 autres ») au lieu de la carte à jauge empilée et légende ; « Prochains reversements » après les graphiques (maquette : juste après les tuiles)",
-      "motif": "défaut de rendu, aucune donnée n’explique le dessin ; à corriger ou à accepter par décision"
+      "motif": "défaut de rendu, aucune donnée n’explique le dessin ; à corriger ou à accepter par décision",
+      "statut": "fermé (TCK-2801)",
+      "preuve": "c2-a-8-telephone : « Mon portefeuille » carte pleine largeur (y 213, 358 px) à jauge empilée et légende « 5 loués · 54 libres · 10 autres » ; « Prochains reversements » (y 650) avant les graphiques (y 772). a-7 téléphone : barres pleines de 20 px de haut partant de x 141, le compte au bout — même géométrie que la référence (h 20, x 141). Restent dans c2-a-7 : six étapes au lieu de cinq (donnée), annotations « +5 en 7 j », « 2 baux à signer », « ce mois » non servies, encre opaque au lieu de /80 (règle du lot)"
     },
     {
       "id": "O6",
       "ecran": "a-0, a-7, a-8",
       "element": "sous-textes de tuile et libellés de graphique",
       "mesure": "absents : « 4 à renouveler d’ici 30 j » (Baux actifs), « sur 214 biens » (Biens publiés ; le total 214 existe, voir « Personnaliser »), « seuil d’alerte : 10 % », « 310 000 F à venir », « +5 cette semaine » ; « Visites » dit « sur les 7 prochains jours » là où la maquette dit « 7 derniers jours » ; mois de l’axe en initiales (D J F M…) au téléphone au lieu de « déc. janv. » ; lien « Voir le tableau » des graphiques absent ; période en mois abrégés",
-      "motif": "à qualifier : donnée non servie pour certains (renouvellements, « à venir »), défaut pour d’autres (total des biens, seuil, axe, « Voir le tableau »)"
+      "motif": "à qualifier : donnée non servie pour certains (renouvellements, « à venir »), défaut pour d’autres (total des biens, seuil, axe, « Voir le tableau »)",
+      "statut": "en partie fermé (total des biens, période en mois longs ; seuil prouvé par test seulement), le reste motivé",
+      "preuve": "« seuil d’alerte : 10 % » JAMAIS vu dans un relevé : sans alerte en démo (c2) rien à montrer ; dans l’état rempli (c2r-a-0), l’agence avait aussi choisi ses chiffres et la branche des tuiles configurées l’ignorait — corrigé ensuite, prouvé par test de rendu (TuilesDuRapport.tck-2801, ablation rouge), non re-relevé faute d’écriture autorisée (décision posée à team-lead). « sur 214 biens » présent (c2-a-0-bureau-1280). Non servis : « 4 à renouveler d’ici 30 j », « 310 000 F à venir », « +5 cette semaine ». « Visites » dit « sur les 7 prochains jours » : `upcoming_7d`, la donnée vraie. Axe en initiales au téléphone et « Voir le tableau » : non traités (TCK-2801, « Consigné »)"
     },
     {
       "id": "O7",
       "ecran": "a-0, a-7, a-8 (téléphone)",
       "element": "barre d’onglets du bas : « Menu »",
       "mesure": "dans la maquette « Menu » est actif (gras, trait du haut) sur Rapports ; dans le produit il ne l’est pas (zone « coque · barre d’onglets » à 1,94 % de pixels, la pastille « 2 » de Messages comprise)",
-      "motif": "défaut probable de la coque (TCK-2617/2618), hors périmètre de ce ticket ; à reporter"
+      "motif": "défaut probable de la coque (TCK-2617/2618), hors périmètre de ce ticket ; à reporter",
+      "statut": "fermé (TCK-2801, règle de la coque)",
+      "preuve": "zone « coque · barre d’onglets » : 1,94 % (c1-a-0-telephone) → 0,82 % (c2-a-0-telephone), 0,19 % (c2-a-7), 0 % (c2-a-8, preuve nette). Nœuds du relevé prod2-a-0-telephone : « Menu » en graisse 600, encre rgb(31,24,18), icône en primaire. Les lignes « rôle » de c2-a-0-telephone (dont « Menu absent du produit ») mesurent une TUILE (x 201, w 173) que le sélecteur du rôle attrape à la place de la barre : artefact de sélecteur. Les 0,82 % restants : la pastille « 2 » de Messages de la maquette, absente du produit (aucune conversation non lue en démo). Test AC8 + ablation rouge"
     },
     {
       "id": "O8",
       "ecran": "a-0 (bureau)",
       "element": "carte « Mise en service » : la page est hors maquette tant que l’agence n’est pas prête",
       "mesure": "à 900 px de haut elle repousse les tuiles et les graphiques sous le pli à 1280",
-      "motif": "décision du ticket (TCK-589), mais un état « agence prête » n’a pas pu être relevé : aucune persona de démo n’a fini sa mise en service et on n’écrit pas en base"
+      "motif": "décision du ticket (TCK-589), mais un état « agence prête » n’a pas pu être relevé : aucune persona de démo n’a fini sa mise en service et on n’écrit pas en base",
+      "statut": "motivé — décision du ticket (TCK-589)",
+      "preuve": "aucune persona de démo n’a fini sa mise en service ; un état « agence prête » demanderait d’écrire la mise en service d’une agence, ce que TCK-2801 n’a pas demandé. a-0s (carte masquée par perturbation) reste la mesure de la page sans la carte : c2-a-0s-bureau-1280 73 conformes (61 avant)"
     }
   ],
   "hors_perimetre": [
@@ -387,6 +428,7 @@
   "notes": [
     "Relevés à 390 et 1280 seulement (ADR-0106 : 1440 non relevé). Les références de bureau sont du 2026-11-11, avant TCK-2692 : rem 14,4 de la maquette contre 16 du produit, avertissement de l’outil, pas un écart.",
     "AC-F6 : balayage 390, 768, 1024, 1280, 1440 de /app/reports pour admin, agent et proprietaire, puis hote à 360 et 1280 (impl/lot2/t2628/fid/releve.log) : voir `produit.releves.balayage`.",
-    "AC2 de TCK-2628 (redirection d’une ancienne adresse), AC3 (module analytics masqué), AC6 et le jeu d’href avant/après se prouvent par test et mesure 307 (message de l’implémenteur) : hors de cette fiche."
+    "AC2 de TCK-2628 (redirection d’une ancienne adresse), AC3 (module analytics masqué), AC6 et le jeu d’href avant/après se prouvent par test et mesure 307 (message de l’implémenteur) : hors de cette fiche.",
+    "2026-11-14, TCK-2801 : chaque écart ouvert porte désormais `statut` (fermé, motivé, reporté) et `preuve`. ⚠ La règle « Menu » actif de la coque (BarreDOnglets) change la zone « coque · barre d’onglets » de TOUTE page du menu qui n’est aucun des onglets : les fiches des autres écrans relevées avant ce correctif y verront un écart se fermer."
   ]
 }

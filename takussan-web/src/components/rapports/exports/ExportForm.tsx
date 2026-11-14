@@ -16,6 +16,7 @@ import {
 import { PREREGLAGES, bornesDuPrereglage, prereglageDe } from '@/lib/rapports/exports';
 import { cn } from '@/lib/utils';
 
+import { Segmente } from '../Segmente';
 import { useExportsPermis, useTelechargement } from './useExports';
 
 interface ExportFormProps {
@@ -77,17 +78,12 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
         </div>
         <p className="mt-1.5 text-xs text-pretty text-muted-foreground">{t('scopeNotice')}</p>
       </div>
-      <div role="group" aria-labelledby={idFormat}>
+      <div>
         <p id={idFormat} className="mb-1.5 text-sm font-medium text-foreground">
           {t('format')}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {FORMATS.map((f) => (
-            <PuceDeFiltre key={f} active={f === format} onClick={() => setFormat(f)}>
-              {t(`formats.${f}`)}
-            </PuceDeFiltre>
-          ))}
-        </div>
+        {/* TCK-2801 — un format, et un seul : le contrôle segmenté de la maquette, plus des puces. */}
+        <Segmente idDuLibelle={idFormat} valeur={format} onChange={setFormat} options={FORMATS.map((f) => ({ valeur: f, libelle: t(`formats.${f}`) }))} />
         {telephone ? <p className="mt-1.5 text-xs text-pretty text-muted-foreground">{tR('pdfAuTelephone')}</p> : null}
       </div>
       <div role="group" aria-labelledby={idPeriode}>
@@ -130,7 +126,7 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
         }
       >
         {enCours ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
-        {enCours ? t('downloading') : t('download')}
+        {enCours ? t('downloading') : tR('telechargerLExport')}
       </Button>
       {telechargement.dernier === 'formulaire' && telechargement.coupe !== null ? (
         <p className="text-sm text-pretty text-foreground" role="status" data-testid="exports-truncated">

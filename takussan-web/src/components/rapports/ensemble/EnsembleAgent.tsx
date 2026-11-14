@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { TuilesDuRapport } from '@/components/rapports/TuilesDuRapport';
 import { BlocDeRapport, BlocVide, LienChiffre, PeriodeDuRapport, formatDateHeure } from '@/components/rapports/vues/pieces';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
-import { formatDate } from '@/lib/format';
+import { bornesLisibles } from '@/lib/rapports/periode';
 import { hrefDeLOnglet } from '@/lib/navigation/rapports';
 import { chiffresDeLAgent } from '@/lib/rapports/chiffres';
 import { lireLeTableauDeLAgent } from '@/lib/rapports/tableau-de-l-agent';
@@ -45,8 +45,8 @@ export async function EnsembleAgent({ scope }: { readonly scope?: string | strin
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PeriodeDuRapport>{tRapports('periode', { debut: formatDate(data.period.start, locale), fin: formatDate(data.period.end, locale) })}</PeriodeDuRapport>
+      <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+        <PeriodeDuRapport periode>{tRapports('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
         {peutVoirAgence ? <BasculePortee agence={agence} t={t} /> : null}
       </div>
 

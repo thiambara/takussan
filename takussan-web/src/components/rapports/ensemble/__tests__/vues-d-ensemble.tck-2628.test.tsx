@@ -65,6 +65,8 @@ vi.mock('@/lib/access/server-guards', () => ({ resolveAgencyOrNull: async () => 
 vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: vi.fn(async () => []) }));
 vi.mock('@/lib/rapports/contexte-serveur', () => ({ lireLeContexteDesRapports: vi.fn() }));
 vi.mock('@/lib/queries/dashboard-agency', () => ({ fetchDashboardAgency: vi.fn() }));
+// TCK-2801 — les seuils des alertes actives (« seuil d’alerte » sous le taux d’impayés).
+vi.mock('@/lib/queries/alerts', () => ({ fetchThresholdAlerts: vi.fn(async () => ({ data: [] })) }));
 vi.mock('@/lib/queries/dashboard', () => ({
   fetchOwnerDashboard: vi.fn(),
   fetchAgentDashboard: vi.fn(async (opts?: { scope?: string }) => ({
@@ -276,5 +278,69 @@ describe('TCK-2628 — la vue d’ensemble du bailleur', () => {
     vi.mocked(fetchOwnerDashboard).mockResolvedValue({ ...PROPRIO, data: { ...PROPRIO.data, portfolio: { total: 0, rented: 0, available: 0 } } } as never);
     render(withIntl(await EnsembleBailleur()));
     expect(document.querySelector('a[href="/app/properties/new"]')?.textContent).toBe('Proposer un bien à mon agence');
+  });
+});
+
+describe('TCK-2801 — écarts de fidélité de la vue d’ensemble', () => {
+  it('AC4 — une alerte active sur le taux d’impayés : « seuil d’alerte : 10 % » sous la tuile', async () => {
+    const { fetchThresholdAlerts } = await import('@/lib/queries/alerts');
+    vi.mocked(fetchThresholdAlerts).mockResolvedValueOnce({ data: [{ metric: 'unpaid_rate_percent', threshold: '10.00', is_enabled: true }] } as never);
+    render(withIntl(await EnsembleAgence()));
+    expect(lienDuChiffre('tauxImpayes')?.textContent?.replace(/[  ]/g, ' ')).toBe('Taux d’impayés7 %seuil d’alerte : 10 %');
+  });
+
+  it('AC4 — lecture des alertes en échec : la vue se rend, sans sous-texte ; onglet Alertes fermé : aucune lecture', async () => {
+    const { fetchThresholdAlerts } = await import('@/lib/queries/alerts');
+    vi.mocked(fetchThresholdAlerts).mockRejectedValueOnce(new Error('500'));
+    const { unmount } = render(withIntl(await EnsembleAgence()));
+    expect(lienDuChiffre('tauxImpayes')?.textContent?.replace(/[  ]/g, ' ')).toBe('Taux d’impayés7 %');
+    unmount();
+    vi.mocked(fetchThresholdAlerts).mockClear();
+    vi.mocked(lireLeContexteDesRapports).mockResolvedValue({ ...ADMIN, modulesMasques: ['analytics'] } as never);
+    render(withIntl(await EnsembleAgence()));
+    expect(fetchThresholdAlerts).not.toHaveBeenCalled();
+  });
+
+  it('AC6 — l’agent : une barre pleine par étape, proportionnelle à son compte, le compte au bout', async () => {
+    vi.mocked(lireLeContexteDesRapports).mockResolvedValue({ persona: 'agent', modulesMasques: [], cheminsAdmin: [], capacites: [] } as never);
+    render(withIntl(await EnsembleAgent({})));
+    const barres = [...document.querySelectorAll('[data-etape]')].map((li) => [
+      li.getAttribute('data-etape'),
+      (li.querySelector('[data-slot="barre-d-etape"]') as HTMLElement).style.width,
+      li.textContent?.match(/\d+$/)?.[0],
+    ]);
+    expect(barres).toEqual([
+      ['lead', '60%', '4'],
+      ['qualified', '30%', '2'],
+      ['converted', '75%', '5'],
+      ['lost', '15%', '1'],
+    ]);
+  });
+
+  it('AC5 — le bailleur : la jauge du portefeuille au téléphone (trois segments, la légende), puis « Prochains reversements » avant les graphiques', async () => {
+    vi.mocked(fetchOwnerDashboard).mockResolvedValue({
+      data: {
+        period: { start: '2026-11-01', end: '2026-11-30' },
+        portfolio: { total: 69, rented: 5, available: 54 },
+        leases: { active: 13 },
+        finance: { cashflow_month: 11_400_000, expected_monthly: 18_200_000, overdue_count: 0, overdue_amount: 0 },
+        occupancy: { rate_percent: 17.54, eligible_count: 57, occupied_count: 10 },
+      },
+      timeseries: { months: ['2026-10', '2026-11'], cashflow: [9, 11], occupancy: [15, 17.54] },
+    } as never);
+    render(withIntl(await EnsembleBailleur()));
+    const tuile = lienDuChiffre('portefeuille') as HTMLElement;
+    expect(tuile.closest('li')?.className).toContain('max-md:col-span-2');
+    expect(tuile.querySelector('.text-affiche-22')?.textContent).toBe('69 biens');
+    const jauge = tuile.querySelector('[data-slot="jauge-du-portefeuille"]') as HTMLElement;
+    expect(jauge.className).toContain('md:hidden');
+    expect([...jauge.querySelectorAll('[data-segment]')].map((s) => [s.getAttribute('data-segment'), (s as HTMLElement).style.width])).toEqual([
+      ['loues', `${(5 / 69) * 100}%`],
+      ['libres', `${(54 / 69) * 100}%`],
+      ['autres', `${(10 / 69) * 100}%`],
+    ]);
+    expect(jauge.textContent).toBe('5 loués54 libres10 autres');
+    expect(document.querySelector('[data-slot="bloc-reversements"]')?.className).toContain('max-xl:order-first');
+    expect(lienDuChiffre('occupation')?.textContent?.replace(/[  ]/g, ' ')).toMatch(/^Occupation17,5 %/);
   });
 });

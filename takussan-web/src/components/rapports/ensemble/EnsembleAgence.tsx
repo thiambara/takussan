@@ -10,13 +10,14 @@ import { TuilesDuRapport } from '@/components/rapports/TuilesDuRapport';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { formatDate } from '@/lib/format';
+import { bornesLisibles } from '@/lib/rapports/periode';
 import { ongletOuvert } from '@/lib/navigation/rapports';
 import { AGENCY_INVITATIONS_COUNT_KEY, fetchPendingInvitationsCount } from '@/lib/queries/agency-queues';
+import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
 import type { LectureAmorcee } from '@/lib/queries/lectures-amorcees';
 import { cleMiseEnService, fetchMiseEnService } from '@/lib/queries/mise-en-service';
-import { chiffresDeLAgence, type ChiffreDuRapport } from '@/lib/rapports/chiffres';
+import { chiffresDeLAgence, seuilsDesAlertes, type ChiffreDuRapport, type SeuilsDesAlertes } from '@/lib/rapports/chiffres';
 import { lireLeContexteDesRapports } from '@/lib/rapports/contexte-serveur';
 import { apercusDuResume } from '@/lib/rapports/indicateurs';
 import { isSuperAdmin } from '@/lib/roles';
@@ -54,9 +55,10 @@ export async function EnsembleAgence() {
   const token = agencyId !== null ? await getToken() : undefined;
   const agencyIsStandard = await lireLeKind(token, agencyId);
   // UNE lecture de l'endpoint par affichage (AC3 de TCK-647), séries comprises.
-  const [payload, lectures] = await Promise.all([
+  const [payload, lectures, seuils] = await Promise.all([
     fetchDashboardAgency({ withTimeseries: true }),
     lecturesDePremierAffichage(token, agencyId, agencyIsStandard),
+    ongletOuvert('alertes', contexte) ? lireLesSeuils() : Promise.resolve(undefined),
   ]);
   if (!payload) {
     return (
@@ -73,7 +75,7 @@ export async function EnsembleAgence() {
   const ts = payload.timeseries;
   const moisEnCours = data.period.start.slice(0, 7);
   const ouvertes = { impayes: ongletOuvert('impayes', contexte), equipe: ongletOuvert('equipe', contexte) };
-  const chiffres = chiffresDeLAgence(data, ts ? { months: ts.months, revenue: ts.revenue } : undefined, { moisEnCours, ouvertes });
+  const chiffres = chiffresDeLAgence(data, ts ? { months: ts.months, revenue: ts.revenue } : undefined, { moisEnCours, ouvertes, seuils });
 
   const enChiffres: ChiffreDuRapport[] = [
     { cle: 'bookings', libelle: tActivite('items.bookings.label'), valeur: data.bookings.pending, forme: 'nombre', href: '/app/bookings' },
@@ -98,7 +100,7 @@ export async function EnsembleAgence() {
   return (
     <AmorceLectures lectures={lectures}>
       <div className="space-y-7">
-        <PeriodeDuRapport>{t('periode', { debut: formatDate(data.period.start, locale), fin: formatDate(data.period.end, locale) })}</PeriodeDuRapport>
+        <PeriodeDuRapport periode>{t('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
 
         {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
         <MiseEnService agencyId={agencyId} />
@@ -134,6 +136,19 @@ export async function EnsembleAgence() {
       </div>
     </AmorceLectures>
   );
+}
+
+/**
+ * TCK-2801 — les seuils des alertes actives (« seuil d'alerte : 10 % » sous « Taux d'impayés »), lus seulement
+ * quand la persona ouvre l'onglet Alertes. Un sous-texte : une lecture en échec n'en pose aucun, la vue se rend.
+ */
+async function lireLesSeuils(): Promise<SeuilsDesAlertes | undefined> {
+  try {
+    const alertes = await fetchThresholdAlerts();
+    return alertes ? seuilsDesAlertes(alertes.data) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Le `kind` de l'agence, LU (`resolveAgencyOrNull` est `cache()`é : la garde vient de le lire). */

@@ -2,6 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { usePaymentsHistory } from '@/lib/queries/payments';
 
 import { hrefDeLOnglet, ongletDeLAdresse, porteeTransmise, type IdOnglet } from '@/lib/navigation/rapports';
 import { cn } from '@/lib/utils';
@@ -55,9 +59,35 @@ export function OngletsDesRapports({ onglets, aria, transmetLaPortee = false }: 
             )}
           >
             {libelle}
+            {/* TCK-2801 — la pastille vit DANS le lien de l'onglet Impayés : elle n'existe, et ne lit l'API, que si
+                la persona ouvre cet onglet, par la même garde que lui (`ongletsDesRapports`). */}
+            {id === 'impayes' ? <PastilleDesImpayes /> : null}
           </Link>
         );
       })}
     </nav>
+  );
+}
+
+/**
+ * TCK-2801 (fiche TCK-2628, O3) — la pastille « 16 » de l'onglet Impayés (maquette `OngletsSoulignes`, `compte`) :
+ * le compte des échéances impayées par LA règle de l'onglet (`GET /api/payments/history`, `days_late_min=1`,
+ * `meta.total` d'une page d'une ligne) — celui que l'onglet dit dans « Tous ». Lue dans le navigateur, jamais
+ * par le layout, qui n'a pas de `<Suspense>` : une lecture lente ne retient pas la page, une lecture en échec ne
+ * pose aucune pastille (jamais « 0 » pour un compte absent). Aucune échéance : rien à signaler.
+ */
+function PastilleDesImpayes() {
+  const t = useTranslations('rapports');
+  const f = useFormatteurs();
+  const lecture = usePaymentsHistory({ days_late_min: 1, sort: '-days_late', page: 1, per_page: 1 });
+  const n = lecture.isError ? undefined : lecture.data?.meta?.total;
+  if (typeof n !== 'number' || n <= 0) return null;
+  return (
+    <>
+      <span aria-hidden="true" data-slot="pastille-d-onglet" className="ml-1.5 text-xs font-medium tabular-nums text-muted-foreground">
+        {f.nombre(n)}
+      </span>
+      <span className="sr-only">{t('impayesCompte', { n })}</span>
+    </>
   );
 }

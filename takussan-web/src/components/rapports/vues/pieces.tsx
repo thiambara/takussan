@@ -43,9 +43,13 @@ export function BlocVide({ message }: { readonly message: string }) {
   return <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">{message}</p>;
 }
 
-/** La période d'une vue, en clair, sous la barre d'onglets (le titre de la page est « Rapports »). */
-export function PeriodeDuRapport({ children }: { readonly children: ReactNode }) {
-  return <p className="text-sm text-muted-foreground tabular-nums">{children}</p>;
+/**
+ * La période d'une vue, en clair, sous la barre d'onglets (le titre de la page est « Rapports »). TCK-2801 —
+ * `periode` : la ligne de période, que la description de la tête dit dès `md` (maquette : au bureau dans la
+ * tête, au téléphone dans la page) ; sans lui, un message (échec de lecture) qui se lit à toute largeur.
+ */
+export function PeriodeDuRapport({ children, periode = false }: { readonly children: ReactNode; readonly periode?: boolean }) {
+  return <p className={`text-sm text-muted-foreground tabular-nums${periode ? ' md:hidden' : ''}`}>{children}</p>;
 }
 
 // TCK-595 (AC20 ter) — la langue de la requête et le fuseau `Africa/Dakar` de `@/lib/format`.
