@@ -202,6 +202,12 @@ return [
         'reason_required' => 'Un motif est obligatoire pour un remboursement partiel.',
     ],
     'document' => [
+        // TCK-2770 — l'archive d'un dossier du coffre
+        'archive_empty' => 'Ce dossier ne contient aucun document à archiver.',
+        'archive_too_large' => 'Ce dossier dépasse ce qu\'une archive peut réunir (:max_files documents, :max_mb Mo) : téléchargez ses documents un par un.',
+        'archive_unavailable' => 'Les documents de ce dossier ne se téléchargent pas en archive.',
+        'archive_render_busy' => 'Le service qui produit les documents est saturé : réessayez dans une minute.',
+        'archive_render_failed' => 'Un document de ce dossier n\'a pas pu être produit : l\'archive n\'a pas été créée. Réessayez, ou téléchargez ses documents un par un.',
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
         // TCK-2759 (ADR-0099, amendement du 2026-11-12)
         'internal_customer_only' => 'Seul un document de fiche client peut être gardé pour l\'agence.',

@@ -11797,6 +11797,18 @@
         "tailleMo": "{n} MB",
         "tailleKo": "{n} KB",
         "leBailNumero": "This property’s lease {reference}"
+      },
+      "archive": {
+        "toutTelecharger": "Download all",
+        "toutTelechargerZip": "Download all (.zip)",
+        "toutTelechargerNomme": "Download all: {nom}",
+        "enCours": "Preparing the archive…",
+        "nomDuFichier": "{nom}.zip",
+        "errors": {
+          "interdit": "You don’t have access to this folder.",
+          "indisponible": "This folder can’t be put into a single archive. Download its documents one by one.",
+          "echec": "The archive couldn’t be downloaded. Try again."
+        }
       }
     },
     "fiche": {

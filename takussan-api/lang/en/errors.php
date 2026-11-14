@@ -202,6 +202,12 @@ return [
         'reason_required' => 'A reason is required for a partial refund.',
     ],
     'document' => [
+        // TCK-2770 — the archive of a vault folder
+        'archive_empty' => 'This folder holds no document to archive.',
+        'archive_too_large' => 'This folder exceeds what an archive can hold (:max_files documents, :max_mb MB): download its documents one by one.',
+        'archive_unavailable' => 'The documents of this folder cannot be downloaded as an archive.',
+        'archive_render_busy' => 'The service that produces the documents is overloaded: try again in a minute.',
+        'archive_render_failed' => 'A document of this folder could not be produced: the archive was not created. Try again, or download its documents one by one.',
         'file_missing' => 'No file is attached to this document.',
         // TCK-2759 (ADR-0099, amendement du 2026-11-12)
         'internal_customer_only' => 'Only a document on a customer record can be kept for the agency.',

@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\OwnerStatementRequest;
+use App\Models\Agency;
+use App\Models\User;
+use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
@@ -31,8 +34,17 @@ class OwnerStatementController extends Controller
 
     public function pdf(OwnerStatementRequest $request): Response
     {
-        $statement = $this->statementOf($request);
-        $agency = $request->agency();
+        return $this->renderPdf($request->agency(), $request->landlord(), $request->string('period')->toString());
+    }
+
+    /**
+     * TCK-2770 — le rendu du relevé, après l'autorisation (`viewOwnerStatement`) : servi par
+     * {@see self::pdf()} et repris tel quel par l'archive du coffre
+     * ({@see ArchiveDuCoffre}), qui a jugé l'entrée par la même règle.
+     */
+    public function renderPdf(Agency $agency, User $landlord, string $period): Response
+    {
+        $statement = $this->statements->served($agency, $landlord, $period);
         $title = __($statement['annual'] ? 'money_out.statement.annual_title' : 'money_out.statement.title');
 
         return $this->pdf->stream('pdf.statements.owner', [

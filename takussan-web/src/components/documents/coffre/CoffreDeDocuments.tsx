@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useTelechargementApi } from '@/hooks/useTelechargementApi';
-import { voirLeCoffre, voirLesTrouvees, type DossierVu, type EntreeVue } from '@/lib/documents/coffre';
+import { cheminDeLArchive, voirLeCoffre, voirLesTrouvees, type DossierVu, type EntreeVue } from '@/lib/documents/coffre';
 import { ciblesDeRangement } from '@/lib/documents/rangement';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useCoffreDeDocuments, useRechercheDansLeCoffre } from '@/lib/queries/coffre';
@@ -42,8 +42,12 @@ const AjoutAuCoffre = dynamic(() => import('./ajout/AjoutAuCoffre').then((m) => 
  * (`filter[search]` de `GET /api/me/document-vault`, documents générés compris), gardée dans l'URL
  * (`?q=`, `?page=`) ; le coffre chargé n'est jamais filtré côté client. Sous une recherche, les
  * entrées trouvées remplacent les dossiers, avec le total et les pages du serveur. Il remplace le
- * geste « Rechercher » de TCK-2656 (décision 2 (c)). Pas de « Tout télécharger » : aucune archive
- * servie (décision 3 (a)).
+ * geste « Rechercher » de TCK-2656 (décision 2 (c)).
+ *
+ * TCK-2770 — « Tout télécharger » sur les dossiers en lot (quittances d'une année, relevés), comme la
+ * maquette : au téléphone dans la carte du dossier replié, au bureau à droite de son titre (« (.zip) »).
+ * L'archive est servie par l'API ({@link cheminDeLArchive}) ; son état en cours et son échec ont leur
+ * propre ligne, distincte de celle d'un document seul.
  *
  * TCK-2729 — le dossier d'un bien d'un bailleur bloqué est en lecture seule : il se lit, rien ne s'y
  * ajoute ni ne s'y remplace, et le coffre le dit une fois.
@@ -70,6 +74,7 @@ export function CoffreDeDocuments() {
   const [ajout, setAjout] = useState(false);
   const ajoutMonte = useDejaOuvert(ajout);
   const { telecharger, enCours, echec } = useTelechargementApi();
+  const archive = useTelechargementApi();
   const { q, page } = useRechercheDansLURL();
 
   if (requete.isPending) {
@@ -114,6 +119,14 @@ export function CoffreDeDocuments() {
   const ouvert = (d: DossierVu) => bascules[d.key] ?? (!d.replieParDefaut || filtre === d.key || filtre === EXPIRE);
   const basculer = (d: DossierVu) => setBascules((b) => ({ ...b, [d.key]: !ouvert(d) }));
   const surTelecharger = (chemin: string, nom: string) => void telecharger(chemin, `${nom}.pdf`);
+  const toutTelecharger = (d: DossierVu) => {
+    const chemin = cheminDeLArchive(d);
+    if (chemin !== null && !archive.enCours) void archive.telecharger(chemin, t('archive.nomDuFichier', { nom: libelles.dossier(d.etiquette) }));
+  };
+  const boutonArchive = (d: DossierVu, nom: string, bureau: boolean) =>
+    cheminDeLArchive(d) === null ? null : (
+      <BoutonDArchive bureau={bureau} nom={nom} enCours={archive.enCours} onClick={() => toutTelecharger(d)} />
+    );
 
   const libelleAjout = vide ? t('ajouterPremiere') : t('ajouter');
   // Au téléphone, l'action de la maquette (`Bouton taille="grand"`) : 48 px, texte 15, icône 18.
@@ -171,6 +184,16 @@ export function CoffreDeDocuments() {
       {enCours ? (
         <p role="status" className="sr-only">
           {tDl('inProgress')}
+        </p>
+      ) : null}
+      {archive.echec ? (
+        <p role="alert" data-testid="echec-de-l-archive" className="text-ui text-destructive">
+          {t(`archive.errors.${archive.echec}`)}
+        </p>
+      ) : null}
+      {archive.enCours ? (
+        <p role="status" className="sr-only">
+          {t('archive.enCours')}
         </p>
       ) : null}
 
@@ -244,6 +267,7 @@ export function CoffreDeDocuments() {
                     {nom}
                     {d.entrees.length > 0 ? <span className="text-sm tabular-nums text-muted-foreground">{d.entrees.length}</span> : null}
                     {d.lectureSeule ? <MarqueLectureSeule /> : null}
+                    {boutonArchive(d, nom, true)}
                   </h2>
                   {d.entrees.length > 0 ? (
                     <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
@@ -296,14 +320,18 @@ export function CoffreDeDocuments() {
                 ) : estOuvert ? (
                   <div className="overflow-hidden rounded-xl border border-border bg-card">{lignes}</div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => basculer(d)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring"
-                  >
-                    <span className="min-w-0 flex-1 text-ui leading-snug text-muted-foreground">{libelles.resume(d)}</span>
-                    <span className="sr-only">{t('ouvrirDossier', { nom })}</span>
-                  </button>
+                  // Maquette `DossierMobile` : le résumé ouvre le dossier ; « Tout télécharger » à sa droite.
+                  <div className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => basculer(d)}
+                      className="min-w-0 flex-1 self-stretch rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                    >
+                      <span className="block text-ui leading-snug text-muted-foreground">{libelles.resume(d)}</span>
+                      <span className="sr-only">{t('ouvrirDossier', { nom })}</span>
+                    </button>
+                    {boutonArchive(d, nom, false)}
+                  </div>
                 )}
               </section>
             );
@@ -460,6 +488,44 @@ function EntreeDArbre({
         <span className="text-xs tabular-nums text-muted-foreground">{compte}</span>
       </button>
     </li>
+  );
+}
+
+/**
+ * TCK-2770 — « Tout télécharger » d'un dossier en lot. Téléphone : la pastille de 44 px de la maquette
+ * (`DossierMobile`) ; bureau : le lien d'accent à droite du titre (`CoffreBureau`), « (.zip) » compris.
+ * Pendant la préparation, il le dit et ne se relance pas.
+ */
+function BoutonDArchive({
+  bureau,
+  nom,
+  enCours,
+  onClick,
+}: {
+  readonly bureau: boolean;
+  readonly nom: string;
+  readonly enCours: boolean;
+  readonly onClick: () => void;
+}) {
+  const t = useTranslations('documents.coffre.archive');
+  const libelle = enCours ? t('enCours') : bureau ? t('toutTelechargerZip') : t('toutTelecharger');
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={enCours}
+      aria-busy={enCours}
+      aria-label={enCours ? undefined : t('toutTelechargerNomme', { nom })}
+      className={cn(
+        'outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-progress',
+        bureau
+          ? 'ml-auto rounded-md font-sans text-ui font-medium tracking-normal text-primary-deep hover:underline'
+          : 'inline-flex h-11 flex-none items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-ui font-medium',
+      )}
+    >
+      {bureau ? null : <Download className="size-4 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />}
+      {libelle}
+    </button>
   );
 }
 

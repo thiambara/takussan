@@ -50,6 +50,9 @@ class EnforceImpersonationReadOnly
         'api/admin',
         'api/admin/*',
         'api/me/data-exports*',
+        // TCK-2770 — l'archive d'un dossier du coffre : un téléchargement en masse, de la famille des exports.
+        // L'opérateur lit encore chaque document, un par un.
+        'api/me/document-vault/archive',
         'api/data-exports/*',
         'api/export/*',
         'api/activity-logs/export*',

@@ -20,6 +20,7 @@
         "league/flysystem-aws-s3-v3": "^3.35",
         "lemonsqueezy/laravel": "^1.9",
         "maatwebsite/excel": "^4.0",
+        "maennchen/zipstream-php": "^3.1",
         "meilisearch/meilisearch-php": "^1.16",
         "pragmarx/google2fa": "^9.0",
         "resend/resend-php": "^1.14",

@@ -133,6 +133,25 @@ class PrivateMediaAccess
     }
 
     /**
+     * TCK-2770 — le flux de l'original, pour qui l'écrit ailleurs (l'archive du coffre). Par le disque
+     * et le chemin RELATIF, comme les trois formes ci-dessus : jamais `getPath()`. Le flux est à fermer
+     * par l'appelant.
+     *
+     * @return resource
+     */
+    public function readStream(Media $media)
+    {
+        [$disk, $path] = $this->file($media, null);
+        $stream = $disk->readStream($path);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Média #{$media->getKey()} illisible sur le disque « {$media->disk} ».");
+        }
+
+        return $stream;
+    }
+
+    /**
      * Le disque, le chemin relatif, le nom et le type du fichier servi : l'original, ou la
      * conversion nommée, sur le disque des conversions du média.
      *

@@ -11168,6 +11168,18 @@
         "tailleMo": "{n} Mo",
         "tailleKo": "{n} Ko",
         "leBailNumero": "Le bail {reference} de ce bien"
+      },
+      "archive": {
+        "toutTelecharger": "Tout télécharger",
+        "toutTelechargerZip": "Tout télécharger (.zip)",
+        "toutTelechargerNomme": "Tout télécharger : {nom}",
+        "enCours": "Préparation de l’archive…",
+        "nomDuFichier": "{nom}.zip",
+        "errors": {
+          "interdit": "Vous n’avez pas accès à ce dossier.",
+          "indisponible": "Ce dossier ne peut pas être réuni en une archive. Téléchargez ses documents un par un.",
+          "echec": "L’archive n’a pas pu être téléchargée. Réessayez."
+        }
       }
     },
     "fiche": {

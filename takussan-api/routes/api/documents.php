@@ -12,6 +12,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-2655 (ADR-0099) — le coffre, et les documents générés d'une cible ; `generated` est déclarée
     // AVANT `documents/{document}`.
     Route::get('me/document-vault', [DocumentVaultController::class, 'show'])->name('me.document-vault');
+    // TCK-2770 — l'archive .zip d'un dossier du coffre (`?folder=`).
+    Route::get('me/document-vault/archive', [DocumentVaultController::class, 'archive'])->name('me.document-vault.archive');
     Route::get('documents/generated', [DocumentVaultController::class, 'generated'])->name('documents.generated');
     Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('documents/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');

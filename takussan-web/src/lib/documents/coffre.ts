@@ -11,6 +11,8 @@
  * date ; le titre d'une entrée TÉLÉVERSÉE, lui, est le nom que son auteur lui a donné.
  */
 
+import { cheminApi } from '@/lib/chemin-api';
+
 /** Une cible de rattachement, telle que l'API l'écrit. */
 export interface CibleDuCoffre {
   readonly type: string;
@@ -249,6 +251,16 @@ function cleDeLEntree(dossier: string, entree: EntreeDuCoffre, rang: number): st
 /** Plus récent d'abord ; une entrée sans date en dernier. */
 function parDateDecroissante(a: EntreeDuCoffre, b: EntreeDuCoffre): number {
   return (b.date ?? '').localeCompare(a.date ?? '');
+}
+
+/**
+ * TCK-2770 — « Tout télécharger » : l'archive `.zip` d'un dossier en lot (les quittances d'une année,
+ * les relevés), servie par l'API (`GET /api/me/document-vault/archive?folder=`), qui y met exactement
+ * les entrées du coffre de ce dossier. `null` pour tout autre dossier, et pour un dossier vide.
+ */
+export function cheminDeLArchive(dossier: Pick<DossierVu, 'key' | 'kind' | 'entrees'>): string | null {
+  if ((dossier.kind !== 'receipts' && dossier.kind !== 'statements') || dossier.entrees.length === 0) return null;
+  return cheminApi`/api/me/document-vault/archive${new URLSearchParams({ folder: dossier.key })}`;
 }
 
 export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): CoffreVu {

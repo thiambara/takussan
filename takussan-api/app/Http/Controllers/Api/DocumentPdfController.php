@@ -11,6 +11,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
@@ -149,6 +150,16 @@ class DocumentPdfController extends Controller
         // TCK-587 — la règle de `LeasePolicy::view`, que l'ancien helper recopiait à l'identique.
         $this->authorize('view', $lease);
 
+        return self::renderLeaseContract($this->pdf, $lease);
+    }
+
+    /**
+     * TCK-2770 — le rendu du contrat, après l'autorisation : servi par {@see self::leaseContract()} et
+     * repris tel quel par l'archive du coffre ({@see ArchiveDuCoffre}), qui a
+     * jugé l'entrée par la même règle.
+     */
+    public static function renderLeaseContract(DocumentPdfService $pdf, Lease $lease): Response
+    {
         // TCK-596 §4B (ADR-0042 §1) — dès qu'un contrat est figé (signature demandée, ou scan de
         // la voie papier), c'est LUI qui est servi, octet pour octet : c'est son empreinte que les
         // parties signent. Le rendu à la volée ne reste que pour un contrat NON figé (brouillon, ou
@@ -174,7 +185,7 @@ class DocumentPdfController extends Controller
         }
         $lease->loadMissing(['property' => fn ($q) => $q->withTrashed(), 'property.address', 'tenant', 'landlord', 'agency', 'guarantors']);
 
-        return $this->pdf->stream('pdf.leases.contract', [
+        return $pdf->stream('pdf.leases.contract', [
             'title' => 'Contrat de bail '.($lease->reference_number ?? $lease->id),
             'document_label' => 'Bail',
             'lease' => $lease,

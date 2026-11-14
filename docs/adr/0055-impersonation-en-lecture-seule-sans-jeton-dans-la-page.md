@@ -72,7 +72,9 @@ puis :
   (leur `token` ouvre le fichier sans session), l'URL de webhook de paiement d'une intégration
   (`integrations/*/webhook-endpoint`, ADR-0046 — verif-600 m-D), les **pièces d'identité KYC**
   (`kyc/documents/*` — verif-600 passe 4 : tout opérateur qui peut impersonner les lit déjà par
-  `/api/admin/kyc`, sous son nom), et **toute action de la liste step-up**
+  `/api/admin/kyc`, sous son nom), l'**archive d'un dossier du coffre** (`me/document-vault/archive`
+  — TCK-2770, amendement du 2026-11-14 : un téléchargement en masse, de la famille des exports ;
+  chaque document se lit encore un par un), et **toute action de la liste step-up**
   (`ProtectedActions::STEP_UP` et `STEP_UP_FOR_PLATFORM`) — le jeton d'impersonation ne porte jamais
   de confirmation 2FA ; `/api/admin/*` entier (la cible n'est jamais un opérateur, mais la règle ne
   repose pas sur cette seule garde).
