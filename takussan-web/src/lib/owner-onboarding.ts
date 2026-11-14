@@ -114,6 +114,8 @@ export type InterlocuteurDuBailleur = {
   whatsapp?: boolean;
 };
 
+// fields[interlocuteur] non lu par buildQuery : l'API le lit à la main dans une liste fermée (aucune table
+// `interlocuteur`) ; nommé dans HORS_BUILD_QUERY de fields-demandables.tck-1184.
 export const INTERLOCUTEUR_REQUETE = 'fields[interlocuteur]=first_name,last_name,role,phone,whatsapp';
 
 export async function fetchInterlocuteurDuBailleur(
