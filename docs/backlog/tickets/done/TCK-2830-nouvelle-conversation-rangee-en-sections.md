@@ -1,7 +1,7 @@
 ---
 id: TCK-2830
 title: "« Nouvelle conversation » rangée en sections — Clients récents · Équipe · Propriétaires, chacun avec sa ligne de détail"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
