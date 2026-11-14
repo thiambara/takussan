@@ -3,8 +3,8 @@
  * et quatre entrées du menu, deux retours. Monté DANS le contexte du menu de la coque (`AppShell` le
  * fournit) ; les lectures réseau du menu sont doublées comme dans `AppSidebar.personnalisation.test.tsx`.
  *
- * ⚠ Ce que jsdom ne prouve pas : que le H1 et le champ sont dans le HTML que Next SERT (le 404). Cela se
- * mesure en HTTP (rapport du ticket), pas ici. `introuvable.test.tsx` garde la CAUSE (le module du champ
+ * ⚠ Le H1 et le champ ne sont PAS dans le HTML que Next sert pour le 404 (corps vide, document d'erreur :
+ * mesuré le 2026-11-14, TCK-2740) ; ils arrivent à l'hydratation, et c'est ce rendu-là que ce test lit. `introuvable.test.tsx` garde la CAUSE (le module du champ
  * et du retour n'est pas client).
  *
  * `not-found.tsx` est rendu tel quel : un composant serveur asynchrone qu'on attend, le compte et le

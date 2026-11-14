@@ -91,9 +91,11 @@ describe('TCK-382 / AC2 — l’écran introuvable', () => {
 
 describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
   it('not-found.tsx n’est pas un module client', () => {
-    // Mesuré le 2026-08-27 par sonde jetable, sur `next dev` ET sur `next build` + `next start` :
-    // un `not-found.tsx` marqué `'use client'` n'apparaît PAS dans le HTML de la réponse 404 —
-    // l'écran reste vide jusqu'à l'hydratation. Un composant SERVEUR y apparaît.
+    // ⚠ Ce cliquet ne garde PLUS un rendu HTML : mesuré le 2026-11-14 (TCK-2740, `next build` +
+    // `next start`, sonde hors de `/app` comprise), une 404 de `notFound()` est servie en document
+    // d'erreur au corps vide, que l'introuvable soit serveur ou client. Le relevé du 2026-08-27 qui
+    // disait le contraire est démenti. Il garde la structure serveur (aucune lecture client avant le
+    // premier rendu), cf. le docblock de `not-found.tsx`.
     //
     // Ce test lit une directive, pas un rendu : jsdom ne peut pas observer le HTML que Next
     // produit. C'est un cliquet sur la CAUSE, comme
@@ -103,9 +105,9 @@ describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
   });
 
   it('TCK-2619 — le corps, le champ et le retour à l’accueil sont SERVEUR ; la liste seule est client', () => {
-    // Même mesure que ci-dessus : l'enfant client d'un introuvable serveur n'est pas dans le HTML du
-    // 404 non plus. Le champ « Aller à… » (AC5) et le retour principal vivent donc dans un module
-    // sans directive, et la moitié client (les pages proposées) n'y rend ni champ ni retour.
+    // Le champ « Aller à… » (AC5) et le retour principal vivent dans un module sans directive, et la
+    // moitié client (les pages proposées) n'y rend ni champ ni retour. Aucun n'est dans le HTML du 404
+    // (TCK-2740, ci-dessus) : la répartition reste, pas la promesse de rendu serveur.
     const corps = readFileSync(join(APP, 'CorpsDeLIntrouvable.tsx'), 'utf8');
     expect(corps.split('\n').slice(0, 3).join('\n')).not.toMatch(/['"]use client['"]/);
     expect(corps).toContain('data-slot="aller-a-dans-la-page"');
