@@ -187,4 +187,19 @@ export type ConversationContext = {
     phone: string | null;
     assigned_agent: { id: number; name: string } | null;
   } | null;
+  /**
+   * TCK-2748 — la relation de chaque participant ACTUEL au contexte du fil, dérivée par l'API du bail,
+   * de l'intervention et du bien, et jugée sur ce que l'appelant peut lire : un participant absent de
+   * la liste n'a pas de relation lisible (jamais devinée côté front). `category` : celle de
+   * l'intervention, pour le prestataire seul. Facultatif : une réponse d'avant TCK-2748 n'en porte pas.
+   */
+  participants?: ReadonlyArray<RelationAuFil>;
+};
+
+export type CodeDeRelationAuFil = 'prestataire' | 'locataire' | 'proprietaire' | 'agent';
+
+export type RelationAuFil = {
+  user_id: number;
+  relation: CodeDeRelationAuFil;
+  category?: string | null;
 };

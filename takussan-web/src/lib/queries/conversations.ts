@@ -516,6 +516,8 @@ export function useAddParticipants(conversationId: number) {
         ['conversations', conversationId, 'messages'],
         // La personne ajoutée n'est plus à proposer (TCK-565).
         ['conversations', conversationId, 'contacts'],
+        // TCK-2748 — sa relation au contexte du fil (« Infos du groupe »).
+        conversationContextQueryKey(conversationId),
       ],
     },
   );
@@ -535,6 +537,8 @@ export function useRemoveParticipant(conversationId: number) {
         // La personne retirée redevient à proposer (TCK-565).
         ['conversations', conversationId, 'contacts'],
         ['conversations', 'list'],
+        // TCK-2748 — les relations au contexte du fil (« Infos du groupe »).
+        conversationContextQueryKey(conversationId),
       ],
     },
   );

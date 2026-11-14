@@ -44,6 +44,13 @@ final class ConversationThreadContext
         public readonly ?Customer $customer,
         public readonly bool $customerReadable,
         public readonly ?User $referent,
+        /**
+         * TCK-2748 — la relation de chaque participant au contexte du fil ({@see RelationsAuFil}),
+         * jugée relation par relation sur ce que le lecteur peut lire.
+         *
+         * @var list<array{user_id: int, relation: string, category?: string|null}>
+         */
+        public readonly array $participants = [],
     ) {}
 
     public static function for(User $reader, Conversation $conversation): self
@@ -51,7 +58,9 @@ final class ConversationThreadContext
         $conversation->loadMissing([
             'property.media',
             'lease.tenant',
+            'lease.property',
             'maintenanceRequest.property',
+            'maintenanceRequest.lease.tenant',
             'participants' => fn ($q) => $q->wherePivotNull('left_at'),
         ]);
 
@@ -65,14 +74,18 @@ final class ConversationThreadContext
         $customer = $customerShown ? self::customerOf($reader, $conversation, (int) $agencyId) : null;
         $customerReadable = $customer !== null && $reader->can('view', $customer);
 
+        $lease = $lease !== null && $reader->can('view', $lease) ? $lease : null;
+        $maintenance = $maintenance !== null && $reader->can('view', $maintenance) ? $maintenance : null;
+
         return new self(
             property: $conversation->property,
-            lease: $lease !== null && $reader->can('view', $lease) ? $lease : null,
-            maintenance: $maintenance !== null && $reader->can('view', $maintenance) ? $maintenance : null,
+            lease: $lease,
+            maintenance: $maintenance,
             customerShown: $customerShown,
             customer: $customer,
             customerReadable: $customerReadable,
             referent: $customerReadable ? self::referentOf($customer) : null,
+            participants: RelationsAuFil::pour($reader, $conversation, $lease, $maintenance),
         );
     }
 

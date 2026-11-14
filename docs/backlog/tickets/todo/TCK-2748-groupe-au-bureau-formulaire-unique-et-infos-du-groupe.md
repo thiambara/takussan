@@ -55,14 +55,42 @@ dans `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` :
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Au bureau (dès `lg`), « Nouvelle conversation » bascule en « groupe » dans le même
+- [x] **AC1** — Au bureau (dès `lg`), « Nouvelle conversation » bascule en « groupe » dans le même
       dialogue : destinataires en puces, nom, bien ou bail liés (`property_id` / `lease_id`), création
       par `POST` groupe ; au téléphone, le parcours de TCK-2632 reste.
-- [ ] **AC2** — Dans un fil de groupe, dès `xl`, la colonne de droite est « Infos du groupe » ; la
+      *Preuve : `NouvelleConversation.groupe.tck-2748.test.tsx` (5 tests : interrupteur, `POST` avec
+      `property_id`, minimum de 3, téléphone → `NewGroupDialog`, rien sans groupe proposé) ; relevé
+      a-3 bureau 1280 (formulaire unique).*
+- [x] **AC2** — Dans un fil de groupe, dès `xl`, la colonne de droite est « Infos du groupe » ; la
       colonne de contexte reste celle des fils directs.
-- [ ] **AC3** — Chaque participant porte sa relation au contexte, servie par l'API (delta ci-dessus),
+      *Preuve : `MessagesPage.test.tsx` (« un fil de groupe a « Infos du groupe »… »),
+      `InfosDuGroupe.tck-2748.test.tsx` ; relevé a-5 bureau 1280.*
+- [x] **AC3** — Chaque participant porte sa relation au contexte, servie par l'API (delta ci-dessus),
       ou rien quand l'appelant ne peut pas lire ce contexte ; jamais une relation devinée.
-- [ ] **AC4** — « Quitter le groupe » refuse le départ de la dernière administratrice et le dit
+      *Preuve : `ConversationParticipantRelationsTest` (13 tests, `participants` de
+      `GET /api/conversations/{id}/context`, `App\Services\Messaging\RelationsAuFil`), 6 ablations
+      rouges (bail du fil, bail de l'intervention, bien lisible, `BailleurDuBien` sur le bien et sur
+      le bail, agence du fil) ; la garde de l'intervention du fil n'est pas atteignable (403 en amont,
+      épinglé par un test) ; côté front, `InfosDuGroupe.tck-2748.test.tsx` (AC3).*
+- [x] **AC4** — « Quitter le groupe » refuse le départ de la dernière administratrice et le dit
       (le refus existe-t-il côté API ? à relever avant d'écrire le texte).
+      *Relevé : oui, `GroupConversationService::removeParticipant` lève une 422
+      (`messaging.errors.promote_admin_before_leaving`). Preuve : `InfosDuGroupe.tck-2748.test.tsx`
+      (AC4, et le départ quand un autre admin existe), ablation rouge.*
 - [ ] **AC-F2** — `fidelite compare` sur a-3 et a-5 au bureau (1440 et 1280) : les écarts « décision
       produit » de `TCK-2632.json` qui citent ce ticket disparaissent.
+      *Partiel : relevé à 1280 seulement (brief du lot : 390/1280), 1440 non relevé. À 1280, les deux
+      structures sont celles de la maquette (dialogue unique de 449,6 contre 446,9 px ; colonne de
+      320 px) et les deux exceptions citant ce ticket sont retirées de `TCK-2632.json`, remplacées par
+      cinq écarts nommés : contenu vide du formulaire et absence de relations dans la démo (donnée),
+      rayon et ombre du dialogue et hauteur de l'interrupteur (composant partagé), « admin du groupe »
+      neutre (décision produit retenue par team-lead le 2026-11-14).*
+
+## Notes d'implémentation (TCK-2748)
+
+- Décisions retenues par team-lead le 2026-11-14 (sur recommandation) : catégorie de
+  l'intervention plutôt que les spécialités du profil ; « admin du groupe » (neutre) ; interrupteur
+  manuel au bureau, le clic sur une personne reste direct (pas d'activation d'office à deux).
+- Relation : `prestataire` > `locataire` > `proprietaire` > `agent` quand une personne en cumule.
+- Logique partagée : `useGestionDuGroupe` (feuille et colonne), `useCreationDeGroupe` (`NewGroupDialog`
+  et le mode groupe de `NouvelleConversation`).

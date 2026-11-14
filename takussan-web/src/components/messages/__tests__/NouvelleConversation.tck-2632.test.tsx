@@ -20,6 +20,8 @@ vi.mock('@/lib/queries/conversations', () => ({
   useMessagingContacts: () => ({ data: { data: PERSONNES, meta: { total: 2 } }, isLoading: false, isError: false, refetch: vi.fn() }),
   useTrouverLeFilDirect: () => trouver,
   useCreateDirectConversation: () => ({ mutateAsync: creer, isPending: pending }),
+  // TCK-2748 — le mode « groupe » du bureau monte la création ; non exercée ici.
+  useCreateGroupConversation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 function monter(extra: { onNouveauGroupe?: () => void } = {}) {

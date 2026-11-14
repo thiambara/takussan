@@ -55,6 +55,10 @@ class ConversationContextResource extends BaseResource
                 'title' => $maintenance->title,
                 'scheduled_at' => $this->iso($maintenance->scheduled_at),
             ],
+            // TCK-2748 — la relation de chaque participant actuel au contexte du fil, jugée sur ce que
+            // le lecteur peut lire ({@see \App\Services\Messaging\RelationsAuFil}) ; liste vide sans
+            // objet lisible. Des codes : le front possède le libellé.
+            'participants' => $context->participants,
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,

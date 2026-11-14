@@ -3626,7 +3626,38 @@
         "unmute": "Unmute notifications",
         "leave": "Leave group",
         "lastAdminLeaveBlocked": "You're the last admin — promote someone before leaving.",
-        "lastAdminLeaveHint": "Promote another member to admin before leaving."
+        "lastAdminLeaveHint": "Promote another member to admin before leaving.",
+        "colonne": "Group info",
+        "renommerAria": "Rename the group",
+        "participantsCompte": "{count, plural, one {# participant} other {# participants}}",
+        "vous": "You",
+        "adminDuGroupe": "group admin",
+        "relation": {
+          "prestataire": "Service provider",
+          "locataire": "Tenant",
+          "proprietaire": "Owner",
+          "agent": "Agent"
+        },
+        "categorie": {
+          "plumbing": "plumbing",
+          "electrical": "electrical",
+          "structural": "structural",
+          "appliance": "appliances",
+          "painting": "painting",
+          "cleaning": "cleaning",
+          "pest_control": "pest control",
+          "locksmith": "locksmith",
+          "other": "other"
+        },
+        "ajouterUnParticipant": "Add a participant",
+        "sourdine": "Mute",
+        "interventionPlanifiee": "Repair · scheduled {date}",
+        "intervention": "Repair",
+        "bail": "Lease {reference}",
+        "dernierAdminDepart": "No one else administers this group: name another admin before leaving.",
+        "afficher": "Show group info",
+        "replier": "Collapse group info",
+        "gerer": "Manage {nom}"
       }
     },
     "conversationTitleFallback": "Conversation #{id}",
@@ -3750,7 +3781,11 @@
       "rechercheEchouee": "Your conversations with this person couldn’t be checked. Try again.",
       "premierMessage": "Your first message to {nom}.",
       "champ": "Message to {nom}",
-      "envoiEchoue": "The message couldn’t be sent. Try again."
+      "envoiEchoue": "The message couldn’t be sent. Try again.",
+      "a": "To",
+      "nomDuGroupe": "Group name",
+      "bienRattache": "Linked property",
+      "bailRattache": "Linked lease"
     },
     "contexte": {
       "titre": "Conversation context",

@@ -2447,7 +2447,38 @@
         "unmute": "Ubbil notifications yi",
         "leave": "Génn ci kuréel gi",
         "lastAdminLeaveBlocked": "Yaw rekk a admin — promóte keneen ba pare gennal.",
-        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal."
+        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal.",
+        "colonne": "Infos du groupe",
+        "renommerAria": "Renommer le groupe",
+        "participantsCompte": "{count, plural, one {# participant} other {# participants}}",
+        "vous": "Vous",
+        "adminDuGroupe": "admin du groupe",
+        "relation": {
+          "prestataire": "Prestataire",
+          "locataire": "Locataire",
+          "proprietaire": "Propriétaire",
+          "agent": "Agent"
+        },
+        "categorie": {
+          "plumbing": "plomberie",
+          "electrical": "électricité",
+          "structural": "structure",
+          "appliance": "électroménager",
+          "painting": "peinture",
+          "cleaning": "nettoyage",
+          "pest_control": "nuisibles",
+          "locksmith": "serrurerie",
+          "other": "autre"
+        },
+        "ajouterUnParticipant": "Ajouter un participant",
+        "sourdine": "Sourdine",
+        "interventionPlanifiee": "Intervention · planifiée {date}",
+        "intervention": "Intervention",
+        "bail": "Bail {reference}",
+        "dernierAdminDepart": "Personne d’autre n’administre ce groupe : nommez un autre admin avant de partir.",
+        "afficher": "Afficher les infos du groupe",
+        "replier": "Replier les infos du groupe",
+        "gerer": "Gérer {nom}"
       }
     },
     "conversationTitleFallback": "Waxtaan #{id}",
@@ -2571,7 +2602,11 @@
       "rechercheEchouee": "Impossible de vérifier vos conversations avec cette personne. Réessayez.",
       "premierMessage": "Votre premier message à {nom}.",
       "champ": "Message à {nom}",
-      "envoiEchoue": "Le message n’a pas pu être envoyé. Réessayez."
+      "envoiEchoue": "Le message n’a pas pu être envoyé. Réessayez.",
+      "a": "À",
+      "nomDuGroupe": "Nom du groupe",
+      "bienRattache": "Bien rattaché",
+      "bailRattache": "Bail rattaché"
     },
     "contexte": {
       "titre": "Contexte de la conversation",

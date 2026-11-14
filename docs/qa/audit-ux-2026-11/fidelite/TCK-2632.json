@@ -402,25 +402,46 @@
    "motif": "décision 3a du lead : une seule liste « Personnes » (regroupement côté API à part). « Créer un groupe » ouvre NewGroupDialog (TCK-576) par un chevron au lieu de la bascule."
   },
   {
-   "ecran": "a-3-bureau-*",
-   "element": "dialogue de groupe en un formulaire (« À » en puces, nom, bien et bail liés) — 83 % de pixels",
-   "propriete": "structure",
-   "exception": "décision produit",
-   "motif": "décision du lead (2026-11-12, « b ») : NewGroupDialog en deux étapes conservé (TCK-576 ; bien et bail liés par GroupContextPicker, TCK-565). Le formulaire unique est reporté à TCK-2748 — l'API accepte déjà `property_id` et `lease_id` à la création : c'est un travail de front."
-  },
-  {
-   "ecran": "a-5-bureau-*",
-   "element": "colonne « Infos du groupe » (intervention et bien liés, participants avec leur relation, quitter)",
-   "propriete": "structure",
-   "exception": "décision produit",
-   "motif": "décision du lead (2026-11-12, « b ») : la colonne de contexte reste ; les infos du groupe s'ouvrent par la sous-ligne de l'en-tête du fil (ConversationInfoSheet). Reportée à TCK-2748, avec le delta d'API : la relation d'un participant au contexte (« Locataire », « Prestataire · plomberie ») n'existe pas, `ParticipantRole` ne porte que admin / member."
-  },
-  {
    "ecran": "a-0-telephone, a-3-telephone",
    "element": "texte des champs de recherche : 16 px au lieu de 15",
    "propriete": "taille de police",
    "exception": "accessibilité",
    "motif": "les champs passent par la primitive `Input` (garde check-champs-uniformes, TCK-2460) : `text-champ` vaut 16 px sous le pouce pour qu'iOS ne zoome pas au focus ; à 15 px, Safari agrandit la page dès qu'on touche la recherche."
+  },
+  {
+   "ecran": "a-3-bureau-*",
+   "element": "« Nouvelle conversation » en mode groupe : puces de destinataires, nom, bien et bail (contenu)",
+   "propriete": "texte, nombre de puces",
+   "exception": "donnée",
+   "motif": "TCK-2748 — le relevé ouvre le formulaire de groupe vide (`groupe-bureau.js`) : la maquette dessine deux destinataires choisis, un nom et un bien rattachés. Choisir des personnes et un bien au relevé ne crée rien, mais la structure se compare à vide ; elle est celle de la maquette (dialogue de 446,9 contre 449,6 px à 1280)."
+  },
+  {
+   "ecran": "a-3-bureau-*",
+   "element": "dialogue « Nouvelle conversation » : rayon et ombre",
+   "propriete": "rayon, ombre",
+   "exception": "composant partagé",
+   "motif": "TCK-2748 — le dialogue est la primitive `DialogContent` (anneau de 1 px, rayon de l'échelle), commune à tous les dialogues de `/app` ; la maquette dessine `rounded-2xl shadow-2xl`."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "« Infos du groupe » : relations des participants (« Locataire », « Prestataire · plomberie »), intervention et bien liés, et le décalage vertical de ce qui suit",
+   "propriete": "texte, présence, y",
+   "exception": "donnée",
+   "motif": "TCK-2748 — aucun groupe de la démo n'est rattaché à un bien, un bail ou une intervention (relevé en lecture seule le 2026-11-14 : 12 groupes, tous sans contexte) : l'API ne rend aucune relation (`participants` du contexte, TCK-2748 AC3) et la colonne aucun objet lié. La relation et sa garde sont prouvées par `ConversationParticipantRelationsTest` et `InfosDuGroupe.tck-2748.test.tsx`."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "ligne de rôle « Vous · administratrice du groupe »",
+   "propriete": "texte",
+   "exception": "décision produit",
+   "motif": "TCK-2748 — « Vous · admin du groupe », neutre : le genre de la personne n'est pas connu. Recommandation posée à team-lead le 2026-11-14 (a : neutre), sans réponse à la livraison."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "rangée « Sourdine » : hauteur de l'interrupteur",
+   "propriete": "hauteur",
+   "exception": "composant partagé",
+   "motif": "TCK-2748 — l'interrupteur est la primitive `Switch` (TCK-2690, piste 24 × 40, la valeur majoritaire des maquettes) ; la maquette de la messagerie dessine une piste de 28 × 48. Rangée de 45,2 px contre 48,8 à 1280."
   }
  ],
  "coque": false,
