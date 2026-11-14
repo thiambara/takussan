@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { getMeAction } from '@/app/actions/auth';
 import { accesAdmin } from '@/lib/access/pages-admin-server';
 import { apiRequest } from '@/lib/api';
+import { exigerRessource } from '@/lib/detail/ressource-de-detail';
 import { getToken } from '@/lib/session';
 import { LeaseDetail } from '@/components/leases/LeaseDetail';
 
@@ -30,6 +31,8 @@ export async function generateMetadata({
   if (!Number.isFinite(leaseId) || leaseId <= 0) {
     return { title: t('metaTitleFallback') };
   }
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('leases', id);
 
   // Resolve the lease reference best-effort. A 401/404 here just means we
   // fall back to the generic title — the actual page rendering owns the

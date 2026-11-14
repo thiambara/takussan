@@ -4,13 +4,15 @@ import { getTranslations } from 'next-intl/server';
 import { getMeAction } from '@/app/actions/auth';
 import { FicheDuBailleur } from '@/components/owners/fiche/FicheDuBailleur';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
-import { idDeDetail } from '@/lib/detail/ressource-de-detail';
+import { exigerRessource, idDeDetail } from '@/lib/detail/ressource-de-detail';
 import { estMois, moisCourant } from '@/lib/finances/mois';
 import { lireBailleurDuRendu } from '@/lib/owners/fiche-du-rendu';
 import { fetchDashboardProperties } from '@/lib/queries/properties-server';
 import { getToken } from '@/lib/session';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('owners', (await params).id);
   const t = await getTranslations('dashboard.pages.ownerDetail');
   return { title: t('metaTitle') };
 }

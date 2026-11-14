@@ -9,7 +9,7 @@ import { getToken } from '@/lib/session';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgencyAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
-import { lireClientDuRendu } from '@/lib/detail/ressource-de-detail';
+import { exigerRessource, lireClientDuRendu } from '@/lib/detail/ressource-de-detail';
 import {
   fetchCrmTags,
   fetchCustomerNotes,
@@ -24,7 +24,9 @@ import { FicheDuClient } from '@/components/customer-dashboard/fiche/FicheDuClie
  * la lecture est celle de la sonde du layout (`lireClientDuRendu`) : une requête par rendu.
  */
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('customers', (await params).id);
   const t = await getTranslations('dashboard.pages.customerDetail');
   return { title: t('metaTitle') };
 }

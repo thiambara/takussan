@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { getToken } from '@/lib/session';
 import { phrasesDesMotifs } from '@/lib/biens/motifs-hors-ligne';
-import { lireBienDuRendu } from '@/lib/detail/ressource-de-detail';
+import { exigerRessource, lireBienDuRendu } from '@/lib/detail/ressource-de-detail';
 import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
@@ -37,7 +37,9 @@ import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('properties', (await params).id);
   const t = await getTranslations('dashboard.pages.propertyDetail');
   return { title: t('metaTitle') };
 }
