@@ -94,11 +94,18 @@ export function AuthProvider({
   initialUser,
   initialToken,
   initialActiveProfileId,
+  impersonation = false,
 }: {
   children: React.ReactNode;
   initialUser?: User | null;
   initialToken?: string | null;
   initialActiveProfileId?: string | null;
+  /**
+   * TCK-2816 — le layout racine dit, par un booléen lu au serveur (cookie `httpOnly`), qu'une
+   * impersonation est en cours. Jamais le jeton : sous impersonation, `initialToken` vaut `null`
+   * (TCK-600, ADR-0055 §6). Il ne sert qu'à la règle de vidage ci-dessous.
+   */
+  impersonation?: boolean;
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [token, setToken] = useState<string | null>(initialToken ?? null);
@@ -108,17 +115,29 @@ export function AuthProvider({
   // que si le jeton disparaît aussi. Un `null` sous un jeton présent (échec ou délai de `/me`, cf.
   // `DELAI_ME_RACINE_MS`) garde le compte, comme TCK-1992. Tant que les propriétés ne changent
   // pas, ce que le client a posé (`setUser`, `openSession`, `logout`) reste.
+  //
+  // TCK-2816 — sous impersonation, le jeton est TOUJOURS nul : le signal du layout y tient lieu de
+  // jeton présent, et un `null` (délai de `/me`) garde la cible. Un signal qui CHANGE (entrée ou
+  // sortie d'impersonation) avec un `null` vide le compte : ni l'opérateur ne passe sous la cible,
+  // ni la cible sous le jeton revenu de l'opérateur. Hors impersonation, le signal reste faux et
+  // la règle de TCK-2158 s'applique telle quelle.
   const [compteDuLayout, setCompteDuLayout] = useState({
     user: initialUser ?? null,
     token: initialToken ?? null,
+    impersonation,
   });
-  if ((initialUser ?? null) !== compteDuLayout.user || (initialToken ?? null) !== compteDuLayout.token) {
+  if (
+    (initialUser ?? null) !== compteDuLayout.user ||
+    (initialToken ?? null) !== compteDuLayout.token ||
+    impersonation !== compteDuLayout.impersonation
+  ) {
     const nouvelUtilisateur = initialUser ?? null;
     const nouveauJeton = initialToken ?? null;
-    setCompteDuLayout({ user: nouvelUtilisateur, token: nouveauJeton });
+    const signalChange = impersonation !== compteDuLayout.impersonation;
+    setCompteDuLayout({ user: nouvelUtilisateur, token: nouveauJeton, impersonation });
     if (nouveauJeton !== compteDuLayout.token) setToken(nouveauJeton);
     if (nouvelUtilisateur !== null) setUser(nouvelUtilisateur);
-    else if (nouveauJeton === null) setUser(null);
+    else if (signalChange || (nouveauJeton === null && !impersonation)) setUser(null);
   }
   // TCK-2050 (P174.01) — écrit dans le module que lit `apiRequest` dès le premier rendu, avant que
   // les requêtes des enfants partent (elles partent à l'abonnement, après le rendu).

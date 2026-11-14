@@ -61,16 +61,16 @@ rafraîchissement.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `AuthProvider` monté sous impersonation avec l'agent cible, puis re-rendu avec `initialUser={null}` (même
+- [x] AC1 — `AuthProvider` monté sous impersonation avec l'agent cible, puis re-rendu avec `initialUser={null}` (même
   signal d'impersonation) : l'état vide de la messagerie est celui du personnel (texte présent vérifié), et
   `useAuth().user` est la cible.
-- [ ] AC2 — Même séquence sans impersonation et sans jeton : le compte est vidé, l'état vide est celui du visiteur
+- [x] AC2 — Même séquence sans impersonation et sans jeton : le compte est vidé, l'état vide est celui du visiteur
   (TCK-2158 inchangé).
-- [ ] AC3 — Sous impersonation, re-rendu avec un AUTRE utilisateur non nul : c'est lui qui est posé.
-- [ ] AC4 — Le signal qui passe de vrai à faux, sans jeton : le compte est vidé.
-- [ ] AC5 — Aucun jeton dans le rendu ni dans les propriétés sérialisées vers le client sous impersonation (le test
+- [x] AC3 — Sous impersonation, re-rendu avec un AUTRE utilisateur non nul : c'est lui qui est posé.
+- [x] AC4 — Le signal qui passe de vrai à faux, sans jeton : le compte est vidé.
+- [x] AC5 — Aucun jeton dans le rendu ni dans les propriétés sérialisées vers le client sous impersonation (le test
   d'AC4 de TCK-2802, rejoué sur le layout racine).
-- [ ] AC6 — Ablation : le signal ignoré par `AuthProvider` rend AC1 rouge ; le signal traité comme toujours vrai rend
+- [x] AC6 — Ablation : le signal ignoré par `AuthProvider` rend AC1 rouge ; le signal traité comme toujours vrai rend
   AC2 et AC4 rouges.
 
 ## Hors périmètre
@@ -80,4 +80,36 @@ rafraîchissement.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée sur HEAD (`80d115fd7`) avant tout code** : le test d'AC1 écrit d'abord était rouge
+(le compte de la cible vidé par le re-rendu `initialUser={null}`, jeton nul).
+
+**Ce qui change.**
+
+- `src/app/layout.tsx` passe `impersonation={Boolean(impersonation)}` à `AuthProvider`. ⚠ La variable
+  `impersonation` du layout porte la VALEUR du cookie (le jeton de la cible) : seul le booléen part.
+- `src/context/AuthContext.tsx` : prop `impersonation` (défaut `false`), mémorisée dans `compteDuLayout` et
+  comparée comme `user` et `token` — sans quoi la séquence (cible, signal vrai) → (`null`, vrai) → (`null`, faux)
+  ne repasse jamais par la règle et la cible survit à la sortie. Règle de vidage : un `null` vide le compte si
+  le signal CHANGE, ou si le jeton est nul hors impersonation.
+
+**Décision prise ici, non tranchée par le ticket (réversible, soumise à team-lead)** : un signal qui change
+avec un `initialUser` nul vide le compte, dans les deux sens. Entrée (opérateur, faux) → (`null`, vrai) : le
+compte de l'opérateur ne passe pas sous la cible. Sortie avec le jeton de l'opérateur revenu mais `/me` en
+retard → (`null`, `'jeton'`, faux) : la cible ne passe pas sous le jeton de l'opérateur, ce que la seule règle
+de TCK-2158 aurait fait (rouge sur HEAD). Hors impersonation le signal ne change jamais : TCK-2158 inchangé.
+
+**Preuves.**
+
+- AC1 à AC4 : `src/context/__tests__/AuthContext.impersonation.tck-2816.test.tsx` (8 tests, dont AC2 bis, entrée, sortie avec jeton, `null` sous jeton hors impersonation).
+  L'état vide de la messagerie est le vrai `EtatVideDeLaMessagerie` sous `withIntl` (« Écrire à un client » /
+  « Parcourir les annonces »).
+- AC5 : `src/app/__tests__/layout-racine.impersonation.tck-2816.test.tsx`, environnement `node`, vrai `RootLayout` (`next/headers` et `utilisateurDuRendu` doublés) : prop
+  `impersonation === true`, `initialToken === null`, aucune des deux sentinelles de cookie dans les chaînes
+  atteignables depuis l'arbre ni dans son `renderToStaticMarkup`.
+- AC6, ablations une à une, fichier restauré et md5 vérifié après chacune : A1 signal ignoré → AC1, AC4 et la
+  sortie rouges ; A2 signal toujours vrai → AC2, AC2 bis, AC4, entrée et sortie rouges ; A3 valeur brute du
+  cookie passée au lieu du booléen → AC5 rouge ; A4 changement de signal ignoré dans la règle → entrée et sortie
+  rouges ; A5 signal retiré de la détection de changement → AC4 rouge.
+- Non-régression : `src/context/__tests__`, `src/app/__tests__`, `compte-de-la-coque.tck-2765/2802`,
+  `src/components/auth/__tests__` verts (TCK-2158, TCK-2229, TCK-1992, TCK-2802 sans modification), hors un
+  rouge de `polices-du-layout-racine` causé par des maquettes locales non versionnées du playground.
