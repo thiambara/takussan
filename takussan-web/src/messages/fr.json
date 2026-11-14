@@ -7435,7 +7435,8 @@
       "recherche": {
         "placeholder": "Nom, téléphone, quartier",
         "label": "Rechercher un prestataire"
-      }
+      },
+      "inviteLeDejaInscrit": "Invité le {date}"
     }
   },
   "onboarding": {

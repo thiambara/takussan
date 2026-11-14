@@ -7435,7 +7435,8 @@
       "recherche": {
         "placeholder": "Name, phone, area",
         "label": "Search for a provider"
-      }
+      },
+      "inviteLeDejaInscrit": "Invited on {date}"
     }
   },
   "onboarding": {

@@ -73,34 +73,47 @@ l'invitant, jamais ce que le prestataire a construit avec l'autre agence.
 
 ## Delta à produire
 
-- [ ] API : `ServiceProviderProfileController` (carnet par défaut et `meta.zones`) ajoute les
+- [x] API : `ServiceProviderProfileController` (carnet par défaut et `meta.zones`) ajoute les
       invitations `sent` de l'agence dont le profil invité est un profil existant (sans collaboration
       avec l'agence). La ligne est construite depuis l'invitation, pas depuis le profil. La forme
       (ligne distincte, marqueur dédié, etc.) s'écrit dans les notes.
-- [ ] Front : `ServiceProvidersList` affiche cette ligne comme une invitation (« Invitation envoyée »,
+- [x] Front : `ServiceProvidersList` affiche cette ligne comme une invitation (« Invitation envoyée »,
       « Invité le », Renvoyer, Révoquer), et le sous-titre la compte.
-- [ ] Tests : `CarnetInvitationProfilExistantTest` (fonctionnalité, par l'API réelle
+- [x] Tests : `CarnetInvitationProfilExistantTest` (fonctionnalité, par l'API réelle
       `POST /api/agencies/{agency}/service-providers/invite`), et test du composant pour la ligne.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un prestataire actif dans l'agence A est invité par l'agence B. `GET` du carnet de B sans
+- [x] AC1 — Un prestataire actif dans l'agence A est invité par l'agence B. `GET` du carnet de B sans
       filtre rend la ligne, marquée comme invitation, avec `pending_invitation_id` = l'invitation.
       `filter[search]=<nom saisi par B>` la trouve. Test qui échoue au HEAD (ablation).
-- [ ] AC2 — Cloisonnement : sur cette ligne, la réponse ne contient **aucune** valeur propre au profil
+      Preuve : `CarnetInvitationProfilExistantTest`::test_ac1_… (rouge au HEAD 638e5ea36 : taille 0 au lieu de 1) ; ablations agence, statut `sent`, marqueur, filtres fermés : rouges.
+- [x] AC2 — Cloisonnement : sur cette ligne, la réponse ne contient **aucune** valeur propre au profil
       maître. Le test donne au profil des valeurs distinctes de celles saisies par B (métiers, zones,
       nom du compte, téléphone du compte, un avis approuvé, une pièce d'assurance) et vérifie qu'aucune
       n'apparaît dans le JSON de la ligne ni dans `meta.zones`. `filter[search]=<nom du compte>` ne la
       trouve pas. Ablation : construire la ligne depuis le profil rend le test rouge.
-- [ ] AC3 — Le carnet de l'agence A, et celui d'une agence C, ne montrent jamais l'invitation de B.
+      Preuve : `CarnetInvitationProfilExistantTest`::test_ac2_… par e-mail et par numéro vérifié (sentinelles ASCII sur le corps brut, `include=user,agencyCollaborations,invitations`) ; ablation « construire depuis le profil » : 2 rouges.
+- [x] AC3 — Le carnet de l'agence A, et celui d'une agence C, ne montrent jamais l'invitation de B.
       Test de fuite.
-- [ ] AC4 — Aucune ligne `service_provider_agency_collaborations` n'existe entre le profil et B avant
+      Preuve : `CarnetInvitationProfilExistantTest`::test_ac3_… (A, C, et C qui invite au même nom) ; il a fait apparaître une fuite antérieure : `include=invitations` sur le carnet de A rendait l'invitation de B — corrigée, ablation rouge.
+- [x] AC4 — Aucune ligne `service_provider_agency_collaborations` n'existe entre le profil et B avant
       l'acceptation. Après l'acceptation, le carnet de B rend exactement une ligne pour ce prestataire,
       collaboration `active`. Test.
-- [ ] AC5 — Après révocation, la ligne sort du carnet par défaut de B. Test.
-- [ ] AC6 — Au navigateur (390 et 1280), `/app/maintenance/providers` de l'agence B : la ligne paraît
+      Preuve : `CarnetInvitationProfilExistantTest`::test_ac4_aucune_collaboration_… (acceptation réelle `POST /api/invitations/{token}/accept`) et ::test_ac4_deux_invitations_… ; ablation « sans collaboration » : rouge.
+- [x] AC5 — Après révocation, la ligne sort du carnet par défaut de B. Test.
+      Preuve : `CarnetInvitationProfilExistantTest`::test_ac5_… (révocation par l'API) ; ablation statut `sent` : rouge.
+- [x] AC6 — Au navigateur (390 et 1280), `/app/maintenance/providers` de l'agence B : la ligne paraît
       « Invitation envoyée » avec Renvoyer et Révoquer, et ne montre ni note, ni badge « Assuré », ni
       métier ou zone que B n'a pas saisi. Relevé consigné.
+      Relevé 2026-11-14, persona `admin` (Dakar Immo), `fidelite.mjs releve` à 390 et 1280 : une invitation
+      insérée en base de démo (id 200, sans envoi) vers le profil #6 d'un prestataire actif d'une autre
+      agence (compte « Oumy Mbaye »), saisie « Releve Tck2834 », plomberie, Ngor. La ligne paraît
+      « Invitation envoyée », « Invité le 14 nov. », Renvoyer et Révoquer, « Pas encore noté », sans
+      badge « Assuré » ; ni le nom du compte ni autre métier ou zone dans les deux relevés ; le sous-titre
+      dit « 6 actifs · 1 invitation en attente ». Le profil #6 n'a ni métier, ni zone, ni avis en démo :
+      ce volet du cloisonnement est prouvé par AC2, pas par le relevé. Invitation supprimée ensuite
+      (relue absente).
 
 ## Hors périmètre
 
@@ -110,4 +123,39 @@ l'invitant, jamais ce que le prestataire a construit avec l'autre agence.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Forme de la ligne** (`App\Support\Query\CarnetInvitationsDeProfilsExistants`) : une ligne
+  distincte, construite depuis l'invitation seule, de la forme d'un brouillon TCK-2829 —
+  `status: 'draft'`, `id`, `user_id`, `specialties`, `service_areas` nuls (et `user: null` sous
+  `include=user`), `metadata` = nom, e-mail et numéro, métiers et zones SAISIS par l'agence,
+  `created_at` = date de l'invitation, `pending_invitation_id`, marqueur `pending_invitation_only: true`,
+  ni note, ni avis, ni « Assuré », ni interventions, ni délai. L'`id` du profil maître ne sort pas.
+- **Discriminant** : invitation `sent`, de l'agence, vers un `ServiceProviderProfile`,
+  `metadata.existing_sp_other_agency = true`, et AUCUNE collaboration du profil avec l'agence ; la plus
+  récente par profil (e-mail et numéro peuvent coexister).
+- **Filtres** rejugés sur l'invitation : `search` (nom, numéro avec ou sans séparateurs, zones),
+  `zone`, `specialty`, `status` (seul `draft` la garde). Tout autre filtre renseigné (`user_id`…) ou un
+  `collaboration_status` explicite : aucune ligne d'invitation (ils ferment).
+- **Pagination** : les invitations en tête, puis les profils ; la page se découpe sur cette suite
+  (aucune ligne répétée ni perdue), `meta.total` compte les deux. Un `sort=` ne range que les profils.
+- **`meta.zones`** : zones des profils + zones saisies sur ces invitations, dédoublonnées, dans la
+  collation racine.
+- **Identifiants** : ni l'`id` du profil maître ni l'`user_id` de son compte ne sortent —
+  `CarnetInvitationProfilExistantTest::test_ni_l_id_du_profil_maitre_…` (toutes les clés `id`/`*_id`
+  de la ligne, inclus compris) ; ablations « id = profil » et « user_id = compte » : rouges.
+- **Pagination à la frontière** : `…::test_la_pagination_a_la_frontiere_…` (2 invitations + 3 profils,
+  `per_page=3`) ; ablation « décalage des profils sans retirer les invitations » : rouge.
+- **Front** : clé de ligne `invitation-<id>` quand `id` est nul ; « Invité le {date} » sans « pas encore
+  de compte » sur ces lignes (clé `serviceProviders.carnet.inviteLeDejaInscrit`).
+- **Suivi (sans ticket, décision du porteur)** : un prestataire dont la collaboration avec l'agence a
+  pris fin ou est suspendue, puis réinvité, reste hors du carnet par défaut, comme au HEAD (le ticket
+  exige « sans collaboration avec l'agence »).
+
+### Hors delta, corrigé
+
+- **Fuite entre agences par `include=`** : `include=invitations`, `agencyCollaborations` et `agencies`
+  rendaient les lignes de TOUTES les agences du prestataire — le carnet de l'agence A montrait
+  l'invitation que B venait d'envoyer à son prestataire, et toute agence voyait la liste des autres
+  agences d'un prestataire. Le carnet ne garde plus que les lignes de son agence
+  (`ServiceProviderProfileController::restreindreLesInclusALAgence()`). Tests :
+  `CarnetInvitationProfilExistantTest::test_ac3_…` (carnet de A sous `include=…`) et `::test_ac4_aucune_collaboration_…`
+  (inclus du carnet de B après l'acceptation) ; ablation (retrait de la restriction) : 2 rouges.
