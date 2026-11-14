@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14**, deux fois (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`* et § *Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/todo/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe), [TCK-2810](../backlog/tickets/todo/TCK-2810-signature-du-personnel-au-profil-actif.md) (le personnel signe depuis le profil actif)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/done/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe), [TCK-2810](../backlog/tickets/done/TCK-2810-signature-du-personnel-au-profil-actif.md) (le personnel signe depuis le profil actif)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -218,7 +218,7 @@ cautionnement suit le bail renouvelé (OHADA). Que le rattachement d'un garant �
 
 ## Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`
 
-- **Ticket** : [TCK-2803](../backlog/tickets/todo/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md).
+- **Ticket** : [TCK-2803](../backlog/tickets/done/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md).
 - **Précise** : le § 4 (« le bailleur signe lui-même »).
 
 **Constat** (mesuré le 2026-11-14). `LandlordSignatory::isLandlord` comparait `leases.landlord_id` à
@@ -249,7 +249,7 @@ TCK-2803 ; l'alignement est décidé par l'amendement suivant (TCK-2810).
 
 ## Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif
 
-- **Ticket** : [TCK-2810](../backlog/tickets/todo/TCK-2810-signature-du-personnel-au-profil-actif.md).
+- **Ticket** : [TCK-2810](../backlog/tickets/done/TCK-2810-signature-du-personnel-au-profil-actif.md).
 - **Décision du porteur du lot** (2026-11-14) : l'exception nommée par TCK-2803 se ramène à zéro.
 - **Précise** : le § 4 (« le personnel de l'agence signe pour le compte du bailleur ») et la décision 1
   de l'amendement précédent.
