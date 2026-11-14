@@ -14,7 +14,7 @@ import type { PropertyDetail } from '@/types/property';
  * Sans photo, rien : la fiche ne réserve pas de cadre vide.
  */
 export function PhotosDuBien({ property, forme, className }: { readonly property: PropertyDetail; readonly forme: 'bandeau' | 'grille'; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.fiche.photos');
+  const t = useTranslations('propertyDashboard.fiche.photos');
   const photos = property.photos ?? [];
   const principale = photos[0]?.preview ?? property.main_photo_url ?? null;
   if (!principale) return null;

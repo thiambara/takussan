@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useMessagingContacts, type MessagingContact } from '@/lib/queries/conversations';
+import { useLigneDeContact } from './ligneDeContact';
 import { cn } from '@/lib/utils';
 
 /** Même délai que les sélecteurs à recherche serveur de la console (TCK-363). */
@@ -94,6 +95,7 @@ export function ParticipantPicker({
   conversationId,
 }: ParticipantPickerProps) {
   const t = useTranslations('messaging.group.create');
+  const ligne = useLigneDeContact();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebouncedValue(query, PARTICIPANT_SEARCH_DEBOUNCE_MS);
@@ -191,10 +193,14 @@ export function ParticipantPicker({
                   <Combobox.Item
                     key={contact.id}
                     value={contact}
-                    className="flex min-h-11 w-full cursor-default items-center gap-3 px-3 py-1.5 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                    className="group flex min-h-11 w-full cursor-default items-center gap-3 px-3 py-1.5 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
                   >
                     <Pastille contact={contact} />
-                    <span className="min-w-0 truncate">{contact.name}</span>
+                    {/* TCK-2830 — la ligne de détail, comme dans « Nouvelle conversation ». */}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{contact.name}</span>
+                      {ligne(contact) ? <span className="block truncate text-xs text-muted-foreground group-data-highlighted:text-accent-foreground">{ligne(contact)}</span> : null}
+                    </span>
                   </Combobox.Item>
                 )}
               </Combobox.List>

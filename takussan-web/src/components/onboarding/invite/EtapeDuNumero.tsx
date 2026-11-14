@@ -37,6 +37,11 @@ interface EtapeDuNumeroProps {
   readonly agence: string | null;
   /** Le code est accepté : la page note le numéro vérifié et passe à l'étape suivante. */
   readonly onVerifie: () => void;
+  /**
+   * AC5 — le panneau voisin du bureau large (`CeQuiVousAttend`), à droite de la colonne de 480 px dès `xl` ; absent
+   * en dessous (la maquette n'en a pas au téléphone).
+   */
+  readonly panneau?: ReactNode;
 }
 
 const ID = 'invite-numero';
@@ -46,7 +51,7 @@ function delai(secondes: number): string {
   return `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}`;
 }
 
-export function EtapeDuNumero({ numero, onNumero, agence, onVerifie }: EtapeDuNumeroProps) {
+export function EtapeDuNumero({ numero, onNumero, agence, onVerifie, panneau }: EtapeDuNumeroProps) {
   const t = useTranslations('onboarding.invite.numero');
   const decalage = useDecalageDuClavier();
   // Un numéro déjà saisi par l'agence se montre figé, avec « Modifier » ; sans numéro, le champ s'ouvre.
@@ -125,145 +130,154 @@ export function EtapeDuNumero({ numero, onNumero, agence, onVerifie }: EtapeDuNu
   const fort = (morceaux: ReactNode) => <span className="font-semibold tabular-nums">{morceaux}</span>;
 
   return (
-    <div className="flex flex-col">
-      <TitreDInvite>{t('titre')}</TitreDInvite>
-      <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground lg:mt-3 lg:text-base">
-        {agence ? t('texte', { agence }) : t('texteSans')}
-      </p>
+    // La colonne de 480 px dès `xl` (maquette : `xl:grid-cols-[480px_1fr]`), le panneau à droite : sans elle, le champ
+    // et « Recevoir le code » prenaient les 1080 px de la largeur `assistant` (relevé du 2026-11-14).
+    <div className="xl:grid xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)] xl:items-start xl:gap-16">
+      <div className="flex flex-col xl:max-w-[30rem]">
+        <TitreDInvite>{t('titre')}</TitreDInvite>
+        <p className="mt-2 text-[0.9375rem] leading-relaxed text-muted-foreground lg:mt-3 lg:text-base">
+          {agence ? t('texte', { agence }) : t('texteSans')}
+        </p>
 
-      <div className="mt-6 lg:mt-8">
-        {modifiable ? (
-          <>
-            <Label htmlFor={`${ID}-champ`} className="mb-1.5 leading-(--text-sm--line-height)">
-              {t('libelle')}
-            </Label>
-            <PhoneInput
-              id={`${ID}-champ`}
-              value={numero}
-              onValueChange={(valeur) => {
-                setErreurDEnvoi(null);
-                onNumero(valeur);
-              }}
-              autoComplete="tel-national"
-              aide={false}
-              aria-describedby={erreurDEnvoi ? idErreur : undefined}
-              aria-invalid={erreurDEnvoi ? true : undefined}
-            />
-          </>
-        ) : (
-          <>
-            <p id={`${ID}-libelle`} className="mb-1.5 text-sm font-medium">
-              {t('libelle')}
-            </p>
-            <div
-              className={cn(
-                'flex h-11 items-center rounded-lg border bg-card text-[0.9375rem]',
-                erreurDEnvoi ? 'border-destructive' : 'border-border',
-              )}
-            >
-              <span className="flex h-full items-center border-r border-border px-3 text-muted-foreground tabular-nums">+221</span>
-              <span aria-labelledby={`${ID}-libelle`} className="min-w-0 flex-1 truncate px-3 tabular-nums">
-                {formaterTelephone(numero).replace(/^\+221 /, '')}
-              </span>
-              <button
-                type="button"
-                onClick={modifier}
-                className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+        <div className="mt-6 lg:mt-8">
+          {modifiable ? (
+            <>
+              <Label htmlFor={`${ID}-champ`} className="mb-1.5 leading-(--text-sm--line-height)">
+                {t('libelle')}
+              </Label>
+              <PhoneInput
+                id={`${ID}-champ`}
+                value={numero}
+                onValueChange={(valeur) => {
+                  setErreurDEnvoi(null);
+                  onNumero(valeur);
+                }}
+                autoComplete="tel-national"
+                aide={false}
+                aria-describedby={erreurDEnvoi ? idErreur : undefined}
+                aria-invalid={erreurDEnvoi ? true : undefined}
+              />
+            </>
+          ) : (
+            <>
+              <p id={`${ID}-libelle`} className="mb-1.5 text-sm font-medium">
+                {t('libelle')}
+              </p>
+              <div
+                className={cn(
+                  'flex h-11 items-center rounded-lg border bg-card text-[0.9375rem]',
+                  erreurDEnvoi ? 'border-destructive' : 'border-border',
+                )}
               >
-                {t('modifier')}
-              </button>
-            </div>
-          </>
-        )}
-        {erreurDEnvoi ? (
-          <p id={idErreur} role="alert" data-erreur-d-envoi="" className="mt-1.5 text-[0.8125rem] text-destructive">
-            {erreurDEnvoi}
-          </p>
-        ) : null}
-      </div>
-
-      {envoye ? (
-        <>
-          <p className="mt-6 text-sm lg:mt-7">{t.rich('envoye', { numero: numeroMasqueDInvite(numero), fort })}</p>
-          <label htmlFor={`${ID}-code`} className="sr-only">
-            {t('codeLibelle')}
-          </label>
-          <CasesDuCode
-            id={`${ID}-code`}
-            valeur={code}
-            erreur={erreurDuCode !== null}
-            figee={verification}
-            aria-describedby={erreurDuCode ? `${ID}-code-erreur` : undefined}
-            onChange={(valeur) => {
-              setErreurDuCode(null);
-              setCode(valeur);
-            }}
-            className="mt-3"
-          />
-          {erreurDuCode ? (
-            <p id={`${ID}-code-erreur`} role="alert" className="mt-2 text-[0.8125rem] text-destructive">
-              {erreurDuCode}
+                <span className="flex h-full items-center border-r border-border px-3 text-muted-foreground tabular-nums">+221</span>
+                <span aria-labelledby={`${ID}-libelle`} className="min-w-0 flex-1 truncate px-3 tabular-nums">
+                  {formaterTelephone(numero).replace(/^\+221 /, '')}
+                </span>
+                <button
+                  type="button"
+                  onClick={modifier}
+                  className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                >
+                  {t('modifier')}
+                </button>
+              </div>
+            </>
+          )}
+          {erreurDEnvoi ? (
+            <p id={idErreur} role="alert" data-erreur-d-envoi="" className="mt-1.5 text-[0.8125rem] text-destructive">
+              {erreurDEnvoi}
             </p>
           ) : null}
-          {attente > 0 ? (
-            <p className="mt-3 text-[0.8125rem] text-muted-foreground">
-              {t.rich('renvoiDans', { delai: delai(attente), chiffres: (m) => <span className="tabular-nums">{m}</span> })}
-            </p>
-          ) : (
-            <p className="mt-1 flex items-center gap-1 text-[0.8125rem] text-muted-foreground">
-              {t('rienRecu')}
-              <button
-                type="button"
-                onClick={() => void envoyer()}
-                disabled={envoi}
-                className="inline-flex min-h-11 items-center rounded-lg font-medium text-primary underline decoration-1 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50"
-              >
-                {t('renvoyer')}
-              </button>
-            </p>
-          )}
-          <CodeDePreproduction code={apercu} onUtiliser={setCode} className="mt-5 lg:mt-6" />
-        </>
-      ) : null}
+        </div>
 
-      <BoutonCollant decalage={decalage} className="lg:mt-7">
         {envoye ? (
           <>
+            <p className="mt-6 text-sm lg:mt-7">{t.rich('envoye', { numero: numeroMasqueDInvite(numero), fort })}</p>
+            <label htmlFor={`${ID}-code`} className="sr-only">
+              {t('codeLibelle')}
+            </label>
+            <CasesDuCode
+              id={`${ID}-code`}
+              valeur={code}
+              erreur={erreurDuCode !== null}
+              figee={verification}
+              aria-describedby={erreurDuCode ? `${ID}-code-erreur` : undefined}
+              onChange={(valeur) => {
+                setErreurDuCode(null);
+                setCode(valeur);
+              }}
+              className="mt-3"
+            />
+            {erreurDuCode ? (
+              <p id={`${ID}-code-erreur`} role="alert" className="mt-2 text-[0.8125rem] text-destructive">
+                {erreurDuCode}
+              </p>
+            ) : null}
+            {attente > 0 ? (
+              <p className="mt-3 text-[0.8125rem] text-muted-foreground">
+                {t.rich('renvoiDans', { delai: delai(attente), chiffres: (m) => <span className="tabular-nums">{m}</span> })}
+              </p>
+            ) : (
+              <p className="mt-1 flex items-center gap-1 text-[0.8125rem] text-muted-foreground">
+                {t('rienRecu')}
+                <button
+                  type="button"
+                  onClick={() => void envoyer()}
+                  disabled={envoi}
+                  className="inline-flex min-h-11 items-center rounded-lg font-medium text-primary underline decoration-1 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50"
+                >
+                  {t('renvoyer')}
+                </button>
+              </p>
+            )}
+            <CodeDePreproduction code={apercu} onUtiliser={setCode} className="mt-5 lg:mt-6" />
+          </>
+        ) : null}
+
+        <BoutonCollant decalage={decalage} className="lg:mt-7">
+          {envoye ? (
+            <>
+              <Button
+                type="button"
+                onClick={() => void verifier(code)}
+                disabled={code.length !== LONGUEUR_DU_CODE || verification}
+                className={BOUTON_D_ENTREE}
+              >
+                {verification ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    {t('verification')}
+                  </>
+                ) : (
+                  t('continuer')
+                )}
+              </Button>
+              <p className="pt-1 text-center text-xs text-muted-foreground lg:hidden">{t('aideContinuer')}</p>
+            </>
+          ) : (
             <Button
               type="button"
-              onClick={() => void verifier(code)}
-              disabled={code.length !== LONGUEUR_DU_CODE || verification}
+              onClick={() => void envoyer()}
+              disabled={!numeroComposable(numero) || envoi || attente > 0}
               className={BOUTON_D_ENTREE}
             >
-              {verification ? (
+              {envoi ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  {t('verification')}
+                  {t('envoi')}
                 </>
               ) : (
-                t('continuer')
+                t('recevoir')
               )}
             </Button>
-            <p className="pt-1 text-center text-xs text-muted-foreground lg:hidden">{t('aideContinuer')}</p>
-          </>
-        ) : (
-          <Button
-            type="button"
-            onClick={() => void envoyer()}
-            disabled={!numeroComposable(numero) || envoi || attente > 0}
-            className={BOUTON_D_ENTREE}
-          >
-            {envoi ? (
-              <>
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                {t('envoi')}
-              </>
-            ) : (
-              t('recevoir')
-            )}
-          </Button>
-        )}
-      </BoutonCollant>
+          )}
+        </BoutonCollant>
+      </div>
+      {panneau ? (
+        <div data-apercu-d-invite="" className="hidden pt-2 xl:block">
+          {panneau}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -47,7 +47,7 @@ export function ChangerLeTitulaire({
   readonly propertyId: number;
   readonly agencyId: number;
 }) {
-  const t = useTranslations('property.dashboard.ownerTransfer');
+  const t = useTranslations('propertyDashboard.ownerTransfer');
   const [ouvert, setOuvert] = useState(false);
 
   return (
@@ -71,7 +71,7 @@ function DialogueDuTransfert({
   readonly agencyId: number;
   readonly onFermer: () => void;
 }) {
-  const t = useTranslations('property.dashboard.ownerTransfer');
+  const t = useTranslations('propertyDashboard.ownerTransfer');
   const tStatut = useTranslations('lease.status');
   const id = useId();
   const locale = useLocale();

@@ -14,7 +14,7 @@ import { aujourdhuiADakar } from './tranches';
  */
 export function useLibellesDeVisite() {
   const fmt = useFormatteurs();
-  const t = useTranslations('property.visitDialog');
+  const t = useTranslations('propertyVisitDialog');
 
   const midi = (jour: string) => `${jour}T12:00:00Z`;
   const majuscule = (s: string) => s.charAt(0).toLocaleUpperCase(fmt.locale) + s.slice(1);

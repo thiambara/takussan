@@ -63,6 +63,8 @@ export interface DashboardCustomerFilters {
   readonly follow_up?: '1';
   /** TCK-2588 — `me` : « Mes clients » ; `none` : « Sans référent ». */
   readonly referent?: 'me' | 'none';
+  /** TCK-2588 — `active` : les étapes vivantes (« Prospects » de « Ma journée », TCK-2596). */
+  readonly stage_group?: 'active';
 }
 
 export interface FetchDashboardCustomersParams {
@@ -86,6 +88,7 @@ function buildListParams({
   if (filters?.tags_all) filter.tags_all = filters.tags_all;
   if (filters?.follow_up) filter.follow_up = filters.follow_up;
   if (filters?.referent) filter.referent = filters.referent;
+  if (filters?.stage_group) filter.stage_group = filters.stage_group;
 
   return {
     fields: { customers: DASHBOARD_CUSTOMER_FIELDS },
@@ -173,7 +176,8 @@ export async function fetchDashboardCustomer(
  * (`show-sans-fields.garde.test.ts`) : elle vérifie que ces noms sont tous des attributs calculés de
  * l'API, et qu'aucun autre nom n'est envoyé.
  */
-export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent'] as const;
+// TCK-2761 — `visit_places` : l'adresse du bien de chaque visite à venir, rendue sur `upcoming_visits[]`.
+export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent', 'visit_places'] as const;
 
 /**
  * TCK-2589 — ce que la fiche lit en une requête : pièces, étiquettes, bien d'intérêt, origine, les

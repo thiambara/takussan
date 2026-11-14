@@ -139,12 +139,7 @@
       "providerBook": "Téereb liggéeykat",
       "messaging": "Bataaxal",
       "documents": "Kayit yi",
-      "statistics": "Limu yi",
-      "exports": "Génne",
-      "agencyView": "Gis-gisu ajaas",
       "credits": "Kredi",
-      "kpis": "KPI yi",
-      "alerts": "Yëgle yi",
       "owners": "Boroom kër yi",
       "crm": "Kiliyaan (CRM)",
       "calendar": "Arminaat",
@@ -1067,6 +1062,10 @@
         "titleNoName": "Dalal ak jam ci Takussan",
         "body": "Espace bu {agencyName} pare na. Etape gu gaaw rekk ci kanam dashboard bi.",
         "cta": "Toxal"
+      },
+      "sortie": {
+        "configuration": "La double authentification n’est pas encore activée : sa configuration reprendra au début, avec un nouveau code QR.",
+        "codes": "Vos codes de secours ne seront plus affichés. Notez-les avant de quitter cette page."
       }
     },
     "standardWelcome": {
@@ -1819,7 +1818,8 @@
       "clearAll": "Far lépp",
       "allStages": "Tappe yépp",
       "allStatuses": "Nekkin yépp",
-      "stage": "Étape"
+      "stage": "Étape",
+      "activeStages": "Prospects actifs"
     },
     "tags": {
       "sectionTitle": "Tag yi",
@@ -1908,7 +1908,11 @@
         "rappeler": "Rappeler la visite",
         "rappelerAria": "Rappeler la visite à {nom} sur WhatsApp",
         "rappelMessage": "Bonjour {prenom}, je vous rappelle notre visite de {bien}, {jour} à {heure}. À bientôt !",
-        "rappelMessageSansBien": "Bonjour {prenom}, je vous rappelle notre visite, {jour} à {heure}. À bientôt !"
+        "rappelMessageSansBien": "Bonjour {prenom}, je vous rappelle notre visite, {jour} à {heure}. À bientôt !",
+        "adresseConfirmee": "{adresse} · confirmée",
+        "adresseAConfirmer": "{adresse} · à confirmer",
+        "itineraire": "Itinéraire",
+        "itineraireAria": "Itinéraire vers {adresse}"
       },
       "cherche": {
         "titre": "Sa recherche",
@@ -1918,7 +1922,8 @@
         "vide": "Pas encore de recherche.",
         "correspondants": "{count, plural, =0 {Aucun bien ne correspond} one {# bien correspond} other {# biens correspondent}}",
         "correspondantsSansNombre": "Biens correspondants",
-        "modifierAria": "Modifier sa recherche"
+        "modifierAria": "Modifier sa recherche",
+        "deduite": "Déduit du bien de sa demande, à confirmer avec lui."
       },
       "origine": {
         "titre": "Origine",
@@ -2442,7 +2447,38 @@
         "unmute": "Ubbil notifications yi",
         "leave": "Génn ci kuréel gi",
         "lastAdminLeaveBlocked": "Yaw rekk a admin — promóte keneen ba pare gennal.",
-        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal."
+        "lastAdminLeaveHint": "Promóte beneen membre admin balaa nga gennal.",
+        "colonne": "Infos du groupe",
+        "renommerAria": "Renommer le groupe",
+        "participantsCompte": "{count, plural, one {# participant} other {# participants}}",
+        "vous": "Vous",
+        "adminDuGroupe": "admin du groupe",
+        "relation": {
+          "prestataire": "Prestataire",
+          "locataire": "Locataire",
+          "proprietaire": "Propriétaire",
+          "agent": "Agent"
+        },
+        "categorie": {
+          "plumbing": "plomberie",
+          "electrical": "électricité",
+          "structural": "structure",
+          "appliance": "électroménager",
+          "painting": "peinture",
+          "cleaning": "nettoyage",
+          "pest_control": "nuisibles",
+          "locksmith": "serrurerie",
+          "other": "autre"
+        },
+        "ajouterUnParticipant": "Ajouter un participant",
+        "sourdine": "Sourdine",
+        "interventionPlanifiee": "Intervention · planifiée {date}",
+        "intervention": "Intervention",
+        "bail": "Bail {reference}",
+        "dernierAdminDepart": "Personne d’autre n’administre ce groupe : nommez un autre admin avant de partir.",
+        "afficher": "Afficher les infos du groupe",
+        "replier": "Replier les infos du groupe",
+        "gerer": "Gérer {nom}"
       }
     },
     "conversationTitleFallback": "Waxtaan #{id}",
@@ -2566,7 +2602,26 @@
       "rechercheEchouee": "Impossible de vérifier vos conversations avec cette personne. Réessayez.",
       "premierMessage": "Votre premier message à {nom}.",
       "champ": "Message à {nom}",
-      "envoiEchoue": "Le message n’a pas pu être envoyé. Réessayez."
+      "envoiEchoue": "Le message n’a pas pu être envoyé. Réessayez.",
+      "a": "À",
+      "nomDuGroupe": "Nom du groupe",
+      "bienRattache": "Bien rattaché",
+      "bailRattache": "Bail rattaché",
+      "sections": {
+        "clients": "Clients récents",
+        "equipe": "Équipe",
+        "proprietaires": "Propriétaires",
+        "autres": "Autres personnes"
+      },
+      "detail": {
+        "bienEtVille": "{titre} · {ville}",
+        "role": {
+          "agent": "Agent",
+          "admin": "Administrateur"
+        },
+        "roleEtAgence": "{role} · {agence}",
+        "biensGeres": "{count, plural, =0 {Aucun bien géré} one {# bien géré} other {# biens gérés}}"
+      }
     },
     "contexte": {
       "titre": "Contexte de la conversation",
@@ -3224,7 +3279,8 @@
           "partial": "Payé en partie",
           "due": "À venir",
           "none": "Échéance non émise",
-          "vacant": "Vacant"
+          "vacant": "Vacant",
+          "refunded": "Reçu puis remboursé"
         },
         "voirLesBaux": "Voir les baux"
       },
@@ -3733,7 +3789,9 @@
         "penaliteDue": "Pénalité <m>{montant}</m> due · total <m>{total}</m>",
         "paye": "{mois} : payé le {date}",
         "aVenir": "{mois} : à régler le {date}",
-        "aRegler": "À régler auprès de votre agence"
+        "aRegler": "À régler auprès de votre agence",
+        "echeancesEnRetard": "{n, plural, one {# échéance en retard} other {# échéances en retard}}",
+        "relancer": "Relancer"
       },
       "duree": {
         "titre": "Durée",
@@ -3896,7 +3954,8 @@
         "periodeRiche": "<t>{type} · </t><m>{mois}</m>",
         "enRetardDe": "En retard de {jours} j",
         "payeLe": "Payé le {date}",
-        "quittance": "Quittance"
+        "quittance": "Quittance",
+        "relancer": "Relancer"
       },
       "types": {
         "residential_rent": "Habitation",
@@ -4797,7 +4856,6 @@
       "removedTitle": "Yéenekaay bi dindi nañu ko",
       "remove": "Dindi",
       "removeError": "Mënuñu dindi bëgg-bëgg bii. Jéemaatal.",
-      "similar": "Xool kër yu ko niru",
       "note": {
         "add": "Yokk ab bind",
         "edit": "Soppi",
@@ -4942,12 +5000,7 @@
       "relaxationText": "Sans « {text} »"
     },
     "saved": {
-      "empty_title": "Amul seet bu ñu denc",
-      "empty_description": "Ci xëtu résultat bi, bësal « Denc seet bi » ngir gis ko fii.",
-      "empty_cta": "Tàmbali benn seet",
-      "error": "Mënunu yebal say seet. Xoolal sa konexion, ba noppi jéemaat.",
       "noCriteria": "Amul tànneef",
-      "relaunch": "Jéemaat",
       "deleteAria": "Far {name}",
       "frequency": {
         "off": "Fay nañu ko",
@@ -5471,16 +5524,6 @@
             "verifyTitle": "Kod bi baaxul"
           }
         },
-        "kyc": {
-          "title": "Sa kayit justification",
-          "subtitle": "Yónni sa CNI, sa RIB ak sa NINEA. Mën nga ko def ñaari yoon.",
-          "draftBadge": "Buruyoŋ",
-          "submittedBadge": "Yónni",
-          "submitCta": "Yónni sa dossier KYC",
-          "submitting": "Yónnee na…",
-          "submittedTitle": "Dossier KYC yónni nañu ko",
-          "submittedBody": "Mën nga jëkk."
-        },
         "tour": {
           "title": "Xamal sa espace",
           "subtitle": "Ñetti tool yu am solo ngir toppatoo sa alal.",
@@ -5743,18 +5786,6 @@
             "sendTitle": "Yónn code du mën",
             "verifyTitle": "Code dafa baaxul"
           }
-        },
-        "kyc": {
-          "title": "Sa pieces justificatives",
-          "subtitle": "Karte professionnelle, pièce d'identité ak foto. Mën nga ko mottali ñu bari.",
-          "draftBadge": "Buruyoŋ",
-          "submittedBadge": "Soumis",
-          "submitCta": "Yónn sa dossier KYC",
-          "submitting": "Yónn naa…",
-          "submittedTitle": "Dossier KYC yónn na",
-          "submittedBody": "Mën nga continuer.",
-          "licenseNumberLabel": "Numero karte professionnelle",
-          "licenseNumberHint": "Bind fi numero bi nekk ci sa karte d'agent."
         },
         "specialization": {
           "title": "Sa spécialisation ak sa zones",
@@ -6171,7 +6202,8 @@
       "colonnes": {
         "prestataire": "Prestataire",
         "note": "Note",
-        "interventions": "Interventions"
+        "interventions": "Interventions",
+        "delai": "Délai de réponse"
       },
       "pasEncoreNote": "Pas encore noté",
       "interventions": "{count, plural, one {# intervention} other {# interventions}}",
@@ -6187,7 +6219,19 @@
         "statut": "Statut",
         "tous": "Tous",
         "tousLesMetiers": "Tous les métiers",
-        "tousLesStatuts": "Tous les statuts"
+        "tousLesStatuts": "Tous les statuts",
+        "zone": "Zone",
+        "toutesLesZones": "Toutes les zones"
+      },
+      "repondEn": "Répond en {duree}",
+      "duree": {
+        "minutes": "~{n} min",
+        "heures": "~{n} h",
+        "jours": "~{n} j"
+      },
+      "recherche": {
+        "placeholder": "Nom, téléphone, quartier",
+        "label": "Rechercher un prestataire"
       }
     }
   },
@@ -6553,6 +6597,24 @@
             "fait": "Envoyée"
           },
           "fait": "Fait"
+        }
+      },
+      "attente": {
+        "titre": "{agence} vous attend",
+        "titreSans": "Votre agence vous attend",
+        "sousTitre": "Juste après votre code",
+        "bailleur": {
+          "titre": "Vos biens chez l’agence",
+          "texte": "Ceux qu’elle suit pour vous, ou de quoi lui en proposer un"
+        },
+        "agent": {
+          "titre": "Vos prospects",
+          "texte": "Ceux que l’agence vous confie, vos zones et vos droits"
+        },
+        "prestataire": {
+          "titre": "Une intervention vous attend",
+          "titreSans": "Vos prochaines interventions",
+          "texteSans": "Les demandes de l’agence, dès votre profil complété"
         }
       }
     },
@@ -7591,6 +7653,15 @@
           "carte": "{tranche} de retard",
           "echeances": "{count, plural, one {# échéance} other {# échéances}}",
           "part": "{pourcent} % des {total}"
+        },
+        "adresse": {
+          "introuvable": "Cette échéance ne figure pas parmi les impayés à relancer.",
+          "rienARelancer": "Aucune échéance de bail à relancer.",
+          "lectureEchouee": "Les échéances n’ont pas pu être lues. Réessayez.",
+          "plafondAtteint": {
+            "titre": "La file s’arrête aux 100 échéances les plus en retard",
+            "detail": "Sélectionnez les autres dans la liste pour les relancer."
+          }
         }
       }
     },
@@ -9355,14 +9426,6 @@
       "salle-de-sport": "Néegu espoor",
       "aire-de-jeux": "Béréb bu xale yi di fo"
     },
-    "portfolio": {
-      "empty_title": "Amul kër ci sa portefeuille",
-      "empty_description": "Sosal sa annonce bu njëkk ngir mu agsi ci luwékat ak jëndkat yu Takussan.",
-      "empty_cta": "Yëgle sama kër bu njëkk",
-      "filtered_empty_title": "Amul kër bu ànd ak say filtre",
-      "filtered_empty_description": "Soppil walla dindil ay filtre ngir yaatal sa seet.",
-      "filtered_empty_cta": "Delloo filtre yi ci bopp"
-    },
     "types": {
       "apartment": "Apartama",
       "house": "Kër",
@@ -9402,19 +9465,6 @@
         "priceDrop": "Njëg wàcc na"
       }
     },
-    "row": {
-      "viewAll": "Gis lépp",
-      "previous": "Bi jiitu",
-      "next": "Bi ci topp",
-      "empty": "Amul kër ci tànneef bii ba tey."
-    },
-    "discovery": {
-      "neighbourhoodsOf": "Quartiers de {city}",
-      "viewSwitchAria": "Wonewu njeexital yi",
-      "viewList": "Limu",
-      "viewMap": "Kart",
-      "outilsFlottantsAria": "Jumtukaayu seet"
-    },
     "rentPeriodsShort": {
       "daily": "bés",
       "weekly": "ayu-bés",
@@ -9427,350 +9477,6 @@
       "weekly": "Ayu-bés",
       "monthly": "Weer wu nekk",
       "yearly": "At mu nekk"
-    },
-    "detail": {
-      "reviewsCount": "({count} xalaat)",
-      "viewsCount": "{count} xool",
-      "reference": "Nomboro {value}",
-      "featured": "Ñu ko tànn",
-      "shareAria": "Séddoo kër gi",
-      "share": "Séddoo",
-      "removeFavorite": "Dindi ci say cofeel",
-      "addFavorite": "Yokk ci say cofeel",
-      "characteristics": "Melokaan yi",
-      "rows": {
-        "type": "Xeet",
-        "contract": "Kontaraa",
-        "period": "Jamono",
-        "status": "Nekkin",
-        "floor": "Etaas",
-        "yearBuilt": "Atum tabax",
-        "parking": "Palaasu parking",
-        "furnished": "Ame na meebal",
-        "titleDeed": "Kayitu suuf",
-        "condition": "État du bien",
-        "availability": "Jotaay",
-        "availabilityNow": "Léegi",
-        "availabilityFrom": "Ci {date}",
-        "yes": "Waaw"
-      },
-      "specs": {
-        "bedrooms": "Neeg yi",
-        "bathrooms": "Sanjaan",
-        "area": "Yaatuwaay",
-        "floors": "Etaas yi",
-        "year": "At",
-        "parking": "Parking"
-      },
-      "description": "Leeral",
-      "collapse": "Wàññi",
-      "readMore": "Jàng li ci des",
-      "amenities": "Jumtukaay yi",
-      "breadcrumbAria": "Yoonu wesaaru",
-      "priceHistory": "Taariixu njëg gi",
-      "documents": "Dokimaa yi",
-      "download": "Yebbi",
-      "downloadAria": "Yebbi {name}",
-      "requestVisit": "Ñaan seetlu",
-      "sendMessage": "Yónnee bataaxal",
-      "noChargeNotice": "Duñu la jël xaalis balaa ñu ko dëggal.",
-      "agent": {
-        "phoneUnavailable": "Nomboro telefon bi jotul ci kër gii.",
-        "phoneError": "Mënuñu jël nomboro bi. Jéemaatal su la neexee.",
-        "verifiedAria": "Ajaas bu ñu seetlu",
-        "independent": "Ajaŋ bu tënkul",
-        "private": "Boroom kër bopp",
-        "callAria": "Woo",
-        "call": "Woo",
-        "calling": "Mi ngi jokkoo…"
-      },
-      "breadcrumb": {
-        "home": "Kër gi",
-        "rent": "Luwaa",
-        "buy": "Jënd"
-      },
-      "location": "Bérébu",
-      "addressHidden": "Joxeewuñu adres bi.",
-      "viewOnOsm": "Xool ci OpenStreetMap",
-      "shareDialog": {
-        "title": "Séddoo yégle bii",
-        "description": "Yónnee lien bi say xarit.",
-        "linkAria": "Lien bu ñuy séddoo",
-        "copied": "Ñu ko duplikaat",
-        "copy": "Duplikaat"
-      },
-      "similar": "Kër yu niroo",
-      "previous": "Bi jiitu",
-      "next": "Bi ci topp",
-      "gallery": {
-        "close": "Tëj",
-        "viewerLabel": "Photos : {title}",
-        "previousPhoto": "Nataal bi jiitu",
-        "nextPhoto": "Nataal bi ci topp",
-        "noPhoto": "Amul nataal",
-        "noPhotoAvailable": "Amul nataal bu jot",
-        "viewAll": "Xool nataal yépp ({count})",
-        "openPhoto": "Ubbil nataal {index}",
-        "photoAlt": "{title} - nataal {index}"
-      },
-      "bottomBar": {
-        "visit": "Seetlu"
-      },
-      "notFound": "Kër bi gisatuñu ko.",
-      "similarError": "Mënunu yeb kër yu niroo yi.",
-      "contactInvalidResponse": "Tontu bi baaxul.",
-      "primaryCta": {
-        "offer": "Joxe benn njaay",
-        "reserve": "Réserwe",
-        "apply": "Ñaan"
-      },
-      "unavailableTitle": "Këru bi amul ba tey",
-      "unavailableBody": "Mënunu jot katalog bi ci saa si. Këru bi mën na am ba tey — jéemaatal ci ay saa.",
-      "favoriteAddShort": "Yokk",
-      "favoriteSavedShort": "Cofeel",
-      "descriptionLanguageNotice": "{langue, select, fr {Boroom yégle bi moo bind leeral bii ci farañse} en {Boroom yégle bi moo bind leeral bii ci àngale} wo {Boroom yégle bi moo bind leeral bii ci wolof} other {Boroom yégle bi moo bind leeral bii ci làkkam}}",
-      "entryCost": {
-        "title": "Li ngay fey ngir dugg",
-        "advance": "Loyer bu ñu jiital",
-        "deposit": "Kosioŋ",
-        "agencyFee": "Peyu ajaas bi",
-        "monthlyCharges": "Sarsu weer wu nekk",
-        "months": "{count, plural, other {# weer}}",
-        "total": "Lépp ngir dugg",
-        "showDetails": "Voir le détail",
-        "hideDetails": "Masquer le détail"
-      },
-      "trust": {
-        "phoneVerified": "Telefon bi dëggu na",
-        "safetyTitle": "Moytu",
-        "safetyBody": "Bul fey benn xaalis balaa nga seetsi kër gi te gis ki koy jaay walla di ko luye."
-      },
-      "virtualTour": {
-        "video": "Xool widewoo kër gi",
-        "tour": "Seetlu kër gi ci internet",
-        "loadHint": "Dafay yeeg rekk bu nga ko ubbee",
-        "frameTitle": "Seetlu kër gi ci internet — {title}",
-        "opensNewTab": "(dina ubbiku ci beneen palanteer)"
-      },
-      "actions": {
-        "whatsapp": "WhatsApp",
-        "write": "Écrire",
-        "alreadyVisited": "Déjà visité ?",
-        "submitApplication": "Déposer mon dossier",
-        "numbersTitle": "Appeler {name}",
-        "numbersDescription": "Choisissez le numéro à composer."
-      }
-    },
-    "reviews": {
-      "title": "Xalaat yi",
-      "countSuffix": "{count} xalaat",
-      "loading": "Xalaat yi ñu ngi leen di yeb…",
-      "empty": "Amul xalaat ba tey.",
-      "notEligible": "Dinga man a bàyyi xalaat ginnaaw benn seetlu bu mat walla bu ñu xaatimee kontaraa ci kër gii.",
-      "alreadyReviewed": "Jërëjëf, bàyyi nga ba noppi xalaat ci kër gii.",
-      "agentReply": "Tontu ajaŋ bi",
-      "edit": "Soppi",
-      "reply": "Tontu",
-      "form": {
-        "ratingRequired": "Tànnal benn nota su la neexee.",
-        "sendError": "Njuumte ci yónnee bi.",
-        "aria": "Bàyyi xalaat",
-        "title": "Bàyyi xalaat",
-        "ratingAria": "Nota ci 5",
-        "titlePlaceholder": "Bopp (soo ko bëggee)",
-        "thanks": "Jërëjëf ci sa xalaat.",
-        "starsAria": "{count, plural, other {# biddiw}}",
-        "contentOptionalPlaceholder": "Votre commentaire (facultatif)"
-      },
-      "replyForm": {
-        "editTitle": "Soppi sama tontu",
-        "newTitle": "Tontu xalaat bii",
-        "editSubmit": "Soppi sama tontu",
-        "newSubmit": "Tontu ci kanam ñépp",
-        "placeholder": "Tontul ci pex bu leer te am fulla…",
-        "contentAria": "Li nekk ci tontu bi",
-        "cancel": "Neenal",
-        "publish": "Génne tontu bi",
-        "sending": "Mu ngi yónnee…",
-        "save": "Denc",
-        "contentRequired": "Écrivez une réponse avant de publier."
-      },
-      "loadError": "Mënunu yeb xalaat yi."
-    },
-    "report": {
-      "reasons": {
-        "misleading": "Yégle bu naxee",
-        "inappropriate": "Li nekk ci jaaduwul",
-        "spam": "Spam",
-        "fraud": "Nax / mbaay",
-        "other": "Beneen"
-      },
-      "trigger": "Xamle yégle bii",
-      "cancel": "Neenal",
-      "dialogTitle": "Xamle yégle bii",
-      "dialogBody": "Dimbali nu ngir platform bi wéy ci baax.",
-      "reasonLabel": "Sabab",
-      "detailsLabel": "Leeral (soo ko bëggee)",
-      "detailsPlaceholder": "Leeralal li am jafe-jafe…",
-      "dialogBodyFull": "Dimbali nu ngir platform bi wéy ci baax. Sunu ekib dina seet sa xamle.",
-      "sending": "Mu ngi yónnee…",
-      "submit": "Xamle",
-      "thanks": "Jërëjëf, dinanu xool signalement bi.",
-      "thanksNotified": "Dinanu la yégal li ci génn.",
-      "close": "Tëj",
-      "honeypotLabel": "Entreprise"
-    },
-    "visitDialog": {
-      "types": {
-        "in_person": {
-          "label": "Ci sa bopp",
-          "description": "Seetlu ak boroom kër walla ajaŋ bi."
-        },
-        "virtual": {
-          "label": "Ci web",
-          "description": "Woote ak nataal jóge ci sa kër."
-        },
-        "self_guided": {
-          "label": "Sa bopp",
-          "description": "Yaw a jël caabi yi ci bérébu kër gi."
-        },
-        "hybrid": {
-          "label": "Ñaari pex",
-          "description": "Njëkk woote ak nataal, ginnaaw seetlu ci bérébu bi."
-        }
-      },
-      "title": "Ñaan seetlu",
-      "typeLegend": "Xeetu seetlu",
-      "typeSelected": "{label} la ñu tànn",
-      "notesLabel": "Bataaxal",
-      "notesOptional": "(soo ko bëggee)",
-      "notesPlaceholder": "Leeral ngir boroom kër gi…",
-      "sending": "Mu ngi yónnee…",
-      "stepShort": "{current} / {total}",
-      "stepLabel": "Étape {current} sur {total}",
-      "when": {
-        "dayHeading": "Quel jour ?",
-        "today": "Aujourd’hui",
-        "tomorrow": "Demain",
-        "otherDate": "Autre date",
-        "otherDateHint": "Calendrier",
-        "otherDateChosen": "Autre date : {date}",
-        "windowHeading": "À quel moment ?",
-        "windowHint": "L’agence vous propose ensuite une heure précise.",
-        "windowStarted": "Déjà commencé",
-        "summary": "{day} · {window}",
-        "pickBoth": "Choisissez un jour et un moment.",
-        "windowJustStarted": "Ce moment de la journée vient de commencer : choisissez-en un autre."
-      },
-      "windows": {
-        "morning": {
-          "label": "Matin",
-          "range": "à partir de 9 h",
-          "phrase": "le matin"
-        },
-        "afternoon": {
-          "label": "Après-midi",
-          "range": "à partir de 14 h",
-          "phrase": "l’après-midi"
-        },
-        "evening": {
-          "label": "Fin de journée",
-          "range": "à partir de 17 h",
-          "phrase": "en fin de journée"
-        }
-      },
-      "continue": "Continuer",
-      "back": "Retour",
-      "send": "Envoyer la demande",
-      "who": {
-        "heading": "Comment vous joindre ?",
-        "edit": "Modifier",
-        "editAria": "Modifier le jour et le moment",
-        "noAccount": "Pas de compte à créer.",
-        "moreOptions": "Autre format ou message",
-        "moreOptionsHint": "(visio, remise de clés…)",
-        "optional": "(facultatif)"
-      },
-      "done": {
-        "subtitleSms": "Vous recevrez l’heure de la visite par SMS au {phone}.",
-        "subtitleAccount": "Vous recevrez l’heure de la visite dans votre espace et par e-mail.",
-        "received": "{name} reçoit votre demande",
-        "receivedGeneric": "L’annonceur reçoit votre demande",
-        "now": "Maintenant",
-        "proposes": "Une heure précise vous est proposée",
-        "reminder": "Un rappel la veille de la visite",
-        "reminderHint": "Une fois l’heure fixée",
-        "whenWindow": "{day}, {window} — heure à fixer",
-        "onBehalfOf": "Au nom de {name}",
-        "meanwhile": "En attendant",
-        "prepareFile": "Préparer mon dossier",
-        "prepareFileHint": "Prêt à déposer dès la visite faite.",
-        "alert": "Me prévenir des biens similaires",
-        "alertHint": "Voir les annonces de {place} et créer une alerte.",
-        "backToListing": "Retour à l’annonce"
-      }
-    },
-    "reservation": {
-      "offer": {
-        "dialogTitle": "Joxe benn njaay",
-        "loginTitle": "Duggal ngir joxe njaay",
-        "loginBody": "Fàww nga dugg ngir yónnee njaay.",
-        "submit": "Yónnee njaay bi"
-      },
-      "reserve": {
-        "dialogTitle": "Réserwe kër gii",
-        "loginTitle": "Duggal ngir réserwe",
-        "loginBody": "Fàww nga dugg ngir ñaan réservasioŋ.",
-        "submit": "Yónnee ñaan bi"
-      },
-      "apply": {
-        "dialogTitle": "Ñaan kër gii",
-        "loginTitle": "Duggal ngir ñaan",
-        "loginBody": "Fàww nga dugg ngir yónnee sa dosyeb luwaas.",
-        "submit": "Yónnee sama ñaan"
-      },
-      "cancel": "Neenal",
-      "signIn": "Dugg",
-      "createAccount": "Sos sa kont",
-      "sending": "Mu ngi yónnee…",
-      "booking": {
-        "description": "Joxel say bés ak limu gan yi. Boroom kër gi dina dëggal sa ñaan.",
-        "checkIn": "Dugg",
-        "checkInPlaceholder": "Bésu dugg",
-        "checkOut": "Génn",
-        "checkOutPlaceholder": "Bésu génn",
-        "guests": "Gan yi",
-        "message": "Bataaxal (soo ko bëggee)",
-        "messagePlaceholder": "Xamlel sa bopp, leeral sa mébét…",
-        "nightsLine": "{price} × {count, plural, other {# guddi}}",
-        "estimatedTotal": "Waññi bu ñu tëral",
-        "weeklyLine": "{price} ci ayu-bés, ci limu {count, plural, other {# guddi}}",
-        "deposit": "Waar (30 %)",
-        "rentLine": "Njëgu luwe",
-        "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi.",
-        "occupiedHint": "Bés yi ñu fukkal, jël nañu leen ba noppi."
-      },
-      "offerForm": {
-        "invalidAmount": "Waññi bu baaxul.",
-        "description": "Njëg gi ñu wone : {price}. Boroom kër gi dina seet sa njaay laata muy jeex.",
-        "amount": "Waññi wi nga jox ({currency})",
-        "validity": "Ba kañ la njaay bi dox",
-        "expiryPlaceholder": "Bés bu muy jeex",
-        "message": "Bataaxal (soo ko bëggee)",
-        "messagePlaceholder": "Leeralal kondisioŋ walla anam bu sa njaay…",
-        "termsBefore": "Jàng naa te nangu naa",
-        "termsLink": "kondisioŋ yépp",
-        "termsAfter": "ci jëfandikoo bi ngir yónnee njaayu njënd."
-      }
-    },
-    "moderation": {
-      "pendingTitle": "Muy xaar nangu",
-      "pendingBody": "Ñu ngi seetlu sa kër. Dina feeñ bu ñu ko nangoo.",
-      "rejectedTitle": "Bañ nañu génne ko",
-      "resubmit": "Defar te yónneeaat",
-      "resubmitError": "Njuumte ci yónneeaat bi. Jéemaatal su la neexee.",
-      "approvedTitle": "Nangu nañu kër gi te génne ko",
-      "approvedOn": "Nangu nañu ko ci {date}"
     },
     "form": {
       "missingIdError": "Sos nañu kër gi, waaye nomboro serwëer bi amul.",
@@ -9946,531 +9652,6 @@
           "primary": "Nimero bu njëkk",
           "secondary": "Ñaareelu nimero",
           "onSite": "Ci bérëb bi"
-        }
-      }
-    },
-    "dashboard": {
-      "overview": {
-        "checklist": {
-          "description": "Bindal leeral (≥ 80 araf)",
-          "gps": "Tegal markëru GPS bi",
-          "cover": "Yokk lu mu néew benn nataal (bopp)",
-          "titleType": "Joxal xeetu kayitu suuf"
-        },
-        "views": "Xool",
-        "viewsHint": "Ci fiis bi ñépp gis",
-        "favorites": "Cofeel",
-        "favoritesHint": "Jëfandikukat yi ko denc",
-        "rating": "Nota bu digg",
-        "ratingHint": "{count} xalaat",
-        "address": "Adres",
-        "addressHint": "Bérébu bi ñépp man a gis ci fiis bi.",
-        "edit": "Soppi",
-        "addressMissing": "Adres bu ñu war a mottali",
-        "gpsMissing": "Joxewuñu kordone GPS",
-        "todo": "Lu war a defar",
-        "allDone": "Lépp jub na.",
-        "remaining": "{count, plural, other {# lu ñu war a mottali.}}",
-        "complete": "Mottali",
-        "priceHistory": "Taariixu njëg yi",
-        "priceHistoryHint": "5 coppite yu mujj yu ñu bind.",
-        "seeAll": "Gis lépp",
-        "noPriceHistory": "Amul coppiteg njëg bu ñu bind ba tey.",
-        "unknownDate": "Bes bu ñu xamul",
-        "availability": "Jotaay",
-        "availabilityNow": "Léegi",
-        "availabilityFrom": "Ci {date}"
-      },
-      "tabs": {
-        "overview": "Wonewu",
-        "edit": "Soppi",
-        "media": "Medya ({count})",
-        "history": "Taariix ({count})",
-        "fullPriceHistory": "Taariixu njëg bu mat",
-        "fullPriceHistoryHint": "Coppite yépp yu ñu bind ci kër gii.",
-        "noPriceHistory": "Amul coppiteg njëg bu ñu bind ci kër gii.",
-        "unknownDate": "Bes bu ñu xamul",
-        "calendar": "Arminaat",
-        "label": "Onglets du bien",
-        "location": "Location",
-        "annonce": "Annonce",
-        "interventions": "Interventions",
-        "documents": "Documents",
-        "historique": "Historique",
-        "sections": "Sections de l’annonce"
-      },
-      "pagination": {
-        "aria": "Xët yi",
-        "pageOf": "Xët {current} ci {total}",
-        "results": "{count, plural, other {# njeexital}}",
-        "perPagePlaceholder": "20 / xët",
-        "previous": "Bi jiitu",
-        "next": "Bi ci topp",
-        "affiches": "{shown} biens sur {total}",
-        "suivants": "{count, plural, one {Afficher le suivant} other {Afficher les # suivants}}"
-      },
-      "media": {
-        "photos": "Nataal yi",
-        "loading": "Mu ngi yeb…",
-        "title": "Nataalu kër gi",
-        "hint": "Wéccee ngir soppi toftal — njëkk nataal bi mooy bopp bi."
-      },
-      "list": {
-        "selectAll": "Tànn kër yépp",
-        "selectOne": "Tànn {title}",
-        "ownerPrefix": "Boroom kër :",
-        "responsiblePrefix": "Ajaŋ bi ko topp :",
-        "responsibleNone": "kenn",
-        "agentSelf": "{name} (man)",
-        "bulkAria": "Aksioŋ yu booloo",
-        "bulkSelected": "{count, plural, other {# kër yu tànn}}",
-        "bulkArchive": "Denc",
-        "bulkUnpublish": "Dindi ci génn gi",
-        "bulkReassignPlaceholder": "Ajaŋ bi ko topp…",
-        "bulkAssign": "Soppi ajaŋ bi ko topp",
-        "bulkClear": "Dindi tànneef yépp",
-        "bulkError": "Aksioŋ bu booloo bi antuwul.",
-        "bulkArchived": "Denc nañu kër yi.",
-        "bulkUnpublished": "Dindi nañu leen ci génn gi.",
-        "reference": "Nomboro {value}"
-      },
-      "filters": {
-        "searchLabel": "Seet ab kër",
-        "searchPlaceholder": "Seet ci bopp, référence walla leeral…",
-        "sortLabel": "Toftal",
-        "sortPlaceholder": "Toftal",
-        "sort": {
-          "newest": "Yi gën a bees",
-          "oldest": "Yi gën a màggat",
-          "priceAsc": "Njëg gu yokku",
-          "priceDesc": "Njëg gu wàcc",
-          "viewsDesc": "Xool yu wàcc",
-          "viewsAsc": "Xool yu yokku",
-          "retard": "Retards d’abord",
-          "pertinence": "Pertinence"
-        },
-        "toggleMine": "Samay kër",
-        "toggleArchived": "Yu ñu denc",
-        "removeChip": "Dindi filtre {label}",
-        "resetAll": "Delloo lépp ci bopp",
-        "cityAria": "Dëkk",
-        "cityPlaceholder": "Dëkk",
-        "priceMinAria": "Njëg gi gën a tuuti",
-        "priceMinPlaceholder": "Njëg gu tuuti",
-        "priceMaxAria": "Njëg gi gën a réy",
-        "priceMaxPlaceholder": "Njëg gu réy",
-        "apply": "Jëfandikoo",
-        "statusLabel": "Nekkin",
-        "statusAll": "Nekkin yépp",
-        "typeLabel": "Xeet",
-        "typeAll": "Xeet yépp",
-        "contractLabel": "Kontaraa",
-        "contractAll": "Njaay & luwaas",
-        "visibilityLabel": "Wone",
-        "visibilityAll": "Yépp",
-        "agentLabel": "Ajaŋ bi ko yor",
-        "agentAll": "Ajaŋ yépp",
-        "createdFrom": "Sosu ginnaaw",
-        "createdTo": "Sosu laata",
-        "chips": {
-          "search": "Seet",
-          "status": "Nekkin",
-          "type": "Xeet",
-          "contract": "Kontaraa",
-          "visibility": "Wone",
-          "city": "Dëkk",
-          "priceMin": "Njëg gu tuuti",
-          "priceMax": "Njëg gu réy",
-          "createdFrom": "Sosu ginnaaw",
-          "createdTo": "Sosu laata",
-          "agent": "Ajaŋ"
-        },
-        "mobile": {
-          "button": "Filtre yi",
-          "buttonAria": "Filtre ak toftal — {count, plural, =0 {benn filtre doxul} =1 {# filtre moo dox} other {# filtre ñoo dox}}",
-          "title": "Filtre ak toftal",
-          "description": "Bépp tànn dina dox ci saa si ci lim bi.",
-          "sortHeading": "Toftale ko ci",
-          "scopeHeading": "Wone",
-          "criteriaHeading": "Natt yi",
-          "showResults": "Xool njureef yi"
-        },
-        "panneau": {
-          "aria": "Filtres de la liste",
-          "titre": "Filtres",
-          "replier": "Replier les filtres",
-          "reinitialiser": "Réinitialiser",
-          "occupation": "Occupation",
-          "typeEtLieu": "Type et lieu",
-          "lieu": "Lieu",
-          "agentEtPortee": "Agent et portée",
-          "afficher": "Afficher",
-          "plus": "Plus de critères"
-        },
-        "total": "{count, plural, one {# bien} other {# biens}}"
-      },
-      "actions": {
-        "error": "Aksioŋ bi antuwul. Jéematal.",
-        "published": "Génne nañu kër gi.",
-        "unpublished": "Dindi nañu kër gi ci génn gi.",
-        "statusUpdated": "Soppi nañu nekkin bi.",
-        "archived": "Denc nañu kër gi.",
-        "duplicateFailed": "Mënunu ko defaraat.",
-        "deleteFailed": "Mënunu ko far.",
-        "edit": "Soppi",
-        "viewPublic": "Xool fiis bi ñépp gis",
-        "more": "Yeneen jëf",
-        "moreFor": "Plus d’actions — {title}",
-        "quickActions": "Aksioŋ yu gaaw",
-        "unpublish": "Dindi ci génn gi",
-        "publish": "Génne",
-        "duplicate": "Defaraat",
-        "statusHeading": "Nekkin",
-        "archive": "Denc",
-        "delete": "Far",
-        "deleteTitle": "Ndax nu far kër gii ?",
-        "deleteBodyRow": "Kër gi <b>{title}</b> dañu koy far, te du feeñati ci sit bi. Jëf bii mënatul dellu.",
-        "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey, te du feeñati ci sit bi. Jëf bii mënatul dellu.",
-        "cancel": "Neenal",
-        "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee.",
-        "duplicated": "Bien dupliqué.",
-        "archiveTitle": "Archiver ce bien ?",
-        "archiveBody": "Le bien <b>{title}</b> sera archivé et ne sera plus visible sur le site.",
-        "unpublishTitle": "Dépublier ce bien ?",
-        "unpublishBody": "Le bien <b>{title}</b> ne sera plus visible sur le site. Vous pourrez le republier depuis ce menu."
-      },
-      "calendar": {
-        "title": "Arminaatu kër gi",
-        "description": "Reserwasioŋ yi ñu dëggal, bés yi ñu tëj ak bés yi ñu jële ci yeneen platfoorm, ci fukki weer ak ñaar.",
-        "legend": "Leeral",
-        "legendBooked": "Reserwe nañu ko",
-        "legendBlocked": "Tëj nañu ko",
-        "legendImported": "Jële nañu ko",
-        "genericError": "Liggéey bi antuwul.",
-        "blockTitle": "Tëj ay bés",
-        "blockHint": "Guddi yi ñu tëj, kenn mënatul leen a reserwe, fii ak ci platfoorm yi di jàng sa lëkkalekaay bu génné.",
-        "blockFrom": "Guddi bu jëkk",
-        "blockTo": "Bésu ubbeeku",
-        "blockReason": "Lu tax (bul ko war, yaw rekk a koy gis)",
-        "blockSubmit": "Tëj",
-        "blocksTitle": "Bés yi ñu tëj",
-        "blocksEmpty": "Amul bés bu ñu tëj ci fukki weer ak ñaar yii di ñëw.",
-        "range": "Li dale {from} ba {to}",
-        "manual": "Tëj ak loxo",
-        "importedFrom": "Jële nañu ko ci {feed}",
-        "conflict": "Dafa jéppante ak ab reserwasioŋ",
-        "unblock": "Ubbi",
-        "feedsTitle": "Arminaat yi ñu jële",
-        "feedsHint": "Taqal lëkkalekaay iCal bu Airbnb, Booking.com walla ab arminaat : bés yi ñu jël ci nii dañuy tëju fii saa bu nekk. Bés bu ñu jële, ci cosaanam lañu koy far.",
-        "feedUrl": "Lëkkalekaay iCal (https)",
-        "feedLabel": "Tur (bul ko war)",
-        "feedAdd": "Jële",
-        "feedOk": "dëppoo na",
-        "feedFailing": "antuwul ({count, plural, =1 {# yéem} other {# yéem}})",
-        "feedSync": "Dëppale",
-        "feedRemove": "Far",
-        "exportTitle": "Lëkkalekaay bu génné",
-        "exportHint": "Joxal lëkkalekaay bii yeneen platfoorm ngir ñu tëj sa reserwasioŋi Takussan. Amul tur, amul telefon.",
-        "exportGenerate": "Defar lëkkalekaay bu bees",
-        "exportUrl": "Lëkkalekaay iCal bu génné",
-        "exportCopy": "Duppi",
-        "exportCopied": "Duppi nañu ko",
-        "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba.",
-        "feedPending": "njëkk dëppale mi ngi dox"
-      },
-      "collaborators": {
-        "title": "Ajaa bu njëkk",
-        "explanation": "Ajaa bu njëkk bi mooy ki xët wu siiwu wu kër gi di tudd, di jot bataaxal yi ak laaj yi, te ñu wone nimeroom.",
-        "source": {
-          "designated": "Ajaas bi moo ko tànn.",
-          "invitation_order": "Kenn tànnaguñu ko : ajaa bi ñu njëkk a boole ak kër gi moo tontu.",
-          "owner": "Amul ajaa buy dox bu ñu boole ak kër gii : boroom kër gi moo tontu.",
-          "designated_unavailable": "Ajaa bi ajaas bi tànn doxatul : {repli, select, agent {ajaa bi ñu njëkk a boole ak kër gi moo koy wuutu} other {boroom kër gi moo koy wuutu}}, ba mu dellusi dox walla ñu tànn beneen ajaa."
-        },
-        "badge": {
-          "designated": "Ajaa bu njëkk",
-          "default": "Moo tontu ci boppam",
-          "unavailable": "Tànnees na, doxul"
-        },
-        "roles": {
-          "agent": "Ajaa",
-          "manager": "Saytukat",
-          "co_owner": "Boroom kër bu bokk",
-          "viewer": "Xool rekk"
-        },
-        "designate": "Def ko ajaa bu njëkk",
-        "designateFor": "Def {name} ajaa bu njëkk",
-        "empty": "Amul benn jàngalekat bu ñu boole ak kër gii.",
-        "error": "Tànn gi antuwul. Jéemaatal.",
-        "lectureEnEchec": "Les intervenants du bien n’ont pas pu être lus."
-      },
-      "ownerTransfer": {
-        "trigger": "Changer le titulaire",
-        "title": "Changer le titulaire du bien",
-        "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
-        "ownerLabel": "Nouveau titulaire",
-        "ownerPlaceholder": "Choisir un bailleur actif",
-        "loadingOwners": "Chargement des bailleurs…",
-        "noOwners": "Aucun bailleur actif dans l'agence.",
-        "loadingPreview": "Calcul de ce qui suit le bien…",
-        "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
-        "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
-        "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
-        "payouts": "Les reversements déjà faits ne changent pas.",
-        "confirm": "Confirmer le changement",
-        "submitting": "Changement en cours…",
-        "cancel": "Annuler",
-        "success": "Le bien est désormais au nom de {name}.",
-        "error": "Changement impossible. Réessayez."
-      },
-      "gestion": {
-        "modes": {
-          "aria": "Mode de la liste",
-          "gestion": "Gestion",
-          "annonces": "Annonces"
-        },
-        "pastilles": {
-          "aria": "Filtrer par occupation",
-          "tous": "Tous",
-          "occupes": "Occupés",
-          "vacants": "Vacants",
-          "retard": "Loyer en retard",
-          "preavis": "Préavis",
-          "aVendre": "À vendre"
-        },
-        "tuiles": {
-          "aria": "Occupation du portefeuille — filtrer la liste",
-          "occupes": "Occupés",
-          "surTotal": "/ {total}",
-          "vacants": "Vacants",
-          "vacantsLongs": "{count, plural, =0 {Aucun depuis plus de 60 j} one {# depuis plus de 60 j} other {# depuis plus de 60 j}}",
-          "retard": "Loyers en retard",
-          "aEncaisser": "{montant} à encaisser",
-          "aJour": "Tous les loyers sont à jour",
-          "preavis": "Préavis",
-          "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}",
-          "partALouer": "{part} des biens à louer",
-          "aVendre": "À vendre",
-          "horsLocation": "Ni occupés ni vacants"
-        },
-        "ligne": {
-          "locataire": "{nom} · bail jusqu’au {date}",
-          "locataireSansFin": "{nom}",
-          "jusquAu": "jusqu’au {date}",
-          "occupe": "Occupé",
-          "sansLocataire": "Sans locataire",
-          "sansLocataireDe": "Sans locataire · {bailleur}",
-          "aVendre": "À vendre"
-        },
-        "etat": {
-          "paye": "Payé",
-          "enRetard": "En retard de {jours} j",
-          "partiel": "Payé en partie",
-          "aEcheance": "À échéance le {date}",
-          "aEcheanceSansDate": "À échéance",
-          "preavis": "Préavis · sortie le {date}",
-          "preavisSansDate": "Préavis",
-          "vacantDepuis": "Vacant depuis {jours} j",
-          "vacant": "Vacant"
-        },
-        "etatCourt": {
-          "paye": "Payé",
-          "enRetard": "Retard {jours} j",
-          "partiel": "Partiel",
-          "aEcheance": "Échéance {date}",
-          "aEcheanceSansDate": "À échéance",
-          "preavis": "Préavis",
-          "preavisSansDate": "Préavis",
-          "vacantDepuis": "Vacant {jours} j",
-          "vacant": "Vacant"
-        },
-        "loyer": {
-          "parPeriode": "{montant} / {periode}",
-          "prixDeVente": "Prix de vente"
-        },
-        "publier": "Publier l’annonce",
-        "publierPour": "Publier l’annonce — {title}",
-        "colonnes": {
-          "bien": "Bien",
-          "bailleur": "Bailleur",
-          "locataire": "Locataire et fin de bail",
-          "loyer": "Loyer / mois",
-          "ceMois": "Ce mois",
-          "agent": "Agent",
-          "actions": "Actions"
-        },
-        "agentAucun": "Aucun agent responsable",
-        "caption": "Biens en gestion"
-      },
-      "fiche": {
-        "occupant": {
-          "occupePar": "Occupé par",
-          "enPreavis": "En préavis",
-          "locataire": "Locataire",
-          "appeler": "Appeler {nom}",
-          "whatsapp": "Écrire à {nom} sur WhatsApp"
-        },
-        "bail": {
-          "illisible": "Le bail en cours ne se lit pas depuis votre compte.",
-          "periode": "{debut} → {fin}",
-          "depuis": "Depuis le {debut}",
-          "reference": "Bail {reference}",
-          "sansReference": "Bail en cours",
-          "echec": "Le bail n’a pas pu être lu.",
-          "cles": {
-            "reference": "Référence",
-            "type": "Type",
-            "duree": "Durée",
-            "caution": "Caution",
-            "preavis": "Préavis",
-            "preavisJours": "{count, plural, one {# jour} other {# jours}}"
-          }
-        },
-        "ceMois": {
-          "echeance": "{mois} · échéance le {jour}",
-          "sansEcheance": "Aucune échéance ce mois-ci",
-          "penalite": "Pénalité de retard due :",
-          "payeLe": "Payé le {date}",
-          "relancer": "Relancer",
-          "encaisser": "Encaisser",
-          "precedentPaye": "{mois} payé le {date}"
-        },
-        "aVenir": {
-          "prochainLoyer": "Prochain loyer le {date}",
-          "edl": {
-            "titre": "État des lieux d’entrée",
-            "signe": "Signé par les deux parties le {date}",
-            "signeSansDate": "Signé par les deux parties",
-            "enAttente": "En attente de signature",
-            "conteste": "Contesté",
-            "brouillon": "En préparation",
-            "aucun": "Aucun état des lieux d’entrée",
-            "echec": "L’état des lieux n’a pas pu être lu."
-          }
-        },
-        "bailleur": {
-          "titre": "Bailleur",
-          "inconnu": "Bailleur non renseigné"
-        },
-        "titres": {
-          "ceMois": "Ce mois",
-          "aVenir": "À venir",
-          "mandat": "Mandat",
-          "bailEnCours": "Bail en cours",
-          "occupation": "Occupation"
-        },
-        "gestes": {
-          "signaler": "Signaler un problème",
-          "creerUnBail": "Créer un bail",
-          "voirLeBail": "Voir le bail",
-          "contacter": "Contacter le locataire",
-          "planifier": "Planifier une visite",
-          "modifierLAnnonce": "Modifier l’annonce"
-        },
-        "vente": {
-          "titre": "Bien à vendre",
-          "detail": "Ce bien n’est pas en location : sa publication se règle dans l’onglet Annonce.",
-          "ouvrir": "Ouvrir l’annonce"
-        },
-        "vacant": {
-          "detail": "Aucun bail ne court sur ce bien."
-        },
-        "loyers": {
-          "titre": "Loyers",
-          "toutLEcheancier": "Tout l’échéancier ({count})",
-          "echec": "Les échéances n’ont pas pu être lues.",
-          "chargement": "Lecture des échéances…",
-          "vide": "Aucune échéance enregistrée.",
-          "recuLe": "Reçu le {date}",
-          "echeanceLe": "Échéance le {date}",
-          "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
-        },
-        "carte": {
-          "loyerDe": "Loyer de {mois}",
-          "montantDu": "Montant dû",
-          "prochainLoyer": "Prochain loyer",
-          "locataireTelephone": "Locataire · {telephone}"
-        },
-        "contacter": {
-          "titre": "Contacter {nom}",
-          "appeler": "Appeler",
-          "whatsapp": "Écrire sur WhatsApp"
-        },
-        "documents": {
-          "titre": "Documents",
-          "aide": "Les pièces du bien et de ses baux, et les documents générés par Takussan.",
-          "echec": "Les documents n’ont pas pu être lus.",
-          "chargement": "Lecture des documents…",
-          "vide": "Aucun document pour ce bien.",
-          "genere": "Généré par Takussan",
-          "genereLe": "Généré par Takussan · {date}",
-          "deposeLe": "Déposé le {date}",
-          "telecharger": "Télécharger",
-          "ouvrir": "Ouvrir",
-          "generes": {
-            "contrat": "Contrat de bail",
-            "contratRef": "Contrat de bail {reference}",
-            "edlEntree": "État des lieux d’entrée",
-            "edlSortie": "État des lieux de sortie",
-            "autre": "Document généré"
-          }
-        },
-        "photos": {
-          "position": "1 / {n}",
-          "nombre": "{count, plural, one {# photo} other {# photos}}"
-        },
-        "identite": {
-          "surface": "{area} m²",
-          "enLigne": "En ligne",
-          "horsLigne": "Hors ligne"
-        },
-        "responsable": {
-          "detail": "Agent responsable",
-          "aucun": "Non désigné"
-        }
-      },
-      "annonces": {
-        "pastilles": {
-          "aria": "Filtrer par état d’annonce",
-          "toutes": "Toutes",
-          "enLigne": "En ligne",
-          "aValider": "À valider",
-          "brouillons": "Brouillons",
-          "horsLigne": "Hors ligne",
-          "vendusLoues": "Vendus, loués",
-          "archives": "Archivés"
-        },
-        "etat": {
-          "enLigne": "En ligne",
-          "aValider": "À valider",
-          "brouillon": "Brouillon",
-          "horsLigne": "Hors ligne"
-        },
-        "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
-        "caption": "Annonces",
-        "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
-        "quota": {
-          "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
-          "aria": "Quota d’annonces de votre agence",
-          "definition": "Disponibles, validées ou en attente"
-        },
-        "boostee": "Boostée jusqu’au {date}"
-      },
-      "horsLigne": {
-        "phrase": {
-          "agency_inactive": "Agence suspendue : ses biens ne sont plus visibles du public.",
-          "status_draft": "Brouillon — publiez l’annonce quand elle est prête.",
-          "status_sold": "Vendu — l’annonce n’est plus proposée.",
-          "status_rented": "Loué — remis en ligne à la fin du bail.",
-          "status_archived": "Archivé — désarchivez-le pour le remettre en ligne.",
-          "status_under_maintenance": "En maintenance — remis en ligne une fois disponible.",
-          "status_unavailable": "Indisponible — remis en ligne une fois disponible.",
-          "status_pending_review": "En attente de validation par l’agence.",
-          "status_rejected": "Refusé à la validation — corrigez l’annonce puis soumettez-la de nouveau.",
-          "not_published": "Jamais publié — publiez l’annonce pour la mettre en ligne.",
-          "private": "Privé — rendez-le public pour le mettre en ligne.",
-          "test": "Bien de test — jamais visible du public.",
-          "inconnu": "Hors ligne."
         }
       }
     },
@@ -10718,7 +9899,8 @@
         "checklist": "Balaa ñuy teg",
         "current": "ñu ngi ci",
         "optional": "doyul waar",
-        "reopen": "Dellu ci : {step}"
+        "reopen": "Dellu ci : {step}",
+        "photoCount": "{current} / {total}"
       },
       "photosProgress": "Yónnee nataal yi : {sent} ci {total}",
       "owner": {
@@ -10789,6 +9971,29 @@
         "voir": "Voir mon annonce",
         "espace": "Aller à mon espace",
         "versLaFiche": "Ouvrir la fiche du bien"
+      },
+      "suggestedTitle": {
+        "surface": "{type} de {area} m²",
+        "bedrooms": "{type} {count, plural, one {# chambre} other {# chambres}}",
+        "place": "{title} à {place}",
+        "noun": {
+          "land": "Terrain",
+          "house": "Maison",
+          "apartment": "Appartement",
+          "villa": "Villa",
+          "studio": "Studio",
+          "room": "Chambre",
+          "office": "Bureau",
+          "shop": "Commerce",
+          "warehouse": "Entrepôt",
+          "factory": "Usine",
+          "farm": "Ferme",
+          "hotel": "Hôtel",
+          "resort": "Complexe",
+          "garage": "Garage",
+          "parking": "Parking",
+          "other": "Autre"
+        }
       }
     },
     "titleTypes": {
@@ -10811,47 +10016,6 @@
       "urgent_sale": "Jaay bu gaaw",
       "seasonal": "Ci jamono ji",
       "correction": "Jubbanti"
-    },
-    "reviewReport": {
-      "trigger": "Signaler",
-      "triggerAria": "Signaler avis bii",
-      "dialogTitle": "Signaler avis bii",
-      "dialogBody": "Sunu ekip dina xool avis bi. Dina des ci kaw ba ñu xool ko.",
-      "reasons": {
-        "fraud": "Avis bu dul dëgg",
-        "offensive": "Wax yu ñaaw",
-        "personal_data": "Xibaar yu bopp",
-        "conflict_of_interest": "Njariñ boo xam ne dafa am",
-        "spam": "Spam",
-        "off_topic": "Bokkul ci",
-        "other": "Leneen"
-      }
-    },
-    "retired": {
-      "title": {
-        "rented": "Kër gii, ñu luwe ko ba noppi",
-        "sold": "Kër gii, ñu jaay ko ba noppi",
-        "withdrawn": "Kër gii, ñu génne ko ci jaaykat yi"
-      },
-      "body": "Yéené bi ngay seet amatul. Kër yii ci wetam man nañu la neex.",
-      "similarTitle": "Kër yu ni mel",
-      "searchQuarter": "Xool kër yi nekk {quarter}, {city}",
-      "searchCity": "Xool kër yi nekk {city}",
-      "searchAll": "Xool kër yépp",
-      "metaDescription": "Yéenéb Takussan bii amatul. Gisal kër yu ni mel.",
-      "bodyNoSimilar": "L'annonce que vous cherchez n'est plus disponible.",
-      "alertQuarter": "M’alerter des nouveaux biens à {quarter}",
-      "alertCity": "M’alerter des nouveaux biens à {city}",
-      "alertAll": "M’alerter des nouveaux biens semblables"
-    },
-    "availabilityCheck": {
-      "title": "Ce bien est-il toujours disponible ?",
-      "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
-      "rented": "Il est loué",
-      "sold": "Il est vendu",
-      "available": "Toujours disponible",
-      "done": "Merci, votre réponse est enregistrée.",
-      "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
     }
   },
   "documents": {
@@ -17178,77 +16342,21 @@
       "title": "Natt yi ñu leen nëbb",
       "body": "Amuloo sañ-sañu xool rapoor yu ajaans bii. Soo xalaatee ne njumte la, jokkool ak njiit bi."
     },
-    "agencyKpis": {
-      "properties": "Kër yi",
-      "publishedHint": "{count} la ñu génne",
-      "activeLeases": "Kontaraa yuy dox",
-      "occupancyRate": "Peggu dalal",
-      "revenueMonth": "Njariñu weer wi",
-      "overdue": "Yu ñu feyul",
-      "lateFeesHint": "Pénalités à recouvrer : {amount}",
-      "unpaidRate": "Peggu pey yu ñu feyul",
-      "rentedHint": "{count} kër la ñu luwaa",
-      "commissionHint": "Komisioŋ : {amount}"
-    },
     "agencyActivity": {
-      "heading": "Jëf yu yees",
       "items": {
         "bookings": {
-          "label": "Réservasioŋ yuy xaar",
-          "cta": "Toppatoo ñaan yi"
+          "label": "Réservasioŋ yuy xaar"
         },
         "maintenance": {
-          "label": "Liggéey yu ubbeeku",
-          "cta": "Xool tikeet yi"
+          "label": "Liggéey yu ubbeeku"
         },
         "customers": {
-          "label": "Kiliyaan (CRM)",
-          "cta": "Jaaweel CRM bi"
+          "label": "Kiliyaan (CRM)"
         },
         "team": {
-          "label": "Bokku ajaans bi",
-          "cta": "Jaaweel ekib bi"
+          "label": "Bokku ajaans bi"
         }
       }
-    },
-    "agencyQueues": {
-      "heading": "Yu war a jàppale",
-      "subheading": "Li di xaar dogal ci ajaans bi.",
-      "empty": "Amul dara lu war a jàppale",
-      "unavailable": "Limu bi jotul",
-      "kycStatus": {
-        "pending": "Dosye bi war nañu koy matal",
-        "submitted": "Ñu ngi koy seetlu",
-        "verified": "Dosye bi dëggal na",
-        "rejected": "Dosye bi war nañu koy defaraat"
-      },
-      "items": {
-        "kyc": {
-          "label": "Dosye KYC bu ajaans bi",
-          "cta": "Ubbi dosye bi"
-        },
-        "moderation": {
-          "label": "Kër yuy xaar moderasioŋ",
-          "cta": "Moderee",
-          "count": "{count, plural, other {# kër yu war a moderee}}"
-        },
-        "invitations": {
-          "label": "Woote yu amul tontu",
-          "cta": "Xool ekib bi",
-          "count": "{count, plural, other {# woote yuy xaar}}"
-        },
-        "overdue": {
-          "label": "Bes yu ñu feyul",
-          "cta": "Xool yu ñu feyul",
-          "count": "{count, plural, other {# bes yu ñu feyul}}"
-        }
-      }
-    },
-    "agencyRevenue": {
-      "heading": "Njariñ — 12 weer yu mujj",
-      "empty": "Amul xibaar bu ñu man a wone ba tey.",
-      "total": "Lëmboo lépp :",
-      "seriesName": "Njariñ"
     },
     "notFound": {
       "title": "Gisuñu ko",
@@ -20088,6 +19196,9 @@
       "appeler": "Ou appelez l’agence :",
       "accueil": "Aller à l’accueil",
       "carte": "Invitation du {date}"
+    },
+    "sortie": {
+      "reprise": "Rien n’est encore enregistré. Le lien de votre invitation vous ramènera ici tant qu’elle reste valable."
     }
   },
   "radarClaim": {
@@ -20703,7 +19814,7 @@
       "ouvrir": "{libelle} : {valeur}, ouvrir {vers}",
       "vers": {
         "biens": "Mes biens",
-        "prospects": "Mes clients",
+        "prospects": "Mes prospects actifs",
         "taches": "Tâches",
         "commissions": "Commissions"
       },
@@ -21194,17 +20305,32 @@
         "relancerUn": "Relancer",
         "autres": "{n, plural, one {Voir l’autre échéance impayée} other {Voir les # autres échéances impayées}}",
         "jours": "{n, plural, one {# jour} other {# jours}}",
-        "rienARelancer": "Aucune échéance à relancer.",
-        "lectureEchouee": "Les échéances n’ont pas pu être lues. Réessayez.",
         "tranches": {
           "1_30": "{n} de moins de 30 jours",
           "31_60": "{n} entre 31 et 60",
           "61_90": "{n} entre 61 et 90",
           "90_plus": "{n} de plus de 90"
         },
-        "plafondAtteint": {
-          "titre": "La file s’arrête aux 100 échéances les plus en retard",
-          "detail": "Les autres se relancent depuis l’écran Impayés."
+        "ligne": {
+          "payeurInconnu": "Payeur inconnu",
+          "periode": {
+            "rentDu": "Loyer {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+            "chargesDu": "Charges {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+            "penaltyDu": "Pénalité {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+            "rent": "Loyer",
+            "charges": "Charges",
+            "penalty": "Pénalité de retard",
+            "deposit": "Caution",
+            "deposit_refund": "Remboursement de caution",
+            "regularization": "Régularisation",
+            "autre": "Paiement",
+            "reservation": {
+              "deposit": "Réservation · arrhes",
+              "advance": "Réservation · acompte",
+              "fee": "Réservation · frais",
+              "autre": "Réservation"
+            }
+          }
         }
       },
       "resume": {
@@ -21277,7 +20403,8 @@
         "barre": "{recus} loyers reçus sur {attendus}",
         "recus": "Reçus",
         "enRetard": "{n} en retard",
-        "aVenir": "{n} à venir"
+        "aVenir": "{n} à venir",
+        "rembourses": "{n, plural, one {# reçu puis remboursé} other {# reçus puis remboursés}}"
       },
       "enCours": {
         "titre": "En cours sur vos biens",
@@ -21714,5 +20841,941 @@
       "last_month": "Mois dernier"
     },
     "chiffresClesMoisDernier": "Chiffres clés · mois dernier"
+  },
+  "propertyDashboard": {
+    "overview": {
+      "checklist": {
+        "description": "Bindal leeral (≥ 80 araf)",
+        "gps": "Tegal markëru GPS bi",
+        "cover": "Yokk lu mu néew benn nataal (bopp)",
+        "titleType": "Joxal xeetu kayitu suuf"
+      },
+      "views": "Xool",
+      "viewsHint": "Ci fiis bi ñépp gis",
+      "favorites": "Cofeel",
+      "favoritesHint": "Jëfandikukat yi ko denc",
+      "rating": "Nota bu digg",
+      "ratingHint": "{count} xalaat",
+      "address": "Adres",
+      "addressHint": "Bérébu bi ñépp man a gis ci fiis bi.",
+      "edit": "Soppi",
+      "addressMissing": "Adres bu ñu war a mottali",
+      "gpsMissing": "Joxewuñu kordone GPS",
+      "todo": "Lu war a defar",
+      "allDone": "Lépp jub na.",
+      "remaining": "{count, plural, other {# lu ñu war a mottali.}}",
+      "complete": "Mottali",
+      "priceHistory": "Taariixu njëg yi",
+      "priceHistoryHint": "5 coppite yu mujj yu ñu bind.",
+      "seeAll": "Gis lépp",
+      "noPriceHistory": "Amul coppiteg njëg bu ñu bind ba tey.",
+      "unknownDate": "Bes bu ñu xamul",
+      "availability": "Jotaay",
+      "availabilityNow": "Léegi",
+      "availabilityFrom": "Ci {date}"
+    },
+    "tabs": {
+      "overview": "Wonewu",
+      "edit": "Soppi",
+      "media": "Medya ({count})",
+      "history": "Taariix ({count})",
+      "fullPriceHistory": "Taariixu njëg bu mat",
+      "fullPriceHistoryHint": "Coppite yépp yu ñu bind ci kër gii.",
+      "noPriceHistory": "Amul coppiteg njëg bu ñu bind ci kër gii.",
+      "unknownDate": "Bes bu ñu xamul",
+      "calendar": "Arminaat",
+      "label": "Onglets du bien",
+      "location": "Location",
+      "annonce": "Annonce",
+      "interventions": "Interventions",
+      "documents": "Documents",
+      "historique": "Historique",
+      "sections": "Sections de l’annonce"
+    },
+    "pagination": {
+      "aria": "Xët yi",
+      "pageOf": "Xët {current} ci {total}",
+      "results": "{count, plural, other {# njeexital}}",
+      "perPagePlaceholder": "20 / xët",
+      "previous": "Bi jiitu",
+      "next": "Bi ci topp",
+      "affiches": "{shown} biens sur {total}",
+      "suivants": "{count, plural, one {Afficher le suivant} other {Afficher les # suivants}}"
+    },
+    "media": {
+      "photos": "Nataal yi",
+      "loading": "Mu ngi yeb…",
+      "title": "Nataalu kër gi",
+      "hint": "Wéccee ngir soppi toftal — njëkk nataal bi mooy bopp bi."
+    },
+    "list": {
+      "selectAll": "Tànn kër yépp",
+      "selectOne": "Tànn {title}",
+      "ownerPrefix": "Boroom kër :",
+      "responsiblePrefix": "Ajaŋ bi ko topp :",
+      "responsibleNone": "kenn",
+      "agentSelf": "{name} (man)",
+      "bulkAria": "Aksioŋ yu booloo",
+      "bulkSelected": "{count, plural, other {# kër yu tànn}}",
+      "bulkArchive": "Denc",
+      "bulkUnpublish": "Dindi ci génn gi",
+      "bulkReassignPlaceholder": "Ajaŋ bi ko topp…",
+      "bulkAssign": "Soppi ajaŋ bi ko topp",
+      "bulkClear": "Dindi tànneef yépp",
+      "bulkError": "Aksioŋ bu booloo bi antuwul.",
+      "bulkArchived": "Denc nañu kër yi.",
+      "bulkUnpublished": "Dindi nañu leen ci génn gi.",
+      "reference": "Nomboro {value}"
+    },
+    "filters": {
+      "searchLabel": "Seet ab kër",
+      "searchPlaceholder": "Seet ci bopp, référence walla leeral…",
+      "sortLabel": "Toftal",
+      "sortPlaceholder": "Toftal",
+      "sort": {
+        "newest": "Yi gën a bees",
+        "oldest": "Yi gën a màggat",
+        "priceAsc": "Njëg gu yokku",
+        "priceDesc": "Njëg gu wàcc",
+        "viewsDesc": "Xool yu wàcc",
+        "viewsAsc": "Xool yu yokku",
+        "retard": "Retards d’abord",
+        "pertinence": "Pertinence"
+      },
+      "toggleMine": "Samay kër",
+      "toggleArchived": "Yu ñu denc",
+      "removeChip": "Dindi filtre {label}",
+      "resetAll": "Delloo lépp ci bopp",
+      "cityAria": "Dëkk",
+      "cityPlaceholder": "Dëkk",
+      "priceMinAria": "Njëg gi gën a tuuti",
+      "priceMinPlaceholder": "Njëg gu tuuti",
+      "priceMaxAria": "Njëg gi gën a réy",
+      "priceMaxPlaceholder": "Njëg gu réy",
+      "apply": "Jëfandikoo",
+      "statusLabel": "Nekkin",
+      "statusAll": "Nekkin yépp",
+      "typeLabel": "Xeet",
+      "typeAll": "Xeet yépp",
+      "contractLabel": "Kontaraa",
+      "contractAll": "Njaay & luwaas",
+      "visibilityLabel": "Wone",
+      "visibilityAll": "Yépp",
+      "agentLabel": "Ajaŋ bi ko yor",
+      "agentAll": "Ajaŋ yépp",
+      "createdFrom": "Sosu ginnaaw",
+      "createdTo": "Sosu laata",
+      "chips": {
+        "search": "Seet",
+        "status": "Nekkin",
+        "type": "Xeet",
+        "contract": "Kontaraa",
+        "visibility": "Wone",
+        "city": "Dëkk",
+        "priceMin": "Njëg gu tuuti",
+        "priceMax": "Njëg gu réy",
+        "createdFrom": "Sosu ginnaaw",
+        "createdTo": "Sosu laata",
+        "agent": "Ajaŋ"
+      },
+      "mobile": {
+        "button": "Filtre yi",
+        "buttonAria": "Filtre ak toftal — {count, plural, =0 {benn filtre doxul} =1 {# filtre moo dox} other {# filtre ñoo dox}}",
+        "title": "Filtre ak toftal",
+        "sortHeading": "Toftale ko ci",
+        "scopeHeading": "Wone",
+        "criteriaHeading": "Natt yi",
+        "showResults": "Xool njureef yi",
+        "consigne": "Chaque choix s’applique aussitôt ; la ville et les prix saisis, avec « Voir les résultats »."
+      },
+      "panneau": {
+        "aria": "Filtres de la liste",
+        "titre": "Filtres",
+        "replier": "Replier les filtres",
+        "reinitialiser": "Réinitialiser",
+        "occupation": "Occupation",
+        "typeEtLieu": "Type et lieu",
+        "lieu": "Lieu",
+        "agentEtPortee": "Agent et portée",
+        "afficher": "Afficher",
+        "plus": "Plus de critères"
+      },
+      "total": "{count, plural, one {# bien} other {# biens}}"
+    },
+    "actions": {
+      "error": "Aksioŋ bi antuwul. Jéematal.",
+      "published": "Génne nañu kër gi.",
+      "unpublished": "Dindi nañu kër gi ci génn gi.",
+      "statusUpdated": "Soppi nañu nekkin bi.",
+      "archived": "Denc nañu kër gi.",
+      "duplicateFailed": "Mënunu ko defaraat.",
+      "duplicated": "Bien dupliqué.",
+      "archiveTitle": "Archiver ce bien ?",
+      "archiveBody": "Le bien <b>{title}</b> sera archivé et ne sera plus visible sur le site.",
+      "unpublishTitle": "Dépublier ce bien ?",
+      "unpublishBody": "Le bien <b>{title}</b> ne sera plus visible sur le site. Vous pourrez le republier depuis ce menu.",
+      "deleteFailed": "Mënunu ko far.",
+      "edit": "Soppi",
+      "viewPublic": "Xool fiis bi ñépp gis",
+      "more": "Yeneen jëf",
+      "moreFor": "Plus d’actions — {title}",
+      "quickActions": "Aksioŋ yu gaaw",
+      "unpublish": "Dindi ci génn gi",
+      "publish": "Génne",
+      "duplicate": "Defaraat",
+      "statusHeading": "Nekkin",
+      "archive": "Denc",
+      "delete": "Far",
+      "deleteTitle": "Ndax nu far kër gii ?",
+      "deleteBodyRow": "Kër gi <b>{title}</b> dañu koy far, te du feeñati ci sit bi. Jëf bii mënatul dellu.",
+      "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey, te du feeñati ci sit bi. Jëf bii mënatul dellu.",
+      "cancel": "Neenal",
+      "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee."
+    },
+    "calendar": {
+      "title": "Arminaatu kër gi",
+      "description": "Reserwasioŋ yi ñu dëggal, bés yi ñu tëj ak bés yi ñu jële ci yeneen platfoorm, ci fukki weer ak ñaar.",
+      "legend": "Leeral",
+      "legendBooked": "Reserwe nañu ko",
+      "legendBlocked": "Tëj nañu ko",
+      "legendImported": "Jële nañu ko",
+      "genericError": "Liggéey bi antuwul.",
+      "blockTitle": "Tëj ay bés",
+      "blockHint": "Guddi yi ñu tëj, kenn mënatul leen a reserwe, fii ak ci platfoorm yi di jàng sa lëkkalekaay bu génné.",
+      "blockFrom": "Guddi bu jëkk",
+      "blockTo": "Bésu ubbeeku",
+      "blockReason": "Lu tax (bul ko war, yaw rekk a koy gis)",
+      "blockSubmit": "Tëj",
+      "blocksTitle": "Bés yi ñu tëj",
+      "blocksEmpty": "Amul bés bu ñu tëj ci fukki weer ak ñaar yii di ñëw.",
+      "range": "Li dale {from} ba {to}",
+      "manual": "Tëj ak loxo",
+      "importedFrom": "Jële nañu ko ci {feed}",
+      "conflict": "Dafa jéppante ak ab reserwasioŋ",
+      "unblock": "Ubbi",
+      "feedsTitle": "Arminaat yi ñu jële",
+      "feedsHint": "Taqal lëkkalekaay iCal bu Airbnb, Booking.com walla ab arminaat : bés yi ñu jël ci nii dañuy tëju fii saa bu nekk. Bés bu ñu jële, ci cosaanam lañu koy far.",
+      "feedUrl": "Lëkkalekaay iCal (https)",
+      "feedLabel": "Tur (bul ko war)",
+      "feedAdd": "Jële",
+      "feedOk": "dëppoo na",
+      "feedFailing": "antuwul ({count, plural, =1 {# yéem} other {# yéem}})",
+      "feedSync": "Dëppale",
+      "feedRemove": "Far",
+      "exportTitle": "Lëkkalekaay bu génné",
+      "exportHint": "Joxal lëkkalekaay bii yeneen platfoorm ngir ñu tëj sa reserwasioŋi Takussan. Amul tur, amul telefon.",
+      "exportGenerate": "Defar lëkkalekaay bu bees",
+      "exportUrl": "Lëkkalekaay iCal bu génné",
+      "exportCopy": "Duppi",
+      "exportCopied": "Duppi nañu ko",
+      "exportOnce": "Lëkkalekaay bii benn yoon rekk lay feeñ. Defar bu bees dafay fey bu jëkk ba.",
+      "feedPending": "njëkk dëppale mi ngi dox"
+    },
+    "collaborators": {
+      "title": "Ajaa bu njëkk",
+      "explanation": "Ajaa bu njëkk bi mooy ki xët wu siiwu wu kër gi di tudd, di jot bataaxal yi ak laaj yi, te ñu wone nimeroom.",
+      "source": {
+        "designated": "Ajaas bi moo ko tànn.",
+        "invitation_order": "Kenn tànnaguñu ko : ajaa bi ñu njëkk a boole ak kër gi moo tontu.",
+        "owner": "Amul ajaa buy dox bu ñu boole ak kër gii : boroom kër gi moo tontu.",
+        "designated_unavailable": "Ajaa bi ajaas bi tànn doxatul : {repli, select, agent {ajaa bi ñu njëkk a boole ak kër gi moo koy wuutu} other {boroom kër gi moo koy wuutu}}, ba mu dellusi dox walla ñu tànn beneen ajaa."
+      },
+      "badge": {
+        "designated": "Ajaa bu njëkk",
+        "default": "Moo tontu ci boppam",
+        "unavailable": "Tànnees na, doxul"
+      },
+      "roles": {
+        "agent": "Ajaa",
+        "manager": "Saytukat",
+        "co_owner": "Boroom kër bu bokk",
+        "viewer": "Xool rekk"
+      },
+      "designate": "Def ko ajaa bu njëkk",
+      "designateFor": "Def {name} ajaa bu njëkk",
+      "empty": "Amul benn jàngalekat bu ñu boole ak kër gii.",
+      "error": "Tànn gi antuwul. Jéemaatal.",
+      "lectureEnEchec": "Les intervenants du bien n’ont pas pu être lus."
+    },
+    "ownerTransfer": {
+      "trigger": "Changer le titulaire",
+      "title": "Changer le titulaire du bien",
+      "description": "Rendez ce bien au bailleur pour qui il a été saisi : il le verra et en recevra les loyers à venir. Rien n'est écrit avant votre confirmation.",
+      "ownerLabel": "Nouveau titulaire",
+      "ownerPlaceholder": "Choisir un bailleur actif",
+      "loadingOwners": "Chargement des bailleurs…",
+      "noOwners": "Aucun bailleur actif dans l'agence.",
+      "loadingPreview": "Calcul de ce qui suit le bien…",
+      "moving": "{count, plural, =0 {Aucun bail en brouillon ne passe à {name}.} one {# bail en brouillon passera à {name}.} other {# baux en brouillon passeront à {name}.}}",
+      "staying": "Le bail {reference} ({status}) de {tenant} reste au nom de l'agence.",
+      "stayingNoTenant": "Le bail {reference} ({status}) reste au nom de l'agence.",
+      "payouts": "Les reversements déjà faits ne changent pas.",
+      "confirm": "Confirmer le changement",
+      "submitting": "Changement en cours…",
+      "cancel": "Annuler",
+      "success": "Le bien est désormais au nom de {name}.",
+      "error": "Changement impossible. Réessayez."
+    },
+    "gestion": {
+      "modes": {
+        "aria": "Mode de la liste",
+        "gestion": "Gestion",
+        "annonces": "Annonces"
+      },
+      "pastilles": {
+        "aria": "Filtrer par occupation",
+        "tous": "Tous",
+        "occupes": "Occupés",
+        "vacants": "Vacants",
+        "retard": "Loyer en retard",
+        "preavis": "Préavis",
+        "aVendre": "À vendre"
+      },
+      "tuiles": {
+        "aria": "Occupation du portefeuille — filtrer la liste",
+        "occupes": "Occupés",
+        "surTotal": "/ {total}",
+        "partALouer": "{part} des biens à louer",
+        "vacants": "Vacants",
+        "vacantsLongs": "{count, plural, =0 {Aucun depuis plus de 60 j} one {# depuis plus de 60 j} other {# depuis plus de 60 j}}",
+        "retard": "Loyers en retard",
+        "aEncaisser": "{montant} à encaisser",
+        "aJour": "Tous les loyers sont à jour",
+        "preavis": "Préavis",
+        "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}",
+        "aVendre": "À vendre",
+        "horsLocation": "Ni occupés ni vacants"
+      },
+      "ligne": {
+        "locataire": "{nom} · bail jusqu’au {date}",
+        "locataireSansFin": "{nom}",
+        "jusquAu": "jusqu’au {date}",
+        "occupe": "Occupé",
+        "sansLocataire": "Sans locataire",
+        "sansLocataireDe": "Sans locataire · {bailleur}",
+        "aVendre": "À vendre"
+      },
+      "etat": {
+        "paye": "Payé",
+        "enRetard": "En retard de {jours} j",
+        "partiel": "Payé en partie",
+        "aEcheance": "À échéance le {date}",
+        "aEcheanceSansDate": "À échéance",
+        "preavis": "Préavis · sortie le {date}",
+        "preavisSansDate": "Préavis",
+        "vacantDepuis": "Vacant depuis {jours} j",
+        "vacant": "Vacant",
+        "rembourse": "Reçu puis remboursé"
+      },
+      "etatCourt": {
+        "paye": "Payé",
+        "enRetard": "Retard {jours} j",
+        "partiel": "Partiel",
+        "aEcheance": "Échéance {date}",
+        "aEcheanceSansDate": "À échéance",
+        "preavis": "Préavis",
+        "preavisSansDate": "Préavis",
+        "vacantDepuis": "Vacant {jours} j",
+        "vacant": "Vacant",
+        "rembourse": "Remboursé"
+      },
+      "loyer": {
+        "parPeriode": "{montant} / {periode}",
+        "prixDeVente": "Prix de vente"
+      },
+      "publier": "Publier l’annonce",
+      "publierPour": "Publier l’annonce — {title}",
+      "colonnes": {
+        "bien": "Bien",
+        "bailleur": "Bailleur",
+        "locataire": "Locataire et fin de bail",
+        "loyer": "Loyer / mois",
+        "ceMois": "Ce mois",
+        "agent": "Agent",
+        "actions": "Actions"
+      },
+      "agentAucun": "Aucun agent responsable",
+      "caption": "Biens en gestion",
+      "etatLu": {
+        "enRetard": "{jours, plural, =1 {En retard d’un jour} other {En retard de # jours}}"
+      }
+    },
+    "fiche": {
+      "occupant": {
+        "occupePar": "Occupé par",
+        "enPreavis": "En préavis",
+        "locataire": "Locataire",
+        "appeler": "Appeler {nom}",
+        "whatsapp": "Écrire à {nom} sur WhatsApp"
+      },
+      "bail": {
+        "illisible": "Le bail en cours ne se lit pas depuis votre compte.",
+        "periode": "{debut} → {fin}",
+        "depuis": "Depuis le {debut}",
+        "reference": "Bail {reference}",
+        "sansReference": "Bail en cours",
+        "echec": "Le bail n’a pas pu être lu.",
+        "cles": {
+          "reference": "Référence",
+          "type": "Type",
+          "duree": "Durée",
+          "caution": "Caution",
+          "preavis": "Préavis",
+          "preavisJours": "{count, plural, one {# jour} other {# jours}}"
+        }
+      },
+      "ceMois": {
+        "echeance": "{mois} · échéance le {jour}",
+        "sansEcheance": "Aucune échéance ce mois-ci",
+        "penalite": "Pénalité de retard due :",
+        "payeLe": "Payé le {date}",
+        "relancer": "Relancer",
+        "encaisser": "Encaisser",
+        "precedentPaye": "{mois} payé le {date}"
+      },
+      "aVenir": {
+        "prochainLoyer": "Prochain loyer le {date}",
+        "edl": {
+          "titre": "État des lieux d’entrée",
+          "signe": "Signé par les deux parties le {date}",
+          "signeSansDate": "Signé par les deux parties",
+          "enAttente": "En attente de signature",
+          "conteste": "Contesté",
+          "brouillon": "En préparation",
+          "aucun": "Aucun état des lieux d’entrée",
+          "echec": "L’état des lieux n’a pas pu être lu."
+        }
+      },
+      "bailleur": {
+        "titre": "Bailleur",
+        "inconnu": "Bailleur non renseigné"
+      },
+      "titres": {
+        "ceMois": "Ce mois",
+        "aVenir": "À venir",
+        "mandat": "Mandat",
+        "bailEnCours": "Bail en cours",
+        "occupation": "Occupation"
+      },
+      "gestes": {
+        "signaler": "Signaler un problème",
+        "creerUnBail": "Créer un bail",
+        "voirLeBail": "Voir le bail",
+        "contacter": "Contacter le locataire",
+        "planifier": "Planifier une visite",
+        "modifierLAnnonce": "Modifier l’annonce"
+      },
+      "vente": {
+        "titre": "Bien à vendre",
+        "detail": "Ce bien n’est pas en location : sa publication se règle dans l’onglet Annonce.",
+        "ouvrir": "Ouvrir l’annonce"
+      },
+      "vacant": {
+        "detail": "Aucun bail ne court sur ce bien."
+      },
+      "loyers": {
+        "titre": "Loyers",
+        "toutLEcheancier": "Tout l’échéancier ({count})",
+        "echec": "Les échéances n’ont pas pu être lues.",
+        "chargement": "Lecture des échéances…",
+        "vide": "Aucune échéance enregistrée.",
+        "recuLe": "Reçu le {date}",
+        "echeanceLe": "Échéance le {date}",
+        "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
+      },
+      "carte": {
+        "loyerDe": "Loyer de {mois}",
+        "montantDu": "Montant dû",
+        "prochainLoyer": "Prochain loyer",
+        "locataireTelephone": "Locataire · {telephone}"
+      },
+      "contacter": {
+        "titre": "Contacter {nom}",
+        "appeler": "Appeler",
+        "whatsapp": "Écrire sur WhatsApp"
+      },
+      "documents": {
+        "titre": "Documents",
+        "aide": "Les pièces du bien et de ses baux, et les documents générés par Takussan.",
+        "echec": "Les documents n’ont pas pu être lus.",
+        "chargement": "Lecture des documents…",
+        "vide": "Aucun document pour ce bien.",
+        "genere": "Généré par Takussan",
+        "genereLe": "Généré par Takussan · {date}",
+        "deposeLe": "Déposé le {date}",
+        "telecharger": "Télécharger",
+        "ouvrir": "Ouvrir",
+        "generes": {
+          "contrat": "Contrat de bail",
+          "contratRef": "Contrat de bail {reference}",
+          "edlEntree": "État des lieux d’entrée",
+          "edlSortie": "État des lieux de sortie",
+          "autre": "Document généré"
+        }
+      },
+      "photos": {
+        "position": "1 / {n}",
+        "nombre": "{count, plural, one {# photo} other {# photos}}"
+      },
+      "identite": {
+        "surface": "{area} m²",
+        "enLigne": "En ligne",
+        "horsLigne": "Hors ligne"
+      },
+      "responsable": {
+        "detail": "Agent responsable",
+        "aucun": "Non désigné"
+      }
+    },
+    "annonces": {
+      "pastilles": {
+        "aria": "Filtrer par état d’annonce",
+        "toutes": "Toutes",
+        "enLigne": "En ligne",
+        "aValider": "À valider",
+        "brouillons": "Brouillons",
+        "horsLigne": "Hors ligne",
+        "vendusLoues": "Vendus, loués",
+        "archives": "Archivés"
+      },
+      "etat": {
+        "enLigne": "En ligne",
+        "aValider": "À valider",
+        "brouillon": "Brouillon",
+        "horsLigne": "Hors ligne"
+      },
+      "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
+      "caption": "Annonces",
+      "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
+      "quota": {
+        "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
+        "aria": "Quota d’annonces de votre agence",
+        "definition": "Disponibles, validées ou en attente"
+      },
+      "boostee": "Boostée jusqu’au {date}"
+    },
+    "horsLigne": {
+      "phrase": {
+        "agency_inactive": "Agence suspendue : ses biens ne sont plus visibles du public.",
+        "status_draft": "Brouillon — publiez l’annonce quand elle est prête.",
+        "status_sold": "Vendu — l’annonce n’est plus proposée.",
+        "status_rented": "Loué — remis en ligne à la fin du bail.",
+        "status_archived": "Archivé — désarchivez-le pour le remettre en ligne.",
+        "status_under_maintenance": "En maintenance — remis en ligne une fois disponible.",
+        "status_unavailable": "Indisponible — remis en ligne une fois disponible.",
+        "status_pending_review": "En attente de validation par l’agence.",
+        "status_rejected": "Refusé à la validation — corrigez l’annonce puis soumettez-la de nouveau.",
+        "not_published": "Jamais publié — publiez l’annonce pour la mettre en ligne.",
+        "private": "Privé — rendez-le public pour le mettre en ligne.",
+        "test": "Bien de test — jamais visible du public.",
+        "inconnu": "Hors ligne."
+      }
+    }
+  },
+  "propertyDetail": {
+    "reviewsCount": "({count} xalaat)",
+    "viewsCount": "{count} xool",
+    "reference": "Nomboro {value}",
+    "featured": "Ñu ko tànn",
+    "shareAria": "Séddoo kër gi",
+    "share": "Séddoo",
+    "removeFavorite": "Dindi ci say cofeel",
+    "addFavorite": "Yokk ci say cofeel",
+    "characteristics": "Melokaan yi",
+    "rows": {
+      "type": "Xeet",
+      "contract": "Kontaraa",
+      "period": "Jamono",
+      "status": "Nekkin",
+      "floor": "Etaas",
+      "yearBuilt": "Atum tabax",
+      "parking": "Palaasu parking",
+      "furnished": "Ame na meebal",
+      "titleDeed": "Kayitu suuf",
+      "condition": "État du bien",
+      "availability": "Jotaay",
+      "availabilityNow": "Léegi",
+      "availabilityFrom": "Ci {date}",
+      "yes": "Waaw"
+    },
+    "specs": {
+      "bedrooms": "Neeg yi",
+      "bathrooms": "Sanjaan",
+      "area": "Yaatuwaay",
+      "floors": "Etaas yi",
+      "year": "At",
+      "parking": "Parking"
+    },
+    "description": "Leeral",
+    "collapse": "Wàññi",
+    "readMore": "Jàng li ci des",
+    "amenities": "Jumtukaay yi",
+    "breadcrumbAria": "Yoonu wesaaru",
+    "priceHistory": "Taariixu njëg gi",
+    "documents": "Dokimaa yi",
+    "download": "Yebbi",
+    "downloadAria": "Yebbi {name}",
+    "requestVisit": "Ñaan seetlu",
+    "sendMessage": "Yónnee bataaxal",
+    "noChargeNotice": "Duñu la jël xaalis balaa ñu ko dëggal.",
+    "agent": {
+      "phoneUnavailable": "Nomboro telefon bi jotul ci kër gii.",
+      "phoneError": "Mënuñu jël nomboro bi. Jéemaatal su la neexee.",
+      "verifiedAria": "Ajaas bu ñu seetlu",
+      "independent": "Ajaŋ bu tënkul",
+      "private": "Boroom kër bopp",
+      "callAria": "Woo",
+      "call": "Woo",
+      "calling": "Mi ngi jokkoo…"
+    },
+    "breadcrumb": {
+      "home": "Kër gi",
+      "rent": "Luwaa",
+      "buy": "Jënd"
+    },
+    "location": "Bérébu",
+    "addressHidden": "Joxeewuñu adres bi.",
+    "viewOnOsm": "Xool ci OpenStreetMap",
+    "shareDialog": {
+      "title": "Séddoo yégle bii",
+      "description": "Yónnee lien bi say xarit.",
+      "linkAria": "Lien bu ñuy séddoo",
+      "copied": "Ñu ko duplikaat",
+      "copy": "Duplikaat"
+    },
+    "similar": "Kër yu niroo",
+    "previous": "Bi jiitu",
+    "next": "Bi ci topp",
+    "gallery": {
+      "close": "Tëj",
+      "viewerLabel": "Photos : {title}",
+      "previousPhoto": "Nataal bi jiitu",
+      "nextPhoto": "Nataal bi ci topp",
+      "noPhoto": "Amul nataal",
+      "noPhotoAvailable": "Amul nataal bu jot",
+      "viewAll": "Xool nataal yépp ({count})",
+      "openPhoto": "Ubbil nataal {index}",
+      "photoAlt": "{title} - nataal {index}"
+    },
+    "bottomBar": {
+      "visit": "Seetlu"
+    },
+    "notFound": "Kër bi gisatuñu ko.",
+    "similarError": "Mënunu yeb kër yu niroo yi.",
+    "contactInvalidResponse": "Tontu bi baaxul.",
+    "primaryCta": {
+      "offer": "Joxe benn njaay",
+      "reserve": "Réserwe",
+      "apply": "Ñaan"
+    },
+    "unavailableTitle": "Këru bi amul ba tey",
+    "unavailableBody": "Mënunu jot katalog bi ci saa si. Këru bi mën na am ba tey — jéemaatal ci ay saa.",
+    "favoriteAddShort": "Yokk",
+    "favoriteSavedShort": "Cofeel",
+    "descriptionLanguageNotice": "{langue, select, fr {Boroom yégle bi moo bind leeral bii ci farañse} en {Boroom yégle bi moo bind leeral bii ci àngale} wo {Boroom yégle bi moo bind leeral bii ci wolof} other {Boroom yégle bi moo bind leeral bii ci làkkam}}",
+    "entryCost": {
+      "title": "Li ngay fey ngir dugg",
+      "advance": "Loyer bu ñu jiital",
+      "deposit": "Kosioŋ",
+      "agencyFee": "Peyu ajaas bi",
+      "monthlyCharges": "Sarsu weer wu nekk",
+      "months": "{count, plural, other {# weer}}",
+      "total": "Lépp ngir dugg",
+      "showDetails": "Voir le détail",
+      "hideDetails": "Masquer le détail"
+    },
+    "trust": {
+      "phoneVerified": "Telefon bi dëggu na",
+      "safetyTitle": "Moytu",
+      "safetyBody": "Bul fey benn xaalis balaa nga seetsi kër gi te gis ki koy jaay walla di ko luye."
+    },
+    "virtualTour": {
+      "video": "Xool widewoo kër gi",
+      "tour": "Seetlu kër gi ci internet",
+      "loadHint": "Dafay yeeg rekk bu nga ko ubbee",
+      "frameTitle": "Seetlu kër gi ci internet — {title}",
+      "opensNewTab": "(dina ubbiku ci beneen palanteer)"
+    },
+    "actions": {
+      "whatsapp": "WhatsApp",
+      "write": "Écrire",
+      "alreadyVisited": "Déjà visité ?",
+      "submitApplication": "Déposer mon dossier",
+      "numbersTitle": "Appeler {name}",
+      "numbersDescription": "Choisissez le numéro à composer."
+    }
+  },
+  "propertyVisitDialog": {
+    "types": {
+      "in_person": {
+        "label": "Ci sa bopp",
+        "description": "Seetlu ak boroom kër walla ajaŋ bi."
+      },
+      "virtual": {
+        "label": "Ci web",
+        "description": "Woote ak nataal jóge ci sa kër."
+      },
+      "self_guided": {
+        "label": "Sa bopp",
+        "description": "Yaw a jël caabi yi ci bérébu kër gi."
+      },
+      "hybrid": {
+        "label": "Ñaari pex",
+        "description": "Njëkk woote ak nataal, ginnaaw seetlu ci bérébu bi."
+      }
+    },
+    "title": "Ñaan seetlu",
+    "typeLegend": "Xeetu seetlu",
+    "typeSelected": "{label} la ñu tànn",
+    "notesLabel": "Bataaxal",
+    "notesOptional": "(soo ko bëggee)",
+    "notesPlaceholder": "Leeral ngir boroom kër gi…",
+    "sending": "Mu ngi yónnee…",
+    "stepShort": "{current} / {total}",
+    "stepLabel": "Étape {current} sur {total}",
+    "when": {
+      "dayHeading": "Quel jour ?",
+      "today": "Aujourd’hui",
+      "tomorrow": "Demain",
+      "otherDate": "Autre date",
+      "otherDateHint": "Calendrier",
+      "otherDateChosen": "Autre date : {date}",
+      "windowHeading": "À quel moment ?",
+      "windowHint": "L’agence vous propose ensuite une heure précise.",
+      "windowStarted": "Déjà commencé",
+      "summary": "{day} · {window}",
+      "pickBoth": "Choisissez un jour et un moment.",
+      "windowJustStarted": "Ce moment de la journée vient de commencer : choisissez-en un autre."
+    },
+    "windows": {
+      "morning": {
+        "label": "Matin",
+        "range": "à partir de 9 h",
+        "phrase": "le matin"
+      },
+      "afternoon": {
+        "label": "Après-midi",
+        "range": "à partir de 14 h",
+        "phrase": "l’après-midi"
+      },
+      "evening": {
+        "label": "Fin de journée",
+        "range": "à partir de 17 h",
+        "phrase": "en fin de journée"
+      }
+    },
+    "continue": "Continuer",
+    "back": "Retour",
+    "send": "Envoyer la demande",
+    "who": {
+      "heading": "Comment vous joindre ?",
+      "edit": "Modifier",
+      "editAria": "Modifier le jour et le moment",
+      "noAccount": "Pas de compte à créer.",
+      "moreOptions": "Autre format ou message",
+      "moreOptionsHint": "(visio, remise de clés…)",
+      "optional": "(facultatif)"
+    },
+    "done": {
+      "subtitleSms": "Vous recevrez l’heure de la visite par SMS au {phone}.",
+      "subtitleAccount": "Vous recevrez l’heure de la visite dans votre espace et par e-mail.",
+      "received": "{name} reçoit votre demande",
+      "receivedGeneric": "L’annonceur reçoit votre demande",
+      "now": "Maintenant",
+      "proposes": "Une heure précise vous est proposée",
+      "reminder": "Un rappel la veille de la visite",
+      "reminderHint": "Une fois l’heure fixée",
+      "whenWindow": "{day}, {window} — heure à fixer",
+      "onBehalfOf": "Au nom de {name}",
+      "meanwhile": "En attendant",
+      "prepareFile": "Préparer mon dossier",
+      "prepareFileHint": "Prêt à déposer dès la visite faite.",
+      "alert": "Me prévenir des biens similaires",
+      "alertHint": "Voir les annonces de {place} et créer une alerte.",
+      "backToListing": "Retour à l’annonce"
+    }
+  },
+  "propertyReservation": {
+    "offer": {
+      "dialogTitle": "Joxe benn njaay",
+      "loginTitle": "Duggal ngir joxe njaay",
+      "loginBody": "Fàww nga dugg ngir yónnee njaay.",
+      "submit": "Yónnee njaay bi"
+    },
+    "reserve": {
+      "dialogTitle": "Réserwe kër gii",
+      "loginTitle": "Duggal ngir réserwe",
+      "loginBody": "Fàww nga dugg ngir ñaan réservasioŋ.",
+      "submit": "Yónnee ñaan bi"
+    },
+    "apply": {
+      "dialogTitle": "Ñaan kër gii",
+      "loginTitle": "Duggal ngir ñaan",
+      "loginBody": "Fàww nga dugg ngir yónnee sa dosyeb luwaas.",
+      "submit": "Yónnee sama ñaan"
+    },
+    "cancel": "Neenal",
+    "signIn": "Dugg",
+    "createAccount": "Sos sa kont",
+    "sending": "Mu ngi yónnee…",
+    "booking": {
+      "description": "Joxel say bés ak limu gan yi. Boroom kër gi dina dëggal sa ñaan.",
+      "checkIn": "Dugg",
+      "checkInPlaceholder": "Bésu dugg",
+      "checkOut": "Génn",
+      "checkOutPlaceholder": "Bésu génn",
+      "guests": "Gan yi",
+      "message": "Bataaxal (soo ko bëggee)",
+      "messagePlaceholder": "Xamlel sa bopp, leeral sa mébét…",
+      "nightsLine": "{price} × {count, plural, other {# guddi}}",
+      "estimatedTotal": "Waññi bu ñu tëral",
+      "weeklyLine": "{price} ci ayu-bés, ci limu {count, plural, other {# guddi}}",
+      "deposit": "Waar (30 %)",
+      "rentLine": "Njëgu luwe",
+      "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi.",
+      "occupiedHint": "Bés yi ñu fukkal, jël nañu leen ba noppi."
+    },
+    "offerForm": {
+      "invalidAmount": "Waññi bu baaxul.",
+      "description": "Njëg gi ñu wone : {price}. Boroom kër gi dina seet sa njaay laata muy jeex.",
+      "amount": "Waññi wi nga jox ({currency})",
+      "validity": "Ba kañ la njaay bi dox",
+      "expiryPlaceholder": "Bés bu muy jeex",
+      "message": "Bataaxal (soo ko bëggee)",
+      "messagePlaceholder": "Leeralal kondisioŋ walla anam bu sa njaay…",
+      "termsBefore": "Jàng naa te nangu naa",
+      "termsLink": "kondisioŋ yépp",
+      "termsAfter": "ci jëfandikoo bi ngir yónnee njaayu njënd."
+    }
+  },
+  "propertyReviews": {
+    "title": "Xalaat yi",
+    "countSuffix": "{count} xalaat",
+    "loading": "Xalaat yi ñu ngi leen di yeb…",
+    "empty": "Amul xalaat ba tey.",
+    "notEligible": "Dinga man a bàyyi xalaat ginnaaw benn seetlu bu mat walla bu ñu xaatimee kontaraa ci kër gii.",
+    "alreadyReviewed": "Jërëjëf, bàyyi nga ba noppi xalaat ci kër gii.",
+    "agentReply": "Tontu ajaŋ bi",
+    "edit": "Soppi",
+    "reply": "Tontu",
+    "form": {
+      "ratingRequired": "Tànnal benn nota su la neexee.",
+      "sendError": "Njuumte ci yónnee bi.",
+      "aria": "Bàyyi xalaat",
+      "title": "Bàyyi xalaat",
+      "ratingAria": "Nota ci 5",
+      "titlePlaceholder": "Bopp (soo ko bëggee)",
+      "thanks": "Jërëjëf ci sa xalaat.",
+      "starsAria": "{count, plural, other {# biddiw}}",
+      "contentOptionalPlaceholder": "Votre commentaire (facultatif)"
+    },
+    "replyForm": {
+      "editTitle": "Soppi sama tontu",
+      "newTitle": "Tontu xalaat bii",
+      "editSubmit": "Soppi sama tontu",
+      "newSubmit": "Tontu ci kanam ñépp",
+      "placeholder": "Tontul ci pex bu leer te am fulla…",
+      "contentAria": "Li nekk ci tontu bi",
+      "cancel": "Neenal",
+      "publish": "Génne tontu bi",
+      "sending": "Mu ngi yónnee…",
+      "save": "Denc",
+      "contentRequired": "Écrivez une réponse avant de publier."
+    },
+    "loadError": "Mënunu yeb xalaat yi."
+  },
+  "propertyReport": {
+    "reasons": {
+      "misleading": "Yégle bu naxee",
+      "inappropriate": "Li nekk ci jaaduwul",
+      "spam": "Spam",
+      "fraud": "Nax / mbaay",
+      "other": "Beneen"
+    },
+    "trigger": "Xamle yégle bii",
+    "cancel": "Neenal",
+    "dialogTitle": "Xamle yégle bii",
+    "dialogBody": "Dimbali nu ngir platform bi wéy ci baax.",
+    "reasonLabel": "Sabab",
+    "detailsLabel": "Leeral (soo ko bëggee)",
+    "detailsPlaceholder": "Leeralal li am jafe-jafe…",
+    "dialogBodyFull": "Dimbali nu ngir platform bi wéy ci baax. Sunu ekib dina seet sa xamle.",
+    "sending": "Mu ngi yónnee…",
+    "submit": "Xamle",
+    "thanks": "Jërëjëf, dinanu xool signalement bi.",
+    "thanksNotified": "Dinanu la yégal li ci génn.",
+    "close": "Tëj",
+    "honeypotLabel": "Entreprise"
+  },
+  "propertyRetired": {
+    "title": {
+      "rented": "Kër gii, ñu luwe ko ba noppi",
+      "sold": "Kër gii, ñu jaay ko ba noppi",
+      "withdrawn": "Kër gii, ñu génne ko ci jaaykat yi"
+    },
+    "body": "Yéené bi ngay seet amatul. Kër yii ci wetam man nañu la neex.",
+    "similarTitle": "Kër yu ni mel",
+    "searchQuarter": "Xool kër yi nekk {quarter}, {city}",
+    "searchCity": "Xool kër yi nekk {city}",
+    "searchAll": "Xool kër yépp",
+    "metaDescription": "Yéenéb Takussan bii amatul. Gisal kër yu ni mel.",
+    "bodyNoSimilar": "L'annonce que vous cherchez n'est plus disponible.",
+    "alertQuarter": "M’alerter des nouveaux biens à {quarter}",
+    "alertCity": "M’alerter des nouveaux biens à {city}",
+    "alertAll": "M’alerter des nouveaux biens semblables"
+  },
+  "propertyAvailabilityCheck": {
+    "title": "Ce bien est-il toujours disponible ?",
+    "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
+    "rented": "Il est loué",
+    "sold": "Il est vendu",
+    "available": "Toujours disponible",
+    "done": "Merci, votre réponse est enregistrée.",
+    "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
+  },
+  "propertyReviewReport": {
+    "trigger": "Signaler",
+    "triggerAria": "Signaler avis bii",
+    "dialogTitle": "Signaler avis bii",
+    "dialogBody": "Sunu ekip dina xool avis bi. Dina des ci kaw ba ñu xool ko.",
+    "reasons": {
+      "fraud": "Avis bu dul dëgg",
+      "offensive": "Wax yu ñaaw",
+      "personal_data": "Xibaar yu bopp",
+      "conflict_of_interest": "Njariñ boo xam ne dafa am",
+      "spam": "Spam",
+      "off_topic": "Bokkul ci",
+      "other": "Leneen"
+    }
+  },
+  "propertyPortfolio": {
+    "empty_title": "Amul kër ci sa portefeuille",
+    "empty_description": "Sosal sa annonce bu njëkk ngir mu agsi ci luwékat ak jëndkat yu Takussan.",
+    "empty_cta": "Yëgle sama kër bu njëkk",
+    "filtered_empty_title": "Amul kër bu ànd ak say filtre",
+    "filtered_empty_description": "Soppil walla dindil ay filtre ngir yaatal sa seet.",
+    "filtered_empty_cta": "Delloo filtre yi ci bopp"
+  },
+  "propertyDiscovery": {
+    "neighbourhoodsOf": "Quartiers de {city}",
+    "viewSwitchAria": "Wonewu njeexital yi",
+    "viewList": "Limu",
+    "viewMap": "Kart",
+    "outilsFlottantsAria": "Jumtukaayu seet"
+  },
+  "propertyRow": {
+    "viewAll": "Gis lépp",
+    "previous": "Bi jiitu",
+    "next": "Bi ci topp",
+    "empty": "Amul kër ci tànneef bii ba tey."
+  },
+  "propertyModeration": {
+    "pendingTitle": "Muy xaar nangu",
+    "pendingBody": "Ñu ngi seetlu sa kër. Dina feeñ bu ñu ko nangoo.",
+    "rejectedTitle": "Bañ nañu génne ko",
+    "resubmit": "Defar te yónneeaat",
+    "resubmitError": "Njuumte ci yónneeaat bi. Jéemaatal su la neexee.",
+    "approvedTitle": "Nangu nañu kër gi te génne ko",
+    "approvedOn": "Nangu nañu ko ci {date}"
   }
 }

@@ -10,7 +10,7 @@ import { ShieldCheck } from 'lucide-react';
  * promettrait plus que ce qui a été vérifié serait pire que pas de badge. Faux ou absent : rien.
  */
 export function PropertyPhoneVerifiedBadge({ verified }: { readonly verified: boolean | undefined }) {
-  const t = useTranslations('property.detail.trust');
+  const t = useTranslations('propertyDetail.trust');
   if (verified !== true) return null;
 
   return (

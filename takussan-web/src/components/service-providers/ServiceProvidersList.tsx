@@ -13,11 +13,12 @@
  */
 
 import { Fragment, useState, type ComponentProps } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ban, Mail, Phone, Plus, Star, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { PageHeader } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -42,15 +43,15 @@ import {
   revokeInvitation,
   type ServiceProviderProfileSummary,
   type ServiceProviderProfileStatus,
+  type ServiceProvidersPage,
 } from '@/lib/queries/service-providers';
-import type { PaginatedResponse } from '@/types/api';
 import { InviteServiceProviderSheet } from './InviteServiceProviderSheet';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type Props = {
   readonly agencyId: number;
   readonly canInvite: boolean;
-  readonly initialData: PaginatedResponse<ServiceProviderProfileSummary>;
+  readonly initialData: ServiceProvidersPage;
 };
 
 /** Le carnet se lit d'un bloc (la démo en compte six) : les comptes et les métiers des filtres en viennent. */
@@ -74,9 +75,13 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const f = useFormatteurs();
   const [metier, setMetier] = useState<string | null>(null);
   const [statut, setStatut] = useState<ServiceProviderProfileStatus | null>(null);
+  // TCK-2772 — la recherche (nom, téléphone, quartier) et la zone, passées au serveur comme le métier.
+  const [recherche, setRecherche] = useState('');
+  const [zone, setZone] = useState<string | null>(null);
 
-  // Le carnet entier (les comptes du sous-titre, les métiers des filtres) ; puis, sous un filtre, la
-  // lecture filtrée PAR LE SERVEUR (`filter[specialty]`, `filter[status]`), jamais sur la liste reçue.
+  // Le carnet entier (les comptes du sous-titre, les métiers et les zones des filtres) ; puis, sous un
+  // filtre, la lecture filtrée PAR LE SERVEUR (`filter[specialty]`, `filter[status]`, `filter[search]`,
+  // `filter[zone]`), jamais sur la liste reçue.
   const providersQuery = useQuery({
     queryKey: ['service-providers', agencyId],
     queryFn: () => {
@@ -86,18 +91,29 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     initialData,
     enabled: !!token,
   });
-  const filtre = metier !== null || statut !== null;
+  const filtre = metier !== null || statut !== null || recherche !== '' || zone !== null;
   const filtreeQuery = useQuery({
-    queryKey: ['service-providers', agencyId, 'filtre', metier, statut],
+    queryKey: ['service-providers', agencyId, 'filtre', metier, statut, recherche, zone],
     queryFn: () => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      return fetchServiceProviders(token, { agencyId, perPage: PAR_PAGE, specialty: metier ?? undefined, status: statut ?? undefined });
+      return fetchServiceProviders(token, {
+        agencyId,
+        perPage: PAR_PAGE,
+        specialty: metier ?? undefined,
+        status: statut ?? undefined,
+        search: recherche || undefined,
+        zone: zone ?? undefined,
+      });
     },
     enabled: !!token && filtre,
+    // D'un filtre au suivant, la liste précédente reste le temps de la lecture.
+    placeholderData: keepPreviousData,
   });
 
   const tous = providersQuery.data?.data ?? [];
-  const providers = filtre ? (filtreeQuery.data?.data ?? []) : tous;
+  const zonesDuCarnet = providersQuery.data?.meta?.zones ?? [];
+  // TCK-2772 — avant la première réponse filtrée, la liste reçue reste (pas d'état vide qui clignote).
+  const providers = filtre ? (filtreeQuery.data?.data ?? tous) : tous;
 
   const resendMutation = useMutation<unknown, ApiError, ServiceProviderProfileSummary>({
     mutationFn: async (sp) => {
@@ -204,6 +220,12 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       cell: (sp) => f.nombre(sp.completed_interventions_count ?? 0),
     },
     {
+      id: 'delai',
+      header: tCarnet('colonnes.delai'),
+      className: 'align-middle whitespace-nowrap',
+      cell: (sp) => dureeDe(sp) ?? <span className="text-muted-foreground">—</span>,
+    },
+    {
       id: 'status',
       header: tList('columns.status'),
       className: 'align-middle',
@@ -260,6 +282,15 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     );
   }
 
+  /** TCK-2772 — le délai de réponse médian servi par l'API, arrondi à l'unité qui se lit (« ~2 h »). */
+  const dureeDe = (sp: ServiceProviderProfileSummary): string | null => {
+    const minutes = sp.response_delay_minutes;
+    if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return null;
+    if (minutes < 60) return tCarnet('duree.minutes', { n: f.nombre(Math.max(1, Math.round(minutes))) });
+    if (minutes < 24 * 60) return tCarnet('duree.heures', { n: f.nombre(Math.round(minutes / 60)) });
+    return tCarnet('duree.jours', { n: f.nombre(Math.round(minutes / (24 * 60))) });
+  };
+
   const noteDe = (sp: ServiceProviderProfileSummary) => {
     const note = sp.average_rating === null || sp.average_rating === undefined ? null : Number(sp.average_rating);
     return note !== null && Number.isFinite(note) ? (
@@ -294,6 +325,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
         <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
           {noteDe(sp)}
           <span>· {tCarnet('interventions', { count: sp.completed_interventions_count ?? 0 })}</span>
+          {dureeDe(sp) ? <span>· {tCarnet('repondEn', { duree: dureeDe(sp) as string })}</span> : null}
         </p>
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
           <span className="min-w-0 text-base tabular-nums">{telephone ? formaterTelephone(telephone) : tCarnet('sansTelephone')}</span>
@@ -326,8 +358,17 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       />
 
       {tous.length > 0 ? (
-        <div data-slot="filtres-du-carnet" className="space-y-3">
-          {/* Téléphone : les métiers en pastilles ; bureau : métier et statut en listes. Filtres du serveur. */}
+        <div data-slot="filtres-du-carnet" className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-2">
+          {/* TCK-2772 — un seul champ : pleine largeur au téléphone, en tête de la rangée au bureau. */}
+          <DebouncedSearchInput
+            value={recherche}
+            onCommit={(v) => setRecherche(v.trim())}
+            placeholder={tCarnet('recherche.placeholder')}
+            aria-label={tCarnet('recherche.label')}
+            busy={filtreeQuery.isFetching}
+            className="md:w-64"
+          />
+          {/* Téléphone : les métiers en pastilles ; bureau : métier, zone et statut en listes. Filtres du serveur. */}
           <div role="group" aria-label={tCarnet('filtres.metier')} className="-mx-4 flex gap-2 overflow-x-auto px-4 md:hidden">
             {[null, ...metiersPresents].map((m) => (
               <button
@@ -342,7 +383,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2 max-md:hidden">
+          <div className="hidden md:contents">
             <Select
               value={metier ?? TOUS}
               onValueChange={(v) => setMetier(v === TOUS || !v ? null : String(v))}
@@ -360,6 +401,25 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
                 ))}
               </SelectContent>
             </Select>
+            {zonesDuCarnet.length > 0 ? (
+              <Select
+                value={zone ?? TOUS}
+                onValueChange={(v) => setZone(v === TOUS || !v ? null : String(v))}
+                items={[{ value: TOUS, label: tCarnet('filtres.toutesLesZones') }, ...zonesDuCarnet.map((z) => ({ value: z, label: z }))]}
+              >
+                <SelectTrigger aria-label={tCarnet('filtres.zone')} className="w-auto min-w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TOUS}>{tCarnet('filtres.toutesLesZones')}</SelectItem>
+                  {zonesDuCarnet.map((z) => (
+                    <SelectItem key={z} value={z}>
+                      {z}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
             <Select
               value={statut ?? TOUS}
               onValueChange={(v) => setStatut(v === TOUS || !v ? null : (v as ServiceProviderProfileStatus))}

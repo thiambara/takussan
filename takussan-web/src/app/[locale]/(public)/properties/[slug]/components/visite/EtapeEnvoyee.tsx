@@ -45,7 +45,7 @@ function hrefDesBiensSimilaires(property: BienDeLaVisite): { href: string; lieu:
  * n'est annoncé — l'API n'en connaît pas.
  */
 export function EtapeEnvoyee({ property, demande, contactName, onPrepareApplication }: EtapeEnvoyeeProps) {
-  const t = useTranslations('property.visitDialog');
+  const t = useTranslations('propertyVisitDialog');
   const tVisit = useTranslations('propertyContact.visit');
   const libelles = useLibellesDeVisite();
   const quand = t('done.whenWindow', { day: libelles.jourLong(demande.jour), window: libelles.phrase(demande.tranche) });

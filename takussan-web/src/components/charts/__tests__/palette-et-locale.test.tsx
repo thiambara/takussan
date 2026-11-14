@@ -2,16 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
 import { SEUIL_NON_TEXTUEL, contraste, fmt } from '@/test/contraste-wcag';
-import type {
-  DashboardAgencySummary,
-  DashboardAgencyTimeseries,
-} from '@/lib/queries/dashboard-agency';
-import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
-import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
 import { BarChart } from '../BarChart';
 import { LineChart } from '../LineChart';
 import {
@@ -231,87 +225,8 @@ describe("axe des graphiques — locale active (AC1 / AC4)", () => {
   });
 });
 
-const SOMME_AGENCE: DashboardAgencySummary = {
-  agency_id: 1,
-  period: { start: '2026-01-01T00:00:00+00:00', end: '2026-01-31T23:59:59+00:00' },
-  properties: { total: 12_345, published: 100, rented: 60, available: 40 },
-  leases: { active: 60 },
-  customers_count: 500,
-  members_count: 9,
-  bookings: { pending: 2 },
-  maintenance: { open: 1 },
-  finance: {
-    revenue_month: 1_234_000,
-    commission_month: 123_400,
-    overdue_count: 0,
-    overdue_amount: 0,
-    unpaid_rate_percent: 0,
-  },
-  occupancy: { rate_percent: 60 },
-};
-
-describe("tableau de bord agence rendu en `en` (AC4)", () => {
-  const timeseries: DashboardAgencyTimeseries = {
-    months: ['2026-01', '2026-02'],
-    revenue: [1_000_000, 2_000_000],
-    occupancy: [55, 60],
-  };
-
-  it("rend le TOTAL et l'AXE à l'anglaise, tous deux sur la locale active", () => {
-    const { container } = render(
-      withIntl(<AgencyRevenueSnapshot timeseries={timeseries} />, 'en'),
-    );
-
-    // Le total — c'est le site que la correction TCK-292 avait laissé derrière elle.
-    expect(screen.getByText(/3,000,000/)).toBeInTheDocument();
-    // …et l'axe, dans le même rendu : les deux moitiés doivent tenir ensemble. Le sommet de l'axe
-    // est le MAXIMUM de la série (2 M), pas le total (3 M) — deux formatages, un seul rendu.
-    expect(etiquettesAxe(container).some((e) => e.includes('2,000,000'))).toBe(true);
-    expect(etiquettesAxe(container).some((e) => e.includes('2 000 000'))).toBe(false);
-  });
-
-  it('rend les six tuiles KPI à l\'anglaise sous la locale `en`', () => {
-    // `AgencyKpis` portait dix des douze locales écrites en dur du ticket. Sans ce cas, les
-    // rétablir toutes laisserait la suite verte : aucun test n'y rendait autre chose que `fr`.
-    render(withIntl(<AgencyKpis summary={SOMME_AGENCE} />, 'en'));
-    expect(screen.getByText('1,234,000 F CFA')).toBeInTheDocument();
-    expect(screen.getByText('12,345')).toBeInTheDocument();
-    expect(screen.queryByText(/1 234 000/)).toBeNull();
-  });
-
-  it('⚠ rend les tuiles KPI en `wo` avec UNE seule convention de nombre (D1)', () => {
-    // ────────────────────────────────────────────────────────────────────────────────────────
-    // LA RÉGRESSION QUE CE TICKET A RENDUE ATTEIGNABLE, et qu'aucun des 14 cas d'origine ne
-    // voyait — ils ne rendaient que `fr` et `en`, ce que l'AC4 demandait littéralement.
-    //
-    // `AgencyKpis` passait `'fr'` EN DUR sur ses dix sites ; TCK-374 les a portés sur la locale
-    // ACTIVE. En `wo`, `formatNumber` partait alors dans les données CLDR de `wo` (groupement par
-    // POINT) tandis que `formatCurrency`, lui, atteignait bien `fr-SN` (espace) :
-    //
-    //     « Kër yi 12.345 … Njariñu weer wi 1 234 000 F CFA »   ← DEUX conventions, MÊME carte
-    //
-    // L'assertion porte donc sur les deux valeurs ENSEMBLE, dans un seul rendu. Un correctif qui
-    // n'alignerait qu'une des deux tables de `@/lib/format` la laisserait rouge — c'est ce qui la
-    // distingue d'un simple `getByText('12 345')`.
-    // ────────────────────────────────────────────────────────────────────────────────────────
-    render(withIntl(<AgencyKpis summary={SOMME_AGENCE} />, 'wo'));
-
-    const espaces = (s: string) => s.replace(/\p{White_Space}/gu, '');
-    const nombre = screen.getByText((_, n) => espaces(n?.textContent ?? '') === '12345');
-    const montant = screen.getByText((_, n) => espaces(n?.textContent ?? '') === '1234000FCFA');
-
-    expect(nombre.textContent).not.toContain('.');
-    expect(montant.textContent).not.toContain('.');
-    // …et le groupement est le MÊME des deux côtés, ce qu'un point contre une espace violait.
-    expect(screen.queryByText(/12\.345/)).toBeNull();
-  });
-
-  it('rend le même total à la française sous la locale `fr`', () => {
-    render(withIntl(<AgencyRevenueSnapshot timeseries={timeseries} />, 'fr'));
-    expect(screen.getByText(/3\s?000\s?000/)).toBeInTheDocument();
-    expect(screen.queryByText(/3,000,000/)).toBeNull();
-  });
-});
+// TCK-2799 — « tableau de bord agence rendu en `en` » (les tuiles et l’aperçu des revenus de l’ancienne vue
+// d’agence, retirés) : ses quatre cas vivent sur les Rapports, `rapports/__tests__/repris-de-la-vue-agence.tck-2799.test.tsx`.
 
 describe("axe de `BarChart` — l'échelle ne s'invente pas de maximum (D5)", () => {
   /**

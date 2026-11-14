@@ -25,7 +25,7 @@ interface PropertyEntryCostProps {
  * Absent — pas « 0 F » — quand l'API rend `null` : hors location mensuelle, ou rien de renseigné.
  */
 export function PropertyEntryCost({ entryCost, currency, repliable = false }: PropertyEntryCostProps) {
-  const t = useTranslations('property.detail.entryCost');
+  const t = useTranslations('propertyDetail.entryCost');
   const fmt = useFormatteurs();
   // TCK-2501 — rendu deux fois (bloc mobile, carte de bureau) : un identifiant par instance.
   const id = useId();

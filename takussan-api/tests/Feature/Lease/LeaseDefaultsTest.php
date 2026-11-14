@@ -7,7 +7,9 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\Capability;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\SettingScope;
@@ -227,6 +229,26 @@ class LeaseDefaultsTest extends ApiTestCase
         OwnerProfile::factory()->create(['user_id' => $autre->id, 'agency_id' => $this->agence->id]);
 
         $this->defaults($autre)->assertForbidden();
+    }
+
+    /**
+     * Être du personnel de l'agence du bien ne suffit pas : il faut aussi `leases.create`. Sans ce
+     * test, retirer la capacité de `LeasePolicy::createOn()` restait vert (ablation a2, lot de clôture).
+     */
+    public function test_un_agent_de_l_agence_sans_la_capacite_de_creer_un_bail_est_refuse(): void
+    {
+        $this->defaults($this->agentWithout($this->agence, Capability::LeasesCreate))->assertForbidden();
+    }
+
+    /** Le bailleur bloqué dans l'agence du bien n'ouvre plus de bail (ablation a5, lot de clôture). */
+    public function test_le_bailleur_bloque_dans_l_agence_du_bien_est_refuse(): void
+    {
+        $this->defaults($this->bailleur)->assertOk();
+
+        OwnerProfile::query()->where('user_id', $this->bailleur->id)->where('agency_id', $this->agence->id)
+            ->update(['status' => OwnerProfileStatus::Blocked->value]);
+
+        $this->defaults($this->bailleur)->assertForbidden();
     }
 
     public function test_un_bien_loue_a_l_annee_ne_preremplit_pas_le_loyer_mensuel(): void

@@ -21,7 +21,7 @@ interface PropertyBreadcrumbProps {
 }
 
 export function PropertyBreadcrumb({ property, hrefQuartier, hrefVille }: PropertyBreadcrumbProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const crumbs = maillonsDeFiche(property, t, hrefQuartier, hrefVille);
 
   return (

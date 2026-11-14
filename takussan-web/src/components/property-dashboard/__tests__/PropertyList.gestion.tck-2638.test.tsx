@@ -132,7 +132,21 @@ describe('PropertyList — carte du mode Gestion (téléphone)', () => {
     expect(carte.getByRole('link', { name: 'Appartement 1 · Mermoz' })).toHaveAttribute('href', '/app/properties/1');
     expect(carte.getByText('Aminata Diop · bail jusqu’au 30 juin 2027')).toBeInTheDocument();
     expect(carte.getByText(/670\s000\sF/).textContent).toMatch(/670\s000\sF \/ mois/);
-    expect(carte.getByTestId('etat-du-mois').textContent).toBe('En retard de 7 j');
+    // AC1 (2026-11-14) — sur 226 px, « 1 825 000 F / mois » et « En retard de 9 j » passaient à la
+    // ligne : la carte gagnait 24 px et le sixième bien quittait le premier écran sous « Retards
+    // d'abord ». Le retard prend la forme courte de la colonne du tableau ; les autres états restent.
+    // À l'écran, la forme courte ; aux lecteurs d'écran, la phrase entière (décision du team-lead).
+    const puce = carte.getByTestId('etat-du-mois');
+    expect(within(puce).getByText('Retard 7 j')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(puce).getByText('En retard de 7 jours')).toHaveClass('sr-only');
+  });
+
+  it('AC1 : seul le retard se raccourcit sur la carte — le préavis garde sa date', () => {
+    const preavis = bien(5, {
+      occupancy: { ...OCCUPE, state: 'notice', current_month: { ...OCCUPE.current_month!, status: 'paid', days_late: null } },
+    });
+    rendre([preavis]);
+    expect(within(cartes().getByTestId('carte-gestion')).getByTestId('etat-du-mois').textContent).toBe('Préavis · sortie le 30 juin 2027');
   });
 
   it('un bien vacant à louer, hors ligne : « Sans locataire · bailleur » et « Publier l’annonce », qui publie', async () => {
@@ -210,6 +224,12 @@ describe('PropertyList — tableau du mode Gestion (bureau)', () => {
     expect(ligne.getByTestId('etat-du-mois').textContent).toBe('Retard 7 j');
     expect(ligne.getByText('SS')).toBeInTheDocument();
     expect(ligne.getByText('Sokhna Sène')).toHaveClass('sr-only');
+  });
+
+  it('TCK-2651, décision 18 : un loyer échu remboursé se lit « Reçu puis remboursé » sur la carte, « Remboursé » dans la colonne courte', () => {
+    rendre([bien(7, { occupancy: { ...OCCUPE, current_month: { ...OCCUPE.current_month!, status: 'refunded', days_late: null, amount_due: 0 } } })]);
+    expect(within(cartes().getByTestId('carte-gestion')).getByTestId('etat-du-mois').textContent).toBe('Reçu puis remboursé');
+    expect(within(tableau().getAllByRole('row')[1]!).getByTestId('etat-du-mois').textContent).toBe('Remboursé');
   });
 
   it('AC7 : sous « Loyer / mois », une autre période est écrite, et une vente se dit telle', () => {

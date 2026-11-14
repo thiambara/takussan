@@ -16,11 +16,12 @@ import type { OngletArgent } from '@/lib/finances/vue-argent';
 import { EncaissementsAgence } from './argent/EncaissementsAgence';
 import { ongletPermis, type GestesDeLArgent } from './argent/gestes';
 import { Impayes } from './impayes/Impayes';
+import type { DemandeDeRelance } from './impayes/relance-de-l-adresse';
 
 /**
  * Les valeurs acceptées par `?tab=` — déclarées dans `lib/finances/vue-argent.ts` depuis TCK-2659,
- * réexportées ici pour les importeurs d'avant (TCK-375 : `AgencyQueues` renvoie vers
- * `?tab=impayes`, l'invariant se vérifie contre CETTE table).
+ * réexportées ici pour les importeurs d'avant (TCK-375 : l'ancien bloc de files d'attente de la vue
+ * d'agence renvoyait vers `?tab=impayes`, l'invariant se vérifiait contre CETTE table ; retiré par TCK-2799).
  */
 export { TAB_VALUES } from '@/lib/finances/vue-argent';
 
@@ -42,6 +43,9 @@ interface AdminFinancesTabsProps {
    * écran à part, sans onglets.
    */
   readonly entete?: (onglets: ReactNode) => ReactNode;
+  /** TCK-2775 — la relance que l'adresse demande (`?relance=`), ouverte par l'écran Impayés. */
+  readonly relanceDemandee?: DemandeDeRelance | null;
+  readonly onRelancePrise?: () => void;
 }
 
 /**
@@ -53,7 +57,7 @@ interface AdminFinancesTabsProps {
  * TCK-2659 — les gestes de création ne sont plus ici : ils vivent dans l'en-tête de page (bureau) et
  * la rubrique « Créer » (téléphone), leurs dialogues montés une fois (`useGestesDeLArgent`).
  */
-export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variante, courant, agencyId, comptes, entete }: AdminFinancesTabsProps) {
+export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variante, courant, agencyId, comptes, entete, relanceDemandee, onRelancePrise }: AdminFinancesTabsProps) {
   const t = useTranslations('admin.finances');
   const f = useFormatteurs();
   const ouvert = ongletPermis(onglet, gestes);
@@ -115,8 +119,9 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
         </TabsContent>
       ) : null}
 
-      <TabsContent value="impayes" className="space-y-4 pt-4">
-        <Impayes agencyId={agencyId} />
+      {/* TCK-2840 — au téléphone, aucune marge haute : la page pose `pt-3` et le résumé `pt-2` (20 px, maquette). */}
+      <TabsContent value="impayes" className={telephone ? 'space-y-4' : 'space-y-4 pt-4'}>
+        <Impayes agencyId={agencyId} relanceDemandee={relanceDemandee} onRelancePrise={onRelancePrise} />
       </TabsContent>
     </Tabs>
   );

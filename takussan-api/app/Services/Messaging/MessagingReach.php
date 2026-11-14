@@ -156,16 +156,7 @@ class MessagingReach
                     $this->liveAttachment($sub, 'ucrb.user_id', 'ca.agency_id');
                 });
                 //    b. le compte du client d'une fiche à laquelle l'acteur est rattaché ;
-                $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor, $fermees) {
-                    $sub->select('c.user_id')
-                        ->from('user_customer_relationships as ucr')
-                        ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
-                        ->whereNull('c.deleted_at')
-                        ->where('ucr.user_id', $actor->id)
-                        ->whereNotNull('c.user_id');
-                    $this->horsDesAgencesFermees($sub, 'c.agency_id', $fermees);
-                    $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
-                });
+                $reach->orWhereIn('users.id', fn (QueryBuilder $sub) => $this->clientsOf($sub, $actor, $fermees));
                 //    c. et, en retour, ceux qui sont rattachés à la fiche qui représente l'acteur.
                 $reach->orWhereIn('users.id', function (QueryBuilder $sub) use ($actor) {
                     $sub->select('ucr.user_id')
@@ -195,12 +186,35 @@ class MessagingReach
     }
 
     /**
+     * Règle 2b — les comptes clients des fiches auxquelles `$actor` est rattaché (référent, bailleur
+     * du locataire). TCK-2745 — {@see MessagingRelation} y lit la relation `client` : une seule
+     * écriture de la règle, pour que l'étiquette ne dise jamais « client » de quelqu'un que la règle
+     * ne relie pas.
+     *
+     * @param  list<int>  $fermees  {@see ConversationAccess::agencesFermeesAuBailleur()}
+     */
+    public function clientsOf(QueryBuilder $sub, User $actor, array $fermees): QueryBuilder
+    {
+        $sub->select('c.user_id')
+            ->from('user_customer_relationships as ucr')
+            ->join('customers as c', 'c.id', '=', 'ucr.customer_id')
+            ->whereNull('c.deleted_at')
+            ->where('ucr.user_id', $actor->id)
+            ->whereNotNull('c.user_id');
+        $this->horsDesAgencesFermees($sub, 'c.agency_id', $fermees);
+        $this->liveAttachment($sub, 'ucr.user_id', 'c.agency_id');
+
+        return $sub;
+    }
+
+    /**
      * TCK-2753 (S2) — les fils rattachés à un bail ou à un bien d'une agence de `$fermees`, sauf le
      * fil d'un bail dont l'acteur est le LOCATAIRE : la règle de {@see ConversationAccess::contextAllowsWriting()}.
+     * TCK-2745 — {@see MessagingRelation::filsVisibles()} l'écarte aussi du « dernier échange ».
      *
      * @param  list<int>  $fermees
      */
-    private function filsFermes(QueryBuilder $c, User $actor, array $fermees): QueryBuilder
+    public function filsFermes(QueryBuilder $c, User $actor, array $fermees): QueryBuilder
     {
         return $c->select('fc.id')
             ->from('conversations as fc')

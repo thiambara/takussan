@@ -60,7 +60,7 @@ export function OngletLocation({
   readonly lienVersLeBailleur: boolean;
   readonly onOuvrirLAnnonce: () => void;
 }) {
-  const t = useTranslations('property.dashboard.fiche');
+  const t = useTranslations('propertyDashboard.fiche');
   const location = useLocationDuBien(property, personnel);
   const [aujourdhui] = useState(() => new Date());
   const occupation = location.occupation;
@@ -177,8 +177,8 @@ function LocationVacante({
   readonly lienVersLeBailleur: boolean;
   readonly onOuvrirLAnnonce: () => void;
 }) {
-  const t = useTranslations('property.dashboard.fiche');
-  const tGestion = useTranslations('property.dashboard.gestion');
+  const t = useTranslations('propertyDashboard.fiche');
+  const tGestion = useTranslations('propertyDashboard.gestion');
   const etat = etatDuMois(property, aujourdhui);
   const titre =
     etat?.cle === 'vacantDepuis' ? tGestion('etat.vacantDepuis', { jours: etat.jours }) : tGestion('ligne.sansLocataire');
@@ -209,15 +209,18 @@ function LocationVacante({
   );
 }
 
-const TON_DE_L_ECHEANCE: Record<'paye' | 'enRetard' | 'partiel' | 'aEcheance', StatusTone> = {
+const TON_DE_L_ECHEANCE: Record<'paye' | 'enRetard' | 'partiel' | 'aEcheance' | 'rembourse', StatusTone> = {
   paye: 'success',
   enRetard: 'danger',
   partiel: 'attention',
   aEcheance: 'neutral',
+  rembourse: 'neutral',
 };
 
 /** L'état d'une échéance de l'historique : la même phrase que la puce du mois. */
-function etatDeLEcheance(row: PaymentHistoryRow): 'paye' | 'enRetard' | 'partiel' | 'aEcheance' {
+function etatDeLEcheance(row: PaymentHistoryRow): 'paye' | 'enRetard' | 'partiel' | 'aEcheance' | 'rembourse' {
+  // TCK-2651, décision 18 du porteur : reçu puis remboursé, jamais « à échéance » ni « en retard ».
+  if (row.status === 'refunded') return 'rembourse';
   if (row.status === 'paid' || (row.remaining_amount <= 0 && row.paid_amount > 0)) return 'paye';
   if ((row.days_late ?? 0) > 0) return 'enRetard';
   if (row.paid_amount > 0) return 'partiel';
@@ -226,8 +229,8 @@ function etatDeLEcheance(row: PaymentHistoryRow): 'paye' | 'enRetard' | 'partiel
 
 /** Bureau : « Loyers » — les dernières échéances du bail, et le lien vers tout l'échéancier. */
 function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
-  const t = useTranslations('property.dashboard.fiche.loyers');
-  const tEtat = useTranslations('property.dashboard.gestion.etat');
+  const t = useTranslations('propertyDashboard.fiche.loyers');
+  const tEtat = useTranslations('propertyDashboard.gestion.etat');
   const tRacine = useTranslations();
   const f = useFormatteurs();
   const moisDe = useMoisDeLEcheance();
@@ -302,7 +305,7 @@ function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
 
 /** Bureau : « Bail en cours » — référence, type, durée, caution, préavis (`GET /api/leases/{id}`). */
 function BailEnCours({ location }: { readonly location: LocationDuBien }) {
-  const t = useTranslations('property.dashboard.fiche.bail');
+  const t = useTranslations('propertyDashboard.fiche.bail');
   const tTypes = useTranslations('lease.types');
   const tRacine = useTranslations();
   const f = useFormatteurs();

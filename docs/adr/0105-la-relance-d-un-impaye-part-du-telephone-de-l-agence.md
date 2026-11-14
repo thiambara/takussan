@@ -61,7 +61,7 @@ Le porteur a retenu le 2026-11-10 l'option (a) : *la relance se fait par WhatsAp
 
 ## Amendement du 2026-11-10 — la relance en lot entre dans le lot, comme une file guidée
 
-- **Ticket** : [TCK-2682](../backlog/tickets/todo/TCK-2682-relance-des-impayes-en-lot.md).
+- **Ticket** : [TCK-2682](../backlog/tickets/done/TCK-2682-relance-des-impayes-en-lot.md).
 - **Décision du porteur** (2026-11-10, retour sur les points ouverts, n° 13) : *« Relance d'impayés en lot : dans le lot »*.
 
 **Constat.** La version initiale renvoyait la relance en lot à un envoi par Takussan, écarté par la décision 13 (a). La maquette « Argent » montre pourtant « Relancer la sélection », et le porteur la veut dans ce lot.
@@ -79,7 +79,7 @@ Le porteur a retenu le 2026-11-10 l'option (a) : *la relance se fait par WhatsAp
 
 ## Amendement du 2026-11-12 — le lien de paiement n'est créé qu'à l'envoi, et le message nomme l'agence
 
-- **Tickets** : [TCK-2660](../backlog/tickets/todo/TCK-2660-impayes-relance-whatsapp.md), [TCK-2682](../backlog/tickets/todo/TCK-2682-relance-des-impayes-en-lot.md) ; le message partagé sert aussi TCK-2639 (fiche bien) et TCK-2644 (liste des baux).
+- **Tickets** : [TCK-2660](../backlog/tickets/done/TCK-2660-impayes-relance-whatsapp.md), [TCK-2682](../backlog/tickets/done/TCK-2682-relance-des-impayes-en-lot.md) ; le message partagé sert aussi TCK-2639 (fiche bien) et TCK-2644 (liste des baux).
 - **Décisions du porteur** (2026-11-12, soir) : n° 1 (a), *le lien de paiement n'est créé qu'à l'ENVOI de la relance, jamais à l'ouverture de la feuille : une lecture n'écrit pas* ; n° 3 (a), *le message nomme l'agence*. Le mécanisme ci-dessous est celui que back-4 a implémenté et éprouvé par ablation. Ce sont des décisions de la session, à revoir.
 
 **Constat.** Le point 4 de l'amendement du 2026-11-10 demandait le lien « au moment où l'échéance s'affiche ». Le § 1 le disait « créé ou repris » sans dire quand. Les écrans demandaient donc le lien (`POST /api/lease-payments/{payment}/payment-link`) à l'ouverture de la feuille, du dossier ou d'une échéance de la file. Ce `POST` écrit : il crée un lien porteur ([ADR-0051](0051-lien-porteur-de-paiement-et-journal-des-webhooks.md)). Regarder un impayé créait donc un lien de paiement, même quand personne ne relançait.

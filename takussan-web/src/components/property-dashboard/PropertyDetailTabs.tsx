@@ -93,7 +93,7 @@ function Compte({ n }: { readonly n: number | null | undefined }) {
 }
 
 export function PropertyDetailTabs({ property, tags, personnel = false, lienVersLeBailleur = false }: Props) {
-  const t = useTranslations('property.dashboard.tabs');
+  const t = useTranslations('propertyDashboard.tabs');
   const searchParams = useSearchParams();
   // TCK-596 §3B — le calendrier d'hôte n'a de sens que pour un séjour court (nuit ou semaine).
   const hasCalendar =

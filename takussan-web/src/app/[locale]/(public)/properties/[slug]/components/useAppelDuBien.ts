@@ -15,7 +15,7 @@ import { signalerClic } from '@/lib/contact-click';
  *     l'appelant (`numeros`), qui les affiche au même geste.
  */
 export function useAppelDuBien(slug: string) {
-  const t = useTranslations('property.detail.agent');
+  const t = useTranslations('propertyDetail.agent');
   const tContact = useTranslations('propertyContact');
   const toast = useToast();
   const [enCours, setEnCours] = useState(false);

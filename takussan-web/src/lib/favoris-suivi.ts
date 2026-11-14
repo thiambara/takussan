@@ -84,8 +84,9 @@ export function cheminDeSelection(locale: string, ids: readonly number[]): strin
 }
 
 /**
- * Les `criteria` d'une recherche sauvegardée en chaîne de requête de `/properties` — la même
- * sérialisation que `SavedSearchesList` (un tableau joint par des virgules, un objet en JSON).
+ * Les `criteria` d'une recherche sauvegardée en chaîne de requête de `/properties` — la
+ * sérialisation de la liste d'avant (`SavedSearchesList`, retirée par TCK-2738) : un tableau joint
+ * par des virgules, un objet en JSON. Le résumé (`useResumeDeCriteres`) la relit.
  */
 export function requeteDesCriteres(criteria: Record<string, unknown>): string {
   const params = new URLSearchParams();

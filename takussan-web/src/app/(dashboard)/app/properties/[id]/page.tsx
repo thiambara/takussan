@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { getToken } from '@/lib/session';
 import { phrasesDesMotifs } from '@/lib/biens/motifs-hors-ligne';
-import { lireBienDuRendu } from '@/lib/detail/ressource-de-detail';
+import { exigerRessource, lireBienDuRendu } from '@/lib/detail/ressource-de-detail';
 import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
@@ -37,7 +37,9 @@ import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('properties', (await params).id);
   const t = await getTranslations('dashboard.pages.propertyDetail');
   return { title: t('metaTitle') };
 }
@@ -139,8 +141,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
       <ChangerLeTitulaire propertyId={property.id} agencyId={property.agency.id} />
     ) : null;
 
-  const tFiche = await getTranslations('property.dashboard.fiche.identite');
-  const tMotif = await getTranslations('property.dashboard.horsLigne');
+  const tFiche = await getTranslations('propertyDashboard.fiche.identite');
+  const tMotif = await getTranslations('propertyDashboard.horsLigne');
   // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`).
   const motifs = property.is_online === false ? phrasesDesMotifs(property.offline_reasons ?? [], (cle) => tMotif(cle)) : [];
   const tListe = await getTranslations('dashboard.properties');

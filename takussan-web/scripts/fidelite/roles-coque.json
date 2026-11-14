@@ -1,7 +1,7 @@
 {
-  "_lisez-moi": "Rôles de coque communs aux pages de /app (TCK-2684, annexe D § 4.1). Toute comparaison les inclut ; une fiche de ticket les étend (roles, zones, alias, ancres, ignorer) ou les écarte par \"coque\": false. Sélecteurs : boiteDe (la plus petite boîte qui contient ce texte, hauteur ≥ min), zone {y, h, tol, wMin}, slot, fid, texte.",
+  "_lisez-moi": "Rôles de coque communs aux pages de /app (TCK-2684, annexe D § 4.1). Toute comparaison les inclut ; une fiche de ticket les étend (roles, zones, alias, ancres, ignorer) ou les écarte par \"coque\": false. La barre d'onglets se vise côté produit par son slot (data-slot=\"barre-onglets\", TCK-2738) : boiteDe \"Menu\" y retenait une carte qui défile sous la barre fixe ; la maquette, sans ce slot, garde boiteDe. Sélecteurs : boiteDe (la plus petite boîte qui contient ce texte, hauteur ≥ min), zone {y, h, tol, wMin}, slot, fid, texte.",
   "roles": [
-    { "appareil": "mobile", "nom": "coque · barre d'onglets", "maquette": { "boiteDe": "Menu", "min": 56 }, "produit": { "boiteDe": "Menu", "min": 56 }, "contenu": true },
+    { "appareil": "mobile", "nom": "coque · barre d'onglets", "maquette": { "boiteDe": "Menu", "min": 56 }, "produit": { "slot": "barre-onglets" }, "contenu": true },
     { "appareil": "mobile", "nom": "coque · en-tête", "maquette": { "zone": { "y": 0, "h": 56, "tol": 8, "wMin": 380 } }, "produit": { "zone": { "y": 0, "h": 56, "tol": 8, "wMin": 380 } } },
     { "appareil": "desktop", "nom": "coque · barre latérale", "maquette": { "zone": { "y": 0, "h": 900, "tol": 40, "wMin": 200 } }, "produit": { "zone": { "y": 0, "h": 900, "tol": 40, "wMin": 200 } } }
   ],

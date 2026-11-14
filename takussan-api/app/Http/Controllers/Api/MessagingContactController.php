@@ -7,7 +7,9 @@ use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Models\Conversation;
 use App\Models\User;
 use App\Services\Messaging\MessagingReach;
+use App\Services\Messaging\MessagingRelation;
 use App\Sorts\CollatedNameSort;
+use App\Sorts\LastExchangeSort;
 use App\Sorts\SearchRelevanceSort;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -48,11 +50,14 @@ use Spatie\QueryBuilder\QueryBuilder;
  * `filter[added_by_id]`, `filter[role]` et `include=` : des questions d'administration sur un
  * compte, pas sur un contact.
  *
- * Cet endpoint déclare donc SA propre liste blanche, étroite : trois filtres (`search`, sur
+ * Cet endpoint déclare donc SA propre liste blanche, étroite : quatre filtres (`search`, sur
  * `first_name` et `last_name` seulement — `attributesToSearchOn` de Meilisearch ; `exclude`,
- * des identifiants que le sélecteur a déjà choisis, TCK-973 ; et `id`, une personne précise,
- * TCK-2589), deux tris (le
- * nom), trois colonnes. Tout autre paramètre rend 400 (`InvalidQuery` de spatie). La recherche
+ * des identifiants que le sélecteur a déjà choisis, TCK-973 ; `id`, une personne précise,
+ * TCK-2589 ; et `relation`, une section de « Nouvelle conversation », TCK-2745 — `autre` pour la dernière,
+ * TCK-2830), trois tris (le
+ * nom, et le dernier échange avec l'appelant, {@see LastExchangeSort}), trois colonnes. Chaque
+ * personne porte sa relation avec l'appelant et une ligne de détail ({@see MessagingRelation}) :
+ * des données lues dans le périmètre, jamais une coordonnée. Tout autre paramètre rend 400 (`InvalidQuery` de spatie). La recherche
  * reste celle de Scout, tolérante aux fautes et aux accents, et son ordre de pertinence est
  * restitué ({@see SearchRelevanceSort}) ; sans recherche, tri alphabétique — une liste de personnes.
  */
@@ -60,7 +65,7 @@ class MessagingContactController extends Controller
 {
     public function index(Request $request, MessagingReach $reach): JsonResponse
     {
-        return $this->contacts($request, $reach->query($request->user()));
+        return $this->contacts($request, $reach->query($request->user()), $reach);
     }
 
     public function forConversation(Request $request, Conversation $conversation, MessagingReach $reach): JsonResponse
@@ -72,7 +77,7 @@ class MessagingContactController extends Controller
                 ->whereKey($conversation->getKey())
                 ->whereNull('conversation_participants.left_at'));
 
-        return $this->contacts($request, $base);
+        return $this->contacts($request, $base, $reach);
     }
 
     /** Les seuls attributs de l'index `users` qu'une recherche de contact interroge. */
@@ -82,9 +87,12 @@ class MessagingContactController extends Controller
     protected const SEARCH_ID_CAP = 5000;
 
     /** @param  Builder<User>  $base */
-    private function contacts(Request $request, Builder $base): JsonResponse
+    private function contacts(Request $request, Builder $base, MessagingReach $reach): JsonResponse
     {
         $relevance = [];
+        // TCK-2745 — la relation de chaque personne avec l'appelant, sa ligne de détail, la section
+        // (`filter[relation]`) et l'ordre « récent » (`sort=-last_exchange_at`).
+        $relation = new MessagingRelation($request->user(), $reach);
 
         // TCK-973 (P51.06) — la ressource ne lit que l'avatar : les autres collections du compte
         // (`documents`, `photos`…) ne se chargent pas.
@@ -129,6 +137,10 @@ class MessagingContactController extends Controller
                     // pas un filtre non `nullable` à `null` : la LISTE ENTIÈRE revenait, au lieu de
                     // personne comme le dit l'en-tête. Le filtre posé décide, quelle que soit sa valeur.
                 })->nullable(),
+                // TCK-2745 — une section de « Nouvelle conversation » : la relation EXACTE (après priorité).
+                // Restreint le périmètre, ne l'élargit jamais ; un code inconnu, vide ou en tableau ne
+                // rend personne (`nullable()`, la leçon de TCK-2589).
+                AllowedFilter::callback('relation', fn (Builder $q, mixed $value) => $relation->filtre($q, $value))->nullable(),
                 AllowedFilter::callback('search', function (Builder $q, mixed $value) use (&$relevance) {
                     $terms = trim(is_array($value) ? implode(' ', $value) : (string) $value);
                     if ($terms === '') {
@@ -156,7 +168,7 @@ class MessagingContactController extends Controller
                     $q->whereIn('users.id', $relevance);
                 }),
             )
-            ->allowedSorts($prenom, $nom)
+            ->allowedSorts($prenom, $nom, AllowedSort::custom('last_exchange_at', new LastExchangeSort($relation)))
             // Aucune relation : l'appel VIDE est ce qui fait refuser un `include=` (400), qu'on
             // ignorerait sinon en silence.
             ->allowedIncludes();
@@ -175,6 +187,14 @@ class MessagingContactController extends Controller
 
         $paginator = $query->paginate();
 
-        return $this->paginated($paginator, MessagingContactResource::collection($paginator)->toArray($request));
+        $ids = $paginator->getCollection()->map(fn (User $u) => (int) $u->id)->all();
+        $relations = $relation->relations($ids);
+        $details = $relation->details($relations);
+
+        return $this->paginated($paginator, $paginator->getCollection()
+            ->map(fn (User $u) => (new MessagingContactResource($u))
+                ->avecRelation($relations[(int) $u->id] ?? null, $details[(int) $u->id] ?? null)
+                ->resolve($request))
+            ->all());
     }
 }

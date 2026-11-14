@@ -45,7 +45,7 @@
  * le jour où elle est écrite, sans que personne ait pensé à inscrire son nom ici.
  *
  * *C'est délibéré : une liste tenue à la main est fausse dès le prochain ajout, et fausse avec
- * l'autorité d'une garde verte.* Le seul nom écrit en dur ci-dessous est celui des deux
+ * l'autorité d'une garde verte.* Les seuls noms écrits en dur ci-dessous sont ceux des trois
  * compétences que les points d'entrée désignent nommément, et c'est le contrôle de non-vacuité.
  *
  * Usage :
@@ -81,11 +81,15 @@ const PREFIXES_FOURNISSEUR = ['bmad-', 'wds-'];
  * raison qu'elle n'en trouvait plus du tout — et les quatre points d'entrée pointaient dans le
  * vide sans que rien ne le dise.
  *
- * Ces deux noms-là sont écrits en dur parce que ce sont ceux que `.claude/commands/`
- * cite nommément. Ils ne peuvent pas disparaître sans casser les points
- * d'entrée, donc les exiger ici ne crée aucune dette de maintenance.
+ * Ces trois noms-là sont écrits en dur parce que ce sont ceux que `.claude/commands/`
+ * désigne, directement ou par `.agent/workflows/`. Ils ne peuvent pas disparaître sans casser les
+ * points d'entrée, donc les exiger ici ne crée aucune dette de maintenance.
+ *
+ * `syncing-specs` s'y ajoute le 2026-11-14 (TCK-2737) : jusque-là, `/sync-specs` portait tout son
+ * contenu dans la commande et ne relayait vers aucune compétence — hors du canonique, donc hors de
+ * cette garde, et c'est la commande qui ordonnait un push que le `CLAUDE.md` racine interdit.
  */
-const EXIGEES = ['implementing-specs', 'writing-specs'];
+const EXIGEES = ['implementing-specs', 'syncing-specs', 'writing-specs'];
 
 /** Une compétence sans préfixe de fournisseur est une compétence écrite par ce dépôt. */
 const estEcriteIci = (nom) => !PREFIXES_FOURNISSEUR.some((p) => nom.startsWith(p));

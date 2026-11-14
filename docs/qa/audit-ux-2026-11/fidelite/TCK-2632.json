@@ -66,7 +66,7 @@
    "produit": {
     "route": "/app/messages",
     "persona": "agent",
-    "etat": "« Nouvelle conversation » ouverte (`--perturber` : « ⊕ » de l'en-tête au téléphone, « Nouvelle » au bureau) ; 20 personnes du périmètre de l'agent. Au téléphone, `nouvelle-tel.js` masque la page que le dialogue plein écran recouvre (le relevé lirait sinon ses nœuds sous le dialogue) ; rien n'est retiré du dialogue."
+    "etat": "« Nouvelle conversation » ouverte (`--perturber` : « ⊕ » de l'en-tête au téléphone, « Nouvelle » au bureau) ; 20 personnes du périmètre de l'agent. Au téléphone, `nouvelle-tel.js` masque la page que le dialogue plein écran recouvre (le relevé lirait sinon ses nœuds sous le dialogue) ; rien n'est retiré du dialogue. Relevé du 2026-11-14 à 1440 × 900 (rem 16, densité ×0,9), HEAD 928e9c810, perturbateur `groupe-bureau.js` (mode groupe, TCK-2748) : bureau-1440 32 conformes · 106 écarts · 61 absents (38 du produit + 23 de la maquette) · 82,45 % de pixels (le voile du dialogue assombrit l'écran entier ; 80,43 % à 1280). Mêmes classes d'écarts qu'à 1280."
    }
   },
   {
@@ -100,7 +100,7 @@
    "produit": {
     "route": "/app/messages?conversation=32",
     "persona": "agent",
-    "etat": "fil de groupe de l'agent (4 participants) ; le composeur en note vocale par un micro bouchonné (`note-enregistrement.js` au téléphone : en cours ; `note-ecoute.js` au bureau : arrêtée, en écoute) — getUserMedia et MediaRecorder simulés, rien n'est envoyé. Aucune note vocale dans la base de démo, et en enregistrer une serait une écriture (cf. écarts)."
+    "etat": "fil de groupe de l'agent (4 participants) ; le composeur en note vocale par un micro bouchonné (`note-enregistrement.js` au téléphone : en cours ; `note-ecoute.js` au bureau : arrêtée, en écoute) — getUserMedia et MediaRecorder simulés, rien n'est envoyé. Aucune note vocale dans la base de démo, et en enregistrer une serait une écriture (cf. écarts). Relevé du 2026-11-14 à 1440 × 900 (rem 16, densité ×0,9), HEAD 928e9c810, colonne « Infos du groupe » ouverte : bureau-1440 9 conformes · 67 écarts · 55 absents · 17,98 % de pixels (bureau-1280 : 8 · 68 · 54 · 19,57 %). Mêmes classes d'écarts qu'à 1280."
    }
   }
  ],
@@ -395,25 +395,32 @@
    "motif": "coque commune (TCK-2617/2618/2619/2691/2712), comme pour TCK-2635 ; `coque: false` sur cette fiche : la zone de la barre latérale couvrait la page entière (`_coque`)."
   },
   {
+   "ecran": "a-3-telephone",
+   "element": "« Créer un groupe » : chevron au lieu de la bascule",
+   "propriete": "structure",
+   "exception": "décision produit",
+   "motif": "TCK-2632 puis TCK-2748 : au téléphone, la rangée mène à NewGroupDialog (création en deux étapes) ; l'interrupteur et le formulaire unique sont au bureau. Les sections de la maquette sont livrées par TCK-2830 (exception « une seule liste Personnes » levée)."
+  },
+  {
    "ecran": "a-3-*",
-   "element": "sections « Équipe » / « Propriétaires » ; bascule de groupe",
-   "propriete": "structure",
-   "exception": "décision produit",
-   "motif": "décision 3a du lead : une seule liste « Personnes » (regroupement côté API à part). « Créer un groupe » ouvre NewGroupDialog (TCK-576) par un chevron au lieu de la bascule."
+   "element": "rangées des sections « Clients récents » · « Équipe » · « Propriétaires » · « Autres personnes » : noms, nombre de rangées, lignes de détail",
+   "propriete": "texte, nombre de rangées",
+   "exception": "donnée",
+   "motif": "TCK-2830 — agent de démo (Dakar Immo), relevé du 2026-11-14 : 5 clients, 11 collègues, 12 bailleurs, 7 autres (somme = 35, le périmètre entier, relu à l'API). Les 5 clients n'ont aucun fil rattaché à un bien (`detail.property` null à l'API) : aucune ligne sous leur nom ; un prestataire ou une personne sans relation n'a pas de ligne (`detail` null). La maquette dessine 3 clients avec bien et ville. Ligne prouvée par `NouvelleConversation.sections.tck-2830.test.tsx`."
   },
   {
-   "ecran": "a-3-bureau-*",
-   "element": "dialogue de groupe en un formulaire (« À » en puces, nom, bien et bail liés) — 83 % de pixels",
-   "propriete": "structure",
-   "exception": "décision produit",
-   "motif": "décision du lead (2026-11-12, « b ») : NewGroupDialog en deux étapes conservé (TCK-576 ; bien et bail liés par GroupContextPicker, TCK-565). Le formulaire unique est reporté à TCK-2748 — l'API accepte déjà `property_id` et `lease_id` à la création : c'est un travail de front."
+   "ecran": "a-3-*",
+   "element": "ligne de détail : interligne 18,6 px au lieu de 19,5",
+   "propriete": "interligne",
+   "exception": "règle du design system",
+   "motif": "TCK-2830 — la ligne est en `text-ui` (13 px, comme la maquette : taille, graisse, encre, x 68 et largeur 306 identiques) ; l'interligne est celui du jeton, comme pour l'aide de « Créer un groupe » sur ce même écran."
   },
   {
-   "ecran": "a-5-bureau-*",
-   "element": "colonne « Infos du groupe » (intervention et bien liés, participants avec leur relation, quitter)",
-   "propriete": "structure",
+   "ecran": "a-3-telephone",
+   "element": "phrase de pied « Vous pouvez écrire aux clients, aux propriétaires et aux collègues de Dakar Immo. »",
+   "propriete": "absent du produit",
    "exception": "décision produit",
-   "motif": "décision du lead (2026-11-12, « b ») : la colonne de contexte reste ; les infos du groupe s'ouvrent par la sous-ligne de l'en-tête du fil (ConversationInfoSheet). Reportée à TCK-2748, avec le delta d'API : la relation d'un participant au contexte (« Locataire », « Prestataire · plomberie ») n'existe pas, `ParticipantRole` ne porte que admin / member."
+   "motif": "TCK-2830 — non rendue : le périmètre dépend de l'espace (un bailleur ne joint ni propriétaires ni prestataires), et les titres de section le disent déjà. Recommandation posée à team-lead le 2026-11-14 (ne pas l'ajouter), sans réponse à la livraison."
   },
   {
    "ecran": "a-0-telephone, a-3-telephone",
@@ -421,6 +428,41 @@
    "propriete": "taille de police",
    "exception": "accessibilité",
    "motif": "les champs passent par la primitive `Input` (garde check-champs-uniformes, TCK-2460) : `text-champ` vaut 16 px sous le pouce pour qu'iOS ne zoome pas au focus ; à 15 px, Safari agrandit la page dès qu'on touche la recherche."
+  },
+  {
+   "ecran": "a-3-bureau-*",
+   "element": "« Nouvelle conversation » en mode groupe : puces de destinataires, nom, bien et bail (contenu)",
+   "propriete": "texte, nombre de puces",
+   "exception": "donnée",
+   "motif": "TCK-2748 — le relevé ouvre le formulaire de groupe vide (`groupe-bureau.js`) : la maquette dessine deux destinataires choisis, un nom et un bien rattachés. Choisir des personnes et un bien au relevé ne crée rien, mais la structure se compare à vide ; elle est celle de la maquette (dialogue de 446,9 contre 449,6 px à 1280)."
+  },
+  {
+   "ecran": "a-3-bureau-*",
+   "element": "dialogue « Nouvelle conversation » : rayon et ombre",
+   "propriete": "rayon, ombre",
+   "exception": "composant partagé",
+   "motif": "TCK-2748 — le dialogue est la primitive `DialogContent` (anneau de 1 px, rayon de l'échelle), commune à tous les dialogues de `/app` ; la maquette dessine `rounded-2xl shadow-2xl`."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "« Infos du groupe » : relations des participants (« Locataire », « Prestataire · plomberie »), intervention et bien liés, et le décalage vertical de ce qui suit",
+   "propriete": "texte, présence, y",
+   "exception": "donnée",
+   "motif": "TCK-2748 — aucun groupe de la démo n'est rattaché à un bien, un bail ou une intervention (relevé en lecture seule le 2026-11-14 : 12 groupes, tous sans contexte) : l'API ne rend aucune relation (`participants` du contexte, TCK-2748 AC3) et la colonne aucun objet lié. La relation et sa garde sont prouvées par `ConversationParticipantRelationsTest` et `InfosDuGroupe.tck-2748.test.tsx`."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "ligne de rôle « Vous · administratrice du groupe »",
+   "propriete": "texte",
+   "exception": "décision produit",
+   "motif": "TCK-2748 — « Vous · admin du groupe », neutre : le genre de la personne n'est pas connu. Recommandation posée à team-lead le 2026-11-14 (a : neutre), sans réponse à la livraison."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "rangée « Sourdine » : hauteur de l'interrupteur",
+   "propriete": "hauteur",
+   "exception": "composant partagé",
+   "motif": "TCK-2748 — l'interrupteur est la primitive `Switch` (TCK-2690, piste 24 × 40, la valeur majoritaire des maquettes) ; la maquette de la messagerie dessine une piste de 28 × 48. Rangée de 45,2 px contre 48,8 à 1280."
   }
  ],
  "coque": false,
@@ -444,5 +486,75 @@
    "par": "décision de la session (team-lead, 2026-11-12), recommandation (a) appliquée sous délégation du porteur",
    "motif": "envoyer une photo écrirait un message et un média dans la base de démo ; la règle du lot est de ne rien écrire. pret-pour-done.json notait qu'aucun rapport ne disait qui l'avait tranchée : c'est cette entrée."
   }
- ]
+ ],
+ "rangement_1440_tck2748": {
+  "ticket": "TCK-2748",
+  "date": "2026-11-14",
+  "commit": "928e9c810",
+  "appareil": "bureau-1440 (rem 16, densité ×0,9, ADR-0107)",
+  "ecrans": {
+   "a-3 (mode groupe)": "32 · 106 · 61 · 82,45 % (voile du dialogue)",
+   "a-5 (Infos du groupe)": "9 · 67 · 55 · 17,98 %"
+  },
+  "categories": [
+   {
+    "categorie": "voile du dialogue",
+    "portee": "a-3",
+    "lignes": "82,45 % de pixels : le voile assombrit tout l'écran derrière le dialogue ; 80,43 % à 1280, même cause. Tout ce qui est derrière (coque, liste, fil, contexte : encre, positions y) se lit sous le voile.",
+    "classe": "expliquée à 1280 (rideau a-3-bureau-1280)"
+   },
+   {
+    "categorie": "coque (barre latérale, en-tête, icônes de navigation : y, couleur, trait, largeur, rubriques « Prospection », « Catalogue », « Gestion », compteurs, « Démarrer », « Aller au contenu principal », « Réduire la barre »)",
+    "portee": "a-3, a-5",
+    "classe": "entrée « barre latérale et en-tête de la coque » (composant partagé, TCK-2617/2618/2619) et « traits des icônes » (règle du design system)"
+   },
+   {
+    "categorie": "densité ×0,9, traits d'icône et encre opaque (couleurs de composeur, de fiche du client, de « Toujours disponible… », de la rangée Malick Seck)",
+    "portee": "a-3, a-5",
+    "classe": "entrées « tailles ×0,9 » (ADR-0107) , « traits des icônes » et « encre douce pleine » (règle du design system)"
+   },
+   {
+    "categorie": "liste de conversations : rangée « Malick Seck » (fond, marges, graisses, couleurs), puces Tous · Non lus · Groupes (h-8), « Nouvelle » (bordure, largeur), absents « Hier », « Aujourd'hui », « Publié », « Qualifié », « Demandes de contact »",
+    "portee": "a-3, a-5",
+    "classe": "entrées « rangée Malick Seck » (donnée : autre fil, autre état), « puces de filtre » (composant partagé), « Button border-transparent » (composant partagé) et « noms, aperçus, heures » (donnée) ; la portée des deux premières, écrite a-0/a-2, vaut pour la même liste sous le voile (a-3) et à côté des infos (a-5)"
+   },
+   {
+    "categorie": "contexte du fil derrière le voile : fiche du client, carte du bien, « Dernière visite », « Premier contact », « Ni bail ni intervention pour l'instant. »",
+    "portee": "a-3",
+    "classe": "entrée « colonne de contexte » (donnée : /context ne porte pas ces champs)"
+   },
+   {
+    "categorie": "dialogue « Nouvelle conversation » en mode groupe : hauteur, rayon, ombre, puces de destinataires, nom du groupe, bien et bail rattachés, texte d'aide, « Activé d'office… »",
+    "portee": "a-3",
+    "classe": "entrées TCK-2748 « rayon et ombre » (composant partagé) et « puces de destinataires, nom… » (donnée : le relevé ouvre le formulaire vide) ; « Un nom, et un bien ou un bail rattaché. » et « L'équipe de votre agence… » sont des aides du produit absentes de la maquette"
+   },
+   {
+    "categorie": "Infos du groupe : relations des participants, positions y de « Ajouter un participant », « Quitter le groupe », « Sourdine » (hauteur de l'interrupteur), « Vous · admin du groupe », « Couper les notifications » (libellé existant)",
+    "portee": "a-5",
+    "classe": "entrées TCK-2748 « relations des participants » (donnée), « ligne de rôle » (décision produit), « rangée Sourdine » (composant partagé) et l'alias « Mettre en sourdine → Couper les notifications »"
+   },
+   {
+    "categorie": "Infos du groupe : « Renommer le groupe » (étiquette sr-only du champ et aria-label du bouton), « Plus d'actions », « Enregistrer / Envoyer la note vocale » (aria-label)",
+    "portee": "a-5, a-3",
+    "classe": "accessibilité : textes pour lecteur d'écran, sans équivalent visible dans la maquette ; le relevé les compte comme texte"
+   },
+   {
+    "categorie": "« Personne d'autre n'administre ce groupe : nommez un autre admin avant de partir. » (absent de la maquette)",
+    "portee": "a-5",
+    "classe": "état du produit : l'agent de démo est le seul admin du groupe 32 (`g.dernierAdmin`, InfosDuGroupe) ; la maquette dessine un groupe à plusieurs admins et son bouton « Quitter le groupe » ; garde de TCK-2748, pas un écart de mise en page"
+   },
+   {
+    "categorie": "forme d'onde, bulle de note vocale, « 0:14 », double coche, « lucide-play », « lucide-trash2 », « lucide-send-horizontal »",
+    "portee": "a-5",
+    "classe": "entrées « double coche… » (donnée) et « 0:14… » (technique : micro bouchonné)"
+   },
+   {
+    "categorie": "aides de champ « Chercher un nom, un bien… », « Écrivez un message… » en `placeholder`",
+    "portee": "a-3, a-5",
+    "classe": "entrée « textes d'aide » (technique)"
+   }
+  ],
+  "inexpliques": [],
+  "limite": "Rangement par catégorie, non ligne à ligne : 173 écarts et 116 absents, aucun ne tombe hors de ces classes (« Disponible », « Gagné », « À faire », « 99+ » : données de démo ou coque) ; les ensembles de lignes de 1280 et de 1440 sont les mêmes à quelques positions près (liste derrière le voile)."
+ }
 }

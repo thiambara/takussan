@@ -66,7 +66,7 @@ export function PropertyReservationDialog({
   onSuccess,
   intention = null,
 }: PropertyReservationDialogProps) {
-  const t = useTranslations('property.reservation');
+  const t = useTranslations('propertyReservation');
   const { user } = useAuth();
   const action = getPrimaryCtaForProperty(property).action;
   const isOfferFlow = action === 'offer';
@@ -150,7 +150,7 @@ function ReservationForm({
   submitLabel,
   title,
 }: InnerFormProps & { intention: IntentionReservation | null }) {
-  const t = useTranslations('property.reservation');
+  const t = useTranslations('propertyReservation');
   const { submit, submitting, error } = useBookingRequest(property.slug);
   // TCK-589 — dates rapportées par l'intention ; une date passée ne se pré-remplit pas.
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -318,7 +318,7 @@ function ReservationForm({
 
 // ─── Offer form (sale) — TCK-176 ────────────────────────────────────────────
 function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFormProps) {
-  const t = useTranslations('property.reservation');
+  const t = useTranslations('propertyReservation');
   const [offerAmount, setOfferAmount] = useState('');
   const [offerExpiresAt, setOfferExpiresAt] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);

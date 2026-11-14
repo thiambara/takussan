@@ -19,6 +19,9 @@ import type { Tag as TagType } from '@/types/tag';
  * l'API en `filter[...]` ; chacun ramène en page 1. Choisir une étape quitte la vue « Négociation »,
  * qui n'est qu'une étape posée d'avance.
  *
+ * TCK-2596 — « Prospects actifs » (`stage_group=active`, `filter[stage_group]` de l'API) est une option
+ * du même menu : « Prospects » de « Ma journée » y arrive. Elle et l'étape précise s'excluent.
+ *
  *  · `barre` (bureau) : Étape ▾ · Statut ▾ · Étiquettes ▾, sous les vues, la recherche à droite ;
  *  · `feuille` (téléphone) : les mêmes, empilés dans la feuille « Filtres ».
  */
@@ -36,16 +39,25 @@ export function useFiltresDesClients() {
   const search = params.get('search') ?? '';
   const status = params.get('status') ?? '';
   const stage = params.get('pipeline_stage') ?? '';
+  const enCours = params.get('stage_group') === 'active';
   const tags = (params.get('tags') ?? '').split(',').filter(Boolean);
-  const poser = (cle: 'search' | 'status' | 'pipeline_stage' | 'tags', valeur: string | null) =>
-    remplacer({ [cle]: valeur, page: null, ...(cle === 'pipeline_stage' && params.get('vue') === 'negociation' ? { vue: null } : {}) });
+  const poser = (cle: 'search' | 'status' | 'pipeline_stage' | 'stage_group' | 'tags', valeur: string | null) =>
+    remplacer({
+      [cle]: valeur,
+      page: null,
+      // Une étape précise, « Toutes les étapes » ou « Prospects actifs » remplacent le choix d'étape d'avant.
+      ...(cle === 'pipeline_stage' ? { stage_group: null } : {}),
+      ...(cle === 'stage_group' ? { pipeline_stage: null } : {}),
+      ...((cle === 'pipeline_stage' || cle === 'stage_group') && params.get('vue') === 'negociation' ? { vue: null } : {}),
+    });
   return {
     search,
     status,
     stage,
+    enCours,
     tags,
     /** Le nombre de filtres posés (la recherche à part) : « Filtres · N ». */
-    nombre: (status ? 1 : 0) + (stage ? 1 : 0) + (tags.length > 0 ? 1 : 0),
+    nombre: (status ? 1 : 0) + (stage || enCours ? 1 : 0) + (tags.length > 0 ? 1 : 0),
     poser,
     basculerEtiquette: (nom: string) => {
       const suite = tags.includes(nom) ? tags.filter((x) => x !== nom) : [...tags, nom];
@@ -79,11 +91,19 @@ export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Pro
   const feuille = disposition === 'feuille';
 
   const etape = (
-    <Filtre libelle={t('stage')} valeur={f.stage ? tStage.has(f.stage) ? tStage(f.stage) : f.stage : null} actif={Boolean(f.stage)} pleine={feuille}>
+    <Filtre
+      libelle={t('stage')}
+      valeur={f.stage ? (tStage.has(f.stage) ? tStage(f.stage) : f.stage) : f.enCours ? t('activeStages') : null}
+      actif={Boolean(f.stage) || f.enCours}
+      pleine={feuille}
+    >
       {(fermer) => (
         <>
-          <OptionDeFiltre choisie={!f.stage} onClick={() => (f.poser('pipeline_stage', null), fermer())}>
+          <OptionDeFiltre choisie={!f.stage && !f.enCours} onClick={() => (f.poser('pipeline_stage', null), fermer())}>
             {t('allStages')}
+          </OptionDeFiltre>
+          <OptionDeFiltre choisie={!f.stage && f.enCours} onClick={() => (f.poser('stage_group', 'active'), fermer())}>
+            {t('activeStages')}
           </OptionDeFiltre>
           {pipelineStageValues.map((v) => (
             <OptionDeFiltre key={v} choisie={f.stage === v} onClick={() => (f.poser('pipeline_stage', v), fermer())}>

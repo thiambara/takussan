@@ -1,6 +1,6 @@
 # ADR-0096 — L'accueil de `/app` est la journée de la persona ; une seule page « Rapports » remplace les vues de tableau de bord
 
-- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 4 (b) ; décision 1 b de la famille 3 ; retour « Aujourd'hui = a » ; décisions n° 10 (a) et n° 12 (a) pour les onglets) — modalités : décisions de la session, à revoir
+- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 4 (b) ; décision 1 b de la famille 3 ; retour « Aujourd'hui = a » ; décisions n° 10 (a) et n° 12 (a) pour les onglets) — modalités : décisions de la session, à revoir ; **amendé le 2026-11-14**, deux fois (cf. § *Amendement du 2026-11-14 — ce que l'implémentation de TCK-2628 a tranché* et § *Amendement du 2026-11-14 (bis) — l'hôte garde « Alertes », décision du porteur*)
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2622 (socle et aiguillage), TCK-2623 (lectures de l'accueil), TCK-2624 (accueil de l'admin et du bailleur), TCK-2625 (accueil du locataire, du client et du prestataire), TCK-2596 (« Aujourd'hui », la journée de l'agent), TCK-2626 et TCK-2627 (lectures des rapports), TCK-2628 (page « Rapports »), TCK-2629 (ses onglets Équipe, Impayés, Exports, Alertes) ; TCK-2618 pour la place des entrées
 - **Amende** : [ADR-0089](0089-le-menu-de-app-se-derive-du-profil-actif.md) (amendement du 2026-11-10 : le module `analytics` masque des onglets, les dispositions changent) et [ADR-0090](0090-la-coque-de-app-sans-barre-du-haut.md) § 4 (amendement du 2026-11-10 : « Aujourd'hui » ouvre le menu de l'agent)
@@ -80,8 +80,32 @@ Le porteur a retenu le 2026-11-10 :
 
 Décisions de la session (mandat du porteur : « selon tes propres recommandations »), à revoir :
 
-1. **L'hôte garde l'onglet « Alertes ».** Il l'ouvrait déjà comme admin de son agence `individual` ; le retirer serait une régression. Ses onglets : Vue d'ensemble · Reversements · Exports · Alertes.
+1. **L'hôte garde l'onglet « Alertes ».** Il l'ouvrait déjà comme admin de son agence `individual` ; le retirer serait une régression. Ses onglets : Vue d'ensemble · Reversements · Exports · Alertes. *Confirmé par le porteur le 2026-11-14 : amendement suivant.*
 2. **Une ancienne adresse lit le masque `analytics` pour choisir sa cible** (`lib/rapports/contexte-serveur.ts`) : elle ne mène jamais à un onglet masqué (§ 4). Les gardes des onglets, elles, ne lisent pas le masque ([ADR-0089](0089-le-menu-de-app-se-derive-du-profil-actif.md), amendement § 3). Conséquence : `analytics` ne barre plus d'entrée dans la prévisualisation du menu de la fiche agence (super-admin), seulement des onglets.
 3. **Le § 4 d'[ADR-0090](0090-la-coque-de-app-sans-barre-du-haut.md) est assoupli pour le bailleur et l'hôte** : « Rapports » y est une entrée unique **dans un groupe partagé**, pas un groupe à lui seul.
 4. **Les refus de la page vivent dans `lib/rapports/gardes-serveur.ts`**, une table jugée sur le contexte de persona. Le plafond de `scripts/check-auth-interrupts.mjs` descend de 12 à 5, comme pour `garderPageAdmin` (TCK-633) ; le test M2 recoupe la table avec le menu sur toutes les combinaisons.
 5. **Une épingle sur `vue-agence`, `statistiques`, `kpis`, `alertes` ou `exports`** est ignorée par le composeur depuis TCK-2628. Ticket de suite : la migrer vers `rapports`, et supprimer les composants morts de l'ancienne vue agence (`AgencyQueues`, `AgencyKpis`, `AgencyActivityFeed`, `AgencyRevenueSnapshot`).
+
+## Amendement du 2026-11-14 (bis) — l'hôte garde « Alertes », décision du porteur
+
+- **Ticket** : TCK-2628 (page « Rapports »).
+- **Amende** : le tableau du § 3 (ligne « bailleur, hôte »).
+- **Décision** : ao du porteur, 2026-11-14 (« je valide tes recommandations sur tous les points listés »).
+
+**Constat.** Le § 3 donnait à l'hôte les onglets du bailleur : Vue d'ensemble · Reversements · Exports. Or l'hôte est
+l'admin d'une agence `individual`, et il ouvre aujourd'hui les alertes de seuil : depuis TCK-284, `/app/overview/alerts`
+n'est plus réservée aux agences `standard` (aucune spec ne la restreint, le cadenas était l'ajout). Appliquer le § 3 à la
+lettre lui retirait une fonction qu'il a. Le point 1 de l'amendement précédent l'avait tranché en décision de la
+session, « à revoir ».
+
+**Décision.**
+
+1. **L'hôte garde l'onglet « Alertes » dans « Rapports ».** Le tableau du § 3 se lit désormais :
+
+   | Persona | Onglets |
+   |---|---|
+   | bailleur | Vue d'ensemble · Reversements · Exports |
+   | hôte (admin d'une agence `individual`) | Vue d'ensemble · Reversements · Exports · Alertes |
+
+2. **Le reste du § 3 est inchangé** : l'onglet garde la garde de la page qu'il remplace, et un onglet que la persona
+   ne peut pas ouvrir n'est pas rendu.

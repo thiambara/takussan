@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
-import { Check, Eye, ImageIcon } from 'lucide-react';
+import { Check, Eye, ImageIcon, MapPin } from 'lucide-react';
 
-import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { coutDEntreeTotal } from '@/lib/cout-d-entree';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -19,19 +18,19 @@ import { suggestTitle } from './suggest-title';
 /**
  * TCK-631 (piste 6) — l'annonce telle qu'elle se construit, à côté des questions.
  *
- * La carte reprend le gabarit de `PropertyCardStandard` — photo carrée, pastille du contrat,
+ * La carte reprend le gabarit de `PropertyCardStandard` (TCK-2819 : celui de la maquette) — photo, pastille du contrat,
  * titre, lieu, chiffres, prix et sa période — avec ce que le formulaire sait DÉJÀ. Ce qui manque
  * se dit (« Lieu à venir ») plutôt que de laisser un trou : une carte vide ressemble à une panne.
  *
  * Le titre est celui que l'utilisateur a écrit, sinon celui que la dernière étape lui proposera
  * (`suggestTitle`) : la carte montre dès l'étape 1 ce qu'elle deviendra.
  *
- * Le coût d'entrée : ses composantes, et son TOTAL indicatif (TCK-633, retour du porteur). Le
- * total vient de `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API :
- * les deux sont jugées par la même fixture (tâche 17), de sorte qu'un écart d'un franc rougit une
- * suite. La règle de TCK-598 (« aucun écran ne refait l'addition ») est levée pour l'aperçu SEUL,
- * qui l'affiche avant que le bien existe ; la fiche publiée lit toujours le total de l'API, et la
- * note le dit (« l'annonce publiée fait foi »).
+ * Le coût d'entrée : ses composantes, et son TOTAL indicatif (TCK-633, retour du porteur) — que la
+ * maquette réduit à « À l'entrée : … » ; ils restent ici jusqu'au lot 2 de TCK-2819 (cf. plus bas).
+ * Le total vient de `coutDEntreeTotal` (`lib/cout-d-entree.ts`), jumelle de `CoutDEntree` côté API : les deux sont jugées par la même fixture (tâche 17), de sorte
+ * qu'un écart d'un franc rougit une suite. La règle de TCK-598 (« aucun écran ne refait l'addition »)
+ * est levée pour l'aperçu SEUL, qui l'affiche avant que le bien existe ; la fiche publiée lit toujours
+ * le total de l'API, et la note le dit (« l'annonce publiée fait foi »).
  *
  * ⚠ Toutes les lectures passent par `useWatch` (TCK-564) : un `watch()` lu pendant le rendu se
  * figeait une fois compilé.
@@ -43,11 +42,17 @@ interface DonneesApercu {
   readonly type: PropertyFormValues['type'] | undefined;
   readonly contrat: Contrat | undefined;
   readonly titre: string;
+  /** TCK-2819 — le titre ÉCRIT (ou posé par la finition), sans repli sur le titre proposé. */
+  readonly titreSaisi: string;
+  /** TCK-2819 — le type, traduit (« Studio ») ; vide avant la première réponse. */
+  readonly typeLibelle: string;
+  /** TCK-2819 — le quartier, sinon la ville : le lieu court du résumé (« Mermoz »). */
+  readonly lieuCourt: string;
   readonly lieu: string;
   readonly chiffres: readonly string[];
   readonly prix: string | null;
-  readonly periode: string | null;
   readonly coutDEntree: readonly string[];
+  readonly periode: string | null;
   /** TCK-633 — le total à l'entrée, mis en forme ; `null` sans composante ou à zéro. */
   readonly totalDEntree: string | null;
 }
@@ -87,6 +92,7 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
             city: ville,
           },
           tType,
+          t,
         )
       : '');
 
@@ -105,6 +111,9 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
   // porte toujours sa période.
   const periodeAffichee = isFieldRelevant('rent_period', ctx) ? tPeriode(periode ?? 'monthly') : null;
 
+  // TCK-2819 — la maquette ne dit que le total ; décision de team-lead (2026-11-14) : aucune information
+  // ne quitte le parcours, donc les composantes et la note restent sous la carte TANT QUE l'encadré
+  // « Total à l'entrée » de l'étape du prix (lot 2) ne les porte pas. Écart ouvert de la fiche.
   const coutDEntree: string[] = [];
   let totalDEntree: string | null = null;
   if (isFieldRelevant('deposit_months', ctx)) {
@@ -128,11 +137,14 @@ function useDonneesApercu(form: UseFormReturn<PropertyFormValues>): DonneesAperc
     type,
     contrat,
     titre,
+    titreSaisi: titreSaisi?.trim() ?? '',
+    typeLibelle: type ? tType(type) : '',
+    lieuCourt: quartier?.trim() || ville?.trim() || '',
     lieu: [quartier?.trim(), ville?.trim()].filter(Boolean).join(', '),
     chiffres,
+    coutDEntree,
     prix: nombre(prix) ? fmt.montant(nombre(prix)!, devise) : null,
     periode: periodeAffichee,
-    coutDEntree,
     totalDEntree,
   };
 }
@@ -152,10 +164,6 @@ function VignetteFichier({ fichier }: { readonly fichier: File }) {
   }, [fichier]);
   // eslint-disable-next-line @next/next/no-img-element -- une URL `blob:` locale : rien à optimiser.
   return <img ref={image} alt="" className="size-full object-cover" />;
-}
-
-function AVenir({ children }: { readonly children: React.ReactNode }) {
-  return <span className="rounded-md bg-muted px-1.5 text-muted-foreground">{children}</span>;
 }
 
 /**
@@ -192,72 +200,78 @@ export function RappelDeLAnnonce({
   );
 }
 
-/** La carte de l'annonce, au gabarit de `PropertyCardStandard`. */
+/**
+ * La carte de l'annonce. TCK-2819 — la `CarteApercu` de la maquette `app-entree-publier` : la photo à
+ * fond perdu (16/9 dans la colonne, `compact` ; 4/3 dans le tiroir), la pastille du contrat, le titre,
+ * le lieu, les chiffres, le prix et sa période, puis ce que le locataire verse à l'entrée.
+ */
 export function CarteApercu({
   form,
   photos,
+  compact = false,
 }: {
   readonly form: UseFormReturn<PropertyFormValues>;
   readonly photos: readonly File[];
+  /** La colonne collante du bureau doit tenir dans la hauteur : la photo y passe en 16/9. */
+  readonly compact?: boolean;
 }) {
   const t = useTranslations('property.wizard.preview');
+  const tContrat = useTranslations('property.contractTypes');
   const d = useDonneesApercu(form);
   const premiere = photos[0];
 
   return (
-    <div data-testid="apercu-annonce" className="rounded-2xl border border-border bg-card p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--foreground)_8%,transparent)]">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+    <div data-testid="apercu-annonce" className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className={cn('relative bg-muted', compact ? 'aspect-video' : 'aspect-[4/3]')}>
         {premiere ? (
           <VignetteFichier fichier={premiere} />
         ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
-            <ImageIcon className="size-7" strokeWidth={1.5} aria-hidden="true" />
-            {t('photoLater')}
+          <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <ImageIcon className="size-7" strokeWidth={1.25} aria-hidden="true" />
+            <span className="text-sm">{t('photoLater')}</span>
           </div>
         )}
         {d.contrat ? (
-          <div className="absolute top-2.5 left-2.5">
-            <ContractTypeChip type={d.contrat} compact />
+          <span className="absolute top-3 left-3 inline-flex h-7 items-center gap-1.5 rounded-full bg-card px-2.5 text-xs font-semibold text-foreground">
+            <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
+            {tContrat(d.contrat === 'sale' ? 'saleLong' : 'rentLong')}
+          </span>
+        ) : null}
+        {photos.length > 0 ? (
+          <span className="absolute right-3 bottom-3 rounded-full bg-foreground/70 px-2 py-0.5 text-xs font-medium text-background tabular-nums">
+            {t('photoCount', { current: 1, total: photos.length })}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="p-4">
+        <p className={cn('font-display text-titre-court leading-snug text-pretty', d.titre ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+          {d.titre || t('empty')}
+        </p>
+        <p className={cn('mt-1 flex items-center gap-1 text-sm', d.lieu ? 'text-foreground' : 'text-muted-foreground')}>
+          <MapPin className="size-3.5 flex-none" aria-hidden="true" />
+          {d.lieu || t('placeLater')}
+        </p>
+        {d.chiffres.length > 0 ? <p className="mt-1 text-ui text-muted-foreground">{d.chiffres.join(' · ')}</p> : null}
+        <p
+          className={cn('mt-2.5 font-display tabular-nums', d.prix ? 'text-xl font-semibold text-primary-deep' : 'text-base text-muted-foreground')}
+          data-testid="apercu-prix"
+        >
+          {d.prix ? `${d.prix}${d.periode ? ` / ${d.periode}` : ''}` : t('priceLater')}
+        </p>
+        {d.coutDEntree.length > 0 ? (
+          <div className="mt-3 border-t border-border pt-3 text-ui leading-snug">
+            <p className="font-medium text-foreground">{t('entryTitle')}</p>
+            <p className="text-muted-foreground">{d.coutDEntree.join(', ')}</p>
+            {d.totalDEntree ? (
+              <p className="mt-1 font-medium text-foreground tabular-nums" data-testid="apercu-total-entree">
+                {t('entryTotal', { amount: d.totalDEntree })}
+              </p>
+            ) : null}
+            <p className="mt-1 text-xs text-muted-foreground">{t('entryNote')}</p>
           </div>
         ) : null}
       </div>
-
-      <div className="mt-3 space-y-1 px-0.5">
-        <p className="font-display text-base leading-6 font-semibold text-pretty text-foreground">
-          {d.titre || t('empty')}
-        </p>
-        <p className="text-[0.8125rem] leading-[18px] text-muted-foreground">
-          {d.lieu || <AVenir>{t('placeLater')}</AVenir>}
-        </p>
-        {d.chiffres.length > 0 ? (
-          <p className="text-[0.8125rem] leading-[18px] text-muted-foreground">{d.chiffres.join(' · ')}</p>
-        ) : null}
-        <p className="pt-1 text-[0.9375rem] leading-6 font-semibold text-foreground tabular-nums" data-testid="apercu-prix">
-          {d.prix ? (
-            <>
-              {d.prix}
-              {d.periode ? (
-                <span className="ml-0.5 font-normal text-muted-foreground">/{d.periode}</span>
-              ) : null}
-            </>
-          ) : (
-            <AVenir>{t('priceLater')}</AVenir>
-          )}
-        </p>
-      </div>
-
-      {d.coutDEntree.length > 0 ? (
-        <div className="mt-3 border-t border-border px-0.5 pt-3 text-[0.8125rem] leading-[18px]">
-          <p className="font-medium text-foreground">{t('entryTitle')}</p>
-          <p className="text-muted-foreground">{d.coutDEntree.join(', ')}</p>
-          {d.totalDEntree ? (
-            <p className="mt-1 font-medium text-foreground tabular-nums" data-testid="apercu-total-entree">
-              {t('entryTotal', { amount: d.totalDEntree })}
-            </p>
-          ) : null}
-          <p className="mt-1 text-xs text-muted-foreground">{t('entryNote')}</p>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -294,33 +308,38 @@ export function ListePourPublier({
 }) {
   const t = useTranslations('property.wizard');
 
+  /** La puce de la maquette (`PourPublier`) : cochée sur `accent`, pointée en cours, cerclée à venir. */
+  const puce = (franchie: boolean, courante: boolean) => (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'inline-flex size-5 flex-none items-center justify-center rounded-full',
+        franchie && 'bg-accent text-accent-foreground',
+        courante && 'border-[1.5px] border-primary',
+        !franchie && !courante && 'border-[1.5px] border-border',
+      )}
+    >
+      {franchie ? <Check className="size-3" strokeWidth={3} /> : courante ? <span className="size-2 rounded-full bg-primary" /> : null}
+    </span>
+  );
+  /** La note alignée à droite : « en cours » en `primary`, les autres en encre douce. */
+  const note = (texte: string | null, enCours: boolean) =>
+    texte ? <span className={cn('flex-none text-ui', enCours ? 'font-medium text-primary' : 'text-muted-foreground')}>{texte}</span> : null;
+
   return (
-    <nav aria-label={t('railLabel')} className="rounded-2xl border border-border bg-card p-4">
-      <p className="mb-2 text-sm font-semibold text-foreground">{t('preview.checklist')}</p>
-      <ol className="space-y-0.5">
+    <nav aria-label={t('railLabel')} className="rounded-xl border border-border bg-card p-4">
+      <p className="text-corps font-semibold text-foreground">{t('preview.checklist')}</p>
+      <ol className="mt-2.5 space-y-0.5">
         {etapes.map((e, i) => {
           const franchie = i < index;
           const courante = i === index;
           const contenu = (
             <>
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'grid size-5 shrink-0 place-items-center rounded-full',
-                  franchie && 'bg-foreground text-background',
-                  courante && 'border-2 border-primary',
-                  !franchie && !courante && 'border border-border',
-                )}
-              >
-                {franchie ? <Check className="size-3" strokeWidth={3} /> : null}
-              </span>
-              <span className={cn('min-w-0 text-pretty', !franchie && !courante && 'text-muted-foreground')}>
+              {puce(franchie, courante)}
+              <span className={cn('min-w-0 flex-1 truncate', !franchie && !courante && 'text-muted-foreground', courante && 'font-semibold')}>
                 {e.libelle}
-                {courante ? <span className="text-muted-foreground"> · {t('preview.current')}</span> : null}
-                {!courante && e.facultative ? (
-                  <span className="text-muted-foreground"> · {t('preview.optional')}</span>
-                ) : null}
               </span>
+              {note(courante ? t('preview.current') : !franchie && e.facultative ? t('preview.optional') : null, courante)}
             </>
           );
           return (
@@ -331,15 +350,12 @@ export function ListePourPublier({
                   disabled={desactivee}
                   onClick={() => onRouvrir(i)}
                   aria-label={t('preview.reopen', { step: e.libelle })}
-                  className="flex min-h-9 w-full items-center gap-2.5 rounded-lg px-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+                  className="-mx-1.5 flex h-8 w-[calc(100%+var(--spacing)*3)] items-center gap-3 rounded-md px-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   {contenu}
                 </button>
               ) : (
-                <span
-                  aria-current={courante ? 'step' : undefined}
-                  className={cn('flex min-h-9 items-center gap-2.5 px-1.5 text-sm', courante && 'font-medium')}
-                >
+                <span aria-current={courante ? 'step' : undefined} className="flex h-8 items-center gap-3 text-sm text-foreground">
                   {contenu}
                 </span>
               )}
@@ -348,15 +364,10 @@ export function ListePourPublier({
         })}
         {enPlus ? (
           <li>
-            <span aria-current={enPlusEnCours ? 'step' : undefined} className="flex min-h-9 items-center gap-2.5 px-1.5 text-sm">
-              <span
-                aria-hidden="true"
-                className={cn('grid size-5 shrink-0 place-items-center rounded-full', enPlusEnCours ? 'border-2 border-primary' : 'border border-border')}
-              />
-              <span className="min-w-0 text-pretty font-medium text-foreground">
-                {enPlus.libelle}
-                <span className="font-normal text-muted-foreground"> · {enPlusEnCours ? t('preview.current') : enPlus.note}</span>
-              </span>
+            <span aria-current={enPlusEnCours ? 'step' : undefined} className="flex h-8 items-center gap-3 text-sm text-foreground">
+              {puce(false, enPlusEnCours)}
+              <span className={cn('min-w-0 flex-1 truncate font-semibold', !enPlusEnCours && 'text-muted-foreground')}>{enPlus.libelle}</span>
+              {note(enPlusEnCours ? t('preview.current') : enPlus.note, enPlusEnCours)}
             </span>
           </li>
         ) : null}
@@ -388,14 +399,22 @@ export function BarreApercu({
   const d = useDonneesApercu(form);
   const [ouvert, setOuvert] = useState(false);
 
-  const premiereLigne = d.type
-    ? [d.titre, d.contrat ? tContrat(d.contrat === 'sale' ? 'saleLong' : 'rentLong') : null]
-        .filter(Boolean)
-        .join(' · ')
-    : t('empty');
+  // TCK-2819 — le `Resume` de la maquette : « Studio · En location · Mermoz » tant que l'annonce n'a pas
+  // de titre écrit, puis son titre ; dessous, le prix et sa période, sinon les chiffres déjà donnés.
+  const premiereLigne = d.titreSaisi
+    ? d.titreSaisi
+    : d.type
+      ? [d.typeLibelle, d.contrat ? tContrat(d.contrat === 'sale' ? 'saleLong' : 'rentLong') : null, d.lieuCourt || null]
+          .filter(Boolean)
+          .join(' · ')
+      : t('empty');
   const secondeLigne = d.prix
-    ? `${d.prix}${d.periode ? ` /${d.periode}` : ''}`
-    : d.lieu || (d.type ? t('priceLater') : t('emptyHint'));
+    ? `${d.prix}${d.periode ? ` / ${d.periode}` : ''}`
+    : d.chiffres.length > 0
+      ? d.chiffres.join(' · ')
+      : d.type
+        ? t('priceLater')
+        : t('emptyHint');
 
   return (
     <>
@@ -404,16 +423,16 @@ export function BarreApercu({
         onClick={() => setOuvert(true)}
         aria-label={t('openLabel')}
         data-testid="barre-apercu"
-        className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-2.5 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:px-6"
+        className="flex w-full shrink-0 items-center gap-3 border-b border-border bg-card py-2 pr-3 pl-4 text-left focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:pr-5 sm:pl-6"
       >
         <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
           {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold text-foreground">{premiereLigne}</span>
-          <span className="truncate text-[0.8125rem] text-muted-foreground tabular-nums">{secondeLigne}</span>
+        <span className="flex min-w-0 flex-1 flex-col leading-tight">
+          <span className="truncate text-corps font-semibold text-foreground">{premiereLigne}</span>
+          <span className="mt-0.5 truncate text-ui text-muted-foreground tabular-nums">{secondeLigne}</span>
         </span>
-        <span className="flex shrink-0 items-center gap-1 text-[0.8125rem] font-medium text-primary">
+        <span className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-sm font-medium text-primary">
           <Eye className="size-4" aria-hidden="true" />
           {t('open')}
         </span>

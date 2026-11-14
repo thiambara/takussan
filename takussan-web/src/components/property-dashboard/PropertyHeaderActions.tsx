@@ -41,7 +41,7 @@ interface Props {
 const PUBLIC_VIEWABLE_STATUSES = new Set(['available', 'published']);
 
 export function PropertyHeaderActions({ property, ouvrirBoost = false, ajouterUnDocument = false }: Props) {
-  const t = useTranslations('property.dashboard.actions');
+  const t = useTranslations('propertyDashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
   const { canPublish, canDelete } = useGestesDuBien();

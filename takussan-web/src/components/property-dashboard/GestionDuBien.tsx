@@ -46,19 +46,26 @@ export function PuceEtatDuMois({
   property,
   aujourdhui,
   court = false,
+  retardCourt = false,
   alerte = false,
 }: {
   readonly property: PropertyListItem;
   readonly aujourdhui: Date;
   readonly court?: boolean;
+  /**
+   * TCK-2638 (AC1) — la carte du téléphone : le RETARD seul prend sa forme courte (« Retard 9 j »).
+   * « En retard de 9 j » après un loyer à sept chiffres ne tenait pas sur la ligne de 226 px : la
+   * puce passait dessous et la carte gagnait 24 px. Les autres états gardent leur forme longue.
+   */
+  readonly retardCourt?: boolean;
   /** TCK-2639 — la fiche (« Ce mois ») marque le retard d'un triangle ; la liste, non (maquette a-0). */
   readonly alerte?: boolean;
 }) {
-  const tGestion = useTranslations('property.dashboard.gestion');
+  const tGestion = useTranslations('propertyDashboard.gestion');
   const fmt = useFormatteurs();
   const etat = etatDuMois(property, aujourdhui);
   if (!etat) return null;
-  const forme = court ? 'etatCourt' : 'etat';
+  const forme = court || (retardCourt && etat.cle === 'enRetard') ? 'etatCourt' : 'etat';
   const t = (cle: string, valeurs?: Record<string, string | number>) => tGestion(`${forme}.${cle}`, valeurs);
   let libelle: string;
   switch (etat.cle) {
@@ -85,7 +92,17 @@ export function PuceEtatDuMois({
           <AlertTriangle className="size-3.5" strokeWidth={2} aria-hidden="true" />
         ) : undefined
       }
-      label={libelle}
+      label={
+        retardCourt && !court && etat.cle === 'enRetard' ? (
+          // À l'écran la forme courte ; aux lecteurs d'écran la phrase entière (« En retard de 9 jours »).
+          <>
+            <span aria-hidden="true">{libelle}</span>
+            <span className="sr-only">{tGestion('etatLu.enRetard', { jours: etat.jours ?? 0 })}</span>
+          </>
+        ) : (
+          libelle
+        )
+      }
       className="whitespace-nowrap"
       data-testid="etat-du-mois"
     />
@@ -108,7 +125,7 @@ export function MontantDuBien({
   /** TCK-2638 (lot B) — la carte Annonces écrit le prix en grand et sa période en petit (maquette a-1). */
   readonly classePeriode?: string;
 }) {
-  const t = useTranslations('property.dashboard.gestion.loyer');
+  const t = useTranslations('propertyDashboard.gestion.loyer');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
   const fmt = useFormatteurs();
   const loyer = loyerDuBien(property);
@@ -158,7 +175,7 @@ export function CelluleOccupant({
   readonly property: PropertyListItem;
   readonly aujourdhui: Date;
 }) {
-  const t = useTranslations('property.dashboard.gestion.ligne');
+  const t = useTranslations('propertyDashboard.gestion.ligne');
   const fmt = useFormatteurs();
   const ligne = ligneOccupant(property, aujourdhui);
   if (!ligne) return <span className="text-muted-foreground">—</span>;
@@ -177,7 +194,7 @@ export function CelluleOccupant({
 
 /** L'agent responsable en pastille d'initiales ; son nom en infobulle et pour l'assistance. */
 export function CelluleAgent({ property }: { readonly property: PropertyListItem }) {
-  const t = useTranslations('property.dashboard.gestion');
+  const t = useTranslations('propertyDashboard.gestion');
   const source = property.primary_contact_source;
   const agent =
     source === 'designated' || source === 'invitation_order' ? (property.primary_contact ?? null) : null;
@@ -212,8 +229,8 @@ function initialesDuNom(nom: string): string {
 
 /** « Publier l'annonce » : le même `POST …/publish` que le menu, coordonnées demandées s'il en manque. */
 export function PublierLAnnonce({ property, className }: { readonly property: PropertyListItem; readonly className?: string }) {
-  const t = useTranslations('property.dashboard.gestion');
-  const tActions = useTranslations('property.dashboard.actions');
+  const t = useTranslations('propertyDashboard.gestion');
+  const tActions = useTranslations('propertyDashboard.actions');
   const router = useRouter();
   const { canPublish } = useGestesDuBien();
   const [retour, setRetour] = useState<{ readonly ok: boolean; readonly texte: string } | null>(null);
@@ -292,7 +309,7 @@ export function CarteGestion({
   readonly onBasculer: () => void;
   readonly libelleCase: string;
 }) {
-  const t = useTranslations('property.dashboard.gestion.ligne');
+  const t = useTranslations('propertyDashboard.gestion.ligne');
   const fmt = useFormatteurs();
   const lieu = lieuDuBien(property);
   const occupant = texteOccupant(property, aujourdhui, t, fmt.jourMois);
@@ -312,7 +329,7 @@ export function CarteGestion({
         {occupant ? <p className="truncate text-ui text-muted-foreground">{occupant}</p> : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <MontantDuBien property={property} className="text-sm" />
-          <PuceEtatDuMois property={property} aujourdhui={aujourdhui} />
+          <PuceEtatDuMois property={property} aujourdhui={aujourdhui} retardCourt />
         </div>
         <PublierLAnnonce property={property} />
       </div>

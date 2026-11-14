@@ -146,8 +146,8 @@
   "alias": {
     "Bien, locataire, référence…": "Rechercher par titre, référence, description…",
     "Bien, locataire, bailleur, référence…": "Rechercher par titre, référence, description…",
-    "Retards d’abord": "Plus récents",
-    "Afficher les 20 suivantes": "Afficher les 20 suivants"
+    "Afficher les 20 suivantes": "Afficher les 20 suivants",
+    "En retard de 6 j": "Retard 6 j"
   },
   "ancres": [],
   "ignorer": [],
@@ -284,6 +284,34 @@
       "propriete": "présence, position des cartes",
       "exception": "Contraintes strictes (rien ne se perd)",
       "motif": "la sélection multiple garde son « tout sélectionner » au bureau, d'où les cartes un peu plus bas que dans la maquette"
+    },
+    {
+      "ecran": "app-biens a-0-telephone, a-1-telephone",
+      "element": "zone « coque · barre d'onglets » : 0,82 % de pixels (> 0,5 %)",
+      "propriete": "pixels",
+      "exception": "donnée",
+      "motif": "relevé du 2026-11-14 (lot D, `.fidelite/TCK-2638/lot-D/`) : la maquette dessine une pastille de non-lus « 2 » sur l'onglet « Messages » (x 277) ; le relevé de l'admin de la démo n'en porte aucune (compte de non-lus de la démo, non relevé à l'API). Libellés, icônes et positions des cinq onglets conformes ; traits et encre des icônes : règle du design system (ligne suivante). L'en-tête de la coque est sous 0,5 % (0,12 %)."
+    },
+    {
+      "ecran": "app-biens a-*",
+      "element": "icône « ⋯ » de la ligne (16 px, trait 1,75) et icônes de l'en-tête (trait 1,75, encre douce pleine)",
+      "propriete": "taille, trait, couleur",
+      "exception": "règle du design system",
+      "motif": "le « ⋯ » est `PropertyRowActions` dans un `Button size=\"icon-sm\"`, dont les icônes font 16 px dans tout `/app` ; TCK-2685 (globals.css) fixe le trait des icônes lucide de la portée à 1,75 (téléphone) / 1,5 (dès `md`) ; TCK-658 et la garde `encre-sans-alpha.contraste` refusent l'encre translucide (`rgba(31,24,17,0.8)` de la maquette → `text-encre-douce`, rgb 76,70,65). Au téléphone, la maquette dessine un chevron là où la carte porte le « ⋯ » (ligne « chevron de fin de carte »)."
+    },
+    {
+      "ecran": "app-biens a-0-telephone",
+      "element": "puce du mois en retard de la carte compacte",
+      "propriete": "libellé « En retard de 6 j » → « Retard 6 j »",
+      "exception": "décision du team-lead (2026-11-14, a)",
+      "motif": "AC1 : sur la ligne de 226 px, un loyer à sept chiffres (« 1 825 000 F / mois », 122 px sur la démo) et « En retard de 9 j » (104 px) ne tenaient pas ; la puce passait à la ligne, la carte faisait 121 px au lieu de 97, et sous « Retards d'abord » (tri par défaut) le premier écran ne montrait que 5 biens. La carte prend la forme courte du tableau (`etatCourt.enRetard`), pour le retard seul (relevé lot D du 2026-11-14 : sept cartes de 97 px, six titres au-dessus de la barre d'onglets). La maquette tient parce que son loyer est « 670 000 F ». Les lecteurs d'écran lisent la phrase entière (« En retard de 9 jours », `gestion.etatLu.enRetard`, en `sr-only`) ; alias « En retard de 6 j » → « Retard 6 j »."
+    },
+    {
+      "ecran": "app-biens a-0-telephone, a-1-telephone",
+      "element": "barre d'actions groupées pendant une sélection",
+      "propriete": "position (au-dessus de la barre d'onglets, 80 px du bas)",
+      "exception": "composant partagé",
+      "motif": "la maquette ne dessine pas la sélection (« restent tels quels ») ; le ticket demande la barre « à la place de la barre d'onglets ». Elle reste un créneau du `FloatingDock` (TCK-644), posée au-dessus des onglets, ses cinq commandes atteignables (mesuré au navigateur à 390, lot D). La remplacer demande un mécanisme de coque (`AppShell`, `data-barre-onglets`) commun aux écrans à sélection : question posée au team-lead, hors de ce lot."
     }
   ],
   "hors_perimetre": [

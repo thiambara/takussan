@@ -61,6 +61,36 @@ describe('CustomerListFilters', () => {
     expect(derniere()).not.toContain('page=');
   });
 
+  // TCK-2596 (AC2) — « Prospects » de « Ma journée » arrive avec stage_group=active : le filtre se
+  // lit sur « Étape », se compte, et une étape précise ou « Toutes les étapes » le retire.
+  it('les étapes en cours (stage_group=active) se lisent sur « Étape » et se retirent', () => {
+    params = new URLSearchParams('vue=mes-clients&stage_group=active');
+    const { unmount } = render(withIntl(<CustomerListFilters />));
+    fireEvent.click(screen.getByRole('button', { name: 'Étape · Prospects actifs' }));
+    expect(screen.getByRole('button', { name: 'Prospects actifs' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Qualifié' }));
+    expect(derniere()).toContain('pipeline_stage=qualified');
+    expect(derniere()).not.toContain('stage_group=');
+    expect(derniere()).toContain('vue=mes-clients');
+    unmount();
+
+    render(withIntl(<CustomerListFilters />));
+    fireEvent.click(screen.getByRole('button', { name: 'Étape · Prospects actifs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toutes les étapes' }));
+    expect(derniere()).not.toContain('stage_group=');
+    expect(derniere()).not.toContain('pipeline_stage=');
+  });
+
+  it('« Prospects actifs » se choisit, et retire l’étape précise', () => {
+    params = new URLSearchParams('pipeline_stage=lost&page=3');
+    render(withIntl(<CustomerListFilters />));
+    fireEvent.click(screen.getByRole('button', { name: /Étape/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Prospects actifs' }));
+    expect(derniere()).toContain('stage_group=active');
+    expect(derniere()).not.toContain('pipeline_stage=');
+    expect(derniere()).not.toContain('page=');
+  });
+
   it('le statut posé se lit sur le filtre, et « Tous les statuts » le retire', () => {
     params = new URLSearchParams('status=inactive');
     render(withIntl(<CustomerListFilters />));

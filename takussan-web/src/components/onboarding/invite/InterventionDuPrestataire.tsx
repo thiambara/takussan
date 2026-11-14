@@ -174,17 +174,24 @@ export function InterventionDuPrestataire({
         <BoutonCollant decalage={decalage} className="lg:mt-6">
           {intervention && !acceptee ? (
             creneauOuvert ? (
+              // Le geste principal d'abord dans le DOM (ordre du bureau, et de la tabulation) ; au téléphone, à droite.
               <div className="grid grid-cols-[1fr_1.15fr] gap-2 lg:flex lg:gap-3">
-                <Button type="button" variant="outline" disabled={occupe} onClick={() => setCreneauOuvert(false)} className={cn(BOUTON_D_ENTREE, 'border border-foreground/20 bg-card px-3 text-foreground lg:w-auto')}>
-                  {t('creneau.annuler')}
-                </Button>
-                <Button type="button" disabled={occupe} onClick={() => void accepter(true)} className={cn(BOUTON_D_ENTREE, 'px-3 lg:w-auto')}>
+                <Button type="button" disabled={occupe} onClick={() => void accepter(true)} className={cn(BOUTON_D_ENTREE, 'order-last px-3 lg:order-none lg:w-auto')}>
                   {envoi ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
                   {envoi ? t('acceptation') : t('creneau.envoyer')}
                 </Button>
+                <Button type="button" variant="outline" disabled={occupe} onClick={() => setCreneauOuvert(false)} className={cn(BOUTON_D_ENTREE, 'border border-foreground/20 bg-card px-3 text-foreground lg:w-auto')}>
+                  {t('creneau.annuler')}
+                </Button>
               </div>
             ) : (
+              // Maquette a-2 : « Accepter » à gauche au bureau, à droite au téléphone. L'ordre du DOM est
+              // celui du bureau, où la tabulation sert ; `order-last` ne déplace que le dessin du téléphone.
               <div className="grid grid-cols-[1fr_1.15fr] gap-2 lg:flex lg:gap-3">
+                <Button type="button" disabled={occupe} onClick={() => void accepter(false)} className={cn(BOUTON_D_ENTREE, 'order-last px-3 lg:order-none lg:w-auto')}>
+                  {envoi ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                  {envoi ? t('acceptation') : t('accepter')}
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -193,10 +200,6 @@ export function InterventionDuPrestataire({
                   className={cn(BOUTON_D_ENTREE, 'border border-foreground/20 bg-card px-3 text-foreground lg:w-auto')}
                 >
                   {t('proposer')}
-                </Button>
-                <Button type="button" disabled={occupe} onClick={() => void accepter(false)} className={cn(BOUTON_D_ENTREE, 'px-3 lg:w-auto')}>
-                  {envoi ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                  {envoi ? t('acceptation') : t('accepter')}
                 </Button>
               </div>
             )

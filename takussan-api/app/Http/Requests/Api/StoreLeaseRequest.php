@@ -6,6 +6,7 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
+use App\Models\Lease;
 use App\Models\Property;
 use App\Rules\JourIso;
 use App\Rules\PersonnelDeLAgence;
@@ -27,14 +28,27 @@ class StoreLeaseRequest extends BaseFormRequest
      */
     public const SPECIAL_CONDITIONS_MAX = 5000;
 
+    /** Le bien jugé par `authorize()`, relu par `propertyAgencyId()` sans seconde requête. */
+    private ?Property $property = null;
+
     /**
-     * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
-     * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
-     * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
+     * TCK-2767 — ouvrir un bail SUR CE BIEN se juge ici, AVANT `rules()` (piège 2 de
+     * `takussan-api/CLAUDE.md`) : `true` sec rendait à l'appelant sans droit sur le bien un 422
+     * détaillant les règles du bail pour un corps invalide, et le 403 seulement pour un corps
+     * valide. La RÈGLE reste dans `LeasePolicy::createOn()`, celle que lit aussi
+     * `LeaseDefaultsRequest` : la lecture et l'écriture d'un même droit répondent pareil.
+     *
+     * Un `property_id` manquant, non entier, absent ou d'une autre agence rend le même refus — la
+     * propriété de TCK-1068 (pas d'oracle d'existence) tient. Le locataire, le garant et la
+     * réservation restent jugés après la validation, dans `LeaseService::create()`, qui garde
+     * aussi le contrôle du bien : la défense en profondeur ne bouge pas.
      */
     public function authorize(): bool
     {
-        return true;
+        $id = filter_var($this->input('property_id'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $this->property = $id === false ? null : Property::query()->find($id);
+
+        return $this->property !== null && $this->user()?->can('createOn', [Lease::class, $this->property]) === true;
     }
 
     /** @return array<string, mixed> */
@@ -83,10 +97,7 @@ class StoreLeaseRequest extends BaseFormRequest
 
     private function propertyAgencyId(): ?int
     {
-        $propertyId = $this->input('property_id');
-        $agencyId = is_numeric($propertyId)
-            ? Property::query()->whereKey((int) $propertyId)->value('agency_id')
-            : null;
+        $agencyId = $this->property?->agency_id;
 
         return $agencyId !== null ? (int) $agencyId : null;
     }

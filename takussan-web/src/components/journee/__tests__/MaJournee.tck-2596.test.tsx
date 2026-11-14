@@ -19,6 +19,8 @@ const etat = vi.hoisted(() => ({
   vide: false,
   /** r2 — chaque source rend un numéro qu'on ne peut pas joindre (masqué, ou hors E.164). */
   injoignable: false,
+  /** TCK-2596 AC2 — le compte des prospects en panne : la case dit « — », jamais `pipeline_total`. */
+  prospectsEnPanne: false,
   titre: null as string | null,
 }));
 
@@ -99,7 +101,12 @@ vi.mock('@/lib/api', async (original) => {
         return page(etat.injoignable ? TACHES.map((t) => (t.taskable?.type === 'customer' ? { ...t, taskable: { ...t.taskable, phone: '706190713' } } : t)) : TACHES);
       }
       if (route === '/api/contact-leads') return page(etat.vide ? [] : [etat.injoignable ? { ...MOUHAMED, phone: '77 000 00 01' } : MOUHAMED]);
-      if (route === '/api/customers') return page([{ id: 1 }], 6);
+      // TCK-2596 AC2 — « Prospects » compte sa liste (référent = moi, étapes vivantes) : 7, pas les 38 de `pipeline_total`.
+      if (route === '/api/customers') {
+        if (p.get('filter[stage_group]') !== 'active') return page([{ id: 1 }], 6);
+        if (etat.prospectsEnPanne) throw new Error('panne');
+        return page([{ id: 1 }], 7);
+      }
       if (route === '/api/calendar') {
         return {
           data: etat.vide
@@ -135,7 +142,7 @@ const bureau = () => document.querySelector<HTMLElement>('[data-slot="journee-bu
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], vide: false, injoignable: false, titre: null });
+  Object.assign(etat, { appels: [], vide: false, injoignable: false, prospectsEnPanne: false, titre: null });
   oublierLesLectures();
 });
 afterEach(() => {
@@ -168,7 +175,7 @@ describe('les sources composées', () => {
     // L'heure pleine moins 24 h : la borne ne change pas à chaque minute.
     expect(demandes?.get('filter[created_at_max]')).toBe('2026-11-09T10:00:00Z');
 
-    const [relances] = lectures('/api/customers');
+    const relances = lectures('/api/customers').find((q) => q.get('filter[follow_up]') === '1');
     expect(relances?.get('filter[follow_up]')).toBe('1');
     expect(relances?.get('filter[referent]')).toBe('me');
 
@@ -322,13 +329,32 @@ describe('le téléphone', () => {
     const liens = within(chiffres).getAllByRole('link');
     expect(liens.map((l) => l.getAttribute('href'))).toEqual([
       '/app/properties?only_mine=1',
-      '/app/customers?vue=mes-clients',
+      '/app/customers?vue=mes-clients&stage_group=active',
       '/app/tasks?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me',
       '/app/commissions',
       '/app/reports',
     ]);
     expect(liens[0]).toHaveAccessibleName('Biens gérés : 25, ouvrir Mes biens');
     await waitFor(() => expect(within(chiffres).getByText('6 à relancer')).toBeInTheDocument());
+    // Le chiffre est celui de la liste qu'il ouvre : `meta.total` de filter[referent]=me&filter[stage_group]=active.
+    await waitFor(() => expect(liens[1]).toHaveAccessibleName('Prospects : 7, ouvrir Mes prospects actifs'));
+    const compte = lectures('/api/customers').find((q) => q.get('filter[stage_group]') === 'active');
+    expect(compte?.get('filter[referent]')).toBe('me');
+    expect(compte?.get('per_page')).toBe('1');
+  });
+
+  it('AC2 — pipeline_total (38) n’est jamais rendu : ni au chargement, ni en panne de la lecture', async () => {
+    etat.prospectsEnPanne = true;
+    monter();
+    const chiffres = telephone().querySelector<HTMLElement>('[data-slot="mes-chiffres"]')!;
+    const prospects = () => within(chiffres).getAllByRole('link')[1];
+    // Au chargement : la valeur absente de la case, comme ses voisines sans donnée.
+    expect(prospects()).toHaveAccessibleName('Prospects : —, ouvrir Mes prospects actifs');
+    // La lecture a échoué (comme « à relancer » en panne : rien d'inventé).
+    await waitFor(() => expect(lectures('/api/customers').some((q) => q.get('filter[stage_group]') === 'active')).toBe(true));
+    await waitFor(() => expect(within(chiffres).getByText('6 à relancer')).toBeInTheDocument());
+    expect(prospects()).toHaveAccessibleName('Prospects : —, ouvrir Mes prospects actifs');
+    expect(chiffres.textContent).not.toContain('38');
     expect(within(chiffres).getByText('dont 2 en retard')).toBeInTheDocument();
   });
 

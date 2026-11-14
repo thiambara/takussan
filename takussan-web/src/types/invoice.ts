@@ -312,7 +312,8 @@ export type OwnerStatementProperty = {
   net: number;
   has_movements: boolean;
   /** `paid`, `late`, `partial`, `due`, `none` (bail sans échéance émise) ou `vacant` (`RentMonthStatus`). */
-  month_status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'vacant' | string;
+  /** `refunded` : loyer échu reçu puis remboursé (TCK-2651, décision 18 du porteur). */
+  month_status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'vacant' | 'refunded' | string;
   days_late: number | null;
 };
 

@@ -98,7 +98,7 @@ export async function EnsembleAgence({ periode = 'current_month' }: { readonly p
       ...((contexte.cheminsAdmin ?? []).includes('/app/agency/team') ? { href: '/app/agency/team' } : {}),
       ...jour('members_count'),
     },
-    // Repris des indices de l'ancienne tuile « Revenus du mois » et « Impayés » (`AgencyKpis`) : la commission de
+    // Repris des indices de l'ancienne tuile « Revenus du mois » et « Impayés » de l'ancienne vue d'agence : la commission de
     // l'agence sur le mois, et les pénalités de retard à recouvrer quand il y en a. Sans lien : aucune liste ne
     // les détaille pour l'admin (le grand livre des commissions est celui de l'agent, famille 6).
     { cle: 'commission', libelle: t('commissionsDuMois'), valeur: data.finance.commission_month, forme: 'montant' },

@@ -19,7 +19,7 @@ interface QuartiersDeLaVilleProps {
  * qui le rend tel quel. `LienLocalise` porte son propre `'use client'`. Sans lien, rien.
  */
 export function QuartiersDeLaVille({ ville, liens }: QuartiersDeLaVilleProps) {
-  const t = useTranslations('property.discovery');
+  const t = useTranslations('propertyDiscovery');
   if (liens.length === 0) return null;
 
   return (

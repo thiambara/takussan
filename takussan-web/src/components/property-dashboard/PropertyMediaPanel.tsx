@@ -29,7 +29,7 @@ interface PropertyMediaPanelProps {
 }
 
 export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
-  const t = useTranslations('property.dashboard.media');
+  const t = useTranslations('propertyDashboard.media');
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

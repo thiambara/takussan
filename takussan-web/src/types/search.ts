@@ -646,7 +646,8 @@ export type PuceDeFiltre = {
  * Les libellés des filtres actifs — **l'unique** endroit du front qui les calcule.
  *
  * Sert les puces de `SearchToolbar` ET le résumé d'une recherche sauvegardée
- * (`SavedSearchesList`), qui en tenait sa propre version : elle ne connaissait que six clés sur
+ * (`useResumeDeCriteres`). La liste d'avant (`SavedSearchesList`, retirée par TCK-2738) en tenait
+ * sa propre version : elle ne connaissait que six clés sur
  * dix-sept, rendait `furnished`, `featured`, `tags`, `location`, `rent_period`, `floor_number`
  * et `available_from` INVISIBLES dans le résumé, et écrivait « Vente » / « ch. » / « surface »
  * en français dur, hors next-intl (principe 5).

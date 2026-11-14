@@ -6,7 +6,7 @@ import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOn
 import { useCleIdempotence } from '@/hooks/useCleIdempotence';
 
 export function useContactMessage(slug: string) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // TCK-253 — Contacting an agent counts as a sensitive action — same

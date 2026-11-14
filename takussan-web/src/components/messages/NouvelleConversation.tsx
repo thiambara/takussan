@@ -1,16 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, Loader2, Search, Users, X } from 'lucide-react';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { initiales } from '@/lib/fiche-publique';
 import { messageErreurApi } from '@/lib/api';
-import { useMessagingContacts, useTrouverLeFilDirect, type MessagingContact } from '@/lib/queries/conversations';
-import { PARTICIPANT_SEARCH_DEBOUNCE_MS } from './ParticipantPicker';
+import { useMessagingContacts, useTrouverLeFilDirect, type MessagingContact, type SectionDeContacts } from '@/lib/queries/conversations';
+import { PARTICIPANT_SEARCH_DEBOUNCE_MS, ParticipantPicker } from './ParticipantPicker';
+import { GroupLeasePicker, GroupPropertyPicker } from './GroupContextPicker';
+import { AlerteErreurs } from './erreursDeValidation';
+import { MAX_PARTICIPANTS, useCreationDeGroupe } from './useCreationDeGroupe';
+import { useLigneDeContact } from './ligneDeContact';
 
 interface NouvelleConversationProps {
   readonly open: boolean;
@@ -21,6 +28,12 @@ interface NouvelleConversationProps {
   readonly onBrouillon: (personne: MessagingContact) => void;
   /** « Nouveau groupe », là où l'espace le propose (`usePeutProposerUnGroupe`) ; absent sinon. */
   readonly onNouveauGroupe?: () => void;
+  /**
+   * TCK-2748 (AC1) — au bureau (dès `lg`), « Créer un groupe » est un interrupteur DANS ce dialogue
+   * (maquette a-3) : destinataires en puces, nom, bien et bail rattachés, « Créer le groupe ». Le
+   * groupe créé s'ouvre par `onOuvrir`. Au téléphone, la rangée mène à `onNouveauGroupe` (TCK-2632).
+   */
+  readonly bureau?: boolean;
 }
 
 /**
@@ -32,30 +45,52 @@ interface NouvelleConversationProps {
  * existe, sinon un brouillon. Si la recherche échoue, on le DIT au lieu d'ouvrir un brouillon : un
  * brouillon envoyé créerait un second fil avec la même personne.
  *
- * Écarts assumés avec la maquette : les personnes ne sont pas rangées en « Clients récents ·
- * Équipe · Propriétaires » (l'API des contacts ne rend que le nom et l'avatar, ni le rôle ni le
- * bien) ; le groupe s'ouvre dans son propre dialogue au lieu d'un interrupteur dans celui-ci ; la
- * recherche ne porte que sur le nom (« un numéro » n'est pas cherché par l'API).
+ * TCK-2830 — sans recherche, les personnes sont rangées comme la maquette : « Clients récents » ·
+ * « Équipe » · « Propriétaires » · « Autres personnes », chaque section lue par SA requête
+ * `filter[relation]` (jamais un tri côté client d'une liste reçue), chaque personne avec sa ligne
+ * de détail (`useLigneDeContact`). Une section vide ne s'affiche pas. Avec une recherche, une seule
+ * liste par pertinence. Écart assumé : la recherche ne porte que sur le nom (« un numéro » n'est
+ * pas cherché par l'API).
+ *
+ * TCK-2748 — au bureau, le groupe se crée DANS ce dialogue (interrupteur « Créer un groupe ») ; au
+ * téléphone, il s'ouvre toujours dans `NewGroupDialog`. Le groupe n'est pas « activé d'office à
+ * partir de deux destinataires » (maquette) : toucher une personne ouvre son fil, sans puces.
  */
-export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onNouveauGroupe }: NouvelleConversationProps) {
+export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onNouveauGroupe, bureau = false }: NouvelleConversationProps) {
   const t = useTranslations('messaging.nouvelle');
   const tGroupe = useTranslations('messaging.group.create');
   const tRacine = useTranslations();
   const [saisie, setSaisie] = useState('');
   const recherche = useDebouncedValue(saisie, PARTICIPANT_SEARCH_DEBOUNCE_MS);
-  const contacts = useMessagingContacts(recherche, { enabled: open });
+  // TCK-2830 — sans recherche, chaque section lit SA requête (`SectionsDeContacts`) : la liste
+  // « tout le périmètre » ne se lit qu'avec un terme.
+  const contacts = useMessagingContacts(recherche, { enabled: open && recherche.trim() !== '' });
   const trouver = useTrouverLeFilDirect();
   const [enCours, setEnCours] = useState<number | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const personnes = contacts.data?.data ?? [];
-  const total = contacts.data?.meta.total ?? 0;
+  const groupe = useCreationDeGroupe();
+  const [modeGroupe, setModeGroupe] = useState(false);
+  /** Le groupe dans ce dialogue : au bureau, et là où l'espace propose un groupe (`usePeutProposerUnGroupe`). */
+  const groupeEnPlace = bureau && onNouveauGroupe !== undefined;
+  const enGroupe = groupeEnPlace && modeGroupe;
 
   function fermer() {
     setSaisie('');
     setErreur(null);
     setEnCours(null);
+    setModeGroupe(false);
+    groupe.reset();
     onClose();
+  }
+
+  async function creerLeGroupe(e: React.FormEvent) {
+    e.preventDefault();
+    if (!groupe.verifierLesParticipants()) return;
+    const id = await groupe.creer();
+    if (id === null) return;
+    fermer();
+    onOuvrir(id);
   }
 
   async function choisir(personne: MessagingContact) {
@@ -94,6 +129,65 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
           </DialogClose>
           <DialogTitle className="min-w-0 flex-1 truncate font-sans text-base leading-tight font-semibold lg:text-titre-court">{t('titre')}</DialogTitle>
         </div>
+        {enGroupe ? (
+          // TCK-2748 (AC1, maquette a-3 bureau) — UN formulaire : « À » en puces, l'interrupteur, le
+          // nom, le bien et le bail côte à côte, puis « Annuler » / « Créer le groupe ».
+          <form onSubmit={(e) => void creerLeGroupe(e)} className="flex min-h-0 flex-1 flex-col" data-testid="groupe-en-un-formulaire" {...fieldDensityScope()}>
+            <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-5">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="groupe-destinataires">
+                  {t('a')}
+                </label>
+                <ParticipantPicker
+                  inputId="groupe-destinataires"
+                  describedBy="groupe-destinataires-aide"
+                  value={groupe.participants}
+                  onChange={(next) => {
+                    groupe.setError(null);
+                    groupe.setParticipants(next);
+                  }}
+                  max={MAX_PARTICIPANTS}
+                  onMaxReached={() => groupe.setError(tGroupe('maxParticipants', { max: MAX_PARTICIPANTS + 1 }))}
+                />
+                <p id="groupe-destinataires-aide" className="mt-1 text-xs text-muted-foreground">
+                  {tGroupe('participantsHint')}
+                </p>
+              </div>
+              <InterrupteurDeGroupe actif onBasculer={() => setModeGroupe(false)} />
+              <div>
+                <label className="mb-1.5 block text-sm font-medium" htmlFor="groupe-nom">
+                  {t('nomDuGroupe')}
+                </label>
+                <Input id="groupe-nom" value={groupe.subject} onChange={(e) => groupe.setSubject(e.target.value)} maxLength={120} required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-sm font-medium" htmlFor="groupe-bien">
+                    {t('bienRattache')}
+                  </label>
+                  <GroupPropertyPicker inputId="groupe-bien" value={groupe.bien} onChange={groupe.choisirBien} />
+                </div>
+                <div className="min-w-0">
+                  <label className="mb-1.5 block text-sm font-medium" htmlFor="groupe-bail">
+                    {t('bailRattache')}
+                  </label>
+                  <GroupLeasePicker inputId="groupe-bail" value={groupe.bail} onChange={groupe.setBail} propertyId={groupe.bien?.id ?? null} />
+                </div>
+              </div>
+              <AlerteErreurs erreurs={groupe.erreurs} />
+            </div>
+            <div className="flex flex-none justify-end gap-2 border-t border-border px-5 py-3">
+              <Button type="button" variant="outline" onClick={fermer}>
+                {tGroupe('cancel')}
+              </Button>
+              <Button type="submit" disabled={groupe.enCours}>
+                {groupe.enCours ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                {tGroupe('create')}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
         <label className="flex min-h-12 flex-none items-center gap-2 border-b border-border px-4 text-corps">
           <Search className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
           <span className="sr-only">{t('rechercheLabel')}</span>
@@ -107,7 +201,9 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
           />
         </label>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {onNouveauGroupe ? (
+          {groupeEnPlace ? (
+            <InterrupteurDeGroupe actif={false} onBasculer={() => setModeGroupe(true)} />
+          ) : onNouveauGroupe ? (
             <button
               type="button"
               onClick={() => {
@@ -131,50 +227,194 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
               {erreur}
             </p>
           ) : null}
-          <h3 className="px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground">{t('personnes')}</h3>
-          {contacts.isLoading ? (
-            <p role="status" className="px-4 py-3 text-ui text-muted-foreground">
-              {tGroupe('searching')}
-            </p>
-          ) : contacts.isError ? (
-            <div className="flex items-center gap-3 px-4 py-3">
-              <p className="text-ui text-destructive">{tGroupe('contactsError')}</p>
-              <button type="button" onClick={() => void contacts.refetch()} className="text-ui font-medium underline underline-offset-2">
-                {tGroupe('retry')}
-              </button>
-            </div>
-          ) : personnes.length === 0 ? (
-            <p className="px-4 py-3 text-ui text-muted-foreground">
-              {recherche.trim() ? tGroupe('noContact') : tGroupe('noContactYet')}
-            </p>
+          {recherche.trim() ? (
+            // Avec une recherche : UNE liste, par pertinence (TCK-2632), avec la ligne de détail.
+            <SectionDePersonnes
+              titre={t('personnes')}
+              requete={contacts}
+              enCours={enCours}
+              onChoisir={(p) => void choisir(p)}
+              vide={tGroupe('noContact')}
+            />
           ) : (
-            <ul>
-              {personnes.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => void choisir(p)}
-                    aria-busy={enCours === p.id || undefined}
-                    disabled={enCours !== null && enCours !== p.id}
-                    className="flex min-h-14 w-full items-center gap-3 px-4 py-1.5 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted/60 disabled:opacity-60"
-                  >
-                    <Avatar size="40">
-                      {p.avatar_url ? <AvatarImage src={p.avatar_url} alt="" /> : null}
-                      {/* Les initiales doublent le nom : la rangée se nomme par le nom seul. */}
-                      <AvatarFallback aria-hidden="true">{initiales(p.name)}</AvatarFallback>
-                    </Avatar>
-                    <span className="min-w-0 flex-1 truncate text-corps font-medium">{p.name}</span>
-                    {enCours === p.id ? <Loader2 className="size-4 flex-none animate-spin text-muted-foreground" aria-hidden="true" /> : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <SectionsDeContacts open={open} enCours={enCours} onChoisir={(p) => void choisir(p)} />
           )}
-          {!contacts.isError && total > personnes.length ? (
-            <p className="px-4 py-3 text-xs text-muted-foreground">{tGroupe('moreResults', { shown: personnes.length, total })}</p>
-          ) : null}
         </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * TCK-2748 — la rangée « Créer un groupe » du bureau : un interrupteur (`role="switch"`), dont la
+ * rangée entière est la cible (`<label>`). Éteint, il ouvre le formulaire de groupe ; allumé, il revient
+ * à la liste des personnes.
+ */
+function InterrupteurDeGroupe({ actif, onBasculer }: { readonly actif: boolean; readonly onBasculer: () => void }) {
+  const t = useTranslations('messaging.nouvelle');
+  return (
+    <label
+      className={
+        actif
+          ? 'flex cursor-pointer items-center gap-3 rounded-lg bg-muted/50 px-3 py-2.5'
+          : 'flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 hover:bg-muted/60'
+      }
+    >
+      {actif ? null : (
+        <span className="inline-flex size-10 flex-none items-center justify-center rounded-full bg-fond-avatar text-accent">
+          <Users className="size-5 stroke-[1.75]" aria-hidden="true" />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className={actif ? 'block text-sm font-medium' : 'block text-corps font-medium'}>{t('nouveauGroupe')}</span>
+        <span className="block text-ui text-muted-foreground">{t('nouveauGroupeAide')}</span>
+      </span>
+      <Switch checked={actif} onCheckedChange={onBasculer} />
+    </label>
+  );
+}
+
+/** TCK-2830 — l'ordre de la maquette ; chaque code est un `filter[relation]` du serveur. */
+const SECTIONS: readonly { readonly code: SectionDeContacts; readonly titre: 'clients' | 'equipe' | 'proprietaires' | 'autres' }[] = [
+  { code: 'client', titre: 'clients' },
+  { code: 'equipe', titre: 'equipe' },
+  { code: 'proprietaire', titre: 'proprietaires' },
+  { code: 'autre', titre: 'autres' },
+];
+
+type RequeteDeContacts = ReturnType<typeof useMessagingContacts>;
+
+interface ChoixDePersonne {
+  readonly enCours: number | null;
+  readonly onChoisir: (personne: MessagingContact) => void;
+}
+
+/**
+ * TCK-2830 — les quatre sections, sans recherche. Le message « personne à joindre » ne paraît
+ * qu'une fois TOUTES les réponses arrivées et vides ; une section vide ne s'affiche pas.
+ */
+function SectionsDeContacts({ open, enCours, onChoisir }: ChoixDePersonne & { readonly open: boolean }) {
+  const t = useTranslations('messaging.nouvelle.sections');
+  const tGroupe = useTranslations('messaging.group.create');
+  const client = useMessagingContacts('', { enabled: open, section: 'client' });
+  const equipe = useMessagingContacts('', { enabled: open, section: 'equipe' });
+  const proprietaire = useMessagingContacts('', { enabled: open, section: 'proprietaire' });
+  const autre = useMessagingContacts('', { enabled: open, section: 'autre' });
+  const requetes: Record<SectionDeContacts, RequeteDeContacts> = { client, equipe, proprietaire, autre };
+  const toutes = Object.values(requetes);
+
+  const enChargement = toutes.some((r) => r.isLoading);
+  const toutesVides = toutes.every((r) => !r.isError && r.data !== undefined && r.data.data.length === 0);
+
+  return (
+    <>
+      {SECTIONS.map((s) => (
+        <SectionDePersonnes
+          key={s.code}
+          titre={t(s.titre)}
+          requete={requetes[s.code]}
+          enCours={enCours}
+          onChoisir={onChoisir}
+          masquerSiVide
+        />
+      ))}
+      {enChargement && !toutes.some((r) => (r.data?.data.length ?? 0) > 0) ? (
+        <p role="status" className="px-4 py-3 text-ui text-muted-foreground">
+          {tGroupe('searching')}
+        </p>
+      ) : toutesVides ? (
+        <p className="px-4 py-3 text-ui text-muted-foreground">{tGroupe('noContactYet')}</p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Une liste titrée de personnes (une `region` nommée par son titre). Chaque rangée se NOMME par le
+ * nom seul et se DÉCRIT par sa ligne de détail. `masquerSiVide` : une section sans personne, ou
+ * encore en chargement, ne s'affiche pas (TCK-2830) ; la liste d'une recherche dit « personne ».
+ */
+function SectionDePersonnes({
+  titre,
+  requete,
+  enCours,
+  onChoisir,
+  vide,
+  masquerSiVide = false,
+}: ChoixDePersonne & {
+  readonly titre: string;
+  readonly requete: RequeteDeContacts;
+  readonly vide?: string;
+  readonly masquerSiVide?: boolean;
+}) {
+  const tGroupe = useTranslations('messaging.group.create');
+  const ligne = useLigneDeContact();
+  const id = useId();
+  const personnes = requete.data?.data ?? [];
+  const total = requete.data?.meta.total ?? 0;
+
+  if (masquerSiVide && !requete.isError && personnes.length === 0) return null;
+
+  return (
+    <section aria-labelledby={`${id}-titre`}>
+      <h3 id={`${id}-titre`} className="px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground">
+        {titre}
+      </h3>
+      {requete.isLoading ? (
+        <p role="status" className="px-4 py-3 text-ui text-muted-foreground">
+          {tGroupe('searching')}
+        </p>
+      ) : requete.isError ? (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <p className="text-ui text-destructive">{tGroupe('contactsError')}</p>
+          <button type="button" onClick={() => void requete.refetch()} className="text-ui font-medium underline underline-offset-2">
+            {tGroupe('retry')}
+          </button>
+        </div>
+      ) : personnes.length === 0 ? (
+        <p className="px-4 py-3 text-ui text-muted-foreground">{vide}</p>
+      ) : (
+        <ul>
+          {personnes.map((p) => {
+            const detail = ligne(p);
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => onChoisir(p)}
+                  aria-busy={enCours === p.id || undefined}
+                  aria-labelledby={`${id}-${p.id}-nom`}
+                  aria-describedby={detail ? `${id}-${p.id}-detail` : undefined}
+                  disabled={enCours !== null && enCours !== p.id}
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-1.5 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted/60 disabled:opacity-60"
+                >
+                  <Avatar size="40">
+                    {p.avatar_url ? <AvatarImage src={p.avatar_url} alt="" /> : null}
+                    {/* Les initiales doublent le nom : la rangée se nomme par le nom seul. */}
+                    <AvatarFallback aria-hidden="true">{initiales(p.name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1">
+                    <span id={`${id}-${p.id}-nom`} className="block truncate text-corps font-medium">
+                      {p.name}
+                    </span>
+                    {detail ? (
+                      <span id={`${id}-${p.id}-detail`} className="block truncate text-ui text-muted-foreground">
+                        {detail}
+                      </span>
+                    ) : null}
+                  </span>
+                  {enCours === p.id ? <Loader2 className="size-4 flex-none animate-spin text-muted-foreground" aria-hidden="true" /> : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {!requete.isError && total > personnes.length ? (
+        <p className="px-4 py-3 text-xs text-muted-foreground">{tGroupe('moreResults', { shown: personnes.length, total })}</p>
+      ) : null}
+    </section>
   );
 }

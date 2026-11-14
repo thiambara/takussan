@@ -5,7 +5,6 @@
   "fichiers": {
     "src/components/auth/GardeDoubleFacteur.tsx": {"tracking-arbitraire":1},
     "src/components/brand/Logo.tsx": {"texte-arbitraire":1,"tracking-arbitraire":1},
-    "src/components/compare/CompareFloatingBar.tsx": {"ombre-arbitraire":6,"motif":"TCK-2618 (correctif de garde) : le comparateur flottant entre dans /app avec la sélection ; ses six ombres (pastille et barre flottantes à deux couches, pastille sombre, contour intérieur de vignette clair et sombre, pastille de retrait) n'ont AUCUN jeton nommé dans jetons-de-l-app (barre-collante, filet, bouton-photo, actif, panneau, feuille ne leur correspondent pas), et le composant est partagé avec le site public : à nommer par TCK-2741 (jetons d'ombre du comparateur, rendu identique), pas à approcher ici."},
     "src/components/console/PageHeader.tsx": {"tracking-arbitraire":1},
     "src/components/console/StatCard.tsx": {"tracking-arbitraire":1},
     "src/components/customer-form/CustomerForm.tsx": {"aplat-accent":1},
@@ -31,7 +30,6 @@
     "src/components/property-dashboard/PropertyCalendarPanel.tsx": {"aplat-accent":2},
     "src/components/property-form/ChampsLieu.tsx": {"texte-arbitraire":1},
     "src/components/property-form/PropertyWizard.tsx": {"aplat-accent":1},
-    "src/components/property-form/wizard/ApercuAnnonce.tsx": {"ombre-arbitraire":1,"texte-arbitraire":6},
     "src/components/property-form/wizard/ChoiceChips.tsx": {"ombre-arbitraire":2,"texte-arbitraire":1,"tracking-arbitraire":1},
     "src/components/property-form/wizard/EnTetePublication.tsx": {"texte-arbitraire":1},
     "src/components/property-form/wizard/GeoSuggestionChip.tsx": {"aplat-accent":2},

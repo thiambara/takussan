@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
@@ -658,6 +658,13 @@ export function AssistantDePublication({
    * à React — et l'appeler pendant le rendu mettrait à jour les `Controller` enfants au milieu du
    * nôtre.
    *
+   * ⚠ TCK-2823 — un effet de MISE EN PAGE, pas un effet passif. La reprise vient de rendre l'étape du
+   * brouillon (`setIndex` ci-dessus), et les effets passifs d'un enfant passent AVANT ceux du parent :
+   * en `useEffect`, celui de `StepFinition` lisait le formulaire VIDE, un commit avant le `reset` —
+   * `tType('')`, `MISSING_MESSAGE`, frontière d'erreur au rechargement de `/publish` à l'étape 6, et
+   * en production le titre proposé perdu. Tout effet de mise en page passe avant tout effet passif du
+   * même commit : aucune étape ne voit plus le formulaire d'avant la reprise.
+   *
    * ⚠ `reset` et non une suite de `setValue` : un brouillon partiel doit rendre au formulaire un
    * état COMPLET, sinon une clé absente du brouillon garderait la valeur d'un rendu précédent.
    *
@@ -667,7 +674,7 @@ export function AssistantDePublication({
    * serveur vient d'accuser réception — c'est-à-dire la frappe d'il y a une seconde.
    */
   const brouillonApplique = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (etatBrouillon !== 'restaure' || brouillonApplique.current) return;
     brouillonApplique.current = true;
     const donnees = brouillon.draft?.data;
@@ -1048,7 +1055,8 @@ export function AssistantDePublication({
         )}
         apercu={
           <>
-            <CarteApercu form={form} photos={photos} />
+            {/* TCK-2819 — la colonne : la photo en 16/9 (maquette `CarteApercu compact`). */}
+            <CarteApercu form={form} photos={photos} compact />
             {listePourPublier()}
             {noteDeQuota}
           </>

@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { MessagesSquare, SquarePen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
+  useConversation,
   useConversationsInfinite,
   usePropertyConversation,
   type MessagingContact,
@@ -23,6 +24,7 @@ import { NouvelleConversation } from './NouvelleConversation';
 import { BrouillonDirect } from './BrouillonDirect';
 import { usePeutProposerUnGroupe } from './espaceActif';
 import { ColonneDeContexte } from './ColonneDeContexte';
+import { InfosDuGroupe } from './InfosDuGroupe';
 import { FeuilleDuFil } from './FeuilleDuFil';
 
 /**
@@ -150,6 +152,15 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
   /** TCK-2632 (maquette a/2) — au téléphone, la feuille du fil que « ⋯ » d'un fil direct ouvre. */
   const [feuilleDuFil, setFeuilleDuFil] = useState(false);
   const contexte = { ouvert: contexteOuvert, onBasculer: () => setContexteOuvert((o) => !o) };
+  /**
+   * TCK-2748 (AC2) — au bureau, la colonne de droite d'un fil de GROUPE est « Infos du groupe » ; celle
+   * d'un fil direct reste la colonne de contexte. Le type se lit sur la conversation que `ChatView`
+   * charge déjà (même clé, même requête) : rien de plus ne part. Tant qu'il est inconnu, aucune des
+   * deux colonnes : l'une remplacerait l'autre sous les yeux.
+   */
+  const filDuBureau = bureau && !brouillonDirect && !brouillon ? conversationAffichee : null;
+  const { data: detailDuFil } = useConversation(filDuBureau);
+  const typeDuFil = detailDuFil?.data?.id === filDuBureau ? detailDuFil?.data?.type : undefined;
   const comptes = premierePage?.meta.counts;
   const sousTitreBureau = comptes
     ? comptes.all === 0
@@ -354,9 +365,11 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
               )}
             </section>
           )}
-          {bureau && !brouillonDirect && !brouillon && conversationAffichee ? (
+          {filDuBureau && typeDuFil === 'group' ? (
+            contexteOuvert ? <InfosDuGroupe key={filDuBureau} conversationId={filDuBureau} /> : null
+          ) : filDuBureau && typeDuFil !== undefined ? (
             <ColonneDeContexte
-              conversationId={conversationAffichee}
+              conversationId={filDuBureau}
               ouverte={contexteOuvert}
               onOuvrir={() => setContexteOuvert(true)}
             />
@@ -377,6 +390,8 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
         onOuvrir={ouvrirDepuisLaListe}
         onBrouillon={ouvrirUnBrouillon}
         onNouveauGroupe={peutCreerGroupe ? () => setGroupOpen(true) : undefined}
+        // TCK-2748 (AC1) — au bureau, le groupe se crée dans ce dialogue ; au téléphone, `NewGroupDialog`.
+        bureau={bureau}
       />
     </>
   );

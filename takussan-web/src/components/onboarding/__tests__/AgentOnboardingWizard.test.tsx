@@ -124,9 +124,11 @@ describe('<AgentOnboardingWizard> — deux écrans (TCK-2613)', () => {
     expect(within(carte).getByRole('link', { name: AGENT.prospect.appeler })).toHaveAttribute('href', 'tel:+221775302148');
     expect(within(carte).getByRole('link', { name: AGENT.prospect.whatsapp })).toHaveAttribute('href', 'https://wa.me/221775302148');
     expect(screen.getByText('Dakar Immo vous a déjà confié un prospect. Il attend votre appel.')).toBeInTheDocument();
-    // Plus d'écran de pièces : ni numéro de carte, ni « Soumettre le dossier ».
-    expect(screen.queryByText(frMessages.agents.onboarding.steps.kyc.submitCta)).toBeNull();
-    expect(screen.queryByLabelText(frMessages.agents.onboarding.steps.kyc.licenseNumberLabel)).toBeNull();
+    // Plus d'écran de pièces (TCK-2821 : ses textes ont quitté le dictionnaire, l'absence s'affirme en clair) :
+    // ni « Envoyer mes pièces », ni numéro de carte, ni aucun champ fichier.
+    expect(screen.queryByText(/Envoyer mes pièces/i)).toBeNull();
+    expect(screen.queryByLabelText(/carte professionnelle/i)).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: AGENT.allerAMonEspace }));
     await waitFor(() => expect(agentOnboardCompleteAction).toHaveBeenCalledWith(11, undefined));

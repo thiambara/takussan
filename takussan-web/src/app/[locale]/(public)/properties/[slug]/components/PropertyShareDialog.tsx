@@ -32,7 +32,7 @@ interface PropertyShareDialogProps {
  * (décision du porteur, 2026-10-06).
  */
 export function PropertyShareDialog({ open, onOpenChange, property, url }: PropertyShareDialogProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const tTypes = useTranslations('property.types');
   const tContact = useTranslations('propertyContact.share');
   const [copied, setCopied] = useState(false);

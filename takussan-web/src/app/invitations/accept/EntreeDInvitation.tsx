@@ -11,7 +11,7 @@ import { CasesDuCode, LONGUEUR_DU_CODE } from '@/components/auth/CasesDuCode';
 import { hrefConnexionPour } from '@/components/auth/lien-connexion';
 import { Logo } from '@/components/brand/Logo';
 import { useDrapeauConnexionParTelephone } from '@/components/bookings/useIdentiteParTelephone';
-import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
+import { DeclarerEntree, useClicDeSortie } from '@/components/entree/CoqueDEntree';
 import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Button } from '@/components/ui/button';
@@ -102,7 +102,19 @@ export function EntreeDInvitation({ jeton, connecte, apercu, prerempliDuCompte =
     router.refresh();
   }
 
-  const objet = <DeclarerEntree objet={<PanneauDeLAgence apercu={apercu} />} objetAGauche />;
+  // TCK-2598 (r2) — rien n'est enregistré avant l'envoi : des noms corrigés (comparés au pré-rempli, pas
+  // au vide), un numéro ou un code tapés sont une saisie, et la sortie demande. Un `undefined` hors
+  // saisie : la coque fait un OU des déclarations, celle du mot de passe (`AccepterInvitation`) comprise.
+  const saisie =
+    !connecte && (prenom !== apercu.prerempli.prenom || nom !== apercu.prerempli.nom || entree.telephone !== '' || entree.code !== '');
+  const objet = (
+    <DeclarerEntree
+      objet={<PanneauDeLAgence apercu={apercu} />}
+      objetAGauche
+      saisie={saisie || undefined}
+      reprise={t('sortie.reprise')}
+    />
+  );
 
   if (connecte) {
     return (
@@ -405,6 +417,8 @@ function EcranDuCode({
   const t = useTranslations('invitationAccept');
   const tCommun = useTranslations('common');
   const decalage = useDecalageDuClavier();
+  // TCK-2598 (r1) — la marque de cet en-tête remplace celle de la coque au téléphone : même garde.
+  const clicDeSortie = useClicDeSortie();
   const agence = apercu.agence;
   const numero = parSms ? (apercu.destinataire?.masque ?? '') : numeroAffiche(entree.telephone);
   const biens = cleDuRole(apercu.role) === 'owner' ? (apercu.attente.biens ?? 0) : 0;
@@ -424,7 +438,7 @@ function EcranDuCode({
             >
               <ArrowLeft className="size-5" aria-hidden="true" />
             </button>
-            <Link href="/" className="inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring">
+            <Link href="/" onClick={clicDeSortie} className="inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring">
               <Logo nom={tCommun('appName')} />
             </Link>
           </header>

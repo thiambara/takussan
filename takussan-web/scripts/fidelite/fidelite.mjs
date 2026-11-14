@@ -617,6 +617,9 @@ async function cmdBalayer() {
       try {
         await cdp('Page.enable');
         await cdp('Runtime.enable');
+        // TCK-2738 — la même langue que `releve` : la locale du navigateur (Intl, `Accept-Language`)
+        // en plus du cookie, sans quoi un libellé formaté par le navigateur sortait en anglais.
+        await cdp('Emulation.setLocaleOverride', { locale: 'fr-FR' });
         await cdp('Emulation.setDeviceMetricsOverride', { width: L, height: 900, deviceScaleFactor: 1, mobile: L < 768 });
         let racine = null;
         let url;
@@ -636,7 +639,10 @@ async function cmdBalayer() {
         for (const t = Date.now(); !charge && Date.now() - t < 90_000; ) await dormir(150);
         await dormir(Number(opt('attente', '1500')));
         const r = await evaluer(cdp, `(${BALAYAGE})(${JSON.stringify(racine)})`);
-        console.log(JSON.stringify({ cible: page ? `${page}/${opt('a', 'a')}/${e}` : opt('url'), largeur: L, ...r }));
+        // TCK-2738 — la langue du relevé se lit sur chaque ligne : celle du document (le cookie), celle
+        // d'Intl (la locale émulée), et les libellés de la barre d'onglets quand elle est rendue (`null` dès `md`, où elle est masquée).
+        const langue = await evaluer(cdp, `({ document: document.documentElement.lang, intl: Intl.DateTimeFormat().resolvedOptions().locale, onglets: ((b) => (b && b.getClientRects().length ? [...b.querySelectorAll('a, button')].map((e) => e.textContent.trim()) : null))(document.querySelector('[data-slot="barre-onglets"]')) })`);
+        console.log(JSON.stringify({ cible: page ? `${page}/${opt('a', 'a')}/${e}` : opt('url'), largeur: L, langue, ...r }));
       } finally {
         fermer();
       }

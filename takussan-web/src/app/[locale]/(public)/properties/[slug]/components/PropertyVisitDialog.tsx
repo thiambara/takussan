@@ -81,7 +81,7 @@ export function PropertyVisitDialog({
   onSuccess,
   onPrepareApplication,
 }: PropertyVisitDialogProps) {
-  const t = useTranslations('property.visitDialog');
+  const t = useTranslations('propertyVisitDialog');
   const tVisit = useTranslations('propertyContact.visit');
   const tCommun = useTranslations('common.actions');
   const libelles = useLibellesDeVisite();

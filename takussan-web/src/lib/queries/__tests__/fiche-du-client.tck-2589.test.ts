@@ -27,7 +27,7 @@ describe('fetchFicheDuClient', () => {
 
     expect(url.pathname).toBe('/api/customers/7');
     expect(options.token).toBe('jeton');
-    expect(url.searchParams.get('fields[customers]')?.split(',')).toEqual(['next_action', 'follow_up', 'referent']);
+    expect(url.searchParams.get('fields[customers]')?.split(',')).toEqual(['next_action', 'follow_up', 'referent', 'visit_places']);
     expect(url.searchParams.get('include')?.split(',').sort()).toEqual(
       ['bookingsCount', 'documents', 'interestedProperty', 'leasesCount', 'origin', 'tags', 'upcomingVisits', 'visitsCount'],
     );

@@ -30,9 +30,9 @@ const STYLE_RETOUR =
   '[[data-slot=retour-a-la-liste]~&]:border-transparent [[data-slot=retour-a-la-liste]~&]:bg-transparent [[data-slot=retour-a-la-liste]~&]:text-encre-discrete max-md:h-12 max-md:w-full max-md:text-corps';
 
 /**
- * TCK-2619 — le corps de l'introuvable de `/app`, composant SERVEUR (cf. `not-found.tsx`) : ce qu'il
- * rend peut être dans le HTML de la réponse 404 — ⚠ aujourd'hui il ne l'est pas, la coque entière
- * tombant au rendu serveur (mesure du 2026-11-11, docblock de `not-found.tsx`). Le champ est un vrai
+ * TCK-2619 — le corps de l'introuvable de `/app`, composant SERVEUR (cf. `not-found.tsx`). ⚠ Ce qu'il
+ * rend n'est PAS dans le HTML de la réponse 404 : Next 16 ne rend jamais au serveur un introuvable
+ * atteint par `notFound()`, l'écran arrive à l'hydratation (mesure du 2026-11-14, TCK-2740). Le champ est un vrai
  * formulaire de recherche, sans état React : `ListeDeSecours` (client) l'écoute par son identifiant,
  * filtre l'index de la palette à la saisie et ouvre la première page à Entrée.
  */

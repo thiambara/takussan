@@ -9,7 +9,7 @@ import { AGING_BUCKETS, type AgingBalance, type AgingBucket } from '@/lib/querie
  * ⚠ **« À faire » ne liste que l'inachevé** : une file vide n'a pas de ligne. Et « Tout est à jour »
  * ne se dit que lorsque CHAQUE file a répondu, à zéro : une file en panne ou encore en chargement
  * n'est pas une file vide — l'écrire « à jour » serait un mensonge tranquille (le défaut que
- * `AgencyQueues` nomme déjà).
+ * nommait déjà l'ancien bloc de files d'attente de la vue d'agence, TCK-375).
  */
 
 /** L'état d'une file lue : en chargement, en échec, ou son total. */

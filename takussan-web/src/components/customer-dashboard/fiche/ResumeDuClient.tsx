@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { ChevronRight, Loader2, Search } from 'lucide-react';
+import { ChevronRight, Loader2, MapPin, Navigation, Search } from 'lucide-react';
 
 import { isReachable, whatsappHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
@@ -163,17 +163,58 @@ function RappelerLaVisite({ customer, visite, jour, heure }: { readonly customer
         }}
         aria-label={t('rappelerAria', { nom })}
         data-slot="rappeler-la-visite"
-        className="mt-3 flex h-11 w-full min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 text-corps font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+        className="flex h-11 grow items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card px-3.5 text-corps font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
       >
         <IconeWhatsApp className="size-icone flex-none text-success lg:size-icone" />
         {t('rappeler')}
       </a>
       {enregistrement.isError ? (
-        <p role="alert" className="mt-2 text-ui text-destructive">
+        <p role="alert" className="basis-full text-ui text-destructive">
           {tFiche('gestesNonNotes')}
         </p>
       ) : null}
     </>
+  );
+}
+
+/**
+ * TCK-2761 — « Itinéraire » (maquette a-3, « la veille ») : la carte sur les COORDONNÉES du bien,
+ * servies au seul lecteur de son adresse ; sans coordonnées, aucun geste (jamais l'adresse écrite).
+ */
+function ItineraireDeLaVisite({ visite }: { readonly visite: ProchaineVisite }) {
+  const t = useTranslations('crm.fiche.prochaine');
+  if (!visite.itineraire) return null;
+  return (
+    <a
+      href={visite.itineraire}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={visite.adresse ? t('itineraireAria', { adresse: visite.adresse }) : undefined}
+      data-slot="itineraire-de-la-visite"
+      className="inline-flex h-11 flex-none items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-foreground px-3.5 text-corps font-semibold text-background outline-none hover:bg-foreground/90 focus-visible:ring-3 focus-visible:ring-ring"
+    >
+      <Navigation className="size-icone flex-none" strokeWidth={1.75} aria-hidden="true" />
+      {t('itineraire')}
+    </a>
+  );
+}
+
+/** La ligne d'adresse : « Rue OU-48 · confirmée » ; sans adresse servie, le seul statut. */
+function AdresseEtStatut({ visite }: { readonly visite: ProchaineVisite }) {
+  const t = useTranslations('crm.fiche.prochaine');
+  if (!visite.adresse) {
+    if (visite.aConfirmer) return <p className="text-ui text-muted-foreground">{t('aConfirmer')}</p>;
+    if (visite.confirmee) return <p className="text-ui text-muted-foreground">{t('confirmee')}</p>;
+    return null;
+  }
+  const adresse = visite.adresse;
+  return (
+    <p data-slot="adresse-de-la-visite" className="flex items-start gap-1 text-ui text-muted-foreground">
+      <MapPin className="mt-0.5 size-3.5 flex-none" aria-hidden="true" />
+      <span className="min-w-0">
+        {visite.confirmee ? t('adresseConfirmee', { adresse }) : visite.aConfirmer ? t('adresseAConfirmer', { adresse }) : adresse}
+      </span>
+    </p>
   );
 }
 
@@ -206,12 +247,16 @@ export function ProchaineActionDuClient({ customer, className }: { readonly cust
           <div className="min-w-0 flex-1 leading-snug">
             <p className="text-corps font-semibold tabular-nums">{demain ? t('visiteDemain', { jour, heure }) : t('visite', { jour, heure })}</p>
             {visite.bien ? <p className="truncate text-sm text-encre-douce">{visite.bien}</p> : null}
-            {visite.aConfirmer ? <p className="text-ui text-muted-foreground">{t('aConfirmer')}</p> : null}
-            {visite.confirmee ? <p className="text-ui text-muted-foreground">{t('confirmee')}</p> : null}
+            <AdresseEtStatut visite={visite} />
           </div>
           {visite.aConfirmer ? <ConfirmerLaVisite visite={visite} /> : null}
         </div>
-        <RappelerLaVisite customer={customer} visite={visite} jour={jour} heure={heure} />
+        {visite.itineraire || (visite.confirmee && isReachable(customer.phone)) ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <ItineraireDeLaVisite visite={visite} />
+            <RappelerLaVisite customer={customer} visite={visite} jour={jour} heure={heure} />
+          </div>
+        ) : null}
       </>
     );
   } else if (action?.type === 'task') {
@@ -283,6 +328,12 @@ export function RechercheDuClient({ customer, droite, className }: { readonly cu
         <>
           {lignes[0] ? <p className="mt-2 text-corps font-medium leading-snug">{lignes[0]}</p> : null}
           {lignes[1] ? <p className={cn('text-corps leading-snug text-encre-douce', !lignes[0] && 'mt-2')}>{lignes[1]}</p> : null}
+          {/* TCK-2761 — la recherche déduite du bien d'une demande, tant que personne ne l'a modifiée. */}
+          {customer.seeking_deduced_at ? (
+            <p data-slot="recherche-deduite" className="mt-1 text-xs text-muted-foreground">
+              {t('deduite')}
+            </p>
+          ) : null}
         </>
       ) : (
         <p className="mt-2 text-corps text-muted-foreground">{t('vide')}</p>

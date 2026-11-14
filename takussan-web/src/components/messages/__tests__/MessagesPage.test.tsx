@@ -151,9 +151,19 @@ const listeSansFiltre = vi.fn<() => { data: unknown }>(() => ({ data: undefined 
 function pageDeListe(fils: FilDeListe[], counts = { all: fils.length, unread: fils.filter((f) => (f.unread_count ?? 0) > 0).length, group: 0 }) {
   return { data: { pages: [{ data: fils, meta: { current_page: 1, last_page: 1, counts } }] } };
 }
+/** TCK-2748 — le type de chaque fil (`direct` par défaut), lu par la page pour choisir sa colonne. */
+const typesDesFils = new Map<number, 'direct' | 'group'>();
+
 vi.mock('@/lib/queries/conversations', () => ({
   usePropertyConversation: () => ({ data: resolution() }),
   useConversationsInfinite: () => listeSansFiltre(),
+  useConversation: (id: number | null | undefined) => ({
+    data: id ? { data: { id, type: typesDesFils.get(id) ?? 'direct' } } : undefined,
+  }),
+}));
+
+vi.mock('../InfosDuGroupe', () => ({
+  InfosDuGroupe: ({ conversationId }: { conversationId: number }) => <div data-testid="infos-du-groupe">infos={conversationId}</div>,
 }));
 
 vi.mock('../FeuilleDuFil', () => ({
@@ -926,6 +936,27 @@ describe('<MessagesPage> l’arrivée au bureau et le contexte (TCK-2632)', () =
 
     fireEvent.click(screen.getByTestId('rouvrir-le-contexte'));
     expect(screen.getByTestId('colonne-de-contexte')).toHaveAttribute('data-ouverte', 'true');
+  });
+
+  // TCK-2748 (AC2) — dès `xl`, un fil de GROUPE a « Infos du groupe » à droite ; un fil direct garde
+  // la colonne de contexte. Repliée depuis l'en-tête, la colonne du groupe disparaît.
+  it('un fil de groupe a « Infos du groupe » au lieu de la colonne de contexte, repliable', () => {
+    typesDesFils.set(9, 'group');
+    try {
+      listeSansFiltre.mockReturnValue(pageDeListe(FILS));
+      render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+      expect(screen.getByTestId('infos-du-groupe')).toHaveTextContent('infos=9');
+      expect(screen.queryByTestId('colonne-de-contexte')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('basculer-le-contexte'));
+      expect(screen.queryByTestId('infos-du-groupe')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('basculer-le-contexte'));
+      expect(screen.getByTestId('infos-du-groupe')).toBeInTheDocument();
+
+    } finally {
+      typesDesFils.clear();
+    }
   });
 
   it('pas de colonne de contexte au téléphone, ni sur un brouillon', () => {

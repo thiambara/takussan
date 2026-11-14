@@ -65,7 +65,7 @@ describe('CarteApercu', () => {
 
   it('un loyer porte sa période — mensuelle quand elle n’est pas encore choisie', () => {
     const c = carte({ type: 'apartment', contract_type: 'rent', price: 450_000 });
-    expect(c.getByTestId('apercu-prix')).toHaveTextContent(/450\s000\sF CFA\s*\/mois/);
+    expect(c.getByTestId('apercu-prix')).toHaveTextContent(/450\s000\sF CFA \/ mois/);
   });
 
   it('un prix de vente n’a pas de période', () => {
@@ -138,7 +138,7 @@ describe('BarreApercu', () => {
     );
 
     const barre = screen.getByRole('button', { name: 'Ouvrir l’aperçu de l’annonce' });
-    expect(barre).toHaveTextContent(/450\s000\sF CFA \/mois/);
+    expect(barre).toHaveTextContent(/450\s000\sF CFA \/ mois/);
     expect(screen.queryByTestId('apercu-annonce')).not.toBeInTheDocument();
 
     await user.click(barre);

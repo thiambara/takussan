@@ -14,6 +14,7 @@ import type { PieceDuProfil } from '@/lib/pieces/pieces';
 import type { InterventionDOrigine, ReglagesDuPrestataire } from '@/lib/service-provider-onboarding';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
+import { CeQuiVousAttend } from './invite/CeQuiVousAttend';
 import { EtapeDuNumero } from './invite/EtapeDuNumero';
 import { InterventionDuPrestataire } from './invite/InterventionDuPrestataire';
 
@@ -145,6 +146,7 @@ export function ServiceProviderOnboardingWizard({
               numero={api.data.phone.number}
               onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
               agence={agence}
+              panneau={<CeQuiVousAttend qui="prestataire" agence={agence} intervention={interventionMontree?.title ?? null} />}
               onVerifie={() => {
                 api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
                 api.allerA(1);

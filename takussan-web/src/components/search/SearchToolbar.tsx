@@ -381,7 +381,7 @@ export function PucesDeFiltres({
           {/* TCK-552 — la recherche libre se signale par une ICÔNE, plus par des guillemets
               bruts (`"Dakar"`, P8). Le libellé de `q` dans `SEARCH_FILTER_KEYS` garde ses
               guillemets : il sert aussi le RÉSUMÉ d'une recherche sauvegardée
-              (`SavedSearchesList`), une chaîne jointe par « · » où rien d'autre ne distingue
+              (`useResumeDeCriteres`), une chaîne jointe par « · » où rien d'autre ne distingue
               le texte libre d'une ville. Ici, l'icône le fait. */}
           {cle === 'q' ? (
             <>

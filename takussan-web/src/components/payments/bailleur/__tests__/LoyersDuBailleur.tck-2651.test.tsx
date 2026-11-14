@@ -22,6 +22,8 @@ import type { OwnerStatement } from '@/types/invoice';
 import { LoyersDuBailleur } from '../LoyersDuBailleur';
 
 const ADRESSE = vi.hoisted(() => ({ courante: '' }));
+// Décision 18 : des biens ajoutés au relevé simulé par un test, vidés avant chacun.
+const BIENS_EN_PLUS = vi.hoisted(() => ({ liste: [] as Record<string, unknown>[] }));
 const ROUTEUR = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ROUTEUR,
@@ -56,6 +58,7 @@ function releveDe(period: string): Releve {
       { property_id: 11, title: 'Villa Almadies', tenant_name: 'Awa Ndiaye', expected_rent: 650000, collected: 650000, commission: 48750, fees: 0, net: 601250, has_movements: true, month_status: 'paid', days_late: null },
       { property_id: 12, title: 'Studio Plateau', tenant_name: 'Moussa Fall', expected_rent: 450000, collected: 450000, commission: 33750, fees: 0, net: 416250, has_movements: true, month_status: 'paid', days_late: null },
       { property_id: 13, title: 'Garage Ouest Foire', tenant_name: 'Ibou Sarr', expected_rent: 255000, collected: 0, commission: 0, fees: 0, net: 0, has_movements: false, month_status: 'late', days_late: 6 },
+      ...(BIENS_EN_PLUS.liste as unknown as NonNullable<OwnerStatement['properties']>),
     ],
     lines: { lease_payments: [{ commission_rate: 7.5 }, { commission_rate: 7.5 }] },
     payouts: [{ id: 70, reference_number: null, status: 'completed', net_amount: 832500, transaction_id: null, processed_at: '2026-11-06T10:00:00Z', paid_in_period: true }],
@@ -124,6 +127,7 @@ describe('LoyersDuBailleur — la page « Loyers » du bailleur (TCK-2651)', () 
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T10:00:00Z'));
     ADRESSE.courante = '';
+    BIENS_EN_PLUS.liste = [];
     APPELS.releve.length = 0;
     APPELS.historique.length = 0;
     ROUTEUR.replace.mockReset();
@@ -182,6 +186,19 @@ describe('LoyersDuBailleur — la page « Loyers » du bailleur (TCK-2651)', () 
     expect(bien!.closest('td')).toHaveClass('max-w-0');
     expect(within(bien!).getByTitle('Villa Almadies')).toHaveTextContent('Villa Almadies');
     expect(within(locataire!).getByTitle('Awa Ndiaye')).toHaveClass('line-clamp-2');
+  });
+
+  it('décision 18 — un loyer échu remboursé se lit « Reçu puis remboursé », ni « Payé » ni « En retard »', () => {
+    BIENS_EN_PLUS.liste = [
+      { property_id: 14, title: 'F3 Mermoz', tenant_name: 'Fatou Diop', expected_rent: 300000, collected: 0, commission: 0, fees: 0, net: 0, has_movements: false, month_status: 'refunded', days_late: null },
+    ];
+    rendre();
+    const lignes = document.querySelectorAll<HTMLElement>('[data-slot="par-bien-liste"] [data-slot="ligne-du-bien"]');
+    expect(lignes).toHaveLength(4);
+    expect(within(lignes[3]!).getByText('Reçu puis remboursé')).toBeInTheDocument();
+    expect(within(lignes[3]!).queryByText(/Payé|En retard/)).toBeNull();
+    const ligne = document.querySelectorAll<HTMLElement>('[data-slot="par-bien-tableau"] tbody tr')[3]!;
+    expect(within(ligne).getByText('Reçu puis remboursé')).toBeInTheDocument();
   });
 
   it.each(['', 'tab=versements', 'tab=factures', 'tab=operations'])('AC3 — %s : ni « ID entité » ni « #n », détail ouvert compris', async (onglet) => {

@@ -125,8 +125,9 @@ describe('AC3 — les colonnes des tables converties', () => {
     // légende devient « Prestataires », et « Nom » et « Métiers » se lisent dans la cellule
     // « Prestataire » (nom, puis métiers dessous). « Note » et « Interventions » s'ajoutent. Aucune
     // information relevée à `73ca883b` ne se perd : les métiers sont éprouvés dans la cellule.
+    // TCK-2772 ajoute « Délai de réponse » après « Interventions » (médiane servie par l'API).
     const entetes = enTetesDe('Prestataires');
-    expect(entetes).toEqual(['Prestataire', 'Zones', 'Téléphone', 'Note', 'Interventions', 'Statut', 'Actions']);
+    expect(entetes).toEqual(['Prestataire', 'Zones', 'Téléphone', 'Note', 'Interventions', 'Délai de réponse', 'Statut', 'Actions']);
     const premiere = within(screen.getByRole('table', { name: 'Prestataires' })).getAllByRole('row')[1];
     const cellule = within(premiere).getAllByRole('cell')[0];
     expect(cellule).toHaveTextContent('Modou Fall');

@@ -269,14 +269,31 @@ class PropertyVisitResource extends BaseResource
         if ($ctx === null) {
             return false;
         }
-        if ($ctx['owner_id'] !== null && $ctx['owner_id'] === (int) $user->id) {
-            return true;
-        }
-        if ($ctx['agency_id'] !== null && $this->personnelDe($request, $ctx['agency_id'])) {
+        if (self::lecteurDuBien($user, $ctx['agency_id'], $ctx['owner_id'], fn (int $agence) => $this->personnelDe($request, $agence))) {
             return true;
         }
 
         return $ctx['status'] === VisitStatus::Confirmed->value;
+    }
+
+    /**
+     * TCK-2585, TCK-2761 — qui lit l'adresse d'un bien AU TITRE DU BIEN : le super-admin, le
+     * propriétaire du bien, le personnel actif de son agence. Partagé avec `upcoming_visits[].address`
+     * de la fiche client ({@see CustomerResource}), qui n'a pas la branche « visite confirmée » : ce
+     * lecteur-là n'est pas le visiteur.
+     *
+     * @param  \Closure(int): bool  $personnelDe  le verdict « personnel de cette agence », mis en cache par l'appelant
+     */
+    public static function lecteurDuBien(User $user, ?int $agencyId, ?int $ownerId, \Closure $personnelDe): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        if ($ownerId !== null && $ownerId === (int) $user->id) {
+            return true;
+        }
+
+        return $agencyId !== null && $personnelDe($agencyId);
     }
 
     /**

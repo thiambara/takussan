@@ -41,6 +41,22 @@ describe('TCK-2685 — cn() et les jetons de l’app', () => {
     expect(cn('size-4', 'size-icone')).toBe('size-icone');
   });
 
+  // TCK-2741 — les ombres du comparateur flottant : chaque jeton neuf cède à une ombre posée après lui,
+  // et le contour sombre, sous `dark:`, ne remplace pas le contour clair.
+  it.each(['barre-flottante', 'pastille-flottante', 'contour-vignette', 'contour-vignette-sombre', 'pastille-retrait'])(
+    'TCK-2741 — `shadow-%s` est remplacée par `shadow-sm`',
+    (n) => {
+      expect(cn(`shadow-${n}`, 'shadow-sm')).toBe('shadow-sm');
+      expect(cn('shadow-sm', `shadow-${n}`)).toBe(`shadow-${n}`);
+    },
+  );
+
+  it('TCK-2741 — le contour de vignette garde ses deux thèmes', () => {
+    expect(cn('shadow-contour-vignette', 'dark:shadow-contour-vignette-sombre')).toBe(
+      'shadow-contour-vignette dark:shadow-contour-vignette-sombre',
+    );
+  });
+
   it('la variante `w1440:` reste une variante distincte', () => {
     expect(cn('xl:flex', 'w1440:grid')).toBe('xl:flex w1440:grid');
   });

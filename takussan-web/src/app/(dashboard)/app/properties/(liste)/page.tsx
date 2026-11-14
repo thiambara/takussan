@@ -98,7 +98,7 @@ export default async function Page({
 }) {
   const t = await getTranslations('dashboard.properties');
   const tNav = await getTranslations('nav.sidebar');
-  const tAnnonces = await getTranslations('property.dashboard.annonces');
+  const tAnnonces = await getTranslations('propertyDashboard.annonces');
   const user = await getMeAction();
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.

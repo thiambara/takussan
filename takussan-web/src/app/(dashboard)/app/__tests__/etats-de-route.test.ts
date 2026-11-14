@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -371,6 +371,41 @@ describe('TCK-382 — inventaire', () => {
  * « Argent » selon `?tab=` — une décision de page (un layout ne lit pas `searchParams`), par
  * `redirect()`, exactement comme `garderPageAdmin`.
  */
+/**
+ * TCK-2831 — **la seule exception, et elle est étroite : le titre qui REFLÈTE le refus du layout.**
+ *
+ * Le `generateMetadata` d'une page de détail rappelle `exigerRessource('<s>', …)` pour que l'onglet
+ * d'une fiche absente reste « Page introuvable » après l'hydratation (mesuré : sans lui, Next réécrit
+ * l'onglet avec le titre de la page demandée). Ce n'est pas un refus de page : le statut est déjà
+ * décidé par le `layout.tsx` du MÊME segment, au-dessus du repli, et `cache()` y rend la même
+ * promesse (404 inchangé, aucune requête de plus, relevés de TCK-2831).
+ *
+ * N'est retiré du balayage que cet appel-là : dans le corps de `generateMetadata`, avec le segment du
+ * dossier, ET seulement si le layout du dossier fait le même appel. Le même appel dans le rendu de la
+ * page, ou sans le layout qui décide, reste un fautif.
+ *
+ * TCK-2837 — **même exception pour le refus de RÔLE** : `assertCanReach<X>(` dans le corps de
+ * `generateMetadata`, retiré du balayage SEULEMENT si le layout du dossier appelle la même garde
+ * (`owners/[id]` : `assertCanReachOwnerAccount`, 404). Appel par appel : une autre garde dans le
+ * titre, ou la même dans le rendu de la page, reste un fautif.
+ */
+function sansMiroirDuLayout(dossier: string, source: string): string {
+  const layout = join(dossier, 'layout.tsx');
+  if (!existsSync(layout)) return source;
+  const sourceDuLayout = readFileSync(layout, 'utf8');
+  const debut = source.search(/export\s+(async\s+)?(function\s+generateMetadata|const\s+generateMetadata\s*=)/);
+  if (debut < 0) return source;
+  const fin = source.slice(debut).search(/\n\}[;\n]/);
+  if (fin < 0) return source;
+  let bloc = source.slice(debut, debut + fin);
+  const ressource = `exigerRessource('${basename(dirname(dossier))}'`;
+  const miroirs = [ressource, ...new Set(bloc.match(/\bassertCanReach\w*\(/g) ?? [])].filter((appel) =>
+    sourceDuLayout.includes(appel),
+  );
+  for (const appel of miroirs) bloc = bloc.split(appel).join('MIROIR_DU_LAYOUT');
+  return source.slice(0, debut) + bloc + source.slice(debut + fin);
+}
+
 const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin|aiguillerVersLArgent)\s*\(/;
 
 /**
@@ -579,10 +614,13 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
       if (!couverte) continue;
       examinees += 1;
 
-      const source = sansCommentaires(page.source)
-        .split('\n')
-        .filter((l) => !/^\s*import\b/.test(l))
-        .join('\n');
+      const source = sansMiroirDuLayout(
+        page.segment,
+        sansCommentaires(page.source)
+          .split('\n')
+          .filter((l) => !/^\s*import\b/.test(l))
+          .join('\n'),
+      );
 
       for (const trouve of source.matchAll(new RegExp(REFUS, 'g'))) {
         const ligne = source.slice(0, trouve.index).split('\n').length;

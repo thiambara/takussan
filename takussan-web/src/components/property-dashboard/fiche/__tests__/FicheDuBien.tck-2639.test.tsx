@@ -187,6 +187,19 @@ describe('TCK-2639 — l’onglet Location', () => {
     expect(screen.queryByRole('button', { name: /Relancer|Encaisser/ })).toBeNull();
   });
 
+  it('décision 18 (TCK-2651) — échu et remboursé : « Reçu puis remboursé », ni « Payé » ni « En retard », rien à relancer ni à encaisser', () => {
+    etat.echeances = [{ ...ligneDuMois, status: 'refunded', paid_amount: 0, remaining_amount: 1_355_000, days_late: null, paid_at: '2026-11-04T10:00:00Z' }];
+    location(bien(occupe({ status: 'refunded', days_late: null, amount_due: 0, late_fee_outstanding: 0 })), true);
+    const pile = screen.getByTestId('nom-du-locataire').closest('[data-slot="location-pile"]') as HTMLElement;
+    expect(within(pile).getByTestId('etat-du-mois')).toHaveTextContent('Reçu puis remboursé');
+    expect(within(pile).queryByText(/^Payé|En retard/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Relancer|Encaisser/ })).toBeNull();
+    for (const ligne of screen.queryAllByTestId('ligne-d-echeance')) {
+      expect(ligne).toHaveTextContent('Reçu puis remboursé');
+      expect(ligne).not.toHaveTextContent(/À échéance|En retard/);
+    }
+  });
+
   it('AC7 — le bailleur voit son locataire ; sans `record_payment`, ni « Encaisser » ni « Relancer »', () => {
     etat.bail = { data: { id: 7, abilities: { record_payment: false } } };
     location(bien(occupe({})), false);

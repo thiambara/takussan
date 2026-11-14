@@ -16,10 +16,19 @@ const PERSONNES = [
   { id: 9, name: 'Awa Ndiaye', avatar_url: null },
   { id: 12, name: 'Malick Seck', avatar_url: null },
 ];
+// TCK-2830 — sans recherche, chaque section lit sa requête : ces deux personnes sans relation ne
+// sont rendues que par la section « autre », comme le ferait le serveur.
+// TCK-2830 — la ligne de détail lit l'espace actif (nom de l'agence de l'équipe) ; non exercée ici.
+vi.mock('@/hooks/useNomDeLAgenceActive', () => ({ useNomDeLAgenceActive: () => null }));
 vi.mock('@/lib/queries/conversations', () => ({
-  useMessagingContacts: () => ({ data: { data: PERSONNES, meta: { total: 2 } }, isLoading: false, isError: false, refetch: vi.fn() }),
+  useMessagingContacts: (_terme: string, options: { section?: string } = {}) => {
+    const data = options.section === undefined || options.section === 'autre' ? PERSONNES : [];
+    return { data: { data, meta: { total: data.length } }, isLoading: false, isError: false, refetch: vi.fn() };
+  },
   useTrouverLeFilDirect: () => trouver,
   useCreateDirectConversation: () => ({ mutateAsync: creer, isPending: pending }),
+  // TCK-2748 — le mode « groupe » du bureau monte la création ; non exercée ici.
+  useCreateGroupConversation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 function monter(extra: { onNouveauGroupe?: () => void } = {}) {

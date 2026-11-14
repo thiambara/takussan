@@ -57,7 +57,7 @@ export function OutilsFlottantsDeListe({
   onBasculerVue,
 }: OutilsFlottantsDeListeProps) {
   const tToolbar = useTranslations('search.toolbar');
-  const t = useTranslations('property.discovery');
+  const t = useTranslations('propertyDiscovery');
   const sousLg = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
   const actif = visible && sousLg;
 

@@ -155,9 +155,9 @@ export function PropertyListFilters({
   /** La liste. */
   readonly children?: ReactNode;
 }) {
-  const t = useTranslations('property.dashboard.filters');
-  const tChips = useTranslations('property.dashboard.filters.chips');
-  const tList = useTranslations('property.dashboard.list');
+  const t = useTranslations('propertyDashboard.filters');
+  const tChips = useTranslations('propertyDashboard.filters.chips');
+  const tList = useTranslations('propertyDashboard.list');
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
@@ -532,7 +532,7 @@ export function PropertyListFilters({
               <SheetTitle className="font-display text-xl font-semibold tracking-tight">
                 {t('mobile.title')}
               </SheetTitle>
-              <SheetDescription className="mt-0.5">{t('mobile.description')}</SheetDescription>
+              <SheetDescription className="mt-0.5">{t('mobile.consigne')}</SheetDescription>
             </div>
             {filtresActifs > 0 || activeFilters.length > 0 ? (
               <button
@@ -627,7 +627,7 @@ function PanneauDesFiltres({
   readonly onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   readonly children: ReactNode;
 }) {
-  const t = useTranslations('property.dashboard.filters.panneau');
+  const t = useTranslations('propertyDashboard.filters.panneau');
   return (
     <aside
       aria-label={t('aria')}
@@ -681,7 +681,7 @@ function GroupeDuPanneau({ titre, children }: { readonly titre: string; readonly
  * requête (`requeteDeLaPastille`), mêmes comptes (`portfolio-summary`), « À vendre » aux mêmes conditions.
  */
 function OccupationDuPanneau({ resume }: { readonly resume: ResumeDuPortefeuille }) {
-  const t = useTranslations('property.dashboard.gestion.pastilles');
+  const t = useTranslations('propertyDashboard.gestion.pastilles');
   const fmt = useFormatteurs();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -751,8 +751,8 @@ function LigneACocher({
 }
 
 interface CriteresAvancesProps {
-  readonly t: ReturnType<typeof useTranslations<'property.dashboard.filters'>>;
-  readonly tList: ReturnType<typeof useTranslations<'property.dashboard.list'>>;
+  readonly t: ReturnType<typeof useTranslations<'propertyDashboard.filters'>>;
+  readonly tList: ReturnType<typeof useTranslations<'propertyDashboard.list'>>;
   readonly tStatus: Traducteur;
   readonly tType: Traducteur;
   readonly tContract: Traducteur;

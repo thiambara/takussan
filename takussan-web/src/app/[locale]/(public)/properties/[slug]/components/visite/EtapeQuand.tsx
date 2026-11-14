@@ -89,7 +89,7 @@ export function EtapeQuand({
   erreurTranche,
   titreRef,
 }: EtapeQuandProps) {
-  const t = useTranslations('property.visitDialog');
+  const t = useTranslations('propertyVisitDialog');
   const libelles = useLibellesDeVisite();
   const id = useId();
   const [calendrierOuvert, setCalendrierOuvert] = useState(false);

@@ -320,7 +320,12 @@ export function EnTeteDuFil({
           <button
             type="button"
             onClick={contexte.onBasculer}
-            aria-label={contexte.ouvert ? t('contexte.replier') : t('contexte.afficher')}
+            // TCK-2748 — pour un groupe, la colonne est « Infos du groupe » : le bouton la nomme.
+            aria-label={
+              isGroup
+                ? contexte.ouvert ? t('group.info.replier') : t('group.info.afficher')
+                : contexte.ouvert ? t('contexte.replier') : t('contexte.afficher')
+            }
             aria-expanded={contexte.ouvert}
             aria-controls={ID_COLONNE_DE_CONTEXTE}
             data-testid="basculer-le-contexte"

@@ -15,7 +15,7 @@ interface PropertyModerationBannerProps {
 }
 
 export function PropertyModerationBanner({ property }: PropertyModerationBannerProps) {
-  const t = useTranslations('property.moderation');
+  const t = useTranslations('propertyModeration');
   const fmt = useFormatteurs();
   const { token } = useAuth();
   const queryClient = useQueryClient();

@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Check } from 'lucide-react';
 
@@ -9,6 +10,7 @@ import { cn } from '@/lib/utils';
 import type { LeasePayment } from '@/types/lease';
 
 import { Carte, Jauge } from './PiecesDuBail';
+import { RelancerLeLoyer, type RelanceDeLaFiche } from './RelanceDuLoyer';
 
 /**
  * TCK-2645 — les cartes du dossier : Loyer (avec les charges, décision du porteur du 2026-11-10),
@@ -52,12 +54,15 @@ export function CarteLoyer({
   lease,
   paiements,
   aRegler,
+  relance,
   className,
 }: {
   readonly lease: LeaseWithRelations;
   readonly paiements: readonly LeasePayment[] | undefined;
   /** Le locataire a une échéance due sans paiement en ligne (décision 14). */
   readonly aRegler?: boolean;
+  /** TCK-2818 — la relance de l'échéance en retard, vers l'écran Impayés (au personnel qui l'ouvre). */
+  readonly relance?: RelanceDeLaFiche;
   readonly className?: string;
 }) {
   const t = useTranslations('lease.fiche.loyer');
@@ -68,6 +73,9 @@ export function CarteLoyer({
   const aujourdhui = aujourdhuiADakar();
   const mois = !vente && paiements ? echeanceDuMois(paiements, aujourdhui) : null;
   const charges = !vente && typeof lease.monthly_charges === 'number' && lease.monthly_charges > 0 ? lease.monthly_charges : null;
+  // TCK-2645 (2026-11-14, décision 1 a) — le compte des retards, lu comme la ligne « Échéancier » du dossier
+  // (hors caution, sur `is_overdue`) : au bureau, cette ligne est cachée dès `xl`, la carte le dit à sa place.
+  const retards = !vente && paiements ? paiements.filter((p) => p.payment_type !== 'deposit' && p.payment_type !== 'deposit_refund' && p.is_overdue).length : 0;
 
   return (
     <Carte className={cn('p-4', className)} data-testid="carte-loyer">
@@ -81,13 +89,35 @@ export function CarteLoyer({
       {charges !== null ? (
         <p className="mt-1 text-ui text-muted-foreground tabular-nums">{t('charges', { montant: f.montantCourt(charges, lease.currency) })}</p>
       ) : null}
-      {mois ? <EtatDuMois echeance={mois} mois={moisDe(mois.due_date ?? mois.period_start)} aujourdhui={aujourdhui} /> : null}
+      {mois ? (
+        <EtatDuMois
+          echeance={mois}
+          mois={moisDe(mois.due_date ?? mois.period_start)}
+          aujourdhui={aujourdhui}
+          retards={retards}
+          geste={relance?.relancable(mois) ? <RelancerLeLoyer relance={relance} echeance={mois} /> : null}
+        />
+      ) : null}
       {aRegler ? <p className="mt-2 text-ui text-muted-foreground">{t('aRegler')}</p> : null}
     </Carte>
   );
 }
 
-function EtatDuMois({ echeance, mois, aujourdhui }: { readonly echeance: LeasePayment; readonly mois: string; readonly aujourdhui: string }) {
+function EtatDuMois({
+  echeance,
+  mois,
+  aujourdhui,
+  retards,
+  geste,
+}: {
+  readonly echeance: LeasePayment;
+  readonly mois: string;
+  readonly aujourdhui: string;
+  /** Les échéances en retard du bail ; dites dès `xl` quand il y en a plus d'une (décision 1 a). */
+  readonly retards: number;
+  /** TCK-2818 — « Relancer » (ou le lien à copier) sous l'état d'un mois en retard. */
+  readonly geste?: ReactNode;
+}) {
   const t = useTranslations('lease.fiche.loyer');
   const f = useFormatteurs();
   const penalite = echeance.late_fee_outstanding > 0 ? echeance.late_fee_outstanding : null;
@@ -99,6 +129,11 @@ function EtatDuMois({ echeance, mois, aujourdhui }: { readonly echeance: LeasePa
           <AlertTriangle className="size-4 flex-none" strokeWidth={2} aria-hidden="true" />
           {jours > 0 ? t('enRetard', { mois, jours }) : t('enRetardSansJours', { mois })}
         </p>
+        {retards > 1 ? (
+          <p className="mt-1 pl-6 text-ui font-medium text-destructive max-xl:hidden" data-testid="retards-du-loyer">
+            {t('echeancesEnRetard', { n: retards })}
+          </p>
+        ) : null}
         {penalite !== null ? (
           <p className="mt-1 pl-6 text-ui text-foreground">
             {t.rich('penaliteDue', {
@@ -108,6 +143,7 @@ function EtatDuMois({ echeance, mois, aujourdhui }: { readonly echeance: LeasePa
             })}
           </p>
         ) : null}
+        {geste ? <div className="pl-6">{geste}</div> : null}
       </div>
     );
   }

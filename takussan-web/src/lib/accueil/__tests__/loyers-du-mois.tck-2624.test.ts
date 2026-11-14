@@ -11,6 +11,7 @@ describe('lireLoyersDuMois', () => {
       montantRecu: 11_400_000,
       enRetard: null,
       aVenir: null,
+      rembourses: null,
     });
   });
 

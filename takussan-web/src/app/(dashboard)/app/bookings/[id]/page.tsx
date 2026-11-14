@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
+import { exigerRessource } from '@/lib/detail/ressource-de-detail';
 import { BookingDetail } from '@/components/bookings/BookingDetail';
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  // TCK-2831 — la sonde du layout (mémoïsée) : une fiche absente garde le titre de l'introuvable.
+  await exigerRessource('bookings', (await params).id);
   const t = await getTranslations('dashboard.pages.bookingDetail');
   return { title: t('metaTitle') };
 }

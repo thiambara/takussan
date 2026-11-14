@@ -19,7 +19,7 @@ import {
 import { messageErreurApi } from '@/lib/api';
 import { isAgencyAdmin, isAgent } from '@/lib/roles';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
-import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
+import { useMatchesMaxWidth, useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { ApercuDeLaPiece, BoutonDePieceJointe, usePieceEnAttente } from './composeur/PieceJointeDuComposeur';
 import { ReponsesRapides, insererLaReponse } from './composeur/ReponsesRapides';
 import { PiecesDeLaBulle } from './PiecesDeLaBulle';
@@ -141,6 +141,11 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const sendAttachment = useSendAttachment(conversationId);
   const pieceJointe = usePieceEnAttente();
   const telephone = useMatchesMaxWidth(1023);
+  /**
+   * TCK-2748 (AC2) — dès `xl`, un groupe a sa colonne « Infos du groupe » (rendue par la page) : la
+   * sous-ligne de l'en-tête la rouvre au lieu d'ouvrir la feuille, qui reste la voie sous `xl`.
+   */
+  const colonneDuBureau = useMatchesMedia('(min-width: 80rem)') && contexte !== undefined;
 
   // Le cast reproduit celui que portait `zodResolver` ici même : `sendMessageSchema` a des
   // champs à `.default()`, donc son `z.input` diffère de son `z.output` et ne s'unifie pas avec
@@ -391,7 +396,11 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
           conversation={conversation}
           onBack={onBack}
           sourdine={isMuted}
-          onInfosDuGroupe={() => setInfoOpen(true)}
+          onInfosDuGroupe={() => {
+            if (colonneDuBureau && contexte) {
+              if (!contexte.ouvert) contexte.onBasculer();
+            } else setInfoOpen(true);
+          }}
           contexte={contexte}
           onPlusDActions={onPlusDActions}
         />

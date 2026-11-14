@@ -6,10 +6,12 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Policies\CustomerPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\PropertyVisitPolicy;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Documents\DocumentVisibility;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -177,6 +179,8 @@ class CustomerResource extends BaseResource
                 'seeking_cities' => $this->seeking_cities,
                 'seeking_neighborhoods' => $this->seeking_neighborhoods,
                 'min_bedrooms' => $this->min_bedrooms,
+                // TCK-2761 — la recherche déduite du bien d'une demande, « à confirmer avec lui ».
+                'seeking_deduced_at' => $this->iso($this->seeking_deduced_at),
             ] : []),
             // TCK-2582 (ADR-0101) — d'où vient la fiche : la demande (date, message cité, bien) et le
             // bien qui a fait venir la personne. Au seul lecteur des critères (personnel de l'agence
@@ -227,6 +231,10 @@ class CustomerResource extends BaseResource
                     // d'`abilities.manage` du show de visite. Rien du visiteur ni de la fiche.
                     'preferred_window' => $this->enumValue($v->preferred_window),
                     'manage' => PropertyVisitPolicy::gere($request->user(), $v),
+                    // TCK-2761 — l'adresse du bien (« Rue OU-48 », « Itinéraire ») : demandée
+                    // (`fields[customers]=visit_places`, chargée pour la page par
+                    // `avecVisitesAmorcees`), et au seul lecteur de l'adresse AU TITRE DU BIEN.
+                    ...($this->adresseDuBienLisible($request, $v) ? ['address' => PropertyVisitResource::adresse($v->property)] : []),
                 ])->values(),
             ),
             'added_by' => $this->when(
@@ -424,6 +432,21 @@ class CustomerResource extends BaseResource
             return $render();
         }
 
+        // TCK-2761 — `visit_places` demandé : les adresses des biens de la page, en UNE requête.
+        if (in_array(CustomerCommercialAttributes::VISIT_PLACES, CustomerCommercialAttributes::requested($request), true)) {
+            $biens = new Collection;
+            foreach ($customers as $customer) {
+                if ($customer->relationLoaded('upcomingVisits')) {
+                    foreach ($customer->upcomingVisits as $visite) {
+                        if ($visite->property !== null) {
+                            $biens->push($visite->property);
+                        }
+                    }
+                }
+            }
+            $biens->loadMissing('address');
+        }
+
         return MembershipCapabilityResolver::primed([$request->user()->id], $agences, $render);
     }
 
@@ -489,6 +512,38 @@ class CustomerResource extends BaseResource
      * au super-admin) : la règle des critères, jugée sur la fiche relue quand `fields[customers]`
      * n'a pas lu son agence (comme {@see self::readsOrigin()}).
      */
+    /**
+     * TCK-2761 — l'adresse du bien d'une visite à venir : demandée et chargée (`property.address`),
+     * puis jugée par {@see PropertyVisitResource::lecteurDuBien()} — le lecteur des visites de la fiche
+     * (personnel de l'agence DE LA FICHE) n'est pas forcément celui du bien.
+     */
+    private function adresseDuBienLisible(Request $request, PropertyVisit $visite): bool
+    {
+        $user = $request->user();
+        $bien = $visite->property;
+        if ($user === null || $bien === null || ! $bien->relationLoaded('address')
+            || ! in_array(CustomerCommercialAttributes::VISIT_PLACES, CustomerCommercialAttributes::requested($request), true)) {
+            return false;
+        }
+
+        // Le personnel jugé comme l'adresse d'une visite (`PropertyVisitResource::personnelDe`) : l'agence
+        // du PROFIL ACTIF, compte joignable — et non `staffAgencyIds`, qui ouvre toutes ses agences.
+        return PropertyVisitResource::lecteurDuBien(
+            $user,
+            $bien->agency_id !== null ? (int) $bien->agency_id : null,
+            $bien->user_id !== null ? (int) $bien->user_id : null,
+            function (int $agence) use ($request, $user): bool {
+                $verdicts = $request->attributes->get('visits.staff_of', []);
+                if (! array_key_exists($agence, $verdicts)) {
+                    $verdicts[$agence] = PersonnelDeLAgence::personnelActifDe($user, $agence);
+                    $request->attributes->set('visits.staff_of', $verdicts);
+                }
+
+                return $verdicts[$agence];
+            },
+        );
+    }
+
     private function readsVisits(Request $request): bool
     {
         $user = $request->user();

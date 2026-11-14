@@ -39,6 +39,7 @@ import { BarreDeSelection, TeteDeSelection } from './SelectionDesImpayes';
 import { TableDesImpayes } from './TableDesImpayes';
 import { IMPAYES_PAR_PAGE, JEUX_DE_TRANCHES, tranche, type CleDeTranche, type JeuDeTranches } from './tranches';
 import { BalanceAgee } from './BalanceAgee';
+import { useOuvrirLaRelanceDemandee, type DemandeDeRelance } from './relance-de-l-adresse';
 import { JamaisRelanceEnAlerte } from './ton-de-la-relance';
 import { useRelanceDUnImpaye, type RelanceDePenalite } from './useRelanceDUnImpaye';
 
@@ -85,12 +86,17 @@ function parametres(filtres: Filtres, page: number, perPage: number = IMPAYES_PA
  * sortir) qui pose une case de 44 px sur chaque carte. « Relancer la sélection » ouvre la file guidée
  * (`FileDeRelance`). La sélection vit par échéance, à travers pages et filtres ; ce qui n'est pas
  * affiché est dit, et la file le reprend.
+ *
+ * TCK-2775 — `relanceDemandee` : la relance que l'adresse de la page demande (`?relance=…`, lue et
+ * retirée par la page, `relance-de-l-adresse.ts`) ; l'écran l'ouvre une fois, puis la rend (`onRelancePrise`).
  */
 export function Impayes({
   agencyId,
   resume = 'telephone',
   tranches: jeu = 'argent',
   jamaisRelanceEnAlerte = false,
+  relanceDemandee = null,
+  onRelancePrise,
 }: {
   readonly agencyId: number | undefined;
   /** Le grand total et les cautions en tête : au téléphone seulement (le bureau les dit dans l'en-tête de page), ou toujours. */
@@ -103,6 +109,9 @@ export function Impayes({
   readonly tranches?: JeuDeTranches;
   /** TCK-2629 — « jamais relancé » en ton d'alerte (maquette de Rapports) ; gris par défaut (« Argent »). */
   readonly jamaisRelanceEnAlerte?: boolean;
+  /** TCK-2775 — la relance demandée par l'adresse de la page : une échéance, ou la file. */
+  readonly relanceDemandee?: DemandeDeRelance | null;
+  readonly onRelancePrise?: () => void;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const bureau = useMatchesMedia(REQUETE_DU_BUREAU);
@@ -131,6 +140,15 @@ export function Impayes({
   useFermeAuRetour(modeEffectif || fileApi.file !== null, () => {
     if (fileApi.file) fileApi.arreter();
     else quitterLeMode();
+  });
+  // TCK-2775 — la relance que l'adresse demande : le geste même de l'écran (feuille au téléphone,
+  // dossier en mode relance au bureau), ou la file guidée.
+  useOuvrirLaRelanceDemandee(relanceDemandee, onRelancePrise, {
+    ouvrir: (row) => {
+      if (bureau) setDossier({ row, relancer: true, ouvert: true });
+      else setARelancer({ row, ouverte: true });
+    },
+    demarrerLaFile: (rows) => fileApi.demarrer(rows),
   });
   const surcoucheOuverte = fileApi.file !== null || Boolean(aRelancer?.ouverte) || Boolean(dossier?.ouvert);
   useEffect(() => {

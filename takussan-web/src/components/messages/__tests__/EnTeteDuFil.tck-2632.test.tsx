@@ -316,4 +316,13 @@ describe('<EnTeteDuFil> (TCK-2632)', () => {
     monter(directe);
     expect(screen.queryByRole('button', { name: /contexte/ })).not.toBeInTheDocument();
   });
+  // TCK-2748 (AC2) — pour un groupe, la colonne de droite est « Infos du groupe » : le bouton la nomme.
+  it('le bouton de la colonne nomme « Infos du groupe » pour un groupe, le contexte pour un direct', () => {
+    contexte = { data: { property: null, lease: null, maintenance: null } };
+    const { unmount } = monter(groupe, { contexte: { ouvert: true, onBasculer: () => {} } });
+    expect(screen.getByTestId('basculer-le-contexte')).toHaveAccessibleName('Replier les infos du groupe');
+    unmount();
+    monter(directe, { contexte: { ouvert: false, onBasculer: () => {} } });
+    expect(screen.getByTestId('basculer-le-contexte')).toHaveAccessibleName('Afficher le contexte');
+  });
 });

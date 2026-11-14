@@ -173,7 +173,7 @@ export interface ResumeDAgence {
 /**
  * L'admin : six chiffres (Encaissé, Impayés, Occupation, Baux actifs, Biens publiés, Taux d'impayés) ; les
  * KPI personnalisés de l'agence (TCK-2373) les remplacent quand elle en a activé, dans leur ordre, avec
- * leur libellé — comme l'ancienne vue d'agence (`AgencyKpis`).
+ * leur libellé — comme les tuiles de l'ancienne vue d'agence.
  */
 export function chiffresDeLAgence(
   resume: ResumeDAgence,

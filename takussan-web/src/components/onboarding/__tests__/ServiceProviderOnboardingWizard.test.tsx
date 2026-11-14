@@ -175,6 +175,25 @@ describe('<ServiceProviderOnboardingWizard> — deux écrans (TCK-2613)', () => 
     expect(screen.getByRole('button', { name: P.acceptee.voir })).toBeInTheDocument();
   });
 
+  it('ordre des gestes (fiche, écart ouvert) : au bureau le geste principal d’abord, au téléphone à droite — la tabulation suit le bureau', async () => {
+    monter();
+    const accepter = await screen.findByRole('button', { name: P.accepter });
+    const proposer = screen.getByRole('button', { name: P.proposer });
+    // Ordre du DOM = ordre du bureau (maquette a-2-bureau-1280 : « Accepter » puis « Proposer un créneau »).
+    expect(accepter.compareDocumentPosition(proposer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Au téléphone, « Accepter » passe à droite (a-2-telephone) ; l’ordre revient dès lg.
+    expect(accepter.className).toMatch(/(^|\s)order-last(\s|$)/);
+    expect(accepter.className).toMatch(/(^|\s)lg:order-none(\s|$)/);
+    expect(proposer.className).not.toMatch(/(^|\s)(lg:)?order-/);
+
+    fireEvent.click(proposer);
+    const envoyer = screen.getByRole('button', { name: P.creneau.envoyer });
+    const annuler = screen.getByRole('button', { name: P.creneau.annuler });
+    expect(envoyer.compareDocumentPosition(annuler) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(envoyer.className).toMatch(/(^|\s)order-last(\s|$)/);
+    expect(envoyer.className).toMatch(/(^|\s)lg:order-none(\s|$)/);
+  });
+
   it('« Proposer un créneau » envoie `scheduled_at` à l’heure de Dakar, et l’écran dit la date de passage', async () => {
     spAccepterInterventionAction.mockResolvedValue({
       ok: true,

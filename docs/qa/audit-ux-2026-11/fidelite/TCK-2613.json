@@ -14,7 +14,7 @@
       "produit": {
         "route": "/onboarding/owner?owner=1",
         "persona": "proprietaire",
-        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Relevé AVANT toute écriture : numéro non vérifié, l'écran 1 est à son état d'arrivée (« Vérifiez votre numéro », « Recevoir le code ») ; l'état « code envoyé » de la maquette n'est pas relevé : l'atteindre écrit (envoi d'OTP). 0 écriture bloquée, 0 action serveur, 0 erreur de console. telephone 3 conformes · 2 écarts · 9 absents du produit · 7 absents de la maquette (19,07 %) ; bureau-1280 4 · 15 · 44 · 7 (11,62 %)."
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Relevé AVANT toute écriture : numéro non vérifié, l'écran 1 est à son état d'arrivée (« Vérifiez votre numéro », « Recevoir le code ») ; l'état « code envoyé » de la maquette n'est pas relevé : l'atteindre écrit (envoi d'OTP). 0 écriture bloquée, 0 action serveur, 0 erreur de console. telephone 3 conformes · 2 écarts · 9 absents du produit · 7 absents de la maquette (19,07 %) ; bureau-1280 4 · 15 · 44 · 7 (11,62 %). Relevé v2 du 2026-11-14 (16:2x, invites-2613, .fidelite/TCK-2613/v2), après l'avancement écrit et la colonne de 480 px + « {agence} vous attend » dès xl : telephone 5 · 1 · 15 (18,51 %) ; bureau-1280 4 · 27 · 43 (8,52 %). Même garde (0 écriture bloquée, 0 action, 0 erreur)."
       }
     },
     {
@@ -30,7 +30,7 @@
       "produit": {
         "route": "/onboarding/owner?owner=1",
         "persona": "proprietaire",
-        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié par écriture temporaire (users.phone_verified_at, cf. ticket). getOwnerPropertiesAction permise : 2 appels (double rendu de next dev), 0 écriture bloquée, 0 erreur. Les biens sont ceux de la démo (72, noms de test, tous « Disponible »). telephone 5 · 14 · 5 · 2 (15,88 %) ; bureau-1280 0 · 30 · 13 · 11 (9,53 %)."
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié par écriture temporaire (users.phone_verified_at, cf. ticket). getOwnerPropertiesAction permise : 2 appels (double rendu de next dev), 0 écriture bloquée, 0 erreur. Les biens sont ceux de la démo (72, noms de test, tous « Disponible »). telephone 5 · 14 · 5 · 2 (15,88 %) ; bureau-1280 0 · 30 · 13 · 11 (9,53 %). Relevé v3 du 2026-11-14 (17 h, releves-cloture, HEAD 928e9c810, scratchpad `impl/lot2/cloture/`, `.fidelite/TCK-2613/v3`), après l'avancement écrit, l'inversion des gestes et la colonne de 480 px : conformes · écarts · absents du produit · absents de la maquette (% pixels) — telephone 7 · 13 · 4 · 2 (15,32 %) ; bureau-1280 0 · 30 · 13 · 11 (9,55 %) ; bureau-1440 0 · 30 · 13 · 11 (8,49 %). Même garde (0 écriture bloquée, 0 erreur de console sur les 3 appareils). Numéro vérifié par écriture temporaire (users 3, 8, 18 ; défaite, relue). getOwnerPropertiesAction : 2 appels. Les comptes v1 ci-dessus sont remplacés par ceux-ci."
       }
     },
     {
@@ -46,7 +46,7 @@
       "produit": {
         "route": "/onboarding/agent?agent=1",
         "persona": "agent",
-        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié (écriture temporaire). getAgentFirstLeadAction permise : 2 appels, 0 écriture bloquée, 0 erreur. Prospect de la démo (Astou Mbaye, « Nouveau »), aucune zone, spécialisation à choisir, 19 droits. telephone 4 · 12 · 10 · 12 (16,93 %) ; bureau-1280 0 · 18 · 19 · 32 (9,77 %)."
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié (écriture temporaire). getAgentFirstLeadAction permise : 2 appels, 0 écriture bloquée, 0 erreur. Prospect de la démo (Astou Mbaye, « Nouveau »), aucune zone, spécialisation à choisir, 19 droits. telephone 4 · 12 · 10 · 12 (16,93 %) ; bureau-1280 0 · 18 · 19 · 32 (9,77 %). Relevé v3 du 2026-11-14 (17 h, releves-cloture, HEAD 928e9c810, scratchpad `impl/lot2/cloture/`, `.fidelite/TCK-2613/v3`), après l'avancement écrit, l'inversion des gestes et la colonne de 480 px : conformes · écarts · absents du produit · absents de la maquette (% pixels) — telephone 6 · 11 · 9 · 12 (16,36 %) ; bureau-1280 0 · 18 · 19 · 32 (9,79 %) ; bureau-1440 0 · 18 · 19 · 32 (8,71 %). Même garde (0 écriture bloquée, 0 erreur de console sur les 3 appareils). Numéro vérifié par écriture temporaire. getAgentFirstLeadAction permise. Les comptes v1 ci-dessus sont remplacés par ceux-ci."
       }
     },
     {
@@ -62,7 +62,7 @@
       "produit": {
         "route": "/onboarding/service-provider?sp=1",
         "persona": "prestataire",
-        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié et invitation acceptée temporaire (id 190, profil prestataire 1, metadata.from_maintenance_request_id = 10 : « Chasse d'eau qui ne s'arrête pas », plomberie, ouverte, non assignée). Aucune action serveur au chargement, 0 écriture bloquée, 0 erreur. telephone 4 · 11 · 5 · 16 (26,92 %) ; bureau-1280 0 · 25 · 29 · 10 (16,28 %)."
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié et invitation acceptée temporaire (id 190, profil prestataire 1, metadata.from_maintenance_request_id = 10 : « Chasse d'eau qui ne s'arrête pas », plomberie, ouverte, non assignée). Aucune action serveur au chargement, 0 écriture bloquée, 0 erreur. telephone 4 · 11 · 5 · 16 (26,92 %) ; bureau-1280 0 · 25 · 29 · 10 (16,28 %). Relevé v3 du 2026-11-14 (17 h, releves-cloture, HEAD 928e9c810, scratchpad `impl/lot2/cloture/`, `.fidelite/TCK-2613/v3`), après l'avancement écrit, l'inversion des gestes et la colonne de 480 px : conformes · écarts · absents du produit · absents de la maquette (% pixels) — telephone 6 · 10 · 4 · 16 (26,35 %) ; bureau-1280 0 · 25 · 29 · 10 (16,30 %) ; bureau-1440 0 · 25 · 29 · 10 (14,49 %). Même garde (0 écriture bloquée, 0 erreur de console sur les 3 appareils). Numéro vérifié et invitation acceptée temporaire (id 199, supprimée ; relue) pour le prestataire 18, demande 10. Aucune action serveur. Les comptes v1 ci-dessus sont remplacés par ceux-ci."
       }
     }
   ],
@@ -130,32 +130,55 @@
       "propriete": "présence",
       "exception": "annotation de maquette",
       "motif": "variantes dessinées sous l'écran, rendues par le produit dans leur cas (sans bien, sans prospect, déjà prestataire)"
+    },
+    {
+      "ecran": "app-entree-assistants a-* (barre)",
+      "element": "« Reprendre plus tard ✕ » au bureau",
+      "propriete": "libellé",
+      "exception": "règle du produit",
+      "motif": "décision de team-lead (2026-11-14, 2a) : la coque d'entrée partagée (TCK-2598) dit « Quitter » sur toutes ses pages. L'assistant reprend pourtant réellement là où l'invité l'a laissé (brouillon serveur à chaque écran, reprise par ?owner=/?agent=/?sp= et par le bandeau de /app, écran imposé par le numéro vérifié) : « Reprendre plus tard » serait plus juste — piste notée au ticket pour toute la coque. « Étape N sur 2 » est désormais écrit (`avancementEcrit`)."
+    },
+    {
+      "ecran": "app-entree-assistants a-1-*",
+      "element": "droits refusés (✗) de la liste « Ce que vous pouvez faire dans l'agence »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "GET /api/me/agent-profiles/{id}/role-capabilities (TCK-589) ne sert que les droits que le rôle accorde ; la maquette en montre un extrait avec des refus. Servir les refus serait un delta d'API (ticket à part si le porteur le veut)"
+    },
+    {
+      "ecran": "app-entree-assistants a-4-bureau-1280",
+      "element": "« 3 biens suivis… », « Ton dernier loyer », « 2 pièces à envoyer » du panneau « {agence} t'attend »",
+      "propriete": "texte",
+      "exception": "donnée et décision",
+      "motif": "décision de team-lead (2026-11-14) : avant le code, le panneau (CeQuiVousAttend) ne montre rien que l'invité n'ait déjà vu — l'agence, le rôle, et le titre de l'intervention que la page d'invitation lui montrait (`awaiting.maintenance_request.title`) ; biens, loyer et pièces sont à l'écran 2"
     }
   ],
   "ecarts_ouverts": [
     {
-      "ecran": "app-entree-assistants a-* (barre)",
-      "element": "« Étape N sur 2 » écrit à côté des pastilles ; « Reprendre plus tard ✕ » au bureau",
-      "propriete": "présence (le produit ne montre que les pastilles, le libellé est dans aria-label ; sa sortie dit « Quitter »)",
-      "recommandation": "coque partagée CoqueDEntree (TCK-2598, TCK-2601) : à trancher par son porteur — le ticket TCK-2613 demande « Étape 1 sur 2 » / « Étape 2 sur 2 » dans la barre"
-    },
-    {
       "ecran": "app-entree-assistants a-0-bureau-1280",
       "element": "carte « Ton interlocutrice » (nom, rôle, Appeler, WhatsApp)",
       "propriete": "absente du produit",
-      "recommandation": "ticket de suite : l'API ne sert pas l'interlocuteur de l'agence au bailleur ; le ticket ne la demande pas"
+      "recommandation": "ticket de suite (numéro demandé à team-lead) : servir au bailleur l'interlocuteur de l'agence (nom, rôle, téléphone public) — l'API ne le sert pas aujourd'hui (re-mesuré le 2026-11-14 : ni la page /onboarding/owner ni GET /api/me/owner-profiles ne portent invited_by ; seul l'aperçu public d'invitation dit le prénom de l'invitant) ; brouillon : impl/lot2/w-2613/ticket-interlocuteur.md"
+    }
+  ],
+  "ecarts_resolus": [
+    {
+      "ecran": "app-entree-assistants a-* (barre)",
+      "element": "« Étape N sur 2 » écrit",
+      "resolu_le": "2026-11-14",
+      "comment": "`DeclarationDEntree.avancementEcrit` (opt-in, CoqueDEntree), déclaré par AssistantDInvite ; CoqueDEntree.avancement-ecrit.tck-2613, AssistantDInvite.tck-2613"
     },
     {
       "ecran": "app-entree-assistants a-2-bureau-1280",
       "element": "ordre des gestes de la carte",
-      "propriete": "la maquette met « Accepter » à gauche au bureau, le produit garde l'ordre du téléphone (« Proposer un créneau » puis « Accepter »)",
-      "recommandation": "suivre la maquette au bureau (inverser dès lg), cosmétique"
+      "resolu_le": "2026-11-14",
+      "comment": "« Accepter » d'abord dans le DOM (ordre du bureau et de la tabulation), `order-last lg:order-none` au téléphone ; idem « Envoyer » / « Annuler » du créneau"
     },
     {
-      "ecran": "app-entree-assistants a-1-*",
-      "element": "liste des droits",
-      "propriete": "le produit liste les droits donnés (19 pour l'agent de la démo) sans les droits refusés (✗) de la maquette",
-      "recommandation": "garder : la liste vient de l'API, la maquette en montre un extrait"
+      "ecran": "app-entree-assistants a-4-bureau-1280",
+      "element": "colonne de 1080 px sans panneau voisin (écart non listé en v1)",
+      "resolu_le": "2026-11-14",
+      "comment": "EtapeDuNumero : `xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]`, colonne de 480 px et CeQuiVousAttend à droite dès xl ; mesuré 480 + 542 px à 1280"
     }
   ]
 }

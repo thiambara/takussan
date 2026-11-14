@@ -50,15 +50,8 @@ vi.mock('@/lib/queries/kyc', () => ({ fetchAgencyKyc: async () => ({ data: { sta
 vi.mock('@/components/leads/boite/AttribuerDialog', () => ({
   AttribuerDialog: ({ leadId, agencyId }: { leadId: number; agencyId: number }) => <div data-testid="attribuer">{`${leadId}/${agencyId}`}</div>,
 }));
-// La relance elle-même (famille 6) est éprouvée par TCK-2660 / TCK-2682 : ici, ce qui l'ouvre.
-vi.mock('@/components/admin/finances/impayes/Impayes', () => ({
-  FeuilleDeRelance: ({ row, ouverte }: { row: { id: number }; ouverte: boolean }) => (ouverte ? <div data-testid="feuille-de-relance">{row.id}</div> : null),
-}));
-vi.mock('@/components/admin/finances/impayes/FileDeRelance', async (original) => ({
-  ...(await original<typeof import('@/components/admin/finances/impayes/FileDeRelance')>()),
-  FileDeRelance: ({ api }: { api: { file: { rows: { id: number }[] } | null } }) =>
-    api.file ? <div data-testid="file-de-relance">{api.file.rows.map((r) => r.id).join(',')}</div> : null,
-}));
+// TCK-2775 — la relance (famille 6) vit sur l'écran Impayés, qui l'ouvre depuis son adresse
+// (`relance-de-l-adresse.tck-2775.test.tsx`) : ici, l'accueil n'en est que le lien.
 
 const BIEN = {
   id: 9,
@@ -96,6 +89,7 @@ const VISITE = {
 const ECHEANCE = {
   id: 77,
   source: 'lease',
+  lease_id: 31,
   payment_type: 'rent',
   status: 'late',
   days_late: 94,
@@ -271,7 +265,7 @@ describe('les files lues', () => {
     expect(within(cartes[2]!).getByRole('link', { name: 'Voir' }).getAttribute('href')).toBe('/app/visits?vue=to_confirm');
     expect(within(cartes[3]!).getByText('Le plus ancien : 3 jours')).toBeTruthy();
     expect(within(cartes[4]!).getByText('33 715 000 F')).toBeTruthy();
-    expect(within(cartes[4]!).getByRole('button', { name: 'Relancer' })).toBeTruthy();
+    expect(within(cartes[4]!).getByRole('link', { name: 'Relancer' }).getAttribute('href')).toBe('/app/agency/finances?tab=impayes&relance=file');
   });
 
   it('bureau : les groupes, leurs comptes, les tranches des impayés et « Voir les N autres »', async () => {
@@ -390,36 +384,25 @@ describe('les gestes, sans quitter l’accueil', () => {
     expect(screen.getByTestId('attribuer').textContent).toBe('41/9');
   });
 
-  it('AC6 — « Relancer » ouvre la relance de la famille 6 : la feuille d’une échéance, ou la file des échéances de bail ; rien n’est envoyé par Takussan', async () => {
+  it('AC6 / TCK-2775 AC5 — « Relancer » MÈNE à l’écran Impayés, qui ouvre la relance : la file pour « Relancer tout », l’échéance pour sa rangée ; rien n’est lu ni envoyé d’ici', async () => {
     monter();
     await screen.findAllByText('3 demandes à attribuer');
-    fireEvent.click(within(groupe('Impayés')).getByRole('button', { name: 'Relancer' }));
-    expect(screen.getByTestId('feuille-de-relance').textContent).toBe('77');
-
-    fireEvent.click(within(telephone()).getByRole('button', { name: 'Relancer' }));
-    // Lues au moment du geste, au plafond de l'API ; la file est celle de l'écran Impayés (le plus en
-    // retard d'abord), sans l'échéance de réservation.
-    expect((await screen.findByTestId('file-de-relance')).textContent).toBe('77,78');
-    expect(lectures('/api/payments/history').some((p) => p.get('per_page') === '100')).toBe(true);
+    const impayes = groupe('Impayés');
+    expect(within(impayes).getByRole('link', { name: 'Relancer tout' }).getAttribute('href')).toBe('/app/agency/finances?tab=impayes&relance=file');
+    expect(within(impayes).getByRole('link', { name: 'Relancer' }).getAttribute('href')).toBe('/app/agency/finances?tab=impayes&relance=77&bail=31');
+    expect(within(telephone()).getByRole('link', { name: 'Relancer' }).getAttribute('href')).toBe('/app/agency/finances?tab=impayes&relance=file');
+    // Aucun bouton de relance : le geste n'est plus monté sur l'accueil.
+    expect(screen.queryByRole('button', { name: /Relancer/ })).toBeNull();
+    fireEvent.click(within(impayes).getByRole('link', { name: 'Relancer tout' }));
+    // L'accueil ne lit pas les 100 échéances (c'est l'écran Impayés qui les lit), et n'écrit rien.
+    expect(lectures('/api/payments/history').some((p) => p.get('per_page') === '100')).toBe(false);
     expect(gestes()).toEqual([]);
   });
 
-  it('« Relancer tout » au plafond de l’API (100) : la file part, et l’accueil dit qu’elle s’arrête là — sans compte', async () => {
-    etat.impayes = 140;
+  it('l’échéance d’exemple dit le payeur, le reste dû et la période — sous les clés de l’accueil', async () => {
     monter();
     await screen.findAllByText('3 demandes à attribuer');
-    fireEvent.click(within(telephone()).getByRole('button', { name: 'Relancer' }));
-    expect((await screen.findByTestId('file-de-relance')).textContent).toBe('77,78');
-    expect(etat.toasts).toEqual(['La file s’arrête aux 100 échéances les plus en retard']);
-  });
-
-  it('… sous le plafond, aucune mention', async () => {
-    etat.impayes = 3;
-    monter();
-    await screen.findAllByText('3 demandes à attribuer');
-    fireEvent.click(within(telephone()).getByRole('button', { name: 'Relancer' }));
-    expect((await screen.findByTestId('file-de-relance')).textContent).toBe('77,78');
-    expect(etat.toasts).toEqual([]);
+    expect(within(groupe('Impayés')).getByText('4 200 000 F · Loyer d’août')).toBeTruthy();
   });
 });
 

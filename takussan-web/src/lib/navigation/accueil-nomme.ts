@@ -6,7 +6,8 @@ import { resoudrePersona } from './personas';
 /**
  * TCK-2619 — l'accueil de `/app` s'appelle-t-il « Aujourd'hui » au menu de ce compte (la disposition
  * nomme `tableau-de-bord` `today` : l'agent, TCK-2618) ? La page introuvable le lit AU SERVEUR pour
- * écrire « Retour à Aujourd'hui » plutôt que « Retour à l'accueil » dans le HTML de la réponse 404.
+ * écrire « Retour à Aujourd'hui » plutôt que « Retour à l'accueil » (rendu à l'hydratation : la réponse
+ * 404 n'a pas de HTML d'écran, TCK-2740).
  *
  * Le serveur n'a pas `espaceIndividuel` (un contexte client) : le persona se résout ici sans
  * `agenceIndividuelle`. Ce réglage ne départage que l'admin, l'hôte et le bailleur ;

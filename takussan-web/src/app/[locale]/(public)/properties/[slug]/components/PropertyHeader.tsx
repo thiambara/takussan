@@ -8,6 +8,7 @@ import { porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
 import { MarquesDeBoost } from '@/components/boost/MarquesDeBoost';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { formatAddressShort } from '@/lib/format/address';
+import { statutPourLeVisiteur } from '@/lib/biens/statut-au-visiteur';
 import type { PropertyDetail } from '@/types/property';
 import { PropertyPrice } from './PropertyContactActions';
 
@@ -19,8 +20,9 @@ interface PropertyHeaderProps {
 }
 
 export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite }: PropertyHeaderProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
+  const statutDuBien = statutPourLeVisiteur(property);
 
   return (
     <header className="flex flex-col gap-3">
@@ -65,7 +67,8 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             {property.contract_type_label && (
               <Badge variant="outline" className="lg:hidden">{property.contract_type_label}</Badge>
             )}
-            <Badge variant="outline">{property.status_label}</Badge>
+            {/* TCK-2638 — ni « Validé » ni « Disponible » au visiteur : seulement un statut qui l'informe. */}
+            {statutDuBien ? <Badge variant="outline">{statutDuBien}</Badge> : null}
             {/* TCK-633 lot F — « En vedette » et le badge acheté (« Urgent », « Baisse de prix »). */}
             <MarquesDeBoost featured={Boolean(property.featured)} badge={(property as { badge?: unknown }).badge} className="contents" />
             {/* TCK-508 — « Neuf » / « Sur plan » seulement ; l'état complet est dans les caractéristiques. */}

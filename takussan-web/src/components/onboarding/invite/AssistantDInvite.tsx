@@ -42,7 +42,7 @@ export function AssistantDInvite({
     <>
       <DeclarerEntree
         titre={agence ? t('intention', { agence }) : t('intentionSans')}
-        {...(pret ? { pas: etape + 1, total: ETAPES_D_INVITE } : {})}
+        {...(pret ? { pas: etape + 1, total: ETAPES_D_INVITE, avancementEcrit: true } : {})}
       />
       {pret ? (
         <div data-etape-d-invite={etape + 1}>{children}</div>

@@ -41,7 +41,7 @@ export function PropertyMobileContact({
   onRequestVisit,
   onRequestBooking,
 }: PropertyMobileContactProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const canal = canalPrincipal(contact, canMessage);
   const { secondaire } = actionsDuContrat(property);
   const appel = useAppelDuBien(property.slug);

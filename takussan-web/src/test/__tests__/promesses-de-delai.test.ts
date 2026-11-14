@@ -142,7 +142,7 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // TCK-2638 — la tuile « Vacants » du mode Gestion : « # depuis plus de 60 j » compte les biens que
   // l'API mesure vacants depuis au moins 60 jours (`vacant_over_60_days`). Une DURÉE de vacance, pas un
   // délai promis.
-  'property.dashboard.gestion.tuiles.vacantsLongs':
+  'propertyDashboard.gestion.tuiles.vacantsLongs':
     'takussan-api/app/Http/Controllers/Api/PropertyPortfolioController.php:38 — LONG_VACANCY_DAYS = 60, compté à :59 (vacantForAtLeast)',
   // TCK-2660 — les pastilles des impayés : « Plus de 30 j » et « Moins de 8 j » filtrent l'historique par
   // ANCIENNETÉ de retard (`filter[days_late_min|max]`, mesurée par l'API). Une tranche affichée, pas un délai promis.
@@ -207,7 +207,7 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'search.publicAlert.codeBody': 5,
   'superAdmin.pages.radar.listing.source.capturesExpire': 30,
   'admin.finances.argent.tuiles.bauxEtAnciens': 30,
-  'property.dashboard.gestion.tuiles.vacantsLongs': 60,
+  'propertyDashboard.gestion.tuiles.vacantsLongs': 60,
   'admin.finances.impayes.tranches.plus30': 30,
   'admin.finances.impayes.tranches.moins8': 8,
   'documents.coffre.archive.preparee.prete': 24,

@@ -107,6 +107,14 @@ export type WizardShellProps = {
  * en encre à 80 % : le produit garde l'encre pleine, une encre de texte ne s'atténue pas par l'opacité
  * (TCK-658, `encre-sans-alpha.contraste.test.ts`).
  */
+/**
+ * TCK-2819 — les gestes du pied SOUS `lg`, aux deux entrées (`/publish` et `/app/properties/new`) : le
+ * `PiedAssistant` de la maquette `app-entree-publier` (`BoutonE` « grand » : 48 px, 16 px / 600, ronds,
+ * sans le filet transparent de `Button`). Dès `lg`, rien ne change : le cadre d'entrée a ses gestes
+ * (`GESTE_D_ENTREE`), le cadre plein écran de `/app` garde les siens.
+ */
+const GESTE_DU_TELEPHONE = 'max-lg:h-12 max-lg:gap-2 max-lg:rounded-full max-lg:border-0 max-lg:text-action max-lg:leading-normal max-lg:font-semibold';
+
 const GESTE_D_ENTREE = 'lg:h-11 lg:gap-2 lg:rounded-full lg:border-0 lg:px-5 lg:text-corps lg:leading-normal lg:font-semibold';
 
 /**
@@ -155,12 +163,13 @@ export function WizardShell({
 
   // Le pied tient le bas de l'écran pendant tout le parcours : il revendique le bord bas auprès
   // du dock, sans quoi un élément flottant se posait sur « Continuer » à 390 px (mesuré le
-  // 2026-09-16). Hauteur : bordure + barre (4) + libellés des parties (22) + `pt-3` + bouton `lg`
-  // (40) + `pb-4`.
+  // 2026-09-16). Hauteur au téléphone (TCK-2819, le `PiedAssistant` de la maquette, 117 px) :
+  // bordure + `pt-2.5` + barre (4) + libellés des parties (22) + `pt-3` + geste de 48 + `pb-1` + `pb-4`.
+  // Dès `lg` le pied est plus bas (97 px) : la place réservée en trop n'y gêne rien.
   const pied = useFloatingDockSlot({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
-    height: 97,
+    height: 117,
     safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
   });
 
@@ -200,7 +209,8 @@ export function WizardShell({
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {barreApercu ? <div className="shrink-0 lg:hidden">{barreApercu}</div> : null}
+          {/* Maquette a-0 (téléphone) : le départ n'a pas encore de résumé — rien n'a été dit. */}
+          {barreApercu && !etape.accueil ? <div className="shrink-0 lg:hidden">{barreApercu}</div> : null}
           {bandeau ? <div className="shrink-0 px-4 pt-4 sm:px-8 lg:px-12 xl:px-14">{bandeau}</div> : null}
 
           {/* ── Corps : LA SEULE zone défilante (AC9) ── */}
@@ -301,8 +311,14 @@ export function WizardShell({
             data-wizard-footer
             style={{ paddingBottom: pied.paddingBottom }}
             className={cn(
-              'shrink-0 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80',
-              cadreDEntree && 'lg:bg-card lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-card',
+              // TCK-2819 — sous `lg`, le `Pied` de la maquette : carte, ombre portée vers le haut, `pt-2.5`.
+              // L'ombre (le jeton `--shadow-barre-collante`, celle du `Pied`) porte `max-lg:` : un
+              // `lg:shadow-none` laisserait des ombres transparentes calculées.
+              'shrink-0 border-t border-border bg-card pt-2.5 max-lg:shadow-barre-collante',
+              'lg:pt-0',
+              cadreDEntree
+                ? 'lg:bg-card'
+                : 'lg:bg-background/95 lg:backdrop-blur lg:supports-[backdrop-filter]:bg-background/80',
               panneauOuvert && 'xl:hidden',
             )}
           >
@@ -318,11 +334,12 @@ export function WizardShell({
                 aria-valuemax={steps.length}
                 aria-valuetext={t('position', { current: index + 1, total: steps.length })}
                 aria-label={t('progressLabel')}
-                className={cn('-mt-px grid gap-1.5 px-4 sm:px-8 xl:px-14', cadreDEntree && 'lg:mt-0 lg:px-0 xl:px-0')}
+                className={cn('grid gap-1.5 px-4 sm:px-8 lg:-mt-px xl:px-14', cadreDEntree && 'lg:mt-0 lg:px-0 xl:px-0')}
                 style={{ gridTemplateColumns: `repeat(${segments.length}, minmax(0, 1fr))` }}
               >
                 {segments.map((_, partie) => (
-                  <div key={partie} className="h-1 overflow-hidden rounded-full bg-muted">
+                  // Sous `lg` (maquette `Segments`) : le rail en `border`, chaque partie atteinte en `primary`.
+                  <div key={partie} className="h-1 overflow-hidden rounded-full bg-border lg:bg-muted">
                     {/*
                       420 ms : PLUS LENT que la transition d'étape (300 ms), délibérément. La barre
                       finit après, donc on la voit avancer — si elle finissait avant, l'œil serait
@@ -331,7 +348,7 @@ export function WizardShell({
                     <div
                       className={cn(
                         'h-full rounded-full transition-[width] duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
-                        partie < partieCourante ? 'bg-foreground' : 'bg-primary',
+                        partie < partieCourante ? 'bg-primary lg:bg-foreground' : 'bg-primary',
                       )}
                       style={{
                         width: `${(parts ? remplissage(partie) : (index + 1) / steps.length) * 100}%`,
@@ -357,8 +374,12 @@ export function WizardShell({
                 </div>
               ) : null}
 
-              <div className={cn('flex items-center gap-2 px-4 pt-3 sm:px-8 xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}>
-                {/* Maquette a-0 : le départ n'a pas de « Précédent » (rien avant lui), plutôt qu'un geste éteint. */}
+              {/* Sous 390 px, l'écart passe de 12 à 8 : a-4 (trois gestes) finissait à 346 px sur 360, dans la marge. */}
+              <div className={cn('flex items-center gap-3 px-4 pt-3 pb-1 max-[389px]:gap-2 sm:px-8 lg:gap-2 lg:pb-0 xl:px-14', cadreDEntree && 'lg:px-0 xl:px-0')}>
+                {/*
+                  Maquette a-0 : le départ n'a pas de « Précédent » (rien avant lui), plutôt qu'un geste
+                  éteint — au téléphone aux deux entrées (TCK-2819), dès `lg` dans le cadre d'entrée seul.
+                */}
                 {cadreDEntree && index === 0 ? null : (
                   <Button
                     type="button"
@@ -366,16 +387,27 @@ export function WizardShell({
                     size="lg"
                     disabled={index === 0 || busy}
                     onClick={() => onNavigate(index - 1, -1)}
-                    className={cn('-ml-2.5', cadreDEntree && [GESTE_D_ENTREE, 'lg:-ml-5'])}
+                    className={cn(
+                      GESTE_DU_TELEPHONE,
+                      'max-lg:px-2 lg:-ml-2.5',
+                      index === 0 && 'max-lg:hidden',
+                      cadreDEntree && [GESTE_D_ENTREE, 'lg:-ml-5'],
+                    )}
                   >
                     {t('back')}
                   </Button>
                 )}
                 {/* Maquette a-4 : « Plus tard » touche « Continuer » (aucun écart entre eux) dès `lg`. */}
-                <div className={cn('ml-auto flex items-center gap-2', cadreDEntree && 'lg:gap-0')}>
+                <div
+                  className={cn(
+                    'ml-auto flex items-center gap-3 max-[389px]:gap-2 lg:gap-2',
+                    index === 0 && 'max-lg:w-full',
+                    cadreDEntree && 'lg:gap-0',
+                  )}
+                >
                   {etape.skippable && !derniere ? (
                     <Button type="button" variant="ghost" size="lg" disabled={busy}
-                      className={cadreDEntree ? GESTE_D_ENTREE : undefined}
+                      className={cn(GESTE_DU_TELEPHONE, 'max-lg:px-2', cadreDEntree && GESTE_D_ENTREE)}
                       onClick={() => onNavigate(index + 1, 1)}>
                       {t('skip')}
                     </Button>
@@ -383,7 +415,19 @@ export function WizardShell({
                   <Button
                     type="button"
                     size="lg"
-                    className={cn('min-w-36 sm:min-w-44', cadreDEntree && [GESTE_D_ENTREE, 'lg:min-w-[11rem]'])}
+                    className={cn(
+                      GESTE_DU_TELEPHONE,
+                      // Maquette : 172 px de large à côté de « Précédent » seul, 136 avec « Plus tard », toute
+                      // la ligne au départ. Sous 390 px, les trois gestes côte à côte ne tiennent qu'à la
+                      // largeur de leur texte : « Continuer » cède son minimum (a-4 à 360, TCK-2819).
+                      'max-lg:px-6 sm:min-w-44',
+                      index === 0
+                        ? 'max-lg:w-full'
+                        : etape.skippable && !derniere
+                          ? 'min-w-[8.5rem] max-[389px]:min-w-0 max-[389px]:px-5'
+                          : 'min-w-[10.75rem]',
+                      cadreDEntree && [GESTE_D_ENTREE, 'lg:min-w-[11rem]'],
+                    )}
                     disabled={busy || !peutAvancer}
                     onClick={() => (derniere ? onFinish() : onNavigate(index + 1, 1))}
                   >

@@ -43,7 +43,7 @@ export function PropertyBookingCard({
   onMessage,
   canMessage = true,
 }: PropertyBookingCardProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const { primaire, secondaire } = actionsDuContrat(property);
   // TCK-590 — sans numéro, ni « Appeler » ni WhatsApp. TCK-633 — WhatsApp vers un numéro DÉCLARÉ.
   const hasPhone = contact?.has_phone === true;

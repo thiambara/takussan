@@ -10,13 +10,14 @@ import { FAVORITE_NOTES_MAX, useUpdateFavoriteNotesMutation, type FavoriteItem }
 import type { PropertyListItem } from '@/types/property';
 
 /**
- * Ce que la liste des favoris de la console (`FavoritesList`) et la page publique « Le suivi »
- * (TCK-2508) partagent : les deux sortes de favori, la normalisation du bien rendu par l'API et
- * la note personnelle éditable en place.
+ * Ce que la page des favoris « Le suivi » (TCK-2508) rend de chaque favori du compte, sur le site
+ * comme dans la coque de `/app` (TCK-2618) : les deux sortes de favori, la normalisation du bien
+ * rendu par l'API et la note personnelle éditable en place.
  *
- * Module à part et non exports de `FavoritesList` : celle-ci importe la pagination de la console
- * (`console.pagination`), et la page publique qui l'importerait ferait entrer l'espace `console`
- * dans la frontière i18n publique (`scripts/check-i18n-namespaces.mjs`).
+ * Module à part depuis TCK-2508 : il était partagé avec la liste de la console (`FavoritesList`),
+ * qui importait la pagination de la console (`console.pagination`) — la page publique qui l'aurait
+ * importée faisait entrer l'espace `console` dans la frontière i18n publique
+ * (`scripts/check-i18n-namespaces.mjs`). Cette liste n'était plus rendue : retirée par TCK-2738.
  */
 export type AvailableFavorite = Extract<FavoriteItem, { availability: 'available' }>;
 export type UnavailableFavorite = Exclude<FavoriteItem, { availability: 'available' }>;

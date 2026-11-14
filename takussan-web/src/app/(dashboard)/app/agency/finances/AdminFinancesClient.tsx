@@ -25,6 +25,7 @@ import { useFinanceSummary } from '@/lib/queries/agency-reporting';
 import { lienDExportDuRegistre } from '@/lib/queries/exports';
 import { usePaymentsHistory } from '@/lib/queries/payments';
 import { useResumeDesImpayes } from '@/components/admin/finances/impayes/Impayes';
+import { useRelanceDemandeeParLAdresse } from '@/components/admin/finances/impayes/relance-de-l-adresse';
 import { ApiError } from '@/lib/api';
 
 interface AdminFinancesClientProps {
@@ -71,6 +72,8 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const vue = vueDeLArgent(recherche);
   // TCK-2660 — le sous-titre de l'écran Impayés au bureau : le total dû et les cautions (balance âgée).
   const resumeDesImpayes = useResumeDesImpayes(vue.sorte === 'registre' && vue.onglet === 'impayes' ? agencyId : undefined);
+  // TCK-2775 — `?relance=` (accueil, fiche du bail) : lu puis retiré de l'adresse ; l'écran Impayés l'ouvre.
+  const relance = useRelanceDemandeeParLAdresse();
   const mois = moisAffiche(recherche, courant);
   const periodeDansLUrl = recherche.get('period');
   const gestes = useGestesDeLArgent(canEmitFinances);
@@ -230,6 +233,8 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
       courant={courant}
       agencyId={agencyId}
       comptes={comptes}
+      relanceDemandee={relance.demande}
+      onRelancePrise={relance.prise}
       entete={(onglets) => (
         <PageHeader
           className="max-md:hidden"

@@ -43,8 +43,8 @@ const DICTIONNAIRES = { fr, en, wo } as const;
 
 /** Les libellés tels que l'écran les rend : `fr` sert de repli sous les autres (`src/test/intl.tsx`). */
 const libelles = (locale: LocaleDeTest) => ({
-  ...fr.property.dashboard.actions,
-  ...DICTIONNAIRES[locale].property.dashboard.actions,
+  ...fr.propertyDashboard.actions,
+  ...DICTIONNAIRES[locale].propertyDashboard.actions,
 });
 
 const BIEN = { id: 47, title: 'Studio à Ouakam', slug: 'studio-ouakam', status: 'available', visibility: 'public' } as const;

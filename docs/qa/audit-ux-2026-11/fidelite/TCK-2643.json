@@ -175,7 +175,7 @@
       "element": "« Modifier » dans l’encart « Réglages … appliqués »",
       "propriete": "absent du produit",
       "exception": "décision produit",
-      "motif": "décision 7 : les réglages se modifient champ par champ dans le bloc lui-même, pas par un détour vers les réglages de l’agence"
+      "motif": "décision 7 : aucune page n'écrit un réglage d'agence (`POST /api/settings` en portée agence n'a aucun appelant au front) ; un « Modifier » mènerait nulle part. Les valeurs reprises se modifient dans le bail lui-même (critère « préremplir n'est pas imposer ») ; le geste vers les réglages de l'agence attend un ticket à part"
     },
     {
       "ecran": "a-2-*, a-3-telephone",
@@ -271,6 +271,24 @@
     }
   ],
   "mesures": {
+    "le": "2026-11-14, 14:55-14:57 Z (load 3,8 / 5,7 / 6,2 sur 8 cœurs), sous le verrou de mesure",
+    "arbre": "HEAD 58c870a28 (lots 1-4, f5f8b2d23, 2ce1c2242, 98608127e commités ; aucun fichier de la création du bail modifié dans l'arbre)",
+    "methode": "`fidelite.mjs releve` persona admin, route `/app/leases/new?property=13&customer=3`, `--bloquer '*signature-request*'`, perturbations `debut.garde.js` et `verifier.garde.js` (garde d'écriture : « écritures refusées : 0 » partout) ; `compare` avec cette fiche en `--roles`. 1440 non re-mesuré (ADR-0106 amendé : 390 et 1280).",
+    "resultats": {
+      "a-2-telephone": "24 conformes · 9 écarts · 21 absents · 4,79 % pixels",
+      "a-3-telephone": "57 conformes · 14 écarts · 7 absents · 3,05 % pixels",
+      "a-2-bureau-1280": "80 conformes · 147 écarts · 44 absents · 9,92 % pixels"
+    },
+    "absents": "énumérés un à un, avec leur motif : `TCK-2643.absents.json` (aucun sans motif)",
+    "rideaux": "takussan-web/.fidelite/TCK-2643/cmp-{a-2-telephone,a-3-telephone,a-2-bureau-1280}-h/{rideau.html,cote-a-cote.png}",
+    "ac5": "390 × 844 : « Continuer » 784-832 / 844 visible à scrollY 0 aux étapes 1 (Bien), 2 (Locataire), 3 (Conditions) ; étape 4 : « Envoyer à la signature » 728-776 et « Créer le brouillon » 784-832 visibles. 1280 × 900 : total à l'entrée 127-255 à l'arrivée, 22-149 après saisie du loyer (800 000) et défilement complet du main (392 px), montant recalculé (5 040 000 → 5 600 000)",
+    "ac_f6": "`balayer` à 768 et 1024 : débord 0 (scrollWidth − clientWidth), aucune coupe ; à 768 les seules ellipses sont les libellés du rail replié de la coque. Relevés qui impriment innerWidth et scrollWidth : 390/390, 1024/1024, 1280/1280. À 1024, le total et les deux envois passent sous le formulaire (colonne collante dès xl).",
+    "lecture": "mêmes comptes qu'au 2026-11-12 à une ligne près : a-3, « 3 mois · 2 160 000 F » (caution du bien 13, la maquette porte « 2 mois · 1 340 000 F ») passe hors tolérance de retrait (−3,7 px), le même texte du produit mesurant 132,3 px au lieu de 128,8 px le 12 (cause du changement de largeur non établie, aucun fichier de la création du bail modifié) ; texte différent de la maquette : vérité des données. Au bureau, l'essentiel des écarts reste la coque.",
+    "decompte_bureau_1280": "147 écarts = 123 de la coque (rôle « coque · barre latérale » 82, ancres de la barre x < 272 : 41) + 24 du contenu, tous rattachés à une ligne de `ecarts_acceptes` : −7,2 px sous le type de bail (hauteur 32,4 des champs, « champs du formulaire ») ; +37,7 px sous l'encart des réglages (« mentions de source ») ; −242,4 px pour « Envoyer à la signature », « Créer le brouillon » et leur icône (« Aperçu du contrat » absent) ; couleur du détail du total, de « Nouveau bail », d'« Annuler » et des icônes −/+ (`encre-sans-alpha`) ; pastille des réglages (`bg-muted`) ; chevron du Select et bordure des boutons (« composant partagé ») ; « Réglages de la plateforme appliqués » (alias, vérité des données) ; « 3 mois » (caution du bien 13, indemnité alias du préavis) ; largeur de « Nouveau bail » (titre de l'en-tête de page, sans le lien « Brouillon »)."
+  },
+  "_roles": "Les rôles téléphone valent pour les deux écrans (le comparateur ne les filtre que par appareil) : « rappel du bail » désigne au a-2 la carte de rappel en tête de l'étape, au a-3 la carte « Les parties », qui porte le même texte ; « Les conditions » n'existe qu'au a-3 — au a-2 la ligne « absent de la maquette » est sans objet (introuvable des deux côtés). Les rôles se lisent sur les données : la maquette par ses données fictives, le produit par le bien 13 et la cliente 3 de la base de démo.",
+  "_zones": "Aucune zone déclarée. La seule zone que l'outil mesure ici (coque : true) est « coque · en-tête » au téléphone, 1,34 % sur a-2 et a-3 : elle porte deux écarts acceptés — le lien « Brouillon » absent (décision produit) et le trait 1,75 de l'icône × (composant partagé) —, donc pas un contenu identique ; elle dépasse 0,5 % et AC-F4 reste à trancher par le porteur (zone de coque motivée, ou déclarée et soldée par TCK-2619). La barre d'onglets est masquée des deux côtés ; au bureau, la coque est hors périmètre (C-coque, TCK-2619).",
+  "mesures_precedentes": {
     "le": "2026-11-12, 21:57-21:59 (load 13 à 1 min), après l’avis de la décision 7b",
     "arbre": "ebdcb0415 + arbre de travail du lot 4 (non commité)",
     "methode": "`fidelite.mjs releve` persona admin, route `/app/leases/new?property=13&customer=3`, `--bloquer '*signature-request*'` ; perturbations `debut.garde.js` (début au 1er décembre 2026) et `verifier.garde.js` (+ « Continuer » jusqu’à l’étape 4), qui refusent toute requête autre que GET/HEAD/OPTIONS : « écritures refusées : 0 » sur les quatre relevés, réseau GET/OPTIONS seuls. ⚠ `--bloquer` apparie par sous-chaîne : `*/api/leases` bloquait `/api/leases/defaults`",
@@ -282,6 +300,5 @@
     },
     "rideaux": "takussan-web/.fidelite/TCK-2643/cmp-{a-2-telephone,a-3-telephone,a-2-bureau-1440,a-2-bureau-1280}/{rideau.html,cote-a-cote.png}",
     "lecture": "au bureau, l’essentiel des écarts est la coque (rôle « coque · barre latérale ») ; hors coque, chaque ligne relève d’un écart accepté ci-dessus. Les lignes du bien et du locataire choisis sont conformes, contenu compris"
-  },
-  "_roles": "Les rôles téléphone valent pour les deux écrans (le comparateur ne les filtre que par appareil) : « rappel du bail » désigne au a-2 la carte de rappel en tête de l'étape, au a-3 la carte « Les parties », qui porte le même texte ; « Les conditions » n'existe qu'au a-3 — au a-2 la ligne « absent de la maquette » est sans objet (introuvable des deux côtés). Les rôles se lisent sur les données : la maquette par ses données fictives, le produit par le bien 13 et la cliente 3 de la base de démo."
+  }
 }

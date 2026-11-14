@@ -1,6 +1,6 @@
 # TCK-2613 — Assistants des invités en deux écrans : plan d'implémentation
 
-Ticket : [`TCK-2613`](../backlog/tickets/todo/TCK-2613-assistants-la-raison-de-venir-d-abord.md). Maquette retenue :
+Ticket : [`TCK-2613`](../backlog/tickets/done/TCK-2613-assistants-la-raison-de-venir-d-abord.md). Maquette retenue :
 `app-entree-assistants`, approche a (références gelées le 2026-11-11, `docs/qa/audit-ux-2026-11/fidelite/references/app-entree-assistants/`).
 
 ## Ce qui se relève avant d'écrire (2026-11-13)

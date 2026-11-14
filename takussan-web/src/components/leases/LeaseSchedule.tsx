@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, MoreHorizontal } from 'lucide-react';
@@ -25,6 +26,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { PasserOutreDialog } from './PasserOutreDialog';
 import { aujourdhuiADakar, joursEntre } from './fiche/CartesDuBail';
+import type { RelanceDeLaFiche } from './fiche/RelanceDuLoyer';
 import { peutPasserOutreAuCheckout } from './passer-outre';
 
 interface LeaseScheduleProps {
@@ -59,6 +61,12 @@ interface LeaseScheduleProps {
   readonly aujourdhui?: string;
   /** TCK-2645 — « Encaisser » sur la ligne (gestion, `record_payment`) : ouvre le paiement reçu présélectionné. */
   readonly onEncaisser?: (paymentId: number) => void;
+  /**
+   * TCK-2818 — « Relancer » au menu d'une ligne en retard : un lien vers l'écran Impayés, qui ouvre la
+   * relance (TCK-2775). Absent pour le lecteur qui ne peut pas ouvrir l'écran ; sans numéro joignable,
+   * la ligne garde « Copier le lien de paiement » (`copierLien`).
+   */
+  readonly relance?: RelanceDeLaFiche;
 }
 
 /** TCK-2645 — « Payé » en `--success`, jamais en terracotta (la couleur d'action). */
@@ -155,6 +163,7 @@ export function LeaseSchedule({
   toutes: toutesImpose,
   aujourdhui: aujourdhuiImpose,
   onEncaisser,
+  relance,
 }: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.schedule');
@@ -317,6 +326,7 @@ export function LeaseSchedule({
             const ouverte = !annulee && (p.status === 'pending' || p.status === 'late' || p.status === 'partially_paid' || p.status === 'failed');
             const marquerPenalite = canRecordPayment && !annulee && p.late_fee_outstanding > 0;
             const copierLien = canManage && due && !locataire;
+            const relancer = relance?.joignable && relance.relancable(p) ? relance.lien(p) : null;
             // TCK-2645 (lot 3) — « En retard de 6 j », « Payé le 29 oct. » : l'état et sa date (maquette a-1).
             const joursDeRetard = st === 'late' && p.due_date ? joursEntre(p.due_date, aujourdhui) : 0;
             const libelle =
@@ -399,7 +409,7 @@ export function LeaseSchedule({
                         {tFiche('quittance')}
                       </BoutonTelechargement>
                     ) : null}
-                    {marquerPenalite || copierLien ? (
+                    {marquerPenalite || copierLien || relancer ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           aria-label={tFiche('menu', { periode })}
@@ -408,6 +418,11 @@ export function LeaseSchedule({
                           <MoreHorizontal className="size-4" aria-hidden="true" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {relancer ? (
+                            <DropdownMenuItem render={<Link href={relancer} />} data-testid="relancer-l-echeance">
+                              {tFiche('relancer')}
+                            </DropdownMenuItem>
+                          ) : null}
                           {marquerPenalite ? (
                             <DropdownMenuItem disabled={markLateFeePaid.isPending} onClick={() => void constaterPenaliteReglee(p.id)}>
                               {tFiche('marquerPenalite')}

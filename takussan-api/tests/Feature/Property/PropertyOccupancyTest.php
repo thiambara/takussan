@@ -212,6 +212,27 @@ class PropertyOccupancyTest extends ApiTestCase
         $this->assertSame('none', $rows['Octobre impayé']['occupancy']['current_month']['status']);
     }
 
+    /**
+     * TCK-2651, décision 18 (a) du porteur (2026-11-14) — l'occupation lit le loyer du mois comme le
+     * relevé du bailleur : échu et remboursé, « refunded », rien à encaisser ni à relancer, hors du
+     * filtre des retards ; le retard prime sur un remboursement du même mois.
+     */
+    public function test_decision_18_un_loyer_echu_rembourse_comme_au_releve(): void
+    {
+        $rembourse = ['refund_amount' => 300_000, 'paid_at' => '2026-11-05 10:00:00'];
+        $this->loyer($this->bail($this->bienLoue($this->agency, $this->owner, 'Remboursé'), 'Awa Ndiaye'), '2026-11-05', PaymentStatus::Refunded, $rembourse);
+        $mixte = $this->bail($this->bienLoue($this->agency, $this->owner, 'Retard et remboursé'), 'Moussa Fall');
+        $this->loyer($mixte, '2026-11-02', PaymentStatus::Refunded, $rembourse);
+        $this->loyer($mixte, '2026-11-05', PaymentStatus::Late);
+
+        $rows = $this->rows();
+        $mois = $rows['Remboursé']['occupancy']['current_month'];
+        $this->assertSame(['refunded', null, '2026-11-05'], [$mois['status'], $mois['days_late'], $mois['due_date']]);
+        $this->assertEquals(0, $mois['amount_due']);
+        $this->assertSame(['late', 6], [$rows['Retard et remboursé']['occupancy']['current_month']['status'], $rows['Retard et remboursé']['occupancy']['current_month']['days_late']]);
+        $this->assertSame(['Retard et remboursé'], $this->titles('&filter[rent_late]=1'));
+    }
+
     /** Rien n'est servi sans être demandé. */
     public function test_rien_sans_include_ni_champ(): void
     {

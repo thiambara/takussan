@@ -1,3 +1,6 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { accueilNommeAujourdhui } from '@/lib/navigation/accueil-nomme';
 import { profilLieDeLaCoque, typeDuProfilActif } from '@/lib/navigation/personas';
@@ -52,24 +55,32 @@ import { CorpsDeLIntrouvable } from './CorpsDeLIntrouvable';
  * `racine`) et celui du contenu est masqué par la règle « un seul H1 » (`globals.css`, TCK-2617) ; le
  * disque de l'icône ne paraît qu'au téléphone (maquette `app-coque`, « Page introuvable »).
  *
- * ⚠ **Ce fichier n'est PAS `'use client'`, et ce n'est pas un détail de style.** Relevé du
- * 2026-08-27 : un `not-found.tsx` client n'est pas rendu dans le HTML de la réponse 404, ni l'enfant
- * client d'un introuvable serveur. Le H1, le message, le champ « Aller à… » et le retour à l'accueil
- * sont donc rendus par des composants SERVEUR (`CorpsDeLIntrouvable`) ; le client n'ajoute que la
- * liste des pages (menu et récents de l'appareil, `SecoursDeLIntrouvable`) et le raccourci contextuel
- * (`RetourVersLaListe`).
+ * ⚠ **Aucun de ces composants n'est dans le HTML de la réponse 404, et rien dans ce fichier n'y peut
+ * rien** — mesuré le 2026-11-14 sur `next build` + `next start` (TCK-2740). Une sonde HORS de `/app`
+ * (un `not-found.tsx` serveur, une page qui appelle `notFound()`) rend la même chose que `/app/zzz` :
+ * **404**, document d'erreur de Next (`<html id="__next_error__">`, 58 octets de corps hors scripts),
+ * le texte n'étant que dans la charge RSC. La même sonde sous un `<Suspense>` rend **200**, son repli
+ * dans le corps, et toujours pas le texte. Témoin : `/app` (200) a 65 Ko de corps. La frontière
+ * `not-found` est une frontière d'erreur CLIENT, que le rendu serveur de React n'exécute pas : Next
+ * 16.3.1 ne rend jamais au serveur un introuvable atteint par `notFound()`, et l'écran (coque
+ * comprise) n'arrive qu'à l'hydratation. Ce n'est ni TCK-426 ni propre à `/app`. Le relevé du
+ * 2026-08-27 qui disait le contraire est démenti ; il a vraisemblablement lu la réponse entière, où la
+ * charge RSC porte tous les textes. La structure serveur est gardée : elle ne coûte rien, et le
+ * cliquet de `introuvable.test.tsx` ne la garde plus pour le HTML.
  *
- * ⚠⚠ **Mesuré le 2026-11-11 sur `next build` + `next start` (TCK-2619) : AUCUN de ces composants
- * n'est aujourd'hui dans le HTML.** Une 404 de `/app` (`/app/zzz`, `/app/leases/abc-zzz`,
- * `/app/properties/99999999`) est servie en document d'erreur de Next (`<html id="__next_error__">`,
- * corps vide hors scripts, titre « Tableau de bord ») : l'erreur `notFound()` atteint la coque du
- * rendu serveur, et tout l'écran — coque comprise — est rendu au client depuis la charge RSC. Même
- * mesure avant le lot 1 (46c0b49f1) : ce n'est pas ce fichier. La CAUSE n'est pas établie ; deux
- * explications, aucune vérifiée : TCK-426 (c0dc2af43) a retiré la frontière de suspension ancêtre de
- * `/app` pour que le statut 404 survive ; ou le relevé du 2026-08-27 a lu la réponse entière, charge
- * RSC comprise, et le HTML serveur n'a jamais existé. La structure serveur est gardée : elle ne coûte
- * rien, et elle rendra le HTML le jour où la coque ne tombera plus.
+ * ## Le titre (TCK-2740 AC4)
+ *
+ * Le seul morceau du `<head>` que le serveur rend pour une 404 : Next résout les métadonnées du
+ * document d'erreur avec `errorConvention: 'not-found'`, donc celles du `not-found.tsx` le plus
+ * profond — celui-ci. Sans `generateMetadata` ici, l'onglet disait « Tableau de bord » (défaut de
+ * `(dashboard)/layout.tsx`). Après l'hydratation, Next réécrit l'onglet avec le titre de la PAGE
+ * demandée : l'attrape-tout `[...introuvable]` porte donc le même, une fiche absente garde le sien.
  */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.notFound');
+  return { title: t('heading') };
+}
+
 export default async function AppNotFound() {
   const user = await getMeAction();
   const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));

@@ -64,6 +64,7 @@
       "nav",
       "navigationPublique",
       "property",
+      "propertyRow",
       "search"
     ],
     "(dashboard)/app/crm": [
@@ -99,6 +100,7 @@
       "lease",
       "payments",
       "property",
+      "propertyDashboard",
       "search",
       "team"
     ],
@@ -117,6 +119,7 @@
       "owners",
       "payments",
       "property",
+      "propertyDashboard",
       "search"
     ],
     "(dashboard)/app/pieces": [
@@ -148,6 +151,8 @@
       "console",
       "payments",
       "property",
+      "propertyReport",
+      "propertyReviewReport",
       "serviceProviders"
     ],
     "(dashboard)/app/reports": [
@@ -198,7 +203,7 @@
       "console",
       "documents",
       "payments",
-      "property",
+      "propertyDashboard",
       "search"
     ],
     "(dashboard)/app/settings": [
@@ -208,20 +213,20 @@
     "[locale]/(public)/agents": [
       "agents",
       "propertyContact",
+      "propertyReport",
+      "propertyReviewReport",
       "publicContact",
       "publicProfile",
       "publicProfileIndex"
     ],
     "(dashboard)/app/(accueil)": [
       "accueil",
-      "admin",
       "compteRendu",
       "console",
       "contactLeads",
       "crm",
       "favorites",
       "journee",
-      "lease",
       "maintenance",
       "payments",
       "visitPlanning",
@@ -238,6 +243,7 @@
       "documents",
       "lease",
       "property",
+      "propertyDashboard",
       "saisieDemande",
       "search",
       "visitPlanning",
@@ -246,7 +252,7 @@
     "(dashboard)/app/documents": [
       "console",
       "documents",
-      "property",
+      "propertyDashboard",
       "search"
     ],
     "(dashboard)/app/favorites": [
@@ -286,6 +292,10 @@
       "owners",
       "payments",
       "property",
+      "propertyAvailabilityCheck",
+      "propertyDashboard",
+      "propertyModeration",
+      "propertyPortfolio",
       "search",
       "visitPlanning",
       "visits"
@@ -293,6 +303,8 @@
     "[locale]/(public)/agencies": [
       "agency",
       "propertyContact",
+      "propertyReport",
+      "propertyReviewReport",
       "publicContact",
       "publicProfile",
       "publicProfileIndex"
@@ -316,7 +328,7 @@
       "console",
       "maintenance",
       "payments",
-      "property",
+      "propertyDashboard",
       "search",
       "serviceProviders"
     ],
@@ -341,6 +353,12 @@
       "contact",
       "map",
       "propertyContact",
+      "propertyDetail",
+      "propertyReport",
+      "propertyReservation",
+      "propertyReviewReport",
+      "propertyReviews",
+      "propertyVisitDialog",
       "publicContact",
       "publicProfile",
       "recentlyViewed"
@@ -349,59 +367,60 @@
       "console"
     ],
     "[locale]/(public)/properties/(liste)": [
-      "map"
+      "map",
+      "propertyDiscovery"
     ]
   },
   "plafondsPourcent": {
     ".": 9,
     "(auth)": 11,
-    "publish": 25,
+    "publish": 21,
     "onboarding": 28,
     "(dashboard)": 11,
     "invitations": 10,
     "(dashboard)/app": 23,
-    "[locale]/(public)": 22,
-    "(dashboard)/app/crm": 34,
+    "[locale]/(public)": 18,
+    "(dashboard)/app/crm": 30,
     "(dashboard)/app/leads": 30,
     "(dashboard)/app/tasks": 24,
-    "[locale]/(public)/pay": 23,
-    "(dashboard)/app/agency": 55,
+    "[locale]/(public)/pay": 19,
+    "(dashboard)/app/agency": 53,
     "(dashboard)/app/leases": 32,
-    "(dashboard)/app/owners": 49,
+    "(dashboard)/app/owners": 47,
     "(dashboard)/app/pieces": 23,
     "(dashboard)/app/visits": 30,
     "onboarding/super-admin": 46,
     "(dashboard)/app/account": 23,
     "(dashboard)/app/credits": 24,
-    "(dashboard)/app/profile": 34,
+    "(dashboard)/app/profile": 30,
     "(dashboard)/app/reports": 42,
-    "[locale]/(public)/claim": 25,
-    "[locale]/(public)/legal": 22,
-    "[locale]/(public)/share": 23,
+    "[locale]/(public)/claim": 21,
+    "[locale]/(public)/legal": 18,
+    "[locale]/(public)/share": 19,
     "(dashboard)/app/bookings": 30,
     "(dashboard)/app/calendar": 30,
-    "(dashboard)/app/messages": 42,
-    "(dashboard)/app/payments": 37,
-    "(dashboard)/app/settings": 34,
-    "[locale]/(public)/agents": 23,
-    "(dashboard)/app/(accueil)": 52,
-    "(dashboard)/app/customers": 48,
-    "(dashboard)/app/documents": 34,
-    "(dashboard)/app/favorites": 33,
-    "(super-admin)/super-admin": 51,
-    "[locale]/(public)/account": 25,
-    "(dashboard)/app/properties": 62,
-    "[locale]/(public)/agencies": 24,
-    "[locale]/(public)/bookings": 24,
+    "(dashboard)/app/messages": 38,
+    "(dashboard)/app/payments": 32,
+    "(dashboard)/app/settings": 35,
+    "[locale]/(public)/agents": 19,
+    "(dashboard)/app/(accueil)": 38,
+    "(dashboard)/app/customers": 46,
+    "(dashboard)/app/documents": 29,
+    "(dashboard)/app/favorites": 29,
+    "(super-admin)/super-admin": 47,
+    "[locale]/(public)/account": 21,
+    "(dashboard)/app/properties": 61,
+    "[locale]/(public)/agencies": 20,
+    "[locale]/(public)/bookings": 20,
     "(dashboard)/app/commissions": 24,
     "(dashboard)/app/inventories": 29,
-    "(dashboard)/app/maintenance": 39,
+    "(dashboard)/app/maintenance": 34,
     "(dashboard)/app/leases/(liste)": 43,
-    "(dashboard)/app/saved-searches": 33,
-    "[locale]/(public)/notifications": 23,
-    "[locale]/(public)/search-alerts": 23,
-    "[locale]/(public)/properties/[slug]": 23,
-    "[locale]/(public)/playground/vitrine": 22,
-    "[locale]/(public)/properties/(liste)": 22
+    "(dashboard)/app/saved-searches": 29,
+    "[locale]/(public)/notifications": 18,
+    "[locale]/(public)/search-alerts": 18,
+    "[locale]/(public)/properties/[slug]": 20,
+    "[locale]/(public)/playground/vitrine": 18,
+    "[locale]/(public)/properties/(liste)": 18
   }
 }

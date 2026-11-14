@@ -130,7 +130,9 @@ describe('<OwnerOnboardingWizard> — deux écrans (TCK-2613)', () => {
     expect(await screen.findByText('L’agence suit déjà 5 biens pour vous. Voici où ils en sont aujourd’hui.')).toBeInTheDocument();
     expect(getOwnerPropertiesAction).toHaveBeenCalledWith(7);
     // Plus d'écran de pièces ni de visite guidée.
-    expect(screen.queryByText(frMessages.owners.onboarding.steps.kyc.submitCta)).toBeNull();
+    // TCK-2821 : les textes de l'étape ont quitté le dictionnaire, l'absence s'affirme en clair, champ fichier compris.
+    expect(screen.queryByText(/Envoyer mes pièces/i)).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
     expect(screen.queryByText(frMessages.owners.onboarding.steps.tour.skip)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: INVITE.bailleur.allerAMonEspace }));

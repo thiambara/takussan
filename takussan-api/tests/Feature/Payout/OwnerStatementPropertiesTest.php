@@ -129,6 +129,56 @@ class OwnerStatementPropertiesTest extends TestCase
         $this->assertSame(['late', 10], [$this->rows()['F3 Mermoz']['month_status'], $this->rows()['F3 Mermoz']['days_late']]);
     }
 
+    /**
+     * TCK-2651, décision 18 (a) du porteur (2026-11-14) — un loyer échu remboursé se lit « reçu puis
+     * remboursé », ni « payé » ni « en retard ». Remboursé mais pas encore échu, il reste « à venir »
+     * (TCK-2820). Un mois où une échéance est payée et l'autre remboursée reste « payé ».
+     */
+    public function test_decision_18_un_loyer_echu_rembourse_se_lit_recu_puis_rembourse(): void
+    {
+        $refund = ['refund_amount' => 300_000, 'paid_at' => '2026-11-05 10:00:00'];
+        $this->rent($this->lease($this->property('Villa Almadies'), 'Awa Ndiaye'), '2026-11-05', PaymentStatus::Refunded, $refund);
+        $this->rent($this->lease($this->property('F2 Sacré-Cœur'), 'Ibou Sarr'), '2026-11-20', PaymentStatus::Refunded, $refund);
+        $mixte = $this->lease($this->property('F3 Mermoz'), 'Moussa Fall');
+        $this->rent($mixte, '2026-11-05', PaymentStatus::Refunded, $refund);
+        $this->rent($mixte, '2026-11-06', PaymentStatus::Paid);
+
+        $rows = $this->rows();
+
+        $this->assertSame(['refunded', null], [$rows['Villa Almadies']['month_status'], $rows['Villa Almadies']['days_late']]);
+        $this->assertSame(['due', null], [$rows['F2 Sacré-Cœur']['month_status'], $rows['F2 Sacré-Cœur']['days_late']]);
+        $this->assertSame('paid', $rows['F3 Mermoz']['month_status']);
+    }
+
+    /** Décision 18, précision de team-lead (2026-11-14) — le retard prime : en retard ET remboursé se lit « en retard ». */
+    public function test_decision_18_le_retard_prime_sur_le_remboursement(): void
+    {
+        $lease = $this->lease($this->property('Villa Almadies'), 'Awa Ndiaye');
+        $this->rent($lease, '2026-11-02', PaymentStatus::Refunded, ['refund_amount' => 300_000, 'paid_at' => '2026-11-02 10:00:00']);
+        $this->rent($lease, '2026-11-05', PaymentStatus::Late);
+
+        $this->assertSame(['late', 6], [$this->rows()['Villa Almadies']['month_status'], $this->rows()['Villa Almadies']['days_late']]);
+    }
+
+    /**
+     * Décision 18, précision de team-lead (2026-11-14) — un loyer remboursé n'est jamais compté reçu :
+     * ni dans « Reste à vous verser » (`balance`), ni dans l'encaissé du mois, ni dans « Par bien ».
+     * Témoin : le loyer payé du même bail, seul compté (300 000 − 10 % = 270 000).
+     */
+    public function test_decision_18_un_loyer_rembourse_n_est_pas_compte_recu_dans_le_reste_a_verser(): void
+    {
+        $lease = $this->lease($this->property('Villa Almadies'), 'Awa Ndiaye');
+        $this->rent($lease, '2026-11-02', PaymentStatus::Refunded, ['refund_amount' => 300_000, 'paid_at' => '2026-11-02 10:00:00']);
+        $this->rent($lease, '2026-11-05', PaymentStatus::Paid);
+        Sanctum::actingAs($this->landlord);
+
+        $statement = $this->getJson('/api/owner-statements?period=2026-11')->assertOk()->json('data');
+
+        $this->assertEquals(270000, $statement['balance']['remaining_to_pay']);
+        $this->assertEquals(300000, $statement['totals']['gross']);
+        $this->assertEquals(300000, $statement['properties'][0]['collected']);
+    }
+
     /** Le relevé d'un bailleur ne nomme ni les biens ni les locataires d'un autre bailleur de l'agence. */
     public function test_les_biens_d_un_autre_bailleur_n_y_sont_pas(): void
     {

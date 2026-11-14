@@ -11,20 +11,14 @@ import { cn } from '@/lib/utils';
 /**
  * Le seul morceau CLIENT de l'écran introuvable — et il est isolé ici pour une raison mesurée.
  *
- * Un `not-found.tsx` entièrement `'use client'` **n'est pas rendu dans le HTML initial**. Mesuré
- * le 2026-08-27, sonde jetable, sur `next dev` ET sur un `next build` + `next start` :
+ * Il ne porte que ce qui exige l'URL demandée : le raccourci vers la liste. Le message et le retour
+ * principal sont rendus par le composant serveur `CorpsDeLIntrouvable`.
  *
- *     not-found.tsx composant SERVEUR   → son texte est DANS le HTML de la réponse 404
- *     not-found.tsx composant CLIENT    → absent du HTML ; l'écran est vide jusqu'à l'hydratation
- *     hybride (serveur + enfant client) → le serveur est dans le HTML, l'enfant client non
- *
- * L'écran porte donc son message et son chemin de retour principal côté serveur, et ne confie au
- * client que ce qui exige l'URL demandée : le raccourci vers la liste. Ce raccourci apparaît à
- * l'hydratation ; ce qui manque avant elle est un raccourci, plus jamais l'explication.
- *
- * ⚠ Mesuré le 2026-11-11 (TCK-2619, build de production) : une 404 de `/app` est servie en document
- * d'erreur de Next, corps vide — rien de l'écran, serveur ou client, n'est dans le HTML. Pourquoi le
- * relevé ci-dessus disait autre chose n'est pas établi (docblock de `not-found.tsx`).
+ * ⚠ Aucun des deux n'est dans le HTML de la réponse 404, serveur ou client. Un relevé du 2026-08-27
+ * affirmait qu'un `not-found.tsx` serveur y était ; mesuré le 2026-11-14 sur `next build` +
+ * `next start` (TCK-2740), y compris sur une sonde hors de `/app` : Next 16 sert une 404 de
+ * `notFound()` en document d'erreur au corps vide, et tout l'écran arrive à l'hydratation
+ * (docblock de `not-found.tsx`).
  *
  * `usePathname()` rend bien l'URL DEMANDÉE, y compris sur une navigation douce — vérifié au
  * navigateur sur la sonde (clic depuis une autre page, `pathname` lu dans la frontière :

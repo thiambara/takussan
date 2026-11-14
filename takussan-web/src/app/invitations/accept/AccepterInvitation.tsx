@@ -9,6 +9,7 @@ import { useTranslations } from 'next-intl';
 
 import { accepterInvitationAction } from '@/app/actions/invitations';
 import { BoutonCollant } from '@/components/auth/BoutonCollant';
+import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
 
 import { BOUTON_D_INVITATION } from './PiecesDeLInvitation';
 import { useDecalageDuClavier } from '@/components/entree/useDecalageDuClavier';
@@ -91,6 +92,11 @@ export function AccepterInvitation({
   const [visible, setVisible] = useState(false);
   const [enCours, demarrer] = useTransition();
   const decalage = useDecalageDuClavier();
+
+  // TCK-2598 (r2) — rien n'est enregistré avant l'envoi : un mot de passe tapé, des noms corrigés
+  // (comparés au pré-rempli, pas au vide) sont une saisie, et la sortie de la coque demande.
+  const saisie = motDePasse !== '' || prenom !== (prerempli?.prenom ?? '') || nom !== (prerempli?.nom ?? '');
+  const declaration = <DeclarerEntree saisie={saisie || undefined} reprise={t('sortie.reprise')} />;
 
   const ici = `/invitations/accept?token=${encodeURIComponent(jeton)}`;
   // TCK-2604 — l'action interrompue suit : la connexion dit « Votre invitation ».
@@ -202,6 +208,7 @@ export function AccepterInvitation({
         noValidate
         className="flex flex-col gap-5"
       >
+        {declaration}
         <p className="text-sm text-muted-foreground">{aideDuNom ?? t('confirmName')}</p>
         {champsDuNom}
         {alerte}
@@ -231,6 +238,7 @@ export function AccepterInvitation({
 
   return (
     <form {...fieldDensityScope()} onSubmit={envoyer} noValidate className="flex flex-col gap-5">
+      {declaration}
       {champsDuNom}
       <div className="flex flex-col gap-2">
         <Label htmlFor="invitation-mot-de-passe">{t('password')}</Label>

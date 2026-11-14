@@ -56,6 +56,12 @@ export interface DeclarationDEntree {
   /** L'avancement du parcours ENTIER, compte compris. */
   readonly pas?: number;
   readonly total?: number;
+  /**
+   * TCK-2613 — « Étape 1 sur 2 » ÉCRIT à côté des pastilles (sous l'intention au téléphone), comme la barre des
+   * assistants d'invité de la maquette `app-entree-assistants`. Absent : les pastilles seules, dont le libellé
+   * reste le nom accessible — le texte écrit est masqué aux lecteurs d'écran, qui l'entendraient deux fois.
+   */
+  readonly avancementEcrit?: boolean;
   /** Une saisie existe : quitter demande confirmation. */
   readonly saisie?: boolean;
   /** Où la reprendre, dit par la confirmation (sinon le texte par défaut de la coque). */
@@ -154,11 +160,32 @@ type Declarer = (id: string, declaration: DeclarationDEntree | null) => void;
 /** Deux contextes : qui déclare ne se re-rend pas quand la déclaration change (pas de boucle). */
 const ContexteDeclarer = createContext<Declarer | null>(null);
 
+type ClicDeSortie = (evenement: MouseEvent<HTMLAnchorElement>) => void;
+
+/** TCK-2598 (r1) — la garde de sortie, prêtée aux liens de sortie que la page DÉCLARE (`enTete`). */
+const ContexteSortie = createContext<ClicDeSortie | undefined>(undefined);
+
+/**
+ * TCK-2598 (r1) — le `onClick` d'un lien de sortie qu'une page pose elle-même dans ce qu'elle déclare
+ * (la marque d'un `enTete`, qui remplace la barre de la coque au téléphone) : il passe par la même
+ * confirmation que « Retour au site » quand une saisie est déclarée. À poser sur le LIEN lui-même —
+ * le lien de Next navigue dans son propre gestionnaire, un parent qui écoute le clic arrive trop tard.
+ * Hors de la coque : `undefined`, le lien sort sans demander.
+ */
+export function useClicDeSortie(): ClicDeSortie | undefined {
+  return useContext(ContexteSortie);
+}
+
 function fusionner(declarations: ReadonlyMap<string, DeclarationDEntree>): DeclarationDEntree {
   const sortie: Record<string, unknown> = {};
   for (const declaration of declarations.values()) {
     for (const [cle, valeur] of Object.entries(declaration)) if (valeur !== undefined) sortie[cle] = valeur;
   }
+  // TCK-2598 (r2) — la saisie est un OU : une page déclare en plusieurs endroits (l'invitation : les
+  // noms et le numéro d'un côté, le mot de passe de l'autre), et un `false` posé après un `true` ne
+  // doit pas l'effacer — la sortie demanderait, puis ne demanderait plus, selon l'ordre de montage.
+  const saisie = [...declarations.values()].some((declaration) => declaration.saisie === true);
+  if (saisie) sortie.saisie = true;
   return sortie as DeclarationDEntree;
 }
 
@@ -173,10 +200,10 @@ export function DeclarerEntree(declaration: DeclarationDEntree) {
 
 function Declarant({ declarer, declaration }: { readonly declarer: Declarer; readonly declaration: DeclarationDEntree }) {
   const id = useId();
-  const { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur } = declaration;
+  const { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur } = declaration;
   useLayoutEffect(() => {
-    declarer(id, { titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur });
-  }, [declarer, id, titre, titreDeBureau, pas, total, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur]);
+    declarer(id, { titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur });
+  }, [declarer, id, titre, titreDeBureau, pas, total, avancementEcrit, saisie, reprise, pied, objet, enTete, panneau, retourBureau, pleinEcran, noteDeBarre, sortieBloquee, objetAGauche, largeur]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
@@ -197,18 +224,27 @@ export function Pastilles({ pas, total, gabarit, className }: { readonly pas: nu
   );
 }
 
-/** TCK-2601 (AC5) — un lien de sortie inerte : annoncé désactivé, hors de la tabulation, le clic retenu. */
-const PROPS_INERTES = {
-  'aria-disabled': true,
-  tabIndex: -1,
-  onClick: (evenement: MouseEvent<HTMLAnchorElement>) => evenement.preventDefault(),
-} as const;
-
-function Marque({ nom, className, bloquee = false }: { readonly nom: string; readonly className?: string; readonly bloquee?: boolean }) {
+/**
+ * La marque, lien vers l'accueil : une SORTIE comme les autres. TCK-2598 (r1) — elle passe par la garde
+ * (`auClicDeSortie`) : avec une saisie déclarée, elle demande ; bloquée (TCK-2601, AC5), le clic est
+ * retenu par la garde elle-même, et le lien s'annonce désactivé, hors de la tabulation.
+ */
+function Marque({
+  nom,
+  className,
+  bloquee = false,
+  onClick,
+}: {
+  readonly nom: string;
+  readonly className?: string;
+  readonly bloquee?: boolean;
+  readonly onClick: ClicDeSortie;
+}) {
   return (
     <NextLink
       href="/"
-      {...(bloquee ? PROPS_INERTES : {})}
+      onClick={onClick}
+      {...(bloquee ? { 'aria-disabled': true, tabIndex: -1 } : {})}
       className={cn('inline-flex rounded-md py-1 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring aria-disabled:pointer-events-none aria-disabled:opacity-50', className)}
     >
       <Logo nom={nom} />
@@ -265,6 +301,7 @@ export function CoqueDEntree({
   const [enAttente, setEnAttente] = useState<HTMLAnchorElement | null>(null);
   const laisserPasser = useRef(false);
 
+  // TCK-2598 (r1) — TOUTES les sorties y passent : « Retour au site », « ✕ », « Quitter », la marque.
   function auClicDeSortie(evenement: MouseEvent<HTMLAnchorElement>) {
     if (sortieBloquee) {
       evenement.preventDefault();
@@ -288,9 +325,22 @@ export function CoqueDEntree({
     }
   }
 
+  // TCK-2598 (r1) — la garde prêtée aux pages (`useClicDeSortie`) est une fonction STABLE qui appelle la
+  // dernière : une valeur de contexte neuve à chaque rendu re-rendrait la page qui la lit, qui
+  // re-déclarerait son `enTete`, qui re-rendrait la coque — une boucle sans fin.
+  const derniereGarde = useRef(auClicDeSortie);
+  useLayoutEffect(() => {
+    derniereGarde.current = auClicDeSortie;
+  });
+  const [gardePretee] = useState<ClicDeSortie>(() => (evenement: MouseEvent<HTMLAnchorElement>) => derniereGarde.current(evenement));
+
   // La sortie garde `auClicDeSortie` (qui retient aussi le clic bloqué) : seuls l'annonce et la tabulation s'ajoutent.
   const inerte = sortieBloquee ? { 'aria-disabled': true, tabIndex: -1 } : {};
   const avancement = pas && total ? <Pastilles pas={pas} total={total} gabarit={libelles.avancement} /> : null;
+  const etapeEcrite =
+    (declaree.avancementEcrit === true || parDefaut.avancementEcrit === true) && pas && total
+      ? libelles.avancement.replace('{pas}', String(pas)).replace('{total}', String(total))
+      : null;
   const retourAuSite =
     sortie?.forme === 'retour-au-site' ? (
       <NextLink href={sortie.href} onClick={auClicDeSortie} {...inerte} className={cn(CLASSES_LIEN_TEXTE, CLASSES_INERTES)}>
@@ -300,6 +350,7 @@ export function CoqueDEntree({
 
   return (
     <ContexteDeclarer.Provider value={declarer}>
+      <ContexteSortie.Provider value={gardePretee}>
       <div className={cn('flex bg-background', pleinEcran ? 'h-dvh' : 'min-h-dvh')} data-coque-d-entree="">
         {panneau ? (
           <aside
@@ -330,18 +381,27 @@ export function CoqueDEntree({
                   <X className="size-5" aria-hidden="true" />
                 </NextLink>
               ) : (
-                <Marque nom={libelles.marque} className="ml-3" bloquee={sortieBloquee} />
+                <Marque nom={libelles.marque} className="ml-3" bloquee={sortieBloquee} onClick={auClicDeSortie} />
               )}
               {/* L'intention au téléphone quand la barre s'ouvre sur un retour ou « ✕ » (maquettes
                   `BarreEntree`, `EnTeteFormulaire`) ; ouverte sur la marque, la barre n'a que la marque et
                   l'avancement (orientation a-0/a-1) — l'intention passe à la barre du bureau. */}
               {titre && (retour || sortie?.forme === 'quitter') ? (
-                <p className="min-w-0 flex-1 truncate text-action font-semibold">{titre}</p>
+                etapeEcrite ? (
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-action font-semibold">{titre}</p>
+                    <p data-avancement-ecrit="" aria-hidden="true" className="text-ui text-muted-foreground">
+                      {etapeEcrite}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="min-w-0 flex-1 truncate text-action font-semibold">{titre}</p>
+                )
               ) : retour ? (
                 // `first:pl-3` : là où le retour ne paraît pas (vérification d'e-mail, réinitialisation,
                 // retour OAuth), la marque ouvre la barre et garde la marge de la maquette.
                 <span className="flex flex-1 items-center first:pl-3">
-                  <Marque nom={libelles.marque} bloquee={sortieBloquee} />
+                  <Marque nom={libelles.marque} bloquee={sortieBloquee} onClick={auClicDeSortie} />
                 </span>
               ) : (
                 <span className="flex-1" />
@@ -359,7 +419,7 @@ export function CoqueDEntree({
             /* Bureau large à deux colonnes (`DeuxColonnes`) : la barre de la colonne de droite, sans filet. */
             <header className="hidden h-16 flex-none items-center justify-between px-10 xl:flex">
               {retourBureau ?? <span />}
-              <Marque nom={libelles.marque} bloquee={sortieBloquee} />
+              <Marque nom={libelles.marque} bloquee={sortieBloquee} onClick={auClicDeSortie} />
             </header>
           ) : null}
           {/* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie.
@@ -372,13 +432,18 @@ export function CoqueDEntree({
           >
             <div className="flex flex-1 items-center gap-5 whitespace-nowrap">
               {retourBureau ?? null}
-              <Marque nom={libelles.marque} bloquee={sortieBloquee} />
+              <Marque nom={libelles.marque} bloquee={sortieBloquee} onClick={auClicDeSortie} />
             </div>
             {titreDeBureau ? (
               /* Le titre seul se tronque : le retour et la marque gardent leur ligne (`whitespace-nowrap`), un titre long
                  ne repliait pas le titre mais la pastille « Retour à l’annonce », sur deux lignes, collée à la marque. */
               <div className="mx-6 flex min-w-0 items-center gap-3.5">
                 <p className="truncate text-corps font-semibold">{titreDeBureau}</p>
+                {etapeEcrite ? (
+                  <span data-avancement-ecrit="" aria-hidden="true" className="flex-none text-sm text-muted-foreground">
+                    {etapeEcrite}
+                  </span>
+                ) : null}
                 {avancement}
               </div>
             ) : null}
@@ -482,6 +547,7 @@ export function CoqueDEntree({
           </DialogContent>
         </Dialog>
       ) : null}
+      </ContexteSortie.Provider>
     </ContexteDeclarer.Provider>
   );
 }

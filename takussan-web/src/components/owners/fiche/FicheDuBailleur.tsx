@@ -598,7 +598,7 @@ function ReglagesDuMandat({ owner, modifiable, className }: { readonly owner: Ow
 
 /** « Locataire » d'un bien : son nom (TCK-2637, réservé à qui voit le bail), sinon son état. */
 function useOccupant() {
-  const t = useTranslations('property.dashboard.gestion.ligne');
+  const t = useTranslations('propertyDashboard.gestion.ligne');
   return (b: PropertyListItem, aujourdhui: Date): string | null => {
     const ligne = ligneOccupant(b, aujourdhui);
     if (!ligne) return null;

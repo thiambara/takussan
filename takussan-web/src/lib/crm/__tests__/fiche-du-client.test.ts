@@ -29,6 +29,9 @@ describe('TCK-2589 — la lecture de la fiche client', () => {
       confirmee: false,
       gere: false,
       aTranche: false,
+      // TCK-2761 — sans `address` servie, ni adresse ni itinéraire.
+      adresse: null,
+      itineraire: null,
     });
     // C2 — gérer et la tranche viennent de `upcoming_visits` (manage, preferred_window).
     expect(prochaineVisite({ next_action, upcoming_visits: [{ id: 9, property_id: 3, status: 'scheduled', scheduled_at: next_action.at, manage: true, preferred_window: 'morning' }] })).toMatchObject({ gere: true, aTranche: true });

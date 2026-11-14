@@ -354,11 +354,21 @@ class ContactLeadService
             $customer->metadata = $metadata;
         }
 
+        // TCK-2761 — la recherche est « déduite du bien de sa demande » quand elle en vient TOUTE : la
+        // fiche n'avait aucun critère, ou n'avait que des critères déjà déduits. Le marqueur est posé
+        // dans la même écriture (le `saving` de `Customer` efface sinon le marqueur sur tout critère changé).
+        $toutDeduit = $customer->seeking_deduced_at !== null || collect(Customer::CRITERES_DE_RECHERCHE)
+            ->every(fn (string $f) => $customer->{$f} === null || $customer->{$f} === []);
+        $deduits = 0;
         foreach ($property !== null ? self::criteriaFromProperty($property) : [] as $field => $value) {
             $current = $customer->{$field};
             if ($current === null || $current === []) {
                 $customer->{$field} = $value;
+                $deduits++;
             }
+        }
+        if ($deduits > 0 && $toutDeduit) {
+            $customer->marquerLaRechercheDeduite();
         }
 
         if ($customer->isDirty()) {

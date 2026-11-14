@@ -76,6 +76,16 @@ export type ServiceProviderProfileSummary = {
   readonly average_rating?: number | string | null;
   readonly reviews_count?: number;
   readonly completed_interventions_count?: number;
+  /**
+   * TCK-2772 — le délai de réponse médian, en minutes, sur les interventions de l'agence du carnet
+   * (assignation → acceptation, lue au journal de l'intervention) ; `null` sans aucune mesure.
+   */
+  readonly response_delay_minutes?: number | null;
+};
+
+/** TCK-2772 — la liste porte en `meta.zones` les zones du carnet entier de l'agence, triées. */
+export type ServiceProvidersPage = PaginatedResponse<ServiceProviderProfileSummary> & {
+  readonly meta: PaginatedResponse<ServiceProviderProfileSummary>['meta'] & { readonly zones?: readonly string[] };
 };
 
 export type InviteServiceProviderPayload = {
@@ -120,6 +130,8 @@ export interface FetchServiceProvidersParams {
   readonly search?: string;
   /** TCK-2653 — `filter[specialty]` : le carnet d'un métier (TCK-592). */
   readonly specialty?: string;
+  /** TCK-2772 — `filter[zone]` : une zone servie par `meta.zones`, comparée exactement. */
+  readonly zone?: string;
 }
 
 function buildParams({
@@ -129,11 +141,13 @@ function buildParams({
   status,
   search,
   specialty,
+  zone,
 }: FetchServiceProvidersParams): SpatieQueryParams {
   const filter: Record<string, string | number> = {};
   if (status) filter.status = status;
   if (search) filter.search = search;
   if (specialty) filter.specialty = specialty;
+  if (zone) filter.zone = zone;
 
   return {
     fields: { service_provider_profiles: SERVICE_PROVIDER_PROFILE_FIELDS },
@@ -148,9 +162,9 @@ function buildParams({
 export async function fetchServiceProviders(
   token: string,
   params: FetchServiceProvidersParams,
-): Promise<PaginatedResponse<ServiceProviderProfileSummary>> {
+): Promise<ServiceProvidersPage> {
   const qs = buildQueryString(buildParams(params));
-  return apiRequest<PaginatedResponse<ServiceProviderProfileSummary>>(
+  return apiRequest<ServiceProvidersPage>(
     cheminApi`/api/agencies/${params.agencyId}/service-providers${requete(qs)}`,
     { token },
   );

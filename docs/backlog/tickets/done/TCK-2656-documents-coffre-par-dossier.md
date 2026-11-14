@@ -343,7 +343,7 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
 - **Décisions, tranchées par le chef d'équipe le 2026-11-13 : (a) partout.**
   - L3-1 (a) : les lignes de nom sont absentes, « vous » quand l'identifiant est celui de l'appelant ; elles
     sont construites par les données. Montrer un nom à un locataire ou à un bailleur est une question de
-    visibilité : suite [TCK-2773](../todo/TCK-2773-fiche-document-noms-des-auteurs-par-acteur.md).
+    visibilité : suite [TCK-2773](TCK-2773-fiche-document-noms-des-auteurs-par-acteur.md).
   - L3-2 (a) : 1 heure et « sans limite » restent (sinon, une régression) ; le compteur peut valoir « Sans
     limite ».
   - L3-3 (a) : le menu « … » du bureau ne porte que « Supprimer » (aucune route de renommage) ; l'action

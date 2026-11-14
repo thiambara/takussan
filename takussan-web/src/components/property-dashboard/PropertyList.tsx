@@ -67,9 +67,9 @@ export function PropertyList({
   agentOptions = [],
   presentation = 'annonces',
 }: PropertyListProps) {
-  const t = useTranslations('property.dashboard.list');
-  const tGestion = useTranslations('property.dashboard.gestion');
-  const tAnnonces = useTranslations('property.dashboard.annonces');
+  const t = useTranslations('propertyDashboard.list');
+  const tGestion = useTranslations('propertyDashboard.gestion');
+  const tAnnonces = useTranslations('propertyDashboard.annonces');
   // L'état du mois compte des jours : une seule date pour toute la liste, prise au premier rendu.
   const [aujourdhui] = useState(() => new Date());
   const router = useRouter();
@@ -364,7 +364,7 @@ export function PropertyList({
 }
 
 function PortfolioEmpty() {
-  const t = useTranslations('property.portfolio');
+  const t = useTranslations('propertyPortfolio');
   return (
     <EmptyState
       icon={<Home className="size-8" aria-hidden="true" />}
@@ -380,7 +380,7 @@ function PortfolioEmpty() {
 }
 
 function PortfolioFilteredEmpty({ onReset }: { readonly onReset: () => void }) {
-  const t = useTranslations('property.portfolio');
+  const t = useTranslations('propertyPortfolio');
   return (
     <EmptyState
       icon={<Home className="size-8" aria-hidden="true" />}
@@ -427,7 +427,7 @@ function BulkActionBar({
   readonly onAssign: () => void;
   readonly onClear: () => void;
 }) {
-  const t = useTranslations('property.dashboard.list');
+  const t = useTranslations('propertyDashboard.list');
   // TCK-587 — dépublier est un geste `properties.publish`, en lot comme à l'unité.
   const { canPublish } = useGestesDuBien();
   // TCK-644 — un créneau du FloatingDock, AU-DESSUS du lanceur de messagerie (priorité 0) : posée

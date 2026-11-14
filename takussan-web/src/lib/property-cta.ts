@@ -15,7 +15,7 @@ import type { ContractType, RentPeriod } from '@/types/property';
  * {@link PRIMARY_CTA_NAMESPACE}. Le libellé se résout d'une ligne côté appelant :
  *
  * ```tsx
- * const t = useTranslations('property.detail');           // = PRIMARY_CTA_NAMESPACE
+ * const t = useTranslations('propertyDetail');           // = PRIMARY_CTA_NAMESPACE
  * const cta = getPrimaryCtaForProperty(property);
  * <Button>{t(`primaryCta.${cta.action}`)}</Button>
  * ```
@@ -26,7 +26,7 @@ import type { ContractType, RentPeriod } from '@/types/property';
 export type PropertyCtaAction = 'offer' | 'reserve' | 'apply';
 
 /** Espace de noms où vivent les trois libellés — `primaryCta.{action}` sous cette racine. */
-export const PRIMARY_CTA_NAMESPACE = 'property.detail' as const;
+export const PRIMARY_CTA_NAMESPACE = 'propertyDetail' as const;
 
 export interface PrimaryCta {
   readonly action: PropertyCtaAction;

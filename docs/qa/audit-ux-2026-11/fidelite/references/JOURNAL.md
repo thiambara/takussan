@@ -9,7 +9,7 @@ Revue du porteur qui précède le gel : **2026-11-11** — « je valide tout » 
 |---|---|---|---|---|---|---|---|---|
 | app-accueil | a | 8 | — | 8/8 | 8/8 | 8/8 | 2026-11-11 | oui |
 | app-agenda | a | 6 | — | 6/6 | 6/6 | 6/6 | 2026-11-11 | oui |
-| app-argent | a | 4 | — | 4/4 | 4/4 | 4/4 | 2026-11-11 | oui |
+| app-argent | a | 4 | — | 4/4 | 4/4 | 4/4 | 2026-11-11, 2026-11-14 | oui |
 | app-aujourdhui | a | 5 | — | 5/5 | 5/5 | 5/5 | 2026-11-11 | oui |
 | app-bailleurs | a | 2 | — | 2/2 | 2/2 | 2/2 | 2026-11-11 | oui |
 | app-baux | a | 5 | 3. Création — étape 4, vérifier | 5/5 | 4/4 | 4/4 | 2026-11-11 | oui |

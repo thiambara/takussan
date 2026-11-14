@@ -349,6 +349,17 @@
   }
 }
 
+/* TCK-2825 (ADR-0091 § 4) — la pastille du comparateur, sous `/app` (la page des favoris), se pose
+   au-dessus de la barre d'onglets de la coque par la règle du dessus. Là où une page de la coque
+   retire la barre (conversation ouverte, formulaire : `data-barre-onglets` absent), une autre couche
+   tient le bas : la pastille s'efface avec la barre, comme sur le site public. Le plein écran est
+   jugé par le chemin (`CompareFloatingBar`). */
+@media (width < 48rem) {
+  [data-portee-app]:not([data-barre-onglets]) [data-pastille-comparateur] {
+    display: none;
+  }
+}
+
 /* TCK-2617 (décision 5 (a) du porteur) — UN SEUL H1 EXPOSÉ, à toute largeur. Sous `md`, l'en-tête
    d'une page RACINE porte le titre en `<h1>` (`EnTeteMobile`, `md:hidden` : il n'existe pas au-delà) ;
    celui du contenu y est masqué — dès `md`, c'est lui qui reste. Un détail, l'accueil et un formulaire
@@ -979,6 +990,18 @@
   --shadow-panneau-cloche: 0 24px 60px -24px color-mix(in srgb, var(--shadow-color) 55%, transparent);
   /* TCK-2587 — la carte « prochaine visite » (`app-visites-a-mobile.tsx`, `OMBRE`) : seule carte levée de la liste. */
   --shadow-carte-levee: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent), 0 12px 24px -16px color-mix(in srgb, var(--shadow-color) 20%, transparent);
+  /* TCK-2741 — le comparateur flottant (`CompareFloatingBar`), partagé par le site public et `/app` :
+     ses ombres nommées, chacune à la valeur exacte qu'elle remplace (rendu identique, mesuré).
+     `barre-flottante` : la barre du bureau et sa pastille repliée (un contact court, une diffusion large). */
+  --shadow-barre-flottante: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent), 0 12px 32px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  /* La pastille sombre du comparateur sous `lg`. `in oklab` gardé tel quel : c'est la valeur remplacée. */
+  --shadow-pastille-flottante: 0 8px 20px -8px color-mix(in oklab, var(--shadow-color) 55%, transparent);
+  /* Le contour intérieur d'une vignette de bien : `--scrim` en clair, `--foreground` en sombre
+     (`dark:shadow-contour-vignette-sombre` chez l'appelant ; un jeton `@theme` ne bascule pas de thème). */
+  --shadow-contour-vignette: inset 0 0 0 1px color-mix(in srgb, var(--scrim) 12%, transparent);
+  --shadow-contour-vignette-sombre: inset 0 0 0 1px color-mix(in srgb, var(--foreground) 14%, transparent);
+  /* La pastille « retirer » posée sur la vignette. */
+  --shadow-pastille-retrait: 0 1px 3px color-mix(in srgb, var(--shadow-color) 28%, transparent);
 
   /* ADR-0106 § 4 — la bande ≥ 1440 des maquettes « bureau 1280 » (`min-[1440px]:`), distincte de
      `2xl` (1536 px, site public). `w1440:` : « largeur ≥ 1440 ». Une requête MÉDIA : 90rem se lit

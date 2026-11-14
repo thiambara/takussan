@@ -64,6 +64,7 @@ import { LeaseSchedule, ordreDeLEcheancier } from './LeaseSchedule';
 import { LeaseSignaturePanel } from './LeaseSignaturePanel';
 import { AbandonnerLeBrouillon } from './fiche/AbandonnerLeBrouillon';
 import { CarteCaution, CarteDuree, CarteLoyer } from './fiche/CartesDuBail';
+import { useRelanceDeLaFiche } from './fiche/RelanceDuLoyer';
 import { FeuilleDeRevision } from './fiche/FeuilleDeRevision';
 import { FeuilleDesGarants, nomDuGarant, useEtatDeLaPiece } from './fiche/FeuilleDesGarants';
 import { OngletDocumentsDuBail, OngletHistoriqueDuBail } from './fiche/OngletsDuBail';
@@ -241,6 +242,8 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   const garants = useLeaseGuarantors(lease.id).data?.data ?? [];
   const [feuilleGarants, setFeuilleGarants] = useState<'liste' | 'ajout' | null>(null);
   const etatDeLaPiece = useEtatDeLaPiece();
+  // TCK-2818 — « Relancer » un impayé mène à l'écran Impayés (TCK-2775), au personnel qui l'ouvre.
+  const relance = useRelanceDeLaFiche(lease, locataire);
   const ouvert = gesteOuvert ?? gesteDeLUrl;
 
   const reference = lease.reference_number || tLease('fallbackReference', { id: String(lease.id) });
@@ -348,7 +351,7 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
 
   const cartes = (
     <div className="grid gap-3 md:grid-cols-3 md:gap-4">
-      <CarteLoyer lease={lease} paiements={paiements} aRegler={locataire && principal?.type === 'contrat' && aRegler(paiements)} />
+      <CarteLoyer lease={lease} paiements={paiements} aRegler={locataire && principal?.type === 'contrat' && aRegler(paiements)} relance={relance} />
       <CarteDuree lease={lease} />
       <CarteCaution lease={lease} paiements={paiements} />
     </div>
@@ -400,6 +403,7 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
         limite={ECHEANCES_VISIBLES}
         toutes={toutesLesEcheances}
         onEncaisser={(id) => setEncaisser({ paiement: id })}
+        relance={relance}
       />
     </Carte>
   );

@@ -277,6 +277,8 @@ function etatDuMois(bien: OwnerStatementProperty): { readonly teinte: StatusTone
     case 'due':
     case 'none':
     case 'vacant':
+    // Décision 18 du porteur : reçu puis remboursé, sans teinte d'alerte — personne n'est à relancer.
+    case 'refunded':
       return { teinte: 'neutral', cle: bien.month_status };
     default:
       return { teinte: 'neutral', cle: 'none' };

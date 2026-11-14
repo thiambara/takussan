@@ -2,25 +2,32 @@
  * TCK-2624 (lot 2) — « Loyers de novembre : 8 reçus sur 14 » du bailleur, lu depuis
  * `metrics.rent_month` de `GET /api/dashboard/me` (TCK-2623, `DashboardOwnerService::loyersDuMois`).
  *
- * L'API sert aujourd'hui `received_count`, `expected_count` et `received_amount`. Les segments
- * « 3 en retard » et « 3 à venir » de la maquette ne sont pas servis POUR LE MOIS (`overdue_*` compte
- * toutes les périodes) : ils ne sont rendus que si l'API les sert un jour (TCK-2774), jamais déduits
- * ici (décision 2 de TCK-2624, validée le 2026-11-13 : « pas de chiffre inventé »).
+ * L'API sert `received_count`, `expected_count` et `received_amount`, et depuis TCK-2774 les segments
+ * du MÊME mois « 3 en retard » (`overdue_count`, `overdue_amount`) et « 3 à venir » (`upcoming_count`,
+ * `upcoming_amount`), dont la somme avec les reçus fait les attendus. Ils ne sont jamais déduits ici,
+ * ni des `overdue_*` du tableau, qui comptent toutes les périodes (décision 2 de TCK-2624, validée le
+ * 2026-11-13 : « pas de chiffre inventé ») : absents (API ancienne) ou incohérents, ils ne sont pas rendus.
+ *
+ * TCK-2820 — un loyer échu puis remboursé n'est pas « en retard » : l'API le sert à part
+ * (`refunded_count`, `refunded_amount`, le montant rendu), et l'invariant devient reçus + en retard +
+ * à venir + remboursés = attendus. Absentes (API d'avant), les deux clés valent 0.
  */
 
 export interface LoyersDuMois {
   readonly recus: number;
   readonly attendus: number;
   readonly montantRecu: number;
-  /** TCK-2774 : `null` tant que l'API ne sert pas le segment. */
+  /** TCK-2774 : `null` si l'API ne sert pas le segment, ou s'il ne boucle pas sur les attendus. */
   readonly enRetard: { readonly n: number; readonly montant: number | null } | null;
   readonly aVenir: { readonly n: number; readonly montant: number | null } | null;
+  /** TCK-2820 : « 1 reçu puis remboursé » ; `null` si aucun, ou si les segments ne sont pas rendus. */
+  readonly rembourses: { readonly n: number; readonly montant: number | null } | null;
 }
 
 const entier = (v: unknown): number | null => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
 const montant = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
 
-function segment(bloc: Record<string, unknown>, prefixe: 'overdue' | 'upcoming') {
+function segment(bloc: Record<string, unknown>, prefixe: 'overdue' | 'upcoming' | 'refunded') {
   const n = entier(bloc[`${prefixe}_count`]);
   return n === null ? null : { n, montant: montant(bloc[`${prefixe}_amount`]) };
 }
@@ -40,10 +47,20 @@ export function lireLoyersDuMois(metrics: Record<string, unknown> | null | undef
   if (recus === null || attendus === null || montantRecu === null || attendus === 0 || recus > attendus) return null;
   const enRetard = segment(b, 'overdue');
   const aVenir = segment(b, 'upcoming');
-  // Les deux segments vont ensemble, et leur somme avec les reçus doit faire les attendus (l'invariant
-  // de TCK-2774) : sinon la barre mentirait, et ils ne sont pas rendus.
-  const coherents = enRetard !== null && aVenir !== null && recus + enRetard.n + aVenir.n === attendus;
-  return { recus, attendus, montantRecu, enRetard: coherents ? enRetard : null, aVenir: coherents ? aVenir : null };
+  // TCK-2820 — absente, la clé vaut 0 (API d'avant) ; présente mais illisible, rien ne boucle.
+  const rembourses = b.refunded_count === undefined ? { n: 0, montant: 0 } : segment(b, 'refunded');
+  // Les segments vont ensemble, et leur somme avec les reçus doit faire les attendus (l'invariant
+  // de TCK-2774, remboursés compris depuis TCK-2820) : sinon la barre mentirait, et ils ne sont pas rendus.
+  const coherents =
+    enRetard !== null && aVenir !== null && rembourses !== null && recus + enRetard.n + aVenir.n + rembourses.n === attendus;
+  return {
+    recus,
+    attendus,
+    montantRecu,
+    enRetard: coherents ? enRetard : null,
+    aVenir: coherents ? aVenir : null,
+    rembourses: coherents && rembourses.n > 0 ? rembourses : null,
+  };
 }
 
 /** Les largeurs de la barre, en pour cent (arrondies au dixième) : reçus, puis en retard s'il est servi. */
