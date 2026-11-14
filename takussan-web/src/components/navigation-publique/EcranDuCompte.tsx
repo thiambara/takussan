@@ -18,7 +18,8 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useAuth } from '@/context/AuthContext';
 import { destinationPublique, hrefConnexion } from '@/components/auth/lien-connexion';
 import { LienLocalise } from '@/components/shared/LienLocalise';
@@ -222,7 +223,7 @@ function EcranMoi({ user }: { readonly user: User }) {
   const espace = useEspacePublic(user);
   // TCK-642 — « Crédits » porte le solde, et ne paraît que quand il est connu.
   const solde = useSoldeDuPortefeuille(user);
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const sections = sectionsDeMoi(espace.groupesDeLaDisposition)
     .map((sec) => ({ ...sec, entrees: sec.entrees.filter((e) => e.id !== 'credits' || solde !== null) }))
     .filter((sec) => sec.entrees.length > 0);
@@ -298,7 +299,7 @@ function EcranMoi({ user }: { readonly user: User }) {
                   titre={libelle(e)}
                   detail={detail(e)}
                   compte={compte}
-                  valeur={e.id === 'credits' && solde !== null ? format.number(solde) : null}
+                  valeur={e.id === 'credits' && solde !== null ? fmt.nombre(solde) : null}
                   nomAccessible={
                     e.id === 'credits' && solde !== null
                       ? tNav('creditsBalance', { count: solde })

@@ -141,11 +141,12 @@ function CarteDExport({ carte, telechargement }: { readonly carte: CartePrete; r
 /** La coupure au plafond ou l'échec, sous ce qui vient de télécharger. */
 function Issue({ id, telechargement }: { readonly id: string; readonly telechargement: Telechargement }) {
   const tE = useTranslations('dashboard.exports');
+  const f = useFormatteurs();
   if (telechargement.dernier !== id) return null;
   if (telechargement.coupe !== null) {
     return (
       <p className="mt-2 text-ui text-pretty text-foreground" role="status" data-testid="exports-truncated">
-        {tE('truncated', { count: telechargement.coupe })}
+        {tE('truncated', { count: f.nombre(telechargement.coupe) })}
       </p>
     );
   }
@@ -261,7 +262,7 @@ function DerniersExports({ permis, telechargement }: { readonly permis: readonly
           </div>
         </>
       )}
-      <p className="mt-2 text-xs text-pretty text-muted-foreground">{t('pied', { max: PLAFOND_LIGNES_EXPORT, pdf: PLAFOND_LIGNES_EXPORT_PDF })}</p>
+      <p className="mt-2 text-xs text-pretty text-muted-foreground">{t('pied', { max: f.nombre(PLAFOND_LIGNES_EXPORT), pdf: f.nombre(PLAFOND_LIGNES_EXPORT_PDF) })}</p>
     </section>
   );
 }

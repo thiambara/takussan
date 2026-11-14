@@ -13,6 +13,7 @@ import {
   type ExportEntity,
   type ExportFormat,
 } from '@/lib/queries/exports';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { PREREGLAGES, bornesDuPrereglage, prereglageDe } from '@/lib/rapports/exports';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +42,9 @@ const FORMATS: readonly ExportFormat[] = ['csv', 'xlsx', 'pdf'];
 export function ExportForm({ staff, telephone = false, className }: ExportFormProps) {
   const t = useTranslations('dashboard.exports');
   const tR = useTranslations('rapports.exports');
+  // TCK-2795 — les plafonds et le compte coupé groupent par U+00A0, comme les montants : formatés ici,
+  // jamais par `{x, number}` (next-intl grouperait par l'espace fine U+202F).
+  const f = useFormatteurs();
   const entities = useExportsPermis(staff);
   const [choix, setEntity] = useState<ExportEntity>('payments');
   // Le choix par défaut peut ne pas être offert (un rôle sans `payments.export`).
@@ -110,7 +114,7 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
       </div>
       {/* TCK-1306 (P112.01) — le plafond de lignes se dit : au-delà, le fichier est coupé. */}
       <p className="rounded-lg bg-muted px-3 py-2 text-ui text-pretty text-foreground" data-testid="exports-row-cap">
-        {t('rowCap', { max: PLAFOND_LIGNES_EXPORT, pdf: PLAFOND_LIGNES_EXPORT_PDF })}
+        {t('rowCap', { max: f.nombre(PLAFOND_LIGNES_EXPORT), pdf: f.nombre(PLAFOND_LIGNES_EXPORT_PDF) })}
       </p>
       <Button
         type="button"
@@ -130,7 +134,7 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
       </Button>
       {telechargement.dernier === 'formulaire' && telechargement.coupe !== null ? (
         <p className="text-sm text-pretty text-foreground" role="status" data-testid="exports-truncated">
-          {t('truncated', { count: telechargement.coupe })}
+          {t('truncated', { count: f.nombre(telechargement.coupe) })}
         </p>
       ) : null}
       {telechargement.dernier === 'formulaire' && telechargement.echec ? (

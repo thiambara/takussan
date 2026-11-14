@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { Check, ChevronDown, Coins, LogOut, Plus, UserCircle, UserRound } from 'lucide-react';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -82,7 +83,7 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
   // n'a pas la place (l'en-tête tient sur une ligne, TCK-2494 AC4) : le menu la reprend, solde compris.
   const enteteSansPastille = !useMatchesMedia('(width >= 80rem)');
   const solde = useSoldeDuPortefeuille(user);
-  const format = useFormatter();
+  const fmt = useFormatteurs();
 
   const ligne = (e: EntreeRendue) => {
     const Icone = e.icon;
@@ -169,7 +170,7 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
               <Coins className="size-[18px] shrink-0 text-primary-deep" aria-hidden />
               <span className="min-w-0 flex-1 text-[0.9375rem] font-medium text-foreground">{tSidebar('credits')}</span>
               <span aria-hidden data-slot="solde-credits" className="text-sm font-semibold tabular-nums text-foreground">
-                {format.number(solde)}
+                {fmt.nombre(solde)}
               </span>
             </DropdownMenuItem>
           ) : null}

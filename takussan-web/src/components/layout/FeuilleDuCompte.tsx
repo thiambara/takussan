@@ -3,7 +3,8 @@
 import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { BellRing, Coins, ExternalLink, Languages, LogOut, ShieldCheck, User as IconeProfil, UserRound, type LucideIcon } from 'lucide-react';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { EspacesDeLaFeuille } from '@/components/profile/EspacesDuMenu';
@@ -58,7 +59,7 @@ export function FeuilleDuCompte({
   const { logout } = useAuth();
   const t = useTranslations('nav');
   const tCompte = useTranslations('nav.sidebar.compte');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const locale = useLocale() as Locale;
   const langue = useChangementDeLangue();
   const idLangue = useId();
@@ -89,7 +90,7 @@ export function FeuilleDuCompte({
         <div className="border-t border-border pt-2">
           {solde !== null ? (
             <Ligne icone={Coins} libelle={tCompte('credits')} onClick={() => aller(HREF_CREDITS)} slot="solde-du-compte">
-              <span className="shrink-0 text-sm font-semibold tabular-nums">{format.number(solde)}</span>
+              <span className="shrink-0 text-sm font-semibold tabular-nums">{fmt.nombre(solde)}</span>
             </Ligne>
           ) : null}
           <Ligne icone={IconeProfil} libelle={t('myProfile')} onClick={() => aller('/app/profile')} />

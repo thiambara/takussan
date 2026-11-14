@@ -41,6 +41,8 @@ describe('ExportForm — coupure signalée (TCK-1308)', () => {
     fireEvent.click(screen.getByRole('button', { name: fr.rapports.exports.telechargerLExport }));
 
     expect(await screen.findByTestId('exports-truncated')).toHaveTextContent(/5\s000 lignes/);
+    // TCK-2795 (AC2) — au caractère près : U+00A0, comme les montants ; l'U+202F de `{count, number}` échoue.
+    expect(screen.getByTestId('exports-truncated').textContent).toContain('5\u00a0000 lignes');
     // TCK-2629 — Excel et le mois dernier par défaut (préréglage de la maquette).
     expect(String((fetchSpy.mock.calls[0] as unknown[])[0])).toMatch(/^\/api\/export\/payments\?format=xlsx&from=\d{4}-\d{2}-01&to=/);
   });

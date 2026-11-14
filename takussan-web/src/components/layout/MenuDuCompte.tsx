@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { BellRing, Check, ChevronDown, ChevronsUpDown, Coins, ExternalLink, LogOut, ShieldCheck, User as IconeProfil, UserRound } from 'lucide-react';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -71,7 +72,7 @@ export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' 
   const t = useTranslations('nav');
   const tCompte = useTranslations('nav.sidebar.compte');
   const tAdmin = useTranslations('nav.admin');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const locale = useLocale() as Locale;
   const langue = useChangementDeLangue();
   // TCK-623 — un compte sans nom (téléphone, OAuth) : une silhouette, et ce qui désigne le compte.
@@ -179,7 +180,7 @@ export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' 
           <DropdownMenuItem data-slot="solde-du-compte" onClick={() => aller(HREF_CREDITS)}>
             <Coins className="size-4" aria-hidden="true" />
             <span className="flex-1">{tCompte('credits')}</span>
-            <span className="tabular-nums text-muted-foreground">{format.number(solde)}</span>
+            <span className="tabular-nums text-muted-foreground">{fmt.nombre(solde)}</span>
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={() => aller('/app/profile')}>

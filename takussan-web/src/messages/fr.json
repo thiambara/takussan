@@ -2713,8 +2713,8 @@
       "downloading": "Téléchargement…",
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
-      "rowCap": "Un fichier compte au plus {max, number} lignes, {pdf, number} en PDF.",
-      "truncated": "Le fichier s'arrête à {count, number} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
+      "rowCap": "Un fichier compte au plus {max} lignes, {pdf} en PDF.",
+      "truncated": "Le fichier s'arrête à {count} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
       "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
       "noneAllowed": "Votre rôle dans cette agence ne comporte aucun export. Un administrateur peut vous l'accorder.",
@@ -21494,7 +21494,7 @@
         "lignes": "Lignes",
         "gestes": "Actions"
       },
-      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max, number} lignes au plus, {pdf, number} en PDF.",
+      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max} lignes au plus, {pdf} en PDF.",
       "telechargerLExport": "Télécharger l’export"
     },
     "alertes": {

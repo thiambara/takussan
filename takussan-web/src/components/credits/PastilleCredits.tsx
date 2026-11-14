@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Coins } from 'lucide-react';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { HREF_CREDITS } from '@/lib/navigation/acces-app';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { cn } from '@/lib/utils';
@@ -38,7 +39,7 @@ const ICONE: Record<PastilleCreditsProps['ton'], string> = {
  */
 export function PastilleCredits({ ton, className }: PastilleCreditsProps) {
   const t = useTranslations('nav');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const solde = useSoldeCredits({ enabled: true });
   if (solde === null) return null;
 
@@ -54,7 +55,7 @@ export function PastilleCredits({ ton, className }: PastilleCreditsProps) {
       )}
     >
       <Coins className={cn('size-4 shrink-0', ICONE[ton])} aria-hidden="true" />
-      {format.number(solde)}
+      {fmt.nombre(solde)}
     </Link>
   );
 }

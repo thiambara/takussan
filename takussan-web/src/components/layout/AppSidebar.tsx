@@ -21,7 +21,8 @@ import { isSuperAdmin } from '@/lib/roles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Logo, SymboleTakussan } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { useCurrentLocale } from '@/i18n/hooks';
@@ -719,7 +720,7 @@ export function AppSidebar({
   const tAdmin = useTranslations('nav.admin');
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const locale = useCurrentLocale();
   const idBase = useId();
   // TCK-2481 — la composition du menu et ses compteurs, partagées avec la barre d'onglets mobile
@@ -845,7 +846,7 @@ export function AppSidebar({
       dansUnRepli={replie}
       onNavigate={onNavigate}
       {...(entree.href === HREF_CREDITS && solde !== null
-        ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
+        ? { valeur: fmt.nombre(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
         : {})}
       infobulle={infobulle}
       epingle={

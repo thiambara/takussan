@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { BarChart3 } from 'lucide-react';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { EmptyState, ErrorState } from '@/components/feedback';
@@ -30,6 +31,7 @@ export function AiDashboardPanel() {
   const tShared = useTranslations('superAdmin.pages.shared');
   const tCommon = useTranslations('common');
   const format = useFormatter();
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const montant = useMontantIa();
   const [from, setFrom] = useState(() => jour(-6));
@@ -39,7 +41,7 @@ export function AiDashboardPanel() {
     queryFn: () => fetchAdminAiDashboard(from, to),
   });
 
-  const nombre = (valeur: number) => format.number(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nombre = (valeur: number) => fmt.nombre(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const taux = query.data?.data.usd_to_xof;
   const columns: DataTableColumn<AiDashboardDay>[] = [
     { id: 'date', header: t('date'), cell: (row) => row.date },

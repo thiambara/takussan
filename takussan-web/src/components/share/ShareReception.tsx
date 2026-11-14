@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { CalendarClock, Download, FileText, Loader2, Lock, SearchX } from 'lucide-react';
 
 import { ErrorState } from '@/components/feedback';
@@ -59,6 +60,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
   const t = useTranslations('shareReception');
   const tL = useTranslations('lienPublic.document');
   const format = useFormatter();
+  const fmt = useFormatteurs();
   const [etat, setEtat] = useState<Etat>({ kind: 'loading' });
   const [motDePasse, setMotDePasse] = useState('');
   const [motDePasseValide, setMotDePasseValide] = useState<string | undefined>(undefined);
@@ -235,7 +237,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
   const extension = /\.([a-z0-9]{1,5})$/i.exec(doc.document.name)?.[1]?.toUpperCase() ?? null;
   const taille =
     doc.document.size !== null
-      ? format.number(doc.document.size / 1024 / 1024, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 })
+      ? fmt.nombre(doc.document.size / 1024 / 1024, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 })
       : null;
 
   return (

@@ -73,22 +73,66 @@ exemple : passer à next-intl des nombres DÉJÀ formatés par `useFormatteurs()
 les interpole (au prix des pluriels, qui ont besoin du nombre brut), ou réécrire les groupes à la sortie
 du formateur de next-intl s'il en offre le point d'entrée. Un seul point de passage, comme TCK-2714.
 
-- [ ] Les huit lecteurs de `format.number()` ci-dessus.
-- [ ] Les trois `{x, number}` des exports.
-- [ ] Le `#` des pluriels — ou, si aucun moyen ne le tient sans casser la règle des pluriels, la
+- [x] Les huit lecteurs de `format.number()` ci-dessus — et deux de plus relevés à l'implémentation
+      (`credits/PastilleCredits.tsx`, `share/ShareReception.tsx`) : tous par `useFormatteurs().nombre`.
+- [x] Les trois `{x, number}` des exports — et le quatrième, `rapports.exports.pied` : `{x}` reçoit la
+      chaîne de `useFormatteurs().nombre` (texte affiché inchangé).
+- [x] Le `#` des pluriels — décision écrite (cf. Notes) : il garde U+202F. Ou, si aucun moyen ne le tient sans casser la règle des pluriels, la
       décision écrite (et ce qu'elle laisse) avant de fermer.
-- [ ] Une garde qui rougit sur un nouveau `format.number(` ou `{x, number}` hors du point de passage.
+- [x] Une garde qui rougit sur un nouveau `format.number(` ou `{x, number}` hors du point de passage.
+      *Fait* : `src/test/__tests__/nombres-par-lib-format.tck-2795.test.tsx` — listes fermées (vides) ;
+      rougit sur un `.number(` de `useFormatter()`/`getFormatter()` et sur un `{x, number}` de `fr`/`wo`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le solde de crédits 1 250 s'affiche « 1 250 » en U+00A0 dans le menu du compte (test sur
+- [x] AC1 — Le solde de crédits 1 250 s'affiche « 1 250 » en U+00A0 dans le menu du compte (test sur
       le DOM rendu) ; une sortie en U+202F échoue.
-- [ ] AC2 — `dashboard.exports.truncated` avec 10 000 rend « 10 000 » en U+00A0.
-- [ ] AC3 — Un pluriel « # » rendu avec 1 250 groupe en U+00A0 (ou la décision écrite, cf. Delta).
-- [ ] AC4 — Mesuré au navigateur : un écran qui montre à la fois un solde de crédits ≥ 1 000 et un
+      *Preuve* : `AppShell.menu-et-credits.test.tsx` (ligne `solde-du-compte`, `'1\u00a0250'`) ; rouge
+      avec `MenuDuCompte.tsx` ramené à `format.number` (ablation).
+- [x] AC2 — `dashboard.exports.truncated` avec 10 000 rend « 10 000 » en U+00A0.
+      *Preuve* : `ExportForm.coupure.test.tsx` (`5\u00a0000 lignes`, même message) et
+      `ExportForm.plafond.test.tsx` (`rowCap`) ; rouges avec `{x, number}` rétabli (ablation).
+- [x] AC3 — Un pluriel « # » rendu avec 1 250 groupe en U+00A0 (ou la décision écrite, cf. Delta).
+      *Décision écrite* (Notes) : le `#` garde U+202F. Épinglé par la garde (`nav.propertiesCount` →
+      `1\u202f250 biens`) pour que le jour où use-intl change, le test le dise.
+- [x] AC4 — Mesuré au navigateur : un écran qui montre à la fois un solde de crédits ≥ 1 000 et un
       montant n'a qu'un seul caractère de groupe (relevé des points de code sur le DOM rendu).
+      *Preuve* (2026-11-14, `next dev`, persona `admin`, 1280 × 900) : solde réel ≤ 500 en base, porté
+      à 1250 à la RÉPONSE de `/api/credits/balance` (Fetch CDP, aucune écriture en base).
+      `/app/leases` : 76 groupes visibles, **tous U+00A0** — « Crédits 1 250 » et « 338 250 F » ;
+      `/app` : 6, tous U+00A0.
 
 ## Hors périmètre
 
 - Les montants de `lib/format` (faits, TCK-2714) et ceux que rend l'API (TCK-2794).
 - Les dates et les plages de dates (U+2009, U+202F d'`Intl.DateTimeFormat`) : TCK-347.
+
+## Notes d'implémentation
+
+**Moyen retenu (décision de la session, 2026-11-14) : les nombres passent par `lib/format`.**
+
+- Mesuré dans use-intl 4.13.6 : `format.number`, `{x, number}` et `#` finissent dans `getNumberFormat`
+  de `createIntlFormatters`, un chunk interne. Aucun point public n'y mène : `IntlProvider` n'a pas de
+  prop `formatters`, `getConfig` (serveur) pose `_formatters` après la configuration de la requête, et
+  les `formats` ne portent que des `NumberFormatOptions` (aucune option d'`Intl` ne fixe le caractère
+  de groupe).
+- Écartés : remplacer `Intl.NumberFormat` par une enveloppe globale (prototypé, puis refusé par la
+  session : il toucherait toutes les bibliothèques et ferait diverger `format` de `formatToParts`,
+  pour un séparateur où rien ne se coupe — U+202F et U+00A0 sont tous deux insécables) ; un correctif
+  de `node_modules` (le Dockerfile copie `package.json` et le lockfile seuls avant `npm ci`).
+- Les lecteurs de `format.number` passent à `useFormatteurs().nombre` (U+00A0, `wo` → `fr-SN`). Les
+  `{x, number}` deviennent `{x}`, et l'appelant passe la chaîne déjà formatée : le texte affiché ne
+  change pas. Aucun pluriel n'est concerné.
+
+**Décision sur le `#` des pluriels : il garde U+202F.** 569 messages `fr` (576 au relevé du
+2026-11-14) le portent. Le `#` a besoin du nombre BRUT (la règle du pluriel se lit dessus) et use-intl
+ne laisse pas remplacer son formateur. U+202F est insécable : aucune coupure n'est en jeu, seule la
+cohérence l'est — un « 1 250 biens » au-delà de 999 garde l'espace fine à côté d'un montant en U+00A0.
+**Voie de retour**, posée dans la garde : (1) un test épingle le rendu U+202F d'un `#` réel ; il
+rougit le jour où use-intl change ce rendu ; (2) un `@ts-expect-error` sur une prop `formatters` de
+`NextIntlClientProvider` fait rougir `tsc` le jour où next-intl type une telle prop. Dans les deux cas :
+brancher `formaterGroupesLisibles` (`lib/format/groupes.ts`) sur ce formateur, et refermer cette
+décision.
+
+**Tests qui figeaient U+202F venu de next-intl : aucun** (73 fichiers lancés : lecteurs, exports, coque, `lib/format`). Assertions
+ajoutées au caractère près : 3 (menu du compte, coupure et plafond des exports).

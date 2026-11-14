@@ -214,6 +214,8 @@ describe('TCK-642, repris par TCK-2491 — le solde dans la colonne et le menu d
     const menu = await ouvrirLeMenuDuCompte();
     const ligne = menu.querySelector('[data-slot="solde-du-compte"]')!;
     expect(ligne.textContent?.replace(/\s/g, ' ')).toBe('Crédits1 250');
+    // TCK-2795 (AC1) — au caractère près : le solde groupe par U+00A0, comme les montants ; U+202F échoue.
+    expect(ligne.querySelector('.tabular-nums')?.textContent).toBe('1 250');
     expect(ligne.querySelector('svg.lucide-coins')).not.toBeNull();
   });
 

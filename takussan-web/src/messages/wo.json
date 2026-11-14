@@ -16770,8 +16770,8 @@
       "downloading": "Mu ngi yebbi…",
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
-      "rowCap": "Un fichier compte au plus {max, number} lignes, {pdf, number} en PDF.",
-      "truncated": "Le fichier s'arrête à {count, number} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
+      "rowCap": "Un fichier compte au plus {max} lignes, {pdf} en PDF.",
+      "truncated": "Le fichier s'arrête à {count} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
       "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
       "noneAllowed": "Sa rol ci ajaans bii amul benn génné. Benn yorkat mën na la ko jox.",
@@ -21494,7 +21494,7 @@
         "lignes": "Lignes",
         "gestes": "Actions"
       },
-      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max, number} lignes au plus, {pdf, number} en PDF.",
+      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max} lignes au plus, {pdf} en PDF.",
       "telechargerLExport": "Télécharger l’export"
     },
     "alertes": {
