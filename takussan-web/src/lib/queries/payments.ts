@@ -521,6 +521,8 @@ export type UseServiceProviderBillsParams = {
   provider_id?: number;
   agency_id?: number;
   page?: number;
+  /** TCK-2750 — la densité du registre (10, 20 ou 50), 20 par défaut. */
+  per_page?: number;
 };
 
 export function useServiceProviderBills(params: UseServiceProviderBillsParams, enabled = true) {
@@ -536,7 +538,7 @@ export function useServiceProviderBills(params: UseServiceProviderBillsParams, e
         filter,
         sort: '-created_at',
         page: params.page ?? 1,
-        per_page: 20,
+        per_page: params.per_page ?? 20,
       },
       enabled,
     },

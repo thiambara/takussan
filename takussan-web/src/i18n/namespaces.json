@@ -316,6 +316,8 @@
       "console",
       "maintenance",
       "payments",
+      "property",
+      "search",
       "serviceProviders"
     ],
     "(dashboard)/app/leases/(liste)": [
@@ -393,7 +395,7 @@
     "[locale]/(public)/bookings": 24,
     "(dashboard)/app/commissions": 24,
     "(dashboard)/app/inventories": 29,
-    "(dashboard)/app/maintenance": 29,
+    "(dashboard)/app/maintenance": 38,
     "(dashboard)/app/leases/(liste)": 42,
     "(dashboard)/app/saved-searches": 33,
     "[locale]/(public)/notifications": 23,

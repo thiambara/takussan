@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Wrench } from 'lucide-react';
 
 import { StatusBadge } from '@/components/console';
+import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
+import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +23,7 @@ import {
   useValidateServiceProviderBill,
 } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
+import type { PaginationMeta } from '@/types/api';
 import type { ServiceProviderBill } from '@/types/invoice';
 
 import { SERVICE_PROVIDER_BILL_STATUS_TONE } from './constants';
@@ -53,10 +57,9 @@ export function ServiceProviderBillsTable({ mode, onPaid, titreMasque = false }:
   const tStatus = useTranslations('payments.serviceProviderBills.status');
   const messageErreur = useMessageErreurApi();
   const { user } = useAuth();
-  const query = useServiceProviderBills(
-    mode === 'provider' ? { provider_id: user?.id } : { agency_id: user?.agency_id ?? undefined },
-    Boolean(user?.id),
-  );
+  const filtre = mode === 'provider' ? { provider_id: user?.id } : { agency_id: user?.agency_id ?? undefined };
+  const page = usePageDesFactures(mode);
+  const query = useServiceProviderBills({ ...filtre, page: page.page, per_page: page.parPage }, Boolean(user?.id));
   const validate = useValidateServiceProviderBill();
   const reject = useRejectServiceProviderBill();
   const pay = usePayServiceProviderBill();
@@ -191,51 +194,122 @@ export function ServiceProviderBillsTable({ mode, onPaid, titreMasque = false }:
             );
           }
           return (
-            <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <table className="w-full text-left text-sm tabular-nums">
-                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{t('reference')}</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{t('intervention')}</th>
-                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{t('amount')}</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{t('statusLabel')}</th>
-                    {mode === 'agency' ? <th className="px-3 py-2" aria-label={t('actions')} /> : null}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {rows.map((bill) => (
-                    <tr key={bill.id} className="align-top text-foreground">
-                      <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
-                        {bill.reference_number ?? `#${bill.id}`}
-                        {bill.provider_reference ? <span className="block">{bill.provider_reference}</span> : null}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
-                        {bill.maintenance_request_id ? `#${bill.maintenance_request_id}` : '—'}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
-                        {formatCurrency(bill.amount, locale, { currency: bill.currency || 'XOF' })}
-                        {bill.exceeds_quote ? (
-                          <span className="block text-xs font-normal text-destructive">{t('exceedsQuote')}</span>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2.5 text-xs">
-                        <StatusBadge tone={SERVICE_PROVIDER_BILL_STATUS_TONE[bill.status] ?? 'neutral'} label={tStatus(bill.status)} />
-                        {bill.status === 'rejected' && bill.rejection_reason ? (
-                          <span className="mt-1 block max-w-64 text-muted-foreground">{bill.rejection_reason}</span>
-                        ) : null}
-                        {bill.status === 'validated' && bill.rechargeable_to_landlord ? (
-                          <span className="mt-1 block text-muted-foreground">{t('rechargedToLandlord')}</span>
-                        ) : null}
-                      </td>
-                      {mode === 'agency' ? <td className="px-3 py-2.5 text-right">{actions(bill)}</td> : null}
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-xl border border-border bg-card">
+                <table className="w-full text-left text-sm tabular-nums">
+                  <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium whitespace-nowrap">{t('reference')}</th>
+                      <th className="px-3 py-2 font-medium whitespace-nowrap">{t('intervention')}</th>
+                      <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{t('amount')}</th>
+                      <th className="px-3 py-2 font-medium whitespace-nowrap">{t('statusLabel')}</th>
+                      {mode === 'agency' ? <th className="px-3 py-2" aria-label={t('actions')} /> : null}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {rows.map((bill) => (
+                      <tr key={bill.id} className="align-top text-foreground">
+                        <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
+                          {bill.reference_number ?? `#${bill.id}`}
+                          {bill.provider_reference ? <span className="block">{bill.provider_reference}</span> : null}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
+                          {bill.maintenance_request_id ? `#${bill.maintenance_request_id}` : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
+                          {formatCurrency(bill.amount, locale, { currency: bill.currency || 'XOF' })}
+                          {bill.exceeds_quote ? (
+                            <span className="block text-xs font-normal text-destructive">{t('exceedsQuote')}</span>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs">
+                          <StatusBadge tone={SERVICE_PROVIDER_BILL_STATUS_TONE[bill.status] ?? 'neutral'} label={tStatus(bill.status)} />
+                          {bill.status === 'rejected' && bill.rejection_reason ? (
+                            <span className="mt-1 block max-w-64 text-muted-foreground">{bill.rejection_reason}</span>
+                          ) : null}
+                          {bill.status === 'validated' && bill.rechargeable_to_landlord ? (
+                            <span className="mt-1 block text-muted-foreground">{t('rechargedToLandlord')}</span>
+                          ) : null}
+                        </td>
+                        {mode === 'agency' ? <td className="px-3 py-2.5 text-right">{actions(bill)}</td> : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {data.meta ? <PaginationDesFactures meta={data.meta} page={page} /> : null}
             </div>
           );
         }}
       </QueryBoundary>
     </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TCK-2750 — le registre se pagine : au-delà des 20 premières, les factures se lisent.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Les densités que propose `PropertyPagination` ; toute autre valeur de `?per_page=` retombe à 20. */
+const DENSITES = new Set([10, 20, 50]);
+
+type PageDesFactures =
+  | { readonly sorte: 'registre'; readonly page: number; readonly parPage: number }
+  | { readonly sorte: 'voisine'; readonly page: number; readonly parPage: number; readonly allerA: (page: number) => void };
+
+/** Le paramètre d'adresse de la page des factures du prestataire — `InterventionsDeLAgence` lit `page`. */
+const PARAMETRE_PAGE_PRESTATAIRE = 'factures_page';
+
+/**
+ * Où vit la page — toujours dans l'adresse : elle survit au retour arrière et au rechargement.
+ *
+ * - **L'agence** (« Argent », l'onglet `bills` de `/app/payments`) : `?page=` et `?per_page=`, par
+ *   `PropertyPagination`, comme « Factures » et « Reversements » — un lien se partage, la densité se
+ *   choisit. Changer d'onglet ou de mois réécrit l'adresse sans `page` : on revient à la première page.
+ * - **Le prestataire** : `?factures_page=`. Sur `/app/maintenance`, son registre se pose sous la liste
+ *   des interventions, qui lit déjà `?page=` — partager le paramètre ferait tourner les deux listes
+ *   ensemble ; avec le sien, chacune pagine seule.
+ */
+function usePageDesFactures(mode: 'provider' | 'agency'): PageDesFactures {
+  const recherche = useSearchParams();
+  const router = useRouter();
+  const entier = (nom: string, defaut: number) => {
+    const n = Number.parseInt(recherche?.get(nom) ?? '', 10);
+    return Number.isFinite(n) && n > 0 ? n : defaut;
+  };
+  if (mode === 'agency') {
+    const parPage = entier('per_page', 20);
+    return { sorte: 'registre', page: entier('page', 1), parPage: DENSITES.has(parPage) ? parPage : 20 };
+  }
+  return {
+    sorte: 'voisine',
+    page: entier(PARAMETRE_PAGE_PRESTATAIRE, 1),
+    parPage: 20,
+    allerA: (page) => {
+      const params = new URLSearchParams(recherche?.toString() ?? '');
+      if (page <= 1) params.delete(PARAMETRE_PAGE_PRESTATAIRE);
+      else params.set(PARAMETRE_PAGE_PRESTATAIRE, String(page));
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+  };
+}
+
+function PaginationDesFactures({ meta, page }: { readonly meta: PaginationMeta; readonly page: PageDesFactures }) {
+  const t = useTranslations('property.dashboard.pagination');
+  if (page.sorte === 'registre') return <PropertyPagination meta={meta} />;
+  const derniere = Math.max(meta.last_page, 1);
+  return (
+    <Pagination
+      page={meta.current_page}
+      lastPage={derniere}
+      onChange={page.allerA}
+      summary={
+        derniere > 1 ? (
+          <span className="text-xs text-muted-foreground">
+            {t('pageOf', { current: meta.current_page, total: derniere })} · {t('results', { count: meta.total })}
+          </span>
+        ) : undefined
+      }
+    />
   );
 }
