@@ -5,9 +5,10 @@ import { FileText, Sparkles } from 'lucide-react';
 
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { useDocuments, useDocumentsGeneres, type DocumentGenere } from '@/lib/queries/documents';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { erreurAMontrer } from '@/lib/nature-de-l-erreur';
 import type { Document } from '@/types/document';
 import type { PropertyDetail } from '@/types/property';
 
@@ -44,6 +45,8 @@ export function useDocumentsDuBien(property: PropertyDetail) {
     total: lu ? deposes.length + generesLus.length : null,
     enChargement: duBien.isPending || generes.isPending || (bailId !== null && duBail.isPending),
     enEchec: duBien.isError || generes.isError || duBail.isError,
+    /** TCK-2814 — l'erreur brute à montrer : elle décide de la reprise (`erreurAMontrer`). */
+    erreur: erreurAMontrer(duBien.error, generes.error, duBail.error),
     relire: () => {
       void duBien.refetch();
       void generes.refetch();
@@ -84,7 +87,7 @@ export function OngletDocuments({ property, documents }: { readonly property: Pr
         <AddDocumentButton documentableType="property" documentableId={property.id} displayLabel={property.title} onUploaded={documents.relire} />
       </div>
       {documents.enEchec ? (
-        <ErrorState className="m-4" message={t('echec')} onRetry={documents.relire} retryLabel={tRacine('common.actions.retry')} />
+        <ErreurDeLecture className="m-4" erreur={documents.erreur} message={t('echec')} onRetry={documents.relire} retryLabel={tRacine('common.actions.retry')} />
       ) : documents.enChargement ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">{t('chargement')}</p>
       ) : vide ? (

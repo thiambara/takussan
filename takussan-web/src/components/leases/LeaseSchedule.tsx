@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, MoreHorizontal } from 'lucide-react';
 import { useIssuePaymentLink, useLeasePayments, useMarkLateFeePaid } from '@/lib/queries/leases';
-import { EmptyState, ErrorState } from '@/components/feedback';
+import { EmptyState, ErreurDeLecture } from '@/components/feedback';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { Button } from '@/components/ui/button';
@@ -200,7 +200,8 @@ export function LeaseSchedule({
   }
   if (isError) {
     return (
-      <ErrorState
+      <ErreurDeLecture
+        erreur={paymentsQuery.error}
         message={t('error')}
         onRetry={() => void paymentsQuery.refetch()}
         retryLabel={tCommon('actions.retry')}

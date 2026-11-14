@@ -19,7 +19,9 @@
     "status": {
       "loading": "Yëngu…",
       "empty": "Amul dara",
-      "error": "Am na njuumte"
+      "error": "Am na njuumte",
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce contenu.",
+      "notFound": "Ce contenu est introuvable."
     },
     "navigation": {
       "home": "Kër",
@@ -3359,7 +3361,8 @@
       "activatedToastBody": "Léegi mën nañu génne walla xool tëralinu pey bi.",
       "reviewContextActive": "Sa luwé mi ngi dox.",
       "reviewContextEnded": "Sa luwé bi jeex na.",
-      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce bail."
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce bail.",
+      "panne": "Le bail n’a pas pu être chargé."
     },
     "schedule": {
       "error": "Mënuñu yeb tëralinu pey bi.",

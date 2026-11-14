@@ -5,9 +5,10 @@ import { FileText, History, Sparkles } from 'lucide-react';
 
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { BoutonTelechargement } from '@/components/documents/BoutonTelechargement';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { erreurAMontrer } from '@/lib/nature-de-l-erreur';
 import { useDocuments, useDocumentsGeneres, type DocumentGenere } from '@/lib/queries/documents';
 import type { LeaseWithRelations } from '@/lib/queries/leases';
 
@@ -34,6 +35,8 @@ export function useDocumentsDuBail(leaseId: number) {
     generes: generes.data?.data ?? [],
     enChargement: deposes.isPending || generes.isPending,
     enEchec: deposes.isError || generes.isError,
+    /** TCK-2814 — l'erreur brute à montrer : elle décide de la reprise (`erreurAMontrer`). */
+    erreur: erreurAMontrer(deposes.error, generes.error),
     relire: () => {
       void deposes.refetch();
       void generes.refetch();
@@ -61,7 +64,7 @@ export function OngletDocumentsDuBail({ lease, nom }: { readonly lease: LeaseWit
       data-testid="onglet-documents"
     >
       {documents.enEchec ? (
-        <ErrorState className="m-4" message={t('erreur')} onRetry={documents.relire} retryLabel={tRacine('common.actions.retry')} />
+        <ErreurDeLecture className="m-4" erreur={documents.erreur} message={t('erreur')} onRetry={documents.relire} retryLabel={tRacine('common.actions.retry')} />
       ) : documents.enChargement ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">{t('chargement')}</p>
       ) : vide ? (
@@ -156,7 +159,13 @@ export function OngletHistoriqueDuBail({ lease }: { readonly lease: LeaseWithRel
   return (
     <Carte titre={tRacine('lease.fiche.onglets.historique')} data-testid="onglet-historique">
       {requete.isError ? (
-        <ErrorState className="m-4" message={t('erreur')} onRetry={() => void requete.refetch()} retryLabel={tRacine('common.actions.retry')} />
+        <ErreurDeLecture
+          className="m-4"
+          erreur={requete.error}
+          message={t('erreur')}
+          onRetry={() => void requete.refetch()}
+          retryLabel={tRacine('common.actions.retry')}
+        />
       ) : requete.isPending ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">{t('chargement')}</p>
       ) : evenements.length === 0 ? (

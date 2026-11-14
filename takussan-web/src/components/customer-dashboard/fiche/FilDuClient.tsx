@@ -27,7 +27,7 @@ import {
 
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { noteBody } from '@/components/crm/noteBody';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { CitationDuMessage } from '@/components/leads/boite/pieces';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -459,7 +459,7 @@ export function FilDuClient({
       </div>
     );
   } else if (fil.isError) {
-    corps = <ErrorState message={t('erreur')} onRetry={() => void fil.refetch()} retryLabel={t('reessayer')} />;
+    corps = <ErreurDeLecture erreur={fil.error} message={t('erreur')} onRetry={() => void fil.refetch()} retryLabel={t('reessayer')} />;
   } else if (entrees.length === 0) {
     corps = <p className="text-corps text-muted-foreground">{filtre === 'tout' ? t('vide') : t('videFiltre')}</p>;
   } else {

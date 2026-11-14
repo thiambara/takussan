@@ -19,7 +19,9 @@
     "status": {
       "loading": "Loading…",
       "empty": "No results",
-      "error": "An error occurred"
+      "error": "An error occurred",
+      "forbidden": "Your active profile cannot open this content.",
+      "notFound": "This content could not be found."
     },
     "navigation": {
       "home": "Home",
@@ -5525,7 +5527,8 @@
       "activatedToastBody": "The schedule can now be generated or viewed.",
       "reviewContextActive": "Your lease is ongoing.",
       "reviewContextEnded": "Your lease has ended.",
-      "forbidden": "Your active profile cannot open this lease."
+      "forbidden": "Your active profile cannot open this lease.",
+      "panne": "The lease could not be loaded."
     },
     "schedule": {
       "error": "The payment schedule could not be loaded.",

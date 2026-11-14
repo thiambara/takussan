@@ -28,7 +28,7 @@ import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
 import { propertyTypeValues } from '@/lib/enums/property';
@@ -173,7 +173,8 @@ export function PropertyModerationDetail({ property, onModerated, telephone = fa
   if (detail.isError || !bien) {
     return (
       <div data-testid="property-moderation-detail">
-        <ErrorState
+        <ErreurDeLecture
+          erreur={detail.error}
           message={messageErreur(detail.error, t('detailIllisible'))}
           onRetry={() => void detail.refetch()}
           retryLabel={tCommon('actions.retry')}

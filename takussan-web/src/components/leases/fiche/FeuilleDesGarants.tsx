@@ -6,7 +6,7 @@ import { Controller, type Control, type FieldValues, type Path } from 'react-hoo
 import { z } from 'zod';
 import { Phone } from 'lucide-react';
 
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { FormError, FormGlobalError, FormInput, FormSelect, FormTextarea } from '@/components/forms';
 import { Button } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
@@ -238,7 +238,9 @@ function Modification({
   const fiche = lecture.data?.data;
 
   if (lecture.isError) {
-    return <ErrorState message={t('lectureEchouee')} onRetry={() => void lecture.refetch()} retryLabel={tRacine('common.actions.retry')} />;
+    return (
+      <ErreurDeLecture erreur={lecture.error} message={t('lectureEchouee')} onRetry={() => void lecture.refetch()} retryLabel={tRacine('common.actions.retry')} />
+    );
   }
   if (!fiche) return <p className="text-sm text-muted-foreground">{t('lecture')}</p>;
   return <FormulaireDeModification leaseId={leaseId} garant={garant} fiche={fiche} id={id} onEnCours={onEnCours} onEnregistre={onEnregistre} />;

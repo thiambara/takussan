@@ -2,12 +2,23 @@ import type { ReactNode } from 'react';
 
 import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
+import { natureDeLErreur } from '@/lib/nature-de-l-erreur';
 import { cn } from '@/lib/utils';
 
 interface DataStateProps {
   readonly loading: boolean;
   /** Message d'erreur DÉJÀ traduit, ou `null`. Une chaîne vide compte comme absente. */
   readonly error?: ReactNode | null;
+  /**
+   * TCK-2814 — l'erreur BRUTE de la lecture (`query.error`), à côté de son texte. Passée, elle décide
+   * de la reprise : seule une panne propose « Réessayer », jamais un 403 ni un 404. Absente, le rendu
+   * est celui d'avant (texte + reprise) : un appelant qui ne la passe pas ne change pas.
+   */
+  readonly erreurBrute?: unknown;
+  /** Le texte d'un 403 quand `erreurBrute` en est un. À défaut, `error`. */
+  readonly messageRefus?: ReactNode;
+  /** Le texte d'un 404 quand `erreurBrute` en est un. À défaut, `error`. */
+  readonly messageIntrouvable?: ReactNode;
   /** Rendu à la place des enfants quand la requête a réussi et n'a rien rendu. */
   readonly emptyState?: ReactNode;
   /** `true` quand le jeu de résultats est vide. */
@@ -49,6 +60,9 @@ interface DataStateProps {
 export function DataState({
   loading,
   error = null,
+  erreurBrute,
+  messageRefus,
+  messageIntrouvable,
   emptyState,
   isEmpty = false,
   skeletonRows = 5,
@@ -70,6 +84,10 @@ export function DataState({
   }
 
   if (error) {
+    // `undefined` seulement : l'appelant qui n'a pas passé l'erreur brute garde sa reprise.
+    const nature = erreurBrute === undefined ? 'panne' : natureDeLErreur(erreurBrute);
+    if (nature === 'refus') return <ErrorState className={className} message={messageRefus ?? error} />;
+    if (nature === 'introuvable') return <ErrorState className={className} message={messageIntrouvable ?? error} />;
     return onRetry && retryLabel ? (
       <ErrorState className={className} message={error} onRetry={onRetry} retryLabel={retryLabel} />
     ) : (

@@ -19,7 +19,9 @@
     "status": {
       "loading": "Chargement…",
       "empty": "Aucun résultat",
-      "error": "Une erreur est survenue"
+      "error": "Une erreur est survenue",
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce contenu.",
+      "notFound": "Ce contenu est introuvable."
     },
     "navigation": {
       "home": "Accueil",
@@ -5482,7 +5484,8 @@
       "activatedToastBody": "L’échéancier peut maintenant être généré ou consulté.",
       "reviewContextActive": "Votre bail est en cours.",
       "reviewContextEnded": "Votre bail est terminé.",
-      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce bail."
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce bail.",
+      "panne": "Le bail n’a pas pu être chargé."
     },
     "schedule": {
       "error": "Impossible de charger l'échéancier.",

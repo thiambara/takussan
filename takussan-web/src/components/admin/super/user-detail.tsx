@@ -38,7 +38,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { lireTable } from '@/lib/table-de-statut';
 import type { UserStatus } from '@/types/user';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { usePlatformAbilities } from './PlatformAbilitiesProvider';
 import { UserLifecycleActions } from './UserLifecycleActions';
@@ -81,7 +81,8 @@ export function UserDetailPage({ userId }: { userId: number }) {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <ErrorState
+      <ErreurDeLecture
+        erreur={detailQuery.error}
         message={t('loadError')}
         onRetry={() => void detailQuery.refetch()}
         retryLabel={tCommon('actions.retry')}

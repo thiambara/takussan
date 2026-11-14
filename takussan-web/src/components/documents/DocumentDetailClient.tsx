@@ -6,7 +6,7 @@ import { BadgeCheck, Download, MoreHorizontal, Share2, Trash2, TriangleAlert } f
 
 import { PageHeader } from '@/components/console';
 import { StatusBadge } from '@/components/console/StatusBadge';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture, ErrorState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { BarreDAction } from '@/components/ui/barre-d-action';
@@ -16,7 +16,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { ApiError } from '@/lib/api';
 import { echeanceDe } from '@/lib/documents/coffre';
 import { formatDuFichier, seVersionne, tailleDuFichier } from '@/lib/documents/fiche';
 import { CLE_DE_LA_PROMESSE, estDeMesPieces, rappelAVenir } from '@/lib/documents/rappel-d-expiration';
@@ -77,19 +76,22 @@ export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) 
     // TCK-2807 — trois cas, comme `QueryBoundary` (TCK-2751) : un 403 dit le refus (jamais
     // « introuvable »), un 404 dit « introuvable », et ni l'un ni l'autre ne propose « Réessayer », qui
     // n'y changerait rien. Seule une panne (5xx, réseau) garde sa reprise, avec le message de l'API.
-    const statut = documentQuery.error instanceof ApiError ? documentQuery.error.status : null;
-    const panne = isError && statut !== 403 && statut !== 404;
+    // TCK-2814 — le statut se juge dans `natureDeLErreur`, par `ErreurDeLecture`. Une lecture réussie
+    // sans document reste « introuvable », sans reprise, comme avant.
     return (
       <div className="mx-auto max-w-2xl">
         <h1 className="sr-only">{tPage('metaTitle')}</h1>
-        {panne ? (
-          <ErrorState
+        {isError ? (
+          <ErreurDeLecture
+            erreur={documentQuery.error}
             message={messageErreur(documentQuery.error, tCommon('status.error'))}
+            refus={t('forbidden')}
+            introuvable={t('not_found')}
             onRetry={() => void documentQuery.refetch()}
             retryLabel={tCommon('actions.retry')}
           />
         ) : (
-          <ErrorState message={statut === 403 ? t('forbidden') : t('not_found')} />
+          <ErrorState message={t('not_found')} />
         )}
       </div>
     );

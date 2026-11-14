@@ -72,17 +72,26 @@ neutre du profil actif de TCK-2807. Rien d'autre ne change à l'écran.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Mesure d'abord : pour les trois onglets, un test rend chaque onglet sous une réponse 403 puis 404 de sa
+- [x] AC1 — Mesure d'abord : pour les trois onglets, un test rend chaque onglet sous une réponse 403 puis 404 de sa
   requête et consigne dans les notes ce qu'il affiche AVANT le changement (texte et présence de « Réessayer »).
-- [ ] AC2 — Fiche du bail, réponse 500 : le texte de panne est présent, « Réessayer » est présent, et « Bail
+  *Preuve : relevé « Mesure AC1 » des notes, par le harnais `ErreurDeLecture.vues.tck-2814.test.tsx` sur l'arbre
+  non modifié.*
+- [x] AC2 — Fiche du bail, réponse 500 : le texte de panne est présent, « Réessayer » est présent, et « Bail
   introuvable. » est ABSENT. Réponse 404 : « Bail introuvable. » est présent et « Réessayer » ABSENT. Réponse 403 :
   inchangée (TCK-2807).
-- [ ] AC3 — Pour chacune des dix vues ou sous-blocs (une ligne par vue dans un tableau de tests, nommée) : 500 →
+  *Preuve : `leases/__tests__/LeaseDetail.panne.tck-2814.test.tsx` (3 verts).*
+- [x] AC3 — Pour chacune des dix vues ou sous-blocs (une ligne par vue dans un tableau de tests, nommée) : 500 →
   « Réessayer » présent ; 403 et 404 → « Réessayer » absent et un texte présent.
-- [ ] AC4 — `DataState` avec l'erreur brute : 500 → reprise ; 403/404 → pas de reprise. Sans erreur brute : le rendu
+  *Preuve : `feedback/__tests__/ErreurDeLecture.vues.tck-2814.test.tsx`, 12 lignes × 3 statuts (36 verts) ; sous
+  500, un clic relance la requête visée.*
+- [x] AC4 — `DataState` avec l'erreur brute : 500 → reprise ; 403/404 → pas de reprise. Sans erreur brute : le rendu
   d'aujourd'hui, avec reprise (un appelant non migré ne change pas).
-- [ ] AC5 — Les tests de TCK-2807 restent verts.
-- [ ] AC6 — Ablation : la lecture du statut retirée du point unique rend AC2, AC3 et AC4 rouges ensemble.
+  *Preuve : `console/__tests__/DataState.statut.tck-2814.test.tsx` (6 verts) ; `DataState.test.tsx` vert.*
+- [x] AC5 — Les tests de TCK-2807 restent verts.
+  *Preuve : `LeaseDetail.refus.tck-2807`, `DocumentDetailClient.refus.tck-2807` et `QueryBoundary.tck-2751` verts.*
+- [x] AC6 — Ablation : la lecture du statut retirée du point unique rend AC2, AC3 et AC4 rouges ensemble.
+  *Preuve : les deux lignes de statut de `natureDeLErreur` retirées → 37 rouges : AC2 (2), AC3 (24 : les 12 lignes
+  en 403 et 404), AC4 (3), plus TCK-2807 (3), QueryBoundary (2) et l'unitaire (3).*
 
 ## Hors périmètre
 
@@ -91,4 +100,54 @@ neutre du profil actif de TCK-2807. Rien d'autre ne change à l'écran.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Le point unique.** `src/lib/nature-de-l-erreur.ts` : `natureDeLErreur(erreur)` rend `refus` (403), `introuvable`
+(404) ou `panne` (tout le reste, erreur non-`ApiError` comprise). `erreurAMontrer(...)` choisit l'erreur d'un bloc à
+plusieurs lectures : une panne l'emporte (la reprise relit tout), sinon la première. `QueryBoundary`, `DataState`,
+`ErreurDeLecture` et les fiches du bail et du document (dont la copie de TCK-2807 est retirée) passent tous par lui.
+Restent hors périmètre deux copies en ligne du seul 403 : `BookingDetail` et `VisitDetail` (suite possible).
+
+**Le bloc.** `components/feedback/ErreurDeLecture.tsx` compose `ErrorState` : texte de panne + « Réessayer », ou
+refus / introuvable sans reprise. Par défaut, deux phrases neutres neuves : `common.status.forbidden` (« Votre profil
+actif ne permet pas d'ouvrir ce contenu. ») et `common.status.notFound` (« Ce contenu est introuvable. »). La fiche
+du bail garde les siennes (`lease.detail.forbidden`, `lease.detail.error` « Bail introuvable. ») et gagne
+`lease.detail.panne` (« Le bail n’a pas pu être chargé. ») ; la fiche du document garde les siennes.
+
+**`DataState`** reçoit `erreurBrute`, `messageRefus`, `messageIntrouvable`, tous optionnels ; il reste sans hook. Sans
+`erreurBrute`, rendu inchangé. `AdminCreditWalletDetail` les passe.
+
+**Les blocs à plusieurs lectures** (`useDocumentsDuBail`, `useDocumentsDuBien`) exposent `erreur` à côté d'`enEchec` :
+`PropertyDetailTabs` n'a pas changé.
+
+**Écarts.**
+- `QueryBoundary` passe par le point unique : un 404 y perd aussi « Réessayer » pour tous ses appelants (seul le
+  403 le perdait, TCK-2751). C'est la règle du ticket ; test `QueryBoundary.introuvable.tck-2814`.
+- Les cas « lecture réussie sans objet » (`!lease`, `!document` sans erreur) gardent leur rendu d'avant.
+- « Retour à la liste » : aucun lien ajouté. Au téléphone, la flèche de la coque (« ← Baux ») le porte déjà ; au
+  bureau, la barre latérale. Relevé à 390 et 1280 ci-dessous.
+
+**Mesure AC1 (avant le changement, arbre non modifié, 2026-11-14).** Même harnais, `fetch` doublé : la
+requête visée répond le statut, les autres restent en attente. Les douze lieux rendaient leur texte de panne ET
+« Réessayer », sous 403 comme sous 404 :
+
+| Lieu | 403 et 404 |
+|---|---|
+| OngletsDuBail · Documents | « Les documents du bail n’ont pas pu être lus. » + Réessayer |
+| OngletsDuBail · Historique | « L’historique du bail n’a pas pu être lu. » + Réessayer |
+| OngletLocation · échéances | « Les échéances n’ont pas pu être lues. » + Réessayer |
+| OngletLocation · bail | « Le bail n’a pas pu être lu. » + Réessayer |
+| OngletDocuments (du bien) | « Les documents n’ont pas pu être lus. » + Réessayer |
+| FeuilleDesGarants · modification | « Le garant n’a pas pu être lu. » + Réessayer |
+| LeaseSchedule | « Impossible de charger l'échéancier. » + Réessayer |
+| VersionsDuDocument | « Les versions n’ont pas pu être chargées. » + Réessayer |
+| FilDuClient | « Le fil n’a pas pu être chargé. » + Réessayer |
+| PropertyModerationDetail | la prose brute du serveur + Réessayer |
+| UserDetailPage | « Impossible de charger cet utilisateur. » + Réessayer |
+| AdminCreditWalletDetail | « Impossible de charger les portefeuilles. » + Réessayer |
+
+**Ablations (une à une, fichier restauré, md5 vérifié).** Statut retiré de `natureDeLErreur` → 37 rouges (AC6) ;
+403 seul retiré → 20 rouges ; 404 seul retiré → 18 ; `DataState` qui ignore `erreurBrute` → 5 (AC4 et la ligne du
+portefeuille) ; `erreurAMontrer` sans priorité à la panne → 1.
+
+**Fidélité (390, 1280).** Fiche du bail de la persona `admin`, atteinte par navigation douce depuis `/app/leases`, la
+lecture client du bail doublée DANS la page (404, puis 500) après le jugement serveur de la coque : 404 → « Bail
+introuvable. » sans bouton ; 500 → « Le bail n’a pas pu être chargé. » + « Réessayer ». Le bloc reste `ErrorState`.

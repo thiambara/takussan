@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { FilePlus2, Globe, Wrench } from 'lucide-react';
 
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { LeasePaymentDialog } from '@/components/leases/LeasePaymentDialog';
 import { PuceEtatDuMois } from '@/components/property-dashboard/GestionDuBien';
 import { buttonVariants, Button } from '@/components/ui/button';
@@ -244,8 +244,9 @@ function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
         ) : null}
       </div>
       {location.echeances.isError ? (
-        <ErrorState
+        <ErreurDeLecture
           className="m-4"
+          erreur={location.echeances.error}
           message={t('echec')}
           onRetry={() => void location.echeances.refetch()}
           retryLabel={tRacine('common.actions.retry')}
@@ -316,7 +317,7 @@ function BailEnCours({ location }: { readonly location: LocationDuBien }) {
   }
   if (location.bail.isError) {
     return (
-      <ErrorState message={t('echec')} onRetry={() => void location.bail.refetch()} retryLabel={tRacine('common.actions.retry')} />
+      <ErreurDeLecture erreur={location.bail.error} message={t('echec')} onRetry={() => void location.bail.refetch()} retryLabel={tRacine('common.actions.retry')} />
     );
   }
   const type = resume.type && tTypes.has(resume.type) ? tTypes(resume.type) : null;

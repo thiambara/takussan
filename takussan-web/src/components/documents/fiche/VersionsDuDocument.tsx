@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Download, FileText, UploadCloud, X } from 'lucide-react';
 
-import { ErrorState } from '@/components/feedback';
+import { ErreurDeLecture } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -97,7 +97,7 @@ export function VersionsDuDocument({
           </div>
         ) : requete.isError ? (
           <div className="p-4">
-            <ErrorState message={t('erreur')} onRetry={() => void requete.refetch()} retryLabel={tCommon('actions.retry')} />
+            <ErreurDeLecture erreur={requete.error} message={t('erreur')} onRetry={() => void requete.refetch()} retryLabel={tCommon('actions.retry')} />
           </div>
         ) : versions.length === 0 ? (
           <p className="px-4 py-3 text-sm text-muted-foreground text-pretty">{t('vide')}</p>
