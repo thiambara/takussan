@@ -16677,8 +16677,8 @@
       "commissionsMonthAgency": "Komisioŋu ajaans bi ci weer wi",
       "commissionsAgency": "Komisioŋu ajaans bi",
       "commissionsDetail": "Leeral ci kontaraa ku nekk",
-      "pipelineEmpty": "Aucun prospect dans le pipeline sur la période.",
-      "pipelineOpen": "Ouvrir le pipeline"
+      "pipelineEmpty": "Aucun prospect par étape sur la période.",
+      "pipelineOpen": "Ouvrir les étapes"
     },
     "owner": {
       "title": "Wonewu boroom kër",

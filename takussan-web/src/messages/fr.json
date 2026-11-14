@@ -2600,8 +2600,8 @@
       "commissionsMonthAgency": "Commissions de l'agence du mois",
       "commissionsAgency": "Commissions de l'agence",
       "commissionsDetail": "Détail par bail",
-      "pipelineEmpty": "Aucun prospect dans le pipeline sur la période.",
-      "pipelineOpen": "Ouvrir le pipeline"
+      "pipelineEmpty": "Aucun prospect par étape sur la période.",
+      "pipelineOpen": "Ouvrir les étapes"
     },
     "owner": {
       "title": "Vue bailleur",

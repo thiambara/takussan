@@ -2643,8 +2643,8 @@
       "commissionsMonthAgency": "Agency commissions this month",
       "commissionsAgency": "Agency commissions",
       "commissionsDetail": "Breakdown by lease",
-      "pipelineEmpty": "No leads in the pipeline for this period.",
-      "pipelineOpen": "Open the pipeline"
+      "pipelineEmpty": "No prospects at any stage for this period.",
+      "pipelineOpen": "Open the stages"
     },
     "owner": {
       "title": "Landlord overview",
