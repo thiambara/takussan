@@ -179,6 +179,15 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
   `include_archived=1&filter[status]=archived` et se compte toujours avec les archivés.
 - Les autres listes de biens (`children`, `me/owner-profiles/…/properties`, `admin/agencies/…`)
   acceptent les filtres et `include=occupancy,online`, mais ne rendent ni `occupancy` ni `is_online`.
+- **`include=offlineReasons`** (TCK-2678, ADR-0097 § 5) → `offline_reasons`, la liste des conditions
+  de « en ligne » que le bien ne remplit pas, dans l'ordre : `agency_inactive`, `status_<statut>`,
+  `not_published`, `private`, `test` ; lues sur `Property::conditionsEnLigne()`, la définition même de
+  `scopePublic`. Servi sur `GET /api/properties` et `GET /api/properties/{property}`, au seul personnel
+  de l'agence du bien sous son profil actif, au bailleur du bien et au super-admin (`MotifsHorsLigne`) ;
+  aucun autre lecteur ne reçoit la clé. Pas plus qu'`is_online`, ce n'est un champ de `fields[properties]`.
+- **`owner_profile_id`** (fiche seulement, appelant connu ; TCK-2639) : le profil de bailleur du
+  titulaire dans l'agence du bien, rendu à qui la fiche de ce bailleur s'ouvrirait
+  (`OwnerProfilePolicy::isInActorAgency` et `viewDetail`), `null` pour tout autre.
 
 ### Customer
 | Param | Type | Description |
@@ -281,6 +290,15 @@ Même pattern : `filter[status]`, `filter[search]` (selon le model), `sort`.
 |---|---|---|
 | `filter[scheduled_from]` / `filter[scheduled_to]` | date | `YYYY-MM-DD`, heure de Dakar, bornes incluses ; une intervention sans créneau n'entre dans aucune plage ; illisible ou liste → 422. Le périmètre reste celui de la Policy (`visibleTo`) |
 
+`Document` ajoute la lecture d'un bien **et de ses baux** (TCK-2841, ADR-0099 amendé le 2026-11-14) :
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[property_with_leases]` | identifiant | les pièces du bien et de ses baux hors brouillon, passés compris ; chaque cible jugée par sa lecture (`DocumentPolicy::listableOnPropertyAndLeases`) : lisible, tous ses documents, illisible, ceux de la règle d'auteur. Prime sur la cible simple (`filter[documentable_type]` + `filter[documentable_id]`) ; un identifiant mal formé ou d'un bien introuvable ne rend rien, sans repli sur la liste des téléversements |
+
+Chaque ligne de liste dont le porteur est un bail porte `lease: {id, reference_number, status}`, lu
+sur le porteur déjà chargé pour la page (TCK-2841).
+
 ### Conversations — `GET /api/conversations` (TCK-2630)
 
 Ne passe **pas** par `HasQueryBuilder` : la liste est cloisonnée par
@@ -326,7 +344,7 @@ Chaque ligne porte `relation` (une seule, priorité équipe, propriétaire, clie
 pour un simple correspondant) et sa ligne de détail en données (bien et ville du dernier échange,
 rôle, nombre de biens d'un propriétaire).
 
-### Carnet des prestataires — `GET /api/agencies/{agency}/service-providers` (TCK-592, TCK-2772, TCK-2829)
+### Carnet des prestataires — `GET /api/agencies/{agency}/service-providers` (TCK-592, TCK-2772, TCK-2829, TCK-2834)
 
 | Param | Type | Description |
 |---|---|---|
@@ -340,6 +358,35 @@ rôle, nombre de biens d'un propriétaire).
 `meta.zones` : les zones distinctes du carnet de l'agence (même périmètre de statuts), lues hors de la
 recherche et du filtre de zone ; chaque ligne porte `response_delay_minutes` (délai médian de réponse
 sur les interventions de l'agence, `null` sans mesure) et `pending_invitation_id` (TCK-2772, TCK-2371).
+
+**Invitations à un prestataire déjà inscrit ailleurs** (TCK-2834) — au carnet **par défaut** seulement
+(sans `filter[collaboration_status]`) : une ligne par profil invité (`sent`, de cette agence,
+`metadata.existing_sp_other_agency`, aucune collaboration avec elle), la plus récente, construite depuis
+l'**invitation seule** — `id` et `user_id` nuls, `status` `draft`, `metadata` réduit à ce que l'agence a
+saisi (prénom, nom, e-mail, numéro, métiers, zones), `pending_invitation_only: true` et
+`pending_invitation_id` ; `include=user` y rend `null`. Ces lignes viennent **en tête**, quel que soit
+`sort`, puis les profils ; la page se découpe sur cette suite et `meta.total` compte les deux ;
+`meta.zones` reçoit leurs zones. `filter[search]`, `filter[zone]`, `filter[specialty]` et
+`filter[status]` (qui doit admettre `draft`) se rejugent sur l'invitation ; tout autre filtre renseigné
+les écarte. Les relations incluses (`invitations`, `agencyCollaborations`, `agencies`) d'une ligne de
+profil ne gardent que celles de l'agence du carnet.
+
+### Interlocuteur du bailleur invité — `GET /api/me/owner-profiles/{owner_profile}/interlocuteur` (TCK-2838)
+
+| Param | Type | Description |
+|---|---|---|
+| `fields[interlocuteur]` | liste | parmi `first_name`, `last_name`, `role` (`agent`, `agency_admin`, `agency`), `phone`, `whatsapp` ; tous sans le paramètre, un nom inconnu ignoré, une valeur en liste vaut absente (ADR-0075). `source` (`inviter` ou `agency`) est toujours rendu |
+
+Au titulaire du profil seul (`OwnerProfilePolicy::viewInterlocutor`, 403 sinon). `{data: null}` quand
+il n'y a ni nom ni numéro à montrer.
+
+### Réglages de bail de l'agence — `GET /api/settings/lease` (TCK-2832)
+
+Sans paramètre. À l'admin qui configure l'agence de l'appelant (`AgencyPolicy::configure`, 403 sinon) :
+`{can_edit, settings: [{key, value, source, platform_value, setting_id, type, min, min_exclusive, max}]}`
+pour `lease.late_fee_percent`, `lease.late_fee_grace_days`, `lease.early_termination_penalty_months`
+et `lease.rent_review_max_pct`, dans cet ordre. L'écriture passe par `POST /api/settings` (portée
+`agency`), le retour à la plateforme par `DELETE /api/settings/{setting_id}`.
 
 ### Notifications — `GET /api/notifications` (TCK-2633)
 
