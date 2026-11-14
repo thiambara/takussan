@@ -7,7 +7,7 @@ family: front
 estimate: L
 wave: 89
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2578, TCK-2583, TCK-2585, TCK-2588, TCK-2595, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2622]
 spec_refs:
@@ -68,11 +68,13 @@ Aucun endpoint neuf ; la page compose :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 390 px, l'agent de démo voit en premier écran « À régler » (compte rendu de la villa Liberté 6, Mouhamed qui attend depuis 8 j, deux tâches en retard) puis la visite de 10:57 avec son adresse.
-- [ ] AC2 — Les quatre chiffres sont au bas de la page, chacun un lien (Biens gérés → « Mes biens », Prospects → la liste des clients filtrée sur les étapes vivantes et « Mes clients », Tâches ouvertes → Tâches, Commissions → la page des commissions ; mêmes cibles que les tuiles actuelles quand elles en ont une) ; « Voir le rapport du mois » mène à la page Rapports.
-- [ ] AC3 — La tâche « Faire signer l'état des lieux d'entrée » affiche le nom du bien (plus « Un bien »).
-- [ ] AC4 — Toucher le jour suivant dans la bande recharge la chronologie de ce jour (requête `filter[day]` du jour suivant au réseau).
-- [ ] AC5 — À 1280 px, chronologie et « À régler » sont côte à côte ; la page Tâches s'ouvre sur En retard + Aujourd'hui.
+- [x] AC1 — À 390 px, l'agent de démo voit en premier écran « À régler » (compte rendu de la villa Liberté 6, Mouhamed qui attend depuis 8 j, deux tâches en retard) puis la visite de 10:57 avec son adresse.
+- [x] AC2 — Les quatre chiffres sont au bas de la page, chacun un lien (Biens gérés → « Mes biens », Prospects → la liste des clients filtrée sur les étapes vivantes et « Mes clients », Tâches ouvertes → Tâches, Commissions → la page des commissions ; mêmes cibles que les tuiles actuelles quand elles en ont une) ; « Voir le rapport du mois » mène à la page Rapports.
+- [x] AC3 — La tâche « Faire signer l'état des lieux d'entrée » affiche le nom du bien (plus « Un bien »).
+- [x] AC4 — Toucher le jour suivant dans la bande recharge la chronologie de ce jour (requête `filter[day]` du jour suivant au réseau).
+- [x] AC5 — À 1280 px, chronologie et « À régler » sont côte à côte ; la page Tâches s'ouvre sur En retard + Aujourd'hui.
+
+  *Preuves (re-jouées sur HEAD le 2026-11-14)* : AC1 `MaJournee.tck-2596.test.tsx` « AC1 — … » (la ligne « Mouhamed qui attend depuis 8 j » n'existe pas sur la démo : test seulement) ; AC2 même fichier, « AC2 — les quatre chiffres… » et « AC2 — pipeline_total (38) n'est jamais rendu… », `liste-des-clients.tck-2596.test.ts`, `CustomerListFilters.test.tsx` ; AC3 `PageDesTaches.tck-2596.test.tsx` « groupe par échéance : le bien nommé… » ; AC4 `MaJournee.tck-2596` « AC4 — … (`filter[day]`) » ; AC5 `MaJournee.tck-2596` « AC5 » et `PageDesTaches.tck-2596` « s'ouvre sur En retard + Aujourd'hui ».
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
@@ -97,7 +99,7 @@ Aucun endpoint neuf ; la page compose :
 - `app/(accueil)/page.tsx` sert `MaJournee` quand le rôle du profil ACTIF (`dashboard/me`) est `agent` ; l'admin d'agence, le bailleur et le client gardent leur accueil. Le bandeau des brouillons d'assistant passe en tête de la journée. `DashboardShortcuts` n'est plus rendu pour l'agent : clients, visites, calendrier et messages restent atteignables par la coque (barre latérale, onglets, Menu).
 - Lectures : visites du jour (`useVisitesDeLaVue`, `filter[day]`) et comptes rendus (`filter[to_close]`) du module des visites ; tâches en retard et du jour (`filter[assigned_to]=me&filter[due]=overdue,today`), demandes de plus de 24 h (`filter[created_at_max]`) et compte des relances (`per_page=1`) dans `lib/queries/journee.ts` ; la bande de semaine et les tâches d'un autre jour par `/api/calendar?mine=1&types[]=visit&types[]=task` (le modèle `Task` n'a pas de filtre d'échéance par intervalle).
 - Règles pures dans `lib/journee/journee.ts` (heure de Dakar) : « Reporter » → `due_at` à 09:00 Dakar le lendemain, le lundi suivant ou à J+7 ; chronologie triée par instant, visite avant tâche à heure égale, sans les visites annulées ni les demandes à créneau souple.
-- « Mes chiffres » : Biens gérés → `/app/properties?only_mine=1`, Prospects → `/app/customers?vue=mes-clients` (sans filtre « étapes vivantes », que la liste n'offre pas), Tâches ouvertes → `/app/tasks?filter[assigned_to]=me`, Commissions → `/app/commissions`, « Voir le rapport du mois » → `/app/overview/agent`.
+- « Mes chiffres » : Biens gérés → `/app/properties?only_mine=1`, Prospects → `/app/customers?vue=mes-clients` (sans filtre « étapes vivantes », que la liste n'offrait pas — corrigé le 2026-11-14, voir « Décision du 2026-11-14 » plus bas), Tâches ouvertes → `/app/tasks?filter[assigned_to]=me`, Commissions → `/app/commissions`, « Voir le rapport du mois » → `/app/overview/agent`. *(Cibles du lot 1 ; sur HEAD au 2026-11-14 : Tâches ouvertes → `?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me` (lot 2), rapport → `/app/reports` — `CIBLES_DES_CHIFFRES` de `MesChiffres.tsx` fait foi.)*
 - « + » de l'en-tête : Visite (dialogue de planification au jour choisi), Tâche (`/app/tasks` jusqu'au lot 2), Client.
 - Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2596.json`, écran a-0 relevé aux trois formats ; a-4 (journée libre) non reproductible sur la démo, couvert par test. Balayage 360 → 1440 : aucun débord.
 - Donnée de la démo le jour du relevé (2026-11-13) : aucune demande de plus de 24 h pour Sokhna Sene, quatre tâches en retard et deux comptes rendus — la ligne « Mouhamed qui attend depuis 8 j » d'AC1 n'est pas reproductible, elle est couverte par le test de composant.
@@ -114,3 +116,12 @@ Aucun endpoint neuf ; la page compose :
 - « Assignée à » (vue d'équipe, `filter[team]=1`, `filter[assigned_to_id]`) offert à l'admin d'agence qui tient `crm.view_all` ; l'agent la tient aussi (`SystemRoleCapabilities::agent`) mais garde « Assignées à moi », comme la maquette.
 - « Ma journée » : « Tâches ouvertes » et « Toutes les tâches » mènent à `?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me` (ce que compte `tasks_open`), « + Tâche » à `?nouvelle=1`.
 - Clés `agentCrm.myTasks.*` retirées (sans lecteur). Hors du lot : rattachement prérempli depuis une fiche (le formulaire l'accepte, aucune entrée ne le passe encore), « Grouper par » / « Rattachée à » du bureau.
+
+**Décision du 2026-11-14 — « Prospects » ouvre ce qu'il compte (AC2).**
+
+- Le lien mène à `/app/customers?vue=mes-clients&stage_group=active`. Le filtre est serveur : `filter[stage_group]=active` existait dans l'API (TCK-2588, `Customer::getAllowedQueryFilters`, testé par `CustomerFollowUpTest::test_groupe_d_etapes_vivantes`) — aucun delta d'API. La liste lit `stage_group` dans l'URL (`lireLaListe` ; toute autre valeur est ignorée, l'API la refuserait d'un 422), le passe à `fetchDashboardCustomers`, et le compte comme filtre posé. Les comptes des vues ne le portent pas (globaux, comme avant).
+- Le filtre « Étape » offre « Prospects actifs » à côté de « Toutes les étapes » : le filtre posé se lit (« Étape · Prospects actifs »), compte dans « Filtres · N », et une étape précise ou « Toutes les étapes » le retire (les deux s'excluent).
+- Le chiffre de la case suit sa liste. Mesuré en lecture seule sur la démo (Sokhna Sene) : `pipeline_total` de `dashboard/me` = 38 (fiches qu'elle a AJOUTÉES, toutes étapes, Gagné et Perdu compris), la liste cible = 7 (référent = elle, étapes vivantes) ; avant le correctif, la liste en montrait 17. La case lit donc `meta.total` de `filter[referent]=me&filter[stage_group]=active` (`useProspectsACompter`, le patron du « 6 à relancer » de la même case) ). Écart au contrat de données du ticket (qui nommait `pipeline_total`), **tranché par team-lead le 2026-11-14 : (b), sans aucun repli sur `pipeline_total`** — ni au chargement ni en panne, un repli afficherait un chiffre faux (38 pour une liste de 7). Au chargement comme en échec de lecture, la case rend « — », la valeur absente de ses voisines ; comme « à relancer » en panne, elle n'invente rien. Test « AC2 — pipeline_total (38) n'est jamais rendu… », ablation : le repli remis (en panne, ou toujours) → rouge.
+- Aria : « Prospects : 7, ouvrir Mes prospects actifs » (`journee.chiffres.vers.prospects`).
+- Limites connues : les comptes des vues et le sous-titre restent globaux (comme pour tout filtre de la liste) — « Mes clients · 17 » au-dessus d'une liste de 7, gardé tel quel par team-lead le 2026-11-14 ; « Prospects actifs » est une option absente de la maquette `app-clients` (motif : seule entrée lisible et amovible du filtre que « Prospects » pose ; écrit dans `docs/qa/audit-ux-2026-11/fidelite/TCK-2596.json`, `ecarts_acceptes`, sans relevé) ; la barre du bureau à 1280 avec le libellé long n'a pas été relevée.
+- Page Tâches (lot 2, 693c5aa94) : ablations du 2026-11-14 sur l'ouverture par défaut (AC5) et le nom du bien sur la ligne (AC3) — voir le manifeste.

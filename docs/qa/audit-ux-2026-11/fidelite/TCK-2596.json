@@ -222,6 +222,13 @@
       "propriete": "—",
       "exception": "décision",
       "motif": "AC5 : la page s'ouvre sur En retard + Aujourd'hui ; « Cette semaine » et « Plus tard » apparaissent avec la pastille « À venir » (même groupement)"
+    },
+    {
+      "ecran": "app-clients a-* (liste des clients, fiche de TCK-2590)",
+      "element": "option « Prospects actifs » du filtre « Étape » (et « Étape · Prospects actifs » une fois posée)",
+      "propriete": "présence",
+      "exception": "décision",
+      "motif": "TCK-2596 AC2 (2026-11-14) : « Prospects » de « Ma journée » ouvre la liste filtrée sur les étapes vivantes (`stage_group=active`) ; l'option est la seule entrée lisible et amovible de ce filtre. Absente de la maquette ; non relevée."
     }
   ],
   "hors_perimetre": [

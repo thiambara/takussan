@@ -1819,7 +1819,8 @@
       "clearAll": "Far lépp",
       "allStages": "Tappe yépp",
       "allStatuses": "Nekkin yépp",
-      "stage": "Étape"
+      "stage": "Étape",
+      "activeStages": "Prospects actifs"
     },
     "tags": {
       "sectionTitle": "Tag yi",
@@ -20703,7 +20704,7 @@
       "ouvrir": "{libelle} : {valeur}, ouvrir {vers}",
       "vers": {
         "biens": "Mes biens",
-        "prospects": "Mes clients",
+        "prospects": "Mes prospects actifs",
         "taches": "Tâches",
         "commissions": "Commissions"
       },

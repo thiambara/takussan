@@ -19,6 +19,7 @@ export const journeeQueryKeys = {
   taches: () => ['agent-crm', 'tasks', 'journee'] as const,
   demandes: (avant: string) => ['contact-leads', 'journee', avant] as const,
   relances: () => ['customers', 'journee', 'relances'] as const,
+  prospects: () => ['customers', 'journee', 'prospects'] as const,
   /** Sous `['visits', 'list']` : un geste sur une visite (confirmer, clore…) relit la bande. */
   visitesDeLaSemaine: (debut: string, fin: string) => ['visits', 'list', 'journee', 'semaine', debut, fin] as const,
 };
@@ -89,6 +90,19 @@ export function useDemandesQuiAttendent(avant: string) {
 export function useRelancesACompter() {
   return useApiQuery<PaginatedResponse<{ id: number }>>(journeeQueryKeys.relances(), '/api/customers', {
     params: { fields: { customers: ['id'] }, filter: { follow_up: '1', referent: 'me' }, page: 1, per_page: 1 },
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * TCK-2596 AC2 — « Prospects » compte la liste qu'il ouvre (`/app/customers?vue=mes-clients&stage_group=active`) :
+ * mes clients (référent) aux étapes vivantes. `pipeline_total` de `dashboard/me` compte autre chose — les
+ * fiches AJOUTÉES par l'agent, toutes étapes, Gagné et Perdu compris (38 contre 7 sur la démo, 2026-11-14) ;
+ * il n'est jamais rendu à sa place, même en repli.
+ */
+export function useProspectsACompter() {
+  return useApiQuery<PaginatedResponse<{ id: number }>>(journeeQueryKeys.prospects(), '/api/customers', {
+    params: { fields: { customers: ['id'] }, filter: { referent: 'me', stage_group: 'active' }, page: 1, per_page: 1 },
     staleTime: 60_000,
   });
 }

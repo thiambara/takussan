@@ -83,6 +83,14 @@ describe('/app/customers — l’URL lue (TCK-2590)', () => {
     expect((await ouvrir({ tags: 'vip' })).filtre).toBe(true);
     expect((await ouvrir({ vue: 'mes-clients' })).filtre).toBe(true);
   });
+
+  it('TCK-2596 — stage_group=active part à la liste, compte comme filtre, et ne change pas les comptes des vues', async () => {
+    me.roles = ['agent'];
+    const p = await ouvrir({ stage_group: 'active' });
+    expect(api.liste.mock.calls[0][1].filters.stage_group).toBe('active');
+    expect(p.filtre).toBe(true);
+    for (const [, filtres] of api.compte.mock.calls) expect(filtres).not.toHaveProperty('stage_group');
+  });
 });
 
 describe('/app/customers — « Me désigner » et les lectures en parallèle (TCK-2590)', () => {

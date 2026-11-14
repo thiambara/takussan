@@ -63,6 +63,8 @@ export interface DashboardCustomerFilters {
   readonly follow_up?: '1';
   /** TCK-2588 — `me` : « Mes clients » ; `none` : « Sans référent ». */
   readonly referent?: 'me' | 'none';
+  /** TCK-2588 — `active` : les étapes vivantes (« Prospects » de « Ma journée », TCK-2596). */
+  readonly stage_group?: 'active';
 }
 
 export interface FetchDashboardCustomersParams {
@@ -86,6 +88,7 @@ function buildListParams({
   if (filters?.tags_all) filter.tags_all = filters.tags_all;
   if (filters?.follow_up) filter.follow_up = filters.follow_up;
   if (filters?.referent) filter.referent = filters.referent;
+  if (filters?.stage_group) filter.stage_group = filters.stage_group;
 
   return {
     fields: { customers: DASHBOARD_CUSTOMER_FIELDS },

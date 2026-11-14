@@ -21,7 +21,8 @@ const nombre = (v: unknown): number | null => (typeof v === 'number' && Number.i
 /** Les cibles des cases : la liste que chaque chiffre compte. */
 export const CIBLES_DES_CHIFFRES = {
   biens: '/app/properties?only_mine=1',
-  prospects: '/app/customers?vue=mes-clients',
+  // TCK-2596 AC2 — « Mes clients » aux étapes vivantes (`filter[stage_group]=active`, serveur).
+  prospects: '/app/customers?vue=mes-clients&stage_group=active',
   taches: '/app/tasks?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me',
   commissions: '/app/commissions',
   rapport: '/app/reports',

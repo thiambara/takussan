@@ -32,7 +32,7 @@ import {
 } from '@/lib/journee/journee';
 import { useCalendar } from '@/lib/queries/calendar';
 import { useEnregistrerContact } from '@/lib/queries/contact-leads';
-import { useCocherTache, useDemandesQuiAttendent, useRelancesACompter, useReporterTache, useTachesDeLaJournee, useVisitesDeLaSemaine } from '@/lib/queries/journee';
+import { useCocherTache, useDemandesQuiAttendent, useProspectsACompter, useRelancesACompter, useReporterTache, useTachesDeLaJournee, useVisitesDeLaSemaine } from '@/lib/queries/journee';
 import { useVisitesDeLaVue } from '@/lib/queries/visits';
 import { FUSEAU_DES_VISITES } from '@/lib/visites/heure-de-dakar';
 import { cn } from '@/lib/utils';
@@ -82,6 +82,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
   const agenda = useCalendar({ start_date: semaine[0]!, end_date: semaine[6]!, mine: true, types: ['task'] });
   const visitesDeLaSemaine = useVisitesDeLaSemaine(semaine[0]!, semaine[6]!);
   const relances = useRelancesACompter();
+  const prospects = useProspectsACompter();
 
   const cocher = useCocherTache();
   const reporter = useReporterTache();
@@ -111,6 +112,9 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
   const totalDemandes = demandes.data?.meta.total ?? demandes.data?.data.length ?? 0;
   const aRegler = totalAClore + totalDemandes + enRetard.length;
   const aRelancer = relances.data?.meta.total ?? null;
+  // TCK-2596 AC2 (décision du 2026-11-14) — « Prospects » vaut sa liste, et elle seule : `pipeline_total` compte un
+  // autre périmètre (38 pour une liste de 7 sur la démo) et n'est JAMAIS rendu, ni au chargement ni en panne (« — »).
+  const mesChiffres = { ...chiffres, pipeline_total: prospects.data?.meta.total ?? null };
   const charge = !visites.isPending && !aClore.isPending && !taches.isPending && !demandes.isPending;
   const libre = estAujourdhui && charge && moments.length === 0 && aRegler === 0;
   const mois = f.date(dateDuJour(aujourdhui), { month: 'short', timeZone: FUSEAU_DES_VISITES });
@@ -187,7 +191,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
             <JourneeLibre aRelancer={aRelancer} onPlanifier={() => ouvrirPlanifier()} className="px-4 pt-10" />
             <div className="px-4 pb-8 pt-7">
               <Etiquette>{t('chiffres.titre')}</Etiquette>
-              <MesChiffres chiffres={chiffres} aRelancer={aRelancer} mois={mois} className="mt-3" />
+              <MesChiffres chiffres={mesChiffres} aRelancer={aRelancer} mois={mois} className="mt-3" />
             </div>
           </>
         ) : (
@@ -207,7 +211,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
             <section className="border-t border-border px-4 pb-8 pt-5">
               {lienToutesLesTaches}
               <Etiquette className="mt-6">{t('chiffres.titre')}</Etiquette>
-              <MesChiffres chiffres={chiffres} aRelancer={aRelancer} mois={mois} className="mt-3" />
+              <MesChiffres chiffres={mesChiffres} aRelancer={aRelancer} mois={mois} className="mt-3" />
             </section>
           </>
         )}
@@ -252,7 +256,7 @@ export function MaJournee({ chiffres, bandeau }: MaJourneeProps) {
             ) : null}
             <div>
               <Etiquette action={<Link href="/app/reports">{t('chiffres.rapport')}</Link>}>{t('chiffres.titre')}</Etiquette>
-              <MesChiffres chiffres={chiffres} aRelancer={aRelancer} mois={mois} sansPied className="mt-3" />
+              <MesChiffres chiffres={mesChiffres} aRelancer={aRelancer} mois={mois} sansPied className="mt-3" />
             </div>
           </div>
         </div>

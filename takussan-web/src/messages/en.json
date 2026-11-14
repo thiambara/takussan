@@ -3985,7 +3985,8 @@
       "clearAll": "Clear all",
       "allStages": "All stages",
       "allStatuses": "All statuses",
-      "stage": "Stage"
+      "stage": "Stage",
+      "activeStages": "Active prospects"
     },
     "tags": {
       "sectionTitle": "Tags",
@@ -20703,7 +20704,7 @@
       "ouvrir": "{libelle}: {valeur}, open {vers}",
       "vers": {
         "biens": "My properties",
-        "prospects": "My clients",
+        "prospects": "My active prospects",
         "taches": "Tasks",
         "commissions": "Commissions"
       },

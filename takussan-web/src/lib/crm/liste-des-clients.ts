@@ -10,6 +10,9 @@
  *    référent ne se trient pas : l'API rend 400 (relevé le 2026-11-12).
  *  · `per_page` : 10, 20 (défaut, absent de l'URL) ou 50 — transmis tel quel (TCK-2590 AC4).
  *  · `page`, `search`, `pipeline_stage`, `status`, `tags` : comme avant (TCK-042, TCK-093).
+ *  · `stage_group=active` : les étapes vivantes (`filter[stage_group]`, TCK-2588), cible de « Prospects »
+ *    de « Ma journée » avec « Mes clients » (TCK-2596 AC2). Toute autre valeur est ignorée : l'API la
+ *    refuserait d'un 422.
  */
 
 export const VUES_DES_CLIENTS = ['a-relancer', 'mes-clients', 'negociation', 'sans-referent'] as const;
@@ -71,6 +74,8 @@ export interface FiltresDesClients {
   readonly tags?: string;
   readonly follow_up?: '1';
   readonly referent?: 'me' | 'none';
+  /** TCK-2596 — `active` : les étapes vivantes, lead à négociation. */
+  readonly stage_group?: 'active';
 }
 
 /** Le filtre qu'une vue ajoute ; « Négociation » l'emporte sur l'étape de l'URL. */
@@ -129,6 +134,7 @@ export function lireLaListe(brut: Brut, lecteur: LecteurDeLaListe): EtatDeLaList
       pipeline_stage: une(brut.pipeline_stage),
       search,
       tags: une(brut.tags),
+      ...(une(brut.stage_group) === 'active' ? { stage_group: 'active' as const } : {}),
       ...filtresDeLaVue(vue),
     },
   };
