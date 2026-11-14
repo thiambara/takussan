@@ -1,7 +1,7 @@
 ---
 id: TCK-2793
 title: "La pénalité seule payée en ligne : l'encaisser par l'intégration de la plateforme, et la rapprocher sur le relevé de l'agence"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
@@ -113,3 +113,5 @@ Aucune.
 - **Avis** : deux codes neufs, `lease_payment.late_fee_refunded` et `…_landlord` (textes fr/en/wo, API et front).
 - **Reprise** : `PayoutClawbacks::recordRefund` ne compte plus que ses reprises `part = payment` dans le déjà-repris.
 - Le texte du 409 `payment.late_fee_not_collected_online` ne parle plus du « propre compte de paiement » de l'agence.
+
+- 2026-11-14 — passé done : AC tenus au HEAD (d1459b61c, 853bdb7e3 ; passe de clôture) ; retenu par TCK-2778, done le même jour.

@@ -1,13 +1,13 @@
 ---
 id: TCK-2778
 title: "La pénalité de retard restée due sur une échéance payée : un lien de paiement pour elle seule, et une relance notée"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -183,3 +183,4 @@ pénalité de retard de tel mois, et non le loyer.
 
 **Écart.** AC8 « la ligne affiche ensuite « Dernière relance » » : la carte de « Baux à traiter » n'affiche de dernière relance pour aucun motif (le loyer non plus). La feuille, rouverte, la lit sur la ligne d'historique relue. Décision 1 a de team-lead (2026-11-13) : AC8 amendé, coché.
 
+- 2026-11-14 — passé done : AC tenus au HEAD (bc10595a6, 46222c58a ; passe de clôture) ; décisions au (intégration de l'agence ; cas plateforme : TCK-2793) et av (ancien lien révoqué et remplacé) confirmées par le porteur le 2026-11-14.

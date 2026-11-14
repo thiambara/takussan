@@ -1,13 +1,13 @@
 ---
 id: TCK-2604
 title: "Entrer : une seule porte par numéro, surmontée de ce que le visiteur était en train de faire"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2598, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2606]
 spec_refs:
@@ -197,3 +197,5 @@ encres translucides de la porte (`text-foreground/75` des étapes du bureau, `/4
 deviennent l'encre douce opaque `text-muted-foreground` (`encre-sans-alpha.contraste.test.ts`, TCK-658 ; écarts de couleur
 acceptés dans `TCK-2604.json`), et le chiffre du code passe de `text-[26px]` au jeton `text-affiche-26`
 (`check-valeurs-arbitraires-app` : `CasesDuCode` sert aussi la signature sur place de l'état des lieux, dans `/app`).
+
+- 2026-11-14 — passé done : AC tenus au HEAD (passe de clôture) ; n'était retenu que par TCK-2598, done le même jour.

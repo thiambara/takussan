@@ -1,13 +1,13 @@
 ---
 id: TCK-2774
 title: "`rent_month` du bailleur sert aussi les loyers du mois en retard et à venir"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2623]
 blocks: []
 spec_refs:
@@ -108,3 +108,5 @@ Invariant : `received_count + overdue_count + upcoming_count = expected_count`.
   `OWED_REMAINING_SQL` au lieu du reste dû de l'accesseur → test de parité rouge.
 - **Limite** : `config('app.timezone')` vaut `UTC` et Dakar est à UTC+0 : la clause « à l'heure de Dakar »
   d'AC3 est implémentée par construction, aucun test ne peut la distinguer du jour de l'application.
+
+- 2026-11-14 — passé done : AC1-AC5 et ablations cochés avec preuve, commit 1f0ce314b (`OwnerRentMonthTest` au HEAD). Suite : TCK-2820 (échéance `refunded` échue, décision 18 du porteur).

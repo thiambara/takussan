@@ -7,9 +7,9 @@ family: front
 estimate: S
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2624, TCK-2660]
-blocks: []
+blocks: [TCK-2818]
 spec_refs:
   features:
     - "docs/features.md#15-transactions--paiements"

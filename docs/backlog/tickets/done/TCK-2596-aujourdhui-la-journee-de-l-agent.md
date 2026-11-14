@@ -1,7 +1,7 @@
 ---
 id: TCK-2596
 title: "Aujourd'hui, la journée de l'agent : « À régler » puis la chronologie, ses chiffres en bas — et les tâches logées sans perte"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
@@ -125,3 +125,5 @@ Aucun endpoint neuf ; la page compose :
 - Aria : « Prospects : 7, ouvrir Mes prospects actifs » (`journee.chiffres.vers.prospects`).
 - Limites connues : les comptes des vues et le sous-titre restent globaux (comme pour tout filtre de la liste) — « Mes clients · 17 » au-dessus d'une liste de 7, gardé tel quel par team-lead le 2026-11-14 ; « Prospects actifs » est une option absente de la maquette `app-clients` (motif : seule entrée lisible et amovible du filtre que « Prospects » pose ; écrit dans `docs/qa/audit-ux-2026-11/fidelite/TCK-2596.json`, `ecarts_acceptes`, sans relevé) ; la barre du bureau à 1280 avec le libellé long n'a pas été relevée.
 - Page Tâches (lot 2, 693c5aa94) : ablations du 2026-11-14 sur l'ouverture par défaut (AC5) et le nom du bien sur la ligne (AC3) — voir le manifeste.
+
+- 2026-11-14 — passé done : AC2 tenu au HEAD par 859e0cdeb (« Prospects » → `stage_group=active`, décision datée ci-dessus) ; seul reste de la passe de clôture.

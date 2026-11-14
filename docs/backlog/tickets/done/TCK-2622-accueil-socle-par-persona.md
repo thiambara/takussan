@@ -1,13 +1,13 @@
 ---
 id: TCK-2622
 title: "Accueil de /app : un socle commun (salut, date, mise en service en une ligne, « Ce mois » cliquable) et une page par persona, sans raccourcis"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2618, TCK-2596, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2624, TCK-2625]
 spec_refs:
@@ -156,3 +156,5 @@ Aucun endpoint neuf dans ce ticket.
   - la panne des brouillons relancée rougit par un rejet non géré (sortie 1), pas par une assertion.
   - Le mutant « `!res.ok` ne lève plus » de `fetchKpisActifs` est équivalent : le `catch` rend `[]` dans les deux cas.
 - **Fidélité** (`docs/qa/audit-ux-2026-11/fidelite/TCK-2622.json`) : relevés a-1 et a-6 aux trois largeurs. Le socle (ligne de mise en service, salut, date, « Ce mois ») est conforme ; les absents sont les blocs de TCK-2624. a-7 n'est pas relevé (les squelettes et la panne par bloc sont ceux de TCK-2624).
+
+- 2026-11-14 — passé done : AC tenus au HEAD (passe de clôture) ; n'était retenu que par TCK-2596, done le même jour.

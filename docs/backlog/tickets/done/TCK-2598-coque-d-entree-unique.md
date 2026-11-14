@@ -1,13 +1,13 @@
 ---
 id: TCK-2598
 title: "Une seule coque pour l'entrée : l'intention en titre, l'avancement du parcours, le bouton collé au-dessus du clavier"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2600, TCK-2604, TCK-2608, TCK-2611, TCK-2613]
 spec_refs:
@@ -90,3 +90,5 @@ Pas de régression — la coque remplace la mise en page de `(auth)/layout.tsx`,
   - **r2, l'assistant d'admin d'agence** : `TotpEnrollment` gagne un rappel facultatif `onEtape` (les deux autres montages inchangés) ; l'assistant déclare une saisie dès que le code QR est montré (un secret est écrit : `enable` en régénère un à chaque fois), avec deux reprises — `agency.onboarding.sortie.configuration` (« … reprendra au début, avec un nouveau code QR ») et `.codes` aux codes de secours, montrés une seule fois. L'accueil et l'intro sortent sans demander (décision (b) posée à team-lead).
   - **Non couvert, hors réserve** : aucun écran au HEAD ne combine la flèche de retour (`retour`, `(auth)`) avec une saisie déclarée ; l'orientation (TCK-2608) ne déclare aucune saisie, et sa propre marque (`BarreDOrientation`) n'est pas branchée sur `useClicDeSortie` — à faire si un de ses écrans en déclare une. Retour arrière du navigateur et fermeture d'onglet : toujours sans `beforeunload`. Pas de relevé au navigateur : jsdom monte les vrais composants sous la vraie coque, et le lien de Next n'appelle pas la navigation quand son `onClick` l'a annulée (`next/dist/client/app-dir/link.js`, `e.defaultPrevented`).
 - **Écart signalé** : la maquette d'arrivée directe (connexion a-1) dessine une photo de ville (176 px au téléphone, panneau de 45 % au bureau) que l'AC2 et TCK-2604 écartent sans photo fournie par le porteur — fiche `TCK-2598.json`, écarts acceptés.
+
+- 2026-11-14 — passé done : réserves r1/r2 fermées au HEAD par 212d659cb (marque gardée, invitation et assistant d'admin d'agence déclarent leur saisie) ; seul reste de la passe de clôture.

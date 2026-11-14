@@ -1,13 +1,13 @@
 ---
 id: TCK-2600
 title: "Publier sans compte : l'anonyme remplit toute l'annonce, gardée dans son navigateur"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 86
 created: 2026-11-10
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2598, TCK-2599, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2601, TCK-2603]
 spec_refs:
@@ -143,3 +143,5 @@ Rideaux : bloc-notes de la session, `impl/lot2/2600f/final3-cmp-a-{0..5}-{bureau
 - **AC5 revérifié** : à 390, « Continuer » visible sans défilement de la page sur les six étapes (y 784, document 0) ; à 1280, l’aperçu à droite (x 767, 400 px) — après la frappe du loyer, la carte y affiche « 250 000 F CFA » (relevé `final3-prod-a-3-bureau-1280.json`, x 781, y 501).
 - **Tests** : `WizardShell.cadre-d-entree.tck-2600.test.tsx` (sans cadre : DOM et classes d’avant ; avec : grille, aperçu collant, titres, pied, note, gestes, départ sans « Précédent ») ; `PublierSansCompte.cadre.tck-2600.test.tsx` (notes par étape, liens des conditions ; « Effacer » dans la barre dès 1280, dans la ligne d’état en deçà, jamais deux, inerte sous le verrou) ; `PropertyWizard.panneau.tck-2601.test.tsx` (le mode anonyme monte le cadre, l’accueil, la note de l’étape) ; `PropertyWizard.depuis-publication.tck-2601.test.tsx` (connecté : pas de cadre).
 - **Ablations** (18, chacune rouge, fichier restauré, md5 vérifié) : la grille jamais / toujours rendue ; la colonne de la question sans `minmax` ; « Effacer » dans la barre sous 1280, sans contenu, et en double dès 1280 ; la note du prix ; le cadre sur `/app` ; le cadre absent de `/publish` ; l’accueil ; la note non transmise ; « Précédent » au départ ; l’écart de « Plus tard » ; la taille de la phrase des conditions ; la largeur de « Continuer » ; « Revenir à l’annonce » sans son retrait ; la colonne du panneau rendue par sa section, puis retirée de `/app`. Une première ablation d’« Effacer » en double était VERTE : `.not.toBeInTheDocument()` sur un conteneur détaché passe toujours ; l’assertion est passée à `toBeNull()`, l’ablation rejouée rouge.
+
+- 2026-11-14 — passé done : écarts acceptés le 2026-11-14, suite TCK-2819 (contenu des étapes et de l'aperçu partagés avec /app/properties/new, débord de 1 px à 360) ; AC1-AC5, AC-F1 et AC-F6 tenus au HEAD (ade84182b, 791f7fa65 ; passe de clôture) ; TCK-2598 done le même jour.

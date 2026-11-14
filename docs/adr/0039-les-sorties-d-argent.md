@@ -1152,7 +1152,7 @@ retenue vivante), la définition qu'emploient déjà les rapports.**
 Décision du porteur du 2026-11-13 (réponse 1a sur TCK-2778) : le lien de la pénalité seule
 n'existait que si l'encaissement passait par l'intégration de l'agence, et le cas plateforme ainsi
 que le rapprochement de cette part étaient renvoyés à un ticket de suite. Ce ticket est
-[TCK-2793](../backlog/tickets/todo/TCK-2793-penalite-seule-encaissee-par-la-plateforme-et-rapprochement.md).
+[TCK-2793](../backlog/tickets/done/TCK-2793-penalite-seule-encaissee-par-la-plateforme-et-rapprochement.md).
 Il complète le point 6 de l'amendement du 2026-10-24, et la forme du reversement de la plateforme
 change. Relu sur `feat/audit-ux-app-lot-2` d320f8ef0.
 

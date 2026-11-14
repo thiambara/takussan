@@ -1,13 +1,13 @@
 ---
 id: TCK-2773
 title: "Fiche d'un document : le nom de qui l'a ajouté, vérifié, versionné ou partagé — et à qui le montrer"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2656]
 blocks: []
 spec_refs:
@@ -116,3 +116,5 @@ personnel, le locataire, sans auteur). Ablations : les trois composants rendus �
 rouges ; restaurés à l'identique (`cmp`).
 
 **Reste** : l'entité de rattachement nommée (« Bail LS-… », le bien) — hors de ce lot (session, 2026-11-13).
+
+- 2026-11-14 — passé done : AC tenus au HEAD (a78c5752e, b512ccfe5) ; « Vérifié par Takussan » hors console et « votre locataire / votre bailleur » sans nom confirmés par le porteur (décisions as, at, 2026-11-14).

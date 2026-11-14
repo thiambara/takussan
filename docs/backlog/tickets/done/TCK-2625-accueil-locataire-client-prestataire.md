@@ -1,13 +1,13 @@
 ---
 id: TCK-2625
 title: "Accueil du locataire, du client et du prestataire : le loyer et « Payer » en tête, les visites et les favoris qui bougent, les interventions du jour"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2622, TCK-2623, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2628]
 spec_refs:
@@ -129,3 +129,5 @@ tags: [front, accueil, locataire, prestataire, mobile, audit-ux, app]
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+- 2026-11-14 — passé done : AC tenus au HEAD (passe de clôture) ; retenu par TCK-2622, done le même jour ; « Statistiques » hors du menu « Plus » confirmé par le porteur (décision ak, 2026-11-14).

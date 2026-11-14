@@ -1,14 +1,14 @@
 ---
 id: TCK-2758
 title: "La relance d'un impayé n'embarque plus l'espace `admin` du dictionnaire sur la fiche du bien"
-status: todo
+status: obsolete
 phase: P2
 family: technique
 estimate: S
 wave: 90
 created: 2026-11-12
-updated: 2026-11-12
-depends_on: [TCK-2639, TCK-2660]
+updated: 2026-11-14
+depends_on: []
 blocks: []
 spec_refs:
   features:
@@ -83,3 +83,5 @@ voit pas). `payments` est légitime (le dialogue d'encaissement) et reste.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+- 2026-11-14 — remplacé par TCK-2775, décision 16 b du porteur, 2026-11-14. `depends_on` (TCK-2639, TCK-2660) vidé : un ticket obsolète n'attend rien.

@@ -8,7 +8,7 @@ estimate: S
 wave: 88
 created: 2026-11-14
 updated: 2026-11-14
-depends_on: [TCK-2645, TCK-2660]
+depends_on: [TCK-2645, TCK-2660, TCK-2775]
 blocks: []
 spec_refs:
   features:
@@ -42,11 +42,10 @@ TCK-2644 → TCK-2758 → TCK-2639 → TCK-2644 formait un cycle.
 
 - **Emplacement** (décision 1 a de la session, 2026-11-12) : la carte Loyer et le menu de la ligne en retard de
   l'échéancier, pour le personnel seul. Le locataire et le bailleur ne voient pas le geste.
-- **La voie de relance se décide entre TCK-2758 et TCK-2775 (décision du porteur en attente).** L'aide lit ses
-  libellés sous `admin`, que la frontière i18n `(dashboard)/app/leases/[id]` ne sert pas aujourd'hui.
-  - TCK-2758 sortirait ces clés de `admin`.
-  - TCK-2775 mènerait à l'écran Impayés par l'URL.
-  - L'autre voie est de servir `admin` à cette frontière, comme la liste l'a accepté (TCK-2644, décision 3).
+- **Voie TCK-2775 (décision 16 b du porteur, 2026-11-14).** L'aide lit ses libellés sous `admin`, que la frontière
+  i18n `(dashboard)/app/leases/[id]` ne sert pas aujourd'hui : la relance de la fiche passe par l'écran Impayés ouvert
+  depuis son URL (`?tab=impayes&relance=<id d'échéance>`, TCK-2775). TCK-2758 (sortir les clés de `admin`) est
+  obsolète.
 - Sans téléphone connu du locataire, la règle de la file s'applique : « Copier le lien de paiement », avec la raison,
   et aucun lien `wa.me`.
 - **i18n** : `fr` / `en` / `wo` (le `wo` porte le texte français tel quel), vouvoiement.
@@ -65,4 +64,4 @@ TCK-2644 → TCK-2758 → TCK-2639 → TCK-2644 formait un cycle.
 ## Hors périmètre
 
 - La file « À traiter » (TCK-2644) et l'écran Impayés (TCK-2660).
-- Le choix entre TCK-2758 et TCK-2775, qui revient au porteur.
+- L'ouverture de la relance depuis l'URL de l'écran Impayés (TCK-2775).

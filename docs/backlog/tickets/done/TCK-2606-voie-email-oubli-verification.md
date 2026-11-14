@@ -1,13 +1,13 @@
 ---
 id: TCK-2606
 title: "Voie e-mail en deux onglets, mot de passe oublié qui propose le code SMS, vérification de l'adresse qui pousse à continuer"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 86
 created: 2026-11-10
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2604, TCK-2605, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -123,3 +123,5 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
   8 cœurs : jusqu'à la réponse, avant 206-216 ms (compte) et 206-220 (sans) ; après 6-9 ms et 6-13 ms. Le vérificateur avait
   mesuré 360-425 contre 207-213 sous charge 13 : ici le minutage du courtier masquait l'écart, il ne le garantit pas.
   `OubliSansFuiteDExistenceTest` prouve l'ORDRE (aucun jeton à `RequestHandled`, le jeton et le lien après), pas une durée.
+
+- 2026-11-14 — passé done : AC tenus au HEAD (passe de clôture) ; retenu par TCK-2604, done le même jour.

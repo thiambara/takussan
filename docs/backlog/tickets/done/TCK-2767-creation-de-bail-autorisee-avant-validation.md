@@ -1,13 +1,13 @@
 ---
 id: TCK-2767
 title: "POST /api/leases juge l'autorisation avant la validation — un appelant qui ne peut pas ouvrir de bail sur ce bien reçoit 403, plus le détail des règles"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
 wave: null
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -71,3 +71,5 @@ Chaque AC se vérifie par ablation : un `authorize()` rendu à `true` doit faire
 - AC5 : 29 fichiers (les 26 qui postent sur `/api/leases`, plus `LeaseDefaultsTest` et `AuthorizationPrecedesValidationTest`), 431 tests, 2 rouges, exactement les deux attentes qui figeaient un 422 pour un appelant sans droit, toutes deux dans `tests/Feature/Api/LeaseExistenceOracleTest.php` :
   1. `test_hors_agence_un_client_ou_un_garant_absent_ne_se_distingue_pas_d_un_tiers` : le premier `assertSame(422, …)` (compte sans droit, `type` invalide) devient 403 ; l'égalité tiers/absent tient.
   2. `test_un_identifiant_non_entier_reste_refuse_en_422`, renommé `…_pour_qui_a_le_droit_sur_le_bien` : `property_id: abc` d'un compte sans droit → 403 sans `errors` ; le bailleur sur son bien, avec `tenant_id`, `guarantor_id` et `booking_id` non entiers → 422 sur ces trois champs.
+
+- 2026-11-14 — passé done : AC1-AC5 cochés avec preuve, commit ee5324269 (test `CreationDeBailAutoriseAvantDeValiderTest` au HEAD).

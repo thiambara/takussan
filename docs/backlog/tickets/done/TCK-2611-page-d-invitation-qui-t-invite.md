@@ -1,13 +1,13 @@
 ---
 id: TCK-2611
 title: "Invitation : l'agence, la personne qui invite et le rôle en tête, puis un code — et un lien expiré qui le dit tout de suite"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2598, TCK-2609, TCK-2610, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -149,3 +149,5 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
 - **AC4 mesuré sur l'état final** (390 × 844, champ du numéro au focus, clavier émulé de 336 px, zone
   visible 508, écritures bloquées 0) : « Continuer avec mon numéro » de 428 à 476, entier — même résultat
   que la mesure d'avant le passage du libellé « Votre numéro » en bloc.
+
+- 2026-11-14 — passé done : AC tenus au HEAD (passe de clôture) ; n'était retenu que par TCK-2598, done le même jour.

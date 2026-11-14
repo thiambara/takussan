@@ -1,13 +1,13 @@
 ---
 id: TCK-2608
 title: "Orientation en trois portes, un geste : le chercheur repart avec une alerte, le professionnel avec son espace"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2598, TCK-2607, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -101,3 +101,5 @@ Pas de régression — restent :
 
 **Comptes de démo de relevé (accord de team-lead, « aux conditions de la 189 »), 2026-11-13.** Créés par `User::create` direct (aucune inscription, aucun envoi), e-mails `@example.test`, téléphones fictifs `+221770002608/09` vérifiés : **187** (Awa Diop) et **189** (prénom vide). L'id 188 a été consommé par un premier insert refusé (`first_name` NOT NULL) : aucune ligne. Jetons de relevé dans un fichier 0600, jamais imprimés, absents de toute sortie (compte vérifié à 0), fichier supprimé. **Supprimés le même soir** : 2 jetons Sanctum, 160 préférences de notification (créées par `UserObserver`), les 2 comptes (`forceDelete`), 6 lignes du journal d'activité ; relu ensuite : aucune ligne à leur id dans aucune table à `user_id`/`causer_id`/`subject_id`/`tokenable_id`/`notifiable_id`/`model_id`, et l'index de recherche des comptes répond 404 `document_not_found` pour les deux.
 ⚠ Incident réparé pendant la frappe des jetons : `fidelite.mjs jetons` a refrappé toutes les personas absentes du fichier de relevé, ce qui révoque les jetons précédents du fichier partagé `~/.takussan-fidelite/jetons.json` ; refrappés aussitôt (`jetons --renouveler`), aucun relevé ne tournait. Pour une persona de relevé neuve : laisser `releve --persona <nom>` la frapper seule (il ne frappe que la persona qui manque), jamais `jetons` sur un fichier neuf.
+
+- 2026-11-14 — passé done : AC tenus au HEAD (passe de clôture) ; n'était retenu que par TCK-2598, done le même jour ; mention des CGU et textes de la porte pro confirmés par le porteur (décisions aq, ar, 2026-11-14).

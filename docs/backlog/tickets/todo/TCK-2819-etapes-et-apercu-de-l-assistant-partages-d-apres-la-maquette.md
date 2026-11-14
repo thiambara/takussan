@@ -1,0 +1,102 @@
+---
+id: TCK-2819
+title: "Les étapes et l'aperçu de l'assistant d'annonce suivent la maquette, sur /publish comme sur /app/properties/new"
+status: todo
+phase: P2
+family: front
+estimate: L
+wave: 90
+created: 2026-11-14
+updated: 2026-11-14
+depends_on: [TCK-2600]
+blocks: []
+spec_refs:
+  features:
+    - "docs/features.md#11-gestion-des-biens"
+    - "docs/features.md#onboarding-parcours"
+  models:
+    - "docs/models-spec.md#3-property"
+tags: [front, publish, assistant, fidelite, audit-ux, app, suite-de-tck-2600]
+---
+
+## Objectif utilisateur
+
+Que l'on publie sans compte sur `/publish` ou depuis l'espace sur `/app/properties/new`, l'assistant d'annonce montre les
+mêmes étapes, le même aperçu et le même pied que la maquette retenue `app-entree-publier`. Un seul assistant, un seul
+dessin.
+
+## Origine
+
+Suite de TCK-2600. La session a accepté le 2026-11-14 les écarts ouverts de sa fiche de fidélité
+(`docs/qa/audit-ux-2026-11/fidelite/TCK-2600.json`, `ecarts_ouverts`), à condition d'en faire ce ticket. TCK-2600 n'a
+redessiné que le cadre d'entrée (`cadreDEntree` de `WizardShell`, monté par `/publish` seul) : le contenu des étapes, la
+colonne d'aperçu et le pied du téléphone sont ceux de `/app/properties/new`, et les redessiner change aussi l'assistant
+connecté, que la maquette ne couvre pas.
+
+## Contrat de données
+
+Aucun endpoint touché. Les étapes lisent ce qu'elles lisent aujourd'hui (`/api/public/amenities` pour l'anonyme, les
+référentiels de l'assistant connecté) ; AC4 de TCK-2600 reste vrai : pour un même couple type × contrat, les deux
+entrées montrent les mêmes champs.
+
+## Direction UX / Artistique
+
+- Maquette de référence : `/fr/playground/maquettes?p=app-entree-publier&a=a`, écrans a-0 à a-5, au téléphone (390) et
+  au bureau (1440, et 1280 quand la visionneuse en a une) — **référence de fidélité, non versionnée**, cf.
+  [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes).
+- Ton : vouvoiement ([ADR-0095](../../../adr/0095-le-ton-suit-la-session.md)) ; la maquette tutoie.
+- Fidélité : [ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), densité du bureau
+  [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md).
+
+## Delta à produire
+
+Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevée au bureau 1440 et au téléphone :
+
+- [ ] **Contenu des six étapes** (`StepBien`, `ChampsLieu`, `StepCaracteristiques`, `StepPrix`, `MediaDropzone`,
+  finition) — écarts relevés au bureau 47 · 34 · 43 · 33 · 16 · 24 lignes, au téléphone 43 · 24 · 32 · 33 · 20 · 15.
+  Parmi eux : cartes du contrat et des types ; région, ville et quartier en grille ; « Utiliser ma position » et
+  « Placer sur la carte » en pastilles ; loyer suivi de « Par Mois / Semaine / Jour / An » au lieu de Prix + Fréquence ;
+  « Total à l'entrée » ; dépôt des photos et « Couverture » ; apostrophes typographiques des libellés partagés
+  (« Coût d'entrée », « Titre de l'annonce »).
+- [ ] **Colonne d'aperçu** : la carte (`ApercuAnnonce` : pastille « En location », « Vos photos viendront ici », titre,
+  lieu, prix) et « Pour publier » (`ListePourPublier` : titre 15 px / 600 au lieu de 12,6, notes « en cours »,
+  « facultatif », « à la fin » alignées à droite au lieu d'être dans le libellé, puce). Écarts relevés : 21 · 19 · 21 ·
+  21 · 19 · 21 lignes. La colonne collante retrouve son `y` de 104 sur a-0, a-2 et a-5 quand les étapes reprennent leur
+  hauteur.
+- [ ] **Pied de l'assistant au téléphone** : le `PiedAssistant` de la maquette (pied de 117 px, « Continuer » 172 × 48 en
+  16 px / 600, « Précédent ») remplace celui de `WizardShell` sous `lg`, avec le bandeau d'aperçu.
+- [ ] **Débord de 1 px à 360** : sur a-4, « Précédent », « Plus tard » et « Continuer » côte à côte finissent à 361 px
+  (relevé de la fiche, champ `balayage`). Le nouveau pied ne déborde à aucune largeur.
+- [ ] Fiche de fidélité de ce ticket : `docs/qa/audit-ux-2026-11/fidelite/TCK-2819.json`, sur les deux entrées.
+
+## Contraintes strictes (métier)
+
+- **Un seul assistant.** Aucune copie des étapes pour `/publish` : le redessin vaut pour les deux entrées, et AC4 de
+  TCK-2600 (mêmes champs pour un même couple) reste tenu.
+- Le brouillon local de `/publish` ([ADR-0093](../../../adr/0093-publier-sans-compte-le-brouillon-vit-dans-le-navigateur.md))
+  et le brouillon serveur de `/app/properties/new` relisent leurs valeurs sans migration : un brouillon d'avant ce ticket
+  rouvre à la même étape avec les mêmes valeurs.
+- **Ce qui reste accepté** (décision de la session du 2026-11-14, ne pas « corriger ») : « Effacer ce brouillon », la
+  ligne d'état « Brouillon gardé sur ce téléphone » et la note « Brouillon gardé dans ce navigateur » dès a-0 ;
+  « Publier l'annonce » comme geste final.
+- i18n `fr` / `en` / `wo` (le `wo` porte le texte français tel quel, wolof en pause).
+
+## Critères d'acceptation
+
+- [ ] AC1 — Pour un studio en location au mois, `/publish` et `/app/properties/new` rendent à chaque étape les mêmes champs
+  (test de structure sur les deux montages). Une régression qui copie une étape pour une seule entrée le fait rougir.
+- [ ] AC2 — Un brouillon écrit avant ce ticket (fixture des deux formes : local et serveur) rouvre à la même étape avec
+  les mêmes valeurs, photos comprises.
+- [ ] AC3 — À 360, 390, 768, 1024, 1280 et 1440 px, sur a-0 à a-5 et sur `/app/properties/new`, aucun débord
+  (`scrollWidth − innerWidth = 0`), a-4 à 360 compris.
+- [ ] AC4 — Au téléphone, le geste « Continuer » mesure 48 px de haut et reste visible sans défilement de la page à
+  chaque étape.
+- [ ] AC-F1 à AC-F6 — comme TCK-2600 (fiche, zéro écart non expliqué, rien ne manque, zones identiques, preuve dans la PR,
+  largeurs intermédiaires), avec `fidelite compare` sur a-0 à a-5. Les écarts listés « ce qui reste accepté » ci-dessus
+  sont reportés tels quels.
+
+## Hors périmètre
+
+- Le cadre d'entrée de `/publish` (TCK-2600) et la feuille de compte (TCK-2601).
+- Le découpage de l'espace `property` du dictionnaire servi à `/publish` (TCK-2771).
+- Le titre de la barre « Publier votre bien » et son interligne (`CoqueDEntree`, TCK-2598).
