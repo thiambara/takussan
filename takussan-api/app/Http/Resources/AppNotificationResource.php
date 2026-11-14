@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Domain\Notifications\AgenceDeLaCible;
 use App\Domain\Notifications\NotificationClassification;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
@@ -50,7 +51,9 @@ class AppNotificationResource extends BaseResource
             // choisit son formatage par elle, sans la deviner du préfixe du code ni de la forme
             // de la valeur. `null` pour une ligne sans code connu.
             'param_types' => $code !== null ? $code->params() + $code->optionalParams() : null,
-            'target' => $want('target') ? NotificationTarget::forRow($this->resource)?->toArray() : null,
+            // TCK-2751 — l'agence de l'objet, rendue au seul lecteur qui y tient un profil actif
+            // ({@see AgenceDeLaCible}) : la cloche bascule sur ce profil avant d'ouvrir l'objet.
+            'target' => $want('target') ? AgenceDeLaCible::pour($request)->completer(NotificationTarget::forRow($this->resource))?->toArray() : null,
             'title' => $want('title') ? $this->rendered($code, 'title', $request) ?? $this->title : null,
             'body' => $want('body') ? $this->rendered($code, 'body', $request) ?? $this->body : null,
             'data' => $want('data') ? $this->dataAtRead($request) : null,

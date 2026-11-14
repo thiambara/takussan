@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 
+import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -87,7 +88,10 @@ export function QueryBoundary<T>({
     // produit (TCK-246), et cette copie-ci portait son propre `role="alert"` et son propre bouton
     // de reprise. Deux implémentations d'une même chose divergent — celle-ci utilisait
     // `bg-destructive/5` quand `DestructiveBanner` tient `bg-destructive/10` + `ring`.
-    return query.refetch ? (
+    // TCK-2751 — un 403 ne se répare pas en réessayant : l'objet relève d'un autre espace, ou d'un
+    // droit absent. « Réessayer » y promettait un geste qui ne change rien.
+    const refuse = query.error instanceof ApiError && query.error.status === 403;
+    return query.refetch && !refuse ? (
       <ErrorState
         className={className}
         message={message}
