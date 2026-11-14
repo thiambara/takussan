@@ -101,6 +101,9 @@ const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
     titre: { espace: 'nav.admin', cle: 'reconciliation' },
     parent: '/app/agency/finances',
   },
+  // TCK-2832 — « Réglages de bail », section-page de la fiche « Mon agence », hors du menu (`menu: null`) : un
+  // détail de la fiche. Titre lu dans le dictionnaire de la coque, pour la même raison que le rapprochement.
+  '/app/agency/lease-settings': { titre: { espace: 'nav.admin', cle: 'leaseSettings' }, parent: '/app/agency' },
   // Les formulaires de création : plein écran au téléphone, leur « ✕ » ramène à la liste.
   '/app/customers/new': { titre: { espace: PAGES, cle: 'customerNew.title' }, parent: '/app/customers' },
   '/app/leases/new': { titre: { espace: PAGES, cle: 'leaseNew.title' }, parent: '/app/leases' },

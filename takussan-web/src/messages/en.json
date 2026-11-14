@@ -329,7 +329,8 @@
       "mySpace": "My space",
       "openMySpace": "Open my space",
       "payouts": "Payouts",
-      "reconciliation": "Reconciliation"
+      "reconciliation": "Reconciliation",
+      "leaseSettings": "Lease settings"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",

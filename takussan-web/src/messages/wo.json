@@ -319,7 +319,8 @@
       "mySpace": "Sama barab",
       "openMySpace": "Ubbi sama barab",
       "payouts": "Reversements",
-      "reconciliation": "Rapprochement"
+      "reconciliation": "Rapprochement",
+      "leaseSettings": "Réglages de bail"
     },
     "superAdmin": {
       "eyebrow": "Konsol Takussan",
@@ -8064,7 +8065,7 @@
         "description": "Wàll « {name} » dañu koy far. Loolu du dellu ginnaaw.",
         "submit": "Far",
         "submitting": "Ñu ngi far…",
-        "conflict_title": "Wàll bii ñu ngi ko def ba tey",
+        "conflict_title": "Wàll bii ��u ngi ko def ba tey",
         "conflict_description": "Soppil wàllu way-bokk yii ci konsol Ekib bi laata ngay far wàll bii.",
         "conflict_unnamed": "Profil #{id}"
       },
