@@ -21429,10 +21429,13 @@
           "edlSortie": "État des lieux de sortie",
           "autre": "Document généré"
         },
-        "bauxPrecedents": {
-          "ligne": "Pièces des baux précédents : sur chaque bail",
-          "bail": "Bail n° {id}",
-          "voirLesBaux": "Voir les baux"
+        "parBail": {
+          "duBien": "Pièces du bien",
+          "enCours": "Bail en cours · {reference}",
+          "precedent": "Bail précédent · {reference}",
+          "autre": "Bail · {reference}",
+          "sansReference": "n° {id}",
+          "voirLeBail": "Voir le bail"
         }
       },
       "photos": {

@@ -54,10 +54,24 @@ class DocumentController extends Controller
         // la liste suit la lecture : tout ce que `view` ouvre sur cette cible, quel qu'en soit l'auteur
         // ({@see DocumentPolicy::listableOn()}). Une cible illisible ou introuvable retombe sur la règle
         // de TCK-820, jamais sur un 403 ou un 404 qui dirait qu'elle existe (TCK-732).
-        $target = $this->targetOf($request);
-        $base = $target !== null
-            ? DocumentPolicy::listableOn(Document::query(), $user, $target)
-            : DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
+        //
+        // TCK-2841 (ADR-0099, amendement du 2026-11-14) — `filter[property_with_leases]={id}` : le bien
+        // ET ses baux hors brouillon, chaque cible jugée par sa lecture
+        // ({@see DocumentPolicy::listableOnPropertyAndLeases()}). Il prime sur la cible simple ; un
+        // identifiant mal formé ou introuvable ne rend rien, sans repli sur la règle de TCK-820 (un bien
+        // illisible suit la règle d'auteur, dans l'arbre).
+        $filter = $request->query('filter');
+        if (is_array($filter) && array_key_exists('property_with_leases', $filter)) {
+            $property = $this->propertyOf($filter['property_with_leases']);
+            $base = $property !== null
+                ? DocumentPolicy::listableOnPropertyAndLeases(Document::query(), $user, $property)
+                : Document::query()->whereRaw('1 = 0');
+        } else {
+            $target = $this->targetOf($request);
+            $base = $target !== null
+                ? DocumentPolicy::listableOn(Document::query(), $user, $target)
+                : DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
+        }
 
         // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
         // rattachées à un profil ne se listent pas.
@@ -240,6 +254,16 @@ class DocumentController extends Controller
         }
 
         return $class::query()->find((int) $id);
+    }
+
+    /** TCK-2841 — le bien d'un `filter[property_with_leases]` : UN identifiant scalaire d'une ligne existante. */
+    private function propertyOf(mixed $id): ?Property
+    {
+        if (! is_string($id) || ! ctype_digit($id) || strlen($id) > 18) {
+            return null;
+        }
+
+        return Property::query()->find((int) $id);
     }
 
     protected function resolveDocumentableType(string $type): ?string

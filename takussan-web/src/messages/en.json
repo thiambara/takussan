@@ -21429,10 +21429,13 @@
           "edlSortie": "Move-out inspection",
           "autre": "Generated document"
         },
-        "bauxPrecedents": {
-          "ligne": "Files from previous leases: on each lease",
-          "bail": "Lease #{id}",
-          "voirLesBaux": "See leases"
+        "parBail": {
+          "duBien": "Property files",
+          "enCours": "Current lease · {reference}",
+          "precedent": "Previous lease · {reference}",
+          "autre": "Lease · {reference}",
+          "sansReference": "#{id}",
+          "voirLeBail": "See lease"
         }
       },
       "photos": {

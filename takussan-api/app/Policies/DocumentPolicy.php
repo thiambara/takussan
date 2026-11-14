@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
@@ -425,6 +426,60 @@ class DocumentPolicy extends BasePolicy
         }
 
         return self::restreindreAuTeleverseur($query, $user);
+    }
+
+    /**
+     * TCK-2841 (ADR-0099, amendement du 2026-11-14, « un bien et ses baux, en une lecture ») — la forme
+     * liste de {@see self::view()} pour l'arbre d'un bien : le bien et ses baux HORS BROUILLON, passés
+     * compris. Chaque cible de l'arbre se juge comme le fait {@see self::listableOn()} pour une seule :
+     * lisible (`readsTarget`), tous ses documents ; illisible, ceux que la règle d'auteur ouvre. Le bien
+     * lisible n'ouvre donc pas ses baux : le locataire ne lit que son bail, l'ancien bailleur que le
+     * sien, le bailleur du bien pas le bail de son prédécesseur.
+     *
+     * Les baux sont lus une fois, avec leur locataire, et les capacités jugées sous `primed` : le
+     * nombre de requêtes ne dépend pas du nombre de baux (AC5).
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    public static function listableOnPropertyAndLeases(Builder $query, User $user, Property $property): Builder
+    {
+        $baux = $property->leases()->where('status', '!=', LeaseStatus::Draft->value)->with('tenant')->get();
+        // Les profils de l'appelant chargés une fois, comme le coffre : `isStaffOf` relit sinon son agence
+        // (`User::getAgencyIdAttribute`, hors profil actif) à chaque bail — quatre requêtes par bail pour
+        // le locataire.
+        $user->loadMissing(['ownerProfiles', 'agentProfiles', 'agencyAdminProfiles', 'serviceProviderProfile']);
+        $agences = $baux->pluck('agency_id')->push($property->agency_id);
+
+        return MembershipCapabilityResolver::primed([$user->id], $agences, function () use ($query, $user, $property, $baux): Builder {
+            $policy = app(self::class);
+            $lisibles = [];
+            $autres = [];
+            foreach ([$property, ...$baux->all()] as $cible) {
+                // Le super-admin reste sur ses téléversements (TCK-820), comme `listableOn`.
+                if (! $user->isSuperAdmin() && $policy->readsTarget($user, $cible)) {
+                    $lisibles[$cible::class][] = (int) $cible->getKey();
+                } else {
+                    $autres[$cible::class][] = (int) $cible->getKey();
+                }
+            }
+
+            $deCibles = function (Builder $q, array $parClasse): void {
+                foreach ($parClasse as $classe => $ids) {
+                    $q->orWhere(fn (Builder $c) => $c->where('documentable_type', $classe)->whereIn('documentable_id', $ids));
+                }
+            };
+
+            return $query->where(function (Builder $any) use ($deCibles, $lisibles, $autres, $user): void {
+                $deCibles($any, $lisibles);
+                if ($autres !== []) {
+                    $any->orWhereIn('id', self::restreindreAuTeleverseur(
+                        Document::query()->where(fn (Builder $q) => $deCibles($q, $autres)),
+                        $user,
+                    )->select('id'));
+                }
+            });
+        });
     }
 
     /**

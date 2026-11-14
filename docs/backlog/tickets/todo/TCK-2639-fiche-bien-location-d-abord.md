@@ -115,7 +115,7 @@ Autres contraintes :
   - « En retard de 6 j » et la pénalité due.
   « Relancer » ouvre `https://wa.me/221…` avec le message prérempli de TCK-2644 (URL vérifiée).
 - [x] AC2 — Sur un bien vacant, « Créer un bail » mène à `/app/leases/new?property={id}`, et le bien y est préchoisi (TCK-2643).
-- [ ] AC3 — L'onglet Documents liste les documents du bien **et** de ses baux (appel réseau de TCK-2655). « Ajouter un document » ouvre le dialogue préattaché, sans champ d'identifiant.
+- [x] AC3 — L'onglet Documents liste les documents du bien **et** de ses baux (appel réseau de TCK-2655). « Ajouter un document » ouvre le dialogue préattaché, sans champ d'identifiant.
   - **Écart validé par la session (2026-11-14, décision a)** : les pièces DÉPOSÉES sur un bail clos ne sont pas lues
     ici (une cible par appel : le bien et le bail en cours). L'onglet le dit : « Pièces des baux précédents : sur chaque
     bail », avec un lien vers l'onglet Documents de chaque bail clos (« Voir les baux » si leur lecture échoue). Suite :
@@ -238,13 +238,13 @@ Passage de vérification : le code est celui de 0542a8e25 et de ses suites ; seu
   Rejoués verts le 2026-11-14 avec les tests de TCK-2643 et de TCK-2009 cités ici (5 fichiers, 40 tests).
 - AC2 — test « AC2 — vacant » (lien `/app/leases/new?property=9`) ; le préchoix : `CreateLeaseForm.bien-prechoisi.tck-2643`
   et `leases/new/__tests__/page.tck-2643` (TCK-2643, `done`).
-- AC3 — **non coché** : le dialogue préattaché sans champ d'identifiant est prouvé (`DocumentUploadDialog.onUploaded`,
-  « ne montre ni le type ni l'identifiant… » ; `property:9` dans le test AC4), mais les pièces DÉPOSÉES sur un bail
-  passé ne sont pas lues (`GET /api/documents` ne prend qu'une cible : le bien et le bail en cours ; les GÉNÉRÉS de
-  tous les baux le sont, `documents/generated?target=property`). Écart validé (a) : ligne de vérité « Pièces des
-  baux précédents : sur chaque bail » (`useBauxPrecedents`, `GET /api/leases?filter[property_id]=…&filter[status]=
-  expired,terminated,renewed`), liens vers `/app/leases/{id}?onglet=documents` — la liste des baux ne filtre pas par
-  bien, d'où un lien par bail. Tests « AC3 (écart…) » (2), ablation rouge (ligne jamais rendue). Suite : TCK-2841.
+- AC3 — **coché le 2026-11-14 par TCK-2841** : le dialogue préattaché sans champ d'identifiant est prouvé
+  (`DocumentUploadDialog.onUploaded`, « ne montre ni le type ni l'identifiant… » ; `property:9` dans le test AC4).
+  Les pièces DÉPOSÉES sur le bien et sur TOUS ses baux hors brouillon, passés compris, se lisent en une requête
+  (`GET /api/documents?filter[property_with_leases]={id}`, ADR-0099 amendement du 2026-11-14) et se rangent par bail
+  (« Pièces du bien », « Bail en cours · … », « Bail précédent · … ») ; la ligne « Pièces des baux précédents : sur
+  chaque bail » et `useBauxPrecedents` sont retirés. Test « AC3 / TCK-2841 AC6 » (`FicheDuBien.tck-2639`), deux
+  ablations rouges (lecture du bien seul ; pièces de bail non rangées). Garde API : `DocumentsDuBienEtDeSesBauxTest`.
 - AC4 — test « AC4 — chaque compteur… » (Interventions 3, Documents 3 = 3 lignes) et test neuf « AC4 — Historique (2)
   rend deux changements de prix » (2 lignes dans le panneau).
 - AC5 — au navigateur, 390 px, `/api/me/profiles` retenu 3 s : barre « Signaler un problème » + « Contacter le

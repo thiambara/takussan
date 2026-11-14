@@ -51,6 +51,11 @@ export const DOCUMENT_LIST_FIELDS = [
 export type UseDocumentsParams = {
   readonly documentable_type?: DocumentableType;
   readonly documentable_id?: number;
+  /**
+   * TCK-2841 (ADR-0099, amendement du 2026-11-14) — le bien ET ses baux hors brouillon, passés compris,
+   * chaque pièce jugée par la lecture de sa cible ; une ligne de bail porte `lease`.
+   */
+  readonly property_with_leases?: number;
   readonly type?: DocumentType;
   readonly search?: string;
   readonly is_verified?: boolean;
@@ -78,6 +83,7 @@ export function useDocuments(params: UseDocumentsParams = {}) {
   const filter: Record<string, string | number | boolean> = {};
   if (params.documentable_type) filter.documentable_type = params.documentable_type;
   if (params.documentable_id) filter.documentable_id = params.documentable_id;
+  if (params.property_with_leases) filter.property_with_leases = params.property_with_leases;
   if (params.type) filter.type = params.type;
   if (params.search) filter.search = params.search;
   if (params.is_verified !== undefined) filter.is_verified = params.is_verified;

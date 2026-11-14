@@ -20,10 +20,9 @@ const etat = vi.hoisted(() => ({
   echeances: [] as unknown[],
   edl: [] as unknown[],
   interventions: 0,
-  deposesBien: [] as unknown[],
-  deposesBail: [] as unknown[],
+  deposes: [] as unknown[],
+  lecturesDeDocuments: [] as unknown[],
   generes: [] as unknown[],
-  bauxPrecedents: { data: [] as unknown[], isError: false },
   personnelActif: false,
   bailEnLecture: false,
   relance: vi.fn(),
@@ -49,13 +48,12 @@ vi.mock('@/lib/queries/maintenance', () => ({
   useMaintenanceHistoryForProperty: () => succes({ data: [], meta: { total: etat.interventions } }),
 }));
 vi.mock('@/lib/queries/documents', () => ({
-  useDocuments: (p: { documentable_type: string; enabled?: boolean }) =>
-    p.enabled === false
-      ? { data: undefined, isPending: true, isSuccess: false, isError: false, refetch: vi.fn() }
-      : succes({ data: p.documentable_type === 'lease' ? etat.deposesBail : etat.deposesBien }),
+  useDocuments: (p: Record<string, unknown>) => {
+    etat.lecturesDeDocuments.push(p);
+    return succes({ data: etat.deposes });
+  },
   useDocumentsGeneres: () => succes({ data: etat.generes }),
 }));
-vi.mock('../useBauxPrecedents', () => ({ useBauxPrecedents: () => etat.bauxPrecedents }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => etat.personnelActif }));
 vi.mock('@/components/admin/finances/impayes/Impayes', () => ({
   FeuilleDeRelance: ({ row, ouverte }: { row: PaymentHistoryRow; ouverte: boolean }) => {
@@ -125,10 +123,9 @@ beforeEach(() => {
   etat.echeances = [ligneDuMois];
   etat.edl = [];
   etat.interventions = 0;
-  etat.deposesBien = [];
-  etat.deposesBail = [];
+  etat.deposes = [];
+  etat.lecturesDeDocuments = [];
   etat.generes = [];
-  etat.bauxPrecedents = { data: [], isError: false };
   etat.personnelActif = false;
   etat.bailEnLecture = false;
   etat.search = '';
@@ -284,8 +281,10 @@ describe('TCK-2639 — les onglets', () => {
 
   it('AC4 — chaque compteur égale ce que son onglet rend', () => {
     etat.interventions = 3;
-    etat.deposesBien = [{ id: 1, name: 'Titre foncier', type: 'other', created_at: '2026-09-01T00:00:00Z', file_url: null }];
-    etat.deposesBail = [{ id: 2, name: 'Attestation', type: 'other', created_at: '2026-09-02T00:00:00Z', file_url: null }];
+    etat.deposes = [
+      { id: 1, name: 'Titre foncier', type: 'other', created_at: '2026-09-01T00:00:00Z', file_url: null },
+      { id: 2, name: 'Attestation', type: 'other', created_at: '2026-09-02T00:00:00Z', file_url: null, lease: { id: 7, reference_number: 'LS-7KQ2', status: 'active' } },
+    ];
     etat.generes = [{ kind: 'generated', category: 'lease_contract', title: 'LS-7KQ2', date: '2026-07-01', download_path: '/api/leases/7/contract/pdf' }];
     const prix = [
       { id: 1, old_price: 1_200_000, new_price: 1_300_000, changed_at: '2026-01-01' },
@@ -315,28 +314,34 @@ describe('TCK-2639 — les onglets', () => {
     expect(within(panneau).getAllByRole('listitem')).toHaveLength(2);
   });
 
-  it('AC3 (écart, TCK-2841) — des baux passés : une ligne dit que leurs pièces sont sur chaque bail, sans compter de ligne de plus', () => {
-    etat.deposesBien = [{ id: 1, name: 'Titre foncier', type: 'other', created_at: '2026-09-01T00:00:00Z', file_url: null }];
-    etat.bauxPrecedents = { data: [{ id: 3, reference_number: 'LS-OLD1' }, { id: 4, reference_number: null }], isError: false };
+  it('AC3 / TCK-2841 AC6 — les pièces du bien et de TOUS ses baux, en une lecture, rangées par bail ; « Documents (n) » égale les lignes', () => {
+    etat.deposes = [
+      { id: 1, name: 'Titre foncier', type: 'other', created_at: '2026-09-01T00:00:00Z', file_url: null },
+      { id: 2, name: 'Contrat scanné de 2024', type: 'other', created_at: '2026-09-03T00:00:00Z', file_url: null, lease: { id: 3, reference_number: 'LS-OLD1', status: 'expired' } },
+      { id: 3, name: 'Attestation employeur', type: 'other', created_at: '2026-09-02T00:00:00Z', file_url: null, lease: { id: 7, reference_number: 'LS-7KQ2', status: 'active' } },
+      { id: 4, name: 'Résiliation', type: 'other', created_at: '2026-09-04T00:00:00Z', file_url: null, lease: { id: 4, reference_number: null, status: 'terminated' } },
+    ];
     etat.search = 'tab=documents';
     render(withIntl(<PropertyDetailTabs property={bien(occupe({}))} tags={[]} personnel />));
-    const ligne = screen.getByTestId('pieces-des-baux-precedents');
-    expect(ligne).toHaveTextContent('Pièces des baux précédents : sur chaque bail');
-    expect(within(ligne).getByRole('link', { name: 'LS-OLD1' })).toHaveAttribute('href', '/app/leases/3?onglet=documents');
-    expect(within(ligne).getByRole('link', { name: 'Bail n° 4' })).toHaveAttribute('href', '/app/leases/4?onglet=documents');
-    expect(screen.getAllByTestId('document-du-bien')).toHaveLength(1);
-    expect(screen.getByRole('tab', { name: /Documents/ })).toHaveTextContent('Documents1');
-  });
 
-  it('AC3 (écart) — sans bail passé, pas de ligne ; baux illisibles : la ligne renvoie à la liste des baux', () => {
-    etat.search = 'tab=documents';
-    const { unmount } = render(withIntl(<PropertyDetailTabs property={bien(occupe({}))} tags={[]} personnel />));
+    // Une seule lecture des pièces : le bien et ses baux (`filter[property_with_leases]`).
+    expect(etat.lecturesDeDocuments.every((p) => (p as { property_with_leases?: number }).property_with_leases === 9)).toBe(true);
     expect(screen.queryByTestId('pieces-des-baux-precedents')).not.toBeInTheDocument();
-    unmount();
-    etat.bauxPrecedents = { data: [], isError: true };
-    render(withIntl(<PropertyDetailTabs property={bien(occupe({}))} tags={[]} personnel />));
-    const ligne = screen.getByTestId('pieces-des-baux-precedents');
-    expect(within(ligne).getByRole('link', { name: 'Voir les baux' })).toHaveAttribute('href', '/app/leases');
+    expect(screen.queryByText(/Pièces des baux précédents/)).not.toBeInTheDocument();
+
+    const groupes = document.querySelectorAll('[data-slot="groupe-de-pieces"]');
+    expect([...groupes].map((g) => g.querySelector('h3')?.textContent)).toEqual([
+      'Pièces du bien',
+      'Bail en cours · LS-7KQ2',
+      'Bail précédent · n° 4',
+      'Bail précédent · LS-OLD1',
+    ]);
+    expect(within(groupes[3] as HTMLElement).getByText('Contrat scanné de 2024')).toBeInTheDocument();
+    expect(within(groupes[3] as HTMLElement).getByRole('link', { name: 'Voir le bail' })).toHaveAttribute('href', '/app/leases/3?onglet=documents');
+    expect(within(groupes[0] as HTMLElement).queryByRole('link', { name: 'Voir le bail' })).toBeNull();
+
+    expect(screen.getAllByTestId('document-du-bien')).toHaveLength(4);
+    expect(screen.getByRole('tab', { name: /Documents/ })).toHaveTextContent('Documents4');
   });
 
   it('un lien d’avant TCK-2639 garde sa destination : `?tab=edit` ouvre l’annonce, section Édition', () => {

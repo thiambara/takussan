@@ -83,6 +83,11 @@ class DateInventoryByValueTest extends TestCase
         // ou sur `avecJuge()` (les versions de `DocumentVersionController`, et celles de la fiche). Le parcours
         // résout la ressource seule, sans juge. Chacune vaut `{name: string|null, role: string|null}` ou `null`
         // (`AuteurDuDocument::de()`) : un nom ou un code de rôle, jamais une date.
+        // TCK-2841 (ADR-0099, amendement du 2026-11-14) — le bail porteur d'une ligne de liste, lu sur le
+        // `documentable` que `DocumentResource::page()` charge : `{id: int, reference_number: string|null,
+        // status: string}` (`enumValue`), jamais une date. Le parcours résout la ressource seule, sans porteur chargé.
+        'App\Http\Resources\DocumentResource::lease' => '`when()` sur un porteur `Lease` chargé (TCK-2841) : `{id, '
+            .'reference_number, status}`, jamais une date. Le parcours ne charge pas le porteur.',
         'App\Http\Resources\DocumentResource::uploaded_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '
             .'ou `null` (`AuteurDuDocument::de()`), jamais une date. Le parcours ne passe pas par la fiche.',
         'App\Http\Resources\DocumentResource::verified_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '
