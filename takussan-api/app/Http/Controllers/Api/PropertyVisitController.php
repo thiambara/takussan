@@ -720,15 +720,18 @@ class PropertyVisitController extends Controller
         );
 
         $data = $request->validated();
+        // TCK-2784 — le même instant pour la visite et le dernier contact, passé à la microseconde :
+        // `$visit->completed_at` relu du modèle est déjà au format de la seconde (`setAttribute()`).
+        $completedAt = now();
 
         $visit->update(array_merge($data, [
             'status' => VisitStatus::Completed,
-            'completed_at' => now(),
+            'completed_at' => $completedAt,
         ]));
 
         // TCK-2583 — une visite menée est un contact : le dernier contact de la fiche avance.
         if ($visit->customer_id !== null) {
-            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, LastContactChannel::Visit, $visit->completed_at);
+            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, LastContactChannel::Visit, $completedAt);
         }
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);

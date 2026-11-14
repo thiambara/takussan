@@ -35,13 +35,17 @@ class CustomerNoteController extends Controller
     public function store(StoreCustomerNoteRequest $request, Customer $customer, ContactGestureService $gestures): JsonResponse
     {
         $data = $request->validated();
+        // TCK-2784 — l'instant du contact est pris ICI, à la microseconde : `$note->created_at` est
+        // déjà mis au format de la seconde par `setAttribute()`, et une note de 12:00:00.800 y
+        // perdait contre un appel de 12:00:00.300.
+        $contactAt = now();
 
         $note = $customer->notes()->create(array_merge($data, [
             'author_id' => $request->user()->id,
         ]));
 
         // TCK-2583 — une note écrite sur la fiche est un contact : le dernier contact avance.
-        $gestures->touchCustomer($customer, LastContactChannel::Note, $note->created_at);
+        $gestures->touchCustomer($customer, LastContactChannel::Note, $contactAt);
 
         return $this->json(['data' => $this->format($note)], 201);
     }

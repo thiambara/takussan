@@ -30,6 +30,9 @@ class ContactGestureService
 {
     public const EVENT = 'contacted';
 
+    /** TCK-2784 — la forme liée de `last_contacted_at` (`timestamp(6)`), jamais celle de la grammaire. */
+    private const MICROSECONDS = 'Y-m-d H:i:s.u';
+
     public function onLead(PropertyContactLead $lead, User $author, ContactGestureChannel $channel): void
     {
         DB::transaction(function () use ($lead, $author, $channel): void {
@@ -72,22 +75,32 @@ class ContactGestureService
      * TCK-2766 — le canal (`last_contact_channel`) est écrit par la MÊME requête, sous la même garde :
      * l'instant et le canal ne peuvent pas diverger, et un contact plus ancien ne change ni l'un ni
      * l'autre.
+     *
+     * TCK-2784 — l'instant est lié à la MICROSECONDE (`MICROSECONDS`), en garde comme en valeur
+     * écrite, sur une colonne `timestamp(6)`. Un `Carbon` lié tel quel passe par
+     * `Grammar::getDateFormat()` (`Y-m-d H:i:s`) : deux contacts de la même seconde arrivaient égaux,
+     * et le second ne passait pas la garde. Le miroir de l'instance suit ce que la LIGNE a accepté
+     * (le compte rendu par `update()`), à la microseconde aussi : `setAttribute()` repasserait par le
+     * format de la seconde.
      */
     public function touchCustomer(Customer|int $customer, LastContactChannel $channel, ?CarbonInterface $at = null): void
     {
         $at ??= now();
         $id = $customer instanceof Customer ? (int) $customer->getKey() : $customer;
+        $instant = $at->format(self::MICROSECONDS);
 
-        Customer::query()
+        $written = Customer::query()
             ->whereKey($id)
-            ->where(fn ($q) => $q->whereNull('last_contacted_at')->orWhere('last_contacted_at', '<', $at))
+            ->where(fn ($q) => $q->whereNull('last_contacted_at')->orWhere('last_contacted_at', '<', $instant))
             ->toBase()
-            ->update(['last_contacted_at' => $at, 'last_contact_channel' => $channel->value]);
+            ->update(['last_contacted_at' => $instant, 'last_contact_channel' => $channel->value]);
 
-        if ($customer instanceof Customer
-            && ($customer->last_contacted_at === null || $customer->last_contacted_at->lessThan($at))) {
-            $customer->setAttribute('last_contacted_at', $at);
-            $customer->setAttribute('last_contact_channel', $channel);
+        if ($customer instanceof Customer && $written > 0) {
+            $customer->setRawAttributes([
+                ...$customer->getAttributes(),
+                'last_contacted_at' => $instant,
+                'last_contact_channel' => $channel->value,
+            ]);
             $customer->syncOriginalAttributes(['last_contacted_at', 'last_contact_channel']);
         }
     }
