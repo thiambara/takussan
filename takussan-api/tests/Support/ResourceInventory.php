@@ -18,6 +18,7 @@ use App\Http\Resources\Credits\CreditSuggestionResource;
 use App\Http\Resources\Credits\CreditWalletResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\IncludedUserResource;
+use App\Http\Resources\MaintenanceJournalEntryResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\Messaging\GroupContextLeaseResource;
 use App\Http\Resources\Messaging\GroupContextPropertyResource;
@@ -219,6 +220,9 @@ final class ResourceInventory
 
         // TCK-2640
         OwnerProfileDetailResource::class => 'TCK-2640 — enveloppe le TABLEAU de la fiche d\'un bailleur composé par `App\\Services\\Owners\\OwnerDirectory::detail()` (profil, relevé servi, dernier versement) : construit par ce même appel, sur un profil et un reversement versé.',
+
+        // TCK-2786
+        MaintenanceJournalEntryResource::class => 'TCK-2786 — une ligne `App\\Models\\Activity` du log `maintenance`, telle que la lit le contrôleur (`MaintenanceJournal::entriesOf()`, auteur chargé) : la convention `<Modele>Resource` ne la trouve pas, et une `Activity` nue n\'aurait ni événement, ni auteur, ni `from`/`to`. Écrite par `MaintenanceJournal::record()`.',
     ];
 
     /**

@@ -11,6 +11,7 @@ use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\LeaseResource;
+use App\Http\Resources\MaintenanceJournalEntryResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\PayoutMethodResource;
@@ -39,6 +40,7 @@ use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
 use App\Services\Lease\LeaseAttention;
 use App\Services\Lease\LeaseDueSummary;
+use App\Services\Maintenance\MaintenanceJournal;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Owners\OwnerDirectory;
 use App\Services\Property\PropertyOccupancy;
@@ -540,6 +542,21 @@ final class ResourceSubjects
                     return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08', true);
                 })(),
             ],
+            // TCK-2786 — deux entrées du journal, lues comme le contrôleur les lit : une transition
+            // avec son auteur, et un geste du système (`actor` nul). La seule date est `at`
+            // (`created_at`, cast `datetime`).
+            MaintenanceJournalEntryResource::class => (function (): array {
+                $journal = app(MaintenanceJournal::class);
+                $demande = MaintenanceRequest::factory()->create();
+                $journal->record($demande, MaintenanceJournal::STATUS_PREFIX.'assigned', User::factory()->create(), ['from' => 'open', 'to' => 'open']);
+                $journal->record($demande, MaintenanceJournal::STATUS_PREFIX.'auto_closed', null, ['from' => 'completed', 'to' => 'closed']);
+                [$transition, $systeme] = $journal->entriesOf($demande)->get()->all();
+
+                return [
+                    'Activity, transition' => tap($transition, self::hydraterLesDates(...)),
+                    'Activity, système' => tap($systeme, self::hydraterLesDates(...)),
+                ];
+            })(),
             default => [],
         };
     }
