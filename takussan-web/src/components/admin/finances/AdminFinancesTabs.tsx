@@ -16,6 +16,7 @@ import type { OngletArgent } from '@/lib/finances/vue-argent';
 import { EncaissementsAgence } from './argent/EncaissementsAgence';
 import { ongletPermis, type GestesDeLArgent } from './argent/gestes';
 import { Impayes } from './impayes/Impayes';
+import type { DemandeDeRelance } from './impayes/relance-de-l-adresse';
 
 /**
  * Les valeurs acceptées par `?tab=` — déclarées dans `lib/finances/vue-argent.ts` depuis TCK-2659,
@@ -42,6 +43,9 @@ interface AdminFinancesTabsProps {
    * écran à part, sans onglets.
    */
   readonly entete?: (onglets: ReactNode) => ReactNode;
+  /** TCK-2775 — la relance que l'adresse demande (`?relance=`), ouverte par l'écran Impayés. */
+  readonly relanceDemandee?: DemandeDeRelance | null;
+  readonly onRelancePrise?: () => void;
 }
 
 /**
@@ -53,7 +57,7 @@ interface AdminFinancesTabsProps {
  * TCK-2659 — les gestes de création ne sont plus ici : ils vivent dans l'en-tête de page (bureau) et
  * la rubrique « Créer » (téléphone), leurs dialogues montés une fois (`useGestesDeLArgent`).
  */
-export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variante, courant, agencyId, comptes, entete }: AdminFinancesTabsProps) {
+export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variante, courant, agencyId, comptes, entete, relanceDemandee, onRelancePrise }: AdminFinancesTabsProps) {
   const t = useTranslations('admin.finances');
   const f = useFormatteurs();
   const ouvert = ongletPermis(onglet, gestes);
@@ -116,7 +120,7 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
       ) : null}
 
       <TabsContent value="impayes" className="space-y-4 pt-4">
-        <Impayes agencyId={agencyId} />
+        <Impayes agencyId={agencyId} relanceDemandee={relanceDemandee} onRelancePrise={onRelancePrise} />
       </TabsContent>
     </Tabs>
   );

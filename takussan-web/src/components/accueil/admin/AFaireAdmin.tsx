@@ -5,25 +5,20 @@ import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Building2, CalendarClock, ShieldCheck, Star, UserPlus, Wallet } from 'lucide-react';
 
-import { FileDeRelance, useFileDeRelance } from '@/components/admin/finances/impayes/FileDeRelance';
-import { FeuilleDeRelance } from '@/components/admin/finances/impayes/Impayes';
-import { useLectureDImpaye } from '@/components/admin/finances/impayes/lecture';
-import { ordreDeLaFile } from '@/components/admin/finances/impayes/selection';
 import { ErreurDeBloc, SqueletteDeCarte, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
 import { ACTION_DANGER, CarteAFaire, CarteFile, GroupeAFaire, LienTonal, RangeeAFaire, TitreBloc, TitreColonne } from '@/components/accueil/pieces';
 import { AttribuerDialog } from '@/components/leads/boite/AttribuerDialog';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { useToast } from '@/components/ui/toast';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { anciennete, aUneLigne, totalDe, tranchesNonVides, type Anciennete } from '@/lib/accueil/a-faire';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { useLireLesEcheancesARelancer } from '@/lib/queries/accueil';
 import type { ContactLead } from '@/lib/queries/contact-leads';
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
 import type { PaymentHistoryRow } from '@/types/invoice';
 import { cn } from '@/lib/utils';
 
 import { FeuilleDuBien } from './FeuilleDuBien';
+import { useLectureDeLEcheance } from './lecture-de-l-echeance';
 import { LigneDeVisite } from './LigneDeVisite';
 import { useFilesDeLAdmin, type FilesDeLAdmin } from './useFilesDeLAdmin';
 
@@ -38,10 +33,13 @@ import { useFilesDeLAdmin, type FilesDeLAdmin } from './useFilesDeLAdmin';
  *
  * Les gestes restent sur l'accueil : valider (feuille du bas, panneau au bureau — décision du porteur
  * du 2026-11-11 sur `FeuilleDuBas`), attribuer (le dialogue de la boîte des demandes), confirmer
- * (l'heure fixée, ou une heure libre de la tranche — le geste de la liste des visites), relancer (la
- * relance de la famille 6 : feuille d'une échéance, ou la file guidée, ADR-0105 — WhatsApp depuis le
- * téléphone de l'admin, jamais un envoi de Takussan). Au succès, la famille de la file est relue :
- * la ligne quitte la liste ET la pastille de la colonne baisse (même cache).
+ * (l'heure fixée, ou une heure libre de la tranche — le geste de la liste des visites). Au succès, la
+ * famille de la file est relue : la ligne quitte la liste ET la pastille de la colonne baisse (même cache).
+ *
+ * TCK-2775 (décision du porteur du 2026-11-14, n° 16 b) — « Relancer » MÈNE à l'écran Impayés, qui
+ * ouvre la relance depuis son adresse (`relance-de-l-adresse.ts`) : la file guidée pour « Relancer
+ * tout », la relance de l'échéance pour sa rangée. L'accueil ne charge plus ni le code ni les libellés
+ * de la relance (`admin`, `lease`). L'échéance d'exemple est toujours de bail (`useFilesDeLAdmin`).
  *
  * Un geste que l'API refuse (403) devient « Voir » : la ligne mène à l'objet.
  */
@@ -55,6 +53,10 @@ const DESTINATIONS = {
   kyc: '/app/agency/kyc',
   invitations: '/app/agency/team?vue=invitations',
   impayes: '/app/agency/finances?tab=impayes',
+  /** TCK-2775 — la file guidée de l'écran Impayés, dans l'ordre de son « Relancer tout ». */
+  relancerTout: '/app/agency/finances?tab=impayes&relance=file',
+  /** TCK-2775 — la relance d'une échéance ; `bail` la retrouve au-delà des 100 plus en retard. */
+  relancer: (row: PaymentHistoryRow) => `/app/agency/finances?tab=impayes&relance=${row.id}${row.lease_id ? `&bail=${row.lease_id}` : ''}`,
 } as const;
 
 /** « il y a 2 h », « depuis hier », « 3 jours » : l'âge d'une attente, sous trois tournures. */
@@ -68,44 +70,19 @@ function useAge() {
 export function AFaireAdmin({ agencyId }: { readonly agencyId: number }) {
   const t = useTranslations('accueil.admin');
   const tBlocs = useTranslations('accueil.blocs');
-  const toast = useToast();
   const files = useFilesDeLAdmin(agencyId);
-  const lireLesEcheances = useLireLesEcheancesARelancer();
-  const fileApi = useFileDeRelance();
 
   const [bienOuvert, setBienOuvert] = useState<ModerationProperty | null>(null);
   const [aAttribuer, setAAttribuer] = useState<ContactLead | null>(null);
-  const [aRelancer, setARelancer] = useState<{ readonly row: PaymentHistoryRow; readonly ouverte: boolean } | null>(null);
-  const [lecture, setLecture] = useState(false);
   // Les objets dont l'API a refusé le geste (403) : leur ligne mène à l'objet, sans geste.
   const [refuses, setRefuses] = useState<ReadonlySet<string>>(new Set());
   const refuser = (cle: string) => setRefuses((avant) => new Set(avant).add(cle));
-
-  const relancerTout = async () => {
-    setLecture(true);
-    try {
-      const { rows, tronquee } = await lireLesEcheances();
-      if (rows.length === 0) toast.add({ title: t('impayes.rienARelancer'), type: 'info' });
-      else {
-        fileApi.demarrer(ordreDeLaFile(rows));
-        // Le plafond de l'API (100) est atteint : la file ne les a pas toutes, l'accueil le dit.
-        if (tronquee) toast.add({ title: t('impayes.plafondAtteint.titre'), description: t('impayes.plafondAtteint.detail'), type: 'info' });
-      }
-    } catch {
-      toast.add({ title: t('impayes.lectureEchouee'), type: 'error' });
-    } finally {
-      setLecture(false);
-    }
-  };
 
   const gestes: GestesDeLAdmin = {
     refuses,
     refuser,
     valider: setBienOuvert,
     attribuer: setAAttribuer,
-    relancer: (row) => setARelancer({ row, ouverte: true }),
-    relancerTout: () => void relancerTout(),
-    lecture,
   };
 
   let corps: ReactNode;
@@ -151,8 +128,6 @@ export function AFaireAdmin({ agencyId }: { readonly agencyId: number }) {
         />
       ) : null}
       {aAttribuer ? <AttribuerDialog leadId={aAttribuer.id} agencyId={aAttribuer.agency_id ?? agencyId} onClose={() => setAAttribuer(null)} /> : null}
-      {aRelancer ? <FeuilleDeRelance row={aRelancer.row} ouverte={aRelancer.ouverte} onFermer={() => setARelancer((r) => (r ? { ...r, ouverte: false } : r))} /> : null}
-      <FileDeRelance api={fileApi} onTerminer={() => undefined} />
     </section>
   );
 }
@@ -162,10 +137,6 @@ interface GestesDeLAdmin {
   readonly refuser: (cle: string) => void;
   readonly valider: (bien: ModerationProperty) => void;
   readonly attribuer: (demande: ContactLead) => void;
-  readonly relancer: (row: PaymentHistoryRow) => void;
-  readonly relancerTout: () => void;
-  /** « Relancer tout » lit les échéances : le bouton attend. */
-  readonly lecture: boolean;
 }
 
 /** « Bien proposé par Oumy Samb · 350 000 F » : qui propose, et le prix demandé. */
@@ -279,9 +250,9 @@ function CartesDuTelephone({ files, gestes }: { readonly files: FilesDeLAdmin; r
           titre={t('impayes.carte', { n: etats.impayes.total })}
           detail={f.montantCourt(files.impayes.total.amount, 'XOF')}
           action={
-            <Button variant="outline" className={ACTION_DANGER} disabled={gestes.lecture} onClick={gestes.relancerTout}>
+            <Link href={DESTINATIONS.relancerTout} className={cn(buttonVariants({ variant: 'outline' }), ACTION_DANGER)}>
               {t('impayes.relancer')}
-            </Button>
+            </Link>
           }
         />
       ) : null}
@@ -301,7 +272,7 @@ function GroupesDuBureau({ files, gestes }: { readonly files: FilesDeLAdmin; rea
   const age = useAge();
   const lireBien = useLectureDuBien();
   const lireDemande = useLectureDeLaDemande();
-  const lireImpaye = useLectureDImpaye();
+  const lireImpaye = useLectureDeLEcheance();
   const { etats } = files;
   const bien = files.bien?.data[0] ?? null;
   const avecBien = aUneLigne(etats.bien) && bien !== null;
@@ -439,9 +410,12 @@ function GroupesDuBureau({ files, gestes }: { readonly files: FilesDeLAdmin; rea
               .map((tr) => tTranches(tr.cle, { n: tr.n }))
               .join(' · ')}
             gestes={
-              <Button variant="outline" size="sm" className="border-bord-danger bg-card text-destructive hover:bg-destructive/6 hover:text-destructive" disabled={gestes.lecture} onClick={gestes.relancerTout}>
+              <Link
+                href={DESTINATIONS.relancerTout}
+                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'border-bord-danger bg-card text-destructive hover:bg-destructive/6 hover:text-destructive')}
+              >
                 {t('impayes.relancerTout')}
-              </Button>
+              </Link>
             }
           />
           {echeance ? (
@@ -456,9 +430,9 @@ function GroupesDuBureau({ files, gestes }: { readonly files: FilesDeLAdmin; rea
                   <Link href={DESTINATIONS.impayes} className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'px-2')}>
                     {t('voir')}
                   </Link>
-                  <Button variant="secondary" className={TONAL_RANGEE} onClick={() => gestes.relancer(echeance)}>
+                  <Link href={DESTINATIONS.relancer(echeance)} className={cn(buttonVariants({ variant: 'secondary' }), TONAL_RANGEE)}>
                     {t('impayes.relancerUn')}
-                  </Button>
+                  </Link>
                 </>
               }
             />

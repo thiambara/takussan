@@ -9702,6 +9702,15 @@
           "carte": "{tranche} late",
           "echeances": "{count, plural, one {# instalment} other {# instalments}}",
           "part": "{pourcent}% of {total}"
+        },
+        "adresse": {
+          "introuvable": "This instalment isn’t among the unpaid instalments to remind.",
+          "rienARelancer": "No lease instalment to remind.",
+          "lectureEchouee": "The instalments couldn’t be loaded. Try again.",
+          "plafondAtteint": {
+            "titre": "The queue stops at the 100 most overdue instalments",
+            "detail": "Select the others in the list to remind them."
+          }
         }
       }
     },
@@ -21142,17 +21151,32 @@
         "relancerUn": "Remind",
         "autres": "{n, plural, one {See the other unpaid instalment} other {See the # other unpaid instalments}}",
         "jours": "{n, plural, one {# day} other {# days}}",
-        "rienARelancer": "No instalment to remind.",
-        "lectureEchouee": "The instalments couldn’t be loaded. Try again.",
         "tranches": {
           "1_30": "{n} under 30 days",
           "31_60": "{n} between 31 and 60",
           "61_90": "{n} between 61 and 90",
           "90_plus": "{n} over 90"
         },
-        "plafondAtteint": {
-          "titre": "The queue stops at the 100 most overdue instalments",
-          "detail": "Follow up on the others from the Unpaid screen."
+        "ligne": {
+          "payeurInconnu": "Unknown payer",
+          "periode": {
+            "rentDu": "{mois} rent",
+            "chargesDu": "{mois} charges",
+            "penaltyDu": "{mois} late fee",
+            "rent": "Rent",
+            "charges": "Charges",
+            "penalty": "Late fee",
+            "deposit": "Deposit",
+            "deposit_refund": "Deposit refund",
+            "regularization": "Adjustment",
+            "autre": "Payment",
+            "reservation": {
+              "deposit": "Booking · deposit",
+              "advance": "Booking · advance",
+              "fee": "Booking · fee",
+              "autre": "Booking"
+            }
+          }
         }
       },
       "resume": {

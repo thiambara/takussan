@@ -7592,6 +7592,15 @@
           "carte": "{tranche} de retard",
           "echeances": "{count, plural, one {# échéance} other {# échéances}}",
           "part": "{pourcent} % des {total}"
+        },
+        "adresse": {
+          "introuvable": "Cette échéance ne figure pas parmi les impayés à relancer.",
+          "rienARelancer": "Aucune échéance de bail à relancer.",
+          "lectureEchouee": "Les échéances n’ont pas pu être lues. Réessayez.",
+          "plafondAtteint": {
+            "titre": "La file s’arrête aux 100 échéances les plus en retard",
+            "detail": "Sélectionnez les autres dans la liste pour les relancer."
+          }
         }
       }
     },
@@ -21142,17 +21151,32 @@
         "relancerUn": "Relancer",
         "autres": "{n, plural, one {Voir l’autre échéance impayée} other {Voir les # autres échéances impayées}}",
         "jours": "{n, plural, one {# jour} other {# jours}}",
-        "rienARelancer": "Aucune échéance à relancer.",
-        "lectureEchouee": "Les échéances n’ont pas pu être lues. Réessayez.",
         "tranches": {
           "1_30": "{n} de moins de 30 jours",
           "31_60": "{n} entre 31 et 60",
           "61_90": "{n} entre 61 et 90",
           "90_plus": "{n} de plus de 90"
         },
-        "plafondAtteint": {
-          "titre": "La file s’arrête aux 100 échéances les plus en retard",
-          "detail": "Les autres se relancent depuis l’écran Impayés."
+        "ligne": {
+          "payeurInconnu": "Payeur inconnu",
+          "periode": {
+            "rentDu": "Loyer {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+            "chargesDu": "Charges {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+            "penaltyDu": "Pénalité {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+            "rent": "Loyer",
+            "charges": "Charges",
+            "penalty": "Pénalité de retard",
+            "deposit": "Caution",
+            "deposit_refund": "Remboursement de caution",
+            "regularization": "Régularisation",
+            "autre": "Paiement",
+            "reservation": {
+              "deposit": "Réservation · arrhes",
+              "advance": "Réservation · acompte",
+              "fee": "Réservation · frais",
+              "autre": "Réservation"
+            }
+          }
         }
       },
       "resume": {

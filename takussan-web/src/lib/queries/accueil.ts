@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 
 import { bornesDeLOnglet, debutDeLaMinute } from '@/components/visits/onglet-des-visites';
@@ -10,12 +10,11 @@ import { type ApiError, apiRequest, buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import type { EquipeDuJour } from '@/lib/accueil/a-faire';
 import { parametresDesDemandes, type ContactLead } from '@/lib/queries/contact-leads';
-import { filtresDeLHistorique, paymentsQueryKeys, usePaymentsHistory, type PaymentHistoryResponse, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
+import { usePaymentsHistory, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
 import { filtreSpatieDesVisites, VISIT_TIME_FIELDS, visitsQueryKeys, type VisitActionResponse } from '@/lib/queries/visits';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import type { PaymentHistoryRow } from '@/types/invoice';
 import type { PropertyVisit } from '@/types/visit';
 
 /**
@@ -130,33 +129,8 @@ export function useEcheanceLaPlusEnRetard(enabled: boolean) {
   return usePaymentsHistory({ ...ECHEANCES_EN_RETARD, page: 1, per_page: 1, enabled });
 }
 
-/** L'API plafonne `per_page` à 100 (`PaymentController::history`). */
-const PLAFOND_DE_LA_FILE = 100;
-
-/**
- * « Relancer tout » : les échéances à relancer, lues AU MOMENT DU GESTE (sous la clé de l'écran
- * Impayés), puis rangées par la file. Seules les échéances de BAIL se relancent (la règle de
- * `useEcheancesAffichees`).
- *
- * `tronquee` : l'API en compte plus que le plafond n'en rend (`meta.total` au-delà de la page lue).
- * La file s'arrête alors aux 100 plus en retard, et l'accueil le dit — sans compte, puisque
- * `meta.total` compte des échéances et la carte des locataires (décision du 2026-11-13).
- */
-export function useLireLesEcheancesARelancer() {
-  const queryClient = useQueryClient();
-  const locale = useLocale();
-  const { token } = useAuth();
-  return async (): Promise<{ readonly rows: PaymentHistoryRow[]; readonly tronquee: boolean }> => {
-    const params = { ...ECHEANCES_EN_RETARD, page: 1, per_page: PLAFOND_DE_LA_FILE } satisfies UsePaymentsHistoryParams;
-    const qs = buildQueryString({ filter: filtresDeLHistorique(params), include: [...params.include], page: 1, per_page: params.per_page, sort: params.sort });
-    const reponse = await queryClient.fetchQuery({
-      queryKey: paymentsQueryKeys.history(params),
-      queryFn: () => apiRequest<PaymentHistoryResponse>(cheminApi`/api/payments/history${requete(qs)}`, { token: token ?? undefined, locale }),
-      staleTime: 0,
-    });
-    return { rows: reponse.data.filter((row) => row.source === 'lease'), tronquee: reponse.meta.total > reponse.data.length };
-  };
-}
+// TCK-2775 — « Relancer tout » lisait ici les échéances à relancer : la lecture vit désormais avec
+// l'écran Impayés (`components/admin/finances/impayes/lire-les-echeances.ts`), qui ouvre la relance.
 
 /* ─────────────────────────────────────────── Gestes ─────────────────────────────────────────── */
 
