@@ -206,7 +206,10 @@ jobs:
           # suite VERTE (`Allowed memory size … exhausted`, sortie 255, cliquet non évalué) :
           # mesuré sur les 3 pushes vers `dev` du 2026-10-08 (5289 tests) et sur la PR #343.
           # Le runner public a 16 Go ; 4G laisse de la marge sans masquer une fuite d'un test.
-          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=4G
+          # 4G a cédé à son tour, sur le seul rapport PHP de la carte d'impact (nocturne) : nuits
+          # du 2026-11-12 au 14 (~16 300 tests, dev ea1211cf4), « tried to allocate 1342963712
+          # bytes » dans Report/PHP.php, après une suite verte. 8G : la moitié du runner.
+          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=8G
           tools: composer:v2
 
       - name: Cache composer dependencies
