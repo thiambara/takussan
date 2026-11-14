@@ -99,3 +99,29 @@ export async function fetchOwnerProperties(
     { token },
   );
 }
+
+/**
+ * TCK-2838 — la personne qui, à l'agence, s'occupe du bailleur invité (`GET /api/me/owner-profiles/{id}/interlocuteur`) :
+ * l'invitant s'il est encore membre actif de l'agence (`source: 'inviter'`), sinon l'agence (`source: 'agency'`, sans nom).
+ * Le rôle est un code ; le texte se compose ici, sous `onboarding.invite.bailleur.interlocuteur.roles`.
+ */
+export type InterlocuteurDuBailleur = {
+  source: 'inviter' | 'agency';
+  first_name?: string | null;
+  last_name?: string | null;
+  role?: 'agent' | 'agency_admin' | 'agency';
+  phone?: string | null;
+  whatsapp?: boolean;
+};
+
+export const INTERLOCUTEUR_REQUETE = 'fields[interlocuteur]=first_name,last_name,role,phone,whatsapp';
+
+export async function fetchInterlocuteurDuBailleur(
+  token: string,
+  ownerProfileId: number,
+): Promise<{ data: InterlocuteurDuBailleur | null }> {
+  return apiRequest<{ data: InterlocuteurDuBailleur | null }>(
+    cheminApi`/api/me/owner-profiles/${ownerProfileId}/interlocuteur${requete(INTERLOCUTEUR_REQUETE)}`,
+    { token },
+  );
+}

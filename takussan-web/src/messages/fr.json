@@ -7678,6 +7678,16 @@
           "published": "Validé",
           "pending_review": "En revue",
           "rejected": "Refusé"
+        },
+        "interlocuteur": {
+          "titre": "Votre interlocuteur à l’agence",
+          "roles": {
+            "agent": "Agent",
+            "agency_admin": "Responsable de l’agence",
+            "agency": "Agence"
+          },
+          "appeler": "Appeler le {numero}",
+          "whatsapp": "WhatsApp"
         }
       },
       "agent": {

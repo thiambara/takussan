@@ -38,8 +38,23 @@ Dès l'écran 2 de son assistant, le bailleur invité sait qui, à l'agence, s'o
 1. Quel numéro peut être montré au bailleur : le téléphone de l'agent ou le numéro public de l'agence ?
 2. Que fait-on quand l'invitant a quitté l'agence ?
 
+## Décisions (team-lead, 2026-11-14)
+
+1. **Le numéro (a′).** Le numéro vérifié de l'agent ne sort que s'il est déjà public, c'est-à-dire si la fiche publique de l'agent est servie (même règle que `AgentPublic::parSlug`). Sinon, c'est le téléphone public de l'agence qui sort, et le nom de l'agent reste affiché.
+2. **L'invitant a quitté l'agence, ou n'est plus actif que dans une autre agence.** C'est l'agence qui apparaît : son nom, le rôle « Agence » et son téléphone. Le nom et le numéro de l'agent ne sortent jamais.
+3. **WhatsApp.** Le bouton n'apparaît que sur un numéro de l'agent déclaré WhatsApp. Il n'apparaît jamais pour l'agence.
+
 ## Critères d'acceptation
 
-- [ ] AC1 — Un bailleur invité par un agent actif voit le nom et le rôle de cet agent, et « Appeler » ouvre `tel:` sur le numéro retenu par la décision 1.
-- [ ] AC2 — Un autre bailleur, ou le même bailleur sur une autre agence, reçoit 403 ou 404 et ne voit rien. Prouvé par ablation de chaque condition.
-- [ ] AC3 — Fidélité : l'écart « Ton interlocutrice » de la fiche TCK-2613 est fermé.
+- [x] AC1 — Un bailleur invité par un agent actif voit le nom et le rôle de cet agent, et « Appeler » ouvre `tel:` sur le numéro retenu par la décision 1.
+  - Preuve (2026-11-14), décision 1 = a′ : `InterlocuteurDuBailleurTest::test_le_bailleur_invite_par_un_agent_actif_lit_son_nom_son_role_et_son_numero_verifie` (API) ; `CarteDeLInterlocuteur.tck-2838.test.tsx` : « Appeler » ouvre `tel:+221771230001`.
+  - Un agent sans fiche publique ne fait pas sortir son numéro : c'est celui de l'agence qui sort, et son nom reste (`test_un_agent_sans_fiche_publique_…`). L'ablation de la condition « fiche servie » rend ce test rouge.
+- [x] AC2 — Un autre bailleur, ou un membre de l'agence, reçoit 403 et ne voit rien. Un bailleur qui a un profil dans deux agences ne lit, sur chaque profil, que l'interlocuteur de ce profil. Une invitation d'une autre agence, d'un autre profil ou d'un autre type de profil ne désigne personne. Un invitant parti, actif seulement dans une autre agence ou au compte bloqué ne fait sortir ni son nom ni son numéro : seule l'agence apparaît. Chaque condition est prouvée par ablation. *(Réécrite le 2026-11-14 avec l'accord de team-lead : la route est par profil, et le titulaire de deux profils lit les deux, chacun avec son propre interlocuteur.)*
+  - Preuve (2026-11-14) : `tests/Feature/Owners/InterlocuteurDuBailleurTest.php`, 15 verts. Un autre bailleur et un agent de l'agence reçoivent 403. Le même bailleur sur deux agences ne lit, sur chaque profil, que l'interlocuteur de ce profil. Une invitation d'une autre agence ou d'un autre profil ne désigne personne. Un invitant parti ou bloqué laisse place à l'agence. Un numéro non vérifié n'est jamais rendu.
+  - Dix ablations, une à la fois, toutes rouges : le titulaire seul, `invitable_type`, `invitable_id`, `invitations.agency_id`, le membre actif, l'activité dans CETTE agence, le compte actif, le numéro vérifié, la fiche publique servie et les sparse fieldsets. Chaque fichier a été restauré et son md5 vérifié.
+- [x] AC3 — Fidélité : l'écart « Ton interlocutrice » de la fiche TCK-2613 est fermé.
+  - Relevé du 2026-11-14 vers 18 h 53, en lecture seule, sous le verrou de mesure : persona `bailleur-invite`, `/onboarding/owner?owner=35`, garde de non-écriture (0 écriture bloquée, 0 erreur), à 390 et 1280. Captures sous `takussan-web/.fidelite/TCK-2838/{sans-numero,avec-numero}`.
+  - Avant le seeder, sans numéro : à 1280, la carte « Mariama Faye · Responsable de l'agence · Agence des personas » s'affiche sans geste.
+  - Après le seeder, avec le numéro de l'agence : « Appeler » ouvre `tel:+221338279940`. Le bouton fait 352 px, le numéro n'est pas tronqué, et il n'y a pas de bouton WhatsApp.
+  - À 390, la colonne est cachée. L'écart est passé en `ecarts_resolus` dans la fiche TCK-2613.
+- Décision complémentaire (team-lead, 2026-11-14) : la carte ne disparaît que s'il n'y a ni nom ni numéro. Un invitant actif sans numéro public reste montré, sans geste. Le test et son ablation sont dans `InterlocuteurDuBailleurTest`.

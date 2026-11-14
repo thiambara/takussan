@@ -14,6 +14,7 @@ import {
   recomposerTelephone,
   relireTelephoneBrouillon,
 } from '@/lib/phone';
+import type { InterlocuteurDuBailleur } from '@/lib/owner-onboarding';
 import type { PieceDuProfil } from '@/lib/pieces/pieces';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
@@ -39,6 +40,8 @@ export type OwnerOnboardingWizardProps = {
   agence?: string | null;
   /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
   pieces?: readonly PieceDuProfil[] | null;
+  /** TCK-2838 — l'interlocuteur à l'agence (`GET /api/me/owner-profiles/{id}/interlocuteur`) ; `null` : aucune carte. */
+  interlocuteur?: InterlocuteurDuBailleur | null;
 };
 
 /**
@@ -61,7 +64,7 @@ function relireBrouillon(data: WizardData): WizardData {
   };
 }
 
-export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = null }: OwnerOnboardingWizardProps) {
+export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = null, interlocuteur = null }: OwnerOnboardingWizardProps) {
   const t = useTranslations('owners.onboarding');
   const router = useRouter();
   const toast = useToast();
@@ -131,6 +134,7 @@ export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = 
               agence={agence}
               telephone={api.data.phone.number || user?.phone || null}
               pieces={pieces}
+              interlocuteur={interlocuteur}
               enCours={api.enCours}
               onAller={(href) => {
                 destination.current = href;

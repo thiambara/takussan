@@ -66,6 +66,10 @@
     "personas-hote": {
       "email": "hote@personas.takussan.test",
       "disposition": "admin-agence"
+    },
+    "personas-bailleur-invite-compte": {
+      "email": "bailleur-invite@personas.takussan.test",
+      "disposition": "bailleur"
     }
   },
   "invitations": {
