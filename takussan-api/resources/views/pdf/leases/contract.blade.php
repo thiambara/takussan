@@ -28,7 +28,8 @@
     // `computePenalty` et `RentReviewService` exécuteront ; le réglage seulement si elles manquent.
     $penaltyMonths = $earlyTermination->penaltyMonthsFor($lease);
     $rentReviewMaxPct = app(\App\Services\Lease\RentReviewService::class)->maxPctFor($lease);
-    $number = fn ($value) => rtrim(rtrim(number_format((float) $value, 2, ',', ' '), '0'), ',');
+    // TCK-2794 — groupé comme tout nombre rendu (U+00A0, jamais l'espace ordinaire, sécable).
+    $number = fn ($value) => \App\Services\Formatting\CurrencyFormatter::nombre((float) $value, 'fr', 0, 2);
 @endphp
 
 @section('content')

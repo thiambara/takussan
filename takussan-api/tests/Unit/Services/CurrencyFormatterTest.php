@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\Enums\Currency;
 use App\Services\Formatting\CurrencyFormatter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -11,6 +12,8 @@ use PHPUnit\Framework\TestCase;
  *
  * The assertions normalise NBSP/NNBSP to a regular space so the test runs
  * against any ICU build (ICU 72+ uses U+202F, older builds use U+00A0).
+ * TCK-2794 — sauf les épingles « exactes » plus bas, qui ne normalisent RIEN : les groupes de milliers
+ * sortent en U+00A0, et une sortie en U+202F (celle d'ICU en `fr`) doit les faire échouer.
  */
 class CurrencyFormatterTest extends TestCase
 {
@@ -95,6 +98,57 @@ class CurrencyFormatterTest extends TestCase
     {
         // Empty / pure-noise input must not throw.
         $this->assertSame(0.0, $this->formatter->parse('not a number', Currency::EUR));
+    }
+
+    // ─── TCK-2794 — les groupes de milliers en U+00A0, au caractère près ────────────────────────────
+
+    /** AC1 — `fr` et `wo` groupent en U+00A0 ; l'espace d'avant le symbole reste U+00A0. */
+    #[DataProvider('languesInsecables')]
+    public function test_tck2794_les_groupes_sortent_en_insecable_au_caractere_pres(string $locale): void
+    {
+        $out = $this->formatter->format(1_482_166, Currency::XOF, $locale);
+
+        $this->assertSame("1\u{00A0}482\u{00A0}166\u{00A0}F CFA", $out);
+        $this->assertStringNotContainsString("\u{202F}", $out);
+        $this->assertSame("150\u{00A0}000,50\u{00A0}€", $this->formatter->format(150_000.5, Currency::EUR, $locale));
+    }
+
+    /** @return array<string, array{string}> */
+    public static function languesInsecables(): array
+    {
+        return ['fr' => ['fr'], 'fr_SN' => ['fr_SN'], 'wo' => ['wo'], 'wo_SN' => ['wo_SN']];
+    }
+
+    /** AC1 — sans langue, la devise décide (XOF → `fr_SN`) : même insécable ; USD et `en` inchangés. */
+    public function test_tck2794_la_langue_de_la_devise_et_l_anglais(): void
+    {
+        $this->assertSame("1\u{00A0}482\u{00A0}166\u{00A0}F CFA", $this->formatter->format(1_482_166, Currency::XOF));
+        $this->assertSame("1,482,166\u{00A0}F CFA", $this->formatter->format(1_482_166, Currency::XOF, 'en'));
+        $this->assertSame('$1,482,166.00', $this->formatter->format(1_482_166, Currency::USD));
+    }
+
+    /** Le point de passage des nombres sans symbole : seuls les groupes changent, jamais la virgule. */
+    public function test_tck2794_nombre_ne_change_que_les_groupes(): void
+    {
+        $this->assertSame("1\u{00A0}234\u{00A0}567,5", CurrencyFormatter::nombre(1_234_567.5, 'fr'));
+        $this->assertSame("1\u{00A0}234\u{00A0}567,50", CurrencyFormatter::nombre(1_234_567.5, 'fr', 2, 2));
+        $this->assertSame('18,5', CurrencyFormatter::nombre(18.5, 'fr', 0, 2));
+        $this->assertSame('1,234,567.5', CurrencyFormatter::nombre(1_234_567.5, 'en'));
+    }
+
+    /** AC4 — `parse()` lit les trois espaces de groupe : un montant d'un ancien PDF ou d'un SMS se relit. */
+    #[DataProvider('espacesDeGroupe')]
+    public function test_tck2794_parse_lit_les_trois_espaces(string $espace): void
+    {
+        $this->assertEqualsWithDelta(1_234.56, $this->formatter->parse("1{$espace}234,56\u{00A0}€", Currency::EUR), 0.001);
+        $this->assertEqualsWithDelta(1_234.56, $this->formatter->parse("1{$espace}234,56 €", Currency::EUR, 'wo'), 0.001);
+        $this->assertEqualsWithDelta(1_482_166.0, $this->formatter->parse("1{$espace}482{$espace}166\u{00A0}F CFA", Currency::XOF), 0.001);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function espacesDeGroupe(): array
+    {
+        return ['U+202F' => ["\u{202F}"], 'U+00A0' => ["\u{00A0}"], 'U+0020' => [' ']];
     }
 
     /**

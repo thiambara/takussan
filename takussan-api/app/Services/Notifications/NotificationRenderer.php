@@ -10,7 +10,6 @@ use App\Services\Admin\NotificationTemplateService;
 use App\Services\Formatting\CurrencyFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use NumberFormatter;
 
 /**
  * TCK-588 (ADR-0032) — rend une notification par code, pour UNE surface et UNE langue.
@@ -381,10 +380,9 @@ class NotificationRenderer
         };
     }
 
+    /** TCK-2794 — le montant du gabarit historique, groupé comme tout montant rendu (U+00A0). */
     private function number(float $value, string $locale): string
     {
-        $formatter = new NumberFormatter($locale, NumberFormatter::DECIMAL);
-
-        return (string) $formatter->format($value);
+        return CurrencyFormatter::nombre($value, $locale);
     }
 }

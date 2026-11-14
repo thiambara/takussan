@@ -16,10 +16,9 @@
  * "F CFA") that drift from the spec contract. Instead we format the number
  * in `decimal` style and append the symbol from {@link CURRENCY_METADATA}.
  *
- * The Blade `@currency` directive (`App\Services\Formatting\CurrencyFormatter`) shared this exact
- * contract. ⚠ TCK-2714 broke it on purpose for the thousands groups: the front groups by U+00A0
- * (`./groupes`), the API still by ICU's U+202F until TCK-2794 aligns it. Symbol, position and
- * decimals still match.
+ * The Blade `@currency` directive (`App\Services\Formatting\CurrencyFormatter`) shares this exact
+ * contract, thousands groups included: U+00A0 on both sides since TCK-2714 (front, `./groupes`) and
+ * TCK-2794 (API, `CurrencyFormatter::nombre()`, which also renders `wo` as `fr-SN`).
  *
  * TCK-917 — s'appelait `formatCurrency`, comme celui de `lib/format.ts`, dont le second argument
  * est une LANGUE et non une devise. `formatCurrency(prix, 'fr')` importé d'ici retombait sans bruit
