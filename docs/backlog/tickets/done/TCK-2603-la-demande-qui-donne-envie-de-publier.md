@@ -1,7 +1,7 @@
 ---
 id: TCK-2603
 title: "« 1 240 recherches à Dakar cette semaine » : un chiffre vrai sur le départ de la publication"
-status: review
+status: done
 phase: P2
 family: full
 estimate: S
@@ -97,11 +97,7 @@ les modifications non commitées de TCK-2819).*
   aucune zone à contenu identique déclarée (motif dans la fiche). AC-F6 : à 768 et 1024, `scrollWidth − innerWidth` = 0,
   carte pleine largeur de sa colonne (704 et 560 px).
 
-## Reste sur dev
-
-- Le statut de l'amendement d'ADR-0088 « validé par le porteur le 2026-11-14 » et la fiche de fidélité complétée
-  (AC-F6 à 768 et 1024) : dans le commit qui fait passer ce ticket en `review`.
-- La validation du porteur sur les deux rideaux (AC-F5) : quand elle est donnée, le ticket passe `done`.
+**Validation (2026-11-14)** : le porteur valide les deux rideaux (téléphone et bureau 1280) — AC-F5 tenu, le ticket passe `done`.
 
 ## Hors périmètre
 
