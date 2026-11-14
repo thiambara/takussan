@@ -20320,7 +20320,8 @@
         "barre": "{recus} loyers reçus sur {attendus}",
         "recus": "Reçus",
         "enRetard": "{n} en retard",
-        "aVenir": "{n} à venir"
+        "aVenir": "{n} à venir",
+        "rembourses": "{n, plural, one {# reçu puis remboursé} other {# reçus puis remboursés}}"
       },
       "enCours": {
         "titre": "En cours sur vos biens",

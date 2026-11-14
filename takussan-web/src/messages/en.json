@@ -20320,7 +20320,8 @@
         "barre": "{recus} rents received of {attendus}",
         "recus": "Received",
         "enRetard": "{n} late",
-        "aVenir": "{n} upcoming"
+        "aVenir": "{n} upcoming",
+        "rembourses": "{n, plural, one {# received then refunded} other {# received then refunded}}"
       },
       "enCours": {
         "titre": "In progress on your properties",

@@ -127,6 +127,9 @@ class DashboardOwnerService
                     'overdue_amount' => round((float) $leases->rent_overdue_amount, 2),
                     'upcoming_count' => (int) $leases->rent_upcoming_count,
                     'upcoming_amount' => round((float) $leases->rent_upcoming_amount, 2),
+                    // TCK-2820 — les remboursées échues du même mois : reçues puis rendues, pas en retard.
+                    'refunded_count' => (int) $leases->rent_refunded_count,
+                    'refunded_amount' => round((float) $leases->rent_refunded_amount, 2),
                 ],
             ],
             // TCK-2626 — le taux du jour rendu avec sa base ; les clés d'avant gardent nom et sens.
@@ -169,10 +172,13 @@ class DashboardOwnerService
      *  - `expected_count` : toutes, hors annulées (une échéance remplacée par un renouvellement n'est
      *    plus due). Une échéance en échec de paiement (`failed`) reste attendue : elle repasse à payée ;
      *  - `received_count` / `received_amount` : les soldées (`paid`), montant net de ce qui a été rendu ;
-     *  - TCK-2774 — `overdue_count` / `overdue_amount` : les non soldées (`status != paid`, `failed` et
-     *    `refunded` compris) échues AVANT aujourd'hui à Dakar ; `upcoming_count` / `upcoming_amount` : les
-     *    non soldées dues aujourd'hui ou après. Montant = le reste dû, l'accesseur `remaining_amount`
-     *    ({@see PaymentHistory::remainingAmountSql()}). Invariant : reçus + en retard + à venir = attendus.
+     *  - TCK-2774 — `overdue_count` / `overdue_amount` : les non soldées (`status != paid`, `failed`
+     *    compris) échues AVANT aujourd'hui à Dakar ; `upcoming_count` / `upcoming_amount` : les
+     *    non soldées dues aujourd'hui ou après, `refunded` compris. Montant = le reste dû, l'accesseur
+     *    `remaining_amount` ({@see PaymentHistory::remainingAmountSql()}) ;
+     *  - TCK-2820 — `refunded_count` / `refunded_amount` : les `refunded` échues AVANT aujourd'hui, sorties
+     *    du retard (reçues puis rendues, personne à relancer). Montant = `refund_amount`, le montant rendu.
+     *    Invariant : reçus + en retard + à venir + remboursés = attendus.
      *    Borné au mois servi : ce n'est pas l'impayé du bailleur (`overdue_*`, toutes périodes). Le jour est
      *    celui d'aujourd'hui quelle que soit la période : sur `last_month`, tout non soldé est en retard.
      *
@@ -193,16 +199,20 @@ class DashboardOwnerService
         // TCK-2774 — « aujourd'hui » au calendrier de Dakar, comme le mois.
         $aujourdhui = CarbonImmutable::now(self::TIMEZONE)->toDateString();
         $resteDu = PaymentHistory::remainingAmountSql('lease_payments');
-        $enRetard = 'lease_payments.status != ? AND lease_payments.due_date < ?::date';
+        $rembourse = PaymentStatus::Refunded->value;
+        $enRetard = 'lease_payments.status NOT IN (?, ?) AND lease_payments.due_date < ?::date';
         $aVenir = 'lease_payments.status != ? AND lease_payments.due_date >= ?::date';
+        $rembourseEchu = 'lease_payments.status = ? AND lease_payments.due_date < ?::date';
 
         $query->selectSub($loyers()->selectRaw('COUNT(*)'), 'rent_expected_count')
             ->selectSub($loyers()->selectRaw('COUNT(*) FILTER (WHERE lease_payments.status = ?)', [$paye]), 'rent_received_count')
             ->selectSub($loyers()->selectRaw('COALESCE(SUM('.CollectedPayments::LEASE_NET_SQL.') FILTER (WHERE lease_payments.status = ?), 0)', [$paye]), 'rent_received_amount')
-            ->selectSub($loyers()->selectRaw("COUNT(*) FILTER (WHERE {$enRetard})", [$paye, $aujourdhui]), 'rent_overdue_count')
-            ->selectSub($loyers()->selectRaw("COALESCE(SUM({$resteDu}) FILTER (WHERE {$enRetard}), 0)", [$paye, $aujourdhui]), 'rent_overdue_amount')
+            ->selectSub($loyers()->selectRaw("COUNT(*) FILTER (WHERE {$enRetard})", [$paye, $rembourse, $aujourdhui]), 'rent_overdue_count')
+            ->selectSub($loyers()->selectRaw("COALESCE(SUM({$resteDu}) FILTER (WHERE {$enRetard}), 0)", [$paye, $rembourse, $aujourdhui]), 'rent_overdue_amount')
             ->selectSub($loyers()->selectRaw("COUNT(*) FILTER (WHERE {$aVenir})", [$paye, $aujourdhui]), 'rent_upcoming_count')
-            ->selectSub($loyers()->selectRaw("COALESCE(SUM({$resteDu}) FILTER (WHERE {$aVenir}), 0)", [$paye, $aujourdhui]), 'rent_upcoming_amount');
+            ->selectSub($loyers()->selectRaw("COALESCE(SUM({$resteDu}) FILTER (WHERE {$aVenir}), 0)", [$paye, $aujourdhui]), 'rent_upcoming_amount')
+            ->selectSub($loyers()->selectRaw("COUNT(*) FILTER (WHERE {$rembourseEchu})", [$rembourse, $aujourdhui]), 'rent_refunded_count')
+            ->selectSub($loyers()->selectRaw("COALESCE(SUM(COALESCE(lease_payments.refund_amount, 0)) FILTER (WHERE {$rembourseEchu}), 0)", [$rembourse, $aujourdhui]), 'rent_refunded_amount');
     }
 
     public function monthlyTimeseries(User $owner, int $months = 12): array

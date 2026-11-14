@@ -7,6 +7,8 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Dashboard\Adapters\OwnerMeMetrics;
+use App\Services\Dashboard\DashboardOwnerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\ApiTestCase;
@@ -41,15 +43,18 @@ class OwnerRentMonthTest extends ApiTestCase
         ]);
     }
 
-    /** TCK-2774 — les trois segments, sur les deux routes, et l'invariant reçus + retard + à venir = attendus. */
-    private function assertSegments(int $recus, int $enRetard, int $aVenir, int $attendus): void
+    /**
+     * TCK-2774 — les segments, sur les deux routes, et l'invariant reçus + retard + à venir (+ remboursés,
+     * TCK-2820) = attendus.
+     */
+    private function assertSegments(int $recus, int $enRetard, int $aVenir, int $attendus, int $rembourses = 0): void
     {
-        $this->assertSame($attendus, $recus + $enRetard + $aVenir, 'invariant du scénario');
+        $this->assertSame($attendus, $recus + $enRetard + $aVenir + $rembourses, 'invariant du scénario');
         foreach (['/api/dashboard/owner' => 'data.finance.rent_month', '/api/dashboard/me' => 'data.metrics.rent_month'] as $route => $chemin) {
             $bloc = $this->apiGet($route)->assertOk()->json($chemin);
             $this->assertSame(
-                ['received_count' => $recus, 'overdue_count' => $enRetard, 'upcoming_count' => $aVenir, 'expected_count' => $attendus],
-                ['received_count' => $bloc['received_count'], 'overdue_count' => $bloc['overdue_count'], 'upcoming_count' => $bloc['upcoming_count'], 'expected_count' => $bloc['expected_count']],
+                ['received_count' => $recus, 'overdue_count' => $enRetard, 'upcoming_count' => $aVenir, 'refunded_count' => $rembourses, 'expected_count' => $attendus],
+                ['received_count' => $bloc['received_count'], 'overdue_count' => $bloc['overdue_count'], 'upcoming_count' => $bloc['upcoming_count'], 'refunded_count' => $bloc['refunded_count'] ?? null, 'expected_count' => $bloc['expected_count']],
                 $route,
             );
         }
@@ -181,7 +186,8 @@ class OwnerRentMonthTest extends ApiTestCase
 
     /**
      * TCK-2774 — le reste dû est l'accesseur `remaining_amount` (celui de l'historique des paiements),
-     * statut par statut des non soldées, `refunded` compris : pas une seconde définition.
+     * statut par statut des non soldées : pas une seconde définition. TCK-2820 — une échéance `refunded`
+     * échue n'y entre plus : elle est « reçue puis remboursée », pour son `refund_amount`.
      */
     public function test_tck2774_le_montant_est_la_somme_des_remaining_amount(): void
     {
@@ -193,12 +199,14 @@ class OwnerRentMonthTest extends ApiTestCase
             $this->echeance($bail, '2026-11-03', PaymentStatus::Late, montant: 130_000, autres: ['metadata' => ['paid_amount' => 30_000]]),
             $this->echeance($bail, '2026-11-04', PaymentStatus::PartiallyPaid, montant: 140_000, autres: ['metadata' => ['paid_amount' => 40_000]]),
             $this->echeance($bail, '2026-11-06', PaymentStatus::Failed, montant: 150_000),
-            $this->echeance($bail, '2026-11-07', PaymentStatus::Refunded, montant: 160_000, autres: ['refund_amount' => 60_000]),
         ])->map->fresh();
+        $this->echeance($bail, '2026-11-07', PaymentStatus::Refunded, montant: 160_000, autres: ['refund_amount' => 60_000]);
 
         $bloc = $this->apiGet('/api/dashboard/owner')->assertOk()->json('data.finance.rent_month');
-        $this->assertSame(5, $bloc['overdue_count']);
+        $this->assertSame(4, $bloc['overdue_count']);
         $this->assertEquals(round($echeances->sum(fn (LeasePayment $p) => (float) $p->remaining_amount), 2), $bloc['overdue_amount']);
+        $this->assertSame(1, $bloc['refunded_count']);
+        $this->assertEquals(60_000, $bloc['refunded_amount']);
         $this->assertEquals(0, $bloc['upcoming_amount']);
     }
 
@@ -216,5 +224,69 @@ class OwnerRentMonthTest extends ApiTestCase
             ->assertJsonPath('data.finance.rent_month.overdue_count', 1)
             ->assertJsonPath('data.finance.rent_month.upcoming_count', 0)
             ->assertJsonPath('data.finance.rent_month.expected_count', 2);
+    }
+
+    /**
+     * TCK-2820, AC1 — le 13 novembre : 8 soldés, 2 échus le 5 non soldés, 1 échu le 5 remboursé
+     * (300 000, `refund_amount` 300 000), 3 dus le 20. Le remboursé est « reçu puis remboursé », pas en retard.
+     */
+    public function test_tck2820_ac1_un_loyer_echu_rembourse_n_est_pas_en_retard(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-13 10:00:00', 'Africa/Dakar'));
+        $owner = $this->apiActingAsRole('owner');
+        $baux = Lease::factory()->active()->count(2)->create(['landlord_id' => $owner->id]);
+
+        foreach (range(1, 8) as $i) {
+            $this->echeance($baux[$i % 2], sprintf('2026-11-%02d', $i), PaymentStatus::Paid);
+        }
+        $this->echeance($baux[0], '2026-11-05', PaymentStatus::Pending, montant: 300_000);
+        $this->echeance($baux[1], '2026-11-05', PaymentStatus::Late, montant: 300_000);
+        $this->echeance($baux[0], '2026-11-05', PaymentStatus::Refunded, montant: 300_000, autres: ['refund_amount' => 300_000, 'paid_at' => now()->subDays(8)]);
+        foreach (range(1, 3) as $i) {
+            $this->echeance($baux[$i % 2], '2026-11-20', PaymentStatus::Pending, montant: 250_000);
+        }
+        // Une caution remboursée échue du mois : pas un loyer.
+        $this->echeance($baux[1], '2026-11-05', PaymentStatus::Refunded, LeasePaymentType::Deposit, 500_000, ['refund_amount' => 500_000]);
+
+        $this->assertSegments(recus: 8, enRetard: 2, aVenir: 3, attendus: 14, rembourses: 1);
+        foreach (['/api/dashboard/owner' => 'data.finance.rent_month', '/api/dashboard/me' => 'data.metrics.rent_month'] as $route => $chemin) {
+            $bloc = $this->apiGet($route)->assertOk()->json($chemin);
+            $this->assertEquals(300_000, $bloc['refunded_amount'], $route);
+            $this->assertEquals(600_000, $bloc['overdue_amount'], $route);
+        }
+    }
+
+    /** TCK-2820, AC2 — un loyer remboursé dû le 20 (non échu) reste « à venir ». */
+    public function test_tck2820_ac2_un_loyer_rembourse_non_echu_reste_a_venir(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-13 10:00:00', 'Africa/Dakar'));
+        $owner = $this->apiActingAsRole('owner');
+        $bail = Lease::factory()->active()->create(['landlord_id' => $owner->id]);
+        $this->echeance($bail, '2026-11-20', PaymentStatus::Refunded, montant: 300_000, autres: ['refund_amount' => 300_000]);
+        $this->echeance($bail, '2026-11-13', PaymentStatus::Refunded, montant: 300_000, autres: ['refund_amount' => 300_000]);
+
+        $this->assertSegments(recus: 0, enRetard: 0, aVenir: 2, attendus: 2, rembourses: 0);
+        $this->assertEquals(0, $this->apiGet('/api/dashboard/owner')->json('data.finance.rent_month.refunded_amount'));
+    }
+
+    /** TCK-2820, AC3 — un loyer `failed` échu reste en retard (TCK-2623, point 4). */
+    public function test_tck2820_ac3_un_loyer_en_echec_echu_reste_en_retard(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-13 10:00:00', 'Africa/Dakar'));
+        $owner = $this->apiActingAsRole('owner');
+        $bail = Lease::factory()->active()->create(['landlord_id' => $owner->id]);
+        $this->echeance($bail, '2026-11-05', PaymentStatus::Failed, montant: 300_000);
+
+        $this->assertSegments(recus: 0, enRetard: 1, aVenir: 0, attendus: 1, rembourses: 0);
+    }
+
+    /** TCK-2820 — le repli d'`OwnerMeMetrics` porte les deux clés. */
+    public function test_tck2820_le_bloc_vide_porte_les_cles_des_rembourses(): void
+    {
+        $service = \Mockery::mock(DashboardOwnerService::class);
+        $service->shouldReceive('summary')->andReturn([]);
+        $bloc = (new OwnerMeMetrics($service))->metrics(User::factory()->create());
+        $this->assertSame(0, $bloc['rent_month']['refunded_count']);
+        $this->assertSame(0.0, $bloc['rent_month']['refunded_amount']);
     }
 }
