@@ -29,6 +29,12 @@ use Illuminate\Support\Collection;
  * `due` et `none` s'ajoutent aux quatre états du ticket TCK-2649, avec le vocabulaire de TCK-2637
  * (`current_month.status`) : sans eux, un loyer pas encore échu se lirait « payé » ou « en
  * retard », et un bail sans échéancier « vacant ».
+ *
+ * - `refunded` (TCK-2651, décision 18 (a) du porteur, 2026-11-14) : rien ne reste dû, aucune n'est
+ *   payée — toutes remboursées — et l'une est échue : « reçu puis remboursé ». Le retard prime : un
+ *   mois en retard ET remboursé se lit `late`. Toutes remboursées sans qu'aucune soit échue, `due`
+ *   (la règle de TCK-2820 : remboursée et pas encore échue reste « à venir »). Le relevé et
+ *   l'occupation le lisent ensemble.
  */
 final class RentMonthStatus
 {
@@ -44,7 +50,7 @@ final class RentMonthStatus
 
         $remaining = self::owed($dues);
         if ($remaining->isEmpty()) {
-            return ['month_status' => 'paid', 'days_late' => null];
+            return ['month_status' => self::settled($dues, $today), 'days_late' => null];
         }
 
         $late = $remaining->map(fn (LeasePayment $p) => OverdueInstalment::daysLate($p, $today))->filter()->max();
@@ -55,6 +61,23 @@ final class RentMonthStatus
         $paidSomething = $dues->sum(fn (LeasePayment $p) => (float) $p->amount) > $remaining->sum(fn (LeasePayment $p) => (float) $p->remaining_amount);
 
         return ['month_status' => $paidSomething ? 'partial' : 'due', 'days_late' => null];
+    }
+
+    /**
+     * L'état d'une période soldée : `paid` dès qu'une échéance est payée ; toutes remboursées, `refunded`
+     * si l'une est échue avant aujourd'hui (heure de Dakar), `due` sinon.
+     *
+     * @param  Collection<int, LeasePayment>  $dues
+     */
+    private static function settled(Collection $dues, ?string $today): string
+    {
+        $refunded = $dues->filter(fn (LeasePayment $p) => $p->status === PaymentStatus::Refunded);
+        if ($refunded->isEmpty() || $refunded->count() < $dues->count()) {
+            return 'paid';
+        }
+        $today ??= OverdueInstalment::today();
+
+        return $refunded->contains(fn (LeasePayment $p) => $p->due_date !== null && $p->due_date->toDateString() < $today) ? 'refunded' : 'due';
     }
 
     /**

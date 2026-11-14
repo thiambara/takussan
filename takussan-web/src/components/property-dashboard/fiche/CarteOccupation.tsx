@@ -55,6 +55,8 @@ export function CarteOccupation({
       case 'paye':
       case 'partiel':
         return <span className={etat.cle === 'partiel' ? 'text-warning' : 'text-success'}>{tGestion(`etat.${etat.cle}`)}</span>;
+      case 'rembourse':
+        return tGestion('etat.rembourse');
       case 'enRetard':
         return <span className="text-destructive">{tGestion('etat.enRetard', { jours: etat.jours })}</span>;
       case 'aEcheance':

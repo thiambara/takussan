@@ -4415,7 +4415,8 @@
           "partial": "Payé en partie",
           "due": "À venir",
           "none": "Échéance non émise",
-          "vacant": "Vacant"
+          "vacant": "Vacant",
+          "refunded": "Reçu puis remboursé"
         },
         "voirLesBaux": "Voir les baux"
       },
@@ -21121,7 +21122,8 @@
         "preavis": "Préavis · sortie le {date}",
         "preavisSansDate": "Préavis",
         "vacantDepuis": "Vacant depuis {jours} j",
-        "vacant": "Vacant"
+        "vacant": "Vacant",
+        "rembourse": "Reçu puis remboursé"
       },
       "etatCourt": {
         "paye": "Payé",
@@ -21132,7 +21134,8 @@
         "preavis": "Préavis",
         "preavisSansDate": "Préavis",
         "vacantDepuis": "Vacant {jours} j",
-        "vacant": "Vacant"
+        "vacant": "Vacant",
+        "rembourse": "Remboursé"
       },
       "loyer": {
         "parPeriode": "{montant} / {periode}",

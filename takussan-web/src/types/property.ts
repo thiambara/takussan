@@ -52,7 +52,8 @@ export interface OccupationDuBien {
     payment_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
   } | null;
   current_month: {
-    status: 'paid' | 'late' | 'partial' | 'due' | 'none';
+    /** `refunded` : échu, reçu puis remboursé (TCK-2651, décision 18 du porteur). */
+    status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'refunded';
     due_date: string | null;
     days_late: number | null;
     amount_due: number | null;

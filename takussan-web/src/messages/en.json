@@ -4458,7 +4458,8 @@
           "partial": "Partly paid",
           "due": "Upcoming",
           "none": "No instalment issued",
-          "vacant": "Vacant"
+          "vacant": "Vacant",
+          "refunded": "Received, then refunded"
         },
         "voirLesBaux": "See leases"
       },
@@ -21121,7 +21122,8 @@
         "preavis": "Notice · moving out {date}",
         "preavisSansDate": "Notice",
         "vacantDepuis": "Vacant for {jours} days",
-        "vacant": "Vacant"
+        "vacant": "Vacant",
+        "rembourse": "Received, then refunded"
       },
       "etatCourt": {
         "paye": "Paid",
@@ -21132,7 +21134,8 @@
         "preavis": "Notice",
         "preavisSansDate": "Notice",
         "vacantDepuis": "Vacant {jours} d",
-        "vacant": "Vacant"
+        "vacant": "Vacant",
+        "rembourse": "Refunded"
       },
       "loyer": {
         "parPeriode": "{montant} / {periode}",

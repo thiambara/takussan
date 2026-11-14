@@ -110,6 +110,13 @@ describe('etatDuMois', () => {
     });
   });
 
+  it('décision 18 (TCK-2651) : échu et remboursé, « reçu puis remboursé », en neutre', () => {
+    expect(etatDuMois(bien({}, { lease: BAIL, current_month: { status: 'refunded', due_date: '2026-11-05', days_late: null, amount_due: 0, late_fee_outstanding: null } }), AUJOURDHUI)).toEqual({
+      ton: 'neutre',
+      cle: 'rembourse',
+    });
+  });
+
   it('préavis : la sortie, à la fin du bail', () => {
     expect(etatDuMois(bien({}, { state: 'notice', lease: BAIL }), AUJOURDHUI)).toEqual({ ton: 'info', cle: 'preavis', date: '2027-06-30' });
   });

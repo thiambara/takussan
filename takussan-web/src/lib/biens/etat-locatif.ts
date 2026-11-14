@@ -20,6 +20,7 @@ export type EtatDuMois =
   | { readonly ton: 'succes'; readonly cle: 'paye' }
   | { readonly ton: 'danger'; readonly cle: 'enRetard'; readonly jours: number }
   | { readonly ton: 'avertissement'; readonly cle: 'partiel' }
+  | { readonly ton: 'neutre'; readonly cle: 'rembourse' }
   | { readonly ton: 'neutre'; readonly cle: 'aEcheance'; readonly date: string | null }
   | { readonly ton: 'info'; readonly cle: 'preavis'; readonly date: string | null }
   | { readonly ton: 'avertissement'; readonly cle: 'vacantDepuis'; readonly jours: number }
@@ -77,6 +78,9 @@ export function etatDuMois(p: PropertyListItem, aujourdhui: Date): EtatDuMois | 
       return { ton: 'avertissement', cle: 'partiel' };
     case 'due':
       return { ton: 'neutre', cle: 'aEcheance', date: mois.due_date };
+    // TCK-2651, décision 18 du porteur : échu, reçu puis remboursé — ni payé, ni en retard.
+    case 'refunded':
+      return { ton: 'neutre', cle: 'rembourse' };
     default:
       return null;
   }

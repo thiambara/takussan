@@ -226,6 +226,12 @@ describe('PropertyList — tableau du mode Gestion (bureau)', () => {
     expect(ligne.getByText('Sokhna Sène')).toHaveClass('sr-only');
   });
 
+  it('TCK-2651, décision 18 : un loyer échu remboursé se lit « Reçu puis remboursé » sur la carte, « Remboursé » dans la colonne courte', () => {
+    rendre([bien(7, { occupancy: { ...OCCUPE, current_month: { ...OCCUPE.current_month!, status: 'refunded', days_late: null, amount_due: 0 } } })]);
+    expect(within(cartes().getByTestId('carte-gestion')).getByTestId('etat-du-mois').textContent).toBe('Reçu puis remboursé');
+    expect(within(tableau().getAllByRole('row')[1]!).getByTestId('etat-du-mois').textContent).toBe('Remboursé');
+  });
+
   it('AC7 : sous « Loyer / mois », une autre période est écrite, et une vente se dit telle', () => {
     rendre([TRIMESTRIEL, A_VENDRE]);
     const [, trimestre, vente] = tableau().getAllByRole('row').map((r) => within(r));

@@ -209,15 +209,18 @@ function LocationVacante({
   );
 }
 
-const TON_DE_L_ECHEANCE: Record<'paye' | 'enRetard' | 'partiel' | 'aEcheance', StatusTone> = {
+const TON_DE_L_ECHEANCE: Record<'paye' | 'enRetard' | 'partiel' | 'aEcheance' | 'rembourse', StatusTone> = {
   paye: 'success',
   enRetard: 'danger',
   partiel: 'attention',
   aEcheance: 'neutral',
+  rembourse: 'neutral',
 };
 
 /** L'état d'une échéance de l'historique : la même phrase que la puce du mois. */
-function etatDeLEcheance(row: PaymentHistoryRow): 'paye' | 'enRetard' | 'partiel' | 'aEcheance' {
+function etatDeLEcheance(row: PaymentHistoryRow): 'paye' | 'enRetard' | 'partiel' | 'aEcheance' | 'rembourse' {
+  // TCK-2651, décision 18 du porteur : reçu puis remboursé, jamais « à échéance » ni « en retard ».
+  if (row.status === 'refunded') return 'rembourse';
   if (row.status === 'paid' || (row.remaining_amount <= 0 && row.paid_amount > 0)) return 'paye';
   if ((row.days_late ?? 0) > 0) return 'enRetard';
   if (row.paid_amount > 0) return 'partiel';
