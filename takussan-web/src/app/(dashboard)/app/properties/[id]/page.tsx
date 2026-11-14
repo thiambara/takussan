@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api';
 import { PropertyMatchingCustomers } from '@/components/crm/PropertyMatchingCustomers';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { CarteOccupation } from '@/components/property-dashboard/fiche/CarteOccupation';
-import { MotifsHorsLigne } from '@/components/property-dashboard/fiche/MotifsHorsLigne';
+import { PastilleHorsLigne } from '@/components/property-dashboard/fiche/PastilleHorsLigne';
 import { BlocResponsable } from '@/components/property-dashboard/fiche/PiecesDeLaLocation';
 import { PhotosDuBien } from '@/components/property-dashboard/fiche/PhotosDuBien';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
@@ -31,7 +31,7 @@ import { QuestionDeDisponibilite } from '@/components/property-dashboard/Questio
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
 import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
-import { PageHeader, StatusBadge } from '@/components/console';
+import { PageHeader } from '@/components/console';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent } from '@/lib/roles';
@@ -143,7 +143,9 @@ export default async function Page({ params, searchParams }: { params: Params; s
 
   const tFiche = await getTranslations('propertyDashboard.fiche.identite');
   const tMotif = await getTranslations('propertyDashboard.horsLigne');
-  // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`).
+  // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`). La
+  // maquette retenue (app-biens a-2) ne dessine aucune ligne sous les pastilles : au bureau, la pastille
+  // « Hors ligne » porte les motifs en infobulle ; les phrases visibles sont en tête de l'onglet Annonce.
   const motifs = property.is_online === false ? phrasesDesMotifs(property.offline_reasons ?? [], (cle) => tMotif(cle)) : [];
   const tListe = await getTranslations('dashboard.properties');
   const tConsole = await getTranslations('console.pageHeader');
@@ -160,12 +162,13 @@ export default async function Page({ params, searchParams }: { params: Params; s
   ]
     .filter(Boolean)
     .join(' · ');
-  const pastilles = (
+  const pastilles = (focalisable: boolean) => (
     <>
       <PropertyStatusBadge status={property.status} />
       <PropertyVisibilityBadge visibility={property.visibility} />
       {property.is_online === undefined ? null : (
-        <StatusBadge tone="neutral" label={tFiche(property.is_online ? 'enLigne' : 'horsLigne')} />
+        // La copie du téléphone est tue aux lecteurs d'écran (`aria-hidden`) : rien n'y prend le focus.
+        <PastilleHorsLigne label={tFiche(property.is_online ? 'enLigne' : 'horsLigne')} phrases={focalisable ? motifs : []} />
       )}
     </>
   );
@@ -203,8 +206,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
         <PhotosDuBien property={property} forme="bandeau" />
         <div className="px-4 pt-3" aria-hidden="true">
           <p className="text-ui text-muted-foreground">{identite}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">{pastilles}</div>
-          <MotifsHorsLigne phrases={motifs} className="mt-1.5" />
+          <div className="mt-2 flex flex-wrap gap-1.5">{pastilles(false)}</div>
           {locatif ? null : proprietaireEtResponsable('mt-2 block whitespace-normal')}
           {enAttenteDe ? <p className="mt-2 text-xs text-muted-foreground">{enAttenteDe}</p> : null}
         </div>
@@ -217,9 +219,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
           <>
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
               {identite}
-              {pastilles}
+              {pastilles(true)}
             </span>
-            <MotifsHorsLigne phrases={motifs} className="mt-1.5" />
             {/* TCK-603 — la fiche, comme la liste, nomme le propriétaire ET l'agent responsable. */}
             {proprietaireEtResponsable(cn('mt-1 block whitespace-normal', locatif && 'xl:hidden'))}
             {enAttenteDe ? (
