@@ -1,7 +1,7 @@
 ---
 id: TCK-2829
 title: "Carnet des prestataires : une invitation en attente se voit et se trouve, distincte d'une collaboration suspendue"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: S
