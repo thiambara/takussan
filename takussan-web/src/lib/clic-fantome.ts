@@ -26,9 +26,13 @@ export function avalerLeClicFantome(delaiMs: number = DELAI_DU_CLIC_FANTOME_MS):
     evenement.stopPropagation();
     retirer();
   };
-  const minuteur = window.setTimeout(() => retirer(), delaiMs);
+  // Minuteur et retrait par les globaux, pas par `window` : le délai peut échoir après le démontage
+  // de l'environnement (fin d'un test, CI du 2026-11-14 : « window is not defined » APRÈS 1743
+  // fichiers verts). Sans document, il n'y a plus d'écouteur à retirer.
+  const minuteur = setTimeout(() => retirer(), delaiMs);
   function retirer() {
-    window.clearTimeout(minuteur);
+    clearTimeout(minuteur);
+    if (typeof document === 'undefined') return;
     document.removeEventListener('click', avaler, true);
   }
   document.addEventListener('click', avaler, true);
