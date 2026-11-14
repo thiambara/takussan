@@ -4,7 +4,7 @@ import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Smartphone } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
@@ -23,6 +23,7 @@ import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useEquipementsApprouves } from '@/lib/queries/referentiel-public';
 import { CLE_BROUILLON_DE_PUBLICATION, LIEN_DE_REPRISE, verserAuBrouillonServeur } from '@/lib/publication/brouillon-de-publication';
 import { valeursDeLAnnonce, type BrouillonLocal } from '@/lib/publication/brouillon-local';
+import { lireRepriseDePublication, PARAMETRE_DE_REPRISE } from '@/lib/publication/reprise-oauth';
 import { useBrouillonLocal } from '@/lib/publication/useBrouillonLocal';
 import { Button } from '@/components/ui/button';
 import type { PropertyFormPayload, PropertyFormValues } from '@/lib/schemas/property';
@@ -64,6 +65,25 @@ const LIEN_CONNEXION = '/auth/login?redirect=%2Fpublish&intention=publication';
 
 // L'encre du lien reste opaque au survol (garde encre-sans-alpha) : c'est le soulignement qui s'affirme,
 // comme « Utiliser plutôt mon numéro » de la voie e-mail.
+/**
+ * TCK-2777 — `?reprise=` de l'URL de retour de Google, lu côté client seulement (`/publish` n'est pas
+ * sous `Suspense` : pas de `useSearchParams` ici), puis oublié par `oublierLaReprise`.
+ */
+function abonnerALHistorique(rappel: () => void) {
+  window.addEventListener('popstate', rappel);
+  return () => window.removeEventListener('popstate', rappel);
+}
+const repriseDeLAdresse = () => lireRepriseDePublication(window.location.search);
+const aucuneReprise = () => null;
+
+function oublierLaReprise() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(PARAMETRE_DE_REPRISE)) return;
+  url.searchParams.delete(PARAMETRE_DE_REPRISE);
+  // L'historique natif, que le routeur de Next suit : la page n'est ni rechargée ni remontée.
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
 const LIEN = 'font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary';
 
 export function PublierSansCompte({
@@ -114,6 +134,7 @@ export function PublierSansCompte({
   }));
 
   const memoire = brouillon.stockage.persistance === 'memoire';
+  const reprise = useSyncExternalStore(abonnerALHistorique, repriseDeLAdresse, aucuneReprise);
   const etatDuBrouillon = memoire ? t(brouillon.stockage.raison === 'quota' ? 'brouillon.quota' : 'brouillon.refus') : null;
 
   /**
@@ -219,6 +240,8 @@ export function PublierSansCompte({
       });
     },
     surVerrou: setVerrouille,
+    // TCK-2777 — en mémoire, l'annonce ne survivrait pas à l'aller-retour : pas de Google.
+    google: { durable: !memoire, reprise, surRepriseLue: oublierLaReprise },
     surEtape: (index, nombre) => {
       setPas(index + 1);
       setTotal(nombre);

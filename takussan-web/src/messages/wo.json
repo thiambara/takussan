@@ -10645,7 +10645,8 @@
           "retirable": "Annonce retirable à tout moment"
         },
         "mention": "En publiant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
-        "nomsAide": "Ils apparaissent sur votre annonce et dans vos messages."
+        "nomsAide": "Ils apparaissent sur votre annonce et dans vos messages.",
+        "googleEchec": "La connexion avec Google n’a pas abouti. Votre annonce est intacte : recevez plutôt un code sur votre numéro."
       },
       "enLigne": {
         "metaTitre": "Votre annonce est en ligne",

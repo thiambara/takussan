@@ -21,6 +21,7 @@ import { formaterTelephone, numeroComposable } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 
 import { CadreDeLaFeuille, usePanneauDeBureau } from './CadreDeLaFeuille';
+import { ContinuerAvecGoogle } from './ContinuerAvecGoogle';
 
 /**
  * TCK-2601 — la feuille de compte SANS compte (`/publish`, ADR-0093) : le numéro, le code, le prénom et
@@ -47,6 +48,13 @@ interface FeuilleSansCompteProps {
   readonly onPublier: () => void | Promise<void>;
   /** TCK-2601 (AC5) — la colonne de l'assistant où la feuille devient panneau dès 1280 px. */
   readonly cible?: HTMLElement | null;
+  /**
+   * TCK-2777 — écrit l'annonce dans ce navigateur avant le départ chez Google. Absent (l'annonce ne
+   * survivrait pas à la navigation : brouillon en mémoire), « Continuer avec Google » ne paraît pas.
+   */
+  readonly avantLeDepartGoogle?: () => Promise<boolean>;
+  /** TCK-2777 — rouverte après un aller-retour Google annulé ou refusé : ce qu'elle dit d'abord. */
+  readonly alerte?: string | null;
 }
 
 type Compte = AuthResponse['user'];
@@ -60,7 +68,9 @@ export function profilAEcrire(compte: Partial<Compte>, saisie: { prenom: string;
   };
 }
 
-export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, onPublier, cible = null }: FeuilleSansCompteProps) {
+export function FeuilleSansCompte({
+  ouverte, onFermer, rappel, envoi, onEmail, onPublier, cible = null, avantLeDepartGoogle, alerte = null,
+}: FeuilleSansCompteProps) {
   const t = useTranslations('property.wizard.feuille');
   const tContact = useTranslations('property.form.publishContact');
   const tEntree = useTranslations('auth.phoneLogin');
@@ -76,6 +86,8 @@ export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, o
   const [compte, setCompte] = useState<Compte | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  // TCK-2777 — le départ chez Google : la feuille se fige jusqu'à la navigation (ou son échec).
+  const [depart, setDepart] = useState(false);
 
   async function continuer(rendu: Compte) {
     setErreur(null);
@@ -106,9 +118,9 @@ export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, o
     },
   });
 
-  const occupe = enCours || envoi || entree.envoi;
+  const occupe = enCours || envoi || entree.envoi || depart;
   const nomsPrets = prenom.trim() !== '' && nom.trim() !== '';
-  const message = erreur ?? entree.erreur;
+  const message = erreur ?? entree.erreur ?? (entree.etape === 'numero' ? alerte : null);
 
   // Le geste des écrans d'entrée (48 px, pilule — maquette a-6 / a-7), à sa largeur dès `md`.
   const GESTE = cn(BOUTON_D_ENTREE, 'md:w-auto');
@@ -121,9 +133,28 @@ export function FeuilleSansCompte({ ouverte, onFermer, rappel, envoi, onEmail, o
     );
   } else if (entree.etape === 'numero') {
     pied = (
-      <Button type="button" className={GESTE} disabled={occupe || !numeroComposable(entree.telephone)} onClick={() => void entree.envoyerCode()}>
-        {entree.envoi ? tEntree('sending') : tContact('sendCode')}
-      </Button>
+      <>
+        <Button type="button" className={GESTE} disabled={occupe || !numeroComposable(entree.telephone)} onClick={() => void entree.envoyerCode()}>
+          {entree.envoi ? tEntree('sending') : tContact('sendCode')}
+        </Button>
+        {/*
+          TCK-2777 — maquette a-6 : discret, secondaire au numéro. Au téléphone, une ligne de 44 px centrée
+          sous « Recevoir un code » ; dans le panneau du bureau, à côté du geste (la rangée `gap-4`).
+        */}
+        {avantLeDepartGoogle ? (
+          <ContinuerAvecGoogle
+            occupe={occupe}
+            avantLeDepart={avantLeDepartGoogle}
+            surDepart={(enCours) => {
+              if (enCours) setErreur(null);
+              setDepart(enCours);
+            }}
+            surEchec={setErreur}
+            // Dans la rangée du panneau latéral (`md`, avant 1280), centrée sur la hauteur du geste, sans marge.
+            className={bureau ? undefined : 'self-center max-md:mt-1'}
+          />
+        ) : null}
+      </>
     );
   } else if (entree.etape === 'code') {
     pied = (

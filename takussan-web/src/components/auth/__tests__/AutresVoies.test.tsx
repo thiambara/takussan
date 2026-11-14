@@ -32,7 +32,8 @@ beforeEach(() => {
   oauthRedirectMock.mockReset();
   assignMock.mockReset();
   window.sessionStorage.clear();
-  Object.defineProperty(window, 'location', { configurable: true, value: { assign: assignMock } });
+  // TCK-2777 — `href` aussi : le logo est une `next/image`, qui résout sa source contre l'adresse en développement.
+  Object.defineProperty(window, 'location', { configurable: true, value: { href: 'http://localhost:3000/auth/login', assign: assignMock } });
 });
 
 describe('AutresVoies', () => {

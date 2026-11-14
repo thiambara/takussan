@@ -2446,7 +2446,8 @@
           "retirable": "You can take the listing down at any time"
         },
         "mention": "By publishing, you accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>.",
-        "nomsAide": "They appear on your listing and in your messages."
+        "nomsAide": "They appear on your listing and in your messages.",
+        "googleEchec": "Signing in with Google didn’t go through. Your listing is intact: get a code on your number instead."
       },
       "enLigne": {
         "metaTitre": "Your listing is live",

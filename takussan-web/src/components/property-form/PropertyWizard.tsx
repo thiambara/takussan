@@ -50,6 +50,7 @@ import { useAuth } from '@/context/AuthContext';
 import { CoordonneesDeLAssistant } from '@/components/publication/CoordonneesDeLAssistant';
 import { FeuilleDePublication } from '@/components/publication/FeuilleDePublication';
 import { FeuilleSansCompte } from '@/components/publication/FeuilleSansCompte';
+import type { RepriseDePublication } from '@/lib/publication/reprise-oauth';
 import { manquesDeLaFeuille } from '@/components/publication/feuille-de-publication';
 import { CLE_BROUILLON_DE_PUBLICATION } from '@/lib/publication/brouillon-de-publication';
 import { ouvrirBrouillonLocal } from '@/lib/publication/brouillon-local';
@@ -267,6 +268,17 @@ export interface ModeAnonyme {
    * brouillon »), que le voile de la feuille couvrait et que le panneau de bureau laisse à côté.
    */
   readonly surVerrou?: (verrouille: boolean) => void;
+  /**
+   * TCK-2777 — l'aller-retour Google depuis la feuille de compte. `durable` : l'annonce est gardée en
+   * IndexedDB (gardée en mémoire, elle ne survivrait pas à la navigation : pas de « Continuer avec
+   * Google »). `reprise` : ce que l'URL de retour demande (`?reprise=`), lu une fois l'annonce reprise ;
+   * `surRepriseLue` : c'est fait, l'URL l'oublie (un rechargement ne rouvre rien).
+   */
+  readonly google?: {
+    readonly durable: boolean;
+    readonly reprise: RepriseDePublication | null;
+    readonly surRepriseLue: () => void;
+  };
 }
 
 interface PropsDeLAssistant {
@@ -625,7 +637,11 @@ export function AssistantDePublication({
     const donnees = brouillon.draft?.data;
     if (donnees && Object.keys(donnees).length > 0) {
       const etape = brouillon.draft?.step ?? 0;
-      if (etape > 0 && etape < CLES_PAR_ETAPE.length) {
+      if (anonyme?.google?.reprise) {
+        // TCK-2777 — revenue de chez Google : l'annonce était à la feuille de compte, donc à l'étape 6.
+        setDirection(1);
+        setIndex(CLES_PAR_ETAPE.length - 1);
+      } else if (etape > 0 && etape < CLES_PAR_ETAPE.length) {
         setDirection(1);
         setIndex(etape);
       }
@@ -660,6 +676,33 @@ export function AssistantDePublication({
     // aussi : un brouillon d'avant ADR-0062 porte le pays de la géo-IP.
     if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees), currency: 'XOF', country: 'SN' } as PropertyFormValues);
   }, [etatBrouillon, brouillon.draft, reset]);
+
+  /**
+   * TCK-2777 — le retour de Google, une fois l'annonce reprise de ce navigateur :
+   * - session ouverte (`reprise=compte`) → la feuille CONNECTÉE, qui ne demande que ce qui manque au
+   *   compte (numéro, prénom, nom, WhatsApp — un compte Google n'a pas de numéro). Rien n'est écrit :
+   *   l'annonce ne part qu'au geste « Publier mon annonce » ;
+   * - aller-retour annulé ou refusé (`reprise=echec`, sans session) → la feuille sans compte, au
+   *   numéro, qui le propose. Une reprise sans annonce à reprendre (effacée entre-temps) ne rouvre rien.
+   * Décidé PENDANT LE RENDU, comme la reprise du brouillon juste au-dessus.
+   */
+  const repriseGoogle = anonyme?.google?.reprise ?? null;
+  const [repriseFaite, setRepriseFaite] = useState(false);
+  const [alerteGoogle, setAlerteGoogle] = useState<string | null>(null);
+  if (repriseGoogle && !repriseFaite && etatBrouillon !== 'attente') {
+    setRepriseFaite(true);
+    if (etatBrouillon === 'restaure') {
+      const connecte = repriseGoogle === 'compte' && user !== null && user !== undefined;
+      if (repriseGoogle === 'echec' && !user) setAlerteGoogle(t('feuille.googleEchec'));
+      setFeuille((f) => ({ cle: f.cle + 1, ouverte: true, apresRefus: false, sansCompte: !connecte }));
+    }
+  }
+  const surRepriseLue = anonyme?.google?.surRepriseLue;
+  useEffect(() => {
+    if (repriseFaite) surRepriseLue?.();
+    // Une fois : `surRepriseLue` est neuve à chaque rendu de la page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repriseFaite]);
 
   /*
    * TCK-633 (ADR-0062 §4) — la géo-IP ne pose plus rien. Elle posait le pays de connexion, ce que
@@ -1127,6 +1170,16 @@ export function AssistantDePublication({
           onFermer={() => setFeuille((f) => ({ ...f, ouverte: false }))}
           rappel={<RappelDeLAnnonce form={form} photos={photos} pret={t('feuille.pret')} />}
           envoi={isSubmitting || preparation}
+          alerte={alerteGoogle}
+          avantLeDepartGoogle={
+            anonyme?.google?.durable
+              ? async () => {
+                  // TCK-2777 — l'annonce part de la page : son état d'à l'instant, écrit ICI, à l'étape 6.
+                  sauverBrouillon(index, form.getValues() as Partial<PropertyFormValues>);
+                  return (await viderFileBrouillon()).ok;
+                }
+              : undefined
+          }
           onEmail={() => {
             setFeuille((f) => ({ ...f, ouverte: false }));
             void handleSubmit();
