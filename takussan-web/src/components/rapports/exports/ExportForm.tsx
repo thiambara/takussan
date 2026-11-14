@@ -134,7 +134,7 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
       </Button>
       {telechargement.dernier === 'formulaire' && telechargement.coupe !== null ? (
         <p className="text-sm text-pretty text-foreground" role="status" data-testid="exports-truncated">
-          {t('truncated', { count: f.nombre(telechargement.coupe) })}
+          {t('truncated', { plafond: f.nombre(telechargement.coupe) })}
         </p>
       ) : null}
       {telechargement.dernier === 'formulaire' && telechargement.echec ? (

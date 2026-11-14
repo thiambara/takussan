@@ -146,7 +146,7 @@ function Issue({ id, telechargement }: { readonly id: string; readonly telecharg
   if (telechargement.coupe !== null) {
     return (
       <p className="mt-2 text-ui text-pretty text-foreground" role="status" data-testid="exports-truncated">
-        {tE('truncated', { count: f.nombre(telechargement.coupe) })}
+        {tE('truncated', { plafond: f.nombre(telechargement.coupe) })}
       </p>
     );
   }

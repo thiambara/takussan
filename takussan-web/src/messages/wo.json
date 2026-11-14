@@ -16771,7 +16771,7 @@
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
       "rowCap": "Un fichier compte au plus {max} lignes, {pdf} en PDF.",
-      "truncated": "Le fichier s'arrête à {count} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
+      "truncated": "Le fichier s'arrête à {plafond} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
       "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
       "noneAllowed": "Sa rol ci ajaans bii amul benn génné. Benn yorkat mën na la ko jox.",
