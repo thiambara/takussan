@@ -2437,7 +2437,8 @@
         "rechercheVerification": "Elle paraîtra dans les recherches dès sa validation.",
         "modifiable": "Vous pouvez la modifier ou la retirer à tout moment.",
         "voir": "Voir mon annonce",
-        "espace": "Aller à mon espace"
+        "espace": "Aller à mon espace",
+        "versLaFiche": "Ouvrir la fiche du bien"
       }
     },
     "titleTypes": {

@@ -9,9 +9,6 @@ import { withIntl } from '@/test/intl';
  * fiche (origine du site, langue), et ne cite le numéro de l'auteur que vérifié ET déclaré WhatsApp.
  */
 const lecture = vi.hoisted(() => ({ bien: vi.fn(), moi: vi.fn(), capacites: vi.fn() }));
-const nav = vi.hoisted(() => ({ redirect: vi.fn((chemin: string) => { throw new Error(`REDIRECT ${chemin}`); }) }));
-
-vi.mock('next/navigation', () => ({ redirect: nav.redirect }));
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 vi.mock('@/lib/detail/ressource-de-detail', () => ({ lireBienDuRendu: (...a: unknown[]) => lecture.bien(...a) }));
@@ -26,6 +23,9 @@ vi.mock('@/components/entree/libelles-de-la-coque', () => ({
 }));
 vi.mock('@/components/entree/CoqueDEntree', () => ({
   CoqueDEntree: ({ children }: { children: React.ReactNode }) => <div data-testid="coque">{children}</div>,
+}));
+vi.mock('@/components/publication/RenvoiVersLaFiche', () => ({
+  RenvoiVersLaFiche: ({ href }: { href: string }) => <a data-testid="renvoi" href={href}>fiche</a>,
 }));
 vi.mock('@/components/publication/AnnonceEnLigne', () => ({
   AnnonceEnLigne: (props: Record<string, unknown>) => <pre data-testid="ecran">{JSON.stringify(props)}</pre>,
@@ -81,7 +81,9 @@ describe('TCK-2602 — la page « en ligne »', () => {
 
   it('un bien d’agence `standard` : la fiche, pas l’écran', async () => {
     lecture.bien.mockResolvedValue({ ...BIEN, agency: { id: 9, kind: 'standard' } });
-    await expect(Page({ params: Promise.resolve({ id: '42' }) })).rejects.toThrow('REDIRECT /app/properties/42');
+    render(withIntl(await Page({ params: Promise.resolve({ id: '42' }) })));
+    expect(screen.getByTestId('renvoi').getAttribute('href')).toBe('/app/properties/42');
+    expect(screen.queryByTestId('ecran')).toBeNull();
   });
 
   it('en vérification : l’écran, dans cet état', async () => {

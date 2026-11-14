@@ -2480,7 +2480,8 @@
         "rechercheVerification": "It will appear in searches once approved.",
         "modifiable": "You can edit or withdraw it at any time.",
         "voir": "View my listing",
-        "espace": "Go to my space"
+        "espace": "Go to my space",
+        "versLaFiche": "Open the property page"
       }
     },
     "titleTypes": {

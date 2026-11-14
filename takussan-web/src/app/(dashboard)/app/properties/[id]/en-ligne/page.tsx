@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 
-import { redirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { CoqueDEntree } from '@/components/entree/CoqueDEntree';
 import { libellesDeLaCoque } from '@/components/entree/libelles-de-la-coque';
 import { AnnonceEnLigne, type AnnonceEnLigneDonnees } from '@/components/publication/AnnonceEnLigne';
+import { RenvoiVersLaFiche } from '@/components/publication/RenvoiVersLaFiche';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
 import { hrefLocalise } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
@@ -43,9 +43,9 @@ export const dynamic = 'force-dynamic';
  * « Aller à mon espace » à droite de la barre au bureau, comme la maquette `app-entree-publier` a-8.
  * `absolute inset-0` : la page sort du rembourrage de `<main>` (cf. `properties/new/page.tsx`).
  *
- * ⚠ Sous le `loading.tsx` du segment, la redirection vers la fiche rend 200 puis navigue (TCK-426) :
- * elle n'est pas une garde d'accès — l'API l'est, la lecture du layout a déjà rendu 404 ou refusé —,
- * seulement le chemin d'un bien que l'écran ne sert pas.
+ * ⚠ Un bien que l'écran ne sert pas mène à sa fiche par `RenvoiVersLaFiche`, côté client : sous le
+ * `loading.tsx` du segment, un `redirect()` de page répondrait 200 puis naviguerait, ce que la garde
+ * `etats-de-route` (TCK-426) refuse. Ce n'est pas une garde d'accès — l'API l'est.
  */
 export default async function Page({ params }: { readonly params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -55,7 +55,8 @@ export default async function Page({ params }: { readonly params: Promise<{ id: 
 
   const bien = await lireBienDuRendu(token, Number(id));
   const etat = etatDeLAnnonce(bien);
-  if (etat === null) redirect(`/app/properties/${bien.id}`);
+  // Pas de `redirect()` sous le `loading.tsx` du segment (TCK-426) : le renvoi se fait côté client.
+  if (etat === null) return <RenvoiVersLaFiche href={`/app/properties/${bien.id}`} />;
 
   const [utilisateur, capacites, locale, libelles, tType] = await Promise.all([
     getMeAction(),
