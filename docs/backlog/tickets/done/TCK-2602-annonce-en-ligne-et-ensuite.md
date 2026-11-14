@@ -1,13 +1,13 @@
 ---
 id: TCK-2602
 title: "« Votre annonce est en ligne » : partager, compléter, booster, au lieu d'un toast"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2601, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -79,3 +79,5 @@ Existant : le bien créé (`GET /api/properties/{id}` avec `fields[properties]=`
 - **WhatsApp** : « Les demandes arrivent sur WhatsApp au … » seulement si le numéro est vérifié ET déclaré WhatsApp ; le message partagé porte titre, prix formaté et URL publique (`utm_source=whatsapp`), encodé en un seul paramètre `text`.
 - **Pending_review** : « Voir mon annonce » mène à la fiche de l'espace (rien de public).
 - **Fidélité** : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2602.json`, relevée sur la persona `hote` (bien 312, lecture seule). Téléphone 15 · 14 · 1 · 14,33 % ; bureau 1280 9 · 21 · 3 · 20,05 % ; écarts restants : données du bien relevé, vouvoiement, jeton 32 du h1, encre opaque, trait des icônes, texte neutre du boost — chacun au tableau de la fiche. Balayage 390 → 1440 : débord 0, aucune coupe. 1440 relevé avant le dernier correctif seulement (ADR-0106 : 390 et 1280).
+
+- 2026-11-14 : clôturé — livré (2602 : 2bffff54c, ae010f5c4 ; 2777 : ebc494478), AC prouvés ; AC de fidélité tenus par la fiche (écarts acceptés).

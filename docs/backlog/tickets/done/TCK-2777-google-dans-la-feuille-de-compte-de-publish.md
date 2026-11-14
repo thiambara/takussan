@@ -1,13 +1,13 @@
 ---
 id: TCK-2777
 title: "« Continuer avec Google » dans la feuille de compte de /publish"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2601]
 blocks: []
 spec_refs:
@@ -126,3 +126,5 @@ qui n'a pas Google configuré.
 - Les contacts sur place ne survivent pas à l'aller-retour : ils ne sont jamais écrits au brouillon (ADR-0093 § 6).
 - Un compte qui a déjà tout ce que la publication exige retrouve une feuille connectée réduite à « Publier mon
   annonce ».
+
+- 2026-11-14 : clôturé — livré (2602 : 2bffff54c, ae010f5c4 ; 2777 : ebc494478), AC prouvés ; AC de fidélité tenus par la fiche (écarts acceptés).

@@ -4,7 +4,7 @@ title: "L'outil de fidélité borne la zone « barre latérale » à la colonne,
 status: todo
 phase: P3
 family: technique
-estimate: XS
+estimate: S
 wave: 90
 created: 2026-11-14
 updated: 2026-11-14

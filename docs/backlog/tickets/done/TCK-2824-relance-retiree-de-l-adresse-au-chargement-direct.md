@@ -4,7 +4,7 @@ title: "Chargée directement, l'adresse `?relance=` ne revient plus dans la barr
 status: done
 phase: P3
 family: front
-estimate: XS
+estimate: S
 wave: 90
 created: 2026-11-14
 updated: 2026-11-14
