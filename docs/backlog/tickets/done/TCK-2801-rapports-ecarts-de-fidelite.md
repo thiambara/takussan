@@ -8,7 +8,7 @@ estimate: M
 wave: 90
 created: 2026-11-14
 updated: 2026-11-14
-depends_on: [TCK-2628, TCK-2629]
+depends_on: [TCK-2628]
 blocks: []
 spec_refs:
   features:
@@ -17,6 +17,9 @@ spec_refs:
     - "docs/models-spec.md#65-thresholdalert-"
 tags: [front, rapports, fidelite, suite-de-tck-2628, suite-de-tck-2629, audit-ux, app]
 ---
+
+> TCK-2629 n'est pas une dépendance : ce ticket en est la suite (tag `suite-de-tck-2629`). TCK-2629 reste ouvert sur ses
+> seuls AC1 et AC5, qui se relèvent au navigateur après la remise à zéro de la démo (décision 15 du 2026-11-14).
 
 ## Objectif utilisateur
 
