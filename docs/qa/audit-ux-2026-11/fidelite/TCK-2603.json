@@ -125,12 +125,13 @@
     {
       "ecran": "a-0 (768, 1024)",
       "element": "largeurs intermédiaires",
-      "motif": "la carte est d'une seule colonne et pleine largeur à toute largeur : aucune disposition propre à 768 ou à 1024 (règle de cadence 7) ; l'écran lui-même relève de TCK-2600"
+      "motif": "la carte est d'une seule colonne et pleine largeur à toute largeur : aucune disposition propre à 768 ou à 1024 (règle de cadence 7) ; l'écran lui-même relève de TCK-2600 — relevé tout de même le 2026-11-14 (AC-F6, carte doublée au cache, arbre de travail de lot-4) : à 768, `scrollWidth − innerWidth` = 0, carte 704 px, pleine largeur de sa colonne ; à 1024, 0, carte 560 × 63,6, pleine largeur de sa colonne."
     }
   ],
   "notes": [
     "Montage : `depart.dessus` de `ModeAnonyme` (PropertyWizard), premier enfant du corps de l'étape « bien » ; marges `-mt-3 mb-6 lg:-mt-1 lg:mb-8` pour retrouver 16 / 24 au téléphone et 21,6 / 28,8 au bureau dans le `mt-7 space-y-7` de WizardShell (mesuré ci-dessus, au pixel).",
-    "Sans chiffre (sous le seuil, en échec, en attente), la carte n'est pas rendue et l'étape est celle de TCK-2600 au pixel : épinglé par PublierSansCompte.preuves.tck-2603.test.tsx et PreuvesDuDepart.tck-2603.test.tsx."
+    "Sans chiffre (sous le seuil, en échec, en attente), la carte n'est pas rendue et l'étape est celle de TCK-2600 au pixel : épinglé par PublierSansCompte.preuves.tck-2603.test.tsx et PreuvesDuDepart.tck-2603.test.tsx.",
+    "2026-11-14 — sans doublure, la vraie API de la pile de dev rend {city: 'Dakar', searches_7d: null} (journal de démo sous le seuil) et la carte n'est pas rendue : l'état « sans chiffre » est celui de TCK-2600."
   ],
   "ecarts_ouverts": []
 }
