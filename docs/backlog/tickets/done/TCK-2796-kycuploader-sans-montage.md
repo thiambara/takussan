@@ -1,13 +1,13 @@
 ---
 id: TCK-2796
 title: "Le téléverseur des anciens assistants (`KycUploader`) n'a plus de montage : le retirer avec ses gardes, sans perdre ce qu'elles tiennent"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2613]
 blocks: []
 spec_refs:

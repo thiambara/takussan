@@ -16,7 +16,7 @@ spec_refs:
   models: []
   tickets:
     - docs/backlog/tickets/done/TCK-2831-onglet-d-une-fiche-absente-dit-page-introuvable.md
-    - docs/backlog/tickets/todo/TCK-2740-la-404-de-app-sort-sans-html-serveur.md
+    - docs/backlog/tickets/done/TCK-2740-la-404-de-app-sort-sans-html-serveur.md
 tags: [front, introuvable, metadata, titre, owners, suivi-lot-3]
 ---
 

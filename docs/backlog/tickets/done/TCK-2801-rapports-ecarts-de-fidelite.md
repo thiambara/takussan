@@ -1,7 +1,7 @@
 ---
 id: TCK-2801
 title: "Rapports, écarts de fidélité : un pourcentage à une décimale, la tête de page, la pastille d'Impayés, « Menu » actif, et les rendus revenus à la maquette"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M

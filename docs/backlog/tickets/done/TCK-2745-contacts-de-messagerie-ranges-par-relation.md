@@ -1,13 +1,13 @@
 ---
 id: TCK-2745
 title: "Contacts de messagerie : la relation de chaque personne (client, équipe, propriétaire) et sa ligne de détail, pour ranger « Nouvelle conversation »"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
 wave: 87
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 depends_on: [TCK-2632]
 blocks: [TCK-2830]
 spec_refs:

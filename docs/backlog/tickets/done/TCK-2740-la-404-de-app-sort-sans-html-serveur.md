@@ -1,13 +1,13 @@
 ---
 id: TCK-2740
 title: "La 404 de /app sort sans HTML serveur : un document d'erreur de Next au corps vide, l'écran n'arrive qu'à l'hydratation"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: null
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -27,7 +27,7 @@ différence entre une page qui dit tout de suite « Page introuvable » et une p
 
 ## Contexte
 
-Relevé par terrain-5 pendant [TCK-2619](../done/TCK-2619-coque-sans-flottant-introuvable.md), dont l'AC5 exigeait le
+Relevé par terrain-5 pendant [TCK-2619](TCK-2619-coque-sans-flottant-introuvable.md), dont l'AC5 exigeait le
 `h1` « Page introuvable » et le champ « Aller à… » dans le HTML du serveur. L'AC5 a été amendé le 2026-11-11
 (option (a) de la session) : la page répond 404 et l'écran se rend dans la coque **après hydratation**. Ce ticket
 porte la moitié retirée.

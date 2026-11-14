@@ -15,7 +15,7 @@ spec_refs:
     - "docs/features.md#navigation-de-la-console-selon-le-profil-actif"
   models: []
   tickets:
-    - docs/backlog/tickets/todo/TCK-2740-la-404-de-app-sort-sans-html-serveur.md
+    - docs/backlog/tickets/done/TCK-2740-la-404-de-app-sort-sans-html-serveur.md
     - docs/backlog/tickets/done/TCK-2619-coque-sans-flottant-introuvable.md
 tags: [front, introuvable, metadata, titre, suivi-lot-2]
 ---
@@ -27,7 +27,7 @@ du début à la fin, et pas « Fiche bien » une fois la page chargée.
 
 ## Contexte
 
-Suite de [TCK-2740](../todo/TCK-2740-la-404-de-app-sort-sans-html-serveur.md), décision 1 (a) de la session.
+Suite de [TCK-2740](TCK-2740-la-404-de-app-sort-sans-html-serveur.md), décision 1 (a) de la session.
 TCK-2740 a ajouté `generateMetadata` à `(dashboard)/app/not-found.tsx`. Mesuré le 2026-11-14 (build et serveur de
 dev, persona agent) :
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-2825
 title: "« Comparer » sur une carte de favori, sous /app au téléphone, ne mène nulle part : la pastille du comparateur s'efface hors de la barre publique"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S

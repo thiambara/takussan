@@ -1,7 +1,7 @@
 ---
 id: TCK-2822
 title: "Maquette « Argent › Impayés » (a-1, a-2) retouchée aux décisions du porteur, puis références regelées"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
