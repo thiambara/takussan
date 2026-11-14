@@ -12,6 +12,7 @@ import { useConnexionParTelephone } from '@/components/auth/useConnexionParTelep
 import { DeclarerEntree } from '@/components/entree/CoqueDEntree';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ListeDesEspaces } from '@/components/publication/ListeDesEspaces';
+import { PreuvesDuDepart } from '@/components/publication/PreuvesDuDepart';
 import type { ContactSurPlace } from '@/components/contact/ContactsSurPlace';
 import { AssistantDePublication, type ModeAnonyme } from '@/components/property-form/PropertyWizard';
 import { useAuth } from '@/context/AuthContext';
@@ -83,6 +84,7 @@ export function PublierSansCompte({
   const large = useMatchesMedia('(width >= 80rem)');
   const router = useRouter();
   const brouillon = useBrouillonLocal<Partial<PropertyFormValues>>(brouillonLocal);
+  const villeDuBrouillon = brouillon.draft?.data?.city?.trim() || null;
   const equipements = useEquipementsApprouves();
   const entreeParTelephone = useConnexionParTelephone();
   const queryClient = useQueryClient();
@@ -224,6 +226,14 @@ export function PublierSansCompte({
     depart: {
       titre: t('depart.titre'),
       sousTitre: t('depart.sousTitre'),
+      // TCK-2603 — la carte de preuves, entre le sous-titre et la question du bien (maquette a-0 : `mt-4` au
+      // téléphone, `mt-6` au bureau, puis la question à `mt-6` / `mt-8`). Elle est le premier enfant du corps de
+      // l'étape (`mt-7 space-y-7` dans `WizardShell`). Au-dessus, sa marge négative fusionne avec le `mt-7` du corps
+      // (28 − 12 = 16 au téléphone, 25,2 − 3,6 = 21,6 au bureau) ; au-dessous, `space-y-*` de Tailwind 4 pose un
+      // `margin-block-end` sous `:where()`, que sa propre marge remplace (24, puis 28,8). Absente (pas de chiffre),
+      // l'étape ne change pas d'un pixel. La ville est celle d'un brouillon repris, s'il en porte une : au départ,
+      // elle ne se saisit qu'à l'étape suivante.
+      dessus: <PreuvesDuDepart ville={villeDuBrouillon} className="-mt-3 mb-6 lg:-mt-1 lg:mb-8" />,
       dessous: (
         <div className="space-y-2 border-t border-border pt-4 text-sm text-muted-foreground">
           <p>

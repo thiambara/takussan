@@ -122,3 +122,20 @@ agent : `PublierSansCompte.tsx` et ses tests ne sont pas touchés ici).
   chacune rouge puis restaurée au md5 : fenêtre (−7 jours), arrondi, seuil (`>`), dédoublonnage par ligne, anciens
   noms, `cities`, cache (durée 0 ; durée 2 h), 422, ville la plus recherchée, classement sous le seuil ; côté front : `retry`, garde du `null`,
   groupement, paramètre `city` ; politique : phrase retirée, version reculée.
+
+**2026-11-14 — étape 2 : le montage et la fidélité** (après TCK-2600, 791f7fa65).
+
+- **Montage** : `ModeAnonyme.depart.dessus` (PropertyWizard), rendu avant la question du bien ; `PublierSansCompte`
+  y pose `PreuvesDuDepart` avec la ville d'un brouillon repris (`brouillon.draft.data.city`), sinon aucune. Le corps
+  de l'étape est `mt-7 space-y-7` : `-mt-3 mb-6 lg:-mt-1 lg:mb-8` redonnent les écarts de la maquette (16 / 24 au
+  téléphone, 21,6 / 28,8 au bureau) — sous Tailwind 4, `space-y-*` pose un `margin-block-end` sous `:where()`.
+- **Fidélité** (fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2603.json`, téléphone et bureau 1280, règle de
+  cadence 7) : la carte est au pixel près en place et en taille au bureau (560 × 63,6, écarts 21,6 et 28,8), en place
+  au téléphone (écarts 16 et 24) ; quatre écarts acceptés, tous propres à la carte (second chiffre absent, hauteur au
+  téléphone qui en découle, encre opaque TCK-658, groupe U+00A0) ; le reste de l'écran relève de TCK-2600. Réponse
+  doublée au cache de React Query dans le navigateur (le journal de démo est sous le seuil), sans requête ni écriture.
+  768 et 1024 non relevés : la carte n'y change pas de disposition.
+- **Tests** : `PublierSansCompte.preuves.tck-2603.test.tsx` (4 : place entre le sous-titre et la question, rien sous le
+  seuil, AC3 API injoignable, ville d'un brouillon repris) ; ablations rouges : emplacement retiré, ordre inversé,
+  ville ignorée. `UNE_HEURE_MS` n'est plus importé de `referentiel-public` : les tests de TCK-2600 doublent ce module
+  sans cette constante, et l'import faisait tomber tout l'assistant.

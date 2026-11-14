@@ -1,7 +1,6 @@
 'use client';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import { UNE_HEURE_MS } from '@/lib/queries/referentiel-public';
 import { cheminApi } from '@/lib/chemin-api';
 
 /**
@@ -16,6 +15,9 @@ import { cheminApi } from '@/lib/chemin-api';
  *
  * ⚠ `useApiQuery` n'ajoute PAS `/api` : le chemin l'écrit (`takussan-web/CLAUDE.md`).
  */
+/** Le serveur garde le chiffre une heure : le relire plus tôt ne rendrait rien de neuf. */
+const UNE_HEURE_MS = 60 * 60 * 1000;
+
 export interface DemandeDePublication {
   readonly city: string;
   readonly searches_7d: number | null;

@@ -234,7 +234,11 @@ export interface ModeAnonyme {
     photos: readonly File[],
     contacts: readonly ContactSurPlace[],
   ) => void | Promise<void>;
-  readonly depart: { readonly titre: string; readonly sousTitre: string; readonly dessous: ReactNode };
+  /**
+   * Le départ : son titre, son sous-titre, ce qui précède la première question (`dessus`, la carte de preuves de
+   * TCK-2603) et ce qui la suit (`dessous`).
+   */
+  readonly depart: { readonly titre: string; readonly sousTitre: string; readonly dessus?: ReactNode; readonly dessous: ReactNode };
   readonly finition: ReactNode;
   /**
    * TCK-2600 — ce que le pied dit sous l'aperçu au bureau (le cadre d'entrée de `WizardShell`), selon
@@ -780,6 +784,7 @@ export function AssistantDePublication({
       subtitle: anonyme ? anonyme.depart.sousTitre : t('steps.bien.subtitle'),
       body: (
         <>
+          {anonyme?.depart.dessus ?? null}
           <StepBien form={form} />
           {anonyme ? anonyme.depart.dessous : null}
           {agenceDuChoixDuBailleur !== null ? (
