@@ -423,6 +423,10 @@ return [
         'reassign_after_completion' => 'The work is done: the job can no longer be reassigned.',
         'status_transition_invalid' => 'This maintenance status change is not allowed.',
         'terminal_request' => 'A closed or cancelled request can no longer be changed.',
+        // TCK-2786
+        'not_awaiting_owner' => 'This maintenance request is not awaiting the owner\'s decision: there is nothing to remind them of.',
+        'owner_reminder_too_soon' => 'The owner was reminded less than 24 hours ago. You can remind them again from :available_at.',
+        'owner_unavailable' => 'The owner of this property has left, is suspended or cannot be reached: they cannot be reminded.',
     ],
     'media' => [
         'evidence_locked' => 'This file is evidence: it cannot be deleted.',

@@ -175,6 +175,30 @@ class MaintenanceRequestPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2786 — « Relancer le bailleur » : le PERSONNEL actif de l'agence du bien qui gère les
+     * interventions (`maintenance.assign`, la capacité du dispatch de la fiche). Jamais le
+     * prestataire, le locataire ni le bailleur lui-même — d'où `isTeamPrincipalFor`, et non
+     * `actAsPrincipal` ou `isPrincipalFor`, que le bailleur du bien passe. Le statut, la cadence et
+     * le bailleur joignable se jugent sous le verrou (`OwnerReminder`, 409) : un intrus reçoit 403
+     * avant d'apprendre quoi que ce soit de la demande. Le super-admin passe par `Gate::before`.
+     */
+    public function remindOwner(User $user, MaintenanceRequest $request): bool
+    {
+        return self::isTeamPrincipalFor($user, $request->property)
+            && $user->canActAt(Capability::MaintenanceAssign, $request->property->agency);
+    }
+
+    /**
+     * TCK-2786 — lire le journal de la demande : le personnel actif de l'agence du bien, et le
+     * super-admin (`Gate::before`). Ni le bailleur, ni le locataire, ni le prestataire dans ce
+     * ticket (TCK-2654 dira ce qu'ils en verraient).
+     */
+    public function viewJournal(User $user, MaintenanceRequest $request): bool
+    {
+        return self::isTeamPrincipalFor($user, $request->property);
+    }
+
+    /**
      * TCK-445 — les champs du DONNEUR D'ORDRE : `assigned_to` et `priority`.
      *
      * `update()` accorde à qui fait AVANCER l'intervention, prestataire assigné compris ; cette

@@ -167,6 +167,8 @@ final class NotificationClassification
         // Au bailleur : le devis attend son accord.
         'maintenance_quote.awaiting_owner' => [self::D, true],
         'maintenance.schedule_changed' => [self::D, false],
+        // TCK-2786 — au bailleur : la relance de l'agence, le devis attend toujours son accord.
+        'maintenance.owner_reminder' => [self::D, true],
 
         // ─── Biens ────────────────────────────────────────────────────────────────────────
         'prospect_match.digest' => [self::B, false],

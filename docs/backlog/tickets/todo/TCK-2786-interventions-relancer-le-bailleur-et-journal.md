@@ -76,40 +76,47 @@ viennent du front (principe 5) : l'API émet des codes d'événement.
 
 ## Delta à produire
 
-- [ ] Écouteur `RecordMaintenanceJournal` sur `MaintenanceStatusChanged` : une entrée `activity()` par transition
+- [x] Écouteur `RecordMaintenanceJournal` sur `MaintenanceStatusChanged` : une entrée `activity()` par transition
   (`log_name = maintenance`, `event = status.<cause>`, propriétés `from` et `to`), dans la même transaction que la
   transition ou après son commit.
-- [ ] Les événements du devis déjà écrits par `MaintenanceQuoteWorkflow` sont relus sous le même `log_name`, sans
+- [x] Les événements du devis déjà écrits par `MaintenanceQuoteWorkflow` sont relus sous le même `log_name`, sans
   doublon avec les transitions.
-- [ ] Route `GET /api/maintenance-requests/{maintenanceRequest}/journal` → `MaintenanceJournalController@index`,
+- [x] Route `GET /api/maintenance-requests/{maintenanceRequest}/journal` → `MaintenanceJournalController@index`,
   policy `viewJournal`, ressource `MaintenanceJournalEntryResource` (`at`, `code`, `actor`), triée par date et
   paginée.
-- [ ] Route `POST /api/maintenance-requests/{maintenanceRequest}/owner-reminders` → `MaintenanceOwnerReminderController@store`,
+- [x] Route `POST /api/maintenance-requests/{maintenanceRequest}/owner-reminders` → `MaintenanceOwnerReminderController@store`,
   policy `remindOwner`. Code `NotificationCode::MaintenanceOwnerReminder` (`maintenance.owner_reminder`). Colonne
   `owner_reminded_at` (migration `add_owner_reminded_at_to_maintenance_requests`, `down()` qui la retire). Entrée de
   journal `owner_reminded`.
-- [ ] `MaintenanceRequestResource` : `owner_reminded_at`, et `abilities.can_remind_owner`.
-- [ ] Front : le geste « Relancer le bailleur » sur la carte « Chez le bailleur » et sur la fiche, et le journal de
+- [x] `MaintenanceRequestResource` : `owner_reminded_at`, et `abilities.can_remind_owner`.
+- [x] Front : le geste « Relancer le bailleur » sur la carte « Chez le bailleur » et sur la fiche, et le journal de
   la fiche.
-- [ ] Tests `RelancerLeBailleurTest` (droits, statut, 24 h, bailleur parti, notification, entrée de journal) et
+- [x] Tests `RelancerLeBailleurTest` (droits, statut, 24 h, bailleur parti, notification, entrée de journal) et
   `JournalDeLInterventionTest` (lecteurs admis et refusés, une entrée par transition, acteur réduit, aucune donnée
   hors fiche).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — En `awaiting_owner`, `POST …/owner-reminders` par un agent de l'agence rend 201. Le bailleur reçoit une
+- [x] AC1 — En `awaiting_owner`, `POST …/owner-reminders` par un agent de l'agence rend 201. Le bailleur reçoit une
   notification `maintenance.owner_reminder` dont la cible mène à la décision du devis, et `owner_reminded_at` est
   posé.
-- [ ] AC2 — Une seconde relance dans les 24 h rend 409 `maintenance.owner_reminder_too_soon` avec la date permise.
+  _Preuve : `RelancerLeBailleurTest::test_ac1_…` (201, avis `maintenance.owner_reminder` cible `maintenance`/id, `owner_reminded_at` posé, entrée `owner_reminded`)._
+- [x] AC2 — Une seconde relance dans les 24 h rend 409 `maintenance.owner_reminder_too_soon` avec la date permise.
   Après 24 h, elle rend 201.
-- [ ] AC3 — Le prestataire, le locataire et le bailleur reçoivent 403. Hors `awaiting_owner`, la réponse est 409.
-- [ ] AC4 — Une demande menée de `open` jusqu'à `closed`, en passant par `awaiting_owner`, donne un journal dont chaque transition a une entrée,
+  _Preuve : `test_ac2_une_relance_par_24_heures_avec_la_date_permise` (409 + `params.available_at` à 23 h, 201 à 24 h 01)._
+- [x] AC3 — Le prestataire, le locataire et le bailleur reçoivent 403. Hors `awaiting_owner`, la réponse est 409.
+  _Preuve : `test_ac3_ni_le_prestataire_ni_le_locataire_ni_le_bailleur`, `test_le_bailleur_aussi_agent_de_l_agence_ne_se_relance_pas`, `test_le_personnel_d_une_autre_agence_ou_sans_maintenance_assign_recoit_403`, `test_ac3_hors_awaiting_owner_409`._
+- [x] AC4 — Une demande menée de `open` jusqu'à `closed`, en passant par `awaiting_owner`, donne un journal dont chaque transition a une entrée,
   dans l'ordre, avec son acteur ; la relance y figure.
-- [ ] AC5 — Le journal rend 403 au bailleur, au locataire et au prestataire, et 200 au personnel de l'agence.
-- [ ] AC6 — Front : la carte « Chez le bailleur » montre « Relancer le bailleur ». Après la relance, elle affiche
+  _Preuve : `JournalDeLInterventionTest::test_ac4_…` — onze entrées de `created` à `status.confirmed`, la relance entre `status.quote_awaiting_owner` et `status.quote_approved`, chacune avec son acteur._
+- [x] AC5 — Le journal rend 403 au bailleur, au locataire et au prestataire, et 200 au personnel de l'agence.
+  _Preuve : `test_ac5_lecteurs_admis_et_refuses` (403 bailleur, locataire, prestataire, autre agence ; 200 agent et super-admin)._
+- [x] AC6 — Front : la carte « Chez le bailleur » montre « Relancer le bailleur ». Après la relance, elle affiche
   « Relancé il y a … » et le geste est inactif. La fiche montre le journal.
-- [ ] AC7 — Vérifié par ablation. Un écouteur retiré rend AC4 rouge. Une garde de 24 h retirée rend AC2 rouge. Une
+  _Preuve : `takussan-web/src/components/maintenance/files/__tests__/relancer-le-bailleur.tck-2786.test.tsx` (carte : geste en un clic, « Relancé il y a 2 h » inactif, de nouveau possible à 24 h ; fiche : geste principal, journal). Relevé de fidélité à 390/1280 non fait (base de démo sans demande `awaiting_owner` relançable sans écriture)._
+- [x] AC7 — Vérifié par ablation. Un écouteur retiré rend AC4 rouge. Une garde de 24 h retirée rend AC2 rouge. Une
   policy de journal ouverte au bailleur rend AC5 rouge.
+  _Preuve : ablations, une à la fois, md5 restauré — écouteur → AC4 rouge ; garde de 24 h → AC2 rouge ; `viewJournal` ouvert au bailleur → AC5 rouge ; plus `remindOwner` en `isPrincipalFor`, sans capacité, sans agence, sans statut, sans garde du bailleur parti, `properties` exposées : tous rouges._
 
 ## Hors périmètre
 
@@ -120,4 +127,19 @@ viennent du front (principe 5) : l'API émet des codes d'événement.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Un seul écrivain par fait** (décision 1a, validée par team-lead le 2026-11-14) : le journal ne relit que le log
+  `maintenance`, écrit par `RecordMaintenanceJournal` (une entrée par `MaintenanceStatusChanged`, devis compris),
+  par `MaintenanceRequestController::store` (`created`) et par `OwnerReminder` (`owner_reminded`,
+  `owner_unavailable`). Les `activity()` du devis, du refus et de la contestation restent dans le log `default`.
+- **Avant le journal** : une demande sans entrée `created` s'ouvre, en première page, sur `journal.before` (jamais
+  écrite) ; `meta.starts_with_request` le dit aussi.
+- **Bailleur parti, suspendu ou injoignable** : 409 `maintenance.owner_unavailable`, et une entrée
+  `owner_unavailable` — une seule par suite de refus.
+- **Carte** (décision 2a, validée par team-lead le 2026-11-14) : « Relancer le bailleur » agit depuis la carte ; au bureau, la carte de colonne ne
+  porte que lui (maquette TCK-2653). `abilities.can_view_journal` ajouté pour que la fiche sache si elle lit le
+  journal.
+- **Le geste, trois exigences de team-lead (2026-11-14)** : la relance réussie se voit (le geste dit « Relance
+  envoyée », inactif) et s'annonce (région `role="status"` présente dès le rendu) ; le refus de cadence dit le délai
+  restant tiré d'`available_at` (« dans 22 h, le … à … », arrondi au-dessus : `dureeJusqua`) ; un seul envoi par
+  geste (bouton inactif pendant l'envoi, plus un verrou synchrone pour le second clic du même tour). Testé, et
+  chaque point rougit à son ablation (verrou, `disabled`, état envoyé, délai, région née pleine).

@@ -139,6 +139,10 @@ export interface MaintenanceAbilities {
   readonly can_upload_before_photos: boolean;
   readonly can_confirm_resolution: boolean;
   readonly can_contest_resolution: boolean;
+  /** TCK-2786 — « Relancer le bailleur » : le personnel de l'agence, en `awaiting_owner`, une fois par 24 h. */
+  readonly can_remind_owner?: boolean;
+  /** TCK-2786 — le journal de la demande : le personnel de l'agence du bien et le super-admin. */
+  readonly can_view_journal?: boolean;
   /** Les seules cibles de `PUT …/status` que cet utilisateur peut demander. */
   readonly transitions: readonly MaintenanceStatus[];
 }
@@ -208,6 +212,8 @@ export interface MaintenanceRequest {
   readonly quote_valid_until?: string | null;
   readonly quote_estimated_duration_days?: number | null;
   readonly accepted_at?: string | null;
+  /** TCK-2786 — la dernière relance du bailleur, au donneur d'ordre seul (clé absente sinon). */
+  readonly owner_reminded_at?: string | null;
   readonly access_instructions?: string | null;
   readonly scheduled_at: string | null;
   readonly started_at: string | null;

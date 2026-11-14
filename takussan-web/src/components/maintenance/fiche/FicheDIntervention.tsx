@@ -17,6 +17,7 @@ import { MaintenanceStatusBadge } from '@/components/maintenance/MaintenanceStat
 import { QuoteActions } from '@/components/maintenance/QuoteActions';
 import { QuoteCard } from '@/components/maintenance/QuoteCard';
 import { PastilleDePriorite, useTexteDAttente } from '@/components/maintenance/files/CartesDIntervention';
+import { RelancerLeBailleur } from '@/components/maintenance/files/RelancerLeBailleur';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { BarreDAction } from '@/components/ui/barre-d-action';
@@ -32,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { AutreActionListe, AutreActionMenu, EchecDAutreAction, FeuillesDAutreAction, useAutreAction, useEcrituresDAutreAction } from './AutreAction';
 import { ChoixDuPrestataire, useChoixDuPrestataire } from './ChoixDuPrestataire';
 import { FriseDesFiles } from './FriseDesFiles';
+import { JournalDeLaDemande } from './JournalDeLaDemande';
 
 /**
  * TCK-2653 — la fiche d'une intervention pour l'agence (maquette `app-interventions`, approche a,
@@ -166,11 +168,14 @@ function Corps({ request }: { readonly request: InterventionEnFile }) {
           ) : (
             <PanneauDuGeste request={request} geste={principal} maintenant={maintenant} onReassigner={() => setReassigner(true)} />
           )}
+          {/* TCK-2786 — le journal, colonne droite au bureau ; sous la frise avant `xl`. */}
+          <JournalDeLaDemande request={request} maintenant={maintenant} className="mt-5 max-xl:hidden" />
         </aside>
 
         <div className="min-w-0 space-y-5 xl:col-start-1">
           <Details request={request} />
           <FriseDesFiles request={request} />
+          <JournalDeLaDemande request={request} maintenant={maintenant} className="xl:hidden" />
           <div id="devis" className="scroll-mt-20 space-y-5">
             <QuoteCard request={request} />
             {principal === 'devis' ? null : <QuoteActions request={request} sansDemande />}
@@ -311,9 +316,13 @@ function PanneauDuGeste({ request, geste, maintenant, onReassigner }: { readonly
           <p>{request.quote_amount !== null && request.quote_amount !== undefined ? t('bailleur.texte', { montant: f.montantCourt(request.quote_amount, request.quote_currency) }) : t('bailleur.texteSansMontant')}</p>
           {attente ? <p className={cn(attente.ton === 'ambre' && 'font-semibold text-warning')}>{texteDAttente(attente)}</p> : null}
         </>,
-        <a href="#devis" className={cn(buttonVariants({ variant: 'outline' }), 'h-11 flex-1')}>
-          {t('voirDevis')}
-        </a>,
+        <>
+          {/* TCK-2786 — le geste principal de la file : relancer le bailleur par Takussan. */}
+          <RelancerLeBailleur request={request} maintenant={maintenant} taille="fiche" peut={request.abilities?.can_remind_owner === true} />
+          <a href="#devis" className={cn(buttonVariants({ variant: 'outline' }), 'h-11 flex-1')}>
+            {t('voirDevis')}
+          </a>
+        </>,
       );
     case 'confirmer':
       return cadre(t('confirmer.titre'), <>{attente ? <p>{texteDAttente(attente)}</p> : null}<p>{t('confirmer.texte')}</p></>);

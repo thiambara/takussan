@@ -824,6 +824,12 @@ return [
                 'body' => 'Le passage pour l\'intervention « :request » est prévu le :scheduled_at.',
                 'sms' => 'Takussan : passage prévu le :scheduled_at pour « :request ».',
             ],
+            // TCK-2786 — l'agence relance le bailleur : le devis attend toujours sa décision.
+            'owner_reminder' => [
+                'title' => 'Rappel : votre accord est requis pour « :request »',
+                'body' => 'Votre agence vous rappelle qu\'un devis de :amount pour « :request » attend votre décision. Approuvez-le ou refusez-le.',
+                'sms' => 'Takussan : rappel, votre accord est requis pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [

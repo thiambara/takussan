@@ -10,6 +10,8 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { attenteDe, gestesDeLaCarte, type Attente, type Duree, type GesteDeCarte, type InterventionEnFile } from '@/lib/maintenance/files';
 import { cn } from '@/lib/utils';
 
+import { RelancerLeBailleur } from './RelancerLeBailleur';
+
 /**
  * TCK-2653 — les pièces des files d'interventions de l'agence (maquette `app-interventions`,
  * approche a, « Agence — files ») : l'attente écrite sur chaque carte, la carte pleine du téléphone,
@@ -98,14 +100,20 @@ function useLibelleDeGeste() {
   return (g: GesteDeCarte) => t(g);
 }
 
-/** Les gestes d'une carte, chacun vers la fiche ouverte sur lui. Le premier est primaire à dispatcher. */
-function Gestes({ i, taille }: { readonly i: InterventionEnFile; readonly taille: 'telephone' | 'colonne' }) {
+/**
+ * Les gestes d'une carte, chacun vers la fiche ouverte sur lui. Le premier est primaire à dispatcher.
+ * TCK-2786 — « Relancer le bailleur » agit depuis la carte, sans passer par la fiche ; au bureau, la
+ * carte de colonne ne porte que lui (maquette), « Voir le devis » étant toute la carte.
+ */
+function Gestes({ i, taille, maintenant }: { readonly i: InterventionEnFile; readonly taille: 'telephone' | 'colonne'; readonly maintenant: Date }) {
   const libelle = useLibelleDeGeste();
-  const gestes = gestesDeLaCarte(i);
+  const gestes = gestesDeLaCarte(i).filter((g) => taille === 'telephone' || i.file !== 'chez_le_bailleur' || g === 'relancerBailleur');
   if (gestes.length === 0) return null;
   return (
-    <div data-slot="gestes" className={cn('relative z-10 flex', taille === 'telephone' ? 'mt-3 gap-2' : 'mt-2 gap-1.5')}>
-      {gestes.map((g) => (
+    <div data-slot="gestes" className={cn('relative z-10 flex flex-wrap', taille === 'telephone' ? 'mt-3 gap-2' : 'mt-2 gap-1.5')}>
+      {gestes.map((g) => g === 'relancerBailleur' ? (
+        <RelancerLeBailleur key={g} request={i} maintenant={maintenant} taille={taille} />
+      ) : (
         <Link
           key={g}
           href={lienDeLaFiche(i.id, g)}
@@ -157,7 +165,7 @@ export function CarteDeFile({ i, maintenant }: { readonly i: InterventionEnFile;
           <LigneDAttente attente={attente} />
         </p>
       ) : null}
-      <Gestes i={i} taille="telephone" />
+      <Gestes i={i} taille="telephone" maintenant={maintenant} />
     </article>
   );
 }
@@ -222,7 +230,7 @@ export function CarteDeColonne({ i, maintenant }: { readonly i: InterventionEnFi
           <LigneDAttente attente={attente} className="text-xs" />
         </p>
       ) : null}
-      <Gestes i={i} taille="colonne" />
+      <Gestes i={i} taille="colonne" maintenant={maintenant} />
     </article>
   );
 }

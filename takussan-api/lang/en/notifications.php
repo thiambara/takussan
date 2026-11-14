@@ -824,6 +824,12 @@ return [
                 'body' => 'The visit for the maintenance request ":request" is planned on :scheduled_at.',
                 'sms' => 'Takussan: visit planned on :scheduled_at for ":request".',
             ],
+            // TCK-2786 — l'agence relance le bailleur : le devis attend toujours sa décision.
+            'owner_reminder' => [
+                'title' => 'Reminder: your approval is required for ":request"',
+                'body' => 'Your agency reminds you that a quote of :amount for ":request" is awaiting your decision. Approve or reject it.',
+                'sms' => 'Takussan: reminder, your approval is required for ":request".',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [

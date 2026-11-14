@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\MaintenanceJournalController;
+use App\Http\Controllers\Api\MaintenanceOwnerReminderController;
 use App\Http\Controllers\Api\MaintenanceQuoteController;
 use App\Http\Controllers\Api\MaintenanceRequestController;
 use App\Http\Controllers\Api\SuggestedProvidersController;
@@ -41,6 +43,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('maintenance-requests/{maintenanceRequest}/quote/reject', [MaintenanceQuoteController::class, 'rejectQuote'])->name('maintenance-requests.quote.reject');
     Route::get('maintenance-requests/{maintenanceRequest}/quote/pdf', [MaintenanceQuoteController::class, 'pdf'])->name('maintenance-requests.quote.pdf');
     Route::post('maintenance-requests/{maintenanceRequest}/start', [MaintenanceQuoteController::class, 'start'])->name('maintenance-requests.start');
+
+    // TCK-2786 — « Relancer le bailleur » (une par 24 h, en `awaiting_owner`) et le journal de la demande.
+    Route::post('maintenance-requests/{maintenanceRequest}/owner-reminders', [MaintenanceOwnerReminderController::class, 'store'])->name('maintenance-requests.owner-reminders.store');
+    Route::get('maintenance-requests/{maintenanceRequest}/journal', [MaintenanceJournalController::class, 'index'])->name('maintenance-requests.journal');
 
     // History per property
     Route::get('properties/{property}/maintenance-requests', [MaintenanceRequestController::class, 'indexForProperty'])->name('properties.maintenance-requests.index');

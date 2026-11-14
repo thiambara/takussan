@@ -10,6 +10,7 @@ use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
+use App\Services\Maintenance\OwnerReminder;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Http\Request;
@@ -66,6 +67,8 @@ class MaintenanceRequestResource extends BaseResource
             'completed_at' => $this->iso($this->completed_at),
             'resolution_notes' => $this->resolution_notes,
             'accepted_at' => $this->iso($this->accepted_at),
+            // TCK-2786 — la dernière relance du bailleur (« Relancé il y a … ») ; au donneur d'ordre seul.
+            'owner_reminded_at' => $this->iso($this->owner_reminded_at),
             'access_instructions' => $this->access_instructions,
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
             'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user())),
@@ -93,7 +96,7 @@ class MaintenanceRequestResource extends BaseResource
         // Les consignes d'accès s'écrivent par le donneur d'ordre et se lisent, par le prestataire,
         // dans le bloc `access` — jamais par le demandeur.
         if (! $isPrincipal) {
-            unset($data['access_instructions']);
+            unset($data['access_instructions'], $data['owner_reminded_at']);
         }
 
         if ($user !== null && $this->isDetailRequest($request)) {
@@ -247,6 +250,10 @@ class MaintenanceRequestResource extends BaseResource
             'can_upload_before_photos' => ! $terminal && $isProvider && $mr->accepted_at !== null,
             'can_confirm_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::Closed]),
             'can_contest_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::InProgress]),
+            // TCK-2786 — « Relancer le bailleur » : l'acteur (`remindOwner`), puis le statut, la cadence
+            // et le bailleur joignable, que `OwnerReminder::remind()` rejuge sous le verrou.
+            'can_remind_owner' => $user->can('remindOwner', $mr) && app(OwnerReminder::class)->possible($mr),
+            'can_view_journal' => $user->can('viewJournal', $mr),
             'transitions' => $transitions,
         ];
     }

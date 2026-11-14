@@ -6438,7 +6438,8 @@
         "choisir": "Choose a provider",
         "relancer": "Follow up",
         "reassigner": "Reassign",
-        "voirDevis": "View the quote"
+        "voirDevis": "View the quote",
+        "relancerBailleur": "Remind the owner"
       },
       "carte": {
         "confieeA": "Assigned to {nom}",
@@ -6770,6 +6771,44 @@
         "a_confirmer": "To confirm",
         "terminee": "Done",
         "sansObjet": "not applicable: no quote"
+      }
+    },
+    "relanceDuBailleur": {
+      "relancer": "Remind the owner",
+      "relance": "Reminded {duree} ago",
+      "tropTot": "The owner has already been reminded. You can remind them again in {delai}, on {date} at {heure}.",
+      "envoyee": "Reminder sent",
+      "injoignable": "The owner has left, is suspended or cannot be reached: they cannot be reminded.",
+      "echec": "The reminder could not be sent. Please try again."
+    },
+    "journal": {
+      "titre": "Log",
+      "chargement": "Loading the log…",
+      "echec": "The log could not be loaded.",
+      "vide": "Nothing has been recorded yet.",
+      "par": "By {nom}",
+      "systeme": "By Takussan, automatically",
+      "avantLeJournal": "Earlier steps were not recorded.",
+      "codes": {
+        "created": "Reported",
+        "status_assigned": "Assigned to a provider",
+        "status_unassigned": "Taken back from the provider",
+        "status_accepted": "Accepted by the provider",
+        "status_declined": "Declined by the provider",
+        "status_quote_requested": "Quote requested",
+        "status_quote_submitted": "Quote received",
+        "status_quote_awaiting_owner": "Sent to the owner",
+        "status_quote_approved": "Quote approved",
+        "status_quote_rejected": "Quote rejected",
+        "status_completed": "Work completed",
+        "status_confirmed": "Repair confirmed",
+        "status_contested": "Repair disputed",
+        "status_auto_closed": "Closed automatically",
+        "status_transition": "Status: {statut}",
+        "owner_reminded": "Owner reminded",
+        "owner_unavailable": "Reminder impossible: owner left, suspended or unreachable",
+        "journal_before": "Before the log",
+        "autre": "Step"
       }
     }
   },
@@ -18926,6 +18965,10 @@
         "urgent_escalated": {
           "title": "Urgent escalation: {title}",
           "body": "The urgent maintenance request “{title}” still hasn’t been handled."
+        },
+        "owner_reminder": {
+          "title": "Reminder: your approval is required for \"{request}\"",
+          "body": "Your agency reminds you that a quote of {amount} for \"{request}\" is awaiting your decision. Approve or reject it."
         }
       },
       "maintenance_quote": {

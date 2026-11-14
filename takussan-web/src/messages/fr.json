@@ -6395,7 +6395,8 @@
         "choisir": "Choisir un prestataire",
         "relancer": "Relancer",
         "reassigner": "Réassigner",
-        "voirDevis": "Voir le devis"
+        "voirDevis": "Voir le devis",
+        "relancerBailleur": "Relancer le bailleur"
       },
       "carte": {
         "confieeA": "Confiée à {nom}",
@@ -6727,6 +6728,44 @@
         "a_confirmer": "À confirmer",
         "terminee": "Terminée",
         "sansObjet": "sans objet : aucun devis"
+      }
+    },
+    "relanceDuBailleur": {
+      "relancer": "Relancer le bailleur",
+      "relance": "Relancé il y a {duree}",
+      "tropTot": "Le bailleur a déjà été relancé. Vous pourrez le relancer dans {delai}, le {date} à {heure}.",
+      "envoyee": "Relance envoyée",
+      "injoignable": "Le bailleur est parti, suspendu ou injoignable : il ne peut pas être relancé.",
+      "echec": "La relance n’a pas pu partir. Réessayez."
+    },
+    "journal": {
+      "titre": "Journal",
+      "chargement": "Chargement du journal…",
+      "echec": "Le journal n’a pas pu être chargé.",
+      "vide": "Rien n’est encore consigné.",
+      "par": "Par {nom}",
+      "systeme": "Par Takussan, automatiquement",
+      "avantLeJournal": "Les étapes antérieures ne sont pas consignées.",
+      "codes": {
+        "created": "Signalée",
+        "status_assigned": "Confiée à un prestataire",
+        "status_unassigned": "Retirée au prestataire",
+        "status_accepted": "Acceptée par le prestataire",
+        "status_declined": "Refusée par le prestataire",
+        "status_quote_requested": "Devis demandé",
+        "status_quote_submitted": "Devis reçu",
+        "status_quote_awaiting_owner": "Envoyée au bailleur",
+        "status_quote_approved": "Devis approuvé",
+        "status_quote_rejected": "Devis refusé",
+        "status_completed": "Travaux terminés",
+        "status_confirmed": "Réparation confirmée",
+        "status_contested": "Réparation contestée",
+        "status_auto_closed": "Clôturée automatiquement",
+        "status_transition": "Statut : {statut}",
+        "owner_reminded": "Bailleur relancé",
+        "owner_unavailable": "Relance impossible : bailleur parti, suspendu ou injoignable",
+        "journal_before": "Avant le journal",
+        "autre": "Étape"
       }
     }
   },
@@ -18926,6 +18965,10 @@
         "urgent_escalated": {
           "title": "Escalade urgente : {title}",
           "body": "L’intervention urgente « {title} » n’a toujours pas été prise en charge."
+        },
+        "owner_reminder": {
+          "title": "Rappel : votre accord est requis pour « {request} »",
+          "body": "Votre agence vous rappelle qu’un devis de {amount} pour « {request} » attend votre décision. Approuvez-le ou refusez-le."
         }
       },
       "maintenance_quote": {

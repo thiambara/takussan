@@ -423,6 +423,10 @@ return [
         'reassign_after_completion' => 'Liggéey bi jeex na : liggéey bi kenn du ko jotaat.',
         'status_transition_invalid' => 'Soppi statut intervention bii nangouñu ko.',
         'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal, kenn mënatu koo soppi.',
+        // TCK-2786
+        'not_awaiting_owner' => 'Cette intervention n\'attend pas la décision du bailleur : il n\'y a rien à lui rappeler.',
+        'owner_reminder_too_soon' => 'Le bailleur a été relancé il y a moins de 24 heures. Vous pourrez le relancer à partir de :available_at.',
+        'owner_unavailable' => 'Le bailleur de ce bien est parti, suspendu ou injoignable : il ne peut pas être relancé.',
     ],
     'media' => [
         'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',

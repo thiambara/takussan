@@ -119,8 +119,8 @@ describe('gestesDeLaCarte — un geste par file', () => {
   it('en retard : relancer et réassigner', () => {
     expect(gestesDeLaCarte({ file: 'en_retard', status: 'assigned' })).toEqual(['relancer', 'reassigner']);
   });
-  it('chez le bailleur, ou un devis qui attend l’agence : voir le devis', () => {
-    expect(gestesDeLaCarte({ file: 'chez_le_bailleur', status: 'awaiting_owner' })).toEqual(['voirDevis']);
+  it('chez le bailleur : relancer le bailleur (TCK-2786) et voir le devis ; un devis qui attend l’agence : voir le devis', () => {
+    expect(gestesDeLaCarte({ file: 'chez_le_bailleur', status: 'awaiting_owner' })).toEqual(['relancerBailleur', 'voirDevis']);
     expect(gestesDeLaCarte({ file: 'en_cours', status: 'quote_submitted' })).toEqual(['voirDevis']);
   });
   it('en cours ailleurs, à confirmer et terminées : aucun', () => {

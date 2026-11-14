@@ -96,6 +96,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'accepted_at' => 'datetime',
         // TCK-2652 — l'entrée dans la file courante, posée par {@see self::booted()}.
         'queue_entered_at' => 'datetime',
+        // TCK-2786 — la dernière relance du bailleur, posée par `OwnerReminder` seul (hors `$fillable`).
+        'owner_reminded_at' => 'datetime',
         'quote_lines' => 'array',
         'quote_valid_until' => 'date',
         'quote_estimated_duration_days' => 'integer',
@@ -121,6 +123,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'scheduled_at', 'completed_at', 'accepted_at', 'quote_valid_until',
         // TCK-2652 — la source de `waiting_since`.
         'queue_entered_at',
+        // TCK-2786 — « Relancé il y a … » sur la carte « Chez le bailleur ».
+        'owner_reminded_at',
         'created_at', 'updated_at',
     ];
 

@@ -59,6 +59,8 @@ export const CHAMPS_D_UNE_CARTE = [
   'scheduled_at',
   'completed_at',
   'queue_entered_at',
+  // TCK-2786 — « Relancé il y a … » sur la carte « Chez le bailleur ».
+  'owner_reminded_at',
   'quote_amount',
   'quote_currency',
   'created_at',
@@ -91,6 +93,21 @@ export function dureeDepuis(depuis: string | null | undefined, maintenant: Date)
   if (ecart < HEURE) return { n: Math.max(1, Math.floor(ecart / MINUTE)), unite: 'minute' };
   if (ecart < JOUR) return { n: Math.floor(ecart / HEURE), unite: 'hour' };
   return { n: Math.floor(ecart / JOUR), unite: 'day' };
+}
+
+/**
+ * TCK-2786 — le temps qui reste jusqu'à `jusqua`, arrondi à l'unité SUPÉRIEURE (« dans 23 h » à
+ * 22 h 10 près : on ne promet jamais plus tôt que l'API ne le permet). `null` si c'est passé.
+ */
+export function dureeJusqua(jusqua: string | null | undefined, maintenant: Date): Duree | null {
+  if (!jusqua) return null;
+  const fin = new Date(jusqua).getTime();
+  if (Number.isNaN(fin)) return null;
+  const ecart = fin - maintenant.getTime();
+  if (ecart <= 0) return null;
+  if (ecart <= HEURE) return { n: Math.max(1, Math.ceil(ecart / MINUTE)), unite: 'minute' };
+  if (ecart <= JOUR) return { n: Math.ceil(ecart / HEURE), unite: 'hour' };
+  return { n: Math.ceil(ecart / JOUR), unite: 'day' };
 }
 
 /** Les jours entiers jusqu'à `jusqua` (0 si c'est passé), arrondis au jour supérieur. */
@@ -149,11 +166,15 @@ export function attenteDe(i: InterventionEnFile, maintenant: Date): Attente | nu
 
 /**
  * Le geste de la carte, selon sa file (maquette « Agence — files ») : « Choisir un prestataire »
- * à dispatcher, « Relancer » et « Réassigner » en retard, « Voir le devis » chez le bailleur ou
- * quand un devis attend l'agence. Les files sans geste (en cours, à confirmer) se lisent en ligne
- * compacte. « Relancer le bailleur » attend que l'API serve le contact du bailleur (cf. ticket).
+ * à dispatcher, « Relancer » et « Réassigner » en retard, « Relancer le bailleur » et « Voir le
+ * devis » chez le bailleur (TCK-2786 : la relance passe par Takussan, sans le contact du bailleur),
+ * « Voir le devis » quand un devis attend l'agence. Les files sans geste (en cours, à confirmer) se
+ * lisent en ligne compacte.
+ *
+ * `relancerBailleur` est le seul geste qui agit depuis la carte (`POST …/owner-reminders`) ; les
+ * autres mènent à la fiche ouverte sur eux.
  */
-export type GesteDeCarte = 'choisir' | 'relancer' | 'reassigner' | 'voirDevis';
+export type GesteDeCarte = 'choisir' | 'relancer' | 'reassigner' | 'relancerBailleur' | 'voirDevis';
 
 export function gestesDeLaCarte(i: Pick<InterventionEnFile, 'file' | 'status'>): readonly GesteDeCarte[] {
   switch (i.file) {
@@ -162,12 +183,29 @@ export function gestesDeLaCarte(i: Pick<InterventionEnFile, 'file' | 'status'>):
     case 'en_retard':
       return ['relancer', 'reassigner'];
     case 'chez_le_bailleur':
-      return ['voirDevis'];
+      return ['relancerBailleur', 'voirDevis'];
     case 'en_cours':
       return i.status === 'quote_submitted' ? ['voirDevis'] : [];
     default:
       return [];
   }
+}
+
+/** TCK-2786 — une relance du bailleur par 24 heures (`OwnerReminder::COOLDOWN_HOURS` côté API). */
+export const DELAI_ENTRE_DEUX_RELANCES_MS = 24 * HEURE;
+
+/**
+ * TCK-2786 — l'état de « Relancer le bailleur » sur une ligne de liste, qui ne porte pas les
+ * `abilities` : `relance` (« Relancé il y a … », geste inactif) dans les 24 h d'une relance,
+ * `possible` sinon. L'API rejuge tout (acteur, statut, cadence, bailleur joignable) et dit 409 ;
+ * la fiche, elle, lit `abilities.can_remind_owner`.
+ */
+export type RelanceDuBailleur = { readonly etat: 'possible' } | { readonly etat: 'relance'; readonly duree: Duree };
+
+export function relanceDuBailleur(i: Pick<InterventionEnFile, 'owner_reminded_at'>, maintenant: Date): RelanceDuBailleur {
+  const depuis = i.owner_reminded_at ? new Date(i.owner_reminded_at).getTime() : Number.NaN;
+  if (Number.isNaN(depuis) || maintenant.getTime() - depuis >= DELAI_ENTRE_DEUX_RELANCES_MS) return { etat: 'possible' };
+  return { etat: 'relance', duree: dureeDepuis(i.owner_reminded_at, maintenant) ?? { n: 1, unite: 'minute' } };
 }
 
 /** Les statuts qui ne paraissent que dans « À confirmer » et « Terminées » (P1 de l'audit). */
