@@ -63,7 +63,8 @@ class LeaseExistenceOracleTest extends TestCase
         $deTiers = $this->verdict($this->lease(['property_id' => $property->id, 'tenant_id' => $tiers->id, 'guarantor_id' => $garantTiers->id, 'type' => 'x']));
         $absents = $this->verdict($this->lease(['property_id' => $property->id, 'tenant_id' => self::ABSENT, 'guarantor_id' => self::ABSENT, 'type' => 'x']));
 
-        $this->assertSame(422, $deTiers[0]);
+        // TCK-2767 — 403 et non plus 422 : le droit sur le bien se juge avant les règles du bail.
+        $this->assertSame(403, $deTiers[0]);
         $this->assertSame($deTiers, $absents);
 
         $deTiers = $this->verdict($this->lease(['property_id' => $property->id, 'tenant_id' => $tiers->id, 'guarantor_id' => $garantTiers->id]));
@@ -146,12 +147,23 @@ class LeaseExistenceOracleTest extends TestCase
         $this->assertDatabaseHas('leases', ['booking_id' => $booking->id]);
     }
 
-    public function test_un_identifiant_non_entier_reste_refuse_en_422(): void
+    /**
+     * TCK-2767 — un `property_id` non entier ne désigne aucun bien : il rend le refus d'un bien
+     * tiers, 403, avant toute règle. Les autres identifiants non entiers restent un 422 pour qui a
+     * le droit d'ouvrir un bail sur le bien.
+     */
+    public function test_un_identifiant_non_entier_reste_refuse_en_422_pour_qui_a_le_droit_sur_le_bien(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $landlord = User::factory()->create();
+        Sanctum::actingAs($landlord);
+        $property = Property::factory()->create(['user_id' => $landlord->id]);
 
         $this->lease(['property_id' => 'abc', 'tenant_id' => 'xyz', 'guarantor_id' => 'g', 'booking_id' => 'b'])
+            ->assertForbidden()
+            ->assertJsonMissingPath('errors');
+
+        $this->lease(['property_id' => $property->id, 'tenant_id' => 'xyz', 'guarantor_id' => 'g', 'booking_id' => 'b'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['property_id', 'tenant_id', 'guarantor_id', 'booking_id']);
+            ->assertJsonValidationErrors(['tenant_id', 'guarantor_id', 'booking_id']);
     }
 }

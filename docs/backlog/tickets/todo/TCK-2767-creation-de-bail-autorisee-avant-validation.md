@@ -45,11 +45,11 @@ Une sonde PHPUnit jetable, écrite pendant la vérification, puis supprimée.
 
 ## Critères d'acceptation
 
-- **AC1.** L'agent de A, sur un bien de B, avec un corps invalide : **403**, aucune clé `errors` dans la réponse.
-- **AC2.** Même appel avec un `property_id` absent, puis avec `"abc"` : **403**, corps identique à AC1.
-- **AC3.** Un client et un prestataire, sur n'importe quel bien, avec un corps invalide : **403**.
-- **AC4.** L'agent de A, sur un bien de A, avec un corps invalide : **422** sur le champ en faute, comme aujourd'hui.
-- **AC5.** Les tests existants de la création de bail restent verts sans réécriture de leurs attentes, sauf celles qui figeaient un 422 pour un appelant sans droit. Chacune de celles-ci est nommée dans la PR.
+- [x] **AC1.** L'agent de A, sur un bien de B, avec un corps invalide : **403**, aucune clé `errors` dans la réponse.
+- [x] **AC2.** Même appel avec un `property_id` absent, puis avec `"abc"` : **403**, corps identique à AC1.
+- [x] **AC3.** Un client et un prestataire, sur n'importe quel bien, avec un corps invalide : **403**.
+- [x] **AC4.** L'agent de A, sur un bien de A, avec un corps invalide : **422** sur le champ en faute, comme aujourd'hui.
+- [x] **AC5.** Les tests existants de la création de bail restent verts sans réécriture de leurs attentes, sauf celles qui figeaient un 422 pour un appelant sans droit. Chacune de celles-ci est nommée dans la PR.
 
 Chaque AC se vérifie par ablation : un `authorize()` rendu à `true` doit faire rougir AC1 à AC3, et pas AC4.
 
@@ -57,3 +57,17 @@ Chaque AC se vérifie par ablation : un `authorize()` rendu à `true` doit faire
 
 - Les autres FormRequest qui rendent `true` (le « piège 2 », pour tout le dépôt).
 - Le locataire et le garant tiers : déjà 403 après la validation, sans oracle.
+
+## Notes d'implémentation (2026-11-14)
+
+- **Prémisse re-mesurée sur HEAD (e798d91d0)** : `StoreLeaseRequest::authorize()` rendait `true`, aucun autre chemin (middleware, policy de route) ne jugeait le bien avant `rules()`.
+- **`StoreLeaseRequest::authorize()`** résout le bien (`filter_var` entier ≥ 1, puis `find`) et délègue à `LeasePolicy::createOn` — la forme exacte de `LeaseDefaultsRequest`. Le bien résolu sert aussi à `propertyAgencyId()` (règle `PersonnelDeLAgence`), qui ne relit plus la base.
+- **Inchangés** : `abort_if` de `LeaseController::store()` et `abort_unless(createOn)` de `LeaseService::create()` (défense en profondeur), le locataire, le garant et la réservation jugés après la validation.
+- **Décision hors ticket** : un `property_id` sous forme de tableau, ou `0`, rend aussi le refus d'un bien tiers (403) ; testé avec les cas absent, `abc` et manquant.
+
+**Preuves** — `tests/Feature/Lease/CreationDeBailAutoriseAvantDeValiderTest.php` :
+- AC1 `test_ac1_…` ; AC2 `test_ac2_…` (absent, `abc`, `0`, tableau, manquant : corps identique au bien tiers) ; AC3 `test_ac3_…` (client sans profil et prestataire, sur un bien de A et de B) ; AC4 `test_ac4_…` (+ le bailleur du bien garde son 422).
+- Ablations : `authorize()` → `true` : AC1, AC2, AC3 rouges, AC4 vert ; `authorize()` → bien trouvé sans `createOn` : mêmes rouges, AC4 vert. Fichier restauré, md5 vérifié.
+- AC5 : 29 fichiers (les 26 qui postent sur `/api/leases`, plus `LeaseDefaultsTest` et `AuthorizationPrecedesValidationTest`), 431 tests, 2 rouges, exactement les deux attentes qui figeaient un 422 pour un appelant sans droit, toutes deux dans `tests/Feature/Api/LeaseExistenceOracleTest.php` :
+  1. `test_hors_agence_un_client_ou_un_garant_absent_ne_se_distingue_pas_d_un_tiers` : le premier `assertSame(422, …)` (compte sans droit, `type` invalide) devient 403 ; l'égalité tiers/absent tient.
+  2. `test_un_identifiant_non_entier_reste_refuse_en_422`, renommé `…_pour_qui_a_le_droit_sur_le_bien` : `property_id: abc` d'un compte sans droit → 403 sans `errors` ; le bailleur sur son bien, avec `tenant_id`, `guarantor_id` et `booking_id` non entiers → 422 sur ces trois champs.
