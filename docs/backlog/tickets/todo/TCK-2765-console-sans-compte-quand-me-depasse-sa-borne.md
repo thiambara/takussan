@@ -49,10 +49,19 @@ Reproduction (à rejouer avant tout correctif) :
 
 ## Critères d'acceptation
 
-- **AC1.** Le layout racine rend `initialUser = null` sous un jeton, et la coque de `/app` reçoit l'utilisateur. L'état vide de la messagerie est alors celui du personnel. Test : layout racine moqué à `null`, coque à l'agent.
-- **AC2.** Une déconnexion (`logout`) n'est pas annulée par le composant de a) : sans jeton, rien ne se pose.
-- **AC3.** Un compte déjà posé n'est jamais remplacé par celui de la coque s'ils diffèrent. TCK-2158 reste vrai. Test à part.
-- **AC4.** Chaque AC a son ablation rouge. Retirer le composant de a) rend AC1 rouge.
+- [x] **AC1.** Le layout racine rend `initialUser = null` sous un jeton, et la coque de `/app` reçoit l'utilisateur. L'état vide de la messagerie est alors celui du personnel. Test : layout racine moqué à `null`, coque à l'agent.
+  Preuve : `takussan-web/src/app/(dashboard)/__tests__/compte-de-la-coque.tck-2765.test.tsx` rend le VRAI layout `(dashboard)` (`getMeAction` → agent) sous `AuthProvider initialUser={null} initialToken="jeton"` : « Écrire à un client », pas « Parcourir les annonces ».
+- [x] **AC2.** Une déconnexion (`logout`) n'est pas annulée par le composant de a) : sans jeton, rien ne se pose.
+  Preuve : `takussan-web/src/components/auth/__tests__/CompteDeLaCoque.tck-2765.test.tsx` — « sans jeton, rien ne se pose » et « une déconnexion n'est pas annulée ». En plus du ticket : la pose n'a lieu qu'une fois, au montage, et un 401 de `refreshUser` (jeton encore en mémoire) n'est pas annulé non plus (test à part).
+- [x] **AC3.** Un compte déjà posé n'est jamais remplacé par celui de la coque s'ils diffèrent. TCK-2158 reste vrai. Test à part.
+  Preuve : `takussan-web/src/components/auth/__tests__/CompteDeLaCoque.tck-2765.test.tsx`, « un compte déjà posé n'est pas remplacé » ; `src/context/__tests__` (dont TCK-2158) vert, inchangé.
+- [x] **AC4.** Chaque AC a son ablation rouge. Retirer le composant de a) rend AC1 rouge.
+  Preuve (2026-11-14, une à la fois, md5 restauré) : composant retiré du layout → AC1 rouge ; garde du jeton retirée → AC2 « sans jeton » rouge ; garde `user === null` retirée → AC3 rouge ; pose unique retirée → test du 401 rouge.
+
+## Écarts
+
+- **Impersonation** : `AuthContext` n'y reçoit aucun jeton (TCK-600), donc rien ne s'y pose ; le défaut y reste ouvert, comme le veut AC2.
+- **Premier peint** : le HTML rendu au serveur reste celui du visiteur jusqu'à l'hydratation ; `useLayoutEffect` pose le compte avant le premier peint du client.
 
 ## Hors périmètre
 

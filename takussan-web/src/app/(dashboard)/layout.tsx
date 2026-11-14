@@ -9,6 +9,7 @@ import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { configurationDoubleFacteurExigee } from '@/lib/double-facteur';
 import { GardeDoubleFacteur } from '@/components/auth/GardeDoubleFacteur';
+import { CompteDeLaCoque } from '@/components/auth/CompteDeLaCoque';
 
 
 /**
@@ -68,6 +69,9 @@ export default async function DashboardGroupLayout({
 
   return (
     <IntlProvider messages={await messagesPour('(dashboard)')}>
+      {/* TCK-2765 — le layout racine borne sa lecture de `/me` ; au-delà, `AuthContext` naît sans
+          compte alors que cette coque l'a lu. Il le reçoit d'ici, une fois, avant le contenu. */}
+      <CompteDeLaCoque utilisateur={user} />
       <ToastProvider>
         {/* TCK-589 — un refus « second facteur requis / à confirmer » se résout sur place. */}
         <GardeDoubleFacteur>
