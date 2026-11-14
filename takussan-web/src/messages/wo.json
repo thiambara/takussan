@@ -9899,7 +9899,8 @@
         "checklist": "Balaa ñuy teg",
         "current": "ñu ngi ci",
         "optional": "doyul waar",
-        "reopen": "Dellu ci : {step}"
+        "reopen": "Dellu ci : {step}",
+        "photoCount": "{current} / {total}"
       },
       "photosProgress": "Yónnee nataal yi : {sent} ci {total}",
       "owner": {

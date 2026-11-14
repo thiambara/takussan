@@ -63,11 +63,11 @@ Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevé
   « facultatif », « à la fin » alignées à droite au lieu d'être dans le libellé, puce). Écarts relevés : 21 · 19 · 21 ·
   21 · 19 · 21 lignes. La colonne collante retrouve son `y` de 104 sur a-0, a-2 et a-5 quand les étapes reprennent leur
   hauteur.
-- [ ] **Pied de l'assistant au téléphone** : le `PiedAssistant` de la maquette (pied de 117 px, « Continuer » 172 × 48 en
+- [x] **Pied de l'assistant au téléphone** : le `PiedAssistant` de la maquette (pied de 117 px, « Continuer » 172 × 48 en
   16 px / 600, « Précédent ») remplace celui de `WizardShell` sous `lg`, avec le bandeau d'aperçu.
-- [ ] **Débord de 1 px à 360** : sur a-4, « Précédent », « Plus tard » et « Continuer » côte à côte finissent à 361 px
+- [x] **Débord de 1 px à 360** : sur a-4, « Précédent », « Plus tard » et « Continuer » côte à côte finissent à 361 px
   (relevé de la fiche, champ `balayage`). Le nouveau pied ne déborde à aucune largeur.
-- [ ] Fiche de fidélité de ce ticket : `docs/qa/audit-ux-2026-11/fidelite/TCK-2819.json`, sur les deux entrées.
+- [x] Fiche de fidélité de ce ticket : `docs/qa/audit-ux-2026-11/fidelite/TCK-2819.json`, sur les deux entrées.
 
 ## Contraintes strictes (métier)
 
@@ -83,17 +83,37 @@ Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevé
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour un studio en location au mois, `/publish` et `/app/properties/new` rendent à chaque étape les mêmes champs
+- [x] AC1 — Pour un studio en location au mois, `/publish` et `/app/properties/new` rendent à chaque étape les mêmes champs
   (test de structure sur les deux montages). Une régression qui copie une étape pour une seule entrée le fait rougir.
-- [ ] AC2 — Un brouillon écrit avant ce ticket (fixture des deux formes : local et serveur) rouvre à la même étape avec
+- [x] AC2 — Un brouillon écrit avant ce ticket (fixture des deux formes : local et serveur) rouvre à la même étape avec
   les mêmes valeurs, photos comprises.
-- [ ] AC3 — À 360, 390, 768, 1024, 1280 et 1440 px, sur a-0 à a-5 et sur `/app/properties/new`, aucun débord
+- [x] AC3 — À 360, 390, 768, 1024, 1280 et 1440 px, sur a-0 à a-5 et sur `/app/properties/new`, aucun débord
   (`scrollWidth − innerWidth = 0`), a-4 à 360 compris.
-- [ ] AC4 — Au téléphone, le geste « Continuer » mesure 48 px de haut et reste visible sans défilement de la page à
+- [x] AC4 — Au téléphone, le geste « Continuer » mesure 48 px de haut et reste visible sans défilement de la page à
   chaque étape.
 - [ ] AC-F1 à AC-F6 — comme TCK-2600 (fiche, zéro écart non expliqué, rien ne manque, zones identiques, preuve dans la PR,
   largeurs intermédiaires), avec `fidelite compare` sur a-0 à a-5. Les écarts listés « ce qui reste accepté » ci-dessus
   sont reportés tels quels.
+
+**Preuves (lot 1, 2026-11-14)** :
+
+- AC1 — `takussan-web/src/components/publication/__tests__/etapes-identiques.tck-2819.test.tsx` : les six étapes d'un
+  studio en location au mois, relevées sur `PropertyWizard` (particulier) et `PublierSansCompte`, champs et gestes de
+  l'étape (colonne d'aperçu exclue), seule différence nommée : les coordonnées du compte à la finition. Ablation : l'étape
+  du prix copiée pour `/publish` (`fraisDAgence` forcé sans compte) → rouge à l'étape 4.
+- AC2 — `…/publication/__tests__/brouillon-d-avant.tck-2819.test.tsx` : brouillon local figé (`valeurs` + `photos` au
+  format d'IndexedDB) et brouillon serveur (`{ step, data }`) rouvrent au prix, loyer, période, total d'entrée, surface et
+  photos (« 2 photos sur 10 », « 1 / 2 ») compris. Ablations : `price` retiré des clés du brouillon local → rouge (local) ;
+  `area` perdu à la reprise → rouge (les deux).
+- AC3 — balayage a-0 à a-5 × 360 / 390 / 768 / 1024 / 1280 / 1440 sur `/publish` et `/app/properties/new` aux six
+  largeurs : `scrollWidth − innerWidth = 0` partout (`innerWidth` relevé), a-4 à 360 : « Continuer » finit à 344 (fiche,
+  `produit.releves.balayage`).
+- AC4 — « Continuer » 48 px, visible sans défilement à chaque étape sous `lg` (balayage) ; classes épinglées aux deux
+  montages par `WizardShell.pied-du-telephone.tck-2819.test.tsx`.
+
+**Ce qui reste (lot 2)** : le contenu des six étapes (premier point du delta, encore ouvert), dont dépendent le `y` de 104
+de la colonne collante (deuxième point : la carte et « Pour publier » sont livrés, le `y` suit les étapes), la phrase des
+CGU sous « Publier l’annonce » au téléphone, la réduction du coût d'entrée de l'aperçu à « À l’entrée : … » (décision du 2026-11-14 : composantes et note restent sous la carte jusqu'à ce que l'encadré de l'étape du prix les porte ; les assertions de TCK-633 y suivront) et AC-F1 à AC-F6 (écarts ouverts nommés dans la fiche `TCK-2819.json`).
 
 ## Hors périmètre
 

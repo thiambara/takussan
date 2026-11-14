@@ -1055,7 +1055,8 @@ export function AssistantDePublication({
         )}
         apercu={
           <>
-            <CarteApercu form={form} photos={photos} />
+            {/* TCK-2819 — la colonne : la photo en 16/9 (maquette `CarteApercu compact`). */}
+            <CarteApercu form={form} photos={photos} compact />
             {listePourPublier()}
             {noteDeQuota}
           </>

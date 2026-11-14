@@ -1318,7 +1318,7 @@
         "currency": "Devise",
         "period": "Fréquence",
         "availableFrom": "Disponible à partir du",
-        "title": "Titre de l'annonce",
+        "title": "Titre de l’annonce",
         "description": "Description"
       },
       "contract": {
@@ -1424,7 +1424,7 @@
       "draftSaveRetry": "Réessayer",
       "draftAutosaveFailed": "L’enregistrement automatique ne répond plus : vos dernières modifications ne sont pas encore à l’abri.",
       "entryCost": {
-        "legend": "Coût d'entrée",
+        "legend": "Coût d’entrée",
         "hint": "Ce que le locataire verse pour emménager. Laissez vide ce qui ne s'applique pas.",
         "advance": "Mois d'avance",
         "deposit": "Mois de caution",
@@ -1482,7 +1482,8 @@
         "checklist": "Pour publier",
         "current": "en cours",
         "optional": "facultatif",
-        "reopen": "Revenir à : {step}"
+        "reopen": "Revenir à : {step}",
+        "photoCount": "{current} / {total}"
       },
       "photosProgress": "Envoi des photos : {sent} sur {total}",
       "owner": {

@@ -30,7 +30,6 @@
     "src/components/property-dashboard/PropertyCalendarPanel.tsx": {"aplat-accent":2},
     "src/components/property-form/ChampsLieu.tsx": {"texte-arbitraire":1},
     "src/components/property-form/PropertyWizard.tsx": {"aplat-accent":1},
-    "src/components/property-form/wizard/ApercuAnnonce.tsx": {"ombre-arbitraire":1,"texte-arbitraire":6},
     "src/components/property-form/wizard/ChoiceChips.tsx": {"ombre-arbitraire":2,"texte-arbitraire":1,"tracking-arbitraire":1},
     "src/components/property-form/wizard/EnTetePublication.tsx": {"texte-arbitraire":1},
     "src/components/property-form/wizard/GeoSuggestionChip.tsx": {"aplat-accent":2},

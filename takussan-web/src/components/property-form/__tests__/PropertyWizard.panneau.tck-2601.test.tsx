@@ -348,12 +348,14 @@ describe('PropertyWizard au bureau — le panneau de compte (TCK-2601, AC5)', ()
     const { panneau } = await ouvrirLePanneau(user);
     const courante = within(liste()).getAllByText((_, el) => el?.getAttribute('aria-current') === 'step');
     expect(courante).toHaveLength(1);
-    expect(courante[0]).toHaveTextContent('Votre numéro · en cours');
+    // TCK-2819 — la note est alignée à droite (maquette `PourPublier`), hors du libellé.
+    expect(within(courante[0]).getByText('Votre numéro')).toBeInTheDocument();
+    expect(within(courante[0]).getByText('en cours')).toBeInTheDocument();
     // Le titre (dernière étape de l'assistant) est franchi : il se rouvre (désactivé tant que le panneau est là).
     expect(within(liste()).getByRole('button', { name: 'Revenir à : Le titre' })).toBeDisabled();
 
     await user.click(within(panneau).getByRole('button', { name: 'Revenir à l’annonce' }));
-    expect(within(liste()).getByText(/Votre numéro/)).toHaveTextContent('Votre numéro · à la fin');
+    expect(within(liste()).getByText('Votre numéro').parentElement).toHaveTextContent(/^Votre numéro\s*à la fin$/);
   });
 
   it('Entrée dans le numéro (soumission implicite du formulaire de l’assistant) ne republie pas : la saisie reste', async () => {

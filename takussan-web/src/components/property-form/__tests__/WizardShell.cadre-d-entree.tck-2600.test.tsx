@@ -79,8 +79,9 @@ describe('WizardShell sans cadre d’entrée — /app/properties/new inchangé (
     expect(pied.firstElementChild).toHaveAttribute('role', 'progressbar');
     expect(bouton(/^précédent$/i)).toBeDisabled();
     expect(bouton(/^continuer$/i).parentElement).not.toHaveClass('lg:gap-0');
-    expect(bouton(/^précédent$/i).className).not.toMatch(/lg:h-11|lg:-ml-5|lg:rounded-full/);
-    expect(bouton(/^continuer$/i).className).not.toMatch(/lg:h-11|lg:min-w-\[11rem\]/);
+    // `(^|\s)` : les gestes du téléphone (`max-lg:rounded-full`, TCK-2819) ne sont pas ceux du cadre.
+    expect(bouton(/^précédent$/i).className).not.toMatch(/(^|\s)lg:(h-11|-ml-5|rounded-full)/);
+    expect(bouton(/^continuer$/i).className).not.toMatch(/(^|\s)lg:(h-11|min-w-\[11rem\])/);
   });
 });
 

@@ -1525,7 +1525,8 @@
         "checklist": "Before publishing",
         "current": "in progress",
         "optional": "optional",
-        "reopen": "Go back to: {step}"
+        "reopen": "Go back to: {step}",
+        "photoCount": "{current} / {total}"
       },
       "photosProgress": "Uploading photos: {sent} of {total}",
       "owner": {
