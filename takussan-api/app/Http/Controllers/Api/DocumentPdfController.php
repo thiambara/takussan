@@ -15,6 +15,7 @@ use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -200,8 +201,10 @@ class DocumentPdfController extends Controller
     }
 
     /**
-     * Quittance : accessible au locataire, au bailleur, à l'agence propriétaire
-     * du bail et aux collaborateurs agents du bien, plus admins.
+     * Quittance : accessible au locataire, au bailleur au sens de `LeasePolicy::view`
+     * ({@see BailleurDuBien::est()}, TCK-2809), au personnel de l'agence du bail, aux
+     * collaborateurs `agent`/`manager` du bien encore personnel de l'agence, plus super-admin.
+     * La règle vit dans {@see self::mayReadReceipts()}.
      */
     protected function authorizeReceipt(Request $request, Lease $lease): void
     {
@@ -214,14 +217,20 @@ class DocumentPdfController extends Controller
     /**
      * TCK-2655 (ADR-0099 §3) — LA règle de lecture des quittances d'un bail, extraite telle quelle
      * de `authorizeReceipt()` : le coffre la lit pour lister, l'endpoint pour servir.
+     *
+     * TCK-2809 (P1, suite de TCK-2803) — le bailleur est celui de `LeasePolicy::view` :
+     * {@see BailleurDuBien::est()}, désigné par `landlord_id` ET bail sans agence ou profil
+     * propriétaire (de tout statut) dans son agence. `landlord_id` recopie le créateur du bien, sur un
+     * bien d'agence l'agent qui l'a saisi (TCK-1926) : lu tel quel, l'agent créateur PARTI de l'agence,
+     * à qui la fiche rend 403, téléchargeait la quittance (mesuré : 200). L'agent créateur en poste la
+     * lit par la branche du personnel ; le bailleur suspendu ou parti garde la sienne (ADR-0031 §2).
      */
     public static function mayReadReceipts(User $user, Lease $lease): bool
     {
         // TCK-2655 (vérification adverse) — la même disjonction, évaluée paresseusement : le coffre la
         // juge pour chaque bail du locataire, et la branche collaborateur coûte une requête.
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
-        $isLandlord = $lease->landlord_id === $user->id;
-        if ($user->isSuperAdmin() || $isTenant || $isLandlord) {
+        if ($user->isSuperAdmin() || $isTenant || BailleurDuBien::est($user, $lease->landlord_id, $lease->agency_id)) {
             return true;
         }
         // TCK-587 — le PERSONNEL de l'agence du bail (ADR-0031) : un autre bailleur de l'agence

@@ -67,26 +67,26 @@ date : le correctif part de l'arbre où TCK-2770 est fusionné.
 
 ## Delta à produire
 
-- [ ] `DocumentPdfController::mayReadReceipts` : la comparaison brute à `landlord_id` passe par `BailleurDuBien::est`.
-- [ ] Docblock de `mayReadReceipts` et de `authorizeReceipt` : la règle du bailleur s'y écrit au sens de `view`.
-- [ ] Tests `QuittanceDuBailleurAuSensDeViewTest`.
+- [x] `DocumentPdfController::mayReadReceipts` : la comparaison brute à `landlord_id` passe par `BailleurDuBien::est`.
+- [x] Docblock de `mayReadReceipts` et de `authorizeReceipt` : la règle du bailleur s'y écrit au sens de `view`.
+- [x] Tests `QuittanceDuBailleurAuSensDeViewTest` (`takussan-api/tests/Feature/Lease/`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — **Mesure exécutée, sur l'arbre d'avant le correctif**, par le test lui-même (ablation a1) : bail d'agence
+- [x] AC1 — **Mesure exécutée, sur l'arbre d'avant le correctif**, par le test lui-même (ablation a1) : bail d'agence
   saisi par un agent (`landlord_id` = l'agent), échéance payée, agent passé `inactive`. `GET /api/leases/{id}` rend
   403 (témoin) ; `GET …/receipts/{payment}/pdf` rend 200. La mesure est consignée dans les notes, avec la commande. Si
   elle rend 403, le ticket le dit, passe en P3 et ne garde que la cohérence de la règle.
-- [ ] AC2 — Après le correctif, le même appel rend 403. Le test vérifie aussi que la réponse ne porte aucun octet PDF.
-- [ ] AC3 — Rendent 200, chacun nommé dans le test : le bailleur avec profil propriétaire (actif, suspendu, parti), le
+- [x] AC2 — Après le correctif, le même appel rend 403. Le test vérifie aussi que la réponse ne porte aucun octet PDF.
+- [x] AC3 — Rendent 200, chacun nommé dans le test : le bailleur avec profil propriétaire (actif, suspendu, parti), le
   bailleur d'un bail sans agence, le locataire, le personnel de l'agence du bail (profil actif), l'agent créateur EN
   POSTE, le collaborateur `manager` encore personnel, le super-admin.
-- [ ] AC4 — Pour chacun des lecteurs d'AC2 et AC3, le verdict de la route est égal à celui de `LeasePolicy::view` ;
+- [x] AC4 — Pour chacun des lecteurs d'AC2 et AC3, le verdict de la route est égal à celui de `LeasePolicy::view` ;
   seule exception admise, nommée et assertée telle quelle : le collaborateur du bien (branche propre à ce geste, TCK-1154).
-- [ ] AC5 — `DocumentVaultPrimedVerdictParityTest` reste vert ; le coffre de l'agent créateur parti (`GET
+- [x] AC5 — `DocumentVaultPrimedVerdictParityTest` reste vert ; le coffre de l'agent créateur parti (`GET
   /api/me/document-vault`) et `documents/generated?target=lease:N` (403) sont relus dans le même test : aucune
   quittance de ce bail.
-- [ ] AC6 — Ablation : `mayReadReceipts` revenu à la comparaison brute rend AC2 rouge.
+- [x] AC6 — Ablation : `mayReadReceipts` revenu à la comparaison brute rend AC2 rouge.
 
 ## Hors périmètre
 
@@ -97,4 +97,35 @@ date : le correctif part de l'arbre où TCK-2770 est fusionné.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**AC1 — la fuite est mesurée : 200 (P1 confirmée).** Le 2026-11-14, sur l'arbre d'avant le correctif
+(`DocumentPdfController.php` de `80d115fd7`, md5 `5dec2b16259ab6e00dd4f2a4b40770ce`), par le test lui-même :
+
+```bash
+cd takussan-api && php artisan test tests/Feature/Lease/QuittanceDuBailleurAuSensDeViewTest.php
+```
+
+`test_ac2_…` : `GET /api/leases/{id}` rend 403 (témoin), puis `Expected response status code [403] but received 200`
+sur `GET …/receipts/{payment}/pdf` ; `test_ac3_ac4_…` : `'agent créateur parti' => 200`, les neuf autres lecteurs
+déjà conformes. L'agent créateur parti (`AgentProfile` passé `inactive`) obtenait donc le PDF de la quittance.
+
+**Correctif.** `mayReadReceipts` juge le bailleur par `BailleurDuBien::est($user, $lease->landlord_id, $lease->agency_id)`,
+dans la même disjonction paresseuse (aucune requête si `landlord_id` ne désigne pas l'appelant ; l'amorce `owner_any`
+du coffre sert la moitié « agence »). Docblocks de `mayReadReceipts` et `authorizeReceipt` réécrits.
+
+**Preuves.**
+- AC2 : 403, corps sans `%PDF`, `Content-Type` autre que `application/pdf`.
+- AC3/AC4 : un tableau des dix lecteurs (statut de la route) asserté en entier, et la liste des divergences avec
+  `LeasePolicy::view` assertée égale à `['collaborateur manager encore personnel']` (manager accepté, `AgentProfile`
+  dans l'agence du bail ET dans une autre, sans profil actif : `view` le refuse, la branche TCK-1154 l'admet).
+- AC5 : `DocumentVaultPrimedVerdictParityTest` vert ; le coffre de l'agent créateur parti ne porte aucun `download_path`
+  vers les quittances du bail, `documents/generated?target=lease:N` lui rend 403 ; témoin : le locataire y voit la
+  quittance. (Le coffre était déjà fermé à ce lecteur, comme lu au constat : ce test verrouille, il ne corrige rien.)
+- AC6 : ablation a1 (retour à `$lease->landlord_id === $user->id`) → `test_ac2` et `test_ac3_ac4` rouges (200) ;
+  ablation a2 (branche bailleur retirée) → `test_ac3_ac4` rouge sur les quatre bailleurs (403). Fichier restauré,
+  md5 vérifié (`c27aefaacfd2ca2f82e6a6a85edb2d4e`).
+- Tests relancés verts : `ReceiptPdfTest`, `DocumentVaultPrimedVerdictParityTest`, `DocumentVaultPrimedVaultParityTest`,
+  `DocumentVaultArchiveTest`, `DocumentVaultTenantTest`, `DocumentVaultSearchTest`, `DocumentListReadParityTest`,
+  `PdfDUnBienSupprimeTest`, `PdfDUnClientSupprimeTest`, `PrintedIdentityFrozenTest`, `PrintedPartyNameTest`,
+  `PayoutBypassTest`, `OwnerIsolationWithinAgencyTest`, `ActesPdfEnFrancaisTest`, `BailLocataireDeLaListeEtDesGestesTest`.
+
+**ADR.** Aucune n'énonce les lecteurs de la quittance (ADR-0099 renvoie à la règle du code) : pas d'amendement.
