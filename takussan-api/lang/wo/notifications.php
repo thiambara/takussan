@@ -409,6 +409,17 @@ return [
                 'body' => ':amount du loyer payé par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
                 'sms' => 'Takussan : :amount du loyer de :tenant (:property) remboursés.',
             ],
+            // TCK-2793 — la pénalité de retard payée seule, remboursée par le moyen de paiement en ligne.
+            'late_fee_refunded' => [
+                'title' => 'Remboursement : :property',
+                'body' => 'Un remboursement de :amount a été fait sur la pénalité de retard que vous avez payée pour :property.',
+                'sms' => 'Takussan : remboursement de :amount sur votre pénalité de retard (:property).',
+            ],
+            'late_fee_refunded_landlord' => [
+                'title' => 'Pénalité remboursée : :property',
+                'body' => ':amount de la pénalité de retard payée par :tenant pour :property ont été remboursés par le moyen de paiement en ligne.',
+                'sms' => 'Takussan : :amount de la pénalité de :tenant (:property) remboursés.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [

@@ -30,6 +30,9 @@ class BankStatementLineController extends Controller
         'payout' => Payout::class,
         // TCK-1421 (P141.02) — le virement de clôture de la plateforme.
         'platform_payout' => PlatformPayout::class,
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — la pénalité payée seule d'une
+        // échéance : la même ligne, sa seconde part.
+        'lease_payment_late_fee' => LeasePayment::class,
     ];
 
     /**
@@ -98,10 +101,12 @@ class BankStatementLineController extends Controller
     {
         $this->authorize('match', $line);
 
-        $paymentClass = self::PAYMENT_TYPE_MAP[$request->validated('payment_type')];
+        $type = $request->validated('payment_type');
+        $paymentClass = self::PAYMENT_TYPE_MAP[$type];
         $payment = $paymentClass::findOrFail($request->validated('payment_id'));
+        $part = $type === 'lease_payment_late_fee' ? LeasePayment::PART_LATE_FEE : null;
 
-        $updated = $manager->confirmMatch($line, $payment, $request->user());
+        $updated = $manager->confirmMatch($line, $payment, $request->user(), $part);
 
         return BankStatementLineResource::make($updated->load(self::PAYABLE));
     }

@@ -11094,7 +11094,8 @@
         "lease_payment": "Rent",
         "invoice": "Invoice",
         "payout": "Payout",
-        "platform_payout": "Platform payout"
+        "platform_payout": "Platform payout",
+        "lease_payment_late_fee": "Late fee paid on its own"
       },
       "import": {
         "title": "Import a statement",
@@ -18672,6 +18673,14 @@
         "refunded_landlord": {
           "title": "Rent refunded: {property}",
           "body": "{amount} of the rent paid by {tenant} for {property} was refunded through the online payment method."
+        },
+        "late_fee_refunded": {
+          "title": "Refund: {property}",
+          "body": "A refund of {amount} was made on the late fee you paid for {property}."
+        },
+        "late_fee_refunded_landlord": {
+          "title": "Late fee refunded: {property}",
+          "body": "{amount} of the late fee paid by {tenant} for {property} was refunded through the online payment method."
         }
       },
       "payment": {

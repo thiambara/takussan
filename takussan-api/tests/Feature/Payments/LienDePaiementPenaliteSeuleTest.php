@@ -5,7 +5,6 @@ namespace Tests\Feature\Payments;
 use App\Events\Payments\LeasePaymentSettledOnline;
 use App\Http\Resources\LeasePaymentResource;
 use App\Models\Agency;
-use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Integration;
 use App\Models\Lease;
@@ -320,11 +319,11 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
     }
 
     /**
-     * Décision 1a (2026-11-13) — la pénalité seule ne s'encaisse que sur une intégration DE
-     * L'AGENCE. Sans elle (le repli global seul), le lien est refusé comme pour une agence hors
-     * ligne ; un fournisseur servi par la plateforme seule n'est ni proposé ni accepté.
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 2) — la règle 1a de TCK-2778 est levée :
+     * la pénalité seule s'encaisse aussi sur l'intégration GLOBALE (le repli de la plateforme), que
+     * la clôture plateforme et le rapprochement savent désormais rendre à qui elle revient.
      */
-    public function test_la_penalite_seule_ne_s_encaisse_que_par_une_integration_de_l_agence(): void
+    public function test_la_penalite_seule_s_encaisse_aussi_par_l_integration_de_la_plateforme(): void
     {
         $global = fn (string $provider, array $credentials) => Integration::factory()->create([
             'agency_id' => null, 'provider' => $provider, 'is_active' => true, 'credentials' => $credentials,
@@ -334,17 +333,15 @@ class LienDePaiementPenaliteSeuleTest extends TestCase
         Integration::query()->where('agency_id', $ctx['agency']->id)->delete();
         $global('wave', ['api_key' => 'k', 'webhook_secret' => $this->waveSecret]);
 
-        $this->issue($ctx)->assertStatus(409)->assertJsonPath('code', 'payment.late_fee_not_collected_online');
-        $this->assertFalse(LeasePaymentResource::make($ctx['payment']->fresh())->resolve()['late_fee_link_allowed']);
+        $token = $this->tokenOf($this->issue($ctx)->assertOk()->json('data.url'));
+        $this->assertTrue(LeasePaymentResource::make($ctx['payment']->fresh())->resolve()['late_fee_link_allowed']);
+        $this->getJson("/api/pay/{$token}")->assertOk()->assertJsonPath('data.providers', ['wave']);
 
         $ctx = $this->paidWithFeeDue();
         $global('orange_money', ['client_id' => 'c', 'client_secret' => 's', 'merchant_key' => 'm', 'webhook_secret' => 'w']);
-        // Témoin : la plateforme sert bien Orange Money à cette agence — le refus vient de la règle 1a.
-        $this->assertContains(PaymentProvider::OrangeMoney, app(PaymentGatewayService::class)->availableProviders($ctx['payment']->fresh()));
         $token = $this->tokenOf($this->issue($ctx)->assertOk()->json('data.url'));
-        $this->getJson("/api/pay/{$token}")->assertOk()->assertJsonPath('data.providers', ['wave']);
-        $this->postJson("/api/pay/{$token}/initiate", ['provider' => 'orange_money'])
-            ->assertStatus(422)->assertJsonPath('code', 'payment.provider_not_available');
+        $providers = $this->getJson("/api/pay/{$token}")->assertOk()->json('data.providers');
+        $this->assertEqualsCanonicalizing(['wave', 'orange_money'], $providers);
     }
 
     /**

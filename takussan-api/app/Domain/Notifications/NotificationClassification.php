@@ -74,6 +74,8 @@ final class NotificationClassification
         'lease_payment.settled_online' => [self::P, false],
         'lease_payment.refunded' => [self::P, false],
         'lease_payment.refunded_landlord' => [self::P, false],
+        'lease_payment.late_fee_refunded' => [self::P, false],
+        'lease_payment.late_fee_refunded_landlord' => [self::P, false],
         // « Remboursez le payeur ou affectez la somme » : un geste de l'agence.
         'payment.duplicate' => [self::P, true],
         'payment.duplicate_late_fee' => [self::P, true],

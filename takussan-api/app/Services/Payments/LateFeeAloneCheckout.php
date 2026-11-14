@@ -3,12 +3,16 @@
 namespace App\Services\Payments;
 
 use App\Contracts\Payments\PaymentDriverContract;
+use App\Events\Payments\LeasePaymentRefunded;
 use App\Exceptions\ApiError;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Integration;
 use App\Models\LeasePayment;
+use App\Services\Billing\PlatformPayoutRefundSignal;
 use App\Services\Payments\Dto\CheckoutSession;
 use App\Services\Payments\Dto\PaymentStatus as PaymentDriverStatus;
+use App\Services\Payout\ObservedRefundPayout;
+use App\Services\Payout\PayoutClawbacks;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -39,7 +43,8 @@ trait LateFeeAloneCheckout
     /**
      * La pénalité seule se paie-t-elle en ligne ? Elle reste due sur un loyer payé, l'agence du bail
      * encaisse ses pénalités en ligne (`Agency::collectsLateFeesOnline()`, réglage lu maintenant), et
-     * un fournisseur au moins l'encaisse sur une intégration DE L'AGENCE ({@see lateFeeAloneProviders()}).
+     * un fournisseur au moins l'encaisse, sur l'intégration de l'agence ou celle de la plateforme
+     * ({@see lateFeeAloneProviders()}).
      * Le lien, la page publique, la ressource et l'initiation lisent cette seule réponse.
      */
     public function lateFeeAloneCollectibleOnline(LeasePayment $payment): bool
@@ -56,12 +61,13 @@ trait LateFeeAloneCheckout
     }
 
     /**
-     * Les fournisseurs que {@see initiateLateFeeAlone()} acceptera : ceux de `availableProviders()`
-     * dont l'intégration résolue appartient à l'agence du bail. Décision du porteur (TCK-2778, 1a,
-     * 2026-11-13) — une intégration GLOBALE encaisserait la pénalité sur le compte de la plateforme,
-     * que ni le rapprochement de l'agence ni les reversements ne savent rendre à qui elle revient : le
-     * repli global n'est pas proposé ici (ticket de suite, comptabilité). Aucun quand la pénalité seule
+     * Les fournisseurs que {@see initiateLateFeeAlone()} acceptera : ceux de `availableProviders()`,
+     * que l'intégration résolue soit celle de l'agence ou la globale. Aucun quand la pénalité seule
      * n'est pas due, ou que l'agence ne l'encaisse pas en ligne.
+     *
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 2) — la règle 1a de TCK-2778 (l'intégration
+     * de l'agence seule) est levée : la pénalité seule encaissée par la plateforme entre au net de son
+     * `PlatformPayout` (`late_fee_platform_payout_id`), et celle de l'agence se rapproche à part.
      *
      * @return list<PaymentProvider>
      */
@@ -73,10 +79,7 @@ trait LateFeeAloneCheckout
             return [];
         }
 
-        return array_values(array_filter(
-            $this->availableProviders($payment),
-            fn (PaymentProvider $provider): bool => (int) ($this->resolveIntegration($provider, (int) $agencyId)?->agency_id ?? 0) === (int) $agencyId,
-        ));
+        return $this->availableProviders($payment);
     }
 
     /**
@@ -209,7 +212,7 @@ trait LateFeeAloneCheckout
         }
 
         $integration = $this->usableIntegration($payment, $provider);
-        // Décision 1a — jamais l'intégration globale : le fournisseur doit être servi par l'agence.
+        // Le fournisseur doit être de ceux qu'offre la pénalité seule (TCK-2793 : agence ou plateforme).
         abort_code_unless(in_array($provider, $this->lateFeeAloneProviders($payment), true), 422, 'payment.provider_not_available', ['provider' => $provider->value]);
 
         // Règle n°3 du CLAUDE.md : entier ×100 à la frontière du driver, que le driver local re-divise.
@@ -301,6 +304,8 @@ trait LateFeeAloneCheckout
     {
         $entry = $this->lateFeeAloneEntry($meta, $transactionId) ?? [];
         $amount = is_numeric($entry['amount'] ?? null) ? (float) $entry['amount'] : null;
+        // TCK-2793 — la part de pénalité rendue avant l'événement : ce qu'il rend de neuf se lit après.
+        $refundedBefore = (float) ($payment->late_fee_refund_amount ?? 0);
         $gateway = is_array($meta['gateway'] ?? null) ? $meta['gateway'] : [];
         $settledByIt = ($gateway['late_fee_settled_by'] ?? null) === $transactionId;
 
@@ -371,6 +376,20 @@ trait LateFeeAloneCheckout
 
         $payment->metadata = $meta;
         $payment->save();
+
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 6) — un remboursement appliqué par cet
+        // événement (`refunded`, ou celui qui attendait ce `paid`) a les effets comptables d'un
+        // remboursement de loyer, à hauteur de la part neuve de la pénalité : le constaté chez
+        // l'encaisseur agence, la reprise sur la copie de la pénalité reversée, le signal du
+        // reversement de la plateforme qui l'a prise, et l'avis aux parties. Jugés APRÈS la
+        // sauvegarde, dans la transaction de l'événement.
+        $refundedPart = (float) ($payment->late_fee_refund_amount ?? 0) - $refundedBefore;
+        if ($refundedPart > 0) {
+            app(ObservedRefundPayout::class)->recordLateFeeAlone($payment, $refundedPart, now());
+            app(PayoutClawbacks::class)->recordLateFeeRefund($payment, $refundedPart, now());
+            app(PlatformPayoutRefundSignal::class)->recordLateFeeAlone($payment, now());
+            event(new LeasePaymentRefunded((int) $payment->getKey(), $refundedPart, lateFeeAlone: true));
+        }
     }
 
     /**

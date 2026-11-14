@@ -61,6 +61,8 @@ class MatchBankStatementLinesJob implements ShouldQueue
                         'match_status' => BankStatementLineMatchStatus::Suggested,
                         'matched_payment_type' => $suggestion->paymentType,
                         'matched_payment_id' => $suggestion->paymentId,
+                        // TCK-2793 — la pénalité payée seule d'une échéance, ou rien.
+                        'matched_part' => $suggestion->part,
                         'match_confidence' => $suggestion->confidence,
                     ]);
                 }

@@ -409,6 +409,17 @@ return [
                 'body' => ':amount of the rent paid by :tenant for :property was refunded through the online payment method.',
                 'sms' => 'Takussan: :amount of the rent from :tenant (:property) refunded.',
             ],
+            // TCK-2793 — the late fee paid on its own, refunded through the online payment method.
+            'late_fee_refunded' => [
+                'title' => 'Refund: :property',
+                'body' => 'A refund of :amount was made on the late fee you paid for :property.',
+                'sms' => 'Takussan: refund of :amount on your late fee (:property).',
+            ],
+            'late_fee_refunded_landlord' => [
+                'title' => 'Late fee refunded: :property',
+                'body' => ':amount of the late fee paid by :tenant for :property was refunded through the online payment method.',
+                'sms' => 'Takussan: :amount of the late fee from :tenant (:property) refunded.',
+            ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
         'payment' => [

@@ -484,7 +484,7 @@ return [
         'integration_credential_missing' => 'L\'intégration de paiement est incomplète : un identifiant manque.',
         'integration_missing' => 'Aucune intégration de paiement active pour ce prestataire.',
         // TCK-2778 — le lien de la pénalité seule, pour une agence qui ne l'encaisse pas en ligne.
-        'late_fee_not_collected_online' => 'Votre agence n\'encaisse pas ses pénalités de retard en ligne sur son propre compte de paiement : relancez sans lien, la pénalité se règle à l\'agence.',
+        'late_fee_not_collected_online' => 'Votre agence n\'encaisse pas ses pénalités de retard en ligne : relancez sans lien, la pénalité se règle à l\'agence.',
         'not_payable' => 'Ce paiement n\'est plus payable en ligne : il est déjà réglé, remboursé ou sans montant dû.',
         'paid_amount_invalid' => 'Le montant payé ne peut pas être négatif.',
         'provider_failed' => 'Le prestataire de paiement :provider n\'a pas pu traiter la demande.',

@@ -484,7 +484,7 @@ return [
         'integration_credential_missing' => 'The payment integration is incomplete: a credential is missing.',
         'integration_missing' => 'No active payment integration for this provider.',
         // TCK-2778 — le lien de la pénalité seule, pour une agence qui ne l'encaisse pas en ligne.
-        'late_fee_not_collected_online' => 'Your agency does not collect late fees online through its own payment account: send the reminder without a link, the late fee is paid at the agency.',
+        'late_fee_not_collected_online' => 'Your agency does not collect late fees online: send the reminder without a link, the late fee is paid at the agency.',
         'not_payable' => 'This payment can no longer be paid online: it is already settled, refunded or has nothing due.',
         'paid_amount_invalid' => 'The paid amount cannot be negative.',
         'provider_failed' => 'The payment provider :provider could not process the request.',

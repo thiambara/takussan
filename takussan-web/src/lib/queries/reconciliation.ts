@@ -96,6 +96,8 @@ export const BANK_LINE_FIELDS = [
   'match_status',
   'matched_payment_type',
   'matched_payment_id',
+  // TCK-2793 — la part désignée : sans elle, la pénalité payée seule se lirait « Loyer ».
+  'matched_part',
   'match_confidence',
 ] as const;
 

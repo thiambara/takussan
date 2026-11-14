@@ -43,6 +43,10 @@ enum NotificationCode: string
     // locataire, même sans compte (sa quittance ne couvre plus la somme rendue), et le bailleur.
     case LeasePaymentRefunded = 'lease_payment.refunded';
     case LeasePaymentRefundedLandlord = 'lease_payment.refunded_landlord';
+    // TCK-2793 — la pénalité de retard payée SEULE (TCK-2778), remboursée : les textes du loyer
+    // disent « loyer ».
+    case LeasePaymentLateFeeRefunded = 'lease_payment.late_fee_refunded';
+    case LeasePaymentLateFeeRefundedLandlord = 'lease_payment.late_fee_refunded_landlord';
 
     // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
     case PaymentDuplicate = 'payment.duplicate';
@@ -312,6 +316,7 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord, self::LeasePaymentSettledOnline, self::PaymentDuplicate,
             self::PaymentDuplicateLateFee, self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord,
+            self::LeasePaymentLateFeeRefunded, self::LeasePaymentLateFeeRefundedLandlord,
             self::PlatformPayoutRefundedSincePaid => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled,
@@ -410,6 +415,7 @@ enum NotificationCode: string
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             // TCK-2320 — de l'argent rendu après coup : on ne s'en désabonne pas.
             self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord, self::PlatformPayoutRefundedSincePaid => null,
+            self::LeasePaymentLateFeeRefunded, self::LeasePaymentLateFeeRefundedLandlord => null,
             // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
             // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
             // d'un détournement (ADR-0039 §6).
@@ -461,6 +467,8 @@ enum NotificationCode: string
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::LeasePaymentRefunded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::LeasePaymentRefundedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
+            self::LeasePaymentLateFeeRefunded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
+            self::LeasePaymentLateFeeRefundedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
             self::PlatformPayoutRefundedSincePaid => ['period' => self::PARAM_MONTH, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
@@ -692,6 +700,8 @@ enum NotificationCode: string
             // sans compte, ou le numéro de la fiche (TCK-1493). Sans préférence, aucun canal mobile
             // vers un compte.
             self::LeasePaymentRefunded,
+            // TCK-2793 — de même pour la pénalité payée seule.
+            self::LeasePaymentLateFeeRefunded,
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
@@ -738,6 +748,8 @@ enum NotificationCode: string
             self::LeasePaymentRecorded,
             // TCK-2320 — et le remboursement de cette échéance par le fournisseur.
             self::LeasePaymentRefunded,
+            // TCK-2793 — et celui de sa pénalité payée seule.
+            self::LeasePaymentLateFeeRefunded,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled, self::VisitCancelledWindow,

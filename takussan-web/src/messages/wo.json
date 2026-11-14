@@ -8931,7 +8931,8 @@
         "lease_payment": "Luwaasu kër",
         "invoice": "Faktiir",
         "payout": "Delloo",
-        "platform_payout": "Reversement de la plateforme"
+        "platform_payout": "Reversement de la plateforme",
+        "lease_payment_late_fee": "Pénalité de retard payée seule"
       },
       "import": {
         "title": "Yebal ab relevé",
@@ -18672,6 +18673,14 @@
         "refunded_landlord": {
           "title": "Loyer remboursé : {property}",
           "body": "{amount} du loyer payé par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
+        },
+        "late_fee_refunded": {
+          "title": "Remboursement : {property}",
+          "body": "Un remboursement de {amount} a été fait sur la pénalité de retard que vous avez payée pour {property}."
+        },
+        "late_fee_refunded_landlord": {
+          "title": "Pénalité remboursée : {property}",
+          "body": "{amount} de la pénalité de retard payée par {tenant} pour {property} ont été remboursés par le moyen de paiement en ligne."
         }
       },
       "payment": {

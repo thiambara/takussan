@@ -51,6 +51,7 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         'period_start', 'period_end', 'due_date', 'paid_at', 'status',
         'late_fee_amount', 'late_fee_applied_at', 'late_fee_paid_at', 'refund_amount', 'transaction_id', 'notes', 'metadata',
         'marked_paid_at', 'bank_reconciled_at', 'bank_statement_line_id',
+        'late_fee_bank_reconciled_at', 'late_fee_bank_statement_line_id',
         'platform_fee_pct_at_payment', 'platform_payout_id',
     ];
 
@@ -73,8 +74,14 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         'marked_paid_at' => 'datetime',
         'metadata' => 'array',
         'bank_reconciled_at' => 'datetime',
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — le rapprochement de la pénalité
+        // payée seule, à côté de celui du loyer. Écrit par `ReconciliationManager` seul.
+        'late_fee_bank_reconciled_at' => 'datetime',
         'platform_fee_pct_at_payment' => 'decimal:2',
     ];
+
+    /** TCK-2793 — la part d'une échéance qu'une ligne de relevé désigne : la pénalité payée seule. */
+    public const PART_LATE_FEE = 'late_fee';
 
     /**
      * TCK-593 — la pénalité de retard restant due.
@@ -111,6 +118,98 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     public function lateFeeAloneOutstanding(): bool
     {
         return $this->status === PaymentStatus::Paid && $this->lateFeeOutstanding() > 0;
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 1) — le règlement EN LIGNE de la pénalité
+     * payée seule (TCK-2778) : l'entrée `subject: late_fee` de `gateway.transactions` que désigne
+     * `gateway.late_fee_settled_by`, jamais `late_fee_checkout` (un checkout écarté puis payé quand
+     * même n'en est plus le dernier). `null` quand la pénalité n'a pas été réglée par un tel checkout
+     * (réglée avec le loyer, à l'agence, ou pas du tout).
+     *
+     * @return array{transaction_id: string, integration_id: int|null, amount: float}|null
+     */
+    public function lateFeeAloneSettlement(): ?array
+    {
+        $gateway = is_array($this->metadata['gateway'] ?? null) ? $this->metadata['gateway'] : [];
+        $settledBy = $gateway['late_fee_settled_by'] ?? null;
+        if (! is_string($settledBy) || $settledBy === '') {
+            return null;
+        }
+
+        foreach (is_array($gateway['transactions'] ?? null) ? $gateway['transactions'] : [] as $entry) {
+            if (is_array($entry) && ($entry['transaction_id'] ?? null) === $settledBy
+                && ($entry['subject'] ?? null) === self::PART_LATE_FEE) {
+                return [
+                    'transaction_id' => $settledBy,
+                    'integration_id' => is_numeric($entry['integration_id'] ?? null) ? (int) $entry['integration_id'] : null,
+                    'amount' => is_numeric($entry['amount'] ?? null) ? (float) $entry['amount'] : (float) ($this->late_fee_amount ?? 0),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * TCK-2793 — un fragment SQL qui lit le champ `$field` de l'entrée de la pénalité payée seule
+     * (celle de `gateway.late_fee_settled_by`, `subject: late_fee`) ; `NULL` sans elle. La forme
+     * SQL de {@see self::lateFeeAloneSettlement()}.
+     */
+    public static function lateFeeAloneEntrySql(string $metadataColumn, string $field): string
+    {
+        if (preg_match('/^[a-z_]+$/', $field) !== 1) {
+            throw new \InvalidArgumentException("Champ d'entrée invalide : {$field}");
+        }
+        $gateway = "({$metadataColumn}->'gateway')";
+        $entries = "jsonb_array_elements(CASE WHEN jsonb_typeof({$gateway}->'transactions') = 'array' "
+            ."THEN {$gateway}->'transactions' ELSE '[]'::jsonb END) WITH ORDINALITY AS late_fee_entry(v, n)";
+        $value = $field === 'amount'
+            ? "CASE WHEN jsonb_typeof(late_fee_entry.v->'amount') = 'number' THEN (late_fee_entry.v->>'amount')::numeric END"
+            : "late_fee_entry.v->>'{$field}'";
+
+        return "(SELECT {$value} FROM {$entries} "
+            ."WHERE jsonb_typeof({$gateway}->'late_fee_settled_by') = 'string' "
+            ."AND late_fee_entry.v->>'transaction_id' = {$gateway}->>'late_fee_settled_by' "
+            ."AND late_fee_entry.v->>'subject' = '".self::PART_LATE_FEE."' ORDER BY late_fee_entry.n LIMIT 1)";
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — les pénalités payées seules qui
+     * attendent un crédit du relevé de l'agence : réglées par un checkout de la pénalité seule
+     * qu'une intégration DE L'AGENCE a initié (celle de la plateforme verse la pénalité fondue dans
+     * le net de son `PlatformPayout`), pas encore rapprochées. Le pendant de
+     * {@see self::scopeAwaitingBankCredit()} pour la seconde part de l'échéance.
+     */
+    public function scopeLateFeeAwaitingBankCredit(Builder $query, int $agencyId): Builder
+    {
+        $integrationId = self::lateFeeAloneEntrySql($query->qualifyColumn('metadata'), 'integration_id');
+        $integrations = (new Integration)->getTable();
+
+        return $query->whereNull($query->qualifyColumn('late_fee_bank_reconciled_at'))
+            ->whereNotNull($query->qualifyColumn('late_fee_paid_at'))
+            ->whereHas('lease', fn (Builder $q) => $q->where('agency_id', $agencyId))
+            ->exceptDepositRefunds()
+            ->whereRaw("({$integrationId}) IS NOT NULL")
+            ->whereRaw("NOT EXISTS (SELECT 1 FROM {$integrations} AS late_fee_integration "
+                ."WHERE late_fee_integration.agency_id IS NULL AND late_fee_integration.id::text = ({$integrationId}))");
+    }
+
+    /** TCK-2793 — la pénalité payée seule dont le montant figé vaut `$amount`, à `$tolerance` près. */
+    public function scopeWhereLateFeeAloneAmountNear(Builder $query, float $amount, float $tolerance): Builder
+    {
+        $entryAmount = self::lateFeeAloneEntrySql($query->qualifyColumn('metadata'), 'amount');
+
+        return $query->whereRaw("ABS(({$entryAmount}) - ?) < ?", [$amount, $tolerance]);
+    }
+
+    /**
+     * TCK-2793 — le montant attendu sur le compte de l'agence pour la pénalité payée seule : le
+     * montant figé de son checkout ; `0` sans elle.
+     */
+    public function expectedLateFeeBankAmount(): float
+    {
+        return $this->lateFeeAloneSettlement()['amount'] ?? 0.0;
     }
 
     /**
@@ -240,7 +339,11 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
             return (float) ($this->metadata['gateway_expected_amount'] ?? $this->amount);
         }
 
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — une pénalité payée en ligne SEULE
+        // arrive par son propre versement, rapproché à part : elle n'entre plus dans celui du loyer,
+        // même réglée le même jour.
         $memeJour = $this->late_fee_paid_at !== null && $this->paid_at !== null
+            && ($this->metadata['gateway']['late_fee_settled_by'] ?? null) === null
             && $this->late_fee_paid_at->toDateString() === $this->paid_at->toDateString();
 
         return (float) $this->amount + ($memeJour ? (float) ($this->late_fee_amount ?? 0) : 0.0);
@@ -273,7 +376,9 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         // `paid_amount`. Un `::numeric` nu levait sur une valeur non numérique écrite hors du modèle,
         // et la recherche de rapprochement comme le matcher tombaient en 500.
         $expected = CollectedPayments::metadataNumberSql($metadata, 'gateway_expected_amount');
+        // TCK-2793 — sauf une pénalité payée en ligne seule : son versement est rapproché à part.
         $offline = "{$rowAmount} + CASE WHEN {$lateFeePaidAt} IS NOT NULL AND {$paidAt} IS NOT NULL "
+            ."AND ({$metadata}->'gateway'->>'late_fee_settled_by') IS NULL "
             ."AND {$lateFeePaidAt}::date = {$paidAt}::date THEN COALESCE({$lateFee}, 0) ELSE 0 END";
 
         return $query->whereRaw(

@@ -48,7 +48,9 @@ export type MatchedPaymentType =
   | 'invoice'
   | 'payout'
   // TCK-1421 (P141.02) — le virement de clôture de la plateforme, rapproché d'un crédit.
-  | 'platform_payout';
+  | 'platform_payout'
+  // TCK-2793 — la pénalité de retard payée seule d'une échéance, rapprochée à part de son loyer.
+  | 'lease_payment_late_fee';
 
 export interface BankStatementLine {
   id: number;
