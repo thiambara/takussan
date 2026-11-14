@@ -173,13 +173,6 @@ class CustomerDuplicateDetector
     }
 
     /**
-     * TCK-2590 — le numéro COMPLET que la sonde compare à l'égalité (E.164 normalisé), ou `null`
-     * pour un numéro entamé, invalide ou absent. Le préfixe d'abord : « +2217064820 » a la FORME d'un
-     * E.164 (`PhoneNumber::isValid` ne compte pas les chiffres nationaux), mais ce n'est le numéro
-     * complet de personne. Lu aussi par le limiteur `customer-duplicate-probe-full-number`
-     * (décision 8 du porteur, 2026-11-12) : seule une sonde au numéro complet y compte.
-     */
-    /**
      * TCK-2590 (décision 8 du porteur ; troisième porte, 2026-11-12) — le budget de tout signalement
      * d'une fiche MASQUÉE (tout à `null`) : vingt par heure et par personne, UN seau
      * ({@see self::LIMITEUR_DU_NUMERO_COMPLET}) pour la sonde, la création, la mise à jour et la
@@ -250,6 +243,13 @@ class CustomerDuplicateDetector
         return 'sonde-numero-complet:'.$appelant;
     }
 
+    /**
+     * TCK-2590 — le numéro COMPLET que la sonde compare à l'égalité (E.164 normalisé), ou `null`
+     * pour un numéro entamé, invalide ou absent. Le préfixe d'abord : « +2217064820 » a la FORME d'un
+     * E.164 (`PhoneNumber::isValid` ne compte pas les chiffres nationaux), mais ce n'est le numéro
+     * complet de personne. Lu aussi par le limiteur `customer-duplicate-probe-full-number`
+     * (décision 8 du porteur, 2026-11-12) : seule une sonde au numéro complet y compte.
+     */
     public static function numeroComplet(?string $phone): ?string
     {
         if (self::senegalPrefix($phone) !== null) {

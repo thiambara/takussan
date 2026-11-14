@@ -41,15 +41,15 @@ Aucun changement de comportement.
 
 ## Delta à produire
 
-- [ ] Le premier des deux docblocks passe au-dessus de `numeroComplet()`.
+- [x] Le premier des deux docblocks passe au-dessus de `numeroComplet()`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `(new ReflectionMethod(CustomerDuplicateDetector::class, 'numeroComplet'))->getDocComment()` contient
+- [x] AC1 — `(new ReflectionMethod(CustomerDuplicateDetector::class, 'numeroComplet'))->getDocComment()` contient
   « le numéro COMPLET que la sonde compare à l'égalité ».
-- [ ] AC2 — `getDocComment()` de `budgeterLesSignalementsMasques` commence par « TCK-2590 (décision 8 du porteur ;
+- [x] AC2 — `getDocComment()` de `budgeterLesSignalementsMasques` commence par « TCK-2590 (décision 8 du porteur ;
   troisième porte » et ne contient pas « le numéro COMPLET que la sonde compare ».
-- [ ] AC3 — `git diff` du fichier ne touche que des lignes de commentaire.
+- [x] AC3 — `git diff` du fichier ne touche que des lignes de commentaire.
 
 ## Hors périmètre
 
@@ -57,4 +57,12 @@ Aucun changement de comportement.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Bloc de 7 lignes coupé au-dessus de `budgeterLesSignalementsMasques()` et collé tel quel au-dessus de
+  `numeroComplet()` ; aucun autre octet du fichier ne change.
+- Le texte déplacé reste juste : le limiteur `customer-duplicate-probe-full-number` (`AppServiceProvider`) ne compte que
+  la sonde au numéro complet ; l'e-mail complet d'une fiche masquée puise dans le même seau par
+  `budgeterLesSignalementsMasques()`, que son propre docblock décrit déjà.
+- Preuves (2026-11-14) : AC1 et AC2 par `php -r` sur `ReflectionMethod::getDocComment()` (trois `true`) ; AC3 par
+  `git diff -U0` dont toutes les lignes `+`/`-` sont `/**`, `*` ou `*/` ; Pint `passed` ; `SignalementMasqueTroisiemePorteTest`,
+  `CustomerDuplicateProbeTest`, `CreationFicheSousVerrouTest`, `ContactLeadConvertTest`, `CustomerPhoneAndDuplicateTest` :
+  51 verts.
