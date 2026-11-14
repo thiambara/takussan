@@ -3352,7 +3352,8 @@
       "activatedToastTitle": "Luwé bi jàppale nañu ko",
       "activatedToastBody": "Léegi mën nañu génne walla xool tëralinu pey bi.",
       "reviewContextActive": "Sa luwé mi ngi dox.",
-      "reviewContextEnded": "Sa luwé bi jeex na."
+      "reviewContextEnded": "Sa luwé bi jeex na.",
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce bail."
     },
     "schedule": {
       "error": "Mënuñu yeb tëralinu pey bi.",
@@ -10934,7 +10935,8 @@
       "verified": "Ñu ko wóoral",
       "not_verified": "Ñu ko wóoralul",
       "active_version": "Wersioŋ bi jëf",
-      "comment_quoted": "“{comment}”"
+      "comment_quoted": "“{comment}”",
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce document."
     },
     "primer": {
       "title": "Amul kayitu boroom kër",

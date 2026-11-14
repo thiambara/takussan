@@ -15,6 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { ApiError } from '@/lib/api';
 import { echeanceDe } from '@/lib/documents/coffre';
 import { formatDuFichier, seVersionne, tailleDuFichier } from '@/lib/documents/fiche';
 import { CLE_DE_LA_PROMESSE, estDeMesPieces, rappelAVenir } from '@/lib/documents/rappel-d-expiration';
@@ -54,6 +56,7 @@ export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) 
   const t = useTranslations('documents.detail');
   const tCommon = useTranslations('common');
   const tPage = useTranslations('dashboard.pages.documentDetail');
+  const messageErreur = useMessageErreurApi();
   const documentQuery = useDocumentWithVersions(documentId);
   const { data, isLoading, isError } = documentQuery;
   const document = data?.data;
@@ -71,10 +74,23 @@ export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) 
   }
 
   if (isError || !document) {
+    // TCK-2807 — trois cas, comme `QueryBoundary` (TCK-2751) : un 403 dit le refus (jamais
+    // « introuvable »), un 404 dit « introuvable », et ni l'un ni l'autre ne propose « Réessayer », qui
+    // n'y changerait rien. Seule une panne (5xx, réseau) garde sa reprise, avec le message de l'API.
+    const statut = documentQuery.error instanceof ApiError ? documentQuery.error.status : null;
+    const panne = isError && statut !== 403 && statut !== 404;
     return (
       <div className="mx-auto max-w-2xl">
         <h1 className="sr-only">{tPage('metaTitle')}</h1>
-        <ErrorState message={t('not_found')} onRetry={() => void documentQuery.refetch()} retryLabel={tCommon('actions.retry')} />
+        {panne ? (
+          <ErrorState
+            message={messageErreur(documentQuery.error, tCommon('status.error'))}
+            onRetry={() => void documentQuery.refetch()}
+            retryLabel={tCommon('actions.retry')}
+          />
+        ) : (
+          <ErrorState message={statut === 403 ? t('forbidden') : t('not_found')} />
+        )}
       </div>
     );
   }

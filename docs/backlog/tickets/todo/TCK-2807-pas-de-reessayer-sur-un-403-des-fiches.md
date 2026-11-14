@@ -66,20 +66,33 @@ possible depuis cet espace, sans bouton « Réessayer ». Elle propose au plus u
 
 ## Delta à produire
 
-- [ ] `LeaseDetail` : branche 403 sans « Réessayer ».
-- [ ] `DocumentDetailClient` : branches 403 et 404 sans « Réessayer », panne avec.
-- [ ] Tests vitest des deux fiches.
+- [x] `LeaseDetail` : branche 403 sans « Réessayer ».
+- [x] `DocumentDetailClient` : branches 403 et 404 sans « Réessayer », panne avec.
+- [x] Tests vitest des deux fiches.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Fiche du bail, lecture à 403 (`ApiError` statut 403) : le message de refus est présent, et aucun bouton
+- [x] AC1 — Fiche du bail, lecture à 403 (`ApiError` statut 403) : le message de refus est présent, et aucun bouton
   « Réessayer » n'est rendu. Le test cherche le bouton par son rôle et son nom.
-- [ ] AC2 — Fiche du bail, lecture à 500 puis en erreur réseau : « Réessayer » est présent, et un clic relance la
+- [x] AC2 — Fiche du bail, lecture à 500 puis en erreur réseau : « Réessayer » est présent, et un clic relance la
   lecture (compté sur le double réseau).
-- [ ] AC3 — Fiche du document : 403 rend le refus sans « Réessayer » et sans le mot « introuvable » ; 404 rend
+- [x] AC3 — Fiche du document : 403 rend le refus sans « Réessayer » et sans le mot « introuvable » ; 404 rend
   « introuvable » sans « Réessayer » ; 500 rend « Réessayer ».
-- [ ] AC4 — Vérifié par ablation, une à la fois : la branche 403 retirée de chaque fiche rend son AC1 ou AC3 rouge ; un
+- [x] AC4 — Vérifié par ablation, une à la fois : la branche 403 retirée de chaque fiche rend son AC1 ou AC3 rouge ; un
   « Réessayer » masqué sur toute erreur rend AC2 rouge.
+
+Preuves :
+
+- AC1 et AC2 : `LeaseDetail.refus.tck-2807.test.tsx`. La lecture est la vraie (`useLease` → `useApiQuery` → `apiRequest`) sur un `fetch` doublé. Le
+  403 naît de la réponse, et la relance se compte en requêtes vers `/api/leases/5`, une puis deux, à 500 comme en
+  erreur réseau (`TypeError`).
+- AC3 : `DocumentDetailClient.refus.tck-2807.test.tsx`, même montage. Il couvre 403, 404 et 500 avec sa relance comptée.
+- AC4, cinq ablations, une à la fois. Chaque fichier a été restauré, md5 vérifié :
+  - 403 retiré du bail : AC1 rouge ;
+  - 403 retiré du document : AC3 (403) rouge ;
+  - « Réessayer » masqué partout, sur le bail : les deux AC2 rouges ;
+  - « Réessayer » masqué partout, sur le document : AC3 (500) rouge ;
+  - 404 retiré du document : AC3 (404) rouge.
 
 ## Hors périmètre
 
@@ -90,4 +103,41 @@ possible depuis cet espace, sans bouton « Réessayer ». Elle propose au plus u
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Texte du refus.** Le refus utilise une clé fixe et neutre, calquée sur la fiche du bien (TCK-442,
+  `dashboard.pages.propertyDetail.forbidden_message`) :
+  - `lease.detail.forbidden` : « Votre profil actif ne permet pas d'ouvrir ce bail. » ;
+  - `documents.detail.forbidden` : même phrase, pour « ce document ».
+
+  Pourquoi pas les autres textes :
+  - Les clés « relève d'une autre agence » de la réservation et de la visite ne valent pas ici. Un 403 sur un bail ou
+    un document ne vient pas toujours d'une autre agence : locataire qui n'est pas partie au bail, bailleur bloqué.
+  - La prose de l'API (`messageErreur`), que `QueryBoundary` affiche, ne dirait rien de l'objet.
+- **Panne du document.** Le message est `messageErreur(erreur, common.status.error)`, comme dans `QueryBoundary`, avec
+  « Réessayer ». Un document absent sans erreur (`data` vide) se dit « introuvable », sans « Réessayer ».
+- **Écart laissé.** Le bail dit encore « Bail introuvable. » (`lease.detail.error`) sur une panne et sur un 404, avec
+  « Réessayer ». C'est hors du delta : seul le 403 était demandé.
+- **Inventaire des blocs d'erreur maison** (hors périmètre, à ne pas corriger ici). Il vient d'un grep heuristique :
+  fichiers avec `onRetry=` et sans `status === 403`, `forbidden` ni `refuse`. Il trouve 77 fichiers, surtout des
+  listes. Les vues d'un objet unique, ou leurs sous-blocs, qui proposent « Réessayer » sans regarder le statut :
+  - `leases/fiche/OngletsDuBail.tsx` ;
+  - `leases/fiche/FeuilleDesGarants.tsx` ;
+  - `leases/LeaseSchedule.tsx` ;
+  - `property-dashboard/fiche/OngletLocation.tsx` ;
+  - `property-dashboard/fiche/OngletDocuments.tsx` ;
+  - `documents/fiche/VersionsDuDocument.tsx` ;
+  - `customer-dashboard/fiche/FilDuClient.tsx` ;
+  - `admin/PropertyModerationDetail.tsx` ;
+  - `admin/super/user-detail.tsx` ;
+  - `boost/admin/AdminCreditWalletDetail.tsx`.
+
+
+  Les trois onglets nommés par le ticket, lus à leurs lignes `onRetry=`. Tous proposent « Réessayer » sur toute
+  erreur, sans lire le statut ; aucun 403 n'y a été provoqué ni mesuré :
+  - `OngletsDuBail` : `ErrorState` avec reprise sur `documents.enEchec` (onglet Documents, l. 63) et sur
+    `requete.isError` (onglet Historique, l. 158) ;
+  - `OngletLocation` : même chose sur `location.echeances.isError` (l. 246) et `location.bail.isError` (l. 317) ;
+  - `OngletDocuments` : même chose sur `documents.enEchec` (l. 86).
+
+  `console/DataState.tsx` est un enrobage partagé, utilisé par 29 fichiers. Il reçoit l'erreur déjà mise en texte
+  (`error: ReactNode`) et `onRetry` : il ne peut donc pas lire le statut. C'est chaque appelant qui décide. Une suite
+  qui voudrait le traiter d'un coup devrait lui passer l'erreur brute, comme `QueryBoundary`.

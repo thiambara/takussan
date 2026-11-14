@@ -5475,7 +5475,8 @@
       "activatedToastTitle": "Bail activé",
       "activatedToastBody": "L’échéancier peut maintenant être généré ou consulté.",
       "reviewContextActive": "Votre bail est en cours.",
-      "reviewContextEnded": "Votre bail est terminé."
+      "reviewContextEnded": "Votre bail est terminé.",
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce bail."
     },
     "schedule": {
       "error": "Impossible de charger l'échéancier.",
@@ -11563,7 +11564,8 @@
       "verified": "Vérifié",
       "not_verified": "Non vérifié",
       "active_version": "Version active",
-      "comment_quoted": "“{comment}”"
+      "comment_quoted": "“{comment}”",
+      "forbidden": "Votre profil actif ne permet pas d'ouvrir ce document."
     },
     "primer": {
       "title": "Aucun document propriétaire",

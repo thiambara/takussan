@@ -5518,7 +5518,8 @@
       "activatedToastTitle": "Lease activated",
       "activatedToastBody": "The schedule can now be generated or viewed.",
       "reviewContextActive": "Your lease is ongoing.",
-      "reviewContextEnded": "Your lease has ended."
+      "reviewContextEnded": "Your lease has ended.",
+      "forbidden": "Your active profile cannot open this lease."
     },
     "schedule": {
       "error": "The payment schedule could not be loaded.",
@@ -11563,7 +11564,8 @@
       "verified": "Verified",
       "not_verified": "Not verified",
       "active_version": "Active version",
-      "comment_quoted": "“{comment}”"
+      "comment_quoted": "“{comment}”",
+      "forbidden": "Your active profile cannot open this document."
     },
     "primer": {
       "title": "No owner documents yet",

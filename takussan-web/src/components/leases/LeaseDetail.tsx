@@ -45,6 +45,7 @@ import { SheetClose } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { ApiError } from '@/lib/api';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -147,10 +148,18 @@ export function LeaseDetail({ leaseId, historique = false }: LeaseDetailProps) {
     );
   }
   if (isError || !lease) {
+    // TCK-2807 — comme `QueryBoundary` (TCK-2751) et les fiches de la réservation et de la visite : un
+    // 403 ne se répare pas en réessayant (bail d'un autre espace, ou lecteur qui n'y est pas partie).
+    // Le refus ne nomme rien du bail. Une panne (5xx, réseau) garde sa reprise.
+    const refuse = leaseQuery.error instanceof ApiError && leaseQuery.error.status === 403;
     return (
       <>
         {titreDeRepli}
-        <ErrorState message={tLease('detail.error')} onRetry={() => void leaseQuery.refetch()} retryLabel={tCommon('actions.retry')} />
+        {refuse ? (
+          <ErrorState message={tLease('detail.forbidden')} />
+        ) : (
+          <ErrorState message={tLease('detail.error')} onRetry={() => void leaseQuery.refetch()} retryLabel={tCommon('actions.retry')} />
+        )}
       </>
     );
   }
