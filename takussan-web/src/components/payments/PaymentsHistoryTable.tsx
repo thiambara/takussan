@@ -28,7 +28,17 @@ import {
 } from './constants';
 import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
 
-export function PaymentsHistoryTable() {
+interface PaymentsHistoryTableProps {
+  /**
+   * TCK-2651 — le registre du BAILLEUR (page « Loyers ») : ses seules opérations
+   * (`filter[landlord_id]`), le bien et le locataire NOMMÉS (`include=property,payer`) au lieu de
+   * « Bail #63 », la recherche par locataire (`?search=`), et aucun identifiant technique (ni
+   * `#id` en repli de référence).
+   */
+  readonly bailleur?: { readonly id: number };
+}
+
+export function PaymentsHistoryTable({ bailleur }: PaymentsHistoryTableProps = {}) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.history');
   const tTable = useTranslations('payments.history.table');
@@ -37,6 +47,7 @@ export function PaymentsHistoryTable() {
   const searchParams = useSearchParams();
 
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  const bailleurId = bailleur?.id;
   const params: UsePaymentsHistoryParams = useMemo(() => {
     const status = searchParams.get('status') ?? undefined;
     const entity_type = (searchParams.get('entity_type') as
@@ -49,7 +60,11 @@ export function PaymentsHistoryTable() {
     // TCK-2768 (q2) — une borne que l'API refuserait (un favori « 12/11/2026 ») est ignorée, pas relayée en 422.
     const date_from = jourDeLApiOuRien(searchParams.get('date_from'));
     const date_to = jourDeLApiOuRien(searchParams.get('date_to'));
+    const duBailleur: Partial<UsePaymentsHistoryParams> = bailleurId !== undefined
+      ? { landlord_id: bailleurId, include: ['property', 'payer'], search: searchParams.get('search') ?? undefined }
+      : {};
     return {
+      ...duBailleur,
       page,
       per_page: 20,
       status: status || undefined,
@@ -58,7 +73,7 @@ export function PaymentsHistoryTable() {
       date_from,
       date_to,
     };
-  }, [page, searchParams]);
+  }, [page, searchParams, bailleurId]);
 
   const query = usePaymentsHistory(params);
 
@@ -83,7 +98,7 @@ export function PaymentsHistoryTable() {
           );
         }
 
-        const reference = (row: PaymentHistoryRow) => row.reference_number ?? `#${row.id}`;
+        const reference = (row: PaymentHistoryRow) => row.reference_number ?? (bailleur ? '—' : `#${row.id}`);
         const montant = (value: number, row: PaymentHistoryRow) =>
           formatCurrency(value, locale, { currency: row.currency || 'XOF' });
         const acompte = (row: PaymentHistoryRow) =>
@@ -102,7 +117,11 @@ export function PaymentsHistoryTable() {
               : row.payment_method.replace(/_/g, ' ')
             : '—';
         const entite = (row: PaymentHistoryRow, className?: string) => {
-          const label = row.lease_id
+          // TCK-2651 — le bailleur lit le bien et le locataire, jamais « Bail #63 ».
+          const nomme = [row.property?.title, row.payer?.name].filter(Boolean).join(' · ');
+          const label = bailleur
+            ? nomme || '—'
+            : row.lease_id
             ? tTable('entityLease', { id: String(row.lease_id) })
             : row.booking_id
               ? tTable('entityBooking', { id: String(row.booking_id) })
@@ -170,7 +189,7 @@ export function PaymentsHistoryTable() {
           },
           {
             id: 'entity',
-            header: tTable('entity'),
+            header: bailleur ? tTable('propertyAndTenant') : tTable('entity'),
             className: 'whitespace-nowrap',
             cell: (row) => <span className="text-xs">{entite(row)}</span>,
           },

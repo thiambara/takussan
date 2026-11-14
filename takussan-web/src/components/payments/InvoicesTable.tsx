@@ -21,9 +21,11 @@ import { INVOICE_STATUS_TONE } from './constants';
 
 interface InvoicesTableProps {
   readonly onSelect: (invoiceId: number) => void;
+  /** TCK-2651 — le bailleur (page « Loyers ») : aucun `#id` en repli de référence. */
+  readonly sansIdentifiants?: boolean;
 }
 
-export function InvoicesTable({ onSelect }: InvoicesTableProps) {
+export function InvoicesTable({ onSelect, sansIdentifiants = false }: InvoicesTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.invoices');
   const tTable = useTranslations('payments.invoices.table');
@@ -62,7 +64,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
           );
         }
 
-        const reference = (invoice: Invoice) => invoice.reference_number ?? `#${invoice.id}`;
+        const reference = (invoice: Invoice) => invoice.reference_number ?? (sansIdentifiants ? '—' : `#${invoice.id}`);
         const montant = (invoice: Invoice) =>
           formatCurrency(invoice.total_amount, locale, { currency: invoice.currency || 'XOF' });
         const jour = (value: string | null | undefined) => (value ? formatDate(value, locale) : '—');

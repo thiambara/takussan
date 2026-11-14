@@ -2864,7 +2864,8 @@
         "title": "Payments",
         "subtitle": "History, invoices and landlord payouts — one unified view.",
         "metaTitle": "Payments",
-        "customerSubtitle": "What you owe, your payments and your rent receipts."
+        "customerSubtitle": "What you owe, your payments and your rent receipts.",
+        "ownerMetaTitle": "Rents"
       },
       "calendar": {
         "metaTitle": "Calendar"
@@ -4849,7 +4850,8 @@
         },
         "entityLease": "Lease #{id}",
         "entityBooking": "Booking #{id}",
-        "caption": "Payment history"
+        "caption": "Payment history",
+        "propertyAndTenant": "Property · tenant"
       }
     },
     "status": {
@@ -5304,6 +5306,102 @@
         "redirection": "Redirecting…",
         "payerAvec": "Pay {montant} with {fournisseur}",
         "payer": "Pay {montant}"
+      }
+    },
+    "bailleur": {
+      "titre": "Rents",
+      "sousTitre": "{n, plural, =0 {No property managed by {agence}} one {# property managed by {agence}} other {# properties managed by {agence}}}",
+      "mandat": "{taux}% management mandate",
+      "erreur": "Your statement could not be loaded.",
+      "onglets": {
+        "aria": "Rent sections",
+        "revenus": "Income",
+        "versements": "Payouts",
+        "factures": "Invoices",
+        "operations": "Transactions"
+      },
+      "selecteur": {
+        "choisir": "Period: {periode}. Choose another period",
+        "annee": "All of {annee}",
+        "moisPrecedent": "Previous month",
+        "moisSuivant": "Next month",
+        "anneePrecedente": "Previous year",
+        "anneeSuivante": "Next year"
+      },
+      "tete": {
+        "reste": "Still owed to you",
+        "prochain": "Next payout scheduled on <b>{date}</b> by {moyen}",
+        "prochainSansMoyen": "Next payout scheduled on <b>{date}</b>",
+        "enPreparation": "A payout is being prepared."
+      },
+      "ventilation": {
+        "titre": "What you earned in {mois}",
+        "titreAnnee": "What you earned in {annee}",
+        "encaisse": "Collected",
+        "encaisseLoyers": "Collected · {payes} of {attendus, plural, one {# rent} other {# rents}}",
+        "commission": "Management fee",
+        "commissionTaux": "Management fee ({taux}%)",
+        "interventions": "Repairs",
+        "net": "Net for the month",
+        "netAnnee": "Net for the year",
+        "dejaVerse": "Already paid out",
+        "dejaVerseLe": "Already paid out · on {date}",
+        "penalites": "Late fees to collect"
+      },
+      "documents": {
+        "titre": "Documents",
+        "releveDe": "{mois} statement",
+        "releveAnnee": "{annee} statement",
+        "attestation": "{annee} annual certificate",
+        "telecharger": "Download “{document}” as {format}",
+        "relevePdf": "Statement PDF",
+        "attestationPdf": "Certificate PDF",
+        "csv": "CSV",
+        "csvAria": "Download the statement as CSV",
+        "attestationBouton": "Annual certificate",
+        "echec": "The statement could not be downloaded."
+      },
+      "parBien": {
+        "titre": "By property",
+        "titreMois": "By property — {mois}",
+        "bien": "Property",
+        "locataire": "Tenant",
+        "loyer": "Rent",
+        "net": "Net to you",
+        "enAttente": "pending",
+        "total": "Month total",
+        "totalAnnee": "Year total",
+        "resume": "{payes} paid · {retard} late",
+        "sansLocataire": "No tenant",
+        "bienSansTitre": "Untitled property",
+        "vide": "No property for this period.",
+        "statuts": {
+          "paid": "Paid",
+          "late": "{jours, plural, one {# day} other {# days}} late",
+          "lateSansJours": "Late",
+          "partial": "Partly paid",
+          "due": "Upcoming",
+          "none": "No instalment issued",
+          "vacant": "Vacant"
+        },
+        "voirLesBaux": "See leases"
+      },
+      "operations": {
+        "toutes": "All transactions",
+        "compte": "{nombre} in {annee}"
+      },
+      "versements": {
+        "derniers": "Latest payouts",
+        "tous": "All payouts",
+        "versementDe": "{mois} payout",
+        "versement": "Payout",
+        "vide": "No payout yet."
+      },
+      "filtres": {
+        "bien": "Property",
+        "tousLesBiens": "All properties",
+        "locataire": "Tenant",
+        "tousLesLocataires": "All tenants"
       }
     }
   },

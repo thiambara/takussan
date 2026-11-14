@@ -36,12 +36,14 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 interface PayoutDetailDialogProps {
   readonly payoutId: number | null;
   readonly onClose: () => void;
+  /** TCK-2651 — le bailleur lit SON versement : ni « Bailleur #8 » (c'est lui), ni `#id` en repli de référence. */
+  readonly sansIdentifiants?: boolean;
 }
 
 /** Valeur repère de « aucune » : une valeur vide n'est pas une option du Select. */
 const AUCUN = '__none__';
 
-export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProps) {
+export function PayoutDetailDialog({ payoutId, onClose, sansIdentifiants = false }: PayoutDetailDialogProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payoutDetail');
   const tStatus = useTranslations('payments.payoutStatus');
@@ -156,7 +158,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {t('title', { reference: payout?.reference_number ?? `#${payoutId}` })}
+            {t('title', { reference: payout?.reference_number ?? (sansIdentifiants ? '—' : `#${payoutId}`) })}
           </DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
@@ -179,10 +181,12 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
             </div>
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('landlord')}</dt>
-                <dd className="mt-0.5 text-foreground">#{payout.landlord_id}</dd>
-              </div>
+              {sansIdentifiants ? null : (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('landlord')}</dt>
+                  <dd className="mt-0.5 text-foreground">#{payout.landlord_id}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('period')}</dt>
                 <dd className="mt-0.5 text-foreground">

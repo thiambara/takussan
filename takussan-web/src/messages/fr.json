@@ -2821,7 +2821,8 @@
         "title": "Paiements",
         "subtitle": "Historique, factures et reversements bailleurs — suivi unifié.",
         "metaTitle": "Paiements",
-        "customerSubtitle": "Ce que vous devez, vos paiements et vos quittances."
+        "customerSubtitle": "Ce que vous devez, vos paiements et vos quittances.",
+        "ownerMetaTitle": "Loyers"
       },
       "calendar": {
         "metaTitle": "Agenda"
@@ -4806,7 +4807,8 @@
         },
         "entityLease": "Bail #{id}",
         "entityBooking": "Réservation #{id}",
-        "caption": "Historique des paiements"
+        "caption": "Historique des paiements",
+        "propertyAndTenant": "Bien · locataire"
       }
     },
     "status": {
@@ -5261,6 +5263,102 @@
         "redirection": "Redirection…",
         "payerAvec": "Payer {montant} avec {fournisseur}",
         "payer": "Payer {montant}"
+      }
+    },
+    "bailleur": {
+      "titre": "Loyers",
+      "sousTitre": "{n, plural, =0 {Aucun bien géré par {agence}} one {# bien géré par {agence}} other {# biens gérés par {agence}}}",
+      "mandat": "mandat de gestion à {taux} %",
+      "erreur": "Votre relevé n'a pas pu être chargé.",
+      "onglets": {
+        "aria": "Rubriques de vos loyers",
+        "revenus": "Revenus",
+        "versements": "Versements",
+        "factures": "Factures",
+        "operations": "Opérations"
+      },
+      "selecteur": {
+        "choisir": "Période : {periode}. Choisir une autre période",
+        "annee": "Toute l'année {annee}",
+        "moisPrecedent": "Mois précédent",
+        "moisSuivant": "Mois suivant",
+        "anneePrecedente": "Année précédente",
+        "anneeSuivante": "Année suivante"
+      },
+      "tete": {
+        "reste": "Reste à vous verser",
+        "prochain": "Prochain versement prévu le <b>{date}</b> par {moyen}",
+        "prochainSansMoyen": "Prochain versement prévu le <b>{date}</b>",
+        "enPreparation": "Un versement est en préparation."
+      },
+      "ventilation": {
+        "titre": "Ce qui vous revient en {mois}",
+        "titreAnnee": "Ce qui vous revient en {annee}",
+        "encaisse": "Encaissé",
+        "encaisseLoyers": "Encaissé · {payes, plural, one {# loyer} other {# loyers}} sur {attendus}",
+        "commission": "Commission de gestion",
+        "commissionTaux": "Commission de gestion ({taux} %)",
+        "interventions": "Interventions",
+        "net": "Net du mois",
+        "netAnnee": "Net de l'année",
+        "dejaVerse": "Déjà versé",
+        "dejaVerseLe": "Déjà versé · le {date}",
+        "penalites": "Pénalités à recouvrer"
+      },
+      "documents": {
+        "titre": "Documents",
+        "releveDe": "Relevé de {mois}",
+        "releveAnnee": "Relevé de l'année {annee}",
+        "attestation": "Attestation annuelle {annee}",
+        "telecharger": "Télécharger « {document} » en {format}",
+        "relevePdf": "Relevé PDF",
+        "attestationPdf": "Attestation PDF",
+        "csv": "CSV",
+        "csvAria": "Télécharger le relevé en CSV",
+        "attestationBouton": "Attestation annuelle",
+        "echec": "Le relevé n'a pas pu être téléchargé."
+      },
+      "parBien": {
+        "titre": "Par bien",
+        "titreMois": "Par bien — {mois}",
+        "bien": "Bien",
+        "locataire": "Locataire",
+        "loyer": "Loyer",
+        "net": "Net pour vous",
+        "enAttente": "en attente",
+        "total": "Total du mois",
+        "totalAnnee": "Total de l'année",
+        "resume": "{payes, plural, one {# payé} other {# payés}} · {retard} en retard",
+        "sansLocataire": "Sans locataire",
+        "bienSansTitre": "Bien sans titre",
+        "vide": "Aucun bien sur cette période.",
+        "statuts": {
+          "paid": "Payé",
+          "late": "En retard de {jours} j",
+          "lateSansJours": "En retard",
+          "partial": "Payé en partie",
+          "due": "À venir",
+          "none": "Échéance non émise",
+          "vacant": "Vacant"
+        },
+        "voirLesBaux": "Voir les baux"
+      },
+      "operations": {
+        "toutes": "Toutes les opérations",
+        "compte": "{nombre} en {annee}"
+      },
+      "versements": {
+        "derniers": "Derniers versements",
+        "tous": "Tous les versements",
+        "versementDe": "Versement de {mois}",
+        "versement": "Versement",
+        "vide": "Aucun versement pour l'instant."
+      },
+      "filtres": {
+        "bien": "Bien",
+        "tousLesBiens": "Tous les biens",
+        "locataire": "Locataire",
+        "tousLesLocataires": "Tous les locataires"
       }
     }
   },

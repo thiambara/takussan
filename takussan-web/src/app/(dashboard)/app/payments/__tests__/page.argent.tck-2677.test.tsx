@@ -35,6 +35,7 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/components/payments/PaymentsTabs', () => ({ PaymentsTabs: () => <div data-testid="ecran-paiements" /> }));
 vi.mock('@/components/payments/CustomerPayments', () => ({ CustomerPayments: () => <div data-testid="vue-client" /> }));
+vi.mock('@/components/payments/bailleur/LoyersDuBailleur', () => ({ LoyersDuBailleur: () => <div data-testid="loyers-du-bailleur" /> }));
 
 import Page from '../page';
 
@@ -80,7 +81,8 @@ describe('TCK-2677 — l’admin de l’agence active est mené à « Argent »'
 describe('TCK-2677 — tous les autres profils gardent leur écran', () => {
   it.each([
     ['l’agent (qui émet des reversements depuis ?tab=payouts)', { id: 2, roles: ['agent', 'customer'], agency_id: 7 }, 'ecran-paiements'],
-    ['le bailleur', { id: 3, roles: ['owner', 'customer'], agency_id: 7 }, 'ecran-paiements'],
+    // TCK-2651 (ADR-0100 § 2) — le bailleur reste sous /app/payments, sur SA page « Loyers ».
+    ['le bailleur', { id: 3, roles: ['owner', 'customer'], agency_id: 7 }, 'loyers-du-bailleur'],
     ['le locataire', { id: 5, roles: ['tenant', 'customer'], agency_id: null }, 'vue-client'],
     ['le client', { id: 6, roles: ['customer'], agency_id: null }, 'vue-client'],
   ])('%s', async (_nom, user, ecran) => {

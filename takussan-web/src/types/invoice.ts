@@ -270,6 +270,8 @@ export type OwnerStatement = {
     net_amount: number;
     transaction_id: string | null;
     processed_at: string | null;
+    /** TCK-2651 — versé DANS la période (le « Déjà versé » du mois), pas seulement porteur d'une pièce. */
+    paid_in_period?: boolean;
   }>;
   /**
    * TCK-2321 (P177.05) — le relevé envoyé : un mois qui en a un est servi depuis lui, et ce qui a
@@ -277,6 +279,41 @@ export type OwnerStatement = {
    */
   snapshot?: { sent_at: string } | null;
   rectification?: OwnerStatementRectification | null;
+  /**
+   * TCK-2760 (ADR-0100, amendement du 2026-11-12) — le SOLDE cumulé au jour : ce que l'agence doit au
+   * bailleur aujourd'hui, quel que soit le mois demandé. C'est le seul « reste à verser » qu'un écran
+   * affiche (TCK-2651). L'écart du mois, `totals.remaining_to_pay`, n'est volontairement pas typé :
+   * aucun écran ne doit le lire sous ce libellé.
+   */
+  balance?: { remaining_to_pay: number; as_of: string } | null;
+  /** TCK-2649 — le prochain reversement programmé au bailleur, `null` s'il n'y en a pas. */
+  next_payout?: {
+    id: number;
+    scheduled_at: string | null;
+    payment_method: string | null;
+    status: PayoutStatus | null;
+    net_amount: number;
+  } | null;
+  /** TCK-2649 — une ligne par bien du bailleur dans l'agence, sur la période. */
+  properties?: OwnerStatementProperty[];
+  /** Les pièces de la période ; seul le taux de commission de chacune est lu à l'écran (TCK-2651). */
+  lines?: Partial<Record<'lease_payments' | 'booking_payments' | 'late_fees', Array<{ commission_rate?: number | null }>>>;
+};
+
+/** TCK-2649 — `properties[]` du relevé : le bien, son locataire et l'état du loyer sur la période. */
+export type OwnerStatementProperty = {
+  property_id: number;
+  title: string | null;
+  tenant_name: string | null;
+  expected_rent: number;
+  collected: number;
+  commission: number;
+  fees: number;
+  net: number;
+  has_movements: boolean;
+  /** `paid`, `late`, `partial`, `due`, `none` (bail sans échéance émise) ou `vacant` (`RentMonthStatus`). */
+  month_status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'vacant' | string;
+  days_late: number | null;
 };
 
 export type OwnerStatementTotals = OwnerStatement['totals'] & { clawback?: number };

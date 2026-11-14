@@ -21,9 +21,14 @@ interface PayoutsTableProps {
   readonly onSelect: (payoutId: number) => void;
   /** TCK-594 — un statut imposé : la file « À approuver » est la table filtrée sur `awaiting_approval`. */
   readonly status?: PayoutStatus;
+  /**
+   * TCK-2651 — le bailleur lit SES versements (page « Loyers ») : ni la colonne « Bailleur » (« #8 »,
+   * c'est lui), ni un `#id` en repli de référence.
+   */
+  readonly sansIdentifiants?: boolean;
 }
 
-export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
+export function PayoutsTable({ onSelect, status, sansIdentifiants = false }: PayoutsTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payouts');
   const tTable = useTranslations('payments.payouts.table');
@@ -61,6 +66,8 @@ export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
           );
         }
 
+        const reference = (payout: (typeof rows)[number]) => payout.reference_number ?? (sansIdentifiants ? '—' : `#${payout.id}`);
+
         return (
           <div className="space-y-3">
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
@@ -69,7 +76,7 @@ export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
                 <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
-                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('landlord')}</th>
+                    {sansIdentifiants ? null : <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('landlord')}</th>}
                     <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('period')}</th>
                     <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('gross')}</th>
                     <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('net')}</th>
@@ -83,9 +90,9 @@ export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
                     return (
                       <tr key={payout.id} className="text-foreground">
                         <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
-                          {payout.reference_number ?? `#${payout.id}`}
+                          {reference(payout)}
                         </td>
-                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">#{payout.landlord_id}</td>
+                        {sansIdentifiants ? null : <td className="px-3 py-2.5 text-xs whitespace-nowrap">#{payout.landlord_id}</td>}
                         <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                           {payout.period_start ? formatDate(payout.period_start, locale) : '—'}
                           {payout.period_end ? (
@@ -114,7 +121,7 @@ export function PayoutsTable({ onSelect, status }: PayoutsTableProps) {
                             className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             onClick={() => onSelect(payout.id)}
                             aria-label={tTable('openLabel', {
-                              reference: payout.reference_number ?? `#${payout.id}`,
+                              reference: reference(payout),
                             })}
                           >
                             {tTable('open')}
