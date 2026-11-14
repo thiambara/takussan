@@ -119,7 +119,8 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
         </TabsContent>
       ) : null}
 
-      <TabsContent value="impayes" className="space-y-4 pt-4">
+      {/* TCK-2840 — au téléphone, aucune marge haute : la page pose `pt-3` et le résumé `pt-2` (20 px, maquette). */}
+      <TabsContent value="impayes" className={telephone ? 'space-y-4' : 'space-y-4 pt-4'}>
         <Impayes agencyId={agencyId} relanceDemandee={relanceDemandee} onRelancePrise={onRelancePrise} />
       </TabsContent>
     </Tabs>

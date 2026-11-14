@@ -41,13 +41,21 @@ Preuves : `takussan-web/.fidelite/TCK-2660-20261114/` (`cmp-a-2-bureau-1280`, `c
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Au bureau 1280, dossier tel qu'ouvert (`?tab=impayes`, 3ᵉ rangée), les lignes d'« Ancienneté du dû »
+- [x] AC1 — Au bureau 1280, dossier tel qu'ouvert (`?tab=impayes`, 3ᵉ rangée), les lignes d'« Ancienneté du dû »
   mesurent 33,4 px (±1) et « Ancienneté du dû » n'a plus d'écart de y venu de la hauteur des lignes.
-- [ ] AC2 — Au téléphone (390), « 33 715 000 F » (ou le total de la base) est à y 76 (±2) sur a-1 et a-2 ; « Par
+  *Preuve (2026-11-14) : `.fidelite/TCK-2840-20261114/prod-a-2-bureau-1280.json` — tranches à 33,4 px (39,6 au regel) ;
+  test `impayes/__tests__/marges.tck-2840.test.tsx` (rouge avant le correctif).*
+- [x] AC2 — Au téléphone (390), « 33 715 000 F » (ou le total de la base) est à y 76 (±2) sur a-1 et a-2 ; « Par
   locataire » et la 1re carte n'ont plus le décalage de +16 à +18 px.
-- [ ] AC3 — La fiche TCK-2660 ne porte plus d'`ecarts_ouverts` renvoyant à TCK-2840 ; les comparaisons à 390 et 1280
+  *Preuve : total à y 76 sur a-1 et a-2, « Par locataire » à 172 (maquette 172), plus d'écart de y sur le rôle « 1re
+  carte » (`cmp-a-1-telephone/rapport.md`). Cause : la page — `pt-4` du `TabsContent` « impayes » d'`AdminFinancesTabs`
+  (12 + 16 + 8 = 36), retiré au téléphone ; la coque n'est pas touchée.*
+- [x] AC3 — La fiche TCK-2660 ne porte plus d'`ecarts_ouverts` renvoyant à TCK-2840 ; les comparaisons à 390 et 1280
   y sont refaites et datées.
-- [ ] AC4 — Les lignes du dossier restent lisibles à 390 et 1024 (aucun débord, `scrollWidth − innerWidth = 0`).
+  *Preuve : `ecarts_ouverts` vide ; `comparaisons.suite_tck_2840_2026_11_14` (a-1 et a-2 à 390, a-1 et a-2 à 1280).*
+- [x] AC4 — Les lignes du dossier restent lisibles à 390 et 1024 (aucun débord, `scrollWidth − innerWidth = 0`).
+  *Preuve : `debord-a-2-bureau-1024.json` et `-1280` (dossier ouvert) : 0, aucune ligne ne déborde ; à 390 (liste) : 0 —
+  le dossier n'est monté qu'au bureau.*
 
 ## Hors périmètre
 

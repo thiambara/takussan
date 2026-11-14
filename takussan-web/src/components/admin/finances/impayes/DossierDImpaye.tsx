@@ -120,9 +120,13 @@ export function DossierDImpaye({
   );
 }
 
+/**
+ * Une ligne clé du dossier : un libellé et sa valeur, sans geste — pas de cible tactile (`min-h-11`),
+ * `py-2` seulement, comme la maquette regelée (33,4 px à 1280 ; 39,6 avec la cible, TCK-2840).
+ */
 function LigneCle({ libelle, children }: { readonly libelle: string; readonly children: ReactNode }) {
   return (
-    <div className="flex min-h-11 items-center gap-3 py-2">
+    <div className="flex items-center gap-3 py-2">
       <span className="min-w-0 flex-1 text-muted-foreground">{libelle}</span>
       <span className="flex-none font-medium tabular-nums">{children}</span>
     </div>

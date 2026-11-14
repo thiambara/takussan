@@ -322,7 +322,28 @@
     ],
     "passe": "chaque rapport du bureau relu en entier hors barre latérale (écarts ET présents d’un seul côté, regroupés par élément : scratchpad terrain-5/2660/fid/passe.cjs) ; 1280 ne porte aucune classe d’écart que 1440 n’ait pas. Chaque classe est corrigée, ou nommée ci-dessus (ignorer / écarts acceptés)",
     "passe_2026_11_14": "classes de « statut | élément » des rapports du 2026-11-14 diffées contre ceux du 2026-11-12 (téléphone, bureau 1280) : chaque classe nouvelle est nommée ci-dessus ; aucune n'a disparu hors de « Vue agence » (retirée, TCK-2799)",
-    "passe_regel_2026_11_14": "classes « élément | propriété » (hors coque) du même relevé du produit comparé à l'ancienne puis à la nouvelle référence (fid/classes.cjs) : chaque classe nouvelle est nommée ci-dessus ; puis chaque entrée gardée relue contre les rapports de la nouvelle référence (textes et valeurs), corrigée quand la maquette regelée avait changé sa raison"
+    "passe_regel_2026_11_14": "classes « élément | propriété » (hors coque) du même relevé du produit comparé à l'ancienne puis à la nouvelle référence (fid/classes.cjs) : chaque classe nouvelle est nommée ci-dessus ; puis chaque entrée gardée relue contre les rapports de la nouvelle référence (textes et valeurs), corrigée quand la maquette regelée avait changé sa raison",
+    "suite_tck_2840_2026_11_14": {
+      "dossier": "takussan-web/.fidelite/TCK-2840-20261114/ (hors git) : prod-a-* (relevés), cmp-a-* (contre la référence regelée de TCK-2822), debord-* et fid/ (perturbateurs de TCK-2660 + mesure de débord)",
+      "le": "2026-11-14, arbre de travail de feat/audit-ux-app-lot-3 avec le correctif de TCK-2840 (HEAD 638e5ea36 + diff) ; mêmes perturbateurs que la passe du regel, aucune interception, aucun POST",
+      "resultats": {
+        "a1-telephone": "40 conformes · 27 écarts · 6 absents · 10,79 % (regel : 30 · 37 · 6 · 23,37 %). « 33 715 000 F » à y 76 (maquette 76), « Par locataire » à y 172 (172) ; le rôle « 1re carte d'impayé » n'a plus d'écart de y",
+        "a2-telephone": "38 conformes · 43 écarts · 7 absents · 10,19 % (regel : 28 · 53 · 7 · 12,3 %). Total dû à y 76, comme a-1",
+        "a2-bureau-1280": "50 conformes · 364 écarts · 77 absents · 11,87 % (regel : 11,98 %). Lignes d'« Ancienneté du dû » à 33,4 px (maquette 33,4 ; regel 39,6) ; « Ancienneté du dû » à y 586,9 contre 609,3 : l'écart restant vient du contenu au-dessus (données de la base), plus de la hauteur des lignes",
+        "a1-bureau-1280": "47 conformes · 325 écarts · 90 absents · 14,07 % : inchangé, la liste au bureau n'est pas touchée",
+        "debord": "scrollWidth − innerWidth = 0 à 390 (liste), 1024 et 1280 (dossier ouvert) ; aucune ligne du dossier ne déborde (8 lignes, 33,4 px, 32,4 pour la dernière de chaque bloc, sans filet)"
+      },
+      "ecarts_fermes": [
+        {
+          "element": "lignes de « Ancienneté du dû » (et toute ligne clé du dossier)",
+          "cause": "`min-h-11` de `LigneCle` (DossierDImpaye.tsx) : retiré, les lignes ne sont pas interactives (aucune ne l'est au téléphone non plus : le dossier n'est monté qu'au bureau)"
+        },
+        {
+          "element": "tout le contenu sous l’en-tête du téléphone",
+          "cause": "établie : la PAGE, pas la coque — le `pt-4` du `TabsContent` « impayes » d'`AdminFinancesTabs`, posé au téléphone comme au bureau, s'ajoutait au `pt-3` de la page et au `pt-2` du résumé (12 + 16 + 8 = 36). Retiré au téléphone seulement, comme l'onglet « encaissements »"
+        }
+      ]
+    }
   },
   "_roles": "Les rôles nomment la 1re carte (téléphone) et la 1re rangée (bureau) par leur locataire : la maquette par ses données fictives, le produit par la base de démo du 2026-11-12 (agence 1, tri par retard décroissant). Une autre base change ces deux noms, pas la structure.",
   "largeurs": {
@@ -333,20 +354,5 @@
     "le": "2026-11-12",
     "outil": "scratchpad du lot 2, terrain-5/2660/fid/largeurs.mjs (même filet d’interception ; jeton lu par fichier)"
   },
-  "ecarts_ouverts": [
-    {
-      "ecran": "a-2-bureau-*",
-      "element": "lignes de « Ancienneté du dû » (et toute ligne clé du dossier)",
-      "propriete": "hauteur 33,4 → 39,6 px (+6,2 par ligne, +26 px cumulés sur les quatre tranches)",
-      "cause": "`LigneCle` de `DossierDImpaye.tsx` porte `min-h-11` ; la maquette regelée, `py-2` seulement",
-      "statut": "ouvert → TCK-2840 (ticket de suite décidé par le chef d’équipe le 2026-11-14) : hors des trois exceptions d’ADR-0106 § 2, NON accepté"
-    },
-    {
-      "ecran": "a-1-telephone, a-2-telephone",
-      "element": "tout le contenu sous l’en-tête du téléphone",
-      "propriete": "y +16 px (total dû à y 92 contre 76 ; `main` à y 56 des deux côtés, aucun nœud entre les deux) ; +18 px pour la 1re carte",
-      "cause": "non établie : marge haute de la page (36 px au produit, 20 à la maquette). Antérieure au regel — l'entrée précédente l'attribuait au retour à la ligne de la caution (+36 à +38 px au total) ; la maquette retouchée, dont la phrase passe aussi à la ligne, isole les 16 px",
-      "statut": "ouvert → TCK-2840 (ticket de suite décidé par le chef d’équipe le 2026-11-14) : hors des trois exceptions d’ADR-0106 § 2, NON accepté"
-    }
-  ]
+  "ecarts_ouverts": []
 }
