@@ -66,7 +66,8 @@ export function useTelechargement() {
       }
       const tronque = Number(res.headers.get('x-export-truncated'));
       const nom =
-        /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `${options.entity}.${options.format}`;
+        // Avec ou sans guillemets : l'API rend `filename=…` nu en Excel (relevé du 2026-11-14).
+        /filename="?([^";\n]+)"?/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? `${options.entity}.${options.format}`;
       const objectUrl = URL.createObjectURL(await res.blob());
       const lien = document.createElement('a');
       lien.href = objectUrl;

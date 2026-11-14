@@ -76,6 +76,20 @@ describe('TCK-2629 — les cartes prêtes', () => {
     expect(relecture).toHaveBeenCalledWith({ queryKey: ['me', 'exports'] });
   });
 
+  it('AC1 — le nom sans guillemets que l’API rend en Excel (relevé au navigateur le 2026-11-14) est gardé tel quel', async () => {
+    // `filename=payments-20261114-233716.xlsx`, sans guillemets : c'est la forme qu'a rendue la démo.
+    // Lu par un motif qui exigeait les guillemets, le fichier sortait en « payments.xlsx ».
+    fetchSpy.mockImplementationOnce(
+      async () => new Response('x', { status: 200, headers: { 'content-disposition': 'attachment; filename=payments-20261114-233716.xlsx' } }),
+    );
+    tenant(['payments.export', 'reports.export', 'crm.export']);
+    const ancre = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    rendre(<ExportsDuRapport staff />);
+    fireEvent.click(screen.getByRole('button', { name: 'Télécharger Paiements en Excel' }));
+    await waitFor(() => expect(ancre).toHaveBeenCalled());
+    expect((ancre.mock.contexts.at(-1) as HTMLAnchorElement).download).toBe('payments-20261114-233716.xlsx');
+  });
+
   it('une carte dont le type n’est pas permis n’est pas rendue (payments.export seul)', () => {
     tenant(['payments.export']);
     rendre(<ExportsDuRapport staff />);
