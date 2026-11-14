@@ -20,8 +20,8 @@ class CreditsNotificationsTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $user->notify(new CreditsGrantedNotification(500, '2027-04-10', 'Agence Teranga'));
-        $user->notify(new CreditsExpiringNotification(120, '2026-10-19', 'Agence Teranga'));
+        $user->notify(new CreditsGrantedNotification(500, '2027-04-10', 'Agence Teranga', 1));
+        $user->notify(new CreditsExpiringNotification(120, '2026-10-19', 'Agence Teranga', 1));
         $user->notify(new BoostEndedNotification(7, 'Villa à Ngor'));
         $user->notify(new BoostRefundedNotification(7, 'Villa à Ngor', 23));
 

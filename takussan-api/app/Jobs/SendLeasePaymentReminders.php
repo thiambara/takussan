@@ -44,7 +44,8 @@ use Illuminate\Support\Facades\Log;
  *   · **Jours.** `(int) due_date->diffInDays(now(), true)`. Carbon 3 rend `diffInDays` SIGNÉ et
  *     FLOTTANT : la forme d'avant annonçait « en retard de -7.33 jour(s) ».
  *   · **Destinataires.** Le locataire, avec ou sans compte ({@see ContactSansCompte}) ; le
- *     bailleur (`overdue_landlord`) ; l'agent, UN récapitulatif par jour (`overdue_digest`).
+ *     bailleur (`overdue_landlord`) ; l'agent, UN récapitulatif par jour ET par agence
+ *     (`overdue_digest`, TCK-2806).
  *   · **Pas de doublon.** Un marqueur par jalon dans `metadata`, posé sous verrou de ligne
  *     comme `SendPropertyVisitReminders` : un second passage le même jour n'envoie rien.
  *
@@ -81,7 +82,13 @@ class SendLeasePaymentReminders implements ShouldQueue
             ] + $this->detail($dues, $this->payableAmount(...)));
         }
 
-        /** @var array<int, array{agent: User, count: int, total: float, currency: ?Currency}> $digests */
+        /**
+         * TCK-2806 — un récapitulatif par agent ET par agence, clé `agent|agence` : un agent de deux
+         * agences en reçoit deux, chacun avec le compte, le total et l'agence de sa page `/app/payments`
+         * (qui filtre sur `leases.agency_id`). Indexé par agent seul, il mêlait les deux agences.
+         *
+         * @var array<string, array{agent: User, agency: int, count: int, total: float, currency: ?Currency}> $digests
+         */
         $digests = [];
         foreach (self::OVERDUE_DAYS as $offset) {
             foreach ($this->claim(now()->subDays($offset), "overdue_{$offset}") as $dues) {
@@ -111,13 +118,17 @@ class SendLeasePaymentReminders implements ShouldQueue
                 }
 
                 // L'agent : le contact principal du bien, quand ce n'est pas le bailleur lui-même.
-                $agent = $lease?->property ? PrimaryPropertyContact::for($lease->property) : null;
+                // TCK-2806 — un bail sans agence (bailleur direct) n'a pas de page de section
+                // d'agence où mener : pas de récapitulatif.
+                $agence = self::agenceDuBail($lease);
+                $agent = $agence !== null && $lease?->property ? PrimaryPropertyContact::for($lease->property) : null;
                 if ($agent && $agent->id !== $landlord?->id) {
-                    $digests[$agent->id] ??= ['agent' => $agent, 'count' => 0, 'total' => 0.0, 'currency' => $payment->currency];
+                    $cle = $agent->id.'|'.$agence;
+                    $digests[$cle] ??= ['agent' => $agent, 'agency' => $agence, 'count' => 0, 'total' => 0.0, 'currency' => $payment->currency];
                     // Le récapitulatif compte des ÉCHÉANCES : une relance fusionnée (TCK-2679) en porte
                     // plusieurs.
-                    $digests[$agent->id]['count'] += count($dues);
-                    $digests[$agent->id]['total'] += (float) $amount['amount'];
+                    $digests[$cle]['count'] += count($dues);
+                    $digests[$cle]['total'] += (float) $amount['amount'];
                 }
             }
         }
@@ -126,7 +137,7 @@ class SendLeasePaymentReminders implements ShouldQueue
             $notifications->send($digest['agent'], NotificationCode::LeasePaymentOverdueDigest, [
                 'count' => $digest['count'],
                 'total' => NotificationRenderer::money($digest['total'], $digest['currency']),
-            ], NotificationTarget::of('payments'));
+            ], NotificationTarget::of('payments')->forAgency($digest['agency']));
         }
     }
 

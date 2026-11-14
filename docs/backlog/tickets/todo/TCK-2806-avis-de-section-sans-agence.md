@@ -66,29 +66,35 @@ devient sinon une ligne inerte.
 
 ## Delta à produire
 
-- [ ] `SendLeasePaymentReminders` : récapitulatif indexé par (agent, agence), cible `payments` posée par
+- [x] `SendLeasePaymentReminders` : récapitulatif indexé par (agent, agence), cible `payments` posée par
   `forAgency($agence)`.
-- [ ] `PaymentGatewayService::notifyDuplicatePayment` : la cible `payments` du doublon sans bail porte `forAgency($agencyId)`.
-- [ ] `CreditsGrantedNotification` et `CreditsExpiringNotification` : la cible `credits` porte l'agence, que leurs
+- [x] `PaymentGatewayService::notifyDuplicatePayment` : la cible `payments` du doublon sans bail porte `forAgency($agencyId)`.
+- [x] `CreditsGrantedNotification` et `CreditsExpiringNotification` : la cible `credits` porte l'agence, que leurs
   émetteurs transmettent. Leur commentaire périmé « C11 » est réécrit.
-- [ ] Une garde de test énumère les émissions de section de `app/` et refuse toute émission sans `forAgency`, pour
+- [x] Une garde de test énumère les émissions de section de `app/` et refuse toute émission sans `forAgency`, pour
   qu'un quatrième émetteur ne passe pas inaperçu.
-- [ ] Tests `AvisDeSectionPortentLeurAgenceTest`.
+- [x] Tests `AvisDeSectionPortentLeurAgenceTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un agent contact principal de deux baux en retard, dans deux agences A et B, reçoit deux
+- [x] AC1 — Un agent contact principal de deux baux en retard, dans deux agences A et B, reçoit deux
   `LeasePaymentOverdueDigest`. Chacun porte `target.agency_id` égal à son agence, et le compte et le total de cette
   seule agence. Le test vérifie les deux totaux, pas seulement le nombre d'avis.
-- [ ] AC2 — Un doublon de paiement sans bail de l'agence A : chaque administrateur notifié lit `target.agency_id = A`
-  via `GET /api/notifications`, sous un profil actif dans A.
-- [ ] AC3 — Le même administrateur, sous un profil actif dans une autre agence uniquement (membre parti de A) : la
-  ligne du doublon rend `target: null` (ligne inerte), et non un lien vers `/app/payments`.
-- [ ] AC4 — L'avis de crédits accordés et celui de crédits qui expirent portent l'agence du lot, lue de la même façon
-  qu'en AC2.
-- [ ] AC5 — La garde rougit sur une émission de section sans `forAgency` ajoutée à un fichier de `app/`.
-- [ ] AC6 — Vérifié par ablation, une à la fois : `forAgency` retiré de chacun des trois émetteurs rend son AC rouge ;
-  le récapitulatif ré-indexé par agent seul rend AC1 rouge.
+  — *Preuve : `AvisDeSectionPortentLeurAgenceTest`::test_ac1_… (A : 2 échéances, 250 000 ; B : 1, 275 000 ; paramètres limités à `count`, `total`).*
+- [x] AC2 — Un doublon de paiement sans bail de l'agence A : chaque administrateur notifié lit `target.agency_id = A`
+  via `GET /api/notifications`, sous un profil actif dans A. — *Preuve : `test_ac2_…`.*
+- [x] AC3 — Le même administrateur, sous un profil actif dans une autre agence uniquement (membre parti de A) : la
+  ligne du doublon rend `target: null` (ligne inerte), et non un lien vers `/app/payments`. — *Preuve : `test_ac3_…`.*
+- [x] AC4 — L'avis de crédits accordés et celui de crédits qui expirent portent l'agence du lot, lue de la même façon
+  qu'en AC2. — *Preuve : `test_ac4_…`, par les émetteurs réels (`onSpaceCreated`, `sendNotices`).*
+- [x] AC5 — La garde rougit sur une émission de section sans `forAgency` ajoutée à un fichier de `app/`.
+  — *Preuve : `test_ac5_aucune_emission_…` (balayage de `app/` par jetons, ≥ 25 émissions vues) et
+  `test_ac5_le_detecteur_rougit_…` (13 formes écrites, dont ternaire multiligne et genre non littéral).*
+- [x] AC6 — Vérifié par ablation, une à la fois : `forAgency` retiré de chacun des trois émetteurs rend son AC rouge ;
+  le récapitulatif ré-indexé par agent seul rend AC1 rouge. — *Preuve : 7 ablations, une à la fois, fichier restauré
+  et md5 vérifié : digest sans agence → AC1 + AC5 ; clé par agent seul → AC1 ; bail sans agence admis → son test ;
+  doublon sans agence → AC2, AC3, AC5 ; chaque avis de crédits sans agence → AC4 + AC5 ; détecteur sans contrôle
+  du `forAgency` chaîné → AC5 (formes écrites).*
 
 ## Hors périmètre
 
@@ -98,4 +104,16 @@ devient sinon une ligne inerte.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Clé du récapitulatif : `leases.agency_id`**, celle que filtrent les pages `/app/payments`
+  (`LeasePayment`, l. 191 et 312). Un bail dont la seule agence est celle du bien n'a pas de récapitulatif.
+  `SendLeasePaymentRemindersTest` (AC4 de TCK-588) pose donc l'agence de ses baux.
+- **`agencyId:` n'est pas passé à `send()`** pour le récapitulatif : il choisirait l'intégration SMS/WhatsApp de
+  l'agence. Les canaux ne changent pas (contrainte du ticket).
+- **Constructeur des deux avis de crédits** : `int $agencyId` obligatoire, en dernier. Un émetteur qui l'oublie
+  lève à la construction. Le préavis passe `$lot->agency_id`, pas `$agency?->id`, que la recherche peut rendre nul.
+- **La garde** suit les jetons PHP, pas des lignes. Elle accepte `->forAgency(` chaîné à l'appel, ou une variable
+  qui reçoit la cible puis appelle `->forAgency(` plus loin (`ErasedMemberPortfolio`). Un genre non littéral
+  (`of($kind)`) doit aussi poser son agence. Un `fromArray($variable)` relit une cible stockée : ce n'est pas une émission.
+- **Hors de portée de la garde, relevé :** `NotificationTarget::derive()` et `fromReferenceable()` déduisent à la
+  lecture `payments`, `agency_kyc`, `finances` et `team` sans agence, pour les lignes anciennes et les classes sans
+  cible. `porte()` les rend comme un lien simple.

@@ -88,7 +88,7 @@ final class WelcomeCreditService
         });
 
         if ($lot !== null) {
-            $admin->notify(new CreditsGrantedNotification($lot->initial_amount, $lot->expires_at?->toDateString(), (string) $agency->name));
+            $admin->notify(new CreditsGrantedNotification($lot->initial_amount, $lot->expires_at?->toDateString(), (string) $agency->name, (int) $lot->agency_id));
         }
 
         return $lot;

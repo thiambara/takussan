@@ -1614,9 +1614,11 @@ class PaymentGatewayService
             'amount' => NotificationRenderer::money((float) ($metadata['amount'] ?? 0), $this->paymentCurrency($payment)),
             'reference' => (string) ($payment->getAttribute('reference_number') ?? '#'.$payment->getKey()),
         ];
+        // TCK-2806 — sans bail, la section des paiements de l'agence du paiement (TCK-1761) : un
+        // administrateur de deux agences l'ouvre dans celle-ci, pas dans celle de son profil actif.
         $target = $payment instanceof LeasePayment && $payment->lease_id !== null
             ? NotificationTarget::of('lease', (int) $payment->lease_id)
-            : NotificationTarget::of('payments');
+            : NotificationTarget::of('payments')->forAgency($agencyId);
 
         $notifications = app(NotificationService::class);
         foreach (User::query()->whereIn('id', $userIds)->get() as $admin) {
