@@ -3087,7 +3087,11 @@
         "rappeler": "Remind of the viewing",
         "rappelerAria": "Remind {nom} of the viewing on WhatsApp",
         "rappelMessage": "Hello {prenom}, a reminder of our viewing of {bien}, {jour} at {heure}. See you soon!",
-        "rappelMessageSansBien": "Hello {prenom}, a reminder of our viewing, {jour} at {heure}. See you soon!"
+        "rappelMessageSansBien": "Hello {prenom}, a reminder of our viewing, {jour} at {heure}. See you soon!",
+        "adresseConfirmee": "{adresse} · confirmed",
+        "adresseAConfirmer": "{adresse} · to be confirmed",
+        "itineraire": "Directions",
+        "itineraireAria": "Directions to {adresse}"
       },
       "cherche": {
         "titre": "Looking for",
@@ -3097,7 +3101,8 @@
         "vide": "No search yet.",
         "correspondants": "{count, plural, =0 {No matching property} one {# matching property} other {# matching properties}}",
         "correspondantsSansNombre": "Matching properties",
-        "modifierAria": "Edit what they are looking for"
+        "modifierAria": "Edit what they are looking for",
+        "deduite": "Inferred from the property they enquired about — to confirm with them."
       },
       "origine": {
         "titre": "Origin",

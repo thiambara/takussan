@@ -29,7 +29,11 @@ final class CustomerCommercialAttributes
 {
     // TCK-2591 — `suggested_stage` ({@see CustomerSuggestedStageQuery}).
     // TCK-2766 — `last_contact` ({@see self::lastContacts()}).
-    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage', 'last_contact'];
+    // TCK-2761 — `visit_places` : l'adresse du bien de chaque visite à venir, rendue SUR
+    // `upcoming_visits[].address` (jamais en clé de tête : {@see self::of()}).
+    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage', 'last_contact', 'visit_places'];
+
+    public const VISIT_PLACES = 'visit_places';
 
     private const REQUESTED = 'tck2588.commercial.requested';
 
@@ -242,7 +246,7 @@ final class CustomerCommercialAttributes
         }
 
         $out = [];
-        foreach (self::requested($request) as $field) {
+        foreach (array_diff(self::requested($request), [self::VISIT_PLACES]) as $field) {
             $out[$field] = $values[$field][$customerId] ?? null;
         }
 

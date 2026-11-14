@@ -110,7 +110,67 @@ class Customer extends AbstractModel
         // TCK-2582 — écrites par `ContactLeadService` seul (conversion, rattachement), jamais fillable.
         'source_contact_lead_id' => 'integer',
         'interested_property_id' => 'integer',
+        // TCK-2761 — écrite par `ContactLeadService::linkLead()` seul, effacée par `booted()`, jamais fillable.
+        'seeking_deduced_at' => 'datetime',
     ];
+
+    /**
+     * TCK-2761 — les critères de recherche de la fiche : la recherche « déduite » d'une demande
+     * (`seeking_deduced_at`) cesse de l'être dès que l'un d'eux change.
+     */
+    public const CRITERES_DE_RECHERCHE = [
+        'seeking_contract_type', 'budget_min', 'budget_max',
+        'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
+    ];
+
+    /**
+     * TCK-2761 — toute écriture qui CHANGE un critère efface le marqueur « déduit du bien de sa
+     * demande », sauf celle qui le pose dans le même temps (`linkLead`). Un renvoi à l'identique
+     * (« 102000 » sur `102000.00`) ne change rien : il ne l'efface pas.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $customer): void {
+            $posee = $customer->rechercheDeduitePosee;
+            $customer->rechercheDeduitePosee = false;
+            if (! $posee
+                && $customer->getAttribute('seeking_deduced_at') !== null
+                && $customer->rechercheChangee()) {
+                $customer->setAttribute('seeking_deduced_at', null);
+            }
+        });
+    }
+
+    /**
+     * TCK-2761 — un critère a-t-il CHANGÉ ? Le vide n'a qu'une valeur : `null`, `[]` et `''` (la feuille
+     * d'édition renvoie les critères vides ainsi) ne changent pas un critère vide — `linkLead` juge le
+     * vide de même.
+     */
+    private function rechercheChangee(): bool
+    {
+        $vide = fn (mixed $v): bool => $v === null || $v === [] || $v === '';
+        foreach (array_keys($this->getDirty()) as $champ) {
+            if (in_array($champ, self::CRITERES_DE_RECHERCHE, true)
+                && ! ($vide($this->getAttribute($champ)) && $vide($this->getOriginal($champ)))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * TCK-2761 — posé par l'écriture qui DÉDUIT la recherche (`linkLead`) : un drapeau et non
+     * `isDirty('seeking_deduced_at')`, qui est faux quand le marqueur est reposé dans la même seconde
+     * (colonne `timestamp(0)`) — le `saving` l'effaçait alors.
+     */
+    private bool $rechercheDeduitePosee = false;
+
+    public function marquerLaRechercheDeduite(): void
+    {
+        $this->forceFill(['seeking_deduced_at' => now()]);
+        $this->rechercheDeduitePosee = true;
+    }
 
     /**
      * TCK-591 — tout chemin d'écriture normalise le téléphone (formulaire, `findOrCreateFromUser`,
@@ -227,6 +287,8 @@ class Customer extends AbstractModel
         'locale', 'last_contacted_at',
         // TCK-2582 — l'origine de la fiche ; à demander avec `include=origin` / `interestedProperty`.
         'source_contact_lead_id', 'interested_property_id',
+        // TCK-2761 — la recherche déduite d'une demande, au seul lecteur des critères.
+        'seeking_deduced_at',
         'created_at', 'updated_at',
     ];
 

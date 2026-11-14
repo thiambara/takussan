@@ -50,16 +50,43 @@ Relevé du 2026-11-12 :
 
 ## Critères d'acceptation
 
-- AC1 — Une visite confirmée à venir montre l'adresse du bien, et « Itinéraire » ouvre la carte sur ses coordonnées. Sans coordonnées, il n'y a pas de geste.
-- AC2 — « SMS envoyé » ne se dit que si l'envoi est tracé.
-- AC3 — Une recherche déduite d'une demande se dit telle, et cesse de l'être dès la première modification.
-- AC4 — Le bailleur auteur ne reçoit aucun de ces champs (test API).
+- [x] AC1 — Une visite confirmée à venir montre l'adresse du bien, et « Itinéraire » ouvre la carte sur ses coordonnées. Sans coordonnées, il n'y a pas de geste.
+- [x] AC2 — « SMS envoyé » ne se dit que si l'envoi est tracé.
+- [x] AC3 — Une recherche déduite d'une demande se dit telle, et cesse de l'être dès la première modification.
+- [x] AC4 — Le bailleur auteur ne reçoit aucun de ces champs (test API).
 
 ## Hors périmètre
 
 - Le texte cité d'une réponse WhatsApp : l'échange se fait hors de Takussan.
 - « demain », « confirmée » et « Rappeler la visite » : groupe 2 de la décision a-3, faits dans TCK-2589.
 
-## Notes d'implémentation
+## Notes d'implémentation (2026-11-14)
 
-_(à remplir par implementing-specs)_
+- **Adresse.** Demandée par `fields[customers]=…,visit_places` (attribut calculé de `CustomerCommercialAttributes`,
+  jamais rendu en clé de tête) et rendue SUR `upcoming_visits[].address` (`line`, `neighborhood`, `city`,
+  `latitude`, `longitude` — la forme de `PropertyVisitResource::adresse`). Chargée pour la page en une requête
+  (`CustomerResource::avecVisitesAmorcees`). Deux barrières : le lecteur des visites de la fiche
+  (`criteriaBelongTo`), puis le lecteur de l'adresse au titre du bien (`PropertyVisitResource::lecteurDuBien`,
+  extrait d'`adresseLisible` et partagé, sans la branche « visite confirmée » du visiteur). Le personnel s'y juge
+  comme pour la visite (`PersonnelDeLAgence::personnelActifDe` : l'agence du profil actif), et non par
+  `staffAgencyIds` : sous son profil d'une autre agence, l'agent lit les visites de sa fiche, pas l'adresse.
+- **« Itinéraire ».** Vers les seules coordonnées (`itineraireVersLesCoordonnees`) ; sans coordonnées, aucun geste —
+  `lienItineraire` des visites retombe sur l'adresse écrite, il n'est donc pas réutilisé.
+- **SMS (AC2).** Relevé au HEAD : le sort du SMS de confirmation n'est enregistré nulle part
+  (`VisitNotifier::confirmed()` rend `true` = « mis en file », jamais « parti »). La phrase s'arrête à « confirmée »,
+  comme le ticket le prévoit ; aucune clé « SMS ».
+- **Marqueur.** `customers.seeking_deduced_at` (migration `2026_11_14_170000`), posé par `ContactLeadService::linkLead`
+  quand toute la recherche vient du bien (fiche sans critère, ou aux seuls critères déjà déduits), par un drapeau
+  (`marquerLaRechercheDeduite`) et non `isDirty` — même seconde, colonne `timestamp(0)` : mesuré rouge. Effacé par le
+  `saving` de `Customer` dès qu'un critère CHANGE ; un renvoi à l'identique (« 102000 » sur `102000.00`) le garde, et
+  le vide n'a qu'une valeur (`null`, `[]`, `''` : la feuille d'édition renvoie ainsi les critères vides).
+- **Preuves.** `tests/Feature/Crm/FicheLaVeilleDeLaVisiteTest.php` (14 tests) ;
+  `src/components/customer-dashboard/fiche/__tests__/ResumeDuClient.tck-2761.test.tsx` (8 tests).
+- **Ablations.** Barrière de la fiche retirée → AC4 (bailleur auteur propriétaire du bien) rouge ; barrière du bien
+  retirée → « bien d'une autre agence » rouge ; marqueur hors du bloc des critères → AC4 du marqueur rouge ; repli de
+  l'itinéraire sur l'adresse sans coordonnées → AC1 front rouge ; personnel jugé par `isStaffAt` au lieu du
+  profil actif → « sous le profil d'une autre agence » rouge. Fichiers restaurés, md5 vérifiés.
+- **Fidélité.** Relevés 390 et 1280 sur `/app/customers/120` (persona agent) : adresse « 65, impasse Dupuis · à
+  confirmer » et « Itinéraire » plein. La base de démo n'a aucune visite confirmée à venir ni fiche déduite : l'état
+  « confirmée » (Itinéraire + « Rappeler la visite » sur une ligne à 390, qui passe à la ligne si la place manque)
+  et la phrase « déduit » sont éprouvés par les tests, NON relevés.

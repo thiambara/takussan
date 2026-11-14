@@ -42,6 +42,11 @@ export interface CustomerListItem {
   seeking_cities?: string[] | null;
   seeking_neighborhoods?: string[] | null;
   min_bedrooms?: number | null;
+  /**
+   * TCK-2761 — la recherche a été déduite du bien d'une demande (« à confirmer avec lui ») ; `null`
+   * dès qu'un critère change. Au seul lecteur des critères.
+   */
+  seeking_deduced_at?: string | null;
   /** TCK-2588 — calculés pour la page, demandés par `fields[customers]` ; `null` hors personnel. */
   next_action?: CustomerNextAction | null;
   follow_up?: CustomerFollowUp | null;
@@ -123,6 +128,20 @@ export interface CustomerUpcomingVisit {
   readonly preferred_window?: string | null;
   /** TCK-2589 — l'`abilities.manage` du show de visite, pour cette visite et ce lecteur. */
   readonly manage?: boolean;
+  /**
+   * TCK-2761 — l'adresse du bien (`fields[customers]=visit_places`), au seul lecteur de l'adresse au
+   * titre du bien (personnel de son agence, propriétaire) : absente sinon.
+   */
+  readonly address?: CustomerVisitAddress | null;
+}
+
+/** TCK-2761 — l'adresse du bien d'une visite à venir (la forme de `property.address` d'une visite). */
+export interface CustomerVisitAddress {
+  readonly line: string | null;
+  readonly neighborhood: string | null;
+  readonly city: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
 }
 
 export interface CustomerNote {

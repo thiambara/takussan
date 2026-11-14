@@ -176,7 +176,8 @@ export async function fetchDashboardCustomer(
  * (`show-sans-fields.garde.test.ts`) : elle vérifie que ces noms sont tous des attributs calculés de
  * l'API, et qu'aucun autre nom n'est envoyé.
  */
-export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent'] as const;
+// TCK-2761 — `visit_places` : l'adresse du bien de chaque visite à venir, rendue sur `upcoming_visits[]`.
+export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent', 'visit_places'] as const;
 
 /**
  * TCK-2589 — ce que la fiche lit en une requête : pièces, étiquettes, bien d'intérêt, origine, les

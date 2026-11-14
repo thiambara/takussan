@@ -4,7 +4,7 @@
  * le formulent.
  */
 import type { Task } from '@/types/pipeline';
-import type { CustomerDetail, CustomerUpcomingVisit } from '@/types/customer';
+import type { CustomerDetail, CustomerUpcomingVisit, CustomerVisitAddress } from '@/types/customer';
 
 /**
  * Le lecteur est-il du personnel de l'agence de la fiche ? Jugé sur ce que l'API a RENDU, jamais sur
@@ -37,6 +37,16 @@ export interface ProchaineVisite {
   readonly gere: boolean;
   /** Une tranche demandée : l'heure se fixe sur la page de la visite. */
   readonly aTranche: boolean;
+  /** TCK-2761 — « Rue OU-48 » : la rue du bien, à défaut son quartier ; `null` si l'API ne l'a pas servie. */
+  readonly adresse: string | null;
+  /** TCK-2761 — « Itinéraire » vers les COORDONNÉES du bien ; sans coordonnées, aucun geste (AC1). */
+  readonly itineraire: string | null;
+}
+
+/** TCK-2761 — le lien de carte vers les coordonnées d'un bien ; `null` sans coordonnées (jamais l'adresse écrite). */
+export function itineraireVersLesCoordonnees(a: Pick<CustomerVisitAddress, 'latitude' | 'longitude'> | null | undefined): string | null {
+  if (!a || a.latitude == null || a.longitude == null || !Number.isFinite(a.latitude) || !Number.isFinite(a.longitude)) return null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${a.latitude},${a.longitude}`;
 }
 
 /**
@@ -55,6 +65,8 @@ export function prochaineVisite(customer: Pick<CustomerDetail, 'next_action' | '
     confirmee: v?.status === 'confirmed',
     gere: v?.manage === true,
     aTranche: Boolean(v?.preferred_window),
+    adresse: v?.address?.line?.trim() || v?.address?.neighborhood?.trim() || null,
+    itineraire: itineraireVersLesCoordonnees(v?.address),
   };
 }
 
