@@ -75,6 +75,9 @@ final class AgenceDeLaCible
      */
     public const HORS_AGENCE = [
         'conversation', 'reviews', 'saved_searches', 'favorites', 'kyc_review', 'agency_upgrade_request',
+        // TCK-2783 — une pièce du coffre : `documents` n'a pas de colonne d'agence (son porteur la
+        // porte, quand il en a une), et la fiche juge elle-même son lecteur (`DocumentPolicy::view`).
+        'document',
     ];
 
     /** @var array<string, array<int, ?int>> genre → id → agence (null : objet sans agence ou absent) */

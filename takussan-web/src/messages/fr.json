@@ -11619,7 +11619,9 @@
         "expireDans": "{jours, plural, one {expire demain} other {expire dans # jours}}",
         "expireAujourdhui": "expire aujourd’hui",
         "expireLe": "expire le {date}",
-        "expireeLe": "expirée le {date}"
+        "expireeLe": "expirée le {date}",
+        "nousPreviendrons": "Nous vous préviendrons 60 jours avant.",
+        "nousPreviendronsSept": "Nous vous préviendrons 7 jours avant."
       },
       "resume": {
         "caution": "caution"
@@ -16913,7 +16915,8 @@
         "lease_rent_reviewed": "Révision du loyer",
         "invoice_reminder_sent": "Relance de facture",
         "tenant_inventory_reminder": "Rappel d’état des lieux d’entrée",
-        "task_due_reminder": "Rappel de tâche"
+        "task_due_reminder": "Rappel de tâche",
+        "document_expiring": "Expiration de mes pièces"
       },
       "channels": {
         "inapp": "Appli",
@@ -19174,6 +19177,12 @@
           "title": "Mise en avant terminée",
           "body": "La mise en avant de « {property} » est terminée."
         }
+      },
+      "document": {
+        "expiring_soon": {
+          "title": "Pièce bientôt expirée : {document_name}",
+          "body": "« {document_name} » expire le {expires_at}. Ajoutez-en une nouvelle version depuis sa fiche pour garder votre dossier à jour."
+        }
       }
     },
     "history": {
@@ -19313,6 +19322,9 @@
       "agency": {
         "member_deletion_requested": "Réattribuer",
         "upgrade_requested": "Examiner"
+      },
+      "document": {
+        "expiring_soon": "Renouveler"
       }
     }
   },

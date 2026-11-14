@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { echeanceDe } from '@/lib/documents/coffre';
 import { formatDuFichier, seVersionne, tailleDuFichier } from '@/lib/documents/fiche';
+import { CLE_DE_LA_PROMESSE, estDeMesPieces, rappelAVenir } from '@/lib/documents/rappel-d-expiration';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useDocumentWithVersions } from '@/lib/queries/documents';
 import { cn } from '@/lib/utils';
@@ -107,7 +108,10 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
   const moi = (id: number | null) => user !== null && id !== null && id === user.id;
 
   /* ── Marques : vérification, échéance ── */
-  const echeance = echeanceDe(document.expiry_date, jourADakar(new Date()));
+  const aujourdhui = jourADakar(new Date());
+  const echeance = echeanceDe(document.expiry_date, aujourdhui);
+  // TCK-2783 — la promesse du prochain rappel (J-60 ou J-7), sur une pièce de « Mes pièces ».
+  const promesse = estDeMesPieces(document, user?.id) ? rappelAVenir(document.expiry_date, aujourdhui) : null;
   const marques = (
     <span className="flex flex-wrap items-center gap-1.5">
       {document.is_verified ? (
@@ -127,6 +131,7 @@ function FicheDuDocument({ document }: { readonly document: DocumentWithVersions
       ) : echeance?.etat === 'plusTard' ? (
         <span className="whitespace-nowrap text-legende text-muted-foreground">{tMarques('expireLe', { date: f.jourMois(echeance.le) })}</span>
       ) : null}
+      {promesse ? <span className="text-legende text-muted-foreground">{tMarques(CLE_DE_LA_PROMESSE[promesse])}</span> : null}
     </span>
   );
 

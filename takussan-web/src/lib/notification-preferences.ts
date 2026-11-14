@@ -63,6 +63,8 @@ export const GROUPES_DE_PREFERENCES = [
       'threshold_alert',
       // TCK-2636 — le rappel de tâche (`tasks:send-due-reminders`), sans interrupteur jusque-là.
       'task_due_reminder',
+      // TCK-2783 — le rappel d'expiration d'une pièce du coffre (`documents:remind-expiring`).
+      'document_expiring',
     ],
   },
   // TCK-2432 — la source d'un bien publié par le Radar a disparu : son titulaire est questionné.

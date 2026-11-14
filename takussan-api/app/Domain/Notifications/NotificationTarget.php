@@ -84,6 +84,8 @@ final class NotificationTarget
         'favorites' => '/app/favorites',
         // TCK-633 lot F — une notification de crédits ouvre la page Crédits de l'espace.
         'credits' => '/app/credits',
+        // TCK-2783 — le rappel d'expiration d'une pièce ouvre sa fiche (`DocumentDetailClient`).
+        'document' => '/app/documents/{id}',
     ];
 
     /**

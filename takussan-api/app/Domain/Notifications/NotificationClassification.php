@@ -117,6 +117,10 @@ final class NotificationClassification
         'kyc.rejected' => [self::S, true],
         'kyc.expiring_soon' => [self::S, true],
 
+        // ─── Documents ────────────────────────────────────────────────────────────────────
+        // TCK-2783 — une pièce à renouveler : un geste attendu de son porteur.
+        'document.expiring_soon' => [self::S, true],
+
         // ─── Gouvernance de l'agence et délégations ───────────────────────────────────────
         'governance.role_capabilities_changed' => [self::S, false],
         'governance.admin_added' => [self::S, false],
@@ -281,6 +285,8 @@ final class NotificationClassification
         'saved_searches' => self::B,
         'favorites' => self::B,
         'credits' => self::S,
+        // TCK-2783 — la fiche d'une pièce du coffre.
+        'document' => self::S,
     ];
 
     /**

@@ -11619,7 +11619,9 @@
         "expireDans": "{jours, plural, one {expires tomorrow} other {expires in # days}}",
         "expireAujourdhui": "expires today",
         "expireLe": "expires on {date}",
-        "expireeLe": "expired on {date}"
+        "expireeLe": "expired on {date}",
+        "nousPreviendrons": "We will remind you 60 days before.",
+        "nousPreviendronsSept": "We will remind you 7 days before."
       },
       "resume": {
         "caution": "deposit"
@@ -16913,7 +16915,8 @@
         "lease_rent_reviewed": "Rent review",
         "invoice_reminder_sent": "Invoice reminder",
         "tenant_inventory_reminder": "Move-in inventory reminder",
-        "task_due_reminder": "Task reminder"
+        "task_due_reminder": "Task reminder",
+        "document_expiring": "Expiry of my documents"
       },
       "channels": {
         "inapp": "App",
@@ -19174,6 +19177,12 @@
           "title": "Promotion ended",
           "body": "The promotion of “{property}” has ended."
         }
+      },
+      "document": {
+        "expiring_soon": {
+          "title": "Document expiring soon: {document_name}",
+          "body": "\"{document_name}\" expires on {expires_at}. Add a new version from its page to keep your file up to date."
+        }
       }
     },
     "history": {
@@ -19313,6 +19322,9 @@
       "agency": {
         "member_deletion_requested": "Reassign",
         "upgrade_requested": "Review"
+      },
+      "document": {
+        "expiring_soon": "Renew"
       }
     }
   },

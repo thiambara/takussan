@@ -102,6 +102,11 @@ enum NotificationCode: string
     // TCK-601 — la pièce du dirigeant arrive à échéance (J-30, J-7).
     case KycExpiringSoon = 'kyc.expiring_soon';
 
+    // ─── Documents ──────────────────────────────────────────────────────────────────────
+    // TCK-2783 — une pièce datée arrive à échéance (J-60, J-7, au jour de Dakar) : à son porteur
+    // `User` (« Mes pièces »), sinon à son téléverseur s'il la lit encore (`DocumentExpiryReminder`).
+    case DocumentExpiringSoon = 'document.expiring_soon';
+
     // ─── Gouvernance d'agence (TCK-601) : aux admins actifs, sauf l'auteur ───────────────
     case GovernanceRoleCapabilitiesChanged = 'governance.role_capabilities_changed';
     case GovernanceAdminAdded = 'governance.admin_added';
@@ -337,6 +342,7 @@ enum NotificationCode: string
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
+            self::DocumentExpiringSoon /* TCK-2783 */,
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected, self::PropertySubmittedForReview,
@@ -395,6 +401,8 @@ enum NotificationCode: string
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
+            // TCK-2783 — son propre interrupteur : le rappel d'une pièce n'est pas un verdict KYC.
+            self::DocumentExpiringSoon => 'document_expiring',
             // Une alerte de sécurité ne se désactive pas : c'est sa raison d'être.
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
@@ -498,6 +506,8 @@ enum NotificationCode: string
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
             self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
+            // TCK-2783 — `days_left` : les jours qui restent au jour de Dakar (60, 7, ou moins au rattrapage).
+            self::DocumentExpiringSoon => ['document_name' => self::PARAM_TEXT, 'expires_at' => self::PARAM_DATE, 'days_left' => self::PARAM_COUNT],
             // P164.04 (TCK-1808) — le code du rôle système (`agency_admin`), ou le nom d'un rôle créé,
             // que le repli de `role()` rend tel quel.
             self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_ROLE, 'actor' => self::PARAM_TEXT],

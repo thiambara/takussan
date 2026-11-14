@@ -18,6 +18,8 @@ import type { CoffreDeDocuments, CoffreVu } from '@/lib/documents/coffre';
 import { ciblesDeRangement, cibleParDefaut, piecesARenouveler, type CibleDeRangement } from '@/lib/documents/rangement';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { DOCUMENT_MAX_SIZE_BYTES, DOCUMENT_MIME_ACCEPT, useUploadDocument } from '@/lib/queries/documents';
+import { CLE_DE_LA_PROMESSE, rappelAVenir } from '@/lib/documents/rappel-d-expiration';
+import { jourADakar } from '@/lib/visites/par-le-temps';
 import { documentUploadSchema, type DocumentUploadFormValues } from '@/lib/schemas/document';
 import { cn } from '@/lib/utils';
 import type { DocumentType } from '@/types/document';
@@ -40,8 +42,7 @@ import { TuileDEntree } from '../LigneDuCoffre';
  * d'identifiant n'est rendu, l'identifiant voyage avec le dossier choisi.
  *
  * Écarts décidés : ni « Redressée et recadrée toute seule » ni « Lu sur la photo » (aucun redressement,
- * aucune lecture du texte) ; ni « Nous vous préviendrons 60 jours avant » (aucun rappel d'expiration
- * de document n'existe) ; ni le nom de l'agence (le coffre ne le rend pas). « Remplacer » et
+ * aucune lecture du texte) ; ni le nom de l'agence (le coffre ne le rend pas). « Remplacer » et
  * l'interrupteur « Remplace … » mènent à la fiche de la pièce, qui porte les versions (décision L2 (a)).
  * Les pastilles de catégorie sont des valeurs de l'API : « Justificatif de revenus » n'en est pas une.
  */
@@ -460,12 +461,28 @@ function ChampsDeLAjout({
         <div className="md:order-last md:col-span-2">
           <ChoixDeCategorie control={control} />
         </div>
-        <FormDatePicker<DocumentUploadFormValues> control={control} name="expiry_date" label={t('expire')} placeholder={t('facultatif')} />
+        <div>
+          <FormDatePicker<DocumentUploadFormValues> control={control} name="expiry_date" label={t('expire')} placeholder={t('facultatif')} />
+          <PromesseDuRappel control={control} />
+        </div>
       </div>
       <RangeDans control={control} cibles={cibles} onCible={onCible} />
       <FormInput<DocumentUploadFormValues> control={control} name="description" label={t('precision')} placeholder={t('precisionExemple')} />
     </>
   );
+}
+
+/**
+ * TCK-2783 — « Nous vous préviendrons 60 jours avant », sous l'expiration (maquette `app-documents` a) :
+ * rangée dans « Mes pièces » (le rappel va au compte qui porte la pièce) ; « 7 jours avant » entre 8 et
+ * 60 jours ; rien à 7 jours ou moins.
+ */
+function PromesseDuRappel({ control }: { readonly control: Control<DocumentUploadFormValues> }) {
+  const tMarques = useTranslations('documents.coffre.marques');
+  const [type, expiry] = useWatch({ control, name: ['documentable_type', 'expiry_date'] });
+  const jalon = type === 'user' ? rappelAVenir(expiry, jourADakar(new Date())) : null;
+  if (jalon === null) return null;
+  return <p className="mt-1.5 text-legende text-muted-foreground">{tMarques(CLE_DE_LA_PROMESSE[jalon])}</p>;
 }
 
 function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploadFormValues> }) {

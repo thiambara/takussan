@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: []
 blocks: []
 spec_refs:
@@ -71,32 +71,39 @@ quand le rappel s'applique à cette pièce et à ce lecteur. Le texte de la noti
 
 ## Delta à produire
 
-- [ ] `NotificationCode::DocumentExpiringSoon` (`document.expiring_soon`) : paramètres `expires_at` (date),
+- [x] `NotificationCode::DocumentExpiringSoon` (`document.expiring_soon`) : paramètres `expires_at` (date),
   `document_name` et `days_left`, et sa cible.
-- [ ] Service `App\Services\Documents\DocumentExpiryReminder`, sur le modèle de `KycExpiryService`. Il mémorise
+- [x] Service `App\Services\Documents\DocumentExpiryReminder`, sur le modèle de `KycExpiryService`. Il mémorise
   `metadata.expiry_reminders`, avec la date visée, pour le réarmement.
-- [ ] Commande `documents:remind-expiring`, planifiée chaque jour à 07:00, `timezone('Africa/Dakar')`,
+- [x] Commande `documents:remind-expiring`, planifiée chaque jour à 07:00, `timezone('Africa/Dakar')`,
   `withoutOverlapping()`.
-- [ ] Gabarits de la notification fr et en. Le wo porte le texte français tel quel, le wolof étant en pause.
-- [ ] Front : la phrase de la promesse, sous la condition ci-dessus, sur la fiche de la pièce et dans le coffre.
-- [ ] Tests `RappelExpirationDocumentTest` : J-60, J-7, rattrapage, réarmement, document interne, personnel parti,
+- [x] Gabarits de la notification fr et en. Le wo porte le texte français tel quel, le wolof étant en pause.
+- [x] Front : la phrase de la promesse, sous la condition ci-dessus, sur la fiche de la pièce et dans le coffre.
+- [x] Tests `RappelExpirationDocumentTest` : J-60, J-7, rattrapage, réarmement, document interne, personnel parti,
   pièce expirée, pièce supprimée, et fuseau (une pièce qui expire le lendemain à Dakar).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une pièce « Mes pièces » qui expire dans 60 jours (jour de Dakar) produit, au passage de la commande,
+- [x] AC1 — Une pièce « Mes pièces » qui expire dans 60 jours (jour de Dakar) produit, au passage de la commande,
   une notification `document.expiring_soon` à son compte, avec `days_left = 60`. Un second passage le même jour
   n'en produit pas d'autre.
-- [ ] AC2 — À J-7, une seconde notification part, avec `days_left = 7`.
-- [ ] AC3 — Une pièce créée à J-5 reçoit une seule notification, celle de J-7, et `metadata.expiry_reminders` marque
+  *Preuve : `RappelExpirationDocumentTest::test_j60_previent_le_porteur_une_seule_fois` (deux passages, une ligne, `updated_at` inchangé).*
+- [x] AC2 — À J-7, une seconde notification part, avec `days_left = 7`.
+  *Preuve : `test_j7_envoie_le_second_rappel`.*
+- [x] AC3 — Une pièce créée à J-5 reçoit une seule notification, celle de J-7, et `metadata.expiry_reminders` marque
   les deux jalons.
-- [ ] AC4 — Après `expiry_date` repoussée d'un an, la pièce reçoit de nouveau son rappel de J-60 à la nouvelle date.
-- [ ] AC5 — Une pièce téléversée par un membre du personnel parti n'est notifiée à personne. Une pièce interne d'une
+  *Preuve : `test_rattrapage_sans_doublon` (`days_left = 5`, `sent = [60, 7]`, métadonnées existantes gardées).*
+- [x] AC4 — Après `expiry_date` repoussée d'un an, la pièce reçoit de nouveau son rappel de J-60 à la nouvelle date.
+  *Preuve : `test_une_nouvelle_date_rearme_les_jalons`.*
+- [x] AC5 — Une pièce téléversée par un membre du personnel parti n'est notifiée à personne. Une pièce interne d'une
   fiche n'est jamais notifiée à son sujet.
-- [ ] AC6 — Front : la phrase « Nous vous préviendrons 60 jours avant » s'affiche sur une pièce datée de « Mes
+  *Preuve : `test_le_personnel_parti_n_est_pas_prevenu` et `test_le_document_interne_ne_va_jamais_a_son_sujet`, chacun avec son témoin positif (agent actif prévenu).*
+- [x] AC6 — Front : la phrase « Nous vous préviendrons 60 jours avant » s'affiche sur une pièce datée de « Mes
   pièces », et nulle part ailleurs.
-- [ ] AC7 — Vérifié par ablation. Un jalon compté en UTC, et non au jour de Dakar, rend le test de fuseau rouge. Une
+  *Preuve : `takussan-web/src/components/documents/__tests__/promesse-du-rappel.tck-2783.test.tsx` (fiche : 60 jours, 7 jours à J-60 et J-8, rien à J-7, le jour même, sans date, expirée, autre porteur ; ajout au coffre : les trois paliers et le rangement). Ablation du seuil de 7 jours : rouge.*
+- [x] AC7 — Vérifié par ablation. Un jalon compté en UTC, et non au jour de Dakar, rend le test de fuseau rouge. Une
   mémoire sans la date visée rend AC4 rouge.
+  *Preuve : ablations rouges, fichier restauré et md5 vérifié — jour du serveur au lieu de Dakar (`today()` → `now()->startOfDay()`) : le test de fuseau rougit, le processus étant placé à Tokyo, parce que Dakar est à UTC+0 et qu'un « jour UTC » ne peut pas en différer ; mémoire sans date visée : AC4 rougit. Plus deux : sans la porte `DocumentPolicy::view`, AC5 (2 tests) rougit ; sans la mémoire de jalon, AC1 à AC3 rougissent.*
 
 ## Hors périmètre
 
@@ -107,4 +114,25 @@ quand le rappel s'applique à cette pièce et à ce lecteur. Le texte de la noti
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Destinataire** : `DocumentExpiryReminder::destinataire()` choisit le porteur `User`, sinon le téléverseur, puis
+  le passe par `Gate::forUser()->allows('view')`. Cette seule porte couvre le personnel parti, le document interne
+  (`readsInternalOf` : personnel actif, jamais le sujet, décision 9b) et la pièce de profil. Un membre du personnel
+  actif dans deux agences n'était pas reconnu hors requête (`staffAgencyId()` sans profil actif rend `null`) :
+  décision de la session du 2026-11-14, le personnel se juge sur l'agence DU DOCUMENT — le jugement se fait sous
+  le profil de personnel actif du destinataire dans cette agence, s'il en a un ; la policy reste le seul juge.
+  Tests : `test_le_membre_de_deux_agences_est_prevenu_sur_l_agence_du_document`,
+  `test_le_membre_d_une_autre_agence_n_est_pas_prevenu`. Ablations rouges : jugement sans l'agence du document,
+  profil pris dans une autre agence, interne ouvert au personnel de toute agence (`readsInternalOf`).
+- **Mémoire** : `metadata.expiry_reminders = {expiry_date, sent}`, ajoutée aux métadonnées existantes. Elle est écrite par
+  `DB::table()`, sans toucher `updated_at` ni réindexer (Scout n'indexe pas `metadata`). Le jalon ne se pose
+  qu'après un envoi reçu (`send()` non nul), comme le KYC.
+- **Interrupteur** : nouvel événement `document_expiring` (`PreferenceResolver::EVENTS`, groupe « alerts » de l'écran,
+  libellés ×3). Le code n'est pas `mobile()` : ni SMS ni WhatsApp.
+- **Cible** : nouveau genre `document` → `/app/documents/{id}`, classé `HORS_AGENCE` dans `AgenceDeLaCible` (la table
+  `documents` n'a pas de colonne d'agence ; la fiche juge son lecteur), famille `systeme`, « à traiter », verbe
+  « Renouveler ».
+- **Le jour même** (`days_left = 0`, pièce pas encore expirée) : le rattrapage de J-7 part, s'il n'est pas déjà parti.
+- **Promesse à l'écran** : seulement sur une pièce portée par le compte du lecteur, et elle dit le prochain
+  rappel (`rappelAVenir`) : « 60 jours avant » au-delà de 60 jours, « 7 jours avant » entre 8 et 60 jours, rien
+  à 7 jours ou moins. Décisions de la session du 2026-11-14 : 1 (a), 2 (a) complétée ainsi, 3 (a).
+- `FormeDesDatesDeNotificationTest` éprouve le code par son émetteur réel.

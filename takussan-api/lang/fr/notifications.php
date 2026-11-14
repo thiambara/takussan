@@ -647,6 +647,14 @@ return [
                 'sms' => 'Takussan : seuil d\'approbation modifié par :actor.',
             ],
         ],
+        // TCK-2783 — `documents:remind-expiring` : une pièce du coffre expire dans 60 puis 7 jours.
+        'document' => [
+            'expiring_soon' => [
+                'title' => 'Pièce bientôt expirée : :document_name',
+                'body' => '« :document_name » expire le :expires_at. Ajoutez-en une nouvelle version depuis sa fiche pour garder votre dossier à jour.',
+                'sms' => 'Takussan : votre pièce « :document_name » expire le :expires_at.',
+            ],
+        ],
         'kyc' => [
             'expiring_soon' => [
                 'title' => 'Pièce KYC bientôt expirée',

@@ -87,13 +87,14 @@ afterEach(() => {
 describe('<NotificationPreferencesMatrix> — téléphone : une rangée par événement (TCK-2636)', () => {
   beforeEach(() => auBureau(false));
 
-  it('rend les 20 événements, groupés, Baux en tête, dont les six qui n’avaient pas d’interrupteur', async () => {
+  it('rend les 21 événements, groupés, Baux en tête, dont les six qui n’avaient pas d’interrupteur', async () => {
     getMock.mockResolvedValue({ ok: true, data: grille() });
     const { container } = render(wrap(<NotificationPreferencesMatrix />));
     await waitFor(() => expect(screen.getByText('Loyer en retard')).toBeInTheDocument());
 
     expect(container.querySelectorAll('li[data-evenement]')).toHaveLength(EVENEMENTS_DE_PREFERENCE.length);
-    expect(EVENEMENTS_DE_PREFERENCE).toHaveLength(20);
+    // TCK-2783 — 21 avec le rappel d'expiration d'une pièce (`document_expiring`).
+    expect(EVENEMENTS_DE_PREFERENCE).toHaveLength(21);
     for (const libelle of [
       'Renouvellement du bail',
       'Résiliation anticipée du bail',
@@ -125,7 +126,7 @@ describe('<NotificationPreferencesMatrix> — téléphone : une rangée par év�
     for (const bouton of screen.getAllByRole('button', { expanded: false })) await user.click(bouton);
 
     const rangees = [...container.querySelectorAll('li[data-evenement]')];
-    expect(rangees).toHaveLength(20);
+    expect(rangees).toHaveLength(21);
     for (const li of rangees) {
       expect(li, li.getAttribute('data-evenement') ?? '').toBeVisible();
       expect(within(li as HTMLElement).getAllByRole('checkbox').length).toBeGreaterThan(0);
@@ -358,7 +359,7 @@ describe('<NotificationPreferencesMatrix> — bureau : la matrice (TCK-2636)', (
     expect(screen.queryByText('In-app')).not.toBeInTheDocument();
     expect(screen.queryByText('Push')).not.toBeInTheDocument();
     expect(screen.getAllByRole('table')).toHaveLength(7);
-    expect(screen.getAllByRole('rowheader')).toHaveLength(20);
+    expect(screen.getAllByRole('rowheader')).toHaveLength(21);
   });
 
   it('cocher une case envoie la mise à jour', async () => {

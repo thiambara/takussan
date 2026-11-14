@@ -130,6 +130,9 @@ Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlappi
 Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
 // TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
 Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
+// TCK-2783 — rappel d'expiration d'une pièce du coffre à J-60 et J-7 (jour de Dakar). Idempotent :
+// les jalons envoyés sont mémorisés sur la pièce avec la date visée.
+Schedule::command('documents:remind-expiring')->dailyAt('07:00')->timezone('Africa/Dakar')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping(60);
 
