@@ -1,13 +1,13 @@
 ---
 id: TCK-2791
 title: "Les trois tableaux de bord servent le mois dernier — `period=last_month` sur dashboard/agency, agent et owner"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 87
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 depends_on: [TCK-2628]
 blocks: []
 spec_refs:
@@ -62,3 +62,5 @@ Relevé le 2026-11-13 : `GET /api/dashboard/agency`, `/agent` et `/owner` ne lis
 - `as_of_today` gardé des deux côtés : chaque chemin existe dans la réponse des trois endpoints (`test_every_as_of_today_path_exists_in_the_response`) ; le front n'a aucune liste à lui, la marque « aujourd'hui » se lit de `as_of_today` (retirer un chemin n'efface que sa tuile, test `it.each`).
 - Ablations : 11 côté API, 9 côté front, toutes rouges, fichiers restaurés au md5 (dont « chemin renommé » et « liste recopiée dans le front »).
 - Après fusion : `/sync-specs` (features.md §25 ne connaît pas `period`).
+
+- 2026-11-14 : clôturé — livré en 3ea20ef3a, AC1-AC3 prouvés ; DashboardPeriodTest et DashboardQueryBudgetTest re-joués verts (14 tests).
