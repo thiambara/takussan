@@ -6032,14 +6032,18 @@
           "vous": "Madame, Monsieur",
           "agence": "De la part de {agence}.",
           "entree": "Bonjour {prenom}, pour finaliser votre entrée dans {bien}, il reste : {elements}. Vous pouvez le faire depuis votre espace Takussan.",
-          "entreeSansDetail": "Bonjour {prenom}, votre entrée dans {bien} n’est pas encore finalisée. Vous pouvez la terminer depuis votre espace Takussan."
+          "entreeSansDetail": "Bonjour {prenom}, votre entrée dans {bien} n’est pas encore finalisée. Vous pouvez la terminer depuis votre espace Takussan.",
+          "penalite": "Bonjour{prenom, select, aucun {} other { {prenom}}}, la pénalité de retard {type, select, loyer {du loyer {voyelle, select, oui {d’{mois}} other {de {mois}}}} other {du paiement « {libelle} »}} ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler. Vous pouvez la payer en ligne ici : {lien}{agence, select, aucun {} other {\nDe la part de {agence}.}}",
+          "penaliteSansLien": "Bonjour{prenom, select, aucun {} other { {prenom}}}, la pénalité de retard {type, select, loyer {du loyer {voyelle, select, oui {d’{mois}} other {de {mois}}}} other {du paiement « {libelle} »}} ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler, auprès de votre agence.{agence, select, aucun {} other {\nDe la part de {agence}.}}"
         },
         "elements": {
           "welcome_seen_at": "lire le message d’accueil",
           "inventory_completed_at": "valider l’état des lieux d’entrée",
           "first_payment_at": "régler le premier paiement",
           "documents_acknowledged_at": "prendre connaissance des documents"
-        }
+        },
+        "penaliteIntrouvable": "Aucune pénalité de retard à relancer sur ce bail.",
+        "penaliteHorsLigne": "Votre agence n’encaisse pas ses pénalités de retard en ligne : aucun lien à copier. Relancez le locataire par téléphone, puis marquez la pénalité réglée depuis l’échéancier."
       },
       "elements": {
         "welcome_seen_at": "Message d’accueil",
@@ -9553,7 +9557,10 @@
           "noteEchec": "La relance n’a pas pu être notée.",
           "copier": "Copier",
           "copie": "Copié",
-          "lienACreer": "Créé à l’envoi de la relance"
+          "lienACreer": "Créé à l’envoi de la relance",
+          "enTetePenalite": "Pénalité de retard",
+          "lienPenalite": "Lien de paiement de la pénalité",
+          "penaliteSansLien": "Votre agence n’encaisse pas ses pénalités de retard en ligne : le message part sans lien, la pénalité se règle à l’agence."
         },
         "dossier": {
           "bailleur": "Bailleur : {nom}",
@@ -20170,7 +20177,19 @@
       "introuvableTitre": "Lien introuvable",
       "introuvableTexte": "Vérifiez l’adresse reçue, ou demandez un nouveau lien à votre agence.",
       "erreur": "L’échéance n’a pas pu être chargée. Réessayez dans un instant.",
-      "aReglerALAgence": "À régler à l’agence"
+      "aReglerALAgence": "À régler à l’agence",
+      "penaliteSeule": {
+        "titre": "Pénalité de retard",
+        "aPayer": "Pénalité à payer",
+        "aReglerALAgence": "Pénalité à régler à l’agence",
+        "loyerRegle": "Le loyer de cette échéance est déjà réglé : ce lien ne fait payer que la pénalité de retard.",
+        "horsLigne": "La pénalité ne se paie pas en ligne. Vous pouvez la régler directement à votre agence, {agence} :",
+        "horsLigneSansMoyen": "La pénalité ne se paie pas en ligne. Adressez-vous à votre agence, {agence}, pour la régler.",
+        "regleeTitre": "La pénalité de retard est réglée",
+        "merci": "Merci, la pénalité est payée",
+        "regleeLe": "Réglée le {date}. Vous n’avez rien à payer sur ce lien.",
+        "regleeSansDate": "Vous n’avez rien à payer sur ce lien."
+      }
     },
     "reclamation": {
       "lienPersonnel": "Lien personnel",

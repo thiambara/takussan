@@ -360,3 +360,75 @@ describe('<PayLinkReception> (TCK-602, TCK-2505)', () => {
     expect(await screen.findByText(messages.aPayer)).toBeInTheDocument();
   });
 });
+
+/**
+ * TCK-2778 — un lien `subject: late_fee` fait payer la pénalité de retard SEULE, restée due sur un loyer
+ * PAYÉ : la page le dit (« Pénalité de retard », puis l'échéance), affiche `amount_due` tel quel (la
+ * pénalité, sans loyer à additionner), et ne prend jamais l'échéance pour « réglée » tant que la
+ * pénalité est due (`status` décrit le loyer).
+ */
+describe('<PayLinkReception> — la pénalité seule (TCK-2778)', () => {
+  const P = fr.lienPublic.paiement.penaliteSeule;
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  const penalite = (over: Record<string, unknown> = {}) =>
+    lien({
+      subject: 'late_fee',
+      status: 'paid',
+      paid_at: '2026-10-20T10:00:00+00:00',
+      amount_due: 7500,
+      late_fee_outstanding: 7500,
+      late_fee_payable_online: true,
+      late_fee_paid_at: null,
+      receipt_available: true,
+      ...over,
+    });
+
+  it('à payer en ligne : « Pénalité de retard » en titre, l’échéance dessous, 7 500 seuls, les fournisseurs — jamais « réglée », ni le loyer', async () => {
+    bouchonner(reponse(200, penalite()));
+    render(withIntl(<PayLinkReception token={JETON} />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: P.titre })).toBeInTheDocument();
+    expect(corpsDeLaPage()).toContain('Échéance d’octobre 2026');
+    expect(texte(screen.getByTestId('pay-amount'))).toBe('7 500 F CFA');
+    expect(screen.getByText(P.aPayer)).toBeInTheDocument();
+    expect(screen.getByText(P.loyerRegle)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Payer avec/ })).toHaveLength(2);
+    expect(screen.queryByTestId('pay-breakdown')).toBeNull();
+    expect(screen.queryByTestId('pay-paid')).toBeNull();
+    expect(corpsDeLaPage()).not.toContain(T.reglee);
+    expect(corpsDeLaPage()).not.toContain('150 000');
+    expect(screen.queryByRole('button', { name: T.quittance })).toBeNull();
+  });
+
+  it('aucun fournisseur : la pénalité à régler à l’agence, ses moyens, sans bouton de paiement', async () => {
+    bouchonner(reponse(200, penalite({ providers: [], late_fee_payable_online: false, offline_payment: { wave_number: '+221771234567' } })));
+    render(withIntl(<PayLinkReception token={JETON} />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: P.titre })).toBeInTheDocument();
+    expect(screen.getByText(P.aReglerALAgence)).toBeInTheDocument();
+    expect(texte(screen.getByTestId('pay-amount'))).toBe('7 500 F CFA');
+    expect(corpsDeLaPage()).toContain('Vous pouvez la régler directement à votre agence, Agence Teranga');
+    expect(screen.queryByRole('button', { name: /Payer avec/ })).toBeNull();
+  });
+
+  it('pénalité réglée (AC7 : `late_fee_paid_at`, rien de dû) : l’état et sa date, plus rien à payer', async () => {
+    bouchonner(reponse(200, penalite({ amount_due: 0, late_fee_outstanding: 0, providers: [], late_fee_paid_at: '2026-11-12T09:00:00+00:00' })));
+    render(withIntl(<PayLinkReception token={JETON} />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: P.regleeTitre })).toBeInTheDocument();
+    expect(corpsDeLaPage()).toContain('Réglée le 12 nov. 2026');
+    expect(screen.getByRole('heading', { level: 2, name: P.titre })).toBeInTheDocument();
+    expect(screen.queryByTestId('pay-amount')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Payer avec/ })).toBeNull();
+  });
+
+  it('un lien de loyer (`subject: rent`) garde la page du loyer', async () => {
+    bouchonner(reponse(200, lien({ subject: 'rent' })));
+    render(withIntl(<PayLinkReception token={JETON} />));
+
+    expect(texte(await screen.findByTestId('pay-amount'))).toBe('150 000 F CFA');
+    expect(screen.queryByText(P.titre)).toBeNull();
+  });
+});

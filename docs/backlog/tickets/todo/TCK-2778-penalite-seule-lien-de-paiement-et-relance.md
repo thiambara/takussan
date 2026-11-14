@@ -96,7 +96,7 @@ pénalité de retard de tel mois, et non le loyer.
   `lateFeeOutstanding() > 0`, avec `subject = late_fee`. Sinon, 409 `lease_payment.not_overdue` inchangé.
 - [ ] `LeasePaymentResource` : `late_fee_reminder_allowed` et `late_fee_link_allowed`, qui servent au front de
   verdicts.
-- [ ] Front : « Relancer » sur une ligne `late_fee_unpaid` ouvre la feuille de relance avec le message de la
+- [x] Front : « Relancer » sur une ligne `late_fee_unpaid` ouvre la feuille de relance avec le message de la
   pénalité. La clé `lease.liste.relance.message.penalite`, retirée par TCK-2644, revient sous ce nom ou un autre.
   La page publique du lien dit « pénalité de retard ».
 - [ ] Tests : `LienDePaiementPenaliteSeuleTest` (création, montant, webhook, échéance intacte, agence sans
@@ -120,9 +120,13 @@ pénalité de retard de tel mois, et non le loyer.
   rent`) : un test qui l'épingle reste vert.
 - [ ] AC7 — « Marquer la pénalité réglée » rend caduc un lien de pénalité ouvert : la page publique ne propose plus
   de payer.
-- [ ] AC8 — Front : depuis « Baux à traiter », « Relancer » sur une ligne `late_fee_unpaid` ouvre la feuille de
+- [x] AC8 — Front : depuis « Baux à traiter », « Relancer » sur une ligne `late_fee_unpaid` ouvre la feuille de
   relance, dont le message dit la pénalité et son montant. « Ouvrir WhatsApp » crée le lien et note la relance, et
-  la ligne affiche ensuite « Dernière relance ».
+  la feuille, rouverte, affiche « Dernière relance ». (amendé le 2026-11-13, décision 1 a de team-lead : aucune carte
+  de « Baux à traiter » n'affiche de dernière relance, loyer compris ; seule la feuille rouverte la montre.)
+  Preuve : `liste-des-baux.tck-2644.test.tsx`, cas TCK-2778 « AC8 — lien permis » (en-tête et message de la
+  pénalité, `POST …/601/payment-link`, `POST …/601/reminders {channel: whatsapp}`, « Dernière relance le 3 nov. »
+  lue sur la ligne d'historique relue à l'ouverture).
 - [ ] AC9 — Chaque test API ci-dessus est vérifié par ablation. Par exemple, un montant égal au loyer plus la
   pénalité doit rendre AC1 rouge, et un webhook qui pose `paid_at` doit rendre AC2 rouge.
 
@@ -161,3 +165,21 @@ pénalité de retard de tel mois, et non le loyer.
 **Base de démo locale (décision 4).** Migration purement additive. `migrate --path=…` : `subject` présent sur les deux tables, les 34 liens existants valent `rent`. `migrate:rollback --path=…` : les deux colonnes retirées, 34 lignes intactes. `migrate --path=…` : de nouveau présentes (lot 18). Aucun `migrate:fresh`.
 
 **Reste.** Le front (feuille « Relancer » d'une ligne `late_fee_unpaid` à partir de `late_fee_reminder_allowed` et `late_fee_link_allowed`, la clé de message de la pénalité, la page publique qui dit « pénalité de retard » à partir de `subject`) : AC8 ouvert. `/sync-specs` après fusion : `subject` sur `LeasePaymentLink` et `LeasePaymentReminder` (models-spec §84, §125), et le lien de pénalité seule (features §15).
+
+### 2026-11-13 — front (AC8), lot 2
+
+**Fait.**
+
+- « Baux à traiter » : « Relancer » d'une ligne `late_fee_unpaid` (`GesteDuBail`, carte et rangée) ouvre la feuille de TCK-2660. L'échéance vient de l'échéancier du bail (`GET /api/leases/{id}/payments`), dont `LeasePaymentResource` porte les deux verdicts, ajoutés à `LEASE_PAYMENT_FIELDS` et au type `LeasePayment`. On prend l'échéance `late_fee_reminder_allowed` de `attention.due_date`, à défaut la plus ancienne. Sa ligne d'historique (payeur, langue, bien, « Dernière relance ») se lit ensuite, bornée au jour du règlement (`filter[paid_from|paid_to]`). Le lien vers l'échéancier (décision 1 b de TCK-2644) est retiré.
+- `useRelanceDUnImpaye(row, actif, { penalite: { lienPermis } })`. Le message dit la pénalité et son montant (`late_fee_outstanding`), jamais le loyer : clés `lease.liste.relance.message.penalite` et `penaliteSansLien`, composées par `composerLaRelanceAction({ sujet: 'penalite', sansLien })` dans la langue du locataire. Si `late_fee_link_allowed` est faux, ou sur un 409 `payment.late_fee_not_collected_online` à l'envoi, la relance part sans lien ni repère : l'écran le dit en clair, aucun `POST …/payment-link`, et la relance est notée. Un autre 409 garde « Cette échéance ne se paie plus en ligne » : rien ne part. Sans numéro : « Copier le lien de paiement » si le lien est permis, sinon un toast qui dit pourquoi.
+- La feuille : en-tête « {montant} · Pénalité de retard · {période} » au lieu du retard du loyer, « Lien de paiement de la pénalité ».
+- La page publique `/pay/{jeton}` : un lien `subject: late_fee` passe AVANT la branche « réglée » (son loyer est `paid`). Elle a pour titre « Pénalité de retard », l'échéance en dessous, `amount_due` tel quel et sans décomposition, et « Le loyer de cette échéance est déjà réglé ». Trois états : à payer en ligne, à régler à l'agence (aucun fournisseur), ou réglée (`late_fee_paid_at`, AC7). `PayLink` et `PayLinkVerification` gagnent `subject` et `late_fee_paid_at`.
+
+**Tests.**
+
+- `liste-des-baux.tck-2644.test.tsx` : le cas « échéancier » est remplacé par cinq cas TCK-2778 : lien permis, lien non permis, 409 hors ligne puis renvoi, autre 409, bureau. Total : 26 verts.
+- `PayLinkReception.test.tsx` : 4 cas. `relance-penalite.tck-2778.test.ts` : 5 cas. Les voisins `admin/finances/impayes`, `AFaireAdmin`, `FicheDuBien` et `relance.tck-2660` restent verts.
+- Ablations : 6 sur 6 rouges, restaurées au md5. Le verdict du lien a été ignoré, le code du 409 ignoré, le 409 hors ligne non traité, la branche `late_fee` de la page retirée, le montant du message pris sur le loyer, l'état « réglée » sans `late_fee_paid_at`.
+
+**Écart.** AC8 « la ligne affiche ensuite « Dernière relance » » : la carte de « Baux à traiter » n'affiche de dernière relance pour aucun motif (le loyer non plus). La feuille, rouverte, la lit sur la ligne d'historique relue. Décision 1 a de team-lead (2026-11-13) : AC8 amendé, coché.
+

@@ -527,8 +527,16 @@ const FICHIERS_HORS_JETONS = 5;
  * OPAQUE sur la carte de la recherche (`bg-card`). Le contenu de `PublicFavoritesPage` passé dans
  * `SuiviDesFavoris` ne change rien au compte (4 entrées déplacées). Relevé en listant les encres
  * inverses de `components/favorites/` dans un arbre sans maquettes. Aucun défaut réel.
+ *
+ * 433 → 435 (2026-11-13, TCK-2778) : la page `/pay/{jeton}` d'un lien de la pénalité seule
+ * (`PenaliteSeule` de `PayLinkReception`) : 2 (l'échéance sous le titre « Pénalité de retard », le
+ * libellé « Pénalité à payer » du montant), `text-muted-foreground` OPAQUE sur le fond de la coque de
+ * lien. La suite commune du paiement en ligne (« ou » à l'agence, validité, émetteur) est factorisée
+ * avec l'échéance (`SuiteDuPaiementEnLigne`) plutôt que recopiée : 5 → 2. Relevé en listant les
+ * encres inverses de la surface sur une extraction de HEAD et de HEAD + TCK-2778, sans maquettes.
+ * Aucun défaut réel.
  */
-const ENCRES_INVERSES = 433;
+const ENCRES_INVERSES = 435;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

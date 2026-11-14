@@ -6075,14 +6075,18 @@
           "vous": "Hello",
           "agence": "From {agence}.",
           "entree": "Hello {prenom}, to complete your move-in at {bien}, still to do: {elements}. You can do it from your Takussan account.",
-          "entreeSansDetail": "Hello {prenom}, your move-in at {bien} isn’t complete yet. You can finish it from your Takussan account."
+          "entreeSansDetail": "Hello {prenom}, your move-in at {bien} isn’t complete yet. You can finish it from your Takussan account.",
+          "penalite": "Hello{prenom, select, aucun {} other { {prenom}}}, the late fee on {type, select, loyer {the {mois} rent} other {the payment “{libelle}”}} ({montant}){bien, select, aucun {} other { for “{bien}”}} is still unpaid. You can pay it online here: {lien}{agence, select, aucun {} other {\nOn behalf of {agence}.}}",
+          "penaliteSansLien": "Hello{prenom, select, aucun {} other { {prenom}}}, the late fee on {type, select, loyer {the {mois} rent} other {the payment “{libelle}”}} ({montant}){bien, select, aucun {} other { for “{bien}”}} is still unpaid, to be settled with your agency.{agence, select, aucun {} other {\nOn behalf of {agence}.}}"
         },
         "elements": {
           "welcome_seen_at": "read the welcome message",
           "inventory_completed_at": "approve the move-in inspection",
           "first_payment_at": "make the first payment",
           "documents_acknowledged_at": "review the documents"
-        }
+        },
+        "penaliteIntrouvable": "No late fee to chase on this lease.",
+        "penaliteHorsLigne": "Your agency doesn’t collect late fees online: there is no link to copy. Chase the tenant by phone, then mark the fee as paid from the schedule."
       },
       "elements": {
         "welcome_seen_at": "Welcome message",
@@ -9553,7 +9557,10 @@
           "noteEchec": "The reminder could not be recorded.",
           "copier": "Copy",
           "copie": "Copied",
-          "lienACreer": "Created when the reminder is sent"
+          "lienACreer": "Created when the reminder is sent",
+          "enTetePenalite": "Late fee",
+          "lienPenalite": "Late fee payment link",
+          "penaliteSansLien": "Your agency doesn’t collect late fees online: the message goes without a link, and the fee is settled at the agency."
         },
         "dossier": {
           "bailleur": "Landlord: {nom}",
@@ -20170,7 +20177,19 @@
       "introuvableTitre": "Link not found",
       "introuvableTexte": "Check the address you received, or ask your agency for a new link.",
       "erreur": "The instalment could not be loaded. Please try again in a moment.",
-      "aReglerALAgence": "Payable to the agency"
+      "aReglerALAgence": "Payable to the agency",
+      "penaliteSeule": {
+        "titre": "Late fee",
+        "aPayer": "Late fee to pay",
+        "aReglerALAgence": "Late fee to settle at the agency",
+        "loyerRegle": "The rent for this instalment is already paid: this link only collects the late fee.",
+        "horsLigne": "The late fee can’t be paid online. You can settle it directly with your agency, {agence}:",
+        "horsLigneSansMoyen": "The late fee can’t be paid online. Contact your agency, {agence}, to settle it.",
+        "regleeTitre": "The late fee is paid",
+        "merci": "Thank you, the late fee is paid",
+        "regleeLe": "Paid on {date}. There is nothing to pay on this link.",
+        "regleeSansDate": "There is nothing to pay on this link."
+      }
     },
     "reclamation": {
       "lienPersonnel": "Personal link",

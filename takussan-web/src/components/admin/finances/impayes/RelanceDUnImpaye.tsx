@@ -48,6 +48,16 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
           </button>
         ) : null}
       </div>
+      {relance.sansLien ? (
+        // TCK-2778 — la pénalité ne se paie pas en ligne : dit en clair, la relance part sans lien.
+        <p
+          role={relance.sansLienParLApi ? 'alert' : undefined}
+          data-slot="penalite-sans-lien"
+          className="mt-2 rounded-xl bg-warning/10 px-3.5 py-3 text-sm text-foreground"
+        >
+          {t('penaliteSansLien')}
+        </p>
+      ) : null}
       {relance.etatDuLien === 'refuse' ? (
         <p role="alert" className="mt-2 rounded-xl bg-warning/10 px-3.5 py-3 text-sm text-foreground">
           {t('lienRefuse')}
@@ -78,9 +88,9 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
         </p>
       )}
 
-      {relance.etatDuLien === 'refuse' ? null : (
+      {relance.etatDuLien === 'refuse' || relance.sansLien ? null : (
         <>
-          <p className="mt-4 mb-1.5 text-sm font-medium">{t('lien')}</p>
+          <p className="mt-4 mb-1.5 text-sm font-medium">{relance.penalite ? t('lienPenalite') : t('lien')}</p>
           <LienDePaiement url={relance.url} creer={relance.creerLeLien} enCours={relance.etatDuLien === 'chargement'} />
         </>
       )}

@@ -142,6 +142,8 @@ export type PaymentHistoryRow = {
     /** TCK-2660 — `manual` (notée par l'agence) ou `automatic` (rappel du job, sans canal ni auteur). */
     readonly source?: 'manual' | 'automatic' | null;
     readonly channel?: string | null;
+    /** TCK-2778 — ce que la relance relançait : le loyer (`rent`) ou la pénalité de retard seule (`late_fee`). */
+    readonly subject?: 'rent' | 'late_fee' | null;
     readonly by?: { readonly id: number; readonly name: string | null } | null;
   } | null;
   reminders_count?: number;

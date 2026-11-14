@@ -107,6 +107,10 @@ const SECK = bail(1, { motif: 'rent_late', since: ilYA(6), amount: 1_355_000, du
 let baux: BailDeLaListe[] = [];
 let listesDEntree: { id: number; lease_id: number; created_at: string; welcome_seen_at: string | null; inventory_completed_at: string | null; first_payment_at: string | null; documents_acknowledged_at: string | null }[] = [];
 let echeances: PaymentHistoryRow[] = [];
+/** TCK-2778 — l'échéancier du bail (`GET /api/leases/{id}/payments`), porteur des verdicts de la pénalité seule. */
+let echeancier: Record<string, unknown>[] = [];
+/** TCK-2778 — la réponse de `POST …/payment-link` : le lien, ou le 409 d'une agence hors ligne. */
+let reponseDuLien: 'lien' | 'horsLigne' | 'nonPayable' = 'lien';
 
 function echeance(id: number, bailId: number): PaymentHistoryRow {
   return {
@@ -154,6 +158,15 @@ vi.mock('@/lib/api', async (importOriginal) => {
       }
       if (url.pathname === '/api/agencies/1/tenant-onboarding-pending') return { data: listesDEntree, meta: { current_page: 1, last_page: 1, per_page: 100, total: listesDEntree.length } };
       if (url.pathname === '/api/payments/history') return { data: echeances, meta: { current_page: 1, last_page: 1, per_page: 20, total: echeances.length } };
+      if (/^\/api\/leases\/\d+\/payments$/.test(url.pathname) && methode === 'GET') {
+        return { data: echeancier, meta: { current_page: 1, last_page: 1, per_page: 100, total: echeancier.length } };
+      }
+      if (/^\/api\/lease-payments\/\d+\/payment-link$/.test(url.pathname) && methode === 'POST' && reponseDuLien === 'horsLigne') {
+        throw new reel.ApiError(409, { code: 'payment.late_fee_not_collected_online', message: 'hors ligne' });
+      }
+      if (/^\/api\/lease-payments\/\d+\/payment-link$/.test(url.pathname) && methode === 'POST' && reponseDuLien === 'nonPayable') {
+        throw new reel.ApiError(409, { code: 'payment.not_payable', message: 'plus payable' });
+      }
       if (url.pathname === '/api/agencies/1/members') {
         return { data: [{ id: 4, first_name: 'Sokhna', last_name: 'Sène' }, { id: 5, first_name: 'Pape', last_name: 'Cissé' }], meta: { current_page: 1, last_page: 1, per_page: 100, total: 2 } };
       }
@@ -197,6 +210,8 @@ beforeEach(() => {
   baux = [SECK];
   listesDEntree = [];
   echeances = [echeance(507, 1)];
+  echeancier = [];
+  reponseDuLien = 'lien';
   fenetres.length = 0;
   document.addEventListener('click', empecherLaNavigation, true);
   vi.spyOn(window, 'open').mockImplementation(() => {
@@ -318,16 +333,145 @@ describe('TCK-2644 — la file « À traiter » de l’agence', () => {
       await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: L.relance.signatureRelancee, type: 'success' })));
     });
 
-    it('pénalité non réglée → « Relancer » : l’échéancier de la fiche, déplié, où elle se marque réglée (décision du 2026-11-13, option b : pas de WhatsApp sans trace)', async () => {
-      baux = [bail(6, { motif: 'late_fee_unpaid', since: ilYA(9), amount: 22_500, due_date: '2026-10-05' })];
-      rendre();
-      const c = await carte('Mamadou Seck6');
-      expect(within(c).getByText(/^Pénalité non réglée · 22\s500\sF$/)).toBeInTheDocument();
-      expect(within(c).getByRole('link', { name: L.gestes.late_fee_unpaid })).toHaveAttribute('href', '/app/leases/6?echeancier=toutes');
-      const rangee = within(bureau()).getAllByRole('row').find((r) => within(r).queryByText('Mamadou Seck6'))!;
-      expect(within(rangee).getByRole('link', { name: L.gestesCourts.late_fee_unpaid })).toHaveAttribute('href', '/app/leases/6?echeancier=toutes');
-      expect(document.querySelector('a[href*="wa.me"]')).toBeNull();
-      expect(reseau.appels.some((a) => a.chemin.includes('payment-link'))).toBe(false);
+    describe('TCK-2778 — pénalité non réglée sur un loyer payé → « Relancer » : la feuille de la pénalité seule', () => {
+      /** L'échéance PAYÉE de bail 6 dont la pénalité reste due : 22 500 F, loyer d'octobre. */
+      function penaliteDue(lienPermis: boolean) {
+        baux = [bail(6, { motif: 'late_fee_unpaid', since: ilYA(9), amount: 22_500, due_date: '2026-10-05' })];
+        echeancier = [
+          { id: 600, lease_id: 6, payment_type: 'rent', status: 'paid', due_date: '2026-09-05', paid_at: '2026-09-04T10:00:00Z', late_fee_outstanding: 0, late_fee_reminder_allowed: false, late_fee_link_allowed: false },
+          { id: 601, lease_id: 6, payment_type: 'rent', status: 'paid', due_date: '2026-10-05', paid_at: '2026-10-20T10:00:00Z', late_fee_outstanding: 22_500, late_fee_reminder_allowed: true, late_fee_link_allowed: lienPermis },
+        ];
+        echeances = [
+          {
+            ...echeance(601, 6),
+            status: 'paid',
+            paid_amount: 1_355_000,
+            remaining_amount: 0,
+            amount_due: 0,
+            late_fee_amount: 22_500,
+            late_fee_outstanding: 22_500,
+            paid_at: '2026-10-20T10:00:00Z',
+            period_start: '2026-10-01',
+            period_end: '2026-10-31',
+            due_date: '2026-10-05',
+            days_late: null,
+            last_reminder: { at: '2026-11-03T09:00:00Z', source: 'manual', channel: 'whatsapp', subject: 'late_fee', by: { id: 9, name: 'Sokhna Sène' } },
+          } as PaymentHistoryRow,
+        ];
+      }
+      const ouvrirLaFeuille = async (utilisateur: ReturnType<typeof rendre>) => {
+        const c = await carte('Mamadou Seck6');
+        expect(within(c).getByText(/^Pénalité non réglée · 22\s500\sF$/)).toBeInTheDocument();
+        await utilisateur.click(within(c).getByRole('button', { name: L.gestes.late_fee_unpaid }));
+        return screen.findByRole('button', { name: /Ouvrir WhatsApp/ }, { timeout: 10000 });
+      };
+      const textesWhatsApp = () => fenetres.filter((f) => f.location.href !== '').map((f) => new URL(f.location.href).searchParams.get('text')!);
+      const postsDuLien = () => reseau.appels.filter((a) => a.methode === 'POST' && a.chemin.endsWith('/payment-link')).map((a) => a.chemin);
+
+      it('AC8 — lien permis : la feuille dit la pénalité et son montant, « Ouvrir WhatsApp » crée le lien de 601 et NOTE la relance', async () => {
+        penaliteDue(true);
+        const utilisateur = rendre();
+        const ouvrirWhatsApp = await ouvrirLaFeuille(utilisateur);
+
+        // La ligne lue : l'échéancier (verdicts), puis l'historique borné au jour du règlement.
+        const historique = requetes('/api/payments/history').at(-1)!;
+        expect(historique.get('filter[paid_from]')).toBe('2026-10-20');
+        expect(historique.get('filter[paid_to]')).toBe('2026-10-20');
+        expect(historique.get('filter[days_late_min]')).toBeNull();
+
+        const feuille = ouvrirWhatsApp.closest<HTMLElement>('[role="dialog"]')!;
+        const enTete = feuille.querySelector<HTMLElement>('[data-slot="en-tete-penalite"]')!;
+        expect(enTete.textContent).toMatch(new RegExp(`^22\\s500\\sF · ${fr.admin.finances.impayes.relancer.enTetePenalite} · `));
+        expect(enTete.textContent).not.toMatch(/jours? de retard/);
+        expect(within(feuille).getByText(fr.admin.finances.impayes.relancer.lienPenalite)).toBeInTheDocument();
+        expect(within(feuille).getByText(/^Dernière relance le 3 nov\./)).toBeInTheDocument();
+        const apercu = await waitFor(() => {
+          const a = feuille.querySelector<HTMLElement>('[data-slot="apercu-du-message"]');
+          expect(a).not.toBeNull();
+          return a!;
+        });
+        expect(apercu.textContent).toContain('la pénalité de retard du loyer d’octobre');
+        expect(apercu.textContent).toMatch(/22\s500/);
+        expect(apercu.textContent).not.toMatch(/1\s355\s000/);
+        expect(apercu.textContent).not.toContain('le loyer d');
+
+        await utilisateur.click(ouvrirWhatsApp);
+        await waitFor(() => expect(textesWhatsApp()).toHaveLength(1));
+        expect(postsDuLien()).toEqual(['/api/lease-payments/601/payment-link']);
+        expect(textesWhatsApp()[0]).toContain(LIEN);
+        expect(textesWhatsApp()[0]).toContain('pénalité de retard');
+        await waitFor(() =>
+          expect(reseau.appels.find((a) => a.methode === 'POST' && a.chemin === '/api/lease-payments/601/reminders')?.corps).toEqual({ channel: 'whatsapp' }),
+        );
+      });
+
+      it('lien non permis (`late_fee_link_allowed: false`) : aucun lien créé, le message part sans lien ni repère, et la relance est notée', async () => {
+        penaliteDue(false);
+        const utilisateur = rendre();
+        const ouvrirWhatsApp = await ouvrirLaFeuille(utilisateur);
+        const feuille = ouvrirWhatsApp.closest<HTMLElement>('[role="dialog"]')!;
+        expect(within(feuille).getByText(fr.admin.finances.impayes.relancer.penaliteSansLien)).toBeInTheDocument();
+        expect(within(feuille).queryByText(fr.admin.finances.impayes.relancer.lienPenalite)).toBeNull();
+
+        await waitFor(() => expect(ouvrirWhatsApp).toBeEnabled());
+        await utilisateur.click(ouvrirWhatsApp);
+        await waitFor(() => expect(textesWhatsApp()).toHaveLength(1));
+        expect(postsDuLien()).toEqual([]);
+        expect(textesWhatsApp()[0]).toContain('reste à régler, auprès de votre agence');
+        expect(textesWhatsApp()[0]).not.toContain(fr.admin.finances.impayes.message.repereDuLien);
+        expect(textesWhatsApp()[0]).not.toContain('http');
+        await waitFor(() =>
+          expect(reseau.appels.find((a) => a.methode === 'POST' && a.chemin === '/api/lease-payments/601/reminders')?.corps).toEqual({ channel: 'whatsapp' }),
+        );
+      });
+
+      it('409 `payment.late_fee_not_collected_online` à l’envoi : dit en clair, rien n’est noté ; le second envoi part sans lien et note la relance', async () => {
+        penaliteDue(true);
+        reponseDuLien = 'horsLigne';
+        const utilisateur = rendre();
+        const ouvrirWhatsApp = await ouvrirLaFeuille(utilisateur);
+        await waitFor(() => expect(ouvrirWhatsApp).toBeEnabled());
+        await utilisateur.click(ouvrirWhatsApp);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(fr.admin.finances.impayes.relancer.penaliteSansLien);
+        expect(textesWhatsApp()).toEqual([]);
+        expect(reseau.appels.some((a) => a.methode === 'POST' && a.chemin.endsWith('/reminders'))).toBe(false);
+
+        const second = await screen.findByRole('button', { name: /Ouvrir WhatsApp/ });
+        await waitFor(() => expect(second).toBeEnabled());
+        await utilisateur.click(second);
+        await waitFor(() => expect(textesWhatsApp()).toHaveLength(1));
+        expect(postsDuLien()).toEqual(['/api/lease-payments/601/payment-link']);
+        expect(textesWhatsApp()[0]).not.toContain(fr.admin.finances.impayes.message.repereDuLien);
+        expect(textesWhatsApp()[0]).toContain('auprès de votre agence');
+        await waitFor(() =>
+          expect(reseau.appels.find((a) => a.methode === 'POST' && a.chemin === '/api/lease-payments/601/reminders')?.corps).toEqual({ channel: 'whatsapp' }),
+        );
+      });
+
+      it('un AUTRE 409 (`payment.not_payable`) n’ouvre pas la relance sans lien : le lien est refusé, rien ne part, rien n’est noté', async () => {
+        penaliteDue(true);
+        reponseDuLien = 'nonPayable';
+        const utilisateur = rendre();
+        const ouvrirWhatsApp = await ouvrirLaFeuille(utilisateur);
+        await waitFor(() => expect(ouvrirWhatsApp).toBeEnabled());
+        await utilisateur.click(ouvrirWhatsApp);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(fr.admin.finances.impayes.relancer.lienRefuse);
+        expect(screen.queryByText(fr.admin.finances.impayes.relancer.penaliteSansLien)).toBeNull();
+        expect(await screen.findByRole('button', { name: /Ouvrir WhatsApp/ })).toBeDisabled();
+        expect(textesWhatsApp()).toEqual([]);
+        expect(reseau.appels.some((a) => a.methode === 'POST' && a.chemin.endsWith('/reminders'))).toBe(false);
+      });
+
+      it('le bureau porte le même geste, sans lien vers l’échéancier', async () => {
+        penaliteDue(true);
+        rendre();
+        await carte('Mamadou Seck6');
+        const rangee = within(bureau()).getAllByRole('row').find((r) => within(r).queryByText('Mamadou Seck6'))!;
+        expect(within(rangee).getByRole('button', { name: L.gestesCourts.late_fee_unpaid })).toBeInTheDocument();
+        expect(document.querySelector('a[href*="echeancier=toutes"]')).toBeNull();
+      });
     });
 
     it('entrée incomplète → « Relancer le locataire » : WhatsApp dit ce qui manque, sans lien de paiement', async () => {

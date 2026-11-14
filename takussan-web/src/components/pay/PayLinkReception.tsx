@@ -235,6 +235,14 @@ function Echeance({
     );
   }
 
+  // TCK-2778 — un lien de la pénalité seule : son loyer est PAYÉ (`status: paid`), c'est la pénalité
+  // qu'il fait payer. Lu AVANT la branche « réglée », qui dirait « Cette échéance est réglée ».
+  if (link.subject === 'late_fee') {
+    return (
+      <PenaliteSeule token={token} link={link} retour={retour} surLienMort={surLienMort} titreDeLaPeriode={titre} bien={bien} emisPar={emisPar} />
+    );
+  }
+
   if (link.status === 'paid') {
     return (
       <div className="space-y-6 px-5 pb-8 pt-8" data-testid="pay-paid">
@@ -329,21 +337,7 @@ function Echeance({
         </div>
         {penalite}
         <Fournisseurs token={token} providers={link.providers} surLienMort={surLienMort} />
-        {link.offline_payment ? (
-          <>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground" aria-hidden="true">
-              <span className="h-px flex-1 bg-border" /> {t('ou')} <span className="h-px flex-1 bg-border" />
-            </div>
-            <MoyensHorsLigne moyens={link.offline_payment} titre={t('payerALAgence')} />
-          </>
-        ) : null}
-        {reference}
-        {link.expires_at ? (
-          <p className="text-center text-[0.8125rem] text-muted-foreground">
-            {t('valableJusquau', { date: f.date(link.expires_at) })}
-          </p>
-        ) : null}
-        {emisPar}
+        <SuiteDuPaiementEnLigne link={link} reference={reference} emisPar={emisPar} />
       </div>
     );
   }
@@ -373,6 +367,171 @@ function Echeance({
         ) : (
           <>
             <EncartInfo>{t('horsLigneSansMoyen', { agence })}</EncartInfo>
+            {reference}
+            <LienAide />
+          </>
+        )}
+        {emisPar}
+      </div>
+      {telephone ? (
+        <BasDeLien>
+          <a href={`tel:${telephonePublie(telephone)}`} className={cn(buttonVariants({ size: 'lg' }), 'w-full')}>
+            <Phone aria-hidden="true" />
+            {t('appelerNumero', { numero: formaterTelephone(telephone) })}
+          </a>
+        </BasDeLien>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Sous les boutons de paiement en ligne : « ou » payer directement à l'agence (ses moyens déclarés),
+ * la référence, la validité du lien, l'émetteur. Commun à l'échéance et à la pénalité seule (TCK-2778).
+ */
+function SuiteDuPaiementEnLigne({
+  link,
+  reference,
+  emisPar,
+}: {
+  readonly link: PayLink;
+  readonly reference: ReactNode;
+  readonly emisPar: ReactNode;
+}) {
+  const t = useTranslations('lienPublic.paiement');
+  const f = useFormatteurs();
+  return (
+    <>
+      {link.offline_payment ? (
+        <>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground" aria-hidden="true">
+            <span className="h-px flex-1 bg-border" /> {t('ou')} <span className="h-px flex-1 bg-border" />
+          </div>
+          <MoyensHorsLigne moyens={link.offline_payment} titre={t('payerALAgence')} />
+        </>
+      ) : null}
+      {reference}
+      {link.expires_at ? (
+        <p className="text-center text-[0.8125rem] text-muted-foreground">
+          {t('valableJusquau', { date: f.date(link.expires_at) })}
+        </p>
+      ) : null}
+      {emisPar}
+    </>
+  );
+}
+
+/**
+ * TCK-2778 — la page d'un lien `subject: late_fee` : elle ne fait payer que la pénalité de retard d'une
+ * échéance dont le loyer est déjà réglé, et le DIT (« Pénalité de retard », puis l'échéance). Le montant
+ * est `amount_due` tel que l'API le rend (la pénalité seule), sans décomposition : il n'y a pas de loyer
+ * à y additionner. Trois états : réglée (`late_fee_paid_at`, ou plus rien de dû), à payer en ligne (des
+ * fournisseurs), à régler à l'agence (aucun fournisseur).
+ */
+function PenaliteSeule({
+  token,
+  link,
+  retour,
+  surLienMort,
+  titreDeLaPeriode: periode,
+  bien,
+  emisPar,
+}: {
+  readonly token: string;
+  readonly link: PayLink;
+  readonly retour: RetourFournisseur;
+  readonly surLienMort: (etat: Etat) => void;
+  readonly titreDeLaPeriode: string;
+  readonly bien: string;
+  readonly emisPar: ReactNode;
+}) {
+  const t = useTranslations('lienPublic.paiement');
+  const tPenalite = useTranslations('lienPublic.paiement.penaliteSeule');
+  const f = useFormatteurs();
+  const agence = link.agency.name ?? '';
+  const montant = f.montant(Math.round(link.amount_due), link.currency ?? 'XOF');
+  const reglee = Boolean(link.late_fee_paid_at) || link.amount_due <= 0;
+  const objet = (Titre: 'h1' | 'h2') => (
+    <div>
+      <Titre
+        className={cn(
+          'font-display font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground',
+          Titre === 'h1' ? 'text-2xl' : 'text-lg',
+        )}
+        data-testid="pay-late-fee-title"
+      >
+        {tPenalite('titre')}
+      </Titre>
+      <p className="mt-1 text-[0.9375rem] text-muted-foreground [overflow-wrap:anywhere]">{[periode, bien].filter(Boolean).join(' · ')}</p>
+    </div>
+  );
+
+  if (reglee) {
+    return (
+      <div className="space-y-6 px-5 pb-8 pt-8" data-testid="pay-late-fee-paid">
+        <Succes titre={retour === 'success' ? tPenalite('merci') : tPenalite('regleeTitre')}>
+          {link.late_fee_paid_at ? tPenalite('regleeLe', { date: f.date(link.late_fee_paid_at) }) : tPenalite('regleeSansDate')}
+        </Succes>
+        {objet('h2')}
+        {emisPar}
+      </div>
+    );
+  }
+
+  const enLigne = link.providers.length > 0;
+  const reference = link.reference ? <Reference valeur={link.reference} /> : null;
+  const total = (
+    <div>
+      <p className="text-sm text-muted-foreground">{enLigne ? tPenalite('aPayer') : tPenalite('aReglerALAgence')}</p>
+      <p
+        className={cn(
+          'font-display font-semibold tabular-nums tracking-[-0.03em] text-foreground',
+          enLigne ? 'text-[2.75rem] leading-[1.05]' : 'text-[2rem] leading-tight',
+        )}
+        data-testid="pay-amount"
+      >
+        {montant}
+      </p>
+    </div>
+  );
+
+  if (enLigne) {
+    return (
+      <div className="space-y-6 px-5 pb-8 pt-6" data-testid="pay-late-fee">
+        {objet('h1')}
+        {retour === 'cancelled' ? (
+          <p className="rounded-xl bg-muted p-3 text-sm text-foreground" role="status">
+            {t('annule')}
+          </p>
+        ) : null}
+        {total}
+        <EncartInfo>{tPenalite('loyerRegle')}</EncartInfo>
+        <Fournisseurs token={token} providers={link.providers} surLienMort={surLienMort} />
+        <SuiteDuPaiementEnLigne link={link} reference={reference} emisPar={emisPar} />
+      </div>
+    );
+  }
+
+  const telephone = link.offline_payment?.agency_phone;
+  return (
+    <>
+      <div className="space-y-6 px-5 pb-8 pt-6" data-testid="pay-late-fee-unavailable">
+        {objet('h1')}
+        {total}
+        {link.offline_payment ? (
+          <>
+            <EncartInfo>{tPenalite('horsLigne', { agence })}</EncartInfo>
+            <MoyensHorsLigne moyens={link.offline_payment} />
+            {reference ? (
+              <div>
+                <p className="text-[0.9375rem] text-foreground">{t('referenceMotif')}</p>
+                <div className="mt-2">{reference}</div>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <EncartInfo>{tPenalite('horsLigneSansMoyen', { agence })}</EncartInfo>
             {reference}
             <LienAide />
           </>

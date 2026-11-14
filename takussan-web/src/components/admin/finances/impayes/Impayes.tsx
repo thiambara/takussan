@@ -38,7 +38,7 @@ import { ordreDeLaFile, useEcheancesAffichees, useSelectionDesImpayes, type Sele
 import { BarreDeSelection, TeteDeSelection } from './SelectionDesImpayes';
 import { TableDesImpayes } from './TableDesImpayes';
 import { IMPAYES_PAR_PAGE, TRANCHES, tranche, type CleDeTranche } from './tranches';
-import { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
+import { useRelanceDUnImpaye, type RelanceDePenalite } from './useRelanceDUnImpaye';
 
 /** `md` n'est pas le bureau : le tableau et le panneau commencent à `lg` (ticket, Direction UX). */
 const REQUETE_DU_BUREAU = '(width >= 64rem)';
@@ -480,11 +480,28 @@ function caseDe(selection: SelectionDesImpayes | undefined, row: PaymentHistoryR
   return selection ? { cochee: selection.coche(row.id), onCocher: (cochee: boolean) => selection.changer([row], cochee) } : undefined;
 }
 
-/** Téléphone : la feuille « Relancer {nom} » — montant, période et retard, message, lien, « Ouvrir WhatsApp ». */
-export function FeuilleDeRelance({ row, ouverte, onFermer }: { readonly row: PaymentHistoryRow; readonly ouverte: boolean; readonly onFermer: () => void }) {
+/**
+ * Téléphone : la feuille « Relancer {nom} » — montant, période et retard, message, lien, « Ouvrir WhatsApp ».
+ *
+ * TCK-2778 — `penalite` : la pénalité de retard SEULE d'un loyer payé (« Baux à traiter »). La feuille
+ * dit son montant et « Pénalité de retard » au lieu du retard du loyer ; le lien n'existe que si
+ * `lienPermis` (`late_fee_link_allowed`).
+ */
+export function FeuilleDeRelance({
+  row,
+  ouverte,
+  onFermer,
+  penalite = null,
+}: {
+  readonly row: PaymentHistoryRow;
+  readonly ouverte: boolean;
+  readonly onFermer: () => void;
+  readonly penalite?: RelanceDePenalite | null;
+}) {
   const t = useTranslations('admin.finances.impayes');
   const l = useLectureDImpaye();
-  const relance = useRelanceDUnImpaye(row, ouverte);
+  const f = useFormatteurs();
+  const relance = useRelanceDUnImpaye(row, ouverte, { penalite });
   const raisonId = useId();
   return (
     <FeuilleDuBas
@@ -495,10 +512,17 @@ export function FeuilleDeRelance({ row, ouverte, onFermer }: { readonly row: Pay
       titre={t('relancer.titre', { nom: l.nom(row) })}
       pied={<OuvrirWhatsApp relance={relance} raisonId={relance.etatDuLien === 'refuse' ? raisonId : undefined} onOuvert={onFermer} className="w-full" />}
     >
-      <p className="text-sm text-muted-foreground">
-        <span className="font-semibold text-foreground tabular-nums">{l.montantDu(row)}</span> · {l.periode(row)} ·{' '}
-        {t('relancer.retard', { count: row.days_late ?? 0 })}
-      </p>
+      {penalite ? (
+        <p className="text-sm text-muted-foreground" data-slot="en-tete-penalite">
+          <span className="font-semibold text-foreground tabular-nums">{f.montantCourt(row.late_fee_outstanding ?? 0, row.currency)}</span> ·{' '}
+          {t('relancer.enTetePenalite')} · {l.periode(row)}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground tabular-nums">{l.montantDu(row)}</span> · {l.periode(row)} ·{' '}
+          {t('relancer.retard', { count: row.days_late ?? 0 })}
+        </p>
+      )}
       <div className="mt-4">
         <ComposerLaRelance row={row} relance={relance} />
       </div>

@@ -234,6 +234,13 @@ export type LeasePayment = {
   late_fee_payable_online: boolean;
   /** Ce que le paiement en ligne demandera ; 0 si l'échéance n'est pas payable. */
   amount_due: number;
+  /**
+   * TCK-2778 — verdicts de l'API sur la pénalité de retard SEULE, restée due sur un loyer payé : la
+   * relance notée est admise (`subject: late_fee`), et le lien qui ne fait payer qu'elle aussi
+   * (l'agence l'encaisse en ligne). Le front ne refait pas la règle.
+   */
+  late_fee_reminder_allowed?: boolean;
+  late_fee_link_allowed?: boolean;
   receipt_available: boolean;
   /**
    * TCK-1831 (P183.01) — en retard, jugé par l'API à la règle de `scopeOverdue` : `late`, ou

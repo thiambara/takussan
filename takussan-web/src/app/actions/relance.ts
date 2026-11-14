@@ -45,6 +45,18 @@ export interface EntreeDeRelance {
    * celle du profil actif de l'expéditeur. Absent, la ligne n'est pas écrite.
    */
   readonly agence?: string | null;
+  /**
+   * TCK-2778 — ce que la relance relance : le loyer (défaut) ou la pénalité de retard SEULE, restée
+   * due sur un loyer payé. `montant` est alors la pénalité (`late_fee_outstanding`), jamais le loyer,
+   * et le message ne dit jamais « le loyer reste à régler » (`lease.liste.relance.message.penalite`).
+   */
+  readonly sujet?: 'loyer' | 'penalite';
+  /**
+   * TCK-2778 — la pénalité ne se paie pas en ligne (l'agence ne l'encaisse pas en ligne, verdict
+   * `late_fee_link_allowed` ou 409 `payment.late_fee_not_collected_online`) : le message part SANS
+   * lien et sans repère, et dit qu'elle se règle à l'agence.
+   */
+  readonly sansLien?: boolean;
 }
 
 const AUCUN = 'aucun';
@@ -78,6 +90,16 @@ export async function composerLaRelanceAction(
   const commun = { prenom: court(entree.prenom), montant, bien: court(entree.bien), date, lien, agence: court(entree.agence) };
 
   const { cle, mois } = periodeDe({ source: 'lease', payment_type: entree.paymentType, period_start: entree.periodStart ?? null, due_date: entree.dueDate ?? null });
+  if (entree.sujet === 'penalite') {
+    const tPenalite = await getTranslations({ locale, namespace: 'lease.liste.relance.message' });
+    const nomDuMois = mois ? formatDate(`${mois.slice(0, 7)}-15T12:00:00Z`, locale, { dateStyle: undefined, month: 'long' }) : '';
+    const voyelle = /^[aeiouyàâéèêh]/i.test(nomDuMois) ? 'oui' : 'non';
+    const libelle = entree.paymentType === 'rent' && mois ? '' : tPeriode(cle, { mois: nomDuMois, voyelle });
+    const parametres = { ...commun, type: entree.paymentType === 'rent' && mois ? 'loyer' : 'autre', mois: nomDuMois, voyelle, libelle: court(libelle) };
+    return entree.sansLien
+      ? { locale, repere: null, texte: tPenalite('penaliteSansLien', parametres) }
+      : { locale, repere, texte: tPenalite('penalite', parametres) };
+  }
   if (entree.paymentType === 'rent' && mois) {
     const nomDuMois = formatDate(`${mois.slice(0, 7)}-15T12:00:00Z`, locale, { dateStyle: undefined, month: 'long' });
     return {

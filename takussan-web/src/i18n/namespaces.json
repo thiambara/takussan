@@ -388,7 +388,7 @@
     "[locale]/(public)/bookings": 24,
     "(dashboard)/app/commissions": 24,
     "(dashboard)/app/inventories": 29,
-    "(dashboard)/app/maintenance": 30,
+    "(dashboard)/app/maintenance": 29,
     "(dashboard)/app/leases/(liste)": 43,
     "(dashboard)/app/saved-searches": 34,
     "[locale]/(public)/notifications": 23,

@@ -268,6 +268,9 @@ const LEASE_PAYMENT_FIELDS: string[] = [
   'late_fee_outstanding',
   'late_fee_payable_online',
   'amount_due',
+  // TCK-2778 — les verdicts de la pénalité seule (relance notée, lien qui ne fait payer qu'elle).
+  'late_fee_reminder_allowed',
+  'late_fee_link_allowed',
   'receipt_available',
   'is_overdue',
   'reference_number',
