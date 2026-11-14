@@ -225,6 +225,12 @@ final class ResourceSubjects
             return $instance->withNeighborhoodLink()->withProvenances();
         }
 
+        // TCK-2803 — `LeaseController::index` / `show` posent, sur `include=tenant`, le bloc du locataire
+        // (`avecLocataire`) : sans cet appel il n'est jamais rendu. Ouvert ici sans `fields[customers]`, le bloc entier.
+        if ($instance instanceof LeaseResource) {
+            return $instance->avecLocataire(true, null);
+        }
+
         return $instance;
     }
 

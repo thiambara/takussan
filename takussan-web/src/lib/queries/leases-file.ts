@@ -45,7 +45,6 @@ export type BailDeLaListe = Lease & {
     readonly first_name: string | null;
     readonly last_name: string | null;
     readonly phone?: string | null;
-    readonly locale?: string | null;
   } | null;
   readonly property?: { readonly id: number; readonly title: string | null; readonly reference_number?: string | null } | null;
   readonly agent?: { readonly id: number; readonly full_name: string | null; readonly first_name?: string | null; readonly last_name?: string | null } | null;
@@ -149,6 +148,15 @@ const CHAMPS_DE_LA_LISTE = [
   'created_at',
 ];
 
+/**
+ * TCK-2803 — le locataire de la liste, borné par `fields[customers]` (la forme de la fiche, TCK-2780).
+ * La liste de l'agence le nomme (`useLectureDuBail`) et l'appelle (`GesteDuBail` : relance, rappel) ;
+ * celle du bailleur et du locataire le nomme seulement. Avant, la liste rendait le bloc entier
+ * (e-mail, téléphone…) quoi que la requête demande.
+ */
+export const CHAMPS_DU_LOCATAIRE_DE_L_AGENCE = ['id', 'first_name', 'last_name', 'phone'] as const;
+export const CHAMPS_DU_LOCATAIRE_DU_LECTEUR = ['id', 'first_name', 'last_name'] as const;
+
 export function filtresDeLaPortion(portion: PortionDesBaux, communs: FiltresCommuns): Record<string, string | number> {
   const filter = filtresCommuns(communs);
   if ('statut' in portion) {
@@ -171,7 +179,7 @@ export function filtresDeLaPortion(portion: PortionDesBaux, communs: FiltresComm
 export function useBauxDeLAgence(portion: PortionDesBaux, communs: FiltresCommuns, page: number) {
   const file = !('statut' in portion) && portion.onglet === 'a_traiter';
   const params: SpatieQueryParams = {
-    fields: { leases: CHAMPS_DE_LA_LISTE, properties: ['id', 'title', 'reference_number'] },
+    fields: { leases: CHAMPS_DE_LA_LISTE, properties: ['id', 'title', 'reference_number'], customers: [...CHAMPS_DU_LOCATAIRE_DE_L_AGENCE] },
     filter: filtresDeLaPortion(portion, communs),
     include: ['tenant', 'property', 'agent', 'attention', 'due_summary'],
     sort: [file ? 'attention' : 'etat'],
@@ -184,7 +192,7 @@ export function useBauxDeLAgence(portion: PortionDesBaux, communs: FiltresCommun
 /** Le bailleur et le locataire : leurs baux, avec le nom du locataire, sans file ni geste d'agence. */
 export function useBauxDuLecteur(page: number, statut: LeaseStatus | null) {
   const params: SpatieQueryParams = {
-    fields: { leases: CHAMPS_DE_LA_LISTE, properties: ['id', 'title', 'reference_number'] },
+    fields: { leases: CHAMPS_DE_LA_LISTE, properties: ['id', 'title', 'reference_number'], customers: [...CHAMPS_DU_LOCATAIRE_DU_LECTEUR] },
     filter: statut ? { status: statut } : {},
     include: ['tenant', 'property'],
     sort: ['etat'],

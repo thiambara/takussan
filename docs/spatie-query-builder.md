@@ -77,10 +77,21 @@ garde du front n'admet que `fields: { customers: CHAMPS_DU_LOCATAIRE_… }` vers
 GET /api/leases/42?include=property,tenant&fields[customers]=id,first_name,last_name
 ```
 
-⚠ **Sur la liste (`GET /api/leases?include=tenant`), le même `fields[customers]` est validé mais ne
-borne rien** (mesuré le 2026-11-14) : spatie cherche les champs d'une relation incluse sous le nom de
-la relation au pluriel (`fields[tenants]`), qu'`allowedFields` refuse (400). Le bloc `tenant` de la
-liste reste entier, quel que soit `fields[customers]`.
+**La liste des baux suit la même règle** (TCK-2803) : `GET /api/leases` ne rend `tenant` que sous
+`include=tenant`, et `fields[customers]` borne le bloc de chaque ligne exactement comme celui de la
+fiche — la liste et la fiche acceptent la même forme. Ce n'est pas spatie qui borne : il cherche les
+champs d'une relation incluse sous le nom de la relation au pluriel (`fields[tenants]`, qu'`allowedFields`
+refuse, 400) et charge donc le locataire entier ; c'est `LeaseController::index` qui borne le rendu,
+après les gardes. Une requête qui demande `include=tenant` porte `fields[customers]` (garde du front :
+`liste-des-baux-locataire.tck-2803.test.ts`).
+
+```
+GET /api/leases?include=tenant,property&fields[customers]=id,first_name,last_name
+```
+
+Les réponses des gestes sur un bail (création, modification, activation, résiliation, préavis,
+signature, renouvellement, révision, restitution de caution) ne rendent **jamais** `tenant` : l'écran
+relit la fiche ou la liste.
 
 Pour une lecture légère d'une seule ligne (un titre d'onglet, un en-tête), passer par la liste
 filtrée par id, avec ses `fields` :

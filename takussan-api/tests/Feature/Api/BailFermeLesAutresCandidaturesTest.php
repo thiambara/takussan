@@ -68,6 +68,9 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         $this->agent = $this->agencyAgent($this->agence);
         $this->location = Property::factory()->published()->create([
             'agency_id' => $this->agence->id,
+            // TCK-2803 — le bailleur d'un bien d'agence y détient un profil propriétaire : sans lui, il
+            // n'est pas le bailleur du bail (`BailleurDuBien`) et ne signe pas sur papier pour lui.
+            'user_id' => User::factory()->withOwnerProfile($this->agence)->create()->id,
             'visibility' => PropertyVisibility::Public,
             'contract_type' => ContractType::Rent,
             'rent_period' => RentPeriod::Monthly,

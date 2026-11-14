@@ -36,7 +36,7 @@ class LeaseRenewalController extends Controller
         $child = $this->renewals->renew($lease, $request->validated(), $user);
 
         return $this->json([
-            'data' => LeaseResource::make($child->load(['property', 'tenant', 'renewedFrom']))->resolve($request),
+            'data' => LeaseResource::make($child->load(['property', 'renewedFrom']))->resolve($request),
             // P231.01 (TCK-2316) — l'enfant naît sans garant : l'écran dit combien n'ont pas suivi.
             'meta' => ['guarantors_not_carried_over' => $this->renewals->guarantorsNotCarriedOver($lease)],
         ], 201);

@@ -7,13 +7,16 @@ use App\Models\Enums\Capability;
 use App\Models\Lease;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 
 /**
  * TCK-596 — LE prédicat « qui signe pour le bailleur », partagé par la signature d'état des lieux
  * (§5) et la signature du bail (§4B). Une seule règle, deux voies :
  *
- *   1. le **bailleur du bail** (`leases.landlord_id`) signe pour lui-même — sauf s'il est suspendu
- *      ou parti (TCK-2753) dans l'agence du bail : il reste partie et lecteur, il perd les écritures
+ *   1. le **bailleur du bail** (`leases.landlord_id`, au sens de {@see BailleurDuBien::est()} depuis
+ *      TCK-2803 : sur un bail d'agence, avec un profil propriétaire dans l'agence) signe pour
+ *      lui-même — sauf s'il est suspendu ou parti (TCK-2753) dans l'agence du bail : il reste partie
+ *      et lecteur, il perd les écritures
  *      (ADR-0031 §2, ADR-0108 § 5) ;
  *   2. un membre du **personnel de l'agence du bail** (prédicat TCK-587 `isStaffAt`, jamais
  *      l'accesseur d'agence unique de l'utilisateur) titulaire de `leases.sign` dans CETTE agence signe **pour son compte**,
@@ -42,12 +45,19 @@ final class LandlordSignatory
      */
     public static function onBehalfOf(User $user, Lease $lease): ?int
     {
-        return self::isLandlord($user, $lease) ? null : (int) $lease->landlord_id;
+        return $lease->landlord_id !== null && (int) $lease->landlord_id === (int) $user->id ? null : (int) $lease->landlord_id;
     }
 
+    /**
+     * TCK-2803 (P1) — le bailleur DU BAIL au sens de `LeasePolicy::view` ({@see BailleurDuBien::est()}) :
+     * désigné par `landlord_id`, ET bail sans agence ou profil propriétaire dans son agence.
+     * `landlord_id` recopie le créateur du bien, sur un bien d'agence l'agent qui l'a saisi (TCK-1926) :
+     * lu tel quel, l'agent créateur PARTI de l'agence, à qui la fiche rend 403, signait pour le
+     * bailleur et recevait le bail en réponse. L'agent créateur en poste signe par la voie 2.
+     */
     private static function isLandlord(User $user, Lease $lease): bool
     {
-        return $lease->landlord_id !== null && (int) $lease->landlord_id === (int) $user->id;
+        return BailleurDuBien::est($user, $lease->landlord_id, $lease->agency_id);
     }
 
     private static function isMandatedStaff(User $user, Lease $lease): bool

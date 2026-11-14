@@ -38,7 +38,9 @@ class LeaseController extends Controller
     {
         $user = $request->user();
 
-        $base = Lease::query()->with(['property.address', 'property.media', 'tenant']);
+        // TCK-2803 — `tenant` n'est plus chargé d'office : spatie le charge sous `include=tenant`
+        // (`$requestLoadable`), et le rendu le borne plus bas.
+        $base = Lease::query()->with(['property.address', 'property.media']);
 
         // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail sans
         // agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent créateur suspendu
@@ -56,7 +58,16 @@ class LeaseController extends Controller
 
         $this->attachComputed($paginator->getCollection(), $request);
 
-        return $this->paginated($paginator, LeaseResource::collection($paginator)->toArray($request));
+        // TCK-2803 — le bloc `tenant` de chaque ligne, par la décision de la fiche (TCK-2780) : sous
+        // `include=tenant` seulement, borné par `fields[customers]`. Le locataire reste chargé entier :
+        // spatie lit les champs d'une relation incluse sous `tenants`, que la liste refuse (400) ; les
+        // gardes de `CustomerResource` se jugent donc sur la fiche complète, sans relecture par ligne.
+        $avecLocataire = in_array('tenant', $this->requestedIncludes($request), true);
+        $champs = $avecLocataire ? CustomerResource::champsDemandesDuBloc($request) : null;
+
+        return $this->paginated($paginator, $paginator->getCollection()
+            ->map(fn (Lease $lease): array => LeaseResource::make($lease)->avecLocataire($avecLocataire, $champs)->resolve($request))
+            ->all());
     }
 
     public function store(StoreLeaseRequest $request): JsonResponse
@@ -70,7 +81,8 @@ class LeaseController extends Controller
         $lease = $this->leases->create($property, $request->user(), $data);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property', 'tenant']))->resolve($request),
+            // TCK-2803 — sans le locataire : la réponse d'un geste ne le rend pas (`LeaseResource`).
+            'data' => LeaseResource::make($lease->load(['property']))->resolve($request),
         ], 201);
     }
 

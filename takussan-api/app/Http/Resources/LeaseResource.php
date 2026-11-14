@@ -21,11 +21,11 @@ class LeaseResource extends BaseResource
     private ?User $viewer = null;
 
     /**
-     * TCK-2780 — le bloc `tenant` du détail : `null` sur la liste (la relation chargée décide,
-     * `whenLoaded`), sinon la décision du contrôleur — `inclus` (la requête porte `include=tenant`) et
-     * `champs` (`fields[customers]`, ou `null` pour le bloc entier). Jamais l'état de la relation :
-     * `LeasePolicy::view` lit `$lease->tenant` pour reconnaître le locataire, ce qui la charge avant le
-     * rendu.
+     * TCK-2780, TCK-2803 — le bloc `tenant` : la décision du contrôleur, `inclus` (la requête porte
+     * `include=tenant`) et `champs` (`fields[customers]`, ou `null` pour le bloc entier). `null` (aucune
+     * décision : les gestes, la chaîne, les baux imbriqués) : le bloc n'est PAS rendu. Jamais l'état de
+     * la relation : `LeasePolicy::view` et les services lisent `$lease->tenant`, ce qui la charge avant
+     * le rendu — le `whenLoaded` d'avant rendait le locataire entier à qui ne l'avait pas demandé.
      *
      * @var array{inclus: bool, champs: list<string>|null}|null
      */
@@ -43,8 +43,8 @@ class LeaseResource extends BaseResource
     }
 
     /**
-     * TCK-2780 — le locataire du détail, rendu sous `include=tenant` seulement, et borné aux champs
-     * demandés ({@see CustomerResource::borneeAuxChamps()}).
+     * TCK-2780 — le locataire de la fiche, TCK-2803 — et de la liste : rendu sous `include=tenant`
+     * seulement, et borné aux champs demandés ({@see CustomerResource::borneeAuxChamps()}).
      *
      * @param  list<string>|null  $champs
      */
@@ -116,11 +116,9 @@ class LeaseResource extends BaseResource
             'early_termination_penalty_months' => $this->when($this->viewer !== null,
                 fn (): int => app(EarlyTerminationService::class)->penaltyMonthsFor($this->resource)),
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
-            'tenant' => $this->locataire === null
-                ? $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant))
-                : $this->when($this->locataire['inclus'], fn () => $this->tenant === null
-                    ? null
-                    : CustomerResource::make($this->tenant)->borneeAuxChamps($this->locataire['champs'])),
+            'tenant' => $this->when($this->locataire !== null && $this->locataire['inclus'], fn () => $this->tenant === null
+                ? null
+                : CustomerResource::make($this->tenant)->borneeAuxChamps($this->locataire['champs'])),
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
             'renewals' => $this->whenLoaded('renewals', fn () => self::collection($this->renewals)),
             'renewals_count' => $this->whenCounted('renewals'),

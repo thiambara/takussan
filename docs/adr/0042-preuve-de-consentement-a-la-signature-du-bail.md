@@ -1,8 +1,8 @@
 # ADR-0042 — Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier »
 
-- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*)
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14** (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/todo/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -216,3 +216,33 @@ cautionnement suit le bail renouvelé (OHADA). Que le rattachement d'un garant �
 
 **Ce qui n'est pas décidé.** La régularisation annuelle des charges (le type `regularization` existe, saisi à la main) reste manuelle.
 
+## Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`
+
+- **Ticket** : [TCK-2803](../backlog/tickets/todo/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md).
+- **Précise** : le § 4 (« le bailleur signe lui-même »).
+
+**Constat** (mesuré le 2026-11-14). `LandlordSignatory::isLandlord` comparait `leases.landlord_id` à
+l'utilisateur. Or `landlord_id` recopie l'agent qui a saisi le bien pour l'agence (TCK-1926). L'agent
+créateur PARTI de l'agence, à qui `GET leases/{lease}` rend 403, obtenait donc le code
+(`signature/otp` 202) et signait le bail au nom du bailleur (`signature` 200, réponse portant le
+locataire entier). Il signait aussi l'état des lieux pour le bailleur, dont c'était la seule garde.
+
+**Décision.**
+
+1. **« Le bailleur » du § 4 s'entend au sens de `BailleurDuBien::est`** (TCK-1718, TCK-1926) : le
+   désigné du bail, ET bail sans agence ou profil propriétaire dans l'agence du bail. C'est la règle de
+   `LeasePolicy::view`. Elle vaut pour toutes les portes qui partagent `LandlordSignatory` : le code et
+   la signature, la voie papier, la signature d'état des lieux, `can_sign_as` et
+   `can_activate_on_paper`.
+2. **L'agent créateur, parti ou non, n'est pas bailleur du seul fait de `landlord_id`.** En poste, il
+   signe par la voie du personnel mandaté (`leases.sign` dans l'agence du bail, le rôle système
+   `agent` la tient) : l'état final d'une signature est le même qu'avant (mesuré par instantané :
+   preuves, voie papier, état des lieux, journal, notifications). Parti, il ne signe plus. Un agent en
+   poste dont le rôle personnalisé n'a pas `leases.sign` perd la signature.
+3. **`onBehalfOf` garde sa comparaison brute** : l'agent créateur en poste qui signe par mandat reste
+   enregistré « pour lui-même », comme avant. Aucune preuve déjà écrite ne change.
+
+**Ce qui n'est pas décidé.** Le personnel de deux agences, sans profil actif dans celle du bail, signe
+encore pour le bailleur (`isStaffAt`) alors que `view` le refuse (profil actif, ADR-0031 §3). Ce n'est
+pas un accès hors droit. Il est nommé comme exception dans le test de TCK-2803, et l'alignement se
+traite dans un ticket à part.
