@@ -40,6 +40,13 @@ export interface DeclarationDEnTete {
    * de détail reste, flèche comprise. ≠ `plein-ecran`, qui remplace la flèche par « ✕ ».
    */
   readonly formulaire?: boolean;
+  /**
+   * TCK-2836 — une sélection en cours (actions groupées) : au téléphone, la barre d'onglets s'efface
+   * devant la barre d'actions de l'écran, posée dans l'emplacement de la coque. Déclarée par
+   * `BarreDeSelectionDeLaCoque` tant qu'elle est montée : démontée (sélection vidée, page quittée), la
+   * barre d'onglets revient.
+   */
+  readonly selection?: boolean;
 }
 
 /**
@@ -118,7 +125,7 @@ export function DeclarerEnTete({ priorite = 'page', ...declaration }: Declaratio
 function Declarant({ declarer, priorite, declaration }: { readonly declarer: Declarer; readonly priorite: Priorite; readonly declaration: DeclarationDEnTete }) {
   const id = useId();
   const messages = useMessages();
-  const { titre, forme, action, actions, etape, repli, conversation, formulaire, sousTitre, droite } = declaration;
+  const { titre, forme, action, actions, etape, repli, conversation, formulaire, selection, sousTitre, droite } = declaration;
   // L'étape par ses deux nombres : un objet neuf à chaque rendu redéclarerait sans fin.
   const etapeN = etape?.n;
   const etapeTotal = etape?.total;
@@ -127,9 +134,9 @@ function Declarant({ declarer, priorite, declaration }: { readonly declarer: Dec
     const sousLaPage = (noeud: ReactNode) => (noeud ? <IntlProvider messages={messages}>{noeud}</IntlProvider> : noeud);
     declarer(id, {
       priorite,
-      declaration: { titre, forme, action: sousLaPage(action), actions: sousLaPage(actions), etape: etapeDeclaree, repli, conversation, formulaire, sousTitre, droite: sousLaPage(droite) },
+      declaration: { titre, forme, action: sousLaPage(action), actions: sousLaPage(actions), etape: etapeDeclaree, repli, conversation, formulaire, selection, sousTitre, droite: sousLaPage(droite) },
     });
-  }, [declarer, id, priorite, messages, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, formulaire, sousTitre, droite]);
+  }, [declarer, id, priorite, messages, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, formulaire, selection, sousTitre, droite]);
   useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
