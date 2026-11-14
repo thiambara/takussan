@@ -45,10 +45,13 @@ sentinelle : un retour de trop, qui ne fait rien.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le parcours « `router.refresh()` puis ✕ » ci-dessus : un seul retour mène à `/app`.
-- [ ] AC2 — sans correctif, le test est rouge (ablation) ; le témoin et le retour par geste (TCK-2634,
+- [x] AC1 — le parcours « `router.refresh()` puis ✕ » ci-dessus : un seul retour mène à `/app`.
+  Preuve : CDP 390×844, persona admin, `/app` puis le lien `relance=file` de l'accueil, `window.next.router.refresh()`, ✕ : 5/5 parcours, le 1er retour mène à `/app` (marque effacée après le refresh, mesurée) ; témoin sans refresh : idem.
+- [x] AC2 — sans correctif, le test est rouge (ablation) ; le témoin et le retour par geste (TCK-2634,
   TCK-2775) restent verts.
-- [ ] AC3 — la feuille des notifications, seconde utilisatrice du crochet, garde son comportement.
+  Preuve : `src/hooks/__tests__/useFermeAuRetour.tck-2827.test.tsx` — repli retiré : 2 rouges (✕ après réécriture, double sentinelle) ; garde de longueur retirée : 3 rouges ; garde d'adresse retirée : 2 rouges ; les tests de `notifications/`, `impayes/` et de la page des finances verts (25 fichiers, 188 tests).
+- [x] AC3 — la feuille des notifications, seconde utilisatrice du crochet, garde son comportement.
+  Preuve : CDP 390, `/app` → `/app/agency/finances`, cloche : ✕ puis 1 retour → `/app` ; geste retour → feuille fermée, sur la page, 2e retour → `/app` ; mêmes résultats après `router.refresh()`.
 
 ## Hors périmètre
 
@@ -56,4 +59,11 @@ sentinelle : un retour de trop, qui ne fait rien.
 
 ## Notes d'implémentation
 
-_(vide)_
+- `useFermeAuRetour` reconnaît la sentinelle à sa marque **ou**, marque effacée, à sa place : même
+  `history.length` et même adresse qu'après le `pushState`. Une navigation empile (la longueur bouge,
+  même à la même adresse) ou remplace par une autre adresse : dans les deux cas, pas de `back()`.
+  Le même prédicat décide du ré-empilement au ré-montage de l'effet (sinon une seconde sentinelle).
+- Mesuré au navigateur : même SANS `router.refresh()`, la marque était déjà absente à l'ouverture de
+  la file par l'adresse (rendu du routeur après la sentinelle) — le correctif couvre ce cas aussi.
+- Limite connue : au plafond de la pile du navigateur (50 entrées), une navigation à la MÊME adresse
+  ne change pas la longueur ; la fermeture défairait alors cette navigation. Non traité.
