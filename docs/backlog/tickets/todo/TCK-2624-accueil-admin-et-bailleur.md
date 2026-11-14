@@ -102,8 +102,10 @@ tags: [front, accueil, dashboard, mobile, audit-ux, app]
 - [ ] AC2 — Admin d'une agence dont le KYC est vérifié : aucune ligne « Dossier KYC » sur l'accueil.
 - [ ] AC3 — À 1280, « Équipe aujourd'hui » liste les agents actifs de l'agence, dans le même ordre et le même nombre que `team-today`. Un agent absent porte « En congé jusqu'au … ».
 - [ ] AC4 — Bailleur à 14 échéances de loyer en novembre dont 8 soldées : l'accueil dit « 8 reçus sur 14 ». Le lien mène à ses paiements, filtrés sur le mois.
-- [ ] AC5 — Bailleur avec un devis `quote_submitted` : « Valider » envoie `quote/approve`, et la ligne disparaît. Un devis d'un bien d'un autre bailleur n'apparaît jamais (fixture à deux bailleurs).
-- [ ] AC6 — « Relancer » sur les impayés ouvre le geste de la famille 6. Aucun appel d'envoi de message ne part de Takussan (réseau).
+- [x] AC5 — Bailleur avec un devis `quote_submitted` : « Valider » envoie `quote/approve`, et la ligne disparaît. Un devis d'un bien d'un autre bailleur n'apparaît jamais (fixture à deux bailleurs).
+  - Preuve (2026-11-14, HEAD 19167d93a) : approbation et disparition — `AFaireBailleur.tck-2624.test.tsx:216` ; cloisonnement — `takussan-api/tests/Feature/Maintenance/DevisDuBailleurCloisonneTest.php`, deux bailleurs dans la MÊME agence plus un d'une autre, la requête exacte du front (`PARAMETRES_DES_DEVIS_DU_BAILLEUR`, `PARAMETRES_DES_EN_COURS_DU_BAILLEUR`) : `meta.total` 1 et le seul devis du bailleur, témoin inverse pour le second. Ablation de `BailleurDuBien::restreindre` réduit à l'agence dans `MaintenanceRequest::scopeVisibleTo` : rouge (`meta.total` 2) ; restauré, md5 vérifié.
+- [x] AC6 — « Relancer » sur les impayés ouvre le geste de la famille 6. Aucun appel d'envoi de message ne part de Takussan (réseau).
+  - Preuve (2026-11-14, HEAD 19167d93a) : depuis TCK-2775 (7ed7f3073), « Relancer » est un lien vers l'écran Impayés (`AFaireAdmin.tck-2624.test.tsx:387` : href `relance=file` / `relance=77&bail=31`, aucun appel non-GET depuis l'accueil), qui ouvre le geste de TCK-2660 (`relance-de-l-adresse.tck-2775.test.tsx:314` : `wa.me` au numéro du locataire ; seuls `POST …/payment-link` et `POST …/reminders {channel: whatsapp}` partent). `LeasePaymentReminderController::store` ne fait que NOTER la relance (aucun SMS, WhatsApp, courriel ni notification). TCK-2660 reste `todo` pour ses seuls AC de fidélité.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
