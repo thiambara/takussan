@@ -33,16 +33,20 @@ class NotifyPartiesOfRentRefund
         $property = $lease->property?->title;
         $target = NotificationTarget::of('lease', $lease->id);
         $params = ['amount' => $amount, 'property' => $property];
+        // TCK-2793 — la pénalité payée seule a ses propres textes : ceux du loyer disent « loyer ».
+        [$toTenant, $toLandlord] = $event->lateFeeAlone
+            ? [NotificationCode::LeasePaymentLateFeeRefunded, NotificationCode::LeasePaymentLateFeeRefundedLandlord]
+            : [NotificationCode::LeasePaymentRefunded, NotificationCode::LeasePaymentRefundedLandlord];
 
         $tenant = $lease->tenant;
         if ($tenant?->user) {
-            $this->notifications->send($tenant->user, NotificationCode::LeasePaymentRefunded, $params, $target);
+            $this->notifications->send($tenant->user, $toTenant, $params, $target);
             $relais = ContactSansCompte::relaisMobileDuCompte($tenant->user, ContactSansCompte::fromCustomer($tenant));
             if ($relais !== null) {
-                $this->notifications->send($relais, NotificationCode::LeasePaymentRefunded, $params, $target);
+                $this->notifications->send($relais, $toTenant, $params, $target);
             }
         } elseif ($tenant !== null && ($contact = ContactSansCompte::fromCustomer($tenant))->hasPhone()) {
-            $this->notifications->send($contact, NotificationCode::LeasePaymentRefunded, $params, $target);
+            $this->notifications->send($contact, $toTenant, $params, $target);
         } else {
             Log::info('[refund] avis de remboursement non envoyé — locataire sans compte ni téléphone valide', [
                 'lease_payment_id' => $payment->id,
@@ -50,7 +54,7 @@ class NotifyPartiesOfRentRefund
         }
 
         if ($lease->landlord) {
-            $this->notifications->send($lease->landlord, NotificationCode::LeasePaymentRefundedLandlord, $params + [
+            $this->notifications->send($lease->landlord, $toLandlord, $params + [
                 'tenant' => trim(($tenant?->first_name ?? '').' '.($tenant?->last_name ?? '')),
             ], $target);
         }

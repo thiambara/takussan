@@ -1,12 +1,16 @@
 /**
  * TCK-590 — « Prendre en charge » (personnel, visite sans agent ; 409 = un collègue l'a prise) et
  * « Proposer un autre créneau » (visiteur, créneaux tirés de l'API, heure construite à Dakar).
+ *
+ * TCK-2587 (lot B) — au bureau, « Prendre en charge » vit sous « ⋯ » (« Plus d’actions ») : son nom
+ * accessible porte aussi sa ligne d'aide (« Aucun agent n’accompagne cette visite »).
  */
 process.env.TZ = 'Europe/Paris';
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
@@ -22,7 +26,11 @@ const toastAdd = vi.fn();
 const apiFetch = vi.fn();
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: etat.user }) }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/app/visits/1',
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
@@ -37,6 +45,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useClaimVisit: () => claim,
   useProposeVisitSlot: () => propose,
   useMarkVisitNoShow: () => mutation,
+  useCreneauxDeVisite: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  useAttribuerEnLot: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
@@ -57,6 +67,18 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
     abilities: { manage: true },
     ...overrides,
   };
+}
+
+/** TCK-2587 (lot B) — la fiche lit le prix du bien et le profil actif : un client de requêtes. */
+function rendreLeDetail() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(withIntl(<QueryClientProvider client={client}><VisitDetail id={1} /></QueryClientProvider>));
+}
+
+/** TCK-2587 (lot B) — au bureau, « Prendre en charge » d'une demande vit sous « ⋯ ». */
+async function ouvrirLeMenu() {
+  fireEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+  await screen.findByRole('button', { name: /^Replanifier/ });
 }
 
 describe('<VisitDetail> — TCK-590', () => {
@@ -88,9 +110,10 @@ describe('<VisitDetail> — TCK-590', () => {
 
   it('l’agent prend en charge une visite sans agent', async () => {
     const user = userEvent.setup();
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
-    await user.click(screen.getByRole('button', { name: 'Prendre en charge' }));
+    await ouvrirLeMenu();
+    await user.click(screen.getByRole('button', { name: /^Prendre en charge/ }));
     expect(claim.mutateAsync).toHaveBeenCalled();
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Visite prise en charge.' }));
   });
@@ -99,9 +122,10 @@ describe('<VisitDetail> — TCK-590', () => {
     const { ApiError } = await import('@/lib/api');
     claim.mutateAsync.mockRejectedValueOnce(new ApiError(409, { message: 'déjà' }));
     const user = userEvent.setup();
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
-    await user.click(screen.getByRole('button', { name: 'Prendre en charge' }));
+    await ouvrirLeMenu();
+    await user.click(screen.getByRole('button', { name: /^Prendre en charge/ }));
     await waitFor(() =>
       expect(toastAdd).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Un collègue l’a déjà prise en charge.', type: 'error' }),
@@ -109,25 +133,27 @@ describe('<VisitDetail> — TCK-590', () => {
     );
   });
 
-  it('pas de « Prendre en charge » sur une visite déjà attribuée, ni pour un bailleur', () => {
+  it('pas de « Prendre en charge » sur une visite déjà attribuée, ni pour un bailleur', async () => {
     etat.visit = visite({ agent_id: 9 });
-    const { unmount } = render(withIntl(<VisitDetail id={1} />));
-    expect(screen.queryByRole('button', { name: 'Prendre en charge' })).not.toBeInTheDocument();
+    const { unmount } = rendreLeDetail();
+    await ouvrirLeMenu();
+    expect(screen.queryByRole('button', { name: /^Prendre en charge/ })).not.toBeInTheDocument();
     unmount();
 
     etat.visit = visite();
     etat.user = { id: 7, roles: ['owner'] };
-    render(withIntl(<VisitDetail id={1} />));
-    expect(screen.queryByRole('button', { name: 'Prendre en charge' })).not.toBeInTheDocument();
+    rendreLeDetail();
+    await ouvrirLeMenu();
+    expect(screen.queryByRole('button', { name: /^Prendre en charge/ })).not.toBeInTheDocument();
   });
 
   it('le visiteur propose un autre créneau : grille de l’API, 10:00 à Dakar depuis Paris', async () => {
     etat.user = { id: 30, roles: ['customer'] };
     etat.visit = visite({ visitor_id: 30, agent_id: 7, status: 'confirmed', abilities: { manage: false } });
     const user = userEvent.setup();
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
-    expect(screen.queryByRole('button', { name: 'Prendre en charge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Prendre en charge/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Proposer un autre créneau' }));
     fireEvent.change(await screen.findByLabelText('Date'), { target: { value: '2026-11-12' } });
 
@@ -139,9 +165,11 @@ describe('<VisitDetail> — TCK-590', () => {
     await waitFor(() => expect(propose.mutateAsync).toHaveBeenCalledWith({ scheduled_at: '2026-11-12T10:00:00Z' }));
   });
 
-  it('le personnel ne « propose » pas : il replanifie', () => {
-    render(withIntl(<VisitDetail id={1} />));
-    expect(screen.queryByRole('button', { name: 'Proposer un autre créneau' })).not.toBeInTheDocument();
+  it('le personnel ne « propose » pas : il replanifie', async () => {
+    rendreLeDetail();
+    await ouvrirLeMenu();
+    expect(screen.queryByRole('button', { name: /^Proposer un autre créneau/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Replanifier/ })).toBeInTheDocument();
   });
   it('passe 3 (R1) — un SMS retenu par une borne est dit à l’agent, un SMS parti ne l’est pas', async () => {
     const user = userEvent.setup();
@@ -151,7 +179,7 @@ describe('<VisitDetail> — TCK-590', () => {
       sms_code: 'visit_sms_capped',
       sms_message: 'Le SMS au visiteur n’est pas parti…',
     });
-    const { unmount } = render(withIntl(<VisitDetail id={1} />));
+    const { unmount } = rendreLeDetail();
     await user.click(screen.getByRole('button', { name: 'Confirmer la visite' }));
     await waitFor(() =>
       expect(toastAdd).toHaveBeenCalledWith(
@@ -164,7 +192,7 @@ describe('<VisitDetail> — TCK-590', () => {
     for (const reponse of [{ sms_sent: true }, {}]) {
       toastAdd.mockClear();
       mutation.mutateAsync.mockResolvedValueOnce({ data: visite({ status: 'confirmed' }), ...reponse });
-      const rendu = render(withIntl(<VisitDetail id={1} />));
+      const rendu = rendreLeDetail();
       await user.click(screen.getByRole('button', { name: 'Confirmer la visite' }));
       await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' })));
       expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'warning' }));
@@ -179,7 +207,7 @@ describe('<VisitDetail> — TCK-590', () => {
       visitor_phone: null,
       visitor: { id: 30, first_name: '', last_name: '', email: null, phone: '+221771234567' },
     });
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
     expect(screen.getByText('+221 77 123 45 67')).toBeInTheDocument();
     expect(screen.queryByText('Utilisateur inscrit')).toBeNull();

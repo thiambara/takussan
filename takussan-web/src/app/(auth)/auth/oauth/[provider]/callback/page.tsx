@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, use, useCallback, useEffect, useState } from 'react';
+import { Suspense, use, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import {
@@ -15,6 +15,7 @@ import { ApiError } from '@/lib/api';
 import { destinationInterne } from '@/lib/redirection-interne';
 import { useAuth } from '@/context/AuthContext';
 import { intentionOAuthMemorisee, oublierIntentionOAuth } from '@/components/auth/intention-oauth';
+import { retourApresEchecOAuth } from '@/lib/publication/reprise-oauth';
 import { useTranslations } from 'next-intl';
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ['google', 'facebook', 'apple'];
@@ -56,9 +57,30 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
     [redirectParam, router, openSession, refreshUser],
   );
 
+  /**
+   * TCK-2777 — un aller-retour annulé ou refusé (le fournisseur rappelle avec `error=` et sans `code`)
+   * ramène l'annonce de `/publish` sur `/publish`, la feuille rouverte au numéro. ⚠ Par la LISTE
+   * BLANCHE de `retourApresEchecOAuth`, jamais par la chaîne mémorisée : aucune session ne s'ouvre
+   * ici, et tout autre départ garde la connexion, comme avant.
+   */
+  const sortirEnEchec = useCallback(
+    (repli: string) => {
+      const retour = retourApresEchecOAuth(intentionOAuthMemorisee());
+      if (retour) oublierIntentionOAuth();
+      router.replace(retour ?? repli);
+    },
+    [router],
+  );
+
+  // TCK-2777 — UNE fois par rappel : sous le Strict Mode, l'effet repasse, et le second passage ne
+  // trouvait plus l'intention que le premier venait d'oublier (le retour d'échec finissait sur la
+  // connexion) ; le `code`, lui, ne s'échange qu'une fois chez le fournisseur.
+  const traite = useRef(false);
   useEffect(() => {
+    if (traite.current) return;
+    traite.current = true;
     if (!code || !state) {
-      router.replace('/auth/login?error=oauth_invalid');
+      sortirEnEchec('/auth/login?error=oauth_invalid');
       return;
     }
 
@@ -72,16 +94,16 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
         await ouvrir(reponse);
       } catch (err) {
         const msg = err instanceof ApiError ? 'oauth_failed' : 'oauth_unknown';
-        router.replace(`/auth/login?error=${msg}`);
+        sortirEnEchec(`/auth/login?error=${msg}`);
       }
     })();
-  }, [provider, code, state, router, ouvrir]);
+  }, [provider, code, state, router, ouvrir, sortirEnEchec]);
 
   if (defi !== null) {
     return (
       <DefiSecondFacteur
         onValider={async (preuve) => ouvrir(await oauthSecondFactor(defi, preuve))}
-        onAnnuler={() => router.replace('/auth/login')}
+        onAnnuler={() => sortirEnEchec('/auth/login')}
       />
     );
   }

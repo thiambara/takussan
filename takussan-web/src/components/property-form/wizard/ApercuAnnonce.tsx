@@ -158,6 +158,40 @@ function AVenir({ children }: { readonly children: React.ReactNode }) {
   return <span className="rounded-md bg-muted px-1.5 text-muted-foreground">{children}</span>;
 }
 
+/**
+ * TCK-2601 — l'annonce en une ligne, en tête de la feuille de compte (maquette a-6 / a-7, `RappelAnnonce`) :
+ * sur un aplat `secondary`, la vignette de 48 px, le titre, « prix /période · prête à publier », et la
+ * pastille cochée à droite. Mêmes données que la carte (`useDonneesApercu`).
+ */
+export function RappelDeLAnnonce({
+  form,
+  photos,
+  pret,
+}: {
+  readonly form: UseFormReturn<PropertyFormValues>;
+  readonly photos: readonly File[];
+  /** « prête à publier », écrit à la suite du prix. */
+  readonly pret: string;
+}) {
+  const t = useTranslations('property.wizard.preview');
+  const d = useDonneesApercu(form);
+  const prix = d.prix ? `${d.prix}${d.periode ? ` /${d.periode}` : ''}` : null;
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-secondary/70 p-2.5" data-testid="rappel-de-l-annonce">
+      <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
+        {photos[0] ? <VignetteFichier fichier={photos[0]} /> : <ImageIcon className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col leading-tight">
+        <span className="truncate text-corps font-semibold text-foreground">{d.titre || t('empty')}</span>
+        <span className="mt-0.5 truncate text-ui text-muted-foreground tabular-nums">{prix ? `${prix} · ${pret}` : pret}</span>
+      </span>
+      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+        <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
+      </span>
+    </div>
+  );
+}
+
 /** La carte de l'annonce, au gabarit de `PropertyCardStandard`. */
 export function CarteApercu({
   form,
@@ -243,11 +277,20 @@ export function ListePourPublier({
   index,
   onRouvrir,
   desactivee = false,
+  enPlus,
+  enPlusEnCours = false,
 }: {
   readonly etapes: readonly EtapeDeListe[];
   readonly index: number;
   readonly onRouvrir: (index: number) => void;
   readonly desactivee?: boolean;
+  /** TCK-2600 — une dernière ligne, hors des étapes : « Votre numéro · à la fin » (sans compte). */
+  readonly enPlus?: { readonly libelle: string; readonly note: string };
+  /**
+   * TCK-2601 — la feuille de compte est ouverte : toutes les étapes sont franchies et la ligne en plus
+   * (« Votre numéro ») est l'étape en cours (maquette a-6 / a-7, « Pour publier » du bureau).
+   */
+  readonly enPlusEnCours?: boolean;
 }) {
   const t = useTranslations('property.wizard');
 
@@ -303,6 +346,20 @@ export function ListePourPublier({
             </li>
           );
         })}
+        {enPlus ? (
+          <li>
+            <span aria-current={enPlusEnCours ? 'step' : undefined} className="flex min-h-9 items-center gap-2.5 px-1.5 text-sm">
+              <span
+                aria-hidden="true"
+                className={cn('grid size-5 shrink-0 place-items-center rounded-full', enPlusEnCours ? 'border-2 border-primary' : 'border border-border')}
+              />
+              <span className="min-w-0 text-pretty font-medium text-foreground">
+                {enPlus.libelle}
+                <span className="font-normal text-muted-foreground"> · {enPlusEnCours ? t('preview.current') : enPlus.note}</span>
+              </span>
+            </span>
+          </li>
+        ) : null}
       </ol>
     </nav>
   );

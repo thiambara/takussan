@@ -46,7 +46,18 @@ export const ADMIN_USERS_FIELDS = [
 export interface FetchAdminUsersParams {
   readonly search?: string;
   readonly status?: AdminUserStatusFilter;
-  readonly role?: AdminUserRoleFilter;
+  /** Un rôle, ou plusieurs lus en OU (`agent,agency_admin` : le personnel, TCK-2665). */
+  readonly role?: AdminUserRoleFilter | 'agent,agency_admin';
+  /** TCK-2667 — la pastille « Absents » : les membres qu'une absence remplace (`filter[absent]=1`). */
+  readonly absent?: boolean;
+  /**
+   * `filter[assignable]=1` — le personnel EN EXERCICE dans l'agence (profil d'agent ou d'admin actif,
+   * compte joignable) : ce que l'API accepte comme remplaçant d'une absence (`PersonnelDeLAgence`).
+   * `filter[status]=active` ne juge que le COMPTE : un membre suspendu dans l'agence y reste.
+   */
+  readonly assignable?: boolean;
+  /** TCK-2665 — `include=team_summary` : biens suivis, commissions dues, absence, arrivée. */
+  readonly resume?: boolean;
   readonly sort?: string;
   readonly page?: number;
   readonly perPage?: number;
@@ -58,10 +69,12 @@ export async function fetchAdminUsers(
   const qs = new URLSearchParams();
   qs.set('fields[users]', ADMIN_USERS_FIELDS.join(','));
   // TCK-665 — sans `platformProfile` : l'API le refuse hors de la console super-admin (400).
-  qs.set('include', 'agentProfiles,ownerProfiles,agencyAdminProfiles');
+  qs.set('include', ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', ...(params.resume ? ['team_summary'] : [])].join(','));
   if (params.search) qs.set('filter[search]', params.search);
   if (params.status) qs.set('filter[status]', params.status);
   if (params.role) qs.set('filter[role]', params.role);
+  if (params.absent) qs.set('filter[absent]', '1');
+  if (params.assignable) qs.set('filter[assignable]', '1');
   qs.set('sort', params.sort ?? '-created_at');
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));
@@ -92,4 +105,38 @@ export async function putUserRole(
     body: JSON.stringify({ role }),
   });
   return jsonOrThrow<unknown>(res);
+}
+
+/**
+ * TCK-2670 — « N membres sur M ne l'ont pas activée », sous la double authentification obligatoire de
+ * la fiche de l'agence. La liste de l'équipe (`/api/admin-users`, celle de `/app/agency/team`), une
+ * seule page de cent membres au plus, ids seuls : `two_factor_enabled` y est toujours calculé
+ * (`UserAdminController::index`). Au-delà de cent, `lus` < `total` et l'écran dit « au moins ».
+ * `filter[assignable]=1` la réduit au personnel EN EXERCICE (profil d'agent ou d'admin actif, ou
+ * délégation active ; compte ni bloqué ni supprimé) : ceux à qui l'agence exige la 2FA
+ * (`TwoFactorRequirement`, jamais un bailleur). Sans lui, la démo comptait 24 membres, bailleurs et
+ * suspendus compris, pour 11 en exercice (TCK-2670, d1).
+ * Un membre sans la clé n'est pas compté comme « sans » : un champ absent n'est pas un `false`.
+ */
+export interface DoubleFacteurDeLEquipe {
+  readonly sans: number;
+  readonly lus: number;
+  readonly total: number;
+}
+
+export const DOUBLE_FACTEUR_DE_L_EQUIPE_KEY = ['admin-users', 'double-facteur'] as const;
+
+export async function fetchDoubleFacteurDeLEquipe(): Promise<DoubleFacteurDeLEquipe> {
+  const qs = new URLSearchParams();
+  qs.set('fields[users]', 'id');
+  qs.set('filter[assignable]', '1');
+  qs.set('per_page', '100');
+  qs.set('page', '1');
+  const res = await fetch(cheminApi`/api/admin-users?${qs.toString()}`, { credentials: 'include' });
+  const page = await jsonOrThrow<AdminAgencyUsersResponse>(res);
+  return {
+    sans: page.data.filter((membre) => membre.two_factor_enabled === false).length,
+    lus: page.data.length,
+    total: page.meta.total,
+  };
 }

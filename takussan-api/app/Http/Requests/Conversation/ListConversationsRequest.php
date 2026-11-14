@@ -9,8 +9,8 @@ use Closure;
 use Illuminate\Validation\Rule;
 
 /**
- * TCK-2630 — `GET /api/conversations` ({@see ConversationController::index()}) : les trois filtres
- * de la liste. Seuls eux sont typés ici ; `fields[]`, `include`, `sort` et `per_page`, que le front
+ * TCK-2630 — `GET /api/conversations` ({@see ConversationController::index()}) : les filtres de la
+ * liste (trois au TCK-2630, `participant` au TCK-2632). Seuls eux sont typés ici ; `fields[]`, `include`, `sort` et `per_page`, que le front
  * envoie, restent lus comme avant.
  *
  * Une saisie mal formée — un type inconnu, un `unread` qui n'est pas un booléen, une recherche en
@@ -52,6 +52,11 @@ class ListConversationsRequest extends BaseFormRequest
             ],
             'filter.unread' => ['sometimes', 'nullable', Rule::in(['0', '1', 'true', 'false'])],
             'filter.type' => ['sometimes', 'nullable', Rule::in(self::TYPES)],
+            // TCK-2632 — « Nouvelle conversation » cherche le fil direct déjà ouvert avec une
+            // personne. Un identifiant, jamais un nom : deux homonymes ne se confondent pas.
+            // Jamais l'appelant (vérification adverse) : membre de tous ses fils, il rendrait sa liste
+            // entière, archives comprises (le filtre les ouvre) — 422, comme toute saisie sans objet.
+            'filter.participant' => ['sometimes', 'nullable', 'integer', 'min:1', Rule::notIn(array_filter([$this->user()?->id]))],
         ];
     }
 
@@ -63,6 +68,7 @@ class ListConversationsRequest extends BaseFormRequest
             'filter.search' => __('messaging.attributes.search_filter'),
             'filter.unread' => __('messaging.attributes.unread_filter'),
             'filter.type' => __('messaging.attributes.type_filter'),
+            'filter.participant' => __('messaging.attributes.participant_filter'),
         ];
     }
 }

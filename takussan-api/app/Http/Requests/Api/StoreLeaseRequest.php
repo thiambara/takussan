@@ -7,6 +7,7 @@ use App\Models\Enums\Currency;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Property;
+use App\Rules\JourIso;
 use App\Rules\PersonnelDeLAgence;
 use Illuminate\Validation\Rule;
 
@@ -49,11 +50,18 @@ class StoreLeaseRequest extends BaseFormRequest
             'booking_id' => ['nullable', 'integer'],
             'guarantor_id' => ['nullable', 'integer'],
             'type' => ['required', Rule::enum(LeaseType::class)],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date', 'after:start_date'],
+            'start_date' => ['required', 'date', new JourIso],
+            'end_date' => ['nullable', 'date', new JourIso, 'after:start_date'],
             'monthly_rent' => ['nullable', 'numeric', 'min:0'],
             // TCK-2679 — les charges mensuelles, terme imprimé au contrat et appelé par l'échéancier.
             'monthly_charges' => ['nullable', 'numeric', 'min:0'],
+            // TCK-2643 — la pénalité de retard, l'indemnité de départ anticipé et le plafond de
+            // révision s'écrivent dès la création (préremplis par `GET /api/leases/defaults`), aux
+            // bornes d'`UpdateLeaseRequest` : ils ne s'écrivaient qu'après coup, par PATCH.
+            'late_fee_percent' => ['nullable', 'numeric', 'between:0,50'],
+            'late_fee_grace_days' => ['nullable', 'integer', 'between:0,30'],
+            'early_termination_penalty_months' => ['nullable', 'integer', 'between:0,12'],
+            'rent_review_max_pct' => ['nullable', 'numeric', 'between:0,100'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],

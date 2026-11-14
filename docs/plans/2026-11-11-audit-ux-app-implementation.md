@@ -475,3 +475,10 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   « rejected » des pièces de profil (TCK-2612 — qui refuse ? spec à écrire d'abord).
 - **Statuts** : 58 tickets à `done` sur verdict accepté (9d0725918) ; TCK-2623 suit son test.
   `/sync-specs` (demandé par le porteur pour la fin du lot) part en PR à part après la fusion.
+
+### 2026-11-11 — lot 1 fusionné, lot 2 ouvert (branche `feat/audit-ux-app-lot-2`)
+
+- #1666 (lot 1, 59 tickets) fusionnée sur `dev` (747bacc29), CI du push verte ; `/sync-specs` en #1667 (db5b31b64) ; suites TCK-2734 à 2737 et TCK-2713 à done (vérification adverse acceptée) en #1668 (ea1211cf4).
+- Deux créneaux de test pour tous les agents (`mkdir creneau-1|creneau-2`), consigne du porteur après le plantage de la machine ; au plus deux agents testent à la fois, et non quatre agents front comme l'écrivait l'étape 3.
+- Décisions du porteur (« je valide tout ») : TCK-2659 M2 (les totaux du registre sont la somme des lignes que le lecteur lit, même sans `reports.view_agency`) et D2 (un statut impayé borne par l'échéance, sinon par le paiement) gardés ; TCK-2719, 2722, 2723, 2726, 2734 et 2736 en (a). TCK-2737 en (b), deux modes, choix du team-lead.
+- En cours : F-coque (terrain-5, 2618), F-commercial (terrain-4, 2586), suites back (back-3, 2735), vérification de 2704 (son code était déjà sur `dev` ; tests par les vrais émetteurs ajoutés).

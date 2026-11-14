@@ -2,6 +2,8 @@
 
 namespace App\Services\Crm;
 
+use App\Http\Resources\Bases\BaseResource;
+use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
@@ -9,6 +11,7 @@ use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\Request;
 
 /**
@@ -25,7 +28,8 @@ use Illuminate\Http\Request;
 final class CustomerCommercialAttributes
 {
     // TCK-2591 — `suggested_stage` ({@see CustomerSuggestedStageQuery}).
-    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage'];
+    // TCK-2766 — `last_contact` ({@see self::lastContacts()}).
+    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage', 'last_contact'];
 
     private const REQUESTED = 'tck2588.commercial.requested';
 
@@ -47,14 +51,32 @@ final class CustomerCommercialAttributes
         $names = array_values(array_filter(array_map(fn ($n) => is_string($n) ? trim($n) : '', $names), fn ($n) => $n !== ''));
 
         $virtual = array_values(array_intersect($names, self::FIELDS));
-        if ($virtual === []) {
+        $strict = CustomerResource::champsStricts($request);
+        if ($virtual === [] && ! $strict) {
             return $request;
         }
 
-        $request->attributes->set(self::REQUESTED, $virtual);
+        if ($virtual !== []) {
+            $request->attributes->set(self::REQUESTED, $virtual);
+        }
 
         $rest = array_values(array_diff($names, self::FIELDS));
-        if ($rest === []) {
+        if ($strict) {
+            // TCK-2756 — la liste : la clé de la fiche, sur laquelle les attributs se calculent, et
+            // les seules colonnes demandées. `unset` faisait retomber spatie sur `select *` (notes,
+            // critères, pièce déchiffrée à chaque ligne) pour une page qui ne demandait que
+            // `next_action`.
+            $rendues = $virtual === [] ? $rest : array_values(array_unique(['id', ...$rest]));
+            // Vérification adverse de TCK-2756 (d2) — la clé étrangère d'un include `belongsTo`
+            // (`addedBy` → `added_by_id`…) est lue, sans quoi la relation se rendait `null` ; elle n'est
+            // pas rendue si `fields` ne la demande pas. `id` est lu aussi : les includes `hasMany`
+            // (`tags`) s'y rattachent.
+            $lues = array_values(array_unique(['id', ...$rendues, ...self::clesEtrangeresDesIncludes($request)]));
+            CustomerResource::noterLesChampsDemandes($request, $rendues);
+            $fields['customers'] = implode(',', $lues);
+        } elseif ($rest === []) {
+            // Le show : la fiche client (TCK-2589) demande des attributs calculés seuls pour
+            // recevoir la ressource entière.
             unset($fields['customers']);
         } else {
             $fields['customers'] = implode(',', $rest);
@@ -68,6 +90,38 @@ final class CustomerCommercialAttributes
         }
 
         return $request->duplicate($query);
+    }
+
+    /**
+     * Les clés étrangères, sur `customers`, des includes `belongsTo` demandés (`include=addedBy,origin.x`
+     * → `added_by_id`, `source_contact_lead_id`), lues des relations elles-mêmes. Un include inconnu
+     * est laissé à spatie, qui le refuse.
+     *
+     * @return list<string>
+     */
+    private static function clesEtrangeresDesIncludes(Request $request): array
+    {
+        $include = $request->query('include');
+        if (! is_string($include) || trim($include) === '') {
+            return [];
+        }
+
+        $modele = new Customer;
+        $cles = [];
+        foreach (explode(',', $include) as $chemin) {
+            $relation = explode('.', trim($chemin))[0];
+            // Un nom venu de l'URL n'appelle QUE une relation déclarée : sans cette liste, `include=save`
+            // ou `include=unguard` appelaient la méthode avant que spatie ne refuse l'include.
+            if (! in_array($relation, Customer::getRequestLoadable(), true)) {
+                continue;
+            }
+            $lien = $modele->{$relation}();
+            if ($lien instanceof BelongsTo) {
+                $cles[] = $lien->getForeignKeyName();
+            }
+        }
+
+        return array_values(array_intersect(array_unique($cles), Customer::getOwnQueryFields()));
     }
 
     /** @return list<string> */
@@ -114,7 +168,43 @@ final class CustomerCommercialAttributes
                 : (new CustomerSuggestedStageQuery)->forPage($staffIds);
         }
 
+        if (in_array('last_contact', $requested, true)) {
+            $values['last_contact'] = self::lastContacts($viewer, $ids);
+        }
+
         $request->attributes->set(self::VALUES, $values);
+    }
+
+    /**
+     * TCK-2766 — le dernier contact d'une fiche, avec son canal : `{channel, at}`, `channel` à `null`
+     * pour une fiche contactée avant que le canal ne soit tenu. Au seul lecteur de
+     * `last_contacted_at` dans `CustomerResource` (`readsVisits` : {@see Customer::criteriaBelongTo()},
+     * le personnel de l'agence de la fiche, le super-admin, l'auteur d'une fiche sans agence) ; `null`
+     * sinon, comme pour une fiche jamais contactée. Lu par sa propre requête : la liste ne charge que
+     * les colonnes demandées (TCK-2756).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, array{channel: ?string, at: ?string}>
+     */
+    public static function lastContacts(User $viewer, array $ids): array
+    {
+        $staffAgencyIds = $viewer->isSuperAdmin() ? [] : app(MembershipCapabilityResolver::class)->staffAgencyIds($viewer);
+
+        $out = [];
+        Customer::query()
+            ->whereKey($ids)
+            ->whereNotNull('last_contacted_at')
+            ->get(['id', 'agency_id', 'added_by_id', 'last_contacted_at', 'last_contact_channel'])
+            ->each(function (Customer $c) use ($viewer, $staffAgencyIds, &$out): void {
+                if ($c->criteriaBelongTo($viewer, $staffAgencyIds)) {
+                    $out[(int) $c->id] = [
+                        'channel' => $c->last_contact_channel?->value,
+                        'at' => BaseResource::instantOnWire($c->last_contacted_at),
+                    ];
+                }
+            });
+
+        return $out;
     }
 
     /**

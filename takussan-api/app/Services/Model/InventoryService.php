@@ -24,40 +24,50 @@ class InventoryService
      * dernière) : ses pièces quand le client n'en envoie pas, et dans tous les cas les états d'entrée
      * de chaque élément. La copie se fait ici, à la création seulement.
      *
+     * Sous le verrou du bien puis du bail (TCK-2764 r1) : un état des lieux ne naît pas sur un brouillon
+     * qu'un abandon concurrent vient de supprimer.
+     *
      * @param  array<string,mixed>  $data
      */
     public function create(Lease $lease, User $user, array $data): Inventory
     {
-        $tenant = Customer::find($lease->tenant_id);
-        abort_code_if($tenant === null, 422, 'inventory.tenant_not_found');
+        return DB::transaction(function () use ($lease, $user, $data): Inventory {
+            // TCK-2764 r1 — le bien puis le bail, comme l'abandon d'un brouillon (`LeaseService::abandonDraft()`),
+            // qui refuse un bail portant un état des lieux : de deux ordres concurrents, le second relit la ligne.
+            // Un brouillon abandonné entre-temps n'est plus trouvé (404) : aucun état des lieux sans bail.
+            $lease = LeaseService::verrouillerLeBienPuisLeBail($lease);
 
-        $entry = $data['type'] === InventoryType::MoveOut->value
-            ? $this->prefill->entryFor($lease, isset($data['from_inventory_id']) ? (int) $data['from_inventory_id'] : null)
-            : null;
-        $rooms = $data['rooms'] ?? ($entry !== null ? $this->prefill->roomsFrom($entry) : null);
-        $condition = $data['general_condition'] ?? $entry?->general_condition?->value;
-        // Une sortie sans entrée signée démarre comme avant : pièces et état général exigés.
-        $missing = array_filter(['rooms' => $rooms === null || $rooms === [], 'general_condition' => $condition === null]);
-        if ($missing !== []) {
-            throw ValidationException::withMessages(array_map(
-                fn (string $field): string => __('validation.required', ['attribute' => str_replace('_', ' ', $field)]),
-                array_combine(array_keys($missing), array_keys($missing)),
-            ));
-        }
+            $tenant = Customer::find($lease->tenant_id);
+            abort_code_if($tenant === null, 422, 'inventory.tenant_not_found');
 
-        return Inventory::create([
-            'lease_id' => $lease->id,
-            'property_id' => $lease->property_id,
-            'type' => $data['type'],
-            'conducted_by' => $user->id,
-            'tenant_id' => $tenant->id,
-            'entry_inventory_id' => $entry?->id,
-            'conducted_at' => $data['conducted_at'] ?? now(),
-            'status' => InventoryStatus::Draft->value,
-            'general_condition' => $condition,
-            'rooms' => $entry !== null ? $this->prefill->attach($rooms, $entry) : $rooms,
-            'notes' => $data['notes'] ?? null,
-        ]);
+            $entry = $data['type'] === InventoryType::MoveOut->value
+                ? $this->prefill->entryFor($lease, isset($data['from_inventory_id']) ? (int) $data['from_inventory_id'] : null)
+                : null;
+            $rooms = $data['rooms'] ?? ($entry !== null ? $this->prefill->roomsFrom($entry) : null);
+            $condition = $data['general_condition'] ?? $entry?->general_condition?->value;
+            // Une sortie sans entrée signée démarre comme avant : pièces et état général exigés.
+            $missing = array_filter(['rooms' => $rooms === null || $rooms === [], 'general_condition' => $condition === null]);
+            if ($missing !== []) {
+                throw ValidationException::withMessages(array_map(
+                    fn (string $field): string => __('validation.required', ['attribute' => str_replace('_', ' ', $field)]),
+                    array_combine(array_keys($missing), array_keys($missing)),
+                ));
+            }
+
+            return Inventory::create([
+                'lease_id' => $lease->id,
+                'property_id' => $lease->property_id,
+                'type' => $data['type'],
+                'conducted_by' => $user->id,
+                'tenant_id' => $tenant->id,
+                'entry_inventory_id' => $entry?->id,
+                'conducted_at' => $data['conducted_at'] ?? now(),
+                'status' => InventoryStatus::Draft->value,
+                'general_condition' => $condition,
+                'rooms' => $entry !== null ? $this->prefill->attach($rooms, $entry) : $rooms,
+                'notes' => $data['notes'] ?? null,
+            ]);
+        });
     }
 
     /**
@@ -93,11 +103,32 @@ class InventoryService
                 422,
                 'inventory.not_draft_submit'
             );
+            // TCK-2647 — un brouillon peut garder des éléments sans état ; on ne signe pas un constat
+            // incomplet : chaque élément doit être qualifié avant la soumission.
+            abort_code_if(self::aDesElementsNonQualifies($locked->rooms), 422, 'inventory.unqualified_elements');
 
             $locked->update(['status' => InventoryStatus::PendingSignature]);
 
             return $locked->refresh();
         });
+    }
+
+    /**
+     * TCK-2647 — un élément dont l'état est nul ou absent (`rooms.*.elements.*.state`).
+     *
+     * @param  array<int, mixed>|null  $rooms
+     */
+    private static function aDesElementsNonQualifies(?array $rooms): bool
+    {
+        foreach ($rooms ?? [] as $room) {
+            foreach (is_array($room) && is_array($room['elements'] ?? null) ? $room['elements'] : [] as $element) {
+                if (is_array($element) && ($element['state'] ?? null) === null) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function dispute(Inventory $inventory, string $reason): Inventory

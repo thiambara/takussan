@@ -36,14 +36,15 @@ export const FOCUS_RING_RENTRANT = `${FOCUS_RING} focus-visible:ring-inset`;
 export const STYLE_TITRE = 'text-xs text-muted-foreground';
 
 /**
- * TCK-2490 — la boîte d'une ligne (lien, ligne cadenassée, « Aller à ») : 36 px, 40 px au doigt.
+ * TCK-2490 — la boîte d'une ligne (lien, ligne cadenassée, « Aller à ») : 36 px ; TCK-2619 — 44 px au doigt
+ * (le tiroir, sous `md` : maquette `app-coque`, « Menu (tiroir) », téléphone).
  *
  * TCK-2691 (ADR-0106, C8) — les cotes de la maquette : `text-sm` (12,6 px dès `lg`, sur l'échelle de
  * densité), `px-2` et `gap-2.5` ; dans le tiroir (sous `md`), le texte de 15 px (`text-corps`). La hauteur
- * des lignes du tiroir (44 px) est à TCK-2619.
+ * des lignes du tiroir (44 px) est celle de TCK-2619.
  */
 export const STYLE_LIGNE =
-  'flex h-9 min-w-0 items-center gap-2.5 rounded-lg px-2 text-sm max-md:h-10 max-md:text-corps icones:justify-center icones:px-0';
+  'flex h-9 min-w-0 items-center gap-2.5 rounded-lg px-2 text-sm max-md:h-11 max-md:text-corps icones:justify-center icones:px-0';
 
 /**
  * TCK-2490 — la ligne au repos et au survol (voile d'encre à 5 %). Une encre de texte ne s'atténue pas
@@ -83,17 +84,21 @@ export const ENCRE_D_ICONE_ACTIVE = 'text-primary';
 export const STYLE_COMPTEUR = 'ml-auto shrink-0 text-xs font-semibold tabular-nums text-primary-deep';
 
 /**
- * TCK-2480 — l'épingle d'une ligne : discrète, visible au survol de la ligne ET au focus clavier,
- * toujours visible quand la ligne est épinglée (on reconnaît « Épinglés ») ; à 60 % sur un écran
- * tactile, qui n'a pas de survol (A13).
- *
- * Revue adverse de TCK-2490 (M2) — elle ne RÉSERVE sa place que là où elle s'affiche : au repos, largeur
- * nulle (elle reste focalisable : ni `hidden` ni `invisible`) ; au survol de la ligne, au focus, épinglée
- * ou au doigt, sa largeur (`--l-epingle` : 28 px, 36 px sous `md`) et sa marge. Invisible, elle gardait
- * 32 px : les compteurs du menu s'arrêtaient 29 px avant les puces d'« Aujourd'hui » et les touches.
+ * TCK-2480 — l'épingle d'une ligne. TCK-2619 — elle ne paraît plus qu'en mode « Modifier le menu » (au
+ * tiroir comme à la colonne) : la punaise au survol est remplacée par ce mode, et le tiroir se lit au
+ * pouce sans punaise. Dans ce mode elle est toujours visible, à sa largeur (28 px, 36 px sous `md`) ;
+ * épinglée, teintée de la couleur primaire (maquette `app-coque`, « Menu (tiroir) », bureau). Jamais dans
+ * le rail.
  */
 export const STYLE_EPINGLE =
-  'inline-flex h-7 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground opacity-0 [--l-epingle:calc(var(--spacing)*7)] transition-[opacity,width,margin] hover:bg-foreground/5 hover:text-foreground focus:mr-1 focus:w-(--l-epingle) focus-visible:opacity-100 group-hover/ligne:mr-1 group-hover/ligne:w-(--l-epingle) group-hover/ligne:opacity-100 aria-pressed:mr-1 aria-pressed:w-(--l-epingle) aria-pressed:opacity-100 aria-disabled:cursor-not-allowed tactile:mr-1 tactile:w-(--l-epingle) tactile:not-aria-pressed:opacity-60 max-md:h-9 max-md:[--l-epingle:calc(var(--spacing)*9)] motion-reduce:transition-none icones:hidden';
+  'mr-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground aria-pressed:bg-primary/10 aria-pressed:text-primary aria-disabled:cursor-not-allowed aria-disabled:opacity-60 max-md:size-9 motion-reduce:transition-none icones:hidden';
+
+/**
+ * TCK-2619 — la poignée d'une épingle, en mode « Modifier le menu » : elle ordonne « Épinglés » au doigt,
+ * à la souris (glisser) et au clavier (flèches haut et bas). `touch-none` : le geste ne fait pas défiler.
+ */
+export const STYLE_POIGNEE =
+  'inline-flex h-7 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:text-foreground active:cursor-grabbing max-md:h-9 max-md:w-7 icones:hidden';
 
 /** TCK-2480 — le libellé d'une ligne : lu par le lecteur d'écran dans tous les modes, caché à l'œil réduite. */
 export const LIBELLE_DE_LIGNE = 'truncate icones:sr-only';

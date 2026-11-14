@@ -1,0 +1,276 @@
+{
+  "ticket": "TCK-2606",
+  "ecrans": [
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Voie e-mail",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-3-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-3-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/login?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite&voie=email",
+        "persona": "aucune",
+        "etat": "visiteur venu de « Demander une visite » sur un bien publié de la démo (« Micro Studio 10m² », 500 000 F CFA / mois, agence « Studio de Aminata », le seul bien de location public relevé, comme TCK-2604) ; voie téléphone ouverte (`phone_login`) ; « J’ai un compte », l’adresse et le mot de passe de la maquette posés, le mot de passe au focus ; téléphone : clavier émulé de 208 px (le pavé dessiné par la maquette)"
+      }
+    },
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Voie e-mail : créer",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-4-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-4-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/login?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite&voie=email",
+        "persona": "aucune",
+        "etat": "visiteur venu de « Demander une visite » sur un bien publié de la démo (« Micro Studio 10m² », 500 000 F CFA / mois, agence « Studio de Aminata », le seul bien de location public relevé, comme TCK-2604) ; voie téléphone ouverte (`phone_login`) ; onglet « Créer un compte », l’adresse et « Mermoz2026 » affiché (l’œil), les conditions cochées, le mot de passe au focus ; téléphone : clavier émulé de 208 px"
+      }
+    },
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Mot de passe oublié",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-5-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-5-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/forgot-password?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite",
+        "persona": "aucune",
+        "etat": "visiteur venu de « Demander une visite » sur un bien publié de la démo (« Micro Studio 10m² », 500 000 F CFA / mois, agence « Studio de Aminata », le seul bien de location public relevé, comme TCK-2604) ; voie téléphone ouverte (`phone_login`) ; l’adresse de la maquette posée, au focus ; téléphone : clavier émulé de 208 px"
+      }
+    },
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Lien envoyé",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-6-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-6-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/forgot-password?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite",
+        "persona": "aucune",
+        "etat": "visiteur venu de « Demander une visite » sur un bien publié de la démo (« Micro Studio 10m² », 500 000 F CFA / mois, agence « Studio de Aminata », le seul bien de location public relevé, comme TCK-2604) ; voie téléphone ouverte (`phone_login`) ; l’adresse de la maquette envoyée (« Envoyer le lien »), l’écran « Lien envoyé » relevé dans la première seconde du décompte (API locale, MAIL_MAILER=log : rien ne part)"
+      }
+    },
+    {
+      "page": "app-entree-connexion",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Vérifier l’adresse",
+      "references": {
+        "telephone": "references/app-entree-connexion/a-7-telephone.json",
+        "bureau-1440": "references/app-entree-connexion/a-7-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/auth/verify-email?redirect=%2Ffr%2Fproperties%2Fmicro-studio-10m2-GXNq&intention=visite",
+        "persona": "compte non vérifié (awa.diop@gmail.com, créé par POST /api/auth/register sur la base locale, jeton hors du dépôt, relevé sous le nom de persona « admin » dont la disposition ne porte aucune preuve)",
+        "etat": "visiteur venu de « Demander une visite » sur un bien publié de la démo (« Micro Studio 10m² », 500 000 F CFA / mois, agence « Studio de Aminata », le seul bien de location public relevé, comme TCK-2604) ; voie téléphone ouverte (`phone_login`) ; compte ouvert par l’inscription, adresse non vérifiée, lien parti à l’instant"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/auth/login, /auth/forgot-password, /auth/verify-email",
+    "persona": "aucune (a-3 à a-6) ; compte non vérifié (a-7)",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad impl/lot2/2606/mesures/p-a3.js … p-a6.js (champs posés par le setter natif, clavier émulé de 208 px au téléphone, « Envoyer le lien » cliqué pour a-6) ; a-7 sans perturbation"
+  },
+  "coque": false,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Ta demande de visite": "Votre demande de visite",
+    "Studio meublé · Mermoz": "Micro Studio 10m²",
+    "250 000 F CFA / mois": "500 000 F CFA / mois",
+    "Avec Dakar Immo · réponse en 2 h environ": "Avec Studio de Aminata",
+    "Avec ton e-mail": "Avec votre e-mail",
+    "Ton prénom te sera demandé juste après — rien d’autre.": "Votre prénom vous sera demandé juste après — rien d’autre.",
+    "Ton prénom te sera demandé à l’écran suivant — rien d’autre.": "Votre prénom vous sera demandé à l’écran suivant — rien d’autre.",
+    "Entre l’e-mail de ton compte : on t’envoie un lien pour en choisir un nouveau.": "Entrez l’e-mail de votre compte : nous vous envoyons un lien pour en choisir un ",
+    "Tu as un numéro sur ton compte ?": "Vous avez un numéro sur votre compte ?",
+    "Reçois plutôt un code par SMS — sans rien réinitialiser.": "Recevez plutôt un code par SMS — sans rien réinitialiser.",
+    "Dans ta boîte de réception": "Dans votre boîte de réception",
+    "Ouvre-le pour choisir un nouveau mot de passe. Il reste valable 60 minutes.": "Si cette adresse a un compte, ouvrez le lien pour choisir un nouveau mot de pass",
+    "Une faute de frappe ? Reviens la changer.": "Une faute de frappe ? Revenez la changer.",
+    "Vérifie ton adresse": "Vérifiez votre adresse",
+    "Un lien est parti à . Tu peux continuer : on te le rappellera.": "Un lien est parti à . Vous pouvez continuer : nous vous le rappellerons.",
+    "Le message t’y attend déjà.": "Le message vous y attend déjà.",
+    "Une faute de frappe ? Change-la ici.": "Une faute de frappe ? Changez-la ici.",
+    "Tu reprends ta demande": "Vous reprenez votre demande",
+    "Tu reprends": "Vous reprenez",
+    "· Studio meublé, Mermoz": "· Micro Studio 10m²",
+    "Ton compte est ouvert.": "Votre compte est ouvert.",
+    "Ta demande de visite part dès que tu continues.": "Vous reprenez votre demande de visite dès que vous continuez.",
+    "Continuer ma demande de visite": "Continuer ma demande de visite"
+  },
+  "alias_motifs": {
+    "vouvoiement": "« tu » → « vous » : règle des libellés du produit (check-vouvoiement), comme TCK-2604",
+    "donnée": "titre, prix et agence du bien : ceux du bien de démo relevé (`bienQuitte`), comme TCK-2604",
+    "Lien envoyé": "« Si cette adresse a un compte, … » : AC4 — le même écran pour une adresse connue et inconnue ; la phrase ne doit rien affirmer du compte",
+    "reprise": "« part dès que tu continues » → « Vous reprenez … dès que vous continuez » : « Continuer » rouvre le geste sur la fiche (`/onboarding/intention` puis `?action=`), rien ne part tout seul — la phrase ne promet pas un envoi que le produit ne fait pas",
+    "80 caractères": "la clé d’un texte relevé est coupée à 80 caractères (`inventaire.mjs`) : les deux cibles plus longues (« Entrez l’e-mail… », « Si cette adresse… ») s’écrivent coupées au même endroit"
+  },
+  "ancres": [],
+  "ignorer": [
+    "a",
+    "z",
+    "e",
+    "r",
+    "t",
+    "y",
+    "u",
+    "i",
+    "o",
+    "p",
+    "q",
+    "s",
+    "d",
+    "f",
+    "g",
+    "h",
+    "j",
+    "k",
+    "l",
+    "m",
+    "w",
+    "x",
+    "c",
+    "v",
+    "b",
+    "n",
+    "123",
+    "espace",
+    "entrer",
+    "suivant",
+    "envoyer",
+    "@",
+    ".",
+    "lucide-arrow-big-up",
+    "lucide-delete"
+  ],
+  "ignorer_motif": "le clavier AZERTY du système, DESSINÉ par la maquette au téléphone (a-3, a-4, a-5) : le produit ne le rend pas, le clavier émulé (208 px) en réserve la hauteur",
+  "zones_motif": "aucune zone à contenu identique : la barre du bien porte une donnée (photo, titre), la colonne du formulaire les alias de vouvoiement",
+  "ecarts_acceptes": [
+    {
+      "ecran": "tous, téléphone",
+      "element": "ombre de la barre du bouton (« Me connecter », « Créer mon compte », « Envoyer le lien », « Ouvrir Gmail », « Continuer … »)",
+      "propriete": "oklab(…) au lieu de color(srgb …)",
+      "exception": "aucune — même couleur",
+      "motif": "`--shadow-color` à 40 % des deux côtés, écrit dans deux espaces colorimétriques : rgb(31,24,18) dans les deux cas ; même ligne que TCK-2604.json"
+    },
+    {
+      "ecran": "a-3 et a-4",
+      "element": "« Utiliser plutôt mon numéro » (hauteur 44 au lieu de 20 au téléphone, 39,6 au lieu de 16 au bureau ; y −12 / −10,8)",
+      "propriete": "hauteur, y",
+      "exception": "accessibilité",
+      "motif": "un `<button>` de 44 px de cible (TCK-560) ; la cible déborde la ligne (`-my-3`) pour que le TEXTE reste où la maquette le pose : son centre et l’icône du téléphone sont conformes sur a-3 (y du bouton = y de la maquette − 12 = la moitié des 24 px ajoutés)"
+    },
+    {
+      "ecran": "a-3 et a-4, bureau",
+      "element": "pastille « Retour à l’annonce »",
+      "propriete": "hauteur 39,6 au lieu de 32,4, y −3,6, marges 5,4",
+      "exception": "accessibilité",
+      "motif": "le plancher de 44 px de `RetourAuth` (TCK-560, W3), gardé par RetourAuth.test.tsx ; même écart accepté dans TCK-2604.json et TCK-2598.json"
+    },
+    {
+      "ecran": "a-3 et a-4, bureau",
+      "element": "carte du bien remontée de 27 px (« Votre demande de visite » à y 720 au lieu de 693) et `lucide-calendar-check` absent",
+      "propriete": "y, présence",
+      "exception": "donnée",
+      "motif": "une demande de visite ne porte aucune date avant la connexion : la ligne « Visite demandée pour samedi 15 nov. » (et son icône de calendrier) n’existe pas, la carte posée en bas du panneau perd une ligne — même motif que TCK-2604.json (a-0)"
+    },
+    {
+      "ecran": "a-4",
+      "element": "case des conditions : `lucide-check` absent, « conditions générales » x −4,7 / −4,2, y +3 / −3,6, interligne 20 au lieu de 19,3 (18 au lieu de 17,3) ; au bureau, la phrase du prénom et « Créer mon compte » à y −2,2",
+      "propriete": "présence, x, y, interligne",
+      "exception": "structure",
+      "motif": "la case est la primitive partagée des formulaires (`FormCheckbox`, case NATIVE de 16 px, `accent-primary`, libellé de 44 px de cible) : le navigateur dessine la coche, il n’y a pas d’icône ; la maquette dessine une case de 20 px avec une icône. Le texte suit la case (4 px plus étroite) et l’interligne de `text-sm` du libellé de la primitive ; la ligne des conditions est 0,7 px plus haute au bureau (interligne de `text-sm`), ce qui suit remonte de 2,2"
+    },
+    {
+      "ecran": "a-4",
+      "element": "`lucide-eye` de la maquette, `lucide-eye-off` du produit (même place, ±1 px)",
+      "propriete": "icône",
+      "exception": "structure",
+      "motif": "l’état relevé est « Mermoz2026 » AFFICHÉ (la maquette l’écrit en clair) : la bascule montre alors l’œil barré, qui dit l’action (« Masquer le mot de passe ») — la convention de la bascule partout dans le produit ; la maquette dessine l’œil ouvert sur un mot de passe en clair"
+    },
+    {
+      "ecran": "a-6-telephone",
+      "element": "tout ce qui suit le sous-titre (« Renvoyer le lien », « Corriger l’adresse », l’encadré SMS) plus bas de 22,5",
+      "propriete": "y",
+      "exception": "alias",
+      "motif": "conséquence d’AC4 : « Si cette adresse a un compte, ouvrez le lien… » (trois lignes) au lieu de « Ouvre-le pour choisir… » (deux) — la phrase ne doit rien affirmer du compte"
+    },
+    {
+      "ecran": "a-6-telephone, a-7-telephone",
+      "element": "aperçu du message : « Réinitialisation de votre mot de passe », « Confirmez votre adresse e-mail », « Veuillez confirmer votre adresse e-mail… » au lieu de l’objet et de l’extrait inventés par la maquette",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l’aperçu dit ce que la boîte montrera vraiment : l’objet et la première ligne des courriels que l’API envoie (`takussan-api/lang/fr/notifications.php`, `subject` et `intro`) — l’écran sert à reconnaître le message, il ne peut pas en annoncer un autre"
+    },
+    {
+      "ecran": "a-7",
+      "element": "« Continuer ma demande de visite » (téléphone) et « Continuer » (bureau) : boîte du texte 251,6 × 24 / 77,2 × 24 au lieu du bouton entier",
+      "propriete": "boîte du texte",
+      "exception": "structure",
+      "motif": "deux libellés selon la largeur, chacun dans un `<span>` (`lg:hidden` / `max-lg:hidden`) ; le bouton lui-même (position, taille, rayon, pied de 20 px) est conforme — même motif que « Avec un e-mail » dans TCK-2604.json"
+    },
+    {
+      "ecran": "a-7-bureau-1440",
+      "element": "« Vous reprenez » 89,6 px au lieu de 74,9",
+      "propriete": "largeur",
+      "exception": "alias",
+      "motif": "vouvoiement : « Vous reprenez » au lieu de « Tu reprends » ; position, corps, graisse conformes"
+    },
+    {
+      "ecran": "a-3 et a-4, bureau",
+      "element": "pixels différents ≈ 40 %",
+      "propriete": "pixels",
+      "exception": "donnée",
+      "motif": "le panneau de gauche est la photo du bien quitté (le bien de démo, pas la villa de la maquette) : il couvre près de la moitié de l’écran ; la colonne du formulaire est conforme élément par élément"
+    },
+    {
+      "ecran": "a-4-telephone",
+      "element": "« Votre prénom vous sera demandé juste après — rien d’autre. » sur deux lignes (34,9 au lieu de 17,9), et ce qui suit (« Utiliser plutôt mon numéro », l’icône) plus bas de 21,4",
+      "propriete": "hauteur, largeur, y",
+      "exception": "alias",
+      "motif": "la phrase du téléphone est celle de la maquette (« juste après », clé `prenomEnsuiteCourt`, `lg:hidden`), vouvoyée : « Votre prénom vous sera » est plus long que « Ton prénom te sera » et ne tient plus sur 358 px (mesuré : deux lignes) ; au bureau, « à l’écran suivant »"
+    },
+    {
+      "ecran": "a-3 à a-5, téléphone",
+      "element": "pixels différents 14 à 17 %",
+      "propriete": "pixels",
+      "exception": "structure",
+      "motif": "le clavier AZERTY dessiné par la maquette (208 px, `ignorer`) : le produit émule la hauteur du clavier (visualViewport), il ne le dessine pas — la zone reste vide côté produit"
+    },
+    {
+      "ecran": "a-5, a-6 (téléphone et bureau), a-7",
+      "element": "« Recevez plutôt un code par SMS… » (texte), icônes `rotate-cw`, `pencil`, `external-link` des rangées d’action",
+      "propriete": "couleur rgb(110,101,90) au lieu de foreground à 75 % / 70 %",
+      "exception": "accessibilité",
+      "motif": "une encre de texte ne s’atténue pas par l’opacité (TCK-658, garde `encre-sans-alpha.contraste.test.ts`, WCAG 2.2 §1.4.3) : l’encre douce OPAQUE du design system (`text-muted-foreground`) remplace `text-foreground/75` et `/70` de la maquette"
+    },
+    {
+      "ecran": "a-5 et a-6, bureau",
+      "element": "pastille « Retour à la connexion »",
+      "propriete": "hauteur 39,6 au lieu de 32,4, y −3,6",
+      "exception": "accessibilité",
+      "motif": "le plancher de 44 px des retours (TCK-560, W3), comme « Retour à l’annonce » (RetourAuth) — même écart que TCK-2604.json"
+    }
+  ],
+  "hors_perimetre": []
+}

@@ -270,11 +270,28 @@ describe('TCK-382 — inventaire', () => {
     ).toEqual([]);
   });
 
-  it('deux pages seulement ne rendent aucun document, et ce sont des redirections nues', () => {
+  it('dix pages seulement ne rendent aucun document, et ce sont des redirections nues', () => {
     // Ratchet : l'exemption des règles « titre » ci-dessous est DÉRIVÉE (aucun JSX rendu), pas
     // écrite. Ce test fige sa taille pour qu'une page muette de plus soit un acte conscient.
     const muettes = PAGES.filter(estUneRedirectionSeule).map((p) => p.rel);
-    expect(muettes.sort()).toEqual(['crm/page.tsx', 'overview/page.tsx']);
+    // TCK-2644 : `leases/onboarding-pending` est devenu un onglet de la liste des baux ; la route
+    // reste pour les liens déjà envoyés (notifications, courriels).
+    // TCK-2625 : « Ma situation » (`overview/tenant`) est absorbée par l'accueil `/app` ; l'adresse
+    // reste pour les signets.
+    // TCK-2628 (ADR-0096 § 4) : les sept anciennes vues de `/app/overview` sont des onglets de « Rapports » ;
+    // leurs adresses restent pour les signets, les e-mails et les notifications.
+    expect(muettes.sort()).toEqual([
+      'crm/page.tsx',
+      'leases/onboarding-pending/page.tsx',
+      'overview/agency/page.tsx',
+      'overview/agent/page.tsx',
+      'overview/alerts/page.tsx',
+      'overview/exports/page.tsx',
+      'overview/kpis/page.tsx',
+      'overview/owner/page.tsx',
+      'overview/page.tsx',
+      'overview/tenant/page.tsx',
+    ]);
   });
 });
 
@@ -349,7 +366,12 @@ describe('TCK-382 — inventaire', () => {
  * l'exige) — ce qui n'est juste que tant qu'aucun repli ne se pose au-dessus d'elles. La règle
  * ci-dessous le refuse donc comme pour tout autre terminateur.
  */
-const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin)\s*\(/;
+/*
+ * ⚠ `aiguillerVersLArgent` y est entré avec TCK-2677 : `/app/payments` mène l'admin d'agence à
+ * « Argent » selon `?tab=` — une décision de page (un layout ne lit pas `searchParams`), par
+ * `redirect()`, exactement comme `garderPageAdmin`.
+ */
+const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin|aiguillerVersLArgent)\s*\(/;
 
 /**
  * TCK-649 — une page qui se garde elle-même par `garderPageAdmin` (la table des pages,
@@ -361,6 +383,154 @@ const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*
  */
 function seGardeParLaTableDesPages(page: Page): boolean {
   return /\bawait\s+garderPageAdmin\s*\(/.test(sansCommentaires(page.source));
+}
+
+/**
+ * TCK-2677 — la même logique pour `/app/payments`, qui mène l'admin d'agence à « Argent » par
+ * `aiguillerVersLArgent` depuis son propre rendu : un repli au-dessus d'elle changerait son 307 en
+ * 200. Elle n'a donc PAS de repli (le sien a été retiré), et la règle des refus, où
+ * `aiguillerVersLArgent` est un terminateur, la veut hors de toute frontière. Propriété DÉRIVÉE du
+ * code, comme `seGardeParLaTableDesPages`.
+ *
+ * L'exemption ne vaut que pour une page qui n'attend RIEN d'autre que des lectures déjà payées
+ * par le layout de `/app` : `getMeAction` (`cache()`), l'aiguillage lui-même (l'agence, `cache()`ée
+ * par rendu et déjà lue par le layout), les messages (`getTranslations`, sans réseau) et ses
+ * propres `searchParams` / `params`. Elle se PERD (et la règle des replis réclame un `loading.tsx`)
+ * dès que la page :
+ *
+ *   1. attend un autre nom (`await fetch…`, `await Promise.all…`) ;
+ *   2. enchaîne une attente par `.then(` (E3 de la vérification : `getTranslations(…).then(() => fetch(…))`) ;
+ *   3. déclare ou réaffecte localement un des noms permis (E4 : `const params = fetch(…); await params;`),
+ *      ou importe une fonction permise d'un autre module que le sien (`import { lire as getTranslations }`) ;
+ *   4. rend un composant serveur qui attend (E5 : `<Lent />`, composant `async` importé) : chaque balise
+ *      du rendu dont le nom commence par une capitale est résolue jusqu'à sa définition (barils
+ *      `export { X } from` suivis) ; un module `'use client'` passe ; un module serveur passe s'il ne
+ *      contient ni `async` ni `await` ; une définition introuvable fait perdre l'exemption.
+ *
+ * ⚠ **Limites, écrites plutôt que tues** (une garde statique ne lit pas tout) :
+ *   - un composant serveur SYNCHRONE importé, sans `async` ni `await` dans son module, qui rend
+ *     lui-même un composant serveur `async` d'un AUTRE module : la descente s'arrête au premier niveau ;
+ *   - une balise venue d'un paquet (`next/link`, `react`) n'est pas lue : un paquet n'expose pas de
+ *     composant serveur qui attend notre API ;
+ *   - une attente cachée derrière un appel de fonction sans `await` ni `.then` dans la page (une
+ *     promesse rendue en enfant, `{lire()}`) n'est pas vue ;
+ *   - cinq écritures artificielles d'une attente échappent au relevé des noms attendus (contre-vérification
+ *     de TCK-2677) : `await(fetch(…))` sans espace, `await [fetch(…)][0]`, `await (0, fetch)(…)`, et
+ *     `use(fetch(…))` de React, dans la page comme dans un composant local. Aucune n'est une forme du
+ *     dépôt ; la règle 1 ne lit que `await`, une espace, puis un nom (une parenthèse ouvrante admise).
+ */
+const ATTENTES_SANS_RESEAU = new Set(['getMeAction', 'aiguillerVersLArgent', 'getTranslations', 'searchParams', 'params']);
+
+/** Le module d'où chaque fonction permise doit venir : un homonyme importé d'ailleurs n'est pas elle. */
+const MODULE_DE_L_ATTENTE: Readonly<Record<string, string>> = {
+  getMeAction: '@/app/actions/auth',
+  aiguillerVersLArgent: '@/lib/access/pages-admin-server',
+  getTranslations: 'next-intl/server',
+};
+
+const SRC = join(APP, '..', '..', '..');
+
+/** Les imports de valeur d'un module : nom local → module. Les `import type` ne lient rien au rendu. */
+function importsDe(source: string): Map<string, string> {
+  const sortie = new Map<string, string>();
+  for (const m of source.matchAll(/^import\s+(?!type\s)([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/gm)) {
+    const [, clause, module] = m;
+    const accolades = /\{([\s\S]*)\}/.exec(clause)?.[1];
+    if (accolades) {
+      for (const brut of accolades.split(',')) {
+        const nom = brut.trim().replace(/^type\s+/, '');
+        if (!nom || brut.trim().startsWith('type ')) continue;
+        const local = nom.split(/\s+as\s+/).pop()!.trim();
+        sortie.set(local, module);
+      }
+    }
+    const parDefaut = /^([A-Za-z_$][\w$]*)/.exec(clause.trim())?.[1];
+    if (parDefaut) sortie.set(parDefaut, module);
+  }
+  return sortie;
+}
+
+/** Lecteur des modules : le disque, ou un dictionnaire spécifiant → source (tests de la garde). */
+type LecteurDeModule = (specifiant: string, depuis: string) => { readonly fichier: string; readonly source: string } | null;
+
+const lireDuDepot: LecteurDeModule = (specifiant, depuis) => {
+  const base = specifiant.startsWith('@/') ? join(SRC, specifiant.slice(2)) : specifiant.startsWith('.') ? join(dirname(depuis), specifiant) : null;
+  if (base === null) return null;
+  for (const suffixe of ['', '.tsx', '.ts', '/index.tsx', '/index.ts']) {
+    const fichier = base + suffixe;
+    if (existsSync(fichier) && !readdirSafe(fichier)) return { fichier, source: readFileSync(fichier, 'utf8') };
+  }
+  return null;
+};
+
+function readdirSafe(chemin: string): boolean {
+  try {
+    readdirSync(chemin);
+    return true; // un répertoire
+  } catch {
+    return false;
+  }
+}
+
+const estUnPaquet = (specifiant: string) => !specifiant.startsWith('@/') && !specifiant.startsWith('.');
+
+/**
+ * Un composant `nom` importé de `specifiant` peut-il suspendre le rendu serveur ? `true` aussi quand
+ * sa définition est introuvable : une garde qui ne sait pas lire le DIT, elle ne compte pas conforme.
+ */
+function composantQuiAttend(nom: string, specifiant: string, depuis: string, lire: LecteurDeModule, profondeur = 0): boolean {
+  if (estUnPaquet(specifiant)) return false;
+  if (profondeur > 5) return true;
+  const lu = lire(specifiant, depuis);
+  if (lu === null) return true;
+  const code = sansCommentaires(lu.source);
+  if (/^\s*['"]use client['"]/.test(code)) return false;
+  const attend = /\basync\b|\bawait\b/.test(code);
+  if (new RegExp(`export\\s+(?:default\\s+)?(?:async\\s+)?function\\s+${nom}\\b|export\\s+(?:const|let)\\s+${nom}\\b`).test(code)) return attend;
+  for (const m of code.matchAll(/export\s+\{([^}]*)\}\s+from\s+['"]([^'"]+)['"]/g)) {
+    const noms = m[1].split(',').map((x) => x.trim().split(/\s+as\s+/));
+    const trouve = noms.find((x) => (x[1] ?? x[0]).replace(/^type\s+/, '') === nom);
+    if (trouve) return composantQuiAttend(trouve[0], m[2], lu.fichier, lire, profondeur + 1);
+  }
+  for (const m of code.matchAll(/export\s+\*\s+from\s+['"]([^'"]+)['"]/g)) {
+    const sous = lire(m[1], lu.fichier);
+    if (sous && new RegExp(`\\b${nom}\\b`).test(sous.source)) return composantQuiAttend(nom, m[1], lu.fichier, lire, profondeur + 1);
+  }
+  // Un import par défaut (`import Lent from './Lent'`) : la définition est l'export par défaut.
+  if (/export\s+default\b/.test(code)) return attend;
+  return true;
+}
+
+function aiguilleDansSonRendu(page: Page, lire: LecteurDeModule = lireDuDepot): boolean {
+  const source = sansCommentaires(page.source);
+  if (!/\bawait\s+aiguillerVersLArgent\s*\(/.test(source)) return false;
+  // 1. Rien d'autre n'est attendu.
+  const attendus = [...source.matchAll(/\bawait\s+(?:\(\s*)?([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+  if (!attendus.every((nom) => ATTENTES_SANS_RESEAU.has(nom))) return false;
+  // 2. Aucune attente enchaînée.
+  if (/\.then\s*\(/.test(source)) return false;
+  // 3. Les noms permis sont ceux qu'on croit : ni affectés (`const params = …` compris), ni déstructurés,
+  //    ni importés d'ailleurs (une fonction locale homonyme n'est pas importée : elle tombe aussi).
+  const permis = [...ATTENTES_SANS_RESEAU].join('|');
+  if (new RegExp(`\\b(?:const|let|var)\\s*[{[][^=]*\\b(?:${permis})\\b[^=]*[}\\]]\\s*=`).test(source)) return false;
+  if (new RegExp(`(?<![.\\w$])(?:${permis})\\s*=(?![=>])`).test(source)) return false;
+  const imports = importsDe(page.source);
+  for (const [nom, origine] of Object.entries(MODULE_DE_L_ATTENTE)) {
+    if (imports.has(nom) && imports.get(nom) !== origine) return false;
+    if (attendus.includes(nom) && !imports.has(nom)) return false;
+  }
+  // 4. Aucun enfant serveur qui attend.
+  const corps = sansCommentaires(page.corps ?? page.source);
+  for (const balise of new Set([...corps.matchAll(/<([A-Z][\w$]*)/g)].map((m) => m[1]))) {
+    const origine = imports.get(balise);
+    if (origine === undefined) {
+      // Défini dans la page : il ne doit pas être `async`.
+      if (new RegExp(`async\\s+function\\s+${balise}\\b|\\b${balise}\\s*=\\s*async\\b`).test(source)) return false;
+      continue;
+    }
+    if (composantQuiAttend(balise, origine, page.fichier, lire)) return false;
+  }
+  return true;
 }
 
 describe('TCK-426 — aucune page muette sous une frontière de suspension', () => {
@@ -503,6 +673,8 @@ describe('TCK-382 / AC1 — l’attente', () => {
       if (estUneRedirectionSeule(page)) continue;
       // TCK-649 — même logique : une garde DANS la page ne survit à aucun repli au-dessus d'elle.
       if (seGardeParLaTableDesPages(page)) continue;
+      // TCK-2677 — et la page qui aiguille l'admin d'agence vers « Argent ».
+      if (aiguilleDansSonRendu(page)) continue;
       let dossier = page.segment;
       let couverte = false;
       // `app/loading.tsx` ne couvre que `app/page.tsx` : la boucle s'arrête AVANT de remonter
@@ -647,3 +819,59 @@ describe('TCK-382 / AC4 & AC6 — le titre d’onglet', () => {
     expect(fautifs, `titres codés en dur : ${fautifs.join(', ')}`).toEqual([]);
   });
 });
+
+describe('TCK-2677 (reprise) — l’exemption de la page qui aiguille ne se contourne pas', () => {
+  const REELLE = PAGES.find((p) => p.rel === join('payments', 'page.tsx'))!;
+  const variante = (remplacer: (source: string) => string): Page => {
+    const source = remplacer(REELLE.source);
+    const debut = source.search(/export default (async )?function/);
+    return { ...REELLE, source, corps: debut >= 0 ? source.slice(debut) : null };
+  };
+  const APRES_L_AIGUILLAGE = '  await aiguillerVersLArgent(user, searchParams);\n';
+
+  it('la page réelle garde son exemption', () => {
+    expect(REELLE).toBeDefined();
+    expect(aiguilleDansSonRendu(REELLE)).toBe(true);
+  });
+
+  it('E2 — une attente réseau directe la perd', () => {
+    expect(aiguilleDansSonRendu(variante((s) => s.replace(APRES_L_AIGUILLAGE, `${APRES_L_AIGUILLAGE}  await fetch('/api/x');\n`)))).toBe(false);
+  });
+
+  it('E3 — une attente enchaînée par `.then` la perd', () => {
+    const mutant = variante((s) => s.replace("const t = await getTranslations('dashboard.pages.payments');\n  const client", "const t = await getTranslations('dashboard.pages.payments').then((x) => fetch('/api/x').then(() => x));\n  const client"));
+    expect(mutant.source).toContain('.then(');
+    expect(aiguilleDansSonRendu(mutant)).toBe(false);
+  });
+
+  it('E4 — une promesse réseau nommée `params` (ou `searchParams` réaffecté) la perd', () => {
+    expect(aiguilleDansSonRendu(variante((s) => s.replace(APRES_L_AIGUILLAGE, `${APRES_L_AIGUILLAGE}  const params = fetch('/api/x');\n  await params;\n`)))).toBe(false);
+    expect(aiguilleDansSonRendu(variante((s) => s.replace(APRES_L_AIGUILLAGE, `  searchParams = fetch('/api/x') as never;\n${APRES_L_AIGUILLAGE}`)))).toBe(false);
+    expect(aiguilleDansSonRendu(variante((s) => s.replace(APRES_L_AIGUILLAGE, `${APRES_L_AIGUILLAGE}  const { params } = { params: fetch('/api/x') };\n  await params;\n`)))).toBe(false);
+  });
+
+  it('une fonction permise importée d’un autre module (homonyme) la perd', () => {
+    const mutant = variante((s) => s.replace("import { getTranslations } from 'next-intl/server';", "import { lireLeReseau as getTranslations } from '@/lib/api';"));
+    expect(mutant.source).toContain('lireLeReseau as getTranslations');
+    expect(aiguilleDansSonRendu(mutant)).toBe(false);
+  });
+
+  it('E5 — un composant serveur `async` importé, rendu par la page, la perd ; un composant client non', () => {
+    const avecEnfant = (module: string) =>
+      variante((s) => s.replace("import type { ParametresDeLaPage }", `import { Lent } from '${module}';\nimport type { ParametresDeLaPage }`).replace('<PageHeader title', '<Lent />\n      <PageHeader title'));
+    const lire = (sources: Record<string, string>) => (specifiant: string, depuis: string) =>
+      specifiant in sources ? { fichier: specifiant, source: sources[specifiant] } : lireDuDepot(specifiant, depuis);
+    const serveur = "export async function Lent() { const r = await fetch('/api/x'); return <p>{String(r.ok)}</p>; }";
+    const client = "'use client';\nexport function Lent() { return <p />; }";
+    expect(aiguilleDansSonRendu(avecEnfant('@/components/lent'), lire({ '@/components/lent': serveur }))).toBe(false);
+    expect(aiguilleDansSonRendu(avecEnfant('@/components/lent'), lire({ '@/components/lent': client }))).toBe(true);
+    // Introuvable : la garde le dit au lieu de le compter conforme.
+    expect(aiguilleDansSonRendu(avecEnfant('@/components/introuvable-tck-2677'))).toBe(false);
+  });
+
+  it('un composant `async` défini dans la page la perd aussi', () => {
+    const mutant = variante((s) => s.replace('export const dynamic', "async function Lent() { return null; }\n\nexport const dynamic").replace('<PageHeader title', '<Lent />\n      <PageHeader title'));
+    expect(aiguilleDansSonRendu(mutant)).toBe(false);
+  });
+});
+

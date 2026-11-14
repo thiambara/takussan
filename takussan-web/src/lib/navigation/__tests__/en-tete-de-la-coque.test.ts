@@ -74,7 +74,7 @@ describe('TCK-2617 — chaque route de /app a une forme et un titre', () => {
 describe('TCK-2617 — la forme par route', () => {
   it('accueil, racines, détails, plein écran', () => {
     expect(formeDeLaRoute('/app')).toBe('accueil');
-    for (const r of ['/app/leases', '/app/leads', '/app/messages', '/app/profile', '/app/agency/team', '/app/overview/owner', '/app/notifications']) {
+    for (const r of ['/app/leases', '/app/leads', '/app/messages', '/app/profile', '/app/agency/team', '/app/reports', '/app/reports/team', '/app/reports/payouts', '/app/notifications']) {
       expect(formeDeLaRoute(r), r).toBe('racine');
     }
     for (const r of ['/app/leases/7', '/app/customers/3', '/app/maintenance/9', '/app/documents/1', '/app/profile/notifications', '/app/agency/finances/reconciliation/12']) {
@@ -116,6 +116,15 @@ describe('TCK-2617 — le titre dérivé du menu', () => {
     expect(libelle(titreDeLaRoute('/app/leases', CLIENT))).toBe('Mes baux');
     expect(libelle(titreDeLaRoute('/app/leads', ADMIN))).toBe('Demandes de contact');
     expect(libelle(titreDeLaRoute('/app/agency/team', ADMIN))).toBe('Équipe');
+  });
+
+  it('TCK-2618 — le libellé propre au persona : « Loyers » du bailleur, le mot de son onglet et de son entrée', () => {
+    const BAILLEUR: ContexteDeMenu = { roles: ['customer', 'owner'] as UserRole[], capacites: null };
+    expect(libelle(titreDeLaRoute('/app/payments', BAILLEUR, 'bailleur'))).toBe('Loyers');
+    expect(libelle(titreDeLaRoute('/app/payments/12', BAILLEUR, 'bailleur'))).toBe('Loyers');
+    expect(libelle(titreDeLaRoute('/app/payments', CLIENT, 'locataire'))).toBe('Paiements');
+    // Sans persona : le libellé du catalogue, inchangé.
+    expect(libelle(titreDeLaRoute('/app/payments', BAILLEUR))).toBe('Finances');
   });
 
   it('un détail non nommé prend le titre de sa liste ; hors /app, rien', () => {

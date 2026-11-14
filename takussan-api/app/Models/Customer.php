@@ -8,15 +8,18 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Models\Enums\LastContactChannel;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Crm\CustomerNextActionQuery;
 use App\Services\Crm\CustomerPhoneNormalizer;
+use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
 use App\Sorts\CustomerLastContactedSort;
 use App\Sorts\CustomerNextActionSort;
+use App\Support\Query\CompteDansLAgenceDeLaFiche;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +33,7 @@ use Illuminate\Support\Facades\Validator;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -101,6 +105,8 @@ class Customer extends AbstractModel
         'min_bedrooms' => 'integer',
         // TCK-2583 — écrite par `ContactGestureService::touchCustomer()` seulement, jamais fillable.
         'last_contacted_at' => 'datetime',
+        // TCK-2766 — le canal du dernier contact, écrit avec `last_contacted_at` par la même requête.
+        'last_contact_channel' => LastContactChannel::class,
         // TCK-2582 — écrites par `ContactLeadService` seul (conversion, rattachement), jamais fillable.
         'source_contact_lead_id' => 'integer',
         'interested_property_id' => 'integer',
@@ -131,8 +137,11 @@ class Customer extends AbstractModel
      */
     protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks', 'upcomingVisits', 'origin', 'interestedProperty'];
 
-    /** TCK-2588 — `visitsCount`. */
-    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks', 'visits'];
+    /**
+     * TCK-2588 — `visitsCount`. TCK-2589 — `bookingsCount` et `leasesCount` sont déclarés à part
+     * ({@see self::getAllowedQueryIncludes()}) : comptés dans l'agence de la fiche seulement.
+     */
+    protected static array $requestCountable = ['notes', 'tasks', 'visits'];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
 
@@ -177,6 +186,21 @@ class Customer extends AbstractModel
                 ],
             )
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * TCK-2589 — les comptes du dossier de la fiche (« Réservations », « Baux ») : ceux de l'agence
+     * de la fiche seulement ({@see CompteDansLAgenceDeLaFiche}).
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [
+            ...parent::getAllowedQueryIncludes(),
+            AllowedInclude::custom('bookingsCount', new CompteDansLAgenceDeLaFiche('bookings')),
+            AllowedInclude::custom('leasesCount', new CompteDansLAgenceDeLaFiche('leases')),
+        ];
     }
 
     /**
@@ -280,6 +304,25 @@ class Customer extends AbstractModel
             }
         });
 
+        // TCK-2592 (décision 1b) — `filter[exited_within_days]=N` (1 à 90) : les fiches sorties
+        // (passées à Gagné ou Perdu) dans les N derniers jours, d'après le journal — la définition
+        // même de la tuile « Conversion » ({@see PipelineStatsService::sortiesRecentes()}). Une valeur
+        // vide, faite d'espaces, hors bornes ou multiple rend 422, jamais toute la liste (nullable :
+        // la valeur vide atteint la validation). Hors personnel, le journal des étapes est un fait
+        // interne de l'agence : le filtre ne rend rien, comme `follow_up=1`.
+        $filters[] = AllowedFilter::callback('exited_within_days', function (Builder $q, mixed $value) {
+            Validator::make(['filter' => ['exited_within_days' => $value]], [
+                'filter.exited_within_days' => ['required', 'integer', 'between:1,90'],
+            ])->validate();
+
+            if (! static::readsAgencyInternals(request()->user())) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->whereIn('customers.id', PipelineStatsService::sortiesRecentes((int) $value)->select('subject_id'));
+        })->nullable();
+
         // TCK-2588 — `filter[stage_group]=active` : les étapes vivantes (lead à négociation).
         $filters[] = AllowedFilter::callback('stage_group', function (Builder $q, mixed $value) {
             Validator::make(['filter' => ['stage_group' => $value]], [
@@ -337,7 +380,9 @@ class Customer extends AbstractModel
         }
 
         $memberAgencyIds = app(MembershipCapabilityResolver::class)->memberAgencyIds($user);
+        // TCK-2757 — l'auteur n'est jamais le sujet : même règle que `CustomerPolicy::isAuthorStillMember()`.
         $ownAdds = fn (Builder $q) => $q->where('added_by_id', $user->id)
+            ->where(fn (Builder $s) => $s->whereNull('user_id')->orWhere('user_id', '!=', $user->id))
             ->where(fn (Builder $a) => $a->whereNull('agency_id')->orWhereIn('agency_id', $memberAgencyIds));
 
         $staffAgencyId = $user->staffAgencyId();
@@ -438,7 +483,10 @@ class Customer extends AbstractModel
      */
     public function upcomingVisits(): HasMany
     {
+        // TCK-2589 — le bien de chaque visite (son agence, son titulaire), lu en UNE requête par
+        // chargement : `upcoming_visits[].manage` en juge ({@see \App\Policies\PropertyVisitPolicy::gere()}).
         return $this->hasMany(PropertyVisit::class)
+            ->with('property:id,agency_id,user_id')
             ->whereIn('property_visits.status', CustomerNextActionQuery::VISIT_STATUSES)
             ->where('property_visits.scheduled_at', '>=', now())
             ->orderBy('property_visits.scheduled_at')

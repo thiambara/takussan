@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
+import { getTranslations } from 'next-intl/server';
+
+import { CoqueDEntree } from '@/components/entree/CoqueDEntree';
+import { libellesDeLaCoque } from '@/components/entree/libelles-de-la-coque';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
@@ -23,12 +27,19 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
  * `useSwitchActiveProfile`, qui annonce la bascule par un toast. Sans fournisseur, base-ui lève
  * (« Base UI error #73 ») DÈS LE RENDU — `/publish` tombait sur la frontière d'erreur, relevé sur
  * preview le 2026-10-10. `/publish` est hors des quatre coques qui en montent un.
+ *
+ * TCK-2598 — la coque d'entrée commune : « Publier votre bien » en titre, « ✕ » au téléphone et
+ * « Quitter » au bureau, vers l'accueil. Le fournisseur de toasts reste AU-DESSUS d'elle.
  */
 export default async function PublishLayout({ children }: { children: ReactNode }) {
+  const libelles = await libellesDeLaCoque();
+  const t = await getTranslations('coqueDEntree');
   return (
     <IntlProvider messages={await messagesPour('publish')}>
       <ToastProvider>
-        {children}
+        <CoqueDEntree libelles={libelles} titre={t('publier')} sortie={{ href: '/', forme: 'quitter' }}>
+          {children}
+        </CoqueDEntree>
         <Toaster />
       </ToastProvider>
     </IntlProvider>

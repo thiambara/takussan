@@ -172,12 +172,13 @@ describe('TCK-2687 — les jetons du repli de l’avatar', () => {
     expect(j).toBeGreaterThan(i);
     expect(theme()).toMatch(/--color-fond-avatar:\s*var\(--muted\);/);
     expect(theme()).toMatch(/--color-encre-avatar:\s*var\(--muted-foreground\);/);
-    // Six tailles, en rem (jamais en px), et une police à 0,36 × la taille (±0,1 px à 16 px le rem).
-    for (const n of [28, 32, 36, 40, 44, 48]) {
+    // Sept tailles, en rem (jamais en px), et une police à 0,36 × la taille ARRONDIE au px, comme la
+    // maquette (`Math.round(taille × 0,36)`) : 32 → 12 px, pas 11,52 (relevé de verif-commercial, TCK-2590).
+    for (const n of [28, 32, 36, 40, 44, 48, 52]) {
       const taille = theme().match(new RegExp(`--spacing-avatar-${n}:\\s*([\\d.]+)rem;`));
       const police = theme().match(new RegExp(`--text-avatar-${n}:\\s*([\\d.]+)rem;`));
       expect(Number(taille![1]) * 16).toBe(n);
-      expect(Math.abs(Number(police![1]) * 16 - 0.36 * n)).toBeLessThanOrEqual(0.1);
+      expect(Number(police![1]) * 16).toBe(Math.round(0.36 * n));
     }
   });
 
@@ -188,7 +189,8 @@ describe('TCK-2687 — les jetons du repli de l’avatar', () => {
       color: PRIMITIVES_DE_L_APP.color,
     };
     const noms = [...theme().matchAll(/--([a-z]+)-([\w-]+)\s*:/g)].map((m) => [m[1]!, m[2]!] as const);
-    expect(noms.length).toBe(14);
+    // 7 tailles × (spacing + text) + 2 couleurs ; la 7ᵉ, 52, est la tête de la fiche client (TCK-2590).
+    expect(noms.length).toBe(16);
     for (const [famille, nom] of noms) expect(connus[famille], `--${famille}-${nom}`).toContain(nom);
     expect(cn('bg-fond-avatar', 'bg-foreground')).toBe('bg-foreground');
     expect(cn('text-encre-avatar', 'text-background')).toBe('text-background');

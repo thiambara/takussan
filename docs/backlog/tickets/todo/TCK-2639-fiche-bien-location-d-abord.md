@@ -141,4 +141,83 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+- **AC2 dépend de TCK-2643** : « Créer un bail » mène à `/app/leases/new?property={id}` (lien vérifié par test) ; le préchoix du bien sur cette page est le delta de TCK-2643 (entrée `?property=`), qui déclare déjà `blocks: [TCK-2639]`.
+- **API** : `PropertyResource` rend `owner_profile_id` (fiche, appelant connu) au seul appelant qui ouvrirait la fiche du bailleur (`OwnerProfilePolicy::isInActorAgency` + `viewDetail`, profil du titulaire DANS l'agence du bien) ; `null` sinon. Tests `FicheDuBienProfilDuBailleurTest` (4), ablations rouges (sans `viewDetail`, sans le filtre d'agence). ⚠ /sync-specs : champ neuf à porter dans `models-spec.md` § Property et `features.md` § 1.1.
+- **Deux colonnes à `xl`, pas à `lg`** : la maquette pose `xl:flex-row` (bureau 1280 et 1440) ; sous `xl`, la pile du téléphone (ADR-0106 § 4). Carte collante `xl:sticky xl:top-6`, 360 px (`xl:w-100`).
+- **Téléphone en pleine largeur** (`PagePleineLargeur`, TCK-2691) : bandeau photo de 200 px bord à bord, identité (`type · surface · référence` + pastilles) ; le H1 de `PageHeader` reste lu par les lecteurs d'écran (`max-md:sr-only`), la copie visible leur est tue.
+- **Propriétaire et agent responsable (TCK-603)** : pour un bien en location, dans « Mandat » (téléphone) et sous la carte « Occupation » (bureau, `BlocResponsable`) ; la ligne de l'en-tête ne s'y répète plus dès `xl`. Un bien hors location la garde partout.
+- **« Ajouter un document »** quitte l'en-tête du BUREAU (la maquette a-2 n'y met que « Planifier une visite », « Voir la fiche publique » et « ⋯ ») ; il reste dans la feuille « ⋯ » du téléphone (`PropertyHeaderActions ajouterUnDocument`) et dans l'onglet Documents, préattaché au bien (AC3) — « Rien ne se perd ». Le « ⋯ » de l'en-tête est bordé (maquette).
+- **Dictionnaire** : la relance réutilise `FeuilleDeRelance` (TCK-2644) et l'encaissement `LeasePaymentDialog` : la frontière `(dashboard)/app/properties` sert désormais `admin` et `payments` (`check-i18n-namespaces --update`, plafond 50 → 62 %). Sans eux, « Relancer » levait `MISSING_MESSAGE` au navigateur — la suite vitest ne le voit pas (mesuré : aucun dialogue, erreur `admin.finances.impayes`). Suite possible : sortir les clés de la relance de `admin` vers un espace à elles.
+- **Omis faute de donnée** : la date de révision, l'avis d'échéance, le moyen de paiement par échéance, le nombre de collaborateurs, la ligne « intervention en cours » de la carte du bureau.
+- **CLS** : la place de « Planifier une visite » (en-tête du bureau) est tenue pendant la lecture des profils (`placeReservee`), celle de « Relancer » / « Encaisser » pendant la lecture du bail (`gestesEnLecture`). Mesuré au navigateur le 2026-11-12 à 14:36 Z (load 6,6 / 8 cœurs), profils retardés de 3 s : CLS 0,0002 à 390, en-tête immobile ; 0,027 à 1440 (re-mesuré à 14:40 Z, chaque source rattachée à son `data-slot`) : 0,0204 hors de `<main>` — le menu de la coque (`menu`, `aujourdhui`) qui s'allonge — et 0,0069 dans la fiche : le tableau « Loyers » passe de sa ligne de chargement à ses échéances et pousse « À venir » / « Bail en cours » de 68 px. Non réservé : le nombre de lignes n'est connu qu'à la lecture (suite possible : réserver quatre lignes dès qu'un bail existe).
+- **La place réservée restait parfois pour de bon** (relevé au repos : 2 essais sur 4 à 1280, requête des profils pourtant `success`). Le serveur rend la place ; la coque, hydratée avant la fiche, a souvent déjà lu les profils, et le client rendait le vrai bouton dès l'hydratation — même balise, même texte : React garde les attributs du serveur (`invisible`, `aria-hidden`, « won't be patched up »). `PlanifierUneVisite` lit désormais les profils APRÈS l'hydratation (`useSyncExternalStore`, comme `VisitesParLeTemps`) ; test d'hydratation dans `PlanifierUneVisite.place-reservee.tck-2639.test.tsx`, rouge avant le correctif ; 5 essais sur 5 au navigateur ensuite. Vaut pour tous les appelants : avant, une fiche client hydratée avec les profils déjà lus rendait un bouton là où le serveur ne rendait rien.
+- **Preuves au navigateur** (2026-11-12, API locale, admin de démo, bien 6) : « Relancer » ouvre `https://wa.me/221…` avec le message de TCK-2644 (« Bonjour Aliou, le loyer de novembre (1 825 000 F CFA) reste à régler… ») ; à 1280, onglet Annonce défilé, la carte « Occupation » reste à l'écran (haut à 22 px) ; `scrollWidth − innerWidth = 0` à 390, 768, 1024, 1280 et 1440 (`fidelite balayer`).
+- **Fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json` (lignes, écarts acceptés, rideaux sous `takussan-web/.fidelite/TCK-2639/`).
+
+- 2026-11-12 — vérification adverse (d1, mineur) : le super-admin recevait le lien vers `/app/owners/{id}` (`isAdmin`),
+  que la page renvoie en 307 vers `/app`. Source unique côté front : `ouvreLaFicheDuBailleur(roles)`
+  (`src/lib/owners/fiche-accessible.ts`), lu par la garde de la page (`assertCanReachOwnerAccount`), le lien du
+  carnet et celui de la fiche du bien. L'API rend toujours `owner_profile_id` au super-admin, à qui
+  `GET /api/owners/{id}` est ouvert. Test `properties/[id]/__tests__/lien-vers-le-bailleur.tck-2639.test.tsx`
+  (3) : rouge avant ; ablations (`isAdmin` remis à la page ; super-admin dans le prédicat) rouges.
+
+**Réserve préexistante de verif-patrimoine : les gestes du menu « ⋯ » (2026-11-12).** Avant le
+correctif, Dépublier, Dupliquer, les statuts et Archiver partaient au premier toucher. Relevé au
+navigateur, admin, `/app/properties/6`, requêtes non-GET bloquées : l'échec réseau d'une action
+serveur (`TypeError: Failed to fetch`) n'était rattrapé nulle part. Il remontait de la transition
+jusqu'à `(dashboard)/error.tsx`, et la PAGE ENTIÈRE passait à l'écran d'erreur. Le bureau et le
+téléphone rendent le même `PropertyHeaderActions` ; le bureau ne confirmait que « Supprimer ».
+Décisions de la session :
+
+- (a) Tout échec est rattrapé et se dit par un toast, au téléphone comme au bureau.
+  - `runAction` et `duplicate` portent leur `try/catch`, et le message vient de
+    `useMessageErreurApi`.
+  - `usePublicationAvecCoordonnees.tenter` porte aussi le sien : publier et changer de statut, pour
+    l'en-tête, la ligne de liste et `GestionDuBien`. L'échec se dit dans la boîte si elle est ouverte,
+    sinon il passe à `onEchec`.
+  - L'erreur de « Supprimer » reste dans son dialogue, qui est ouvert au moment de l'échec.
+  - Les messages en ligne à côté du menu disparaissent de l'en-tête : au téléphone, ils vivaient
+    dans la feuille « ⋯ ».
+- (b) Archiver et Dépublier ouvrent un dialogue qui nomme le bien et l'effet (« ne sera plus visible
+  sur le site »). Dupliquer et les statuts restent en un geste, confirmé par un toast (nouvelle clé
+  `duplicated`).
+- Tests : `PropertyHeaderActions.gestes.test.tsx` (14 tests). Les tests paramétrés (statut,
+  publication, capacités, suppression, `PropertyHeaderActions.test.tsx`) lisent désormais l'issue
+  par un toast pour l'en-tête, et toujours à côté du menu pour la ligne de liste.
+- Ablations : sept, toutes rouges puis restaurées. Les quatre `catch` (runAction, duplicate,
+  delete, hook) relancent l'erreur ; Dépublier et Archiver partent sans dialogue ; le toast de
+  Dupliquer disparaît.
+- Navigateur, non-GET bloqués, admin, bien 6 :
+  - à 390 px (feuille « ⋯ ») : Dupliquer, En maintenance, Archiver puis confirmer, Dépublier puis
+    confirmer ;
+  - à 1440 px : Dupliquer, En maintenance, Archiver puis confirmer, Dépublier puis Annuler (aucun
+    POST de plus).
+  - Chaque fois : toast « Le serveur est injoignable… », zéro erreur en console, la page reste.
+
+**Suite, décision a : la liste des biens dans le même lot (2026-11-12).** Le menu de ligne
+`PropertyRowActions` présentait le même défaut : Archiver et Dépublier partaient sans confirmation,
+et les `await` n'étaient pas rattrapés. Les deux menus passent désormais par un seul hook,
+`src/components/property-dashboard/useGestesRapides.tsx`. Il porte le rattrapage, les toasts, les
+dialogues Archiver, Dépublier et Supprimer, ainsi que la publication et les statuts. Chaque menu ne
+lui donne que la phrase de suppression (`deleteBodyRow` ou `deleteBodyDetail`) et ce qui suit une
+suppression : la fiche quitte la page, la liste se rafraîchit. Les messages en ligne de la ligne
+(span, bulle du `menu`) sont retirés. `PropertyHeaderActions.gestes.test.tsx` joue ses 14 cas sur
+les deux menus, soit 28 tests ; le cas « Dupliquer en panne réseau → toast, la page reste » en fait
+partie. Sept tests de `PropertyList*` et `nom-contextuel` reçoivent un double de `useToast`, faute de
+quoi le rendu hors coque lève Base UI #73. Les 38 fichiers qui rendent ces menus passent (202 tests).
+Sept ablations sur le hook et les deux menus, toutes rouges puis restaurées. Navigateur, requêtes
+non-GET bloquées, `/app/properties`, à 390 et à 1440 px : Dupliquer, Archiver, Dépublier et
+En maintenance rendent un toast, sans aucune erreur en console.
+
+
+**« Encaisser » suit `abilities.record_payment`, bailleur compris (2026-11-13, TCK-2645 décision 2).**
+Le porteur a décidé, pour la fiche du bail, que « Encaisser » suit l'API : `LeasePolicy::recordPayment`
+l'accorde au bailleur qui écrit sur son bail (TCK-587). La fiche du bien s'aligne : `peutEncaisser`
+ne demande plus d'être du personnel, seulement `record_payment` sur le bail. Cela vaut pour la pile
+du téléphone et pour la carte « Occupation » du bureau. AC7 est amendé en conséquence : sans `record_payment`, le
+bailleur n'a ni « Encaisser » ni « Relancer » ; avec, il a « Encaisser ». « Relancer » reste un geste
+du personnel (`peutRelancer`), et la place tenue pendant la lecture (`gestesEnLecture`, CLS) aussi :
+pour le bailleur, « Encaisser » arrive sans place réservée. Tests : AC7 (pile et carte) avec
+`record_payment` faux, et un cas neuf « bailleur avec `record_payment` : Encaisser, jamais
+Relancer ». Deux ablations rouges puis restaurées : `peutEncaisser` à nouveau réservé au personnel,
+et la relance de nouveau sur `peutEncaisser`. 31 fichiers `property-dashboard`, 250 tests verts.

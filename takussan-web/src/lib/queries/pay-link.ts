@@ -36,6 +36,15 @@ export interface PayLink {
    * pas `null`, sans recalculer. Les clés nulles sont omises.
    */
   readonly offline_payment: PayLinkOfflinePayment | null;
+  /**
+   * TCK-2778 — ce que le lien fait payer : le loyer (`rent`, défaut d'un lien antérieur), ou la
+   * pénalité de retard SEULE restée due sur un loyer payé (`late_fee`). Pour un lien `late_fee`,
+   * `status` et `paid_at` décrivent le LOYER (payé) ; `amount_due` et `providers` sont ceux de la
+   * pénalité, et `late_fee_paid_at` dit qu'elle est réglée.
+   */
+  readonly subject?: 'rent' | 'late_fee';
+  /** TCK-2778 — l'instant du règlement de la pénalité de retard, ISO-8601 ; `null` tant qu'elle est due. */
+  readonly late_fee_paid_at?: string | null;
 }
 
 /** TCK-2504 — les moyens hors ligne déclarés par l'agence. `agency_whatsapp` n'est jamais rendu (aucune source). */
@@ -48,7 +57,10 @@ export interface PayLinkOfflinePayment {
 
 export interface PayLinkVerification {
   readonly status: string | null;
+  /** TCK-2778 — l'issue d'un lien `late_fee` se lit dans `late_fee_paid_at` : `status` décrit le loyer. */
+  readonly subject?: 'rent' | 'late_fee';
   readonly amount_due: number;
+  readonly late_fee_paid_at?: string | null;
   readonly receipt_available: boolean;
 }
 

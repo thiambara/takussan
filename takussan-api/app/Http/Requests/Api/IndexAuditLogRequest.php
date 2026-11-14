@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Activity;
+use App\Rules\InstantIso;
 
 /**
  * TCK-305 — extrait de AuditLogController::index(), où les règles étaient écrites en ligne.
@@ -40,8 +41,8 @@ class IndexAuditLogRequest extends BaseFormRequest
             'causer_type' => ['nullable', 'string'],
             'subject_id' => ['nullable'],
             'subject_type' => ['nullable', 'string'],
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'from' => ['nullable', 'date', new InstantIso],
+            'to' => ['nullable', 'date', new InstantIso, 'after_or_equal:from'],
             'order' => ['nullable', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
         ];

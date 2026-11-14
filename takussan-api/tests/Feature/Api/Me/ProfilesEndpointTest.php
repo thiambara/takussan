@@ -330,6 +330,49 @@ class ProfilesEndpointTest extends TestCase
     }
 
     /** AC3 — trois agences, pour que l'auto-bascule ne relie rien une fois B écartée. */
+    /**
+     * Trou hérité de TCK-2620 (relevé par la vérification adverse de TCK-2621) — le profil d'AUTRUI est refusé
+     * (403) AVANT que l'espace retenu ne soit écrit ou effacé : sous `remember` vrai, il n'est pas retenu à la
+     * place du mien ; sous `remember` faux, le mien n'est pas oublié. Le 403 seul ne le disait pas
+     * (`SelectActiveProfileTest::test_patch_active_profile_returns_403_for_other_users_profile`).
+     */
+    public function test_le_profil_d_autrui_n_ecrit_ni_n_efface_l_espace_retenu(): void
+    {
+        [$user, , $chezB, $a] = $this->agentDeDeuxAgences();
+        $sien = OwnerProfile::factory()->create(['user_id' => User::factory()->create()->id, 'agency_id' => $a->id]);
+
+        $this->seConnecter($user)->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}"])->assertOk();
+        $this->assertSame("agent:{$chezB->id}", $user->fresh()->metadata['last_active_profile'] ?? null);
+
+        foreach ([true, false] as $remember) {
+            $this->patchJson('/api/me/active-profile', ['profile_id' => "owner:{$sien->id}", 'remember' => $remember])->assertForbidden();
+            $this->assertSame(
+                "agent:{$chezB->id}",
+                $user->fresh()->metadata['last_active_profile'] ?? null,
+                'remember='.var_export($remember, true).' : ni écrit ni effacé',
+            );
+        }
+    }
+
+    /**
+     * Un espace retenu qui appartient à autrui (posé hors de la route) n'est jamais lié. Deux gardes : le
+     * middleware le juge par `resolve()` (profil DU compte), et `User::activeProfile()` écarte de toute façon un
+     * profil d'un autre compte. La réponse de `/api/auth/me` ne voit que la seconde : l'attribut de la requête
+     * garde la première, que lisent directement les lecteurs de `request()->activeProfile()`.
+     */
+    public function test_un_espace_retenu_d_autrui_est_ignore(): void
+    {
+        [$user, , , $a] = $this->agentDeDeuxAgences();
+        $sien = OwnerProfile::factory()->create(['user_id' => User::factory()->create()->id, 'agency_id' => $a->id]);
+        $user->forceFill(['metadata' => ['last_active_profile' => "owner:{$sien->id}"]])->save();
+
+        $this->seConnecter($user)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', null)
+            ->assertJsonPath('active_profile_id', null);
+        $this->assertNull(request()->attributes->get('active_profile'), 'le middleware ne lie pas le profil d\'autrui');
+    }
+
     public function test_un_profil_retenu_suspendu_est_ignore_sans_403(): void
     {
         [$user, , $chezB] = $this->agentDeDeuxAgences();

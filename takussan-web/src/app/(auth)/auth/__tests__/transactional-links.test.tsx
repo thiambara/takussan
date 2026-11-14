@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VerifyEmailHashPage from '../verify-email/[id]/[hash]/page';
 import ResetPasswordPage from '../reset-password/page';
-import LoginPage from '../login/page';
+import { FormulaireDeConnexion as LoginPage } from '../login/FormulaireDeConnexion';
 // TCK-286 — `withIntl` pour les pages CLIENT ; `mockTraductionsServeur` pour la page de
 // vérification, qui est un composant serveur : `getTranslations` y résout la locale via
 // `next/headers`, absent sous jsdom. Les assertions sont inchangées.
@@ -44,10 +44,6 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ setUser: vi.fn(), refreshUser: vi.fn(async () => {}) }),
 }));
 
-vi.mock('@/components/auth/OAuthButtons', () => ({
-  OAuthButtons: () => <div />,
-  OAuthSeparator: () => <div />,
-}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),

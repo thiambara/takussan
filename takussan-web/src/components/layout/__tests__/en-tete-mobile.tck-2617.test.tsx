@@ -215,6 +215,19 @@ describe('TCK-2617 — la conversation ouverte : un état, pas une route', () =>
   });
 });
 
+describe('TCK-2635 — une section du profil à enregistrer : sa barre prend la place des onglets', () => {
+  it('sans barre d’onglets, l’en-tête de détail et sa flèche restent ; l’emplacement de la barre d’action devient le bas de l’écran', () => {
+    chemin.valeur = '/app/profile/contact';
+    const { container } = monter(<DeclarerEnTete formulaire />);
+    expect(container.querySelector('[data-slot="barre-onglets"]')).toBeNull();
+    expect(coque(container)).not.toHaveAttribute('data-barre-onglets');
+    // ≠ plein écran : la forme reste « détail » (la flèche, pas « ✕ »), et l'en-tête est là.
+    expect(entete(container)).not.toBeNull();
+    expect(coque(container)).toHaveAttribute('data-forme-en-tete', 'detail');
+    expect(container.querySelector('#emplacement-barre-d-action')).toHaveAttribute('data-bas-de-l-ecran');
+  });
+});
+
 describe('TCK-2617 — hors de la coque, une déclaration ne fait rien', () => {
   it('sans fournisseur (`/super-admin`, le site public), `DeclarerEnTete` et `PageHeader` rendent sans lever', () => {
     const { container } = render(withIntl(<><DeclarerEnTete titre="X" conversation /><PageHeader title="Utilisateurs" /></>));

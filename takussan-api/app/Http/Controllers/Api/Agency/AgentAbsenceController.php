@@ -40,14 +40,14 @@ class AgentAbsenceController extends Controller
 
     public function store(Agency $agency, StoreAgentAbsenceRequest $request): JsonResponse
     {
-        $absence = $this->service->declare($agency, $request->user(), ['substitute_can_act' => $request->boolean('substitute_can_act')] + $request->validated());
+        $absence = $this->service->declare($agency, $request->user(), ['substitute_can_act' => $request->boolean('substitute_can_act')] + $request->validatedAvecInstants());
 
         return $this->json(['data' => $this->format($absence->load(['user', 'replaces', 'coverDelegation']), $request->user())], 201);
     }
 
     public function update(Agency $agency, RoleDelegation $delegation, UpdateAgentAbsenceRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
         if ($request->has('substitute_can_act')) {
             $data['substitute_can_act'] = $request->boolean('substitute_can_act');
         }

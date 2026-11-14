@@ -74,6 +74,8 @@ final class NotificationClassification
         'lease_payment.settled_online' => [self::P, false],
         'lease_payment.refunded' => [self::P, false],
         'lease_payment.refunded_landlord' => [self::P, false],
+        'lease_payment.late_fee_refunded' => [self::P, false],
+        'lease_payment.late_fee_refunded_landlord' => [self::P, false],
         // « Remboursez le payeur ou affectez la somme » : un geste de l'agence.
         'payment.duplicate' => [self::P, true],
         'payment.duplicate_late_fee' => [self::P, true],
@@ -86,6 +88,7 @@ final class NotificationClassification
         'booking.rejected' => [self::D, false],
         'booking.cancelled' => [self::D, false],
         'booking.recorded_on_behalf' => [self::D, false],
+        'booking.application_not_selected' => [self::D, false],
 
         // ─── Visites ──────────────────────────────────────────────────────────────────────
         'visit.reminder' => [self::V, false],
@@ -113,6 +116,13 @@ final class NotificationClassification
         // Le dossier est à reprendre.
         'kyc.rejected' => [self::S, true],
         'kyc.expiring_soon' => [self::S, true],
+
+        // ─── Documents ────────────────────────────────────────────────────────────────────
+        // TCK-2783 — une pièce à renouveler : un geste attendu de son porteur.
+        'document.expiring_soon' => [self::S, true],
+        // TCK-2812 — l'archive demandée est prête, ou a échoué : une information sur son propre geste.
+        'document.archive_ready' => [self::S, false],
+        'document.archive_failed' => [self::S, false],
 
         // ─── Gouvernance de l'agence et délégations ───────────────────────────────────────
         'governance.role_capabilities_changed' => [self::S, false],
@@ -164,6 +174,8 @@ final class NotificationClassification
         // Au bailleur : le devis attend son accord.
         'maintenance_quote.awaiting_owner' => [self::D, true],
         'maintenance.schedule_changed' => [self::D, false],
+        // TCK-2786 — au bailleur : la relance de l'agence, le devis attend toujours son accord.
+        'maintenance.owner_reminder' => [self::D, true],
 
         // ─── Biens ────────────────────────────────────────────────────────────────────────
         'prospect_match.digest' => [self::B, false],
@@ -276,6 +288,10 @@ final class NotificationClassification
         'saved_searches' => self::B,
         'favorites' => self::B,
         'credits' => self::S,
+        // TCK-2783 — la fiche d'une pièce du coffre.
+        'document' => self::S,
+        // TCK-2812 — le coffre, où se télécharge l'archive préparée.
+        'document_archive' => self::S,
     ];
 
     /**

@@ -1,26 +1,21 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ExternalLink, FileText, Paperclip, Send, ShieldCheck, Upload, XCircle } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { postKycReview } from '@/lib/queries/super-admin';
-import { submitAgencyKyc, uploadAgencyKycDocument } from '@/lib/queries/kyc';
 import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { demainIso } from '@/lib/kyc-echeance';
-import { lienPieceKyc } from '@/lib/lien-piece-kyc';
 import { KycEcheance } from './KycEcheance';
-import { KYC_MIME_ACCEPT } from './kyc-mime-accept';
 import { SharedIdentifiersNotice } from './SharedIdentifiersNotice';
 
 type DocumentType = 'rccm' | 'ninea' | 'director_id';
@@ -28,15 +23,7 @@ type DocumentType = 'rccm' | 'ninea' | 'director_id';
 /** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
 const DOCUMENTS: readonly DocumentType[] = ['rccm', 'ninea', 'director_id'];
 
-/**
- * TCK-601 — les pièces dont le dépôt EXIGE une échéance (`UploadKycDocumentRequest` :
- * `expires_at` `required_if:document_type,director_id`). Les autres n'en portent pas.
- */
-const PIECES_A_ECHEANCE: readonly DocumentType[] = ['director_id'];
-
-/** TCK-2150 (P222.06) — `AcceptedUploads::kyc(10240)` d'`UploadKycDocumentRequest`. La pièce part telle quelle. */
-const PIECE_MAX_MB = 10;
-const PIECE_MAX_BYTES = PIECE_MAX_MB * 1024 * 1024;
+// TCK-2671 — l'envoi des pièces par l'agence (`KycDocumentUploader`) vit dans `VerificationDeLAgence`.
 
 export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
   const t = useTranslations('kyc');
@@ -84,167 +71,6 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
             {dossier.rejection_reason}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; dossier: KycDossier }) {
-  const t = useTranslations('kyc');
-  const messageErreur = useMessageErreurApi();
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const [files, setFiles] = useState<Partial<Record<DocumentType, File>>>({});
-  const [echeances, setEcheances] = useState<Partial<Record<DocumentType, string>>>({});
-  const [tropLourdes, setTropLourdes] = useState<Partial<Record<DocumentType, string>>>({});
-  const inputs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({});
-  const locked = dossier.status === 'verified';
-  const documentsByType = useMemo(
-    () => new Map(dossier.documents.map((doc) => [doc.document_type, doc])),
-    [dossier.documents],
-  );
-
-  const uploadMutation = useMutation({
-    mutationFn: ({ type, file, expiresAt }: { type: DocumentType; file: File; expiresAt?: string }) =>
-      uploadAgencyKycDocument(agencyId, type, file, expiresAt),
-    onSuccess: async (_, { type }) => {
-      setFiles((current) => ({ ...current, [type]: undefined }));
-      setEcheances((current) => ({ ...current, [type]: undefined }));
-      toast.add({ title: t('uploader.toasts.documentAdded'), type: 'success' });
-      await queryClient.invalidateQueries({ queryKey: ['agency', agencyId, 'kyc'] });
-    },
-    onError: (error) => toast.add({ title: t('uploader.toasts.uploadFailed'), description: messageErreur(error, t('errors.generic')), type: 'error' }),
-  });
-
-  const submitMutation = useMutation({
-    mutationFn: () => submitAgencyKyc(agencyId),
-    onSuccess: async () => {
-      toast.add({ title: t('uploader.toasts.submitted'), type: 'success' });
-      await queryClient.invalidateQueries({ queryKey: ['agency', agencyId, 'kyc'] });
-    },
-    onError: (error) => toast.add({ title: t('uploader.toasts.submitFailed'), description: messageErreur(error, t('errors.generic')), type: 'error' }),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('uploader.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {DOCUMENTS.map((type) => {
-          const uploaded = documentsByType.get(type);
-          const exigeEcheance = PIECES_A_ECHEANCE.includes(type);
-          const echeanceManquante = exigeEcheance && !echeances[type];
-          return (
-            // Grille à deux colonnes dès `lg` seulement : à 768 la carte n'a que ~400 px (TCK-505).
-            <div key={type} className="grid gap-3 rounded-lg bg-muted/40 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-foreground">{t(`documents.${type}`)}</p>
-                  <ConsoleStatusBadge
-                    label={uploaded ? t('uploader.provided') : t('uploader.missing')}
-                    tone={uploaded ? 'success' : 'attention'}
-                  />
-                </div>
-                {uploaded ? (
-                  <a className="mt-1 inline-flex max-w-full items-center text-sm text-primary hover:underline" href={lienPieceKyc(uploaded.signed_url)} target="_blank" rel="noreferrer">
-                    <FileText className="mr-1 size-4 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{uploaded.file_name}</span>
-                    <ExternalLink className="ml-1 size-3 shrink-0" aria-hidden="true" />
-                  </a>
-                ) : (
-                  <p className="mt-1 text-xs text-muted-foreground">{t('uploader.accepted')}</p>
-                )}
-                {/* TCK-601 — l'échéance de la PIÈCE (`document_expires_at`), pas celle du lien. */}
-                {uploaded ? <KycEcheance value={uploaded.document_expires_at} className="mt-1" /> : null}
-                {exigeEcheance && !locked ? (
-                  <div className="mt-3 grid max-w-xs gap-1">
-                    <span id={`kyc-expiry-${type}`} className="text-xs font-medium text-foreground">
-                      {t('expiry.fieldLabel')}
-                    </span>
-                    <DatePicker
-                      value={echeances[type] ?? ''}
-                      min={demainIso()}
-                      onValueChange={(value) => setEcheances((current) => ({ ...current, [type]: value }))}
-                      aria-label={t('expiry.fieldAria', { document: t(`documents.${type}`) })}
-                      aria-describedby={`kyc-expiry-${type}-hint`}
-                      buttonClassName="h-10 w-full"
-                      disabled={uploadMutation.isPending}
-                    />
-                    <p id={`kyc-expiry-${type}-hint`} className="text-xs text-muted-foreground">
-                      {t('expiry.fieldHint')}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-              {/* Le champ fichier natif affichait « Choose File · No file chosen » — le texte du
-                  navigateur, en anglais, dans une interface en français. Il reste le vrai
-                  contrôle (clavier, lecteur d'écran), masqué ; un bouton le déclenche et le nom
-                  choisi s'affiche à sa place. */}
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  ref={(node) => {
-                    inputs.current[type] = node;
-                  }}
-                  id={`kyc-file-${type}`}
-                  type="file"
-                  accept={KYC_MIME_ACCEPT}
-                  className="sr-only"
-                  tabIndex={-1}
-                  disabled={locked || uploadMutation.isPending}
-                  onChange={(event) => {
-                    const chosen = event.target.files?.[0];
-                    // Refusée au choix plutôt qu'en 422 après l'envoi (TCK-2150).
-                    const tropLourde = chosen !== undefined && chosen.size > PIECE_MAX_BYTES;
-                    setTropLourdes((current) => ({ ...current, [type]: tropLourde ? chosen.name : undefined }));
-                    setFiles((current) => ({ ...current, [type]: tropLourde ? undefined : chosen }));
-                    if (tropLourde) event.target.value = '';
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-w-0 max-w-full justify-start sm:max-w-64"
-                  disabled={locked || uploadMutation.isPending}
-                  aria-label={t('uploader.chooseAria', { document: t(`documents.${type}`) })}
-                  onClick={() => inputs.current[type]?.click()}
-                >
-                  <Paperclip className="size-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    {files[type]?.name ?? (uploaded ? t('uploader.replace') : t('uploader.choose'))}
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={locked || !files[type] || echeanceManquante || uploadMutation.isPending}
-                  onClick={() => {
-                    const file = files[type];
-                    if (file) uploadMutation.mutate({ type, file, expiresAt: echeances[type] });
-                  }}
-                >
-                  <Upload className="size-4" aria-hidden="true" />
-                  {t('uploader.add')}
-                </Button>
-                {tropLourdes[type] ? (
-                  <p role="alert" className="basis-full text-xs text-destructive">
-                    {t('uploader.fileTooLarge', { max: PIECE_MAX_MB, files: tropLourdes[type] })}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            disabled={locked || dossier.status === 'submitted' || submitMutation.isPending}
-            onClick={() => submitMutation.mutate()}
-          >
-            <Send className="size-4" aria-hidden="true" />
-            {t('uploader.submit')}
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

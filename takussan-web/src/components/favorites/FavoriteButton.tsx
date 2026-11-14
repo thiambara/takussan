@@ -14,6 +14,7 @@ import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 import { useToast } from '@/components/ui/toast';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { retenirLePrixVuALAjout } from '@/lib/favoris-suivi';
+import { hrefConnexionPour } from '@/components/auth/lien-connexion';
 
 /**
  * Heart button — toggles a property's favorite state.
@@ -92,7 +93,8 @@ export function FavoriteButton({
   const redirectHref = useMemo(() => {
     const qs = searchParams.toString();
     const current = qs ? `${pathname}?${qs}` : pathname;
-    return `/auth/login?redirect=${encodeURIComponent(current)}`;
+    // TCK-2604 — l'action interrompue suit : la connexion dit « Votre favori ».
+    return hrefConnexionPour(current, 'favori');
   }, [pathname, searchParams]);
 
   const loading = addMutation.isPending || removeMutation.isPending;

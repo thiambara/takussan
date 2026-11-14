@@ -20,6 +20,7 @@ class OwnerProfileDetailResource extends BaseResource
         $detail = $this->resource;
 
         $detail['joined_at'] = $this->iso($detail['joined_at'] ?? null);
+        $detail['departed_at'] = $this->iso($detail['departed_at'] ?? null);
         if ($detail['last_payout'] !== null) {
             $detail['last_payout']['processed_at'] = $this->iso($detail['last_payout']['processed_at']);
         }

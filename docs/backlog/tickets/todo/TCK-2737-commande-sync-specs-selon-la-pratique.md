@@ -47,7 +47,7 @@ Mesuré pendant la passe du lot 1 de l'audit UX de /app (2026-11-11, PR #1667) :
 
 ## Décision
 
-**Recommandation de la session (b), à confirmer par le team-lead.** Il a déjà tranché sur le principe (pas de
+**Décidé par le team-lead le 2026-11-11 : (b), deux modes.** Il a déjà tranché sur le principe (pas de
 passe 018 ; la pratique prime).
 
 - **(a) Report du livré seul.** La passe d'audit disparaît, et `docs/sync-passes/` reste comme archive.

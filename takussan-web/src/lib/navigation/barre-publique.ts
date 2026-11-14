@@ -51,7 +51,9 @@ function sansLesCasesFixes<E extends EntreeJugee>(groupes: readonly GroupeDEntre
  * (`groupesDeLaDisposition`) — une épingle range le menu, elle ne déplace pas un onglet.
  */
 export function casesDuPersona<E extends EntreeJugee>(groupes: readonly GroupeDEntrees<E>[], persona: Persona): E[] {
-  const declares = DISPOSITIONS[persona].onglets.filter((id) => !HORS_DES_CASES.has(id));
+  // TCK-2618 — la barre publique garde ses cases validées quand les onglets de `/app` changent.
+  const { casesPubliques, onglets } = DISPOSITIONS[persona];
+  const declares = (casesPubliques ?? onglets).filter((id) => !HORS_DES_CASES.has(id));
   return ongletsDuMenu(sansLesCasesFixes(groupes), declares).slice(0, 2);
 }
 
@@ -311,8 +313,9 @@ export function hrefDuCompte(cheminCourant: string | null | undefined): string {
 /**
  * Le libellé court que le site public donne à une destination, clé sous `navigationPublique.onglets`,
  * ou `null` (le libellé de son entrée de menu). « Loyer » pour les paiements DU LOCATAIRE seulement :
- * ceux du bailleur sont ses encaissements (« Finances »). Lu par la barre, « Moi » et « Mon espace »,
- * pour qu'une même destination porte le même nom au téléphone et au bureau.
+ * ceux du bailleur sont ses encaissements, nommés par son menu (« Loyers », ADR-0100 § 3, TCK-2618).
+ * Lu par la barre, « Moi » et « Mon espace », pour qu'une même destination porte le même nom au
+ * téléphone et au bureau.
  */
 export function libellePublic(id: string, persona: Persona): string | null {
   return id === 'paiements' && persona === 'locataire' ? 'loyer' : null;

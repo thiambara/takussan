@@ -88,4 +88,112 @@ Pas de régression — restent, à l'identique de comportement :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Implémenté le 2026-11-13 (terrain-5).** Fiche de fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2604.json`.
+
+**Décisions réversibles prises** (signalées à la session, ticket « recommande et avance si c'est réversible ») :
+`/auth/register` répond par une redirection serveur (307) vers `/auth/login` en gardant `redirect` et l'intention ;
+le paramètre s'appelle `intention=` (liste fermée `ACTIONS_D_ENTREE`, `lien-connexion.ts`) ; le dialogue de la fiche
+passe `reserve` → `reservation`, `apply` → `candidature`, `offer` → aucune intention (une offre n'a pas de nom dans la liste).
+**`apply` disait d'abord `visite` : la mesure depuis la fiche l'a démenti.** Sur une location au mois, le bouton est
+« Déposer mon dossier » (`property.reservation.apply` : « Postuler à ce bien », « votre dossier de location ») ; la
+connexion disait « Votre demande de visite ». Septième geste ajouté : `candidature` — « Votre candidature », « Pour
+déposer votre dossier, entrez votre numéro. », « Votre dossier part chez … », icône de dossier (`FileText`) au lieu du
+calendrier. La demande de visite, elle, ne passe jamais par la connexion (TCK-590 : nom et téléphone suffisent).
+L'inscription par e-mail (seul formulaire d'inscription par e-mail du produit) est extraite dans `InscriptionParEmail`
+et reste joignable depuis la connexion (« S'inscrire », ou `?voie=inscription` du tunnel de réservation) jusqu'à TCK-2606.
+
+**Comment.**
+- `login/page.tsx` est un composant serveur : il lit `searchParams`, ne garde l'action que dans la liste fermée, et lit
+  le bien par `bienQuitte` (`lib/queries/bien-quitte.ts`) — la lecture PARTAGÉE de la fiche (`getProperty`, même cache),
+  réduite côté serveur aux huit champs que l'écran montre. Le slug vient de `redirect` filtré par `destinationInterne`
+  puis par la forme d'un slug ; aucun texte de l'URL n'est affiché.
+- Les six cases sont UN seul champ réel, transparent, posé sur six cases de présentation (`CasesDuCode`) : le
+  remplissage du SMS, le collage et le lecteur d'écran voient un champ de 6 chiffres. L'envoi part au passage à six
+  chiffres, une fois : verrou synchrone (`verificationEnCours`, une ref) en plus de `disabled` — un envoi du formulaire
+  dans le même instant que le sixième chiffre (SMS rempli puis « OK ») passait avant le rendu qui désactive le bouton.
+- Au téléphone, « Recevoir un code » / « Me connecter » vivent dans une barre FIXÉE à `bottom: <clavier>`
+  (`useDecalageDuClavier`), avec une cale de 72 px dans le flux. Collante dans le formulaire, elle suivait le
+  contenu et flottait à 90 px au-dessus du pavé sur un écran court ; le pied de la coque ne convient pas, le bureau
+  pose le bouton AVANT les autres voies.
+- `PhoneInput` reçoit `taille="grand"` (56 px au téléphone, 16 px au bureau) et `aideNationale` (l'aide de l'indicatif
+  dite autrement, SANS toucher l'aide internationale qu'un « + » appelle). `CodeDePreproduction` reçoit `forme="ligne"`
+  (la rangée de la maquette) ; le bandeau reste la forme des douze autres écrans. Les deux sont dans la clôture de
+  `/app` : tailles par jetons (`text-ui`, `text-legende`, `text-action`, `tracking-surtitre`), jamais en px.
+- L'agence du bien (`agency.name`, public) dit « Avec … » au bureau et « Votre demande de … part chez … » sur l'écran
+  du code ; sans agence, « Retour à l'annonce, là où vous en étiez ».
+- `CoqueDEntree` (TCK-2598) reçoit `enTete` (remplace la barre du téléphone), `panneau` (45 % à gauche dès `xl`,
+  avec la barre de la colonne de droite) et `retourBureau`. **Le panneau paraît dès 1280, comme le dit « Bureau
+  (≥ 1280 px) » ci-dessus** (décision du 2026-11-13, suite du commit 861535de2 : la première livraison l'ouvrait dès
+  1024). Entre 1024 et 1280, la coque est celle d'une page sans panneau : barre de 64 px à filet, « Retour à
+  l'annonce » à gauche, colonne de 480 px. Seul `CoqueDEntree` change ; `CoqueDEntree.panneau-xl.tck-2604.test.tsx`
+  le tient à 390, 1024 et 1280 (quatre ablations rouges : panneau dès `lg`, barre de 64 px gardée à 1280, colonne de
+  400 px dès `lg`, barre sans filet dès `lg`).
+- **Entre 1024 et 1280, la barre de 64 px garde l'intention** (décision (b) du 2026-11-13) : sans panneau, rien n'y disait
+  plus le bien quitté. La page déclare `titreDeBureau` (« Votre réservation · Studio meublé lumineux à Mermoz »,
+  `useTitreDeLaBarre` d'`IntentionDEntree`), que seule cette barre affiche ; au téléphone, la barre garde le titre
+  court, et dès 1280 le panneau dit le bien. Le titre seul se tronque : le retour et la marque gardent leur ligne
+  (un titre long repliait d'abord la pastille « Retour à l'annonce » sur deux lignes, collée à la marque — vu à la
+  capture). Tests : `porte-par-numero` (« à 1024, la barre du bureau dit l'action et le bien quitté » : numéro, code,
+  voie e-mail, sans bien) et `CoqueDEntree.panneau-xl` ; trois ablations rouges (titre non déclaré par la porte du
+  numéro, puis par la voie e-mail ; coque qui affiche `titre`).
+
+**Ce que la prémisse ne disait pas.** `PublicPropertyController::show()` ignore `fields[]` : la réduction se fait côté
+serveur, pas par l'URL (l'ajouter aurait séparé le cache de celui de la fiche). Une demande de visite ne porte AUCUNE
+date avant la connexion (seul le retour du tunnel de réservation porte `debut`/`fin`, TCK-589) : la date de la
+maquette a-0 est une donnée absente. Aucun délai de réponse d'agence n'existe nulle part.
+
+**Mesures** (2026-11-13, base de démo, visiteur sans compte, `request-code` et `verify-code` bloqués au réseau et la
+demande de code servie dans la page : aucun SMS, aucune requête autre que GET dans les relevés).
+- AC1 — depuis la vraie fiche (`/fr/properties/micro-studio-10m2-GXNq`, 390 et 1280), sans compte : « Déposer mon
+  dossier » → « Se connecter » de la boîte → `/auth/login?redirect=…%3Faction%3Dreserver&intention=candidature`, qui
+  montre « Votre candidature », « Micro Studio 10m² », « 500 000 F CFA / mois » et la photo du bien (mêmes que la
+  fiche). « Réserver » (location à la nuit ou à la semaine) N'EST PAS mesurable sur la démo : ses 143 biens publics
+  sont 73 locations au mois et 70 ventes ; ce chemin est gardé par `PropertyReservationDialog.intention.test.tsx`.
+  Le seul non-GET des relevés de la fiche est `POST /api/public/properties/…/view`, le compteur de vues que la fiche
+  envoie à chaque visite.
+- AC3 — écran du code, 390 et 1280, verify-code servi dans la page (422) : six chiffres saisis un à un → **1** appel
+  de `verify-code` ; les six cases restent (6 sur 6 en rouge, valeur gardée) et le message dit « Code incorrect ou
+  expiré. Vérifiez-le, ou demandez-en un nouveau. ». Compté au `fetch` de la page : l'appel ne quitte pas la page.
+- AC4 — `curl` sans identifiant : `GET /auth/register?redirect=%2Fpublish` → **307** vers
+  `/auth/login?redirect=%2Fpublish` ; l'intention suit (`&intention=visite` gardé). Le retour à `/publish` après le
+  code : test seulement (aucun code n'est vérifié sur la démo).
+- AC2 — 390 × 844, clavier émulé de 336 px (zone visible 508) : « Recevoir un code » de 448 à 496, entier, avec et
+  sans intention. Avec le pavé de la maquette (236 px) : 548 à 596, la position de la maquette (535/548).
+- AC-F2 (conformes · écarts · absents produit · absents maquette · % pixels) : a-0 téléphone 16 · 3 · 0 · 4 · 32,68 ;
+  a-1 téléphone 0 · 16 · 1 · 3 · 41,88 ; a-2 téléphone 16 · 2 · 0 · 2 · 17,53 ; a-0 bureau 33 · 9 · 4 · 0 · 40,58 ;
+  a-1 bureau 1 · 34 · 8 · 0 · 48,59 ; a-2 bureau 41 · 11 · 0 · 1 · 1,97. Les pourcentages de a-0 sont la PHOTO du
+  bien (une donnée) ; ceux de a-1, la photo de ville que le porteur n'a pas fournie (même écart que TCK-2598).
+  Chaque écart restant est au tableau `ecarts_acceptes` de la fiche (18 lignes).
+- AC-F4 — a-2 au bureau, zones explicites : titre, « Modifier », cases et aperçu 0,01 % ; « Me connecter » et l'aide
+  0 % ; la ligne du décompte 3,54 % — attribués au lissage sous-pixel par INFÉRENCE (mêmes y, corps, graisse, couleur ; le
+  lissage n'est pas mesuré).
+- AC-F6 à 1280 contre la maquette « bureau 1280 » de la visionneuse : a-0 11 · 5 · 3 · 44,91 % ; a-2 12 · 9 · 2 ·
+  8,19 %. Écarts : la pastille « Retour à l'annonce » (44 px, accepté), « Ton/Votre numéro » (vouvoiement), et sur
+  a-2 le panneau de reprise 171 px plus haut — la maquette centre dans un cadre de 1 220 px, le produit dans la
+  fenêtre de 900 (accepté, fiche).
+- AC-F6 — aucun défilement horizontal (`scrollWidth − innerWidth = 0`) à 1280, 1024 et 768, avec et sans intention,
+  écran du code compris. À 768 : panneau caché, colonne de 480 px centrée, bouton de la barre aligné sur elle (x 144,
+  480). À 1024 : panneau fluide de 45 % (461 px), colonne de 400 px — aucune piste fixe ni panneau de 480 px.
+  Re-mesuré après le passage du panneau à `xl` (2026-11-13), à 1024 et 1280, porte, code, voie e-mail (connexion et
+  création) avec intention, et porte sans intention : débord 0, aucun élément hors de la fenêtre, aucune coupe. À
+  1024, panneau monté mais non affiché, une seule barre (64 px de jeton, 57,6 px rendus, filet 1 px) qui porte
+  « Retour à l'annonce », colonne de 480 px ; à 1280, panneau de 576 px (45 %), barre sans filet, colonne de 400 px ;
+  sans intention, à 1024 comme à 1280, barre « Retour au site » et colonne de 480 px.
+  Le titre de la barre à 1024 (2026-11-13) : « Votre demande de visite · Micro Studio 10m² » sur la porte, le code
+  et les deux onglets e-mail, 318 px non tronqué ; un titre de 49 caractères (« Votre réservation · Villa
+  contemporaine 2 chambres - Dieuppeul-Derklé ») 514 px non tronqué ; le même triplé (1 585 px) tronqué à 603 px, la
+  pastille de retour à 40 px (une ligne), 22 px entre la marque et le titre, débord 0. À 1280, aucun titre dans la
+  barre : le panneau a pris le relais.
+
+**Tests** : `porte-par-numero.tck-2604.test.tsx` (33), `PropertyReservationDialog.intention.test.tsx` (+1), `bien-quitte.tck-2604.test.ts` (4), `lien-connexion.test.ts`
+(14) ; les tests d'auth existants passent sur la nouvelle porte (libellé « Votre numéro », envoi au sixième chiffre).
+`promesses-de-delai.test.ts` : « Valable 5 minutes » (`auth.porte.code.valable`) entre au registre, adossé à `CODE_TTL_SECONDS` (chiffre tenu : 5), à la place de `auth.phoneLogin.codeSentTo` retirée.
+Ablations (chacune rougit son test, restaurée au md5) : verrou synchrone, `codeRefuse`, liste fermée, forme du slug,
+forme et ordre des dates, l'entrée du registre des délais, retrait de Google sur échec, intention gardée par `/auth/register`, `aideNationale`,
+l'agence lue et dite, le prix nul, `apply` → `candidature`, l'étape « part chez » d'une candidature.
+
+**2026-11-13 — commité avec TCK-2606** (la voie e-mail branchée sur la même porte). Avant le commit, deux gardes : les
+encres translucides de la porte (`text-foreground/75` des étapes du bureau, `/40` du bouton désactivé, `/60` de l'indicatif)
+deviennent l'encre douce opaque `text-muted-foreground` (`encre-sans-alpha.contraste.test.ts`, TCK-658 ; écarts de couleur
+acceptés dans `TCK-2604.json`), et le chiffre du code passe de `text-[26px]` au jeton `text-affiche-26`
+(`check-valeurs-arbitraires-app` : `CasesDuCode` sert aussi la signature sur place de l'état des lieux, dans `/app`).

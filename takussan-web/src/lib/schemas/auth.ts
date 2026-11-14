@@ -2,7 +2,6 @@ import { z } from 'zod';
 import {
   emailSchema,
   passwordSchema,
-  requiredStringSchema,
 } from './common';
 import { msgValidation } from './messages';
 
@@ -18,19 +17,15 @@ export const loginSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
+/**
+ * TCK-2606 (TCK-2605 côté API) — l'inscription par e-mail en trois contrôles : l'adresse, le mot de
+ * passe (l'œil remplace la confirmation), les conditions. Le prénom est demandé à l'écran suivant
+ * (`/onboarding/intention`, `EtapePrenom`), comme pour un compte né par téléphone ou par Google.
+ */
 export const registerSchema = z
   .object({
-    first_name: requiredStringSchema(msgValidation('common.firstNameRequired')).max(
-      100,
-      msgValidation('common.firstNameTooLong'),
-    ),
-    last_name: requiredStringSchema(msgValidation('common.lastNameRequired')).max(
-      100,
-      msgValidation('common.lastNameTooLong'),
-    ),
     email: emailSchema,
     password: passwordSchema,
-    password_confirmation: z.string().min(1, msgValidation('auth.passwordConfirmationRequired')),
     accept_cgu: z.boolean(),
   })
   .superRefine((data, ctx) => {
@@ -39,13 +34,6 @@ export const registerSchema = z
         code: 'custom',
         path: ['accept_cgu'],
         message: msgValidation('auth.acceptTerms'),
-      });
-    }
-    if (data.password !== data.password_confirmation) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['password_confirmation'],
-        message: msgValidation('auth.passwordMismatch'),
       });
     }
   });

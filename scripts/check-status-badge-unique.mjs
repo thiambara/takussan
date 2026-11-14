@@ -133,6 +133,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
   ['takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx',
     "bandeau d'annonce PLEIN, quatre sévérités sur toute la largeur : un message qui remplit "
     + 'sa surface, pas une pastille — `StatusBadge` ne rend que des fonds teintés (`bg-success/10`…)'],
+  // TCK-2589 (lot C) — le fil de la fiche client.
+  ['takussan-web/src/components/customer-dashboard/fiche/FilDuClient.tsx',
+    "une couleur par TYPE d'entrée du fil (note, jalon de visite, geste de contact, étape), "
+    + "jamais par statut, peinte sur la PASTILLE D'ICÔNE d'une ligne — et le ton WhatsApp est un "
+    + 'aplat PLEIN (`bg-success text-success-foreground`), que `StatusBadge` ne rend pas'],
   // TCK-596 §3B (ADR-0041) — le calendrier d'hôte d'un bien.
   ['takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx',
     "trois ORIGINES d'une nuit prise (réservée, bloquée, importée) peintes sur les CASES d'un "
@@ -143,12 +148,23 @@ const TABLES_DE_TONS_CONNUES = new Map([
     "trois tons de la PASTILLE D'ICÔNE d'une suite à donner (neutre, conseillée, WhatsApp) : une "
     + 'action proposée, jamais un statut — la pastille ne porte pas de texte, elle est doublée par '
     + 'le titre de la ligne'],
+  // TCK-2654, lot 4 — la semaine du prestataire.
+  ['takussan-web/src/components/maintenance/acteurs/InterventionsDuPrestataire.tsx',
+    "trois GENRES d'un créneau (prévu, à accepter, fait) peints sur les BLOCS d'une grille de la "
+    + 'semaine — un aplat PLEIN, un bord en tirets, un fond éteint —, que `StatusBadge` ne rend pas : '
+    + 'ni pastille ni statut de l’API ; le bloc porte son titre, et nomme son genre en texte (« à accepter », '
+    + '« fait ») : la teinte n’est pas le seul canal'],
 ]);
 
 /** Les lignes de MESSAGE qui tombent dans la forme du contrôle B sans être des statuts. */
 const LIGNES_DE_MESSAGE_CONNUES = new Map([
   ['takussan-web/src/components/media/MediaManager.tsx',
     "`p.status === 'error'` colore la ligne d'un téléversement en échec — un message, pas une pastille"],
+  // TCK-2812 — la note sous un dossier du coffre dont l'archive se prépare.
+  ['takussan-web/src/components/documents/coffre/CoffreDeDocuments.tsx',
+    "`etat === 'echec'` met à l'encre destructive (role=alert) la PHRASE qui dit que l'archive n'a pas pu "
+    + "être préparée, comme les autres lignes d'échec du coffre ; en préparation ou prête, la même phrase "
+    + 'reste à l’encre discrète (role=status) — un message, ni pastille ni statut affiché'],
 ]);
 
 const JETONS = 'success|warning|destructive|info|accent|primary';

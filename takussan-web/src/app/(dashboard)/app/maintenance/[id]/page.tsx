@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 
 import { getMeAction } from '@/app/actions/auth';
 import { MaintenanceDetail } from '@/components/maintenance/MaintenanceDetail';
+import { FicheDIntervention } from '@/components/maintenance/fiche/FicheDIntervention';
+import { isAdmin, isAgent } from '@/lib/roles';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 
@@ -18,9 +20,16 @@ export default async function Page({ params }: PageProps) {
   const t = await getTranslations('dashboard.maintenanceDetail');
   const tPages = await getTranslations('dashboard.pages');
   const tConsole = await getTranslations('console.pageHeader');
-  await getMeAction();
+  const user = await getMeAction();
   const { id } = await params;
   const numericId = Number(id);
+
+  // TCK-2653 — le personnel de l'agence lit la fiche à un geste principal (en-tête, fil et « Autre
+  // action » dans la fiche, qui connaît le titre et la file) ; les autres rôles gardent la fiche
+  // d'avant (TCK-2654). Même partage que la liste.
+  if (isAgent(user.roles) || isAdmin(user.roles)) {
+    return <FicheDIntervention id={numericId} />;
+  }
 
   // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
   // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`

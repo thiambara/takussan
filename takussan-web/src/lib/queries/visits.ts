@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
@@ -14,6 +14,7 @@ import type {
   VisitType,
 } from '@/types/visit';
 import type { SortDuSms } from '@/lib/visites/sort-du-sms';
+import type { CreneauDuServeur } from '@/lib/visites/planification';
 import { cheminApi } from '@/lib/chemin-api';
 import type { CorpsDuCompteRendu, VisiteAvecCompteRendu } from '@/lib/visites/compte-rendu';
 
@@ -169,8 +170,14 @@ export function useVisit(id: number | null | undefined) {
 export type VisitActionResponse = ApiResponse<PropertyVisit> & SortDuSms;
 
 export function useConfirmVisit(id: number) {
-  return useApiMutation<VisitActionResponse, void>(
-    { path: cheminApi`/api/property-visits/${id}/confirm`, method: 'POST' },
+  // TCK-2587 — la fiche confirme à une heure choisie (« 15:00 », « Autre… ») : `scheduled_at`
+  // facultatif, exigé par l'API pour une demande par tranche (`visit.time_required`).
+  return useApiMutation<VisitActionResponse, { readonly scheduled_at?: string } | void>(
+    {
+      path: cheminApi`/api/property-visits/${id}/confirm`,
+      method: 'POST',
+      body: (v) => (v && v.scheduled_at ? { scheduled_at: v.scheduled_at } : undefined),
+    },
     {
       relireSurErreur: true,
       invalidate: [
@@ -296,13 +303,54 @@ export interface PlanVisitPayload {
   customer_id?: number;
   visitor_name?: string;
   visitor_phone?: string;
+  /** TCK-2586 — `in_person` par défaut côté serveur. */
+  type?: 'in_person' | 'virtual' | 'self_guided' | 'hybrid';
+  notes?: string;
+  /** TCK-2582 — la visite qui naît d'une demande : la demande passe en « traitée ». */
+  contact_lead_id?: number;
+  /** TCK-2582 — avec `contact_lead_id` : la fiche client naît de la demande et en garde le message. */
+  create_customer?: boolean;
+  /** TCK-2586 — la fiche naît malgré une fiche voisine (409 `customer.duplicate` d'abord). */
+  allow_duplicate?: boolean;
 }
 
 export function usePlanVisit() {
   return useApiMutation<VisitActionResponse, PlanVisitPayload>(
     { path: '/api/property-visits', method: 'POST' },
-    { invalidate: [['visits'], ['calendar']] },
+    // TCK-2586 — la demande traitée et la fiche née d'elle bougent aussi.
+    { invalidate: [['visits'], ['calendar'], ['contact-leads'], ['customers']] },
   );
+}
+
+/**
+ * TCK-2586 (TCK-2585) — les créneaux d'un jour pour un bien, et pour l'agent qui planifie :
+ * `GET /api/property-visits/slots?property_id=&date=`. Grille de Dakar, 09:00 → 18:30 par 30 min.
+ */
+export interface ReponseDesCreneaux {
+  readonly data: {
+    readonly date: string;
+    readonly timezone: string;
+    readonly slots: readonly CreneauDuServeur[];
+  };
+}
+
+export function useCreneauxDeVisite(
+  propertyId: number | null,
+  jour: string | null,
+  agentId: number | null = null,
+  dureeMinutes: number | null = null,
+) {
+  // TCK-2587 (d1) — `agent_id` : l'occupation de l'agent de la VISITE, pas celle de l'appelant (un
+  // admin qui confirme la tranche d'un autre agent). Sans agent, `buildQueryString` omet la clé nulle :
+  // l'API compte l'appelant, comme avant.
+  // TCK-2744 (contre-vérification) — `duration_minutes` : la durée de la visite à placer. Jugée sur
+  // 30 min, la grille offrait 09:30 à une visite de 45 min que `confirm` refusait (10:00 occupé).
+  return useApiQuery<ReponseDesCreneaux>(['visits', 'slots', propertyId, jour, agentId, dureeMinutes], '/api/property-visits/slots', {
+    params: { extra: { property_id: propertyId, date: jour, agent_id: agentId, duration_minutes: dureeMinutes } },
+    enabled: propertyId !== null && jour !== null,
+    // Un créneau pris par un collègue pendant la saisie : relu à chaque ouverture.
+    staleTime: 0,
+  });
 }
 
 /**
@@ -334,5 +382,211 @@ export function useUpdateVisitReport(id: number) {
   return useApiMutation<ReponseDuCompteRendu, CorpsDuCompteRendu>(
     { path: cheminApi`/api/property-visits/${id}/report`, method: 'PATCH' },
     { invalidate: INVALIDE_LA_VISITE(id) },
+  );
+}
+
+/* ─────────────────────────── TCK-2587 — les Visites par le temps ─────────────────────────── */
+
+/**
+ * Les colonnes d'une carte « par le temps » : l'heure, la tranche, le visiteur et son mot.
+ *
+ * TCK-2797 — l'API ne rend plus que les clés nommées ici : `visitor_display` (la carte du visiteur,
+ * son rang « 1re visite » / « revient ») est une clé CALCULÉE, qui ne sort que demandée
+ * (`PropertyVisitResource::FIELDS`). `nomDuVisiteur` et `telephoneDuVisiteur` la lisent d'abord.
+ */
+export const VISIT_TIME_FIELDS: string[] = [
+  'id',
+  'property_id',
+  'visitor_id',
+  'customer_id',
+  'agent_id',
+  'visitor_name',
+  'visitor_phone',
+  'type',
+  'status',
+  'scheduled_at',
+  'preferred_window',
+  'completed_at',
+  'duration_minutes',
+  'notes',
+  'created_at',
+  'visitor_display',
+];
+
+/** Les affinages du bureau, communs à la liste et aux comptes (`filter[...]`). */
+export interface AffinageDesVisites {
+  readonly agent?: number | null;
+  readonly bien?: number | null;
+  readonly q?: string | null;
+  /** La période du bureau : jusqu'à cet instant (`filter[scheduled_at_max]`). */
+  readonly jusquA?: string | null;
+}
+
+export function filtreDeLAffinage(a: AffinageDesVisites): Record<string, string> {
+  return {
+    ...(a.agent ? { agent_id: String(a.agent) } : {}),
+    ...(a.bien ? { property_id: String(a.bien) } : {}),
+    ...(a.q?.trim() ? { search: a.q.trim() } : {}),
+    ...(a.jusquA ? { scheduled_at_max: a.jusquA } : {}),
+  };
+}
+
+/**
+ * Les comptes de toutes les vues, en UNE requête (`GET /api/property-visits/counts`, TCK-2585) :
+ * AC2 de TCK-2587 — la page n'émet plus une lecture par onglet. La clé vit SOUS `['visits', 'list']`
+ * pour que chaque geste qui relit les listes (confirmer, clore, attribuer…) relise aussi les comptes.
+ */
+export function useComptesDesVisites(affinage: AffinageDesVisites = {}, options: { enabled?: boolean } = {}) {
+  const filtre = filtreDeLAffinage(affinage);
+  return useApiQuery<ApiResponse<import('@/lib/visites/par-le-temps').ComptesDesVisites>>(
+    ['visits', 'list', 'counts', filtre],
+    '/api/property-visits/counts',
+    { params: { filter: filtre }, enabled: options.enabled ?? true },
+  );
+}
+
+/** Une page d'une vue par le temps : la borne de la vue, puis les affinages du bureau. */
+export function useVisitesDeLaVue(
+  filtreDeVue: Record<string, string>,
+  tri: string,
+  affinage: AffinageDesVisites = {},
+  page = 1,
+  perPage = 30,
+  options: { enabled?: boolean } = {},
+) {
+  const filter = { ...filtreDeVue, ...filtreDeLAffinage(affinage) };
+  return useApiQuery<PaginatedResponse<PropertyVisit>>(
+    ['visits', 'list', 'par-le-temps', filter, tri, page, perPage],
+    '/api/property-visits',
+    {
+      params: {
+        fields: {
+          property_visits: VISIT_TIME_FIELDS,
+          properties: ['id', 'title', 'slug'],
+          users: ['id', 'first_name', 'last_name'],
+          customers: ['id', 'first_name', 'last_name', 'phone'],
+        },
+        filter,
+        include: ['property', 'agent', 'visitor', 'customer'],
+        sort: [tri],
+        page,
+        per_page: perPage,
+      },
+      enabled: options.enabled ?? true,
+    },
+  );
+}
+
+/* ─────────────────────────── TCK-2587 (lot C) — « Mes visites », la vue du client ─────────────────────────── */
+
+/**
+ * Les colonnes d'une ligne de « Mes visites » : l'heure ou la tranche, le statut, la clôture (pour
+ * la fenêtre d'avis), l'annulation et son motif, la note déjà donnée (`rating`, la colonne que
+ * l'avis du client écrit). Ni le nom ni le téléphone du visiteur : c'est lui qui lit.
+ */
+export const VISIT_CLIENT_FIELDS: string[] = [
+  'id',
+  'property_id',
+  'visitor_id',
+  'agent_id',
+  'type',
+  'status',
+  'scheduled_at',
+  'preferred_window',
+  'completed_at',
+  'cancelled_at',
+  'cancellation_reason',
+  'duration_minutes',
+  'rating',
+  'created_at',
+];
+
+/**
+ * Une section de « Mes visites » : un `filter[...]` de `/api/property-visits`, borné côté serveur.
+ * La clé vit SOUS `['visits', 'list']` : annuler, proposer un créneau ou donner son avis la relit.
+ */
+export function useVisitesDuClient(
+  filtre: Record<string, string>,
+  tri: string,
+  page = 1,
+  perPage = 20,
+  options: { readonly garderLaPage?: boolean } = {},
+) {
+  return useApiQuery<PaginatedResponse<PropertyVisit>>(
+    ['visits', 'list', 'client', filtre, tri, page, perPage],
+    '/api/property-visits',
+    {
+      params: {
+        fields: {
+          property_visits: VISIT_CLIENT_FIELDS,
+          properties: ['id', 'title', 'slug'],
+          users: ['id', 'first_name', 'last_name'],
+        },
+        filter: filtre,
+        include: ['property', 'agent'],
+        sort: [tri],
+        page,
+        per_page: perPage,
+      },
+      // Une section paginée garde sa page pendant que la suivante charge : sans quoi la vue entière
+      // repasse en squelette, et l'avis en cours de saisie avec elle.
+      ...(options.garderLaPage ? { placeholderData: keepPreviousData } : {}),
+    },
+  );
+}
+
+/** Confirmer depuis la liste : l'heure fixée pour une tranche (`scheduled_at`), sinon rien. */
+export function useConfirmerDepuisLaListe() {
+  return useApiMutation<VisitActionResponse, { readonly id: number; readonly scheduled_at?: string }>(
+    {
+      path: ({ id }) => cheminApi`/api/property-visits/${id}/confirm`,
+      method: 'POST',
+      body: ({ scheduled_at }) => (scheduled_at ? { scheduled_at } : {}),
+    },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}
+
+/** Une ligne d'un lot (`bulk-confirm`, `bulk-assign`) : le geste unitaire, son refus codé sinon. */
+export interface LigneDuLot {
+  readonly id: number;
+  readonly ok: boolean;
+  readonly code?: string;
+  readonly status?: number;
+  readonly sms_sent?: boolean;
+}
+
+export interface ReponseDuLot {
+  readonly data: readonly LigneDuLot[];
+  readonly meta: { readonly ok: number; readonly failed: number };
+}
+
+export function useConfirmerEnLot() {
+  return useApiMutation<ReponseDuLot, { readonly visits: readonly { readonly id: number; readonly scheduled_at?: string }[] }>(
+    { path: '/api/property-visits/bulk-confirm', method: 'POST' },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}
+
+export function useAttribuerEnLot() {
+  return useApiMutation<ReponseDuLot, { readonly ids: readonly number[]; readonly agent_id: number }>(
+    { path: '/api/property-visits/bulk-assign', method: 'POST' },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}
+
+/** Le verdict posé depuis la carte « À clore » : le compte rendu naît avec lui (TCK-2578). */
+export function useVerdictDepuisLaListe() {
+  return useApiMutation<ReponseDuCompteRendu, { readonly id: number; readonly outcome: import('@/lib/visites/compte-rendu').Verdict }>(
+    { path: ({ id }) => cheminApi`/api/property-visits/${id}/report`, method: 'POST', body: ({ outcome }) => ({ outcome }) },
+    { invalidate: [['visits', 'list'], ['visits', 'detail'], ['customers']] },
+  );
+}
+
+/** « n'est pas venu » depuis la carte « À clore ». */
+export function useAbsentDepuisLaListe() {
+  return useApiMutation<ApiResponse<PropertyVisit>, { readonly id: number }>(
+    { path: ({ id }) => cheminApi`/api/property-visits/${id}/no-show`, method: 'POST', body: () => ({}) },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
   );
 }

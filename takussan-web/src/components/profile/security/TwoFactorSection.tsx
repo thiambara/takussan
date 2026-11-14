@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { ShieldCheck } from 'lucide-react';
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { RangeeDeSecurite } from './RangeeDeSecurite';
 import { Input } from '@/components/ui/input';
 import {
   twoFactorConfirmAction,
@@ -18,7 +21,7 @@ import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
  * TCK-069 — 2FA sub-section.
  *
  * Three states:
- *  - disabled  → "Activer la 2FA" button.
+ *  - disabled  → « Activer la double authentification » button.
  *  - setup     → enabled but not confirmed: show secret + otpauth URL + 6-digit code form.
  *  - active    → "Désactiver" + "Régénérer les codes de récupération".
  *
@@ -122,43 +125,30 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
   // around as a copy-paste fallback below the image.
   const qrImageSrc = setup?.qrSvg ?? null;
 
+  // TCK-2635 — une rangée de la carte « Sécurité » (maquette `RangeeSecurite`) : « Activer » à droite,
+  // ce qu'il ouvre (code QR, codes de secours) et les gestes d'un facteur actif dépliés dessous.
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">
-            {t('title')}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('description')}
-          </p>
-        </div>
-        <span
-          className={
-            'rounded-full px-2 py-1 text-xs font-semibold ' +
-            (enabled ? 'bg-success/15 text-success' : 'bg-card text-muted-foreground')
-          }
-        >
-          {enabled ? t('enabled') : t('disabled')}
-        </span>
-      </div>
-
+    <RangeeDeSecurite
+      icone={ShieldCheck}
+      titre={t('title')}
+      statut={<StatusBadge tone={enabled ? 'success' : 'attention'} label={enabled ? t('enabled') : t('disabled')} />}
+      detail={t('explication')}
+      action={
+        !enabled && !setup ? (
+          <Button size="sm" onClick={handleEnable} disabled={pending} aria-label={t('enable')}>
+            {pending ? t('initializing') : t('enableShort')}
+          </Button>
+        ) : undefined
+      }
+    >
       {error ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
 
-      {!enabled && !setup ? (
-        <div className="mt-4">
-          <Button onClick={handleEnable} disabled={pending}>
-            {pending ? t('initializing') : t('enable')}
-          </Button>
-        </div>
-      ) : null}
-
       {setup ? (
-        <form onSubmit={handleConfirm} className="mt-4 space-y-4">
+        <form onSubmit={handleConfirm} className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             {qrImageSrc ? (
               // eslint-disable-next-line @next/next/no-img-element -- SVG inline (data URI) rendu par l'API : aucun chargeur distant à optimiser (même choix que TotpEnrollment).
@@ -222,7 +212,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       {recoveryCodes ? (
         <div
           role="status"
-          className="mt-4 rounded-md border border-warning/30 bg-warning/10 p-4 text-sm text-warning"
+          className="rounded-md border border-warning/30 bg-warning/10 p-4 text-sm text-warning"
         >
           <p className="font-semibold">{t('recoveryTitle')}</p>
           <p className="mt-1 text-xs">
@@ -263,7 +253,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       ) : null}
 
       {enabled && !setup ? (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleRegenerate} disabled={pending}>
             {t('regenerate')}
           </Button>
@@ -304,6 +294,6 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
           )}
         </div>
       ) : null}
-    </div>
+    </RangeeDeSecurite>
   );
 }

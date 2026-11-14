@@ -33,7 +33,7 @@ class AgentAbsenceService
     public function __construct(private readonly RoleDelegationService $delegations) {}
 
     /**
-     * @param  array{user_id: int, substitute_id: int, starts_at?: ?string, ends_at: string, reason?: ?string, substitute_can_act?: bool}  $data
+     * @param  array{user_id: int, substitute_id: int, starts_at?: \DateTimeInterface|string|null, ends_at: string, reason?: ?string, substitute_can_act?: bool}  $data
      */
     public function declare(Agency $agency, User $actor, array $data): RoleDelegation
     {
@@ -112,19 +112,26 @@ class AgentAbsenceService
      * mêmes dates ; un autre remplaçant, ou le droit retiré, la révoque (et un autre remplaçant en
      * reçoit une neuve) ; le droit rendu en crée une. Le début d'une absence commencée ne bouge plus.
      *
-     * @param  array{starts_at?: ?string, ends_at?: string, substitute_id?: int, substitute_can_act?: bool, reason?: ?string}  $data
+     * @param  array{starts_at?: \DateTimeInterface|string|null, ends_at?: string, substitute_id?: int, substitute_can_act?: bool, reason?: ?string}  $data
      */
     public function update(RoleDelegation $absence, User $actor, array $data): RoleDelegation
     {
         return DB::transaction(function () use ($absence, $actor, $data): RoleDelegation {
+            // TCK-2746 (TCK-2744 d4) — l'ordre du dépôt, bien → visite → utilisateur → délégation
+            // (`takussan-api/CLAUDE.md`, piège n° 10) : l'absent, lu sans verrou (`replaces_user_id`
+            // ne change jamais), est verrouillé AVANT la délégation. L'ordre inverse s'interbloquait
+            // avec le retrait d'un membre et l'effacement d'un compte, qui verrouillent `users` puis
+            // révoquent ses délégations.
+            /** @var User $absent */
+            $absent = User::query()->findOrFail(
+                RoleDelegation::query()->whereKey($absence->getKey())->firstOrFail(['replaces_user_id'])->replaces_user_id,
+            );
+            // Même point de sérialisation que la déclaration : la ligne de l'absent.
+            User::query()->whereKey($absent->id)->lockForUpdate()->first();
             $locked = RoleDelegation::query()->whereKey($absence->getKey())->lockForUpdate()->firstOrFail();
             abort_code_unless($locked->isLive(), 422, 'agent_absence.closed');
 
             $agency = Agency::query()->findOrFail($locked->agency_id);
-            /** @var User $absent */
-            $absent = User::query()->findOrFail($locked->replaces_user_id);
-            // Même point de sérialisation que la déclaration : la ligne de l'absent.
-            User::query()->whereKey($absent->id)->lockForUpdate()->first();
 
             $changed = [];
             $startsAt = $locked->starts_at;

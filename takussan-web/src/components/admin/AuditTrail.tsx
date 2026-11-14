@@ -42,6 +42,7 @@ import {
   type ActivityLogEntry,
 } from '@/lib/queries/audit-logs';
 import { origineApi } from '@/lib/config-publique';
+import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
 
 /**
  * TCK-292 — la DONNÉE porte la clé, le rendu la résout : la liste des types
@@ -209,7 +210,8 @@ export function AuditTrail() {
   const { params: requete, remplacer } = useVueDansLUrl();
   const dateDeLUrl = (cle: string) => {
     const v = requete.get(cle);
-    return v !== null && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+    // TCK-2768 (q2) — un jour que l'API admet (`JourIso`), pas la seule forme : « 2026-02-30 » rendait 422.
+    return jourDeLApiOuRien(v) ?? null;
   };
   const dateFrom = dateDeLUrl('from') ?? thirtyDaysAgo();
   const dateTo = dateDeLUrl('to') ?? today();

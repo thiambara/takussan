@@ -1,0 +1,249 @@
+---
+id: TCK-2590
+title: "Liste des clients en lignes de contact, vues « À relancer / Mes clients », et création en deux temps avec le doublon dit pendant la frappe"
+status: done
+phase: P2
+family: front
+estimate: M
+wave: 89
+created: 2026-11-10
+updated: 2026-11-14
+depends_on: [TCK-2583, TCK-2588, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
+blocks: []
+spec_refs:
+  features:
+    - "docs/features.md#16-crm--relation-client"
+  models:
+    - "docs/models-spec.md#7-customer"
+tags: [front, crm, customers, mobile, audit-ux, app]
+---
+
+## Objectif utilisateur
+
+L'agent rappelle un client depuis la liste sans ouvrir sa fiche, voit d'un coup qui relancer, et crée un prospect en vingt secondes au téléphone sans créer de doublon.
+
+## Contrat de données
+
+- `GET /api/customers` avec `filter[follow_up]`, `filter[referent]`, `filter[stage_group]`, `filter[pipeline_stage]`, `filter[status]`, `filter[tags]`, `filter[search]`, tris `next_action_at`, `last_contacted_at`, `follow_up_days`, `per_page` réellement transmis, `fields[customers]` avec `next_action`, `follow_up`, `referent` et les critères (TCK-2588).
+- `GET /api/customers/duplicates` pendant la frappe du téléphone ou de l'e-mail (TCK-2588) ; `POST /api/customers` (existant, 409 de doublon gardé).
+- `POST /api/customers/{id}/contacts` au toucher d'Appeler / WhatsApp (TCK-2583).
+
+## Direction UX / Artistique
+
+- Maquette de référence : `/fr/playground/maquettes?p=app-clients&a=a` — écrans « Liste », « Nouveau client : qui », « Nouveau client : sa recherche », « Liste vide » ; **référence de fidélité, non versionnée**, cf. [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes).
+- Vues rapides en pastilles : À relancer (compte) · Mes clients · Négociation · Tous ; « Sans référent » pour l'admin.
+- **Téléphone (360-390 px)** : ligne de 96 px — initiales, nom, Appeler et WhatsApp à droite ; la prochaine action ou la relance en retard (point rouge) ; ce qu'il cherche (« Studio · Mermoz · ≤ 250 000 F »). **Bureau (≥ 1280 px)** : tableau Client · Cherche · Étape · Prochaine action (rouge si en retard) · Référent · Étiquettes, tri par colonne, gestes au survol (Appeler, WhatsApp, Planifier), vues en onglets au-dessus ; tableau dès `lg`, défilement horizontal dans son conteneur en deçà.
+- Création en deux temps : 1) Prénom, Nom, Téléphone (+221) — « Déjà dans vos clients : Mariama Fall ▸ » apparaît pendant la frappe ; 2) « Ce qu'il cherche » : Louer / Acheter, six types courants en pastilles + « Plus », quartiers en pastilles avec saisie, budget ; lien « Compléter plus tard » (profession, langue, pièce) ; en feuille au téléphone, en panneau au bureau.
+- Liste vide : « Pas encore de clients. Ils arrivent avec vos demandes de contact, ou ajoutez-en un. » + « Ajouter un client ».
+
+## Contraintes strictes (métier)
+
+**Pas de régression** (`CustomerList.tsx`, `CustomerListFilters.tsx`, `CustomerForm.tsx`, audit § 2) :
+- recherche (nom, prénom, e-mail, téléphone), filtres étape, statut, étiquettes (menu à cases, compteur, « Tout effacer »), tout dans l'URL (`page`, `search`, `pipeline_stage`, `status`, `tags`), retour en page 1 à chaque filtre ;
+- « Vue pipeline » (devient « Étapes ») et « Ajouter un client » pour le personnel seulement ; le bailleur lit ses fiches sans créer ; état vide avec ou sans « Ajouter » ;
+- pagination ; le sélecteur « 20 / page » **fonctionne** (aujourd'hui `perPage: 20` en dur) et la pagination ne s'annonce qu'une fois ;
+- les étiquettes de la liste sont cliquables (→ liste filtrée) ;
+- la création garde tous les champs : prénom*, nom*, e-mail **ou** téléphone (E.164), profession, langue des messages, étape (Nouveau par défaut), critères complets (les 16 types restent dans « Plus »), pièce d'identité ; doublon à l'envoi + « Créer quand même » ; erreurs 422 ; garde de sortie ; redirection vers la fiche.
+- Le badge « Actif » n'est plus affiché quand il vaut pour toutes les lignes ; le statut reste un filtre.
+- Téléphone toujours visible sur la ligne quand il existe (aujourd'hui masqué par l'e-mail) ; formaté.
+- i18n `fr`/`en`/`wo` (`wo` = français) ; vouvoiement ; « Clients » sans « (CRM) ».
+
+## Delta à produire
+
+- [ ] Liste téléphone et tableau bureau ; vues rapides ; tri ; gestes en ligne.
+- [ ] Création en deux temps avec sonde de doublon (frappe différée) ; « Compléter plus tard ».
+- [ ] Tests : vues → filtres envoyés ; `per_page` transmis ; doublon affiché pendant la frappe et « Créer quand même » à l'envoi ; bailleur sans « Ajouter » ; étiquette cliquable.
+
+## Critères d'acceptation
+
+- [ ] AC1 — À 390 px, au moins six lignes sont visibles sous l'en-tête et les pastilles, chacune avec Appeler et WhatsApp ; une fiche à e-mail **et** téléphone montre le téléphone.
+- [ ] AC2 — « À relancer » émet `filter[follow_up]=1&sort=-follow_up_days` (réseau) et affiche le compte de la pastille.
+- [ ] AC3 — Taper « 70 648 20 » dans le téléphone de la création fait paraître « Déjà dans vos clients : Mariama Fall » avant tout envoi.
+- [ ] AC4 — Choisir « 50 / page » change le nombre de lignes et l'URL.
+- [ ] AC5 — Connecté en bailleur, ni « Ajouter un client » ni « Étapes » ne paraissent.
+
+**Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
+
+- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2590.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
+- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+
+## Hors périmètre
+
+- La fiche (TCK-2589) ; le pipeline (TCK-2592).
+- Les vues enregistrées par l'utilisateur (au-delà des quatre vues fixes).
+
+## Notes d'implémentation
+
+**2026-11-12 — lots A (liste) et B (création) ; une seule ligne d'API, la sonde de doublons (Q1).**
+
+- **Liste** : `ListeDesClients` (client) remplace `CustomerList`, la page reste serveur et lit en
+  parallèle la liste, les étiquettes et un compte par vue (`per_page=1` → `meta.total` :
+  `fetchCustomerCount`, aucune route de comptes). L'état vit dans l'URL (`lib/crm/liste-des-clients.ts`) :
+  `?vue=a-relancer|mes-clients|negociation|sans-referent` (absente : « Tous »), `per_page` 10/20/50,
+  `sort`. Tri par défaut : `-follow_up_days` sous « À relancer », `next_action_at` pour le personnel,
+  `-created_at` pour le bailleur, aucun sous une recherche (TCK-702). « Sans référent » n'est qu'aux
+  administrateurs. Choisir une étape quitte « Négociation » ; tout filtre ramène en page 1.
+- **Gestes** : Appeler et WhatsApp sur chaque ligne (téléphone d'abord quand la fiche a les deux) ;
+  le personnel enregistre le geste (`POST /customers/{id}/contacts {channel}`), jamais le bailleur
+  (`CustomerPolicy::update`). La mutation vit dans la liste : un geste que l'API n'a pas noté le
+  dit au-dessus de la liste (« Le contact n'a pas été noté… », P228.06), sans retenir l'appel. « Planifier » ouvre `PlanifierDialog` prérempli du client.
+- **Création** : `CreationDuClient` (panneau droit, deux temps sous `xl`, un seul panneau dès `xl`),
+  servie en place depuis la liste et par `/app/customers/new`. Sonde `GET /customers/duplicates`
+  temporisée à 400 ms, partie dès 7 chiffres nationaux ou sur un e-mail complet (la route est
+  limitée à 20/min).
+  409 à l'envoi → « Créer quand même » (`allow_duplicate`, lié au contact saisi). « Compléter plus
+  tard » crée la fiche sans sa recherche. Rien du formulaire d'avant ne se perd (16 types sous
+  « Plus », profession, langue, étape, pièce, villes, budget minimum sous « Plus de champs » dès `xl`) ;
+  sous `xl`, comme la maquette téléphone, le second temps n'a pas « Plus de champs » : une ligne
+  renvoie ces champs à « Modifier » de la fiche, qui les porte tous (`CustomerForm`).
+- **Décisions tranchées (team-lead, 2026-11-12)** :
+  - *Q1 a)* — AC3 tient tel qu'écrit : la sonde compare un **préfixe** sénégalais dès 7 chiffres
+    nationaux (`CustomerDuplicateDetector::probe`, `LIKE '+221<chiffres>%'`), même agence, même
+    limiteur, cinq fiches au plus ; la création (`find`, 409) reste à l'égalité. Seule ligne d'API du
+    ticket : `CustomerDuplicateDetector.php`, `CustomerDuplicateProbeController.php` et cinq tests
+    dans `CustomerDuplicateProbeTest.php` (6 chiffres → rien, autre agence exclue, 5 au plus et
+    masqués, la création ignore le préfixe, et les jokers `%` et `_` de l'appelant n'élargissent rien : une
+    saisie hors de l'alphabet d'un numéro fait renoncer au préfixe, et le motif `LIKE` n'est bâti que
+    de `+221` et de sept ou huit chiffres).
+  - *Vérification, réserve tranchée (team-lead, 2026-11-12)* — la réponse masquée sous un préfixe
+    était un oracle : un membre sans `crm.view_all` (403 sur la fiche) reconstituait son numéro en
+    seize appels, sous le limiteur. Sous un préfixe, la sonde ne rend plus que les fiches que l'appelant
+    lit (`Customer::visibleTo`, dans la requête : les fiches cachées n'occupent pas les cinq places) ;
+    le signalement masqué reste à l'égalité (numéro complet, e-mail), comme avant. Tests
+    `test_tck2590_un_prefixe_ne_reconstitue_pas_le_numero_d_une_fiche_cachee` et
+    `…_cinq_au_plus_et_le_prefixe_ne_rend_que_ce_qu_on_lit` ; ablations f1 (filtre retiré), f2 (filtre
+    après la limite), f3 (filtre sur l'égalité aussi) rouges. Front : la temporisation (une sonde pour
+    un numéro frappé d'un trait) et l'effacement d'un doublon périmé avant la nouvelle sonde sont
+    désormais tenus (ablations L6, L7 rouges).
+  - *Q2 a)* — la page lit les capacités du profil actif **dans le même `Promise.all`** que la liste,
+    les étiquettes et les comptes ; un test épingle le lancement parallèle.
+  - *Q7 a)* — « Me désigner » (`POST /customers/{id}/primary-contact {user_id}`) n'est offert qu'au
+    porteur de `crm.assign`, jamais au bailleur ; le 403 est déjà éprouvé
+    (`PrimaryContactScopeTest::test_without_crm_assign_it_is_a_403`). Sans action prévue ni
+    référent, la cellule « Prochaine » dit « Sans référent » au personnel.
+  - *Q8 b)* — rendu serveur gardé ; relevés sur la démo, écritures bloquées dans la page ; les écarts
+    de contenu sont des « données », les cas absents de la démo (liste vide, a-5) sont éprouvés en
+    test de composant avec les personnes de la maquette.
+  - Libellé du menu « Clients (CRM) » → « Clients » (fr et en ; wo inchangé), tests de la barre
+    latérale suivis.
+- **Vues de l'administrateur** : À relancer · Mes clients · Sans référent · Tous (maquette bureau) ;
+  l'agent garde « Négociation ». Cela remplace la décision 4 du plan.
+- **Écarts restants** : pas de tri sur Étape ni Référent (l'API rend 400 sur `pipeline_stage` et
+  `referent`) ; « Relances prévues cette semaine » non servi (aucune donnée) ; pagination au lieu
+  de « Voir plus » ; pas de suggestions de quartier ; pas de référent dans l'alerte de doublon. Le
+  détail est au tableau « écarts acceptés » de `docs/qa/audit-ux-2026-11/fidelite/TCK-2590.json`.
+- **Fidélité** (fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2590.json`, relevés du 2026-11-12 sur la
+  démo, `--roles` de la fiche) — conformes · écarts · absents · pixels :
+  a-0 téléphone 42 · 19 · 14 · 14,99 % ; a-0 1440 47 · 229 · 72 · 7,6 % ; a-0 1280 48 · 228 · 72 ·
+  8,15 % ; a-3 téléphone 20 · 7 · 53 · 1,4 % ; a-3 1440 / 1280 50 · 265 · 75 · 72,12 % / 68,65 % ;
+  a-4 téléphone 8 · 22 · 57 · 5,8 % ; a-4 1440 / 1280 49 · 261 · 89 · 70,09 % / 66,37 %. Zones de
+  a-0 : titre 0 %, en-tête « Client · Cherche » 0,11 %, barre de tri 0 %. Le gros des écarts de
+  bureau : la coque (TCK-2617 à 2619), les données de la démo, et en a-3/a-4 le voile que le
+  produit n'a pas (décision du porteur du 2026-11-10, `PanneauDroit`). a-5 (liste vide) éprouvé en
+  test de composant. Aucun débord de 360 à 1440 (24 balayages, agent et admin, « Tous » et
+  « À relancer »). Les deux requêtes refusées par la garde des relevés à chaque chargement sont
+  `getNotificationsAction` (lecture de la cloche de la coque, POST par nature). Les gestes repliés des
+  rangées ont été mesurés au navigateur : largeur 0 et hors d'atteinte au repos, 88 px au focus
+  sans déplacer la colonne Référent.
+- **Ablations** (une à la fois, restaurées) : tri et filtre d'« À relancer », enregistrement du
+  geste, sonde sur numéro incomplet, `allow_duplicate`, « Compléter plus tard », création au
+  bailleur, étape qui quitte « Négociation » — chacune rougit au moins un test.
+  Après les décisions : « Me désigner » sans `crm.assign`, capacités jamais lues, lectures en série,
+  case « Me désigner » jamais rendue, sonde au numéro complet seulement, seuil à 6 chiffres (front) ;
+  côté API, `LIKE` retiré, seuil à 6, filtre d'agence retiré, limite de 5 retirée, `find()` au lieu
+  de `probe()` dans le contrôleur ; l'élision de « Créer la fiche d’Astou » retirée, « Plus de champs » rendu au second temps du téléphone, l'échec du geste jamais affiché ; côté API,
+  les jokers `%`/`_` nettoyés en chiffres — chacune rougit au moins un test (relevé :
+  `ablation-2590/resultats.txt`, scratchpad du lot 2).
+
+**2026-11-12, soir — décision 8 du porteur : le signal « fiche masquée » au numéro complet est gardé, sous un limiteur
+de 20 recherches au numéro complet par heure et par personne** (option a, avec 20/h au lieu des 10/h proposés).
+
+- Le limiteur nommé `customer-duplicate-probe-full-number` est dans `AppServiceProvider` (bloc marqué TCK-2590). Il
+  s'empile sur le limiteur existant de 20/min de `GET customers/duplicates` (`routes/api/customers.php`). Il ne compte
+  que les sondes dont le `phone` est un numéro complet, `CustomerDuplicateDetector::numeroComplet()`, la règle même de
+  `probe()`. La clé est `sonde-numero-complet:<id de l'utilisateur>` : un collègue garde son budget. Un préfixe ou un
+  e-mail ne consomme rien, puisque la décision vise le numéro. La 21ᵉ sonde de l'heure rend 429 avec `Retry-After`.
+- Côté front, `lib/queries/customer-duplicates.ts` avale l'erreur : après un 429, la création n'affiche simplement plus de
+  doublon, et la création elle-même reste juge (409).
+- **Seconde porte, fermée (team-lead, 2026-11-12)** : le 409 de la création (`CustomerController::refuseDuplicate`)
+  signalait aussi, au numéro complet, une fiche cachée. Il puise maintenant dans le MÊME compteur que la sonde. Les
+  noms sont partagés (`CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET`, `seauDuNumeroComplet()`), et le seau
+  est celui du limiteur nommé (`ThrottleRequestsByNetwork::namedLimiterKey`, comme `refundPhoneVerify`).
+  - Chaque 409 qui porte une fiche masquée au téléphone consomme une unité.
+  - Budget épuisé, un numéro porté par une fiche masquée rend **429 générique** (`http.too_many_requests`, comme la
+    sonde, avec `Retry-After`), sans rien de la fiche, et **rien n'est créé**. Correction de team-lead (2026-11-12) :
+    laisser passer aurait créé en silence le doublon d'une fiche cachée, que la règle refusait avant.
+  - Un numéro sans fiche masquée ne consomme rien et n'est jamais bloqué. L'agent qui saisit des fiches à la suite
+    n'est pas gêné. Les fiches que l'appelant lit restent signalées (409).
+  - Même règle pour la mise à jour (`PUT`/`PATCH`, numéro changé) : c'est la même fonction.
+  - Limite connue : une fois le budget épuisé, le 429 lui-même distingue un numéro porté par une fiche cachée d'un
+    numéro libre (qui, lui, crée une fiche). Il faut créer une fiche pour chaque numéro libre essayé.
+  - **Non couverts** : les conversions d'une demande ou d'une visite en fiche (`ContactLeadService`,
+    `CreateCustomerFromVisit`) passent par leur propre détection.
+- Tests de la seconde porte (`CustomerDuplicateProbeTest`, 4 neufs) :
+  - `…_la_creation_puise_dans_le_budget_du_numero_complet` : 20 × 409 masqué ; la 21ᵉ tentative rend 429 générique,
+    sans fiche créée ; un numéro libre passe ; la sonde est à 429 ; une heure plus tard, le 409 revient ;
+  - `…_la_sonde_epuise_aussi_le_signalement_de_la_creation` : 429, aucune fiche ;
+  - `…_la_mise_a_jour_suit_la_meme_regle` : 429, le numéro de la fiche est inchangé ;
+  - `…_budget_epuise_une_fiche_lisible_reste_signalee`.
+- Ablations de la seconde porte (rejouées sur la règle du 429) :
+  - **b1 — aucune consommation** : 1 rouge ;
+  - **b2 — la création passe, budget épuisé** : 3 rouges ;
+  - **b3 — un seau propre à la création** : 3 rouges ;
+  - **b5 — toute fiche traitée comme masquée** : 1 rouge ;
+  - **b6 — budget jugé sur tout numéro** (le numéro libre bloqué) : 3 rouges.
+- Ablations : **a9 — le préfixe consomme aussi le budget** → 2 rouges (« vingt sondes… », « le préfixe ne consomme
+  pas… ») ; **a10 — limiteur horaire sans limite** → 1 rouge (« vingt sondes… »).
+
+### Troisième porte — la demande de contact (2026-11-12, nuit ; décision 8 du porteur, points 1 à 3 de team-lead)
+
+- **Constat** (verif-commercial, `eca5ff201`) : seau vidé, un membre sans vue globale du CRM, destinataire d'une
+  demande de contact, lisait encore la fiche cachée — `known_customer {id: null…}` sur la boîte et le détail
+  (`null` pour un numéro libre), et `POST /contact-leads/{id}/convert` (ou une visite `create_customer`) rendait
+  409 `customer.duplicate` masqué, sans 429. Le formulaire public ajoute 30 numéros par heure et par adresse,
+  sans plafond par personne.
+- **`known_customer` ne signale que ce que le lecteur lit** (`ContactLeadKnownCustomers`) : seules les fiches
+  `visibleTo` concourent, téléphone d'abord puis e-mail. Une fiche cachée n'est pas signalée du tout : la clé vaut
+  `null`, comme pour un numéro libre. La boîte ne consomme donc rien.
+- **Un seul budget, un seul endroit** : `CustomerDuplicateDetector::budgeterLesSignalementsMasques()` (déplacé
+  du contrôleur des clients). Il est appelé par la création et la mise à jour (`CustomerController`), par la
+  conversion d'une demande (`ContactLeadService::refuseDuplicate`, que la visite `create_customer` emprunte) et
+  par la sonde. Une identité masquée au téléphone puise une unité, une identité masquée à l'e-mail une autre.
+  Budget épuisé : 429 générique, rien de la fiche, et la transaction de `convert` défait tout (aucune fiche). La
+  sonde passe `telephoneDejaCompte: true` : le limiteur de sa route a déjà compté le numéro complet.
+- **L'e-mail complet est le même oracle** (décision 8, nuit du 2026-11-12) : à la sonde, un e-mail qui désigne
+  une fiche cachée consomme une unité après coup, et rend 429 sans rien de la fiche quand le seau est vide ; à la
+  création, de même (E5). Un e-mail sans fiche cachée, ou d'une fiche que l'appelant lit, ne consomme rien.
+- Tous les appelants du détecteur sont couverts : `CreateCustomerFromVisit` passe par `POST /customers`.
+- Front non touché : la branche « fiche masquée » de `DejaConnu` (`DemandeOuverte.tsx`, `knownTitleHidden`) n'est
+  plus atteinte ; le type `DemandeDejaCliente` admet encore `id: null`.
+- Tests : `tests/Feature/Crm/SignalementMasqueTroisiemePorteTest.php`, 7 tests (la boîte et le détail sans
+  signalement, la première fiche lisible nommée, la conversion, la visite, E5 à la création, E5 à la sonde, le
+  numéro jamais compté deux fois à la sonde). Les 40 classes qui touchent demandes, sonde, doublons et visites
+  `create_customer` sont vertes (433 tests).
+- Ablations, toutes rouges : **c1 — fiche cachée admise dans `known_customer`** : 2 rouges ; **c2 — conversion
+  sans budget** : 2 rouges (demande et visite) ; **c3 — l'e-mail ne consomme pas** (E5) : 2 rouges ; **c4 — le
+  numéro recompté à la sonde** : 1 rouge.
+
+### Troisième porte — r1 de la vérification de b91c3654b : l'oracle 429/200 (2026-11-13, back-4)
+
+- **Constat.** Une fois le seau de 20 épuisé, seule une identité qui touchait une fiche cachée rendait 429, et une identité libre passait (201/200). Le personnel lisait donc dans ce contraste si une fiche cachée portait le numéro ou l'e-mail.
+- **Décision de team-lead.** Seau vide, **toute identité complète** présentée à une porte de doublon rend le même 429 générique, masquée ou non : téléphone complet (hors préfixe seul) ou e-mail non vide. La consommation reste réservée aux identités masquées.
+- **Ce qui a changé.**
+  - `CustomerDuplicateDetector::budgeterLesSignalementsMasques()` reçoit le téléphone et l'e-mail présentés.
+  - Sans identité complète, rien ne change : une création sans identité rend 201, et un `PATCH` qui garde sa propre identité rend 200, parce que seuls les champs modifiés sont présentés.
+  - Seau non vide, le dernier crédit suffit, la consommation étant plafonnée au restant.
+  - Le téléphone d'une sonde est déjà jugé par le limiteur de la route. Il n'est pas recompté.
+- **Changement produit à connaître.** Seau vide, une identité qui touche une fiche **lisible** rend aussi 429, et plus 409. Le front peut désormais recevoir 429 sur une identité libre.
+- **Épinglé par** `SignalementMasqueTroisiemePorteTest`, qui couvre les sept portes (le même 429, cachée comme libre, et rien de créé ni de consommé) ainsi que le seau non vide et le dernier crédit, et par `CustomerDuplicateProbeTest`.
+- **Ablations, toutes rouges :**
+  - refuser seulement quand une fiche est trouvée : 4 rouges ;
+  - le contrôleur présente `$data` non filtré : 1 rouge ;
+  - consommation sans plafond : rouge depuis que le test emploie deux fiches cachées distinctes ;
+  - le téléphone de la sonde recompté : 4 rouges.
+- **Reste.** r2, le budget non atomique, est inchangé. Le commentaire du limiteur dans `AppServiceProvider`, fichier partagé, n'est pas mis à jour.
+- **r1 de la vérification de affb8e269 (2026-11-13, back-4).** Au PATCH, l'e-mail « inchangé » se comparait en chaîne brute : changer seulement la casse de son propre e-mail présentait une identité neuve, et un seau vide rendait 429. `CustomerController::refuseDuplicate()` compare désormais `CaseInsensitive::fold(trim())` des deux côtés, comme le détecteur cherche. Épinglé dans `test_seau_vide_cachee_et_libre_rendent_le_meme_429` : `SIENNE@Example.COM` puis le retour à la forme d'origine rendent 200, sans rien consommer. Ablation (comparaison brute) : rouge, 429 au lieu de 200.

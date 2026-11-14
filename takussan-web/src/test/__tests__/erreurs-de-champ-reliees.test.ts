@@ -56,10 +56,10 @@ const FICHIERS_P07_07 = [
   'app/[locale]/(public)/properties/[slug]/components/PropertyContactMessageDialog.tsx',
   'app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx',
   'app/[locale]/(public)/properties/[slug]/components/PropertyReviews.tsx',
-  'app/(dashboard)/app/overview/kpis/KpiConfigList.tsx',
+  'components/rapports/indicateurs/ReglageDesChiffres.tsx',
   'components/leases/CreateLeaseForm.tsx',
   'components/leases/DepositRefundModal.tsx',
-  'components/admin/InviteAgentDialog.tsx',
+  'components/admin/equipe/FormulaireDInvitation.tsx',
   'components/owners/InviteOwnerSheet.tsx',
   'components/service-providers/InviteServiceProviderSheet.tsx',
 ];

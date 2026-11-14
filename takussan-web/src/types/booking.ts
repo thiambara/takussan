@@ -24,7 +24,16 @@ export type BookingPaymentStatus =
   | 'refunded'
   | 'cancelled';
 
-export type BookingPaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'card';
+/** TCK-2594 — les huit cas de `PaymentMethod` côté API (`app/Models/Enums/PaymentMethod.php`). */
+export type BookingPaymentMethod =
+  | 'cash'
+  | 'bank_transfer'
+  | 'mobile_money'
+  | 'wave'
+  | 'orange_money'
+  | 'free_money'
+  | 'check'
+  | 'card';
 
 export type BookingPayment = {
   id: number;
@@ -51,8 +60,24 @@ export type BookingPayment = {
   paid_out?: { payout_id: number; reference_number: string; processed_at: string | null } | null;
 };
 
+/** TCK-2579 (ADR-0102) — la nature d'une réservation : séjour, candidature ou offre. */
+export type BookingKind = 'stay' | 'application' | 'offer';
+
 export type Booking = {
   id: number;
+  /** TCK-2579 — posée à la création d'après le bien ; absente d'une lecture qui ne la demande pas. */
+  kind?: BookingKind;
+  /** TCK-2579 — le prix affiché du bien au moment de la demande (l'écart d'une offre). */
+  list_price_at_booking?: number | null;
+  /** TCK-2579 — la validité d'une offre, quand l'agent l'a saisie. */
+  offer_expires_at?: string | null;
+  /** TCK-2579 — l'auteur de la saisie, quand le personnel l'a faite au nom du client. */
+  created_by?: { id: number; name: string } | null;
+  recorded_by_staff?: boolean | null;
+  /**
+   * TCK-2593 — les visites terminées de ce client sur ce bien ; émis au seul personnel de l'agence.
+   */
+  visits_on_property?: number;
   property_id: number;
   customer_id: number;
   created_by_id: number;
@@ -92,12 +117,21 @@ export type Booking = {
     price: number;
     currency: string | null;
     contract_type: 'sale' | 'rent' | null;
+    rent_period?: string | null;
+    /** `PropertyResource` — le quartier sert la ligne « Bien · quartier ». */
+    location?: { quarter?: string | null; city?: string | null } | null;
+    /** TCK-2594 — « En vente depuis 47 jours » sous la comparaison d'une offre. */
+    published_at?: string | null;
   };
   customer?: {
     id: number;
     user_id?: number | null;
     first_name?: string | null;
     last_name?: string | null;
+    /** TCK-2593 — au seul personnel de l'agence de la réservation ; absent pour le client et le bailleur. */
+    phone?: string | null;
+    /** TCK-2594 — un fait du bloc « Qui » de la fiche (« Fonctionnaire »). */
+    occupation?: string | null;
   } | null;
   booking_payments?: BookingPayment[];
   /**

@@ -4,8 +4,10 @@ namespace App\Policies;
 
 use App\Models\Document;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
@@ -43,6 +45,33 @@ class LeasePolicy extends BasePolicy
     protected function createCapability(): ?Capability
     {
         return Capability::LeasesCreate;
+    }
+
+    /**
+     * TCK-2643 — ouvrir un bail SUR CE BIEN : la règle de `LeaseService::create()` (TCK-587,
+     * TCK-1722), extraite pour que `GET /api/leases/defaults` juge comme la création. `create()`
+     * ci-dessus ne voit que la capacité, et refuserait le bailleur que la création admet.
+     *
+     * Le bailleur du bien (ni bloqué ni parti de son agence, TCK-2753), ou le PERSONNEL de l'agence du bien tenant
+     * `leases.create` — la clause « même agence » laissait un autre bailleur de l'agence ouvrir un
+     * bail sur le bien d'un autre (ADR-0031). Le super-admin passe aussi par `Gate::before`.
+     */
+    public function createOn(User $user, Property $property): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // TCK-1722 (P160.03) — le créateur du bien seulement s'il en est le bailleur : l'agent qui
+        // l'a saisi ouvre un bail au titre du personnel, sous `leases.create`.
+        if (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
+            && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id))) {
+            return true;
+        }
+
+        return $property->agency_id !== null
+            && $user->staffAgencyId() === (int) $property->agency_id
+            && $user->can(Capability::LeasesCreate->value, $property);
     }
 
     /**
@@ -109,6 +138,21 @@ class LeasePolicy extends BasePolicy
         }
 
         return $user->isSuperAdmin();
+    }
+
+    /**
+     * TCK-2764 — abandonner un brouillon jamais envoyé en signature : la règle de {@see update()}, plus
+     * la condition `draft`, pour que la fiche ne monte l'action que sur un brouillon
+     * (`abilities.abandon`). Pas de capacité neuve.
+     *
+     * ⚠ `DELETE /api/leases/{id}` n'autorise PAS par elle, mais par `update`
+     * (`AbandonLeaseDraftRequest`) : un bail qui n'est plus un brouillon y rend 422
+     * `lease.not_draft_abandon`, jugé sous verrou par `LeaseService::abandonDraft()`, et non 403. Le
+     * statut lu ici est celui de l'instance, sans verrou : un indice pour l'écran, jamais une garde.
+     */
+    public function abandon(User $user, Lease $lease): bool
+    {
+        return $lease->status === LeaseStatus::Draft && $this->update($user, $lease);
     }
 
     /**
@@ -321,7 +365,7 @@ class LeasePolicy extends BasePolicy
     /**
      * TCK-596 §4B (ADR-0042 §4) — signer un bail pour une partie : `tenant` = le locataire DU bail ;
      * `landlord` = {@see LandlordSignatory::allows()} (le bailleur, ou le personnel de l'agence du
-     * bail titulaire de `leases.sign` pour son compte).
+     * bail titulaire de `leases.sign` pour son compte — au sens du profil actif, comme `view`, TCK-2810).
      *
      * ⚠ `Gate::before` accorde tout au super-admin avant d'arriver ici : le service revérifie le
      * signataire ({@see LeaseSignatureService::assertSigner()}).

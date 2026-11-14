@@ -2,17 +2,17 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Archive,
   Copy,
-  ExternalLink,
+  Globe,
   Loader2,
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
 
+import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -23,142 +23,39 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { BoostButton } from '@/components/boost/BoostButton';
-import {
-  deletePropertyAction,
-  duplicatePropertyAction,
-  updatePropertyStatusAction,
-  updatePropertyVisibilityAction,
-} from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
-import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
+import { useGestesRapides } from './useGestesRapides';
 import type { PropertyDetail } from '@/types/property';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 
 interface Props {
   readonly property: PropertyDetail;
   /** TCK-633 — la fiche est ouverte avec `?booster=1` (message de confirmation de publication). */
   readonly ouvrirBoost?: boolean;
+  /** TCK-2639 — « Ajouter un document » : la feuille « ⋯ » du téléphone seulement (l'onglet Documents le porte). */
+  readonly ajouterUnDocument?: boolean;
 }
 
 const PUBLIC_VIEWABLE_STATUSES = new Set(['available', 'published']);
 
-export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) {
+export function PropertyHeaderActions({ property, ouvrirBoost = false, ajouterUnDocument = false }: Props) {
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
   const { canPublish, canDelete } = useGestesDuBien();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const runAction = (
-    fn: () => Promise<{ ok: boolean; message?: string; data?: { status?: string | null } }>,
-    successMessage: string,
-  ) => {
-    setError(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        setError(result.message ?? t('error'));
-        return;
-      }
-      // TCK-597 (§8) — une mise en ligne qui revient `pending_review` n'est PAS publiée : l'agence
-      // modère, et l'écran le dit au lieu d'annoncer un succès qui n'a pas eu lieu.
-      setSuccess(result.data?.status === 'pending_review' ? t('sentForReview') : successMessage);
-      router.refresh();
-    });
-  };
-
-  // TCK-633 (lot C, décision 3) — publier passe par `POST …/publish` : un compte prêt publie au
-  // premier geste, sinon « Vos coordonnées pour les intéressés » s'ouvre en boîte de dialogue.
-  const publication = usePublicationAvecCoordonnees(property.id, {
-    onPublie: (statut, geste) => {
-      setSuccess(
-        statut === 'pending_review'
-          ? t('sentForReview')
-          : geste.type === 'statut'
-            ? t('statusUpdated')
-            : t('published'),
-      );
-      router.refresh();
-    },
-    onEchec: (message) => setError(message || t('error')),
-  });
-
-  const publish = () => {
-    setError(null);
-    setSuccess(null);
-    publication.publier();
-  };
-
-  const unpublish = () => {
-    runAction(
-      () => updatePropertyVisibilityAction(property.id, 'private'),
-      t('unpublished'),
-    );
-  };
-
-  // Correction du lot C, tour 2 — cf. `PropertyRowActions` : un refus de remise en ligne par le
-  // statut ouvre la boîte « Vos coordonnées », qui rejoue ce statut avec `accept_terms`.
-  const changeStatus = (status: string) => {
-    if (status === property.status) return;
-    setError(null);
-    setSuccess(null);
-    publication.changerStatut(status);
-  };
-
-  const archive = () => {
-    runAction(
-      () => updatePropertyStatusAction(property.id, 'archived'),
-      t('archived'),
-    );
-  };
-
-  const duplicate = () => {
-    setError(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await duplicatePropertyAction(property.id);
-      if (!result.ok) {
-        setError(result.message ?? t('duplicateFailed'));
-        return;
-      }
-      if (!result.data) {
-        setError(t('duplicateFailed'));
-        return;
-      }
-      router.push(`/app/properties/${result.data.id}`);
-      router.refresh();
-    });
-  };
-
-  const confirmAndDelete = () => {
-    setError(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await deletePropertyAction(property.id);
-      if (!result.ok) {
-        setError(result.message ?? t('deleteFailed'));
-        return;
-      }
-      setConfirmDelete(false);
+  // Réserve de verif-patrimoine (2026-11-12) — échecs rattrapés et dits par un toast, Archiver et
+  // Dépublier confirmés : la règle vit dans `useGestesRapides`, commune à la ligne de liste.
+  const gestes = useGestesRapides(property, {
+    corpsDeSuppression: 'deleteBodyDetail',
+    apresSuppression: () => {
       router.push('/app/properties');
       router.refresh();
-    });
-  };
+    },
+  });
+  // L'état en vol de TOUS les gestes, statuts compris : un seul geste part à la fois.
+  const pending = gestes.enVol;
 
   const canViewPublic =
     property.visibility === 'public' &&
@@ -176,16 +73,6 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {error ? (
-        <span role="alert" className="text-xs text-destructive">
-          {error}
-        </span>
-      ) : null}
-      {success ? (
-        <span role="status" className="text-xs text-success">
-          {success}
-        </span>
-      ) : null}
       {canViewPublic ? (
         <Link
           href={`/properties/${property.slug}`}
@@ -193,7 +80,7 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
           rel="noopener noreferrer"
           className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
-          <ExternalLink aria-hidden="true" />
+          <Globe aria-hidden="true" />
           {t('viewPublic')}
         </Link>
       ) : null}
@@ -207,24 +94,25 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
           isPublic={Boolean(canViewPublic)}
           ouvrirDemande={ouvrirBoost}
         />
-        <AddDocumentButton
-          documentableType="property"
-          documentableId={property.id}
-          displayLabel={property.title}
-        />
+        {/* TCK-2639 (AC3) — « Ajouter un document » vit dans l'onglet Documents, préattaché au bien ;
+            l'en-tête du bureau n'en porte plus (maquette), la feuille « ⋯ » du téléphone le garde. */}
+        {ajouterUnDocument ? (
+          <AddDocumentButton documentableType="property" documentableId={property.id} displayLabel={property.title} />
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button
-                variant="ghost"
-                size="icon-sm"
+                // TCK-2639 — le « ⋯ » de la maquette `app-biens` a-2 : bordé, sur la carte.
+                variant="outline"
+                size="icon"
                 aria-label={t('more')}
                 disabled={pending}
               >
                 {pending ? (
                   <Loader2 className="animate-spin" aria-hidden="true" />
                 ) : (
-                  <MoreHorizontal aria-hidden="true" />
+                  <MoreHorizontal className="size-icone stroke-2 text-muted-foreground" aria-hidden="true" />
                 )}
               </Button>
             }
@@ -236,15 +124,15 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
             {!canPublish ? null : isPublic ? (
-              <DropdownMenuItem onClick={unpublish} disabled={pending}>
+              <DropdownMenuItem onClick={() => gestes.demanderConfirmation('unpublish')} disabled={pending}>
                 {t('unpublish')}
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={publish} disabled={pending || publication.enCours}>
+              <DropdownMenuItem onClick={gestes.publier} disabled={pending}>
                 {t('publish')}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={duplicate} disabled={pending}>
+            <DropdownMenuItem onClick={gestes.dupliquer} disabled={pending}>
               <Copy className="size-4" aria-hidden="true" />
               {t('duplicate')}
             </DropdownMenuItem>
@@ -254,21 +142,21 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
               <DropdownMenuItem
                 key={status}
                 disabled={pending}
-                onClick={() => changeStatus(status)}
+                onClick={() => gestes.changerStatut(status)}
               >
                 {tStatus(status)}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             {property.status !== 'archived' ? (
-              <DropdownMenuItem onClick={archive} disabled={pending}>
+              <DropdownMenuItem onClick={() => gestes.demanderConfirmation('archive')} disabled={pending}>
                 <Archive className="size-4" aria-hidden="true" />
                 {t('archive')}
               </DropdownMenuItem>
             ) : null}
             {canDelete ? (
               <DropdownMenuItem
-                onClick={() => setConfirmDelete(true)}
+                onClick={gestes.demanderSuppression}
                 disabled={pending}
                 className="text-destructive focus:text-destructive"
               >
@@ -279,44 +167,7 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {publication.dialogue}
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('deleteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t.rich('deleteBodyDetail', {
-                title: property.title,
-                b: (chunks) => <strong>{chunks}</strong>,
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={pending}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmAndDelete}
-              disabled={pending}
-            >
-              {pending ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : null}
-              {t('delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {gestes.dialogues}
     </div>
   );
 }

@@ -3,9 +3,11 @@
 namespace App\Http\Requests\Agency;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\RoleDelegation;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -18,6 +20,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateAgentAbsenceRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         /** @var Agency $agency */
@@ -34,8 +38,8 @@ class UpdateAgentAbsenceRequest extends BaseFormRequest
         $maxEndDate = now()->addDays((int) config('role_delegations.max_duration_days', 366))->toIso8601String();
 
         return [
-            'starts_at' => ['sometimes', 'nullable', 'date'],
-            'ends_at' => ['sometimes', 'required', 'date', 'after:now', "before_or_equal:$maxEndDate"],
+            'starts_at' => ['sometimes', 'nullable', 'date', new InstantIso],
+            'ends_at' => ['sometimes', 'required', 'date', new InstantIso, 'after:now', "before_or_equal:$maxEndDate"],
             'substitute_id' => ['sometimes', 'required', 'integer', Rule::exists('users', 'id')->withoutTrashed()],
             'substitute_can_act' => ['sometimes', 'boolean'],
             'reason' => ['sometimes', 'nullable', 'string', 'max:500'],
@@ -57,5 +61,14 @@ class UpdateAgentAbsenceRequest extends BaseFormRequest
         $canActAfter = $this->has('substitute_can_act') ? $this->boolean('substitute_can_act') : $live;
 
         return $canActAfter && $this->hasAny(['starts_at', 'ends_at', 'substitute_id', 'substitute_can_act']);
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `ends_at` n'est pas ici : il passe par `FinInclusive::de()`.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at'];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\AssignAgentPropertyRequest;
 use App\Http\Requests\Api\StorePropertyRequest;
@@ -23,6 +24,7 @@ use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\MotifsHorsLigne;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyBulkAssignService;
@@ -82,8 +84,12 @@ class PropertyController extends Controller
 
         $this->primeOnlineAndOccupancy($biens, $request);
 
+        // TCK-2638 (lot B2, vérification adverse d1) — l'appelant est amorcé avec les titulaires : la fin
+        // d'un boost (`sponsored_until`) se juge sur SON appartenance au personnel de l'agence de chaque
+        // ligne, en mémoire plutôt qu'une requête par bien.
         return $this->paginated($paginator, MembershipCapabilityResolver::primed(
-            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')]),
+            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')])
+                ->push($request->user()?->id),
             $biens->map(fn (Property $p) => $p->getAttributes()['agency_id'] ?? null),
             fn () => PropertyResource::collection($paginator)->toArray($request),
         ));
@@ -139,12 +145,20 @@ class PropertyController extends Controller
         }
 
         try {
-            $property = DB::transaction(function () use ($data, $titulaire) {
+            $auteur = (int) $request->user()->id;
+            $property = DB::transaction(function () use ($data, $titulaire, $titulaires, $auteur, $isProposal) {
                 $property = Property::create(array_merge($data, [
                     'user_id' => $titulaire,
                     'status' => $data['status'] ?? PropertyStatus::Draft->value,
                     'visibility' => $data['visibility'] ?? PropertyVisibility::Private->value,
                 ]));
+
+                // TCK-2753 (r1) — un bien qui naît au nom d'un bailleur (désigné, celui du parent, ou
+                // l'auteur d'une proposition) : le bailleur est rejugé sous verrou APRÈS l'insertion,
+                // contre un départ concurrent ({@see TitulaireALaSaisie::exigerActifSousVerrou()}).
+                if ($property->agency_id !== null && ($titulaire !== $auteur || $isProposal)) {
+                    $titulaires->exigerActifSousVerrou($titulaire, (int) $property->agency_id);
+                }
 
                 if (! empty($data['address'])) {
                     $property->address()->create($data['address']);
@@ -175,6 +189,10 @@ class PropertyController extends Controller
                 201
             );
         } catch (\Throwable $e) {
+            // TCK-2753 (r1) — un refus rendu sous verrou (422 codé) n'est pas un échec de création.
+            if ($e instanceof ApiError) {
+                throw $e;
+            }
             // TCK-601 (ADR-0044 §2) — ni la saisie (`$request->all()`), ni le message, qui la
             // recopie pour une erreur SQL : les CLÉS de la saisie et la forme sûre de l'exception.
             Log::error('[PropertyController::store] Failed to create property', [
@@ -202,6 +220,14 @@ class PropertyController extends Controller
         if (in_array('online', $includes, true)) {
             $property->markOnline($property->isOnline());
         }
+        // TCK-2678 — le motif d'un bien hors ligne, au seul personnel de son agence et à son bailleur
+        // (`MotifsHorsLigne`) ; jamais aux routes publiques.
+        if (in_array('offlineReasons', $includes, true)) {
+            $motifs = app(MotifsHorsLigne::class)->pour($request->user(), [(int) $property->getKey()]);
+            if (isset($motifs[(int) $property->getKey()])) {
+                $property->markOfflineReasons($motifs[(int) $property->getKey()]);
+            }
+        }
         if (in_array('occupancy', $includes, true)) {
             app(PropertyOccupancy::class)->attach(collect([$property]), $request->user());
         }
@@ -227,6 +253,16 @@ class PropertyController extends Controller
         if (in_array('online', $includes, true)) {
             $online = array_flip(Property::onlineAmong($biens->map(fn (Property $p) => (int) $p->getKey())->all()));
             $biens->each(fn (Property $p) => $p->markOnline(isset($online[(int) $p->getKey()])));
+        }
+
+        // TCK-2678 — une ligne que l'appelant ne lit pas en personnel ni en bailleur ne porte pas la clé.
+        if (in_array('offlineReasons', $includes, true)) {
+            $motifs = app(MotifsHorsLigne::class)->pour($request->user(), $biens->map(fn (Property $p) => (int) $p->getKey())->all());
+            $biens->each(function (Property $p) use ($motifs) {
+                if (isset($motifs[(int) $p->getKey()])) {
+                    $p->markOfflineReasons($motifs[(int) $p->getKey()]);
+                }
+            });
         }
 
         if (in_array('occupancy', $includes, true)) {

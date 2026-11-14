@@ -48,9 +48,10 @@ use Spatie\QueryBuilder\QueryBuilder;
  * `filter[added_by_id]`, `filter[role]` et `include=` : des questions d'administration sur un
  * compte, pas sur un contact.
  *
- * Cet endpoint déclare donc SA propre liste blanche, étroite : deux filtres (`search`, sur
- * `first_name` et `last_name` seulement — `attributesToSearchOn` de Meilisearch ; et `exclude`,
- * des identifiants que le sélecteur a déjà choisis, TCK-973), deux tris (le
+ * Cet endpoint déclare donc SA propre liste blanche, étroite : trois filtres (`search`, sur
+ * `first_name` et `last_name` seulement — `attributesToSearchOn` de Meilisearch ; `exclude`,
+ * des identifiants que le sélecteur a déjà choisis, TCK-973 ; et `id`, une personne précise,
+ * TCK-2589), deux tris (le
  * nom), trois colonnes. Tout autre paramètre rend 400 (`InvalidQuery` de spatie). La recherche
  * reste celle de Scout, tolérante aux fautes et aux accents, et son ordre de pertinence est
  * restitué ({@see SearchRelevanceSort}) ; sans recherche, tri alphabétique — une liste de personnes.
@@ -110,6 +111,24 @@ class MessagingContactController extends Controller
                         $q->whereNotIn('users.id', $ids);
                     }
                 }),
+                // TCK-2589 — « Écrire » de la fiche client : CETTE personne est-elle joignable ? Le geste
+                // ne paraît que si la directe serait acceptée (`StoreConversationRequest` lit la même
+                // règle). Aucun oracle de plus : la liste sans filtre énumère déjà tout le périmètre.
+                // Un identifiant illisible, ou plusieurs, ne rendent personne (au contraire
+                // d'`exclude`, qui n'exclut alors rien).
+                AllowedFilter::callback('id', function (Builder $q, mixed $value) {
+                    $brut = is_array($value) ? '' : trim((string) $value);
+                    if (preg_match('/^[1-9]\d{0,17}$/', $brut) !== 1) {
+                        $q->whereRaw('1 = 0');
+
+                        return;
+                    }
+                    $q->where('users.id', (int) $brut);
+                    // Contre-vérification de TCK-2589 — `nullable()` : vide ou fait d'espaces, la valeur
+                    // arrive `null` (`TrimStrings`, `ConvertEmptyStringsToNull`), et spatie n'applique
+                    // pas un filtre non `nullable` à `null` : la LISTE ENTIÈRE revenait, au lieu de
+                    // personne comme le dit l'en-tête. Le filtre posé décide, quelle que soit sa valeur.
+                })->nullable(),
                 AllowedFilter::callback('search', function (Builder $q, mixed $value) use (&$relevance) {
                     $terms = trim(is_array($value) ? implode(' ', $value) : (string) $value);
                     if ($terms === '') {

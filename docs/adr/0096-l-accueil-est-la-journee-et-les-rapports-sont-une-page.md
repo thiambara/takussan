@@ -75,3 +75,13 @@ Le porteur a retenu le 2026-11-10 :
   - un test par redirection, paramètres compris ;
   - un test « locataire, client et prestataire : aucune entrée Rapports » ;
   - un test de l'onglet masqué par `analytics`.
+
+## Amendement du 2026-11-14 — ce que l'implémentation de TCK-2628 a tranché
+
+Décisions de la session (mandat du porteur : « selon tes propres recommandations »), à revoir :
+
+1. **L'hôte garde l'onglet « Alertes ».** Il l'ouvrait déjà comme admin de son agence `individual` ; le retirer serait une régression. Ses onglets : Vue d'ensemble · Reversements · Exports · Alertes.
+2. **Une ancienne adresse lit le masque `analytics` pour choisir sa cible** (`lib/rapports/contexte-serveur.ts`) : elle ne mène jamais à un onglet masqué (§ 4). Les gardes des onglets, elles, ne lisent pas le masque ([ADR-0089](0089-le-menu-de-app-se-derive-du-profil-actif.md), amendement § 3). Conséquence : `analytics` ne barre plus d'entrée dans la prévisualisation du menu de la fiche agence (super-admin), seulement des onglets.
+3. **Le § 4 d'[ADR-0090](0090-la-coque-de-app-sans-barre-du-haut.md) est assoupli pour le bailleur et l'hôte** : « Rapports » y est une entrée unique **dans un groupe partagé**, pas un groupe à lui seul.
+4. **Les refus de la page vivent dans `lib/rapports/gardes-serveur.ts`**, une table jugée sur le contexte de persona. Le plafond de `scripts/check-auth-interrupts.mjs` descend de 12 à 5, comme pour `garderPageAdmin` (TCK-633) ; le test M2 recoupe la table avec le menu sur toutes les combinaisons.
+5. **Une épingle sur `vue-agence`, `statistiques`, `kpis`, `alertes` ou `exports`** est ignorée par le composeur depuis TCK-2628. Ticket de suite : la migrer vers `rapports`, et supprimer les composants morts de l'ancienne vue agence (`AgencyQueues`, `AgencyKpis`, `AgencyActivityFeed`, `AgencyRevenueSnapshot`).

@@ -71,7 +71,7 @@ class ServiceProviderBillController extends Controller
 
     public function pay(PayServiceProviderBillRequest $request, ServiceProviderBill $serviceProviderBill): JsonResponse
     {
-        $payout = $this->payouts->createForBill($request->user(), $serviceProviderBill, $request->validated());
+        $payout = $this->payouts->createForBill($request->user(), $serviceProviderBill, $request->validatedAvecInstants());
 
         return $this->json(['data' => PayoutResource::make($payout)->resolve($request)], 201);
     }

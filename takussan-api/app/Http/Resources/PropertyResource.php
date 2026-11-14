@@ -6,15 +6,18 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
+use App\Policies\OwnerProfilePolicy;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
@@ -112,6 +115,10 @@ class PropertyResource extends BaseResource
             // contrôleur (`include=online`, `include=occupancy`) : rien sinon.
             ...($this->resource instanceof Property && $this->resource->onlineFlag() !== null
                 ? ['is_online' => $this->resource->onlineFlag()] : []),
+            // TCK-2678 (ADR-0097 § 5) — les codes de motif d'un bien hors ligne (`include=offlineReasons`),
+            // posés par le seul `PropertyController` : ni une route publique ni un lecteur imbriqué ne les pose.
+            ...($this->resource instanceof Property && $this->resource->offlineReasonsFlag() !== null
+                ? ['offline_reasons' => $this->resource->offlineReasonsFlag()] : []),
             ...($this->resource instanceof Property && $this->resource->occupancyBlock() !== null
                 ? ['occupancy' => $this->buildOccupancy($this->resource->occupancyBlock())] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
@@ -133,6 +140,21 @@ class PropertyResource extends BaseResource
             // par `BoostLifecycle` ; nul sans badge actif.
             'badge' => $this->whenHas('badge', fn ($valeur) => $valeur?->value),
             'badge_until' => $this->whenHas('badge_until', fn ($valeur) => $this->iso($valeur)),
+            // TCK-2638 (lot B2) — la pastille « Boostée » de la liste pro : la mise en avant payée, projetée
+            // par `BoostLifecycle` (décision du porteur : en cours = `sponsored_until` > maintenant, jugé
+            // par l'écran). Hors surface publique : la fin d'un boost n'est pas une donnée du catalogue.
+            // Vérification adverse (d1) — sur la liste et la fiche pro SEULES, et au SEUL personnel de
+            // l'agence du bien et à son bailleur : le bien imbriqué d'un bail (`/api/leases?include=property`)
+            // ou d'une réservation (`/api/bookings?include=property`) est chargé avec toutes ses colonnes,
+            // et son locataire ou son candidat n'a pas à lire ce que l'agence a payé. La route d'abord :
+            // ailleurs, aucun jugement, donc aucune requête par ligne (`LeaseIndexQueryCountTest`).
+            'sponsored_until' => $this->when(
+                $appelantConnu
+                    && $request->routeIs('properties.index', 'properties.show')
+                    && array_key_exists('sponsored_until', $this->resource->getAttributes())
+                    && $this->leBoostSeLitPar($request->user()),
+                fn () => $this->iso($this->resource->sponsored_until),
+            ),
             // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :
             // `DASHBOARD_PROPERTY_FIELDS` (`takussan-web/src/lib/queries/properties-server.ts`)
             // les demande explicitement, et `PropertyList.tsx` les rend dans chaque ligne du
@@ -269,6 +291,13 @@ class PropertyResource extends BaseResource
                 fn (): ?array => ($profil = $this->resource->pendingOwnerProfile) !== null
                     ? ['profile_id' => (int) $profil->id, 'name' => $profil->display_name]
                     : null,
+            ),
+            // TCK-2639 — la fiche du bien mène à celle de son bailleur (`/app/owners/{id}`, TCK-2641) :
+            // le profil de bailleur du titulaire dans l'agence du bien, rendu à qui la fiche du
+            // bailleur s'ouvrirait (la règle même de `ShowOwnerProfileRequest`), nul pour tout autre.
+            'owner_profile_id' => $this->when(
+                $isDetail && $appelantConnu,
+                fn (): ?int => $this->profilDuBailleurLisible($request->user()),
             ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),
@@ -417,6 +446,34 @@ class PropertyResource extends BaseResource
 
         return $user->isSuperAdmin()
             || ($agencyId !== null && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId));
+    }
+
+    /**
+     * TCK-2638 (lot B2, vérification adverse d1) — la fin d'un boost se lit par le personnel de l'agence
+     * du bien (ou le super-admin) et par son bailleur ({@see BailleurDuBien::est()}, qui ne coûte
+     * aucune requête quand l'appelant n'est pas désigné par `user_id`). Sur la liste, l'amorce de
+     * `PropertyController::index`, qui compte l'appelant parmi ses utilisateurs, juge le personnel en
+     * mémoire.
+     */
+    private function leBoostSeLitPar(User $user): bool
+    {
+        return BailleurDuBien::est($user, $this->resource->getAttribute('user_id'), $this->resource->getAttribute('agency_id'))
+            || $this->lePersonnelLit($user);
+    }
+
+    /** TCK-2639 — l'identifiant du profil de bailleur du titulaire, si l'appelant en ouvre la fiche. */
+    private function profilDuBailleurLisible(User $user): ?int
+    {
+        $agencyId = $this->resource->getAttribute('agency_id');
+        $ownerId = $this->resource->getAttribute('user_id');
+        if ($agencyId === null || $ownerId === null) {
+            return null;
+        }
+        $profil = OwnerProfile::query()->where('agency_id', $agencyId)->where('user_id', $ownerId)->first();
+
+        return $profil !== null && OwnerProfilePolicy::isInActorAgency($user, $profil) && $user->can('viewDetail', $profil)
+            ? (int) $profil->getKey()
+            : null;
     }
 
     /**

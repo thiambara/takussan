@@ -294,7 +294,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary" aria-hidden>
             <Scale className="size-4.5" />
           </span>
-          <span className="text-[0.8125rem] font-semibold">{t('title')}</span>
+          <span className="text-ui font-semibold">{t('title')}</span>
           <span
             className="rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground tabular-nums"
             aria-hidden
@@ -346,7 +346,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
             <Scale className="size-4.5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[0.8125rem] font-semibold leading-tight text-foreground">{t('title')}</p>
+            <p className="text-ui font-semibold leading-tight text-foreground">{t('title')}</p>
             <p className="text-xs leading-tight text-muted-foreground tabular-nums">
               {t('count', { count: ids.length, max: COMPARE_MAX_IDS })}
             </p>
@@ -439,7 +439,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
               title={t('clearAria')}
               className={cn(
                 'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2.5',
-                'text-[0.8125rem] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground',
+                'text-ui font-semibold text-muted-foreground hover:bg-muted hover:text-foreground',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 'transition-[background-color,color,scale] duration-150 active:scale-[0.96]',
               )}
@@ -453,7 +453,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
               tabIndex={canCompare ? 0 : -1}
               className={cn(
                 'flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5',
-                'text-[0.8125rem] font-semibold',
+                'text-ui font-semibold',
                 'transition-[background-color,color,scale] duration-150',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                 canCompare
@@ -514,7 +514,7 @@ function PastilleDuComparateur({
         {t('libelle')}
         <span
           aria-hidden
-          className="inline-flex size-5 items-center justify-center rounded-full bg-background text-[0.6875rem] tabular-nums text-foreground"
+          className="inline-flex size-5 items-center justify-center rounded-full bg-background text-legende tabular-nums text-foreground"
         >
           {nombre}
         </span>

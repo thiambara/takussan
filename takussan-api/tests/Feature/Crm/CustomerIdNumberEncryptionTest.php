@@ -107,7 +107,7 @@ class CustomerIdNumberEncryptionTest extends ApiTestCase
 
         $vus = [
             'liste' => collect($this->apiGet('/api/customers')->assertOk()->json('data'))->firstWhere('id', $this->tenant->id),
-            'bail' => $this->apiGet("/api/leases/{$this->lease->id}")->assertOk()->json('data.tenant'),
+            'bail' => $this->apiGet("/api/leases/{$this->lease->id}?include=tenant")->assertOk()->json('data.tenant'),
             'liste des baux' => collect($this->apiGet('/api/leases?include=tenant')->assertOk()->json('data'))
                 ->firstWhere('id', $this->lease->id)['tenant'],
             'réservation' => $this->apiGet("/api/bookings/{$this->booking->id}")->assertOk()->json('data.customer'),
@@ -146,7 +146,7 @@ class CustomerIdNumberEncryptionTest extends ApiTestCase
         $this->actingAsApi($this->landlord);
 
         $vus = [
-            'bail' => $this->apiGet("/api/leases/{$this->lease->id}")->assertOk()->json('data.tenant'),
+            'bail' => $this->apiGet("/api/leases/{$this->lease->id}?include=tenant")->assertOk()->json('data.tenant'),
             'réservation' => $this->apiGet("/api/bookings/{$this->booking->id}")->assertOk()->json('data.customer'),
         ];
         foreach ($vus as $voie => $vu) {

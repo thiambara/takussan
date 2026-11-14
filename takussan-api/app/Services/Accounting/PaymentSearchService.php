@@ -42,6 +42,8 @@ class PaymentSearchService
         if ($direction !== BankStatementLineDirection::Debit) {
             $candidates = $candidates->merge($this->searchBookingPayments($agency, $query, $amountHint, $currency));
             $candidates = $candidates->merge($this->searchLeasePayments($agency, $query, $amountHint, $currency));
+            // TCK-2793 — la pénalité payée seule, encaissée par l'agence : un crédit à part.
+            $candidates = $candidates->merge($this->searchLateFees($agency, $query, $amountHint, $currency));
             $candidates = $candidates->merge($this->searchInvoices($agency, $query, $amountHint, $currency));
             // TCK-1421 (P141.02) — le virement de clôture de la plateforme est un crédit.
             $candidates = $candidates->merge($this->searchPlatformPayouts($agency, $query, $amountHint, $currency));
@@ -107,6 +109,36 @@ class PaymentSearchService
             currency: $p->currency instanceof \BackedEnum ? $p->currency->value : (string) $p->currency,
             reference: $p->reference_number,
             paidAt: $p->paid_at?->toDateString(),
+            payerName: $p->payer?->full_name,
+            status: $p->status?->value,
+        ));
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — la pénalité payée seule que l'agence a
+     * encaissée, au montant figé de son checkout, datée par `late_fee_paid_at` : le scope du matcher.
+     *
+     * @return Collection<int, MatchCandidate>
+     */
+    private function searchLateFees(Agency $agency, string $query, ?float $amountHint, ?string $currency): Collection
+    {
+        $base = LeasePayment::query()->lateFeeAwaitingBankCredit($agency->id);
+
+        $this->applySearch($base, $query, null);
+        if ($amountHint !== null) {
+            $base->whereLateFeeAloneAmountNear($amountHint, 1);
+        }
+
+        $this->applyCurrency($base, $currency);
+
+        return $base->with('payer')->limit(10)->get()->map(fn (LeasePayment $p) => new MatchCandidate(
+            id: $p->id,
+            type: 'lease_payment_late_fee',
+            label: "Lease #{$p->lease_id} — {$p->reference_number}",
+            amount: (string) $p->expectedLateFeeBankAmount(),
+            currency: $p->currency instanceof \BackedEnum ? $p->currency->value : (string) $p->currency,
+            reference: $p->reference_number,
+            paidAt: $p->late_fee_paid_at?->toDateString(),
             payerName: $p->payer?->full_name,
             status: $p->status?->value,
         ));

@@ -25,6 +25,7 @@ use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\CurrencyUnit;
+use App\Services\Maintenance\MaintenanceJournal;
 use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
@@ -59,7 +60,7 @@ class MaintenanceRequestController extends Controller
         $query = MaintenanceRequest::buildQuery($base, $request);
 
         $paginator = $query
-            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
             ->paginate();
 
         // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
@@ -108,7 +109,7 @@ class MaintenanceRequestController extends Controller
         $query = MaintenanceRequest::buildQuery($base, $request);
 
         $paginator = $query
-            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
             ->paginate();
 
         return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));
@@ -161,6 +162,9 @@ class MaintenanceRequestController extends Controller
             'status' => MaintenanceStatus::Open->value,
             'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
         ]));
+        // TCK-2786 — la première entrée du journal (« Signalée par … ») ; une demande sans elle est
+        // antérieure au journal, qui s'ouvre alors sur « avant le journal ».
+        app(MaintenanceJournal::class)->recordCreated($mr, $user);
 
         // TCK-1991 (P169.03) — l'escalade compte ses 30 minutes depuis le passage en urgent.
         if ($mr->priority === MaintenancePriority::Urgent) {

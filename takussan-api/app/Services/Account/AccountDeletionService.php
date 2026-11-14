@@ -25,6 +25,7 @@ use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
@@ -34,10 +35,12 @@ use App\Services\Agency\AgencyMemberRemovalService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
+use App\Services\Payout\PiecesNonReversees;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\TitulaireALaSaisie;
 use App\Services\Visit\VisitReportService;
 use App\Support\CaseInsensitive;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -253,6 +256,75 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-2744 (d2) — bien → visite → utilisateur (`takussan-api/CLAUDE.md`, « Migrations — les
+     * pièges PostgreSQL ») : les biens des visites que l'effacement détache et ceux dont le compte
+     * est l'agent principal, en UNE passe par identifiant croissant ; puis ces visites ; puis le
+     * compte.
+     *
+     * TCK-2744 (d3) — et TOUT bien que l'effacement écrit ensuite, une écriture verrouillant sa
+     * ligne comme un `for update` : ceux qu'il peut dépublier faute de contact
+     * ({@see ErasedAccountListings::candidates()}) et ceux qu'il délie de l'invitation de bailleur
+     * qu'il révoque ({@see TitulaireALaSaisie::biensLies()}), par les requêtes mêmes qui les écrivent.
+     * Appelée AVANT le brouillage : l'adresse d'origine désigne encore les invitations.
+     */
+    private function lockInGlobalOrder(User $user): void
+    {
+        $visites = $this->visitsTouchedBy($user);
+        $biens = array_values(array_unique(array_merge(
+            array_map('intval', $visites()->distinct()->pluck('property_id')->all()),
+            app(AgencyMemberRemovalService::class)->markedPropertyIds($user, null),
+            array_map('intval', ErasedAccountListings::candidates($user)->pluck('properties.id')->all()),
+            array_map('intval', TitulaireALaSaisie::biensLies($this->invitationsDeBailleurOuvertes($user, $user->email)->pluck('invitable_id'))->pluck('id')->all()),
+        )));
+        sort($biens);
+        if ($biens !== []) {
+            Property::withTrashed()->whereIn('id', $biens)->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+        $visites()->orderBy('id')->lockForUpdate()->pluck('id');
+        User::withTrashed()->whereKey($user->id)->lockForUpdate()->pluck('id');
+    }
+
+    /**
+     * TCK-1060 (P57.04) — les invitations en cours qui visent le compte, par son identifiant ou par
+     * son adresse d'origine. Une requête neuve à chaque appel.
+     *
+     * @return Builder<Invitation>
+     */
+    private function invitationsOuvertes(User $user, ?string $originalEmail): Builder
+    {
+        return Invitation::query()
+            ->where('status', InvitationStatus::Sent->value)
+            ->where(fn ($query) => $query
+                ->where('invited_user_id', $user->id)
+                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))));
+    }
+
+    /**
+     * TCK-1000 (Q2) — celles d'un bailleur, dont {@see TitulaireALaSaisie::delier()} délie les biens.
+     *
+     * @return Builder<Invitation>
+     */
+    private function invitationsDeBailleurOuvertes(User $user, ?string $originalEmail): Builder
+    {
+        return $this->invitationsOuvertes($user, $originalEmail)->where('invitable_type', OwnerProfile::class);
+    }
+
+    /**
+     * Les visites que l'effacement écrit : celles qu'il a demandées (`visitor_id`), et celles à venir
+     * qu'il accompagne comme agent (cf. les deux `update` d'`anonymize`).
+     *
+     * @return \Closure(): Builder<PropertyVisit>
+     */
+    private function visitsTouchedBy(User $user): \Closure
+    {
+        return fn () => PropertyVisit::query()->where(fn ($q) => $q
+            ->where('visitor_id', $user->id)
+            ->orWhere(fn ($q) => $q
+                ->where('agent_id', $user->id)
+                ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])));
+    }
+
+    /**
      * Anonymize a user IN PLACE. Public so admin tooling can call it
      * directly via a separate audited route (out of scope here).
      *
@@ -276,6 +348,12 @@ class AccountDeletionService
             $request = $user->deletionRequest()->first();
             $user->notify(new AccountDeletionExecutedNotification($request));
         }
+
+        // TCK-2744 (d2) — les lignes que l'effacement écrit, verrouillées AVANT toute écriture et
+        // dans l'ordre global du dépôt : bien → visite → utilisateur. Il écrivait les visites (sans
+        // leur bien), puis le compte, puis verrouillait les biens marqués : l'inverse de la
+        // confirmation d'une visite (bien → visite → agent), d'où un interblocage possible.
+        $this->lockInGlobalOrder($user);
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
@@ -405,13 +483,9 @@ class AccountDeletionService
         // en a un, part, l'adresse masquée suffisant à la contrainte. Décision du
         // porteur, 2026-10-20. Par requête : aucun champ journalisé de l'invitation ne porte
         // l'adresse.
-        $ouvertes = Invitation::query()
-            ->where('status', InvitationStatus::Sent->value)
-            ->where(fn ($query) => $query
-                ->where('invited_user_id', $user->id)
-                ->orWhere('email', CaseInsensitive::fold(trim((string) $originalEmail))));
+        $ouvertes = $this->invitationsOuvertes($user, $originalEmail);
         // TCK-1000 (Q2) — révoquée, l'invitation d'un bailleur laisse à l'agence les biens saisis pour lui.
-        TitulaireALaSaisie::delier((clone $ouvertes)->where('invitable_type', OwnerProfile::class)->pluck('invitable_id'));
+        TitulaireALaSaisie::delier($this->invitationsDeBailleurOuvertes($user, $originalEmail)->pluck('invitable_id'));
         $ouvertes
             ->update([
                 'status' => InvitationStatus::Revoked->value,
@@ -641,7 +715,7 @@ class AccountDeletionService
      */
     private function agenciesOwingPayout(User $user): Collection
     {
-        $calculator = app(PayoutCalculator::class);
+        $pieces = app(PiecesNonReversees::class);
         $agencyIds = Lease::query()->where('landlord_id', $user->id)->whereNotNull('agency_id')->distinct()->pluck('agency_id')
             ->merge(Booking::query()
                 ->join('properties', 'properties.id', '=', 'bookings.property_id')
@@ -650,9 +724,8 @@ class AccountDeletionService
                 ->distinct()
                 ->pluck('bookings.agency_id'))
             ->unique()
-            ->filter(fn ($agencyId) => BeneficiaireDuReversement::est($user, (int) $agencyId)
-                && ($calculator->leasePayments((int) $agencyId, (int) $user->id)->exists()
-                    || $calculator->bookingPayments((int) $agencyId, (int) $user->id)->exists()))
+            // TCK-2753 — la règle est partagée avec le départ d'un bailleur ({@see PiecesNonReversees}).
+            ->filter(fn ($agencyId) => $pieces->existe($user, (int) $agencyId))
             ->values();
 
         return Agency::query()->whereIn('id', $agencyIds)->orderBy('id')->get(['id', 'name']);

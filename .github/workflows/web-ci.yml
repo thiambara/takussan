@@ -76,6 +76,14 @@ on:
       # TCK-2483 — `src/lib/navigation/__tests__/modules.parity.test.ts` compare `CODES_DE_MODULE` aux
       # cas d'`AgencyModule` : un module ajouté côté back seul doit réveiller la garde.
       - 'takussan-api/app/Models/Enums/AgencyModule.php'
+      # TCK-2636 — `src/lib/__tests__/notification-preferences.parity.test.ts` compare les événements
+      # de l'écran des préférences à `PreferenceResolver::EVENTS` : un événement ajouté côté back seul
+      # (six l'avaient été sans interrupteur) doit réveiller la garde.
+      - 'takussan-api/app/Services/Notifications/PreferenceResolver.php'
+      # TCK-2769 — `src/lib/documents/__tests__/vocabulaire-du-coffre.tck-2769.test.ts` compare le
+      # vocabulaire de la recherche du coffre, versionné dans l'API, aux libellés du front : une
+      # retouche du seul fichier de l'API doit la déclencher.
+      - 'takussan-api/resources/documents/vocabulaire-du-coffre.json'
   push:
     # pre-dev : amendement d'ADR-0066 du 2026-10-22 (voir api-ci.yml).
     branches: [dev, master, pre-dev]
@@ -108,6 +116,10 @@ on:
       - 'takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php'
       # TCK-2483 — la garde décrite au déclencheur `pull_request`.
       - 'takussan-api/app/Models/Enums/AgencyModule.php'
+      # TCK-2636 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/app/Services/Notifications/PreferenceResolver.php'
+      # TCK-2769 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/resources/documents/vocabulaire-du-coffre.json'
 
 # Un run à la fois sur pre-dev, le plus récent en attente (voir api-ci.yml).
 concurrency:

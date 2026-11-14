@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { bornesDesEncaissements } from '@/lib/finances/vue-argent';
+import { bornesDesEncaissements, libelleDesBornes } from '@/lib/finances/vue-argent';
 import { dateDuMois } from '@/lib/finances/mois';
 import { usePaymentsHistory, type PaymentHistoryEntity, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
 import { cn } from '@/lib/utils';
@@ -51,7 +51,8 @@ const PAR_PAGE = 20;
  * Les colonnes du registre au bureau, celles de la maquette (`COLS_ENCAISSEMENTS`, `_ETROIT` sous
  * 1440 px) : des colonnes FIXES en pixels de maquette — donc en `rem`, que la densité ne réduit pas
  * (montant 112 px, moyen 128, date 100, statut 96, référence 92, plus l'écart de 14,4 px ; sous
- * 1440 px : montant 96, date 72, la référence passe sous le statut) — et trois colonnes en `fr`
+ * 1440 px : montant 96, date 72, la référence passe sous le statut ; la colonne Montant s'en écarte
+ * sous 1440 px pour tenir dix chiffres, TCK-2720) — et trois colonnes en `fr`
  * (payeur 1,35, bien 1,15, période 1) qui se partagent le reste. La table est en `table-fixed` :
  * sans lui, la largeur suit le contenu (« Pièce indépendante à Grand Yoff » ouvrait la colonne du
  * bien à 314 px). Le payeur, sans largeur, prend ce qui reste ; bien et période portent leur part
@@ -63,7 +64,10 @@ const COLONNES = {
   payeur: 'align-middle',
   bien: 'align-middle w-[16.84%] min-[90rem]:w-[14.69%]',
   periode: 'align-middle w-[14.84%] min-[90rem]:w-[12.95%]',
-  montant: 'align-middle whitespace-nowrap w-[6.9rem] min-[90rem]:w-[7.9rem]',
+  // TCK-2720 — dix chiffres (« 1 234 567 890 F », et « 1,234,567,890 F », plus large) tiennent dans
+  // la cellule : 102 px de texte sous `lg` (text-sm à 14 px, px-3 = 24 px), 91,8 px de `lg` à 1440
+  // (12,6 px, 21,6 px). Les 110,4 px de la maquette n'en laissaient que 86,4 et 88,8 (mesuré).
+  montant: 'align-middle whitespace-nowrap w-[8.1rem] lg:w-[7.3rem] min-[90rem]:w-[7.9rem]',
   moyen: 'align-middle whitespace-nowrap w-[8.9rem]',
   date: 'align-middle whitespace-nowrap w-[5.4rem] min-[90rem]:w-[7.15rem]',
   statut: 'align-middle w-[7.51rem] min-[90rem]:w-[6.9rem]',
@@ -113,7 +117,10 @@ export function parametresDesEncaissements(recherche: { get(nom: string): string
   const { du, au } = bornesDesEncaissements(recherche, courant);
   const entityType = recherche.get('entity_type') as PaymentHistoryEntity | null;
   const moyen = recherche.get('moyen');
-  const statut = recherche.get('status') || undefined;
+  // Un statut que l'écran ne connaît pas (`status=completed`, lien ancien ou tapé) vaut « tous » : il
+  // ne part pas à l'API et ne se traduit pas (vérification de TCK-2677).
+  const statutLu = recherche.get('status');
+  const statut = statutLu && (PAYMENT_STATUS_VALUES as readonly string[]).includes(statutLu) ? statutLu : undefined;
   return {
     page: entier(recherche.get('page')) ?? 1,
     per_page: PAR_PAGE,
@@ -148,7 +155,7 @@ export function EncaissementsAgence({
   const f = useFormatteurs();
   const { recherche, poser } = useAdresse();
   const params = parametresDesEncaissements(recherche, courant);
-  const { mois } = bornesDesEncaissements(recherche, courant);
+  const { mois, du: duBorne, au: auBorne } = bornesDesEncaissements(recherche, courant);
   const query = usePaymentsHistory(params);
   const avecTotaux = !telephone && variante === 'registre' && !params.status;
   // TCK-2659 (contre-vérification, N1) — chaque lecture de la bande suit la règle de D2 pour SON statut :
@@ -167,6 +174,9 @@ export function EncaissementsAgence({
   const rows = query.data?.data ?? [];
   const meta = query.data?.meta;
   const totals = meta?.totals;
+  // TCK-2733 — le registre garde les cautions, que la tuile « Encaissé » exclut : il dit leur part,
+  // seulement quand il y en a.
+  const cautions = totals?.deposits_amount ? { montant: f.montantCourt(totals.deposits_amount), count: totals.deposits_count ?? 0 } : null;
   const nomDuMois = mois ? f.date(dateDuMois(mois), { month: 'long', timeZone: 'UTC' }) : null;
 
   // Le libellé d'un choix porté par l'adresse : la première ligne le nomme (toutes la partagent). Sans
@@ -198,17 +208,24 @@ export function EncaissementsAgence({
         <p className="px-1 pb-1 text-ui text-muted-foreground">
           {t.rich('resume', {
             // En tête de phrase : « Novembre · 214 paiements · … ».
-            mois: nomDuMois ? nomDuMois.charAt(0).toLocaleUpperCase() + nomDuMois.slice(1) : t('toutesDates'),
+            // Des bornes « Du / Au » posées se disent telles quelles : ce ne sont pas « toutes dates ».
+            mois: nomDuMois ? nomDuMois.charAt(0).toLocaleUpperCase() + nomDuMois.slice(1) : (libelleDesBornes(duBorne, auBorne, (iso) => f.jourMois(iso)) ?? t('toutesDates')),
             count: meta.total,
             montant: f.montantCourt(totals?.paid_amount ?? 0),
             fort: (morceau) => <span className="font-semibold text-foreground tabular-nums">{morceau}</span>,
           })}
+          {cautions ? <span data-testid="resume-cautions"> · {t('resumeCautions', { montant: cautions.montant })}</span> : null}
         </p>
       ) : null}
 
       {avecTotaux && totals ? (
         <div className="grid grid-cols-4 divide-x divide-border rounded-xl border border-border bg-card max-xl:grid-cols-2">
-          <CelluleDeTotal libelle={t('totaux.total')} valeur={f.montantCourt(totals.amount)} detail={t('totaux.lignes', { count: totals.count })} />
+          <CelluleDeTotal
+            libelle={t('totaux.total')}
+            valeur={f.montantCourt(totals.amount)}
+            detail={t('totaux.lignes', { count: totals.count })}
+            complement={cautions ? t('totaux.dontCautions', cautions) : null}
+          />
           <CelluleDeTotal
             libelle={t('totaux.paye')}
             valeur={f.montantCourt(totals.paid_amount)}
@@ -248,12 +265,27 @@ export function EncaissementsAgence({
   );
 }
 
-function CelluleDeTotal({ libelle, valeur, detail }: { readonly libelle: string; readonly valeur: string; readonly detail: string | null }) {
+function CelluleDeTotal({
+  libelle,
+  valeur,
+  detail,
+  complement = null,
+}: {
+  readonly libelle: string;
+  readonly valeur: string;
+  readonly detail: string | null;
+  readonly complement?: string | null;
+}) {
   return (
     <div className="px-4 py-3">
       <p className="text-ui text-muted-foreground">{libelle}</p>
       <p className="mt-0.5 text-base font-semibold tabular-nums">{valeur}</p>
       <p className="text-ui text-muted-foreground">{detail ?? ' '}</p>
+      {complement ? (
+        <p data-testid="total-dont-cautions" className="text-ui tabular-nums text-muted-foreground">
+          {complement}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -291,7 +323,7 @@ function FiltresDesEncaissements({ telephone, variante, params, libelles, agency
   const statut = (
     <ChoixDansUneListe
       libelle={t('statut')}
-      choisi={params.status ? tStatus(params.status) : null}
+      choisi={params.status && tStatus.has(params.status) ? tStatus(params.status) : null}
       options={optionsDeStatut}
       value={params.status ?? null}
       onChange={(v) => poser({ status: v })}
@@ -422,7 +454,7 @@ function ChoixDesDates({ poser }: { readonly poser: ProprietesDesFiltres['poser'
   const [ouvert, setOuvert] = useState(false);
   const du = recherche.get('date_from');
   const au = recherche.get('date_to');
-  const choisi = du || au ? [du ? f.jourMois(`${du}T12:00:00Z`) : '…', au ? f.jourMois(`${au}T12:00:00Z`) : '…'].join(' – ') : null;
+  const choisi = libelleDesBornes(du, au, (iso) => f.jourMois(iso));
   return (
     <Popover open={ouvert} onOpenChange={setOuvert}>
       <PopoverTrigger

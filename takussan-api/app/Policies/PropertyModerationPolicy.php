@@ -33,8 +33,8 @@ class PropertyModerationPolicy
     {
         // TCK-2029 (P190.06) — `user_id` est le CRÉATEUR du bien : sur un bien d'agence, souvent
         // l'agent qui l'a saisi. Il ne vaut titre que sur un bien sans agence, ou pour un bailleur
-        // de l'agence qui n'y est pas bloqué (la règle de `BasePolicy::bailleurEcrit`, que cette
-        // policy n'hérite pas). L'agent n'entre que par la branche du personnel actif, ci-dessous.
+        // de l'agence qui n'y est ni bloqué ni parti (TCK-2753 ; la règle de `BasePolicy::bailleurEcrit`,
+        // que cette policy n'hérite pas). L'agent n'entre que par la branche du personnel actif, ci-dessous.
         if (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
             && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id))) {
             return true;

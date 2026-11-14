@@ -77,6 +77,7 @@ function synthese(partiel: Partial<FinanceSummary> = {}): FinanceSummary {
     deposits_held: 235_035_000,
     payouts_awaiting_approval: { amount: 0, count: 0, landlords_count: 0 },
     payouts_pending: { amount: 0, count: 0 },
+    payouts_open: { amount: 0, count: 0, landlords_count: 0 },
     invoices_draft: { amount: 0, count: 0 },
     ...partiel,
   };
@@ -316,35 +317,78 @@ describe('le registre des encaissements (TCK-2659)', () => {
 });
 
 describe('vérification adverse de TCK-2659', () => {
-  /** Le lien d'export, lu sur son nom accessible : il dit ce qui part et pour quelles bornes. */
-  const bornesDuLien = (lien: HTMLElement) => {
+  /** Le lien d'export : son chemin et ses paramètres. */
+  const parametresDuLien = (lien: HTMLElement) => {
     const url = new URL(lien.getAttribute('href') ?? '', 'http://127.0.0.1:3000');
-    return { from: url.searchParams.get('from'), to: url.searchParams.get('to'), chemin: url.pathname };
+    return { chemin: url.pathname, ...Object.fromEntries(url.searchParams) };
   };
 
-  it('R1 — l’export du mois choisi (`?period=2026-10`) part du 1ᵉʳ au 31 octobre, et dit « loyers dus », jamais « encaissements »', async () => {
-    rendre('tab=encaissements&period=2026-10');
+  it('TCK-2721 (AC5) — depuis le lien d’un bail, « Exporter » vise le registre avec le filtre d’entité et les bornes de l’écran', async () => {
+    lignes = [ligne({ id: 501 }), ligne({ id: 502 })];
+    rendre('tab=encaissements&period=2026-10&entity_type=lease&entity_id=7');
 
-    const lien = await screen.findByRole('link', { name: 'Exporter les loyers dus en octobre (CSV)' });
-    expect(bornesDuLien(lien)).toEqual({ from: '2026-10-01', to: '2026-10-31', chemin: '/api/export/payments' });
-    expect(screen.queryByRole('link', { name: /encaissements/i })).not.toBeInTheDocument();
+    const lien = await screen.findByRole('link', { name: 'Exporter les 2 encaissements affichés (CSV)' });
+    expect(parametresDuLien(lien)).toEqual({
+      chemin: '/api/export/payment_history',
+      format: 'csv',
+      'filter[entity_type]': 'lease',
+      'filter[entity_id]': '7',
+      'filter[paid_from]': '2026-10-01',
+      'filter[paid_to]': '2026-10-31',
+      sort: '-date',
+    });
   });
 
-  it('R1 — des dates posées l’emportent sur le mois, et le nom accessible les dit', async () => {
-    rendre('tab=encaissements&period=2026-10&date_from=2026-01-01&date_to=2026-03-31');
+  it('TCK-2721 — le lien porte les filtres posés (payeur, bailleur, moyen, recherche, statut) et des dates posées', async () => {
+    rendre('tab=encaissements&payer_id=108&landlord_id=42&moyen=wave&q=awa&status=paid&date_from=2026-01-01&date_to=2026-03-31');
 
-    const lien = await screen.findByRole('link', { name: 'Exporter les loyers dus du 1 janvier 2026 au 31 mars 2026 (CSV)' });
-    expect(bornesDuLien(lien)).toMatchObject({ from: '2026-01-01', to: '2026-03-31' });
+    const lien = await screen.findByRole('link', { name: /^Exporter (le registre affiché|l’encaissement affiché|les \d+ encaissements affichés|les encaissements affichés) \(CSV\)$/ });
+    expect(parametresDuLien(lien)).toMatchObject({
+      chemin: '/api/export/payment_history',
+      'filter[payer_id]': '108',
+      'filter[landlord_id]': '42',
+      'filter[payment_method]': 'wave',
+      'filter[search]': 'awa',
+      'filter[status]': 'paid',
+      'filter[paid_from]': '2026-01-01',
+      'filter[paid_to]': '2026-03-31',
+    });
   });
 
-  it('R1 (téléphone) — la ligne du point du mois dit « Exporter les loyers dus », pour le mois affiché', async () => {
+  // Contre-vérification (verif-patrimoine) — des bornes « Du / Au » posées ne sont pas « toutes les
+  // dates » : le sélecteur du bureau et le résumé du téléphone disaient « Toutes les dates » /
+  // « Toutes dates » pendant que la pastille des dates disait « 1 janv. – … ». Ils disent les bornes.
+  it('bornes posées (bureau) : le sélecteur dit les bornes, comme la pastille des dates — jamais « Toutes les dates »', async () => {
+    rendre('tab=encaissements&date_from=2026-01-01');
+
+    const pastille = await screen.findByRole('button', { name: /^Dates : / });
+    const bornes = pastille.textContent ?? '';
+    expect(bornes).toMatch(/^1 janv\.? – …$/);
+    expect(screen.getByRole('button', { name: `Mois : ${bornes}` })).toHaveTextContent(bornes);
+    expect(screen.queryByText('Toutes les dates')).toBeNull();
+  });
+
+  it('bornes posées (téléphone) : le résumé du registre s’ouvre sur les bornes, jamais sur « Toutes dates »', async () => {
+    ecran.telephone = true;
+    rendre('tab=encaissements&date_from=2026-01-01&date_to=2026-03-31');
+
+    // Le résumé : « <période> · N paiements · X encaissés ».
+    expect(await screen.findByText(/^1 janv\.? – 31 mars · \d+ paiements? ·/)).toBeInTheDocument();
+    expect(screen.queryByText(/Toutes dates/)).toBeNull();
+  });
+
+  it('TCK-2721 (téléphone) — la ligne du point du mois exporte les encaissements du mois affiché', async () => {
     ecran.telephone = true;
     rendre('period=2026-10');
 
-    const titre = await screen.findByText('Exporter les loyers dus');
-    expect(screen.getByText('Les échéances du mois affiché, en CSV')).toBeInTheDocument();
-    expect(bornesDuLien(titre.closest('a') as HTMLElement)).toMatchObject({ from: '2026-10-01', to: '2026-10-31' });
-    expect(screen.queryByText(/Exporter les encaissements/)).not.toBeInTheDocument();
+    const titre = await screen.findByText('Exporter les encaissements');
+    expect(screen.getByText('Les encaissements du mois affiché, en CSV')).toBeInTheDocument();
+    expect(parametresDuLien(titre.closest('a') as HTMLElement)).toMatchObject({
+      chemin: '/api/export/payment_history',
+      'filter[paid_from]': '2026-10-01',
+      'filter[paid_to]': '2026-10-31',
+    });
+    expect(screen.queryByText(/loyers dus/)).not.toBeInTheDocument();
   });
 
   it('M1 — le loyer d’octobre réglé le 3 novembre est un encaissement de novembre, pas d’octobre', async () => {
@@ -553,5 +597,69 @@ describe('D2 — les bornes de la lecture selon le statut filtré (m1 de la cont
     const p = parametresDesEncaissements(new URLSearchParams('period=2026-11'), '2026-11');
     expect(p).toMatchObject({ paid_from: '2026-11-01', paid_to: '2026-11-30' });
     expect(p.date_from).toBeUndefined();
+  });
+});
+
+describe('TCK-2677 (reprise) — un statut inconnu dans l’adresse vaut « tous », sans erreur', () => {
+  it('`parametresDesEncaissements` ne garde pas `status=completed`', () => {
+    const p = parametresDesEncaissements(new URLSearchParams('period=2026-11&status=completed'), '2026-11');
+    expect(p.status).toBeUndefined();
+    expect(p).toMatchObject({ paid_from: '2026-11-01', paid_to: '2026-11-30' });
+  });
+
+  it('`?tab=encaissements&status=completed` rend le registre, le choix de statut à « tous », sans `filter[status]`', async () => {
+    rendre('tab=encaissements&status=completed');
+    await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaListe()) expect(u.searchParams.has('filter[status]')).toBe(false);
+    // La pastille porte son libellé, aucun choix (un statut inconnu ne se traduit pas : plus d'IntlError).
+    const pastille = await screen.findByRole('button', { name: 'Statut' });
+    expect(pastille).toHaveAttribute('data-choisi', 'false');
+  });
+});
+
+describe('TCK-2720 — la tuile « Reversements en attente » compte les bailleurs sur l’union des deux files', () => {
+  // Le décor de l'AC1 de l'API : L1 a un reversement à approuver ET un à verser, L2 un à verser, un
+  // prestataire un à verser. La file d'approbation ne compte qu'un bailleur ; l'union en compte deux,
+  // pas trois (L1 n'est compté qu'une fois). Le montant de l'union est distinct de la somme des deux
+  // files pour épingler la lecture de `payouts_open`.
+  const decor = (): Partial<FinanceSummary> => ({
+    payouts_awaiting_approval: { amount: 400_000, count: 1, landlords_count: 1 },
+    payouts_pending: { amount: 410_000, count: 3 },
+    payouts_open: { amount: 811_000, count: 4, landlords_count: 2 },
+  });
+  const tuile = async () => (await screen.findByText('Reversements en attente')).closest('a') as HTMLElement;
+
+  it('AC2 — le bureau affiche « 2 bailleurs · 1 à approuver » et le montant de l’union', async () => {
+    reponseSynthese = synthese(decor());
+    rendre();
+
+    const lien = await tuile();
+    await waitFor(() => expect(within(lien).getByText('2 bailleurs · 1 à approuver')).toBeInTheDocument());
+    expect(within(lien).getByText(/^811\s?000/)).toBeInTheDocument();
+    expect(within(lien).queryByText(/reversements/)).not.toBeInTheDocument();
+  });
+
+  it('sans bailleur dans les files (prestataires seulement), le nombre de reversements', async () => {
+    reponseSynthese = synthese({ payouts_pending: { amount: 60_000, count: 2 }, payouts_open: { amount: 60_000, count: 2, landlords_count: 0 } });
+    rendre();
+
+    const lien = await tuile();
+    await waitFor(() => expect(within(lien).getByText('2 reversements')).toBeInTheDocument());
+  });
+
+  it('sans reversement ouvert, « Aucun en attente »', async () => {
+    rendre();
+
+    const lien = await tuile();
+    await waitFor(() => expect(within(lien).getByText('Aucun en attente')).toBeInTheDocument());
+  });
+
+  it('téléphone — la ligne « Reversements » des registres dit le nombre de reversements ouverts', async () => {
+    ecran.telephone = true;
+    reponseSynthese = synthese(decor());
+    rendre();
+
+    const ligne = (await screen.findByText('Reversements', { selector: 'a *' })).closest('a') as HTMLElement;
+    await waitFor(() => expect(within(ligne).getByText('4')).toBeInTheDocument());
   });
 });

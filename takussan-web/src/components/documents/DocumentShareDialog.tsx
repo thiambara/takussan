@@ -25,6 +25,8 @@ import {
 import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import { ApiError } from '@/lib/api';
+// TCK-2656 (lot 3) — l'URL distribuée vit une fois, partagée avec la fiche (TCK-587 §8).
+import { buildShareUrl } from '@/lib/documents/partage';
 import {
   useCreateShareLink,
   useRevokeShareLink,
@@ -46,17 +48,6 @@ function ttlToExpiresAt(ttl: TTLOption): string {
   const opt = TTL_OPTIONS.find((o) => o.value === ttl);
   const ms = opt?.ms ?? TTL_OPTIONS[1].ms;
   return new Date(Date.now() + ms).toISOString();
-}
-
-/**
- * TCK-587 §8 — l'URL de la PAGE de réception (`[locale]/(public)/share/[token]`), sans langue :
- * le proxy pose celle du destinataire. Elle visait `${origin}/api/share/{token}`, une URL du front
- * où rien ne répondait, et le destinataire d'un lien protégé n'avait aucun formulaire.
- */
-function buildShareUrl(token: string): string {
-  const chemin = `/share/${encodeURIComponent(token)}`;
-  if (typeof window === 'undefined') return chemin;
-  return `${window.location.origin}${chemin}`;
 }
 
 interface DocumentShareDialogProps {

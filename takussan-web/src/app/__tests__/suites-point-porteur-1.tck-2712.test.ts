@@ -60,7 +60,12 @@ describe('TCK-2712 (4) — la barre d’action compte des boutons de 44 px : 69 
     expect(css).toMatch(
       /:root:has\(#emplacement-barre-d-action\[data-bas-de-l-ecran\] > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle\) \+ var\(--spacing\) \* 6 \+ 1px \+ env\(safe-area-inset-bottom\)\);/,
     );
-    expect(css).not.toMatch(/--barre-d-action-hauteur: calc\(var\(--spacing-controle-action\)/);
+    // Le DÉFAUT ne compte jamais des boutons de 48. TCK-2587 (complément du team-lead) : seule une barre
+    // `taille="action"` (la fiche d'une visite) les compte — chaque règle qui lit `--spacing-controle-action`
+    // vise donc `[data-taille="action"]`.
+    const regles = [...css.matchAll(/([^{}]+)\{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle-action\)/g)].map((m) => m[1]!.trim());
+    expect(regles.length).toBeGreaterThan(0);
+    for (const selecteur of regles) expect(selecteur).toContain('[data-taille="action"]');
   });
 });
 

@@ -14,8 +14,13 @@ class LeasePaymentRefunded implements ShouldDispatchAfterCommit
 {
     use Dispatchable;
 
+    /**
+     * @param  bool  $lateFeeAlone  TCK-2793 — le remboursement porte sur la pénalité payée SEULE
+     *                              (`LateFeeAloneCheckout`), et non sur le loyer : l'avis le dit.
+     */
     public function __construct(
         public readonly int $leasePaymentId,
         public readonly float $refundedPart,
+        public readonly bool $lateFeeAlone = false,
     ) {}
 }

@@ -19,8 +19,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-633 lot F (ADR-0061 §5) — acheter (ou offrir) un boost. Prix et durée se figent dans la ligne
- * `property_boosts`. Tout se joue dans UNE transaction, sous le verrou de l'espace puis du bien :
- * deux achats simultanés sur le même bien se sérialisent (délai de Remontée, prolongation de Vedette).
+ * `property_boosts`. Tout se joue dans UNE transaction, sous le verrou du bien puis de l'espace (TCK-2734,
+ * {@see self::lock()}) : deux achats simultanés sur le même bien se sérialisent (délai de Remontée,
+ * prolongation de Vedette).
  *
  * TCK-822 (P24.01) — une clé d'idempotence, unique par espace sur 24 h, rend un achat rejoué sans
  * second débit. Elle se lit et s'écrit SOUS le verrou de l'espace : deux rejeux simultanés se
@@ -147,11 +148,23 @@ final class BoostPurchaseService
         abort_code_unless((bool) $active, 422, 'boost.product_inactive');
     }
 
-    /** @return array{0: Agency, 1: Property} */
+    /**
+     * TCK-2734 (réserve r2 de la vérification de d87e423e7) — le BIEN avant l'agence, dans l'ordre global
+     * des verrous (`takussan-api/CLAUDE.md`, piège n° 10). Un écrivain qui tient un bien touche ensuite son
+     * agence : par le journal (`activity_log.agency_id` porte une clé étrangère, donc un `KEY SHARE` sur la
+     * ligne de l'agence), par un compteur (`LeaseObserver`), par le grand livre. L'envoi d'un bail en
+     * signature fait bien → bail → journal → agence (séquence mesurée) : un achat qui prenait l'agence puis
+     * le bien formait un cycle avec lui sur un même bien. Course rejouée à deux processus par verif-patrimoine
+     * (2026-11-13, `request()` contre `purchase()` réels, 60 s, deux passes) : 0 interblocage sur 2164
+     * itérations dans cet ordre, 53 achats tués (`40P01`) sur 120 sous l'ordre inverse. Le grand livre
+     * reprend son propre verrou sur l'agence (`CreditLedger`) : il vient après le bien, comme ici.
+     *
+     * @return array{0: Agency, 1: Property}
+     */
     private function lock(Property $property): array
     {
-        $agency = Agency::query()->whereKey($property->agency_id)->lockForUpdate()->firstOrFail();
         $locked = Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+        $agency = Agency::query()->whereKey($property->agency_id)->lockForUpdate()->firstOrFail();
 
         return [$agency, $locked];
     }

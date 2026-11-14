@@ -179,7 +179,8 @@ class LeasePaymentReminderTest extends ApiTestCase
         $this->assertNull($entries[1]['by']);
         $this->assertNull($entries[1]['channel']);
         $this->assertSame(['overdue_7', 'overdue_1', 'due_soon'], array_column(array_slice($entries, 1), 'milestone'));
-        $this->assertSame(array_keys($entries[0]), ['at', 'source', 'channel', 'by', 'note', 'milestone']);
+        // TCK-2778 — `subject` : ce que la relance relançait.
+        $this->assertSame(array_keys($entries[0]), ['at', 'source', 'channel', 'subject', 'by', 'note', 'milestone']);
     }
 
     public function test_ac4_history_include_reminders_reads_the_last_one_and_the_count(): void

@@ -1882,6 +1882,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | type | DocumentType | | | Catégorie (id_card, passport, lease_contract, receipt, invoice, insurance, inventory_report, other) |
 | description | text | oui | null | Description / contexte |
 | is_verified | boolean | | false | Document vérifié par un admin/agent |
+| is_internal | boolean | | false | ➕ **Document interne d'une fiche client** (TCK-2759, **à implémenter**, [ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-12) : lu par le personnel actif de l'agence de la fiche et le super-admin, **jamais par le sujet de la fiche** (`customers.user_id`), même auteur ou membre du personnel. Refusé (422 `document.internal_customer_only`) sur tout autre porteur, et (422 `document.internal_own_upload`) sur une pièce téléversée par le sujet. Posé par le personnel seul (`POST /api/documents`, puis `PATCH /api/documents/{id}/visibility`, journalisé) ; **vaut `true` par défaut quand le personnel téléverse sur une fiche client sans le dire**, `false` partout ailleurs et pour les lignes antérieures |
 | verified_by | FK users | oui | null | Vérificateur |
 | verified_at | datetime | oui | null | Date de vérification |
 | expiry_date | date | oui | null | Date d'expiration (CNI, assurance, etc.) |
@@ -2248,6 +2249,36 @@ Chaque pivot porte aussi la **copie figée de la ligne** : `amount` decimal(14,2
 
 ---
 
+### 29 bis. DocumentVaultArchive 🆕
+
+**Table :** `document_vault_archives` (migration `2026_11_14_160000`)
+**Description :** TCK-2812 ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-14) — une préparation de l'archive `.zip` d'un dossier du coffre, au-delà du seuil synchrone de TCK-2770 (40 entrées). Elle ne garde **aucune entrée** du dossier : `BatirLArchiveDuCoffreJob` (file `media`) rejuge le coffre à la construction, sous le profil actif de la demande. Le fichier ne sort que par la route signée réservée au demandeur ; `PurgerLesArchivesDuCoffre` (toutes les heures) l'efface à l'expiration.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant interne |
+| uuid | uuid | | | Identifiant opaque de la préparation, seul exposé (`id` de la ressource, chemin du lien signé) ; unique |
+| user_id | FK users | | | Demandeur (`cascadeOnDelete`) ; le seul compte à qui le lien s'ouvre |
+| profile_type / profile_id | string(120) / bigint | oui | null | Profil actif de la demande, réinstallé par le travail (liste fermée des cinq profils) |
+| folder | string(40) | | | Clé du dossier (`receipts:2026`, `statements`, `lease:22`…) |
+| locale | string(8) | | | Langue de la demande : les noms des générés la suivent |
+| status | string(16) | | `pending` | `pending`, `ready`, `failed` (`DocumentVaultArchiveStatus`) |
+| error_code | string(80) | oui | null | Code d'erreur d'une préparation échouée (`document.archive_render_failed`…) |
+| disk / path | string(40) / string(255) | oui | null | Disque des médias privés et chemin opaque `archives-du-coffre/{user}/{uuid}.zip` ; masqués à la sérialisation |
+| size | bigint | oui | null | Taille du `.zip` |
+| entries_count | integer | oui | null | Nombre d'entrées écrites |
+| expires_at | timestampTz | oui | null | Fin de vie de l'archive prête et de son lien (24 h) |
+| created_at / updated_at | datetime | | auto | |
+
+**Contraintes et index :**
+- `document_vault_archives_one_pending` — unique **partiel** `(user_id, folder, profile_type, profile_id) NULLS NOT DISTINCT WHERE status = 'pending'` : une demande identique en cours ne lance pas un second travail.
+- Index : `(user_id, status)`, `(expires_at)`.
+
+**Relations :**
+- `user()` → belongsTo User
+
+---
+
 ### 30. Setting 🆕
 
 **Table :** `settings`
@@ -2407,7 +2438,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | user_id | FK users | oui | null | Identité du propriétaire (`restrictOnDelete`). **Nul pendant le brouillon** : le profil naît `draft` à l'envoi d'une invitation, avant que le compte cible n'existe, et `user_id` se renseigne à l'acceptation (TCK-256, `2026_05_10_150000`) |
 | agency_id | FK agencies | | | Agence chez laquelle ce profil existe (`restrictOnDelete`) |
 | agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `owner_profiles_agency_role_id_fk`). À la création, un profil qui n'en déclare pas reçoit le rôle système de son type dans son agence (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
-| status | OwnerProfileStatus | | 'active' | Statut du profil (draft, active, inactive, blocked). **`blocked` = adhésion suspendue par l'agence** (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`) : le bailleur garde la lecture et perd les écritures dans cette agence (`HasProfiles::isBlockedOwnerAt()`) ; la réactivation ne lève que ce statut |
+| status | OwnerProfileStatus | | 'active' | Statut du profil (draft, active, inactive, blocked). **`blocked` = adhésion suspendue par l'agence** (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`) : le bailleur garde la lecture et perd les écritures dans cette agence (`HasProfiles::isBlockedOwnerAt()`) ; la réactivation ne lève que ce statut. **➕ `inactive` = bailleur parti de l'agence** (TCK-2753, **à implémenter**, [ADR-0108](adr/0108-le-depart-d-un-bailleur.md)) : posé par `DELETE /api/owners/{id}` (administrateur seul, double authentification), refusé tant qu'il reste un bien non supprimé, un bail `draft`/`pending_signature`/`active`/`terminating` ou de l'argent dû ; le profil ne se résout plus en profil actif ni n'écrit, mais reste bénéficiaire de ses reversements et lecteur « de tout statut » de son histoire ; la réactivation ne le touche pas |
 | rib | text (cast `encrypted`) | oui | null | Relevé d'identité bancaire — **chiffré** (TCK-601, ADR-0044 §1, `2026_10_08_601100`) |
 | tax_id | text (cast `encrypted`) | oui | null | Numéro fiscal / NINEA — chiffré (TCK-601) ; **➕ écrit par le titulaire (`PATCH …/tax-id`, format 7 chiffres + COFI), lu masqué ; la pièce NINEA en fichier reste acceptée (TCK-2612)** |
 | id_document_type | IdType | oui | null | Type de pièce d'identité |
@@ -6232,6 +6263,7 @@ Aucun : tous les modèles ont été enrichis ou remplacés.
 - **Guarantor** — Garants de baux
 - **Payout** — Reversements aux bailleurs
 - **DocumentShareLink** — Liens de partage sécurisés 🆕
+- **DocumentVaultArchive** — Archives préparées d'un dossier du coffre (TCK-2812) 🆕
 - **Setting** — Paramètres clé/valeur scopés 🆕
 - **Integration** — Intégrations tierces (API keys) 🆕
 - **Task** — Tâches/rappels polymorphes (CRM) 🆕

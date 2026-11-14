@@ -20,8 +20,10 @@ use Illuminate\Http\Request;
  *     bailleur destinataire lit la demande sans la clé — il s'en servirait d'oracle sur le fichier
  *     clients de l'agence.
  *   · **Une fiche que le lecteur ne voit pas** (`Customer::visibleTo`, la règle de
- *     `CustomerPolicy::view`) se signale sans livrer son nom : `{id: null, name: null,
- *     visits_count: null}`, comme le détecteur.
+ *     `CustomerPolicy::view`) **ne se signale pas du tout** (TCK-2590, décision 8 du porteur,
+ *     troisième porte) : la demande arrive par un formulaire public, sans plafond par personne, et un
+ *     `{id: null…}` y aurait fait l'oracle que le seau de la sonde borne ailleurs. La clé ne nomme
+ *     que la première fiche LISIBLE (téléphone d'abord, puis e-mail), sinon `null`.
  *   · **En requêtes groupées pour la page** ({@see self::prime()}) : relire les demandes, chercher
  *     les fiches, juger leur visibilité — un nombre de requêtes qui ne dépend pas de la taille de la
  *     page. Les réponses d'une seule demande (`show`, `handle`, `convert`…) passent par le même
@@ -56,8 +58,8 @@ final class ContactLeadKnownCustomers
     }
 
     /**
-     * @return array{id: ?int, name: ?string, visits_count: ?int}|string|null `ABSENT` quand la clé ne
-     *                                                                        sort pas pour ce lecteur
+     * @return array{id: int, name: string, visits_count: int}|string|null `ABSENT` quand la clé ne
+     *                                                                     sort pas pour ce lecteur
      */
     public static function for(Request $request, PropertyContactLead $lead): array|string|null
     {
@@ -68,7 +70,7 @@ final class ContactLeadKnownCustomers
 
     /**
      * @param  list<int>  $leadIds
-     * @return array<int, array{id: ?int, name: ?string, visits_count: ?int}|string|null>
+     * @return array<int, array{id: int, name: string, visits_count: int}|string|null>
      */
     private static function compute(?User $viewer, array $leadIds): array
     {
@@ -137,23 +139,22 @@ final class ContactLeadKnownCustomers
             ->map(fn ($id) => (int) $id)
             ->all());
 
+        // TCK-2590 (troisième porte) — seules les fiches que le lecteur lit concourent.
+        $lisibles = $matches->filter(fn (Customer $c): bool => isset($visible[(int) $c->id]));
+
         foreach ($probes as $leadId => $probe) {
             // Le téléphone d'abord, comme le détecteur ; la plus ancienne fiche à égalité.
             $match = ($probe['phone'] !== null
-                    ? $matches->first(fn (Customer $c) => (int) $c->agency_id === $probe['agency'] && $c->phone === $probe['phone'])
+                    ? $lisibles->first(fn (Customer $c) => (int) $c->agency_id === $probe['agency'] && $c->phone === $probe['phone'])
                     : null)
                 ?? ($probe['email'] !== null
-                    ? $matches->first(fn (Customer $c) => (int) $c->agency_id === $probe['agency']
+                    ? $lisibles->first(fn (Customer $c) => (int) $c->agency_id === $probe['agency']
                         && $c->email !== null && CaseInsensitive::fold(trim($c->email)) === $probe['email'])
                     : null);
 
-            if ($match === null) {
-                continue;
+            if ($match !== null) {
+                $result[$leadId] = ['id' => (int) $match->id, 'name' => $match->getFullNameAttribute(), 'visits_count' => (int) $match->visits_count];
             }
-
-            $result[$leadId] = isset($visible[(int) $match->id])
-                ? ['id' => (int) $match->id, 'name' => $match->getFullNameAttribute(), 'visits_count' => (int) $match->visits_count]
-                : ['id' => null, 'name' => null, 'visits_count' => null];
         }
 
         return $result;

@@ -1,0 +1,494 @@
+{
+  "ticket": "TCK-2629",
+  "ecrans": [
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Personnaliser les chiffres",
+      "references": {
+        "telephone": "references/app-rapports/a-1-telephone.json",
+        "bureau-1440": "references/app-rapports/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "clic sur « Personnaliser les chiffres » (`--perturber p-personnaliser.js`) : le panneau est ouvert, rien n’est modifié. la démo n’a AUCUN `kpi-config` (GET /api/kpi-configs : 0 pour admin, admin2, hote et personas-gerant) : le panneau se relève à l’état vide (« Affichés · 0 sur 0 ») ; la maquette montre six chiffres (poignées, ×, ligne dépliée). Réordonner, masquer et « Terminé » écrivent en base : non relevés, prouvés par `ReglageDesChiffres.tck-2629.test.tsx`"
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Impayés (balance âgée)",
+      "references": {
+        "telephone": "references/app-rapports/a-2-telephone.json",
+        "bureau-1440": "references/app-rapports/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/unpaid",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "liste par défaut : 16 échéances, 33 715 000 F, toutes tranches ; composant partagé avec « Argent » (`tranches=\"anciennete\"`, `jamaisRelanceEnAlerte`). Lecture seule : « Relancer » n’est pas actionné."
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Exports",
+      "references": {
+        "telephone": "references/app-rapports/a-3-telephone.json",
+        "bureau-1440": "references/app-rapports/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/exports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "cartes prêtes, entrée « Export personnalisé » et « Derniers exports » (une seule ligne dans la démo : Paiements, 11 nov., 66 lignes). Aucun export lancé : un export écrit au journal."
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Export personnalisé",
+      "references": {
+        "telephone": "references/app-rapports/a-4-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/exports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "clic sur l’entrée « Export personnalisé » (`--perturber p-export-perso.js`) : la feuille est ouverte, aucun fichier demandé. Téléphone seulement : au bureau le formulaire est déjà dans la colonne droite."
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Alertes",
+      "references": {
+        "telephone": "references/app-rapports/a-5-telephone.json",
+        "bureau-1440": "references/app-rapports/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/alerts",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "état vide : la démo n’a aucune alerte (« Aucune alerte configurée. »). Les lignes (jauge, seuil, dernier déclenchement, destinataires, canal) ne peuvent pas être relevées sans créer une alerte, donc sans écrire en base : elles sont prouvées par `AlertList.tck-2629.test.tsx` (AC3)."
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Nouvelle alerte",
+      "references": {
+        "telephone": "references/app-rapports/a-6-telephone.json",
+        "bureau-1440": "references/app-rapports/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports/alerts",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "clic sur « Nouvelle alerte » (`--perturber p-nouvelle-alerte.js`) : le formulaire est ouvert, rien n’est créé."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/reports (+ /unpaid, /exports, /alerts)",
+    "persona": "admin",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "impl/lot2/fid-rapports/p-personnaliser.js, p-export-perso.js, p-nouvelle-alerte.js : chacun clique le bouton qui ouvre la feuille et attend 1,2 s ; aucun ne valide quoi que ce soit",
+    "releves": {
+      "dossiers": "takussan-web/.fidelite/TCK-2629/ (prod-a-*, c0-a-* sans fiche, c1-a-* avec cette fiche), relevés du 2026-11-14 sous le verrou de mesure, sur le commit d20543ce9 + arbre partagé",
+      "resultats": {
+        "a-1": {
+          "telephone": "15 conformes · 31 écarts · 85 absents · 9.28 % pixels (écran entier, indicatif)",
+          "bureau-1280": "51 conformes · 208 écarts · 109 absents · 65.98 % pixels (écran entier, indicatif)"
+        },
+        "a-2": {
+          "telephone": "21 conformes · 27 écarts · 39 absents · 24.64 % pixels (écran entier, indicatif)",
+          "bureau-1280": "45 conformes · 222 écarts · 51 absents · 14.71 % pixels (écran entier, indicatif)"
+        },
+        "a-3": {
+          "telephone": "28 conformes · 35 écarts · 8 absents · 16.61 % pixels (écran entier, indicatif)",
+          "bureau-1280": "47 conformes · 229 écarts · 76 absents · 21.7 % pixels (écran entier, indicatif)"
+        },
+        "a-4": {
+          "telephone": "29 conformes · 82 écarts · 21 absents · 29.16 % pixels (écran entier, indicatif)"
+        },
+        "a-5": {
+          "telephone": "20 conformes · 16 écarts · 17 absents · 13.27 % pixels (écran entier, indicatif)",
+          "bureau-1280": "33 conformes · 107 écarts · 63 absents · 7.03 % pixels (écran entier, indicatif)"
+        },
+        "a-6": {
+          "telephone": "21 conformes · 31 écarts · 33 absents · 29.69 % pixels (écran entier, indicatif)",
+          "bureau-1280": "36 conformes · 138 écarts · 60 absents · 66.83 % pixels (écran entier, indicatif)"
+        }
+      },
+      "ecritures": "c1 : aucune (GET seulement). c2r : relevées le 2026-11-14 (TCK-2801, autorisées par team-lead) puis effacées par l’API dans la même tenue du verrou : 6 kpi-configs (ids 1–6), 2 alertes qui ne sonnent pas (ids 1–2 : unpaid_rate_percent > 10, occupancy_rate_percent < 20), 1 export (leases, csv, 5 lignes). Après effacement, GET /api/kpi-configs et /api/threshold-alerts rendent 0 ; RESTE la ligne « data_exported » du journal d’activité de l’export (non effaçable par l’API). Journal : impl/lot2/t2801/ecritures.json",
+      "balayage": "AC-F6, 2026-11-14 (balayer, sous le verrou de mesure) : /app/reports/unpaid, /exports, /alerts, /team et /indicators (admin) à 390, 768, 1024, 1280, 1440 — débord 0, dépassement 0, aucune coupe nette ; les seules ellipses sont celles de la barre latérale en rail à 768 (coque). Les feuilles ouvertes (Personnaliser, Export personnalisé, Nouvelle alerte) ne se balaient pas : l’outil n’a pas de perturbation pour `balayer`. Journal : impl/lot2/fid-rapports/balayage.log",
+      "lecture": "« conformes · écarts · absents · % pixels » avec cette fiche (rôles filtrés par écran, alias, ignorés). Le détail de chaque écart (mesure maquette, mesure produit) est dans rapport.md de chaque dossier c1-* ; les écarts sont regroupés par cause dans `ecarts_acceptes` et `ecarts_ouverts`. Les chiffres comptent des propriétés mesurées (doublées par les icônes et ancres), pas des défauts : la coque, la donnée et les causes ouvertes les dominent.",
+      "apres_tck_2801": {
+        "dossiers": "takussan-web/.fidelite/TCK-2629/ prod2-a-* et c2-a-* (état de démo, après TCK-2801) ; prod2r-a-* et c2r-a-* (états remplis) ; c1-a-* gardés comme « avant ». Relevés du 2026-11-14 sous le verrou de mesure, commit 7ab194221 + arbre partagé (TCK-2801 non commité)",
+        "resultats": {
+          "a-1": {
+            "telephone": "17 conformes · 29 écarts · 85 absents · 9.28 % pixels (écran entier, indicatif)",
+            "bureau-1280": "63 conformes · 204 écarts · 103 absents · 65.96 % pixels (écran entier, indicatif)"
+          },
+          "a-2": {
+            "telephone": "25 conformes · 23 écarts · 39 absents · 24.55 % pixels (écran entier, indicatif)",
+            "bureau-1280": "56 conformes · 214 écarts · 50 absents · 13.95 % pixels (écran entier, indicatif)"
+          },
+          "a-3": {
+            "telephone": "32 conformes · 33 écarts · 6 absents · 16.52 % pixels (écran entier, indicatif)",
+            "bureau-1280": "61 conformes · 231 écarts · 60 absents · 14.68 % pixels (écran entier, indicatif)"
+          },
+          "a-4": {
+            "telephone": "34 conformes · 80 écarts · 16 absents · 29.91 % pixels (écran entier, indicatif)"
+          },
+          "a-5": {
+            "telephone": "24 conformes · 12 écarts · 17 absents · 13.17 % pixels (écran entier, indicatif)",
+            "bureau-1280": "43 conformes · 102 écarts · 61 absents · 6.65 % pixels (écran entier, indicatif)"
+          },
+          "a-6": {
+            "telephone": "25 conformes · 26 écarts · 34 absents · 30.81 % pixels (écran entier, indicatif)",
+            "bureau-1280": "43 conformes · 135 écarts · 59 absents · 67.5 % pixels (écran entier, indicatif)"
+          }
+        },
+        "resultats_remplis": {
+          "a-1": {
+            "telephone": "16 conformes · 35 écarts · 101 absents · 9.3 % pixels (écran entier, indicatif)",
+            "bureau-1280": "56 conformes · 217 écarts · 117 absents · 65.82 % pixels (écran entier, indicatif)"
+          },
+          "a-3": {
+            "telephone": "32 conformes · 34 écarts · 6 absents · 16.91 % pixels (écran entier, indicatif)",
+            "bureau-1280": "61 conformes · 240 écarts · 54 absents · 14.83 % pixels (écran entier, indicatif)"
+          },
+          "a-5": {
+            "telephone": "24 conformes · 20 écarts · 9 absents · 14.94 % pixels (écran entier, indicatif)",
+            "bureau-1280": "44 conformes · 136 écarts · 28 absents · 6.89 % pixels (écran entier, indicatif)"
+          }
+        }
+      }
+    }
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "bouton Terminé / Enregistrer",
+      "ecrans": [
+        "a-1"
+      ],
+      "maquette": {
+        "boiteDe": "Terminé",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "Terminé",
+        "min": 40
+      },
+      "appareil": "mobile"
+    },
+    {
+      "nom": "1re ligne d’impayé",
+      "ecrans": [
+        "a-2"
+      ],
+      "maquette": {
+        "boiteDe": "Sen Négoce SARL",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Coumba Diop",
+        "min": 60
+      },
+      "appareil": "mobile"
+    },
+    {
+      "nom": "tranche 1–30 j",
+      "ecrans": [
+        "a-2"
+      ],
+      "maquette": {
+        "boiteDe": "1–30 j de retard",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "1–30 j de retard",
+        "min": 60
+      },
+      "appareil": "desktop"
+    },
+    {
+      "nom": "carte prête · Paiements",
+      "ecrans": [
+        "a-3"
+      ],
+      "maquette": {
+        "boiteDe": "Paiements",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Paiements",
+        "min": 50
+      },
+      "appareil": "mobile"
+    },
+    {
+      "nom": "entrée « Export personnalisé »",
+      "ecrans": [
+        "a-3"
+      ],
+      "maquette": {
+        "boiteDe": "9 types",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "9 types",
+        "min": 40
+      },
+      "appareil": "mobile"
+    },
+    {
+      "nom": "ligne de « Derniers exports »",
+      "ecrans": [
+        "a-3"
+      ],
+      "maquette": {
+        "boiteDe": "Paiements · ",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "Paiements · ",
+        "min": 40
+      },
+      "appareil": "mobile"
+    },
+    {
+      "nom": "feuille Export personnalisé",
+      "ecrans": [
+        "a-4"
+      ],
+      "maquette": {
+        "boiteDe": "Type de données",
+        "min": 100
+      },
+      "produit": {
+        "boiteDe": "Type de données",
+        "min": 100
+      }
+    },
+    {
+      "nom": "bouton Créer l’alerte",
+      "ecrans": [
+        "a-6"
+      ],
+      "maquette": {
+        "boiteDe": "Créer",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "Créer",
+        "min": 40
+      },
+      "appareil": "mobile"
+    }
+  ],
+  "zones": [],
+  "zones_motif": "aucune zone propre : les en-têtes de page sont décalés (voir TCK-2628, O1/O2) et le contenu de chaque écran est de la donnée. Seules les zones de coque sont jugées.",
+  "alias": {
+    "Baux actifs": "Baux",
+    "Retélécharger": "Refaire",
+    "Toutes": "Tous"
+  },
+  "alias_motifs": {
+    "baux": "« Baux actifs » → « Baux » (D7) : l’export `leases` n’a pas de filtre de statut, le titre mentirait",
+    "refaire": "« Retélécharger » → « Refaire » (D7) : aucun fichier n’est conservé, le geste relance le même export sous les capacités du jour",
+    "toutes": "« Toutes » (maquette, téléphone) → « Tous » : libellé du composant partagé avec Argent (décision 14 a)"
+  },
+  "ancres": [],
+  "ignorer": [
+    "Aller au contenu principal",
+    "Réduire la barre",
+    "Abonnement",
+    "Démarrer",
+    "Faire vérifier l’agence",
+    "À faire",
+    "Agence",
+    "Ce mois"
+  ],
+  "ignorer_motif": "éléments de coque ou de démo (voir TCK-2628) ; « Agence », « Ce mois », « Exporter » : actions de la tête de page de la maquette au bureau, écart ouvert O2 de TCK-2628 (ce n’est pas un écart de ce ticket)",
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "liste des impayés : en-tête (« Impayés au 10 novembre · 3,9 % des loyers appelés »), bascule « Par locataire / Par bailleur », puces « Tous 16 · 1–30 j… », lignes en cartes avec « Relancer sur WhatsApp » et « Appeler », colonnes Gestes et Rappel automatique",
+      "propriete": "dessin et textes différents de la maquette « Rapports »",
+      "exception": "incohérence des maquettes tranchée (ADR-0106 § 2)",
+      "motif": "décision du porteur 14 a (2026-11-10) : l’onglet Impayés de Rapports et l’écran d’« Argent » sont LE MÊME composant ; la maquette d’Argent (`app-argent`) et celle de Rapports se contredisent, la page suit celle d’Argent. Ce ticket ajoute seulement `tranches=\"anciennete\"` et le ton d’alerte de « jamais relancé »"
+    },
+    {
+      "ecran": "a-2",
+      "element": "tranches : montants et parts (20 410 000 F · 61 % au lieu de 11 965 000 F · 36 %), comptes (31–60 j : 3 au lieu de 4)",
+      "propriete": "valeurs",
+      "exception": "donnée",
+      "motif": "démo du jour ; les comptes de tranche sont lus de leur propre lecture `per_page=1`"
+    },
+    {
+      "ecran": "a-3",
+      "element": "cartes prêtes : nombre de lignes, « Baux actifs » → « Baux », format « Excel » de Baux, ligne de période",
+      "propriete": "nombre de lignes absent ; titre renommé ; Excel au lieu de CSV",
+      "exception": "décision du ticket",
+      "motif": "D7 du ticket : aucune lecture ne donne le compte avant l’export ; l’export `leases` n’a pas de filtre de statut"
+    },
+    {
+      "ecran": "a-3",
+      "element": "« Derniers exports » : « Retélécharger » → « Refaire », « envoyé à … » retiré, une seule ligne, « Au téléphone, le PDF se lit le mieux » remplacé par « Aucun fichier n’est conservé : « Refaire » relance l’export… »",
+      "propriete": "libellés et ligne",
+      "exception": "décision du ticket et donnée",
+      "motif": "D7 ; la démo n’a qu’un export au journal (GET /api/me/exports : 1 ligne, ordre de l’API)"
+    },
+    {
+      "ecran": "a-4",
+      "element": "feuille « Export personnalisé » : période",
+      "propriete": "puces « Mois dernier · Ce mois · Année 2026 » et deux champs date ; pas de « Trimestre » ni « Autre… »",
+      "exception": "décision du ticket",
+      "motif": "ticket : « préréglages de période Mois dernier · Ce mois · Année 2026 »"
+    },
+    {
+      "ecran": "a-4",
+      "element": "feuille « Export personnalisé » : « 38 lignes à exporter »",
+      "propriete": "remplacé par « Un fichier compte au plus 5 000 lignes, 200 en PDF. »",
+      "exception": "donnée",
+      "motif": "aucune lecture ne donne le compte avant l’export (D7)"
+    },
+    {
+      "ecran": "a-4",
+      "element": "type présélectionné et format",
+      "propriete": "Paiements et PDF (téléphone) au lieu de Reversements et Excel",
+      "exception": "donnée",
+      "motif": "la maquette dessine un état choisi ; le produit part des défauts de `ExportForm` (PDF recommandé au téléphone, ticket)"
+    },
+    {
+      "ecran": "a-5, a-6",
+      "element": "destinataires et canal",
+      "propriete": "lus et dits, sans choix : « Les administrateurs actifs de l’agence, par notification et par e-mail. » ; pas de sélecteur « Canal » (E-mail · WhatsApp · Les deux)",
+      "exception": "décision du ticket",
+      "motif": "hors périmètre du ticket : « Le choix des destinataires d’une alerte » ; l’API fixe les admins actifs (`recipients`, `channels`)"
+    },
+    {
+      "ecran": "a-1",
+      "element": "panneau : lignes, poignées, ×, ligne dépliée « Libellé / Format », « À ajouter » avec valeurs",
+      "propriete": "état vide en démo",
+      "exception": "donnée",
+      "motif": "la démo n’a AUCUN `kpi-config` (GET /api/kpi-configs : 0 pour admin, admin2, hote et personas-gerant) : le panneau se relève à l’état vide (« Affichés · 0 sur 0 ») ; la maquette montre six chiffres (poignées, ×, ligne dépliée). Réordonner, masquer et « Terminé » écrivent en base : non relevés, prouvés par `ReglageDesChiffres.tck-2629.test.tsx`"
+    },
+    {
+      "ecran": "a-5",
+      "element": "lignes d’alerte : jauge et seuil, « Déclenchée le 3 nov. », « Jamais déclenchée », destinataires, canal, délai",
+      "propriete": "état vide en démo",
+      "exception": "donnée",
+      "motif": "aucune alerte en démo, aucune écriture permise"
+    },
+    {
+      "ecran": "a-1 à a-6 (téléphone, bureau)",
+      "element": "icônes et textes secondaires",
+      "propriete": "trait 2 → 1,75 ; encre rgba(31,24,17,0.8) → opaque",
+      "exception": "exception de charte (encre opaque, trait d'icône par défaut)",
+      "motif": "trait par défaut des icônes ; règle de l’encre opaque"
+    }
+  ],
+  "ecarts_ouverts": [
+    {
+      "id": "O1",
+      "ecran": "a-3, a-4, a-6 (téléphone)",
+      "element": "contenus décalés vers le bas",
+      "mesure": "« Prêts à télécharger », la première carte et le début des listes sont 44 à 48 px plus bas que dans la maquette ; les onglets ne sont pas collants",
+      "motif": "défaut du gabarit `PageHeader` : voir TCK-2628 O1",
+      "statut": "reporté — voir TCK-2628 O1 (gabarit `PageHeader`)",
+      "preuve": "c2-a-3-telephone : « Derniers exports » à y 520 (maquette 472), même cause"
+    },
+    {
+      "id": "O2",
+      "ecran": "a-4 (téléphone)",
+      "element": "feuille « Export personnalisé »",
+      "mesure": "format en puces (CSV · Excel (xlsx) · PDF) au lieu d’un contrôle segmenté ; libellé de type « Impayés par ancienneté » et « Cautions détenues » alors que les cartes prêtes de la MÊME page disent « Balance âgée » ; feuille plus courte (son sommet est environ 75 px plus bas) ; bouton « Télécharger » avec icône au lieu de « Télécharger l’export »",
+      "motif": "défaut de rendu et de cohérence : le ticket nomme « balance âgée » et « cautions » ; la L1 a monté l’`ExportForm` d’avant sans le redessiner",
+      "statut": "fermé (TCK-2801)",
+      "preuve": "c2-a-4-telephone : format en groupe radio segmenté « CSV · Excel · PDF » (3 × 118 px, y 495) ; types « Balance âgée » et « Cautions » ; bouton « Télécharger l’export » (y 784). Alias retirés de cette fiche. La hauteur de la feuille suit son contenu"
+    },
+    {
+      "id": "O3",
+      "ecran": "a-6 (téléphone)",
+      "element": "formulaire « Nouvelle alerte »",
+      "mesure": "sévérité en puces (Info · Attention · Critique) au lieu d’un contrôle segmenté « Information · Attention · Critique » ; délai « 24 » avec libellé « (h) » au lieu de « 24 heures » ; sélecteurs de métrique et de condition natifs ; bouton « + Nouvelle alerte » dans la page (maquette : bouton « + » rond dans l’en-tête)",
+      "motif": "défaut de rendu (aucune donnée, aucune décision ne l’explique)",
+      "statut": "fermé pour la sévérité et l’unité ; sélecteurs et « + » motivés",
+      "preuve": "c2-a-6-telephone : sévérité en groupe radio segmenté « Information · Attention · Critique » (y 540), « Délai entre deux alertes » et « heures » à côté du champ (y 714). Les sélecteurs de métrique et de condition sont le `Select` du système (aucun natif à redessiner ici) ; le « + » rond dans l’en-tête du téléphone n’est pas fait : l’en-tête de page est masqué au téléphone (TCK-2628 O1, gabarit)"
+    },
+    {
+      "id": "O4",
+      "ecran": "a-2, a-3, a-5 (bureau)",
+      "element": "tête de page",
+      "mesure": "description, « Agence ▾ », « Ce mois ▾ » et « Exporter » absents",
+      "motif": "voir TCK-2628 O2",
+      "statut": "fermé pour la description et « Exporter » ; voir TCK-2628 O2",
+      "preuve": "« Exporter » retiré des `ignorer` de cette fiche : il est rendu ; « Agence » et « Ce mois » y restent (motivés en TCK-2628 O2)"
+    },
+    {
+      "id": "O5",
+      "ecran": "a-3, a-4, a-6",
+      "element": "libellés montés tels quels (alias)",
+      "mesure": "« Télécharger l’export », « Excel », « Information », « Délai entre deux alertes » et « Cautions » sont ceux de la maquette ; le produit écrit « Télécharger », « Excel (xlsx) », « Info », « … (h) », « Cautions détenues »",
+      "motif": "aucune décision écrite ; à aligner sur la maquette ou à consigner",
+      "statut": "fermé (TCK-2801)",
+      "preuve": "libellés de la maquette rendus : « Télécharger l’export », « Excel », « Information », « Délai entre deux alertes », « Cautions » (c2-a-4, c2-a-6) ; les cinq alias et leur motif retirés de cette fiche"
+    },
+    {
+      "id": "O7",
+      "ecran": "a-3 (téléphone)",
+      "element": "« Derniers exports »",
+      "mesure": "une carte par export (fond blanc, bordure et rayon 14 px sur chaque ligne) au lieu de lignes séparées par un filet dans UNE carte ; cartes prêtes jointives (écart de 0 au lieu de 12 px)",
+      "motif": "défaut de rendu (aucune donnée ne l’explique)",
+      "statut": "fermé — le produit rend la ligne de la maquette ; le rapport liste encore des écarts sous ce rôle (artefact de sélecteur)",
+      "preuve": "c2r-a-3-telephone (deux exports) : la ligne `li` du produit (y 554) a h 61, bordure 0 0 1 0, marges 8 12 8 16, écart 12 — les valeurs de la référence. Le rapport liste pourtant h 61 → 123, fond, bordure, rayon sous ce rôle : `boiteDe: \"Paiements · \"` cherche la plus petite boîte autour de ce texte ; la DERNIÈRE ligne n’a pas de filet, donc pas de boîte relevée, et le sélecteur tombe sur la carte `ul` (une seule carte, fond blanc, rayon 14, qui porte les deux lignes). Cartes prêtes : 8 px entre deux cartes dans la référence (154 + 70 → 232) comme dans le produit (202 + 70 → 280) ; le « 0 au lieu de 12 » est la propriété `gap` INTERNE de la carte, pas l’espace entre cartes"
+    },
+    {
+      "id": "O6",
+      "ecran": "a-1",
+      "element": "états du panneau non relevables",
+      "mesure": "poignées, boutons ×, ligne dépliée, « Enregistrer » actif : jamais relevés (aucun `kpi-config` en démo)",
+      "motif": "bloqué par l’interdiction d’écrire en base ; à relever si team-lead autorise six `kpi-configs` pour une persona (réversible : DELETE)",
+      "statut": "fermé — états relevés (TCK-2801) ; « seuil d’alerte » de la tuile non vu (voir TCK-2628 O6)",
+      "preuve": "c2r-a-1 (six kpi-configs) : panneau « Personnaliser » à six lignes relevé à 390 et 1280 (« Taux d’impayés 3,9 % », « Taux d’occupation 46,9 % »…) ; c2r-a-5 : deux alertes « Taux d'occupation < 20 % · Critique · Actuel 46,9 % · seuil 20 % » et « Taux d'impayés > 10 % · Attention · Actuel 3,9 % · seuil 10 % ». Écritures effacées, voir `produit.releves.ecritures`. Vu au passage : l’apostrophe droite de « Taux d'impayés » vient des clés `dashboard.alerts.metrics` d’avant (non touchées)"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-*",
+      "element": "coque",
+      "motif": "TCK-2617/2618/2619 ; compteurs, nom et avatar de la démo"
+    },
+    {
+      "ecran": "a-0, a-7, a-8",
+      "element": "vue d’ensemble, onglets Commissions, Pipeline, Reversements",
+      "motif": "TCK-2628"
+    }
+  ],
+  "notes": [
+    "Relevés à 390 et 1280 seulement (ADR-0106). « Équipe » n’a pas d’écran de maquette : l’onglet est jugé sur la vue d’ensemble (tableau « Performance de l’équipe », écran 0 de TCK-2628).",
+    "AC1 « la ligne apparaît en tête de Derniers exports après rechargement » : la moitié lecture est vérifiée — GET /api/me/exports rend l’export le plus récent d’abord (1 ligne en démo, 66 lignes) et la page le rend ; la moitié écriture (un export réel) n’est pas jouée. AC5 « première tuile après rechargement » : non relevable, aucun `kpi-config`.",
+    "AC-F6 : balayage 390, 768, 1024, 1280, 1440 de /app/reports/unpaid, /exports, /alerts, /team et /indicators (impl/lot2/fid-rapports/balayage.log) : voir `produit.releves.balayage`. Les feuilles ouvertes ne se balaient pas (l’outil n’a pas de perturbation pour `balayer`).",
+    "2026-11-14, TCK-2801 : chaque écart ouvert porte désormais `statut` (fermé, motivé, reporté) et `preuve`. ⚠ La règle « Menu » actif de la coque (BarreDOnglets) change la zone « coque · barre d’onglets » de TOUTE page du menu qui n’est aucun des onglets : les fiches des autres écrans relevées avant ce correctif y verront un écart se fermer."
+  ]
+}

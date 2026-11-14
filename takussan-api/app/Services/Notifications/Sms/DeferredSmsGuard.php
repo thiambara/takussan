@@ -37,14 +37,44 @@ final class DeferredSmsGuard
         return ['type' => 'pay_link', 'token_hash' => LeasePaymentLink::hashToken($token)];
     }
 
+    /**
+     * TCK-2706 — les liens d'une relance fusionnée (le loyer, puis les charges) : le SMS ne part que
+     * si TOUS servent encore. Il annonce chaque montant à côté de son lien ; un lien mort ferait
+     * annoncer une somme que le message ne permet plus de payer.
+     *
+     * @return array{type: string, token_hashes: list<string>}
+     */
+    public static function forPayLinks(string ...$urls): array
+    {
+        return ['type' => 'pay_links', 'token_hashes' => array_values(array_map(
+            fn (string $url): string => self::forPayLink($url)['token_hash'],
+            $urls,
+        ))];
+    }
+
     /** @param  array<string, mixed>  $guard */
     public function stillValid(array $guard): bool
     {
         return match ($guard['type'] ?? null) {
             'invitation' => $this->invitationStillValid((int) ($guard['id'] ?? 0), (string) ($guard['token_hash'] ?? '')),
             'pay_link' => app(LeasePaymentLinkService::class)->isLive((string) ($guard['token_hash'] ?? '')),
+            'pay_links' => $this->payLinksStillValid($guard['token_hashes'] ?? null),
             default => true,
         };
+    }
+
+    private function payLinksStillValid(mixed $hashes): bool
+    {
+        if (! is_array($hashes) || $hashes === []) {
+            return false;
+        }
+        foreach ($hashes as $hash) {
+            if (! app(LeasePaymentLinkService::class)->isLive((string) $hash)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** Les règles de `InvitationService::lookupActiveInvitation`, sans lever. */

@@ -30,9 +30,10 @@ const AUTH = join(RACINE_SRC, 'app', '(auth)');
 const FORMULAIRES_AU_CHARGEMENT: readonly string[] = [
   // `useApiForm` + `loginSchema` : le formulaire de connexion est la page.
   'auth/login/page.tsx',
-  // `useApiForm` + `registerSchema` : le formulaire d'inscription est la page.
-  'auth/register/page.tsx',
 ];
+// TCK-2604 — `auth/register/page.tsx` n'est plus qu'une redirection serveur vers la connexion : son
+// formulaire (TCK-2606 : l'onglet « Créer un compte » de `VoieEmail`, `registerSchema`) est rendu par
+// celui de la connexion.
 
 function entrees(dossier: string): string[] {
   return readdirSync(dossier).flatMap((nom) => {
@@ -54,7 +55,7 @@ describe('graphe client des pages d’authentification', () => {
     },
   );
 
-  it.each(['auth/login/page.tsx', 'auth/register/page.tsx'])(
+  it.each(['auth/login/page.tsx'])(
     'TCK-1463 — %s : seuls les schémas d’authentification',
     (page) => {
       const schemas = [...modulesDuGrapheClient(join(AUTH, page))].filter((m) => m.startsWith('lib/schemas/')).sort();

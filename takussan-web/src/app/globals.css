@@ -416,6 +416,18 @@
   :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"]) {
     --barre-d-action-hauteur: calc(var(--spacing-controle) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
   }
+  /* TCK-2587 — `taille="action"` (la fiche d'une visite) : des boutons de 48 px, `--spacing-controle-action`,
+     comme les maquettes app-visites a-1 à a-3. La hauteur de la barre suit, sinon le toast et le dock
+     mordraient de 4 px sur elle. Le défaut (44 px) ne change pas. */
+  [data-slot="barre-d-action"][data-taille="action"] {
+    --spacing-controle: var(--spacing-controle-action);
+  }
+  :root:has(#emplacement-barre-d-action > [data-slot="barre-d-action"][data-taille="action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px);
+  }
+  :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"][data-taille="action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
+  }
   :root:has([data-barre-onglets]) {
     --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
   }
@@ -943,6 +955,7 @@
   --text-affiche-28: 1.75rem; /* 28 — titres d'écrans d'entrée (30 px rabattus) */
   --text-affiche-32: 2rem; /* 32 — grands chiffres (34 px rabattus) */
   --text-affiche-40: 2.5rem; /* 40 — grands chiffres */
+  --text-affiche-44: 2.75rem; /* 44 — l'heure en tête de la fiche d'une visite (TCK-2587) */
 
   /* Espacement des lettres. `tracking-tight` (−0,025 em) reste celui de Tailwind. */
   --tracking-titre: -0.02em; /* −0,01 et −0,03 em rabattus ici */
@@ -960,6 +973,12 @@
   --shadow-actif: 0 1px 2px color-mix(in srgb, var(--shadow-color) 18%, transparent);
   --shadow-panneau: -24px 0 48px -32px color-mix(in srgb, var(--shadow-color) 45%, transparent);
   --shadow-feuille: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  /* TCK-2621 — la carte centrée sur le fond `muted` d'un écran d'entrée au bureau (« Choisir un espace »). */
+  --shadow-carte-d-entree: 0 24px 60px -28px color-mix(in srgb, var(--shadow-color) 45%, transparent);
+  /* TCK-2634 — le panneau de la cloche au bureau (`app-notifications`, `PanneauCloche`). */
+  --shadow-panneau-cloche: 0 24px 60px -24px color-mix(in srgb, var(--shadow-color) 55%, transparent);
+  /* TCK-2587 — la carte « prochaine visite » (`app-visites-a-mobile.tsx`, `OMBRE`) : seule carte levée de la liste. */
+  --shadow-carte-levee: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent), 0 12px 24px -16px color-mix(in srgb, var(--shadow-color) 20%, transparent);
 
   /* ADR-0106 § 4 — la bande ≥ 1440 des maquettes « bureau 1280 » (`min-[1440px]:`), distincte de
      `2xl` (1536 px, site public). `w1440:` : « largeur ≥ 1440 ». Une requête MÉDIA : 90rem se lit
@@ -1136,7 +1155,9 @@
  * `tailwind-merge` (`PRIMITIVES_DE_L_APP`) pour que la classe de l'appelant les REMPLACE.
  *
  * Les tailles d'avatar (`size="28"` à `"48"`) sont en `rem` FIXES : la maquette les pose en px
- * (`style`), elles ne rétrécissent pas au bureau. La police du repli vaut 0,36 × la taille.
+ * (`style`), elles ne rétrécissent pas au bureau. La police du repli vaut 0,36 × la taille, ARRONDIE
+ * au px entier comme la maquette (`Math.round(taille × 0,36)`, chrome-app.tsx) : 32 → 12, pas 11,52.
+ * 52 : la tête de la fiche client au téléphone (TCK-2589) — jetons seuls, la primitive n'a pas de taille 52.
  */
 @theme {
   --spacing-avatar-28: 1.75rem;
@@ -1145,12 +1166,14 @@
   --spacing-avatar-40: 2.5rem;
   --spacing-avatar-44: 2.75rem;
   --spacing-avatar-48: 3rem;
-  --text-avatar-28: 0.63rem; /* 10,08 px */
-  --text-avatar-32: 0.72rem; /* 11,52 px */
-  --text-avatar-36: 0.81rem; /* 12,96 px */
-  --text-avatar-40: 0.9rem; /* 14,4 px */
-  --text-avatar-44: 0.99rem; /* 15,84 px */
-  --text-avatar-48: 1.08rem; /* 17,28 px */
+  --spacing-avatar-52: 3.25rem;
+  --text-avatar-28: 0.625rem; /* 10 px */
+  --text-avatar-32: 0.75rem; /* 12 px */
+  --text-avatar-36: 0.8125rem; /* 13 px */
+  --text-avatar-40: 0.875rem; /* 14 px */
+  --text-avatar-44: 1rem; /* 16 px */
+  --text-avatar-48: 1.0625rem; /* 17 px */
+  --text-avatar-52: 1.1875rem; /* 19 px */
   /* Le repli : hors portée, celui d'avant (`bg-muted text-muted-foreground`). Sa graisse passe par
      `portee-app:font-semibold` : hors portée, le repli n'en pose AUCUNE et hérite (un jeton à 400
      l'aurait fixée). */

@@ -67,6 +67,32 @@ garde. Relevé du 2026-10-19 : les `show` chargent des relations fixes et ignore
 `CustomerController::show` est le seul à passer par `buildQuery`, et trois `show` lisent encore
 `include=` (`Customer`, `MaintenanceRequest`, `BankStatement`).
 
+**Exception : le locataire du show du bail** (TCK-2780). `GET /api/leases/{id}` ne rend `tenant` que
+sous `include=tenant`, et `fields[customers]` en borne le bloc à `id` et aux clés demandées. Sans
+`fields`, le bloc est entier. Les gardes de `CustomerResource` se jugent sur la fiche complète : une
+clé demandée n'ouvre aucun droit. Le reste du bail n'est jamais borné (pas de `fields[leases]`). La
+garde du front n'admet que `fields: { customers: CHAMPS_DU_LOCATAIRE_… }` vers ce show.
+
+```
+GET /api/leases/42?include=property,tenant&fields[customers]=id,first_name,last_name
+```
+
+**La liste des baux suit la même règle** (TCK-2803) : `GET /api/leases` ne rend `tenant` que sous
+`include=tenant`, et `fields[customers]` borne le bloc de chaque ligne exactement comme celui de la
+fiche — la liste et la fiche acceptent la même forme. Ce n'est pas spatie qui borne : il cherche les
+champs d'une relation incluse sous le nom de la relation au pluriel (`fields[tenants]`, qu'`allowedFields`
+refuse, 400) et charge donc le locataire entier ; c'est `LeaseController::index` qui borne le rendu,
+après les gardes. Une requête qui demande `include=tenant` porte `fields[customers]` (garde du front :
+`liste-des-baux-locataire.tck-2803.test.ts`).
+
+```
+GET /api/leases?include=tenant,property&fields[customers]=id,first_name,last_name
+```
+
+Les réponses des gestes sur un bail (création, modification, activation, résiliation, préavis,
+signature, renouvellement, révision, restitution de caution) ne rendent **jamais** `tenant` : l'écran
+relit la fiche ou la liste.
+
 Pour une lecture légère d'une seule ligne (un titre d'onglet, un en-tête), passer par la liste
 filtrée par id, avec ses `fields` :
 
@@ -105,6 +131,7 @@ GET /api/properties?per_page=10&page=2
 | `filter[search]` | search | Recherche dans title, reference_number, description |
 | `filter[public]` | callback | `1` : les biens EN LIGNE (`Property::scopePublic`, ADR-0097) |
 | `filter[occupancy]` | callback | TCK-2637 — `occupied` (bail courant, préavis compris), `notice` (bail courant en préavis), `vacant` ; autre valeur → 422 |
+| `filter[listing]` | callback | TCK-2638 — l'état d'annonce, une partition : `online` (= `filter[public]=1`), `pending` (pas en ligne ; `pending` ou `pending_review`), `draft` (pas en ligne ; brouillon), `offline` (tout le reste, négation de `scopePublic`) ; autre valeur → 422 |
 | `filter[rent_late]` | callback | TCK-2637 — `1` : le loyer du mois en retard sur le bail courant que l'appelant peut lire |
 | `filter[tenant]` | callback | TCK-2637 — chaque mot dans le prénom ou le nom du locataire du bail EN COURS lisible par l'appelant (casse repliée, accents non) |
 | `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured`, `retard` | `retard` (TCK-2637) : loyers du mois en retard d'abord, le plus ancien en tête, puis les autres |
@@ -144,9 +171,12 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
   `lease`, `tenant`, `rent` et `current_month` seulement si l'appelant peut lire le bail (la clause
   de `GET /api/leases`) ; `null` sur un bien vacant. `current_month.status` : `paid`, `late`,
   `partial`, `due` ou `none` (la règle du relevé du bailleur).
-- **`portfolio-summary`** : `{total, occupied, vacant, vacant_over_60_days, notice, rent_late,
-  rent_late_amount, online}` sous la portée et les filtres de la liste ; chaque compte égale le
-  `meta.total` de la liste filtrée correspondante.
+- **`portfolio-summary`** : `{total, occupied, vacant, for_sale, vacant_over_60_days, notice, rent_late,
+  rent_late_amount, online, pending_validation, drafts, offline, sold_or_rented, archived}` sous la
+  portée et les filtres de la liste ; chaque compte égale le `meta.total` de la liste filtrée
+  correspondante. TCK-2638 : `online + pending_validation + drafts + offline = total` (`filter[listing]`) ;
+  `sold_or_rented` ouvre `filter[status]=sold,rented`, `archived` ouvre
+  `include_archived=1&filter[status]=archived` et se compte toujours avec les archivés.
 - Les autres listes de biens (`children`, `me/owner-profiles/…/properties`, `admin/agencies/…`)
   acceptent les filtres et `include=occupancy,online`, mais ne rendent ni `occupancy` ni `is_online`.
 
@@ -218,6 +248,22 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 
 `GET /api/bookings/counts` (TCK-2593) rend `{data: {stay|application|offer: {pending, confirmed, rejected, cancelled, completed, expired}}}` sous la portée et les MÊMES filtres que l'index (`filter[managed_by]=me`, `filter[search]`…) : chaque case égale le `meta.total` de l'index filtré sur cette nature et ce statut. `include=customer` porte, pour le personnel de l'agence, `customer.phone`, `customer.pipeline_stage` et `visits_on_property` (visites terminées du client sur le bien) ; le bailleur du bien lit `customer.phone` et `customer.pipeline_stage`, pas `visits_on_property` (décision du porteur, 2026-11-11).
 
+### Visites — `GET /api/property-visits` (TCK-2797)
+
+Sous `fields[property_visits]`, la réponse ne porte que `id`, les clés nommées et les blocs de `include=`
+(`property`, `visitor`, `agent`, `customer`). Sans `fields`, elle est entière. Le détail
+(`GET /api/property-visits/{id}`) suit la même règle.
+
+| Clé calculée | Ce qu'elle rend | Colonnes lues sans être demandées |
+|---|---|---|
+| `visitor_display` | la carte du visiteur `{name, phone, kind, visits_on_property}` ou `null` | aucune (`VisitReadContext`) |
+| `report` | le compte rendu, `null` s'il n'est pas écrit ; clé absente hors du personnel de l'agence du bien | `reported_at`, `report_*`, `reported_by_id` |
+| `abilities` | `{manage, feedback_customer, create_customer}`, au détail seulement | aucune |
+
+Ces clés ne sortent que **nommées**. `PropertyVisit::buildQuery()` les retire avant spatie
+(`PropertyVisitResource::FIELDS`), et un autre nom inconnu rend toujours 400. Une clé demandée n'ouvre aucun
+droit : les règles de lecture de la ressource jugent chaque valeur sur la visite relue, jamais sur le `SELECT`.
+
 ### Agency
 | Param | Type | Description |
 |---|---|---|
@@ -285,6 +331,15 @@ de 5 000 lignes, `meta.truncated`), pas par `HasQueryBuilder` : ni `fields[…]`
 refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-0075), sauf
 `filter[status]` (422).
 
+La sélection vit dans `App\Services\Payments\PaymentHistory` (TCK-2721), que lisent **deux** routes :
+cette liste, et l'export du registre `GET /api/export/payment_history?format=csv&filter[…]&sort=…`
+— mêmes filtres, même tri, mêmes lignes, sans pagination (`limit` des exports : 5 000 par défaut, 10 000 au plus ; au-delà, l'en-tête
+`X-Export-Truncated` porte le nombre de lignes rendues ; le fichier coupé garde les **premières** lignes du
+registre dans le tri demandé : chaque source est triée en SQL sur la clé même du tri avant d'être coupée,
+`date`, `amount`, `created_at`, `remaining_amount` et `days_late` compris). L'export exige `payments.export` ; le 403
+passe avant le 422 d'un filtre invalide. Colonnes : `paid_at`, `payer`, `property`, `payment_type`,
+`period_start`, `period_end`, `payment_method`, `amount`, `currency`, `status`, `reference`.
+
 | Param | Type | Description |
 |---|---|---|
 | `filter[entity_type]` + `filter[entity_id]` | exact | `property`, `lease`, `customer`, `booking` |
@@ -313,6 +368,9 @@ hors restitution de caution ; `null` sinon, et toujours `null` sur une réservat
 {under_8, from_8_to_30, over_30} → {count, amount}}` (à date, `as_of`), `deposits_held`,
 `payouts_awaiting_approval {count, amount, landlords_count}`, `payouts_pending {count, amount}`,
 `invoices_draft {count, amount}`, plus `period`, `as_of` et `currency` (TCK-2657).
+`payouts_open {count, amount, landlords_count}` : l'union des deux files, au net, avec les bailleurs
+distincts qui attendent (`payee_role = landlord`, un bailleur présent dans les deux files compté une
+fois) — la tuile « Reversements en attente » (TCK-2720).
 `overdue.never_reminded_count` : les impayés sans aucune relance, notée (`lease_payment_reminders`) ni
 automatique (`metadata.reminder_*_sent_at`) (TCK-2658).
 
@@ -373,11 +431,16 @@ comptes de la liste et de ses autres filtres, **hors** `filter[role]` — ce son
 | Param | Type | Description |
 |---|---|---|
 | `filter[customer_id]` | liste d'entiers | les invitations de locataire de ces fiches client ; valeur non numérique → liste vide (TCK-2665) |
+| `filter[expired]` | `1` / `0` | expirées au sens de la purge et d'`is_expired` (`expired`, ou `sent` dont `expires_at` est passé) ou non ; autre valeur → liste vide. L'écran Équipe lit « En cours » par `status=sent&expired=0` et « Expirées » par `status=sent,expired&expired=1` : le nombre de « Tout effacer » est ce qui part (vérification de TCK-2668, D6) |
 
 `DELETE /api/invitations/expired?filter[role]=agent,agency_admin` supprime les invitations expirées
 (`expired`, ou `sent` dont `expires_at` est passé) de l'agence active, des rôles nommés — exigés et
 connus, sinon 422. `team.invite` (403 avant 422) et second facteur de l'admin (`ProtectedActions`).
 Rend `{deleted: n}`, journalise le nombre et les rôles, jamais une adresse (TCK-2665).
+
+Une invitation née d'une fiche client porte `abilities: {resend, revoke}` quand la sélection lit
+`agency_id`, `invited_by`, `invitable_type` et `invitable_id` : l'émetteur qui peut encore inviter ce
+client la relance et l'annule sans `team.invite` (`InvitationPolicy`, vérification de TCK-2668, D1).
 
 ---
 

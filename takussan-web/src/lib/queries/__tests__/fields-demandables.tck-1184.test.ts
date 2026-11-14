@@ -3,6 +3,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ATTRIBUTS_CALCULES, attributsCalcules } from './attributs-calcules-de-l-api';
+
 /**
  * TCK-1184 (P100.04), TCK-1186 (P100.05) — toute colonne que le front demande par `fields[<table>]` est dans le
  * `$queryFields` d'un modèle de cette table.
@@ -40,6 +42,9 @@ const HORS_BUILD_QUERY: Record<string, string> = {
   moderation: 'Admin\\ModerationQueueController::index : file assemblée à la main, aucune table `moderation`',
   radar_observatory: 'Admin\\RadarObservatoryController::market (TCK-2393) : les SECTIONS du marché, lues par RadarObservatoryRequest — aucune table `radar_observatory`',
 };
+
+// TCK-2590 — `ATTRIBUTS_CALCULES` et `attributsCalcules()` vivent dans `attributs-calcules-de-l-api.ts`,
+// lus aussi par la garde `show-sans-fields` (TCK-2589).
 
 /** Sites d'appel dont l'endpoint ignore `fields` alors que le modèle de la table l'ouvrirait. */
 const SITES_HORS_BUILD_QUERY: Record<string, string> = {
@@ -196,7 +201,11 @@ describe('fields[…] du front face aux $queryFields de l’API (TCK-1184)', () 
         fautes.push(`${site} : fields[${table}] vise une table sans $queryFields`);
         continue;
       }
-      const refusees = colonnes.filter((c) => !permises.has(c.replace(/^[a-z_]+\./, '')));
+      const calcules = attributsCalcules(table);
+      const refusees = colonnes.filter((c) => {
+        const nom = c.replace(/^[a-z_]+\./, '');
+        return !permises.has(nom) && !calcules.includes(nom);
+      });
       if (refusees.length) fautes.push(`${site} : fields[${table}] refusées → ${refusees.join(', ')}`);
     }
     expect(fautes).toEqual([]);
@@ -215,6 +224,14 @@ describe('fields[…] du front face aux $queryFields de l’API (TCK-1184)', () 
       ),
     ].filter((site) => !/fields[^\n]*(inerte|non lus?\b)|inerte[^\n]*fields/i.test(readFileSync(join(SRC, site), 'utf8')));
     expect(muets).toEqual([]);
+  });
+
+  it('chaque attribut calculé admis est encore retiré avant spatie par le modèle de sa table', () => {
+    for (const [table, { modele, appel }] of Object.entries(ATTRIBUTS_CALCULES)) {
+      expect(attributsCalcules(table).length, `${table} : la constante FIELDS n’est plus lue`).toBeGreaterThan(0);
+      const php = readFileSync(join(RACINE, 'takussan-api', 'app', modele), 'utf8');
+      expect(appel.test(php), `${modele} n’appelle plus ${appel.source}`).toBe(true);
+    }
   });
 
   it('chaque exception nomme encore une demande réelle', () => {

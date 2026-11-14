@@ -3,6 +3,8 @@
  * Aligned with `docs/models-spec.md#14-lease-`, `#15-leasepayment-`, `#27-guarantor-`.
  */
 
+import type { BookingStatus } from '@/types/booking';
+
 export type LeaseStatus =
   | 'draft'
   | 'pending_signature'
@@ -112,8 +114,40 @@ export type Lease = {
    * l'utilisateur courant. Rendus par le détail seul ; absents, rien n'est offert.
    */
   abilities?: LeaseAbilities;
+  /**
+   * TCK-2764 — la candidature d'où le bail est tiré et son statut, au seul lecteur qui peut abandonner
+   * (détail) ; `null` quand le bail n'est tiré d'aucune réservation. Le dialogue d'abandon propose de
+   * la fermer par son propre geste.
+   */
+  origin_booking?: { readonly id: number; readonly status: BookingStatus } | null;
+  /**
+   * TCK-2764 r1, puis 4a — un état des lieux ENGAGÉ existe sur le brouillon (envoyé en signature, signé,
+   * contesté, ou portant une signature) : l'API refuse l'abandon (`lease.abandon_has_inventory`). Un état
+   * des lieux encore brouillon ne compte pas : il part avec le bail. Même lecteur que `origin_booking`.
+   */
+  has_inventory?: boolean;
+  /** TCK-2679 — les charges mensuelles, terme du bail ; `null` sur un bail antérieur. TCK-2645 : la carte « Charges ». */
+  monthly_charges?: number | null;
+  /** TCK-2642 — le plafond de révision que CE bail exécute (figé, sinon l'agence, sinon le global) ; détail seul. */
+  rent_review_cap_pct?: number;
+  /** TCK-2642 / TCK-2645 — les parties nommées (`include=landlord,agent`) ; le téléphone, seulement quand l'API le sert. */
+  landlord?: LeaseParty | null;
+  agent?: LeaseParty | null;
   created_at: string;
   updated_at: string;
+};
+
+/**
+ * TCK-2645 — une partie du bail telle que `LeaseResource::party()` la projette : des noms, et le
+ * téléphone au seul lecteur à qui l'API le sert (bailleur : le personnel de l'agence du bail et le
+ * bailleur lui-même ; agent : jamais).
+ */
+export type LeaseParty = {
+  readonly id: number;
+  readonly first_name: string | null;
+  readonly last_name: string | null;
+  readonly full_name: string | null;
+  readonly phone?: string | null;
 };
 
 export type LeaseSignatureRole = 'tenant' | 'landlord';
@@ -127,6 +161,23 @@ export interface LeaseAbilities {
   readonly request_early_termination: boolean;
   /** P189.03 — `LeasePolicy::update` : l'ajout de garant et le lien de paiement d'une échéance. */
   readonly update: boolean;
+  /**
+   * TCK-2642 — les quatre gestes que la fiche ouvrait par le rôle ; TCK-2645 les lit. `leave_review`
+   * et `give_notice` sont des gestes du LOCATAIRE (hors `Gate::before` : faux pour le super-admin) ;
+   * `give_notice` est le repère « le lecteur est le locataire » (décision 12 de TCK-2645). Optionnels :
+   * un bail lu avant TCK-2642 ne les porte pas, et rien n'est alors offert.
+   */
+  readonly add_document?: boolean;
+  readonly download_contract?: boolean;
+  readonly leave_review?: boolean;
+  readonly give_notice?: boolean;
+  /** TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité ET plafond non figé. */
+  readonly rent_review_force?: boolean;
+  /**
+   * TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle de `update`, sur un bail
+   * `draft`. Les échéances saisies se jugent à part (l'écran les lit, l'API les refuse en 422).
+   */
+  readonly abandon?: boolean;
 }
 
 /**
@@ -183,6 +234,13 @@ export type LeasePayment = {
   late_fee_payable_online: boolean;
   /** Ce que le paiement en ligne demandera ; 0 si l'échéance n'est pas payable. */
   amount_due: number;
+  /**
+   * TCK-2778 — verdicts de l'API sur la pénalité de retard SEULE, restée due sur un loyer payé : la
+   * relance notée est admise (`subject: late_fee`), et le lien qui ne fait payer qu'elle aussi
+   * (l'agence l'encaisse en ligne). Le front ne refait pas la règle.
+   */
+  late_fee_reminder_allowed?: boolean;
+  late_fee_link_allowed?: boolean;
   receipt_available: boolean;
   /**
    * TCK-1831 (P183.01) — en retard, jugé par l'API à la règle de `scopeOverdue` : `late`, ou
@@ -211,4 +269,41 @@ export type Guarantor = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/**
+ * TCK-2643 — d'où vient une valeur préremplie : l'annonce du bien, un réglage de l'agence du bien, ou
+ * le catalogue de la plateforme (qui porte le défaut). L'écran le dit à côté du champ.
+ */
+export type SourceDuDefaut = 'property' | 'agency' | 'platform';
+
+export type DefautDuBail<T = number> = { readonly value: T; readonly source: SourceDuDefaut };
+
+/**
+ * TCK-2643 — `GET /api/leases/defaults?property_id=` (`App\Services\Lease\LeaseDefaults`). Préremplir
+ * n'est pas imposer : le formulaire n'écrit que les champs que l'agent n'a pas touchés. `null` : rien
+ * à reprendre (un bien loué à l'année n'a pas de loyer mensuel ; `property_price` le dit).
+ */
+export type LeaseDefaults = {
+  readonly property_id: number;
+  readonly type: LeaseType;
+  readonly currency: Currency;
+  readonly property_price: { readonly amount: number; readonly period: string | null; readonly contract_type: string | null } | null;
+  readonly monthly_rent: DefautDuBail | null;
+  readonly sale_price: DefautDuBail | null;
+  readonly monthly_charges: DefautDuBail | null;
+  readonly deposit_months: DefautDuBail | null;
+  readonly deposit_amount: DefautDuBail | null;
+  readonly advance_months: DefautDuBail | null;
+  readonly agency_fee_months: DefautDuBail | null;
+  readonly entry_cost: { readonly total: number } | null;
+  readonly payment_day: DefautDuBail;
+  readonly late_fee_percent: DefautDuBail;
+  readonly late_fee_grace_days: DefautDuBail;
+  readonly early_termination_penalty_months: DefautDuBail;
+  readonly rent_review_max_pct: DefautDuBail;
+  /** TCK-2734 — les candidatures ouvertes du bien, que la création du bail clôturera (ou complétera). */
+  readonly open_applications: readonly { readonly id: number; readonly customer_id: number }[];
+  /** Au personnel seul, en INFORMATION : jamais un terme du bail (le bail suit le taux de l'agence). */
+  readonly agency_commission_rate?: DefautDuBail | null;
 };

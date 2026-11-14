@@ -1,0 +1,448 @@
+{
+ "ticket": "TCK-2632",
+ "ecrans": [
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Liste",
+   "references": {
+    "telephone": "references/app-messagerie/a-0-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages",
+    "persona": "agent",
+    "etat": "agent de démo (Dakar Immo) : 8 fils dont 5 groupes, 1 non lu (Bineta Samb, fil 21). Au bureau, l'arrivée ouvre ce fil non lu, contexte ouvert. Chaque relevé bloque `PUT /api/conversations/*/read` (`--bloquer`) : aucun fil n'est marqué lu, le non-lu reste après les relevés."
+   }
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "ecran": 1,
+   "nom": "Fil",
+   "references": {
+    "telephone": "references/app-messagerie/a-1-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-1-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-1-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages?conversation=21",
+    "persona": "agent",
+    "etat": "même agent, fil direct de Bineta Samb (bien PR-ZBVJOCCN, client « Converti »). Au bureau, contexte replié (`--perturber replier.js`), comme la maquette."
+   }
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "ecran": 2,
+   "nom": "Contexte",
+   "references": {
+    "telephone": "references/app-messagerie/a-2-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-2-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-2-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages?conversation=21",
+    "persona": "agent",
+    "etat": "bureau : contexte ouvert (bien, client, « Lié à cette conversation », « Planifier une visite »), menu « ⋯ » ouvert (`--perturber menu-bureau.js`). Téléphone : « ⋯ » du fil ouvre la feuille du fil (`--perturber plus-tel.js`) — le bien, « Fiche du client », WhatsApp, la sourdine, « Planifier une visite » au pied."
+   }
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "ecran": 3,
+   "nom": "Nouvelle conversation",
+   "references": {
+    "telephone": "references/app-messagerie/a-3-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-3-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-3-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages",
+    "persona": "agent",
+    "etat": "« Nouvelle conversation » ouverte (`--perturber` : « ⊕ » de l'en-tête au téléphone, « Nouvelle » au bureau) ; 20 personnes du périmètre de l'agent. Au téléphone, `nouvelle-tel.js` masque la page que le dialogue plein écran recouvre (le relevé lirait sinon ses nœuds sous le dialogue) ; rien n'est retiré du dialogue."
+   }
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "ecran": 4,
+   "nom": "Aucune conversation (agent)",
+   "references": {
+    "telephone": "references/app-messagerie/a-4-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-4-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-4-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages",
+    "persona": "agent",
+    "etat": "agent de démo, la réponse de `GET /api/conversations` réécrite VIDE dans le navigateur (`data: []`, `counts` à 0) par une copie jetable de l'outil hors du dépôt (`Fetch.fulfillRequest`) : la base de démo n'a pas d'agent sans fil, et en créer un serait une écriture. Rien n'est écrit (`--bloquer` de la fiche). Au téléphone, l'état vide occupe la liste ; au bureau, la liste garde sa recherche éteinte et « La liste se remplira au premier message. », l'état vide occupe le panneau du fil avec « ou voir les demandes de contact » (`/app/leads`). Relevé du 2026-11-12 : téléphone 29 conformes · 9 écarts · 0,35 % de pixels (6,27 % avant) ; bureau 1440 et 1280 : icône, titre, texte, « Écrire à un client » et « ou voir les demandes de contact » aux positions de la maquette (Δ ≤ 1,1 px), 2,2 et 2,36 % de pixels, le reste dans la barre latérale."
+   }
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Groupe et note vocale",
+   "references": {
+    "telephone": "references/app-messagerie/a-5-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-5-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-5-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages?conversation=32",
+    "persona": "agent",
+    "etat": "fil de groupe de l'agent (4 participants) ; le composeur en note vocale par un micro bouchonné (`note-enregistrement.js` au téléphone : en cours ; `note-ecoute.js` au bureau : arrêtée, en écoute) — getUserMedia et MediaRecorder simulés, rien n'est envoyé. Aucune note vocale dans la base de démo, et en enregistrer une serait une écriture (cf. écarts)."
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/messages",
+  "persona": "agent",
+  "disposition": "agent",
+  "etat": "voir chaque écran (`ecrans[].produit`)",
+  "defiler": null,
+  "perturber": null,
+  "bloquer": "*/api/conversations/*/read"
+ },
+ "roles": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "maquette": {
+    "boiteDe": "Menu",
+    "min": 56
+   },
+   "produit": {
+    "boiteDe": "Menu",
+    "min": 56
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "mobile",
+   "nom": "coque · en-tête",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   }
+  },
+  {
+   "appareil": "desktop",
+   "nom": "coque · barre latérale",
+   "maquette": {
+    "boiteDe": "Publier un bien",
+    "min": 800
+   },
+   "produit": {
+    "boiteDe": "Publier un bien",
+    "min": 800
+   },
+   "contenu": false
+  },
+  {
+   "appareil": "mobile",
+   "nom": "rangée « Malick Seck » de la liste",
+   "maquette": {
+    "boiteDe": "Malick Seck",
+    "min": 80
+   },
+   "produit": {
+    "boiteDe": "Malick Seck",
+    "min": 80
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "desktop",
+   "nom": "rangée « Malick Seck » de la liste",
+   "maquette": {
+    "boiteDe": "Malick Seck",
+    "min": 60
+   },
+   "produit": {
+    "boiteDe": "Malick Seck",
+    "min": 60
+   },
+   "contenu": true
+  },
+  {
+   "nom": "composeur (réponses rapides, champ, micro)",
+   "maquette": {
+    "boiteDe": "Toujours disponible",
+    "min": 90
+   },
+   "produit": {
+    "boiteDe": "Toujours disponible",
+    "min": 90
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "desktop",
+   "nom": "carte du bien (contexte)",
+   "maquette": {
+    "boiteDe": "F CFA",
+    "min": 200
+   },
+   "produit": {
+    "boiteDe": "F CFA",
+    "min": 200
+   },
+   "contenu": false
+  },
+  {
+   "appareil": "desktop",
+   "nom": "fiche du client (contexte)",
+   "maquette": {
+    "boiteDe": "Téléphone",
+    "min": 80
+   },
+   "produit": {
+    "boiteDe": "Téléphone",
+    "min": 80
+   },
+   "contenu": true
+  },
+  {
+   "nom": "« Créer un groupe »",
+   "maquette": {
+    "boiteDe": "Créer un groupe",
+    "min": 56
+   },
+   "produit": {
+    "boiteDe": "Créer un groupe",
+    "min": 56
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "mobile",
+   "nom": "composeur en note vocale",
+   "maquette": {
+    "boiteDe": "Note vocale · 60 secondes au plus",
+    "min": 90
+   },
+   "produit": {
+    "boiteDe": "Note vocale · 60 secondes au plus",
+    "min": 90
+   },
+   "contenu": true
+  }
+ ],
+ "zones": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "role": "coque · barre d'onglets"
+  },
+  {
+   "appareil": "mobile",
+   "nom": "coque · en-tête",
+   "role": "coque · en-tête"
+  }
+ ],
+ "alias": {
+  "Mettre en sourdine": "Couper les notifications"
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-*",
+   "element": "noms, aperçus, heures, état non lu, pastilles et comptes (« 1 non lue · 8 conversations », cloche)",
+   "propriete": "texte, nombre de rangées, état",
+   "exception": "donnée",
+   "motif": "compte de démo agent1@dakarimmo.sn (Dakar Immo) : 8 fils, 1 non lu (fil 21, Bineta Samb) ; la maquette dessine d'autres personnes, d'autres biens et d'autres comptes. Rien n'est bouchonné, et `PUT …/read` est bloqué pendant chaque relevé (`produit.bloquer`) : le non-lu reste mesuré tel quel."
+  },
+  {
+   "ecran": "a-0-*, a-2-*",
+   "element": "rangée « Malick Seck » de la liste : fond, marges, écart, graisses, couleur de l'heure",
+   "propriete": "fond, marges, graisse, couleur",
+   "exception": "donnée",
+   "motif": "même rangée, autre fil et autre état : chez le produit, « Malick Seck » est un fil lu et NON sélectionné (bien « Terrain viabilisé à Kaolack ») — l'arrivée du bureau ouvre le non-lu le plus récent, Bineta Samb ; la maquette la dessine non lue et sélectionnée (fond `foreground/6`, nom et heure en 600, heure en primary). Les marges et l'écart à 0 viennent de la résolution du rôle : le bouton de la rangée (sans fond au repos) n'est pas dans le relevé, `boiteDe` tombe sur le `<li>` (272, 168, 338,8 × 82,3), qui n'a ni marge ni écart. Les positions de ses enfants, relevées, rendent les valeurs de la maquette : avatar à +14,4 / +9 du `<li>` (286,4 ; 177), nom à avatar + 44 + 10,8 (341,2)."
+  },
+  {
+   "ecran": "a-1-*, a-2-*, a-5-*",
+   "element": "double coche « lu », bulle de note vocale avec lecture, rôle de l'auteur dans un groupe (« · locataire »)",
+   "propriete": "icône, texte",
+   "exception": "donnée",
+   "motif": "l'API ne rend ni l'état de lecture par message ni le rôle d'un participant dans un groupe ; aucune note vocale dans les fils de démo. Les bulles rendent l'auteur (groupe seulement) et l'heure."
+  },
+  {
+   "ecran": "a-1-telephone, a-2-telephone, a-5-telephone",
+   "element": "zone de 56 px en tête de l'écran (« coque · en-tête »)",
+   "propriete": "pixels",
+   "exception": "donnée",
+   "motif": "sur ces écrans la zone est l'en-tête du fil : nom, avatar, sous-ligne (bien ou « 4 personnes ») sont ceux du fil de démo ; la flèche, le téléphone et « ⋯ » sont aux mêmes places."
+  },
+  {
+   "ecran": "a-4-telephone",
+   "element": "zones de la coque : « coque · en-tête » 0,89 % et « coque · barre d'onglets » 0,88 % de pixels (> 0,5 %)",
+   "propriete": "pixels",
+   "exception": "donnée",
+   "motif": "relevé du 2026-11-12 après d7a76f4ec (29 conformes · 9 écarts · 0,35 % de l'écran), coque inchangée depuis au HEAD c161fe5ef. En-tête : la pastille de la cloche lit le compte de l'agent de démo, « 9+ » au lieu du « 7 » dessiné — plus large, son texte part 4 px plus à gauche (362 au lieu de 366). Barre d'onglets : la maquette dessine une pastille « 2 » sur « Messages » (x 277) ; l'état de l'écran réécrit `GET /api/conversations` à vide, compteurs à 0 (`ecrans[4].produit.etat`), donc aucune pastille de non-lus. Le reste des deux zones est déjà couvert : traits et encre des icônes (« règle du design system », ligne « a-* » plus bas) ; libellés, icônes et positions des cinq onglets et du titre « Messages » conformes."
+  },
+  {
+   "ecran": "a-0-bureau-*, a-2-bureau-*",
+   "element": "colonne de contexte : « Projet », « Dernière visite », « Premier contact », demande de contact liée, ville du bien ; d'où « Planifier une visite » plus haut (Δ y ≈ −100 px)",
+   "propriete": "absents, y",
+   "exception": "donnée",
+   "motif": "`GET /api/conversations/{id}/context` (TCK-2630) ne porte aucune de ces données (AC-F3 : non rendues plutôt qu'inventées). Le bien, la fiche du client (étape, téléphone, agent), le bail ou l'intervention liés, « Planifier une visite » (PlanifierDialog, bien et fiche posés) et « Voir la fiche du client » sont rendus."
+  },
+  {
+   "ecran": "a-2-telephone",
+   "element": "feuille du fil : demande de contact liée, « Signaler la conversation »",
+   "propriete": "absents ; feuille plus courte d'autant",
+   "exception": "donnée",
+   "motif": "la feuille (`FeuilleDuFil`) rend ce que `/context` rend : le bien, « Fiche du client » (nom · étape), « Écrire sur WhatsApp », la sourdine, et au pied « Planifier une visite ». Aucune donnée de demande de contact dans le contexte du fil, aucune route de signalement. Ancrée en bas, la feuille plus courte descend son titre et le bien."
+  },
+  {
+   "ecran": "a-0-bureau-*, a-2-*",
+   "element": "« Planifier une visite » : bordure 1 px",
+   "propriete": "bordure",
+   "exception": "composant partagé",
+   "motif": "`Button` porte `border border-transparent` dans toutes ses variantes (src/components/ui/button.tsx) ; la bordure ne se voit pas (transparente) et ne change pas la boîte."
+  },
+  {
+   "ecran": "a-2-bureau-*",
+   "element": "menu « ⋯ » : « Marquer comme non lue », « Ajouter un participant », « Signaler la conversation »",
+   "propriete": "absents",
+   "exception": "donnée",
+   "motif": "API absente : aucune route derrière ces gestes, et un item sans geste serait un bouton mort (décision du lead, 2026-11-12)."
+  },
+  {
+   "ecran": "a-5-*",
+   "element": "« 0:14 » de l'enregistrement, forme d'onde",
+   "propriete": "texte, absents",
+   "exception": "technique",
+   "motif": "le relevé bouchonne le micro (`note-enregistrement.js`, `note-ecoute.js`) : la note est relevée à 0:00 / 0:01. Pas de forme d'onde : aucune donnée de signal n'est lue ; le temps sur 1:00 et la borne « 60 secondes au plus » sont rendus."
+  },
+  {
+   "ecran": "a-0-*, a-1-*, a-2-*, a-3-bureau-*",
+   "element": "textes d'aide « Chercher un nom, un bien… » et « Écrivez un message… » ; libellés « Chercher une conversation » et « Chercher une personne »",
+   "propriete": "absents du produit / de la maquette",
+   "exception": "technique",
+   "motif": "le produit dit les mêmes textes, en attribut `placeholder` (`messaging.recherche`, aide du composeur) ; le relevé ne compte pas un `placeholder` comme texte, la maquette les dessinait en texte. « Chercher une conversation » et « Chercher une personne » sont les libellés `sr-only` des champs (1 × 1 px), absents de la maquette qui n'en avait pas."
+  },
+  {
+   "ecran": "a-4-*",
+   "element": "« Écrire à un client » (et « Nouvelle » au bureau) : bordure 1 px, largeur +2 px ; au téléphone, interligne 21,4 au lieu de 22,5",
+   "propriete": "bordure, largeur, interligne",
+   "exception": "composant partagé",
+   "motif": "`Button` porte `border border-transparent` dans toutes ses variantes (src/components/ui/button.tsx) : la bordure ne se voit pas, et ses 2 × 1 px font les 2 px de largeur ; la hauteur (48 px au téléphone, `size=\"xl\"`, 32,4 au bureau) et la position sont celles de la maquette. L'interligne est celui de la base du bouton, `text-corps` (TCK-2686) ne fixant que la taille ; la maquette hérite de 1,5."
+  },
+  {
+   "ecran": "a-4-bureau-*",
+   "element": "recherche éteinte de la liste : le texte « Chercher un nom, un bien… » mesuré sur sa propre boîte (x 325,2, 157 × 18) au lieu de celle du champ (x 286,4, 310 × 32,4)",
+   "propriete": "boîte du texte",
+   "exception": "technique",
+   "motif": "la maquette écrit le texte directement dans le `div` du champ, que le relevé mesure alors comme boîte du texte ; le produit le pose dans un `span`, après l'icône et l'écart de la maquette (300 + 16,2 + 9 = 325,2). Le champ lui-même (286,4 ; 86,1 ; 310 × 32,4, fond, bordure) est à la place de la maquette. Il est éteint (`opacity-50`, `aria-hidden`) : sans fil, rien à chercher."
+  },
+  {
+   "ecran": "a-3-telephone",
+   "element": "texte d'aide « Un nom, un numéro… »",
+   "propriete": "texte",
+   "exception": "vérité des données",
+   "motif": "la recherche de personnes ne porte que sur le nom (MessagingContactController, choix de confidentialité : pas de recherche par numéro) ; promettre « un numéro » mentirait. Texte du produit : « Rechercher par nom… »."
+  },
+  {
+   "ecran": "a-*",
+   "element": "traits des icônes (1,75 / 1,5 au lieu de 2), encre douce pleine au lieu des encres translucides (réponses rapides, trombone, micro, « Aller à… », liens de la colonne)",
+   "propriete": "trait, couleur",
+   "exception": "règle du design system",
+   "motif": "TCK-2685 (globals.css, précédent TCK-2581) fixe le trait ; TCK-658 et la garde `encre-sans-alpha.contraste` refusent l'encre translucide : `text-encre-douce` (rgb 76,70,65) au lieu de `foreground/75–85`."
+  },
+  {
+   "ecran": "a-*-bureau-*",
+   "element": "tailles ×0,9 (icônes 16,2 au lieu de 18, hauteurs de ligne 21,4 au lieu de 22,5, rem 16 au lieu de 14,4)",
+   "propriete": "boîtes, interlignes",
+   "exception": "règle du design system",
+   "motif": "ADR-0107 / TCK-2692 : la densité du bureau passe par les jetons dès `lg`, la racine reste à 16 px ; la maquette est dessinée sur une racine à 14,4."
+  },
+  {
+   "ecran": "a-0-*",
+   "element": "puces de filtre « Tous · Non lus · Groupes » (h-8 au lieu de h-7)",
+   "propriete": "hauteur",
+   "exception": "composant partagé",
+   "motif": "`PuceDeFiltre` taille sm, primitive partagée (TCK-2689) ; la modifier ici changerait toutes les pages qui l'emploient."
+  },
+  {
+   "ecran": "a-*-bureau-*",
+   "element": "barre latérale et en-tête de la coque (« Aller à… », « Demandes de contact », compteurs, « Plus »)",
+   "propriete": "boîtes, libellés, pixels",
+   "exception": "composant partagé",
+   "motif": "coque commune (TCK-2617/2618/2619/2691/2712), comme pour TCK-2635 ; `coque: false` sur cette fiche : la zone de la barre latérale couvrait la page entière (`_coque`)."
+  },
+  {
+   "ecran": "a-3-*",
+   "element": "sections « Équipe » / « Propriétaires » ; bascule de groupe",
+   "propriete": "structure",
+   "exception": "décision produit",
+   "motif": "décision 3a du lead : une seule liste « Personnes » (regroupement côté API à part). « Créer un groupe » ouvre NewGroupDialog (TCK-576) par un chevron au lieu de la bascule."
+  },
+  {
+   "ecran": "a-3-bureau-*",
+   "element": "dialogue de groupe en un formulaire (« À » en puces, nom, bien et bail liés) — 83 % de pixels",
+   "propriete": "structure",
+   "exception": "décision produit",
+   "motif": "décision du lead (2026-11-12, « b ») : NewGroupDialog en deux étapes conservé (TCK-576 ; bien et bail liés par GroupContextPicker, TCK-565). Le formulaire unique est reporté à TCK-2748 — l'API accepte déjà `property_id` et `lease_id` à la création : c'est un travail de front."
+  },
+  {
+   "ecran": "a-5-bureau-*",
+   "element": "colonne « Infos du groupe » (intervention et bien liés, participants avec leur relation, quitter)",
+   "propriete": "structure",
+   "exception": "décision produit",
+   "motif": "décision du lead (2026-11-12, « b ») : la colonne de contexte reste ; les infos du groupe s'ouvrent par la sous-ligne de l'en-tête du fil (ConversationInfoSheet). Reportée à TCK-2748, avec le delta d'API : la relation d'un participant au contexte (« Locataire », « Prestataire · plomberie ») n'existe pas, `ParticipantRole` ne porte que admin / member."
+  },
+  {
+   "ecran": "a-0-telephone, a-3-telephone",
+   "element": "texte des champs de recherche : 16 px au lieu de 15",
+   "propriete": "taille de police",
+   "exception": "accessibilité",
+   "motif": "les champs passent par la primitive `Input` (garde check-champs-uniformes, TCK-2460) : `text-champ` vaut 16 px sous le pouce pour qu'iOS ne zoome pas au focus ; à 15 px, Safari agrandit la page dès qu'on touche la recherche."
+  }
+ ],
+ "coque": false,
+ "_coque": "Rôles de coque REPRIS de roles-coque.json (`coque: false`), à un sélecteur près : au bureau, la messagerie occupe tout l'écran (`lg:h-dvh`), et la zone « y 0, h 900, largeur ≥ 200 » attrapait la page entière (1440 × 900) — le contenu de toute la page passait pour celui de la barre latérale (138 écarts sur a-0-bureau-1440). La barre latérale s'ancre donc sur « Publier un bien » (la plus petite boîte de hauteur ≥ 800 qui le contient : la colonne de 272 px). Au téléphone, les fils (a-1, a-2, a-5) et « Nouvelle conversation » (a-3) n'ont ni en-tête de coque ni barre d'onglets, des deux côtés (TCK-2617).",
+ "_roles": "Une fiche, cinq écrans : un rôle se lit sur l'écran qui le porte (rangée « Malick Seck » → a-0, a-2 ; composeur → a-1, a-2 ; contexte → a-0, a-2 bureau ; « Créer un groupe » → a-3 ; note vocale → a-5 téléphone) et rend « absent » ailleurs, sans signification. Le fil de « Malick Seck » du produit n'est pas celui de la maquette (bien, aperçu, heure) : la rangée se compare en géométrie et en typographie, son texte est de la donnée. La carte du bien se compare en géométrie seule (photo, prix, statut : données).",
+ "_alias": {
+  "Mettre en sourdine → Couper les notifications": "libellé existant du geste (`messaging.group.info.mute`, `PUT …/mute`), commun au menu et aux infos du groupe ; gardé."
+ },
+ "_decisions": [
+  {
+   "ecran": "a-1-*, a-2-*",
+   "sujet": "réponses rapides du composeur (agent)",
+   "decision": "celles de la maquette — « Toujours disponible », « Quand pouvez-vous visiter ? », « Pièces à fournir », « Le prix est ferme » — sans « Je vous rappelle » que le corps du ticket listait",
+   "par": "décision de la session (team-lead, 2026-11-12), recommandation (a) appliquée sous délégation du porteur ; ADR-0106 : la maquette retenue fait foi",
+   "motif": "la tranche 4 la posait en « décision 1, reco a » restée sans réponse (pret-pour-done.json la tenait ouverte) ; elle est tranchée ici. La maquette gelée porte ces quatre libellés, le produit les rend à l'identique : aucun écart à accepter."
+  },
+  {
+   "ecran": "a-1-*",
+   "sujet": "AC7 — une photo envoyée en vignette, « Photo » dans la liste",
+   "decision": "prouvé SANS écriture en base (décision 6b) : réponses de `GET` réécrites dans le navigateur (`impl/terrain-5/2632/ac7.mjs`), aucun envoi réel",
+   "par": "décision de la session (team-lead, 2026-11-12), recommandation (a) appliquée sous délégation du porteur",
+   "motif": "envoyer une photo écrirait un message et un média dans la base de démo ; la règle du lot est de ne rien écrire. pret-pour-done.json notait qu'aucun rapport ne disait qui l'avait tranchée : c'est cette entrée."
+  }
+ ]
+}

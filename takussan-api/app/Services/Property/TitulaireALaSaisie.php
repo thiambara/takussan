@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\NotificationService;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * TCK-997 (P15.06, P50.01, P50.03 ; ADR-0036, amendement du 2026-10-19) — le titulaire d'un bien
@@ -116,8 +117,22 @@ final class TitulaireALaSaisie
             return;
         }
 
-        Property::withTrashed()->whereIn('pending_owner_profile_id', $ids)->toBase()
-            ->update(['pending_owner_profile_id' => null]);
+        self::biensLies($ids)->toBase()->update(['pending_owner_profile_id' => null]);
+    }
+
+    /**
+     * Les biens saisis pour ces profils invités, ceux que {@see delier()} écrit. TCK-2744 (d3) —
+     * l'effacement d'un compte les verrouille par cette requête avant la ligne `users`
+     * (`AccountDeletionService::lockInGlobalOrder()`) : la mise à jour de masse verrouille ses lignes.
+     *
+     * @param  iterable<int>  $profileIds
+     * @return Builder<Property>
+     */
+    public static function biensLies(iterable $profileIds): Builder
+    {
+        $ids = collect($profileIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        return Property::withTrashed()->whereIn('pending_owner_profile_id', $ids);
     }
 
     /**
@@ -175,6 +190,30 @@ final class TitulaireALaSaisie
                 agencyId: $bien->agency_id !== null ? (int) $bien->agency_id : null,
             );
         }
+    }
+
+    /**
+     * TCK-2753 (r1 de la contre-vérification, ADR-0108 § 5) — le bailleur qui reçoit un bien est
+     * rejugé APRÈS l'écriture qui le lui donne, dans la même transaction, son profil relu sous
+     * `FOR SHARE` : {@see self::bailleurActif()} le jugeait avant, sans verrou, et un départ
+     * concurrent (`OwnerDepartureService`) pouvait passer entre ce jugement et l'écriture — le
+     * bailleur parti gardait un bien vivant. Rejugé après l'écriture, aucun entrelacement ne reste :
+     *  - le départ tient déjà le profil (`FOR UPDATE`) : ce rejugement l'attend, lit `inactive`, et
+     *    la transaction de l'écriture est annulée (422 `property.owner_not_in_agency`) ;
+     *  - ce rejugement tient le profil : le départ l'attend, puis son inventaire voit le bien écrit
+     *    et refuse (`owner.departure_not_empty`).
+     * L'ordre des verrous est celui du départ, bien puis profil : l'écriture a déjà pris la ligne du
+     * bien (et la clé de son parent) quand elle arrive ici, jamais l'inverse.
+     */
+    public function exigerActifSousVerrou(int $userId, int $agencyId): void
+    {
+        $actif = OwnerProfile::query()
+            ->where('user_id', $userId)
+            ->where('agency_id', $agencyId)
+            ->sharedLock()
+            ->get(['id', 'status'])
+            ->contains(fn (OwnerProfile $p): bool => $p->status === OwnerProfileStatus::Active);
+        abort_code_unless($actif, 422, 'property.owner_not_in_agency');
     }
 
     /** Un profil propriétaire ACTIF dans l'agence, et aucun profil actif de personnel. */

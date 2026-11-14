@@ -3,6 +3,8 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Booking;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\User;
@@ -19,12 +21,36 @@ class LeaseResource extends BaseResource
     private ?User $viewer = null;
 
     /**
+     * TCK-2780, TCK-2803 — le bloc `tenant` : la décision du contrôleur, `inclus` (la requête porte
+     * `include=tenant`) et `champs` (`fields[customers]`, ou `null` pour le bloc entier). `null` (aucune
+     * décision : les gestes, la chaîne, les baux imbriqués) : le bloc n'est PAS rendu. Jamais l'état de
+     * la relation : `LeasePolicy::view` et les services lisent `$lease->tenant`, ce qui la charge avant
+     * le rendu — le `whenLoaded` d'avant rendait le locataire entier à qui ne l'avait pas demandé.
+     *
+     * @var array{inclus: bool, champs: list<string>|null}|null
+     */
+    private ?array $locataire = null;
+
+    /**
      * TCK-596 §4B — ce que l'utilisateur courant peut faire de la signature : les rôles pour
      * lesquels il signe, et s'il peut lancer la demande. Seulement sur le détail.
      */
     public function forViewer(?User $viewer): static
     {
         $this->viewer = $viewer;
+
+        return $this;
+    }
+
+    /**
+     * TCK-2780 — le locataire de la fiche, TCK-2803 — et de la liste : rendu sous `include=tenant`
+     * seulement, et borné aux champs demandés ({@see CustomerResource::borneeAuxChamps()}).
+     *
+     * @param  list<string>|null  $champs
+     */
+    public function avecLocataire(bool $inclus, ?array $champs): static
+    {
+        $this->locataire = ['inclus' => $inclus, 'champs' => $champs];
 
         return $this;
     }
@@ -90,7 +116,9 @@ class LeaseResource extends BaseResource
             'early_termination_penalty_months' => $this->when($this->viewer !== null,
                 fn (): int => app(EarlyTerminationService::class)->penaltyMonthsFor($this->resource)),
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
-            'tenant' => $this->whenLoaded('tenant', fn () => CustomerResource::make($this->tenant)),
+            'tenant' => $this->when($this->locataire !== null && $this->locataire['inclus'], fn () => $this->tenant === null
+                ? null
+                : CustomerResource::make($this->tenant)->borneeAuxChamps($this->locataire['champs'])),
             'renewed_from' => $this->whenLoaded('renewedFrom', fn () => self::make($this->renewedFrom)),
             'renewals' => $this->whenLoaded('renewals', fn () => self::collection($this->renewals)),
             'renewals_count' => $this->whenCounted('renewals'),
@@ -132,6 +160,9 @@ class LeaseResource extends BaseResource
                 // garde, et l'agent sans `leases.terminate` voyait le préavis.
                 'request_early_termination' => $this->viewer->can('requestEarlyTermination', $this->resource),
                 'update' => $this->viewer->can('update', $this->resource),
+                // TCK-2764 — abandonner le brouillon (`DELETE /api/leases/{id}`) : la règle d'`update` sur un
+                // `draft`. Les échéances saisies restent jugées par l'écran et par l'API, sous verrou.
+                'abandon' => $this->viewer->can('abandon', $this->resource),
                 // TCK-2642 — les quatre gestes que la fiche ouvrait encore par le rôle. `leave_review` et
                 // `give_notice` sont des gestes de PARTIE (le locataire) : lus sur la policy, hors de
                 // `Gate::before`, qui les accorderait au super-admin.
@@ -139,7 +170,31 @@ class LeaseResource extends BaseResource
                 'download_contract' => $this->viewer->can('downloadContract', $this->resource),
                 'leave_review' => app(LeasePolicy::class)->leaveReview($this->viewer, $this->resource),
                 'give_notice' => app(LeasePolicy::class)->giveNotice($this->viewer, $this->resource),
+                // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : la capacité, jugée dans
+                // l'agence DU BAIL (le bail en argument : sans lui, la Gate juge l'agence du profil actif),
+                // et un plafond NON figé au contrat. Un plafond figé n'est jamais forcé
+                // (`RentReviewService::review`, VERIF-596 passe 3) : l'offre suit le refus de l'API.
+                // Un bail SANS agence ne donne aucun contexte à la Gate, qui retomberait sur l'agence du
+                // profil actif : capacité d'agence, aucun membre ne l'y a — seul le super-admin, qui a
+                // tout (`Gate::before`), y passe outre (réserve r1 de la vérification d'eecb6f893).
+                'rent_review_force' => ($this->resource->agency_id !== null
+                    ? $this->viewer->can('leases.rent_review_force', $this->resource)
+                    : $this->viewer->isSuperAdmin())
+                    && $this->resource->rent_review_max_pct === null,
             ]),
+            // TCK-2764 — la candidature d'où le bail est tiré, et son statut, pour que le dialogue
+            // d'abandon propose de la fermer par son geste (`reject` si `pending`, `cancel` si
+            // `confirmed`). À qui peut abandonner seulement, sur le détail (`forViewer`) ; `null` quand
+            // le bail n'est tiré d'aucune réservation.
+            'origin_booking' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
+                fn (): ?array => $this->booking_id === null ? null : $this->candidatureDOrigine()),
+            // TCK-2764 r1, puis 4a (décision du porteur du 2026-11-13) — un état des lieux ENGAGÉ sur le
+            // brouillon (`Inventory::engage()` : sorti du brouillon, ou signé) refuse l'abandon
+            // (`lease.abandon_has_inventory`) : la fiche remplace le geste par sa raison. Un brouillon
+            // d'état des lieux jamais signé ne compte pas : il part avec le bail. Même lecteur que
+            // `origin_booking`.
+            'has_inventory' => $this->when($this->viewer !== null && $this->viewer->can('abandon', $this->resource),
+                fn (): bool => $this->resource->inventories()->get()->contains(fn (Inventory $etat): bool => $etat->engage())),
             // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de
             // son agence, sinon le global : `RentReviewService::maxPctFor`), pour la feuille de révision.
             // Sur le détail seul : le réglage d'agence se lit une fois par bail.
@@ -246,5 +301,13 @@ class LeaseResource extends BaseResource
         $staffAgencyId = $request->attributes->get($key);
 
         return $staffAgencyId !== null && $this->agency_id !== null && (int) $this->agency_id === $staffAgencyId;
+    }
+
+    /** @return array{id: int, status: string|null}|null */
+    private function candidatureDOrigine(): ?array
+    {
+        $candidature = Booking::query()->whereKey($this->booking_id)->first(['id', 'status']);
+
+        return $candidature === null ? null : ['id' => $candidature->id, 'status' => $this->enumValue($candidature->status)];
     }
 }

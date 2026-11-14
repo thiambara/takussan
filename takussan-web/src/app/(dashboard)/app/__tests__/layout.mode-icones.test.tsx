@@ -17,6 +17,8 @@ const { getMe, modeLu, sonde } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMe() }));
+// TCK-2621 — l'écran « Choisir un espace » n'est pas l'objet de ce fichier : jamais montré ici.
+vi.mock('@/lib/espaces-serveur', () => ({ espacesAChoisir: async () => null }));
 vi.mock('@/lib/session', () => ({
   getToken: async () => 'jeton',
   getActiveProfileId: async () => undefined,

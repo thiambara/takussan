@@ -1,0 +1,161 @@
+{
+  "ticket": "TCK-2613",
+  "ecrans": [
+    {
+      "page": "app-entree-assistants",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Numéro",
+      "references": {
+        "telephone": "references/app-entree-assistants/a-4-telephone.json",
+        "bureau-1280": "references/app-entree-assistants/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/owner?owner=1",
+        "persona": "proprietaire",
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Relevé AVANT toute écriture : numéro non vérifié, l'écran 1 est à son état d'arrivée (« Vérifiez votre numéro », « Recevoir le code ») ; l'état « code envoyé » de la maquette n'est pas relevé : l'atteindre écrit (envoi d'OTP). 0 écriture bloquée, 0 action serveur, 0 erreur de console. telephone 3 conformes · 2 écarts · 9 absents du produit · 7 absents de la maquette (19,07 %) ; bureau-1280 4 · 15 · 44 · 7 (11,62 %)."
+      }
+    },
+    {
+      "page": "app-entree-assistants",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Bailleur",
+      "references": {
+        "telephone": "references/app-entree-assistants/a-0-telephone.json",
+        "bureau-1280": "references/app-entree-assistants/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/owner?owner=1",
+        "persona": "proprietaire",
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié par écriture temporaire (users.phone_verified_at, cf. ticket). getOwnerPropertiesAction permise : 2 appels (double rendu de next dev), 0 écriture bloquée, 0 erreur. Les biens sont ceux de la démo (72, noms de test, tous « Disponible »). telephone 5 · 14 · 5 · 2 (15,88 %) ; bureau-1280 0 · 30 · 13 · 11 (9,53 %)."
+      }
+    },
+    {
+      "page": "app-entree-assistants",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Agent",
+      "references": {
+        "telephone": "references/app-entree-assistants/a-1-telephone.json",
+        "bureau-1280": "references/app-entree-assistants/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/agent?agent=1",
+        "persona": "agent",
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié (écriture temporaire). getAgentFirstLeadAction permise : 2 appels, 0 écriture bloquée, 0 erreur. Prospect de la démo (Astou Mbaye, « Nouveau »), aucune zone, spécialisation à choisir, 19 droits. telephone 4 · 12 · 10 · 12 (16,93 %) ; bureau-1280 0 · 18 · 19 · 32 (9,77 %)."
+      }
+    },
+    {
+      "page": "app-entree-assistants",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Prestataire",
+      "references": {
+        "telephone": "references/app-entree-assistants/a-2-telephone.json",
+        "bureau-1280": "references/app-entree-assistants/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/onboarding/service-provider?sp=1",
+        "persona": "prestataire",
+        "etat": "Relevé v1 du 2026-11-13 à 23:00-23:02 (terrain-6, takussan-web/.fidelite/TCK-2613/v1), téléphone 390×844 et bureau 1280×900 seulement (règles de cadence du porteur, 2026-11-13). Garde garde-2613.js chargée par FID_AVANT : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur de LECTURE nommée de l'écran (identifiant relevé dans .next/dev/server/server-reference-manifest.json) ; le compte est écrit dans `perturbation` de chaque relevé (rapport.js). Aucun clic, aucune saisie. Numéro vérifié et invitation acceptée temporaire (id 190, profil prestataire 1, metadata.from_maintenance_request_id = 10 : « Chasse d'eau qui ne s'arrête pas », plomberie, ouverte, non assignée). Aucune action serveur au chargement, 0 écriture bloquée, 0 erreur. telephone 4 · 11 · 5 · 16 (26,92 %) ; bureau-1280 0 · 25 · 29 · 10 (16,28 %)."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/onboarding/{owner,agent,service-provider}",
+    "persona": "proprietaire, agent, prestataire",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-6, impl/lot2/terrain-6/2613/fid/ : garde-2613.js (FID_AVANT, identifiants permis injectés), rapport.js, releve.sh, ecrire.sql, journal-ecritures.txt"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Tes biens chez Dakar Immo": "Vos biens chez Dakar Immo",
+    "Tu as un autre bien ?": "Vous avez un autre bien ?",
+    "Vérifie ton numéro": "Vérifiez votre numéro",
+    "Ton numéro": "Votre numéro",
+    "Une intervention t’attend": "Une intervention vous attend",
+    "Complète ton profil pour en recevoir d’autres": "Complétez votre profil pour en recevoir d’autres",
+    "Tes zones": "Vos zones"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-entree-assistants a-*",
+      "element": "tutoiement de la maquette",
+      "propriete": "libellé",
+      "exception": "règle du produit",
+      "motif": "ADR-0095 et le ticket : vouvoiement, alias de la fiche"
+    },
+    {
+      "ecran": "app-entree-assistants a-0/a-1/a-2",
+      "element": "contenus (biens, prospect, intervention, numéro masqué, compteurs « n sur 5 »)",
+      "propriete": "texte, présence des états « Loué » / « En travaux », budget, dernier contact, origine du prospect",
+      "exception": "donnée",
+      "motif": "relevé sur la démo : ses biens sont « Disponible », son prospect n'a ni budget ni dernier contact ni origine renseignés"
+    },
+    {
+      "ecran": "app-entree-assistants a-2-*",
+      "element": "photo, « signalée le… · réf. », citation du locataire, « Voir le détail »",
+      "propriete": "présence",
+      "exception": "donnée et contrat",
+      "motif": "demande 10 sans photo ; la route intervention-d-origine ne sert que des champs minimaux (titre, catégorie, quartier et ville, photo, devis) avant l'acceptation (contrat validé par team-lead) ; la phrase « L’adresse et le contact du locataire s’ouvrent quand vous acceptez. » le dit"
+    },
+    {
+      "ecran": "app-entree-assistants a-2-bureau-1280",
+      "element": "tarifs et disponibilités en ligne (« Tarif horaire », « Frais de visite », grille Matin / Après-midi, « Enregistrer mon profil »)",
+      "propriete": "présence",
+      "exception": "décision",
+      "motif": "le profil se complète par des lignes qui mènent à /app/profile/professional et /app/pieces (« n sur 5 »), décision de L3 relayée à team-lead"
+    },
+    {
+      "ecran": "app-entree-assistants a-4-*",
+      "element": "état « code envoyé » (six cases, rebours, code d'aperçu, variante d'échec)",
+      "propriete": "présence",
+      "exception": "relevé sans écriture",
+      "motif": "l'atteindre envoie un OTP ; les états sont éprouvés par les tests de EtapeDuNumero (429 sous le champ, rebours, code d'aperçu)"
+    },
+    {
+      "ecran": "app-entree-assistants a-*",
+      "element": "blocs « Variante · … » sous l'écran",
+      "propriete": "présence",
+      "exception": "annotation de maquette",
+      "motif": "variantes dessinées sous l'écran, rendues par le produit dans leur cas (sans bien, sans prospect, déjà prestataire)"
+    }
+  ],
+  "ecarts_ouverts": [
+    {
+      "ecran": "app-entree-assistants a-* (barre)",
+      "element": "« Étape N sur 2 » écrit à côté des pastilles ; « Reprendre plus tard ✕ » au bureau",
+      "propriete": "présence (le produit ne montre que les pastilles, le libellé est dans aria-label ; sa sortie dit « Quitter »)",
+      "recommandation": "coque partagée CoqueDEntree (TCK-2598, TCK-2601) : à trancher par son porteur — le ticket TCK-2613 demande « Étape 1 sur 2 » / « Étape 2 sur 2 » dans la barre"
+    },
+    {
+      "ecran": "app-entree-assistants a-0-bureau-1280",
+      "element": "carte « Ton interlocutrice » (nom, rôle, Appeler, WhatsApp)",
+      "propriete": "absente du produit",
+      "recommandation": "ticket de suite : l'API ne sert pas l'interlocuteur de l'agence au bailleur ; le ticket ne la demande pas"
+    },
+    {
+      "ecran": "app-entree-assistants a-2-bureau-1280",
+      "element": "ordre des gestes de la carte",
+      "propriete": "la maquette met « Accepter » à gauche au bureau, le produit garde l'ordre du téléphone (« Proposer un créneau » puis « Accepter »)",
+      "recommandation": "suivre la maquette au bureau (inverser dès lg), cosmétique"
+    },
+    {
+      "ecran": "app-entree-assistants a-1-*",
+      "element": "liste des droits",
+      "propriete": "le produit liste les droits donnés (19 pour l'agent de la démo) sans les droits refusés (✗) de la maquette",
+      "recommandation": "garder : la liste vient de l'API, la maquette en montre un extrait"
+    }
+  ]
+}

@@ -5,8 +5,13 @@ namespace App\Models;
 use App\Jobs\SendTaskDueReminders;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
+use App\Models\Enums\UserStatus;
+use App\Policies\TaskPolicy;
+use App\Services\Agency\AgentAvailability;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\TaskPrioritySort;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
@@ -257,6 +262,71 @@ class Task extends AbstractModel
             $q->whereNull('taskable_type')
                 ->orWhereHasMorph('taskable', [Customer::class, Property::class], fn (Builder $parent) => $parent
                     ->where(fn (Builder $w) => $w->whereNull('agency_id')->orWhereIn('agency_id', $agencyIds)));
+        });
+    }
+
+    /**
+     * TCK-2595 — l'assigné est PERSONNEL ACTIF de l'agence : compte ni bloqué ni supprimé, profil
+     * agent ou admin actif, ou délégation EN VIGUEUR de ces rôles (`enVigueur()`, celle de
+     * `MembershipCapabilityResolver::isStaffAt()` : active ET portée par un profil d'agence actif du
+     * délégué — contre-vérification de 5c81b390a, `active()` seule rendait au lecteur d'équipe la tâche
+     * d'un délégué hors vigueur que `GET /api/tasks/{id}` lui refuse). Forme SQL de
+     * `PersonnelDeLAgence::estPersonnel()` sur l'assigné, que `TaskPolicy::readsAsTeam` juge par
+     * ligne ; seule définition, lue par `filter[team]=1` et par {@see self::scopeLisiblesSurUnParentPar()}.
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function scopeAssigneAuPersonnelActifDe(Builder $query, int $agencyId): Builder
+    {
+        $inAgency = fn (Builder $q) => $q->where('agency_id', $agencyId);
+        $actif = fn (Builder $p) => $inAgency($p)->active();
+
+        return $query->whereHas('assignee', fn (Builder $u) => $u
+            ->whereNotIn('users.status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
+            ->where(fn (Builder $w) => $w
+                ->whereHas('agentProfiles', $actif)
+                ->orWhereHas('agencyAdminProfiles', $actif)
+                ->orWhereHas('roleDelegations', fn (Builder $d) => $inAgency($d)
+                    ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
+                    ->enVigueur())));
+    }
+
+    /**
+     * TCK-2589 (contre-vérification de verif-commercial) — les tâches d'UN parent connu, dans l'agence
+     * `$parentAgencyId` (null : parent hors agence), que `TaskPolicy::view` laisse ouvrir à `$user`,
+     * en une clause SQL. Le fil et le journal d'une fiche n'en rendent pas d'autres : le bailleur
+     * auteur lisait le titre de la tâche que l'admin s'était donnée sur sa fiche, que
+     * `GET /api/tasks/{id}` lui refuse.
+     *
+     * Le parent étant fixé, les bornes d'agence de la policy (membre, personnel, absence couverte,
+     * lecteur d'équipe) se jugent une fois pour la requête, jamais par ligne.
+     *
+     * @param  Builder<Task>  $query
+     * @return Builder<Task>
+     */
+    public function scopeLisiblesSurUnParentPar(Builder $query, User $user, ?int $parentAgencyId): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        $resolver = app(MembershipCapabilityResolver::class);
+        // `participates` : créateur membre, assigné personnel de l'agence du parent.
+        $createur = $parentAgencyId === null || $resolver->isMemberAt($user, $parentAgencyId);
+        $assigne = $parentAgencyId === null || $resolver->isStaffAt($user, $parentAgencyId);
+        // `coversAssignee` : les absents que l'appelant remplace dans cette agence.
+        $absents = $parentAgencyId === null ? [] : app(AgentAvailability::class)->coveredBy($user)
+            ->where('agency_id', $parentAgencyId)->pluck('absent_id')->all();
+        // `readsAsTeam` : `crm.view_all` dans l'agence active, qui est celle du parent.
+        $equipe = $parentAgencyId !== null && TaskPolicy::teamAgencyOf($user)?->id === $parentAgencyId;
+
+        return $query->where(function (Builder $q) use ($user, $createur, $assigne, $absents, $equipe, $parentAgencyId) {
+            $q->whereRaw('1 = 0')
+                ->when($createur, fn (Builder $w) => $w->orWhere('created_by_id', $user->id))
+                ->when($assigne, fn (Builder $w) => $w->orWhere('assigned_to_id', $user->id))
+                ->when($absents !== [], fn (Builder $w) => $w->orWhereIn('assigned_to_id', $absents))
+                ->when($equipe, fn (Builder $w) => $w->orWhere(fn (Builder $t) => $t->assigneAuPersonnelActifDe((int) $parentAgencyId)));
         });
     }
 

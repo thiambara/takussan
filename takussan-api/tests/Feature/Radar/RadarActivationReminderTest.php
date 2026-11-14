@@ -155,6 +155,18 @@ class RadarActivationReminderTest extends TestCase
         $this->assertStringContainsString('you get 500 free credits', $texte);
     }
 
+    /** TCK-2794 — en français, les milliers d'un compte se groupent par l'insécable U+00A0, jamais l'espace ordinaire. */
+    public function test_tck2794_la_relance_en_francais_groupe_ses_chiffres_par_l_insecable(): void
+    {
+        $this->travelTo(Carbon::parse(self::T0)->addDays(7));
+        $this->vues($this->biens[0], 1200);
+
+        $texte = $this->relance('fr')->assertOk()->json('data.text');
+
+        $this->assertStringContainsString("- vues : 1\u{00A0}200\n", $texte);
+        $this->assertStringNotContainsString('1 200', $texte);
+    }
+
     public function test_ac1_apres_un_envoi_la_periode_suivante_part_de_la_ligne_de_base(): void
     {
         [$b1, $b2] = $this->biens;

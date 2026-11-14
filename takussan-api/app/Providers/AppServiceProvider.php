@@ -48,6 +48,7 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
+use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -98,6 +99,7 @@ use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
 use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
@@ -665,6 +667,20 @@ class AppServiceProvider extends ServiceProvider
         // limiteur, et chaque note vocale pèse jusqu'à 2 Mo (ADR-0038). Route authentifiée : la clé
         // est l'utilisateur déjà authentifié par `auth:sanctum` (le throttle passe après dans la
         // priorité des middlewares).
+        // TCK-2590 (décision 8 du porteur, 2026-11-12) — la sonde de doublon au numéro COMPLET peut
+        // signaler une fiche que l'appelant ne lit pas (tout à `null`) : vingt par HEURE et par
+        // personne, en plus des vingt par minute de la route. Le préfixe n'y compte pas
+        // (`CustomerDuplicateDetector::numeroComplet()`, le prédicat même de la sonde). L'e-mail complet
+        // qui désigne une fiche masquée puise dans le même seau, mais après la sonde, dans son contrôleur
+        // (troisième porte, nuit du 2026-11-12) ; la création, la mise à jour et la conversion d'une demande
+        // aussi (`CustomerDuplicateDetector::budgeterLesSignalementsMasques`).
+        RateLimiter::for(CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET, fn (Request $request) => CustomerDuplicateDetector::numeroComplet(
+            is_string($request->query('phone')) ? $request->query('phone') : null,
+        ) !== null
+            ? Limit::perHour(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE)
+                ->by(CustomerDuplicateDetector::seauDuNumeroComplet($request->user()?->id ?? $this->clientNetwork($request)))
+            : Limit::none());
+
         RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
@@ -815,6 +831,12 @@ class AppServiceProvider extends ServiceProvider
         RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
+        // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
+        foreach (array_keys(DocumentsDuPorteurObserver::COLONNES) as $porteur) {
+            $porteur::observe(DocumentsDuPorteurObserver::class);
+        }
 
         // TCK-266 — onboarding checklist auto-completion observers.
         // Inventory.signed (move-in) → inventory_completed item ;

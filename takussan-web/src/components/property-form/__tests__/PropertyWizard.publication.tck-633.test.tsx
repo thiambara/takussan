@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
 
 /**
  * TCK-633 (lot C, AC11 / AC12) — la publication depuis l'assistant : `POST …/publish` avec
- * l'acceptation des CGU, le bloc « Vos coordonnées » sur un refus, et les contacts sur place
+ * l'acceptation des CGU, la feuille de compte sur un refus (le bloc « Vos coordonnées » jusqu'à TCK-2601), et les contacts sur place
  * écrits après la création, avant la publication. Le harnais reprend celui de
  * `PropertyWizard.test.tsx`.
  */
@@ -99,7 +99,8 @@ beforeEach(() => {
   brouillon.etat.error = null;
   brouillon.etat.flush.mockResolvedValue({ ok: true, ecrit: true });
   brouillon.etat.clear.mockResolvedValue(undefined);
-  auth.user = { id: 1, first_name: 'Awa', phone: '+221770000901', phone_verified_at: '2026-10-01T00:00:00Z', terms_accepted_at: null };
+  // TCK-2601 — prénom ET nom : un compte sans nom ouvrirait la feuille de compte avant toute écriture.
+  auth.user = { id: 1, first_name: 'Awa', last_name: 'Diop', phone: '+221770000901', phone_verified_at: '2026-10-01T00:00:00Z', terms_accepted_at: null };
   vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } } as never);
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);
   vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true } as never);
@@ -118,15 +119,16 @@ describe('PropertyWizard — publier avec un contact (TCK-633)', () => {
     expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true });
   });
 
-  it('422 coordonnées incomplètes : le bloc s’ouvre, le brouillon reste, rien ne part', async () => {
+  // TCK-2601 — le bloc est devenu la feuille de compte, rouverte sur le refus de l'API.
+  it('422 coordonnées incomplètes : la feuille s’ouvre, le brouillon reste, rien ne part', async () => {
     pub.publier.mockResolvedValueOnce({ ok: false, status: 422, message: 'x', missing: ['verified_phone'], contactIsSelf: true });
-    auth.user = { ...auth.user, phone_verified_at: null };
     const user = await allerAuBout();
 
     await user.click(screen.getByRole('button', { name: /publier/i }));
 
-    expect(await screen.findByText(/Il manque vos coordonnées pour publier/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Votre numéro')).toBeInTheDocument();
+    const feuille = await screen.findByRole('dialog', { name: 'Dernière étape' });
+    expect(within(feuille).getByText(/Il manque encore vos coordonnées pour publier/)).toBeInTheDocument();
+    expect(within(feuille).getByLabelText('Votre numéro')).toBeInTheDocument();
     expect(routeur.push).not.toHaveBeenCalled();
     expect(createPropertyAction).toHaveBeenCalledTimes(1);
   });
@@ -174,9 +176,13 @@ describe('PropertyWizard — publier avec un contact (TCK-633)', () => {
 
 /**
  * TCK-643 — la dernière étape affiche les numéros déjà vérifiés ; AC4 : la publication reste
- * possible EXACTEMENT dans les mêmes cas qu'avant. L'assistant ne filtre rien lui-même : il tente
- * toujours `POST …/publish`, et c'est la réponse de l'API qui débloque (en ligne) ou bloque (bloc
- * des coordonnées). Un affichage ne doit ni empêcher la tentative, ni la remplacer.
+ * possible EXACTEMENT dans les mêmes cas qu'avant. Un affichage ne doit ni empêcher la tentative,
+ * ni la remplacer.
+ *
+ * ⚠ Revu par TCK-2601 : un compte dont le numéro PRINCIPAL n'est pas vérifié voit la feuille de
+ * compte avant toute écriture (« la même feuille réduite à ce qui lui manque ») — c'est le cas où
+ * l'API refusait (`PublishReadiness`, cas « second vérifié seul » et « rien de vérifié »). Pour un
+ * compte que l'écran croit complet, l'API reste seule juge.
  */
 describe('PropertyWizard — numéros vérifiés à la dernière étape (TCK-643)', () => {
   const SECOND = { secondary_phone: '+221780000902', secondary_phone_verified_at: '2026-10-02T00:00:00Z', secondary_phone_whatsapp: true };
@@ -195,23 +201,46 @@ describe('PropertyWizard — numéros vérifiés à la dernière étape (TCK-643
     ['principal + second vérifiés', SECOND, true],
     ['second vérifié seul', { phone_verified_at: null, ...SECOND }, false],
     ['rien de vérifié', { phone_verified_at: null }, false],
-  ] as const)('AC4 — %s : la publication est tentée, et l’API seule en décide', async (_cas, compte, accepte) => {
+  ] as const)('AC4 — %s : publié, ou la feuille demande le numéro avant toute écriture', async (_cas, compte, accepte) => {
     auth.user = { ...auth.user, ...compte };
-    if (!accepte) {
-      pub.publier.mockResolvedValueOnce({ ok: false, status: 422, message: 'x', missing: ['verified_phone'], contactIsSelf: true });
-    }
     const user = await allerAuBout();
 
     await user.click(screen.getByRole('button', { name: /publier/i }));
 
-    await waitFor(() => expect(pub.publier).toHaveBeenCalledTimes(1));
-    expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true });
     if (accepte) {
+      await waitFor(() => expect(pub.publier).toHaveBeenCalledTimes(1));
+      expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true });
       await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
     } else {
-      expect(await screen.findByText(/Il manque vos coordonnées pour publier/)).toBeInTheDocument();
-      expect(screen.getByLabelText('Votre numéro')).toBeInTheDocument();
+      const feuille = await screen.findByRole('dialog', { name: 'Dernière étape' });
+      expect(feuille).toContainElement(screen.getByLabelText('Votre numéro'));
+      expect(createPropertyAction).not.toHaveBeenCalled();
+      expect(pub.publier).not.toHaveBeenCalled();
       expect(routeur.push).not.toHaveBeenCalled();
     }
+  });
+
+  /**
+   * Le cas inverse (condition de la session principale, 2026-11-13) : le pré-contrôle de la feuille
+   * n'est jamais plus strict que l'API. Pour chaque profil que `PublishReadiness` accepte — numéro
+   * principal vérifié, prénom ET nom (décision 1a), WhatsApp répondu —, la feuille ne s'ouvre pas et
+   * `POST …/publish` part. Ce qui ne doit rien bloquer : le second numéro (absent, non vérifié, ou
+   * sans réponse WhatsApp), « non » à WhatsApp, et des CGU jamais acceptées (la phrase les accepte).
+   */
+  it.each([
+    ['WhatsApp oui', { phone_whatsapp: true }],
+    ['WhatsApp non (une réponse)', { phone_whatsapp: false }],
+    ['second numéro saisi, NON vérifié', { phone_whatsapp: true, secondary_phone: '+221780000902', secondary_phone_verified_at: null, secondary_phone_whatsapp: null }],
+    ['second vérifié, sans réponse WhatsApp', { phone_whatsapp: false, ...SECOND, secondary_phone_whatsapp: null }],
+    ['CGU jamais acceptées', { phone_whatsapp: true, terms_accepted_at: null }],
+  ] as const)('AC4 inverse — %s : l’API publierait, la feuille ne s’ouvre pas et la publication part', async (_cas, compte) => {
+    auth.user = { ...auth.user, ...compte };
+    const user = await allerAuBout();
+
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(pub.publier).toHaveBeenCalledWith(42, { acceptTerms: true }));
+    expect(screen.queryByRole('dialog', { name: 'Dernière étape' })).not.toBeInTheDocument();
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
   });
 });

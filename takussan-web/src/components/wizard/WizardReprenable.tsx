@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -76,6 +76,45 @@ export type WizardReprenableProps<TData> = {
    * explication. Doit être pure et idempotente.
    */
   relireBrouillon?: (data: TData) => TData;
+  /**
+   * TCK-2613 — l'étape où l'assistant s'ouvre, jugée sur les données relues (brouillon fusionné, ou état
+   * initial) et sur l'étape que le brouillon disait (`0` sans brouillon). Le numéro déjà vérifié saute l'étape
+   * du code ; un brouillon d'un assistant d'avant, plus long, est ramené dans les bornes. Pure.
+   *
+   * ⚠ L'état vierge (TCK-566) est figé à CETTE étape : un assistant ouvert à l'étape 2 sans rien saisir
+   * n'écrit aucun brouillon.
+   */
+  etapeImposee?: (data: TData, etapeLue: number) => number;
+  /**
+   * TCK-2613 — la page rend l'étape et ses gestes (la coque d'entrée porte l'avancement et le pied) : ni rail,
+   * ni titre d'étape, ni Précédent / Suivant ici. Le brouillon et ses gardes restent ceux de l'assistant.
+   */
+  presentation?: (api: PresentationDEtape<TData>) => ReactNode;
+};
+
+/** TCK-2613 — ce que l'assistant donne à la page qui rend l'étape elle-même. */
+export type PresentationDEtape<TData> = {
+  /** L'index de l'étape affichée, à partir de 0. */
+  readonly etape: number;
+  readonly total: number;
+  /** Faux tant que le brouillon serveur n'est pas relu : `corps` est alors `null`. */
+  readonly pret: boolean;
+  /** Le rendu de l'étape courante (`steps[etape].render`). */
+  readonly corps: ReactNode;
+  readonly data: TData;
+  readonly setData: (next: TData) => void;
+  readonly peutAvancer: boolean;
+  readonly derniere: boolean;
+  /** Une finalisation est en cours. */
+  readonly enCours: boolean;
+  /** Le geste de l'étape : passer à la suivante, ou finaliser sur la dernière (écriture lue, `onComplete`, effacement). */
+  readonly suivant: () => Promise<void>;
+  readonly precedent: () => void;
+  /**
+   * Aller à une étape sans relire `canAdvance` : la garde rendue AVANT un `setData` (le numéro qu'on vient de
+   * vérifier) ne voit pas encore la donnée neuve.
+   */
+  readonly allerA: (etape: number) => void;
 };
 
 // Deep-merge a persisted draft over the initial skeleton. Recurses into plain
@@ -110,6 +149,14 @@ function mergeDraft<T>(base: T, patch: Partial<T> | null | undefined): T {
   return out as T;
 }
 
+/**
+ * TCK-2613 — la page rend l'étape dans SON composant : appelée pendant le rendu de l'assistant, la fonction recevait
+ * des gestes qui lisent des références (`finalisationRef`), ce que le compilateur React refuse (`react-hooks/refs`).
+ */
+function RenduDeLaPage<TData>({ rendre, api }: { readonly rendre: (api: PresentationDEtape<TData>) => ReactNode; readonly api: PresentationDEtape<TData> }) {
+  return <>{rendre(api)}</>;
+}
+
 export function WizardReprenable<TData extends Record<string, unknown>>({
   storageKey,
   initialData,
@@ -118,6 +165,8 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   debounceMs = 800,
   className,
   relireBrouillon,
+  etapeImposee,
+  presentation,
 }: WizardReprenableProps<TData>) {
   const t = useTranslations('wizardDrafts.component');
   const toast = useToast();
@@ -165,13 +214,18 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   // L'écriture converge (`hydrated` passe à `true` définitivement).
   if (!hydrated && !isLoading) {
     setHydrated(true);
-    setEtatVierge(serialiserEtatBrouillon(0, initialData));
+    // TCK-2613 — bornée : une étape imposée hors de la liste n'existe pas.
+    const borner = (etape: number) => Math.max(0, Math.min(etape, steps.length - 1));
+    const etapeVierge = borner(etapeImposee ? etapeImposee(initialData, 0) : 0);
+    setEtatVierge(serialiserEtatBrouillon(etapeVierge, initialData));
     setBrouillonServeurExiste(Boolean(draft?.data));
     if (draft?.data) {
-      setStepIndex(Math.min(draft.step, steps.length - 1));
       const fusionne = mergeDraft(initialData, draft.data as Partial<TData>);
-      setData(relireBrouillon ? relireBrouillon(fusionne) : fusionne);
+      const relu = relireBrouillon ? relireBrouillon(fusionne) : fusionne;
+      setStepIndex(borner(etapeImposee ? etapeImposee(relu, draft.step) : draft.step));
+      setData(relu);
     } else {
+      setStepIndex(etapeVierge);
       // TCK-566 — `data` a été figé par `useState(initialData)` au MONTAGE. Si
       // `initialData` a changé depuis (l'utilisateur ou l'indicatif géolocalisé
       // arrivés pendant le GET du brouillon — l'étape n'est pas encore
@@ -321,6 +375,39 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
       setCompleting(false);
     }
   }, [canAdvance, isLast, totalSteps, flush, onComplete, data, clear, toast, t]);
+
+  const allerA = useCallback(
+    (etape: number) => {
+      setStepIndex((avant) => {
+        const cible = Math.max(0, Math.min(etape, totalSteps - 1));
+        setDirection(cible >= avant ? 'forward' : 'back');
+        return cible;
+      });
+    },
+    [totalSteps],
+  );
+
+  if (presentation) {
+    return (
+      <RenduDeLaPage
+        rendre={presentation}
+        api={{
+          etape: stepIndex,
+          total: totalSteps,
+          pret: hydrated,
+          corps: hydrated ? current.render({ data, setData }) : null,
+          data,
+          setData,
+          peutAvancer: canAdvance && !completing,
+          derniere: isLast,
+          enCours: completing,
+          suivant: handleNext,
+          precedent: handlePrevious,
+          allerA,
+        }}
+      />
+    );
+  }
 
   return (
     <section

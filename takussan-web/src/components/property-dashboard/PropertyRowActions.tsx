@@ -2,20 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Archive, Copy, Loader2, MoreHorizontal, Rocket } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,16 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  deletePropertyAction,
-  duplicatePropertyAction,
-  updatePropertyStatusAction,
-  updatePropertyVisibilityAction,
-} from '@/app/actions/dashboard-properties';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/enums/property';
-import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
+import { avalerLeClicFantome } from '@/lib/clic-fantome';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
+import { useGestesRapides } from './useGestesRapides';
 import type { PropertyListItem } from '@/types/property';
 import { BoostDialog } from '@/components/boost/BoostDialog';
 import { useCan } from '@/hooks/useCan';
@@ -49,11 +36,16 @@ import { useCan } from '@/hooks/useCan';
 interface PropertyRowActionsProps {
   readonly property: PropertyListItem;
   /**
-   * `row` : cellule de table (bureau). `card` : pied de carte (mobile et tablette) — les messages
-   * de retour y restent VISIBLES, sur leur propre ligne. En `row`, ils sont masqués sous `md`
-   * parce que la cellule n'a pas la place ; la carte, elle, n'a pas d'autre endroit où les dire.
+   * `row` : cellule de table (bureau). `card` : pied de carte (mobile et tablette).
+   *
+   * `menu` (TCK-2638, mode Gestion) : le seul « ⋯ », qui porte « Modifier » en tête — la colonne de
+   * fin du tableau et la carte compacte n'ont que sa place (44 px).
+   *
+   * Réserve de verif-patrimoine (2026-11-12) — l'issue d'un geste se dit par un toast, dans les
+   * trois dispositions : le message posé à côté du menu (masqué sous `md` en `row`, en bulle en
+   * `menu`) n'a plus de place à trouver.
    */
-  readonly layout?: 'row' | 'card';
+  readonly layout?: 'row' | 'card' | 'menu';
 }
 
 export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActionsProps) {
@@ -65,107 +57,14 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
   // TCK-633 lot F — « Booster » : capacité `boost.spend`, bien public ; le dialogue vit HORS du menu.
   const { can: canBoost } = useCan('boost.spend');
   const [boostOpen, setBoostOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const runAction = (
-    fn: () => Promise<{ ok: boolean; message?: string; data?: { status?: string | null } }>,
-    successMessage: string,
-  ) => {
-    setError(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await fn();
-      if (!result.ok) {
-        setError(result.message ?? t('error'));
-        return;
-      }
-      // TCK-597 (§8) — une mise en ligne qui revient `pending_review` n'est PAS publiée : l'agence
-      // modère, et l'écran le dit au lieu d'annoncer un succès qui n'a pas eu lieu.
-      setSuccess(result.data?.status === 'pending_review' ? t('sentForReview') : successMessage);
-      router.refresh();
-    });
-  };
-
-  // TCK-633 (lot C, décision 3) — publier passe par `POST …/publish` : un compte prêt publie au
-  // premier geste, sinon « Vos coordonnées pour les intéressés » s'ouvre en boîte de dialogue.
-  const publication = usePublicationAvecCoordonnees(property.id, {
-    onPublie: (statut, geste) => {
-      setSuccess(
-        statut === 'pending_review'
-          ? t('sentForReview')
-          : geste.type === 'statut'
-            ? t('statusUpdated')
-            : t('published'),
-      );
-      router.refresh();
-    },
-    onEchec: (message) => setError(message || t('error')),
+  // Réserve de verif-patrimoine (2026-11-12) — échecs rattrapés et dits par un toast, Archiver et
+  // Dépublier confirmés : la règle vit dans `useGestesRapides`, commune à la fiche du bien.
+  const gestes = useGestesRapides(property, {
+    corpsDeSuppression: 'deleteBodyRow',
+    apresSuppression: () => router.refresh(),
   });
-
-  const publish = () => {
-    setError(null);
-    setSuccess(null);
-    publication.publier();
-  };
-
-  const unpublish = () => {
-    runAction(
-      () => updatePropertyVisibilityAction(property.id, 'private'),
-      t('unpublished'),
-    );
-  };
-
-  // Correction du lot C, tour 2 — un statut affichable REMET EN LIGNE un bien public retiré par
-  // son statut, et l'API le garde comme une publication : son refus ouvre la même boîte que
-  // « Publier », qui rejoue ce statut avec `accept_terms`, au lieu d'un message sans issue.
-  const changeStatus = (status: string) => {
-    if (status === property.status) return;
-    setError(null);
-    setSuccess(null);
-    publication.changerStatut(status);
-  };
-
-  const archive = () => {
-    runAction(
-      () => updatePropertyStatusAction(property.id, 'archived'),
-      t('archived'),
-    );
-  };
-
-  const duplicate = () => {
-    setError(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await duplicatePropertyAction(property.id);
-      if (!result.ok) {
-        setError(result.message ?? t('duplicateFailed'));
-        return;
-      }
-      if (!result.data) {
-        setError(t('duplicateFailed'));
-        return;
-      }
-      router.push(`/app/properties/${result.data.id}`);
-      router.refresh();
-    });
-  };
-
-  const confirmAndDelete = () => {
-    setError(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await deletePropertyAction(property.id);
-      if (!result.ok) {
-        setError(result.message ?? t('deleteFailed'));
-        return;
-      }
-      setConfirmDelete(false);
-      router.refresh();
-    });
-  };
+  // L'état en vol de TOUS les gestes, statuts compris : un seul geste part à la fois.
+  const pending = gestes.enVol;
 
   const isPublic = property.visibility === 'public';
   const statusActions = propertyStatusValues.filter(
@@ -181,42 +80,28 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
       className={cn(
         'flex items-center gap-1',
         layout === 'card' && 'flex-wrap justify-end',
+        layout === 'menu' && 'relative justify-end',
       )}
     >
-      {error ? (
-        <span
-          role="alert"
-          className={cn(
-            'text-xs text-destructive',
-            layout === 'card'
-              ? 'order-last w-full text-right text-pretty'
-              : 'mr-2 hidden truncate md:inline',
-          )}
+      {layout === 'menu' ? null : (
+        <Link
+          href={`/app/properties/${property.id}`}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+          aria-disabled={pending}
         >
-          {error}
-        </span>
-      ) : null}
-      {success ? (
-        <span
-          role="status"
-          className={cn(
-            'text-xs text-success',
-            layout === 'card'
-              ? 'order-last w-full text-right text-pretty'
-              : 'mr-2 hidden truncate md:inline',
-          )}
-        >
-          {success}
-        </span>
-      ) : null}
-      <Link
-        href={`/app/properties/${property.id}`}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
-        aria-disabled={pending}
+          {t('edit')}
+        </Link>
+      )}
+      <DropdownMenu
+        // Contre-vérification de f02583f76 — au toucher, le second appui d'un double appui sur une
+        // entrée traversait la place libérée par le menu jusqu'au lien étiré de la carte du dessous
+        // (la fiche d'un AUTRE bien). Après un choix au pointeur, le clic qui suit est avalé.
+        onOpenChange={(ouvert, details) => {
+          if (!ouvert && details.reason === 'item-press' && !(details.event instanceof KeyboardEvent)) {
+            avalerLeClicFantome();
+          }
+        }}
       >
-        {t('edit')}
-      </Link>
-      <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <Button
@@ -225,6 +110,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
               // TCK-1035 (P68.08) — une icône par ligne : le nom porte le bien visé.
               aria-label={t('moreFor', { title: property.title })}
               disabled={pending}
+              // TCK-2638 — en `menu`, la cible de 44 px autour du rendu de 32 (`before:`, comme la puce).
+              className={layout === 'menu' ? 'relative before:absolute before:-inset-1.5' : undefined}
             >
               {pending ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
@@ -235,17 +122,25 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           }
         />
         <DropdownMenuContent align="end">
+          {layout === 'menu' ? (
+            <>
+              <DropdownMenuItem render={<Link href={`/app/properties/${property.id}`} />}>
+                {t('edit')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
           {!canPublish ? null : isPublic ? (
-            <DropdownMenuItem onClick={unpublish} disabled={pending}>
+            <DropdownMenuItem onClick={() => gestes.demanderConfirmation('unpublish')} disabled={pending}>
               {t('unpublish')}
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={publish} disabled={pending || publication.enCours}>
+            <DropdownMenuItem onClick={gestes.publier} disabled={pending}>
               {t('publish')}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={duplicate} disabled={pending}>
+          <DropdownMenuItem onClick={gestes.dupliquer} disabled={pending}>
             <Copy className="size-4" aria-hidden="true" />
             {t('duplicate')}
           </DropdownMenuItem>
@@ -261,21 +156,21 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
             <DropdownMenuItem
               key={status}
               disabled={pending}
-              onClick={() => changeStatus(status)}
+              onClick={() => gestes.changerStatut(status)}
             >
               {tStatus(status)}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           {property.status !== 'archived' ? (
-            <DropdownMenuItem onClick={archive} disabled={pending}>
+            <DropdownMenuItem onClick={() => gestes.demanderConfirmation('archive')} disabled={pending}>
               <Archive className="size-4" aria-hidden="true" />
               {t('archive')}
             </DropdownMenuItem>
           ) : null}
           {canDelete ? (
             <DropdownMenuItem
-              onClick={() => setConfirmDelete(true)}
+              onClick={gestes.demanderSuppression}
               disabled={pending}
               className="text-destructive focus:text-destructive"
             >
@@ -285,45 +180,7 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {publication.dialogue}
-
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('deleteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t.rich('deleteBodyRow', {
-                title: property.title,
-                b: (chunks) => <strong>{chunks}</strong>,
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={pending}
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmAndDelete}
-              disabled={pending}
-            >
-              {pending ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : null}
-              {t('delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {gestes.dialogues}
 
       {boostOpen ? (
         <BoostDialog propertyId={property.id} propertyTitle={property.title} open={boostOpen} onOpenChange={setBoostOpen} />

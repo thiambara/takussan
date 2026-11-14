@@ -6,6 +6,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getTranslations } from 'next-intl/server';
 import { avecRedirection } from '@/lib/redirection-interne';
+import { ContinuerApresVerification } from '@/components/auth/ContinuerApresVerification';
 import { RelireLeCompteAuMontage } from '@/components/auth/RelireLeCompteAuMontage';
 
 // Un lien stylé en bouton, et non un `<button>` DANS un `<a>` : deux éléments interactifs
@@ -50,10 +51,12 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
           {t('successTitle')}
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('successBody')}</p>
-        {/* Connecté : la porte unique de sortie (prénom, orientation). Sinon : se connecter. */}
-        <Link href={token ? '/onboarding/intention' : '/auth/login'} className={CTA}>
+        {/* Connecté : la porte unique de sortie (prénom, orientation), vers l'intention d'origine quand
+            ce navigateur l'a gardée (TCK-2606 : le lien s'ouvre souvent dans un autre onglet). Sinon :
+            se connecter. */}
+        <ContinuerApresVerification vers={token ? '/onboarding/intention' : '/auth/login'} className={CTA}>
           {token ? t('successCta') : t('successCtaSignedOut')}
-        </Link>
+        </ContinuerApresVerification>
       </div>
     );
   }

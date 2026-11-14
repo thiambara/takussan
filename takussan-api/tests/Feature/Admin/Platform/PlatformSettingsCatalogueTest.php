@@ -14,7 +14,7 @@ class PlatformSettingsCatalogueTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_le_catalogue_se_reduit_aux_seize_cles_lues(): void
+    public function test_le_catalogue_se_reduit_aux_dix_huit_cles_lues(): void
     {
         $this->assertSame(
             [
@@ -23,7 +23,10 @@ class PlatformSettingsCatalogueTest extends TestCase
                 'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
-                'lease.early_termination_penalty_months', 'lease.require_signature', 'late_fees.cap_percent',
+                'lease.early_termination_penalty_months', 'lease.require_signature',
+                'late_fees.cap_percent',
+                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend, après le plafond.
+                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
                 'radar.mandate_agency_id',
                 // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.
@@ -56,7 +59,10 @@ class PlatformSettingsCatalogueTest extends TestCase
                 'boost.bump_cooldown_hours', 'boost.sponsored_slots_per_page', 'boost.reserved_top_results',
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
-                'lease.early_termination_penalty_months', 'lease.require_signature', 'late_fees.cap_percent',
+                'lease.early_termination_penalty_months', 'lease.require_signature',
+                'late_fees.cap_percent',
+                // TCK-2643 — la pénalité de retard qu'un bail neuf reprend, après le plafond.
+                'lease.late_fee_percent', 'lease.late_fee_grace_days',
                 // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
                 'radar.mandate_agency_id',
                 // TCK-2588 (ADR-0103 § 4) — le seuil de la relance sans contact.

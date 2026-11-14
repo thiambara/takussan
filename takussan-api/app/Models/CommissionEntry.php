@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Http\Filters\DateBoundaryFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CommissionCancelReason;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CommissionOrigin;
@@ -121,10 +122,11 @@ class CommissionEntry extends AbstractModel
 
     /**
      * TCK-595 (ADR-0049 §3, verif-595 M2) — le périmètre de lecture du grand livre, UN SEUL pour le
-     * relevé (`GET /api/commissions`) et pour l'export : le personnel de l'agence active ne lit que ses
-     * lignes, sauf sous `AgencyPolicy::viewReports`, qui ouvre toute l'agence. Le super-admin lit tout.
-     * Hors personnel : rien. L'export filtrait par la seule agence, et rendait à un agent porteur de
-     * `reports.export` la rémunération nominative de ses collègues, que le relevé lui refuse.
+     * relevé (`GET /api/commissions`), le point par bénéficiaire et l'export : le personnel de l'agence
+     * active ne lit que ses lignes, sauf s'il lit tout le grand livre de l'agence
+     * ({@see self::readsWholeLedger()}). Le super-admin lit tout. Hors personnel : rien. L'export
+     * filtrait par la seule agence, et rendait à un agent porteur de `reports.export` la rémunération
+     * nominative de ses collègues, que le relevé lui refuse.
      *
      * @param  Builder<self>  $query
      */
@@ -143,9 +145,24 @@ class CommissionEntry extends AbstractModel
 
         $query->where('commission_entries.agency_id', $agencyId);
         $agency = Agency::query()->find($agencyId);
-        if ($agency === null || ! $user->can('viewReports', $agency)) {
+        if ($agency === null || ! self::readsWholeLedger($user, $agency)) {
             $query->where('commission_entries.beneficiary_id', $user->id);
         }
+    }
+
+    /**
+     * TCK-2725 (décision du porteur du 2026-11-11) — qui lit TOUTES les lignes de l'agence : qui en
+     * lit les rapports (`AgencyPolicy::viewReports`), ou qui solde les commissions de l'équipe
+     * (`payouts.approve`, le pouvoir de `CommissionEntryPolicy::settle`). Celui qui solde voit ce qu'il
+     * solde : avant, il soldait les lignes d'un collègue sans les lire au grand livre. Les deux sous le
+     * profil actif de l'agence (contrat TCK-146). Jugé une fois par requête, jamais par ligne : le
+     * périmètre ({@see self::scopeVisibleTo()}) et `CommissionEntryPolicy::view` lisent cette règle.
+     */
+    public static function readsWholeLedger(User $user, Agency $agency): bool
+    {
+        return $user->can('viewReports', $agency)
+            || ($user->activeProfile()?->agency_id === $agency->id
+                && $user->canActAt(Capability::PayoutsApprove, $agency));
     }
 
     public function agency(): BelongsTo

@@ -137,6 +137,9 @@ final class ReconciliationOverviewService
         return BankStatementLine::query()
             ->where('bank_statement_lines.match_status', BankStatementLineMatchStatus::Suggested->value)
             ->where('bank_statement_lines.direction', BankStatementLineDirection::Credit->value)
+            // TCK-2793 — une ligne proposée sur la pénalité payée SEULE d'une échéance n'est pas la
+            // ligne de son loyer : la liste du reste à rapprocher ne porte que des loyers.
+            ->whereNull('bank_statement_lines.matched_part')
             ->whereHas('statement', fn (Builder $q) => $q
                 ->where('agency_id', $agency->id)
                 ->whereIn('status', array_map(fn (BankStatementStatus $s) => $s->value, self::OPEN_STATEMENT_STATUSES)));

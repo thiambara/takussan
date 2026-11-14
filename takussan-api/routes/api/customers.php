@@ -13,7 +13,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/pipeline-stats', [CustomerController::class, 'pipelineStats'])->name('customers.pipeline-stats');
     // TCK-2588 — la sonde de doublon pendant la saisie. Littérale : avant `customers/{customer}`.
     Route::get('customers/duplicates', CustomerDuplicateProbeController::class)
-        ->middleware('throttle:20,1,customer_duplicate_probe')
+        // TCK-2590 (décision 8 du porteur) — et vingt sondes au numéro COMPLET par heure et par personne.
+        ->middleware(['throttle:20,1,customer_duplicate_probe', 'throttle:customer-duplicate-probe-full-number'])
         ->name('customers.duplicates');
     Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('customers.invite');
     // TCK-591 — le journal de la fiche (client, notes, tâches), autorisé par la lecture du client.
     Route::get('customers/{customer}/activity', [CustomerController::class, 'activity'])->name('customers.activity');
+    // TCK-2589 — le fil de la fiche (notes, visites, contacts, étapes), autorisé comme la lecture du client.
+    Route::get('customers/{customer}/timeline', [CustomerController::class, 'timeline'])->name('customers.timeline');
     // TCK-2583 — un geste de contact sur la fiche (WhatsApp, appel, e-mail, SMS) : 204.
     Route::post('customers/{customer}/contacts', [ContactGestureController::class, 'forCustomer'])->name('customers.contacts.store');
 

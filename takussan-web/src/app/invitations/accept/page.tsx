@@ -3,21 +3,30 @@
  *
  * Elle n'existait pas : le lien (`InvitationMailable`) menait à une 404, et l'acceptation
  * (`POST /api/invitations/{token}/accept`, publique depuis TCK-249) n'avait aucun appelant.
+ *
+ * TCK-2611 (ADR-0094) — la page LIT l'invitation avant de rien demander (`GET
+ * /api/public/invitations/{token}`, au rendu serveur, lecture seule) : l'agence, la personne qui invite
+ * et le rôle en tête, puis l'entrée par code ; un lien expiré, annulé, déjà accepté ou inconnu a son
+ * écran, sans formulaire. Aucune requête qui accepte au rendu.
  */
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
+import { lireInvitation } from '@/lib/invitation-apercu';
 import { lireNomsPreremplis } from '@/lib/invitation-prerempli';
 import { getToken } from '@/lib/session';
 
-import { AccepterInvitation } from './AccepterInvitation';
+import { EcranFerme } from './EcranFerme';
+import { EntreeDInvitation } from './EntreeDInvitation';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('invitationAccept');
-  return { title: t('metaTitle') };
+  // ADR-0094 § 3 — le jeton est un secret porteur : aucun `Referer` ne l'emporte (la balise pour le
+  // HTML, l'en-tête dans `next.config.ts` pour toute réponse du chemin).
+  return { title: t('metaTitle'), referrer: 'no-referrer' };
 }
 
 export default async function PageAccepterInvitation({
@@ -25,15 +34,27 @@ export default async function PageAccepterInvitation({
 }: {
   readonly searchParams: Promise<{ token?: string }>;
 }) {
-  const t = await getTranslations('invitationAccept');
   const { token: jeton } = await searchParams;
-  const session = await getToken();
-  const connecte = Boolean(session);
 
   if (!jeton) {
     return (
-      <OnboardingShell title={t('title')}>
-        <p role="alert" className="text-sm text-destructive">{t('missingToken')}</p>
+      <OnboardingShell largeur="etroite">
+        <EcranFerme etat="incomplet" />
+      </OnboardingShell>
+    );
+  }
+
+  const session = await getToken();
+  const lecture = await lireInvitation(jeton);
+
+  if (lecture.issue !== 'valide') {
+    return (
+      <OnboardingShell largeur="etroite">
+        {lecture.issue === 'fermee' ? (
+          <EcranFerme etat={lecture.fermee.etat} fermee={lecture.fermee} jeton={jeton} />
+        ) : (
+          <EcranFerme etat={lecture.issue} />
+        )}
       </OnboardingShell>
     );
   }
@@ -42,8 +63,8 @@ export default async function PageAccepterInvitation({
   const prerempli = session ? await lireNomsPreremplis(jeton, session) : null;
 
   return (
-    <OnboardingShell title={t('title')} subtitle={connecte ? t('subtitleSignedIn') : t('subtitleSignedOut')}>
-      <AccepterInvitation jeton={jeton} connecte={connecte} prerempli={prerempli} />
+    <OnboardingShell largeur="etroite">
+      <EntreeDInvitation jeton={jeton} connecte={Boolean(session)} apercu={lecture.apercu} prerempliDuCompte={prerempli} />
     </OnboardingShell>
   );
 }

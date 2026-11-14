@@ -12,6 +12,7 @@ use App\Models\Enums\ParticipantRole;
 use App\Models\User;
 use App\Services\Model\NotificationService;
 use App\Support\Logging\SafeExceptionContext;
+use Closure;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,11 @@ class GroupConversationService
      * @param  list<int>  $participantIds  Other users to invite. Creator must NOT be in this list (caller dedupes).
      * @param  bool  $sendInvites  TCK-804 — false for a thread opened by the platform itself, whose members are
      *                             already told by their own notification (see SyncMaintenanceConversation).
+     * @param  (Closure(Conversation): void)|null  $avantLesInvitations  TCK-2782 — ce qui s'écrit dans le groupe
+     *                                                                   À SA CRÉATION (le message initial,
+     *                                                                   {@see ConversationWriter::post()}), dans la même
+     *                                                                   transaction : un refus (403) annule le groupe, et
+     *                                                                   aucune invitation n'est partie.
      */
     public function create(
         User $creator,
@@ -52,6 +58,7 @@ class GroupConversationService
         ?int $leaseId = null,
         ?int $maintenanceRequestId = null,
         bool $sendInvites = true,
+        ?Closure $avantLesInvitations = null,
     ): Conversation {
         $invited = [];
 
@@ -63,6 +70,7 @@ class GroupConversationService
             $propertyId,
             $leaseId,
             $maintenanceRequestId,
+            $avantLesInvitations,
         ) {
             $conversation = Conversation::create([
                 'subject' => $subject,
@@ -93,6 +101,11 @@ class GroupConversationService
                 ]);
             }
             $invited = array_map('intval', $unique);
+
+            // TCK-2782 — le message initial, jugé comme un envoi, avant le COMMIT et avant les invitations.
+            if ($avantLesInvitations !== null) {
+                $avantLesInvitations($conversation);
+            }
 
             return $conversation->fresh();
         });

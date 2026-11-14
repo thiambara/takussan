@@ -112,6 +112,9 @@ describe('<ProfileReviewsList>', () => {
     const appels = mockFetch({ authored: [avisPoste] });
 
     renderList();
+    // TCK-2635 — le client ouvre sur « À laisser » ; ses avis sont sous « Publiés ».
+    expect(screen.getByRole('tab', { name: /À laisser/ })).toHaveAttribute('aria-selected', 'true');
+    await userEvent.setup().click(await screen.findByRole('tab', { name: /Publiés/ }));
 
     await waitFor(() =>
       expect(screen.getByText('Appartement F2 à Ouakam')).toBeInTheDocument(),
@@ -122,7 +125,7 @@ describe('<ProfileReviewsList>', () => {
     expect(screen.getByText('4/5')).toBeInTheDocument();
     expect(screen.getByText('Approuvé')).toBeInTheDocument();
     expect(screen.getByText(/TK-TEST-236/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Avis à laisser' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Publiés\s*1/ })).toHaveAttribute('aria-selected', 'true');
     expect(appels.find((a) => a.url.includes('/api/reviews?'))?.url).toContain('filter[author_id]=me');
   });
 
@@ -131,10 +134,11 @@ describe('<ProfileReviewsList>', () => {
 
     renderList();
 
+    expect(await screen.findByText("Aucun séjour ni bail ouvert à évaluer pour l'instant.")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('tab', { name: /Publiés/ }));
     await waitFor(() =>
       expect(screen.getByText("Vous n'avez pas encore publié d'avis.")).toBeInTheDocument(),
     );
-    expect(await screen.findByText("Aucun séjour ni bail ouvert à évaluer pour l'instant.")).toBeInTheDocument();
   });
 });
 
@@ -195,7 +199,8 @@ describe('<ProfileReviewsList> — invitations à noter', () => {
 
     const formulaire = await screen.findByRole('form', { name: 'Plomberie Sarr' });
     await user.click(within(formulaire).getByLabelText('3 étoiles'));
-    await user.click(within(formulaire).getByRole('button', { name: /publier mes avis/i }));
+    // TCK-2635 — une seule cible : le bouton parle au singulier.
+    await user.click(within(formulaire).getByRole('button', { name: 'Publier mon avis' }));
 
     await waitFor(() => expect(appels.some((a) => a.method === 'POST')).toBe(true));
     const post = appels.find((a) => a.method === 'POST')!;
@@ -237,15 +242,16 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     mockFetch({ received: page([recu({ author: { id: null, name: null, avatar_url: null } })]) });
     renderList(['agent', 'customer']);
 
-    expect(await screen.findByTestId('received-review-90')).toHaveTextContent('Anonyme ·');
+    const carte = await screen.findByTestId('received-review-90');
+    expect(within(carte).getByText('Anonyme')).toBeInTheDocument();
   });
 
   it('un client sans profil professionnel n’a pas de boîte', async () => {
     const appels = mockFetch({});
     renderList(['customer']);
 
-    await screen.findByText("Vous n'avez pas encore publié d'avis.");
-    expect(screen.queryByRole('heading', { name: 'Avis reçus' })).toBeNull();
+    await screen.findByText("Aucun séjour ni bail ouvert à évaluer pour l'instant.");
+    expect(screen.queryByRole('tab', { name: /Reçus/ })).toBeNull();
     expect(appels.some((a) => a.url.includes('/api/reviews/received'))).toBe(false);
   });
 
@@ -284,6 +290,18 @@ describe('<ProfileReviewsList> — boîte des avis reçus', () => {
     const carte = await screen.findByTestId('received-review-90');
     expect(carte).toHaveTextContent(/en attente de validation/i);
     expect(within(carte).queryByRole('button', { name: /répondre/i })).toBeNull();
+    // TCK-2635 — pas encore public : pas de signalement non plus.
+    expect(within(carte).queryByRole('button', { name: /signaler cet avis/i })).toBeNull();
+  });
+
+  // TCK-2635 — la carte de la maquette : l'auteur, la cible, la note en étoiles lue « 4 sur 5 ».
+  it('la carte d’un avis reçu porte l’auteur, la cible et la note lisible', async () => {
+    mockFetch({ received: page([recu()]) });
+    renderList(['agent', 'customer']);
+
+    const carte = await screen.findByTestId('received-review-90');
+    expect(within(carte).getByRole('img', { name: `Note : ${recu().rating} sur 5` })).toBeInTheDocument();
+    expect(within(carte).getByRole('button', { name: /signaler cet avis/i })).toBeInTheDocument();
   });
 
   // verif-597 m1 — « Répondre » suit `can_reply` (policy de l'API) : le collaborateur d'une autre

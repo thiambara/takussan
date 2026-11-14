@@ -85,9 +85,9 @@ class PrivateMediaAccess
      * L'URL signée de la conversion si la route peut la servir, sinon `null` : l'appelant retombe
      * alors sur l'original, le temps que la file la produise.
      */
-    public function signedConversionUrl(Media $media, string $conversion): ?string
+    public function signedConversionUrl(Media $media, string $conversion, ?DateTimeInterface $expiresAt = null): ?string
     {
-        return $this->servesConversion($media, $conversion) ? $this->signedUrl($media, conversion: $conversion) : null;
+        return $this->servesConversion($media, $conversion) ? $this->signedUrl($media, $expiresAt, $conversion) : null;
     }
 
     /** La conversion figure dans la liste de la collection, et elle est produite. */
@@ -130,6 +130,25 @@ class PrivateMediaAccess
         [$disk, $path, $name, $mime] = $this->file($media, $conversion);
 
         return $disk->response($path, $name, ['Content-Type' => $mime], $disposition);
+    }
+
+    /**
+     * TCK-2770 — le flux de l'original, pour qui l'écrit ailleurs (l'archive du coffre). Par le disque
+     * et le chemin RELATIF, comme les trois formes ci-dessus : jamais `getPath()`. Le flux est à fermer
+     * par l'appelant.
+     *
+     * @return resource
+     */
+    public function readStream(Media $media)
+    {
+        [$disk, $path] = $this->file($media, null);
+        $stream = $disk->readStream($path);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Média #{$media->getKey()} illisible sur le disque « {$media->disk} ».");
+        }
+
+        return $stream;
     }
 
     /**

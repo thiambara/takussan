@@ -125,4 +125,32 @@ class StaffRecordsOfferTest extends TestCase
             'customer_id' => $this->customer->id,
         ])->assertCreated()->assertJsonPath('data.kind', 'offer')->assertJsonPath('data.total_amount', 95000000);
     }
+
+    /**
+     * TCK-2743 (lot 3), amendé par TCK-2752 (décision du 2026-11-13) — la validité d'une offre est un
+     * JOUR (`date_format:Y-m-d`), le seul que le front envoie. Un instant y est refusé : près de minuit
+     * (`…T00:30+01:00`), il rangeait le 21 dans `offer_expires_at` (colonne `date`) et le 20 à 23:30 UTC
+     * dans `expires_at`. L'intention de TCK-2743 tient : l'échéance stockée est l'instant que la validité
+     * désigne — la fin du jour dit, à Dakar — et les deux colonnes nomment le même jour.
+     */
+    public function test_une_validite_est_un_jour_et_l_echeance_en_est_la_fin_a_dakar(): void
+    {
+        $this->offer(['offer_expires_at' => '2026-11-21T00:30:00+01:00'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['offer_expires_at']);
+        $this->assertSame(0, Booking::query()->count());
+
+        $this->offer(['offer_expires_at' => '2026-11-21'])->assertCreated();
+
+        $booking = Booking::query()->sole();
+        $this->assertSame('2026-11-21 23:59:59', substr((string) $booking->getRawOriginal('expires_at'), 0, 19));
+        $this->assertSame('2026-11-21', substr((string) $booking->getRawOriginal('offer_expires_at'), 0, 10));
+    }
+
+    /** TCK-2743 (lot 3) — sans validité, l'échéance envoyée avec décalage : l'instant désigné. */
+    public function test_une_echeance_recue_avec_decalage_sans_validite_est_l_instant_designe(): void
+    {
+        $this->offer(['expires_at' => '2026-11-20T11:00:00+01:00'])->assertCreated();
+
+        $this->assertSame('2026-11-20 10:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+    }
 }

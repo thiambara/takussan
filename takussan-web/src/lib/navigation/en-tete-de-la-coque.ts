@@ -1,8 +1,10 @@
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
 import { estPleinEcran } from '@/components/layout/plein-ecran';
 import { listePour } from './app-sections';
-import { CATALOGUE, cleDe } from './catalogue';
+import { CATALOGUE, cleDe, type IdDestination } from './catalogue';
 import { destinationDuChemin } from './composer-menu';
+import { DISPOSITIONS } from './dispositions';
+import type { Persona } from './personas';
 import type { ContexteDeMenu } from './types';
 
 /**
@@ -35,29 +37,68 @@ interface PageHorsMenu {
 }
 
 const PAGES = 'dashboard.pages';
+const SOMMAIRE = 'profile.sommaire.rangees';
 
 /**
  * Les routes qu'aucune entrée du menu ne porte, avec le titre de leur page (`generateMetadata` ou
  * `PageHeader` : le même libellé). Une racine ici (sans `parent`) n'est le détail de personne, même
- * sous un préfixe du menu (`/app/overview/owner` n'est pas un détail des statistiques).
+ * sous un préfixe du menu.
  */
+/** TCK-2628 — le titre des onglets de « Rapports » : celui de la page. */
+const RAPPORTS: PageHorsMenu = { titre: { espace: 'nav.sidebar', cle: 'reports' } };
+
 const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
-  '/app/profile': { titre: { espace: 'nav', cle: 'myProfile' } },
+  // TCK-2635 — « Profil », comme la maquette et le titre du bureau.
+  '/app/profile': { titre: { espace: 'profile.sommaire', cle: 'titre' } },
   '/app/profile/notifications': {
     titre: { espace: 'nav.sidebar', cle: 'compte.preferences' },
     parent: '/app/profile',
   },
   '/app/account/privacy': { titre: { espace: PAGES, cle: 'privacy.title' }, parent: '/app/profile' },
+  // TCK-2635 — une page par section du profil, chacune un détail du sommaire (`/app/profile`).
+  '/app/profile/contact': { titre: { espace: SOMMAIRE, cle: 'coordonnees' }, parent: '/app/profile' },
+  '/app/profile/public-profile': { titre: { espace: SOMMAIRE, cle: 'fiche' }, parent: '/app/profile' },
+  '/app/profile/professional': { titre: { espace: SOMMAIRE, cle: 'pro' }, parent: '/app/profile' },
+  '/app/profile/search-preferences': { titre: { espace: SOMMAIRE, cle: 'recherche' }, parent: '/app/profile' },
+  '/app/profile/payouts': { titre: { espace: SOMMAIRE, cle: 'versement' }, parent: '/app/profile' },
+  '/app/profile/directory': { titre: { espace: SOMMAIRE, cle: 'annuaire' }, parent: '/app/profile' },
+  '/app/profile/security': { titre: { espace: SOMMAIRE, cle: 'securite' }, parent: '/app/profile' },
+  '/app/profile/spaces': { titre: { espace: SOMMAIRE, cle: 'espaces' }, parent: '/app/profile' },
+  '/app/profile/menu': { titre: { espace: SOMMAIRE, cle: 'menu' }, parent: '/app/profile' },
+  '/app/profile/language': { titre: { espace: SOMMAIRE, cle: 'langue' }, parent: '/app/profile' },
+  '/app/profile/timezone': { titre: { espace: SOMMAIRE, cle: 'fuseau' }, parent: '/app/profile' },
+  // « Mes avis » est aussi une entrée du menu de l'agent (« Avis reçus ») ; la maquette en fait une section
+  // du profil, un détail du sommaire (« ← Mes avis »), d'où qu'on l'ouvre.
+  '/app/profile/reviews': { titre: { espace: SOMMAIRE, cle: 'avis' }, parent: '/app/profile' },
+  '/app/profile/delete-account': { titre: { espace: 'profile.sommaire', cle: 'supprimer' }, parent: '/app/profile' },
   '/app/notifications': { titre: { espace: PAGES, cle: 'notifications.title' } },
+  // TCK-2614 — « Vos pièces », ouverte depuis « Démarrer » (qui n'est pas une page) : un détail de l'accueil, comme la
+  // maquette (« ← Vos pièces »). Le titre se lit dans le dictionnaire de la coque (`nav`), comme celui de la colonne.
+  '/app/pieces': { titre: { espace: 'nav.sidebar.demarrer', cle: 'ecranPieces' }, parent: '/app' },
   '/app/crm': { titre: { espace: 'nav.sidebar', cle: 'crm' } },
   '/app/crm/pipeline': { titre: { espace: PAGES, cle: 'crmPipeline.metaTitle' } },
-  '/app/overview/owner': { titre: { espace: PAGES, cle: 'overviewOwner.metaTitle' } },
-  '/app/overview/tenant': { titre: { espace: PAGES, cle: 'overviewTenant.metaTitle' } },
-  '/app/overview/agent': { titre: { espace: 'dashboard.agent', cle: 'title' } },
+  // TCK-2628 — les onglets de « Rapports » sont des RACINES : un onglet n'est pas le détail de la vue
+  // d'ensemble (pas de flèche de retour au téléphone, maquette `EcranRapports`), et tous portent le titre de
+  // la page. Lu dans le dictionnaire de la coque (`nav.sidebar`, le libellé de l'entrée), pas dans `rapports`,
+  // que seule la frontière de `/app/reports` sert. « Indicateurs » reste un détail de la vue d'ensemble.
+  '/app/reports/team': RAPPORTS,
+  '/app/reports/unpaid': RAPPORTS,
+  '/app/reports/commissions': RAPPORTS,
+  '/app/reports/pipeline': RAPPORTS,
+  '/app/reports/payouts': RAPPORTS,
+  '/app/reports/exports': RAPPORTS,
+  '/app/reports/alerts': RAPPORTS,
+  // TCK-2628 (ADR-0096 § 4) — les anciennes adresses de `/app/overview` ne rendent qu'une redirection (vers
+  // « Rapports », ou `/app` pour `tenant` et une persona sans rapports) : le titre n'est jamais affiché, mais la
+  // route garde le sien, celui de la section qui l'a absorbée. Les sous-routes le prennent de leur parent.
+  '/app/overview': { titre: { espace: 'nav.sidebar', cle: 'reports' } },
   '/app/settings/agency/upgrade': { titre: { espace: PAGES, cle: 'upgrade.metaTitle' } },
   '/app/payments/return': { titre: { espace: PAGES, cle: 'paymentReturn.metaTitle' }, parent: '/app/payments' },
+  // TCK-2675 — le titre se lit dans le dictionnaire de la COQUE (`nav`), pas dans `admin` : l'en-tête est
+  // rendu au-dessus de la frontière `(dashboard)/app/agency`, et `admin.reconciliation.title` y levait
+  // MISSING_MESSAGE au rendu serveur (500 sur la page et sur chaque relevé).
   '/app/agency/finances/reconciliation': {
-    titre: { espace: 'admin.reconciliation', cle: 'title' },
+    titre: { espace: 'nav.admin', cle: 'reconciliation' },
     parent: '/app/agency/finances',
   },
   // Les formulaires de création : plein écran au téléphone, leur « ✕ » ramène à la liste.
@@ -115,9 +156,18 @@ export function formeDeLaRoute(pathname: string | null | undefined): FormeDEnTet
   return parentDeLaRoute(chemin) ? 'detail' : 'racine';
 }
 
-/** Le libellé du menu pour cet `href` : la destination OUVERTE au compte d'abord (« Mes baux » / « Baux »). */
-function titreDuMenu(href: string, ctx: ContexteDeMenu): TitreDerive | null {
+/**
+ * Le libellé du menu pour cet `href` : la destination OUVERTE au compte d'abord (« Mes baux » / « Baux »),
+ * sous le libellé propre au persona quand sa disposition en écrit un (TCK-2618 : « Loyers » du bailleur,
+ * le mot de son onglet et de son entrée).
+ */
+function titreDuMenu(href: string, ctx: ContexteDeMenu, persona?: Persona): TitreDerive | null {
   const destination = destinationDuChemin(ctx, href);
+  const propre = destination && persona ? DISPOSITIONS[persona].libelles?.[destination.id as IdDestination] : undefined;
+  // Vérification de TCK-2671 — le libellé propre vit dans l'espace de SA destination, comme au menu
+  // (`composer-menu`, `labelSpace`) : « Reversements » de l'hôte est `nav.admin.payouts`. Lu sous
+  // `nav.sidebar`, il rendait une 500 (MISSING_MESSAGE) à `/app/agency/billing`.
+  if (propre) return { espace: destination?.espace ?? 'nav.sidebar', cle: propre };
   if (destination) return { espace: destination.espace ?? 'nav.sidebar', cle: cleDe(destination, ctx) };
   const page = PAGES_ADMIN.find((p) => p.chemin === href);
   if (page?.menu) return { espace: 'nav.admin', cle: page.menu.cle };
@@ -128,13 +178,16 @@ function titreDuMenu(href: string, ctx: ContexteDeMenu): TitreDerive | null {
  * Le titre dérivé d'une route : le libellé du menu qui la sert, sinon celui de la table hors menu,
  * sinon — un détail que la page n'a pas encore nommé — le titre de sa page parente. `null` hors `/app`.
  */
-export function titreDeLaRoute(pathname: string | null | undefined, ctx: ContexteDeMenu): TitreDerive | null {
+export function titreDeLaRoute(pathname: string | null | undefined, ctx: ContexteDeMenu, persona?: Persona): TitreDerive | null {
   const chemin = cheminDe(pathname);
   if (chemin !== '/app' && !chemin.startsWith('/app/')) return null;
   const horsMenu = HORS_MENU[chemin];
   if (horsMenu) return horsMenu.titre;
-  const duMenu = titreDuMenu(chemin, ctx);
+  const duMenu = titreDuMenu(chemin, ctx, persona);
   if (duMenu) return duMenu;
   const parent = parentDeLaRoute(chemin);
-  return parent ? titreDeLaRoute(parent, ctx) : null;
+  return parent ? titreDeLaRoute(parent, ctx, persona) : null;
 }
+
+/** Les routes hors du menu, pour la garde du dictionnaire de la coque (`__tests__/…dictionnaire-de-la-coque`). */
+export const ROUTES_HORS_MENU: readonly string[] = Object.keys(HORS_MENU);

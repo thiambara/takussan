@@ -1,0 +1,422 @@
+{
+  "ticket": "TCK-2590",
+  "ecrans": [
+    {
+      "page": "app-clients",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste",
+      "references": {
+        "telephone": "references/app-clients/a-0-telephone.json",
+        "bureau-1440": "references/app-clients/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-clients/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers?vue=a-relancer (téléphone) · /app/customers (bureau, vue « Tous »)",
+        "persona": "agent (téléphone) · admin (bureau : « Sans référent » n'est qu'aux administrateurs, comme la maquette)",
+        "etat": "les clients de la base de démo (décision Q8 b : rendu serveur gardé, aucune donnée bouchonnée) ; toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=fid2590/garde.js`) ; au bureau, `p-a0-focus.js` donne le focus clavier à « Appeler » de la 2e rangée, qui se déplie comme la rangée survolée de la maquette (`focus-within`)"
+      }
+    },
+    {
+      "page": "app-clients",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Nouveau client : qui",
+      "references": {
+        "telephone": "references/app-clients/a-3-telephone.json",
+        "bureau-1440": "references/app-clients/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-clients/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers",
+        "persona": "agent (téléphone) · admin (bureau)",
+        "etat": "« Ajouter un client » cliqué, Astou Mbengue saisie, « 70 648 20 56 » dans le téléphone : la sonde de doublons répond (GET) et l'alerte « Déjà dans vos clients » paraît (téléphone : `p-a3.js`) ; au bureau, le panneau unique porte aussi la recherche de la maquette — Louer, Studio, Mermoz, ≤ 250 000 F (`p-a3-bureau.js`)"
+      }
+    },
+    {
+      "page": "app-clients",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Nouveau client : sa recherche",
+      "references": {
+        "telephone": "references/app-clients/a-4-telephone.json",
+        "bureau-1440": "references/app-clients/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-clients/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers",
+        "persona": "agent (téléphone) · admin (bureau)",
+        "etat": "téléphone : « 77 305 44 91 », « Continuer », puis Louer, Studio, Mermoz, budget au palier ≤ 250 000 F (`p-a4-telephone.js`) ; bureau : le panneau unique, mêmes saisies (`p-a4-bureau.js`) — rien n'est envoyé"
+      }
+    },
+    {
+      "page": "app-clients",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Liste vide",
+      "references": {
+        "telephone": "references/app-clients/a-5-telephone.json",
+        "bureau-1440": "references/app-clients/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-clients/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/customers",
+        "persona": "—",
+        "etat": "NON RELEVÉ au navigateur : l'agence de démo a 141 clients et la décision Q8 b exclut tout bouchon et toute écriture. Éprouvé en test de composant avec les personnes de la maquette (`ListeDesClients.tck-2590.test.tsx`, liste vide : texte, « Ajouter un client » au personnel, rien au bailleur)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/customers",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2, fid2590/ : garde.js (chargé AVANT la page par `FID_AVANT` : refuse et compte toute écriture, recueille les erreurs de console) ; commun.js + le corps de chaque écran : p-a0.js (téléphone), p-a0-focus.js (bureau), p-a3.js (téléphone), p-a3-bureau.js, p-a4-telephone.js, p-a4-bureau.js. Relevés finaux : prod4/ (releves4.sh) et prod6/ (focus.sh, a3b.sh : a-0 et a-3 au bureau) ; comparaison : comparer7.sh → cmp7/. Les deux requêtes refusées à chaque chargement sont `getNotificationsAction` (server action de lecture de la cloche de la coque, POST par nature) : la cloche n'a donc pas de compte dans les relevés"
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "ligne de client",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Yacine Diouf",
+        "min": 90
+      },
+      "produit": {
+        "slot": "ligne-du-client"
+      }
+    },
+    {
+      "nom": "rangée de client",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Mariama Fall",
+        "min": 45
+      },
+      "produit": {
+        "slot": "rangee-du-client"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "alerte de doublon",
+      "appareil": "mobile",
+      "maquette": {
+        "zone": {
+          "y": 244,
+          "h": 139.4,
+          "wMin": 350
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 244,
+          "h": 139.4,
+          "wMin": 350
+        }
+      }
+    },
+    {
+      "nom": "en-tête « Prochaine action »",
+      "appareil": "desktop",
+      "maquette": {
+        "texte": "Prochaine action",
+        "type": "texte"
+      },
+      "produit": {
+        "texte": "Prochaine action",
+        "type": "texte"
+      }
+    }
+  ],
+  "zones": [
+    {
+      "nom": "a-0 · titre de page « Clients »",
+      "appareil": "desktop",
+      "x": 300,
+      "y": 24,
+      "w": 300,
+      "h": 38
+    },
+    {
+      "nom": "a-0 · en-tête de tableau : Client et Cherche",
+      "appareil": "desktop",
+      "x": 302,
+      "y": 152,
+      "w": 330,
+      "h": 36
+    },
+    {
+      "nom": "a-0 · barre de tri « Les plus en retard d’abord »",
+      "appareil": "mobile",
+      "x": 0,
+      "y": 113,
+      "w": 250,
+      "h": 32
+    }
+  ],
+  "alias": {
+    "Pipeline": "Étapes",
+    "Nouveau": "Lead",
+    "Gagné": "Converti",
+    "Ce qu’elle cherche": "Sa recherche",
+    "2 sur 2 · ce qu’elle cherche": "2 sur 2 · sa recherche"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-clients a-0-*, a-3-bureau-*, a-4-bureau-*",
+      "element": "noms, comptes, étapes, prochaines actions, référents, étiquettes et critères des lignes",
+      "propriete": "contenu, et la position verticale de tout ce qui suit une ligne de hauteur différente",
+      "exception": "donnée",
+      "motif": "décision Q8 b : la liste est rendue au serveur sur la base de démo (141 clients, 46 à relancer, 21 sans référent ; la maquette : 141, 6, 4). La ligne et la rangée se comparent par rôle (« ligne de client », « rangée de client »), sans leur texte ; la rangée se compare en boîte seule (`contenu: false`) : ses cellules dépendent des données (critères absents de la plupart des fiches de démo, deux lignes contre une), et l'appariement par ordre de lecture rapprocherait des textes sans rapport"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "filtre « Étiquettes » de la barre d'outils",
+      "propriete": "absent du produit ; l'en-tête de colonne « Étiquettes » et le chevron de filtre s'apparient alors à ceux du filtre manquant (taille, position)",
+      "exception": "donnée",
+      "motif": "le filtre ne paraît que si l'agence a des étiquettes ; l'agence de démo n'en a aucune. Éprouvé en test (`CustomerListFilters.test.tsx`)"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "gestes Appeler · WhatsApp · Planifier des rangées, et « Me désigner »",
+      "propriete": "position des icônes (appariées aux gestes repliés de la 1re rangée) ; boîtes « Appeler », « WhatsApp », « Planifier une visite » absentes du produit ; « Me désigner » absent",
+      "exception": "accessibilité",
+      "motif": "au repos les gestes ne prennent aucune largeur (`max-w-0`, `overflow-hidden`, opacité 0) et se déplient au survol, au focus et au toucher. Mesuré au navigateur le 2026-11-12 (focus.sh) : au repos largeur 0, aucun clic ne les atteint (`elementFromPoint`), opacité 0 ; au focus de « Appeler » de la 2e rangée, 88 px, opacité 1, cliquables, et la colonne Référent ne bouge pas (1110,2 à 1440, 995,2 à 1280) — le rendu rejoint la rangée survolée de la maquette. Le relevé voit pourtant les icônes repliées de chaque rangée et apparie celles de la maquette à la 1re. Les boîtes des gestes portent le nom du client (« Appeler Awa Samb ») : vingt boutons « Appeler » indistincts au lecteur d'écran sinon. « Me désigner » n'est offert qu'au porteur de `crm.assign` sur une fiche sans référent (Q7 a) ; les fiches sans référent de la démo ne sont pas en tête de liste — éprouvé en test (`ListeDesClients.tck-2590.test.tsx`, `personnel.tck-591.test.tsx`)"
+    },
+    {
+      "ecran": "app-clients a-5-*",
+      "element": "écran « Liste vide »",
+      "propriete": "non relevé",
+      "exception": "donnée",
+      "motif": "aucune agence vide dans la démo, et Q8 b exclut bouchon et écriture : éprouvé en test de composant avec les personnes de la maquette"
+    },
+    {
+      "ecran": "app-clients a-0-*, a-3-*, a-4-*",
+      "element": "libellés d'étape « Nouveau » et « Gagné »",
+      "propriete": "texte (« Lead », « Converti »)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "les étapes sont celles de `crm.pipeline.stage`, partagées par la fiche et le pipeline ; renommer une étape dépasse ce ticket. SOLDÉ par TCK-2592 (387f93c31) : la source des libellés dit désormais « Nouveau » (crm.pipeline.stage.lead) et « Gagné » (crm.pipeline.stage.converted), relu au HEAD le 2026-11-14 ; plus d'écart"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "« Pipeline » de l'en-tête",
+      "propriete": "texte (« Étapes »)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "le ticket (AC5) nomme l'action « Étapes » ; alias déclaré"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "flèches de tri d'« Étape » et de « Référent »",
+      "propriete": "flèches absentes du produit ; les en-têtes « Étape » et « Référent » sont des cellules et non des boutons (boîte du texte : la cellule)",
+      "exception": "technique",
+      "motif": "l'API refuse `sort=pipeline_stage` et `sort=referent` (400, liste des tris autorisés de `CustomerController`) ; une flèche qui rend une erreur serait pire que pas de flèche"
+    },
+    {
+      "ecran": "app-clients a-0-*",
+      "element": "« 6 clients à relancer · Voir plus » au pied de la liste ; « Relances prévues cette semaine » ; pagination du bureau (« Page 1 sur 15 », chevrons)",
+      "propriete": "absents du produit",
+      "exception": "technique",
+      "motif": "la liste garde la pagination serveur (10/20/50 par page, AC4) au lieu de « Voir plus » ; aucune donnée ne sert les relances prévues de la semaine ; au bureau la pagination est sous la ligne de flottaison : 20 rangées par page contre 10 dans la maquette (donnée)"
+    },
+    {
+      "ecran": "app-clients a-0-telephone",
+      "element": "« Filtres » et son icône, et la loupe de recherche, dans la barre de tri",
+      "propriete": "absent de la maquette",
+      "exception": "accessibilité",
+      "motif": "sous le pouce, Étape, Statut et la recherche dans les clients n'ont pas d'autre accès (la loupe de l'en-tête de la coque est la recherche globale « Aller à… ») : la maquette n'en dessine aucun. Barre de 32 px, cibles du doigt élargies (`after:-inset-*`) ; la zone « barre de tri » couvre le tri seul (0 %)"
+    },
+    {
+      "ecran": "app-clients a-0-telephone",
+      "element": "« Les plus en retard d’abord »",
+      "propriete": "boîte (390 × 32 → largeur du texte)",
+      "exception": "technique",
+      "motif": "le tri est un sélecteur natif posé sur toute la barre ; le texte relevé est celui de son libellé, la barre elle-même est à la même place (zone « barre de tri »)"
+    },
+    {
+      "ecran": "app-clients a-0-*",
+      "element": "pastilles de vue (« À relancer », « Mes clients », « Sans référent »)",
+      "propriete": "largeur et abscisse (2 à 10 px)",
+      "exception": "donnée",
+      "motif": "chaque pastille porte son compte (46 / 0 / 21 contre 6 / 38 / 4) ; la largeur suit le nombre de chiffres"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "vues de l'administrateur",
+      "propriete": "À relancer · Mes clients · Sans référent · Tous",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "la maquette bureau donne ces quatre vues à l'administrateur (le plan en donnait une autre, décision 4) ; l'agent garde « Négociation », comme la maquette téléphone"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "avatar du référent",
+      "propriete": "aplat vert (`bg-accent/15`) → `bg-fond-avatar`",
+      "exception": "règle du design system",
+      "motif": "`check-valeurs-arbitraires-app` (aplat-accent) : l'accent est réservé aux badges *featured*"
+    },
+    {
+      "ecran": "app-clients a-*-*",
+      "element": "encres à 85 % et 70 % de la maquette (`text-foreground/85`, `/70`)",
+      "propriete": "couleur (encre à alpha → `text-encre-douce` / `text-muted-foreground` opaques)",
+      "exception": "règle du design system",
+      "motif": "`check-heritage-encre` et la règle encre-sans-alpha de la portée /app ; même teinte perçue sur le fond, mesurée opaque"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "recherche de la barre d'outils",
+      "propriete": "icône 18 px au lieu de 14,4, bordure du champ ; le texte « Nom, téléphone, e-mail… » relevé absent : c'est le `placeholder` du champ, que l'inventaire ne lit pas (même texte que la maquette, lot i18n e)",
+      "exception": "règle du design system",
+      "motif": "`DebouncedSearchInput` est partagé par toutes les listes de /app ; son icône et son cadre se règlent dans la primitive (champs-uniformes), pas page par page. Le libellé suit la maquette (« Nom, téléphone, e-mail… »)"
+    },
+    {
+      "ecran": "app-clients a-3-*, a-4-*",
+      "element": "champs de saisie (Prénom, Nom, Téléphone, Quartiers)",
+      "propriete": "hauteur et taille du texte (h-11 et 15 px dans la maquette)",
+      "exception": "accessibilité",
+      "motif": "les primitives `Input` gardent 16 px sous le pouce (zoom d'iOS, TCK-2460/TCK-2686) et la hauteur de `champs-uniformes` ; tout ce qui suit un champ descend de la différence"
+    },
+    {
+      "ecran": "app-clients a-3-bureau-*, a-4-bureau-*",
+      "element": "voile sur la liste derrière le panneau",
+      "propriete": "pixels de toute la page hors panneau (≈ 70 % de l'écran)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "décision du porteur du 2026-11-10 (2 a), portée par `PanneauDroit` (TCK-2688) : dès `xl`, 480 px, AUCUN voile, non modal — la liste reste lisible et cliquable. C'est l'essentiel du pourcentage de pixels de ces quatre relevés, et la raison pour laquelle les zones de bureau ne se jugent que sur a-0"
+    },
+    {
+      "ecran": "app-clients a-3-telephone, a-4-telephone",
+      "element": "la liste et la coque sous le formulaire plein écran (« ligne de client », pastilles, barre d'onglets) ; la boîte de la ligne d'étape « 1 sur 2 · qui » (le texte, lui, est conforme)",
+      "propriete": "absents de la maquette",
+      "exception": "technique",
+      "motif": "sous `xl` le panneau couvre l'écran et rend la page inerte (`aria-modal`), mais la liste reste montée sous lui ; le relevé la voit, la maquette ne la dessine pas. Rien n'en paraît à l'écran (1,4 % de pixels en a-3)"
+    },
+    {
+      "ecran": "app-clients a-3-*",
+      "element": "alerte « Déjà dans vos clients »",
+      "propriete": "étape et référent de la fiche trouvée",
+      "exception": "technique",
+      "motif": "la sonde rend { id, name, stage } (cinq au plus, masqués) : le référent n'y est pas, l'ajouter élargirait ce qu'un agent apprend d'une fiche qu'il ne voit pas. L'étape est une donnée de la démo"
+    },
+    {
+      "ecran": "app-clients a-4-*",
+      "element": "suggestions de quartier (« + Sacré-Cœur · + Point E · + Liberté 6 ») et « Ajouter… »",
+      "propriete": "absents du produit",
+      "exception": "technique",
+      "motif": "aucune source ne sert des quartiers proches ; le champ de quartiers est libre (Entrée ou virgule). « Ajouter… » est bien là, en `placeholder` du champ (la maquette le dessine en texte, le relevé ne lit pas un placeholder)"
+    },
+    {
+      "ecran": "app-clients a-4-*",
+      "element": "« Ce qu’elle cherche » / « 2 sur 2 · ce qu’elle cherche »",
+      "propriete": "texte (« ce qu’elle cherche » → « sa recherche »)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "le genre du client n'est pas saisi : le produit ne le devine pas d'après le prénom (Astou) et dit « sa recherche », neutre — décision 2b du lead (2026-11-12), alias déclaré ; en anglais, « What they are looking for » l'était déjà"
+    },
+    {
+      "ecran": "app-clients a-4-telephone",
+      "element": "pastilles de type (Chambre, Studio…)",
+      "propriete": "largeur (+4 px) et marge droite (14 → 16 px)",
+      "exception": "accessibilité",
+      "motif": "h-11, `text-corps`, `px-4` : la cible du doigt est celle des pastilles de /app ; la rangée garde ses deux lignes"
+    },
+    {
+      "ecran": "app-clients a-*-*",
+      "element": "icônes lucide",
+      "propriete": "trait (2 ou 1,75 → 1,5 au bureau, 1,75 au pouce)",
+      "exception": "règle du design system",
+      "motif": "la portée /app fixe le trait des icônes lucide (`globals.css`, `svg.lucide[stroke-width=\"2\"]`), pour toutes les pages"
+    },
+    {
+      "ecran": "app-clients a-0-*",
+      "element": "coque : barre latérale (libellés, icônes, compteurs, « Réduire la barre », « Vue agence »…), en-tête (loupe, cloche sans compte), barre d'onglets",
+      "propriete": "ancres et rôles de la coque, et la zone « coque · en-tête » du téléphone (0,96 %)",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/TCK-2618/TCK-2619 (terrain-5) ; la cloche n'a pas de compte parce que sa lecture est une server action (POST), refusée par la garde des relevés. Seul changement de ce ticket : le libellé du menu « Clients (CRM) » → « Clients » (fr, en)"
+    },
+    {
+      "ecran": "app-clients a-3-telephone, a-4-telephone",
+      "element": "en-tête du formulaire plein écran (rôle « coque · en-tête », 0,19 % et 1,58 %)",
+      "propriete": "pixels",
+      "exception": "hors périmètre",
+      "motif": "l'en-tête est celui de `PanneauDroit` en régime formulaire (TCK-2586), primitive partagée ; la croix y prend le trait de la portée /app (1,75 au lieu de 2)"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "zones déclarées",
+      "propriete": "périmètre",
+      "exception": "technique",
+      "motif": "les zones se jugent sur a-0, seul écran où la page n'est pas couverte : en a-3/a-4 le formulaire plein écran (téléphone) ou le voile de la maquette (bureau, absent du produit) les recouvrent. Titre 0 % ; en-tête « Client · Cherche » 0,11 %, arrêté à x 632 : au-delà, « Étape » a sa flèche de tri dans la maquette ; barre de tri 0 %, arrêtée à 250 px : à droite, loupe et « Filtres » (ci-dessus). L'en-tête « Prochaine action » se compare par rôle (conforme) et non en zone : en zone il mesurait 6,41 % à 1440 et 26,72 % à 1280 (100 × 14 px, colonne décalée d'un pixel à 1280, chevron au trait de la portée)"
+    },
+    {
+      "ecran": "app-clients a-0-*, a-3-bureau-*, a-4-bureau-*",
+      "element": "pastilles d'étape des rangées (Lead, Prospect, Qualifié, Négociation, Converti)",
+      "propriete": "largeur (+2 px), bordure, fond, rayon, marges",
+      "exception": "règle du design system",
+      "motif": "une étape s'affiche par `StatusBadge` (`check-status-badge-unique` : une seule pastille de statut dans /app), qui porte sa bordure, son rayon et son rembourrage pour toutes les pages"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*, a-3-telephone",
+      "element": "boutons « Ajouter un client », « Étapes », « Continuer »",
+      "propriete": "bordure (0 → 1 px), largeur (+2 px), marges intérieures (14 → 20 px pour « Continuer »), abscisse de l'icône d'« Étapes »",
+      "exception": "règle du design system",
+      "motif": "`buttonVariants` porte une bordure de 1 px (transparente au bouton plein) et le rembourrage de sa taille, pour tous les boutons ; « Étapes » est plus court que « Pipeline » et le bouton est aligné à droite, d'où l'icône décalée"
+    },
+    {
+      "ecran": "app-clients a-0-bureau-*",
+      "element": "« Étape », « Statut » de la barre d'outils",
+      "propriete": "boîte du texte (73,8 × 32,4 → largeur du libellé)",
+      "exception": "technique",
+      "motif": "le déclencheur de `Select` met son libellé dans une boîte propre ; la boîte du bouton, elle, est à sa place (x 728 contre 725,8 : 2,4 px, la pastille « À relancer 46 » est plus large)"
+    },
+    {
+      "ecran": "app-clients a-3-*, a-4-*",
+      "element": "« Téléphone », « Budget par mois », « Créer quand même une fiche distincte »",
+      "propriete": "boîte du texte (pleine largeur dans la maquette → largeur du texte), et l'ordonnée de ce qui suit un champ",
+      "exception": "technique",
+      "motif": "libellés de `FormField` et lien d'action en ligne ; même texte, même place à gauche (a-3 téléphone : 1,4 % de pixels sur l'écran entier). Les ordonnées suivent la hauteur des champs (entrée « champs de saisie »)"
+    },
+    {
+      "ecran": "app-clients a-3-bureau-*, a-4-*",
+      "element": "« Annuler » du pied, « Compléter plus tard » (téléphone)",
+      "propriete": "boîte (lien de texte dans la maquette → bouton fantôme)",
+      "exception": "accessibilité",
+      "motif": "bouton `ghost` de taille `lg` : la cible du doigt et l'anneau de focus des boutons ; même texte, même place"
+    },
+    {
+      "ecran": "app-clients a-0-*",
+      "element": "« Liste des clients », « Rechercher un client »",
+      "propriete": "absents de la maquette",
+      "exception": "accessibilité",
+      "motif": "la légende de la table (`caption`, `sr-only`) et le nom accessible du champ de recherche : invisibles, relevés par l'inventaire"
+    },
+    {
+      "ecran": "app-clients a-4-telephone",
+      "element": "« Plus » des types de bien",
+      "propriete": "largeur (−2 px), abscisse (+12 px)",
+      "exception": "accessibilité",
+      "motif": "suit les six pastilles de 44 px (entrée « pastilles de type »)"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "coque (barre latérale, en-tête, barre d'onglets)",
+      "ticket": "TCK-2617",
+      "motif": "TCK-2617/TCK-2618/TCK-2619 ; les relevés la gardent visible, ses écarts sont ceux de ces tickets"
+    },
+    {
+      "element": "fiche du client et « Modifier » (a-1, a-2)",
+      "ticket": "TCK-2589",
+      "motif": "la fiche est un ticket à part ; sa fidélité se juge contre app-clients a-1/a-2 dans la fiche de TCK-2589"
+    },
+    {
+      "element": "pipeline (« Étapes »)",
+      "ticket": "TCK-2592",
+      "motif": "la cible du bouton est un autre écran"
+    }
+  ]
+}

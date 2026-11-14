@@ -30,6 +30,8 @@ vi.mock('@/hooks/useProfiles', () => ({
     refetch: PROFILS.refetch,
   }),
 }));
+const ROUTEUR = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ROUTEUR }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton', user: { id: 3 } }) }));
 const API = vi.hoisted(() => ({ apiRequest: vi.fn() }));
 vi.mock('@/lib/api', async (importOriginal) => ({ ...(await importOriginal<object>()), apiRequest: API.apiRequest }));
@@ -125,6 +127,8 @@ describe('ProfileAgentDirectorySection — langues et quartiers de l’agent (TC
       return { data: [] };
     });
     rendre();
+    // TCK-2635 — « Enregistrer » n'est actif que sur une modification.
+    await user.click(screen.getByRole('checkbox', { name: 'Anglais' }));
     await user.click(screen.getByRole('button', ENREGISTRER));
     expect(await screen.findByText('Ce quartier n’existe pas.')).toBeInTheDocument();
     expect(screen.queryByText('Les données sont invalides.')).not.toBeInTheDocument();
@@ -147,11 +151,28 @@ describe('ProfileAgentDirectorySection — langues et quartiers de l’agent (TC
     expect(screen.getByText('5 sur 5')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('5 quartiers au plus');
     await user.keyboard('{Escape}');
+    // Le refus n'a rien modifié : il n'y a rien à enregistrer (TCK-2635).
+    expect(screen.getByRole('button', ENREGISTRER)).toBeDisabled();
+    await user.click(screen.getByRole('checkbox', { name: 'Français' }));
     await user.click(screen.getByRole('button', ENREGISTRER));
     await waitFor(() => expect(API.apiRequest).toHaveBeenCalledWith(
       '/api/me/agent-profiles/7/directory',
-      expect.objectContaining({ body: { languages: [], neighborhood_ids: [21, 22, 24, 25, 26] } }),
+      expect.objectContaining({ body: { languages: ['fr'], neighborhood_ids: [21, 22, 24, 25, 26] } }),
     ));
+  });
+
+  it('« Enregistrer » n’est actif que sur une modification, et la compte (TCK-2635)', async () => {
+    const user = userEvent.setup();
+    rendre();
+    expect(screen.getByRole('button', ENREGISTRER)).toBeDisabled();
+    expect(screen.queryByText(/modification non enregistrée/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Anglais' }));
+    expect(screen.getByRole('button', ENREGISTRER)).toBeEnabled();
+    expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
+    // Revenir à la valeur enregistrée annule la modification.
+    await user.click(screen.getByRole('checkbox', { name: 'Anglais' }));
+    expect(screen.getByRole('button', ENREGISTRER)).toBeDisabled();
+    expect(API.apiRequest.mock.calls.some(([, o]) => (o as { method?: string } | undefined)?.method === 'PATCH')).toBe(false);
   });
 
   it('ne propose pas un quartier en attente de vérification', async () => {
@@ -186,12 +207,21 @@ describe('ProfileAgentDirectorySection — langues et quartiers de l’agent (TC
     expect(screen.getByRole('checkbox', { name: 'Français' })).not.toBeChecked();
     expect(screen.getByText('Almadies')).toBeInTheDocument();
     // … et c'est lui qu'il ÉCRIT.
+    await user.click(screen.getByRole('checkbox', { name: 'Anglais' }));
     await user.click(screen.getByRole('button', ENREGISTRER));
     await waitFor(() => expect(API.apiRequest).toHaveBeenCalledWith(
       '/api/me/agent-profiles/9/directory',
-      expect.objectContaining({ method: 'PATCH', body: { languages: ['en'], neighborhood_ids: [22] } }),
+      expect.objectContaining({ method: 'PATCH', body: { languages: [], neighborhood_ids: [22] } }),
     ));
     expect(API.apiRequest.mock.calls.some(([c]) => c === '/api/me/agent-profiles/7/directory')).toBe(false);
+  });
+
+  it('une fiche enregistrée rafraîchit le cadre du profil : « À régler » se relit (TCK-2635)', async () => {
+    const user = userEvent.setup();
+    rendre();
+    await user.click(screen.getByRole('checkbox', { name: 'Anglais' }));
+    await user.click(screen.getByRole('button', ENREGISTRER));
+    await waitFor(() => expect(ROUTEUR.refresh).toHaveBeenCalledTimes(1));
   });
 
   it('pointe vers SA fiche publique quand elle existe, le dit quand elle n’est pas en ligne', () => {

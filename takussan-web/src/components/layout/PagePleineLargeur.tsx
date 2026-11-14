@@ -18,8 +18,12 @@ import type { ComponentProps, ReactNode } from 'react';
  *
  * Garde : `PagePleineLargeur.garde.test.ts` rougit si une page qui l'adopte pose une marge latérale sur
  * son conteneur — la seconde marge que la pleine largeur existe pour retirer.
+ *
+ * TCK-2804 — sous `md`, une page qui porte des onglets de page (`ONGLETS_DE_PAGE`, `console/PageHeader`) perd la
+ * marge HAUTE de l'enveloppe : ses onglets commencent juste sous l'en-tête du téléphone (maquette, y = 56).
  */
-export const ENVELOPPE_DU_CONTENU = 'px-4 py-6 md:px-6 md:py-8 lg:px-8 max-md:has-[[data-pleine-largeur]]:p-0';
+export const ENVELOPPE_DU_CONTENU =
+  'px-4 py-6 md:px-6 md:py-8 lg:px-8 max-md:has-[[data-pleine-largeur]]:p-0 max-md:has-[[data-onglets-de-page]]:pt-0';
 
 /** TCK-2691 — l'enveloppe du contenu de la coque (`AppShell`), seule porteuse de la marge des pages. */
 export function EnveloppeDuContenu({ children }: { readonly children: ReactNode }) {

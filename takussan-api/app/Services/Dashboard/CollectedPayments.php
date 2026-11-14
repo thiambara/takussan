@@ -44,6 +44,13 @@ final class CollectedPayments
     ];
 
     /**
+     * TCK-2733 — la caution versée par le locataire : hors revenu, elle reste dans le registre des
+     * encaissements (`GET /api/payments/history`), qui en dit la part dans ses totaux. La caution
+     * RENDUE (`deposit_refund`) n'en est pas.
+     */
+    public const DEPOSIT_TYPES = [LeasePaymentType::Deposit];
+
+    /**
      * Les statuts d'une échéance due et non réglée, en tout ou en partie : ceux de
      * `HasPaymentAttributes::scopeOverdue`, des relances, des pénalités et du relevé du bailleur
      * (verif-595 passe 2 : `partially_paid` manquait, l'impayé se sous-estimait).
@@ -52,9 +59,48 @@ final class CollectedPayments
 
     /**
      * Le RESTE DÛ d'une échéance : son montant moins la part versée (`metadata.paid_amount`), jamais
-     * négatif. C'est l'assiette de `LateFeeCalculator` et l'accesseur `remaining_amount`, en SQL.
+     * négatif. C'est l'assiette de `LateFeeCalculator` et l'accesseur `remaining_amount`, en SQL —
+     * versé négatif compris, lu comme 0 (`max(0.0, $metaPaid)` de `paidAmount()`).
      */
-    public const OWED_REMAINING_SQL = "GREATEST(lease_payments.amount - COALESCE((lease_payments.metadata->>'paid_amount')::numeric, 0), 0)";
+    public const OWED_REMAINING_SQL = 'GREATEST(lease_payments.amount - GREATEST('.self::PAID_AMOUNT_META_SQL.', 0), 0)';
+
+    /**
+     * TCK-2721 (contre-vérification, point 4) — `metadata.paid_amount` lu comme PHP le lit
+     * (`(float)` de `HasPaymentAttributes::paidAmount()`), jamais NULL : le préfixe numérique d'une
+     * chaîne (`"350,5"` → 350, `"1 000"` → 1, `"abc"` → 0), `true` → 1, absent ou `null` → 0.
+     * Un `::numeric` nu levait sur une valeur non numérique écrite hors du modèle (le hook `saving`
+     * la refuse), et le reste dû, le résumé financier, la balance âgée et le tri du registre des
+     * encaissements tombaient en 500. Écart résiduel assumé : un tableau JSON non vide vaut 1 en PHP,
+     * 0 ici. La regex n'a ni `?` ni antislash : le fragment passe dans des `selectRaw` à paramètres
+     * positionnels ; l'exposant saute ses zéros de tête (`"1e0001"` → 10, que le modèle accepte)
+     * avant ses trois chiffres au plus. Écrit pour `lease_payments` ; les autres tables passent par
+     * {@see self::paidAmountMetaSql()}. La parité est épinglée par `PaidAmountTolerantReadTest`.
+     */
+    private const PAID_AMOUNT_META_SQL = "(CASE WHEN lease_payments.metadata->'paid_amount' = 'true'::jsonb THEN 1"
+        ." ELSE COALESCE(substring(lease_payments.metadata->>'paid_amount'"
+        ." from '^[[:space:]]*([+-]{0,1}([0-9]+([.][0-9]*){0,1}|[.][0-9]+)([eE][+-]{0,1}0*[0-9]{1,3}){0,1})')::numeric, 0) END)";
+
+    /** {@see self::PAID_AMOUNT_META_SQL} pour une table de paiements (`lease_payments`, `booking_payments`). */
+    public static function paidAmountMetaSql(string $table): string
+    {
+        return str_replace('lease_payments.', $table.'.', self::PAID_AMOUNT_META_SQL);
+    }
+
+    /**
+     * TCK-2721 (contre-vérification) — la même lecture pour une AUTRE clé numérique de `metadata`
+     * (`gateway_expected_amount`, `LeasePayment::scopeWhereExpectedAmountNear`) : un seul fragment,
+     * au cast défensif, et non un `::numeric` nu par clé. Absent ou `null` → 0, comme
+     * `paid_amount` : l'appelant dont le repli est autre le pose devant. La clé est un nom du code,
+     * jamais une entrée : elle est vérifiée, puisqu'elle entre dans le SQL.
+     */
+    public static function metadataNumberSql(string $metadataColumn, string $key): string
+    {
+        if (preg_match('/^[a-z_]+$/', $key) !== 1) {
+            throw new \InvalidArgumentException("Clé de metadata invalide : {$key}");
+        }
+
+        return str_replace(['lease_payments.metadata', "'paid_amount'"], [$metadataColumn, "'{$key}'"], self::PAID_AMOUNT_META_SQL);
+    }
 
     /** Montant encaissé d'une échéance : ce qui a été payé, moins ce qui a été rendu (TCK-1214). */
     public const LEASE_NET_SQL = 'lease_payments.amount - COALESCE(lease_payments.refund_amount, 0)';
@@ -75,6 +121,12 @@ final class CollectedPayments
     public static function leaseIncomeTypeValues(): array
     {
         return array_map(static fn (LeasePaymentType $t): string => $t->value, self::LEASE_INCOME_TYPES);
+    }
+
+    /** @return list<string> */
+    public static function depositTypeValues(): array
+    {
+        return array_map(static fn (LeasePaymentType $t): string => $t->value, self::DEPOSIT_TYPES);
     }
 
     /** @return list<string> */

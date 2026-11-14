@@ -12,8 +12,6 @@ use Illuminate\Validation\Rule;
  */
 class CancelCommissionRequest extends BaseFormRequest
 {
-    use TransitionalEmptyBody;
-
     public const REASON_MAX = 500;
 
     public function authorize(): bool
@@ -24,11 +22,7 @@ class CancelCommissionRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        // TCK-2661 — transition, retiré par TCK-2662 : un corps vide n'est pas validé.
-        if ($this->isTransitionalEmptyBody()) {
-            return [];
-        }
-
+        // TCK-2662 — plus de corps vide toléré (transition de TCK-2661 retirée) : le motif est exigé.
         return [
             'reason_code' => ['required', 'string', Rule::enum(CommissionCancelReason::class)],
             'reason' => ['nullable', 'required_if:reason_code,'.CommissionCancelReason::Other->value, 'string', 'max:'.self::REASON_MAX],

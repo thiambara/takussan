@@ -1,9 +1,7 @@
-import { Globe, Lock } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/console';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
-import { cn } from '@/lib/utils';
 
 interface Props {
   readonly visibility: string | null;
@@ -19,12 +17,7 @@ interface Props {
 export async function PropertyVisibilityBadge({ visibility, className }: Props) {
   if (!visibility) return null;
   const t = await getTranslations(PROPERTY_ENUM_NAMESPACES.visibilityScope);
-  const isPublic = visibility === 'public';
-  const Icon = isPublic ? Globe : Lock;
-  return (
-    <Badge variant="outline" className={cn('gap-1.5', className)}>
-      <Icon aria-hidden="true" />
-      {t(isPublic ? 'public' : 'private')}
-    </Badge>
-  );
+  // TCK-2639 — la pastille neutre de la maquette `app-biens` a-2 (« Privé »), sans icône : la
+  // visibilité est un état, pas un geste.
+  return <StatusBadge tone="neutral" label={t(visibility === 'public' ? 'public' : 'private')} className={className} />;
 }

@@ -30,7 +30,18 @@ class ControllerInstantFormTest extends TestCase
         // `/api/payments/history` : la clé `date` d'une échéance impayée est figée en
         // `….000000Z` par TCK-1500 (P94.04, PR ouverte au même moment). Convertir ici rendrait
         // `pre-dev` rouge à la fusion des deux : à passer par `instant()` une fois TCK-1500 fusionné.
-        'Http/Controllers/Api/PaymentController.php' => 'TCK-1500',
+        // TCK-2721 — la sélection a quitté `PaymentController` pour ce service, et l'exception l'a suivie.
+        'Services/Payments/PaymentHistory.php' => 'TCK-1500',
+    ];
+
+    /**
+     * TCK-2721 — le code EXTRAIT d'un contrôleur hors des deux dossiers reste sous la garde : sans
+     * cette liste, déplacer une conversion dans un service suffisait à la faire disparaître du relevé.
+     *
+     * @var list<string>
+     */
+    private const FICHIERS_EXTRAITS = [
+        'Services/Payments/PaymentHistory.php',
     ];
 
     public function test_aucune_conversion_d_instant_ecrite_a_la_main(): void
@@ -40,25 +51,32 @@ class ControllerInstantFormTest extends TestCase
         $lus = 0;
         $exceptionsVues = [];
 
+        $chemins = [];
         foreach (['Http/Controllers', 'Services/Admin'] as $dossier) {
             $racine = $app.'/'.$dossier;
             $this->assertDirectoryExists($racine);
-            $fichiers = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($racine, RecursiveDirectoryIterator::SKIP_DOTS));
-            foreach ($fichiers as $fichier) {
-                if ($fichier->getExtension() !== 'php') {
+            foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($racine, RecursiveDirectoryIterator::SKIP_DOTS)) as $fichier) {
+                if ($fichier->getExtension() === 'php') {
+                    $chemins[] = $fichier->getPathname();
+                }
+            }
+        }
+        foreach (self::FICHIERS_EXTRAITS as $extrait) {
+            $this->assertFileExists($app.'/'.$extrait);
+            $chemins[] = $app.'/'.$extrait;
+        }
+
+        foreach ($chemins as $chemin) {
+            $lus++;
+            $relatif = substr($chemin, strlen($app) + 1);
+            $code = $this->sansCommentaires((string) file_get_contents($chemin));
+            if (preg_match_all('/->\s*(toISOString|toIso8601String)\s*\(/', $code, $m) > 0) {
+                if (isset(self::EXCEPTIONS[$relatif])) {
+                    $exceptionsVues[$relatif] = true;
+
                     continue;
                 }
-                $lus++;
-                $relatif = substr($fichier->getPathname(), strlen($app) + 1);
-                $code = $this->sansCommentaires((string) file_get_contents($fichier->getPathname()));
-                if (preg_match_all('/->\s*(toISOString|toIso8601String)\s*\(/', $code, $m) > 0) {
-                    if (isset(self::EXCEPTIONS[$relatif])) {
-                        $exceptionsVues[$relatif] = true;
-
-                        continue;
-                    }
-                    $fautes[] = $relatif.' : '.implode(', ', array_unique($m[1]));
-                }
+                $fautes[] = $relatif.' : '.implode(', ', array_unique($m[1]));
             }
         }
 

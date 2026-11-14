@@ -88,7 +88,8 @@ export interface Formatteurs {
    * `VALEUR_ABSENTE` rendent ce qu'ils rendaient (99 fichiers appelants).
    */
   /**
-   * Montant court : « 1 355 000 F ». Les groupes viennent d'`Intl` (U+202F en `fr`), le symbole est
+   * Montant court : « 1 355 000 F ». Les groupes sont séparés par U+00A0 en `fr` (TCK-2714,
+   * `./groupes` : l'espace fine U+202F d'`Intl` était illisible au téléphone), le symbole est
    * collé par une espace INSÉCABLE (U+00A0) : un montant ne se coupe jamais en fin de ligne. Franc
    * CFA (XOF, XAF) → « F » ; une autre devise garde son symbole et sa place.
    */

@@ -46,12 +46,18 @@ describe('<EtapePrenom>', () => {
     expect(updateProfileAction).not.toHaveBeenCalled();
   });
 
+  it('TCK-2608 (maquette a-0) — « Prénom » requis (astérisque hors du nom accessible), « Nom (facultatif) »', () => {
+    monter();
+    expect(screen.getByRole('textbox', { name: T.firstName })).toHaveAttribute('autocomplete', 'given-name');
+    expect(screen.getByRole('textbox', { name: `${T.nom} ${T.facultatif}` })).toHaveAttribute('autocomplete', 'family-name');
+  });
+
   it('enregistre prénom et nom, met le compte à jour, puis laisse la page décider de la suite', async () => {
     updateProfileAction.mockResolvedValue({ ok: true, user: { first_name: 'Awa', last_name: '' } });
     const user = userEvent.setup();
     monter();
 
-    await user.type(screen.getByLabelText(T.firstName), '  Awa ');
+    await user.type(screen.getByRole('textbox', { name: T.firstName }), '  Awa ');
     await user.click(screen.getByRole('button', { name: T.submit }));
 
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
@@ -66,7 +72,7 @@ describe('<EtapePrenom>', () => {
     const user = userEvent.setup();
     monter();
 
-    await user.type(screen.getByLabelText(T.firstName), 'Awa');
+    await user.type(screen.getByRole('textbox', { name: T.firstName }), 'Awa');
     await user.click(screen.getByRole('button', { name: T.submit }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Refusé.');

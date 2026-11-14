@@ -1,0 +1,122 @@
+{
+  "_": "GÉNÉRÉ depuis les libellés du front (takussan-web/src/messages/{fr,en,wo}.json : documents.coffre.entrees, documents.types). Ne pas éditer à la main. Régénérer : cd takussan-web && node scripts/gen-vocabulaire-du-coffre.mjs (TCK-2769).",
+  "categories": {
+    "lease_contract": {
+      "fr": "Contrat de bail signé",
+      "en": "Signed lease",
+      "wo": "Contrat de bail signé"
+    },
+    "inventory_move_in": {
+      "fr": "État des lieux d’entrée",
+      "en": "Move-in inspection",
+      "wo": "État des lieux d’entrée"
+    },
+    "inventory_move_out": {
+      "fr": "État des lieux de sortie",
+      "en": "Move-out inspection",
+      "wo": "État des lieux de sortie"
+    },
+    "receipt_rent": {
+      "fr": "Quittance",
+      "en": "rent receipt",
+      "wo": "Quittance"
+    },
+    "receipt_charges": {
+      "fr": "Reçu de charges",
+      "en": "service charge receipt",
+      "wo": "Reçu de charges"
+    },
+    "receipt_deposit": {
+      "fr": "Reçu de caution",
+      "en": "Deposit receipt",
+      "wo": "Reçu de caution"
+    },
+    "receipt_deposit_refund": {
+      "fr": "Quittance",
+      "en": "rent receipt",
+      "wo": "Quittance"
+    },
+    "receipt_regularization": {
+      "fr": "Reçu de régularisation",
+      "en": "Adjustment receipt",
+      "wo": "Reçu de régularisation"
+    },
+    "receipt_penalty": {
+      "fr": "Reçu de pénalité",
+      "en": "Penalty receipt",
+      "wo": "Reçu de pénalité"
+    },
+    "owner_statement": {
+      "fr": "Relevé",
+      "en": "statement",
+      "wo": "Relevé"
+    },
+    "annual_attestation": {
+      "fr": "Attestation annuelle",
+      "en": "annual certificate",
+      "wo": "Attestation annuelle"
+    },
+    "provider_bill": {
+      "fr": "Facture",
+      "en": "Invoice",
+      "wo": "Facture"
+    }
+  },
+  "types": {
+    "id_card": {
+      "fr": "Pièce d'identité",
+      "en": "ID document",
+      "wo": "Kayitu kollëre"
+    },
+    "insurance": {
+      "fr": "Assurance",
+      "en": "Insurance",
+      "wo": "Asiraas"
+    },
+    "inventory_report": {
+      "fr": "État des lieux",
+      "en": "Inventory report",
+      "wo": "Limu kër"
+    },
+    "invoice": {
+      "fr": "Facture",
+      "en": "Invoice",
+      "wo": "Faktiir"
+    },
+    "lease_contract": {
+      "fr": "Contrat de bail",
+      "en": "Lease agreement",
+      "wo": "Kontaraa luwaa"
+    },
+    "ninea": {
+      "fr": "NINEA",
+      "en": "NINEA",
+      "wo": "NINEA"
+    },
+    "other": {
+      "fr": "Autre",
+      "en": "Other",
+      "wo": "Beneen"
+    },
+    "passport": {
+      "fr": "Passeport",
+      "en": "Passport",
+      "wo": "Paspoor"
+    },
+    "photo": {
+      "fr": "Photo",
+      "en": "Photo",
+      "wo": "Nataal"
+    },
+    "receipt": {
+      "fr": "Reçu",
+      "en": "Receipt",
+      "wo": "Kitaas"
+    },
+    "rib": {
+      "fr": "RIB",
+      "en": "Bank details (RIB)",
+      "wo": "RIB"
+    }
+  }
+}

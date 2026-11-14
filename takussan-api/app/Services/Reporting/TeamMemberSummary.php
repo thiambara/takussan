@@ -95,7 +95,11 @@ final class TeamMemberSummary
      * `filter[role]`) : un membre qui tient deux profils compte dans les deux.
      *
      * @param  Builder<User>  $set
-     * @return array{agent: int, agency_admin: int, owner: int, absent: int}
+     *                              TCK-2667 — `staff` : le personnel (profil d'agent OU d'administrateur), la pastille « Tous »
+     *                              de la liste des collaborateurs. Ce n'est pas `agent + agency_admin` : un membre qui tient les
+     *                              deux profils n'y compte qu'une fois. `absent` est le prédicat de `filter[absent]`
+     *                              ({@see User::scopeAbsentDansLAgence()}) : la pastille et la liste disent la même chose.
+     * @return array{agent: int, agency_admin: int, owner: int, staff: int, absent: int}
      */
     public function counts(Builder $set, int $agencyId): array
     {
@@ -105,12 +109,11 @@ final class TeamMemberSummary
             'agent' => (clone $set)->whereHas('agentProfiles', $inAgency)->count(),
             'agency_admin' => (clone $set)->whereHas('agencyAdminProfiles', $inAgency)->count(),
             'owner' => (clone $set)->whereHas('ownerProfiles', $inAgency)->count(),
-            'absent' => (clone $set)->whereExists(fn ($q) => $q->selectRaw('1')
-                ->from('role_delegations')
-                ->whereColumn('role_delegations.replaces_user_id', 'users.id')
-                ->where('role_delegations.agency_id', $agencyId)
-                ->whereIn('role_delegations.id', RoleDelegation::query()->absences()->active()->select('id')))
+            'staff' => (clone $set)->where(fn (Builder $q) => $q
+                ->whereHas('agentProfiles', $inAgency)
+                ->orWhereHas('agencyAdminProfiles', $inAgency))
                 ->count(),
+            'absent' => (clone $set)->absentDansLAgence($agencyId)->count(),
         ];
     }
 

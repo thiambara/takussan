@@ -48,7 +48,8 @@ class CommissionCancelReasonTest extends ApiTestCase
 
     public function test_ac4_a_reason_code_is_required_and_a_text_for_other(): void
     {
-        // Un corps VIDE garde le geste d'avant, le temps de TCK-2662 (`CommissionTransitionalEmptyBodyTest`).
+        // TCK-2662 — la transition de TCK-2661 est retirée : un corps VIDE est refusé, la ligne reste due.
+        $this->cancel([])->assertStatus(422)->assertJsonValidationErrors('reason_code');
         $this->cancel(['reason' => 'Erreur'])->assertStatus(422)->assertJsonValidationErrors('reason_code');
         $this->cancel(['reason_code' => 'other'])->assertStatus(422)->assertJsonValidationErrors('reason');
         $this->cancel(['reason_code' => 'oops'])->assertStatus(422)->assertJsonValidationErrors('reason_code');

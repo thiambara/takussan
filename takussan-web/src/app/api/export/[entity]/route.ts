@@ -16,8 +16,29 @@ const ALLOWED_ENTITIES = new Set([
   'commissions',
   'aging',
   'deposits',
+  // TCK-2721 — le registre des encaissements d'« Argent », avec ses filtres.
+  'payment_history',
 ]);
 const FORWARD_PARAMS = ['format', 'from', 'to', 'limit'] as const;
+/**
+ * TCK-2721 — les `filter[…]` de `GET /api/payments/history` que le relais transmet pour
+ * `payment_history`, et eux seuls : une liste fermée, jamais la requête recopiée telle quelle.
+ */
+const FILTRES_DU_REGISTRE = [
+  'entity_type',
+  'entity_id',
+  'status',
+  'date_from',
+  'date_to',
+  'paid_from',
+  'paid_to',
+  'payer_id',
+  'landlord_id',
+  'payment_method',
+  'search',
+  'days_late_min',
+  'days_late_max',
+] as const;
 
 export async function GET(
   request: NextRequest,
@@ -41,6 +62,12 @@ export async function GET(
   for (const key of FORWARD_PARAMS) {
     const v = request.nextUrl.searchParams.get(key);
     if (v !== null && v !== '') upstream.searchParams.set(key, v);
+  }
+  if (entity === 'payment_history') {
+    for (const cle of [...FILTRES_DU_REGISTRE.map((f) => `filter[${f}]`), 'sort']) {
+      const v = request.nextUrl.searchParams.get(cle);
+      if (v !== null && v !== '') upstream.searchParams.set(cle, v);
+    }
   }
 
   const res = await fetchVersApi(upstream, {

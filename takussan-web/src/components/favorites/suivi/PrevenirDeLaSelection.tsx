@@ -9,6 +9,7 @@ import { PublicSearchAlertForm } from '@/components/favorites/PublicSearchAlertF
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { alerteDeLaSelection } from '@/lib/favoris-suivi';
 import type { PropertyListItem } from '@/types/property';
+import { hrefConnexionPour } from '@/components/auth/lien-connexion';
 
 export interface PrevenirDeLaSelectionProps {
   /** La sélection de l'appareil, plus récent d'abord. */
@@ -46,7 +47,7 @@ export function PrevenirDeLaSelection({ biens }: PrevenirDeLaSelectionProps) {
         >
           <Bell className="size-5" />
         </span>
-        <span className="min-w-0 flex-1 text-[0.9375rem] leading-snug text-foreground">
+        <span className="min-w-0 flex-1 text-corps leading-snug text-foreground">
           {t.rich('declencheur', {
             lieu: alerte.lieu,
             geste: (morceau) => <span className="font-medium">{morceau}</span>,
@@ -61,7 +62,7 @@ export function PrevenirDeLaSelection({ biens }: PrevenirDeLaSelectionProps) {
           className="max-h-[92dvh] overflow-y-auto rounded-t-3xl bg-popover px-4 pb-7 pt-5 lg:bottom-8 lg:mx-auto lg:max-w-md lg:rounded-3xl"
         >
           <div className="flex items-start justify-between gap-3">
-            <SheetTitle className="font-display text-xl font-semibold tracking-[-0.02em]">
+            <SheetTitle className="font-display text-xl font-semibold tracking-titre">
               {t('titre', { lieu: alerte.lieu })}
             </SheetTitle>
             <SheetClose
@@ -75,7 +76,7 @@ export function PrevenirDeLaSelection({ biens }: PrevenirDeLaSelectionProps) {
           <PublicSearchAlertForm
             criteria={alerte.criteria as Record<string, unknown>}
             name={t('nom', { lieu: alerte.lieu })}
-            loginHref={`/auth/login?redirect=${encodeURIComponent(pathname)}`}
+            loginHref={hrefConnexionPour(pathname, 'alerte')}
             onClose={() => setOuvert(false)}
           />
         </SheetContent>

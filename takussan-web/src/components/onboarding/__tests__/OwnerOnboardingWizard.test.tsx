@@ -8,7 +8,6 @@ import frMessages from '@/messages/fr.json';
 // Mock all server actions before importing the component.
 const phoneSendOtpAction = vi.fn();
 const phoneVerifyOtpAction = vi.fn();
-const ownerSubmitKycAction = vi.fn();
 const ownerOnboardCompleteAction = vi.fn();
 const getOwnerPropertiesAction = vi.fn();
 
@@ -18,7 +17,6 @@ vi.mock('@/app/actions/security', () => ({
 }));
 
 vi.mock('@/app/actions/owner-onboarding', () => ({
-  ownerSubmitKycAction: (...args: unknown[]) => ownerSubmitKycAction(...args),
   ownerOnboardCompleteAction: (...args: unknown[]) => ownerOnboardCompleteAction(...args),
   getOwnerPropertiesAction: (...args: unknown[]) => getOwnerPropertiesAction(...args),
 }));
@@ -93,87 +91,163 @@ function withIntl(node: React.ReactNode) {
   );
 }
 
-describe('<OwnerOnboardingWizard>', () => {
+const BIENS = [
+  { id: 11, title: 'Appartement F4', status: 'rented', contract_type: 'rent', rent_period: 'monthly', price: 350000, location: { quarter: 'Mermoz' } },
+  { id: 12, title: 'Studio', status: 'available', contract_type: 'rent', rent_period: 'monthly', price: 150000, location: { quarter: 'Ouakam' } },
+];
+
+const INVITE = frMessages.onboarding.invite;
+
+function piece(code: string, required: boolean, state = 'missing') {
+  return { code, required, kind: code === 'ninea' ? 'file_and_number' : 'file', state };
+}
+
+/**
+ * TCK-2613 — deux écrans : le numéro, puis « Vos biens chez {agence} ». Plus de pièces ni de visite guidée dans
+ * l'assistant ; chaque sortie de l'écran 2 finalise (`complete`) avant de naviguer.
+ */
+describe('<OwnerOnboardingWizard> — deux écrans (TCK-2613)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ownerSubmitKycAction.mockResolvedValue({
-      ok: true,
-      data: {
-        id: 7,
-        kyc: { submitted_at: null, docs: [] },
-      },
-    });
+    utilisateur = UTILISATEUR_VERIFIE;
+    brouillon = null;
+    sessionStorage.clear();
     ownerOnboardCompleteAction.mockResolvedValue({
       ok: true,
-      data: {
-        owner_profile: { id: 7, status: 'active' },
-        active_profile_id: 'owner:7',
-        properties_count: 2,
-      },
+      data: { owner_profile: { id: 7, status: 'active' }, active_profile_id: 'owner:7', properties_count: 2 },
     });
     getOwnerPropertiesAction.mockResolvedValue({
       ok: true,
-      data: {
-        data: [
-          { id: 11, title: 'Villa des Almadies', city: 'Dakar' },
-          { id: 12, title: 'Appartement Plateau', city: 'Dakar' },
-        ],
-        meta: { total: 2, current_page: 1, last_page: 1, per_page: 20 },
-      },
+      data: { data: BIENS, meta: { total: 5, current_page: 1, last_page: 2, per_page: 3 } },
     });
   });
 
-  it('navigates through all four steps and calls the owner onboarding actions on completion', async () => {
-    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
+  it('AC1 — numéro vérifié : l’écran 2 d’abord (« Étape 2 sur 2 »), « Aller à mon espace » finalise et mène à /app', async () => {
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
 
-    // Step 1 (phone) — user already verified via the mocked AuthContext,
-    // canAdvance returns true. Move forward.
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Vos biens chez Dakar Immo' })).toBeInTheDocument();
+    expect(document.querySelector('[data-etape-d-invite]')).toHaveAttribute('data-etape-d-invite', '2');
+    expect(await screen.findByText('L’agence suit déjà 5 biens pour vous. Voici où ils en sont aujourd’hui.')).toBeInTheDocument();
+    expect(getOwnerPropertiesAction).toHaveBeenCalledWith(7);
+    // Plus d'écran de pièces ni de visite guidée.
+    expect(screen.queryByText(frMessages.owners.onboarding.steps.kyc.submitCta)).toBeNull();
+    expect(screen.queryByText(frMessages.owners.onboarding.steps.tour.skip)).toBeNull();
 
-    // Step 2 (KYC) — KYC has no canAdvance gate (non-blocking per spec),
-    // so we can move on without uploading anything.
-    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-
-    // Step 3 (tour) — both the tour's internal "Suivant" button and the
-    // wizard footer "Suivant" share the same label. Disambiguate by
-    // picking the last match (footer is rendered after the slide body).
-    const suivantOnTour = screen.getAllByRole('button', { name: /Suivant/i });
-    fireEvent.click(suivantOnTour[suivantOnTour.length - 1]);
-
-    // Step 4 (recap) — ensures the recap fetch resolved with the
-    // pre-attached properties before the final CTA fires.
-    await waitFor(() => {
-      expect(getOwnerPropertiesAction).toHaveBeenCalledWith(7);
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Terminer/i }));
-
-    await waitFor(() => {
-      expect(ownerOnboardCompleteAction).toHaveBeenCalledWith(7, undefined);
-    });
-
-    await waitFor(() => {
-      expect(routerPush).toHaveBeenCalledWith('/app');
-    });
+    fireEvent.click(screen.getByRole('button', { name: INVITE.bailleur.allerAMonEspace }));
+    await waitFor(() => expect(ownerOnboardCompleteAction).toHaveBeenCalledWith(7, undefined));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app'));
     // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
     expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
+  });
+
+  it('une ligne de bien, « Voir tous mes biens » et « Proposer un bien » finalisent puis mènent où on a cliqué', async () => {
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
+    const ligne = await screen.findByTestId('owner-property-11');
+    expect(ligne).toHaveTextContent('Appartement F4 · Mermoz');
+    expect(ligne).toHaveTextContent('Loué');
+
+    fireEvent.click(screen.getByRole('button', { name: INVITE.bailleur.proposer.action }));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/properties/new'));
+    expect(ownerOnboardCompleteAction).toHaveBeenCalledTimes(1);
+  });
+
+  it('« Voir tous mes biens » mène à la liste, après la fin de l’onboarding', async () => {
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
+    fireEvent.click(await screen.findByRole('button', { name: INVITE.bailleur.voirTous }));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/properties'));
+    expect(ownerOnboardCompleteAction).toHaveBeenCalledWith(7, undefined);
+  });
+
+  it('sans bien rattaché : « Proposer mon premier bien » en bouton plein ouvre l’assistant en proposition', async () => {
+    getOwnerPropertiesAction.mockResolvedValue({ ok: true, data: { data: [], meta: { total: 0, current_page: 1, last_page: 1, per_page: 3 } } });
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
+
+    expect(await screen.findByText(INVITE.bailleur.vide.titre)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: INVITE.bailleur.vide.action }));
+    await waitFor(() => expect(ownerOnboardCompleteAction).toHaveBeenCalledWith(7, undefined));
+    await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/properties/new'));
+  });
+
+  it('un échec de la fin de l’onboarding se dit et ne navigue pas', async () => {
+    ownerOnboardCompleteAction.mockResolvedValue({ ok: false, message: 'Profil introuvable.' });
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
+    fireEvent.click(await screen.findByRole('button', { name: INVITE.bailleur.allerAMonEspace }));
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'error', description: 'Profil introuvable.' })));
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it('numéro non vérifié : l’écran 1 d’abord, et le code accepté ouvre l’écran 2', async () => {
+    utilisateur = { phone: '+221776124567', phone_verified_at: null };
+    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true, codeApercu: null } });
+    phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: null });
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: INVITE.numero.titre })).toBeInTheDocument();
+    expect(document.querySelector('[data-etape-d-invite]')).toHaveAttribute('data-etape-d-invite', '1');
+    expect(getOwnerPropertiesAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: INVITE.numero.recevoir }));
+    fireEvent.change(await screen.findByLabelText(INVITE.numero.codeLibelle), { target: { value: '482913' } });
+    fireEvent.click(screen.getByRole('button', { name: INVITE.numero.continuer }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Vos biens chez Dakar Immo' })).toBeInTheDocument();
+    expect(screen.getByText(/Numéro vérifié/)).toHaveTextContent('77 •• •• 45 67');
+  });
+
+  it('un brouillon de l’assistant à quatre écrans (étape 3, `kyc`, `tour`) reprend à l’écran 2', async () => {
+    brouillon = {
+      step: 3,
+      data: { phone: { number: '+221770000000', code: '', verified: true }, kyc: { cni_uploaded: true }, tour: { finished: true } },
+    };
+    render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" />));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Vos biens chez Dakar Immo' })).toBeInTheDocument();
+  });
+
+  it('TCK-2614 (2b) — particulier : le rappel nomme le RIB et la pièce d’identité, pas le NINEA facultatif', async () => {
+    render(
+      withIntl(
+        <OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" pieces={[piece('cni', true), piece('rib', true), piece('ninea', false)] as never} />,
+      ),
+    );
+    const rappel = await screen.findByTestId('rappel-des-pieces');
+    expect(rappel).toHaveTextContent('Pour être payé, il reste 2 pièces à envoyer : votre RIB et votre pièce d’identité.');
+    expect(rappel).not.toHaveTextContent('NINEA');
+  });
+
+  it('TCK-2614 (2b) — société : le NINEA requis entre dans le rappel ; une pièce envoyée n’y est plus', async () => {
+    render(
+      withIntl(
+        <OwnerOnboardingWizard
+          ownerProfileId={7}
+          agence="Dakar Immo"
+          pieces={[piece('cni', true, 'sent'), piece('rib', true), piece('ninea', true)] as never}
+        />,
+      ),
+    );
+    const rappel = await screen.findByTestId('rappel-des-pieces');
+    expect(rappel).toHaveTextContent('il reste 2 pièces à envoyer : votre RIB et votre NINEA.');
+  });
+
+  it('toutes les pièces envoyées : aucun rappel', async () => {
+    render(
+      withIntl(
+        <OwnerOnboardingWizard ownerProfileId={7} agence="Dakar Immo" pieces={[piece('cni', true, 'sent'), piece('rib', true, 'verified')] as never} />,
+      ),
+    );
+    await screen.findByTestId('owner-property-11');
+    expect(screen.queryByTestId('rappel-des-pieces')).toBeNull();
   });
 });
 
 /**
- * TCK-566 — le numéro TAPÉ à cette étape n'était jamais envoyé : l'envoi du code
- * appelait `phoneSendOtpAction()` sans argument, donc visait le numéro déjà
- * enregistré — et, sans numéro enregistré, rendait « No phone number on file. »
- * à quelqu'un qui venait de le taper. Le champ était un `<Input>` libre,
- * indicatif à la charge de la personne.
+ * TCK-566 — le numéro TAPÉ part avec la demande ; un brouillon hérité est remis en E.164. TCK-2613 : le numéro que
+ * l'agence a saisi se montre figé avec « Modifier » ; sans numéro, le champ s'ouvre.
  */
 describe('<OwnerOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
-  const PHONE = frMessages.owners.onboarding.steps.phone;
-
   beforeEach(() => {
     vi.clearAllMocks();
     utilisateur = { phone: null, phone_verified_at: null };
-    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true } });
+    phoneSendOtpAction.mockResolvedValue({ ok: true, data: { sent: true, codeApercu: null } });
   });
 
   afterEach(() => {
@@ -182,74 +256,64 @@ describe('<OwnerOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
   });
 
   // TCK-1362 (P84.03) — le code est HACHÉ et à usage unique côté API ; le brouillon serveur, gardé
-  // jusqu'à 90 jours, n'en garde pas la copie en clair une fois le numéro vérifié.
-  it('le code vérifié ne reste pas dans le brouillon serveur', async () => {
+  // jusqu'à 90 jours, n'en garde jamais la copie en clair.
+  it('le code vérifié ne va jamais dans le brouillon serveur', async () => {
     phoneVerifyOtpAction.mockResolvedValue({ ok: true, data: {} });
     const user = userEvent.setup();
     render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
 
-    await user.type(await screen.findByLabelText(PHONE.fields.phone), '770000000', {
+    await user.type(await screen.findByLabelText(INVITE.numero.libelle), '770000000', {
       initialSelectionStart: 0,
       initialSelectionEnd: 0,
     });
-    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
-    await user.type(await screen.findByLabelText(PHONE.fields.code), '123456');
-    await user.click(screen.getByRole('button', { name: PHONE.verifyCta }));
+    await user.click(screen.getByRole('button', { name: INVITE.numero.recevoir }));
+    await user.type(await screen.findByLabelText(INVITE.numero.codeLibelle), '123456');
+    await user.click(screen.getByRole('button', { name: INVITE.numero.continuer }));
 
     await waitFor(() => expect(phoneVerifyOtpAction).toHaveBeenCalledWith('123456'));
     await waitFor(() => {
       const dernier = sauverBrouillon.mock.calls.at(-1) as [number, Record<string, { verified?: boolean }>];
       expect(dernier[1].phone?.verified).toBe(true);
     });
-    expect(JSON.stringify(sauverBrouillon.mock.calls.at(-1))).not.toContain('123456');
+    expect(JSON.stringify(sauverBrouillon.mock.calls)).not.toContain('123456');
   });
 
   it('envoie le code au numéro TAPÉ, indicatif en tête', async () => {
     const user = userEvent.setup();
     render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
+    const champ = await screen.findByLabelText(INVITE.numero.libelle);
     await user.type(champ, '770000000', { initialSelectionStart: 0, initialSelectionEnd: 0 });
     expect(champ).toHaveValue('770000000');
 
-    await user.click(screen.getByRole('button', { name: PHONE.sendCta }));
+    await user.click(screen.getByRole('button', { name: INVITE.numero.recevoir }));
     await waitFor(() => expect(phoneSendOtpAction).toHaveBeenCalledTimes(1));
     expect(phoneSendOtpAction).toHaveBeenCalledWith('+221770000000');
   });
 
-  // Relevé par le vérificateur : seul l'assistant hôte gardait ce critère. Une
-  // régression vers `numero.trim() === ''` laissait partir « 7700000 » — sept
-  // chiffres, que l'API refuse désormais en 422 — sans qu'aucun test rougisse.
   it('un numéro NON VIDE mais incomplet ne part pas : le bouton d’envoi reste inactif', async () => {
     const user = userEvent.setup();
     render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
+    const champ = await screen.findByLabelText(INVITE.numero.libelle);
     await user.type(champ, '7700000');
-    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
+    const envoyer = screen.getByRole('button', { name: INVITE.numero.recevoir });
     expect(envoyer).toBeDisabled();
 
     await user.click(envoyer);
     expect(phoneSendOtpAction).not.toHaveBeenCalled();
 
-    // Neuf chiffres après +221 : le numéro est composable, l'envoi s'ouvre.
     await user.type(champ, '00');
     expect(envoyer).toBeEnabled();
   });
 
-  // Relevé par le vérificateur (déduit du code, reproduit ici) : seul
-  // `initialData` passait par `recomposerTelephone`. Un numéro relu d'un
-  // brouillon écrit par l'ancien champ libre — forme nationale, sans indicatif —
-  // s'affichait bien dans l'ordre, mais « Envoyer le code » restait INACTIF sans
-  // explication tant qu'on ne retouchait pas un chiffre.
   it('un numéro relu d’un brouillon hérité, sans indicatif, est remis en E.164 et part', async () => {
     brouillon = { step: 0, data: { phone: { number: '771234567', code: null, verified: false } } };
     const user = userEvent.setup();
     render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    expect(champ).toHaveValue('771234567');
-    const envoyer = screen.getByRole('button', { name: PHONE.sendCta });
+    expect(await screen.findByText('77 123 45 67')).toBeInTheDocument();
+    const envoyer = screen.getByRole('button', { name: INVITE.numero.recevoir });
     expect(envoyer).toBeEnabled();
 
     await user.click(envoyer);
@@ -257,18 +321,12 @@ describe('<OwnerOnboardingWizard> — saisie du téléphone (TCK-566)', () => {
     expect(phoneSendOtpAction).toHaveBeenCalledWith('+221771234567');
   });
 
-  // Relevé par le vérificateur (passe 3, mutation M5) : l'ORDRE « fusion, puis
-  // relecture » n'était gardé par aucun test. Le serveur rend `''` en `null`
-  // (ConvertEmptyStringsToNull) ; `mergeDraft` ignore un `null` et garde le
-  // numéro du compte. Relu AVANT la fusion, ce `null` devient `''`, que la
-  // fusion n'ignore plus : le numéro du compte est effacé du champ.
   it('un téléphone null dans un brouillon hérité n’efface pas le numéro du compte', async () => {
     utilisateur = { phone: '+221770000000', phone_verified_at: null };
     brouillon = { step: 0, data: { phone: { number: null, code: null, verified: false } } };
     render(withIntl(<OwnerOnboardingWizard ownerProfileId={7} />));
 
-    const champ = await screen.findByLabelText(PHONE.fields.phone);
-    expect(champ).toHaveValue('770000000');
-    expect(screen.getByRole('button', { name: PHONE.sendCta })).toBeEnabled();
+    expect(await screen.findByText('77 000 00 00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: INVITE.numero.recevoir })).toBeEnabled();
   });
 });

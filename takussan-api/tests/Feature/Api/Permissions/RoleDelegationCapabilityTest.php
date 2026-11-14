@@ -486,9 +486,13 @@ class RoleDelegationCapabilityTest extends TestCase
         $delegue = $this->membreSansCapacite();
         $this->deleguer($delegant, $delegue, 'agency_admin');
 
-        // Le délégué tient bien `team.delegate_role` PAR DÉLÉGATION — sans ce
-        // témoin, le cas serait vert même si la délégation n'accordait rien.
-        $this->assertTrue($delegue->fresh()->canActAt(Capability::TeamDelegateRole, $this->agency));
+        // La délégation accorde bien le rôle prêté — sans ce témoin, le cas serait
+        // vert même si la délégation n'accordait rien.
+        $this->assertTrue($delegue->fresh()->canActAt(Capability::TeamInvite, $this->agency));
+        // Vérification de TCK-2668 (D3, 2026-11-12) — mais jamais `team.delegate_role` : le
+        // résolveur ne l'accorde plus par délégation, pour que `/me/capabilities` dise ce que
+        // `RoleDelegationPolicy` (détention propre) juge. Ce témoin affirmait l'inverse.
+        $this->assertFalse($delegue->fresh()->canActAt(Capability::TeamDelegateRole, $this->agency));
         $this->assertFalse($delegue->fresh()->canActDirectlyAt(Capability::TeamDelegateRole, $this->agency));
 
         $this->actingAs($delegue)

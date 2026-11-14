@@ -5,11 +5,16 @@
  * sans heure d'été, et un `Date` local (fuseau du poste) déplacerait un 1ᵉʳ du mois la veille.
  */
 
+import { ANNEE_MAX_DE_L_API, ANNEE_MIN_DE_L_API } from '@/lib/jour-de-l-api';
+
 const MOTIF_MOIS = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
 /** `2026-10` est un mois ; `2026-13`, `2026-1` ou `octobre` non. */
 export function estMois(valeur: string | null | undefined): valeur is string {
-  return typeof valeur === 'string' && MOTIF_MOIS.test(valeur);
+  // TCK-2768 (q2) — l'année bornée comme les jours de l'API (`JourIso`) : « 0001-01 » donnait les bornes
+  // `0001-01-01` / `0001-01-31`, que l'API refuse (422).
+  const m = typeof valeur === 'string' ? MOTIF_MOIS.exec(valeur) : null;
+  return m !== null && Number(m[1]) >= ANNEE_MIN_DE_L_API && Number(m[1]) <= ANNEE_MAX_DE_L_API;
 }
 
 function parties(mois: string): readonly [number, number] {

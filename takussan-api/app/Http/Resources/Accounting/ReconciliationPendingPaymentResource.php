@@ -41,6 +41,10 @@ class ReconciliationPendingPaymentResource extends BaseResource
             'payer' => $payer === null ? null : ['id' => $payer->id, 'name' => $payer->full_name],
             'property' => $property === null ? null : ['id' => $property->id, 'title' => $property->title],
             'amount' => $payment->amount,
+            // Contre-vérification de f05a8d1a5 (r1) — ce que la banque doit porter : la règle du matcher
+            // (`LeasePayment::expectedBankAmount()`, pénalité du même jour ou montant figé en ligne). Le
+            // « Chercher » du front cherche ce montant, au franc près ; un acompte n'a que son `amount`.
+            'expected_bank_amount' => round($payment instanceof LeasePayment ? $payment->expectedBankAmount() : (float) $payment->amount, 2),
             'currency' => $payment->currency instanceof \BackedEnum ? $payment->currency->value : $payment->currency,
             'paid_at' => $this->iso($payment->paid_at),
             'payment_method' => $payment->payment_method instanceof \BackedEnum ? $payment->payment_method->value : $payment->payment_method,

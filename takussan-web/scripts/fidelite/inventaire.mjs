@@ -95,13 +95,35 @@ export const ETAT = String.raw`async (racineSel) => {
  * latérale au bureau ; chemin seul), pour prouver la disposition rendue : un compte « locataire »
  * sans bail rend le menu d'un client, et le relevé doit le refuser. Le contenu de la page n'en est
  * pas : le tableau de bord d'un locataire peut lier vers ses favoris.
+ *
+ * Un lien n'est visible que si sa boîte SURVIT aux ancêtres qui la rognent (`overflow` autre que
+ * `visible`, par axe) : le panneau « Plus » replié de la barre latérale reste monté à hauteur 0 sous
+ * un `overflow: hidden`, et ses liens gardaient leur boîte — le relevé du client au bureau était
+ * refusé sur des liens que personne ne voit (TCK-2625, a-5). La remontée s'arrête à un ancêtre
+ * `position: fixed` (la barre d'onglets) : il échappe au rognage de ses ancêtres. Cas éprouvés :
+ * `fixtures/liens-visibles.html`, par `verifier-liens-visibles.mjs`.
  */
 export const LIENS_VISIBLES = String.raw`(() => {
   const vus = new Set();
+  const resteVisible = (a) => {
+    const b = a.getBoundingClientRect();
+    let g = b.left, d = b.right, h = b.top, bas = b.bottom;
+    if (getComputedStyle(a).position === 'fixed') return true;
+    for (let n = a.parentElement; n && n !== document.documentElement; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      const rn = n.getBoundingClientRect();
+      if (cs.overflowX !== 'visible') { g = Math.max(g, rn.left); d = Math.min(d, rn.right); }
+      if (cs.overflowY !== 'visible') { h = Math.max(h, rn.top); bas = Math.min(bas, rn.bottom); }
+      if (d - g < 1 || bas - h < 1) return false;
+      if (cs.position === 'fixed') break;
+    }
+    return true;
+  };
   for (const a of document.querySelectorAll('nav a[href]')) {
     const r = a.getBoundingClientRect();
     const s = getComputedStyle(a);
     if (r.width < 1 || r.height < 1 || r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth || s.visibility === 'hidden') continue;
+    if (!resteVisible(a)) continue;
     try { vus.add(new URL(a.href, location.href).pathname); } catch {}
   }
   return [...vus].sort();
@@ -151,7 +173,11 @@ export const BALAYAGE = String.raw`(racineSel) => {
     const s = getComputedStyle(el);
     if (s.visibility === 'hidden') continue;
     if (r.right > W + 1 && !defile(el)) { depasse++; if (r.right - W > pire) { pire = Math.round(r.right - W); exemple = (el.innerText || el.tagName).trim().slice(0, 40); } }
-    if (s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) ellipses.push((el.innerText || '').trim().slice(0, 50));
+    // Deux ellipses : celle d'une ligne (« truncate », débord en LARGEUR) et celle de « line-clamp-N », dont
+    // « text-overflow » reste « clip » et dont le débord est en HAUTEUR — sans ce second test, une 3e ligne
+    // cachée sous « … » passait pour un texte entier (cas éprouvé : fixtures/balayage-ellipses.html).
+    const clampe = (s.getPropertyValue('-webkit-line-clamp') || 'none') !== 'none';
+    if ((s.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) || (clampe && el.scrollHeight > el.clientHeight + 1)) ellipses.push((el.innerText || '').trim().slice(0, 50));
   }
   const coupes = [];
   for (const el of racine.querySelectorAll('*')) {

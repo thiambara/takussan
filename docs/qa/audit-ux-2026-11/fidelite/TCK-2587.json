@@ -1,0 +1,530 @@
+{
+  "ticket": "TCK-2587",
+  "ecrans": [
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste",
+      "references": {
+        "telephone": "references/app-visites/a-0-telephone.json",
+        "bureau-1440": "references/app-visites/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits (téléphone) · /app/visits?vue=to_confirm (bureau)",
+        "persona": "agent (téléphone : ses visites) · admin (bureau : celles de l'agence, comme la maquette)",
+        "etat": "les visites du 10 nov. de la maquette (Abdoulaye Cissé 10:57, Rokhaya Mbaye 16:55, Yacine Diouf à clore, neuf demandes, trois « plus tard ») servies par un BOUCHON des GET `/api/property-visits`, `/counts` et `/slots` dans la page, horloge figée au mardi 10 nov. 2026, 10:12 à Dakar (`FID_AVANT=fid2587/bouchon.js`, scratchpad du lot 2) ; au bureau, `--perturber fid2587/cocher.js` coche les lignes 1, 2 et 4 comme la maquette — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Fiche — à confirmer",
+      "references": {
+        "telephone": "references/app-visites/a-1-telephone.json",
+        "bureau-1440": "references/app-visites/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/429?fid=avant",
+        "persona": "agent",
+        "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : demande par tranche (mercredi 11, après-midi, message « Je suis dispo après 15 h… »), bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Fiche — jour J",
+      "references": {
+        "telephone": "references/app-visites/a-2-telephone.json",
+        "bureau-1440": "references/app-visites/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/429?fid=jourj",
+        "persona": "agent",
+        "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : visite confirmée de 10:57 au 12, rue Carnot, bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Fiche — en cours",
+      "references": {
+        "telephone": "references/app-visites/a-3-telephone.json",
+        "bureau-1440": "references/app-visites/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/429?fid=encours&horloge=11:10&commencee=10:58",
+        "persona": "agent",
+        "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : visite confirmée de 10:57, « Commencer » à 10:58, bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 11:10 (Dakar) — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Côté client",
+      "references": {
+        "telephone": "references/app-visites/a-7-telephone.json",
+        "bureau-1440": "references/app-visites/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits?fid=client",
+        "persona": "client (bureau : relevé sous `--disposition locataire`, le compte de démo ayant des baux — sa barre latérale montre Paiements et Maintenance)",
+        "etat": "« Mes visites » servie par un BOUCHON des GET `/api/property-visits` dans la page (`FID_AVANT=fid2587c/bouchon-c.js`, scratchpad du lot 2) : studio confirmé jeu. 12 nov. 10:00 avec Sokhna Sène (« Agent · Dakar Immo », numéro FICTIF déclaré WhatsApp, comme l'API le sert au seul demandeur d'une visite confirmée à venir), deux-pièces demandé sam. 14 nov. au matin, appartement neuf visité hier à 16:00 à noter, chambre notée 3/5 le 31 oct., appartement 3 chambres annulé le 28 oct. (« empêchement ») ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base. `?fid=ac6` : la persona d'AC6 (aucune à venir), `?fid=vide` : aucune visite"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/visits",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2, fid2587/ : bouchon.js (chargé AVANT la page par `FID_AVANT` : bouchon des GET `/api/property-visits*`, horloge figée, photos `/maquettes/*.jpg`, comptes de l'agent sous 1024 px et de l'agence au-delà) ; cocher.js (trois lignes cochées au bureau) ; erreurs.js (recueil des erreurs de console)"
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "carte de la prochaine visite",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "10:57",
+        "min": 300
+      },
+      "produit": {
+        "boiteDe": "10:57",
+        "min": 300
+      }
+    },
+    {
+      "nom": "barre de sélection",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "3 visites sélectionnées",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "3 visites sélectionnées",
+        "min": 40
+      }
+    },
+    {
+      "nom": "ligne de demande (Abdoulaye Cissé, Yoff)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Local commercial · Yoff",
+        "min": 50
+      },
+      "produit": {
+        "boiteDe": "Local commercial · Yoff",
+        "min": 50
+      }
+    },
+    {
+      "nom": "tableau des demandes",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Quand",
+        "min": 500
+      },
+      "produit": {
+        "boiteDe": "Quand",
+        "min": 500
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [
+    {
+      "nom": "rangée de pastilles",
+      "appareil": "mobile",
+      "x": 0,
+      "y": 56,
+      "w": 390,
+      "h": 56
+    },
+    {
+      "nom": "tête de « Aujourd’hui » et sa date",
+      "appareil": "mobile",
+      "x": 0,
+      "y": 128,
+      "w": 390,
+      "h": 44
+    },
+    {
+      "nom": "tête de page : titre, sous-titre et onglets (hors « Liste · Semaine »)",
+      "appareil": "desktop",
+      "x": 290,
+      "y": 20,
+      "w": 610,
+      "h": 115
+    },
+    {
+      "nom": "barre de sélection",
+      "appareil": "desktop",
+      "role": "barre de sélection"
+    }
+  ],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "barre latérale et en-tête de la coque (largeur, liens, compteurs, avatar)",
+      "propriete": "boîtes, libellés et pixels de la colonne de 272 px",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/TCK-2618/TCK-2619 (terrain-5), en cours dans le même arbre ; l'essentiel des écarts de bureau en vient. Le contenu de la page commence à la même abscisse que la maquette"
+    },
+    {
+      "ecran": "app-visites a-0-telephone",
+      "element": "barre d'onglets et pastilles de la coque (onglet « Menu » surligné, comptes 4 / 2 / 7)",
+      "propriete": "état actif, valeurs",
+      "exception": "hors périmètre",
+      "motif": "la coque est celle de terrain-5 ; les comptes sont ceux de la base de démonstration, non bouchonnés"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "contrôle « Liste · Semaine » de l'en-tête",
+      "propriete": "absent du produit",
+      "exception": "hors périmètre",
+      "motif": "la vue Semaine est TCK-2597 ; un contrôle segmenté à une seule option ne choisirait rien. Il arrive avec elle"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "filtre « Statut · Demandées »",
+      "propriete": "absent du produit",
+      "exception": "technique",
+      "motif": "la vue de l'onglet porte déjà le statut (À confirmer = demandées) : un filtre de statut sous un onglet de statut se contredirait ; la vue « par statut » garde ses onglets propres"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "filtre « Période »",
+      "propriete": "valeur (« 7 prochains jours », actif → « Toutes dates »)",
+      "exception": "donnée",
+      "motif": "la maquette dessine un filtre déjà posé ; le relevé ouvre la page sans filtre (`?periode=` absent). Le filtre et ses trois valeurs existent"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "case d'en-tête du tableau",
+      "propriete": "état (vide → indéterminée)",
+      "exception": "règle du design system",
+      "motif": "trois lignes sur neuf cochées : la case d'en-tête dit « une partie » (`indeterminate`, lu par les lecteurs d'écran comme « mixte ») ; la maquette la laisse vide"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "« sans fiche » sous Coumba Sow",
+      "propriete": "libellé (« sans fiche » → « 1re visite »)",
+      "exception": "donnée",
+      "motif": "le bouchon sert une fiche client pour chaque visiteur ; le produit écrit le rang de la visite, que l'API donne (`visitor_display.visits_on_property`)"
+    },
+    {
+      "ecran": "tous",
+      "element": "encres secondaires (durée, adresse, rang, aperçu du message)",
+      "propriete": "couleur (encre à transparence de la maquette → `text-encre-douce` / `text-muted-foreground` opaques)",
+      "exception": "règle du design system",
+      "motif": "aucune encre translucide (`text-x/NN`) dans /app — règle du lot ; même exception que TCK-2580, TCK-2584, TCK-2586"
+    },
+    {
+      "ecran": "tous",
+      "element": "pastille de notifications, comptes du menu de la coque",
+      "propriete": "valeur",
+      "exception": "donnée",
+      "motif": "comptes de la base de démonstration, non bouchonnés"
+    },
+    {
+      "ecran": "tous",
+      "element": "lien d'évitement « Aller au contenu »",
+      "propriete": "absent de la maquette",
+      "exception": "règle du design system",
+      "motif": "lien d'accessibilité de la coque (visible au seul focus) ; la maquette ne le dessine pas"
+    },
+    {
+      "ecran": "app-visites a-0-*",
+      "element": "icônes dessinées en SVG par la maquette",
+      "propriete": "nom d'icône (svg anonyme → nom lucide)",
+      "exception": "technique",
+      "motif": "l'outil apparie les icônes par nom ; une icône SVG à la main de la maquette ressort « absente » face à son équivalent lucide (WhatsApp : `IconeWhatsApp` du produit)"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "« Confirmer HH:MM » de la colonne Geste",
+      "propriete": "« Confirmer » absent du produit (sept fois), textes voisins appariés à tort",
+      "exception": "technique",
+      "motif": "la maquette écrit « Confirmer » et l'heure en deux nœuds (`Confirmer <span>15:00</span>`), le produit en un seul libellé traduit (`confirmerA`, « Confirmer {heure} ») ; même boîte, même texte au rideau. L'outil apparie par nœud de texte"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "pastilles « Demandée », « Non attribuée » ; bouton « Planifier une visite »",
+      "propriete": "bordure (0 → 1 px transparente), rayon (plein → 23,4 px sur 24 px de haut)",
+      "exception": "règle du design system",
+      "motif": "primitives communes `StatusBadge` (console) et `Button` : bordure transparente d'un pixel, sans effet sur la boîte ni sur la couleur rendue"
+    },
+    {
+      "ecran": "app-visites a-0-*",
+      "element": "icônes lucide (chevrons, coche, plus, loupe)",
+      "propriete": "trait (2 → 1,5 ; 3 → 2,5)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes sous la portée /app (TCK-2685) ; même exception que TCK-2584, TCK-2586"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "« Désélectionner » de la barre de sélection",
+      "propriete": "hauteur (18 → 28,8 px), encre (`text-background/70` → `text-encre-douce-inverse` opaque)",
+      "exception": "règle du design system",
+      "motif": "c'est un bouton (la maquette dessine un texte nu) : il prend la hauteur des deux autres gestes de la barre ; aucune encre translucide dans /app"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "« Tout sélectionner »",
+      "propriete": "absent de la maquette",
+      "exception": "règle du design system",
+      "motif": "nom accessible de la case d'en-tête (`aria-label`), sans texte visible"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "champ de recherche",
+      "propriete": "encre du texte d'attente, couleur de bordure, retraits",
+      "exception": "règle du design system",
+      "motif": "primitive commune `DebouncedSearchInput` (TCK-2688) : sa loupe est posée en absolu, d'où les retraits ; même exception que TCK-2584"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "colonnes du tableau à partir de « Statut · type »",
+      "propriete": "abscisse (±4 à 6 px)",
+      "exception": "technique",
+      "motif": "tableau en disposition automatique : la largeur des colonnes suit leur contenu, et la case d'en-tête et l'avatar de l'agent (primitives) n'ont pas la cote exacte de la maquette ; les cellules gardent les largeurs maximales de la maquette (220, 150 et 210 px à la densité du bureau)"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "loupe du champ de recherche",
+      "propriete": "taille",
+      "exception": "règle du design system",
+      "motif": "`DebouncedSearchInput` porte le jeton `size-icone` sous la portée /app (TCK-2688) ; primitive commune — même exception que TCK-2584, TCK-2586"
+    },
+    {
+      "ecran": "app-visites a-0-telephone",
+      "element": "carte de la prochaine visite — photo",
+      "propriete": "pixels (2,33 % de la carte, sur la photo)",
+      "exception": "technique",
+      "motif": "le produit sert la photo par `next/image` (optimiseur sous `next dev`, Transformations en image : redimensionnée), la maquette par une `<img>` brute ; même fichier `/maquettes/facade-bois.jpg`, même boîte (128 px de haut, `object-cover`). La carte n'est donc pas déclarée zone à contenu identique ; son rôle est conforme"
+    },
+    {
+      "ecran": "app-visites a-0-telephone",
+      "element": "« 10:57 » de la prochaine visite",
+      "propriete": "espacement des lettres (−0,03 em → −0,02 em), d'où « 30 min · en personne » décalé de 2 px",
+      "exception": "règle du design system",
+      "motif": "`tracking-titre` (−0,02 em) est le seul espacement serré de /app : la charte y rabat les −0,01 et −0,03 em des maquettes (`globals.css`, jetons d'espacement des lettres)"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "tableau des demandes",
+      "propriete": "hauteur (570 → 571,4 px)",
+      "exception": "technique",
+      "motif": "en-tête du tableau plus haut de 1,4 px (case d'en-tête de la primitive `Checkbox`) ; lignes conformes"
+    },
+    {
+      "ecran": "app-visites a-0-bureau-*",
+      "element": "avatar de l'agent dans la colonne Agent du tableau",
+      "propriete": "fond et encre (aplat d'accent à 15 % et encre d'accent → `bg-fond-avatar` et `text-encre-avatar`)",
+      "exception": "règle du design system",
+      "motif": "l'accent est réservé aux badges mis en avant (`scripts/check-valeurs-arbitraires-app.mjs`, aplat-accent) ; l'avatar prend les jetons d'avatar de l'app, ceux des autres avatars de /app"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-*",
+      "element": "barre latérale, en-tête et barre d’onglets de la coque (onglet « Menu » actif dans la maquette)",
+      "propriete": "boîtes, libellés, état actif",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/TCK-2618/TCK-2619 (terrain-5) ; au bureau, l’essentiel des écarts en vient, avec le rem 14,4 / 16 de part et d’autre de TCK-2692"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-telephone",
+      "element": "vignette de carte au-dessus de l’adresse",
+      "propriete": "absente",
+      "exception": "technique",
+      "motif": "aucune tuile ni image de carte dans le produit ; l’adresse et « Itinéraire » restent"
+    },
+    {
+      "ecran": "app-visites a-1-*",
+      "element": "heure libre 17:00 de l’après-midi",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "VisitWindow::Evening commence à 17:00 (API) : 17:00 est le soir, la tranche de l’après-midi s’arrête avant ; réponse 7 du team-lead : l’API reste telle quelle, VisitWindow n’est pas touché"
+    },
+    {
+      "ecran": "app-visites a-1-bureau-*",
+      "element": "« Vos créneaux libres mercredi après 15 h »",
+      "propriete": "libellé « mercredi après-midi »",
+      "exception": "donnée",
+      "motif": "« après 15 h » vient du message libre du visiteur, que rien ne lit"
+    },
+    {
+      "ecran": "app-visites a-1-bureau-*",
+      "element": "pastille du visiteur « 2e bien visité »",
+      "propriete": "libellé « revient · 2e visite »",
+      "exception": "donnée",
+      "motif": "l’API donne `visits_on_property` (visites sur CE bien), pas le nombre de biens visités"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "Référence « V-2301 »",
+      "propriete": "valeur « #429 »",
+      "exception": "donnée",
+      "motif": "aucune référence de visite dans l’API : l’identifiant"
+    },
+    {
+      "ecran": "app-visites a-1-bureau-*",
+      "element": "« Confirmer à 15:00 ▾ »",
+      "propriete": "chevron absent : bouton unique « Confirmer à 15:00 »",
+      "exception": "décision produit",
+      "motif": "réponse 5 du team-lead : un seul bouton de confirmation, puisque « Proposer une autre heure » est un autre chemin visible vers le choix de l’heure"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "vignettes des « Biens correspondants »",
+      "propriete": "absentes",
+      "exception": "donnée",
+      "motif": "GET /api/customers/{id}/matching-properties (le flux de la fiche client, réutilisé — réponse 1) ne rend aucune photo : MatchingProperty = id, titre, type, contrat, prix, chambres, visibilité, statut, ville, quartier"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "« référente Sokhna Sène » sous l’étape",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "la référente vient des relations du client, une autre lecture que GET /api/customers/{id} ; « N’inventez pas de flux » (réponse 1)"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "« Location · local commercial · … » (Cherche)",
+      "propriete": "« commerce » contre « local commercial »",
+      "exception": "décision produit",
+      "motif": "une seule langue dans le produit (team-lead) : le type cherché prend le libellé du reste du produit (nav.categories, mot pour mot property.types) ; aucun libellé propre à la fiche"
+    },
+    {
+      "ecran": "app-visites a-3-bureau-*",
+      "element": "bulle « Bonjour…, je suis en route » dans la barre « En cours »",
+      "propriete": "absente",
+      "exception": "vérité des données",
+      "motif": "rien n’atteste que le message est parti ; la bulle reste en jour J, où elle est un aperçu"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "bloc de l'agent : nom accessible du geste WhatsApp",
+      "propriete": "« Écrire sur WhatsApp » → « Écrire à Sokhna Sène sur WhatsApp »",
+      "exception": "accessibilité",
+      "motif": "le geste nomme l'agent qu'il joint, comme « Appeler Sokhna Sène » à côté (même libellé que la maquette) : l'outil apparie par nom et le compte absent. Les deux gestes, « Agent · Dakar Immo » et leur place sont ceux de la maquette depuis que l'API sert le contact de l'agent au seul demandeur d'une visite confirmée à venir (décision a) du team-lead, confirmée par le porteur). ⚠ Sur la base de démo, ces gestes n'apparaissent pas : seul un numéro VÉRIFIÉ est servi (règle D10, `User::numeroPrincipalPublic()`, confirmée par le team-lead le 2026-11-12), et sur 21 agents, aucun n'a un numéro vérifié (relevé du 2026-11-12). Le relevé les montre sous bouchon, avec un numéro fictif vérifié"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« · Ngor », « · Point E », « · Mermoz » après le titre (avis, en attente, passées)",
+      "propriete": "absents",
+      "exception": "vérité des données",
+      "motif": "le quartier vient de l'adresse, que l'API ne sert au visiteur qu'une fois la visite confirmée (décision du porteur du 2026-11-10, § 1.3) : seule la prochaine visite, confirmée, le porte"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« L'agence vous répond d'ordinaire en 2 h »",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "aucune mesure du délai de réponse de l'agence n'existe ; la ligne en moins rend la demande plus basse de 10 px au bureau : « Passées » et ses lignes remontent d'autant"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« Annulée par vous : « empêchement » »",
+      "propriete": "« Motif : « empêchement » »",
+      "exception": "donnée",
+      "motif": "l'auteur de l'annulation n'est pas servi par la liste ; le motif l'est (`cancellation_reason`)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "étoiles de l'avis : quatre pleines et « Très bien »",
+      "propriete": "aucune étoile pleine, libellé absent, « Envoyer mon avis » inactif",
+      "exception": "vérité des données",
+      "motif": "la maquette montre la carte APRÈS un choix ; une note posée d'office serait envoyée sans que le client l'ait donnée. Le libellé (« Très bien ») s'affiche au choix"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "étoile non choisie",
+      "propriete": "couleur (encre principale à 25 % → `text-muted-foreground`)",
+      "exception": "règle du design system",
+      "motif": "pas d'encre à alpha dans la partie connectée (`check-heritage-encre`, encre-sans-alpha)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "icônes lucide (coche de « Confirmée », chevron des demandes)",
+      "propriete": "coche 14 → 12 px (12,6 → 10,8 au bureau) ; trait 2 → 1,75 au téléphone, 1,5 au bureau",
+      "exception": "règle du design system",
+      "motif": "primitive `Badge` (`[&>svg]:size-3!`) ; trait des lucide de la partie connectée (même écart que a-0, « icônes lucide »)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "champ « Un mot pour l'agence (facultatif) »",
+      "propriete": "fond (lin → blanc), bordure (filet → `border-input`)",
+      "exception": "règle du design system",
+      "motif": "primitive `Textarea`, commune à tous les champs (`check-champs-uniformes`)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "pastilles « Confirmée », « Terminée », « Annulée » ; boutons « Envoyer mon avis », « Annuler la visite »",
+      "propriete": "bordure (0 → 1 px transparente, d'où +2 px de largeur), rayon (plein → 26 px sur 24 de haut, 23,4 au bureau), marges verticales (0 → 2 px)",
+      "exception": "règle du design system",
+      "motif": "primitives `StatusBadge` et `Button`, comme a-0 : bordure transparente d'un pixel, sans effet sur la couleur rendue ; la pastille garde sa hauteur de 24 px"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "titre « Mes visites » (bureau)",
+      "propriete": "largeur (720 → largeur du texte)",
+      "exception": "règle du design system",
+      "motif": "primitive `PageHeader` : le titre est dans une colonne `min-w-0`, la boîte suit le texte ; même position, même texte"
+    },
+    {
+      "ecran": "app-visites a-7-bureau-*",
+      "element": "pastilles « Terminée » et « Annulée »",
+      "propriete": "encre de « Terminée » (principale à 75 % → encre douce opaque) ; aplat de « Annulée » (/12 → /10)",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge` sous la portée /app : le neutre en encre douce opaque (encre-sans-alpha), le danger plafonné à /10 par `check-destructive-contrast` (4,37:1 en sombre à /12)"
+    },
+    {
+      "ecran": "app-visites a-2-*",
+      "element": "« Commencer » à 10:12 pour une visite de 10:57",
+      "propriete": "grisé, et « « Commencer » possible à partir de 10:27 » (bureau : une ligne sous la plage, 9 px de plus pour la barre du jour et tout ce qui suit ; téléphone : un paragraphe sous la carte « en route »)",
+      "exception": "reprise demandée (vérification du lot B, m1)",
+      "motif": "cliqué des heures avant la visite, « Commencer » faisait dire à la fiche « l'heure de fin prévue est passée » ; le geste ne s'offre plus qu'à partir de l'heure moins 30 min, et l'instant dessiné par la maquette (« dans 45 min ») tombe avant. Relevé du 2026-11-12 : téléphone 30 conformes · 10,4 % ; 1440 71 conformes · 9,96 % (7,66 % avant) ; 1280 71 conformes · 10,29 % (7,73 % avant). À côté du bouton, le texte renvoyait les gestes à la ligne à 1280 (65 px, 13,59 %) : il a été placé sous la plage"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "coque (barre latérale, en-tête, barre d'onglets)",
+      "ticket": "TCK-2617",
+      "motif": "TCK-2617/TCK-2618/TCK-2619 ; les relevés la gardent visible, ses écarts sont ceux de ces tickets"
+    },
+    {
+      "element": "vue « Semaine » et son contrôle « Liste · Semaine »",
+      "ticket": "TCK-2597",
+      "motif": "la vue de calendrier de la semaine est un ticket à part"
+    },
+    {
+      "element": "feuille « Planifier une visite » (a-5, a-6)",
+      "ticket": "TCK-2586",
+      "motif": "le « + » de l'en-tête l'ouvre ; sa fidélité se juge contre app-visites a-5/a-6 dans la fiche de TCK-2586"
+    },
+    {
+      "element": "détail de la visite (a-1 à a-4) et côté client (a-7)",
+      "ticket": "TCK-2587",
+      "motif": "lots B et C du même ticket, relevés à leur livraison ; cette fiche ne juge que la liste (lot A)"
+    }
+  ]
+}

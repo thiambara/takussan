@@ -50,6 +50,8 @@ export interface TeamPerformanceRow {
   readonly commissions_earned: number;
   readonly properties_managed: number;
   readonly tasks_overdue: number;
+  /** TCK-2626 — les demandes de contact que l’agent a marquées traitées (`handled_by_id`) dans le mois. */
+  readonly leads_handled?: number;
 }
 
 export interface TeamPerformance {
@@ -105,6 +107,8 @@ export interface FinanceSummary {
   readonly deposits_held: number;
   readonly payouts_awaiting_approval: CompteEtMontant & { readonly landlords_count: number };
   readonly payouts_pending: CompteEtMontant;
+  /** TCK-2720 — l'union des deux files (`pending` + `awaiting_approval`), avec les bailleurs DISTINCTS qui attendent. */
+  readonly payouts_open: CompteEtMontant & { readonly landlords_count: number };
   readonly invoices_draft: CompteEtMontant;
 }
 

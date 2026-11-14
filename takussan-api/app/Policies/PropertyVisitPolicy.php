@@ -6,6 +6,7 @@ use App\Http\Resources\PropertyVisitResource;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Model;
 
@@ -100,6 +101,48 @@ class PropertyVisitPolicy extends BasePolicy
 
         return $user->isSuperAdmin()
             || PersonnelDeLAgence::personnelActifDe($user, $model->property?->agency_id);
+    }
+
+    /**
+     * TCK-2716 (décision du porteur du 2026-11-11, option a) — « Créer sa fiche » depuis une visite :
+     * le SEUL prédicat, lu par `CustomerController::store` (`property_visit_id`) et par
+     * `PropertyVisitResource` (`abilities.create_customer`). La règle est celle de l'AGENCE DU BIEN,
+     * jamais du profil actif seul : le personnel actif de cette agence, dont la fiche naît dans cette
+     * même agence (`staffAgencyId()`), sur une visite sans fiche. Le bailleur d'un bien d'agence, le
+     * visiteur, le client, le compte à double casquette (personnel de B pour un bien de A) et le
+     * super-admin hors agence en sont exclus. Volontairement HORS de la Gate : `Gate::before` ouvrirait
+     * tout au super-admin, dont la fiche n'aurait pas d'agence.
+     *
+     * @return array{0: int, 1: string}|null le refus (statut, code), `null` quand la fiche peut naître
+     */
+    public static function refusDeLaFicheDepuisLaVisite(User $user, PropertyVisit $visit): ?array
+    {
+        $agencyId = $visit->property?->agency_id;
+        // Personnel actif de l'agence du bien, quel que soit l'espace ouvert : sinon, 403. Personnel
+        // de cette agence mais sous l'espace d'une autre, la fiche naîtrait ailleurs : 422.
+        if ($agencyId === null || ! PrimaryPropertyContact::joignable($user)
+            || ! app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId)) {
+            return [403, 'visit.staff_only'];
+        }
+        if ($user->staffAgencyId() !== (int) $agencyId) {
+            return [422, 'visit.agency_mismatch'];
+        }
+        if ($visit->customer_id !== null) {
+            return [422, 'visit.customer_already_linked'];
+        }
+
+        return null;
+    }
+
+    /**
+     * P152.04 — GÉRER la visite : confirmer, clore, déclarer manquée, déplacer ou annuler au nom de
+     * ceux qui gèrent le bien, c'est `update` ET {@see agitPourLeBien()}, comme le contrôleur.
+     * TCK-2589 — la règle d'`abilities.manage` du show de visite ET de `upcoming_visits[].manage` de
+     * la fiche client : une seule méthode, pour que les deux ne divergent pas.
+     */
+    public static function gere(User $user, PropertyVisit $visit): bool
+    {
+        return $user->can('update', $visit) && self::agitPourLeBien($user, $visit);
     }
 
     /**

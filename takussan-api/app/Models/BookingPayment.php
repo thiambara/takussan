@@ -73,6 +73,16 @@ class BookingPayment extends AbstractModel implements HasAuditAgency
         return ['customer' => $booking?->customer, 'property' => $booking?->property, 'agency' => $booking?->agency];
     }
 
+    /**
+     * TCK-2718 — le reçu de réservation n'imprime que les champs communs : rien de plus n'est figé.
+     *
+     * @return array<string, list<string>>
+     */
+    public function printedIdentityExtraFields(): array
+    {
+        return [];
+    }
+
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);

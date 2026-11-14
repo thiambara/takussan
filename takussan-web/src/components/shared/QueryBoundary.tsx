@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 
+import { natureDeLErreur } from '@/lib/nature-de-l-erreur';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -87,7 +88,11 @@ export function QueryBoundary<T>({
     // produit (TCK-246), et cette copie-ci portait son propre `role="alert"` et son propre bouton
     // de reprise. Deux implémentations d'une même chose divergent — celle-ci utilisait
     // `bg-destructive/5` quand `DestructiveBanner` tient `bg-destructive/10` + `ring`.
-    return query.refetch ? (
+    // TCK-2751 — un 403 ne se répare pas en réessayant : l'objet relève d'un autre espace, ou d'un
+    // droit absent. « Réessayer » y promettait un geste qui ne change rien. TCK-2814 — un 404 non plus :
+    // la règle se lit dans `natureDeLErreur`, l'unique point où le statut décide de la reprise.
+    const panne = natureDeLErreur(query.error) === 'panne';
+    return query.refetch && panne ? (
       <ErrorState
         className={className}
         message={message}

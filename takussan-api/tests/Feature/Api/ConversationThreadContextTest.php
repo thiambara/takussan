@@ -145,16 +145,61 @@ class ConversationThreadContextTest extends TestCase
             ->assertJsonMissingPath('data.customer');
     }
 
-    /** Sans `CustomerPolicy::view` (ni auteur, ni `crm.view_all`), le téléphone est retiré, pas la fiche. */
-    public function test_le_telephone_est_retire_sans_le_droit_de_voir_la_fiche(): void
+    /**
+     * TCK-2724, AC1 — un collègue qui ne lit pas la fiche dans le CRM (ni auteur, ni référent, ni
+     * `crm.view_all` : `GET /api/customers/{id}` → 403) garde le nom de son interlocuteur ; l'étape,
+     * le téléphone et le référent lui sont retirés ensemble.
+     */
+    public function test_sans_lecture_de_la_fiche_le_nom_seul(): void
     {
         $collegue = $this->agentWithout($this->agency, Capability::CrmViewAll);
+        Sanctum::actingAs($collegue);
+        $this->getJson("/api/customers/{$this->fiche->id}")->assertForbidden();
         $fil = $this->fil([$collegue, $this->malick]);
 
         $this->contexte($fil, $collegue)->assertOk()
             ->assertJsonPath('data.customer.id', $this->fiche->id)
+            ->assertJsonPath('data.customer.full_name', 'Malick Seck')
+            ->assertJsonPath('data.customer.stage', null)
+            ->assertJsonPath('data.customer.phone', null)
+            ->assertJsonPath('data.customer.assigned_agent', null);
+    }
+
+    /** TCK-2724, AC2 — l'admin de l'agence, qui lit la fiche : étape, téléphone et référent. */
+    public function test_l_admin_lit_l_etape_et_le_referent(): void
+    {
+        $admin = $this->agencyAdmin($this->agency);
+        $fil = $this->fil([$admin, $this->malick]);
+
+        $this->contexte($fil, $admin)->assertOk()
             ->assertJsonPath('data.customer.stage', 'qualified')
-            ->assertJsonPath('data.customer.phone', null);
+            ->assertJsonPath('data.customer.phone', '+221771234567')
+            ->assertJsonPath('data.customer.assigned_agent.id', $this->agent->id);
+    }
+
+    /**
+     * TCK-2724, AC3 — un seul prédicat : pour chaque lecteur du personnel, `stage`, `phone` et
+     * `assigned_agent` sont tous trois rendus ou tous trois nuls, et rendus exactement quand le
+     * lecteur lit la fiche dans le CRM.
+     */
+    public function test_un_seul_predicat_pour_les_trois_champs(): void
+    {
+        $lecteurs = [
+            'référent' => $this->agent,
+            'admin' => $this->agencyAdmin($this->agency),
+            'agent avec crm.view_all' => $this->agentWith($this->agency, Capability::CrmViewAll),
+            'agent sans crm.view_all' => $this->agentWithout($this->agency, Capability::CrmViewAll),
+        ];
+
+        foreach ($lecteurs as $qui => $lecteur) {
+            Sanctum::actingAs($lecteur);
+            $litLaFiche = $this->getJson("/api/customers/{$this->fiche->id}")->isOk();
+            $fiche = $this->contexte($this->fil([$lecteur, $this->malick]), $lecteur)->assertOk()->json('data.customer');
+
+            $rendus = array_map(fn (string $cle) => $fiche[$cle] !== null, ['stage', 'phone', 'assigned_agent']);
+            $this->assertSame([$litLaFiche, $litLaFiche, $litLaFiche], $rendus, $qui);
+            $this->assertSame('Malick Seck', $fiche['full_name'], $qui);
+        }
     }
 
     /**

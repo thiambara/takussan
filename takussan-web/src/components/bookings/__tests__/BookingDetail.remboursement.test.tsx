@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// TCK-2594 — la fiche lit le personnel actif (« Fiche » du client) : hors du sujet ici.
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';
 import { BookingDetail } from '../BookingDetail';
@@ -104,8 +106,10 @@ describe('BookingDetail — acompte d’une réservation fermée (TCK-596 AC5)',
     fireEvent.click(within(panneau).getByRole('button', { name: 'Rembourser' }));
 
     const dialogue = await screen.findByRole('dialog');
-    expect(within(dialogue).getByLabelText(/Montant remboursé/)).toHaveValue(15000);
-    fireEvent.click(within(dialogue).getByRole('button', { name: 'Enregistrer le remboursement' }));
+    // TCK-2594 — la feuille « Rembourser {client} » : « Montant à rembourser », prérempli de ce qui a
+    // été payé, et un geste qui dit le montant.
+    expect(within(dialogue).getByLabelText(/Montant à rembourser/)).toHaveDisplayValue(/^15[\s\u00a0\u202f]?000$/);
+    fireEvent.click(within(dialogue).getByRole('button', { name: /^Rembourser 15[\s\u00a0\u202f]000[\s\u00a0\u202f]F$/ }));
 
     await waitFor(() =>
       expect(etat.refund).toHaveBeenCalledWith(expect.objectContaining({ paymentId: 41, refund_amount: 15000 })),
@@ -147,7 +151,7 @@ describe('BookingDetail — acompte déjà reversé au bailleur (P205.02, TCK-21
     expect(within(dialogue).getByRole('alert')).toHaveTextContent(
       /déjà été reversé au bailleur.*PO-2026-07.*reprise sur son prochain reversement/,
     );
-    fireEvent.click(within(dialogue).getByRole('button', { name: 'Enregistrer le remboursement' }));
+    fireEvent.click(within(dialogue).getByRole('button', { name: /^Rembourser 15[\s\u00a0\u202f]000[\s\u00a0\u202f]F$/ }));
     await waitFor(() => expect(etat.refund).toHaveBeenCalledWith(expect.objectContaining({ paymentId: 41 })));
   });
 

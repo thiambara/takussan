@@ -12,15 +12,24 @@
  * re-vérifie via {@see App\Policies\Profiles\ServiceProviderProfilePolicy}.
  */
 
-import { useState } from 'react';
+import { Fragment, useState, type ComponentProps } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Mail, Ban } from 'lucide-react';
+import { Ban, Mail, Phone, Plus, Star, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { PageHeader } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { StatusBadge } from '@/components/console/StatusBadge';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
+import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
+import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
@@ -44,15 +53,8 @@ type Props = {
   readonly initialData: PaginatedResponse<ServiceProviderProfileSummary>;
 };
 
-const STATUS_VARIANT: Record<
-  ServiceProviderProfileStatus,
-  'default' | 'secondary' | 'outline' | 'destructive'
-> = {
-  draft: 'secondary',
-  active: 'default',
-  inactive: 'outline',
-  suspended: 'destructive',
-};
+/** Le carnet se lit d'un bloc (la démo en compte six) : les comptes et les métiers des filtres en viennent. */
+export const PAR_PAGE = 100;
 
 export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props) {
   const tErr = useTranslations('errors');
@@ -68,17 +70,34 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const garde = useGardeDoubleFacteur();
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const tCarnet = useTranslations('serviceProviders.carnet');
+  const f = useFormatteurs();
+  const [metier, setMetier] = useState<string | null>(null);
+  const [statut, setStatut] = useState<ServiceProviderProfileStatus | null>(null);
+
+  // Le carnet entier (les comptes du sous-titre, les métiers des filtres) ; puis, sous un filtre, la
+  // lecture filtrée PAR LE SERVEUR (`filter[specialty]`, `filter[status]`), jamais sur la liste reçue.
   const providersQuery = useQuery({
     queryKey: ['service-providers', agencyId],
     queryFn: () => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      return fetchServiceProviders(token, { agencyId });
+      return fetchServiceProviders(token, { agencyId, perPage: PAR_PAGE });
     },
     initialData,
     enabled: !!token,
   });
+  const filtre = metier !== null || statut !== null;
+  const filtreeQuery = useQuery({
+    queryKey: ['service-providers', agencyId, 'filtre', metier, statut],
+    queryFn: () => {
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
+      return fetchServiceProviders(token, { agencyId, perPage: PAR_PAGE, specialty: metier ?? undefined, status: statut ?? undefined });
+    },
+    enabled: !!token && filtre,
+  });
 
-  const providers = providersQuery.data?.data ?? [];
+  const tous = providersQuery.data?.data ?? [];
+  const providers = filtre ? (filtreeQuery.data?.data ?? []) : tous;
 
   const resendMutation = useMutation<unknown, ApiError, ServiceProviderProfileSummary>({
     mutationFn: async (sp) => {
@@ -121,115 +140,248 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     },
   });
 
+  /** Une liste lue « a, b, c », chaque nom dans son élément (un libellé se retrouve tel quel). */
+  const enListe = (noms: readonly string[]) =>
+    noms.map((n, i) => (
+      <Fragment key={n}>
+        {i > 0 ? ', ' : null}
+        <span>{n}</span>
+      </Fragment>
+    ));
+  const libelleDuStatut = (st: ServiceProviderProfileStatus) => (st === 'draft' ? tCarnet('invitationEnvoyee') : tList(`status.${st}`));
+  const nomsDesMetiers = (sp: ServiceProviderProfileSummary) => metiersDe(sp).map((trade) => translateTrade(tCategories, trade));
+
   /**
-   * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (nom · métiers · zones · statut · actions), éprouvé par test, plus le téléphone saisi à
-   * l'invitation (P234.04), ajout délibéré après le nom.
+   * TCK-2653 (maquette « Agence — carnet des prestataires ») — Prestataire (nom, métiers, « Assuré »)
+   * · Zones · Téléphone · Note · Interventions · Statut · gestes. Le téléphone est celui que l'API
+   * sert (compte, sinon invitation — TCK-2652), et à défaut celui de l'invitation (P234.04).
    */
   const colonnes: readonly DataTableColumn<ServiceProviderProfileSummary>[] = [
     {
       id: 'name',
-      header: tList('columns.name'),
-      className: 'font-semibold text-foreground',
+      header: tCarnet('colonnes.prestataire'),
+      className: 'align-middle',
       cell: (sp) => (
-        <span className="inline-flex flex-wrap items-center gap-2">
-          {nomDe(sp) || '—'}
-          {/* TCK-1325 (P117.06) — dérivé de la pièce d'assurance vivante, côté API. */}
-          {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
+        <span className="flex items-center gap-3">
+          <Avatar size="40" className="max-lg:hidden">
+            <AvatarFallback>{initiales(nomDe(sp))}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 leading-tight">
+            <span className="inline-flex flex-wrap items-center gap-2 font-semibold text-foreground">
+              {nomDe(sp) || '—'}
+              {/* TCK-1325 (P117.06) — dérivé de la pièce d'assurance vivante, côté API. */}
+              {sp.insured ? <Badge variant="outline">{tList('insured')}</Badge> : null}
+            </span>
+            {/* TCK-1319 (P117.01) — la colonne fait foi ; la copie de l'invitation ne sert qu'au brouillon. */}
+            {nomsDesMetiers(sp).length > 0 ? <span className="mt-0.5 block text-xs text-muted-foreground">{enListe(nomsDesMetiers(sp))}</span> : null}
+          </span>
         </span>
       ),
     },
     {
-      // P234.04 (TCK-2280) — le numéro saisi par l'agence à l'invitation (`metadata.phone`),
-      // jamais posé sur le compte. Ajout délibéré, après le nom.
-      id: 'phone',
-      header: tList('columns.phone'),
-      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
-      cell: (sp) => (sp.metadata?.phone ? formaterTelephone(sp.metadata.phone) : '—'),
-    },
-    {
-      id: 'trades',
-      header: tList('columns.trades'),
-      className: 'text-muted-foreground',
-      cell: (sp) => {
-        // TCK-1319 (P117.01) — la colonne fait foi ; la copie de l'invitation en `metadata` ne sert
-        // qu'au brouillon. Un actif qui a vidé ses métiers (colonne `null`) ne la reprend pas.
-        const trades = sp.specialties ?? (sp.status === 'draft' ? sp.metadata?.trades : null) ?? [];
-        return trades.length === 0 ? (
-          '—'
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {trades.map((trade) => (
-              <span key={trade} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                {translateTrade(tCategories, trade)}
-              </span>
-            ))}
-          </div>
-        );
-      },
-    },
-    {
       id: 'zones',
       header: tList('columns.zones'),
-      className: 'text-muted-foreground',
-      cell: (sp) => {
-        const zones = sp.service_areas ?? (sp.status === 'draft' ? sp.metadata?.intervention_zones : null) ?? [];
-        return zones.length === 0 ? '—' : zones.join(', ');
-      },
+      className: 'align-middle text-muted-foreground',
+      cell: (sp) => (zonesDe(sp).length === 0 ? '—' : zonesDe(sp).join(', ')),
+    },
+    {
+      id: 'phone',
+      header: tList('columns.phone'),
+      className: 'align-middle whitespace-nowrap tabular-nums',
+      cell: (sp) => (telephoneDe(sp) ? formaterTelephone(telephoneDe(sp) as string) : '—'),
+    },
+    {
+      id: 'note',
+      header: tCarnet('colonnes.note'),
+      className: 'align-middle',
+      cell: (sp) => noteDe(sp),
+    },
+    {
+      id: 'interventions',
+      header: tCarnet('colonnes.interventions'),
+      align: 'end',
+      className: 'align-middle tabular-nums',
+      cell: (sp) => f.nombre(sp.completed_interventions_count ?? 0),
     },
     {
       id: 'status',
       header: tList('columns.status'),
-      cell: (sp) => (
-        <Badge variant={STATUS_VARIANT[sp.status]}>{tList(`status.${sp.status}`)}</Badge>
-      ),
+      className: 'align-middle',
+      cell: (sp) => statutDe(sp),
     },
     {
       id: 'actions',
       header: tList('columns.actions'),
+      headerSrOnly: true,
       align: 'end',
-      cell: (sp) =>
-        sp.status === 'draft' ? (
-          <div className="inline-flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={resendMutation.isPending}
-              onClick={() => resendMutation.mutate(sp)}
-            >
-              <Mail className="size-3.5" aria-hidden="true" />
-              {tList('actions.resend')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={revokeMutation.isPending}
-              onClick={() => revokeMutation.mutate(sp)}
-            >
-              <Ban className="size-3.5" aria-hidden="true" />
-              {tList('actions.revoke')}
-            </Button>
-          </div>
-        ) : null,
+      className: 'align-middle',
+      cell: (sp) => gestes(sp),
     },
   ];
 
+  /** Les gestes d'une ligne : relancer ou révoquer l'invitation d'un brouillon ; sinon appeler et WhatsApp. */
+  const gestes = (sp: ServiceProviderProfileSummary) => {
+    if (sp.status === 'draft') {
+      return (
+        <span className="inline-flex flex-wrap justify-end gap-2">
+          <Button size="sm" variant="outline" disabled={resendMutation.isPending} onClick={() => resendMutation.mutate(sp)}>
+            <Mail className="size-3.5" aria-hidden="true" />
+            {tList('actions.resend')}
+          </Button>
+          <Button size="sm" variant="destructive" disabled={revokeMutation.isPending} onClick={() => revokeMutation.mutate(sp)}>
+            <Ban className="size-3.5" aria-hidden="true" />
+            {tList('actions.revoke')}
+          </Button>
+        </span>
+      );
+    }
+    const telephone = telephoneDe(sp);
+    if (!isReachable(telephone)) return null;
+    const nom = nomDe(sp);
+    const rond = cn(buttonVariants({ variant: 'outline', size: 'icon' }), 'size-11 rounded-full');
+    return (
+      <span className="inline-flex gap-2">
+        <a href={telHref(telephone)} aria-label={tCarnet('appeler', { nom })} className={rond}>
+          <Phone className="size-5" strokeWidth={1.75} aria-hidden="true" />
+        </a>
+        <a href={whatsappHref(telephone, tCarnet('messageWhatsApp', { nom }))} target="_blank" rel="noopener noreferrer" aria-label={tCarnet('whatsapp', { nom })} className={cn(rond, 'text-accent')}>
+          <IconeWhatsApp className="size-5 lg:size-5" />
+        </a>
+      </span>
+    );
+  }
+
+  const statutDe = (sp: ServiceProviderProfileSummary) => {
+    return (
+      <span className="flex flex-col items-start gap-1">
+        <StatusBadge label={libelleDuStatut(sp.status)} tone={TON_DU_STATUT[sp.status]} />
+        {sp.status === 'draft' && sp.created_at ? <span className="text-xs text-muted-foreground">{tCarnet('inviteLe', { date: f.jourMois(sp.created_at) })}</span> : null}
+      </span>
+    );
+  }
+
+  const noteDe = (sp: ServiceProviderProfileSummary) => {
+    const note = sp.average_rating === null || sp.average_rating === undefined ? null : Number(sp.average_rating);
+    return note !== null && Number.isFinite(note) ? (
+      <span className="inline-flex items-center gap-1 font-semibold tabular-nums">
+        <Star className="size-3.5 fill-current text-primary" aria-hidden="true" />
+        {f.nombre(note, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+      </span>
+    ) : (
+      <span className="text-muted-foreground">{tCarnet('pasEncoreNote')}</span>
+    );
+  }
+
+  /** Au téléphone, une carte par prestataire (maquette) : la ligne entière, gestes compris. */
+  const carte = (sp: ServiceProviderProfileSummary) => {
+    const telephone = telephoneDe(sp);
+    const detail = [nomsDesMetiers(sp).join(', '), zonesDe(sp).join(', ')].filter(Boolean).join(' · ');
+    return (
+      <article data-slot="carte-prestataire">
+        <div className="flex items-start gap-3">
+          <Avatar size="48">
+            <AvatarFallback>{initiales(nomDe(sp))}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 text-lg leading-tight font-semibold">{nomDe(sp) || '—'}</p>
+              {statutDe(sp)}
+            </div>
+            {detail ? <p className="mt-1 text-sm text-muted-foreground">{detail}</p> : null}
+            {sp.insured ? <Badge variant="outline" className="mt-1">{tList('insured')}</Badge> : null}
+          </div>
+        </div>
+        <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+          {noteDe(sp)}
+          <span>· {tCarnet('interventions', { count: sp.completed_interventions_count ?? 0 })}</span>
+        </p>
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+          <span className="min-w-0 text-base tabular-nums">{telephone ? formaterTelephone(telephone) : tCarnet('sansTelephone')}</span>
+          {gestes(sp)}
+        </div>
+      </article>
+    );
+  };
+
+  const metiersPresents = [...new Set(tous.flatMap(metiersDe))];
+  const compte = (statut: ServiceProviderProfileStatus) => tous.filter((sp) => sp.status === statut).length;
+  const sousTitre = [tCarnet('actifs', { count: compte('active') }), compte('draft') > 0 ? tCarnet('invitations', { count: compte('draft') }) : null].filter(Boolean).join(' · ');
+
   return (
     <div className="space-y-6">
+      {canInvite ? (
+        <DeclarerEnTete action={<ActionDEnTete libelle={tCarnet('inviter')} icone={<Plus />} onClick={() => setSheetOpen(true)} primaire />} />
+      ) : null}
       <PageHeader
-        title={t('page.title')}
-        description={t('page.subtitle')}
+        title={tCarnet('titre')}
+        description={providersQuery.isSuccess || initialData ? sousTitre : t('page.subtitle')}
         actions={
           canInvite ? (
-            <Button onClick={() => setSheetOpen(true)} size="lg">
-              <Plus className="size-4" aria-hidden="true" />
-              {t('page.add')}
+            <Button onClick={() => setSheetOpen(true)} size="lg" className="max-md:hidden">
+              <UserPlus className="size-4" aria-hidden="true" />
+              {tCarnet('inviter')}
             </Button>
           ) : null
         }
       />
 
-      {providers.length === 0 ? (
+      {tous.length > 0 ? (
+        <div data-slot="filtres-du-carnet" className="space-y-3">
+          {/* Téléphone : les métiers en pastilles ; bureau : métier et statut en listes. Filtres du serveur. */}
+          <div role="group" aria-label={tCarnet('filtres.metier')} className="-mx-4 flex gap-2 overflow-x-auto px-4 md:hidden">
+            {[null, ...metiersPresents].map((m) => (
+              <button
+                key={m ?? 'tous'}
+                type="button"
+                aria-pressed={metier === m}
+                onClick={() => setMetier(m)}
+                className={cn('inline-flex h-11 flex-none items-center gap-1.5 rounded-full border px-4 text-base font-medium whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring', metier === m ? 'border-foreground bg-foreground text-background' : 'border-border bg-card')}
+              >
+                {m === null ? tCarnet('filtres.tous') : translateTrade(tCategories, m)}
+                {m === null ? <span className="opacity-70 tabular-nums">{tous.length}</span> : null}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 max-md:hidden">
+            <Select
+              value={metier ?? TOUS}
+              onValueChange={(v) => setMetier(v === TOUS || !v ? null : String(v))}
+              items={[{ value: TOUS, label: tCarnet('filtres.tousLesMetiers') }, ...metiersPresents.map((m) => ({ value: m, label: translateTrade(tCategories, m) }))]}
+            >
+              <SelectTrigger aria-label={tCarnet('filtres.metier')} className="w-auto min-w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TOUS}>{tCarnet('filtres.tousLesMetiers')}</SelectItem>
+                {metiersPresents.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {translateTrade(tCategories, m)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={statut ?? TOUS}
+              onValueChange={(v) => setStatut(v === TOUS || !v ? null : (v as ServiceProviderProfileStatus))}
+              items={[{ value: TOUS, label: tCarnet('filtres.tousLesStatuts') }, ...STATUTS.map((st) => ({ value: st, label: libelleDuStatut(st) }))]}
+            >
+              <SelectTrigger aria-label={tCarnet('filtres.statut')} className="w-auto min-w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TOUS}>{tCarnet('filtres.tousLesStatuts')}</SelectItem>
+                {STATUTS.map((st) => (
+                  <SelectItem key={st} value={st}>
+                    {libelleDuStatut(st)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      ) : null}
+
+      {tous.length === 0 ? (
         <div className="rounded-xl border border-dashed border-muted bg-card p-10 text-center">
           <h2 className="text-base font-semibold text-foreground">
             {tList('empty_title')}
@@ -246,10 +398,12 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
         </div>
       ) : (
         <DataTable
-          caption={t('page.title')}
+          caption={tCarnet('titre')}
           columns={colonnes}
           rows={providers}
           rowKey={(sp) => sp.id}
+          carteMobile={carte}
+          emptyState={<p className="p-6 text-center text-sm text-muted-foreground">{tCarnet('aucunPourCeFiltre')}</p>}
         />
       )}
 
@@ -262,6 +416,41 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       ) : null}
     </div>
   );
+}
+
+/** La valeur « tous » des listes de filtre (base-ui n'a pas d'option vide). */
+const TOUS = '__tous__';
+
+const STATUTS: readonly ServiceProviderProfileStatus[] = ['active', 'draft', 'inactive', 'suspended'];
+
+const TON_DU_STATUT: Record<ServiceProviderProfileStatus, NonNullable<ComponentProps<typeof StatusBadge>['tone']>> = {
+  draft: 'attention',
+  active: 'success',
+  inactive: 'neutral',
+  suspended: 'danger',
+};
+
+/** Le téléphone joignable : celui que l'API sert (TCK-2652), sinon celui de l'invitation (P234.04). */
+function telephoneDe(sp: ServiceProviderProfileSummary): string | null {
+  return sp.phone || sp.metadata?.phone || null;
+}
+
+function metiersDe(sp: ServiceProviderProfileSummary): readonly string[] {
+  return sp.specialties ?? (sp.status === 'draft' ? sp.metadata?.trades : null) ?? [];
+}
+
+function zonesDe(sp: ServiceProviderProfileSummary): readonly string[] {
+  return sp.service_areas ?? (sp.status === 'draft' ? sp.metadata?.intervention_zones : null) ?? [];
+}
+
+function initiales(nom: string): string {
+  return nom
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((m) => m[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 /** Le nom composé, seule logique propre à l'ancienne `ProviderRow` qui survivait à la conversion. */

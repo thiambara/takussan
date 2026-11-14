@@ -89,3 +89,53 @@ export function slugAAfficher(profile: Profile): string | null {
   if (profile.agency?.kind === 'individual') return null;
   return profile.agency?.slug ?? null;
 }
+
+/**
+ * TCK-2621 — le témoin « Continuer en tant que client » : un cookie de SESSION (sans durée), écrit par
+ * le navigateur, lu par le layout de `/app`. Sa valeur est l'identifiant du compte : un autre compte
+ * ouvert dans le même navigateur se voit poser la question. Il ne survit pas à la fermeture du
+ * navigateur — la question revient à la session suivante, comme le veut le ticket.
+ */
+export const COOKIE_CHOIX_CLIENT = 'espace_client';
+
+/** Le nombre d'agences DISTINCTES des profils (l'API ne rend que les profils actifs). */
+export function nombreDAgences(profiles: readonly Profile[]): number {
+  return new Set(profiles.flatMap((p) => (p.agency_id === null ? [] : [p.agency_id]))).size;
+}
+
+/**
+ * TCK-2621 — l'écran « Choisir un espace » se montre-t-il ? Seulement à un compte dont les profils
+ * actifs couvrent au moins DEUX agences, et que l'API n'a lié à aucun (ni cookie, ni indice, ni dernier
+ * espace retenu : avec une seule agence, l'API auto-bascule et `profilLie` n'est pas nul). Jamais
+ * pendant une impersonation, ni après « Continuer en tant que client » dans la même session.
+ */
+export function doitChoisirUnEspace({
+  profilLie,
+  enImpersonation,
+  choixClient,
+  userId,
+  profils,
+}: {
+  readonly profilLie: string | null | undefined;
+  readonly enImpersonation: boolean;
+  readonly choixClient: string | null | undefined;
+  readonly userId: number;
+  readonly profils: readonly Profile[];
+}): boolean {
+  if (profilLie) return false;
+  if (enImpersonation) return false;
+  if (choixClient === String(userId)) return false;
+  return nombreDAgences(profils) >= 2;
+}
+
+/** Le sigle d'une agence : les initiales de ses deux premiers mots (« Thiès Properties » → « TP »). */
+export function sigleDAgence(nom: string): string {
+  const mots = nom.split(/[\s'’-]+/u).filter((m) => /\p{L}|\p{N}/u.test(m));
+  const initiales = mots.slice(0, 2).map((m) => (m.match(/[\p{L}\p{N}]/u)?.[0] ?? ''));
+  return initiales.join('').toLocaleUpperCase('fr') || '·';
+}
+
+/** « Agent · Dakar », ou « Agent » seul quand l'agence n'a pas de ville : jamais un séparateur pendant. */
+export function sousLigneDEspace(role: string, ville: string | null | undefined): string {
+  return [role, ville?.trim() || null].filter(Boolean).join(' · ');
+}

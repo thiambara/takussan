@@ -89,9 +89,17 @@ const PAIRES: ReadonlyArray<{ nom: string; front: () => number; api: () => numbe
   },
   ...(['Owner', 'Agent', 'ServiceProvider'] as const).map((profil) => ({
     nom: `pièce KYC du profil ${profil} (octets)`,
-    front: () => constanteFront(`${WEB}/components/kyc/KycUploader.tsx`, 'MAX_BYTES'),
+    // TCK-2796 — « Vos pièces » envoie les pièces des trois profils (le téléverseur des assistants, et son `MAX_BYTES`,
+    // sont retirés).
+    front: () => constanteFront(`${WEB}/components/pieces/VosPieces.tsx`, 'TAILLE_MAX'),
     api: () => kycDeLaRegle(`${API}/Http/Requests/Api/Me/UploadKyc${profil}ProfileRequest.php`, 'file') * KO,
   })),
+  // TCK-2671 — la pièce du dossier de vérification de l'agence (RCCM, NINEA, dirigeant), refusée au choix.
+  {
+    nom: "pièce de la vérification de l'agence (octets)",
+    front: () => constanteFront(`${WEB}/components/kyc/VerificationDeLAgence.tsx`, 'PIECE_MAX_OCTETS'),
+    api: () => kycDeLaRegle(`${API}/Http/Requests/Kyc/UploadKycDocumentRequest.php`, 'document') * KO,
+  },
   {
     nom: "statuts d'une demande de surclassement (octets)",
     front: () => constanteFront(`${WEB}/components/agency/UpgradeRequestForm.tsx`, 'MAX_FILE_BYTES'),

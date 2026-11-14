@@ -1,0 +1,217 @@
+{
+  "ticket": "TCK-2653",
+  "ecrans": [
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Agence — files",
+      "references": {
+        "telephone": "references/app-interventions/a-0-telephone.json",
+        "bureau-1440": "references/app-interventions/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance",
+        "persona": "admin",
+        "etat": "les demandes de démo de l'agence Dakar Immo, sans filtre, vue « Files » ; aucun bouchon : comptes de `GET …/summary`, cartes de `filter[file]`"
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Fiche — à dispatcher",
+      "references": {
+        "telephone": "references/app-interventions/a-1-telephone.json",
+        "bureau-1440": "references/app-interventions/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance/10",
+        "persona": "admin",
+        "etat": "la demande #10 de la démo (Plomberie, Élevée, à dispatcher, une suggestion : Cheikh Gueye) ; « Choisir » touché sur la suggestion et « Demain 9 h – 11 h » choisi, sans envoyer (perturbateur choix.js, garde.js : aucune écriture)"
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Fiche — « Autre action »",
+      "references": {
+        "telephone": "references/app-interventions/a-2-telephone.json",
+        "bureau-1440": "references/app-interventions/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance/10",
+        "persona": "admin",
+        "etat": "même demande ; « Autre action » ouvert (menu au bureau, « ⋯ » de l'en-tête au téléphone ; perturbateur autre.js)"
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Agence — carnet des prestataires",
+      "references": {
+        "telephone": "references/app-interventions/a-8-telephone.json",
+        "bureau-1440": "references/app-interventions/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance/providers",
+        "persona": "admin",
+        "etat": "le carnet de démo de Dakar Immo (six prestataires actifs, aucune invitation en cours, aucun avis), sans filtre"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/maintenance",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Bien, locataire, prestataire…": "Titre ou description…",
+    "Terminées et closes": "Terminées et closes",
+    "La demande du locataire": "La demande",
+    "Ousmane Niang · locataire": "Sokhna Sene · demandeur",
+    "Choisie": "Choisi",
+    "Dire au locataire que vous vous en occupez, sans choisir encore": "Dire au demandeur que vous vous en occupez, sans choisir encore",
+    "Le locataire est prévenu, avec votre motif": "La demande est close sans intervention",
+    "Deux plombiers du carnet couvrent Sacré-Cœur.": "Un prestataire du carnet fait ce métier : Plomberie."
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-1 / a-2 (trois appareils)",
+      "element": "photos, « Ajouter une photo », « Message vocal · 0:18 »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "la demande #10 de la démo n'a ni photo ni message vocal ; la galerie (MaintenanceGallery) s'affiche sous la frise quand la demande en a"
+    },
+    {
+      "ecran": "a-1 / a-2 (trois appareils)",
+      "element": "numéro du demandeur, « Appeler » et « WhatsApp » du locataire",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "l'API ne sert pas le téléphone du demandeur sur la demande (`requester` : id, name, email, username) ; le servir est une décision d'API (TCK-2637 : le numéro d'un locataire va aux seuls lecteurs du bail), hors de ce ticket"
+    },
+    {
+      "ecran": "a-1 / a-2 (bureau)",
+      "element": "« Journal »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "décision n° 3 : aucune source d'historique de la demande n'est servie par l'API"
+    },
+    {
+      "ecran": "a-1 / a-2 (bureau)",
+      "element": "« Statut · Assigné à · Prévu le · Coût réel » et la frise",
+      "propriete": "présence (absents de la maquette)",
+      "exception": "donnée",
+      "motif": "le ticket : rien ne se perd de l'ancienne fiche (MaintenanceDetail) ; la frise a son lot (lot 3, frise alignée sur les files)"
+    },
+    {
+      "ecran": "a-1 (trois appareils)",
+      "element": "« Urgente », note étoilée, « 12 interventions », deuxième suggestion",
+      "propriete": "valeur, présence",
+      "exception": "donnée",
+      "motif": "#10 est « Élevée » ; une seule suggestion dans la démo (Cheikh Gueye), sans avis ni intervention terminée : « Pas encore noté · 0 intervention »"
+    },
+    {
+      "ecran": "a-1 (téléphone)",
+      "element": "« Créneau proposé » et ses puces, « Voir tout le carnet », « Inviter un prestataire »",
+      "propriete": "présence (absents de la maquette)",
+      "exception": "donnée",
+      "motif": "la maquette les a sous la ligne de flottaison (photos et vocal la rallongent) ; sans photo, ils remontent dans l'écran"
+    },
+    {
+      "ecran": "a-2 (bureau)",
+      "element": "« Marquer en cours »",
+      "propriete": "présence (absent de la maquette)",
+      "exception": "donnée",
+      "motif": "AC3 : « Autre action » liste `abilities.transitions` ; le serveur permet `in_progress` sur #10"
+    },
+    {
+      "ecran": "a-2 (bureau, téléphone)",
+      "element": "« Annuler la demande » : « Le locataire est prévenu, avec votre motif »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "décision n° 6 : `PUT …/status` n'accepte pas de motif ; l'annulation se confirme sans motif"
+    },
+    {
+      "ecran": "a-2 (téléphone)",
+      "element": "titre de la feuille « Autre action »",
+      "propriete": "texte",
+      "exception": "coque",
+      "motif": "la feuille de « ⋯ » est celle de la coque (EnTeteMobile), titrée par le titre déclaré de la page (« Intervention »)"
+    },
+    {
+      "ecran": "a-1 / a-2 (trois appareils)",
+      "element": "« Ouverte depuis 2 h », titre, bien, demandeur",
+      "propriete": "valeur",
+      "exception": "donnée",
+      "motif": "demande de la démo (#10, ouverte depuis 42 j) au lieu de la demande dessinée"
+    },
+    {
+      "ecran": "a-8 (trois appareils)",
+      "element": "recherche « Nom, métier, quartier »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "`filter[search]` du carnet ne cherche que `insurance_policy_id` (`ServiceProviderProfile::$requestSearchFields`) : une recherche par nom demande l'API, et filtrer la liste reçue est proscrit (sparse fieldsets, filtres serveur). Signalé"
+    },
+    {
+      "ecran": "a-8 (bureau)",
+      "element": "« Toutes les zones »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "`filter[zone]` existe mais aucune liste de zones n'est servie ; les zones sont libres, saisies à l'invitation"
+    },
+    {
+      "ecran": "a-8 (trois appareils)",
+      "element": "« Délai de réponse », « Répond en … », « 1 créneau dépassé »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "non servis par l'API (TCK-2652 ne les calcule pas)"
+    },
+    {
+      "ecran": "a-8 (bureau)",
+      "element": "« ⋯ » de chaque ligne",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucun geste de plus à y porter : appel et WhatsApp sont sur la ligne, relance et révocation pour une invitation"
+    },
+    {
+      "ecran": "a-8 (trois appareils)",
+      "element": "notes ★, métiers et zones, « Invitation envoyée », Renvoyer / Révoquer",
+      "propriete": "valeur, présence",
+      "exception": "donnée",
+      "motif": "la démo n'a ni avis approuvé, ni invitation en cours, et ses prestataires n'ont ni métier (sauf un) ni zone ; ces états sont éprouvés par `ServiceProvidersList.carnet.tck-2653.test.tsx`"
+    },
+    {
+      "ecran": "a-8 (téléphone)",
+      "element": "pastilles de métier comptées (« Plomberie 2 »)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "seule « Tous » porte un compte (le carnet entier) ; un compte par métier demanderait un comptage côté client ou un appel par métier"
+    },
+    {
+      "ecran": "a-8 (téléphone)",
+      "element": "flèche de retour",
+      "propriete": "présence",
+      "exception": "coque",
+      "motif": "le carnet est une entrée racine du menu : l'en-tête de la coque est celui d'une racine (titre, « + », recherche, cloche)"
+    }
+  ]
+}

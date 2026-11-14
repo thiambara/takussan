@@ -17,35 +17,68 @@ import { describe, expect, it } from 'vitest';
  * formulaire, pas une page quittée) et `hors-app` (le site public, l'authentification, l'onboarding et
  * `/super-admin`, hors du périmètre de la coque — leurs retours suivent leurs propres tickets).
  */
-type Categorie = 'flèche unique' | 'periode' | 'pagination' | 'carrousel' | 'calendrier' | 'etape' | 'registre' | 'hors-app';
+type Categorie = 'flèche unique' | 'periode' | 'pagination' | 'carrousel' | 'calendrier' | 'etape' | 'repli' | 'registre' | 'hors-app';
 
 const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/navigation-publique/FlecheDeRetour.tsx': 'flèche unique',
   'src/components/shared/BoutonRetour.tsx': 'flèche unique',
   // Le registre d'icônes réexporte lucide sans rien rendre.
   'src/components/icons.tsx': 'registre',
-  'src/components/calendar/CalendarPage.tsx': 'periode',
+  // TCK-2597 — « Précédent » de la barre de période de l'agenda : une période plus tôt, pas un retour.
+  'src/components/agenda/pieces.tsx': 'periode',
+  // TCK-2641 — le sélecteur de mois du relevé du bailleur : « mois précédent », pas un retour.
+  'src/components/owners/fiche/FicheDuBailleur.tsx': 'periode',
+  // TCK-2651 — mois précédent / suivant d'un sélecteur de période, pas un retour ; même cas que FicheDuBailleur (TCK-2641).
+  'src/components/payments/bailleur/SelecteurDuReleve.tsx': 'periode',
+  // TCK-2596 — « Jour précédent » de « Ma journée » (bureau) : un jour plus tôt, pas un retour.
+  'src/components/journee/pieces.tsx': 'periode',
   'src/components/ui/calendar.tsx': 'calendrier',
   'src/components/bookings/CalendrierDesNuits.tsx': 'calendrier',
   'src/components/console/Pagination.tsx': 'pagination',
   'src/components/inventory/InventoryList.tsx': 'pagination',
   'src/components/maintenance/MaintenanceList.tsx': 'pagination',
   'src/components/maintenance/MaintenanceHistoryByProperty.tsx': 'pagination',
+  // TCK-2660 — le pied de la table des impayés (bureau) : « page précédente », pas un retour.
+  'src/components/admin/finances/impayes/TableDesImpayes.tsx': 'pagination',
+  // TCK-2662 — le pied paginé des lignes de commission : « page précédente », pas un retour.
+  'src/components/commissions/listes.tsx': 'pagination',
+  // TCK-2664 — le pied paginé des mises en avant et de l'historique des crédits : « page précédente ».
+  'src/components/credits/sections.tsx': 'pagination',
   // TCK-2659 — le pied du registre des encaissements (bureau) : « page précédente », pas un retour. Le
   // retour de l'écran de détail du téléphone est celui de la coque (`DeclarerEnTete forme="detail"`).
   'src/components/admin/finances/argent/EncaissementsAgence.tsx': 'pagination',
   'src/components/public/index/ProfilePagination.tsx': 'pagination',
-  'src/components/favorites/PublicFavoritesPage.tsx': 'pagination',
+  // TCK-2618 — la pagination des favoris a suivi le contenu de la page, sorti de `PublicFavoritesPage`.
+  'src/components/favorites/SuiviDesFavoris.tsx': 'pagination',
   'src/components/property/cards/PropertyRow.tsx': 'carrousel',
+  // TCK-2673 — le carrousel des photos du bien à valider : « photo précédente », pas un retour.
+  'src/components/admin/PropertyModerationDetail.tsx': 'carrousel',
   'src/components/public/profile/TeamStrip.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyLightbox.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyMobileGallery.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertySimilar.tsx': 'carrousel',
   'src/components/wizard/WizardReprenable.tsx': 'etape',
+  // TCK-2601 — « Revenir à l'annonce » du panneau de compte (bureau) : referme le panneau sur l'étape
+  // de l'assistant qu'il remplace, dans la même page — un pas dans le formulaire, pas une page quittée.
+  'src/components/publication/CadreDeLaFeuille.tsx': 'etape',
+  // TCK-2611 — l'écran du code de l'invitation : la flèche de sa barre (téléphone) et « Retour »
+  // (bureau) ramènent à l'étape du numéro, dans la même page — un pas dans l'entrée, pas une
+  // page quittée (la page entière est hors de /app).
+  'src/app/invitations/accept/EntreeDInvitation.tsx': 'etape',
+  // TCK-2608 — « ← Retour » de l'orientation (bureau) : l'écran des trois portes, un état de la page.
+  'src/components/onboarding/orientation/BarreDOrientation.tsx': 'etape',
+  // TCK-2592 — le chevron qui replie la colonne Gagné / Perdu du kanban en bandeau : un repli, pas un retour.
+  'src/components/pipeline/etapes/ColonneDuPipeline.tsx': 'repli',
   'src/components/bookings/BookingTunnel.tsx': 'hors-app',
+  // TCK-2598 — la pastille « ← Retour au site » de la barre de bureau des écrans d'entrée ; au
+  // téléphone, la flèche unique (`LienFlecheDeRetour`). `OnboardingShell` est sorti de la liste : la
+  // coque d'entrée (`entree/CoqueDEntree.tsx`) n'a plus de flèche propre.
   'src/components/auth/RetourAuth.tsx': 'hors-app',
+  // TCK-2606 — la pastille « ← Retour à la connexion » de l'oubli au bureau (vers `/auth/login`, pas
+  // vers le site : ni `RetourAuth` ni `BoutonRetour`, dont l'historique ramènerait ailleurs) ; au
+  // téléphone, la flèche unique (`BoutonFlecheDeRetour`).
+  'src/components/auth/RetourDEntree.tsx': 'hors-app',
   'src/components/home/Navbar.tsx': 'hors-app',
-  'src/components/onboarding/OnboardingShell.tsx': 'hors-app',
   'src/components/layout/SuperAdminSidebar.tsx': 'hors-app',
   'src/app/(super-admin)/super-admin/agency-upgrade-requests/[id]/page.tsx': 'hors-app',
   'src/components/admin/super/agency-detail.tsx': 'hors-app',

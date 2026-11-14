@@ -20,6 +20,7 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\BankStatement;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\MaintenanceStatus;
@@ -39,6 +40,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Booking\PropertyCalendarSyncService;
+use App\Services\Documents\DocumentExpiryReminder;
 use App\Services\Kyc\KycExpiryService;
 use App\Services\Lease\RentReviewService;
 use App\Services\Model\BookingService;
@@ -99,6 +101,8 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::AgencyMemberDeletionRequested,
         // TCK-2642 — l'avis de révision au bailleur.
         NotificationCode::LeaseRentReviewedLandlord,
+        // TCK-2783 — le rappel d'expiration d'une pièce.
+        NotificationCode::DocumentExpiringSoon,
     ];
 
     protected function setUp(): void
@@ -221,6 +225,22 @@ class FormeDesDatesDeNotificationTest extends TestCase
         app(KycExpiryService::class)->run();
 
         $this->assertFormes(NotificationCode::KycExpiringSoon);
+    }
+
+    /** TCK-2783 — le rappel d'expiration d'une pièce de « Mes pièces ». */
+    public function test_l_echeance_d_une_piece(): void
+    {
+        $user = User::factory()->create();
+        Document::factory()->create([
+            'documentable_type' => User::class,
+            'documentable_id' => $user->id,
+            'uploaded_by' => $user->id,
+            'expiry_date' => Document::today()->addDays(7)->toDateString(),
+        ]);
+
+        app(DocumentExpiryReminder::class)->run();
+
+        $this->assertFormes(NotificationCode::DocumentExpiringSoon);
     }
 
     public function test_la_delegation_activee(): void

@@ -89,7 +89,8 @@ describe('TCK-2490 (ADR-0090 §2) — l’ordre de la colonne est l’ordre de l
       // DOCUMENT_POSITION_FOLLOWING : l'élément suivant vient après, donc après au clavier.
       expect(ordre[i - 1].compareDocumentPosition(ordre[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
-    expect(aside.querySelector('[data-slot="marque"]')).toHaveAttribute('href', '/');
+    // TCK-2619 — la marque ramène à l'espace de travail, plus au site public.
+    expect(aside.querySelector('[data-slot="marque"]')).toHaveAttribute('href', '/app');
     expect(aside.querySelector('[data-slot="defilement"] [data-slot="menu"]')).not.toBeNull();
   });
 
@@ -140,11 +141,11 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
   // Revue adverse (M4) — de 768 à 1023 px, le rail est le mode par défaut : la marque y était cachée, et
   // l'en-tête mobile (`md:hidden`) ne la porte pas — plus aucun lien vers l'accueil. Dans le rail, le
   // symbole seul ; le nom reste lu, une seule fois dans chaque mode.
-  it('la marque mène à `/` dans tous les modes ; dans le rail, le symbole seul, le nom toujours lu', () => {
+  it('la marque mène à `/app` dans tous les modes (TCK-2619) ; dans le rail, le symbole seul, le nom toujours lu', () => {
     const { container } = monter();
     const marque = container.querySelector<HTMLElement>('aside [data-slot="marque"]')!;
     const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
-    expect(marque).toHaveAttribute('href', '/');
+    expect(marque).toHaveAttribute('href', '/app');
     expect(classes(marque)).not.toContain('icones:hidden');
     // La marque entière se cache dans le rail ; le symbole seul n'y paraît que là, avec le nom en `sr-only`.
     // Chacune porte le nom LU ; jsdom, sans CSS, lit les deux — Chrome n'en lit qu'un par mode (relevé dans
@@ -174,6 +175,11 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     await u.click(pied);
     let menu = await screen.findByRole('menu');
     expect(within(menu).getByText('awa@example.sn')).toBeInTheDocument();
+    // Les icônes de la maquette « Compte et espaces » (bureau), celles de la feuille du téléphone.
+    const icone = (nom: string) =>
+      (within(menu).getByRole('menuitem', { name: nom }).querySelector('svg')?.getAttribute('class') ?? '').split(/\s+/);
+    expect(icone('Mon profil')).toContain('lucide-user');
+    expect(icone('Préférences de notification')).toContain('lucide-bell-ring');
     // La langue : trois `menuitemradio`, la courante cochée, chacune nommée dans SA langue.
     const langues = within(menu).getAllByRole('menuitemradio');
     expect(langues.map((l) => [l.textContent, l.getAttribute('aria-checked'), l.getAttribute('lang')])).toEqual([
@@ -245,7 +251,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     const u = userEvent.setup();
     const { container, unmount } = monter();
     await u.click(container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
-    expect(within(await screen.findByRole('menu')).queryByText('Changer d’espace')).toBeNull();
+    expect(within(await screen.findByRole('menu')).queryByText('Vos espaces')).toBeNull();
     unmount();
 
     espaces.liste = [
@@ -255,7 +261,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     const monte = monter();
     await u.click(monte.container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getByText('Changer d’espace')).toBeInTheDocument();
+    expect(within(menu).getByText('Vos espaces')).toBeInTheDocument();
     const actif = within(menu).getByRole('menuitem', { name: /Teranga Immo/ });
     expect(actif).toHaveAttribute('aria-current', 'true');
     // Re-choisir l'espace actif ne bascule rien ; l'autre bascule par la mutation du profil actif.

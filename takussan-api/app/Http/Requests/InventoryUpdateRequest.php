@@ -36,10 +36,16 @@ class InventoryUpdateRequest extends FormRequest
             'rooms' => ['filled', 'array', 'min:1', 'max:'.InventoryStoreRequest::MAX_ROOMS],
             'rooms.*.name' => ['required_with:rooms', 'string', 'max:255'],
             'rooms.*.condition' => ['required_with:rooms', Rule::enum(InventoryCondition::class)],
+            // TCK-2647 — la pièce cochée « terminée » par l'agent, à la pièce par écran ; rendue telle quelle.
+            'rooms.*.completed' => ['nullable', 'boolean'],
             'rooms.*.notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_NOTES],
             'rooms.*.elements' => ['nullable', 'array', 'max:'.InventoryStoreRequest::MAX_ELEMENTS_PER_ROOM],
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
-            'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
+            // TCK-2647 — un élément peut attendre son état (`null`) tant que l'état des lieux est un
+            // brouillon : la création n'en fait que des brouillons, la mise à jour n'en touche pas
+            // d'autre (`InventoryService::update()`, 422 `inventory.not_draft`). La soumission à
+            // signature le refuse (`InventoryService::submit()`, 422 `inventory.unqualified_elements`).
+            'rooms.*.elements.*.state' => ['nullable', Rule::enum(InventoryElementState::class)],
             'rooms.*.elements.*.notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_ELEMENT_NOTES],
             // TCK-2646 — la retenue proposée, sur une sortie seulement ; `entry_state` n'a pas de
             // règle : retiré par la validation, reposé par le serveur.

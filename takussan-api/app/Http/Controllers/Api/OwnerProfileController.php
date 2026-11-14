@@ -8,6 +8,7 @@ use App\Http\Requests\Api\Owners\UpdateOwnerProfileRequest;
 use App\Http\Resources\IncludedUserResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\OwnerProfileResource;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -15,6 +16,7 @@ use App\Policies\OwnerProfilePolicy;
 use App\Services\Owners\OwnerDirectory;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\AgencyKindGuard;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -63,7 +65,22 @@ class OwnerProfileController extends Controller
         // et n'atteint aucun autre rôle.
         AgencyKindGuard::ensureStandardForNonGlobal($user, $user->agency_id);
 
+        // TCK-2760 (suivi) — les soldes du périmètre du résumé, le plus large de la requête, d'abord : le
+        // filtre `has_remaining`, le tri, la ligne et la somme de tête les relisent ensuite sans les
+        // recalculer ({@see OwnerDirectory::remainingToPay()}), une passe par agence au lieu de trois.
+        if (OwnerDirectory::readsMoney($user) && ($perimeter = $this->summaryPerimeter($user, $request)) !== null) {
+            $this->directory->remainingToPayIn($perimeter);
+        }
+
         $base = $this->visibleScope($user, $request);
+        // TCK-2753 (ADR-0108 § 6) — un bailleur parti (`inactive`) quitte le carnet ; il se relit par
+        // `filter[status]=inactive`, et sa fiche reste lisible. Tout autre `filter[status]` fait foi.
+        // Sauf sous `filter[has_remaining]=1` (décision du 2026-11-13) : un parti à qui il reste de
+        // l'argent à verser compte dans `summary.with_remaining` et `remaining_to_pay`, et la liste
+        // que ces chiffres annoncent le montre. `=0` garde l'exclusion : un parti n'est pas « à jour ».
+        if (! $request->filled('filter.status') && ! $this->demandeLesRestesAVerser($request)) {
+            $base->where('owner_profiles.status', '<>', OwnerProfileStatus::Inactive->value);
+        }
         $query = OwnerProfile::buildQuery($base, $request)->defaultSort('-created_at');
 
         // TCK-601 — les colonnes sensibles ne sont plus demandables par `fields[]` ; elles sont
@@ -80,6 +97,9 @@ class OwnerProfileController extends Controller
         // front relance ou révoque par elle (une invitation au seul numéro ne se cherchait pas).
         $query->addSelect(['pending_invitation_id' => Invitation::idEnvoyeePour(new OwnerProfile)
             ->whereColumn('invitations.agency_id', 'owner_profiles.agency_id')]);
+        // TCK-2641 (5a) — et la date de son dernier envoi (« invitation envoyée il y a 3 j »).
+        $query->addSelect(['pending_invitation_sent_at' => OwnerDirectory::pendingInvitationSentAt()]);
+        $query->getEloquentBuilder()->withCasts(['pending_invitation_sent_at' => 'datetime']);
 
         // TCK-2640 — les chiffres de la ligne : comptes de biens, dernier versement, contact du
         // compte, en sous-requêtes ; le reste à verser du mois courant, lu au relevé servi pour la
@@ -95,9 +115,11 @@ class OwnerProfileController extends Controller
         $this->directory->fillContactFallbacks($profiles);
         // Vérification adverse de TCK-2640 — les chiffres d'argent au seul lecteur du relevé.
         $readsMoney = OwnerDirectory::readsMoney($user);
-        $remaining = $readsMoney ? $this->directory->remainingToPay($profiles) : [];
+        // TCK-2641 — l'encaissé du mois (`gross` du relevé servi) sort de la même passe.
+        $figures = $readsMoney ? $this->directory->monthFigures($profiles) : [];
         foreach ($profiles as $profile) {
-            $profile->setAttribute('remaining_to_pay', $remaining[(int) $profile->id] ?? null);
+            $profile->setAttribute('remaining_to_pay', $figures[(int) $profile->id]['remaining_to_pay'] ?? null);
+            $profile->setAttribute('collected_this_month', $figures[(int) $profile->id]['collected'] ?? null);
             if (! $readsMoney) {
                 $profile->setAttribute('last_payout_at', null);
             }
@@ -105,7 +127,9 @@ class OwnerProfileController extends Controller
 
         IncludedUserResource::preload($paginator->items());
 
-        return $this->paginated($paginator, OwnerProfileResource::collection($paginator)->resolve($request));
+        return $this->paginated($paginator, OwnerProfileResource::collection($paginator)->resolve($request), [
+            'summary' => $this->summary($user, $request, $readsMoney),
+        ]);
     }
 
     /**
@@ -116,7 +140,7 @@ class OwnerProfileController extends Controller
      */
     public function show(ShowOwnerProfileRequest $request, OwnerProfile $ownerProfile): JsonResponse
     {
-        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile, $request->period()))->resolve($request)]);
+        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile, $request->period(), OwnerDirectory::readsMoney($request->user())))->resolve($request)]);
     }
 
     /**
@@ -142,7 +166,7 @@ class OwnerProfileController extends Controller
                 ->log('owner_works_threshold_updated');
         }
 
-        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile->refresh(), OwnerDirectory::currentPeriod()))->resolve($request)]);
+        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile->refresh(), OwnerDirectory::currentPeriod(), OwnerDirectory::readsMoney($request->user())))->resolve($request)]);
     }
 
     /**
@@ -152,6 +176,10 @@ class OwnerProfileController extends Controller
      */
     public function sensitive(Request $request, OwnerProfile $ownerProfile, PersonalDataAccessLogger $accessLog): JsonResponse
     {
+        // Comme la fiche (`ShowOwnerProfileRequest`) : un profil hors de l'agence du personnel de
+        // l'appelant n'existe pas pour lui — 404, comme un identifiant inexistant, jamais un 403 qui
+        // dirait qu'il existe. Dans l'agence, le refus de la policy (l'agent) reste un 403.
+        abort_unless(OwnerProfilePolicy::isInActorAgency($request->user(), $ownerProfile), 404);
         $this->authorize('viewSensitive', $ownerProfile);
 
         $accessLog->record($request->user(), $ownerProfile, PersonalDataAccessLogger::SURFACE_OWNER_SENSITIVE);
@@ -170,6 +198,47 @@ class OwnerProfileController extends Controller
     }
 
     /**
+     * TCK-2641 (décision 4a) — le résumé du carnet ({@see OwnerDirectory::summary()}) : le périmètre
+     * de lecture des lignes (`visibleScope`) et l'agence que filtre `filter[agency_id]` — c'est le
+     * périmètre, pas une vue —, sans la recherche, ni le statut, ni `has_remaining`, ni la page.
+     * Le super-admin qui ne filtre pas UNE agence lit toute la plateforme : il n'a pas de résumé
+     * (`null`), le reste à verser s'y calculerait agence par agence sur tout le parc.
+     *
+     * ⚠ Un périmètre NEUF : `buildQuery()` filtre, trie et sélectionne sur le builder même qu'il
+     * reçoit — celui des lignes porte déjà la recherche et la vue.
+     *
+     * @return array<string, int|float|null>|null
+     */
+    private function summary(User $user, Request $request, bool $readsMoney): ?array
+    {
+        $perimeter = $this->summaryPerimeter($user, $request);
+
+        return $perimeter === null ? null : $this->directory->summary($perimeter, $readsMoney);
+    }
+
+    /**
+     * Le périmètre du résumé ({@see self::summary()}), `null` pour le super-admin qui ne filtre pas UNE
+     * agence. Un périmètre neuf à chaque appel.
+     *
+     * @return Builder<OwnerProfile>|null
+     */
+    private function summaryPerimeter(User $user, Request $request): ?Builder
+    {
+        $filtered = ParametreUnique::valeur($request->input('filter.agency_id'));
+        $agencyId = $filtered !== null && ctype_digit($filtered) ? (int) $filtered : null;
+        if ($agencyId === null && $user->isSuperAdmin()) {
+            return null;
+        }
+
+        $perimeter = $this->visibleScope($user, $request);
+        if ($agencyId !== null) {
+            $perimeter->where('owner_profiles.agency_id', $agencyId);
+        }
+
+        return $perimeter;
+    }
+
+    /**
      * super_admin sees everything; agency-side roles see their agency
      * only; everyone else sees nothing (defensive — `viewAny` already
      * filters out non-agency roles).
@@ -183,5 +252,13 @@ class OwnerProfileController extends Controller
         $agencyId = $user->agency_id;
 
         return OwnerProfile::query()->where('agency_id', $agencyId);
+    }
+
+    /** `filter[has_remaining]` vrai, lu comme le filtre du modèle ({@see OwnerProfile::customQueryFilters()}). */
+    private function demandeLesRestesAVerser(Request $request): bool
+    {
+        $brut = ParametreUnique::valeur($request->input('filter.has_remaining'));
+
+        return $brut !== null && filter_var($brut, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
     }
 }

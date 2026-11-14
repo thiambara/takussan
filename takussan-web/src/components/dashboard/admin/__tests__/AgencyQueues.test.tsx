@@ -71,7 +71,8 @@ describe('<AgencyQueues>', () => {
     expect(hrefs).toEqual([
       '/app/agency/kyc',
       '/app/agency/moderation/properties',
-      '/app/agency/team',
+      // TCK-2668 — l'écran des invitations de l'Équipe, pas la liste des membres.
+      '/app/agency/team?vue=invitations',
       // ⚠ `?tab=impayes` fait partie de l'AC, pas de la décoration : `AdminFinancesTabs` ouvre
       // sinon sur « encaissements », et la ligne mènerait à côté de ce qu'elle annonce.
       '/app/agency/finances?tab=impayes',

@@ -1,11 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DOCUMENT_MIME_ACCEPT } from '../documents';
-import { KYC_MIME_ACCEPT, KycUploader } from '@/components/kyc/KycUploader';
-import { withIntl } from '@/test/intl';
+import { KYC_MIME_ACCEPT } from '@/components/kyc/kyc-mime-accept';
 
 /**
  * Garde de PARITÉ front ↔ back sur les types de fichier proposés à l'écran (P194.04, TCK-1888).
@@ -18,8 +16,6 @@ import { withIntl } from '@/test/intl';
  * `DocumentUploadMimeTest` et `KycUploadMimeTest`, côté API, TCK-1884), ni les autres sélecteurs
  * de fichiers du front, qui ne passent pas par `AcceptedUploads`.
  */
-vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
-
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
 const SOURCE = join(ROOT, 'takussan-api', 'app', 'Support', 'Uploads', 'AcceptedUploads.php');
 
@@ -51,11 +47,16 @@ describe('parité accept du front ↔ App\\Support\\Uploads\\AcceptedUploads', (
     expect(KYC_MIME_ACCEPT).not.toContain('*');
   });
 
-  it('l’input du KYC porte cette liste', () => {
-    render(withIntl(
-      <KycUploader profileId={1} kind="cni" endpoint="agent-profiles" i18nNamespace="agents.onboarding.kyc" />,
-    ));
-    const input = document.querySelector('input[type=file]') as HTMLInputElement;
-    expect(input.getAttribute('accept')).toBe(KYC_MIME_ACCEPT);
+  // TCK-2796 — « Vos pièces » est le seul écran qui envoie une pièce KYC du profil (le téléverseur des anciens
+  // assistants est retiré). CHACUN de ses champs fichier porte la liste, lu dans la source : un champ neuf ou un
+  // `accept` réécrit à la main rougit ici, avant même le rendu (`vos-pieces.tck-2614.test.tsx` le rend).
+  it('chaque champ fichier de « Vos pièces » porte cette liste', () => {
+    const source = readFileSync(join(ROOT, 'takussan-web', 'src', 'components', 'pieces', 'VosPieces.tsx'), 'utf8');
+    const champs = [...source.matchAll(/<input\b[^>]*?type="file"[^>]*?\/>/g)].map((m) => m[0]);
+    expect(champs.length, 'aucun champ fichier lu dans VosPieces.tsx — la garde n’aurait rien vérifié').toBeGreaterThan(0);
+    // Un champ que l'extraction ne lirait pas (`type='file'`, `type={…}`) ne passe pas en silence.
+    expect(source.match(/type=(?:"file"|'file'|\{['"]file['"]\})/g)?.length, 'un champ fichier échappe à l’extraction').toBe(champs.length);
+    for (const champ of champs) expect(champ, champ).toMatch(/\baccept=\{KYC_MIME_ACCEPT\}/);
+    expect(source).toMatch(/from '@\/components\/kyc\/kyc-mime-accept'/);
   });
 });

@@ -28,7 +28,8 @@ use Symfony\Component\HttpFoundation\Response;
  *      an active profile of the account; never read under an impersonation
  *      token (ADR-0055).
  *   5. Auto-bascule — if the user holds profiles in exactly one agency, pick
- *      one. Multi-agence : no auto-bascule (security explicit).
+ *      one. Multi-agence : no auto-bascule (security explicit). TCK-2800 — a
+ *      single active profile with no agency (service provider) is picked too.
  *   6. None — super_admins (PlatformProfile) work without an agency profile ;
  *      agency-scoped checks simply won't resolve.
  *
@@ -173,6 +174,14 @@ class ResolveActiveProfile
                 // TCK-2479 — `first()` dans l'ordre de `HasProfiles::profiles()` (bailleur,
                 // agent, admin) ; le front retient le même sans profil actif lisible :
                 // `takussan-web/src/lib/navigation/personas.ts`, `TYPE_DOMINANT`.
+                $this->bind($request, $user, $profiles->first());
+            } elseif ($profiles->count() === 1) {
+                // TCK-2800 — un seul profil actif, et (sinon la branche du dessus l'aurait pris)
+                // sans agence : le prestataire, porté par le compte. Il est le profil par défaut.
+                // Sans cette branche, la connexion, qui efface le cookie, le laissait sans profil
+                // lié (« Vos pièces » vide). Aucune agence ne s'ouvre : `User::agency_id` reste
+                // `null`, et le même profil était déjà liable par cookie ou `X-Profile-Id`.
+                // Plusieurs agences (ou plusieurs profils sans agence) : toujours rien.
                 $this->bind($request, $user, $profiles->first());
             }
         }

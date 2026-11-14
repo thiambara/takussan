@@ -41,24 +41,20 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ openSession: openSessionMock }),
 }));
 
-vi.mock('@/components/auth/OAuthButtons', () => ({
-  OAuthButtons: () => <div />,
-  OAuthSeparator: () => <div />,
-}));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
   useSearchParams: () => searchParams,
 }));
 
-const { default: LoginPage } = await import('../login/page');
+const { FormulaireDeConnexion: LoginPage } = await import('../login/FormulaireDeConnexion');
 
 async function seConnecter() {
   const user = userEvent.setup();
   render(withIntl(<LoginPage />));
-  await user.type(screen.getByLabelText(/Adresse email/), 'fa.diop@example.com');
-  await user.type(screen.getByLabelText(/Mot de passe/), 'secret123');
-  await user.click(screen.getByRole('button', { name: 'Se connecter' }));
+  await user.type(screen.getByLabelText('E-mail'), 'fa.diop@example.com');
+  await user.type(screen.getByLabelText('Mot de passe'), 'secret123');
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }));
   await waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
   return pushMock.mock.calls[0]![0] as string;
 }

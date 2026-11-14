@@ -222,4 +222,23 @@ class BookingTest extends TestCase
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['end_date']);
     }
+
+    /** TCK-2743 (lot 3) — l'échéance d'une réservation, reçue avec décalage : l'instant désigné. */
+    public function test_expires_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $user->id]);
+        $property = Property::factory()->create(['contract_type' => ContractType::Rent, 'rent_period' => RentPeriod::Daily]);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/bookings', [
+            'property_id' => $property->id,
+            'customer_id' => $customer->id,
+            'start_date' => now()->addDay()->toDateString(),
+            'end_date' => now()->addMonth()->toDateString(),
+            'expires_at' => '2030-11-20T11:00:00+01:00',
+        ])->assertCreated();
+
+        $this->assertSame('2030-11-20 10:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+    }
 }

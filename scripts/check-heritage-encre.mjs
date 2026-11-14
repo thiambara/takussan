@@ -132,9 +132,12 @@ const TOLERES = new Set([]);
  * d'écriture rendait la lecture aveugle, le script sortirait en 0 avec un message d'apparence
  * saine. Relevé le 2026-08-30 (299), puis le 2026-10-29 (405, TCK-2389 : la page « Publier pour lui »
  * porte sept conteneurs de plus sur 398 ; le dépôt avait déjà crû de 299 à 398 sans que le chiffre
- * bouge). S'il bouge pour de bon, corriger ICI, avec la date.
+ * bouge), puis le 2026-11-12 (548 : les écrans de l'audit UX de /app, lots 1 et 2 — la fiche d'une
+ * visite de TCK-2587 franchit la marge ; croissance du code, la lecture n'a pas changé de forme), puis le
+ * 2026-11-13 (740 : l'ajout au coffre de TCK-2656, lot 2, franchit la marge ; même croissance, même forme).
+ * S'il bouge pour de bon, corriger ICI, avec la date.
  */
-const CONTENEURS_ATTENDUS = 405;
+const CONTENEURS_ATTENDUS = 740;
 /** Marge de respiration : le dépôt bouge, la lecture non. En dehors, il faut regarder. */
 const TOLERANCE_CONTENEURS = 0.35;
 
@@ -732,7 +735,7 @@ if (perimees.length > 0) {
 const ecart = Math.abs(compteurs.conteneurs - CONTENEURS_ATTENDUS) / CONTENEURS_ATTENDUS;
 if (ecart > TOLERANCE_CONTENEURS) {
   console.error(
-    `✗ CLIQUET — ${compteurs.conteneurs} conteneur(s) lus, alors que le dernier relevé (2026-10-29) en`
+    `✗ CLIQUET — ${compteurs.conteneurs} conteneur(s) lus, alors que le dernier relevé (2026-11-13) en`
     + ` donnait ${CONTENEURS_ATTENDUS} (±${Math.round(TOLERANCE_CONTENEURS * 100)} %).`,
   );
   console.error('  Ce chiffre échoue dans LES DEUX SENS, et c’est le sens descendant qui compte :');

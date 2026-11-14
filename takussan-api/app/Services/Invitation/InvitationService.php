@@ -34,6 +34,7 @@ use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use App\Support\LienFront;
+use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -308,10 +309,10 @@ class InvitationService
         if ($existingUser !== null) {
             // Branch B — caller must authenticate first.
             if ($authenticated === null || $authenticated->id !== $existingUser->id) {
-                // Surface the email back so the UI can pre-fill the login
-                // form and the wizard can resume on the right account.
+                // TCK-2727 — l'adresse MASQUÉE, comme l'aperçu public (`recipient.masked`) : la page dit
+                // à quel compte se connecter, sans montrer au porteur du jeton une adresse en clair.
                 abort_code(401, 'invitation.requires_login', [], [
-                    'X-Invitation-Email' => $invitation->email,
+                    'X-Invitation-Email' => self::emailMasque($invitation),
                     'X-Invitation-Requires-Login' => '1',
                 ]);
             }
@@ -331,6 +332,16 @@ class InvitationService
     }
 
     /**
+     * TCK-2727 — l'adresse de l'invitation telle que le 401 `invitation.requires_login` la rend (en-tête
+     * `X-Invitation-Email`, relayé dans le corps par les deux routes d'acceptation) : masquée par
+     * {@see Masking::email()}, la fonction de l'aperçu public — la même valeur que son `recipient.masked`.
+     */
+    public static function emailMasque(Invitation $invitation): ?string
+    {
+        return $invitation->email !== null ? Masking::email($invitation->email) : null;
+    }
+
+    /**
      * TCK-2610 (ADR-0094 § 5) — l'acceptation par code SMS : `$user` est le compte dont le numéro vient d'être
      * prouvé par le code (A), ouvert ou créé par {@see PhoneLoginService::authenticate()}. Si un AUTRE compte (E)
      * porte l'e-mail de l'invitation, 401 `invitation.requires_login`, comme l'acceptation sans session ; sinon
@@ -344,7 +355,7 @@ class InvitationService
             $holder = $this->recipientAccount($invitation->email, null);
             if ($holder !== null && $holder->id !== $user->id) {
                 abort_code(401, 'invitation.requires_login', [], [
-                    'X-Invitation-Email' => $invitation->email,
+                    'X-Invitation-Email' => self::emailMasque($invitation),
                     'X-Invitation-Requires-Login' => '1',
                 ]);
             }
@@ -380,6 +391,7 @@ class InvitationService
         }
 
         return DB::transaction(function () use ($invitation, $user, $payload, $email): Invitation {
+            $this->verrouillerLesBiensLies($invitation);
             if ($email === '') {
                 $user->forceFill(['email' => $invitation->email, 'email_verified_at' => now()])->save();
             }
@@ -835,6 +847,22 @@ class InvitationService
     }
 
     /**
+     * TCK-2755 — l'ordre du dépôt, bien → visite → utilisateur (`takussan-api/CLAUDE.md`, piège 10) : les
+     * biens saisis pour le bailleur invité, que `aLAcceptation` déliera et transférera, sont verrouillés EN
+     * TÊTE de la transaction d'un compte existant, avant toute écriture de `users` — le prénom d'un compte
+     * sans nom, l'e-mail d'un compte qui n'en a pas, et la clé étrangère `owner_profiles.user_id`, qui prend
+     * un `KEY SHARE` sur `users`. Sans lui, contre la confirmation d'une visite d'un de ces biens (bien puis
+     * utilisateur), 4 à 9 interblocages sur 20 courses. Par la requête même qui les écrira
+     * ({@see TitulaireALaSaisie::biensLies()}), par identifiant croissant. Rien pour une autre invitation.
+     */
+    private function verrouillerLesBiensLies(Invitation $invitation): void
+    {
+        if ($invitation->invitable_type === OwnerProfile::class && $invitation->invitable_id !== null) {
+            TitulaireALaSaisie::biensLies([(int) $invitation->invitable_id])->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+    }
+
+    /**
      * Branch B: shared finalize when the User already exists.
      *
      * P220.07 (TCK-2281, décision du porteur du 2026-10-25) — un compte SANS NOM (créé par
@@ -848,6 +876,7 @@ class InvitationService
     protected function acceptForUser(Invitation $invitation, User $user, array $payload = []): Invitation
     {
         return DB::transaction(function () use ($invitation, $user, $payload): Invitation {
+            $this->verrouillerLesBiensLies($invitation);
             $first = trim((string) ($payload['first_name'] ?? ''));
             $last = trim((string) ($payload['last_name'] ?? ''));
             if (self::isNameless($user) && ($first !== '' || $last !== '')) {

@@ -5,7 +5,9 @@ namespace App\Domain\Settings;
 use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Invoice\OverdueReminderService;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\LeaseDefaults;
 use App\Services\Lease\RentReviewService;
+use App\Support\ScopedSetting;
 use Illuminate\Validation\Rule;
 
 /**
@@ -26,7 +28,8 @@ use Illuminate\Validation\Rule;
  * `/api/settings`, sans règle ni journal ; elle s'écrit ici, et seulement ici. La ligne d'une agence
  * l'emporte toujours. **Le défaut est la constante du service**, référencée : deux défauts qui
  * divergent feraient lire deux valeurs selon le chemin. Lecteurs : `OverdueReminderService`,
- * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`.
+ * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`,
+ * et `LeaseDefaults` pour `lease.late_fee_*` (TCK-2643, préremplissage d'un bail neuf).
  *
  * TCK-2394 (ADR-0079) — catégorie `radar` : `radar.mandate_agency_id` → `App\Services\Radar\RadarMandate`.
  */
@@ -119,6 +122,21 @@ class EditablePlatformSettings
                 'default' => null, 'public' => false,
                 'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
             ],
+            // TCK-2643 — APRÈS le plafond : la catégorie se rend dans cet ordre, et `late_fees.cap_percent`
+            // garde son rang (`RentalSettingsCatalogueTest` le lit en `data.rentals.4`).
+            // La pénalité de retard qu'un bail NEUF reprend (`LeaseDefaults`, préremplissage
+            // seul : `LateFeeCalculator` lit la colonne du bail). Défaut 0 = pas de pénalité (décision de
+            // la session du 2026-11-12) ; bornes = celles du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`).
+            'lease.late_fee_percent' => [
+                'category' => 'rentals', 'type' => 'decimal',
+                'default' => LeaseDefaults::DEFAULT_LATE_FEE_PERCENT, 'public' => false,
+                'rules' => ['required', 'numeric', 'min:0', 'max:50'],
+            ],
+            'lease.late_fee_grace_days' => [
+                'category' => 'rentals', 'type' => 'integer',
+                'default' => LeaseDefaults::DEFAULT_LATE_FEE_GRACE_DAYS, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:30'],
+            ],
             // TCK-2394 (ADR-0079, proposé) — l'espace où le Radar publie sous mandat, par son identifiant ; 0 : aucun. Lu par
             // `App\Services\Radar\RadarMandate`, et seulement drapeau `radar_mandate` allumé.
             'radar.mandate_agency_id' => [
@@ -150,6 +168,26 @@ class EditablePlatformSettings
         }
 
         return $value;
+    }
+
+    /**
+     * r6 (r1 de la vérification de 65d3142b6) — la valeur atteint-elle le PLANCHER des règles de la clé
+     * (`min:x` : au moins x ; `gt:x` : plus que x) ? Une ligne d'agence sous le plancher n'est pas un
+     * réglage ({@see ScopedSetting::numericAgencyValue()}) : `{"value": 0}` sur une clé
+     * en `min:1` ou `gt:0` est une ligne écrite avant sa règle, et le global reprend la main. Au-dessus
+     * du plafond, {@see self::clamp()} la ramène : la ligne dit bien quelque chose de l'agence.
+     */
+    public static function atteintLePlancher(string $key, float $value): bool
+    {
+        foreach (self::get($key)['rules'] as $rule) {
+            if (is_string($rule) && preg_match('/^(min|gt):(-?[0-9.]+)$/', $rule, $m) === 1) {
+                if ($m[1] === 'min' ? $value < (float) $m[2] : $value <= (float) $m[2]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public static function has(string $key): bool

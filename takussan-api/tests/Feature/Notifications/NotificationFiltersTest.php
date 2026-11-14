@@ -242,6 +242,49 @@ class NotificationFiltersTest extends TestCase
      * @param  array<string, int>|null  $comptes
      * @return array<string, int>
      */
+    /**
+     * TCK-2732 — la liste et les compteurs sont ceux de l'APPELANT. Un compte B porte, non lues, des
+     * notifications des MÊMES familles que A (des visites demandées, « à traiter » ; des mises en avant
+     * terminées) et une famille que A n'a pas (`paiement`) : aucune ne paraît chez A.
+     */
+    public function test_la_liste_et_les_compteurs_par_famille_ne_lisent_que_le_compte_appelant(): void
+    {
+        $a = $this->admin;
+        $b = User::factory()->create();
+
+        $visiteDeA = $this->visiteDemandee($a);
+        $a->notify(new BoostEndedNotification(1, 'Bien de A'));
+        $a->notify(new BoostEndedNotification(2, 'Autre bien de A'));
+
+        foreach (range(1, 3) as $_) {
+            $this->visiteDemandee($b);
+        }
+        foreach (range(1, 4) as $i) {
+            $b->notify(new BoostEndedNotification(10 + $i, "Bien de B {$i}"));
+        }
+        AppNotification::query()->create(['user_id' => $b->id, 'type' => NotificationType::Payment, 'title' => 'Pénalité de B', 'sent_at' => now()]);
+
+        // Le décor de B porte bien ce que A ne doit pas voir.
+        Sanctum::actingAs($b);
+        $this->assertSame(['bien' => 4, 'paiement' => 1, 'visite' => 3], $this->trie($this->getJson('/api/notifications')->assertOk()->json('meta.counts.par_famille')));
+
+        Sanctum::actingAs($a);
+        $visites = $this->getJson('/api/notifications?filter[famille]=visite')->assertOk();
+        $this->assertSame([$visiteDeA?->id], array_column($visites->json('data'), 'id'));
+        $visites->assertJsonPath('meta.total', 1);
+
+        $tout = $this->getJson('/api/notifications?per_page=50')->assertOk();
+        $this->assertSame([$a->id], array_values(array_unique(AppNotification::query()->whereIn('id', array_column($tout->json('data'), 'id'))->pluck('user_id')->all())));
+        $this->assertSame(['bien' => 2, 'visite' => 1], $this->trie($tout->json('meta.counts.par_famille')));
+        $tout->assertJsonPath('meta.counts.a_traiter_non_lues', 1)
+            ->assertJsonPath('meta.unread', 3)
+            ->assertJsonPath('meta.total', 3);
+
+        $this->getJson('/api/notifications?filter[a_traiter]=1')->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $visiteDeA?->id);
+    }
+
     private function trie(?array $comptes): array
     {
         $comptes ??= [];

@@ -139,7 +139,7 @@ trait HasPaymentAttributes
             if (array_key_exists(PrintedIdentity::KEY, $metadata)) {
                 return;
             }
-            $payment->metadata = $metadata + [PrintedIdentity::KEY => PrintedIdentity::capture($payment->printedIdentityRoles())];
+            $payment->metadata = $metadata + [PrintedIdentity::KEY => PrintedIdentity::capture($payment->printedIdentityRoles(), $payment->printedIdentityExtraFields())];
         });
 
         static::updating(function ($payment): void {

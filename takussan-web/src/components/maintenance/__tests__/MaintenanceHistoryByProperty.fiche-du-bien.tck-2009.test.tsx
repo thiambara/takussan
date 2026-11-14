@@ -1,7 +1,7 @@
 /**
  * TCK-2009 (P171.08) — l'historique des interventions d'un bien (`docs/features.md` § 1.8, « P1 ·
  * Consulter l'historique des interventions par bien ») est branché sur la fiche du bien, onglet
- * « Historique », et se pagine comme `MaintenanceList`.
+ * « Historique » — « Interventions » depuis TCK-2639 —, et se pagine comme `MaintenanceList`.
  *
  * Avant : `MaintenanceHistoryByProperty` n'avait aucun appelant, et ne rendait qu'une page.
  * Le lecteur est bouchonné et pagine comme l'API : 15 par défaut, `meta.last_page`.
@@ -35,7 +35,11 @@ vi.mock('@/lib/queries/maintenance', () => ({
     };
   },
 }));
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('tab=history') }));
+// TCK-2639 — les interventions ont leur onglet ; « Historique » ne garde que les prix.
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('tab=interventions') }));
+// TCK-2639 — la barre du téléphone et les documents lisent l'API (React Query) : hors du sujet ici.
+vi.mock('@/components/property-dashboard/fiche/BarreDuBien', () => ({ BarreDuBien: () => null }));
+vi.mock('@/components/property-dashboard/fiche/OngletDocuments', () => ({ OngletDocuments: () => null, useDocumentsDuBien: () => ({ total: null }) }));
 vi.mock('@/components/property-form/PropertyForm', () => ({ PropertyForm: () => null }));
 vi.mock('@/components/property-dashboard/PropertyMediaPanel', () => ({ PropertyMediaPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyOverviewPanel', () => ({ PropertyOverviewPanel: () => null }));
@@ -49,7 +53,7 @@ describe('TCK-2009 — l’historique des interventions sur la fiche du bien', (
     lus.length = 0;
   });
 
-  it('l’onglet « Historique » de la fiche monte les interventions du bien', async () => {
+  it('l’onglet « Interventions » de la fiche monte les interventions du bien', async () => {
     render(withIntl(<PropertyDetailTabs property={bien} tags={[]} />));
     expect(await screen.findByRole('heading', { name: fr.maintenance.history.title })).toBeInTheDocument();
     expect(screen.getByText('Fuite 1')).toBeInTheDocument();

@@ -186,3 +186,44 @@ describe('ce que vise le lien', () => {
     expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/fr');
   });
 });
+
+/**
+ * TCK-2598 — au téléphone, le retour est la flèche unique de la barre de la coque d'entrée
+ * (`forme="fleche"`, `LienFlecheDeRetour`). Elle doit garder la règle de TCK-568, pas celle de la
+ * flèche (« une page du site précède ») : après une déconnexion, la page précédente est la console.
+ */
+describe('la flèche du téléphone garde la règle du site PUBLIC', () => {
+  function monterLaFleche(chemin: string, requete = '') {
+    pathname = chemin;
+    parametres = new URLSearchParams(requete);
+    return render(withIntl(<RetourAuth forme="fleche" libelle="Retour au site" />));
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('arrivée depuis la recherche : elle y revient par l’historique', () => {
+    const retourNavigateur = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    historique('/fr/properties?type=office', '/auth/login');
+    monterLaFleche('/auth/login', 'redirect=%2Ffr%2Fproperties%3Ftype%3Doffice');
+    const fleche = screen.getByRole('link', { name: 'Retour au site' });
+    expect(fleche).toHaveAttribute('href', '/fr/properties?type=office');
+    fireEvent.click(fleche);
+    expect(retourNavigateur).toHaveBeenCalledTimes(1);
+  });
+
+  it('après une déconnexion (la console précède), jamais par l’historique : le lien', () => {
+    const retourNavigateur = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+    historique('/app', '/app/messages', '/auth/login');
+    monterLaFleche('/auth/login');
+    fireEvent.click(screen.getByRole('link', { name: 'Retour au site' }));
+    expect(retourNavigateur).not.toHaveBeenCalled();
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it('absente là où la pastille l’est aussi (vérification d’e-mail)', () => {
+    monterLaFleche('/auth/verify-email');
+    expect(screen.queryByRole('link', { name: 'Retour au site' })).not.toBeInTheDocument();
+  });
+});

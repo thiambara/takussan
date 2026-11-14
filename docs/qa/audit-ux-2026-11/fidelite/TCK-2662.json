@@ -1,0 +1,284 @@
+{
+  "ticket": "TCK-2662",
+  "ecrans": [
+    {
+      "page": "app-commissions",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Vue agent",
+      "references": {
+        "telephone": "references/app-commissions/a-0-telephone.json",
+        "bureau-1440": "references/app-commissions/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-commissions/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/commissions (téléphone) · /app/commissions?status=toutes (bureau)",
+        "persona": "agent",
+        "etat": "l'agent de démo (Sokhna Sene, agence 1) : 3 lignes dues, 12 payées, 0 annulée ; téléphone « Dues » (le défaut) ; bureau « Toutes », l'état que dessine la maquette, demandé par l'URL (le défaut du bureau est « Dues », décision 4 b : écart déclaré) ; année courante"
+      }
+    },
+    {
+      "page": "app-commissions",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Vue admin par agent",
+      "references": {
+        "telephone": "references/app-commissions/a-1-telephone.json",
+        "bureau-1440": "references/app-commissions/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-commissions/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/commissions",
+        "persona": "admin",
+        "etat": "l'admin de l'agence 1, novembre 2026 : 7 bénéficiaires (5 à qui l'on doit), « Par agent »"
+      }
+    },
+    {
+      "page": "app-commissions",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Solder un agent",
+      "references": {
+        "telephone": "references/app-commissions/a-2-telephone.json",
+        "bureau-1440": "references/app-commissions/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-commissions/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/commissions?solder=3",
+        "persona": "admin",
+        "etat": "« Solder Sokhna Sene » : ses 3 lignes dues cochées, Wave, aujourd'hui, référence vide (lecture seule : rien n'est envoyé)"
+      }
+    },
+    {
+      "page": "app-commissions",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Registre par ligne",
+      "references": {
+        "telephone": "references/app-commissions/a-3-telephone.json",
+        "bureau-1440": "references/app-commissions/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-commissions/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/commissions?agent=3 (téléphone) · /app/commissions?vue=lignes&status=toutes (bureau)",
+        "persona": "admin",
+        "etat": "téléphone : les lignes de Sokhna Sene, « Dues » ; bureau : le registre de l'agence, « Toutes » demandé par l'URL (cf. écran 0), le menu « … » de la première ligne due ouvert (`--perturber perturber-menu.js`)"
+      }
+    },
+    {
+      "page": "app-commissions",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Annuler (motif)",
+      "references": {
+        "telephone": "references/app-commissions/a-4-telephone.json",
+        "bureau-1440": "references/app-commissions/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-commissions/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/commissions?agent=3 (téléphone) · /app/commissions?vue=lignes&status=toutes (bureau)",
+        "persona": "admin",
+        "etat": "le menu « … » de la première ligne due, « Annuler la commission… », le premier motif choisi (`--perturber perturber-annuler.js`) ; rien n'est envoyé"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/commissions",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Messages": "Messagerie"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "barre d'onglets du téléphone (« Messages », « Menu » actif) et barre latérale du bureau (rubriques, libellés, compteurs, « Plus », « Modifier le menu »)",
+      "motif": "exclus du ticket : navigation de la famille 3 ; les deux barres sont les primitives de la coque, communes à tout /app — mêmes exclusions que TCK-2677"
+    },
+    {
+      "element": "« ⋯ » de l'en-tête de détail « Sokhna Sène » (a-3 téléphone)",
+      "motif": "la maquette le pose par défaut dans `EnTeteDetail` ; la coque ne rend « ⋯ » que si la page a des actions secondaires (`EnTeteMobile`, forme `detail`) — le détail d'un agent n'en a aucune (l'export n'a pas de filtre par bénéficiaire, décision 1 a)"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-*",
+      "element": "noms, biens, quartiers, montants, comptes des puces, nombre de lignes et d'agents, dates, moyens",
+      "propriete": "texte, largeur, nombre de lignes et y de tout ce qui suit",
+      "exception": "vérité des données",
+      "motif": "la base de démo du 2026-11-12 (agence 1) : l'agent Sokhna Sene a 3 lignes dues et 12 payées, aucune annulée ; 7 bénéficiaires au point de l'admin (la maquette en dessine 5, dont une ligne annulée « bail résilié ») ; des paiements de démo sans moyen (`payment_method` nul : « payée le 6 nov. » sans « · Wave ») et des biens sans quartier ; le titre d'un bien de démo nomme déjà son quartier (« … – Hann Maristes 1 »), que le produit ne répète pas"
+    },
+    {
+      "ecran": "a-0-bureau-*, a-3-bureau-*",
+      "element": "pied du tableau (« 1 à 6 sur 18 », précédent, suivant)",
+      "propriete": "sous le premier écran",
+      "exception": "vérité des données",
+      "motif": "20 lignes par page (la console) : les 15 lignes de l'agent tiennent sur une page, le pied est rendu sous le pli ; la maquette en montre 6"
+    },
+    {
+      "ecran": "a-0-*",
+      "element": "montant « On vous doit » et « CFA »",
+      "propriete": "taille au bureau (36 → 32,4 px, 18 → 16,2 px)",
+      "exception": "règle du design system",
+      "motif": "aucun jeton de 36 px (`text-affiche-*` : 22 à 44 sans 36) : `text-4xl` rend 36 px exacts au téléphone (la maquette de cet écran) et suit la densité ×0,9 au bureau (ADR-0107) ; interligne 1,5 de la maquette conservé (`leading-normal`)"
+    },
+    {
+      "ecran": "a-*",
+      "element": "pastilles de statut « Due », « Payée », « Annulée »",
+      "propriete": "bordure 1 px, rayon, marges (±2 px), fond de « Payée » (succès /11 au lieu de /15)",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge`, seule pastille de statut admise (`check-status-badge-unique`) — même exception que TCK-2660"
+    },
+    {
+      "ecran": "a-*",
+      "element": "icônes (download, chevron-right, chevron-down, check, ellipsis, x)",
+      "propriete": "trait (2 → 1,75 ou 1,5)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685) — mêmes exceptions que TCK-2659"
+    },
+    {
+      "ecran": "a-*",
+      "element": "encres secondaires (rôle, base, taux, « CFA », moyens non choisis)",
+      "propriete": "couleur (`foreground/60` à `/85` → `encre-douce` ou `muted-foreground`)",
+      "exception": "règle du design system",
+      "motif": "l'encre douce opaque remplace les encres translucides des maquettes (docs/design-guidelines.md, « L'encre douce » ; `encre-sans-alpha`)"
+    },
+    {
+      "ecran": "a-1-*, a-2-*, a-4-*",
+      "element": "« Solder », « Exporter », « Exporter mon relevé », « Fermer », « Garder la commission », « Confirmer le paiement de … », « Annuler {montant} »",
+      "propriete": "bordure 1 px transparente, graisse (600 → 500), taille du texte (15 → 14 px au téléphone), marges internes (±2 px)",
+      "exception": "règle du design system",
+      "motif": "primitive `Button` (`buttonVariants`), seule admise dans /app — même exception que TCK-2660"
+    },
+    {
+      "ecran": "a-1-*, a-3-*",
+      "element": "bascule « Par agent / Par ligne »",
+      "propriete": "ombre de l'onglet actif (`shadow-actif`)",
+      "exception": "règle du design system",
+      "motif": "l'ombre nommée de la portée (TCK-2685) au lieu de l'ombre arbitraire de la maquette"
+    },
+    {
+      "ecran": "a-2-*, a-4-bureau-*",
+      "element": "voile derrière le dialogue",
+      "propriete": "fond de toute la page (≈ 71 à 79 % des pixels de l'écran) : `scrim/10` flouté au lieu de `foreground/25`",
+      "exception": "règle du design system",
+      "motif": "primitive `Dialog` (`DialogPrimitive.Backdrop`, `backdrop-blur-xs`) ; le contenu du dialogue, lui, est comparé ancre à ancre"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "date du paiement",
+      "propriete": "le déclencheur de `DatePicker` (« 12 novembre 2026 », icône calendrier) au lieu d'un champ dessiné ; hauteur de l'échelle des contrôles",
+      "exception": "règle du design system",
+      "motif": "primitive `DatePicker`, bornée par la date de naissance de la plus récente ligne cochée et par aujourd'hui ; le texte suit le format de la maquette (« 10 novembre 2026 »), la valeur est la date du jour"
+    },
+    {
+      "ecran": "a-2-*, a-4-*",
+      "element": "champs « Référence », précision du motif « Autre », « Moyen »",
+      "propriete": "contour `border-input`, hauteur de l'échelle (44 / 36), fond du moyen choisi",
+      "exception": "règle du design system",
+      "motif": "primitives `Input` / `Textarea` : contraste 3:1 des contrôles (WCAG 1.4.11) — même exception que TCK-2659 ; la référence est vide dans l'état reproduit (rien n'est saisi en relevé), d'où « Confirmer » inactif"
+    },
+    {
+      "ecran": "a-2-telephone, a-4-*",
+      "element": "« Fermer » (✕) du dialogue et de la feuille, « Aller au contenu principal »",
+      "propriete": "présents dans le produit seul ; taille de l'icône de fermeture (18 → 14,4 px au bureau)",
+      "exception": "règle du design system",
+      "motif": "bouton de fermeture des primitives `Dialog` / `FeuilleDuBas` (44 × 44) et lien d'évitement de la coque (WCAG 2.4.1), hors écran — mêmes exceptions que TCK-2619 et TCK-2660"
+    },
+    {
+      "ecran": "a-0-bureau-*, a-1-bureau-*",
+      "element": "sous-titre de la tête de page (« Ce que l'agence vous doit… »), note « Une commission naît… » au bureau",
+      "propriete": "présents dans le produit (la maquette du bureau a le sous-titre « Ce que Dakar Immo vous doit… » et la note au téléphone seul)",
+      "exception": "vérité des données",
+      "motif": "le nom de l'agence n'est pas lu par cet écran : « l'agence » ; la note dit la règle de naissance aux deux largeurs"
+    },
+    {
+      "ecran": "a-0-bureau-1280, a-1-bureau-1280, a-3-bureau-1280",
+      "element": "deux colonnes de la vue de l'agent",
+      "propriete": "rendues dès `xl` (1280), une seule colonne sous `xl`",
+      "exception": "décision produit",
+      "motif": "décision 5 a : la maquette pose `xl:grid-cols-[288px_…]` ; le ticket disait « dès `lg` »"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "moyen « Free Money »",
+      "propriete": "absent du produit et de la maquette",
+      "exception": "décision produit",
+      "motif": "décision 3 a : quatre moyens, ceux de la maquette ; l'API accepte `free_money`, une ligne déjà payée ainsi l'affiche"
+    },
+    {
+      "ecran": "a-0-bureau-*, a-3-bureau-*, a-4-bureau-*",
+      "element": "puce active par défaut",
+      "propriete": "« Dues » sans `status` dans l'URL, là où la maquette du bureau active « Toutes » ; les relevés demandent `status=toutes` pour reproduire l'état dessiné",
+      "exception": "décision produit",
+      "motif": "décision 4 b de la session (2026-11-12) : « Dues » par défaut à toute largeur, un `status` explicite l'emporte toujours. Le rendu serveur ne connaît pas la largeur : un défaut qui en dépendrait ferait sauter la liste après l'hydratation, ou donnerait deux résultats au même lien sur deux appareils"
+    },
+    {
+      "ecran": "a-0-*, a-3-*, a-4-*",
+      "element": "« Annulé : X F » à côté des puces (sous la rangée au téléphone, après les puces au bureau)",
+      "propriete": "présent dans le produit seul, dès qu'une ligne de la sélection est annulée (jamais dans les relevés : la démo n'a aucune ligne annulée)",
+      "exception": "décision produit",
+      "motif": "décision 7 b de la session : le total « Annulé » de l'ancien grand livre est une contrainte du ticket ; gardé en texte secondaire, sans carte, à toute largeur"
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "menu de période « Depuis janvier » (« Toutes les dates », chevron) sous les puces ; tout ce qui suit descend de 48 px (« Due », « Tout voir », « Dernières payées », la dernière « Payée » passe sous le pli)",
+      "propriete": "présent dans le produit seul ; y (+48 px)",
+      "exception": "décision produit",
+      "motif": "décision du team-lead (2026-11-12, e23d326e9) : une même URL, un même résultat à toute largeur. La vue de l'agent borne ses lignes et ses puces à l'année de l'URL (`annee`, l'année en cours par défaut) au téléphone comme au bureau, et `periode=tout` la lève partout ; le téléphone doit donc dire la borne qu'il applique et permettre de la lever. La maquette du téléphone ne dessine aucune borne. Le menu est celui du bureau (`ChoixDePeriode`), à la hauteur de l'échelle du téléphone (h-9, 36 px). Test : mêmes comptes à 390 et à 1440 sur la même URL, avec et sans `periode=tout` (commissions.tck-2662.test.tsx). Relevé v9 du 2026-11-13 : 25 conformes · 24 écarts · 10 absents · 9,7 % ; hors coque, ces écarts sont ce décalage et les règles du design system déjà écrites (pastilles, encres, traits)."
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "zone « coque · en-tête » : 0,59 % de pixels (> 0,5 %)",
+      "propriete": "pixels",
+      "exception": "donnée",
+      "motif": "la pastille de la cloche lit le compte de l'agent de démo, « 9+ » au lieu du « 7 » dessiné : plus large, son texte part 4 px plus à gauche (362 au lieu de 366). Les deux autres écarts de la zone, encre des icônes « search » et « bell » (rgb 76,70,65 au lieu de foreground/80), sont l'écart « encres secondaires » (règle du design system) ; le titre « Mes commissions » est conforme. Mesuré v5, v8 et v9 (après e23d326e9) : 0,59 % à chaque fois. La barre d'onglets (1,31 %) est dans `ignorer` (famille 3)."
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2662/ — a1, a2 : cmp-v5-* ; a0, a3, a4 : cmp-v8-*-telephone et cmp-v7-*-bureau-* (après 4 b et 7 b, le bureau relevé sur `status=toutes`)",
+    "le": "2026-11-12, avec `--roles` de cette fiche",
+    "resultats": {
+      "a0-telephone": "28 · 24 · 4 · 3,99 % (v8 ; v1 : 22 · 30 · 4 · 14,85 % — l'interligne du montant dû rendu à la maquette, `leading-normal`)",
+      "a0-bureau-1440": "79 · 163 · 28 · 6,1 % (v1 : 74 · 169 · 27 · 8,78 % ; rangées de 56 px en `rem`)",
+      "a0-bureau-1280": "79 · 154 · 31 · 6,91 %",
+      "a1-telephone": "21 · 26 · 7 · 7,69 %",
+      "a1-bureau-1440": "70 · 135 · 24 · 3,81 %",
+      "a1-bureau-1280": "70 · 135 · 24 · 4,23 %",
+      "a2-telephone": "14 · 12 · 5 · 12,42 %",
+      "a2-bureau-1440": "70 · 156 · 27 · 74,29 % — le voile flouté de `Dialog` (écart accepté) ; le dialogue lui-même est conforme à ±5 px",
+      "a2-bureau-1280": "70 · 156 · 27 · 71,34 % (idem)",
+      "a3-telephone": "24 · 21 · 7 · 4,04 % (v8)",
+      "a3-bureau-1440": "89 · 203 · 33 · 6,29 % (v7)",
+      "a3-bureau-1280": "89 · 203 · 33 · 6,83 % (v7)",
+      "a4-telephone": "32 · 25 · 10 · 7,16 %",
+      "a4-bureau-1440": "87 · 200 · 37 · 78,87 % — voile de `Dialog` (idem a2)",
+      "a4-bureau-1280": "87 · 200 · 37 · 76,72 % (idem)"
+    },
+    "largeurs": "1280, 1024, 768, 390 : `scrollWidth − innerWidth = 0` sur `/app/commissions` (agent et admin), `?vue=lignes`, `?agent=3`, `?solder=3`",
+    "reseau": "AC3 : « Solder Sokhna Sene », 3 lignes cochées, la 2e décochée, Espèces → `POST /api/commissions/settle` intercepté avant le réseau (corps `entry_ids` [26, 63], `beneficiary_id` 3, `payment_method` cash, `payment_reference` null), bouton « Confirmer le paiement de 910 000 F » (620 000 + 290 000) ; aucun POST n'a atteint le réseau (CDP : seuls des OPTIONS de lecture), au bureau 1280 et au téléphone 390. AC6 : « Relevé » de l'agent → `GET /api/export/commissions?format=csv&from=2026-01-01&to=2026-12-31` 200, `text/csv`, pièce jointe, 16 lignes",
+    "format": "conformes · écarts · absents · % pixels ; la majorité des écarts restants sont la coque (barre latérale, barre d'onglets : éléments ignorés) et les données de démo (y décalés par le nombre de lignes)",
+    "apres_e23d326e9": {
+      "le": "2026-11-13, sur l'arbre de travail au HEAD c161fe5ef (seuls les jetons d'avatar de TCK-2589/2590, non commités, y diffèrent du HEAD ; les relevés du bureau rendent les mêmes comptes qu'en v7), avec `--roles` de cette fiche",
+      "dossier": "takussan-web/.fidelite/TCK-2662/cmp-v9-a0-*",
+      "resultats": {
+        "a0-telephone": "25 · 24 · 10 · 9,7 % (v9 ; v8 : 28 · 24 · 4 · 3,99 %) — le menu de période et le décalage de 48 px qui suit (écart accepté) ; coque · en-tête 0,59 %, coque · barre d'onglets 1,31 % (ignorée)",
+        "a0-bureau-1440": "79 · 163 · 28 · 6,1 % (inchangé depuis v7)",
+        "a0-bureau-1280": "79 · 154 · 31 · 6,91 % (inchangé)"
+      },
+      "portee": "e23d326e9 ne touche que la vue de l'agent (VueAgent.tsx) et le squelette d'hydratation (Commissions.tsx, sans rendu visible) : a1 à a4 (vue admin) ne changent pas et gardent leurs relevés v5/v7/v8.",
+      "solder_390_768": "« Solder {montant} » présent à 390 sur `?agent=3`, absent dès 768 sur `?vue=lignes&agent=3` : voulu, et c'est ce que dessinent les maquettes. Sous `md` (la barre d'onglets), `?agent=` ouvre le détail d'UN agent, avec « Solder 1 204 000 F » en bas (a-3 téléphone) ; dès `md`, la même URL est le registre de l'agence filtré sur ce bénéficiaire (a-3 bureau), sans « Solder » : on solde un agent depuis « Par agent » (a-1 bureau, un « Solder » par rangée), et une ligne due du registre garde « Marquer payée » et « Annuler » dans son « … » (VueAdmin.tsx : branche `telephone && vue.agent !== null`, registre `vue.lignes`)."
+    }
+  }
+}

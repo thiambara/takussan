@@ -17,6 +17,8 @@ class CreditsGrantedNotification extends Notification
         public readonly int $credits,
         public readonly ?string $expiresOn,
         public readonly string $agencyName,
+        // TCK-2806 — l'agence du lot, que la cible porte : la page Crédits lit l'agence du profil actif.
+        public readonly int $agencyId,
     ) {}
 
     public function via(object $notifiable): array
@@ -35,9 +37,9 @@ class CreditsGrantedNotification extends Notification
                 ? __('credits.notifications.granted.body_no_expiry', $params)
                 : __('credits.notifications.granted.body', $params + ['date' => Carbon::parse($this->expiresOn)->locale(app()->getLocale())->isoFormat('LL')]),
             'data' => $this->toArray($notifiable),
-            // C11 : `credits` n'existe pas encore dans `NotificationTarget::PATHS` → `fromArray()` rend null
-            // (pas de lien) ; une fois C11 appliquée, le lien mène à `/app/credits`. Aucun rouge dans les deux cas.
-            'target' => NotificationTarget::fromArray(['kind' => 'credits'])?->toArray(),
+            // TCK-2806 — la page Crédits de l'agence du lot (section d'agence, TCK-1761) : un administrateur
+            // de deux agences y arrive dans celle-ci, et non dans celle de son profil actif.
+            'target' => NotificationTarget::of('credits')->forAgency($this->agencyId)->toArray(),
         ];
     }
 

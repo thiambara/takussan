@@ -120,7 +120,8 @@ abstract class BasePolicy
 
     /**
      * TCK-587 (ADR-0031 §2, vérification adverse m3) — le bailleur ÉCRIT sur ce qui le désigne
-     * (`landlord_id`), sauf s'il est suspendu (`blocked`) dans l'agence de la ressource : il en garde
+     * (`landlord_id`), sauf s'il est suspendu (`blocked`) — ou parti (`inactive`, TCK-2753, ADR-0108
+     * § 5 : `isBlockedOwnerAt` compte les deux) — dans l'agence de la ressource : il en garde
      * la lecture (il reste partie au contrat), il en perd les gestes — encaisser, modifier, renouveler,
      * résilier, réviser.
      *

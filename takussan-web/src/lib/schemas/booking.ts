@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PAYMENT_METHOD_VALUES } from '@/components/payments/constants';
 import { msgValidation } from './messages';
 
 /**
@@ -61,9 +62,14 @@ export const bookingRequestSchema = z
 
 export type BookingRequestFormValues = z.infer<typeof bookingRequestSchema>;
 
+/**
+ * TCK-2594 — les huit moyens de `PaymentMethod` (l'API les accepte tous, `StoreBookingPaymentRequest`) :
+ * la feuille « Enregistrer un paiement » propose Orange Money, Wave, Free Money… et plus seulement
+ * les quatre d'avant. Un montant vidé se dit comme un montant nul.
+ */
 export const bookingPaymentSchema = z.object({
-  amount: z.number().positive(msgValidation('common.amountPositive')),
-  payment_method: z.enum(['cash', 'bank_transfer', 'mobile_money', 'card']),
+  amount: z.number({ error: msgValidation('common.amountPositive') }).positive(msgValidation('common.amountPositive')),
+  payment_method: z.enum(PAYMENT_METHOD_VALUES),
   payment_type: z.enum(['deposit', 'advance', 'fee']),
   transaction_id: z
     .string()
@@ -83,7 +89,7 @@ export type BookingPaymentFormValues = z.infer<typeof bookingPaymentSchema>;
 
 /** TCK-596 — remboursement d'un paiement de réservation (`RefundBookingPaymentRequest`). */
 export const bookingRefundSchema = z.object({
-  refund_amount: z.number().positive(msgValidation('common.amountPositive')),
+  refund_amount: z.number({ error: msgValidation('common.amountPositive') }).positive(msgValidation('common.amountPositive')),
   refund_reason: z
     .string()
     .trim()

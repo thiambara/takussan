@@ -95,7 +95,7 @@ export function composerMenu(
     id: d.id,
     href: d.href,
     labelKey: cle ?? disposition.libelles?.[d.id] ?? cleDe(d, ctx),
-    icon: iconeDe(d, ctx),
+    icon: disposition.icones?.[d.id] ?? iconeDe(d, ctx),
     groupe,
     ...(d.espace ? { labelSpace: d.espace } : {}),
     ...(d.misEnAvant ? { emphasized: true } : {}),

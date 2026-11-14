@@ -33,6 +33,13 @@ export default async function Page() {
   const canCreateLease =
     isSuperAdmin(user.roles) || isOwner(user.roles) || (capacites ?? []).includes('leases.create');
 
+  // TCK-2644 — le personnel de l'agence ouvre la file « À traiter » (en-tête, onglets et « Nouveau bail »
+  // dans la liste, qui les compte) ; le bailleur et le locataire, une liste simple sous cet en-tête.
+  const vue = isAgent(user.roles) || isAdmin(user.roles) ? 'agence' : isOwner(user.roles) ? 'bailleur' : 'locataire';
+  if (vue === 'agence') {
+    return <LeasesList vue="agence" peutCreer={canCreateLease} agencyId={user.agency_id ?? null} />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -46,7 +53,7 @@ export default async function Page() {
           ) : null
         }
       />
-      <LeasesList />
+      <LeasesList vue={vue} peutCreer={canCreateLease} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\LeaseResource;
+use App\Http\Resources\MaintenanceJournalEntryResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\PayoutMethodResource;
@@ -39,6 +40,7 @@ use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
 use App\Services\Lease\LeaseAttention;
 use App\Services\Lease\LeaseDueSummary;
+use App\Services\Maintenance\MaintenanceJournal;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Owners\OwnerDirectory;
 use App\Services\Property\PropertyOccupancy;
@@ -190,19 +192,17 @@ final class ResourceSubjects
      */
     public static function commeLeControleur(JsonResource $instance): JsonResource
     {
-        // TCK-2578 — `PropertyVisitController::index` pose l'agence de chaque bien de la page
-        // (`visits.property_agencies`) et celles où le lecteur est personnel (`visits.staff_agencies`) ;
-        // la ressource en décide du bloc `report`. Posées pour le sujet sur un bien d'agence, comme
-        // pour un lecteur du personnel de cette agence ; retirées sinon (la requête est partagée).
+        // TCK-2578 — `PropertyVisitController::index` pose les agences où le lecteur est personnel
+        // (`visits.staff_agencies`) ; la ressource en décide du bloc `report` (l'agence du bien, elle,
+        // est relue par `VisitReadContext` depuis TCK-2779). Posées pour le sujet sur un bien d'agence,
+        // comme pour un lecteur du personnel de cette agence ; retirées sinon (la requête est partagée).
         if ($instance instanceof PropertyVisitResource) {
             $requete = request();
             $propertyId = (int) $instance->resource->property_id;
             $agencyId = Property::query()->whereKey($propertyId)->value('agency_id');
             if ($agencyId !== null) {
-                $requete->attributes->set('visits.property_agencies', [$propertyId => (int) $agencyId]);
                 $requete->attributes->set('visits.staff_agencies', [(int) $agencyId]);
             } else {
-                $requete->attributes->remove('visits.property_agencies');
                 $requete->attributes->remove('visits.staff_agencies');
             }
 
@@ -223,6 +223,12 @@ final class ResourceSubjects
         // TCK-2392 — `RadarListingController::show` (et les deux autres contrôleurs de la fiche).
         if ($instance instanceof RadarListingResource) {
             return $instance->withNeighborhoodLink()->withProvenances();
+        }
+
+        // TCK-2803 — `LeaseController::index` / `show` posent, sur `include=tenant`, le bloc du locataire
+        // (`avecLocataire`) : sans cet appel il n'est jamais rendu. Ouvert ici sans `fields[customers]`, le bloc entier.
+        if ($instance instanceof LeaseResource) {
+            return $instance->avecLocataire(true, null);
         }
 
         return $instance;
@@ -523,7 +529,7 @@ final class ResourceSubjects
                     ),
                     customerShown: true,
                     customer: Customer::factory()->create(),
-                    customerPhoneShown: true,
+                    customerReadable: true,
                     referent: User::factory()->create(),
                 ),
             ],
@@ -539,9 +545,24 @@ final class ResourceSubjects
                         'processed_at' => Carbon::parse(self::INSTANT, 'UTC'),
                     ]);
 
-                    return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08');
+                    return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08', true);
                 })(),
             ],
+            // TCK-2786 — deux entrées du journal, lues comme le contrôleur les lit : une transition
+            // avec son auteur, et un geste du système (`actor` nul). La seule date est `at`
+            // (`created_at`, cast `datetime`).
+            MaintenanceJournalEntryResource::class => (function (): array {
+                $journal = app(MaintenanceJournal::class);
+                $demande = MaintenanceRequest::factory()->create();
+                $journal->record($demande, MaintenanceJournal::STATUS_PREFIX.'assigned', User::factory()->create(), ['from' => 'open', 'to' => 'open']);
+                $journal->record($demande, MaintenanceJournal::STATUS_PREFIX.'auto_closed', null, ['from' => 'completed', 'to' => 'closed']);
+                [$transition, $systeme] = $journal->entriesOf($demande)->get()->all();
+
+                return [
+                    'Activity, transition' => tap($transition, self::hydraterLesDates(...)),
+                    'Activity, système' => tap($systeme, self::hydraterLesDates(...)),
+                ];
+            })(),
             default => [],
         };
     }

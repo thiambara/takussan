@@ -1,89 +1,43 @@
-'use client';
+import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 
-import { resendVerificationEmailAction } from '@/app/actions/auth';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
-import { Mail, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { FormGlobalError } from '@/components/forms/FormError';
+import { VerifierLAdresse } from '@/components/auth/VerifierLAdresse';
+import { intentionDeLaRequete, une, type RechercheDeLaPage } from '@/components/auth/intention-de-la-requete';
+import { cheminDEntree } from '@/components/auth/liens-de-l-entree';
+import { lireActionDEntree } from '@/components/auth/lien-connexion';
 import { avecRedirection } from '@/lib/redirection-interne';
-import { useTranslations } from 'next-intl';
+import { utilisateurDuRendu } from '@/lib/utilisateur-du-rendu';
+import type { User } from '@/types/user';
 
-function VerifyEmailContent() {
-  const t = useTranslations('auth.verifyEmail');
-  // TCK-589 — relais de l'intention d'origine posée avant l'inscription.
-  const redirectBrut = useSearchParams().get('redirect');
-  const [status, setStatus] = useState<'idle' | 'sent' | 'error'>('idle');
-  const [loading, setLoading] = useState(false);
+/**
+ * `/auth/verify-email` — « Vérifiez votre adresse » (TCK-2606).
+ *
+ * SERVEUR : la page lit le compte de la session pour dire l'adresse EN CLAIR (la personne est
+ * connectée, c'est la sienne), et pour ne pas montrer l'écran à qui n'a rien à vérifier — une
+ * adresse déjà vérifiée, ou un compte sans adresse (ouvert par téléphone), part tout de suite vers
+ * sa destination, par la porte unique de sortie (`/onboarding/intention`, TCK-624).
+ *
+ * Sans session (lien partagé, cookie expiré), la connexion, intention gardée : le renvoi du lien
+ * exige le compte.
+ */
+export default async function VerifyEmailPage({ searchParams }: { readonly searchParams: RechercheDeLaPage }) {
+  const params = await searchParams;
+  const origine = { redirect: une(params.redirect), action: lireActionDEntree(une(params.intention)) };
 
-  async function handleResend() {
-    setLoading(true);
-    setStatus('idle');
-
-    const result = await resendVerificationEmailAction();
-    setStatus(result.ok ? 'sent' : 'error');
-    setLoading(false);
+  let user: User | null = null;
+  try {
+    user = await utilisateurDuRendu();
+  } catch {
+    user = null;
   }
 
-  return (
-    <div>
-      <div className="flex items-center justify-center size-14 rounded-full bg-primary/10 text-primary mb-6">
-        <Mail className="size-7" aria-hidden="true" />
-      </div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
-        {t('title')}
-      </h1>
-      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('body')}</p>
+  if (!user) redirect(cheminDEntree('/auth/login', origine, { voie: 'email' }));
+  if (!user.email || user.email_verified_at) redirect(avecRedirection('/onboarding/intention', origine.redirect));
 
-      {status === 'sent' && (
-        <div
-          role="status"
-          className="mb-6 rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
-        >
-          {t('resent')}
-        </div>
-      )}
-      {status === 'error' && (
-        <FormGlobalError className="mb-6">{t('resendFailed')}</FormGlobalError>
-      )}
-
-      <div className="space-y-3">
-        <Button
-          onClick={handleResend}
-          disabled={loading}
-          className="w-full rounded-full h-11 text-base font-semibold"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              {t('sending')}
-            </>
-          ) : (
-            t('resend')
-          )}
-        </Button>
-
-        {/* TCK-493 — même destination que le chemin OAuth : la question
-            d'orientation, qui renvoie vers `/app` quand elle n'a rien à
-            demander. Les deux chemins d'inscription posent la même question ;
-            une question posée sur un seul ne mesure rien et laisse le défaut
-            entier sur l'autre. */}
-        <Link
-          href={avecRedirection('/onboarding/intention', redirectBrut)}
-          className="flex min-h-11 items-center justify-center rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-        >
-          {t('continue')}
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-export default function VerifyEmailPage() {
+  const intention = await intentionDeLaRequete(params);
   return (
     <Suspense>
-      <VerifyEmailContent />
+      <VerifierLAdresse adresse={user.email} intention={intention} />
     </Suspense>
   );
 }

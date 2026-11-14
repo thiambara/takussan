@@ -93,6 +93,8 @@ final class PropertyOwnerTransfer
             // ADR-0059 § 4 — journal du modèle coupé, comme la passation : ce transfert se journalise
             // sous son propre évènement, plus bas.
             $bien->disableLogging()->forceFill(['user_id' => $owner->id])->save();
+            // TCK-2753 (r1) — rejugé sous verrou après l'écriture : bien puis profil, l'ordre du départ.
+            $this->titulaires->exigerActifSousVerrou((int) $owner->id, (int) $bien->agency_id);
             if ($bilan['leases_moved'] !== []) {
                 Lease::query()->whereIn('id', $bilan['leases_moved'])->toBase()
                     ->update(['landlord_id' => $owner->id, 'updated_at' => now()]);

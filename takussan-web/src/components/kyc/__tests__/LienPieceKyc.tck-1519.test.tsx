@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { KycDecisionPanel } from '@/components/admin/super/kyc-queue';
-import { KycDocumentUploader } from '../kyc-components';
+import { VerificationDeLAgence } from '../VerificationDeLAgence';
 import { lienPieceKyc } from '@/lib/lien-piece-kyc';
 import type { KycDocument, KycDossier } from '@/types/super-admin';
 
@@ -16,6 +16,8 @@ import type { KycDocument, KycDossier } from '@/types/super-admin';
  */
 
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
+// TCK-2671 — la console d'agence lit son dossier elle-même : la lecture est doublée.
+vi.mock('@/lib/queries/kyc', () => ({ fetchAgencyKyc: async () => ({ data: dossier() }), uploadAgencyKycDocument: vi.fn(), submitAgencyKyc: vi.fn() }));
 
 const SIGNEE = 'https://api.test/api/kyc/documents/42?expires=1700000000&signature=abc';
 const RELAIS = '/api/kyc/documents/42?expires=1700000000&signature=abc';
@@ -69,9 +71,9 @@ describe('lienPieceKyc', () => {
 });
 
 describe('les liens de pièce KYC visent le relais du front', () => {
-  it('console d\'agence', () => {
-    monter(<KycDocumentUploader agencyId={12} dossier={dossier()} />);
-    expect(screen.getByRole('link', { name: /rccm\.pdf/ })).toHaveAttribute('href', RELAIS);
+  it('console d\'agence (`VerificationDeLAgence`, TCK-2671)', async () => {
+    monter(<VerificationDeLAgence agencyId={12} />);
+    expect(await screen.findByRole('link', { name: 'Voir la pièce : RCCM' })).toHaveAttribute('href', RELAIS);
   });
 
   it('file du super-admin', () => {

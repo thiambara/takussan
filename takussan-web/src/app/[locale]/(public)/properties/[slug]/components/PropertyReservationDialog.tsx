@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { hrefConnexionPour, type ActionDEntree } from '@/components/auth/lien-connexion';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,16 @@ interface PropertyReservationDialogProps {
   intention?: IntentionReservation | null;
 }
 
+/**
+ * TCK-2604 — le geste du bouton principal, dans la liste fermée de la connexion. Une offre d'achat
+ * n'y a pas de nom : la connexion montre alors la forme directe.
+ */
+const ACTION_D_ENTREE: Record<ReturnType<typeof getPrimaryCtaForProperty>['action'], ActionDEntree | null> = {
+  reserve: 'reservation',
+  apply: 'candidature',
+  offer: null,
+};
+
 function formatPrice(price: number, currency: string | null): string {
   return formatMontant(price, currency ?? 'XOF');
 }
@@ -63,9 +74,10 @@ export function PropertyReservationDialog({
   if (!user) {
     // TCK-589 — la connexion ET l'inscription ramènent à la fiche, boîte rouverte : sans compte, le
     // visiteur n'avait qu'une porte, et l'inscription le perdait en route.
-    const retour = encodeURIComponent(
-      isOfferFlow ? `/properties/${property.slug}` : cheminIntentionReservation(property.slug, intention ?? {}),
-    );
+    const retour = isOfferFlow ? `/properties/${property.slug}` : cheminIntentionReservation(property.slug, intention ?? {});
+    // TCK-2604 — une seule porte : la connexion par numéro crée le compte au premier code. Les deux
+    // liens y mènent, avec l'action interrompue — la connexion montre ce bien et dit ce geste.
+    const href = hrefConnexionPour(retour, ACTION_D_ENTREE[action]);
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
@@ -78,13 +90,13 @@ export function PropertyReservationDialog({
               {t('cancel')}
             </Button>
             <LienLocalise
-              href={`/auth/register?redirect=${retour}`}
+              href={href}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium hover:bg-muted transition-colors sm:min-h-8"
             >
               {t('createAccount')}
             </LienLocalise>
             <LienLocalise
-              href={`/auth/login?redirect=${retour}`}
+              href={href}
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 text-sm font-medium hover:bg-primary/80 transition-colors sm:min-h-8"
             >
               {t('signIn')}

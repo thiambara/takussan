@@ -172,4 +172,21 @@ class PrivacyRequestRegistryTest extends ApiTestCase
         $this->assertStringContainsString("'@contact", $csv);
         $this->assertDoesNotMatchRegularExpression('/(^|,)"?=HYPERLINK/m', $csv);
     }
+
+    /** TCK-2743 (lot 3) — la réception d'une demande, reçue avec décalage : l'instant désigné. */
+    public function test_received_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $this->travelTo('2026-11-12 10:00:00');
+        $this->apiActingAsRole('super_admin');
+
+        $id = $this->apiPost('/api/admin/privacy-requests', [
+            'type' => 'access',
+            'channel' => 'email',
+            'requester_name' => 'Awa Témoin',
+            'requester_contact' => 'awa@example.test',
+            'received_at' => '2026-11-10T18:00:00+02:00',
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('2026-11-10 16:00:00', PrivacyRequest::query()->findOrFail($id)->getRawOriginal('received_at'));
+    }
 }

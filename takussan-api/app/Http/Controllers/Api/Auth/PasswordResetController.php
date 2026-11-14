@@ -11,13 +11,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 
+use function Illuminate\Support\defer;
+
 class PasswordResetController extends Controller
 {
     public function forgotPassword(ForgotPasswordPasswordResetRequest $request): JsonResponse
     {
         $request->merge(['email' => CaseInsensitive::fold(trim((string) $request->input('email')))]);
 
-        Password::sendResetLink($request->only('email'));
+        // r1 de la contre-vérification de 861535de2 (TCK-2606) — l'existence d'un compte se lisait au
+        // temps de réponse : pour une adresse connue, `sendResetLink` hache le jeton (bcrypt, 12 tours
+        // en production) et l'écrit en base avant de répondre — 360 à 425 ms, contre 207 à 213 pour
+        // une adresse inconnue. L'envoi part donc APRÈS la réponse (`defer`, que FrankenPHP 1.13.2
+        // honore : `fastcgi_finish_request` y existe et rend la réponse avant la suite du script,
+        // mesuré) ; la réponse ne dépend plus que du format de l'adresse et du débit (`throttle`).
+        $identifiants = $request->only('email');
+        defer(fn () => Password::sendResetLink($identifiants));
 
         return $this->json(['message' => __('messages.password_reset_link_sent')]);
     }

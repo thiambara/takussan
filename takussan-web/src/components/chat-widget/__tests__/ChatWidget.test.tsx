@@ -108,6 +108,12 @@ describe('<ChatWidget> visibility', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('TCK-2611 — ne rend rien sur la page d’invitation, page d’entrée', () => {
+    usePathnameMock.mockReturnValue('/invitations/accept');
+    const { container } = render(wrap(<ChatWidget />));
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('renders nothing on /maintenance', () => {
     usePathnameMock.mockReturnValue('/maintenance');
     const { container } = render(wrap(<ChatWidget />));
@@ -138,31 +144,26 @@ describe('<ChatWidget> visibility', () => {
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
   });
 
-  it('renders the launcher on /app dashboard pages when authenticated', () => {
-    usePathnameMock.mockReturnValue('/app/properties');
+  it.each(['/app', '/app/properties', '/app/leases', '/app/overview/agency', '/app/agency/finances'])(
+    'TCK-2619 — %s : rien ne se monte, à aucune largeur — la console porte la messagerie',
+    (chemin) => {
+      usePathnameMock.mockReturnValue(chemin);
+      nonLus.compte = 4;
+      try {
+        const { container } = render(wrap(<ChatWidget />));
+        expect(container).toBeEmptyDOMElement();
+        expect(screen.queryByTestId('chat-widget-launcher')).toBeNull();
+        expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
+      } finally {
+        nonLus.compte = 0;
+      }
+    },
+  );
+
+  it('TCK-2619 — un chemin qui COMMENCE par « /app » sans en être (`/apply`) garde le lanceur', () => {
+    usePathnameMock.mockReturnValue('/apply');
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
-  });
-
-  it('TCK-2481 — sur /app, pas de bouton flottant mobile : la barre d’onglets porte la messagerie', () => {
-    usePathnameMock.mockReturnValue('/app/leases');
-    render(wrap(<ChatWidget />));
-    expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
-    expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument(); // le lanceur de bureau reste
-  });
-
-  it('TCK-2481 (revue, I1) — sur /app, aucune région live du widget n’existe sous md : la barre porte la sienne, sans doublon', () => {
-    usePathnameMock.mockReturnValue('/app/leases');
-    nonLus.compte = 4;
-    try {
-      const { container } = render(wrap(<ChatWidget />));
-      const regions = [...container.querySelectorAll('[aria-live]')];
-      expect(regions.length).toBeGreaterThan(0); // le badge du lanceur de bureau, qui annonce dès md
-      // Chacune vit sous un ancêtre `hidden` (display: none sous md) : hors de l'arbre d'accessibilité.
-      for (const region of regions) expect(region.closest('.hidden')).not.toBeNull();
-    } finally {
-      nonLus.compte = 0;
-    }
   });
 
   it('TCK-2481 — hors de /app et du site public, le bouton flottant mobile reste', () => {
@@ -429,7 +430,8 @@ describe('<ChatWidget> — empilement du panneau ouvert (TCK-2485)', () => {
   const conteneur = () => screen.getByTestId('chat-widget-launcher').parentElement;
 
   beforeEach(() => {
-    usePathnameMock.mockReturnValue('/app');
+    // TCK-2619 — plus sous `/app`, où le widget ne se monte plus : une page hors du site public.
+    usePathnameMock.mockReturnValue('/properties/villa-saly');
     useAuthMock.mockReturnValue({ user: { id: 1 } });
     cibleMock.mockReturnValue(null);
   });

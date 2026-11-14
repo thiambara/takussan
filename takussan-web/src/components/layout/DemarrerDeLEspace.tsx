@@ -4,8 +4,6 @@ import { useId, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { CircleDashed, X } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { useMyProfiles } from '@/hooks/useProfiles';
 import { etapesARendre, type ModeDemarrer } from '@/lib/navigation/demarrer';
 import { useDemarrageDeLEspace } from '@/lib/queries/demarrage-espace';
 import { cn } from '@/lib/utils';
@@ -52,15 +50,6 @@ interface DemarrerDeLEspaceProps {
 export function DemarrerDeLEspace({ mode, ouverte, onNavigate, onMasquer, className }: DemarrerDeLEspaceProps) {
   const t = useTranslations('nav.sidebar.demarrer');
   const idTitre = useId();
-  const { activeProfileId } = useAuth();
-  // Tâche 6 de TCK-2479 (mesuré au navigateur) — `activeProfileId` ne vaut que le cookie
-  // `active_profile_id`, que la CONNEXION ne pose pas (seuls l'onboarding et le changement d'espace le
-  // font) : un bailleur connecté normalement le voit `null`, son lien KYC perdait `?owner=`, et
-  // `/onboarding/owner` le renvoyait vers `/app` — l'étape ne se faisait jamais. Le profil que l'API
-  // a résolu (`meta.active_profile_id`, celui sur lequel elle a jugé les étapes) prend le relais :
-  // même lecture et même cache que le sélecteur de profil de la barre, aucune requête de plus.
-  const { data: profils } = useMyProfiles();
-  const idProfilActif = activeProfileId ?? profils?.meta.active_profile_id ?? null;
   const [masque, setMasque] = useState(false);
   const { data, isError } = useDemarrageDeLEspace({ enabled: !masque });
   // Une réponse sans `etapes` (contrat qui dérive, relais qui rend autre chose) ne fait pas tomber la
@@ -69,7 +58,7 @@ export function DemarrerDeLEspace({ mode, ouverte, onNavigate, onMasquer, classN
   const etapes = data?.data?.etapes;
   if (masque || isError || !Array.isArray(etapes)) return null;
 
-  const { restantes, faites, total } = etapesARendre(etapes, mode, idProfilActif, ouverte);
+  const { restantes, faites, total } = etapesARendre(etapes, mode, ouverte);
   if (restantes.length === 0) return null;
 
   return (
@@ -99,7 +88,7 @@ export function DemarrerDeLEspace({ mode, ouverte, onNavigate, onMasquer, classN
             <Link
               href={etape.href}
               onClick={onNavigate}
-              className={cn(STYLE_LIGNE, 'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-10', STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT)}
+              className={cn(STYLE_LIGNE, 'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-11', STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT)}
             >
               <CircleDashed className={cn(ICONE_DE_LIGNE, 'text-muted-foreground')} strokeWidth={TRAIT_D_ICONE} aria-hidden />
               <span className="min-w-0 flex-1 leading-snug text-pretty">{t(etape.cle)}</span>

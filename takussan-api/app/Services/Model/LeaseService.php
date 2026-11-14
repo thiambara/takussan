@@ -2,11 +2,14 @@
 
 namespace App\Services\Model;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Events\Booking\BookingClosed;
 use App\Events\Lease\LeaseActivated;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\Currency;
@@ -16,17 +19,19 @@ use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Guarantor;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Booking\BookingNotificationParams;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
-use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -38,18 +43,9 @@ class LeaseService
     public function create(Property $property, User $user, array $data): Lease
     {
         // TCK-587 (ADR-0031) — le bailleur du bien, ou le PERSONNEL de l'agence du bien tenant
-        // `leases.create`. La clause « même agence » laissait un autre bailleur de l'agence ouvrir un
-        // bail sur le bien d'un autre, et `leases.create` n'avait aucun lecteur.
-        $staffAgencyId = $user->staffAgencyId();
-        $canCreate = $user->isSuperAdmin()
-            // TCK-1722 (P160.03) — le créateur du bien seulement s'il en est le bailleur : l'agent qui
-            // l'a saisi ouvre un bail au titre du personnel, sous `leases.create`.
-            || (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
-                && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id)))
-            || ($property->agency_id !== null
-                && $staffAgencyId === (int) $property->agency_id
-                && $user->can(Capability::LeasesCreate->value, $property));
-        abort_unless($canCreate, 403);
+        // `leases.create`. TCK-2643 — la règle vit dans `LeasePolicy::createOn()`, que lit aussi
+        // `GET /api/leases/defaults` : le préremplissage juge comme la création.
+        abort_unless($user->can('createOn', [Lease::class, $property]), 403);
 
         // TCK-587 (vérification adverse, B2) — le locataire et le garant doivent être dans le
         // périmètre de l'émetteur (`view`), comme le client d'une réservation (`BookingService`).
@@ -110,8 +106,14 @@ class LeaseService
         // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
         $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return DB::transaction(function () use ($data, $property, $user, $reservation): Lease {
-            $lease = Lease::create(array_merge($data, [
+        return DB::transaction(function () use ($data, $property, $user): Lease {
+            // TCK-2747 — sous le verrou du bien, que `BookingService::confirm()` prend aussi : une
+            // confirmation de candidature voit le brouillon né ici, ou le précède.
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — le brouillon ne ferme plus rien : les
+            // candidatures du bien se closent à l'ENVOI en signature ({@see self::cloreLesCandidaturesDuBien()}).
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+
+            return Lease::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::lease(),
                 'landlord_id' => $property->user_id,
                 'agency_id' => $property->agency_id ?? $user->agency_id,
@@ -119,13 +121,144 @@ class LeaseService
                 'currency' => $data['currency'] ?? 'XOF',
                 'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
             ]));
+        });
+    }
 
-            if ($reservation !== null) {
-                $this->terminerLaReservation($reservation, $lease, $user);
+    /**
+     * TCK-2734 (décision 7 du porteur, 2026-11-12) — l'ordre global des verrous (`takussan-api/CLAUDE.md`,
+     * piège n° 10) pour qui écrit un bail ET les réservations de son bien : le BIEN d'abord, puis la ligne
+     * du bail, relue. `PropertyOwnerTransfer` écrit les baux après le bien, et `BookingService::confirm()`
+     * les réservations après lui : prendre le bail avant le bien inverserait l'ordre. Dans la transaction
+     * de l'appelant.
+     *
+     * L'AGENCE vient après (réserve r2 de la vérification de d87e423e7) : l'envoi la touche par le journal
+     * (clé étrangère `activity_log.agency_id`) et par le compteur de `LeaseObserver`. Ne pas la verrouiller
+     * ici en tête : tout écrivain qui tient un bien puis journalise s'interbloquerait avec. C'est l'achat de
+     * boost qui a changé d'ordre (`BoostPurchaseService::lock()`, bien puis agence).
+     */
+    public static function verrouillerLeBienPuisLeBail(Lease $lease): Lease
+    {
+        Property::query()->whereKey($lease->property_id)->lockForUpdate()->first();
+
+        /** @var Lease */
+        return Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    /**
+     * TCK-2734 (décision 7 du porteur, 2026-11-12, contre la recommandation) — les candidatures du bien
+     * se closent quand le bail PART : à l'envoi en signature (`LeaseSignatureService::request()`) ou à
+     * la signature sur papier (`signOnPaper()`, qui accepte un brouillon), et plus à la création du
+     * brouillon. Un brouillon abandonné ne ferme donc rien.
+     *
+     * - La réservation d'origine (`booking_id`) et les candidatures ouvertes du LOCATAIRE passent
+     *   `completed` (P48.03), sans avis.
+     * - Les autres candidatures ouvertes (`pending`, `confirmed`) passent `rejected`, avec l'avis
+     *   « Candidature non retenue », un par client, après le commit.
+     *
+     * Un renouvellement ne ferme rien : le locataire reste, le bien n'est pas reloué.
+     * Un second envoi (bail déjà `pending_signature`) ne retrouve que ce qui est ouvert depuis le premier.
+     *
+     * L'appelant tient la transaction et a pris {@see self::verrouillerLeBienPuisLeBail()}.
+     */
+    public function cloreLesCandidaturesDuBien(Lease $lease, User $by): void
+    {
+        if ($lease->renewed_from_lease_id !== null) {
+            return;
+        }
+
+        $reservation = $lease->booking_id !== null
+            ? Booking::query()->whereKey($lease->booking_id)->where('property_id', $lease->property_id)->first()
+            : null;
+        $candidatures = $this->verrouillerLesCandidaturesOuvertes((int) $lease->property_id, $reservation);
+
+        if ($reservation !== null) {
+            $this->terminerLaReservation($reservation, $lease, $by);
+        }
+        $this->fermerLesCandidatures($candidatures, (int) $lease->tenant_id, $lease, $by);
+    }
+
+    /**
+     * TCK-2734 — les candidatures encore ouvertes du bien (`pending`, `confirmed`) et la réservation
+     * d'origine, verrouillées en UNE passe par identifiant croissant, APRÈS le bien. Rend les
+     * candidatures hors la réservation d'origine, que {@see self::terminerLaReservation()} traite.
+     * Offres d'achat et séjours n'y sont pas : plusieurs offres sur un bien à vendre sont normales, et
+     * un séjour a ses nuits.
+     *
+     * @return Collection<int, Booking>
+     */
+    private function verrouillerLesCandidaturesOuvertes(int $propertyId, ?Booking $reservation): Collection
+    {
+        return Booking::query()
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q
+                    ->where('property_id', $propertyId)
+                    ->where('kind', BookingKind::Application->value)
+                    ->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value]))
+                ->when($reservation !== null, fn ($q) => $q->orWhere('id', $reservation->getKey())))
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->reject(fn (Booking $b) => $reservation !== null && $b->is($reservation))
+            ->values();
+    }
+
+    /**
+     * TCK-2734 (seconde porte ; décision 7 du 2026-11-12 : à l'envoi du bail) — les autres
+     * candidatures ouvertes du bien se ferment, acceptée comprise. Sans cela, une candidature acceptée qu'un bail tiré d'une AUTRE
+     * (ou créé sans `booking_id`) laissait `confirmed` retenait le bien, et toute confirmation suivante
+     * rendait `409 booking.application_already_accepted`.
+     *
+     * - Celles du LOCATAIRE du bail sont les siennes, nommées par `booking_id` ou non : `completed`,
+     *   comme la réservation d'origine, sans avis — lui dire « non retenue » serait faux.
+     * - Les autres passent `rejected` (ce que `reject()` ne fait que d'une demande en attente) ; leur
+     *   auteur reçoit « Candidature non retenue » APRÈS le commit, une fois, et `BookingClosed`
+     *   (déjà différé au commit) ouvre la tâche de remboursement d'un acompte encaissé.
+     *
+     * @param  Collection<int, Booking>  $candidatures  verrouillées par {@see self::verrouillerLesCandidaturesOuvertes()}
+     */
+    private function fermerLesCandidatures(Collection $candidatures, int $tenantId, Lease $lease, User $user): void
+    {
+        // Vérification adverse de TCK-2734-b — un avis par AUTEUR : un client qui a deux candidatures
+        // ouvertes sur le bien lit une fois « non retenue », pas deux. Chaque candidature se ferme.
+        $avises = [];
+        foreach ($candidatures as $candidature) {
+            if ((int) $candidature->customer_id === $tenantId) {
+                $this->terminerLaReservation($candidature, $lease, $user);
+
+                continue;
             }
 
-            return $lease;
-        });
+            $candidature->forceFill([
+                'status' => BookingStatus::Rejected,
+                'cancelled_at' => now(),
+            ])->save();
+            $candidature->cancelPendingPayments();
+
+            activity('Booking')
+                ->performedOn($candidature)
+                ->causedBy($user)
+                ->withProperties(['lease_id' => $lease->id])
+                ->event('booking_not_selected')
+                ->log('booking_not_selected');
+
+            $premierAvis = ! isset($avises[(int) $candidature->customer_id]);
+            $avises[(int) $candidature->customer_id] = true;
+
+            if ($premierAvis) {
+                DB::afterCommit(function () use ($candidature): void {
+                    $client = $candidature->customer?->user;
+                    if ($client !== null) {
+                        app(NotificationService::class)->send(
+                            $client,
+                            NotificationCode::BookingApplicationNotSelected,
+                            BookingNotificationParams::for($candidature, NotificationCode::BookingApplicationNotSelected),
+                            BookingNotificationParams::target($candidature),
+                        );
+                    }
+                });
+            }
+            BookingClosed::dispatch($candidature, BookingClosed::REASON_REJECTED, $user->id);
+        }
     }
 
     /**
@@ -435,6 +568,68 @@ class LeaseService
             PaymentFrequency::Quarterly => $date->addMonths(3),
             PaymentFrequency::Yearly => $date->addYear(),
         };
+    }
+
+    /**
+     * TCK-2764 (décision du porteur du 2026-11-12) — abandonner un brouillon jamais envoyé en signature :
+     * suppression DOUCE. La ligne reste (`deleted_at`), avec sa candidature d'origine, ses garants et
+     * ses documents ; elle cesse d'occuper le bien, parce que `BookingService::bauxQuiOccupent()` part
+     * de `Lease::query()`, qui écarte les lignes supprimées. Aucune candidature ne bouge — la fermer est
+     * un second geste, celui de l'écran (`reject` ou `cancel` de la réservation).
+     *
+     * Le bien puis le bail (`verrouillerLeBienPuisLeBail()`), comme l'envoi en signature : de deux
+     * ordres concurrents, le second relit la ligne. Un envoi passé d'abord laisse `pending_signature`
+     * (422 ci-dessous) ; un abandon passé d'abord laisse une ligne supprimée, que l'envoi ne trouve plus
+     * (404).
+     *
+     * Une échéance non annulée, de tout type, refuse l'abandon : de l'argent saisi ne disparaît pas
+     * avec un brouillon. Un état des lieux ENGAGÉ aussi (`lease.abandon_has_inventory`) ; des brouillons
+     * d'état des lieux jamais signés, eux, sont supprimés en douceur avec le bail (TCK-2764 4a).
+     */
+    public function abandonDraft(Lease $lease, User $by, ?string $reason = null): Lease
+    {
+        return DB::transaction(function () use ($lease, $by, $reason): Lease {
+            $locked = self::verrouillerLeBienPuisLeBail($lease);
+
+            abort_code_if($locked->status !== LeaseStatus::Draft, 422, 'lease.not_draft_abandon');
+            abort_code_if(
+                $locked->payments()->where('status', '!=', PaymentStatus::Cancelled->value)->exists(),
+                422,
+                'lease.abandon_has_payments'
+            );
+            // TCK-2764 4a (décision du porteur du 2026-11-13, qui assouplit r1) — un état des lieux ENGAGÉ
+            // (`Inventory::engage()` : sorti du brouillon, ou portant une signature) refuse l'abandon ; des
+            // brouillons jamais signés partent avec le bail, en suppression douce, plutôt que de rester
+            // sans bail (`lease: null`) dans la liste. Ils se relisent ici, sous verrou, après le bien et le
+            // bail (piège n° 10) : tout écrivain d'un état des lieux (`InventoryService::underLock`,
+            // `InventorySignatureService::sign`) prend sa ligne d'abord, donc un envoi en signature ou une
+            // signature concurrents passent avant (422 ici) ou après (404 chez eux, la ligne est supprimée).
+            // `InventoryService::create()` prend le même bien puis le même bail : de deux ordres
+            // concurrents, le second voit l'autre.
+            $etatsDesLieux = $locked->inventories()->orderBy('id')->lockForUpdate()->get();
+            abort_code_if($etatsDesLieux->contains(fn (Inventory $etat): bool => $etat->engage()), 422, 'lease.abandon_has_inventory');
+
+            foreach ($etatsDesLieux as $etat) {
+                $etat->delete();
+            }
+            $locked->delete();
+
+            activity('Lease')
+                ->performedOn($locked)
+                ->causedBy($by)
+                ->withProperties([
+                    'lease_id' => $locked->id,
+                    'property_id' => $locked->property_id,
+                    'booking_id' => $locked->booking_id,
+                    'reason' => $reason,
+                    // TCK-2764 4a — les brouillons d'état des lieux partis avec le bail.
+                    'inventory_ids' => $etatsDesLieux->pluck('id')->all(),
+                ])
+                ->event('lease_draft_abandoned')
+                ->log('lease_draft_abandoned');
+
+            return $locked;
+        });
     }
 
     public function terminate(Lease $lease, User $user, ?string $reason = null): Lease

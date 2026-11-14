@@ -1146,3 +1146,141 @@ retenue vivante), la définition qu'emploient déjà les rapports.**
   bail plafonne ; la chaîne de renouvellements, encaissé et rendu) ;
   `SendLeasePaymentRemindersTest` (aucune relance de caution) et `LeaseExitScheduleTest`
   (annulation à la sortie, caution engagée gardée).
+
+## Amendement du 2026-11-14 — la pénalité payée seule : son encaisseur, son reversement et son rapprochement
+
+Décision du porteur du 2026-11-13 (réponse 1a sur TCK-2778) : le lien de la pénalité seule
+n'existait que si l'encaissement passait par l'intégration de l'agence, et le cas plateforme ainsi
+que le rapprochement de cette part étaient renvoyés à un ticket de suite. Ce ticket est
+[TCK-2793](../backlog/tickets/todo/TCK-2793-penalite-seule-encaissee-par-la-plateforme-et-rapprochement.md).
+Il complète le point 6 de l'amendement du 2026-10-24, et la forme du reversement de la plateforme
+change. Relu sur `feat/audit-ux-app-lot-2` d320f8ef0.
+
+### Constat
+
+- **Le checkout de la pénalité seule (TCK-2778) a son propre emplacement.** Il s'écrit dans
+  `metadata.gateway.late_fee_checkout` et dans une entrée `subject: late_fee` de
+  `metadata.gateway.transactions`, qui porte le montant figé et l'intégration qui l'a initié. Son
+  succès pose `gateway.late_fee_settled_by` et `late_fee_paid_at`. Il ne touche jamais au règlement
+  du loyer.
+- **Rien ne lit cette entrée pour l'argent.** Ni le rapprochement, ni la clôture plateforme, ni le
+  calculateur du reversement au bailleur, ni les effets d'un remboursement : constaté, reprise,
+  signal et avis.
+- **Le rapprochement ne voit pas le dépôt de la pénalité seule.** Ce dépôt est un versement distinct
+  sur le compte de l'agence, et il n'a aucun pendant attendu. Inversement,
+  `LeasePayment::expectedBankAmount()` et `scopeWhereExpectedAmountNear()` ajoutent au loyer la
+  pénalité réglée le même jour que lui (TCK-833), même quand elle a été payée en ligne à part.
+- **La clôture plateforme ne peut pas prendre une pénalité seule.** Elle choisit ses lignes par
+  `platform_payout_id`, et le loyer de la ligne a pu être réglé hors plateforme (jamais éligible)
+  ou être déjà porté par un `PlatformPayout` antérieur (exclu).
+
+### Décision
+
+1. **L'encaisseur.** L'encaisseur de la pénalité seule se lit sur l'intégration de l'entrée de
+   `gateway.transactions` que désigne `gateway.late_fee_settled_by`. Il ne se lit ni sur
+   `late_fee_checkout` (un checkout écarté puis payé quand même n'en est plus le dernier), ni sur
+   l'intégration du loyer. Une intégration globale (`agency_id` nul, supprimées comprises) fait de
+   la plateforme l'encaisseur (`LeasePayment::lateFeeAloneSettlement()`,
+   `PlatformPayoutService::lateFeeAloneSettledByPlatform()`).
+2. **L'intégration globale est admise.** `lateFeeAloneProviders()` propose désormais tout fournisseur
+   de `availableProviders()`, que l'intégration résolue soit celle de l'agence ou la globale. La
+   règle 1a de TCK-2778 est levée, parce que les lecteurs ci-dessous sont prêts.
+3. **Le reversement de la plateforme a une éligibilité propre pour la pénalité seule.** Une colonne
+   nullable, `lease_payments.late_fee_platform_payout_id`, désigne le `PlatformPayout` qui a pris
+   la pénalité seule. Le modèle est `late_fee_payout_id`, côté bailleur.
+   - **Éligibilité.** La clôture prend la pénalité seule quand quatre conditions sont réunies :
+     elle a été encaissée par la plateforme, `late_fee_paid_at` tombe au plus tard à la fin de
+     période, la colonne est nulle et la ligne n'est pas une caution rendue. Le statut du loyer et
+     son `platform_payout_id` n'y entrent pas.
+   - **Montant.** Elle entre au brut pour `montant de l'entrée − late_fee_refund_amount`, et la
+     commission la frappe au taux `platform_fee_pct_at_payment` de la ligne, comme la pénalité
+     réglée avec le loyer. Elle s'ajoute à `metadata.late_fees_gross` et `late_fees_fee` ;
+     `metadata.late_fee_alone_count` en donne le nombre.
+   - **Une seule fois.** La colonne est posée à la clôture, sous le verrou des lignes. Un loyer et
+     une pénalité seule de la même ligne peuvent donc tomber dans deux reversements distincts.
+   - **Les lecteurs du reversement.** `cancel` remet la colonne à nul.
+     `assertItemsStillPaid` et `refundedSinceClosing` lisent la part rendue des pénalités seules du
+     reversement. Le statut du loyer d'une ligne qui n'y entre que par sa pénalité seule n'y entre
+     pas. `agenciesWithUnpaidEligiblePayments` les voit.
+   - **Les métriques.** `platformSettledLateFees()` compte la pénalité seule encaissée par la
+     plateforme (ADR-0057), pour que les frais des métriques retombent sur ceux de la clôture.
+4. **Le reversement au bailleur.** Une pénalité seule encaissée par la plateforme suit TCK-2064 :
+   elle n'est reversable au bailleur qu'une fois `paid` le `PlatformPayout` désigné par
+   `late_fee_platform_payout_id`, et non celui du loyer
+   (`PayoutCalculator::exceptLateFeesAwaitingPlatform`). Encaissée par l'agence, elle reste
+   reversable aussitôt.
+5. **Le rapprochement de l'agence.**
+   - **Une ligne attendue à part.** Une pénalité seule encaissée par l'intégration de l'agence est un
+     crédit attendu à son montant figé (`amount` de l'entrée). Elle a son propre emplacement de
+     rapprochement sur la ligne d'échéance, `lease_payments.late_fee_bank_reconciled_at` et
+     `late_fee_bank_statement_line_id`, à côté de celui du loyer.
+   - **La ligne de relevé.** Elle désigne la pénalité par `matched_payment_type = LeasePayment` et
+     une colonne neuve, `bank_statement_lines.matched_part` (`late_fee`, nulle pour tout le reste).
+   - **Côté API**, le type se nomme `lease_payment_late_fee`. Le matcher, la recherche manuelle,
+     la confirmation, la confirmation en lot, la levée et la ressource de la ligne le lisent. Une
+     pénalité seule encaissée par la plateforme n'est jamais attendue : elle arrive fondue dans le
+     net du `PlatformPayout`.
+   - **Le loyer n'ajoute plus la pénalité.** Le montant attendu du loyer n'ajoute plus une pénalité
+     payée en ligne seule (`late_fee_settled_by` posé), même réglée le même jour. Cela vaut pour
+     la forme PHP comme pour la forme SQL.
+6. **Le remboursement de la pénalité seule** a les effets comptables d'un remboursement de loyer, à
+   hauteur de la part neuve de `late_fee_refund_amount`, sans toucher au `status` ni au
+   `refund_amount` du loyer. Il est appliqué par l'événement `refunded` ou par le remboursement en
+   attente que pose le `paid`.
+   - **Le constaté.** Un `Payout` constaté naît quand l'agence a encaissé la pénalité, et aucun
+     quand c'est la plateforme. Le point 9 de l'amendement du 2026-10-23 est lu sur l'encaisseur de
+     la pénalité, pas sur celui du loyer.
+   - **La reprise.** Si la pénalité a été reversée au bailleur (`late_fee_payout_id` `completed`,
+     avec sa copie), une reprise `part = late_fee` est prise sur la copie de la pénalité
+     (`late_fee_payout_amount`, `late_fee_payout_commission_rate`). La reprise du loyer ne compte
+     plus que ses propres reprises (`part = payment`) dans ce qu'elle a déjà repris.
+   - **Le signal.** Un `PlatformPayout` `paid` désigné par `late_fee_platform_payout_id` est signalé
+     comme une ligne remboursée (TCK-2320).
+   - **L'avis.** Le locataire et le bailleur reçoivent deux codes neufs,
+     `lease_payment.late_fee_refunded` et `lease_payment.late_fee_refunded_landlord` : les textes
+     du loyer disent « loyer ».
+
+### Schéma, en ajout seul
+
+| Objet | Colonnes | Pourquoi |
+|---|---|---|
+| `lease_payments.late_fee_platform_payout_id` | nullable, vers `platform_payouts`, `nullOnDelete` | l'éligibilité de la pénalité seule à la clôture (point 3) |
+| `lease_payments.late_fee_bank_reconciled_at`, `late_fee_bank_statement_line_id` | nullables, la seconde vers `bank_statement_lines`, unique quand non nulle | le rapprochement de la pénalité seule (point 5) |
+| `bank_statement_lines.matched_part` | chaîne nullable (ADR-0007) | la part de l'échéance que la ligne désigne (point 5) |
+
+Aucune reprise de données : tout est nul pour l'existant, et aucune pénalité seule n'a pu être
+encaissée par la plateforme avant ce changement.
+
+### Ce qui n'est pas gardé
+
+- **Une pénalité seule encaissée par l'agence avant ce changement et déjà déposée** n'est pas
+  rapprochée automatiquement : sa ligne de relevé se confirme à la main.
+- **Le rapprochement manuel d'une pénalité seule sur la ligne du loyer** reste possible : la garde de
+  montant ne refuse pas, elle consigne l'écart (`amount_gap`), comme aujourd'hui.
+
+### Application
+
+- Une migration en ajout seul (le schéma ci-dessus).
+- `LeasePayment` : l'encaisseur et l'attente bancaire de la pénalité seule, et le montant attendu
+  du loyer.
+- `PlatformPayoutService` (clôture, `cancel`, gardes, métriques), `PayoutCalculator`,
+  `ObservedRefundPayout`, `PayoutClawbacks`, `PlatformPayoutRefundSignal`, le remboursement de
+  `LateFeeAloneCheckout`.
+- Le rapprochement : `ReconciliationMatcher`, `PaymentSearchService`, `ReconciliationManager`,
+  `MatchBankStatementLinesJob`, `BankStatementLineController`, `BankStatementLineResource`, et le
+  type front `MatchedPaymentType`.
+- **Gardes**, chacune vérifiée par ablation, dans `tests/Feature/Payments/PenaliteSeuleComptabiliteTest.php` :
+  - la pénalité seule encaissée par la plateforme entre au net du `PlatformPayout` une seule fois ;
+  - le loyer encaissé par la plateforme et la pénalité seule par l'agence, puis l'inverse ;
+  - la pénalité seule n'est reversée au bailleur qu'une fois son `PlatformPayout` `paid` ;
+  - le rapprochement de la pénalité seule, avec un loyer qui garde son montant attendu ;
+  - le remboursement : un constaté chez l'agence, aucun chez la plateforme, le loyer intact ;
+  - une pénalité seule rendue en entier avant la clôture n'est pas prise (aucun reversement à 0) ;
+  - la clôture globale voit une agence dont la pénalité seule est le seul élément, et un
+    remboursement après la clôture fait refuser l'approbation (`items_changed`) ;
+  - la confirmation en lot rapproche la pénalité, et non le loyer.
+- **Lecteurs de `platform_payout_id` hors de `PlatformPayoutService`**, relevés par
+  `grep -rn platform_payout_id app` : `PayoutCalculator` (l'attente de TCK-2064, changée au point 4),
+  `PlatformPayoutRefundSignal` (changé au point 6) et les `$fillable`. La relation
+  `PlatformPayout::leasePayments()` n'a aucun lecteur sous `app/`. Le détail d'un reversement
+  (`breakdown`) lit la pénalité seule par `metadata.late_fees_gross`.

@@ -330,6 +330,18 @@ return [
                 'body_link' => 'Your rent of :amount for :property is due on :due_date. Pay online: :payment_url',
                 'sms' => 'Takussan: rent of :amount due on :due_date (:property).',
                 'sms_link' => 'Takussan: rent of :amount due on :due_date. Pay: :payment_url',
+                // TCK-2706 — a reminder merging rent and charges due the same day names both and details the
+                // two amounts (`_rent_charges`, one link per due) ; charges alone say “charges”.
+                'title_rent_charges' => 'Rent and charges due on :due_date',
+                'body_rent_charges' => 'Your rent and charges for :property are due on :due_date: rent :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => 'Your rent and charges for :property are due on :due_date: rent :rent, charges :charges, total :amount. Pay the rent: :payment_url — pay the charges: :charges_url',
+                'sms_rent_charges' => 'Takussan: rent :rent + charges :charges = :amount, due on :due_date (:property).',
+                'sms_rent_charges_link' => 'Takussan: rent :rent + charges :charges = :amount, due on :due_date. Rent: :payment_url Charges: :charges_url',
+                'title_charges' => 'Charges due on :due_date',
+                'body_charges' => 'Your charges of :amount for :property are due on :due_date.',
+                'body_charges_link' => 'Your charges of :amount for :property are due on :due_date. Pay online: :payment_url',
+                'sms_charges' => 'Takussan: charges of :amount due on :due_date (:property).',
+                'sms_charges_link' => 'Takussan: charges of :amount due on :due_date. Pay: :payment_url',
             ],
             'overdue' => [
                 'title' => 'Rent overdue',
@@ -337,11 +349,31 @@ return [
                 'body_link' => '{1} Your rent of :amount for :property, due on :due_date, is :days day overdue. Pay online: :payment_url|[0,*] Your rent of :amount for :property, due on :due_date, is :days days overdue. Pay online: :payment_url',
                 'sms' => '{1} Takussan: rent of :amount is :days day overdue (:property).|[0,*] Takussan: rent of :amount is :days days overdue (:property).',
                 'sms_link' => '{1} Takussan: rent of :amount is :days day overdue. Pay: :payment_url|[0,*] Takussan: rent of :amount is :days days overdue. Pay: :payment_url',
+                // TCK-2706 — a reminder merging rent and charges due the same day names both and details the
+                // two amounts (`_rent_charges`, one link per due) ; charges alone say “charges”.
+                'title_rent_charges' => 'Rent and charges overdue',
+                'body_rent_charges' => '{1} Your rent and charges for :property, due on :due_date, are :days day overdue: rent :rent, charges :charges, total :amount.|[0,*] Your rent and charges for :property, due on :due_date, are :days days overdue: rent :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => '{1} Your rent and charges for :property, due on :due_date, are :days day overdue: rent :rent, charges :charges, total :amount. Pay the rent: :payment_url — pay the charges: :charges_url|[0,*] Your rent and charges for :property, due on :due_date, are :days days overdue: rent :rent, charges :charges, total :amount. Pay the rent: :payment_url — pay the charges: :charges_url',
+                'sms_rent_charges' => '{1} Takussan: rent :rent + charges :charges = :amount, :days day overdue (:property).|[0,*] Takussan: rent :rent + charges :charges = :amount, :days days overdue (:property).',
+                'sms_rent_charges_link' => '{1} Takussan: rent :rent + charges :charges = :amount, :days day overdue. Rent: :payment_url Charges: :charges_url|[0,*] Takussan: rent :rent + charges :charges = :amount, :days days overdue. Rent: :payment_url Charges: :charges_url',
+                'title_charges' => 'Charges overdue',
+                'body_charges' => '{1} Your charges of :amount for :property, due on :due_date, are :days day overdue.|[0,*] Your charges of :amount for :property, due on :due_date, are :days days overdue.',
+                'body_charges_link' => '{1} Your charges of :amount for :property, due on :due_date, are :days day overdue. Pay online: :payment_url|[0,*] Your charges of :amount for :property, due on :due_date, are :days days overdue. Pay online: :payment_url',
+                'sms_charges' => '{1} Takussan: charges of :amount are :days day overdue (:property).|[0,*] Takussan: charges of :amount are :days days overdue (:property).',
+                'sms_charges_link' => '{1} Takussan: charges of :amount are :days day overdue. Pay: :payment_url|[0,*] Takussan: charges of :amount are :days days overdue. Pay: :payment_url',
             ],
             'overdue_landlord' => [
                 'title' => 'Unpaid rent: :property',
                 'body' => '{1} The rent of :amount from :tenant for :property is :days day overdue.|[0,*] The rent of :amount from :tenant for :property is :days days overdue.',
                 'sms' => '{1} Takussan: rent of :amount from :tenant (:property) is :days day overdue.|[0,*] Takussan: rent of :amount from :tenant (:property) is :days days overdue.',
+                // TCK-2706 — a reminder merging rent and charges due the same day names both and details the
+                // two amounts (`_rent_charges`, one link per due) ; charges alone say “charges”.
+                'title_rent_charges' => 'Unpaid rent and charges: :property',
+                'body_rent_charges' => '{1} The rent and charges from :tenant for :property are :days day overdue: rent :rent, charges :charges, total :amount.|[0,*] The rent and charges from :tenant for :property are :days days overdue: rent :rent, charges :charges, total :amount.',
+                'sms_rent_charges' => '{1} Takussan: rent :rent + charges :charges = :amount from :tenant (:property), :days day overdue.|[0,*] Takussan: rent :rent + charges :charges = :amount from :tenant (:property), :days days overdue.',
+                'title_charges' => 'Unpaid charges: :property',
+                'body_charges' => '{1} The charges of :amount from :tenant for :property are :days day overdue.|[0,*] The charges of :amount from :tenant for :property are :days days overdue.',
+                'sms_charges' => '{1} Takussan: charges of :amount from :tenant (:property) are :days day overdue.|[0,*] Takussan: charges of :amount from :tenant (:property) are :days days overdue.',
             ],
             'overdue_digest' => [
                 'title' => '{1} :count overdue rent|[0,*] :count overdue rents',
@@ -376,6 +408,17 @@ return [
                 'title' => 'Rent refunded: :property',
                 'body' => ':amount of the rent paid by :tenant for :property was refunded through the online payment method.',
                 'sms' => 'Takussan: :amount of the rent from :tenant (:property) refunded.',
+            ],
+            // TCK-2793 — the late fee paid on its own, refunded through the online payment method.
+            'late_fee_refunded' => [
+                'title' => 'Refund: :property',
+                'body' => 'A refund of :amount was made on the late fee you paid for :property.',
+                'sms' => 'Takussan: refund of :amount on your late fee (:property).',
+            ],
+            'late_fee_refunded_landlord' => [
+                'title' => 'Late fee refunded: :property',
+                'body' => ':amount of the late fee paid by :tenant for :property was refunded through the online payment method.',
+                'sms' => 'Takussan: :amount of the late fee from :tenant (:property) refunded.',
             ],
         ],
         // TCK-593 — un double encaissement à rembourser, signalé aux admins de l'agence.
@@ -432,6 +475,12 @@ return [
                 'body' => 'The agency recorded request :reference on your behalf for :property. You can cancel it from your bookings.',
                 'sms' => 'Takussan: request :reference recorded on your behalf (:property). To cancel it, contact the agency.',
             ],
+            // TCK-2734 — au client : un bail a été créé sur le bien pour un autre locataire.
+            'application_not_selected' => [
+                'title' => 'Application not selected',
+                'body' => 'Your application :reference for :property was not selected: the property has been allocated to another tenant.',
+                'sms' => 'Takussan: application :reference not selected (:property).',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [
@@ -480,6 +529,9 @@ return [
                 'title' => 'Visit request: :property',
                 'body' => 'Requested slot: :scheduled_at. To reach the visitor: :contact.',
                 'mail_body' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).\nTo reach the visitor: :contact.",
+                // TCK-2717 — without `contact` (the landlord of an agency property, on a visit with a customer file): the sentence without it.
+                'body_unnamed' => 'Requested slot: :scheduled_at.',
+                'mail_body_unnamed' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).",
                 'sms' => 'Takussan: visit request for :property on :scheduled_at (:timezone).',
             ],
             // TCK-2502 — a request by day and time of day: the time of day is stated, the time is to be set.
@@ -487,6 +539,9 @@ return [
                 'title' => 'Visit request: :property',
                 'body' => 'Requested day: :date, :window — time to be set. To reach the visitor: :contact.',
                 'mail_body' => "A visit has been requested for :property.\nRequested day: :date, :window — set the time when confirming the visit.\nTo reach the visitor: :contact.",
+                // TCK-2717 — without `contact` (the landlord of an agency property, on a visit with a customer file): the sentence without it.
+                'body_unnamed' => 'Requested day: :date, :window — time to be set.',
+                'mail_body_unnamed' => "A visit has been requested for :property.\nRequested day: :date, :window — set the time when confirming the visit.",
                 'sms' => 'Takussan: visit request for :property on :date, :window (time to be set).',
             ],
             'rescheduled_by_visitor' => [
@@ -585,6 +640,25 @@ return [
                 'title' => 'Approval threshold changed',
                 'body' => 'The payout approval threshold was changed by :actor.',
                 'sms' => 'Takussan: approval threshold changed by :actor.',
+            ],
+        ],
+        // TCK-2783 — `documents:remind-expiring` : une pièce du coffre expire dans 60 puis 7 jours.
+        'document' => [
+            'expiring_soon' => [
+                'title' => 'Document expiring soon: :document_name',
+                'body' => '":document_name" expires on :expires_at. Add a new version from its page to keep your file up to date.',
+                'sms' => 'Takussan: your document ":document_name" expires on :expires_at.',
+            ],
+            // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            'archive_ready' => [
+                'title' => 'Your archive is ready',
+                'body' => 'The document archive you requested is ready. Download it from your documents within 24 hours.',
+                'sms' => 'Takussan: your document archive is ready in your documents, for 24 hours.',
+            ],
+            'archive_failed' => [
+                'title' => 'Your archive could not be prepared',
+                'body' => 'The document archive you requested could not be prepared. Try again from your documents.',
+                'sms' => 'Takussan: your document archive could not be prepared. Try again from your documents.',
             ],
         ],
         'kyc' => [
@@ -768,6 +842,12 @@ return [
                 'title' => 'Visit planned: ":request"',
                 'body' => 'The visit for the maintenance request ":request" is planned on :scheduled_at.',
                 'sms' => 'Takussan: visit planned on :scheduled_at for ":request".',
+            ],
+            // TCK-2786 — l'agence relance le bailleur : le devis attend toujours sa décision.
+            'owner_reminder' => [
+                'title' => 'Reminder: your approval is required for ":request"',
+                'body' => 'Your agency reminds you that a quote of :amount for ":request" is awaiting your decision. Approve or reject it.',
+                'sms' => 'Takussan: reminder, your approval is required for ":request".',
             ],
         ],
         'maintenance_quote' => [

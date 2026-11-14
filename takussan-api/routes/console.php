@@ -6,6 +6,7 @@ use App\Jobs\Billing\RenewAgencySubscriptionPeriods;
 use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
+use App\Jobs\Documents\PurgerLesArchivesDuCoffre;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
@@ -57,8 +58,9 @@ Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlap
 // TCK-1153 (P81.02) — un bail `active` dont la fin est passée, sans renouvellement en vigueur,
 // passe `expired` : sa caution se restitue. Idempotente (ne lit que des baux `active`).
 Schedule::job(new ExpireEndedLeasesJob)->dailyAt('03:15')->withoutOverlapping();
-// TCK-1301 (P115.01) — une réservation `confirmed` dont la fin est passée passe `completed` : le
-// séjour mené ne s'annule plus. Idempotente (ne lit que des réservations `confirmed`).
+// TCK-1301 (P115.01) — un séjour `confirmed` dont la fin est passée passe `completed` : le séjour
+// mené ne s'annule plus. TCK-2735 — un séjour seulement : candidature et offre ont pour issue le bail
+// ou la vente. Idempotente (ne lit que des séjours `confirmed`).
 Schedule::job(new CompleteEndedBookingsJob)->dailyAt('03:30')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
@@ -127,8 +129,15 @@ Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlappi
 // TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
 // Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
 Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
+// TCK-2812 (ADR-0099, amendement du 2026-11-14) — les archives préparées du coffre ne survivent pas à
+// leur lien (24 h) ; échouées ou perdues, elles s'effacent après 24 h. Idempotent : une ligne effacée
+// n'est plus relue, et effacer un fichier absent ne fait rien.
+Schedule::job(new PurgerLesArchivesDuCoffre)->hourly()->withoutOverlapping(60);
 // TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
 Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
+// TCK-2783 — rappel d'expiration d'une pièce du coffre à J-60 et J-7 (jour de Dakar). Idempotent :
+// les jalons envoyés sont mémorisés sur la pièce avec la date visée.
+Schedule::command('documents:remind-expiring')->dailyAt('07:00')->timezone('Africa/Dakar')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping(60);
 

@@ -7,10 +7,8 @@ use App\Http\Requests\Api\StoreTaskRequest;
 use App\Http\Requests\Api\UpdateTaskRequest;
 use App\Models\Agency;
 use App\Models\Customer;
-use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
-use App\Models\Enums\UserStatus;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
@@ -82,25 +80,14 @@ class TaskController extends Controller
         $agency = TaskPolicy::teamAgencyOf($user);
         abort_if($agency === null, 403);
 
-        $inAgency = fn (Builder $q) => $q->where('agency_id', $agency->id);
-        $actif = fn (Builder $p) => $inAgency($p)->active();
-
-        $base->whereHas('assignee', fn (Builder $u) => $u
-            ->whereNotIn('users.status', [UserStatus::Blocked->value, UserStatus::Deleted->value])
-            ->where(fn (Builder $w) => $w
-                ->whereHas('agentProfiles', $actif)
-                ->orWhereHas('agencyAdminProfiles', $actif)
-                ->orWhereHas('roleDelegations', fn (Builder $d) => $inAgency($d)
-                    ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-                    ->active())))
-            ->parentInAgency((int) $agency->id);
+        $base->assigneAuPersonnelActifDe((int) $agency->id)->parentInAgency((int) $agency->id);
     }
 
     public function store(StoreTaskRequest $request): JsonResponse
     {
         $user = $request->user();
 
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // Resolve & authorize the polymorphic parent: a user may only attach a
         // task to a record their agency owns / they created (superadmin bypass).
@@ -190,7 +177,7 @@ class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // TCK-591 — le contrôle d'assigné de `store` est rejoué dès que l'assigné change : un `PUT`
         // poussait la tâche chez n'importe quel utilisateur de la plateforme.

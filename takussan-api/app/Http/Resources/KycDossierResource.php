@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\KycDossier;
+use App\Services\Kyc\KycWorkflowService;
 use App\Services\Kyc\SharedLegalIdentifierDetector;
 use App\Support\RelativeSignedUrl;
 use Illuminate\Http\Request;
@@ -62,6 +63,15 @@ class KycDossierResource extends BaseResource
             'reviewed_by' => $dossier->reviewed_by,
             'rejection_reason' => $dossier->rejection_reason,
             'expires_at' => $this->iso($dossier->expires_at),
+            /*
+             * TCK-2671 — quand la pièce du dirigeant d'un dossier VÉRIFIÉ se remplace : la règle de
+             * `KycWorkflowService::renewalOpensOn()`, servie telle quelle pour que le front n'en
+             * recopie ni la fenêtre ni la pièce. `null` : dossier non vérifié ou sans échéance.
+             */
+            'renewal' => ($opensOn = KycWorkflowService::renewalOpensOn($dossier)) === null ? null : [
+                'document_type' => KycWorkflowService::RENEWABLE_DOCUMENT,
+                'opens_on' => $this->calendarDate($opensOn),
+            ],
             'shared_identifiers' => $this->when(
                 $request->user()?->isSuperAdmin() === true && $dossier->subject_type === Agency::class && $dossier->subject_id !== null,
                 fn () => SharedLegalIdentifierDetector::forRequestCycle($request)->forAgency(

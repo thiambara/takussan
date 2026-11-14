@@ -144,3 +144,158 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+### Suite back — « vacant » ne compte que les biens à louer (2026-11-12, décisions du porteur Q1a, Q2a, Q3a)
+
+- **Un seul prédicat** : `Property::scopeForRent()` (`contract_type = rent`, toutes périodes). `occupied`, `notice`
+  et `vacant` de `scopeOccupancyState()` le composent ; le nouvel état `not_rental` en est la **négation**
+  (`whereNot`), jamais une copie. Il sert `filter[occupancy]=not_rental`, la tuile `for_sale` du résumé, et l'état du
+  bloc `occupancy` : `PropertyOccupancy::attach()` le relit par une requête (constante, une par page) plutôt que par
+  la colonne chargée, que `fields[properties]` peut omettre. Occupés + vacants + à vendre = tous.
+- **Une vente avec un bail courant** (27 sur la démo, données du seeder) est `not_rental`, `vacant_since` nul ; ses
+  blocs `lease`, `tenant`, `rent`, `current_month` restent servis à qui peut lire le bail — le bail est un fait.
+  `filter[rent_late]` est **inchangé** (Q2a : l'argent dû est réel, quel que soit le contrat). **Écart d'affichage
+  pour le lot B** : la ligne d'une vente n'affiche aucune puce du mois (`etatDuMois()` rend `null` pour une vente),
+  alors qu'elle compte dans « En retard » quand son loyer l'est.
+- **Limite connue (Q1a)** : une courte durée (`daily`, `weekly`) sans bail est `vacant` **sans** `vacant_since`, donc
+  comptée parmi les vacants mais jamais dans `vacant_over_60_days`. 0 cas sur la démo au 2026-11-12. Les tableaux de
+  bord, eux, excluent les courtes durées de leur taux (`PortfolioMetrics`, mensuel et annuel seulement).
+- **Laissés à leur sens, délibérément** :
+  - `RentMonthStatus::of()` → `month_status = 'vacant'` est un autre concept (un mois sans échéance d'un bail non
+    occupant, dans le relevé du bailleur, `OwnerStatementService::monthStatus()`) ; `PropertyOccupancy` l'appelle avec
+    `occupied = true`, il n'y rend jamais `vacant`.
+  - `OwnerDirectory.occupied_properties_count` (`Occupation::whereOccupied()`) compte les biens qui ont un bail en
+    cours, ventes comprises : il ne lit pas « vacant », et un bailleur dont la vente est louée a bien un bien occupé.
+  - `PortfolioMetrics` (taux d'occupation des tableaux de bord, KPI, alertes de seuil) a sa propre éligibilité et ne
+    lit pas le scope.
+- **Front (après le commit du lot A)** : `types/property.ts` reçoit `'not_rental'` dans l'union de `state` et
+  `for_sale` dans `ResumeDuPortefeuille` ; `ETATS_D_OCCUPATION` de `(liste)/page.tsx` la valeur `not_rental` (sans
+  elle, le paramètre est écarté et la liste de la tuile ouvrirait tous les biens). Une pastille et une tuile
+  « À vendre » (`aVendre`, comptée par `for_sale`, ouvrant `occupancy=not_rental`) s'ajoutent **seulement** quand le
+  portefeuille a des biens hors location, ou quand elle est active (`pastilleGestionProposee`) : un portefeuille tout
+  en location garde les cinq pastilles et les quatre tuiles de la maquette ; la grille passe à cinq colonnes sinon.
+  `etat-locatif.ts` reconnaît une vente par `contract_type` **ou** par l'état `not_rental` de l'API (une page qui
+  omet `contract_type` de ses champs la lisait « Occupé »). Mesuré sur la démo (2026-11-12, API locale) : agence
+  `for_sale` 51 = `meta.total` de `not_rental` 51, 70 + 88 + 51 = 209 ; bailleur 9 = 9, 10 + 52 + 9 = 71 ; les
+  autres tuiles égalent aussi leur liste. Ablations 8/8 rouges. **Décision (team-lead, 2026-11-12, a)** : la tuile
+  « Occupés » se lit sur les biens à louer — « n / (occupés + vacants) », sa part libellée « des biens à louer »
+  (clé `tuiles.partALouer`, qui remplace `partOccupee` « du portefeuille ») : sur la démo, 70 / 158 = 44 % au lieu de
+  70 / 209 = 33 %. Un test avec des ventes au portefeuille tient que ni le taux ni le total affiché ne les reprennent ;
+  ablations 3/3 rouges (dénominateur, total affiché, libellé).
+- Tests : `tests/Feature/Property/OccupationHorsLocationTest.php` (filtre, bloc de la liste, fiche, résumé et
+  concordance tuile/liste, bailleur, valeur inconnue). Ablations 5/5 rouges : sans `forRent` sur `vacant`, sans
+  `not_rental` dans `attach`, sans `for_sale`, `vacant_since` d'une vente, état lu par la colonne chargée.
+
+### Lot C — l'écran du quota de `/app/properties/new` (2026-11-12, terrain-6)
+
+- **Prémisse re-mesurée** (API locale, GET seuls) : `GET /api/me/quota` rend `used 120 · limit 100 · can_create false`
+  à l'admin ET à l'agent de la démo (le chiffre est celui de l'AGENCE), et la même agence compte 67 biens en ligne
+  (`portfolio-summary.online` = `meta.total` de `filter[public]=1`). L'écran disait « Vous avez 120 annonces actives
+  sur 100 … changez d'offre » aux deux. **Pas de maquette** pour cet écran (`app-biens` n'en dessine pas) : aucune
+  référence de fidélité, rien à comparer.
+- **La définition est celle d'ADR-0097 § 6, pas celle du ticket.** Le ticket écrit « en ligne ou en attente » ; le
+  quota compte `QuotaResolver::ACTIVE_LISTING_STATUSES` (disponible, validé, en attente, en attente de validation)
+  **sans regarder la visibilité** — un bien privé validé compte et n'est pas en ligne. L'écran dit donc « Une
+  annonce est active quand elle est disponible, validée ou en attente de validation, qu'elle soit en ligne ou non ».
+- **Par rôle** (`isAdmin`, celui qui décidait déjà du lien « Voir les offres ») : l'admin lit « Archivez une annonce ou
+  changez d'offre … » et garde « Voir les offres » ; l'agent lit « Seul un administrateur de votre agence peut changer
+  d'offre. Vous pouvez archiver une annonce dont vous avez la charge … », sans lien vers les offres. Le chiffre dit
+  « Votre agence a 120 annonces actives sur 100 permises par son offre » aux deux. La note de l'assistant (sous la
+  limite) dit « … permises par l'offre de votre agence (disponibles, validées ou en attente de validation) ».
+- **Flèche de retour** : la route est plein écran (TCK-631), l'en-tête n'y avait que le logo. `EnTetePublication`
+  reçoit `retour` (facultatif) et rend `LienFlecheDeRetour`, la flèche de la coque, vers `/app/properties` ; le
+  parcours ne la reçoit jamais (sa sortie écrit le brouillon, TCK-465).
+- Clés : `dashboard.pages.propertyNew.quota.{usage,definition,admin,agent,note}` ; `quotaUsage` et `quotaReachedBody`
+  supprimées (leur seul lecteur était la page ; `pluriels.test.ts` lit désormais `quota.usage`).
+- Tests : `page.quota.test.tsx` passe au traducteur RÉEL (`createTranslator`) — le double serveur rendait le gabarit
+  ICU brut, et l'ancien test était vert sur « {used, plural, … } ». Ablations 4/4 rouges : message de l'admin donné à
+  l'agent, définition retirée, flèche retirée, note revenue à l'ancien texte.
+
+### Lot B — le mode Annonces (2026-11-12, terrain-6)
+
+- **Décisions de la session** (1 a, 2 a, 3, 4 a, 5 a) : une pastille « Toutes » en tête, active par défaut (le mode
+  reste une vue) ; « En ligne », « À valider », « Brouillons », « Hors ligne » sont une **partition** du portefeuille ;
+  le sélecteur n'est pas proposé sans bien à louer ; le panneau de filtres du bureau et la barre recherche + tri
+  intégrée vont dans un lot **B2**. Au téléphone, « Afficher les 20 suivants » dans les deux modes ; au bureau,
+  10 / 20 / 50 et Précédent / Suivant restent.
+- **Back** : `filter[listing]=online|pending|draft|offline` (`Property::scopeListingState()`, `ParametreUnique`, 422
+  sur une valeur inconnue). « En ligne » est `scopePublic()` ; « Hors ligne » sa **négation** (`scopeNotOnline()`,
+  `whereNotIn(id, public())`), jamais une copie de la règle, moins les brouillons et les biens à valider.
+  `portfolio-summary` compte en plus `pending_validation`, `drafts`, `offline`, `sold_or_rented` et `archived`
+  (« Archivés » se compte hors de la portée qui les exclut, `include_archived=1` sur une copie de la requête). Chaque
+  compte égale le `meta.total` de la liste qu'ouvre sa pastille, sous la portée du lecteur (`EtatDAnnonceTest`, 6 tests,
+  ablations 6 rouges sur 7 — la septième, compter les brouillons par statut, est une mutation équivalente).
+- **Mesuré sur la démo** (GET seuls, 2026-11-12) : pour le bailleur, l'admin et l'agent, `online + pending_validation +
+  drafts + offline = total` (71 ; 209 ; 209), chaque compte égal au `meta.total` de sa liste, et sur chaque page de 20
+  de la liste, les lignes `is_online` sont exactement les biens de la page que rend `filter[public]=1` (0 écart sur 71
+  et 209 lignes) — l'AC2 au niveau de l'API.
+- **Front** : la page lance la liste, le résumé et (personnel seulement) le quota ensemble ; plus aucune liste
+  `per_page=1` dans aucun mode — `countDashboardProperties` et `PropertyKpiStrip` (et leurs tests) sont supprimés.
+  Sans bien à louer (`occupied + vacant = 0`), le mode est forcé à « Annonces » et le sélecteur disparaît ; sous une
+  portée (« Mes biens », un agent choisi) il reste, pour que la bascule ne change pas de mode.
+  `CarteAnnonce` : photo 3:2, prix avec sa période (AC7), titre · quartier, état d'annonce lu sur `is_online`
+  (`etatDAnnonce`, même partition que le back), visibilité « Public / Privé », statut seulement quand l'état ne le dit
+  pas, propriétaire et agent, référence et ancienneté, vues et favoris, « ⋯ » (`PropertyRowActions layout="menu"`),
+  case de 44 px hors de la photo. Grille 1 / 2 (`lg`) / 3 (`xl`) colonnes, jamais `md`.
+  Bureau : onglets soulignés (les pastilles + « Vendus, loués », « Archivés », les tuiles d'avant) et la jauge fine du
+  quota ; téléphone : pastilles, cartes, « Afficher les 20 suivants » (`voir`), quota en bas de liste.
+- **Vocabulaire** : `property.status.published` = « Validé » ; la jauge dit « N annonces actives sur L » et sa
+  définition (ADR-0097 § 6), pas « en ligne ». Le bailleur lit « Mes biens » et « Proposer un bien à mon agence »
+  (en-tête de page et en-tête du téléphone) ; la bascule « Mes biens » ne lui est plus proposée.
+- **Hors du lot** : la pastille « Boostée » de la maquette n'existait pas dans la liste d'avant (rien ne se perd) ;
+  « boostée » peut dire l'emplacement sponsorisé (`sponsored_until`) ou le badge acheté (`badge`) — question au porteur.
+- **Mesuré au navigateur** (démo, 2026-11-12, `takussan-web/.fidelite/TCK-2638/lot-B/`, local) : AC1 — en Gestion au
+  téléphone (390), six titres de biens visibles au-dessus de la barre d'onglets ; AC4 — une recherche « Mermoz » est
+  gardée d'un mode à l'autre, `occupancy` est ignoré en Annonces et le sélecteur reste ; AC6 — balayage Annonces à
+  390, 768, 1024, 1280 et 1440, Gestion à 390, 1024 et 1280 : aucun débordement horizontal, aucun texte coupé par
+  des points de suspension à 1280 (la ligne propriétaire · agent de la carte passe désormais à la ligne : elle coupait
+  les noms à 390 et 1280). La pagination du téléphone dit « Afficher le suivant » / « Afficher les N suivants »
+  (pluriel ICU). Écarts restants à la maquette : la fiche de fidélité `docs/qa/audit-ux-2026-11/fidelite/TCK-2638.json`
+  (données de la démo, pastille « Boostée », barre de filtres du bureau → lot B2).
+
+### Lot B2 — le bureau : panneau de filtres, carte de la table, « Boostée » (2026-11-12, terrain-6)
+
+- **Décisions de la session** : 1 a — sous `w1440`, « Filtres » déplie le panneau EN PLACE (la table défile alors
+  dans sa carte) ; 2 — « Retards d'abord » est le tri par défaut de la Gestion, posé par le serveur (`page.tsx`,
+  jamais pendant une recherche : pertinence, TCK-662) et jamais écrit dans l'URL (choisir le défaut retire `sort`) ;
+  3 — la barre du bureau des Annonces avec le même composant ; 4 — aucun filtre par bailleur (l'API n'en a pas) :
+  écart inscrit dans la fiche, aucun contrôle inventé.
+- **Gestion, bureau** : `PropertyListFilters` porte la mise en page. À gauche, un panneau de 204 px de la maquette
+  (`calc(var(--spacing)*56.67)`), ouvert dès `w1440`, replié en bouton dessous, refermable (« Replier les filtres ») :
+  Occupation (les pastilles en boutons radio, même requête `requeteDeLaPastille`, mêmes comptes, « À vendre » aux
+  mêmes conditions), Type et lieu, Agent et portée (« Mes biens », « Archivés » en interrupteurs), Plus de critères
+  (prix + « Appliquer », statut, contrat, visibilité, dates), « Réinitialiser » (garde le mode). À droite, UNE carte :
+  la barre (« Filtres » sous 1440, recherche, tri, « N biens » = `meta.total`), les puces, la table (son propre cadre
+  effacé par `className`, la primitive `DataTable` intacte), la pagination en pied.
+- **Annonces, bureau** : une rangée — « Filtres », recherche, type, visibilité, agent, tri ; « Mes biens »,
+  « Archivés », le lieu et les autres critères dans le même panneau, replié au départ (aucun doublon de la barre).
+- **Une seule commande par geste** : le bouton « Filtres » est UN bouton — feuille au téléphone, panneau au bureau
+  (`matchMedia('(min-width: 64rem)')`) ; tous les contrôles appellent les mêmes `updateParam(s)` que la feuille
+  (TCK-644). Le téléphone ne change pas.
+- **« Boostée »** (décision du porteur : mise en avant payée EN COURS, `sponsored_until` > maintenant) :
+  `PropertyResource` émet `sponsored_until` (ISO, nul sans boost) quand la liste pro le demande, jamais sur la
+  surface publique (`BoostEnCoursDansLaListeTest`, 3 tests, 2 ablations rouges) ; `DASHBOARD_PROPERTY_FIELDS` le
+  demande ; la carte pose « Boostée jusqu'au 18 nov. » sur la photo (`boostEnCours`, instant de référence unique de
+  la liste). `requetes-du-front.json` régénéré, `RequetesDuFrontTest` vert.
+- **Garde réparée** : `property-fields.coverage` rougissait depuis le lot B (12 colonnes lues < 13) — les lectures
+  avaient quitté `PropertyList.tsx` pour `CarteAnnonce`, `GestionDuBien`, `etat-d-annonce` et `etat-locatif`, déclarés
+  consommateurs (13/13).
+- **Tests** : `PanneauDeFiltres.tck-2638.test.tsx` (19), `gestion.tck-2638` (+2 : défaut serveur, props de la barre),
+  `CarteAnnonce.tck-2638` (+3 : cadre de la table, « Boostée »), les doubles de `PropertyListFilters` rendent la liste
+  et sa pagination ; ablations front 19/19 rouges, restaurées.
+
+#### Correctifs de la vérification adverse du lot B2 (2026-11-12, terrain-6)
+
+- **d1 — `sponsored_until` au seul personnel de l'agence du bien et à son bailleur.** La version d'origine la servait
+  à tout appelant connu hors `public.*`, donc au locataire (`/api/leases?include=property`) et au candidat
+  (`/api/bookings?include=property`), dont le bien imbriqué est chargé avec toutes ses colonnes. Deux barrières
+  dans `PropertyResource` : les routes `properties.index` et `properties.show` seules (ailleurs, aucun jugement et
+  aucune requête par ligne), puis `BailleurDuBien::est()` ou le personnel de l'agence (`lePersonnelLit`). Sans
+  `agency_id` chargé, la clé reste absente. `PropertyController::index` ajoute l'appelant à l'amorce : le
+  personnel se juge en mémoire, pas par bien. `BoostEnCoursDansLaListeTest` passe de 3 à 8 tests (bailleur,
+  locataire, candidat, sans agence, coût constant) ; ablations : le correctif entier → 3 rouges, la route seule →
+  `LeaseIndexQueryCountTest` rouge, le jugement seul → 1, l'amorce → 1, le bailleur → 1.
+- **Le tri pendant une recherche.** Sans `sort=`, l'API classe par pertinence (TCK-662) : le sélecteur affiche
+  désormais « Pertinence » (option proposée pendant une recherche seulement, jamais envoyée), en Gestion comme en
+  Annonces ; tout autre tri — « Retards d'abord » compris — s'écrit alors dans l'URL, « Pertinence » l'efface.
+  `PanneauDeFiltres.tck-2638` +6 ; ablations 3/3 rouges.

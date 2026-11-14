@@ -45,7 +45,7 @@ describe('<AgencyActivityFeed>', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('Interventions ouvertes')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('Clients (CRM)')).toBeInTheDocument();
+    expect(screen.getByText('Clients')).toBeInTheDocument();
     expect(screen.getByText('84')).toBeInTheDocument();
     expect(screen.getByText("Membres de l'agence")).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();

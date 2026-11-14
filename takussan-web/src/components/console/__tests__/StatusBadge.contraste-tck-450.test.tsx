@@ -59,14 +59,14 @@
  *   ──────────────────────────────────────────────  ─────────────     ──────────────
  *   clair  --card ...................................... 4,52:1            5,37:1
  *   clair  --background ................................ 4,31:1            5,12:1
- *   clair  bg-muted/30 sur --background (KYC) .......... 4,18:1            4,96:1
+ *   clair  bg-muted/30 sur --background (OTP) .......... 4,18:1            4,96:1
  *   clair  bg-muted/30 sur --card (PropertyList) ....... 4,32:1            5,13:1
  *   clair  bg-muted/50 sur --card (ligne survolée) ..... 4,19:1            4,97:1
  *   clair  bg-muted sur --card (ligne sélectionnée) .... 3,88:1            4,60:1  ← le pire
  *   clair  bg-primary/5 sur --card (PropertyList) ...... 4,33:1            5,04:1
  *   sombre --card ...................................... 3,66:1            6,26:1
  *   sombre --background ................................ 4,05:1            6,97:1
- *   sombre bg-muted/30 sur --background (KYC) .......... 3,74:1            6,40:1
+ *   sombre bg-muted/30 sur --background (OTP) .......... 3,74:1            6,40:1
  *   sombre bg-muted/30 sur --card (PropertyList) ....... 3,47:1            5,92:1
  *   sombre bg-muted/50 sur --card (ligne survolée) ..... 3,34:1            5,70:1
  *   sombre bg-muted sur --card (ligne sélectionnée) .... 3,05:1            5,17:1
@@ -144,7 +144,7 @@ const surface = (jeton: string, alpha: number, sous: string) =>
 const SURFACES: readonly Surface[] = [
   {
     nom: '--card',
-    site: 'console/DataTable.tsx:140 — le conteneur de toutes les tables de la console',
+    site: 'console/DataTable.tsx:140 — le conteneur de toutes les tables de la console ; pieces/VosPieces.tsx (cartes et tableau)',
     hex: (j) => resoudreCouleur('card', j),
   },
   {
@@ -154,7 +154,9 @@ const SURFACES: readonly Surface[] = [
   },
   {
     nom: 'bg-muted/30 sur --background',
-    site: 'kyc/KycUploader.tsx:176 — la pastille « document fourni » (TCK-385)',
+    // TCK-2796 — le site d'origine (le téléverseur des anciens assistants, sa pastille « document fourni ») est retiré ; la même
+    // surface porte la pastille de vérification du téléphone de l'assistant du particulier.
+    site: 'onboarding/HostIndividualWizard.tsx:481 — la pastille « vérifié » du téléphone',
     hex: surface('muted', 0.3, 'background'),
   },
   {

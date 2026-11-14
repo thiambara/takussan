@@ -13,8 +13,9 @@ use Illuminate\Http\Request;
  *
  * `customer` n'est PAS rendu (clé absente) à qui n'est pas du personnel de l'agence du fil : un
  * client, un bailleur ou un prestataire ne voit jamais qu'une fiche CRM existe. Pour le personnel,
- * il vaut `null` quand il n'y a pas de fiche (groupe, inconnu du CRM). `phone` vaut `null` sans
- * `CustomerPolicy::view`.
+ * il vaut `null` quand il n'y a pas de fiche (groupe, inconnu du CRM). `stage`, `phone` et
+ * `assigned_agent` valent `null` ensemble sans `CustomerPolicy::view` (TCK-2724) ; `id` et
+ * `full_name` restent au personnel.
  *
  * @property ConversationThreadContext $resource
  */
@@ -57,9 +58,9 @@ class ConversationContextResource extends BaseResource
             'customer' => $this->when($context->customerShown, fn () => $customer === null ? null : [
                 'id' => $customer->id,
                 'full_name' => $customer->full_name,
-                'stage' => $this->enumValue($customer->pipeline_stage),
-                'phone' => $context->customerPhoneShown ? $customer->phone : null,
-                'assigned_agent' => $context->referent === null ? null : [
+                'stage' => $context->customerReadable ? $this->enumValue($customer->pipeline_stage) : null,
+                'phone' => $context->customerReadable ? $customer->phone : null,
+                'assigned_agent' => ! $context->customerReadable || $context->referent === null ? null : [
                     'id' => $context->referent->id,
                     'name' => $context->referent->nameWithoutContact(),
                 ],

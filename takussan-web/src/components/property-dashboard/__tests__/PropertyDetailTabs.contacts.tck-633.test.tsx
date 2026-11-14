@@ -1,6 +1,7 @@
 /**
  * TCK-633 (lot C, vérification adverse) — l'onglet « Modifier » d'une annonce porte ses contacts
- * sur place : sans lui, aucune annonce existante ne pouvait en recevoir ni en corriger.
+ * sur place : sans lui, aucune annonce existante ne pouvait en recevoir ni en corriger. TCK-2639 :
+ * `?tab=edit` (un lien d'avant) ouvre l'onglet « Annonce », section « Édition ».
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -14,6 +15,10 @@ vi.mock('@/components/property-form/PropertyForm', () => ({ PropertyForm: () => 
 vi.mock('@/components/property-dashboard/PropertyMediaPanel', () => ({ PropertyMediaPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyOverviewPanel', () => ({ PropertyOverviewPanel: () => null }));
 vi.mock('@/components/property-dashboard/PropertyCollaboratorsPanel', () => ({ PropertyCollaboratorsPanel: () => null }));
+// TCK-2639 — la barre du téléphone et les documents lisent l'API (React Query) : hors du sujet ici.
+vi.mock('@/components/property-dashboard/fiche/BarreDuBien', () => ({ BarreDuBien: () => null }));
+vi.mock('@/components/property-dashboard/fiche/OngletDocuments', () => ({ OngletDocuments: () => null, useDocumentsDuBien: () => ({ total: null }) }));
+vi.mock('@/lib/queries/maintenance', () => ({ useMaintenanceHistoryForProperty: () => ({ data: undefined }) }));
 vi.mock('@/components/contact/ContactsSurPlaceDuBien', () => ({
   ContactsSurPlaceDuBien: ({ propertyId }: { propertyId: number }) => <div data-testid="contacts-du-bien">{propertyId}</div>,
 }));

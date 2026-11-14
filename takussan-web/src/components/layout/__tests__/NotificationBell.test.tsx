@@ -116,7 +116,8 @@ describe('<NotificationBell>', () => {
     );
 
     await waitFor(() => expect(markReadMock).toHaveBeenCalledWith(1));
-    await waitFor(() => expect(screen.getByText('0 non lue')).toBeInTheDocument());
+    // TCK-2634 — le panneau du bureau résume « N non lues · N à traiter » ; à zéro, « Aucune non lue ».
+    await waitFor(() => expect(screen.getByText('Aucune non lue')).toBeInTheDocument());
     expect(screen.queryByText('1')).not.toBeInTheDocument();
   });
 
@@ -138,7 +139,9 @@ describe('<NotificationBell>', () => {
 
     const lien = within(feed).getByRole('link', { name: /Loyer en retard/ });
     expect(lien).toHaveAttribute('href', '/app/leases/12');
-    expect(within(feed).getByRole('link', { name: 'Voir tout l’historique' })).toHaveAttribute('href', '/app/notifications');
+    // TCK-2634 — le pied de la maquette : « Tout l’historique » et « Préférences ».
+    expect(within(feed).getByRole('link', { name: 'Tout l’historique' })).toHaveAttribute('href', '/app/notifications');
+    expect(within(feed).getByRole('link', { name: 'Préférences de notification' })).toHaveAttribute('href', '/app/profile/notifications');
 
     await browserUser.click(lien);
 

@@ -7,6 +7,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Inventory;
 use App\Models\User;
+use App\Policies\InventoryPolicy;
 use App\Services\Inventory\InventoryRetention;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Lease\LandlordSignatory;
@@ -81,7 +82,23 @@ class InventoryResource extends BaseResource
             // bailleur suspendu, refusés en 403.
             'abilities' => $this->when($this->viewer !== null, fn (): array => [
                 'update' => $this->viewer->can('update', $this->resource),
+                // TCK-2648 — « Contester » : la policy appelée EN DIRECT, sans `Gate::before` — le
+                // super-admin passerait par la Gate, mais n'est partie ni au bail ni au constat — et
+                // seulement quand le service l'accepterait (à signer, ou signé : `inventory.cannot_dispute`).
+                'dispute' => in_array($this->status, [InventoryStatus::PendingSignature, InventoryStatus::Signed], true)
+                    && app(InventoryPolicy::class)->dispute($this->viewer, $this->resource),
             ]),
+            // TCK-2648 — les parties et les signataires NOMMÉS, sous `show` seulement (chargés par le
+            // contrôleur) : un id et un nom, jamais un téléphone ni un e-mail.
+            'tenant' => $this->when($this->viewer !== null, fn (): ?array => $this->tenant === null ? null : [
+                'id' => (int) $this->tenant->id,
+                'full_name' => $this->tenant->full_name,
+                'first_name' => $this->tenant->first_name,
+            ]),
+            'landlord' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->lease?->landlord)),
+            'tenant_signed_via' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->tenantSignedVia)),
+            'owner_signed_by' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedBy)),
+            'owner_signed_on_behalf_of' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedOnBehalfOf)),
             // TCK-596 — quand le lecteur signerait POUR LE COMPTE du bailleur, le canevas le dit.
             'sign_on_behalf_of' => $this->when(
                 $this->viewer !== null && $this->signatures !== null,
@@ -172,6 +189,17 @@ class InventoryResource extends BaseResource
         }
 
         return $rooms;
+    }
+
+    /**
+     * TCK-2648 — une personne nommée à un autre compte : son id et son nom (`nameWithoutContact`,
+     * jamais l'e-mail), ou `null`.
+     *
+     * @return array{id: int, full_name: string}|null
+     */
+    private static function personne(?User $user): ?array
+    {
+        return $user === null ? null : ['id' => (int) $user->id, 'full_name' => $user->nameWithoutContact()];
     }
 
     /** @return array{id: int, full_name: string}|null */

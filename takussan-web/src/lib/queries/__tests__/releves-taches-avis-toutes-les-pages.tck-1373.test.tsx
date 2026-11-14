@@ -1,7 +1,7 @@
 /**
  * TCK-1373 (P135.05) — trois listes dessinées pour être entières lisent TOUTES leurs pages : les
- * relevés bancaires de l'agence, les tâches d'un client (et le compte des tâches ouvertes du
- * panneau du pipeline), et « Mes avis ».
+ * relevés bancaires de l'agence, les tâches d'un client, et « Mes avis ». (Le cas du panneau du
+ * pipeline est parti avec l'ancien kanban, TCK-2592 décision 9a.)
  *
  * Avant : une page de 50, sans pagination à l'écran. L'API est bouchonnée : 20 par défaut, 100 au
  * plus, `meta.last_page`.
@@ -13,7 +13,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { StatementsList } from '@/components/admin/reconciliation/StatementsList';
-import { CustomerDetailSheet } from '@/components/pipeline/CustomerDetailSheet';
 import { fetchCustomerTasks } from '../pipeline';
 import { useAuthoredReviews } from '../reviews';
 
@@ -91,14 +90,6 @@ describe('TCK-1373 — toutes les pages', () => {
     expect(lues).toHaveLength(60);
     expect(lus.filter((l) => l.startsWith('/api/tasks'))).toEqual(['/api/tasks 1 due_at']);
     expect(lues.filter((t) => t.status === 'open')).toHaveLength(5);
-  });
-
-  it('le panneau du pipeline compte les 5 tâches ouvertes au-delà des 50 premières', async () => {
-    bouchonnerApi();
-    render(<Fournisseur><CustomerDetailSheet customerId={9} onOpenChange={() => {}} /></Fournisseur>);
-
-    const libelle = await screen.findByText('Tâches actives');
-    await waitFor(() => expect(libelle.nextElementSibling).toHaveTextContent(/^5$/));
   });
 
   it('« Mes avis » rend le 51ᵉ avis', async () => {

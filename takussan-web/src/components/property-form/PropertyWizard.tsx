@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
@@ -12,7 +12,8 @@ import { useToast } from '@/components/ui/toast';
 import { FormGlobalError } from '@/components/forms';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { useApiForm } from '@/hooks/useApiForm';
-import { useWizardDraft } from '@/hooks/useWizardDraft';
+import { useWizardDraft, type UseWizardDraftResult } from '@/hooks/useWizardDraft';
+import type { PhotoGardee } from '@/lib/publication/brouillon-local';
 import { ApiError } from '@/lib/api';
 import {
   propertyFormSchema,
@@ -38,14 +39,21 @@ import { StepCaracteristiques } from './wizard/steps/StepCaracteristiques';
 import { StepPrix } from './wizard/steps/StepPrix';
 import { StepPhotos } from './wizard/steps/StepPhotos';
 import { StepFinition } from './wizard/steps/StepFinition';
-import { BarreApercu, CarteApercu, ListePourPublier } from './wizard/ApercuAnnonce';
+import { BarreApercu, CarteApercu, ListePourPublier, RappelDeLAnnonce } from './wizard/ApercuAnnonce';
 import { EnTetePublication } from './wizard/EnTetePublication';
 import { reduirePhotos } from '@/lib/reduire-photo';
 import { publishPropertyAction } from '@/app/actions/publish-property';
 import { LienBoosterApresPublication } from '@/components/boost/BoosterApresPublication';
 import { replacePropertyContactsAction } from '@/app/actions/property-contacts';
 import { ContactsSurPlace, type ContactSurPlace } from '@/components/contact/ContactsSurPlace';
-import { CoordonneesPublication } from '@/components/contact/CoordonneesPublication';
+import { useAuth } from '@/context/AuthContext';
+import { CoordonneesDeLAssistant } from '@/components/publication/CoordonneesDeLAssistant';
+import { FeuilleDePublication } from '@/components/publication/FeuilleDePublication';
+import { FeuilleSansCompte } from '@/components/publication/FeuilleSansCompte';
+import type { RepriseDePublication } from '@/lib/publication/reprise-oauth';
+import { manquesDeLaFeuille } from '@/components/publication/feuille-de-publication';
+import { CLE_BROUILLON_DE_PUBLICATION } from '@/lib/publication/brouillon-de-publication';
+import { ouvrirBrouillonLocal } from '@/lib/publication/brouillon-local';
 
 /**
  * TCK-464 — l'assemblage du parcours de publication : les six étapes, la validation par étape, le
@@ -207,14 +215,73 @@ function valeursInitiales(): PropertyFormValues {
  */
 type EtatBrouillon = 'attente' | 'vide' | 'restaure';
 
-export function PropertyWizard({
-  tags = [],
-  proposition = false,
-  quotaNote,
-  fraisDAgence = true,
-  agenceDuChoixDuBailleur = null,
-  peutInviterUnBailleur = false,
-}: {
+/**
+ * TCK-2600 (ADR-0093) — l'assistant servi SANS COMPTE, sur `/publish`. Les mêmes étapes, les mêmes
+ * champs et les mêmes conditions que l'assistant connecté (AC4) ; ce qui change :
+ *
+ * - le brouillon vit dans le navigateur (`useBrouillonLocal`), photos comprises, et la page le passe ;
+ * - les photos sont réduites AU MOMENT DE L'AJOUT (ADR-0093 § 2), pas à l'envoi ;
+ * - aucune écriture serveur : « Publier » valide l'annonce puis la remet à `surPublier` (la feuille
+ *   de compte de TCK-2601) ;
+ * - ni en-tête propre (la barre est celle de la coque d'entrée), ni « Reprendre plus tard », ni
+ *   coordonnées du compte (`CoordonneesDeLAssistant` lit le compte) : `finition` les remplace ;
+ * - le départ : son titre et ce qui suit la première question (`depart`).
+ */
+export interface ModeAnonyme {
+  readonly photosInitiales: readonly PhotoGardee[];
+  readonly surPhotos: (photos: readonly PhotoGardee[]) => void;
+  readonly surPublier: (
+    valeurs: PropertyFormPayload,
+    photos: readonly File[],
+    contacts: readonly ContactSurPlace[],
+  ) => void | Promise<void>;
+  /**
+   * Le départ : son titre, son sous-titre, ce qui précède la première question (`dessus`, la carte de preuves de
+   * TCK-2603) et ce qui la suit (`dessous`).
+   */
+  readonly depart: { readonly titre: string; readonly sousTitre: string; readonly dessus?: ReactNode; readonly dessous: ReactNode };
+  readonly finition: ReactNode;
+  /**
+   * TCK-2600 — ce que le pied dit sous l'aperçu au bureau (le cadre d'entrée de `WizardShell`), selon
+   * l'étape (`bien`, `lieu`, `caracteristiques`, `prix`, `photos`, `finition`).
+   */
+  readonly noteDuPied?: (etape: string) => ReactNode;
+  /** La ligne de « Pour publier » qui suit les six étapes (« Votre numéro · à la fin »). */
+  readonly pourPublierEnPlus: { readonly libelle: string; readonly note: string };
+  /** L'étape courante, pour l'avancement de la barre de la coque. */
+  readonly surEtape: (index: number, total: number) => void;
+  /**
+   * TCK-2601 — la connexion par numéro est ouverte (`phone_login`) : « Publier » ouvre la feuille de
+   * compte. Éteinte, `surPublier` mène à la connexion, le brouillon restant ici.
+   */
+  readonly entreeParTelephone: boolean;
+  /**
+   * TCK-2601 — une session ouverte, l'espace où publier : `pret` (créé sans question, ou le seul
+   * espace particulier, rendu actif) → l'assistant écrit et publie ici ; `ailleurs` → la page a mené
+   * ailleurs, le brouillon restant ; `{ erreur }` → rien n'est écrit, l'écran le dit. Rejugé à chaque
+   * tentative : un espace créé à la première ne se recrée pas à la seconde.
+   */
+  readonly preparerLEspace: (valeurs: Partial<PropertyFormValues>, etape: number) => Promise<'pret' | 'ailleurs' | { readonly erreur: string }>;
+  /**
+   * TCK-2601 (AC5) — la feuille de compte est ouverte, ou l'assistant écrit (espace, création,
+   * publication) : la page rend inertes ses sorties (« Quitter », la marque, « Effacer ce
+   * brouillon »), que le voile de la feuille couvrait et que le panneau de bureau laisse à côté.
+   */
+  readonly surVerrou?: (verrouille: boolean) => void;
+  /**
+   * TCK-2777 — l'aller-retour Google depuis la feuille de compte. `durable` : l'annonce est gardée en
+   * IndexedDB (gardée en mémoire, elle ne survivrait pas à la navigation : pas de « Continuer avec
+   * Google »). `reprise` : ce que l'URL de retour demande (`?reprise=`), lu une fois l'annonce reprise ;
+   * `surRepriseLue` : c'est fait, l'URL l'oublie (un rechargement ne rouvre rien).
+   */
+  readonly google?: {
+    readonly durable: boolean;
+    readonly reprise: RepriseDePublication | null;
+    readonly surRepriseLue: () => void;
+  };
+}
+
+interface PropsDeLAssistant {
   readonly tags?: Tag[];
   /**
    * TCK-997 (P15.06, P50.01) — l'agence dont l'auteur peut désigner un bailleur, ou `null` : le choix
@@ -242,12 +309,47 @@ export function PropertyWizard({
    * en `visibility: 'private'` (`toCreatePayload`).
    */
   readonly proposition?: boolean;
+  /**
+   * TCK-2602 — l'auteur publie dans un espace PARTICULIER (`kind: 'individual'`, la page le lit) : la
+   * publication réussie mène à « Votre annonce est en ligne » (`/app/properties/{id}/en-ligne`) au lieu
+   * du toast et de la fiche. Faux par défaut : une agence illisible garde la sortie d'avant. Sans compte
+   * (`anonyme`), l'espace est particulier par construction (`preparerLEspace` ne rend `pret` que là).
+   */
+  readonly espaceParticulier?: boolean;
+}
+
+/**
+ * L'assistant connecté de `/app/properties/new` : son brouillon est celui du serveur.
+ *
+ * TCK-2601 (AC3) — `depuisPublication` : l'annonce commencée sans compte, versée au brouillon serveur
+ * sous SA clé (`CLE_BROUILLON_DE_PUBLICATION`), qui est la seule lue ET écrite ici : un brouillon
+ * antérieur (`property-create-wizard`) reste intact (AC4).
+ */
+export function PropertyWizard({ depuisPublication = false, ...props }: PropsDeLAssistant & { readonly depuisPublication?: boolean }) {
+  const brouillon = useWizardDraft<Partial<PropertyFormValues>>(depuisPublication ? CLE_BROUILLON_DE_PUBLICATION : CLE_BROUILLON);
+  return <AssistantDePublication {...props} brouillon={brouillon} depuisPublication={depuisPublication} />;
+}
+
+export function AssistantDePublication({
+  tags = [],
+  proposition = false,
+  espaceParticulier = false,
+  quotaNote,
+  fraisDAgence = true,
+  agenceDuChoixDuBailleur = null,
+  peutInviterUnBailleur = false,
+  brouillon,
+  anonyme,
+  depuisPublication = false,
+}: PropsDeLAssistant & {
+  readonly brouillon: UseWizardDraftResult<Partial<PropertyFormValues>>;
+  readonly anonyme?: ModeAnonyme;
+  readonly depuisPublication?: boolean;
 }) {
   const t = useTranslations('property.wizard');
   const tTypeArticle = useTranslations(PROPERTY_ENUM_NAMESPACES.typeArticle);
   const router = useRouter();
   const toast = useToast();
-  const brouillon = useWizardDraft<Partial<PropertyFormValues>>(CLE_BROUILLON);
   const { save: sauverBrouillon, flush: viderFileBrouillon, clear: effacerBrouillon } = brouillon;
 
   const [index, setIndex] = useState(0);
@@ -299,15 +401,55 @@ export function PropertyWizard({
   /** TCK-633 — ce que l'API a refusé de publier faute de coordonnées (`missing`), et pour qui. */
   const [manquants, setManquants] = useState<string[] | null>(null);
   const [contactEstSoi, setContactEstSoi] = useState(true);
+  /**
+   * TCK-2601 — la feuille de compte. `cle` la remonte à chaque ouverture (ce qu'elle demande est figé
+   * à son montage) ; `apresRefus` : rouverte parce que l'API a refusé faute de coordonnées.
+   */
+  const [feuille, setFeuille] = useState({ cle: 0, ouverte: false, apresRefus: false, sansCompte: false });
+  // TCK-2601 (AC5) — la place du panneau de compte dans la colonne gauche (`WizardShell`).
+  const [cibleDuPanneau, setCibleDuPanneau] = useState<HTMLDivElement | null>(null);
+  const { user } = useAuth();
+  /**
+   * TCK-2601 — sans compte, « Publier » remet l'annonce à la page ; une fois la session ouverte et
+   * l'espace prêt, l'assistant fait SES écritures. Une référence et non un état : la soumission que la
+   * feuille attend a été prise avant que la session ne s'ouvre, et doit lire la bascule à jour.
+   */
+  const ecrireVraiment = useRef(false);
+  const [preparation, setPreparation] = useState(false);
+  /**
+   * TCK-2601 (AC3) — les photos d'une annonce venue de `/publish` vivent dans le navigateur où elles
+   * ont été ajoutées (ADR-0093) : reprises d'IndexedDB ; absentes (un autre appareil), l'écran le dit —
+   * seulement si l'annonce versée a bien été reprise (après une publication ou une purge, rien à dire).
+   */
+  const [photosLocalesAbsentes, setPhotosAilleurs] = useState(false);
+  useEffect(() => {
+    if (!depuisPublication) return;
+    let annule = false;
+    void ouvrirBrouillonLocal()
+      .ouvrir()
+      .then((local) => {
+        if (annule) return;
+        if (local.photos.length > 0) setPhotos((deja) => (deja.length > 0 ? deja : local.photos.map((p) => p.fichier)));
+        else if (local.valeurs === null) setPhotosAilleurs(true);
+      });
+    return () => {
+      annule = true;
+    };
+  }, [depuisPublication]);
   const tContacts = useTranslations('property.contacts');
   const tPublication = useTranslations('property.form.publishContact');
 
-  /** La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre. */
-  const terminer = async (id: number) => {
+  /**
+   * La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre — sa fiche, ou l'écran
+   * « en ligne » d'un espace particulier (TCK-2602, `destination`).
+   */
+  const terminer = async (id: number, destination = `/app/properties/${id}`) => {
     await effacerBrouillon();
+    // TCK-2601 (AC3) — l'annonce venue de `/publish` : sa clé serveur (ci-dessus) ET son brouillon local.
+    if (depuisPublication) await ouvrirBrouillonLocal().effacer();
     // TCK-2615 — l'arrivée qui suit la publication n'ouvre aucune fenêtre de bienvenue.
     marquerArriveeDeParcours('publication');
-    router.push(`/app/properties/${id}`);
+    router.push(destination);
     router.refresh();
   };
 
@@ -320,6 +462,11 @@ export function PropertyWizard({
     onSubmit: async (values) => {
       setAvertissement(null);
       setEchecPublication(false);
+      // TCK-2600 — sans compte, rien ne s'écrit : l'annonce validée part à la page (la connexion).
+      if (anonyme && !ecrireVraiment.current) {
+        await anonyme.surPublier(values as unknown as PropertyFormPayload, photos, contactsSurPlace);
+        return null as unknown as PropertyDetail;
+      }
       // Un bien déjà créé n'est JAMAIS recréé : une reprise après échec partiel rejoue les
       // écritures manquantes, pas la création. C'est l'AC7.
       if (idCree !== null) return { id: idCree } as PropertyDetail;
@@ -340,6 +487,7 @@ export function PropertyWizard({
       return resultat.data as PropertyDetail;
     },
     onSuccess: async (bien) => {
+      if (anonyme && !ecrireVraiment.current) return;
       if (!bien?.id) throw new ApiError(500, { message: t('missingId') });
       setIdCree(bien.id);
 
@@ -409,13 +557,34 @@ export function PropertyWizard({
         if (!r.ok) {
           setManquants(r.missing);
           setContactEstSoi(r.contactIsSelf);
-          setAvertissement(r.missing ? tPublication('incomplete') : t('publishFailed', { message: r.message }));
+          // TCK-2601 — le bloc « Vos coordonnées » a quitté l'assistant : le bandeau renvoie à la feuille.
+          setAvertissement(
+            r.missing
+              ? r.contactIsSelf
+                ? t('feuille.incomplet')
+                : tPublication('otherContact')
+              : t('publishFailed', { message: r.message }),
+          );
           setEchecPublication(true);
+          // TCK-2601 — ce que l'API dit manquer se complète dans la feuille, rouverte : le contexte
+          // pouvait le croire fait (numéro changé ailleurs), ou le contact est un AUTRE (dit, sans saisie).
+          if (r.missing && (!r.contactIsSelf || r.missing.some((m) => m === 'first_name' || m === 'verified_phone'))) {
+            setFeuille((f) => ({ cle: f.cle + 1, ouverte: true, apresRefus: true, sansCompte: false }));
+          }
           return;
         }
         setManquants(null);
         statut = r.data?.status ?? 'available';
         setStatutPublie(statut);
+      }
+
+      // TCK-2602 — l'espace particulier : « Votre annonce est en ligne » (partager, compléter, booster)
+      // au lieu du toast. L'écran relit le bien et dit lui-même « en vérification » (`pending_review`).
+      // Seulement ici, après toutes les écritures : un échec partiel est sorti plus haut, avertissement
+      // compris. Une proposition ne publie pas : elle garde le toast et la fiche.
+      if (!proposition && (anonyme !== undefined || espaceParticulier)) {
+        await terminer(bien.id, `/app/properties/${bien.id}/en-ligne`);
+        return;
       }
 
       // TCK-633 (décision 5 du porteur) — une annonce en ligne se booste depuis le message même.
@@ -435,6 +604,19 @@ export function PropertyWizard({
   });
 
   const { control, watch, trigger, reset } = form;
+
+  /**
+   * TCK-2600 — sans compte, les photos vivent au brouillon local : chaque ajout et chaque retrait y
+   * est écrit. Pas avant la reprise (`attente`) : on écraserait les photos gardées par la liste vide
+   * du premier rendu.
+   */
+  const photosDuMontage = useRef(photos);
+  useEffect(() => {
+    if (!anonyme || etatBrouillon === 'attente' || photos === photosDuMontage.current) return;
+    anonyme.surPhotos(photos.map((fichier, i) => ({ id: `${i}-${fichier.name}-${fichier.size}`, fichier })));
+    // `anonyme` est un objet neuf à chaque rendu de la page : seules les photos déclenchent l'écriture.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos, etatBrouillon]);
   // TCK-564 — `useWatch` et non `watch()` lu pendant le rendu : c'est ce motif qui figeait les
   // pastilles des étapes une fois compilées (cf. `__tests__/abonnement-des-etapes.test.tsx`). Ici,
   // dans l'hôte, le compilateur ne mettait pas la lecture en cache — mesuré sur sa sortie — mais
@@ -455,12 +637,17 @@ export function PropertyWizard({
     const donnees = brouillon.draft?.data;
     if (donnees && Object.keys(donnees).length > 0) {
       const etape = brouillon.draft?.step ?? 0;
-      if (etape > 0 && etape < CLES_PAR_ETAPE.length) {
+      if (anonyme?.google?.reprise) {
+        // TCK-2777 — revenue de chez Google : l'annonce était à la feuille de compte, donc à l'étape 6.
+        setDirection(1);
+        setIndex(CLES_PAR_ETAPE.length - 1);
+      } else if (etape > 0 && etape < CLES_PAR_ETAPE.length) {
         setDirection(1);
         setIndex(etape);
       }
       setRepriseAnnoncee(true);
       setEtatBrouillon('restaure');
+      if (anonyme && anonyme.photosInitiales.length > 0) setPhotos(anonyme.photosInitiales.map((p) => p.fichier));
     } else {
       setEtatBrouillon('vide');
     }
@@ -490,6 +677,33 @@ export function PropertyWizard({
     if (donnees) reset({ ...valeursInitiales(), ...sansNulls(donnees), currency: 'XOF', country: 'SN' } as PropertyFormValues);
   }, [etatBrouillon, brouillon.draft, reset]);
 
+  /**
+   * TCK-2777 — le retour de Google, une fois l'annonce reprise de ce navigateur :
+   * - session ouverte (`reprise=compte`) → la feuille CONNECTÉE, qui ne demande que ce qui manque au
+   *   compte (numéro, prénom, nom, WhatsApp — un compte Google n'a pas de numéro). Rien n'est écrit :
+   *   l'annonce ne part qu'au geste « Publier mon annonce » ;
+   * - aller-retour annulé ou refusé (`reprise=echec`, sans session) → la feuille sans compte, au
+   *   numéro, qui le propose. Une reprise sans annonce à reprendre (effacée entre-temps) ne rouvre rien.
+   * Décidé PENDANT LE RENDU, comme la reprise du brouillon juste au-dessus.
+   */
+  const repriseGoogle = anonyme?.google?.reprise ?? null;
+  const [repriseFaite, setRepriseFaite] = useState(false);
+  const [alerteGoogle, setAlerteGoogle] = useState<string | null>(null);
+  if (repriseGoogle && !repriseFaite && etatBrouillon !== 'attente') {
+    setRepriseFaite(true);
+    if (etatBrouillon === 'restaure') {
+      const connecte = repriseGoogle === 'compte' && user !== null && user !== undefined;
+      if (repriseGoogle === 'echec' && !user) setAlerteGoogle(t('feuille.googleEchec'));
+      setFeuille((f) => ({ cle: f.cle + 1, ouverte: true, apresRefus: false, sansCompte: !connecte }));
+    }
+  }
+  const surRepriseLue = anonyme?.google?.surRepriseLue;
+  useEffect(() => {
+    if (repriseFaite) surRepriseLue?.();
+    // Une fois : `surRepriseLue` est neuve à chaque rendu de la page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repriseFaite]);
+
   /*
    * TCK-633 (ADR-0062 §4) — la géo-IP ne pose plus rien. Elle posait le pays de connexion, ce que
    * la note de l'étape 1 annonçait ; mais le Sénégal est le seul pays servi, et l'API réécrit `SN`
@@ -512,6 +726,33 @@ export function PropertyWizard({
     );
     return () => abonnement.unsubscribe();
   }, [watch, sauverBrouillon, index]);
+
+  // TCK-2600 — l'avancement de la barre de la coque suit l'étape (les pastilles « 3 sur 6 »).
+  const surEtape = anonyme?.surEtape;
+  useEffect(() => {
+    surEtape?.(index, CLES_PAR_ETAPE.length);
+  }, [surEtape, index]);
+
+  // TCK-2601 (AC5) — les sorties de la page attendent la fin du compte et des écritures ; un assistant
+  // démonté (brouillon effacé, page quittée) ne laisse pas la page verrouillée.
+  const surVerrou = anonyme?.surVerrou;
+  const verrouille = feuille.ouverte || isSubmitting || preparation;
+  useEffect(() => {
+    surVerrou?.(verrouille);
+  }, [surVerrou, verrouille]);
+  useEffect(() => () => surVerrou?.(false), [surVerrou]);
+
+  /**
+   * TCK-2600 (AC2) — sans compte, changer d'étape est écrit au brouillon, même sans valeur changée :
+   * un rechargement rouvre À CETTE ÉTAPE (passer les photos sans en ajouter ne change aucune valeur).
+   * Pas avant la reprise : on écrirait l'étape 1 d'un formulaire vide par-dessus le brouillon gardé.
+   */
+  const estAnonyme = anonyme !== undefined;
+  useEffect(() => {
+    // Le départ d'un formulaire vierge n'est pas un brouillon : rien à garder tant qu'on n'a rien dit.
+    if (!estAnonyme || etatBrouillon === 'attente' || (etatBrouillon === 'vide' && index === 0)) return;
+    sauverBrouillon(index, form.getValues() as Partial<PropertyFormValues>);
+  }, [estAnonyme, etatBrouillon, index, sauverBrouillon, form]);
 
   const naviguer = async (prochain: number, sens: 1 | -1) => {
     setRepriseAnnoncee(false);
@@ -549,15 +790,66 @@ export function PropertyWizard({
     router.push('/app/properties');
   };
 
+  /**
+   * TCK-2601 — « Publier », connecté : ce qui manque pour publier se complète dans la feuille de compte
+   * (`manquesDeLaFeuille` : prénom, nom, numéro vérifié, réponse WhatsApp), et seulement cela ; rien à
+   * compléter → les écritures partent directement. Un formulaire invalide ne l'ouvre pas : la
+   * soumission montre ses erreurs, comme avant. La proposition d'un bailleur (TCK-587) ne publie pas,
+   * et l'assistant sans compte remet l'annonce à sa page.
+   */
+  // Le contact du bien est son auteur, sauf bailleur désigné (`TitulaireALaSaisie`,
+  // `PrimaryPropertyContact`) : la feuille ne juge que l'auteur. Sans compte lu (`useAuth` hors
+  // fournisseur), elle ne juge rien — l'API reste juge, comme avant.
+  const refusDuServeur = manquants ? { manquants, contactEstSoi } : null;
+  const manquesFeuille = user && bailleurId === null ? manquesDeLaFeuille(user, refusDuServeur) : [];
+  const autreContact = manquants !== null && !contactEstSoi && manquants.some((m) => m !== 'terms');
+  const ouvrirFeuille = (sansCompte: boolean) =>
+    setFeuille((f) => ({ cle: f.cle + 1, ouverte: true, apresRefus: false, sansCompte }));
+
+  /** TCK-2601 — sans compte, la session ouverte : l'espace d'abord, puis les écritures d'aujourd'hui. */
+  const publierEnPlace = async () => {
+    if (!anonyme) return handleSubmit();
+    setAvertissement(null);
+    setPreparation(true);
+    try {
+      const espace = await anonyme.preparerLEspace(form.getValues() as Partial<PropertyFormValues>, index);
+      if (espace === 'pret') {
+        ecrireVraiment.current = true;
+        await handleSubmit();
+      } else if (espace !== 'ailleurs') {
+        setAvertissement(espace.erreur);
+      }
+    } finally {
+      setPreparation(false);
+    }
+  };
+
+  const publier = async () => {
+    if (proposition) return handleSubmit();
+    if (anonyme && !user) {
+      // Connexion par numéro éteinte : la page mène à la connexion, le brouillon restant ici.
+      if (!anonyme.entreeParTelephone || !(await trigger())) return handleSubmit();
+      ouvrirFeuille(true);
+      return;
+    }
+    if (manquesFeuille.length === 0 && !autreContact) return anonyme ? publierEnPlace() : handleSubmit();
+    if (!(await trigger())) return handleSubmit();
+    ouvrirFeuille(false);
+  };
+
   const etapes: WizardStepDef[] = [
     {
       id: 'bien',
       part: PARTIE_PAR_ETAPE[0],
-      title: t('steps.bien.title'),
-      subtitle: t('steps.bien.subtitle'),
+      accueil: anonyme !== undefined,
+      // TCK-2600 — sans compte, la première question est le départ : « Publiez votre bien gratuitement ».
+      title: anonyme ? anonyme.depart.titre : t('steps.bien.title'),
+      subtitle: anonyme ? anonyme.depart.sousTitre : t('steps.bien.subtitle'),
       body: (
         <>
+          {anonyme?.depart.dessus ?? null}
           <StepBien form={form} />
+          {anonyme ? anonyme.depart.dessous : null}
           {agenceDuChoixDuBailleur !== null ? (
             <ChoixDuBailleur
               agencyId={agenceDuChoixDuBailleur}
@@ -619,7 +911,9 @@ export function PropertyWizard({
           files={photos}
           onChange={(fichiers) => {
             setErreurPhotos(null);
-            setPhotos((precedentes) => [...precedentes, ...fichiers]);
+            // TCK-2600 (ADR-0093 § 2) — sans compte, la photo entre au brouillon local DÉJÀ réduite.
+            if (anonyme) void reduirePhotos(fichiers).then((reduites) => setPhotos((precedentes) => [...precedentes, ...reduites]));
+            else setPhotos((precedentes) => [...precedentes, ...fichiers]);
           }}
           onRemove={(i) => setPhotos((precedentes) => precedentes.filter((_, k) => k !== i))}
           error={erreurPhotos}
@@ -636,7 +930,9 @@ export function PropertyWizard({
           {proposition ? null : (
             <>
               <ContactsSurPlace valeur={contactsSurPlace} onChange={setContactsSurPlace} />
-              <CoordonneesPublication manquantsServeur={manquants} contactEstSoi={contactEstSoi} />
+              {anonyme ? anonyme.finition : (
+                <CoordonneesDeLAssistant numeroAVerifier={manquesFeuille.includes('verified_phone')} contactEstSoi={contactEstSoi} />
+              )}
             </>
           )}
         </StepFinition>
@@ -667,8 +963,14 @@ export function PropertyWizard({
   const listePourPublier = (apresGeste?: () => void) => (
     <ListePourPublier
       etapes={etapesDeListe}
-      index={index}
-      desactivee={isSubmitting}
+      // TCK-2601 — feuille de compte ouverte (sans compte) : tout est franchi, « Votre numéro » est en cours.
+      index={feuille.ouverte && anonyme ? etapesDeListe.length : index}
+      // TCK-2601 (AC5) — feuille ouverte, la liste ne mène nulle part : au bureau elle reste à côté
+      // du panneau (le voile ne la couvre plus), et changer d'étape sous lui ferait verser ou publier
+      // depuis une autre étape. « Revenir à l'annonce » est le chemin.
+      desactivee={isSubmitting || feuille.ouverte}
+      enPlus={anonyme?.pourPublierEnPlus}
+      enPlusEnCours={feuille.ouverte && anonyme !== undefined}
       onRouvrir={(i) => {
         apresGeste?.();
         void naviguer(i, -1);
@@ -685,8 +987,9 @@ export function PropertyWizard({
       ? 'enregistre'
       : 'aucun';
 
+  const photosAilleurs = photosLocalesAbsentes && etatBrouillon === 'restaure';
   const aDesAlertes = Boolean(
-    envoiPhotos || globalError || avertissement || echecReprise || brouillon.error || proposition || repriseAnnoncee,
+    envoiPhotos || globalError || avertissement || echecReprise || brouillon.error || proposition || repriseAnnoncee || photosAilleurs,
   );
 
   return (
@@ -711,7 +1014,10 @@ export function PropertyWizard({
       */
       onSubmit={(e) => {
         e.preventDefault();
-        if (index === etapes.length - 1) void handleSubmit();
+        // TCK-2601 (AC5) — au bureau, la feuille est un panneau DANS ce formulaire : Entrée dans son
+        // numéro ne republie pas (ce qui remonterait la feuille par `cle` et viderait sa saisie).
+        if (feuille.ouverte) return;
+        if (index === etapes.length - 1) void publier();
       }}
     >
       <WizardShell
@@ -719,11 +1025,11 @@ export function PropertyWizard({
         index={index}
         direction={direction}
         onNavigate={(prochain, sens) => void naviguer(prochain, sens)}
-        onFinish={() => void handleSubmit()}
+        onFinish={() => void publier()}
         finishLabel={proposition ? t('proposalFinish') : t('publish')}
         busy={isSubmitting}
         parts={[t('parts.bien'), t('parts.details'), t('parts.annonce')]}
-        entete={
+        entete={anonyme ? undefined : (
           <EnTetePublication
             titre={proposition ? t('header.proposal') : t('header.publish')}
             enregistrement={enregistrement}
@@ -739,7 +1045,7 @@ export function PropertyWizard({
               </Button>
             }
           />
-        }
+        )}
         apercu={
           <>
             <CarteApercu form={form} photos={photos} />
@@ -757,6 +1063,12 @@ export function PropertyWizard({
             )}
           </BarreApercu>
         }
+        // TCK-2601 (AC5) — dès 1280 px, la feuille de compte prend la place de l'étape.
+        refDuPanneau={setCibleDuPanneau}
+        panneauOuvert={!proposition && feuille.ouverte}
+        // TCK-2600 — sans compte (`/publish`), le cadre des écrans d'entrée dès `lg` (maquette a-0 à a-5).
+        cadreDEntree={anonyme !== undefined}
+        noteDuPied={anonyme?.noteDuPied?.(etapes[index].id)}
         bandeau={aDesAlertes ? (
           <>
             {envoiPhotos ? (
@@ -840,9 +1152,65 @@ export function PropertyWizard({
                 {t('draftResumed')}
               </p>
             ) : null}
+
+            {photosAilleurs ? (
+              <p role="status" className="mb-4 text-sm text-muted-foreground" data-testid="photos-ailleurs">
+                {t('feuille.photosAilleurs')}
+              </p>
+            ) : null}
           </>
         ) : null}
       />
+      {/* La feuille est portée hors du formulaire dans le DOM, et ne porte aucun formulaire. */}
+      {proposition ? null : feuille.sansCompte ? (
+        <FeuilleSansCompte
+          key={feuille.cle}
+          ouverte={feuille.ouverte}
+          cible={cibleDuPanneau}
+          onFermer={() => setFeuille((f) => ({ ...f, ouverte: false }))}
+          rappel={<RappelDeLAnnonce form={form} photos={photos} pret={t('feuille.pret')} />}
+          envoi={isSubmitting || preparation}
+          alerte={alerteGoogle}
+          avantLeDepartGoogle={
+            anonyme?.google?.durable
+              ? async () => {
+                  // TCK-2777 — l'annonce part de la page : son état d'à l'instant, écrit ICI, à l'étape 6.
+                  sauverBrouillon(index, form.getValues() as Partial<PropertyFormValues>);
+                  return (await viderFileBrouillon()).ok;
+                }
+              : undefined
+          }
+          onEmail={() => {
+            setFeuille((f) => ({ ...f, ouverte: false }));
+            void handleSubmit();
+          }}
+          onPublier={async () => {
+            const cle = feuille.cle;
+            await publierEnPlace();
+            setFeuille((f) => (f.cle === cle ? { ...f, ouverte: false } : f));
+          }}
+        />
+      ) : (
+        <FeuilleDePublication
+          key={feuille.cle}
+          ouverte={feuille.ouverte}
+          cible={cibleDuPanneau}
+          onFermer={() => setFeuille((f) => ({ ...f, ouverte: false }))}
+          manques={manquesFeuille}
+          autreContact={autreContact}
+          alerte={feuille.apresRefus ? t('feuille.incomplet') : null}
+          rappel={<RappelDeLAnnonce form={form} photos={photos} pret={t('feuille.pret')} />}
+          envoi={isSubmitting || preparation}
+          // Le compte relu après le code fait foi : ce que l'API disait manquer ne se redemande plus.
+          onCompteRelu={() => setManquants(null)}
+          onPublier={async () => {
+            const cle = feuille.cle;
+            await (anonyme ? publierEnPlace() : handleSubmit());
+            // Refermée après les écritures, sauf si un refus l'a rouverte entre-temps (`cle` a changé).
+            setFeuille((f) => (f.cle === cle ? { ...f, ouverte: false } : f));
+          }}
+        />
+      )}
     </form>
   );
 }

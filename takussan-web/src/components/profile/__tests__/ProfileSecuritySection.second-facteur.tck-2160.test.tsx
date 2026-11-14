@@ -50,6 +50,7 @@ vi.mock('../security/ActiveSessionsSection', () => ({ ActiveSessionsSection: () 
 
 const { AuthProvider } = await import('@/context/AuthContext');
 const { ProfileSecuritySection } = await import('../ProfileSecuritySection');
+const { SuppressionDuCompte } = await import('../security/SuppressionDuCompte');
 
 const COMPTE: User = {
   id: 1,
@@ -94,7 +95,9 @@ function monter(compte: User) {
     withIntl(
       <QueryClientProvider client={new QueryClient()}>
         <AuthProvider initialUser={compte} initialToken="jeton">
+          {/* TCK-2635 — la suppression a sa page ; le contexte les relie d'une page à l'autre. */}
           <ProfileSecuritySection />
+          <SuppressionDuCompte />
         </AuthProvider>
       </QueryClientProvider>,
     ),
@@ -118,13 +121,13 @@ describe('second facteur et contexte (TCK-2160, P202.02)', () => {
     });
     monter(COMPTE);
 
-    await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
+    await user.click(screen.getByRole('button', { name: /^activer la double authentification$/i }));
     await user.type(await screen.findByPlaceholderText('123456'), '123456');
     await user.click(screen.getByRole('button', { name: /confirmer et activer/i }));
     await screen.findByText('AAAAA-BBBBB');
 
     await ouvrirSuppression(user);
-    await waitFor(() => expect(screen.getByLabelText('Code 2FA (6 chiffres)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Code de double authentification (6 chiffres)')).toBeInTheDocument());
   });
 
   it('après coupure, le dialogue de suppression ne demande plus de code', async () => {
@@ -135,13 +138,13 @@ describe('second facteur et contexte (TCK-2160, P202.02)', () => {
     });
     monter({ ...COMPTE, two_factor_enabled: true });
 
-    await user.click(screen.getByRole('button', { name: /désactiver la 2fa/i }));
+    await user.click(screen.getByRole('button', { name: /désactiver la double authentification/i }));
     await user.type(screen.getByPlaceholderText('Mot de passe'), 'secret123');
     await user.click(screen.getByRole('button', { name: /confirmer la désactivation/i }));
     await waitFor(() => expect(disableMock).toHaveBeenCalledTimes(1));
 
     await ouvrirSuppression(user);
     await screen.findByRole('dialog');
-    await waitFor(() => expect(screen.queryByLabelText('Code 2FA (6 chiffres)')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByLabelText('Code de double authentification (6 chiffres)')).not.toBeInTheDocument());
   });
 });

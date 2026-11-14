@@ -51,10 +51,6 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/auth/login',
 }));
 
-vi.mock('@/components/auth/OAuthButtons', () => ({
-  OAuthButtons: () => null,
-  OAuthSeparator: () => null,
-}));
 
 const { AuthProvider, useAuth } = await import('@/context/AuthContext');
 const { useApiQuery } = await import('@/hooks/useApiQuery');
@@ -67,8 +63,15 @@ function Coeur() {
   return null;
 }
 const { UserMenu } = await import('@/components/layout/UserMenu');
-const { default: LoginPage } = await import('@/app/(auth)/auth/login/page');
-const { default: RegisterPage } = await import('@/app/(auth)/auth/register/page');
+const { FormulaireDeConnexion: LoginPage } = await import('@/app/(auth)/auth/login/FormulaireDeConnexion');
+const { VoieEmail } = await import('@/components/auth/VoieEmail');
+// TCK-2604 — `/auth/register` redirige vers la connexion ; TCK-2606 — l'inscription par e-mail est
+// l'onglet « Créer un compte » de la voie e-mail, rendue par la connexion.
+function RegisterPage() {
+  return (
+    <VoieEmail intention={null} redirect={null} action={null} ongletInitial="creation" erreurOAuth={null} motDePasseModifie={false} />
+  );
+}
 const { default: OAuthCallbackPage } = await import('@/app/(auth)/auth/oauth/[provider]/callback/page');
 
 const A = {
@@ -153,9 +156,9 @@ function monter(
 }
 
 async function seConnecter(user: ReturnType<typeof userEvent.setup>, email: string) {
-  await user.type(screen.getByLabelText('Adresse email*'), email);
-  await user.type(screen.getByLabelText('Mot de passe*'), 'password');
-  await user.click(screen.getByRole('button', { name: 'Se connecter' }));
+  await user.type(screen.getByLabelText('E-mail'), email);
+  await user.type(screen.getByLabelText('Mot de passe'), 'password');
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }));
 }
 
 const vus = (url: string) => appels.filter((a) => a.url.endsWith(url)).map((a) => a.auth);
@@ -295,11 +298,9 @@ describe('TCK-509 — le jeton client suit la session, sans rechargement', () =>
       { user: null, token: null },
     );
 
-    await user.type(screen.getByLabelText('Prénom*'), 'Ousmane');
-    await user.type(screen.getByLabelText('Nom*'), 'Ndiaye');
-    await user.type(screen.getByLabelText('Adresse email*'), 'agent1@dakarimmo.sn');
-    await user.type(screen.getByLabelText('Mot de passe*'), 'motdepasse1');
-    await user.type(screen.getByLabelText('Confirmer le mot de passe*'), 'motdepasse1');
+    // TCK-2606 — trois contrôles : l'adresse, le mot de passe, les conditions (le prénom vient après).
+    await user.type(screen.getByLabelText('E-mail'), 'agent1@dakarimmo.sn');
+    await user.type(screen.getByLabelText('Mot de passe'), 'motdepasse1');
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Créer mon compte' }));
 

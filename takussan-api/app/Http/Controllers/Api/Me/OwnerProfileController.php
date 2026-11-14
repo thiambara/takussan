@@ -106,6 +106,8 @@ class OwnerProfileController extends Controller
     public function submitKyc(Request $request, OwnerProfile $owner_profile): JsonResponse
     {
         $this->assertOwner($request, $owner_profile);
+        // TCK-2753 (r2) — le dossier d'un bailleur parti ou suspendu est figé.
+        $owner_profile->exigerEcrivable();
 
         $metadata = $owner_profile->metadata ?? [];
         $kyc = $metadata['kyc'] ?? [];

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CloudCheck, Loader2 } from 'lucide-react';
 
 import { Logo } from '@/components/brand/Logo';
+import { LienFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
 
 /**
  * TCK-631 — l'en-tête du parcours plein écran : la marque, ce qu'on est en train de faire, l'état
@@ -23,16 +24,25 @@ export function EnTetePublication({
   titre,
   enregistrement,
   action,
+  retour,
 }: {
   readonly titre: string;
   readonly enregistrement: EtatEnregistrement;
   readonly action?: React.ReactNode;
+  /**
+   * TCK-2638 — un écran SANS parcours (le quota atteint) n'a pas « Enregistrer et quitter » : il reçoit
+   * la flèche de retour de la coque (`LienFlecheDeRetour`, une seule flèche), qui mène ici. Le
+   * parcours ne la reçoit jamais : sa sortie passe par l'écriture du brouillon (TCK-465).
+   */
+  readonly retour?: string;
 }) {
   const t = useTranslations('property.wizard.header');
   const tCommun = useTranslations('common');
+  const tCoque = useTranslations('nav.coque');
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4 sm:h-16 sm:px-8">
+      {retour ? <LienFlecheDeRetour repli={retour} libelle={tCoque('retour')} className="-ml-3" /> : null}
       <Logo nom={tCommun('appName')} nomVisible="des-sm" />
       <span aria-hidden="true" className="hidden h-5 w-px bg-border sm:block" />
       <span className="hidden min-w-0 truncate text-sm font-medium text-muted-foreground sm:block">

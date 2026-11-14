@@ -65,3 +65,56 @@ export function coutDEntreeTotal(e: EntreeCoutDEntree): number | null {
   const arrondi = (DEUX * dixMilliemes + pas) / (DEUX * pas);
   return Number(arrondi * (pas / CENT)) / 100;
 }
+
+/**
+ * TCK-2643 — le « Total à l'entrée » d'un bail EN COURS DE SAISIE : la formule de `coutDEntreeTotal`
+ * (décision de la session du 2026-11-12 : une seule source), mais sur les valeurs du FORMULAIRE — le
+ * loyer et les charges tels que l'agent les a gardés, la caution en MONTANT (elle se saisit librement,
+ * un nombre de mois n'en est que le raccourci) —, l'avance et les frais d'agence venant du bien
+ * (le bail n'a pas ces colonnes).
+ *
+ *     total = (loyer + charges) × mois d'avance + caution + loyer × mois de frais
+ *
+ * Chaque part est rendue pour le détail (« Loyer … + charges … + caution … »). `null` sans loyer
+ * (une vente, ou un loyer pas encore saisi).
+ */
+export interface EntreeDuBail {
+  readonly loyer: number | null | undefined;
+  readonly charges: number | null | undefined;
+  readonly caution: number | null | undefined;
+  readonly moisDAvance: number | null | undefined;
+  readonly moisDeFrais: number | null | undefined;
+  readonly devise: string | null | undefined;
+}
+
+export interface TotalALEntree {
+  readonly total: number;
+  /** Les parts, chacune arrondie comme le total : loyer et charges × mois d'avance, caution, frais. */
+  readonly loyer: number;
+  readonly charges: number;
+  readonly caution: number;
+  readonly frais: number;
+  readonly moisDAvance: number;
+}
+
+export function totalALEntreeDuBail(e: EntreeDuBail): TotalALEntree | null {
+  if (vide(e.loyer) || !(Number(e.loyer) > 0)) return null;
+  const pas = SANS_DECIMALES.has(e.devise || 'XOF') ? DIX_MILLE : CENT;
+  // Des dix-millièmes, arrondis à l'unité de la devise (la moitié vers le haut), rendus en unités.
+  const arrondir = (dixMilliemes: bigint) => Number(((DEUX * dixMilliemes + pas) / (DEUX * pas)) * (pas / CENT)) / 100;
+
+  const avance = mois(e.moisDAvance);
+  const loyer = centiemes(e.loyer) * avance * CENT;
+  const charges = centiemes(e.charges) * avance * CENT;
+  const caution = centiemes(e.caution) * CENT;
+  const frais = centiemes(e.loyer) * centiemes(e.moisDeFrais);
+
+  return {
+    total: arrondir(loyer + charges + caution + frais),
+    loyer: arrondir(loyer),
+    charges: arrondir(charges),
+    caution: arrondir(caution),
+    frais: arrondir(frais),
+    moisDAvance: Number(avance),
+  };
+}

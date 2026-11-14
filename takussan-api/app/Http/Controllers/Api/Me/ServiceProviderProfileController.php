@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\ShowOriginRequestServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\ShowServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateAvailabilityServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UpdateTradesServiceProviderProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycServiceProviderProfileRequest;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Kyc\ProfilePieces;
+use App\Services\Media\PrivateMediaAccess;
+use App\Services\Onboarding\ServiceProviderOnboardingService;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
@@ -32,8 +36,9 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
  *  - **kyc**        → `App\Models\Document` polymorph attached to the
  *                     SP profile, with `type` mapped from the upload `kind`.
  *                     Files are stored via the medialibrary `file` collection
- *                     already configured on `Document`. **TCK-257 will
- *                     reuse the same `KycUploader` UI + this endpoint.**
+ *                     already configured on `Document`. Called by « Vos
+ *                     pièces » (`/app/pieces`, TCK-2614), the only screen
+ *                     that uploads a profile's pieces (TCK-2796).
  */
 class ServiceProviderProfileController extends Controller
 {
@@ -106,6 +111,59 @@ class ServiceProviderProfileController extends Controller
     public function show(ShowServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
     {
         return $this->json(['data' => $this->presenter($sp_profile)]);
+    }
+
+    /**
+     * GET /api/me/profiles/{sp_profile}/intervention-d-origine
+     *
+     * TCK-2613 — la demande d'intervention que l'agence a jointe à l'invitation, montrée au prestataire AVANT la
+     * fin d'onboarding (encore non assignée : la policy de la demande la lui refuserait). `{data: null}` quand il
+     * n'y en a pas, ou plus — les raisons ne se distinguent pas ({@see ServiceProviderOnboardingService::demandeDOrigine()}).
+     *
+     * Une projection minimale, comme la demande que voit un prestataire avant d'accepter (TCK-592, P6) : le titre,
+     * la catégorie, le quartier et la ville du bien, une photo, un devis s'il y en a. **Jamais** la rue, les
+     * coordonnées, le demandeur ni son téléphone.
+     */
+    public function originRequest(ShowOriginRequestServiceProviderProfileRequest $request, ServiceProviderProfile $sp_profile): JsonResponse
+    {
+        $mr = app(ServiceProviderOnboardingService::class)->demandeDOrigine($sp_profile, $request->user());
+
+        return $this->json(['data' => $mr === null ? null : $this->projectionDOrigine($mr, $request->champs())]);
+    }
+
+    /**
+     * @param  list<string>  $champs
+     * @return array<string, mixed>
+     */
+    private function projectionDOrigine(MaintenanceRequest $mr, array $champs): array
+    {
+        $projection = ['id' => $mr->id];
+        if (in_array('title', $champs, true)) {
+            $projection['title'] = $mr->title;
+        }
+        if (in_array('category', $champs, true)) {
+            $projection['category'] = $mr->category?->value;
+        }
+        if (in_array('place', $champs, true)) {
+            $adresse = $mr->property?->address;
+            $projection['place'] = ['quarter' => $adresse?->neighborhood, 'city' => $adresse?->city];
+        }
+        if (in_array('photo', $champs, true)) {
+            $media = $mr->getFirstMedia('photos');
+            $acces = app(PrivateMediaAccess::class);
+            $projection['photo'] = $media === null ? null : [
+                'url' => $url = $acces->signedUrl($media),
+                'thumbnail_url' => $acces->signedConversionUrl($media, 'thumbnail') ?? $url,
+                'count' => $mr->getMedia('photos')->count(),
+            ];
+        }
+        if (in_array('quote', $champs, true)) {
+            $projection['quote'] = $mr->quote_submitted_at === null || $mr->quote_amount === null
+                ? null
+                : ['amount' => self::montant($mr->quote_amount), 'currency' => $mr->quote_currency];
+        }
+
+        return $projection;
     }
 
     /**

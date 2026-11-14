@@ -19,6 +19,17 @@ export type ThresholdAlert = {
   cooldown_hours: number;
   last_triggered_at: string | null;
   last_value: number | string | null;
+  /**
+   * TCK-2627 — la valeur ACTUELLE de la mesure (`ThresholdAlertReading`), `null` sans dénominateur ou
+   * pour un chiffre consolidé que le lecteur ne lit pas : jamais 0 à sa place.
+   */
+  current_value?: number | null;
+  /** TCK-2627/TCK-2723 — qui est prévenu : le compte, et les noms au seul lecteur qui peut modifier l'alerte. */
+  recipients?: { count: number; users: { id: number; name: string | null }[] };
+  /** TCK-2627 — les canaux de l'événement (`inapp`, `email`), sans les préférences de chacun. */
+  channels?: string[];
+  /** TCK-2627 — `include=triggers` : les dix derniers déclenchements, le plus récent d'abord. */
+  triggers?: { at: string | null; value: number | null }[];
 };
 
 export type ThresholdAlertInput = {
@@ -37,7 +48,8 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
   // agissait sans pouvoir être vue, modifiée ni supprimée depuis la page.
   return lireToutesLesPages((page) =>
     apiRequest<PaginatedResponse<ThresholdAlert>>(
-      cheminApi`/api/threshold-alerts${requete(buildQueryString({ page, per_page: PAR_PAGE_MAX }))}`,
+      // TCK-2629 — `include=triggers` : « Dernier déclenchement » et les déclenchements récents de l'onglet.
+      cheminApi`/api/threshold-alerts${requete(buildQueryString({ page, per_page: PAR_PAGE_MAX, include: ['triggers'] }))}`,
       { token },
     ),
   );
@@ -48,4 +60,4 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
 // appelant (`grep -rnE '\bcreateThresholdAlert\b' src/` → la définition seule) : les vraies
 // écritures vivent dans `src/app/actions/alerts.ts`, qui refait l'appel lui-même et traduit son
 // message par `getTranslations('errors')`. Ne subsistent ici que la lecture, réellement appelée
-// par `app/(dashboard)/app/overview/alerts/page.tsx`, et les types que l'action importe.
+// par `components/rapports/vues/OngletAlertes.tsx` (TCK-2628), et les types que l'action importe.

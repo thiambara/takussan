@@ -71,7 +71,7 @@ class PlatformPayoutController extends Controller
         $payout = $this->payouts->markPaid(
             $payout,
             $request->user(),
-            Carbon::parse($request->input('processed_at')),
+            $request->processedAt(),
             $request->string('payment_reference')->toString(),
             $request->input('metadata'),
         );

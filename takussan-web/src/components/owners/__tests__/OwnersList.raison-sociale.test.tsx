@@ -10,6 +10,11 @@ import type { OwnerProfileSummary } from '@/lib/queries/owners';
  * TCK-1323 (P117.05) — la raison sociale d'un bailleur société, exigée à l'invitation et rangée en
  * `metadata.company_name`, nomme sa ligne du carnet ; le contact reste lisible en dessous.
  */
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/app/owners',
+}));
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: vi.fn(async () => donnees),
@@ -48,9 +53,11 @@ describe('<OwnersList> — raison sociale', () => {
       </QueryClientProvider>,
     ));
 
-    const raison = await screen.findByText('SCI Teranga');
+    // TCK-2641 — au bureau, la personne de contact est sous la raison sociale, devant l'e-mail.
+    const table = within(await screen.findByRole('table'));
+    const raison = table.getByText('SCI Teranga');
     const cellule = within(raison.closest('td') as HTMLElement);
-    expect(cellule.getByText('Fatou Sarr')).toBeInTheDocument();
-    expect(screen.getByText('Ousmane Ba')).toBeInTheDocument();
+    expect(cellule.getByText(/^Fatou Sarr/)).toBeInTheDocument();
+    expect(table.getByText('Ousmane Ba')).toBeInTheDocument();
   });
 });

@@ -38,16 +38,15 @@ const utilisateur = (roles: UserRole[]): User => ({
 describe('PRO_ROUTES', () => {
   it('ne contient que les surfaces que la spec réserve aux agences standard', () => {
     // Le contenu exact est la décision produit de TCK-284, pas un détail
-    // d'implémentation : « Vue agence » (le reporting cross-équipe nommément
-    // restreint par features.md §1.12) et « Propriétaires » (TCK-256).
-    expect([...PRO_ROUTES].filter((r) => r.startsWith('/app'))).toEqual([
-      '/app/overview/agency',
-      '/app/owners',
-    ]);
+    // d'implémentation : « Propriétaires » (TCK-256). TCK-2628 — « Vue agence » est devenue la vue
+    // d'ensemble de « Rapports », page partagée avec l'hôte : sa restriction `standard` est dans sa
+    // garde (`garderLaVueDEnsemble`), pas dans un cadenas d'entrée.
+    expect([...PRO_ROUTES].filter((r) => r.startsWith('/app'))).toEqual(['/app/owners']);
+    expect(PRO_ROUTES.has('/app/reports')).toBe(false);
   });
 
   it('TCK-633 — ne contient aucune page d’administration : `PAGES_ADMIN` les décrit et les garde', () => {
-    expect([...PRO_ROUTES]).toEqual(['/app/overview/agency', '/app/owners']);
+    expect([...PRO_ROUTES]).toEqual(['/app/owners']);
     for (const page of PAGES_ADMIN) expect(PRO_ROUTES.has(page.chemin)).toBe(false);
   });
 
@@ -62,10 +61,9 @@ describe('isProRouteLocked', () => {
     expect(isProRouteLocked(utilisateur(['agency_admin']), false, '/app/owners')).toBe(true);
   });
 
-  it('cadenasse un agent d’agence individual sur la vue agence', () => {
-    // La page le redirige et l'API lui rend 403 : sans cadenas, il cliquait
-    // une entrée d'apparence normale pour se faire renvoyer sans explication.
-    expect(isProRouteLocked(utilisateur(['agent']), false, '/app/overview/agency')).toBe(true);
+  it('TCK-2628 — ne cadenasse pas « Rapports » : l’hôte d’une agence individual y a sa vue', () => {
+    expect(isProRouteLocked(utilisateur(['agency_admin']), false, '/app/reports')).toBe(false);
+    expect(isProRouteLocked(utilisateur(['agent']), false, '/app/reports')).toBe(false);
   });
 
   it("ne cadenasse RIEN quand l'agence est standard", () => {

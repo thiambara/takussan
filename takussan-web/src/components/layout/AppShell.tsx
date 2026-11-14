@@ -31,6 +31,7 @@ import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
 import { estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
 import { EnveloppeDuContenu } from './PagePleineLargeur';
 import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
+import { ContexteDuMenuDeLaCoque } from './contexte-du-menu-de-la-coque';
 import type { ModeIcones } from '@/lib/navigation/mode-icones';
 import { personaDeLaCoque } from '@/lib/navigation/personas';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
@@ -105,7 +106,8 @@ function CoqueDeLApp({
   // d'onglets — sous `md` seulement : la colonne, la palette et les récents restent (≠ `pleinEcran`).
   const declaration = useDeclarationDEnTete();
   const forme = declaration.forme ?? formeDeLaRoute(pathname);
-  const sansOnglets = forme === 'plein-ecran' || declaration.conversation === true;
+  // TCK-2635 — et une section du profil à enregistrer : sa barre « Enregistrer » prend la place des onglets.
+  const sansOnglets = forme === 'plein-ecran' || declaration.conversation === true || declaration.formulaire === true;
   // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
   const barreDOnglets = porteLaBarreDOnglets(pathname) && !sansOnglets;
   const boutonMenu = useRef<HTMLButtonElement>(null);
@@ -276,7 +278,9 @@ function CoqueDeLApp({
               id={CONTENU_PRINCIPAL_ID}
               // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
               tabIndex={-1}
-              className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
+              // TCK-2804 — sous `md`, des onglets de page collent en haut du `<main>` (`ONGLETS_DE_PAGE`) : le
+              // défilement vers une ancre ou un focus s'arrête sous eux (48 px, rangée de 45 à 47), pas dessous.
+              className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none max-md:has-[[data-onglets-de-page]]:scroll-pt-12"
             >
               {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
                   ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
@@ -285,7 +289,10 @@ function CoqueDeLApp({
               <BandeauxDuSite emplacement="page" />
               {/* TCK-2691 (ADR-0106, C1 et C2) — la marge des pages : `px-8` dès `lg` (28,8 px, largeur
                   utile de la maquette), et rien au téléphone pour une page qui adopte la pleine largeur. */}
-              <EnveloppeDuContenu>{children}</EnveloppeDuContenu>
+              {/* TCK-2619 — le menu de l'espace à la portée des pages (la page introuvable y cherche). */}
+              <ContexteDuMenuDeLaCoque.Provider value={contexteDuMenu}>
+                <EnveloppeDuContenu>{children}</EnveloppeDuContenu>
+              </ContexteDuMenuDeLaCoque.Provider>
             </main>
           </div>
           {/* TCK-2689 — l'emplacement de la barre d'action collante (`ui/barre-d-action.tsx`), qu'une page
@@ -368,9 +375,9 @@ function EnTeteDeLaCoque({
 }) {
   const pathname = usePathname();
   const declaration = useDeclarationDEnTete();
-  const { ctx } = useMenuDeLEspace(contexteDuMenu);
+  const { ctx, persona } = useMenuDeLEspace(contexteDuMenu);
   const t = useTranslations();
-  const derive = titreDeLaRoute(pathname, ctx);
+  const derive = titreDeLaRoute(pathname, ctx, persona);
   const titre = declaration.titre ?? (derive ? t(`${derive.espace}.${derive.cle}`) : null);
   return (
     <EnTeteMobile

@@ -247,7 +247,7 @@ export function recolteRacine(source, espacesConnus) {
  *   1. `TABLE.clé` — `const TABLE = { clé: 'property.types', … } as const` (les tables
  *      `PROPERTY_ENUM_NAMESPACES` / `CUSTOMER_ENUM_NAMESPACES`). On récolte les valeurs associées
  *      à la clé dans tout le graphe ; à défaut, TOUTES les valeurs de la table.
- *   2. `identifiant` seul — typiquement une PROP (`i18nNamespace` de `KycUploader`). On récolte
+ *   2. `identifiant` seul — typiquement une PROP (`i18nNamespace`, comme le faisait `KycUploader`, retiré par TCK-2796). On récolte
  *      tout littéral lié à ce nom dans le graphe : valeur par défaut de destructuration
  *      (`i18nNamespace = '…'`), attribut JSX (`i18nNamespace="…"`), propriété d'objet
  *      (`i18nNamespace: '…'`).

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
 
@@ -28,7 +28,7 @@ vi.mock('@/components/ui/toast', async (importOriginal) => ({
   useToast: () => ({ add: vi.fn() }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
-// Le brouillon relu place l'assistant directement sur l'étape 4, le récap.
+// Un brouillon de l'assistant à quatre écrans (étape 4, le récap) : TCK-2613 le reprend à l'écran 2, où vivent les droits.
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: {
@@ -48,8 +48,15 @@ vi.mock('@/hooks/useWizardDraft', () => ({
 
 const { AgentOnboardingWizard } = await import('../AgentOnboardingWizard');
 
+/** TCK-2613 — les droits sont repliés au téléphone : on les déplie avant de les lire. */
+async function deplierLesDroits(): Promise<HTMLElement> {
+  const bloc = await screen.findByTestId('agent-capabilities');
+  fireEvent.click(within(bloc).getByRole('button', { expanded: false }));
+  return bloc;
+}
+
 describe('récap de l’agent — capacités réelles (AC13)', () => {
-  it('rôle personnalisé accordant exactement properties.create et crm.view_all : ces deux libellés, aucun autre', () => {
+  it('rôle personnalisé accordant exactement properties.create et crm.view_all : ces deux libellés, aucun autre', async () => {
     useAgentRoleCapabilities.mockReturnValue({
       data: { data: { agency_id: 7, capabilities: ['properties.create', 'crm.view_all'] } },
       isLoading: false,
@@ -57,8 +64,8 @@ describe('récap de l’agent — capacités réelles (AC13)', () => {
     });
     render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
 
+    const bloc = await deplierLesDroits();
     expect(useAgentRoleCapabilities).toHaveBeenCalledWith(11);
-    const bloc = screen.getByTestId('agent-capabilities');
     const libelles = within(bloc).getAllByRole('listitem').map((li) => li.textContent?.trim());
     expect(libelles).toEqual(['Créer un bien', "Voir tous les contacts de l'agence"]);
     // Groupés par domaine, sous le libellé du domaine.
@@ -68,14 +75,14 @@ describe('récap de l’agent — capacités réelles (AC13)', () => {
     expect(within(bloc).queryByText('Programmer des visites')).toBeNull();
   });
 
-  it('sans capacité dans l’agence : un message, pas une liste inventée', () => {
+  it('sans capacité dans l’agence : un message, pas une liste inventée', async () => {
     useAgentRoleCapabilities.mockReturnValue({
       data: { data: { agency_id: 7, capabilities: [] } },
       isLoading: false,
       isError: false,
     });
     render(withIntl(<AgentOnboardingWizard agentProfileId={11} />));
-    expect(within(screen.getByTestId('agent-capabilities')).queryAllByRole('listitem')).toHaveLength(0);
+    expect(within(await deplierLesDroits()).queryAllByRole('listitem')).toHaveLength(0);
     expect(screen.getByText(/Aucun droit ne vous est encore attribué/)).toBeInTheDocument();
   });
 });

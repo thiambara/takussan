@@ -256,6 +256,115 @@ class ConversationListFiltersTest extends TestCase
         $this->assertSame($peu, $beaucoup);
     }
 
+    /**
+     * TCK-2632 — `filter[participant]` : « Nouvelle conversation » retrouve le fil direct déjà
+     * ouvert avec une personne. Le filtre restreint la liste de l'appelant, il ne l'élargit jamais.
+     */
+    public function test_participant_rend_les_seuls_fils_de_l_appelant_avec_cette_personne(): void
+    {
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[type]=direct&filter[participant]='.$this->malick->id));
+        // Le fil de l'appelant avec une AUTRE personne n'en sort pas ; le groupe où Malick est membre, si.
+        $this->assertSame([$this->filMalick->id, $this->groupe->id], $this->ids('?filter[participant]='.$this->malick->id));
+    }
+
+    public function test_participant_ne_rend_pas_un_fil_que_la_personne_a_quitte(): void
+    {
+        $this->groupe->participants()->updateExistingPivot($this->malick->id, ['left_at' => now()]);
+
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[participant]='.$this->malick->id));
+    }
+
+    public function test_participant_n_ouvre_pas_le_fil_de_deux_tiers(): void
+    {
+        // Malick et Awa s'écrivent sans l'agent : le bon identifiant ne suffit pas à le lui montrer.
+        $tiers = $this->fil(ConversationType::Direct, null, $this->malick, [$this->malick, $this->awa]);
+
+        $ids = $this->ids('?filter[type]=direct&filter[participant]='.$this->awa->id);
+        $this->assertNotContains($tiers->id, $ids);
+        $this->assertSame([$this->filAwa->id], $ids);
+        // Et l'agent n'est membre d'aucun fil avec une personne inconnue de lui.
+        $this->assertSame([], $this->ids('?filter[participant]='.User::factory()->create()->id));
+    }
+
+    /**
+     * TCK-2632 (décision b) — un fil direct que l'appelant a ARCHIVÉ est retrouvé par
+     * `filter[participant]` : « Nouvelle conversation » le rouvre au lieu d'en ouvrir un second.
+     * La liste par défaut, elle, reste sans archives, et ses compteurs n'en tiennent pas compte.
+     */
+    public function test_participant_retrouve_un_fil_archive_par_l_appelant(): void
+    {
+        $this->filMalick->participants()->updateExistingPivot($this->agent->id, ['archived_at' => now()]);
+
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[type]=direct&filter[participant]='.$this->malick->id));
+        $this->assertNotContains($this->filMalick->id, $this->ids(''));
+
+        Sanctum::actingAs($this->agent);
+        $reponse = $this->getJson('/api/conversations?filter[type]=direct&filter[participant]='.$this->malick->id)->assertOk();
+        $this->assertSame(['all' => 2, 'unread' => 1, 'group' => 1], $reponse->json('meta.counts'));
+    }
+
+    /**
+     * L'élargissement aux archives ne vaut que pour les fils de l'APPELANT : le fil de deux tiers,
+     * archivé par l'un d'eux, n'en sort pas ; ni un fil que l'appelant a quitté puis archivé.
+     */
+    public function test_participant_ne_rend_jamais_le_fil_d_un_tiers_meme_archive(): void
+    {
+        $tiers = $this->fil(ConversationType::Direct, null, $this->malick, [$this->malick, $this->awa]);
+        $tiers->participants()->updateExistingPivot($this->malick->id, ['archived_at' => now()]);
+        $tiers->participants()->updateExistingPivot($this->awa->id, ['archived_at' => now()]);
+
+        $this->assertNotContains($tiers->id, $this->ids('?filter[participant]='.$this->awa->id));
+        $this->assertNotContains($tiers->id, $this->ids('?filter[type]=direct&filter[participant]='.$this->malick->id));
+
+        // Quitté puis archivé par l'appelant : pas rendu non plus.
+        $this->groupe->participants()->updateExistingPivot($this->agent->id, ['left_at' => now(), 'archived_at' => now()]);
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[participant]='.$this->malick->id));
+    }
+
+    /** L'archive d'un fil est privée, comme la sourdine : rendue au seul lecteur, absente pour les autres. */
+    public function test_archived_at_n_est_rendu_que_pour_le_lecteur(): void
+    {
+        $this->filMalick->participants()->updateExistingPivot($this->agent->id, ['archived_at' => now()]);
+
+        Sanctum::actingAs($this->agent);
+        $lignes = collect($this->getJson('/api/conversations?filter[participant]='.$this->malick->id)
+            ->assertOk()->json('data'))->firstWhere('id', $this->filMalick->id)['participants'];
+        $moi = collect($lignes)->firstWhere('user_id', $this->agent->id);
+        $lui = collect($lignes)->firstWhere('user_id', $this->malick->id);
+        $this->assertNotNull($moi['archived_at']);
+        $this->assertArrayNotHasKey('archived_at', $lui);
+
+        // Vu de Malick, qui n'a rien archivé : sa ligne dit `null`, celle de l'agent ne dit rien.
+        Sanctum::actingAs($this->malick);
+        $lignes = $this->getJson('/api/conversations/'.$this->filMalick->id)->assertOk()->json('data.participants');
+        $this->assertNull(collect($lignes)->firstWhere('user_id', $this->malick->id)['archived_at']);
+        $this->assertArrayNotHasKey('archived_at', collect($lignes)->firstWhere('user_id', $this->agent->id));
+    }
+
+    public function test_participant_mal_forme_rend_422(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $this->getJson('/api/conversations?filter[participant]=abc')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
+        $this->getJson('/api/conversations?filter[participant]=0')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
+        $this->getJson('/api/conversations?filter[participant][]=1')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
+    }
+
+    /**
+     * Vérification adverse de TCK-2632 — `filter[participant]=<soi>` : l'appelant est membre de tous ses
+     * fils, et le filtre élargit la page aux archives (décision b) — la liste entière, archives
+     * comprises, sans fuite mais sans objet. Le front ne l'envoie jamais : c'est une erreur du client.
+     */
+    public function test_participant_soi_meme_rend_422(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $this->getJson('/api/conversations?filter[participant]='.$this->agent->id)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('filter.participant');
+        $this->getJson('/api/conversations?filter[participant]='.$this->malick->id)->assertOk();
+    }
+
     private function creerFils(int $n): void
     {
         for ($i = 0; $i < $n; $i++) {

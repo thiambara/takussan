@@ -194,7 +194,7 @@ async function rendreAvecCodes() {
   });
   const rendu = render(withIntl(<TwoFactorSection enabled={false} />));
 
-  await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
+  await user.click(screen.getByRole('button', { name: /^activer la double authentification$/i }));
   await waitFor(() => screen.getByPlaceholderText('123456'));
   await user.type(screen.getByPlaceholderText('123456'), '123456');
   await user.click(screen.getByRole('button', { name: /confirmer et activer/i }));

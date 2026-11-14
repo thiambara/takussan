@@ -6,13 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import * as AuthContext from '@/context/AuthContext';
-import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import { OwnersList } from '@/components/owners/OwnersList';
-import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
-import type { PaginatedResponse } from '@/types/api';
-import type { CustomerListItem } from '@/types/customer';
-import type { PropertyListItem } from '@/types/property';
 
 /**
  * TCK-380 · AC3 — **chaque table convertie rend EXACTEMENT les mêmes colonnes, dans le même
@@ -32,13 +27,6 @@ import type { PropertyListItem } from '@/types/property';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock('@/app/actions/dashboard-properties', () => ({
-  deletePropertyAction: vi.fn(),
-  duplicatePropertyAction: vi.fn(),
-  updatePropertyStatusAction: vi.fn(),
-  updatePropertyVisibilityAction: vi.fn(),
 }));
 
 function monter(ui: ReactElement) {
@@ -69,89 +57,17 @@ beforeEach(() => {
 });
 
 describe('AC3 — les colonnes des tables converties', () => {
-  it('CustomerList : client · contact · étiquettes · pipeline · statut', () => {
-    const page: PaginatedResponse<CustomerListItem> = {
-      data: [
-        {
-          id: 1,
-          first_name: 'Awa',
-          last_name: 'Ndiaye',
-          email: 'awa@example.test',
-          phone: '+221770000000',
-          status: 'active',
-          pipeline_stage: 'qualified',
-          occupation: 'Architecte',
-          created_at: '2026-05-06T10:00:00.000Z',
-        } as CustomerListItem,
-      ],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
-      links: { first: null, last: null, prev: null, next: null },
-    };
-    monter(<CustomerList page={page} />);
+  // TCK-2590 — `CustomerList` n'existe plus : la liste des clients suit la maquette retenue
+  // (`app-clients` a, ADR-0106), qui change ses colonnes par décision. Ses colonnes se gardent dans
+  // `customer-dashboard/liste/__tests__/ListeDesClients.tck-2590.test.tsx`.
+  //
+  // TCK-2638 — la table de `PropertyList` (sélection · bien · prix · activité · statut · actions)
+  // n'existe plus : la liste des biens suit la maquette retenue (`app-biens`, deux modes). En Annonces,
+  // une carte par annonce à toute largeur (prix, vues et favoris, état, « ⋯ ») — gardée dans
+  // `property-dashboard/__tests__/CarteAnnonce.tck-2638.test.tsx` ; en Gestion, une table aux colonnes
+  // de la maquette, gardées dans `property-dashboard/__tests__/PropertyList.gestion.tck-2638.test.tsx`.
 
-    expect(enTetesDe('Liste des clients')).toEqual([
-      'Client',
-      'Contact',
-      'Tags',
-      'Pipeline',
-      'Statut',
-    ]);
-  });
-
-  it('PropertyList : sélection · bien · prix · activité · statut · actions', () => {
-    const bien: PropertyListItem = {
-      id: 12,
-      reference_number: 'TK-2026-ABCD',
-      title: 'Villa Ngor',
-      slug: 'villa-ngor',
-      price: 250000,
-      currency: 'XOF',
-      type: 'villa',
-      contract_type: 'rent',
-      rent_period: 'monthly',
-      status: 'draft',
-      visibility: 'private',
-      views_count: 12,
-      favorites_count: 3,
-      location: {
-        quarter: 'Ngor',
-        city: 'Dakar',
-        region: null,
-        country: 'SN',
-        latitude: null,
-        longitude: null,
-      },
-      bedrooms: 3,
-      bathrooms: 2,
-      area: 120,
-      furnished: false,
-      featured: false,
-      main_photo_url: null,
-      published_at: null,
-      created_at: '2026-05-06T12:00:00.000Z',
-    } as PropertyListItem;
-
-    monter(
-      <PropertyList
-        page={{
-          data: [bien],
-          meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
-          links: { first: null, last: null, prev: null, next: null },
-        }}
-      />,
-    );
-
-    const entetes = enTetesDe('Liste des biens du tableau de bord');
-    expect(entetes).toHaveLength(6);
-    // La première colonne est un CONTRÔLE, pas un libellé : on l'éprouve par sa case à cocher.
-    const table = screen.getByRole('table', { name: 'Liste des biens du tableau de bord' });
-    expect(
-      within(table).getByRole('checkbox', { name: /sélectionner tous les biens/i }),
-    ).toBeInTheDocument();
-    expect(entetes.slice(1)).toEqual(['Bien', 'Prix', 'Activité', 'Statut', 'Actions']);
-  });
-
-  it('OwnersList : nom · e-mail · statut · actions', () => {
+  it('OwnersList : bailleur · téléphone · biens · argent du mois · statut (TCK-2641)', () => {
     monter(
       <OwnersList
         agencyId={7}
@@ -175,7 +91,10 @@ describe('AC3 — les colonnes des tables converties', () => {
     // TCK-601 — « Identifiants » (RIB, NINEA, pièce, masqués) est un AJOUT délibéré, entre
     // l'e-mail et le statut ; les quatre colonnes relevées à `73ca883b` restent, dans leur ordre.
     // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) en est un autre, après l'e-mail.
-    expect(enTetesDe('Propriétaires')).toEqual(['Nom', 'Email', 'Téléphone', 'Identifiants', 'Statut', 'Actions']);
+    // TCK-2641 — le carnet est refondu sur la maquette `app-bailleurs` : un tableau centré sur
+    // l'argent du mandat. « Email » passe sous le nom, « Identifiants » et « Actions » quittent la
+    // liste (les identifiants vont à la fiche du bailleur, les gestes d'invitation dans « Statut »).
+    expect(enTetesDe('Bailleurs')).toEqual(['Bailleur', 'Téléphone', 'Biens', 'Encaissé ce mois', 'Reste à verser', 'Dernier versement', 'Statut']);
   });
 
   it('ServiceProvidersList : nom · métiers · zones · statut · actions', () => {
@@ -201,12 +120,17 @@ describe('AC3 — les colonnes des tables converties', () => {
       />,
     );
 
-    // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) est un AJOUT délibéré,
-    // après le nom ; les cinq colonnes relevées à `73ca883b` restent, dans leur ordre.
-    const entetes = enTetesDe('Carnet prestataires');
-    expect(entetes).toHaveLength(6);
-    expect(entetes[0]).toBe('Nom');
-    expect(entetes[1]).toBe('Téléphone');
-    expect(entetes[5]).toBe('Actions');
+    // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) était un AJOUT délibéré.
+    // TCK-2653 (carnet de la maquette « Agence — carnet des prestataires ») recompose la table : la
+    // légende devient « Prestataires », et « Nom » et « Métiers » se lisent dans la cellule
+    // « Prestataire » (nom, puis métiers dessous). « Note » et « Interventions » s'ajoutent. Aucune
+    // information relevée à `73ca883b` ne se perd : les métiers sont éprouvés dans la cellule.
+    const entetes = enTetesDe('Prestataires');
+    expect(entetes).toEqual(['Prestataire', 'Zones', 'Téléphone', 'Note', 'Interventions', 'Statut', 'Actions']);
+    const premiere = within(screen.getByRole('table', { name: 'Prestataires' })).getAllByRole('row')[1];
+    const cellule = within(premiere).getAllByRole('cell')[0];
+    expect(cellule).toHaveTextContent('Modou Fall');
+    expect(cellule).toHaveTextContent('Plomberie');
+    expect(within(premiere).getAllByRole('cell')[1]).toHaveTextContent('Dakar');
   });
 });

@@ -355,3 +355,25 @@ describe('<RoleDelegationsSection> — TCK-369', () => {
     expect(within(dialogue).getByText(/awa@x\.sn/)).toBeInTheDocument();
   });
 });
+
+/**
+ * TCK-2668 (ADR-0035, amendement) — une délégation LIÉE à une absence s'y lit comme telle, et ne se
+ * révoque pas seule (422 `role_delegation.covers_absence`) : sa ligne mène à l'absence, sur l'Équipe.
+ */
+describe('<RoleDelegationsSection> — les délégations liées à une absence (TCK-2668)', () => {
+  it('« couvre l’absence de … », et « Voir l’absence » à la place de « Révoquer »', () => {
+    monte({
+      delegations: [delegation(4, 'active', { covers_absence: { id: 30, absent: { id: 9, name: 'Pape Cissé' } } }), delegation(5, 'active')],
+    });
+
+    const liee = screen.getByText('couvre l’absence de Pape Cissé').closest('tr') as HTMLElement;
+    expect(within(liee).queryByRole('button', { name: /Révoquer/ })).toBeNull();
+    expect(within(liee).getByRole('link', { name: 'Voir l’absence' })).toHaveAttribute('href', '/app/agency/team?filter[absent]=1&membre=9');
+    expect(screen.getByRole('button', { name: 'Révoquer la délégation de Awa Diop 5' })).toBeInTheDocument();
+  });
+
+  it('la section renvoie à « Couvrir une absence » de l’Équipe', () => {
+    monte();
+    expect(screen.getByRole('link', { name: 'couvrez l’absence depuis l’Équipe' })).toHaveAttribute('href', '/app/agency/team');
+  });
+});

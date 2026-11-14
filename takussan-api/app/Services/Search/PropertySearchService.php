@@ -7,6 +7,7 @@ use App\Http\Resources\PropertyResource;
 use App\Http\Responses\PaginationMeta;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
+use App\Rules\JourIso;
 use App\Services\Boost\BoostSettings;
 use App\Services\Boost\BoostStatsRecorder;
 use App\Services\Boost\SponsoredRotation;
@@ -819,7 +820,10 @@ class PropertySearchService
                 $filter[] = 'tags = '.self::quote((string) $tag);
             }
         }
-        if (! empty($p['available_from'])) {
+        // TCK-2768 (q1) — une recherche sauvegardée avant `JourIso` peut porter un jour qu'il refuse (« 99999-01-01 »,
+        // « 12/11/2026 ») : rejouée par l'alerte ou le compte, sans validation, `Carbon::parse` la relisait en 2009 ou
+        // au 11 décembre. Elle est ignorée, comme le front l'écarte (`parametresDeRecherche`).
+        if (is_string($p['available_from'] ?? null) && JourIso::estAdmis($p['available_from'])) {
             $ts = Carbon::parse($p['available_from'])->timestamp;
             $filter[] = ['available_from IS NULL', 'available_from <= '.$ts];
         }

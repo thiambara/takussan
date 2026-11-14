@@ -136,4 +136,52 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Relevé du 2026-11-12 (terrain-7, branche `feat/audit-ux-app-lot-2`). Décisions de la session (déléguées par le porteur), qui priment sur le texte du ticket là où il se trompait :
+
+1. **Pénalité de retard** : clés `lease.late_fee_percent` (0-50) et `lease.late_fee_grace_days` (0-30) au catalogue `rentals`, défaut **0** = pas de pénalité (aucune valeur commerciale inventée ; la maquette montre 5 % / 5 j : écart accepté). Leur seul lecteur est le préremplissage (`App\Services\Lease\LeaseDefaults`) : `LateFeeCalculator` lit la colonne du bail.
+2. **Total à l'entrée** : `CoutDEntree` (API et front), sur les valeurs SAISIES du bail. La formule du ticket comptait deux fois le premier mois.
+3. **Commission** : `agencies.commission_rate` n'est PAS recopié sur le bail (il figerait le taux des reversements, `PayoutCalculator` lit le bail d'abord). `defaults` le rend en information (`agency_commission_rate`), au personnel seul.
+4. **Autorisation** : `LeasePolicy::createOn(User, Property)` — la règle de `LeaseService::create()` extraite (bailleur du bien non bloqué, ou personnel `leases.create` de l'agence du bien). « policy `create` » du ticket aurait refusé le bailleur que la création admet. Bien absent, id mal formé ou manquant → 403, comme un bien étranger (TCK-1068).
+5. **« Préavis 3 mois »** de la maquette : aucune colonne ; l'étape montre l'indemnité de départ anticipé, bornée 0-12 (le catalogue admet 24 : une valeur d'agence au-delà est ramenée à 12).
+6. **Jour de paiement** : 1, source `platform` ; pas de nouvelle clé (maquette « le 5 » : écart accepté).
+7. **« Réglages de l'agence appliqués — Modifier »** : encadré sans « Modifier » — aucune page n'écrit un réglage d'agence (`POST /api/settings` scope agence sans appelant au front). À suivre dans un ticket à part.
+8. **Locataire créé à l'étape 2** : personnel seulement, prénom ET nom ; « Envoyer à la signature » désactivé pour un locataire sans compte (422 `lease_signature.tenant_without_account` sinon), le brouillon se crée quand même.
+9. **Loyer** prérempli seulement d'une location mensuelle (`CoutDEntree::sApplique`) ; sinon `property_price` (montant, période) pour l'aide. Type : vente si le bien est à vendre, commercial pour bureau/boutique/entrepôt/usine, sinon habitation.
+10. **Candidatures ouvertes** (TCK-2734) : `defaults.open_applications` (`id`, `customer_id`) ; l'étape « Vérifier » dit, près de « Envoyer à la signature », combien d'AUTRES candidatures l'ENVOI en signature fermera (celle du locataire se complète) — décision 7b du porteur : la clôture a quitté la création du brouillon pour `LeaseService::cloreLesCandidaturesDuBien()`, appelée par `LeaseSignatureService` ; l'avis se tait quand l'envoi est fermé (locataire sans compte).
+11. **Garant** : la phrase « après création » reste. 12. **Devise** : le sélecteur reste (4 options), devise du bien par défaut.
+
+Livré : `?property=` préchoisit le bien s'il figure parmi les biens proposés (lot 1, débloque TCK-2639) ; `StoreLeaseRequest` accepte les quatre termes aux bornes d'`UpdateLeaseRequest` ; `GET /api/leases/defaults` (route littérale avant `leases/{lease}`). Tests : `tests/Feature/Lease/LeaseDefaultsTest.php`, `StoreLeaseWithLateFeeTest.php` (8 ablations rouges).
+
+Front (lot 3) — `CreateLeaseForm` reste le seul formulaire ; les pièces de présentation vivent sous `components/leases/creation/`.
+
+- **Étapes** : sous `md`, un écran par étape (sections masquées par CSS : chaque champ n'est rendu qu'une fois et garde sa valeur), « Continuer » valide les champs de l'étape (`trigger`), une erreur à l'envoi ramène à l'étape qui la porte ; l'en-tête de la coque dit « Étape n sur 4 · Nom ». Dès `md`, une page à sections numérotées ; la colonne du total et des deux envois est collante dès `xl` (maquette `xl:grid-cols-[minmax(0,1fr)_min(400px,36.5%)]` ; « dès `lg` » du ticket : à 1024, 694 px utiles, la colonne ne laisserait qu'environ 420 px aux conditions).
+- **Préremplissage** : `form.reset({...défauts, ...préremplies}, { keepDirtyValues, keepDirty })` à l'arrivée de `GET /api/leases/defaults` — `resetField` ignorait un champ pas encore monté (le prix d'une vente). Les valeurs de la réservation ne sont jamais remplacées. La source s'écrit sous le champ tant que la valeur est celle qui a été reprise.
+- **Caution** : un pas-à-pas en mois écrit le MONTANT (mois × loyer) ; le montant reste libre.
+- **Vente** : le schéma refusait toute vente (`monthly_rent: 0` contre `.positive()`, champ non affiché) — corrigé (`nonnegative`, la location exige toujours un loyer positif) ; une vente n'envoie ni loyer, ni charges, ni pénalité, ni indemnité.
+- **Signature** : POST du bail puis `POST /leases/{id}/signature-request` ; un échec de la seconde laisse le brouillon, l'écran le dit et lie la fiche, sans second POST. Locataire sans compte : bouton désactivé et motif écrit.
+- **Écarts** : pas de « Brouillon » ni d'enregistrement automatique (aucun n'existe) ; pas d'« Aperçu du contrat » (aucun rendu avant création ; le PDF existe une fois le bail créé) ; « Préavis » → indemnité de départ (décision 5) ; aplat d'icône des réglages en `bg-muted` (`bg-accent/<n>` interdit dans `/app`) ; l'étape « Bien » garde le sélecteur (biens vacants d'abord, `include=occupancy`), sans champ de recherche.
+
+Fidélité (lot 4) — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (écrans a-2 téléphone, bureau 1440 et 1280, a-3 téléphone ; la maquette n'a pas d'a-3 au bureau), relevés en lecture seule sur le bien 13 et la cliente 3 de démo : la perturbation refuse toute requête autre que GET/HEAD/OPTIONS (« écritures refusées : 0 »). ⚠ `--bloquer` de l'outil apparie par sous-chaîne : `*/api/leases` bloquait aussi `/api/leases/defaults`.
+
+- **Bien et locataire choisis** : une ligne (`creation/LigneChoisie`, `data-slot="ligne-choisie"`) — vignette ou initiales, nom, « réf · bailleur · loyer annoncé » ou téléphone, et « Changer », qui rend le sélecteur. Les initiales ne s'importent pas de `customer-dashboard/liste/pieces` : ce module lit `crm`/`agentCrm`, que la frontière `(dashboard)/app/leases` ne transporte pas (`check:i18n-namespaces`).
+- **Mise en page** : page en `PagePleineLargeur`, colonne de droite `min(25rem, 36.5%)` (400 px de la maquette, et non 360) ; dates « 1 déc. 2026 » (`formatAffiche` additif de `FormDatePicker`) ; barre d'action du téléphone à la taille `action`, boutons `xl` ; « / mois » en `muted-foreground` ; Devise et Fréquence après les règles ; l'avis des garants rejoint ceux de l'envoi (décisions 11 et 12).
+- **Écarts acceptés** : listés avec leur motif dans la fiche (`ecarts_acceptes`) — dont la caution, qui garde un montant libre à côté du pas-à-pas (la maquette n'écrit que « = N F »), décision de session (team-lead, 2026-11-12) : pas de régression.
+
+### Suivi (2026-11-13) — r1 de la vérification de 65d3142b6 (r6) : une seule règle pour la valeur et la source (back-4)
+
+- **Constat.** Avec une ligne d'agence `{"value": 0}` sur l'indemnité ou la révision, `GET /api/leases/defaults` servait la valeur du global (7, 12,5) mais la source `agency`. Le formulaire annonçait alors des « réglages de l'agence ».
+  - La cause : `LeaseDefaults::agencyValue()`, double de `ScopedSetting::numericAgencyValue()`, n'appliquait pas le `> 0` des résolveurs.
+- **Règle unique.** `ScopedSetting::numericAgencyValue()` rend la valeur d'agence VALABLE : numérique, et au moins au plancher des règles du catalogue (`min:x`, `gt:x` : `EditablePlatformSettings::atteintLePlancher()`).
+  - Les résolveurs (`EarlyTerminationService::resolvePenaltyMonths`, `RentReviewService::resolveMaxPct`) et `LeaseDefaults` (valeur et `source`) la lisent. `LeaseDefaults::agencyValue()` est retiré.
+  - Au-dessus du plafond, `clamp()` ramène toujours la valeur : la ligne reste un réglage de l'agence.
+- **Effets.**
+  - Indemnité et révision : `{"value": 0}` donne le global et la source `platform`.
+  - Pénalité de retard (`min:0`) : 0 reste un réglage de l'agence (« pas de pénalité »).
+  - Une ligne héritée négative passe sous le plancher : le catalogue reprend la main, au lieu d'être ramenée à 0 et dite « de l'agence ».
+  - Les deux écrivains de lignes d'agence refusent déjà ces valeurs : seules les lignes héritées sont concernées.
+- **Épinglé par** `LeaseDefaultsTest::test_une_ligne_d_agence_sous_le_plancher_n_est_pas_un_reglage_de_l_agence` et par les cas r6 de `ScopedSettingReadersTest`.
+- **Ablations, toutes rouges :**
+  - sans plancher : 3 rouges ;
+  - la `source` jugée par l'ancienne règle : 1 rouge ;
+  - `gt` lu comme `min` : 2 rouges.
+- Prévenu : terrain-7 (`LeaseDefaults`).

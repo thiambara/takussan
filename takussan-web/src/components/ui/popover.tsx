@@ -26,6 +26,10 @@ const PopoverAnchor = PopoverPrimitive.Trigger;
  * lien étiré d'une carte (`absolute inset-0 z-[1]`) passe au-dessus (mesuré, `elementFromPoint`).
  * Celui-ci est juste sous le positionneur (`z-[1099]` contre `z-[1100]`). Opt-in : les autres
  * usages sont inchangés.
+ *
+ * `anchor` (TCK-2634) — l'élément contre lequel le panneau se place, au lieu du déclencheur : le
+ * panneau des notifications s'ouvre contre le bord droit de la COLONNE, pas sous la cloche. Absent,
+ * le déclencheur (défaut de base-ui) : les autres usages sont inchangés.
  */
 function PopoverContent({
   className,
@@ -34,13 +38,14 @@ function PopoverContent({
   align = "start",
   alignOffset = 0,
   collisionPadding,
+  anchor,
   voile = false,
   children,
   ...props
 }: PopoverPrimitive.Popup.Props &
   Pick<
     PopoverPrimitive.Positioner.Props,
-    "side" | "sideOffset" | "align" | "alignOffset" | "collisionPadding"
+    "side" | "sideOffset" | "align" | "alignOffset" | "collisionPadding" | "anchor"
   > & { readonly voile?: boolean }) {
   return (
     <PopoverPrimitive.Portal>
@@ -53,6 +58,7 @@ function PopoverContent({
         align={align}
         alignOffset={alignOffset}
         collisionPadding={collisionPadding}
+        anchor={anchor}
         className="isolate z-[1100]"
       >
         <PopoverPrimitive.Popup

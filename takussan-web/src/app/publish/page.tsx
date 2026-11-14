@@ -7,24 +7,30 @@
  * hôte, formulaire du bien) ou, quand la personne publie dans plusieurs agences, lui fait CHOISIR
  * l'espace — ici, sans détour. Le profil choisi devient actif avant le formulaire : c'est lui qui
  * décide dans quelle agence le bien est créé.
+ *
+ * TCK-2600 (ADR-0093) — SANS COMPTE, elle ne renvoie plus à la connexion : elle sert l'assistant,
+ * son brouillon gardé dans ce navigateur (`PublierSansCompte`). Le compte naît à la publication
+ * (TCK-2601), sans que la page ne démonte l'assistant ni ne décide plus rien.
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { Building2, ChevronRight, Home, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { BarreDeMarque } from '@/components/brand/BarreDeMarque';
 import { Button } from '@/components/ui/button';
+import { ListeDesEspaces } from '@/components/publication/ListeDesEspaces';
+import { PublierSansCompte } from '@/components/publication/PublierSansCompte';
 import { autoOnboardAction } from '@/app/actions/auto-onboard';
 import { useAuth } from '@/context/AuthContext';
 import { profilesKeys, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { PUBLISH_TARGETS, usePublishIntent, type EspaceDePublication } from '@/hooks/usePublishIntent';
+import { LIEN_DE_REPRISE } from '@/lib/publication/brouillon-de-publication';
+import { useBrouillonLocalPresent } from '@/lib/publication/useBrouillonLocalPresent';
 
 export default function PublishPage() {
   const t = useTranslations('publishRedirect');
-  const tTypes = useTranslations('profile.types');
   const router = useRouter();
   const decision = usePublishIntent();
   const basculer = useSwitchActiveProfile();
@@ -36,6 +42,25 @@ export default function PublishPage() {
   const [echecCreation, setEchecCreation] = useState<string | null>(null);
   // Dérivé, pas un état : l'effet qui lance la création ne pose rien de façon synchrone.
   const creation = decision.status === 'host-needed';
+
+  /**
+   * TCK-2601 — l'assistant sans compte reste monté quand la session s'ouvre SUR cette page (la feuille
+   * de compte) : la décision passe alors par « chargement », « aucun espace »… et la page ne la suit
+   * plus — c'est l'assistant qui publie. Un visiteur qui ARRIVE connecté avec une annonce gardée dans ce
+   * navigateur la retrouve de même. La page n'agit qu'une fois le brouillon local lu.
+   */
+  const brouillonLocal = useBrouillonLocalPresent();
+  const [assistantMonte, setAssistantMonte] = useState(false);
+  if (decision.status === 'anonymous' && !assistantMonte) setAssistantMonte(true);
+  /**
+   * TCK-2601 (r1) — l'annonce gardée ici a déjà été VERSÉE au brouillon serveur (agence, plusieurs
+   * espaces, bailleur seul) : elle se reprend dans l'assistant connecté. La page y mène sans rouvrir
+   * l'assistant sans compte — revenue par « Précédent », elle en reverserait l'ancienne copie
+   * par-dessus ce qui a été saisi depuis.
+   */
+  const verse = brouillonLocal === 'verse';
+  const sansCompte = !verse && (assistantMonte || decision.status === 'anonymous' || brouillonLocal === true);
+  const enAttente = sansCompte || brouillonLocal === null || verse;
 
   /**
    * TCK-633 (lot C) — aucun espace où publier : on le crée sans question, puis on ouvre le
@@ -81,114 +106,90 @@ export default function PublishPage() {
   }
 
   useEffect(() => {
-    if (!decision.target || parti.current || decision.status === 'host-needed') return;
+    if (enAttente || !decision.target || parti.current || decision.status === 'host-needed' || decision.status === 'anonymous') return;
     parti.current = true;
     void partir(decision.target, decision.profilABasculer);
     // `partir` n'a d'autre dépendance que la décision : une seule navigation par décision.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision.target, decision.profilABasculer, decision.status]);
+  }, [decision.target, decision.profilABasculer, decision.status, enAttente]);
 
   // TCK-633 (lot C) — un effet à part pour l'espace créé sans question : une seule création par
   // décision, et l'effet de navigation ci-dessus reste tel qu'il était.
   useEffect(() => {
-    if (decision.status !== 'host-needed' || parti.current) return;
+    if (enAttente || decision.status !== 'host-needed' || parti.current) return;
     parti.current = true;
     void creerPuisPartir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [decision.status]);
+  }, [decision.status, enAttente]);
+
+  useEffect(() => {
+    if (!verse || parti.current) return;
+    parti.current = true;
+    router.replace(LIEN_DE_REPRISE);
+  }, [verse, router]);
 
   function choisir(espace: EspaceDePublication) {
     setChoisi(espace.profile.id);
     void partir(PUBLISH_TARGETS.newProperty, espace.profile.id);
   }
 
+  if (sansCompte) return <PublierSansCompte />;
+
   return (
-    // TCK-621 — un écran de passage, mais qu'on voit : il porte la marque comme ses voisins.
-    <div className="flex min-h-dvh flex-col bg-background">
-      <BarreDeMarque />
-      <main className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
-        {decision.status === 'choose-space' ? (
-          <section className="flex w-full max-w-md flex-col gap-6">
-            <div className="space-y-2">
-              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-                {t('choose.title')}
-              </h1>
-              <p className="text-sm text-muted-foreground">{t('choose.body')}</p>
-            </div>
-            <ul className="flex flex-col gap-3">
-              {decision.espaces.map((espace) => {
-                const personnel = espace.profile.agency?.kind === 'individual';
-                const Icone = personnel ? Home : Building2;
-                return (
-                  <li key={espace.agencyId}>
-                    <button
-                      type="button"
-                      onClick={() => choisir(espace)}
-                      disabled={choisi !== null}
-                      className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60"
-                    >
-                      <Icone className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">
-                          {personnel ? t('choose.personal') : (espace.profile.agency?.name ?? t('choose.unnamed'))}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {tTypes(espace.profile.type)}
-                        </span>
-                      </span>
-                      {choisi === espace.profile.id ? (
-                        <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden="true" />
-                      ) : (
-                        <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {echec ? (
-              <p role="alert" className="text-sm text-destructive">
-                {t('choose.error')}
-              </p>
-            ) : null}
-          </section>
-        ) : echecCreation ? (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <p role="alert" className="max-w-sm text-sm text-destructive">
-              {echecCreation}
-            </p>
-            <Button
-              type="button"
-              onClick={() => {
-                setEchecCreation(null);
-                void creerPuisPartir();
-              }}
-            >
-              {t('retry')}
-            </Button>
+    // TCK-621 — un écran de passage, mais qu'on voit : il porte la marque comme ses voisins. Depuis
+    // TCK-2598, la barre et le repère `<main>` sont ceux de la coque d'entrée (`layout.tsx`).
+    <div className="flex justify-center">
+      {decision.status === 'choose-space' && !verse ? (
+        <section className="flex w-full max-w-md flex-col gap-6">
+          <div className="space-y-2">
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+              {t('choose.title')}
+            </h1>
+            <p className="text-sm text-muted-foreground">{t('choose.body')}</p>
           </div>
-        ) : echec ? (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <p role="alert" className="max-w-sm text-sm text-destructive">
+          <ListeDesEspaces espaces={decision.espaces} choisi={choisi} onChoisir={choisir} />
+          {echec ? (
+            <p role="alert" className="text-sm text-destructive">
               {t('choose.error')}
             </p>
-            <Button
-              type="button"
-              onClick={() => decision.target && void partir(decision.target, decision.profilABasculer)}
-            >
-              {t('retry')}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-              {creation ? t('auto.title') : t('title')}
-            </h1>
-            <p className="max-w-sm text-sm text-muted-foreground">{creation ? t('auto.body') : t('body')}</p>
-          </div>
-        )}
-      </main>
+          ) : null}
+        </section>
+      ) : echecCreation ? (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p role="alert" className="max-w-sm text-sm text-destructive">
+            {echecCreation}
+          </p>
+          <Button
+            type="button"
+            onClick={() => {
+              setEchecCreation(null);
+              void creerPuisPartir();
+            }}
+          >
+            {t('retry')}
+          </Button>
+        </div>
+      ) : echec ? (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <p role="alert" className="max-w-sm text-sm text-destructive">
+            {t('choose.error')}
+          </p>
+          <Button
+            type="button"
+            onClick={() => decision.target && void partir(decision.target, decision.profilABasculer)}
+          >
+            {t('retry')}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+            {creation ? t('auto.title') : t('title')}
+          </h1>
+          <p className="max-w-sm text-sm text-muted-foreground">{creation ? t('auto.body') : t('body')}</p>
+        </div>
+      )}
     </div>
   );
 }

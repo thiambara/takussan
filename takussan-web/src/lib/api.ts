@@ -292,6 +292,8 @@ export const CODES_ERREUR_BFF = [
   // TCK-1219 (P79.04) — l'API n'a pas répondu au relais : injoignable (502) ou hors délai (504).
   'upstream_unavailable',
   'upstream_timeout',
+  // TCK-2621 — `remember` du changement d'espace envoyé autrement qu'en booléen (erreur d'appelant).
+  'remember_must_be_boolean',
 ] as const;
 
 export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
@@ -309,6 +311,8 @@ export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
   // TCK-1219 — le libellé existant d'une panne du serveur : aucun texte neuf.
   upstream_unavailable: 'errors.api.serverError',
   upstream_timeout: 'errors.api.serverError',
+  // TCK-2621 — un corps de requête mal formé : le libellé existant, aucun texte neuf.
+  remember_must_be_boolean: 'errors.api.invalidJsonBody',
 };
 
 /** Clé du libellé générique, quand rien de plus précis n'est connu. */
@@ -581,7 +585,7 @@ export class ApiError extends Error {
  *
  * ⚠️ Racine, et non un espace de noms : les clés de {@link CLE_I18N_ERREUR_BFF} sont des chemins
  * absolus (`errors.api.unauthenticated`). Un composant qui tient déjà un
- * `useTranslations('agents.onboarding.kyc')` ne peut donc PAS s'en servir ici — il lui faut, en
+ * `useTranslations('pieces')` ne peut donc PAS s'en servir ici — il lui faut, en
  * plus, un `useTranslations()` sans argument.
  */
 export type TraducteurRacine = (cle: string, valeurs?: Record<string, string | number>) => string;

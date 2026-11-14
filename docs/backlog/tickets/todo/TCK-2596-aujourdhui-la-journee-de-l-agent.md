@@ -92,4 +92,25 @@ Aucun endpoint neuf ; la page compose :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Lot 1 — « Ma journée » (contenu de l'accueil de l'agent).**
+
+- `app/(accueil)/page.tsx` sert `MaJournee` quand le rôle du profil ACTIF (`dashboard/me`) est `agent` ; l'admin d'agence, le bailleur et le client gardent leur accueil. Le bandeau des brouillons d'assistant passe en tête de la journée. `DashboardShortcuts` n'est plus rendu pour l'agent : clients, visites, calendrier et messages restent atteignables par la coque (barre latérale, onglets, Menu).
+- Lectures : visites du jour (`useVisitesDeLaVue`, `filter[day]`) et comptes rendus (`filter[to_close]`) du module des visites ; tâches en retard et du jour (`filter[assigned_to]=me&filter[due]=overdue,today`), demandes de plus de 24 h (`filter[created_at_max]`) et compte des relances (`per_page=1`) dans `lib/queries/journee.ts` ; la bande de semaine et les tâches d'un autre jour par `/api/calendar?mine=1&types[]=visit&types[]=task` (le modèle `Task` n'a pas de filtre d'échéance par intervalle).
+- Règles pures dans `lib/journee/journee.ts` (heure de Dakar) : « Reporter » → `due_at` à 09:00 Dakar le lendemain, le lundi suivant ou à J+7 ; chronologie triée par instant, visite avant tâche à heure égale, sans les visites annulées ni les demandes à créneau souple.
+- « Mes chiffres » : Biens gérés → `/app/properties?only_mine=1`, Prospects → `/app/customers?vue=mes-clients` (sans filtre « étapes vivantes », que la liste n'offre pas), Tâches ouvertes → `/app/tasks?filter[assigned_to]=me`, Commissions → `/app/commissions`, « Voir le rapport du mois » → `/app/overview/agent`.
+- « + » de l'en-tête : Visite (dialogue de planification au jour choisi), Tâche (`/app/tasks` jusqu'au lot 2), Client.
+- Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2596.json`, écran a-0 relevé aux trois formats ; a-4 (journée libre) non reproductible sur la démo, couvert par test. Balayage 360 → 1440 : aucun débord.
+- Donnée de la démo le jour du relevé (2026-11-13) : aucune demande de plus de 24 h pour Sokhna Sene, quatre tâches en retard et deux comptes rendus — la ligne « Mouhamed qui attend depuis 8 j » d'AC1 n'est pas reproductible, elle est couverte par le test de composant.
+
+**Lot 2 — la page « Tâches » (`components/taches/`, `lib/taches/taches.ts`, `lib/queries/taches.ts`) ; `MyTasks.tsx` supprimé.**
+
+- URL : `filter[due]` garde son contrat (une valeur, ou une liste `overdue,today` — TCK-2595), `all` pour « Toutes », `filter[status]=done` pour « Faites », `filter[assigned_to]=me` gardé à chaque changement. Sans échéance, la page s'ouvre sur En retard + Aujourd'hui (l'URL reste nue). `?nouvelle=1` ouvre « Nouvelle tâche » (le « + » de « Ma journée » y mène).
+- Pastilles comptées par `meta.total` d'une lecture d'une ligne : ce qui RESTE à faire (`filter[status]=open,in_progress`) pour les échéances, les faites pour « Faites ». La liste, elle, garde les tâches faites du jour (cocher ne fait pas disparaître la ligne : titre barré).
+- `fields[tasks]` porte `assigned_to_id` et `created_by_id` : sans eux l'API rend assigné et créateur nuls (mesuré). Tri `due_at` ; les faites, `-due_at` (pas de tri sur `completed_at`).
+- Groupes au jour de Dakar : En retard (ouverte), Aujourd'hui, Cette semaine (jusqu'au dimanche), Plus tard, Sans échéance, Faites ; sections au téléphone, colonnes dès `xl`. Le compte d'un groupe est celui de l'API quand toutes les pages ne sont pas chargées.
+- Tâche ouverte (feuille du bas, panneau droit dès `xl`) : titre modifiable, Reporter à Demain · Lundi · Dans une semaine (09:00 Dakar) · Choisir…, rattachement en lien, assigné (le personnel de l'agence ; la liste est réservée à l'admin, un 403 laisse « Moi » seul ; l'assigné affiché est celui que l'API rend — un absent est remplacé), Appeler / WhatsApp pour un client, « Supprimer » pour le seul créateur (confirmé). Gestes réservés à l'assigné et au créateur (`TaskPolicy::update`).
+- Nouvelle tâche : titre, échéance en pastilles (Aujourd'hui · Demain · Lundi · Date…, « + Heure » ; sans heure 09:00 Dakar), Un client / Un bien par recherche (2 caractères, 8 résultats, « Changer »), assigné ; « Créer la tâche · demain » actif avec un titre et une cible.
+- Balayage au doigt (pointeur tactile) : à droite « Fait », à gauche ouvre la tâche sur « Reporter à » ; seuil pur (`issueDuBalayage`).
+- « Assignée à » (vue d'équipe, `filter[team]=1`, `filter[assigned_to_id]`) offert à l'admin d'agence qui tient `crm.view_all` ; l'agent la tient aussi (`SystemRoleCapabilities::agent`) mais garde « Assignées à moi », comme la maquette.
+- « Ma journée » : « Tâches ouvertes » et « Toutes les tâches » mènent à `?filter[due]=overdue,today,upcoming,none&filter[assigned_to]=me` (ce que compte `tasks_open`), « + Tâche » à `?nouvelle=1`.
+- Clés `agentCrm.myTasks.*` retirées (sans lecteur). Hors du lot : rattachement prérempli depuis une fiche (le formulaire l'accepte, aucune entrée ne le passe encore), « Grouper par » / « Rattachée à » du bureau.

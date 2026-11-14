@@ -345,7 +345,7 @@ describe('PropertyWizard — le brouillon', () => {
 
     expect(await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } })).toBeInTheDocument();
     // TCK-564 — le prix repris se RELIT groupé (espace fine insécable de `fr-SN`).
-    expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u202f000\u202f000');
+    expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u00a0000\u00a0000');
     expect(screen.getByText(/repris votre brouillon/i)).toHaveAttribute('role', 'status');
     // TCK-631 — l'en-tête dit l'état du brouillon : celui-ci existe sur le serveur.
     expect(screen.getByRole('banner')).toHaveTextContent('Brouillon enregistré');
@@ -611,7 +611,7 @@ describe('PropertyWizard — TCK-564, retour testeur du 2026-09-23', () => {
 
     const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
     await user.type(prix, '49000000');
-    expect(prix.value).toBe('49\u202f000\u202f000');
+    expect(prix.value).toBe('49\u00a0000\u00a0000');
 
     await user.click(suivant()); //                          → photos
     await user.click(suivant()); //                          → finition

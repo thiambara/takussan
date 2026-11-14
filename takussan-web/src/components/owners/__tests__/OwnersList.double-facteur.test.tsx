@@ -15,6 +15,11 @@ import { OwnersList } from '../OwnersList';
  * rejoué. L'invitation est celle que porte la ligne (`pending_invitation_id`, P237.01).
  */
 const apiRequestMock = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/app/owners',
+}));
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: (...args: unknown[]) => apiRequestMock(...args),
@@ -72,14 +77,15 @@ describe('<OwnersList> — invitations et second facteur', () => {
   });
 
   it.each([
-    ['resend', "Renvoyer l'invitation"],
-    ['revoke', 'Révoquer'],
+    ['resend', /^Renvoyer l’invitation/],
+    ['revoke', /^Révoquer l’invitation/],
   ] as const)('%s : un refus de second facteur ouvre la garde, puis le geste est rejoué', async (geste, libelle) => {
     api(geste, 1);
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
     monter(garde);
 
-    await userEvent.click(await screen.findByRole('button', { name: libelle }));
+    // TCK-2641 — la carte du téléphone et la rangée du bureau portent chacune le geste.
+    await userEvent.click((await screen.findAllByRole('button', { name: libelle }))[0]);
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' })));
     expect(garde).toHaveBeenCalledWith('two_factor_required');
@@ -91,7 +97,7 @@ describe('<OwnersList> — invitations et second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => false);
     monter(garde);
 
-    await userEvent.click(await screen.findByRole('button', { name: "Renvoyer l'invitation" }));
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Renvoyer l’invitation/ }))[0]);
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
       type: 'error',

@@ -444,4 +444,39 @@ class MembershipCapabilityResolverTest extends TestCase
         $this->assertSame($expected, $this->resolver->allows($user, Capability::MaintenanceClose, $agency));
         $this->assertSame($expected, $user->isProviderAt($agency->id));
     }
+
+    /**
+     * TCK-2739 — l'amorce de `primed()` se vide même quand le rappel lève (`finally`) : sinon le
+     * niveau de plateforme qu'elle a lu survivrait à l'exception, un super-admin révoqué ensuite
+     * resterait accordé, et la prochaine amorce, croyant en tenir une, ne s'armerait pas.
+     */
+    public function test_l_amorce_se_vide_quand_le_rappel_leve(): void
+    {
+        $agency = Agency::factory()->create();
+        $super = User::factory()->create();
+        $profil = PlatformProfile::factory()->superAdmin()->create(['user_id' => $super->id]);
+
+        try {
+            MembershipCapabilityResolver::primed([$super->id], [$agency->id], function () use ($super, $agency): never {
+                $this->assertTrue($this->resolver->allows($super, Capability::TeamInvite, $agency));
+                $this->assertNotFalse(MembershipCapabilityResolver::niveauPlateformeAmorce($super->id), 'l’amorce est armée dans le rappel');
+
+                throw new \RuntimeException('rappel interrompu');
+            });
+            $this->fail('l’exception du rappel doit traverser primed()');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('rappel interrompu', $e->getMessage());
+        }
+
+        $this->assertFalse(MembershipCapabilityResolver::niveauPlateformeAmorce($super->id), 'plus d’amorce après l’exception');
+        $this->assertNull(MembershipCapabilityResolver::amorce('staff', $super->id, $agency->id));
+
+        $profil->update(['revoked_at' => now()]);
+        $this->assertFalse($this->resolver->allows($super->fresh(), Capability::TeamInvite, $agency), 'la révocation se lit, pas l’amorce périmée');
+
+        // La prochaine amorce s'arme bien : elle ne se croit pas imbriquée dans la précédente.
+        $autre = User::factory()->create();
+        PlatformProfile::factory()->superAdmin()->create(['user_id' => $autre->id]);
+        $this->assertNotFalse(MembershipCapabilityResolver::primed([$autre->id], [$agency->id], fn () => MembershipCapabilityResolver::niveauPlateformeAmorce($autre->id)));
+    }
 }

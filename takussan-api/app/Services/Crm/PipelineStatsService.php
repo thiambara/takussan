@@ -260,14 +260,9 @@ class PipelineStatsService
         }
 
         $newExpr = self::PIPELINE_STAGE_NEW;
-        $oldExpr = self::PIPELINE_STAGE_OLD;
 
-        Activity::query()
-            ->where('subject_type', Customer::class)
+        self::sortiesRecentes(30)
             ->whereIn('subject_id', $customerIds)
-            ->where('created_at', '>=', now()->subDays(30))
-            ->whereRaw("{$newExpr} IN (?, ?)", [CustomerPipelineStage::Converted->value, CustomerPipelineStage::Lost->value])
-            ->whereRaw("{$oldExpr} IS DISTINCT FROM {$newExpr}")
             ->selectRaw("{$newExpr} as stage, COUNT(*) as total")
             ->groupBy(DB::raw($newExpr))
             ->get()
@@ -276,5 +271,25 @@ class PipelineStatsService
             });
 
         return $exits;
+    }
+
+    /**
+     * TCK-2592 (décision 1b) — les sorties des `$jours` derniers jours : les entrées du journal d'une
+     * fiche dont l'étape PASSE à Gagné ou Perdu. UNE définition, lue par la tuile « Conversion »
+     * ({@see self::exitsLast30Days()}) et par `filter[exited_within_days]` de la liste des fiches
+     * ({@see Customer::getAllowedQueryFilters()}) : la vue qu'ouvre la tuile est celle qu'elle compte.
+     *
+     * @return Builder<Activity>
+     */
+    public static function sortiesRecentes(int $jours): Builder
+    {
+        $newExpr = self::PIPELINE_STAGE_NEW;
+        $oldExpr = self::PIPELINE_STAGE_OLD;
+
+        return Activity::query()
+            ->where('subject_type', Customer::class)
+            ->where('created_at', '>=', now()->subDays($jours))
+            ->whereRaw("{$newExpr} IN (?, ?)", [CustomerPipelineStage::Converted->value, CustomerPipelineStage::Lost->value])
+            ->whereRaw("{$oldExpr} IS DISTINCT FROM {$newExpr}");
     }
 }

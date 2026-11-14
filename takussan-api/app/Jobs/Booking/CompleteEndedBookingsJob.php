@@ -3,6 +3,7 @@
 namespace App\Jobs\Booking;
 
 use App\Models\Booking;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,8 +23,12 @@ use Illuminate\Support\Facades\DB;
  * lecteurs de `completed` l'acceptent déjà : occupation (`PortfolioMetrics`), droit de noter le
  * bien (`ReviewEligibility`), refus d'annuler (`BookingService::TERMINAL_CANCEL_STATUSES`).
  *
- * Idempotente : la sélection ne lit que des réservations `confirmed`, et chacune est rejugée sous
- * son verrou avant d'être écrite.
+ * TCK-2735 (ADR-0102 § 3) — seul un SÉJOUR est mené à sa date de fin. Une candidature ou une offre
+ * confirmée a pour issue le bail ou la vente (`LeaseService` solde la réservation à la création du
+ * bail) : elle reste `confirmed` après sa `end_date`.
+ *
+ * Idempotente : la sélection ne lit que des séjours `confirmed`, et chacun est rejugé sous son
+ * verrou avant d'être écrit.
  */
 class CompleteEndedBookingsJob implements ShouldQueue
 {
@@ -51,6 +56,7 @@ class CompleteEndedBookingsJob implements ShouldQueue
     private function candidates(string $today): Builder
     {
         return Booking::query()
+            ->where('kind', BookingKind::Stay->value)
             ->where('status', BookingStatus::Confirmed->value)
             ->whereNotNull('end_date')
             ->where('end_date', '<', $today);

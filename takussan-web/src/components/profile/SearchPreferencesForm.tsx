@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { PiedDEnregistrement } from '@/components/profile/sommaire/PiedDEnregistrement';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -133,6 +134,7 @@ export function SearchPreferencesForm({
   emailVerified,
 }: SearchPreferencesFormProps) {
   const t = useTranslations('profile.searchPreferences');
+  const idFormulaire = useId();
   const tCommon = useTranslations('common.actions');
   // TCK-292 — le vocabulaire des types de bien vient du dictionnaire, pas d'une table locale.
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
@@ -144,6 +146,17 @@ export function SearchPreferencesForm({
   }));
   const [values, setValues] = useState<FormValues>(baseline);
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // TCK-2635 — « Enregistrer » n'est actif que sur une modification, comptée réglage par réglage.
+  const memesTypes =
+    values.types.size === baseline.types.size && [...values.types].every((type) => baseline.types.has(type));
+  const memesVilles = parseCities(values.cities).join('\u0000') === parseCities(baseline.cities).join('\u0000');
+  const modifications =
+    Number(!memesTypes) +
+    Number(values.budget.trim() !== baseline.budget.trim()) +
+    Number(!memesVilles) +
+    Number(values.alertsEnabled !== baseline.alertsEnabled) +
+    Number(values.alertsEnabled && values.frequency !== baseline.frequency);
 
   const createMutation = useCreateSavedSearchMutation();
   const updateMutation = useUpdateSavedSearchMutation();
@@ -197,7 +210,7 @@ export function SearchPreferencesForm({
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit} data-testid="search-prefs-form">
+    <form id={idFormulaire} className="space-y-4" onSubmit={handleSubmit} data-testid="search-prefs-form">
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2 md:col-span-2">
           <span className="text-xs font-semibold text-muted-foreground">
@@ -287,7 +300,7 @@ export function SearchPreferencesForm({
               {/* TCK-632 — vers les coordonnées du profil, qui ajoutent l'adresse (compte ouvert par
                   téléphone) et renvoient le lien ; `/auth/verify-email` ne savait que renvoyer. */}
               <Link
-                href="/app/profile#coordonnees"
+                href="/app/profile/contact"
                 className="font-semibold underline"
               >
                 {t('verifyEmailCta')}
@@ -350,22 +363,25 @@ export function SearchPreferencesForm({
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3">
+      <div>
         <Link
           href="/app/saved-searches"
           className="inline-flex min-h-8 items-center rounded-sm text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t('manageSavedSearches')}
         </Link>
-        <Button type="submit" size="sm" disabled={isSubmitting} data-testid="pref-save">
-          {isSubmitting ? (
-            <Loader2 aria-hidden="true" className="mr-1 h-4 w-4 animate-spin" />
-          ) : (
-            <Save aria-hidden="true" className="mr-1 h-4 w-4" />
-          )}
-          {tCommon('save')}
-        </Button>
       </div>
+
+      {/* TCK-2635 — un seul « Enregistrer », actif sur une modification. */}
+      <PiedDEnregistrement
+        modifications={modifications}
+        bouton={
+          <Button type="submit" form={idFormulaire} disabled={isSubmitting || modifications === 0} data-testid="pref-save">
+            {isSubmitting ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Save aria-hidden="true" />}
+            {tCommon('save')}
+          </Button>
+        }
+      />
     </form>
   );
 }

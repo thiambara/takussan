@@ -1,12 +1,14 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Loader2, RotateCw } from 'lucide-react';
+import { Check, ExternalLink, Loader2, RotateCw } from 'lucide-react';
 
 import { FormError, FormGlobalError, FormSuccess } from '@/components/forms';
 import { LANGUES_DE_L_ANNUAIRE } from '@/components/public/index/faits-de-profil';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { PiedDEnregistrement } from '@/components/profile/sommaire/PiedDEnregistrement';
 import { Combobox, ComboboxMultiple, type OptionDeListe } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -86,29 +88,26 @@ function Coque({ children, profil }: { readonly children: React.ReactNode; reado
   const t = useTranslations('profile.agentDirectory');
   const idTitre = useId();
   const slug = profil?.public_slug ?? null;
+  // TCK-2635 — à nu sous le titre de la section « Fiche publique » (maquette `FormFiche`) : le titre
+  // de la carte d'avant reste pour l'assistance, il ne se répète plus à l'écran.
   return (
-    <section className="space-y-4 rounded-2xl bg-card p-6" aria-labelledby={idTitre} data-testid="profile-agent-directory">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id={idTitre} className="text-lg font-bold text-foreground">{t('title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        {/* Revue de TCK-2524 — comme pour l'agence : la puce mène à SA fiche, que l'API n'émet que si la
-            page publique existe (`public_slug`, jamais celui d'un autre). */}
-        {slug ? (
-          <a
-            href={`/agents/${encodeURIComponent(slug)}`}
-            target="_blank"
-            rel="noopener"
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          >
-            <ExternalLink aria-hidden="true" />
-            {t('viewPublic')}
-          </a>
-        ) : profil ? (
-          <p className="text-xs text-muted-foreground">{t('notPublic')}</p>
-        ) : null}
-      </div>
+    <section className="space-y-6" aria-labelledby={idTitre} data-testid="profile-agent-directory">
+      <h2 id={idTitre} className="sr-only">{t('title')}</h2>
+      {/* Revue de TCK-2524 — comme pour l'agence : le lien mène à SA fiche, que l'API n'émet que si la
+          page publique existe (`public_slug`, jamais celui d'un autre). */}
+      {slug ? (
+        <a
+          href={`/agents/${encodeURIComponent(slug)}`}
+          target="_blank"
+          rel="noopener"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          <ExternalLink className="size-4" aria-hidden="true" />
+          {t('viewPublic')}
+        </a>
+      ) : profil ? (
+        <p className="text-xs text-muted-foreground">{t('notPublic')}</p>
+      ) : null}
       {children}
     </section>
   );
@@ -117,9 +116,11 @@ function Coque({ children, profil }: { readonly children: React.ReactNode; reado
 function FormulaireAnnuaire({ profil }: { readonly profil: Profile }) {
   const t = useTranslations('profile.agentDirectory');
   const messageErreur = useMessageErreurApi();
+  const router = useRouter();
   const idLangues = useId();
   const idVille = useId();
   const idQuartiers = useId();
+  const idFormulaire = useId();
   const [langues, setLangues] = useState<string[]>(() => [...(profil.languages ?? [])]);
   const [quartiers, setQuartiers] = useState<readonly QuartierChoisi[]>(() => [...(profil.neighborhoods ?? [])]);
   const [villeId, setVilleId] = useState<string | null>(null);
@@ -142,6 +143,9 @@ function FormulaireAnnuaire({ profil }: { readonly profil: Profile }) {
       onSuccess: () => {
         setErreurs({});
         setSucces(true);
+        // TCK-2635 — le point « Fiche publique » et le compte de « À régler » se lisent au rendu
+        // serveur du cadre du profil : une fiche complétée les éteint sans recharger la page.
+        router.refresh();
       },
       onError: (erreur) => {
         const { langues: surLangues, quartiers: surQuartiers, autres } = erreursAnnuaireAgent(erreur.validationErrors);
@@ -150,6 +154,17 @@ function FormulaireAnnuaire({ profil }: { readonly profil: Profile }) {
       },
     },
   );
+
+  // TCK-2635 — « Enregistrer » n'est actif que sur une modification ; l'ordre des langues ou des
+  // quartiers choisis n'en est pas une. Après l'enregistrement, le profil relu rejoint la saisie.
+  const memes = (a: readonly (string | number)[], b: readonly (string | number)[]) =>
+    a.length === b.length && a.every((x) => b.includes(x));
+  const languesModifiees = !memes(langues, profil.languages ?? []);
+  const quartiersModifies = !memes(
+    quartiers.map((q) => q.id),
+    (profil.neighborhoods ?? []).map((q) => q.id),
+  );
+  const modifications = Number(languesModifiees) + Number(quartiersModifies);
 
   function modifie() {
     setSucces(false);
@@ -176,45 +191,56 @@ function FormulaireAnnuaire({ profil }: { readonly profil: Profile }) {
 
   return (
     <Coque profil={profil}>
-      <form onSubmit={enregistrer} noValidate className="space-y-5">
+      <form id={idFormulaire} onSubmit={enregistrer} noValidate className="space-y-6">
         {erreurGlobale ? <FormGlobalError>{erreurGlobale}</FormGlobalError> : null}
         {succes ? <FormSuccess>{t('saved')}</FormSuccess> : null}
 
-        <fieldset className="min-w-0 space-y-2" aria-describedby={erreurs.langues ? `${idLangues}-erreur` : undefined}>
-          <legend className="text-sm font-medium">{t('languages')}</legend>
-          <p className="text-xs text-muted-foreground">{t('languagesHint')}</p>
-          <div className="grid grid-cols-2 gap-x-4 sm:grid-cols-3">
-            {LANGUES_DE_L_ANNUAIRE.map((code) => (
-              <label
-                key={code}
-                className="-mx-2 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2.5 text-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring"
-              >
-                <input
-                  type="checkbox"
-                  className="size-4 flex-none accent-primary"
-                  checked={langues.includes(code)}
-                  onChange={() => {
-                    setLangues((avant) => basculerLangue(avant, code, LANGUES_DE_L_ANNUAIRE));
-                    setErreurs((e) => ({ ...e, langues: undefined }));
-                    modifie();
-                  }}
-                />
-                {t(`languageNames.${code}`)}
-              </label>
-            ))}
+        <fieldset className="min-w-0" aria-describedby={erreurs.langues ? `${idLangues}-erreur` : undefined}>
+          <legend className="text-corps font-semibold">{t('languages')}</legend>
+          <p className="mb-2 text-ui text-muted-foreground">{t('languagesHint')}</p>
+          {/* TCK-2635 — des puces à cocher (maquette `PuceChoix`) : la case reste, pour le clavier et
+              l'assistance ; la puce est son libellé. */}
+          <div className="flex flex-wrap gap-2">
+            {LANGUES_DE_L_ANNUAIRE.map((code) => {
+              const cochee = langues.includes(code);
+              return (
+                <label
+                  key={code}
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium has-checked:border-foreground has-checked:bg-foreground has-checked:text-background has-focus-visible:ring-3 has-focus-visible:ring-ring"
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={cochee}
+                    onChange={() => {
+                      setLangues((avant) => basculerLangue(avant, code, LANGUES_DE_L_ANNUAIRE));
+                      setErreurs((e) => ({ ...e, langues: undefined }));
+                      modifie();
+                    }}
+                  />
+                  {cochee ? <Check className="size-3.5" aria-hidden="true" /> : null}
+                  {t(`languageNames.${code}`)}
+                </label>
+              );
+            })}
           </div>
           <FormError id={`${idLangues}-erreur`}>{erreurs.langues}</FormError>
         </fieldset>
 
-        <fieldset className="min-w-0 space-y-2">
-          <legend className="text-sm font-medium">
-            {t('neighborhoods')}{' '}
-            <span className="font-normal tabular-nums text-muted-foreground">
+        <fieldset className="min-w-0">
+          <legend className="sr-only">
+            {t('neighborhoods')} {t('neighborhoodsCount', { n: quartiers.length, max: MAX_QUARTIERS })}
+          </legend>
+          <div className="mb-2 flex items-end gap-3" aria-hidden="true">
+            <div className="min-w-0 flex-1">
+              <p className="text-corps font-semibold">{t('neighborhoods')}</p>
+              <p className="text-ui text-muted-foreground">{t('neighborhoodsHint')}</p>
+            </div>
+            <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium tabular-nums">
               {t('neighborhoodsCount', { n: quartiers.length, max: MAX_QUARTIERS })}
             </span>
-          </legend>
-          <p className="text-xs text-muted-foreground">{t('neighborhoodsHint')}</p>
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          </div>
+          <div className="grid gap-3">
             <div className="space-y-1">
               <Label htmlFor={idVille} className="text-xs text-muted-foreground">{t('city')}</Label>
               <Combobox
@@ -249,12 +275,15 @@ function FormulaireAnnuaire({ profil }: { readonly profil: Profile }) {
           <FormError id={`${idQuartiers}-erreur`}>{erreurs.quartiers}</FormError>
         </fieldset>
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={enregistrement.isPending}>
-            {enregistrement.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-            {t('save')}
-          </Button>
-        </div>
+        <PiedDEnregistrement
+          modifications={modifications}
+          bouton={
+            <Button type="submit" form={idFormulaire} disabled={enregistrement.isPending || modifications === 0}>
+              {enregistrement.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+              {t('save')}
+            </Button>
+          }
+        />
       </form>
     </Coque>
   );

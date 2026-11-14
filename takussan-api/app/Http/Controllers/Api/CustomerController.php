@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\CustomerTimelineRequest;
 use App\Http\Requests\Api\DismissSuggestedStageRequest;
 use App\Http\Requests\Api\PipelineStatsRequest;
 use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
@@ -18,16 +19,20 @@ use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Lease;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Policies\PropertyVisitPolicy;
 use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\CustomerSuggestedStageQuery;
+use App\Services\Crm\CustomerTimeline;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Services\Visit\VisitReportService;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -40,6 +45,9 @@ class CustomerController extends Controller
         // TCK-587 / TCK-591 §9 — la règle de `CustomerPolicy::view`, partagée avec les compteurs du
         // pipeline. Un bailleur de l'agence listait tout le CRM, téléphones et pièces d'identité compris.
         $base = Customer::query()->visibleTo($request->user());
+
+        // TCK-2756 — la liste rend les seules colonnes que `fields[customers]` demande.
+        CustomerResource::rendreLesSeulsChampsDemandes($request);
 
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch : d'où les deux
@@ -56,42 +64,79 @@ class CustomerController extends Controller
         // page quand `fields[customers]` ne l'a pas lue (règle des visites et de l'origine).
         CustomerResource::primeFiches($request, $paginator->getCollection());
 
-        return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
+        // TCK-2589 (lot C2) — `upcoming_visits[].manage` jugé pour la page entière.
+        return $this->paginated($paginator, CustomerResource::avecVisitesAmorcees(
+            $request,
+            $paginator->getCollection(),
+            fn () => CustomerResource::collection($paginator)->toArray($request),
+        ));
     }
 
     public function store(StoreCustomerRequest $request, CustomerDuplicateDetector $duplicates): JsonResponse
     {
         $data = $request->validated();
         $allowDuplicate = (bool) ($data['allow_duplicate'] ?? false);
-        unset($data['allow_duplicate']);
+        $visitId = isset($data['property_visit_id']) ? (int) $data['property_visit_id'] : null;
+        unset($data['allow_duplicate'], $data['property_visit_id']);
 
         $user = $request->user();
         // TCK-591 — la fiche entre dans le CRM de l'agence où l'appelant est PERSONNEL
         // (`CustomerPolicy::create` l'a établi ; `null` pour le super-admin hors agence).
         $agencyId = $user->staffAgencyId();
 
+        // TCK-2716 — la visite d'origine : refusée AVANT toute écriture (403/422), puis rejugée sous
+        // son verrou dans la transaction.
+        $visit = $visitId !== null ? PropertyVisit::query()->with('property')->findOrFail($visitId) : null;
+        if ($visit !== null) {
+            $this->refuseVisitLink($user, $visit);
+        }
+
         // TCK-2054 (ADR-0073) — la détection et la création dans une même transaction, sous le
         // verrou consultatif de la fiche : deux créations simultanées du même client ne passent
         // plus toutes deux le détecteur. `allow_duplicate` saute la sonde, pas le verrou.
-        $customer = DB::transaction(function () use ($duplicates, $agencyId, $data, $user, $allowDuplicate): Customer {
+        $customer = DB::transaction(function () use ($duplicates, $agencyId, $data, $user, $allowDuplicate, $visit): Customer {
+            // TCK-2716 — la visite verrouillée et rejugée AVANT le détecteur : de deux créations
+            // simultanées depuis la même visite, la seconde lit la fiche de la première et rend
+            // `visit.customer_already_linked` (et non le doublon qu'elle aurait trouvé ensuite).
+            $locked = null;
+            if ($visit !== null) {
+                $locked = PropertyVisit::query()->whereKey($visit->getKey())->lockForUpdate()->firstOrFail();
+                $locked->setRelation('property', $visit->property);
+                $this->refuseVisitLink($user, $locked);
+            }
+
             CustomerDuplicateDetector::lockCreation($agencyId, $data['phone'] ?? null, $data['email'] ?? null);
 
             if (! $allowDuplicate) {
                 $this->refuseDuplicate($duplicates, $agencyId, $data, $user);
             }
 
-            return Customer::create(array_merge($data, [
+            $customer = Customer::create(array_merge($data, [
                 'added_by_id' => $user->id,
                 'agency_id' => $agencyId,
                 'status' => CustomerStatus::Active->value,
                 'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
             ]));
+
+            // Le seul `customer_id` : ni le nom, ni le téléphone, ni l'e-mail du visiteur ne sont réécrits.
+            $locked?->forceFill(['customer_id' => $customer->id])->save();
+
+            return $customer;
         });
 
         // TCK-953 — relue en entier : le masque de la pièce se calcule même si elle n'a pas été saisie.
         return $this->json([
             'data' => CustomerResource::make($customer->refresh())->resolve($request),
         ], 201);
+    }
+
+    /** TCK-2716 — le refus de `PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite`, levé tel quel. */
+    private function refuseVisitLink(User $user, PropertyVisit $visit): void
+    {
+        $refus = PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite($user, $visit);
+        if ($refus !== null) {
+            abort_code($refus[0], $refus[1]);
+        }
     }
 
     /**
@@ -120,10 +165,22 @@ class CustomerController extends Controller
         if ($current !== null) {
             // À la mise à jour, seul un champ qui CHANGE peut créer un doublon.
             $phone = $phone !== null && $phone !== $current->phone ? $phone : null;
-            $email = $email !== null && $email !== $current->email ? $email : null;
+            // TCK-2590 (r1 de la vérification de affb8e269) — l'e-mail se compare replié des deux côtés,
+            // comme le détecteur le cherche : changer la seule casse ou les espaces de son propre e-mail
+            // ne présente pas une identité neuve (sinon : 429 seau vide).
+            $replie = fn (?string $e): ?string => $e !== null && trim($e) !== '' ? CaseInsensitive::fold(trim($e)) : null;
+            $email = $email !== null && $replie($email) !== $replie($current->email) ? $email : null;
         }
 
-        $existing = $duplicates->find($agencyId, $phone, $email, $user, $current?->id);
+        // TCK-2590 (décision 8 du porteur, seconde et troisième portes) — le 409 qui signale une fiche
+        // masquée, au numéro OU à l'e-mail complet, puise dans le seau de la sonde
+        // (`CustomerDuplicateDetector::budgeterLesSignalementsMasques`) ; épuisé : 429, rien n'est créé.
+        $existing = CustomerDuplicateDetector::budgeterLesSignalementsMasques(
+            $duplicates->find($agencyId, $phone, $email, $user, $current?->id),
+            $user,
+            $phone,
+            $email,
+        );
         if ($existing === []) {
             return;
         }
@@ -146,7 +203,7 @@ class CustomerController extends Controller
         CustomerCommercialAttributes::attach($request, $request->user(), [(int) $customer->id]);
 
         return $this->json([
-            'data' => CustomerResource::make($customer)->resolve($request),
+            'data' => CustomerResource::avecVisitesAmorcees($request, [$customer], fn () => CustomerResource::make($customer)->resolve($request)),
         ]);
     }
 
@@ -332,6 +389,7 @@ class CustomerController extends Controller
         // TCK-2578 — les comptes rendus de visite, au seul personnel de l'agence de la fiche.
         $paginator = $feed->paginate(
             $customer,
+            $request->user(),
             $this->tailleDePage($request, 20),
             $request->user()->can('viewVisitReports', $customer),
         );
@@ -340,6 +398,27 @@ class CustomerController extends Controller
             $paginator,
             $paginator->getCollection()->map(fn ($log) => $feed->format($log))->values()->all(),
         );
+    }
+
+    /**
+     * TCK-2589 — le fil de la fiche : notes, visites, gestes de contact et changements d'étape,
+     * mêlés dans le temps, paginés ici. Autorisé comme la lecture de la fiche (le FormRequest
+     * délègue à `CustomerPolicy::view`). Les visites et les gestes de contact sont des faits de
+     * l'agence : au seul personnel de l'agence de la fiche (`viewVisitReports`), comme
+     * `upcoming_visits` et les comptes rendus.
+     */
+    public function timeline(CustomerTimelineRequest $request, Customer $customer, CustomerTimeline $timeline): JsonResponse
+    {
+        $paginator = $timeline->paginate(
+            $customer,
+            $request->user(),
+            $request->user()->can('viewVisitReports', $customer),
+            $request->types(),
+            $this->tailleDePage($request, 20),
+            max(1, (int) $request->input('page', 1)),
+        );
+
+        return $this->paginated($paginator, $paginator->getCollection()->all());
     }
 
     /**

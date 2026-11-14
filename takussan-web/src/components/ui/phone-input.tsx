@@ -43,12 +43,36 @@ export interface PhoneInputProps
   readonly onValueChange: (valeur: string) => void;
   /** Indicatif affiché en préfixe (`+221` par défaut). */
   readonly indicatif?: string;
+  /**
+   * TCK-2635 — l'aide sous le champ, quand l'appelant en a une plus juste que celle de l'indicatif
+   * (la vérification du numéro, au profil). Sans elle, l'aide de l'indicatif. `false` : aucune aide
+   * ici — l'appelant pose la sienne sous une rangée plus large (champ + bouton) et la relie par
+   * `aria-describedby`.
+   */
+  readonly aide?: React.ReactNode | false;
+  /**
+   * TCK-2604 — l'aide de l'indicatif dite autrement (la connexion : « +221 est déjà posé. À l'étranger ?
+   * Commencez par + », sur une ligne). Ne remplace QUE l'aide nationale : un numéro qui commence par
+   * `+` garde l'aide internationale, que l'appelant ne peut pas savoir (la frappe vit ici).
+   */
+  readonly aideNationale?: string;
+  /**
+   * TCK-2604 — `grand` : le numéro est le seul champ de l'écran de connexion, et il en prend la
+   * place AU TÉLÉPHONE (maquette `ChampNumeroGrand` : 56 px ; l'indicatif et les chiffres au jeton
+   * `text-xl`, 20 px — la maquette écrit les chiffres à 22 px, valeur arbitraire refusée par
+   * `check-valeurs-arbitraires-app`).
+   * Au bureau (dès `lg`), le champ ordinaire.
+   */
+  readonly taille?: 'normal' | 'grand';
 }
 
 export function PhoneInput({
   value,
   onValueChange,
   indicatif = INDICATIF_PAR_DEFAUT,
+  aide,
+  aideNationale,
+  taille = 'normal',
   id,
   className,
   disabled,
@@ -98,7 +122,7 @@ export function PhoneInput({
     return () => observateur.disconnect();
   }, [international, indicatif]);
 
-  const decrit = [international ? null : idPrefixe, idAide, descriptionExterne]
+  const decrit = [international ? null : idPrefixe, aide === false ? null : idAide, descriptionExterne]
     .filter(Boolean)
     .join(' ');
 
@@ -113,6 +137,7 @@ export function PhoneInput({
               // Même corps que le champ (`text-base md:text-sm`) : l'alignement du
               // retrait ci-dessous, exprimé en `ch`, en dépend.
               'pointer-events-none absolute inset-y-0 left-0 my-2 flex items-center border-r border-border pr-2 pl-2.5 text-base text-muted-foreground tabular-nums md:text-sm',
+              taille === 'grand' && 'max-lg:pl-4 max-lg:pr-3 max-lg:font-display max-lg:text-xl max-lg:font-semibold lg:pl-3.5 lg:pr-2.5 lg:text-action lg:font-medium lg:text-foreground',
               disabled && 'opacity-50',
             )}
           >
@@ -132,7 +157,12 @@ export function PhoneInput({
             onValueChange(composerTelephone(e.target.value, indicatif));
           }}
           aria-describedby={decrit}
-          className={cn('tabular-nums', className)}
+          className={cn(
+            'tabular-nums',
+            taille === 'grand' &&
+              'max-lg:h-14 max-lg:rounded-xl max-lg:font-display max-lg:text-xl max-lg:font-semibold lg:text-action',
+            className,
+          )}
           style={
             international
               ? undefined
@@ -146,9 +176,11 @@ export function PhoneInput({
           }
         />
       </div>
-      <p id={idAide} className="text-xs text-pretty text-muted-foreground">
-        {international ? t('hintInternational') : t('hintNational', { indicatif })}
-      </p>
+      {aide === false ? null : (
+        <p id={idAide} className={cn('text-xs text-pretty text-muted-foreground', taille === 'grand' && 'text-ui leading-normal lg:leading-snug')}>
+          {aide ?? (international ? t('hintInternational') : (aideNationale ?? t('hintNational', { indicatif })))}
+        </p>
+      )}
     </div>
   );
 }

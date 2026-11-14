@@ -29,6 +29,9 @@ use Illuminate\Support\Facades\DB;
  * `days_late`) sont ceux du jour de l'envoi ; un instantané plus ancien ne les a pas, et ne les sert
  * pas — aucun état n'est fabriqué après coup.
  *
+ * TCK-2760 — `balance` (le solde cumulé au jour, ADR-0100 amendé) n'est pas dans l'instantané :
+ * il est servi au jour, quel que soit le mois envoyé.
+ *
  * La table se lit par le constructeur de requêtes, comme `payout_clawbacks` (TCK-2151).
  */
 final class OwnerStatementSnapshots
@@ -46,7 +49,8 @@ final class OwnerStatementSnapshots
      */
     public function record(Agency $agency, User $landlord, string $period, CarbonInterface $sentAt): bool
     {
-        $payload = $this->statements->statement($agency, $landlord, $period);
+        // TCK-2760 — sans `balance` : le solde cumulé est un fait du jour, servi vivant par `served()`.
+        $payload = $this->statements->statement($agency, $landlord, $period, withBalance: false);
         unset($payload['landlord']['name']);
         // TCK-2649 — ni le titre du bien ni le nom du locataire : comme le nom du bailleur, ils se
         // lisent au jour (un locataire effacé est anonymisé). Le prochain reversement non plus :
@@ -95,6 +99,9 @@ final class OwnerStatementSnapshots
         // ceux du jour : sinon le champ manquant se lirait 0 et ferait naître un faux rectificatif.
         $sent['totals']['remaining_to_pay'] ??= OwnerStatementService::remainingToPay($sent['totals']);
         $sent['next_payout'] = $live['next_payout'];
+        // TCK-2760 — le solde cumulé se sert au jour, jamais figé : il est hors des totaux comparés
+        // par le rectificatif, qui n'en naît donc pas.
+        $sent['balance'] = $live['balance'];
         $names = array_column($live['properties'], null, 'property_id');
         $sent['properties'] = array_map(fn (array $row): array => array_merge($row, [
             'title' => $names[$row['property_id']]['title'] ?? null,

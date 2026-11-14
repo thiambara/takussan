@@ -147,4 +147,39 @@ class LeasePaymentLateFeeMarkPaidTest extends TestCase
 
         $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid")->assertForbidden();
     }
+
+    /**
+     * TCK-2743 (AC4) — `before_or_equal:now` juge l'instant ; l'écriture doit écrire le même. L'heure
+     * murale « maintenant + 30 min » écrite en `+01:00` désigne « maintenant − 30 min » : elle passe la
+     * règle, et s'écrivait dans le futur.
+     */
+    public function test_la_penalite_reglee_avec_decalage_ne_s_ecrit_jamais_dans_le_futur(): void
+    {
+        $this->travelTo('2026-11-12 10:00:00');
+        $ctx = $this->leaseDue();
+        Sanctum::actingAs($ctx['agent']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/late-fee/mark-paid", ['paid_at' => '2026-11-12T10:30:00+01:00'])
+            ->assertOk();
+
+        $this->assertSame('2026-11-12 09:30:00', $ctx['payment']->refresh()->getRawOriginal('late_fee_paid_at'));
+    }
+
+    /** TCK-2743 (AC5) — le loyer encaissé, avec décalage : l'instant ; une date seule : le début du jour à Dakar. */
+    public function test_le_loyer_encaisse_avec_decalage_est_l_instant_designe(): void
+    {
+        $this->travelTo('2026-11-12 10:00:00');
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Pending, 'late_fee_amount' => null, 'late_fee_applied_at' => null]);
+        Sanctum::actingAs($ctx['agent']);
+
+        $this->postJson("/api/lease-payments/{$ctx['payment']->id}/mark-paid", ['paid_at' => '2026-11-11T18:00:00+02:00', 'payment_method' => 'cash'])
+            ->assertOk();
+        $this->assertSame('2026-11-11 16:00:00', $ctx['payment']->refresh()->getRawOriginal('paid_at'));
+
+        $autre = $this->leaseDue(null, ['status' => PaymentStatus::Pending, 'late_fee_amount' => null, 'late_fee_applied_at' => null]);
+        Sanctum::actingAs($autre['agent']);
+        $this->postJson("/api/lease-payments/{$autre['payment']->id}/mark-paid", ['paid_at' => '2026-11-10', 'payment_method' => 'cash'])
+            ->assertOk();
+        $this->assertSame('2026-11-10 00:00:00', $autre['payment']->refresh()->getRawOriginal('paid_at'));
+    }
 }

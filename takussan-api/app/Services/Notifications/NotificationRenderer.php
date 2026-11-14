@@ -10,7 +10,6 @@ use App\Services\Admin\NotificationTemplateService;
 use App\Services\Formatting\CurrencyFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use NumberFormatter;
 
 /**
  * TCK-588 (ADR-0032) — rend une notification par code, pour UNE surface et UNE langue.
@@ -130,6 +129,17 @@ class NotificationRenderer
         };
 
         $candidates = [];
+        // TCK-2706 — la variante d'une relance fusionnée (loyer et charges, ou charges seules) passe
+        // avant tout : sans elle, le texte du loyer annoncerait les charges sous le mot « loyer ».
+        $variant = $code->variant($params);
+        if ($variant !== null) {
+            if ($this->hasOptional($code, $params)) {
+                $candidates[] = $base.$surface.'_'.$variant.'_link';
+                $candidates[] = $base.$fallback.'_'.$variant.'_link';
+            }
+            $candidates[] = $base.$surface.'_'.$variant;
+            $candidates[] = $base.$fallback.'_'.$variant;
+        }
         if ($this->lacksName($code, $params)) {
             $candidates[] = $base.$surface.'_unnamed';
             $candidates[] = $base.$fallback.'_unnamed';
@@ -370,10 +380,9 @@ class NotificationRenderer
         };
     }
 
+    /** TCK-2794 — le montant du gabarit historique, groupé comme tout montant rendu (U+00A0). */
     private function number(float $value, string $locale): string
     {
-        $formatter = new NumberFormatter($locale, NumberFormatter::DECIMAL);
-
-        return (string) $formatter->format($value);
+        return CurrencyFormatter::nombre($value, $locale);
     }
 }

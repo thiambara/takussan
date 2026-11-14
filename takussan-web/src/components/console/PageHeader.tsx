@@ -26,7 +26,10 @@ interface PageHeaderProps {
   readonly fil?: { readonly label: string; readonly etapes: readonly EtapeDuFil[] };
   /** TCK-2687 — un bandeau pleine largeur AU-DESSUS du titre (KYC à finir, agence suspendue). */
   readonly bandeau?: ReactNode;
-  /** TCK-2687 — sous l'en-tête : onglets soulignés ou barre de filtres, à 20 px (`mt-5`). */
+  /**
+   * TCK-2687 — sous l'en-tête : onglets soulignés ou barre de filtres, à 20 px (`mt-5`). TCK-2804 — des
+   * onglets de page marqués `ONGLETS_DE_PAGE` collent sous l'en-tête du téléphone ; une barre de filtres, non.
+   */
   readonly dessous?: ReactNode;
   readonly className?: string;
 }
@@ -103,14 +106,45 @@ export function PageHeader({
   if (!(fil || bandeau || dessous)) return enTete;
 
   return (
-    <div className={className}>
+    <div className={cn(dessous && ONGLETS_COLLES_AU_TELEPHONE, className)}>
       {bandeau ? <div className="mb-5">{bandeau}</div> : null}
       {fil ? <FilDAriane {...fil} /> : null}
       {enTete}
-      {dessous ? <div className="mt-5">{dessous}</div> : null}
+      {dessous ? <div className={DESSOUS_DE_L_EN_TETE}>{dessous}</div> : null}
     </div>
   );
 }
+
+/**
+ * TCK-2804 — le marqueur d'une rangée d'ONGLETS DE PAGE (onglets soulignés qui changent la vue de la page),
+ * à poser sur la rangée elle-même. Une barre de filtres ne le porte pas : elle ne colle pas.
+ *
+ * Sous `md`, il décide de trois choses, toutes en CSS (`:has()`) — ni contexte, ni effet, ni saut au rendu :
+ * - l'enveloppe de la coque perd sa marge haute (`ENVELOPPE_DU_CONTENU`) : les onglets commencent juste sous
+ *   l'en-tête du téléphone, comme la maquette (`EcranRapports` : `EnTeteRacine` puis `OngletsTel`, y = 56) ;
+ * - `PageHeader` colle sous l'en-tête au défilement (ci-dessous) ;
+ * - le `<main>` réserve leur hauteur au défilement vers une ancre ou un focus (`AppShell`, `scroll-pt-12`).
+ *
+ * La rangée porte son fond plein et son filet bas (maquette : « fond plein et filet, sans ombre »).
+ */
+export const ONGLETS_DE_PAGE = { 'data-onglets-de-page': '' } as const;
+
+/**
+ * TCK-2804 — sous `md`, un `PageHeader` dont l'emplacement `dessous` porte des onglets de page colle sous
+ * l'en-tête du téléphone. C'est la RACINE qui colle, pas l'emplacement : un élément collant ne colle que
+ * dans son bloc conteneur, et celui de l'emplacement est cette racine, haute des seuls onglets. La racine,
+ * elle, est posée dans le conteneur de la page, qui défile. Ce qui reste de l'en-tête au téléphone colle
+ * avec les onglets : le titre d'une page à onglets est dans l'en-tête de la coque (TCK-2617), et Rapports
+ * masque le reste. Le fond plein couvre la boîte de la racine. Dès `md`, rien.
+ */
+const ONGLETS_COLLES_AU_TELEPHONE =
+  'max-md:has-[[data-onglets-de-page]]:sticky max-md:has-[[data-onglets-de-page]]:top-0 max-md:has-[[data-onglets-de-page]]:z-20 max-md:has-[[data-onglets-de-page]]:bg-background';
+
+/**
+ * TCK-2687 — l'emplacement `dessous`, à 20 px de l'en-tête. TCK-2804 — à 0 sous `md` quand il porte des
+ * onglets de page : l'en-tête n'y a pas de hauteur, et les 20 px descendaient les onglets sous la maquette.
+ */
+const DESSOUS_DE_L_EN_TETE = 'mt-5 max-md:has-[[data-onglets-de-page]]:mt-0';
 
 /**
  * TCK-2687 — le fil d'Ariane de la maquette (`TeteDePage`, `chrome-app.tsx:300`) : 13 px

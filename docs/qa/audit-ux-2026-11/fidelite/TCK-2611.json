@@ -1,0 +1,396 @@
+{
+  "ticket": "TCK-2611",
+  "ecrans": [
+    {
+      "page": "app-entree-invitation",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Lien valide, déconnecté",
+      "references": {
+        "telephone": "references/app-entree-invitation/a-0-telephone.json",
+        "bureau-1440": "references/app-entree-invitation/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-entree-invitation/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/invitations/accept?token=<jeton>",
+        "persona": "aucune",
+        "etat": "l'invitation 189 de la démo LOCALE (créée pour les relevés, Invitation::create direct, aucun envoi ; passée en revoked après) : Dakar Immo, rôle owner, e-mail fictif m•••@example.test, Moussa Ndiaye préremplis, aucun bien en attente — p-11-numero.js saisit le numéro dans la page (la maquette le dessine déjà là), rien n'est envoyé"
+      }
+    },
+    {
+      "page": "app-entree-invitation",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Le code",
+      "references": {
+        "telephone": "references/app-entree-invitation/a-1-telephone.json",
+        "bureau-1440": "references/app-entree-invitation/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-entree-invitation/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/invitations/accept?token=<jeton>",
+        "persona": "aucune",
+        "etat": "l'invitation 189 de la démo LOCALE (créée pour les relevés, Invitation::create direct, aucun envoi ; passée en revoked après) : Dakar Immo, rôle owner, e-mail fictif m•••@example.test, Moussa Ndiaye préremplis, aucun bien en attente — p-11-code.js saisit le numéro puis « Continuer avec mon numéro » : `POST …/code` est RÉPONDU dans la page par garde2611.js (202, otp_preview 482913), aucun SMS ; aucun code saisi, `/verify` jamais appelé"
+      }
+    },
+    {
+      "page": "app-entree-invitation",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Lien expiré",
+      "references": {
+        "telephone": "references/app-entree-invitation/a-2-telephone.json",
+        "bureau-1440": "references/app-entree-invitation/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-entree-invitation/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/invitations/accept?token=<jeton>",
+        "persona": "aucune",
+        "etat": "une invitation EXPIRÉE de la démo (Dakar Immo, rôle agent, envoyée le 5 nov.) — lue par GET seulement, rien n'est demandé au rendu. Le jeton n'est écrit dans aucun fichier : les relevés le remplacent par <jeton>."
+      }
+    },
+    {
+      "page": "app-entree-invitation",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Déjà inscrit, connecté",
+      "references": {
+        "telephone": "references/app-entree-invitation/a-3-telephone.json",
+        "bureau-1440": "references/app-entree-invitation/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-entree-invitation/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/invitations/accept?token=<jeton>",
+        "persona": "client (Demo Customer)",
+        "etat": "l'invitation 189 de la démo LOCALE (créée pour les relevés, Invitation::create direct, aucun envoi ; passée en revoked après) : Dakar Immo, rôle owner, e-mail fictif m•••@example.test, Moussa Ndiaye préremplis, aucun bien en attente — « Rejoindre » n'est jamais cliqué ; la garde refuserait toute écriture"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/invitations/accept",
+    "persona": "aucune",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-8, t8/fid/ : garde2611.js (chargé AVANT la page par `FID_AVANT`) refuse toute écriture (fetch, XHR, sendBeacon, server actions) et répond `POST /api/public/invitations/{jeton}/code` (202) sans rien envoyer ; p-11-numero.js, p-11-code.js, p-11-clavier.js (AC4) ; relevés releves2611.sh, qui lisent le jeton d'un fichier 0600 et l'effacent de chaque sortie (compte vérifié à 0). Balayage 390/768/1024/1280/1440 du lien valide et du lien expiré : aucun débord, aucune coupe. AC4 mesuré sur l'état final : à 390, champ au focus et clavier émulé de 336 px, « Continuer avec mon numéro » de 428 à 476 dans une zone visible de 508.",
+    "releves": {
+      "dossiers": "scratchpad de terrain-8, t8/fid/e11-prod10 et e11-cmp10 (les douze écrans, 2026-11-13) ; a-0 rejoué en e11-prod11 / e11-cmp11 après le libellé du numéro passé en bloc ; AC4 rejoué en e11-prod12 (invitation de relevé rouverte le temps de la mesure, puis révoquée à nouveau)",
+      "resultats": {
+        "a-0": {
+          "telephone": "14 conformes · 8 écarts · 4 absents · 5,67 % pixels",
+          "bureau-1440": "16 · 9 · 6 · 5,95 %",
+          "bureau-1280": "16 · 9 · 6 · 6,7 %"
+        },
+        "a-1": {
+          "telephone": "2 · 10 · 2 · 15,57 % (tout ce qui suit « Rien reçu ? » est 15,5 px plus haut, cf. écarts)",
+          "bureau-1440": "12 · 11 · 6 · 7,08 %",
+          "bureau-1280": "12 · 11 · 6 · 7,97 %"
+        },
+        "a-2": {
+          "telephone": "5 · 6 · 4 · 6,11 %",
+          "bureau-1440": "5 · 5 · 4 · 1,44 %",
+          "bureau-1280": "5 · 5 · 4 · 1,62 %"
+        },
+        "a-3": {
+          "telephone": "9 · 7 · 4 · 6,82 %",
+          "bureau-1440": "10 · 9 · 6 · 6,01 %",
+          "bureau-1280": "10 · 9 · 6 · 6,76 %"
+        }
+      },
+      "balayage": "390, 768, 1024, 1280, 1440, lien valide et lien expiré : débord 0, coupes 0, ellipses 0",
+      "AC4": "mesuré sur l'état final (relevé e11-prod12, 2026-11-13) : 390 × 844, champ du numéro au focus, clavier émulé de 336 px (zone visible 508) : « Continuer avec mon numéro » de 428 à 476, entier ; écritures bloquées 0. Même résultat qu'avant le passage du libellé « Votre numéro » en bloc",
+      "jeton": "aucun fichier produit ne porte un jeton (compte vérifié à 0 après chaque relevé)"
+    }
+  },
+  "coque": false,
+  "roles": [
+    {
+      "nom": "coque d'entrée · barre du téléphone",
+      "appareil": "mobile",
+      "maquette": {
+        "zone": {
+          "y": 0,
+          "h": 56,
+          "tol": 8,
+          "wMin": 380
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 0,
+          "h": 56,
+          "tol": 8,
+          "wMin": 380
+        }
+      },
+      "contenu": false
+    },
+    {
+      "nom": "coque d'entrée · barre du bureau",
+      "appareil": "desktop",
+      "maquette": {
+        "zone": {
+          "y": 0,
+          "h": 57.6,
+          "tol": 6,
+          "wMin": 1200
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 0,
+          "h": 57.6,
+          "tol": 6,
+          "wMin": 1200
+        }
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [
+    {
+      "appareil": "desktop",
+      "nom": "coque d'entrée · barre du bureau",
+      "role": "coque d'entrée · barre du bureau"
+    },
+    {
+      "appareil": "mobile",
+      "nom": "coque d'entrée · barre du téléphone",
+      "role": "coque d'entrée · barre du téléphone"
+    }
+  ],
+  "alias": {
+    "Ou appelle l’agence :": "Ou appelez l’agence :",
+    "Dakar Immo t’avait invité le 3 nov. Les invitations restent valables 7 jours. Ri": "Dakar Immo vous l’a envoyée le 5 nov. Les invitations restent valables 7 jours. ",
+    "La demande part chez Aïssatou Diallo , avec ton nom : tu n’as rien à écrire.": "La demande part chez l’agence : vous n’avez rien à écrire.",
+    "Invitation d’ Aïssatou Diallo · bailleur": "Invitation du 5 nov.",
+    "33 820 00 00": "33 821 21 00",
+    "Ce qui t’attend": "Ce qui vous attend",
+    "Tes loyers et versements": "Vos loyers et versements",
+    "Tes quittances": "Vos quittances",
+    "Ce qui est encaissé, ce qui t’est reversé, et quand": "Ce qui est encaissé, ce qui vous est reversé, et quand",
+    "3 biens suivis par l’agence": "Vos biens, suivis par l’agence",
+    "Appartement à Mermoz, studio à Ouakam, villa à Ngor": "Leur location, leurs baux et leurs interventions",
+    "Ton numéro": "Votre numéro",
+    "Rejoins Dakar Immo": "Rejoignez Dakar Immo",
+    "Aïssatou Diallo t’invite comme": "Admin vous invite comme",
+    "Rempli par Dakar Immo . Corrige si besoin.": "Rempli par Dakar Immo. Corrigez si besoin.",
+    "Donné par Dakar Immo. C’est avec lui que tu te connecteras.": "Vous vous connecterez avec ce numéro : le code y est envoyé.",
+    "Tu reçois un code par SMS. Aucun mot de passe à inventer.": "Vous recevez un code par SMS. Aucun mot de passe à inventer.",
+    "m•••@gmail.com": "m•••@example.test",
+    "valable jusqu’au 17 nov.": "valable jusqu’au 20 nov.",
+    "Tape ton code": "Saisissez votre code",
+    "Ton code :": "Votre code :",
+    "Rien reçu ? Renvoyer le code dans , ou le recevoir par appel.": "Rien reçu ?",
+    "Ton compte est créé et vérifié d’un seul geste. Juste après : .": "Ce code vérifie votre numéro et vous fait entrer d’un seul geste. Juste après : ",
+    "tes 3 biens": "votre espace",
+    "Tu es connecté en tant que": "Compte connecté",
+    "Moussa Ndiaye": "Demo Customer",
+    "MN": "DC",
+    "AD": "A"
+  },
+  "alias_motifs": {
+    "Ou appelle l’agence :": "vouvoiement",
+    "Dakar Immo t’avait invité le 3 nov. Les invitations restent valables 7 jours. Ri": "vouvoiement, et « invité » au masculin seul retiré (Delta du ticket) ; la date est celle de l'invitation de la démo",
+    "La demande part chez Aïssatou Diallo , avec ton nom : tu n’as rien à écrire.": "vouvoiement ; donnée : un lien fermé (410) ne porte ni l'invitant ni le nom de l'invité (ADR-0094 § 3), la demande part chez l'agence",
+    "Invitation d’ Aïssatou Diallo · bailleur": "donnée : le 410 ne porte ni l'invitant ni le rôle — la carte dit la date de l'invitation",
+    "33 820 00 00": "donnée : le numéro public de l'agence de la démo",
+    "Ce qui t’attend": "vouvoiement",
+    "Tes loyers et versements": "vouvoiement",
+    "Tes quittances": "vouvoiement",
+    "Ce qui est encaissé, ce qui t’est reversé, et quand": "vouvoiement",
+    "Ton numéro": "vouvoiement",
+    "Rejoins Dakar Immo": "vouvoiement",
+    "Rempli par Dakar Immo . Corrige si besoin.": "vouvoiement",
+    "Tu reçois un code par SMS. Aucun mot de passe à inventer.": "vouvoiement",
+    "Tape ton code": "vouvoiement (« Saisissez »)",
+    "Ton code :": "vouvoiement",
+    "3 biens suivis par l’agence": "donnée : aucun bien en attente pour cette invitation (Dakar Immo n'en a aucun dans la démo) — sans compte, le titre ne chiffre rien",
+    "Appartement à Mermoz, studio à Ouakam, villa à Ngor": "donnée : l'aperçu ne sert ni le titre ni la photo des biens (ADR-0094 § 3, comptes seuls) — le détail dit ce que la fiche suivra",
+    "Aïssatou Diallo t’invite comme": "vouvoiement ; donnée : le prénom de l'invitant de la démo (utilisateur 2, « Admin ») — d'où « bailleur » 36 px plus à gauche, la phrase étant plus courte",
+    "Donné par Dakar Immo. C’est avec lui que tu te connecteras.": "donnée : une invitation par e-mail ne sert pas de numéro (le destinataire masqué seul) — le numéro est saisi, l'aide dit à quoi il sert",
+    "m•••@gmail.com": "donnée : l'adresse fictive de l'invitation de relevé",
+    "valable jusqu’au 17 nov.": "donnée : la date d'expiration de l'invitation de relevé",
+    "Rien reçu ? Renvoyer le code dans , ou le recevoir par appel.": "donnée : l'API n'a pas de voie par appel (`/code` n'envoie qu'un SMS) ; le compte à rebours est un nœud à part (« Renvoyer le code dans 0:59 »)",
+    "Ton compte est créé et vérifié d’un seul geste. Juste après : .": "vouvoiement ; une même phrase pour un compte neuf et un compte existant (`recipient_has_account`) : « créé » serait faux pour le second",
+    "tes 3 biens": "donnée : aucun bien en attente — « votre espace »",
+    "Tu es connecté en tant que": "vouvoiement, sans « connecté » au masculin seul (Delta du ticket)",
+    "Moussa Ndiaye": "donnée : la persona `client` de la démo",
+    "MN": "donnée : initiales de la persona",
+    "AD": "donnée : initiale de l'invitant de la démo (« Admin »)"
+  },
+  "ancres": [],
+  "ignorer": [
+    "Aller à l’accueil →",
+    "Annulée par l’agence",
+    "Appeler l’agence →",
+    "Ce n’est pas le bon code. Il te reste 2 essais avant d’en demander un autre.",
+    "Cette invitation a été envoyée à un autre compte (m•••@gmail.com). Connecte-toi ",
+    "Dakar Immo a retiré cette invitation.",
+    "Déjà acceptée",
+    "Lien incomplet",
+    "Lien inconnu",
+    "Me connecter",
+    "Me connecter →",
+    "Rouvre-le depuis le message reçu.",
+    "Ton compte n’a pas encore de nom : Dakar Immo a proposé celui-ci. Confirme-le ou",
+    "Tu fais déjà partie de Dakar Immo.",
+    "Un compte existe déjà avec ce numéro. Connecte-toi pour accepter l’invitation.",
+    "Variante · compte sans nom",
+    "Variante · le code est faux",
+    "Variante · le compte existe déjà",
+    "Variante · les autres liens qui ne s’ouvrent pas",
+    "Variante · refus : ce n’est pas le bon compte",
+    "Vérifie le lien reçu : il a peut-être été coupé.",
+    "lucide-ban",
+    "lucide-circle-alert",
+    "lucide-git-branch",
+    "lucide-link2-off",
+    "lucide-log-in",
+    "lucide-unlink"
+  ],
+  "ignorer_motif": "le bloc « Variante · … » de chaque écran est une annotation de la maquette (les autres états, dessinés en vignette), pas un élément de l'écran ; n'y sont ignorées que les clés qu'AUCUN écran n'emploie hors d'une variante (relevé sur les douze références). Chaque variante est un écran du produit, éprouvé en vitest : déjà acceptée, annulée, inconnue, incomplet (EcranFerme.tck-2611.test.tsx) ; code faux 422, compte existant 401 (« Me connecter »), compte sans nom, refus 403 (EntreeDInvitation.tck-2611.test.tsx). Les clés partagées avec l'écran (« Prénom », « Nom », « Moussa », « Ndiaye », « Rejoindre Dakar Immo », les chiffres, lucide-check) ne sont pas ignorées : leurs doubles de variante restent au tableau ci-dessous.",
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-0 à a-3 (téléphone, bureau)",
+      "element": "« Aide » / « Besoin d’aide ? » dans la barre ; « Retour au site » à sa place",
+      "propriete": "absent du produit / absent de la maquette",
+      "exception": "incohérence des maquettes",
+      "motif": "TCK-2598 (écarts acceptés) : la coque d'entrée porte « Retour au site » à cette place, avec la confirmation de sortie ; le lien d'aide, propre à la maquette de l'invitation, n'a aucune destination dans le produit (aucune page d'aide). La barre (rembourrage, filet, marque rabattue à 20 px) est celle de la coque, acceptée là-bas ; d'où « Takussan » et son icône 5,4 à 6 px plus haut, le filet du bureau à rgb(235,229,213) au lieu de rgba(…, 0.7), et les marges de la barre du téléphone (4 px au lieu de 16 et 12)"
+    },
+    {
+      "ecran": "a-0 à a-3 (téléphone, bureau)",
+      "element": "logo de l'agence (« DI », pastille « D·I » du code)",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "l'agence de la démo a un logo : l'image remplace les initiales (`LogoOuInitiales`) ; cases de 32, 44, 48 et 64 px à toute largeur, comme la maquette"
+    },
+    {
+      "ecran": "a-0, a-1, a-3 (bureau) ; a-0, a-3 (téléphone)",
+      "element": "adresse et ville de l'agence (« 12, avenue Léopold Sédar Senghor · Plateau, Dakar »), « 214 biens · agence vérifiée », pastille vérifiée",
+      "propriete": "absent du produit / texte",
+      "exception": "donnée",
+      "motif": "ADR-0094 § 3 : la ville seule, jamais la rue — et l'agence de la démo n'a pas d'adresse (city null) ; 67 biens publics ; `is_verified` faux dans la démo (rendue quand vrai, BadgeVerifiee) ; d'où le nom centré plus bas à côté du logo (deux lignes au lieu de trois)"
+    },
+    {
+      "ecran": "a-0, a-1, a-3 (bureau)",
+      "element": "vignettes des biens (« Appartement F4 · Mermoz », « Studio · Ouakam », « Villa · Ngor »)",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "l'aperçu ne sert ni titre ni photo de bien (ADR-0094 § 3) ; aucun bien en attente pour l'invitation de relevé"
+    },
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "numéro donné par l'agence (« +221 77 •• •• 45 67 ») et « Modifier »",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "une invitation par e-mail ne sert pas le numéro de l'invité : le champ est vide et se saisit (relevé : p-11-numero.js le remplit) ; « Modifier » n'a pas d'objet. La valeur d'un `<input>` n'est pas un nœud de texte (« Moussa », « Ndiaye » de même) : corps et place du champ suivent la maquette"
+    },
+    {
+      "ecran": "a-1 (téléphone, bureau)",
+      "element": "le numéro dans « Code envoyé au · 77 123 45 67 · Modifier »",
+      "propriete": "texte (en clair), « Modifier » 2,5 px plus haut et 3,5 px à gauche",
+      "exception": "technique",
+      "motif": "« Modifier » est un bouton (boîte de ligne 22,5 px au lieu du texte de 20) ; le numéro, en clair, est celui que la personne vient de saisir (une faute de frappe doit se voir), masqué quand il vient de l'invitation — le décalage horizontal de 3,5 px suit sa largeur"
+    },
+    {
+      "ecran": "a-1 (téléphone)",
+      "element": "cases du code (56 px), « Rien reçu ? » sur une ligne, encadré de test et note qui suivent",
+      "propriete": "y (−15,5 px)",
+      "exception": "composant partagé",
+      "motif": "sans voie par appel, la phrase tient sur une ligne (−19,5) ; les cases sont `CasesDuCode` de la famille d'entrée, 56 px comme la connexion (TCK-2604), la maquette de l'invitation 52 (+4). Au bureau, les deux tiennent : aucun écart"
+    },
+    {
+      "ecran": "a-1 (téléphone, bureau)",
+      "element": "chiffres du code dans les cases (« 4 8 2 9 1 3 ») et ceux de la vignette « le code est faux »",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "aucun code n'est saisi pendant le relevé (`/verify` jamais appelé) ; les cases sont des champs, pas des nœuds de texte"
+    },
+    {
+      "ecran": "a-1 (bureau)",
+      "element": "« Retour »",
+      "propriete": "largeur de boîte (58,8 au lieu de 400)",
+      "exception": "structure",
+      "motif": "structure : le lien de la maquette est un bloc pleine largeur, le nôtre s'ajuste à son libellé ; même place, même hauteur (18 px), même icône"
+    },
+    {
+      "ecran": "a-1, a-2 (téléphone)",
+      "element": "« 0:38 » / « Renvoyer le code dans 0:59 »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le compte à rebours vit (60 s au relevé) ; la maquette le fige"
+    },
+    {
+      "ecran": "a-3 (téléphone, bureau)",
+      "element": "« ( 77 •• •• 45 67 ) » après le nom",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "la persona `client` de la démo n'a pas de téléphone ; rendu quand il existe (CompteConnecte, masqué)"
+    },
+    {
+      "ecran": "a-3 (téléphone, bureau)",
+      "element": "« Prénom », « Nom », « Moussa », « Ndiaye » et « Rejoindre Dakar Immo » de la vignette « compte sans nom »",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "annotation de la maquette (cf. `ignorer_motif`) ; la persona a un nom, donc pas de champs — l'état est éprouvé en vitest (« connecté sans nom »)"
+    },
+    {
+      "ecran": "a-0, a-1, a-3",
+      "element": "textes `sr-only` (« chez Dakar Immo », « — Admin vous invite comme bailleur », « Code reçu par SMS »)",
+      "propriete": "absent de la maquette",
+      "exception": "accessibilité",
+      "motif": "un seul h1 qui nomme l'invitant, le rôle et l'agence à toute largeur (AC2) ; le libellé des cases du code"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "lucide-check de la vignette « Déjà acceptée »",
+      "propriete": "absent du produit",
+      "exception": "hors périmètre",
+      "motif": "annotation de la maquette : la vignette « Variante · déjà acceptée » dessine un autre écran (EcranFerme statut accepted, éprouvé en vitest) ; lucide-check n'est pas ignoré parce qu'a-3 l'emploie hors variante"
+    },
+    {
+      "ecran": "a-0, a-1, a-3 (téléphone, bureau)",
+      "element": "« Ce qui vous attend » : largeur des lignes (« Vos biens, suivis par l’agence », « Vos loyers et versements », « Vos quittances » et leurs détails)",
+      "propriete": "largeur (de −44 à +23 px)",
+      "exception": "donnée",
+      "motif": "chaque ligne s'ajuste à son texte (`min-w-0` sans `flex-1`, comme la maquette) : les textes diffèrent par le vouvoiement et par l'absence de biens nommés (cf. alias) ; même structure, mêmes corps, même place"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "« La demande part chez l’agence : vous n’avez rien à écrire. » et lucide-phone de « Ou appelez l’agence : »",
+      "propriete": "hauteur (une ligne au lieu de deux) ; x +7 px",
+      "exception": "donnée",
+      "motif": "la phrase est plus courte sans le prénom de l'invitant (le 410 ne le sert pas, ADR-0094 § 3) ; « appelez » est plus large que « appelle » (vouvoiement)"
+    },
+    {
+      "ecran": "a-0, a-1, a-3 (bureau)",
+      "element": "« bailleur » dans le titre du panneau",
+      "propriete": "x (−35,9 px)",
+      "exception": "donnée",
+      "motif": "la phrase « Admin vous invite comme bailleur » est plus courte que « Aïssatou Diallo t’invite comme » : l'invitant de la démo s'appelle « Admin » (utilisateur 2) ; même corps, même ligne"
+    },
+    {
+      "ecran": "a-0 (téléphone)",
+      "element": "« Vous recevez un code par SMS. Aucun mot de passe à inventer. »",
+      "propriete": "y (−4 px)",
+      "exception": "structure",
+      "motif": "la boîte du paragraphe porte son espace au-dessus (`pt-1`) quand la maquette le met dessous : la ligne de texte est à la même place (808), le pied collé a la même boîte (y 743, 101 px), le bouton aussi"
+    },
+    {
+      "ecran": "a-2 (téléphone, bureau)",
+      "element": "pastille « agence vérifiée » (lucide-badge-check) à côté du nom",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "le 410 ne sert que `agency{name, logo_url, public_phone}` et `invited_at` (contrat de l'API, ADR-0094 § 3) : `verified` n'y est pas. Sur un lien valide, la pastille est rendue (BadgeVerifiee)"
+    }
+  ],
+  "ecarts_ouverts": [],
+  "notes": [
+    "Bulle de messagerie — relevé intermédiaire : elle se posait sur le pied collé de la page, connecté (a-3). CORRIGÉ : masquée sur /invitations/* comme sur /auth/* et /onboarding/* (CorpsDuWidget, test « TCK-2611 — ne rend rien sur la page d’invitation » de ChatWidget.test.tsx). Relevé final sans elle."
+  ]
+}

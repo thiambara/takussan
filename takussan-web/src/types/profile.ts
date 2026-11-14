@@ -45,6 +45,11 @@ export type ProfileAgencySummary = {
    * de `lib/profiles.ts` le demande, et c'est le seul chemin de lecture.
    */
   kind?: AgencyKind | null;
+  /**
+   * TCK-2620 — la ville de l'adresse principale de l'agence, `null` sans adresse. Absente quand l'API
+   * n'a pas chargé les adresses (`GET /api/me/profiles` les charge toujours).
+   */
+  city?: string | null;
 };
 
 export type Profile = {

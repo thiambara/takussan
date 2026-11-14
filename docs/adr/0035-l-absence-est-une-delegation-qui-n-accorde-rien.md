@@ -1,6 +1,6 @@
 # ADR-0035 — L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit
 
-- **Statut** : Accepté, **amendé le 2026-11-10** (cf. § *Amendement du 2026-11-10 — l'absence peut porter une délégation liée*)
+- **Statut** : Accepté, **amendé le 2026-11-10** (cf. § *Amendement du 2026-11-10 — l'absence peut porter une délégation liée*) et **le 2026-11-12** (cf. § *Amendement du 2026-11-12 — une délégation n'accorde jamais `team.delegate_role`*), cet amendement **validé par le porteur le 2026-11-12**
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-591](../backlog/tickets/done/TCK-591-crm-agenda-agent-et-passation.md)
 
@@ -167,4 +167,44 @@ et révoquée avec elle. Le droit vient de la délégation, jamais de l'absence.
 crée, modifie et révoque en une transaction. `PATCH /api/agencies/{agency}/absences/{delegation}`.
 Gardes : création liée, modification propagée, révocation propagée dans la même transaction (vérifiée
 par ablation), refus sans `team.delegate_role`, absence sans délégation inchangée.
+
+## Amendement du 2026-11-12 — une délégation n'accorde jamais `team.delegate_role` (TCK-2668)
+
+- **Statut** : Accepté le 2026-11-12 (décision de la session, relayée par team-lead, sur le constat D3 de la passe adverse de 776dc214f) ; **validé par le porteur le 2026-11-12** (nuit, point 7 de ses huit validations) : une délégation n'accorde jamais `team.delegate_role`, et une agence dont l'unique administrateur est absent attend son retour pour ces gestes.
+- **Précise** : le point 3 de l'amendement du 2026-11-10 (« la créer exige `team.delegate_role` ») et la règle de TCK-395. **La règle de tête ne change pas** : l'absence n'accorde toujours rien.
+
+**Contexte** (relevé le 2026-11-12, passe adverse de 776dc214f, constat D3) :
+
+- **L'API juge déléguer sur la détention PROPRE.** `RoleDelegationPolicy` exige `canActDirectlyAt(Capability::TeamDelegateRole)` depuis TCK-395 : un délégué ne sous-délègue pas. C'est la non-transitivité de TCK-395. Une sous-délégation n'accorderait rien, puisque son délégant ne détient rien en propre.
+- **Le résolveur des capacités disait l'inverse.** `MembershipCapabilityResolver::delegationsAllow` accordait `team.delegate_role` à qui la recevait par délégation, puisque le rôle système prêté (`agency_admin`) la porte. `/me/capabilities` la rendait donc au remplaçant qui « peut agir » à la place d'un administrateur absent.
+- **D'où un écran qui ment.** L'écran offrait au remplaçant « Déclarer », « Modifier » et « Terminer l'absence » pour les autres, et la redélégation. L'API rendait 403 à chacun.
+- **Le témoin de TCK-395 épinglait ce défaut.** `RoleDelegationCapabilityTest::test_un_delegue_ne_peut_pas_sous_deleguer` affirmait que le délégué détenait `team.delegate_role` par `canActAt`, tout en vérifiant le 403.
+
+**Décision.** **Une délégation n'accorde jamais `team.delegate_role`.** C'est la seule capacité qu'une délégation ne prête pas. Les autres capacités du rôle prêté restent accordées, bornées par le délégant (TCK-395).
+
+1. **Ce que le remplaçant ne fait pas.** Le remplaçant d'une absence qui « peut agir », comme tout délégué :
+   - ne déclare, ne modifie ni ne termine l'absence **d'un autre** ;
+   - ne crée, ne modifie ni ne révoque de délégation ;
+   - ne redélègue pas.
+2. **Ce qu'il garde.** Il déclare toujours **sa propre** absence, sans délégation, par le § 4. Ce droit ne vient pas de `team.delegate_role`.
+3. **Une seule règle, deux lecteurs.** Le résolveur (`canActAt`, donc `/me/capabilities`) et la policy (`canActDirectlyAt`) disent la même chose pour cette capacité. L'écran ne propose que ce que l'API accepte.
+
+**Conséquences.**
+
+- **Un administrateur absent n'est pas remplacé pour la gestion des absences et des délégations.** Le remplaçant ne gère que le reste du rôle prêté. Ces gestes restent :
+  - à un autre administrateur qui détient la capacité en propre ;
+  - à l'administrateur principal (`primary_admin_id`), que `RoleDelegationPolicy::viewAny` admet ;
+  - à la console.
+
+  Une agence dont l'unique administrateur est absent attend son retour pour ces seuls gestes. C'est voulu : le droit de donner des droits ne se prête pas.
+- **Un rôle personnalisé** qui donne `team.delegate_role` à un agent le lui donne **en propre** : il n'est pas concerné.
+
+**Application.**
+
+- `MembershipCapabilityResolver::delegationsAllow` rend `false` pour `Capability::TeamDelegateRole` avant tout examen des délégations. Ce corps est unique : il sert le chemin unitaire et la passe groupée (TCK-457).
+- Garde : le témoin de `RoleDelegationCapabilityTest::test_un_delegue_ne_peut_pas_sous_deleguer` (TCK-395) est **inversé**.
+  - Le délégué garde la capacité prêtée (`team.invite`).
+  - `canActAt` **et** `canActDirectlyAt` rendent faux pour `team.delegate_role`.
+  - La liste et la création de délégations rendent 403.
+  - Le témoin se vérifie par ablation : retirer la condition du résolveur doit le rendre rouge.
 

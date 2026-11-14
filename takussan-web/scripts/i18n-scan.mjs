@@ -319,8 +319,8 @@ export function compteFichier(chemin, source) {
    * commentaire la forme d'AST qu'elle remplace.
    */
   const litteralEstIgnore = (ctx, valeur, avant, apres) => {
-    // `'use client'` / `'use server'` — ExpressionStatement dont l'expression EST le littéral.
-    if (/^use [a-z]+$/.test(valeur)
+    // `'use client'` / `'use server'` / `'use no memo'` (React Compiler) — ExpressionStatement dont l'expression EST le littéral.
+    if (/^use (?:[a-z]+ )*[a-z]+$/.test(valeur)
       && (avant === '' || avant === ';' || avant === '{' || avant === '}')
       && (apres === ';' || apres === '' || sautDeLigneAvant(i))) return true;
 

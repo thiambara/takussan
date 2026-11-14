@@ -1,4 +1,5 @@
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import type { UserRole } from '@/types/user';
 
@@ -43,8 +44,9 @@ export function assertCanReachAgentArea(roles: UserRole[]): void {
  * `super_admin` — le bailleur EXCLU.
  *
  * ⚠ Cette garde existe parce que le périmètre est réellement plus étroit, pas par symétrie.
- * `/app/leases/onboarding-pending` liste les checklists d'entrée en retard : c'est un écran de
- * relance interne. Factoriser les deux gardes en une seule ÉLARGIRAIT cet écran-là — TCK-378
+ * `/app/leases/onboarding-pending` listait les checklists d'entrée en retard (c'est aujourd'hui
+ * l'onglet « En attente du locataire » de `/app/leases`, vers lequel elle redirige — TCK-2644) :
+ * un écran de relance interne. Factoriser les deux gardes en une seule ÉLARGIRAIT cet écran-là — TCK-378
  * l'interdit explicitement.
  *
  * ⚠ Cette phrase a déjà été fausse, et c'était la classe de faux que TCK-378 existe pour
@@ -65,6 +67,16 @@ export function assertCanReachAgencyStaffArea(roles: UserRole[]): void {
 }
 
 /**
+ * TCK-2644 (AC5) — le lecteur de `/app/leases` qui n'est ni du personnel ni bailleur : le locataire.
+ * Ce n'est PAS un refus — la liste lui reste ouverte —, mais `(liste)/layout.tsx` le mène à la
+ * fiche de son bail quand il n'en a qu'un. La décision sur le rôle vit ici, avec les autres
+ * (check-auth-interrupts, cliquet D).
+ */
+export function litLaListeDesBauxEnLocataire(roles: UserRole[]): boolean {
+  return !(isAgent(roles) || isAdmin(roles) || isOwner(roles));
+}
+
+/**
  * TCK-591 — l'agenda, ouvert AUSSI au prestataire : le raccourci « Calendrier » de son tableau de
  * bord (`DashboardShortcuts`) menait à une redirection vers `/app`. Il n'y demande que ses
  * interventions (`types[]=maintenance`) ; l'API ne lui rend rien d'autre, quoi qu'il demande.
@@ -72,5 +84,19 @@ export function assertCanReachAgencyStaffArea(roles: UserRole[]): void {
 export function assertCanReachCalendar(roles: UserRole[]): void {
   if (!(isAgent(roles) || isOwner(roles) || isAdmin(roles) || isServiceProvider(roles))) {
     redirect('/app');
+  }
+}
+
+/**
+ * TCK-2641 (décision 3a) — la fiche d'un bailleur (`/app/owners/[id]`) est celle de l'ADMIN de
+ * l'agence (`OwnerProfilePolicy::viewDetail`, TCK-2640) : un agent lit le carnet, pas la fiche.
+ *
+ * Le refus n'est pas un renvoi vers `/app` mais `notFound()`, comme l'API, qui rend 404 et jamais
+ * 403 (le refus dirait que le bailleur existe). À appeler depuis un LAYOUT : sous un `loading.tsx`,
+ * le même appel depuis la page rend 200 (TCK-442, `customers/[id]/layout.tsx`).
+ */
+export function assertCanReachOwnerAccount(roles: UserRole[]): void {
+  if (!ouvreLaFicheDuBailleur(roles)) {
+    notFound();
   }
 }

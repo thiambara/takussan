@@ -46,6 +46,30 @@ final class ScopedSetting
     }
 
     /**
+     * r6 (vérification de TCK-2643, étendu aux plafonds de bail) — LA valeur d'agence VALABLE d'une clé
+     * numérique, déballée par {@see self::value()} ; `null` quand l'agence n'a pas de ligne, ou une ligne
+     * sans valeur valable : non numérique (`{"value": null}`, `{}`) ou sous le plancher des règles du
+     * catalogue (`{"value": 0}` en `min:1` ou `gt:0`, {@see EditablePlatformSettings::atteintLePlancher()}).
+     * Le lecteur retombe alors sur le global du catalogue, jamais sur sa constante.
+     *
+     * r1 de la vérification de 65d3142b6 — une seule règle pour la valeur ET pour la source : les
+     * résolveurs (`EarlyTerminationService`, `RentReviewService`) et `LeaseDefaults` (valeur et `source`
+     * de `GET /api/leases/defaults`) lisent ce prédicat, et nul autre. Avant, `LeaseDefaults` en tenait un
+     * double sans plancher : `{"value": 0}` y rendait la valeur du global, mais la source « agency ».
+     *
+     * Le global passé à `value()` est un témoin, rendu tel quel seulement sans ligne d'agence.
+     */
+    public static function numericAgencyValue(string $key, ?int $agencyId): int|float|string|null
+    {
+        $temoin = new \stdClass;
+        $value = self::value($key, $agencyId, $temoin);
+
+        return $value !== $temoin && is_numeric($value) && EditablePlatformSettings::atteintLePlancher($key, (float) $value)
+            ? $value
+            : null;
+    }
+
+    /**
      * TCK-964 (P47.04) — le déballage seul, que `StoreSettingRequest` applique aussi avant de juger
      * une ligne d'agence : la valeur validée est celle que `value()` rendra.
      */

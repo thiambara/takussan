@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\JourIso;
 use App\Services\Lease\RentReviewService;
 
 /**
@@ -38,7 +39,7 @@ class ReviewRentRequest extends BaseFormRequest
             // Optional — defaults to today inside the service. Future dates
             // are valid (handled as a cut-off in the activity log); past
             // dates are rejected at the service layer.
-            'effective_date' => ['nullable', 'date'],
+            'effective_date' => ['nullable', 'date', new JourIso],
             'force' => ['nullable', 'boolean'],
         ];
     }

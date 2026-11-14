@@ -30,10 +30,17 @@ vi.mock('@/lib/queries/contact-leads', () => ({
   useHandleLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useConvertLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAssignLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-2584 — les comptes, les délais, le geste de contact et le bien de la demande ouverte.
+  useEnregistrerContact: () => ({ mutate: vi.fn() }),
+  useUnhandledLeadsCount: () => ({ data: { meta: { total: 1 } } }),
+  useCompteDeLaVue: () => ({ data: undefined }),
+  useDemandesEnRetard: () => ({ data: undefined }),
+  useDelaisDeReponse: () => ({ data: undefined }),
+  useBienDeLaDemande: () => ({ data: undefined, isPending: false }),
 }));
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(etat.recherche),
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
 vi.mock('@/components/console/Pagination', () => ({
   Pagination: ({ onChange }: { onChange: (n: number) => void }) => (
@@ -72,6 +79,16 @@ describe('<ContactLeadsInbox> — la page appartient au filtre (TCK-2479, revue 
     etat.recherche = 'filtre=todo';
     rerender(withIntl(<ContactLeadsInbox />));
     etat.recherche = 'filtre=all';
+    rerender(withIntl(<ContactLeadsInbox />));
+
+    expect(etat.lectures.at(-1)).toEqual(['all', 1]);
+  });
+
+  it('TCK-2584 — une recherche (`?q=`) est une autre vue : elle repart de la page 1', () => {
+    const { rerender } = render(withIntl(<ContactLeadsInbox />));
+    fireEvent.click(screen.getByRole('button', { name: 'page-3' }));
+
+    etat.recherche = 'filtre=all&q=awa';
     rerender(withIntl(<ContactLeadsInbox />));
 
     expect(etat.lectures.at(-1)).toEqual(['all', 1]);

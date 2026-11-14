@@ -16,6 +16,11 @@ import { OwnersList } from '../OwnersList';
  * jamais d'invitation trouvée.
  */
 const apiRequestMock = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/app/owners',
+}));
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: (...args: unknown[]) => apiRequestMock(...args),
@@ -64,12 +69,12 @@ describe('<OwnersList> — relance et révocation par l’invitation de la ligne
   });
 
   it.each([
-    ['resend', "Renvoyer l'invitation"],
-    ['revoke', 'Révoquer'],
+    ['resend', /^Renvoyer l’invitation/],
+    ['revoke', /^Révoquer l’invitation/],
   ] as const)('%s : un brouillon invité au seul numéro part par son invitation, sans recherche', async (geste, libelle) => {
     monter(44);
 
-    await userEvent.click(await screen.findByRole('button', { name: libelle }));
+    await userEvent.click((await screen.findAllByRole('button', { name: libelle }))[0]);
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' })));
     expect(chemins()).toContain(`/api/invitations/44/${geste}`);
@@ -81,7 +86,7 @@ describe('<OwnersList> — relance et révocation par l’invitation de la ligne
       throw new ApiError(500, { message: 'Erreur du serveur.' });
     });
 
-    await userEvent.click(await screen.findByRole('button', { name: "Renvoyer l'invitation" }));
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Renvoyer l’invitation/ }))[0]);
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' })));
     expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ description: AUCUNE }));
@@ -90,7 +95,7 @@ describe('<OwnersList> — relance et révocation par l’invitation de la ligne
   it('sans invitation en attente, le dit sans requête', async () => {
     monter(null);
 
-    await userEvent.click(await screen.findByRole('button', { name: "Renvoyer l'invitation" }));
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Renvoyer l’invitation/ }))[0]);
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
       type: 'error',

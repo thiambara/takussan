@@ -233,3 +233,19 @@ cookie et avant l'auto-bascule.**
 
   Chaque garde se vérifie par ablation.
 
+
+## Amendement du 2026-11-14 — un seul profil, sans agence, est le profil par défaut (TCK-2800)
+
+**Contexte.** Le niveau 5 (auto-bascule) ne liait un profil que si les profils actifs comptaient
+**exactement une** agence. Un `ServiceProviderProfile` n'a pas d'agence : un compte prestataire seul en
+comptait zéro et n'était jamais lié. Comme la connexion efface le cookie, ce compte arrivait sans profil
+après chaque connexion, et « Vos pièces » disait « Aucune pièce à fournir » (relevé de TCK-2800).
+
+**Décision.** Au niveau 5, un compte qui n'a qu'**un** profil actif le voit lié, même sans agence. Le
+reste du niveau ne change pas : un compte d'une seule agence prend le premier profil dans l'ordre de
+`profiles()`, et un compte de plusieurs agences n'est pas lié.
+
+**Conséquences.** Aucune agence ne s'ouvre : `User::agency_id` reste `null` pour ce compte. Le même
+profil était déjà liable par cookie ou par `X-Profile-Id` ; l'état par défaut rejoint celui du parcours
+d'accueil. Gardes : `tests/Feature/Middleware/PrestataireSeulProfilParDefautTest.php`, chacune
+vérifiée par ablation.

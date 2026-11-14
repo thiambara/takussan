@@ -20,6 +20,8 @@ export interface PreferencesDuMenu {
   readonly navigation: PreferencesDeNavigation;
   readonly modeIcones: ModeIcones;
   readonly basculerEpingle: (persona: Persona, id: IdDestination, rendues: readonly string[]) => void;
+  /** TCK-2619 — déplacer une épingle au rang `vers`, en repartant des épingles RENDUES. */
+  readonly deplacerEpingle: (persona: Persona, id: IdDestination, vers: number, rendues: readonly string[]) => void;
   readonly basculerRepli: (persona: Persona, groupe: string, replie: boolean, replieParDefaut: boolean) => void;
   readonly masquerDemarrer: (persona: Persona) => void;
   readonly reinitialiser: (persona: Persona) => void;
@@ -35,6 +37,7 @@ const REPLI: PreferencesDuMenu = {
   navigation: NAVIGATION_VIDE,
   modeIcones: 'complet',
   basculerEpingle: rien,
+  deplacerEpingle: rien,
   basculerRepli: rien,
   masquerDemarrer: rien,
   reinitialiser: rien,

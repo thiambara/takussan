@@ -44,6 +44,8 @@ import {
   type SelectionDeNuits,
 } from './calendrier-des-nuits';
 import { CalendrierDesNuits } from './CalendrierDesNuits';
+import { hrefConnexionPour } from '@/components/auth/lien-connexion';
+
 import { cheminDuTunnel, PERSONNES_MAX, PERSONNES_MIN, type SejourDemande } from './tunnel-de-reservation';
 import { useDrapeauConnexionParTelephone, useIdentiteParTelephone } from './useIdentiteParTelephone';
 import { useNuitsPrises } from './useNuitsPrises';
@@ -158,8 +160,11 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
     locale,
   );
 
+  // TCK-2604 — une seule porte (`/auth/register` y redirige), et l'action interrompue : la
+  // connexion montre le bien de ce séjour. Sans la voie téléphone, « Créer un compte » y ouvre
+  // l'inscription par e-mail (`voie=inscription`).
   function versLaConnexion(page: 'login' | 'register' = 'login'): void {
-    router.push(`/auth/${page}?redirect=${encodeURIComponent(cheminRetour)}`);
+    router.push(`${hrefConnexionPour(cheminRetour, 'reservation')}${page === 'register' ? '&voie=inscription' : ''}`);
   }
 
   function choisir(jour: string): void {

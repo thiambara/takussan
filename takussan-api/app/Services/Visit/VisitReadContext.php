@@ -44,8 +44,8 @@ final class VisitReadContext
     }
 
     /**
-     * @return array{agency_id: ?int, owner_id: ?int, customer_id: ?int, customer_user_id: ?int, visitor_id: ?int, status: ?string,
-     *               visitor_name: ?string, visitor_phone: ?string, customer_name: ?string, customer_phone: ?string,
+     * @return array{agency_id: ?int, owner_id: ?int, property_live: bool, customer_id: ?int, customer_user_id: ?int, visitor_id: ?int, status: ?string,
+     *               agent_id: ?int, scheduled_at: ?string, visitor_name: ?string, visitor_phone: ?string, customer_name: ?string, customer_phone: ?string,
      *               visits_on_property: int}|null
      */
     public static function for(Request $request, PropertyVisit $visit): ?array
@@ -53,6 +53,17 @@ final class VisitReadContext
         self::prime($request, [$visit]);
 
         return $request->attributes->get(self::ATTRIBUTE, [])[(int) $visit->getKey()] ?? null;
+    }
+
+    /**
+     * Toutes les visites déjà relues pour cette requête (la page entière, après `prime()`), par id —
+     * de quoi juger une règle pour la page plutôt que ligne par ligne (le contact de l'agent).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function rows(Request $request): array
+    {
+        return $request->attributes->get(self::ATTRIBUTE, []);
     }
 
     /**
@@ -72,7 +83,8 @@ final class VisitReadContext
             ->get([
                 'property_visits.id', 'property_visits.property_id', 'property_visits.customer_id',
                 'property_visits.visitor_id', 'property_visits.status', 'property_visits.visitor_name',
-                'property_visits.visitor_phone', 'properties.agency_id', 'properties.user_id as owner_id',
+                'property_visits.visitor_phone', 'property_visits.agent_id', 'property_visits.scheduled_at', 'properties.agency_id', 'properties.user_id as owner_id',
+                'properties.id as property_row_id', 'properties.deleted_at as property_deleted_at',
                 'customers.first_name as customer_first_name', 'customers.last_name as customer_last_name',
                 'customers.phone as customer_phone', 'customers.user_id as customer_user_id',
             ]);
@@ -85,12 +97,21 @@ final class VisitReadContext
             $out[(int) $row->id] = [
                 'agency_id' => $row->agency_id !== null ? (int) $row->agency_id : null,
                 'owner_id' => $row->owner_id !== null ? (int) $row->owner_id : null,
+                // TCK-2779 — le bien existe et n'est pas à la corbeille : la relation `property` d'un
+                // bien supprimé est `null`, et les règles du CRM (`ficheClientLisible`,
+                // `compteRenduLisible`) se ferment alors. Relu ici pour qu'elles ne dépendent plus
+                // des colonnes que `fields[property_visits]` laisse dans la ligne.
+                'property_live' => $row->property_row_id !== null && $row->property_deleted_at === null,
                 'customer_id' => $row->customer_id !== null ? (int) $row->customer_id : null,
                 // Le compte de la fiche (fiche effacée : `null`, comme `$visit->customer`) — de quoi
                 // dire au lecteur s'il est le demandeur (`abilities.feedback_customer`).
                 'customer_user_id' => $row->customer_user_id !== null ? (int) $row->customer_user_id : null,
                 'visitor_id' => $row->visitor_id !== null ? (int) $row->visitor_id : null,
                 'status' => $row->status,
+                // TCK-2587 (lot C) — le contact de l'agent, servi au visiteur d'une visite confirmée À
+                // VENIR : l'agent et l'heure, relus comme le statut.
+                'agent_id' => $row->agent_id !== null ? (int) $row->agent_id : null,
+                'scheduled_at' => $row->scheduled_at !== null ? (string) $row->scheduled_at : null,
                 'visitor_name' => $row->visitor_name,
                 'visitor_phone' => $row->visitor_phone,
                 'customer_name' => $customerName !== '' ? $customerName : null,

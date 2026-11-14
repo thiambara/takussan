@@ -19,13 +19,18 @@ export const REVIEW_REPORT_REASONS = [
 
 interface ReviewReportButtonProps {
   readonly reviewId: number;
+  /**
+   * TCK-2635 — l'icône seule, en cible de 36 px (maquette `CarteAvisRecu` des avis reçus) : le nom
+   * accessible reste « Signaler cet avis ».
+   */
+  readonly compact?: boolean;
 }
 
 /**
  * TCK-597 (V12) — « Signaler » sur chaque avis public (fiche bien, fiche agent, fiche agence),
  * sans compte. Un signalement RANGE l'avis dans la file de modération ; il ne le masque pas.
  */
-export function ReviewReportButton({ reviewId }: ReviewReportButtonProps) {
+export function ReviewReportButton({ reviewId, compact = false }: ReviewReportButtonProps) {
   const t = useTranslations('property.reviewReport');
   const [open, setOpen] = useState(false);
   const reasons = REVIEW_REPORT_REASONS.map((value) => ({ value, label: t(`reasons.${value}`) }));
@@ -36,11 +41,21 @@ export function ReviewReportButton({ reviewId }: ReviewReportButtonProps) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t('triggerAria')}
-        className="inline-flex min-h-6 items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={
+          compact
+            ? 'inline-flex size-9 flex-none items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            : 'inline-flex min-h-6 items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+        }
         data-testid={`review-report-${reviewId}`}
       >
-        <Flag className="size-3" aria-hidden />
-        {t('trigger')}
+        {compact ? (
+          <Flag className="size-4" strokeWidth={1.75} aria-hidden />
+        ) : (
+          <>
+            <Flag className="size-3" aria-hidden />
+            {t('trigger')}
+          </>
+        )}
       </button>
       <ReportDialog
         open={open}

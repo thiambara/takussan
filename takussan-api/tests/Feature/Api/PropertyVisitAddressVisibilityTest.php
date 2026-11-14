@@ -130,7 +130,10 @@ class PropertyVisitAddressVisibilityTest extends ApiTestCase
         $this->assertSame([], $this->getJson('/api/property-visits?include=property')->assertOk()->json('data'));
     }
 
-    /** La carte du visiteur : au personnel ; « revient » compte ses visites non annulées du bien. */
+    /**
+     * La carte du visiteur : au personnel ; « revient » compte ses visites non annulées du bien. Au
+     * bailleur d'un bien d'agence, réduite et sur une visite sans fiche seulement (TCK-2717).
+     */
     public function test_visitor_display_au_personnel_seulement(): void
     {
         $agent = $this->personnel($this->x);
@@ -152,7 +155,14 @@ class PropertyVisitAddressVisibilityTest extends ApiTestCase
         );
 
         $this->assertNull($this->lu($this->visiteur)['visitor_display']);
-        $this->assertNull($this->lu($this->proprietaire)['visitor_display']);
+        // TCK-2717 — le bailleur du bien d'agence lit la carte RÉDUITE de la visite sans fiche : ce que
+        // `visitor_*` lui montrent, sans le rang de visite ; sur la visite à fiche, rien.
+        $this->assertSame(
+            ['name' => 'Awa Diop', 'phone' => '+221771234567', 'kind' => 'account', 'visits_on_property' => null],
+            $this->lu($this->proprietaire)['visitor_display'],
+        );
+        Sanctum::actingAs($this->proprietaire);
+        $this->assertNull($this->getJson("/api/property-visits/{$anonyme->id}")->assertOk()->json('data.visitor_display'));
     }
 
     /**

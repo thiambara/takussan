@@ -29,6 +29,10 @@ vi.mock('@/lib/queries/leases', () => ({
   useCreateLease: () => MUTATION,
   useLeasePropertyOptions: () => ({ data: BIENS, isLoading: false }),
   useLeaseCustomerOptions: () => ({ data: CLIENTS, isLoading: false }),
+  // TCK-2643 — les défauts du bien, le locataire lu par son id, et l'envoi à la signature.
+  useLeaseDefaults: () => ({ data: undefined }),
+  useLeaseCustomer: () => ({ data: undefined }),
+  useDemanderLaSignature: () => ({ mutateAsync: async () => ({ data: {} }) }),
 }));
 
 import { CreateLeaseForm } from '../CreateLeaseForm';
@@ -50,29 +54,32 @@ describe('CreateLeaseForm — les champs suivent le type et les parties (TCK-571
   it('« Vente » remplace le loyer mensuel par le prix de vente', async () => {
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm />));
-    expect(screen.getByLabelText(/Loyer mensuel/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Loyer/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: /Type de contrat/ }));
+    await user.click(screen.getByRole('combobox', { name: /Type de bail/ }));
     await user.click(await screen.findByRole('option', { name: 'Vente' }));
 
     expect(screen.getByLabelText(/Prix de vente/)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Loyer mensuel/)).toBeNull();
+    expect(screen.queryByLabelText(/^Loyer/)).toBeNull();
   });
 
-  it('le récapitulatif nomme le bien et le locataire choisis', async () => {
+  // TCK-2643 — un choix fait se montre en une ligne (« Changer » le défait), la liste se referme.
+  it('le bien et le locataire choisis se montrent chacun en une ligne', async () => {
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm />));
-    expect(screen.getByText('Aucun bien sélectionné')).toBeInTheDocument();
-    expect(screen.getByText('Aucun locataire sélectionné')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Changer le bien' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Changer le locataire' })).toBeNull();
 
     await user.click(screen.getByRole('combobox', { name: /^Bien/ }));
     await user.click(await screen.findByRole('option', { name: /Villa Almadies/ }));
     await user.click(document.getElementById('field-tenant_id')!);
     await user.click(await screen.findByRole('option', { name: /Awa Diop/ }));
 
-    expect(screen.getByText('Villa Almadies · REF-011')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun bien sélectionné')).toBeNull();
-    expect(screen.queryByText('Aucun locataire sélectionné')).toBeNull();
+    expect(screen.getByText('Villa Almadies')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Changer le bien' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Changer le locataire' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /^Bien/ })).toBeNull();
+    expect(document.getElementById('field-tenant_id')).toBeNull();
   });
 });
 
@@ -89,7 +96,7 @@ describe('CreateLeaseForm — avertissement de départ (TCK-755)', () => {
     render(withIntl(<CreateLeaseForm />));
     expect(quitterLaPage()).toBe(false);
 
-    await user.type(screen.getByLabelText(/Loyer mensuel/), '5');
+    await user.type(screen.getByLabelText(/^Loyer/), '5');
 
     expect(quitterLaPage()).toBe(true);
   });

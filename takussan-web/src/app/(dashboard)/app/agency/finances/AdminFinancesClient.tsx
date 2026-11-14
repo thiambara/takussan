@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 
 import { AdminFinancesTabs } from '@/components/admin/finances/AdminFinancesTabs';
 import { parametresDesEncaissements } from '@/components/admin/finances/argent/EncaissementsAgence';
-import { useGestesDeLArgent, type GestesDeLArgent } from '@/components/admin/finances/argent/gestes';
+import { ongletPermis, useGestesDeLArgent, type GestesDeLArgent } from '@/components/admin/finances/argent/gestes';
 import { AFaireEtDerniers, PointDuMoisTelephone, TuilesDuMois, type ContexteDuPoint } from '@/components/admin/finances/argent/PointDuMois';
 import { SelecteurDeMois, useTextesDuSelecteurDeMois } from '@/components/admin/finances/argent/SelecteurDeMois';
 import { PageHeader } from '@/components/console';
@@ -19,11 +19,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCan } from '@/hooks/useCan';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { bornesDesEncaissements, moisAffiche, vueDeLArgent, type OngletArgent } from '@/lib/finances/vue-argent';
-import { bornesDuMois, dateDuMois, moisCourant } from '@/lib/finances/mois';
+import { bornesDesEncaissements, libelleDesBornes, moisAffiche, vueDeLArgent, type OngletArgent } from '@/lib/finances/vue-argent';
+import { dateDuMois, moisCourant } from '@/lib/finances/mois';
 import { useFinanceSummary } from '@/lib/queries/agency-reporting';
-import { buildExportUrl } from '@/lib/queries/exports';
+import { lienDExportDuRegistre } from '@/lib/queries/exports';
 import { usePaymentsHistory } from '@/lib/queries/payments';
+import { useResumeDesImpayes } from '@/components/admin/finances/impayes/Impayes';
 import { ApiError } from '@/lib/api';
 
 interface AdminFinancesClientProps {
@@ -68,6 +69,8 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const telephone = useMatchesMedia(REQUETE_DE_LA_BARRE);
   const courant = moisCourant();
   const vue = vueDeLArgent(recherche);
+  // TCK-2660 — le sous-titre de l'écran Impayés au bureau : le total dû et les cautions (balance âgée).
+  const resumeDesImpayes = useResumeDesImpayes(vue.sorte === 'registre' && vue.onglet === 'impayes' ? agencyId : undefined);
   const mois = moisAffiche(recherche, courant);
   const periodeDansLUrl = recherche.get('period');
   const gestes = useGestesDeLArgent(canEmitFinances);
@@ -90,23 +93,16 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   }
 
   const donnees = synthese.data?.data;
+  // TCK-2721 — « Exporter » rend les lignes du REGISTRE, avec ses filtres (entité d'un lien entrant,
+  // payeur, bien, bailleur, moyen, statut, recherche, bornes) : l'entité `payment_history`, servie par
+  // la sélection même de la liste. Le lien porte les paramètres de l'écran au moment du clic, et son
+  // nom accessible dit combien de lignes partent.
+  const lienExport = peutExporter ? lienDExportDuRegistre(parametresDesEncaissements(recherche, courant)) : null;
   const bornesExport = bornesDesEncaissements(recherche, courant);
-  const { du, au } = bornesExport.du || bornesExport.au ? bornesExport : bornesDuMois(mois);
-  const lienExport = peutExporter ? buildExportUrl({ entity: 'payments', format: 'csv', from: du, to: au }) : null;
   const nomDuMois = (m: string) => f.date(dateDuMois(m), { month: 'long', timeZone: 'UTC' });
-  // TCK-2659 (vérification adverse, R1) — l'export rend les ÉCHÉANCES de loyer dont `due_date` tombe dans
-  // les bornes (impayées comprises, réservations exclues), jamais les encaissements : le nom accessible
-  // dit ce qui part, et les bornes réellement envoyées (des dates posées l'emportent sur le mois). Le
-  // filtre d'entité n'y est pas promis : l'export l'ignore.
-  const jour = (d: string) => f.date(`${d}T00:00:00Z`, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const totalAffiche = encaissements.data?.meta.total;
   const ariaExport =
-    !bornesExport.mois && (bornesExport.du || bornesExport.au)
-      ? t('argent.actions.exporterAriaBornes', {
-          bornes: bornesExport.du && bornesExport.au ? 'deux' : bornesExport.du ? 'du' : 'au',
-          du: bornesExport.du ? jour(bornesExport.du) : '',
-          au: bornesExport.au ? jour(bornesExport.au) : '',
-        })
-      : t('argent.actions.exporterAria', { mois: nomDuMois(bornesExport.mois ?? mois) });
+    totalAffiche !== undefined ? t('argent.actions.exporterAria', { count: totalAffiche }) : t('argent.actions.exporterAriaSansCompte');
 
   const ctx: ContexteDuPoint = {
     mois,
@@ -194,12 +190,15 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
     factures: t('tabs.invoices'),
     reversements: t('tabs.payouts'),
     'a-approuver': t('tabs.toApprove'),
+    interventions: t('tabs.interventions'),
     impayes: t('tabs.overdue'),
   };
-  const onglet = vue.onglet === 'a-approuver' && !gestes.peutApprouver ? 'encaissements' : vue.onglet;
+  const onglet = ongletPermis(vue.onglet, gestes);
   const total = encaissements.data?.meta.total;
   const description =
-    onglet === 'encaissements' && total !== undefined
+    onglet === 'impayes'
+      ? (resumeDesImpayes?.sousTitre ?? undefined)
+      : onglet === 'encaissements' && total !== undefined
       ? bornesExport.mois
         ? t('argent.encaissements.sousTitre', { count: total, mois: nomDuMois(bornesExport.mois) })
         : t('argent.encaissements.sousTitreSansMois', { count: total })
@@ -208,7 +207,13 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const actions =
     onglet === 'encaissements' ? (
       <>
-        <SelecteurDeMois mois={bornesExport.mois} courant={courant} variante="bureau" textes={textesDuMois} />
+        <SelecteurDeMois
+          mois={bornesExport.mois}
+          bornes={libelleDesBornes(recherche.get('date_from'), recherche.get('date_to'), (iso) => f.jourMois(iso))}
+          courant={courant}
+          variante="bureau"
+          textes={textesDuMois}
+        />
         {exporter}
       </>
     ) : onglet === 'factures' || onglet === 'reversements' || onglet === 'a-approuver' ? (

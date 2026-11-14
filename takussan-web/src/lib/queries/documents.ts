@@ -17,9 +17,8 @@ import { cheminApi } from '@/lib/chemin-api';
  * React Query hooks for the Document resource — TCK-062.
  *
  * The backend uses `spatie/laravel-query-builder`, so every call sends
- * sparse fieldsets + filters. The hook surface omits a "list active links"
- * query (even though the backend now exposes one) and instead keeps the
- * created links in the mutation cache.
+ * sparse fieldsets + filters. The active share links are read by
+ * `useShareLinks` (TCK-2656, lot 3).
  */
 
 /**
@@ -43,6 +42,9 @@ export const DOCUMENT_LIST_FIELDS = [
   'is_verified',
   'expiry_date',
   'uploaded_by',
+  // Vérification de 416274da0 (TCK-2759, r1) — la pastille « Interne » et la bascule de la bibliothèque
+  // lisent `is_internal` : absent des `fields`, tout document revenait visible.
+  'is_internal',
   'created_at',
 ] as const;
 
@@ -54,6 +56,8 @@ export type UseDocumentsParams = {
   readonly is_verified?: boolean;
   readonly page?: number;
   readonly per_page?: number;
+  /** `false` : la requête ne part pas (TCK-2639 — un bail qui ne se lit pas n'a pas de pièces à lister). */
+  readonly enabled?: boolean;
 };
 
 export const documentsQueryKeys = {
@@ -86,11 +90,40 @@ export function useDocuments(params: UseDocumentsParams = {}) {
     per_page: params.per_page ?? 20,
   };
 
+  const { enabled, ...cle } = params;
   return useApiQuery<DocumentsListResponse>(
-    documentsQueryKeys.list(params),
+    documentsQueryKeys.list(cle),
     '/api/documents',
     // TCK-1024 — `file_url` est une URL signée de 30 min.
-    { params: spatieParams, ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS) },
+    { params: spatieParams, enabled: enabled ?? true, ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS) },
+  );
+}
+
+/**
+ * TCK-2639 (ADR-0099 § 3) — une entrée GÉNÉRÉE par la plateforme (contrat, état des lieux, quittance…),
+ * listée depuis sa source par `GET /api/documents/generated?target=` et téléchargée par son endpoint
+ * (`download_path`, sous sa propre autorisation). Jamais un `Document` : ni versions, ni partage.
+ */
+export interface DocumentGenere {
+  readonly kind: 'generated';
+  /** `lease_contract`, `inventory_move_in`, `inventory_move_out`, `receipt_rent`… */
+  readonly category: string;
+  readonly title: string | null;
+  readonly date: string | null;
+  readonly download_path: string;
+}
+
+/** La cible d'une lecture des documents générés : un bien (lui et tous ses baux) ou un bail. */
+export type CibleDesDocumentsGeneres = { readonly type: 'property' | 'lease'; readonly id: number };
+
+export function useDocumentsGeneres(cible: CibleDesDocumentsGeneres | null) {
+  return useApiQuery<{ data: DocumentGenere[] }>(
+    ['documents', 'generated', cible?.type ?? null, cible?.id ?? null],
+    '/api/documents/generated',
+    {
+      params: { extra: { target: cible ? `${cible.type}:${cible.id}` : undefined } },
+      enabled: cible !== null && cible.id > 0,
+    },
   );
 }
 
@@ -102,6 +135,8 @@ export type UploadDocumentPayload = {
   readonly documentable_id: number;
   readonly description?: string;
   readonly expiry_date?: string;
+  /** TCK-2759 — sur une fiche client, par le personnel : `true` garde la pièce pour l'agence. */
+  readonly is_internal?: boolean;
 };
 
 export function useUploadDocument() {
@@ -119,8 +154,25 @@ export function useUploadDocument() {
         form.append('documentable_id', String(variables.documentable_id));
         if (variables.description) form.append('description', variables.description);
         if (variables.expiry_date) form.append('expiry_date', variables.expiry_date);
+        // TCK-2759 — `1`/`0`, que la règle `boolean` de Laravel accepte (`true`/`false` en texte, non).
+        if (variables.is_internal !== undefined) form.append('is_internal', variables.is_internal ? '1' : '0');
         return form;
       },
+    },
+    { invalidate: [['documents']] },
+  );
+}
+
+/**
+ * TCK-2759 (ADR-0099, amendement du 2026-11-12) — garder pour l'agence, ou rendre visible au client, un
+ * document de fiche client : `PATCH /api/documents/{id}/visibility`.
+ */
+export function useSetDocumentVisibility() {
+  return useApiMutation<ApiResponse<Document>, { id: number; is_internal: boolean }>(
+    {
+      path: ({ id }) => cheminApi`/api/documents/${id}/visibility`,
+      method: 'PATCH',
+      body: ({ is_internal }) => ({ is_internal }),
     },
     { invalidate: [['documents']] },
   );
@@ -148,25 +200,49 @@ export type CreateShareLinkPayload = {
   readonly password?: string;
 };
 
+/**
+ * TCK-2656 (lot 3) — les liens ACTIFS d'un document (`GET /api/documents/{id}/share-links` : ni
+ * révoqués, ni expirés, ni épuisés), lus par la fiche. L'API la garde par `DocumentPolicy::share` :
+ * l'appelant ne la demande qu'avec `abilities.share`, sans quoi c'est un 403 certain.
+ */
+export const shareLinksQueryKeys = {
+  list: (documentId: number | null | undefined) => ['documents', 'share-links', documentId] as const,
+};
+
+export function useShareLinks(documentId: number | null | undefined, enabled = true) {
+  return useApiQuery<ApiResponse<DocumentShareLink[]>>(
+    shareLinksQueryKeys.list(documentId),
+    cheminApi`/api/documents/${documentId ?? 0}/share-links`,
+    { enabled: enabled && Boolean(documentId) },
+  );
+}
+
 export function useCreateShareLink() {
-  return useApiMutation<ApiResponse<DocumentShareLink>, CreateShareLinkPayload>({
-    path: ({ document_id }) => cheminApi`/api/documents/${document_id}/share`,
-    method: 'POST',
-    body: ({ expires_at, max_downloads, password }) => ({
-      expires_at,
-      max_downloads,
-      password,
-    }),
-  });
+  return useApiMutation<ApiResponse<DocumentShareLink>, CreateShareLinkPayload>(
+    {
+      path: ({ document_id }) => cheminApi`/api/documents/${document_id}/share`,
+      method: 'POST',
+      body: ({ expires_at, max_downloads, password }) => ({
+        expires_at,
+        max_downloads,
+        password,
+      }),
+    },
+    // TCK-2656 (lot 3) — la liste des liens actifs de la fiche se relit.
+    { invalidate: [['documents', 'share-links']] },
+  );
 }
 
 export function useRevokeShareLink() {
-  return useApiMutation<void, { document_id: number; link_id: number }>({
-    path: ({ document_id, link_id }) =>
-      cheminApi`/api/documents/${document_id}/share/${link_id}`,
-    method: 'DELETE',
-    body: () => undefined,
-  });
+  return useApiMutation<void, { document_id: number; link_id: number }>(
+    {
+      path: ({ document_id, link_id }) =>
+        cheminApi`/api/documents/${document_id}/share/${link_id}`,
+      method: 'DELETE',
+      body: () => undefined,
+    },
+    { invalidate: [['documents', 'share-links']] },
+  );
 }
 
 /**
@@ -233,6 +309,11 @@ export type UploadVersionPayload = {
   readonly document_id: number;
   readonly file: File;
   readonly comment?: string;
+  /**
+   * TCK-2656 (lot 3) — l'échéance du NOUVEAU fichier (`AAAA-MM-JJ`). L'API la pose telle quelle :
+   * absente, l'échéance du document se vide (TCK-2300, `DocumentVersionService::uploadVersion`).
+   */
+  readonly expiry_date?: string;
 };
 
 export function useUploadDocumentVersion() {
@@ -245,6 +326,7 @@ export function useUploadDocumentVersion() {
         const form = new FormData();
         form.append('file', variables.file);
         if (variables.comment) form.append('comment', variables.comment);
+        if (variables.expiry_date) form.append('expiry_date', variables.expiry_date);
         return form;
       },
     },

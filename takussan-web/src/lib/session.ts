@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { AUTH_COOKIE_NAME } from './constants';
 import { IMPERSONATION_COOKIE } from './impersonation';
 import { ACTIVE_PROFILE_COOKIE } from './profiles';
+import { COOKIE_CHOIX_CLIENT } from './espaces';
 import { COOKIE_MENU_ICONES, modeIconesDepuisCookie, type ModeIcones } from './navigation/mode-icones';
 
 /**
@@ -39,6 +40,18 @@ export async function getActiveProfileId(): Promise<string | undefined> {
 export async function getModeIconesDuMenu(): Promise<ModeIcones> {
   const cookieStore = await cookies();
   return modeIconesDepuisCookie(cookieStore.get(COOKIE_MENU_ICONES)?.value);
+}
+
+/** TCK-2621 — une session d'impersonation est-elle ouverte (jeton d'impersonation présent) ? */
+export async function estEnImpersonation(): Promise<boolean> {
+  const cookieStore = await cookies();
+  return Boolean(cookieStore.get(IMPERSONATION_COOKIE)?.value);
+}
+
+/** TCK-2621 — le témoin « Continuer en tant que client » de la session (`COOKIE_CHOIX_CLIENT`). */
+export async function getChoixClient(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  return cookieStore.get(COOKIE_CHOIX_CLIENT)?.value;
 }
 
 /** Le profil actif de l'opérateur, pour la console. */

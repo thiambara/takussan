@@ -74,6 +74,11 @@ export type KycDocument = {
    * antérieure au ticket.
    */
   document_expires_at?: string | null;
+  /**
+   * TCK-2669 — le numéro que porte la pièce (RCCM, NINEA), saisi au dépôt ; nul quand il n'a pas été
+   * saisi. C'est lui que « Reprendre ces deux numéros » recopie dans les mentions légales (TCK-2670).
+   */
+  document_number?: string | null;
 };
 
 /**
@@ -118,6 +123,12 @@ export type KycDossier = {
    * n'expire.
    */
   expires_at?: string | null;
+  /**
+   * TCK-2671 — quand la pièce du dirigeant d'un dossier VÉRIFIÉ se remplace : `opens_on` est le
+   * premier jour civil (`AAAA-MM-JJ`) où l'API l'accepte (`KycWorkflowService::renewalOpensOn()`).
+   * Nul pour un dossier non vérifié ou sans échéance. Le front ne recalcule pas la fenêtre.
+   */
+  renewal?: { document_type: string; opens_on: string } | null;
   /** TCK-601 — super-admin seulement ; voir {@link SharedLegalIdentifiers}. */
   shared_identifiers?: SharedLegalIdentifiers;
   created_at: string | null;

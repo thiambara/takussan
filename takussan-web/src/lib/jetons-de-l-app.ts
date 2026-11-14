@@ -23,6 +23,7 @@ export const TAILLES_DE_TEXTE = {
   'affiche-28': 28,
   'affiche-32': 32,
   'affiche-40': 40,
+  'affiche-44': 44,
 } as const satisfies Record<string, number>;
 
 export type TailleDeTexte = keyof typeof TAILLES_DE_TEXTE;
@@ -34,7 +35,7 @@ export const ESPACEMENTS_DE_LETTRES = ['titre', 'surtitre'] as const;
 export const TAILLES_FIXES = ['icone'] as const;
 
 /** Ombres nommées. */
-export const OMBRES = ['barre-collante', 'filet', 'bouton-photo', 'actif', 'panneau', 'feuille'] as const;
+export const OMBRES = ['barre-collante', 'filet', 'bouton-photo', 'actif', 'panneau', 'feuille', 'carte-d-entree', 'carte-levee', 'panneau-cloche'] as const;
 
 /** Le point de rupture de la bande ≥ 1440 (ADR-0106 § 4). */
 export const POINTS_DE_RUPTURE = ['w1440'] as const;
@@ -71,8 +72,8 @@ export const DENSITE_DE_L_APP = {
  * `bg-foreground` seul, la teinte de l'appelant l'emporte sur celle de la portée `/app`.
  */
 export const PRIMITIVES_DE_L_APP = {
-  spacing: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48', 'panneau', 'toast'],
-  text: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
+  spacing: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48', 'avatar-52', 'panneau', 'toast'],
+  text: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48', 'avatar-52'],
   /** TCK-2690 — `controle-vide` : bord de la case vide, piste de l'interrupteur éteint. */
   color: ['fond-avatar', 'encre-avatar', 'controle-vide'],
   /** TCK-2690 — le rayon de la case à cocher (5 px). */

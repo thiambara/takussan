@@ -181,6 +181,9 @@ class PlatformPayoutService
      */
     private function assertItemsStillPaid(PlatformPayout $payout): void
     {
+        // TCK-2793 — une ligne que le reversement ne porte que par sa pénalité payée seule
+        // (`late_fee_platform_payout_id`) n'y entre pas par son loyer : son statut n'en juge pas, la
+        // part rendue de sa pénalité si (`refundedSinceClosing`).
         $changed = BookingPayment::query()->where('platform_payout_id', $payout->id)->where('status', '!=', PaymentStatus::Paid->value)->exists()
             || LeasePayment::query()->where('platform_payout_id', $payout->id)->where('status', '!=', PaymentStatus::Paid->value)->exists();
 
@@ -195,14 +198,17 @@ class PlatformPayoutService
     private function refundedSinceClosing(PlatformPayout $payout): bool
     {
         $refunded = fn (string $model): bool => $model::query()->where('platform_payout_id', $payout->id)->where('refund_amount', '>', 0)->exists();
-        // P206.04 — la part de pénalité rendue depuis la clôture se voit aussi.
-        $lateFeeRefunded = LeasePayment::query()->where('platform_payout_id', $payout->id)->where('late_fee_refund_amount', '>', 0)->exists();
+        // P206.04 — la part de pénalité rendue depuis la clôture se voit aussi. TCK-2793 — celle
+        // d'une pénalité payée seule que ce reversement a prise aussi.
+        $lateFeeRefunded = LeasePayment::query()
+            ->where(fn ($q) => $q->where('platform_payout_id', $payout->id)->orWhere('late_fee_platform_payout_id', $payout->id))
+            ->where('late_fee_refund_amount', '>', 0)->exists();
         if (! $refunded(BookingPayment::class) && ! $refunded(LeasePayment::class) && ! $lateFeeRefunded) {
             return false;
         }
 
         $lateFees = $lateFeeRefunded
-            ? array_sum($this->platformSettledLateFees(LeasePayment::query()->where('platform_payout_id', $payout->id)->get()))
+            ? $this->lateFeesCarriedBy($payout)
             : (float) (($payout->metadata ?? [])['late_fees_gross'] ?? 0);
         $gross = (float) BookingPayment::query()->where('platform_payout_id', $payout->id)->sum(DB::raw(self::NET_SQL))
             + (float) LeasePayment::query()->where('platform_payout_id', $payout->id)->sum(DB::raw(self::NET_SQL))
@@ -226,6 +232,9 @@ class PlatformPayoutService
                 ->update(['platform_payout_id' => null]);
             LeasePayment::query()->where('platform_payout_id', $locked->id)
                 ->update(['platform_payout_id' => null]);
+            // TCK-2793 — la pénalité payée seule qu'il avait prise redevient éligible, elle aussi.
+            LeasePayment::query()->where('late_fee_platform_payout_id', $locked->id)
+                ->update(['late_fee_platform_payout_id' => null]);
 
             $locked->update([
                 'status' => PlatformPayoutStatus::Cancelled,
@@ -319,17 +328,35 @@ class PlatformPayoutService
         // TCK-733 (P04.05) — la plateforme ne reverse que ce qu'elle a encaissé : un paiement soldé
         // par une intégration GLOBALE. Espèces, virement, intégration propre à l'agence : l'argent
         // est déjà chez l'agence, la ligne reste hors de toute clôture.
-        $globalIntegrations = $this->globalIntegrationIds($bookingPayments->concat($leasePayments));
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 3) — la pénalité payée SEULE que la
+        // plateforme a encaissée a son éligibilité propre (`late_fee_platform_payout_id`), datée par
+        // `late_fee_paid_at` : le loyer de sa ligne a pu être réglé hors plateforme, ou être déjà
+        // porté par un reversement antérieur. Ni le statut du loyer ni `platform_payout_id` n'y
+        // entrent.
+        $lateFeeAlone = LeasePayment::query()
+            ->whereHas('lease', fn ($q) => $q->where('agency_id', $agencyId))
+            ->where('payment_type', '!=', LeasePaymentType::DepositRefund->value)
+            ->whereNotNull('late_fee_paid_at')
+            ->where('late_fee_paid_at', '<=', $periodEnd)
+            ->whereNull('late_fee_platform_payout_id')
+            ->whereRaw("(metadata->'gateway'->>'late_fee_settled_by') IS NOT NULL")
+            ->lockForUpdate()
+            ->get(['id', 'platform_fee_pct_at_payment', 'late_fee_paid_at', 'currency', 'metadata', 'late_fee_amount', 'late_fee_refund_amount']);
+
+        $globalIntegrations = $this->globalIntegrationIds($bookingPayments->concat($leasePayments)->concat($lateFeeAlone));
         $bookingPayments = $bookingPayments->filter(fn ($p) => $this->settledBy($p, $globalIntegrations) !== null)->values();
         $leasePayments = $leasePayments->filter(fn ($p) => $this->settledBy($p, $globalIntegrations) !== null)->values();
+        // Une pénalité rendue en entier avant la clôture n'a plus rien à verser : elle n'est pas prise
+        // (aucun reversement à 0 pour elle seule).
+        $lateFeeAlone = $lateFeeAlone->filter(fn (LeasePayment $p) => $this->lateFeeAloneNet($p, $this->lateFeeAloneByPlatform($p, $globalIntegrations)) > 0)->values();
 
         $eligible = $bookingPayments->concat($leasePayments);
-        if ($eligible->isEmpty()) {
+        if ($eligible->isEmpty() && $lateFeeAlone->isEmpty()) {
             return null;
         }
 
         // TCK-733 (P04.05) — un reversement ne mélange pas deux devises, comme `PayoutCalculator`.
-        $currencies = $eligible
+        $currencies = $eligible->concat($lateFeeAlone)
             ->map(fn ($row) => $row->currency instanceof Currency ? $row->currency->value : (string) ($row->currency ?? 'XOF'))
             ->unique();
         abort_code_if($currencies->count() > 1, 422, 'payout.mixed_currencies');
@@ -356,13 +383,23 @@ class PlatformPayoutService
                 $lateFeesFee += Currency::roundAmount($lateFee * $pct / 100, $currencyValue);
             }
         }
+        // TCK-2793 — la pénalité payée seule, à son montant figé moins la part rendue, au taux de
+        // sa ligne : la règle de la pénalité réglée avec le loyer.
+        foreach ($lateFeeAlone as $row) {
+            $lateFee = $this->lateFeeAloneNet($row, $this->lateFeeAloneByPlatform($row, $globalIntegrations));
+            if ($lateFee > 0) {
+                $lateFeesGross += $lateFee;
+                $lateFeesFee += Currency::roundAmount($lateFee * (float) ($row->platform_fee_pct_at_payment ?? 0) / 100, $currencyValue);
+            }
+        }
         $gross += $lateFeesGross;
         $fees += $lateFeesFee;
 
         $net = Currency::roundAmount($gross - $fees, $currencyValue);
 
-        $periodStart = $eligible->min('paid_at')
-            ? Carbon::parse($eligible->min('paid_at'))->startOfDay()
+        $firstDate = collect([$eligible->min('paid_at'), $lateFeeAlone->min('late_fee_paid_at')])->filter()->min();
+        $periodStart = $firstDate
+            ? Carbon::parse($firstDate)->startOfDay()
             : $periodEnd->copy()->startOfMonth();
 
         // TCK-594 — la course perdue sur l'index unique partiel n'est PAS attrapée ici : PostgreSQL
@@ -382,6 +419,7 @@ class PlatformPayoutService
                 'lease_payments_count' => $leasePayments->count(),
                 'late_fees_gross' => Currency::roundAmount($lateFeesGross, $currencyValue),
                 'late_fees_fee' => Currency::roundAmount($lateFeesFee, $currencyValue),
+                'late_fee_alone_count' => $lateFeeAlone->count(),
             ],
         ]);
 
@@ -391,6 +429,10 @@ class PlatformPayoutService
         LeasePayment::query()
             ->whereIn('id', $leasePayments->pluck('id'))
             ->update(['platform_payout_id' => $payout->id]);
+        LeasePayment::query()
+            ->whereIn('id', $lateFeeAlone->pluck('id'))
+            ->whereNull('late_fee_platform_payout_id')
+            ->update(['late_fee_platform_payout_id' => $payout->id]);
 
         $this->logAction($payout, $actor, 'super_admin_payout_period_closed', [
             'period_end' => $periodEnd->toDateString(),
@@ -420,7 +462,11 @@ class PlatformPayoutService
      */
     public function lateFeeSettledByPlatform(LeasePayment $payment): bool
     {
-        return $this->platformSettledLateFee($payment) > 0;
+        // TCK-2793 — la pénalité réglée AVEC le loyer seulement : celle payée seule a son propre
+        // reversement, lu par {@see self::lateFeeAloneSettledByPlatform()}.
+        $globalIntegrations = $this->globalIntegrationIds([$payment]);
+
+        return $this->lateFeeSettledWith($payment, $this->settledBy($payment, $globalIntegrations)) > 0;
     }
 
     /**
@@ -444,10 +490,81 @@ class PlatformPayoutService
         $globalIntegrations = $this->globalIntegrationIds($payments);
         $fees = [];
         foreach ($payments as $payment) {
-            $fees[(int) $payment->id] = $this->lateFeeSettledWith($payment, $this->settledBy($payment, $globalIntegrations));
+            // TCK-2793 — plus la pénalité payée SEULE que la plateforme a encaissée : les deux ne
+            // coexistent jamais (la pénalité seule n'est due que si le loyer ne l'a pas réglée).
+            $fees[(int) $payment->id] = $this->lateFeeSettledWith($payment, $this->settledBy($payment, $globalIntegrations))
+                + $this->lateFeeAloneNet($payment, $this->lateFeeAloneByPlatform($payment, $globalIntegrations));
         }
 
         return $fees;
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 1) — la pénalité de cette ligne a-t-elle
+     * été payée SEULE par un checkout qu'une intégration de la plateforme a initié ? L'encaisseur se
+     * lit sur l'entrée de `gateway.late_fee_settled_by`, jamais sur celle du loyer.
+     */
+    public function lateFeeAloneSettledByPlatform(LeasePayment $payment): bool
+    {
+        return $this->lateFeeAloneByPlatform($payment, $this->globalIntegrationIds([$payment])) !== null;
+    }
+
+    /**
+     * TCK-2793 — la part de pénalité que ce reversement porte : celle réglée avec le loyer des lignes
+     * qu'il a prises, et celle payée seule qu'il a prise. Relue par `refundedSinceClosing`.
+     */
+    private function lateFeesCarriedBy(PlatformPayout $payout): float
+    {
+        $rows = LeasePayment::query()
+            ->where(fn ($q) => $q->where('platform_payout_id', $payout->id)->orWhere('late_fee_platform_payout_id', $payout->id))
+            ->get();
+        $globalIntegrations = $this->globalIntegrationIds($rows);
+
+        $total = 0.0;
+        foreach ($rows as $row) {
+            if ((int) $row->platform_payout_id === (int) $payout->id) {
+                $total += $this->lateFeeSettledWith($row, $this->settledBy($row, $globalIntegrations));
+            }
+            if ((int) $row->late_fee_platform_payout_id === (int) $payout->id) {
+                $total += $this->lateFeeAloneNet($row, $this->lateFeeAloneByPlatform($row, $globalIntegrations));
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * Le règlement de la pénalité payée seule (`LeasePayment::lateFeeAloneSettlement()`) quand une
+     * intégration globale l'a initié ; `null` sinon.
+     *
+     * @param  array<int, true>  $globalIntegrations
+     * @return array{transaction_id: string, integration_id: int|null, amount: float}|null
+     */
+    private function lateFeeAloneByPlatform(BookingPayment|LeasePayment $payment, array $globalIntegrations): ?array
+    {
+        if (! $payment instanceof LeasePayment) {
+            return null;
+        }
+        $settlement = $payment->lateFeeAloneSettlement();
+
+        return $settlement !== null && $settlement['integration_id'] !== null && isset($globalIntegrations[$settlement['integration_id']])
+            ? $settlement
+            : null;
+    }
+
+    /**
+     * La part de la pénalité payée seule que la plateforme garde : son montant figé moins la part
+     * rendue (P206.04). 0 sans règlement par la plateforme.
+     *
+     * @param  array{amount: float}|null  $settlement
+     */
+    private function lateFeeAloneNet(LeasePayment $payment, ?array $settlement): float
+    {
+        if ($settlement === null) {
+            return 0.0;
+        }
+
+        return max(0.0, $settlement['amount'] - (float) ($payment->late_fee_refund_amount ?? 0));
     }
 
     /**
@@ -464,6 +581,11 @@ class PlatformPayoutService
             $id = $this->settlement($payment)['integration_id'];
             if ($id !== null) {
                 $ids[$id] = true;
+            }
+            // TCK-2793 — l'intégration qui a initié la pénalité payée seule.
+            $lateFeeId = $payment instanceof LeasePayment ? ($payment->lateFeeAloneSettlement()['integration_id'] ?? null) : null;
+            if ($lateFeeId !== null) {
+                $ids[$lateFeeId] = true;
             }
         }
 
@@ -579,7 +701,19 @@ class PlatformPayoutService
             ->distinct()
             ->pluck('leases.agency_id');
 
-        return $bookingAgencies->concat($leaseAgencies)->unique()->values()->all();
+        // TCK-2793 — une pénalité payée seule pas encore prise (son encaisseur se juge à la clôture).
+        $lateFeeAloneAgencies = LeasePayment::query()
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->where('lease_payments.payment_type', '!=', LeasePaymentType::DepositRefund->value)
+            ->whereNotNull('lease_payments.late_fee_paid_at')
+            ->where('lease_payments.late_fee_paid_at', '<=', $periodEnd)
+            ->whereNull('lease_payments.late_fee_platform_payout_id')
+            ->whereRaw("(lease_payments.metadata->'gateway'->>'late_fee_settled_by') IS NOT NULL")
+            ->whereNotNull('leases.agency_id')
+            ->distinct()
+            ->pluck('leases.agency_id');
+
+        return $bookingAgencies->concat($leaseAgencies)->concat($lateFeeAloneAgencies)->unique()->values()->all();
     }
 
     private function assertTransition(PlatformPayout $payout, PlatformPayoutStatus $next): void

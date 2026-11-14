@@ -69,11 +69,15 @@ class LeaseAbilitiesTest extends ApiTestCase
             'refund_deposit' => false,
             'request_early_termination' => false,
             'update' => true,
+            // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
+            'abandon' => false,
             // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
             'add_document' => true,
             'download_contract' => true,
             'leave_review' => false,
             'give_notice' => false,
+            // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité dédiée.
+            'rent_review_force' => false,
         ], $this->abilitiesOfAgent([Capability::CrmViewAll]));
     }
 
@@ -86,11 +90,15 @@ class LeaseAbilitiesTest extends ApiTestCase
             'refund_deposit' => false,
             'request_early_termination' => false,
             'update' => true,
+            // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
+            'abandon' => false,
             // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
             'add_document' => true,
             'download_contract' => true,
             'leave_review' => false,
             'give_notice' => false,
+            // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité dédiée.
+            'rent_review_force' => false,
         ], $this->abilitiesOfAgent([Capability::LeasesRenew, Capability::PaymentsRecord]));
     }
 
@@ -110,11 +118,15 @@ class LeaseAbilitiesTest extends ApiTestCase
                 'refund_deposit' => true,
                 'request_early_termination' => true,
                 'update' => true,
+                // TCK-2764 — abandonner ne vaut que pour un brouillon : ce bail est en cours.
+                'abandon' => false,
                 // TCK-2642 — les gestes que la fiche ouvrait encore par le rôle.
                 'add_document' => true,
                 'download_contract' => true,
                 'leave_review' => false,
                 'give_notice' => false,
+                // TCK-2645 (décision 3) — sans `leases.rent_review_force`, le bailleur ne passe pas outre.
+                'rent_review_force' => false,
             ]);
     }
 
@@ -143,6 +155,38 @@ class LeaseAbilitiesTest extends ApiTestCase
             ->assertJsonPath('data.abilities.request_early_termination', false)
             ->assertJsonPath('data.abilities.update', false);
         $this->apiPost("/api/leases/{$lease->id}/early-termination", [])->assertForbidden();
+    }
+
+    /**
+     * Réserve de contre-vérification (2026-11-12) — le bailleur ACTIF d'un bien d'agence se voit offrir
+     * `record_payment` sur la fiche du bail : l'offre et l'API disent la même chose. `POST
+     * /api/leases/{id}/payments` passe pour lui (`LeasePolicy::recordPayment`, TCK-587 : « le bailleur
+     * du bail, toujours »), et la ligne est écrite ; suspendu, l'offre et le geste tombent ensemble.
+     */
+    public function test_le_bailleur_d_un_bien_d_agence_encaisse_comme_la_fiche_le_lui_offre(): void
+    {
+        $agency = Agency::factory()->create();
+        $landlord = User::factory()->withOwnerProfile($agency)->create();
+        $property = Property::factory()->create(['user_id' => $landlord->id, 'agency_id' => $agency->id]);
+        $lease = Lease::factory()->active()->create([
+            'property_id' => $property->id,
+            'landlord_id' => $landlord->id,
+            'agency_id' => $agency->id,
+        ]);
+        $ligne = ['amount' => 50000, 'payment_type' => 'charges', 'period_start' => '2026-01-01', 'period_end' => '2026-01-31'];
+
+        $this->actingAs($landlord, 'sanctum');
+        $this->apiGet("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.abilities.record_payment', true);
+        $this->apiPost("/api/leases/{$lease->id}/payments", $ligne)->assertCreated();
+        $this->assertSame(1, $lease->payments()->count());
+
+        OwnerProfile::query()->where('user_id', $landlord->id)->where('agency_id', $agency->id)
+            ->update(['status' => OwnerProfileStatus::Blocked->value]);
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($landlord->fresh(), 'sanctum');
+        $this->apiGet("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.abilities.record_payment', false);
+        $this->apiPost("/api/leases/{$lease->id}/payments", $ligne)->assertForbidden();
+        $this->assertSame(1, $lease->payments()->count());
     }
 
     public function test_le_locataire_peut_donner_preavis_sans_gerer_le_bail(): void

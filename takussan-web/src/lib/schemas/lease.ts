@@ -43,9 +43,12 @@ export const createLeaseSchema = z
     type: leaseTypeSchema,
     start_date: isoDate,
     end_date: isoDate.optional().or(z.literal('').transform(() => undefined)),
+    // TCK-2643 — positif NON exigé ici : une vente garde le loyer à 0 du formulaire, et
+    // `.positive()` la refusait sans que l'écran (qui ne montre pas le loyer d'une vente) le dise.
+    // Une location exige toujours un loyer positif (`superRefine`, `lease.monthlyRentRequired`).
     monthly_rent: z
       .number({ error: msgValidation('lease.rentRequired') })
-      .positive(msgValidation('lease.rentPositive'))
+      .nonnegative(msgValidation('lease.rentPositive'))
       .optional(),
     sale_price: z.number().positive().optional(),
     deposit_amount: z
@@ -61,6 +64,26 @@ export const createLeaseSchema = z
       .optional(),
     terms: z.string().trim().max(5000).optional(),
     special_conditions: z.string().trim().max(5000).optional(),
+    // TCK-2679 — les charges mensuelles, terme du bail. TCK-2643 — la pénalité de retard et
+    // l'indemnité de départ anticipé dès la création, aux bornes de `StoreLeaseRequest`.
+    monthly_charges: z.number().nonnegative(msgValidation('lease.chargesNonNegative')).optional(),
+    late_fee_percent: z
+      .number()
+      .min(0, msgValidation('lease.lateFeePercentInvalid'))
+      .max(50, msgValidation('lease.lateFeePercentInvalid'))
+      .optional(),
+    late_fee_grace_days: z
+      .number()
+      .int(msgValidation('lease.graceDaysInvalid'))
+      .min(0, msgValidation('lease.graceDaysInvalid'))
+      .max(30, msgValidation('lease.graceDaysInvalid'))
+      .optional(),
+    early_termination_penalty_months: z
+      .number()
+      .int(msgValidation('lease.earlyTerminationInvalid'))
+      .min(0, msgValidation('lease.earlyTerminationInvalid'))
+      .max(12, msgValidation('lease.earlyTerminationInvalid'))
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type === 'sale') {

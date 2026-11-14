@@ -1,84 +1,16 @@
 import { redirect } from 'next/navigation';
-import { getMeAction } from '@/app/actions/auth';
-import { isAgent, isAdmin, isOwner, isServiceProvider, isTenant } from '@/lib/roles';
-import { resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { repliDeLaVueBailleur, vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
-import { getToken } from '@/lib/session';
 
-export default async function OverviewPage() {
-  const user = await getMeAction();
-  const roles = user.roles;
+import { cibleServeurDeLAncienneAdresse } from '@/lib/rapports/gardes-serveur';
 
-  if (isAdmin(roles)) {
-    // Cross-team agency dashboard is Standard-only. TCK-595 (AC7) — l'admin d'une agence
-    // `individual` est un hôte : il gère SES biens, et `GET /api/dashboard/me` le résout déjà en
-    // `owner`. Il était envoyé sur la vue agent, qui lui montrait un pipeline et des commissions
-    // d'agent qu'il n'a pas.
-    if (user.agency_id) {
-      const token = await getToken();
-      const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview (aiguillage)') : null;
-      // FAIL-CLOSED, même raison qu'ailleurs : `fetchAgency` avale son erreur en `null`, donc
-      // `if (agency && …)` laissait une agence `individual` sur la vue Standard dès que l'API
-      // toussait. Ce site-ci n'est dans AUCUNE liste — ni PRO_ROUTES, ni les pages gardées —
-      // il a été trouvé en cherchant la CLASSE du défaut plutôt que ses instances connues.
-      // `affichage`, pas `decision` — et la distinction n'est pas cosmétique.
-      //
-      // Cette route N'EST PAS une surface réservée : elle ne figure dans aucune liste de garde.
-      // Son seul travail est d'aiguiller vers la vue agence ou la vue agent, et les DEUX sont
-      // légitimes pour cet utilisateur. En `decision`, une panne de trente secondes renvoyait
-      // vers `/verification-indisponible` — c'est-à-dire remplaçait le tableau de bord par un
-      // écran d'erreur sur la route d'atterrissage après connexion, là où le repli vers la vue
-      // agent aurait montré une page qui marche.
-      //
-      // *`decision` se réserve aux endroits où `kind` GARDE l'accès. Ailleurs, ne pas savoir
-      // doit dégrader, pas interrompre.*
-      if (agency?.kind === 'individual') {
-        // TCK-2260 (P116.07) — la vue bailleur ne s'offre qu'au bailleur, ou à l'admin qui détient
-        // `reports.view_agency`. Capacités illisibles (`null`) : on aiguille quand même, le layout
-        // de la vue décide — ici, ne pas savoir dégrade.
-        if ((await vueBailleurOuverte(user)) === false) redirect(await repliDeLaVueBailleur(user));
-        redirect('/app/overview/owner');
-      }
-      if (!agency || agency.kind !== 'standard') redirect('/app/overview/agent');
-    }
-    redirect('/app/overview/agency');
-  }
-  if (isAgent(roles)) redirect('/app/overview/agent');
-  if (isOwner(roles)) redirect('/app/overview/owner');
-  // TCK-379 — un `service_provider` était aiguillé ici vers `/app/overview/tenant`, c'est-à-dire
-  // vers le tableau de bord LOCATAIRE, qui lui répond `has_customer_profile: false`. Aucun
-  // tableau de bord prestataire n'est spécifié : `docs/features.md` §2.5 en énumère quatre —
-  // agence 🛡️, bailleur 🏢, agent 🧑‍💼, locataire 🏠 — et aucun pour 🔧. En inventer un serait
-  // hors spec ; un prestataire qui atteint cette route par un signet est donc ramené à son
-  // propre point d'entrée.
-  //
-  // ⚠ La justification a CHANGÉ DE SOURCE, et l'ancienne était en train de devenir fausse. Elle
-  // disait « l'acteur 🔧 n'est même pas dans la légende » — c'est-à-dire qu'elle adossait un
-  // comportement à une LACUNE de la spec. TCK-420 a comblé cette lacune : 🔧 entre dans la
-  // légende, et §2.5 porte désormais la note qui TRANCHE l'absence de tableau de bord
-  // prestataire. C'est cette note qu'il faut lire, et c'est une référence stable — là où
-  // « l'acteur n'est pas dans la légende » se périmait au premier ticket qui l'y mettait.
-  // *Une règle justifiée par un trou dans sa spec meurt le jour où le trou est bouché, même
-  // quand la règle, elle, reste juste.*
-  //
-  // ⚠ Le test porte sur un prestataire PUR : les branches admin / agent / bailleur ci-dessus
-  // s'appliquent d'abord, et un prestataire qui est AUSSI locataire garde sa vue locataire —
-  // c'est son autre rôle qui la lui donne, pas celui-ci.
-  //
-  // ⚠ TCK-492 — la condition portait aussi `!isCustomer(roles)`. Le terme a été
-  // retiré, et son retrait ne change RIEN au comportement : `customer` est
-  // devenu le plancher de toute identité authentifiée, si bien que
-  // `!isCustomer` était constamment faux et aurait empêché ce redirect de
-  // s'appliquer à qui que ce soit — y compris au prestataire pur qu'il vise.
-  // `!isTenant`, lui, discrimine réellement depuis que `tenant` est émis :
-  // c'est lui qui porte désormais l'exception écrite ci-dessus.
-  if (isServiceProvider(roles) && !isTenant(roles)) redirect('/app');
-
-  // Tout le reste — acheteur, locataire, compte neuf — atterrit sur la vue
-  // locataire. La ligne `if (isCustomer || isTenant) redirect(…)` qui précédait
-  // ce redirect final visait la même destination : sous la nouvelle sémantique
-  // elle serait devenue tautologique, et une condition toujours vraie devant un
-  // inconditionnel identique se lit comme une garde alors qu'elle n'en est plus
-  // une.
-  redirect('/app/overview/tenant');
+/**
+ * TCK-2628 (ADR-0096 § 4) — `/app/overview` est devenue un onglet de « Rapports » (`/app/reports`). L'adresse reste
+ * servie pour les signets, les e-mails et les notifications, et ne rend qu'une redirection : vers l'onglet
+ * équivalent, portée comprise (`?scope=agency`), ou la vue d'ensemble quand cet onglet est masqué ou interdit, ou `/app`
+ * pour une persona sans « Rapports » (`cibleDeLAncienneAdresse`).
+ *
+ * ⚠ Ni `layout.tsx` ni `loading.tsx` dans ce segment : une frontière de suspension rendrait la
+ * redirection en 200 au lieu de 307 (TCK-426, `app/__tests__/etats-de-route.test.ts`).
+ */
+export default async function AncienneVueDEnsemble({ searchParams }: { readonly searchParams: Promise<{ readonly scope?: string | string[] }> }): Promise<never> {
+  redirect(await cibleServeurDeLAncienneAdresse('/app/overview', searchParams));
 }

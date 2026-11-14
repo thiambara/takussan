@@ -66,7 +66,7 @@ export interface PageAdmin {
 /** L'ORDRE est celui du menu (celui de `buildAdminItems` avant TCK-633, à l'identique). */
 const TABLE = [
   // TCK-647 (ADR-0064 §3) — le tableau de bord de l'agence n'est pas dans cette table : c'est
-  // `/app/overview/agency`, gardé par son propre layout.
+  // la vue d'ensemble de « Rapports » (`/app/reports`, TCK-2628), gardée par `garderLaVueDEnsemble`.
   // TCK-1412 (P148.02) — la section `team` s'ouvre à qui invite, attribue un rôle ou suspend : la
   // liste de l'équipe se lit sous les mêmes capacités (`UserAdminController::index`).
   {

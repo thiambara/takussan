@@ -112,4 +112,37 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Écart au contrat, décidé à l'implémentation (2026-11-13) : `offline_reasons` se demande par
+`include=offlineReasons`, pas par `fields[properties]=…,offline_reasons`.** ADR-0097 § 1 (amendé) et
+ADR-0021 refusent un champ dérivé dans `fields[]` : `is_online` y est déjà servi par `include=online`, et le
+motif suit la même voie. L'inclusion séparée garde aussi son coût (six requêtes par page : une par
+condition, plus une qui lit le statut) hors des appelants actuels d'`include=online`. Un
+`fields[properties]=…,offline_reasons` rend 400, épinglé.
+
+- **Une seule source** : `Property::conditionsEnLigne()` rend la liste ordonnée des conditions de « en
+  ligne » (`agency_inactive`, `status`, `not_published`, `private`, `test`) ; `scopePublic` les applique
+  toutes, `offlineReasonsAmong()` juge chacune par l'identifiant des biens qui la remplissent ; le statut
+  rend `status_<valeur>`. `isOnline()` et `filter[public]` ne changent pas : ils lisent `scopePublic`.
+- **Qui lit** (précisé par le team-lead le 2026-11-13) : le personnel de l'agence du bien, sous son
+  profil ACTIF, et le bailleur du bien (`BailleurDuBien`) ; l'opérateur de la plateforme aussi. Jamais le
+  public, un client ni un autre bailleur : une ligne qu'ils voient ne porte pas la clé, et aucun code ne
+  sort. Une seule porte, `App\Services\Property\MotifsHorsLigne::pour()`, pour la fiche et la liste. Elle
+  ajoute une garde à `view` et à la portée de la liste, qui rendent aussi à un agent les biens qu'il a
+  saisis quand il agit sous son profil bailleur d'une autre agence. Tests de fuite : public, client
+  (locataire du bien loué), autre bailleur, agent sous profil bailleur ; les routes publiques rendent 404
+  pour un bien hors ligne (AC3).
+- **Décision (team-lead, 2026-11-13) : l'opérateur de la plateforme (super-admin) lit aussi les motifs.**
+  La modération lit déjà ces biens, et la console `/super-admin` est une surface de plateforme, pas un
+  lecteur public. La branche est épinglée : la retirer fait rougir les trois tests AC1/AC2 qui lisent
+  en super-admin.
+- **Front** : `src/lib/biens/motifs-hors-ligne.ts` traduit les codes (`property.dashboard.horsLigne.phrase.*`,
+  code inconnu → « Hors ligne. ») ; la fiche les liste sous la pastille « Hors ligne » (téléphone et
+  bureau), la carte du mode Annonces porte le premier motif sur une ligne tronquée, les autres en texte
+  lu par les lecteurs d'écran et le tout dans l'infobulle (survol et focus clavier). Le front ne lit que
+  `offline_reasons`, jamais le statut ni la visibilité.
+- **Gestes** : la phrase nomme le geste (« Privé — rendez-le public pour le mettre en ligne. ») ; les
+  gestes existants (visibilité, statut) restent où ils sont, sans bouton dupliqué sous le motif.
+- **Reste, non changé** : `PublishReadiness::statusPutsOnline` redit une partie du prédicat sous forme de
+  prédiction (ce que fera un changement de statut) ; à converger sur `conditionsEnLigne()` par un ticket
+  à part si on le veut.
+

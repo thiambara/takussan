@@ -3,9 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\BorneLesReglesDElement;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
+use App\Rules\InstantIso;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,9 +20,10 @@ use Illuminate\Validation\Rule;
  *       "name": "Salon",
  *       "condition": "good",           // top-level room state (InventoryCondition values)
  *       "notes": "optional",
+ *       "completed": true|false|null,   // TCK-2647 — la pièce cochée « terminée »
  *       "elements": [                   // optional granular inventory of the room's items
- *         { "label": "Canapé", "state": "bon"|"usé"|"endommagé"|"manquant", "notes": "..." }
- *       ]
+ *         { "label": "Canapé", "state": "bon"|"usé"|"endommagé"|"manquant"|null, "notes": "..." }
+ *       ]                               // TCK-2647 — `state` nul : à qualifier avant la soumission
  *     }
  *   ]
  */
@@ -29,6 +32,7 @@ class InventoryStoreRequest extends FormRequest
     // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
     // BaseFormRequest pour les autres).
     use BorneLesReglesDElement;
+    use ConvertitLesInstantsRecus;
 
     /**
      * P143.01 (TCK-1915) — décision du porteur (2026-10-23) : le PDF de l'état des lieux est recomposé
@@ -60,17 +64,23 @@ class InventoryStoreRequest extends FormRequest
             // un bail tiers passait la validation. Le contrôleur rend le refus aux deux.
             'lease_id' => ['required', 'integer'],
             'type' => ['required', Rule::enum(InventoryType::class)],
-            'conducted_at' => ['nullable', 'date'],
+            'conducted_at' => ['nullable', 'date', new InstantIso],
             // TCK-2646 — une sortie sans pièces reprend celles de l'entrée signée du bail (son état
             // général aussi) ; sans entrée signée, le service rend 422 sur le champ manquant.
             'general_condition' => ['required_unless:type,move_out', Rule::enum(InventoryCondition::class)],
             'rooms' => ['required_unless:type,move_out', 'array', 'min:1', 'max:'.self::MAX_ROOMS],
             'rooms.*.name' => ['required', 'string', 'max:255'],
             'rooms.*.condition' => ['required', Rule::enum(InventoryCondition::class)],
+            // TCK-2647 — la pièce cochée « terminée » par l'agent, à la pièce par écran ; rendue telle quelle.
+            'rooms.*.completed' => ['nullable', 'boolean'],
             'rooms.*.notes' => ['nullable', 'string', 'max:'.self::MAX_NOTES],
             'rooms.*.elements' => ['nullable', 'array', 'max:'.self::MAX_ELEMENTS_PER_ROOM],
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
-            'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
+            // TCK-2647 — un élément peut attendre son état (`null`) tant que l'état des lieux est un
+            // brouillon : la création n'en fait que des brouillons, la mise à jour n'en touche pas
+            // d'autre (`InventoryService::update()`, 422 `inventory.not_draft`). La soumission à
+            // signature le refuse (`InventoryService::submit()`, 422 `inventory.unqualified_elements`).
+            'rooms.*.elements.*.state' => ['nullable', Rule::enum(InventoryElementState::class)],
             'rooms.*.elements.*.notes' => ['nullable', 'string', 'max:'.self::MAX_ELEMENT_NOTES],
             // TCK-2646 — la retenue proposée, sur une sortie seulement. `entry_state` n'est pas une
             // règle : la validation le retire, le serveur le pose (`InventoryExitPrefill`).
@@ -81,5 +91,11 @@ class InventoryStoreRequest extends FormRequest
             // renouvelle, même locataire et même bien (vérifié par le service), à défaut la plus récente.
             'from_inventory_id' => ['nullable', 'prohibited_unless:type,move_out', 'integer', 'min:1'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['conducted_at'];
     }
 }

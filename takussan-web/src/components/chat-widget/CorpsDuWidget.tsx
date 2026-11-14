@@ -11,7 +11,7 @@ import { ChatView } from '@/components/messages/ChatView';
 import { PropertyDraftChatView } from '@/components/messages/PropertyDraftChatView';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { useFloatingDockSlot } from '@/components/floating-dock';
-import { estPleinEcran, porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
+import { estDansLaConsole, estPleinEcran, porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
 import { estSurLeSitePublic } from '@/lib/navigation/barre-publique';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
@@ -147,8 +147,14 @@ export function CorpsDuWidget() {
     pathname.startsWith('/app/messages/') ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/onboarding/') ||
+    // TCK-2611 — la page d'invitation est une page d'entrée (coque d'onboarding) : la bulle se posait sur
+    // son pied collé, au téléphone.
+    pathname.startsWith('/invitations/') ||
     // TCK-631 — le parcours de publication est plein écran : la bulle se posait sur son pied.
-    estPleinEcran(pathname);
+    estPleinEcran(pathname) ||
+    // TCK-2619 — la console, à toute largeur. `ChatWidget` ne monte déjà plus ce corps sous `/app` ;
+    // la règle est redite ici pour qui le monterait directement.
+    estDansLaConsole(pathname);
   const isVisible = Boolean(user) && !isHiddenByRoute;
   // TCK-2481 — sous `md`, la barre d'onglets de `/app` porte « Messagerie » chez les huit personas
   // (garde : `lib/navigation/__tests__/onglets.test.ts`) : le bouton flottant mobile se posait sur

@@ -6,19 +6,24 @@
  * est bouchonné comme l'API : 20 par défaut, 100 au plus, `meta.last_page`.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { CustomerDetail } from '@/types/customer';
 import { withIntl } from '@/test/intl';
-import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
+import { FilDuClient } from '@/components/customer-dashboard/fiche/FilDuClient';
 import { fetchCustomerNotes } from '../customers';
 
-vi.mock('@/components/customer-form', () => ({ CustomerForm: () => null }));
-vi.mock('@/components/customer-dashboard/CustomerNotesTimeline', () => ({ CustomerNotesTimeline: () => null }));
-vi.mock('@/components/customer-dashboard/CustomerDocumentsPanel', () => ({ CustomerDocumentsPanel: () => null }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/app/customers/9',
+}));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: null, user: null, isLoading: false }) }));
 
 const TOTAL = 25;
-const notes = Array.from({ length: TOTAL }, (_, i) => ({ id: TOTAL - i, body: `note ${TOTAL - i}` }));
+// La plus ancienne (page 2 de l'API) est épinglée.
+const notes = Array.from({ length: TOTAL }, (_, i) => ({ id: TOTAL - i, body: `note ${TOTAL - i}`, pinned: TOTAL - i === 1, created_at: '2026-11-01T10:00:00+00:00' }));
 
 function bouchonnerApi() {
   const urls: URL[] = [];
@@ -56,14 +61,21 @@ describe('fetchCustomerNotes — toutes les pages (TCK-1367)', () => {
     expect(urls.some((u) => u.searchParams.has('sort'))).toBe(false);
   });
 
-  it('l’onglet de la fiche compte « Notes (25) »', async () => {
+  // TCK-2589 — l'onglet « Notes (25) » est passé dans le fil de la fiche, qui lit ses notes page par
+  // page côté serveur ; ses ÉPINGLÉES, elles, viennent de cette lecture-ci : une épinglée de la page 2
+  // doit y paraître.
+  it('une épinglée de la deuxième page paraît en tête du fil', async () => {
     bouchonnerApi();
     const lues = await fetchCustomerNotes('jeton', 9);
 
     render(withIntl(
-      <CustomerDetailTabs customer={{ id: 9 } as CustomerDetail} notes={lues} documents={[]} relationships={[]} />,
+      <QueryClientProvider client={new QueryClient()}>
+        <FilDuClient customer={{ id: 9 } as CustomerDetail} notes={lues} demandeDeSaisie={null} />
+      </QueryClientProvider>,
     ));
 
-    expect(screen.getByRole('tab', { name: 'Notes (25)' })).toBeInTheDocument();
+    const tete = document.querySelector('[data-slot="epinglees-du-fil"]') as HTMLElement;
+    expect(within(tete).getByText('note 1')).toBeInTheDocument();
+    expect(screen.getAllByText(/^note \d+$/)).toHaveLength(1);
   });
 });

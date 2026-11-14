@@ -1,0 +1,287 @@
+{
+  "ticket": "TCK-2643",
+  "ecrans": [
+    {
+      "page": "app-baux",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Création — étape 3, les conditions",
+      "references": {
+        "telephone": "references/app-baux/a-2-telephone.json",
+        "bureau-1440": "references/app-baux/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-baux/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leases/new?property=13&customer=3",
+        "persona": "admin",
+        "etat": "le bien 13 de la démo (Dakar Immo, « Superbe villa 5 chambres - Grand Yoff », 720 000 F / mois, 3 mois de caution, bailleur Serigne Gueye) et la cliente 3 (Aminata Sarr, avec compte) préchoisis ; au téléphone l'écran s'ouvre sur l'étape 3 ; « Début » posé au 1er décembre 2026 par la perturbation (clic dans le calendrier) ; aucun bouchon : défauts, bien, cliente et réglages sont ceux de l'API",
+        "perturber": "relevé : garde d'écriture (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS) + clic du 1er décembre dans « Début » — script dans le rapport de lot, hors dépôt"
+      }
+    },
+    {
+      "page": "app-baux",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Création — étape 4, vérifier",
+      "references": {
+        "telephone": "references/app-baux/a-3-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "_reference": "sans version bureau (gel.json) : au bureau, la création tient en une page — l'écran 2 la couvre.",
+      "produit": {
+        "route": "/app/leases/new?property=13&customer=3",
+        "persona": "admin",
+        "etat": "même bail ; « Début » au 1er décembre 2026 puis « Continuer » : l'étape 4, le récapitulatif ; aucune écriture (garde d'écriture du relevé, `--bloquer '*signature-request*'`)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/leases/new?property=13&customer=3",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "rappel du bail (a-2) · carte « Les parties » (a-3), téléphone",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Appartement F3 · Sicap Baobab",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Superbe villa 5 chambres",
+        "min": 60
+      }
+    },
+    {
+      "nom": "ligne du bien choisi",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "TK-52086",
+        "min": 60
+      },
+      "produit": {
+        "slot": "ligne-choisie",
+        "rang": 0
+      }
+    },
+    {
+      "nom": "ligne du locataire choisi",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "+221 76 518 22 07",
+        "min": 60
+      },
+      "produit": {
+        "slot": "ligne-choisie",
+        "rang": 1
+      }
+    },
+    {
+      "nom": "total à l'entrée",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Total à l’entrée",
+        "min": 80
+      },
+      "produit": {
+        "slot": "total-a-l-entree"
+      }
+    },
+    {
+      "nom": "carte « Les conditions » (a-3, téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Bail d’habitation",
+        "min": 200
+      },
+      "produit": {
+        "boiteDe": "Bail d’habitation",
+        "min": 200
+      }
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Préavis": "Indemnité de départ",
+    "Réglages de l’agence appliqués": "Réglages de la plateforme appliqués"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "lien « Brouillon » de l’en-tête (enregistrement automatique)",
+      "propriete": "absent du produit ; le titre « Nouveau bail » prend sa largeur (+73 px au téléphone)",
+      "exception": "décision produit",
+      "motif": "écart du lot 3 (TCK-2643) : le brouillon est un bail en base (statut `draft`) créé par « Créer le brouillon » ; un enregistrement automatique pendant la saisie écrirait un bail à chaque étape. Le geste reste dans la barre d’action"
+    },
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "icônes lucide du formulaire (×, −, +, chevrons) et bordure des boutons",
+      "propriete": "trait 1,75 (bureau 1,5) au lieu de 2 ; bordure transparente de 1 px",
+      "exception": "composant partagé",
+      "motif": "primitives `ui/` et réglage global des icônes (B-composants) : hors du périmètre d’un écran ; la bordure transparente est celle de `Button`, sans effet visible"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "icônes − et + du pas-à-pas de mois (caution, avance)",
+      "propriete": "couleur `muted-foreground` au lieu de `foreground/70`",
+      "exception": "garde de dépôt",
+      "motif": "`encre-sans-alpha` refuse une encre à alpha ; `muted-foreground` est la teinte pleine la plus proche, contraste AA tenu"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "pastille de l’icône des réglages (encart « Réglages … appliqués »)",
+      "propriete": "`bg-muted text-muted-foreground` au lieu de l’aplat d’accent",
+      "exception": "garde de dépôt",
+      "motif": "`check-valeurs-arbitraires-app.mjs` refuse `bg-accent/<n>` dans `/app` (l’accent est réservé aux badges *featured*)"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "champs du formulaire (type, dates) : chevron du Select, icône calendrier du DatePicker, hauteur 32,4 px au bureau",
+      "propriete": "présents dans le produit seul / hauteur",
+      "exception": "composant partagé",
+      "motif": "`Select`, `DatePicker` et la densité du bureau (ADR-0107) sont communs à toute l’application"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "type de bail",
+      "propriete": "« Location résidentielle » (liste) au lieu de « Habitation » (texte)",
+      "exception": "décision produit",
+      "motif": "le type reste modifiable (bail commercial, saisonnier) : le libellé est celui de `typeOptions`, le même que sur la fiche du bail"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "mentions de source sous les valeurs préremplies (« Depuis l’annonce du bien », « Réglage de la plateforme », « Taux de l’agence, appliqué aux reversements », icônes ⓘ)",
+      "propriete": "présentes dans le produit seul ; « Règles du bail » et la suite descendent de 20 px (téléphone) à 38 px (bureau)",
+      "exception": "critère du ticket",
+      "motif": "l’AC exige que chaque valeur préremplie dise d’où elle vient (bien, agence, plateforme)"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "champs Devise et Fréquence",
+      "propriete": "présents dans le produit seul, après les règles",
+      "exception": "décision produit",
+      "motif": "décision 12 de `decisions-2643` : le bail porte devise et fréquence (bail trimestriel, annuel) ; placés en fin de bloc pour ne pas décaler le loyer"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Modifier » dans l’encart « Réglages … appliqués »",
+      "propriete": "absent du produit",
+      "exception": "décision produit",
+      "motif": "décision 7 : les réglages se modifient champ par champ dans le bloc lui-même, pas par un détour vers les réglages de l’agence"
+    },
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "« Préavis » → « Indemnité de départ »",
+      "propriete": "libellé (alias de la fiche) et largeur",
+      "exception": "décision produit",
+      "motif": "décision 5 : le bail porte l’indemnité de départ anticipé (en mois de loyer), pas un préavis ; la règle de préavis vit dans le contrat"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "commission",
+      "propriete": "en lecture seule, avec « Taux de l’agence, appliqué aux reversements »",
+      "exception": "décision produit",
+      "motif": "décision 3 : le taux de commission est celui de l’agence (`agency_commission_rate`), il ne se négocie pas bail par bail"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "caution : montant modifiable à côté du pas-à-pas de mois",
+      "propriete": "champ de montant au lieu du texte calculé « = 1 340 000 F »",
+      "exception": "décision de session (team-lead, 2026-11-12, pas de régression)",
+      "motif": "le produit garde la saisie d’un montant qui n’est pas un multiple du loyer (tests « montants hors pas » du lot 3) : retirer le champ serait une régression ; le pas-à-pas en mois reste à côté"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Aperçu du contrat » dans la colonne de droite",
+      "propriete": "absent du produit ; « Envoyer à la signature » et « Créer le brouillon » montent de 202 px",
+      "exception": "décision produit",
+      "motif": "écart du lot 3 : le contrat se rend côté serveur à l’envoi (`signature-request`) ; un aperçu client dupliquerait le gabarit"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "avis près de « Envoyer à la signature » (candidatures que l’envoi clôturera, code SMS, garants)",
+      "propriete": "présents dans le produit seul",
+      "exception": "décision produit",
+      "motif": "décision 11 : ce que l’envoi déclenche se lit avant le geste ; les garants s’ajoutent sur la fiche du bail. Décision 7b du porteur (TCK-2734) : les autres candidatures se closent à l’ENVOI en signature, plus à la création du brouillon — l’avis le dit, et se tait quand l’envoi est fermé (locataire sans compte)"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "total à l’entrée",
+      "propriete": "montant, détail sur deux lignes (+19,5 px à 1440), détail en `muted-foreground` au lieu de `foreground/75`",
+      "exception": "décision produit + garde de dépôt",
+      "motif": "décision a) de team-lead : le total est `CoutDEntree` strictement (avance + caution + frais d’agence), la maquette n’y met ni l’avance ni les frais ; le détail en trois termes passe à la ligne à 1440 ; `encre-sans-alpha` pour la couleur"
+    },
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "noms, référence, montants, dates, charges, pénalité",
+      "propriete": "texte, largeur, retrait des valeurs alignées à droite (cartes de l’étape 4)",
+      "exception": "vérité des données",
+      "motif": "bien 13 (« Superbe villa 5 chambres - Grand Yoff », 720 000 F, sans charges : « 0 F / mois »), cliente 3 (Aminata Sarr), réglages de la plateforme (pas de pénalité, indemnité 2 mois), début posé au 1er décembre 2026 par la perturbation ; la maquette porte ses données fictives"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Réglages de la plateforme appliqués » au lieu de « … de l’agence »",
+      "propriete": "libellé (alias de la fiche) et largeur",
+      "exception": "vérité des données",
+      "motif": "l’agence 1 de démo n’a aucun réglage de bail : les valeurs viennent de la plateforme, et l’encart le dit"
+    },
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "titres de section en lecture d’écran (« Les conditions », « Loyer et charges », « Règles du bail »)",
+      "propriete": "présents dans le produit seul (sr-only)",
+      "exception": "accessibilité",
+      "motif": "titres de région pour les lecteurs d’écran ; invisibles, ils ne décalent rien"
+    },
+    {
+      "ecran": "a-2-bureau-1440",
+      "element": "« Les clauses »",
+      "propriete": "absent du produit",
+      "exception": "vérité des données",
+      "motif": "sous le bord de l’écran relevé : la colonne du produit est plus haute de 38 px (mentions de source), la section commence sous les 900 px"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "barre latérale et en-tête de la coque (« Aujourd’hui », icônes de la barre, « Abonnement », « Agence », « Administrateur », couleur de « Nouveau bail » et « Annuler »)",
+      "motif": "la coque (C-coque, TCK-2619) ; rien de TCK-2643"
+    },
+    {
+      "ecran": "a-2-telephone, a-3-telephone",
+      "element": "rôle « coque · barre d’onglets »",
+      "motif": "l’écran de création masque la barre d’onglets du téléphone (barre d’action à la place), la maquette aussi : sans objet"
+    },
+    {
+      "ecran": "a-2-telephone",
+      "element": "rôle « carte « Les conditions » (a-3, téléphone) »",
+      "motif": "rôle propre au a-3 ; introuvable des deux côtés au a-2 (cf. `_roles`)"
+    },
+    {
+      "ecran": "a-2-telephone",
+      "element": "lien d’évitement « Aller au contenu principal »",
+      "motif": "coque ; relevé selon l’état du focus au moment de la capture"
+    }
+  ],
+  "mesures": {
+    "le": "2026-11-12, 21:57-21:59 (load 13 à 1 min), après l’avis de la décision 7b",
+    "arbre": "ebdcb0415 + arbre de travail du lot 4 (non commité)",
+    "methode": "`fidelite.mjs releve` persona admin, route `/app/leases/new?property=13&customer=3`, `--bloquer '*signature-request*'` ; perturbations `debut.garde.js` (début au 1er décembre 2026) et `verifier.garde.js` (+ « Continuer » jusqu’à l’étape 4), qui refusent toute requête autre que GET/HEAD/OPTIONS : « écritures refusées : 0 » sur les quatre relevés, réseau GET/OPTIONS seuls. ⚠ `--bloquer` apparie par sous-chaîne : `*/api/leases` bloquait `/api/leases/defaults`",
+    "resultats": {
+      "a-2-telephone": "24 conformes · 9 écarts · 21 absents · 4,76 % pixels",
+      "a-3-telephone": "58 conformes · 13 écarts · 7 absents · 2,55 % pixels",
+      "a-2-bureau-1440": "79 conformes · 147 écarts · 47 absents · 9,75 % pixels",
+      "a-2-bureau-1280": "80 conformes · 146 écarts · 47 absents · 9,8 % pixels"
+    },
+    "rideaux": "takussan-web/.fidelite/TCK-2643/cmp-{a-2-telephone,a-3-telephone,a-2-bureau-1440,a-2-bureau-1280}/{rideau.html,cote-a-cote.png}",
+    "lecture": "au bureau, l’essentiel des écarts est la coque (rôle « coque · barre latérale ») ; hors coque, chaque ligne relève d’un écart accepté ci-dessus. Les lignes du bien et du locataire choisis sont conformes, contenu compris"
+  },
+  "_roles": "Les rôles téléphone valent pour les deux écrans (le comparateur ne les filtre que par appareil) : « rappel du bail » désigne au a-2 la carte de rappel en tête de l'étape, au a-3 la carte « Les parties », qui porte le même texte ; « Les conditions » n'existe qu'au a-3 — au a-2 la ligne « absent de la maquette » est sans objet (introuvable des deux côtés). Les rôles se lisent sur les données : la maquette par ses données fictives, le produit par le bien 13 et la cliente 3 de la base de démo."
+}

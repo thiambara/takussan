@@ -37,7 +37,7 @@ return [
         'unavailable' => 'Indisponible',
         'pending' => 'Réservé',
         'draft' => 'Brouillon',
-        'published' => 'Publié',
+        'published' => 'Validé',
         'archived' => 'Archivé',
         'pending_review' => 'En revue',
         'rejected' => 'Refusé',

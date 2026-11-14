@@ -72,13 +72,18 @@ export async function twoFactorRegenerateRecoveryCodes(
 export interface EnvoiCodeSms {
   readonly sent: boolean;
   readonly codeApercu: string | null;
+  /**
+   * TCK-2613 — les secondes avant de pouvoir renvoyer (`data.retry_after` de `send-otp`), quand l'API les
+   * donne : le compte à rebours du renvoi n'a pas d'autre source.
+   */
+  readonly attente?: number;
 }
 
 export async function phoneSendOtp(
   token: string,
   phone?: string,
 ): Promise<EnvoiCodeSms> {
-  const res = await apiRequest<{ data: { sent: boolean } }>(
+  const res = await apiRequest<{ data: { sent: boolean; retry_after?: unknown } }>(
     '/api/auth/phone/send-otp',
     {
       method: 'POST',
@@ -88,7 +93,12 @@ export async function phoneSendOtp(
       body: phone === undefined ? undefined : { phone },
     },
   );
-  return { ...res.data, codeApercu: codeApercu(res) };
+  const { retry_after: attente, ...reste } = res.data;
+  return {
+    ...reste,
+    codeApercu: codeApercu(res),
+    ...(typeof attente === 'number' && Number.isFinite(attente) && attente > 0 ? { attente } : {}),
+  };
 }
 
 /**

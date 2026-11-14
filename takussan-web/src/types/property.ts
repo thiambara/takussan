@@ -19,6 +19,74 @@ export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'aut
  */
 export type PropertyCondition = 'off_plan' | 'new' | 'renovated' | 'good' | 'to_renovate';
 
+/**
+ * TCK-2637 — l'occupation d'un bien (`include=occupancy`), calculée par `PropertyOccupancy` côté API.
+ * Sans droit sur le bail, `lease`, `tenant`, `rent` et `current_month` sont absents (nuls) : seul
+ * `state` reste servi.
+ *
+ * TCK-2638 — `not_rental` : un bien qui n'est pas à louer (`contract_type` ≠ `rent`), ni occupé, ni
+ * vacant, ni en préavis. Le bail en cours d'une vente reste servi (`lease`, `tenant`, `current_month`).
+ */
+export interface OccupationDuBien {
+  state: 'occupied' | 'notice' | 'vacant' | 'not_rental';
+  /** Fin effective du dernier bail ; `null` pour un bien jamais loué (« Sans locataire ») et pour une vente. */
+  vacant_since: string | null;
+  lease: {
+    id: number;
+    reference_number: string | null;
+    type: string | null;
+    status: string | null;
+    start_date: string | null;
+    end_date: string | null;
+  } | null;
+  tenant: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+  } | null;
+  rent: {
+    amount: number;
+    charges: number | null;
+    currency: string | null;
+    payment_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
+  } | null;
+  current_month: {
+    status: 'paid' | 'late' | 'partial' | 'due' | 'none';
+    due_date: string | null;
+    days_late: number | null;
+    amount_due: number | null;
+    late_fee_outstanding: number | null;
+  } | null;
+}
+
+/**
+ * TCK-2637 — `GET /api/properties/portfolio-summary` : les comptes des tuiles, en un appel.
+ * TCK-2638 — `for_sale` compte les biens hors location (`filter[occupancy]=not_rental`) :
+ * `occupied + vacant + for_sale = total`.
+ */
+export interface ResumeDuPortefeuille {
+  total: number;
+  occupied: number;
+  vacant: number;
+  for_sale: number;
+  vacant_over_60_days: number;
+  rent_late: number;
+  rent_late_amount: number;
+  notice: number;
+  online: number;
+  /**
+   * TCK-2638 (lot B) — le mode Annonces : `online + pending_validation + drafts + offline = total`
+   * (`filter[listing]`), puis les onglets du bureau « Vendus, loués » (`status=sold,rented`) et
+   * « Archivés » (`include_archived=1&status=archived`, compté avec les archivés en toute portée).
+   */
+  pending_validation: number;
+  drafts: number;
+  offline: number;
+  sold_or_rented: number;
+  archived: number;
+}
+
 export interface PropertyListItem {
   id: number;
   user_id?: number;
@@ -63,6 +131,21 @@ export interface PropertyListItem {
   primary_contact?: PropertyOwnerLite | null;
   /** TCK-603 (verif-603 M2) — d'où vient `primary_contact` ; absente avec lui. */
   primary_contact_source?: PrimaryContactSource | null;
+  /** TCK-2637 — servi sur `include=occupancy` seulement : clé ABSENTE sinon. */
+  occupancy?: OccupationDuBien | null;
+  /** TCK-2637 (ADR-0097) — « En ligne », le prédicat du catalogue ; servi sur `include=online`. */
+  is_online?: boolean;
+  /**
+   * TCK-2678 (ADR-0097 § 5) — pourquoi le bien est hors ligne : des codes (`lib/biens/motifs-hors-ligne`),
+   * dans l'ordre d'affichage ; `[]` pour un bien en ligne. Servi sur `include=offlineReasons` seulement.
+   */
+  offline_reasons?: readonly string[];
+  /**
+   * TCK-2638 (lot B2) — la fin de la mise en avant payée (`BoostLifecycle`), ISO 8601 ; nulle sans boost,
+   * ABSENTE hors de la liste pro (`fields[properties]`, jamais sur la surface publique). « Boostée » =
+   * en cours, `sponsored_until` > maintenant (décision du porteur).
+   */
+  sponsored_until?: string | null;
   collaborators?: {
     id: number;
     user_id: number;
@@ -291,6 +374,11 @@ export interface PropertyDetail extends PropertyListItem {
    * court. Émis sur `properties.show` au seul personnel de l'agence du bien.
    */
   pending_owner?: { profile_id: number; name: string } | null;
+  /**
+   * TCK-2639 — le profil de bailleur du titulaire dans l'agence du bien (`/app/owners/{id}`), rendu à
+   * qui en ouvre la fiche (l'admin actif de l'agence) ; nul pour tout autre appelant.
+   */
+  owner_profile_id?: number | null;
 }
 
 export interface PaginatedProperties {

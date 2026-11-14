@@ -130,11 +130,15 @@ describe('TCK-2489 — lignesAujourdhui (ADR-0090 §3)', () => {
     expect(wo.nav.sidebar.aujourdhui).toEqual(fr.nav.sidebar.aujourdhui);
   });
 
-  it('les libellés français sont ceux de l’ADR (action, pas compte)', () => {
-    expect(fr.nav.sidebar.aujourdhui.lignes).toMatchObject({
+  it('les libellés français disent l’action, pas la destination (ADR-0090 §3, TCK-2619)', () => {
+    // TCK-2619 : « Demandes de contact » était le nom de l'entrée du menu ; la ligne dit le verbe,
+    // pour que la même file ne paraisse plus deux fois sous le même nom (docs/features.md, P1).
+    expect(fr.nav.sidebar.aujourdhui.lignes).toEqual({
       unreadMessages: 'Messages non lus',
       pendingVisits: 'Visites à confirmer',
-      unhandledLeads: 'Demandes de contact',
+      unhandledLeads: 'Demandes à traiter',
+      reviewModeration: 'Avis à modérer',
+      propertyModeration: 'Biens à valider',
     });
   });
 });

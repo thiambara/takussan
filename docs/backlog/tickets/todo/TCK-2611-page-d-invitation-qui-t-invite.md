@@ -34,7 +34,7 @@ L'invité qui ouvre un lien reçu par SMS sait immédiatement qui l'invite et po
 
 - **`phone` au `/verify` aussi pour une invitation par e-mail** : le numéro saisi à l'envoi du code (`/code`) est renvoyé à la vérification ; requis par e-mail, ignoré par SMS (le code part au numéro de l'invitation). Champs de `/verify` : `phone` (par e-mail), `code`, `first_name`, `last_name`, `two_factor_code` | `recovery_code`, `device_name`, `terms_version`.
 - **Refus à traiter**, sur `/verify` comme sur `POST /api/invitations/{token}/accept` :
-  - 401 `invitation.requires_login` (+ `requires_login: true`, `email`) — l'e-mail de l'invitation appartient à un autre compte que celui du numéro prouvé : se connecter à ce compte ;
+  - 401 `invitation.requires_login` (+ `requires_login: true`, `email` **masqué** — TCK-2727 : la valeur de `recipient.masked` de l'aperçu, que l'action relaie sous `emailMasque`) — l'e-mail de l'invitation appartient à un autre compte que celui du numéro prouvé : dire à quel compte se connecter (« m•••@gmail.com »), sans jamais préremplir le formulaire de connexion avec cette valeur ;
   - 403 `invitation.email_mismatch` / `invitation.phone_mismatch` — sous session, le compte connecté porte un autre e-mail, ou n'a pas vérifié le numéro de l'invitation (ADR-0094 § 7 : il n'est plus créé de compte pour l'invité sous la session d'un autre). L'écran propose de se déconnecter ou de changer de compte ;
   - réponses de la connexion par téléphone : `requires_2fa` (même code reposé avec le TOTP), `requires_terms` (même code reposé avec `terms_version`), 422 `phone_code_invalid`, 423 `account_locked`, 429.
 - **Le code est consommé même quand l'acceptation est ensuite refusée** (401, 403, 409, 410) : l'écran redemande un code avant tout nouvel essai.
@@ -97,3 +97,55 @@ Pas de régression — restent :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+**2026-11-13 — livraison (terrain-8).**
+
+- **La page lit l'aperçu au rendu serveur** (`lireInvitation`, `src/lib/invitation-apercu.ts`) et choisit
+  son écran : valide (l'entrée), ou l'un des six écrans fermés — expirée, annulée, acceptée (410), inconnue
+  (404), incomplet (sans `token`), indisponible (toute autre erreur : rien n'est affirmé de l'invitation).
+  Un écran fermé n'a aucun champ (AC1, `EcranFerme.tck-2611.test.tsx`).
+- **Rien n'accepte au rendu** (AC2) : le rendu n'émet aucun `POST` — éprouvé en vitest, et mesuré au
+  navigateur par la garde des relevés, qui refuse et compte toute écriture.
+- **AC3 est éprouvé en vitest seulement** (`EntreeDInvitation.tck-2611.test.tsx`, « par SMS : numéro →
+  code juste → assistant du bailleur ») : au navigateur, `/code` envoie un SMS réel et `/verify`
+  consomme l'invitation — les relevés doublent `/code` et ne vérifient jamais de code.
+- **Le drapeau `phone_login` est lu dans le navigateur** (`useDrapeauConnexionParTelephone`) : tant
+  qu'il n'est pas connu, aucune des deux voies n'est proposée ; éteint, la voie mot de passe est ouverte
+  sans « Continuer avec mon numéro ».
+- **Un seul h1, qui nomme l'invitant, le rôle et l'agence à toute largeur** : sous `xl`, la phrase
+  « Aïssatou vous invite comme bailleur » est visible et « chez Dakar Immo » est en `sr-only` (l'agence
+  est dans le bloc juste au-dessus) ; dès `xl`, « Rejoignez Dakar Immo » est visible et la phrase en
+  `sr-only`.
+- **Code consommé** : un 401 (`requires_login`), 403, 409 ou 410 à la vérification ramène à l'étape
+  du numéro ; le 410 relit la page (l'invitation s'est fermée entre-temps).
+- **« Ce n'est pas moi »** déconnecte par `useAuth().logout()` PUIS relit la page (`router.refresh()`) —
+  l'ordre est éprouvé par ablation.
+- **`Referrer-Policy: no-referrer`** : balise (`generateMetadata`), en-tête sur `/invitations/:path*`,
+  et sur `/auth/*` quand `redirect` emporte `/invitations/…` (`next.config.ts`).
+- **Mesure d'audience : il n'y en a aucune dans le front** (ni dépendance, ni script, ni `beforeSend`) —
+  la contrainte « le jeton n'entre pas dans la mesure d'audience » tient par absence. Le ticket qui en
+  posera une devra exclure `token` de l'URL relevée (TCK-610, contrainte 1).
+- **Coque** : `DeclarerEntree` reçoit l'option `objetAGauche` (`CoqueDEntree.tsx`) — l'agence à gauche
+  et la colonne de 400 px à droite dès 1280, dans 1080 px ; sous 1280, l'objet n'est pas rendu (la
+  colonne dit l'agence). Sans l'option, rien ne change pour TCK-2598.
+- **Bouton à 15 px** (`BOUTON_D_INVITATION`) : la maquette de l'invitation le dessine à 15 px à toute
+  largeur, celles de la connexion et de l'orientation à 16 (`BOUTON_D_ENTREE`, `text-action`). La page
+  suit sa maquette ; la constante de la famille n'est pas touchée.
+- **Ablations** (chacune attrapée) : téléphone envoyé pour une invitation par SMS ; code consommé sans
+  retour au numéro ; 410 sans relecture ; drapeau éteint ignoré ; relecture avant la déconnexion ; h1
+  sans l'agence ; règle `/invitations` absente ; `redirect` sans `/invitations` ; 404 lu comme
+  « indisponible ».
+- **Fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2611.json`.
+- **Invitation de relevé dans la base de démo LOCALE** (accord de team-lead, 2026-11-13) : **id 189**,
+  Dakar Immo, rôle owner, e-mail fictif `moussa.ndiaye@example.test`, `sent`, expiration à 7 jours,
+  Moussa Ndiaye en métadonnées — créée par `Invitation::create` direct (aucun envoi), sans bien en attente
+  (Dakar Immo n'en a aucun dans la démo : rien d'existant n'est modifié). `/verify` jamais appelé ;
+  passée en `revoked` après les relevés (2026-11-13, `status` et `revoked_at` posés) — relu : l'aperçu
+  de son lien répond 410 `invitation.token_revoked`.
+  Rouverte une fois pour rejouer AC4 sur l'état final (accord de team-lead, 2026-11-13 vers 21 h :
+  `status` sent, `revoked_at` null, expiration inchangée au 20 nov.), puis repassée en `revoked` avec un
+  `revoked_at` neuf — relu : 410 `invitation.token_revoked`. Rien d'autre écrit, aucun envoi, `/verify`
+  jamais appelé.
+- **AC4 mesuré sur l'état final** (390 × 844, champ du numéro au focus, clavier émulé de 336 px, zone
+  visible 508, écritures bloquées 0) : « Continuer avec mon numéro » de 428 à 476, entier — même résultat
+  que la mesure d'avant le passage du libellé « Votre numéro » en bloc.

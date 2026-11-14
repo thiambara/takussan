@@ -1,0 +1,178 @@
+{
+ "ticket": "TCK-2667",
+ "ecrans": [
+  {
+   "page": "app-equipe",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Liste",
+   "references": {
+    "telephone": "references/app-equipe/a-0-telephone.json",
+    "bureau-1440": "references/app-equipe/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-equipe/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/agency/team",
+    "persona": "admin",
+    "etat": "l'admin de Dakar Immo (base de démo du 2026-11-12) : 12 collaborateurs (10 agents dont 1 suspendu, 2 administrateurs), 12 bailleurs hors de la liste, 0 absence, 29 invitations en attente, aucun membre avec la double authentification. URL nue : tri par arrivée (`-created_at`). Tout envoi non-GET est refusé dans la page (scratchpad terrain-5/2667/p-rien.js)"
+   }
+  },
+  {
+   "page": "app-equipe",
+   "approche": "a",
+   "ecran": 1,
+   "nom": "Fiche d’un membre",
+   "references": {
+    "telephone": "references/app-equipe/a-1-telephone.json",
+    "bureau-1440": "references/app-equipe/a-1-bureau-1440.json",
+    "bureau-1280": "references/app-equipe/a-1-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/agency/team?membre=3",
+    "persona": "admin",
+    "etat": "la fiche de l'agent n° 3 (25 biens suivis, 1 204 000 F de commissions dues, taux 40 %, sans double authentification), choisi parce que ses commissions dues sont celles de la maquette. Téléphone : la fiche poussée plein écran ; bureau : le panneau de 480 px à côté du tableau. Aucun geste n'est joué ; tout envoi non-GET est refusé (p-rien.js)"
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/agency/team · /app/agency/team?membre=3",
+  "persona": "admin",
+  "disposition": "admin-agence",
+  "etat": "voir `ecrans[].produit`",
+  "defiler": null,
+  "perturber": null
+ },
+ "roles": [],
+ "zones": [],
+ "alias": {
+  "1 invitation en cours": "29 invitations en attente",
+  "Administratrice": "Administrateur",
+  "Active": "Actif",
+  "5 visites cette semaine": "18 visites à venir"
+ },
+ "ancres": [],
+ "ignorer": [
+  {
+   "element": "barre d'onglets du téléphone (« Accueil », « Argent », « Biens », « Messages », « Menu », pastille « 2 ») et barre latérale du bureau (rubriques, libellés, compteurs, « Démarrer »)",
+   "motif": "primitives de la coque, communes à tout /app, hors périmètre (famille 3) — mêmes exclusions que TCK-2670, TCK-2671 et TCK-2673"
+  },
+  {
+   "element": "« Aller au contenu principal »",
+   "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran tant qu'il n'a pas le focus — même exception que TCK-2619 et TCK-2670"
+  }
+ ],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-*",
+   "element": "noms, e-mails, numéros, initiales, dernières connexions, biens suivis, commissions dues, ordre des lignes, comptes des pastilles et des onglets (« 12 », « 10 », « 29 »), « 2FA à activer » partout, et tout ce qui suit en y",
+   "propriete": "texte, x, y, largeur",
+   "exception": "vérité des données",
+   "motif": "base de démo du 2026-11-12 : 12 collaborateurs dont aucun n'a la double authentification, 0 absence, 29 invitations ; la maquette : 11, 2FA chez la plupart, 1 absence, 1 invitation. Rien n'est écrit en base pour l'imiter"
+  },
+  {
+   "ecran": "a-0",
+   "element": "le bandeau « Pape Cissé est absent jusqu’au 14 nov. » (bureau) et la ligne « Absent jusqu’au 14 nov. → Khady » (téléphone)",
+   "propriete": "absent du produit ; tout ce qui suit remonte de sa hauteur",
+   "exception": "vérité des données",
+   "motif": "aucune absence en cours dans la base de démo ; le bandeau (`BandeauDesAbsences`) et la ligne sont rendus et testés sur une absence (`BandeauDesAbsences.test.tsx`, `ConsoleDeLEquipe.test.tsx`)"
+  },
+  {
+   "ecran": "a-0",
+   "element": "« Vous » et les deux administrateurs en tête de la maquette",
+   "propriete": "y",
+   "exception": "vérité des données",
+   "motif": "l'URL nue trie par arrivée, comme la console d'avant (contrainte du ticket : tris membre, dernière connexion, arrivée) ; le compte de démo de l'admin est l'un des plus anciens, il tombe en bas de la première page"
+  },
+  {
+   "ecran": "a-0 téléphone",
+   "element": "le bouton « Trier et filtrer » à droite de la recherche",
+   "propriete": "absent de la maquette ; la recherche est plus étroite",
+   "exception": "incohérence des maquettes",
+   "motif": "le ticket garde au téléphone le filtre de statut et les tris (membre, dernière connexion, arrivée) que la maquette du téléphone ne dessine pas ; ils vivent dans une feuille du bas (`FeuilleDuBas`), le patron des autres listes de /app"
+  },
+  {
+   "ecran": "a-0 bureau",
+   "element": "le chevron de « Dernière connexion »",
+   "propriete": "absent de la maquette",
+   "exception": "incohérence des maquettes",
+   "motif": "les deux colonnes triables (contrainte du ticket) portent le même signe ; la maquette n'en dessine qu'un, sur « Membre »"
+  },
+  {
+   "ecran": "a-1",
+   "element": "« Rôle dans l’agence » : la ligne « Peut publier, encaisser et créer des baux », et « Agent » dans le sélecteur",
+   "propriete": "absent du produit ; texte « Agent immobilier »",
+   "exception": "vérité des données",
+   "motif": "la ligne est la `description` du rôle d'agence, qui est vide pour les quatre rôles système de la démo (`GET /api/agencies/1/roles`) : elle s'affiche quand un rôle en a une, sans phrase fabriquée. Le nom d'un rôle système se lit par son type (`profile.roles.agent`, TCK-1808)"
+  },
+  {
+   "ecran": "a-1",
+   "element": "la rangée « Profil dans l’agence · Agent, administrateur ou bailleur · [Agent ▾] »",
+   "propriete": "absente de la maquette",
+   "exception": "incohérence des maquettes",
+   "motif": "le geste du tiroir d'avant (`UserRolesEditor`, `PUT /api/users/{id}/role`, sous double authentification), que le ticket garde et que la maquette ne dessine pas ; mise en rangée, comme ses deux voisines"
+  },
+  {
+   "ecran": "a-1",
+   "element": "« 9 en location, 14 à louer ou à vendre », « 3 baux · la plus ancienne date du 30 oct. », « Activée depuis le 3 févr. », « iPhone · Dakar », « Rappeler », et les chevrons de « Biens suivis » et « Clients et visites »",
+   "propriete": "absent du produit",
+   "exception": "vérité des données",
+   "motif": "l'API ne sert ni la ventilation des biens suivis, ni l'ancienneté des commissions dues, ni la date d'activation de la 2FA, ni l'appareil de la dernière connexion ; « Rappeler » est hors périmètre (aucun envoi n'existe) ; aucune liste de biens ni de clients ne se filtre par agent (le chevron de « Commissions dues » mène à `/app/commissions?agent=`, qui existe). Rien n'est inventé"
+  },
+  {
+   "ecran": "a-1",
+   "element": "« 5 visites cette semaine »",
+   "propriete": "texte",
+   "exception": "vérité des données",
+   "motif": "le portefeuille (`GET …/team/{user}/portfolio`) compte les visites à venir, pas celles de la semaine ; le libellé dit ce que le nombre compte (alias)"
+  },
+  {
+   "ecran": "a-1",
+   "element": "« Khady Diallo … peut agir à sa place » (carte d'absence) et la carte « Absences » de la maquette",
+   "propriete": "texte ; forme de la carte",
+   "exception": "règle métier",
+   "motif": "une absence route les nouvelles affectations vers le remplaçant (ADR-0035 § 3) ; « agir à sa place » n'est vrai que sous une délégation de rôle, que la fiche ne sert pas. La section d'absences reste `AgentAbsencesSection` (bornée au membre) ; « Modifier » une absence est TCK-2668"
+  },
+  {
+   "ecran": "a-*",
+   "element": "« Administratrice », « Active », « Absent jusqu’au… »",
+   "propriete": "texte",
+   "exception": "règle métier",
+   "motif": "le genre d'une personne n'est pas une donnée servie : les libellés de rôle et d'état sont ceux du dictionnaire, au masculin générique (alias)"
+  },
+  {
+   "ecran": "a-* bureau",
+   "element": "tailles de texte, hauteurs de champ, avatar de 64 px rendu à 57,6, interlignes",
+   "propriete": "taille de police, hauteur, largeur",
+   "exception": "technique",
+   "motif": "densité ×0,9 du bureau portée par les jetons (ADR-0107) ; les valeurs fixes de la maquette reprises en `rem` calculés sont la hauteur des rangées du tableau (`min-h-[3.625rem]`, 58 px), des rangées de la fiche (`min-h-[3.25rem]`, 52 px) et la largeur de la recherche (`w-[21.25rem]`, 340 px)"
+  }
+ ],
+ "comparaisons": {
+  "dossier": "takussan-web/.fidelite/TCK-2667/cmp-v3-a{0,1}-…",
+  "le": "2026-11-12, base de démo, jetons de l'app",
+  "resultats": {
+   "a0": "téléphone 22 conformes · 42 écarts · 23 absents · 11,41 % ; 1440 56 · 283 · 28 · 11,64 % ; 1280 56 · 283 · 28 · 12,19 % (écarts et absents du bureau : surtout la barre latérale de la coque, ignorée, et les données)",
+   "a1": "téléphone 35 · 26 · 5 · 6,94 % ; 1440 69 · 308 · 32 · 16,05 % ; 1280 69 · 308 · 32 · 15,28 %",
+   "avant_la_passe": "v1 : a0 téléphone 21 · 42 · 24 · 13,43 % ; a1 téléphone 24 · 16 · 23 · 8,07 % ; a1 1440 66 · 284 · 54 · 15,77 %"
+  },
+  "corriges_pendant_la_passe": [
+   "« Inviter » de l'en-tête du téléphone en bouton primaire plein (`ActionDEnTete primaire`), comme la maquette",
+   "« Rôle et commission » en rangées : libellé à gauche, sélecteur compact ou « 40 % ✎ » à droite ; « Attribuer » / « Enregistrer le taux » et « Annuler » n'apparaissent qu'une fois la valeur changée (rien ne part sans le bouton). Avant : trois formulaires empilés",
+   "« Profil dans l’agence » s'ouvrait sur « Choisir un rôle » pour un agent actif (la ligne ne porte pas `roles`) : il lit le profil en place (`roleCourant`) — défaut antérieur, déjà dans le tiroir d'avant",
+   "pas des rangées : 68 px au téléphone bordure comprise (69 avant), 58 px au bureau (52,2 avant)",
+   "le tableau défile dans son propre cadre à toute largeur (il rognait dès `xl`, où la fiche ouverte resserre la page)",
+   "« Tous les statuts » (« Tous statuts » avant), sélecteur et recherche aux largeurs de la maquette",
+   "les boutons de la barre de la fiche au téléphone en taille d'action (48 px, 15 px)"
+  ],
+  "criteres": {
+   "AC1": "à 390 : une ligne par personne (`LigneDuMembre`), aucun tableau ; toucher la ligne pousse `?membre=`, « Suspendre » est dans la barre de la fiche (deux touches) — test « AC1 » de ConsoleDeLEquipe.test.tsx",
+   "AC2": "démo : `meta.counts.staff` = 12 (10 agents, 2 administrateurs), 12 bailleurs, aucun listé (`filter[role]=agent,agency_admin`) ; la maquette dit 11 pour 9 + 2 — tests API TeamStaffCountAndAbsentFilterTest et front « la pastille Tous compte le personnel »",
+   "AC3": "« Propriétaires » mène à `/app/owners` ; la fiche d'un bailleur y porte « Suspendre l’accès » (GET de `/app/owners/8` : présent) et sa réactivation (FicheDuBailleur.tck-2641.test.tsx)",
+   "AC4": "la colonne et la ligne « Commissions dues » n'existent que si la réponse porte `commissions_due_amount`, que l'API ne rend que sous `payouts.approve` ou `reports.view_agency` (TCK-2665) — tests AC4, ablation : 2 rouges",
+   "AC5": "`?vue=performance` ouvre la performance sous `reports.view_agency` et une agence `standard` (TeamPerformance.tck-595.test.tsx, ConsoleDeLEquipe.test.tsx)"
+  },
+  "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024,1280` sur /app/agency/team et /app/agency/team?membre=3 : débord 0, dépassements 0, coupes 0 partout ; les ellipses relevées à 768 et 1024 sont les libellés du rail de la coque (famille 3). Le tableau défile dans son cadre (`overflow-x-auto` sous un cadre qui rogne, garde de console-agence-a11y.test.tsx) ; sous `xl` la fiche passe en plein écran (`PanneauDroit`, ADR-0106 § 4)"
+ }
+}

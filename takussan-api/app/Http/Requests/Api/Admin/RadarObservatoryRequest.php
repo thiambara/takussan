@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\Admin;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RadarSourceSite;
+use App\Rules\JourIso;
 use App\Services\Radar\Observatory\RadarObservatory;
 use App\Support\Http\ParametreUnique;
 use Carbon\CarbonInterface;
@@ -41,14 +42,14 @@ class RadarObservatoryRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'filter.since' => ['nullable', 'date'],
+            'filter.since' => ['nullable', 'date', new JourIso],
             'filter.contract' => ['nullable', Rule::in(['rent', 'sale'])],
             'filter.property_type' => ['nullable', Rule::enum(PropertyType::class)],
             'filter.source_site' => ['nullable', Rule::enum(RadarSourceSite::class)],
             'filter.neighborhood_id' => ['nullable', 'integer', 'min:1'],
             'fields.radar_observatory' => ['nullable', 'string'],
             // TCK-2431 — une période à l'envers est refusée ; `until` seul est une borne haute.
-            'filter.until' => ['nullable', 'date', ...($this->input('filter.since') === null ? [] : ['after_or_equal:filter.since'])],
+            'filter.until' => ['nullable', 'date', new JourIso, ...($this->input('filter.since') === null ? [] : ['after_or_equal:filter.since'])],
         ];
     }
 

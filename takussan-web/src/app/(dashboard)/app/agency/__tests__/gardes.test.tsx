@@ -30,22 +30,21 @@ vi.mock('@/lib/access/server-guards', () => ({ resolveAgencyOrNull: async () => 
 vi.mock('@/components/console', () => ({ PageHeader: () => null }));
 vi.mock('@/components/shared/NoAgencyState', () => ({ NoAgencyState: () => null }));
 vi.mock('@/app/actions/admin-agency', () => ({ fetchAgencyAction: async () => ({ ok: false, message: '' }) }));
-vi.mock('@/components/admin-agency/AgencyConfigForm', () => ({ AgencyConfigForm: () => null }));
+vi.mock('@/components/admin-agency/fiche/FicheDeLAgence', () => ({ FicheDeLAgence: () => null }));
 vi.mock('@/components/admin-agency/RegenerateWatermarksCard', () => ({ RegenerateWatermarksCard: () => null }));
 vi.mock('@/components/feedback', () => ({ EmptyState: () => null, ErrorState: () => null }));
-vi.mock('@/components/kyc/AgencyKycClient', () => ({ AgencyKycClient: () => null }));
+vi.mock('@/components/kyc/VerificationDeLAgence', () => ({ VerificationDeLAgence: () => null }));
 vi.mock('@/components/billing/AgencyBillingClient', () => ({ AgencyBillingClient: () => null }));
 vi.mock('@/components/billing/AgencyPayoutsClient', () => ({ AgencyPayoutsClient: () => null }));
 vi.mock('@/components/admin/AuditTrail', () => ({ AuditTrail: () => null }));
 vi.mock('@/app/(dashboard)/app/agency/finances/AdminFinancesClient', () => ({ AdminFinancesClient: () => null }));
-vi.mock('@/components/admin/reconciliation/ReconciliationClient', () => ({ ReconciliationClient: () => null }));
+vi.mock('@/components/admin/reconciliation/reste/ResteARapprocher', () => ({ ResteARapprocher: () => null }));
 vi.mock('@/components/admin/reconciliation/StatementDetail', () => ({ StatementDetail: () => null }));
 vi.mock('@/components/admin/ModerationWorkspace', () => ({ ModerationWorkspace: () => null }));
 vi.mock('@/components/admin/PropertyModerationWorkspace', () => ({ PropertyModerationWorkspace: () => null }));
 vi.mock('@/components/admin/roles/AgencyRolesConsole', () => ({ AgencyRolesConsole: () => null }));
 vi.mock('@/components/admin/roles/RoleDelegationsSection', () => ({ RoleDelegationsSection: () => null }));
-vi.mock('@/components/admin/TeamConsole', () => ({ TeamConsole: () => null }));
-vi.mock('@/components/admin/InviteMemberButton', () => ({ InviteMemberButton: () => null }));
+vi.mock('@/components/admin/equipe/ConsoleDeLEquipe', () => ({ ConsoleDeLEquipe: () => null }));
 vi.mock('@/app/actions/admin-settings', () => ({
   fetchIntegrationsAction: async () => ({ ok: false, message: '' }),
   fetchPaymentProviderSchemasAction: async () => ({ ok: false, message: '' }),

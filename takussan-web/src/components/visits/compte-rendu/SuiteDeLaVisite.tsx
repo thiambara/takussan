@@ -47,6 +47,12 @@ interface SuiteDeLaVisiteProps {
   readonly principal: ReactNode;
   /** Le reste du détail : les avis, les dialogues. */
   readonly reste: ReactNode;
+  /**
+   * TCK-2587 — la visite est « en cours » : la carte et le formulaire attendent la fin prévue (ou
+   * « Terminer »). Une étape demandée par l'URL (`?etape=`) reste servie, et un compte rendu déjà
+   * écrit reste lu.
+   */
+  readonly masquee?: boolean;
 }
 
 /**
@@ -60,7 +66,7 @@ interface SuiteDeLaVisiteProps {
  * - Dès `md` : en ligne, sous la carte de la visite ; dès `xl`, dans la colonne droite
  *   (`VisiteTermineeBureau`) — aucun dialogue.
  */
-export function SuiteDeLaVisite({ visite, principal, reste }: SuiteDeLaVisiteProps) {
+export function SuiteDeLaVisite({ visite, principal, reste, masquee = false }: SuiteDeLaVisiteProps) {
   const t = useTranslations('compteRendu');
   const tSuite = useTranslations('etMaintenant');
   const f = useFormatteurs();
@@ -89,7 +95,7 @@ export function SuiteDeLaVisite({ visite, principal, reste }: SuiteDeLaVisitePro
   // La réponse de l'écriture fait foi tant que la visite n'est pas relue (l'invalidation la relit).
   const compteRendu: CompteRendu | null = visite.report ?? reponse?.data.report ?? null;
   const closable = closableParCompteRendu(visite, maintenant);
-  if (!compteRendu && !closable) {
+  if (!compteRendu && (!closable || (masquee && recherche.get('etape') === null))) {
     return (
       <div className="space-y-6">
         {principal}

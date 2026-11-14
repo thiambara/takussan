@@ -8,6 +8,8 @@
  */
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+// TCK-2594 — la fiche lit le personnel actif (« Fiche » du client) : hors du sujet ici.
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
@@ -84,20 +86,27 @@ describe('BookingDetail — faits émis par l’API (TCK-1180)', () => {
   it('un acompte payé se lit dans booking_payments : badge et événement daté de paid_at', () => {
     rendre({ ...BASE, booking_payments: [{ ...ACOMPTE, status: 'paid' }] });
 
-    expect(within(blocAcompte()).getByText(fr.bookings.paymentStatus.paid)).toBeInTheDocument();
+    // TCK-2594 — « 50 000 F · payé » : la mention suit le montant, dans la ligne « Acompte » du Quoi.
+    expect(within(blocAcompte()).getByText(fr.bookings.fiche.quoi.paye)).toBeInTheDocument();
     expect(within(chronologie()).getByText(fr.bookings.detail.timeline.depositPaid)).toBeInTheDocument();
   });
 
   it('un acompte en attente n’est pas annoncé payé', () => {
     rendre({ ...BASE, booking_payments: [{ ...ACOMPTE, status: 'pending', paid_at: null }] });
 
-    expect(within(blocAcompte()).queryByText(fr.bookings.paymentStatus.paid)).toBeNull();
+    expect(within(blocAcompte()).queryByText(fr.bookings.fiche.quoi.paye)).toBeNull();
     expect(within(chronologie()).queryByText(fr.bookings.detail.timeline.depositPaid)).toBeNull();
   });
 
-  it('« Expire le » se lit dans expires_at', () => {
+  it('« Expire le » se lit dans expires_at, pour une demande en attente', () => {
+    rendre({ ...BASE, status: 'pending', confirmed_at: null, booking_payments: [] });
+
+    expect(screen.getByText(fr.bookings.detail.expiresAt).nextElementSibling).toHaveTextContent(/6 sept\. 2026/);
+  });
+
+  it('TCK-2594 — « Expire le » ne se dit pas d’une réservation confirmée (l’audit le relevait)', () => {
     rendre({ ...BASE, booking_payments: [] });
 
-    expect(screen.getByText(fr.bookings.detail.expiresAt)).toBeInTheDocument();
+    expect(screen.queryByText(fr.bookings.detail.expiresAt)).toBeNull();
   });
 });

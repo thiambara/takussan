@@ -6,8 +6,9 @@ import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError, type RequestOptions } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
+import type { BookingStatus } from '@/types/booking';
 import type { CustomerListItem } from '@/types/customer';
-import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
+import type { Guarantor, Lease, LeaseDefaults, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
@@ -114,7 +115,8 @@ export function useLeasePropertyOptions() {
         'user_id',
       ],
     },
-    include: ['owner'],
+    // TCK-2643 — `occupancy` : l'étape « Bien » propose les biens VACANTS d'abord (TCK-2637).
+    include: ['owner', 'occupancy'],
     filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
   };
@@ -173,6 +175,8 @@ export function useLeaseCustomerOptions(search?: string) {
         'status',
         'pipeline_stage',
         'created_at',
+        // TCK-2643 — le compte du locataire : sans lui, « Envoyer à la signature » est refusé (422).
+        'user_id',
       ],
     },
     filter: search ? { search } : {},
@@ -187,6 +191,20 @@ export function useLeaseCustomerOptions(search?: string) {
   );
 }
 
+/**
+ * TCK-2643 — le locataire du bail lu par son identifiant : `?customer=`, la réservation d'origine,
+ * ou une fiche proposée au doublon. Le formulaire le nomme et lit son compte (`user_id`) : sans
+ * compte, « Envoyer à la signature » lui est fermé.
+ */
+export function useLeaseCustomer(customerId: number | null | undefined) {
+  return useApiQuery<ApiResponse<CustomerListItem>>(
+    ['leases', 'customer', customerId ?? 0],
+    cheminApi`/api/customers/${customerId ?? 0}`,
+    // Un `show` rend la ressource entière et ignore `fields` (P60.03) : rien à lui envoyer.
+    { enabled: Boolean(customerId && customerId > 0) },
+  );
+}
+
 export type LeasePropertyLite = {
   id: number;
   title: string;
@@ -194,12 +212,25 @@ export type LeasePropertyLite = {
   main_photo_url: string | null;
 };
 
-// TCK-596 — `show` charge toujours le locataire (`LeaseController::show`). Seul `user_id` sert
-// ici : il désigne le compte du locataire, et c'est lui qui ouvre le geste de préavis.
+// TCK-2780 — `show` ne rend le locataire que sous `include=tenant`, borné par `fields[customers]` :
+// ce bloc n'a que les clés de `CHAMPS_DU_LOCATAIRE_DE_LA_FICHE`.
 export type LeaseTenantLite = {
   id: number;
+  // Le compte du locataire : « Envoyer pour signature » (bloqué sans compte), « Réviser » (locataire prévenu).
   user_id: number | null;
+  // TCK-2645 — `CustomerResource` : le nom (« Bail de … ») et le téléphone (Appeler / WhatsApp).
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  // Les initiales d'un locataire sans nom (`initialesDe`).
+  email?: string | null;
 };
+
+/**
+ * TCK-2780 — ce que la fiche du bail lit du locataire (`LeaseDetail`, `gestes.ts`, `FeuilleDeRevision`,
+ * `AbandonnerLeBrouillon`) : `show` ne rend que ces clés sous `include=tenant` (`fields[customers]`).
+ */
+export const CHAMPS_DU_LOCATAIRE_DE_LA_FICHE = ['id', 'user_id', 'first_name', 'last_name', 'phone', 'email'];
 
 export type LeaseWithRelations = Lease & {
   tenant?: LeaseTenantLite | null;
@@ -207,13 +238,24 @@ export type LeaseWithRelations = Lease & {
   property?: LeasePropertyLite;
 };
 
-export function useLease(id: number | null | undefined) {
+/**
+ * `GET /api/leases/{id}`. TCK-2780 — `avecLocataire` : la fiche du bail, qui nomme le locataire et
+ * l'appelle, le demande avec ses seules clés ; l'onglet « Location » du bien (`useLocationDuBien`) n'en
+ * lit rien et ne le reçoit pas. Le segment de clé vient après l'identifiant : les invalidations par
+ * préfixe `['leases', 'detail', id]` atteignent les deux lectures.
+ */
+export function useLease(id: number | null | undefined, { avecLocataire = false }: { readonly avecLocataire?: boolean } = {}) {
   const spatieParams: SpatieQueryParams = {
-    include: ['property'],
+    // TCK-2645 — les parties nommées de l'en-tête (TCK-2642 : `landlord` et `agent` lus à la main par
+    // `show`). Ni `attention` (les motifs de la file, au personnel), ni `due_summary` : l'état du mois
+    // se lit sur les échéances, qui portent l'identifiant que les gestes visent.
+    ...(avecLocataire
+      ? { include: ['property', 'landlord', 'agent', 'tenant'], fields: { customers: CHAMPS_DU_LOCATAIRE_DE_LA_FICHE } }
+      : { include: ['property', 'landlord', 'agent'] }),
   };
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(
-    ['leases', 'detail', id],
+    ['leases', 'detail', id, avecLocataire ? 'locataire' : 'sans-locataire'],
     cheminApi`/api/leases/${id ?? 0}`,
     {
       params: spatieParams,
@@ -242,6 +284,9 @@ const LEASE_PAYMENT_FIELDS: string[] = [
   'late_fee_outstanding',
   'late_fee_payable_online',
   'amount_due',
+  // TCK-2778 — les verdicts de la pénalité seule (relance notée, lien qui ne fait payer qu'elle).
+  'late_fee_reminder_allowed',
+  'late_fee_link_allowed',
   'receipt_available',
   'is_overdue',
   'reference_number',
@@ -319,6 +364,12 @@ export type CreateLeasePayload = {
   payment_day?: number;
   terms?: string;
   special_conditions?: string;
+  // TCK-2679 — les charges mensuelles, terme du bail. TCK-2643 — la pénalité et l'indemnité dès la
+  // création (`StoreLeaseRequest`), préremplies par `useLeaseDefaults`.
+  monthly_charges?: number;
+  late_fee_percent?: number;
+  late_fee_grace_days?: number;
+  early_termination_penalty_months?: number;
 };
 
 export function useCreateLease() {
@@ -354,6 +405,29 @@ export function useActivateLease(id: number) {
         ['leases', 'payments', id],
       ],
     },
+  );
+}
+
+/**
+ * TCK-2643 — ce qu'un bail neuf reprend du bien, de l'agence et de la plateforme, avec la source de
+ * chaque valeur. Lu dès qu'un bien est choisi ; rien n'est écrit.
+ */
+export function useLeaseDefaults(propertyId: number | null | undefined) {
+  return useApiQuery<ApiResponse<LeaseDefaults>>(
+    ['leases', 'defaults', propertyId ?? 0],
+    cheminApi`/api/leases/defaults${requete(new URLSearchParams({ property_id: String(propertyId ?? 0) }))}`,
+    { enabled: Boolean(propertyId && propertyId > 0) },
+  );
+}
+
+/**
+ * TCK-2643 — « Envoyer à la signature » depuis la création : l'identifiant du bail n'existe qu'APRÈS
+ * le POST, il se passe donc à l'appel (`useRequestLeaseSignature` le lie au rendu).
+ */
+export function useDemanderLaSignature() {
+  return useApiMutation<ApiResponse<Lease>, { readonly leaseId: number }>(
+    { path: (vars) => cheminApi`/api/leases/${vars.leaseId}/signature-request`, method: 'POST', body: () => undefined },
+    { invalidate: [['leases', 'list']] },
   );
 }
 
@@ -403,6 +477,9 @@ export function useReviewLeaseRent(id: number) {
       invalidate: [
         ['leases', 'list'],
         ['leases', 'detail', id],
+        // TCK-2645 — l'API réécrit les loyers en attente à partir de la date d'effet
+        // (`RentReviewService::rewriteUpcomingRentPayments`) : l'échéancier de la fiche se relit.
+        ['leases', 'payments', id],
       ],
     },
   );
@@ -525,6 +602,12 @@ export type CreateGuarantorPayload = {
  */
 export type LeaseGuarantor = Pick<Guarantor, 'id' | 'first_name' | 'last_name' | 'phone' | 'email'> & {
   role: string | null;
+  /** TCK-2762 — le lecteur peut modifier ce garant (`GuarantorPolicy::update`, la règle de `PUT /api/guarantors/{id}`). */
+  can_edit?: boolean;
+  /** TCK-2762 — sur une ligne modifiable seulement : une pièce est renseignée (type et numéro), sans son numéro. */
+  id_on_file?: boolean;
+  /** TCK-2762 — sur une ligne modifiable seulement : les baux qui portent ce garant (il est partagé). */
+  leases_count?: number;
 };
 
 /**
@@ -546,6 +629,33 @@ export function useCreateGuarantor(leaseId: number) {
       invalidate: [
         ['leases', 'detail', leaseId],
         ['leases', 'guarantors', leaseId],
+      ],
+    },
+  );
+}
+
+/**
+ * TCK-2762 — la fiche d'un garant (`GET /api/guarantors/{id}`), pour préremplir sa modification : la
+ * pièce et le revenu n'y sont que masqués (ADR-0070).
+ */
+export function useGuarantor(guarantorId: number | null) {
+  return useApiQuery<ApiResponse<Guarantor>>(['guarantors', 'detail', guarantorId], cheminApi`/api/guarantors/${guarantorId ?? 0}`, {
+    enabled: guarantorId !== null,
+  });
+}
+
+/**
+ * TCK-2762 — modifier un garant (`PUT /api/guarantors/{id}`) depuis la fiche d'un bail. Le corps ne
+ * porte que les champs CHANGÉS : la pièce et le revenu chiffrés ne s'écrasent pas d'un champ vide.
+ */
+export function useUpdateGuarantor(guarantorId: number, leaseId: number) {
+  return useApiMutation<ApiResponse<Guarantor>, Partial<CreateGuarantorPayload>>(
+    { path: cheminApi`/api/guarantors/${guarantorId}`, method: 'PUT' },
+    {
+      invalidate: [
+        ['leases', 'detail', leaseId],
+        ['leases', 'guarantors', leaseId],
+        ['guarantors', 'detail', guarantorId],
       ],
     },
   );
@@ -649,5 +759,46 @@ export function useCancelEarlyTermination(leaseId: number) {
         ['leases', 'list'],
       ],
     },
+  );
+}
+
+/**
+ * TCK-2764 — la réponse de `DELETE /api/leases/{id}` : la candidature d'origine telle qu'elle est
+ * restée (l'abandon ne la ferme pas), `null` quand le bail n'est tiré d'aucune réservation.
+ */
+export type AbandonLeaseDraftResponse = {
+  readonly data: {
+    readonly id: number;
+    readonly abandoned_at: string;
+    readonly origin_booking: { readonly id: number; readonly status: BookingStatus } | null;
+  };
+};
+
+/**
+ * TCK-2764 — abandonner un brouillon jamais envoyé en signature (suppression douce). Seules les
+ * listes se relisent : le détail du bail rend désormais 404, et l'écran quitte la fiche.
+ */
+export function useAbandonLeaseDraft(leaseId: number) {
+  return useApiMutation<AbandonLeaseDraftResponse, { reason?: string }>(
+    { path: cheminApi`/api/leases/${leaseId}`, method: 'DELETE' },
+    { invalidate: [['leases', 'list']] },
+  );
+}
+
+/** TCK-2764 — le geste qui ferme la candidature d'origine : `reject` si `pending`, `cancel` si `confirmed`. */
+export type FermetureDeCandidature = { readonly id: number; readonly geste: 'reject' | 'cancel' };
+
+/**
+ * TCK-2764 — fermer la candidature d'origine APRÈS l'abandon, par son geste existant (et ses avis) :
+ * son identifiant n'est connu qu'à la réponse du `DELETE`, d'où le chemin composé à l'appel.
+ */
+export function useFermerLaCandidatureDOrigine() {
+  return useApiMutation<ApiResponse<unknown>, FermetureDeCandidature>(
+    {
+      path: ({ id, geste }) => (geste === 'reject' ? cheminApi`/api/bookings/${id}/reject` : cheminApi`/api/bookings/${id}/cancel`),
+      method: 'POST',
+      body: () => ({}),
+    },
+    { invalidate: [['bookings', 'list']] },
   );
 }

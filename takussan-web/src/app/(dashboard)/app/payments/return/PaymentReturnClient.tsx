@@ -1,163 +1,132 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import {
-  useVerifyPayment,
-  type GatewayPaymentType,
-} from '@/hooks/useInitiatePayment';
-import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/console';
+
+import { FilDAriane } from '@/components/console/PageHeader';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { PaymentProviderPicker } from '@/components/payments/PaymentProviderPicker';
+import { CarteDuRetour } from '@/components/payments/retour/CarteDuRetour';
+import { issueDuRetour, lireLeLien } from '@/components/payments/retour/issue-du-retour';
+import { useVerifyPayment, type GatewayPaymentType, type VerifyPaymentResult } from '@/hooks/useInitiatePayment';
+import { ApiError } from '@/lib/api';
+import { useResumeDuLoyer } from '@/lib/queries/payments';
+import type { ApiResponse } from '@/types/api';
 
 const POLL_INTERVAL_MS = 15_000;
 const MAX_POLL_DURATION_MS = 120_000; // 2 min
 const MIN_LOADING_MS = 800;
 
-type StatusBucket = 'pending' | 'success' | 'failed' | 'refund' | 'unknown';
-
-function bucketFor(
-  status: string | null | undefined,
-  hint?: string | null,
-  refundPending?: boolean,
-): StatusBucket {
-  // TCK-596 (VERIF-596 passe 8, m-o) — débité sur une échéance annulée (ou déjà réglée) : ni un
-  // échec, qui inviterait à payer une seconde fois, ni un succès. L'agence rembourse.
-  if (refundPending === true) return 'refund';
-  const value = (status ?? '').toLowerCase();
-  if (value === 'paid' || value === 'success') return 'success';
-  if (value === 'failed' || value === 'cancelled') return 'failed';
-  if (value === 'pending' || value === 'partially_paid' || value === '') {
-    if (hint === 'failed') return 'failed';
-    if (hint === 'success') return 'success';
-    return 'pending';
-  }
-  return 'unknown';
+/** La réponse de `verify` et, faute de réponse, le code de sa dernière erreur (`0` : réseau). */
+function lireLaVerification(donnees: ApiResponse<VerifyPaymentResult> | undefined, erreur: unknown) {
+  const serveur = donnees?.data ?? null;
+  return {
+    serveur,
+    erreur: serveur !== null || !erreur ? null : erreur instanceof ApiError ? erreur.status : 0,
+  };
 }
 
+/**
+ * TCK-2650 — le retour de passerelle. L'issue est décidée par {@link issueDuRetour} : le statut
+ * SERVEUR d'abord, l'adresse jamais pour un succès (P1 de l'audit). « Vérification… » au moins
+ * 800 ms, puis interrogation toutes les 15 s pendant 2 min, tant que l'issue n'est pas définitive.
+ */
 function PaymentReturnInner() {
-  const t = useTranslations('payments.gateway');
-  const router = useRouter();
+  const t = useTranslations('payments.retour');
+  const tConsole = useTranslations('console.pageHeader');
   const params = useSearchParams();
 
-  const paymentType = params.get('payment_type') as GatewayPaymentType | null;
-  const paymentIdParam = params.get('payment_id');
-  const paymentId = paymentIdParam ? Number.parseInt(paymentIdParam, 10) : null;
-  const providerHint = params.get('status'); // success / failed / pending — hint from provider
+  const lien = lireLeLien(params);
+  const indice = params.get('status');
 
-  const [showLoading, setShowLoading] = useState(true);
-  const [budgetExhausted, setBudgetExhausted] = useState(false);
-  const startedAtRef = useRef<number | null>(null);
+  const [chargementMinimal, setChargementMinimal] = useState(true);
+  const [epuise, setEpuise] = useState(false);
+  const [relance, setRelance] = useState(0);
+  const [reessai, setReessai] = useState(false);
 
-  // Always show "verifying" for at least 800 ms so the webhook has a chance.
   useEffect(() => {
-    if (startedAtRef.current === null) {
-      startedAtRef.current = Date.now();
-    }
-    const t = setTimeout(() => setShowLoading(false), MIN_LOADING_MS);
-    return () => clearTimeout(t);
+    const minuteur = setTimeout(() => setChargementMinimal(false), MIN_LOADING_MS);
+    return () => clearTimeout(minuteur);
   }, []);
 
-  // Polling is enabled while we still hold a pending bucket and budget remains.
-  const isPaymentRefValid = !!paymentType && !!paymentId && Number.isFinite(paymentId);
+  // Aucune requête pour une adresse illisible : `enabled` ne s'ouvre que sur un lien lu. L'interrogation
+  // relit la dernière réponse et s'arrête sur une issue définitive.
+  const verify = useVerifyPayment((lien?.type ?? 'lease-payments') as GatewayPaymentType, lien?.id ?? null, {
+    enabled: lien !== null,
+    refetchInterval: (requete) =>
+      lien !== null && !epuise && !issueDuRetour({ lien, ...lireLaVerification(requete.state.data, requete.state.error), indice }).terminale
+        ? POLL_INTERVAL_MS
+        : false,
+  });
+  const { serveur, erreur } = lireLaVerification(verify.data, verify.error);
+  const decision = issueDuRetour({ lien, serveur, erreur, indice });
+  const interroge = lien !== null && !epuise && !decision.terminale;
+  const lienLu = lien !== null;
 
-  const verify = useVerifyPayment(
-    (paymentType ?? 'booking-payments') as GatewayPaymentType,
-    paymentId,
-    {
-      enabled: isPaymentRefValid && !budgetExhausted,
-      refetchInterval: isPaymentRefValid && !budgetExhausted ? POLL_INTERVAL_MS : false,
-    },
-  );
-
-  const status = verify.data?.data?.status ?? null;
-  const bucket = bucketFor(status, providerHint, verify.data?.data?.refund_pending);
-  const reachedTerminal = bucket === 'success' || bucket === 'failed' || bucket === 'refund';
-
-  // Schedule a single timer to mark the polling budget exhausted.
+  // Le budget de 2 minutes : un seul minuteur par relance (« Vérifier à nouveau » le réarme).
   useEffect(() => {
-    if (!isPaymentRefValid) return;
-    if (reachedTerminal) return;
-    const timer = setTimeout(() => {
-      setBudgetExhausted(true);
-    }, MAX_POLL_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [isPaymentRefValid, reachedTerminal]);
+    if (!lienLu || decision.terminale) return;
+    const minuteur = setTimeout(() => setEpuise(true), MAX_POLL_DURATION_MS);
+    return () => clearTimeout(minuteur);
+  }, [lienLu, decision.terminale, relance]);
 
-  const isVerifying = showLoading || (isPaymentRefValid && !budgetExhausted && bucket === 'pending');
+  // Le téléphone de l'agence, pour « Contacter l'agence » au remboursement (locataire seulement).
+  const resume = useResumeDuLoyer({ enabled: decision.issue === 'rembourse' && lien?.type === 'lease-payments' });
 
-  if (!paymentType || !paymentId) {
-    return (
-      <main className="mx-auto max-w-md py-16 text-center">
-        <PageHeader
-          className="items-center md:flex-col md:items-center"
-          title={t('return.invalid.title')}
-          description={t('return.invalid.body')}
-        />
-        <div className="mt-6">
-          <Button onClick={() => router.push('/app/payments')}>{t('return.actions.backToPayments')}</Button>
-        </div>
-      </main>
-    );
-  }
+  const enVerification = chargementMinimal || (lien !== null && serveur === null && erreur === null);
 
   return (
-    <main className="mx-auto max-w-md py-16 text-center">
-      <PageHeader
-        className="items-center md:flex-col md:items-center"
-        title={
-          <>
-            {bucket === 'success' && t('return.success.title')}
-            {bucket === 'failed' && t('return.failed.title')}
-            {bucket === 'refund' && t('return.refund.title')}
-            {bucket === 'pending' && t('return.pending.title')}
-            {bucket === 'unknown' && t('return.unknown.title')}
-          </>
-        }
-        description={
-          <>
-            {bucket === 'success' && t('return.success.body')}
-            {bucket === 'failed' && t('return.failed.body')}
-            {bucket === 'refund' &&
-              (status === 'cancelled' ? t('return.refund.bodyCancelled') : t('return.refund.bodyAlreadyPaid'))}
-            {(bucket === 'pending' || bucket === 'unknown') && t('return.pending.body')}
-          </>
-        }
+    <div data-slot="retour-de-paiement">
+      <DeclarerEnTete forme="detail" titre={t('titre')} repli="/app/payments" />
+      <FilDAriane
+        label={tConsole('breadcrumb')}
+        etapes={[{ label: t('fil.paiements'), href: '/app/payments' }, { label: t('fil.retour') }]}
       />
-      {isVerifying && (
-        // `role="status"` + `aria-live` restent sur le PARENT : un composant qui reposerait son
-        // propre rôle créerait un double signalement. L'icône lucide remplace le spinner CSS
-        // fait main en palette stone — le dernier hors palette du dépôt — et rejoint les 60
-        // autres `animate-spin`, tous des icônes lucide. (Le motif exact n'est pas recopié ici :
-        // un AC du ticket le cherche par grep, et un commentaire le ferait échouer sur du code
-        // juste — c'est le défaut que `check-pro-routes.mjs` documente sur quarante lignes.)
-        <div
-          className="mt-8 flex justify-center"
-          aria-live="polite"
-          role="status"
-        >
-          <Loader2 className="size-10 animate-spin text-primary" aria-hidden="true" />
-          <span className="sr-only">{t('return.verifying')}</span>
-        </div>
-      )}
-      {!isVerifying && (
-        <div className="mt-8 flex justify-center gap-3">
-          <Button onClick={() => router.push('/app/payments')}>{t('return.actions.backToPayments')}</Button>
-          {bucket === 'pending' && (
-            <Button variant="outline" onClick={() => verify.refetch()}>
-              {t('return.actions.refresh')}
-            </Button>
+      <p className="mb-6 font-display text-2xl font-semibold tracking-titre text-foreground max-md:hidden">{t('titre')}</p>
+      <div className="flex justify-center pt-4 pb-16 max-md:px-1">
+        <div className="w-full max-w-[30rem] md:rounded-2xl md:border md:border-border md:bg-card md:p-8">
+          {enVerification ? (
+            <div className="flex flex-col items-center py-10 text-center" role="status" aria-live="polite">
+              <Loader2 className="size-10 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+              <p className="mt-4 text-corps text-muted-foreground">{t('verification')}</p>
+            </div>
+          ) : (
+            <CarteDuRetour
+              issue={decision.issue}
+              lien={lien}
+              paiement={serveur?.payment ?? null}
+              statutServeur={serveur?.status ?? null}
+              interroge={interroge}
+              epuise={epuise}
+              onVerifierANouveau={() => {
+                setEpuise(false);
+                setRelance((n) => n + 1);
+                void verify.refetch();
+              }}
+              onReessayer={() => setReessai(true)}
+              telephoneDeLAgence={resume.data?.data?.lease?.agency?.phone ?? resume.data?.data?.offline_payment?.agency_phone ?? null}
+            />
           )}
         </div>
-      )}
-    </main>
+      </div>
+      {lien !== null && reessai ? (
+        <PaymentProviderPicker
+          open={reessai}
+          onOpenChange={setReessai}
+          paymentType={lien.type}
+          paymentId={lien.id}
+          currency={serveur?.payment?.currency ?? 'XOF'}
+        />
+      ) : null}
+    </div>
   );
 }
 
 export function PaymentReturnClient() {
   return (
-    <Suspense fallback={<main className="py-16 text-center text-sm text-muted-foreground">…</main>}>
+    <Suspense fallback={<div className="py-16 text-center text-sm text-muted-foreground">…</div>}>
       <PaymentReturnInner />
     </Suspense>
   );

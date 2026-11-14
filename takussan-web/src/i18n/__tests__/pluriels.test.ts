@@ -51,8 +51,9 @@ describe('pluriels ICU (TCK-752)', () => {
   });
 
   it('accorde une variable autre que count', () => {
-    expect(rendre('fr', 'dashboard.pages.propertyNew.quotaUsage', { used: 1, limit: 5 }))
-      .toBe('1 annonce active sur 5 permises par votre offre.');
+    // TCK-2638 — la note du quota parle de l'offre de l'AGENCE (l'agent ne la tient pas).
+    expect(rendre('fr', 'dashboard.pages.propertyNew.quota.usage', { used: 1, limit: 5 }))
+      .toBe('Votre agence a 1 annonce active sur 5 permises par son offre.');
     expect(rendre('fr', 'superAdmin.moderation.batchResult', { ok: 2, failed: 0 }))
       .toBe('2 traités, 0 en échec.');
     expect(rendre('en', 'notifications.codes.prospect_match.digest.body', { properties: 1, prospects: 3 }))

@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-import { isSuperAdmin } from '@/lib/roles';
+import { isAdmin, isAgent, isOwner, isSuperAdmin } from '@/lib/roles';
 import { BookingsList } from '@/components/bookings/BookingsList';
+import { MesReservations } from '@/components/bookings/liste/MesReservations';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { getTranslations } from 'next-intl/server';
-import { PageHeader } from '@/components/console';
-import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.bookings');
@@ -22,16 +21,12 @@ export default async function Page() {
     return <NoAgencyState title={t('title')} />;
   }
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-        // TCK-2580 — « Saisir une candidature ou une offre » : le « + » de l'en-tête au téléphone, le
-        // bouton dès `md` ; pour le personnel de l'agence seulement.
-        actions={<EntreeSaisieDemande variante="reservations" />}
-      />
-      <BookingsList />
-    </div>
-  );
+  // TCK-2594 — le personnel et le bailleur lisent les demandes par nature (Séjours, Candidatures,
+  // Offres) ; « Saisir une demande » (TCK-2580) reste au seul personnel, dans la liste.
+  if (isSuperAdmin(user.roles) || isAgent(user.roles) || isAdmin(user.roles) || isOwner(user.roles)) {
+    return <BookingsList titre={t('title')} />;
+  }
+
+  // TCK-2594 — le client lit « Mes réservations » (En cours, Terminées, Annulées).
+  return <MesReservations />;
 }

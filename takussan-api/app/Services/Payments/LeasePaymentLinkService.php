@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentLinkSubject;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\LeasePaymentLink;
@@ -22,6 +23,11 @@ use Illuminate\Support\Facades\DB;
  *   révoqué, expiré, ou dont l'échéance n'est plus payable par nature (supprimée, remboursée,
  *   caution rendue). Une échéance `paid` reste lisible (quittance) 30 jours après son paiement
  *   (voir `effectiveExpiry`).
+ *
+ * TCK-2778 — un lien a un SUJET (`PaymentLinkSubject`), déduit de l'échéance à l'émission
+ * (`subjectFor`) : le loyer dû (pénalité comprise quand l'agence l'encaisse en ligne), ou la
+ * pénalité de retard seule, restée due sur un loyer payé. Le lien actif d'un autre sujet est
+ * révoqué et remplacé : un lien ne change jamais ce qu'il fait payer.
  */
 class LeasePaymentLinkService
 {
@@ -35,14 +41,20 @@ class LeasePaymentLinkService
      * TCK-1344 (P132.05) — `$locale` : la langue du message qui porte le lien (`/{locale}/pay/…`),
      * pour que la page s'ouvre dans la langue du SMS. Sans elle, le front choisit.
      */
-    public function urlFor(LeasePayment $payment, ?User $by = null, ?string $locale = null): string
+    /**
+     * TCK-2778 — `$subject` : ce que le lien doit faire payer, que seul l'émetteur de l'agence passe
+     * (`LeasePaymentLinkController`, d'après `subjectFor`) ; il est rejugé sous verrou. Sans lui, le
+     * lien du loyer, comme avant le ticket : la quittance d'une échéance payée et la relance
+     * automatique le demandent ainsi.
+     */
+    public function urlFor(LeasePayment $payment, ?User $by = null, ?string $locale = null, ?PaymentLinkSubject $subject = null): string
     {
-        return $this->url($this->tokenFor($payment, $by, false), $locale);
+        return $this->url($this->tokenFor($payment, $by, false, $subject), $locale);
     }
 
-    public function regenerate(LeasePayment $payment, ?User $by = null): string
+    public function regenerate(LeasePayment $payment, ?User $by = null, ?PaymentLinkSubject $subject = null): string
     {
-        return $this->url($this->tokenFor($payment, $by, true));
+        return $this->url($this->tokenFor($payment, $by, true, $subject));
     }
 
     /** Révoque le lien actif, s'il y en a un. Rend `true` si un lien a été révoqué. */
@@ -128,6 +140,12 @@ class LeasePaymentLinkService
         $expires = CarbonImmutable::parse($link->expires_at);
         $settledAt = match (true) {
             $payment === null => null,
+            // TCK-2778 — un lien de pénalité naît sur un loyer DÉJÀ payé : sa lecture se compte depuis
+            // le règlement de la pénalité, jamais depuis celui du loyer (il serait caduc à sa
+            // naissance, le loyer payé depuis plus de 30 jours).
+            $payment->status === PaymentStatus::Paid && $link->isForLateFee() => $payment->late_fee_paid_at !== null
+                ? CarbonImmutable::parse($payment->late_fee_paid_at)
+                : null,
             $payment->status === PaymentStatus::Paid => $this->paidAt($payment),
             $this->isRefundedInstalment($payment) => $this->refundedAt($payment) ?? $this->paidAt($payment),
             default => null,
@@ -196,6 +214,25 @@ class LeasePaymentLinkService
      * Ce qu'aucune action ne rendra payable : supprimée, remboursée, caution rendue, annulée.
      * (`paid` n'en est pas : la page reste lisible pour la quittance.)
      */
+    /**
+     * TCK-2778 — ce qu'un lien émis maintenant ferait payer : le loyer s'il est dû
+     * (`PaymentGatewayService::isPayable`), la pénalité seule si elle reste due sur un loyer payé
+     * (`LeasePayment::lateFeeAloneOutstanding`), rien sinon (`null`). Ne juge pas si l'agence
+     * encaisse ses pénalités en ligne : c'est le refus propre du contrôleur.
+     */
+    public function subjectFor(LeasePayment $payment): ?PaymentLinkSubject
+    {
+        if (! $this->isPayableByNature($payment)) {
+            return null;
+        }
+
+        return match (true) {
+            app(PaymentGatewayService::class)->isPayable($payment) => PaymentLinkSubject::Rent,
+            $payment->lateFeeAloneOutstanding() => PaymentLinkSubject::LateFee,
+            default => null,
+        };
+    }
+
     public function isPayableByNature(LeasePayment $payment): bool
     {
         if ($payment->payment_type === LeasePaymentType::DepositRefund) {
@@ -205,16 +242,25 @@ class LeasePaymentLinkService
         return ! in_array($payment->status, [PaymentStatus::Refunded, PaymentStatus::Cancelled], true);
     }
 
-    private function tokenFor(LeasePayment $payment, ?User $by, bool $fresh): string
+    private function tokenFor(LeasePayment $payment, ?User $by, bool $fresh, ?PaymentLinkSubject $requested = null): string
     {
-        return DB::transaction(function () use ($payment, $by, $fresh): string {
+        return DB::transaction(function () use ($payment, $by, $fresh, $requested): string {
             // Sérialise deux émissions simultanées sur la même échéance (la ligne parent, comme
             // le veut le piège PostgreSQL n°2) : l'index partiel n'en laisserait passer qu'une, et
             // la seconde lèverait au lieu de rendre le lien de la première.
-            LeasePayment::query()->withTrashed()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
+            $locked = LeasePayment::query()->withTrashed()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
+
+            // TCK-2778 — le sujet demandé se rejuge sur la ligne verrouillée : un paiement reçu entre
+            // le contrôleur et ici change ce que le lien ferait payer.
+            $subject = $requested ?? PaymentLinkSubject::Rent;
+            abort_code_if($requested !== null && $this->subjectFor($locked) !== $requested, 409, 'payment.not_payable');
 
             $active = $this->active($payment);
-            if ($active !== null && ! $fresh && $this->effectiveExpiry($active, $payment)->isFuture()) {
+            // Un lien actif d'un AUTRE sujet (le lien du loyer, émis pendant le retard, sur un loyer
+            // payé depuis) est révoqué, jamais réaffecté : le SMS déjà envoyé ne fait pas payer
+            // autre chose que ce qu'il annonçait.
+            $sameSubject = ($active?->subject ?? PaymentLinkSubject::Rent) === $subject;
+            if ($active !== null && ! $fresh && $sameSubject && $this->effectiveExpiry($active, $locked)->isFuture()) {
                 return (string) $active->token;
             }
             if ($active !== null) {
@@ -231,6 +277,7 @@ class LeasePaymentLinkService
                 'token' => $token,
                 'expires_at' => $base->addDays((int) config('payments.pay_link.ttl_days_after_due', 60))->endOfDay(),
                 'created_by_id' => $by?->getKey(),
+                'subject' => $subject,
             ]);
 
             return $token;

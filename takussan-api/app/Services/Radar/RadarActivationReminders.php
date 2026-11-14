@@ -14,6 +14,7 @@ use App\Models\RadarListing;
 use App\Models\User;
 use App\Services\Boost\BoostSettings;
 use App\Services\Credits\WelcomeCreditService;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Property\PropertyViewCounter;
 use App\Support\PhoneFingerprint;
 use App\Support\RadarWaMe;
@@ -322,9 +323,13 @@ final class RadarActivationReminders
         ]);
     }
 
+    /**
+     * TCK-2794 — groupés comme tout nombre rendu : en `fr`, l'insécable U+00A0 et non plus l'espace
+     * ordinaire, sécable, qui pouvait couper « 1 200 » en fin de ligne ; en `en`, « 1,200 ».
+     */
     private static function number(int $value, string $locale): string
     {
-        return $locale === 'fr' ? number_format($value, 0, ',', ' ') : number_format($value);
+        return CurrencyFormatter::nombre($value, $locale, 0, 0);
     }
 
     /**

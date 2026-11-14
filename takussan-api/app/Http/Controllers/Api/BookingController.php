@@ -112,7 +112,7 @@ class BookingController extends Controller
 
     public function store(StoreBookingRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // TCK-1066 (P62.02) — un bien absent reçoit le refus d'un bien que l'appelant ne voit pas.
         $property = Property::query()->find((int) $data['property_id']);

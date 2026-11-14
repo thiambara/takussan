@@ -5,13 +5,13 @@ namespace App\Notifications;
 use App\Models\Enums\NotificationType;
 use App\Models\ThresholdAlert;
 use App\Notifications\Channels\AppDatabaseChannel;
+use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Notifications\PreferenceResolver;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
-use Illuminate\Support\Number;
 
 /**
  * TCK-032 P3 — dispatched to agency admins when a metric crosses an alert
@@ -72,8 +72,9 @@ class ThresholdAlertTriggered extends Notification
             ->line(__('notifications.threshold_alert_mail.intro'))
             ->line(__('notifications.threshold_alert_mail.'.$direction, [
                 'metric' => $metric,
-                'value' => Number::format($this->value, precision: 2, locale: $locale),
-                'threshold' => Number::format((float) $this->alert->threshold, precision: 2, locale: $locale),
+                // TCK-2794 — groupés comme tout nombre rendu (U+00A0), et non par l'U+202F d'ICU.
+                'value' => CurrencyFormatter::nombre($this->value, $locale, 2, 2),
+                'threshold' => CurrencyFormatter::nombre((float) $this->alert->threshold, $locale, 2, 2),
                 'severity' => self::libelle('notifications.threshold_alert_mail.severities', (string) $this->alert->severity),
             ]))
             ->action(__('notifications.threshold_alert_mail.action'), $frontend.'/app/overview')

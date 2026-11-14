@@ -198,6 +198,46 @@ class ServiceProviderOnboardingService
     }
 
     /**
+     * TCK-2613 — la demande d'intervention que l'écran 2 de l'assistant montre AVANT la fin d'onboarding : celle
+     * que la fin d'onboarding assignera ({@see assignDeepLinkedRequest()}), et elle seule. `null` dès qu'une des
+     * conditions manque, sans dire laquelle :
+     *
+     *  - le titulaire du profil, et lui seul (le super-admin passe la porte par `Gate::before` : pas ici) ;
+     *  - un profil `draft` ou `active`, jamais suspendu ni inactif. ⚠ Pas « `draft` seul » : l'acceptation de
+     *    l'invitation passe déjà le profil à `active` (`InvitationService`, P208.02), avant tout écran de
+     *    l'assistant — mesuré par le parcours réel, `InterventionDOrigineTest`. Ce qui dit « onboarding pas
+     *    encore fini », c'est le lien NON CONSOMMÉ : la première fin d'onboarding le consomme ;
+     *  - la demande d'origine de l'invitation ACCEPTÉE, lien non consommé ;
+     *  - une demande d'un bien de l'agence de l'invitation (l'émission le vérifie ; une métadonnée réécrite depuis,
+     *    non) ;
+     *  - libre et non commencée : celle que la fin d'onboarding pourrait encore lui assigner.
+     */
+    public function demandeDOrigine(ServiceProviderProfile $sp, User $user): ?MaintenanceRequest
+    {
+        if ((int) $sp->user_id !== (int) $user->id
+            || ! in_array($sp->status, [ServiceProviderProfileStatus::Draft, ServiceProviderProfileStatus::Active], true)) {
+            return null;
+        }
+
+        $invitation = $this->acceptedInvitation($sp);
+        $id = $this->resolveMaintenanceRequestRedirect($invitation);
+        if ($invitation === null || $id === null || data_get($invitation->metadata, 'deep_link_consumed_at') !== null) {
+            return null;
+        }
+
+        $mr = MaintenanceRequest::query()->with(['property.address'])->find($id);
+        if ($mr === null
+            || $mr->property === null
+            || (int) $mr->property->agency_id !== (int) $invitation->agency_id
+            || $mr->assigned_to !== null
+            || ! in_array($mr->status, self::DEEP_LINK_ASSIGNABLE, true)) {
+            return null;
+        }
+
+        return $mr;
+    }
+
+    /**
      * L'invitation dont l'acceptation a lié ce profil — la plus récente ACCEPTÉE. Une invitation
      * envoyée, expirée ou révoquée ne porte aucun lien profond à honorer.
      */

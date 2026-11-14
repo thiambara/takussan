@@ -3,7 +3,6 @@
 namespace App\Services\Invitation;
 
 use App\Models\Agency;
-use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
@@ -33,11 +32,8 @@ final class ExpiredInvitationPurge
             $rows = Invitation::query()
                 ->where('agency_id', $agency->getKey())
                 ->whereIn('role', $roles)
-                ->where(fn (Builder $q) => $q
-                    ->where('status', InvitationStatus::Expired->value)
-                    ->orWhere(fn (Builder $sent) => $sent
-                        ->where('status', InvitationStatus::Sent->value)
-                        ->where('expires_at', '<=', now())))
+                // Vérification de TCK-2668 (D6) — la définition que `filter[expired]` partage.
+                ->where(fn (Builder $q) => Invitation::expiree($q))
                 ->lockForUpdate()
                 ->get(['id', 'invitable_type', 'invitable_id']);
 

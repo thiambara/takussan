@@ -45,6 +45,15 @@ class ServiceProviderProfilePolicy
             || $user->isProviderAt((int) $agencyId);
     }
 
+    /**
+     * TCK-2613 — la demande d'intervention d'origine de l'invitation : au seul titulaire du profil. Ni l'agence, ni
+     * un autre prestataire. (Le super-admin passe par `Gate::before` ; le service ne lui rend rien.)
+     */
+    public function viewOriginRequest(User $user, ServiceProviderProfile $profile): bool
+    {
+        return $profile->user_id !== null && (int) $profile->user_id === (int) $user->id;
+    }
+
     public function view(User $user, ServiceProviderProfile $profile): bool
     {
         // Le SP lui-même peut se voir.

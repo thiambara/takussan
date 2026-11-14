@@ -68,6 +68,8 @@ const CORRESPONDANCES = {
   BankStatementLineMatchStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankLineMatchStatus' }],
   BankStatementStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankStatementStatus' }],
   BookingStatus: [{ fichier: 'src/types/booking.ts', nom: 'BookingStatus' }],
+  // TCK-2812 — l'archive préparée d'un dossier du coffre.
+  DocumentVaultArchiveStatus: [{ fichier: 'src/lib/documents/coffre.ts', nom: 'StatutDeLArchivePreparee' }],
   CommissionEntryStatus: [{ fichier: 'src/lib/queries/commissions.ts', nom: 'CommissionEntryStatus' }],
   ConversationStatus: [{ fichier: 'src/types/message.ts', nom: 'ConversationStatus' }],
   CustomerStatus: [{ fichier: 'src/types/customer.ts', nom: 'CustomerStatus' }],

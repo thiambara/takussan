@@ -151,14 +151,18 @@ final class PayoutCalculator
 
         $platform = app(PlatformPayoutService::class);
         $paid = PlatformPayout::query()
-            ->whereIn('id', $lateFees->pluck('platform_payout_id')->filter()->unique()->values())
+            ->whereIn('id', $lateFees->pluck('platform_payout_id')->concat($lateFees->pluck('late_fee_platform_payout_id'))->filter()->unique()->values())
             ->where('status', PlatformPayoutStatus::Paid->value)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        return $lateFees->reject(fn (LeasePayment $fee): bool => ! in_array((int) $fee->platform_payout_id, $paid, true)
-            && $platform->lateFeeSettledByPlatform($fee))->values();
+        // TCK-2793 (ADR-0039, amendement du 2026-11-14, point 4) — la pénalité payée SEULE et
+        // encaissée par la plateforme attend SON reversement (`late_fee_platform_payout_id`), et non
+        // celui du loyer de sa ligne.
+        return $lateFees->reject(fn (LeasePayment $fee): bool => $platform->lateFeeAloneSettledByPlatform($fee)
+            ? ! in_array((int) $fee->late_fee_platform_payout_id, $paid, true)
+            : ! in_array((int) $fee->platform_payout_id, $paid, true) && $platform->lateFeeSettledByPlatform($fee))->values();
     }
 
     /**

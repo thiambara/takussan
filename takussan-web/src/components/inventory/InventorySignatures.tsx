@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
 import { ApiError } from '@/lib/api';
-import { formatDateTime } from '@/lib/format';
-import type { Locale } from '@/i18n/config';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   useSignInventory,
   type InventorySignInput,
@@ -36,6 +35,12 @@ export interface InventorySignaturesProps {
    * au titre du mandat), ou `null` quand il est le bailleur.
    */
   readonly landlordOnBehalfOf?: string | null;
+  /**
+   * TCK-2648 (AC4) — les signataires NOMMÉS, une seule fois, sur leur carte : « Locataire · Aminata
+   * Diop ». Absents (une réponse qui ne les sert pas), la carte dit le seul rôle, comme avant.
+   */
+  readonly nomDuLocataire?: string | null;
+  readonly nomDuBailleur?: string | null;
 }
 
 type CardRole = InventorySignatureRole;
@@ -45,6 +50,8 @@ export function InventorySignatures({
   canSignTenant = false,
   canSignLandlord = false,
   landlordOnBehalfOf = null,
+  nomDuLocataire = null,
+  nomDuBailleur = null,
 }: InventorySignaturesProps) {
   const t = useTranslations('inventory.signatures');
   return (
@@ -74,6 +81,8 @@ export function InventorySignatures({
           signed={inventory.tenant_signed}
           signedAt={inventory.tenant_signed_at}
           hash={inventory.tenant_signature_hash ?? null}
+          nom={nomDuLocataire}
+          detail={detailDuLocataire(inventory, t)}
         />
         <SignatureCard
           inventory={inventory}
@@ -84,10 +93,31 @@ export function InventorySignatures({
           hash={inventory.owner_signature_hash ?? null}
           onBehalfOf={landlordOnBehalfOf}
           signedOnBehalf={inventory.owner_signed_on_behalf_of_user_id != null}
+          nom={inventory.owner_signed_on_behalf_of?.full_name ?? nomDuBailleur}
+          detail={detailDuBailleur(inventory, t)}
         />
       </div>
     </section>
   );
+}
+
+type Traducteur = ReturnType<typeof useTranslations<'inventory.signatures'>>;
+
+/** TCK-2648 — la voie de la signature du locataire : sur place (qui l'a recueillie, à quel numéro), ou rien. */
+function detailDuLocataire(inventory: Inventory, t: Traducteur): string | null {
+  if (inventory.tenant_signature_method !== 'onsite_otp') return null;
+  const agent = inventory.tenant_signed_via?.full_name;
+  const numero = inventory.tenant_otp_destination;
+  if (agent && numero) return t('surPlaceParEtNumero', { agent, numero });
+  if (numero) return t('surPlaceNumero', { numero });
+  return t('surPlace');
+}
+
+/** TCK-2648 — qui a signé pour le bailleur (« par Sokhna Sène, au titre du mandat »), nommé. */
+function detailDuBailleur(inventory: Inventory, t: Traducteur): string | null {
+  const par = inventory.owner_signed_by?.full_name;
+  if (!par || inventory.owner_signed_on_behalf_of_user_id == null) return null;
+  return t('parAuTitreDuMandat', { nom: par });
 }
 
 interface SignatureCardProps {
@@ -99,6 +129,8 @@ interface SignatureCardProps {
   readonly hash: string | null;
   readonly onBehalfOf?: string | null;
   readonly signedOnBehalf?: boolean;
+  readonly nom?: string | null;
+  readonly detail?: string | null;
 }
 
 function SignatureCard({
@@ -110,12 +142,14 @@ function SignatureCard({
   hash,
   onBehalfOf = null,
   signedOnBehalf = false,
+  nom = null,
+  detail = null,
 }: SignatureCardProps) {
   const t = useTranslations('inventory.signatures');
   const messageErreur = useMessageErreurApi();
-  const title = t(`roles.${role}`);
+  const title = nom ? t('roleEtNom', { role: t(`roles.${role}`), nom }) : t(`roles.${role}`);
   const roleLower = t(`rolesLower.${role}`);
-  const locale = useLocale() as Locale;
+  const f = useFormatteurs();
   const sign = useSignInventory(inventory.id);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -132,11 +166,14 @@ function SignatureCard({
           </span>
         </div>
         <p className="mt-2 text-xs text-success">
+          {/* TCK-2648 (AC4) — « Signé le 1 juil. 2026 » : la date, sans heure (jamais « 00:00 »). */}
           {signedAt
-            ? t('signedOn', { date: formatDateTime(signedAt, locale) })
+            ? t('signedOn', { date: f.date(signedAt) })
             : t('signed')}
         </p>
-        {signedOnBehalf ? (
+        {detail ? (
+          <p className="mt-1 text-xs text-success">{detail}</p>
+        ) : signedOnBehalf ? (
           <p className="mt-1 text-xs text-success">{t('signedOnBehalf')}</p>
         ) : null}
         {hash ? (

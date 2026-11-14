@@ -13,7 +13,9 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PlatformAbility;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use Closure;
@@ -60,7 +62,16 @@ use Illuminate\Support\Collection;
  */
 class MembershipCapabilityResolver
 {
-    /** @var array{users: array<int, true>, agencies: array<int, true>, staff: array<string, true>, agent: array<string, true>, owner: array<string, true>, blocked_owner: array<string, true>|null}|null */
+    /**
+     * L'amorce de {@see self::primed()}. Les sortes `null` sont paresseuses : chargées à la première
+     * demande, pour tous les couples de l'amorce.
+     *
+     * TCK-2739 — `roles`, `collaborations`, `delegations`, `system_roles` et `platform` portent des
+     * LIGNES (identifiants de rôle, délégations), jamais un verdict : `AgencyRoleCapabilityCache`
+     * reste lu à chaque jugement, et le délégant reste rejugé en propre.
+     *
+     * @var array{users: array<int, true>, agencies: array<int, true>, staff: array<string, true>, agent: array<string, true>, owner: array<string, true>, blocked_owner: array<string, true>|null, owner_any: array<string, true>|null, roles: array<string, list<int>>, collaborations: array<string, list<int>>|null, delegations: array<string, \Illuminate\Database\Eloquent\Collection<int, RoleDelegation>>|null, system_roles: array<int, array<string, int>>|null, platform: array<int, PlatformProfileLevel>|null}|null
+     */
     private static ?array $amorce = null;
 
     public function __construct(
@@ -281,6 +292,15 @@ class MembershipCapabilityResolver
         Capability $capability,
         Agency $agency,
     ): bool {
+        // Vérification de TCK-2668 (D3, décision de la session du 2026-11-12) — une délégation ne se
+        // redélègue pas (ADR-0035) : `team.delegate_role` ne s'obtient jamais par elle. Le remplaçant
+        // qui « peut agir » à la place d'un admin la recevait dans `/me/capabilities`, quand
+        // `RoleDelegationPolicy` juge la détention PROPRE (`canActDirectlyAt`) : l'écran lui offrait
+        // « Déclarer », « Modifier » et « Terminer l'absence », et l'API rendait 403 à chacun.
+        if ($capability === Capability::TeamDelegateRole) {
+            return false;
+        }
+
         foreach ($delegations as $delegation) {
             $type = AgencyRoleBaseType::tryFrom((string) $delegation->role);
             if ($type === null) {
@@ -330,6 +350,22 @@ class MembershipCapabilityResolver
      */
     private function loadActiveDelegations(User $user, Agency $agency): \Illuminate\Database\Eloquent\Collection
     {
+        // TCK-2739 — dans une amorce, les délégations en vigueur de TOUS ses couples, chargées en une
+        // fois avec leur délégant : même portée (`enVigueur()`), mêmes lignes. Ce sont des lignes, pas
+        // un verdict : le délégant est rejugé en propre à chaque lecture.
+        $couple = self::couvert((int) $user->id, (int) $agency->id);
+        if ($couple !== null) {
+            return self::paresseuse('delegations', fn (array $amorce): array => RoleDelegation::query()
+                ->with('delegator')
+                ->whereIn('user_id', array_keys($amorce['users']))
+                ->whereIn('agency_id', array_keys($amorce['agencies']))
+                ->enVigueur()
+                ->get()
+                ->groupBy(fn (RoleDelegation $d): string => $d->user_id.':'.$d->agency_id)
+                ->map(fn ($groupe) => new \Illuminate\Database\Eloquent\Collection($groupe->all()))
+                ->all())[$couple] ?? new \Illuminate\Database\Eloquent\Collection;
+        }
+
         return RoleDelegation::query()
             ->with('delegator')
             ->where('user_id', $user->id)
@@ -351,17 +387,31 @@ class MembershipCapabilityResolver
      */
     private function loadSystemRoleIds(int $agencyId): array
     {
+        // TCK-2739 — dans une amorce, les rôles système de toutes ses agences, en une requête.
+        if (self::$amorce !== null && isset(self::$amorce['agencies'][$agencyId])) {
+            return self::paresseuse('system_roles', fn (array $amorce): array => self::systemRoleIdsOf(array_keys($amorce['agencies'])))[$agencyId] ?? [];
+        }
+
+        return self::systemRoleIdsOf([$agencyId])[$agencyId] ?? [];
+    }
+
+    /**
+     * @param  list<int>  $agencyIds
+     * @return array<int, array<string,int>> agence → type de rôle → id du rôle SYSTÈME
+     */
+    private static function systemRoleIdsOf(array $agencyIds): array
+    {
         $map = [];
 
         $roles = AgencyRole::query()
-            ->where('agency_id', $agencyId)
+            ->whereIn('agency_id', $agencyIds)
             ->where('is_system', true)
-            ->get(['id', 'base_profile_type']);
+            ->get(['id', 'agency_id', 'base_profile_type']);
 
         foreach ($roles as $role) {
             $type = $role->base_profile_type;
             $key = $type instanceof AgencyRoleBaseType ? $type->value : (string) $type;
-            $map[$key] = (int) $role->id;
+            $map[(int) $role->agency_id][$key] = (int) $role->id;
         }
 
         return $map;
@@ -380,6 +430,7 @@ class MembershipCapabilityResolver
      */
     private function resolvePlatform(User $user, Capability $capability): bool
     {
+        // TCK-2739 — `activePlatformLevel()` lit l'amorce ({@see self::niveauPlateformeAmorce()}).
         return $user->activePlatformLevel() === PlatformProfileLevel::SuperAdmin;
     }
 
@@ -419,13 +470,30 @@ class MembershipCapabilityResolver
      */
     private function serviceProviderRoleAllows(User $user, int $agencyId, Capability $capability): bool
     {
-        $roleIds = ServiceProviderAgencyCollaboration::query()
-            ->where('agency_id', $agencyId)
+        $couple = self::couvert((int) $user->id, $agencyId);
+        $roleIds = $couple !== null
+            // TCK-2739 — les collaborations de tous les couples de l'amorce, même portée qu'ici
+            // (actives, à rôle, profil de prestataire non supprimé — c'est le `whereHas` qui le porte).
+            ? (self::paresseuse('collaborations', fn (array $amorce): array => ServiceProviderAgencyCollaboration::query()
+                ->whereIn('agency_id', array_keys($amorce['agencies']))
+                ->where('status', CollaborationStatus::Active->value)
+                ->whereNotNull('agency_role_id')
+                ->whereHas('serviceProviderProfile', fn ($query) => $query->whereIn('user_id', array_keys($amorce['users'])))
+                ->select(['agency_id', 'agency_role_id'])
+                ->addSelect(['prestataire_user_id' => ServiceProviderProfile::query()->select('user_id')
+                    ->whereColumn('service_provider_profiles.id', 'service_provider_agency_collaborations.service_provider_profile_id')])
+                ->toBase()
+                ->get()
+                ->groupBy(fn ($row): string => $row->prestataire_user_id.':'.$row->agency_id)
+                ->map(fn ($groupe): array => $groupe->pluck('agency_role_id')->map(fn ($id): int => (int) $id)->all())
+                ->all())[$couple] ?? [])
+            : ServiceProviderAgencyCollaboration::query()
+                ->where('agency_id', $agencyId)
             // TCK-592 (B13) — seule une collaboration ACTIVE porte un rôle qui agit.
-            ->where('status', CollaborationStatus::Active->value)
-            ->whereNotNull('agency_role_id')
-            ->whereHas('serviceProviderProfile', fn ($query) => $query->where('user_id', $user->id))
-            ->pluck('agency_role_id');
+                ->where('status', CollaborationStatus::Active->value)
+                ->whereNotNull('agency_role_id')
+                ->whereHas('serviceProviderProfile', fn ($query) => $query->where('user_id', $user->id))
+                ->pluck('agency_role_id');
 
         foreach ($roleIds as $roleId) {
             if ($this->cache->allows((int) $roleId, $capability)) {
@@ -521,9 +589,27 @@ class MembershipCapabilityResolver
             ->get(['user_id', 'agency_id'])
             ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
             ->all();
-        $agent = $couples(AgencyRoleBaseType::Agent->profileClass()::query()->active());
+        // TCK-2739 — les trois requêtes de profils actifs rendent aussi leur `agency_role_id` : la
+        // portée est celle de `roleAllows()`, et le rôle ne coûte aucune requête de plus. Une LISTE
+        // par (utilisateur, agence, type) : rien n'interdit deux profils du même type.
+        $roles = [];
+        $profils = function (AgencyRoleBaseType $type) use ($users, $agencies, &$roles): array {
+            $rows = $type->profileClass()::query()->active()
+                ->whereIn('user_id', $users)->whereIn('agency_id', $agencies)
+                ->get(['user_id', 'agency_id', 'agency_role_id']);
+            $couples = [];
+            foreach ($rows as $row) {
+                $couples[$row->user_id.':'.$row->agency_id] = true;
+                if ($row->agency_role_id !== null) {
+                    $roles[$row->user_id.':'.$row->agency_id.':'.$type->value][] = (int) $row->agency_role_id;
+                }
+            }
+
+            return $couples;
+        };
+        $agent = $profils(AgencyRoleBaseType::Agent);
         $staff = $agent
-            + $couples(AgencyRoleBaseType::AgencyAdmin->profileClass()::query()->active())
+            + $profils(AgencyRoleBaseType::AgencyAdmin)
             + $couples(RoleDelegation::query()
                 ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
                 ->enVigueur());
@@ -533,7 +619,7 @@ class MembershipCapabilityResolver
             'agencies' => array_fill_keys($agencies, true),
             'staff' => $staff,
             'agent' => $agent,
-            'owner' => $couples(OwnerProfile::query()->active()),
+            'owner' => $profils(AgencyRoleBaseType::Owner),
             // TCK-1867 (P189.01) — jugé à la première demande seulement : seule une liste qui sert
             // les verdicts d'écriture d'un bailleur (`landlordWrites`) le lit.
             'blocked_owner' => null,
@@ -541,6 +627,13 @@ class MembershipCapabilityResolver
             // `BailleurDuBien::est()` (le bailleur suspendu garde la lecture) ; `owner` ci-dessus est
             // `active()`, celle de `isMemberAt()`. Jugé à la première demande, comme `blocked_owner`.
             'owner_any' => null,
+            // TCK-2739 — rempli par les requêtes de profils ci-dessus ; les quatre suivantes sont
+            // paresseuses : jugées à la première capacité demandée, pour tous les couples.
+            'roles' => $roles,
+            'collaborations' => null,
+            'delegations' => null,
+            'system_roles' => null,
+            'platform' => null,
         ];
         try {
             return $callback();
@@ -572,11 +665,11 @@ class MembershipCapabilityResolver
         }
 
         if ($kind === 'blocked_owner' && $amorce['blocked_owner'] === null) {
-            // Même portée que `User::isBlockedOwnerAt()`.
+            // Même portée que `User::isBlockedOwnerAt()` : suspendu ou parti (TCK-2753).
             $amorce['blocked_owner'] = OwnerProfile::query()
                 ->whereIn('user_id', array_keys($amorce['users']))
                 ->whereIn('agency_id', array_keys($amorce['agencies']))
-                ->where('status', OwnerProfileStatus::Blocked->value)
+                ->whereIn('status', OwnerProfileStatus::valeursSansEcriture())
                 ->get(['user_id', 'agency_id'])
                 ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
                 ->all();
@@ -584,6 +677,51 @@ class MembershipCapabilityResolver
         }
 
         return isset($amorce[$kind][$userId.':'.$agencyId]);
+    }
+
+    /**
+     * TCK-2739 — le niveau de plateforme ACTIF de l'utilisateur, tel que l'amorce l'a chargé pour tous
+     * ses utilisateurs ; `false` hors amorce (l'appelant relit alors le profil). Même portée que
+     * `HasProfiles::activePlatformLevel()` : profil non supprimé, non révoqué.
+     */
+    public static function niveauPlateformeAmorce(int $userId): PlatformProfileLevel|false|null
+    {
+        if (self::$amorce === null || ! isset(self::$amorce['users'][$userId])) {
+            return false;
+        }
+
+        return self::paresseuse('platform', fn (array $amorce): array => PlatformProfile::query()
+            ->active()
+            ->whereIn('user_id', array_keys($amorce['users']))
+            ->get(['user_id', 'level'])
+            ->mapWithKeys(fn (PlatformProfile $p): array => [(int) $p->user_id => $p->level])
+            ->all())[$userId] ?? null;
+    }
+
+    /** La clé `user:agence` du couple s'il est dans l'amorce, `null` sinon : le jugement est alors unitaire. */
+    private static function couvert(int $userId, int $agencyId): ?string
+    {
+        $amorce = self::$amorce;
+
+        return $amorce !== null && isset($amorce['users'][$userId], $amorce['agencies'][$agencyId])
+            ? $userId.':'.$agencyId
+            : null;
+    }
+
+    /**
+     * Une sorte paresseuse de l'amorce, chargée à la première demande par `$charger`, qui reçoit
+     * l'amorce et rend la table pour TOUS ses couples.
+     *
+     * @param  Closure(array<string,mixed>): array<mixed>  $charger
+     * @return array<mixed>
+     */
+    private static function paresseuse(string $kind, Closure $charger): array
+    {
+        if (self::$amorce[$kind] === null) {
+            self::$amorce[$kind] = $charger(self::$amorce);
+        }
+
+        return self::$amorce[$kind];
     }
 
     /**
@@ -684,12 +822,17 @@ class MembershipCapabilityResolver
             return false;
         }
 
-        $roleIds = $class::query()
-            ->where('user_id', $user->id)
-            ->where('agency_id', $agencyId)
-            ->active()
-            ->whereNotNull('agency_role_id')
-            ->pluck('agency_role_id');
+        // TCK-2739 — les `agency_role_id` des profils actifs, chargés par les requêtes mêmes de
+        // {@see self::primed()} (même portée, `active()`) ; hors amorce, une requête par type.
+        $couple = self::couvert((int) $user->id, $agencyId);
+        $roleIds = $couple !== null
+            ? (self::$amorce['roles'][$couple.':'.$type->value] ?? [])
+            : $class::query()
+                ->where('user_id', $user->id)
+                ->where('agency_id', $agencyId)
+                ->active()
+                ->whereNotNull('agency_role_id')
+                ->pluck('agency_role_id');
 
         foreach ($roleIds as $roleId) {
             if ($this->cache->allows((int) $roleId, $capability)) {

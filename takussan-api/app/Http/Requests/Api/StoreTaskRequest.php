@@ -3,10 +3,12 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Customer;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use App\Models\Property;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -19,6 +21,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreTaskRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
      * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
@@ -52,9 +56,15 @@ class StoreTaskRequest extends BaseFormRequest
             // rendait 422 pour un compte absent et laissait tout compte connecté énumérer `users`.
             // `TaskController::authorizeAssignee()` rend déjà `task.assignee_not_staff` à un absent.
             'assigned_to_id' => ['nullable', 'integer'],
-            'due_at' => ['nullable', 'date'],
+            'due_at' => ['nullable', 'date', new InstantIso],
             'status' => ['nullable', Rule::enum(TaskStatus::class)],
             'priority' => ['nullable', Rule::enum(TaskPriority::class)],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['due_at'];
     }
 }

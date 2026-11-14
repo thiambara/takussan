@@ -112,19 +112,25 @@ const COMPTES: Record<Persona, ContexteDeMenu> = {
  *  - Revue de TCK-2478 — prestataire encore : `/app/overview` QUITTE sa table (M2 : la garde de la
  *    page le renvoie sur `/app` s'il n'est pas locataire, le lien menait à une redirection) et
  *    `/app/calendar` Y ENTRE (M3 : `assertCanReachCalendar` lui ouvre la page, TCK-591).
+ *  - TCK-2625 — client et locataire : `/app/overview` QUITTE leur table. « Ma situation »
+ *    (`/app/overview/tenant`) est absorbée par l'accueil, et l'aiguilleur les renvoie sur `/app` :
+ *    même raison que M2 pour le prestataire.
+ *  - TCK-2628 — bailleur, agent, admin, hôte, plateforme : les cinq vues de pilotage (`/app/overview`,
+ *    `/agency`, `/kpis`, `/alerts`, `/exports`) sont UNE entrée, « Rapports » (`/app/reports`), dont elles
+ *    sont les onglets (`dispositions-validees.test.ts` vérifie que chaque onglet est ouvert).
  */
 const ATTENDU: Record<Persona, string[]> = {
   client: [
     '/properties', '/publish',
     '/app', '/app/messages', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/documents', '/app/profile/reviews', '/app/overview',
+    '/app/documents', '/app/profile/reviews',
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
   ],
   locataire: [
     '/app/payments', '/publish',
     '/app', '/app/messages', '/app/leases', '/app/maintenance', '/app/inventories', '/app/documents',
     '/properties', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/profile/reviews', '/app/overview',
+    '/app/profile/reviews',
   ],
   // TCK-587 — `/app/properties/new` sous « Proposer un bien à mon agence » : le bailleur hors
   // personnel y PROPOSE un bien, le serveur impose brouillon + privé.
@@ -132,23 +138,22 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/messages', '/app/properties', '/app/leases', '/app/payments', '/app/inventories',
     '/app/leads', '/app/visits', '/app/bookings', '/app/calendar', '/app/maintenance',
-    '/app/customers', '/app/profile/reviews', '/app/documents', '/app/overview', '/app/overview/exports',
+    '/app/customers', '/app/profile/reviews', '/app/documents', '/app/reports',
     '/app/favorites', '/app/saved-searches', '/app/tasks',
   ],
   // TCK-595 (AC17 bis) — pas de « Vue agence » : l'API la refuse à l'agent.
   agent: [
     '/app/properties/new',
     '/app', '/app/messages', '/app/tasks', '/app/leads', '/app/customers', '/app/visits', '/app/calendar',
-    '/app/properties', '/app/bookings', '/app/leases', '/app/leases/onboarding-pending', '/app/inventories',
-    '/app/maintenance', '/app/commissions', '/app/profile/reviews', '/app/documents', '/app/overview',
-    '/app/overview/exports', '/app/favorites', '/app/saved-searches',
+    '/app/properties', '/app/bookings', '/app/leases', '/app/inventories',
+    '/app/maintenance', '/app/commissions', '/app/profile/reviews', '/app/documents', '/app/reports',
+    '/app/favorites', '/app/saved-searches',
   ],
   'admin-agence': [
     '/app/properties/new',
-    '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
+    '/app', '/app/reports', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
     '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
-    '/app/leases/onboarding-pending', '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
-    '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
+    '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
     '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
     '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
   ],
@@ -156,10 +161,10 @@ const ATTENDU: Record<Persona, string[]> = {
     '/app/properties/new',
     '/app', '/app/messages', '/app/properties', '/app/bookings', '/app/visits', '/app/calendar',
     '/app/leads', '/app/leases', '/app/inventories', '/app/maintenance', '/app/maintenance/providers',
-    '/app/credits', ...PAGES_DE_L_HOTE, '/app/customers', '/app/overview', '/app/overview/exports',
-    '/app/overview/kpis', '/app/overview/alerts', '/app/profile/reviews', '/app/documents', '/app/tasks',
+    '/app/credits', ...PAGES_DE_L_HOTE, '/app/customers', '/app/reports',
+    '/app/profile/reviews', '/app/documents', '/app/tasks',
     '/app/favorites', '/app/saved-searches', '/app/payments', '/app/commissions',
-    '/app/leases/onboarding-pending', '/app/overview/agency', '/app/owners',
+    '/app/owners',
   ],
   // Son métier en tête — interventions, messagerie, documents (§1.8 de features.md) —, et sous
   // « Plus » ce que le plancher `customer` lui ouvre.
@@ -169,10 +174,9 @@ const ATTENDU: Record<Persona, string[]> = {
   ],
   plateforme: [
     '/app/properties/new',
-    '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
+    '/app', '/app/reports', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
     '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
-    '/app/leases/onboarding-pending', '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
-    '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
+    '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
     '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
     '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
   ],
@@ -301,7 +305,7 @@ describe('AppSidebar — table des href par persona (TCK-2478)', () => {
       .map((a) => a.getAttribute('href'))
       .filter((h): h is string => Boolean(h));
 
-    for (const interdit of ['/app/bookings', '/app/leases', '/app/visits', '/app/overview']) {
+    for (const interdit of ['/app/bookings', '/app/leases', '/app/visits', '/app/reports']) {
       expect(rendus, `${interdit} ne concerne pas un prestataire`).not.toContain(interdit);
     }
     // …et il garde bien son métier : le retrait ne doit pas vider la barre.

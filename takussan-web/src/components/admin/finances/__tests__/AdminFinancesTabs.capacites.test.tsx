@@ -49,6 +49,9 @@ vi.mock('@/components/payments/CreatePayoutDialog', () => ({ CreatePayoutDialog:
 vi.mock('@/components/payments/InvoiceDetailDialog', () => ({ InvoiceDetailDialog: () => null }));
 vi.mock('@/components/payments/PayoutDetailDialog', () => ({ PayoutDetailDialog: () => null }));
 vi.mock('@/components/admin/finances/OverduePaymentsTable', () => ({ OverduePaymentsTable: () => null }));
+// TCK-2660 — l'onglet « Impayés » monte désormais le composant Impayés, et l'en-tête du registre lit
+// son résumé (balance âgée) : hors du sujet de ce fichier, bouchonnés comme la table d'avant.
+vi.mock('@/components/admin/finances/impayes/Impayes', () => ({ Impayes: () => null, useResumeDesImpayes: () => null }));
 
 const FACTURER = fr.admin.finances.tabs.newInvoice;
 const REVERSER = fr.admin.finances.tabs.newPayout;

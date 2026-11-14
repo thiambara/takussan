@@ -1,0 +1,136 @@
+{
+  "ticket": "TCK-2603",
+  "ecrans": [
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Départ : le bien",
+      "references": {
+        "telephone": "references/app-entree-publier/a-0-telephone.json",
+        "bureau-1280": "references/app-entree-publier/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js). Réponse de GET /api/public/publish/demand doublée DANS le navigateur ({city: 'Dakar', searches_7d: 1240}, la donnée de la maquette) : le journal de démo compte 15 recherches pour Dakar, sous le seuil de 200, et la carte n'y paraît pas."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/publish",
+    "persona": "aucune",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-4, impl/lot2/2603/fid/a0-preuves.js : le a0.js de TCK-2600 (« Louer », « Studio »), puis la réponse de la demande posée au cache de React Query (`setQueryData(['demande-de-publication', null], …)`, client retrouvé par la fibre du fournisseur) — aucune requête émise, aucune écriture. Injecté par relever.zsh (même dossier), sous le verrou de mesure, mêmes URL bloquées que TCK-2600.",
+    "releves": {
+      "dossiers": "scratchpad de terrain-4, impl/lot2/2603/fid/ : prod-a-0-{telephone,bureau-1280} (2026-11-14) et cmp1-a-0-* (rapport.md, rideau.html, cote-a-cote.png) ; « avant » : avant-cmp-a-0-* sur les relevés livrés de TCK-2600 (final2 téléphone, final3 bureau 1280). Comparés avec les rôles de TCK-2600.json. Lecture : conformes · écarts · absents · pixels.",
+      "resultats": {
+        "a-0": {
+          "telephone": "2 · 36 · 21 · 21,73 % (avant : 2 · 38 · 19 · 22,89 %)",
+          "bureau-1280": "14 · 57 · 20 · 11,74 % (avant : 16 · 54 · 21 · 11,26 %)"
+        }
+      },
+      "carte": {
+        "telephone": "boîte 358 × 66 à x 16 (maquette 358 × 82,3) ; sous-titre → carte 16 px (maquette 16) ; carte → question 24 px (maquette 24) ; fond accent à 8 %, rayon 14, icône lucide-search 20 px accent, « 1 240 » Bricolage 19/600 interligne 23,8, libellé DM Sans 13 interligne 16,3 : conformes",
+        "bureau-1280": "boîte 560 × 63,6 à x 112,8 (maquette 560 × 63,6) ; sous-titre → carte 21,6 (maquette 21,6) ; carte → question 28,8 (maquette 28,8) ; rayon 12,6, icône 18 px, polices conformes. Décalage vertical commun −4,4 : celui du titre (36 → 32 px), écart de TCK-2600"
+      }
+    }
+  },
+  "roles": [
+    {
+      "nom": "pied de l’assistant",
+      "appareil": "desktop",
+      "maquette": {
+        "zone": {
+          "y": 800,
+          "h": 100,
+          "wMin": 1200
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 800,
+          "h": 100,
+          "wMin": 1200
+        }
+      }
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Publier ton bien": "Publier votre bien",
+    "Publie ton bien gratuitement": "Publiez votre bien gratuitement",
+    "Tu es une agence ou un agent ?": "Vous êtes une agence ou un agent ?",
+    "Un brouillon t’attend déjà ?": "Un brouillon vous attend déjà ?",
+    "Aucun compte à créer pour commencer : ton numéro est demandé à la fin, au moment": "Aucun compte à créer pour commencer : votre numéro est demandé à la fin, au mome",
+    "Seule la surface compte vraiment ; le reste aide ton annonce à ressortir dans le": "Seule la surface compte vraiment ; le reste aide votre annonce à ressortir dans ",
+    "Brouillon gardé dans ce navigateur — il passera dans ton compte au moment de pub": "Brouillon gardé dans ce navigateur — il passera dans votre compte au moment de p",
+    "Étape facultative : « Plus tard » passe au titre, tu ajouteras des photos depuis": "Étape facultative : « Plus tard » passe au titre, vous ajouterez des photos depu",
+    "En publiant , tu acceptes les et la .": "En publiant, vous acceptez les et la .",
+    "Parle-nous du studio": "Parlez-nous du studio",
+    "Ajoute des photos": "Ajoutez des photos",
+    "Glisse-dépose tes photos ici": "Glissez-déposez vos photos ici",
+    "Tes photos viendront ici": "Vos photos viendront ici",
+    "On en a composé un d’après tes réponses. Corrige-le librement.": "Nous en avons composé un d’après vos réponses. Corrigez-le librement.",
+    "Ton numéro": "Votre numéro",
+    "Ton numéro et ton prénom te sont demandés juste après, pour que les intéressés p": "Votre numéro et votre prénom vous sont demandés juste après, pour que les intére"
+  },
+  "alias_motifs": {
+    "vouvoiement": "« tu » → « vous » : règle des libellés du produit (ADR-0095) — barre, départ, notes du pied, étapes, aperçu"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ignorer_motif": "rien d'ignoré : chaque écart de la carte est classé ci-dessous ; le reste de l'écran relève de TCK-2600 (hors_perimetre)",
+  "zones_motif": "aucune zone à contenu identique : la barre d'entrée (CoqueDEntree) porte le pas et la note du brouillon, propres à chaque écran",
+  "coque": false,
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "second chiffre « 0 F de commission » (icône lucide-tag)",
+      "propriete": "absent du produit ; la carte n’a qu’une colonne",
+      "exception": "donnée — contrainte du ticket",
+      "motif": "la commission dépend du plan de l'espace qui publie (ADR-0093 ; 3 % en pro) : le chiffre n'est écrit que s'il est vrai, ce que le départ sans compte ne sait pas. Accepté par la session le 2026-11-13 (« ne jamais afficher un chiffre que le plan pourrait démentir »)"
+    },
+    {
+      "ecran": "a-0 (téléphone)",
+      "element": "carte de preuves",
+      "propriete": "hauteur 82,3 → 66 ; libellé sur une ligne au lieu de deux",
+      "exception": "conséquence de l’écart précédent",
+      "motif": "sans la seconde colonne, le libellé dispose de toute la largeur (205,5 au lieu de 140,8) et ne se replie plus ; la question qui suit garde son écart de 24 px"
+    },
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "« recherches à Dakar cette semaine »",
+      "propriete": "couleur rgba(31,24,17,0,8) → rgb(76,70,65)",
+      "exception": "TCK-658 — encre de texte opaque",
+      "motif": "`text-foreground/80` de la maquette devient `text-encre-douce`, l'encre opaque retenue pour /70 à /85 (cliquet de encre-sans-alpha.contraste.test.ts)"
+    },
+    {
+      "ecran": "a-0 (téléphone, bureau)",
+      "element": "« 1 240 »",
+      "propriete": "espace de groupe U+0020 → U+00A0",
+      "exception": "décision n° 11 (a) du porteur",
+      "motif": "groupes de milliers insécables (TCK-2714) ; même largeur que la maquette"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-0",
+      "element": "tout le reste de l'écran (barre, ligne d'état du brouillon, aperçu, titre 36 → 32, question du bien, pied)",
+      "motif": "TCK-2600 (fiche TCK-2600.json) : ses écarts acceptés et ouverts valent ici tels quels"
+    },
+    {
+      "ecran": "a-0 (768, 1024)",
+      "element": "largeurs intermédiaires",
+      "motif": "la carte est d'une seule colonne et pleine largeur à toute largeur : aucune disposition propre à 768 ou à 1024 (règle de cadence 7) ; l'écran lui-même relève de TCK-2600"
+    }
+  ],
+  "notes": [
+    "Montage : `depart.dessus` de `ModeAnonyme` (PropertyWizard), premier enfant du corps de l'étape « bien » ; marges `-mt-3 mb-6 lg:-mt-1 lg:mb-8` pour retrouver 16 / 24 au téléphone et 21,6 / 28,8 au bureau dans le `mt-7 space-y-7` de WizardShell (mesuré ci-dessus, au pixel).",
+    "Sans chiffre (sous le seuil, en échec, en attente), la carte n'est pas rendue et l'étape est celle de TCK-2600 au pixel : épinglé par PublierSansCompte.preuves.tck-2603.test.tsx et PreuvesDuDepart.tck-2603.test.tsx."
+  ],
+  "ecarts_ouverts": []
+}

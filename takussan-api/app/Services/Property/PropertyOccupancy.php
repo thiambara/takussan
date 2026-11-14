@@ -17,11 +17,16 @@ use Illuminate\Support\Collection;
  * TCK-2637 — le bloc `occupancy` d'une page de biens, en un nombre CONSTANT de requêtes (AC6) :
  *
  * - `state` : `occupied`, `notice` (préavis) ou `vacant`, sur le bail COURANT
- *   ({@see Occupation::current()}, la règle de l'occupation du tableau de bord) ;
+ *   ({@see Occupation::current()}, la règle de l'occupation du tableau de bord) ; `not_rental` pour
+ *   un bien qui n'est pas à louer (TCK-2638), lu par le prédicat de la liste
+ *   ({@see Property::scopeForRent()}) et non par la colonne chargée, que `fields[properties]` peut
+ *   omettre ;
  * - `vacant_since` : la fin du dernier bail d'un bien vacant ({@see Occupation::lastEnds()}),
- *   `null` s'il n'a jamais été loué ;
+ *   `null` s'il n'a jamais été loué, et pour un bien hors location ;
  * - `lease`, `tenant`, `rent`, `current_month` : seulement vers un appelant qui peut LIRE le bail
  *   (`Lease::scopeVisibleTo`, la clause de `GET /api/leases`) ; absents sinon. Vacant : `null`.
+ *   Un bien hors location AVEC un bail courant garde ces blocs : le bail est un fait, et le retard
+ *   de son loyer compte dans `filter[rent_late]` (TCK-2638, décision du porteur Q2a).
  *
  * `current_month` lit les échéances de loyer du mois ({@see RentMonthStatus::ofMonth()}) : l'état
  * est celui du relevé du bailleur ({@see RentMonthStatus::of()}), et `amount_due` /
@@ -41,6 +46,7 @@ final class PropertyOccupancy
         }
 
         $ids = $properties->map(fn (Property $p) => (int) $p->getKey())->all();
+        $forRent = array_flip(Property::withTrashed()->whereKey($ids)->forRent()->pluck('id')->all());
         $leases = Lease::query()->current()->whereIn('property_id', $ids)->with(['tenant', 'agency'])->get()->keyBy('property_id');
         $visible = $viewer === null || $leases->isEmpty() ? [] : array_flip(
             Lease::query()->whereKey($leases->modelKeys())->visibleTo($viewer)->pluck('leases.id')->all(),
@@ -57,9 +63,15 @@ final class PropertyOccupancy
 
         foreach ($properties as $property) {
             $lease = $leases->get($property->getKey());
+            $rental = isset($forRent[$property->getKey()]);
             $block = [
-                'state' => $lease === null ? 'vacant' : (Occupation::isOnNotice($lease) ? 'notice' : 'occupied'),
-                'vacant_since' => $lease === null && isset($lastEnds[$property->getKey()])
+                'state' => match (true) {
+                    ! $rental => 'not_rental',
+                    $lease === null => 'vacant',
+                    Occupation::isOnNotice($lease) => 'notice',
+                    default => 'occupied',
+                },
+                'vacant_since' => $rental && $lease === null && isset($lastEnds[$property->getKey()])
                     ? CarbonImmutable::parse($lastEnds[$property->getKey()])
                     : null,
             ];

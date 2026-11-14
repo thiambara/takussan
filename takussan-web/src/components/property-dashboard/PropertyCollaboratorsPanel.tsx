@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,7 +65,24 @@ export function PropertyCollaboratorsPanel({ propertyId }: PropertyCollaborators
 
   // Un refus de lecture (le bien n'est pas de ceux que l'appelant voit) ne s'affiche pas : la
   // page elle-même l'aurait déjà refusé.
-  if (query.isError) return null;
+  if (query.isError && (query.error.status === 401 || query.error.status === 403)) return null;
+  // TCK-2639 — toute autre panne LE DIT (le bloc rendait `null` : « qui répond » disparaissait sans
+  // trace), avec de quoi réessayer.
+  if (query.isError) {
+    return (
+      <section className="rounded-xl bg-card p-6" data-testid="property-collaborators" aria-labelledby="property-collaborators-title">
+        <h2 id="property-collaborators-title" className="text-base font-semibold text-foreground">
+          {t('title')}
+        </h2>
+        <ErrorState
+          className="mt-4"
+          message={t('lectureEnEchec')}
+          onRetry={() => void query.refetch()}
+          retryLabel={tRacine('common.actions.retry')}
+        />
+      </section>
+    );
+  }
 
   const rows = query.data?.data ?? [];
   const contact = query.data?.primary_contact;

@@ -11,10 +11,11 @@ export function MessageDateSeparator({ date }: { readonly date: Date }) {
   });
 
   return (
-    <li className="my-2 flex justify-center" role="separator">
-      <span className="rounded-full bg-muted/80 px-2.5 py-0.5 text-[0.6875rem] font-medium text-muted-foreground">
-        {label}
-      </span>
+    // TCK-2632 — un filet de part et d'autre du jour (maquette `app-messagerie`, `Fil`).
+    <li className="my-2 flex items-center gap-3 text-xs text-muted-foreground" role="separator">
+      <span className="h-px flex-1 bg-border" aria-hidden="true" />
+      {label}
+      <span className="h-px flex-1 bg-border" aria-hidden="true" />
     </li>
   );
 }

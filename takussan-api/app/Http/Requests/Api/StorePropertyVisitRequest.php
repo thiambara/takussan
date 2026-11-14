@@ -9,9 +9,12 @@ use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Rules\ClientDeLAgence;
 use App\Rules\CreneauDeVisite;
+use App\Rules\InstantIso;
 use App\Rules\PersonnelDeLAgence;
 use App\Rules\TelephoneJoignable;
+use App\Support\InstantRecu;
 use App\Support\TelephoneSaisi;
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\Rule;
 
 /**
@@ -171,8 +174,8 @@ class StorePropertyVisitRequest extends BaseFormRequest
                 ? ['nullable', 'integer', new PersonnelDeLAgence($agencyId)]
                 : ['nullable'],
             'scheduled_at' => $manager
-                ? ['required', 'date', 'after:now']
-                : ['required', 'date', 'after:now', new CreneauDeVisite],
+                ? ['required', 'date', new InstantIso, 'after:now']
+                : ['required', 'date', new InstantIso, 'after:now', new CreneauDeVisite],
             'type' => ['nullable', Rule::enum(VisitType::class)],
             // Vérification adverse (m5) — le plafond de la route publique : une visite de 100 000
             // minutes, une fois confirmée, bloquait le bien.
@@ -192,5 +195,14 @@ class StorePropertyVisitRequest extends BaseFormRequest
             'create_customer' => ['sometimes', 'boolean'],
             'allow_duplicate' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /**
+     * TCK-2743 — l'heure reçue, ramenée à l'instant qu'elle désigne ({@see InstantRecu}) : la règle, la
+     * comparaison et l'écriture lisent le même instant.
+     */
+    public function scheduledAt(): CarbonImmutable
+    {
+        return InstantRecu::utc((string) $this->validated('scheduled_at'));
     }
 }

@@ -7,6 +7,8 @@ use App\Jobs\Radar\PrepareRadarListingPhotos;
 use App\Jobs\Radar\PublishClaimedRadarListings;
 use App\Jobs\Radar\TransmitTakenBackConversations;
 use App\Models\Agency;
+use App\Models\Booking;
+use App\Models\Customer;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\RadarConsentProof;
 use App\Models\Enums\RadarListingStage;
@@ -23,6 +25,7 @@ use App\Models\RadarConsent;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
 use App\Models\User;
+use App\Observers\DocumentsDuPorteurObserver;
 use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Media\PrivateMediaAccess;
@@ -512,10 +515,16 @@ final class RadarClaims
         (clone $leads)->update(['agency_id' => $agency->id]);
         (clone $leads)->where('recipient_user_id', $orphan->id)->update(['recipient_user_id' => $user->id]);
         (clone $leads)->where('handled_by_id', $orphan->id)->update(['handled_by_id' => $user->id]);
+        // TCK-2781 — l'index des documents recopie l'agence de leur fiche et de leur réservation, et ces
+        // deux écritures de masse ne passent pas par `DocumentsDuPorteurObserver` : réindexées après.
+        $fichesDeplacees = DB::table('customers')->whereIn('agency_id', $spaces)->pluck('id')->all();
+        $reservationsDeplacees = DB::table('bookings')->whereIn('agency_id', $spaces)->pluck('id')->all();
         DB::table('customers')->whereIn('agency_id', $spaces)->update(['agency_id' => $agency->id]);
         DB::table('customers')->where('added_by_id', $orphan->id)->update(['added_by_id' => $user->id]);
         DB::table('property_visits')->whereIn('property_id', $ids)->where('agent_id', $orphan->id)->update(['agent_id' => $user->id]);
         DB::table('bookings')->whereIn('agency_id', $spaces)->update(['agency_id' => $agency->id]);
+        DocumentsDuPorteurObserver::reindexer(Customer::class, $fichesDeplacees);
+        DocumentsDuPorteurObserver::reindexer(Booking::class, $reservationsDeplacees);
         DB::table('media_fingerprints')->whereIn('property_id', $ids)->update(['agency_id' => $agency->id]);
         DB::table('property_collaborators')->whereIn('property_id', $ids)->where('user_id', $orphan->id)->update(['user_id' => $user->id]);
 

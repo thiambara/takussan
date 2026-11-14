@@ -31,13 +31,27 @@ import wo from '@/messages/wo.json';
  * de 72 et les nombres wolof en lettres passent aussi — écrit dans TCK-575.
  */
 const REGISTRE: Readonly<Record<string, string>> = {
-  'auth.forgotPassword.sentBody': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
+  // TCK-2668 — la validité du lien d'invitation d'équipe (`agents/invite` → AgentInvitationService.php:121
+  // → InvitationService::send) et celle du lien qu'une relance renvoie (InvitationService::resend).
+  'admin.team.equipe.invitations.formulaire.validite':
+    'takussan-api/app/Services/Invitation/InvitationService.php:139 — DEFAULT_TTL_DAYS = 7, posé à :247 (send)',
+  'crm.customerDetail.inviteAccount.relancee': 'idem — InvitationService.php:139, reposé à :571 (resend)',
+  // TCK-2611 — l'écran « Cette invitation a expiré » de /invitations/accept : toute invitation tient son
+  // `expires_at` de send (:247) ou de resend (:571), aucun autre écrivain.
+  'invitationAccept.ferme.expiree.texte': 'idem — InvitationService.php:139, posé à :247 (send) et :571 (resend)',
+  'invitationAccept.ferme.expiree.texteSans': 'idem — InvitationService.php:139',
+  // TCK-2606 — « Lien envoyé » de l'oubli (remplace `auth.forgotPassword.sentBody`).
+  'auth.oubli.envoye.sousTitre': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
     'takussan-api/app/Services/Account/DeletionStepUpService.php:38 — CODE_TTL_SECONDS = 300, usage unique',
   // TCK-596 §4B (ADR-0042 §2) — le code de signature d'un bail.
   'lease.signature.codeSentSms':
     'takussan-api/app/Services/Lease/LeaseSignatureOtpService.php:24 — CODE_TTL_SECONDS = 600, usage unique',
   'lease.signature.codeSentMail': 'idem — LeaseSignatureOtpService.php:24',
+  // TCK-2635 — l'aide de la rangée « Supprimer le compte » du sommaire : le délai de grâce, annulable en
+  // se reconnectant (AccountDeletionService::cancel).
+  'profile.sommaire.aides.suppression':
+    'takussan-api/app/Services/Account/AccountDeletionService.php:81 — graceDays() = config auth.account_deletion.grace_days, 30 par défaut',
   // Ces cinq textes promettaient « jusqu'à 60 secondes pour arriver » : un délai de LIVRAISON du
   // SMS, que rien ne tient (le transport est un journal en dev, un fournisseur tiers en prod). Le
   // 60 était le délai avant renvoi, une autre chose. Ils annoncent désormais ce que le serveur
@@ -48,9 +62,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'serviceProviders.onboarding.steps.phone.sent.body': 'idem — PhoneVerificationService.php:22',
   'onboarding.host.steps.identity.otp.sentBody': 'idem — PhoneVerificationService.php:22',
   'profile.contact.otpSent': 'idem — PhoneVerificationService.php:22',
-  // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
-  'auth.phoneLogin.codeSentTo':
-    'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
+  // TCK-589, TCK-2604 — le code de connexion par téléphone (« Valable 5 minutes » de l'écran du code,
+  // qui remplace `auth.phoneLogin.codeSentTo`) : même service, sujet « numéro » (`sendCodeTo`).
+  'auth.porte.code.valable':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:39 — CODE_TTL_SECONDS = 300, via PhoneLoginService.php:85 (sendCodeTo)',
   // TCK-2510 — le code du tunnel de réservation : le même point d'entrée que la connexion par
   // téléphone (`demanderCodeTelephone` → `POST /api/auth/phone/request-code` →
   // `PhoneLoginService::requestCode` → `sendCodeTo('login', …)`), donc le même TTL.
@@ -61,12 +76,17 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // par `PhoneChangeGuard::authorize`.
   'profile.contact.changeProofCodeSent':
     'takussan-api/app/Services/Auth/PhoneVerificationService.php:34 — CODE_TTL_SECONDS = 300, posé à :207 via PhoneChangeGuard::sendCode',
-  'agency.tenantOnboardingPending.emptyDescription':
-    'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
-  'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
-  // TCK-2483 — la ligne d'aide du module « Entrées en attente » décrit le même seuil.
-  'admin.agencyConfig.modules.items.move_in_follow_up.hint':
-    'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:54 — seuil subDays(7)',
+  // TCK-2644 — la règle de la file « À traiter » de la liste des baux, et l'onglet « En attente du
+  // locataire » (qui remplace `agency.tenantOnboardingPending` et `dashboard.onboardingPending`).
+  'lease.liste.regle':
+    'takussan-api/app/Services/Lease/LeaseAttention.php:62 — SIGNATURE_AFTER_DAYS = 3, :64 ENDING_WITHIN_MONTHS = 4 ; takussan-api/app/Models/TenantOnboardingChecklist.php:58 — PENDING_AFTER_DAYS = 7 (scopePending)',
+  'lease.liste.vide.en_attenteTexte':
+    'takussan-api/app/Models/TenantOnboardingChecklist.php:58 — PENDING_AFTER_DAYS = 7, appliqué par scopePending (filter[onboarding_pending]=1)',
+  // TCK-2584 (ADR-0103 § 7) — un seuil mesuré, pas une promesse : la boîte « Demandes » compte les
+  // demandes à traiter créées avant l'instant moins 24 h (`filter[created_at_max]`), la borne que
+  // l'API applique aussi à `open_over_24h_count` de `response-stats`.
+  'contactLeads.inbox.lateCount':
+    'takussan-web/src/lib/demandes/boite.ts:8 — DELAI_DE_RETARD_MS = 24 h, borne de `borneDuRetard` (:47) ; API : ContactLeadResponseStatsService.php:98, `open_over_24h_count`',
   // TCK-592 — la clôture contradictoire : `completed_at <= subDays(7)` (:38), passe quotidienne à
   // 04:00 (routes/console.php:79, sans `--days`) — close au premier passage après le septième jour.
   'maintenance.intervention.resolution.body':
@@ -112,10 +132,46 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'admin.finances.aging.buckets.31_60': 'tranche d\'ancienneté affichée, pas une promesse',
   'admin.finances.aging.buckets.61_90': 'tranche d\'ancienneté affichée, pas une promesse',
   'admin.finances.aging.buckets.90_plus': 'tranche d\'ancienneté affichée, pas une promesse',
+  // TCK-2624 — « Impayés » de l'accueil de l'admin : la même tranche d'ancienneté (« {n} de moins de 30 jours »),
+  // bornes de `AgingBalanceService::BUCKETS`, lues sur `finance/aging` (`buckets`). Une ANCIENNETÉ de retard, pas un délai promis.
+  'accueil.admin.impayes.tranches.1_30': 'tranche d\'ancienneté affichée, pas une promesse',
   // TCK-2659 — la tuile « Impayés en cours » d'« Argent » : « # de plus de 30 jours » compte la tranche
   // `over_30` que l'API mesure (`by_age.over_30.count`). Une ANCIENNETÉ de retard, pas un délai promis.
   'admin.finances.argent.tuiles.bauxEtAnciens':
     'takussan-api/app/Services/Reporting/FinanceSummaryService.php:44-48 — AGE_BUCKETS, over_30 = [31, null] (plus de 30 jours de retard)',
+  // TCK-2638 — la tuile « Vacants » du mode Gestion : « # depuis plus de 60 j » compte les biens que
+  // l'API mesure vacants depuis au moins 60 jours (`vacant_over_60_days`). Une DURÉE de vacance, pas un
+  // délai promis.
+  'property.dashboard.gestion.tuiles.vacantsLongs':
+    'takussan-api/app/Http/Controllers/Api/PropertyPortfolioController.php:38 — LONG_VACANCY_DAYS = 60, compté à :59 (vacantForAtLeast)',
+  // TCK-2660 — les pastilles des impayés : « Plus de 30 j » et « Moins de 8 j » filtrent l'historique par
+  // ANCIENNETÉ de retard (`filter[days_late_min|max]`, mesurée par l'API). Une tranche affichée, pas un délai promis.
+  'admin.finances.impayes.tranches.plus30':
+    'takussan-web/src/components/admin/finances/impayes/tranches.ts:21 — plus30 = days_late_min 31 (plus de 30 jours de retard)',
+  'admin.finances.impayes.tranches.moins8':
+    'takussan-web/src/components/admin/finances/impayes/tranches.ts:23 — moins8 = days_late 1 à 7 (moins de 8 jours de retard)',
+  // TCK-2664 — « À pousser » : les biens SANS CONTACT depuis 30 jours que l'API choisit (TCK-2663). Une
+  // fenêtre de mesure, pas un délai promis.
+  'credits.pousser.titreCompte':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.pousser.compte':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.pousser.vide':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.flux.ordre':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.flux.aucuneSuggestion':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  // TCK-2600 (ADR-0093 § 5) — le brouillon de `/publish` sans compte, purgé après 30 jours sans geste :
+  // le constat d'une purge FAITE (relue à l'ouverture), pas une promesse.
+  'publishRedirect.sansCompte.brouillon.purge':
+    'takussan-web/src/lib/publication/brouillon-local.ts:65 — DUREE_DE_GARDE_MS = 30 jours, appliqué par ouvrirBrouillonLocal().ouvrir() (:269)',  // TCK-2812 (ADR-0099, amendement du 2026-11-14) — l'archive préparée d'un dossier du coffre, et son lien
+  // signé, durent 24 h : `expires_at` est posé à la construction, le lien signé expire au même instant, et la
+  // purge horaire efface l'archive et son fichier ensuite.
+  'documents.coffre.archive.preparee.prete':
+    'takussan-api/app/Models/DocumentVaultArchive.php:49 — DUREE_EN_HEURES = 24, posé à BatirLArchiveDuCoffreJob.php:127 (expires_at, borne du lien signé), purgé par PurgerLesArchivesDuCoffre.php:25',
+  'notifications.codes.document.archive_ready.body':
+    'idem — DocumentVaultArchive.php:49, posé à BatirLArchiveDuCoffreJob.php:127',
 };
 
 /**
@@ -127,20 +183,23 @@ const REGISTRE: Readonly<Record<string, string>> = {
  * jours pour la messagerie ») : le texte doit porter exactement ces chiffres, dans cet ordre.
  */
 const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
-  'auth.forgotPassword.sentBody': 60,
+  'auth.oubli.envoye.sousTitre': 60,
+  'publishRedirect.sansCompte.brouillon.purge': 30,
   'account.deletion.dialog.codeSentHint': 5,
+  'profile.sommaire.aides.suppression': 30,
   'owners.onboarding.steps.phone.sent.body': 5,
   'agents.onboarding.steps.phone.sent.body': 5,
   'serviceProviders.onboarding.steps.phone.sent.body': 5,
   'onboarding.host.steps.identity.otp.sentBody': 5,
   'profile.contact.otpSent': 5,
   'profile.contact.changeProofCodeSent': 5,
-  'agency.tenantOnboardingPending.emptyDescription': 7,
-  'dashboard.onboardingPending.subtitle': 7,
+  'lease.liste.regle': [3, 4, 7],
+  'lease.liste.vide.en_attenteTexte': 7,
   'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': [90, 30],
   'superAdmin.pages.users.impersonateDescription': 15,
   'bookings.tunnel.identity.codeSentTo': 5,
+  'auth.porte.code.valable': 5,
   'lienPublic.paiement.quittanceDelai': 30,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
@@ -148,6 +207,11 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'search.publicAlert.codeBody': 5,
   'superAdmin.pages.radar.listing.source.capturesExpire': 30,
   'admin.finances.argent.tuiles.bauxEtAnciens': 30,
+  'property.dashboard.gestion.tuiles.vacantsLongs': 60,
+  'admin.finances.impayes.tranches.plus30': 30,
+  'admin.finances.impayes.tranches.moins8': 8,
+  'documents.coffre.archive.preparee.prete': 24,
+  'notifications.codes.document.archive_ready.body': 24,
 };
 
 /**
@@ -216,9 +280,16 @@ const AMORCE_NOMMEE = String.raw`(?:délais?\b|temps\s+(?:de\s+|d['’])(?:répo
 const AMORCE_FORTE = String.raw`(?:${AMORCE_NOMMEE}|sous|en moins d['’]|en moins de|moins d['’]|moins de|d['’]ici|dans un délai (?:maximum |maximal |max )?d(?:e|['’])|au bout d['’]|au bout de|au plus tard|valable|within|in under|under|in less than|less than|valid for|expires in|diirub|≤)`;
 /** Les amorces faibles : « en », « in », « for »… précèdent aussi bien un article qu'une durée. */
 const AMORCE = String.raw`(?:${AMORCE_FORTE}|plus de|dans les|dans|après|en|jusqu['’]à|pendant|more than|up to|after|for|in|ci|ba|ëpp|dina jëf|dina dox)`;
+/**
+ * Une amorce commence un MOT : « in » ne se lit pas dans « Demain 9 h – 11 h » (TCK-2653, un créneau
+ * proposé pris pour une promesse), ni dans « Matin 9 h – 12 h ». La frontière est écrite en
+ * lettres Unicode (`\p{L}`, drapeau `u`) et non par `\b`, qui ne connaît que l'ASCII : avec `\b`,
+ * « é » n'est pas une lettre, et une amorce collée derrière lui passerait pour un début de mot.
+ */
+const DEBUT_DE_MOT = String.raw`(?<![\p{L}\p{N}])`;
 const FORME_DE_DELAI = new RegExp(
-  String.raw`(?:${AMORCE}\s*(?:(?:dernières?|derniers?|prochaine?s?|last|next)\s+)?\(?\s*${NOMBRE}|${AMORCE_FORTE}\s*${ARTICLE}${FOURCHETTE})\s?${UNITE}`,
-  'i',
+  String.raw`(?:${DEBUT_DE_MOT}${AMORCE}\s*(?:(?:dernières?|derniers?|prochaine?s?|last|next)\s+)?\(?\s*${NOMBRE}|${DEBUT_DE_MOT}${AMORCE_FORTE}\s*${ARTICLE}${FOURCHETTE})\s?${UNITE}`,
+  'iu',
 );
 
 type Dictionnaire = { readonly [cle: string]: string | Dictionnaire };
@@ -321,6 +392,9 @@ describe('promesses de délai des dictionnaires (TCK-575)', () => {
     'We reply within an hour.',
     'Réponse sous une heure.',
     'Réponse dans un délai d’une semaine.',
+    // TCK-2653 — la frontière de mot ne doit pas coûter l'amorce anglaise « in » elle-même.
+    'We reply in 2 days.',
+    'Réponse en 2 jours.',
   ])('reconnaît la forme d’une promesse : « %s »', (texte) => {
     expect(FORME_DE_DELAI.test(texte)).toBe(true);
   });
@@ -336,6 +410,11 @@ describe('promesses de délai des dictionnaires (TCK-575)', () => {
     'Free for one month.',
     'Offert en un mois de janvier.',
     'Publiez en une heure de travail.',
+    // TCK-2653 — une amorce dans un mot n'en est pas une : le « in » de « Demain » (un créneau
+    // proposé, pas un délai promis), celui de « Matin ».
+    'Demain 9 h – 11 h',
+    'Demain 14 h – 16 h',
+    'Matin 9 h – 12 h',
   ])('ne prend pas pour une promesse : « %s »', (texte) => {
     expect(FORME_DE_DELAI.test(texte)).toBe(false);
   });

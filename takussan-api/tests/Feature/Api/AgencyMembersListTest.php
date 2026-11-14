@@ -5,10 +5,14 @@ namespace Tests\Feature\Api;
 use App\Models\Agency;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\OwnerProfileStatus;
+use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -112,6 +116,54 @@ class AgencyMembersListTest extends TestCase
         $this->assertFalse($agents->contains($bailleurAgentAilleurs->id), "Un bailleur agent ailleurs n'est pas agent ici.");
 
         $this->assertTrue($ids('filter[role]=owner')->contains($bailleurAgentAilleurs->id));
+    }
+
+    /**
+     * TCK-2589 (suite de 0ac314942) — `filter[assignable]=1` ne propose un délégué que si sa
+     * délégation est EN VIGUEUR (`RoleDelegation::enVigueur()` : active ET portée par un profil
+     * d'agence actif du délégué), la règle de `PersonnelDeLAgence::estPersonnel()` qui juge la cible
+     * à l'écriture. Avec `active()` seule, le délégué sans profil actif était proposé, puis refusé
+     * par 422 au choix. Le test épingle l'accord, cas par cas, avec la règle d'écriture.
+     */
+    public function test_assignable_ne_propose_un_delegue_que_si_sa_delegation_est_en_vigueur(): void
+    {
+        [$admin, $agency] = $this->createAdminWithAgency();
+        $delegation = fn (User $delegue) => RoleDelegation::factory()->create([
+            'user_id' => $delegue->id, 'delegator_id' => $admin->id, 'agency_id' => $agency->id, 'role' => 'agent',
+            'status' => RoleDelegationStatus::Active, 'starts_at' => now()->subDay(), 'ends_at' => now()->addWeek(),
+        ]);
+
+        // Bailleur de l'agence à qui l'admin délègue le rôle d'agent : en vigueur.
+        $enVigueur = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $enVigueur->id, 'agency_id' => $agency->id]);
+        $delegation($enVigueur);
+
+        // Bailleur de l'agence au profil désactivé, délégation toujours active : il reste membre
+        // (la liste des membres ne filtre pas le statut), mais sa délégation est hors vigueur.
+        $horsVigueur = User::factory()->create();
+        OwnerProfile::factory()->create([
+            'user_id' => $horsVigueur->id, 'agency_id' => $agency->id, 'status' => OwnerProfileStatus::Inactive,
+        ]);
+        $delegation($horsVigueur);
+
+        Sanctum::actingAs($admin);
+        $this->assertContains($horsVigueur->id, $this->getJson("/api/agencies/{$agency->id}/members?fields[users]=id,first_name&per_page=100")
+            ->assertOk()
+            ->json('data.*.id'), 'Le délégué hors vigueur est bien membre : seul le filtre le retire.');
+        $assignables = collect($this->getJson("/api/agencies/{$agency->id}/members?filter[assignable]=1&fields[users]=id,first_name&per_page=100")
+            ->assertOk()
+            ->json('data'))
+            ->pluck('id');
+
+        $this->assertTrue($assignables->contains($enVigueur->id), 'Le délégué en vigueur est proposé.');
+        $this->assertFalse($assignables->contains($horsVigueur->id), "Le délégué hors vigueur n'est pas proposé.");
+        foreach ([$enVigueur, $horsVigueur] as $delegue) {
+            $this->assertSame(
+                PersonnelDeLAgence::estPersonnel($delegue->refresh(), $agency->id),
+                $assignables->contains($delegue->id),
+                "La liste et la règle d'écriture jugent le délégué {$delegue->id} de la même façon.",
+            );
+        }
     }
 
     /**

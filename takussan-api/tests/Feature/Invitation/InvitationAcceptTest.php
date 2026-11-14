@@ -87,7 +87,8 @@ class InvitationAcceptTest extends TestCase
 
         $response->assertStatus(401)
             ->assertJsonPath('requires_login', true)
-            ->assertJsonPath('email', 'existing@example.com')
+            // TCK-2727 — l'adresse masquée, comme l'aperçu public : jamais en clair au porteur du jeton.
+            ->assertJsonPath('email', 'e•••@example.com')
             // TCK-588 — le relais porte le code et le message localisé de l'ApiError.
             ->assertJsonPath('code', 'invitation.requires_login')
             ->assertJsonPath('message', __('errors.invitation.requires_login'));

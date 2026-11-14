@@ -25,14 +25,14 @@ export function CarteDeCompte() {
       className="rounded-2xl bg-secondary p-4 lg:flex lg:items-center lg:gap-6 lg:p-5"
     >
       <div className="min-w-0 flex-1">
-        <h2 id="carte-de-compte-titre" className="text-[1.0625rem] font-semibold leading-snug">
+        <h2 id="carte-de-compte-titre" className="text-titre-court font-semibold leading-snug">
           {t('titre')}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{t('texte')}</p>
       </div>
       <LienLocalise
         href={`/auth/login?redirect=${encodeURIComponent(retour)}`}
-        className={cn(buttonVariants({ size: 'lg' }), 'mt-3 h-11 w-full rounded-xl text-[0.9375rem] font-semibold lg:mt-0 lg:w-auto lg:px-5')}
+        className={cn(buttonVariants({ size: 'lg' }), 'mt-3 h-11 w-full rounded-xl text-corps font-semibold lg:mt-0 lg:w-auto lg:px-5')}
       >
         {t('cta')}
       </LienLocalise>

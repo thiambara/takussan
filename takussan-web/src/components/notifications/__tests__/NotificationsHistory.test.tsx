@@ -57,12 +57,13 @@ describe('NotificationsHistory', () => {
   it('se pagine côté serveur', async () => {
     renderHistory();
     expect(await screen.findByText('Notification de la page 1')).toBeInTheDocument();
-    expect(screen.getByText('Page 1 sur 3')).toBeInTheDocument();
+    // TCK-2634 — la plage de la maquette (« 1 à 20 sur 42 · page 1 sur 3 ») au lieu de « Page 1 sur 3 ».
+    expect(screen.getByText('1 à 20 sur 60 · page 1 sur 3')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Suivante' }));
 
     expect(await screen.findByText('Notification de la page 2')).toBeInTheDocument();
-    expect(getNotificationsMock).toHaveBeenLastCalledWith({ page: 2, perPage: 20, unread: false });
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({ page: 2, perPage: 20, unread: false, aTraiter: false, familles: [] });
   });
 
   it('filtre les non lues côté serveur et revient à la première page', async () => {
@@ -71,12 +72,13 @@ describe('NotificationsHistory', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Suivante' }));
     await screen.findByText('Notification de la page 2');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Non lues (3)' }));
+    // TCK-2634 — la puce de la maquette : « Non lues » et son compte (au lieu de « Non lues (3) »).
+    await userEvent.click(screen.getByRole('button', { name: /^Non lues\s*3$/ }));
 
     await waitFor(() =>
-      expect(getNotificationsMock).toHaveBeenLastCalledWith({ page: 1, perPage: 20, unread: true }),
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({ page: 1, perPage: 20, unread: true, aTraiter: false, familles: [] }),
     );
-    expect(screen.getByRole('button', { name: 'Non lues (3)' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Non lues\s*3$/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('marque tout comme lu', async () => {
@@ -97,6 +99,7 @@ describe('NotificationsHistory', () => {
     renderHistory();
 
     expect(await screen.findByText('Aucune notification pour l’instant.')).toBeInTheDocument();
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    // TCK-2634 — la colonne « Familles » est un repère de navigation ; la pagination, elle, est absente.
+    expect(screen.queryByRole('navigation', { name: 'Pages de l’historique' })).not.toBeInTheDocument();
   });
 });

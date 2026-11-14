@@ -36,6 +36,11 @@ final class PayoutClawbacks
 
     public const IMPUTATIONS = 'payout_clawback_imputations';
 
+    /** La part reprise : la pièce, ou la pénalité de retard (ADR-0039, amendement du 2026-10-24). */
+    public const PART_PAYMENT = 'payment';
+
+    public const PART_LATE_FEE = 'late_fee';
+
     /**
      * À appeler DANS la transaction qui écrit le remboursement, après la ligne de la pièce : le
      * reversement porteur se relit sous verrou. `markProcessed` relit les pièces sous le verrou du
@@ -72,10 +77,13 @@ final class PayoutClawbacks
 
         // La base de la reprise ne dépasse pas ce que le reversement a pris de la pièce, moins ce
         // qu'une reprise précédente en a déjà repris.
+        // TCK-2793 — la part `payment` seulement : la reprise d'une pénalité payée seule, portée par
+        // le même reversement, ne retranche rien de ce que le loyer peut encore reprendre.
         $already = (float) DB::table(self::TABLE)
             ->where('source_payout_id', $payout->id)
             ->where('refunded_payment_type', $payment::class)
             ->where('refunded_payment_id', $payment->getKey())
+            ->where('part', self::PART_PAYMENT)
             ->sum('refund_amount');
         $currency = $payout->currency instanceof Currency ? $payout->currency : Currency::default();
         $base = Currency::roundAmount(min($refundedPart, max(0.0, (float) $line->amount - $already)), $currency);
@@ -92,7 +100,61 @@ final class PayoutClawbacks
             'landlord_id' => $payout->landlord_id,
             'refunded_payment_type' => $payment::class,
             'refunded_payment_id' => $payment->getKey(),
-            'part' => 'payment',
+            'part' => self::PART_PAYMENT,
+            'source_payout_id' => $payout->id,
+            'refund_amount' => $base,
+            'commission_rate' => $rate,
+            'commission_amount' => $commission,
+            'amount' => Currency::roundAmount($base - $commission, $currency),
+            'currency' => $currency->value,
+            'refunded_at' => $at,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 6) — la reprise du remboursement d'une
+     * pénalité payée SEULE : sa base et son taux sont la copie que le reversement au bailleur a
+     * figée (`late_fee_payout_amount`, `late_fee_payout_commission_rate`, point 6 de l'amendement du
+     * 2026-10-24), et non le pivot du loyer. Rien si la pénalité n'a pas été reversée, si son
+     * reversement n'est pas `completed`, ou sans copie.
+     */
+    public function recordLateFeeRefund(LeasePayment $payment, float $refundedPart, CarbonInterface $at): void
+    {
+        if ($refundedPart <= 0 || $payment->late_fee_payout_id === null
+            || $payment->late_fee_payout_amount === null || $payment->late_fee_payout_commission_rate === null) {
+            return;
+        }
+
+        /** @var Payout|null $payout */
+        $payout = Payout::query()->whereKey($payment->late_fee_payout_id)->lockForUpdate()->first();
+        if ($payout === null || $payout->status !== PayoutStatus::Completed || $payout->payee_role !== PayeeRole::Landlord) {
+            return;
+        }
+
+        $already = (float) DB::table(self::TABLE)
+            ->where('source_payout_id', $payout->id)
+            ->where('refunded_payment_type', $payment::class)
+            ->where('refunded_payment_id', $payment->getKey())
+            ->where('part', self::PART_LATE_FEE)
+            ->sum('refund_amount');
+        $currency = $payout->currency instanceof Currency ? $payout->currency : Currency::default();
+        $base = Currency::roundAmount(min($refundedPart, max(0.0, (float) $payment->late_fee_payout_amount - $already)), $currency);
+        if ($base <= 0) {
+            return;
+        }
+
+        $rate = (float) $payment->late_fee_payout_commission_rate;
+        $commission = Currency::roundAmount($base * $rate / 100, $currency);
+        $now = now();
+
+        DB::table(self::TABLE)->insert([
+            'agency_id' => $payout->agency_id,
+            'landlord_id' => $payout->landlord_id,
+            'refunded_payment_type' => $payment::class,
+            'refunded_payment_id' => $payment->getKey(),
+            'part' => self::PART_LATE_FEE,
             'source_payout_id' => $payout->id,
             'refund_amount' => $base,
             'commission_rate' => $rate,

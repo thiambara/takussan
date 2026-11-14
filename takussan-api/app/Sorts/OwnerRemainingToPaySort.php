@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Spatie\QueryBuilder\Sorts\Sort;
 
 /**
- * TCK-2640 — `sort=-remaining_to_pay` du carnet des bailleurs : le reste à verser du mois courant,
- * qui n'est pas une colonne. Il se calcule pour TOUT le périmètre de la requête (pas la seule page)
+ * TCK-2640 — `sort=-remaining_to_pay` du carnet des bailleurs : le reste à verser — TCK-2760 : le
+ * solde cumulé au jour, plus le reste du mois courant —, qui n'est pas une colonne. Il se calcule pour TOUT le périmètre de la requête (pas la seule page)
  * par le relevé servi ({@see OwnerDirectory::remainingToPayIn()}), puis se rejoue en SQL par un
  * `CASE` sur l'id, comme {@see SearchRelevanceSort} : la pagination reste celle de la base. Un
  * profil sans relevé (brouillon) passe en dernier dans les deux sens.

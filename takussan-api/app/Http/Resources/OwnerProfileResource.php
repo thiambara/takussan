@@ -27,8 +27,9 @@ class OwnerProfileResource extends BaseResource
         $attributes = $profile->attributesToArray();
         // `attributesToArray()` sérialise les instants par `toISOString()` (`…000000Z`) : ADR-0018
         // veut `iso()`. Seules les colonnes PRÉSENTES sont réécrites — les sparse fieldsets décident.
-        // TCK-2640 — `last_payout_at` (sous-requête de la liste) suit la même forme.
-        foreach (['created_at', 'updated_at', 'deleted_at', 'last_payout_at'] as $column) {
+        // TCK-2640 — `last_payout_at` (sous-requête de la liste) suit la même forme, et (TCK-2641)
+        // `pending_invitation_sent_at`.
+        foreach (['created_at', 'updated_at', 'deleted_at', 'last_payout_at', 'pending_invitation_sent_at'] as $column) {
             if (array_key_exists($column, $attributes)) {
                 $attributes[$column] = $this->iso($profile->getAttribute($column));
             }

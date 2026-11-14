@@ -37,6 +37,35 @@ export type AdminAgencyUserRow = {
   agent_profiles?: readonly AdminAgencyProfileRow[];
   owner_profiles?: readonly AdminAgencyProfileRow[];
   agency_admin_profiles?: readonly AdminAgencyProfileRow[];
+  /**
+   * TCK-2665 (`include=team_summary`) — ce que le membre porte DANS l'agence. Absents sans l'include.
+   * `commissions_due_amount` n'est rendu qu'à qui lit l'argent de l'agence (`payouts.approve` ou
+   * `reports.view_agency`) : sans la clé, la colonne n'existe pas (TCK-2667, AC4) — absent n'est pas 0.
+   */
+  properties_followed_count?: number;
+  commissions_due_amount?: number;
+  current_absence?: AdminAgencyCurrentAbsence | null;
+  /** La création de son premier profil dans l'agence : « Dans l'équipe depuis ». */
+  joined_at?: string | null;
+};
+
+/** TCK-2665 — l'absence EN COURS d'un membre, et qui le couvre (nom seul, sans coordonnée). */
+export type AdminAgencyCurrentAbsence = {
+  starts_at: string;
+  ends_at: string;
+  substitute: { id: number; name: string } | null;
+};
+
+/**
+ * TCK-2665, TCK-2667 — les comptes des pastilles, sur l'ensemble filtré HORS `filter[role]`.
+ * `staff` : le personnel (agent OU administrateur), « Tous » — pas `agent + agency_admin`.
+ */
+export type AdminAgencyUsersCounts = {
+  agent: number;
+  agency_admin: number;
+  owner: number;
+  staff?: number;
+  absent: number;
 };
 
 /** TCK-587 — la part d'un profil dont la console a besoin. */
@@ -57,6 +86,8 @@ export type AdminAgencyUsersResponse = {
      * (`with_role_assignments=1`) à qui lit les rôles de l'agence (`team.assign_role`).
      */
     role_assignments?: AgencyRoleAssignment[];
+    /** TCK-2665 — rendus pour une agence active (hors super-admin sans agence). */
+    counts?: AdminAgencyUsersCounts;
   };
 };
 

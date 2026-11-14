@@ -1,0 +1,387 @@
+{
+  "ticket": "TCK-2682",
+  "ecrans": [
+    {
+      "page": "app-argent",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Impayés et relance — la sélection",
+      "references": {
+        "telephone": "references/app-argent/a-1-telephone.json",
+        "bureau-1440": "references/app-argent/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-argent/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/finances?tab=impayes",
+        "persona": "admin",
+        "etat": "agence 1 de démo, « Par locataire », « Tous » : 16 échéances échues, 33 715 000 F. Bureau : les QUATRE premières rangées cochées, comme la maquette (`SELECTION` : ses quatre premiers locataires) — `selection-bureau.js`. Téléphone : la liste AU REPOS, hors mode sélection (condition 1 du chef d'équipe : « l'écran a-1 du téléphone reste identique ») — `liste-filet.js` de TCK-2660. Le mode sélection du téléphone n'a pas de maquette : relevé à part (`prod-selection-telephone`), sans comparaison"
+      }
+    },
+    {
+      "page": "app-argent",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Relancer (feuille, panneau) — la file",
+      "references": {
+        "telephone": "references/app-argent/a-2-telephone.json",
+        "bureau-1440": "references/app-argent/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-argent/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/finances?tab=impayes",
+        "persona": "admin",
+        "etat": "la file ouverte sur la 1re des quatre échéances cochées, son lien (simulé) prêt et son message composé : « 1 sur 4 ». Téléphone : « Sélectionner », quatre cartes cochées, « Relancer la sélection (4) » de la barre collante (`file-tel.js`). Bureau : quatre rangées cochées, « WhatsApp » de la barre (`file-bureau.js`). Rien n'est cliqué dans la file. La maquette ne dessine pas la file (ticket § Direction : « elle reprend la feuille de relance unitaire de TCK-2660, avec un en-tête « 3 sur 12 » ») : la référence est la feuille (téléphone) et le dossier (bureau) d'a-2"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency/finances?tab=impayes",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2, terrain-5/2682/fid/ : intercepter.js (celui de TCK-2660, à une différence : un clic sur wa.me ou tel: annule la NAVIGATION seule — `preventDefault`, plus `stopImmediatePropagation` — pour que le gestionnaire de React tourne et que la file avance ; le POST …/reminders qui part alors est REFUSÉ par l'intercepteur) + communs.js + selection-bureau.js / file-bureau.js / selection-tel.js / file-tel.js ; parcours.mjs (la file parcourue, ci-dessous)",
+    "bloquer": "*/api/lease-payments/*/payment-link"
+  },
+  "preuve_aucune_ecriture": {
+    "decision": "décision 7 du chef d'équipe (TCK-2660), reprise : les deux POST interceptés avant le réseau pendant tout relevé et tout parcours, jamais wa.me ni tel: suivis ; `parcours.mjs` bloque en plus les deux routes au niveau du navigateur (`Network.setBlockedURLs`)",
+    "journal": {
+      "a-1 (trois appareils)": "interceptions [] ; aucun POST",
+      "a-2 (trois appareils)": "interceptions [« POST /api/lease-payments/16/payment-link → 200 simulé »] : UN seul lien demandé à l'ouverture de la file de 4 (AC1)",
+      "parcours bureau 1280 (3 échéances, « Ouvrir WhatsApp » à chaque pas)": "3 × (POST …/payment-link → 200 simulé, clic wa.me annulé, POST …/reminders → refusé) ; le lien de la 2ᵉ n'est demandé qu'après le clic sur la 1re ; le numéro du lien wa.me est, à chaque pas, celui de la rangée surlignée (`memeNumero: true` ×3) ; récapitulatif « 3 relancés · 0 passé · 0 sauté » et les trois « relance non notée » (les notes ont été refusées)"
+    },
+    "ac3": "AC3 — les seules requêtes non-GET du parcours sont POST …/payment-link, POST …/reminders et POST /app/agency/finances : cette dernière est l'action serveur Next `composerLaRelanceAction` (le message composé dans la langue du locataire, TCK-2660), qui n'appelle aucune route d'envoi. Le test « AC1, AC2, AC3 » refuse toute route hors de la liste blanche (historique, balance âgée, lien, note)"
+  },
+  "roles": [
+    {
+      "nom": "1re carte d'impayé (téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Sahel Transit SARL",
+        "min": 150
+      },
+      "produit": {
+        "boiteDe": "Coumba Diop",
+        "min": 150
+      }
+    },
+    {
+      "nom": "1re rangée d'impayé (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Sahel Transit SARL",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "Coumba Diop",
+        "min": 40
+      }
+    },
+    {
+      "nom": "champ de recherche (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Chercher un locataire, un bien",
+        "min": 30
+      },
+      "produit": {
+        "slot": "input",
+        "tag": "input"
+      }
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Messages": "Messagerie"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "bascule « WhatsApp · SMS · E-mail » de la feuille (a-2 téléphone)",
+      "motif": "hors du ticket (décision 6) : Takussan n'envoie rien (ADR-0105), seul WhatsApp s'ouvre depuis le téléphone de l'agence. La feuille, plus courte de cette rangée, monte de son contenu"
+    },
+    {
+      "element": "« Lu le 3 nov. à 18:02 · sans réponse », « Remis » (historique des relances, a-2 bureau)",
+      "motif": "hors du ticket (décision 6, AC5) : rien ne mesure la lecture d'un message envoyé depuis le WhatsApp de l'agence. Un test garde l'absence de « Lu le »"
+    },
+    {
+      "element": "« Novembre 2026 » et « Exporter » de l'en-tête (a-1, a-2 bureau)",
+      "motif": "l'impayé n'a pas de mois : il est dû tant qu'il n'est pas payé, quel que soit le mois de l'échéance. Le sélecteur de mois et l'export restent sur « Encaissements » (TCK-2659)"
+    },
+    {
+      "element": "barre d'onglets du téléphone (« Messages » / « Messagerie », pastille) et barre latérale du bureau",
+      "motif": "exclus du ticket : navigation de la famille 3 ; primitives de la coque, communes à tout /app"
+    },
+    {
+      "element": "« ⋯ » (« Plus d’actions ») au bout de chaque rangée (a-1, a-2 bureau)",
+      "motif": "la rangée n’a pas d’autre geste que « Relancer », l’appel et le dossier (clic sur la ligne) : le menu de la maquette ne porte rien que la ligne n’offre déjà. Sans lui, « Relancer » et le téléphone se rangent au bord droit de la colonne (+18 à +24 px)"
+    },
+    {
+      "element": "« Remis », l’icône SMS (lucide-message-square-text) de l’historique des relances",
+      "motif": "hors du ticket : Takussan n’envoie ni SMS ni e-mail de relance manuelle (ADR-0105), et rien ne mesure la remise d’un message"
+    },
+    {
+      "element": "« SMS » et « E-mail » de la barre de sélection (a-1 bureau)",
+      "motif": "décision 6 du chef d'équipe : la barre porte « WhatsApp » (qui ouvre la file) et « Tout désélectionner » ; Takussan n'envoie ni SMS ni e-mail (ADR-0105). « WhatsApp » se range donc au bord droit avec « Tout désélectionner » (+120 px)"
+    },
+    {
+      "element": "« ⋯ » de l’en-tête du téléphone (lucide-ellipsis) — remplacé par « Sélectionner »",
+      "motif": "décision 1 du chef d'équipe : « Sélectionner » à la place du « ⋯ » de la maquette ; en mode sélection il devient « Annuler ». Le titre de l'en-tête garde sa largeur de TCK-2660 moins celle du bouton"
+    },
+    {
+      "element": "la file elle-même (a-2) : « 1 sur 4 », « Passer », « Arrêter », « Suivant », le récapitulatif",
+      "motif": "la maquette ne dessine pas la file (ticket § Direction) : a-2 n'est qu'un repère. Au téléphone la file est plein écran (ticket : « la file est une feuille plein écran ») — `PanneauDroit formulaire`, en-tête « Relancer {nom} » / « n sur M », pied collant — et non la feuille de 90 % d'a-2 : d'où 54 % de pixels. Au bureau elle vit dans le panneau de 480 px, comme le dossier d'a-2, dont elle n'a pas le contenu (pas de dossier : la relance composée de TCK-2660)"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "une carte (téléphone) ou une rangée (bureau) PAR LOCATAIRE, « 3 échéances » sous le montant",
+      "propriete": "nombre de cartes et texte (« 3 échéances » → « Loyer de juin »)",
+      "exception": "décision produit",
+      "motif": "décision 2 : une carte par ÉCHÉANCE, compteur = `meta.total` de `GET /api/payments/history`, « Voir plus » par 20. Chaque échéance a son lien de paiement et sa relance ; les autres échéances dues du même locataire sont dans son dossier (« Échéances dues »). Grouper par locataire est un delta d'API (pagination par payeur) : reste"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "sous-titre « 33 715 000 F dus sur 16 baux · cautions détenues : 18 450 000 F »",
+      "propriete": "texte (« 16 baux » → « 16 échéances ») et y de tout ce qui suit au téléphone (+36 à +38 px : la caution de la base, 235 035 000 F, passe à la ligne)",
+      "exception": "vérité des données",
+      "motif": "la base de démo compte 16 échéances sur 14 baux : le produit compte ce qu'il montre (une carte par échéance). Le total dû et la caution sont ceux de l'âge des créances (`GET /api/agencies/{id}/finance/aging`), mesurés égaux à la somme des échéances (33 715 000 F)"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "noms, biens, quartiers, montants, retards, bailleurs, relances, comptes des pastilles",
+      "propriete": "texte, x des montants alignés à droite, largeurs",
+      "exception": "vérité des données",
+      "motif": "la base de démo : 7 à plus de 30 j, 0 de 8 à 30 j, 9 à moins de 8 j, aucune relance notée, bailleur « Property Owner » d'un compte de démo ; aucun bien n'a de quartier distinct de son titre (« Bureaux 240 m² · Plateau » → « Espace de stockage à Thiès »). La pastille vide montre « 0 » sans montant"
+    },
+    {
+      "ecran": "a-1-bureau-*, a-2-bureau-*",
+      "element": "colonne « Bien » : quartier sous le titre",
+      "propriete": "nombre de lignes",
+      "exception": "vérité des données",
+      "motif": "l'historique des paiements rend `property.title` seul ; sous 1440 px le bailleur rejoint la ligne du bien (maquette `COLS_IMPAYES_ETROIT`)"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "le message de relance",
+      "propriete": "texte (« … — Dakar Immo », « Wave ou Orange Money, sans compte »)",
+      "exception": "décision produit",
+      "motif": "le message est composé par l'action serveur dans la langue du LOCATAIRE (ADR-0105 § 1 ; wolof en pause : un locataire `wo` reçoit le français, test « wolof en pause ») ; il ne nomme aucun moyen de paiement (le lien ne dit pas lesquels il propose) et ne signe pas : il part du WhatsApp de l'agence, qui est sa signature. Le message reste modifiable"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "voile sombre derrière le panneau",
+      "propriete": "fond de toute la page (≈ 65 à 69 % des pixels de l'écran)",
+      "exception": "décision produit",
+      "motif": "le panneau de droite est sans voile et non modal — décision du porteur du 2026-11-10 (`ui/panneau-droit.tsx`), déjà acceptée pour TCK-2584 ; la maquette, antérieure, le dessine"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "dossier : « Pénalité de retard (5 %) · non appliquée », « Caution détenue », y de « Lien de paiement » et « Relances »",
+      "propriete": "texte (« Pénalité de retard · hors du lien ») et y (+48 à +56 px)",
+      "exception": "vérité des données",
+      "motif": "l'échéance de la base a deux échéances dues et une pénalité de 48 500 F que le lien ne règle pas (`late_fee_payable_online` faux) : le produit le dit plutôt que « non appliquée »"
+    },
+    {
+      "ecran": "a-2-telephone",
+      "element": "« Modifier » du message",
+      "propriete": "hauteur (20 → 44 px)",
+      "exception": "règle du design system",
+      "motif": "cible tactile de 44 px au téléphone (WCAG 2.5.5) ; le texte reste à sa place"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "« Relancer sur WhatsApp », « Appeler », « Ouvrir WhatsApp », « Relancer »",
+      "propriete": "bordure (0 → 1 px transparente), marges internes (±2 à 4 px), interligne (22,5 → 21,4)",
+      "exception": "règle du design system",
+      "motif": "primitive `Button` (`buttonVariants`), seule admise dans /app ; la boîte et le texte tombent à ±2 px"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "« Par locataire / Par bailleur »",
+      "propriete": "boîte (44 au lieu de 40 px au téléphone), bordure, ombre, marges",
+      "exception": "règle du design system",
+      "motif": "`TabsList` / `TabsTrigger`, primitive des onglets de /app"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "pastilles de retard (« 68 j de retard », « 68 j »)",
+      "propriete": "interligne, marges",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge`, seule pastille de statut admise (`check-status-badge-unique`)"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "icônes (lucide-rotate-ccw-clock, lucide-phone, lucide-x, lucide-link2, lucide-copy)",
+      "propriete": "trait (2 → 1,75 ou 1,5)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685) — mêmes exceptions que TCK-2659"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "table : rangées, en-têtes, avatars de 32 px",
+      "propriete": "marges des cellules, hauteur d'en-tête, fond de la rangée sélectionnée",
+      "exception": "règle du design system",
+      "motif": "`DataTable`, seule table de la console (TCK-2688), et `Avatar taille=\"32\"` ; le fond de la rangée sélectionnée appartient à la sélection (TCK-2682) ; les initiales (12 px à 32, 14 px à 40) sont exactes depuis l'arrondi des jetons `text-avatar-N` (TCK-2590)"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "champ de recherche",
+      "propriete": "couleur de bordure (`border` → `input`), marges internes (icône posée en absolu)",
+      "exception": "règle du design system",
+      "motif": "primitive `Input` : contraste 3:1 des contrôles (WCAG 1.4.11) — même exception que TCK-2659"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "texte « Aller au contenu principal »",
+      "propriete": "présent dans le produit seul",
+      "exception": "règle du design system",
+      "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran"
+    },
+    {
+      "ecran": "a-2-telephone",
+      "element": "« Fermer » de la feuille",
+      "propriete": "présent dans le produit seul",
+      "exception": "règle du design system",
+      "motif": "primitive `FeuilleDuBas` (44 × 44) ; la maquette ferme par le voile seul — même exception que TCK-2619"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
+      "element": "état « sans numéro » (AC6)",
+      "propriete": "état non relevé",
+      "exception": "vérité des données",
+      "motif": "AC6 (décision 8) : sans numéro, « Relancer sur WhatsApp » et « Appeler » sont désactivés et `aria-describedby` nomme « Aucun numéro pour ce locataire » (test « AC6 »). Aucun locataire de la base n'est sans numéro : l'état n'a pas de relevé"
+    },
+    {
+      "ecran": "a-1-telephone, a-2-telephone",
+      "element": "total dû « 33 715 000 F » en tête",
+      "propriete": "taille de police (30 → 28 px), espacement des lettres (−0,6 px → −0,02 em)",
+      "exception": "règle du design system",
+      "motif": "jeton `text-affiche-28` (« 30 px rabattus ») et `tracking-titre` : aucune valeur arbitraire dans /app (`check-valeurs-arbitraires-app`) ; même jeton pour le montant du dossier (28 px de maquette)"
+    },
+    {
+      "ecran": "a-1-bureau-*, a-2-bureau-*",
+      "element": "pied de table « 1 à 8 sur 16 · Page 1 / 2 » et ses chevrons",
+      "propriete": "absents de l’écran (sous la ligne de flottaison)",
+      "exception": "décision produit",
+      "motif": "une page de 20 échéances (décision 2, `IMPAYES_PAR_PAGE`) : les 16 de la base tiennent sur une page, et le pied tombe sous 900 px ; la maquette pagine par 8"
+    },
+    {
+      "ecran": "a-1-bureau-*, a-2-bureau-*",
+      "element": "rangée de filtres (onglets « Par locataire / Par bailleur », pastilles, recherche) et onglets du registre",
+      "propriete": "y (+3 px pour les onglets du registre, +6,6 px pour la rangée de filtres), taille de police des onglets (12,6 → 13 px), interligne des pastilles (19,5 → 18,6)",
+      "exception": "règle du design system",
+      "motif": "`TabsList variant=\"line\"` (onglets du registre, même exception que TCK-2659), `TabsList size=\"sm\"` (13 px, `text-ui`, posé par la primitive) et `PuceDeFiltre taille=\"sm\"`"
+    },
+    {
+      "ecran": "a-1-bureau-*, a-2-bureau-*",
+      "element": "« Dernière relance » (« jamais relancé ») et colonnes de la table",
+      "propriete": "interligne (15,8 → 18), x des colonnes (−46 à +17 px), largeurs d’en-tête",
+      "exception": "règle du design system",
+      "motif": "`DataTable` (cellule héritée de la table, TCK-2688) ; les colonnes se répartissent sans la colonne de coches (TCK-2682, cf. `ignorer`) et sans la colonne « ⋯ »"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Fiche client » de l’en-tête du dossier",
+      "propriete": "y (−4 px)",
+      "exception": "technique",
+      "motif": "centré sur la rangée (avatar de 40 px) ; la maquette le centre sur le bloc des deux lignes de texte, plus haut que l’avatar d’un interligne"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Copier » du lien de paiement",
+      "propriete": "boîte (77 × 29 → 41 × 19)",
+      "exception": "technique",
+      "motif": "structure : le nœud texte de la maquette est le bouton entier, celui du produit le seul libellé ; le bouton du produit (relevé comme boîte) tombe à la même place, décalé du y des données"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Wave ou Orange Money, sans compte. » sous le lien",
+      "propriete": "texte (« Le paiement solde l’échéance et prévient l’agence. »)",
+      "exception": "décision produit",
+      "motif": "le lien ne dit pas les moyens qu’il propose (cf. le message) : la phrase garde ce que le paiement fait"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Ancienneté du dû » (1 à 30, 31 à 60, 61 à 90, plus de 90 jours) au bas du dossier",
+      "propriete": "présent dans le produit seul",
+      "exception": "décision produit",
+      "motif": "décision 3 du chef d’équipe (« rien ne se perd ») : l’ancienne vue par locataire de l’âge des créances donnait le dû de chaque locataire par tranche ; la liste par échéance l’a remplacée, le dossier le garde. Posé APRÈS les relances pour ne rien déplacer de la maquette au-dessus"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Aucune relance », « Pénalité de retard · hors du lien »",
+      "propriete": "présents dans le produit seul",
+      "exception": "vérité des données",
+      "motif": "l’échéance relevée n’a aucune relance ; sa pénalité n’est pas payable par le lien (`late_fee_payable_online` faux)"
+    },
+    {
+      "ecran": "a-1-bureau-*, a-2-bureau-*",
+      "element": "légende de la table (« Impayés par échéance, du plus ancien au plus récent »), en-tête « Gestes », « Fermer » du panneau",
+      "propriete": "présents dans le produit seul",
+      "exception": "règle du design system",
+      "motif": "`caption` et en-tête lus par les lecteurs d’écran seulement (`DataTable`, `headerSrOnly`) ; « Fermer » de `PanneauDroit`"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "texte secondaire de la barre de sélection (« Relancer la sélection, avec le lien de paiement de chacun : », « Tout désélectionner »)",
+      "propriete": "couleur rgba(252,249,243,0.65) → rgb(186,182,176)",
+      "exception": "règle du design system",
+      "motif": "`text-encre-douce-inverse`, l’encre douce sur fond sombre de la charte (une encre ne porte pas d’alpha : garde `encre-sans-alpha`), comme la barre de sélection des visites (TCK-2587)"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "barre de sélection et table",
+      "propriete": "y +13,8 px",
+      "exception": "donnée",
+      "motif": "le décalage hérité de TCK-2660 au-dessus de la barre (+6,6 px de la tête de page, +7,2 px de la rangée de filtres, dont le champ de recherche) ; la barre (43,2 px, rayon 12,6) et son écart à la table (14,4 px) sont ceux de la maquette"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "colonne de coches",
+      "propriete": "présente dans le produit, cases désactivées (50 %) pendant la file",
+      "exception": "décision produit",
+      "motif": "choix d'implémentation accepté par le chef d'équipe le 2026-11-12 (écart 6) : la page reste cliquable à côté du panneau non modal (dès `xl`), donc la sélection est figée tant que la file tourne, et un clic sur une rangée n'ouvre pas le dossier"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "« dont N non affichés » dans la barre",
+      "propriete": "présent dans le produit seul (quand une échéance cochée n’est pas affichée)",
+      "exception": "décision produit",
+      "motif": "condition 5 du chef d'équipe : « An admin must not remind someone they can't see without knowing it ». Absent du relevé (les quatre cochées sont affichées)"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "fond de la rangée (et de la carte) cochée",
+      "propriete": "fond rgba(162,93,46,0.04) → rgba(177,78,59,0.05)",
+      "exception": "règle du design system",
+      "motif": "`bg-primary/5` : une opacité en entier (garde `check-valeurs-arbitraires-app`, « opacite-crochets ») au lieu du `bg-primary/[0.045]` de la maquette ; la teinte est la `--primary` du produit"
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2682/cmp-a-{1,2}-{telephone,bureau-1440,bureau-1280}/",
+    "le": "2026-11-12, avec `--roles` de cette fiche ; a-1 (trois appareils) et le mode sélection relevés à nouveau APRÈS le passage de la teinte de sélection à `bg-primary/5`",
+    "resultats": {
+      "a-1-telephone (au repos)": "27 conformes · 38 écarts · 10 absents · 30,09 % (TCK-2660 : 28 · 38 · 29,98 %). Seule différence de classe : « Sélectionner » (113 × 44 px) à droite de l'en-tête, où la maquette a « ⋯ » — le titre passe de 334 à 216,8 px (286 dans la maquette), et la boîte de l'en-tête, dont le texte devient « Impayés Sélectionner », ne s'apparie plus (« absent du produit » : elle est là, 390 × 56 à (0,0), comme la maquette)",
+      "a-1-bureau-1440 (4 cochées)": "44 conformes · 305 écarts · 69 absents · 14,49 % (TCK-2660, sans la sélection : 41 · 296 · 79 · 15,32 %)",
+      "a-1-bureau-1280 (4 cochées)": "43 conformes · 304 écarts · 69 absents · 15,4 % (TCK-2660 : 40 · 295 · 79 · 16,26 %)",
+      "a-2-telephone (la file, 1 sur 4)": "17 conformes · 59 écarts · 25 absents · 54,41 % — repère seulement : la file est plein écran, la feuille d’a-2 fait 90 % (cf. `ignorer`)",
+      "a-2-bureau-1440 (la file, 1 sur 4)": "43 conformes · 306 écarts · 79 absents · 71,16 % — repère seulement : le panneau porte la relance composée, pas le dossier d’a-2",
+      "a-2-bureau-1280 (la file, 1 sur 4)": "41 conformes · 306 écarts · 79 absents · 67,56 %",
+      "mode sélection (téléphone)": "relevé `prod-selection-telephone` sans maquette : en-tête « Annuler », tête « 4 sélectionnés · 3 450 000 F · Tout sélectionner », cases de 44 px devant l’avatar, barre collante « Relancer la sélection (4) »"
+    },
+    "passe": "rapports du bureau relus hors barre latérale (scratchpad terrain-5/2660/fid/passe.cjs) : la barre de sélection n'a que les écarts nommés ci-dessus (position x de « WhatsApp » sans SMS / E-mail, encre douce, décalage hérité) ; la colonne de coches se pose devant le Locataire sans rien déplacer d'autre (« Locataire » de l'en-tête à x 336,8 contre 348,6 : l'écart de TCK-2660, −36 → −12 px)"
+  },
+  "_roles": "Les rôles nomment la 1re carte (téléphone) et la 1re rangée (bureau) par leur locataire : la maquette par ses données fictives, le produit par la base de démo du 2026-11-12 (agence 1, tri par retard décroissant). Une autre base change ces deux noms, pas la structure.",
+  "largeurs": {
+    "390": "AC4 — à chaque échéance de la file, « Ouvrir WhatsApp » est entier dans l'écran sans défiler (bas à 780 px sur 844) ; scrollWidth − innerWidth = 0 en mode sélection et dans la file ; la barre collante « Relancer la sélection (n) » est dans le flux, sous `main` (haut de la barre = bas de `main` = 711 px) : elle ne couvre aucune carte",
+    "768": "scrollWidth − innerWidth = 0 ; cartes : « Sélectionner » au-dessus de la liste (pas d'en-tête de téléphone dès `md`), « Relancer la sélection (n) » dans la tête de sélection (la barre collante n'est rendue que sous `md`) ; la file en plein écran (`PanneauDroit` sous `xl`), « Ouvrir WhatsApp » visible",
+    "1024": "scrollWidth − innerWidth = 0 ; la table défile dans son conteneur ; la file en plein écran (sous `xl`) ; parcours complet identique à 1280",
+    "1280": "AC4 — la file dans le panneau de 480 px, la liste visible à côté, la rangée présentée surlignée (`aria-current`) ; scrollWidth − innerWidth = 0",
+    "le": "2026-11-12",
+    "outil": "scratchpad du lot 2, terrain-5/2682/fid/parcours.mjs (bureau, telephone, tablette, bureau-1024)"
+  }
+}

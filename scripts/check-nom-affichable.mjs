@@ -37,7 +37,7 @@ const REPORT = process.argv.includes('--report');
 /** Fichier (relatif à la racine) → nombre de compositions tolérées et pourquoi. */
 export const EXCEPTIONS = {
   // Le nom de l'invitation (`metadata`) passe avant le repli : TCK-2136 l'a écrit ainsi.
-  'takussan-web/src/components/owners/OwnersList.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
+  // TCK-2641 — `owners/OwnersList.tsx` a quitté la liste : le carnet passe par `nomCompletDe`.
   'takussan-web/src/components/service-providers/ServiceProvidersList.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
   'takussan-web/src/components/payments/CreatePayoutDialog.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
   'takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx': {
@@ -47,7 +47,6 @@ export const EXCEPTIONS = {
   // Repli déjà juste (nom, e-mail, #id), hors de l'angle 220.
   'takussan-web/src/components/admin/AuditTrail.tsx': { max: 1, motif: 'repli nom → e-mail → #id déjà en place' },
   // Pas une personne-compte : le garant d'un bail n'a ni e-mail ni id d'utilisateur.
-  'takussan-web/src/components/leases/GuarantorSection.tsx': { max: 1, motif: 'garant du bail, saisi en entier au formulaire' },
   // Le nom proposé par défaut à un hôte qui s'inscrit : vide est la bonne valeur sans nom.
   'takussan-web/src/components/onboarding/HostIndividualWizard.tsx': { max: 1, motif: 'valeur initiale d’un champ de saisie' },
   // Console de la plateforme : hors de l'angle 220, qui relevait les écrans d'agence.

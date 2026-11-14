@@ -1,0 +1,408 @@
+{
+  "ticket": "TCK-2594",
+  "ecrans": [
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste",
+      "references": {
+        "telephone": "references/app-reservations/a-0-telephone.json",
+        "bureau-1440": "references/app-reservations/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings?kind=application&status=confirmed",
+        "persona": "agent",
+        "etat": "agence Dakar Immo de la démo, persona agent : l'état de la maquette (5 candidatures à décider) n'existe pas — aucune candidature ni aucun séjour en attente, une seule offre à décider. L'état le plus proche : la même nature (« Candidatures »), sur « Confirmées » (10 lignes) au lieu de « À décider » ; les lignes disent « Confirmée » au lieu de « À décider »",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS) — script dans le rapport de lot, hors dépôt"
+      }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Acceptée — créer le bail",
+      "references": {
+        "telephone": "references/app-reservations/a-3-telephone.json",
+        "bureau-1440": "references/app-reservations/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/300",
+        "persona": "agent",
+        "etat": "candidature 300 de la démo, confirmée le 11 nov. (« Saisie de contrôle TCK-2580 ») : la maquette montre Ousmane Ba, F3 · Sacré-Cœur 3, 300 000 F/mois ; aucune pièce de dossier, ni durée ni caution (hors périmètre, sans donnée)",
+        "perturber": "garde d'écriture du relevé"
+      }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Offre",
+      "references": {
+        "telephone": "references/app-reservations/a-4-telephone.json",
+        "bureau-1440": "references/app-reservations/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/301",
+        "persona": "agent",
+        "etat": "offre 301 de la démo (Fatou Mbaye, Terrain à Dakar-Plateau, 270 000 000 F pour 298 000 000 F affichés, −9,4 %) : la maquette montre Ibrahima Sarr, Villa · Almadies, 85 000 000 F pour 95 000 000 F (−10,5 %)",
+        "perturber": "garde d'écriture du relevé"
+      }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 10,
+      "nom": "Vide — personnel",
+      "references": {
+        "telephone": "references/app-reservations/a-10-telephone.json",
+        "bureau-1440": "references/app-reservations/a-10-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-10-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings?kind=application&status=pending",
+        "persona": "agent",
+        "etat": "« Candidatures », « À décider » : 0 dans la démo, 10 confirmées (le texte dit « 10 sont confirmées et attendent leur bail. », la maquette « Deux… »)",
+        "perturber": "garde d'écriture du relevé"
+      }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 11,
+      "nom": "Vide — client",
+      "references": {
+        "telephone": "references/app-reservations/a-11-telephone.json",
+        "bureau-1440": "references/app-reservations/a-11-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-11-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings",
+        "persona": "client",
+        "etat": "la persona « client » de la démo n'a aucune réservation (compteurs à 0 dans les six statuts des trois natures)",
+        "perturber": "garde d'écriture du relevé"
+      }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Enregistrer un paiement",
+      "references": {
+        "telephone": "references/app-reservations/a-6-telephone.json",
+        "bureau-1440": "references/app-reservations/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/300",
+        "persona": "agent",
+        "etat": "candidature acceptée de la démo (aucun séjour dans la démo), « Enregistrer un paiement » ouvert : rien d'encaissé, donc « Acompte » proposé et le total prérempli",
+        "perturber": "garde d'écriture du relevé, puis ouvre « Enregistrer un paiement » (bouton, ou « Autres gestes » au bureau)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "voir `ecrans[].produit`",
+    "persona": "agent",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "ligne d'une demande (téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Ousmane Ba",
+        "min": 60
+      },
+      "produit": {
+        "slot": "ligne-de-demande",
+        "rang": 0
+      }
+    },
+    {
+      "nom": "rangée d'une demande (tableau du bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "+221 77 512 08 44",
+        "min": 40
+      },
+      "produit": {
+        "slot": "rangee-de-reservation",
+        "rang": 0
+      }
+    }
+  ],
+  "_roles": "Les rôles se lisent sur les données : la maquette par ses données fictives (Ousmane Ba, première candidature), le produit par l'offre 301 de la démo (Fatou Mbaye).",
+  "zones": [],
+  "alias": {
+    "5 candidatures à décider · la plus récente d’abord": "10 candidatures confirmées · la plus récente d’abord",
+    "10 demandes à décider : 5 candidatures, 3 séjours, 2 offres": "1 demande à décider : 1 offre",
+    "5 candidatures": "10 candidatures",
+    "Les candidatures reçues arrivent ici. Deux sont confirmées et attendent leur bail.": "Les candidatures reçues arrivent ici. 10 sont confirmées et attendent leur bail.",
+    "Aucune demande à décider · 2 confirmées en cours": "1 demande à décider : 1 offre"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-reservations a-0-*",
+      "element": "lignes et rangées : « Confirmée » (vert) au lieu de « À décider », titres de biens plus longs, comptes des pastilles (« Confirmées 10 », « Terminées », « Annulées », « Expirées » plus larges de 5 à 9 px, et ce qui les suit décalé)",
+      "propriete": "texte, couleur du statut, largeur, abscisse",
+      "exception": "donnée",
+      "motif": "la démo n'a aucune candidature ni aucun séjour à décider (sonde cles.mjs, lecture seule : `GET /api/bookings/counts`) ; a-0 est relevé sur « Candidatures · Confirmées » (alias). La ligne « À décider » est éprouvée en test de composant (BookingsList.trois-natures.tck-2594, AC1 et AC2, avec l'offre de la maquette)"
+    },
+    {
+      "ecran": "app-reservations a-0-bureau-*",
+      "element": "largeurs des colonnes Client · Bien · Montant · Statut · Reçue, et abscisses des textes de la rangée",
+      "propriete": "largeur, abscisse",
+      "exception": "structure",
+      "motif": "conséquence de la colonne « Dossier » hors périmètre (voir `hors_perimetre`) : sa largeur se redistribue sur les cinq colonnes du ticket ; l'appariement du rôle « rangée » suit l'ordre des textes et s'en trouve décalé (« 3/4 » ↔ statut)"
+    },
+    {
+      "ecran": "app-reservations a-*-bureau-*",
+      "element": "chevrons, « + » de « Saisir une demande », chevrons des filtres",
+      "propriete": "trait 1,5 au lieu de 2",
+      "exception": "technique",
+      "motif": "règle de portée de `globals.css` (`svg.lucide[stroke-width=\"2\"]` → 1,75 au téléphone, 1,5 dès `md` dans `/app`) : trait de la coque, pas de l'écran"
+    },
+    {
+      "ecran": "app-reservations a-0-bureau-*, a-10-bureau-*",
+      "element": "champ « Client, bien, référence… »",
+      "propriete": "couleur de bordure (--input au lieu de --border), marges internes, icône de 18 px au lieu de 14,4",
+      "exception": "primitive",
+      "motif": "DebouncedSearchInput, partagé par toutes les listes de /app ; le reprendre ici le désaccorderait des autres listes"
+    },
+    {
+      "ecran": "app-reservations a-10-telephone, a-11-telephone",
+      "element": "« Voir les confirmées », « Parcourir les biens »",
+      "propriete": "hauteur 44 px au lieu de 36",
+      "exception": "primitive",
+      "motif": "cible tactile de 44 px du Button au téléphone (design-guidelines)"
+    },
+    {
+      "ecran": "app-reservations a-10-bureau-*, a-11-*",
+      "element": "« Saisir une demande », « Parcourir les biens »",
+      "propriete": "bordure de 1 px (transparente) ; largeur +2 px",
+      "exception": "primitive",
+      "motif": "le Button de base-nova porte `border border-transparent` sur toutes ses variantes"
+    },
+    {
+      "ecran": "app-reservations a-10-*",
+      "element": "texte du vide : « 10 sont confirmées et attendent leur bail. »",
+      "propriete": "texte",
+      "exception": "alias",
+      "motif": "le compte des confirmées est la donnée de la démo (10) ; la maquette écrit « Deux »"
+    },
+    {
+      "ecran": "app-reservations a-*-telephone",
+      "element": "onglet « Menu » de la barre d’onglets (zone coque · barre d’onglets, 1,31 %)",
+      "propriete": "couleur de l’icône, graisse et couleur du libellé",
+      "exception": "composant partagé",
+      "motif": "la coque ne met « Menu » en avant que tiroir ouvert (TCK-2618) ; même constat que TCK-2635 et TCK-2636, signalé, hors périmètre. Ce n’est pas un défaut de correspondance de route : aucun onglet ne porte /app/bookings"
+    },
+    {
+      "ecran": "app-reservations a-0-telephone",
+      "element": "en-tête de la coque (zone coque · en-tête, 0,7 %) : pastille « 7 » de la cloche, couleur des icônes Rechercher et Notifications, trait du « + »",
+      "propriete": "abscisse, couleur, trait",
+      "exception": "composant partagé",
+      "motif": "en-tête racine de la coque (TCK-2618) : la pastille porte le compte de notifications de la démo (donnée), les icônes la couleur de la coque, le « + » le trait de `globals.css` ; aucun de ces éléments n’est rendu par l’écran"
+    },
+    {
+      "ecran": "app-reservations a-3-telephone, a-4-telephone",
+      "element": "icône « Plus d’actions » (⋯) de l’en-tête de détail",
+      "propriete": "absente du produit",
+      "exception": "structure",
+      "motif": "`EnTeteDetail` de la maquette pose « ⋯ » par défaut sur tout détail ; ici les gestes seconds (Annuler, Enregistrer un paiement) sont nommés dans la section « Autres gestes » plutôt que cachés derrière un menu"
+    },
+    {
+      "ecran": "app-reservations a-3-*",
+      "element": "ligne « Caution » de la suite du bail et de « Quoi », « Durée », carte « Dossier » (pièces, Ouvrir, Demander) ; tout ce qui suit remonte de 41 px au téléphone",
+      "propriete": "absents ; ordonnée",
+      "exception": "donnée",
+      "motif": "la candidature 300 de la démo ne porte ni caution ni durée, et les pièces du dossier sont hors périmètre (voir `hors_perimetre`) ; le texte de « Qui » (« A déjà visité ce bien. N visites enregistrées. ») tient sur deux lignes au lieu de la date de visite de la maquette"
+    },
+    {
+      "ecran": "app-reservations a-3-*, a-4-*",
+      "element": "données : client, bien, loyer, dates, historique (nombre de lignes), « Financement », « Conditions », « 30 jours »",
+      "propriete": "texte, nombre de rangées",
+      "exception": "donnée",
+      "motif": "la démo a la candidature 300 (Ibrahima Ba, Studio économique à Thiès) et l’offre 301 (Fatou Mbaye, 270 000 000 F sur 298 000 000 F) ; ni le financement ni les conditions d’une offre ne sont des champs de l’API"
+    },
+    {
+      "ecran": "app-reservations a-4-*",
+      "element": "« Contre-proposer » (barre du téléphone, en-tête et carte « Décision » du bureau)",
+      "propriete": "absent ; « Refuser » et « Accepter » se partagent la barre à parts égales",
+      "exception": "structure",
+      "motif": "la contre-proposition n’a ni route ni statut dans l’API (hors périmètre du ticket) ; sans le bouton central qui prenait le reste de la barre, les deux gestes restants s’y partagent la largeur"
+    },
+    {
+      "ecran": "app-reservations a-3-bureau-*, a-4-bureau-*",
+      "element": "carte « Autres gestes » (« Enregistrer un paiement », « Annuler la réservation ») et « Annuler la réservation » de l’en-tête d’une candidature acceptée",
+      "propriete": "présents dans le produit seulement",
+      "exception": "structure",
+      "motif": "gestes existants de la fiche (encaissement d’un acompte, annulation avec motif) que la maquette ne dessine pas sur ces états ; les retirer serait une régression. Une demande à décider ne montre que la décision en tête, ses gestes seconds passent dans leur carte"
+    },
+    {
+      "ecran": "app-reservations a-3-*, a-4-*",
+      "element": "pastille de statut (« Confirmée », « À décider »)",
+      "propriete": "bordure 1 px, rayon, fond, marges verticales",
+      "exception": "primitive",
+      "motif": "StatusBadge, partagé par toutes les listes et fiches de /app"
+    },
+    {
+      "ecran": "app-reservations a-3-telephone, a-4-telephone",
+      "element": "boutons de la barre collante (« Créer le bail », « Refuser », « Accepter »)",
+      "propriete": "taille de police 14 au lieu de 15, marges internes, bordure transparente, ombre de la barre",
+      "exception": "primitive",
+      "motif": "BarreDAction `taille=\"action\"` (48 px) et Button de base-nova, partagés par les fiches de /app"
+    },
+    {
+      "ecran": "app-reservations a-3-*, a-4-*",
+      "element": "« Voir le bien », titres de section « Qui » / « Quoi »",
+      "propriete": "largeur",
+      "exception": "technique",
+      "motif": "le produit mesure le lien (sa cible est le texte) et un titre de section en bloc ; la maquette, un paragraphe en bloc et une étiquette en ligne. Rendu identique"
+    },
+    {
+      "ecran": "app-reservations a-*",
+      "element": "séparateur de milliers des montants en DM Sans (« 1 482 166 F/mois », « 298 000 000 F »)",
+      "propriete": "largeur du séparateur : 1,6 à 1,9 px au lieu de 3,2 à 3,7 px",
+      "exception": "technique",
+      "motif": "AC4 mesuré (2026-11-13, police calculée de chaque montant) : le produit écrit U+202F (espace fine insécable, `Intl` en `fr`, figé par TCK-2685 dans `useFormatteurs`), la maquette une espace ordinaire. Le séparateur est dessiné partout, à la moitié de la largeur de la maquette en DM Sans ; dans le grand montant de l’offre (Bricolage 28 px semibold), U+202F mesure 6,7 px contre 6,1 pour l’espace de la maquette. Le changer relève du formateur partagé : décision remontée au chef d’équipe"
+    },
+    {
+      "ecran": "app-reservations a-6-*",
+      "element": "types de paiement (Acompte, Solde, Frais) et moyens (huit pastilles)",
+      "propriete": "texte, présence",
+      "exception": "vérité des données",
+      "motif": "l'API accepte `BookingPaymentType` deposit/advance/fee (pas « Caution » ni « Autre ») et les huit cas de `PaymentMethod` (StoreBookingPaymentRequest, Rule::enum) : la maquette en dessinait cinq"
+    },
+    {
+      "ecran": "app-reservations a-6-*",
+      "element": "montant, type et moyen choisis, référence remplie",
+      "propriete": "texte, état",
+      "exception": "donnée",
+      "motif": "relevé sur la candidature 300 (aucun séjour dans la démo) : rien d'encaissé, donc « Acompte » et le total ; « Solde » prérempli du reste une fois l'acompte payé est éprouvé en test (BookingDetail.trois-natures)"
+    },
+    {
+      "ecran": "app-reservations a-2-*, a-7-*",
+      "element": "feuilles « Refuser (motif) » et « Rembourser »",
+      "propriete": "relevé",
+      "exception": "donnée",
+      "motif": "la démo n'a ni demande en attente (l'offre 301 a expiré) ni remboursement à traiter : non relevées ; éprouvées par feuilles.tck-2594.test.tsx et BookingDetail.trois-natures / remboursement"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-0-bureau-*",
+      "element": "colonne « Dossier » (complétude 3/4 des pièces) et l'alerte « Expire demain » de la colonne « Reçue »",
+      "motif": "hors périmètre du ticket : pièces du dossier et « Expire demain » sans donnée (ADR-0102, Conséquences) ; la liste de colonnes du ticket — Client · Bien · Montant · Statut · Reçue — gagne sur la maquette"
+    }
+  ],
+  "mesures": {
+    "date": "2026-11-13",
+    "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare --roles TCK-2594.json, puis balayer",
+    "commit": "cd1b2c83c (lot 1, la liste) + arbre de travail (lot 2, la fiche : a-3, a-4)",
+    "resultats": [
+      {
+        "ecran": "a-0-telephone",
+        "ligne": "33 conformes · 16 écarts · 29 absents · 11,07 % pixels",
+        "note": "écarts restants : coque (barre d'onglets, en-tête) et donnée (« Confirmée »)"
+      },
+      {
+        "ecran": "a-0-bureau-1440",
+        "ligne": "57 conformes · 176 écarts · 56 absents · 7,33 % pixels",
+        "note": "la barre latérale (coque) porte l'essentiel ; reste donnée, colonne « Dossier », DebouncedSearchInput"
+      },
+      {
+        "ecran": "a-0-bureau-1280",
+        "ligne": "56 conformes · 177 écarts · 56 absents · 8,07 % pixels"
+      },
+      {
+        "ecran": "a-10-telephone",
+        "ligne": "32 conformes · 15 écarts · 4 absents · 1,48 % pixels"
+      },
+      {
+        "ecran": "a-10-bureau-1440",
+        "ligne": "63 conformes · 99 écarts · 20 absents · 1,98 % pixels"
+      },
+      {
+        "ecran": "a-10-bureau-1280",
+        "ligne": "63 conformes · 99 écarts · 20 absents · 2,23 % pixels"
+      },
+      {
+        "ecran": "a-11-telephone",
+        "ligne": "23 conformes · 10 écarts · 7 absents · 0,86 % pixels"
+      },
+      {
+        "ecran": "a-11-bureau-1440",
+        "ligne": "36 conformes · 38 écarts · 29 absents · 0,55 % pixels",
+        "note": "relevé avec --disposition locataire : la coque du client de la démo montre /app/payments et /app/maintenance"
+      },
+      {
+        "ecran": "a-11-bureau-1280",
+        "ligne": "36 conformes · 38 écarts · 29 absents · 0,62 % pixels"
+      },
+      {
+        "ecran": "a-3-telephone",
+        "ligne": "28 conformes · 26 écarts · 9 absents · 14,21 % pixels",
+        "note": "Caution absente (donnée) : tout ce qui suit la suite du bail remonte de 41 px ; barre d’onglets (coque)"
+      },
+      {
+        "ecran": "a-3-bureau-1440",
+        "ligne": "68 conformes · 137 écarts · 54 absents · 6,98 % pixels",
+        "note": "barre latérale (coque), carte « Dossier » hors périmètre, Caution et Durée (donnée)"
+      },
+      {
+        "ecran": "a-3-bureau-1280",
+        "ligne": "67 conformes · 138 écarts · 50 absents · 7,83 % pixels"
+      },
+      {
+        "ecran": "a-4-telephone",
+        "ligne": "36 conformes · 15 écarts · 11 absents · 6,9 % pixels",
+        "note": "Contre-proposer hors périmètre ; Financement et Conditions sans champ"
+      },
+      {
+        "ecran": "a-4-bureau-1440",
+        "ligne": "55 conformes · 137 écarts · 31 absents · 5,82 % pixels",
+        "note": "carte « Décision » avec « Accepter 85 000 000 F » et « Refuser » comme la maquette"
+      },
+      {
+        "ecran": "a-4-bureau-1280",
+        "ligne": "52 conformes · 140 écarts · 31 absents · 6,53 % pixels"
+      },
+      {
+        "ecran": "a-6-telephone",
+        "ligne": "23 conformes · 38 écarts · 55 absents · 14,73 % pixels",
+        "note": "huit moyens et trois types (API) au lieu de cinq et quatre : la feuille est plus haute ; état de la candidature 300 (Acompte, Espèces, référence vide)"
+      },
+      {
+        "ecran": "a-6-bureau-1440",
+        "ligne": "43 conformes · 192 écarts · 89 absents · 8,05 % pixels"
+      },
+      {
+        "ecran": "a-6-bureau-1280",
+        "ligne": "43 conformes · 192 écarts · 89 absents · 8,83 % pixels"
+      },
+      {
+        "ecran": "a-2, a-7",
+        "ligne": "non relevés",
+        "note": "aucune demande en attente ni remboursement dans la démo ; couverts par les tests de composant"
+      }
+    ],
+    "balayage": "390, 768, 1024, 1280, 1440 : débord 0 et aucune coupe sur offres à décider, candidatures confirmées et à décider (agent), /app/bookings (client, propriétaire) ; fiches /app/bookings/300 et /301 (agent), 390 à 1440 : débord 0 ; seules ellipses : libellés du rail de la coque à 768"
+  }
+}

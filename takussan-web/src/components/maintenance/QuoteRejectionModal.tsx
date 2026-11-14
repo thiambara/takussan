@@ -31,11 +31,14 @@ type FormValues = z.infer<ReturnType<typeof construireSchema>>;
 export function QuoteRejectionModal({ 
   id, 
   open, 
-  onClose 
+  onClose,
+  onRejected,
 }: { 
   readonly id: number;
   readonly open: boolean;
   readonly onClose: () => void;
+  /** TCK-2654 — le refus est envoyé (et non la boîte fermée sans rien envoyer). */
+  readonly onRejected?: () => void;
 }) {
   const t = useTranslations('maintenance.quote.reject');
   const tCommon = useTranslations('common');
@@ -51,6 +54,7 @@ export function QuoteRejectionModal({
       return mutation.mutateAsync({ reason: values.reason });
     },
     onSuccess: () => {
+      onRejected?.();
       onClose();
     },
   });

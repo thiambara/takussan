@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\InstantIso;
+use App\Support\InstantRecu;
+use Carbon\CarbonImmutable;
 
 /**
  * TCK-2502 — confirmer une visite peut en fixer l'heure (`scheduled_at`, facultatif). Pour une
@@ -25,7 +28,16 @@ class ConfirmPropertyVisitRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'scheduled_at' => ['nullable', 'date', 'after:now'],
+            'scheduled_at' => ['nullable', 'date', new InstantIso, 'after:now'],
         ];
+    }
+
+    /**
+     * TCK-2743 — l'heure reçue, ramenée à l'instant qu'elle désigne ({@see InstantRecu}) : la règle, la
+     * comparaison et l'écriture lisent le même instant.
+     */
+    public function scheduledAt(): ?CarbonImmutable
+    {
+        return InstantRecu::ouNul($this->validated('scheduled_at'));
     }
 }

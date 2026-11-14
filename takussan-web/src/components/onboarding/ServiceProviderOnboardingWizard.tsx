@@ -1,97 +1,64 @@
 'use client';
 
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
-import { Label } from '@/components/ui/label';
-import { PhoneInput } from '@/components/ui/phone-input';
-import {
-  INDICATIF_PAR_DEFAUT,
-  numeroComposable,
-  recomposerTelephone,
-  relireTelephoneBrouillon,
-} from '@/lib/phone';
 import { useToast } from '@/components/ui/toast';
 import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
-import type { Locale } from '@/i18n/config';
-import { formatCurrency } from '@/lib/format';
 import { useAuth } from '@/context/AuthContext';
-import {
-  WizardReprenable,
-  type WizardStep,
-} from '@/components/wizard/WizardReprenable';
-import { KycUploader } from '@/components/kyc/KycUploader';
-import {
-  TradesMultiSelect,
-  TRADE_OPTIONS,
-} from '@/components/service-providers/TradesMultiSelect';
-import {
-  AvailabilityGrid,
-  emptyAvailabilityState,
-  slotsFromState,
-  type AvailabilityState,
-} from '@/components/service-providers/AvailabilityGrid';
-import {
-  spOnboardCompleteAction,
-  spPatchAvailabilityAction,
-  spPatchTradesAction,
-} from '@/app/actions/service-provider-onboarding';
-import {
-  phoneSendOtpAction,
-  phoneVerifyOtpAction,
-} from '@/app/actions/security';
+import { WizardReprenable, type WizardStep } from '@/components/wizard/WizardReprenable';
+import { spOnboardCompleteAction } from '@/app/actions/service-provider-onboarding';
+import { INDICATIF_PAR_DEFAUT, recomposerTelephone, relireTelephoneBrouillon } from '@/lib/phone';
+import type { PieceDuProfil } from '@/lib/pieces/pieces';
+import type { InterventionDOrigine, ReglagesDuPrestataire } from '@/lib/service-provider-onboarding';
+
+import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
+import { EtapeDuNumero } from './invite/EtapeDuNumero';
+import { InterventionDuPrestataire } from './invite/InterventionDuPrestataire';
 
 /**
- * TCK-261 — Service Provider post-acceptance onboarding wizard.
+ * TCK-261, refait par TCK-2613 — l'assistant du prestataire invité, en DEUX écrans (maquette `app-entree-assistants`,
+ * approche a) :
+ *   1. le numéro (obligatoire ; un numéro déjà vérifié saute l'écran) ;
+ *   2. la raison de venir : l'intervention que l'agence a jointe à l'invitation, « Accepter » ou « Proposer un
+ *      créneau » (décision du porteur du 2026-11-10, point 11 b), puis « Complétez votre profil pour en recevoir
+ *      d'autres » — sans intervention jointe, « Bienvenue chez {agence} » et la même liste.
  *
- * Four steps:
- *   1. Phone OTP (mandatory).
- *   2. Trades + zones + rates + optional insurance KYC.
- *   3. Weekly availability grid.
- *   4. Recap + welcome — primary CTA deep-links to the originating
- *      maintenance request when present (TCK-260 invitation metadata).
+ * Les métiers, les zones, les tarifs, les disponibilités et l'assurance ne sont plus des écrans : ils se règlent
+ * dans le profil (`/app/profile/professional`, TCK-592) et les pièces (`/app/pieces`), et l'écran 2 dit ce qui
+ * reste. Aucun n'est exigé pour entrer.
  *
- * Storage maps (keep in sync with the backend):
- *   - trades        → ServiceProviderProfile.specialties
- *   - zones         → ServiceProviderProfile.service_areas
- *   - hourly_rate   → ServiceProviderProfile.hourly_rate_min
- *   - visit_fee     → metadata.visit_fee
- *   - availability  → metadata.availability
- *   - cni / insurance → Document polymorph + medialibrary `file` collection
+ * `complete()` passe le profil en `active`, ouvre les collaborations et assigne la demande jointe : TOUTE sortie de
+ * l'écran 2 l'appelle d'abord. « Accepter » aussi, sans quitter l'écran (`finaliser`) — la demande n'est au
+ * prestataire qu'après, et `POST …/accept` rendrait 403 avant.
  */
 export type ServiceProviderOnboardingWizardProps = {
   spProfileId: number;
-  /** Pre-filled by the page if the invitation was emitted from a request. */
-  fromMaintenanceRequestId?: number | null;
+  /** Le nom de l'agence qui invite ; `null` s'il n'est pas connu. */
+  agence?: string | null;
+  /** `GET /api/me/profiles/{sp}/intervention-d-origine` ; `null` : rien de joint, ou lecture en échec. */
+  intervention?: InterventionDOrigine | null;
+  /** Le libellé de la catégorie de l'intervention (`maintenance.category.*`), traduit par la page. */
+  categorie?: string | null;
+  /** `GET /api/me/profiles/{sp}` ; `null` si la lecture a échoué. */
+  reglages?: ReglagesDuPrestataire | null;
+  /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
+  pieces?: readonly PieceDuProfil[] | null;
 };
 
+/** Le brouillon ne garde que le numéro : un brouillon de l'assistant à quatre écrans reprend à l'écran 2. */
 type WizardData = {
   phone: { number: string; code: string; verified: boolean };
-  trades: {
-    list: string[];
-    intervention_zones: string[];
-    hourly_rate: string; // string in UI to keep "" cleanly editable
-    visit_fee: string;
-    insurance_uploaded: boolean;
-    cni_uploaded: boolean;
-  };
-  availability: AvailabilityState;
 };
 
-/**
- * TCK-566 — un brouillon relu repasse par la même normalisation que
- * `initialData` : un numéro écrit par l'ancien champ libre (`771234567`, sans
- * indicatif) laissait « Envoyer le code » inactif sans explication.
- */
 function relireBrouillon(data: WizardData): WizardData {
   return {
-    ...data,
     phone: {
-      ...data.phone,
+      // TCK-1362 — un code d'un brouillon d'avant ne survit pas à la relecture.
+      code: '',
+      verified: Boolean(data.phone?.verified),
+      // TCK-566 — un numéro écrit par l'ancien champ libre repasse par la même normalisation.
       number: relireTelephoneBrouillon(data.phone?.number, INDICATIF_PAR_DEFAUT),
     },
   };
@@ -99,150 +66,68 @@ function relireBrouillon(data: WizardData): WizardData {
 
 export function ServiceProviderOnboardingWizard({
   spProfileId,
-  fromMaintenanceRequestId,
+  agence = null,
+  intervention = null,
+  categorie = null,
+  reglages = null,
+  pieces = null,
 }: ServiceProviderOnboardingWizardProps) {
   const t = useTranslations('serviceProviders.onboarding');
   const router = useRouter();
   const toast = useToast();
   const { user, refreshUser } = useAuth();
+  // Où aller une fois l'onboarding fini ; `null` : rester sur l'écran (« Accepter »).
+  const destination = useRef<string | null>('/app');
+  const finalise = useRef(false);
+  // ⚠ La fin d'onboarding RE-REND la page : l'action serveur pose le cookie du profil actif, et Next re-rend la
+  // route courante (docs `cookies`, « Server Functions »). Le lien est alors consommé et la page relit une
+  // intervention `null` — l'écran perdait sa carte, et « Intervention acceptée » avec elle. Il garde donc
+  // l'intervention qu'il a montrée en premier.
+  const [interventionMontree] = useState(intervention);
+  const [categorieMontree] = useState(categorie);
 
   const initialData: WizardData = useMemo(
     () => ({
       phone: {
-        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et
-        // ne porte que la suite ; une valeur héritée hors format y est remise dans l'ordre.
+        // TCK-566 — remis en E.164 : le champ affiche l'indicatif en préfixe et ne porte que la suite.
         number: user?.phone ? recomposerTelephone(user.phone, INDICATIF_PAR_DEFAUT) : '',
         code: '',
         verified: Boolean(user?.phone_verified_at),
       },
-      trades: {
-        list: [],
-        intervention_zones: [],
-        hourly_rate: '',
-        visit_fee: '',
-        insurance_uploaded: false,
-        cni_uploaded: false,
-      },
-      availability: emptyAvailabilityState(),
     }),
     [user],
   );
 
-  const handleComplete = useCallback(
-    async (data: WizardData) => {
-      // Persist each chunk via its dedicated endpoint, then call the
-      // transactional `complete` to flip status + collaborations + cookie.
-      const tradesPayload = {
-        trades: data.trades.list,
-        intervention_zones: data.trades.intervention_zones,
-        hourly_rate: data.trades.hourly_rate ? Number(data.trades.hourly_rate) : null,
-        visit_fee: data.trades.visit_fee ? Number(data.trades.visit_fee) : null,
-      };
-
-      const tradesRes = await spPatchTradesAction(spProfileId, tradesPayload);
-      if (!tradesRes.ok) {
-        toast.add({
-          title: t('errors.tradesTitle'),
-          description: tradesRes.message,
-          type: 'error',
-        });
-        return;
-      }
-
-      const slots = slotsFromState(data.availability);
-      const availabilityRes = await spPatchAvailabilityAction(spProfileId, slots);
-      if (!availabilityRes.ok) {
-        toast.add({
-          title: t('errors.availabilityTitle'),
-          description: availabilityRes.message,
-          type: 'error',
-        });
-        return;
-      }
-
-      const completeRes = await spOnboardCompleteAction(
-        spProfileId,
-        // OTP already verified inline by `phoneVerifyOtpAction` — the
-        // backend bypasses re-verification when `phone_verified_at` is set.
-        undefined,
-      );
-      if (!completeRes.ok) {
-        toast.add({
-          title: t('errors.completeTitle'),
-          description: completeRes.message,
-          type: 'error',
-        });
-        return;
-      }
-
-      await refreshUser();
-      toast.add({
-        title: t('success.title'),
-        description: t('success.body'),
-        type: 'success',
-      });
-
-      const target = completeRes.data.redirect_to_maintenance_request_id
-        ?? fromMaintenanceRequestId
-        ?? null;
+  const aller = useCallback(
+    (href: string) => {
       // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
       marquerArriveeDeParcours('assistant');
-      if (target !== null) {
-        // TCK-419 — `/app/maintenance/requests/{id}` N'EXISTE PAS : le détail d'une demande est
-        // servi par `app/maintenance/[id]`, sans segment `requests`. Ce `router.push` est le
-        // dernier geste du parcours « un prestataire s'inscrit depuis une demande » : il le
-        // déposait sur un 404, exactement au moment où il vient de finir son onboarding. Ce
-        // lien-là ne figurait PAS dans les quatre du ticket ; il est sorti de la re-mesure.
-        router.push(`/app/maintenance/${target}`);
-      } else {
-        router.push('/app');
-      }
+      router.push(href);
     },
-    [fromMaintenanceRequestId, refreshUser, router, spProfileId, t, toast],
+    [router],
   );
+
+  const handleComplete = useCallback(async () => {
+    // Le code a été vérifié à l'écran 1 : l'API ne le redemande pas quand `phone_verified_at` est posé.
+    const completeRes = await spOnboardCompleteAction(spProfileId, undefined);
+    if (!completeRes.ok) {
+      toast.add({ title: t('errors.completeTitle'), description: completeRes.message, type: 'error' });
+      return;
+    }
+    finalise.current = true;
+    await refreshUser();
+    if (destination.current !== null) {
+      toast.add({ title: t('success.title'), description: t('success.body'), type: 'success' });
+      aller(destination.current);
+    }
+  }, [aller, refreshUser, spProfileId, t, toast]);
 
   const steps: WizardStep<WizardData>[] = useMemo(
     () => [
-      {
-        id: 'phone',
-        title: t('steps.phone.title'),
-        subtitle: t('steps.phone.subtitle'),
-        canAdvance: (d) => d.phone.verified,
-        render: ({ data, setData }) => <PhoneStep data={data} setData={setData} />,
-      },
-      {
-        id: 'trades',
-        title: t('steps.trades.title'),
-        subtitle: t('steps.trades.subtitle'),
-        canAdvance: (d) =>
-          d.trades.list.length > 0 && d.trades.intervention_zones.length > 0,
-        render: ({ data, setData }) => (
-          <TradesStep data={data} setData={setData} spProfileId={spProfileId} />
-        ),
-      },
-      {
-        id: 'availability',
-        title: t('steps.availability.title'),
-        subtitle: t('steps.availability.subtitle'),
-        canAdvance: (d) =>
-          Object.values(d.availability).some((periods) => periods.length > 0),
-        render: ({ data, setData }) => (
-          <AvailabilityStep data={data} setData={setData} />
-        ),
-      },
-      {
-        id: 'recap',
-        title: t('steps.recap.title'),
-        subtitle: t('steps.recap.subtitle'),
-        render: ({ data }) => (
-          <RecapStep
-            data={data}
-            fromMaintenanceRequestId={fromMaintenanceRequestId ?? null}
-          />
-        ),
-      },
+      { id: 'phone', title: 'phone', canAdvance: (d) => d.phone.verified, render: () => null },
+      { id: 'intervention', title: 'intervention', render: () => null },
     ],
-    [fromMaintenanceRequestId, spProfileId, t],
+    [],
   );
 
   return (
@@ -250,316 +135,49 @@ export function ServiceProviderOnboardingWizard({
       storageKey={`sp-onboarding-${spProfileId}`}
       initialData={initialData}
       relireBrouillon={relireBrouillon}
+      etapeImposee={etapeDInvite}
       steps={steps}
       onComplete={handleComplete}
-    />
-  );
-}
-
-// ── Steps ────────────────────────────────────────────────────────────────
-
-type StepProps = { data: WizardData; setData: (next: WizardData) => void };
-
-function PhoneStep({ data, setData }: StepProps) {
-  const t = useTranslations('serviceProviders.onboarding.steps.phone');
-  const toast = useToast();
-  const [sendPending, startSend] = useTransition();
-  const [verifyPending, startVerify] = useTransition();
-  const [otpSent, setOtpSent] = useState(false);
-  // TCK-620 (ADR-0060) — le code que l'API rend hors production.
-  const [otpApercu, setOtpApercu] = useState<string | null>(null);
-
-  const handleSend = () => {
-    if (!numeroComposable(data.phone.number)) return;
-    startSend(async () => {
-      // TCK-566 — le numéro TAPÉ part avec la demande : sans lui, le code visait
-      // le numéro déjà enregistré, et l'API rendait « No phone number on file. »
-      // à qui venait de le saisir. L'API l'enregistre (et remet la vérification
-      // à zéro s'il change) avant d'envoyer le SMS.
-      const res = await phoneSendOtpAction(data.phone.number);
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.sendTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      setOtpSent(true);
-      setOtpApercu(res.data?.codeApercu ?? null);
-      toast.add({
-        title: t('sent.title'),
-        // TCK-589 — le code part par SMS ; l'API ne le rend qu'hors production (TCK-620, ADR-0060).
-        description: t('sent.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  const handleVerify = () => {
-    if (data.phone.code.length !== 6) return;
-    startVerify(async () => {
-      const res = await phoneVerifyOtpAction(data.phone.code);
-      if (!res.ok) {
-        toast.add({
-          title: t('errors.verifyTitle'),
-          description: res.message,
-          type: 'error',
-        });
-        return;
-      }
-      // TCK-1362 (P84.03) — le code vérifié quitte l'état : sinon le brouillon serveur, gardé
-      // jusqu'à 90 jours, en gardait la seule copie en clair (l'API le garde haché, 5 min).
-      setData({ ...data, phone: { ...data.phone, code: '', verified: true } });
-      toast.add({
-        title: t('verified.title'),
-        description: t('verified.body'),
-        type: 'success',
-      });
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="sp-phone">{t('fields.phone')}</Label>
-          <PhoneInput
-            id="sp-phone"
-            value={data.phone.number}
-            disabled={data.phone.verified}
-            onValueChange={(number) =>
-              setData({
-                ...data,
-                phone: { ...data.phone, number, verified: false },
-              })
-            }
-          />
-        </div>
-        {/* Aligné sur le CHAMP, pas sur la ligne d'aide de `<PhoneInput>` :
-            `text-sm leading-none` (14 px) + `gap-1` = 18 px (TCK-566). */}
-        <div className="flex items-start sm:mt-4.5">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full px-4 sm:w-auto"
-            onClick={handleSend}
-            disabled={sendPending || data.phone.verified || !numeroComposable(data.phone.number)}
-          >
-            {sendPending ? t('sending') : t('sendCta')}
-          </Button>
-        </div>
-      </div>
-
-      {otpSent && !data.phone.verified ? (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="sp-otp">{t('fields.code')}</Label>
-              <Input
-                id="sp-otp"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                className="tabular-nums tracking-widest"
-                value={data.phone.code}
-                onChange={(e) =>
-                  setData({
-                    ...data,
-                    phone: {
-                      ...data.phone,
-                      code: e.target.value.replace(/\D/g, '').slice(0, 6),
-                    },
-                  })
+      presentation={(api) => (
+        <AssistantDInvite etape={api.etape} agence={agence} pret={api.pret}>
+          {api.etape === 0 ? (
+            <EtapeDuNumero
+              numero={api.data.phone.number}
+              onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
+              agence={agence}
+              onVerifie={() => {
+                api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
+                api.allerA(1);
+              }}
+            />
+          ) : (
+            <InterventionDuPrestataire
+              agence={agence}
+              telephone={api.data.phone.number || user?.phone || null}
+              intervention={interventionMontree}
+              categorie={categorieMontree}
+              reglages={reglages}
+              pieces={pieces}
+              enCours={api.enCours}
+              finaliser={async () => {
+                if (finalise.current) return true;
+                destination.current = null;
+                await api.suivant();
+                return finalise.current;
+              }}
+              onAller={(href) => {
+                // Déjà finalisé (« Accepter ») : la sortie n'a plus rien à écrire.
+                if (finalise.current) {
+                  aller(href);
+                  return;
                 }
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                type="button"
-                className="h-11 w-full px-4 sm:w-auto"
-                onClick={handleVerify}
-                disabled={verifyPending || data.phone.code.length !== 6}
-              >
-                {verifyPending ? t('verifying') : t('verifyCta')}
-              </Button>
-            </div>
-          </div>
-          <CodeDePreproduction
-            code={otpApercu}
-            onUtiliser={(code) =>
-              setData({ ...data, phone: { ...data.phone, code } })
-            }
-          />
-        </>
-      ) : null}
-
-      {data.phone.verified ? (
-        <p role="status" className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
-          {t('verified.banner')}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function TradesStep({
-  data,
-  setData,
-  spProfileId,
-}: StepProps & { spProfileId: number }) {
-  const t = useTranslations('serviceProviders.onboarding.steps.trades');
-  const updateTrades = (next: Partial<WizardData['trades']>) =>
-    setData({ ...data, trades: { ...data.trades, ...next } });
-
-  const handleZonesChange = (raw: string) => {
-    const list = raw
-      .split(',')
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-    updateTrades({ intervention_zones: Array.from(new Set(list)) });
-  };
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <Label className="mb-2 block">{t('fields.trades')}</Label>
-        <TradesMultiSelect
-          value={data.trades.list}
-          onChange={(list) => updateTrades({ list })}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="sp-zones">{t('fields.zones')}</Label>
-        <Input
-          id="sp-zones"
-          placeholder={t('fields.zonesPlaceholder')}
-          value={data.trades.intervention_zones.join(', ')}
-          onChange={(e) => handleZonesChange(e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">{t('fields.zonesHint')}</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="sp-hourly">{t('fields.hourlyRate')}</Label>
-          <Input
-            id="sp-hourly"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={data.trades.hourly_rate}
-            onChange={(e) => updateTrades({ hourly_rate: e.target.value })}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="sp-visit">{t('fields.visitFee')}</Label>
-          <Input
-            id="sp-visit"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={data.trades.visit_fee}
-            onChange={(e) => updateTrades({ visit_fee: e.target.value })}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <KycUploader
-          profileId={spProfileId}
-          kind="cni"
-          onUploaded={() => updateTrades({ cni_uploaded: true })}
-        />
-        <KycUploader
-          profileId={spProfileId}
-          kind="insurance"
-          onUploaded={() => updateTrades({ insurance_uploaded: true })}
-        />
-      </div>
-    </div>
-  );
-}
-
-function AvailabilityStep({ data, setData }: StepProps) {
-  return (
-    <AvailabilityGrid
-      value={data.availability}
-      onChange={(next) => setData({ ...data, availability: next })}
+                destination.current = href;
+                void api.suivant();
+              }}
+            />
+          )}
+        </AssistantDInvite>
+      )}
     />
-  );
-}
-
-function RecapStep({
-  data,
-  fromMaintenanceRequestId,
-}: {
-  data: WizardData;
-  fromMaintenanceRequestId: number | null;
-}) {
-  const t = useTranslations('serviceProviders.onboarding.steps.recap');
-  const locale = useLocale() as Locale;
-  // TCK-2616 — un montant se lit avec sa devise (« 15 000 F CFA »), jamais en nombre nu.
-  const montant = (saisie: string) => (saisie ? formatCurrency(Number(saisie), locale) : '—');
-
-  const slotCount = useMemo(
-    () =>
-      Object.values(data.availability).reduce(
-        (total, periods) => total + periods.length,
-        0,
-      ),
-    [data.availability],
-  );
-
-  return (
-    <div className="flex flex-col gap-4">
-      <dl className="divide-y divide-border rounded-xl border border-border">
-        <Row label={t('rows.phone')} value={data.phone.number || '—'} />
-        <Row
-          label={t('rows.trades')}
-          value={
-            data.trades.list.length > 0
-              ? data.trades.list
-                  .filter((trade): trade is (typeof TRADE_OPTIONS)[number] =>
-                    (TRADE_OPTIONS as readonly string[]).includes(trade),
-                  )
-                  .join(', ')
-              : '—'
-          }
-        />
-        <Row
-          label={t('rows.zones')}
-          value={data.trades.intervention_zones.join(', ') || '—'}
-        />
-        <Row label={t('rows.hourlyRate')} value={montant(data.trades.hourly_rate)} />
-        <Row label={t('rows.visitFee')} value={montant(data.trades.visit_fee)} />
-        <Row
-          label={t('rows.insurance')}
-          value={data.trades.insurance_uploaded ? t('rows.yes') : t('rows.no')}
-        />
-        <Row label={t('rows.availability')} value={`${slotCount} ${t('rows.slots')}`} />
-      </dl>
-
-      {fromMaintenanceRequestId !== null ? (
-        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 text-sm">
-          <p className="font-medium text-foreground">
-            {t('maintenanceRequest.title')}
-          </p>
-          <p className="mt-1 text-muted-foreground">
-            {t('maintenanceRequest.body')}
-          </p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium text-foreground">{value}</dd>
-    </div>
   );
 }

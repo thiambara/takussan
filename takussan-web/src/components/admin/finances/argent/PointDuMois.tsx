@@ -16,6 +16,7 @@ import {
   TrendingUp,
   TriangleAlert,
   Wallet,
+  Wrench,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -41,8 +42,8 @@ import type { OngletArgent } from '@/lib/finances/vue-argent';
  * entré, ce qui manque, ce qui attend un geste — puis les derniers encaissements, nommés.
  *
  * - **Téléphone** : deux tuiles (Encaissé, Impayés), « À faire » en lignes à chevron (une ligne à
- *   zéro disparaît), « Derniers encaissements », puis « Tout voir » (les cinq registres, le
- *   rapprochement, l'export) et « Créer ».
+ *   zéro disparaît), « Derniers encaissements », puis « Tout voir » (les registres — « Interventions »
+ *   avec `payouts.create`, TCK-2677 —, le rapprochement, l'export) et « Créer ».
  * - **Bureau** : quatre tuiles cliquables vers leur onglet, puis dès `xl` deux colonnes — « À faire »
  *   (les impayés les plus anciens, les reversements à approuver) et « Derniers encaissements ».
  *
@@ -227,9 +228,13 @@ export function PointDuMoisTelephone(ctx: ContexteDuPoint) {
           <div className={CARTE}>
             <LigneRegistre href={lienDOnglet('encaissements', periode)} icone={<Wallet />} titre={t('registres.encaissements')} droite={derniers.data?.meta.total} />
             <LigneRegistre href={lienDOnglet('factures', periode)} icone={<FileText />} titre={t('registres.factures')} />
-            <LigneRegistre href={lienDOnglet('reversements', periode)} icone={<HandCoins />} titre={t('registres.reversements')} />
+            <LigneRegistre href={lienDOnglet('reversements', periode)} icone={<HandCoins />} titre={t('registres.reversements')} droite={synthese?.payouts_open.count} />
             {gestes.peutApprouver ? (
               <LigneRegistre href={lienDOnglet('a-approuver', periode)} icone={<ShieldCheck />} titre={t('registres.aApprouver')} droite={synthese?.payouts_awaiting_approval.count} />
+            ) : null}
+            {/* TCK-2677 — les factures des prestataires, que l'onglet `bills` de `/app/payments` servait seul. */}
+            {gestes.peutPayerLesPrestataires ? (
+              <LigneRegistre href={lienDOnglet('interventions', periode)} icone={<Wrench />} titre={t('registres.interventions')} detail={t('registres.interventionsDetail')} />
             ) : null}
             <LigneRegistre
               href={lienDOnglet('impayes', periode)}
@@ -377,6 +382,13 @@ export function TuilesDuMois(ctx: ContexteDuPoint) {
   const variation = useVariation(synthese, ctx.mois, 1);
   const montant = (n: number) => f.montantCourt(n, synthese?.currency);
   const attente = <Skeleton className="h-7 w-40" />;
+  // TCK-2720 — « N bailleurs · M à approuver » (la maquette), lus sur l'UNION des deux files : un
+  // bailleur qui attend un reversement à approuver ET un autre à verser n'y compte qu'une fois. Sans
+  // bailleur (que des prestataires ou des cautions rendues), le nombre de reversements.
+  const detailDesReversements = ({ payouts_open: ouverts, payouts_awaiting_approval: aApprouver }: FinanceSummary) =>
+    ouverts.landlords_count > 0
+      ? t('argent.tuiles.reversementsBailleurs', { bailleurs: ouverts.landlords_count, aApprouver: aApprouver.count })
+      : t('argent.tuiles.reversementsDetail', { count: ouverts.count, aApprouver: aApprouver.count });
 
   if (ctx.syntheseRefusee) {
     return <p className="rounded-xl border border-border bg-card p-4 text-ui text-muted-foreground">{t('argent.syntheseRefusee')}</p>;
@@ -404,15 +416,8 @@ export function TuilesDuMois(ctx: ContexteDuPoint) {
       <TuileBureau
         href={lienDOnglet('reversements', periode)}
         libelle={t('kpis.pendingPayouts')}
-        valeur={synthese ? montant(synthese.payouts_pending.amount + synthese.payouts_awaiting_approval.amount) : attente}
-        detail={
-          synthese
-            ? t('argent.tuiles.reversementsDetail', {
-                count: synthese.payouts_pending.count + synthese.payouts_awaiting_approval.count,
-                aApprouver: synthese.payouts_awaiting_approval.count,
-              })
-            : null
-        }
+        valeur={synthese ? montant(synthese.payouts_open.amount) : attente}
+        detail={synthese ? detailDesReversements(synthese) : null}
       />
       <TuileBureau
         href={lienDOnglet('factures', periode)}

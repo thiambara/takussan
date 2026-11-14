@@ -98,7 +98,8 @@ class OwnerProfile extends AbstractModel
 
     /**
      * TCK-2640 — la recherche du carnet (nom, téléphone, e-mail, sans casse ni accents) et
-     * `filter[has_remaining]=1|0` (un reste à verser du mois courant, positif ou non).
+     * `filter[has_remaining]=1|0` (un reste à verser positif ou non — TCK-2760 : le solde cumulé
+     * au jour, {@see OwnerDirectory::remainingToPay()}).
      *
      * @return array<int, AllowedFilter>
      */
@@ -138,7 +139,8 @@ class OwnerProfile extends AbstractModel
     }
 
     /**
-     * TCK-2640 — `sort=name` (le nom affiché) et `sort=-remaining_to_pay` (le reste à verser du mois).
+     * TCK-2640 — `sort=name` (le nom affiché) et `sort=-remaining_to_pay` (le reste à verser —
+     * TCK-2760 : le solde cumulé au jour).
      *
      * @return array<int, AllowedSort>
      */
@@ -163,6 +165,17 @@ class OwnerProfile extends AbstractModel
     public function guarantor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'guarantor_user_id');
+    }
+
+    /**
+     * TCK-2753 (r2 de la contre-vérification, ADR-0108 § 5) — le dossier d'un profil sans écriture
+     * (parti ou suspendu, {@see OwnerProfileStatus::sansEcriture()}) ne se modifie plus : ni pièce
+     * d'identité, ni soumission du dossier, ni NINEA. 403 `owner.profile_read_only`, pour tous, le
+     * super-admin compris : le dossier d'un bailleur parti est figé.
+     */
+    public function exigerEcrivable(): void
+    {
+        abort_code_if(in_array($this->status, OwnerProfileStatus::sansEcriture(), true), 403, 'owner.profile_read_only');
     }
 
     public function scopeActive(Builder $query): Builder

@@ -135,4 +135,28 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Décisions du 2026-11-13 (relayées par team-lead)
+
+1. **La pénalité restée due (`late_fee_unpaid`) : « Relancer » mène à l'échéancier de la fiche (option b).** La
+   pénalité porte sur une échéance PAYÉE : ni lien de paiement ni note de relance ne s'y prennent (l'API rend 409), et
+   un message WhatsApp ne laisserait aucune trace. Le geste ouvre `/app/leases/{id}?echeancier=toutes` : l'échéancier
+   s'y ouvre déplié (l'échéance payée est rangée après les dues, souvent au-delà des six premières) et la page s'y
+   porte. « Marquer la pénalité réglée » s'y trouve déjà. La variante WhatsApp est retirée, avec la clé
+   `lease.liste.relance.message.penalite`. **Option (c), non codée — ticket possible du porteur :** une relance de
+   pénalité notée par l'API (`POST …/reminders` admis sur une échéance payée dont la pénalité reste due), qui rendrait
+   au geste sa trace.
+2. **AC1 est amendé.** La relance d'un loyer reprend telle quelle la `FeuilleDeRelance` de TCK-2660 : on voit
+   l'échéance et le message, puis « Ouvrir WhatsApp » crée le lien et note la relance. Le lien n'est donc pas créé au
+   clic sur « Relancer », mais à l'envoi, comme le veut la décision 1 (a) du 2026-11-12 de TCK-2660 (« le lien n'est
+   créé qu'à l'ENVOI »). Le reste d'AC1 tient : novembre, 1 355 000, l'URL du lien et `POST …/reminders` avec
+   `channel: whatsapp` se lisent au réseau.
+3. **L'espace `admin` du dictionnaire est chargé par la liste (accepté, a).** `FeuilleDeRelance` lit ses libellés
+   sous `admin` : `(dashboard)/app/leases/(liste)` est une frontière i18n qui l'embarque (`namespaces.json`). Les sortir
+   de `admin` est l'objet de TCK-2758.
+4. **Le tableau du bureau garde le montant de plusieurs loyers en retard et de la pénalité.** La colonne « Ce qui
+   attend » tait le montant d'UN loyer en retard (« Loyer de nov. en retard ») : la ligne porte déjà le loyer. Elle
+   l'écrit pour « 2 loyers en retard · 2 710 000 F » et « Pénalité non réglée · 22 500 F », que le loyer de la ligne ne
+   dit pas. Les clés courtes `motifsCourts.rent_late_plusieurs` et `motifsCourts.late_fee_unpaid` sont retirées.
+5. **Le filtre « Statut » est retiré de la file « À traiter ».** Il reste sur les autres onglets, et sur la file
+   quand l'URL en porte un.
+

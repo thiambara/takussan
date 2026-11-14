@@ -20,7 +20,7 @@ const ECRANS_DE_PHOTOS = [
   'components/property-form/PropertyWizard.tsx',
   'components/media/MediaManager.tsx',
   'components/profile/ProfileHeader.tsx',
-  'components/admin-agency/AgencyConfigForm.tsx',
+  'components/admin-agency/fiche/SectionIdentite.tsx', // le logo (TCK-2670 ; AgencyConfigForm avant)
   'components/maintenance/MaintenanceForm.tsx',
   'components/maintenance/MaintenanceCompleteForm.tsx',
   // `components/messages/ChatView.tsx` n'en est plus : TCK-683 a retiré le trombone, qui postait
@@ -28,7 +28,10 @@ const ECRANS_DE_PHOTOS = [
 ] as const;
 
 const PIECES_JUSTIFICATIVES = [
-  'components/kyc/KycUploader.tsx',
+  // TCK-2796 — les pièces du profil partent de « Vos pièces » (l'écran, puis l'envoi qu'il appelle) ; le téléverseur
+  // des anciens assistants (`components/kyc/`) est retiré.
+  'components/pieces/VosPieces.tsx',
+  'lib/queries/pieces.ts',
   'components/documents/DocumentUploadDialog.tsx',
   'components/maintenance/QuoteSubmitForm.tsx',
   'components/leases/DepositRefundModal.tsx',

@@ -5,6 +5,7 @@ namespace App\Services\Owners;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invitation;
@@ -13,9 +14,12 @@ use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerStatementPolicy;
+use App\Services\Invitation\InvitationService;
+use App\Services\Payout\OwnerStatementService;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\Occupation;
 use App\Services\Reporting\OverdueInstalment;
+use App\Support\Masking;
 use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -32,12 +36,23 @@ use Illuminate\Support\Str;
  * pour une page de la liste) — la fiche, la liste et `GET /api/owner-statements` rendent le même
  * chiffre pour la même période, instantané envoyé compris.
  *
+ * TCK-2760 (ADR-0100, amendement du 2026-11-12) — le RESTE À VERSER du carnet (la ligne, son filtre,
+ * son tri, la somme de tête) et le `balance` de la fiche sont le solde cumulé au jour
+ * ({@see OwnerStatementService::balances()}), le même que celui du relevé : jamais le reste du mois.
+ *
  * **Comptes** : un bien compte au bailleur quand il en est le titulaire (`properties.user_id`) dans
  * cette agence, non supprimé ni archivé ; « occupé » suit {@see Occupation}.
  */
 final class OwnerDirectory
 {
-    public function __construct(private readonly OwnerStatementSnapshots $statements) {}
+    /** TCK-2760 (suivi) — l'attribut de requête qui garde les soldes déjà calculés ({@see self::soldesDeLaRequete()}). */
+    public const SOLDES_DE_LA_REQUETE = 'owners.soldes_au_jour';
+
+    public function __construct(
+        private readonly OwnerStatementSnapshots $statements,
+        // TCK-2760 — le solde cumulé au jour.
+        private readonly OwnerStatementService $balances,
+    ) {}
 
     /**
      * Vérification adverse de TCK-2640 — les chiffres d'argent du carnet (reste à verser, dernier
@@ -118,36 +133,134 @@ final class OwnerDirectory
     }
 
     /**
-     * Le reste à verser du mois courant de chaque profil, ceux d'une page ou d'un périmètre
-     * entier : une passe par agence ({@see OwnerStatementSnapshots::servedTotals()}). Un profil
-     * sans compte (brouillon d'invitation) n'a pas de relevé : `null`.
+     * TCK-2760 — le reste à verser de chaque profil, ceux d'une page ou d'un périmètre entier : le
+     * SOLDE CUMULÉ AU JOUR du bailleur dans l'agence du profil
+     * ({@see OwnerStatementService::balances()}, une passe par agence), jamais le reste du mois. Il
+     * est vivant : un relevé envoyé ne le fige pas. Négatif s'il a été trop versé. Un profil sans
+     * compte (brouillon d'invitation) n'a pas de relevé : `null`.
      *
      * @param  Collection<int, OwnerProfile>  $profiles  avec `id`, `user_id`, `agency_id`
      * @return array<int, float|null> par id de profil
      */
-    public function remainingToPay(Collection $profiles, ?string $period = null): array
+    public function remainingToPay(Collection $profiles): array
     {
-        $period ??= self::currentPeriod();
-        $remaining = [];
+        return $this->byAgency($profiles, fn (Agency $agency, array $landlordIds): array => array_map(
+            fn (array $balance): float => $balance['remaining_to_pay'],
+            $this->soldesDeLaRequete($agency, $landlordIds),
+        ));
+    }
+
+    /**
+     * TCK-2760 (suivi) — un seul calcul des soldes par agence et par REQUÊTE HTTP : le tri, le filtre
+     * `has_remaining`, la ligne et la somme de tête de `GET /api/owners` lisent les mêmes soldes, et chacun
+     * repassait la fenêtre cumulée de l'agence (mesuré : 3 passes, 4 avec le filtre). Les soldes déjà
+     * calculés se gardent dans les attributs de la requête courante, par agence et par bailleur ; seuls
+     * les bailleurs absents se calculent, en une passe.
+     *
+     * Bornée à la requête HTTP : un attribut de requête meurt avec elle, et chaque appel d'un test en
+     * est une neuve (épinglé : « la requête suivante recalcule »). Une instance `scoped` aurait vécu
+     * d'une requête à l'autre d'un même test. Une requête qui ÉCRIRAIT un reversement puis relirait
+     * le carnet lirait le solde d'avant : le carnet n'est servi que par des `GET`.
+     *
+     * ⚠ Hors HTTP, c'est l'inverse (réserve r2 de la vérification de 5f26092e4) : la requête factice
+     * d'une commande ou d'un worker de file vit tout le processus, ses attributs avec elle — alors
+     * que le worker oublie les instances `scoped` entre deux jobs (`QueueServiceProvider`,
+     * `forgetScopedInstances()`). Un job ou une commande qui appellerait un jour `remainingToPay()`,
+     * `remainingToPayIn()` ou `monthFigures()` relirait les soldes du job précédent. Aujourd'hui,
+     * seuls `OwnerProfileController` (`GET /api/owners`) et le filtre `has_remaining` du modèle
+     * les appellent.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array{remaining_to_pay: float, as_of: string}> par bailleur
+     */
+    private function soldesDeLaRequete(Agency $agency, array $landlordIds): array
+    {
+        $attributes = request()->attributes;
+        /** @var array<int, array<int, array{remaining_to_pay: float, as_of: string}|null>> $memo */
+        $memo = $attributes->get(self::SOLDES_DE_LA_REQUETE, []);
+        $connus = $memo[(int) $agency->id] ?? [];
+
+        $manquants = array_values(array_filter($landlordIds, fn (int $id): bool => ! array_key_exists($id, $connus)));
+        if ($manquants !== []) {
+            $calcules = $this->balances->balances($agency, $manquants);
+            foreach ($manquants as $id) {
+                $connus[$id] = $calcules[$id] ?? null;
+            }
+            $memo[(int) $agency->id] = $connus;
+            $attributes->set(self::SOLDES_DE_LA_REQUETE, $memo);
+        }
+
+        return array_filter(
+            array_intersect_key($connus, array_flip($landlordIds)),
+            fn (?array $balance): bool => $balance !== null,
+        );
+    }
+
+    /**
+     * Une valeur par profil, calculée une fois par agence pour tous ses bailleurs : `$compute` reçoit
+     * l'agence et les ids de ses bailleurs, et rend une valeur par bailleur. Un profil sans compte,
+     * ou dont le bailleur n'a pas de valeur, reçoit `null`.
+     *
+     * @param  Collection<int, OwnerProfile>  $profiles
+     * @param  callable(Agency, list<int>): array<int, mixed>  $compute
+     * @return array<int, mixed> par id de profil
+     */
+    private function byAgency(Collection $profiles, callable $compute): array
+    {
+        $values = [];
         $agencies = Agency::query()->whereIn('id', $profiles->pluck('agency_id')->filter()->unique()->values())->get()->keyBy('id');
 
         foreach ($profiles->groupBy('agency_id') as $agencyId => $rows) {
             $agency = $agencies->get((int) $agencyId);
             $landlordIds = $rows->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
-            $totals = $agency !== null ? $this->statements->servedTotals($agency, $landlordIds, $period) : [];
+            $byLandlord = $agency !== null && $landlordIds !== [] ? $compute($agency, $landlordIds) : [];
             foreach ($rows as $profile) {
-                $remaining[(int) $profile->id] = $profile->user_id !== null && isset($totals[(int) $profile->user_id])
-                    ? (float) $totals[(int) $profile->user_id]['remaining_to_pay']
-                    : null;
+                $values[(int) $profile->id] = $profile->user_id !== null ? ($byLandlord[(int) $profile->user_id] ?? null) : null;
             }
         }
 
-        return $remaining;
+        return $values;
     }
 
     /**
-     * Le même calcul pour tout un périmètre de requête (le tri `remaining_to_pay`, le filtre
-     * `has_remaining` : ils jugent tous les profils, pas la page).
+     * TCK-2641 — les deux chiffres d'une ligne du carnet :
+     *
+     * - `collected` : l'encaissé DU MOIS (`gross` du relevé servi de `$period`, le mois courant par
+     *   défaut ; celui que la fiche rend en `figures.collected`) ;
+     * - `remaining_to_pay` : TCK-2760 — le solde cumulé AU JOUR ({@see self::remainingToPay()}),
+     *   que `$period` ne change pas ; plus le reste du mois.
+     *
+     * Le relevé est celui de l'agence du profil : un loyer encaissé par une autre agence n'y entre
+     * pas. Un profil sans compte (brouillon d'invitation) n'a pas de relevé : `null`.
+     *
+     * @param  Collection<int, OwnerProfile>  $profiles  avec `id`, `user_id`, `agency_id`
+     * @return array<int, array{remaining_to_pay: float, collected: float}|null> par id de profil
+     */
+    public function monthFigures(Collection $profiles, ?string $period = null): array
+    {
+        $period ??= self::currentPeriod();
+        $collected = $this->byAgency($profiles, fn (Agency $agency, array $landlordIds): array => array_map(
+            fn (array $totals): float => (float) ($totals['gross'] ?? 0),
+            $this->statements->servedTotals($agency, $landlordIds, $period),
+        ));
+        $remaining = $this->remainingToPay($profiles);
+
+        $figures = [];
+        foreach ($profiles as $profile) {
+            $id = (int) $profile->id;
+            $figures[$id] = $remaining[$id] === null || $collected[$id] === null ? null : [
+                'remaining_to_pay' => (float) $remaining[$id],
+                'collected' => (float) $collected[$id],
+            ];
+        }
+
+        return $figures;
+    }
+
+    /**
+     * Le même calcul — TCK-2760 : le solde cumulé au jour — pour tout un périmètre de requête (le tri
+     * `remaining_to_pay`, le filtre `has_remaining`, la somme de tête : ils jugent tous les profils,
+     * pas la page).
      *
      * @param  Builder<OwnerProfile>  $scope
      * @return array<int, float|null>
@@ -158,6 +271,77 @@ final class OwnerDirectory
         $profiles = OwnerProfile::query()->whereIn('id', $ids)->get(['id', 'user_id', 'agency_id']);
 
         return $this->remainingToPay($profiles);
+    }
+
+    /**
+     * TCK-2641 (décision 4a) — le résumé du carnet (`meta.summary` de `GET /api/owners`), sur un
+     * périmètre que ni la recherche, ni une vue, ni la page ne restreignent :
+     *
+     * - `owners` : les bailleurs (tout profil hors brouillon et hors départ — TCK-2753, ADR-0108 : un
+     *   profil `inactive` a quitté l'agence), `invitations` : les brouillons ;
+     * - `properties` : la somme des `properties_count` des lignes (biens ni archivés ni supprimés
+     *   du bailleur, dans l'agence du profil) ;
+     * - `remaining_to_pay` : la somme des restes à verser POSITIFS — TCK-2760 : les soldes cumulés au
+     *   jour ({@see self::remainingToPay()}), plus les restes du mois — (un trop-versé ne diminue
+     *   pas ce qui reste à verser aux autres), `with_remaining` : le nombre de bailleurs qui en ont
+     *   un — la règle de `filter[has_remaining]=1`. Tous deux `null` pour qui ne lit pas le
+     *   relevé ({@see self::readsMoney()}), comme les chiffres de la ligne.
+     *
+     * @param  Builder<OwnerProfile>  $perimeter
+     * @return array{owners: int, properties: int, remaining_to_pay: float|null, with_remaining: int|null, invitations: int}
+     */
+    public function summary(Builder $perimeter, bool $readsMoney): array
+    {
+        $draft = OwnerProfileStatus::Draft->value;
+        $counts = (clone $perimeter)->reorder()->toBase()
+            ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status NOT IN (?, ?)) AS owners', [$draft, OwnerProfileStatus::Inactive->value])
+            ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status = ?) AS invitations', [$draft])
+            ->first();
+
+        $holders = (clone $perimeter)->reorder()->toBase()
+            ->select(['owner_profiles.user_id', 'owner_profiles.agency_id'])
+            ->whereNotNull('owner_profiles.user_id');
+        $properties = DB::table('properties')
+            ->whereNull('properties.deleted_at')
+            ->whereNull('properties.archived_at')
+            ->whereExists(fn (QueryBuilder $q) => $q->fromSub($holders, 'holders')
+                ->whereColumn('holders.user_id', 'properties.user_id')
+                ->whereColumn('holders.agency_id', 'properties.agency_id'))
+            ->count();
+
+        $remaining = null;
+        $withRemaining = null;
+        if ($readsMoney) {
+            $due = array_filter($this->remainingToPayIn($perimeter), fn (?float $amount) => $amount !== null && $amount > 0);
+            $remaining = round(array_sum($due), 2);
+            $withRemaining = count($due);
+        }
+
+        return [
+            'owners' => (int) ($counts->owners ?? 0),
+            'properties' => $properties,
+            'remaining_to_pay' => $remaining,
+            'with_remaining' => $withRemaining,
+            'invitations' => (int) ($counts->invitations ?? 0),
+        ];
+    }
+
+    /**
+     * TCK-2641 (décision 5a) — la date du dernier ENVOI de l'invitation en cours d'un profil, en
+     * sous-requête à côté de `pending_invitation_id` (même invitation, même contrainte d'agence).
+     *
+     * La table n'a pas de colonne d'envoi, et `updated_at` n'en est pas une : le rappel de J+2
+     * (`invitations:remind`) réécrit la ligne (`last_reminded_at`). L'envoi et le renvoi posent tous
+     * deux `expires_at = now() + DEFAULT_TTL_DAYS` : l'envoi se relit donc `expires_at − TTL`,
+     * la lecture que le service fait déjà pour son rappel ({@see InvitationService::REMINDER_OFFSET_DAYS}).
+     *
+     * @return Builder<Invitation>
+     */
+    public static function pendingInvitationSentAt(): Builder
+    {
+        return Invitation::idEnvoyeePour(new OwnerProfile)
+            ->whereColumn('invitations.agency_id', 'owner_profiles.agency_id')
+            ->select(DB::raw('invitations.expires_at - make_interval(days => '.(int) InvitationService::DEFAULT_TTL_DAYS.')'));
     }
 
     /**
@@ -223,24 +407,29 @@ final class OwnerDirectory
     }
 
     /**
-     * La fiche (`GET /api/owners/{id}`).
+     * La fiche (`GET /api/owners/{id}`, et la réponse de son `PATCH`).
+     *
+     * Vérification adverse de TCK-2641 (d1) — les chiffres du mois, le dernier et le prochain
+     * versement suivent la règle d'argent de la liste et du relevé ({@see self::readsMoney()}) : sans
+     * elle (`$readsMoney` faux), ils sont `null` et ne sont pas calculés. L'admin d'agence à rôle
+     * restreint, à qui le relevé répond 403, les lisait par la fiche.
      *
      * @return array<string, mixed>
      */
-    public function detail(OwnerProfile $profile, string $period): array
+    public function detail(OwnerProfile $profile, string $period, bool $readsMoney): array
     {
         $profile->loadMissing('agency');
         $agency = $profile->agency;
         $landlord = $profile->user_id !== null ? User::withTrashed()->find($profile->user_id) : null;
 
-        $statement = $agency !== null && $landlord !== null ? $this->statements->served($agency, $landlord, $period) : null;
+        $statement = $readsMoney && $agency !== null && $landlord !== null ? $this->statements->served($agency, $landlord, $period) : null;
         $totals = $statement['totals'] ?? null;
 
         $counts = OwnerProfile::query()->whereKey($profile->id)->select('owner_profiles.id');
         $this->addListColumns($counts);
         $row = $counts->first();
 
-        $lastPayout = $landlord === null ? null : Payout::query()
+        $lastPayout = ! $readsMoney || $landlord === null ? null : Payout::query()
             ->where('agency_id', $profile->agency_id)
             ->where('landlord_id', $landlord->id)
             ->where('payee_role', PayeeRole::Landlord->value)
@@ -273,6 +462,8 @@ final class OwnerDirectory
             'agency_id' => $profile->agency_id,
             'status' => $profile->status?->value,
             'joined_at' => $profile->created_at,
+            // TCK-2753 (ADR-0108 § 7) — la date du départ, `null` tant qu'il n'est pas parti.
+            'departed_at' => OwnerDepartureService::departedAt($profile),
             'owner_type' => self::metadataString($profile, 'owner_type') ?? 'individual',
             'company_name' => $profile->companyName(),
             'contact' => [
@@ -296,9 +487,13 @@ final class OwnerDirectory
                 'fees' => (float) ($totals['fees'] ?? 0),
                 'net' => (float) ($totals['net'] ?? 0),
                 'paid_out' => (float) ($totals['paid_out'] ?? 0),
+                // L'écart DU MOIS (`net − paid_out` de la période) : le reste à verser est `balance`.
                 'remaining_to_pay' => (float) ($totals['remaining_to_pay'] ?? 0),
                 'from_snapshot' => ($statement['snapshot'] ?? null) !== null,
             ],
+            // TCK-2760 — le solde cumulé au jour, le même que le relevé et la ligne du carnet ;
+            // `null` sans la règle d'argent, comme `figures`.
+            'balance' => $statement['balance'] ?? null,
             'last_payout' => $lastPayout === null ? null : [
                 'id' => $lastPayout->id,
                 'processed_at' => $lastPayout->processed_at,
@@ -308,9 +503,21 @@ final class OwnerDirectory
             'next_payout' => $statement['next_payout'] ?? null,
             'works_approval_threshold' => $profile->works_approval_threshold !== null ? (float) $profile->works_approval_threshold : null,
             'agency_commission_rate' => $agencyRate,
+            // TCK-2641 — les identifiants sensibles, MASQUÉS seulement (ADR-0044 § 1), comme sur une
+            // ligne du carnet ({@see OwnerProfileResource}) : la fiche porte « Afficher », qui passe par
+            // `GET /api/owners/{id}/sensitive`, journalisé.
+            'rib_masked' => self::masked($profile->rib, Masking::iban(...)),
+            'tax_id_masked' => self::masked($profile->tax_id, Masking::tail(...)),
+            'id_document_number_masked' => self::masked($profile->id_document_number, Masking::tail(...)),
             // Le taux d'un bail peut différer de celui de l'agence : les taux propres des baux en cours.
             'lease_commission_rates' => $leaseRates,
         ];
+    }
+
+    /** @param  callable(string): string  $mask */
+    private static function masked(mixed $value, callable $mask): ?string
+    {
+        return is_string($value) && $value !== '' ? $mask($value) : null;
     }
 
     private static function metadataString(OwnerProfile $profile, string $key): ?string

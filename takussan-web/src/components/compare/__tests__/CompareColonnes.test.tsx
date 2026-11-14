@@ -494,3 +494,17 @@ describe('<CompareColonnes> — statut foncier et lignes vides (TCK-491)', () =>
     expect(ligne('furnished')).not.toBeNull();
   });
 });
+
+describe('<CompareColonnes> — un montant ne se coupe qu’avant sa devise (TCK-2714)', () => {
+  it('les groupes de milliers restent insécables (U+00A0) ; seule l’espace avant « F CFA » devient sécable', () => {
+    render(wrap(<CompareColonnes columns={TROIS} onRemove={() => undefined} />));
+    const textes = within(ligne('price')!)
+      .getAllByRole('cell')
+      .map((cellule) => cellule.textContent ?? '');
+    expect(textes).toContain('650\u00a0000 F CFA');
+    // La cellule du moins cher porte aussi l'annonce de sa marque : le montant y est en tête.
+    expect(textes.some((t) => t.startsWith('380\u00a0000 F CFA'))).toBe(true);
+    // Aucune espace ordinaire ni fine entre deux chiffres : le montant ne se coupe pas au milieu.
+    for (const texte of textes) expect(texte).not.toMatch(/\d[\u0020\u202f]\d/u);
+  });
+});

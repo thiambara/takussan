@@ -3,10 +3,13 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\Currency;
 use App\Models\Property;
+use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -19,6 +22,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreBookingRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * La RÈGLE d'autorisation ne migre pas ici : elle appartient au contrôleur, au service puis aux
      * policies (principes non négociables 1 et 2, et TCK-306) ; seule son INVOCATION y vient quand
@@ -67,7 +72,9 @@ class StoreBookingRequest extends BaseFormRequest
             // TCK-2579 (ADR-0102) — la nature saisie ; sans elle, celle du bien (`BookingKind`).
             'kind' => ['nullable', Rule::enum(BookingKind::class)],
             // TCK-2579 — la validité d'une offre, dernier jour inclus (heure de Dakar).
-            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date', 'after_or_equal:today'],
+            // TCK-2752 — un JOUR, le seul que le front envoie : un instant près de minuit rangeait un autre
+            // jour dans `offer_expires_at` (colonne `date`) que dans `expires_at` (`FinInclusive::de()`).
+            'offer_expires_at' => [Rule::prohibitedIf($kind !== BookingKind::Offer->value), 'nullable', 'date_format:Y-m-d', new JourIso, 'after_or_equal:today'],
             // TCK-1066 (P62.02) — plus de `exists:` : un 422 pour un identifiant absent contre un
             // 403 pour un client tiers ou un bien privé faisait de la création un ORACLE
             // d'existence. L'absence se juge dans le contrôleur et le service, avec la réponse du
@@ -89,13 +96,13 @@ class StoreBookingRequest extends BaseFormRequest
             // l'heure de Dakar).
             // TCK-2579 — la date d'entrée d'une candidature est `start_date`, et elle est requise ;
             // une candidature n'a pas de départ, une offre n'a aucune date.
-            'start_date' => [Rule::requiredIf($kind === BookingKind::Application->value), Rule::prohibitedIf($kind === BookingKind::Offer->value), 'nullable', 'date', 'after_or_equal:today'],
-            'end_date' => [Rule::prohibitedIf($recorded), 'nullable', 'date', 'after_or_equal:start_date'],
+            'start_date' => [Rule::requiredIf($kind === BookingKind::Application->value), Rule::prohibitedIf($kind === BookingKind::Offer->value), 'nullable', 'date', new JourIso, 'after_or_equal:today'],
+            'end_date' => [Rule::prohibitedIf($recorded), 'nullable', 'date', new JourIso, 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
             // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
-            'expires_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date', new InstantIso],
         ];
     }
 
@@ -111,5 +118,15 @@ class StoreBookingRequest extends BaseFormRequest
             'start_date.after_or_equal' => __('bookings.start_in_past'),
             'end_date.after_or_equal' => __('bookings.end_before_start'),
         ];
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `offer_expires_at` n'est pas ici : il passe par `FinInclusive::de()`, qui garde la fin du jour
+     * d'une date seule.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['expires_at'];
     }
 }

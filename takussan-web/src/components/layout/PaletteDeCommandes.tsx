@@ -130,37 +130,31 @@ interface ContenuDeLaPaletteProps {
   readonly fermer: () => void;
 }
 
-function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuDeLaPaletteProps) {
+/**
+ * TCK-2619 — les options de la palette, sorties de son contenu pour que la page introuvable cherche dans
+ * LE MÊME index (menu rendu, « Aujourd'hui », récents, espaces), sans en recomposer un second : la palette
+ * ne juge aucun accès elle-même (S1, S2), la page introuvable non plus.
+ */
+export function useOptionsDeLaPalette(
+  contexteDuMenu: ContexteDuMenuDeLEspace,
+  { actif, recents }: { readonly actif: boolean; readonly recents: readonly string[] },
+): OptionDeLaPalette[] {
   const t = useTranslations('nav.palette');
   const tMenu = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
   const tTypes = useTranslations('profile.types');
-  const router = useRouter();
   const pathname = usePathname();
-  const locale = useCurrentLocale();
-  const idListe = useId();
-  const [saisie, setSaisie] = useState('');
-  // Revue M1 — l'option active est retenue par sa CLÉ, pas par son rang : une pastille qui arrive (ou
-  // disparaît) palette ouverte décale les rangs, jamais la cible d'Entrée. `null` : la première.
-  const [cleActive, setCleActive] = useState<string | null>(null);
-  // A8 — lus une fois par ouverture (le contenu est démonté à la fermeture).
-  const [recents] = useState(() => lirePagesRecentes(contexteDuMenu.user.id));
-
   // S1, S2 — LE menu de la barre et SES compteurs : la palette ne juge aucun accès elle-même, n'appelle
   // ni `composerMenu` ni `estOuverte` (gardes de TCK-2483, S8), et passe le contexte INTACT (A17).
   const { menu, groupes, entrees } = useMenuDeLEspace(contexteDuMenu);
-  const compteurs = useCompteursDuMenu(entrees, { agencyIsStandard: contexteDuMenu.agencyIsStandard, actif: ouverte });
+  const compteurs = useCompteursDuMenu(entrees, { agencyIsStandard: contexteDuMenu.agencyIsStandard, actif });
   // TCK-2489 — les lignes « Aujourd'hui » de la barre, toutes (la palette n'a jamais coupé à quatre).
   const aTraiter = lignesAujourdhui(entrees, compteurs, menu.priorites);
   const profils = useMyProfiles();
-  const bascule = useSwitchActiveProfile();
-  // Revue M3 — une bascule en cours OÙ QU'ELLE AIT ÉTÉ LANCÉE (le sélecteur, avant ⌘K) : l'`isPending`
-  // de cette instance, montée à l'ouverture, ne la voit pas. Les « Passer à » sont alors désactivés.
-  const basculeEnCours = useIsMutating({ mutationKey: CLE_DE_BASCULE_D_ESPACE }) > 0;
   const actifId = profils.data?.meta.active_profile_id ?? null;
 
   const libelle = (e: EntreeComposee) => (e.labelSpace === 'nav.admin' ? tAdmin(e.labelKey) : tMenu(e.labelKey));
-  const options = optionsDeLaPalette(
+  return optionsDeLaPalette(
     {
       action: menu.action,
       carte: menu.carte,
@@ -183,6 +177,24 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
       motsEspace: decouperLesMots(t('synonymesEspace')),
     },
   );
+}
+
+function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuDeLaPaletteProps) {
+  const t = useTranslations('nav.palette');
+  const router = useRouter();
+  const locale = useCurrentLocale();
+  const idListe = useId();
+  const [saisie, setSaisie] = useState('');
+  // Revue M1 — l'option active est retenue par sa CLÉ, pas par son rang : une pastille qui arrive (ou
+  // disparaît) palette ouverte décale les rangs, jamais la cible d'Entrée. `null` : la première.
+  const [cleActive, setCleActive] = useState<string | null>(null);
+  // A8 — lus une fois par ouverture (le contenu est démonté à la fermeture).
+  const [recents] = useState(() => lirePagesRecentes(contexteDuMenu.user.id));
+  const options = useOptionsDeLaPalette(contexteDuMenu, { actif: ouverte, recents });
+  const bascule = useSwitchActiveProfile();
+  // Revue M3 — une bascule en cours OÙ QU'ELLE AIT ÉTÉ LANCÉE (le sélecteur, avant ⌘K) : l'`isPending`
+  // de cette instance, montée à l'ouverture, ne la voit pas. Les « Passer à » sont alors désactivés.
+  const basculeEnCours = useIsMutating({ mutationKey: CLE_DE_BASCULE_D_ESPACE }) > 0;
   // TCK-2489 (ADR-0090 §2) — la recherche d'annonces du site public, que la barre du haut portait. Elle
   // suit toujours une saisie : « aucune page » n'est plus une liste vide, mais une liste qui n'a qu'elle.
   const pages = chercherDansLaPalette(options, saisie);

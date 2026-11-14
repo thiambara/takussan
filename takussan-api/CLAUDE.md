@@ -147,8 +147,9 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 `?profile_id` (403 si non possédé) → header `X-Active-Profile-Hint` (ignoré si invalide) → cookie
 `active_profile_id` → **dernier espace retenu** sur le compte (`users.metadata.last_active_profile`,
 ignoré s'il n'est plus un profil actif du compte, jamais lu sous impersonation — TCK-2620) →
-auto-bascule si l'utilisateur n'a de profils que dans **une** agence → rien. L'ordre et ses raisons :
-[ADR-0004](../docs/adr/0004-profil-actif-resolu-par-middleware.md), amendement du 2026-11-10.
+auto-bascule si l'utilisateur n'a de profils que dans **une** agence, ou n'a qu'**un** profil (le
+prestataire, sans agence — TCK-2800) → rien. L'ordre et ses raisons :
+[ADR-0004](../docs/adr/0004-profil-actif-resolu-par-middleware.md), amendements du 2026-11-10 et du 2026-11-14.
 `/api/auth/me` rend le profil lié (`active_profile_id`).
 
 Le profil est stocké dans `$request->attributes['active_profile']` et lu par la macro
@@ -894,6 +895,54 @@ rien attraper.*
    = ?` un `Seq Scan`. Index et requêtes bougent ensemble ou pas du tout.
 
    ⚠ Ça ne replie **pas** les accents, délibérément : `Café` ≠ `Cafe`, reconduction d'ADR-0020 §2.
+
+10. **Les verrous se prennent dans UN ordre : bien → visite → utilisateur → délégation** (TCK-2744,
+    TCK-2746). Deux écrivains qui verrouillent les mêmes lignes dans l'ordre inverse s'interbloquent,
+    et PostgreSQL en tue un (`SQLSTATE[40P01] deadlock detected`) — au hasard du tempo, donc jamais
+    dans un test séquentiel. Mesuré : deux `PATCH` simultanés sur un même bien, 19 interblocages sur
+    20 ; le retrait d'un agent contre la confirmation d'une de ses visites, 20 sur 20 ; l'effacement
+    d'un compte qui dépubliait ses biens après sa ligne `users`, 18 sur 20 ; la modification d'une
+    absence (délégation puis absent) contre l'effacement de l'absent, 14 sur 20. Les écrivains de
+    visites passent par `VisitSchedulingService::verrouillerBienPuisVisite()` ; le retrait d'un
+    membre (`AgencyMemberRemovalService::lockMarkedProperties()`) et l'effacement d'un compte
+    (`AccountDeletionService::lockInGlobalOrder()`) prennent leurs biens AVANT la ligne `users` ;
+    `AgentAbsenceService::update()` prend l'absent avant la délégation ; l'acceptation d'une invitation
+    de bailleur par un compte existant (`InvitationService::verrouillerLesBiensLies()`, TCK-2755) prend
+    les biens saisis pour lui avant toute écriture de `users` — contre la confirmation d'une visite d'un
+    de ces biens, 4 à 9 interblocages sur 20 sans lui. Plusieurs lignes d'une même table : par
+    identifiant croissant (`orderBy('id')`).
+
+    **Le bail, ses réservations et l'agence viennent après le bien** (TCK-2734, réserve r2 de la
+    vérification de d87e423e7) : l'envoi en signature et la signature sur papier prennent bien → bail →
+    réservations (`LeaseService::verrouillerLeBienPuisLeBail()`), puis touchent l'agence — par le journal
+    (`activity_log.agency_id` porte une clé étrangère : chaque ligne écrite prend un `KEY SHARE` sur
+    l'agence, qui heurte son `for update`) et par le compteur de `LeaseObserver`. Presque tout écrivain
+    journalise : **l'agence vient donc après le bien, même quand elle sert de point de sérialisation**.
+    L'achat de boost la prenait avant (`BoostPurchaseService::lock()`) : un cycle avec l'envoi sur un même
+    bien — mesuré le 2026-11-13 par une course à deux processus (`request()` contre `purchase()` réels) :
+    53 achats tués (`40P01`) sur 120 dans l'ancien ordre, 0 sur 2164 itérations dans le nouveau ;
+    il prend désormais le bien d'abord. Ne pas « corriger » un tel cycle en verrouillant
+    l'agence en tête de l'autre écrivain : on en ouvre un neuf avec tous ceux qui tiennent un bien et
+    journalisent ensuite. Reste ouvert, antérieur : `PayoutService` (agence → bail) contre `sign()`
+    (bail → agence par l'observateur).
+
+    ⚠ **Une ÉCRITURE verrouille sa ligne comme un `for update`.** Un `update()` ou un `delete()` — de
+    modèle ou de masse — sur un bien, après la ligne `users`, inverse l'ordre aussi sûrement qu'un
+    `lockForUpdate()`. (Un `UPDATE` qui ne touche pas de clé prend `FOR NO KEY UPDATE` : il ne heurte
+    pas le `KEY SHARE` d'une clé étrangère, mais heurte tout `for update` — celui d'une visite
+    compris.) D'où la règle : tout ce qu'un écrivain écrit APRÈS une ligne plus basse dans l'ordre est
+    verrouillé AVANT elle, **par la requête même qui l'écrira**
+    (`ErasedAccountListings::candidates()`, `TitulaireALaSaisie::biensLies()`), jamais par une copie.
+
+    ⚠ **L'épingle ne voit pas tout.** L'ordre est épinglé par `DB::listen` sur les `select … for
+    update` (`VisitAgentOverlapTest`, `OrdreDesVerrousDuRetraitTest`) : elle ne voit ni les verrous
+    implicites des `update`, ni ceux des clés étrangères — à l'insertion comme à un `update` qui POSE
+    la colonne : poser `owner_profiles.user_id` prend un `KEY SHARE` sur la ligne `users` visée, et
+    toucher une ligne qui référence `users` compte donc comme prendre `users` (TCK-2755, le témoin de
+    la course : 4 interblocages sur 20 sans aucune écriture de `users` ;
+    `OrdreDesVerrousDeLAcceptationTest` épingle donc aussi cet `update "owner_profiles"`). C'est
+    pourquoi le test de l'effacement affirme que chaque bien ÉCRIT figure dans la passe des biens, au
+    lieu de compter des verrous. Un écrivain neuf qui touche ces tables s'y ajoute — par discipline : rien ne le force.
 
 **Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
 par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite

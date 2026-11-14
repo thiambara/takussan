@@ -19,6 +19,7 @@ use App\Http\Requests\Api\VisitSlotsRequest;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LastContactChannel;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
@@ -32,6 +33,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Visit\VisitesLisibles;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitReadContext;
 use App\Services\Visit\VisitReportService;
@@ -70,14 +72,9 @@ class PropertyVisitController extends Controller
             ->defaultSort('-scheduled_at')
             ->paginate();
 
-        // Passe 3 (M7′) — l'agence de chaque bien de la page, en une requête : la ressource en
-        // décide si la fiche client est rendue, sans relire le bien ligne par ligne.
-        $request->attributes->set('visits.property_agencies', Property::query()
-            ->whereIn('id', $paginator->getCollection()->pluck('property_id')->filter()->unique())
-            ->pluck('agency_id', 'id')
-            ->map(fn ($id) => $id === null ? null : (int) $id)
-            ->all());
-
+        // TCK-2779 — l'agence de chaque bien n'est plus lue ici sur `property_id` (absent sous
+        // `fields[property_visits]`) : la ressource la relit par `VisitReadContext`, que `primePage`
+        // charge pour toute la page.
         $this->primePage($request, $paginator->getCollection());
 
         return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));
@@ -118,38 +115,15 @@ class PropertyVisitController extends Controller
     private function indexScope(Request $request): Builder
     {
         $user = $request->user();
-        $base = PropertyVisit::query();
-
-        if (! $user->isSuperAdmin()) {
-            // Vérification adverse (M7) — le créateur d'un bien d'agence n'en est le propriétaire
-            // que s'il y est bailleur actif (`PrimaryPropertyContact::estProprietaire`).
-            $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
-            // Passe 3 (M7′) — l'agent assigné ne lit la visite d'un bien d'agence que tant qu'il
-            // est du personnel de cette agence : parti ou suspendu, il la perd, comme dans `view`.
-            // Passe 4 (X1) — le compte doit être joignable ; passe 5 (X1′) — et l'agence est celle
-            // du profil actif (ADR-0031 §1) : `agencesOuPersonnelActif`, au plus une.
-            $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
-            $request->attributes->set('visits.staff_agencies', $personnelDe);
-            // P217.05 (TCK-2237) — sur un bien SANS agence, le créateur n'est propriétaire que
-            // joignable, comme dans `view` (`PrimaryPropertyContact::estProprietaire`).
-            $proprietaireSansAgence = PrimaryPropertyContact::joignable($user);
-
-            $base->where(function ($q) use ($user, $bailleurDe, $personnelDe, $proprietaireSansAgence) {
-                $q->where('visitor_id', $user->id)
-                    ->orWhere(fn ($a) => $a->where('agent_id', $user->id)
-                        ->whereHas('property', fn ($p) => $p->whereNull('agency_id')->orWhereIn('agency_id', $personnelDe)))
-                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id)
-                        ->where(fn ($a) => $a->when($proprietaireSansAgence, fn ($s) => $s->whereNull('agency_id'))
-                            ->orWhereIn('agency_id', $bailleurDe)))
-                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-
-                if ($personnelDe !== []) {
-                    $q->orWhereHas('property', fn ($p) => $p->whereIn('agency_id', $personnelDe));
-                }
-            });
+        if ($user->isSuperAdmin()) {
+            return VisitesLisibles::pour($user);
         }
+        // La ressource lit les agences du personnel pour décider de la fiche client de chaque ligne.
+        $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
+        $request->attributes->set('visits.staff_agencies', $personnelDe);
 
-        return $base;
+        // TCK-2589 — la règle vit dans `VisitesLisibles`, que le fil de la fiche client lit aussi.
+        return VisitesLisibles::pour($user, $personnelDe);
     }
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse
@@ -171,7 +145,10 @@ class PropertyVisitController extends Controller
      *   · `unassigned` — en attente, sans agent, à venir ; `requested` — en attente, à venir ;
      *   · `confirmed` — confirmée, à venir ; `past` — heure passée, tout statut ;
      *   · `cancelled` — annulée ; `today` — tout statut, ce jour à Dakar (`filter[day]`) ;
-     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`).
+     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`), pour le seul personnel de
+     *     l'agence du bien (`closableBound`, TCK-2587) ;
+     *   · `later` — confirmée, à partir du lendemain à Dakar (`filter[status]=confirmed` +
+     *     `filter[scheduled_at_min]`, TCK-2587) ; `all` — toute la portée, sans borne.
      */
     public function counts(Request $request): JsonResponse
     {
@@ -193,6 +170,7 @@ class PropertyVisitController extends Controller
         $scheduled = VisitStatus::Scheduled->value;
         $confirmed = VisitStatus::Confirmed->value;
         $completed = VisitStatus::Completed->value;
+        $closable = $this->closableBound($request->user());
 
         $tabs = [
             'unassigned' => ['status = ? and agent_id is null and scheduled_at >= ?', [$scheduled, $now]],
@@ -202,9 +180,12 @@ class PropertyVisitController extends Controller
             'cancelled' => ['status = ?', [VisitStatus::Cancelled->value]],
             'today' => ['scheduled_at >= ? and scheduled_at < ?', [$day->utc(), $day->addDay()->utc()]],
             'to_close' => [
-                '(status = ? and scheduled_at <= ?) or (status = ? and reported_at is null and completed_at >= ?)',
-                [$confirmed, $now, $completed, $reportFrom],
+                '((status = ? and scheduled_at <= ?) or (status = ? and reported_at is null and completed_at >= ?)) and '.$closable[0],
+                [$confirmed, $now, $completed, $reportFrom, ...$closable[1]],
             ],
+            // TCK-2587 — « Plus tard » : confirmée, à partir de demain à Dakar ; « Toutes » : la portée.
+            'later' => ['status = ? and scheduled_at >= ?', [$confirmed, $day->addDay()->utc()]],
+            'all' => ['true', []],
         ];
 
         $select = [];
@@ -221,6 +202,30 @@ class PropertyVisitController extends Controller
         return $this->json([
             'data' => array_map(fn (string $tab) => (int) ($row[$tab] ?? 0), array_combine(array_keys($tabs), array_keys($tabs))),
         ]);
+    }
+
+    /**
+     * TCK-2587 — la borne d'« À clore » en SQL, celle du filtre `filter[to_close]` : une visite n'est à
+     * clore que pour qui peut la clore (`PropertyVisitPolicy::report`), le personnel actif de l'agence
+     * du bien, ou le super-admin. Le client, le bailleur et le prestataire comptent 0.
+     *
+     * @return array{0: string, 1: list<int>}
+     */
+    private function closableBound(User $user): array
+    {
+        if ($user->isSuperAdmin()) {
+            return ['true', []];
+        }
+        $staff = PersonnelDeLAgence::agencesOuPersonnelActif($user);
+        if ($staff === []) {
+            return ['false', []];
+        }
+
+        return [
+            'exists (select 1 from properties where properties.id = property_visits.property_id and properties.deleted_at is null and properties.agency_id in ('
+                .implode(', ', array_fill(0, count($staff), '?')).'))',
+            $staff,
+        ];
     }
 
     /**
@@ -244,7 +249,12 @@ class PropertyVisitController extends Controller
             'data' => [
                 'date' => $date->format('Y-m-d'),
                 'timezone' => VisitSchedulingService::TIMEZONE,
-                'slots' => $this->scheduling->availableSlots($property, $date, $agent),
+                'slots' => $this->scheduling->availableSlots(
+                    $property,
+                    $date,
+                    $agent,
+                    $request->validated('duration_minutes') !== null ? (int) $request->validated('duration_minutes') : null,
+                ),
             ],
         ]);
     }
@@ -260,7 +270,8 @@ class PropertyVisitController extends Controller
     public function bulkConfirm(BulkConfirmPropertyVisitsRequest $request): JsonResponse
     {
         $user = $request->user();
-        $rows = collect($request->validated('visits'));
+        // TCK-2743 — les heures du lot, ramenées à l'instant qu'elles désignent.
+        $rows = collect($request->lignes());
         $visits = PropertyVisit::query()->with('property')->whereKey($rows->pluck('id')->map(fn ($id) => (int) $id)->all())->get()->keyBy('id');
 
         $results = $rows->map(function (array $row) use ($user, $visits) {
@@ -275,8 +286,7 @@ class PropertyVisitController extends Controller
                 abort_code_unless($user->can('update', $visit), 403, 'http.forbidden');
                 abort_code_unless($this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
 
-                $scheduledAt = $row['scheduled_at'] ?? null;
-                $confirmed = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
+                $confirmed = $this->scheduling->confirmOrFail($visit, $row['scheduled_at']);
                 $confirmed->load('property', 'visitor');
 
                 // L'avis part après la transaction de la ligne ; son échec ne défait pas la confirmation.
@@ -315,12 +325,44 @@ class PropertyVisitController extends Controller
             abort_code_if(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true), 422, 'visit.closed');
             abort_code_unless(PersonnelDeLAgence::estPersonnel($agent, $visit->property?->agency_id), 422, 'visit.agent_not_staff');
 
-            $visit->update(['agent_id' => $agent->id]);
+            // TCK-2744 — l'attribution d'une visite confirmée ne met pas l'agent à deux endroits.
+            $this->attribuer($visit, $agent->id);
 
             return [];
         }))->values()->all();
 
         return $this->json($this->bulkPayload($results));
+    }
+
+    /**
+     * TCK-2744 — pose l'agent d'une visite (`bulk-assign`, `claim`). Sur une visite confirmée à heure
+     * fixée, l'agent ne doit pas être déjà pris à cette heure ({@see VisitSchedulingService::assertAgentFree()}),
+     * garde et écriture dans une transaction, sous le verrou de l'agent. Une visite en attente
+     * n'occupe personne : le refus viendra à sa confirmation.
+     */
+    private function attribuer(PropertyVisit $visit, int $agentId): void
+    {
+        DB::transaction(function () use ($visit, $agentId): void {
+            $this->relireSousVerrou($visit);
+            if ($visit->status === VisitStatus::Confirmed && $visit->preferred_window === null) {
+                $this->scheduling->assertAgentFree($visit, $agentId, $visit->scheduled_at, $visit->duration_minutes, lockForUpdate: true);
+            }
+            $visit->update(['agent_id' => $agentId]);
+        });
+    }
+
+    /**
+     * TCK-2744 — le bien puis la visite, verrouillés puis relus, PREMIERS verrous de la transaction :
+     * l'ordre unique de tous les écrivains ({@see VisitSchedulingService::verrouillerBienPuisVisite()} :
+     * le bien, la visite, puis l'agent). Verrouiller l'agent d'abord croisait une confirmation
+     * concurrente qui tient déjà la visite, et verrouiller la visite avant le bien croisait un second
+     * `update` sur une autre visite du même bien (d1, 40P01) ; le statut se jugeait en outre sur le
+     * modèle lu avant la transaction.
+     */
+    private function relireSousVerrou(PropertyVisit $visit): void
+    {
+        $this->scheduling->verrouillerBienPuisVisite($visit);
+        $visit->refresh();
     }
 
     /**
@@ -370,6 +412,8 @@ class PropertyVisitController extends Controller
     public function store(StorePropertyVisitRequest $request): JsonResponse
     {
         $data = $request->validated();
+        // TCK-2743 — l'instant désigné, pour les deux écritures (le visiteur, l'agence) et le doublon.
+        $data['scheduled_at'] = $request->scheduledAt();
 
         // TCK-1072 (P62.06) — un bien absent reçoit le refus d'un bien fermé aux visites.
         $property = $request->property();
@@ -530,12 +574,18 @@ class PropertyVisitController extends Controller
         // from scheduled → completed without populating `completed_at`,
         // which silently breaks the feedback-window lockout.
         $data = $request->validated();
+        // TCK-2743 — l'instant désigné : la garde du report, celles du bien et de l'agent, l'écriture
+        // et l'annonce du déplacement lisent le même. Le même instant écrit avec un autre décalage
+        // n'est pas un déplacement.
+        if (array_key_exists('scheduled_at', $data)) {
+            $data['scheduled_at'] = $request->scheduledAt();
+        }
 
         // TCK-1838 (P184.04) — déplacer l'heure suit la règle du report (`rescheduleOrFail`) :
         // hors statut actif (`no_show`…), plus rien ne confirme ni ne reporte la visite, et le
         // visiteur recevait l'annonce d'un rendez-vous mort. Notes, type et agent restent ouverts.
         if (array_key_exists('scheduled_at', $data)
-            && ! Carbon::parse($data['scheduled_at'])->equalTo($visit->scheduled_at)) {
+            && ! $data['scheduled_at']?->equalTo($visit->scheduled_at)) {
             abort_code_unless(
                 in_array($visit->status, VisitSchedulingService::ACTIVE_STATUSES, true),
                 422,
@@ -551,25 +601,43 @@ class PropertyVisitController extends Controller
             abort_code_unless($this->canAssign($request->user(), $visit), 403, 'visit.reassign_forbidden');
         }
 
-        // Reschedule of a confirmed visit must re-check overlap on the
-        // new slot before persisting.
-        if ($visit->status === VisitStatus::Confirmed
-            && (array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data))) {
-            $newStart = array_key_exists('scheduled_at', $data)
-                ? Carbon::parse($data['scheduled_at'])
-                : $visit->scheduled_at;
-            $newDuration = array_key_exists('duration_minutes', $data)
-                ? $data['duration_minutes']
-                : $visit->duration_minutes;
-            $this->scheduling->assertNoOverlap($visit, $newStart, $newDuration);
-        }
-
         $previous = $visit->scheduled_at;
         // TCK-2502 — une heure envoyée par l'agence fixe l'heure, même égale au début de tranche.
         if (array_key_exists('scheduled_at', $data)) {
             $data['preferred_window'] = null;
         }
-        $visit->fill($data)->save();
+
+        // TCK-2744 — les deux gardes d'une visite confirmée (le bien, puis l'agent) et l'écriture, dans
+        // UNE transaction et sous verrou : la garde du bien courait ici sans verrou. Jugées sur les
+        // valeurs RÉSULTANTES (nouvelle heure, nouvelle durée, nouvel agent) dès que l'écriture en
+        // porte une : la visite elle-même est écartée, une durée repassée telle quelle passe.
+        DB::transaction(function () use ($visit, $data): void {
+            $this->relireSousVerrou($visit);
+            $temps = array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data);
+            if ($visit->status === VisitStatus::Confirmed && ($temps || array_key_exists('agent_id', $data))) {
+                $newStart = array_key_exists('scheduled_at', $data)
+                    ? Carbon::instance($data['scheduled_at'])
+                    : $visit->scheduled_at;
+                $newDuration = array_key_exists('duration_minutes', $data)
+                    ? $data['duration_minutes']
+                    : $visit->duration_minutes;
+                if ($temps) {
+                    $this->scheduling->assertNoOverlap($visit, $newStart, $newDuration, lockForUpdate: true);
+                }
+                $newAgent = array_key_exists('agent_id', $data) ? $data['agent_id'] : $visit->agent_id;
+                // Une visite confirmée à tranche (sans heure fixée) n'occupe personne, sauf si l'écriture fixe l'heure.
+                $fixee = array_key_exists('scheduled_at', $data) || $visit->preferred_window === null;
+                $this->scheduling->assertAgentFree(
+                    $visit,
+                    $newAgent !== null ? (int) $newAgent : null,
+                    $fixee ? $newStart : null,
+                    $newDuration !== null ? (int) $newDuration : null,
+                    lockForUpdate: true,
+                );
+            }
+
+            $visit->fill($data)->save();
+        });
 
         // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
         // une fois. `update` déplaçait l'heure sans prévenir personne.
@@ -600,7 +668,8 @@ class PropertyVisitController extends Controller
             abort_code(409, 'visit.already_assigned');
         }
 
-        $visit->update(['agent_id' => $user->id]);
+        // TCK-2744 — prendre en charge une visite confirmée, c'est s'y engager à son heure.
+        $this->attribuer($visit, $user->id);
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
@@ -611,7 +680,7 @@ class PropertyVisitController extends Controller
      */
     public function reschedule(ReschedulePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $visit = $this->scheduling->rescheduleOrFail($visit, Carbon::parse($request->validated('scheduled_at')));
+        $visit = $this->scheduling->rescheduleOrFail($visit, $request->scheduledAt());
 
         $this->notifier->rescheduledByVisitor($visit->fresh(['property', 'agent']));
 
@@ -631,8 +700,7 @@ class PropertyVisitController extends Controller
         // locks so two concurrent confirm calls cannot both pass the
         // overlap check and both win.
         // TCK-2502 — l'heure fixée en confirmant ; exigée pour une visite demandée par tranche.
-        $scheduledAt = $request->validated('scheduled_at');
-        $visit = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
+        $visit = $this->scheduling->confirmOrFail($visit, $request->scheduledAt());
         $visit->load('property', 'visitor');
 
         $sms = $this->notifier->confirmed($visit, $request->user());
@@ -652,15 +720,18 @@ class PropertyVisitController extends Controller
         );
 
         $data = $request->validated();
+        // TCK-2784 — le même instant pour la visite et le dernier contact, passé à la microseconde :
+        // `$visit->completed_at` relu du modèle est déjà au format de la seconde (`setAttribute()`).
+        $completedAt = now();
 
         $visit->update(array_merge($data, [
             'status' => VisitStatus::Completed,
-            'completed_at' => now(),
+            'completed_at' => $completedAt,
         ]));
 
         // TCK-2583 — une visite menée est un contact : le dernier contact de la fiche avance.
         if ($visit->customer_id !== null) {
-            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, $visit->completed_at);
+            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, LastContactChannel::Visit, $completedAt);
         }
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
@@ -749,8 +820,13 @@ class PropertyVisitController extends Controller
 
         $completedAt = $visit->completed_at;
         $windowHours = (int) config('visits.feedback_window_hours', 24);
+        // TCK-2587 (contre-vérification) — la fenêtre court depuis `min(completed_at, maintenant)`,
+        // la règle que l'écran affiche (`heuresRestantesPourLAvis`) : une clôture datée dans le futur
+        // (horloge d'un poste, base de démo ; le code n'écrit que `now()`) compte comme une clôture à
+        // l'instant, et l'écart jugé n'est jamais négatif — rien ne repose plus sur le signe de
+        // `diffInHours`.
         abort_code_if(
-            $completedAt === null || $completedAt->diffInHours(now()) > $windowHours,
+            $completedAt === null || $completedAt->min(now())->diffInHours(now()) > $windowHours,
             422,
             'visit.feedback_window_closed'
         );

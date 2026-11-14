@@ -21,6 +21,14 @@ vi.mock('@/app/actions/profiles', () => ({ getMyProfilesAction: () => getMyProfi
 vi.mock('@/app/actions/service-provider-onboarding', () => ({
   getSpAgenciesAction: () => getSpAgenciesAction(),
 }));
+// TCK-2613 — les pages agent et prestataire lisent l'API pour l'écran 2 (pièces, intervention, réglages) : hors
+// ligne ici, chaque lecture échoue et l'assistant s'ouvre quand même.
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api')>()),
+  apiRequest: async () => {
+    throw new Error('hors ligne');
+  },
+}));
 vi.mock('@/components/onboarding/OnboardingShell', () => ({
   OnboardingShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));

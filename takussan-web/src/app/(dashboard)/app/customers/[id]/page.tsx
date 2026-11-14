@@ -6,7 +6,6 @@ import { getTranslations } from 'next-intl/server';
 
 
 import { getToken } from '@/lib/session';
-import { nomAffichable } from '@/lib/identite';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgencyAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
 import { ApiError } from '@/lib/api';
@@ -18,31 +17,11 @@ import {
 } from '@/lib/queries/customers';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
-import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
-import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
-import { ContactGestures } from '@/components/crm/ContactGestures';
-import { InviterACreerSonCompte } from '@/components/crm/InviterACreerSonCompte';
-import { CustomerReferent } from '@/components/crm/CustomerReferent';
-import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
-import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
-import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
-import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
-import {
-  CUSTOMER_ENUM_NAMESPACES,
-  CUSTOMER_STATUS_TONE,
-  PIPELINE_STAGE_TONE,
-  enumLabel,
-} from '@/components/customer-form/options';
-import {
-  customerStatusValues,
-  pipelineStageValues,
-} from '@/lib/schemas/customer';
-import type { CustomerDocument } from '@/types/customer';
-import { PageHeader, StatusBadge } from '@/components/console';
+import { FicheDuClient } from '@/components/customer-dashboard/fiche/FicheDuClient';
 
 /**
- * TCK-042 — fiche client avec onglets (aperçu / notes / documents /
- * relations).
+ * TCK-042 — la fiche client. TCK-2589 — résumé, fil et dossier (`FicheDuClient`, maquette `app-clients-fiche` a) ;
+ * la lecture est celle de la sonde du layout (`lireClientDuRendu`) : une requête par rendu.
  */
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -53,10 +32,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ id: string }>;
-
-interface CustomerWithIncludes {
-  documents?: CustomerDocument[];
-}
 
 export default async function Page({ params }: { params: Params }) {
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
@@ -80,9 +55,6 @@ export default async function Page({ params }: { params: Params }) {
   const canInviteToAccount = isAgent(roles) || isAgencyAdmin(roles) || isSuperAdmin(roles);
 
   const t = await getTranslations('crm.customerDetail');
-  const tPage = await getTranslations('dashboard.pages.customerDetail');
-  const tStatus = await getTranslations(CUSTOMER_ENUM_NAMESPACES.status);
-  const tStage = await getTranslations(CUSTOMER_ENUM_NAMESPACES.pipelineStage);
 
   const customerId = Number.parseInt(id, 10);
   // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
@@ -116,90 +88,15 @@ export default async function Page({ params }: { params: Params }) {
     throw e;
   }
 
-  const documents = (customer as CustomerWithIncludes).documents ?? [];
-  const initialTags = (customer as { tags?: { id: number; name: string; slug: string; color: string | null }[] }).tags ?? [];
-
-  const pipelineLabel = customer.pipeline_stage
-    ? enumLabel(tStage, pipelineStageValues, customer.pipeline_stage)
-    : null;
-  const statusLabel = enumLabel(tStatus, customerStatusValues, customer.status);
-  // P220.03 (TCK-2281) — une fiche née d'un compte sans nom : son e-mail, son numéro ou `#<id>`.
-  const nom = nomAffichable(customer);
-
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow={tPage('eyebrow', { id: customer.id })}
-        title={nom}
-        description={
-          <span className="flex flex-wrap items-center gap-2">
-            {customer.email ? <span className="min-w-0 break-all">{customer.email}</span> : null}
-            {customer.phone ? <span className="tabular-nums">{customer.phone}</span> : null}
-            {/* Mêmes tons que la liste (revue design 2026-09-16) : la fiche peignait ces deux
-                statuts en contour neutre, la liste en couleur — deux vocabulaires pour un fait. */}
-            {pipelineLabel && customer.pipeline_stage ? (
-              <StatusBadge
-                label={pipelineLabel}
-                tone={PIPELINE_STAGE_TONE[customer.pipeline_stage] ?? 'neutral'}
-              />
-            ) : null}
-            <StatusBadge label={statusLabel} tone={CUSTOMER_STATUS_TONE[customer.status] ?? 'neutral'} />
-          </span>
-        }
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <PlanifierUneVisite
-              customer={{ id: customer.id, libelle: nom }}
-            />
-            {/* TCK-2580 — la candidature ou l'offre qu'il vient de faire, le client prérempli. */}
-            <EntreeSaisieDemande
-              variante="fiche"
-              client={{ id: customer.id, nom, detail: customer.phone ?? customer.email ?? null }}
-            />
-            <AddDocumentButton
-              documentableType="customer"
-              documentableId={customer.id}
-              displayLabel={nom}
-            />
-            {canInviteToAccount && customer.user_id === null ? (
-              <InviterACreerSonCompte customerId={customer.id} />
-            ) : null}
-          </div>
-        }
-      />
-
-      {/* TCK-591 — les deux gestes de la fiche, l'étape sans glisser, et son référent. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ContactGestures
-          phone={customer.phone}
-          firstName={customer.first_name}
-          fullName={nom}
-        />
-        {customer.pipeline_stage ? (
-          <CustomerStageControl
-            customerId={customer.id}
-            name={nom}
-            stage={customer.pipeline_stage}
-          />
-        ) : null}
-      </div>
-
-      <CustomerReferent customerId={customer.id} agencyId={customer.agency_id} relationships={relationships} />
-
-      <CustomerTagPickerSection
-        customerId={customer.id}
-        initialTags={initialTags}
-        suggestions={crmTagSuggestions}
-      />
-
-      <CustomerDetailTabs
-        customer={customer}
-        notes={notes}
-        documents={documents}
-        relationships={relationships}
-        canRevealIdNumber={canRevealIdNumber}
-      />
-    </div>
+    <FicheDuClient
+      customer={customer}
+      relationships={relationships}
+      suggestionsDEtiquettes={crmTagSuggestions}
+      notes={notes}
+      peutInviter={canInviteToAccount}
+      peutReveler={canRevealIdNumber}
+    />
   );
 }
 

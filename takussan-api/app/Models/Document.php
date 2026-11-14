@@ -10,6 +10,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Policies\DocumentPolicy;
 use App\Support\Http\ParametreUnique;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
@@ -33,11 +35,17 @@ class Document extends AbstractModel implements HasMedia
         'name', 'type', 'description',
         'is_verified', 'verified_by', 'verified_at',
         'expiry_date', 'metadata',
+        // TCK-2759 — un document de fiche client gardé pour l'agence (ADR-0099, amendement du 2026-11-12).
+        'is_internal',
     ];
+
+    /** TCK-2759 — la valeur de la colonne en mémoire aussi : un document créé sans le dire n'est pas interne. */
+    protected $attributes = ['is_internal' => false];
 
     protected $casts = [
         'type' => DocumentType::class,
         'is_verified' => 'boolean',
+        'is_internal' => 'boolean',
         'verified_at' => 'datetime',
         'expiry_date' => 'date',
         'metadata' => 'array',
@@ -168,6 +176,8 @@ class Document extends AbstractModel implements HasMedia
         'created_at', 'updated_at',
         // TCK-987 (P58.02) — la clé de `verifier`, que `DocumentResource` rend déjà.
         'verified_by',
+        // TCK-2759 — `DocumentResource` rend `is_internal`.
+        'is_internal',
     ];
 
     /** TCK-697 — pièce (`PIECE_TYPES`) rattachée à un profil (`PROFILE_TYPES`). */
@@ -208,8 +218,98 @@ class Document extends AbstractModel implements HasMedia
             'documentable_id' => $this->documentable_id,
             'uploaded_by' => $this->uploaded_by,
             'created_at' => $this->created_at?->timestamp,
+            // TCK-2781 — ce que la règle de lecture lit du porteur, pour que la recherche l'écrive en
+            // filtre borné (`DocumentSearchService::filtreDeLecture`) au lieu d'un `NOT id IN [...]`.
+            'is_internal' => (bool) $this->is_internal,
+            ...$this->porteurPourLIndex(),
         ];
     }
+
+    /**
+     * Les porteurs que la règle d'auteur ({@see DocumentPolicy::restreindreAuTeleverseur()})
+     * juge par leur agence : hors de cette liste (`User`, prestataire, plateforme), un téléversement
+     * n'est jamais retiré, et `carrier_agency_id` reste nul.
+     */
+    public const PORTEURS_D_AGENCE = [
+        Property::class, Lease::class, Booking::class, Customer::class, Agency::class,
+        Inventory::class, AgencyUpgradeRequest::class,
+        OwnerProfile::class, AgentProfile::class, AgencyAdminProfile::class,
+    ];
+
+    /**
+     * TCK-2781 — les faits du porteur que la règle de lecture lit, recopiés dans l'index. Un porteur
+     * supprimé (en douceur ou non) ne se charge pas : présent faux, agence et sujet nuls — la règle SQL
+     * le juge de même (`whereHasMorph` ne le trouve pas).
+     *
+     *  - `carrier_present` : le porteur existe. Le super-admin ne lit l'interne que d'une fiche présente,
+     *    dont l'agence peut être nulle ;
+     *  - `carrier_agency_id` : l'agence du porteur, celle du bien pour un état des lieux (bien supprimé :
+     *    nulle), nulle hors de {@see self::PORTEURS_D_AGENCE} ;
+     *  - `subject_user_id` : le compte que la règle d'auteur épargne — le locataire du bail, le client de
+     *    la réservation, le `user_id` de la fiche ou du profil.
+     *
+     * Ces faits se réindexent quand leur source change : `DocumentsDuPorteurObserver`.
+     *
+     * @return array{carrier_present: bool, carrier_agency_id: ?int, subject_user_id: ?int}
+     */
+    public function porteurPourLIndex(): array
+    {
+        $porteur = $this->documentable_type !== null ? $this->documentable : null;
+        $dAgence = $porteur !== null && in_array($porteur::class, self::PORTEURS_D_AGENCE, true);
+
+        $agence = match (true) {
+            ! $dAgence => null,
+            $porteur instanceof Agency => $porteur->id,
+            $porteur instanceof Inventory => $porteur->property?->agency_id,
+            default => $porteur->agency_id,
+        };
+        $sujet = match (true) {
+            $porteur instanceof Lease => $porteur->tenant?->user_id,
+            $porteur instanceof Booking => $porteur->customer?->user_id,
+            $porteur instanceof Customer, $porteur instanceof OwnerProfile,
+            $porteur instanceof AgentProfile, $porteur instanceof AgencyAdminProfile => $porteur->user_id,
+            default => null,
+        };
+
+        return [
+            'carrier_present' => $porteur !== null,
+            'carrier_agency_id' => $agence !== null ? (int) $agence : null,
+            'subject_user_id' => $sujet !== null ? (int) $sujet : null,
+        ];
+    }
+
+    /**
+     * TCK-2781 — `toSearchableArray()` lit le porteur et, selon son type, son bien, son locataire ou son
+     * client : chargés d'avance, sinon une importation ou une réindexation coûte quatre requêtes par document.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with(['documentable' => fn (MorphTo $morph) => $morph->morphWith(self::PRECHARGE_DU_PORTEUR)]);
+    }
+
+    /**
+     * Le porteur est RECHARGÉ, jamais repris de la mémoire : chargé plus tôt avec une partie de ses
+     * colonnes (`fields[...]`), il rendrait une agence nulle — la valeur qui laisse passer.
+     *
+     * @param  Collection<int, Document>  $models
+     */
+    public function makeSearchableUsing(Collection $models): Collection
+    {
+        if ($models instanceof \Illuminate\Database\Eloquent\Collection && $models->isNotEmpty()) {
+            $models->load(['documentable' => fn (MorphTo $morph) => $morph->morphWith(self::PRECHARGE_DU_PORTEUR)]);
+        }
+
+        return $models;
+    }
+
+    private const PRECHARGE_DU_PORTEUR = [
+        Inventory::class => ['property'],
+        Lease::class => ['tenant'],
+        Booking::class => ['customer'],
+    ];
 
     public function shouldBeSearchable(): bool
     {

@@ -1,0 +1,29 @@
+{
+  "ticket": "TCK-2769",
+  "ecrans": [
+    {
+      "page": "app-documents",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Locataire — le coffre (champ « Chercher un document »)",
+      "references": {
+        "telephone": "references/app-documents/a-0-telephone.json",
+        "bureau-1280": "references/app-documents/a-0-bureau-1280.json"
+      },
+      "produit": {
+        "route": "/app/documents et /app/documents?q=quittance%20de%20mars",
+        "persona": "locataire",
+        "releve_le": "2026-11-14",
+        "etat": "coffre de démo du locataire de fidélité (26 documents) ; la recherche « quittance de mars » rend 2 quittances générées (2026 et 2025), servies par l'API"
+      },
+      "mesures": {
+        "telephone": "champ 358 × 44 px à 16 px de chaque bord, rayon 10, icône 18 px trait 1,75, texte 16 px (maquette 15 px : `text-champ` garde 16 px sous le pouce, iOS ne zoome pas au focus)",
+        "bureau-1280": "champ 230,4 × 32,4 px dans l'en-tête, à gauche d'« Ajouter un document » (maquette `h-9 w-64 text-sm`, densité ×0,9), icône 14,4 px"
+      },
+      "ecarts": [
+        "Téléphone : le champ suit le sous-titre « 26 documents » de l'en-tête de TCK-2656 (y = 136 px) ; la maquette le pose sous le titre seul (y ≈ 79 px). L'en-tête n'est pas de ce ticket.",
+        "La maquette ne dessine pas d'état de résultats : la liste trouvée reprend les lignes, l'aperçu (bureau) et la pagination de la console, et chaque ligne nomme son dossier (« Quittances 2026 · 5 mars · PDF »)."
+      ]
+    }
+  ]
+}

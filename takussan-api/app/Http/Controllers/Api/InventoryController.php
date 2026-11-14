@@ -15,6 +15,7 @@ use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Media\PdfImageEmbedder;
 use App\Services\Media\PrivateMediaAccess;
@@ -91,7 +92,7 @@ class InventoryController extends Controller
 
     public function store(InventoryStoreRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $user = $request->user();
 
@@ -113,7 +114,9 @@ class InventoryController extends Controller
 
         // TCK-596 — `room_photos` (URL signées, par pièce) et `can_sign_as` ne sortent qu'ici,
         // jamais dans `index` : une URL signée par ligne de liste n'a pas de lecteur.
-        $inventory->load(['lease.tenant', 'property', 'media']);
+        // TCK-2648 — les noms que la fiche sert sous `forViewer` (le locataire, le bailleur, qui a signé
+        // et pour qui) : chargés ici, une requête par relation.
+        $inventory->load(['lease.tenant', 'lease.landlord', 'tenant', 'property', 'media', 'tenantSignedVia', 'ownerSignedBy', 'ownerSignedOnBehalfOf']);
 
         return $this->json([
             'data' => InventoryResource::make($inventory)
@@ -217,6 +220,16 @@ class InventoryController extends Controller
             'inventory.pdf_unsigned'
         );
 
+        return $this->renderPdf($inventory);
+    }
+
+    /**
+     * TCK-2770 — le rendu du PDF, après l'autorisation et la condition de signature : servi par
+     * {@see self::downloadPdf()} et repris tel quel par l'archive du coffre
+     * ({@see ArchiveDuCoffre}), qui a jugé l'entrée par la même règle.
+     */
+    public function renderPdf(Inventory $inventory): SymfonyResponse
+    {
         // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
         // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
         // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.

@@ -16,6 +16,7 @@ import { isAdmin } from '@/lib/roles';
 import { modeDeCreationDeBien } from '@/lib/access/creation-de-bien';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { getToken } from '@/lib/session';
+import { PARAMETRE_DE_REPRISE } from '@/lib/publication/brouillon-de-publication';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.propertyNew');
@@ -71,10 +72,17 @@ export const dynamic = 'force-dynamic';
  * Le refus de quota, lui, n'a pas de parcours : il reçoit le même en-tête, pour que la route
  * garde une marque et une sortie maintenant que la console s'est retirée.
  */
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
+} = {}) {
   const t = await getTranslations('dashboard.pages.propertyNew');
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
+
+  // TCK-2601 (AC3) — l'annonce commencée sans compte, versée au brouillon serveur sous SA clé.
+  const depuisPublication = (await searchParams)?.[PARAMETRE_DE_REPRISE] === 'publication';
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' } });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
@@ -115,7 +123,9 @@ export default async function Page() {
   if (quota && !quota.can_create) {
     return (
       <div className="absolute inset-0 flex flex-col overflow-y-auto">
-        <EnTetePublication titre={titre} enregistrement="aucun" />
+        {/* TCK-2638 — la route est plein écran : sans parcours, l'en-tête n'avait que le logo, et la seule
+            issue était « Gérer mes annonces ». La flèche de la coque ramène à la liste. */}
+        <EnTetePublication titre={titre} enregistrement="aucun" retour="/app/properties" />
         <div className="flex flex-col gap-6 px-4 py-6 sm:px-8 md:py-10">
           <PageHeader title={titre} />
           <section
@@ -124,9 +134,15 @@ export default async function Page() {
             data-testid="quota-atteint"
           >
             <h2 className="font-display text-lg font-semibold text-foreground">{t('quotaReachedTitle')}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('quotaReachedBody', { used: quota.used, limit: quota.limit ?? 0 })}
+            {/* TCK-2638 (lot C, P1 de l'audit) — le chiffre de `GET /api/me/quota`, celui de l'AGENCE, et
+                ce qu'il compte (`QuotaResolver::ACTIVE_LISTING_STATUSES`, ADR-0097 § 6) : « actif » n'est
+                pas « en ligne », et la liste du même agent les compte à part. Puis ce que CE lecteur
+                peut faire : l'agent ne tient ni le quota ni l'abonnement. */}
+            <p className="text-sm text-foreground">
+              {t('quota.usage', { used: quota.used, limit: quota.limit ?? 0 })}
             </p>
+            <p className="text-sm text-muted-foreground">{t('quota.definition')}</p>
+            <p className="text-sm text-muted-foreground">{t(isAdmin(roles) ? 'quota.admin' : 'quota.agent')}</p>
             <div className="flex flex-wrap gap-2">
               {isAdmin(roles) ? (
                 <Link href="/app/agency/billing" className={buttonVariants({ size: 'sm' })}>
@@ -146,14 +162,17 @@ export default async function Page() {
   return (
     <div className="absolute inset-0">
       <PropertyWizard
+        depuisPublication={depuisPublication}
         tags={tags}
         proposition={proposition}
+        // TCK-2602 — un espace particulier lu avec certitude : la publication mène à « en ligne ».
+        espaceParticulier={agence?.kind === 'individual'}
         fraisDAgence={fraisDAgence}
         agenceDuChoixDuBailleur={agenceDuChoixDuBailleur}
         peutInviterUnBailleur={peutInviterUnBailleur}
         quotaNote={
           quota && quota.limit !== null
-            ? t('quotaUsage', { used: quota.used, limit: quota.limit })
+            ? t('quota.note', { used: quota.used, limit: quota.limit })
             : undefined
         }
       />

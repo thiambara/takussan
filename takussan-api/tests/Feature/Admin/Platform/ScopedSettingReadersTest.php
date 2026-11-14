@@ -252,6 +252,40 @@ class ScopedSettingReadersTest extends TestCase
         return $client;
     }
 
+    /**
+     * r6, étendu aux deux plafonds de bail (signalé par terrain-7, sur le modèle de `LeaseDefaults`, acee36b80) —
+     * une ligne d'agence sans valeur valable n'est pas un réglage : le plafond retombe sur le GLOBAL du
+     * catalogue, jamais sur la constante du service. `{"value": null}` et `{}` se lisaient 0, donc la
+     * constante ; 0 est hors des règles du catalogue (`gt:0`, `min:1`), une ligne écrite avant elles.
+     *
+     * @return array<string, array{string, mixed, Closure(?int): mixed}>
+     */
+    public static function plafondsDeBail(): array
+    {
+        $resiliation = fn (?int $a) => app(EarlyTerminationService::class)->resolvePenaltyMonths($a);
+        $revision = fn (?int $a) => app(RentReviewService::class)->resolveMaxPct($a);
+
+        return [
+            'pénalité, {"value": null}' => [EarlyTerminationService::SETTING_KEY, ['value' => null], 7, $resiliation],
+            'pénalité, {}' => [EarlyTerminationService::SETTING_KEY, [], 7, $resiliation],
+            'pénalité, {"value": 0}' => [EarlyTerminationService::SETTING_KEY, ['value' => 0], 7, $resiliation],
+            'révision, {"value": null}' => [RentReviewService::SETTING_KEY, ['value' => null], 12.5, $revision],
+            'révision, {}' => [RentReviewService::SETTING_KEY, [], 12.5, $revision],
+            'révision, {"value": 0}' => [RentReviewService::SETTING_KEY, ['value' => 0], 12.5, $revision],
+        ];
+    }
+
+    #[DataProvider('plafondsDeBail')]
+    public function test_une_ligne_d_agence_sans_valeur_retombe_sur_le_global(string $cle, array $ligne, int|float $global, Closure $lire): void
+    {
+        $a = Agency::factory()->create();
+        $this->ligne($cle, $global, SettingScope::Global, null);
+        Setting::query()->create(['key' => $cle, 'value' => $ligne, 'scope' => SettingScope::Agency, 'scope_id' => $a->id]);
+
+        $this->assertEquals($global, $lire($a->id), 'le global, pas la constante du service');
+        $this->assertNotEquals($global, $cle === RentReviewService::SETTING_KEY ? (float) RentReviewService::DEFAULT_MAX_PCT : EarlyTerminationService::SETTING_DEFAULT_MONTHS, 'témoin : le global diffère de la constante');
+    }
+
     private function ligne(string $cle, mixed $valeur, SettingScope $portee, ?int $agence): void
     {
         Setting::query()->create(['key' => $cle, 'value' => ['value' => $valeur], 'scope' => $portee, 'scope_id' => $agence]);

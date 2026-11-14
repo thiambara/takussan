@@ -17,6 +17,9 @@ vi.mock('@/lib/queries/documents', async (importOriginal) => ({
   useUploadDocument: () => ({ mutateAsync }),
 }));
 
+// TCK-2759 — la case « Visible par le client » lit le profil actif (React Query, hors de ce rendu).
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 3 }));
+
 describe('<DocumentUploadDialog> — onUploaded (TCK-700)', () => {
   it('appelle onUploaded après un dépôt réussi pour la fiche client', async () => {
     const onUploaded = vi.fn();
@@ -46,5 +49,21 @@ describe('<DocumentUploadDialog> — onUploaded (TCK-700)', () => {
         documentable_id: 42,
       }),
     );
+  });
+});
+
+describe('<DocumentUploadDialog> — préattaché à sa cible (TCK-2639, AC3)', () => {
+  it('ne montre ni le type ni l’identifiant de la cible quand elle est fixée, et les montre sinon', () => {
+    const { unmount } = render(
+      withIntl(<DocumentUploadDialog open onOpenChange={vi.fn()} defaultDocumentable={{ type: 'property', id: 7, label: 'Villa Almadies' }} />),
+    );
+    expect(screen.getByText(/Villa Almadies/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/ID de l'entité/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Associé à')).not.toBeInTheDocument();
+    unmount();
+
+    render(withIntl(<DocumentUploadDialog open onOpenChange={vi.fn()} />));
+    expect(screen.getByLabelText(/ID de l'entité/)).toBeInTheDocument();
+    expect(screen.getByText('Associé à')).toBeInTheDocument();
   });
 });

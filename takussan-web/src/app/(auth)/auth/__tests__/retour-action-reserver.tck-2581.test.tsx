@@ -36,13 +36,12 @@ vi.mock('@/lib/connexion-telephone', async (importOriginal) => ({
   verifierCodeTelephone: (...a: unknown[]) => verifier(...a),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ openSession: openSessionMock }) }));
-vi.mock('@/components/auth/OAuthButtons', () => ({ OAuthButtons: () => <div />, OAuthSeparator: () => <div /> }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
   useSearchParams: () => searchParams,
 }));
 
-const { default: LoginPage } = await import('../login/page');
+const { FormulaireDeConnexion: LoginPage } = await import('../login/FormulaireDeConnexion');
 
 /** Le `redirect` que pose « Se connecter » dans la boîte de la fiche publique (relevé au navigateur). */
 const BIEN = '/properties/local-commercial-a-yoff-47RzDU?action=reserver';
@@ -74,10 +73,10 @@ describe('le retour vers la candidature après connexion (TCK-2581, AC2)', () =>
     verifier.mockResolvedValue({ token: 'jeton', expires_at: '2026-11-12T12:00:00Z', user: { id: 3 }, is_new_account: false });
     await monter();
 
-    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.type(await screen.findByLabelText('Votre numéro'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    // TCK-2604 — le code part au sixième chiffre.
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith(PORTE));
   });
@@ -87,9 +86,9 @@ describe('le retour vers la candidature après connexion (TCK-2581, AC2)', () =>
     actif.mockResolvedValue(false);
     await monter();
 
-    await user.type(await screen.findByLabelText(/Adresse email/), 'client@example.com');
-    await user.type(screen.getByLabelText(/Mot de passe/), 'secret123');
-    await user.click(screen.getByRole('button', { name: 'Se connecter' }));
+    await user.type(await screen.findByLabelText('E-mail'), 'client@example.com');
+    await user.type(screen.getByLabelText('Mot de passe'), 'secret123');
+    await user.click(screen.getByRole('button', { name: 'Me connecter' }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith(PORTE));
   });

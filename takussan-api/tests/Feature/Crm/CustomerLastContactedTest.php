@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Enums\LastContactChannel;
 use App\Models\Enums\VisitStatus;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
@@ -172,8 +173,8 @@ class CustomerLastContactedTest extends ApiTestCase
         $fiche = $this->fiche();
         $service = app(ContactGestureService::class);
 
-        $service->touchCustomer($fiche, Carbon::parse('2026-11-10 12:00:00'));
-        $service->touchCustomer($fiche->id, Carbon::parse('2026-11-09 09:00:00'));
+        $service->touchCustomer($fiche, LastContactChannel::Call, Carbon::parse('2026-11-10 12:00:00'));
+        $service->touchCustomer($fiche->id, LastContactChannel::Note, Carbon::parse('2026-11-09 09:00:00'));
 
         $this->assertSame('2026-11-10 12:00:00', $this->dernierContact($fiche));
         $this->assertSame('2026-11-10 12:00:00', $fiche->last_contacted_at?->format('Y-m-d H:i:s'));

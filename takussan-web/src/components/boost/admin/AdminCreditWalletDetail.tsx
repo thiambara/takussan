@@ -25,6 +25,7 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
   const t = useTranslations('superAdmin.credits.detail');
   const tListe = useTranslations('superAdmin.credits');
   const tCredits = useTranslations('credits');
+  const tCommon = useTranslations('common.status');
   const f = useFormatteurs();
   const garde = useGardeDoubleFacteur();
   const messageErreur = useMessageErreurApi();
@@ -70,6 +71,9 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
     <DataState
       loading={wallet.isLoading}
       error={wallet.isError ? tListe('loadError') : null}
+      erreurBrute={wallet.error}
+      messageRefus={tCommon('forbidden')}
+      messageIntrouvable={tCommon('notFound')}
       onRetry={() => void wallet.refetch()}
       retryLabel={tListe('retry')}
     >

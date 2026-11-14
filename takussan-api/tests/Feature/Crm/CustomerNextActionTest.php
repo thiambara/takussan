@@ -111,6 +111,8 @@ class CustomerNextActionTest extends ApiTestCase
             'at' => '2026-11-08T17:00:00+00:00',
             'label' => 'Envoyer le dossier',
             'overdue' => true,
+            // TCK-2592 (décision 4) — l'auteur et assigné modifie sa tâche (CustomerNextActionManageTest).
+            'manage' => true,
         ], $this->prochaineAction($fiche));
     }
 

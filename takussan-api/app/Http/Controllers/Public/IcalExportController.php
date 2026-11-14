@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\PropertyUnavailability;
@@ -32,7 +33,10 @@ class IcalExportController extends Controller
 
         $since = Carbon::today()->subMonths(3)->toDateString();
 
+        // TCK-2735 (ADR-0102 § 3) — seul un séjour occupe des nuits : une candidature ou une offre
+        // restée sur un bien devenu loué à la nuit n'est pas exportée « Réservé ».
         $bookings = $property->bookings()
+            ->where('kind', BookingKind::Stay)
             ->where('status', BookingStatus::Confirmed)
             ->whereNotNull('start_date')
             ->whereNotNull('end_date')

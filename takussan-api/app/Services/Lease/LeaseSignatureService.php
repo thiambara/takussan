@@ -17,6 +17,7 @@ use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -58,6 +59,15 @@ class LeaseSignatureService
         $lease->loadMissing(['property.address', 'tenant.user', 'landlord', 'agency', 'guarantors']);
         // ADR-0042 §5 — la v1 exige un compte au locataire ; sinon, la voie papier.
         abort_code_if($lease->tenant?->user_id === null, 422, 'lease_signature.tenant_without_account');
+        // TCK-2719 (décision du porteur du 2026-11-11) — un contrat signé ne se régénère jamais : il ne
+        // se fige pas tant que la fiche du locataire n'a ni prénom ni nom (un compte ouvert par e-mail
+        // ou par téléphone naît sans, TCK-2605). L'agent complète la fiche, puis relance.
+        abort_code_if(
+            // `Str::trim`, pas `trim` : une espace insécable n'est pas un nom non plus.
+            Str::trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')) === '',
+            422,
+            'lease_signature.tenant_without_name'
+        );
 
         // VERIF-596 passe 2 (N1) — les termes exécutés hors colonne sont figés AVANT le rendu : le
         // PDF imprime exactement ce que le bail enregistre, et exécutera.
@@ -68,9 +78,9 @@ class LeaseSignatureService
         $bytes = $this->renderContract($lease, $printed);
         $sha = hash('sha256', $bytes);
 
-        $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms): Lease {
-            /** @var Lease $locked */
-            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+        $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms, $by): Lease {
+            // TCK-2734 (décision 7) — le bien avant le bail : l'envoi écrit aussi les candidatures du bien.
+            $locked = LeaseService::verrouillerLeBienPuisLeBail($lease);
             abort_code_unless(
                 in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
                 422,
@@ -91,6 +101,10 @@ class LeaseSignatureService
                 'contract_sha256' => $sha,
                 'signature_requested_at' => now(),
             ])->save();
+
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — l'envoi en signature clôt les candidatures
+            // du bien ; le brouillon n'en fermait aucune. Après les refus (422, 409 `terms_changed`).
+            $this->leases->cloreLesCandidaturesDuBien($locked, $by);
 
             return $locked->refresh();
         });
@@ -223,13 +237,18 @@ class LeaseSignatureService
         $sha = hash_file('sha256', $contract->getRealPath());
 
         return DB::transaction(function () use ($lease, $contract, $sha, $by): Lease {
-            /** @var Lease $locked */
-            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            // TCK-2734 (décision 7) — le bien avant le bail, comme l'envoi en signature.
+            $locked = LeaseService::verrouillerLeBienPuisLeBail($lease);
             abort_code_unless(
                 in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
                 422,
                 'lease.not_activatable'
             );
+
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — la voie papier accepte un brouillon, qui
+            // n'est jamais passé par l'envoi en signature : elle clôt les candidatures au même moment
+            // logique (le bail part). Un bail déjà envoyé n'a plus rien d'ouvert d'avant l'envoi.
+            $this->leases->cloreLesCandidaturesDuBien($locked, $by);
 
             $locked->forceFill($this->executionTerms($locked) + ['contract_sha256' => $sha])->save();
 

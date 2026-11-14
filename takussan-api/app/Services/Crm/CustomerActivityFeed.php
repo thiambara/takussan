@@ -7,6 +7,7 @@ use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\PropertyContactLead;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -19,6 +20,8 @@ use Spatie\Activitylog\Models\Activity;
  *
  * TCK-2583 — et ses gestes de contact (`event = contacted`, `channel`), y compris ceux posés sur la
  * demande de contact qu'elle a convertie : une ligne « WhatsApp », « Appel »… Jamais de coordonnée.
+ * TCK-2754 — au seul personnel de l'agence de la fiche, comme le fil (`CustomerTimeline`) et
+ * `last_contacted_at` : sortis de la requête pour les autres lecteurs, total compris.
  *
  * L'onglet « Activité » de la console appelait `/api/audit-log`, réservé au super-admin et à
  * l'admin d'agence : pour un agent, 403 avalé en liste vide. Ce journal-ci s'autorise par la
@@ -56,8 +59,11 @@ class CustomerActivityFeed
      * TCK-2578 (ADR-0101 § 2) — `$withVisitReports` : le lecteur est-il du personnel de l'agence
      * (`CustomerPolicy::viewVisitReports`) ? Sinon les notes `visit_report` sortent de la requête
      * elle-même, et le total ne les compte pas. Fermé par défaut.
+     *
+     * TCK-2589 — les tâches de la fiche, celles que `$reader` peut ouvrir (`TaskPolicy::view`),
+     * comme le fil : une tâche qu'on ne lui ouvre pas sort de la requête, total compris.
      */
-    public function paginate(Customer $customer, int $perPage = 20, bool $withVisitReports = false): LengthAwarePaginator
+    public function paginate(Customer $customer, User $reader, int $perPage = 20, bool $withVisitReports = false): LengthAwarePaginator
     {
         $noteIds = CustomerNote::withTrashed()
             ->where('customer_id', $customer->id)
@@ -66,6 +72,7 @@ class CustomerActivityFeed
         $taskIds = Task::withTrashed()
             ->where('taskable_type', Customer::class)
             ->where('taskable_id', $customer->id)
+            ->lisiblesSurUnParentPar($reader, $customer->agency_id !== null ? (int) $customer->agency_id : null)
             ->pluck('id');
         $leadIds = PropertyContactLead::query()->where('customer_id', $customer->id)->pluck('id');
 
@@ -76,14 +83,19 @@ class CustomerActivityFeed
                     // Contre-vérification adverse de TCK-2591 — « Plus tard » sur l'étape proposée dit
                     // qu'il y en avait une, donc un fait interne de l'agence (compte rendu, visite,
                     // candidature, bail, peut-être sur le bien d'un autre bailleur) : au seul personnel.
+                    // TCK-2754 — les gestes de contact de même : qui a appelé et quand, c'est le
+                    // dernier contact que la fiche cache au bailleur auteur (`last_contacted_at`).
                     ->when(! $withVisitReports, fn (Builder $w) => $w->where(fn (Builder $e) => $e
                         ->whereNull('event')
-                        ->orWhere('event', '!=', CustomerSuggestedStageQuery::DISMISSED_EVENT))))
+                        ->orWhereNotIn('event', [CustomerSuggestedStageQuery::DISMISSED_EVENT, ContactGestureService::EVENT]))))
                     ->orWhere(fn (Builder $n) => $n->where('subject_type', CustomerNote::class)->whereIn('subject_id', $noteIds))
                     ->orWhere(fn (Builder $t) => $t->where('subject_type', Task::class)->whereIn('subject_id', $taskIds))
-                    ->orWhere(fn (Builder $l) => $l->where('subject_type', PropertyContactLead::class)
+                    // TCK-2754 — une demande rattachée n'entre au journal que par ses gestes de
+                    // contact : au seul personnel, comme ceux de la fiche.
+                    ->when($withVisitReports, fn (Builder $w) => $w->orWhere(fn (Builder $l) => $l
+                        ->where('subject_type', PropertyContactLead::class)
                         ->whereIn('subject_id', $leadIds)
-                        ->where('event', ContactGestureService::EVENT));
+                        ->where('event', ContactGestureService::EVENT)));
             })
             ->orderByDesc('created_at')
             ->orderByDesc('id')

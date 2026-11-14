@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Notifications\AgenceDeLaCible;
 use App\Domain\Notifications\NotificationClassification;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ListNotificationsRequest;
@@ -35,6 +36,8 @@ class NotificationController extends Controller
             ->paginate($perPage);
 
         [$unread, $counts] = $this->unreadCounts($request->user()->id);
+        // TCK-2751 — les agences des objets de la page, en une requête par genre.
+        AgenceDeLaCible::pour($request)->precharger($paginator->items());
 
         return $this->json([
             'data' => AppNotificationResource::collection($paginator->items())->toArray($request),

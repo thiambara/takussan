@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
+use App\Rules\InstantIso;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AssignAgencySubscriptionRequest extends FormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         return true;
@@ -15,7 +19,7 @@ class AssignAgencySubscriptionRequest extends FormRequest
     {
         return [
             'plan_id' => ['required', 'integer', 'exists:plans,id'],
-            'trial_ends_at' => ['nullable', 'date', 'after:now'],
+            'trial_ends_at' => ['nullable', 'date', new InstantIso, 'after:now'],
             'overrides' => ['nullable', 'array'],
             'overrides.platform_fee_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'overrides.limits' => ['nullable', 'array'],
@@ -23,5 +27,11 @@ class AssignAgencySubscriptionRequest extends FormRequest
             'overrides.limits.max_agents' => ['nullable', 'integer', 'min:0'],
             'overrides.limits.max_branches' => ['nullable', 'integer', 'min:0'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['trial_ends_at'];
     }
 }

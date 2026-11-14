@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useSyncExternalStore, type MouseEvent } from 'react';
 
+import { LienFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { cn } from '@/lib/utils';
 
@@ -71,9 +72,16 @@ interface RetourAuthProps {
   /** Libellé traduit par le layout serveur. */
   readonly libelle: string;
   readonly className?: string;
+  /**
+   * TCK-2598 — `fleche` : la flèche unique de la barre du téléphone (`LienFlecheDeRetour`, nommée par
+   * `libelle`) ; `pastille` (défaut) : « ← Retour au site » en texte, la barre du bureau.
+   */
+  readonly forme?: 'pastille' | 'fleche';
+  /** TCK-2604 — la flèche posée sur la photo du bien quitté : rond plein (`LienFlecheDeRetour`). */
+  readonly surPhoto?: boolean;
 }
 
-function Retour({ libelle, className }: RetourAuthProps) {
+function Retour({ libelle, className, forme = 'pastille', surPhoto = false }: RetourAuthProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -89,6 +97,19 @@ function Retour({ libelle, className }: RetourAuthProps) {
   // rouvrir si elle est publique, la dernière page publique vue dans l'onglet sinon, l'accueil en
   // dernier — jamais la console, jamais hors du site.
   const repli = redirect ?? memorisee ?? '/';
+
+  // La même règle d'historique que la pastille : le site PUBLIC seul, jamais la console.
+  if (forme === 'fleche') {
+    return (
+      <LienFlecheDeRetour
+        repli={repli}
+        libelle={libelle}
+        surPhoto={surPhoto}
+        peutRevenir={entreePrecedenteEstPublique}
+        className={className}
+      />
+    );
+  }
 
   function auClic(evenement: MouseEvent<HTMLAnchorElement>) {
     if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey || evenement.button !== 0) return;

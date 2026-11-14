@@ -110,6 +110,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('profiles/{sp_profile}', [MeServiceProviderProfileController::class, 'show'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.show');
+    // TCK-2613 — la demande jointe à l'invitation, à l'écran 2 de l'assistant (titulaire seul, lien pas encore consommé).
+    Route::get('profiles/{sp_profile}/intervention-d-origine', [MeServiceProviderProfileController::class, 'originRequest'])
+        ->whereNumber('sp_profile')
+        ->name('me.profiles.sp.origin-request');
     Route::patch('profiles/{sp_profile}/trades', [MeServiceProviderProfileController::class, 'updateTrades'])
         ->whereNumber('sp_profile')
         ->name('me.profiles.sp.trades');

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -92,11 +92,21 @@ const BUDGET_DES_ATTENTES_REELLES = 10_000;
 
 const mockFetchQueue = vi.fn();
 
-vi.mock('@/lib/queries/property-moderation', () => ({
+vi.mock('@/lib/queries/property-moderation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/property-moderation')>()),
   fetchPropertyModerationQueue: (...args: unknown[]) => mockFetchQueue(...args),
   approveProperty: vi.fn(),
   rejectProperty: vi.fn(),
   resubmitProperty: vi.fn(),
+  // TCK-2673 — le détail se lit à part ; ici il reste en chargement (ce fichier garde la FILE).
+  fetchPropertyModerationDetail: () => new Promise(() => {}),
+}));
+
+// TCK-2673 — l'en-tête lit les comptes des avis du jour (`meta.risk_counts`).
+vi.mock('@/lib/queries/reviews-moderation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/reviews-moderation')>()),
+  fetchModerationQueue: () =>
+    Promise.resolve({ data: [], meta: { total: 55, current_page: 1, last_page: 55, per_page: 1, risk_counts: { high: 16, low: 39 } } }),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
@@ -105,10 +115,15 @@ vi.mock('@/context/AuthContext', () => ({
 
 let urlCourante = '';
 const replace = vi.fn();
+const push = vi.fn();
+/** TCK-2673 — la largeur simulée (le polyfill de `matchMedia` rend toujours faux : bureau). */
+let telephone = false;
+vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: (q: string) => (q === '(width < 48rem)' ? telephone : false) }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ replace, push, refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(urlCourante),
+  usePathname: () => '/app/agency/moderation/properties',
 }));
 
 function wrap(ui: React.ReactElement) {
@@ -167,6 +182,8 @@ function derniersParams() {
 describe('<PropertyModerationWorkspace> (TCK-376)', () => {
   beforeEach(() => {
     urlCourante = '';
+    telephone = false;
+    push.mockReset();
     replace.mockReset();
     mockFetchQueue.mockReset();
     mockFetchQueue.mockResolvedValue(reponse({ last_page: 3 }));
@@ -324,5 +341,50 @@ describe('<PropertyModerationWorkspace> (TCK-376)', () => {
 
     expect(await screen.findByTestId('property-queue-item-1')).toHaveTextContent('Villa à Saly');
     expect(derniersParams().search).toBe('introuvable');
+  });
+});
+
+describe('<PropertyModerationWorkspace> — TCK-2673', () => {
+  beforeEach(() => {
+    urlCourante = '';
+    telephone = false;
+    push.mockReset();
+    replace.mockReset();
+    mockFetchQueue.mockReset();
+    mockFetchQueue.mockResolvedValue(reponse());
+  });
+
+  it('bureau : l’en-tête de la modération, onglet « Biens à valider » actif, avec les comptes des avis et des biens', async () => {
+    const user = userEvent.setup();
+    render(wrap(<PropertyModerationWorkspace />));
+    await screen.findByTestId('property-queue-item-1');
+
+    expect(screen.getByRole('heading', { name: 'Modération' })).toBeInTheDocument();
+    expect(await screen.findByText('55 avis en attente, dont 16 à regarder de près · 2 biens à valider')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Biens à valider/ })).toHaveAttribute('aria-selected', 'true');
+    const avis = screen.getByRole('tab', { name: /Avis/ });
+    expect(avis).toHaveTextContent('55');
+    await user.click(avis);
+    expect(push).toHaveBeenCalledWith('/app/agency/moderation');
+  });
+
+  it('téléphone : la liste d’abord ; toucher un bien l’ouvre plein écran, par une entrée d’historique', async () => {
+    telephone = true;
+    const user = userEvent.setup();
+    render(wrap(<PropertyModerationWorkspace />));
+    await screen.findByTestId('property-queue-item-1');
+
+    expect(screen.queryByTestId('property-moderation-detail')).toBeNull();
+    expect(screen.getByRole('button', { name: /Sans risque/ })).toHaveTextContent('39');
+    await user.click(within(screen.getByTestId('property-queue-item-2')).getByRole('button'));
+    expect(push).toHaveBeenCalledWith('/app/agency/moderation/properties?selected=2', { scroll: false });
+  });
+
+  it('téléphone : le bien désigné par l’URL s’ouvre seul, sans la liste', async () => {
+    telephone = true;
+    urlCourante = 'selected=2';
+    render(wrap(<PropertyModerationWorkspace />));
+    expect(await screen.findByTestId('property-moderation-detail')).toHaveTextContent('Duplex à Dakar');
+    expect(screen.queryByTestId('property-queue-item-1')).toBeNull();
   });
 });

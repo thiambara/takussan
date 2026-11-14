@@ -23,6 +23,10 @@ use App\Services\Crm\CustomerCommercialAttributes;
  *  - la fiche CRM de l'autre participant d'une directe, au SEUL personnel de l'agence du fil.
  *    Pour tout autre lecteur (client, bailleur, prestataire, personnel d'une autre agence), le bloc
  *    n'existe pas : `customerShown` est faux et la ressource ne rend pas la clé.
+ *    Dans ce bloc, le personnel lit toujours le NOM de son interlocuteur ; l'étape, le téléphone et
+ *    le référent suivent la lecture de la fiche dans le CRM (`CustomerPolicy::view`,
+ *    `customerReadable`) — un seul prédicat pour les trois, la colonne du fil ne montre pas plus
+ *    que le CRM (TCK-2724, décision du porteur du 2026-11-11).
  *
  * L'agence du fil : celle du bail, sinon celle du bien — l'ordre de
  * `ConversationAccess::contextAllows()`. Une directe sans bail ni bien (l'agent écrit à un client)
@@ -38,7 +42,7 @@ final class ConversationThreadContext
         public readonly ?MaintenanceRequest $maintenance,
         public readonly bool $customerShown,
         public readonly ?Customer $customer,
-        public readonly bool $customerPhoneShown,
+        public readonly bool $customerReadable,
         public readonly ?User $referent,
     ) {}
 
@@ -59,6 +63,7 @@ final class ConversationThreadContext
         $customerShown = $agencyId !== null && $staffAgencyId !== null && $staffAgencyId === (int) $agencyId;
 
         $customer = $customerShown ? self::customerOf($reader, $conversation, (int) $agencyId) : null;
+        $customerReadable = $customer !== null && $reader->can('view', $customer);
 
         return new self(
             property: $conversation->property,
@@ -66,8 +71,8 @@ final class ConversationThreadContext
             maintenance: $maintenance !== null && $reader->can('view', $maintenance) ? $maintenance : null,
             customerShown: $customerShown,
             customer: $customer,
-            customerPhoneShown: $customer !== null && $reader->can('view', $customer),
-            referent: $customer !== null ? self::referentOf($customer) : null,
+            customerReadable: $customerReadable,
+            referent: $customerReadable ? self::referentOf($customer) : null,
         );
     }
 

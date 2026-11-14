@@ -1,0 +1,140 @@
+{
+  "ticket": "TCK-2651",
+  "ecrans": [
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Bailleur — Mes revenus",
+      "references": {
+        "telephone": "references/app-paiements/a-4-telephone.json",
+        "bureau-1440": "references/app-paiements/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments",
+        "persona": "proprietaire (owner1@dakarimmo.sn, « Mouhamed Sene », Dakar Immo)",
+        "etat": "relevé réel de novembre 2026 de la démo : `balance.remaining_to_pay` 12 058 360 F (au 2026-11-14), `totals.remaining_to_pay` 3 117 369 F, 72 biens dans `properties[]`, aucun `next_payout`. Relevés r1 du 2026-11-14 (scratchpad `impl/lot2/2651/fid/` (cmp-tel, cmp-1280, rideau `rideau.html` de chaque dossier)) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 23 · 28 · 11 (20.18 %) ; bureau 1280 50 · 144 · 87 (13.42 %). 1440 non relevé (le gabarit des relevés de ce lot est 390 et 1280). Balayage 390/768/1024/1280 : débord 0 et aucune coupe au niveau du document. La table « Par bien » tient dans sa carte à 1280 et à 1440 (scrollWidth = clientWidth)."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/payments",
+    "persona": "proprietaire",
+    "disposition": "bailleur",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Mes revenus": "Loyers"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-4",
+      "element": "coque : barre latérale, en-tête, barre d'onglets du bas, compteurs, avatar, « Démarrer »",
+      "propriete": "boîtes, libellés, couleurs, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; compteurs, nom, avatar et carte « Démarrer » sont ceux du compte de démo"
+    },
+    {
+      "ecran": "a-4",
+      "element": "titre « Mes revenus »",
+      "propriete": "texte",
+      "exception": "renommage décidé par le porteur (ADR-0100 § 3), alias de libellé",
+      "motif": "« Loyers », décidé par le porteur le 2026-11-10 (ADR-0100 § 3, ticket § Direction) ; « Ce qui vous revient en novembre » titre la ventilation"
+    },
+    {
+      "ecran": "a-4",
+      "element": "montants, biens, locataires, nombre de biens (72), taux de commission absent du sous-titre et de la ventilation",
+      "propriete": "textes, hauteurs de lignes, positions verticales de tout ce qui suit",
+      "exception": "données de démo",
+      "motif": "owner1 a 72 biens (dont des « Property Test Filter ») et des pièces à plusieurs taux : `tauxUnique` rend null, l'écran ne dit pas de taux (décision 2a) ; la maquette dessine 3 biens à 7,5 %"
+    },
+    {
+      "ecran": "a-4",
+      "element": "« Prochain versement prévu le 15 nov. par virement », lucide-calendar-clock, « CBAO ••• 4521 · le relevé PDF est joint à la notification »",
+      "propriete": "absent du produit",
+      "exception": "données de démo",
+      "motif": "aucun `next_payout` servi pour owner1 ; la phrase est rendue quand il l'est (test « AC1 »). Le compte bancaire et la notification jointe ne sont servis par aucune API"
+    },
+    {
+      "ecran": "a-4",
+      "element": "ligne « Reste à vous verser » en pied de ventilation",
+      "propriete": "absent du produit",
+      "exception": "données",
+      "motif": "ADR-0100, amendement du 2026-11-12, § 7 : la ventilation est celle du mois et ne se soustrait pas en tête ; le reste à verser est le solde cumulé, en carte de tête seulement"
+    },
+    {
+      "ecran": "a-4",
+      "element": "« Déjà versé · acompte du 6 nov. », « Encaissé · 2 loyers sur 3 »",
+      "propriete": "texte",
+      "exception": "données de démo",
+      "motif": "le libellé suit les versements de la période servis (`payouts[].paid_in_period`) ; la démo n'a pas d'acompte nommé"
+    },
+    {
+      "ecran": "a-4 (bureau)",
+      "element": "« Le versement part le 15 de chaque mois… », note de relance « Garage Ouest Foire : relancé… »",
+      "propriete": "absent du produit",
+      "exception": "données",
+      "motif": "aucune API ne sert la règle de versement de l'agence ni les relances d'un bien ; hors périmètre (versement programmé : ambition de l'audit)"
+    },
+    {
+      "ecran": "a-4 (bureau)",
+      "element": "« Bail LS-… » sous le bien, photos des biens",
+      "propriete": "absent du produit",
+      "exception": "données",
+      "motif": "`properties[]` ne sert ni la référence du bail ni de photo : tuile à icône lucide-house à la place"
+    },
+    {
+      "ecran": "a-4 (bureau)",
+      "element": "« Derniers versements » : « Avis », lucide-download, « Virement CBAO ••• 4521 · RVS-… », compteur « 3 » de l'onglet Versements",
+      "propriete": "absent du produit",
+      "exception": "données",
+      "motif": "aucun avis de versement téléchargeable ni moyen de versement servi par `GET /api/payouts` ; le bloc est sous la ligne de flottaison à 1280 avec 72 biens. Pas de compteur d'onglet : il demanderait une lecture de plus par onglet"
+    },
+    {
+      "ecran": "a-4",
+      "element": "« Payé le 3 nov. »",
+      "propriete": "texte",
+      "exception": "données",
+      "motif": "`properties[].month_status` ne sert pas de date de paiement : « Payé ✓ »"
+    },
+    {
+      "ecran": "a-4 (bureau 1280)",
+      "element": "table « Par bien » : colonnes bien et locataire",
+      "propriete": "rétrécissables (max-w-0, deux lignes au plus, texte entier en title) ; la pastille du mois passe à la ligne ; gap-3 de la maquette",
+      "exception": "données de démo",
+      "motif": "les montants (U+00A0, nowrap) gardent leur largeur ; un titre ou un nom long ne peut plus élargir la table. Relevé sous verrou le 2026-11-14 avec un titre et un nom de locataire de 80 caractères : scrollWidth = clientWidth (527 à 1280, 687 à 1440), « Net pour vous » entier (bord droit 1250,2 pour une carte à 1251,2). Avec les 72 biens d'owner1, les titres de plus de deux lignes sont tronqués (…) à 1280. À 1024 la table défile de 5 px dans sa carte (ADR-0106 § 4)"
+    },
+    {
+      "ecran": "a-4 (téléphone)",
+      "element": "onglets « Revenus · Versements · Factures · Opérations »",
+      "propriete": "collants sous l’en-tête au défilement ; la maquette les pose dans le contenu qui défile",
+      "exception": "règle du gabarit (TCK-2804)",
+      "motif": "décision 2a de team-lead (2026-11-14) : une seule règle pour toute page à onglets — le marqueur `ONGLETS_DE_PAGE` et l’enveloppe — et l’objectif du ticket (garder les onglets sous le pouce). Au repos, rien ne diffère de la maquette : rangée à y = 56, onglets à y = 70"
+    }
+  ],
+  "ecarts_ouverts": [
+    {
+      "ecran": "a-4",
+      "element": "icônes de la coque et du sélecteur (chevron, download, check)",
+      "propriete": "trait 1.5/1.75 contre 2, couleur rgb(76,70,65) contre rgba(31,24,17,0.8)",
+      "motif": "épaisseur de trait des icônes du produit (primitives Button et coque), commune aux autres écrans de /app ; non propre à ce ticket"
+    },
+    {
+      "ecran": "a-4 (téléphone)",
+      "element": "onglets « Revenus · Versements · Factures · Opérations »",
+      "propriete": "hauteur 44 contre 32 et y +10, d'où le décalage de tout ce qui suit",
+      "motif": "cible tactile de 44 px gardée par `OngletsDesLoyers` ; relève de TCK-2804 (décision de team-lead, 2026-11-14), non traité ici",
+      "statut": "fermé (TCK-2804) pour la hauteur et la position des onglets ; le contenu sous les onglets reste à + 4 px (`space-y-5` de la page contre `pt-4` de la maquette), hors TCK-2804",
+      "preuve": "TCK-2804, relevés du 2026-11-14 à 390 : onglets à y = 70, h = 32 (avant y = 80, h = 44 ; maquette 70 et 32), rangée à y = 56 avec `pt-3.5` ; l’appui reste à 44 px (un `::before` transparent prolonge chaque lien de 12 px vers le haut, dans le `pt-3.5`). Défilé de 700 px : la rangée reste collée à y = 56. À 1280 : 245 nœuds sur 245 inchangés ; sonde `elementFromPoint` : chaque onglet répond de y = 58 à 101 (44 px). Compare a-4 : 25 · 27 · 11 (20,18 %) avant, 26 · 26 · 14 (19,2 %) après"
+    }
+  ]
+}

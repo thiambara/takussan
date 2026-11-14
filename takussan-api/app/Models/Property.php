@@ -25,6 +25,7 @@ use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Payments\RentMonthStatus;
 use App\Services\Property\Occupation;
+use App\Services\Property\PropertyOccupancy;
 use App\Sorts\PropertyRentLateSort;
 use App\Support\CaseInsensitive;
 use App\Support\DayRange;
@@ -73,6 +74,14 @@ class Property extends AbstractModel implements HasMedia
      * `include=online` ; `null` : non demandé, et la ressource n'émet rien.
      */
     private ?bool $onlineFlag = null;
+
+    /**
+     * TCK-2678 (ADR-0097 § 5) — `offline_reasons`, posé pour une page entière par
+     * {@see markOfflineReasons()} sur `include=offlineReasons` ; `null` : non demandé.
+     *
+     * @var list<string>|null
+     */
+    private ?array $offlineReasons = null;
 
     /** TCK-2637 — le bloc `occupancy` posé par `PropertyOccupancy`, ou `null` s'il n'a pas été demandé. */
     private ?array $occupancyBlock = null;
@@ -198,6 +207,9 @@ class Property extends AbstractModel implements HasMedia
             ...parent::getAllowedQueryIncludes(),
             AllowedInclude::custom('occupancy', new InclusionLueParLeControleur),
             AllowedInclude::custom('online', new InclusionLueParLeControleur),
+            // TCK-2678 — `offline_reasons` ({@see offlineReasonsAmong()}), à part de `online` : ses
+            // lecteurs actuels ne paient pas ses requêtes.
+            AllowedInclude::custom('offlineReasons', new InclusionLueParLeControleur),
         ];
     }
 
@@ -282,8 +294,20 @@ class Property extends AbstractModel implements HasMedia
      */
     public const OUT_OF_PORTFOLIO_STATUSES = [PropertyStatus::Archived, PropertyStatus::Sold];
 
-    /** TCK-2637 — les valeurs de `filter[occupancy]` ({@see scopeOccupancyState()}). */
-    public const OCCUPANCY_STATES = ['occupied', 'notice', 'vacant'];
+    /**
+     * TCK-2637 — les valeurs de `filter[occupancy]` ({@see scopeOccupancyState()}). TCK-2638 :
+     * `not_rental`, un bien qui n'est pas à louer (à vendre), hors de l'occupation.
+     */
+    public const OCCUPANCY_STATES = ['occupied', 'notice', 'vacant', 'not_rental'];
+
+    /**
+     * TCK-2638 (lot B) — les valeurs de `filter[listing]` ({@see scopeListingState()}) : les pastilles du
+     * mode Annonces, une PARTITION du portefeuille (décision du porteur, 2 a).
+     */
+    public const LISTING_STATES = ['online', 'pending', 'draft', 'offline'];
+
+    /** TCK-2638 — les statuts « À valider » d'un bien qui n'est pas en ligne. */
+    private const LISTING_PENDING_STATUSES = [PropertyStatus::Pending, PropertyStatus::PendingReview];
 
     public const TYPE_SEARCH_ALIASES = [
         // TCK-506 — alias enrichis APRÈS mesure de collision de corpus (la
@@ -657,22 +681,34 @@ class Property extends AbstractModel implements HasMedia
             ->orWhereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', AgencyStatus::Active)));
     }
 
+    /**
+     * TCK-2678 (ADR-0097 § 1 et § 5) — LES conditions de « en ligne », une par motif, dans l'ordre où
+     * les motifs se disent. {@see scopePublic()} les applique toutes ; {@see offlineReasonsAmong()}
+     * rend, pour chaque bien, celles qu'il ne remplit pas. Ajouter une condition ici change d'un coup
+     * le filtre, `is_online`, la tuile « En ligne » et le motif — il n'y a pas d'autre définition.
+     *
+     * `status` rend `status_<valeur>` (`status_rented`, `status_pending_review`…).
+     *
+     * @return array<string, \Closure(Builder<Property>): mixed>
+     */
+    public static function conditionsEnLigne(): array
+    {
+        return [
+            'agency_inactive' => fn (Builder $q) => $q->ofPublicAgency(),
+            'status' => fn (Builder $q) => $q->whereNotIn('status', self::NON_PUBLIC_STATUSES),
+            'not_published' => fn (Builder $q) => $q->whereNotNull('published_at'),
+            'private' => fn (Builder $q) => $q->where('visibility', PropertyVisibility::Public),
+            'test' => fn (Builder $q) => $q->where('is_test', false),
+        ];
+    }
+
     public function scopePublic(Builder $query): Builder
     {
-        return $query->ofPublicAgency()
-            ->where('visibility', PropertyVisibility::Public)
-            ->where('is_test', false)
-            ->whereNotNull('published_at')
-            ->whereNotIn('status', [
-                PropertyStatus::Draft,
-                PropertyStatus::Sold,
-                PropertyStatus::Rented,
-                PropertyStatus::Archived,
-                PropertyStatus::UnderMaintenance,
-                PropertyStatus::Unavailable,
-                PropertyStatus::PendingReview,
-                PropertyStatus::Rejected,
-            ]);
+        foreach (self::conditionsEnLigne() as $condition) {
+            $condition($query);
+        }
+
+        return $query;
     }
 
     /**
@@ -687,6 +723,41 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-2638 (lot B) — « hors ligne » au sens large : la NÉGATION de {@see scopePublic()}, jamais une
+     * copie de ses conditions (ADR-0097 § 1). Par l'identifiant, pour qu'aucune colonne nulle ne fasse
+     * tomber un bien des deux côtés à la fois.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeNotOnline(Builder $query): Builder
+    {
+        return $query->whereNotIn($query->qualifyColumn('id'), static::query()->public()->select('properties.id'));
+    }
+
+    /**
+     * TCK-2638 (lot B) — `filter[listing]` et les pastilles du mode Annonces de `portfolio-summary` :
+     * `online` ({@see scopePublic()}), puis, parmi les biens qui ne sont pas en ligne, `draft` (brouillon),
+     * `pending` (« À valider » : en attente, ou en revue) et `offline` (tout le reste : privé, non publié,
+     * loué, vendu, refusé, archivé, agence suspendue…). Chaque bien est dans un état et un seul : les
+     * quatre comptes font le total.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeListingState(Builder $query, string $state): Builder
+    {
+        $status = $query->qualifyColumn('status');
+
+        return match ($state) {
+            'online' => $query->public(),
+            'draft' => $query->notOnline()->where($status, PropertyStatus::Draft),
+            'pending' => $query->notOnline()->whereIn($status, self::LISTING_PENDING_STATUSES),
+            'offline' => $query->notOnline()->whereNotIn($status, [PropertyStatus::Draft, ...self::LISTING_PENDING_STATUSES]),
+        };
+    }
+
+    /**
      * TCK-2637 — les identifiants en ligne parmi `$ids`, en une requête ({@see isOnline()}).
      *
      * @param  list<int>  $ids
@@ -696,6 +767,57 @@ class Property extends AbstractModel implements HasMedia
     {
         return $ids === [] ? [] : static::query()->public()->whereIn('properties.id', $ids)
             ->pluck('properties.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /**
+     * TCK-2678 (ADR-0097 § 5) — pour chaque bien de `$ids`, les codes des conditions de
+     * {@see conditionsEnLigne()} qu'il ne remplit pas, dans leur ordre ; `[]` pour un bien en ligne.
+     * Une requête par condition, plus une pour le statut, quel que soit le nombre de biens. Chaque
+     * condition est jugée par l'identifiant des biens qui la REMPLISSENT, jamais par sa négation SQL
+     * (une colonne nulle ferait tomber un bien des deux côtés à la fois).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, list<string>>
+     */
+    public static function offlineReasonsAmong(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        // Lu ici et non sur les instances : une liste à `fields[properties]` n'a pas forcément chargé `status`.
+        $statuts = static::query()->whereIn('properties.id', $ids)->toBase()->pluck('status', 'id');
+        $motifs = array_fill_keys($ids, []);
+        foreach (self::conditionsEnLigne() as $code => $condition) {
+            $q = static::query()->whereIn('properties.id', $ids);
+            $condition($q);
+            $remplie = array_flip($q->pluck('properties.id')->map(fn ($id) => (int) $id)->all());
+            foreach ($ids as $id) {
+                if (! isset($remplie[$id])) {
+                    $motifs[$id][] = $code === 'status' ? 'status_'.$statuts[$id] : $code;
+                }
+            }
+        }
+
+        return $motifs;
+    }
+
+    /** TCK-2678 — les motifs de CE bien ({@see offlineReasonsAmong()}). */
+    public function offlineReasons(): array
+    {
+        return self::offlineReasonsAmong([(int) $this->getKey()])[(int) $this->getKey()] ?? [];
+    }
+
+    /** @param  list<string>  $reasons */
+    public function markOfflineReasons(array $reasons): void
+    {
+        $this->offlineReasons = $reasons;
+    }
+
+    /** @return list<string>|null */
+    public function offlineReasonsFlag(): ?array
+    {
+        return $this->offlineReasons;
     }
 
     /** TCK-2637 — pose `is_online` sur une instance de la page (`PropertyController`). */
@@ -722,9 +844,14 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
-     * TCK-2637 — `filter[occupancy]` et les tuiles de `portfolio-summary` : `occupied` (un bail
-     * courant, préavis COMPRIS — occupés + vacants = tous), `notice` (bail courant en préavis),
-     * `vacant` (aucun bail courant). Le bail courant est {@see currentLease()}.
+     * TCK-2637 — `filter[occupancy]`, les tuiles de `portfolio-summary` et l'état du bloc
+     * `occupancy` ({@see PropertyOccupancy::attach()}) : `occupied` (un bail
+     * courant, préavis COMPRIS), `notice` (bail courant en préavis), `vacant` (aucun bail courant).
+     * Le bail courant est {@see currentLease()}.
+     *
+     * TCK-2638 — ces trois états ne valent que pour un bien À LOUER ({@see scopeForRent()}) ; tout
+     * autre bien est `not_rental`, bail courant ou non (une vente dont le locataire reste dans les
+     * lieux) : occupés + vacants + hors location = tous.
      *
      * @param  Builder<Property>  $query
      * @return Builder<Property>
@@ -732,10 +859,25 @@ class Property extends AbstractModel implements HasMedia
     public function scopeOccupancyState(Builder $query, string $state): Builder
     {
         return match ($state) {
-            'occupied' => $query->whereHas('currentLease'),
-            'notice' => $query->whereHas('currentLease', fn (Builder $lease) => Occupation::onNotice($lease)),
-            'vacant' => $query->whereDoesntHave('currentLease'),
+            'occupied' => $query->forRent()->whereHas('currentLease'),
+            'notice' => $query->forRent()->whereHas('currentLease', fn (Builder $lease) => Occupation::onNotice($lease)),
+            'vacant' => $query->forRent()->whereDoesntHave('currentLease'),
+            'not_rental' => $query->whereNot(fn (Builder $q) => $q->forRent()),
         };
+    }
+
+    /**
+     * TCK-2638 — LE prédicat de l'occupation : un bien à louer (`contract_type = rent`), toutes
+     * périodes confondues (décision du porteur, Q1a). `not_rental` en est la négation, jamais une
+     * copie. Limite connue : une courte durée sans bail est `vacant` sans `vacant_since`, donc
+     * jamais dans les vacances longues.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeForRent(Builder $query): Builder
+    {
+        return $query->where($query->qualifyColumn('contract_type'), ContractType::Rent->value);
     }
 
     /**
@@ -891,6 +1033,17 @@ class Property extends AbstractModel implements HasMedia
             }
             Validator::make(['occupancy' => $state], ['occupancy' => [Rule::in(self::OCCUPANCY_STATES)]])->validate();
             $q->occupancyState($state);
+        });
+
+        // TCK-2638 (lot B) — l'état d'annonce (pastilles du mode Annonces) ; une valeur en liste vaut un
+        // filtre absent (ADR-0075), une valeur inconnue rend 422.
+        $filters[] = AllowedFilter::callback('listing', function (Builder $q, mixed $value): void {
+            $state = ParametreUnique::valeur($value);
+            if ($state === null || $state === '') {
+                return;
+            }
+            Validator::make(['listing' => $state], ['listing' => [Rule::in(self::LISTING_STATES)]])->validate();
+            $q->listingState($state);
         });
 
         $filters[] = AllowedFilter::callback('rent_late', function (Builder $q, mixed $value): void {

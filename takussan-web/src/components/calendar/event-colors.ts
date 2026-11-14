@@ -68,37 +68,38 @@ export type EventPalette = {
  * `paletteForType()` : la divergence n'est plus possible, elle n'a plus d'endroit où naître.
  */
 const PALETTE_PAR_TYPE: Record<CalendarEventType, EventPalette> = {
+  // TCK-2597 (maquette `app-agenda` a) — cinq types, cinq couleurs de la charte, et jamais deux verts
+  // côte à côte : séjours en olive (`--accent` en pastille et en barre ; l'aplat `bg-accent/n` est refusé par `check-valeurs-arbitraires-app`, la puce prend `--secondary`), visites en terracotta, tâches en encre, échéances de
+  // bail en ambre, interventions en bleu. L'encre est `--foreground` partout : la teinte vit dans
+  // l'aplat, la bordure et la pastille (aucun de ces jetons n'est une encre sur son aplat, cf. plus haut).
   booking: {
-    pill: 'bg-info/10 text-info border-info/30',
-    accent: 'bg-info',
+    pill: 'bg-secondary text-foreground border-accent/40',
+    accent: 'bg-accent',
     labelKey: 'eventStatus.confirmed',
   },
   visit: {
-    pill: 'bg-primary/12 text-primary border-primary/30',
+    pill: 'bg-primary/10 text-foreground border-primary/30',
     accent: 'bg-primary',
     labelKey: 'eventStatus.confirmed',
   },
   lease: {
-    pill: 'bg-success/10 text-success border-success/30',
-    accent: 'bg-success',
+    pill: 'bg-warning/15 text-foreground border-warning/40',
+    accent: 'bg-warning',
     labelKey: 'eventStatus.lease',
   },
-  // TCK-591 — trois types de plus, trois jetons de plus. L'encre est `--foreground` : `--warning`
-  // et `--accent` ne sont pas des encres sur ces aplats (même raisonnement que `--primary`
-  // ci-dessus) ; la teinte vit dans l'aplat, la bordure et la pastille.
   task: {
-    pill: 'bg-warning/10 text-foreground border-warning/40',
-    accent: 'bg-warning',
+    pill: 'bg-foreground/5 text-foreground border-foreground/20',
+    accent: 'bg-foreground',
     labelKey: 'eventStatus.confirmed',
   },
   lease_event: {
-    pill: 'bg-success/10 text-success border-success/30',
-    accent: 'bg-success',
+    pill: 'bg-warning/15 text-foreground border-warning/40',
+    accent: 'bg-warning',
     labelKey: 'eventStatus.lease',
   },
   maintenance: {
-    pill: 'bg-accent/10 text-foreground border-accent/40',
-    accent: 'bg-accent',
+    pill: 'bg-info/10 text-foreground border-info/30',
+    accent: 'bg-info',
     labelKey: 'eventStatus.confirmed',
   },
 };

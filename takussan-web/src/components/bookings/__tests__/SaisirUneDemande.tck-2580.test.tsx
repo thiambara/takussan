@@ -119,8 +119,8 @@ describe('TCK-2580 — la nature se déduit du bien', () => {
     const offre = within(d).getByRole('radio', { name: 'Offre d’achat' });
     expect(offre).toHaveAttribute('aria-disabled', 'true');
     expect(within(d).getByText('Ce bien est à louer : la demande est une candidature.')).toBeInTheDocument();
-    // Le loyer affiché sert de valeur par défaut, groupé ; l'unité est dans le champ.
-    expect(within(d).getByLabelText('Loyer proposé')).toHaveValue(new Intl.NumberFormat('fr-FR').format(250000));
+    // Le loyer affiché sert de valeur par défaut, groupé par l'insécable U+00A0 (TCK-2714) ; l'unité est dans le champ.
+    expect(within(d).getByLabelText('Loyer proposé')).toHaveValue('250\u00a0000');
     expect(within(d).getByText('F/mois')).toBeInTheDocument();
     expect(within(d).getByRole('button', { name: 'Enregistrer la candidature' })).toBeInTheDocument();
   });
@@ -149,7 +149,7 @@ describe('TCK-2580 — le corps envoyé, lu sur la requête', () => {
     const user = userEvent.setup();
     monter(<SaisirUneDemande open onOpenChange={() => {}} client={BINETA} bien={{ id: 40 }} />);
     const d = await feuille();
-    await waitFor(() => expect(within(d).getByLabelText('Loyer proposé')).toHaveValue(new Intl.NumberFormat('fr-FR').format(250000)));
+    await waitFor(() => expect(within(d).getByLabelText('Loyer proposé')).toHaveValue('250\u00a0000'));
     await user.type(within(d).getByLabelText(/Date d’entrée/), '2026-12-01');
     await user.type(within(d).getByLabelText('Message'), 'Elle confirme après la visite.');
     await user.click(within(d).getByRole('button', { name: 'Enregistrer la candidature' }));
@@ -173,7 +173,7 @@ describe('TCK-2580 — le corps envoyé, lu sur la requête', () => {
     monter(<SaisirUneDemande open onOpenChange={() => {}} client={BINETA} bien={{ id: 41 }} onSuccess={apres} />);
     const d = await feuille();
     const champ = await within(d).findByLabelText(/Montant offert/);
-    await waitFor(() => expect(champ).toHaveValue(new Intl.NumberFormat('fr-FR').format(95000000)));
+    await waitFor(() => expect(champ).toHaveValue('95\u00a0000\u00a0000'));
     // La place réservée à l'unité suit l'unité : « F » ne rogne pas un montant à neuf chiffres (mesuré à 390 px).
     expect(champ.style.paddingInlineEnd).toBe('calc(1ch + 1.25rem)');
     await user.clear(champ);

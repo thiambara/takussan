@@ -72,8 +72,11 @@ export type UserPreferences = {
   navigation?: unknown;
 };
 
-/** Les réponses possibles à la question d'orientation (TCK-493). */
-export const ENTRY_INTENTS = ['search', 'publish', 'skipped'] as const;
+/**
+ * Les réponses possibles à la question d'orientation (TCK-493). TCK-2608 — `professional`, la troisième
+ * porte (ajoutée côté API par TCK-2607, `UpdateMeRequest`).
+ */
+export const ENTRY_INTENTS = ['search', 'publish', 'professional', 'skipped'] as const;
 export type EntryIntent = (typeof ENTRY_INTENTS)[number];
 
 export type User = {
@@ -110,6 +113,12 @@ export type User = {
    */
   force_2fa_reconfigure?: boolean;
   agency_id?: number | null;
+  /**
+   * TCK-2620 / TCK-2621 — le profil que l'API a LIÉ à la requête (`type:id`), `null` sans profil lié :
+   * cookie, indice, dernier espace retenu ou auto-bascule (`ResolveActiveProfile`). Rendu pour SOI
+   * seulement. La coque y lit le persona quand le cookie manque (`profilLieDeLaCoque`).
+   */
+  active_profile_id?: string | null;
   roles: UserRole[];
   status: UserStatus;
   /** TCK-253 — empty `{}` when the user has set nothing yet. */

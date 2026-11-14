@@ -261,8 +261,8 @@ describe('politique de confidentialité — le journal des recherches', () => {
   });
 
   it('la version des documents avance avec le journal', () => {
-    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026), puis par TCK-2511.
-    expect(VERSION_DOCUMENTS).toEqual({ date: '9 novembre 2026', dateEn: 'November 9, 2026' });
+    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026), puis par TCK-2511, puis par TCK-2603.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
   });
 });
 
@@ -280,7 +280,30 @@ describe('politique de confidentialité — la demande du quartier montrée à l
   });
 
   it('la version des documents avance avec elle', () => {
-    expect(VERSION_DOCUMENTS).toEqual({ date: '9 novembre 2026', dateEn: 'November 9, 2026' });
+    // Avancée depuis par TCK-2603.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
+  });
+});
+
+/**
+ * TCK-2603 (ADR-0088, amendement du 2026-11-10, cinquième sortie) — le départ de la publication montre à tout
+ * visiteur le total des recherches d'une ville sur 7 jours : une sortie PUBLIQUE du journal, que la politique doit
+ * nommer avec sa période, son seuil, son arrondi et ce qu'elle ne contient pas.
+ */
+describe('politique de confidentialité — la demande d’une ville montrée au départ de la publication', () => {
+  it('dit le total, la période, l’arrondi, le seuil et l’absence de quartier et de recherche particulière, dans les deux langues', () => {
+    expect(privacy.fr).toContain(
+      'au départ de la publication d’une annonce, nous pouvons montrer à tout visiteur le nombre total de recherches faites sur les 7 derniers jours pour une ville, arrondi à la dizaine inférieure et seulement à partir de 200 recherches',
+    );
+    expect(privacy.fr).toContain('ce total ne contient aucun texte saisi, aucun quartier ni aucune recherche particulière');
+    expect(privacy.en).toContain(
+      'when a listing is about to be published, we may show any visitor the total number of searches run over the last 7 days for a city, rounded down to the nearest ten and only from 200 searches upwards',
+    );
+    expect(privacy.en).toContain('this total contains no text entered, no neighbourhood and no individual search');
+  });
+
+  it('la version des documents avance avec elle', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
   });
 });
 
@@ -311,8 +334,8 @@ describe('politique de confidentialité — ce que le stockage local garde de la
   });
 
   it('la version des documents avance avec elles', () => {
-    // Avancée depuis par TCK-2511.
-    expect(VERSION_DOCUMENTS).toEqual({ date: '9 novembre 2026', dateEn: 'November 9, 2026' });
+    // Avancée depuis par TCK-2511, puis par TCK-2603.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '13 novembre 2026', dateEn: 'November 13, 2026' });
   });
 });
 

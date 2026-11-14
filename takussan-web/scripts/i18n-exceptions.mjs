@@ -205,6 +205,16 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
 
   {
+    fichier: 'src/test/lien-etire.ts',
+    motif: /^(le lien porte son pseudo-élément absolu|un ancêtre positionné porte la zone|la zone est en `relative`|la zone est dans la carte)$/,
+    famille: 'TECHNIQUE',
+    raison:
+      "Messages d'ÉCHEC d'assertions vitest (`expect(…, message)`) de l'aide de test de TCK-2792 : ils "
+      + "ne s'affichent que dans la sortie d'un test rouge, jamais sur un écran. Même cas que "
+      + '`src/test/analyse-statique.ts` : exception nommée plutôt qu\'exclusion de `src/test/**`.',
+  },
+
+  {
     fichier: 'src/lib/access/server-guards.ts',
     litteral: 'fetch failed',
     famille: 'TECHNIQUE',
@@ -256,15 +266,6 @@ export const EXCEPTIONS_JUSTIFIEES = [
       + "d'icône lucide (le champ attend un nom d'icône, pas un libellé) et `#2563eb` une couleur "
       + "hexadécimale. Les deux sont identiques dans les trois langues ; les traduire les rendrait "
       + "faux.",
-  },
-  {
-    fichier: 'src/components/onboarding/AgentOnboardingWizard.tsx',
-    litteral: 'placeholder="AGT-2026-001"',
-    famille: 'TECHNIQUE',
-    raison:
-      "Exemple du FORMAT d'un numéro de carte d'agent immobilier, pas une phrase. Le libellé et "
-      + "l'aide du champ, eux, passent par `t('licenseNumberLabel')` et `t('licenseNumberHint')` "
-      + "juste au-dessus et juste en dessous.",
   },
   {
     fichier: 'src/components/admin-settings/IntegrationsManager.tsx',

@@ -1,0 +1,126 @@
+{
+  "ticket": "TCK-2602",
+  "ecrans": [
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "En ligne",
+      "references": {
+        "telephone": "references/app-entree-publier/a-8-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/properties/312/en-ligne",
+        "persona": "hote",
+        "etat": "lecture seule, aucune écriture en base : la persona `hote` (espace particulier n° 4, « Studio de Aminata ») possède déjà le bien 312 « Chambre à louer à Kaolack », public, disponible, 4 photos, référence PR-ZQJNHKFG, sans coût d'entrée. Son numéro est vérifié mais n'est pas déclaré WhatsApp : la page écrit « Les demandes arrivent dans votre espace. ». L'écran se relève directement à son URL, sans repasser par l'assistant."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/properties/312/en-ligne",
+    "persona": "hote",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null,
+    "balayage": "AC-F6, 2026-11-14 (balayer, sous le verrou de mesure) : 390, 768, 1024, 1280, 1440 — débord 0, dépassement 0, aucune ellipse, aucune coupe (journal : impl/lot2/2602/fidelite/balayage.log)",
+    "releves": {
+      "dossiers": "scratchpad d'annonce-2602, impl/lot2/2602/fidelite/prod2-a-8-{telephone,bureau-1280} et cmp3-a-8-*/ (comparés avec cette fiche ; rapport.md, rideau.html, cote-a-cote.png), 2026-11-14 ; avant le correctif de la référence et de l'interligne : prod-a-8-* et cmp-a-8-* (dont bureau-1440)",
+      "resultats": {
+        "a-8": {
+          "telephone": "15 conformes · 14 écarts · 1 absent · 14,33 % pixels, avec cette fiche (sans fiche, avant le correctif : 12 · 14 · 7 · 16,23 %)",
+          "bureau-1280": "9 · 21 · 3 · 20,05 %, avec cette fiche (sans fiche, avant le correctif : 8 · 17 · 11 · 20,37 %)",
+          "bureau-1440": "relevé avant le correctif seulement : 8 · 17 · 11 · 18,1 % (ADR-0106 : 390 et 1280)"
+        }
+      },
+      "ecritures": "aucune : la page ne fait que des lectures (le bien par le layout du segment, /me, les capacités)"
+    }
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Ton annonce est en ligne": "Votre annonce est en ligne",
+    "Booster ton annonce": "Booster votre annonce",
+    "Tu peux la modifier ou la retirer à tout moment.": "Vous pouvez la modifier ou la retirer à tout moment.",
+    "Ton studio paraît dans les recherches « Mermoz » et « Studio à louer ».": "Votre annonce paraît dans les recherches « Kaolack » et « Chambre à louer ».",
+    "Les demandes arrivent sur WhatsApp au et dans ton espace.": "Les demandes arrivent dans votre espace.",
+    "En tête de liste à Mermoz pendant 7 jours": "Mise en avant dans les recherches, avec vos crédits",
+    "En tête de liste à Mermoz pendant 7 jours.": "Mise en avant dans les recherches, avec vos crédits.",
+    "Studio meublé lumineux à Mermoz": "Chambre à louer à Kaolack",
+    "Mermoz, Dakar": "Kaolack",
+    "Studio · meublé · 38 m² · 2ᵉ étage": "Chambre · meublé · 328 m²",
+    "250 000 F CFA / mois": "632 200 F CFA /mois",
+    "TK-58204": "PR-ZQJNHKFG",
+    "takussan.com/b/studio-mermoz-58204": "www.takussan.com/fr/properties/chambre-a-louer-a-kaolack-TbGie5"
+  },
+  "alias_motifs": {
+    "vouvoiement": "« tu » → « vous » : règle des libellés du produit (ADR-0095) — « Ton annonce », « Booster ton annonce », « Tu peux », « Ton studio paraît », « dans ton espace »",
+    "donnees": "le bien relevé est le 312 de la persona `hote` (Kaolack, chambre, 632 200 F CFA, PR-ZQJNHKFG) et non le studio de Mermoz de la maquette : titre, lieu, méta, prix, référence et adresse sont des données",
+    "format": "« 632 200 F CFA /mois » : le prix et sa période s'écrivent ainsi dans tout l'assistant (`ApercuAnnonce`, TCK-2601), la maquette écrit « / mois »",
+    "boost": "la maquette promet « En tête de liste à Mermoz pendant 7 jours » : aucun produit de boost par défaut n'existe (BoostDialog fait choisir durée et prix), le produit n'écrit donc aucune durée — texte neutre « Mise en avant dans les recherches, avec vos crédits »",
+    "whatsapp": "la persona n'a pas déclaré son numéro WhatsApp : « Les demandes arrivent dans votre espace. » au lieu de « …sur WhatsApp au 77 123 45 67 et dans ton espace. » (le texte avec numéro est éprouvé par AnnonceEnLigne.tck-2602.test.tsx)",
+    "adresse": "« Copier le lien » montre l'adresse publique réelle du bien (`origineSite()` + /fr/properties/<slug>) : aucun lien court /b/… n'existe"
+  },
+  "ancres": [],
+  "ignorer": ["Aller au contenu principal", "77 123 45 67", "À l’entrée : 1 015 000 F CFA"],
+  "ignorer_motif": "« Aller au contenu principal » : lien d'évitement de la coque, hors écran ; « 77 123 45 67 » et la ligne d'entrée : données que la persona relevée n'a pas (numéro non WhatsApp, aucun coût d'entrée), leur rendu est éprouvé par les tests de composant",
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-8 (téléphone, bureau)",
+      "element": "h1 « Votre annonce est en ligne » au bureau",
+      "propriete": "taille 36 → 32 (interligne 38,9 → 34,6)",
+      "exception": "jeton `text-affiche-32`, comme TCK-2600 a-0",
+      "motif": "l'échelle typographique du produit n'a pas de 36 au bureau ; 4,4 px de hauteur en moins décalent tout ce qui suit"
+    },
+    {
+      "ecran": "a-8 (téléphone, bureau)",
+      "element": "icônes des lignes (lucide-copy, image-plus, rocket, map-pin)",
+      "propriete": "couleur rgba(31,24,19,0.7–0.75) → rgb(110,101,90)",
+      "exception": "règle de l'encre opaque (brief du lot 2)",
+      "motif": "aucune encre à alpha : `text-muted-foreground`, opaque, est la teinte la plus proche"
+    },
+    {
+      "ecran": "a-8 (bureau)",
+      "element": "lignes de « Et maintenant »",
+      "propriete": "couleur rgba(31,24,17,0.8) → rgb(31,24,18) ; largeur et retour à la ligne",
+      "exception": "règle de l'encre opaque (brief du lot 2)",
+      "motif": "`text-foreground` opaque ; la maquette relève le texte sur toute la largeur de la ligne (x 794), le produit à droite de son icône (x 817,6) : « Vous pouvez la modifier… » passe sur deux lignes dans 274,6 px"
+    },
+    {
+      "ecran": "a-8 (téléphone, bureau)",
+      "element": "chevrons, copy et map-pin",
+      "propriete": "épaisseur de trait 2 → 1,75 / 1,5",
+      "exception": "trait par défaut des icônes du système de dessin",
+      "motif": "le produit ne surcharge pas l'épaisseur de lucide icône par icône"
+    },
+    {
+      "ecran": "a-8 (téléphone, bureau)",
+      "element": "tout ce qui suit la carte de l'annonce (Partager, Copier, Ajouter des photos, Booster)",
+      "propriete": "y : −20,6 (téléphone), −27,7 (bureau)",
+      "exception": "données du bien relevé",
+      "motif": "titre sur une ligne au lieu de deux et aucune ligne « À l’entrée » : la carte est plus courte ; au téléphone, l'adresse réelle tient sur deux lignes et le texte neutre du boost aussi (+6,2 sur Booster)"
+    },
+    {
+      "ecran": "a-8 (bureau)",
+      "element": "carte « Booster » et « Et maintenant » de la colonne droite",
+      "propriete": "y +17,3",
+      "exception": "texte neutre du boost (alias_motifs.boost)",
+      "motif": "« Mise en avant dans les recherches, avec vos crédits. » prend deux lignes dans 298 px"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-8-*",
+      "element": "la barre de l'assistant et l'écran a-7 qui précède",
+      "motif": "TCK-2600, TCK-2601"
+    }
+  ],
+  "notes": [
+    "La référence passe entière à la ligne (`whitespace-nowrap`, balise <ref> des clés sousTitre*) : relevée avant le correctif, elle se coupait à son tiret (« PR- / ZQJNHKFG »). L'interligne du sous-titre est passé de snug à normal (1,5), comme la maquette (22,5 au téléphone, 25,5 au bureau).",
+    "Décision de team-lead (2026-11-14) : relevé sur la persona `hote` et son bien 312, en lecture seule, sans persona ajoutée au seeder. Les données diffèrent donc du studio de Mermoz de la maquette — titre, lieu, méta, prix, référence, adresse, photos (le bien 312 en a 4 autres que celles de /maquettes) et absence de coût d'entrée — et ces différences ne sont pas des écarts du produit (alias_motifs.donnees).",
+    "Au bureau, « Voir mon annonce » et « Aller à mon espace » du pied sont sous le pli à 900 px dans les deux relevés ; le rapport les dit « absents de la maquette » faute de les y trouver dans la fenêtre."
+  ]
+}

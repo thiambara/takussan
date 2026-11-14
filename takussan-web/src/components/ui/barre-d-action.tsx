@@ -25,7 +25,11 @@ const abonner = () => () => {}
  *    4) contre les 73 px d'une action `size="xl"` (C § 2.3). La hauteur suit le contenu :
  *    `--barre-d-action-hauteur` (globals.css) suppose des boutons par défaut. `border-t border-border
  *    bg-card px-4 py-3`, ombre nommée `shadow-barre-collante` (TCK-2685).
- *  · Contenu : une action pleine largeur, ou deux à 50/50 (`gap-2`, chaque enfant `flex-1`).
+ *  · Contenu : une action pleine largeur, ou deux à 50/50 (`gap-2`, chaque enfant `flex-1`) — le
+ *    défaut. `secondaire` (TCK-2587, fiche d'une visite) resserre le geste secondaire à la largeur de
+ *    son libellé, le principal prend le reste (`Commencer` / `Absent` des maquettes, `px-4` contre
+ *    `flex-1`) : `"premier"` ou `"dernier"`, selon sa place. Sans effet sur un enfant seul.
+ *    `taille="action"` (même fiche) : des boutons de 48 px, comme ses maquettes — 73 px de barre.
  *  · PLACE : en flux, ENTRE le contenu et la barre d'onglets (`flex-none`) — rien ne passe dessous,
  *    et le `<main>` rétrécit de sa hauteur (TCK-503). Dans la coque, la barre est rendue EN PORTAIL
  *    dans l'emplacement `#emplacement-barre-d-action` ; hors de la coque (la vitrine), en flux là où
@@ -48,9 +52,17 @@ const abonner = () => () => {}
 interface BarreDActionProps extends React.ComponentProps<"div"> {
   /** La barre est le bas de l'écran hors de la coque (aucune barre d'onglets sous elle). */
   readonly zoneSure?: boolean
+  /** Le geste secondaire, à la largeur de son libellé : le premier ou le dernier enfant. Défaut : 50/50. */
+  readonly secondaire?: "premier" | "dernier"
+  /**
+   * `"action"` : des boutons de 48 px (`--spacing-controle-action`, celle de `size="xl"`) au lieu de
+   * 44 — la barre redéfinit `--spacing-controle` pour ses enfants, et sa hauteur (`--barre-d-action-hauteur`)
+   * suit (globals.css). Défaut : la taille par défaut des boutons.
+   */
+  readonly taille?: "action"
 }
 
-function BarreDAction({ zoneSure = false, className, children, ...props }: BarreDActionProps) {
+function BarreDAction({ zoneSure = false, secondaire, taille, className, children, ...props }: BarreDActionProps) {
   const hydrate = useSyncExternalStore(abonner, () => true, () => false)
   const emplacement = useSyncExternalStore(
     abonner,
@@ -63,8 +75,12 @@ function BarreDAction({ zoneSure = false, className, children, ...props }: Barre
     <div
       data-slot="barre-d-action"
       data-zone-sure={zoneSure ? "" : undefined}
+      data-secondaire={secondaire}
+      data-taille={taille}
       className={cn(
         "flex flex-none gap-2 border-t border-border bg-card px-4 py-3 shadow-barre-collante md:hidden *:min-w-0 *:flex-1",
+        secondaire === "premier" && "*:first:not-last:flex-none",
+        secondaire === "dernier" && "*:last:not-first:flex-none",
         "data-zone-sure:pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] in-data-bas-de-l-ecran:pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))]",
         className
       )}

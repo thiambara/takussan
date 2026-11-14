@@ -77,9 +77,9 @@ function monter(compte: User) {
   );
 }
 
-/** Le bloc « Vérification du téléphone » de « Sécurité » : l'adresse a son propre badge. */
+/** La rangée « Téléphone » de « Sécurité » (TCK-2635) : l'adresse a son propre badge. */
 const blocTelephone = () =>
-  within(screen.getByText('Vérification du téléphone').closest('div.rounded-2xl') as HTMLElement);
+  within(screen.getByTestId('security-phone-status').closest('[data-slot="rangee-de-securite"]') as HTMLElement);
 
 beforeEach(() => {
   sendMock.mockReset();
@@ -97,10 +97,10 @@ describe('PhoneVerificationSection dans le contexte (TCK-2040, P202.03)', () => 
 
     expect(screen.queryByText(/second numéro/i)).not.toBeInTheDocument();
     const securite = blocTelephone();
-    await user.click(securite.getByRole('button', { name: /envoyer le code/i }));
+    await user.click(securite.getByRole('button', { name: /^vérifier$/i }));
     await waitFor(() => securite.getByLabelText(/code à 6 chiffres/i));
     await user.type(securite.getByLabelText(/code à 6 chiffres/i), '123456');
-    await user.click(securite.getByRole('button', { name: /vérifier$/i }));
+    await user.click(securite.getByRole('button', { name: /^confirmer$/i }));
 
     await waitFor(() => expect(securite.getByText('Vérifié')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('phone-status-badge')).toHaveTextContent('Vérifié'));

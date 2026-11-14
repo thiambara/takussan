@@ -41,6 +41,17 @@ Existant, re-mesuré sur `dev` (1bce3798a) : vérification du téléphone par co
 - **Téléphone (360-390 px)** : le geste principal est collé en bas (pour le prestataire : « Accepter »). **Bureau (≥ 1280 px)** : colonne de 640 px et panneau voisin, colonnes dès `lg`.
 - Ton : **vouvoiement partout ([ADR-0095](../../../adr/0095-le-ton-suit-la-session.md), révisé le 2026-11-10) ; la maquette tutoie, elle n'est pas une référence de ton**.
 
+**Écart au contrat posé le 2026-11-13, validé par team-lead le même jour** — la route neuve de l'écran 2
+`GET /api/me/profiles/{sp}/intervention-d-origine` devait servir « le titulaire du profil **brouillon** seul ». Le
+parcours réel (invitation depuis la demande, acceptation, lecture) a montré que cette condition ne laissait jamais
+rien passer : **l'acceptation de l'invitation passe déjà le profil et sa collaboration à `active`**
+(`InvitationService`, P208.02), avant tout écran de l'assistant. La condition devient : profil `draft` ou
+`active`, jamais suspendu ni inactif, **et lien profond non consommé** (`metadata.deep_link_consumed_at` absent —
+la première fin d'onboarding le consomme : c'est lui qui dit « onboarding pas encore fini »). Les autres
+conditions tiennent : titulaire seul, invitation acceptée, même agence, demande non assignée et ouverte, champs
+minimaux (titre, catégorie, quartier et ville, photo, devis soumis), jamais l'adresse exacte ni le contact du
+locataire, sparse fieldsets.
+
 ## Contraintes strictes (métier)
 
 - **Décisions d'architecture à respecter** : [ADR-0095](../../../adr/0095-le-ton-suit-la-session.md).
@@ -89,4 +100,78 @@ Pas de régression — chaque fonction des assistants d'aujourd'hui reste, dépl
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+2026-11-13 (terrain-6) — livré en trois lots, statut inchangé (le porteur de la session le change au rituel).
+
+- **Commun** : `onboarding/invite/AssistantDInvite.tsx` (barre « Rejoindre {agence} », « Étape n sur 2 » toujours deux :
+  un numéro déjà vérifié ouvre l'écran 2, `etapeImposee`), `EtapeDuNumero.tsx` (six cases, renvoi à rebours, un
+  échec d'envoi — 429 compris — écrit sous le champ avec son délai, `role="alert"`, jamais en toast seul), `pieces.tsx`.
+  Les trois pages montent `OnboardingShell brouillon sortie="quitter" largeur="assistant"` ; la largeur
+  `assistant` de `CoqueDEntree` (30rem → `lg` 40rem → `xl` 67,5rem : colonne de 640 px, panneau voisin à 1280)
+  est un delta isolé, prévenu à terrain-8.
+- **Bailleur** : « Vos biens chez {agence} » (`BiensDuBailleur.tsx`), proposition d'un bien en mode proposition,
+  « À faire pour être payé » à droite au bureau. Les pièces quittent l'assistant (TCK-2614).
+- **Agent** : `ProspectDeLAgent.tsx` — prospect pré-assigné (« Appeler », « WhatsApp », « Voir la fiche »), « Pas
+  encore de prospect pour vous », zones et spécialisation enregistrées d'un geste par
+  `agentUpdateSpecializationAction` **sans `license_number`** (TCK-1779 : le numéro de carte n'est jamais effacé),
+  droits du rôle repliés au téléphone, rappel des pièces qui restent. La page lit `/api/me/pieces` avec
+  `X-Profile-Id: agent:<id>`.
+- **Prestataire** : `InterventionDuPrestataire.tsx` + `ServiceProviderOnboardingWizard.tsx` réécrit en deux écrans.
+  - **L'invité arrive ACTIF.** L'acceptation de l'invitation passe déjà le profil et sa collaboration à `active`
+    (`InvitationService`, P208.02) — mesuré par le parcours réel (`InterventionDOrigineTest`). Sur `dev`, un
+    prestataire invité tout neuf, envoyé par `?sp=` (`destinationDInvitation`), tombait donc sur le panneau
+    multi-agences (TCK-262), jamais sur l'assistant : ni le numéro, ni la fin d'onboarding qui lui assigne la
+    demande jointe. Le panneau reste au prestataire qui avait déjà une autre collaboration, ou qui arrive sans
+    lien de reprise ; un invité tout neuf (une collaboration, `?sp=`) a l'assistant.
+  - **Route neuve** `GET /api/me/profiles/{sp}/intervention-d-origine` (accord de team-lead, conditions du
+    2026-11-13) : titulaire du profil seul (`ServiceProviderProfilePolicy::viewOriginRequest`), profil `draft` ou
+    `active` (jamais suspendu ni inactif — « brouillon seul » ne rendait jamais rien, l'invité étant déjà actif :
+    c'est le lien NON CONSOMMÉ, consommé par la première fin d'onboarding, qui dit « pas encore fini »), demande
+    d'origine de l'invitation **acceptée**, même agence, demande non assignée et ouverte ou accusée
+    (`ServiceProviderOnboardingService::demandeDOrigine`) ; champs `title`, `category`, `place` (quartier,
+    ville), `photo` (URL signées `PrivateMediaAccess`, compte), `quote` (si soumis) — jamais l'adresse exacte, le
+    demandeur ni son téléphone ; `fields[intervention_d_origine]` (ParametreUnique, ADR-0075). Le chemin suit le
+    préfixe existant `/api/me/profiles/{sp_profile}`. `InterventionDOrigineTest` (14 tests) : un autre prestataire,
+    le même sur une autre demande, une autre agence, un lien consommé, un profil suspendu ou inactif, une
+    invitation non acceptée, une demande déjà tenue, et le parcours réel de bout en bout (invitation depuis la
+    demande, acceptation, lecture, `…/accept` refusé 403 avant la fin d'onboarding puis accepté avec
+    `scheduled_at` après) ; chaque condition retirée par ablation fait rougir. La photo est une URL signée de 30 min
+    (`PrivateMediaAccess`), servie sans jeton à une balise `<img>` ; la vignette retombe sur l'original.
+  - **Ordre imposé par l'API** : avant la fin d'onboarding, la demande n'est pas au prestataire et `…/accept`
+    rend 403 (épinglé par le parcours réel) ; « Accepter » finalise donc d'abord (`complete`, qui l'assigne) puis
+    accepte, sans quitter l'écran ; une fin réussie ne se rejoue pas (un 422 du créneau se corrige et se renvoie
+    seul). ⚠ L'action de fin pose le cookie du profil actif, et Next **re-rend la route courante** : la page relit
+    alors une intervention `null` (lien consommé). L'assistant garde l'intervention et la catégorie qu'il a
+    montrées en premier (`useState`), sinon « Intervention acceptée » disparaissait avec la carte.
+  - « Proposer un créneau » : `datetime-local`, `min` = heure murale de Dakar, converti par `instantADakar` ; un 422
+    `scheduled_at` s'écrit sous le champ (`aria-invalid`, `aria-describedby`), l'intervention reste à accepter.
+  - « Complétez votre profil » : n sur 5 (métiers, zones, tarifs en F CFA, disponibilités, assurance facultative),
+    lu de `GET /api/me/profiles/{sp}` et des pièces ; chaque ligne mène au réglage — `/app/profile/professional`
+    (`ProfileServiceProviderSection`, TCK-592, qui édite métiers, zones, tarifs et disponibilités) et `/app/pieces`
+    pour l'assurance. **Écart assumé** : la saisie en ligne des tarifs et disponibilités de la maquette devient des
+    liens vers ces réglages, qui existent déjà. La pièce d'identité du prestataire, que l'ancien assistant
+    téléversait, reste à sa place dans « Vos pièces » : `PiecesDuProfil` prend les pièces du prestataire de
+    `UploadKycServiceProviderProfileRequest::KYC_KIND_TO_TYPE` (`cni` requise, `insurance` facultative). **Une
+    exigence tombe, acceptée par team-lead le 2026-11-13** : au moins un métier, une zone et un créneau avant la
+    fin — un prestataire devient opérationnel sans eux, et la liste « n sur 5 » le lui dit. `KycUploader`, sans
+    montage, part avec TCK-2796.
+  - Le libellé de la catégorie est traduit par la PAGE (`getTranslations('maintenance.category')`) : l'espace
+    `maintenance` entier n'a pas à suivre la frontière `onboarding` pour un mot (`check-i18n-namespaces`).
+  - `KycUploader` n'est plus monté par aucun assistant ; `KycUploader.pastille-tck-385` garde désormais cette
+    absence et éprouve le ton de la pastille sur les deux derniers jeux de props. Le composant n'a plus de montage
+    dans `src/` : sa suppression est TCK-2796.
+- **Fidélité** — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2613.json`, relevé v1 du 2026-11-13 (23:00-23:02),
+  téléphone 390 et bureau 1280 seulement (règles de cadence). Aucune persona de la démo n'atteint les écrans 0 et 2
+  sans écrire : écritures TEMPORAIRES autorisées par team-lead, base de démo locale (port 5433), journal :
+  - 23:01:08 — `users.phone_verified_at` des utilisateurs 3 (agent1), 8 (owner1) et 18 (provider1) : `NULL` →
+    `now()`.
+  - 23:01:08 — `INSERT invitations` id **190** : `service_provider`, agence 1, profil prestataire 1, utilisateur
+    18, `accepted`, `metadata = {"locale": "fr", "from_maintenance_request_id": 10}`.
+  - 23:02:33 — remise en état : les trois `phone_verified_at` → `NULL`, invitation 190 supprimée. Relu par psql :
+    trois `NULL`, aucune ligne 190, `max(id)` = 189, demande 10 `open` non assignée, profil prestataire 1
+    `active`. Seule trace : la séquence `invitations_id_seq` a avancé d'un cran.
+  - Aucune écriture depuis la page : toute requête autre que GET/HEAD refusée et comptée, sauf l'action serveur
+    de lecture de l'écran (`getOwnerPropertiesAction`, `getAgentFirstLeadAction`) ; 0 écriture bloquée, 0 erreur de
+    console sur les huit relevés. Aucun SMS ni courriel : l'écran 4 est relevé à son état d'arrivée, avant tout envoi.
+  - Écarts ouverts (fiche) : « Étape N sur 2 » écrit dans la barre (la coque partagée ne montre que les
+    pastilles) ; la carte « Ton interlocutrice » du bailleur au bureau ; l'ordre « Accepter » / « Proposer un
+    créneau » au bureau ; les droits refusés de l'agent.

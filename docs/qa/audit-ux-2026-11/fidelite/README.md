@@ -31,8 +31,15 @@ cd takussan-api && php artisan db:seed --class='Database\Seeders\Support\DemoTen
 ```
 
 Les jetons se frappent seuls au premier relevé d'une persona (et de nouveau si le jeton a expiré).
-Pour les frapper d'avance : `node scripts/fidelite/fidelite.mjs jetons` (`--renouveler` pour tout
-refrapper). La sortie ne porte que des noms de personas.
+Pour les frapper d'avance : `node scripts/fidelite/fidelite.mjs jetons [--persona a,b]` — ne frappe que
+ce qui manque au fichier. Refrapper se fait **nommément** : `--persona a,b --renouveler` (sans `--persona`,
+refusé : refrapper révoque en base les jetons de chaque compte, ceux des autres agents compris — TCK-2798).
+La sortie ne porte que des noms de personas.
+
+**Personas semées (TCK-2798)** — invités sans compte, prestataire de l'intervention d'origine, comptes neufs de
+l'orientation, hôte bailleur de ses biens : `php artisan db:seed --class='Database\Seeders\Demo\PersonasDeFideliteSeeder'`
+(idempotent ; `RetirerPersonasDeFideliteSeeder` les retire exactement). Rôle et écran de chacune : TCK-2798,
+§ « Personas ». Un invité se relève par `--invitation <persona> --url '/invitations/accept?token={invitation}'`.
 
 ## Les commandes (depuis `takussan-web/`)
 
@@ -55,6 +62,7 @@ $F compare --maquette ../docs/qa/audit-ux-2026-11/fidelite/references/app-notifi
 Options de `releve` : `--maquette <page> --a <approche> --e <écran>` (une maquette, servie par
 l'arbre principal) · `--defiler <px>` (tranche d'un écran long : document ou conteneur intérieur) ·
 `--perturber <fichier>` (un corps de fonction évalué dans la page : ouvrir un menu, remplir un champ) ·
+`--bloquer <motifs>` (URL que la page ne doit pas atteindre — un relevé n'écrit jamais en base : ouvrir un fil le marque lu, `--bloquer '*/api/conversations/*/read'`) ·
 `--disposition <persona de coque>` (exige une autre disposition que celle du compte) · `--rem 14.4`
 (ce que le porteur a vu dans la visionneuse au bureau, **pour mémoire seulement**) ·
 `--via visionneuse` (relève dans l'iframe de la visionneuse plutôt que dans le cadre seul : mêmes

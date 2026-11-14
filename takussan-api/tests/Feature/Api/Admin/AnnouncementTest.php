@@ -272,4 +272,26 @@ class AnnouncementTest extends TestCase
             'created_by' => User::factory()->create()->id,
         ];
     }
+
+    /** TCK-2743 (lot 3) — une annonce programmée avec décalage, puis modifiée : les instants désignés ; `null` efface la fin. */
+    public function test_debut_et_fin_recus_avec_decalage_sont_les_instants_designes(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $id = $this->postJson('/api/admin/announcements', [
+            ...$this->payload(),
+            'starts_at' => '2030-11-20T11:00:00+01:00',
+            'ends_at' => '2030-11-21T11:00:00-02:00',
+        ])->assertCreated()->json('data.id');
+
+        $annonce = Announcement::query()->findOrFail($id);
+        $this->assertSame('2030-11-20 10:00:00', $annonce->getRawOriginal('starts_at'));
+        $this->assertSame('2030-11-21 13:00:00', $annonce->getRawOriginal('ends_at'));
+
+        $this->patchJson("/api/admin/announcements/{$id}", ['starts_at' => '2030-11-22T08:00:00+03:00', 'ends_at' => null])->assertOk();
+
+        $annonce->refresh();
+        $this->assertSame('2030-11-22 05:00:00', $annonce->getRawOriginal('starts_at'));
+        $this->assertNull($annonce->getRawOriginal('ends_at'));
+    }
 }

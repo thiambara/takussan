@@ -25,14 +25,18 @@ vi.mock('next/navigation', () => ({ redirect: (url: string) => redirect(url) }))
 let jeton: string | null = null;
 vi.mock('@/lib/session', () => ({ getToken: async () => jeton }));
 vi.mock('@/lib/invitation-prerempli', () => ({ lireNomsPreremplis: async () => null }));
-vi.mock('@/app/invitations/accept/AccepterInvitation', () => ({ AccepterInvitation: () => <p>formulaire</p> }));
+// TCK-2611 — la page lit l'aperçu de l'invitation avant de rendre son écran.
+vi.mock('@/lib/invitation-apercu', () => ({ lireInvitation: async () => ({ issue: 'valide', apercu: {} }) }));
+vi.mock('@/app/invitations/accept/EntreeDInvitation', () => ({ EntreeDInvitation: () => <p>formulaire</p> }));
+vi.mock('@/app/invitations/accept/EcranFerme', () => ({ EcranFerme: ({ etat }: { etat: string }) => <p>{`lien ${etat}`}</p> }));
 
 const getMeAction = vi.fn();
 const getMyProfilesAction = vi.fn();
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMeAction() }));
 vi.mock('@/app/actions/profiles', () => ({ getMyProfilesAction: () => getMyProfilesAction() }));
 vi.mock('@/components/onboarding/EtapePrenom', () => ({ EtapePrenom: () => <p>prénom</p> }));
-vi.mock('@/components/onboarding/QuestionDIntention', () => ({ QuestionDIntention: () => <p>question</p> }));
+// TCK-2608 — la question est devenue l'orientation en trois portes.
+vi.mock('@/components/onboarding/orientation/Orientation', () => ({ Orientation: () => <p>question</p> }));
 vi.mock('@/components/onboarding/OwnerOnboardingWizard', () => ({ OwnerOnboardingWizard: () => <p>assistant</p> }));
 
 const NOTE = frMessages.onboarding.shell.autosave;
@@ -75,7 +79,7 @@ describe('TCK-2616 — les pages sans brouillon ne la montrent pas', () => {
   it('l’invitation, lien incomplet', async () => {
     const { default: Page } = await import('@/app/invitations/accept/page');
     await monterLaCoque(Page({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByText(frMessages.invitationAccept.missingToken)).toBeInTheDocument();
+    expect(screen.getByText('lien incomplet')).toBeInTheDocument();
     expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
   });
 

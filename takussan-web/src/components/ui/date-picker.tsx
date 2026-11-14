@@ -56,6 +56,11 @@ export interface DatePickerProps {
   readonly containerClassName?: string;
   /** Antériorité : 7 sites l'emploient déjà, il gagne sur `className` pour ne rien leur changer. */
   readonly buttonClassName?: string;
+  /**
+   * TCK-2668 — le motif date-fns du jour affiché (« EEE d MMM » rend « lun. 10 nov. ») ; par défaut
+   * « d MMMM yyyy ». Seul l'affichage change : la valeur échangée reste `YYYY-MM-DD`.
+   */
+  readonly formatAffiche?: string;
   readonly "aria-invalid"?: boolean | "true" | "false";
   readonly "aria-describedby"?: string;
   readonly "aria-label"?: string;
@@ -86,6 +91,7 @@ export function DatePicker({
   className,
   containerClassName,
   buttonClassName,
+  formatAffiche = "d MMMM yyyy",
   "aria-invalid": ariaInvalid,
   "aria-describedby": ariaDescribedBy,
   "aria-label": ariaLabel,
@@ -136,7 +142,7 @@ export function DatePicker({
             >
               <span className="truncate">
                 {selected
-                  ? format(selected, "d MMMM yyyy", { locale: dfLocale })
+                  ? format(selected, formatAffiche, { locale: dfLocale })
                   : (placeholder ?? t("placeholder"))}
               </span>
               <CalendarIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />

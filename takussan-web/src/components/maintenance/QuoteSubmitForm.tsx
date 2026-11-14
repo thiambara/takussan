@@ -96,7 +96,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
     const typed = picked.filter(isAccepted);
     setRejectedFiles(picked.filter((f) => !isAccepted(f)).map((f) => f.name));
     // TCK-1907 (P195.07) — une pièce au-delà du plafond de l'API est écartée et nommée au choix,
-    // comme `KycUploader` et `DocumentUploadDialog`, au lieu d'un 422 après la saisie des lignes.
+    // comme « Vos pièces » et `DocumentUploadDialog`, au lieu d'un 422 après la saisie des lignes.
     const accepted = typed.filter((f) => f.size <= MAX_ATTACHMENT_BYTES);
     setTooLargeFiles(typed.filter((f) => f.size > MAX_ATTACHMENT_BYTES).map((f) => f.name));
     // TCK-1889 (P195.02) — une sélection qui porterait le total au-delà de la borne de l'API est

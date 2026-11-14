@@ -7,7 +7,7 @@ family: front
 estimate: M
 wave: 90
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-12
 depends_on: [TCK-2660, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -71,27 +71,27 @@ Rien de neuf côté API : la file réutilise, échéance par échéance, les rou
 
 ## Delta à produire
 
-- [ ] Sélection multiple des impayés et barre « Relancer la sélection (n) ».
-- [ ] File guidée : en-tête de position, feuille réutilisée, « Ouvrir WhatsApp », « Passer », « Arrêter ».
-- [ ] Sauts motivés (pas de téléphone, 409) et récapitulatif de fin.
-- [ ] Tests : file de 3 échéances (dont une sans téléphone et une à 409) → 1 `wa.me` ouvert, 1 `POST …/reminders`, 2 sauts motivés ; les liens de paiement ne sont demandés qu'aux échéances affichées ; « Passer » ne poste rien ; « Arrêter » garde la sélection.
+- [x] Sélection multiple des impayés et barre « Relancer la sélection (n) ».
+- [x] File guidée : en-tête de position, feuille réutilisée, « Ouvrir WhatsApp », « Passer », « Arrêter ».
+- [x] Sauts motivés (pas de téléphone, 409) et récapitulatif de fin.
+- [x] Tests : file de 3 échéances (dont une sans téléphone et une à 409) → 1 `wa.me` ouvert, 1 `POST …/reminders`, 2 sauts motivés ; les liens de paiement ne sont demandés qu'aux échéances affichées ; « Passer » ne poste rien ; « Arrêter » garde la sélection.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sélectionner 3 impayés puis « Relancer la sélection » : le réseau montre **un seul** `POST …/payment-link` avant la première « Ouvrir WhatsApp », et pas les trois.
-- [ ] AC2 — Sur la file de 3 (une normale, une sans téléphone, une à 409), le récapitulatif dit « 1 relancé · 0 passé · 2 sautés » et nomme les deux raisons ; un seul `POST …/reminders` est parti.
-- [ ] AC3 — Aucune requête vers une route d'envoi de message (SMS, WhatsApp de la plateforme) n'apparaît au réseau pendant la file.
-- [ ] AC4 — À 390 px, « Ouvrir WhatsApp » est visible sans défiler sur chaque échéance de la file ; à 1280 px, la liste reste visible à côté de la file.
-- [ ] AC5 — Après la file, les cartes des échéances relancées portent « relancé aujourd'hui » sans rechargement, et les autres non.
+- [x] AC1 — Sélectionner 3 impayés puis « Relancer la sélection » : le réseau montre **un seul** `POST …/payment-link` avant la première « Ouvrir WhatsApp », et pas les trois.
+- [x] AC2 — Sur la file de 3 (une normale, une sans téléphone, une à 409), le récapitulatif dit « 1 relancé · 0 passé · 2 sautés » et nomme les deux raisons ; un seul `POST …/reminders` est parti.
+- [x] AC3 — Aucune requête vers une route d'envoi de message (SMS, WhatsApp de la plateforme) n'apparaît au réseau pendant la file.
+- [x] AC4 — À 390 px, « Ouvrir WhatsApp » est visible sans défiler sur chaque échéance de la file ; à 1280 px, la liste reste visible à côté de la file.
+- [x] AC5 — Après la file, les cartes des échéances relancées portent « relancé aujourd'hui » sans rechargement, et les autres non.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2682.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2682.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
 - [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
 - [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
 - [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
 - [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
 
 ## Hors périmètre
 
@@ -102,4 +102,119 @@ L'onglet Impayés de Rapports (TCK-2629) monte **le même composant** Impayés (
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Fichiers** (`takussan-web/src/components/admin/finances/impayes/`) :
+
+- `selection.ts` (neuf) : `useSelectionDesImpayes`, qui garde des **lignes** (`Map<id, PaymentHistoryRow>`) et non des identifiants : une échéance cochée puis sortie de l'affichage garde son nom, son montant et son téléphone pour la barre et la file. `ordreDeLaFile` trie par retard décroissant, puis par `id`. `useEcheancesAffichees` lit les pages montrées dans le cache de React Query (`useSyncExternalStore`, avec une chaîne d'identifiants pour instantané stable).
+- `FileDeRelance.tsx` (neuf) : l'état de la file (`useFileDeRelance`), le bilan, et le panneau (`PanneauDroit formulaire` : plein écran sous `xl` avec pied collant, 480 px non modal dès `xl`).
+- `SelectionDesImpayes.tsx` (neuf) :
+  - `BarreDeSelection`, la barre sombre du bureau ;
+  - `TeteDeSelection`, la tête de liste sous `lg`, avec la barre collante `BarreDAction` du téléphone.
+- Fichiers modifiés :
+  - `TableDesImpayes.tsx` : colonne de coche, rangée cochée et rangée présentée surlignées ;
+  - `CarteDImpaye.tsx` : case de 44 px en mode sélection ;
+  - `Impayes.tsx` : branchement ;
+  - `useRelanceDUnImpaye.ts` : `noterLaRelance` rend une promesse ;
+  - `RelanceDUnImpaye.tsx` : `onOuvert(note)`.
+
+**Pourquoi pas la `BarreDeSelection` des visites (TCK-2587).** Elle porte les gestes des visites (« Confirmer (n) », « Attribuer ▾ », les heures) et leur clé de traduction. Seul le fond `bg-foreground` serait commun : la barre des impayés suit sa propre maquette.
+
+**Trois pièges, chacun tenu par un test ou un relevé :**
+
+1. **L'avance se fait APRÈS le clic** (`setTimeout` 0), et chaque pas a sa propre ancre (`key` = id). Le navigateur suit un lien après le gestionnaire ET ses microtâches, où React valide le rendu. Mesuré le 2026-11-12 par un vrai clic (CDP), une file de trois locataires aux numéros différents, liens en cache au second tour (`parcours` : scratchpad `terrain-5/2682/fid/ancre-app.mjs`) :
+   - le code tel quel : l'`href` suivi est celui de la rangée présentée ;
+   - sans le délai ni la `key` (A8) : l'`href` suivi est celui du locataire **suivant**, mauvais destinataire ;
+   - sans le délai, avec la `key` (A9) : l'ancre est détachée et garde son `href`, et une ancre détachée navigue encore vers son `href` (mesuré à part : `ancre-principe.mjs`).
+
+   Chacune des deux gardes suffit, et les deux restent.
+2. **La note de chaque échéance est suivie par sa propre promesse** (`mutateAsync`). `isError` ne dit que la dernière mutation, et les rappels de `mutate` se perdent dès que la note suivante part. Une note revenue AVANT l'avance garde son issue. Ablation A2 : sans cette garde, « relance non notée » disparaît.
+3. **Aucun lien n'est demandé pour une échéance sans numéro** (`actif = joignable`). Ablation A1 : sans cette garde, AC1 et AC2 rougissent.
+
+**Décisions du chef d'équipe, telles qu'appliquées :**
+
+- **(1) Mode sélection au téléphone.**
+  - « Sélectionner » est à droite de l'en-tête (`DeclarerEnTete droite`), à la place du « ⋯ » ; il devient « Annuler ».
+  - « Tout sélectionner » et le compte sont dans la tête de liste ; « Relancer la sélection (n) » est la barre collante.
+  - Les trois gestes ne tiennent pas sur une ligne de 328 à 358 px. « Annuler » va donc à l'en-tête plutôt qu'à la barre.
+  - Échap, « Annuler » et le geste retour (`useFermeAuRetour`) sortent du mode et vident la sélection.
+  - Une sélection non vide montre toujours ses cases sous `lg` : il n'y a jamais d'échéance cochée sans sa case.
+  - De 768 à 1023 px, il n'y a pas d'en-tête de téléphone ni de barre collante : « Sélectionner » est posé au-dessus de la liste, et « Relancer la sélection (n) » dans la tête.
+- **(2) La note.** « Ouvrir WhatsApp » note et avance. Si la note est refusée, la file avance quand même, et le récapitulatif nomme « Relances non notées ».
+- **(3) Les sauts.** Une échéance sans numéro (aucun lien demandé) ou dont le lien rend 409 est montrée avec sa raison et un bouton « Suivant ». Les deux comptent comme « sautés ».
+- **(4) Le récapitulatif.**
+  - Il dit « N relancés · N passés · N sautés », puis nomme chaque sautée et sa raison.
+  - « Terminer » ne garde sélectionnées que les passées et les sautées, sauf une sautée « déjà payée » (il n'y a plus rien à relancer). Une relance non notée est **retirée** de la sélection, car WhatsApp s'est ouvert ; le récapitulatif l'a nommée.
+  - « Arrêter », la croix et Échap gardent toute la sélection.
+- **(5) La sélection par échéance.**
+  - Elle survit aux pages, à « Voir plus » et aux filtres.
+  - « Tout sélectionner » coche ce qui est affiché.
+  - La barre dit « dont N non affichés » : ce mot compte aussi une autre page du même filtre, pas seulement une échéance hors du filtre. La file reprend ces échéances non affichées.
+  - Une échéance encaissée depuis le dossier quitte la sélection.
+- **(6) Le bureau.** La barre porte « WhatsApp » et « Tout désélectionner ». SMS et E-mail sont un écart de la fiche.
+
+**Six écarts aux consignes, acceptés par le chef d'équipe le 2026-11-12 (option « a » partout) :**
+
+1. **Barre du téléphone.** « Annuler » est dans l'en-tête, « Tout sélectionner » et le compte dans la tête de liste, et la barre collante ne porte que « Relancer la sélection (n) ».
+2. **Libellé.** « dont N non affichés » plutôt que « hors du filtre affiché ».
+3. **Relance non notée.** Elle quitte la sélection à « Terminer ».
+4. **Geste retour pendant la file.** Il vaut « Arrêter » : la sélection et le mode restent, et le retour suivant quitte la page.
+5. **De 768 à 1023 px.** « Sélectionner » est sur sa propre ligne au-dessus des cartes, et « Relancer la sélection (n) » dans la tête de liste.
+6. **Pendant la file.** La sélection est figée et un clic sur une rangée n'ouvre pas le dossier.
+
+**Reprise après la vérification adverse du 2026-11-12** (verif-commercial, un défaut majeur et deux observations) :
+
+- **d1 — un double-clic ouvrait WhatsApp chez le locataire suivant.** Liens en cache (second tour), deux clics à 140 ms : le second tombait sur l'ancre de l'échéance que la file venait de présenter, ouvrait WhatsApp au numéro suivant et notait sa relance — un message que l'admin n'avait pas lu. Le délai et la `key` ne protègent que la rangée présentée AU MOMENT du clic. Correctif : `armement.ts`. Un geste de la file n'est pris que 500 ms après l'arrivée de sa clé ; un clic plus tôt est refusé (`preventDefault`, rien n'est noté). La clé de l'ancre est « prête » (son `href` existe), celle de « Passer » et « Suivant » est le couple tour · échéance · raison. `event.detail > 1` ne suffirait pas : un double toucher rend `detail` 1. L'armement est demandé par la file seule (`OuvrirWhatsApp armee`) ; la relance unitaire de TCK-2660 n'avance pas et n'en a pas besoin.
+- **m1 — le toast d'une note refusée couvrait le geste suivant.** Posé en bas à droite, il tombait sur « Ouvrir WhatsApp » de l'échéance suivante, et un toast survolé ne s'en va pas. Dans la file, la note refusée se dit maintenant dans le panneau, au nom du locataire (`role="alert"`, « La relance de {nom} n'a pas pu être notée »), à l'échéance qui suit ; le récapitulatif la nomme toujours. La file appelle `useRelanceDUnImpaye(…, { signalerLaNote: 'file' })` : ni toast, ni `noterEnEchec`. Une seule instance du crochet sert toutes les échéances : `isError` aurait accusé le locataire présenté d'une note refusée pour le précédent.
+- **m2 — une échéance payée était retirée de la file en silence.** La barre disait N, la file « sur N−1 ». Elle reste dans la file, sautée, avec la raison « déjà payée » ; aucun lien n'est demandé pour elle. « Terminer » ne la garde pas sélectionnée, puisqu'il n'y a plus rien à relancer.
+- **g1 — les trous de tests** relevés par ablation (B1 à B6) sont fermés par six tests. Le relevé de l'`href` suivi reproduit l'écouteur de la vérification : une microtâche posée depuis `window`, en fin de bouillonnement, lit l'ancre après React. Les liens sont mis en cache par un premier tour, sinon l'ancre suivante est d'abord un bouton désactivé, donc toujours une autre ancre.
+
+**Le tour de la file** est compté hors de la file (`useRef`) : une note qui revient après « Arrêter » ne s'inscrit pas dans la file suivante. C'est une garde par construction, sans test.
+
+**Le geste retour pendant la file.** Il arrête la file, et la sélection et le mode restent, comme avec « Arrêter ». Il n'y a qu'une seule entrée sentinelle : `useFermeAuRetour` ne distingue pas deux surfaces ouvertes l'une sur l'autre. Après ce retour, le suivant quitte donc la page. Relevé au téléphone le 2026-11-12 : la file se ferme, 16 cases restent, la page reste.
+
+**Acomptes de réservation.** Ils ne peuvent pas paraître : `PaymentHistory::applyBusinessFilters` pose `1 = 0` sur les réservations dès qu'un filtre de retard est là, et toute tranche a `min ≥ 1`. La sélection n'accepte malgré tout que `source = lease`.
+
+**AC3.** Dans le parcours, les seules requêtes non-GET sont `POST …/payment-link`, `POST …/reminders` et `POST /app/agency/finances`. Cette dernière est l'action serveur `composerLaRelanceAction`, qui compose le message et n'envoie rien.
+
+**Preuves :**
+
+- Tests : `__tests__/impayes-en-lot.tck-2682.test.tsx`, 13 tests verts (7, puis 6 à la reprise) ; `__tests__/armement.test.ts`, 2 tests verts.
+- Ablations : 7 en test, toutes rouges, et chaque fichier restauré à l'octet (md5) ; A8 et A9 au navigateur, ci-dessus :
+  - A1 : lien demandé sans numéro ;
+  - A2 : note écrasée par l'avance ;
+  - A3 : « Passer » qui note ;
+  - A4 : non affichés jamais dits ;
+  - A5 : Échap sans effet ;
+  - A6 : « Terminer » qui garde tout ;
+  - A7 : une échéance encaissée gardée dans la sélection.
+- Ablations de la reprise : 12 en test, toutes rouges, chaque fichier restauré à l'octet (md5) :
+  - ancre non armée, ou `key` retirée : le double-clic (d1) rougit ;
+  - avance synchrone : le lien suivi rougit (la file présente déjà la suivante au moment où le lien est suivi) ;
+  - « Passer » non armé ;
+  - « dont N non affichés » retiré de la tête du téléphone ;
+  - dossier ouvert pendant la file ; cases non figées ;
+  - échéances payées filtrées hors de la file, ou gardées à « Terminer » ;
+  - toast rendu dans la file ; alerte du panneau retirée.
+- Relevé au navigateur le 2026-11-12, admin de démo. Les liens sont simulés et les notes bloquées puis simulées dans le navigateur, et wa.me n'est jamais suivi. Second tour, liens en cache, file 602 → 29 → 390 :
+  - au bureau à 1280, deux clics de souris à 140 ms (le second avec `clickCount` 2) : le second tombe sur l'ancre de 29 et il est **refusé** ; une seule note (602) part, et la file reste à « 2 sur 3 » ;
+  - au téléphone à 390, deux touchers à 120 ms : même chose, une note (16), « 2 sur 2 » ;
+  - contrôle avec l'armement de l'ancre retiré : d1 se reproduit, aux deux largeurs. Au bureau, notes 602 et 29, et la file passe à « 3 sur 3 ». Au téléphone, notes 16 et 17, et la file arrive au récapitulatif ;
+  - m1, avec les notes bloquées : aucun toast, et « La relance de Yacine Diallo n'a pas pu être notée… » s'affiche dans le panneau de l'échéance suivante.
+- Fiche de fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2682.json`.
+
+**2026-11-12, soir — décision 1 du porteur (TCK-2660) : le lien n'est créé qu'à l'envoi.** La file ne demande plus le
+lien quand une échéance s'affiche, mais au clic sur « Ouvrir WhatsApp », qui devient un bouton : il ouvre un onglet vide dans le geste, crée
+le lien, puis envoie l'onglet vers `wa.me` (ou le referme sur un refus), l'échéance étant encore présentée. Un 409 n'arrive donc qu'au clic, et le saut
+« ne se paie plus en ligne » s'affiche alors, avec « Suivant », réarmé. « Passer » ne crée aucun lien. La garde de
+l'ancre (`key` par échéance, avance après le clic) reste en place. Une ancre ne sert plus que de repli quand le
+navigateur bloque l'onglet (« Touchez encore… ») ; elle ouvre chez le locataire présenté, puis la file avance.
+
+Les tests de `impayes-en-lot.tck-2682.test.tsx` sont réécrits en conséquence (17) :
+- aucun lien à l'affichage ;
+- onglet ouvert pendant que l'échéance cliquée est présentée ;
+- d1, avec un double-clic sur le même bouton puis sur le suivant ;
+- onglet bloqué dans la file ;
+- m2 sans aucun lien ;
+- un lien encore en route quand l'agent passe ou arrête : rien ne s'ouvre ni n'est noté, et l'échéance reste passée ;
+- deux clics pendant la création du lien : un seul lien.
+
+Ablations : voir TCK-2660 (f1, f4, f5 rougissent ce fichier).

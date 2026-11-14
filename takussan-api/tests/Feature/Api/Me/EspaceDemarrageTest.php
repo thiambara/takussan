@@ -185,13 +185,15 @@ class EspaceDemarrageTest extends ApiTestCase
 
     /**
      * TCK-2612 — l'étape `kyc` du bailleur compte le NINEA saisi comme la pièce NINEA : pièce d'identité et RIB envoyés, NINEA
-     * tapé → faite, sans soumission. Sans le NINEA, elle reste à faire.
+     * tapé → faite, sans soumission. Sans le NINEA, elle reste à faire. TCK-2614 (décision 2b) : pour une SOCIÉTÉ — le NINEA
+     * d'un particulier est facultatif (`NineaFacultatifDuParticulierTest`).
      */
     public function test_le_ninea_saisi_compte_pour_l_etape_kyc_du_bailleur(): void
     {
         $agence = Agency::factory()->create();
         $bailleur = $this->apiActingAsRole('owner', ['agency' => $agence]);
         $profil = OwnerProfile::query()->where('user_id', $bailleur->id)->sole();
+        $profil->forceFill(['metadata' => ['owner_type' => 'company']])->save();
         $entete = $this->entete('owner', $profil->id);
         $this->piece($profil, DocumentType::IdCard, $bailleur);
         $this->piece($profil, DocumentType::Rib, $bailleur);

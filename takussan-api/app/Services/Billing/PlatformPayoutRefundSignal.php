@@ -29,11 +29,26 @@ final class PlatformPayoutRefundSignal
      */
     public function record(LeasePayment|BookingPayment $payment, CarbonInterface $at): void
     {
-        if ($payment->platform_payout_id === null) {
+        $this->signal($payment, $payment->platform_payout_id, $at);
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 6) — la pénalité payée SEULE remboursée :
+     * le reversement à signaler est celui qui l'a prise (`late_fee_platform_payout_id`), pas celui
+     * du loyer de sa ligne.
+     */
+    public function recordLateFeeAlone(LeasePayment $payment, CarbonInterface $at): void
+    {
+        $this->signal($payment, $payment->late_fee_platform_payout_id, $at);
+    }
+
+    private function signal(LeasePayment|BookingPayment $payment, mixed $platformPayoutId, CarbonInterface $at): void
+    {
+        if ($platformPayoutId === null) {
             return;
         }
 
-        $payout = PlatformPayout::query()->whereKey($payment->platform_payout_id)->lockForUpdate()->first();
+        $payout = PlatformPayout::query()->whereKey($platformPayoutId)->lockForUpdate()->first();
         if ($payout === null || $payout->status !== PlatformPayoutStatus::Paid) {
             return;
         }

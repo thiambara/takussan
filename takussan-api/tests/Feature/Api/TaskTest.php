@@ -153,4 +153,27 @@ class TaskTest extends TestCase
             'taskable_type' => User::class,
         ])->assertStatus(422)->assertJsonValidationErrors(['taskable_type']);
     }
+
+    /**
+     * TCK-2743 (AC3) — une échéance envoyée avec son décalage est l'instant qu'elle désigne, à la
+     * création comme à la modification ; sans décalage, elle se lit à Dakar (UTC+0), inchangée.
+     */
+    public function test_due_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $user = User::factory()->create();
+        $customer = Customer::factory()->create(['added_by_id' => $user->id]);
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson('/api/tasks', [
+            'title' => 'Rappeler Awa', 'taskable_id' => $customer->id, 'taskable_type' => Customer::class,
+            'due_at' => '2030-11-20T11:00:00+01:00',
+        ])->assertCreated()->json('data.id');
+        $this->assertSame('2030-11-20 10:00:00', Task::query()->findOrFail($id)->getRawOriginal('due_at'));
+
+        $this->patchJson("/api/tasks/{$id}", ['due_at' => '2030-11-21T09:30:00-02:00'])->assertOk();
+        $this->assertSame('2030-11-21 11:30:00', Task::query()->findOrFail($id)->getRawOriginal('due_at'));
+
+        $this->patchJson("/api/tasks/{$id}", ['due_at' => '2030-11-22 08:00:00'])->assertOk();
+        $this->assertSame('2030-11-22 08:00:00', Task::query()->findOrFail($id)->getRawOriginal('due_at'));
+    }
 }

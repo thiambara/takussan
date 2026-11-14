@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
-import { patchCustomerPipelineStage } from '@/lib/queries/pipeline';
+import { SUFFIXE_DES_SORTIES_DE_LA_PERIODE } from '@/lib/crm/pipeline';
+import { type PagePipeline, patchCustomerPipelineStage } from '@/lib/queries/pipeline';
 import type { CustomerPipelineStage } from '@/types/customer';
 import type { PipelineCustomerCard } from '@/types/pipeline';
 
@@ -35,16 +36,18 @@ export interface StageMutationVars {
   reason?: string;
 }
 
-type ColumnSnapshot = {
-  key: ReturnType<typeof PIPELINE_QUERY_KEY.column>;
-  data: PipelineCustomerCard[] | undefined;
+type Snapshot = {
+  key: readonly unknown[];
+  data: unknown;
 };
+
+const TERMINALES: readonly CustomerPipelineStage[] = ['converted', 'lost'];
 
 export function useCustomerStageMutation() {
   const { token } = useAuth();
   const queryClient = useQueryClient();
 
-  return useMutation<PipelineCustomerCard, ApiError, StageMutationVars, ColumnSnapshot[]>({
+  return useMutation<PipelineCustomerCard, ApiError, StageMutationVars, Snapshot[]>({
     mutationFn: async (vars) => {
       if (!token) throw new ApiError(401, { message: 'unauthenticated' });
       const res = await patchCustomerPipelineStage(
@@ -56,36 +59,51 @@ export function useCustomerStageMutation() {
       return res as unknown as PipelineCustomerCard;
     },
 
+    // TCK-2592 — une colonne a une copie par portée et filtres (`PIPELINE_QUERY_KEY.column(stage,
+    // filtres)`), et la liste des relances porte aussi la carte : TOUTES sont déplacées, et toutes
+    // reviennent sur un refus. La copie cible est celle des mêmes filtres que la source.
     onMutate: async (vars) => {
-      const fromKey = PIPELINE_QUERY_KEY.column(vars.from);
-      const toKey = PIPELINE_QUERY_KEY.column(vars.to);
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: fromKey }),
-        queryClient.cancelQueries({ queryKey: toKey }),
-      ]);
-
-      const snapshots: ColumnSnapshot[] = [
-        { key: fromKey, data: queryClient.getQueryData<PipelineCustomerCard[]>(fromKey) },
-        { key: toKey, data: queryClient.getQueryData<PipelineCustomerCard[]>(toKey) },
+      const prefixes = [
+        PIPELINE_QUERY_KEY.columnsOf(vars.from),
+        PIPELINE_QUERY_KEY.columnsOf(vars.to),
+        PIPELINE_QUERY_KEY.listsAll(),
       ];
+      await Promise.all(prefixes.map((queryKey) => queryClient.cancelQueries({ queryKey })));
 
-      const fromList = snapshots[0].data ?? [];
-      const moved = fromList.find((c) => c.id === vars.customerId);
-
-      queryClient.setQueryData<PipelineCustomerCard[]>(fromKey, (old) =>
-        (old ?? []).filter((c) => c.id !== vars.customerId),
+      const snapshots: Snapshot[] = prefixes.flatMap((queryKey) =>
+        queryClient.getQueriesData({ queryKey }).map(([key, data]) => ({ key, data })),
       );
 
-      if (moved) {
-        const updated: PipelineCustomerCard = {
-          ...moved,
-          pipeline_stage: vars.to,
-          updated_at: new Date().toISOString(),
-        };
-        queryClient.setQueryData<PipelineCustomerCard[]>(toKey, (old) => [
-          updated,
-          ...(old ?? []).filter((c) => c.id !== vars.customerId),
-        ]);
+      const maintenant = new Date().toISOString();
+      for (const [key, data] of queryClient.getQueriesData<PipelineCustomerCard[]>({ queryKey: PIPELINE_QUERY_KEY.columnsOf(vars.from) })) {
+        const moved = (data ?? []).find((c) => c.id === vars.customerId);
+        queryClient.setQueryData<PipelineCustomerCard[]>(key, (old) => (old ?? []).filter((c) => c.id !== vars.customerId));
+        if (!moved) continue;
+        const filtres = typeof key[3] === 'string' ? key[3] : '';
+        // Décision 1b — sous `sorties=30`, Gagné et Perdu ont une clé bornée : une sortie, datée de
+        // maintenant, entre dans la colonne entière ET dans la colonne bornée ; une étape vivante n'a
+        // que la clé entière.
+        const base = filtres.endsWith(SUFFIXE_DES_SORTIES_DE_LA_PERIODE) ? filtres.slice(0, -SUFFIXE_DES_SORTIES_DE_LA_PERIODE.length) : filtres;
+        const cibles = TERMINALES.includes(vars.to) ? [base, `${base}${SUFFIXE_DES_SORTIES_DE_LA_PERIODE}`] : [base];
+        const updated: PipelineCustomerCard = { ...moved, pipeline_stage: vars.to, updated_at: maintenant, suggested_stage: null };
+        for (const cible of cibles) {
+          const toKey = PIPELINE_QUERY_KEY.column(vars.to, cible);
+          // Une colonne cible jamais lue (un bandeau replié) n'est pas créée : elle se lira à l'ouverture.
+          if (queryClient.getQueryData(toKey) === undefined) continue;
+          queryClient.setQueryData<PipelineCustomerCard[]>(toKey, (old) => [updated, ...(old ?? []).filter((c) => c.id !== vars.customerId)]);
+        }
+      }
+
+      // Les listes ne portent que les étapes vivantes : une sortie (Gagné, Perdu) en retire la ligne.
+      for (const [key, data] of queryClient.getQueriesData<PagePipeline>({ queryKey: PIPELINE_QUERY_KEY.listsAll() })) {
+        if (!data || !data.lignes.some((c) => c.id === vars.customerId)) continue;
+        const sortie = TERMINALES.includes(vars.to);
+        queryClient.setQueryData<PagePipeline>(key, {
+          lignes: sortie
+            ? data.lignes.filter((c) => c.id !== vars.customerId)
+            : data.lignes.map((c) => (c.id === vars.customerId ? { ...c, pipeline_stage: vars.to, updated_at: maintenant, suggested_stage: null } : c)),
+          total: sortie ? Math.max(0, data.total - 1) : data.total,
+        });
       }
 
       return snapshots;
@@ -98,8 +116,10 @@ export function useCustomerStageMutation() {
       }
     },
 
+    // TCK-2592 — relire après coup : les comptes (statistiques), et l'ordre par retard des colonnes et
+    // des listes, que le serveur seul connaît (une étape changée n'est pas un contact).
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.stats() });
+      void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.root() });
     },
   });
 }

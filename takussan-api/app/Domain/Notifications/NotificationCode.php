@@ -43,6 +43,10 @@ enum NotificationCode: string
     // locataire, même sans compte (sa quittance ne couvre plus la somme rendue), et le bailleur.
     case LeasePaymentRefunded = 'lease_payment.refunded';
     case LeasePaymentRefundedLandlord = 'lease_payment.refunded_landlord';
+    // TCK-2793 — la pénalité de retard payée SEULE (TCK-2778), remboursée : les textes du loyer
+    // disent « loyer ».
+    case LeasePaymentLateFeeRefunded = 'lease_payment.late_fee_refunded';
+    case LeasePaymentLateFeeRefundedLandlord = 'lease_payment.late_fee_refunded_landlord';
 
     // ─── Encaissements en ligne (TCK-593) ───────────────────────────────────────────────
     case PaymentDuplicate = 'payment.duplicate';
@@ -62,6 +66,9 @@ enum NotificationCode: string
     // TCK-2579 (ADR-0102 §2) — au CLIENT : le personnel de l'agence a enregistré une candidature ou
     // une offre en son nom ; il peut l'annuler. Son compte, sinon le téléphone de sa fiche.
     case BookingRecordedOnBehalf = 'booking.recorded_on_behalf';
+    // TCK-2734 (seconde porte, décision du porteur du 2026-11-12) — au CLIENT : un bail a été créé
+    // sur le bien pour un autre locataire ; sa candidature, en attente ou acceptée, est close.
+    case BookingApplicationNotSelected = 'booking.application_not_selected';
 
     // ─── Visites, messages, leads ───────────────────────────────────────────────────────
     case VisitReminder = 'visit.reminder';
@@ -94,6 +101,14 @@ enum NotificationCode: string
     case KycRejected = 'kyc.rejected';
     // TCK-601 — la pièce du dirigeant arrive à échéance (J-30, J-7).
     case KycExpiringSoon = 'kyc.expiring_soon';
+
+    // ─── Documents ──────────────────────────────────────────────────────────────────────
+    // TCK-2783 — une pièce datée arrive à échéance (J-60, J-7, au jour de Dakar) : à son porteur
+    // `User` (« Mes pièces »), sinon à son téléverseur s'il la lit encore (`DocumentExpiryReminder`).
+    case DocumentExpiringSoon = 'document.expiring_soon';
+    // TCK-2812 — l'archive préparée d'un dossier du coffre est prête, ou a échoué : au seul demandeur.
+    case DocumentArchiveReady = 'document.archive_ready';
+    case DocumentArchiveFailed = 'document.archive_failed';
 
     // ─── Gouvernance d'agence (TCK-601) : aux admins actifs, sauf l'auteur ───────────────
     case GovernanceRoleCapabilitiesChanged = 'governance.role_capabilities_changed';
@@ -143,6 +158,8 @@ enum NotificationCode: string
     case MaintenanceQuoteAwaitingOwner = 'maintenance_quote.awaiting_owner';
     // TCK-2012 (P184.01) — le passage fixé ou déplacé par le `PATCH`, à toutes les parties sauf l'auteur.
     case MaintenanceScheduleChanged = 'maintenance.schedule_changed';
+    // TCK-2786 — l'agence relance le bailleur d'une intervention qui attend sa décision (`awaiting_owner`).
+    case MaintenanceOwnerReminder = 'maintenance.owner_reminder';
 
     // ─── CRM ───────────────────────────────────────────────────────────────────────────
     /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
@@ -309,10 +326,12 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest, self::LeasePaymentRecorded,
             self::LeasePaymentReceivedLandlord, self::LeasePaymentSettledOnline, self::PaymentDuplicate,
             self::PaymentDuplicateLateFee, self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord,
+            self::LeasePaymentLateFeeRefunded, self::LeasePaymentLateFeeRefundedLandlord,
             self::PlatformPayoutRefundedSincePaid => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled,
-            self::BookingRecordedOnBehalf /* TCK-2579 */ => NotificationType::Booking,
+            self::BookingRecordedOnBehalf /* TCK-2579 */,
+            self::BookingApplicationNotSelected /* TCK-2734 */ => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => NotificationType::Visit,
@@ -324,8 +343,10 @@ enum NotificationCode: string
             self::BankStatementFinalized => NotificationType::BankStatementFinalized,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged => NotificationType::Maintenance,
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
+            self::DocumentExpiringSoon /* TCK-2783 */,
+            self::DocumentArchiveReady, self::DocumentArchiveFailed /* TCK-2812 */,
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected, self::PropertySubmittedForReview,
@@ -373,7 +394,8 @@ enum NotificationCode: string
             self::LeaseRentReviewedLandlord => 'lease_rent_reviewed',
             self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled,
-            self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */ => 'booking_status_changed',
+            self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */,
+            self::BookingApplicationNotSelected /* TCK-2734 : la suite de sa demande */ => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
@@ -383,12 +405,16 @@ enum NotificationCode: string
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
             self::LeadAcknowledged => null,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
+            // TCK-2783 — son propre interrupteur : le rappel d'une pièce n'est pas un verdict KYC.
+            self::DocumentExpiringSoon => 'document_expiring',
+            // TCK-2812 — la réponse au geste de la personne (« Tout télécharger ») : sans interrupteur.
+            self::DocumentArchiveReady, self::DocumentArchiveFailed => null,
             // Une alerte de sécurité ne se désactive pas : c'est sa raison d'être.
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged => 'maintenance_status_changed',
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder => 'maintenance_status_changed',
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
@@ -405,6 +431,7 @@ enum NotificationCode: string
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => null,
             // TCK-2320 — de l'argent rendu après coup : on ne s'en désabonne pas.
             self::LeasePaymentRefunded, self::LeasePaymentRefundedLandlord, self::PlatformPayoutRefundedSincePaid => null,
+            self::LeasePaymentLateFeeRefunded, self::LeasePaymentLateFeeRefundedLandlord => null,
             // TCK-594 — une sortie d'argent n'a pas d'interrupteur : l'approbateur, le payeur et le
             // bénéficiaire en sont toujours avisés, et un changement de destination est le signal
             // d'un détournement (ADR-0039 §6).
@@ -456,11 +483,14 @@ enum NotificationCode: string
             self::PaymentDuplicate, self::PaymentDuplicateLateFee => ['amount' => self::PARAM_MONEY, 'reference' => self::PARAM_TEXT],
             self::LeasePaymentRefunded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
             self::LeasePaymentRefundedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
+            self::LeasePaymentLateFeeRefunded => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT],
+            self::LeasePaymentLateFeeRefundedLandlord => ['amount' => self::PARAM_MONEY, 'property' => self::PARAM_TEXT, 'tenant' => self::PARAM_PERSON],
             self::PlatformPayoutRefundedSincePaid => ['period' => self::PARAM_MONTH, 'reference' => self::PARAM_TEXT],
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
-            self::BookingRecordedOnBehalf /* TCK-2579 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::BookingRecordedOnBehalf /* TCK-2579 */,
+            self::BookingApplicationNotSelected /* TCK-2734 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
@@ -482,6 +512,10 @@ enum NotificationCode: string
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
             self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
+            // TCK-2783 — `days_left` : les jours qui restent au jour de Dakar (60, 7, ou moins au rattrapage).
+            self::DocumentExpiringSoon => ['document_name' => self::PARAM_TEXT, 'expires_at' => self::PARAM_DATE, 'days_left' => self::PARAM_COUNT],
+            // TCK-2812 — sans paramètre : la cible ouvre le coffre, où l'archive se montre sous son dossier.
+            self::DocumentArchiveReady, self::DocumentArchiveFailed => [],
             // P164.04 (TCK-1808) — le code du rôle système (`agency_admin`), ou le nom d'un rôle créé,
             // que le repli de `role()` rend tel quel.
             self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_ROLE, 'actor' => self::PARAM_TEXT],
@@ -501,7 +535,7 @@ enum NotificationCode: string
             self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed,
             self::MaintenanceStepCancelled => ['request' => self::PARAM_TEXT],
             self::MaintenanceQuoteRejected => ['request' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
-            self::MaintenanceQuoteSubmitted, self::MaintenanceQuoteAwaitingOwner => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
+            self::MaintenanceQuoteSubmitted, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceOwnerReminder => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::MaintenanceAssigned => ['request' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::MaintenanceAccepted => ['request' => self::PARAM_TEXT, 'provider' => self::PARAM_TEXT],
             self::MaintenanceDeclined => ['request' => self::PARAM_TEXT, 'provider' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
@@ -570,7 +604,15 @@ enum NotificationCode: string
     public function optionalParams(): array
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url' => self::PARAM_URL],
+            // TCK-2706 — `rent` et `charges` : le détail d'une relance qui fusionne loyer et charges du
+            // même jour (TCK-2679), et `charges_url` le lien des charges ({@see variant()}).
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => [
+                'payment_url' => self::PARAM_URL,
+                'rent' => self::PARAM_MONEY,
+                'charges' => self::PARAM_MONEY,
+                'charges_url' => self::PARAM_URL,
+            ],
+            self::LeasePaymentOverdueLandlord => ['rent' => self::PARAM_MONEY, 'charges' => self::PARAM_MONEY],
             // Le lien `/pay/{jeton}` sert la quittance : jamais tronqué.
             self::LeasePaymentSettledOnline => ['receipt_url' => self::PARAM_URL],
             // TCK-1002 — la quittance d'un paiement enregistré par l'agence, même lien.
@@ -590,6 +632,9 @@ enum NotificationCode: string
         return match ($this) {
             self::BankStatementImported => ['bank'],
             self::GovernanceRoleCapabilitiesChanged => ['role'],
+            // TCK-2717 — le contact du visiteur, retiré de l'avis au bailleur d'un bien d'agence quand la
+            // visite est née avec une fiche (`VisitNotifier::params`) : la phrase sans lui, pas « — ».
+            self::VisitRequested, self::VisitRequestedWindow => ['contact'],
             default => [],
         };
     }
@@ -606,8 +651,44 @@ enum NotificationCode: string
     public function bearerParams(): array
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url'],
+            // TCK-2706 — le lien des charges d'une relance fusionnée est un lien porteur comme l'autre.
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url', 'charges_url'],
             self::LeasePaymentSettledOnline, self::LeasePaymentRecorded => ['receipt_url'],
+            default => [],
+        };
+    }
+
+    /**
+     * TCK-2706 (voie 2 du porteur, 2026-11-11) — la VARIANTE de texte que les paramètres désignent :
+     * `rent_charges` quand une relance porte le loyer ET les charges d'un même jour (`rent`, `charges`),
+     * `charges` quand elle ne porte que les charges ; `null` sinon (le texte de loyer d'aujourd'hui,
+     * inchangé). Le rendu cherche `<surface>_<variante>[_link]` avant `<surface>[_link]`, et un envoi
+     * WhatsApp hors fenêtre cherche le gabarit de `<code>.<variante>`, qui n'existe pas : il retombe
+     * sur le SMS plutôt que d'envoyer le gabarit du loyer seul.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    public function variant(array $params): ?string
+    {
+        if (! in_array($this, [self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord], true)
+            || ! is_array($params['charges'] ?? null)) {
+            return null;
+        }
+
+        return is_array($params['rent'] ?? null) ? 'rent_charges' : 'charges';
+    }
+
+    /**
+     * TCK-2706 — les paramètres facultatifs qui n'existent que dans une variante ({@see variant()}) :
+     * aucun gabarit WhatsApp du code ne les porte, puisque la variante n'a pas de gabarit.
+     *
+     * @return list<string>
+     */
+    public function variantParams(): array
+    {
+        return match ($this) {
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['rent', 'charges', 'charges_url'],
+            self::LeasePaymentOverdueLandlord => ['rent', 'charges'],
             default => [],
         };
     }
@@ -639,6 +720,8 @@ enum NotificationCode: string
             // sans compte, ou le numéro de la fiche (TCK-1493). Sans préférence, aucun canal mobile
             // vers un compte.
             self::LeasePaymentRefunded,
+            // TCK-2793 — de même pour la pénalité payée seule.
+            self::LeasePaymentLateFeeRefunded,
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
@@ -649,6 +732,8 @@ enum NotificationCode: string
             // (`preferenceEvent()` null), ils n'ouvrent aucun canal mobile vers un compte.
             self::InvitationReceived, self::InvitationReminder, self::AccountPhoneChanged,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
+            // TCK-2734 — comme le refus : la fin de sa demande, conséquence d'un geste de l'agence.
+            self::BookingApplicationNotSelected => true,
             // TCK-2579 — un geste humain de l'agence, vers un client qui peut n'avoir que le
             // téléphone de sa fiche ; la limite horaire par numéro du canal le borne.
             self::BookingRecordedOnBehalf => true,
@@ -683,6 +768,8 @@ enum NotificationCode: string
             self::LeasePaymentRecorded,
             // TCK-2320 — et le remboursement de cette échéance par le fournisseur.
             self::LeasePaymentRefunded,
+            // TCK-2793 — et celui de sa pénalité payée seule.
+            self::LeasePaymentLateFeeRefunded,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled, self::VisitCancelledWindow,

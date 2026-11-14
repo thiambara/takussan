@@ -6,8 +6,9 @@
  * Le contrat est celui de TCK-2518 (`AgencyUpdateRequest`) : `tagline` ≤ 120, `highlights` trois
  * chaînes ≤ 80, `showcase_property_ids` six biens de l'agence au plus, dans l'ordre choisi ; tout est
  * facultatif et `null` vide le champ. Ce module ne porte que des fonctions pures : le composant
- * (`AgencyPublicProfileCard`) n'a ni règle ni calcul à lui.
+ * (`fiche/SectionFichePublique`, TCK-2670) n'a ni règle ni calcul à lui.
  */
+import type { ContractType, RentPeriod } from '@/types/property';
 
 export const MAX_ACCROCHE = 120;
 export const MAX_POINT = 80;
@@ -24,6 +25,25 @@ export interface BienDeVitrine {
   readonly title: string | null;
   readonly reference_number?: string | null;
   readonly main_photo_url: string | null;
+  /** TCK-2670 — le prix de la rangée (maquette a-2 : « TK-48213 · 650 000 F »), et sa période pour une location. */
+  readonly price?: number | null;
+  readonly currency?: string | null;
+  readonly contract_type?: ContractType | null;
+  readonly rent_period?: RentPeriod | null;
+}
+
+/**
+ * TCK-2670 — le prix d'une rangée de la vitrine : le montant, et pour une location sa période, au mois
+ * quand l'annonce n'en porte pas (la règle de `loyerDuBien`). `null` sans prix : la rangée garde sa
+ * seule référence, jamais « 0 F ».
+ */
+export function prixDeLaVitrine(bien: BienDeVitrine): { readonly montant: number; readonly devise: string; readonly periode: RentPeriod | null } | null {
+  if (typeof bien.price !== 'number' || bien.price <= 0) return null;
+  return {
+    montant: bien.price,
+    devise: bien.currency ?? 'XOF',
+    periode: bien.contract_type === 'rent' ? (bien.rent_period ?? 'monthly') : null,
+  };
 }
 
 /**
@@ -144,8 +164,11 @@ export function erreursVitrineSurLeurChamp(
   return { champs, autres };
 }
 
-/** Les colonnes que le choix des biens affiche (`main_photo_url` est dérivé : toujours émis). */
-export const VITRINE_PROPERTY_FIELDS = ['id', 'title', 'reference_number'] as const;
+/**
+ * Les colonnes que le choix des biens affiche (`main_photo_url` est dérivé : toujours émis). Le prix,
+ * sa devise, le type d'annonce et la période disent « 650 000 F / mois » sur la rangée (TCK-2670).
+ */
+export const VITRINE_PROPERTY_FIELDS = ['id', 'title', 'reference_number', 'price', 'currency', 'contract_type', 'rent_period'] as const;
 
 /** La page la plus large que l'API serve (`HasQueryBuilder::PER_PAGE_MAX`). */
 export const BIENS_PUBLICS_PAR_PAGE = 100;

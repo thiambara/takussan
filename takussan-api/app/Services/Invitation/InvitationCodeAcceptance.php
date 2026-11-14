@@ -67,9 +67,10 @@ class InvitationCodeAcceptance
                 ] + $outcome['response']->getData(true), 200);
             });
         } catch (ApiError $e) {
-            // Comme `POST /invitations/{token}/accept` : le 401 dit à la page de se connecter, et à quelle adresse.
+            // Comme `POST /invitations/{token}/accept` : le 401 dit à la page de se connecter, et à quelle adresse —
+            // masquée (TCK-2727), la valeur de l'en-tête que `InvitationService::emailMasque()` a posé.
             if ($e->getStatusCode() === 401) {
-                throw $e->with(['requires_login' => true, 'email' => $invitation->email]);
+                throw $e->with(['requires_login' => true, 'email' => InvitationService::emailMasque($invitation)]);
             }
 
             throw $e;

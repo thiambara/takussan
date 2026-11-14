@@ -35,13 +35,12 @@ vi.mock('@/lib/auth/guards', () => ({ assertCanReachAgentArea: () => {} }));
 
 const fetchCustomerMock = vi.fn();
 vi.mock('@/lib/queries/customers', () => ({
-  fetchDashboardCustomer: (...a: unknown[]) => fetchCustomerMock(...a),
+  fetchFicheDuClient: (...a: unknown[]) => fetchCustomerMock(...a),
   fetchCustomerNotes: async () => [],
   fetchCustomerRelationships: async () => [],
   fetchCrmTags: async () => [],
 }));
 
-vi.mock('@/components/customer-dashboard/CustomerDetailTabs', () => ({ CustomerDetailTabs: () => null }));
 vi.mock('@/components/customer-dashboard/CustomerTagPickerSection', () => ({ CustomerTagPickerSection: () => null }));
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 

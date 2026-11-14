@@ -111,6 +111,54 @@ class KycRenewalWhileVerifiedTest extends ApiTestCase
         $this->upload()->assertStatus(422)->assertJsonPath('code', 'kyc.locked');
     }
 
+    /**
+     * TCK-2671 — le dossier SERT le jour d'ouverture du renouvellement (`renewal.opens_on`), et c'est
+     * le jour même où l'API accepte la pièce : la veille, `kyc.locked`. Le front n'en recopie rien.
+     */
+    public function test_le_dossier_dit_le_jour_ou_le_renouvellement_s_ouvre_et_l_api_le_tient(): void
+    {
+        $this->verifiedDossier(45);
+
+        $this->getJson("/api/agencies/{$this->agency->id}/kyc")->assertOk()
+            ->assertJsonPath('data.renewal.document_type', 'director_id')
+            ->assertJsonPath('data.renewal.opens_on', '2026-11-25');
+
+        $this->travelTo(Carbon::parse('2026-11-24 23:59:00'));
+        $this->upload()->assertStatus(422)->assertJsonPath('code', 'kyc.locked');
+
+        $this->travelTo(Carbon::parse('2026-11-25 00:01:00'));
+        $this->upload()->assertCreated();
+    }
+
+    /** Une échéance en cours de journée : la fenêtre s'ouvre au minuit SUIVANT le jour « J − 30 ». */
+    public function test_une_echeance_en_cours_de_journee_ouvre_le_lendemain_de_j_moins_30(): void
+    {
+        KycDossier::query()->create([
+            'subject_type' => Agency::class, 'subject_id' => $this->agency->id,
+            'status' => KycDossierStatus::Verified, 'expires_at' => Carbon::parse('2026-12-20 10:00:00'), 'metadata' => [],
+        ]);
+
+        $this->getJson("/api/agencies/{$this->agency->id}/kyc")->assertOk()->assertJsonPath('data.renewal.opens_on', '2026-11-21');
+
+        $this->travelTo(Carbon::parse('2026-11-20 12:00:00'));
+        $this->upload()->assertStatus(422)->assertJsonPath('code', 'kyc.locked');
+
+        $this->travelTo(Carbon::parse('2026-11-21 00:01:00'));
+        $this->upload()->assertCreated();
+    }
+
+    public function test_sans_verification_ou_sans_echeance_le_dossier_n_annonce_aucun_renouvellement(): void
+    {
+        $dossier = KycDossier::query()->create([
+            'subject_type' => Agency::class, 'subject_id' => $this->agency->id,
+            'status' => KycDossierStatus::Verified, 'expires_at' => null, 'metadata' => [],
+        ]);
+        $this->getJson("/api/agencies/{$this->agency->id}/kyc")->assertOk()->assertJsonPath('data.renewal', null);
+
+        $dossier->update(['status' => KycDossierStatus::Pending, 'expires_at' => now()->addDays(10)]);
+        $this->getJson("/api/agencies/{$this->agency->id}/kyc")->assertOk()->assertJsonPath('data.renewal', null);
+    }
+
     public function test_seule_la_piece_du_dirigeant_se_renouvelle(): void
     {
         $dossier = $this->verifiedDossier(20);

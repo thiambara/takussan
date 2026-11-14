@@ -4,6 +4,8 @@ namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\AgencySpotlight;
+use App\Rules\InstantIso;
+use App\Support\InstantRecu;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -27,8 +29,8 @@ class StoreAgencySpotlightRequest extends BaseFormRequest
         return [
             'agency_id' => ['required', 'integer', Rule::exists('agencies', 'id')->whereNull('deleted_at')],
             'geo_city_id' => ['present', 'nullable', 'integer', Rule::exists('geo_cities', 'id')],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'starts_at' => ['required', 'date', new InstantIso],
+            'ends_at' => ['required', 'date', new InstantIso, 'after:starts_at'],
             'note' => ['required', 'string', 'min:5', 'max:255'],
         ];
     }
@@ -50,15 +52,16 @@ class StoreAgencySpotlightRequest extends BaseFormRequest
     /**
      * La période, ramenée en UTC. Les colonnes sont des `timestamp` SANS fuseau : un décalage
      * (`+02:00`) gardé tel quel serait rangé en heure murale, décalage jeté, et deux places
-     * disjointes en temps réel se chevaucheraient en base (revue de TCK-2520).
+     * disjointes en temps réel se chevaucheraient en base (revue de TCK-2520). TCK-2743 : par LA
+     * conversion du dépôt ({@see InstantRecu}) ; sans décalage, l'heure se lit à Dakar (UTC+0), comme avant.
      *
      * @return array{0: Carbon, 1: Carbon}
      */
     public function periode(): array
     {
         return [
-            Carbon::parse($this->input('starts_at'))->utc(),
-            Carbon::parse($this->input('ends_at'))->utc(),
+            Carbon::instance(InstantRecu::utc($this->input('starts_at'))),
+            Carbon::instance(InstantRecu::utc($this->input('ends_at'))),
         ];
     }
 }

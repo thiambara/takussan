@@ -34,6 +34,10 @@ export const INVARIABLES = {
     'property.cards.bathroomsShort': 'abréviation « sdb », invariable',
     // TCK-2659 — « 34 j de retard » : l'abréviation de la maquette d'« Argent » (colonne étroite d'« À faire »).
     'admin.finances.argent.aFaire.joursDeRetardCourt': 'abréviation « j », invariable',
+    // TCK-2660 — les impayés : « 34 j de retard », « 34 j », « 3 j après l'échéance » (abréviation de la maquette).
+    'admin.finances.impayes.carte.retard': 'abréviation « j », invariable',
+    'admin.finances.impayes.retardCourt': 'abréviation « j », invariable',
+    'admin.finances.impayes.dossier.jalon.apres': 'abréviation « j », invariable',
     'search.saveSearch.bedroomsShort': 'abréviation « ch », invariable',
     'property.detail.reviewsCount': '« avis » est invariable',
     'property.reviews.countSuffix': '« avis » est invariable',
@@ -43,11 +47,12 @@ export const INVARIABLES = {
     'property.wizard.preview.entryDeposit': '« mois » est invariable',
     'property.wizard.preview.entryFee': '« mois » est invariable',
     'dashboard.agent.overdueHint': '« en retard » est invariable',
-    'dashboard.me.overdueTasksHint': '« en retard » est invariable',
-    'lease.detail.latePayments': '« en retard » est invariable',
     'admin.moderation.workspace.queued': '« en file d’attente » est invariable',
     'admin.roles.matrix.selected': '« sur {total} » : le nom s’accorde avec le total',
     'superAdmin.failedJobs.confirmDeleteDescription': 'un seul job : l’appelant passe toujours 1',
+    // TCK-2590 — le sous-titre de la liste des clients : « 6 à relancer », « 4 sans référent ».
+    'crm.list.sousTitre.aRelancer': '« à relancer » est invariable',
+    'crm.list.sousTitre.sansReferent': '« sans référent » est invariable',
   },
   en: {
     'nav.admin.pendingBadge': '“pending” is invariable',
@@ -56,14 +61,22 @@ export const INVARIABLES = {
     'property.cards.bedroomsAbbrev': 'abbreviation “bd”, invariable',
     'property.cards.bathroomsShort': 'abbreviation “ba”, invariable',
     'admin.finances.argent.aFaire.joursDeRetardCourt': 'abbreviation “d”, invariable',
+    // TCK-2660 — overdue instalments: “34 d late”, “34 d”, “3 d after the due date”.
+    'admin.finances.impayes.carte.retard': 'abbreviation “d”, invariable',
+    'admin.finances.impayes.retardCourt': 'abbreviation “d”, invariable',
+    'admin.finances.impayes.dossier.jalon.apres': 'abbreviation “d”, invariable',
+    // TCK-2682 — “4 selected”, “including 2 not shown”: English participles don't agree with the count.
+    'admin.finances.impayes.lot.selection': '“selected” is invariable',
+    'admin.finances.impayes.lot.nonAffiches': '“not shown” is invariable',
     'search.saveSearch.bedroomsShort': 'abbreviation “bd”, invariable',
     'dashboard.agent.overdueHint': '“overdue” is invariable',
-    'dashboard.me.overdueTasksHint': '“overdue” is invariable',
-    'lease.detail.latePayments': '“overdue” is invariable',
     'admin.moderation.workspace.queued': '“in the queue” is invariable',
     'publicProfile.portfolio.loadMore': '“remaining” is invariable',
     'admin.roles.matrix.selected': '“of {total}”: the noun agrees with the total',
     'superAdmin.failedJobs.confirmDeleteDescription': 'a single job: the caller always passes 1',
+    // TCK-2590 — the customer list subtitle: “6 to follow up”, “4 without an account manager”.
+    'crm.list.sousTitre.aRelancer': '“to follow up” is invariable',
+    'crm.list.sousTitre.sansReferent': '“without an account manager” is invariable',
   },
 };
 
