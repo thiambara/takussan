@@ -84,9 +84,9 @@ vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: vi.f
 import OwnerDashboardPage from '../owner/page';
 import AgentDashboardPage from '../agent/page';
 
-// Espace fine insécable (U+202F) : le séparateur de milliers de `fr-SN`. Entre le nombre et le
+// Insécable (U+00A0) : le séparateur de milliers des montants depuis TCK-2714 (l'espace fine U+202F d'Intl est réécrite). Entre le nombre et le
 // symbole, `formatCurrency` pose une espace insécable (U+00A0) dans les deux langues.
-const FR_150K = '150\u202F000\u00A0F CFA';
+const FR_150K = '150\u00A0000\u00A0F CFA';
 const EN_150K = '150,000\u00A0F CFA';
 
 beforeEach(() => {

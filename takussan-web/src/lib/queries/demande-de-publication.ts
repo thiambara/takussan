@@ -2,6 +2,7 @@
 
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { UNE_HEURE_MS } from '@/lib/queries/referentiel-public';
+import { cheminApi } from '@/lib/chemin-api';
 
 /**
  * TCK-2603 (ADR-0088, amendement du 2026-11-10, cinquième sortie) — combien de recherches des 7 derniers jours visent
@@ -28,7 +29,7 @@ export const demandeDePublicationQueryKeys = {
 export function useDemandeDePublication(ville: string | null = null) {
   return useApiQuery<{ readonly data: DemandeDePublication }>(
     demandeDePublicationQueryKeys.ville(ville),
-    ville === null ? '/api/public/publish/demand' : `/api/public/publish/demand?city=${encodeURIComponent(ville)}`,
+    ville === null ? '/api/public/publish/demand' : cheminApi`/api/public/publish/demand${new URLSearchParams({ city: ville })}`,
     { staleTime: UNE_HEURE_MS, retry: false },
   );
 }

@@ -159,7 +159,7 @@ export async function phoneSendOtpAction(
     const echec = await failure(err, 'sendOtpFailed');
     // TCK-2613 — un 429 garde son délai : l'écran l'écrit sous le champ (« Réessayez dans 2 min »).
     if (err instanceof ApiError && err.status === 429 && err.retryAfter !== undefined) {
-      return { ok: false, message: echec.message, attente: err.retryAfter };
+      return { ...echec, attente: err.retryAfter };
     }
     return echec;
   }
