@@ -278,7 +278,9 @@ function CoqueDeLApp({
               id={CONTENU_PRINCIPAL_ID}
               // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
               tabIndex={-1}
-              className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
+              // TCK-2804 — sous `md`, des onglets de page collent en haut du `<main>` (`ONGLETS_DE_PAGE`) : le
+              // défilement vers une ancre ou un focus s'arrête sous eux (48 px, rangée de 45 à 47), pas dessous.
+              className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none max-md:has-[[data-onglets-de-page]]:scroll-pt-12"
             >
               {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
                   ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px

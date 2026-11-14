@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { usePaymentsHistory } from '@/lib/queries/payments';
 
+import { ONGLETS_DE_PAGE } from '@/components/console/PageHeader';
 import { hrefDeLOnglet, ongletDeLAdresse, porteeTransmise, type IdOnglet } from '@/lib/navigation/rapports';
 import { cn } from '@/lib/utils';
 
@@ -39,10 +40,13 @@ export function OngletsDesRapports({ onglets, aria, transmetLaPortee = false }: 
   const portee = transmetLaPortee ? porteeTransmise(parametres?.get('scope')) : null;
 
   return (
+    // TCK-2804 — onglets de page (`ONGLETS_DE_PAGE`) : au téléphone, ils commencent sous l'en-tête et y collent
+    // (règle du gabarit `PageHeader`) ; la rangée bord à bord porte le fond plein qui couvre ce qui défile dessous.
     <nav
       aria-label={aria}
       data-slot="onglets-des-rapports"
-      className="-mx-4 flex gap-5 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] lg:mx-0 lg:gap-6 lg:px-0"
+      {...ONGLETS_DE_PAGE}
+      className="-mx-4 flex gap-5 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] max-md:bg-background lg:mx-0 lg:gap-6 lg:px-0"
     >
       {onglets.map(({ id, libelle }) => {
         const estActif = id === actif;

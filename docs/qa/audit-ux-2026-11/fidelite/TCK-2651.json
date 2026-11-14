@@ -125,7 +125,9 @@
       "ecran": "a-4 (téléphone)",
       "element": "onglets « Revenus · Versements · Factures · Opérations »",
       "propriete": "hauteur 44 contre 32 et y +10, d'où le décalage de tout ce qui suit",
-      "motif": "cible tactile de 44 px gardée par `OngletsDesLoyers` ; relève de TCK-2804 (décision de team-lead, 2026-11-14), non traité ici"
+      "motif": "cible tactile de 44 px gardée par `OngletsDesLoyers` ; relève de TCK-2804 (décision de team-lead, 2026-11-14), non traité ici",
+      "statut": "fermé (TCK-2804)",
+      "preuve": "TCK-2804, relevés du 2026-11-14 à 390 : onglets à y = 70, h = 32 (avant y = 80, h = 44 ; maquette 70 et 32), rangée à y = 56 avec `pt-3.5` ; l’appui reste à 44 px (un `::before` transparent prolonge chaque lien de 12 px vers le haut, dans le `pt-3.5`). Défilé de 700 px : la rangée reste collée à y = 56. À 1280 : 245 nœuds sur 245 inchangés"
     }
   ]
 }

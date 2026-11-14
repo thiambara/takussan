@@ -395,8 +395,8 @@
       "element": "barre d’onglets de la page",
       "mesure": "produit : nav à y = 100, texte à y ≈ 122 ; maquette : nav à y = 56, texte à y ≈ 78 (44 px de plus). Pas collante : au défilement elle part avec la page (relevé défilé de 700 px)",
       "motif": "défaut. Le ticket dit « les onglets défilent horizontalement et collent sous l’en-tête ». Les 44 px = marge haute de `main` + `mt-5` du slot `dessous` de `PageHeader` (TCK-2687), titre masqué au téléphone ; vaut pour toute page à onglets du gabarit, pas pour Rapports seule",
-      "statut": "reporté — gabarit `PageHeader`, ticket à part (hors TCK-2801)",
-      "preuve": "c2-a-0-telephone : onglets toujours à y = 100 (maquette 56) ; masquer l’en-tête sous `md` n’y change rien : les 44 px sont la marge de `main` et le `mt-5` du slot `dessous`, communs à toutes les pages à onglets"
+      "statut": "fermé (TCK-2804) — gabarit `PageHeader` : sous `md`, des onglets de page (`ONGLETS_DE_PAGE`) commencent sous l’en-tête et y collent",
+      "preuve": "TCK-2804, relevés du 2026-11-14 à 390 (scratchpad `impl/lot2/2804/`, avant/ et apres/) : onglets de Rapports à y = 56 (avant 100 ; maquette 56), « Ce mois » à y = 111 (maquette 111) ; défilé de 700 px : onglets toujours à y = 56, fond plein, filet bas. À 1280 : 191 nœuds sur 191 inchangés. Ablations au navigateur : sans `sticky`, les onglets quittent l’écran au défilé de 700 ; avec le `mt-5` remis au téléphone, y = 76. La règle : l’enveloppe perd sa marge haute (`pt-0`) et `PageHeader` colle (`sticky top-0 z-20`) sous `md`, par `:has([data-onglets-de-page])`"
     },
     {
       "id": "O2",

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { ONGLETS_DE_PAGE } from '@/components/console/PageHeader';
 import { cn } from '@/lib/utils';
 
 import { ONGLETS_DES_LOYERS, type OngletDesLoyers } from './adresse';
@@ -49,11 +50,15 @@ export function OngletsDesLoyers({ actif }: { readonly actif: OngletDesLoyers })
   };
 
   return (
-    <div className="relative" data-slot="onglets-des-loyers">
+    // TCK-2804 — onglets de page (`ONGLETS_DE_PAGE`) hors de `PageHeader` : au téléphone, la rangée commence sous
+    // l'en-tête (l'enveloppe y perd sa marge haute), à 14 px du haut comme la maquette (`OngletsSoulignes`, `pt-3.5`),
+    // et colle sous l'en-tête au défilement, sur un fond plein. Son bloc conteneur est la page : elle colle jusqu'au bout.
+    <div className="relative max-md:sticky max-md:top-0 max-md:z-20" data-slot="onglets-des-loyers">
       <nav
         ref={rangee}
         aria-label={t('aria')}
-        className="-mx-4 flex gap-6 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] md:mx-0 md:px-0"
+        {...ONGLETS_DE_PAGE}
+        className="-mx-4 flex gap-6 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] max-md:bg-background max-md:pt-3.5 md:mx-0 md:px-0"
       >
         {ONGLETS_DES_LOYERS.map((onglet) => {
           const estActif = onglet === actif;
@@ -65,6 +70,10 @@ export function OngletsDesLoyers({ actif }: { readonly actif: OngletDesLoyers })
               aria-current={estActif ? 'page' : undefined}
               className={cn(
                 'relative inline-flex h-11 flex-none items-center whitespace-nowrap rounded-sm text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring lg:h-auto lg:pb-3',
+                // TCK-2804 — au téléphone, l'onglet de la maquette : 32 px visibles (texte de 20 + `pb-3`), souligné en
+                // bas. L'appui reste à 44 px : un `::before` transparent prolonge le lien de 12 px vers le haut, dans
+                // le `pt-3.5` de la rangée (le patron des onglets soulignés de `ui/tabs`, `before:h-controle`).
+                'max-md:h-auto max-md:pb-3 max-md:before:absolute max-md:before:inset-x-0 max-md:before:-top-3 max-md:before:bottom-0',
                 estActif
                   ? 'text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-primary'
                   : 'text-muted-foreground hover:text-foreground',
