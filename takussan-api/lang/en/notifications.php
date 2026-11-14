@@ -649,6 +649,17 @@ return [
                 'body' => '":document_name" expires on :expires_at. Add a new version from its page to keep your file up to date.',
                 'sms' => 'Takussan: your document ":document_name" expires on :expires_at.',
             ],
+            // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            'archive_ready' => [
+                'title' => 'Your archive is ready',
+                'body' => 'The document archive you requested is ready. Download it from your documents within 24 hours.',
+                'sms' => 'Takussan: your document archive is ready in your documents, for 24 hours.',
+            ],
+            'archive_failed' => [
+                'title' => 'Your archive could not be prepared',
+                'body' => 'The document archive you requested could not be prepared. Try again from your documents.',
+                'sms' => 'Takussan: your document archive could not be prepared. Try again from your documents.',
+            ],
         ],
         'kyc' => [
             'expiring_soon' => [

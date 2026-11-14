@@ -208,6 +208,9 @@ return [
         'archive_unavailable' => 'Les documents de ce dossier ne se téléchargent pas en archive.',
         'archive_render_busy' => 'Le service qui produit les documents est saturé : réessayez dans une minute.',
         'archive_render_failed' => 'Un document de ce dossier n\'a pas pu être produit : l\'archive n\'a pas été créée. Réessayez, ou téléchargez ses documents un par un.',
+        // TCK-2812 — le lien signé de l'archive préparée
+        'archive_link_invalid' => 'Ce lien de téléchargement n’est pas valide, ou il a expiré.',
+        'archive_expired' => 'Cette archive n’est plus disponible : préparez-en une nouvelle.',
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
         // TCK-2759 (ADR-0099, amendement du 2026-11-12)
         'internal_customer_only' => 'Seul un document de fiche client peut être gardé pour l\'agence.',

@@ -78,6 +78,9 @@ final class AgenceDeLaCible
         // TCK-2783 — une pièce du coffre : `documents` n'a pas de colonne d'agence (son porteur la
         // porte, quand il en a une), et la fiche juge elle-même son lecteur (`DocumentPolicy::view`).
         'document',
+        // TCK-2812 — le coffre de l'appelant (`/app/documents`), où l'archive préparée se télécharge : il
+        // n'est d'aucune agence, et l'archive n'appartient qu'à son demandeur.
+        'document_archive',
     ];
 
     /** @var array<string, array<int, ?int>> genre → id → agence (null : objet sans agence ou absent) */

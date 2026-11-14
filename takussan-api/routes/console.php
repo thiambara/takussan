@@ -6,6 +6,7 @@ use App\Jobs\Billing\RenewAgencySubscriptionPeriods;
 use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
+use App\Jobs\Documents\PurgerLesArchivesDuCoffre;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
@@ -128,6 +129,10 @@ Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlappi
 // TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
 // Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
 Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
+// TCK-2812 (ADR-0099, amendement du 2026-11-14) — les archives préparées du coffre ne survivent pas à
+// leur lien (24 h) ; échouées ou perdues, elles s'effacent après 24 h. Idempotent : une ligne effacée
+// n'est plus relue, et effacer un fichier absent ne fait rien.
+Schedule::job(new PurgerLesArchivesDuCoffre)->hourly()->withoutOverlapping(60);
 // TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
 Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
 // TCK-2783 — rappel d'expiration d'une pièce du coffre à J-60 et J-7 (jour de Dakar). Idempotent :

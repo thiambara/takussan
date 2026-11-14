@@ -106,6 +106,9 @@ enum NotificationCode: string
     // TCK-2783 — une pièce datée arrive à échéance (J-60, J-7, au jour de Dakar) : à son porteur
     // `User` (« Mes pièces »), sinon à son téléverseur s'il la lit encore (`DocumentExpiryReminder`).
     case DocumentExpiringSoon = 'document.expiring_soon';
+    // TCK-2812 — l'archive préparée d'un dossier du coffre est prête, ou a échoué : au seul demandeur.
+    case DocumentArchiveReady = 'document.archive_ready';
+    case DocumentArchiveFailed = 'document.archive_failed';
 
     // ─── Gouvernance d'agence (TCK-601) : aux admins actifs, sauf l'auteur ───────────────
     case GovernanceRoleCapabilitiesChanged = 'governance.role_capabilities_changed';
@@ -343,6 +346,7 @@ enum NotificationCode: string
             self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
             self::DocumentExpiringSoon /* TCK-2783 */,
+            self::DocumentArchiveReady, self::DocumentArchiveFailed /* TCK-2812 */,
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged,
             self::PropertyApproved, self::PropertyRejected, self::PropertySubmittedForReview,
@@ -403,6 +407,8 @@ enum NotificationCode: string
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon => 'kyc_status_changed',
             // TCK-2783 — son propre interrupteur : le rappel d'une pièce n'est pas un verdict KYC.
             self::DocumentExpiringSoon => 'document_expiring',
+            // TCK-2812 — la réponse au geste de la personne (« Tout télécharger ») : sans interrupteur.
+            self::DocumentArchiveReady, self::DocumentArchiveFailed => null,
             // Une alerte de sécurité ne se désactive pas : c'est sa raison d'être.
             self::GovernanceRoleCapabilitiesChanged, self::GovernanceAdminAdded, self::GovernanceDataExported,
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
@@ -508,6 +514,8 @@ enum NotificationCode: string
             self::KycExpiringSoon => ['expires_at' => self::PARAM_DATE],
             // TCK-2783 — `days_left` : les jours qui restent au jour de Dakar (60, 7, ou moins au rattrapage).
             self::DocumentExpiringSoon => ['document_name' => self::PARAM_TEXT, 'expires_at' => self::PARAM_DATE, 'days_left' => self::PARAM_COUNT],
+            // TCK-2812 — sans paramètre : la cible ouvre le coffre, où l'archive se montre sous son dossier.
+            self::DocumentArchiveReady, self::DocumentArchiveFailed => [],
             // P164.04 (TCK-1808) — le code du rôle système (`agency_admin`), ou le nom d'un rôle créé,
             // que le repli de `role()` rend tel quel.
             self::GovernanceRoleCapabilitiesChanged => ['role' => self::PARAM_ROLE, 'actor' => self::PARAM_TEXT],

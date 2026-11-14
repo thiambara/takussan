@@ -263,6 +263,37 @@ export function cheminDeLArchive(dossier: Pick<DossierVu, 'key' | 'kind' | 'entr
   return cheminApi`/api/me/document-vault/archive${new URLSearchParams({ folder: dossier.key })}`;
 }
 
+/**
+ * TCK-2812 (ADR-0099, amendement du 2026-11-14) — le seuil de l'archive DIRECTE : jusqu'à 40 entrées,
+ * l'API bâtit l'archive pendant la requête (`ArchiveDuCoffre::MAX_FICHIERS`). Au-delà, « Tout
+ * télécharger » demande une archive PRÉPARÉE (`POST /api/me/document-vault/archives`), bâtie sur la file
+ * `media` et remise par un lien signé. Les deux nombres vont ensemble : le test du geste lit la constante
+ * de l'API.
+ */
+export const SEUIL_DE_L_ARCHIVE_DIRECTE = 40;
+
+/** L'archive d'un dossier passe-t-elle par la préparation ? Seulement un dossier en lot, au-delà du seuil. */
+export function archivePreparee(dossier: Pick<DossierVu, 'key' | 'kind' | 'entrees'>): boolean {
+  return cheminDeLArchive(dossier) !== null && dossier.entrees.length > SEUIL_DE_L_ARCHIVE_DIRECTE;
+}
+
+/** TCK-2812 — l'état d'une archive préparée (`DocumentVaultArchiveStatus` de l'API). */
+export type StatutDeLArchivePreparee = 'pending' | 'ready' | 'failed';
+
+/** TCK-2812 — une archive préparée, telle que `GET /api/me/document-vault/archives` la rend à son demandeur. */
+export interface ArchivePreparee {
+  /** L'identifiant opaque de la préparation. */
+  readonly id: string;
+  readonly folder: string;
+  readonly status: StatutDeLArchivePreparee;
+  readonly error_code: string | null;
+  readonly entries_count: number | null;
+  readonly expires_at: string | null;
+  readonly created_at: string | null;
+  /** Le chemin d'API signé de l'archive prête (`/api/…`), ouvert avec le jeton de la session ; `null` sinon. */
+  readonly download_path: string | null;
+}
+
 export function voirLeCoffre(coffre: CoffreDeDocuments, aujourdhui: string): CoffreVu {
   const nombreDeBaux = coffre.folders.filter((d) => d.kind === 'lease').length;
 

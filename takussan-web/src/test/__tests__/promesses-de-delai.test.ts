@@ -165,7 +165,13 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // TCK-2600 (ADR-0093 § 5) — le brouillon de `/publish` sans compte, purgé après 30 jours sans geste :
   // le constat d'une purge FAITE (relue à l'ouverture), pas une promesse.
   'publishRedirect.sansCompte.brouillon.purge':
-    'takussan-web/src/lib/publication/brouillon-local.ts:65 — DUREE_DE_GARDE_MS = 30 jours, appliqué par ouvrirBrouillonLocal().ouvrir() (:269)',
+    'takussan-web/src/lib/publication/brouillon-local.ts:65 — DUREE_DE_GARDE_MS = 30 jours, appliqué par ouvrirBrouillonLocal().ouvrir() (:269)',  // TCK-2812 (ADR-0099, amendement du 2026-11-14) — l'archive préparée d'un dossier du coffre, et son lien
+  // signé, durent 24 h : `expires_at` est posé à la construction, le lien signé expire au même instant, et la
+  // purge horaire efface l'archive et son fichier ensuite.
+  'documents.coffre.archive.preparee.prete':
+    'takussan-api/app/Models/DocumentVaultArchive.php:49 — DUREE_EN_HEURES = 24, posé à BatirLArchiveDuCoffreJob.php:127 (expires_at, borne du lien signé), purgé par PurgerLesArchivesDuCoffre.php:25',
+  'notifications.codes.document.archive_ready.body':
+    'idem — DocumentVaultArchive.php:49, posé à BatirLArchiveDuCoffreJob.php:127',
 };
 
 /**
@@ -204,6 +210,8 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'property.dashboard.gestion.tuiles.vacantsLongs': 60,
   'admin.finances.impayes.tranches.plus30': 30,
   'admin.finances.impayes.tranches.moins8': 8,
+  'documents.coffre.archive.preparee.prete': 24,
+  'notifications.codes.document.archive_ready.body': 24,
 };
 
 /**

@@ -45,8 +45,9 @@ use ZipStream\ZipStream;
  * entrée qui ne se rend pas rend donc un vrai code d'erreur, jamais un `.zip` tronqué sous un 200.
  *
  * **Les bornes** : {@see self::MAX_FICHIERS} entrées et {@see self::MAX_OCTETS} octets de pièces, au-delà un
- * 422 `document.archive_too_large`. La voie asynchrone du ticket (file `media` et lien signé) n'est pas
- * bâtie : au-delà des bornes, les documents se téléchargent un par un.
+ * 422 `document.archive_too_large`. Au-delà de {@see self::MAX_FICHIERS}, le front passe par l'archive
+ * PRÉPARÉE (TCK-2812) : `BatirLArchiveDuCoffreJob` appelle cette même construction sur la file `media`,
+ * au plafond {@see self::MAX_FICHIERS_PREPAREE}.
  *
  * **Les noms dans l'archive** ne portent ni identifiant technique ni chemin de stockage : la date et le
  * libellé de la catégorie pour un généré (celui du front, `vocabulaire-du-coffre.json`), le nom saisi et
@@ -68,6 +69,13 @@ final class ArchiveDuCoffre
      */
     public const MAX_FICHIERS = 40;
 
+    /**
+     * TCK-2812 (ADR-0099, amendement du 2026-11-14) — le plafond de l'archive PRÉPARÉE, sur la file
+     * `media` : son travail ne dépasse pas 85 s (le délai de reprise de la connexion `database` est de
+     * 90 s, `scripts/check-queues.mjs`). 150 rendus au rythme mesuré ci-dessus (≈ 0,33 s) : ≈ 50 s.
+     */
+    public const MAX_FICHIERS_PREPAREE = 150;
+
     /** Le plafond des octets de pièces téléversées que l'archive réunit (100 Mo). */
     public const MAX_OCTETS = 100 * 1024 * 1024;
 
@@ -88,17 +96,11 @@ final class ArchiveDuCoffre
      * L'archive du dossier `$cle` du coffre de l'appelant, écrite dans un flux temporaire rembobiné, que
      * l'appelant sert puis ferme.
      *
-     * @return array{stream: resource, size: int}
+     * @return array{stream: resource, size: int, entries: int}
      */
-    public function construire(User $user, ?Model $activeProfile, string $cle): array
+    public function construire(User $user, ?Model $activeProfile, string $cle, int $maxFichiers = self::MAX_FICHIERS): array
     {
-        $dossier = collect($this->vault->for($user, $activeProfile)['folders'])->firstWhere('key', $cle);
-        abort_if($dossier === null, 404);
-        abort_code_if($dossier['kind'] === 'bills', 422, 'document.archive_unavailable');
-
-        $entrees = $dossier['entries'];
-        abort_code_if($entrees === [], 422, 'document.archive_empty');
-        $this->refuserAuDela(count($entrees) > self::MAX_FICHIERS);
+        $entrees = $this->entreesDuDossier($user, $activeProfile, $cle, $maxFichiers);
 
         $documents = Document::query()
             ->whereKey(array_values(array_filter(array_column($entrees, 'document_id'))))
@@ -106,7 +108,7 @@ final class ArchiveDuCoffre
             ->get()
             ->keyBy('id');
         $fichiers = $documents->map(fn (Document $document): ?Media => $document->currentFile());
-        $this->refuserAuDela($fichiers->filter()->sum(fn (Media $m): int => (int) $m->size) > self::MAX_OCTETS);
+        $this->refuserAuDela($fichiers->filter()->sum(fn (Media $m): int => (int) $m->size) > self::MAX_OCTETS, $maxFichiers);
 
         $out = tmpfile();
         if ($out === false) {
@@ -148,7 +150,7 @@ final class ArchiveDuCoffre
         $size = (int) ftell($out);
         rewind($out);
 
-        return ['stream' => $out, 'size' => $size];
+        return ['stream' => $out, 'size' => $size, 'entries' => count($noms)];
     }
 
     /**
@@ -178,10 +180,40 @@ final class ArchiveDuCoffre
         }
     }
 
-    private function refuserAuDela(bool $condition): void
+    /**
+     * TCK-2812 — la demande d'une archive préparée : le dossier est-il dans le coffre de l'appelant, et
+     * dans les bornes ? Mêmes refus que {@see self::construire()}, au plafond `$maxFichiers`. Le nombre
+     * d'entrées seul est rendu : **la demande ne garde rien du dossier**, le travail le rejuge à la
+     * construction (ADR-0099, amendement du 2026-11-14, § 3).
+     */
+    public function verifierLaDemande(User $user, ?Model $activeProfile, string $cle, int $maxFichiers): int
+    {
+        return count($this->entreesDuDossier($user, $activeProfile, $cle, $maxFichiers));
+    }
+
+    /**
+     * Les entrées du dossier `$cle` dans le coffre de l'appelant, ou le refus : 404 hors de son coffre,
+     * 422 pour « Mes factures », un dossier vide ou plus de `$maxFichiers` entrées.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function entreesDuDossier(User $user, ?Model $activeProfile, string $cle, int $maxFichiers): array
+    {
+        $dossier = collect($this->vault->for($user, $activeProfile)['folders'])->firstWhere('key', $cle);
+        abort_if($dossier === null, 404);
+        abort_code_if($dossier['kind'] === 'bills', 422, 'document.archive_unavailable');
+
+        $entrees = $dossier['entries'];
+        abort_code_if($entrees === [], 422, 'document.archive_empty');
+        $this->refuserAuDela(count($entrees) > $maxFichiers, $maxFichiers);
+
+        return $entrees;
+    }
+
+    private function refuserAuDela(bool $condition, int $maxFichiers = self::MAX_FICHIERS): void
     {
         abort_code_if($condition, 422, 'document.archive_too_large', [
-            'max_files' => self::MAX_FICHIERS,
+            'max_files' => $maxFichiers,
             'max_mb' => intdiv(self::MAX_OCTETS, 1024 * 1024),
         ]);
     }

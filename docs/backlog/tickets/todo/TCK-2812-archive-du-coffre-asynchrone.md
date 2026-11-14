@@ -60,33 +60,33 @@ recommencer.
 
 ## Delta à produire
 
-- [ ] ADR (ou amendement de celle de TCK-2770 si elle en a une) : seuil synchrone/asynchrone, durée du lien, purge.
-- [ ] Endpoint de demande d'archive asynchrone pour un dossier du coffre ; 202 avec l'état de la préparation.
-- [ ] Job `BatirLArchiveDuCoffreJob` sur la file `media`, qui réutilise `ArchiveDuCoffre` pour écrire le `.zip`.
-- [ ] Notification à l'appelant quand l'archive est prête, et en cas d'échec. Sa cible ouvre le coffre
+- [x] ADR (ou amendement de celle de TCK-2770 si elle en a une) : seuil synchrone/asynchrone, durée du lien, purge.
+- [x] Endpoint de demande d'archive asynchrone pour un dossier du coffre ; 202 avec l'état de la préparation.
+- [x] Job `BatirLArchiveDuCoffreJob` sur la file `media`, qui réutilise `ArchiveDuCoffre` pour écrire le `.zip`.
+- [x] Notification à l'appelant quand l'archive est prête, et en cas d'échec. Sa cible ouvre le coffre
   (`/app/documents`) : un genre ajouté à `NotificationTarget::PATHS` et classé dans `AgenceDeLaCible::HORS_AGENCE`
   (`AgenceDeLaCibleTest` l'exige).
-- [ ] Route signée de téléchargement, réservée au demandeur ; purge planifiée des archives expirées.
-- [ ] Front : « Tout télécharger » au-delà du seuil passe par la préparation, avec son état et son échec.
-- [ ] Tests `ArchiveAsynchroneDuCoffreTest` et tests vitest du geste.
+- [x] Route signée de téléchargement, réservée au demandeur ; purge planifiée des archives expirées.
+- [x] Front : « Tout télécharger » au-delà du seuil passe par la préparation, avec son état et son échec.
+- [x] Tests `ArchiveAsynchroneDuCoffreTest` et tests vitest du geste.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un dossier de 41 quittances : la demande rend 202 (plus 422) ; le travail exécuté, le `.zip` contient
+- [x] AC1 — Un dossier de 41 quittances : la demande rend 202 (plus 422) ; le travail exécuté, le `.zip` contient
   exactement les 41 entrées que le coffre liste dans ce dossier (noms comparés un à un).
-- [ ] AC2 — Le lien ouvert par un autre compte rend 403 ; ouvert après expiration, 403 ou 410 ; aucun des deux ne
+- [x] AC2 — Le lien ouvert par un autre compte rend 403 ; ouvert après expiration, 403 ou 410 ; aucun des deux ne
   rend d'octet de l'archive.
-- [ ] AC3 — Une pièce interne ajoutée au dossier APRÈS la demande et AVANT l'exécution n'est pas dans l'archive ; une
+- [x] AC3 — Une pièce interne ajoutée au dossier APRÈS la demande et AVANT l'exécution n'est pas dans l'archive ; une
   pièce rendue illisible à l'appelant entre la demande et l'exécution n'y est pas non plus.
-- [ ] AC4 — Sous impersonation, la demande rend 403 `impersonation.read_only` et aucun travail n'est mis en file.
-- [ ] AC5 — Un double du pilote qui rend la limite de débit au troisième rendu, puis réussit : le travail se
+- [x] AC4 — Sous impersonation, la demande rend 403 `impersonation.read_only` et aucun travail n'est mis en file.
+- [x] AC5 — Un double du pilote qui rend la limite de débit au troisième rendu, puis réussit : le travail se
   relance et l'archive finale est complète. Le même double qui échoue toujours : l'archive échoue, l'appelant est
   notifié, aucun fichier partiel ne reste.
-- [ ] AC6 — Deux demandes du même dossier par le même compte, la seconde pendant la préparation : un seul travail en
+- [x] AC6 — Deux demandes du même dossier par le même compte, la seconde pendant la préparation : un seul travail en
   file.
-- [ ] AC7 — Front : au-delà du seuil, le geste annonce la préparation (texte présent vérifié), puis l'archive prête ;
+- [x] AC7 — Front : au-delà du seuil, le geste annonce la préparation (texte présent vérifié), puis l'archive prête ;
   un échec se dit avec « Réessayer ». En deçà du seuil, le téléchargement direct de TCK-2770 ne change pas.
-- [ ] AC8 — Ablation : le jugement fait à la demande au lieu de l'exécution rend AC3 rouge ; la vérification du
+- [x] AC8 — Ablation : le jugement fait à la demande au lieu de l'exécution rend AC3 rouge ; la vérification du
   demandeur retirée rend AC2 rouge.
 
 ## Hors périmètre
@@ -96,4 +96,70 @@ recommencer.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée le 2026-11-14** : un dossier de plus de 40 entrées rend toujours 422
+`document.archive_too_large` ; la préproduction rend ses PDF par `dompdf`.
+
+**Ce qui est livré.**
+
+- ADR : **amendement d'ADR-0099** (« Amendement du 2026-11-14 — l'archive préparée », §1-10), pas d'ADR
+  neuve : seuil synchrone inchangé (40), plafond préparé 150 entrées, lien 24 h, purge horaire.
+- `POST /api/me/document-vault/archives` (`folder`) → 202 et l'état ; `GET` du même chemin → les
+  préparations de l'appelant sous son profil actif, la plus récente par dossier ;
+  `GET …/archives/{uuid}/download` → le `.zip`, par lien signé relatif ET au seul demandeur (403
+  `document.archive_link_invalid`, 410 `document.archive_expired`).
+- Table `document_vault_archives` (modèle `DocumentVaultArchive`, enum `DocumentVaultArchiveStatus`,
+  entrée `models-spec.md` § 29 bis) : elle ne garde aucune entrée du dossier. Index unique partiel
+  `NULLS NOT DISTINCT WHERE status = 'pending'` : une préparation en cours par (compte, dossier,
+  profil). La demande passe par `insertOrIgnore` et ne met en file que si elle a inséré.
+- `BatirLArchiveDuCoffreJob`, file `media`, `$timeout` 85 (la connexion `database` relivre à 90 s),
+  `$failOnTimeout`, 4 essais. Il réinstalle le profil actif et la langue de la demande dans
+  `request()->attributes`, rappelle `ArchiveDuCoffre::construire()` (jugement à la construction),
+  puis rend l'état d'avant. `document.archive_render_busy` (TCK-2811) → `release(EchecDuPilotePdf::REESSAYER_APRES)` (60 s) ; tout autre
+  refus → échec. Échec : fichier effacé, passage `pending → failed` conditionnel, une seule notification.
+- Notifications `document.archive_ready` / `document.archive_failed` (aucun interrupteur de
+  préférence : la personne l'a demandée), cible `document_archive` → `/app/documents`, classée
+  `HORS_AGENCE`.
+- `PurgerLesArchivesDuCoffre`, planifiée chaque heure (`routes/console.php`, idempotente) : archives
+  prêtes expirées, et préparations échouées ou perdues après 24 h, fichiers compris.
+- Impersonation : la demande est une écriture (refusée), l'état et le téléchargement entrent dans
+  `EnforceImpersonationReadOnly::REFUSED_READS`.
+- Front : `CoffreDeDocuments` — au-delà de 40 entrées, « Tout télécharger » demande la préparation,
+  annonce « Préparation en cours… » (désactivé, `aria-busy`), relit l'état toutes les quelques
+  secondes, puis « Télécharger l'archive » par le lien signé ; un échec dit « Réessayer ». En deçà, le
+  téléchargement direct de TCK-2770 ne change pas.
+
+**Preuves.**
+
+- AC1-AC6 : `tests/Feature/Documents/ArchiveAsynchroneDuCoffreTest.php`, 19 tests verts (`test_ac1_…`
+  à `test_ac6_…`, plus l'index partiel, le profil d'une agente de deux agences, la restauration de
+  l'état du worker, le plafond préparé, la purge).
+- Courriel (décision de team-lead du 2026-11-14) : `test_the_email_carries_no_archive_link_and_the_signed_link_needs_the_session`
+  — le bouton du courriel mène à `{front}/app/documents` (session exigée), aucun texte ne porte la
+  signature, `/download`, le chemin ni l'uuid de l'archive ; le lien signé ouvert sans session rend 401
+  sans octet. Les deux codes sont couverts par `LangGroupParityTest`, qui les dérive de
+  `NotificationCode::cases()` (ablation : la clé `wo` `sms` d'`archive_ready` retirée → rouge).
+- AC7 : `CoffreDeDocuments.archive-preparee.tck-2812.test.tsx`, 11 tests verts, dont la parité du
+  seuil lue dans `ArchiveDuCoffre::MAX_FICHIERS`. Fidélité 390/1280 :
+  `docs/qa/audit-ux-2026-11/fidelite/TCK-2812.json` (sans écriture en base : coffre réel du locataire
+  porté à 41 quittances dans la réponse par interception CDP, écritures d'API bloquées).
+- AC8 — ablations, une à une, fichiers restaurés au md5 :
+  - la construction lancée pendant la demande → AC3 rouge ;
+  - la vérification du demandeur retirée → AC2 rouge ;
+  - la vérification de signature retirée → AC2 rouge ;
+  - les entrées de `REFUSED_READS` retirées → AC4 et le téléchargement sous impersonation rouges ;
+  - le profil non réinstallé → le test de l'agente de deux agences rouge ; non restauré → le test de
+    restauration rouge ;
+  - le passage à « prête » rendu inconditionnel → le test de la préparation terminée pendant la
+    construction rouge (fichier orphelin) ;
+  - la route de téléchargement sortie du groupe `auth:sanctum` → le test du courriel rouge (403 au
+    lieu de 401 : le contrôle du demandeur refuse encore, en couche) ;
+  - `estPrete()` retiré du téléchargement → reste vert : l'expiration de la signature (même instant)
+    le couvre. Défense en couches, pas un trou.
+
+**⚠ Écart ouvert.** Chaque nouvel essai rebâtit l'archive depuis le début : sous le pilote
+`cloudflare`, dont la limite tombe vers onze rendus d'affilée (TCK-2811), un dossier de plus de onze
+générés peut épuiser ses quatre essais et échouer. La préproduction rend par `dompdf`. La sortie serait
+de mettre en cache les rendus entre deux essais — ticket à part si le pilote change.
+
+**À faire au déploiement** : la migration `2026_11_14_160000_create_document_vault_archives_table`
+(non jouée sur la base de démo : écriture).

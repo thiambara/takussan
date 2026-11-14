@@ -33,6 +33,9 @@ vi.mock('next/navigation', () => ({
 
 const reponse: { data: { data: Coffre } | undefined } = { data: undefined };
 vi.mock('@/lib/queries/coffre', () => ({
+  // TCK-2812 — l'archive préparée : rien de demandé ici.
+  useArchivesPreparees: () => ({ data: undefined }),
+  useDemanderLArchive: () => ({ isPending: false, isError: false, mutate: () => undefined }),
   useCoffreDeDocuments: () => ({ isPending: false, isError: false, data: reponse.data, refetch: vi.fn() }),
   useRechercheDansLeCoffre: () => ({ isPending: true }),
 }));

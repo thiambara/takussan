@@ -120,6 +120,9 @@ final class NotificationClassification
         // ─── Documents ────────────────────────────────────────────────────────────────────
         // TCK-2783 — une pièce à renouveler : un geste attendu de son porteur.
         'document.expiring_soon' => [self::S, true],
+        // TCK-2812 — l'archive demandée est prête, ou a échoué : une information sur son propre geste.
+        'document.archive_ready' => [self::S, false],
+        'document.archive_failed' => [self::S, false],
 
         // ─── Gouvernance de l'agence et délégations ───────────────────────────────────────
         'governance.role_capabilities_changed' => [self::S, false],
@@ -287,6 +290,8 @@ final class NotificationClassification
         'credits' => self::S,
         // TCK-2783 — la fiche d'une pièce du coffre.
         'document' => self::S,
+        // TCK-2812 — le coffre, où se télécharge l'archive préparée.
+        'document_archive' => self::S,
     ];
 
     /**

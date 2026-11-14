@@ -2249,6 +2249,36 @@ Chaque pivot porte aussi la **copie figée de la ligne** : `amount` decimal(14,2
 
 ---
 
+### 29 bis. DocumentVaultArchive 🆕
+
+**Table :** `document_vault_archives` (migration `2026_11_14_160000`)
+**Description :** TCK-2812 ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-14) — une préparation de l'archive `.zip` d'un dossier du coffre, au-delà du seuil synchrone de TCK-2770 (40 entrées). Elle ne garde **aucune entrée** du dossier : `BatirLArchiveDuCoffreJob` (file `media`) rejuge le coffre à la construction, sous le profil actif de la demande. Le fichier ne sort que par la route signée réservée au demandeur ; `PurgerLesArchivesDuCoffre` (toutes les heures) l'efface à l'expiration.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant interne |
+| uuid | uuid | | | Identifiant opaque de la préparation, seul exposé (`id` de la ressource, chemin du lien signé) ; unique |
+| user_id | FK users | | | Demandeur (`cascadeOnDelete`) ; le seul compte à qui le lien s'ouvre |
+| profile_type / profile_id | string(120) / bigint | oui | null | Profil actif de la demande, réinstallé par le travail (liste fermée des cinq profils) |
+| folder | string(40) | | | Clé du dossier (`receipts:2026`, `statements`, `lease:22`…) |
+| locale | string(8) | | | Langue de la demande : les noms des générés la suivent |
+| status | string(16) | | `pending` | `pending`, `ready`, `failed` (`DocumentVaultArchiveStatus`) |
+| error_code | string(80) | oui | null | Code d'erreur d'une préparation échouée (`document.archive_render_failed`…) |
+| disk / path | string(40) / string(255) | oui | null | Disque des médias privés et chemin opaque `archives-du-coffre/{user}/{uuid}.zip` ; masqués à la sérialisation |
+| size | bigint | oui | null | Taille du `.zip` |
+| entries_count | integer | oui | null | Nombre d'entrées écrites |
+| expires_at | timestampTz | oui | null | Fin de vie de l'archive prête et de son lien (24 h) |
+| created_at / updated_at | datetime | | auto | |
+
+**Contraintes et index :**
+- `document_vault_archives_one_pending` — unique **partiel** `(user_id, folder, profile_type, profile_id) NULLS NOT DISTINCT WHERE status = 'pending'` : une demande identique en cours ne lance pas un second travail.
+- Index : `(user_id, status)`, `(expires_at)`.
+
+**Relations :**
+- `user()` → belongsTo User
+
+---
+
 ### 30. Setting 🆕
 
 **Table :** `settings`
@@ -6233,6 +6263,7 @@ Aucun : tous les modèles ont été enrichis ou remplacés.
 - **Guarantor** — Garants de baux
 - **Payout** — Reversements aux bailleurs
 - **DocumentShareLink** — Liens de partage sécurisés 🆕
+- **DocumentVaultArchive** — Archives préparées d'un dossier du coffre (TCK-2812) 🆕
 - **Setting** — Paramètres clé/valeur scopés 🆕
 - **Integration** — Intégrations tierces (API keys) 🆕
 - **Task** — Tâches/rappels polymorphes (CRM) 🆕

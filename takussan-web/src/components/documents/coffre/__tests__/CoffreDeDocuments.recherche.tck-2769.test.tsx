@@ -59,6 +59,9 @@ const recherche: { appels: [string, number][]; data: RechercheDansLeCoffre | und
   isPending: false,
 };
 vi.mock('@/lib/queries/coffre', () => ({
+  // TCK-2812 — l'archive préparée : rien de demandé ici.
+  useArchivesPreparees: () => ({ data: undefined }),
+  useDemanderLArchive: () => ({ isPending: false, isError: false, mutate: () => undefined }),
   useCoffreDeDocuments: () => ({ isPending: false, isError: false, data: { data: COFFRE }, refetch: vi.fn() }),
   useRechercheDansLeCoffre: (q: string, page: number) => {
     recherche.appels.push([q, page]);

@@ -86,6 +86,8 @@ final class NotificationTarget
         'credits' => '/app/credits',
         // TCK-2783 — le rappel d'expiration d'une pièce ouvre sa fiche (`DocumentDetailClient`).
         'document' => '/app/documents/{id}',
+        // TCK-2812 — l'archive préparée d'un dossier ouvre le coffre, où elle se télécharge.
+        'document_archive' => '/app/documents',
     ];
 
     /**

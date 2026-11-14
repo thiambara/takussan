@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentShareLinkController;
+use App\Http\Controllers\Api\DocumentVaultArchiveController;
 use App\Http\Controllers\Api\DocumentVaultController;
 use App\Http\Controllers\Api\DocumentVersionController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me/document-vault', [DocumentVaultController::class, 'show'])->name('me.document-vault');
     // TCK-2770 — l'archive .zip d'un dossier du coffre (`?folder=`).
     Route::get('me/document-vault/archive', [DocumentVaultController::class, 'archive'])->name('me.document-vault.archive');
+    // TCK-2812 (ADR-0099, amendement du 2026-11-14) — l'archive PRÉPARÉE au-delà du seuil synchrone : la
+    // demande, l'état, et le lien signé réservé au demandeur (`signed` vérifié relatif dans le contrôleur).
+    Route::post('me/document-vault/archives', [DocumentVaultArchiveController::class, 'store'])->name('me.document-vault.archives.store');
+    Route::get('me/document-vault/archives', [DocumentVaultArchiveController::class, 'index'])->name('me.document-vault.archives.index');
+    Route::get('me/document-vault/archives/{archive}/download', [DocumentVaultArchiveController::class, 'download'])
+        ->whereUuid('archive')
+        ->name('me.document-vault.archives.download');
     Route::get('documents/generated', [DocumentVaultController::class, 'generated'])->name('documents.generated');
     Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('documents/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');

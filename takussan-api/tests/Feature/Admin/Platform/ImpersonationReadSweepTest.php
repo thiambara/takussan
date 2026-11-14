@@ -103,6 +103,9 @@ class ImpersonationReadSweepTest extends TestCase
         'advertiser',
         // TCK-2468 — les cibles du Radar : même motif.
         'target',
+        // TCK-2812 — route signée, liée au demandeur, et dans `REFUSED_READS` : refusée sous session
+        // (`ArchiveAsynchroneDuCoffreTest`).
+        'archive',
     ];
 
     private User $cible;

@@ -11811,6 +11811,18 @@
           "interdit": "You don’t have access to this folder.",
           "indisponible": "This folder can’t be put into a single archive. Download its documents one by one.",
           "echec": "The archive couldn’t be downloaded. Try again."
+        },
+        "enPreparation": "Preparing…",
+        "telechargerLArchive": "Download the archive",
+        "telechargerLArchiveZip": "Download the archive (.zip)",
+        "telechargerLArchiveNomme": "Download the archive: {nom}",
+        "reessayer": "Try again",
+        "reessayerNomme": "Try the archive again: {nom}",
+        "preparee": {
+          "preparation": "The “{nom}” archive is being prepared. You will be notified as soon as it is ready: you can leave this page.",
+          "prete": "The “{nom}” archive is ready. It stays available for 24 hours.",
+          "echec": "The “{nom}” archive could not be prepared. Try again.",
+          "demandeEchouee": "The archive could not be requested. Try again."
         }
       }
     },
@@ -19306,6 +19318,14 @@
         "expiring_soon": {
           "title": "Document expiring soon: {document_name}",
           "body": "\"{document_name}\" expires on {expires_at}. Add a new version from its page to keep your file up to date."
+        },
+        "archive_ready": {
+          "title": "Your archive is ready",
+          "body": "The document archive you requested is ready. Download it from your documents within 24 hours."
+        },
+        "archive_failed": {
+          "title": "Your archive could not be prepared",
+          "body": "The document archive you requested could not be prepared. Try again from your documents."
         }
       }
     },

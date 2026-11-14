@@ -160,6 +160,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
 const LIGNES_DE_MESSAGE_CONNUES = new Map([
   ['takussan-web/src/components/media/MediaManager.tsx',
     "`p.status === 'error'` colore la ligne d'un téléversement en échec — un message, pas une pastille"],
+  // TCK-2812 — la note sous un dossier du coffre dont l'archive se prépare.
+  ['takussan-web/src/components/documents/coffre/CoffreDeDocuments.tsx',
+    "`etat === 'echec'` met à l'encre destructive (role=alert) la PHRASE qui dit que l'archive n'a pas pu "
+    + "être préparée, comme les autres lignes d'échec du coffre ; en préparation ou prête, la même phrase "
+    + 'reste à l’encre discrète (role=status) — un message, ni pastille ni statut affiché'],
 ]);
 
 const JETONS = 'success|warning|destructive|info|accent|primary';

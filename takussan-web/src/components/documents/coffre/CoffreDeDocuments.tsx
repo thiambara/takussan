@@ -16,10 +16,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useDejaOuvert } from '@/hooks/useDejaOuvert';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useTelechargementApi } from '@/hooks/useTelechargementApi';
-import { cheminDeLArchive, voirLeCoffre, voirLesTrouvees, type DossierVu, type EntreeVue } from '@/lib/documents/coffre';
+import {
+  archivePreparee,
+  cheminDeLArchive,
+  SEUIL_DE_L_ARCHIVE_DIRECTE,
+  voirLeCoffre,
+  voirLesTrouvees,
+  type ArchivePreparee,
+  type DossierVu,
+  type EntreeVue,
+} from '@/lib/documents/coffre';
 import { ciblesDeRangement } from '@/lib/documents/rangement';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
-import { useCoffreDeDocuments, useRechercheDansLeCoffre } from '@/lib/queries/coffre';
+import { useArchivesPreparees, useCoffreDeDocuments, useDemanderLArchive, useRechercheDansLeCoffre } from '@/lib/queries/coffre';
 import { cn } from '@/lib/utils';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 
@@ -49,6 +58,11 @@ const AjoutAuCoffre = dynamic(() => import('./ajout/AjoutAuCoffre').then((m) => 
  * L'archive est servie par l'API ({@link cheminDeLArchive}) ; son état en cours et son échec ont leur
  * propre ligne, distincte de celle d'un document seul.
  *
+ * TCK-2812 — au-delà de {@link SEUIL_DE_L_ARCHIVE_DIRECTE} entrées, le geste demande une archive
+ * PRÉPARÉE ({@link useDemanderLArchive}) : le dossier dit qu'elle se prépare et qu'on peut quitter la
+ * page, puis le bouton la télécharge quand elle est prête ; un échec le dit, avec « Réessayer ». En deçà,
+ * le téléchargement direct de TCK-2770 ne change pas.
+ *
  * TCK-2729 — le dossier d'un bien d'un bailleur bloqué est en lecture seule : il se lit, rien ne s'y
  * ajoute ni ne s'y remplace, et le coffre le dit une fois.
  */
@@ -76,6 +90,12 @@ export function CoffreDeDocuments() {
   const { telecharger, enCours, echec } = useTelechargementApi();
   const archive = useTelechargementApi();
   const { q, page } = useRechercheDansLURL();
+  // TCK-2812 — l'état des archives préparées ne se lit que si un dossier dépasse le seuil direct.
+  const avecPreparation = (requete.data?.data.folders ?? []).some(
+    (f) => (f.kind === 'receipts' || f.kind === 'statements') && f.entries.length > SEUIL_DE_L_ARCHIVE_DIRECTE,
+  );
+  const preparees = useArchivesPreparees({ enabled: avecPreparation });
+  const demande = useDemanderLArchive();
 
   if (requete.isPending) {
     return (
@@ -119,14 +139,49 @@ export function CoffreDeDocuments() {
   const ouvert = (d: DossierVu) => bascules[d.key] ?? (!d.replieParDefaut || filtre === d.key || filtre === EXPIRE);
   const basculer = (d: DossierVu) => setBascules((b) => ({ ...b, [d.key]: !ouvert(d) }));
   const surTelecharger = (chemin: string, nom: string) => void telecharger(chemin, `${nom}.pdf`);
+  const preparationDe = (d: DossierVu): ArchivePreparee | null =>
+    archivePreparee(d) ? (preparees.data?.data.find((a) => a.folder === d.key) ?? null) : null;
   const toutTelecharger = (d: DossierVu) => {
     const chemin = cheminDeLArchive(d);
-    if (chemin !== null && !archive.enCours) void archive.telecharger(chemin, t('archive.nomDuFichier', { nom: libelles.dossier(d.etiquette) }));
+    if (chemin === null || archive.enCours) return;
+    const nomDuFichier = t('archive.nomDuFichier', { nom: libelles.dossier(d.etiquette) });
+    if (!archivePreparee(d)) {
+      void archive.telecharger(chemin, nomDuFichier);
+      return;
+    }
+    const preparation = preparationDe(d);
+    if (preparation?.status === 'ready' && preparation.download_path !== null) {
+      void archive.telecharger(preparation.download_path, nomDuFichier);
+    } else if (preparation?.status !== 'pending' && !demande.isPending) {
+      demande.mutate({ folder: d.key });
+    }
+  };
+  const etatDeLArchive = (d: DossierVu): EtatDuBoutonDArchive => {
+    if (archive.enCours) return 'telechargement';
+    const preparation = preparationDe(d);
+    if (preparation?.status === 'pending' || (demande.isPending && demande.variables?.folder === d.key)) return 'preparation';
+    if (preparation?.status === 'ready') return 'prete';
+    if (preparation?.status === 'failed') return 'echec';
+    return 'pret';
   };
   const boutonArchive = (d: DossierVu, nom: string, bureau: boolean) =>
     cheminDeLArchive(d) === null ? null : (
-      <BoutonDArchive bureau={bureau} nom={nom} enCours={archive.enCours} onClick={() => toutTelecharger(d)} />
+      <BoutonDArchive bureau={bureau} nom={nom} etat={etatDeLArchive(d)} onClick={() => toutTelecharger(d)} />
     );
+  // TCK-2812 — sous le dossier, ce que devient l'archive préparée : elle se prépare, elle est prête, ou elle a échoué.
+  const noteDArchive = (d: DossierVu, nom: string) => {
+    const etat = etatDeLArchive(d);
+    if (!archivePreparee(d) || (etat !== 'preparation' && etat !== 'prete' && etat !== 'echec')) return null;
+    return (
+      <p
+        role={etat === 'echec' ? 'alert' : 'status'}
+        data-testid="note-d-archive"
+        className={cn('mt-2 px-1 text-ui leading-snug', etat === 'echec' ? 'text-destructive' : 'text-muted-foreground')}
+      >
+        {t(`archive.preparee.${etat}`, { nom })}
+      </p>
+    );
+  };
 
   const libelleAjout = vide ? t('ajouterPremiere') : t('ajouter');
   // Au téléphone, l'action de la maquette (`Bouton taille="grand"`) : 48 px, texte 15, icône 18.
@@ -194,6 +249,11 @@ export function CoffreDeDocuments() {
       {archive.enCours ? (
         <p role="status" className="sr-only">
           {t('archive.enCours')}
+        </p>
+      ) : null}
+      {demande.isError ? (
+        <p role="alert" data-testid="echec-de-la-demande-d-archive" className="text-ui text-destructive">
+          {demande.error.status === 422 ? t('archive.errors.indisponible') : t('archive.preparee.demandeEchouee')}
         </p>
       ) : null}
 
@@ -285,6 +345,7 @@ export function CoffreDeDocuments() {
                   ) : (
                     <p className="mt-2 rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">{t(`vide.${d.kind}`)}</p>
                   )}
+                  {noteDArchive(d, nom)}
                 </section>
               );
             }
@@ -333,6 +394,7 @@ export function CoffreDeDocuments() {
                     {boutonArchive(d, nom, false)}
                   </div>
                 )}
+                {noteDArchive(d, nom)}
               </section>
             );
           })}
@@ -492,30 +554,53 @@ function EntreeDArbre({
 }
 
 /**
+ * TCK-2812 — l'état du geste : `pret` (rien de demandé), `telechargement` (un téléchargement en cours),
+ * `preparation` (l'archive préparée se bâtit), `prete` (elle attend d'être téléchargée), `echec`.
+ */
+type EtatDuBoutonDArchive = 'pret' | 'telechargement' | 'preparation' | 'prete' | 'echec';
+
+/**
  * TCK-2770 — « Tout télécharger » d'un dossier en lot. Téléphone : la pastille de 44 px de la maquette
  * (`DossierMobile`) ; bureau : le lien d'accent à droite du titre (`CoffreBureau`), « (.zip) » compris.
  * Pendant la préparation, il le dit et ne se relance pas.
+ *
+ * TCK-2812 — l'archive préparée : « Préparation… » tant qu'elle se bâtit, « Télécharger l'archive » quand
+ * elle est prête, « Réessayer » après un échec.
  */
 function BoutonDArchive({
   bureau,
   nom,
-  enCours,
+  etat,
   onClick,
 }: {
   readonly bureau: boolean;
   readonly nom: string;
-  readonly enCours: boolean;
+  readonly etat: EtatDuBoutonDArchive;
   readonly onClick: () => void;
 }) {
   const t = useTranslations('documents.coffre.archive');
-  const libelle = enCours ? t('enCours') : bureau ? t('toutTelechargerZip') : t('toutTelecharger');
+  const enCours = etat === 'telechargement' || etat === 'preparation';
+  const libelle =
+    etat === 'telechargement'
+      ? t('enCours')
+      : etat === 'preparation'
+        ? t('enPreparation')
+        : etat === 'prete'
+          ? bureau
+            ? t('telechargerLArchiveZip')
+            : t('telechargerLArchive')
+          : etat === 'echec'
+            ? t('reessayer')
+            : bureau
+              ? t('toutTelechargerZip')
+              : t('toutTelecharger');
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={enCours}
       aria-busy={enCours}
-      aria-label={enCours ? undefined : t('toutTelechargerNomme', { nom })}
+      aria-label={enCours ? undefined : t(etat === 'prete' ? 'telechargerLArchiveNomme' : etat === 'echec' ? 'reessayerNomme' : 'toutTelechargerNomme', { nom })}
       className={cn(
         'outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-progress',
         bureau

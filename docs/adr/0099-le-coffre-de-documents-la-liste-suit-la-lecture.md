@@ -1,8 +1,8 @@
 # ADR-0099 — Le coffre de documents : la liste suit la lecture, et les documents générés sont listés depuis leur source, jamais copiés
 
-- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur
+- **Statut** : Accepté le 2026-11-10 (recommandation de la famille 4 validée par le porteur, « je valide tes recommandations ») — modalités : décisions de la session, à revoir ; **amendé le 2026-11-12** (cf. § *Amendement du 2026-11-12 — le document interne de la fiche client*), **validé par le porteur le 2026-11-12** pour l'export des métadonnées, le défaut « interne » au téléversement du personnel et l'existant non migré ; **amendé le 2026-11-13** (cf. § *Amendement du 2026-11-13 — le nom des auteurs d'un document, selon le lecteur*), décisions de la session appliquées par défaut, sur la liste du porteur ; **amendé le 2026-11-14** (cf. § *Amendement du 2026-11-14 — l'archive préparée d'un dossier du coffre*), décisions de la session appliquées par défaut
 - **Date** : 2026-11-10
-- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13)
+- **Tickets** : TCK-2655 (API), TCK-2656 (coffre par dossier) ; la partie « Documents » de TCK-2639 (fiche bien) et de TCK-2641 (fiche bailleur) ; TCK-2759 (document interne, amendement du 2026-11-12) ; TCK-2773 (noms des auteurs, amendement du 2026-11-13) ; TCK-2812 (archive préparée, amendement du 2026-11-14)
 - **Amende** : la règle posée par TCK-820 (liste restreinte aux téléversements de l'appelant), **sans la révoquer**
 - **S'appuie sur** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (cloisonnement des bailleurs), [ADR-0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md) (impersonation)
 
@@ -215,3 +215,46 @@ Relevé sur `feat/audit-ux-app-lot-2` (7641542ea) le 2026-11-13, en lecture seul
 - `DocumentResource` (`uploaded_by_person`, `verified_by_person`, sur un document seul), `DocumentVersionResource` (`uploaded_by_person`), `DocumentShareLinkController::format` (`created_by_person`).
 - Le front de la fiche (`DocumentDetailClient`, `VersionsDuDocument`, `LiensDePartage`) : « Ajouté par », « Vérifié par », l'auteur de chaque version et de chaque lien, le rôle traduit.
 - Gardes (TCK-2773) : un test par lecteur, sur le corps brut de la réponse, chacun apparié au cas du personnel qui lit le nom ; le lien public sans auteur ; vérifiées par ablation du juge.
+
+## Amendement du 2026-11-14 — l'archive préparée d'un dossier du coffre (TCK-2812)
+
+- **Décisions de la session, recommandées par l'implémenteur et appliquées par défaut le 2026-11-14** (file `media` et plafond, table d'état, lien de 24 h), portées sur la liste du porteur, qui peut les renverser.
+
+### Contexte
+
+TCK-2770 a bâti « Tout télécharger » pendant la requête, borné à 40 entrées (`ArchiveDuCoffre::MAX_FICHIERS`) et 100 Mo de pièces : 40 quittances se rendent en 12,8 à 14,4 s sous `dompdf`, contre `max_execution_time = 60`. Au-delà, 422 `document.archive_too_large`. La préproduction rend par `dompdf` (relevé du 2026-11-14, `docs/infra/prod-drivers.json`). Sous `cloudflare`, onze rendus d'affilée dépassent la limite de débit du pilote (TCK-2811).
+
+La file `media` est servie par la connexion `database`, dont le délai de reprise vaut 90 s (`config/queue.php`, ADR-0078) : un travail de cette file ne dépasse pas 85 s (`scripts/check-queues.mjs`).
+
+### Décision
+
+1. **Le seuil reste celui de TCK-2770** : jusqu'à 40 entrées, l'archive se bâtit pendant la requête (`GET /api/me/document-vault/archive`), inchangée. Au-delà, le front passe par la **préparation** : `POST /api/me/document-vault/archives` (`folder`) rend 202 et l'état de la préparation.
+2. **Le travail `BatirLArchiveDuCoffreJob` tourne sur la file `media`**, `$timeout` 85 s, échec au dépassement. Il réutilise `ArchiveDuCoffre::construire()` avec un plafond de **150 entrées** (`MAX_FICHIERS_PREPAREE`), soit environ 50 s au rythme mesuré par TCK-2770. Au-delà, la demande rend 422 `document.archive_too_large`, comme aujourd'hui au-delà de 40. Le plafond des octets de pièces ne change pas (100 Mo).
+3. **Le jugement se fait à la construction.** La demande vérifie seulement que le dossier est dans le coffre de l'appelant, sans garder ses entrées. Le travail rejuge le coffre par `DocumentVault::for()`, sous le **profil actif de la demande** (rangé avec elle, réinstallé dans le travail puis retiré), et dans la langue de la demande. Une entrée devenue illisible entre-temps n'y entre pas.
+4. **Une limite de débit du pilote** (`EchecDuPilotePdf::estUneLimiteDeDebit`) relâche le travail pour un nouvel essai 60 s plus tard. Le travail a quatre essais. Chaque essai rebâtit l'archive depuis le début : aucun rendu n'est gardé d'un essai à l'autre (sous `cloudflare`, un dossier de plus de onze entrées peut donc échouer ; écart assumé, la préproduction rend par `dompdf`). Tout autre échec termine la préparation en échec. Un échec notifie l'appelant et ne laisse aucun fichier.
+5. **L'état vit dans `document_vault_archives`**, une ligne par préparation : demandeur, profil, dossier, langue, statut (`pending`, `ready`, `failed`), code d'échec, disque, chemin, taille, expiration. Un index unique partiel sur les préparations **en cours** (demandeur, profil, dossier ; `NULLS NOT DISTINCT`) fait qu'une demande identique en cours ne lance pas un second travail. Une nouvelle demande remplace les préparations terminées du même dossier, fichiers compris.
+6. **Le fichier vit sur le disque des médias privés** (`config('media-library.disk_name')`, `r2-private` en production, ADR-0029), sous un nom opaque (`archives-du-coffre/{user}/{uuid}.zip`), écrit seulement quand l'archive est entière. Jamais de `getPath()`.
+7. **Le lien est une route signée relative, valable 24 h, derrière l'authentification** : `GET /api/me/document-vault/archives/{uuid}/download`. Il ne s'ouvre qu'au compte qui l'a demandé (403 sinon) et ne porte ni identifiant de document ni chemin. Après l'expiration, il rend 403 (signature) ou 410. Le lien n'est jamais rangé dans une notification : l'état (`GET /api/me/document-vault/archives`) le rend au demandeur.
+8. **La purge** (`PurgerLesArchivesDuCoffre`, toutes les heures) efface les archives expirées et leurs fichiers, ainsi que les préparations échouées ou restées en cours depuis plus de 24 h. Un compte effacé n'est qu'anonymisé et *soft-deleted* (`AccountDeletionService::anonymize()`) : la cascade de `user_id` ne joue pas, ses jetons sont révoqués (le lien, réservé au demandeur authentifié, ne s'ouvre donc plus), et c'est cette purge qui efface ses archives, au plus 24 h après. Un travail encore en file échoue sans notifier (le compte n'est plus résolu).
+9. **Sous impersonation, refusé** (ADR-0055 §3) : la demande est une écriture, et l'état comme le téléchargement entrent dans `REFUSED_READS`.
+10. **L'appelant est notifié** quand l'archive est prête (`document.archive_ready`) et quand elle échoue (`document.archive_failed`). La cible `document_archive` ouvre le coffre (`/app/documents`), hors agence. Il n'y a pas d'interrupteur de préférence, car la notification répond au geste de la personne : la cloche, et le courriel quand le compte en a un.
+
+### Conséquences
+
+- Le bailleur qui a plus de 40 quittances dans l'année les reçoit en un geste, sans rester sur la page.
+- Au-delà de 150 entrées, il les télécharge encore un par un. Dépasser ce plafond demande la file `long` (ADR-0078) ou un travail découpé.
+- Une table de plus (`DocumentVaultArchive`, `docs/models-spec.md`).
+
+### Options écartées
+
+- **La file `long`** (1900 s) : sans plafond pratique, mais le ticket nomme `media`, et le volume mesuré n'en a pas besoin.
+- **`ShouldBeUnique` et le cache** : ils dédoublonnent, mais ne donnent au front aucun état durable à montrer.
+- **Garder les rendus d'un essai à l'autre** : utile seulement sous `cloudflare`, qui ne sert aucun environnement.
+- **L'URL signée dans la notification** : elle survivrait dans `app_notifications` et dans le courriel, hors de l'authentification.
+
+### Application
+
+- `App\Jobs\Documents\BatirLArchiveDuCoffreJob`, `App\Jobs\Documents\PurgerLesArchivesDuCoffre`, `App\Models\DocumentVaultArchive`, `DocumentVaultArchiveController`.
+- `ArchiveDuCoffre::construire()` reçoit son plafond. `verifierLaDemande()` juge la demande sans en garder les entrées.
+- Front : `CoffreDeDocuments` (« Tout télécharger » au-delà de 40 entrées : préparation, prête, échec avec « Réessayer »), `lib/queries/coffre.ts`.
+- Gardes : `ArchiveAsynchroneDuCoffreTest`, vérifiées par ablation du jugement à l'exécution, de la vérification du demandeur, de la signature et du refus sous impersonation.
