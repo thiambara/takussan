@@ -60,7 +60,7 @@ Reproduction (à rejouer avant tout correctif) :
 
 ## Écarts
 
-- **Impersonation** : `AuthContext` n'y reçoit aucun jeton (TCK-600), donc rien ne s'y pose ; le défaut y reste ouvert, comme le veut AC2.
+- **Impersonation** : `AuthContext` n'y reçoit aucun jeton (TCK-600), donc rien ne s'y posait. **Fermé par TCK-2802** : la coque dit l'impersonation, côté serveur, par un booléen qui tient lieu de jeton.
 - **Premier peint** : le HTML rendu au serveur reste celui du visiteur jusqu'à l'hydratation ; `useLayoutEffect` pose le compte avant le premier peint du client.
 
 ## Hors périmètre

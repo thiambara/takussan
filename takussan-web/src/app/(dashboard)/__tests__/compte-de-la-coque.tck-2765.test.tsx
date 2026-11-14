@@ -20,6 +20,11 @@ const agent = {
   two_factor_enabled: false,
 } as unknown as User;
 
+// TCK-2802 — la coque lit le cookie d'impersonation (`estEnImpersonation`) : ici, aucun.
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ get: () => undefined, has: () => false }),
+  headers: async () => new Headers(),
+}));
 vi.mock('next/navigation', () => ({
   redirect: vi.fn(),
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
