@@ -4040,7 +4040,10 @@
       "chambresAuMoins": "Bedrooms, at least",
       "pieceDIdentite": "ID document",
       "memeNumero": "same number",
-      "plusTardDansModifier": "Occupation, language, ID document, bedrooms, stage, cities and minimum budget: under “Edit” on the record, whenever you have time."
+      "plusTardDansModifier": "Occupation, language, ID document, bedrooms, stage, cities and minimum budget: under “Edit” on the record, whenever you have time.",
+      "sondeEnPauseJusqua": "Duplicate checking is paused until {heure} (Dakar time). You can still save the record.",
+      "sondeEnPause": "Duplicate checking is paused for now. You can still save the record.",
+      "sondeImpossible": "We couldn’t check for duplicates. You can still save the record."
     },
     "fiche": {
       "referentCourt": "agent {nom}",

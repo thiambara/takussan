@@ -18,8 +18,9 @@ import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { localeDisplayLabel, type Locale } from '@/i18n/config';
 import { ApiError } from '@/lib/api';
 import { initiales } from '@/lib/fiche-publique';
+import { formatDate } from '@/lib/format';
 import { formaterTelephone } from '@/lib/phone';
-import { type DoublonSonde, useSondeDeDoublon } from '@/lib/queries/customer-duplicates';
+import { type DoublonSonde, type SondeImpossible, useSondeDeDoublon } from '@/lib/queries/customer-duplicates';
 import {
   CUSTOMER_LOCALE_DEFAULT,
   customerFormSchema,
@@ -212,6 +213,8 @@ export function CreationDuClient({ open, onClose, initial, visiteDOrigine }: Cre
       </div>
       <ChampsDeContact control={control} emailOuvert={Boolean(email)} doublon={doublons !== null} />
       {doublons}
+      {/* TCK-2785 — à la place de l'alerte, jamais avec elle : la sonde n'a rien pu dire, et l'envoi reste libre. */}
+      {doublons === null && sonde.impossible ? <SondeEnSuspens impossible={sonde.impossible} /> : null}
     </div>
   );
 
@@ -317,6 +320,28 @@ function ChampsDeContact({ control, emailOuvert, doublon }: { readonly control: 
       />
       {ouvert ? <FormInput control={control} name="email" label={tForm('email')} type="email" autoComplete="off" /> : null}
     </>
+  );
+}
+
+/**
+ * TCK-2785 — la sonde n'a pas pu vérifier : une ligne neutre, ni rouge ni bloquante. Le 429 (seau épuisé)
+ * dit l'heure de reprise à Dakar quand l'API la donne, et le même texte quelle que soit la saisie ; toute
+ * autre erreur dit seulement que la vérification n'a pas pu se faire.
+ */
+function SondeEnSuspens({ impossible }: { readonly impossible: SondeImpossible }) {
+  const t = useTranslations('crm.creation');
+  const locale = useLocale() as Locale;
+  const texte =
+    impossible.cause === 'autre'
+      ? t('sondeImpossible')
+      : impossible.reprise !== null
+        ? t('sondeEnPauseJusqua', { heure: formatDate(impossible.reprise, locale, { dateStyle: undefined, timeStyle: 'short' }) })
+        : t('sondeEnPause');
+  return (
+    <p role="status" className="flex items-start gap-2 text-ui leading-snug text-muted-foreground">
+      <CircleAlert className="mt-0.5 size-4 flex-none" aria-hidden="true" />
+      {texte}
+    </p>
   );
 }
 

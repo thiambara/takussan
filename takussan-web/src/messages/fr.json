@@ -3997,7 +3997,10 @@
       "chambresAuMoins": "Chambres, au moins",
       "pieceDIdentite": "Pièce d’identité",
       "memeNumero": "même numéro",
-      "plusTardDansModifier": "Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier » de la fiche, quand vous aurez le temps."
+      "plusTardDansModifier": "Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier » de la fiche, quand vous aurez le temps.",
+      "sondeEnPauseJusqua": "La vérification des doublons est en pause jusqu’à {heure} (heure de Dakar). Vous pouvez enregistrer la fiche.",
+      "sondeEnPause": "La vérification des doublons est en pause pour le moment. Vous pouvez enregistrer la fiche.",
+      "sondeImpossible": "La vérification des doublons n’a pas pu se faire. Vous pouvez enregistrer la fiche."
     },
     "fiche": {
       "referentCourt": "référent {nom}",

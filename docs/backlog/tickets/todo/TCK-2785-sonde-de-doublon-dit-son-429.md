@@ -73,22 +73,22 @@ ligne dit alors que la vérification n'a pas pu se faire. Rien de cela ne bloque
 
 ## Delta à produire
 
-- [ ] La sonde expose l'état « vérification impossible » et l'attente du 429, lue sur `retry_after`.
-- [ ] La création courte et les autres formulaires qui sondent affichent la ligne décrite plus haut.
-- [ ] Tests vitest : 429 avec `retry_after`, 429 sans `retry_after`, 5xx, erreur réseau, retour à la normale après
+- [x] La sonde expose l'état « vérification impossible » et l'attente du 429, lue sur `retry_after`.
+- [x] La création courte et les autres formulaires qui sondent affichent la ligne décrite plus haut.
+- [x] Tests vitest : 429 avec `retry_after`, 429 sans `retry_after`, 5xx, erreur réseau, retour à la normale après
   l'attente, et aucun appel relancé automatiquement sur 429.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Sonde à 429 `{retry_after: 1800}` : la ligne s'affiche, avec une heure de reprise 30 minutes plus tard
+- [x] AC1 — Sonde à 429 `{retry_after: 1800}` : la ligne s'affiche, avec une heure de reprise 30 minutes plus tard
   au fuseau de Dakar, et aucune alerte de doublon. Le test vérifie qu'elle est présente ; l'absence d'alerte ne
   suffit pas.
-- [ ] AC2 — Sonde à 200 `{data: []}` : aucune ligne et aucune alerte, comme aujourd'hui.
-- [ ] AC3 — Sonde à 500 ou en erreur réseau : la ligne « vérification impossible », sans heure.
-- [ ] AC4 — « Enregistrer » reste actif dans les trois cas d'erreur.
-- [ ] AC5 — Après un 429, aucun nouvel appel à `/api/customers/duplicates` ne part sans nouvelle saisie (compté sur
+- [x] AC2 — Sonde à 200 `{data: []}` : aucune ligne et aucune alerte, comme aujourd'hui.
+- [x] AC3 — Sonde à 500 ou en erreur réseau : la ligne « vérification impossible », sans heure.
+- [x] AC4 — « Enregistrer » reste actif dans les trois cas d'erreur.
+- [x] AC5 — Après un 429, aucun nouvel appel à `/api/customers/duplicates` ne part sans nouvelle saisie (compté sur
   le double réseau du test).
-- [ ] AC6 — Vérifié par ablation. Une sonde qui rend `[]` sur erreur, comme aujourd'hui, rend AC1 et AC3 rouges.
+- [x] AC6 — Vérifié par ablation. Une sonde qui rend `[]` sur erreur, comme aujourd'hui, rend AC1 et AC3 rouges.
 
 ## Hors périmètre
 
@@ -97,4 +97,20 @@ ligne dit alors que la vérification n'a pas pu se faire. Rien de cela ne bloque
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Prémisse re-mesurée (2026-11-14).** API : `NUMEROS_COMPLETS_PAR_HEURE = 20` par personne, un seau pour le numéro
+  complet et l'e-mail complet ; seau vide, toute identité complète rend 429 (`budgeterLesSignalementsMasques`). Aucun
+  delta API. Front : le nouveau test rougit 9 sur 10 sur l'ancien hook (la sonde rendait `[]` sur erreur).
+- **Un seul porteur de la sonde** : `grep -rn customers/duplicates src` ne trouve que `CreationDuClient`.
+  `CreationRapideDuLocataire` et `CustomerForm` ne sondent pas.
+- `useSondeDeDoublon` rend `impossible` : `{cause: 'limite', reprise}` (429, `retry_after` du corps, reprise datée
+  sur `errorUpdatedAt`) ou `{cause: 'autre'}` (5xx, réseau, sonde suspendue hors ligne). Une réponse déjà reçue pour
+  la même saisie l'emporte sur l'échec de sa relecture.
+- Pas de relance sur 4xx, explicite dans le hook ; focus, reconnexion et remontage ne relancent pas un 429 tant que son
+  attente court (60 s faute de `retry_after`). Une nouvelle saisie sonde toujours, même pendant l'attente : les sondes
+  par préfixe ne puisent pas dans le seau horaire, les taire cacherait de vrais doublons.
+- Ligne neutre `SondeEnSuspens` (`role="status"`, encre `muted-foreground`, sans `border-warning`), à la place de
+  l'alerte, jamais avec. Heure formatée par `formatDate` (fuseau `Africa/Dakar` par défaut de `lib/format`).
+- Preuves : `CreationDuClient.tck-2785.test.tsx` (10 tests ; AC5 sur `createQueryClient()`, focus et réseau simulés). Ablations du hook, toutes
+  rouges : sonde `[]` sur erreur (9), 429 classé « autre » (5), toute erreur classée 429 (4), succès affiché impossible
+  (2), garde de relance au focus/réseau/montage retirée (1), relance sur 429 (1).
+- Limite : Dakar est à UTC+0, le fuseau n'est donc pas prouvé par ablation sur une machine ou une CI en UTC.
