@@ -21373,7 +21373,11 @@
         "bauxCetteAnnee": "this month · {n} this year",
         "septJours": "over the next 7 days",
         "portefeuille": "{loues} let · {libres} free · {autres} other",
-        "seuil": "alert threshold: {seuil}"
+        "seuil": "alert threshold: {seuil}",
+        "bauxDuMoisDernier": "last month · {n} in {annee}",
+        "enAnnee": "{montant} in {annee}",
+        "aujourdhui": "today",
+        "etAujourdhui": "{contexte} · today"
       },
       "tous": "All {n} figures",
       "moins": "Fewer figures",
@@ -21432,7 +21436,8 @@
         "minutes": "{m} min",
         "heuresMinutes": "{h} h {m}",
         "heures": "{h} h"
-      }
+      },
+      "titreMoisDernier": "Team last month"
     },
     "enChiffres": "In figures",
     "chiffresCles": "Key figures · this month",
@@ -21557,6 +21562,13 @@
     "description": "{nom} · {periode}",
     "descriptionPeriode": "from {debut} to {fin}",
     "exporter": "Export",
-    "impayesCompte": ", {n, plural, one {# unpaid instalment} other {# unpaid instalments}}"
+    "impayesCompte": ", {n, plural, one {# unpaid instalment} other {# unpaid instalments}}",
+    "periodes": {
+      "aria": "Report period",
+      "choisir": "Period: {periode}",
+      "current_month": "This month",
+      "last_month": "Last month"
+    },
+    "chiffresClesMoisDernier": "Key figures · last month"
   }
 }

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 
 import { hrefDeLOnglet } from '@/lib/navigation/rapports';
+import { avecLaPeriode, type PeriodeDesRapports } from '@/lib/rapports/periode';
 
 import { BlocVide } from '../vues/pieces';
 
@@ -16,21 +17,25 @@ export function BasculePortee({
   agence,
   t,
   onglet: id = 'ensemble',
+  periode = 'current_month',
 }: {
   readonly agence: boolean;
   readonly t: (cle: string) => string;
   readonly onglet?: 'ensemble' | 'commissions' | 'pipeline';
+  /** TCK-2791 — la vue d'ensemble garde son mois en changeant de portée. */
+  readonly periode?: PeriodeDesRapports;
 }) {
+  const href = (portee: 'agency' | null) => (id === 'ensemble' ? avecLaPeriode(hrefDeLOnglet(id, portee), periode) : hrefDeLOnglet(id, portee));
   const onglet =
     'inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring';
   const actif = 'bg-card text-foreground shadow-sm';
   const inactif = 'text-muted-foreground hover:text-foreground';
   return (
     <nav aria-label={t('scopeLabel')} className="inline-flex gap-1 rounded-xl bg-muted p-1">
-      <Link href={hrefDeLOnglet(id)} aria-current={agence ? undefined : 'page'} className={`${onglet} ${agence ? inactif : actif}`}>
+      <Link href={href(null)} aria-current={agence ? undefined : 'page'} className={`${onglet} ${agence ? inactif : actif}`}>
         {t('scopeMine')}
       </Link>
-      <Link href={hrefDeLOnglet(id, 'agency')} aria-current={agence ? 'page' : undefined} className={`${onglet} ${agence ? actif : inactif}`}>
+      <Link href={href('agency')} aria-current={agence ? 'page' : undefined} className={`${onglet} ${agence ? actif : inactif}`}>
         {t('scopeAgency')}
       </Link>
     </nav>

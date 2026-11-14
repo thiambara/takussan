@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Download } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button';
 import { hrefDeLOnglet, porteeTransmise } from '@/lib/navigation/rapports';
+import { periodeTransmise } from '@/lib/rapports/periode';
 
 /**
  * TCK-2801 (fiche TCK-2628, O2) — la description de la tête de « Rapports » : « <nom> · du 1 au 30 novembre
@@ -18,16 +19,24 @@ export function DescriptionDesRapports({
   nom,
   nomDeLAgence,
   periode,
+  periodeMoisDernier,
 }: {
   readonly nom: string;
   /** L'agent seul : le nom à dire sous la portée « Agence ». */
   readonly nomDeLAgence?: string | null;
   readonly periode: string;
+  /**
+   * TCK-2791 — la période dite sous « Mois dernier » (`?period=last_month`), sur la vue d'ensemble seule : les
+   * autres onglets lisent le mois en cours.
+   */
+  readonly periodeMoisDernier?: string;
 }) {
   const t = useTranslations('rapports');
   const parametres = useSearchParams();
+  const chemin = usePathname();
   const agence = nomDeLAgence && porteeTransmise(parametres?.get('scope')) === 'agency';
-  return <>{t('description', { nom: agence ? nomDeLAgence : nom, periode })}</>;
+  const moisDernier = periodeMoisDernier && chemin === hrefDeLOnglet('ensemble') && periodeTransmise(parametres?.get('period')) === 'last_month';
+  return <>{t('description', { nom: agence ? nomDeLAgence : nom, periode: moisDernier ? periodeMoisDernier : periode })}</>;
 }
 
 /** TCK-2801 — « Exporter » de la tête : l'onglet Exports, où sont les exports prêts et l'export personnalisé. */

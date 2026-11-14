@@ -4,20 +4,21 @@ import { getMeAction } from '@/app/actions/auth';
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { MiseEnService } from '@/components/dashboard/admin/MiseEnService';
 import { AmorceLectures } from '@/components/providers/AmorceLectures';
+import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { LienDesIndicateurs } from '@/components/rapports/vues/LienDesIndicateurs';
 import { PeriodeDuRapport } from '@/components/rapports/vues/pieces';
 import { TuilesDuRapport } from '@/components/rapports/TuilesDuRapport';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { bornesLisibles } from '@/lib/rapports/periode';
+import { bornesLisibles, moisEnCoursDeLaReponse, type PeriodeDesRapports } from '@/lib/rapports/periode';
 import { ongletOuvert } from '@/lib/navigation/rapports';
 import { AGENCY_INVITATIONS_COUNT_KEY, fetchPendingInvitationsCount } from '@/lib/queries/agency-queues';
 import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
 import type { LectureAmorcee } from '@/lib/queries/lectures-amorcees';
 import { cleMiseEnService, fetchMiseEnService } from '@/lib/queries/mise-en-service';
-import { chiffresDeLAgence, seuilsDesAlertes, type ChiffreDuRapport, type SeuilsDesAlertes } from '@/lib/rapports/chiffres';
+import { chiffresDeLAgence, etatsDuJourAMarquer, seuilsDesAlertes, type ChiffreDuRapport, type SeuilsDesAlertes } from '@/lib/rapports/chiffres';
 import { lireLeContexteDesRapports } from '@/lib/rapports/contexte-serveur';
 import { apercusDuResume } from '@/lib/rapports/indicateurs';
 import { isSuperAdmin } from '@/lib/roles';
@@ -38,8 +39,12 @@ import { GraphiquesDuRapport } from './GraphiquesDuRapport';
  * (TCK-1830), comme sur l'ancienne page. « À traiter » a quitté la page pour l'accueil (`AFaireAdmin`,
  * TCK-2624 : KYC, modération, invitations, impayés). Une lecture qui échoue rend l'état dégradé
  * (`AgencyDegradedState`), la carte de mise en service au-dessus, comme avant.
+ *
+ * TCK-2791 — `periode` : le mois que l'API résume (« Ce mois · Mois dernier »). Sous « Mois dernier », les états
+ * du jour se disent « aujourd'hui », « Équipe » lit le mois servi, et la variation d'« Encaissé » compare ce mois
+ * clos au précédent ; le mois en cours, lui, reste celui qui suit le mois servi (`moisEnCoursDeLaReponse`), jamais `period`.
  */
-export async function EnsembleAgence() {
+export async function EnsembleAgence({ periode = 'current_month' }: { readonly periode?: PeriodeDesRapports } = {}) {
   const [t, tActivite, user, contexte, locale] = await Promise.all([
     getTranslations('rapports'),
     getTranslations('dashboard.agencyActivity'),
@@ -56,7 +61,8 @@ export async function EnsembleAgence() {
   const agencyIsStandard = await lireLeKind(token, agencyId);
   // UNE lecture de l'endpoint par affichage (AC3 de TCK-647), séries comprises.
   const [payload, lectures, seuils] = await Promise.all([
-    fetchDashboardAgency({ withTimeseries: true }),
+    // TCK-2791 — le mois en cours n'écrit rien : la lecture d'avant, à l'identique.
+    fetchDashboardAgency({ withTimeseries: true, ...(periode === 'last_month' ? { period: periode } : {}) }),
     lecturesDePremierAffichage(token, agencyId, agencyIsStandard),
     ongletOuvert('alertes', contexte) ? lireLesSeuils() : Promise.resolve(undefined),
   ]);
@@ -73,34 +79,49 @@ export async function EnsembleAgence() {
 
   const data = payload.data;
   const ts = payload.timeseries;
-  const moisEnCours = data.period.start.slice(0, 7);
+  const moisEnCours = moisEnCoursDeLaReponse(data.period);
+  const moisServi = data.period.start.slice(0, 7);
+  const etatsDuJour = etatsDuJourAMarquer(data.period);
+  const jour = (chemin: string) => (etatsDuJour?.includes(chemin) ? { aujourdhui: true as const } : {});
   const ouvertes = { impayes: ongletOuvert('impayes', contexte), equipe: ongletOuvert('equipe', contexte) };
-  const chiffres = chiffresDeLAgence(data, ts ? { months: ts.months, revenue: ts.revenue } : undefined, { moisEnCours, ouvertes, seuils });
+  const chiffres = chiffresDeLAgence(data, ts ? { months: ts.months, revenue: ts.revenue } : undefined, { moisEnCours, moisServi, etatsDuJour, ouvertes, seuils });
 
   const enChiffres: ChiffreDuRapport[] = [
-    { cle: 'bookings', libelle: tActivite('items.bookings.label'), valeur: data.bookings.pending, forme: 'nombre', href: '/app/bookings' },
-    { cle: 'maintenance', libelle: tActivite('items.maintenance.label'), valeur: data.maintenance.open, forme: 'nombre', href: '/app/maintenance' },
-    { cle: 'customers', libelle: tActivite('items.customers.label'), valeur: data.customers_count, forme: 'nombre', href: '/app/customers' },
+    { cle: 'bookings', libelle: tActivite('items.bookings.label'), valeur: data.bookings.pending, forme: 'nombre', href: '/app/bookings', ...jour('bookings.pending') },
+    { cle: 'maintenance', libelle: tActivite('items.maintenance.label'), valeur: data.maintenance.open, forme: 'nombre', href: '/app/maintenance', ...jour('maintenance.open') },
+    { cle: 'customers', libelle: tActivite('items.customers.label'), valeur: data.customers_count, forme: 'nombre', href: '/app/customers', ...jour('customers_count') },
     {
       cle: 'team',
       libelle: tActivite('items.team.label'),
       valeur: data.members_count,
       forme: 'nombre',
       ...((contexte.cheminsAdmin ?? []).includes('/app/agency/team') ? { href: '/app/agency/team' } : {}),
+      ...jour('members_count'),
     },
     // Repris des indices de l'ancienne tuile « Revenus du mois » et « Impayés » (`AgencyKpis`) : la commission de
     // l'agence sur le mois, et les pénalités de retard à recouvrer quand il y en a. Sans lien : aucune liste ne
     // les détaille pour l'admin (le grand livre des commissions est celui de l'agent, famille 6).
     { cle: 'commission', libelle: t('commissionsDuMois'), valeur: data.finance.commission_month, forme: 'montant' },
     ...((data.finance.late_fees_outstanding_amount ?? 0) > 0
-      ? [{ cle: 'penalites', libelle: t('penalitesARecouvrer'), valeur: data.finance.late_fees_outstanding_amount ?? 0, forme: 'montant' as const }]
+      ? [
+          {
+            cle: 'penalites',
+            libelle: t('penalitesARecouvrer'),
+            valeur: data.finance.late_fees_outstanding_amount ?? 0,
+            forme: 'montant' as const,
+            ...jour('finance.late_fees_outstanding_amount'),
+          },
+        ]
       : []),
   ];
 
   return (
     <AmorceLectures lectures={lectures}>
       <div className="space-y-7">
-        <PeriodeDuRapport periode>{t('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
+        <div>
+          <ChoixDeLaPeriode variante="puces" />
+          <PeriodeDuRapport periode>{t('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
+        </div>
 
         {/* TCK-589 — la mise en service en tête : elle disparaît une fois l'agence prête. */}
         <MiseEnService agencyId={agencyId} />
@@ -108,7 +129,7 @@ export async function EnsembleAgence() {
         <section aria-labelledby="rapports-chiffres-cles">
           <div className="mb-2.5 flex items-center justify-between gap-3">
             <h2 id="rapports-chiffres-cles" className="text-ui font-semibold text-muted-foreground">
-              {t('chiffresCles')}
+              {etatsDuJour ? t('chiffresClesMoisDernier') : t('chiffresCles')}
             </h2>
             <LienDesIndicateurs apercus={apercusDuResume(data)} />
           </div>
@@ -125,7 +146,9 @@ export async function EnsembleAgence() {
           />
         ) : null}
 
-        {ouvertes.equipe && agencyId !== null ? <EquipeDuMois agencyId={agencyId} periode={moisEnCours} agencyIsStandard={agencyIsStandard} /> : null}
+        {ouvertes.equipe && agencyId !== null ? (
+          <EquipeDuMois agencyId={agencyId} periode={moisServi} moisDernier={etatsDuJour !== null} agencyIsStandard={agencyIsStandard} />
+        ) : null}
 
         <section aria-labelledby="rapports-en-chiffres">
           <h2 id="rapports-en-chiffres" className="mb-2.5 text-corps font-semibold">

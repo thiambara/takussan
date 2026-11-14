@@ -19,6 +19,9 @@ export type ContexteDuChiffre =
   | { readonly cle: 'surAttendus'; readonly montant: number }
   | { readonly cle: 'cetteAnnee'; readonly montant: number }
   | { readonly cle: 'bauxCetteAnnee'; readonly n: number }
+  /** TCK-2791 — sous « Mois dernier » : le mois servi n'est plus « ce mois », ni son année forcément « cette année ». */
+  | { readonly cle: 'bauxDuMoisDernier'; readonly n: number; readonly annee: string }
+  | { readonly cle: 'enAnnee'; readonly montant: number; readonly annee: string }
   | { readonly cle: 'septJours' }
   | { readonly cle: 'seuil'; readonly valeur: number }
   | { readonly cle: 'portefeuille'; readonly loues: number; readonly libres: number; readonly autres: number };
@@ -34,7 +37,24 @@ export interface ChiffreDuRapport {
   readonly ton?: 'danger' | 'succes';
   /** La liste qu'il compte ; absent quand cette persona ne l'ouvre pas : la tuile se rend sans lien. */
   readonly href?: string;
+  /**
+   * TCK-2791 — sous « Mois dernier », le chiffre est l'état du JOUR (l'API le liste dans `period.as_of_today`) :
+   * la tuile le dit, pour qu'aucun écran ne présente l'état d'aujourd'hui comme celui du mois dernier.
+   */
+  readonly aujourdhui?: boolean;
 }
+
+/**
+ * TCK-2791 — les chemins à marquer « aujourd'hui » : ceux que l'API sert comme état du jour, sous `last_month`
+ * seulement (sous le mois en cours, tout est « de ce mois » et rien ne se marque). `null` : aucun marquage.
+ */
+export function etatsDuJourAMarquer(periode: { readonly key?: string; readonly as_of_today?: readonly string[] } | undefined): readonly string[] | null {
+  return periode?.key === 'last_month' ? (periode.as_of_today ?? []) : null;
+}
+
+/** La marque « aujourd'hui » d'un chiffre lu au chemin `chemin` de la réponse. */
+const duJour = (etats: readonly string[] | null | undefined, chemin: string): { readonly aujourdhui?: true } =>
+  etats?.includes(chemin) ? { aujourdhui: true } : {};
 
 /**
  * Les listes de « Rapports » ou d'administration que la persona ouvre (`ongletOuvert`, `accesAdmin`) :
@@ -105,10 +125,21 @@ export function variationDuMoisClos(
   return pourcent === null ? null : { pourcent, mois: mois[fin - 1], precedent: mois[fin - 2] };
 }
 
-/** Sur la tuile du mois : une variation seulement quand la série ne finit pas sur un mois en cours. */
-function variation(mois: readonly string[] | undefined, valeurs: readonly (number | null)[] | undefined, moisEnCours: string | null): ContexteDuChiffre | undefined {
-  if (!mois || mois.at(-1) === moisEnCours) return undefined;
-  const v = variationDuMoisClos(mois, valeurs, null);
+/**
+ * Sur la tuile du mois : une variation seulement quand le mois SERVI est clos. TCK-2791 — sous « Mois dernier »,
+ * le mois servi (`moisServi`) n'est pas le dernier point de la série, qui finit sur le mois en cours : la série est
+ * coupée au mois servi avant de comparer, jamais le mois en cours comparé à lui.
+ */
+function variation(
+  mois: readonly string[] | undefined,
+  valeurs: readonly (number | null)[] | undefined,
+  moisEnCours: string | null,
+  moisServi: string | null = null,
+): ContexteDuChiffre | undefined {
+  if (!mois || !valeurs) return undefined;
+  const fin = moisServi ? mois.indexOf(moisServi) + 1 : mois.length;
+  if (fin < 1 || mois[fin - 1] === moisEnCours) return undefined;
+  const v = variationDuMoisClos(mois.slice(0, fin), valeurs.slice(0, fin), null);
   return v ? { cle: 'variation', pourcent: v.pourcent, mois: v.precedent } : undefined;
 }
 
@@ -129,7 +160,14 @@ export interface ResumeDAgence {
     readonly unpaid_rate_percent: number | null;
   };
   readonly occupancy: { readonly rate_percent: number | null; readonly eligible_count?: number | null; readonly occupied_count?: number | null };
-  readonly kpis?: readonly { readonly metric: string; readonly label: string; readonly format: 'number' | 'percent' | 'currency'; readonly value: number | null }[];
+  readonly kpis?: readonly {
+    readonly metric: string;
+    readonly label: string;
+    readonly format: 'number' | 'percent' | 'currency';
+    readonly value: number | null;
+    /** TCK-2791 — la métrique est l'état du jour. */
+    readonly as_of_today?: boolean;
+  }[];
 }
 
 /**
@@ -142,9 +180,19 @@ export function chiffresDeLAgence(
   series?: { readonly months: readonly string[]; readonly revenue: readonly number[] },
   {
     moisEnCours = null,
+    moisServi = null,
+    etatsDuJour = null,
     ouvertes = TOUT_OUVERT,
     seuils = {},
-  }: { readonly moisEnCours?: string | null; readonly ouvertes?: ListesOuvertes; readonly seuils?: SeuilsDesAlertes } = {},
+  }: {
+    /** Le mois en cours (`moisCourant()`), jamais le mois servi : c'est lui qui n'est pas clos. */
+    readonly moisEnCours?: string | null;
+    /** TCK-2791 — le mois que l'API résume (`period.start`) ; sans lui, le dernier de la série. */
+    readonly moisServi?: string | null;
+    readonly etatsDuJour?: readonly string[] | null;
+    readonly ouvertes?: ListesOuvertes;
+    readonly seuils?: SeuilsDesAlertes;
+  } = {},
 ): ChiffreDuRapport[] {
   const impayes = ouvertes.impayes ? LISTES_DES_CHIFFRES.impayes : LISTES_DES_CHIFFRES.enRetard;
   const configures = resume.kpis ?? [];
@@ -160,10 +208,11 @@ export function chiffresDeLAgence(
         ? { contexte: { cle: 'seuil' as const, valeur: seuils.unpaid_rate_percent } }
         : {}),
       ...lien(hrefDeLaMetrique(k.metric, ouvertes)),
+      ...(etatsDuJour && k.as_of_today ? { aujourdhui: true as const } : {}),
     }));
   }
   const f = resume.finance;
-  const v = variation(series?.months, series?.revenue, moisEnCours);
+  const v = variation(series?.months, series?.revenue, moisEnCours, moisServi);
   return [
     {
       cle: 'encaisse',
@@ -180,6 +229,7 @@ export function chiffresDeLAgence(
       contexte: { cle: 'echeances', n: f.overdue_count },
       ...(f.overdue_count > 0 ? { ton: 'danger' as const } : {}),
       href: impayes,
+      ...duJour(etatsDuJour, 'finance.overdue_amount'),
     },
     {
       cle: 'occupation',
@@ -187,14 +237,16 @@ export function chiffresDeLAgence(
       forme: 'pourcent',
       ...(baseDOccupation(resume.occupancy) ? { contexte: baseDOccupation(resume.occupancy) } : {}),
       href: LISTES_DES_CHIFFRES.biensOccupes,
+      ...duJour(etatsDuJour, 'occupancy.rate_percent'),
     },
-    { cle: 'bauxActifs', valeur: nombre(resume.leases.active), forme: 'nombre', href: LISTES_DES_CHIFFRES.bauxActifs },
+    { cle: 'bauxActifs', valeur: nombre(resume.leases.active), forme: 'nombre', href: LISTES_DES_CHIFFRES.bauxActifs, ...duJour(etatsDuJour, 'leases.active') },
     {
       cle: 'biensPublies',
       valeur: nombre(resume.properties.published),
       forme: 'nombre',
       contexte: { cle: 'publies', total: resume.properties.total },
       href: LISTES_DES_CHIFFRES.biensPublies,
+      ...duJour(etatsDuJour, 'properties.published'),
     },
     {
       cle: 'tauxImpayes',
@@ -202,6 +254,7 @@ export function chiffresDeLAgence(
       forme: 'pourcent',
       ...(seuils.unpaid_rate_percent !== undefined ? { contexte: { cle: 'seuil' as const, valeur: seuils.unpaid_rate_percent } } : {}),
       href: impayes,
+      ...duJour(etatsDuJour, 'finance.unpaid_rate_percent'),
     },
   ];
 }
@@ -254,10 +307,25 @@ export function chiffresDeLAgent(
   resume: ResumeDeLAgent,
   series: { readonly months: readonly string[]; readonly signed_leases?: readonly number[] } | undefined,
   agence: boolean,
+  {
+    moisServi = null,
+    etatsDuJour = null,
+  }: {
+    /** TCK-2791 — le mois que l'API résume ; « Baux signés » se lit à son point de la série, pas au dernier. */
+    readonly moisServi?: string | null;
+    readonly etatsDuJour?: readonly string[] | null;
+  } = {},
 ): ChiffreDuRapport[] {
   const signes = series?.signed_leases ?? [];
-  const annee = series?.months.at(-1)?.slice(0, 4);
-  const cetteAnnee = series?.months.reduce((s, m, i) => (m.slice(0, 4) === annee ? s + (signes[i] ?? 0) : s), 0) ?? 0;
+  const mois = series?.months ?? [];
+  const rang = moisServi && mois.includes(moisServi) ? mois.indexOf(moisServi) : mois.length - 1;
+  const annee = mois[rang]?.slice(0, 4) ?? '';
+  // Le cumul de l'année du mois lu, jusqu'à lui : sous « Mois dernier », pas le mois en cours.
+  const cetteAnnee = mois.reduce((s, m, i) => (i <= rang && m.slice(0, 4) === annee ? s + (signes[i] ?? 0) : s), 0);
+  const passe = etatsDuJour !== null;
+  // La série a 12 mois et finit sur le mois en cours : sous « Mois dernier » en janvier, elle commence en février de
+  // l'année servie, dont janvier manque. Un cumul qui ne voit pas janvier ne se dit pas.
+  const anneeEntiere = mois.includes(`${annee}-01`);
   const ouverts = Object.entries(resume.pipeline ?? {})
     .filter(([etape]) => etape !== 'converted' && etape !== 'lost')
     .reduce((s, [, n]) => s + (nombre(n) ?? 0), 0);
@@ -267,19 +335,32 @@ export function chiffresDeLAgent(
       valeur: nombre(resume.finance?.commissions_month),
       forme: 'montant',
       ...(nombre(resume.finance?.commissions_year) !== null
-        ? { contexte: { cle: 'cetteAnnee' as const, montant: nombre(resume.finance?.commissions_year) ?? 0 } }
+        ? {
+            contexte: passe
+              ? { cle: 'enAnnee' as const, montant: nombre(resume.finance?.commissions_year) ?? 0, annee }
+              : { cle: 'cetteAnnee' as const, montant: nombre(resume.finance?.commissions_year) ?? 0 },
+          }
         : {}),
       href: LISTES_DES_CHIFFRES.commissions + (agence ? '?scope=agency' : ''),
     },
     {
       cle: 'bauxSignes',
-      valeur: signes.length ? (signes[signes.length - 1] ?? 0) : null,
+      valeur: signes.length && rang >= 0 ? (signes[rang] ?? 0) : null,
       forme: 'nombre',
-      contexte: { cle: 'bauxCetteAnnee', n: cetteAnnee },
+      ...(passe && !anneeEntiere
+        ? {}
+        : { contexte: passe ? { cle: 'bauxDuMoisDernier' as const, n: cetteAnnee, annee } : { cle: 'bauxCetteAnnee' as const, n: cetteAnnee } }),
       href: LISTES_DES_CHIFFRES.bauxSignes,
     },
-    { cle: 'visites', valeur: nombre(resume.visits?.upcoming_7d), forme: 'nombre', contexte: { cle: 'septJours' }, href: LISTES_DES_CHIFFRES.visites },
-    { cle: 'prospects', valeur: ouverts, forme: 'nombre', href: LISTES_DES_CHIFFRES.pipeline + (agence ? '?scope=agency' : '') },
+    {
+      cle: 'visites',
+      valeur: nombre(resume.visits?.upcoming_7d),
+      forme: 'nombre',
+      contexte: { cle: 'septJours' },
+      href: LISTES_DES_CHIFFRES.visites,
+      ...duJour(etatsDuJour, 'visits.upcoming_7d'),
+    },
+    { cle: 'prospects', valeur: ouverts, forme: 'nombre', href: LISTES_DES_CHIFFRES.pipeline + (agence ? '?scope=agency' : ''), ...duJour(etatsDuJour, 'pipeline') },
   ];
 }
 
@@ -295,12 +376,16 @@ export interface ResumeDuBailleur {
  * « 100 % » à côté de « 54 disponibles » sans elle (AC4) —, Encaissé (sur l'attendu), Impayés et Baux actifs
  * (un chiffre de l'ancienne vue : il ne se perd pas).
  */
-export function chiffresDuBailleur(resume: ResumeDuBailleur): ChiffreDuRapport[] {
+export function chiffresDuBailleur(
+  resume: ResumeDuBailleur,
+  { etatsDuJour = null }: { readonly etatsDuJour?: readonly string[] | null } = {},
+): ChiffreDuRapport[] {
   const total = nombre(resume.portfolio?.total) ?? 0;
   const loues = nombre(resume.portfolio?.rented) ?? 0;
   const libres = nombre(resume.portfolio?.available) ?? 0;
   const enRetard = nombre(resume.finance?.overdue_count) ?? 0;
-  const attendu = nombre(resume.finance?.expected_monthly);
+  // TCK-2791 — l'attendu est le loyer des baux en cours AUJOURD'HUI : sous « Mois dernier », pas de « sur … attendus ».
+  const attendu = etatsDuJour?.includes('finance.expected_monthly') ? null : nombre(resume.finance?.expected_monthly);
   const base = baseDOccupation(resume.occupancy);
   return [
     {
@@ -309,6 +394,7 @@ export function chiffresDuBailleur(resume: ResumeDuBailleur): ChiffreDuRapport[]
       forme: 'biens',
       contexte: { cle: 'portefeuille', loues, libres, autres: Math.max(total - loues - libres, 0) },
       href: LISTES_DES_CHIFFRES.biens,
+      ...duJour(etatsDuJour, 'portfolio.total'),
     },
     {
       cle: 'occupation',
@@ -317,6 +403,7 @@ export function chiffresDuBailleur(resume: ResumeDuBailleur): ChiffreDuRapport[]
       forme: 'pourcent',
       ...(base ? { contexte: base } : {}),
       href: LISTES_DES_CHIFFRES.biensOccupes,
+      ...duJour(etatsDuJour, 'occupancy.rate_percent'),
     },
     {
       cle: 'encaisse',
@@ -332,7 +419,8 @@ export function chiffresDuBailleur(resume: ResumeDuBailleur): ChiffreDuRapport[]
       contexte: { cle: 'echeances', n: enRetard },
       ...(enRetard > 0 ? { ton: 'danger' as const } : {}),
       href: LISTES_DES_CHIFFRES.enRetard,
+      ...duJour(etatsDuJour, 'finance.overdue_amount'),
     },
-    { cle: 'bauxActifs', valeur: nombre(resume.leases?.active), forme: 'nombre', href: LISTES_DES_CHIFFRES.bauxActifs },
+    { cle: 'bauxActifs', valeur: nombre(resume.leases?.active), forme: 'nombre', href: LISTES_DES_CHIFFRES.bauxActifs, ...duJour(etatsDuJour, 'leases.active') },
   ];
 }

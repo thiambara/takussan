@@ -5,6 +5,7 @@ import { EnsembleAgence } from '@/components/rapports/ensemble/EnsembleAgence';
 import { EnsembleAgent } from '@/components/rapports/ensemble/EnsembleAgent';
 import { EnsembleBailleur } from '@/components/rapports/ensemble/EnsembleBailleur';
 import { lireLeContexteDesRapports } from '@/lib/rapports/contexte-serveur';
+import { periodeTransmise } from '@/lib/rapports/periode';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('rapports.meta');
@@ -12,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface Props {
-  readonly searchParams?: Promise<{ readonly scope?: string | string[] }>;
+  readonly searchParams?: Promise<{ readonly scope?: string | string[]; readonly period?: string | string[] }>;
 }
 
 /**
@@ -21,13 +22,16 @@ interface Props {
  */
 export default async function Page({ searchParams }: Props) {
   const [{ persona }, parametres] = await Promise.all([lireLeContexteDesRapports(), searchParams ?? Promise.resolve({})]);
+  const lus = parametres as { scope?: string | string[]; period?: string | string[] };
+  // TCK-2791 — la période de l'adresse, par la liste fermée : jamais transmise telle quelle à l'API.
+  const periode = periodeTransmise(lus.period);
   switch (persona) {
     case 'agent':
-      return <EnsembleAgent scope={(parametres as { scope?: string | string[] }).scope} />;
+      return <EnsembleAgent scope={lus.scope} periode={periode} />;
     case 'bailleur':
     case 'hote':
-      return <EnsembleBailleur />;
+      return <EnsembleBailleur periode={periode} />;
     default:
-      return <EnsembleAgence />;
+      return <EnsembleAgence periode={periode} />;
   }
 }

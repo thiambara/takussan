@@ -109,6 +109,43 @@
             "bureau-1280": "58 conformes · 169 écarts · 126 absents · 12.4 % pixels (écran entier, indicatif)"
           }
         }
+      },
+      "apres_tck_2791": {
+        "dossiers": "takussan-web/.fidelite/TCK-2628/ prod3-a-* et c3-a-* (« Ce mois », état de démo) ; prod3m-a-* et c3m-a-* (`?period=last_month`). Relevés du 2026-11-14 sous le verrou de mesure, commit fd588de3a + arbre partagé (TCK-2791 non commité) ; téléphone relevé à nouveau après le resserrement de la rangée de puces (-mt-6)",
+        "resultats": {
+          "a-0": {
+            "telephone": "14 conformes · 26 écarts · 51 absents · 19.38 % pixels (écran entier, indicatif ; la carte « Mise en service » tient la tête, comparer a-0s)",
+            "bureau-1280": "66 conformes · 170 écarts · 116 absents · 12.12 % pixels (écran entier, indicatif)"
+          },
+          "a-0s": {
+            "telephone": "28 conformes · 38 écarts · 27 absents · 20.23 % pixels (écran entier, indicatif)",
+            "bureau-1280": "74 conformes · 267 écarts · 38 absents · 11.47 % pixels (écran entier, indicatif)"
+          },
+          "a-7": {
+            "telephone": "31 conformes · 43 écarts · 13 absents · 12.53 % pixels (écran entier, indicatif)",
+            "bureau-1280": "53 conformes · 320 écarts · 63 absents · 10.72 % pixels (écran entier, indicatif)"
+          },
+          "a-8": {
+            "telephone": "30 conformes · 36 écarts · 18 absents · 12.96 % pixels (écran entier, indicatif)",
+            "bureau-1280": "53 conformes · 173 écarts · 42 absents · 11.7 % pixels (écran entier, indicatif)"
+          }
+        },
+        "resultats_mois_dernier": {
+          "a-0s": {
+            "telephone": "29 conformes · 37 écarts · 28 absents · 20.89 % pixels (écran entier, indicatif)",
+            "bureau-1280": "69 conformes · 269 écarts · 47 absents · 11.69 % pixels (écran entier, indicatif)"
+          },
+          "a-7": {
+            "telephone": "31 conformes · 43 écarts · 13 absents · 14.08 % pixels (écran entier, indicatif)",
+            "bureau-1280": "53 conformes · 319 écarts · 66 absents · 10.81 % pixels (écran entier, indicatif)"
+          },
+          "a-8": {
+            "telephone": "29 conformes · 36 écarts · 21 absents · 13.16 % pixels (écran entier, indicatif)",
+            "bureau-1280": "52 conformes · 171 écarts · 48 absents · 11.79 % pixels (écran entier, indicatif)"
+          }
+        },
+        "lecture": "les puces « Ce mois · Mois dernier » ne sont plus absentes (c2-a-0-telephone : absentes ; c3 : y + 44, l’écart O1) ; « 12 mois » reste absente (motivé). Sous « Mois dernier », la maquette dessine « Ce mois » actif : les écarts de puce active et les mentions « aujourd’hui » sont attendus.",
+        "ecritures": "aucune (GET seulement)"
       }
     }
   },
@@ -269,9 +306,9 @@
     {
       "ecran": "a-0, a-7, a-8 (téléphone, bureau)",
       "element": "puces de période « Ce mois · Mois dernier · 12 mois »",
-      "propriete": "absentes ; la période reste dite en texte",
-      "exception": "donnée — décision 4 a du ticket (2026-11-13)",
-      "motif": "l’API ne sert que le mois en cours (TCK-2791, `period=last_month`) : « Mois dernier » n’aurait rien à lire, et « Ce mois » ou « 12 mois » seules seraient des puces sans choix. Elles reviennent avec TCK-2791"
+      "propriete": "« Ce mois · Mois dernier » rendues (TCK-2791) ; « 12 mois » absente ; la rangée n'est pas collante",
+      "exception": "donnée — aucune lecture ne sert un résumé sur 12 mois (hors périmètre de TCK-2791)",
+      "motif": "TCK-2791 sert `period=last_month` sur les trois tableaux de bord : au téléphone, la rangée de puces « Ce mois · Mois dernier » ; au bureau, le sélecteur « Ce mois ▾ » de la tête (O2). « 12 mois » seule serait un choix sans lecture : les séries de 12 mois sont déjà les graphiques de la page. La rangée défile avec la page comme la barre d'onglets (O1, gabarit `PageHeader`) ; c3-a-0-telephone : puces à y = 155 contre 111, soit exactement les 44 px de O1"
     },
     {
       "ecran": "a-0, a-8 (bureau)",
@@ -342,6 +379,13 @@
       "propriete": "trait 2 → 1,75 ; couleur rgba(31,24,17,0.8) → opaque",
       "exception": "exception de charte (encre opaque, trait d'icône par défaut)",
       "motif": "trait par défaut des icônes du système ; règle de l’encre opaque (brief du lot 2, gardes `encre-sans-alpha*`)"
+    },
+    {
+      "ecran": "a-0, a-7, a-8 sous « Mois dernier » (téléphone, bureau)",
+      "element": "mention « aujourd’hui » des chiffres qui restent l’état du jour",
+      "propriete": "présente sous « Mois dernier », absente de la maquette (qui ne dessine que « Ce mois »)",
+      "exception": "décision du ticket",
+      "motif": "TCK-2791, contraintes strictes : aucun écran ne présente un état d’aujourd’hui comme celui du mois dernier. L’API liste ces chiffres dans `period.as_of_today` ; Impayés, Occupation, Baux actifs, Biens publiés, Taux d’impayés, « En chiffres », Visites, Prospects, portefeuille le disent (« 16 échéances en retard · aujourd’hui »). Sous « Mois dernier », « Encaissé » compare le mois servi, clos, au précédent (« +5 % sur septembre ») et « Chiffres clés · mois dernier » remplace « ce mois »"
     }
   ],
   "ecarts_ouverts": [
@@ -360,8 +404,8 @@
       "element": "tête de page : description « Dakar Immo · du 1 au 30 novembre 2026 » et actions « Agence ▾ · Ce mois ▾ · Exporter »",
       "mesure": "le produit n’a que le titre « Rapports ». « Exporter » et « Agence » manquent aussi au téléphone (maquette : menu « ⋯ » de l’en-tête, bouton « Agence ▾ »)",
       "motif": "à trancher : ni le ticket ni D7 ne les retirent. « Ce mois » suit O3",
-      "statut": "fermé au bureau pour la description et « Exporter » (TCK-2801) ; « Ce mois ▾ », « Agence ▾ » et « Exporter » au téléphone motivés",
-      "preuve": "c2-a-0-bureau-1280 : « Dakar Immo · du 1 au 30 novembre 2026 » (y 61) et « Exporter » (y 29, lien vers /app/reports/exports) ; seul reste la couleur de bordure du bouton (variante `outline` du système). « Ce mois ▾ » attend TCK-2791 (aucun second mois servi) ; « Agence ▾ » non rendu : GET /api/dashboard/agency n’accepte qu’`agency_id`, l’agence se choisit dans la coque (TCK-2801, « Consigné »). Au téléphone, la ligne de période reste dans la page (« Du 1 au 30 novembre 2026 », c2-a-0-telephone y 169). Au téléphone, « Exporter » (menu « ⋯ » de l’en-tête dans la maquette) n’est pas rendu : l’en-tête de page est sans hauteur au téléphone (gabarit `PageHeader`, O1) ; l’export reste à un geste, onglet « Exports »"
+      "statut": "fermé au bureau pour la description, « Exporter » (TCK-2801) et « Ce mois ▾ » (TCK-2791) ; « Agence ▾ » et « Exporter » au téléphone motivés",
+      "preuve": "c2-a-0-bureau-1280 : « Dakar Immo · du 1 au 30 novembre 2026 » (y 61) et « Exporter » (y 29, lien vers /app/reports/exports) ; seul reste la couleur de bordure du bouton (variante `outline` du système). « Ce mois ▾ » attend TCK-2791 (aucun second mois servi) ; « Agence ▾ » non rendu : GET /api/dashboard/agency n’accepte qu’`agency_id`, l’agence se choisit dans la coque (TCK-2801, « Consigné »). Au téléphone, la ligne de période reste dans la page (« Du 1 au 30 novembre 2026 », c2-a-0-telephone y 169). Au téléphone, « Exporter » (menu « ⋯ » de l’en-tête dans la maquette) n’est pas rendu : l’en-tête de page est sans hauteur au téléphone (gabarit `PageHeader`, O1) ; l’export reste à un geste, onglet « Exports » — TCK-2791 : c3-a-0-bureau-1280 « Ce mois » (y conforme, x 1031 contre 1034,5, largeur 115 contre 111,4) ; c3m-* : « Mois dernier » choisi, description « du 1 au 31 octobre 2026 »"
     },
     {
       "id": "O3",
@@ -429,6 +473,7 @@
     "Relevés à 390 et 1280 seulement (ADR-0106 : 1440 non relevé). Les références de bureau sont du 2026-11-11, avant TCK-2692 : rem 14,4 de la maquette contre 16 du produit, avertissement de l’outil, pas un écart.",
     "AC-F6 : balayage 390, 768, 1024, 1280, 1440 de /app/reports pour admin, agent et proprietaire, puis hote à 360 et 1280 (impl/lot2/t2628/fid/releve.log) : voir `produit.releves.balayage`.",
     "AC2 de TCK-2628 (redirection d’une ancienne adresse), AC3 (module analytics masqué), AC6 et le jeu d’href avant/après se prouvent par test et mesure 307 (message de l’implémenteur) : hors de cette fiche.",
-    "2026-11-14, TCK-2801 : chaque écart ouvert porte désormais `statut` (fermé, motivé, reporté) et `preuve`. ⚠ La règle « Menu » actif de la coque (BarreDOnglets) change la zone « coque · barre d’onglets » de TOUTE page du menu qui n’est aucun des onglets : les fiches des autres écrans relevées avant ce correctif y verront un écart se fermer."
+    "2026-11-14, TCK-2801 : chaque écart ouvert porte désormais `statut` (fermé, motivé, reporté) et `preuve`. ⚠ La règle « Menu » actif de la coque (BarreDOnglets) change la zone « coque · barre d’onglets » de TOUTE page du menu qui n’est aucun des onglets : les fiches des autres écrans relevées avant ce correctif y verront un écart se fermer.",
+    "2026-11-14, TCK-2791 : « Ce mois ▾ » et les puces de période fermés (O2, puces de période) ; la période n’est rendue que sur la vue d’ensemble, les autres onglets ne lisent pas les tableaux de bord. Relevés 390 et 1280 seulement (ADR-0106)."
   ]
 }

@@ -186,6 +186,8 @@ return [
     ],
     'dashboard' => [
         'invalid_scope' => 'Le périmètre demandé doit être « mine » ou « agency ».',
+        // TCK-2791 — `period` des tableaux de bord : une liste fermée.
+        'invalid_period' => 'La période demandée doit être « current_month » ou « last_month ».',
     ],
     'data_export' => [
         'expired' => 'Cet export de données a expiré.',

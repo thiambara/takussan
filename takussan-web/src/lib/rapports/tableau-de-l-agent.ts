@@ -1,6 +1,7 @@
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { porteeTransmise } from '@/lib/navigation/rapports';
 import { fetchAgentDashboard, type AgentDashboardScope } from '@/lib/queries/dashboard';
+import type { PeriodeDesRapports } from '@/lib/rapports/periode';
 
 /**
  * TCK-595 (ADR-0049 §4) — « Moi » par défaut ; « Agence » seulement pour qui détient
@@ -22,10 +23,14 @@ export interface TableauDeLAgent {
  * d'ensemble, commissions, pipeline), sortie de `overview/agent/page.tsx`. TCK-1376 (P138.07) — les
  * capacités du profil actif, la lecture du layout ; une panne (`null`) vaut l'absence de la capacité.
  */
-export async function lireLeTableauDeLAgent(scope: string | string[] | undefined): Promise<TableauDeLAgent> {
+export async function lireLeTableauDeLAgent(
+  scope: string | string[] | undefined,
+  /** TCK-2791 — la vue d'ensemble seule la passe ; les onglets Commissions et Pipeline lisent le mois en cours. */
+  periode: PeriodeDesRapports = 'current_month',
+): Promise<TableauDeLAgent> {
   const capacites = await capacitesDuProfilActif();
   const peutVoirAgence = (capacites ?? []).includes(CAPACITE_AGENCE);
   const portee: AgentDashboardScope = porteeTransmise(scope) && peutVoirAgence ? 'agency' : 'mine';
-  const payload = await fetchAgentDashboard({ scope: portee });
+  const payload = await fetchAgentDashboard({ scope: portee, ...(periode === 'last_month' ? { period: periode } : {}) });
   return { payload, peutVoirAgence, agence: (payload?.data.scope ?? portee) === 'agency' };
 }

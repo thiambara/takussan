@@ -16,7 +16,6 @@ use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
@@ -34,10 +33,23 @@ class DashboardOwnerService
 
     public function __construct(private readonly PortfolioMetrics $metrics) {}
 
-    public function summary(User $owner): array
+    /**
+     * TCK-2791 — l'encaissé, le reversé, les loyers du mois (`rent_month`) et la courte durée suivent la période ;
+     * le reste est l'état du jour, listé dans `period.as_of_today` — `expected_monthly` compris : c'est le loyer
+     * des baux en cours AUJOURD'HUI.
+     */
+    public const ETATS_DU_JOUR = [
+        'portfolio.total', 'portfolio.rented', 'portfolio.available', 'leases.active', 'bookings.pending',
+        'finance.deposits_held', 'finance.expected_monthly', 'finance.overdue_count', 'finance.overdue_amount',
+        'occupancy.rate_percent', 'occupancy.eligible_count', 'occupancy.occupied_count',
+        'maintenance.quotes_pending', 'visits.to_confirm', 'reviews.unanswered',
+    ];
+
+    public function summary(User $owner, ?PeriodeDuTableauDeBord $periode = null): array
     {
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
+        $periode ??= PeriodeDuTableauDeBord::moisEnCours();
+        $monthStart = $periode->debut;
+        $monthEnd = $periode->fin;
         $scope = PortfolioScope::landlord((int) $owner->id);
         // TCK-2275 (P232.01, P232.06) — les biens et les baux dont il est le bailleur au sens de
         // `BailleurDuBien`, comme `PortfolioScope::landlord` : ni ceux qu'il a saisis comme agent,
@@ -62,7 +74,7 @@ class DashboardOwnerService
             ->selectRaw('COUNT(*) AS active, COALESCE(SUM(monthly_rent), 0) AS expected')
             // TCK-2623 — les loyers du mois, lus DANS cette requête (sous-requêtes scalaires) : le budget
             // de requêtes de l'accueil du bailleur (`DashboardQueryBudgetTest`) ne bouge pas.
-            ->tap(fn ($query) => $this->loyersDuMois($query, $scope))
+            ->tap(fn ($query) => $this->loyersDuMois($query, $scope, $periode))
             ->first();
 
         $pendingBookings = Booking::query()
@@ -76,17 +88,14 @@ class DashboardOwnerService
         $shortStay = $this->metrics->shortStayOccupancy($scope, $monthStart, $monthEnd);
         $occupancyToday = $this->metrics->longStayOccupancyToday($scope);
         $overdue = $this->metrics->overdue($scope);
-        $month = $monthStart->format('Y-m');
+        $month = $periode->mois();
 
         $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
         $bookingIncomeMonth = $bookingIncome[$month] ?? 0.0;
 
         return [
             'owner_id' => $owner->id,
-            'period' => [
-                'start' => $monthStart->toIso8601String(),
-                'end' => $monthEnd->toIso8601String(),
-            ],
+            'period' => $periode->enTete(self::ETATS_DU_JOUR),
             'portfolio' => [
                 'total' => (int) $portfolio->total,
                 'rented' => (int) $portfolio->rented,
@@ -148,7 +157,7 @@ class DashboardOwnerService
 
     /**
      * TCK-2623 — « Loyers de novembre : 8 reçus sur 14 ». Les échéances de LOYER (`rent`) des baux du
-     * bailleur, quel que soit leur statut de bail, dont `due_date` tombe dans le mois courant à l'heure
+     * bailleur, quel que soit leur statut de bail, dont `due_date` tombe dans le mois servi (TCK-2791) à l'heure
      * de Dakar :
      *  - `expected_count` : toutes, hors annulées (une échéance remplacée par un renouvellement n'est
      *    plus due). Une échéance en échec de paiement (`failed`) reste attendue : elle repasse à payée ;
@@ -157,9 +166,10 @@ class DashboardOwnerService
      * Ni caution, ni restitution de caution (règle de « Ma situation »), ni charges ou régularisation :
      * ce sont des échéances, pas des loyers.
      */
-    private function loyersDuMois(QueryBuilder $query, PortfolioScope $scope): void
+    private function loyersDuMois(QueryBuilder $query, PortfolioScope $scope, PeriodeDuTableauDeBord $periode): void
     {
-        $mois = CarbonImmutable::now(self::TIMEZONE);
+        // TCK-2791 — le mois servi, au calendrier de Dakar.
+        $mois = $periode->debut->setTimezone(self::TIMEZONE);
         $loyers = fn () => LeasePayment::query()
             ->where('lease_payments.payment_type', LeasePaymentType::Rent->value)
             ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value)

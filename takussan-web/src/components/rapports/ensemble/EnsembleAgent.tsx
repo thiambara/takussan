@@ -2,12 +2,13 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
+import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { TuilesDuRapport } from '@/components/rapports/TuilesDuRapport';
 import { BlocDeRapport, BlocVide, LienChiffre, PeriodeDuRapport, formatDateHeure } from '@/components/rapports/vues/pieces';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
-import { bornesLisibles } from '@/lib/rapports/periode';
+import { bornesLisibles, moisEnCoursDeLaReponse, type PeriodeDesRapports } from '@/lib/rapports/periode';
 import { hrefDeLOnglet } from '@/lib/navigation/rapports';
-import { chiffresDeLAgent } from '@/lib/rapports/chiffres';
+import { chiffresDeLAgent, etatsDuJourAMarquer } from '@/lib/rapports/chiffres';
 import { lireLeTableauDeLAgent } from '@/lib/rapports/tableau-de-l-agent';
 
 import { GraphiquesDuRapport } from './GraphiquesDuRapport';
@@ -26,28 +27,42 @@ import { serieDe } from './series';
  * Les visites du jour et les tâches assignées, elles, vivent dans « Ma journée ». « Détail par bail » mène à
  * l'onglet Commissions, qui mène à la page Commissions (famille 6, hors périmètre).
  */
-export async function EnsembleAgent({ scope }: { readonly scope?: string | string[] }) {
+export async function EnsembleAgent({
+  scope,
+  periode = 'current_month',
+}: {
+  readonly scope?: string | string[];
+  /** TCK-2791 — le mois résumé ; « Baux signés » se lit au point du mois servi, les états du jour le disent. */
+  readonly periode?: PeriodeDesRapports;
+}) {
   const [t, tRapports, tEtapes, locale, { payload, peutVoirAgence, agence }] = await Promise.all([
     getTranslations('dashboard.agent'),
     getTranslations('rapports'),
     getTranslations('dashboard.pipelineStages'),
     localeDeLaRequete(),
-    lireLeTableauDeLAgent(scope),
+    lireLeTableauDeLAgent(scope, periode),
   ]);
   if (!payload) return <PeriodeDuRapport>{t('loadError')}</PeriodeDuRapport>;
   const data = payload.data;
   const ts = payload.timeseries;
-  const moisEnCours = data.period.start.slice(0, 7);
+  const moisEnCours = moisEnCoursDeLaReponse(data.period);
+  const etatsDuJour = etatsDuJourAMarquer(data.period);
   const commissions = serieDe(ts, 'commissions');
   const bauxSignes = serieDe(ts, 'signed_leases');
-  const chiffres = chiffresDeLAgent(data, ts && bauxSignes ? { months: ts.months, signed_leases: bauxSignes.map((v) => v ?? 0) } : undefined, agence);
+  const chiffres = chiffresDeLAgent(data, ts && bauxSignes ? { months: ts.months, signed_leases: bauxSignes.map((v) => v ?? 0) } : undefined, agence, {
+    moisServi: data.period.start.slice(0, 7),
+    etatsDuJour,
+  });
   const prospects = chiffres.find((c) => c.cle === 'prospects')?.valeur ?? 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
-        <PeriodeDuRapport periode>{tRapports('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
-        {peutVoirAgence ? <BasculePortee agence={agence} t={t} /> : null}
+      <div>
+        <ChoixDeLaPeriode variante="puces" />
+        <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
+          <PeriodeDuRapport periode>{tRapports('periode', bornesLisibles(data.period.start, data.period.end, locale))}</PeriodeDuRapport>
+          {peutVoirAgence ? <BasculePortee agence={agence} t={t} periode={periode} /> : null}
+        </div>
       </div>
 
       <TuilesDuRapport chiffres={chiffres} />

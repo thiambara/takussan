@@ -15,6 +15,8 @@ interface EquipeDuMoisProps {
   readonly agencyId: number;
   /** `AAAA-MM` : le mois de la période lue par la vue d'ensemble. */
   readonly periode: string;
+  /** TCK-2791 — `periode` est le mois dernier : le titre ne dit plus « ce mois ». */
+  readonly moisDernier?: boolean;
   readonly agencyIsStandard: boolean | undefined;
 }
 
@@ -29,7 +31,7 @@ const COLONNES = ['properties_managed', 'visits_completed', 'leases_signed', 'co
  * Les colonnes sont celles que `TeamPerformanceRow` rend aujourd'hui ; « Demandes traitées » et le délai de
  * réponse de la maquette sont de l'onglet Équipe (TCK-2629).
  */
-export function EquipeDuMois({ agencyId, periode, agencyIsStandard }: EquipeDuMoisProps) {
+export function EquipeDuMois({ agencyId, periode, moisDernier = false, agencyIsStandard }: EquipeDuMoisProps) {
   const t = useTranslations('rapports.equipe');
   const tColonnes = useTranslations('team.performance');
   const f = useFormatteurs();
@@ -45,7 +47,7 @@ export function EquipeDuMois({ agencyId, periode, agencyIsStandard }: EquipeDuMo
     <section aria-labelledby="rapports-equipe-titre" data-slot="equipe-du-mois">
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <h2 id="rapports-equipe-titre" className="text-corps font-semibold">
-          {t('titre')}
+          {moisDernier ? t('titreMoisDernier') : t('titre')}
         </h2>
         <Link
           href={hrefDeLOnglet('equipe')}

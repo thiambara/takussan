@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/console';
+import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { OngletsDesRapports } from '@/components/rapports/OngletsDesRapports';
 import { DescriptionDesRapports, ExporterLeRapport } from '@/components/rapports/TeteDesRapports';
 import { IntlProvider } from '@/i18n/IntlProvider';
@@ -11,7 +12,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { ongletsDesRapports } from '@/lib/navigation/rapports';
 import type { ContexteServeurDesRapports } from '@/lib/rapports/contexte-serveur';
 import { garderLesRapports } from '@/lib/rapports/gardes-serveur';
-import { bornesLisibles, moisCourant } from '@/lib/rapports/periode';
+import { bornesLisibles, moisCourant, moisPrecedent } from '@/lib/rapports/periode';
 import { getToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -36,6 +37,9 @@ export default async function Layout({ children }: { readonly children: React.Re
   const onglets = ids.map((id) => ({ id, libelle: t(`onglets.${id}`) }));
   const mois = moisCourant();
   const periode = t('descriptionPeriode', bornesLisibles(mois.debut, mois.fin, locale));
+  // TCK-2791 — la description de la vue d'ensemble sous « Mois dernier » (la tête la choisit d'après l'adresse).
+  const precedent = moisPrecedent();
+  const periodeMoisDernier = t('descriptionPeriode', bornesLisibles(precedent.debut, precedent.fin, locale));
   const personnel = contexte.persona === 'admin-agence' || contexte.persona === 'plateforme';
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app/reports')}>
@@ -52,9 +56,16 @@ export default async function Layout({ children }: { readonly children: React.Re
               nom={(personnel ? nomDeLAgence : null) ?? contexte.user.full_name}
               nomDeLAgence={contexte.persona === 'agent' ? nomDeLAgence : null}
               periode={periode}
+              periodeMoisDernier={periodeMoisDernier}
             />
           }
-          actions={ids.includes('exports') ? <ExporterLeRapport libelle={t('exporter')} /> : undefined}
+          actions={
+            <>
+              {/* TCK-2791 — « Ce mois ▾ » : rendu sur la vue d'ensemble seulement (le composant le juge). */}
+              <ChoixDeLaPeriode variante="menu" />
+              {ids.includes('exports') ? <ExporterLeRapport libelle={t('exporter')} /> : null}
+            </>
+          }
           dessous={
             <OngletsDesRapports
               onglets={onglets}

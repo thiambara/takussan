@@ -54,6 +54,10 @@ export function useTexteDuChiffreDuRapport() {
       case 'echeances':
       case 'bauxCetteAnnee':
         return t(`contextes.${x.cle}`, { n: x.n });
+      case 'bauxDuMoisDernier':
+        return t('contextes.bauxDuMoisDernier', { n: x.n, annee: x.annee });
+      case 'enAnnee':
+        return t('contextes.enAnnee', { montant: f.montantAbrege(x.montant, 'XOF'), annee: x.annee });
       case 'loues':
         return t('contextes.loues', {
           occupes: x.occupes,
@@ -73,10 +77,16 @@ export function useTexteDuChiffreDuRapport() {
         return t('contextes.seuil', { seuil: pourcentSaisi(f, x.valeur) });
     }
   };
+  // TCK-2791 — sous « Mois dernier », un état du jour le dit après son contexte : « 16 échéances en retard · aujourd’hui ».
+  const contexteEtJour = (c: ChiffreDuRapport): string | null => {
+    const x = contexte(c);
+    if (!c.aujourdhui) return x;
+    return x ? t('contextes.etAujourdhui', { contexte: x }) : t('contextes.aujourdhui');
+  };
   return {
     libelle: (c: ChiffreDuRapport) => c.libelle ?? t(`libelles.${c.cle}`),
     valeur,
-    contexte,
+    contexte: contexteEtJour,
   };
 }
 
@@ -110,6 +120,8 @@ export function TuilesDuRapport({ chiffres, colonnes = 4, visiblesAuTelephone, c
               </span>
               <span className="mt-1 block font-display text-affiche-22 font-semibold tracking-titre tabular-nums">{texte.valeur(c)}</span>
               {portefeuille ? <JaugeDuPortefeuille {...portefeuille} /> : null}
+              {/* TCK-2791 — au téléphone, la jauge remplace le contexte : la marque du jour reste dite. */}
+              {portefeuille && c.aujourdhui ? <span className="mt-1 block text-xs text-muted-foreground md:hidden">{t('contextes.aujourdhui')}</span> : null}
               {contexte ? (
                 <span
                   className={cn(

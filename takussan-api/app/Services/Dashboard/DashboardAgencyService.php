@@ -30,11 +30,24 @@ class DashboardAgencyService
 {
     public function __construct(private readonly PortfolioMetrics $metrics) {}
 
-    public function summary(Agency $agency): array
+    /**
+     * TCK-2791 — les chiffres « du mois » (encaissé, reversé, commission, courte durée) suivent `$periode` ;
+     * les autres sont l'état du jour, listés dans `period.as_of_today` ({@see self::ETATS_DU_JOUR}).
+     */
+    public const ETATS_DU_JOUR = [
+        'properties.total', 'properties.published', 'properties.rented', 'properties.available',
+        'leases.active', 'customers_count', 'members_count', 'bookings.pending', 'maintenance.open',
+        'finance.deposits_held', 'finance.overdue_count', 'finance.overdue_amount',
+        'finance.late_fees_outstanding_count', 'finance.late_fees_outstanding_amount', 'finance.unpaid_rate_percent',
+        'occupancy.rate_percent', 'occupancy.eligible_count', 'occupancy.occupied_count',
+    ];
+
+    public function summary(Agency $agency, ?PeriodeDuTableauDeBord $periode = null): array
     {
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
-        $month = $monthStart->format('Y-m');
+        $periode ??= PeriodeDuTableauDeBord::moisEnCours();
+        $monthStart = $periode->debut;
+        $monthEnd = $periode->fin;
+        $month = $periode->mois();
         $scope = PortfolioScope::agency((int) $agency->id);
         $propertyIds = Property::query()->select('id')->where('agency_id', $agency->id);
 
@@ -88,10 +101,7 @@ class DashboardAgencyService
 
         return [
             'agency_id' => $agency->id,
-            'period' => [
-                'start' => $monthStart->toIso8601String(),
-                'end' => $monthEnd->toIso8601String(),
-            ],
+            'period' => $periode->enTete(self::ETATS_DU_JOUR),
             'properties' => [
                 'total' => (int) $properties->total,
                 'published' => (int) $properties->published,
@@ -115,7 +125,7 @@ class DashboardAgencyService
                 'booking_income_month' => $bookingIncomeMonth,
                 'net_paid_out_month' => $netPaidOut[$month] ?? 0.0,
                 'deposits_held' => $this->metrics->depositsHeld($scope),
-                'commission_month' => self::commissionMonth((int) $agency->id),
+                'commission_month' => self::commissionBetween((int) $agency->id, $monthStart, $monthEnd),
                 'overdue_count' => $overdue['count'],
                 'overdue_amount' => $overdue['amount'],
                 // P206.03 (ADR-0057, amendement du 2026-10-24) — à part de l'impayé, qui ne les compte pas.

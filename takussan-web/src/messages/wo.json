@@ -21373,7 +21373,11 @@
         "bauxCetteAnnee": "ce mois · {n} cette année",
         "septJours": "sur les 7 prochains jours",
         "portefeuille": "{loues} loués · {libres} libres · {autres} autres",
-        "seuil": "seuil d’alerte : {seuil}"
+        "seuil": "seuil d’alerte : {seuil}",
+        "bauxDuMoisDernier": "mois dernier · {n} en {annee}",
+        "enAnnee": "{montant} en {annee}",
+        "aujourdhui": "aujourd’hui",
+        "etAujourdhui": "{contexte} · aujourd’hui"
       },
       "tous": "Les {n} chiffres",
       "moins": "Moins de chiffres",
@@ -21432,7 +21436,8 @@
         "minutes": "{m} min",
         "heuresMinutes": "{h} h {m}",
         "heures": "{h} h"
-      }
+      },
+      "titreMoisDernier": "Équipe le mois dernier"
     },
     "enChiffres": "En chiffres",
     "chiffresCles": "Chiffres clés · ce mois",
@@ -21557,6 +21562,13 @@
     "description": "{nom} · {periode}",
     "descriptionPeriode": "du {debut} au {fin}",
     "exporter": "Exporter",
-    "impayesCompte": ", {n, plural, one {# échéance impayée} other {# échéances impayées}}"
+    "impayesCompte": ", {n, plural, one {# échéance impayée} other {# échéances impayées}}",
+    "periodes": {
+      "aria": "Période du rapport",
+      "choisir": "Période : {periode}",
+      "current_month": "Ce mois",
+      "last_month": "Mois dernier"
+    },
+    "chiffresClesMoisDernier": "Chiffres clés · mois dernier"
   }
 }

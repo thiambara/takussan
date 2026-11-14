@@ -1,6 +1,7 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import type { PeriodeDesRapports } from '@/lib/rapports/periode';
 
 /**
  * Server-side fetchers for the role-based dashboards (TCK-032 P1).
@@ -15,7 +16,11 @@ import { cheminApi, requete } from '@/lib/chemin-api';
  * render a login redirect in that case.
  */
 
-export type PeriodWindow = { start: string; end: string };
+/**
+ * TCK-2791 — `key` : la période servie (`period=last_month`) ; `as_of_today` : les chemins des chiffres qui restent
+ * l'état du jour quelle que soit la période. Absents de la lecture du locataire.
+ */
+export type PeriodWindow = { start: string; end: string; key?: PeriodeDesRapports; as_of_today?: string[] };
 
 export type OwnerDashboard = {
   owner_id: number;
@@ -145,6 +150,8 @@ type FetchOpts = {
   months?: number;
   /** TCK-595 — n'a de sens que pour `/dashboard/agent`. */
   scope?: AgentDashboardScope;
+  /** TCK-2791 — agent et bailleur : le mois résumé ; le mois en cours n'écrit rien. */
+  period?: PeriodeDesRapports;
   signal?: AbortSignal;
 };
 
@@ -155,6 +162,7 @@ async function call<T>(tableau: 'owner' | 'agent' | 'tenant', opts: FetchOpts = 
   const extra: Record<string, string | number> = {};
   if (typeof opts.months === 'number') extra.months = opts.months;
   if (opts.scope) extra.scope = opts.scope;
+  if (opts.period === 'last_month') extra.period = opts.period;
   const qs = buildQueryString({
     include: opts.include,
     extra: Object.keys(extra).length > 0 ? extra : undefined,
