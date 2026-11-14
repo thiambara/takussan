@@ -1,13 +1,13 @@
 ---
 id: TCK-2763
 title: "Historique d'un bail : l'API sert l'auteur de chaque événement (causer) sur /api/audit-log/{entity}/{id}, et la fiche le nomme"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 89
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 depends_on: [TCK-2645]
 blocks: []
 spec_refs:
@@ -43,3 +43,5 @@ L'onglet de TCK-2645 (`OngletHistoriqueDuBail`) rend l'événement et la date, s
 - [ ] AC1 — `GET /api/audit-log/lease/{id}` rend `causer.name` pour un événement d'utilisateur, et `causer: null` pour un événement système. Test Feature ; ablation : sans la clé, le test rougit.
 - [ ] AC2 — L'onglet nomme l'auteur, ou dit « Automatique ». Test de composant ; ablation.
 - [ ] AC3 — Le nombre de requêtes de l'endpoint ne change pas (relevé avant et après).
+
+- 2026-11-14 : clôturé — rejugé au HEAD b88caa818, tous les AC tenus avec preuve (verdict de clôture de la session).

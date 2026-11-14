@@ -1,13 +1,13 @@
 ---
 id: TCK-2762
 title: "Fiche du bail : le garant parmi les parties (bureau) et « Garant (n) » au dossier (téléphone), sa gestion en feuille"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 89
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 depends_on: [TCK-2645]
 blocks: []
 spec_refs:
@@ -61,3 +61,5 @@ Le relevé du 2026-11-13 a trouvé trois manques, tranchés ainsi :
 ## Hors périmètre
 
 - Les pièces du garant : `GuarantorSection` n'en a jamais eu (prémisse re-mesurée par TCK-2645).
+
+- 2026-11-14 : clôturé — rejugé au HEAD b88caa818, tous les AC tenus avec preuve (verdict de clôture de la session).

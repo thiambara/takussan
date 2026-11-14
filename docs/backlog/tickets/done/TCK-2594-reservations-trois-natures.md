@@ -1,13 +1,13 @@
 ---
 id: TCK-2594
 title: "Réservations : un écran, trois natures — Séjours, Candidatures, Offres — chacune avec son vocabulaire, le client en tête et la suite en bas"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 89
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2579, TCK-2580, TCK-2593, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -91,3 +91,5 @@ L'agent voit ce qu'il doit décider — un séjour, une candidature, une offre �
 - **Feuilles** (voie (a) : la fiche d'abord, les feuilles ensuite) : `FeuilleDeDecision` remplace le dialogue de décision — refus motivé en pastilles selon la nature (candidature : dossier incomplet, revenus insuffisants, bien déjà attribué ; offre : trop basse, bien déjà vendu ; séjour : dates ou bien indisponibles ; « Autre… » exige la précision), envoyé comme `reason` (« Motif — précision ») ; « Enregistrer un paiement » prérempli du reste à encaisser (total des nuits ou montant de la réservation, moins l'encaissé), en « Solde » une fois l'acompte payé, les huit moyens de `PaymentMethod` (API : `StoreBookingPaymentRequest`, `Rule::enum`) en pastilles, l'aide de référence selon le moyen ; « Rembourser {client} » dit son plafond (ce qui a été payé) et le montant dans le geste. Feuille du bas au téléphone, panneau droit dès `xl` (`FeuilleOuPanneau`).
 - **Onglet « Menu » de la barre du bas** : non allumé sur `/app/bookings/*` (la maquette l'allume) — c'est la coque qui décide de l'onglet actif d'une route hors barre ; repris à part, voir TCK-2618 et TCK-2635.
 - **AC4 (U+202F dans les montants)** : le formateur ne change pas dans ce lot ; écart accepté dans la fiche, question rattachée à TCK-2714.
+
+- 2026-11-14 : clôturé — rejugé au HEAD b88caa818, tous les AC tenus avec preuve (verdict de clôture de la session).
