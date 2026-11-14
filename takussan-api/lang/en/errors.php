@@ -941,4 +941,9 @@ return [
         'gone' => 'This payment link is no longer valid. Ask :agency for a new one.',
         'receipt_unavailable' => 'The receipt is only available once the payment has been received.',
     ],
+    // TCK-2811 — un échec du pilote PDF, sur toute route qui rend un PDF
+    'pdf' => [
+        'render_busy' => 'The service that produces PDF documents is overloaded: try again in a minute.',
+        'render_failed' => 'The PDF document could not be produced. Try again in a moment.',
+    ],
 ];

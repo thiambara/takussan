@@ -14,6 +14,7 @@ use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Pdf\DocumentPdfService;
+use App\Services\Pdf\EchecDuPilotePdf;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -74,9 +75,6 @@ final class ArchiveDuCoffre
     public const RENDUS = ['leases.contract.pdf', 'leases.receipts.pdf', 'inventories.pdf', 'owner-statements.pdf'];
 
     private const LONGUEUR_DU_NOM = 120;
-
-    /** Les secondes que le 503 d'une limite de débit du pilote PDF demande d'attendre (`Retry-After`). */
-    private const REESSAYER_APRES = 60;
 
     public function __construct(
         private readonly DocumentVault $vault,
@@ -170,9 +168,10 @@ final class ArchiveDuCoffre
         } catch (Throwable $e) {
             report($e);
 
-            if (preg_match('/rate limit|\b429\b|\b2001\b/i', $e->getMessage()) === 1) {
-                throw (new ApiError(503, 'document.archive_render_busy', [], ['Retry-After' => (string) self::REESSAYER_APRES]))
-                    ->with(['retry_after' => self::REESSAYER_APRES]);
+            // TCK-2811 — le détecteur unique de la limite de débit ; l'archive garde ses propres codes.
+            if (EchecDuPilotePdf::estUneLimiteDeDebit($e)) {
+                throw (new ApiError(503, 'document.archive_render_busy', [], ['Retry-After' => (string) EchecDuPilotePdf::REESSAYER_APRES]))
+                    ->with(['retry_after' => EchecDuPilotePdf::REESSAYER_APRES]);
             }
 
             abort_code(502, 'document.archive_render_failed');

@@ -69,30 +69,37 @@ saturé, un refus qui dit de réessayer dans un instant. Il ne reçoit pas une e
 
 ## Delta à produire
 
-- [ ] Un traitement unique de `CouldNotGeneratePdf` (rendu d'exception de `bootstrap/app.php`, ou `DocumentPdfService`
+- [x] Un traitement unique de `CouldNotGeneratePdf` (rendu d'exception de `bootstrap/app.php`, ou `DocumentPdfService`
   plus `ExportWriter`, au choix écrit dans les notes) : 503 `pdf.render_busy` + `Retry-After` pour la limite de débit,
   502 `pdf.render_failed` sinon.
-- [ ] `ArchiveDuCoffre::rendreOuRefuser` lit le même détecteur.
-- [ ] `lang/{fr,en,wo}/errors.php` : les deux codes.
-- [ ] `docs/infra/prod-drivers.json` : `LARAVEL_PDF_DRIVER` sous `preview`, état `mesure`, date et commande. Sous
+- [x] `ArchiveDuCoffre::rendreOuRefuser` lit le même détecteur.
+- [x] `lang/{fr,en,wo}/errors.php` : les deux codes.
+- [x] `docs/infra/prod-drivers.json` : `LARAVEL_PDF_DRIVER` sous `preview`, état `mesure`, date et commande. Sous
   `production`, seulement si §5.7 de `docs/configuration.md` et la table F3 du plan le prescrivent aussi
   (`scripts/check-prod-drivers.mjs` les compare).
-- [ ] Tests `LimiteDeDebitDuPilotePdfTest`.
+- [x] Tests `LimiteDeDebitDuPilotePdfTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour CHACUNE des routes énumérées au constat (une ligne par route dans un fournisseur de données, nommée),
+- [x] AC1 — Pour CHACUNE des routes énumérées au constat (une ligne par route dans un fournisseur de données, nommée),
   un double du pilote PDF qui lève l'erreur Cloudflare de limite de débit (corps `{"errors":[{"code":2001,"message":"Rate limit exceeded"}]}`)
   fait rendre 503, l'en-tête `Retry-After` présent et numérique, et le code `pdf.render_busy`. Le double remplace le
   pilote, pas `DocumentPdfService` : sinon le test ne voit pas le chemin réel.
-- [ ] AC2 — Le même double qui lève une autre erreur Cloudflare fait rendre 502 `pdf.render_failed` sur chaque route.
-- [ ] AC3 — `POST /api/leases/{id}/signature-request` sous la limite de débit : 503, et le bail n'a ni
+  *Preuve* : `takussan-api/tests/Feature/Pdf/LimiteDeDebitDuPilotePdfTest.php` — `test_ac1_ac2_…`, 12 lignes nommées (les 10 routes du constat, attestation annuelle comprise, plus `POST leases/{lease}/renew`, trouvé par la garde : `LeaseRenewalService` → `freezeRenewal()`). Le double est le VRAI `CloudflareDriver` posé en `PdfDriver`, transport par `Http::fake` (`preventStrayRequests`) ; il compte ses appels.
+- [x] AC2 — Le même double qui lève une autre erreur Cloudflare fait rendre 502 `pdf.render_failed` sur chaque route.
+  *Preuve* : même test, second appel sur chaque ligne (corps `code 10000`, HTTP 403) → 502 `pdf.render_failed`, sans `Retry-After` ; les deux échecs sont `assertReported`.
+- [x] AC3 — `POST /api/leases/{id}/signature-request` sous la limite de débit : 503, et le bail n'a ni
   `contract_sha256` ni média `signed_contract` après l'appel.
-- [ ] AC4 — Une garde énumère les appels de rendu PDF de `app/` et rougit sur un appelant absent du fournisseur d'AC1.
+  *Preuve* : `test_ac3_la_demande_de_signature_sous_la_limite_ne_fige_rien_et_reste_rejouable` — ni `contract_sha256`, ni `signature_requested_at`, ni média `signed_contract`, statut `draft` ; pilote rétabli, la même demande rend 200 et fige. Et `test_le_renouvellement_sous_la_limite_ne_cree_aucun_bail`.
+- [x] AC4 — Une garde énumère les appels de rendu PDF de `app/` et rougit sur un appelant absent du fournisseur d'AC1.
   Ablation : un appelant ajouté hors de la liste la rend rouge.
-- [ ] AC5 — Les tests de l'archive de TCK-2770 (503 `document.archive_render_busy`, 502) restent verts.
-- [ ] AC6 — `node scripts/check-prod-drivers.mjs --report` cite `preview.LARAVEL_PDF_DRIVER` avec sa valeur relevée.
-- [ ] AC7 — Ablation : le traitement retiré rend AC1 rouge sur toutes les lignes (500).
+  *Preuve* : `test_ac4_tout_appelant_de_rendu_pdf_est_couvert_ou_excuse`, bilatérale, auto-éprouvée (le motif doit encore voir `DocumentPdfService` et `ExportWriter`). Le motif voit tout `Pdf::`, toute mention de `Spatie\LaravelPdf\`, le service commun et ses intermédiaires, `->renderPdf(`. Ablations, chacune dans un fichier `app/Services/Pdf/AblationTck2811Appelant.php` puis supprimé, toutes rouges : `Pdf::html()` ; `Pdf::driver('dompdf')->view()` importée ; `\Spatie\LaravelPdf\Support\pdf()` ; `->renderPdf()` d'`InventoryController` ; l'alias global `\Pdf::view()` ; `new \Spatie\LaravelPdf\PdfBuilder` ; un `PaymentReceiptPdf` injecté. Et une excuse sur un fichier qui ne rend rien (`Property.php`) → rouge.
+- [x] AC5 — Les tests de l'archive de TCK-2770 (503 `document.archive_render_busy`, 502) restent verts.
+  *Preuve* : `DocumentVaultArchiveTest` vert (17 tests dont 1 sauté : la mesure) ; plus `test_ac5_l_archive_garde_ses_codes_sous_le_vrai_pilote` sous le pilote réel. Ablation du détecteur (`return false && …`) : le test 503 de l'archive de TCK-2770 rougit aussi (502) — elle lit bien le détecteur unique.
+- [x] AC6 — `node scripts/check-prod-drivers.mjs --report` cite `preview.LARAVEL_PDF_DRIVER` avec sa valeur relevée.
+  *Preuve* : `node scripts/check-prod-drivers.mjs --report` imprime `LARAVEL_PDF_DRIVER   dompdf` sous `preview` ; sortie 0 sans `--report`.
+- [x] AC7 — Ablation : le traitement retiré rend AC1 rouge sur toutes les lignes (500).
+  *Preuve* : ablation de la ligne `EchecDuPilotePdf::versApi($e)` de `bootstrap/app.php` → les 12 lignes, AC3 et le renouvellement rouges, « received 500 » 14 fois ; l'archive reste verte (elle attrape avant le gestionnaire). Fichier restauré, md5 vérifié.
 
 ## Hors périmètre
 
@@ -102,4 +109,28 @@ saturé, un refus qui dit de réessayer dans un instant. Il ne reçoit pas une e
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Choix (delta, 1ʳᵉ puce) : le rendu d'exception de `bootstrap/app.php`**, pas `DocumentPdfService` + `ExportWriter`.
+Il couvre en un point les exports, dont le `PdfBuilder` se rend à la conversion en réponse, hors du contrôleur ; et
+il laisse l'archive intacte : `ArchiveDuCoffre::rendreOuRefuser` repasse toute `HttpExceptionInterface` telle
+quelle, si bien qu'une conversion dans `DocumentPdfService::render()` lui aurait fait émettre `pdf.render_*` au lieu
+de ses codes `document.archive_render_*`. L'exception d'origine est rapportée par le gestionnaire, comme toute autre.
+
+- **Détecteur unique** : `App\Services\Pdf\EchecDuPilotePdf` — `estUneLimiteDeDebit()` (même expression que
+  l'archive, `rate limit|429|2001`, désormais restreinte à `CouldNotGeneratePdf`), `versApi()`, et
+  `REESSAYER_APRES = 60` (la constante de l'archive y a migré). Le 503 porte `Retry-After` ET `retry_after`
+  dans le corps, comme l'archive et le 429 du limiteur (TCK-622).
+- **Un appelant de plus que le constat** : `LeaseRenewalService` (renouvellement qui naît actif →
+  `LeaseSignatureService::freezeRenewal()`, rendu DANS la transaction). Sous la limite, la transaction s'annule :
+  503 et aucun bail créé ; il est une ligne du fournisseur.
+- **Hors du traitement** : un échec de dompdf qui ne lève pas `CouldNotGeneratePdf` (exception de Dompdf) reste
+  un 500 sur les routes PDF ; seule l'archive l'attrape (502). Le ticket nomme `CouldNotGeneratePdf`.
+- **`production`** : pas d'entrée `LARAVEL_PDF_DRIVER` — ni §5.7 de `docs/configuration.md` ni la table F3 ne la
+  prescrivent (la ligne `FILESYSTEM_DISK / LARAVEL_PDF_DRIVER` du plan est dans D1, la préproduction).
+
+### Relevé du pilote de préproduction (session principale, 2026-11-14T05:46:54Z)
+
+`python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LARAVEL_PDF_DRIVER` → `http 200, 315 lignes
+d'environnement`, **`LARAVEL_PDF_DRIVER = dompdf`**. La préproduction ne passe donc pas par Cloudflare et ne peut pas
+rendre ce 500 de limite de débit : le défaut ne touche aujourd'hui que le poste local (`.env` à `cloudflare`). Le ticket
+reste utile pour tout environnement qui choisira `cloudflare`, mais sa priorité baisse (P3), et l'entrée
+`prod-drivers.json` s'écrit avec cette valeur `dompdf`, état `mesure`.

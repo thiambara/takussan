@@ -3,7 +3,7 @@
   "_pourquoi_ce_fichier": "`docs/configuration.md` se contredisait lui-même : sa ligne 422 affirmait « la production tourne en CACHE_STORE=database » quand sa checklist §5.7 prescrivait `CACHE_STORE=redis`, et les deux `.env` livrés déclarent `redis`. Trois réponses, un seul sujet. Le défaut n'est pas qu'une des trois soit fausse — c'est qu'il y en ait trois : une valeur recopiée dans trois documents diverge au premier changement, et rien ne le signale.",
   "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT dans le conteneur. La préproduction le prouve autrement : `smoke-api.sh pile` en local (files consommées, cache, session) et le relevé d'hebergement.md sur le serveur (Redis joint, jobs consommés, `MAIL_MAILER=log` relu dans `api` et `worker`). Ce fichier ne dit rien non plus des VALEURS secrètes : elles ne sont relevées nulle part, par décision (ADR-0028, « Ce que ça coûte »).",
   "_mesure": {
-    "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss DB_CONNECTION CACHE_STORE SESSION_DRIVER QUEUE_CONNECTION MAIL_MAILER SESSION_SECURE_COOKIE SESSION_SAME_SITE SCOUT_QUEUE SCOUT_AFTER_COMMIT LOG_CHANNEL LOG_LEVEL BROADCAST_CONNECTION — le script lit la clé d'API dans `~/Sauvegardes/migration-secrets.env` sans l'imprimer et refuse tout nom de secret (P14.08, 2026-10-25). Il remplace la voie `source … ; curl … $DOKPLOY_API_KEY`, qui faisait passer la clé par l'expansion du shell, par laquelle des fragments de mot de passe ont déjà fui (2026-09-14).",
+    "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss DB_CONNECTION CACHE_STORE SESSION_DRIVER QUEUE_CONNECTION MAIL_MAILER SESSION_SECURE_COOKIE SESSION_SAME_SITE SCOUT_QUEUE SCOUT_AFTER_COMMIT LOG_CHANNEL LOG_LEVEL BROADCAST_CONNECTION LARAVEL_PDF_DRIVER — le script lit la clé d'API dans `~/Sauvegardes/migration-secrets.env` sans l'imprimer et refuse tout nom de secret (P14.08, 2026-10-25). Il remplace la voie `source … ; curl … $DOKPLOY_API_KEY`, qui faisait passer la clé par l'expansion du shell, par laquelle des fragments de mot de passe ont déjà fui (2026-09-14).",
     "identifiants": "Takussan préproduction : composeId `JbPrtvdkuq0aLTDrOx2Ss` (`project.all`). La production n'existe pas encore (plan, F3).",
     "pourquoi_pas_en_ci": "L'environnement vit dans Dokploy, derrière une clé d'API : la CI ne le lit pas. `check-prod-drivers.mjs` signale les deux environnements comme hors dépôt, et compare le catalogue à ce que le dépôt contient : la checklist §5.7 de docs/configuration.md et la table de la tâche F3 du plan d'auto-hébergement (P71.03, 2026-10-20 — en-tête de la garde, points 2 et 3).",
     "apres_mesure": "Reporter les valeurs, dater, relancer `node scripts/check-prod-drivers.mjs --report`. Les CLÉS de chaque environnement sont dans les gabarits `deploy/takussan/env.*.production.example` (TCK-2456) ; le relevé daté de la préproduction dans docs/infra/hebergement.md, § « Les variables d'environnement, par service »."
@@ -95,6 +95,14 @@
           "date": "2026-11-01",
           "commande": "compose.one → env (Dokploy)",
           "note": "TCK-2456 : `log` écrivait le titre et le corps de chaque notification dans les journaux."
+        },
+        "LARAVEL_PDF_DRIVER": {
+          "valeur": "dompdf",
+          "etat": "mesure",
+          "date": "2026-11-14T05:46:54Z",
+          "commande": "python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss LARAVEL_PDF_DRIVER",
+          "resultat": "http 200, 315 lignes d'environnement",
+          "note": "TCK-2811 : relevé par la session principale. La préproduction ne passe pas par Cloudflare et ne peut pas rendre la limite de débit du pilote `cloudflare` ; le `.env` local de l'API, hors dépôt, déclarait `cloudflare` à cette date. Absente de la production : ni §5.7 de docs/configuration.md ni la table F3 du plan ne la prescrivent (la ligne `LARAVEL_PDF_DRIVER` du plan est dans D1, la préproduction)."
         }
       }
     },

@@ -941,4 +941,9 @@ return [
         'gone' => 'Lien fey bii jariñatul. Laajal :agency benn bu bees.',
         'receipt_unavailable' => 'Kitaas bi dafay am su fey bi agsee rekk.',
     ],
+    // TCK-2811 — un échec du pilote PDF, sur toute route qui rend un PDF
+    'pdf' => [
+        'render_busy' => 'Le service qui produit les documents PDF est saturé : réessayez dans une minute.',
+        'render_failed' => 'Le document PDF n\'a pas pu être produit. Réessayez dans un instant.',
+    ],
 ];

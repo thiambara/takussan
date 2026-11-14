@@ -941,4 +941,9 @@ return [
         'gone' => 'Ce lien de paiement n\'est plus valide. Demandez-en un nouveau à :agency.',
         'receipt_unavailable' => 'La quittance n\'est disponible qu\'une fois le paiement reçu.',
     ],
+    // TCK-2811 — un échec du pilote PDF, sur toute route qui rend un PDF
+    'pdf' => [
+        'render_busy' => 'Le service qui produit les documents PDF est saturé : réessayez dans une minute.',
+        'render_failed' => 'Le document PDF n\'a pas pu être produit. Réessayez dans un instant.',
+    ],
 ];
