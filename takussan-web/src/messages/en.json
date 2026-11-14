@@ -21312,6 +21312,11 @@
           "edlEntree": "Move-in inspection",
           "edlSortie": "Move-out inspection",
           "autre": "Generated document"
+        },
+        "bauxPrecedents": {
+          "ligne": "Files from previous leases: on each lease",
+          "bail": "Lease #{id}",
+          "voirLesBaux": "See leases"
         }
       },
       "photos": {

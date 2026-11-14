@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { FileText, Sparkles } from 'lucide-react';
 
@@ -13,6 +14,7 @@ import type { Document } from '@/types/document';
 import type { PropertyDetail } from '@/types/property';
 
 import { Carte } from './PiecesDeLaLocation';
+import { useBauxPrecedents, type BailPrecedent } from './useBauxPrecedents';
 
 /** Les pièces d'une cible lues d'un coup : au-delà, le coffre (`/app/documents`) les pagine. */
 const PIECES_LUES = 100;
@@ -75,6 +77,7 @@ export function OngletDocuments({ property, documents }: { readonly property: Pr
   const f = useFormatteurs();
   const libelleGenere = useLibelleGenere();
   const vide = documents.total === 0;
+  const precedents = useBauxPrecedents(property.id);
 
   return (
     <Carte>
@@ -137,6 +140,38 @@ export function OngletDocuments({ property, documents }: { readonly property: Pr
           ))}
         </ul>
       )}
+      <PiecesDesBauxPrecedents baux={precedents.data} enEchec={precedents.isError} />
     </Carte>
+  );
+}
+
+/**
+ * TCK-2639 (AC3, écart — suite : TCK-2841) — les pièces DÉPOSÉES sur un bail clos ne sont pas lues ici :
+ * la ligne le dit et renvoie à chaque bail (son onglet Documents), sans entrer dans le compteur. Baux
+ * illisibles : la ligne reste, vers la liste des baux — elle ne laisse pas croire que tout est là.
+ */
+function PiecesDesBauxPrecedents({ baux, enEchec }: { readonly baux: readonly BailPrecedent[]; readonly enEchec: boolean }) {
+  const t = useTranslations('propertyDashboard.fiche.documents.bauxPrecedents');
+  if (!enEchec && baux.length === 0) return null;
+  const lien = 'font-medium text-primary underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring';
+  return (
+    <p data-testid="pieces-des-baux-precedents" className="border-t border-border px-4 py-3 text-ui text-muted-foreground">
+      {t('ligne')}
+      {' · '}
+      {enEchec ? (
+        <Link href="/app/leases" className={lien}>
+          {t('voirLesBaux')}
+        </Link>
+      ) : (
+        baux.map((bail, i) => (
+          <span key={bail.id}>
+            {i > 0 ? ', ' : null}
+            <Link href={`/app/leases/${bail.id}?onglet=documents`} className={lien}>
+              {bail.reference_number ?? t('bail', { id: bail.id })}
+            </Link>
+          </span>
+        ))
+      )}
+    </p>
   );
 }

@@ -262,6 +262,21 @@
       "commit": "d9cde3558 + arbre de travail (lot 2, non commité)",
       "rideau": ".fidelite/TCK-2639/cmp-bureau-1280/",
       "note": "« Bail en cours » entre dans l'écran (la maquette le met sous le pli) : « À venir » y a deux lignes au lieu de trois (pas de révision, donnée). « Planifier une visite » est présent et visible : la place réservée ne reste plus à l'hydratation (voir le ticket, § CLS)"
+    },
+    "a-2-telephone-2026-11-14": {
+      "ligne": "28 conformes · 27 écarts · 22 absents · 33.04 % pixels",
+      "releve_le": "2026-11-14 18:26 Z",
+      "commit": "d3392fad2 + arbre de travail partagé (lot 3 : TCK-2836 modifie la coque, non commité) ; charge 18-38 sur 8 cœurs",
+      "rideau": ".fidelite/TCK-2639/l3-cmp-telephone/",
+      "zones": "coque · en-tête 8,86 % (titre du bien : donnée), coque · barre d'onglets 0,82 % (pastille « 2 » de Messages : donnée) — inchangées depuis le 12",
+      "note": "écarts neufs depuis le 12 : tout ce qui suit l'identité descend de 25,5 px sous la ligne « Loué — remis en ligne à la fin du bail. » (motif hors ligne, MotifsHorsLigne, TCK-2678 : élément postérieur à la maquette, que TCK-2678 ajoute à la fiche) ; le reste est celui du 12 (barre du bas, « Hors ligne » décalé par « Public », compteurs, pastilles)"
+    },
+    "a-2-bureau-1280-2026-11-14": {
+      "ligne": "60 conformes · 164 écarts · 53 absents · 23.56 % pixels",
+      "releve_le": "2026-11-14 18:26 Z",
+      "commit": "d3392fad2 + arbre de travail partagé (lot 3 : TCK-2836 modifie la coque, non commité) ; charge 18-38 sur 8 cœurs",
+      "rideau": ".fidelite/TCK-2639/l3-cmp-bureau-1280/",
+      "note": "écarts neufs depuis le 12 : la barre latérale de la coque (« Aujourd’hui », « Demandes à traiter », « Démarrer » : hors périmètre, famille 3) et la ligne du motif hors ligne sous les pastilles (TCK-2678), qui descend la fiche ; la carte « Occupation » reste conforme. Balayage 390/768/1024/1280/1440 : débord 0 partout"
     }
   }
 }

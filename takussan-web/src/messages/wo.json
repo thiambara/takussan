@@ -21312,6 +21312,11 @@
           "edlEntree": "État des lieux d’entrée",
           "edlSortie": "État des lieux de sortie",
           "autre": "Document généré"
+        },
+        "bauxPrecedents": {
+          "ligne": "Pièces des baux précédents : sur chaque bail",
+          "bail": "Bail n° {id}",
+          "voirLesBaux": "Voir les baux"
         }
       },
       "photos": {
