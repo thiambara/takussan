@@ -3785,7 +3785,22 @@
       "a": "To",
       "nomDuGroupe": "Group name",
       "bienRattache": "Linked property",
-      "bailRattache": "Linked lease"
+      "bailRattache": "Linked lease",
+      "sections": {
+        "clients": "Recent clients",
+        "equipe": "Team",
+        "proprietaires": "Owners",
+        "autres": "Other people"
+      },
+      "detail": {
+        "bienEtVille": "{titre} · {ville}",
+        "role": {
+          "agent": "Agent",
+          "admin": "Administrator"
+        },
+        "roleEtAgence": "{role} · {agence}",
+        "biensGeres": "{count, plural, =0 {No managed property} one {# managed property} other {# managed properties}}"
+      }
     },
     "contexte": {
       "titre": "Conversation context",

@@ -57,6 +57,16 @@ class MessagingRelation
     /** Priorité, de la plus forte à la plus faible. */
     public const ORDRE = [self::EQUIPE, self::PROPRIETAIRE, self::CLIENT, self::PRESTATAIRE];
 
+    /**
+     * TCK-2830 — un code de FILTRE seulement, jamais une relation rendue : la dernière section de
+     * « Nouvelle conversation », toute personne sans relation forte ({@see self::FORTES}), donc un
+     * prestataire ou personne sans relation. Les sections fortes et celle-ci partitionnent le périmètre.
+     */
+    public const AUTRE = 'autre';
+
+    /** Les relations qui ont chacune leur section, avant « autre ». */
+    public const FORTES = [self::EQUIPE, self::PROPRIETAIRE, self::CLIENT];
+
     private ?int $agencyId;
 
     private bool $litBailleurs;
@@ -82,13 +92,24 @@ class MessagingRelation
 
     /**
      * `filter[relation]=<code>` — les personnes dont la relation est EXACTEMENT ce code (la sienne,
-     * après priorité). Un code inconnu, vide ou en tableau ne rend personne.
+     * après priorité). `autre` : aucune relation forte (TCK-2830). Un code inconnu, vide ou en
+     * tableau ne rend personne.
      *
      * @param  Builder<User>  $query
      */
     public function filtre(Builder $query, mixed $value): void
     {
         $code = is_string($value) ? trim($value) : null;
+        if ($code === self::AUTRE) {
+            foreach (self::FORTES as $forte) {
+                $predicat = $this->predicat($forte);
+                if ($predicat !== null) {
+                    $query->whereNot($predicat);
+                }
+            }
+
+            return;
+        }
         $predicat = $code !== null && in_array($code, self::ORDRE, true) ? $this->predicat($code) : null;
         if ($predicat === null) {
             $query->whereRaw('1 = 0');

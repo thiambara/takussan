@@ -660,13 +660,35 @@ export function useConsignerGesteDuClient() {
 // =============================================================================
 
 /**
+ * TCK-2745 / TCK-2830 — la relation d'une personne avec l'appelant, calculée par l'API
+ * (`MessagingRelation`) : le front ne la rejoue pas, il range et il nomme.
+ */
+export type MessagingRelation = 'client' | 'equipe' | 'proprietaire' | 'prestataire';
+
+/**
+ * Une section de « Nouvelle conversation », lue par `filter[relation]` côté serveur. `autre` est un
+ * code de FILTRE seulement (TCK-2830) : aucune relation forte, donc un prestataire ou personne.
+ */
+export type SectionDeContacts = 'client' | 'equipe' | 'proprietaire' | 'autre';
+
+/** La ligne de détail, en DONNÉES (jamais une phrase) : le texte se compose ici (principe 5). */
+export type MessagingContactDetail =
+  | { property: { title: string; city: string | null } | null }
+  | { role: 'agent' | 'admin' }
+  | { properties_count: number };
+
+/**
  * Une personne joignable, telle que `GET /api/conversations/contacts` la rend
- * (`MessagingContactResource` côté API : le nom et l'avatar, jamais les coordonnées).
+ * (`MessagingContactResource` côté API : le nom et l'avatar, jamais les coordonnées). `relation`
+ * et `detail` arrivent avec TCK-2745 ; facultatifs ici, parce qu'un contact choisi ailleurs (une
+ * puce, un brouillon) peut être construit sans eux.
  */
 export type MessagingContact = {
   id: number;
   name: string;
   avatar_url: string | null;
+  relation?: MessagingRelation | null;
+  detail?: MessagingContactDetail | null;
 };
 
 /**
@@ -694,27 +716,36 @@ export const MESSAGING_CONTACTS_PER_PAGE = 20;
  */
 export function useMessagingContacts(
   search: string,
-  options: { enabled?: boolean; conversationId?: number; exclude?: readonly number[] } = {},
+  options: {
+    enabled?: boolean;
+    conversationId?: number;
+    exclude?: readonly number[];
+    /** TCK-2830 — une section : `filter[relation]`, et pour les clients `sort=-last_exchange_at`. */
+    section?: SectionDeContacts;
+  } = {},
 ) {
   const { user } = useAuth();
   const terme = search.trim();
-  const { conversationId } = options;
+  const { conversationId, section } = options;
   // TCK-973 (P51.06) — les personnes déjà choisies, retirées par l'API AVANT la pagination : le
   // total et la page ne comptent plus qu'elles. Triées, pour qu'un même ensemble fasse une même clé.
   const exclus = [...new Set(options.exclude ?? [])].sort((a, b) => a - b);
   const filter: Record<string, string | number[]> = {};
   if (terme) filter.search = terme;
   if (exclus.length > 0) filter.exclude = exclus;
+  if (section) filter.relation = section;
   const params: SpatieQueryParams = {
     fields: { users: MESSAGING_CONTACT_FIELDS },
     filter,
     per_page: MESSAGING_CONTACTS_PER_PAGE,
+    // « Clients récents » : par dernier échange, tri du SERVEUR (`LastExchangeSort`, TCK-2745).
+    ...(section === 'client' ? { sort: '-last_exchange_at' } : {}),
   };
 
   return useApiQuery<PaginatedResponse<MessagingContact>>(
     conversationId
-      ? ['conversations', conversationId, 'contacts', terme, exclus]
-      : ['conversations', 'contacts', terme, exclus],
+      ? ['conversations', conversationId, 'contacts', terme, exclus, section ?? null]
+      : ['conversations', 'contacts', terme, exclus, section ?? null],
     conversationId
       ? cheminApi`/api/conversations/${conversationId}/contacts`
       : '/api/conversations/contacts',

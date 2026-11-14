@@ -53,7 +53,8 @@ use Spatie\QueryBuilder\QueryBuilder;
  * Cet endpoint déclare donc SA propre liste blanche, étroite : quatre filtres (`search`, sur
  * `first_name` et `last_name` seulement — `attributesToSearchOn` de Meilisearch ; `exclude`,
  * des identifiants que le sélecteur a déjà choisis, TCK-973 ; `id`, une personne précise,
- * TCK-2589 ; et `relation`, une section de « Nouvelle conversation », TCK-2745), trois tris (le
+ * TCK-2589 ; et `relation`, une section de « Nouvelle conversation », TCK-2745 — `autre` pour la dernière,
+ * TCK-2830), trois tris (le
  * nom, et le dernier échange avec l'appelant, {@see LastExchangeSort}), trois colonnes. Chaque
  * personne porte sa relation avec l'appelant et une ligne de détail ({@see MessagingRelation}) :
  * des données lues dans le périmètre, jamais une coordonnée. Tout autre paramètre rend 400 (`InvalidQuery` de spatie). La recherche

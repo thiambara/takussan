@@ -395,11 +395,32 @@
    "motif": "coque commune (TCK-2617/2618/2619/2691/2712), comme pour TCK-2635 ; `coque: false` sur cette fiche : la zone de la barre latérale couvrait la page entière (`_coque`)."
   },
   {
-   "ecran": "a-3-*",
-   "element": "sections « Équipe » / « Propriétaires » ; bascule de groupe",
+   "ecran": "a-3-telephone",
+   "element": "« Créer un groupe » : chevron au lieu de la bascule",
    "propriete": "structure",
    "exception": "décision produit",
-   "motif": "décision 3a du lead : une seule liste « Personnes » (regroupement côté API à part). « Créer un groupe » ouvre NewGroupDialog (TCK-576) par un chevron au lieu de la bascule."
+   "motif": "TCK-2632 puis TCK-2748 : au téléphone, la rangée mène à NewGroupDialog (création en deux étapes) ; l'interrupteur et le formulaire unique sont au bureau. Les sections de la maquette sont livrées par TCK-2830 (exception « une seule liste Personnes » levée)."
+  },
+  {
+   "ecran": "a-3-*",
+   "element": "rangées des sections « Clients récents » · « Équipe » · « Propriétaires » · « Autres personnes » : noms, nombre de rangées, lignes de détail",
+   "propriete": "texte, nombre de rangées",
+   "exception": "donnée",
+   "motif": "TCK-2830 — agent de démo (Dakar Immo), relevé du 2026-11-14 : 5 clients, 11 collègues, 12 bailleurs, 7 autres (somme = 35, le périmètre entier, relu à l'API). Les 5 clients n'ont aucun fil rattaché à un bien (`detail.property` null à l'API) : aucune ligne sous leur nom ; un prestataire ou une personne sans relation n'a pas de ligne (`detail` null). La maquette dessine 3 clients avec bien et ville. Ligne prouvée par `NouvelleConversation.sections.tck-2830.test.tsx`."
+  },
+  {
+   "ecran": "a-3-*",
+   "element": "ligne de détail : interligne 18,6 px au lieu de 19,5",
+   "propriete": "interligne",
+   "exception": "règle du design system",
+   "motif": "TCK-2830 — la ligne est en `text-ui` (13 px, comme la maquette : taille, graisse, encre, x 68 et largeur 306 identiques) ; l'interligne est celui du jeton, comme pour l'aide de « Créer un groupe » sur ce même écran."
+  },
+  {
+   "ecran": "a-3-telephone",
+   "element": "phrase de pied « Vous pouvez écrire aux clients, aux propriétaires et aux collègues de Dakar Immo. »",
+   "propriete": "absent du produit",
+   "exception": "décision produit",
+   "motif": "TCK-2830 — non rendue : le périmètre dépend de l'espace (un bailleur ne joint ni propriétaires ni prestataires), et les titres de section le disent déjà. Recommandation posée à team-lead le 2026-11-14 (ne pas l'ajouter), sans réponse à la livraison."
   },
   {
    "ecran": "a-0-telephone, a-3-telephone",

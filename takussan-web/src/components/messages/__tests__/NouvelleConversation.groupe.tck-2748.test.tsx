@@ -19,6 +19,8 @@ const PERSONNES = [
 const BIENS = [{ id: 31, title: 'F3 · Sacré-Cœur 3', reference_number: 'PR-0031' }];
 const vide = { data: { data: [], meta: { total: 0 } }, isFetching: false, isError: false, refetch: vi.fn() };
 
+// TCK-2830 — la ligne de détail lit l'espace actif (nom de l'agence de l'équipe) ; non exercée ici.
+vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ data: undefined }) }));
 vi.mock('@/lib/queries/conversations', () => ({
   useMessagingContacts: () => ({
     data: { data: PERSONNES, meta: { total: PERSONNES.length } },

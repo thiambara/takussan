@@ -402,6 +402,120 @@ class MessagingContactsRelationTest extends ApiTestCase
         $this->getJson('/api/conversations/contacts?filter[relation]=client')->assertJsonPath('meta.total', 1);
     }
 
+    /**
+     * TCK-2830 — la dernière section de « Nouvelle conversation » : `filter[relation]=autre`, toute
+     * personne joignable sans relation FORTE (équipe, propriétaire, client), donc un prestataire ou
+     * personne sans relation. Les trois sections du dessus et celle-ci partitionnent le périmètre.
+     */
+    public function test_filter_relation_autre_rend_les_prestataires_et_les_sans_relation(): void
+    {
+        $moi = $this->user('Moussa', 'Ndiaye');
+        $this->materializeRoleProfile($moi, 'agent', $this->agence);
+        $collegue = $this->user('Babacar', 'Fall');
+        $this->materializeRoleProfile($collegue, 'agent', $this->agence);
+        $proprietaire = $this->user('Fatou', 'Diop');
+        $this->materializeRoleProfile($proprietaire, 'owner', $this->agence);
+        $client = $this->user('Awa', 'Sarr');
+        $this->fiche($this->agence, $client, $moi);
+        $plombier = $this->prestataire('Ibou', 'Gaye', $this->agence);
+        $this->fil($moi, $plombier);
+        $correspondant = $this->user('Khady', 'Ba');
+        $this->fil($moi, $correspondant);
+        // Prestataire ET client : la relation forte l'emporte, il n'est pas « autre ».
+        $plombierClient = $this->prestataire('Omar', 'Gueye', $this->agence);
+        $this->fiche($this->agence, $plombierClient, $moi);
+
+        $this->actingAsApi($moi);
+
+        $autres = $this->relations('?filter[relation]=autre');
+        ksort($autres);
+        $attendu = [
+            $plombier->id => ['relation' => 'prestataire', 'detail' => null],
+            $correspondant->id => ['relation' => null, 'detail' => null],
+        ];
+        ksort($attendu);
+        $this->assertSame($attendu, $autres);
+
+        $toutes = array_keys($this->relations('?per_page=100'));
+        $sections = [];
+        foreach (['equipe', 'proprietaire', 'client', 'autre'] as $code) {
+            $sections = [...$sections, ...array_keys($this->relations('?per_page=100&filter[relation]='.$code))];
+        }
+        sort($toutes);
+        sort($sections);
+        $this->assertSame($toutes, $sections, 'les quatre sections couvrent le périmètre, sans doublon');
+    }
+
+    /**
+     * TCK-2830 (décision de team-lead du 2026-11-14) — `autre` RESTREINT le périmètre de
+     * {@see MessagingReach}, il ne l'élargit jamais : personne hors de la liste sans filtre, même
+     * sans aucune relation (le cas que `autre` sélectionne), et pas plus par la porte d'un groupe.
+     */
+    public function test_filter_relation_autre_ne_sort_jamais_du_perimetre(): void
+    {
+        $moi = $this->user('Moussa', 'Ndiaye');
+        $this->materializeRoleProfile($moi, 'agent', $this->agence);
+        $correspondant = $this->user('Khady', 'Ba');
+        $this->fil($moi, $correspondant);
+
+        // Hors périmètre : aucun fil, aucune fiche, aucune agence en commun — et tous sans relation.
+        $inconnu = $this->user('Inconnu', 'Total');
+        $agentAilleurs = $this->user('Ibrahima', 'Fall');
+        $this->materializeRoleProfile($agentAilleurs, 'agent', $this->ailleurs);
+        $prestataireAilleurs = $this->prestataire('Ibou', 'Gaye', $this->ailleurs);
+        $proprietaireAilleurs = $this->user('Omar', 'Gueye');
+        $this->materializeRoleProfile($proprietaireAilleurs, 'owner', $this->ailleurs);
+        $horsPerimetre = [$inconnu->id, $agentAilleurs->id, $prestataireAilleurs->id, $proprietaireAilleurs->id];
+
+        $this->actingAsApi($moi);
+
+        $toutes = array_keys($this->relations('?per_page=100'));
+        $autres = array_keys($this->relations('?per_page=100&filter[relation]=autre'));
+        $this->assertContains($correspondant->id, $autres, 'le correspondant sans relation est bien « autre »');
+        $this->assertSame([], array_values(array_diff($autres, $toutes)), '« autre » ⊆ la liste sans filtre');
+        $this->assertSame([], array_values(array_intersect($autres, $horsPerimetre)), 'aucune personne hors du périmètre');
+        $this->assertNotContains($moi->id, $autres, 'jamais l’appelant lui-même');
+
+        // La porte d'un groupe existant : même borne.
+        $groupe = Conversation::create([
+            'type' => ConversationType::Group->value,
+            'status' => ConversationStatus::Active->value,
+            'subject' => 'groupe',
+            'created_by' => $moi->id,
+        ]);
+        $groupe->participants()->attach($moi->id, ['joined_at' => now(), 'role' => 'admin']);
+        $porte = fn (string $q) => collect($this->getJson("/api/conversations/{$groupe->id}/contacts?per_page=100".$q)
+            ->assertOk()->json('data'))->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $autresDuGroupe = $porte('&filter[relation]=autre');
+        $this->assertContains($correspondant->id, $autresDuGroupe);
+        $this->assertSame([], array_values(array_diff($autresDuGroupe, $porte(''))), 'porte du groupe : « autre » ⊆ sans filtre');
+        $this->assertSame([], array_values(array_intersect($autresDuGroupe, $horsPerimetre)), 'porte du groupe : aucun hors-périmètre');
+    }
+
+    /** TCK-2830 — chez un bailleur, « autre » rend aussi ce que la relation lui tait (bailleurs, prestataires). */
+    public function test_filter_relation_autre_chez_un_bailleur(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $this->materializeRoleProfile($moi, 'owner', $this->agence);
+        $agent = $this->user('Moussa', 'Ndiaye');
+        $this->materializeRoleProfile($agent, 'agent', $this->agence);
+        $autreProprietaire = $this->user('Omar', 'Gueye');
+        $this->materializeRoleProfile($autreProprietaire, 'owner', $this->agence);
+        $this->bien($this->agence, $autreProprietaire, 'Villa', 'Dakar');
+        $plombier = $this->prestataire('Ibou', 'Gaye', $this->agence);
+        $this->fil($moi, $autreProprietaire);
+        $this->fil($moi, $plombier);
+
+        $this->actingAsApi($moi);
+
+        $autres = array_keys($this->relations('?filter[relation]=autre'));
+        sort($autres);
+        $attendu = [$autreProprietaire->id, $plombier->id];
+        sort($attendu);
+        $this->assertSame($attendu, $autres);
+        $this->assertSame([], $this->relations('?filter[relation]=proprietaire'));
+    }
+
     public function test_le_tri_recent_range_les_clients_par_dernier_echange(): void
     {
         $moi = $this->user('Moussa', 'Ndiaye');

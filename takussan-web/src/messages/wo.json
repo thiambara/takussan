@@ -2606,7 +2606,22 @@
       "a": "À",
       "nomDuGroupe": "Nom du groupe",
       "bienRattache": "Bien rattaché",
-      "bailRattache": "Bail rattaché"
+      "bailRattache": "Bail rattaché",
+      "sections": {
+        "clients": "Clients récents",
+        "equipe": "Équipe",
+        "proprietaires": "Propriétaires",
+        "autres": "Autres personnes"
+      },
+      "detail": {
+        "bienEtVille": "{titre} · {ville}",
+        "role": {
+          "agent": "Agent",
+          "admin": "Administrateur"
+        },
+        "roleEtAgence": "{role} · {agence}",
+        "biensGeres": "{count, plural, =0 {Aucun bien géré} one {# bien géré} other {# biens gérés}}"
+      }
     },
     "contexte": {
       "titre": "Contexte de la conversation",

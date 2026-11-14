@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronRight, Loader2, Search, Users, X } from 'lucide-react';
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -12,11 +12,12 @@ import { fieldDensityScope } from '@/components/ui/field-density';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { initiales } from '@/lib/fiche-publique';
 import { messageErreurApi } from '@/lib/api';
-import { useMessagingContacts, useTrouverLeFilDirect, type MessagingContact } from '@/lib/queries/conversations';
+import { useMessagingContacts, useTrouverLeFilDirect, type MessagingContact, type SectionDeContacts } from '@/lib/queries/conversations';
 import { PARTICIPANT_SEARCH_DEBOUNCE_MS, ParticipantPicker } from './ParticipantPicker';
 import { GroupLeasePicker, GroupPropertyPicker } from './GroupContextPicker';
 import { AlerteErreurs } from './erreursDeValidation';
 import { MAX_PARTICIPANTS, useCreationDeGroupe } from './useCreationDeGroupe';
+import { useLigneDeContact } from './ligneDeContact';
 
 interface NouvelleConversationProps {
   readonly open: boolean;
@@ -44,9 +45,12 @@ interface NouvelleConversationProps {
  * existe, sinon un brouillon. Si la recherche échoue, on le DIT au lieu d'ouvrir un brouillon : un
  * brouillon envoyé créerait un second fil avec la même personne.
  *
- * Écarts assumés avec la maquette : les personnes ne sont pas rangées en « Clients récents ·
- * Équipe · Propriétaires » (l'API des contacts ne rend que le nom et l'avatar, ni le rôle ni le
- * bien) ; la recherche ne porte que sur le nom (« un numéro » n'est pas cherché par l'API).
+ * TCK-2830 — sans recherche, les personnes sont rangées comme la maquette : « Clients récents » ·
+ * « Équipe » · « Propriétaires » · « Autres personnes », chaque section lue par SA requête
+ * `filter[relation]` (jamais un tri côté client d'une liste reçue), chaque personne avec sa ligne
+ * de détail (`useLigneDeContact`). Une section vide ne s'affiche pas. Avec une recherche, une seule
+ * liste par pertinence. Écart assumé : la recherche ne porte que sur le nom (« un numéro » n'est
+ * pas cherché par l'API).
  *
  * TCK-2748 — au bureau, le groupe se crée DANS ce dialogue (interrupteur « Créer un groupe ») ; au
  * téléphone, il s'ouvre toujours dans `NewGroupDialog`. Le groupe n'est pas « activé d'office à
@@ -58,7 +62,9 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
   const tRacine = useTranslations();
   const [saisie, setSaisie] = useState('');
   const recherche = useDebouncedValue(saisie, PARTICIPANT_SEARCH_DEBOUNCE_MS);
-  const contacts = useMessagingContacts(recherche, { enabled: open });
+  // TCK-2830 — sans recherche, chaque section lit SA requête (`SectionsDeContacts`) : la liste
+  // « tout le périmètre » ne se lit qu'avec un terme.
+  const contacts = useMessagingContacts(recherche, { enabled: open && recherche.trim() !== '' });
   const trouver = useTrouverLeFilDirect();
   const [enCours, setEnCours] = useState<number | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -68,9 +74,6 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
   /** Le groupe dans ce dialogue : au bureau, et là où l'espace propose un groupe (`usePeutProposerUnGroupe`). */
   const groupeEnPlace = bureau && onNouveauGroupe !== undefined;
   const enGroupe = groupeEnPlace && modeGroupe;
-
-  const personnes = contacts.data?.data ?? [];
-  const total = contacts.data?.meta.total ?? 0;
 
   function fermer() {
     setSaisie('');
@@ -224,48 +227,18 @@ export function NouvelleConversation({ open, onClose, onOuvrir, onBrouillon, onN
               {erreur}
             </p>
           ) : null}
-          <h3 className="px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground">{t('personnes')}</h3>
-          {contacts.isLoading ? (
-            <p role="status" className="px-4 py-3 text-ui text-muted-foreground">
-              {tGroupe('searching')}
-            </p>
-          ) : contacts.isError ? (
-            <div className="flex items-center gap-3 px-4 py-3">
-              <p className="text-ui text-destructive">{tGroupe('contactsError')}</p>
-              <button type="button" onClick={() => void contacts.refetch()} className="text-ui font-medium underline underline-offset-2">
-                {tGroupe('retry')}
-              </button>
-            </div>
-          ) : personnes.length === 0 ? (
-            <p className="px-4 py-3 text-ui text-muted-foreground">
-              {recherche.trim() ? tGroupe('noContact') : tGroupe('noContactYet')}
-            </p>
+          {recherche.trim() ? (
+            // Avec une recherche : UNE liste, par pertinence (TCK-2632), avec la ligne de détail.
+            <SectionDePersonnes
+              titre={t('personnes')}
+              requete={contacts}
+              enCours={enCours}
+              onChoisir={(p) => void choisir(p)}
+              vide={tGroupe('noContact')}
+            />
           ) : (
-            <ul>
-              {personnes.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => void choisir(p)}
-                    aria-busy={enCours === p.id || undefined}
-                    disabled={enCours !== null && enCours !== p.id}
-                    className="flex min-h-14 w-full items-center gap-3 px-4 py-1.5 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted/60 disabled:opacity-60"
-                  >
-                    <Avatar size="40">
-                      {p.avatar_url ? <AvatarImage src={p.avatar_url} alt="" /> : null}
-                      {/* Les initiales doublent le nom : la rangée se nomme par le nom seul. */}
-                      <AvatarFallback aria-hidden="true">{initiales(p.name)}</AvatarFallback>
-                    </Avatar>
-                    <span className="min-w-0 flex-1 truncate text-corps font-medium">{p.name}</span>
-                    {enCours === p.id ? <Loader2 className="size-4 flex-none animate-spin text-muted-foreground" aria-hidden="true" /> : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <SectionsDeContacts open={open} enCours={enCours} onChoisir={(p) => void choisir(p)} />
           )}
-          {!contacts.isError && total > personnes.length ? (
-            <p className="px-4 py-3 text-xs text-muted-foreground">{tGroupe('moreResults', { shown: personnes.length, total })}</p>
-          ) : null}
         </div>
           </>
         )}
@@ -300,5 +273,148 @@ function InterrupteurDeGroupe({ actif, onBasculer }: { readonly actif: boolean; 
       </span>
       <Switch checked={actif} onCheckedChange={onBasculer} />
     </label>
+  );
+}
+
+/** TCK-2830 — l'ordre de la maquette ; chaque code est un `filter[relation]` du serveur. */
+const SECTIONS: readonly { readonly code: SectionDeContacts; readonly titre: 'clients' | 'equipe' | 'proprietaires' | 'autres' }[] = [
+  { code: 'client', titre: 'clients' },
+  { code: 'equipe', titre: 'equipe' },
+  { code: 'proprietaire', titre: 'proprietaires' },
+  { code: 'autre', titre: 'autres' },
+];
+
+type RequeteDeContacts = ReturnType<typeof useMessagingContacts>;
+
+interface ChoixDePersonne {
+  readonly enCours: number | null;
+  readonly onChoisir: (personne: MessagingContact) => void;
+}
+
+/**
+ * TCK-2830 — les quatre sections, sans recherche. Le message « personne à joindre » ne paraît
+ * qu'une fois TOUTES les réponses arrivées et vides ; une section vide ne s'affiche pas.
+ */
+function SectionsDeContacts({ open, enCours, onChoisir }: ChoixDePersonne & { readonly open: boolean }) {
+  const t = useTranslations('messaging.nouvelle.sections');
+  const tGroupe = useTranslations('messaging.group.create');
+  const client = useMessagingContacts('', { enabled: open, section: 'client' });
+  const equipe = useMessagingContacts('', { enabled: open, section: 'equipe' });
+  const proprietaire = useMessagingContacts('', { enabled: open, section: 'proprietaire' });
+  const autre = useMessagingContacts('', { enabled: open, section: 'autre' });
+  const requetes: Record<SectionDeContacts, RequeteDeContacts> = { client, equipe, proprietaire, autre };
+  const toutes = Object.values(requetes);
+
+  const enChargement = toutes.some((r) => r.isLoading);
+  const toutesVides = toutes.every((r) => !r.isError && r.data !== undefined && r.data.data.length === 0);
+
+  return (
+    <>
+      {SECTIONS.map((s) => (
+        <SectionDePersonnes
+          key={s.code}
+          titre={t(s.titre)}
+          requete={requetes[s.code]}
+          enCours={enCours}
+          onChoisir={onChoisir}
+          masquerSiVide
+        />
+      ))}
+      {enChargement && !toutes.some((r) => (r.data?.data.length ?? 0) > 0) ? (
+        <p role="status" className="px-4 py-3 text-ui text-muted-foreground">
+          {tGroupe('searching')}
+        </p>
+      ) : toutesVides ? (
+        <p className="px-4 py-3 text-ui text-muted-foreground">{tGroupe('noContactYet')}</p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Une liste titrée de personnes (une `region` nommée par son titre). Chaque rangée se NOMME par le
+ * nom seul et se DÉCRIT par sa ligne de détail. `masquerSiVide` : une section sans personne, ou
+ * encore en chargement, ne s'affiche pas (TCK-2830) ; la liste d'une recherche dit « personne ».
+ */
+function SectionDePersonnes({
+  titre,
+  requete,
+  enCours,
+  onChoisir,
+  vide,
+  masquerSiVide = false,
+}: ChoixDePersonne & {
+  readonly titre: string;
+  readonly requete: RequeteDeContacts;
+  readonly vide?: string;
+  readonly masquerSiVide?: boolean;
+}) {
+  const tGroupe = useTranslations('messaging.group.create');
+  const ligne = useLigneDeContact();
+  const id = useId();
+  const personnes = requete.data?.data ?? [];
+  const total = requete.data?.meta.total ?? 0;
+
+  if (masquerSiVide && !requete.isError && personnes.length === 0) return null;
+
+  return (
+    <section aria-labelledby={`${id}-titre`}>
+      <h3 id={`${id}-titre`} className="px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground">
+        {titre}
+      </h3>
+      {requete.isLoading ? (
+        <p role="status" className="px-4 py-3 text-ui text-muted-foreground">
+          {tGroupe('searching')}
+        </p>
+      ) : requete.isError ? (
+        <div className="flex items-center gap-3 px-4 py-3">
+          <p className="text-ui text-destructive">{tGroupe('contactsError')}</p>
+          <button type="button" onClick={() => void requete.refetch()} className="text-ui font-medium underline underline-offset-2">
+            {tGroupe('retry')}
+          </button>
+        </div>
+      ) : personnes.length === 0 ? (
+        <p className="px-4 py-3 text-ui text-muted-foreground">{vide}</p>
+      ) : (
+        <ul>
+          {personnes.map((p) => {
+            const detail = ligne(p);
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => onChoisir(p)}
+                  aria-busy={enCours === p.id || undefined}
+                  aria-labelledby={`${id}-${p.id}-nom`}
+                  aria-describedby={detail ? `${id}-${p.id}-detail` : undefined}
+                  disabled={enCours !== null && enCours !== p.id}
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-1.5 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted/60 disabled:opacity-60"
+                >
+                  <Avatar size="40">
+                    {p.avatar_url ? <AvatarImage src={p.avatar_url} alt="" /> : null}
+                    {/* Les initiales doublent le nom : la rangée se nomme par le nom seul. */}
+                    <AvatarFallback aria-hidden="true">{initiales(p.name)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1">
+                    <span id={`${id}-${p.id}-nom`} className="block truncate text-corps font-medium">
+                      {p.name}
+                    </span>
+                    {detail ? (
+                      <span id={`${id}-${p.id}-detail`} className="block truncate text-ui text-muted-foreground">
+                        {detail}
+                      </span>
+                    ) : null}
+                  </span>
+                  {enCours === p.id ? <Loader2 className="size-4 flex-none animate-spin text-muted-foreground" aria-hidden="true" /> : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {!requete.isError && total > personnes.length ? (
+        <p className="px-4 py-3 text-xs text-muted-foreground">{tGroupe('moreResults', { shown: personnes.length, total })}</p>
+      ) : null}
+    </section>
   );
 }
