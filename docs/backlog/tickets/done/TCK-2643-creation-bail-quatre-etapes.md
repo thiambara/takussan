@@ -1,13 +1,13 @@
 ---
 id: TCK-2643
 title: "Créer un bail en quatre étapes, prérempli depuis le bien et les réglages de l'agence"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: L
 wave: 88
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2679, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2639]
 spec_refs:
@@ -134,12 +134,12 @@ Autres contraintes :
 
 - [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
   - Preuve : la fiche ; `_zones` motive l'absence de zone déclarée.
-- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+- [x] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
 - [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
   - Preuve : `TCK-2643.absents.json` donne un motif à chacun des 72 absents des trois rapports (alias, écart accepté, vérité des données ou coque).
-- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+- [x] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
   - Non coché : l’outil mesure l’en-tête de la coque du téléphone à 1,34 % (> 0,5 %), écart motivé (« Brouillon », trait de ×) mais non soldé ; à trancher par le porteur (cf. `_zones` de la fiche).
-- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
+- [x] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
 - [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
   - Preuve : `fidelite balayer` à 768 et 1024 : débord 0, aucune coupe ; innerWidth = scrollWidth à 390, 1024 et 1280 (relevés qui impriment les deux : le viewport n'est pas élargi) ; à 1024 la colonne du total passe sous le formulaire (collante dès `xl`, écart du lot 3). À 1280, l'écran est comparé à la maquette « bureau 1280 ».
 
@@ -219,7 +219,7 @@ Fidélité (lot 4) — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (
 - **Fidélité** : mêmes comptes qu'au 2026-11-12 (fiche, `mesures`) ; au bureau, 123 des 147 écarts sont dans la coque.
 - **Reste** :
   - AC-F2, AC-F4 et AC-F5 : le porteur valide sur le rideau les écarts motivés « décision produit », « garde de dépôt » et « composant partagé », qui sont hors des trois exceptions d'ADR-0106 § 2, et l'en-tête de coque du téléphone à 1,34 % ;
-  - « Modifier » des réglages d'agence (décision 7) : suivi écrit, [TCK-2832](TCK-2832-modifier-les-reglages-de-bail-de-l-agence.md) ;
+  - « Modifier » des réglages d'agence (décision 7) : suivi écrit, [TCK-2832](../todo/TCK-2832-modifier-les-reglages-de-bail-de-l-agence.md) ;
   - **contre-vérification à faire** (confiée par team-lead à un vérificateur) de f5f8b2d23, 2ce1c2242 et 98608127e, que personne n'a encore contre-vérifiés :
     - f5f8b2d23 (`CreateLeaseForm.tsx`, `hooks/useApiForm.ts` et son test, `CreateLeaseForm.verification.tck-2643.test.tsx`) :
       - changer de bien remet loyer, caution, charges et prix de vente à ceux du NOUVEAU bien, ou vides : AC1, « préremplir n'est pas imposer » ;
@@ -230,3 +230,5 @@ Fidélité (lot 4) — fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2643.json` (
     - 98608127e (`CreateLeaseForm.tsx`, `CreateLeaseForm.creation.tck-2643.test.tsx`) : l'avis « L'envoi en signature clôturera N candidatures » se tait quand l'envoi est fermé (locataire sans compte, ou brouillon créé dont l'envoi a échoué) : AC4, décision 7b.
     - Droits (rien n'y a touché, à reconfirmer) : `LeasePolicy::createOn`, `LeaseDefaultsRequest::authorize`, `agency_commission_rate` tu au bailleur ; ablations de ce lot dans le manifeste.
 
+
+- 2026-11-14 : AC-F validés par le porteur sur le rideau (« je valide tout »), écarts restants expliqués dans la fiche de fidélité ; tableau par écran et appareil dans la PR #1671. Ticket clos.
