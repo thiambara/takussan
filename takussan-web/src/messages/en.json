@@ -1597,6 +1597,29 @@
         "voir": "View my listing",
         "espace": "Go to my space",
         "versLaFiche": "Open the property page"
+      },
+      "suggestedTitle": {
+        "surface": "{area} m² {noun}",
+        "bedrooms": "{count}-bedroom {noun}",
+        "place": "{title} in {place}",
+        "noun": {
+          "land": "plot",
+          "house": "house",
+          "apartment": "apartment",
+          "villa": "villa",
+          "studio": "studio",
+          "room": "room",
+          "office": "office",
+          "shop": "retail unit",
+          "warehouse": "warehouse",
+          "factory": "factory",
+          "farm": "farm",
+          "hotel": "hotel",
+          "resort": "complex",
+          "garage": "garage",
+          "parking": "parking space",
+          "other": "property"
+        }
       }
     },
     "titleTypes": {

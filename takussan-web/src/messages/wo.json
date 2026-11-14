@@ -9971,6 +9971,29 @@
         "voir": "Voir mon annonce",
         "espace": "Aller à mon espace",
         "versLaFiche": "Ouvrir la fiche du bien"
+      },
+      "suggestedTitle": {
+        "surface": "{type} de {area} m²",
+        "bedrooms": "{type} {count, plural, one {# chambre} other {# chambres}}",
+        "place": "{title} à {place}",
+        "noun": {
+          "land": "Terrain",
+          "house": "Maison",
+          "apartment": "Appartement",
+          "villa": "Villa",
+          "studio": "Studio",
+          "room": "Chambre",
+          "office": "Bureau",
+          "shop": "Commerce",
+          "warehouse": "Entrepôt",
+          "factory": "Usine",
+          "farm": "Ferme",
+          "hotel": "Hôtel",
+          "resort": "Complexe",
+          "garage": "Garage",
+          "parking": "Parking",
+          "other": "Autre"
+        }
       }
     },
     "titleTypes": {

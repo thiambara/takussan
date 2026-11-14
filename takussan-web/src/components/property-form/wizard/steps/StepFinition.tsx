@@ -90,9 +90,10 @@ export function StepFinition({
         city: getValues('city'),
       },
       tType,
+      t,
     );
     if (propose) setValue('title', propose, { shouldDirty: true, shouldValidate: true });
-  }, [getValues, setValue, tType]);
+  }, [getValues, setValue, tType, t]);
 
   return (
     <>
