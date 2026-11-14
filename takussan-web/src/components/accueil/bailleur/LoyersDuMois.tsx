@@ -13,8 +13,9 @@ import { cn } from '@/lib/utils';
  * barre des reçus, et « Reçus 11,4 M F ». « Voir les loyers » ouvre l'historique des paiements sur le
  * mois.
  *
- * « En retard » et « À venir » ne se rendent que si l'API les sert pour le mois (TCK-2774) : la
- * maquette les dessine, mais aucun chiffre n'est déduit ici (décision 2, validée le 2026-11-13).
+ * « En retard » et « À venir » sont servis pour le mois par l'API depuis TCK-2774 ; ils ne se rendent
+ * que servis et cohérents (`lireLoyersDuMois`), aucun chiffre n'est déduit ici (décision 2, validée le
+ * 2026-11-13).
  */
 export function LoyersDuMois({ loyers, jour, className }: { readonly loyers: Loyers; readonly jour: string; readonly className?: string }) {
   const t = useTranslations('accueil.bailleur.loyersDuMois');

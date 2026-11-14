@@ -2,17 +2,18 @@
  * TCK-2624 (lot 2) — « Loyers de novembre : 8 reçus sur 14 » du bailleur, lu depuis
  * `metrics.rent_month` de `GET /api/dashboard/me` (TCK-2623, `DashboardOwnerService::loyersDuMois`).
  *
- * L'API sert aujourd'hui `received_count`, `expected_count` et `received_amount`. Les segments
- * « 3 en retard » et « 3 à venir » de la maquette ne sont pas servis POUR LE MOIS (`overdue_*` compte
- * toutes les périodes) : ils ne sont rendus que si l'API les sert un jour (TCK-2774), jamais déduits
- * ici (décision 2 de TCK-2624, validée le 2026-11-13 : « pas de chiffre inventé »).
+ * L'API sert `received_count`, `expected_count` et `received_amount`, et depuis TCK-2774 les segments
+ * du MÊME mois « 3 en retard » (`overdue_count`, `overdue_amount`) et « 3 à venir » (`upcoming_count`,
+ * `upcoming_amount`), dont la somme avec les reçus fait les attendus. Ils ne sont jamais déduits ici,
+ * ni des `overdue_*` du tableau, qui comptent toutes les périodes (décision 2 de TCK-2624, validée le
+ * 2026-11-13 : « pas de chiffre inventé ») : absents (API ancienne) ou incohérents, ils ne sont pas rendus.
  */
 
 export interface LoyersDuMois {
   readonly recus: number;
   readonly attendus: number;
   readonly montantRecu: number;
-  /** TCK-2774 : `null` tant que l'API ne sert pas le segment. */
+  /** TCK-2774 : `null` si l'API ne sert pas le segment, ou s'il ne boucle pas sur les attendus. */
   readonly enRetard: { readonly n: number; readonly montant: number | null } | null;
   readonly aVenir: { readonly n: number; readonly montant: number | null } | null;
 }

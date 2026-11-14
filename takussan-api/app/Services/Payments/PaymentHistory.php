@@ -368,8 +368,10 @@ class PaymentHistory
      * ⚠ Ce n'est PAS `CollectedPayments::OWED_REMAINING_SQL`, qui ignore les deux premières branches
      * (il ne lit que des échéances dues), mais il lit `metadata.paid_amount` par le même fragment
      * tolérant. La parité est épinglée par `PaymentHistoryExportTest` et `PaidAmountTolerantReadTest`.
+     * TCK-2774 — public : le reste dû des loyers du mois du bailleur (`DashboardOwnerService::loyersDuMois`)
+     * est ce même reste dû, et non une seconde définition (parité épinglée par `OwnerRentMonthTest`).
      */
-    private static function remainingAmountSql(string $table): string
+    public static function remainingAmountSql(string $table): string
     {
         $paye = PaymentStatus::Paid->value;
         $rembourse = PaymentStatus::Refunded->value;
