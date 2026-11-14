@@ -120,7 +120,8 @@ class DemoUsersSeeder extends Seeder
     private function createDemoUser(Agency $agency, array $userData): void
     {
         // TCK-2378 — une agence `individual` est une personne seule : pas d'agent de démonstration.
-        if ($userData['persona'] === 'agent' && $agency->kind === AgencyKind::Individual) {
+        // TCK-2776 — ni de bailleur de démonstration : l'hôte est le seul bailleur de ses biens.
+        if (in_array($userData['persona'], ['agent', 'owner'], true) && $agency->kind === AgencyKind::Individual) {
             return;
         }
         // Un compte de démonstration a l'ancienneté de l'équipe qu'il rejoint : créé `now()`, il

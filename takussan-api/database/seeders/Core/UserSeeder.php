@@ -97,7 +97,16 @@ class UserSeeder extends Seeder
             $agents[] = $this->createUser($agency, $this->membre($domain, $slug, 'agent', $i));
         }
 
-        foreach (range(1, max(2, (int) round(10 * $taille))) as $i) {
+        // TCK-2776 — l'hôte d'une agence `individual` est le bailleur de chacun de ses biens, comme
+        // `HostIndividualOnboardingService` l'écrit pour un hôte réel : aucun parcours ne lui donne un
+        // autre bailleur (invitation, désignation de titulaire, départ refusés à l'agence `individual`).
+        // Rangé aussi parmi les bailleurs du contexte : les seeders qui tirent un titulaire le trouvent.
+        if ($individuelle) {
+            $this->seedProfileFor($admin, $agency, 'owner');
+            $this->ctx->registerUser($admin, 'owner', $agency->id);
+        }
+
+        foreach ($individuelle ? [] : range(1, max(2, (int) round(10 * $taille))) as $i) {
             $bailleur = $this->createUser($agency, $this->membre($domain, $slug, 'owner', $i));
             // TCK-2532 — le premier bailleur de chaque agence a CHOISI l'annuaire public (TCK-2506) :
             // la démo montre les deux cas, le propriétaire qui y paraît et ceux, non listés, qui n'y
