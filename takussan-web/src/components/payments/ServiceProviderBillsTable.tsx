@@ -27,6 +27,8 @@ import type { PaginationMeta } from '@/types/api';
 import type { ServiceProviderBill } from '@/types/invoice';
 
 import { SERVICE_PROVIDER_BILL_STATUS_TONE } from './constants';
+import { PageAuDelaDeLaDerniere } from './PageAuDelaDeLaDerniere';
+import { densiteDeLAdresse, estAuDelaDeLaDernierePage, pageDeLAdresse } from './pagination-de-l-adresse';
 
 interface ServiceProviderBillsTableProps {
   /**
@@ -184,6 +186,12 @@ export function ServiceProviderBillsTable({ mode, onPaid, titreMasque = false }:
       >
         {(data) => {
           const rows = data.data ?? [];
+          // TCK-2805 — une page au-delà de la dernière n'est pas une liste vide, dans les deux modes.
+          if (data.meta && estAuDelaDeLaDernierePage(rows.length, data.meta)) {
+            return (
+              <PageAuDelaDeLaDerniere meta={data.meta} allerA={page.sorte === 'voisine' ? page.allerA : undefined} />
+            );
+          }
           if (rows.length === 0) {
             return (
               <EmptyState
@@ -250,9 +258,6 @@ export function ServiceProviderBillsTable({ mode, onPaid, titreMasque = false }:
 // TCK-2750 — le registre se pagine : au-delà des 20 premières, les factures se lisent.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Les densités que propose `PropertyPagination` ; toute autre valeur de `?per_page=` retombe à 20. */
-const DENSITES = new Set([10, 20, 50]);
-
 type PageDesFactures =
   | { readonly sorte: 'registre'; readonly page: number; readonly parPage: number }
   | { readonly sorte: 'voisine'; readonly page: number; readonly parPage: number; readonly allerA: (page: number) => void };
@@ -273,17 +278,14 @@ const PARAMETRE_PAGE_PRESTATAIRE = 'factures_page';
 function usePageDesFactures(mode: 'provider' | 'agency'): PageDesFactures {
   const recherche = useSearchParams();
   const router = useRouter();
-  const entier = (nom: string, defaut: number) => {
-    const n = Number.parseInt(recherche?.get(nom) ?? '', 10);
-    return Number.isFinite(n) && n > 0 ? n : defaut;
-  };
+  // TCK-2805 — la lecture commune à tout `/app/payments` (`pagination-de-l-adresse`) : une seule
+  // liste de densités, celle du sélecteur de `PropertyPagination`.
   if (mode === 'agency') {
-    const parPage = entier('per_page', 20);
-    return { sorte: 'registre', page: entier('page', 1), parPage: DENSITES.has(parPage) ? parPage : 20 };
+    return { sorte: 'registre', page: pageDeLAdresse(recherche), parPage: densiteDeLAdresse(recherche) };
   }
   return {
     sorte: 'voisine',
-    page: entier(PARAMETRE_PAGE_PRESTATAIRE, 1),
+    page: pageDeLAdresse(recherche, PARAMETRE_PAGE_PRESTATAIRE),
     parPage: 20,
     allerA: (page) => {
       const params = new URLSearchParams(recherche?.toString() ?? '');

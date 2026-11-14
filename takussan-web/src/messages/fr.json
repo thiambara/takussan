@@ -5360,6 +5360,12 @@
         "locataire": "Locataire",
         "tousLesLocataires": "Tous les locataires"
       }
+    },
+    "pageAuDela": {
+      "title": "Cette page n'existe pas",
+      "description": "La liste s'arrête à la page {derniere} : la page demandée est au-delà.",
+      "derniere": "Aller à la page {numero}",
+      "premiere": "Revenir à la première page"
     }
   },
   "lease": {

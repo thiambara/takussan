@@ -16,6 +16,8 @@ import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
 import { PAYOUT_STATUS_TONE } from './constants';
+import { PageAuDelaDeLaDerniere } from './PageAuDelaDeLaDerniere';
+import { densiteDeLAdresse, estAuDelaDeLaDernierePage, pageDeLAdresse } from './pagination-de-l-adresse';
 
 interface PayoutsTableProps {
   readonly onSelect: (payoutId: number) => void;
@@ -34,15 +36,17 @@ export function PayoutsTable({ onSelect, status, sansIdentifiants = false }: Pay
   const tTable = useTranslations('payments.payouts.table');
   const tStatus = useTranslations('payments.payoutStatus');
   const searchParams = useSearchParams();
-  const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  // TCK-2805 — la page et la densité que `PropertyPagination` écrit dans l'adresse.
+  const page = pageDeLAdresse(searchParams);
+  const parPage = densiteDeLAdresse(searchParams);
 
   const params: UsePayoutsParams = useMemo(
     () => ({
       page,
-      per_page: 20,
+      per_page: parPage,
       status: status ?? (searchParams.get('payout_status') as PayoutStatus | null) ?? undefined,
     }),
-    [page, searchParams, status],
+    [page, parPage, searchParams, status],
   );
 
   const query = usePayouts(params);
@@ -56,6 +60,10 @@ export function PayoutsTable({ onSelect, status, sansIdentifiants = false }: Pay
     >
       {(data) => {
         const rows = data.data ?? [];
+        // TCK-2805 — une page au-delà de la dernière n'est pas une liste vide.
+        if (data.meta && estAuDelaDeLaDernierePage(rows.length, data.meta)) {
+          return <PageAuDelaDeLaDerniere meta={data.meta} />;
+        }
         if (rows.length === 0) {
           return (
             <EmptyState

@@ -27,6 +27,8 @@ import {
   type PaymentStatus,
 } from './constants';
 import { jourDeLApiOuRien } from '@/lib/jour-de-l-api';
+import { PageAuDelaDeLaDerniere } from './PageAuDelaDeLaDerniere';
+import { densiteDeLAdresse, estAuDelaDeLaDernierePage, pageDeLAdresse } from './pagination-de-l-adresse';
 
 interface PaymentsHistoryTableProps {
   /**
@@ -46,7 +48,9 @@ export function PaymentsHistoryTable({ bailleur }: PaymentsHistoryTableProps = {
   const tMethods = useTranslations('payments.methods');
   const searchParams = useSearchParams();
 
-  const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
+  // TCK-2805 — la page et la densité que `PropertyPagination` écrit dans l'adresse.
+  const page = pageDeLAdresse(searchParams);
+  const parPage = densiteDeLAdresse(searchParams);
   const bailleurId = bailleur?.id;
   const params: UsePaymentsHistoryParams = useMemo(() => {
     const status = searchParams.get('status') ?? undefined;
@@ -66,14 +70,14 @@ export function PaymentsHistoryTable({ bailleur }: PaymentsHistoryTableProps = {
     return {
       ...duBailleur,
       page,
-      per_page: 20,
+      per_page: parPage,
       status: status || undefined,
       entity_type: entity_type || undefined,
       entity_id,
       date_from,
       date_to,
     };
-  }, [page, searchParams, bailleurId]);
+  }, [page, parPage, searchParams, bailleurId]);
 
   const query = usePaymentsHistory(params);
 
@@ -88,6 +92,10 @@ export function PaymentsHistoryTable({ bailleur }: PaymentsHistoryTableProps = {
         const rows = data.data ?? [];
         const totals = data.meta.totals;
 
+        // TCK-2805 — une page au-delà de la dernière n'est pas une liste vide.
+        if (data.meta && estAuDelaDeLaDernierePage(rows.length, data.meta)) {
+          return <PageAuDelaDeLaDerniere meta={data.meta} />;
+        }
         if (rows.length === 0) {
           return (
             <EmptyState

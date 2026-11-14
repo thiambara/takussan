@@ -5403,6 +5403,12 @@
         "locataire": "Tenant",
         "tousLesLocataires": "All tenants"
       }
+    },
+    "pageAuDela": {
+      "title": "This page does not exist",
+      "description": "The list ends at page {derniere}: the page you asked for is beyond it.",
+      "derniere": "Go to page {numero}",
+      "premiere": "Back to the first page"
     }
   },
   "lease": {

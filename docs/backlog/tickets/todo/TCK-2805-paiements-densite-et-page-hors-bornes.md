@@ -62,24 +62,26 @@ dernière page ou à la première. La liste ne se dit vide que lorsqu'elle l'est
 
 ## Delta à produire
 
-- [ ] Les trois tables envoient la densité lue sur `?per_page=` (bornée aux trois valeurs).
-- [ ] Les trois tables, et le registre « Interventions » s'il le faut, distinguent la page au-delà de la dernière de
+- [x] Les trois tables envoient la densité lue sur `?per_page=` (bornée aux trois valeurs).
+- [x] Les trois tables, et le registre « Interventions » s'il le faut, distinguent la page au-delà de la dernière de
   la liste vide.
-- [ ] Tests vitest par table, sur le double réseau.
+- [x] Tests vitest par table, sur le double réseau.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour chacune des trois tables, `?per_page=50` dans l'adresse : la requête envoyée à l'API porte
-  `per_page=50`. Le test lit la requête partie, pas le rendu.
-- [ ] AC2 — `?per_page=37` et `?per_page=abc` : la requête porte `per_page=20`.
-- [ ] AC3 — Choisir 50 dans le sélecteur : l'adresse porte `per_page=50`, la page revient à 1, la requête suivante
-  porte `per_page=50`, et le sélecteur affiche 50.
-- [ ] AC4 — Réponse `{data: [], meta: {total: 25, last_page: 2, current_page: 9}}` : l'état « au-delà de la dernière
-  page » s'affiche avec un moyen d'aller à la page 2. Le texte de l'état vide est ABSENT.
-- [ ] AC5 — Réponse `{data: [], meta: {total: 0, last_page: 1, current_page: 1}}` : l'état vide d'aujourd'hui,
-  inchangé.
-- [ ] AC6 — Vérifié par ablation, une à la fois : `per_page: 20` remis en dur rend AC1 rouge ; le test sur
-  `rows.length === 0` seul remis rend AC4 rouge.
+- [x] AC1 — Pour chacune des trois tables, `?per_page=50` dans l'adresse : la requête envoyée à l'API porte
+  `per_page=50`. Le test lit la requête partie, pas le rendu. *Preuve : `densite-et-page-hors-bornes.tck-2805.test.tsx`, « AC1 », quatre registres (le `fetch` doublé lit l'URL partie).*
+- [x] AC2 — `?per_page=37` et `?per_page=abc` : la requête porte `per_page=20`. *Preuve : « AC2 », plus `5000` et `-10` ; `?page=-3` part en `page=1`.*
+- [x] AC3 — Choisir 50 dans le sélecteur : l'adresse porte `per_page=50`, la page revient à 1, la requête suivante
+  porte `per_page=50`, et le sélecteur affiche 50. *Preuve : « AC3 », par le vrai `PropertyPagination` et `@/test/navigation-url`.*
+- [x] AC4 — Réponse `{data: [], meta: {total: 25, last_page: 2, current_page: 9}}` : l'état « au-delà de la dernière
+  page » s'affiche avec un moyen d'aller à la page 2. Le texte de l'état vide est ABSENT. *Preuve : « AC4 » (deux tests
+  par registre), et le prestataire sur `?factures_page=9`.*
+- [x] AC5 — Réponse `{data: [], meta: {total: 0, last_page: 1, current_page: 1}}` : l'état vide d'aujourd'hui,
+  inchangé. *Preuve : « AC5 », quatre registres.*
+- [x] AC6 — Vérifié par ablation, une à la fois : `per_page: 20` remis en dur rend AC1 rouge ; le test sur
+  `rows.length === 0` seul remis rend AC4 rouge. *Preuve : 8 ablations (2 × 4 registres), chacune rouge sur son seul
+  registre, md5 restauré ; plus 2 sur `pagination-de-l-adresse.ts` (liste fermée → AC2 rouge, `meta.total` → AC5 rouge).*
 
 ## Hors périmètre
 
@@ -89,4 +91,15 @@ dernière page ou à la première. La liste ne se dit vide que lorsqu'elle l'est
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Une lecture** : `components/payments/pagination-de-l-adresse.ts` (`densiteDeLAdresse`, `pageDeLAdresse`,
+  `estAuDelaDeLaDernierePage`), hors de `PropertyPagination.tsx` que treize tests remplacent par `() => null`.
+  `usePageDesFactures` (TCK-2750) la consomme : sa liste `DENSITES` privée a disparu. L'API borne aussi
+  (`HasQueryBuilder::getPerPage`, `PaymentController::history` et `Controller::tailleDePage` : 1 à 100).
+- **Traitement de la page au-delà : un état qui le dit** (`PageAuDelaDeLaDerniere`), avec « Aller à la page N » et
+  « Revenir à la première page », les autres paramètres gardés — celui que ce ticket décrit et que la liste publique
+  fait (TCK-2499). Pas le retour silencieux de `/app/properties` (TCK-2638).
+- **« Interventions » ne le faisait pas**, dans aucun des deux modes : corrigé en agence (`?page=`) et chez le
+  prestataire (`?factures_page=`, sans toucher `?page=`).
+- **Inventaire hors périmètre** (autres appelants de `PropertyPagination`, non vérifiés ici) : `/app/properties`
+  (déjà ramené dans les bornes, TCK-2638), `ListeDesClients`, `OwnersList`, `DocumentsLibrary`.
+- Relevé à 390 et 1280 : `/app/agency/finances?tab=factures&page=99` (admin) rend l'état, « Aller à la page 30 ».
