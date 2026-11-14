@@ -1,13 +1,13 @@
 ---
 id: TCK-2590
 title: "Liste des clients en lignes de contact, vues « À relancer / Mes clients », et création en deux temps avec le doublon dit pendant la frappe"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 89
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2583, TCK-2588, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:

@@ -203,7 +203,7 @@
       "element": "libellés d'étape « Nouveau » et « Gagné »",
       "propriete": "texte (« Lead », « Converti »)",
       "exception": "incohérence des maquettes (ADR-0106 § 2)",
-      "motif": "les étapes sont celles de `crm.pipeline.stage`, partagées par la fiche et le pipeline ; renommer une étape dépasse ce ticket. Alias déclarés — EN ATTENTE de décision (team-lead, point 1)"
+      "motif": "les étapes sont celles de `crm.pipeline.stage`, partagées par la fiche et le pipeline ; renommer une étape dépasse ce ticket. SOLDÉ par TCK-2592 (387f93c31) : la source des libellés dit désormais « Nouveau » (crm.pipeline.stage.lead) et « Gagné » (crm.pipeline.stage.converted), relu au HEAD le 2026-11-14 ; plus d'écart"
     },
     {
       "ecran": "app-clients a-0-bureau-*",
