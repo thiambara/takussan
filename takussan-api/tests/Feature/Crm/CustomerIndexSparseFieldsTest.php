@@ -35,7 +35,7 @@ class CustomerIndexSparseFieldsTest extends ApiTestCase
         'id', 'first_name', 'last_name', 'email', 'phone', 'id_type', 'id_number_masked', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone', 'status', 'pipeline_stage', 'locale',
         'agency_id', 'user_id', 'added_by_id', 'metadata', 'notes', 'seeking_contract_type', 'budget_min',
-        'budget_max', 'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
+        'budget_max', 'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'seeking_deduced_at', 'min_bedrooms',
         'last_contacted_at', 'created_at', 'updated_at',
     ];
 
@@ -50,7 +50,7 @@ class CustomerIndexSparseFieldsTest extends ApiTestCase
         'emergency_contact_name', 'emergency_contact_phone', 'status', 'pipeline_stage', 'locale',
         'agency_id', 'user_id', 'added_by_id', 'metadata', 'last_contacted_at', 'created_at', 'updated_at',
         'seeking_contract_type', 'budget_min', 'budget_max', 'seeking_property_types', 'seeking_cities',
-        'seeking_neighborhoods', 'min_bedrooms',
+        'seeking_neighborhoods', 'seeking_deduced_at', 'min_bedrooms',
     ];
 
     private Agency $agency;
