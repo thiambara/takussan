@@ -72,7 +72,16 @@ export function useRelanceDemandeeParLAdresse() {
     reste.delete('relance');
     reste.delete('bail');
     const q = reste.toString();
-    window.history.replaceState(null, '', `${window.location.pathname}${q ? `?${q}` : ''}${window.location.hash}`);
+    const adresse = `${window.location.pathname}${q ? `?${q}` : ''}${window.location.hash}`;
+    // TCK-2824 — DIFFÉRÉ d'une micro-tâche. Next ne relaie un `replaceState` vers son routeur (adresse
+    // canonique, `useSearchParams`) qu'une fois SON correctif d'`history` posé — dans un effet de
+    // l'`AppRouter`, qui passe APRÈS les effets de ses enfants. Au chargement direct de l'adresse, un
+    // appel synchrone d'ici précédait ce correctif : l'URL changeait, l'adresse canonique de Next
+    // non, et le prochain rendu du routeur (`router.refresh()`, rafraîchissement du serveur de dev)
+    // réécrivait `relance=` dans la barre (mesuré par CDP, 2 sur 2 sous `router.refresh()`). La
+    // micro-tâche passe après tous les effets du même rendu, et toujours AVANT l'entrée sentinelle de
+    // la file (`useFermeAuRetour`), posée après la lecture réseau. `null` : Next recopie son état.
+    queueMicrotask(() => window.history.replaceState(null, '', adresse));
   }, [relance, bail, recherche]);
 
   return { demande, prise: () => setDemande(null) };
