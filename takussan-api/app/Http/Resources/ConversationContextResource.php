@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Customer;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\ConversationThreadContext;
 use Illuminate\Http\Request;
@@ -68,7 +69,42 @@ class ConversationContextResource extends BaseResource
                     'id' => $context->referent->id,
                     'name' => $context->referent->nameWithoutContact(),
                 ],
+                // TCK-2858 — le projet, la dernière visite, le premier contact et la demande liée, sous la
+                // même règle que `stage` et `phone` : `null` sans `CustomerPolicy::view`.
+                'project' => $context->customerReadable ? $this->project($customer) : null,
+                'last_visit' => $context->lastVisit === null ? null : [
+                    'id' => $context->lastVisit->id,
+                    'scheduled_at' => $this->iso($context->lastVisit->scheduled_at),
+                    'property_title' => $context->lastVisit->property?->title,
+                ],
+                'first_contact_at' => $context->customerReadable ? $this->iso($context->firstContactAt) : null,
+                'origin' => $context->customerReadable ? $context->origin : null,
+                'contact_lead' => $context->contactLead === null ? null : [
+                    'id' => $context->contactLead->id,
+                    'created_at' => $this->iso($context->contactLead->created_at),
+                    'property_title' => $context->contactLead->property?->title,
+                ],
             ]),
         ];
+    }
+
+    /**
+     * TCK-2858 — le besoin du client tel que la fiche CRM le porte (critères de TCK-591) ; `null`
+     * quand aucun critère n'est saisi. Les budgets en nombre, comme `property.price`.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function project(Customer $customer): ?array
+    {
+        $project = [
+            'contract_type' => $customer->seeking_contract_type,
+            'property_types' => $customer->seeking_property_types ?: [],
+            'budget_min' => $customer->budget_min !== null ? (float) $customer->budget_min : null,
+            'budget_max' => $customer->budget_max !== null ? (float) $customer->budget_max : null,
+            'cities' => $customer->seeking_cities ?: [],
+            'neighborhoods' => $customer->seeking_neighborhoods ?: [],
+        ];
+
+        return array_filter($project, fn ($v) => $v !== null && $v !== []) === [] ? null : $project;
     }
 }

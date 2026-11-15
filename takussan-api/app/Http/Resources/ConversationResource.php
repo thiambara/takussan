@@ -34,6 +34,9 @@ class ConversationResource extends BaseResource
             'last_message' => $this->whenLoaded('lastMessage', fn () => $this->lastMessage ? [
                 'id' => $this->lastMessage->id,
                 'type' => $this->enumValue($this->lastMessage->type),
+                // TCK-2858 — l'auteur du dernier message : l'accueil du client (TCK-2853) écrit « X vous a
+                // répondu » seulement si ce n'est pas le sien. `null` pour un avis système.
+                'sender_id' => $this->lastMessage->sender_id !== null ? (int) $this->lastMessage->sender_id : null,
                 'metadata' => $this->lastMessage->type === MessageType::System ? $this->lastMessage->metadata : null,
             ] : null),
             // Relation is `BelongsTo` so `whenLoaded` can yield null when the

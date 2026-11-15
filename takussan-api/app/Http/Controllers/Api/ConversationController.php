@@ -24,6 +24,7 @@ use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\ConversationWriter;
 use App\Services\Messaging\DirectConversationService;
+use App\Services\Messaging\FaitsDesMessages;
 use App\Services\Messaging\GroupConversationService;
 use App\Support\CaseInsensitive;
 use Closure;
@@ -394,7 +395,9 @@ class ConversationController extends Controller
                 ->get();
 
             return $this->json([
-                'data' => MessageResource::collection($messages)->toArray($request),
+                // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page ; rien à
+                // calculer quand le relevé ne rapporte aucun message (le cas de presque chaque tic).
+                'data' => $messages->isEmpty() ? [] : MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
                 'meta' => ['has_more' => false],
             ]);
         }
@@ -413,7 +416,8 @@ class ConversationController extends Controller
         $messages = $query->limit($perPage)->with(['media', 'sender'])->get();
 
         return $this->json([
-            'data' => MessageResource::collection($messages)->toArray($request),
+            // TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page.
+            'data' => MessageResource::page($messages, FaitsDesMessages::pour($request->user(), $conversation), $request),
             'meta' => ['has_more' => $messages->count() === $perPage],
         ]);
     }
@@ -456,7 +460,8 @@ class ConversationController extends Controller
         });
 
         return $this->json([
-            'data' => MessageResource::make($message)->resolve($request),
+            // TCK-2858 — le message envoyé porte déjà sa coche (fausse) et le rôle de son auteur.
+            'data' => MessageResource::make($message)->avecFaits(FaitsDesMessages::pour($sender, $conversation))->resolve($request),
         ], 201);
     }
 

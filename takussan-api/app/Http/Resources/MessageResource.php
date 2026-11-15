@@ -3,8 +3,11 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Message;
 use App\Services\Media\PrivateMediaAccess;
+use App\Services\Messaging\FaitsDesMessages;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MessageResource extends BaseResource
@@ -20,6 +23,33 @@ class MessageResource extends BaseResource
      */
     public const ATTACHMENT_URL_TTL_MINUTES = 5;
 
+    /**
+     * TCK-2858 — la lecture et le rôle de l'auteur, calculés une fois pour la page
+     * ({@see FaitsDesMessages}). Absents (recherche transverse) : `null` partout.
+     */
+    private ?FaitsDesMessages $faits = null;
+
+    public function avecFaits(?FaitsDesMessages $faits): static
+    {
+        $this->faits = $faits;
+
+        return $this;
+    }
+
+    /**
+     * TCK-2858 — une page de messages d'UN fil, avec les faits de ce fil.
+     *
+     * @param  Collection<int, Message>  $messages
+     * @return list<array<string, mixed>>
+     */
+    public static function page(Collection $messages, FaitsDesMessages $faits, Request $request): array
+    {
+        return $messages
+            ->map(fn (Message $message) => self::make($message)->avecFaits($faits)->resolve($request))
+            ->values()
+            ->all();
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -32,6 +62,8 @@ class MessageResource extends BaseResource
             'sender' => $this->whenLoaded('sender', fn () => $this->resource->sender === null ? null : [
                 'id' => $this->resource->sender->id,
                 'full_name' => $this->resource->sender->nameWithoutContact(),
+                // TCK-2858 — dans un groupe, le rôle de l'auteur au fil : un code, le front écrit le libellé.
+                'role_label_code' => $this->faits?->roleDe($this->resource->sender_id !== null ? (int) $this->resource->sender_id : null),
             ]),
             'type' => $this->type?->value,
             'content' => $this->content,
@@ -41,6 +73,9 @@ class MessageResource extends BaseResource
             'metadata' => $this->metadata,
             'attachments' => $this->attachments(),
             'created_at' => $this->iso($this->created_at),
+            // TCK-2858 — « Lu » : direct, la coche d'un message de l'appelant ; groupe, ses lecteurs.
+            'read_by_recipient' => $this->faits?->luParLeDestinataire($this->resource),
+            'read_count' => $this->faits?->nombreDeLecteurs($this->resource),
         ];
     }
 

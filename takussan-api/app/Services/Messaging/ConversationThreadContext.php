@@ -5,12 +5,16 @@ namespace App\Services\Messaging;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Enums\ConversationType;
+use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerCommercialAttributes;
+use Carbon\CarbonInterface;
 
 /**
  * TCK-2630 — ce que la colonne de contexte d'un fil affiche, jugé pour UN lecteur déjà admis par
@@ -51,7 +55,22 @@ final class ConversationThreadContext
          * @var list<array{user_id: int, relation: string, category?: string|null}>
          */
         public readonly array $participants = [],
+        /**
+         * TCK-2858 — les faits de la fiche, sous la même règle que `stage` et `phone`
+         * (`customerReadable`) : la dernière visite passée dans l'agence, la demande de contact liée
+         * (si le lecteur peut la `view`), le premier contact et son canal.
+         */
+        public readonly ?PropertyVisit $lastVisit = null,
+        public readonly ?PropertyContactLead $contactLead = null,
+        public readonly ?CarbonInterface $firstContactAt = null,
+        public readonly ?string $origin = null,
     ) {}
+
+    /**
+     * TCK-2858 — les statuts d'une visite qui a eu lieu, une fois son heure passée : terminée, ou
+     * planifiée/confirmée et jamais close. Ni l'annulée ni l'absence (`no_show`) ne sont une visite.
+     */
+    public const LAST_VISIT_STATUSES = [VisitStatus::Completed, VisitStatus::Scheduled, VisitStatus::Confirmed];
 
     public static function for(User $reader, Conversation $conversation): self
     {
@@ -77,6 +96,8 @@ final class ConversationThreadContext
         $lease = $lease !== null && $reader->can('view', $lease) ? $lease : null;
         $maintenance = $maintenance !== null && $reader->can('view', $maintenance) ? $maintenance : null;
 
+        $facts = $customerReadable ? self::customerFacts($reader, $conversation, $customer, (int) $agencyId) : [];
+
         return new self(
             property: $conversation->property,
             lease: $lease,
@@ -86,7 +107,70 @@ final class ConversationThreadContext
             customerReadable: $customerReadable,
             referent: $customerReadable ? self::referentOf($customer) : null,
             participants: RelationsAuFil::pour($reader, $conversation, $lease, $maintenance),
+            lastVisit: $facts['lastVisit'] ?? null,
+            contactLead: $facts['contactLead'] ?? null,
+            firstContactAt: $facts['firstContactAt'] ?? null,
+            origin: $facts['origin'] ?? null,
         );
+    }
+
+    /**
+     * TCK-2858 — la dernière visite, la demande liée, le premier contact et son canal. Trois
+     * requêtes, une fois par fil.
+     *
+     * - Dernière visite : la plus récente déjà passée, d'un statut {@see self::LAST_VISIT_STATUSES},
+     *   sur un bien de l'agence du fil.
+     * - Demande liée : celle qui a créé la fiche (`source_contact_lead_id`), sinon la dernière demande
+     *   rattachée à la fiche (`customer_id`) sur le bien du fil ; rendue seulement si le lecteur peut
+     *   la lire (`PropertyContactLeadPolicy::view`). Jamais un rapprochement par téléphone ou e-mail.
+     * - Premier contact : le plus ancien de la création de la fiche et de la plus ancienne demande de
+     *   la fiche (rattachée ou d'origine) ; le canal (`form`, `whatsapp`, `call`) seulement quand c'est
+     *   la demande, `null` quand c'est la fiche (saisie à la main).
+     *
+     * @return array{lastVisit: ?PropertyVisit, contactLead: ?PropertyContactLead, firstContactAt: ?CarbonInterface, origin: ?string}
+     */
+    private static function customerFacts(User $reader, Conversation $conversation, Customer $customer, int $agencyId): array
+    {
+        $lastVisit = PropertyVisit::query()
+            ->where('customer_id', $customer->id)
+            ->whereIn('status', self::LAST_VISIT_STATUSES)
+            ->where('scheduled_at', '<=', now())
+            ->whereHas('property', fn ($q) => $q->where('agency_id', $agencyId))
+            ->with('property:id,title')
+            ->orderByDesc('scheduled_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $deLaFiche = fn ($q) => $q->where('customer_id', $customer->id)
+            ->when($customer->source_contact_lead_id !== null, fn ($q) => $q->orWhere('id', $customer->source_contact_lead_id));
+
+        $first = PropertyContactLead::query()
+            ->where($deLaFiche)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->first(['id', 'channel', 'created_at']);
+
+        $lead = $customer->source_contact_lead_id !== null
+            ? PropertyContactLead::query()->with('property:id,title')->find($customer->source_contact_lead_id)
+            : ($conversation->property_id === null ? null : PropertyContactLead::query()
+                ->where('customer_id', $customer->id)
+                ->where('property_id', $conversation->property_id)
+                ->with('property:id,title')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->first());
+
+        // Le plus ancien des deux : une fiche saisie à la main le 1er puis rattachée à une demande du 5
+        // a eu son premier contact le 1er, sans canal.
+        $parLaDemande = $first?->created_at !== null
+            && ($customer->created_at === null || $first->created_at->lte($customer->created_at));
+
+        return [
+            'lastVisit' => $lastVisit,
+            'contactLead' => $lead !== null && $reader->can('view', $lead) ? $lead : null,
+            'firstContactAt' => $parLaDemande ? $first->created_at : $customer->created_at,
+            'origin' => $parLaDemande ? $first->channel?->value : null,
+        ];
     }
 
     /**
