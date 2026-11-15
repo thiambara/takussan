@@ -55,4 +55,37 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — agent d'implémentation (vague 92).
+
+**Prémisse re-mesurée** : `CalendarEventCollector::bookings` était bien l. 191-216, sans client ni
+quartier ; l'événement `visit` n'avait pas de rang. Rien n'avait changé entre le relevé et l'implémentation.
+
+**Livré** (`app/Services/Calendar/CalendarEventCollector.php`) :
+- séjour : `with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])` ;
+  `neighborhood` à tout lecteur de l'événement ; `customer_name` (fiche « prénom nom », `null` si vide)
+  seulement au super-admin et au personnel de l'agence du bien (`stayer()`, même prédicat que `terrain()`
+  de TCK-2585) — clé ABSENTE pour le bailleur et tout autre lecteur ;
+- visite : `visit_rank` à tout lecteur (décision mineure : un rang n'identifie personne), nul sans `customer_id`.
+
+**Écart avec le delta — sous-requête corrélée, pas fenêtre jointe.** Une première version joignait un
+`row_number() over (partition by customer_id, property_id order by scheduled_at, id)` : correcte, mais
+la fenêtre se calcule sur TOUTE la table `property_visits` à chaque appel de l'agenda. Remplacée par un
+`count(*)` corrélé (`earlier.property_id/customer_id` égaux, non annulée, `(scheduled_at, id) <=`) —
+même rang, même requête unique (AC3), servi par l'index `(property_id, scheduled_at)`. Le rang se juge
+sur tout l'historique : une visite faite avant la fenêtre affichée compte.
+
+**Effets voisins corrigés** :
+- `tests/Feature/Database/TimestampDayRangeTest.php` (`the_calendar_visits_are_read_by_the_scheduled_at_index`)
+  repérait la requête des visites par le préfixe `select * from "property_visits"` ; elle commence
+  désormais par `select "property_visits".*` — préfixe mis à jour, l'assertion d'index reste verte.
+- `takussan-web/src/types/calendar.ts` : `customer_name`, `visit_rank` déclarés (pour TCK-2888).
+- Le flux .ics : un séjour porte désormais `LOCATION:<quartier>` (le rendu lit `neighborhood` pour tout
+  événement) ; le nom du client n'y sort jamais (`IcsCalendarRenderer` ne lit pas `customer_name`).
+
+**Mesures** : `CalendarBookingEventTest` (3) et `CalendarVisitRankTest` (6) verts ; les 6 autres classes
+de `tests/Feature/Calendar/`, `Api/CalendarTest`, `TimestampDayRangeTest` et les classes qui appellent
+`/api/calendar` verts ; trois gardes d'architecture vertes ; `scripts/check-*.mjs` tous verts.
+Ablations (une à une, restaurées par `cp`, md5 vérifié) : sans le chargement groupé → AC3 séjour rouge ;
+sans le cloisonnement du nom → bailleur rouge ; sans le filtre « non annulée » → AC2 annulée rouge ;
+sans `property_id` dans la corrélation → « propre au client et au bien » rouge ; sans l'ordre → AC2 rang 2 rouge.
+
