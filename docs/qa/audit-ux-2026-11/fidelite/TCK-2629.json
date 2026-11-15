@@ -180,6 +180,66 @@
             "bureau-1280": "44 conformes · 136 écarts · 28 absents · 6.89 % pixels (écran entier, indicatif)"
           }
         }
+      },
+      "c3_l2bis": {
+        "dossiers": "takussan-web/.fidelite/TCK-2629/ prod3-a-* et c3-a-* (rideau.html, cote-a-cote.png dans chaque c3-*) : relevés du 2026-11-14 vers 23:50 sous le verrou de mesure, démo remise à zéro à 23:10 puis remplie (6 kpi-configs de l'agence 1, ordre de l'AC5 : « Taux d'impayés » en tête ; 2 exports de l'AC1 ; 2 alertes qui ne sonnent pas, ids 1–2 : impayés > 10 %, occupation < 20 %). Tous les écrans sont relevés dans leur état REMPLI : a-1 panneau à six lignes, a-3 deux derniers exports, a-5 deux alertes. Jetons : ceux de ~/.takussan-fidelite étaient révoqués par la remise à zéro (401) ; le jeton de démo d'admin (même compte, admin@dakarimmo.sn) a servi par un fichier temporaire, rien n'a été refrappé",
+        "resultats": {
+          "a-1": {
+            "telephone": "32 conformes · 27 écarts · 97 absents · 8.99 % pixels (écran entier, indicatif)",
+            "bureau-1280": "42 conformes · 114 écarts · 104 absents · 65.78 % pixels (écran entier, indicatif)"
+          },
+          "a-2": {
+            "telephone": "27 conformes · 14 écarts · 44 absents · 27.25 % pixels (écran entier, indicatif)",
+            "bureau-1280": "41 conformes · 115 écarts · 46 absents · 12.85 % pixels (écran entier, indicatif)"
+          },
+          "a-3": {
+            "telephone": "34 conformes · 32 écarts · 6 absents · 10.23 % pixels (écran entier, indicatif)",
+            "bureau-1280": "39 conformes · 164 écarts · 33 absents · 13.89 % pixels (écran entier, indicatif)"
+          },
+          "a-4": {
+            "telephone": "36 conformes · 79 écarts · 16 absents · 29.31 % pixels (écran entier, indicatif)"
+          },
+          "a-5": {
+            "telephone": "24 conformes · 20 écarts · 9 absents · 14.48 % pixels (écran entier, indicatif)",
+            "bureau-1280": "36 conformes · 97 écarts · 20 absents · 5.94 % pixels (écran entier, indicatif)"
+          },
+          "a-6": {
+            "telephone": "25 conformes · 34 écarts · 26 absents · 30.91 % pixels (écran entier, indicatif)",
+            "bureau-1280": "38 conformes · 109 écarts · 38 absents · 67.49 % pixels (écran entier, indicatif)"
+          }
+        },
+        "ecritures": "décision 15 (bornée, notée au ticket) : 6 kpi-configs, leur sort_order (AC5), 2 lignes au journal des exports (AC1), 2 alertes (état rempli de a-5). Non effacées : la démo est remise à zéro juste après (TCK-2776)",
+        "apres_releve": "quatre corrections faites APRÈS ce relevé, prouvées par test et non relevées (démo remise à zéro, jetons révoqués) : « Valeur actuelle » de « Nouvelle alerte » (O8), le « + » de l'en-tête du téléphone (O3), l'aperçu sous le libellé dans le panneau du téléphone (O9), 16 px sous les onglets au téléphone (O1, `reports/layout.tsx`, commun à TCK-2628). Les lignes du téléphone ci-dessus les précèdent"
+      },
+      "c4_l2ter": {
+        "dossiers": "takussan-web/.fidelite/TCK-2629/ prod4-a-* et c4-a-* (rideau.html, cote-a-cote.png) ; relevés du 2026-11-15 ≈ 00:10 sous le verrou de mesure, après la remise à zéro de la démo (jetons réécrits), avec les cinq corrections (O1, O3, O8, O9, O10). Perturbation de a-6 au téléphone : p-nouvelle-alerte-4.js (lit aussi `aria-label` : « Nouvelle alerte » y est le « + » de l'en-tête)",
+        "resultats": {
+          "a-1": {
+            "telephone": "30 conformes · 29 écarts · 96 absents · 10.4 % pixels",
+            "bureau-1280": "42 conformes · 115 écarts · 107 absents · 65.78 % pixels"
+          },
+          "a-2": {
+            "telephone": "27 conformes · 14 écarts · 44 absents · 26.15 % pixels",
+            "bureau-1280": "42 conformes · 114 écarts · 49 absents · 13.44 % pixels"
+          },
+          "a-3": {
+            "telephone": "32 conformes · 28 écarts · 9 absents · 9.89 % pixels",
+            "bureau-1280": "39 conformes · 153 écarts · 46 absents · 14.17 % pixels"
+          },
+          "a-4": {
+            "telephone": "36 conformes · 77 écarts · 18 absents · 29.32 % pixels"
+          },
+          "a-5": {
+            "telephone": "26 conformes · 19 écarts · 7 absents · 12.28 % pixels",
+            "bureau-1280": "37 conformes · 96 écarts · 22 absents · 5.68 % pixels"
+          },
+          "a-6": {
+            "telephone": "27 conformes · 33 écarts · 25 absents · 27.98 % pixels",
+            "bureau-1280": "39 conformes · 108 écarts · 40 absents · 67.47 % pixels"
+          }
+        },
+        "ecritures": "ordre 1→2→3 validé par team-lead : (1) TCK-2628 a-0 téléphone sur la démo fraîche, AVANT toute écriture ; (2) décision 15 : 6 kpi-configs (ids 1–6, ordre de l'AC5) et 2 alertes qui ne sonnent pas (ids 1–2) pour les états remplis de a-1 et a-5 (journal : scratchpad impl/lot2/w2629/ecritures4.json) ; (3) les écrans de TCK-2629. Non effacées",
+        "confirmations": "O1 : écart onglets → contenu au téléphone 16 px (a-5, = maquette ; a-2 24 au premier texte, dont l'en-tête « Impayés au … » est un écart accepté ; a-3 16 contre 20 dans la maquette : 4 px plus haut, a-3 étant la seule maquette du téléphone à 20) · O3 : « + » de l'en-tête à x 256, 40 × 40 (a-5 téléphone) · O8 : « Valeur actuelle : 1,2 % » sous la métrique (a-6, téléphone et bureau) · O9 : libellés entiers, sur deux lignes quand ils ne tiennent pas, aperçu dessous · O10 : « + Nouvelle alerte » en tête de page à 1280 (x 1116, y 29), « Exporter » absent de l'onglet Alertes. TCK-2628 a-0 téléphone (layout commun) : « Ce mois » à y 103 contre 111 dans la maquette, soit 8 px plus haut ; avec l'espace d'avant (24 px) il était à 125, 14 px plus bas (déduit, non relevé : le dernier relevé de TCK-2628, prod3 du 2026-11-14, précède TCK-2804) — l'écart se rapproche de la maquette (14 → 8)"
       }
     }
   },
@@ -388,17 +448,17 @@
     },
     {
       "ecran": "a-1",
-      "element": "panneau : lignes, poignées, ×, ligne dépliée « Libellé / Format », « À ajouter » avec valeurs",
-      "propriete": "état vide en démo",
-      "exception": "donnée",
-      "motif": "la démo n’a AUCUN `kpi-config` (GET /api/kpi-configs : 0 pour admin, admin2, hote et personas-gerant) : le panneau se relève à l’état vide (« Affichés · 0 sur 0 ») ; la maquette montre six chiffres (poignées, ×, ligne dépliée). Réordonner, masquer et « Terminé » écrivent en base : non relevés, prouvés par `ReglageDesChiffres.tck-2629.test.tsx`"
+      "element": "panneau rempli (six lignes) : flèches « Monter / Descendre », interrupteur et corbeille au lieu du seul « × » ; ligne dépliée « Libellé / Format » d'un chiffre DÉJÀ affiché",
+      "propriete": "commandes de ligne et dépliage",
+      "exception": "décision du ticket",
+      "motif": "le ticket demande « poignées pour ordonner, interrupteur pour masquer » et « supprimer » : masquer (interrupteur, `is_enabled`) et supprimer (corbeille) sont deux gestes, que le seul « × » de la maquette confondrait ; les flèches sont l'alternative au glisser (le capteur est au pointeur seul). Libellé et format se choisissent à l'AJOUT (« Ajouter un chiffre ») ; les modifier sur un chiffre existant n'est pas au delta (ordre, masquage, ajout, aperçu). Relevé rempli : c3-a-1-* (six kpi-configs)"
     },
     {
       "ecran": "a-5",
-      "element": "lignes d’alerte : jauge et seuil, « Déclenchée le 3 nov. », « Jamais déclenchée », destinataires, canal, délai",
-      "propriete": "état vide en démo",
+      "element": "lignes d’alerte : « Déclenchements récents », « Déclenchée le 3 nov. », noms « Awa Diop, Oumy Samb », « Vacance », « Encaissé du mois < 60 M F »",
+      "propriete": "contenu",
       "exception": "donnée",
-      "motif": "aucune alerte en démo, aucune écriture permise"
+      "motif": "relevé rempli (c3-a-5-*) : deux alertes de démo qui ne sonnent pas, aucun déclenchement — d'où « jamais » et aucune section « Déclenchements récents » (rendue seulement s'il y a des déclenchements, AlertList.tck-2629) ; destinataires = admins actifs de la démo ; « Vacance » n'est pas une métrique du catalogue (taux d'occupation)"
     },
     {
       "ecran": "a-1 à a-6 (téléphone, bureau)",
@@ -406,6 +466,48 @@
       "propriete": "trait 2 → 1,75 ; encre rgba(31,24,17,0.8) → opaque",
       "exception": "exception de charte (encre opaque, trait d'icône par défaut)",
       "motif": "trait par défaut des icônes ; règle de l’encre opaque"
+    },
+    {
+      "ecran": "a-1, a-6 (bureau-1280)",
+      "element": "voile sur la page derrière le panneau",
+      "propriete": "pixels de toute la page hors panneau (≈ 60 % de l'écran)",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "décision du porteur du 2026-11-10 (2 a), portée par `PanneauDroit` (TCK-2688) : dès `xl`, 480 px, AUCUN voile, non modal — la vue d'ensemble (aperçu des chiffres) et la liste restent lisibles. C'est l'essentiel des 65,8 % (a-1) et 67,5 % (a-6) de pixels ; même écart et même motif qu'`app-clients` (TCK-2590)"
+    },
+    {
+      "ecran": "a-3 (bureau-1280)",
+      "element": "titre « Exports rapides »",
+      "propriete": "rendu « Prêts à télécharger »",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "la maquette du téléphone (a-3) dit « Prêts à télécharger », celle du bureau « Exports rapides » ; le produit garde UN titre aux deux largeurs, celui du téléphone (le ticket : « cartes prêtes »)"
+    },
+    {
+      "ecran": "a-4 (téléphone)",
+      "element": "sommet de la feuille « Export personnalisé » ≈ 70 px plus bas",
+      "propriete": "hauteur de la feuille",
+      "exception": "décision du ticket",
+      "motif": "la feuille suit son contenu : sans « Trimestre » ni « Autre… » (préréglages du ticket) et sans « 38 lignes à exporter » (D7), elle est plus courte ; tout ce qui reste est aligné"
+    },
+    {
+      "ecran": "a-1 (téléphone)",
+      "element": "lignes du panneau sur deux lignes (« Taux / d'impayés », « Encaissé ce / mois »), aperçu sous le libellé",
+      "propriete": "hauteur des lignes (≈ 55 au lieu de 49) et place de l'aperçu",
+      "exception": "décision du ticket (O9, option a, validée par la session le 2026-11-14)",
+      "motif": "interrupteur (masquer), corbeille (supprimer) et flèches (réordonner sans glisser) prennent ≈ 170 px de la ligne : le libellé passe à la ligne plutôt que d'être coupé"
+    },
+    {
+      "ecran": "a-3 (téléphone)",
+      "element": "« Prêts à télécharger » 4 px plus haut",
+      "propriete": "y 117 contre 121",
+      "exception": "incohérence des maquettes (ADR-0106 § 2)",
+      "motif": "l'espace sous les onglets est de 16 px dans a-2, a-5 et a-6, de 20 dans a-3 ; le produit en a UN, 16 (O1)"
+    },
+    {
+      "ecran": "a-1 à a-6 (téléphone), zone « coque · barre d'onglets »",
+      "element": "zone de coque au-delà de 0,5 %",
+      "propriete": "0,82 % (a-2, a-3, a-5) ; 3,24 % (a-1), 13,95 % (a-6), 15,8 % (a-4)",
+      "exception": "donnée, et zone recouverte",
+      "motif": "0,82 % : la pastille « 2 » de Messages de la maquette, absente de la démo (aucun message non lu) — le reste de la barre est identique ; a-1, a-4, a-6 : une feuille du bas est ouverte et son pied (« Terminé », « Télécharger l'export », « Créer l'alerte ») recouvre la barre dans les deux images, à quelques pixels près — la zone ne mesure plus la coque. L'en-tête de coque est ≤ 0,16 % partout (c4)"
     }
   ],
   "ecarts_ouverts": [
@@ -415,8 +517,8 @@
       "element": "contenus décalés vers le bas",
       "mesure": "« Prêts à télécharger », la première carte et le début des listes sont 44 à 48 px plus bas que dans la maquette ; les onglets ne sont pas collants",
       "motif": "défaut du gabarit `PageHeader` : voir TCK-2628 O1",
-      "statut": "reporté — voir TCK-2628 O1 (gabarit `PageHeader`)",
-      "preuve": "c2-a-3-telephone : « Derniers exports » à y 520 (maquette 472), même cause"
+      "statut": "fermé (TCK-2804, gabarit `PageHeader`)",
+      "preuve": "c2-a-3-telephone : « Derniers exports » à y 520 (maquette 472), même cause · c3-a-3-telephone : « Prêts à télécharger » à y 136 (maquette 132), « Derniers exports » à y 489 (maquette 485) : décalage de 4 px, dans la ligne d'onglets · le reste (4 px sur a-3, 8 px sur a-2/a-5/a-6) venait de l'espace sous les onglets : 24 px au téléphone contre 16 dans les maquettes ; `reports/layout.tsx` passe à `space-y-4 md:space-y-6` (le bureau, 21,6 = 24 × 0,9, est déjà celui de la maquette 1280). Non relevé après correction · relevé c4 (2026-11-15) : voir `produit.releves.c4_l2ter.confirmations`"
     },
     {
       "id": "O2",
@@ -433,8 +535,8 @@
       "element": "formulaire « Nouvelle alerte »",
       "mesure": "sévérité en puces (Info · Attention · Critique) au lieu d’un contrôle segmenté « Information · Attention · Critique » ; délai « 24 » avec libellé « (h) » au lieu de « 24 heures » ; sélecteurs de métrique et de condition natifs ; bouton « + Nouvelle alerte » dans la page (maquette : bouton « + » rond dans l’en-tête)",
       "motif": "défaut de rendu (aucune donnée, aucune décision ne l’explique)",
-      "statut": "fermé pour la sévérité et l’unité ; sélecteurs et « + » motivés",
-      "preuve": "c2-a-6-telephone : sévérité en groupe radio segmenté « Information · Attention · Critique » (y 540), « Délai entre deux alertes » et « heures » à côté du champ (y 714). Les sélecteurs de métrique et de condition sont le `Select` du système (aucun natif à redessiner ici) ; le « + » rond dans l’en-tête du téléphone n’est pas fait : l’en-tête de page est masqué au téléphone (TCK-2628 O1, gabarit)"
+      "statut": "fermé — sévérité et unité (TCK-2801) ; « + » rond de l'en-tête du téléphone (L2 bis, 2026-11-14)",
+      "preuve": "c2-a-6-telephone : sévérité en groupe radio segmenté « Information · Attention · Critique » (y 540), « Délai entre deux alertes » et « heures » à côté du champ (y 714). Les sélecteurs de métrique et de condition sont le `Select` du système (aucun natif à redessiner ici) ; le « + » rond dans l’en-tête du téléphone n’est pas fait : l’en-tête de page est masqué au téléphone (TCK-2628 O1, gabarit) · L2 bis : la page déclare `ActionDEnTete` (« + » primaire, 40 px) à l'en-tête de la coque, le bouton de la page n'existe que dès `md` (`AlertList.en-tete.tck-2629.test.tsx`, rouge avant). Non relevé : la démo était remise à zéro · relevé c4 (2026-11-15) : voir `produit.releves.c4_l2ter.confirmations`"
     },
     {
       "id": "O4",
@@ -471,6 +573,33 @@
       "motif": "bloqué par l’interdiction d’écrire en base ; à relever si team-lead autorise six `kpi-configs` pour une persona (réversible : DELETE)",
       "statut": "fermé — états relevés (TCK-2801) ; « seuil d’alerte » de la tuile non vu (voir TCK-2628 O6)",
       "preuve": "c2r-a-1 (six kpi-configs) : panneau « Personnaliser » à six lignes relevé à 390 et 1280 (« Taux d’impayés 3,9 % », « Taux d’occupation 46,9 % »…) ; c2r-a-5 : deux alertes « Taux d'occupation < 20 % · Critique · Actuel 46,9 % · seuil 20 % » et « Taux d'impayés > 10 % · Attention · Actuel 3,9 % · seuil 10 % ». Écritures effacées, voir `produit.releves.ecritures`. Vu au passage : l’apostrophe droite de « Taux d'impayés » vient des clés `dashboard.alerts.metrics` d’avant (non touchées)"
+    },
+    {
+      "id": "O8",
+      "ecran": "a-6 (téléphone, bureau)",
+      "element": "« Valeur actuelle : 27 % (22 biens libres sur 82) » sous la métrique",
+      "mesure": "absent de c3-a-6-* (aucune ligne sous le sélecteur)",
+      "motif": "défaut de rendu : aucune décision ne l'écarte, et la valeur est connue (résumé de l'agence)",
+      "statut": "fermé pour la valeur (L2 bis) ; le détail entre parenthèses motivé",
+      "preuve": "`OngletAlertes` lit `/api/dashboard/agency` et passe `apercusDuResume` à la liste ; le formulaire dit « Valeur actuelle : 3,9 % » pour la métrique choisie, « — » si la mesure manque, rien sans résumé (`AlertList.valeur-actuelle.tck-2629.test.tsx`, rouge avant ; `OngletAlertes.apercus.tck-2629.test.tsx`, ablations du câblage et du `catch` : rouges). Le détail « (22 biens libres sur 82) » n'existe que pour la vacance, qui n'est pas au catalogue des alertes. Non relevé : démo remise à zéro · relevé c4 (2026-11-15) : voir `produit.releves.c4_l2ter.confirmations`"
+    },
+    {
+      "id": "O9",
+      "ecran": "a-1 (téléphone)",
+      "element": "libellés tronqués dans le panneau",
+      "mesure": "c3-a-1-telephone : « Taux d'i… », « Enc… », « Mont… », « Taux … » — la maquette rend les libellés entiers (« Encaissé », « Impayés »…) : flèches, interrupteur et corbeille prennent ≈ 170 px de la ligne de 358",
+      "motif": "défaut de rendu au téléphone ; la correction touche l'accessibilité du réordonnancement (les flèches sont la seule voie hors glisser)",
+      "statut": "fermé après le relevé (décision a, recommandation suivie sans contre-ordre) : sous `lg`, l'aperçu passe sous le libellé et le libellé n'est plus coupé ; flèches gardées",
+      "preuve": "c3-a-1-telephone/cote-a-cote.png (avant) ; `ReglageDesChiffres.telephone.tck-2629.test.tsx` (rouge avant) ; non relevé après correction (démo remise à zéro). Les lignes du téléphone restent plus hautes que la maquette quand un libellé passe à la ligne · relevé c4 (2026-11-15) : voir `produit.releves.c4_l2ter.confirmations`"
+    },
+    {
+      "id": "O10",
+      "ecran": "a-5 (bureau-1280)",
+      "element": "action de tête de page « + Nouvelle alerte »",
+      "mesure": "la maquette pose « + Nouvelle alerte » en tête de page (à la place d'« Exporter ») ; le produit garde « Exporter » en tête et rend « Nouvelle alerte » à droite de la ligne de résumé",
+      "motif": "les actions de tête sont celles de la coque de « Rapports » (TCK-2628 O2), communes aux onglets ; aucun onglet ne les remplace",
+      "statut": "fermé (L2 ter, décision de la session : implémenté ici, pas de ticket à part)",
+      "preuve": "`ActionDeLOnglet` : le layout de « Rapports » pose un fournisseur ; la liste d'alertes y enregistre son geste (`useActionDOnglet`) et l'en-tête rend « + Nouvelle alerte » à la place d'« Exporter » sur l'onglet Alertes seulement ; ailleurs « Exporter » inchangé ; dans « Rapports » la liste n'a plus de bouton à elle (hors de « Rapports », elle le garde dès `md`). `__tests__/ActionDeLOnglet.tck-2629.test.tsx` ; ablations (toujours Exporter, geste non enregistré, bouton de page gardé) : rouges ; tests de TCK-2628 verts · relevé c4 (2026-11-15) : voir `produit.releves.c4_l2ter.confirmations`"
     }
   ],
   "hors_perimetre": [
@@ -489,6 +618,8 @@
     "Relevés à 390 et 1280 seulement (ADR-0106). « Équipe » n’a pas d’écran de maquette : l’onglet est jugé sur la vue d’ensemble (tableau « Performance de l’équipe », écran 0 de TCK-2628).",
     "AC1 « la ligne apparaît en tête de Derniers exports après rechargement » : la moitié lecture est vérifiée — GET /api/me/exports rend l’export le plus récent d’abord (1 ligne en démo, 66 lignes) et la page le rend ; la moitié écriture (un export réel) n’est pas jouée. AC5 « première tuile après rechargement » : non relevable, aucun `kpi-config`.",
     "AC-F6 : balayage 390, 768, 1024, 1280, 1440 de /app/reports/unpaid, /exports, /alerts, /team et /indicators (impl/lot2/fid-rapports/balayage.log) : voir `produit.releves.balayage`. Les feuilles ouvertes ne se balaient pas (l’outil n’a pas de perturbation pour `balayer`).",
-    "2026-11-14, TCK-2801 : chaque écart ouvert porte désormais `statut` (fermé, motivé, reporté) et `preuve`. ⚠ La règle « Menu » actif de la coque (BarreDOnglets) change la zone « coque · barre d’onglets » de TOUTE page du menu qui n’est aucun des onglets : les fiches des autres écrans relevées avant ce correctif y verront un écart se fermer."
+    "2026-11-14, TCK-2801 : chaque écart ouvert porte désormais `statut` (fermé, motivé, reporté) et `preuve`. ⚠ La règle « Menu » actif de la coque (BarreDOnglets) change la zone « coque · barre d’onglets » de TOUTE page du menu qui n’est aucun des onglets : les fiches des autres écrans relevées avant ce correctif y verront un écart se fermer.",
+    "2026-11-14, L2 bis (après la remise à zéro de la démo) : passe c3, tous les écrans dans leur état rempli ; O1 vérifié fermé ; O3 et O8 fermés après le relevé (tests) ; O9 et O10 ouverts. AC1 et AC5 relevés au navigateur (voir le ticket)",
+    "2026-11-15, L2 ter : passe c4 après la remise à zéro, avec O1, O3, O8, O9, O10 corrigés ; aucun écart ouvert restant (tous fermés ou acceptés avec motif). Rideaux c4 : takussan-web/.fidelite/TCK-2629/c4-a-*/rideau.html, en attente de la validation du porteur"
   ]
 }

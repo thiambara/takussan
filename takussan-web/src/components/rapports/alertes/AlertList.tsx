@@ -7,6 +7,9 @@ import { useTranslations } from 'next-intl';
 import { createThresholdAlertAction, deleteThresholdAlertAction, updateThresholdAlertAction } from '@/app/actions/alerts';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { useActionDOnglet } from '@/components/rapports/ActionDeLOnglet';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
@@ -50,6 +53,11 @@ const REQUETE_DU_BUREAU = '(width >= 64rem)';
 
 interface AlertListProps {
   readonly initialAlerts: ThresholdAlert[];
+  /**
+   * TCK-2629 (AC-F3) — la valeur actuelle de chaque métrique, lue du résumé de l'agence (`apercusDuResume`) :
+   * « Nouvelle alerte » la dit sous la métrique choisie (maquette a-6). Absent (hôte, lecture en échec) : rien.
+   */
+  readonly apercus?: Readonly<Record<string, number | null>>;
 }
 
 /** Les lectures d'une alerte, dans la langue de la page. */
@@ -114,7 +122,7 @@ function useLectureDAlerte() {
  * l'agence, `recipients`) et les canaux (ceux de l'événement) se LISENT : leur choix est hors périmètre.
  * « Évaluées toutes les heures » est dit à l'écran.
  */
-export function AlertList({ initialAlerts }: AlertListProps) {
+export function AlertList({ initialAlerts, apercus }: AlertListProps) {
   const t = useTranslations('rapports.alertes');
   const tA = useTranslations('dashboard.alerts');
   const l = useLectureDAlerte();
@@ -141,6 +149,8 @@ export function AlertList({ initialAlerts }: AlertListProps) {
   }
 
   const ouvrir = (alerte: ThresholdAlert | null) => setEdition({ alerte, ouverte: true });
+  // TCK-2629 (O10) — dans « Rapports », « Nouvelle alerte » est l'action de tête de l'onglet (layout).
+  const dansRapports = useActionDOnglet(() => ouvrir(null));
   const fermer = () => setEdition((e) => (e ? { ...e, ouverte: false } : e));
   const enregistree = (a: ThresholdAlert) => {
     setAlerts((prev) => (prev.some((x) => x.id === a.id) ? prev.map((x) => (x.id === a.id ? a : x)) : [a, ...prev]));
@@ -166,20 +176,24 @@ export function AlertList({ initialAlerts }: AlertListProps) {
   );
 
   const formulaire = edition ? (
-    <FormulaireDAlerte key={edition.alerte?.id ?? 'nouvelle'} alerte={edition.alerte} onEnregistree={enregistree} />
+    <FormulaireDAlerte key={edition.alerte?.id ?? 'nouvelle'} alerte={edition.alerte} apercus={apercus} onEnregistree={enregistree} />
   ) : null;
   const titreDuFormulaire = edition?.alerte ? t('modifierTitre') : t('nouvelle');
 
   return (
     <div className="space-y-4" data-slot="alertes-du-rapport">
+      {/* TCK-2629 (AC-F3) — au téléphone, le « + » rond de l'en-tête de la coque (maquette a-5) ; dès `md`, le bouton de la page. */}
+      <DeclarerEnTete action={<ActionDEnTete libelle={t('nouvelle')} icone={<Plus className="size-5" aria-hidden="true" />} onClick={() => ouvrir(null)} primaire />} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-ui text-muted-foreground">
           {t('resume', { n: alerts.length, declenchees })}
         </p>
-        <Button type="button" onClick={() => ouvrir(null)}>
-          <Plus aria-hidden="true" />
-          {t('nouvelle')}
-        </Button>
+        {dansRapports ? null : (
+          <Button type="button" className="max-md:hidden" onClick={() => ouvrir(null)}>
+            <Plus aria-hidden="true" />
+            {t('nouvelle')}
+          </Button>
+        )}
       </div>
 
       {erreurSuppression ? (
@@ -318,11 +332,14 @@ function JaugeDuSeuil({ jauge, className }: { readonly jauge: Jauge | null; read
 /** Créer ou modifier une alerte : les cinq champs de l'API ; qui est prévenu et comment, en lecture. */
 function FormulaireDAlerte({
   alerte,
+  apercus,
   onEnregistree,
 }: {
   readonly alerte: ThresholdAlert | null;
+  readonly apercus?: Readonly<Record<string, number | null>>;
   readonly onEnregistree: (a: ThresholdAlert) => void;
 }) {
+  const l = useLectureDAlerte();
   const t = useTranslations('rapports.alertes');
   const tA = useTranslations('dashboard.alerts');
   const tMetric = useTranslations('dashboard.kpis.metrics');
@@ -383,6 +400,9 @@ function FormulaireDAlerte({
             ))}
           </SelectContent>
         </Select>
+        {apercus && metric in apercus ? (
+          <p className="text-xs text-muted-foreground tabular-nums">{t('valeurActuelle', { valeur: l.chiffre(metric, apercus[metric]) })}</p>
+        ) : null}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="min-w-0 space-y-1.5">

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { PageHeader } from '@/components/console';
+import { ActionDeLOnglet, FournisseurDActionDOnglet } from '@/components/rapports/ActionDeLOnglet';
 import { ChoixDeLaPeriode } from '@/components/rapports/ChoixDeLaPeriode';
 import { OngletsDesRapports } from '@/components/rapports/OngletsDesRapports';
 import { DescriptionDesRapports, ExporterLeRapport } from '@/components/rapports/TeteDesRapports';
@@ -43,39 +44,44 @@ export default async function Layout({ children }: { readonly children: React.Re
   const personnel = contexte.persona === 'admin-agence' || contexte.persona === 'plateforme';
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app/reports')}>
-      <div className="space-y-6">
-        {/* TCK-2801 (fiche TCK-2628, O2) — au bureau, la description et « Exporter » (maquette `TeteRapports`).
-            Sous `md`, l'en-tête de page n'a que le H1, masqué au profit de l'en-tête de la coque (TCK-2617) :
-            l'en-tête entier s'y masque, pour que la description et l'action n'ajoutent aucune hauteur au-dessus
-            des onglets ; la ligne de période reste dans la page, comme la maquette du téléphone. */}
-        <PageHeader
-          className="max-md:[&>header]:hidden"
-          title={t('titre')}
-          description={
-            <DescriptionDesRapports
-              nom={(personnel ? nomDeLAgence : null) ?? contexte.user.full_name}
-              nomDeLAgence={contexte.persona === 'agent' ? nomDeLAgence : null}
-              periode={periode}
-              periodeMoisDernier={periodeMoisDernier}
-            />
-          }
-          actions={
-            <>
-              {/* TCK-2791 — « Ce mois ▾ » : rendu sur la vue d'ensemble seulement (le composant le juge). */}
-              <ChoixDeLaPeriode variante="menu" />
-              {ids.includes('exports') ? <ExporterLeRapport libelle={t('exporter')} /> : null}
-            </>
-          }
-          dessous={
-            <OngletsDesRapports
-              onglets={onglets}
-              aria={t('ongletsAria')}
-              transmetLaPortee={contexte.persona === 'agent'}
-            />
-          }
-        />
-        {children}
-      </div>
+      <FournisseurDActionDOnglet>
+        {/* TCK-2629 (L2 bis, fidélité) — sous `md`, 16 px entre les onglets et le contenu, comme les maquettes du
+            téléphone (a-2, a-5, a-6 : 16) ; 24 dès `md` (21,6 au bureau par la densité, = la maquette 1280). */}
+        <div className="space-y-4 md:space-y-6">
+          {/* TCK-2801 (fiche TCK-2628, O2) — au bureau, la description et « Exporter » (maquette `TeteRapports`).
+              Sous `md`, l'en-tête de page n'a que le H1, masqué au profit de l'en-tête de la coque (TCK-2617) :
+              l'en-tête entier s'y masque, pour que la description et l'action n'ajoutent aucune hauteur au-dessus
+              des onglets ; la ligne de période reste dans la page, comme la maquette du téléphone. */}
+          <PageHeader
+            className="max-md:[&>header]:hidden"
+            title={t('titre')}
+            description={
+              <DescriptionDesRapports
+                nom={(personnel ? nomDeLAgence : null) ?? contexte.user.full_name}
+                nomDeLAgence={contexte.persona === 'agent' ? nomDeLAgence : null}
+                periode={periode}
+                periodeMoisDernier={periodeMoisDernier}
+              />
+            }
+            actions={
+              <>
+                {/* TCK-2791 — « Ce mois ▾ » : rendu sur la vue d'ensemble seulement (le composant le juge). */}
+                <ChoixDeLaPeriode variante="menu" />
+                {/* TCK-2629 (O10) — l'action de tête de l'onglet : « + Nouvelle alerte » sur Alertes, « Exporter » ailleurs. */}
+                <ActionDeLOnglet exporter={ids.includes('exports') ? <ExporterLeRapport libelle={t('exporter')} /> : null} />
+              </>
+            }
+            dessous={
+              <OngletsDesRapports
+                onglets={onglets}
+                aria={t('ongletsAria')}
+                transmetLaPortee={contexte.persona === 'agent'}
+              />
+            }
+          />
+          {children}
+        </div>
+      </FournisseurDActionDOnglet>
     </IntlProvider>
   );
 }
