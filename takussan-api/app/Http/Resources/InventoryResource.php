@@ -70,7 +70,17 @@ class InventoryResource extends BaseResource
             // TCK-596 — qui a signé pour le bailleur, et pour le compte de qui (nul : lui-même).
             'owner_signed_by_user_id' => $this->owner_signed_by_user_id,
             'owner_signed_on_behalf_of_user_id' => $this->owner_signed_on_behalf_of_user_id,
+            // TCK-2913 (ADR-0098, amendement A §5) — la voie de la signature du bailleur, comme celle du
+            // locataire : `onsite_otp` quand le personnel l'a recueillie par code. L'IP reste dans l'API.
+            'owner_signature_method' => $this->owner_signature_method,
+            'owner_signed_via_user_id' => $this->owner_signed_via_user_id,
+            'owner_otp_channel' => $this->owner_otp_channel,
+            'owner_otp_destination' => $this->owner_otp_destination,
             'signed_at' => $this->iso($this->signed_at),
+            // TCK-2913 (amendement B) — l'envoi du PDF aux parties à la seconde signature : quand, et à
+            // qui (un id et un nom, sous `show` seulement).
+            'pdf_sent_at' => $this->iso($this->pdf_sent_at),
+            'pdf_sent_to' => $this->when($this->viewer !== null, fn (): array => $this->pdfSentTo()),
             'traceability_hash' => $this->traceability_hash,
             'room_photos' => $this->whenLoaded('media', fn () => $this->roomPhotos()),
             'can_sign_as' => $this->when(
@@ -99,6 +109,8 @@ class InventoryResource extends BaseResource
             'tenant_signed_via' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->tenantSignedVia)),
             'owner_signed_by' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedBy)),
             'owner_signed_on_behalf_of' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedOnBehalfOf)),
+            // TCK-2913 — le membre du personnel qui a recueilli sur place la signature du bailleur.
+            'owner_signed_via' => $this->when($this->viewer !== null, fn (): ?array => self::personne($this->ownerSignedVia)),
             // TCK-596 — quand le lecteur signerait POUR LE COMPTE du bailleur, le canevas le dit.
             'sign_on_behalf_of' => $this->when(
                 $this->viewer !== null && $this->signatures !== null,
@@ -139,6 +151,14 @@ class InventoryResource extends BaseResource
             && ! in_array(InventorySignRequest::ROLE_TENANT, $roles, true)
             && $this->signatures->canSignOnsite($this->resource, $this->viewer)) {
             $roles[] = InventorySignatureService::ROLE_TENANT_ONSITE;
+        }
+
+        // TCK-2913 (ADR-0098, amendement A) — la même voie pour le bailleur. Le personnel qui signerait
+        // POUR SON COMPTE (`landlord`) peut aussi recueillir SA signature : les deux rôles coexistent.
+        if (! $this->owner_signed
+            && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
+            && $this->signatures->canSignOnsite($this->resource, $this->viewer, InventorySignRequest::ROLE_LANDLORD)) {
+            $roles[] = InventorySignatureService::ROLE_LANDLORD_ONSITE;
         }
 
         return $roles;
@@ -200,6 +220,23 @@ class InventoryResource extends BaseResource
     private static function personne(?User $user): ?array
     {
         return $user === null ? null : ['id' => (int) $user->id, 'full_name' => $user->nameWithoutContact()];
+    }
+
+    /**
+     * TCK-2913 — les comptes avisés de l'envoi du PDF (`pdf_sent_to`, des identifiants), nommés.
+     *
+     * @return list<array{id: int, full_name: string}>
+     */
+    private function pdfSentTo(): array
+    {
+        $ids = array_values(array_filter(is_array($this->pdf_sent_to) ? $this->pdf_sent_to : [], 'is_int'));
+        if ($ids === []) {
+            return [];
+        }
+
+        $users = User::query()->whereKey($ids)->get()->keyBy('id');
+
+        return array_values(array_filter(array_map(fn (int $id): ?array => self::personne($users->get($id)), $ids)));
     }
 
     /** @return array{id: int, full_name: string}|null */

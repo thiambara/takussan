@@ -162,13 +162,22 @@ export interface Inventory {
   readonly tenant_otp_destination?: string | null;
   /** Le bailleur pour le compte duquel l'utilisateur courant signerait, ou `null` s'il est le bailleur. */
   readonly sign_on_behalf_of?: { readonly id: number; readonly full_name: string } | null;
+  /** TCK-2913 (ADR-0098, amendement A) — la voie de la signature du bailleur, comme celle du locataire. */
+  readonly owner_signature_method?: 'drawn' | 'onsite_otp' | null;
+  readonly owner_signed_via_user_id?: number | null;
+  readonly owner_otp_channel?: string | null;
+  readonly owner_otp_destination?: string | null;
+  readonly owner_signed_via?: InventoryPersonne | null;
+  /** TCK-2913 (amendement B) — l'envoi du PDF aux parties à la seconde signature : quand, et à qui (`show`). */
+  readonly pdf_sent_at?: string | null;
+  readonly pdf_sent_to?: readonly InventoryPersonne[];
 }
 
 /** TCK-076 — explicit role accepted by `POST /inventories/{id}/sign`. */
 export type InventorySignatureRole = 'tenant' | 'landlord';
 
 /** TCK-2646 — ce que `can_sign_as` peut contenir : les rôles de `sign`, plus la voie sur place. */
-export type InventoryCanSignAs = InventorySignatureRole | 'tenant_onsite';
+export type InventoryCanSignAs = InventorySignatureRole | 'tenant_onsite' | 'landlord_onsite'; // TCK-2913 — `landlord_onsite`
 
 /** TCK-2648 — une personne nommée par la fiche. */
 export interface InventoryPersonne {

@@ -346,6 +346,8 @@ return [
         'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou faites signer le locataire depuis son compte.',
         'tenant_without_phone' => 'Le locataire n\'a pas de compte avec un numéro vérifié : il signe depuis son compte.',
+        // TCK-2913 (ADR-0098, amendement A) — le code du bailleur part au numéro vérifié de son compte.
+        'landlord_without_phone' => 'Le bailleur n\'a pas de compte avec un numéro vérifié : il signe depuis son compte, ou vous signez pour son compte.',
     ],
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',

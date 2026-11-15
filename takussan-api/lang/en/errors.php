@@ -346,6 +346,8 @@ return [
         'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
         'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or have the tenant sign from their account.',
         'tenant_without_phone' => 'The tenant has no account with a verified phone number: they sign from their account.',
+        // TCK-2913 (ADR-0098, amendement A) — le code du bailleur part au numéro vérifié de son compte.
+        'landlord_without_phone' => 'The landlord has no account with a verified phone number: they sign from their account, or you sign on their behalf.',
     ],
     'invitation' => [
         'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',

@@ -144,6 +144,12 @@ class DateInventoryByValueTest extends TestCase
             .'un identifiant et un nom, jamais une date.',
         'App\Http\Resources\InventoryResource::owner_signed_on_behalf_of' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
             .'un identifiant et un nom, jamais une date.',
+        // TCK-2913 — le membre du personnel qui a recueilli sur place la signature du bailleur, et les
+        // destinataires de l'envoi du PDF : sous `forViewer()` seulement.
+        'App\Http\Resources\InventoryResource::owner_signed_via' => '`when()` sur le lecteur de `forViewer()` (TCK-2913) : '
+            .'un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::pdf_sent_to' => '`when()` sur le lecteur de `forViewer()` (TCK-2913) : '
+            .'une liste d\'identifiants et de noms, jamais une date (la date est `pdf_sent_at`, émise par `iso()`).',
         'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
             .'(TCK-596) : un identifiant et un nom, jamais une date.',
         'App\Http\Resources\InventoryResource::tenant' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '

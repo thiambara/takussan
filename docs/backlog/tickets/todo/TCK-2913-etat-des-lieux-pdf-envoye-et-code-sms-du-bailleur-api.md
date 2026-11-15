@@ -66,4 +66,16 @@ Audit (`audit-f4-patrimoine.md`, app-etats-des-lieux **e2** : « Terminer et env
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (branche `feat/audit-manques-2026-11-15`).
+
+**Prémisse re-mesurée — écarts :**
+- La route du code existe déjà sous `POST inventories/{inventory}/sign/onsite-code` (TCK-2646), pas `…/onsite-code` : gardée, avec `party` (`tenant` | `landlord`) dans le corps ; absent = `tenant` (appel inchangé).
+- Le service : `InventorySignatureService::sign` l. 63-125, `sendOnsiteCode` l. 215-250 — conformes au constat.
+
+**Décisions (consignées dans l'amendement du 2026-11-15 d'ADR-0098) :**
+- Côté bailleur, c'est le **code** qui distingue les deux voies : `role=landlord` sans code = inchangé (lui-même, ou le personnel `leases.sign` pour son compte) ; avec code et personnel habilité (agence du bail + `update`) = signature DU bailleur (`owner_signed_by_user_id` = bailleur, `on_behalf_of` nul), trace en colonnes `owner_signature_method`, `owner_signed_via_user_id`, `owner_otp_channel`, `owner_otp_destination`, `owner_signed_ip` (cachée). `can_sign_as` rend `landlord_onsite`. 422 `inventory_signature.landlord_without_phone` sans numéro vérifié. Même `SignatureOtpService`, clé `…:{bailleur}:landlord`.
+- L'envoi : tâche `App\Jobs\Inventory\SendSignedInventoryPdf`, mise en file après la transaction de la seconde signature ; réclamation `UPDATE … WHERE pdf_sent_at IS NULL` (une fois) ; avis par code `inventory.signed_pdf_available` (cloche + e-mail) au compte du locataire et au bailleur, cible `inventory` → `/app/inventories/{id}` ; **un lien, pas une pièce jointe** (patron `document.archive_ready` : aucun octet dans la file, lien qui s'ouvre sous la session) ; **sans SMS ni WhatsApp** (acte contractuel sans interrupteur, comme `lease.signature_completed`). Journal : `activity()` événement `inventory_pdf_sent` (ids des destinataires). Ressource : `pdf_sent_at`, `pdf_sent_to` (id + nom, `show`), `owner_signed_via`.
+- Un locataire sans compte n'est pas destinataire (ni cloche ni page) ; `pdf_sent_to` ne liste que les avisés.
+
+**Tests :** `InventoryLandlordOnsiteCodeTest` (9), `InventorySignedPdfDispatchTest` (6) ; mis à jour : `InventorySignatureTest` et `InventoryOnsiteSignatureTest` (`can_sign_as` gagne `landlord_onsite`), `DateInventoryByValueTest` (deux clés `when()`). Front : types `src/types/inventory.ts`, clés `notifications.codes.inventory.signed_pdf_available.*` et `admin.audit.events.inventory_pdf_sent`.
+

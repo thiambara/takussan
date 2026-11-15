@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\DisputeInventoryRequest;
+use App\Http\Requests\Api\SendInventoryOnsiteCodeRequest;
 use App\Http\Requests\Api\UploadRoomPhotosInventoryRequest;
 use App\Http\Requests\InventorySignRequest;
 use App\Http\Requests\InventoryStoreRequest;
@@ -116,7 +117,7 @@ class InventoryController extends Controller
         // jamais dans `index` : une URL signée par ligne de liste n'a pas de lecteur.
         // TCK-2648 — les noms que la fiche sert sous `forViewer` (le locataire, le bailleur, qui a signé
         // et pour qui) : chargés ici, une requête par relation.
-        $inventory->load(['lease.tenant', 'lease.landlord', 'tenant', 'property', 'media', 'tenantSignedVia', 'ownerSignedBy', 'ownerSignedOnBehalfOf']);
+        $inventory->load(['lease.tenant', 'lease.landlord', 'tenant', 'property', 'media', 'tenantSignedVia', 'ownerSignedBy', 'ownerSignedOnBehalfOf', 'ownerSignedVia']);
 
         return $this->json([
             'data' => InventoryResource::make($inventory)
@@ -201,10 +202,13 @@ class InventoryController extends Controller
      * TCK-2646 (ADR-0098) — envoie au locataire le code qui l'authentifie sur l'appareil du membre du
      * personnel qui l'appelle. Le service est la garde : 403 hors du personnel habilité, 409 déjà
      * signé, 422 sans numéro vérifié au compte du locataire, 423 sous verrou, 429 avant 60 s.
+     * TCK-2913 — de même pour le bailleur, avec `party=landlord`.
      */
-    public function sendOnsiteCode(Request $request, Inventory $inventory): JsonResponse
+    public function sendOnsiteCode(SendInventoryOnsiteCodeRequest $request, Inventory $inventory): JsonResponse
     {
-        $sent = $this->signatures->sendOnsiteCode($inventory, $request->user());
+        // TCK-2913 (ADR-0098, amendement A) — `party=landlord` : le code part au bailleur du bail ;
+        // absent, au locataire (l'appel d'avant l'amendement).
+        $sent = $this->signatures->sendOnsiteCode($inventory, $request->user(), $request->party());
 
         return $this->json(['data' => $sent], 202);
     }
@@ -280,6 +284,10 @@ class InventoryController extends Controller
             // TCK-2646 (ADR-0098 §5) — la signature du locataire recueillie sur place, par code SMS.
             'tenant_signed_onsite' => $inventory->tenant_signature_method === Inventory::TENANT_METHOD_ONSITE_OTP
                 ? __('inventories.pdf.signed_onsite', ['destination' => (string) $inventory->tenant_otp_destination])
+                : null,
+            // TCK-2913 (ADR-0098, amendement A §5) — de même pour la signature du bailleur.
+            'owner_signed_onsite' => $inventory->owner_signature_method === Inventory::OWNER_METHOD_ONSITE_OTP
+                ? __('inventories.pdf.signed_onsite', ['destination' => (string) $inventory->owner_otp_destination])
                 : null,
             'filename' => $filename,
         ]);
