@@ -20754,11 +20754,40 @@
           "interdit": "Vous n’avez pas accès à cette quittance.",
           "indisponible": "Cette quittance n’est pas encore disponible.",
           "echec": "Le téléchargement a échoué. Réessayez."
-        }
+        },
+        "bailJusquau": "Bail jusqu’au {date}",
+        "agenceEtAgent": "{agence} · {agent}",
+        "bailEtLoyer": "Bail jusqu’au {date} · {loyer} par mois",
+        "votreAgent": "{agence} · votre agent",
+        "votreAgentSansAgence": "Votre agent",
+        "ecrire": "Écrire",
+        "messageA": "Message à {nom}",
+        "appeler": "Appeler"
       },
       "resume": {
         "du": "{jour} · {montant} à régler",
         "prochain": "{jour} · prochain loyer le {date}"
+      },
+      "paiements": {
+        "titre": "Derniers paiements",
+        "tous": "Tous les paiements",
+        "quoi": "vos derniers paiements",
+        "quittance": "Quittance",
+        "quittanceDe": "Quittance · {periode}",
+        "caution": "Caution",
+        "reservation": "Réservation"
+      },
+      "interventions": {
+        "titre": "Interventions en cours",
+        "vide": "Aucune intervention en cours dans votre logement.",
+        "signaler": "Signaler un problème",
+        "quoi": "vos interventions",
+        "toutes": "Voir les {n} interventions"
+      },
+      "entree": {
+        "titre": "Votre entrée dans les lieux",
+        "aFinir": "À finir",
+        "restantes": "{n, plural, one {# étape restante} other {# étapes restantes}}"
       }
     }
   },

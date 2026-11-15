@@ -3,7 +3,6 @@ import { getMeAction } from '@/app/actions/auth';
 
 import { EspaceDesDocuments } from '@/components/documents/EspaceDesDocuments';
 import { getTranslations } from 'next-intl/server';
-import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.documents');
@@ -16,12 +15,14 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * TCK-2656 — la bibliothèque est celle du personnel de l'agence ; tout autre profil ouvre son coffre
  * par dossier (`EspaceDesDocuments` choisit sur le profil actif).
+ *
+ * TCK-2896 — le personnel de l'agence ouvre les documents de l'agence par bien et par bail, qui portent
+ * leur propre en-tête : la page n'en passe plus.
  */
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const t = await getTranslations('dashboard.pages.documents');
   await getMeAction();
 
-  return <EspaceDesDocuments enTeteDeLaBibliotheque={<PageHeader title={t('title')} description={t('subtitle')} />} />;
+  return <EspaceDesDocuments />;
 }

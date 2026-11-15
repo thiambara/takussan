@@ -20754,11 +20754,40 @@
           "interdit": "You don’t have access to this receipt.",
           "indisponible": "This receipt isn’t available yet.",
           "echec": "The download failed. Try again."
-        }
+        },
+        "bailJusquau": "Lease until {date}",
+        "agenceEtAgent": "{agence} · {agent}",
+        "bailEtLoyer": "Lease until {date} · {loyer} per month",
+        "votreAgent": "{agence} · your agent",
+        "votreAgentSansAgence": "Your agent",
+        "ecrire": "Message",
+        "messageA": "Message to {nom}",
+        "appeler": "Call"
       },
       "resume": {
         "du": "{jour} · {montant} to pay",
         "prochain": "{jour} · next rent on {date}"
+      },
+      "paiements": {
+        "titre": "Recent payments",
+        "tous": "All payments",
+        "quoi": "your recent payments",
+        "quittance": "Receipt",
+        "quittanceDe": "Receipt · {periode}",
+        "caution": "Deposit",
+        "reservation": "Booking"
+      },
+      "interventions": {
+        "titre": "Ongoing repairs",
+        "vide": "No ongoing repairs in your home.",
+        "signaler": "Report a problem",
+        "quoi": "your repairs",
+        "toutes": "See all {n} repairs"
+      },
+      "entree": {
+        "titre": "Your move-in",
+        "aFinir": "To finish",
+        "restantes": "{n, plural, one {# step left} other {# steps left}}"
       }
     }
   },

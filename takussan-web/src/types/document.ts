@@ -62,6 +62,15 @@ export type Document = {
   documentable_type: string;
   /** TCK-2841 — le bail porteur, sur une ligne dont le porteur est un bail (lu sur la liste). */
   lease?: { id: number; reference_number: string | null; status: string | null };
+  /**
+   * TCK-2895 (ADR-0099, amendement du 2026-11-15) — sur la fiche seule : le bien et, le cas échéant, le
+   * bail du porteur (« Rattaché à », « Bien », le fil « Bien › Bail › dossier »), pour qui lit la cible ;
+   * `null` sinon, absent d'une liste.
+   */
+  context?: {
+    property: { id: number; title: string | null; neighborhood: string | null } | null;
+    lease: { id: number; reference_number: string | null; tenant_name: string | null } | null;
+  } | null;
   uploaded_by: number | null;
   /** TCK-2773 — sur la fiche (un document seul), jamais sur une liste. */
   uploaded_by_person?: AuteurServi | null;

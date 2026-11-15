@@ -252,9 +252,7 @@
     ],
     "(dashboard)/app/documents": [
       "console",
-      "documents",
-      "propertyDashboard",
-      "search"
+      "documents"
     ],
     "(dashboard)/app/favorites": [
       "compare",
@@ -406,7 +404,7 @@
     "[locale]/(public)/agents": 19,
     "(dashboard)/app/(accueil)": 38,
     "(dashboard)/app/customers": 46,
-    "(dashboard)/app/documents": 30,
+    "(dashboard)/app/documents": 26,
     "(dashboard)/app/favorites": 29,
     "(super-admin)/super-admin": 47,
     "[locale]/(public)/account": 21,
