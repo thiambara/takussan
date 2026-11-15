@@ -27,6 +27,8 @@ const etat = vi.hoisted(() => ({
   plafond: null as number | null,
   pannes: new Map<string, number>(),
   refus: new Set<string>(),
+  /** TCK-2869 — `can_confirm` de chaque visite servie (ADR-0112). */
+  peutConfirmer: false,
 }));
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 21, roles: ['owner'] }, token: 'jeton' }) }));
@@ -108,8 +110,10 @@ vi.mock('@/lib/api', async (original) => {
       const { commeLApi: servir } = await import('@/test/visites-comme-l-api');
       const page = (data: unknown[], total: number) => servir(chemin, { data: total > 0 ? data : [], meta: { total, per_page: 20, current_page: 1, last_page: 1 } });
       switch (route) {
-        case '/api/property-visits':
-          return page([VISITE, { ...VISITE, id: 602, scheduled_at: '2026-11-16T17:00:00Z' }].slice(0, etat.visites), etat.visites);
+        case '/api/property-visits': {
+          const visites = [VISITE, { ...VISITE, id: 602, scheduled_at: '2026-11-16T17:00:00Z' }].map((v) => ({ ...v, can_confirm: etat.peutConfirmer }));
+          return page(visites.slice(0, etat.visites), etat.visites);
+        }
         case '/api/maintenance-requests':
           return params.get('filter[status]') === 'awaiting_owner' ? page([DEVIS], etat.devis) : page([EN_COURS, { ...EN_COURS, id: 73, title: 'Peinture du salon', scheduled_at: null }, { ...EN_COURS, id: 74, title: 'Peinture écaillée', scheduled_at: '2026-11-07T14:25:00Z' }, { ...EN_COURS, id: 75, title: 'Serrure', scheduled_at: '2026-11-09T09:00:00Z' }], etat.enCours);
         case '/api/maintenance-requests/71':
@@ -141,7 +145,7 @@ const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], visites: 2, devis: 1, loyers: 4, enCours: 1, peutDecider: true, plafond: null, pannes: new Map(), refus: new Set() });
+  Object.assign(etat, { appels: [], visites: 2, devis: 1, loyers: 4, enCours: 1, peutDecider: true, plafond: null, pannes: new Map(), refus: new Set(), peutConfirmer: false });
   oublierLesLectures();
 });
 afterEach(() => {
@@ -152,7 +156,7 @@ afterEach(() => {
 
 describe('les files du bailleur', () => {
   it('« Loyers en retard » ne lit que les échéances DONT IL EST LE BAILLEUR, sans la relance de l’agence', async () => {
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(groupe('Loyers en retard')).toBeTruthy());
     const p = lectures('/api/payments/history')[0]!;
     expect(p.get('filter[landlord_id]')).toBe('21');
@@ -164,7 +168,7 @@ describe('les files du bailleur', () => {
   });
 
   it('bureau : les trois groupes, leurs comptes, la rangée d’un loyer en retard et « Voir les N autres »', async () => {
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     const loyers = await waitFor(() => groupe('Loyers en retard'));
     expect(within(loyers).getByText('Seydou Camara · Villa blanche, Yoff')).toBeTruthy();
     expect(within(loyers).getAllByText('1 400 000 F · échu le 5 nov.')).toHaveLength(2);
@@ -176,16 +180,20 @@ describe('les files du bailleur', () => {
     expect(within(devis).getByText('85 000 F')).toBeTruthy();
   });
 
-  it('décision 7 — le bailleur d’un bien d’agence ne confirme pas : « Voir » seul, sans « Confirmer » ni « Autre créneau »', async () => {
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+  it('AC1 (TCK-2869) — sans `can_confirm` (réglage de l’agence faux, décision 7) : « Voir » seul, sans « Confirmer » ni « Autre créneau »', async () => {
+    monter(<AFaireBailleur landlordId={21} />);
     const visites = await waitFor(() => groupe('Visites à confirmer'));
     expect(within(visites).queryByRole('button', { name: 'Confirmer' })).toBeNull();
     expect(within(visites).getAllByRole('link', { name: 'Voir' })[0]!.getAttribute('href')).toBe('/app/visits/601');
     expect(within(telephone()).queryByRole('button', { name: 'Confirmer' })).toBeNull();
+    expect(within(telephone()).queryByRole('link', { name: 'Autre créneau' })).toBeNull();
+    expect(within(visites).queryByRole('link', { name: 'Autre créneau' })).toBeNull();
+    expect(within(telephone()).getAllByRole('link', { name: 'Voir' })[0]!.getAttribute('href')).toBe('/app/visits/601');
   });
 
-  it('l’hôte confirme : « Confirmer » envoie la confirmation et la ligne quitte l’accueil', async () => {
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites />);
+  it('l’hôte confirme (`can_confirm`) : « Confirmer » envoie la confirmation et la ligne quitte l’accueil', async () => {
+    etat.peutConfirmer = true;
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getAllByRole('button', { name: 'Confirmer' })).toHaveLength(2));
     fireEvent.click(within(telephone()).getAllByRole('button', { name: 'Confirmer' })[0]!);
     await waitFor(() => expect(gestes().map((g) => `${g.methode} ${g.chemin}`)).toEqual(['POST /api/property-visits/601/confirm']));
@@ -193,7 +201,7 @@ describe('les files du bailleur', () => {
   });
 
   it('téléphone : une carte par visite (« proposée par » l’agent) et par devis ; pas de loyers en retard (la maquette)', async () => {
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getAllByText('Visite à confirmer')).toHaveLength(2));
     expect(within(telephone()).getAllByText('Maison familiale avec jardin · Ouakam · proposée par Sokhna Sène')).toHaveLength(2);
     expect(within(telephone()).getByText('Devis à valider')).toBeTruthy();
@@ -204,7 +212,7 @@ describe('les files du bailleur', () => {
 
   it('téléphone : ce que le plafond de la file ne montre pas se dit — « Voir les 6 autres visites à confirmer »', async () => {
     Object.assign(etat, { visites: 8, devis: 3 });
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getAllByText('Visite à confirmer')).toHaveLength(2));
     const autres = document.querySelector<HTMLElement>('[data-slot="autres-du-telephone"]')!;
     expect(within(autres).getByRole('link', { name: 'Voir les 6 autres visites à confirmer' }).getAttribute('href')).toBe('/app/visits?vue=to_confirm');
@@ -212,9 +220,52 @@ describe('les files du bailleur', () => {
   });
 });
 
+describe('TCK-2869 (ADR-0112) — le bailleur à qui l’agence confie ses visites', () => {
+  it('la file demande `can_confirm` dans `fields[property_visits]` : l’API ne la sert en liste que nommée', async () => {
+    monter(<AFaireBailleur landlordId={21} />);
+    await waitFor(() => expect(lectures('/api/property-visits').length).toBeGreaterThan(0));
+    expect(lectures('/api/property-visits')[0]!.get('fields[property_visits]')!.split(',')).toContain('can_confirm');
+  });
+
+  it('AC2 — téléphone : chaque carte porte « Autre créneau » (vers le choix de l’heure) et « Confirmer »', async () => {
+    etat.peutConfirmer = true;
+    monter(<AFaireBailleur landlordId={21} />);
+    await waitFor(() => expect(within(telephone()).getAllByRole('button', { name: 'Confirmer' })).toHaveLength(2));
+    const autres = within(telephone()).getAllByRole('link', { name: 'Autre créneau' });
+    expect(autres.map((l) => l.getAttribute('href'))).toEqual(['/app/visits/601?heure=autre', '/app/visits/602?heure=autre']);
+    expect(within(telephone()).queryByRole('link', { name: 'Voir' })).toBeNull();
+  });
+
+  it('AC2 — bureau : la rangée dit qui l’a proposée et le visiteur, porte les deux gestes, et « Confirmer » la retire du groupe', async () => {
+    etat.peutConfirmer = true;
+    monter(<AFaireBailleur landlordId={21} />);
+    const visites = await waitFor(() => groupe('Visites à confirmer'));
+    expect(within(visites).getAllByText('Proposée par Sokhna Sène · visiteur : Pape Gueye')).toHaveLength(2);
+    expect(within(visites).getAllByRole('link', { name: 'Autre créneau' })[0]!.getAttribute('href')).toBe('/app/visits/601?heure=autre');
+    expect(within(visites).getByText('2')).toBeTruthy();
+    fireEvent.click(within(visites).getAllByRole('button', { name: 'Confirmer' })[0]!);
+    await waitFor(() => expect(gestes().map((g) => `${g.methode} ${g.chemin}`)).toEqual(['POST /api/property-visits/601/confirm']));
+    // Le corps n'invente pas d'heure : la visite à heure fixée se confirme à la sienne.
+    expect(gestes()[0]!.corps).toEqual({});
+    await waitFor(() => expect(within(groupe('Visites à confirmer')).getAllByRole('button', { name: 'Confirmer' })).toHaveLength(1));
+    expect(within(groupe('Visites à confirmer')).getByText('1')).toBeTruthy();
+  });
+
+  it('un refus de l’API (403) retire le geste et garde la ligne : la carte mène à la visite', async () => {
+    etat.peutConfirmer = true;
+    etat.refus.add('/api/property-visits/601/confirm');
+    monter(<AFaireBailleur landlordId={21} />);
+    await waitFor(() => expect(within(telephone()).getAllByRole('button', { name: 'Confirmer' })).toHaveLength(2));
+    fireEvent.click(within(telephone()).getAllByRole('button', { name: 'Confirmer' })[0]!);
+    await waitFor(() => expect(within(telephone()).getAllByRole('button', { name: 'Confirmer' })).toHaveLength(1));
+    expect(within(telephone()).getAllByText('Visite à confirmer')).toHaveLength(2);
+    expect(within(telephone()).getByRole('link', { name: 'Voir' }).getAttribute('href')).toBe('/app/visits/601');
+  });
+});
+
 describe('AC5 — valider un devis sans quitter l’accueil', () => {
   it('« Valider » ouvre la feuille du devis ; « Approuver 85 000 F » envoie `quote/approve` et la ligne disparaît', async () => {
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getByRole('button', { name: 'Valider' })).toBeTruthy());
     fireEvent.click(within(telephone()).getByRole('button', { name: 'Valider' }));
     const feuille = await screen.findByRole('dialog');
@@ -227,7 +278,7 @@ describe('AC5 — valider un devis sans quitter l’accueil', () => {
 
   it('sans `can_decide_quote` sur la fiche, la feuille n’a pas de geste : « Voir le devis » seul', async () => {
     etat.peutDecider = false;
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getByRole('button', { name: 'Valider' })).toBeTruthy());
     fireEvent.click(within(telephone()).getByRole('button', { name: 'Valider' }));
     const feuille = await screen.findByRole('dialog');
@@ -239,7 +290,7 @@ describe('AC5 — valider un devis sans quitter l’accueil', () => {
 
   it('la feuille monte la décision de l’écran « Interventions » (TCK-2654) : même rappel du plafond, même « Refuser »', async () => {
     etat.plafond = 50_000;
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getByRole('button', { name: 'Valider' })).toBeTruthy());
     fireEvent.click(within(telephone()).getByRole('button', { name: 'Valider' }));
     const feuille = await screen.findByRole('dialog');
@@ -250,7 +301,7 @@ describe('AC5 — valider un devis sans quitter l’accueil', () => {
 
   it('un refus de l’API (403) retire « Valider » : la carte mène au devis', async () => {
     etat.refus.add('/api/maintenance-requests/71/quote/approve');
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     await waitFor(() => expect(within(telephone()).getByRole('button', { name: 'Valider' })).toBeTruthy());
     fireEvent.click(within(telephone()).getByRole('button', { name: 'Valider' }));
     fireEvent.click(await within(await screen.findByRole('dialog')).findByRole('button', { name: /^Approuver 85\s000\sF CFA$/u }));
@@ -262,7 +313,7 @@ describe('AC5 — valider un devis sans quitter l’accueil', () => {
 describe('« À faire » ne liste que l’inachevé', () => {
   it('bailleur sans rien en attente : « Tout est à jour », et « Proposer un bien à mon agence »', async () => {
     Object.assign(etat, { visites: 0, devis: 0, loyers: 0 });
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     expect(await screen.findByText('Tout est à jour')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Proposer un bien à mon agence' }).getAttribute('href')).toBe('/app/properties/new');
   });
@@ -270,7 +321,7 @@ describe('« À faire » ne liste que l’inachevé', () => {
   it('l’hôte garde ses réservations à traiter et ses avis sans réponse (la Vue bailleur) ; une file à zéro n’a pas de ligne', async () => {
     Object.assign(etat, { visites: 0, devis: 0, loyers: 0 });
     const hote: FilesDeLHote = { reservations: { etat: 'pret', total: 2 }, avis: { etat: 'pret', total: 0 } };
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites hote={hote} />);
+    monter(<AFaireBailleur landlordId={21} hote={hote} />);
     await waitFor(() => expect(groupe('Réservations à traiter')).toBeTruthy());
     expect(within(telephone()).getByText('2 réservations à traiter')).toBeTruthy();
     expect(within(telephone()).getByRole('link', { name: 'Voir' }).getAttribute('href')).toBe('/app/bookings?status=pending');
@@ -281,7 +332,7 @@ describe('« À faire » ne liste que l’inachevé', () => {
   it('une file en panne n’est pas une file vide : pas de « Tout est à jour »', async () => {
     Object.assign(etat, { visites: 0, devis: 0 });
     etat.pannes.set('/api/payments/history', 500);
-    monter(<AFaireBailleur landlordId={21} confirmeLesVisites={false} />);
+    monter(<AFaireBailleur landlordId={21} />);
     expect(await screen.findByText(/Impossible de charger ce qui vous attend/)).toBeTruthy();
     expect(screen.queryByText('Tout est à jour')).toBeNull();
   });

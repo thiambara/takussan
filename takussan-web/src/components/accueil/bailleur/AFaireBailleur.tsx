@@ -32,8 +32,10 @@ import { FeuilleDuDevis } from './FeuilleDuDevis';
  *  - **L'hôte** (`hote` non nul) a en plus « Réservations à traiter » et « Avis sans réponse », lus
  *    comme la Vue bailleur les lisait (`GET /api/dashboard/owner`) : aucune régression.
  *
- * Le bailleur d'un bien d'agence ne confirme pas une visite (`PropertyVisitPolicy::agitPourLeBien`,
- * décision 7) : `confirmeLesVisites = false` lui donne « Voir ». Un geste que l'API refuse (403)
+ * TCK-2869 (ADR-0112) — « Confirmer » et « Autre créneau » suivent la capacité rendue avec CHAQUE
+ * visite (`can_confirm`, `PropertyVisitPolicy::peutConfirmer`) : l'hôte (son bien), et le bailleur
+ * d'un bien d'agence quand l'agence lui confie ses visites (`settings.owners_confirm_visits`). Sans
+ * elle — la décision 7 de TCK-2624, réglage faux —, « Voir ». Un geste que l'API refuse (403)
  * devient « Voir » de même.
  */
 
@@ -53,12 +55,10 @@ const DESTINATIONS = {
 
 export function AFaireBailleur({
   landlordId,
-  confirmeLesVisites,
   hote = null,
 }: {
   /** Le compte du bailleur : `filter[landlord_id]` des loyers en retard. */
   readonly landlordId: number;
-  readonly confirmeLesVisites: boolean;
   readonly hote?: FilesDeLHote | null;
 }) {
   const t = useTranslations('accueil.bailleur');
@@ -89,7 +89,6 @@ export function AFaireBailleur({
     hote,
     refuses,
     refuser,
-    confirmeLesVisites,
     ouvrirDevis: setDevisOuvert,
   };
 
@@ -158,8 +157,12 @@ interface Lignes {
   readonly hote: FilesDeLHote | null;
   readonly refuses: ReadonlySet<string>;
   readonly refuser: (cle: string) => void;
-  readonly confirmeLesVisites: boolean;
   readonly ouvrirDevis: (d: InterventionEnFile) => void;
+}
+
+/** TCK-2869 — le geste n'existe que si l'API le permet (`can_confirm`) et ne l'a pas refusé depuis (403). */
+function confirmable(v: PropertyVisit, refuses: ReadonlySet<string>): boolean {
+  return v.can_confirm === true && !refuses.has(`visite-${v.id}`);
 }
 
 /** « Remplacement d'un chauffe-eau » · « Appartement F3, Liberté 6 · Astou Sy » · 85 000 F. */
@@ -179,7 +182,7 @@ function CartesDuTelephone({ l }: { readonly l: Lignes }) {
   return (
     <ul data-slot="a-faire-telephone" className="space-y-3 px-4 md:hidden">
       {l.visites.map((v) => (
-        <CarteDeVisite key={v.id} v={v} geste={l.confirmeLesVisites && !l.refuses.has(`visite-${v.id}`)} onRefus={() => l.refuser(`visite-${v.id}`)} />
+        <CarteDeVisite key={v.id} v={v} geste={confirmable(v, l.refuses)} onRefus={() => l.refuser(`visite-${v.id}`)} />
       ))}
       {l.devis.map((d) => {
         const lu = lireDevis(d);
@@ -286,8 +289,9 @@ function GroupesDuBureau({ l }: { readonly l: Lignes }) {
             <LigneDeVisite
               key={v.id}
               v={v}
-              refusee={!l.confirmeLesVisites || l.refuses.has(`visite-${v.id}`)}
+              refusee={!confirmable(v, l.refuses)}
               onRefus={() => l.refuser(`visite-${v.id}`)}
+              pour="bailleur"
             />
           ))}
         </GroupeAFaire>

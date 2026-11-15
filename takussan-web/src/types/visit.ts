@@ -130,7 +130,17 @@ export interface PropertyVisit {
      * espace, visite sans fiche). Le préremplissage et le geste ne s'allument que sur lui.
      */
     readonly create_customer?: boolean;
+    /**
+     * TCK-2849 / TCK-2869 (ADR-0112) — « Confirmer » et « Autre créneau » : `manage`, ou le bailleur
+     * d'un bien d'agence quand l'agence lui confie ses visites (`PropertyVisitPolicy::peutConfirmer`).
+     */
+    readonly confirm?: boolean;
   };
+  /**
+   * TCK-2849 / TCK-2869 — la même capacité que `abilities.confirm`, servie AUSSI en liste quand
+   * `fields[property_visits]` la nomme (l'accueil du bailleur). Absente : rien n'est offert.
+   */
+  can_confirm?: boolean;
   /**
    * TCK-2578 / TCK-2581 (ADR-0101) — le compte rendu de l'agence. Clé ABSENTE hors du personnel de
    * l'agence du bien (visiteur, client, bailleur) : sa présence est la garde (`compteRenduLisible`).

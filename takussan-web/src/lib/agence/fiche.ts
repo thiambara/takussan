@@ -100,6 +100,7 @@ const SECTION_DE_LA_CLE: Readonly<Record<string, SectionDeLaFiche>> = {
   legal_address: 'facturation',
   moderation_required: 'regles',
   late_fee_online_collection: 'regles',
+  owners_confirm_visits: 'regles',
   payout_approval_threshold: 'regles',
   require_team_two_factor: 'regles',
   hidden_modules: 'menu',

@@ -8000,7 +8000,11 @@
         "booking_not_selected": "Candidature non retenue",
         "document_visibility_changed": "Visibilité d'un document changée",
         "lease_draft_abandoned": "Brouillon de bail abandonné",
-        "visit_confirmed_by_owner": "Visite confirmée par le bailleur"
+        "visit_confirmed_by_owner": "Visite confirmée par le bailleur",
+        "counter_offer_proposed": "Contre-proposition faite",
+        "counter_offer_accepted": "Contre-proposition acceptée",
+        "counter_offer_declined": "Contre-proposition déclinée",
+        "counter_offer_expired": "Contre-proposition expirée"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -18215,6 +18219,14 @@
         "dossier_piece_requested": {
           "title": "Pièce demandée pour votre dossier",
           "body": "Pour votre demande {reference} ({property}), l'agence vous demande : {piece, select, identity {pièce d'identité} payslips {bulletins de salaire} employment_certificate {attestation de travail} guarantor_commitment {engagement du garant} guarantor_identity {pièce d'identité du garant} proof_of_funds {justificatif de fonds} other {une pièce}}. Déposez-la depuis votre réservation."
+        },
+        "counter_offer_received": {
+          "title": "Contre-proposition sur votre offre",
+          "body": "Pour votre offre {reference} ({property}), l'agence vous propose {amount}, jusqu'au {valid_until}. Acceptez-la ou déclinez-la depuis votre réservation."
+        },
+        "counter_offer_answered": {
+          "title": "Réponse à votre contre-proposition",
+          "body": "Offre {reference} ({property}) : le client a {answer, select, accepted {accepté} declined {décliné} other {répondu à}} votre contre-proposition à {amount}."
         }
       },
       "account": {

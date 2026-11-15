@@ -51,8 +51,9 @@ vi.mock('@/components/accueil/admin/AFaireAdmin', () => ({ AFaireAdmin: () => <d
 vi.mock('@/components/accueil/admin/EquipeDuJour', () => ({ EquipeDuJour: () => <div data-testid="equipe-du-jour" /> }));
 vi.mock('@/components/accueil/admin/ResumeDuJour', () => ({ ResumeDuJour: ({ jour }: { jour: string }) => jour }));
 vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
-  AFaireBailleur: ({ confirmeLesVisites, hote }: { confirmeLesVisites: boolean; hote: unknown }) => (
-    <div data-testid="a-faire-bailleur" data-confirme={String(confirmeLesVisites)} data-hote={JSON.stringify(hote)} />
+  // TCK-2869 — plus de `confirmeLesVisites` : la capacité vient de chaque visite (`can_confirm`).
+  AFaireBailleur: ({ hote }: { hote: unknown }) => (
+    <div data-testid="a-faire-bailleur" data-hote={JSON.stringify(hote)} />
   ),
 }));
 vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));

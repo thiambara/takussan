@@ -537,6 +537,19 @@ describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => 
     expect(await celluleObjet()).toHaveTextContent(/^Paiement de loyer n° 12345$/);
   });
 
+  it('TCK-2869 — la visite confirmée par le bailleur se nomme et mène à la fiche de la visite', async () => {
+    mockFetchLogs.mockResolvedValue(reponse([
+      makeLog({ event: 'visit.confirmed_by_owner', description: 'visit.confirmed_by_owner', subject_type: 'App\\Models\\PropertyVisit', subject_id: 41 }),
+    ]));
+    render(wrap(<AuditTrail />));
+    const lignes = await screen.findAllByRole('row');
+    const ligne = lignes[1];
+    expect(within(ligne).getAllByRole('cell')[2]).toHaveTextContent(/^Visite confirmée par le bailleur$/);
+    const lien = within(within(ligne).getAllByRole('cell')[3]).getByRole('link');
+    expect(lien).toHaveTextContent(/^Visite n° 41$/);
+    expect(lien).toHaveAttribute('href', '/app/visits/41');
+  });
+
   it('TCK-2676 — la date au format commun, plus « 01/08/2026 10:00 »', async () => {
     mockFetchLogs.mockResolvedValue(reponse());
     render(wrap(<AuditTrail />));

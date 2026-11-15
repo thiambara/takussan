@@ -174,8 +174,8 @@ export default async function DashboardPage() {
   const jour = jourEnClair(locale, aujourdhui);
 
   // TCK-2624 (lot 2) — le bailleur et l'hôte voient ce qui attend LEUR réponse (visites, devis, loyers
-  // en retard), les loyers du mois et ce qui est en cours sur leurs biens. L'hôte confirme ses visites ;
-  // le bailleur d'un bien d'agence, non (`PropertyVisitPolicy::agitPourLeBien`, décision 7).
+  // en retard), les loyers du mois et ce qui est en cours sur leurs biens. TCK-2869 — qui confirme une
+  // visite ne se déduit plus du persona : l'API le rend avec chaque visite (`can_confirm`, ADR-0112).
   const accueilBailleur = persona === 'bailleur' || persona === 'hote';
   const loyers = accueilBailleur && payload?.data.role === 'owner' ? lireLoyersDuMois(payload.data.metrics) : null;
   const filesDeLHote = persona === 'hote' ? await lireLesFilesDeLHote(user) : null;
@@ -234,7 +234,7 @@ export default async function DashboardPage() {
         ) : accueilBailleur ? (
           <>
             {loyers ? <LoyersDuMois loyers={loyers} jour={aujourdhui} className="max-md:mx-4 md:mb-5" /> : null}
-            <AFaireBailleur landlordId={user.id} confirmeLesVisites={persona === 'hote'} hote={filesDeLHote} />
+            <AFaireBailleur landlordId={user.id} hote={filesDeLHote} />
           </>
         ) : accueilLocataire ? (
           // TCK-2852 (maquette a-3, bureau) — à gauche : la carte du loyer, « Derniers paiements », « Votre

@@ -28,6 +28,9 @@ import { GroupeDeChamps, InterrupteurAAide, TitreDeSection } from './pieces';
  * encaissées en ligne, seuil d'approbation des reversements (et le relèvement en attente d'un second
  * approbateur), double authentification obligatoire (et les membres qui ne l'ont pas). Une agence
  * individuelle n'a que les pénalités : ni file de modération (TCK-686), ni équipe (TCK-2487).
+ *
+ * TCK-2869 (ADR-0112) — « Les bailleurs confirment les visites de leurs biens », groupe « Visites » :
+ * agence `standard` seulement (l'hôte d'une individuelle confirme déjà les siennes).
  */
 export function SectionRegles() {
   const tFiche = useTranslations('admin.agencyConfig.fiche.regles');
@@ -40,6 +43,11 @@ export function SectionRegles() {
     <GroupeDeChamps titre={tFiche('groupePublication')}>
       {individuelle ? null : <Moderation />}
       <Penalites />
+    </GroupeDeChamps>
+  );
+  const visites = individuelle ? null : (
+    <GroupeDeChamps titre={tFiche('groupeVisites')}>
+      <ConfirmationParLesBailleurs />
     </GroupeDeChamps>
   );
   const reversements = peutRegler ? (
@@ -57,7 +65,10 @@ export function SectionRegles() {
     <section aria-labelledby="titre-section-regles" data-section="regles">
       <TitreDeSection id="titre-section-regles" titre={tFiche('titre')} texte={tFiche('texte')} />
       <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:items-start">
-        <div className="space-y-5">{publication}</div>
+        <div className="space-y-5">
+          {publication}
+          {visites}
+        </div>
         {reversements || securite ? (
           <div className="space-y-5">
             {reversements}
@@ -123,6 +134,21 @@ function Penalites() {
       name="late_fee_online_collection"
       render={({ field }) => (
         <InterrupteurAAide id="late_fee_online_collection" libelle={t('label')} aide={t('hint')} actif={field.value} onChange={field.onChange} />
+      )}
+    />
+  );
+}
+
+/** TCK-2869 — l'interrupteur de `settings.owners_confirm_visits`, la forme de « Pénalités ». */
+function ConfirmationParLesBailleurs() {
+  const t = useTranslations('admin.agencyConfig.ownersConfirmVisits');
+  const { control } = useFormContext<ValeursDeLaFiche>();
+  return (
+    <Controller
+      control={control}
+      name="owners_confirm_visits"
+      render={({ field }) => (
+        <InterrupteurAAide id="owners_confirm_visits" libelle={t('label')} aide={t('hint')} actif={field.value} onChange={field.onChange} />
       )}
     />
   );

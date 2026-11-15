@@ -304,3 +304,39 @@ describe('seuil des reversements (TCK-594, VERIF-594 M-2)', () => {
     expect(await screen.findByText(M.thresholdPendingSaved)).toBeInTheDocument();
   });
 });
+
+describe('TCK-2869 (ADR-0112) — « Les bailleurs confirment les visites de leurs biens »', () => {
+  const bailleurs = () => interrupteur(C.ownersConfirmVisits.label);
+
+  it('une agence sans la clé a le réglage DÉSACTIVÉ, expliqué, dans le groupe « Visites »', () => {
+    ouvrir(avec(null));
+    expect(screen.getByRole('group', { name: C.fiche.regles.groupeVisites })).toBeInTheDocument();
+    expect(bailleurs()).not.toBeChecked();
+    expect(bailleurs()).toHaveAccessibleDescription(C.ownersConfirmVisits.hint);
+  });
+
+  it('AC4 — l’administrateur l’active : seul `settings.owners_confirm_visits: true` part', async () => {
+    const user = userEvent.setup();
+    ouvrir(avec(null));
+    await user.click(bailleurs());
+    expect(await enregistrer(user)).toEqual({ settings: { owners_confirm_visits: true } });
+  });
+
+  it('chargé actif, il s’affiche activé ; le désactiver envoie false', async () => {
+    const user = userEvent.setup();
+    ouvrir(avec({ owners_confirm_visits: true }));
+    expect(bailleurs()).toBeChecked();
+    await user.click(bailleurs());
+    expect(await enregistrer(user)).toEqual({ settings: { owners_confirm_visits: false } });
+  });
+
+  it('une agence individuelle ne l’a pas, et la clé ne part jamais', async () => {
+    const user = userEvent.setup();
+    const hote: Agency = { ...INDIVIDUELLE, settings: { owners_confirm_visits: true } };
+    ACTIONS.updateAgencyAction.mockResolvedValue({ ok: true, data: hote });
+    ouvrir(hote);
+    expect(screen.queryByRole('switch', { name: new RegExp(`^${C.ownersConfirmVisits.label}`) })).toBeNull();
+    await autreModification(user);
+    expect(await enregistrer(user)).toEqual({ phone: '+221338210000' });
+  });
+});

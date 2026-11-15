@@ -71,6 +71,8 @@ export const agencyFormSchema = z.object({
   require_team_two_factor: z.boolean(),
   /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
   late_fee_online_collection: z.boolean(),
+  /** TCK-2869 (ADR-0112) — `settings.owners_confirm_visits`, désactivé par défaut. */
+  owners_confirm_visits: z.boolean(),
   /** TCK-2483 — `settings.hidden_modules` : les modules retirés du menu de l'équipe (agence `standard`). */
   hidden_modules: z.array(z.enum(CODES_DE_MODULE)),
   // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
@@ -122,6 +124,8 @@ export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
 export interface ReglagesDeLaFiche {
   require_team_two_factor: boolean;
   late_fee_online_collection: boolean;
+  /** TCK-2869 */
+  owners_confirm_visits: boolean;
   hidden_modules: CodeDeModule[];
   /** TCK-2536 — tels que l'API les rend (E.164 pour les numéros), `''` quand la clé est absente. */
   offline_payment_wave_number: string;
@@ -163,6 +167,9 @@ export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
     require_team_two_factor: lu.require_team_two_factor === true,
     // TCK-593 — `Agency::collectsLateFeesOnline()` → `AgencySettings::read` ; clé absente = désactivé.
     late_fee_online_collection: booleenCommeLApi(lu.late_fee_online_collection, false),
+    // TCK-2869 — `PropertyVisitPolicy::bailleurConfirmeDans` → `Agency::setting` (`AgencySettings::read`) ;
+    // clé absente = désactivé.
+    owners_confirm_visits: booleenCommeLApi(lu.owners_confirm_visits, false),
     // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
     hidden_modules: modulesMasquesDe(lu),
     // TCK-2536 — une chaîne telle quelle, sans reformatage : le numéro affiché est celui que l'API a rendu.
@@ -279,6 +286,12 @@ export function normaliseAgencyForm(
   }
   if (values.late_fee_online_collection !== initial.late_fee_online_collection) {
     settings.late_fee_online_collection = values.late_fee_online_collection;
+  }
+  // TCK-2869 — comme les autres booléens : ne part que modifié, `false` compris. Jamais pour une
+  // `individual` : sans bailleur hors de son équipe, l'interrupteur n'y a pas d'effet (l'hôte confirme
+  // déjà ses visites) et la fiche ne le montre pas.
+  if (!context.individual && values.owners_confirm_visits !== initial.owners_confirm_visits) {
+    settings.owners_confirm_visits = values.owners_confirm_visits;
   }
   // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
   // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais

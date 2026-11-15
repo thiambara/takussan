@@ -658,3 +658,74 @@ describe('TCK-2587 — suivi du lot A : l’agent de la visite parti ou suspendu
     expect(within(dialogue).getByRole('status')).toHaveTextContent(MESSAGE);
   });
 });
+
+/**
+ * TCK-2869 (ADR-0112) — « Autre créneau » de l'accueil du bailleur mène ici (`?heure=autre`) : le
+ * bailleur à qui l'agence confie ses visites n'a pas `manage`, mais `abilities.confirm`. Il choisit
+ * l'heure sur la grille de l'agent et la confirmation part avec `scheduled_at` ; aucun autre geste.
+ */
+describe('TCK-2869 — le bailleur confirme à une autre heure (`abilities.confirm`)', () => {
+  const duBailleur = (confirm: boolean) =>
+    visite({ status: 'scheduled', scheduled_at: '2026-11-11T14:00:00Z', customer: null, customer_id: null, abilities: { manage: false, confirm } });
+
+  beforeEach(() => {
+    etat.user = { id: 21, roles: ['owner'], first_name: 'Mouhamed' };
+    etat.recherche = 'heure=autre';
+  });
+
+  it('AC3 — `?heure=autre` ouvre le choix sur la grille de l’agent ; « Confirmer à 16:00 » poste cet instant', async () => {
+    etat.visite = duBailleur(true);
+    monter();
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).getByLabelText(f.autreHeure.jour)).toHaveValue('2026-11-11');
+    // La grille est celle de l'agent de la visite (7), pas celle du bailleur.
+    expect(etat.creneaux.some(([bien, jour, agent]) => bien === 10 && jour === '2026-11-11' && agent === 7)).toBe(true);
+    fireEvent.click(within(dialogue).getByRole('button', { name: '16:00' }));
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Confirmer à 16:00' }));
+    await waitFor(() => expect(confirmer.mutateAsync).toHaveBeenCalledWith({ scheduled_at: '2026-11-11T16:00:00Z' }));
+    // Ce geste seul : ni « Terminer », ni « Absent », ni « Replanifier », ni « Annuler ».
+    expect(screen.queryByRole('button', { name: f.barre.terminer })).toBeNull();
+    expect(screen.queryByRole('button', { name: f.barre.absent })).toBeNull();
+    expect(screen.queryByRole('button', { name: new RegExp(`^${f.autres.annuler}`) })).toBeNull();
+  });
+
+  it('sans `abilities.confirm` (réglage faux), `?heure=autre` n’ouvre rien et rien ne part', () => {
+    etat.visite = duBailleur(false);
+    monter();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(confirmer.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('AC3 au bureau — `?heure=autre` ouvre le même choix ; « Confirmer à 16:00 » poste cet instant', async () => {
+    ecrans(false);
+    etat.visite = duBailleur(true);
+    monter();
+    const dialogue = await screen.findByRole('dialog');
+    fireEvent.click(within(dialogue).getByRole('button', { name: '16:00' }));
+    fireEvent.click(within(dialogue).getByRole('button', { name: 'Confirmer à 16:00' }));
+    await waitFor(() => expect(confirmer.mutateAsync).toHaveBeenCalledWith({ scheduled_at: '2026-11-11T16:00:00Z' }));
+  });
+
+  it('au bureau, l’en-tête du bailleur porte « Proposer une autre heure » et « Confirmer », et aucun geste du personnel', async () => {
+    ecrans(false);
+    etat.recherche = '';
+    etat.visite = duBailleur(true);
+    monter();
+    expect(screen.getByRole('button', { name: f.bureau.proposerAutreHeure })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: f.autres.confirmer }));
+    await waitFor(() => expect(confirmer.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('button', { name: f.bureau.plusDActions })).toBeNull();
+    expect(screen.queryByRole('button', { name: new RegExp(`^${f.autres.replanifier}`) })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: f.bureau.proposerAutreHeure }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('au bureau, sans `abilities.confirm`, l’en-tête n’offre ni l’un ni l’autre', () => {
+    ecrans(false);
+    etat.recherche = '';
+    etat.visite = duBailleur(false);
+    monter();
+    expect(screen.queryByRole('button', { name: f.bureau.proposerAutreHeure })).toBeNull();
+    expect(screen.queryByRole('button', { name: f.autres.confirmer })).toBeNull();
+  });
+});

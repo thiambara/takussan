@@ -759,6 +759,29 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
           .join(' · ');
 
   let actions: ReactNode = null;
+  const premiere = proposees.heures[0] ?? null;
+  const confirmer = g.confirmer;
+  // TCK-2869 (ADR-0112) — « Proposer une autre heure » et « Confirmer à … », pour le personnel ET pour
+  // le bailleur à qui l'agence confie ses visites (`abilities.confirm`, sans `manage`) : ce geste seul.
+  const gestesDeConfirmation =
+    etat === 'a-confirmer' && confirmer ? (
+      <>
+        <Button variant="outline" onClick={() => p.onAutreHeure(true)}>
+          {t('bureau.proposerAutreHeure')}
+        </Button>
+        {premiere ? (
+          // Réponse 5 du team-lead : un bouton unique, comme la maquette — « Proposer une autre
+          // heure », à côté, choisit une autre heure. Sans chevron : aucun menu derrière lui.
+          <Button className="tabular-nums" disabled={g.enCours} onClick={() => void confirmer(premiere.start)}>
+            <Check className="size-4" aria-hidden="true" />
+            {premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer')}
+          </Button>
+        ) : personnel && proposees.etat === 'agent-indisponible' && g.attribuer ? (
+          // Suivi du lot A : l'agent de la visite est parti ou suspendu — le geste principal réattribue.
+          <AttribuerA agence={g.attribuer.agence} onChoisir={g.attribuer.onChoisir} disabled={g.enCours} declencheur={<Button>{tPlt('reattribuer')}</Button>} />
+        ) : null}
+      </>
+    ) : null;
   if (!personnel && (g.proposer || g.annuler)) {
     // Le visiteur n'a que deux gestes : écrits en clair, sans menu.
     actions = (
@@ -776,8 +799,6 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
       </>
     );
   } else if (personnel) {
-    const premiere = proposees.heures[0] ?? null;
-    const confirmer = g.confirmer;
     // TCK-2880 — la visite terminée, compte rendu à droite (maquette `app-fil-commercial` a-4/a-5) :
     // « Voir le bien » et « Ouvrir la fiche de {prénom} » dans l'en-tête.
     const fiche = apresLaVisite(p) && v.customer?.id ? `/app/customers/${v.customer.id}` : null;
@@ -794,24 +815,7 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
             {l.prenom ? t('bureau.ouvrirLaFicheDe', { prenom: l.prenom }) : t('bureau.ouvrirLaFiche')}
           </Link>
         ) : null}
-        {etat === 'a-confirmer' && confirmer ? (
-          <>
-            <Button variant="outline" onClick={() => p.onAutreHeure(true)}>
-              {t('bureau.proposerAutreHeure')}
-            </Button>
-            {premiere ? (
-              // Réponse 5 du team-lead : un bouton unique, comme la maquette — « Proposer une autre
-              // heure », à côté, choisit une autre heure. Sans chevron : aucun menu derrière lui.
-              <Button className="tabular-nums" disabled={g.enCours} onClick={() => void confirmer(premiere.start)}>
-                <Check className="size-4" aria-hidden="true" />
-                {premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer')}
-              </Button>
-            ) : proposees.etat === 'agent-indisponible' && g.attribuer ? (
-              // Suivi du lot A : l'agent de la visite est parti ou suspendu — le geste principal réattribue.
-              <AttribuerA agence={g.attribuer.agence} onChoisir={g.attribuer.onChoisir} disabled={g.enCours} declencheur={<Button>{tPlt('reattribuer')}</Button>} />
-            ) : null}
-          </>
-        ) : null}
+        {gestesDeConfirmation}
         {replanifierEnTete && g.replanifier ? (
           <Button variant="outline" onClick={g.replanifier}>
             <CalendarClock className="size-4" strokeWidth={1.75} aria-hidden="true" />
@@ -820,6 +824,8 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
         ) : null}
       </>
     );
+  } else {
+    actions = gestesDeConfirmation;
   }
 
   return (

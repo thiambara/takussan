@@ -120,7 +120,10 @@ export function VisitDetail({ id }: { id: number }) {
   const feedbackLocked = !avisOuvert(visit);
   const scheduledAtMs = visit.scheduled_at ? new Date(visit.scheduled_at).getTime() : Number.NaN;
   const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= maintenant.getTime();
-  const canConfirm = peutGerer && status === 'scheduled';
+  // TCK-2869 (ADR-0112) — confirmer (et « Autre créneau ») suit `abilities.confirm` : `manage`, ou le
+  // bailleur d'un bien d'agence quand l'agence lui confie ses visites. Ce geste seul : les autres
+  // restent sous `manage`.
+  const canConfirm = (peutGerer || visit.abilities?.confirm === true) && status === 'scheduled';
   const canCancel = (isVisitor || peutGerer) && (status === 'scheduled' || status === 'confirmed');
   const canComplete =
     peutGerer &&

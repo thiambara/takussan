@@ -68,4 +68,57 @@ Relevé (audit-f3-coque.md, app-accueil e2, app-coque e9) : le bailleur voit « 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 (agent, arbre `takussan-manques`).
+
+**Écarts à la prémisse**
+
+- L'accueil existait déjà (TCK-2624) avec les deux gestes, mais gardés par un booléen de PERSONA
+  (`confirmeLesVisites = persona === 'hote'`). Remplacé par la capacité de CHAQUE visite : `can_confirm`,
+  ajoutée à `fields[property_visits]` de `parametresDesVisitesAConfirmer` (l'API ne la sert en liste que
+  nommée, TCK-2849). L'hôte la reçoit par `agitPourLeBien` (personnel de son agence individuelle) : aucune
+  régression. Le prop `confirmeLesVisites` disparaît (page et deux doublures de test de page).
+- **« Autre créneau » ne pouvait pas aboutir pour le bailleur** : il mène à la fiche (`?heure=autre`), dont
+  le choix de l'heure était gardé par `abilities.manage` (faux pour le bailleur) et dont la grille
+  `GET /api/property-visits/slots` rendait 403 hors du personnel. Deux corrections : `VisitDetail` ouvre le
+  geste « Confirmer » sous `manage || abilities.confirm` (les autres gestes restent sous `manage`) ;
+  **API** — `VisitSlotsRequest::authorize` admet `PropertyVisitPolicy::bailleurConfirme` (bien d'agence dont
+  il est `user_id`, bailleur actif, réglage vrai). Changement d'autorisation hors de la zone « web » du
+  ticket, nécessaire à AC3 (ADR-0112 § 2 donne « Autre créneau » au bailleur).
+- Au bureau, l'en-tête de la fiche (`FicheDeLaVisite`) ne montrait « Proposer une autre heure » et
+  « Confirmer à … » qu'au personnel (`personnel` = `manage`) : ces deux gestes s'affichent désormais dès que
+  `gestes.confirmer` existe (le bailleur au titre du réglage), sans rien d'autre du personnel (« ⋯ »,
+  Replanifier, messages, fiche client restent sous `personnel`). Le dialogue `?heure=autre` n'était, lui,
+  gardé que par `gestes.confirmer`.
+- Bureau : la rangée du bailleur dit « Proposée par {agent} · visiteur : {visiteur} » (`LigneDeVisite
+  pour="bailleur"`) ; le visiteur n'est nommé que s'il est servi au bailleur (`visitor_display` réduit, nul sur
+  une visite à fiche — TCK-2717) : sinon « Proposée par {agent} ». « visiteuse » (maquette) non tenu : genre
+  non servi.
+- Réglage : « Les bailleurs confirment les visites de leurs biens », groupe « Visites » de « Règles de
+  l'agence » (`SectionRegles`), agence `standard` seulement, chaîne entière de `late_fee_online_collection`
+  (type, schéma zod, `reglagesDeLaFiche` lu comme `AgencySettings::read`, envoi seulement modifié et jamais
+  pour une `individual`, section et libellé de la barre).
+- `AuditTrail` : le sujet `PropertyVisit` se NOMMAIT déjà (`admin.audit.subjects.propertyVisit`) et
+  l'événement `visit.confirmed_by_owner` avait son libellé (TCK-2849) ; ajoutés : le lien
+  (`audit-subject-links` → `/app/visits/{id}`) et le filtre « Objet » (`KNOWN_SUBJECT_TYPES`).
+
+**Mesures**
+
+- `npx vitest run` des 14 fichiers touchés ou voisins → 328 verts ; `tsc --noEmit` propre ; ESLint 0 ;
+  `check:i18n` et les `check:*` du front verts ; gardes racine vertes sauf `check-models-spec`
+  (`BookingDossierItem`, TCK-2872).
+- `php artisan test` OwnerReadsVisitSlotsTest (neuf, 3), StaffVisitSlotsTest, OwnerConfirmsAgencyVisitTest et
+  les trois gardes d'architecture → 27 verts.
+- Ablations (une à une, restauration par `cp`, md5 vérifié) : grille sans le bailleur → « réglage vrai »
+  rouge ; `VisitDetail` sous `manage` seul → AC3 rouge ; `can_confirm` retiré des `fields` → 5 rouges ;
+  `confirmable` sans `can_confirm` → AC1 rouge ; détail du bailleur ignoré → rangée du bureau rouge ;
+  `owners_confirm_visits` jamais envoyé → AC4 rouge ; interrupteur montré à l'individuelle → rouge ; lien de
+  la visite retiré du journal → AuditTrail TCK-2869 rouge.
+- Bureau : `fiche.tck-2587` « TCK-2869 » au bureau (`ecrans(false)`) — `?heure=autre` puis « Confirmer à
+  16:00 » poste `scheduled_at` ; l'en-tête du bailleur porte les deux gestes et aucun geste du personnel ;
+  ablation (en-tête d'origine) → rouge. Garde `routes-atteignables` et tests `fidelite-*` verts.
+- Clés i18n posées par l'outil (`accueil.bailleur.visite.proposeePar`, `…proposeeParAvecVisiteur`,
+  `admin.agencyConfig.ownersConfirmVisits.label/.hint`, `admin.agencyConfig.fiche.regles.groupeVisites`) :
+  déjà embarquées par le commit de la session 45db18523 (TCK-2862).
+- Aucune vérification au navigateur (brief du lot 92) : l'écran n'est éprouvé qu'en vitest.
+- AC-F1 : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2869.json` écrite SANS relevé au navigateur (brief
+  du lot 92) ; à relever par la session si elle le juge utile.

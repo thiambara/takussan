@@ -1,0 +1,79 @@
+{
+  "ticket": "TCK-2869",
+  "ecrans": [
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Bailleur",
+      "references": {
+        "telephone": "references/app-accueil/a-2-telephone.json",
+        "bureau-1440": "references/app-accueil/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "proprietaire",
+        "etat": "bailleur d'un bien d'agence, agence au réglage `owners_confirm_visits` VRAI (ADR-0112) : chaque visite à confirmer est servie avec `can_confirm: true`. Téléphone : carte « Visite à confirmer · {jour} · {heure} », « {bien} · proposée par {agent} », « Autre créneau » (lien vers /app/visits/{id}?heure=autre) + « Confirmer ». Bureau : rangée « {Jour} · {heure} — {bien} », « Proposée par {agent} · visiteur : {visiteur} » (le visiteur seulement quand l'API le nomme au bailleur), « Autre créneau » + « Confirmer »",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app",
+    "persona": "owner",
+    "disposition": "bailleur",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-accueil a-2-bureau-*",
+      "element": "détail de la rangée « Proposée par Sokhna Sène · visiteur : Pape Gueye » réduit à « Proposée par Sokhna Sène »",
+      "propriete": "texte",
+      "exception": "donnée (règle de confidentialité)",
+      "motif": "le visiteur d'une visite À FICHE n'est pas servi au bailleur d'un bien d'agence (TCK-2585, TCK-2717 : `visitor_display` réduit, nul sur une visite à fiche) ; nommé dès qu'il l'est (test « bureau : la rangée dit qui l'a proposée et le visiteur »). « visiteuse » de la maquette : le genre n'est pas servi, « visiteur » partout"
+    },
+    {
+      "ecran": "app-accueil a-2-*",
+      "element": "« Voir » seul au lieu de « Autre créneau » + « Confirmer »",
+      "propriete": "présence, texte",
+      "exception": "donnée (règle d'autorisation)",
+      "motif": "réglage de l'agence FAUX seulement (défaut, ADR-0112) : la visite n'est pas servie avec `can_confirm`. Réglage vrai, la décision 7 de TCK-2624 n'est plus un écart (AC-F2)"
+    }
+  ],
+  "hors_perimetre": [
+    "« Démarrer », « Prochain reversement », relances : TCK-2850",
+    "autres écarts de l'écran a-2 (loyers, devis, en cours, coque) : fiche TCK-2624"
+  ],
+  "decisions": [
+    "Les gestes viennent de la capacité rendue avec CHAQUE visite (`can_confirm`, demandée dans `fields[property_visits]`), plus du persona : l'hôte les garde (agitPourLeBien), le bailleur les a sous le réglage.",
+    "« Autre créneau » reste le lien vers la fiche (`?heure=autre`) — une seule implémentation du choix de l'heure, celle de l'accueil de l'admin (TCK-2624) ; la fiche ouvre le choix sous `abilities.confirm`.",
+    "La grille de l'agent (`GET /api/property-visits/slots`) est ouverte au bailleur sous le même prédicat (`PropertyVisitPolicy::bailleurConfirme`) : sans elle, « Autre créneau » s'ouvrait sur une grille vide (403)."
+  ],
+  "mesures": {
+    "date": "2026-11-15",
+    "outil": "aucun relevé au navigateur (brief du lot 92 : l'API et le front servis tournent sur un autre arbre) ; fidélité jugée à la lecture de la maquette (`AccueilBailleurMobile` l. 745-746, `AccueilBailleurBureau` l. 801-802) et éprouvée en vitest",
+    "commit": "arbre de travail takussan-manques (feat/audit-manques-2026-11-15)",
+    "resultats": [
+      {
+        "ecran": "a-2-telephone",
+        "ligne": "non relevé",
+        "note": "AFaireBailleur.tck-2624 « AC2 — téléphone » : deux cartes, « Autre créneau » vers ?heure=autre et « Confirmer »"
+      },
+      {
+        "ecran": "a-2-bureau-1440",
+        "ligne": "non relevé",
+        "note": "AFaireBailleur.tck-2624 « AC2 — bureau » : « Proposée par Sokhna Sène · visiteur : Pape Gueye », deux gestes, compte 2 → 1 après « Confirmer »"
+      }
+    ]
+  }
+}

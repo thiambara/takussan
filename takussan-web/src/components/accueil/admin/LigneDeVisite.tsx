@@ -27,9 +27,23 @@ import type { PropertyVisit } from '@/types/visit';
  * heure ; une TRANCHE se confirme à une heure libre de son agent (`ConfirmerALHeure`), et « Autre
  * créneau » ouvre la fiche sur le choix de l'heure. Un refus de l'API (403) retire le geste : la
  * rangée mène à la visite. Tout autre échec (créneau pris) se dit, la rangée reste.
+ *
+ * TCK-2869 — l'accueil du bailleur monte la même rangée (`pour="bailleur"`) : seul le détail change,
+ * « Proposée par Sokhna Sène · visiteur : Pape Gueye » (maquette `app-accueil` e2, bureau).
  */
-export function LigneDeVisite({ v, refusee, onRefus }: { readonly v: PropertyVisit; readonly refusee: boolean; readonly onRefus: () => void }) {
+export function LigneDeVisite({
+  v,
+  refusee,
+  onRefus,
+  pour = 'admin',
+}: {
+  readonly v: PropertyVisit;
+  readonly refusee: boolean;
+  readonly onRefus: () => void;
+  readonly pour?: 'admin' | 'bailleur';
+}) {
   const t = useTranslations('accueil.admin.visites');
+  const tBailleur = useTranslations('accueil.bailleur.visite');
   const tTemps = useTranslations('visits.parLeTemps');
   const tVisits = useTranslations('visits');
   const tPlanning = useTranslations('visitPlanning');
@@ -42,8 +56,17 @@ export function LigneDeVisite({ v, refusee, onRefus }: { readonly v: PropertyVis
   const jour = v.scheduled_at ? jourEnClair(jourADakar(new Date(v.scheduled_at)), f.locale) : null;
   const quand = tranche ? tTemps(`tranches.${tranche}`) : f.heure(v.scheduled_at);
   const bien = titreEtQuartier(v.property?.title, v.property?.address?.neighborhood, tVisits('fallbackTitle', { id: String(v.id) }));
-  const visiteur = nomDuVisiteur(v) ?? tTemps('visiteur');
+  const nomDuVisiteurServi = nomDuVisiteur(v);
+  const visiteur = nomDuVisiteurServi ?? tTemps('visiteur');
   const agent = v.agent ? nomAffichable(v.agent) : null;
+  let detail = agent ? t('detailAvecAgent', { visiteur, agent }) : visiteur;
+  // TCK-2869 — le bailleur lit qui a proposé la visite ; le visiteur seulement si l'API le lui nomme
+  // (`visitor_display` réduit, TCK-2717 : nul sur une visite à fiche).
+  if (pour === 'bailleur' && agent) {
+    detail = nomDuVisiteurServi
+      ? tBailleur('proposeeParAvecVisiteur', { agent, visiteur: nomDuVisiteurServi })
+      : tBailleur('proposeePar', { agent });
+  }
 
   const onConfirmer = (_: PropertyVisit, heure: HeureProposee) =>
     confirmer.mutate(
@@ -74,7 +97,7 @@ export function LigneDeVisite({ v, refusee, onRefus }: { readonly v: PropertyVis
     <RangeeAFaire
       icone={CalendarClock}
       titre={t('titre', { jour: jour ?? '', quand, bien })}
-      detail={agent ? t('detailAvecAgent', { visiteur, agent }) : visiteur}
+      detail={detail}
       gestes={
         refusee ? (
           // Le seul geste qui reste prend la place du bouton tonal (maquette : « Voir » d'une rangée).
