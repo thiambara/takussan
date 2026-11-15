@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Image\Exceptions\CouldNotLoadImage;
 
@@ -512,6 +513,43 @@ class ConversationController extends Controller
             'data' => [
                 'conversation_id' => $conversation->id,
                 'last_read_at' => $this->instant(now()),
+            ],
+        ]);
+    }
+
+    /**
+     * TCK-2859 (ADR-0114 § 1) — `PUT /conversations/{conversation}/unread` : le `last_read_at` du
+     * lecteur passe une seconde avant le dernier message qui compte comme non lu — le prédicat de
+     * `index()` (`$nonLus`) : d'un autre, hors avis système, non supprimé. Idempotent (la valeur ne
+     * dépend que de ce message) ; jamais AVANCÉ (un `last_read_at` nul ou plus ancien reste) ; sans
+     * message d'un autre, rien ne change.
+     */
+    public function markAsUnread(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        $user = $request->user();
+        $dernier = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->where('type', '!=', MessageType::System->value)
+            ->where(fn ($w) => $w->whereNull('sender_id')->orWhere('sender_id', '!=', $user->id))
+            ->max('created_at');
+
+        $lecture = $conversation->participants()->where('users.id', $user->id)->first()?->pivot?->last_read_at;
+        $lecture = $lecture !== null ? Carbon::parse($lecture) : null;
+
+        if ($dernier !== null) {
+            $avant = Carbon::parse($dernier)->subSecond();
+            if ($lecture !== null && $lecture->greaterThan($avant)) {
+                $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => $avant]);
+                $lecture = $avant;
+            }
+        }
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $conversation->id,
+                'last_read_at' => $this->instant($lecture),
             ],
         ]);
     }

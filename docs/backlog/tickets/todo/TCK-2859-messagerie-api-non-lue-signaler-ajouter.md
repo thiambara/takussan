@@ -63,4 +63,18 @@ Relevé le 2026-11-15 (`routes/api/conversations.php`) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — décision dans [ADR-0114](../../../adr/0114-signaler-une-conversation-et-elargir-un-fil-direct.md).
+
+**Prémisse re-mesurée** : conforme au relevé (aucun `unread`, aucun signalement de conversation, `POST …/participants` en 403 sur une directe par `isActiveAdmin`). En plus : `GET conversations/{c}/contacts` rendait aussi 403 sur une directe (même garde) — ouvert sous la nouvelle capacité, sinon TCK-2860 n'aurait pas de sélecteur. Aucun test existant n'épinglait le 403 de l'ajout à une directe.
+
+**Contrat pour TCK-2860** :
+
+- `PUT /api/conversations/{c}/unread` → 200 `{data: {conversation_id, last_read_at}}`. Place le `last_read_at` du lecteur 1 s avant le dernier message d'un autre (hors système, non supprimé) ; jamais avancé ; sans message d'un autre, rien ne change. Effet de bord assumé : l'accusé `read_by_recipient` / `read_count` (TCK-2858) de ce message repasse à non lu chez l'auteur (épinglé par un test).
+- `POST /api/conversations/{c}/reports` `{reason: spam|harassment|fraud|inappropriate|other, comment?: ≤ 500}` → 201 `{data: {id, conversation_id, reason, comment, created_at}}` ; second signalement du même auteur → 409 `conversation.already_reported` ; non-participant (super-admin compris) → 403.
+- `GET /api/admin/conversation-reports` (super_admin seul, paginé, plus récent d'abord) → `reporter {id, name}`, `conversation {id, type}`, jamais le contenu.
+- `POST /api/conversations/{c}/participants` sur une **directe** `{user_ids, subject?}` → 201 `{data: ConversationResource}` du **nouveau groupe** (l'appelant admin, l'autre partie et les ajoutés membres, même `property_id`/`lease_id`, aucun message). Sur un groupe, la réponse ne change pas (`{conversation_id, added_user_ids}`). Joignabilité, borne du bail (TCK-2191), plafond 20 et « personne de neuf » (l'autre partie ou soi-même seuls) : 422 `user_ids`, sans fil créé. Un double envoi crée deux groupes (non traité, ADR-0114 § Conséquences). Qui ne peut pas écrire dans la directe : 403.
+- `GET /api/conversations/{c}/contacts` sur une directe : ouvert à qui peut écrire dans la directe, même règle que l'ajout.
+
+**Mesures** : 18 tests neufs (`ConversationUnreadTest` 6, `ConversationReportTest` 5, `DirectConversationAddParticipantTest` 7), verts ; voisins verts (`ParticipantManagementTest`, `MessagingContactsTest`, `ConversationParticipantsHygieneTest`, `GroupeDeBailParticipantsTest`, `ConversationTest`, `ConversationUnreadCountTest` : 91 tests ; `OwnerDepartedReachTest`, `MembreSuspenduFilsDeContexteTest` : 20 tests) ; gardes vertes (`LangGroupParity`, `RessourceUniqueResolue`, `DateInventoryByValue`, `ExistsSurTableASuppressionDouce`, `AgencyIdIsIndexed`, `ValeursEnListeParcoursDesRoutes`, `PlatformRoutesDefaultDeny`, `ImpersonationReadSweep` : 48 tests). 12 ablations, une à une, toutes rouges sans le correctif, restaurées au md5.
+
+**Reste** : les générateurs `gen-features-by-actor --check` et `gen-index --check` sont verts. `scripts/check-models-spec.mjs` rouge sur `ConversationReport` (et `BookingCounterOffer`, `BookingDossierItem` d'autres tickets) — à porter par `/sync-specs`. Traitement des signalements dans la console : hors périmètre (ADR-0114 § 2).

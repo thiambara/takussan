@@ -190,7 +190,7 @@ return [
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
-        'already_reported' => "You have already reported this conversation.",
+        'already_reported' => 'You have already reported this conversation.',
         'participant_not_found' => 'This participant is not part of the conversation.',
         'participant_required' => 'At least one other participant is required.',
     ],
@@ -203,6 +203,9 @@ return [
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
         // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
         'suggested_stage_stale' => 'This suggested stage is no longer current: reload the customer.',
+        // TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation.
+        'stage_undo_unavailable' => "This stage has changed since the acceptance: there is nothing left to undo.",
+        'stage_undo_expired' => "The move to Negotiating can only be undone within 24 hours of the acceptance.",
     ],
     'dashboard' => [
         'invalid_scope' => 'The requested scope must be “mine” or “agency”.',

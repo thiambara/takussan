@@ -190,7 +190,7 @@ return [
     ],
     'conversation' => [
         // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
-        'already_reported' => "Vous avez déjà signalé cette conversation.",
+        'already_reported' => 'Vous avez déjà signalé cette conversation.',
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
     ],
@@ -203,6 +203,9 @@ return [
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
         // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
         'suggested_stage_stale' => "Cette étape proposée n'est plus d'actualité : rechargez la fiche.",
+        // TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation.
+        'stage_undo_unavailable' => "Cette étape a changé depuis l'acceptation : il n'y a plus rien à annuler.",
+        'stage_undo_expired' => "Le passage en Négociation ne s'annule que dans les 24 heures qui suivent l'acceptation.",
     ],
     'dashboard' => [
         'invalid_scope' => 'Wàll wi ñu laaj war na nekk « mine » walla « agency ».',

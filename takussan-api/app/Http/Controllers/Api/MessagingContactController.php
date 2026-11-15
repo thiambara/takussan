@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Models\Conversation;
+use App\Models\Enums\ConversationType;
 use App\Models\User;
 use App\Services\Messaging\MessagingReach;
 use App\Services\Messaging\MessagingRelation;
@@ -70,7 +71,13 @@ class MessagingContactController extends Controller
 
     public function forConversation(Request $request, Conversation $conversation, MessagingReach $reach): JsonResponse
     {
-        abort_code_unless($request->user()->can('addParticipant', $conversation), 403, 'messaging.admin_only');
+        // TCK-2859 (ADR-0114 § 3) — sur un fil direct, l'ajout crée un groupe : le sélecteur s'ouvre
+        // sous la même capacité que l'ajout, pour ne lister que ce qu'il accepte.
+        if ($conversation->type === ConversationType::Direct) {
+            abort_unless($request->user()->can('addToDirect', $conversation), 403);
+        } else {
+            abort_code_unless($request->user()->can('addParticipant', $conversation), 403, 'messaging.admin_only');
+        }
 
         $base = $reach->query($request->user(), $conversation)
             ->whereDoesntHave('conversations', fn (Builder $c) => $c

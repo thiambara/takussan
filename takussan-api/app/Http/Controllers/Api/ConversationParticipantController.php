@@ -7,6 +7,7 @@ use App\Http\Requests\Api\UpdateConversationParticipantRequest;
 use App\Http\Requests\Conversation\AddParticipantsRequest;
 use App\Http\Resources\ConversationResource;
 use App\Models\Conversation;
+use App\Models\Enums\ConversationType;
 use App\Models\Enums\ParticipantRole;
 use App\Models\User;
 use App\Policies\ConversationPolicy;
@@ -17,7 +18,8 @@ use Illuminate\Http\Request;
 /**
  * TCK-085 — Manage the participant set of a group conversation.
  *
- *  - `POST   /conversations/{conversation}/participants` → add (admin only)
+ *  - `POST   /conversations/{conversation}/participants` → add (admin only) ; sur un fil direct,
+ *    crée un groupe neuf et le rend (TCK-2859, ADR-0114 § 3)
  *  - `DELETE /conversations/{conversation}/participants/{user}` → remove or self-leave
  *  - `PATCH  /conversations/{conversation}/participants/{user}` → promote/demote (admin only)
  *
@@ -34,6 +36,24 @@ class ConversationParticipantController extends Controller
     public function store(AddParticipantsRequest $request, Conversation $conversation): JsonResponse
     {
         $user = $request->user();
+
+        // TCK-2859 (ADR-0114 § 3) — un fil direct ne s'élargit pas : l'ajout crée un groupe neuf
+        // (l'appelant, l'autre partie, les personnes ajoutées), sans l'historique, et rend ce groupe.
+        if ($conversation->type === ConversationType::Direct) {
+            abort_unless($user->can('addToDirect', $conversation), 403);
+
+            $groupe = $this->groups->createFromDirect(
+                $conversation,
+                $user,
+                array_map('intval', (array) $request->validated('user_ids')),
+                $request->validated('subject'),
+            );
+
+            return $this->json([
+                'data' => ConversationResource::make($groupe->loadForDetail())->resolve($request),
+            ], 201);
+        }
+
         abort_code_unless($user->can('addParticipant', $conversation), 403, 'messaging.admin_only');
 
         $userIds = array_map('intval', (array) $request->validated('user_ids'));
