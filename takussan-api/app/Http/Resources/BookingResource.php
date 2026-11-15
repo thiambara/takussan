@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\CounterOfferStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingCustomerFacts;
@@ -113,8 +114,51 @@ class BookingResource extends BaseResource
             'guarantors' => $this->when($garants !== null, fn (): array => $garants['guarantors']),
             'declared_monthly_income_masked' => $this->when($garants !== null, fn (): ?string => $garants['declared_monthly_income_masked']),
             'income_to_rent_ratio' => $this->when($garants !== null, fn (): ?float => $garants['income_to_rent_ratio']),
+            // TCK-2873 (ADR-0110 § 5) — la dernière contre-offre de l'agence (`null` sans contre-offre),
+            // et qui doit agir : `customer` quand elle attend sa réponse, `agency` sinon, `null` pour une
+            // réservation qui n'est plus en attente. Servies quand la page a chargé `latestCounterOffer`
+            // (index et présentation de `BookingController`) : jamais une requête par ligne.
+            'counter_offer' => $this->whenLoaded('latestCounterOffer', fn (): ?array => $this->counterOfferCard()),
+            'awaiting' => $this->whenLoaded('latestCounterOffer', fn (): ?string => $this->awaiting()),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /**
+     * TCK-2873 — la dernière contre-offre : montant, message, validité (un jour), état, et ses
+     * instants (l'historique de l'écran les lit).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function counterOfferCard(): ?array
+    {
+        $offre = $this->latestCounterOffer;
+        if ($offre === null) {
+            return null;
+        }
+
+        return [
+            'id' => $offre->id,
+            'amount' => (float) $offre->amount,
+            'message' => $offre->message,
+            'valid_until' => $this->calendarDate($offre->valid_until),
+            // `pending` échue avant le passage de la tâche : déjà `expired` pour le lecteur.
+            'status' => $offre->status === CounterOfferStatus::Pending && $offre->isOverdue()
+                ? CounterOfferStatus::Expired->value
+                : $offre->status?->value,
+            'created_at' => $this->iso($offre->created_at),
+            'responded_at' => $this->iso($offre->responded_at),
+        ];
+    }
+
+    /** TCK-2873 — `customer` | `agency` | `null` (réservation qui n'est plus en attente). */
+    private function awaiting(): ?string
+    {
+        if ($this->status !== BookingStatus::Pending) {
+            return null;
+        }
+
+        return $this->latestCounterOffer?->isOpen() === true ? 'customer' : 'agency';
     }
 
     /**

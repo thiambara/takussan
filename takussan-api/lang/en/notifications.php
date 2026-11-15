@@ -487,6 +487,18 @@ return [
                 'body' => 'For your request :reference (:property), the agency asks you for: :piece. Upload it from your booking.',
                 'sms' => 'Takussan: for your request :reference (:property), the agency asks you for: :piece.',
             ],
+            // TCK-2873 — to the customer: the agency counters their offer with another price.
+            'counter_offer_received' => [
+                'title' => 'Counter-offer on your offer',
+                'body' => 'For your offer :reference (:property), the agency proposes :amount, until :valid_until. Accept or decline it from your booking.',
+                'sms' => 'Takussan: offer :reference, the agency proposes :amount until :valid_until.',
+            ],
+            // TCK-2873 — to the agency: the customer's answer to the counter-offer.
+            'counter_offer_answered' => [
+                'title' => 'Answer to your counter-offer',
+                'body' => 'Offer :reference (:property): the customer :answer your counter-offer of :amount.',
+                'sms' => 'Takussan: offer :reference (:property), the customer :answer your counter-offer of :amount.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [

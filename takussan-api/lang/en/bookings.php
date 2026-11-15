@@ -23,4 +23,9 @@ return [
         'proof_of_funds' => 'proof of funds',
         'other' => 'other document',
     ],
+    // TCK-2873 (ADR-0110 § 5) — the customer's answer to a counter-offer, rendered in a notification to the agency.
+    'counter_offer_answers' => [
+        'accepted' => 'has accepted',
+        'declined' => 'has declined',
+    ],
 ];

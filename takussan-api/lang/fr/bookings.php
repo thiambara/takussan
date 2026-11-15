@@ -23,4 +23,9 @@ return [
         'proof_of_funds' => 'justificatif de fonds',
         'other' => 'autre pièce',
     ],
+    // TCK-2873 (ADR-0110 § 5) — la réponse du client à une contre-offre, rendue dans une notification à l'agence.
+    'counter_offer_answers' => [
+        'accepted' => 'accepté',
+        'declined' => 'décliné',
+    ],
 ];

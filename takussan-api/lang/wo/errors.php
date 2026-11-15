@@ -110,6 +110,10 @@ return [
         'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou envoyez son bail en signature, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
+        // TCK-2873 (ADR-0110 § 5)
+        'counter_offer_expired' => 'Cette contre-proposition a expiré : elle ne peut plus être acceptée ni déclinée.',
+        'counter_offer_not_allowed' => 'Seule une offre d\'achat en attente peut recevoir une contre-proposition.',
+        'counter_offer_not_open' => 'Cette contre-proposition n\'attend plus de réponse : elle a été remplacée, déjà traitée, ou l\'offre n\'est plus en attente.',
         // TCK-2579
         'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
@@ -185,6 +189,8 @@ return [
         'no_space' => 'Amul bérab bu dox : tannal benn bérab ngir gis ay kredi am.',
     ],
     'conversation' => [
+        // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
+        'already_reported' => "Vous avez déjà signalé cette conversation.",
         'participant_not_found' => 'Participant bii bokkul ci waxtaan wi.',
         'participant_required' => 'War na am beneen participant benn lu mu gën a tuuti.',
     ],

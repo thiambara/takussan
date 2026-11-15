@@ -2485,7 +2485,8 @@
       "plusDActions": "Plus d’actions",
       "gesteNonConsigne": "Le contact n’a pas été noté sur la fiche du client.",
       "sourdineEchouee": "Les notifications n’ont pas pu être modifiées. Réessayez.",
-      "archivee": "Archivée"
+      "archivee": "Archivée",
+      "chargerPrecedents": "Charger les messages précédents"
     },
     "group": {
       "create": {
@@ -2612,7 +2613,8 @@
       "ecrireAUnClient": "Écrire à un client",
       "videMetierAide": "Vos conversations naissent des interventions et des baux : elles apparaîtront ici.",
       "seRemplira": "La liste se remplira au premier message.",
-      "ouVoirLesDemandes": "ou <lien>voir les demandes de contact</lien>"
+      "ouVoirLesDemandes": "ou <lien>voir les demandes de contact</lien>",
+      "chargementPlusAnciennes": "Chargement des conversations plus anciennes…"
     },
     "propertyDraft": {
       "message": "Salaam, bëgg naa xam lu ëpp ci « {title} » (réf. {reference}). Ndax mu ngi am ba tey ?",
@@ -2630,7 +2632,9 @@
       "sendFailed": "Kàddu gi yónneesu ko. Jéemaatal.",
       "label": "Kàddu",
       "duration": "{seconds} s",
-      "borne": "Note vocale · {max} secondes au plus"
+      "borne": "Note vocale · {max} secondes au plus",
+      "lire": "Lire",
+      "pause": "Pause"
     },
     "maintenanceEvents": {
       "assigned": "Liggéey bi ñu ngi ko dénk {provider}.",
@@ -2719,7 +2723,12 @@
         },
         "roleEtAgence": "{role} · {agence}",
         "biensGeres": "{count, plural, =0 {Aucun bien géré} one {# bien géré} other {# biens gérés}}"
-      }
+      },
+      "aPrefixe": "À :",
+      "ajouter": "Ajouter…",
+      "ecrire": "Écrire",
+      "aideAutomatique": "Activé d’office à partir de deux destinataires.",
+      "pied": "Vous pouvez écrire aux clients, aux propriétaires et aux collègues de {agence}."
     },
     "contexte": {
       "titre": "Contexte de la conversation",

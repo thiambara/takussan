@@ -3717,7 +3717,8 @@
       "plusDActions": "More actions",
       "gesteNonConsigne": "The contact wasn’t logged on the customer record.",
       "sourdineEchouee": "Notifications couldn’t be changed. Try again.",
-      "archivee": "Archived"
+      "archivee": "Archived",
+      "chargerPrecedents": "Load earlier messages"
     },
     "group": {
       "create": {
@@ -3844,7 +3845,8 @@
       "ecrireAUnClient": "Write to a client",
       "videMetierAide": "Your conversations start from service requests and leases: they will appear here.",
       "seRemplira": "The list will fill up with the first message.",
-      "ouVoirLesDemandes": "or <lien>see contact requests</lien>"
+      "ouVoirLesDemandes": "or <lien>see contact requests</lien>",
+      "chargementPlusAnciennes": "Loading older conversations…"
     },
     "propertyDraft": {
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",
@@ -3862,7 +3864,9 @@
       "sendFailed": "The voice note was not sent. Please try again.",
       "label": "Voice note",
       "duration": "{seconds} s",
-      "borne": "Voice note · {max} seconds max"
+      "borne": "Voice note · {max} seconds max",
+      "lire": "Play",
+      "pause": "Pause"
     },
     "maintenanceEvents": {
       "assigned": "Job assigned to {provider}.",
@@ -3951,7 +3955,12 @@
         },
         "roleEtAgence": "{role} · {agence}",
         "biensGeres": "{count, plural, =0 {No managed property} one {# managed property} other {# managed properties}}"
-      }
+      },
+      "aPrefixe": "To:",
+      "ajouter": "Add…",
+      "ecrire": "Write",
+      "aideAutomatique": "Turned on automatically from two recipients.",
+      "pied": "You can write to clients, owners and colleagues at {agence}."
     },
     "contexte": {
       "titre": "Conversation context",

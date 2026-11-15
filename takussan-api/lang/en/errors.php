@@ -110,6 +110,10 @@ return [
         'application_already_accepted' => 'Another application has already been accepted for this property: cancel it, or send its lease for signature, before accepting a second one.',
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
+        // TCK-2873 (ADR-0110 § 5)
+        'counter_offer_expired' => 'This counter-offer has expired: it can no longer be accepted or declined.',
+        'counter_offer_not_allowed' => 'Only a pending purchase offer can receive a counter-offer.',
+        'counter_offer_not_open' => 'This counter-offer no longer awaits an answer: it was replaced, already answered, or the offer is no longer pending.',
         // TCK-2579
         'customer_required' => 'A booking recorded by the agency must name a customer.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
@@ -185,6 +189,8 @@ return [
         'no_space' => 'No active workspace: select a workspace to see its credits.',
     ],
     'conversation' => [
+        // TCK-2859 (ADR-0114 § 2) — un seul signalement par auteur et par fil.
+        'already_reported' => "You have already reported this conversation.",
         'participant_not_found' => 'This participant is not part of the conversation.',
         'participant_required' => 'At least one other participant is required.',
     ],

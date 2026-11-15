@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\BookingController as AdminBookingController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\BookingCounterOfferController;
 use App\Http\Controllers\Api\BookingDossierController;
 use App\Http\Controllers\Api\BookingGuarantorController;
 use App\Http\Controllers\Api\BookingPaymentController;
@@ -28,6 +29,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // le revenu déclaré du candidat EN CLAIR : admin de l'agence, sous step-up, consultation journalisée.
     Route::post('bookings/{booking}/guarantors', [BookingGuarantorController::class, 'store'])->name('bookings.guarantors.store');
     Route::delete('bookings/{booking}/guarantors/{guarantor}', [BookingGuarantorController::class, 'destroy'])->name('bookings.guarantors.destroy');
+    // TCK-2873 (ADR-0110 § 5) — la contre-offre sur une offre d'achat : proposée par le personnel,
+    // acceptée ou déclinée par le client. `{counterOffer}` est lié à `{booking}` (404 sinon).
+    Route::post('bookings/{booking}/counter-offers', [BookingCounterOfferController::class, 'store'])->name('bookings.counter-offers.store');
+    Route::scopeBindings()->group(function () {
+        Route::post('bookings/{booking}/counter-offers/{counterOffer}/accept', [BookingCounterOfferController::class, 'accept'])->name('bookings.counter-offers.accept');
+        Route::post('bookings/{booking}/counter-offers/{counterOffer}/decline', [BookingCounterOfferController::class, 'decline'])->name('bookings.counter-offers.decline');
+    });
     Route::get('bookings/{booking}/sensitive', [BookingController::class, 'sensitive'])
         ->whereNumber('booking')
         ->name('bookings.sensitive');

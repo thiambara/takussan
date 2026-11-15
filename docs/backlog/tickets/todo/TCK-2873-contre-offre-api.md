@@ -69,4 +69,44 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — agent d'implémentation.
+
+**Livré.** Table `booking_counter_offers` (migration `2026_11_15_287300`), enum `CounterOfferStatus`, modèle
+`BookingCounterOffer`, `Booking::counterOffers()` et `latestCounterOffer()` (latestOfMany, chargée par l'index
+et la présentation : pas de N+1). `BookingCounterOfferService` (`propose`, `accept`, `decline`, `expire`), en
+transaction sous verrou : `accept` verrouille le bien puis la réservation (l'ordre de `BookingService::confirm`),
+écrit `total_amount` puis appelle `BookingService::confirm()` — mêmes gardes et même avis `booking.confirmed`.
+Routes `POST bookings/{booking}/counter-offers` et `…/{counterOffer}/accept|decline` (`scopeBindings` + relecture
+filtrée par `booking_id` : une contre-offre d'une autre réservation rend 404). `BookingResource` : `counter_offer`
+(`id`, `amount`, `message`, `valid_until`, `status`, `created_at`, `responded_at`) et `awaiting`
+(`customer`|`agency`|`null` hors `pending`). Notifications `booking.counter_offer_received` (client, SMS court) et
+`booking.counter_offer_answered` (équipe de la réservation `BookingStakeholders` moins le client, plus l'auteur de
+la contre-offre ; paramètre `answer` de nature neuve `counter_offer_answer`, traduite sous
+`bookings.counter_offer_answers`). Journal de la réservation : `counter_offer_proposed|accepted|declined|expired`
+(libellés `admin.audit.events.*`). Expiration : `BookingExpirationService::expireCounterOffers()`, appelée par
+`ExpireBookings` (horaire). Fil de la fiche client : jalon `counter_offer` (rang 11 réservé par TCK-2894), une
+entrée par contre-offre, `id` = la réservation, avec `counter_offer {id, amount, valid_until, status}`.
+
+**Choix.**
+- Contre-proposer : personnel de l'agence sous `bookings.validate` (`BookingPolicy::proposeCounterOffer`) ; le
+  bailleur, que `validate()` admet, n'est PAS admis (le ticket nomme le personnel).
+- Répondre : le client de la réservation seul (`answerCounterOffer`) ; le super-admin passe par `Gate::before`.
+- `valid_until` : un JOUR (Dakar), d'aujourd'hui à J+30, défaut J+3 ; valable jusqu'à 23:59:59 à Dakar
+  (`FinInclusive`). Une contre-offre `pending` échue est refusée à l'acceptation (422
+  `booking.counter_offer_expired`) AVANT le passage de la tâche, et se lit déjà `expired` dans la ressource.
+- Codes d'erreur : `booking.counter_offer_not_allowed`, `booking.counter_offer_expired`, `booking.counter_offer_not_open`.
+
+**Prémisse qui différait.** « Mêmes effets : … autres offres du bien » : `BookingService::confirm()` n'a aucun
+effet sur les autres offres du bien (`assertNoOtherAcceptedApplication` exclut les offres). Rien n'est fait de plus.
+
+**Reste.**
+- `BookingCounterOffer` absent de `docs/models-spec.md` (`check-models-spec` rouge) : `/sync-specs`.
+- Le 48 h de l'agence (`booking_pending_expiry_hours`) et `expires_at` peuvent expirer l'OFFRE pendant une
+  contre-offre ouverte (J+3 par défaut) ; l'agence peut aussi confirmer ou refuser directement pendant une
+  contre-offre (elle reste alors `pending` en base, `awaiting` = null). Non tranché ici.
+- Front (TCK-2876/2879, et TCK-2878 pour le fil) : le type `milestone` du fil (`customer-timeline.ts`) ne connaît
+  pas `counter_offer` ; deux contre-offres d'une même réservation y ont le même `id` (la réservation) — clé React à
+  composer avec `counter_offer.id`. `CounterOfferStatus` classé `SANS_UNION`/`SANS_LIBELLE` en attendant.
+
+**Mesures.** `BookingCounterOfferTest` (10), `CustomerTimelineCounterOfferTest` (2), `FormeDesDatesDeNotificationTest`
+(+1) verts ; ablations rouges une à une (remplacement, montant, échéance, tâche, nature, politique, `awaiting`, fil).

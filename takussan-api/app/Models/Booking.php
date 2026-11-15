@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -253,6 +254,18 @@ class Booking extends AbstractModel
     public function guarantors(): BelongsToMany
     {
         return $this->belongsToMany(Guarantor::class, 'booking_guarantor')->withTimestamps();
+    }
+
+    /** TCK-2873 (ADR-0110 § 5) — les contre-offres de l'agence sur une offre d'achat. */
+    public function counterOffers(): HasMany
+    {
+        return $this->hasMany(BookingCounterOffer::class);
+    }
+
+    /** TCK-2873 — la dernière contre-offre (`BookingResource::counter_offer`, `awaiting`), en une requête pour une page. */
+    public function latestCounterOffer(): HasOne
+    {
+        return $this->hasOne(BookingCounterOffer::class)->latestOfMany();
     }
 
     public function payments(): HasMany

@@ -91,6 +91,10 @@ final class NotificationClassification
         'booking.application_not_selected' => [self::D, false],
         // TCK-2872 — le client a une pièce à fournir : un geste attendu de lui.
         'booking.dossier_piece_requested' => [self::D, true],
+        // TCK-2873 — le client a une contre-offre à accepter ou décliner ; l'agence, une offre à
+        // conclure (acceptée) ou à reprendre (déclinée) : un geste attendu des deux côtés.
+        'booking.counter_offer_received' => [self::D, true],
+        'booking.counter_offer_answered' => [self::D, true],
 
         // ─── Visites ──────────────────────────────────────────────────────────────────────
         'visit.reminder' => [self::V, false],

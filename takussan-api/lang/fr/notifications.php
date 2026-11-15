@@ -492,6 +492,18 @@ return [
                 'body' => 'Pour votre demande :reference (:property), l\'agence vous demande : :piece. Déposez-la depuis votre réservation.',
                 'sms' => 'Takussan : pour votre demande :reference (:property), l\'agence vous demande : :piece.',
             ],
+            // TCK-2873 — au client : l'agence contre-propose un prix sur son offre.
+            'counter_offer_received' => [
+                'title' => 'Contre-proposition sur votre offre',
+                'body' => 'Pour votre offre :reference (:property), l\'agence vous propose :amount, jusqu\'au :valid_until. Acceptez-la ou déclinez-la depuis votre réservation.',
+                'sms' => 'Takussan : offre :reference, l\'agence vous propose :amount jusqu\'au :valid_until.',
+            ],
+            // TCK-2873 — à l'agence : la réponse du client à la contre-offre.
+            'counter_offer_answered' => [
+                'title' => 'Réponse à votre contre-proposition',
+                'body' => 'Offre :reference (:property) : le client a :answer votre contre-proposition à :amount.',
+                'sms' => 'Takussan : offre :reference (:property), le client a :answer votre contre-proposition à :amount.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [

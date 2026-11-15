@@ -35,7 +35,8 @@ class BookingController extends Controller
     {
         // TCK-2579 — `createdBy` (le nom de l'auteur, `created_by`), en une requête pour la page.
         $base = $this->visibleTo(
-            Booking::query()->with(['property.address', 'property.media', 'customer', 'agency', 'createdBy:'.self::AUTEUR]),
+            // TCK-2873 — `latestCounterOffer` : `counter_offer` et `awaiting`, en une requête pour la page.
+            Booking::query()->with(['property.address', 'property.media', 'customer', 'agency', 'createdBy:'.self::AUTEUR, 'latestCounterOffer']),
             $request->user(),
         );
 
@@ -191,6 +192,17 @@ class BookingController extends Controller
     }
 
     /**
+     * TCK-2873 — la même présentation, pour les gestes de la contre-offre
+     * (`BookingCounterOfferController`) : une seule forme de réservation écrite.
+     *
+     * @return array<string, mixed>
+     */
+    public function presentFor(Request $request, Booking $booking): array
+    {
+        return $this->presenter($request, $booking);
+    }
+
+    /**
      * ADR-0071 (TCK-1509, P95.03) — le seul chemin de présentation d'une réservation : le `show`
      * et les écritures (`store`, `confirm`, `cancel`, `reject`) rendent la même forme. Chaque
      * auteur d'une écriture est lecteur du `show` (`BookingPolicy` : créateur, bailleur, personnel
@@ -200,7 +212,8 @@ class BookingController extends Controller
      */
     private function presenter(Request $request, Booking $booking): array
     {
-        $booking->load(['property.address', 'customer', 'payments', 'createdBy:'.self::AUTEUR]);
+        // TCK-2873 — et la dernière contre-offre.
+        $booking->load(['property.address', 'customer', 'payments', 'createdBy:'.self::AUTEUR, 'latestCounterOffer']);
         // TCK-2593 — `visits_on_property`, comme à la liste.
         BookingCustomerFacts::prime($request, [$booking]);
         // TCK-2872 — et la complétude du dossier.

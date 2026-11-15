@@ -71,6 +71,10 @@ enum NotificationCode: string
     case BookingApplicationNotSelected = 'booking.application_not_selected';
     /** TCK-2872 (ADR-0110 § 2) — au client : l'agence lui demande une pièce de son dossier (`BookingDossierService::request`). */
     case BookingDossierPieceRequested = 'booking.dossier_piece_requested';
+    /** TCK-2873 (ADR-0110 § 5) — au client : l'agence contre-propose un prix sur son offre (`BookingCounterOfferService::propose`). */
+    case BookingCounterOfferReceived = 'booking.counter_offer_received';
+    /** TCK-2873 (ADR-0110 § 5) — à l'agence : le client a accepté ou décliné la contre-offre (`answer`). */
+    case BookingCounterOfferAnswered = 'booking.counter_offer_answered';
 
     // ─── Visites, messages, leads ───────────────────────────────────────────────────────
     case VisitReminder = 'visit.reminder';
@@ -332,6 +336,13 @@ enum NotificationCode: string
      */
     public const PARAM_DOSSIER_PIECE = 'dossier_piece';
 
+    /**
+     * TCK-2873 (ADR-0110 § 5) — la réponse CODÉE du client à une contre-offre (`accepted`, `declined`),
+     * traduite au rendu sous `bookings.counter_offer_answers.<code>`. La cloche du front reçoit le code
+     * brut, que son texte ICU lit par un `select` (comme `dossier_piece`).
+     */
+    public const PARAM_COUNTER_OFFER_ANSWER = 'counter_offer_answer';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -345,7 +356,8 @@ enum NotificationCode: string
             self::BookingCancelled,
             self::BookingRecordedOnBehalf /* TCK-2579 */,
             self::BookingApplicationNotSelected /* TCK-2734 */,
-            self::BookingDossierPieceRequested /* TCK-2872 */ => NotificationType::Booking,
+            self::BookingDossierPieceRequested /* TCK-2872 */,
+            self::BookingCounterOfferReceived, self::BookingCounterOfferAnswered /* TCK-2873 */ => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow,
@@ -412,7 +424,10 @@ enum NotificationCode: string
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled,
             self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */,
             self::BookingApplicationNotSelected /* TCK-2734 : la suite de sa demande */,
-            self::BookingDossierPieceRequested /* TCK-2872 : la suite de sa demande */ => 'booking_status_changed',
+            self::BookingDossierPieceRequested /* TCK-2872 : la suite de sa demande */,
+            self::BookingCounterOfferReceived /* TCK-2873 : la suite de son offre */ => 'booking_status_changed',
+            // TCK-2873 — à l'agence, la réponse du client : comme une demande reçue.
+            self::BookingCounterOfferAnswered => 'booking_request',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
@@ -511,6 +526,9 @@ enum NotificationCode: string
             self::BookingRecordedOnBehalf /* TCK-2579 */,
             self::BookingApplicationNotSelected /* TCK-2734 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::BookingDossierPieceRequested /* TCK-2872 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'piece' => self::PARAM_DOSSIER_PIECE],
+            // TCK-2873 — le prix proposé et le dernier jour pour l'accepter ; la réponse du client.
+            self::BookingCounterOfferReceived => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'valid_until' => self::PARAM_DATE],
+            self::BookingCounterOfferAnswered => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'answer' => self::PARAM_COUNTER_OFFER_ANSWER],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
@@ -766,6 +784,8 @@ enum NotificationCode: string
             self::BookingApplicationNotSelected => true,
             // TCK-2872 — un geste humain de l'agence (« Demander »), borné à une fois par pièce et par 24 h.
             self::BookingDossierPieceRequested => true,
+            // TCK-2873 — un geste humain de l'agence, vers le client qui doit y répondre avant sa validité.
+            self::BookingCounterOfferReceived => true,
             // TCK-2579 — un geste humain de l'agence, vers un client qui peut n'avoir que le
             // téléphone de sa fiche ; la limite horaire par numéro du canal le borne.
             self::BookingRecordedOnBehalf => true,

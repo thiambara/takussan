@@ -101,6 +101,8 @@ class NotificationRenderer
                 NotificationCode::PARAM_VISIT_WINDOW => $this->visitWindow($value, $locale),
                 // TCK-2872
                 NotificationCode::PARAM_DOSSIER_PIECE => $this->dossierPiece($value, $locale),
+                // TCK-2873
+                NotificationCode::PARAM_COUNTER_OFFER_ANSWER => $this->counterOfferAnswer($value, $locale),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -217,6 +219,17 @@ class NotificationRenderer
             return '—';
         }
         $key = 'bookings.dossier_pieces.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
+    }
+
+    /** TCK-2873 — la réponse du client à une contre-offre, jamais son code quand il est connu. */
+    private function counterOfferAnswer(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'bookings.counter_offer_answers.'.$code;
 
         return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
     }

@@ -128,6 +128,8 @@ const SANS_LIBELLE = {
   AgencyAdminProfileStatus: 'aucun espace du dictionnaire ne porte ses trois cas (`archived` manque partout)',
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
+  // TCK-2873
+  CounterOfferStatus: 'TCK-2873 : l\'API seule pour l\'instant — ses libellés arrivent avec ses écrans (TCK-2876 personnel, TCK-2879 client)',
   DocumentVaultArchiveStatus: 'TCK-2812 : le coffre dit chaque état par une phrase sous le dossier (`documents.coffre.archive.preparee.preparation`, `.prete`, `.echec`) et par le libellé du bouton — pas par une table à un cas par clé',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',

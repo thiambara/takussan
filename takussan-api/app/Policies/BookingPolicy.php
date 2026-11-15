@@ -146,6 +146,29 @@ class BookingPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2873 (ADR-0110 § 5) — contre-proposer un prix : le personnel de l'agence du bien tenant
+     * la capacité de décision des réservations (`bookings.validate`), comme accepter ou refuser.
+     * Le bailleur, que {@see self::validate()} admet aussi, ne négocie pas : le ticket nomme le
+     * personnel seul.
+     */
+    public function proposeCounterOffer(User $user, Booking $booking): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->isStaffOf($user, $booking->agency_id)
+            && $user->can(Capability::BookingsValidate->value, $booking);
+    }
+
+    /** TCK-2873 (ADR-0110 § 5) — accepter ou décliner une contre-offre : le CLIENT de la réservation seul. */
+    public function answerCounterOffer(User $user, Booking $booking): bool
+    {
+        return $booking->customer !== null && $booking->customer->user_id !== null
+            && (int) $booking->customer->user_id === (int) $user->id;
+    }
+
+    /**
      * TCK-2893 (ADR-0110 § 4, ADR-0070 § 5) — le revenu déclaré EN CLAIR : un profil d'admin dans
      * l'agence de la réservation, comme la pièce du client (`CustomerPolicy::viewSensitive`). Une
      * réservation sans agence n'a pas de lecteur en clair ; le super-admin passe par `Gate::before`.
