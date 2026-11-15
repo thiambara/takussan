@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\GeoNeighborhoodAdminController;
+use App\Http\Controllers\Api\Admin\GeoNeighborhoodCoverController;
 use App\Http\Controllers\Api\GeoLinkController;
 use App\Http\Controllers\Public\GeoReferentialController;
 use Illuminate\Support\Facades\Route;
@@ -41,4 +42,11 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/geo')->name('a
     Route::post('neighborhoods/{neighborhood}/reject', [GeoNeighborhoodAdminController::class, 'reject'])->name('neighborhoods.reject');
     Route::patch('neighborhoods/{neighborhood}', [GeoNeighborhoodAdminController::class, 'rename'])->name('neighborhoods.rename');
     Route::post('neighborhoods/{neighborhood}/merge', [GeoNeighborhoodAdminController::class, 'merge'])->name('neighborhoods.merge');
+
+    // TCK-2844 (ADR-0109) — la photo d'un quartier, sur les tuiles de l'accueil. L'import nomme un
+    // fichier de Commons par son TITRE ; le limiteur borne les requêtes sortantes.
+    Route::get('neighborhoods/{neighborhood}/cover/suggestions', [GeoNeighborhoodCoverController::class, 'suggestions'])->middleware('throttle:30,1')->name('neighborhoods.cover.suggestions');
+    Route::post('neighborhoods/{neighborhood}/cover/import', [GeoNeighborhoodCoverController::class, 'import'])->middleware('throttle:30,1')->name('neighborhoods.cover.import');
+    Route::post('neighborhoods/{neighborhood}/cover', [GeoNeighborhoodCoverController::class, 'store'])->name('neighborhoods.cover.store');
+    Route::delete('neighborhoods/{neighborhood}/cover', [GeoNeighborhoodCoverController::class, 'destroy'])->name('neighborhoods.cover.destroy');
 });

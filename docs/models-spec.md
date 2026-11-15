@@ -4669,6 +4669,8 @@ index `geo_neighborhoods_status_city_idx (status, geo_city_id)`, `geo_neighborho
 **Relations :** `city()` → belongsTo GeoCity ; `createdBy()` → belongsTo User ; `mergedInto()` →
 belongsTo GeoNeighborhood ; `addresses()` → hasMany Address (`geo_neighborhood_id`).
 
+**Médias :** collection `cover` (`singleFile`, disque public), conversion `display` (1 200 px au plus, WebP, non différée) ; `custom_properties` : `source` (`upload` | `wikimedia`), et pour Wikimedia `source_url`, `author`, `license` — jamais affichés au public. Servie en `photo` par `GET /api/public/properties/neighborhoods` (TCK-2844, [ADR-0109](adr/0109-la-photo-d-un-quartier.md)).
+
 ---
 
 ### 92. BoostProduct 🆕

@@ -34,10 +34,12 @@ use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\ReferentialStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
+use App\Models\GeoNeighborhood;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Rules\PersonnelDeLAgence;
@@ -319,13 +321,52 @@ class PublicPropertyController extends Controller
                 DB::raw('count(*) as compte'),
             ]);
 
+        $tronque = $lignes->count() > $max;
+        $lignes = $lignes->take($max)->map(fn ($l) => ['value' => trim((string) $l->valeur), 'count' => (int) $l->compte]);
+        $photos = $this->photosDesQuartiers($request->city(), $lignes->pluck('value')->all());
+
         return $this->json([
-            'data' => $lignes->take($max)
-                ->map(fn ($l) => ['value' => trim((string) $l->valeur), 'count' => (int) $l->compte])
+            'data' => $lignes
+                ->map(fn (array $l) => $l + ['photo' => $photos[CaseInsensitive::fold($l['value'])] ?? null])
                 ->values()
                 ->all(),
-            'meta' => ['truncated' => $lignes->count() > $max],
+            'meta' => ['truncated' => $tronque],
         ]);
+    }
+
+    /**
+     * TCK-2844 (ADR-0109 §3) — la photo de chaque quartier de l'accueil, par le RÉFÉRENTIEL : le
+     * quartier approuvé, non fusionné, de la ville demandée, dont le nom replié (`CaseInsensitive`)
+     * est celui de la ligne. Deux requêtes pour toutes les lignes (quartiers, puis médias), jamais
+     * une par ligne. Une URL seule : la provenance du média ne sort pas (décision 3 c).
+     *
+     * @param  list<string>  $noms
+     * @return array<string, string> nom replié → URL de la conversion `display`
+     */
+    private function photosDesQuartiers(string $ville, array $noms): array
+    {
+        if ($noms === []) {
+            return [];
+        }
+        $replies = array_values(array_unique(array_map(fn (string $n) => CaseInsensitive::fold($n), $noms)));
+
+        $quartiers = GeoNeighborhood::query()
+            ->where('status', ReferentialStatus::Approved->value)
+            ->whereNull('merged_into_id')
+            ->whereHas('city', fn ($q) => $q->whereRaw(CaseInsensitive::sql('geo_cities.name').' = ?', [CaseInsensitive::fold($ville)]))
+            ->whereRaw(CaseInsensitive::sql('geo_neighborhoods.name').' in ('.implode(',', array_fill(0, count($replies), '?')).')', $replies)
+            ->whereHas('media', fn ($q) => $q->where('collection_name', 'cover'))
+            ->with('media')
+            ->orderBy('id')
+            ->get(['id', 'geo_city_id', 'name']);
+
+        $photos = [];
+        foreach ($quartiers as $quartier) {
+            $cle = CaseInsensitive::fold($quartier->name);
+            $photos[$cle] ??= $quartier->cover_url;
+        }
+
+        return array_filter($photos, fn (?string $url) => $url !== null);
     }
 
     /**
