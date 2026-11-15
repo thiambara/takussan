@@ -1,7 +1,7 @@
 ---
 id: TCK-2844
 title: Photo d'un quartier posée par le super-admin, servie sur les tuiles de l'accueil
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
@@ -49,7 +49,7 @@ Les trois écritures rendent la ligne au format de l'index (`cover` compris).
 - Super-admin seulement ; un quartier `pending`, `rejected` ou fusionné → 422 `geo_cover.not_approved`, rien d'écrit.
 - Fichier : `image`, `mimes:jpeg,png,webp`, 10 Mo au plus.
 - **Propositions** : seuls les fichiers de Commons dont `extmetadata.AttributionRequired` vaut `"false"` et larges de 800 px au moins. Commons en panne ou trop lent (timeout 5 s) → `data: []`, `meta.unavailable: true`, statut 200.
-- **Import par titre, jamais par URL** : le serveur relit le fichier sur Commons, refuse 422 `geo_cover.attribution_required` si l'attribution est désormais exigée, 422 `geo_cover.source_not_found` si le titre n'existe pas, 503 `geo_cover.source_unavailable` si Commons ne répond pas ; l'URL téléchargée doit être en `https://upload.wikimedia.org/` ; la taille téléchargée est bornée à 10 Mo et le type vérifié comme pour un envoi.
+- **Import par titre, jamais par URL** : le serveur relit le fichier sur Commons, refuse 422 `geo_cover.attribution_required` si l'attribution est désormais exigée, 422 `geo_cover.source_not_found` si le titre n'existe pas, 503 `geo_cover.source_unavailable` si Commons ne répond pas ; l'URL téléchargée doit être en `https://upload.wikimedia.org/` ou `https://thumb.wikimedia.org/` (hôte comparé strictement), sinon 422 `geo_cover.source_invalid` ; la taille téléchargée est bornée à 10 Mo et le type vérifié comme pour un envoi.
 - Appels à Commons avec un `User-Agent` qui identifie l'application (`config('services.wikimedia.user_agent')`), sans aucune donnée d'utilisateur.
 - Aucun crédit dans les réponses publiques : `photo` est une URL seule. La provenance (`source`, `source_url`, `author`, `license`) vit dans les `custom_properties` du média.
 - Fusion : la cible garde sa photo ; sinon celle de la source lui est déplacée ; la source fusionnée n'a plus de photo.
@@ -96,4 +96,10 @@ Les trois écritures rendent la ligne au format de l'index (`cover` compris).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **API** : `GeoNeighborhoodCoverController` (4 routes `admin.geo.neighborhoods.cover.*`, `throttle:30,1` sur propositions et import), `WikimediaCovers` (+ `CommonsIndisponible`), collection `cover` / conversion `display` sur `GeoNeighborhood`, `cover` et tri `addresses_count` dans la console, `photo` dans `/public/properties/neighborhoods` (une seule requête au référentiel), déplacement à la fusion dans la transaction de `fusionner()`.
+- **Code ajouté** : 422 `geo_cover.source_invalid` (hôte, poids ou type hors règles) — le ticket ne nommait pas ce cas.
+- **Import** : la vignette de 1 600 px de Commons (arrondie à 1 920 par Commons), pas l'original (souvent > 10 Mo). Mesuré le 2026-11-15 contre le vrai Commons : les vignettes sont sur `thumb.wikimedia.org` — admis avec `upload.wikimedia.org`, hôte comparé strictement, sans redirection suivie. Envoi et import sont ré-encodés sans EXIF (`AvatarReencode`).
+- **Mesuré de bout en bout le 2026-11-15** (Commons réel, base de dev) : Almadies → 3 propositions (2 CC0, 1 domaine public) sur 30 résultats, les CC BY / BY-SA écartées ; import de `File:PointeAlmadies.jpg` → WebP servi, `photo` rendue par l'API publique, tuile photo à l'accueil (1280 px) ; `File:Pointe_des_Almadies_Dakar.JPG` lu `attribution_required = true`.
+- **Ablations** (agent API) : filtre des propositions, contrôle d'attribution à l'import, contrôle d'hôte, ré-encodage de l'import — chacun retiré fait rougir ses tests.
+- **Front** : `TuileDeQuartier` partagée par l'accueil et l'aperçu de la console ; onglets « Propositions » / « Quartiers approuvés » dans `/super-admin/geo` ; le relais super-admin donne à `cover/import` le délai de 90 s des envois ; cliquet d'encre inverse de `surface-publique.contraste` relevé de 435 à 436 (le texte clair sur la photo).
+- **À savoir** : les quartiers de l'accueil sont en cache une heure côté front — une photo posée y paraît dans l'heure. Les écritures super-admin exigent la double authentification (`two_factor_step_up_required`), comme le reste de la console.

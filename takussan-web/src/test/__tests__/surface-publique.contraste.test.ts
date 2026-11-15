@@ -535,8 +535,16 @@ const FICHIERS_HORS_JETONS = 5;
  * avec l'échéance (`SuiteDuPaiementEnLigne`) plutôt que recopiée : 5 → 2. Relevé en listant les
  * encres inverses de la surface sur une extraction de HEAD et de HEAD + TCK-2778, sans maquettes.
  * Aucun défaut réel.
+ *
+ * 435 → 436 (2026-11-15, TCK-2844) : la tuile de quartier AVEC photo de l'accueil, sortie de
+ * `TuilesDeQuartiers` dans `home/accueil/TuileDeQuartier.tsx` (avec l'encre du compte sans photo, déjà
+ * comptée) : 1, `text-background` du nom et du compte, posé sur la photo sous le
+ * dégradé `from-foreground/85` de la maquette — un fond que la mesure statique ne voit pas (une photo).
+ * Le dégradé ne porte pas l'encre (il serait compté « hors jetons »), et le compte reste à 85 % par
+ * `opacity-85` plutôt que par une seconde encre. Relevé par `couplesDesFichiers` sur la version de
+ * HEAD (1 encre) puis sur la nouvelle (2). Aucun défaut réel.
  */
-const ENCRES_INVERSES = 435;
+const ENCRES_INVERSES = 436;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

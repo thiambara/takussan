@@ -69,7 +69,7 @@ vi.mock('@/lib/queries/raccourcis-de-l-accueil', async (importOriginal) => {
     ...reel,
     raccourcisDeLAccueil: async (ville: string | null) => {
       raccourcisRelus.push(ville);
-      return { ville, quartiers: [{ nom: 'Randoulène', compte: 3 }], offre: { ville, location: 4, vente: 4 } };
+      return { ville, quartiers: [{ nom: 'Randoulène', compte: 3, photo: null }], offre: { ville, location: 4, vente: 4 } };
     },
   };
 });
@@ -377,8 +377,8 @@ describe('<HomepageDiscovery> — TCK-247', () => {
 const RACCOURCIS: RaccourcisDeLAccueil = {
   ville: 'Dakar',
   quartiers: [
-    { nom: 'Mermoz', compte: 12 },
-    { nom: 'Point E', compte: 9 },
+    { nom: 'Mermoz', compte: 12, photo: null },
+    { nom: 'Point E', compte: 9, photo: null },
   ],
   offre: { ville: 'Dakar', location: 127, vente: 63 },
 };

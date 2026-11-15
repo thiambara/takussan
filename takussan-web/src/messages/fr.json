@@ -15698,6 +15698,61 @@
         "submit": "Retirer",
         "failed": "La mise en avant n’a pas pu être retirée."
       }
+    },
+    "photosDeQuartier": {
+      "tabs": {
+        "proposals": "Propositions",
+        "approved": "Quartiers approuvés"
+      },
+      "title": "Photos des quartiers",
+      "description": "Les quartiers approuvés, les plus fournis en annonces d’abord. Leur photo s’affiche sur les tuiles de l’accueil, sans crédit.",
+      "city": "Ville",
+      "allCities": "Toutes les villes",
+      "noCity": "Aucune ville trouvée.",
+      "search": "Rechercher un quartier",
+      "searchSubmit": "Rechercher",
+      "error": "Erreur de chargement des quartiers.",
+      "retry": "Réessayer",
+      "emptyTitle": "Aucun quartier approuvé",
+      "emptyDescription": "Changez de ville ou de recherche.",
+      "addresses": "{count, plural, =0 {Aucune adresse} =1 {# adresse} other {# adresses}}",
+      "noPhoto": "Sans photo",
+      "source": {
+        "upload": "Photo envoyée",
+        "wikimedia": "Photo de Wikimedia Commons"
+      },
+      "upload": "Envoyer une photo",
+      "uploadLabel": "Photo de {name} (JPEG, PNG ou WebP, 10 Mo au plus)",
+      "remove": "Retirer",
+      "removeConfirmTitle": "Retirer la photo",
+      "removeConfirm": "Retirer la photo de {name} ? La tuile de l’accueil reprendra le motif.",
+      "removeConfirmAction": "Retirer la photo",
+      "cancel": "Annuler",
+      "unsplash": "Chercher sur Unsplash",
+      "newTab": "(nouvel onglet)",
+      "done": {
+        "uploaded": "Photo enregistrée.",
+        "imported": "Photo importée.",
+        "removed": "Photo retirée."
+      },
+      "suggestions": {
+        "toggle": "Propositions Wikimedia",
+        "loading": "Recherche des propositions…",
+        "error": "Les propositions n’ont pas pu être chargées.",
+        "unavailable": "Wikimedia ne répond pas pour le moment : envoyez une photo ou cherchez sur Unsplash.",
+        "empty": "Wikimedia ne propose aucune photo libre de crédit pour ce quartier.",
+        "hint": "Photos libres de toute attribution. Un clic importe la photo.",
+        "import": "Importer {title}"
+      },
+      "errors": {
+        "generic": "La photo n’a pas pu être enregistrée.",
+        "fileType": "Format refusé : choisissez une image JPEG, PNG ou WebP.",
+        "fileSize": "Fichier trop lourd : 10 Mo au plus.",
+        "notApproved": "Ce quartier n’est plus approuvé : sa photo ne peut pas être modifiée.",
+        "attributionRequired": "Cette photo exige désormais un crédit : elle ne peut pas être importée.",
+        "sourceNotFound": "Cette photo n’existe plus sur Wikimedia Commons.",
+        "sourceUnavailable": "Wikimedia Commons ne répond pas : réessayez plus tard ou envoyez un fichier."
+      }
     }
   },
   "adminSettings": {

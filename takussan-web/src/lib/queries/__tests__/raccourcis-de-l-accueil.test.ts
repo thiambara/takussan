@@ -33,9 +33,9 @@ beforeEach(() => {
   reponses = {
     '/public/properties/neighborhoods': {
       data: [
-        { value: 'Mermoz', count: 12 },
-        { value: 'Ngor', count: 9 },
-        { value: 'Vide', count: 0 },
+        { value: 'Mermoz', count: 12, photo: 'https://media.takussan.com/41/conversions/mermoz-display.webp' },
+        { value: 'Ngor', count: 9, photo: null },
+        { value: 'Vide', count: 0, photo: null },
       ],
       meta: { truncated: false },
     },
@@ -55,8 +55,8 @@ describe('raccourcisDeLAccueil', () => {
 
     expect(r.ville).toBe('Dakar');
     expect(r.quartiers).toEqual([
-      { nom: 'Mermoz', compte: 12 },
-      { nom: 'Ngor', compte: 9 },
+      { nom: 'Mermoz', compte: 12, photo: 'https://media.takussan.com/41/conversions/mermoz-display.webp' },
+      { nom: 'Ngor', compte: 9, photo: null },
     ]);
     expect(r.offre).toEqual({ ville: 'Dakar', location: 127, vente: 63 });
     expect(urls.some((u) => u.startsWith('/public/properties/search'))).toBe(false);
@@ -73,6 +73,17 @@ describe('raccourcisDeLAccueil', () => {
       meta: { truncated: false },
     };
     expect((await raccourcisDeLAccueil('Dakar')).quartiers).toHaveLength(QUARTIERS_DE_L_ACCUEIL_MAX);
+  });
+
+  it('TCK-2844 — une photo absente (réponse antérieure au champ) ou vide vaut `null`', async () => {
+    reponses['/public/properties/neighborhoods'] = {
+      data: [
+        { value: 'Mermoz', count: 12 },
+        { value: 'Ngor', count: 9, photo: '' },
+      ],
+      meta: { truncated: false },
+    };
+    expect((await raccourcisDeLAccueil('Dakar')).quartiers?.map((q) => q.photo)).toEqual([null, null]);
   });
 
   it('un compte de contrat absent n’est pas zéro : pas d’offre plutôt qu’un chiffre faux', async () => {

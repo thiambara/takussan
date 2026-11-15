@@ -5,6 +5,7 @@ namespace Tests\Feature\Media;
 use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\Document;
+use App\Models\GeoNeighborhood;
 use App\Models\Inventory;
 use App\Models\KycDossier;
 use App\Models\Lease;
@@ -55,6 +56,8 @@ class MediaDiskCollectionsTest extends TestCase
         Agency::class => ['logo' => 'public'],
         BankStatement::class => ['statement' => 'private'],
         Document::class => ['file' => 'private', 'versions' => 'private'],
+        // TCK-2844 (ADR-0109 §1) — la photo d'un quartier, servie sur les tuiles de l'accueil.
+        GeoNeighborhood::class => ['cover' => 'public'],
         Inventory::class => ['photos' => 'private', 'room_photos' => 'private'],
         KycDossier::class => ['documents' => 'private'],
         // TCK-596 §4B — `signed_contract` : le contrat figé que les parties signent (ADR-0042).

@@ -36,12 +36,12 @@ Relevé sur `dev` (8c60f4c58) le 2026-11-15 :
   - **importer une proposition Wikimedia** (`POST …/cover/import`, `{ "source": "wikimedia", "title": "File:…" }`) ;
   - **retirer** (`DELETE …/cover`).
 - **Les propositions** : `GET …/cover/suggestions` interroge l'API de Commons (espace de noms Fichier, « {quartier} {ville} », images bitmap), et **ne rend que les fichiers dont `AttributionRequired` vaut `false`** et dont la largeur atteint 800 px — c'est ce qui rend la décision 3 (c) tenable. Une panne ou un délai de Commons rend une liste vide marquée `unavailable`, jamais une erreur qui bloque l'envoi manuel.
-- **L'import se fait par titre, jamais par URL** : le serveur relit le fichier sur Commons, revérifie `AttributionRequired = false`, exige que l'URL d'origine soit sur `upload.wikimedia.org`, puis télécharge — aucune URL fournie par le client n'est appelée (pas de SSRF), et une licence changée entre la proposition et l'import est refusée (422 `geo_cover.attribution_required`).
+- **L'import se fait par titre, jamais par URL** : le serveur relit le fichier sur Commons, revérifie `AttributionRequired = false`, télécharge la vignette de 1 600 px que Commons lui donne (arrondie par Commons à sa largeur standard, l'original quand il est plus petit) en exigeant qu'elle soit sur `upload.wikimedia.org` ou `thumb.wikimedia.org` — mesuré le 2026-11-15 : Commons sert ses vignettes sur `thumb.wikimedia.org` —, puis télécharge — aucune URL fournie par le client n'est appelée (pas de SSRF), et une licence changée entre la proposition et l'import est refusée (422 `geo_cover.attribution_required`) ; un hôte, un poids ou un type hors des règles rend 422 `geo_cover.source_invalid`.
 - **Unsplash** : un lien « Chercher sur Unsplash » ouvre `unsplash.com/s/photos/{quartier}-{ville}` ; le super-admin télécharge la photo (licence Unsplash, sans attribution) et l'envoie comme un fichier. **Aucune intégration de l'API Unsplash** : elle imposerait crédit et hotlinking.
 
 ### 3. Où elle se voit
 
-- **Les tuiles de quartier de l'accueil seulement** (2 a). `GET /api/public/properties/neighborhoods` ajoute à chaque ligne `photo` : l'URL de la conversion `tile`, ou `null`.
+- **Les tuiles de quartier de l'accueil seulement** (2 a). `GET /api/public/properties/neighborhoods` ajoute à chaque ligne `photo` : l'URL de la conversion `display`, ou `null`.
 - Le rapprochement se fait par le **référentiel** : le quartier approuvé, non fusionné, de la ville demandée dont le nom replié (`CaseInsensitive`) est celui de la ligne. Une ligne sans quartier du référentiel a `photo: null`.
 - Avec photo, la tuile est celle de la maquette (4 a) : photo plein cadre, dégradé, nom et compte en clair. Sans photo, elle garde le motif bogolan d'aujourd'hui.
 
@@ -60,6 +60,6 @@ Relevé sur `dev` (8c60f4c58) le 2026-11-15 :
 
 ## Application
 
-- API : `GeoNeighborhood::registerMediaCollections()` / `registerMediaConversions()`, `GeoNeighborhoodCoverController`, `WikimediaCoverSuggestions`, `GeoNeighborhoodModeration::fusionner()`, `PublicPropertyController::neighborhoods()`.
+- API : `GeoNeighborhood::registerMediaCollections()` / `registerMediaConversions()`, `GeoNeighborhoodCoverController`, `WikimediaCovers`, `GeoNeighborhoodModeration::fusionner()`, `PublicPropertyController::neighborhoods()`.
 - Front : `/super-admin/geo` (onglet des quartiers approuvés), `TuilesDeQuartiers`.
 - Gardes : les tests de TCK-2844 (`GeoNeighborhoodCoverTest`, `PublicNeighborhoodsPhotoTest`) — dont un import refusé quand Commons répond `AttributionRequired = true`, et la photo déplacée à la fusion.

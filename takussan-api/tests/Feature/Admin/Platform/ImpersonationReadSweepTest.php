@@ -106,6 +106,10 @@ class ImpersonationReadSweepTest extends TestCase
         // TCK-2812 — route signée, liée au demandeur, et dans `REFUSED_READS` : refusée sous session
         // (`ArchiveAsynchroneDuCoffreTest`).
         'archive',
+        // TCK-2844 — les propositions de photo d'un quartier : console super-admin (un opérateur
+        // n'est jamais une cible d'impersonation), et la route appelle Wikimedia Commons, que la
+        // suite ne doit jamais joindre.
+        'neighborhood',
     ];
 
     private User $cible;

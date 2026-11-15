@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Spatie\Image\Enums\Fit;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -24,9 +28,18 @@ use Spatie\QueryBuilder\QueryBuilder;
  * la source garde son nom et pointe sa cible (`merged_into_id`), si bien que le même nom retapé
  * plus tard retombe sur la cible (`canonique()`) au lieu de recréer la proposition.
  */
-class GeoNeighborhood extends AbstractModel
+class GeoNeighborhood extends AbstractModel implements HasMedia
 {
-    use HasFactory;
+    use HasFactory, InteractsWithMedia;
+
+    /** TCK-2844 (ADR-0109 §1) — les types d'image admis pour la photo, à l'envoi comme à l'import. */
+    public const COVER_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+
+    /** TCK-2844 — 10 Mo, à l'envoi comme au téléchargement depuis Commons. */
+    public const COVER_MAX_KO = 10_240;
+
+    /** TCK-2844 — le grand côté de la conversion servie, jamais agrandie. */
+    public const COVER_DISPLAY_MAX = 1200;
 
     /** La longueur de `name` — au-delà, une saisie ne devient pas une proposition. */
     public const NOM_MAX = 120;
@@ -56,8 +69,12 @@ class GeoNeighborhood extends AbstractModel
 
     protected static array $requestFilterable = ['status', 'geo_city_id', 'origin'];
 
-    /** `name` se trie à part, en `COLLATE "und-x-icu"` (TCK-1119) : voir {@see self::buildQuery()}. */
-    protected static array $requestSortable = ['id', 'created_at'];
+    /**
+     * `name` se trie à part, en `COLLATE "und-x-icu"` (TCK-1119) : voir {@see self::buildQuery()}.
+     * `addresses_count` (TCK-2844) n'est pas une colonne : c'est l'alias du `withCount('addresses')`
+     * que pose la console, seule appelante de `buildQuery()` — les quartiers les plus fournis d'abord.
+     */
+    protected static array $requestSortable = ['id', 'created_at', 'addresses_count'];
 
     protected static array $requestSearchFields = ['name'];
 
@@ -100,6 +117,41 @@ class GeoNeighborhood extends AbstractModel
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class, 'geo_neighborhood_id');
+    }
+
+    /**
+     * TCK-2844 (ADR-0109 §1) — au plus une photo, sur le disque PUBLIC (comme le logo d'agence,
+     * ADR-0029 §3). La provenance (`source`, `source_url`, `author`, `license`) vit dans les
+     * `custom_properties` du média et n'est jamais servie au public.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('cover')
+            ->singleFile()
+            ->useDisk(config('media-library.public_disk_name'))
+            ->acceptsMimeTypes(self::COVER_MIMES);
+    }
+
+    /**
+     * TCK-2844 — la seule image servie : 1200 px au plus sur le grand côté (`Fit::Max`, jamais
+     * d'agrandissement — `width()` agrandit, cf. `Property`), en WebP, NON différée pour que l'URL
+     * soit servable dès la réponse de l'envoi.
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('display')
+            ->fit(Fit::Max, self::COVER_DISPLAY_MAX, self::COVER_DISPLAY_MAX)
+            ->format('webp')
+            ->nonQueued()
+            ->performOnCollections('cover');
+    }
+
+    /** TCK-2844 — l'URL de la conversion `display`, ou `null` sans photo. */
+    public function getCoverUrlAttribute(): ?string
+    {
+        $media = $this->getFirstMedia('cover');
+
+        return $media !== null ? $media->getUrl('display') : null;
     }
 
     /** La ligne qui fait foi : la cible de la dernière fusion ; `null` si elle est refusée. */
