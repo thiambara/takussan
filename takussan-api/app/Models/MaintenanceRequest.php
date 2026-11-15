@@ -26,6 +26,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -125,6 +126,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'queue_entered_at',
         // TCK-2786 — « Relancé il y a … » sur la carte « Chez le bailleur ».
         'owner_reminded_at',
+        // TCK-2917 (ADR-0118 § 1) — le motif de l'annulation, sur la carte « Terminées ».
+        'cancellation_reason',
         'created_at', 'updated_at',
     ];
 
@@ -447,6 +450,21 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /** TCK-2917 (ADR-0118 § 3) — les demandes de changement de créneau du demandeur. */
+    public function rescheduleRequests(): HasMany
+    {
+        return $this->hasMany(MaintenanceRescheduleRequest::class);
+    }
+
+    /** TCK-2917 — la demande de créneau en attente (une au plus). */
+    public function pendingRescheduleRequest(): HasOne
+    {
+        return $this->hasOne(MaintenanceRescheduleRequest::class)->ofMany(
+            ['id' => 'max'],
+            fn ($query) => $query->where('status', MaintenanceRescheduleRequest::PENDING),
+        );
     }
 
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle du bien. */

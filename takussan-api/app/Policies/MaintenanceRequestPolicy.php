@@ -136,6 +136,20 @@ class MaintenanceRequestPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2917 (ADR-0118 § 3) — demander un autre créneau : le DEMANDEUR qui peut encore agir (bail du
+     * bien en cours, {@see self::requesterMayAct()}), sur une demande ni terminale ni rendue
+     * (`completed` : le passage a eu lieu). La demande ne change jamais `scheduled_at` d'elle-même.
+     */
+    public function requestReschedule(User $user, MaintenanceRequest $request): bool
+    {
+        $status = $request->status ?? MaintenanceStatus::Open;
+
+        return $this->requesterMayAct($user, $request)
+            && $status !== MaintenanceStatus::Completed
+            && ! app(MaintenanceStateMachine::class)->isTerminal($status);
+    }
+
+    /**
      * TCK-306 — reprise de `MaintenanceQuoteController::authorizeAgentOrOwner()` : côté
      * DONNEUR D'ORDRE seulement. Ni le demandeur, ni le prestataire assigné — c'est ce côté-là
      * qui accepte ou refuse un devis.

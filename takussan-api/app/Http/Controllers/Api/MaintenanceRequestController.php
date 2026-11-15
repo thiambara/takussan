@@ -20,6 +20,7 @@ use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
+use App\Models\MaintenanceRescheduleRequest;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
@@ -299,6 +300,8 @@ class MaintenanceRequestController extends Controller
             }
 
             if ($scheduleChanged) {
+                // TCK-2917 (ADR-0118 § 3) — le créneau posé répond à la demande de créneau en attente.
+                MaintenanceRescheduleRequest::closeFor($locked, $request->user());
                 MaintenanceScheduleChanged::dispatch($locked, $request->user());
             }
         });
@@ -346,7 +349,13 @@ class MaintenanceRequestController extends Controller
             'maintenance.dedicated_endpoint',
         );
 
-        $maintenanceRequest = $this->service->transition($maintenanceRequest, $target, $request->user());
+        // TCK-2917 (ADR-0118 § 1) — le motif d'une annulation, exigé par le FormRequest.
+        $maintenanceRequest = $this->service->transition(
+            $maintenanceRequest,
+            $target,
+            $request->user(),
+            cancellationReason: $target === MaintenanceStatus::Cancelled ? ($data['reason'] ?? null) : null,
+        );
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($maintenanceRequest)->resolve($request),

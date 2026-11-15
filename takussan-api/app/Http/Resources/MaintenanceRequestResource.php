@@ -7,12 +7,14 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\AgencyResponseTime;
 use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Maintenance\OwnerReminder;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -69,9 +71,11 @@ class MaintenanceRequestResource extends BaseResource
             'accepted_at' => $this->iso($this->accepted_at),
             // TCK-2786 — la dernière relance du bailleur (« Relancé il y a … ») ; au donneur d'ordre seul.
             'owner_reminded_at' => $this->iso($this->owner_reminded_at),
+            // TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé : à tout lecteur de la demande.
+            'cancellation_reason' => $this->cancellation_reason,
             'access_instructions' => $this->access_instructions,
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
-            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user())),
+            'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user(), $this->isDetailRequest($request))),
             'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
             'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
             'created_at' => $this->iso($this->created_at),
@@ -114,6 +118,11 @@ class MaintenanceRequestResource extends BaseResource
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
             }
+            // TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente du demandeur, au demandeur, au
+            // prestataire assigné et aux donneurs d'ordre (tout lecteur de la demande).
+            $data['pending_reschedule_request'] = $this->pendingRescheduleBlock();
+            // TCK-2917 (ADR-0118 § 5) — le délai de prise en charge médian de l'agence du bien.
+            $data['maintenance_response_minutes'] = app(AgencyResponseTime::class)->minutesFor($this->property?->agency_id);
         }
 
         return $data;
@@ -254,6 +263,8 @@ class MaintenanceRequestResource extends BaseResource
             // et le bailleur joignable, que `OwnerReminder::remind()` rejuge sous le verrou.
             'can_remind_owner' => $user->can('remindOwner', $mr) && app(OwnerReminder::class)->possible($mr),
             'can_view_journal' => $user->can('viewJournal', $mr),
+            // TCK-2917 (ADR-0118 § 3) — « Changer le créneau » du demandeur.
+            'can_request_reschedule' => $user->can('requestReschedule', $mr),
             'transitions' => $transitions,
         ];
     }
@@ -349,9 +360,17 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-592 (verif-592, mineur 9) — l'e-mail du demandeur suit son téléphone (P6) : au prestataire
      * assigné, seulement APRÈS acceptation. `include=requester` le lui rendait avant.
      */
-    private function requesterSummary(?User $viewer): ?array
+    private function requesterSummary(?User $viewer, bool $detail = false): ?array
     {
         $summary = $this->userSummary($this->requester);
+
+        // TCK-2917 (ADR-0118 § 2) — « Appeler » / « WhatsApp » : le téléphone du demandeur au seul
+        // personnel actif de l'agence du bien (lecteur du bail à ce titre, règle de TCK-2637), au
+        // détail. Clé absente pour le bailleur, un prestataire, une autre agence, et sur une liste.
+        if ($summary !== null && $viewer !== null && $detail
+            && MaintenanceRequestPolicy::isTeamPrincipalFor($viewer, $this->property)) {
+            $summary['phone'] = $this->requester?->phone;
+        }
 
         if ($summary !== null && $viewer !== null
             && $this->assigned_to === $viewer->id
@@ -362,6 +381,35 @@ class MaintenanceRequestResource extends BaseResource
         }
 
         return $summary;
+    }
+
+    /**
+     * TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente : les instants proposés, le mot, la date.
+     *
+     * @return array{id: int, proposed_slots: list<?string>, note: ?string, requested_at: ?string}|null
+     */
+    private function pendingRescheduleBlock(): ?array
+    {
+        // Une demande close, annulée ou rendue n'attend plus de créneau.
+        $status = $this->status ?? MaintenanceStatus::Open;
+        if ($status === MaintenanceStatus::Completed || app(MaintenanceStateMachine::class)->isTerminal($status)) {
+            return null;
+        }
+
+        $pending = $this->resource->pendingRescheduleRequest()->first();
+        if ($pending === null) {
+            return null;
+        }
+
+        return [
+            'id' => $pending->id,
+            'proposed_slots' => array_values(array_map(
+                fn (mixed $slot): ?string => is_string($slot) ? $this->iso(CarbonImmutable::parse($slot)) : null,
+                $pending->proposed_slots ?? [],
+            )),
+            'note' => $pending->note,
+            'requested_at' => $this->iso($pending->created_at),
+        ];
     }
 
     private function userSummary(?User $user): ?array

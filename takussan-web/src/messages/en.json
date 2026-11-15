@@ -21326,7 +21326,8 @@
         "jours": "{n, plural, one {# day} other {# days}}",
         "sansLocataire": "Tenant",
         "autres": "{n, plural, one {See the other late rent} other {See the # other late rents}}",
-        "carte": "{n, plural, one {# overdue rent} other {# overdue rents}}"
+        "carte": "{n, plural, one {# overdue rent} other {# overdue rents}}",
+        "relance": "{montant} · reminded by the agency on {date}"
       },
       "reservations": {
         "carte": "{n, plural, one {# booking to handle} other {# bookings to handle}}",
@@ -21359,7 +21360,10 @@
         "passage": "{jour, select, aujourdhui {Visit today at {heure}} demain {Visit tomorrow at {heure}} hier {Visit planned yesterday at {heure}} passe {Visit planned on {date} at {heure}} other {Visit on {date} at {heure}}}",
         "passageDe": "{jour, select, aujourdhui {{nom} is coming today at {heure}} demain {{nom} is coming tomorrow at {heure}} hier {{nom} · visit planned yesterday at {heure}} passe {{nom} · visit planned on {date} at {heure}} other {{nom} is coming on {date} at {heure}}}",
         "aFixer": "Visit to be scheduled",
-        "aFixerAvec": "{nom} · visit to be scheduled"
+        "aFixerAvec": "{nom} · visit to be scheduled",
+        "reversement": "Next payout",
+        "reversementLe": "Next payout · {date}",
+        "apresCommission": "{montant} · after commission"
       },
       "resume": {
         "rien": "{jour} · nothing is waiting for your answer",
@@ -21367,6 +21371,20 @@
         "visites": "{n, plural, one {# visit to confirm} other {# visits to confirm}}",
         "separateurDate": " · ",
         "separateur": ", "
+      },
+      "demarrer": {
+        "titre": "Get started",
+        "compteLong": "{fait, plural, one {# step} other {# steps}} of {total}",
+        "continuer": "Continue",
+        "lien": "Get started, {fait} of {total}: {etape}",
+        "etapes": {
+          "premier_bien": "Propose a first property",
+          "kyc": "Send your identity documents"
+        },
+        "enPhrase": {
+          "premier_bien": "Propose a first property to your agency.",
+          "kyc": "Send your identity documents to receive your payouts."
+        }
       }
     },
     "prestataire": {

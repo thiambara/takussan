@@ -47,9 +47,13 @@ export type MaintenanceCreateInput = z.infer<typeof maintenanceCreateSchema>;
 
 /**
  * Payload for `PUT /api/maintenance-requests/{id}/status`.
+ *
+ * TCK-2917 (ADR-0118 § 1) — `reason` : le motif de qui annule, EXIGÉ par l'API pour `cancelled` (422
+ * sinon) ; le locataire, le bailleur et le prestataire le lisent (`cancellation_reason`).
  */
 export const maintenanceStatusSchema = z.object({
   status: statusEnum,
+  reason: z.string().max(500).optional(),
 });
 
 export type MaintenanceStatusInput = z.infer<typeof maintenanceStatusSchema>;

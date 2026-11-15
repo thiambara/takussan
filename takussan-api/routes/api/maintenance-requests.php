@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\MaintenanceJournalController;
 use App\Http\Controllers\Api\MaintenanceOwnerReminderController;
 use App\Http\Controllers\Api\MaintenanceQuoteController;
 use App\Http\Controllers\Api\MaintenanceRequestController;
+use App\Http\Controllers\Api\MaintenanceRescheduleRequestController;
 use App\Http\Controllers\Api\SuggestedProvidersController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-2786 — « Relancer le bailleur » (une par 24 h, en `awaiting_owner`) et le journal de la demande.
     Route::post('maintenance-requests/{maintenanceRequest}/owner-reminders', [MaintenanceOwnerReminderController::class, 'store'])->name('maintenance-requests.owner-reminders.store');
     Route::get('maintenance-requests/{maintenanceRequest}/journal', [MaintenanceJournalController::class, 'index'])->name('maintenance-requests.journal');
+
+    // TCK-2917 (ADR-0118 § 3) — le demandeur demande un autre créneau ; `scheduled_at` ne change pas.
+    Route::post('maintenance-requests/{maintenanceRequest}/reschedule-requests', [MaintenanceRescheduleRequestController::class, 'store'])->name('maintenance-requests.reschedule-requests.store');
 
     // History per property
     Route::get('properties/{property}/maintenance-requests', [MaintenanceRequestController::class, 'indexForProperty'])->name('properties.maintenance-requests.index');

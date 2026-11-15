@@ -395,6 +395,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 127. [ConversationReport](#127-conversationreport-) 🆕
 128. [ExportFile](#128-exportfile-) 🆕
 129. [PropertyDailyView](#129-propertydailyview-) 🆕
+130. [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) 🆕
 
 ### Enums
 
@@ -1543,6 +1544,7 @@ contrainte en base.
 - `inventories()` → hasMany Inventory
 - `maintenanceRequests()` → hasMany MaintenanceRequest
 - `documents()` → morphMany Document
+- `rescheduleRequests()` → hasMany [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) ; `pendingRescheduleRequest()` → hasOne, la demande de créneau en attente (TCK-2917)
 - `payouts()` → hasMany Payout 🆕
 - `invoices()` → morphMany Invoice 🆕
 - `onboardingChecklist()` → hasOne TenantOnboardingChecklist 🆕 (TCK-266)
@@ -1872,6 +1874,7 @@ voies peut n'identifier personne.
 | access_instructions | text | oui | null | Kit d'accès au logement, rédigé par le donneur d'ordre pour le prestataire (TCK-592, `2026_10_07_120000`) |
 | queue_entered_at | timestamp | oui | null | ➕ Entrée dans la **file** courante, posée par le modèle (`MaintenanceRequest::booted()`) quand `status` **ou** `assigned_to` change — un dispatch, une réassignation ou un refus du prestataire changent le destinataire sans changer le statut ; base de l'ancienneté des files, servie en `waiting_since`. Créée `status_changed_at` (entrée dans le statut, rétro-remplie du journal des transitions, sinon `updated_at`), renommée par `2026_11_11_190400` (décision de session du 2026-11-11), qui reprend les demandes `open` avec prestataire à `updated_at` (TCK-2652) |
 | owner_reminded_at | timestamp | oui | null | ➕ Dernière relance du bailleur (« Relancer le bailleur », `POST /api/maintenance-requests/{id}/owner-reminders`, `OwnerReminder`) : une relance par demande et par 24 h (409 `maintenance.owner_reminder_too_soon` avec `available_at`), en `awaiting_owner` seulement (409 `maintenance.not_awaiting_owner`), bailleur joignable (409 `maintenance.owner_unavailable`) ; le bailleur reçoit `maintenance.owner_reminder`. Rendue au donneur d'ordre seul, jamais au demandeur ni au prestataire (`MaintenanceRequestResource`) (TCK-2786, `2026_11_14_140000`) |
+| cancellation_reason | text | oui | null | ➕ Le motif de qui annule par `PUT …/status` (`reason`, requis pour `cancelled`, 500 caractères au plus), écrit sous verrou par `MaintenanceRequestService::transition()` ; nul pour une annulation du système (bien supprimé). Rendu à tout lecteur, porté au journal (`reason` de l'entrée d'annulation) et dans `maintenance.cancelled_with_reason` / `maintenance.step_cancelled_with_reason` (TCK-2917, ADR-0118, `2026_11_15_291700`) |
 | metadata | jsonb | oui | null | |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at | timestamp | | auto | |
@@ -6170,6 +6173,36 @@ par `GET /api/properties?include=stats30d` (`stats_30d.views`) ; purgée au-del�
 Index : unique `(property_id, day)`, `day`.
 
 **Relations :** `property()` → belongsTo Property.
+
+---
+
+### 130. MaintenanceRescheduleRequest 🆕
+
+<!-- TCK-2917 (ADR-0118 § 3). -->
+
+**Table :** `maintenance_reschedule_requests` — le demandeur d'une intervention demande un autre créneau
+(`POST /api/maintenance-requests/{id}/reschedule-requests`, policy `requestReschedule` : le demandeur au bail du bien
+en cours, sur une demande ni terminale ni `completed`). La ligne **ne change jamais** `scheduled_at` : elle prévient
+les donneurs d'ordre et le prestataire assigné (`maintenance.reschedule_requested`), se lit au détail de la demande
+(`pending_reschedule_request`), et se clôt (`accepted`) quand le donneur d'ordre (`PATCH`) ou le prestataire
+(acceptation avec créneau) pose un créneau. Une seule en attente par intervention : la suivante la remplace
+(`superseded`).
+
+| Champ | Type | Null | Défaut | Description |
+|---|---|---|---|---|
+| maintenance_request_id | FK maintenance_requests | | | L'intervention (`cascadeOnDelete`) |
+| requester_id | FK users | oui | null | L'auteur de la demande (`nullOnDelete`) |
+| proposed_slots | json | | | Un à trois instants ISO 8601 (au fuseau de l'application), dans l'ordre chronologique ; chacun à venir et dans l'horizon de passage (`DansLHorizonDuPassage`) |
+| note | text | oui | null | Le mot du demandeur (1000 caractères au plus) |
+| status | string(20) | | `pending` | `pending`, `accepted`, `superseded` |
+| resolved_at | timestamp | oui | null | Clôture ou remplacement |
+| resolved_by_id | FK users | oui | null | Qui a posé le créneau (`nullOnDelete`) |
+| created_at / updated_at | timestamp | | auto | |
+
+Index : `(maintenance_request_id, status)`. Pas d'`agency_id` : la ligne se lit toujours par sa demande.
+
+**Relations :** `maintenanceRequest()` → belongsTo MaintenanceRequest ; `requester()`, `resolvedBy()` → belongsTo User.
+Côté [MaintenanceRequest](#21-maintenancerequest-) : `rescheduleRequests()` → hasMany, `pendingRescheduleRequest()` → hasOne (la plus récente `pending`).
 
 ---
 

@@ -41,6 +41,13 @@ class MaintenanceJournalEntryResource extends BaseResource
             $entry[$key] = $isTransition && is_string($properties[$key] ?? null) ? $properties[$key] : null;
         }
 
+        // TCK-2917 (ADR-0118 § 1) — le motif d'une annulation, seul texte libre que le journal rend :
+        // celui que la fiche montre déjà (`cancellation_reason`). Clé présente sur la seule entrée de
+        // l'annulation : partout ailleurs, aucun motif (refus, devis) ne sort.
+        if ($isTransition && $entry['to'] === 'cancelled') {
+            $entry['reason'] = is_string($properties['reason'] ?? null) ? $properties['reason'] : null;
+        }
+
         return $entry;
     }
 

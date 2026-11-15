@@ -441,6 +441,8 @@ export interface EntreeDuJournal {
   readonly actor: { readonly id: number; readonly full_name: string } | null;
   readonly from: MaintenanceStatus | null;
   readonly to: MaintenanceStatus | null;
+  /** TCK-2917 (ADR-0118 § 1) — le motif, sur la seule entrée d'une annulation (clé absente ailleurs). */
+  readonly reason?: string | null;
 }
 
 /** TCK-2786 — `GET /api/maintenance-requests/{id}/journal`, dans l'ordre où c'est arrivé. */

@@ -120,6 +120,8 @@ export interface MaintenanceUserSummary {
   readonly name: string | null;
   readonly email?: string | null;
   readonly username?: string | null;
+  /** TCK-2917 (ADR-0118 § 2) — au seul personnel de l'agence du bien, au détail (clé absente sinon). */
+  readonly phone?: string | null;
 }
 
 /**
@@ -143,6 +145,8 @@ export interface MaintenanceAbilities {
   readonly can_remind_owner?: boolean;
   /** TCK-2786 — le journal de la demande : le personnel de l'agence du bien et le super-admin. */
   readonly can_view_journal?: boolean;
+  /** TCK-2917 — « Changer le créneau » : le demandeur au bail en cours, demande ni close ni rendue. */
+  readonly can_request_reschedule?: boolean;
   /** Les seules cibles de `PUT …/status` que cet utilisateur peut demander. */
   readonly transitions: readonly MaintenanceStatus[];
 }
@@ -229,4 +233,18 @@ export interface MaintenanceRequest {
   readonly access?: MaintenanceAccess;
   /** Le fil de l'intervention, si l'utilisateur y participe (« Discuter »). */
   readonly conversation_id?: number | null;
+  /** TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé, à tout lecteur. */
+  readonly cancellation_reason?: string | null;
+  /** TCK-2917 (ADR-0118 § 3) — la demande de créneau en attente du demandeur (au détail). */
+  readonly pending_reschedule_request?: MaintenanceRescheduleRequest | null;
+  /** TCK-2917 (ADR-0118 § 5) — la médiane de prise en charge de l'agence, en minutes (au détail ; `null` sous 5 demandes). */
+  readonly maintenance_response_minutes?: number | null;
+}
+
+/** TCK-2917 — `POST /api/maintenance-requests/{id}/reschedule-requests`, rendue au détail. */
+export interface MaintenanceRescheduleRequest {
+  readonly id: number;
+  readonly proposed_slots: readonly string[];
+  readonly note: string | null;
+  readonly requested_at: string | null;
 }

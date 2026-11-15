@@ -171,6 +171,13 @@ enum NotificationCode: string
     // TCK-2786 — l'agence relance le bailleur d'une intervention qui attend sa décision (`awaiting_owner`).
     case MaintenanceOwnerReminder = 'maintenance.owner_reminder';
 
+    // TCK-2917 (ADR-0118) — l'annulation avec le motif de qui annule ; la demande de créneau du locataire.
+    case MaintenanceCancelledWithReason = 'maintenance.cancelled_with_reason';
+
+    case MaintenanceStepCancelledWithReason = 'maintenance.step_cancelled_with_reason';
+
+    case MaintenanceRescheduleRequested = 'maintenance.reschedule_requested';
+
     // ─── CRM ───────────────────────────────────────────────────────────────────────────
     /** TCK-591 — le récapitulatif quotidien des biens qui correspondent aux prospects d'un référent. */
     case ProspectMatchDigest = 'prospect_match.digest';
@@ -384,7 +391,7 @@ enum NotificationCode: string
             self::BankStatementFinalized => NotificationType::BankStatementFinalized,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => NotificationType::Maintenance,
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder => NotificationType::Maintenance,
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder, self::MaintenanceCancelledWithReason, self::MaintenanceStepCancelledWithReason, self::MaintenanceRescheduleRequested => NotificationType::Maintenance,
             self::KycSubmitted, self::KycVerified, self::KycRejected, self::KycExpiringSoon,
             self::DocumentExpiringSoon /* TCK-2783 */,
             self::DocumentArchiveReady, self::DocumentArchiveFailed /* TCK-2812 */,
@@ -462,7 +469,7 @@ enum NotificationCode: string
             self::GovernanceIntegrationChanged, self::GovernanceApprovalThresholdChanged => null,
             self::MaintenanceCreated, self::MaintenanceQuoteRequested, self::MaintenanceQuoteSubmitted,
             self::MaintenanceQuoteApproved, self::MaintenanceQuoteRejected => 'maintenance_status_changed',
-            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder => 'maintenance_status_changed',
+            self::MaintenanceAssigned, self::MaintenanceUnassigned, self::MaintenanceAccepted, self::MaintenanceDeclined, self::MaintenanceCompleted, self::MaintenanceConfirmed, self::MaintenanceContested, self::MaintenanceAutoClosed, self::MaintenanceCancelled, self::MaintenanceStepAcknowledged, self::MaintenanceStepAssigned, self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed, self::MaintenanceStepCancelled, self::MaintenanceStepAcknowledgedScheduled, self::MaintenanceStepAssignedScheduled, self::MaintenanceStepInProgressScheduled, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceScheduleChanged, self::MaintenanceOwnerReminder, self::MaintenanceCancelledWithReason, self::MaintenanceStepCancelledWithReason, self::MaintenanceRescheduleRequested => 'maintenance_status_changed',
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator,
             self::RoleDelegationRevoked, self::RoleDelegationRevokedDelegator,
@@ -595,6 +602,9 @@ enum NotificationCode: string
             self::MaintenanceStepInProgress, self::MaintenanceStepCompleted, self::MaintenanceStepClosed,
             self::MaintenanceStepCancelled => ['request' => self::PARAM_TEXT],
             self::MaintenanceQuoteRejected => ['request' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            // TCK-2917 — le motif est la saisie de qui annule ; `slots`, le nombre de créneaux proposés.
+            self::MaintenanceCancelledWithReason, self::MaintenanceStepCancelledWithReason => ['request' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::MaintenanceRescheduleRequested => ['request' => self::PARAM_TEXT, 'slots' => self::PARAM_COUNT],
             self::MaintenanceQuoteSubmitted, self::MaintenanceQuoteAwaitingOwner, self::MaintenanceOwnerReminder => ['request' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             self::MaintenanceAssigned => ['request' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::MaintenanceAccepted => ['request' => self::PARAM_TEXT, 'provider' => self::PARAM_TEXT],

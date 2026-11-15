@@ -78,4 +78,21 @@ Audit (`audit-f4-patrimoine.md`, app-interventions) : **e1** (Appeler / WhatsApp
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (worktree `feat/audit-manques-2026-11-15`), ADR-0118 écrit d'abord.
+
+**Prémisses re-mesurées — ce qui différait :**
+- « le locataire qui retire sa propre demande n'a pas à en donner » : le locataire **ne peut pas** annuler aujourd'hui (matrice `MaintenanceStateMachine::actorAllows`, `ACTOR_REQUESTER` = confirmer/contester seulement ; `update` refusé au demandeur). Transition non ouverte ; `reason` est donc exigé de tout auteur d'une annulation par `PUT …/status` (`required_if:status,cancelled`), qui n'est jamais un locataire.
+- Le journal (TCK-2786) posait l'invariant « ni motif ni commentaire » : élargi d'une seule clé, `reason`, sur la seule entrée d'annulation (clé absente ailleurs — `JournalDeLInterventionTest::test_aucune_donnee_hors_fiche` reste vert).
+- Une annulation du système (`PropertyObserver`, bien supprimé) porte `context.reason = property_deleted` : la notification lit la **colonne**, jamais ce code.
+- « Délai de réponse » : seule source historique, le journal (`status.*`) — la mesure commence à son déploiement.
+
+**Choix (ADR-0118) :**
+- Annulation : colonne `cancellation_reason` écrite sous verrou dans `transition()` ; codes variantes `maintenance.cancelled_with_reason` / `maintenance.step_cancelled_with_reason` (le SMS ne porte pas le motif), sans motif → codes d'avant.
+- `requester.phone` : `isTeamPrincipalFor` (personnel de l'agence du bien), au détail seulement, clé absente sinon.
+- Demande de créneau : table `maintenance_reschedule_requests`, une seule `pending` (la suivante remplace, `superseded`), close (`accepted`) par le `PATCH` du donneur d'ordre ou l'acceptation avec créneau du prestataire ; `abilities.can_request_reschedule` ; détail `pending_reschedule_request` ; notification `maintenance.reschedule_requested` (agence + prestataire assigné encore assignable).
+- `overdue_slots_count` : sous-requête corrélée dérivée de `MaintenanceQueue::classify()` (file `en_retard`), carnet + suggestions ; `meta.trade_counts` sur le périmètre du carnet (invitations comprises), égal au `meta.total` de `filter[specialty]`.
+- `maintenance_response_minutes` : `AgencyResponseTime`, `percentile_cont(0.5)`, 90 jours, première entrée `status.*` d'un auteur ≠ demandeur, `null` sous 5, cache 1 h par agence ; au détail.
+
+**Mesures :** 24 tests neufs verts (5 fichiers, dont l'annulation du système sans motif et le `null` du délai mis en cache — enveloppe, `Cache::remember` relisant `null` comme absent), 14 ablations rouges puis restaurées (md5) ; la demande de créneau rejuge `completed` sous verrou et n'est plus rendue sur une demande close/rendue ; tests du carnet (TCK-2772/2829/2834) verts ; 4 tests existants qui annulaient sans motif mis à jour (`MaintenanceRequestTest`, `MaintenanceStatusTest`, `MaintenanceStatusBypassTest`, `MaintenanceNotificationsTest`) ; gardes d'architecture, balayages (Impersonation, ValeursEnListe, DateInventory), gardes de notification et `scripts/check-*.mjs` verts.
+
+**Front (types seulement, écrans = TCK-2918) :** `reason` dans `maintenanceStatusSchema`, champs neufs déclarés (`types/maintenance.ts`, `queries/maintenance*.ts`, `queries/service-providers.ts`). ⚠ Le motif est exigé de tout auteur, bailleur compris (écrans du bailleur : TCK-2911). Le bouton « Annuler la demande » (`AutreAction.tsx:230`, `MaintenanceDetail.tsx:243`) envoie `{status: 'cancelled'}` sans motif : 422 tant que TCK-2918 n'ajoute pas la saisie.

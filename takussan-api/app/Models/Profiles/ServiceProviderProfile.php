@@ -16,6 +16,7 @@ use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceJournal;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Support\CaseInsensitive;
 use Database\Factories\Profiles\ServiceProviderProfileFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -230,6 +231,57 @@ class ServiceProviderProfile extends AbstractModel
             ->whereColumn('maintenance_requests.assigned_to', 'service_provider_profiles.user_id')
             ->whereIn('maintenance_requests.status', [MaintenanceStatus::Completed->value, MaintenanceStatus::Closed->value])
             ->whereIn('maintenance_requests.property_id', Property::withTrashed()->select('id')->where('agency_id', $agencyId));
+    }
+
+    /**
+     * TCK-2917 (ADR-0118 § 4) — « 1 créneau dépassé » : les interventions d'une agence assignées au
+     * compte du prestataire et rangées dans la file `en_retard` de {@see MaintenanceQueue} — les
+     * statuts que sa table y classe quand le créneau est passé, et un créneau antérieur au début du
+     * jour à Dakar. Sous-requête corrélée, à poser par `addSelect` : une page du carnet ou des
+     * suggestions la lit sans requête par ligne.
+     */
+    public static function overdueSlotsSubquery(int $agencyId): Builder
+    {
+        $statuses = array_values(array_map(
+            static fn (MaintenanceStatus $status): string => $status->value,
+            array_filter(
+                MaintenanceStatus::cases(),
+                static fn (MaintenanceStatus $status): bool => MaintenanceQueue::classify($status, true, true)[0] === MaintenanceQueue::EN_RETARD,
+            ),
+        ));
+
+        return MaintenanceRequest::query()
+            ->selectRaw('count(*)')
+            ->whereColumn('maintenance_requests.assigned_to', 'service_provider_profiles.user_id')
+            ->whereIn('maintenance_requests.status', $statuses)
+            ->whereNotNull('maintenance_requests.scheduled_at')
+            ->where('maintenance_requests.scheduled_at', '<', MaintenanceQueue::startOfToday())
+            ->whereIn('maintenance_requests.property_id', Property::withTrashed()->select('id')->where('agency_id', $agencyId));
+    }
+
+    /**
+     * TCK-2917 (ADR-0118 § 4) — les pastilles de métier du carnet : pour chaque métier (`specialties`),
+     * le nombre de profils du périmètre qui l'exercent — ce que rendrait `filter[specialty]=<métier>`
+     * sur ce périmètre. Lu sur le périmètre, pas sur la requête filtrée, comme {@see self::zonesOf()}.
+     *
+     * @return array<string, int>
+     */
+    public static function tradeCountsOf(Builder $carnet): array
+    {
+        $profils = (clone $carnet)
+            ->select(['service_provider_profiles.id', 'service_provider_profiles.specialties'])
+            ->whereRaw("jsonb_typeof(service_provider_profiles.specialties::jsonb) = 'array'");
+
+        return DB::query()
+            ->fromSub($profils, 'carnet')
+            ->crossJoin(DB::raw('lateral jsonb_array_elements_text(carnet.specialties::jsonb) as metiers(trade)'))
+            ->whereRaw("trim(metiers.trade) <> ''")
+            ->groupBy('metiers.trade')
+            ->orderBy('metiers.trade')
+            ->selectRaw('metiers.trade as trade, count(distinct carnet.id) as total')
+            ->pluck('total', 'trade')
+            ->map(fn ($total): int => (int) $total)
+            ->all();
     }
 
     /**

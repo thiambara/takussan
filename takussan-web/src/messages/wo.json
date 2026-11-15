@@ -21326,7 +21326,8 @@
         "jours": "{n, plural, one {# jour} other {# jours}}",
         "sansLocataire": "Locataire",
         "autres": "{n, plural, one {Voir l’autre loyer en retard} other {Voir les # autres loyers en retard}}",
-        "carte": "{n, plural, one {# loyer en retard} other {# loyers en retard}}"
+        "carte": "{n, plural, one {# loyer en retard} other {# loyers en retard}}",
+        "relance": "{montant} · relancé par l’agence le {date}"
       },
       "reservations": {
         "carte": "{n, plural, one {# réservation à traiter} other {# réservations à traiter}}",
@@ -21359,7 +21360,10 @@
         "passage": "{jour, select, aujourdhui {Passage aujourd’hui à {heure}} demain {Passage demain à {heure}} hier {Passage prévu hier à {heure}} passe {Passage prévu le {date} à {heure}} other {Passage le {date} à {heure}}}",
         "passageDe": "{jour, select, aujourdhui {{nom} intervient aujourd’hui à {heure}} demain {{nom} intervient demain à {heure}} hier {{nom} · passage prévu hier à {heure}} passe {{nom} · passage prévu le {date} à {heure}} other {{nom} intervient le {date} à {heure}}}",
         "aFixer": "Passage à fixer",
-        "aFixerAvec": "{nom} · passage à fixer"
+        "aFixerAvec": "{nom} · passage à fixer",
+        "reversement": "Prochain reversement",
+        "reversementLe": "Prochain reversement · {date}",
+        "apresCommission": "{montant} · après commission"
       },
       "resume": {
         "rien": "{jour} · rien n’attend votre réponse",
@@ -21367,6 +21371,20 @@
         "visites": "{n, plural, one {# visite à confirmer} other {# visites à confirmer}}",
         "separateurDate": " · ",
         "separateur": ", "
+      },
+      "demarrer": {
+        "titre": "Démarrer",
+        "compteLong": "{fait, plural, one {# étape} other {# étapes}} sur {total}",
+        "continuer": "Continuer",
+        "lien": "Démarrer, {fait} sur {total} : {etape}",
+        "etapes": {
+          "premier_bien": "Proposez un premier bien",
+          "kyc": "Envoyez vos pièces d’identité"
+        },
+        "enPhrase": {
+          "premier_bien": "Proposez un premier bien à votre agence.",
+          "kyc": "Envoyez vos pièces d’identité pour recevoir vos reversements."
+        }
       }
     },
     "prestataire": {

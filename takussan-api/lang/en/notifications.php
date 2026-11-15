@@ -887,6 +887,23 @@ return [
                 'body' => 'Your agency reminds you that a quote of :amount for ":request" is awaiting your decision. Approve or reject it.',
                 'sms' => 'Takussan: reminder, your approval is required for ":request".',
             ],
+            // TCK-2917 (ADR-0118) — cancellation with the canceller's reason (not in the SMS).
+            'cancelled_with_reason' => [
+                'title' => 'Maintenance cancelled: :request',
+                'body' => 'The maintenance ":request" has been cancelled. Reason: :reason',
+                'sms' => 'Takussan: Maintenance cancelled: :request',
+            ],
+            'step_cancelled_with_reason' => [
+                'title' => 'Your request ":request": cancelled',
+                'body' => 'Your maintenance request has been cancelled. Reason: :reason',
+                'sms' => 'Takussan: Your request ":request": cancelled',
+            ],
+            // TCK-2917 — to the agency and the provider: the tenant asks for another time slot.
+            'reschedule_requested' => [
+                'title' => 'Another time slot requested: ":request"',
+                'body' => 'The tenant asks for another time slot for ":request". Proposed slots: :slots. The current slot stays until you set a new one.',
+                'sms' => 'Takussan: the tenant asks for another time slot for ":request".',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [

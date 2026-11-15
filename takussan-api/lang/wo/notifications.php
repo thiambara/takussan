@@ -888,6 +888,23 @@ return [
                 'body' => 'Votre agence vous rappelle qu\'un devis de :amount pour « :request » attend votre décision. Approuvez-le ou refusez-le.',
                 'sms' => 'Takussan : rappel, votre accord est requis pour « :request ».',
             ],
+            // TCK-2917 (ADR-0118) — l'annulation avec le motif de qui annule (le SMS ne le porte pas).
+            'cancelled_with_reason' => [
+                'title' => 'Intervention annulée : :request',
+                'body' => 'L\'intervention « :request » a été annulée. Motif : :reason',
+                'sms' => 'Takussan : Intervention annulée : :request',
+            ],
+            'step_cancelled_with_reason' => [
+                'title' => 'Votre demande « :request » : annulée',
+                'body' => 'Votre demande d\'intervention a été annulée. Motif : :reason',
+                'sms' => 'Takussan : Votre demande « :request » : annulée',
+            ],
+            // TCK-2917 — à l'agence et au prestataire : le locataire demande un autre créneau.
+            'reschedule_requested' => [
+                'title' => 'Autre créneau demandé : « :request »',
+                'body' => 'Le locataire demande un autre créneau pour « :request ». Créneaux proposés : :slots. Le créneau actuel ne change pas tant que vous n\'en posez pas un nouveau.',
+                'sms' => 'Takussan : le locataire demande un autre créneau pour « :request ».',
+            ],
         ],
         'maintenance_quote' => [
             'requested' => [

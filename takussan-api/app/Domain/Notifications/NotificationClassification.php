@@ -186,6 +186,11 @@ final class NotificationClassification
         'maintenance.schedule_changed' => [self::D, false],
         // TCK-2786 — au bailleur : la relance de l'agence, le devis attend toujours son accord.
         'maintenance.owner_reminder' => [self::D, true],
+        // TCK-2917 — l'annulation avec son motif ; à l'agence et au prestataire : le locataire demande
+        // un autre créneau, à poser.
+        'maintenance.cancelled_with_reason' => [self::D, false],
+        'maintenance.step_cancelled_with_reason' => [self::D, false],
+        'maintenance.reschedule_requested' => [self::D, true],
 
         // ─── Biens ────────────────────────────────────────────────────────────────────────
         'prospect_match.digest' => [self::B, false],
