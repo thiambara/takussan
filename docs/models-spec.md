@@ -6072,6 +6072,28 @@ FK : `agency_id` et `lease_payment_id` en `cascadeOnDelete`, `created_by_id` en 
 
 ---
 
+### 126. BookingDossierItem 🆕
+
+<!-- TCK-2875 : reporté de TCK-2872 (garde check-models-spec). -->
+
+**Table :** `booking_dossier_items` (TCK-2872, ADR-0110 § 2) — une pièce du dossier d'une candidature ou d'une offre.
+
+| Champ | Type | Null | Défaut | Description |
+|---|---|---|---|---|
+| booking_id | FK bookings | | | La réservation (`cascadeOnDelete`) |
+| piece | string(32) — `DossierPiece` | | | `identity`, `payslips`, `employment_certificate`, `guarantor_commitment`, `guarantor_identity`, `proof_of_funds`, `other` |
+| required | boolean | | true | Attendue dans la complétude |
+| document_id | FK documents | oui | null | Le document déposé (`nullOnDelete`) ; reçue = un document VIVANT |
+| requested_at | timestamp | oui | null | Dernière demande au client (« Demander », une fois par 24 h) |
+| requested_by_id | FK users | oui | null | Qui l'a demandée (`nullOnDelete`) |
+| received_at | timestamp | oui | null | Date du dépôt |
+
+Unique `(booking_id, piece)`, index `document_id`. La liste est FIXE PAR NATURE, posée à la création de la réservation (`Booking::performInsert`) : trois pièces pour une candidature, deux pour une offre, aucune pour un séjour ; un garant déclaré ajoute `guarantor_commitment` et `guarantor_identity` (TCK-2893). Servie en complétude (`dossier: {received, required, missing}`) par `BookingResource`, en détail par `GET /api/bookings/{id}/dossier`.
+
+**Relations :** `booking()` → belongsTo Booking ; `document()` → belongsTo Document.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)

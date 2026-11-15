@@ -402,8 +402,7 @@ function Session({ open, onOpenChange, client: clientDonne, bien: bienDonne, onS
         className="min-h-19"
       />
 
-      {/* La maquette dit « … et pourra compléter son dossier » : aucun dossier n'existe en base ; le
-          texte dit ce qui est vrai (TCK-2579 : le client prévenu peut annuler). */}
+      {/* TCK-2875 — « … et pourra compléter son dossier » (maquette e8) : le dossier existe depuis TCK-2872. */}
       <p className="flex gap-2 rounded-lg bg-muted/60 p-3 text-ui leading-snug text-encre-douce">
         <Info className="mt-0.5 size-4 flex-none" aria-hidden />
         {t('prevenu')}

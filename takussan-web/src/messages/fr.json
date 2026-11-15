@@ -11897,7 +11897,9 @@
         "past": "Passées",
         "cancelled": "Annulées",
         "all": "Toutes"
-      }
+      },
+      "filtreType": "Type",
+      "typesTous": "Tous"
     },
     "detail": {
       "error": "Impossible de charger cette visite.",
@@ -11918,7 +11920,7 @@
         },
         "noShow": {
           "title": "Visite marquée absente",
-          "description": "Le visiteur ne s'est pas présenté : la visite n'est pas comptée parmi les visites effectuées."
+          "description": "Le visiteur en est prévenu, avec de quoi reprendre une visite. Elle n’est pas comptée parmi les visites effectuées."
         },
         "cancelled": {
           "title": "Visite annulée",
@@ -12119,7 +12121,8 @@
         "evening": "soir"
       },
       "agentIndisponible": "L’agent de cette visite n’est plus disponible : réattribuez-la",
-      "reattribuer": "Réattribuer"
+      "reattribuer": "Réattribuer",
+      "absentPrevenu": "Le visiteur en est prévenu, avec de quoi reprendre une visite."
     },
     "fiche": {
       "titre": "Visite",
@@ -12157,7 +12160,9 @@
       },
       "lieu": {
         "voirLeBien": "Voir le bien",
-        "ville": "{quartier}, {ville}"
+        "ville": "{quartier}, {ville}",
+        "vignette": "Carte du lieu — ouvrir l’itinéraire",
+        "attribution": "© OpenStreetMap"
       },
       "visiteur": {
         "voirSaFiche": "Voir sa fiche"
@@ -12178,7 +12183,7 @@
         "titre": "Visite en cours",
         "progression": "{n} min sur {total}",
         "terminer": "« Terminer la visite » ouvre le compte rendu : trois touches, trente secondes.",
-        "absent": "« Absent » enregistre que {prenom} n’est pas venu.",
+        "absent": "« Absent » prévient {prenom} et propose de replanifier.",
         "apres": "L’heure de fin prévue est passée",
         "apresDetail": "Terminez la visite pour faire le compte rendu, ou déclarez {prenom} absent.",
         "absentDes": "« Absent » est possible à partir de {heure}, l’heure de la visite."
@@ -12220,7 +12225,8 @@
         "commencer": "Commencer",
         "absent": "Absent",
         "terminer": "Terminer la visite",
-        "commencerDes": "« Commencer » est possible à partir de {heure}, 30 min avant la visite."
+        "commencerDes": "« Commencer » est possible à partir de {heure}, 30 min avant la visite.",
+        "enRouteBulle": "Envoyer sur WhatsApp : {message}"
       },
       "autreHeure": {
         "titre": "Choisir une autre heure",

@@ -141,4 +141,69 @@ export type Booking = {
   refund_status?: 'pending' | 'refunded' | null;
   /** TCK-596 — l'appelant peut-il rembourser (`bookings.refund`, bailleur direct, super-admin). */
   can_refund?: boolean;
+  // ── TCK-2875 — les clés de TCK-2870, 2872 et 2893 (ADR-0110), lues par la fiche et la liste ──
+  /**
+   * TCK-2870 — la dernière visite terminée de ce client sur ce bien : son jour et le verdict de son
+   * compte rendu ; `null` sans visite. Au seul personnel de l'agence (mêmes lecteurs que `visits_on_property`).
+   */
+  last_visit_on_property?: { scheduled_at: string | null; report_verdict: 'interested' | 'thinking' | 'not_interested' | null } | null;
+  /** TCK-2870 — les autres demandes EN ATTENTE sur ce bien, au seul personnel. */
+  other_pending_on_property?: number;
+  /** TCK-2870 — les visites terminées du bien, au seul personnel. */
+  property_visits_count?: number;
+  /** TCK-2870 — le rang d'une offre parmi celles du bien (1 = la première). */
+  offer_rank?: number | null;
+  /** TCK-2870 — durée d'une candidature, en mois, et son renouvellement ; nulles hors candidature. */
+  term_months?: number | null;
+  renewable?: boolean | null;
+  /** TCK-2870 — la caution d'une candidature : en mois de loyer, et son montant (instantané). */
+  security_deposit_months?: number | null;
+  security_deposit_amount?: number | null;
+  advance_months_at_booking?: number | null;
+  agency_fee_months_at_booking?: number | null;
+  /** TCK-2870 — les conditions d'une offre. */
+  financing?: string | null;
+  signature_within_days?: number | null;
+  conditions?: string | null;
+  /** TCK-2870 — « À verser à l'entrée », DÉRIVÉ par l'API ; `null` hors candidature ou avant TCK-2870. */
+  entry_amount?: number | null;
+  /**
+   * TCK-2872 — la complétude du dossier ; `null` pour un séjour. `missing` : les codes des pièces
+   * manquantes, dans l'ordre de l'API (`DossierPiece`).
+   */
+  dossier?: { received: number; required: number; missing: DossierPiece[] } | null;
+  /** TCK-2893 — au seul personnel de l'agence : le garant déclaré et le revenu, MASQUÉ et en rapport au loyer. */
+  has_guarantor?: boolean;
+  guarantors?: { id: number; first_name: string | null; last_name: string | null; relationship_to_tenant: string | null }[];
+  /** Jamais affiché (ADR-0110 § 4) : la fiche dit le rapport au loyer, pas le montant. */
+  declared_monthly_income_masked?: string | null;
+  income_to_rent_ratio?: number | null;
+};
+
+/** TCK-2872 / TCK-2875 — une pièce du dossier d'une candidature ou d'une offre (`DossierPiece` côté API). */
+export type DossierPiece =
+  | 'identity'
+  | 'payslips'
+  | 'employment_certificate'
+  | 'guarantor_commitment'
+  | 'guarantor_identity'
+  | 'proof_of_funds'
+  | 'other';
+
+/** TCK-2872 / TCK-2875 — une pièce lue par `GET /api/bookings/{id}/dossier`. */
+export type PieceDuDossier = {
+  piece: DossierPiece;
+  required: boolean;
+  received: boolean;
+  received_at: string | null;
+  requested_at: string | null;
+  document: { id: number; name: string; type: string | null; created_at: string | null } | null;
+};
+
+/** TCK-2872 / TCK-2875 — `GET /api/bookings/{id}/dossier` → `data`. */
+export type DossierDeLaReservation = {
+  received: number;
+  required: number;
+  missing: DossierPiece[];
+  pieces: PieceDuDossier[];
 };

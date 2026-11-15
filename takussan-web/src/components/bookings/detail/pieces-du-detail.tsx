@@ -9,6 +9,7 @@ import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { buttonVariants } from '@/components/ui/button';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { formaterTelephone } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 import type { Booking } from '@/types/booking';
@@ -26,30 +27,61 @@ import { InitialesDuClient, useNomDuClient, VignetteDuBien } from '../liste/piec
 export function SectionDuTelephone({
   titre,
   compte,
+  action,
   children,
   className,
 }: {
   readonly titre: string;
   readonly compte?: number;
+  /** TCK-2875 — ce qui se lit à droite de l'intertitre (la complétude du dossier). */
+  readonly action?: ReactNode;
   readonly children: ReactNode;
   readonly className?: string;
 }) {
+  const intertitre = (
+    <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-surtitre text-muted-foreground">
+      {titre}
+      {compte !== undefined ? <span className="tabular-nums">{compte}</span> : null}
+    </h2>
+  );
   return (
     <section className={cn('border-t border-border px-4 py-4', className)}>
-      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-surtitre text-muted-foreground">
-        {titre}
-        {compte !== undefined ? <span className="tabular-nums">{compte}</span> : null}
-      </h2>
+      {action ? (
+        <div className="flex items-center justify-between gap-3">
+          {intertitre}
+          {action}
+        </div>
+      ) : (
+        intertitre
+      )}
       <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 /** Une carte titrée du bureau (`Carte` de la maquette). */
-export function CarteDuBureau({ titre, children, className }: { readonly titre: string; readonly children: ReactNode; readonly className?: string }) {
+export function CarteDuBureau({
+  titre,
+  action,
+  children,
+  className,
+}: {
+  readonly titre: string;
+  /** TCK-2875 — à droite du titre (la complétude du dossier). */
+  readonly action?: ReactNode;
+  readonly children: ReactNode;
+  readonly className?: string;
+}) {
   return (
     <section className={cn('rounded-xl border border-border bg-card', className)}>
-      <h2 className="truncate border-b border-border px-4 py-3 text-corps font-semibold">{titre}</h2>
+      {action ? (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <h2 className="truncate text-corps font-semibold">{titre}</h2>
+          {action}
+        </div>
+      ) : (
+        <h2 className="truncate border-b border-border px-4 py-3 text-corps font-semibold">{titre}</h2>
+      )}
       {children}
     </section>
   );
@@ -130,13 +162,43 @@ export function BlocQui({
   readonly large?: boolean;
 }) {
   const t = useTranslations('bookings.fiche');
+  const tVerdicts = useTranslations('compteRendu.verdicts');
+  const f = useFormatteurs();
   const nomDuClient = useNomDuClient();
   const nom = nomDuClient(b);
   const numero = b.customer?.phone ?? null;
   const joignable = isReachable(numero);
-  const faits = [b.customer?.occupation?.trim() || null, b.visits_on_property ? t('qui.visites', { n: b.visits_on_property }) : null].filter(
-    (f): f is string => !!f,
-  );
+  // TCK-2875 — une candidature dit ses revenus par leur RAPPORT au loyer (jamais le montant, ADR-0110
+  // § 4) et son garant ; la visite déjà faite se dit, datée, sous les gestes. Une clé non servie
+  // (le lecteur n'est pas du personnel de l'agence) ne dit rien.
+  const candidature = b.kind === 'application';
+  const derniere = b.last_visit_on_property ?? null;
+  const revenus =
+    candidature && b.income_to_rent_ratio !== undefined
+      ? b.income_to_rent_ratio === null
+        ? t('qui.revenusNonDeclares')
+        : t('qui.revenus', { rapport: f.nombre(b.income_to_rent_ratio, { maximumFractionDigits: 1 }) })
+      : null;
+  const garant = candidature && b.has_guarantor !== undefined ? t('qui.garant', { oui: b.has_guarantor ? 'oui' : 'non' }) : null;
+  const faits = [
+    b.customer?.occupation?.trim() || null,
+    revenus,
+    garant,
+    b.visits_on_property && !(candidature && derniere?.scheduled_at) ? t('qui.visites', { n: b.visits_on_property }) : null,
+  ].filter((x): x is string => !!x);
+  const jourDeLaVisite = derniere?.scheduled_at
+    ? (() => {
+        const j = f.date(derniere.scheduled_at, { dateStyle: undefined, weekday: 'short', day: 'numeric', month: 'short' });
+        return j.charAt(0).toUpperCase() + j.slice(1);
+      })()
+    : null;
+  const visite = jourDeLaVisite
+    ? derniere?.report_verdict
+      ? t('qui.visiteLeAvecVerdict', { jour: jourDeLaVisite, verdict: tVerdicts(derniere.report_verdict) })
+      : t('qui.visiteLe', { jour: jourDeLaVisite })
+    : b.visits_on_property
+      ? t('qui.visitesEnregistrees', { n: b.visits_on_property })
+      : null;
   return (
     <div data-slot="bloc-qui">
       <div className="flex items-center gap-3">
@@ -182,10 +244,9 @@ export function BlocQui({
           ) : null}
         </div>
       ) : null}
-      {b.visits_on_property ? (
-        <p className="mt-3 rounded-lg bg-muted/60 px-3 py-2.5 text-sm leading-snug">
-          <span className="font-medium">{t('qui.dejaVisite')}</span>{' '}
-          <span className="text-muted-foreground">{t('qui.visitesEnregistrees', { n: b.visits_on_property })}</span>
+      {visite ? (
+        <p data-slot="deja-visite" className="mt-3 rounded-lg bg-muted/60 px-3 py-2.5 text-sm leading-snug">
+          <span className="font-medium">{t('qui.dejaVisite')}</span> <span className="text-muted-foreground">{visite}</span>
         </p>
       ) : null}
     </div>

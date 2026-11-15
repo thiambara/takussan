@@ -34,6 +34,13 @@ const LIST_FIELDS: string[] = [
   // TCK-2579 / TCK-2594 — la nature et le prix affiché à la réservation (l'écart d'une offre).
   'kind',
   'list_price_at_booking',
+  // TCK-2875 — « Expire demain » lit `response_deadline`, que l'API ne calcule que sur toutes les
+  // colonnes de `BookingResource::CHAMPS_DE_L_ECHEANCE` (status, agency_id, created_at, ci-dessus) ;
+  // la caution en mois dit le détail d'une candidature (« Entrée 1er déc. · caution 2 mois »).
+  // `dossier` n'est pas une colonne : il sort sans être demandé, sa complétude seule (jamais les pièces).
+  'expires_at',
+  'expired_at',
+  'security_deposit_months',
 ];
 
 /** TCK-2594 — le client d'une ligne : son nom et, pour le personnel, son téléphone. */

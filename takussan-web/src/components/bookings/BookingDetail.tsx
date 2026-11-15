@@ -53,7 +53,6 @@ import {
   Citation,
   ComparaisonDeLOffre,
   DatesDuSejour,
-  HistoriqueDeLaReservation,
   JaugeDEncaissement,
   LigneCle,
   LigneDePaiement,
@@ -61,6 +60,8 @@ import {
   SectionDuTelephone,
   SuiteDuBail,
 } from './detail/pieces-du-detail';
+import { AutresCandidatures, Completude, PiecesDuDossier, useSyntheseDeLaCandidature } from './detail/dossier';
+import { HistoriqueDeLaFiche, type EvenementDeLHistorique } from './detail/historique';
 
 /**
  * Listes figées hors composant : `useCanAll` mémoïse sur la RÉFÉRENCE du
@@ -144,6 +145,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const bienEtQuartier = useBienEtQuartier();
   const nomDuClient = useNomDuClient();
   const telephone = useMatchesMedia(REQUETE_TELEPHONE);
+  const syntheseDe = useSyntheseDeLaCandidature();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [action, setAction] = useState<'confirm' | 'reject' | 'cancel' | null>(null);
   const bookingQuery = useBooking(bookingId);
@@ -379,6 +381,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     );
   })();
 
+  /** TCK-2875 — « 2 mois · 600 000 F » : la caution d'une candidature, en mois de loyer et en montant. */
+  const caution = [
+    booking.security_deposit_months != null ? tFiche('quoi.cautionMois', { n: booking.security_deposit_months }) : null,
+    booking.security_deposit_amount != null ? montant(booking.security_deposit_amount) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   /** QUOI : dans les mots de la nature, puis ce que toute demande porte (acompte, échéance, référence). */
   const lignesDuQuoi = (
     <dl className="divide-y divide-border">
@@ -389,6 +399,16 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         </LigneCle>
       ) : null}
       {nature === 'application' && booking.start_date ? <LigneCle cle={tFiche('quoi.entree')}>{jourEnClair(f, booking.start_date, true)}</LigneCle> : null}
+      {/* TCK-2875 (ADR-0110 § 1) — la durée, la caution et ce qui est à verser à l'entrée (dérivé par l'API). */}
+      {nature === 'application' && booking.term_months ? (
+        <LigneCle cle={tFiche('quoi.duree')}>{tFiche('quoi.dureeValeur', { n: booking.term_months, renouvelable: booking.renewable ? 'oui' : 'non' })}</LigneCle>
+      ) : null}
+      {nature === 'application' && caution ? <LigneCle cle={tFiche('quoi.caution')}>{caution}</LigneCle> : null}
+      {nature === 'application' && booking.entry_amount != null ? (
+        <LigneCle cle={tFiche('quoi.aVerser')}>
+          <span className="tabular-nums">{montant(booking.entry_amount)}</span>
+        </LigneCle>
+      ) : null}
       {nature === 'autre' ? (
         <>
           {booking.start_date && booking.end_date ? (
@@ -429,6 +449,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           { cle: tFiche('suiteBail.locataire'), valeur: nom },
           { cle: tFiche('suiteBail.bien'), valeur: titreDuBien },
           ...(m.montant !== null ? [{ cle: tFiche('suiteBail.loyer'), valeur: tFiche('quoi.loyer', { montant: montant(m.montant) }) }] : []),
+          // TCK-2875 — la caution que le bail reprend (TCK-2894).
+          ...(booking.security_deposit_amount != null ? [{ cle: tFiche('suiteBail.caution'), valeur: montant(booking.security_deposit_amount) }] : []),
           ...(booking.start_date ? [{ cle: tFiche('suiteBail.debut'), valeur: f.date(booking.start_date, { dateStyle: undefined, day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
         ]}
       />
@@ -468,7 +490,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const remboursement =
     booking.refund_status != null ? <BookingRefundPanel booking={booking} locale={locale} isCustomer={isCustomer} /> : null;
 
-  const historique = <HistoriqueDeLaReservation lignes={lignesDeLHistorique(booking, nature, nom, f, tFiche, t)} />;
+  const historique = (
+    <HistoriqueDeLaFiche booking={booking} evenements={evenementsDeLHistorique(booking, nature, nom, tFiche, t)} personnel={personnel} formater={(at) => instantEnClair(f, at)} />
+  );
+
+  /**
+   * TCK-2875 (ADR-0110 § 2) — le dossier d'une candidature ou d'une offre : sa complétude, puis ses
+   * pièces (lues seulement là, jamais par la liste). « Ouvrir » et « Demander » au seul personnel.
+   */
+  // Une CANDIDATURE seulement : l'offre (maquette « Offre ») n'a pas de dossier à l'écran — TCK-2876.
+  const dossier = nature === 'application' && booking.dossier && booking.dossier.required > 0 ? booking.dossier : null;
+  const completude = dossier ? <Completude recues={dossier.received} total={dossier.required} /> : null;
+  const piecesDuDossier = dossier ? <PiecesDuDossier bookingId={booking.id} personnel={personnel} maintenant={maintenant} /> : null;
 
   const avisEtPaiementDuClient = (
     <>
@@ -616,6 +649,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {lignesDuQuoi}
           {(nature !== 'stay' || isCustomer) && message ? <div className="mt-3">{message}</div> : null}
         </SectionDuTelephone>
+        {dossier ? (
+          <SectionDuTelephone titre={tFiche('sections.dossier')} action={completude}>
+            {piecesDuDossier}
+          </SectionDuTelephone>
+        ) : null}
         {avisEtPaiementDuClient}
         {avecPaiements ? (
           <SectionDuTelephone titre={tFiche('sections.paiements')} compte={paiements.length}>
@@ -668,6 +706,43 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
       </CarteDuBureau>
     ) : null;
 
+  /**
+   * TCK-2875 — la décision d'une CANDIDATURE à décider (maquette e1, à droite) : la synthèse dérivée,
+   * « N autre(s) candidature(s) sur ce bien · Comparer », puis Refuser / Accepter. Jamais au candidat :
+   * le dossier lui est servi, la synthèse de sa propre candidature ne lui est pas destinée.
+   */
+  const synthese = nature === 'application' && !isCustomer ? syntheseDe(booking) : null;
+  const autresEnAttente = (booking.other_pending_on_property ?? 0) > 0;
+  const decisionDeLaCandidature =
+    nature === 'application' && booking.status === 'pending' && !isCustomer && (synthese || autresEnAttente || canConfirm || canReject) ? (
+      <CarteDuBureau titre={tFiche('sections.decision')}>
+        <div data-slot="decision-de-la-candidature" className="p-4">
+          {synthese ? <p className="text-sm leading-snug text-foreground">{synthese}</p> : null}
+          <AutresCandidatures b={booking} />
+          {canConfirm || canReject ? (
+            <div data-slot="gestes-de-la-decision" className={cn('grid grid-cols-2 gap-2', (synthese || autresEnAttente) && 'mt-4')}>
+              {canReject ? (
+                <Button type="button" variant="outline" className="w-full" onClick={() => setAction('reject')}>
+                  {t('actions.reject')}
+                </Button>
+              ) : null}
+              {canConfirm ? (
+                <Button type="button" className={cn('w-full', !canReject && 'col-span-2')} onClick={() => setAction('confirm')}>
+                  {t('actions.accept')}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </CarteDuBureau>
+    ) : null;
+
+  const carteDossier = dossier ? (
+    <CarteDuBureau titre={tFiche('sections.dossier')} action={completude}>
+      <div className="px-4 py-1">{piecesDuDossier}</div>
+    </CarteDuBureau>
+  ) : null;
+
   const carteQuoi = (
     <CarteDuBureau titre={tFiche('sections.quoi')}>
       <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2">
@@ -702,7 +777,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   // L'ordre de la maquette : une offre se lit d'abord (Quoi), un séjour par ses paiements, une
   // candidature par la personne (Qui).
   const gauche =
-    nature === 'offer' ? [carteQuoi, carteQui, cartePaiements] : nature === 'stay' ? [carteQuoi, cartePaiements, carteQui] : [carteQui, carteQuoi, cartePaiements];
+    nature === 'offer'
+      ? [carteQuoi, carteQui, carteDossier, cartePaiements]
+      : nature === 'stay'
+        ? [carteQuoi, cartePaiements, carteQui]
+        : [carteQui, carteQuoi, carteDossier, cartePaiements];
 
   const enTeteComplet = booking.status !== 'pending';
   /** Au bureau, la carte « Autres gestes » porte ce que l'en-tête ne porte pas : l'encaissement hors séjour, et « Annuler » d'une demande à décider. */
@@ -752,6 +831,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         <div className="min-w-0 space-y-5">
           {suiteDuBail}
           {decisionDeLOffre}
+          {decisionDeLaCandidature}
           {gestesDuBureau.length > 0 ? (
             <CarteDuBureau titre={tFiche('sections.autresGestes', { n: gestesDuBureau.length })}>
               <div className="divide-y divide-border px-4 py-1">{gestesDuBureau}</div>
@@ -807,15 +887,14 @@ function GesteDuPaiement({ p, providers }: { readonly p: BookingPayment; readonl
  * L'historique, du plus récent au plus ancien : la demande (déposée par le client, ou saisie par le
  * personnel), sa confirmation, l'acompte réglé, l'annulation, l'expiration.
  */
-function lignesDeLHistorique(
+function evenementsDeLHistorique(
   booking: Booking,
   nature: Nature,
   nom: string,
-  f: Formatteurs,
   tFiche: ReturnType<typeof useTranslations<'bookings.fiche'>>,
   t: ReturnType<typeof useTranslations<'bookings.detail'>>,
-): { quoi: string; quand: string; cle: string }[] {
-  const evenements: { quoi: string; at: string; cle: string }[] = [];
+): EvenementDeLHistorique[] {
+  const evenements: EvenementDeLHistorique[] = [];
   if (booking.created_at) {
     const saisie = booking.recorded_by_staff && booking.created_by?.name;
     evenements.push({
@@ -833,9 +912,8 @@ function lignesDeLHistorique(
   if (cancelledAt) evenements.push({ cle: 'annulee', at: cancelledAt, quoi: t('timeline.cancelled') });
   const expiredAt = booking.expired_at ?? booking.expires_at;
   if (expiredAt && booking.status === 'expired') evenements.push({ cle: 'expiree', at: expiredAt, quoi: t('timeline.expired') });
-  return evenements
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-    .map((e) => ({ cle: e.cle, quoi: e.quoi, quand: instantEnClair(f, e.at) }));
+  // Le tri et la mise en forme : `HistoriqueDeLaFiche`, qui y mêle les visites du client (TCK-2875).
+  return evenements;
 }
 
 function CustomerPayCta({

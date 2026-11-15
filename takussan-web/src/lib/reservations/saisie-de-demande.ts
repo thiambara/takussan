@@ -102,6 +102,9 @@ const CHAMP_DE_L_API: Readonly<Record<string, ChampDeLaDemande>> = {
 export const CHAMP_DU_CODE: Readonly<Record<string, ChampDeLaDemande>> = {
   'booking.customer_required': 'client',
   'booking.kind_mismatch': 'nature',
+  // TCK-2875 — TCK-2870 : un champ que la nature n'admet pas (une caution sur une offre, un
+  // financement sur une candidature) ; l'erreur se pose sur la nature choisie.
+  'booking.field_not_for_kind': 'nature',
 };
 
 /** Le code d'un refus `{code}` de l'API, s'il y en a un. */

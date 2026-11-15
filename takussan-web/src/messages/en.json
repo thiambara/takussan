@@ -11897,7 +11897,9 @@
         "past": "Past",
         "cancelled": "Cancelled",
         "all": "All"
-      }
+      },
+      "filtreType": "Type",
+      "typesTous": "All"
     },
     "detail": {
       "error": "This visit could not be loaded.",
@@ -11918,7 +11920,7 @@
         },
         "noShow": {
           "title": "Visit marked as no-show",
-          "description": "The visitor did not show up: the visit is not counted among completed visits."
+          "description": "The visitor has been notified, with a way to book another visit. It is not counted among completed visits."
         },
         "cancelled": {
           "title": "Visit cancelled",
@@ -12119,7 +12121,8 @@
         "evening": "evening"
       },
       "agentIndisponible": "This viewing’s agent is no longer available: reassign it",
-      "reattribuer": "Reassign"
+      "reattribuer": "Reassign",
+      "absentPrevenu": "The visitor has been notified, with a way to book another visit."
     },
     "fiche": {
       "titre": "Visit",
@@ -12157,7 +12160,9 @@
       },
       "lieu": {
         "voirLeBien": "View the property",
-        "ville": "{quartier}, {ville}"
+        "ville": "{quartier}, {ville}",
+        "vignette": "Map of the place — open directions",
+        "attribution": "© OpenStreetMap"
       },
       "visiteur": {
         "voirSaFiche": "View their record"
@@ -12178,7 +12183,7 @@
         "titre": "Visit in progress",
         "progression": "{n} min of {total}",
         "terminer": "“End the visit” opens the report: three taps, thirty seconds.",
-        "absent": "“No-show” records that {prenom} did not come.",
+        "absent": "“No-show” notifies {prenom} and offers to reschedule.",
         "apres": "The planned end time has passed",
         "apresDetail": "End the visit to write the report, or record {prenom} as a no-show.",
         "absentDes": "“No-show” is possible from {heure}, the visit time."
@@ -12220,7 +12225,8 @@
         "commencer": "Start",
         "absent": "No-show",
         "terminer": "End the visit",
-        "commencerDes": "“Start” is available from {heure}, 30 min before the visit."
+        "commencerDes": "“Start” is available from {heure}, 30 min before the visit.",
+        "enRouteBulle": "Send on WhatsApp: {message}"
       },
       "autreHeure": {
         "titre": "Choose another time",

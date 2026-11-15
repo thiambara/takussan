@@ -239,6 +239,23 @@ describe('TCK-2580 — les erreurs 422 sur leur champ', () => {
     const nature = await within(d).findByText(/Cette nature ne correspond pas au bien/);
     expect(nature.parentElement).toHaveTextContent('Nature');
   });
+
+  // TCK-2875 — e8 : le dossier existe depuis TCK-2872 ; le code neuf de TCK-2870 se lit sous « Nature ».
+  it('TCK-2875 (AC7) — la feuille dit « Le client sera prévenu et pourra compléter son dossier. »', async () => {
+    monter(<SaisirUneDemande open onOpenChange={() => {}} client={BINETA} bien={{ id: 40, titre: 'Studio meublé · Mermoz' }} />);
+    const d = await feuille();
+    expect(within(d).getByText('Le client sera prévenu et pourra compléter son dossier.')).toBeInTheDocument();
+  });
+
+  it('TCK-2875 — `booking.field_not_for_kind` se pose sous « Nature », en texte du front', async () => {
+    const user = userEvent.setup();
+    reponseDuPost = { status: 422, corps: { code: 'booking.field_not_for_kind', message: '…' } };
+    monter(<SaisirUneDemande open onOpenChange={() => {}} client={BINETA} bien={{ id: 41 }} />);
+    const d = await feuille();
+    await user.click(await within(d).findByRole('button', { name: 'Enregistrer l’offre' }));
+    const nature = await within(d).findByText(/ne vaut pas pour cette nature de demande/);
+    expect(nature.parentElement).toHaveTextContent('Nature');
+  });
 });
 
 describe('TCK-2580 — l’entrée, au personnel seulement (AC4)', () => {

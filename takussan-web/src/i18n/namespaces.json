@@ -176,6 +176,7 @@
     ],
     "(dashboard)/app/bookings": [
       "bookings",
+      "compteRendu",
       "console",
       "documents",
       "payments",
