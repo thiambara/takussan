@@ -115,6 +115,14 @@ function detailDuLocataire(inventory: Inventory, t: Traducteur): string | null {
 
 /** TCK-2648 — qui a signé pour le bailleur (« par Sokhna Sène, au titre du mandat »), nommé. */
 function detailDuBailleur(inventory: Inventory, t: Traducteur): string | null {
+  // TCK-2914 — recueillie sur place par son code (TCK-2913) : la voie se dit comme celle du locataire.
+  if (inventory.owner_signature_method === 'onsite_otp') {
+    const agent = inventory.owner_signed_via?.full_name;
+    const numero = inventory.owner_otp_destination;
+    if (agent && numero) return t('surPlaceParEtNumero', { agent, numero });
+    if (numero) return t('surPlaceNumero', { numero });
+    return t('surPlace');
+  }
   const par = inventory.owner_signed_by?.full_name;
   if (!par || inventory.owner_signed_on_behalf_of_user_id == null) return null;
   return t('parAuTitreDuMandat', { nom: par });

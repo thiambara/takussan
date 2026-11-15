@@ -43,6 +43,15 @@ describe('TCK-2648 — les appels de la signature sur place', () => {
     expect(reponse.data.destination).toBe('+221 77 ••• 18 90');
   });
 
+  it('TCK-2914 — `party=landlord` envoie le code au bailleur ; sans argument, le corps reste vide', async () => {
+    const { result } = renderHook(() => useEnvoyerCodeSurPlace(19), { wrapper: enveloppe });
+    await result.current.mutateAsync({ party: 'landlord' });
+    await result.current.mutateAsync();
+    expect(mockApiRequest.mock.calls[0][0]).toBe('/api/inventories/19/sign/onsite-code');
+    expect(corps(mockApiRequest.mock.calls[0])).toEqual({ party: 'landlord' });
+    expect(corps(mockApiRequest.mock.calls[1])).toEqual({});
+  });
+
   it('sur place, `sign` porte le code ; depuis le compte, le corps est inchangé', async () => {
     const { result } = renderHook(() => useSignInventory(19), { wrapper: enveloppe });
     await result.current.mutateAsync({ role: 'tenant', signature: 'data:image/png;base64,T', code: '123456' });

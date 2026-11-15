@@ -73,4 +73,19 @@ Après la fin : un message dit à qui le PDF part (« Le PDF part à Aminata Dio
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (branche `feat/audit-manques-2026-11-15`).
+
+**Prémisse re-mesurée — écarts :**
+- La route du code est `POST /api/inventories/{id}/sign/onsite-code` (TCK-2646/2913), pas `…/onsite-code` : `party=landlord` dans le corps.
+- **AC3 n'avait aucun signal côté front** : `can_sign_as` rendait `landlord_onsite` sans regarder le téléphone (seul l'envoi rendait 422 `landlord_without_phone`), et `landlord` n'expose qu'un id et un nom. Corrigé à la source : `InventoryResource::canSignAs()` n'ajoute `landlord_onsite` que si le compte du bailleur porte un numéro **vérifié** (même condition que le 422). Aucune clé de ressource neuve. Deux attentes de `InventorySignatureTest` / `InventoryOnsiteSignatureTest` (bailleurs de fixture sans numéro) mises à jour.
+- La fiche (`InventorySignatures`) disait « par X, au titre du mandat » ou rien pour une signature du bailleur recueillie par code : elle la dit désormais comme celle du locataire (« Signé sur place devant …, avec le code reçu au … »).
+
+**Décisions (mineures, tranchées) :**
+- Le bloc du code du locataire est devenu `SignatureParCode` (partie `tenant` | `landlord`), réutilisé tel quel pour le bailleur : tracé + six cases + « Renvoyer le code », le tracé et le code partent ensemble (`role=landlord`, `signature`, `code`). Le corps de l'envoi du locataire reste vide (inchangé).
+- Toucher « Lui envoyer un code par SMS » dans la carte de l'agence envoie le code tout de suite (`party=landlord`) et bascule la carte sur « Bailleur · {nom} » ; « Signer au titre du mandat » ramène à la carte de l'agence. Avec `landlord_onsite` sans `landlord`, la carte est d'emblée celle du bailleur (rien ne part avant le geste).
+- Signée par code, la carte dit « Bailleur · {nom} — Signé sur place à …, avec le code reçu par SMS » (plus « Agence, pour le bailleur »).
+- AC4 : signé, la ligne « Le PDF part à A et à B. » remplace « Il manque … » (téléphone : au-dessus du bouton ; bureau : sous la mention). Noms = `pdf_sent_to` une fois `pdf_sent_at` posé ; **avant** que la tâche d'envoi ait tourné (elle suit la transaction), les parties nommées par la fiche (`tenant`, `landlord`) — un locataire sans compte y serait nommé alors qu'il ne recevra pas l'avis : accepté, le libellé est au présent et la ligne se corrige dès la relecture. Personne à aviser : « le PDF se télécharge depuis la fiche ». Pas de sondage.
+
+**Tests :** API `InventoryLandlordOnsiteCodeTest` (+1, `tck_2914`), `InventorySignatureTest`, `InventoryOnsiteSignatureTest` — 70 verts. Front : `RecapEtSignatures.tck-2648.test.tsx` (+10 tests TCK-2914, « Terminer » renommé), `inventory.tck-2648.test.tsx` (+1, corps `party`), `InventoryDetail.fiche.tck-2648.test.tsx` (+1). Ablations une à une (rouge puis restauré, md5 identique) : garde du téléphone (API), corps `party`, envoi `party` du bloc, lien sans `landlord_onsite`, ligne d'envoi du PDF, carte signée par code, détail de la fiche, id des cases par partie.
+
+**Non mesuré :** AC5 (vignettes e1/e3 sur un état des lieux semé avec photos) et AC-F2 à F6 (relevés de pixels) — les relevés au navigateur sont suspendus pour ce lot. Au code : e1 et e3 rendent `preview_url ?? url` (`EcranDUnePiece` l. 328, 374, 456), comme les réserves du récapitulatif (testé). Fiche `TCK-2648.json` : l'alias et les deux écarts levés retirés, la ligne d'envoi ajoutée aux écarts acceptés.

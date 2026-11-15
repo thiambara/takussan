@@ -157,7 +157,11 @@ class InventoryResource extends BaseResource
         // POUR SON COMPTE (`landlord`) peut aussi recueillir SA signature : les deux rôles coexistent.
         if (! $this->owner_signed
             && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
-            && $this->signatures->canSignOnsite($this->resource, $this->viewer, InventorySignRequest::ROLE_LANDLORD)) {
+            && $this->signatures->canSignOnsite($this->resource, $this->viewer, InventorySignRequest::ROLE_LANDLORD)
+            // TCK-2914 — le code ne peut partir qu'au numéro VÉRIFIÉ du compte du bailleur (même condition
+            // que le 422 `landlord_without_phone` de l'envoi) : sans lui, « Lui envoyer un code par SMS »
+            // n'est pas offert.
+            && $this->landlordHasVerifiedPhone()) {
             $roles[] = InventorySignatureService::ROLE_LANDLORD_ONSITE;
         }
 
@@ -220,6 +224,14 @@ class InventoryResource extends BaseResource
     private static function personne(?User $user): ?array
     {
         return $user === null ? null : ['id' => (int) $user->id, 'full_name' => $user->nameWithoutContact()];
+    }
+
+    /** TCK-2914 — le compte du bailleur du bail porte-t-il un numéro vérifié (où le code partirait) ? */
+    private function landlordHasVerifiedPhone(): bool
+    {
+        $landlord = $this->lease?->landlord;
+
+        return $landlord !== null && is_string($landlord->phone) && $landlord->phone !== '' && $landlord->phone_verified_at !== null;
     }
 
     /**

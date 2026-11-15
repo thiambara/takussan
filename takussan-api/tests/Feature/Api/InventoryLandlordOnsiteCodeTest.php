@@ -177,6 +177,22 @@ class InventoryLandlordOnsiteCodeTest extends TestCase
         $this->assertNotContains('landlord_onsite', $roles);
     }
 
+    /**
+     * TCK-2914 — « Lui envoyer un code par SMS » n'est offert que si le code peut partir : un bailleur
+     * sans numéro VÉRIFIÉ sur son compte (le 422 `landlord_without_phone` de l'envoi) n'ouvre pas la voie.
+     */
+    public function test_tck_2914_sans_numero_verifie_du_bailleur_can_sign_as_ne_rend_pas_landlord_onsite(): void
+    {
+        $this->owner->forceFill(['phone_verified_at' => null])->save();
+        Sanctum::actingAs($this->agent);
+        $roles = $this->getJson("/api/inventories/{$this->inventory->id}")->assertOk()->json('data.can_sign_as');
+        $this->assertNotContains('landlord_onsite', $roles);
+
+        $this->owner->forceFill(['phone' => null, 'phone_verified_at' => now()])->save();
+        $roles = $this->getJson("/api/inventories/{$this->inventory->id}")->assertOk()->json('data.can_sign_as');
+        $this->assertNotContains('landlord_onsite', $roles);
+    }
+
     // ─── AC4 ─────────────────────────────────────────────────────────────────────────────────
 
     public function test_ac4_un_code_faux_est_refuse_et_ne_signe_rien(): void
