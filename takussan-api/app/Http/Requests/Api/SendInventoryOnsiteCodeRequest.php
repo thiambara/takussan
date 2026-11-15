@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\InventorySignRequest;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
@@ -11,7 +11,7 @@ use Illuminate\Validation\Rule;
  * qui le code part, `tenant` (absent : l'appel d'avant l'amendement) ou `landlord`. L'autorisation est
  * jugée par `InventorySignatureService::sendOnsiteCode()`, qui a le contexte de l'état des lieux.
  */
-class SendInventoryOnsiteCodeRequest extends FormRequest
+class SendInventoryOnsiteCodeRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
