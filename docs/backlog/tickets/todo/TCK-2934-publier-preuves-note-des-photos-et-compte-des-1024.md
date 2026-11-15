@@ -77,4 +77,61 @@ Le particulier qui arrive sur /publish lit d'emblée pourquoi publier ici, sait 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté (agent, vague 92).**
+
+**La promesse « 0 F de commission » / « Gratuit, sans commission » : tenue, donc écrite.** Re-mesuré dans l'API :
+- publier ne débite rien : `PropertyController::store` ne lit que le quota (`QuotaResolver::assertCanCreateActiveListing`,
+  illimité sans abonnement) ; les seuls débits de crédits du dépôt sont ceux du Booster (`PropertyBoostController`,
+  `BoostPurchaseService`, `BoostLifecycle`), geste facultatif d'après la publication ;
+- `/publish` ne publie que dans un espace particulier (`preparerLEspace` de `PublierSansCompte` : aucun espace →
+  `auto-onboard` ; un seul particulier → actif ; sinon l'annonce part vers l'assistant connecté) ;
+  `HostIndividualOnboardingService` / `DemarrageDeLEspace` n'attachent aucun abonnement, et un espace sans
+  abonnement a 0 % de commission de plateforme (`QuotaResolver::effectivePlatformFeePctForAgency`, figé au paiement
+  par `PaymentPlatformFeeObserver`). Les abonnements ne naissent que de la main du super-admin
+  (`AgencySubscriptionController::store`) ou du passage en agence (`AgencyUpgradeReviewService`, qui rend l'espace
+  `standard`).
+- Écart de prémisse (TCK-2603, TCK-2601 ratifiés le 2026-11-13) : « la commission dépend du plan de l'espace qui
+  publiera, inconnu avant le code » ne vaut pas pour `/publish`, qui ne publie jamais dans une agence. Résidu, sans
+  effet sur la publication : `AssignAgencySubscriptionRequest` n'interdit pas d'abonner un espace `individual` (le
+  super-admin pourrait lui poser 3 %, qui porterait sur les loyers encaissés, pas sur la publication). Le motif est
+  écrit dans l'en-tête de `PreuvesDuDepart` : si un abonnement payant devenait automatique pour les particuliers, les
+  deux libellés seraient à retirer.
+
+**Ce qui est livré.**
+- AC1 — `PreuvesDuDepart` n'est jamais absente : « 0 F de commission » (lucide-tag) toujours ; le chiffre des recherches
+  en première colonne (grille `1.25fr / 1fr`, maquette) au-dessus du seuil. Sous le seuil, en échec, en attente : la
+  commission seule. « 0 F » porte une insécable (U+00A0).
+- AC2 — `ModeAnonyme.notePhotos` (rendue sous le dépôt de l'étape photos, `/publish` seulement) : « Vos photos restent
+  sur ce téléphone… » sous `lg`, « … dans ce navigateur… » dès `lg` — la bascule de l'état du brouillon sous la barre.
+  Décision : en mémoire (stockage refusé ou plein), la note ne paraît pas — rien n'est gardé, elle mentirait ; l'état
+  du brouillon le dit déjà.
+- AC3 — trois assurances au panneau (ordre de la maquette : mot de passe, gratuit, retirable).
+- AC4 — `usePanneauDeBureau` lit la colonne cible : dans le cadre d'entrée (`data-cadre-d-entree`), le panneau dès
+  `REQUETE_DU_PANNEAU_D_ENTREE` = 1024 ; `WizardShell` cache l'étape et le pied et montre la colonne au même seuil
+  (`lg:` dans le cadre, `xl:` hors cadre). `/app/properties/new` garde 1280 (décision : le ticket ne porte que e6/e7
+  de `/publish`). Sous 1024, la `FeuilleDuBas` d'avant (panneau latéral dès `md`, ADR-0106 § 4).
+- AC5b — `ModeAnonyme.aideDuQuartier` → `StepLieu` → `ChampsLieu.aideDuQuartier` : visible avant toute saisie, tient
+  lieu de l'indice du quartier neuf (même message), cède la place à l'erreur (la maquette rend l'une ou l'autre) ;
+  `aria-describedby` suit. Sans la prop, comportement d'avant.
+- AC5 / AC-F1 — fiches : TCK-2600 (4 `ecarts_ouverts` passés en `ecarts_resolus` avec renvoi à TCK-2819 — les trois du
+  ticket, plus « la colonne d'aperçu y 104 → 93,6 » qui « suivait l'écart des étapes » et est accepté dans la fiche de
+  TCK-2819), TCK-2601 (assurances), TCK-2603 (« 0 F de commission »), TCK-2819 (aide du quartier et note des photos).
+
+**Registre.** La maquette tutoie (« Tes photos », « Écris-le ») ; `/publish` vouvoie partout (`publishRedirect.sansCompte`) :
+vouvoiement (« Vos photos… », « Écrivez-le… »), comme le brief l'impose.
+
+**Non mesuré.** AC6 et AC-F2 (navigateur, `fidelite compare`) : interdits par le brief de la vague (le front servi
+tourne sur un autre arbre). AC6 lu dans le code : `AnnonceEnLigne` rend la carte et la ligne « Booster » si
+`boost.spend` et en ligne, rien de public en `pending_review` (titre « en vérification ») — couvert par
+`AnnonceEnLigne.tck-2602` et `en-ligne/page.tck-2602`. Un espace particulier neuf a `boost.spend` : `HostIndividualOnboardingService`
+crée un `AgencyAdminProfile`, dont le rôle système reçoit `Capability::agencyAssignable()` (`SystemRoleCapabilities::agencyAdmin`),
+qui comprend `BoostSpend` (`Capability.php`, commentaire du cas). Rien à corriger.
+
+**Tests.** Neufs : `PublierSansCompte.manques.tck-2934`, `CadreDeLaFeuille.seuil.tck-2934`. Mis à jour (ils
+affirmaient l'ancien comportement) : `PreuvesDuDepart.tck-2603`, `PublierSansCompte.preuves.tck-2603`,
+`PropertyWizard.panneau.tck-2601` (seuil d'entrée, classes `lg:`, trois assurances), `PropertyWizard.google.tck-2777`
+(requête du panneau d'entrée). 33 fichiers voisins (publication, PropertyWizard*, ChampsLieu, WizardShell*) : 363 verts.
+Ablations, une à une : `PreuvesDuDepart` d'avant → 5 rouges ; `CadreDeLaFeuille` d'avant → 2 ; `WizardShell` d'avant →
+1 ; `PublierSansCompte` sans note ni aide → 2 ; `FeuilleSansCompte` à deux assurances → 1 ; restaurés, md5 vérifiés.
+`tsc --noEmit` propre (code 0), ESLint propre, `check:i18n` et tous les `check:*` du front verts, gardes racine vertes,
+`check-backlog` vert, `promesses-de-delai` vert (aucun délai écrit).

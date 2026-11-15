@@ -291,39 +291,49 @@
       "motif": "la note est rendue dès l'ouverture de /publish, avant toute réponse : elle dit où le brouillon sera gardé (et, en repli, qu'il ne l'est pas — ADR-0093). La maquette ne l'affiche qu'à partir du lieu (a-1), alors même que a-0 a déjà « Louer » et « Studio » choisis. La n'afficher qu'après la première réponse ne rendrait pas a-0 conforme"
     },
     {
+      "ecran": "a-5 (téléphone, bureau)",
+      "element": "geste final",
+      "propriete": "« Publier l’annonce » au lieu de « Publier »",
+      "proposition": "garder « Publier l’annonce »",
+      "motif": "libellé de l'assistant partagé (`finishLabel`), repris par la feuille de compte (TCK-2601) : « Publier » seul ne dit pas quoi"
+    }
+  ],
+  "ecarts_resolus": [
+    {
       "ecran": "a-0, a-2, a-5 (bureau)",
       "element": "« Aperçu de l’annonce », « Ce que les visiteurs verront » (et toute la colonne d'aperçu)",
       "propriete": "y 104 → 93,6",
       "proposition": "suit l'écart ouvert des étapes",
-      "motif": "même règle des deux côtés : la colonne est collante à 104 px du haut de la page (`top-[calc(6.5rem-var(--spacing)*16)]` sous la barre de 57,6). Collée, elle ne descend à 104 que si la colonne de la question est plus haute qu'elle ; c'est le cas dans la maquette sur a-0, a-2 et a-5, pas dans le produit, dont les étapes (partagées, ci-dessous) sont plus courtes. Conforme sur a-1, a-3 et a-4"
+      "motif": "même règle des deux côtés : la colonne est collante à 104 px du haut de la page (`top-[calc(6.5rem-var(--spacing)*16)]` sous la barre de 57,6). Collée, elle ne descend à 104 que si la colonne de la question est plus haute qu'elle ; c'est le cas dans la maquette sur a-0, a-2 et a-5, pas dans le produit, dont les étapes (partagées, ci-dessous) sont plus courtes. Conforme sur a-1, a-3 et a-4",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2934 (AC5) — suivait l'écart des étapes, fermé par TCK-2819 : y 93,6 sur a-0 / a-2 accepté (même mécanisme collant que la maquette) — fiche TCK-2819.json, ecarts_acceptes « la colonne d’aperçu »"
     },
     {
       "ecran": "a-0 à a-5 (téléphone et bureau)",
       "element": "le contenu des six étapes (`StepBien`, `ChampsLieu`, `StepCaracteristiques`, `StepPrix`, `MediaDropzone`, finition)",
       "propriete": "bureau 1440 : 47 · 34 · 43 · 33 · 16 · 24 lignes (a-0 à a-5) ; téléphone : 43 · 24 · 32 · 33 · 20 · 15",
       "proposition": "ticket de suite, au périmètre à trancher",
-      "motif": "ces étapes sont celles de `/app/properties/new` (un seul assistant, AC4 : mêmes champs pour le même couple) : les redessiner d'après `app-entree-publier` change aussi l'assistant connecté, que la maquette ne couvre pas. Exemples : cartes du contrat et des types, région/ville/quartier en grille, « Utiliser ma position » et « Placer sur la carte » en pastilles, loyer + « Par Mois/Semaine/Jour/An » au lieu de Prix + Fréquence, « Total à l'entrée », dépôt des photos et « Couverture », apostrophes droites des libellés partagés (« Coût d'entrée », « Titre de l'annonce »)"
+      "motif": "ces étapes sont celles de `/app/properties/new` (un seul assistant, AC4 : mêmes champs pour le même couple) : les redessiner d'après `app-entree-publier` change aussi l'assistant connecté, que la maquette ne couvre pas. Exemples : cartes du contrat et des types, région/ville/quartier en grille, « Utiliser ma position » et « Placer sur la carte » en pastilles, loyer + « Par Mois/Semaine/Jour/An » au lieu de Prix + Fréquence, « Total à l'entrée », dépôt des photos et « Couverture », apostrophes droites des libellés partagés (« Coût d'entrée », « Titre de l'annonce »)",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2934 (AC5) — fait par TCK-2819, lots 2 et 3 (contenu des six étapes au dessin de la maquette) — fiche TCK-2819.json, notes et ecarts_acceptes"
     },
     {
       "ecran": "a-0 à a-5 (bureau)",
       "element": "la colonne d'aperçu : carte (`ApercuAnnonce`) et « Pour publier » (`ListePourPublier`)",
       "propriete": "bureau 1440 : 21 · 19 · 21 · 21 · 19 · 21 lignes ; « Pour publier » 12,6 px au lieu de 15 / 600, notes « en cours », « facultatif », « à la fin » dans le libellé (« · en cours ») au lieu d'alignées à droite, puce 20 px ; carte : pastille « En location », « Vos photos viendront ici », titre, lieu, prix",
       "proposition": "ticket de suite, avec le précédent",
-      "motif": "composants partagés avec la colonne d'aperçu de `/app/properties/new` ; même question de périmètre que les étapes"
+      "motif": "composants partagés avec la colonne d'aperçu de `/app/properties/new` ; même question de périmètre que les étapes",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2934 (AC5) — fait par TCK-2819, lot 1 (`CarteApercu`, `ListePourPublier`, `BarreApercu`) — fiche TCK-2819.json"
     },
     {
       "ecran": "a-0 à a-5 (téléphone)",
       "element": "pied de l'assistant au téléphone (segments, « Précédent », « Continuer »), bandeau d'aperçu",
       "propriete": "10 à 20 lignes par écran : pied 98 px au lieu de 117, « Continuer » 144 × 44 au lieu de 172 × 48 (16 px / 600), « Précédent » 14 px / 500",
       "proposition": "ticket de suite, avec les précédents",
-      "motif": "le cadre d'entrée de cette livraison ne s'applique que dès `lg` (le `GabaritBureau` de la maquette) ; au téléphone, le pied de `WizardShell` est celui de `/app/properties/new`. Le `PiedAssistant` de la maquette (gestes de 48) est à porter avec les étapes"
-    },
-    {
-      "ecran": "a-5 (téléphone, bureau)",
-      "element": "geste final",
-      "propriete": "« Publier l’annonce » au lieu de « Publier »",
-      "proposition": "garder « Publier l’annonce »",
-      "motif": "libellé de l'assistant partagé (`finishLabel`), repris par la feuille de compte (TCK-2601) : « Publier » seul ne dit pas quoi"
+      "motif": "le cadre d'entrée de cette livraison ne s'applique que dès `lg` (le `GabaritBureau` de la maquette) ; au téléphone, le pied de `WizardShell` est celui de `/app/properties/new`. Le `PiedAssistant` de la maquette (gestes de 48) est à porter avec les étapes",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2934 (AC5) — fait par TCK-2819, lot 1 (le pied du téléphone de `WizardShell` sous `lg`, aux deux entrées) — fiche TCK-2819.json"
     }
   ]
 }
