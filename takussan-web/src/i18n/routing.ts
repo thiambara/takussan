@@ -123,11 +123,13 @@ const MOTIF_METADONNEES_NEXT = /^(?:icon|apple-icon|opengraph-image|twitter-imag
  * `/fr/…` — un 404 sur ce fichier, visible dès qu'on l'ajoute à `public/` — là où l'ancienne forme
  * coûtait silencieusement des pages publiques.
  *
+ * TCK-2899 : `gz` — le modèle de langue du moteur d'OCR du coffre (`/ocr/lang/eng.traineddata.gz`).
+ *
  * ⚠ Le `matcher` de `src/proxy.ts` recopie cette liste (Next n'y accepte qu'un littéral) ;
  * `src/__tests__/proxy.test.ts` exige que les deux soient identiques.
  */
 export const EXTENSIONS_DE_FICHIERS: readonly string[] = [
-  'avif', 'css', 'gif', 'ico', 'jpeg', 'jpg', 'js', 'json', 'map', 'mjs', 'mp4', 'otf', 'pdf',
+  'avif', 'css', 'gif', 'gz', 'ico', 'jpeg', 'jpg', 'js', 'json', 'map', 'mjs', 'mp4', 'otf', 'pdf',
   'png', 'svg', 'ttf', 'txt', 'wasm', 'webm', 'webmanifest', 'webp', 'woff', 'woff2', 'xml',
 ];
 

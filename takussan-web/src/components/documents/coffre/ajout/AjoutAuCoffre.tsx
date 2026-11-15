@@ -19,6 +19,7 @@ import { ciblesDeRangement, cibleParDefaut, piecesARenouveler, type CibleDeRange
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { DOCUMENT_MAX_SIZE_BYTES, DOCUMENT_MIME_ACCEPT, useUploadDocument } from '@/lib/queries/documents';
 import { CLE_DE_LA_PROMESSE, rappelAVenir } from '@/lib/documents/rappel-d-expiration';
+import { lireLaDateDExpiration, PIECES_A_MRZ } from '@/lib/documents/lecture-mrz/moteur';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 import { documentUploadSchema, type DocumentUploadFormValues } from '@/lib/schemas/document';
 import { cn } from '@/lib/utils';
@@ -41,8 +42,11 @@ import { TuileDEntree } from '../LigneDuCoffre';
  * « Rangé dans » se choisit parmi les SEULES cibles que l'API rend (`attachable_targets`) : aucun champ
  * d'identifiant n'est rendu, l'identifiant voyage avec le dossier choisi.
  *
- * Écarts décidés : ni « Redressée et recadrée toute seule » ni « Lu sur la photo » (aucun redressement,
- * aucune lecture du texte) ; ni le nom de l'agence (le coffre ne le rend pas). « Remplacer » et
+ * TCK-2899 — « Lu sur la photo » : la photo d'une carte d'identité ou d'un passeport est lue DANS le
+ * navigateur (bande MRZ, `lib/documents/lecture-mrz`) pendant qu'on nomme le document ; une date validée
+ * par les clés de contrôle pré-remplit « Expire le », qui reste modifiable. Rien lu : rien ne s'affiche.
+ *
+ * Écarts décidés : ni « Redressée et recadrée toute seule » (aucun redressement) ; ni le nom de l'agence (le coffre ne le rend pas). « Remplacer » et
  * l'interrupteur « Remplace … » mènent à la fiche de la pièce, qui porte les versions (décision L2 (a)).
  * Les pastilles de catégorie sont des valeurs de l'API : « Justificatif de revenus » n'en est pas une.
  */
@@ -106,6 +110,8 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute
   const entreePhoto = useRef<HTMLInputElement>(null);
   const entreeFichier = useRef<HTMLInputElement>(null);
   const prendrePhoto = () => entreePhoto.current?.click();
+  // TCK-2899 — la date lue sur la photo ; l'aide « Lu sur la photo. » ne vaut que tant que le champ la porte.
+  const [dateLue, setDateLue] = useState<string | null>(null);
   const choisirFichier = () => entreeFichier.current?.click();
 
   const valeursInitiales = (): DocumentUploadFormValues => ({
@@ -139,6 +145,26 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute
     },
   });
 
+  // TCK-2899 — la lecture tourne pendant qu'on nomme le document, pour une carte d'identité ou un
+  // passeport en image seulement (les autres pièces ne chargent pas le moteur). Une photo reprise, une
+  // catégorie changée ou la fenêtre fermée l'abandonnent : son résultat tardif est jeté. Une date déjà
+  // saisie n'est jamais écrasée.
+  const typeChoisi = useWatch({ control: form.control, name: 'type' });
+  const aLire = fichier !== null && fichier.type.startsWith('image/') && PIECES_A_MRZ.includes(typeChoisi);
+  const luPour = useRef<File | null>(null);
+  useEffect(() => {
+    if (!aLire || !fichier || luPour.current === fichier) return;
+    const abandon = new AbortController();
+    void lireLaDateDExpiration(fichier, abandon.signal).then((date) => {
+      if (abandon.signal.aborted) return;
+      luPour.current = fichier;
+      if (!date || form.getValues('expiry_date')) return;
+      form.setValue('expiry_date', date, { shouldDirty: true });
+      setDateLue(date);
+    });
+    return () => abandon.abort();
+  }, [aLire, fichier, form]);
+
   function remplacerApercu(suivant: File | null) {
     if (apercuCourant.current) URL.revokeObjectURL(apercuCourant.current);
     apercuCourant.current =
@@ -147,6 +173,7 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute
   }
 
   function fermer() {
+    setDateLue(null);
     remplacerApercu(null);
     setFichier(null);
     setSource(null);
@@ -163,6 +190,9 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute
       return;
     }
     setErreurFichier(null);
+    // TCK-2899 — une date lue sur la photo précédente ne vaut pas pour la nouvelle.
+    if (dateLue !== null && form.getValues('expiry_date') === dateLue) form.setValue('expiry_date', '');
+    setDateLue(null);
     remplacerApercu(choisi);
     setFichier(choisi);
     setSource(depuis);
@@ -209,6 +239,7 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute
       control={form.control}
       cibles={cibles}
       impose={impose}
+      dateLue={dateLue}
       onCible={(c) => {
         form.setValue('documentable_type', c.type);
         form.setValue('documentable_id', c.id);
@@ -474,11 +505,13 @@ function ChampsDeLAjout({
   control,
   cibles,
   impose,
+  dateLue,
   onCible,
 }: {
   readonly control: Control<DocumentUploadFormValues>;
   readonly cibles: readonly CibleDeRangement[];
   readonly impose?: RangementImpose;
+  readonly dateLue: string | null;
   readonly onCible: (cible: CibleDeRangement) => void;
 }) {
   const t = useTranslations('documents.coffre.ajout');
@@ -496,7 +529,7 @@ function ChampsDeLAjout({
         </div>
         <div>
           <FormDatePicker<DocumentUploadFormValues> control={control} name="expiry_date" label={t('expire')} placeholder={t('facultatif')} />
-          <PromesseDuRappel control={control} />
+          <PromesseDuRappel control={control} dateLue={dateLue} />
         </div>
       </div>
       {impose ? <RangeDansImpose nom={impose.nom} /> : <RangeDans control={control} cibles={cibles} onCible={onCible} />}
@@ -510,12 +543,19 @@ function ChampsDeLAjout({
  * rangée dans « Mes pièces » (le rappel va au compte qui porte la pièce) ; « 7 jours avant » entre 8 et
  * 60 jours ; rien à 7 jours ou moins.
  */
-function PromesseDuRappel({ control }: { readonly control: Control<DocumentUploadFormValues> }) {
+function PromesseDuRappel({ control, dateLue }: { readonly control: Control<DocumentUploadFormValues>; readonly dateLue: string | null }) {
+  const t = useTranslations('documents.coffre.ajout');
   const tMarques = useTranslations('documents.coffre.marques');
   const [type, expiry] = useWatch({ control, name: ['documentable_type', 'expiry_date'] });
   const jalon = type === 'user' ? rappelAVenir(expiry, jourADakar(new Date())) : null;
-  if (jalon === null) return null;
-  return <p className="mt-1.5 text-legende text-muted-foreground">{tMarques(CLE_DE_LA_PROMESSE[jalon])}</p>;
+  // TCK-2899 — « Lu sur la photo. » précède la promesse, tant que le champ porte la date lue.
+  const lu = dateLue !== null && expiry === dateLue;
+  if (jalon === null && !lu) return null;
+  return (
+    <p data-testid="aide-de-l-expiration" className="mt-1.5 text-legende text-muted-foreground">
+      {[lu ? t('luSurLaPhoto') : null, jalon === null ? null : tMarques(CLE_DE_LA_PROMESSE[jalon])].filter(Boolean).join(' ')}
+    </p>
+  );
 }
 
 function ChoixDeCategorie({

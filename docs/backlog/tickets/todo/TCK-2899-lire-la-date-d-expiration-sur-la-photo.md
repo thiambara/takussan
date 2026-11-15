@@ -65,4 +65,53 @@ Audit (`audit-f4-patrimoine.md`, app-documents **e2**) : « seule la lecture de 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté (agent délégué, vague 92).**
+
+**Dépendance neuve, et pourquoi** : `tesseract.js@7.0.0` (OCR en WebAssembly, Apache-2.0) et
+`@tesseract.js-data/eng@1.0.0` (le modèle `4.0.0_best_int`, 2,9 Mo gzippé), versions exactes ; licence
+`Apache-2.0` (relevée dans `node_modules/tesseract.js/package.json`). Le ticket la prévoit (« Une
+nouvelle dépendance est donc ajoutée au front ») : la lecture côté serveur est exclue par ADR-0076 § 4,
+et une lecture par une API native du navigateur n'a pas été relevée ici. Aucune autre bibliothèque MRZ : l'analyse
+(clés ICAO 9303) tient en 120 lignes et se teste mieux à nous.
+
+**Servi par notre origine** : `takussan-web/scripts/copier-moteur-ocr.mjs` copie le worker, les trois
+cœurs `*-lstm.wasm.js` (wasm embarqué, vérifié) et le modèle sous `public/ocr/` (~15 Mo, **ignoré par
+git**), lancé par `prebuild` et `predev` — pas `postinstall` : l'étape `deps` du Dockerfile n'a que
+`package.json` et le lock. `moteur.ts` pose les TROIS chemins (`workerPath`, `corePath`, `langPath`)
+en URL absolues de `window.location.origin` : un seul omis et tesseract.js va le chercher sur jsdelivr.
+
+**Écart trouvé et corrigé** : `gz` n'était pas une extension de fichier servi tel quel — le proxy aurait
+pris `/ocr/lang/eng.traineddata.gz` pour une page à localiser (404). Ajouté à `EXTENSIONS_DE_FICHIERS`
+(`src/i18n/routing.ts`) et au littéral du `matcher` (`src/proxy.ts`), comme leur test l'exige.
+
+**Ce qui est livré** :
+- `src/lib/documents/lecture-mrz/analyse.ts` — l'analyseur : il s'ancre sur le bloc
+  naissance·clé·sexe·expiration·clé (colonne 0 de la ligne 2 en TD1, 13 en TD3), cherché n'importe où
+  dans la ligne, sans dépendre des `<` (le modèle `eng` les lit `K`/`L`, relevé ci-dessous). **Les DEUX
+  clés** (naissance et expiration) doivent tomber juste, et les deux dates exister ; les confusions
+  lettre/chiffre (O→0, I→1, S→5, B→8…) ne s'appliquent qu'aux positions numériques, jugées ensuite par
+  les clés.
+- `src/lib/documents/lecture-mrz/moteur.ts` — `import('tesseract.js')` à la demande (aucun import
+  statique : un test le garde sur tout `src/`), image réduite à 2000 px en niveaux de gris, lecture de
+  la moitié basse puis de l'image entière, liste blanche `A-Z0-9<`, abandon par `AbortSignal` (worker
+  terminé), toute erreur → `null` et une trace `console.warn` sans rien de la photo (le message de
+  l'erreur seul, pour qu'un AC5 raté dise si c'est un 404, le wasm ou la lecture). tesseract.js est
+  CommonJS : ses exports sont pris nommés ou sous `default`, selon l'interop du bundler (testé).
+- Pas d'ADR écrit : le moteur embarqué et `public/ocr/` dérivé au build sont une décision que la
+  session tranche (ADR ou non).
+- `AjoutAuCoffre.tsx` — la lecture part sur le couple (image, catégorie `id_card` ou `passport`) : la
+  catégorie vaut « Autre » au moment de la photo, la lecture démarre quand on la choisit et tourne
+  pendant qu'on nomme. Une date déjà saisie n'est jamais écrasée ; une photo reprise, une catégorie
+  changée ou la fenêtre fermée abandonnent la lecture et jettent son résultat. L'aide « Lu sur la
+  photo. » précède la promesse du rappel tant que le champ porte la date lue, et s'affiche même là où la
+  promesse ne dit rien (dossier d'un bien, échéance proche). Clé `documents.coffre.ajout.luSurLaPhoto`.
+
+**Mesure de bout en bout (sans navigateur)** : une carte CEDEAO de synthèse (sharp, Courier New 64 px,
+fond beige) lue par tesseract.js sous Node sur les fichiers copiés : `9005156M3611144SENKLLLLLLLLLLE`
+→ `2036-11-14`, sur la moitié basse comme sur l'image entière. Les `<` reviennent `K`/`L` : d'où
+l'ancrage sur le bloc chiffré.
+
+**Non mesuré** : AC5 (téléphone, vraie carte CEDEAO — police OCR-B, reflets, perspective) et l'onglet
+Réseau d'AC4 (pas de navigateur dans ce lot) ; `npm run build` non joué (la CI le joue — le bundle du
+worker par Turbopack s'y éprouve). AC4 est jugé sur les options passées au moteur (ablation : sans
+`langPath`, rouge).
