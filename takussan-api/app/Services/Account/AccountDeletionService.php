@@ -7,6 +7,7 @@ use App\Models\Activity;
 use App\Models\Agency;
 use App\Models\AlertSubscriber;
 use App\Models\Booking;
+use App\Models\CalendarFeed;
 use App\Models\Customer;
 use App\Models\DataExport;
 use App\Models\Document;
@@ -32,6 +33,7 @@ use App\Models\WhatsappContact;
 use App\Notifications\AccountDeletionExecutedNotification;
 use App\Notifications\AccountDeletionRequestedNotification;
 use App\Services\Agency\AgencyMemberRemovalService;
+use App\Services\Calendar\CalendarFeedService;
 use App\Services\Notifications\Sms\PhoneNumber;
 use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
@@ -380,6 +382,10 @@ class AccountDeletionService
         // Tokens already revoked at request time, but in case the user
         // signed back in to cancel and let the request lapse, revoke now.
         $user->tokens()->delete();
+
+        // TCK-2887 (ADR-0121 § 4) — les liens d'agenda meurent avec le compte, et leur copie chiffrée
+        // avec eux : la ligne de l'utilisateur est gardée (suppression douce), la cascade ne joue pas.
+        CalendarFeed::query()->active()->where('user_id', $user->id)->update(CalendarFeedService::revocation());
 
         // TCK-688 (P19.01) — anonymiser sans journaliser : `User` journalise `email`, `phone`, les
         // noms et `username` en `logOnlyDirty()`, et la ligne `updated` recopierait l'identité

@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * TCK-591 (ADR-0034) — le cycle de vie d'un lien d'abonnement d'agenda.
  *
  * Un lien actif par couple (utilisateur, agence) ; créer fait tourner (l'ancien est révoqué dans la
- * même transaction) ; le jeton en clair n'existe qu'au retour de {@see self::issue()}.
+ * même transaction). Le jeton en clair sort au retour de {@see self::issue()} ; ensuite, seule sa
+ * copie chiffrée le rend à son titulaire (TCK-2887, ADR-0121), et toute révocation l'efface.
  */
 class CalendarFeedService
 {
@@ -44,12 +45,14 @@ class CalendarFeedService
         $token = Str::random(40);
 
         $feed = DB::transaction(function () use ($user, $agencyId, $token) {
-            $this->revokeQuery($user, $agencyId)->update(['revoked_at' => now()]);
+            $this->revokeQuery($user, $agencyId)->update(self::revocation());
 
             return CalendarFeed::query()->create([
                 'user_id' => $user->id,
                 'agency_id' => $agencyId,
                 'token_hash' => CalendarFeed::hashToken($token),
+                // TCK-2887 (ADR-0121) — la copie chiffrée, pour relire le lien à la réouverture.
+                'token_encrypted' => $token,
             ]);
         });
 
@@ -66,7 +69,7 @@ class CalendarFeedService
     /** Révoque le lien actif du couple ; rend le nombre de liens révoqués. */
     public function revoke(User $user, ?int $agencyId): int
     {
-        $count = $this->revokeQuery($user, $agencyId)->update(['revoked_at' => now()]);
+        $count = $this->revokeQuery($user, $agencyId)->update(self::revocation());
 
         if ($count > 0) {
             activity('CalendarFeed')
@@ -77,6 +80,17 @@ class CalendarFeedService
         }
 
         return $count;
+    }
+
+    /**
+     * TCK-2887 (ADR-0121 § 4) — l'écriture de TOUTE révocation : le lien meurt et sa copie chiffrée
+     * avec lui. À employer par chaque voie qui pose `revoked_at` (rotation, révocation, blocage, effacement du compte).
+     *
+     * @return array{revoked_at: Carbon, token_encrypted: null}
+     */
+    public static function revocation(): array
+    {
+        return ['revoked_at' => now(), 'token_encrypted' => null];
     }
 
     /**

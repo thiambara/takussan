@@ -65,6 +65,9 @@ class ImpersonationReadSweepTest extends TestCase
 
     private const URL_SIGNEE_DURABLE = 'URL signée qui survit à la session';
 
+    /** TCK-2887 (ADR-0121) — le lien d'abonnement d'agenda : un secret sans expiration. */
+    private const LIEN_D_AGENDA = 'lien d\'abonnement d\'agenda';
+
     /**
      * Les fuites connues, route par route. Chacune DOIT encore fuir : une fuite corrigée se retire
      * d'ici, sans quoi la garde rougit — la liste ne peut pas vieillir en silence.
@@ -190,6 +193,9 @@ class ImpersonationReadSweepTest extends TestCase
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe("/api/leases/{$this->valeurs['lease']}/deposit-refund", $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe('/api/notifications', $finDeSession));
 
+        // TCK-2887 (ADR-0121) — la cible relit son lien d'agenda ; sous impersonation, jamais.
+        $this->assertContains(self::LIEN_D_AGENDA, $this->marquesDe('/api/me/calendar-feed', $finDeSession));
+
         $this->assertSame([self::JETON], $this->marques('{"data":{"token":"abc123"}}', $finDeSession));
         $this->assertSame([], $this->marques('{"data":{"token":null}}', $finDeSession));
         $avant = $finDeSession - 60;
@@ -232,6 +238,10 @@ class ImpersonationReadSweepTest extends TestCase
         }
         if (preg_match('/"token"\s*:\s*"/', $corps)) {
             $marques[] = self::JETON;
+        }
+        // TCK-2887 — un lien `.ics` complet, où qu'il sorte.
+        if (preg_match('#/calendar-feed/[A-Za-z0-9]{40}\.ics#', $corps)) {
+            $marques[] = self::LIEN_D_AGENDA;
         }
         preg_match_all('/expires=(\d+)(?:&|&amp;|\\\\u0026)signature=/', $corps, $expirations);
         foreach ($expirations[1] as $expiration) {
@@ -314,6 +324,9 @@ class ImpersonationReadSweepTest extends TestCase
         // cette caution : `bookings` et `bookings/{booking}` ne doivent rendre que le masque.
         $booking->forceFill(['declared_monthly_income' => self::REVENU_DE_GARDE])->save();
         $booking->guarantors()->attach($caution->id);
+
+        // TCK-2887 (ADR-0121) — un lien d'agenda relisible : `me/calendar-feed` le rend à la cible.
+        $this->postJson('/api/me/calendar-feed')->assertCreated();
 
         $conversation = Conversation::factory()->create(['created_by' => $this->cible->id, 'property_id' => $property->id]);
         $conversation->participants()->attach($this->cible->id, ['joined_at' => now()]);

@@ -59,4 +59,47 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — agent d'implémentation (vague 92).
+
+**Prémisse re-mesurée** : identique au ticket — `CalendarFeed` ne gardait que `token_hash`,
+`CalendarFeedController::current` ne rendait que `active`, `created_at`, `last_accessed_at`.
+
+**ADR écrit d'abord** : [ADR-0121](../../../adr/0121-le-lien-ical-se-relit-par-son-titulaire.md)
+(amende ADR-0034 § 1 et son option écartée ; ligne d'index et renvoi dans ADR-0034). « Valide tes
+choix » du porteur : accepté, à confirmer à la revue. Option retenue : cast `encrypted` sous `APP_KEY`
+(niveau des autres secrets chiffrés), rotation par `APP_PREVIOUS_KEYS` ; clé dédiée et lien dérivé
+par HMAC écartés (motifs dans l'ADR).
+
+**Livré** :
+- migration `2026_11_15_288700_add_token_encrypted_to_calendar_feeds` (`text` nullable, `down()`) ;
+- `CalendarFeed` : cast `encrypted`, `$hidden`, `readableToken()` (nul sans copie ou si indéchiffrable —
+  décision mineure : une copie illisible se lit comme un flux ancien, jamais un 500) ;
+- `CalendarFeedService::revocation()` : la seule écriture d'une révocation (`revoked_at` + copie à
+  `null`), employée par `revoke`, la rotation d'`issue` et le blocage de compte ;
+- `CalendarFeedController::current` : `url` (même helper `feedUrl()` que `store`), clé ABSENTE sous
+  impersonation, `null` sans copie ; réponse `Cache-Control: no-store, private` (décision mineure).
+
+**Écarts / effets voisins corrigés** :
+- **Une voie de révocation hors du ticket** : `UserLifecycleController::block` posait `revoked_at`
+  directement — il passe par `CalendarFeedService::revocation()` (bloc marqué TCK-2887).
+  `AgencyMemberRemovalService` passe déjà par `revoke`.
+- **`ImpersonationReadSweepTest` ne pouvait pas voir le lien** (il ne cherchait que `"token":"…"` et la
+  cible n'avait pas de lien) : marqueur « lien d'abonnement d'agenda » (`/calendar-feed/<40>.ics`), lien
+  émis pour la cible dans `garnirLaCible`, témoin sous le jeton de la cible. Blocs marqués TCK-2887.
+- **Une troisième voie hors du ticket : l'effacement du compte.** `AccountDeletionService::anonymize`
+  garde la ligne `users` (suppression douce) : la cascade ne jouait pas, le lien restait actif (non
+  servi, le compte n'étant plus actif) et sa copie chiffrée aurait survécu au compte. Il révoque
+  désormais par `CalendarFeedService::revocation()` (bloc TCK-2887) ; test `test_erasing_the_account_clears_the_copy`.
+- Type front `CalendarFeedState.url` : `string | null`, documenté (rendu à la relecture, nul sans copie,
+  absent sous impersonation) — `takussan-web/src/types/agent-crm.ts`, pour TCK-2888.
+- Docblocks devenus faux corrigés (modèle, service, contrôleur). Inventaires de colonnes chiffrées
+  (`EncryptedColumnsAreHiddenTest`, `BackupVerifyEncryption`) : par découverte des casts, la colonne y
+  entre seule — `EncryptedColumnsAreHiddenTest` joué vert.
+
+**Mesures** : `CalendarFeedReadableUrlTest` (9), `CalendarFeedTest` (8), `ImpersonationReadSweepTest`
+(3) et les trois gardes d'architecture : 27 verts. Ablations une à une, restaurées par `cp`, md5
+vérifié : garde d'impersonation retirée → AC2 et le balayage rougissent (`GET api/me/calendar-feed :
+lien d'abonnement d'agenda`) ; copie gardée à la révocation → révocation, rotation, blocage rouges ;
+copie non écrite → AC1 rouge ; `try/catch` retiré → copie indéchiffrable rouge (500) ; blocage revenu à
+l'ancienne écriture → son test rouge ; révocation retirée de l'effacement → son test rouge. Gardes racine : seule `check-valeurs-arbitraires-app` rouge, sur
+`ReglagesDeBail.tsx` (TCK-2921, en cours, pas à moi).
