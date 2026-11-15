@@ -17,13 +17,15 @@ import { describe, expect, it } from 'vitest';
  * formulaire, pas une page quittée) et `hors-app` (le site public, l'authentification, l'onboarding et
  * `/super-admin`, hors du périmètre de la coque — leurs retours suivent leurs propres tickets).
  */
-type Categorie = 'flèche unique' | 'periode' | 'pagination' | 'carrousel' | 'calendrier' | 'etape' | 'repli' | 'registre' | 'hors-app';
+type Categorie = 'flèche unique' | 'periode' | 'pagination' | 'carrousel' | 'calendrier' | 'etape' | 'repli' | 'registre' | 'hors-app' | 'annuler';
 
 const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/navigation-publique/FlecheDeRetour.tsx': 'flèche unique',
   'src/components/shared/BoutonRetour.tsx': 'flèche unique',
   // Le registre d'icônes réexporte lucide sans rien rendre.
   'src/components/icons.tsx': 'registre',
+  // TCK-2880 — « Annuler » du toast de « Passer » (Undo2, comme la vitrine) : défaire un geste, pas un retour.
+  'src/components/visits/compte-rendu/SuiteDeLaVisite.tsx': 'annuler',
   // TCK-2597 — « Précédent » de la barre de période de l'agenda : une période plus tôt, pas un retour.
   'src/components/agenda/pieces.tsx': 'periode',
   // TCK-2641 — le sélecteur de mois du relevé du bailleur : « mois précédent », pas un retour.
