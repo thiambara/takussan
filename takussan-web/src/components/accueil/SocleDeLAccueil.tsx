@@ -44,9 +44,11 @@ interface SocleDeLAccueilProps {
   readonly vide?: ReactNode;
   /** « Ce mois », ou `null` quand le persona n'a pas de chiffres. */
   readonly ceMois: ReactNode;
+  /** TCK-2853 — les actions de la tête de page, au bureau seul (le client : « Chercher un bien »). */
+  readonly actions?: ReactNode;
 }
 
-export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, colonne, vide, ceMois }: SocleDeLAccueilProps) {
+export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, colonne, vide, ceMois, actions }: SocleDeLAccueilProps) {
   return (
     <PagePleineLargeur data-slot="accueil" className="max-md:pb-8">
       {/* ─── Le téléphone : la ligne de mise en service, puis le salut ─── */}
@@ -63,6 +65,7 @@ export function SocleDeLAccueil({ titre, ligne, miseEnService, bandeaux, blocs, 
         className="max-md:hidden"
         title={titre}
         description={ligne}
+        actions={actions}
         bandeau={miseEnService ? <BandeauMiseEnService large agencyId={miseEnService.agencyId} kind={miseEnService.kind} /> : undefined}
       />
 

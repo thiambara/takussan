@@ -20,6 +20,8 @@ const { ETAT, rafraichir } = vi.hoisted(() => ({
     agence: { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } } as unknown,
     lecture: null as unknown,
     kpis: [] as unknown[],
+    // TCK-2853 — les biens de la recherche publique que l'invitation à chercher montre.
+    biensPublics: [] as unknown[],
   },
   rafraichir: vi.fn(),
 }));
@@ -69,13 +71,22 @@ vi.mock('@/components/accueil/locataire/EcheancesDes30Jours', () => ({ Echeances
 vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLocataire: ({ jour }: { jour: string }) => jour }));
 vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
 vi.mock('@/components/accueil/client/VosRecherches', () => ({ VosRecherches: () => <div data-testid="vos-recherches" /> }));
-vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: () => <div data-testid="favoris-qui-bougent" /> }));
+vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: ({ bureau, className }: { bureau?: boolean; className?: string }) => (
+    <div data-testid={bureau ? 'favoris-qui-bougent-bureau' : 'favoris-qui-bougent'} className={className} />
+  ),
+}));
+// TCK-2853 — la rangée de réponse et le filtre « sans recherche » lisent react-query : doublés.
+vi.mock('@/components/accueil/client/ReponseRecue', () => ({ ReponseRecue: ({ className }: { className?: string }) => <div data-testid="reponse-recue" className={className} /> }));
+vi.mock('@/components/accueil/client/ChercherEtPublier', async (orig) => ({
+  ...(await orig<typeof import('@/components/accueil/client/ChercherEtPublier')>()),
+  SiAucuneRecherche: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('@/components/accueil/prestataire/AccueilDuPrestataire', () => ({
   JourneeDuPrestataire: () => <div data-testid="journee-du-prestataire" />,
   AChiffrer: () => <div data-testid="a-chiffrer" />,
   ResumeDuPrestataire: ({ jour }: { jour: string }) => jour,
 }));
-vi.mock('@/lib/queries/public-search', () => ({ rechercherBiensPublics: async () => ({ data: [] }) }));
+vi.mock('@/lib/queries/public-search', () => ({ rechercherBiensPublics: async () => ({ data: ETAT.biensPublics }) }));
 vi.mock('@/lib/access/tableau-du-bailleur', () => ({ vueBailleurOuverte: async () => true }));
 vi.mock('@/lib/queries/dashboard', () => ({ fetchOwnerDashboard: async () => ({ data: { bookings: { pending: 2 }, reviews: { unanswered: 1 } } }) }));
 
@@ -103,6 +114,7 @@ beforeEach(() => {
   ETAT.agence = { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } };
   ETAT.lecture = ADMIN;
   ETAT.kpis = [];
+  ETAT.biensPublics = [];
   rafraichir.mockReset();
 });
 
@@ -356,9 +368,44 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     const favoris = screen.getByTestId('favoris-qui-bougent');
     expect(screen.getByTestId('vos-visites').compareDocumentPosition(favoris) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(favoris.compareDocumentPosition(screen.getByTestId('vos-recherches')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    // TCK-2853 — sans bien à montrer (la recherche doublée n'en rend aucun), l'invitation se tait :
+    // « Chercher un bien » porte l'invitation à chercher.
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).toBeNull();
+    expect(container.querySelector('[data-slot="chercher-un-bien"]')).not.toBeNull();
     expect(screen.queryByTestId('carte-du-loyer')).toBeNull();
     expect(screen.queryByTestId('etat-vide')).toBeNull();
+  });
+
+  it('TCK-2853 — le client (maquette e5) : « Chercher un bien » au téléphone ET dans la tête du bureau, « Vous avez un bien à louer ? », la réponse au bureau, les favoris à droite au bureau', async () => {
+    ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou', preferences: { city: 'Dakar', search_intent: 'rent' } } as typeof ETAT.user;
+    ETAT.biensPublics = [{ id: 1, slug: 'studio-plateau', title: 'Studio Plateau', price: 150_000, currency: 'XOF' }];
+    ETAT.lecture = { data: { role: 'tenant', metrics: { ...SITUATION, leases_active: 0 }, sections: [] } };
+    const { container } = await monter();
+
+    const chercher = [...container.querySelectorAll<HTMLAnchorElement>('[data-slot="chercher-un-bien"]')];
+    expect(chercher).toHaveLength(2);
+    for (const a of chercher) expect(a).toHaveAttribute('href', '/fr/properties?contract_type=rent&city=Dakar');
+    // Au téléphone, sous « Vos recherches », pleine largeur ; au bureau, dans la tête de page.
+    const telephone = chercher.find((a) => a.closest('.md\\:hidden'));
+    const bureau = chercher.find((a) => a.closest('header'));
+    expect(telephone).toBeDefined();
+    expect(screen.getByTestId('vos-recherches').compareDocumentPosition(telephone!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bureau).toBeDefined();
+    expect(bureau!.closest('.md\\:hidden')).toBeNull();
+    // L'invitation (client sans recherche, avec des biens à montrer) garde ses biens, plus son bouton :
+    // « Chercher un bien » porte le même lien.
+    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    expect(screen.getByRole('link', { name: /Studio Plateau/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Voir les annonces' })).toBeNull();
+
+    expect(container.querySelector('[data-slot="publier-un-bien"]')).toHaveAttribute('href', '/publish');
+    expect(screen.getByTestId('reponse-recue')).toHaveClass('max-md:hidden');
+    // Les favoris : au téléphone dans les blocs, au bureau dans la colonne, APRÈS les blocs.
+    expect(screen.getByTestId('favoris-qui-bougent')).toHaveClass('md:hidden');
+    const aDroite = screen.getByTestId('favoris-qui-bougent-bureau');
+    expect(aDroite).toHaveClass('max-md:hidden');
+    expect(screen.getByTestId('vos-recherches').compareDocumentPosition(aDroite) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(aDroite.parentElement?.contains(screen.getByTestId('vos-recherches'))).toBe(false);
   });
 
   it('le client sans fiche : l’invitation à chercher, jamais l’état vide générique', async () => {
@@ -366,7 +413,7 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     ETAT.lecture = { data: { role: 'tenant', metrics: { has_customer_profile: false }, sections: [] } };
     const { container } = await monter();
 
-    expect(container.querySelector('[data-slot="invitation-a-rechercher"]')).not.toBeNull();
+    expect(container.querySelector('[data-slot="chercher-un-bien"]')).not.toBeNull();
     expect(screen.queryByTestId('etat-vide')).toBeNull();
   });
 

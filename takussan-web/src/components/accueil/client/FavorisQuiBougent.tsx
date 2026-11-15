@@ -10,9 +10,10 @@ import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useFavorisQuiBougent } from '@/lib/queries/accueil-client';
 import type { FavoriteItem } from '@/lib/queries/favorites';
+import { cn } from '@/lib/utils';
 
 import { ErreurDeBloc } from '../EtatsDeBloc';
-import { TitreBloc } from '../pieces';
+import { TitreBloc, TitreColonne } from '../pieces';
 
 type FavoriDisponible = Extract<FavoriteItem, { availability: 'available' }>;
 
@@ -28,8 +29,11 @@ type FavoriDisponible = Extract<FavoriteItem, { availability: 'available' }>;
  * Rien à rendre sans favori qui bouge, ni en chargement ; une panne le dit, le reste de la page est à
  * jour. Écart de donnée à la maquette : « Les 6 favoris » devient « Tous vos favoris » (le compte des
  * favoris demanderait une lecture de plus pour un libellé de lien).
+ *
+ * TCK-2853 — `bureau` : la forme de la colonne de droite (intertitre de colonne, id distinct — le bloc
+ * est rendu deux fois, téléphone et bureau).
  */
-export function FavorisQuiBougent({ className }: { readonly className?: string }) {
+export function FavorisQuiBougent({ className, bureau = false }: { readonly className?: string; readonly bureau?: boolean }) {
   const t = useTranslations('accueil.client.favoris');
   const tBlocs = useTranslations('accueil.blocs');
   const lus = useFavorisQuiBougent();
@@ -41,11 +45,15 @@ export function FavorisQuiBougent({ className }: { readonly className?: string }
   const toutesEnBaisse = favoris.every((f) => (f.price_change ?? 0) < 0);
 
   return (
-    <section aria-labelledby="favoris-qui-bougent" className={className} data-slot="favoris-qui-bougent">
+    <section aria-labelledby={bureau ? 'favoris-qui-bougent-bureau' : 'favoris-qui-bougent'} className={className} data-slot="favoris-qui-bougent">
       <div className="flex items-baseline justify-between max-md:pr-4">
-        <TitreBloc id="favoris-qui-bougent" className="md:px-0">
-          {t(toutesEnBaisse ? 'titreBaisse' : 'titreBouge')}
-        </TitreBloc>
+        {bureau ? (
+          <TitreColonne id="favoris-qui-bougent-bureau">{t(toutesEnBaisse ? 'titreBaisse' : 'titreBouge')}</TitreColonne>
+        ) : (
+          <TitreBloc id="favoris-qui-bougent" className="md:px-0">
+            {t(toutesEnBaisse ? 'titreBaisse' : 'titreBouge')}
+          </TitreBloc>
+        )}
         <Link href="/app/favorites" className="rounded text-ui font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
           {t('tous')}
         </Link>
@@ -53,7 +61,7 @@ export function FavorisQuiBougent({ className }: { readonly className?: string }
       <ul className="mt-2 grid grid-cols-2 gap-3 max-md:px-4">
         {favoris.map((f) => (
           <li key={f.id} className="min-w-0">
-            <VignetteDuFavori favori={f} />
+            <VignetteDuFavori favori={f} bureau={bureau} />
           </li>
         ))}
       </ul>
@@ -63,7 +71,7 @@ export function FavorisQuiBougent({ className }: { readonly className?: string }
 
 const PERIODES = new Set(['daily', 'weekly', 'monthly', 'yearly']);
 
-function VignetteDuFavori({ favori }: { readonly favori: FavoriDisponible }) {
+function VignetteDuFavori({ favori, bureau }: { readonly favori: FavoriDisponible; readonly bureau: boolean }) {
   const t = useTranslations('accueil.client.favoris');
   const f = useFormatteurs();
   const bien = favori.property;
@@ -91,7 +99,8 @@ function VignetteDuFavori({ favori }: { readonly favori: FavoriDisponible }) {
           {f.montantCourt(bien.price, bien.currency)}
           {periode ? <span className="font-sans text-xs font-normal text-muted-foreground"> {t(`periode.${periode}`)}</span> : null}
         </span>
-        <span className="block truncate text-ui text-muted-foreground">{lieu ? `${bien.title} · ${lieu}` : bien.title}</span>
+        {/* TCK-2853 — au bureau, dans la colonne de droite (313 px à 1280), la ligne passe à la ligne au lieu d'être coupée. */}
+        <span className={cn('block text-ui text-muted-foreground', bureau ? 'line-clamp-2' : 'truncate')}>{lieu ? `${bien.title} · ${lieu}` : bien.title}</span>
         <PastilleDEcart ecart={favori.price_change} currency={bien.currency} depuis="compte" className="mt-1.5" />
       </span>
     </LienLocalise>

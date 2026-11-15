@@ -65,6 +65,12 @@ vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLoc
 vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
 vi.mock('@/components/accueil/client/VosRecherches', () => ({ VosRecherches: () => <div data-testid="vos-recherches" /> }));
 vi.mock('@/components/accueil/client/FavorisQuiBougent', () => ({ FavorisQuiBougent: () => <div data-testid="favoris-qui-bougent" /> }));
+// TCK-2853 — la rangée de réponse et le filtre « sans recherche » lisent react-query : doublés.
+vi.mock('@/components/accueil/client/ReponseRecue', () => ({ ReponseRecue: () => <div data-testid="reponse-recue" /> }));
+vi.mock('@/components/accueil/client/ChercherEtPublier', async (orig) => ({
+  ...(await orig<typeof import('@/components/accueil/client/ChercherEtPublier')>()),
+  SiAucuneRecherche: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('@/components/accueil/prestataire/AccueilDuPrestataire', () => ({
   JourneeDuPrestataire: () => <div data-testid="journee-du-prestataire" />,
   AChiffrer: () => <div data-testid="a-chiffrer" />,

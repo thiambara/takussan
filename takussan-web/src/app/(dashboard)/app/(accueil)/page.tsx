@@ -12,7 +12,9 @@ import { LoyersDuMois } from '@/components/accueil/bailleur/LoyersDuMois';
 import { ResumeDuBailleur } from '@/components/accueil/bailleur/ResumeDuBailleur';
 import { CeMois } from '@/components/accueil/CeMois';
 import { FavorisQuiBougent } from '@/components/accueil/client/FavorisQuiBougent';
-import { InvitationARechercher, lireInvitationARechercher } from '@/components/accueil/client/InvitationARechercher';
+import { ChercherUnBien, PublierUnBien, SiAucuneRecherche } from '@/components/accueil/client/ChercherEtPublier';
+import { InvitationARechercher, lienDeLaRecherche, lireInvitationARechercher } from '@/components/accueil/client/InvitationARechercher';
+import { ReponseRecue } from '@/components/accueil/client/ReponseRecue';
 import { VosRecherches } from '@/components/accueil/client/VosRecherches';
 import { VosVisites, type VisiteAVenir } from '@/components/accueil/client/VosVisites';
 import { CarteDuLogement } from '@/components/accueil/locataire/CarteDuLogement';
@@ -187,6 +189,8 @@ export default async function DashboardPage() {
   const accueilPrestataire = persona === 'prestataire';
   const situation = (accueilLocataire || accueilClient) && payload?.data.role === 'tenant' ? lireLaSituation(payload.data.metrics) : null;
   const invitation = accueilClient ? await lireInvitationARechercher(user.preferences, locale) : null;
+  // TCK-2853 — « Chercher un bien » (tête du bureau, pleine largeur au téléphone).
+  const rechercheDuClient = invitation ? lienDeLaRecherche(invitation, locale) : null;
 
   return (
     <SocleDeLAccueil
@@ -207,6 +211,8 @@ export default async function DashboardPage() {
       // TCK-777 (P15.08) — la mise en service, pour tout admin d'agence, individuelle comprise ; elle
       // disparaît une fois l'agence prête. TCK-2622 — repliée en une ligne.
       miseEnService={adminDAgence ? { agencyId: user.agency_id!, kind } : null}
+      // TCK-2853 — au bureau, « Chercher un bien » dans la tête de page (maquette e5).
+      actions={rechercheDuClient ? <ChercherUnBien href={rechercheDuClient} pleineLargeur={false} /> : undefined}
       bandeaux={
         <>
           {showBrandingBanner ? <BrandingBanner /> : null}
@@ -240,12 +246,30 @@ export default async function DashboardPage() {
             <EntreeDansLesLieux forme="bureau" className="max-md:hidden" />
           </>
         ) : accueilClient ? (
+          // TCK-2853 (maquette e5) — au téléphone : « Vos démarches », les favoris, « Vos recherches »,
+          // « Chercher un bien » pleine largeur, « Vous avez un bien à louer ? ». Au bureau, à gauche : la
+          // visite, « … vous a répondu · Lire », « Vos recherches », « Vous avez un bien à louer ? » ; les
+          // favoris passent à droite (`colonne`). L'invitation à chercher (TCK-595), que la maquette ne
+          // dessine pas, reste au client SANS recherche sauvegardée, sans son bouton (« Chercher un bien »
+          // porte le même lien). Les blocs du produit (documents) viennent après ceux de la maquette.
           <>
             <VosVisites visites={situation?.visites ?? []} />
-            <FavorisQuiBougent />
+            <ReponseRecue className="max-md:hidden" />
+            <FavorisQuiBougent className="md:hidden" />
             <VosRecherches />
+            {/* TCK-2853 — sans bien à montrer, l'invitation n'aurait qu'un titre : « Chercher un bien » suffit. */}
+            {invitation && invitation.biens.length > 0 ? (
+              <SiAucuneRecherche>
+                <InvitationARechercher invitation={invitation} locale={locale} bouton={false} className="max-md:mx-4" />
+              </SiAucuneRecherche>
+            ) : null}
+            {rechercheDuClient ? (
+              <div className="px-4 md:hidden">
+                <ChercherUnBien href={rechercheDuClient} />
+              </div>
+            ) : null}
+            <PublierUnBien className="max-md:mx-4" />
             {situation?.aUneFiche ? <DocumentsRecents documents={situation.documents} className="max-md:mx-4" /> : null}
-            {invitation ? <InvitationARechercher invitation={invitation} locale={locale} className="max-md:mx-4" /> : null}
           </>
         ) : accueilPrestataire ? (
           <JourneeDuPrestataire />
@@ -281,14 +305,20 @@ export default async function DashboardPage() {
               </>
             ) : null}
           </>
-        ) : accueilClient && situation?.aUneFiche ? (
-          <CeQuiMAttend
-            visites={situation.visites}
-            interventionsOuvertes={situation.interventionsOuvertes}
-            reservationsEnAttente={situation.reservationsEnAttente}
-            locale={locale}
-            className="max-md:mx-4"
-          />
+        ) : accueilClient ? (
+          // TCK-2853 — au bureau, « Vos favoris · prix en baisse » dans la colonne de droite (maquette e5).
+          <>
+            <FavorisQuiBougent bureau className="max-md:hidden" />
+            {situation?.aUneFiche ? (
+              <CeQuiMAttend
+                visites={situation.visites}
+                interventionsOuvertes={situation.interventionsOuvertes}
+                reservationsEnAttente={situation.reservationsEnAttente}
+                locale={locale}
+                className="max-md:mx-4"
+              />
+            ) : null}
+          </>
         ) : accueilPrestataire ? (
           <AChiffrer />
         ) : undefined

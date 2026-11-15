@@ -78,4 +78,63 @@ Relevé (audit-f3-coque.md, app-accueil e5) : `accueil/client/VosVisites.tsx:25-
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré le 2026-11-15 (arbre `feat/audit-manques-2026-11-15`), sur les champs de TCK-2851.
+
+**Re-mesure de la prémisse**
+- `VosVisites.tsx` : docblock « Déplacer/Itinéraire non faits » et « Voir » seul — confirmé. `visits_upcoming[]`
+  porte bien `cover_url`, `address_line`, `coordinates` (clé absente hors `confirmed`), `agent.name`, `can_reschedule`.
+- **`visits_upcoming` ne sert pas le `slug` du bien**, dont la grille des créneaux a besoin
+  (`ProposerUnCreneau` → `GET /public/properties/{slug}/visit-slots`). « Déplacer » lit donc la visite au clic
+  (`GET /api/property-visits/{id}`, qui charge le bien et n'accepte ni `fields` ni `include`).
+- `GET /api/conversations` ne dit pas QUI a écrit le dernier message (`last_message` = id, type, metadata). La
+  rangée prend le fil direct non lu le plus récent (`filter[unread]=1&filter[type]=direct&per_page=1`, filtré
+  par le serveur) : « non lu » y veut dire « un message d'un autre, postérieur à la lecture, hors avis
+  système » ; le nom est celui de l'autre membre ; la citation est `last_message_preview` (jamais pour un avis
+  système). Si le client a répondu après sans relire, la citation peut être la sienne — `last_message.sender_id`
+  côté API le trancherait (hors zone, front seul).
+- « Publiez-le » : l'entrée existante est `/publish` (non localisée, comme la Navbar), qui résout seule la suite.
+
+**Ce qui est livré**
+- `VosVisites` : photo 56 px (`Vignette`), « Visite jeu. 12 nov. · 10:00 », « bien · agent », statut, puis
+  « Déplacer » (contour, si `can_reschedule`) et « Itinéraire » (tonal, icône de navigation, lien Google Maps
+  `dir/?api=1&destination=lat,lng`, seulement si `status === 'confirmed'` ET coordonnées servies). Quand l'un
+  manque, « Voir la visite » prend sa place (la carte garde un chemin vers la visite).
+- « Déplacer » → `ProposerUnCreneau` (le dialogue de « Mes visites ») → `POST …/reschedule` ; la carte prend
+  la visite rendue (nouvelle heure, « En attente de confirmation », plus d'« Itinéraire ») et la page est
+  relue (`router.refresh()`). `ProposerUnCreneau` reçoit un `onPropose` facultatif (additif).
+- `ReponseRecue` (neuf, bureau `max-md:hidden`) : « {nom} vous a répondu », « « … » · il y a 1 h », « Lire »
+  → `/app/messages?conversation={id}`. Clé sous `['conversations','list']` : lire le fil l'efface.
+- `ChercherEtPublier.tsx` (neuf) : « Chercher un bien » (au téléphone pleine largeur sous « Vos recherches »,
+  au bureau dans la tête de page par une prop `actions` neuve, facultative, de `SocleDeLAccueil`) ; « Vous avez
+  un bien à louer ? Publiez-le en quelques minutes. » + chevron → `/publish`, aux deux formats.
+- Favoris : `FavorisQuiBougent bureau` (intertitre de colonne, id distinct, ligne sur deux lignes) rendu dans la
+  colonne de droite au bureau, la forme du téléphone dans les blocs (`md:hidden`) ; une seule requête.
+- **Invitation à chercher (choix noté)** : la maquette ne la dessine pas. Elle reste au client SANS recherche
+  sauvegardée (`SiAucuneRecherche`, même requête que « Vos recherches »), sans son bouton « Voir les annonces » :
+  « Chercher un bien » porte le même lien (`lienDeLaRecherche`, intention et ville du profil). Sans bien à
+  montrer (pas de ville au profil, ou aucun résultat), elle n'est pas rendue : elle n'aurait qu'un titre.
+- `filter[type]=direct` vérifié : les fils nés d'un bien sont `direct` (`PropertyConversationResolver`), et
+  `ListConversationsRequest` accepte `direct` / `group`.
+
+**Écarts**
+- « Déplacer » ouvre le dialogue centré de « Mes visites » aux deux largeurs, pas une feuille au téléphone (la
+  grille des créneaux n'est pas dupliquée ; la maquette e5 ne dessine pas ce choix).
+- Sans visite, la rangée « vous a répondu » s'affiche sans l'intertitre « Vos démarches ».
+- « Les 6 favoris » reste « Tous vos favoris » (TCK-2625).
+- La colonne du client est désormais toujours rendue : entre `md` et `xl` (une colonne), les favoris du bureau
+  viennent après tous les blocs de gauche ; un client sans favori qui bouge ni fiche y laisse une cellule vide
+  (un écart de grille de 28 px).
+
+**Mesures**
+- `accueil-client.tck-2853.test.tsx` (10), `AccueilDuClient.tck-2625`, `FavorisQuiBougent.tck-2625`,
+  `socle.tck-2622` (+1 test TCK-2853), `mise-en-service`, `MaSituation.tck-595`, tests locataire, `VisitDetail.tck-590`,
+  `VisitDetail.proposer-fenetre.p230-01`, `mes-visites.tck-2587`, `routes-atteignables`, `fleche-de-retour-unique`,
+  `property-fields.coverage`, `i18n-namespaces-scan` : verts.
+- Ablations (une à une, `cp` + md5) : Itinéraire sans condition de statut → rouge ; report sans mise à jour de la
+  carte → AC2 rouge ; lecture sans `filter[unread]` → AC3 rouge ; avis système cité → rouge ; invitation sans
+  condition → rouge ; favoris du bureau retirés de la colonne, « Chercher » retiré de la tête, rangée de réponse
+  retirée, bouton de l'invitation rendu, invitation sans condition de biens → test de page rouge (chacun) ;
+  `aria-labelledby` commun aux deux favoris → rouge.
+- eslint, `tsc --noEmit`, `npm run check:*` verts ; gardes racine vertes sauf `check-models-spec` (hors ticket).
+  `show-sans-fields.garde` rouge sur `src/lib/taches/rattachement-de-la-fiche.ts` (TCK-2857, hors ticket).
+- **Non mesuré** : AC7 et AC-F1 à AC-F3 (pas de relevé au navigateur dans ce lot).
