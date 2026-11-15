@@ -24,6 +24,7 @@ use App\Services\Payout\OwnerStatementService;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\Occupation;
 use App\Services\Reporting\OverdueInstalment;
+use App\Sorts\OwnerLastPayoutSort;
 use App\Support\Masking;
 use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
@@ -107,12 +108,7 @@ final class OwnerDirectory
         $query->addSelect([
             'properties_count' => $properties(),
             'occupied_properties_count' => Occupation::whereOccupied($properties(), 'properties.id'),
-            'last_payout_at' => DB::table('payouts')
-                ->selectRaw('MAX(payouts.processed_at)')
-                ->whereColumn('payouts.landlord_id', 'owner_profiles.user_id')
-                ->whereColumn('payouts.agency_id', 'owner_profiles.agency_id')
-                ->where('payouts.payee_role', PayeeRole::Landlord->value)
-                ->where('payouts.status', PayoutStatus::Completed->value),
+            'last_payout_at' => self::lastPayoutAt(),
             'contact_phone' => DB::table('users')
                 ->selectRaw("NULLIF(TRIM(users.phone), '')")
                 ->whereColumn('users.id', 'owner_profiles.user_id'),
@@ -120,6 +116,21 @@ final class OwnerDirectory
                 ->selectRaw("NULLIF(TRIM(users.email), '')")
                 ->whereColumn('users.id', 'owner_profiles.user_id'),
         ])->withCasts(['last_payout_at' => 'datetime', 'properties_count' => 'integer', 'occupied_properties_count' => 'integer']);
+    }
+
+    /**
+     * TCK-2910 — le dernier reversement AU BAILLEUR versé, dans l'agence du profil : la colonne
+     * `last_payout_at` de la ligne et le tri `sort=-last_payout_at` ({@see OwnerLastPayoutSort})
+     * lisent la même sous-requête.
+     */
+    public static function lastPayoutAt(): QueryBuilder
+    {
+        return DB::table('payouts')
+            ->selectRaw('MAX(payouts.processed_at)')
+            ->whereColumn('payouts.landlord_id', 'owner_profiles.user_id')
+            ->whereColumn('payouts.agency_id', 'owner_profiles.agency_id')
+            ->where('payouts.payee_role', PayeeRole::Landlord->value)
+            ->where('payouts.status', PayoutStatus::Completed->value);
     }
 
     /**

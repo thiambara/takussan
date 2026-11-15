@@ -5976,7 +5976,17 @@
         "accesEtDepart": "Accès et départ"
       },
       "suiviPar": "suivi par {nom}",
-      "suiviParAncien": "suivi par {nom} (plus dans l’agence)"
+      "suiviParAncien": "suivi par {nom} (plus dans l’agence)",
+      "moyens": {
+        "bank_transfer": "Virement",
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "free_money": "Free Money",
+        "mobile_money": "Mobile Money",
+        "cash": "Espèces",
+        "check": "Chèque",
+        "card": "Carte"
+      }
     }
   },
   "ownerWelcome": {
@@ -11255,9 +11265,39 @@
       },
       "actions": {
         "voir": "Voir la réservation",
-        "avis": "Laisser un avis"
+        "avis": "Laisser un avis",
+        "payerAcompte": "Payer l’acompte",
+        "payerSolde": "Payer le solde",
+        "completerDossier": "Compléter mon dossier",
+        "accepter": "Accepter",
+        "decliner": "Décliner",
+        "annuler": "Annuler",
+        "annulerAria": "Annuler la réservation : {bien}"
       },
-      "erreur": "Vos réservations n’ont pas pu être chargées."
+      "erreur": "Vos réservations n’ont pas pu être chargées.",
+      "appel": {
+        "acompte": "Acompte de {montant} à payer {forme, select, semaine {avant {jour}} date {avant le {jour}} other {dès maintenant}}.",
+        "solde": "{acompte, select, oui {Acompte payé · solde de {montant} à l’arrivée} other {Solde de {montant} à régler à l’arrivée}}",
+        "dossier": "Dossier {recues}/{total} : il manque {piece}.",
+        "dossierComplet": "Dossier complet · {recues}/{total} pièces.",
+        "contreOffre": "L’agence vous propose {montant} jusqu’au {date}.",
+        "contreOffreSansDate": "L’agence vous propose {montant}.",
+        "pieces": {
+          "identity": "votre pièce d’identité",
+          "payslips": "vos bulletins de salaire",
+          "employment_certificate": "votre attestation de travail",
+          "guarantor_commitment": "l’engagement de votre garant",
+          "guarantor_identity": "la pièce d’identité de votre garant",
+          "proof_of_funds": "votre justificatif des fonds",
+          "other": "une autre pièce"
+        }
+      },
+      "toasts": {
+        "contreOffreAcceptee": "Contre-offre acceptée : votre offre est confirmée.",
+        "contreOffreDeclinee": "Contre-offre déclinée : l’agence en est prévenue.",
+        "annulee": "Réservation annulée."
+      },
+      "sousTitreAcompte": "{count, plural, one {# en cours} other {# en cours}}, dont {n, plural, one {un acompte à payer} other {# acomptes à payer}} {forme, select, semaine {avant {jour}} date {avant le {jour}} other {dès maintenant}}"
     },
     "fiche": {
       "enTete": {
@@ -11429,7 +11469,14 @@
           "throttled": "Cette pièce a déjà été demandée il y a moins de 24 h.",
           "closed": "Cette demande est close : son dossier ne se complète plus."
         },
-        "erreurLecture": "Le dossier n’a pas pu être lu."
+        "erreurLecture": "Le dossier n’a pas pu être lu.",
+        "deposer": "Déposer",
+        "deposerAria": "Déposer un fichier : {piece}",
+        "prendrePhoto": "Prendre une photo",
+        "prendrePhotoAria": "Prendre une photo : {piece}",
+        "envoyee": "Pièce envoyée.",
+        "tropLourde": "Ce fichier dépasse 10 Mo.",
+        "envoiEnCours": "Envoi…"
       },
       "financement": {
         "cash": "Comptant",
@@ -16628,7 +16675,6 @@
       "commissionsMonthMine": "Sama komisioŋu weer wi",
       "commissionsMonthAgency": "Komisioŋu ajaans bi ci weer wi",
       "commissionsAgency": "Komisioŋu ajaans bi",
-      "commissionsDetail": "Leeral ci kontaraa ku nekk",
       "pipelineEmpty": "Aucun prospect par étape sur la période.",
       "pipelineOpen": "Ouvrir les étapes"
     },
@@ -21144,7 +21190,8 @@
         "detail": "{montant} · échu le {echeance}",
         "jours": "{n, plural, one {# jour} other {# jours}}",
         "sansLocataire": "Locataire",
-        "autres": "{n, plural, one {Voir l’autre loyer en retard} other {Voir les # autres loyers en retard}}"
+        "autres": "{n, plural, one {Voir l’autre loyer en retard} other {Voir les # autres loyers en retard}}",
+        "carte": "{n, plural, one {# loyer en retard} other {# loyers en retard}}"
       },
       "reservations": {
         "carte": "{n, plural, one {# réservation à traiter} other {# réservations à traiter}}",
@@ -21715,7 +21762,8 @@
         "versement": "Versement"
       }
     },
-    "demandesEnAttente": "Demandes en attente"
+    "demandesEnAttente": "Demandes en attente",
+    "commissionsDouzeMois": "Commissions · 12 mois"
   },
   "propertyDashboard": {
     "overview": {

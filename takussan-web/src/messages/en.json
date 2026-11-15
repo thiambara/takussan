@@ -1807,7 +1807,6 @@
       "commissionsMonthMine": "My commissions this month",
       "commissionsMonthAgency": "Agency commissions this month",
       "commissionsAgency": "Agency commissions",
-      "commissionsDetail": "Breakdown by lease",
       "pipelineEmpty": "No prospects at any stage for this period.",
       "pipelineOpen": "Open the stages"
     },
@@ -7214,7 +7213,17 @@
         "accesEtDepart": "Access and departure"
       },
       "suiviPar": "handled by {nom}",
-      "suiviParAncien": "handled by {nom} (no longer with the agency)"
+      "suiviParAncien": "handled by {nom} (no longer with the agency)",
+      "moyens": {
+        "bank_transfer": "Bank transfer",
+        "wave": "Wave",
+        "orange_money": "Orange Money",
+        "free_money": "Free Money",
+        "mobile_money": "Mobile money",
+        "cash": "Cash",
+        "check": "Cheque",
+        "card": "Card"
+      }
     }
   },
   "ownerWelcome": {
@@ -11834,9 +11843,39 @@
       },
       "actions": {
         "voir": "View booking",
-        "avis": "Leave a review"
+        "avis": "Leave a review",
+        "payerAcompte": "Pay the deposit",
+        "payerSolde": "Pay the balance",
+        "completerDossier": "Complete my file",
+        "accepter": "Accept",
+        "decliner": "Decline",
+        "annuler": "Cancel",
+        "annulerAria": "Cancel the booking: {bien}"
       },
-      "erreur": "Your bookings could not be loaded."
+      "erreur": "Your bookings could not be loaded.",
+      "appel": {
+        "acompte": "Deposit of {montant} to pay {forme, select, semaine {before {jour}} date {before {jour}} other {now}}.",
+        "solde": "{acompte, select, oui {Deposit paid · balance of {montant} due on arrival} other {Balance of {montant} due on arrival}}",
+        "dossier": "File {recues}/{total}: {piece} is missing.",
+        "dossierComplet": "File complete · {recues}/{total} documents.",
+        "contreOffre": "The agency offers you {montant} until {date}.",
+        "contreOffreSansDate": "The agency offers you {montant}.",
+        "pieces": {
+          "identity": "your ID document",
+          "payslips": "your payslips",
+          "employment_certificate": "your employment certificate",
+          "guarantor_commitment": "your guarantor’s commitment",
+          "guarantor_identity": "your guarantor’s ID document",
+          "proof_of_funds": "your proof of funds",
+          "other": "another document"
+        }
+      },
+      "toasts": {
+        "contreOffreAcceptee": "Counter-offer accepted: your offer is confirmed.",
+        "contreOffreDeclinee": "Counter-offer declined: the agency has been notified.",
+        "annulee": "Booking cancelled."
+      },
+      "sousTitreAcompte": "{count, plural, one {# in progress} other {# in progress}}, including {n, plural, one {a deposit to pay} other {# deposits to pay}} {forme, select, semaine {before {jour}} date {before {jour}} other {now}}"
     },
     "fiche": {
       "enTete": {
@@ -12008,7 +12047,14 @@
           "throttled": "This document was already requested less than 24 h ago.",
           "closed": "This request is closed: its file can no longer be completed."
         },
-        "erreurLecture": "The file could not be loaded."
+        "erreurLecture": "The file could not be loaded.",
+        "deposer": "Upload",
+        "deposerAria": "Upload a file: {piece}",
+        "prendrePhoto": "Take a photo",
+        "prendrePhotoAria": "Take a photo: {piece}",
+        "envoyee": "Document sent.",
+        "tropLourde": "This file is larger than 10 MB.",
+        "envoiEnCours": "Uploading…"
       },
       "financement": {
         "cash": "Cash",
@@ -21144,7 +21190,8 @@
         "detail": "{montant} · due {echeance}",
         "jours": "{n, plural, one {# day} other {# days}}",
         "sansLocataire": "Tenant",
-        "autres": "{n, plural, one {See the other late rent} other {See the # other late rents}}"
+        "autres": "{n, plural, one {See the other late rent} other {See the # other late rents}}",
+        "carte": "{n, plural, one {# overdue rent} other {# overdue rents}}"
       },
       "reservations": {
         "carte": "{n, plural, one {# booking to handle} other {# bookings to handle}}",
@@ -21715,7 +21762,8 @@
         "versement": "Payout"
       }
     },
-    "demandesEnAttente": "Pending requests"
+    "demandesEnAttente": "Pending requests",
+    "commissionsDouzeMois": "Commissions · 12 months"
   },
   "propertyDashboard": {
     "overview": {

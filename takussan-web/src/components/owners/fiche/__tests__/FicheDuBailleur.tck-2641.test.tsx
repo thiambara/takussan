@@ -317,7 +317,9 @@ describe('TCK-2641 — les biens, les reversements et « Message »', () => {
     expect(carte.querySelector('ul')).not.toHaveClass('lg:hidden');
   });
 
-  it('les derniers reversements au bailleur : sa période, son montant, son statut', async () => {
+  // TCK-2910 — un reversement versé porte « Reçu » (l'avis de versement) à la place de son statut ;
+  // celui qui ne l'est pas encore dit son statut (« le reversement créé apparaît… », en attente).
+  it('les derniers reversements au bailleur : sa période, son montant, « Reçu » une fois versé', async () => {
     apiRequest.mockImplementation(async (chemin: string) => (chemin.startsWith('/api/payouts')
       ? { ...vide, data: [{ id: 3, status: 'completed', period_start: '2026-11-01', processed_at: '2026-11-05T10:00:00Z', scheduled_at: null, created_at: '2026-11-05T10:00:00Z', net_amount: 7469771, currency: 'XOF' }] }
       : vide));
@@ -326,7 +328,8 @@ describe('TCK-2641 — les biens, les reversements et « Message »', () => {
     const liste = within(document.querySelector('[data-slot="derniers-reversements"]') as HTMLElement);
     expect(liste.getByText('Reversement de novembre')).toBeInTheDocument();
     expect(liste.getByText(montant('7 469 771'))).toBeInTheDocument();
-    expect(liste.getByText('Effectué')).toBeInTheDocument();
+    expect(liste.queryByText('Effectué')).not.toBeInTheDocument();
+    expect(liste.getByRole('button', { name: /^Reçu du reversement du/ })).toBeInTheDocument();
     expect(decodeURIComponent(String(apiRequest.mock.calls.find(([c]) => String(c).startsWith('/api/payouts'))?.[0]))).toContain('filter[landlord_id]=9');
   });
 

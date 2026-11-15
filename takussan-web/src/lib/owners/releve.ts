@@ -16,6 +16,19 @@ export async function lireLeReleve(token: string, period: string, landlordId: nu
   return response.blob();
 }
 
+/**
+ * TCK-2910 — « Reçu » d'un reversement : l'avis de versement (`GET /api/payouts/{id}/notice/pdf`,
+ * TCK-2909), remis comme le relevé (partagé au téléphone, téléchargé sinon). L'API ne le sert que
+ * pour un reversement au bailleur terminé (422 `payout.notice_unavailable` sinon).
+ */
+export async function lireLAvisDeVersement(token: string, payoutId: number, locale: string): Promise<Blob> {
+  const response = await fetch(urlApiPublique(`/payouts/${encodeURIComponent(String(payoutId))}/notice/pdf`), {
+    headers: { Accept: 'application/pdf', 'Accept-Language': locale, Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new ApiError(response.status, await response.json().catch(() => null));
+  return response.blob();
+}
+
 export type Remise = 'partage' | 'telechargement' | 'abandon';
 
 /**

@@ -31,7 +31,10 @@ export type DocumentableType =
   | 'customer'
   | 'user'
   | 'agency'
-  | 'inventory';
+  | 'inventory'
+  // TCK-2910 — le profil d'un bailleur dans une agence (ADR-0099 § 5, TCK-2909) : la carte « Documents »
+  // de sa fiche y dépose le mandat signé.
+  | 'owner_profile';
 
 /**
  * TCK-1867 (P189.01) — les gestes que `DocumentPolicy` accorde à l'appelant, servis sur la liste

@@ -12,6 +12,7 @@ use App\Models\Enums\PaymentMethod;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Services\Owners\OwnerDirectory;
+use App\Sorts\OwnerLastPayoutSort;
 use App\Sorts\OwnerNameSort;
 use App\Sorts\OwnerRemainingToPaySort;
 use App\Support\Http\ParametreUnique;
@@ -158,6 +159,8 @@ class OwnerProfile extends AbstractModel
         return [
             AllowedSort::custom('name', new OwnerNameSort),
             AllowedSort::custom('remaining_to_pay', new OwnerRemainingToPaySort),
+            // TCK-2910 — le dernier versement (« Filtres et tri » du carnet au téléphone).
+            AllowedSort::custom('last_payout_at', new OwnerLastPayoutSort),
         ];
     }
 

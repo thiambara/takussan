@@ -50,21 +50,43 @@ import { TuileDEntree } from '../LigneDuCoffre';
 /** Les pastilles de la maquette, en valeurs de l'API ; « Plus de catégories » ouvre la liste entière. */
 const CATEGORIES_RAPIDES: readonly DocumentType[] = ['id_card', 'passport', 'insurance', 'other'];
 
-export interface AjoutAuCoffreProps {
+/**
+ * TCK-2910 — un dépôt au rangement IMPOSÉ : la carte « Documents » de la fiche d'un bailleur dépose sur
+ * son profil (`owner_profile:{id}`, TCK-2909). Même parcours (photo ou fichier, nommer et ranger), sans
+ * dossier à choisir ni « À renouveler » (qui lisent le coffre de l'appelant), et sans les pièces KYC
+ * que l'API refuse sur un profil (422 `document.profile_piece_by_kyc`).
+ */
+export interface RangementImpose {
+  readonly type: 'owner_profile';
+  readonly id: number;
+  /** Le nom du dossier, tel que la fiche le dit (« Mouhamed Sène »). */
+  readonly nom: string;
+  /** Les pastilles de catégorie ; « Plus de catégories » offre le reste, pièces KYC exclues. */
+  readonly categories: readonly DocumentUploadFormValues['type'][];
+  /** La catégorie cochée à l'ouverture. */
+  readonly categorie: DocumentUploadFormValues['type'];
+}
+
+/** TCK-2910 — les pièces KYC qu'un dépôt sur un profil ne prend pas (`Document::PIECE_TYPES` de l'API). */
+const PIECES_KYC: readonly DocumentType[] = ['id_card', 'rib', 'ninea'];
+
+type SourceDuRangement =
+  | { readonly coffre: CoffreDeDocuments; readonly vu: CoffreVu; readonly impose?: undefined }
+  | { readonly impose: RangementImpose; readonly coffre?: undefined; readonly vu?: undefined };
+
+export type AjoutAuCoffreProps = SourceDuRangement & {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  readonly coffre: CoffreDeDocuments;
-  readonly vu: CoffreVu;
   readonly onAjoute?: () => void;
-}
+};
 
 type Source = 'photo' | 'fichier';
 
-export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: AjoutAuCoffreProps) {
+export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, impose, onAjoute }: AjoutAuCoffreProps) {
   const t = useTranslations('documents.coffre.ajout');
   const tCommon = useTranslations('common');
   const bureau = useMatchesMedia('(min-width: 48rem)');
-  const cibles = ciblesDeRangement(coffre);
+  const cibles = coffre ? ciblesDeRangement(coffre) : [];
   const parDefaut = cibleParDefaut(cibles);
   const upload = useUploadDocument();
   const [fichier, setFichier] = useState<File | null>(null);
@@ -88,9 +110,9 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
 
   const valeursInitiales = (): DocumentUploadFormValues => ({
     name: '',
-    type: 'other',
-    documentable_type: parDefaut?.type ?? 'user',
-    documentable_id: parDefaut?.id ?? 0,
+    type: impose?.categorie ?? 'other',
+    documentable_type: impose?.type ?? parDefaut?.type ?? 'user',
+    documentable_id: impose?.id ?? parDefaut?.id ?? 0,
     description: '',
     expiry_date: '',
   });
@@ -186,6 +208,7 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
     <ChampsDeLAjout
       control={form.control}
       cibles={cibles}
+      impose={impose}
       onCible={(c) => {
         form.setValue('documentable_type', c.type);
         form.setValue('documentable_id', c.id);
@@ -269,8 +292,12 @@ export function AjoutAuCoffre({ open, onOpenChange, coffre, vu, onAjoute }: Ajou
           <TuileDAjout onClick={choisirFichier} icone={<Upload className="size-5" strokeWidth={1.75} aria-hidden="true" />} titre={t('fichier.titre')} texte={t('fichier.texte')} />
         </div>
         <div className="mt-3">{erreur}</div>
-        <ARenouveler vu={vu} />
-        {parDefaut ? <RangementParDefaut cible={parDefaut} /> : null}
+        {vu ? <ARenouveler vu={vu} /> : null}
+        {impose ? (
+          <p className="mt-4 text-ui leading-snug text-muted-foreground">{t('rangeImpose', { dossier: impose.nom })}</p>
+        ) : parDefaut ? (
+          <RangementParDefaut cible={parDefaut} />
+        ) : null}
       </FeuilleDuBas>
     );
   }
@@ -446,10 +473,12 @@ function Depot({ onParcourir, onDepot }: { readonly onParcourir: () => void; rea
 function ChampsDeLAjout({
   control,
   cibles,
+  impose,
   onCible,
 }: {
   readonly control: Control<DocumentUploadFormValues>;
   readonly cibles: readonly CibleDeRangement[];
+  readonly impose?: RangementImpose;
   readonly onCible: (cible: CibleDeRangement) => void;
 }) {
   const t = useTranslations('documents.coffre.ajout');
@@ -459,14 +488,18 @@ function ChampsDeLAjout({
       <div className="grid gap-4 md:grid-cols-2">
         <FormInput<DocumentUploadFormValues> control={control} name="name" label={t('nom')} placeholder={t('nomExemple')} aria-required />
         <div className="md:order-last md:col-span-2">
-          <ChoixDeCategorie control={control} />
+          <ChoixDeCategorie
+            control={control}
+            rapides={impose?.categories ?? CATEGORIES_RAPIDES}
+            toutes={impose ? DOCUMENT_TYPE_UPLOAD_ORDER.filter((c) => !PIECES_KYC.includes(c)) : DOCUMENT_TYPE_UPLOAD_ORDER}
+          />
         </div>
         <div>
           <FormDatePicker<DocumentUploadFormValues> control={control} name="expiry_date" label={t('expire')} placeholder={t('facultatif')} />
           <PromesseDuRappel control={control} />
         </div>
       </div>
-      <RangeDans control={control} cibles={cibles} onCible={onCible} />
+      {impose ? <RangeDansImpose nom={impose.nom} /> : <RangeDans control={control} cibles={cibles} onCible={onCible} />}
       <FormInput<DocumentUploadFormValues> control={control} name="description" label={t('precision')} placeholder={t('precisionExemple')} />
     </>
   );
@@ -485,11 +518,19 @@ function PromesseDuRappel({ control }: { readonly control: Control<DocumentUploa
   return <p className="mt-1.5 text-legende text-muted-foreground">{tMarques(CLE_DE_LA_PROMESSE[jalon])}</p>;
 }
 
-function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploadFormValues> }) {
+function ChoixDeCategorie({
+  control,
+  rapides,
+  toutes,
+}: {
+  readonly control: Control<DocumentUploadFormValues>;
+  readonly rapides: readonly DocumentType[];
+  readonly toutes: readonly DocumentType[];
+}) {
   const t = useTranslations('documents.coffre.ajout');
   const tTypes = useTranslations('documents.types');
   const type = useWatch({ control, name: 'type' });
-  const [plus, setPlus] = useState(() => !CATEGORIES_RAPIDES.includes(type));
+  const [plus, setPlus] = useState(() => !rapides.includes(type));
   return (
     <Controller
       control={control}
@@ -498,7 +539,7 @@ function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploa
         <fieldset>
           <legend className="mb-1.5 text-sm font-medium">{t('categorie')}</legend>
           <div className="flex flex-wrap gap-2">
-            {CATEGORIES_RAPIDES.map((valeur) => (
+            {rapides.map((valeur) => (
               <button
                 key={valeur}
                 type="button"
@@ -524,12 +565,28 @@ function ChoixDeCategorie({ control }: { readonly control: Control<DocumentUploa
               name="type"
               label={t('plusDeCategories')}
               containerClassName="mt-3"
-              options={DOCUMENT_TYPE_UPLOAD_ORDER.map((valeur) => ({ value: valeur, label: tTypes(valeur) }))}
+              options={toutes.map((valeur) => ({ value: valeur, label: tTypes(valeur) }))}
             />
           ) : null}
         </fieldset>
       )}
     />
+  );
+}
+
+/** TCK-2910 — « Rangé dans » d'un rangement imposé : le dossier, sans « Changer ». */
+function RangeDansImpose({ nom }: { readonly nom: string }) {
+  const t = useTranslations('documents.coffre.ajout');
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium">{t('rangeDans')}</p>
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+        <FolderOpen className="size-5 flex-none text-primary" strokeWidth={1.5} aria-hidden="true" />
+        <span data-testid="range-dans" className="min-w-0 flex-1 truncate text-corps leading-tight font-medium">
+          {nom}
+        </span>
+      </div>
+    </div>
   );
 }
 
