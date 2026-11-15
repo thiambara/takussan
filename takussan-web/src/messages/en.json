@@ -19079,6 +19079,18 @@
         "owner_reminder": {
           "title": "Reminder: your approval is required for \"{request}\"",
           "body": "Your agency reminds you that a quote of {amount} for \"{request}\" is awaiting your decision. Approve or reject it."
+        },
+        "cancelled_with_reason": {
+          "title": "Maintenance cancelled: {request}",
+          "body": "The maintenance \"{request}\" has been cancelled. Reason: {reason}"
+        },
+        "step_cancelled_with_reason": {
+          "title": "Your request \"{request}\": cancelled",
+          "body": "Your maintenance request has been cancelled. Reason: {reason}"
+        },
+        "reschedule_requested": {
+          "title": "Another time slot requested: \"{request}\"",
+          "body": "The tenant asks for another time slot for \"{request}\" ({slots} proposed). The current slot stays until you set a new one."
         }
       },
       "maintenance_quote": {
@@ -21111,7 +21123,8 @@
         "louesLibres": "{n} rented · {libres} vacant",
         "surAttendus": "of {montant} expected",
         "leJour": "on {jour}"
-      }
+      },
+      "chargement": "Loading this month’s figures"
     },
     "blocs": {
       "erreur": "Couldn’t load {quoi}.",
@@ -21124,7 +21137,8 @@
         "equipe": "today’s team",
         "echeances": "upcoming payments",
         "favoris": "your favourites"
-      }
+      },
+      "chargement": "Loading"
     },
     "toutEstAJour": {
       "titre": "All caught up"
@@ -21360,7 +21374,10 @@
         "titre": "To quote",
         "quoi": "the quotes to prepare",
         "chiffrer": "Quote",
-        "demande": "{aLieu, select, oui {{lieu} · } other {}}requested {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}}"
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}requested {jour, select, aujourdhui {today} hier {yesterday} other {on {date}}}",
+        "titreBureau": "My pending quotes",
+        "quoiBureau": "your pending quotes",
+        "envoye": "{aDate, select, oui {Sent on {date}} other {Sent}} · awaiting the landlord"
       },
       "statut": {
         "aAccepter": "To accept",

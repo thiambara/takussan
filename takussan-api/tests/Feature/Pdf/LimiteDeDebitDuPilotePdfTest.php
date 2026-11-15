@@ -8,8 +8,13 @@ use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\Enums\PayeeRole;
+use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\Lease;
+use App\Models\Payout;
+use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -84,6 +89,8 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
         'app/Jobs/Audit/ExportActivityLogJob.php' => 'cite ExportWriter dans un commentaire ; produit un csv|xlsx',
         'app/Support/Export/CsvCell.php' => 'cite ExportWriter::xlsx dans un commentaire, ne rend rien',
         'app/Models/BookingPayment.php' => 'cite PaymentReceiptPdf dans un commentaire, ne rend rien',
+        // TCK-2906 — ajouté par TCK-2866 sans entrée (la garde d'AC4 rougissait).
+        'app/Http/Controllers/Api/Me/MeExportsController.php' => 'ExportWriter::serve() d’octets déjà gardés : ne rend rien',
     ];
 
     protected function setUp(): void
@@ -106,6 +113,11 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
             'quittance de loyer — GET leases/{lease}/receipts/{payment}/pdf' => ['quittance', ['app/Http/Controllers/Api/DocumentPdfController.php']],
             'facture — GET invoices/{invoice}/pdf' => ['facture', ['app/Http/Controllers/Api/DocumentPdfController.php']],
             'contrat de bail — GET leases/{lease}/contract/pdf' => ['contrat', ['app/Http/Controllers/Api/DocumentPdfController.php']],
+            // TCK-2906 — l'aperçu du contrat d'un bail neuf, rendu depuis le formulaire.
+            'aperçu du contrat — POST leases/contract-preview' => ['apercuDuContrat', ['app/Http/Controllers/Api/DocumentPdfController.php']],
+            // TCK-2906 — deux rendus ajoutés par TCK-2866 et TCK-2909 sans leur ligne (la garde d'AC4 rougissait).
+            'balance âgée — GET agencies/{agency}/finance/aging.pdf' => ['balanceAgee', ['app/Http/Controllers/Api/Agency/AgingBalanceController.php']],
+            'avis de versement — GET payouts/{payout}/notice/pdf' => ['avisDeVersement', ['app/Http/Controllers/Api/PayoutNoticePdfController.php']],
             'reçu par lien public — GET pay/{token}/receipt' => ['recuParLienPublic', ['app/Http/Controllers/Api/PublicPaymentLinkController.php']],
             'relevé mensuel — GET owner-statements/pdf?period=YYYY-MM' => ['releveMensuel', ['app/Http/Controllers/Api/OwnerStatementController.php']],
             'attestation annuelle — GET owner-statements/pdf?period=YYYY' => ['attestationAnnuelle', ['app/Http/Controllers/Api/OwnerStatementController.php']],
@@ -283,6 +295,43 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
         $this->connecter($this->tenant);
 
         return fn (): TestResponse => $this->get("/api/leases/{$this->lease->id}/contract/pdf");
+    }
+
+    /** TCK-2906 — l'agent de l'agence prévisualise le contrat d'un bail neuf sur un bien de l'agence. */
+    private function apercuDuContrat(): Closure
+    {
+        $this->connecter($this->agent, AgentProfile::query()->where('user_id', $this->agent->id)->sole());
+
+        return fn (): TestResponse => $this->postJson('/api/leases/contract-preview', [
+            'property_id' => $this->property->id,
+            'tenant_id' => $this->lease->tenant_id,
+            'type' => 'residential_rent',
+            'start_date' => '2026-07-01',
+            'monthly_rent' => 350000,
+        ]);
+    }
+
+    /** TCK-2906 — la balance âgée en PDF (TCK-2866), lue par l'admin de l'agence. */
+    private function balanceAgee(): Closure
+    {
+        $this->connecter($this->admin, AgencyAdminProfile::query()->where('user_id', $this->admin->id)->sole());
+
+        return fn (): TestResponse => $this->get("/api/agencies/{$this->agency->id}/finance/aging.pdf");
+    }
+
+    /** TCK-2906 — l'avis d'un reversement terminé au bailleur (TCK-2909), lu par le bailleur. */
+    private function avisDeVersement(): Closure
+    {
+        $versement = Payout::factory()->create([
+            'agency_id' => $this->agency->id,
+            'landlord_id' => $this->landlord->id,
+            'payee_role' => PayeeRole::Landlord,
+            'status' => PayoutStatus::Completed,
+            'processed_at' => '2026-02-10 09:00:00',
+        ]);
+        $this->connecter($this->landlord, OwnerProfile::query()->where('user_id', $this->landlord->id)->sole());
+
+        return fn (): TestResponse => $this->get("/api/payouts/{$versement->id}/notice/pdf");
     }
 
     private function recuParLienPublic(): Closure

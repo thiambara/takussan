@@ -42,6 +42,80 @@ class LeaseService
      */
     public function create(Property $property, User $user, array $data): Lease
     {
+        // TCK-2906 — les contrôles et la mise en forme, partagés avec l'aperçu du contrat ({@see self::preview()}).
+        [$data, $garantsRepris] = $this->prepare($property, $user, $data);
+
+        return DB::transaction(function () use ($data, $property, $user, $garantsRepris): Lease {
+            // TCK-2747 — sous le verrou du bien, que `BookingService::confirm()` prend aussi : une
+            // confirmation de candidature voit le brouillon né ici, ou le précède.
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — le brouillon ne ferme plus rien : les
+            // candidatures du bien se closent à l'ENVOI en signature ({@see self::cloreLesCandidaturesDuBien()}).
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+
+            $lease = Lease::create(array_merge($data, [
+                'reference_number' => ReferenceNumberGenerator::lease(),
+                ...self::attributsDuBien($property, $user, $data),
+            ]));
+
+            // TCK-2894 — les garants de la candidature, au pivot du bail (trois au plus des deux côtés).
+            if ($garantsRepris !== []) {
+                $lease->guarantors()->attach(array_fill_keys($garantsRepris, ['role' => null]));
+            }
+
+            return $lease;
+        });
+    }
+
+    /**
+     * TCK-2906 — l'aperçu du contrat (`POST /api/leases/contract-preview`) : le bail que `create()` écrirait,
+     * en MÉMOIRE seulement — aucune ligne `leases`, aucun pivot, aucun média, aucun journal, aucune
+     * référence consommée. Mêmes refus que la création (le bien, le locataire, le garant, la réservation,
+     * les termes de commission), dans le même ordre : l'aperçu n'imprime jamais une fiche que le lecteur ne
+     * pourrait pas rattacher à un bail.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function preview(Property $property, User $user, array $data): Lease
+    {
+        [$data, $garantsRepris] = $this->prepare($property, $user, $data);
+
+        $lease = new Lease(array_merge($data, self::attributsDuBien($property, $user, $data)));
+        $lease->setRelation('property', $property->loadMissing('address'));
+        $lease->setRelation('tenant', Customer::query()->find($data['tenant_id']));
+        $lease->setRelation('landlord', $property->user_id !== null ? User::query()->find($property->user_id) : null);
+        $lease->setRelation('agency', $lease->agency_id !== null ? Agency::query()->find($lease->agency_id) : null);
+        $garants = array_values(array_filter([...(! empty($data['guarantor_id']) ? [(int) $data['guarantor_id']] : []), ...$garantsRepris]));
+        $lease->setRelation('guarantors', Guarantor::query()->whereKey($garants)->orderBy('id')->get());
+
+        return $lease;
+    }
+
+    /**
+     * TCK-2906 — les colonnes que le bail reçoit du bien et de l'appelant, à la création comme à l'aperçu.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function attributsDuBien(Property $property, User $user, array $data): array
+    {
+        return [
+            'landlord_id' => $property->user_id,
+            'agency_id' => $property->agency_id ?? $user->agency_id,
+            'status' => LeaseStatus::Draft->value,
+            'currency' => $data['currency'] ?? 'XOF',
+            'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
+        ];
+    }
+
+    /**
+     * Les contrôles de la création et la forme des données, sans rien écrire (TCK-2906 : extrait de
+     * `create()`, que l'aperçu du contrat rejoue).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: array<string, mixed>, 1: list<int>}
+     */
+    private function prepare(Property $property, User $user, array $data): array
+    {
         // TCK-587 (ADR-0031) — le bailleur du bien, ou le PERSONNEL de l'agence du bien tenant
         // `leases.create`. TCK-2643 — la règle vit dans `LeasePolicy::createOn()`, que lit aussi
         // `GET /api/leases/defaults` : le préremplissage juge comme la création.
@@ -114,29 +188,7 @@ class LeaseService
         // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
         $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return DB::transaction(function () use ($data, $property, $user, $garantsRepris): Lease {
-            // TCK-2747 — sous le verrou du bien, que `BookingService::confirm()` prend aussi : une
-            // confirmation de candidature voit le brouillon né ici, ou le précède.
-            // TCK-2734 (décision 7 du porteur, 2026-11-12) — le brouillon ne ferme plus rien : les
-            // candidatures du bien se closent à l'ENVOI en signature ({@see self::cloreLesCandidaturesDuBien()}).
-            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
-
-            $lease = Lease::create(array_merge($data, [
-                'reference_number' => ReferenceNumberGenerator::lease(),
-                'landlord_id' => $property->user_id,
-                'agency_id' => $property->agency_id ?? $user->agency_id,
-                'status' => LeaseStatus::Draft->value,
-                'currency' => $data['currency'] ?? 'XOF',
-                'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
-            ]));
-
-            // TCK-2894 — les garants de la candidature, au pivot du bail (trois au plus des deux côtés).
-            if ($garantsRepris !== []) {
-                $lease->guarantors()->attach(array_fill_keys($garantsRepris, ['role' => null]));
-            }
-
-            return $lease;
-        });
+        return [$data, $garantsRepris];
     }
 
     /**

@@ -81,4 +81,46 @@ Audit (`audit-f4-patrimoine.md`) : app-biens **e2** ; app-baux **e1**, **e2**.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, vague 92, worktree `feat/audit-manques-2026-11-15`).
+
+**Écarts au contrat (tranchés ici)**
+- `latest_open { id, title, status }` : `status` est la valeur de l'enum (le front a les libellés) ; aucun « label code » n'existe côté API.
+- Inclusions calculées, fiche seule : bien `include=maintenanceSummary` (convention camel des inclusions du bien),
+  bail `include=maintenance_summary`, `include=documentsCount`, `include=historyCount`. Les comptes ne passent PAS
+  par `withCount` (non bornés au lecteur) : `maintenanceRequests` n'est pas ajouté aux comptables de `Property`.
+- `documents_count` = pièces déposées listables (`DocumentPolicy::listableOn`) + documents générés
+  (`DocumentVault::generatedFor`) : exactement ce que l'onglet « Documents » liste. `history_count` = la portée
+  d'`AuditLogController::indexByEntity` (`AuditScope`), absent pour qui échoue `viewAny Activity` (locataire, bailleur).
+- `next_revision_date` (`App\Services\Lease\RentReviewSchedule`, une expression SQL lue aussi par le motif
+  `rent_review_open` de `LeaseAttention`) = max(début + 12 mois, jour de la dernière révision journalisée + 12 mois) ;
+  nulle hors `draft`/`pending_signature`/`active`, pour une vente, et pour un plafond FIGÉ à 0 % (« sans clause » :
+  un plafond nul exécute le réglage, toujours > 0). Passée = révision ouverte (la date reste servie, dans le passé).
+  ⚠ Changement de règle de la file : une révision du 20/08/2026 rouvre le motif le 20/08/2027 (avant : le 21) ;
+  et la file ne signale plus un bail à plafond figé à 0 %.
+- Préavis : bornes 1-365 jours (`StoreLeaseRequest::NOTICE_PERIOD_DAYS_*`), création ET mise à jour (terme imprimé :
+  refusé après signature, `lease.terms_locked`) ; `GET /api/leases/defaults` → `notice_period_days {value: 30,
+  source: platform}` (aucun réglage n'existe) ; contrat : « 90 jour(s) (3 mois) ».
+- Aperçu : `POST /api/leases/contract-preview` (route `leases.contract-preview`) rend le PDF ; `LeaseContractPreviewRequest`
+  hérite de `StoreLeaseRequest` (autorisation avant validation, mêmes règles) ; `LeaseService::create()` est découpé
+  en `prepare()` (refus du locataire, du garant, de la réservation, termes de commission) que `preview()` rejoue sur un
+  `Lease` en mémoire (aucune référence générée : le gabarit imprime « aperçu, bail non encore créé »).
+
+**Défauts voisins corrigés**
+- `EarlyTerminationService::cancel()` remettait `notice_period_days` à nul : un préavis signé de 90 jours redevenait 30.
+- `LeaseRenewalService` : le renouvellement reprend le préavis du bail d'origine.
+- `OwnerDirectory` : `properties_count`, `occupied_properties_count` ET la somme de tête (`meta.summary.properties`)
+  comptent les biens `pending_owner_profile_id` du profil (règle du filtre de TCK-2905, archivés exclus).
+- `LimiteDeDebitDuPilotePdfTest` (AC4) rougissait sur la branche : `AgingBalanceController` (TCK-2866) et
+  `PayoutNoticePdfController` (TCK-2909) ajoutés au fournisseur avec leur requête, `MeExportsController` excusé
+  (sert des octets gardés). Plus la ligne de l'aperçu.
+- Types front : `Lease.next_revision_date`, `maintenance_summary`, `documents_count`, `history_count`,
+  `ResumeDesInterventions`, `LeaseDefaults.notice_period_days`, `Property.maintenance_summary`.
+
+**Mesures** — 8 classes neuves (`PropertyMaintenanceSummaryTest`, `LeaseMaintenanceSummaryTest`, `LeaseNextRevisionDateTest`,
+`LeaseNoticePeriodTest`, `LeaseAgentPhoneVisibilityTest`, `LeaseContractPreviewTest`, `LeaseTabCountsTest`,
+`OwnerDirectoryInvitedPropertiesCountTest`) ; 19 ablations une à une, toutes rouges, restaurées au md5. Joués verts :
+`LeaseAttentionQueueTest`, `RentReviewNotifiesLandlordTest`, `LeaseContractTermsTest`, `LeaseContractPdfTest`,
+`EarlyTerminationServiceTest`, `LeaseDefaultsTest`, `StoreLeaseWithLateFeeTest`, `CreationDeBailAutoriseAvantDeValiderTest`,
+`OwnerProfileListFiguresTest`, `LimiteDeDebitDuPilotePdfTest`, `LeaseRenewalEndpointTest`, `LeaseRenewalFrozenContractTest`,
+`AuthorizationPrecedesValidationTest`, `LeaseSummaryCountsTest`, les trois balayages, les trois gardes d'architecture,
+`DateInventoryByValueTest` (`next_revision_date` inscrit) ; `scripts/check-*.mjs` tous verts ; `tsc` propre.

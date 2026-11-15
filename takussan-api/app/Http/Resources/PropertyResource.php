@@ -13,6 +13,7 @@ use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use App\Policies\OwnerProfilePolicy;
+use App\Services\Maintenance\MaintenanceSummary;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
@@ -36,6 +37,27 @@ class PropertyResource extends BaseResource
     private ?array $contactResolu = null;
 
     private ?bool $watermarkRequired = null;
+
+    /**
+     * TCK-2906 — `maintenance_summary` de la fiche (`include=maintenanceSummary`), posé par
+     * `PropertyController::show` seul ; `null` : non demandé, rien n'est émis.
+     *
+     * @var array{total: int, open: int, latest_open: array<string, mixed>|null}|null
+     */
+    private ?array $maintenanceSummary = null;
+
+    /**
+     * TCK-2906 — le résumé des interventions du bien, à la portée du lecteur
+     * ({@see MaintenanceSummary}).
+     *
+     * @param  array{total: int, open: int, latest_open: array<string, mixed>|null}|null  $summary
+     */
+    public function avecResumeDesInterventions(?array $summary): static
+    {
+        $this->maintenanceSummary = $summary;
+
+        return $this;
+    }
 
     /**
      * TCK-539 (R2) — toute liste de biens décide du filigrane en UNE requête au plus, sans
@@ -126,6 +148,8 @@ class PropertyResource extends BaseResource
             // posés par le seul `PropertyController::index` : ni une route publique ni un lecteur imbriqué.
             ...($this->resource instanceof Property && $this->resource->stats30d() !== null
                 ? ['stats_30d' => $this->resource->stats30d()] : []),
+            // TCK-2906 — les interventions du bien que le lecteur lit (`include=maintenanceSummary`, fiche seule).
+            ...($this->maintenanceSummary !== null ? ['maintenance_summary' => $this->maintenanceSummary] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),

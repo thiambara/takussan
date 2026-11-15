@@ -142,6 +142,8 @@ class LeaseRenewalService
                 // du contrat signé. Un parent antérieur (colonnes nulles) donne un enfant nul.
                 'early_termination_penalty_months' => $data['early_termination_penalty_months'] ?? $parent->early_termination_penalty_months,
                 'rent_review_max_pct' => $data['rent_review_max_pct'] ?? $parent->rent_review_max_pct,
+                // TCK-2906 — le préavis saisi à la création passe à l'enfant comme les autres termes imprimés.
+                'notice_period_days' => $parent->notice_period_days,
                 'terms' => $data['terms'] ?? $parent->terms,
                 'special_conditions' => $data['special_conditions'] ?? $parent->special_conditions,
             ]);

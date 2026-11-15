@@ -47,7 +47,8 @@ use Illuminate\Support\Str;
  * ({@see OwnerStatementService::balances()}), le même que celui du relevé : jamais le reste du mois.
  *
  * **Comptes** : un bien compte au bailleur quand il en est le titulaire (`properties.user_id`) dans
- * cette agence, non supprimé ni archivé ; « occupé » suit {@see Occupation}.
+ * cette agence, ou quand il a été saisi pour son profil encore sans compte (`pending_owner_profile_id`,
+ * TCK-2906 — la règle de `filter[owner_profile_id]`), non supprimé ni archivé ; « occupé » suit {@see Occupation}.
  */
 final class OwnerDirectory
 {
@@ -98,10 +99,16 @@ final class OwnerDirectory
      */
     public function addListColumns(Builder $query): void
     {
+        // TCK-2906 — les biens du profil au sens de `filter[owner_profile_id]` (TCK-2905) : ceux de son compte
+        // dans son agence, OU ceux saisis pour lui avant qu'il n'ait de compte (`pending_owner_profile_id`).
+        // Un bailleur invité comptait 0 bien quand la liste filtrée lui en rendait.
         $properties = fn (): QueryBuilder => DB::table('properties')
             ->selectRaw('COUNT(*)')
-            ->whereColumn('properties.user_id', 'owner_profiles.user_id')
-            ->whereColumn('properties.agency_id', 'owner_profiles.agency_id')
+            ->where(fn (QueryBuilder $siens) => $siens
+                ->whereColumn('properties.pending_owner_profile_id', 'owner_profiles.id')
+                ->orWhere(fn (QueryBuilder $compte) => $compte
+                    ->whereColumn('properties.user_id', 'owner_profiles.user_id')
+                    ->whereColumn('properties.agency_id', 'owner_profiles.agency_id')))
             ->whereNull('properties.deleted_at')
             ->whereNull('properties.archived_at');
 
@@ -317,12 +324,16 @@ final class OwnerDirectory
         $holders = (clone $perimeter)->reorder()->toBase()
             ->select(['owner_profiles.user_id', 'owner_profiles.agency_id'])
             ->whereNotNull('owner_profiles.user_id');
+        // TCK-2906 — et les biens saisis pour un profil encore sans compte, comme `properties_count` de la ligne.
+        $profils = (clone $perimeter)->reorder()->toBase()->select('owner_profiles.id');
         $properties = DB::table('properties')
             ->whereNull('properties.deleted_at')
             ->whereNull('properties.archived_at')
-            ->whereExists(fn (QueryBuilder $q) => $q->fromSub($holders, 'holders')
-                ->whereColumn('holders.user_id', 'properties.user_id')
-                ->whereColumn('holders.agency_id', 'properties.agency_id'))
+            ->where(fn (QueryBuilder $siens) => $siens
+                ->whereExists(fn (QueryBuilder $q) => $q->fromSub($holders, 'holders')
+                    ->whereColumn('holders.user_id', 'properties.user_id')
+                    ->whereColumn('holders.agency_id', 'properties.agency_id'))
+                ->orWhereIn('properties.pending_owner_profile_id', $profils))
             ->count();
 
         $remaining = null;

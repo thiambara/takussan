@@ -172,7 +172,8 @@ class EarlyTerminationService
                 'early_termination_effective_date' => null,
                 'early_termination_penalty_amount' => null,
                 'early_termination_reason' => null,
-                'notice_period_days' => null,
+                // TCK-2906 — le préavis est un terme du contrat, saisi à la création : l'annulation d'un
+                // départ ne le remet plus à nul (un 90 signé redevenait le défaut de 30 jours).
                 'early_termination_invoice_id' => null,
             ])->save();
 

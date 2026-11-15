@@ -11,14 +11,23 @@ use App\Http\Requests\Api\TerminateLeaseRequest;
 use App\Http\Requests\UpdateLeaseRequest;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LeaseResource;
+use App\Models\Activity;
+use App\Models\Agency;
 use App\Models\Booking;
+use App\Models\Document;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Models\User;
+use App\Policies\DocumentPolicy;
+use App\Services\Audit\AuditScope;
+use App\Services\Documents\DocumentVault;
 use App\Services\Lease\LeaseAttention;
 use App\Services\Lease\LeaseDueSummary;
 use App\Services\Lease\LeaseSignatureService;
+use App\Services\Maintenance\MaintenanceSummary;
 use App\Services\Model\LeaseService;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use App\Sorts\LeaseStatusRankSort;
@@ -103,8 +112,60 @@ class LeaseController extends Controller
             'data' => LeaseResource::make($lease->load(['property.address', 'signatures.signer', 'signatures.onBehalfOf']))
                 ->forViewer($request->user())
                 ->avecLocataire($avecLocataire, $avecLocataire ? CustomerResource::champsDemandesDuBloc($request) : null)
+                ->avecCalculs($this->calculsDeLaFiche($lease, $includes, $request))
                 ->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2906 — ce que la fiche demande en plus, chacun sous son inclusion, chacun à la portée du lecteur :
+     *
+     *  - `include=maintenance_summary` : les interventions du bail que le lecteur lit ({@see MaintenanceSummary}) ;
+     *  - `include=documentsCount` : ce que l'onglet « Documents » liste — les pièces déposées sur le bail
+     *    (`GET /api/documents?filter[documentable_type]=lease&…`, {@see DocumentPolicy::listableOn()}) et ses
+     *    documents générés (`GET /api/documents/generated?target=lease:{id}`) ;
+     *  - `include=historyCount` : les entrées de `GET /api/audit-log/lease/{id}`, sous la même portée
+     *    ({@see AuditScope}) ; absent pour qui ne lit pas cet historique (le locataire, le bailleur).
+     *
+     * @param  list<string>  $includes
+     * @return array<string, mixed>
+     */
+    private function calculsDeLaFiche(Lease $lease, array $includes, Request $request): array
+    {
+        $user = $request->user();
+        $calculs = [];
+
+        if (in_array('maintenance_summary', $includes, true)) {
+            $calculs['maintenance_summary'] = MaintenanceSummary::byLease($user, [(int) $lease->id])[(int) $lease->id];
+        }
+
+        if (in_array('documentsCount', $includes, true)) {
+            $calculs['documents_count'] = DocumentPolicy::listableOn(Document::query(), $user, $lease)->count()
+                + count(app(DocumentVault::class)->generatedFor($user, $lease));
+        }
+
+        if (in_array('historyCount', $includes, true) && $this->litLHistorique($user, $request)) {
+            $calculs['history_count'] = AuditScope::apply(Activity::query(), $user, $request->activeProfile()?->agency_id ?? $user->agency_id)
+                ->where('subject_type', $lease->getMorphClass())
+                ->where('subject_id', $lease->id)
+                ->count();
+        }
+
+        return $calculs;
+    }
+
+    /** TCK-2906 — les deux gardes de `AuditLogController::indexByEntity`, en lecture : sans lever. */
+    private function litLHistorique(User $user, Request $request): bool
+    {
+        if (! $user->can('viewAny', Activity::class)) {
+            return false;
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        $agencyId = $request->activeProfile()?->agency_id ?? $user->agency_id;
+
+        return $agencyId === null || Agency::query()->whereKey($agencyId)->first(['id', 'kind'])?->kind === AgencyKind::Standard;
     }
 
     /**

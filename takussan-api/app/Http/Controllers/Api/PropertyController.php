@@ -22,6 +22,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Notifications\PropertyProposedNotification;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Maintenance\MaintenanceSummary;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\MotifsHorsLigne;
@@ -233,8 +234,16 @@ class PropertyController extends Controller
             app(PropertyOccupancy::class)->attach(collect([$property]), $request->user());
         }
 
+        // TCK-2906 — les interventions du bien que le lecteur lit (`include=maintenanceSummary`) : total, ouvertes,
+        // la dernière ouverte. Même portée que `GET /api/maintenance-requests`.
+        $interventions = in_array('maintenanceSummary', $includes, true)
+            ? MaintenanceSummary::byProperty($request->user(), [(int) $property->getKey()])[(int) $property->getKey()]
+            : null;
+
         return $this->json([
-            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))->resolve($request),
+            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))
+                ->avecResumeDesInterventions($interventions)
+                ->resolve($request),
         ]);
     }
 

@@ -19079,6 +19079,18 @@
         "owner_reminder": {
           "title": "Rappel : votre accord est requis pour « {request} »",
           "body": "Votre agence vous rappelle qu’un devis de {amount} pour « {request} » attend votre décision. Approuvez-le ou refusez-le."
+        },
+        "cancelled_with_reason": {
+          "title": "Intervention annulée : {request}",
+          "body": "L'intervention « {request} » a été annulée. Motif : {reason}"
+        },
+        "step_cancelled_with_reason": {
+          "title": "Votre demande « {request} » : annulée",
+          "body": "Votre demande d'intervention a été annulée. Motif : {reason}"
+        },
+        "reschedule_requested": {
+          "title": "Autre créneau demandé : « {request} »",
+          "body": "Le locataire demande un autre créneau pour « {request} » ({slots} proposé(s)). Le créneau actuel ne change pas tant que vous n'en posez pas un nouveau."
         }
       },
       "maintenance_quote": {
@@ -21111,7 +21123,8 @@
         "louesLibres": "{n, plural, one {# loué} other {# loués}} · {libres, plural, one {# libre} other {# libres}}",
         "surAttendus": "sur {montant} attendus",
         "leJour": "le {jour}"
-      }
+      },
+      "chargement": "Chargement des chiffres du mois"
     },
     "blocs": {
       "erreur": "Impossible de charger {quoi}.",
@@ -21124,7 +21137,8 @@
         "equipe": "l’équipe du jour",
         "echeances": "les échéances à venir",
         "favoris": "vos favoris"
-      }
+      },
+      "chargement": "Chargement"
     },
     "toutEstAJour": {
       "titre": "Tout est à jour"
@@ -21360,7 +21374,10 @@
         "titre": "À chiffrer",
         "quoi": "les devis à chiffrer",
         "chiffrer": "Chiffrer",
-        "demande": "{aLieu, select, oui {{lieu} · } other {}}demandé {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}"
+        "demande": "{aLieu, select, oui {{lieu} · } other {}}demandé {jour, select, aujourdhui {aujourd’hui} hier {hier} other {le {date}}}",
+        "titreBureau": "Mes devis en attente",
+        "quoiBureau": "vos devis en attente",
+        "envoye": "{aDate, select, oui {Envoyé le {date}} other {Envoyé}} · en attente du bailleur"
       },
       "statut": {
         "aAccepter": "À accepter",

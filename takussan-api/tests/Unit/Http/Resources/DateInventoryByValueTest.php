@@ -173,7 +173,12 @@ class DateInventoryByValueTest extends TestCase
         // TCK-2764 r1 (2881df543) — déclarée ici par back-4 (TCK-2648) : la garde rougissait sur HEAD sans elle.
         'App\Http\Resources\LeaseResource::has_inventory' => '`when()` sur le lecteur d\'`origin_booking` (qui peut '
             .'abandonner le brouillon) : un booléen, jamais une date.',
-        'App\Http\Resources\LeaseResource::origin_booking' => '`when()` sur le même lecteur posé par `forViewer()` et '
+        // TCK-2906 — une DATE, comme `sponsored_until` : sa forme est gardée ailleurs.
+        'App\Http\Resources\LeaseResource::next_revision_date' => '`when()` sur le lecteur posé par `forViewer()` (TCK-2906), '
+            .'que seul `LeaseController::show` appelle. C\'EST une date de calendrier (`RentReviewSchedule::nextRevisionDate()`), '
+            .'émise par `$this->calendarDate()` au format `2027-07-01`, ou `null` : sa forme est gardée par '
+            .'`scripts/check-resource-date-format.mjs` et par la valeur exacte de `Tests\Feature\Lease\LeaseNextRevisionDateTest`.',
+        'App\Http\Resources\LeaseResource::origin_booking' =>'`when()` sur le même lecteur posé par `forViewer()` et '
             .'sur `can(\'abandon\')` (TCK-2764) : `{id, status}` de la réservation d\'origine, un entier et la valeur de '
             .'`BookingStatus`, ou `null` ; jamais une date.',
         'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '

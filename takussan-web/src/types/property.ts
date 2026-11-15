@@ -1,4 +1,5 @@
 import type { AgencyKind } from './agency';
+import type { ResumeDesInterventions } from './lease';
 import type { TagStatus } from './tag';
 
 export type PropertyType =
@@ -141,6 +142,8 @@ export interface PropertyListItem {
   occupancy?: OccupationDuBien | null;
   /** TCK-2637 (ADR-0097) — « En ligne », le prédicat du catalogue ; servi sur `include=online`. */
   is_online?: boolean;
+  /** TCK-2906 — `include=maintenanceSummary` (fiche seule) : les interventions du bien que le lecteur lit. */
+  maintenance_summary?: ResumeDesInterventions;
   /**
    * TCK-2678 (ADR-0097 § 5) — pourquoi le bien est hors ligne : des codes (`lib/biens/motifs-hors-ligne`),
    * dans l'ordre d'affichage ; `[]` pour un bien en ligne. Servi sur `include=offlineReasons` seulement.

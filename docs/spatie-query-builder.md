@@ -198,6 +198,10 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
   ouverts sur le bien par un autre que son titulaire ; `visits` : les visites demandées ou terminées dans la
   fenêtre, hors annulées. Trois requêtes pour la page, quel que soit le nombre de biens. Pas un champ de
   `fields[properties]` ; jamais sur la liste publique.
+- **`include=maintenanceSummary`** (TCK-2906, fiche `GET /api/properties/{id}` seulement) →
+  `maintenance_summary { total, open, latest_open { id, title, status } | null }` : les interventions du bien
+  que le lecteur lit (portée de `GET /api/maintenance-requests`), « ouvertes » hors terminées, closes,
+  annulées et refusées ; la dernière ouverte par date de création puis id. Une requête.
 - **`owner_profile_id`** (fiche seulement, appelant connu ; TCK-2639) : le profil de bailleur du
   titulaire dans l'agence du bien, rendu à qui la fiche de ce bailleur s'ouvrirait
   (`OwnerProfilePolicy::isInActorAgency` et `viewDetail`), `null` pour tout autre.
@@ -246,7 +250,13 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 - **`include=due_summary`** → `next_due` (`{due_date, amount, status}` de la prochaine échéance à
   venir, reste dû ; `null` sinon), `overdue_count`, `overdue_amount` (au reste dû).
 - **`include=landlord`**, **`include=agent`** → `{id, first_name, last_name, full_name}` ; le
-  téléphone du bailleur pour le personnel de l'agence du bail et pour le bailleur lui-même.
+  téléphone du bailleur pour le personnel de l'agence du bail et pour le bailleur lui-même ; celui de
+  l'agent pour le seul personnel de l'agence du bail (TCK-2906).
+- Fiche `GET /api/leases/{id}` seulement (TCK-2906) : **`include=maintenance_summary`** (même forme que
+  celle du bien, bornée aux demandes du bail), **`include=documentsCount`** → `documents_count` (pièces
+  déposées sur `lease:{id}` + documents générés : ce que l'onglet « Documents » liste),
+  **`include=historyCount`** → `history_count` (entrées de `GET /api/audit-log/lease/{id}`, absent pour qui
+  ne le lit pas). `next_revision_date` est toujours rendu sur la fiche.
 - **`sort=attention`** : l'argent dû d'abord (`rent_late`, `late_fee_unpaid`), puis ce qui presse,
   puis l'information ; le plus ancien `since` en tête. **`sort=etat`** : en cours, en signature,
   brouillon, expiré, résilié, renouvelé.
