@@ -229,6 +229,11 @@ export interface PropertyAgencyLite {
   rating: number | null;
   /** TCK-633 — un indépendant (`individual`) ne facture pas de frais d'agence (`PropertyResource`, tâche 13). */
   kind?: AgencyKind;
+  /**
+   * TCK-2935 — le délai de réponse médian de l'agence, en minutes (`null` sous le seuil de mesures),
+   * le même que la fiche publique d'agence. Absent quand la liste n'a pas chargé la colonne.
+   */
+  median_response_minutes?: number | null;
 }
 
 export interface PropertyTag {

@@ -608,6 +608,13 @@ class PropertyResource extends BaseResource
             'rating' => $agencyRating !== null ? round((float) $agencyRating, 2) : null,
             // TCK-633 (AC4) — un indépendant ne facture pas de frais d'agence : le formulaire masque le champ.
             'kind' => $agency->kind?->value,
+            // TCK-2935 — le délai de réponse habituel de l'agence, la colonne même que sert sa fiche
+            // publique (`PublicAgencyController`) : un seul écrivain (`RefreshDirectoryResponseTimes`),
+            // donc une seule définition, `null` sous le seuil. Omis seulement quand la colonne n'est pas
+            // chargée (sélection réduite d'une liste) — jamais un `null` inventé.
+            ...(array_key_exists('median_response_minutes', $agency->getAttributes())
+                ? ['median_response_minutes' => $agency->median_response_minutes]
+                : []),
         ];
     }
 
