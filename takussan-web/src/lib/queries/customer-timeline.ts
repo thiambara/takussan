@@ -14,7 +14,8 @@ import type { CustomerPipelineStage } from '@/types/customer';
  */
 
 /** Les types du fil (`CustomerTimeline::TYPES`). */
-export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage', 'record', 'task'] as const;
+/** TCK-2894 — `booking` : la réservation entre au fil (ADR-0110 § 9) ; son rendu est TCK-2878. */
+export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage', 'record', 'task', 'booking'] as const;
 export type TypeDuFil = (typeof TYPES_DU_FIL)[number];
 
 /** Une entrée par page : la taille d'une page du fil. */
@@ -101,7 +102,26 @@ export interface TacheDuFil {
   readonly causer: PersonneDuFil | null;
 }
 
-export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil;
+/**
+ * TCK-2894 (ADR-0110 § 9) — un jalon de réservation : son dépôt, son acceptation ou son refus, au
+ * seul personnel de l'agence de la fiche. Jamais le revenu déclaré, le dossier ni les garants.
+ */
+export interface ReservationDuFil {
+  readonly type: 'booking';
+  readonly id: number;
+  readonly at: string;
+  readonly milestone: 'created' | 'confirmed' | 'rejected';
+  readonly kind: 'stay' | 'application' | 'offer' | null;
+  /** Le statut COURANT de la réservation, pas celui du jalon. */
+  readonly status: string | null;
+  readonly reference_number: string | null;
+  readonly amount: string | null;
+  readonly currency: string | null;
+  readonly start_date: string | null;
+  readonly property: { readonly id: number; readonly title: string } | null;
+}
+
+export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil | ReservationDuFil;
 
 export const FIL_QUERY_KEY = {
   tout: (customerId: number) => ['customer-timeline', customerId] as const,

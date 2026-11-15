@@ -16581,7 +16581,8 @@
         "fiche": {
           "titre": "Compléter votre fiche publique",
           "detail": "Indiquez vos langues et vos quartiers.",
-          "action": "Compléter"
+          "action": "Compléter",
+          "detailPourcentage": "{pourcentage} % · il manque {reste}."
         }
       },
       "details": {
@@ -16591,7 +16592,8 @@
           "sansNumero": "Aucun numéro"
         },
         "fiche": {
-          "faits": "{langues, plural, =0 {Aucune langue} one {# langue} other {# langues}} · {quartiers, plural, =0 {aucun quartier} one {# quartier} other {# quartiers}}"
+          "faits": "{langues, plural, =0 {Aucune langue} one {# langue} other {# langues}} · {quartiers, plural, =0 {aucun quartier} one {# quartier} other {# quartiers}}",
+          "pourcentage": "{pourcentage} % complète"
         },
         "pro": {
           "carte": "Carte n° {numero}",
@@ -16628,6 +16630,45 @@
         "enCours": "Espace en cours",
         "carte": "carte professionnelle n° {numero}"
       }
+    },
+    "completude": {
+      "complete": "complète",
+      "pourcentage": "{pourcentage} %",
+      "barre": "Complétude de votre fiche publique",
+      "invitation": "Les fiches complètes reçoivent plus de demandes.",
+      "reste": "Il vous reste : {reste}.",
+      "faite": "Votre fiche est complète : les visiteurs y trouvent tout ce qui compte.",
+      "manque": {
+        "quartiers": "{count, plural, one {# quartier} other {# quartiers}}",
+        "telephone": "votre numéro vérifié",
+        "langue": "une langue",
+        "photo": "votre photo",
+        "presentation": "votre présentation"
+      }
+    },
+    "apercu": {
+      "titre": "Aperçu",
+      "aide": "Ce que voient les visiteurs du site.",
+      "enDirect": "Aperçu en direct",
+      "nonListee": "Visible après publication de votre fiche",
+      "agent": "Agent",
+      "langues": "Langues",
+      "quartiers": "Quartiers",
+      "reponse": "Réponse",
+      "annonces": "Annonces",
+      "note": "Note",
+      "avis": "· {count, plural, one {# avis} other {# avis}}",
+      "pasDAvis": "Pas encore d’avis",
+      "noteAria": "Note moyenne de {note} sur 5",
+      "delai": {
+        "minutes": "en {count, plural, one {# min} other {# min}} environ",
+        "heures": "en {count, plural, one {# h} other {# h}} environ",
+        "jours": "en {count, plural, one {# jour} other {# jours}} environ"
+      },
+      "pasDeDelai": "Pas encore mesurée",
+      "enLigne": "{count, plural, =0 {Aucun bien en ligne} one {# bien en ligne} other {# biens en ligne}}",
+      "whatsapp": "WhatsApp",
+      "voirSesBiens": "Voir ses biens"
     }
   },
   "contact": {

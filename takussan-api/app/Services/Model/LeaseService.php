@@ -83,6 +83,14 @@ class LeaseService
             ]);
         }
 
+        // TCK-2894 (ADR-0110 § 10) — le bail repris d'une candidature : ce que la requête n'envoie pas
+        // vient de la candidature, jamais du bien (son loyer a pu changer depuis).
+        $garantsRepris = [];
+        if ($reservation !== null) {
+            $data = self::reprendreLaCandidature($reservation, $data);
+            $garantsRepris = self::garantsRepris($reservation, $user, $property, $data);
+        }
+
         // TCK-595 (verif-595 B1, ADR-0049 §1-§2) — la base de commission et le négociateur sont des
         // termes du mandat de l'agence : seul son personnel les pose, sous `leases.create`. Le
         // bailleur, débiteur de la commission, ne les écrit jamais.
@@ -106,14 +114,14 @@ class LeaseService
         // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
         $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return DB::transaction(function () use ($data, $property, $user): Lease {
+        return DB::transaction(function () use ($data, $property, $user, $garantsRepris): Lease {
             // TCK-2747 — sous le verrou du bien, que `BookingService::confirm()` prend aussi : une
             // confirmation de candidature voit le brouillon né ici, ou le précède.
             // TCK-2734 (décision 7 du porteur, 2026-11-12) — le brouillon ne ferme plus rien : les
             // candidatures du bien se closent à l'ENVOI en signature ({@see self::cloreLesCandidaturesDuBien()}).
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
 
-            return Lease::create(array_merge($data, [
+            $lease = Lease::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::lease(),
                 'landlord_id' => $property->user_id,
                 'agency_id' => $property->agency_id ?? $user->agency_id,
@@ -121,7 +129,73 @@ class LeaseService
                 'currency' => $data['currency'] ?? 'XOF',
                 'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
             ]));
+
+            // TCK-2894 — les garants de la candidature, au pivot du bail (trois au plus des deux côtés).
+            if ($garantsRepris !== []) {
+                $lease->guarantors()->attach(array_fill_keys($garantsRepris, ['role' => null]));
+            }
+
+            return $lease;
         });
+    }
+
+    /**
+     * TCK-2894 (ADR-0110 § 10) — les termes d'une CANDIDATURE que le bail reprend quand la requête ne
+     * les envoie pas : le loyer (le montant de la candidature, soit le loyer du bien à sa création —
+     * ADR-0102 § 3 — et non son loyer actuel), la caution (`security_deposit_amount`, instantané) et
+     * la fin (début du bail + `term_months`, veille comprise : la convention de continuité de
+     * `LeaseRenewalService`). « Envoyé » se juge par la présence de la clé : `deposit_amount: 0` ou
+     * `null` envoyés l'emportent — la requête a dit « pas de caution », la reprise ne la contredit pas.
+     * Un séjour ou une offre ne reprend rien : leur montant n'est pas un loyer.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function reprendreLaCandidature(Booking $reservation, array $data): array
+    {
+        if ($reservation->kind !== BookingKind::Application) {
+            return $data;
+        }
+
+        if (! array_key_exists('monthly_rent', $data) && $reservation->total_amount !== null) {
+            $data['monthly_rent'] = (string) $reservation->total_amount;
+        }
+        if (! array_key_exists('deposit_amount', $data) && $reservation->security_deposit_amount !== null) {
+            $data['deposit_amount'] = (string) $reservation->security_deposit_amount;
+        }
+        if (! array_key_exists('end_date', $data) && $reservation->term_months !== null && ! empty($data['start_date'])) {
+            $data['end_date'] = Carbon::parse((string) $data['start_date'])
+                ->addMonthsNoOverflow((int) $reservation->term_months)
+                ->subDay()
+                ->toDateString();
+        }
+
+        return $data;
+    }
+
+    /**
+     * TCK-2894 (ADR-0110 § 3, § 10) — les garants de la réservation que le bail rattache, quand la
+     * requête n'en nomme aucun (`guarantor_id` envoyé l'emporte). Le même prédicat que le garant
+     * nommé (TCK-587 B2, TCK-2285) : lisible par le créateur (`view`) et de l'agence du bien. Un
+     * garant que le créateur ne lirait pas n'est pas rattaché — la reprise ne contourne pas la règle.
+     *
+     * @param  array<string, mixed>  $data
+     * @return list<int>
+     */
+    private static function garantsRepris(Booking $reservation, User $user, Property $property, array $data): array
+    {
+        if (! empty($data['guarantor_id'])) {
+            return [];
+        }
+
+        return $reservation->guarantors()
+            ->orderBy('booking_guarantor.id')
+            ->get()
+            ->filter(fn (Guarantor $g): bool => $user->can('view', $g) && ContactDeLAgenceDuBien::garant($g, $property->agency_id))
+            ->take(3)
+            ->map(fn (Guarantor $g): int => (int) $g->id)
+            ->values()
+            ->all();
     }
 
     /**

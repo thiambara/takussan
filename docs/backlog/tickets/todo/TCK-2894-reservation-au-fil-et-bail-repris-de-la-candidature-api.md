@@ -58,4 +58,24 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — agent délégué (vague 92).
+
+**Prémisses re-mesurées, écarts :**
+- Le filtre réel est `filter[type]=booking` (`CustomerTimelineRequest`), pas `?types=booking`.
+- `booking_counter_offers` n'existe pas (TCK-2873 non commité) : le jalon `counter_offer` n'est PAS livré ; son rang (11) est réservé dans `CustomerTimeline::RANGS`. À ajouter avec TCK-2873.
+- Le « geste d'invitation » d'AC2 n'a pas d'événement propre : c'est un geste de contact (lien `?action=reserver` envoyé par WhatsApp, ADR-0101 § 4) ; aucun `->event()` neuf.
+- AC3 exige la reprise du LOYER, que le Delta ne listait pas : livrée (`monthly_rent` ← `total_amount`).
+- Un garant passé en `guarantor_id` n'entre pas au pivot `lease_guarantor` (colonne héritée seulement) — inchangé.
+
+**Livré :**
+- `CustomerTimeline` : type `booking`, jalons `created` (`created_at`), `confirmed` (`confirmed_at`), `rejected` (`cancelled_at` ET `status = rejected` — une annulation écrit la même colonne). Au seul personnel (`$staff`), et bornée à `bookings.agency_id = customers.agency_id` (une réservation du même client dans une autre agence n'entre pas). Charge utile en colonnes nommées : nature, statut courant, référence, montant, devise, début, bien — jamais revenu, dossier ni garants.
+- `LeaseService::create` avec `booking_id` d'une CANDIDATURE : reprend `monthly_rent` (montant de la candidature), `deposit_amount` (`security_deposit_amount`) et `end_date` (début + `term_months` − 1 jour, convention de continuité de `LeaseRenewalService`) quand la clé est ABSENTE de la requête — un `0` ou un `null` envoyés l'emportent. Séjour et offre : rien repris. Garants de la réservation rattachés au pivot quand la requête n'envoie pas `guarantor_id`, sous le prédicat du garant nommé (`view` + `ContactDeLAgenceDuBien::garant`) : un bailleur qui ne lit pas le garant saisi par l'agent ne le rattache pas.
+- Front : `TYPES_DU_FIL` gagne `booking` (garde de parité `customer-timeline.tck-2589.test.ts`) et le type `ReservationDuFil` ; aucun rendu (TCK-2878).
+
+**Mesures :** `CustomerTimelineBookingTest` 6/6, `LeaseFromBookingTest` 5/5 ; 12 ablations rouges puis restaurées (md5). `CustomerTimelineTest` : le test du filtre mal formé utilisait `booking` comme type inconnu → passé à `lease`. Tests voisins (3 fils, 4 baux depuis réservation, 3 gardes d'architecture) verts ; vitest du fil 29/29 ; `tsc` propre.
+
+**Pour TCK-2878 :** `fil-du-client.ts:51` et la clé React de `FilDuClient.tsx:470` ne mettent le jalon dans la clé que pour `visit` — deux jalons d'une même réservation s'y écraseraient. `Entree` n'a pas de cas `booking` : les entrées sont servies et tues jusqu'à TCK-2878.
+
+**À confirmer par le porteur :** ADR-0110 § 3 dit « les garants sont rattachés » sans condition ; la reprise applique le prédicat du garant nommé (lisible par le créateur, de l'agence du bien). Un bailleur qui crée le bail ne rattache donc pas, en silence, le garant saisi par l'agent. Retirer ce filtre tient en une ligne (`LeaseService::garantsRepris`).
+
+**Contrat pour TCK-2878 :** la reprise ne vaut que pour une clé ABSENTE ; `null` ou `0` envoyés l'emportent (`guarantor_id: null`, lui, laisse reprendre les garants). `CreateLeaseForm` envoie toujours `deposit_amount` (défaut 0) et `monthly_rent` (loyer actuel du bien) : le panneau « repris de la candidature » doit les préremplir depuis `GET /api/bookings/{id}` ou omettre la clé. `end_date` vide part omise : la fin reprise s'applique.

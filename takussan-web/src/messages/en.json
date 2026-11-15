@@ -16581,7 +16581,8 @@
         "fiche": {
           "titre": "Complete your public profile",
           "detail": "Add your languages and your neighbourhoods.",
-          "action": "Complete"
+          "action": "Complete",
+          "detailPourcentage": "{pourcentage}% · still missing {reste}."
         }
       },
       "details": {
@@ -16591,7 +16592,8 @@
           "sansNumero": "No phone number"
         },
         "fiche": {
-          "faits": "{langues, plural, =0 {No language} one {# language} other {# languages}} · {quartiers, plural, =0 {no neighbourhood} one {# neighbourhood} other {# neighbourhoods}}"
+          "faits": "{langues, plural, =0 {No language} one {# language} other {# languages}} · {quartiers, plural, =0 {no neighbourhood} one {# neighbourhood} other {# neighbourhoods}}",
+          "pourcentage": "{pourcentage}% complete"
         },
         "pro": {
           "carte": "Card no. {numero}",
@@ -16628,6 +16630,45 @@
         "enCours": "Current space",
         "carte": "professional card no. {numero}"
       }
+    },
+    "completude": {
+      "complete": "complete",
+      "pourcentage": "{pourcentage}%",
+      "barre": "How complete your public profile is",
+      "invitation": "Complete profiles receive more requests.",
+      "reste": "Still to add: {reste}.",
+      "faite": "Your profile is complete: visitors find everything that matters.",
+      "manque": {
+        "quartiers": "{count, plural, one {# neighbourhood} other {# neighbourhoods}}",
+        "telephone": "your verified number",
+        "langue": "a language",
+        "photo": "your photo",
+        "presentation": "your introduction"
+      }
+    },
+    "apercu": {
+      "titre": "Preview",
+      "aide": "What visitors to the site see.",
+      "enDirect": "Live preview",
+      "nonListee": "Visible once your profile is published",
+      "agent": "Agent",
+      "langues": "Languages",
+      "quartiers": "Neighbourhoods",
+      "reponse": "Response",
+      "annonces": "Listings",
+      "note": "Rating",
+      "avis": "· {count, plural, one {# review} other {# reviews}}",
+      "pasDAvis": "No reviews yet",
+      "noteAria": "Average rating of {note} out of 5",
+      "delai": {
+        "minutes": "in about {count, plural, one {# min} other {# min}}",
+        "heures": "in about {count, plural, one {# h} other {# h}}",
+        "jours": "in about {count, plural, one {# day} other {# days}}"
+      },
+      "pasDeDelai": "Not measured yet",
+      "enLigne": "{count, plural, =0 {No properties online} one {# property online} other {# properties online}}",
+      "whatsapp": "WhatsApp",
+      "voirSesBiens": "See their properties"
     }
   },
   "contact": {
