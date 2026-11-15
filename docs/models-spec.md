@@ -889,7 +889,8 @@ vide), utilisé par les PDF.
 | kind | BookingKind (string(16)) | | | Nature : `stay` (séjour : bien à la nuit ou à la semaine), `application` (candidature : autre location), `offer` (offre d'achat : bien à vendre) — fixée à la création d'après le bien, rattrapée pour l'existant (TCK-2579) | ➕ |
 | offer_expires_at | date | oui | null | Validité d'une offre (dernier jour inclus, heure de Dakar) (TCK-2579) | ➕ |
 | list_price_at_booking | decimal(14,2) | oui | null | Prix ou loyer affiché du bien à la création d'une offre ou d'une candidature (TCK-2579) | ➕ |
-| metadata | jsonb | oui | null | | |
+| source | BookingSource (string(20)) | | 'public' | Origine : `public` (tunnel public), `invitation` (tunnel ouvert par le lien d'invitation, `via=invitation` — un indice sans droit), `staff` (saisie du personnel). Rattrapée `staff` quand l'auteur n'est pas le compte de la fiche client (TCK-2874, ADR-0110 § 6) | ➕ |
+| metadata | jsonb | oui | null | `stage_change` (`from`, `to`, `at`, `undone_at`) : le passage de la fiche en Négociation fait à l'acceptation, servi au personnel par `BookingResource::stage_change` (TCK-2874, ADR-0110 § 8) | |
 | deleted_at | timestamp | oui | null | Soft delete | |
 | created_at | timestamp | | auto | | |
 | updated_at | timestamp | | auto | | |
@@ -928,6 +929,12 @@ dans les `$queryFields` (TCK-575) : `response_deadline` en dépend.
 - `createdBy()` → belongsTo User (via created_by_id) ✏️ ancien `user()`
 - `agency()` → belongsTo Agency
 - `payments()` → hasMany BookingPayment
+- `counterOffers()` → hasMany BookingCounterOffer, `latestCounterOffer()` → hasOne (latestOfMany) — TCK-2873. **Table
+  `booking_counter_offers`** (ADR-0110 § 5) : `booking_id` FK (`cascadeOnDelete`), `amount` decimal(15,2), `message`
+  string(500) nullable, `valid_until` date (dernier jour, fin de journée de Dakar), `created_by_id` FK users nullable
+  (`nullOnDelete`), `status` `CounterOfferStatus` string(16) défaut `'pending'` (`pending`, `accepted`, `declined`,
+  `superseded`, `expired`), `responded_at` timestamp nullable, timestamps ; index `(booking_id, status)`,
+  `(status, valid_until)`, `created_by_id`
 - ~~`lease()`~~ — **retirée** (TCK-2372, P250.03) : un `hasOne` sur `leases.booking_id`, colonne sans unicité, et sans lecteur
 
 ---
@@ -6091,6 +6098,27 @@ FK : `agency_id` et `lease_payment_id` en `cascadeOnDelete`, `created_by_id` en 
 Unique `(booking_id, piece)`, index `document_id`. La liste est FIXE PAR NATURE, posée à la création de la réservation (`Booking::performInsert`) : trois pièces pour une candidature, deux pour une offre, aucune pour un séjour ; un garant déclaré ajoute `guarantor_commitment` et `guarantor_identity` (TCK-2893). Servie en complétude (`dossier: {received, required, missing}`) par `BookingResource`, en détail par `GET /api/bookings/{id}/dossier`.
 
 **Relations :** `booking()` → belongsTo Booking ; `document()` → belongsTo Document.
+
+---
+
+### 127. ConversationReport 🆕
+
+<!-- TCK-2859 (ADR-0114). -->
+
+**Table :** `conversation_reports` — le signalement d'une conversation par l'un de ses participants.
+
+| Champ | Type | Null | Défaut | Description |
+|---|---|---|---|---|
+| conversation_id | FK conversations | | | La conversation signalée (`cascadeOnDelete`) |
+| reporter_id | FK users | | | L'auteur du signalement, participant du fil (`cascadeOnDelete`) |
+| reason | string(32) | | | Motif codé : `spam`, `harassment`, `fraud`, `inappropriate`, `other` |
+| comment | string(500) | oui | null | Commentaire facultatif |
+
+Unique `(conversation_id, reporter_id)` : une seule fois par auteur (409 `conversation.already_reported`). Le
+signalement ne gèle rien ; seul le super-admin le lit (`GET /api/admin/conversation-reports`), sans le contenu des
+messages.
+
+**Relations :** `conversation()` → belongsTo Conversation ; `reporter()` → belongsTo User.
 
 ---
 
