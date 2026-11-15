@@ -8335,7 +8335,22 @@
           "devis": "Quote: {montant}",
           "demandeDe": "Request from {agence}",
           "sansTitre": "Job",
-          "adresseApres": "The address and the tenant’s contact open once you accept."
+          "adresseApres": "The address and the tenant’s contact open once you accept.",
+          "echeance": {
+            "sous": "To handle within {heures} h",
+            "avant": "To handle by {date}",
+            "depassee": "Response time has passed"
+          },
+          "signalee": {
+            "tenant": "Reported by the tenant on {date}",
+            "landlord": "Reported by the landlord on {date}",
+            "agency": "Reported by the agency on {date}",
+            "inconnu": "Reported on {date}"
+          },
+          "reference": "ref. {reference}",
+          "citation": "“{texte}”",
+          "voirLeDetail": "View details",
+          "detailApres": "Details once you accept"
         },
         "accepter": "Accept",
         "proposer": "Suggest a time slot",
@@ -8389,6 +8404,37 @@
             "fait": "Sent"
           },
           "fait": "Done"
+        },
+        "reglages": {
+          "tarifs": "Rates",
+          "enFcfa": "in F CFA",
+          "devise": "F CFA",
+          "horaire": "Hourly rate",
+          "visite": "Visit fee",
+          "disponibilites": "Availability",
+          "grille": "Your weekly slots",
+          "moments": {
+            "morning": "Morning",
+            "afternoon": "Afternoon"
+          },
+          "jours": {
+            "monday": "Mon",
+            "tuesday": "Tue",
+            "wednesday": "Wed",
+            "thursday": "Thu",
+            "friday": "Fri",
+            "saturday": "Sat",
+            "sunday": "Sun"
+          },
+          "creneau": "{jour}, {moment}",
+          "enregistrer": "Save my profile",
+          "enregistrement": "Saving…",
+          "enregistre": "Profile saved."
+        },
+        "multiAgences": {
+          "titre": "You already work with {agences}",
+          "texte": "Same account, same profile: {agence} joins your agencies. Your trades, rates and slots carry over as they are.",
+          "texteSans": "Same account, same profile: this agency joins yours. Your trades, rates and slots carry over as they are."
         }
       },
       "attente": {
@@ -11449,7 +11495,8 @@
         "releves": "Statements and certificates",
         "factures": "My invoices",
         "devisEtRapports": "Quotes and reports",
-        "mesPieces": "My documents"
+        "mesPieces": "My documents",
+        "bailDuLocataire": "Lease of {nom}"
       },
       "ouvrirDossier": "Open the {nom} folder",
       "vide": {
@@ -11458,7 +11505,8 @@
         "pieces": "ID, employment certificate, insurance: what the agency asks you for.",
         "property": "Land title, insurance, mandate: what you file for this property.",
         "statements": "Your monthly statements will arrive here.",
-        "bills": "Your invoices are filed here after each completed job."
+        "bills": "Your invoices are filed here after each completed job.",
+        "quotes_reports": "Your quotes and completion reports are filed here."
       },
       "accueil": {
         "titre": "Your documents, your lease and your receipts",
@@ -11502,7 +11550,13 @@
         "nousPreviendronsSept": "We will remind you 7 days before."
       },
       "resume": {
-        "caution": "deposit"
+        "caution": "deposit",
+        "devis": "{count, plural, one {# quote} other {# quotes}}",
+        "rapports": "{count, plural, one {# completion report} other {# completion reports}}",
+        "contrat": "contract",
+        "edl": "inventory",
+        "piece": "files",
+        "documents": "{count, plural, one {# document} other {# documents}}"
       },
       "telecharger": "Download",
       "telechargerNomme": "Download: {nom}",
@@ -11516,7 +11570,6 @@
         "reference": "Reference"
       },
       "voirLesAutres": "{count, plural, one {See the other one} other {See the other #}}",
-      "biensSansDocument": "{count, plural, one {# property without documents} other {# properties without documents}}",
       "lectureSeule": "Your landlord access is suspended: you can still view these documents, but nothing can be added.",
       "recherche": {
         "champ": "Find a document",
@@ -11533,7 +11586,7 @@
         "titre": "Add a document",
         "photo": {
           "titre": "Take a photo",
-          "texte": "With your phone’s camera"
+          "texte": "Straightened and cropped before sending"
         },
         "fichier": {
           "titre": "Choose a file",
@@ -11569,7 +11622,27 @@
         "tailleKo": "{n} KB",
         "leBailNumero": "This property’s lease {reference}",
         "rangeImpose": "The document will be filed under “{dossier}”.",
-        "luSurLaPhoto": "Read from the photo."
+        "luSurLaPhoto": "Read from the photo.",
+        "photoRecadree": "Cropped photo",
+        "dansLeBienNumero": "{bien} · lease {reference}",
+        "recadrage": {
+          "titre": "Straighten and crop",
+          "aide": "Rotate the photo if needed, then drag the corners to frame the document.",
+          "tourner": "Rotate",
+          "reprendre": "Retake",
+          "valider": "Use this photo",
+          "enCours": "Cropping…",
+          "coins": {
+            "hautGauche": "Top-left corner",
+            "hautDroit": "Top-right corner",
+            "basGauche": "Bottom-left corner",
+            "basDroit": "Bottom-right corner"
+          }
+        },
+        "remplace": {
+          "titre": "{categorie, select, id_card {Replaces the expiring card} passport {Replaces the expiring passport} other {Replaces the expiring document}}",
+          "texte": "The old one stays in the versions."
+        }
       },
       "archive": {
         "toutTelecharger": "Download all",
@@ -11594,7 +11667,8 @@
           "echec": "The “{nom}” archive could not be prepared. Try again.",
           "demandeEchouee": "The archive could not be requested. Try again."
         }
-      }
+      },
+      "aucunDocument": "No documents"
     },
     "fiche": {
       "titreCourt": "Document",

@@ -77,7 +77,12 @@ export default async function ServiceProviderOnboardingPage({
   // travaillait DÉJÀ avec une autre agence (plus d'une collaboration), ou qui arrive sans lien de reprise.
   const dejaPrestataireAilleurs = collabs.length > 1;
 
-  if (isExistingSp && collabs.length > 0 && (!aReprendre || dejaPrestataireAilleurs)) {
+  // TCK-2946 (AC4) — avec le lien de l'invitation (`?sp=`), le prestataire déjà en poste ailleurs passe lui AUSSI
+  // par l'écran 2 (maquette `app-entree-assistants` a, e2, variante « déjà prestataire d'une autre agence ») :
+  // l'intervention jointe, et la note « Vous travaillez déjà avec… ». Le panneau le privait de la carte et de la fin
+  // d'onboarding qui lui assigne la demande (`complete()` se rejoue sans dommage sur un profil actif). Sans lien de
+  // reprise, le panneau de TCK-262 reste.
+  if (isExistingSp && collabs.length > 0 && !aReprendre) {
     return (
       <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
         <ServiceProviderMultiAgencyWelcome
@@ -113,6 +118,10 @@ export default async function ServiceProviderOnboardingPage({
       ? agences.data.filter((c) => c.status !== 'ended').sort((a, b) => b.collaboration_id - a.collaboration_id)
       : [];
   const agence = collaborations[0]?.agency.name ?? null;
+  // TCK-2946 — les AUTRES agences ouvertes du prestataire (la note multi-agences de l'écran 2).
+  const autresAgences = dejaPrestataireAilleurs
+    ? [...new Set(collaborations.slice(1).map((c) => c.agency.name).filter((nom) => nom !== agence))]
+    : [];
   // Le libellé de la catégorie se traduit ICI : l'espace `maintenance` entier n'a pas à suivre l'onboarding
   // (`src/i18n/namespaces.json`) pour un seul mot. Un code inconnu ne s'affiche pas.
   const code = intervention?.data?.category ?? null;
@@ -129,6 +138,7 @@ export default async function ServiceProviderOnboardingPage({
         categorie={categorie}
         reglages={reglages?.data ?? null}
         pieces={pieces?.data ?? null}
+        {...(autresAgences.length > 0 ? { autresAgences } : {})}
       />
     </OnboardingShell>
   );

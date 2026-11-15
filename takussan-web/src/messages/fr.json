@@ -8335,7 +8335,22 @@
           "devis": "Devis : {montant}",
           "demandeDe": "Demande de {agence}",
           "sansTitre": "Intervention",
-          "adresseApres": "L’adresse et le contact du locataire s’ouvrent quand vous acceptez."
+          "adresseApres": "L’adresse et le contact du locataire s’ouvrent quand vous acceptez.",
+          "echeance": {
+            "sous": "À traiter sous {heures} h",
+            "avant": "À traiter avant le {date}",
+            "depassee": "Délai de réponse dépassé"
+          },
+          "signalee": {
+            "tenant": "Signalée par le locataire le {date}",
+            "landlord": "Signalée par le bailleur le {date}",
+            "agency": "Signalée par l’agence le {date}",
+            "inconnu": "Signalée le {date}"
+          },
+          "reference": "réf. {reference}",
+          "citation": "« {texte} »",
+          "voirLeDetail": "Voir le détail",
+          "detailApres": "Détail après acceptation"
         },
         "accepter": "Accepter",
         "proposer": "Proposer un créneau",
@@ -8389,6 +8404,37 @@
             "fait": "Envoyée"
           },
           "fait": "Fait"
+        },
+        "reglages": {
+          "tarifs": "Tarifs",
+          "enFcfa": "en F CFA",
+          "devise": "F CFA",
+          "horaire": "Tarif horaire",
+          "visite": "Frais de visite",
+          "disponibilites": "Disponibilités",
+          "grille": "Vos créneaux de la semaine",
+          "moments": {
+            "morning": "Matin",
+            "afternoon": "Après-midi"
+          },
+          "jours": {
+            "monday": "Lun.",
+            "tuesday": "Mar.",
+            "wednesday": "Mer.",
+            "thursday": "Jeu.",
+            "friday": "Ven.",
+            "saturday": "Sam.",
+            "sunday": "Dim."
+          },
+          "creneau": "{jour}, {moment}",
+          "enregistrer": "Enregistrer mon profil",
+          "enregistrement": "Enregistrement…",
+          "enregistre": "Profil enregistré."
+        },
+        "multiAgences": {
+          "titre": "Vous travaillez déjà avec {agences}",
+          "texte": "Même compte, même profil : {agence} s’ajoute à vos agences. Vos métiers, vos tarifs et vos créneaux sont repris tels quels.",
+          "texteSans": "Même compte, même profil : cette agence s’ajoute aux vôtres. Vos métiers, vos tarifs et vos créneaux sont repris tels quels."
         }
       },
       "attente": {
@@ -11449,7 +11495,8 @@
         "releves": "Relevés et attestations",
         "factures": "Mes factures",
         "devisEtRapports": "Devis et rapports",
-        "mesPieces": "Mes pièces"
+        "mesPieces": "Mes pièces",
+        "bailDuLocataire": "Bail de {nom}"
       },
       "ouvrirDossier": "Ouvrir le dossier {nom}",
       "vide": {
@@ -11458,7 +11505,8 @@
         "pieces": "Pièce d’identité, attestation de travail, assurance : ce que l’agence vous demande.",
         "property": "Titre foncier, assurance, mandat : ce que vous rangez pour ce bien.",
         "statements": "Vos relevés mensuels arriveront ici.",
-        "bills": "Vos factures se rangent ici à chaque intervention terminée."
+        "bills": "Vos factures se rangent ici à chaque intervention terminée.",
+        "quotes_reports": "Vos devis et vos rapports de fin d’intervention se rangent ici."
       },
       "accueil": {
         "titre": "Vos pièces, votre contrat et vos quittances",
@@ -11502,7 +11550,13 @@
         "nousPreviendronsSept": "Nous vous préviendrons 7 jours avant."
       },
       "resume": {
-        "caution": "caution"
+        "caution": "caution",
+        "devis": "{count, plural, one {# devis} other {# devis}}",
+        "rapports": "{count, plural, one {# rapport de fin d’intervention} other {# rapports de fin d’intervention}}",
+        "contrat": "contrat",
+        "edl": "état des lieux",
+        "piece": "pièces",
+        "documents": "{count, plural, one {# document} other {# documents}}"
       },
       "telecharger": "Télécharger",
       "telechargerNomme": "Télécharger : {nom}",
@@ -11516,7 +11570,6 @@
         "reference": "Référence"
       },
       "voirLesAutres": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
-      "biensSansDocument": "{count, plural, one {# bien sans document} other {# biens sans document}}",
       "lectureSeule": "Votre accès bailleur est suspendu : ces documents restent consultables, mais rien ne peut y être ajouté.",
       "recherche": {
         "champ": "Chercher un document",
@@ -11533,7 +11586,7 @@
         "titre": "Ajouter un document",
         "photo": {
           "titre": "Prendre une photo",
-          "texte": "Avec l’appareil photo du téléphone"
+          "texte": "Redressée et recadrée avant l’envoi"
         },
         "fichier": {
           "titre": "Choisir un fichier",
@@ -11569,7 +11622,27 @@
         "tailleKo": "{n} Ko",
         "leBailNumero": "Le bail {reference} de ce bien",
         "rangeImpose": "Le document sera rangé dans « {dossier} ».",
-        "luSurLaPhoto": "Lu sur la photo."
+        "luSurLaPhoto": "Lu sur la photo.",
+        "photoRecadree": "Photo recadrée",
+        "dansLeBienNumero": "{bien} · bail {reference}",
+        "recadrage": {
+          "titre": "Redresser et recadrer",
+          "aide": "Tournez la photo si besoin, puis faites glisser les coins pour cadrer le document.",
+          "tourner": "Tourner",
+          "reprendre": "Reprendre",
+          "valider": "Utiliser cette photo",
+          "enCours": "Recadrage…",
+          "coins": {
+            "hautGauche": "Coin en haut à gauche",
+            "hautDroit": "Coin en haut à droite",
+            "basGauche": "Coin en bas à gauche",
+            "basDroit": "Coin en bas à droite"
+          }
+        },
+        "remplace": {
+          "titre": "{categorie, select, id_card {Remplace la carte qui expire} passport {Remplace le passeport qui expire} other {Remplace la pièce qui expire}}",
+          "texte": "L’ancienne reste dans les versions."
+        }
       },
       "archive": {
         "toutTelecharger": "Tout télécharger",
@@ -11594,7 +11667,8 @@
           "echec": "L’archive « {nom} » n’a pas pu être préparée. Réessayez.",
           "demandeEchouee": "La préparation de l’archive n’a pas pu être demandée. Réessayez."
         }
-      }
+      },
+      "aucunDocument": "Aucun document"
     },
     "fiche": {
       "titreCourt": "Document",

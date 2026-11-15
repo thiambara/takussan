@@ -66,4 +66,20 @@ Le prestataire juge l'intervention d'un coup d'œil, et règle au bureau ses tar
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (worktree `feat/audit-manques-2026-11-15`), « valide tes choix » : décisions mineures tranchées ci-dessous.
+
+**Prémisses re-mesurées — ce qui différait :**
+- « Tutoiement de l'entrée conservé » : faux depuis ADR-0095 (révision du 2026-11-10, « utilise toujours le vouvoiement ») ; les clés existantes de l'écran vouvoient. Les libellés neufs vouvoient.
+- AC4 : le panneau multi-agences (`page.tsx`) remplaçait TOUT l'écran 2 pour un prestataire à plus d'une collaboration arrivé par `?sp=` — ni la carte, ni la fin d'onboarding qui lui assigne la demande. La maquette en fait une variante de e2 (une note). Corrigé : avec `?sp=`, l'écran 2 + la note « Vous travaillez déjà avec {agences} » (`MultiAgences`, prop `autresAgences`) ; sans lien de reprise, le panneau de TCK-262 reste. `complete()` se rejoue sans dommage sur un profil actif (lu dans `ServiceProviderOnboardingService`).
+- `TradesPayload` exigeait métiers et zones : `patchSpTrades` / `spPatchTradesAction` prennent désormais `Partial<TradesPayload>` (l'API n'écrit que les clés présentes, TCK-592) — l'écran 2 n'envoie que les tarifs.
+
+**Choix :**
+- Pastille : `respond_by` − maintenant (lu au montage), en heures arrondies au-dessus jusqu'à 72 h (« À traiter sous 47 h »), au-delà « À traiter avant le {date} », passée « Délai de réponse dépassé » ; absente sans `respond_by`. Sur la photo (haut gauche), en tête du corps sans photo. `suppressHydrationWarning` sur le texte (serveur et navigateur peuvent différer d'une heure).
+- Ligne « Signalée par {le locataire | le bailleur | l'agence} le {9 nov.} · réf. {INT-0042} » (« Signalée le … » sans rôle).
+- Citation `« … »` quand `tenant_quote` ; sinon la note « L'adresse et le contact… » reste.
+- « Voir le détail » : texte « Détail après acceptation » avant ; bouton après l'acceptation, vers `detail_url` s'il commence par `/app/`, sinon `/app/maintenance/{id}`. Rendu aussi sans agence.
+- Tarifs/Disponibilités (`TarifsEtDisponibilites.tsx`) : dès `lg` (sous la carte de 1024 à 1279, colonne de droite dès `xl`) ; au téléphone, seul « Plus tard » (un seul dans le DOM). Écritures du profil : `PATCH …/trades` {hourly_rate, visit_fee} seulement si modifiés, puis `PATCH …/availability` seulement si les créneaux ont changé ; le soir déjà réglé est GARDÉ (la grille n'affiche que Matin/Après-midi) ; un créneau hors gabarit tombe, comme au profil. 422 → sous le champ (`hourly_rate`, `visit_fee`, `available_slots*`), sinon message général. La liste « n sur 5 » lit les valeurs enregistrées. Réglages illisibles (`null`) → aucun formulaire (rien ne s'écrase).
+- Bouton « Enregistrer mon profil » en variante `sombre` (maquette, TCK-2686).
+
+**Mesures :** `InterventionDuPrestataire.tck-2946` (9), `page.tck-2613` (6, mis à jour : champs demandés + AC4), `ServiceProviderOnboardingWizard.test` et `assistants-sans-champ-fichier.tck-2796` : 32 verts. 8 ablations rouges puis restaurées (md5) : soir gardé, tarifs seuls, tarifs non modifiés non écrits, échéance en dur, détail actif avant acceptation, erreur sous le champ, condition AC4 de la page, champs demandés. ESLint propre ; `tsc` propre sur mes fichiers (rouge restant : `AjoutAuCoffre.tck-2898.test.tsx`, coffre en cours) ; `check:i18n` rouge seulement sur `src/lib/documents/recadrage.ts` (coffre) ; `check:vouvoiement`, `check-champs-uniformes` (corrigé : pas de `h-11` sur `<Input>`) et gardes racine verts. Fiche TCK-2613 : écarts acceptés [2] et [3] passés en résolus, + la variante multi-agences.
+- **Non mesuré** : AC4 et AC-F2 au navigateur (consigne du porteur du 2026-11-15 : pas de relevé de fidélité) ; disposition jugée en lisant la maquette.

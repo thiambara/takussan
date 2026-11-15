@@ -46,6 +46,8 @@ export type ServiceProviderOnboardingWizardProps = {
   reglages?: ReglagesDuPrestataire | null;
   /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
   pieces?: readonly PieceDuProfil[] | null;
+  /** TCK-2946 (AC4) — les autres agences d'un prestataire déjà en poste ailleurs : la note de l'écran 2. */
+  autresAgences?: readonly string[];
 };
 
 /** Le brouillon ne garde que le numéro : un brouillon de l'assistant à quatre écrans reprend à l'écran 2. */
@@ -72,6 +74,7 @@ export function ServiceProviderOnboardingWizard({
   categorie = null,
   reglages = null,
   pieces = null,
+  autresAgences = [],
 }: ServiceProviderOnboardingWizardProps) {
   const t = useTranslations('serviceProviders.onboarding');
   const router = useRouter();
@@ -160,6 +163,7 @@ export function ServiceProviderOnboardingWizard({
               categorie={categorieMontree}
               reglages={reglages}
               pieces={pieces}
+              autresAgences={autresAgences}
               enCours={api.enCours}
               finaliser={async () => {
                 if (finalise.current) return true;

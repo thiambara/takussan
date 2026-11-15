@@ -80,10 +80,18 @@ describe('/onboarding/service-provider — ce que l’écran 2 de l’assistant 
     expect(reponse.appels.map((a) => a.path)).not.toContain('/api/me/service-provider/agencies');
   });
 
-  it('déjà prestataire d’une autre agence, ou arrivé sans lien de reprise : le panneau multi-agences reste (TCK-262)', async () => {
+  it('déjà prestataire d’une autre agence, par le lien de l’invitation : l’écran 2 et la note « Vous travaillez déjà avec… » (TCK-2946, AC4)', async () => {
     profil.statut = 'active';
     getSpAgenciesAction.mockResolvedValue({ ok: true, data: { data: AGENCES, meta: { total: 3, service_provider_profile_id: 31 } } });
-    expect((await rendu({ sp: '31' })).props.children.props).toMatchObject({ spProfileId: 31, collaborations: AGENCES });
+    const props = (await rendu({ sp: '31' })).props.children.props;
+    expect(props).toMatchObject({ spProfileId: 31, agence: 'Dakar Immo', intervention: INTERVENTION, autresAgences: ['Saly Gestion'] });
+    expect(props).not.toHaveProperty('collaborations');
+  });
+
+  it('arrivé sans lien de reprise : le panneau multi-agences reste (TCK-262)', async () => {
+    profil.statut = 'active';
+    getSpAgenciesAction.mockResolvedValue({ ok: true, data: { data: AGENCES, meta: { total: 3, service_provider_profile_id: 31 } } });
+    expect((await rendu()).props.children.props).toMatchObject({ spProfileId: 31, collaborations: AGENCES });
 
     getSpAgenciesAction.mockResolvedValue({ ok: true, data: { data: [AGENCES[1]], meta: { total: 1, service_provider_profile_id: 31 } } });
     expect((await rendu()).props.children.props).toMatchObject({ spProfileId: 31 });
@@ -105,8 +113,11 @@ describe('/onboarding/service-provider — ce que l’écran 2 de l’assistant 
     expect(coque.props.brouillon).toBe(true);
 
     const chemins = reponse.appels.map((a) => a.path);
-    // Les champs minimaux sont NOMMÉS (sparse fieldsets) : titre, catégorie, lieu, photo, devis.
-    expect(chemins).toContain('/api/me/profiles/31/intervention-d-origine?fields[intervention_d_origine]=title,category,place,photo,quote');
+    // Les champs sont NOMMÉS (sparse fieldsets) : titre, catégorie, lieu, photo, devis ; TCK-2946 : + échéance, date et
+    // auteur du signalement, référence, mots du locataire, lien de la fiche (TCK-2943).
+    expect(chemins).toContain(
+      '/api/me/profiles/31/intervention-d-origine?fields[intervention_d_origine]=title,category,place,photo,quote,respond_by,reported_at,reference,reported_by_role,tenant_quote,detail_url',
+    );
     expect(reponse.appels.find((a) => a.path === '/api/me/pieces')?.headers).toEqual({ 'X-Profile-Id': 'service_provider:31' });
   });
 

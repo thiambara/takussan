@@ -69,7 +69,8 @@ export type OnboardCompleteResponse = {
 export async function patchSpTrades(
   token: string,
   spProfileId: number,
-  payload: TradesPayload,
+  // TCK-2946 — l'API n'écrit que les clés présentes (TCK-592) : les tarifs seuls ne touchent ni métiers ni zones.
+  payload: Partial<TradesPayload>,
 ): Promise<TradesResponse> {
   return apiRequest<TradesResponse>(cheminApi`/api/me/profiles/${spProfileId}/trades`, {
     method: 'PATCH',
@@ -165,8 +166,12 @@ export type InterventionDOrigine = {
   readonly detail_url?: string;
 };
 
-/** Les blocs que l'écran 2 lit (`fields[intervention_d_origine]`). */
-export const CHAMPS_DE_L_INTERVENTION_D_ORIGINE = 'title,category,place,photo,quote';
+/**
+ * Les blocs que l'écran 2 lit (`fields[intervention_d_origine]`). TCK-2946 : + l'échéance, la date et l'auteur du
+ * signalement, la référence, les mots du locataire et le lien de la fiche (TCK-2943, ADR-0122).
+ */
+export const CHAMPS_DE_L_INTERVENTION_D_ORIGINE =
+  'title,category,place,photo,quote,respond_by,reported_at,reference,reported_by_role,tenant_quote,detail_url';
 
 export async function fetchInterventionDOrigine(
   token: string,
