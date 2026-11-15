@@ -67,4 +67,45 @@ L'admin remplit sa vitrine d'un geste avec ses biens les plus vus, et lit sous l
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, worktree `feat/audit-manques-2026-11-15`). Front seul : l'API de TCK-2923
+(`GET /api/agencies/{agency}/properties/most-viewed?limit=N`, `AgencyPolicy::configure`) suffit — aucune route, aucun
+test API.
+
+- **Suggestion (AC1, AC2)** — `SectionFichePublique` lit la route par `useApiQuery` (`limit=6`, les places de la
+  vitrine, passé par `extra` : `buildQueryString` ne sérialise pas une clé inconnue — un premier jet l'avait perdue, le
+  test l'a vu). Règle pure dans `lib/vitrine-agence.ts` : `selectionSuggeree()` garde l'ordre de l'API (jamais retrié),
+  sans doublon, six au plus ; `null` sans bien vu ce mois, ou quand la vitrine est déjà exactement cette sélection
+  (décision : le geste ne changerait rien, la ligne se tait). « Utiliser cette sélection » passe par `choisir()`
+  (`setValue(…, { shouldDirty: true })`) : la barre « modification non enregistrée » paraît, « Annuler » rend la vitrine
+  d'avant, rien ne part avant « Enregistrer ». Les biens suggérés entrent dans `parId` et dans la couverture dès le
+  geste (sans attendre la relecture par ids).
+- **Décision (« N autres biens publiés »)** : seul un compte vrai s'écrit — `meta.total` de la liste moins la page
+  reçue (cent au plus) ; à 0, la phrase se tait. La ligne est au pied de la liste, HORS de sa zone de défilement
+  (`max-h-80`), dans la même carte ; rendue hors recherche seulement (le compte vise la liste non filtrée). Liste vide
+  (tout est choisi) : la ligne reste sous l'état vide.
+- **« Sans engagement » (AC3) : NON écrit.** Re-mesuré : l'agence n'a aucune voie de résiliation (seul
+  `POST /api/admin/agencies/{agency}/subscription/cancel`, geste de l'opérateur), ni `plans` ni `agency_subscriptions` ne
+  portent de durée minimale ou de frais, et les CGU (`content/legal/terms.ts`) ne disent rien de la durée : § 7.2
+  « Abonnements et commission » est muet sur la résiliation, et § 16 « Disponibilité et évolution du service » ne
+  promet une résiliation sans frais que sur modification substantielle d'une offre. `BlocDeLOffre` inchangé ; motif de TCK-2671.json réécrit.
+  **Question pour le porteur (à porter dans la PR)** : « Sans engagement » — confirmez-vous le retrait, ou voulez-vous
+  une résiliation par l'agence (route + texte contractuel) pour pouvoir l'écrire ? À noter : les CGU (§ 16) donnent
+  déjà au professionnel le droit de « résilier son abonnement sans frais » sur modification substantielle, alors que
+  l'application n'a aucune voie de résiliation côté agence.
+- **AC4, AC5 : non mesurés au navigateur** (consigne du lot : ni Chrome ni `next dev`). Lus élément par élément contre
+  la maquette : e4 (`EncartMentions`) — titre, numéros du dossier, « Reprendre ces deux numéros », « À reprendre » —
+  présents dans `SectionFacturation` ; e9 (`StatutDemande`, `ChampsDemandePro`) — pastille « Refusée », « refusée le … »,
+  motif, « Soumise le … », formulaire prérempli, NINEA et RIB vides à ressaisir, « à remplacer » — présents. Tests
+  renforcés : le titre de l'encart et les numéros (`FicheDeLAgence.test.tsx`), la pastille et la date du refus
+  (`UpgradeRequestStatus.tck-2671.test.tsx`). Écart connu, non corrigé : la maquette téléphone dit « À reprendre de
+  votre dossier vérifié » en placeholder, le produit « À reprendre » aux deux largeurs (un placeholder ne suit pas un
+  point de rupture CSS).
+- **AC-F1** : entrée a-2 de TCK-2670.json réécrite (construit, reste la vérité des données) ; entrée a-8 de
+  TCK-2671.json re-datée. **AC-F2 non mesuré** (pas de navigateur).
+- Le chemin passe par `cheminApi` (garde `chemin-api.garde.test.ts`, rouge sur un gabarit `/api` brut) ; les 14
+  gardes `*garde*.test.ts*` du front vertes, et les 3 tests de page `/app/agency` qui montent la fiche.
+- Tests : `FicheDeLAgence.vitrine.test.tsx` (+6, les deux `beforeEach` rendent `[]` pour `most-viewed`),
+  `vitrine-agence.test.ts` (+3) ; les 9 fichiers de `fiche/__tests__` verts (139). Ablations une à une, restaurées au
+  md5 : geste sans `choisir` → AC1 rouge (2) ; ordre retrié → AC1 rouge ; garde « aucun bien vu » retirée → AC2 rouge
+  (le test d'AC2 a dû passer à une vitrine non vide : vide, la seconde garde le masquait).
+

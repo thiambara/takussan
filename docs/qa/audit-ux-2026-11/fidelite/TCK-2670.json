@@ -198,9 +198,9 @@
     {
       "ecran": "a-2",
       "element": "« 64 autres biens publiés. Suggestion : vos biens les plus vus ce mois. Utiliser cette sélection » au pied de la liste des biens à choisir",
-      "propriete": "absent du produit (sous le pli : hors des références gelées, nommé ici d'après la maquette, `SelectionVitrine`)",
-      "exception": "donnée",
-      "motif": "aucune donnée ne dit « les plus vus ce mois » : l'API ne garde que `properties.views_count`, un cumul depuis la publication, sans vue datée (aucune table ni colonne d'événements de vue). Une suggestion « ce mois » serait inventée, et un classement sur le cumul dirait autre chose que la maquette. Le produit garde la recherche « Titre ou référence » et la liste des biens publiés, plus récents d'abord (`parametresDesBiensPublics`), seule voie pour ajouter un bien. Non construit (Notes du ticket)."
+      "propriete": "présence et compte (sous le pli : hors des références gelées, nommé ici d'après la maquette, `SelectionVitrine`)",
+      "exception": "vérité des données",
+      "motif": "construit par TCK-2929 (2026-11-15) sur les vues datées de TCK-2923 (`GET /api/agencies/{agency}/properties/most-viewed`) : la ligne n'est rendue que si l'API rend au moins un bien public vu ce mois, et se tait quand la vitrine est déjà cette sélection ; « N autres biens publiés » ne compte que les biens au-delà de la page reçue (`meta.total` − la page, cent au plus), et se tait à 0 — le « 64 » de la maquette n'est jamais écrit. Hors de la recherche seulement (le compte vise la liste non filtrée)."
     },
     {
       "ecran": "a-2",

@@ -9023,7 +9023,8 @@
         "reasonCodeRequired": "Choose a reason.",
         "reasonLabelRequired": "Describe the reason (required for “Other reason”)",
         "publishedPlatformOnly": "This review is already published: only the platform can take it down. You can reply to it or report it.",
-        "platformReserved": "This review is moderated by the platform, not by the agency."
+        "platformReserved": "This review is moderated by the platform, not by the agency.",
+        "reasonLabelDelete": "A few words (required, recorded in the audit log)"
       },
       "file": {
         "sousTitre": "{avis, plural, one {# review pending} other {# reviews pending}}, {risque} to look at closely · {biens, plural, =0 {no property to approve} one {# property to approve} other {# properties to approve}}",
@@ -9120,7 +9121,27 @@
         "plusDActions": "Delete, ignore reports",
         "retourALaFile": "Back to the queue",
         "videRisque": "No at-risk review pending.",
-        "videSansRisque": "No low-risk review pending."
+        "videSansRisque": "No low-risk review pending.",
+        "recherche": {
+          "placeholder": "Search a property, an author, an agent",
+          "aria": "Search reviews: property, reference, author or agent",
+          "aucunResultat": "No review for “{q}”",
+          "aucunResultatAide": "Try the property’s title or reference, or the author’s or agent’s name.",
+          "effacer": "Clear the search",
+          "active": "Search: “{q}”"
+        },
+        "resume": {
+          "noteDuSujet": "{note} ★ from {n, plural, one {# review} other {# reviews}}",
+          "locataireDepuis": "Tenant since {date}",
+          "publieEn": "published in {mois}",
+          "autres": {
+            "property": "Other reviews of this property",
+            "user": "Other reviews of this agent",
+            "agency": "Other reviews of the agency",
+            "service_provider": "Other reviews of this provider",
+            "inconnu": "Other reviews of this subject"
+          }
+        }
       }
     },
     "finances": {
@@ -10534,7 +10555,12 @@
         "retourALaFile": "Back to the queue",
         "file": "Properties to approve",
         "autresPhotos": "More photos of the property",
-        "carrousel": "carousel"
+        "carrousel": "carousel",
+        "ecrire": "Message",
+        "ecrireTitre": "Message to {nom}",
+        "apercuBandeau": "Preview — this property is not published yet",
+        "apercuMeta": "Preview of a property to review",
+        "toutesLesPhotos": "All photos of the property"
       }
     },
     "agencyConfig": {

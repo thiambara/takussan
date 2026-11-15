@@ -20,14 +20,18 @@ import {
   MAX_BIENS_VITRINE,
   MAX_POINT,
   NB_POINTS,
+  PARAMETRES_DES_PLUS_VUS,
   basculerBien,
+  cheminDesPlusVus,
   couvertureApercue,
   deplacerBien,
   parametresDeLaSelection,
   parametresDesBiensPublics,
   prixDeLaVitrine,
+  selectionSuggeree,
   vitrineQueryKeys,
   type BienDeVitrine,
+  type BienLePlusVu,
 } from '@/lib/vitrine-agence';
 
 import { useEtatDuChamp, useFiche } from './contexte';
@@ -39,6 +43,7 @@ interface PageDeBiens {
 }
 
 const AUCUN_BIEN: readonly BienDeVitrine[] = [];
+const AUCUN_PLUS_VU: readonly BienLePlusVu[] = [];
 
 /**
  * TCK-2670 — « Fiche publique » (TCK-2524) : l'accroche (120), trois « Pourquoi nous » (80), la
@@ -76,13 +81,24 @@ export function SectionFichePublique() {
     enabled: selection.length > 0,
     placeholderData: (avant) => avant,
   });
+  // TCK-2929 — les biens les plus vus ce mois (TCK-2923), pour « Utiliser cette sélection ». La section
+  // n'est montée que pour qui écrit la vitrine (`peutEcrireLaVitrine`) : la règle même de la route.
+  const plusVus = useApiQuery<{ readonly data: readonly BienLePlusVu[] }>(vitrineQueryKeys.plusVus(agence.id), cheminDesPlusVus(agence.id), {
+    params: PARAMETRES_DES_PLUS_VUS,
+  });
+  const lesPlusVus = plusVus.data?.data ?? AUCUN_PLUS_VU;
+  const suggestion = selectionSuggeree(lesPlusVus, selection);
   const selectionNommee = nommes.data?.data ?? AUCUN_BIEN;
   const selectionJugee = nommes.isSuccess && !nommes.isPlaceholderData;
   const biensPublics = tous.data?.data ?? AUCUN_BIEN;
   const proposes = (rechercheDifferee === '' ? biensPublics : (trouves.data?.data ?? AUCUN_BIEN)).filter((b) => !selection.includes(b.id));
   const chargementDesProposes = rechercheDifferee === '' ? tous.isLoading : trouves.isLoading;
-  const parId = new Map([...biensPublics, ...(trouves.data?.data ?? []), ...selectionNommee].map((b) => [b.id, b]));
-  const couverture = couvertureApercue(selection, biensPublics, selectionNommee);
+  // TCK-2929 — les biens suggérés se nomment (et couvrent) dès le geste, avant la relecture par ids.
+  const parId = new Map([...lesPlusVus, ...biensPublics, ...(trouves.data?.data ?? []), ...selectionNommee].map((b) => [b.id, b]));
+  const couverture = couvertureApercue(selection, biensPublics, [...lesPlusVus, ...selectionNommee]);
+  // TCK-2929 — « N autres biens publiés » : ceux que la liste reçue ne montre pas (au-delà de sa page),
+  // jamais un compte inventé ; à 0, la phrase se tait.
+  const autresBiens = Math.max(0, (tous.data?.meta?.total ?? 0) - biensPublics.length);
   const pleine = selection.length >= MAX_BIENS_VITRINE;
   const exemples = [t('highlightPlaceholder1'), t('highlightPlaceholder2'), t('highlightPlaceholder3')];
 
@@ -280,6 +296,19 @@ export function SectionFichePublique() {
               pleine={pleine}
               recherche={rechercheDifferee}
               onAjouter={basculer}
+              pied={
+                rechercheDifferee === '' && suggestion !== null ? (
+                  <LigneDeSuggestion
+                    autres={autresBiens}
+                    onUtiliser={() => {
+                      setRefusPlein(false);
+                      choisir(suggestion);
+                      // Le bouton disparaît (la vitrine EST la suggestion) : le focus va à la sélection.
+                      document.getElementById(idDuChamp('showcase_property_ids'))?.focus();
+                    }}
+                  />
+                ) : null
+              }
             />
           </fieldset>
         </div>
@@ -334,6 +363,7 @@ function ListeDesBiens({
   pleine,
   recherche,
   onAjouter,
+  pied = null,
 }: {
   readonly biens: readonly BienDeVitrine[];
   readonly chargement: boolean;
@@ -341,6 +371,8 @@ function ListeDesBiens({
   readonly pleine: boolean;
   readonly recherche: string;
   readonly onAjouter: (id: number) => void;
+  /** TCK-2929 — la ligne de suggestion, au pied de la liste, hors de sa zone de défilement. */
+  readonly pied?: React.ReactNode;
 }) {
   const t = useTranslations('admin.agencyPublicProfile');
   const tFiche = useTranslations('admin.agencyConfig.fiche.publique');
@@ -356,41 +388,70 @@ function ListeDesBiens({
   if (enErreur) return <p className="mt-2 text-sm text-destructive">{t('loadError')}</p>;
   if (biens.length === 0) {
     return (
-      <p className="mt-2 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-        {recherche === '' ? t('noPublic') : t('noMatch')}
-      </p>
+      <>
+        <p className="mt-2 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+          {recherche === '' ? t('noPublic') : t('noMatch')}
+        </p>
+        {pied ? <div className="mt-2 rounded-xl border border-border bg-card">{pied}</div> : null}
+      </>
     );
   }
   return (
-    <ul className="mt-2 max-h-80 divide-y divide-border/70 overflow-y-auto rounded-xl border border-border bg-card">
-      {biens.map((bien) => {
-        const titre = bien.title ?? t('propertyFallback', { id: bien.id });
-        return (
-          <li key={bien.id} className="flex items-center gap-2.5 p-2.5">
-            <Vignette url={bien.main_photo_url} />
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-sm font-medium leading-snug">{titre}</p>
-              <ReferenceEtPrix bien={bien} />
-            </div>
-            <button
-              type="button"
-              // Un septième se refuse AVANT l'envoi : le bouton reste lisible et focalisable, son clic dit
-              // pourquoi (`basculerBien` rend la même sélection).
-              aria-disabled={pleine || undefined}
-              aria-label={tFiche('ajouter', { title: titre })}
-              onClick={() => onAjouter(bien.id)}
-              className={cn(
-                'inline-flex h-9 flex-none items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                pleine && 'cursor-not-allowed opacity-60',
-              )}
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              {tFiche('ajouterCourt')}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <div className="mt-2 divide-y divide-border/70 overflow-hidden rounded-xl border border-border bg-card">
+      <ul className="max-h-80 divide-y divide-border/70 overflow-y-auto">
+        {biens.map((bien) => {
+          const titre = bien.title ?? t('propertyFallback', { id: bien.id });
+          return (
+            <li key={bien.id} className="flex items-center gap-2.5 p-2.5">
+              <Vignette url={bien.main_photo_url} />
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 text-sm font-medium leading-snug">{titre}</p>
+                <ReferenceEtPrix bien={bien} />
+              </div>
+              <button
+                type="button"
+                // Un septième se refuse AVANT l'envoi : le bouton reste lisible et focalisable, son clic dit
+                // pourquoi (`basculerBien` rend la même sélection).
+                aria-disabled={pleine || undefined}
+                aria-label={tFiche('ajouter', { title: titre })}
+                onClick={() => onAjouter(bien.id)}
+                className={cn(
+                  'inline-flex h-9 flex-none items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-sm font-medium text-primary transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  pleine && 'cursor-not-allowed opacity-60',
+                )}
+              >
+                <Plus className="size-4" aria-hidden="true" />
+                {tFiche('ajouterCourt')}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {pied}
+    </div>
+  );
+}
+
+/**
+ * TCK-2929 — maquette e2 (`SelectionVitrine`) : « 64 autres biens publiés. Suggestion : vos biens les plus
+ * vus ce mois. Utiliser cette sélection ». Le geste remplace la sélection DANS LE FORMULAIRE : la barre
+ * « modification non enregistrée » paraît, « Annuler » rend la vitrine d'avant, rien n'est écrit avant
+ * « Enregistrer ».
+ */
+function LigneDeSuggestion({ autres, onUtiliser }: { readonly autres: number; readonly onUtiliser: () => void }) {
+  const tFiche = useTranslations('admin.agencyConfig.fiche.publique');
+  return (
+    <p className="px-3 py-2.5 text-ui text-muted-foreground" data-testid="suggestion-vitrine">
+      {autres > 0 ? <>{tFiche('autresBiens', { n: autres })} </> : null}
+      {tFiche('suggestionPlusVus')}{' '}
+      <button
+        type="button"
+        onClick={onUtiliser}
+        className="rounded-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {tFiche('utiliserLaSelection')}
+      </button>
+    </p>
   );
 }
 

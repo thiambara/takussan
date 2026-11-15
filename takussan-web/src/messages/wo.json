@@ -7784,7 +7784,8 @@
         "reasonCodeRequired": "Tànnal lu tax.",
         "reasonLabelRequired": "Leeralal lu tax (war na ci « Leneen »)",
         "publishedPlatformOnly": "Avis bii génn na ba noppi : platform bi rekk moo ko mën a dindi. Mën nga ko tontu walla signaler ko.",
-        "platformReserved": "Avis bii, platform bi moo koy saytu, du agence bi."
+        "platformReserved": "Avis bii, platform bi moo koy saytu, du agence bi.",
+        "reasonLabelDelete": "Quelques mots (obligatoires, consignés dans le journal d’audit)"
       },
       "file": {
         "sousTitre": "{avis, plural, one {# avis en attente} other {# avis en attente}}, dont {risque} à regarder de près · {biens, plural, =0 {aucun bien à valider} one {# bien à valider} other {# biens à valider}}",
@@ -7881,7 +7882,27 @@
         "plusDActions": "Supprimer, ignorer les signalements",
         "retourALaFile": "Retour à la file",
         "videRisque": "Aucun avis à risque en attente.",
-        "videSansRisque": "Aucun avis sans risque en attente."
+        "videSansRisque": "Aucun avis sans risque en attente.",
+        "recherche": {
+          "placeholder": "Chercher un bien, un auteur, un agent",
+          "aria": "Chercher dans les avis : bien, référence, auteur ou agent",
+          "aucunResultat": "Aucun avis pour « {q} »",
+          "aucunResultatAide": "Essayez le titre ou la référence du bien, ou le nom de l’auteur ou de l’agent.",
+          "effacer": "Effacer la recherche",
+          "active": "Recherche : « {q} »"
+        },
+        "resume": {
+          "noteDuSujet": "{note} ★ sur {n, plural, one {# avis} other {# avis}}",
+          "locataireDepuis": "Locataire depuis {date}",
+          "publieEn": "publié en {mois}",
+          "autres": {
+            "property": "Autres avis sur ce bien",
+            "user": "Autres avis sur cet agent",
+            "agency": "Autres avis sur l’agence",
+            "service_provider": "Autres avis sur ce prestataire",
+            "inconnu": "Autres avis sur ce sujet"
+          }
+        }
       }
     },
     "finances": {
@@ -9295,7 +9316,12 @@
         "retourALaFile": "Retour à la file",
         "file": "File des biens à valider",
         "autresPhotos": "Autres photos du bien",
-        "carrousel": "carrousel"
+        "carrousel": "carrousel",
+        "ecrire": "Écrire",
+        "ecrireTitre": "Message à {nom}",
+        "apercuBandeau": "Aperçu — ce bien n’est pas encore publié",
+        "apercuMeta": "Aperçu d’un bien à valider",
+        "toutesLesPhotos": "Toutes les photos du bien"
       }
     },
     "agencyConfig": {
