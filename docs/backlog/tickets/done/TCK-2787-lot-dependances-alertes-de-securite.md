@@ -1,13 +1,13 @@
 ---
 id: TCK-2787
 title: "Lot dépendances : fermer les alertes de sécurité ouvertes — next en tête (8 critiques), et ce que Dependabot ne voit pas (composer, laravel/framework)"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-15
 depends_on: []
 blocks: []
 spec_refs:
@@ -170,10 +170,27 @@ l'ouverture du ticket.
 - [x] AC2 — `composer audit` de `takussan-api` ne rend ni critique ni haute. Chaque avis restant est listé dans les
   notes avec sa raison.
 - [x] AC3 — `npm audit` de `takussan-api` ne rend aucune critique.
-- [ ] AC4 — La CI de la PR est verte sur les trois workflows (API, front, dépôt), et `smoke-web.sh` passe sur l'image
+- [x] AC4 — La CI de la PR est verte sur les trois workflows (API, front, dépôt), et `smoke-web.sh` passe sur l'image
   du front.
-- [ ] AC5 — Le décompte Dependabot de fin, relevé par la même commande `gh api` en lecture, est écrit dans les notes,
+  - CI de #1676 verte sur les trois workflows, sur la tête a48dc4189 ; fusionnée en e27c5c93b.
+  - `smoke-web.sh` n'a pas pu passer en local : il reconstruit toujours l'image, et la construction meurt au
+    contrôle de types (« JavaScript heap out of memory »), même Docker Desktop porté à 12 Go — c'est le tas de Node
+    qui plafonne, pas la machine. Preuve retenue (option b, 2026-11-15) : le job « Image du front (construite, pas
+    poussée) » de Web CI, vert sur a48dc4189 (run 43657439754). Ce qu'elle ne prouve pas : le démarrage du conteneur
+    et sa réponse HTTP, que seul `smoke-web.sh` éprouve. Correctif possible, à décider par le porteur :
+    `NODE_OPTIONS=--max-old-space-size=…` dans l'étape de construction du Dockerfile du front.
+- [x] AC5 — Le décompte Dependabot de fin, relevé par la même commande `gh api` en lecture, est écrit dans les notes,
   avec ce qui reste ouvert.
+  - Relevé du 2026-11-15 : **82 alertes encore ouvertes** côté GitHub, aucune passée `fixed`, aucune mise à jour
+    depuis le 2026-11-13 — Dependabot n'a pas réévalué `dev` (le graphe de dépendances répond 404 à l'API). Les
+    alertes 1, 2 et 3 (manifeste inexistant) ont été écartées le 2026-11-14.
+  - Mesure par alerte, faite à la place (recommandation 1a de la session) : pour chacune des 82, la plage
+    vulnérable confrontée par `semver.satisfies` à **toutes** les versions du paquet dans le `package-lock.json` de
+    `origin/dev` (takussan-web et takussan-api, dépendances imbriquées comprises) : **82 / 82 hors plage** — aucune
+    version vulnérable ne reste sur `dev`. Exemples : `next` 16.4.6 (corrigé en 16.4.1), `vite` 8.3.8 (8.1.6) ;
+    `hono` et `fast-uri` ne sont plus dans le verrou du front.
+  - Ce qui reste ouvert : rien sur `dev` ; le décompte GitHub retombera à la réévaluation de Dependabot, sans rouvrir
+    ce ticket. Hors périmètre maintenu : TCK-2843 (minimatch 11, en attente de l'amont).
 - [x] AC6 — La garde `AucunGuardTokenTest` existe et elle est verte. Vérifiée par ablation : un guard
   `'api' => ['driver' => 'token', 'provider' => 'users']` ajouté à `config/auth.php` la rend rouge.
   - Garde écrite en avance du lot le 2026-11-13, 7641542ea, sous `tests/Feature/Architecture/` et non
@@ -210,9 +227,7 @@ l'ouverture du ticket.
 
 ## Reste sur dev
 
-- AC4 : `deploy/takussan/smoke-web.sh` sur l'image du front, machine au repos (session, décision 2a du 2026-11-14).
-- AC5 : le décompte Dependabot après la fusion de cette PR, relu dans les notes.
-- Le ticket passe `done` quand les deux sont écrits.
+Rien : AC4 et AC5 sont écrits (2026-11-15), le ticket passe `done`.
 
 ## Hors périmètre
 
