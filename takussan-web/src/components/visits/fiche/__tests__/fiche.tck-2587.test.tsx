@@ -53,10 +53,12 @@ vi.mock('@/hooks/usePersonnelActif', () => ({ useAgenceDuPersonnelActif: () => e
 vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ data: etat.profils }) }));
 vi.mock('@/hooks/useCan', () => ({ useCan: (c: string) => ({ can: etat.capacites.includes(c), isLoading: false }) }));
 
-/** Les créneaux du mercredi 11 : 14:00 pris, 15:00, 15:30 et 17:00 libres. */
+/** Les créneaux du mercredi 11 : 10:00 libre (le matin, hors tranche), 14:00 pris, 15:00, 15:30 et 16:00 libres. */
 function creneaux(jour: string | null) {
   if (!jour) return { data: undefined, isError: false, dataUpdatedAt: 0 };
   const slots = [
+    // TCK-2882 — une heure libre du matin : le chevron de « Confirmer » (AC7) lit le JOUR, pas la tranche.
+    ['10:00', true],
     ['14:00', false],
     ['15:00', true],
     ['15:30', true],
@@ -583,12 +585,12 @@ describe('TCK-2587 lot B — réponses du team-lead', () => {
     expect(absent.getAttribute('aria-describedby')).toBe(aide.id);
   });
 
-  it('5 — bureau, à confirmer : un bouton unique « Confirmer à 15:00 », sans menu d’autres heures ; « Proposer une autre heure » à côté', () => {
+  it('5 (révisée par TCK-2882, AC7) — bureau, à confirmer : « Confirmer à 15:00 » porte son chevron ; « Proposer une autre heure » à côté', () => {
     ecrans(false);
     etat.visite = visite({ status: 'scheduled', preferred_window: 'afternoon', scheduled_at: '2026-11-11T14:00:00Z' });
     monter();
     expect(screen.getByRole('button', { name: 'Confirmer à 15:00' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: fr.visits.parLeTemps.autresHeures })).toBeNull();
+    expect(screen.getByRole('button', { name: fr.visits.parLeTemps.autresHeures })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: f.bureau.proposerAutreHeure })).toBeInTheDocument();
   });
 
@@ -727,5 +729,87 @@ describe('TCK-2869 — le bailleur confirme à une autre heure (`abilities.confi
     monter();
     expect(screen.queryByRole('button', { name: f.bureau.proposerAutreHeure })).toBeNull();
     expect(screen.queryByRole('button', { name: f.autres.confirmer })).toBeNull();
+  });
+});
+
+describe('TCK-2882 — la vignette de carte, « Absent » qui prévient, le chevron de « Confirmer », la bulle en cours', () => {
+  const GEO = { line: '12, rue Carnot', neighborhood: 'Dakar-Plateau', city: 'Dakar', latitude: 14.6681, longitude: -17.4318 };
+
+  it('AC3 — téléphone, visite confirmée d’un bien géolocalisé : la vignette au-dessus de l’adresse, qui ouvre l’itinéraire', () => {
+    etat.visite = visite({ scheduled_at: '2026-11-11T14:00:00Z', property: { id: 10, title: 'Local commercial', slug: 'local-commercial', address: GEO } });
+    monter();
+    const lieu = document.querySelector('[data-slot="carte-lieu"]') as HTMLElement;
+    const vignette = lieu.querySelector('[data-slot="vignette-de-carte"]') as HTMLElement;
+    expect(vignette).not.toBeNull();
+    // Au-dessus de l'adresse : la vignette précède la ligne « 12, rue Carnot » dans la carte.
+    const adresse = within(lieu).getByText('12, rue Carnot');
+    expect(vignette.compareDocumentPosition(adresse) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(vignette).getByRole('link', { name: f.lieu.vignette })).toHaveAttribute('href', 'https://www.google.com/maps/dir/?api=1&destination=14.6681,-17.4318');
+    expect(within(vignette).getByRole('link', { name: f.lieu.attribution })).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright');
+    const tuiles = [...vignette.querySelectorAll('img')].map((i) => i.getAttribute('src'));
+    expect(tuiles).toHaveLength(9);
+    expect(tuiles.every((u) => u?.startsWith('https://tile.openstreetmap.org/16/'))).toBe(true);
+  });
+
+  it('AC3 — un bien sans coordonnées : aucune vignette', () => {
+    etat.visite = visite({ scheduled_at: '2026-11-11T14:00:00Z' });
+    monter();
+    expect(document.querySelector('[data-slot="carte-lieu"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="vignette-de-carte"]')).toBeNull();
+  });
+
+  it('AC3 — le visiteur, qui n’est pas du personnel, n’a pas de vignette', () => {
+    etat.user = { id: 30, roles: ['customer'], first_name: 'Abdoulaye' };
+    etat.visite = visite({ visitor_id: 30, scheduled_at: '2026-11-11T14:00:00Z', property: { id: 10, title: 'Local commercial', slug: 'local-commercial', address: GEO }, abilities: { manage: false, feedback_customer: true } });
+    monter();
+    expect(document.querySelector('[data-slot="vignette-de-carte"]')).toBeNull();
+  });
+
+  it('AC4 — téléphone, après l’heure : « « Absent » prévient Abdoulaye et propose de replanifier. »', () => {
+    etat.visite = visite({ scheduled_at: '2026-11-10T09:00:00Z' });
+    monter();
+    expect(screen.getByText('« Absent » prévient Abdoulaye et propose de replanifier.')).toBeInTheDocument();
+    expect(screen.queryByText(/n’est pas venu/)).toBeNull();
+  });
+
+  it('AC4 — bureau, après l’heure : la même phrase sous la plage de la barre du jour', () => {
+    ecrans(false);
+    etat.visite = visite({ scheduled_at: '2026-11-10T09:00:00Z' });
+    monter();
+    const barre = document.querySelector('[data-slot="barre-du-jour-j"]') as HTMLElement;
+    expect(within(barre).getByText('« Absent » prévient Abdoulaye et propose de replanifier.')).toBeInTheDocument();
+  });
+
+  it('AC7 — bureau : le chevron de « Confirmer à 15:00 » ouvre les autres heures libres du jour ; « Confirmer 15:30 » poste cet instant', async () => {
+    ecrans(false);
+    etat.visite = visite({ status: 'scheduled', preferred_window: 'afternoon', scheduled_at: '2026-11-11T14:00:00Z' });
+    monter();
+    fireEvent.click(screen.getByRole('button', { name: fr.visits.parLeTemps.autresHeures }));
+    const menu = await screen.findByText(fr.visits.parLeTemps.autresHeures, { selector: 'p' });
+    const liste = menu.parentElement as HTMLElement;
+    expect(within(liste).getAllByRole('button').map((b) => b.textContent)).toEqual(['Confirmer 10:00', 'Confirmer 15:30', 'Confirmer 16:00']);
+    fireEvent.click(within(liste).getByRole('button', { name: 'Confirmer 15:30' }));
+    await waitFor(() => expect(confirmer.mutateAsync).toHaveBeenCalledWith({ scheduled_at: '2026-11-11T15:30:00Z' }));
+  });
+
+  it('AC7 — une demande à heure fixée n’a qu’une heure : pas de chevron', () => {
+    ecrans(false);
+    etat.visite = visite({ status: 'scheduled', scheduled_at: '2026-11-11T15:00:00Z' });
+    monter();
+    expect(screen.getByRole('button', { name: f.autres.confirmer })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: fr.visits.parLeTemps.autresHeures })).toBeNull();
+  });
+
+  it('AC8 — bureau, visite commencée : la barre « En cours » garde la bulle « je suis en route », qui ouvre WhatsApp prérempli', () => {
+    ecrans(false);
+    etat.recherche = 'commencee=10:05';
+    monter();
+    const barre = document.querySelector('[data-slot="barre-du-jour-j"]') as HTMLElement;
+    expect(within(barre).getByText(f.bureau.enCours)).toBeInTheDocument();
+    const bulle = barre.querySelector('[data-slot="bulle-en-route"]') as HTMLAnchorElement;
+    expect(bulle).not.toBeNull();
+    expect(bulle.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/221771234567\?text=/);
+    expect(texteDe(bulle.getAttribute('href'))).toContain('je suis en route');
+    expect(bulle).toHaveTextContent(texteDe(bulle.getAttribute('href')));
   });
 });

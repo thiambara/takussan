@@ -8,7 +8,8 @@ import { Building2, ChevronRight, MapPin, Phone } from 'lucide-react';
 
 import { telHref, whatsappHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
-import { CARTE, GesteItineraire } from '@/components/visits/par-le-temps/pieces';
+import { CARTE, GesteItineraire, lienItineraire } from '@/components/visits/par-le-temps/pieces';
+import { coordonneesLisibles, TAILLE_DE_TUILE, tuilesAutourDe } from '@/lib/carte/tuiles-osm';
 import { initiales } from '@/lib/fiche-publique';
 import { formaterTelephone } from '@/lib/phone';
 import { cn } from '@/lib/utils';
@@ -79,7 +80,69 @@ export function PhotoDuBien({ src, className }: { readonly src: string | null | 
 }
 
 /** Où : le bien, son prix et sa référence, l'adresse en clair et « Itinéraire » à côté d'elle. */
-export function CarteLieu({ v, detail, itinerairePlein }: { readonly v: PropertyVisit; readonly detail: string | null; readonly itinerairePlein: boolean }) {
+/**
+ * TCK-2882 — la vignette de carte au-dessus de l'adresse (maquette téléphone e1-e3) : des tuiles
+ * OpenStreetMap en images, centrées sur le bien, l'épingle au centre ; la toucher ouvre l'itinéraire.
+ * Rien sans coordonnées lisibles.
+ */
+export function VignetteDeCarte({ v }: { readonly v: PropertyVisit }) {
+  const t = useTranslations('visits.fiche.lieu');
+  const a = v.property?.address;
+  const point = coordonneesLisibles(a?.latitude, a?.longitude);
+  if (!point) return null;
+  const tuiles = tuilesAutourDe(point.latitude, point.longitude);
+  const itineraire = lienItineraire(v);
+  const fond = (
+    <span className="absolute top-1/2 left-1/2 block" aria-hidden="true">
+      {tuiles.map((tu) => (
+        // Une image de fond, pas une image de contenu : `next/image` exigerait l'hôte des tuiles dans la configuration.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={`${tu.x}-${tu.y}`}
+          src={tu.url}
+          alt=""
+          width={TAILLE_DE_TUILE}
+          height={TAILLE_DE_TUILE}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          className="absolute max-w-none select-none"
+          style={{ left: tu.gauche, top: tu.haut, width: TAILLE_DE_TUILE, height: TAILLE_DE_TUILE }}
+        />
+      ))}
+    </span>
+  );
+  const epingle = (
+    <span className="absolute top-1/2 left-1/2 inline-flex size-8 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-card" aria-hidden="true">
+      <MapPin className="size-4" strokeWidth={2} />
+    </span>
+  );
+  return (
+    <div data-slot="vignette-de-carte" className="relative h-24 overflow-hidden border-t border-border/70 bg-secondary/50">
+      {itineraire ? (
+        <a href={itineraire} target="_blank" rel="noopener noreferrer" aria-label={t('vignette')} className="absolute inset-0 block outline-none focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-inset">
+          {fond}
+          {epingle}
+        </a>
+      ) : (
+        <>
+          {fond}
+          {epingle}
+        </>
+      )}
+      <a
+        href="https://www.openstreetmap.org/copyright"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute right-0 bottom-0 bg-card/85 px-1.5 text-legende leading-relaxed text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring"
+      >
+        {t('attribution')}
+      </a>
+    </div>
+  );
+}
+
+export function CarteLieu({ v, detail, itinerairePlein, vignette = false }: { readonly v: PropertyVisit; readonly detail: string | null; readonly itinerairePlein: boolean; readonly vignette?: boolean }) {
   const t = useTranslations('visits.fiche.lieu');
   const a = v.property?.address;
   const ville = a?.city?.trim() || null;
@@ -101,6 +164,8 @@ export function CarteLieu({ v, detail, itinerairePlein }: { readonly v: Property
           </Link>
         ) : null}
       </div>
+      {/* TCK-2882 — la vignette se pose au-dessus de l'adresse. */}
+      {vignette ? <VignetteDeCarte v={v} /> : null}
       {a?.line || quartier ? (
         <div className="flex items-center gap-3 border-t border-border/70 p-4">
           <div className="min-w-0 flex-1">

@@ -206,12 +206,15 @@ export function VisitDetail({ id }: { id: number }) {
   }
 
   async function handleNoShow() {
-    await markNoShow.mutateAsync();
+    const reponse = await markNoShow.mutateAsync();
+    // TCK-2882 — le visiteur est prévenu par `visit.no_show` (TCK-2871) ; un SMS retenu le dément.
+    const retenu = reponse?.sms_sent === false;
     toast.add({
       title: t('toasts.noShow.title'),
-      description: t('toasts.noShow.description'),
+      description: retenu ? undefined : t('toasts.noShow.description'),
       type: 'success',
     });
+    if (retenu) toast.add({ title: tPlanning('smsWithheld.title'), description: tPlanning('smsWithheld.description'), type: 'warning' });
   }
 
   async function handleAttribuer(agentId: number) {

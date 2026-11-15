@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock, Check, Clock, MoreHorizontal, Phone, UserCheck, UserRound, Users, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, Clock, MoreHorizontal, Phone, UserCheck, UserRound, Users, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { StatusBadge } from '@/components/console';
@@ -25,6 +25,8 @@ import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from 
 import { useAuth } from '@/context/AuthContext';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { cheminApi } from '@/lib/chemin-api';
+import { useCreneauxDeVisite } from '@/lib/queries/visits';
+import { DELAI_DE_PREVENANCE_MINUTES } from '@/lib/visites/planification';
 import { ageDeLaDemande } from '@/lib/demandes/boite';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
@@ -624,7 +626,8 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
             gestes={g}
           />
         ) : null}
-        <CarteLieu v={v} detail={detail} itinerairePlein={etat === 'jour-j' || etat === 'en-cours'} />
+        {/* TCK-2882 — la vignette de carte au personnel qui lit l'adresse (la clé `address` n'est servie qu'à lui). */}
+        <CarteLieu v={v} detail={detail} itinerairePlein={etat === 'jour-j' || etat === 'en-cours'} vignette={personnel} />
         {!p.visiteur ? (
           <CarteVisiteur
             nom={l.nom}
@@ -731,6 +734,11 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
   const l = useLecture(p);
   const { visite: v, etat, gestes: g, personnel } = p;
   const proposees = useHeuresProposees(v, (iso) => l.heureDe(iso), etat === 'a-confirmer' && g.confirmer !== null);
+  // TCK-2882 (AC7) — sous le chevron, les heures libres du JOUR : la lecture de « Proposer une autre
+  // heure » (`/slots`, même clé de cache que les heures proposées : aucune requête de plus).
+  const duJour = useCreneauxDeVisite(etat === 'a-confirmer' && g.confirmer && l.tranche ? v.property_id : null, etat === 'a-confirmer' && l.tranche ? l.jour : null, v.agent_id ?? null, v.duration_minutes ?? null);
+  const auPlusTot = duJour.dataUpdatedAt + DELAI_DE_PREVENANCE_MINUTES * 60_000;
+  const libresDuJour: HeureProposee[] = (duJour.data?.data.slots ?? []).filter((c) => c.available && Date.parse(c.start) >= auPlusTot).map((c) => ({ start: c.start, label: c.label }));
   const replanifierEnTete = personnel && etat !== 'a-confirmer' && ACTIVE.has(etat) && g.replanifier !== null;
   const autres = useAutresGestes(p, l, replanifierEnTete);
   const quartier = v.property?.address?.neighborhood?.trim();
@@ -770,12 +778,9 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
           {t('bureau.proposerAutreHeure')}
         </Button>
         {premiere ? (
-          // Réponse 5 du team-lead : un bouton unique, comme la maquette — « Proposer une autre
-          // heure », à côté, choisit une autre heure. Sans chevron : aucun menu derrière lui.
-          <Button className="tabular-nums" disabled={g.enCours} onClick={() => void confirmer(premiere.start)}>
-            <Check className="size-4" aria-hidden="true" />
-            {premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer')}
-          </Button>
+          // TCK-2882 (AC7) — « Confirmer à 15:00 ▾ », comme la maquette : le chevron ouvre les autres
+          // heures libres du jour (celles de « Proposer une autre heure ») ; aucune autre heure, aucun chevron.
+          <ConfirmerALHeure premiere={premiere} autres={libresDuJour.filter((h) => h.start !== premiere.start)} enCours={g.enCours} onConfirmer={(start) => void confirmer(start)} />
         ) : personnel && proposees.etat === 'agent-indisponible' && g.attribuer ? (
           // Suivi du lot A : l'agent de la visite est parti ou suspendu — le geste principal réattribue.
           <AttribuerA agence={g.attribuer.agence} onChoisir={g.attribuer.onChoisir} disabled={g.enCours} declencheur={<Button>{tPlt('reattribuer')}</Button>} />
@@ -842,7 +847,59 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
   );
 }
 
-/** « Confirmer à 15:00 ▾ » : l'heure proposée, et les autres heures libres sous le chevron. */
+/** « Confirmer à 15:00 ▾ » : l'heure proposée, et les autres heures libres sous le chevron (TCK-2882). */
+function ConfirmerALHeure({
+  premiere,
+  autres,
+  enCours,
+  onConfirmer,
+}: {
+  readonly premiere: HeureProposee;
+  readonly autres: readonly HeureProposee[];
+  readonly enCours: boolean;
+  readonly onConfirmer: (start: string | null) => void;
+}) {
+  const t = useTranslations('visits.fiche');
+  const tPlt = useTranslations('visits.parLeTemps');
+  const [ouvert, setOuvert] = useState(false);
+  const libelle = premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer');
+  const principal = (
+    <Button className={cn('tabular-nums', autres.length > 0 && 'rounded-r-none pr-2.5')} disabled={enCours} onClick={() => onConfirmer(premiere.start)}>
+      <Check className="size-4" aria-hidden="true" />
+      {libelle}
+    </Button>
+  );
+  if (autres.length === 0) return principal;
+  return (
+    <span data-slot="confirmer-a-l-heure" className="inline-flex">
+      {principal}
+      <Popover open={ouvert} onOpenChange={setOuvert}>
+        <PopoverTrigger
+          render={<Button className="rounded-l-none border-l border-primary-foreground/25 px-2" disabled={enCours} aria-label={tPlt('autresHeures')} />}
+        >
+          <ChevronDown className="size-4 opacity-80" aria-hidden="true" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-48 p-1">
+          <p className="px-2.5 py-1.5 text-ui text-muted-foreground">{tPlt('autresHeures')}</p>
+          {autres.map((h) => (
+            <button
+              key={h.label}
+              type="button"
+              onClick={() => {
+                setOuvert(false);
+                onConfirmer(h.start);
+              }}
+              className="flex min-h-9 w-full items-center rounded-md px-2.5 text-left text-sm tabular-nums outline-none hover:bg-muted focus-visible:bg-muted"
+            >
+              {tPlt('confirmerA', { heure: h.label })}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+    </span>
+  );
+}
+
 /** Le jour J au bureau : le compte à rebours, le message prêt, et le geste du moment. */
 function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: Lecture }) {
   const t = useTranslations('visits.fiche');
@@ -866,9 +923,28 @@ function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: 
             {t('bureau.commencerPossibleA', { heure: f.heure(commencerDes) })}
           </p>
         ) : null}
+        {/* TCK-2882 — e3 : ce que fait « Absent » (TCK-2871 prévient le visiteur), comme au téléphone. */}
+        {etat !== 'jour-j' && g.absent && !absentDes ? (
+          <p data-slot="absent-previent" className="mt-0.5 text-sm text-encre-douce">
+            {t('enCours.absent', { prenom: l.prenom ?? l.nom })}
+          </p>
+        ) : null}
       </div>
       {etat === 'jour-j' && l.peutEcrire && l.messageEnRoute ? (
         <p className="max-w-[calc(var(--spacing)*92)] rounded-xl rounded-bl-sm bg-success/10 px-3.5 py-2 text-sm leading-relaxed text-encre-douce">{l.messageEnRoute}</p>
+      ) : etat === 'en-cours' && l.peutEcrire && l.numero && l.messageEnRoute ? (
+        // TCK-2882 (AC8) — la maquette e3 garde la bulle pendant la visite : le message reste prêt,
+        // et la bulle l'ouvre dans WhatsApp (aucun bouton « Je suis en route » en cours de visite).
+        <a
+          href={whatsappHref(l.numero, l.messageEnRoute)}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-slot="bulle-en-route"
+          aria-label={t('barre.enRouteBulle', { message: l.messageEnRoute })}
+          className="max-w-[calc(var(--spacing)*92)] rounded-xl rounded-bl-sm bg-success/10 px-3.5 py-2 text-sm leading-relaxed text-encre-douce outline-none hover:bg-success/15 focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          {l.messageEnRoute}
+        </a>
       ) : null}
       <div className="ml-auto flex flex-none items-center gap-2">
         {etat === 'jour-j' ? (

@@ -209,7 +209,8 @@ export function useCompleteVisit(id: number) {
  * (`no_show`), sans être comptée parmi les visites menées.
  */
 export function useMarkVisitNoShow(id: number) {
-  return useApiMutation<ApiResponse<PropertyVisit>, void>(
+  // TCK-2882 — « Absent » prévient le visiteur (TCK-2871) : la réponse rend le sort du SMS.
+  return useApiMutation<VisitActionResponse, void>(
     { path: cheminApi`/api/property-visits/${id}/no-show`, method: 'POST' },
     {
       relireSurErreur: true,
@@ -585,7 +586,8 @@ export function useVerdictDepuisLaListe() {
 
 /** « n'est pas venu » depuis la carte « À clore ». */
 export function useAbsentDepuisLaListe() {
-  return useApiMutation<ApiResponse<PropertyVisit>, { readonly id: number }>(
+  // TCK-2882 — le sort du SMS de `visit.no_show` (TCK-2871), comme confirmer.
+  return useApiMutation<VisitActionResponse, { readonly id: number }>(
     { path: ({ id }) => cheminApi`/api/property-visits/${id}/no-show`, method: 'POST', body: () => ({}) },
     { invalidate: [['visits', 'list'], ['visits', 'detail']] },
   );

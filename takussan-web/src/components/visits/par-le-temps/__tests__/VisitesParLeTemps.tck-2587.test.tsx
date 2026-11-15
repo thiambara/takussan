@@ -25,6 +25,8 @@ const etat = vi.hoisted(() => ({
   aConfirmer: null as PropertyVisit[] | null,
   /** Suivi du lot A : l'agent parti ou suspendu, dont `/slots` refuse l'`agent_id` en 422. */
   agentParti: null as number | null,
+  /** TCK-2882 — le sort du SMS que rend `no-show` (TCK-2871) ; `undefined` : rien. */
+  smsAbsent: undefined as boolean | undefined,
 }));
 
 const remplacer = vi.hoisted(() => vi.fn());
@@ -142,6 +144,7 @@ vi.mock('@/lib/api', async (original) => {
       if (route === '/api/property-visits/bulk-assign') return { data: [{ id: 2301, ok: true }], meta: { ok: 1, failed: 0 } };
       if (route.endsWith('/report')) return { data: LIBERTE, customer_note: null, suggested_stage: null };
       if (route.startsWith('/api/agencies/')) return { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }], meta: { total: 1 } };
+      if (methode === 'POST' && route.endsWith('/no-show')) return { data: {}, ...(etat.smsAbsent === undefined ? {} : { sms_sent: etat.smsAbsent }) };
       if (methode === 'POST') return { data: {} };
       return { data: [], meta: { total: 0, per_page: 8, current_page: 1, last_page: 1 } };
     }),
@@ -162,7 +165,7 @@ const ecritures = (fin: string) => etat.appels.filter((a) => a.methode === 'POST
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null, aClore: null, aConfirmer: null, agentParti: null });
+  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null, aClore: null, aConfirmer: null, agentParti: null, smsAbsent: undefined });
   remplacer.mockClear();
   pousser.mockClear();
   toastAdd.mockClear();
@@ -324,6 +327,23 @@ describe('À clore : le verdict depuis la liste', () => {
     monter();
     await user.click(await screen.findByRole('button', { name: 'Yacine n’est pas venu' }));
     await waitFor(() => expect(ecritures('/api/property-visits/2280/no-show')).toHaveLength(1));
+  });
+
+  it('TCK-2882 — « Absent » dit que le visiteur est prévenu ; un SMS retenu le dit à la place', async () => {
+    etat.recherche = 'vue=to_close';
+    etat.smsAbsent = true;
+    const user = userEvent.setup();
+    const { unmount } = monter();
+    await user.click(await screen.findByRole('button', { name: 'Yacine n’est pas venu' }));
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Visite marquée absente', description: 'Le visiteur en est prévenu, avec de quoi reprendre une visite.' })));
+    unmount();
+
+    toastAdd.mockClear();
+    etat.smsAbsent = false;
+    monter();
+    await user.click(await screen.findByRole('button', { name: 'Yacine n’est pas venu' }));
+    await waitFor(() => expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Le SMS au visiteur n’est pas parti.', type: 'warning' })));
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Visite marquée absente', description: undefined }));
   });
 });
 
