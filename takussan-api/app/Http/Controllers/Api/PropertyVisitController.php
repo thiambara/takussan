@@ -20,6 +20,7 @@ use App\Http\Resources\PropertyVisitResource;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LastContactChannel;
+use App\Models\Enums\VisitCancelledBy;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
@@ -33,6 +34,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Visit\RemiseAuVisiteur;
 use App\Services\Visit\VisitesLisibles;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitReadContext;
@@ -553,10 +555,14 @@ class PropertyVisitController extends Controller
             return $visit;
         });
 
-        $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']), $user);
+        // TCK-2871 — l'agent lit ce qui a été remis au visiteur : les canaux, et le SMS tel qu'il part
+        // (texte rendu dans la langue du visiteur, heure de la remise) — `null` sans SMS remis.
+        $remise = new RemiseAuVisiteur;
+        $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']), $user, $remise);
 
         return $this->json($this->avecSortDuSms([
             'data' => PropertyVisitResource::make($visit->refresh())->resolve($request),
+            'notification' => $remise->toArray(),
         ], $sms), 201);
     }
 
@@ -774,7 +780,11 @@ class PropertyVisitController extends Controller
 
         $visit->update(['status' => VisitStatus::NoShow]);
 
-        return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
+        // TCK-2871 — « Absent » prévient le visiteur (`visit.no_show`), avec le lien du bien pour en
+        // reprendre une ; même borne SMS que les autres gestes, et son sort rendu comme eux.
+        $sms = $this->notifier->noShow($visit->fresh(['property', 'visitor']), $request->user());
+
+        return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)], $sms));
     }
 
     public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
@@ -789,7 +799,8 @@ class PropertyVisitController extends Controller
 
         // P182.06 (TCK-1820) — le statut se juge sur la ligne relue sous verrou, pas sur le modèle
         // lié à la route ; l'avis part après la transaction.
-        $visit = $this->scheduling->cancelOrFail($visit, $request->validated('reason'));
+        // TCK-2871 — qui annule est écrit avec l'annulation (`cancelled_by`).
+        $visit = $this->scheduling->cancelOrFail($visit, $request->validated('reason'), $byVisitor ? VisitCancelledBy::Visitor : VisitCancelledBy::Agency);
 
         $fresh = $visit->fresh(['property', 'visitor', 'agent']);
         $sms = null;

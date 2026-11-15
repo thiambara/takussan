@@ -570,6 +570,16 @@ return [
                 'mail_body' => "The visitor has cancelled their visit request for :property.\nIt was requested for :date, :window; the time had not been set.",
                 'sms' => 'Takussan: the visitor cancelled the visit of :property requested for :date, :window.',
             ],
+            // TCK-2871 — the agency marked the visitor "No-show": the day (no time), and the property's
+            // public link while it is still public (`_link` variants).
+            'no_show' => [
+                'title' => 'Missed visit: :property',
+                'body' => 'The visit planned on :date did not take place. You can request another one.',
+                'mail_body' => "The visit of :property planned on :date did not take place.\nContact the agency to arrange another one.",
+                'mail_body_link' => "The visit of :property planned on :date did not take place.\nTo request another one: :url",
+                'sms' => 'Takussan: visit of :date missed. Contact the agency to arrange another one.',
+                'sms_link' => 'Takussan: visit of :date missed. To request another one: :url',
+            ],
             'cancelled_window' => [
                 'title' => 'Your visit of :property is cancelled',
                 'body' => 'The visit requested for :date, :window is cancelled.',

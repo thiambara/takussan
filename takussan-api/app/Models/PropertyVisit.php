@@ -6,6 +6,7 @@ use App\Http\Filters\RangeFilter;
 use App\Http\Resources\PropertyVisitResource;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\VisitCancelledBy;
 use App\Models\Enums\VisitFollowUp;
 use App\Models\Enums\VisitReportOutcome;
 use App\Models\Enums\VisitStatus;
@@ -65,6 +66,8 @@ class PropertyVisit extends AbstractModel
         // TCK-2502 — la tranche demandée quand l'heure reste à fixer (`VisitWindow`).
         'preferred_window',
         'completed_at', 'cancelled_at', 'cancellation_reason',
+        // TCK-2871 — qui a annulé (`VisitCancelledBy`), posé par `VisitSchedulingService::cancelOrFail`.
+        'cancelled_by',
         'feedback', 'rating', 'notes', 'metadata',
         // TCK-590 — d'où vient la demande, et dans quelle langue prévenir un visiteur sans compte.
         'source', 'medium', 'locale',
@@ -92,6 +95,7 @@ class PropertyVisit extends AbstractModel
         'preferred_window' => VisitWindow::class,
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'cancelled_by' => VisitCancelledBy::class, // TCK-2871
         'rating' => 'decimal:1',
         'metadata' => 'array',
         'report_outcome' => VisitReportOutcome::class,
@@ -146,6 +150,7 @@ class PropertyVisit extends AbstractModel
         'visitor_name', 'visitor_phone', 'visitor_email',
         'type', 'status', 'scheduled_at', 'preferred_window', 'completed_at', 'duration_minutes',
         'cancelled_at', 'cancellation_reason', 'feedback', 'rating', 'notes', 'metadata',
+        'cancelled_by', // TCK-2871
         'source', 'medium', 'locale',
         // TCK-2578 — servis au seul personnel par `PropertyVisitResource` (bloc `report`).
         'report_outcome', 'report_objections', 'report_note', 'report_follow_up',

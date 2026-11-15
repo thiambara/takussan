@@ -106,6 +106,8 @@ final class NotificationClassification
         'visit.cancelled_window' => [self::V, false],
         // TCK-2849 — une information : la visite est déjà confirmée, l'agent n'a rien à faire.
         'visit.confirmed_by_owner' => [self::V, false],
+        // TCK-2871 — une information au visiteur absent ; en reprendre une est facultatif.
+        'visit.no_show' => [self::V, false],
 
         // ─── Messages et demandes de contact ──────────────────────────────────────────────
         // Un message se traite dans la messagerie, qui a ses propres non-lus.

@@ -105,6 +105,8 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::DocumentExpiringSoon,
         // TCK-2849 — la visite confirmée par le bailleur, à l'agent.
         NotificationCode::VisitConfirmedByOwner,
+        // TCK-2871 — l'avis « Absent » au visiteur (un JOUR, pas d'heure).
+        NotificationCode::VisitNoShow,
     ];
 
     protected function setUp(): void
@@ -181,12 +183,13 @@ class FormeDesDatesDeNotificationTest extends TestCase
         $notifier->rescheduledByVisitor($visit);
         $notifier->cancelledByVisitor($visit);
         $notifier->confirmedByOwner($visit, $this->client); // TCK-2849
+        $notifier->noShow($visit); // TCK-2871
         app()->call([new SendPropertyVisitReminders, 'handle']);
 
         foreach ([NotificationCode::VisitRequested, NotificationCode::VisitConfirmed, NotificationCode::VisitRescheduled,
             NotificationCode::VisitCancelled, NotificationCode::VisitReminder,
             NotificationCode::VisitRescheduledByVisitor, NotificationCode::VisitCancelledByVisitor,
-            NotificationCode::VisitConfirmedByOwner /* TCK-2849 */] as $code) {
+            NotificationCode::VisitConfirmedByOwner /* TCK-2849 */, NotificationCode::VisitNoShow /* TCK-2871 */] as $code) {
             $this->assertFormes($code);
         }
     }

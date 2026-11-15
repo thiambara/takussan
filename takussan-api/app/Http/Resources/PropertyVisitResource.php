@@ -147,6 +147,8 @@ class PropertyVisitResource extends BaseResource
             'completed_at' => $this->iso($this->completed_at),
             'cancelled_at' => $this->iso($this->cancelled_at),
             'cancellation_reason' => $this->cancellation_reason,
+            // TCK-2871 — `visitor` ou `agency` (« Annulée par vous ») ; `null` avant la colonne.
+            'cancelled_by' => $this->enumValue($this->cancelled_by),
             'duration_minutes' => $this->duration_minutes,
             'feedback' => $this->feedback,
             'rating' => $this->rating !== null ? (float) $this->rating : null,
@@ -174,6 +176,9 @@ class PropertyVisitResource extends BaseResource
                 'cover_url' => ($media = $this->property->getFirstMedia('photos')) !== null
                     ? PublicPhotoUrl::upTo($media, 'preview', fn () => $this->property->requiresWatermark())
                     : null,
+                // TCK-2871 — le QUARTIER n'est pas l'adresse : servi à tout lecteur de la visite dès la
+                // demande ; la rue (`address.line`) reste à la règle d'`adresseLisible`, inchangée.
+                'neighborhood' => $this->property->address?->neighborhood,
                 ...($this->adresseLisible($request) ? ['address' => self::adresse($this->property)] : []),
             ]),
             // TCK-2585 — le visiteur tel que la carte le montre : la fiche, à défaut le compte, à défaut

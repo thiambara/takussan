@@ -2,6 +2,7 @@
 
 namespace App\Services\Visit;
 
+use App\Models\Enums\VisitCancelledBy;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitWindow;
 use App\Models\Property;
@@ -310,9 +311,10 @@ class VisitSchedulingService
      * annulation concurrente d'un `complete` écrasait `completed`. L'avis part après la
      * transaction, chez l'appelant.
      */
-    public function cancelOrFail(PropertyVisit $visit, ?string $reason): PropertyVisit
+    /** TCK-2871 — `$by` : qui annule, écrit avec le statut (« Annulée par vous »). */
+    public function cancelOrFail(PropertyVisit $visit, ?string $reason, ?VisitCancelledBy $by = null): PropertyVisit
     {
-        return DB::transaction(function () use ($visit, $reason) {
+        return DB::transaction(function () use ($visit, $reason, $by) {
             $fresh = PropertyVisit::query()
                 ->whereKey($visit->id)
                 ->lockForUpdate()
@@ -328,6 +330,7 @@ class VisitSchedulingService
                 'status' => VisitStatus::Cancelled,
                 'cancelled_at' => now(),
                 'cancellation_reason' => $reason,
+                'cancelled_by' => $by, // TCK-2871
             ]);
 
             return $fresh;

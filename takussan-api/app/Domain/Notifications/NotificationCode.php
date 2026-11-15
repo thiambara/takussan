@@ -96,6 +96,8 @@ enum NotificationCode: string
     case VisitCancelled = 'visit.cancelled';
     /** TCK-2502 — l'agence annule une visite demandée par tranche, heure jamais fixée. */
     case VisitCancelledWindow = 'visit.cancelled_window';
+    /** TCK-2871 — l'agence a marqué le visiteur « Absent » : il est prévenu, avec le lien du bien pour en reprendre une. */
+    case VisitNoShow = 'visit.no_show';
     // Vers le visiteur qui a laissé un e-mail : l'accusé de réception de sa demande.
     case LeadAcknowledged = 'lead.acknowledged';
 
@@ -347,7 +349,8 @@ enum NotificationCode: string
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow,
-            self::VisitConfirmedByOwner /* TCK-2849 */ => NotificationType::Visit,
+            self::VisitConfirmedByOwner /* TCK-2849 */,
+            self::VisitNoShow /* TCK-2871 */ => NotificationType::Visit,
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
@@ -414,7 +417,8 @@ enum NotificationCode: string
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow,
-            self::VisitConfirmedByOwner /* TCK-2849 */ => 'visit_reminder',
+            self::VisitConfirmedByOwner /* TCK-2849 */,
+            self::VisitNoShow /* TCK-2871 */ => 'visit_reminder',
             self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
@@ -526,6 +530,9 @@ enum NotificationCode: string
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT],
             // TCK-2849 — et le bailleur qui a confirmé.
             self::VisitConfirmedByOwner => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT, 'owner' => self::PARAM_PERSON],
+            // TCK-2871 — le JOUR de la visite manquée, à Dakar (une visite à tranche n'a pas d'heure) ;
+            // le lien public du bien en paramètre facultatif ({@see optionalParams()}).
+            self::VisitNoShow => ['property' => self::PARAM_TEXT, 'date' => self::PARAM_DATE],
             self::KycSubmitted => ['agency' => self::PARAM_TEXT],
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
@@ -635,6 +642,9 @@ enum NotificationCode: string
             self::LeasePaymentSettledOnline => ['receipt_url' => self::PARAM_URL],
             // TCK-1002 — la quittance d'un paiement enregistré par l'agence, même lien.
             self::LeasePaymentRecorded => ['receipt_url' => self::PARAM_URL],
+            // TCK-2871 — la page publique du bien, où « Demander une visite » existe : absente quand le
+            // bien n'est plus public (le texte sans lien, variante de base).
+            self::VisitNoShow => ['url' => self::PARAM_URL],
             default => [],
         };
     }
@@ -744,6 +754,8 @@ enum NotificationCode: string
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled, self::VisitCancelledWindow,
+            // TCK-2871 — « Absent » est un geste humain de l'agence, borné au point d'envoi comme les autres.
+            self::VisitNoShow,
             // TCK-589 — le lien d'une invitation adressée à un NUMÉRO (geste humain de l'agence,
             // borné par numéro au point d'envoi) et l'avis à l'ancien numéro remplacé : leur
             // destinataire est un contact sans compte qu'on ne joint que par là. Sans préférence
@@ -793,6 +805,7 @@ enum NotificationCode: string
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled, self::VisitCancelledWindow,
+            self::VisitNoShow /* TCK-2871 : transactionnel, la suite de sa visite */,
             self::LeadAcknowledged => true,
             // TCK-2579 — transactionnel : une demande enregistrée en son nom, qu'il peut annuler.
             self::BookingRecordedOnBehalf => true,

@@ -4,8 +4,12 @@ namespace App\Services\Visit;
 
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
+use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\NotificationChannel;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Notifications\Channels\WhatsappChannel;
 use App\Notifications\CodedNotification;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Lead\ContactLeadService;
@@ -14,11 +18,14 @@ use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Support\AppKeyHmac;
+use App\Support\LienFront;
 use App\Support\Logging\SafeExceptionContext;
 use App\Support\TelephoneSaisi;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Traits\Localizable;
 
 /**
  * TCK-590 — qui est prévenu de quoi, pour une visite. Extrait de `PropertyVisitController`
@@ -42,6 +49,8 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class VisitNotifier
 {
+    use Localizable; // TCK-2871 — le SMS consigné se rend dans la langue du destinataire.
+
     /**
      * Vérification adverse (B2′, passe 3 R1) — SMS de visite vers un même numéro, par ÉMETTEUR :
      * l'agence du bien, ou le particulier pour un bien sans agence.
@@ -79,9 +88,20 @@ class VisitNotifier
      * `CodedNotification`, en file, et son échec ne se voit qu'au worker
      * ({@see CodedNotification::failed()}).
      */
-    public function confirmed(PropertyVisit $visit, ?User $emetteur = null): ?bool
+    public function confirmed(PropertyVisit $visit, ?User $emetteur = null, ?RemiseAuVisiteur $remise = null): ?bool
     {
-        return $this->toVisitor($visit, NotificationCode::VisitConfirmed, $emetteur);
+        // TCK-2871 — `$remise` : ce qui est remis aux canaux (canaux, SMS rendu), pour la réponse de
+        // la visite planifiée par l'agence.
+        return $this->toVisitor($visit, NotificationCode::VisitConfirmed, $emetteur, $remise);
+    }
+
+    /**
+     * TCK-2871 — l'agence a marqué le visiteur « Absent » : il est prévenu, avec le lien public du bien
+     * pour en demander une autre. Même borne SMS que les autres SMS de visite ; rend son sort.
+     */
+    public function noShow(PropertyVisit $visit, ?User $emetteur = null): ?bool
+    {
+        return $this->toVisitor($visit, NotificationCode::VisitNoShow, $emetteur);
     }
 
     /**
@@ -258,7 +278,7 @@ class VisitNotifier
      * Passe 3 (R1) — rend le sort du SMS, pour que l'action le dise à l'appelant : un SMS retenu
      * sans signal laissait l'agent croire le client prévenu.
      */
-    private function toVisitor(PropertyVisit $visit, NotificationCode $code, ?User $emetteur): ?bool
+    private function toVisitor(PropertyVisit $visit, NotificationCode $code, ?User $emetteur, ?RemiseAuVisiteur $remise = null): ?bool
     {
         $visit->loadMissing(['visitor', 'property']);
 
@@ -269,16 +289,20 @@ class VisitNotifier
             }
 
             $sms = $this->borneLeSms($visit, $this->numeroMobile($to, $code), $code, $emetteur);
+            $params = $this->params($visit, $code, $to instanceof User ? $to->timezone : null, locale: self::langueDe($to));
             $this->notifications->send(
                 $to,
                 $code,
-                $this->params($visit, $code, $to instanceof User ? $to->timezone : null),
+                $params,
                 $to instanceof User ? NotificationTarget::of('visit', $visit->id) : null,
                 // Le SMS est borné ICI, seule source du plafond : `true` dit aux canaux mobiles de
                 // ne pas le recompter, `false` (retenu, ou pas de mobile) n'en ouvre aucun.
                 mobileBorne: $sms === true,
                 agencyId: $this->agenceDuBien($visit),
             );
+            if ($remise !== null) {
+                $this->consigner($remise, $to, $code, $params, $sms === true);
+            }
 
             // TCK-1493 (P107.01) — un compte sans téléphone vérifié ne reçoit aucun SMS : le canal
             // mobile part au numéro de la visite ou de la fiche, sous la même borne, et c'est son
@@ -286,7 +310,12 @@ class VisitNotifier
             $relais = $to instanceof User ? ContactSansCompte::relaisMobileDuCompte($to, ContactSansCompte::fromVisit($visit)) : null;
             if ($relais !== null) {
                 $smsRelais = $this->borneLeSms($visit, $this->numeroMobile($relais, $code), $code, $emetteur);
-                $this->notifications->send($relais, $code, $this->params($visit, $code, $to->timezone), null, mobileBorne: $smsRelais === true);
+                $paramsRelais = $this->params($visit, $code, $to->timezone, locale: self::langueDe($to));
+                $this->notifications->send($relais, $code, $paramsRelais, null, mobileBorne: $smsRelais === true);
+                if ($remise !== null) {
+                    // TCK-2871 — le SMS du relais est celui qui part : il remplace celui du compte.
+                    $this->consigner($remise, $relais, $code, $paramsRelais, $smsRelais === true);
+                }
 
                 return $smsRelais ?? $sms;
             }
@@ -314,7 +343,7 @@ class VisitNotifier
      *
      * @return array<string, mixed>
      */
-    private function params(PropertyVisit $visit, NotificationCode $code, ?string $timezone, ?User $recipient = null): array
+    private function params(PropertyVisit $visit, NotificationCode $code, ?string $timezone, ?User $recipient = null, ?string $locale = null): array
     {
         $params = [
             'property' => $visit->property?->title ?? '#'.$visit->id,
@@ -332,8 +361,84 @@ class VisitNotifier
             $params['date'] = $visit->scheduled_at?->copy()->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d');
             $params['window'] = $visit->preferred_window?->value;
         }
+        if ($code === NotificationCode::VisitNoShow) {
+            // TCK-2871 — le JOUR à Dakar (une visite à tranche n'avait pas d'heure fixée), et la page
+            // publique du bien, dans la langue du destinataire, tant que le bien est public : c'est
+            // là que « Demander une visite » existe.
+            unset($params['scheduled_at'], $params['timezone']);
+            $params['date'] = $visit->scheduled_at?->copy()->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d');
+            $property = $visit->property;
+            $public = $property !== null && is_string($property->slug) && $property->slug !== ''
+                && Property::query()->whereKey($property->id)->public()->exists();
+            if ($public) {
+                $params['url'] = LienFront::vers('/'.($locale ?: ContactSansCompte::DEFAULT_LOCALE).'/properties/'.rawurlencode($property->slug));
+            }
+        }
 
         return $params;
+    }
+
+    /** TCK-2871 — la langue dans laquelle le destinataire est prévenu (celle de `NotificationService`). */
+    private static function langueDe(User|ContactSansCompte $to): string
+    {
+        return $to instanceof User ? ($to->preferredLocale() ?? (string) config('app.locale')) : $to->locale;
+    }
+
+    /**
+     * TCK-2871 — consigne ce qui vient d'être remis aux canaux pour `$to` : les canaux que la même
+     * notification prend ({@see CodedNotification::via()}), et le SMS rendu par la même notification,
+     * dans la langue et le fuseau que le canal SMS emploiera ({@see CodedNotification::toSms()}).
+     * Les paramètres sont ceux de l'envoi, privés comme lui des liens porteurs vers un compte.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function consigner(RemiseAuVisiteur $remise, User|ContactSansCompte $to, NotificationCode $code, array $params, bool $mobileBorne): void
+    {
+        // Consigner ne change jamais le sort de l'envoi déjà fait : un échec ici se journalise et
+        // laisse la remise incomplète, sans remonter au `catch` de `toVisitor` (qui rendrait `null`).
+        try {
+            $this->consignerOuLever($remise, $to, $code, $params, $mobileBorne);
+        } catch (\Throwable $e) {
+            Log::warning('[VisitNotifier] remise non consignée', ['code' => $code->value] + SafeExceptionContext::of($e));
+        }
+    }
+
+    /** @param  array<string, mixed>  $params */
+    private function consignerOuLever(RemiseAuVisiteur $remise, User|ContactSansCompte $to, NotificationCode $code, array $params, bool $mobileBorne): void
+    {
+        $locale = self::langueDe($to);
+        if ($to instanceof User) {
+            $notifiable = $to;
+            $params = array_diff_key($params, array_flip($code->bearerParams()));
+        } else {
+            $notifiable = Notification::routes(array_filter(['mail' => $to->email, 'sms' => $to->phone, 'whatsapp' => $to->phone]));
+        }
+
+        $sonde = new CodedNotification($code, $params, null, null, $mobileBorne);
+        $via = $sonde->via($notifiable);
+        // Un canal WhatsApp inéligible à cet instant (hors fenêtre sans gabarit approuvé — le cas
+        // ordinaire —, désinscrit) se replie sur le SMS avec le texte de `toSms()` : c'est un SMS qui
+        // part, et il se rend comme tel.
+        if (in_array('whatsapp', $via, true)
+            && $this->withLocale($locale, fn (): bool => app(WhatsappChannel::class)->seReplieraitSurSms($notifiable, $sonde))) {
+            $via = array_values(array_unique(array_map(fn (string $canal): string => $canal === 'whatsapp' ? 'sms' : $canal, $via)));
+        }
+        $canaux = $to instanceof User && PrimaryPropertyContact::joignable($to) ? [NotificationChannel::App->value] : [];
+        foreach ($via as $canal) {
+            $canaux[] = match ($canal) {
+                'mail' => NotificationChannel::Email->value,
+                'broadcast' => NotificationChannel::Push->value,
+                default => $canal,
+            };
+        }
+        $remise->ajouterCanaux($canaux);
+
+        if (in_array('sms', $via, true)) {
+            $remise->sms = [
+                'queued_at' => BaseResource::instantOnWire(now()), // la forme d'ADR-0018
+                'body' => $this->withLocale($locale, fn (): string => $sonde->toSms($notifiable)),
+            ];
+        }
     }
 
     /**

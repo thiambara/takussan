@@ -575,6 +575,17 @@ return [
                 'mail_body' => "Le visiteur a annulé sa demande de visite de :property.\nElle était demandée le :date, :window ; l'heure n'avait pas été fixée.",
                 'sms' => 'Takussan : le visiteur a annulé la visite de :property demandée le :date, :window.',
             ],
+            // TCK-2871 — l'agence a marqué le visiteur « Absent » : le jour (pas d'heure), et le lien public
+            // du bien quand il l'est encore (variantes `_link`).
+            'no_show' => [
+                'title' => 'Visite manquée : :property',
+                'body' => "La visite prévue le :date n'a pas eu lieu. Vous pouvez en demander une autre.",
+                'mail_body' => "La visite de :property prévue le :date n'a pas eu lieu.\nContactez l'agence pour en convenir d'une autre.",
+                'mail_body_link' => "La visite de :property prévue le :date n'a pas eu lieu.\nPour en demander une autre : :url",
+                'sms' => "Takussan : visite du :date manquée. Contactez l'agence pour en reprendre une.",
+                // Sans accent hors de la date : en GSM-7, le lien réel (~95 caractères) tient en deux segments.
+                'sms_link' => "Takussan : votre visite du :date n'a pas eu lieu. Pour en demander une autre : :url",
+            ],
             'cancelled_window' => [
                 'title' => 'Votre visite de :property est annulée',
                 'body' => 'La visite demandée le :date, :window est annulée.',

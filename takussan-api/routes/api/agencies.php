@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencyResponseTimeController;
 use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
@@ -28,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // la console (`AgencyProvisioningService`) ou par l'espace hôte (`HostIndividualOnboardingService`),
     // qui créent toutes deux le profil d'administrateur.
     Route::get('agencies/{agency}', [AgencyController::class, 'show'])->name('agencies.show');
+    // TCK-2871 — le délai de première réponse de l'agence, lu par ses clients (médiane sur 90 jours, 204 sous 10).
+    Route::get('agencies/{agency}/response-time', AgencyResponseTimeController::class)->name('agencies.response-time');
     Route::put('agencies/{agency}', [AgencyController::class, 'update'])->name('agencies.update');
     Route::patch('agencies/{agency}', [AgencyController::class, 'update']);
     // TCK-1499 (P129.06, ADR-0048 amendé le 2026-10-22) — une agence ne se supprime pas : elle sort
