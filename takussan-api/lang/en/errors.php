@@ -352,6 +352,8 @@ return [
     'invitation' => [
         'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',
         'sms_daily_cap_reached' => 'The agency\'s daily limit of SMS invitations has been reached. Try again tomorrow, or invite by email.',
+        // TCK-2927 (ADR-0123 § 4) — invitation partagée : le lien ne prouve pas le numéro.
+        'code_required' => 'This invitation is accepted with the code sent by SMS to the invited number.',
         'phone_mismatch' => 'This number is not the one the invitation was sent to.',
         'profile_unavailable' => 'The profile this invitation targets is no longer available (suspended or inactive). Ask the agency for a new invitation.',
         'service_provider_profile_exists' => 'This account already has a service provider profile. Ask the agency to invite you at this account\'s email or number: the invitation will then join that profile.',
@@ -753,6 +755,10 @@ return [
         'assignee_other_agency' => 'The assignee must belong to your agency.',
     ],
     'team' => [
+        // TCK-2926 (ADR-0124 § 6) — le rappel de la double authentification.
+        'two_factor_already_enabled' => 'This member has already turned on two-factor authentication: there is nothing to remind.',
+        'two_factor_reminder_throttled' => 'A reminder was already sent to this member less than 24 hours ago.',
+        'member_not_found' => 'This person is not a member of this agency\'s team.',
         'admin_suspension_reserved' => 'Only an active administrator of the agency can suspend or reactivate an administrator.',
         'nothing_to_reactivate' => 'This member has no suspended profile to reactivate in this agency. A pending invitation is accepted, not reactivated.',
         'nothing_to_suspend' => 'This member has no active profile to suspend in this agency.',

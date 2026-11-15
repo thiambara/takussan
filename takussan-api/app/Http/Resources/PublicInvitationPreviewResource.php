@@ -53,6 +53,9 @@ class PublicInvitationPreviewResource extends BaseResource
             'inviter' => $inviter === null ? null : ['first_name' => trim((string) $inviter->first_name) ?: null],
             'recipient' => $this->recipient($invitation),
             'recipient_has_account' => $this->recipientHasAccount($invitation),
+            // TCK-2927 (ADR-0123 § 4) — invitation partagée par l'invitant : le lien ne prouve pas le numéro,
+            // l'acceptation passe par le code SMS seul (la voie mot de passe rend 403 `invitation.code_required`).
+            'code_only' => $invitation->estPartagee(),
             'expires_at' => $this->iso($invitation->expires_at),
             'invited_at' => $this->iso($invitation->created_at),
             // Le nom que l'agence a saisi, pour préremplir le formulaire de l'invité (TCK-2281).

@@ -217,6 +217,18 @@ class Invitation extends AbstractModel
         return $this->email ?? $this->phone;
     }
 
+    /** TCK-2927 (ADR-0123) — la valeur de `metadata.delivery` d'une invitation partagée par l'invitant. */
+    public const DELIVERY_SHARE = 'share';
+
+    /**
+     * TCK-2927 (ADR-0123) — l'invitant a reçu le lien pour le partager lui-même : la plateforme n'a rien
+     * envoyé, le lien ne prouve donc pas le numéro (l'acceptation exige le code SMS).
+     */
+    public function estPartagee(): bool
+    {
+        return data_get($this->metadata, 'delivery') === self::DELIVERY_SHARE;
+    }
+
     public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by');

@@ -56,6 +56,7 @@ const PAR_SMS: ApercuDInvitation = {
   invitant: 'Aïssatou',
   destinataire: { canal: 'phone', masque: '77 ••• 45 67' },
   compteExistant: false,
+  codeSeul: false, // TCK-2927
   expireLe: '2026-11-17T10:00:00+00:00',
   inviteeLe: '2026-11-10T10:00:00+00:00',
   prerempli: { prenom: 'Moussa', nom: 'Ndiaye' },

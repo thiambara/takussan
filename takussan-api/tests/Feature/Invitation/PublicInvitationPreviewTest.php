@@ -31,7 +31,8 @@ class PublicInvitationPreviewTest extends TestCase
     use RefreshDatabase;
 
     private const CLES_ACTIONNABLE = [
-        'agency', 'awaiting', 'expires_at', 'invited_at', 'inviter', 'prefill', 'recipient', 'recipient_has_account', 'role',
+        // TCK-2927 — `code_only`.
+        'agency', 'awaiting', 'code_only', 'expires_at', 'invited_at', 'inviter', 'prefill', 'recipient', 'recipient_has_account', 'role',
     ];
 
     private Agency $agency;

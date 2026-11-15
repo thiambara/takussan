@@ -352,6 +352,8 @@ return [
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
         'sms_daily_cap_reached' => 'Le plafond journalier d\'invitations par SMS de l\'agence est atteint. Réessayez demain, ou invitez par e-mail.',
+        // TCK-2927 (ADR-0123 § 4) — invitation partagée : le lien ne prouve pas le numéro.
+        'code_required' => 'Cette invitation s\'accepte par le code envoyé par SMS au numéro invité.',
         'phone_mismatch' => 'Ce numéro n\'est pas celui qui a reçu l\'invitation.',
         'profile_unavailable' => 'Le profil visé par cette invitation n\'est plus disponible (suspendu ou inactif). Demandez une nouvelle invitation à l\'agence.',
         'service_provider_profile_exists' => 'Ce compte a déjà un profil de prestataire. Demandez à l\'agence de vous inviter à l\'adresse ou au numéro de ce compte : l\'invitation rejoindra alors ce profil.',
@@ -753,6 +755,10 @@ return [
         'assignee_other_agency' => 'La personne assignée doit appartenir à votre agence.',
     ],
     'team' => [
+        // TCK-2926 (ADR-0124 § 6) — le rappel de la double authentification.
+        'two_factor_already_enabled' => 'Ce membre a déjà activé la double authentification : il n\'y a rien à rappeler.',
+        'two_factor_reminder_throttled' => 'Un rappel a déjà été envoyé à ce membre il y a moins de 24 heures.',
+        'member_not_found' => 'Cette personne n\'est pas membre de l\'équipe de cette agence.',
         'admin_suspension_reserved' => 'Seul un administrateur actif de l\'agence peut suspendre ou réactiver un administrateur.',
         'nothing_to_reactivate' => 'Ce membre n\'a aucun profil suspendu à réactiver dans cette agence. Une invitation en attente s\'accepte, elle ne se réactive pas.',
         'nothing_to_suspend' => 'Ce membre n\'a aucun profil actif à suspendre dans cette agence.',

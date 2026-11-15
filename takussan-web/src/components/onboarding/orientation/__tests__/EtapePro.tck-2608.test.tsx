@@ -37,6 +37,7 @@ const lireInvitation = vi.fn(async (_jeton: string) => ({
     invitant: 'Mamadou',
     destinataire: null,
     compteExistant: true,
+    codeSeul: false, // TCK-2927
     expireLe: null,
     inviteeLe: '2026-11-09T10:00:00Z',
     prerempli: { prenom: '', nom: '' },

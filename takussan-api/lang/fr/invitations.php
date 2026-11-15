@@ -32,6 +32,8 @@ return [
         'cannot_create' => 'Vous n\'avez pas la permission d\'envoyer une invitation.',
         'cannot_view' => 'Vous n\'avez pas la permission de consulter cette invitation.',
         'cannot_revoke' => 'Vous n\'avez pas la permission de révoquer cette invitation.',
+        // TCK-2927 (ADR-0123 § 2)
+        'cannot_share' => 'Seule une invitation d\'équipe adressée à un numéro, sans e-mail, peut se partager par lien.',
         'cannot_resend' => 'Cette invitation ne peut plus être renvoyée.',
         'already_accepted' => 'Cette invitation a déjà été acceptée et ne peut être révoquée.',
         'invalid_role' => 'Le rôle demandé n\'est pas autorisé pour les invitations.',

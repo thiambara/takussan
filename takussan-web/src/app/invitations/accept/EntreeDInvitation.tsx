@@ -392,9 +392,12 @@ function FormulaireDuNumero({
       )}
 
       <div className="mt-4 flex flex-col items-center max-lg:order-1 lg:flex-row lg:justify-center lg:gap-6 lg:border-t lg:border-border lg:pt-3">
-        <button type="button" onClick={onMotDePasse} className={LIEN_PRIMAIRE}>
-          {t('voies.motDePasse')}
-        </button>
+        {/* TCK-2927 (ADR-0123 § 4) — un lien partagé par l'invitant ne s'accepte que par le code. */}
+        {apercu.codeSeul ? null : (
+          <button type="button" onClick={onMotDePasse} className={LIEN_PRIMAIRE}>
+            {t('voies.motDePasse')}
+          </button>
+        )}
         <Link href={lienConnexion} className={LIEN_DISCRET}>
           {t('haveAccount')}
         </Link>

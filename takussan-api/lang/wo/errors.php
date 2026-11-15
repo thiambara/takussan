@@ -352,6 +352,8 @@ return [
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
         'sms_daily_cap_reached' => 'Limu woote yi ci SMS ci bés bi jot na ci agence bi. Jéemaatal ëllëg, walla woo ko ci e-mail.',
+        // TCK-2927 (ADR-0123 § 4) — invitation partagée : le lien ne prouve pas le numéro.
+        'code_required' => 'Cette invitation s\'accepte par le code envoyé par SMS au numéro invité.',
         'phone_mismatch' => 'Nimero bii du bi ñu yónne woote bi.',
         'profile_unavailable' => 'Le profil visé par cette invitation n\'est plus disponible (suspendu ou inactif). Demandez une nouvelle invitation à l\'agence.',
         'service_provider_profile_exists' => 'Ce compte a déjà un profil de prestataire. Demandez à l\'agence de vous inviter à l\'adresse ou au numéro de ce compte : l\'invitation rejoindra alors ce profil.',
@@ -753,6 +755,10 @@ return [
         'assignee_other_agency' => 'Ki ñu dénk liggéey bi war na bokk ci sa agence.',
     ],
     'team' => [
+        // TCK-2926 (ADR-0124 § 6) — le rappel de la double authentification.
+        'two_factor_already_enabled' => 'Ce membre a déjà activé la double authentification : il n\'y a rien à rappeler.',
+        'two_factor_reminder_throttled' => 'Un rappel a déjà été envoyé à ce membre il y a moins de 24 heures.',
+        'member_not_found' => 'Cette personne n\'est pas membre de l\'équipe de cette agence.',
         'admin_suspension_reserved' => 'Administraateur bu dox ci ajaas bi rekk mën a taxawal walla delloo administraateur.',
         'nothing_to_reactivate' => 'Bokk bii amul benn profil bu ñu taxawal buñu mën a delloo ci ajaas bii. Woote buñu xaar dañuy nangu, duñu ko delloo.',
         'nothing_to_suspend' => 'Bokk bii amul benn profil buy dox buñu mën a taxawal ci ajaas bii.',

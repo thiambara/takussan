@@ -195,6 +195,8 @@ final class ProtectedActions
         ServiceProviderInvitationController::class.'@__invoke',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
+        // TCK-2927 (ADR-0123 § 2) — renouveler le lien partagé d'une invitation, comme la relancer.
+        InvitationController::class.'@shareLink',
         // TCK-2665 — supprimer les invitations expirées de l'agence, comme renvoyer et révoquer.
         InvitationController::class.'@purgeExpired',
 

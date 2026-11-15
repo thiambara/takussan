@@ -45,4 +45,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('invitations/{invitation}/revoke', [InvitationController::class, 'revoke'])->name('invitations.revoke');
     Route::post('invitations/{invitation}/resend', [InvitationController::class, 'resend'])
         ->middleware('throttle:invitations-send')->name('invitations.resend');
+    // TCK-2927 (ADR-0123 § 2) — un lien neuf à partager soi-même (jeton renouvelé, rien n'est envoyé).
+    Route::post('invitations/{invitation}/share-link', [InvitationController::class, 'shareLink'])
+        ->middleware('throttle:invitations-send')->name('invitations.share-link');
 });

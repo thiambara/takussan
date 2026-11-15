@@ -56,4 +56,39 @@ L'admin invite un membre en lui envoyant lui-même le lien sur WhatsApp, depuis 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, arbre `takussan-manques`). ADR écrit avant : [ADR-0123](../../../adr/0123-l-invitant-recoit-le-lien-d-une-invitation-partagee.md).
+
+**Re-mesure** : prémisse exacte (`agents/invite` envoie toujours, `InvitationResource` sans jeton). Trouvé en plus : l'acceptation
+publique SANS session (`POST /api/invitations/{token}/accept` → `acceptAsNewUser`) pose le numéro d'une invitation par SMS
+**vérifié** (« le lien est arrivé par SMS ») — fausse pour un lien partagé : qui le détient (l'admin compris) aurait créé un
+compte au numéro d'autrui vérifié. Fermé : 403 `invitation.code_required` pour une invitation partagée. Et le rappel J+2
+(`remindPending`) aurait envoyé le lien par SMS : il ignore désormais les invitations partagées.
+
+**Décisions tranchées (« valide tes choix »)** :
+- `delivery: share` exige le numéro et **refuse l'e-mail** (422) : l'invitation est adressée au seul numéro, aucun e-mail ne
+  peut être posé vérifié (ADR-0094 § 6 hors jeu). Drapeau `auth.phone_login.enabled` éteint → `delivery` refusé (422).
+- Marqueur `metadata.delivery = "share"` (`Invitation::estPartagee()`, `Invitation::DELIVERY_SHARE`) ; aucun envoi, plafond SMS
+  non consommé.
+- `share-link` : invitation d'équipe (`AgentProfile`), numéro sans e-mail, `sent` ou `expired` (résurrection gardée comme
+  `resend`) ; sinon 422 `invitations.errors.cannot_share`. Accès `InvitationPolicy::resend`, + `changeMemberRole` pour un
+  rôle `agency_admin` ; step-up (`ProtectedActions::AGENCY_TWO_FACTOR`) et `throttle:invitations-send`. Une invitation par SMS
+  renouvelée ainsi devient partagée.
+- La relance classique (`resend`) d'une invitation partagée **envoie** le SMS et retire le marqueur.
+- `share_url` ajouté par les deux contrôleurs seuls (jamais `InvitationResource`), `Cache-Control: no-store, private`.
+  Sous impersonation : POST refusés (`impersonation.read_only`, testé). Marqueur « lien d'invitation » ajouté à
+  `ImpersonationReadSweepTest` (+ une invitation partagée dans la cible garnie).
+- Journal : `invitation_sent`/`agent_invited` portent `delivery: share` ; événement neuf `invitation_share_link_issued`
+  (libellé `admin.audit.events.invitation_share_link_issued` posé). Le modèle ne journalise pas `token` (`logOnly`).
+
+- `share-link` juge en plus la règle de l'émission (`AgentProfilePolicy@invite` sur l'agence) : le lien est un secret rendu
+  à l'appelant, pas seulement une relance.
+- Page de l'invité : l'aperçu public rend `code_only` (vrai pour une invitation partagée) ; `EntreeDInvitation` n'offre alors
+  pas « Utiliser un mot de passe » (la voie que l'API refuse). Aucun middleware d'idempotence sur ces deux routes (le corps
+  avec `share_url` n'est rangé nulle part) ; `ShareRequestLogContext` ne journalise aucune donnée de requête.
+
+**Preuves** : `AgentInvitationShareTest` 12/12 ; ablations une à une (refus sans code, rappel, envoi à la création,
+`prohibited_if` e-mail, retrait du marqueur à la relance, masquage du lien mot de passe côté front) toutes rouges, restaurées
+par `cp` (md5 vérifié). Voisins verts : InviteAgent, InvitationBySms, InvitationRappelSms, InvitationLifecycle,
+InvitationAcceptByCode, InvitationSmsContent, InvitationSmsLimits, PublicInvitationPreview, ImpersonationReadSweep,
+ProtectedActionsCoverage, LangGroupParity, ValeursEnListe, DateInventoryByValue, trois gardes d'architecture,
+`scripts/check-*.mjs` ; front : vitest des 4 fichiers d'aperçu/entrée, `tsc --noEmit`, eslint, `check:i18n`.

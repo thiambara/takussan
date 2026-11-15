@@ -44,6 +44,11 @@ export interface ApercuDInvitation {
   readonly destinataire: { readonly canal: 'email' | 'phone'; readonly masque: string } | null;
   /** Un compte existe pour ce destinataire (même résolution que l'acceptation). */
   readonly compteExistant: boolean;
+  /**
+   * TCK-2927 (ADR-0123 § 4) — invitation dont l'invitant a partagé lui-même le lien : elle ne s'accepte
+   * que par le code SMS (la voie mot de passe rend 403 `invitation.code_required`).
+   */
+  readonly codeSeul: boolean;
   readonly expireLe: string | null;
   readonly inviteeLe: string | null;
   /** Le nom que l'agence a saisi, à confirmer ou corriger par l'invité. */
@@ -113,6 +118,7 @@ export function apercuDepuisLaReponse(brut: unknown): ApercuDInvitation | null {
     invitant: texte(objet(d.inviter)?.first_name),
     destinataire: (canal === 'email' || canal === 'phone') && masque ? { canal, masque } : null,
     compteExistant: d.recipient_has_account === true,
+    codeSeul: d.code_only === true,
     expireLe: texte(d.expires_at),
     inviteeLe: texte(d.invited_at),
     prerempli: { prenom: texte(prerempli?.first_name) ?? '', nom: texte(prerempli?.last_name) ?? '' },
