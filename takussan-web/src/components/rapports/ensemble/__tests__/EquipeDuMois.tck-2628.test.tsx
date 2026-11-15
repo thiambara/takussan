@@ -39,12 +39,15 @@ describe('TCK-2628 — « Équipe ce mois » de la vue d’ensemble', () => {
     render(withIntl(<EquipeDuMois agencyId={4} periode="2026-11" agencyIsStandard />));
     const rangee = within(screen.getByRole('list')).getByRole('listitem');
     expect(rangee.textContent?.replace(/\s/g, ' ')).toBe('Aïssatou Ndiaye2 baux · 9 visites450 000 F');
+    // TCK-2867 — les sept colonnes de la maquette (« Demandes traitées », « Délai de réponse » comprises).
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       'Agent',
       'Biens gérés',
-      'Visites effectuées',
+      'Demandes traitées',
+      'Visites',
       'Baux signés',
-      'Commissions acquises',
+      'Commissions générées',
+      'Délai de réponse',
     ]);
   });
 

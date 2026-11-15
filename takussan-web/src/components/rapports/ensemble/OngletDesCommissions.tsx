@@ -1,22 +1,25 @@
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import { BlocDeRapport, PeriodeDuRapport } from '@/components/rapports/vues/pieces';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
 import { formatCurrency } from '@/lib/format';
+import { moisEnCoursDeLaReponse } from '@/lib/rapports/periode';
 import { lireLeTableauDeLAgent } from '@/lib/rapports/tableau-de-l-agent';
 
+import { DetailParBail } from './DetailParBail';
 import { GraphiquesDuRapport } from './GraphiquesDuRapport';
 import { BasculePortee } from './PiecesDeLAgent';
 import { serieDe } from './series';
 
 /**
- * TCK-2628 (L2) — l'onglet « Commissions » de l'agent : ce mois, le cumul de l'année, « Détail par bail » (la
- * page Commissions, famille 6), et les deux graphiques sur 12 mois, une série chacun.
+ * TCK-2628 (L2) — l'onglet « Commissions » de l'agent : ce mois, le cumul de l'année, et les deux graphiques sur
+ * 12 mois, une série chacun. TCK-2867 — « Détail par bail » (`DetailParBail`, le même que la vue d'ensemble), dont le
+ * lien mène au relevé entier (la page Commissions, famille 6).
  */
 export async function OngletDesCommissions({ scope }: { readonly scope?: string | string[] }) {
-  const [t, locale, { payload, peutVoirAgence, agence }] = await Promise.all([
+  const [t, tRapports, locale, { payload, peutVoirAgence, agence }] = await Promise.all([
     getTranslations('dashboard.agent'),
+    getTranslations('rapports'),
     localeDeLaRequete(),
     lireLeTableauDeLAgent(scope),
   ]);
@@ -36,17 +39,13 @@ export async function OngletDesCommissions({ scope }: { readonly scope?: string 
         <p className="mt-4 text-sm text-foreground">
           {t('yearToDate')} <span className="font-semibold tabular-nums">{formatCurrency(data.finance?.commissions_year ?? 0, locale)}</span>
         </p>
-        <Link
-          href="/app/commissions"
-          className="mt-3 inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
-        >
-          {t('commissionsDetail')}
-        </Link>
       </BlocDeRapport>
+
+      <DetailParBail agence={agence} lignes={20} lien={{ href: '/app/commissions', libelle: tRapports('detailParBail.toutLeReleve') }} />
 
       {ts ? (
         <GraphiquesDuRapport
-          moisEnCours={data.period.start.slice(0, 7)}
+          moisEnCours={moisEnCoursDeLaReponse(data.period)}
           series={[
             ...(commissions ? [{ id: 'commissions' as const, mois: ts.months, valeurs: commissions }] : []),
             ...(bauxSignes ? [{ id: 'bauxSignes' as const, mois: ts.months, valeurs: bauxSignes }] : []),

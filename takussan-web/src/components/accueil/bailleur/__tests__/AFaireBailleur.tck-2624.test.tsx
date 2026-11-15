@@ -210,6 +210,21 @@ describe('les files du bailleur', () => {
     expect(document.querySelector('[data-slot="autres-du-telephone"]')).toBeNull();
   });
 
+  it('TCK-2867 — téléphone, seuls des loyers en retard : une carte « Loyers en retard » mène à la liste (jamais un titre sur le vide)', async () => {
+    Object.assign(etat, { visites: 0, devis: 0 });
+    monter(<AFaireBailleur landlordId={21} titre="Demandes en attente" />);
+    await waitFor(() => expect(within(telephone()).getByText('Loyers en retard')).toBeTruthy());
+    expect(within(telephone()).getByText('4 loyers en retard')).toBeTruthy();
+    expect(within(telephone()).getByRole('link', { name: 'Voir' }).getAttribute('href')).toBe('/app/payments?tab=history');
+    expect(screen.getAllByRole('heading', { name: 'Demandes en attente' }).length).toBeGreaterThan(0);
+  });
+
+  it('téléphone : la carte des loyers ne s’ajoute pas quand une visite ou un devis attend', async () => {
+    monter(<AFaireBailleur landlordId={21} />);
+    await waitFor(() => expect(within(telephone()).getAllByText('Visite à confirmer')).toHaveLength(2));
+    expect(within(telephone()).queryByText('Loyers en retard')).toBeNull();
+  });
+
   it('téléphone : ce que le plafond de la file ne montre pas se dit — « Voir les 6 autres visites à confirmer »', async () => {
     Object.assign(etat, { visites: 8, devis: 3 });
     monter(<AFaireBailleur landlordId={21} />);

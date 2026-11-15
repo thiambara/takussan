@@ -1,0 +1,122 @@
+{
+  "ticket": "TCK-2867",
+  "ecrans": [
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Vue d’ensemble (admin)",
+      "references": {
+        "telephone": "references/app-rapports/a-0-telephone.json",
+        "bureau-1440": "references/app-rapports/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports",
+        "persona": "admin (admin@dakarimmo.sn)",
+        "etat": "téléphone : puces Ce mois · Mois dernier · 12 mois, ligne de période et « Agence ▾ », « ⋯ › Exporter » dans l’en-tête, segment Encaissé · Occupation · Impayés ; bureau : « Agence ▾ » dans la tête, « Voir le tableau » sur chaque graphique, « Performance de l’équipe » à sept colonnes et ligne « Équipe · N agents » — TCK-2867",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Agent, portée « Moi »",
+      "references": {
+        "telephone": "references/app-rapports/a-7-telephone.json",
+        "bureau-1440": "references/app-rapports/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports",
+        "persona": "agent (portée « Moi »)",
+        "etat": "pipeline et « Commissions · 12 derniers mois » côte à côte dès xl ; « Détail par bail » (liste au téléphone, tableau Bail · Client · Signé le · Loyer mensuel · Commission · Versement au bureau), aussi dans l’onglet Commissions — TCK-2867",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-rapports",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Bailleur",
+      "references": {
+        "telephone": "references/app-rapports/a-8-telephone.json",
+        "bureau-1440": "references/app-rapports/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-rapports/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/reports",
+        "persona": "bailleur",
+        "etat": "« Encaissé et attendu · 12 derniers mois » : barres et repères d’attendu, légende Encaissé · Attendu, « N % de l’attendu » ; « Demandes en attente » (le bloc de l’accueil) sous les reversements au bureau, après le graphique au téléphone — TCK-2867",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/reports, /app/reports/commissions",
+    "persona": "admin, agent, bailleur",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null,
+    "releves": "non relevé au navigateur : consigne du porteur du 2026-11-15 (l’API et le front servis en local tournent sur un autre arbre). La fidélité est jugée en lisant la maquette (`app-rapports.tsx` l. 93-330, 669-940 ; `app-rapports-pieces.tsx` l. 189-330, 448-456) ; chaque élément neuf est prouvé par test (vitest `rapports.tck-2867`, `vues-d-ensemble.tck-2867` ; PHPUnit `CommissionDetailParBailTest`)."
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-rapports a-0-*",
+      "element": "« Agence ▾ » porte le NOM de l’espace actif (« Dakar Immo ▾ ») et non le mot « Agence » ; sans autre espace, le nom sans chevron ni menu",
+      "propriete": "texte",
+      "exception": "contrainte du ticket",
+      "motif": "ticket, Direction UX : « le nom de l’espace actif, qui ouvre le choix d’espace de la coque — une agence seule : le nom sans menu »"
+    },
+    {
+      "ecran": "app-rapports a-0-bureau-*",
+      "element": "« Performance de l’équipe » lit le mois en cours sous « 12 mois »",
+      "propriete": "donnée",
+      "exception": "donnée",
+      "motif": "`team-performance` ne lit qu’un mois (`period=Y-m`, `last_12_months` → 422, TCK-2865) ; le titre reste « Équipe ce mois »"
+    },
+    {
+      "ecran": "app-rapports a-0-telephone",
+      "element": "le menu « ⋯ » s’ouvre en menu déroulant (et non en feuille du bas)",
+      "propriete": "forme",
+      "exception": "composant partagé",
+      "motif": "la forme `racine` de l’en-tête du téléphone (coque, TCK-2617) ne porte qu’une `action` : la feuille du bas n’existe que pour la forme `detail`, et la coque est tenue par TCK-2848"
+    },
+    {
+      "ecran": "app-rapports a-7-*",
+      "element": "« Détail par bail » : « À venir » sans mois de versement (« À venir · déc. »)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le grand livre des commissions ne date pas un versement à venir ; seul `paid_at` (« Versée le … ») est servi — aucun mois deviné"
+    },
+    {
+      "ecran": "app-rapports a-8-*",
+      "element": "le graphique « Occupation · 12 derniers mois » reste sous l’encaissé (segment au téléphone)",
+      "propriete": "présence",
+      "exception": "règle du ticket TCK-2628",
+      "motif": "aucune fonction des vues remplacées ne se perd ; la maquette ne dessine pas l’occupation mensuelle du bailleur"
+    },
+    {
+      "ecran": "app-rapports a-8-*",
+      "element": "« Demandes en attente » rend les cartes et groupes de l’accueil (visites à confirmer avec « Confirmer / Autre créneau », devis avec « Valider », loyers en retard ; réservations et avis pour l’hôte) au lieu de quatre rangées compte + verbe",
+      "propriete": "forme",
+      "exception": "contrainte du ticket",
+      "motif": "ticket : « réutilise les lectures et gestes de l’accueil (`AFaireBailleur`), sans deuxième implémentation »"
+    }
+  ],
+  "hors_perimetre": [
+    "impayés, alertes, exports, personnalisation (TCK-2868)"
+  ],
+  "mesures": []
+}

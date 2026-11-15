@@ -163,7 +163,8 @@ async function call<T>(tableau: 'owner' | 'agent' | 'tenant', opts: FetchOpts = 
   const extra: Record<string, string | number> = {};
   if (typeof opts.months === 'number') extra.months = opts.months;
   if (opts.scope) extra.scope = opts.scope;
-  if (opts.period === 'last_month') extra.period = opts.period;
+  // TCK-2867 — « Mois dernier » et « 12 mois » ; le mois en cours n'écrit rien.
+  if (opts.period && opts.period !== 'current_month') extra.period = opts.period;
   const qs = buildQueryString({
     include: opts.include,
     extra: Object.keys(extra).length > 0 ? extra : undefined,

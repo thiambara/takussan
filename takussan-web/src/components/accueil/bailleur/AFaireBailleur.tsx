@@ -56,10 +56,16 @@ const DESTINATIONS = {
 export function AFaireBailleur({
   landlordId,
   hote = null,
+  titre,
 }: {
   /** Le compte du bailleur : `filter[landlord_id]` des loyers en retard. */
   readonly landlordId: number;
   readonly hote?: FilesDeLHote | null;
+  /**
+   * TCK-2867 — le titre du bloc ailleurs que sur l'accueil : « Demandes en attente » de la vue d'ensemble du bailleur
+   * (Rapports, maquette e8), qui monte CE bloc — mêmes lectures, mêmes gestes — sans deuxième implémentation.
+   */
+  readonly titre?: string;
 }) {
   const t = useTranslations('accueil.bailleur');
   const tBlocs = useTranslations('accueil.blocs');
@@ -129,10 +135,10 @@ export function AFaireBailleur({
   return (
     <section data-slot="a-faire" aria-labelledby="a-faire-titre">
       <div className="md:hidden">
-        <TitreBloc id="a-faire-titre">{t('titre')}</TitreBloc>
+        <TitreBloc id="a-faire-titre">{titre ?? t('titre')}</TitreBloc>
       </div>
       <div className="mb-2 max-md:hidden">
-        <TitreColonne>{t('titre')}</TitreColonne>
+        <TitreColonne>{titre ?? t('titre')}</TitreColonne>
       </div>
       <div className="max-md:mt-2">{corps}</div>
       {devisOuvert ? (
@@ -210,6 +216,17 @@ function CartesDuTelephone({ l }: { readonly l: Lignes }) {
       })}
       <FilesDeLHoteEnCartes hote={l.hote} />
       <AutresDuTelephone l={l} />
+      {/* TCK-2867 — seuls des loyers en retard : le téléphone ne les détaille pas (« Ce mois » les dit sur l'accueil),
+          mais le bloc ne reste pas un titre au-dessus du vide — une carte mène à la liste. */}
+      {l.visites.length === 0 && l.devis.length === 0 && !aUneLigne(l.hote?.reservations ?? { etat: 'pret', total: 0 }) && !aUneLigne(l.hote?.avis ?? { etat: 'pret', total: 0 }) && l.loyers.length > 0 ? (
+        <CarteFile
+          icone={Wallet}
+          danger
+          titre={t('groupes.loyers')}
+          detail={t('loyers.carte', { n: l.etats.loyers.etat === 'pret' ? l.etats.loyers.total : l.loyers.length })}
+          action={<LienTonal href={DESTINATIONS.loyers} className="flex-none">{t('voir')}</LienTonal>}
+        />
+      ) : null}
     </ul>
   );
 }

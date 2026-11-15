@@ -79,4 +79,58 @@ Relevé (audit-f3-coque.md, app-rapports e0, e7, e8 ; « Écarts couverts » 7, 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (worktree `feat/audit-manques-2026-11-15`, sur l'API de TCK-2865 et TCK-2866 commitée).
+
+**Prémisse différente — corrigée dans ce ticket (consigne du porteur)** : le « Contrat de données » disait les
+commissions par bail « déjà servies » ; `CommissionEntryResource.lease` ne rendait que la référence, le type et le
+bien — ni client, ni signature, ni loyer. Ajouts API : `lease.signed_at`, `lease.monthly_rent`, `lease.currency`, et
+`include=lease.tenant` (`CommissionEntry::getAllowedQueryIncludes`, à côté de `lease.property`) → `lease.tenant {id,
+name}`, chargé par spatie en une requête (test du compte de requêtes). Test : `CommissionDetailParBailTest`.
+Aussi : la disposition « pipeline + commissions côte à côte dès `xl` » existait déjà (TCK-2801) ; seule la colonne
+de droite portait deux graphiques — « Baux signés · 12 mois » a quitté la vue d'ensemble de l'agent (il reste dans
+l'onglet Commissions).
+
+**« 12 mois »** (`PeriodeDesRapports` += `last_12_months`, `periodeALire`, `moisServiDeLaReponse`,
+`douzeDerniersMois`) : les trois lectures de tableau de bord transmettent toute période autre que le mois en cours.
+`moisEnCoursDeLaReponse` lit le DERNIER des `period.months` sous 12 mois (sinon le premier des douze). Sous 12 mois :
+la tuile « Encaissé » ne dit pas de variation (mois servi = mois en cours), « Chiffres clés · 12 mois », « Équipe »
+reste le mois en cours (`team-performance` refuse `last_12_months`), « Baux signés » de l'agent est la somme des
+douze mois, « sur … attendus » du bailleur est la somme de `timeseries.expected` (jamais le loyer d'un mois). La tête
+(`DescriptionDesRapports`) dit « du 1 décembre 2025 au 30 novembre 2026 ».
+
+**Graphiques** (`GraphiquesDuRapport`) : « Voir le tableau » sur chaque bloc → un `table` visible (un mois par
+colonne, une ligne par série, défilant dans la carte), « Voir le graphique » le referme. Série `impayes`
+(`timeseries.overdue`) : total = dernier point (un solde), hausse = danger, `telephoneSeulement` (segment du
+téléphone, `md:hidden`). `attendu` : repères dans `GraphiqueDuMois` (`reperes`, échelle sur les deux séries, bulle
+et tableau sr-only à deux valeurs), légende « Encaissé · Attendu », « N % de l'attendu » (rien si l'attendu vaut 0).
+
+**Équipe** (`EquipeDuMois`) : sept colonnes de la maquette, `tfoot` « Équipe · N agents » lu des `totals` de l'API
+(jamais recalculé), « médiane 2 h 30 » ; délai `null` → « — » avec infobulle « Pas assez de conversations… » ; >24 h
+en danger (`DELAI_LENT_SECONDES`, comme l'onglet Équipe). Tableau `min-w` 948 px dans une carte qui défile.
+
+**« Agence ▾ »** (`ChoixDeLAgence`, admin d'agence) : le nom de l'espace actif ; avec un autre espace, un menu qui
+monte `EspacesDuMenu` (même lecture, même bascule, `router.refresh()`) ; sinon le nom sans menu. Tête du bureau
+(layout) et ligne de période au téléphone (`EnsembleAgence`).
+
+**« ⋯ › Exporter »** (`PlusDActionsDesRapports`) : `DeclarerEnTete action` (forme `racine`) — un menu déroulant, la
+feuille du bas n'existant que pour la forme `detail` (coque tenue par TCK-2848, non touchée). Jamais sur Alertes.
+
+**« Détail par bail »** (`DetailParBail`, une seule implémentation) : vue d'ensemble (5 lignes, « Onglet
+Commissions ») et onglet Commissions (20 lignes, « Tout le relevé » → `/app/commissions`, qui remplace l'ancien lien
+« Détail par bail »). Sous « Moi », `filter[beneficiary_id]` ; « Versée le … » / « À venir » / « Annulée », aucun
+mois de versement deviné.
+
+**Bailleur** : « Demandes en attente » = `AFaireBailleur` monté tel quel (prop `titre` ajoutée), les files de l'hôte
+construites du même tableau de bord que l'accueil (réservations et avis restent à l'hôte, comme sur l'accueil) ; il
+reste sur l'accueil ; au bureau il garde « Loyers en retard ». Défaut trouvé et corrigé : au téléphone, avec SEULEMENT
+des loyers en retard, le bloc rendait son titre sur une liste vide (accueil compris) — une carte « Loyers en retard ·
+N loyers en retard › Voir » le remplace. Graphique « Encaissé et attendu ». Sous « 12 mois », « Commissions du mois »
+de l'admin devient « Commissions · 12 mois ». Clé orpheline `dashboard.agent.commissionsDetail` supprimée.
+
+**AC8** (non mesuré au navigateur, consigne du porteur) : par lecture et tests — la bascule « Moi / Agence » sous
+`reports.view_agency` (`BasculePortee`, vues-d-ensemble.tck-2628) et la carte « Mise en service » en tête de
+`EnsembleAgence` sont présentes. **AC-F1/F3** : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2867.json` par lecture
+de la maquette, non relevée au navigateur ; les tableaux larges défilent dans leur carte (`overflow-x-auto`).
+
+Tests : `rapports.tck-2867` (13), `vues-d-ensemble.tck-2867` (7), PHPUnit `CommissionDetailParBailTest` (3) ; tests
+mis à jour : `vues-d-ensemble.tck-2628` / `.tck-2791`, `EquipeDuMois.tck-2628`, `ChoixDeLaPeriode.tck-2791`.

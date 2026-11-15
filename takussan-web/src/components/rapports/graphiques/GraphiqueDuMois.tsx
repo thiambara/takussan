@@ -22,6 +22,11 @@ export interface GraphiqueDuMoisProps {
   readonly libelle: string;
   /** La hauteur du tracé ; 168 px par défaut, comme la maquette. */
   readonly className?: string;
+  /**
+   * TCK-2867 — une seconde série posée en REPÈRES (un trait au-dessus de chaque barre : « Attendu » face à
+   * l'encaissé du bailleur, maquette `GraphiqueMois reperes`), de même unité. L'échelle couvre les deux séries.
+   */
+  readonly reperes?: { readonly libelle: string; readonly valeurs: readonly (number | null)[] };
 }
 
 const MOIS_ISO = /^(\d{4})-(\d{2})$/;
@@ -41,7 +46,7 @@ function dateDuMois(valeur: string): Date | null {
  * survolé ou choisi au clavier (← →) sinon. Le tableau des valeurs est toujours dans le document pour un
  * lecteur d'écran ; la vue en tableau visible est le lien « Voir le tableau » du bloc.
  */
-export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libelle, className }: GraphiqueDuMoisProps) {
+export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libelle, className, reperes }: GraphiqueDuMoisProps) {
   const f = useFormatteurs();
   const n = valeurs.length;
   const dernierMesure = (() => {
@@ -50,7 +55,8 @@ export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libell
   })();
   const [actif, setActif] = useState<number>(dernierMesure);
 
-  const graduations = unite === 'pourcent' ? [0, 50, 100] : graduationsRondes(valeurs);
+  // TCK-2867 — les repères comptent dans l'échelle : un attendu au-dessus de l'encaissé ne sort pas du tracé.
+  const graduations = unite === 'pourcent' ? [0, 50, 100] : graduationsRondes(reperes ? [...valeurs, ...reperes.valeurs] : valeurs);
   const haut = graduations[graduations.length - 1] || 1;
   const pct = (v: number) => `${Math.min(100, Math.max(0, (v / haut) * 100))}%`;
 
@@ -81,7 +87,8 @@ export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libell
   };
 
   const valeurActive = valeurs[actif] ?? null;
-  const bulle = `${moisLong(mois[actif] ?? '')} · ${valeurLue(valeurActive)}`;
+  const repereActif = reperes ? (reperes.valeurs[actif] ?? null) : null;
+  const bulle = `${moisLong(mois[actif] ?? '')} · ${valeurLue(valeurActive)}${reperes ? ` · ${reperes.libelle} ${valeurLue(repereActif)}` : ''}`;
   const aDroite = actif > n - 4;
 
   // La courbe se coupe sur un mois sans mesure : un segment par suite de mois mesurés.
@@ -148,6 +155,9 @@ export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libell
                       className={cn('w-full max-w-7 rounded-t-[0.25rem]', i === actif ? 'bg-primary-deep' : 'bg-chart-1')}
                       style={{ height: pct(v ?? 0) }}
                     />
+                    {reperes && typeof reperes.valeurs[i] === 'number' ? (
+                      <span data-slot="repere" className="absolute h-0.5 w-full max-w-9 rounded-full bg-foreground" style={{ bottom: pct(reperes.valeurs[i] ?? 0) }} />
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -189,7 +199,7 @@ export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libell
                 aDroite ? 'right-0' : '-translate-x-1/2',
               )}
               style={{
-                bottom: `calc(${pct(valeurActive ?? 0)} + ${forme === 'courbe' ? '0.75rem' : '0.5rem'})`,
+                bottom: `calc(${pct(Math.max(valeurActive ?? 0, repereActif ?? 0))} + ${forme === 'courbe' ? '0.75rem' : '0.5rem'})`,
                 ...(aDroite ? {} : { left: `${((actif + 0.5) / n) * 100}%` }),
               }}
             >
@@ -213,6 +223,7 @@ export function GraphiqueDuMois({ mois, valeurs, unite, forme = 'barres', libell
             <tr key={m}>
               <th scope="row">{moisLong(m)}</th>
               <td>{valeurLue(valeurs[i] ?? null)}</td>
+              {reperes ? <td>{`${reperes.libelle} ${valeurLue(reperes.valeurs[i] ?? null)}`}</td> : null}
             </tr>
           ))}
         </tbody>

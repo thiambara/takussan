@@ -92,7 +92,8 @@ export async function fetchDashboardAgency(
   if (!token) return null;
 
   const params = new URLSearchParams();
-  if (opts.period === 'last_month') params.set('period', opts.period);
+  // TCK-2867 — « Mois dernier » et « 12 mois » ; le mois en cours n'écrit rien.
+  if (opts.period && opts.period !== 'current_month') params.set('period', opts.period);
   if (opts.withTimeseries) {
     params.set('include', 'timeseries');
     if (opts.months) params.set('months', String(opts.months));

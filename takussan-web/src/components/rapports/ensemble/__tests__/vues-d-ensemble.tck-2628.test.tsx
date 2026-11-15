@@ -58,6 +58,22 @@ vi.mock('@/lib/queries/agency-queues', async (importOriginal) => ({
   fetchPendingInvitationsCount: vi.fn(async () => 4),
 }));
 vi.mock('../ProchainsReversements', () => ({ ProchainsReversements: () => null }));
+// TCK-2867 — « Détail par bail » (lecture du grand livre côté navigateur) et « Demandes en attente » (le bloc de
+// l'accueil) : leurs props seules sont relevées ici, leurs rendus ont leurs tests.
+vi.mock('../DetailParBail', () => ({
+  DetailParBail: ({ agence, lien }: { agence: boolean; lien: { href: string; libelle: string } }) => (
+    <a href={lien.href} data-agence={String(agence)}>
+      {lien.libelle}
+    </a>
+  ),
+}));
+vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
+  AFaireBailleur: ({ titre, landlordId, hote }: { titre?: string; landlordId: number; hote: unknown }) => (
+    <section data-testid="demandes-en-attente" data-landlord={landlordId} data-hote={hote ? 'oui' : 'non'}>
+      {titre}
+    </section>
+  ),
+}));
 vi.mock('@/components/rapports/vues/LienDesIndicateurs', () => ({ LienDesIndicateurs: () => null }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: vi.fn(async () => ({ id: 3, roles: ['agency_admin'], agency_id: 1 })) }));
 vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
@@ -203,11 +219,11 @@ describe('TCK-2628 — la vue d’ensemble de l’admin', () => {
 });
 
 describe('TCK-2628 — la vue d’ensemble et les commissions de l’agent', () => {
-  it('quatre chiffres, les prospects ouverts, Commissions et Baux signés en DEUX graphiques ; sans capacité, pas de portée', async () => {
+  it('quatre chiffres, les prospects ouverts ; TCK-2867 — « Mes commissions » seul à côté du pipeline ; sans capacité, pas de portée', async () => {
     render(withIntl(await EnsembleAgent({})));
     expect(within(screen.getAllByRole('list')[0]).getAllByRole('link')).toHaveLength(4);
     expect(document.querySelector('[data-slot="bloc-pipeline"] .font-display')?.textContent).toBe('6 prospects');
-    expect(releve.series).toEqual([[expect.objectContaining({ id: 'commissions' }), expect.objectContaining({ id: 'bauxSignes' })]]);
+    expect(releve.series).toEqual([[expect.objectContaining({ id: 'commissions' })]]);
     expect(screen.queryByRole('navigation', { name: 'Portée des chiffres' })).toBeNull();
   });
 
@@ -215,7 +231,10 @@ describe('TCK-2628 — la vue d’ensemble et les commissions de l’agent', () 
     vi.mocked(capacitesDuProfilActif).mockResolvedValue(['reports.view_agency']);
     render(withIntl(await EnsembleAgent({ scope: 'agency' })));
     expect(screen.getByRole('navigation', { name: 'Portée des chiffres' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Détail par bail' }).getAttribute('href')).toBe('/app/reports/commissions?scope=agency');
+    // TCK-2867 — « Détail par bail » sous la portée « Agence », et son lien vers l'onglet Commissions la garde.
+    const detail = screen.getByRole('link', { name: 'Onglet Commissions' });
+    expect(detail.getAttribute('href')).toBe('/app/reports/commissions?scope=agency');
+    expect(detail.getAttribute('data-agence')).toBe('true');
   });
 
   it('« Priorités » reste : chaque compte mène à la liste qu’il compte (TCK-1735, TCK-1513, TCK-1733), « Activité récente » aussi', async () => {
@@ -244,6 +263,8 @@ describe('TCK-2628 — la vue d’ensemble et les commissions de l’agent', () 
     render(withIntl(await OngletDesCommissions({})));
     expect(releve.series).toEqual([[expect.objectContaining({ id: 'commissions' }), expect.objectContaining({ id: 'bauxSignes' })]]);
     expect(screen.getByRole('link', { name: 'Agence' }).getAttribute('href')).toBe('/app/reports/commissions?scope=agency');
+    // TCK-2867 — le même « Détail par bail » que la vue d'ensemble, qui mène au relevé entier.
+    expect(screen.getByRole('link', { name: 'Tout le relevé' }).getAttribute('href')).toBe('/app/commissions');
   });
 });
 

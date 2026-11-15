@@ -39,6 +39,15 @@ class CommissionEntryResource extends BaseResource
                 'id' => $this->lease->id,
                 'reference_number' => $this->lease->reference_number,
                 'type' => $this->lease->type?->value,
+                // TCK-2867 — « Détail par bail » : le jour de la signature et le loyer mensuel du bail.
+                'signed_at' => $this->iso($this->lease->signed_at),
+                'monthly_rent' => $this->lease->monthly_rent !== null ? (float) $this->lease->monthly_rent : null,
+                'currency' => $this->lease->currency?->value,
+                // TCK-2867 — `include=lease.tenant` : le client du bail.
+                ...($this->lease->relationLoaded('tenant') ? ['tenant' => $this->lease->tenant ? [
+                    'id' => $this->lease->tenant->id,
+                    'name' => trim($this->lease->tenant->first_name.' '.$this->lease->tenant->last_name),
+                ] : null] : []),
                 // TCK-2661 — `include=lease.property` : le bien du bail et son quartier.
                 ...($this->lease->relationLoaded('property') ? ['property' => $this->lease->property ? [
                     'id' => $this->lease->property->id,
