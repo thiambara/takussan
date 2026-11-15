@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { Check, Plus, XCircle } from 'lucide-react';
+import { Check, Plus, RotateCcw, XCircle } from 'lucide-react';
 import {
   useBooking,
   useCancelBooking,
@@ -35,7 +35,9 @@ import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
 import { BOOKING_PAYMENT_STATUS_TONE } from './booking-status';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
-import { BookingRefundPanel } from './BookingRefundPanel';
+import { BookingRefundDialog, BookingRefundPanel, paiementsRemboursables } from './BookingRefundPanel';
+// TCK-2877 — les nuits du bien autour du séjour, au bureau.
+import { NuitsDuBien } from './detail/nuits-du-bien';
 import { FeuilleDeDecision } from './feuilles/FeuilleDeDecision';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { PAYMENT_METHOD_VALUES } from '@/components/payments/constants';
@@ -156,6 +158,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const [action, setAction] = useState<'confirm' | 'reject' | 'cancel' | null>(null);
   // TCK-2876 — la feuille « Contre-proposer », montée seulement ouverte (elle porte sa mutation).
   const [contreOffreOuverte, setContreOffreOuverte] = useState(false);
+  // TCK-2877 — la feuille « Rembourser » d'un séjour confirmé.
+  const [remboursementOuvert, setRemboursementOuvert] = useState(false);
   const libelleDuFinancement = useLibelleDuFinancement();
   const evenementsDeLaContreOffre = useEvenementsDeLaContreOffre();
   const bookingQuery = useBooking(bookingId);
@@ -321,7 +325,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     bien: booking.property?.title ?? titreDuBien,
   });
   const paiements = booking.booking_payments ?? [];
-  const encaisse = paiements.filter((p) => p.status === 'paid').reduce((s, p) => s + Number(p.amount ?? 0), 0);
+  // TCK-2877 (TCK-2892) — une caution ou un paiement « autre » ne règle pas le séjour : hors de l'encaissé.
+  const encaisse = paiements.filter(regleLeTotal).reduce((s, p) => s + Number(p.amount ?? 0), 0);
   const acompte = acomptePaye(booking);
   /** TCK-2594 — ce qui reste à encaisser : le montant prérempli de « Enregistrer un paiement ». */
   const totalDu = m.forme === 'nuits' && m.montant !== null ? m.montant : Number(booking.total_amount ?? 0);
@@ -375,6 +380,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         arrivee={jourEnClair(f, booking.start_date)}
         depart={jourEnClair(f, booking.end_date)}
         nuits={nuitsEntre(booking.start_date, booking.end_date)}
+        // TCK-2877 — les heures du bien (14:00 / 11:00 s'il ne les dit pas) et les voyageurs.
+        heureDArrivee={booking.property?.check_in_from}
+        heureDeDepart={booking.property?.check_out_before}
+        voyageurs={booking.guests}
       />
     ) : null;
 
@@ -611,6 +620,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     ) : null;
   /** « Enregistrer un paiement » hors d'un séjour confirmé : un geste second. */
   const paiementSecond = canRegisterPayment && !sejourAvecPaiement;
+  /**
+   * TCK-2877 — « Rembourser » un séjour CONFIRMÉ sans attendre qu'il soit fermé (l'API rembourse
+   * tout paiement `paid`, `BookingPaymentService::refund`) : sous `can_refund`, et s'il reste un
+   * paiement encaissé pas entièrement rendu. Une réservation fermée garde son bloc (TCK-596).
+   */
+  const remboursables = paiementsRemboursables(booking);
+  const canRefundStay = nature === 'stay' && booking.status === 'confirmed' && !isCustomer && booking.can_refund === true && remboursables.length > 0;
+  const ouvrirLeRemboursement = () => setRemboursementOuvert(true);
 
   const dialogues = (
     <>
@@ -630,13 +647,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           if (!open) setAction(null);
         }}
         pending={confirmBooking.isPending || rejectBooking.isPending || cancelBooking.isPending}
-        onSubmit={async (reason) => {
+        onSubmit={async ({ reason, reason_code, message }) => {
           if (action === 'confirm') {
             await confirmBooking.mutateAsync();
             toast.add({ title: t('toasts.accepted.title'), description: t('toasts.accepted.description'), type: 'success' });
           }
           if (action === 'reject') {
-            await rejectBooking.mutateAsync({ reason });
+            // TCK-2877 — le motif codé et le message partent au client (TCK-2874).
+            await rejectBooking.mutateAsync({ reason, ...(reason_code ? { reason_code } : {}), ...(message ? { message } : {}) });
             toast.add({ title: t('toasts.rejected.title'), description: t('toasts.rejected.description'), type: 'success' });
           }
           if (action === 'cancel') {
@@ -659,6 +677,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           onEnvoyee={() => toast.add({ title: tFiche('contreOffre.toast', { prenom }), type: 'success' })}
         />
       ) : null}
+      {/* TCK-2877 — « Rembourser » d'un séjour confirmé, montée ouverte seulement. */}
+      {canRefundStay && remboursementOuvert ? (
+        <BookingRefundDialog booking={booking} paiements={remboursables} locale={locale} onClose={() => setRemboursementOuvert(false)} />
+      ) : null}
     </>
   );
 
@@ -670,6 +692,15 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         icone={<Plus className="size-icone text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />}
         libelle={tBookings('paymentDialog.title')}
         onClick={() => setPaymentOpen(true)}
+      />
+    ) : null,
+    // TCK-2877 — maquette e5 : « Rembourser » avant « Annuler le séjour ».
+    canRefundStay ? (
+      <RangeeDeGeste
+        key="rembourser"
+        icone={<RotateCcw className="size-icone text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />}
+        libelle={tFiche('gestes.rembourser')}
+        onClick={ouvrirLeRemboursement}
       />
     ) : null,
     canCancel ? (
@@ -899,6 +930,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                 {libelleAnnuler}
               </Button>
             ) : null}
+            {/* TCK-2877 — maquette e5 (bureau) : Annuler, Rembourser, Enregistrer un paiement. */}
+            {canRefundStay ? (
+              <Button variant="outline" onClick={ouvrirLeRemboursement}>
+                {tFiche('gestes.rembourser')}
+              </Button>
+            ) : null}
             {suite}
           </>
         }
@@ -913,6 +950,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {suiteDuBail}
           {decisionDeLOffre}
           {decisionDeLaCandidature}
+          {/* TCK-2877 — maquette e5 : les nuits du bien autour du séjour, au personnel. */}
+          {nature === 'stay' && isDashboardAgent && !isCustomer && booking.property?.id && booking.start_date && booking.end_date ? (
+            <NuitsDuBien bookingId={booking.id} propertyId={booking.property.id} debut={booking.start_date.slice(0, 10)} fin={booking.end_date.slice(0, 10)} />
+          ) : null}
           {gestesDuBureau.length > 0 ? (
             <CarteDuBureau titre={tFiche('sections.autresGestes', { n: gestesDuBureau.length })}>
               <div className="divide-y divide-border px-4 py-1">{gestesDuBureau}</div>
@@ -1022,8 +1063,9 @@ function CustomerPayCta({
   if (booking.status !== 'pending' && booking.status !== 'confirmed') return null;
   if (providers !== undefined && providers.length === 0) return null;
 
+  // TCK-2877 — comme l'API (`dueFromCustomer`) : ni caution ni « autre ».
   const succeededTotal = payments
-    .filter((p) => p.status === 'paid')
+    .filter(regleLeTotal)
     .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
   const total = Number(booking.total_amount ?? 0);
   const remaining = Math.max(total - succeededTotal, 0);
@@ -1068,6 +1110,14 @@ function CustomerPayCta({
   );
 }
 
+
+/**
+ * TCK-2877 (TCK-2892) — un paiement encaissé qui règle le séjour : ni la caution (rendue au départ),
+ * ni un paiement « autre » — ceux que `BookingPaymentService::dueFromCustomer` ne déduit pas.
+ */
+function regleLeTotal(p: BookingPayment): boolean {
+  return p.status === 'paid' && p.payment_type !== 'security_deposit' && p.payment_type !== 'other';
+}
 
 /**
  * TCK-1180 (P100.02) — l'acompte réglé, lu dans les `booking_payments` que le `show` rend : l'API

@@ -119,6 +119,10 @@ const RAPPORT = process.argv.includes('--report');
  * `StatusBadge` ne convient pas — « c'est historique » n'est pas cette phrase.
  */
 const TABLES_DE_TONS_CONNUES = new Map([
+  // TCK-2877 — les cases de la carte « Nuits du bien » d'un séjour (maquette `app-reservations` a, e5).
+  ['takussan-web/src/components/bookings/detail/nuits-du-bien.tsx',
+    "l'OCCUPATION d'une nuit d'un calendrier (ce séjour, un autre, bloquée, en attente), jamais un "
+    + 'statut : la case est un jour du mois, sa teinte y est le seul canal visible (doublé du nom accessible)'],
   ['takussan-web/src/components/inventory/labels.ts',
     "TYPES (`move_in`/`move_out`, deux opposés qui ne se rangent pas sur l'axe des cinq tons) et "
     + "ÉTATS D'ÉLÉMENT (quatre crans de dégradation pour un seul jeton d'avertissement)"],

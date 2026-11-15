@@ -3,7 +3,6 @@
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
 import { Controller, useWatch } from 'react-hook-form';
-import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { FormAmountInput, FormGlobalError, FormTextarea } from '@/components/forms';
@@ -11,26 +10,17 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { decalerJour } from '@/lib/jour-de-l-api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useContreProposer } from '@/lib/queries/booking-counter-offer';
-import { msgValidation } from '@/lib/schemas/messages';
+// TCK-2877 — le schéma vit sous `lib/schemas/` : la garde des traducteurs (traducteurs-de-messages)
+// rougissait sur l'appel de `msgValidation` ici, hors des schémas.
+import { contreOffreSchema as schema, VALIDITES_DE_CONTRE_OFFRE, type ContreOffreFormValues } from '@/lib/schemas/booking';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 import type { BookingCounterOffer } from '@/types/booking';
 import { FeuilleOuPanneau, PastillesDeChoix, useEnPanneau } from './pieces-des-feuilles';
 
 /** Les validités proposées, en jours (l'API admet d'aujourd'hui à J+30 ; J+3 par défaut). */
-export const VALIDITES = ['3', '7', '15', '30'] as const;
+export const VALIDITES = VALIDITES_DE_CONTRE_OFFRE;
 type Validite = (typeof VALIDITES)[number];
-
-const schema = z.object({
-  amount: z.number({ error: msgValidation('common.amountPositive') }).int().positive(msgValidation('common.amountPositive')),
-  message: z
-    .string()
-    .trim()
-    .max(500)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
-  validite: z.enum(VALIDITES),
-});
-type Valeurs = z.infer<typeof schema>;
+type Valeurs = ContreOffreFormValues;
 
 interface FeuilleDeContreOffreProps {
   readonly bookingId: number;

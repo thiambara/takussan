@@ -300,22 +300,49 @@ export function ComparaisonDeLOffre({
   );
 }
 
-/** Arrivée et départ d'un séjour, puis ses nuits. */
-export function DatesDuSejour({ arrivee, depart, nuits, className }: { readonly arrivee: string; readonly depart: string; readonly nuits: number | null; readonly className?: string }) {
+/** TCK-2877 (ADR-0110 § 1) — les heures d'un bien qui ne les dit pas : dites, jamais écrites. */
+export const HEURE_D_ARRIVEE_PAR_DEFAUT = '14:00';
+export const HEURE_DE_DEPART_PAR_DEFAUT = '11:00';
+
+/**
+ * Arrivée et départ d'un séjour, puis ses nuits. TCK-2877 — sous chaque jour, l'heure du bien
+ * (« à partir de 14:00 », « avant 11:00 ») ; et les voyageurs à côté des nuits (« 3 nuits · 2 voyageurs »).
+ */
+export function DatesDuSejour({
+  arrivee,
+  depart,
+  nuits,
+  heureDArrivee,
+  heureDeDepart,
+  voyageurs,
+  className,
+}: {
+  readonly arrivee: string;
+  readonly depart: string;
+  readonly nuits: number | null;
+  readonly heureDArrivee?: string | null;
+  readonly heureDeDepart?: string | null;
+  readonly voyageurs?: number | null;
+  readonly className?: string;
+}) {
   const t = useTranslations('bookings.fiche.sejour');
+  const pied =
+    nuits !== null && voyageurs ? t('nuitsEtVoyageurs', { nuits, voyageurs }) : nuits !== null ? t('nuits', { n: nuits }) : null;
   return (
-    <div className={className}>
+    <div data-slot="dates-du-sejour" className={className}>
       <dl className="grid grid-cols-2 divide-x divide-border rounded-xl border border-border bg-card">
         <div className="p-3.5">
           <dt className="text-ui text-muted-foreground">{t('arrivee')}</dt>
           <dd className="mt-0.5 text-corps font-semibold">{arrivee}</dd>
+          <dd className="text-ui tabular-nums text-muted-foreground">{t('aPartirDe', { heure: heureDArrivee || HEURE_D_ARRIVEE_PAR_DEFAUT })}</dd>
         </div>
         <div className="p-3.5">
           <dt className="text-ui text-muted-foreground">{t('depart')}</dt>
           <dd className="mt-0.5 text-corps font-semibold">{depart}</dd>
+          <dd className="text-ui tabular-nums text-muted-foreground">{t('avant', { heure: heureDeDepart || HEURE_DE_DEPART_PAR_DEFAUT })}</dd>
         </div>
       </dl>
-      {nuits !== null ? <p className="mt-2 text-sm text-muted-foreground">{t('nuits', { n: nuits })}</p> : null}
+      {pied ? <p className="mt-2 text-sm text-muted-foreground">{pied}</p> : null}
     </div>
   );
 }

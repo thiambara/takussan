@@ -213,7 +213,8 @@ export function useConfirmBooking(bookingId: number) {
 }
 
 export function useRejectBooking(bookingId: number) {
-  return useApiMutation<ApiResponse<Booking>, { reason?: string }>(
+  // TCK-2877 — le motif CODÉ et le message au client (`RejectBookingRequest`, TCK-2874), à côté du motif en mots.
+  return useApiMutation<ApiResponse<Booking>, { reason?: string; reason_code?: string; message?: string }>(
     { path: cheminApi`/api/bookings/${bookingId}/reject`, method: 'POST' },
     {
       relireSurErreur: true,

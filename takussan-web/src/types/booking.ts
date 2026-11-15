@@ -59,6 +59,9 @@ export type BookingPayment = {
    * peut lire ce reversement. Le rembourser crée une reprise sur le reversement suivant (TCK-2151).
    */
   paid_out?: { payout_id: number; reference_number: string; processed_at: string | null } | null;
+  /** TCK-2877 — le cumul déjà remboursé (TCK-1214 : un remboursement partiel laisse la ligne `paid`). */
+  refund_amount?: number | null;
+  refund_reason?: string | null;
 };
 
 /** TCK-2579 (ADR-0102) — la nature d'une réservation : séjour, candidature ou offre. */
@@ -123,6 +126,9 @@ export type Booking = {
     location?: { quarter?: string | null; city?: string | null } | null;
     /** TCK-2594 — « En vente depuis 47 jours » sous la comparaison d'une offre. */
     published_at?: string | null;
+    /** TCK-2877 (TCK-2892) — « à partir de 15:00 » / « avant 11:00 » ; `null` : 14:00 / 11:00 (ADR-0110 § 1). */
+    check_in_from?: string | null;
+    check_out_before?: string | null;
   };
   customer?: {
     id: number;

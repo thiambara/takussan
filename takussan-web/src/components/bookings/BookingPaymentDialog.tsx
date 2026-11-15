@@ -26,7 +26,8 @@ interface BookingPaymentDialogProps {
 
 /** L'ordre de la maquette (le mobile d'abord), puis les moyens qu'elle ne montre pas. */
 const MOYENS = ['orange_money', 'wave', 'cash', 'bank_transfer', 'check', 'free_money', 'mobile_money', 'card'] as const;
-const TYPES = ['deposit', 'advance', 'fee'] as const;
+/** TCK-2877 — l'ordre de la maquette (Acompte, Solde, Caution, Autre), puis « Frais » qu'elle ne montre pas. */
+const TYPES = ['deposit', 'advance', 'security_deposit', 'other', 'fee'] as const;
 /** Les moyens dont la référence est le numéro d'une transaction : l'aide le nomme. */
 const MOYENS_A_TRANSACTION = new Set<string>(['orange_money', 'wave', 'free_money', 'mobile_money', 'card', 'bank_transfer']);
 
@@ -67,6 +68,7 @@ export function BookingPaymentDialog({ bookingId, open, onOpenChange, restant = 
 
   const montant = useWatch({ control: form.control, name: 'amount' });
   const moyen = useWatch({ control: form.control, name: 'payment_method' });
+  const type = useWatch({ control: form.control, name: 'payment_type' });
 
   const pied = (
     <Button type="submit" form={formId} size={panneau ? 'default' : 'xl'} className={panneau ? undefined : 'w-full'} disabled={isSubmitting}>
@@ -122,7 +124,15 @@ export function BookingPaymentDialog({ bookingId, open, onOpenChange, restant = 
             {MOYENS_A_TRANSACTION.has(moyen) ? t('referenceAide', { moyen: tMoyens(moyen) }) : moyen === 'check' ? t('referenceCheque') : t('referenceFacultative')}
           </p>
         </div>
-        <FormTextarea<BookingPaymentFormValues> control={form.control} name="notes" label={t('notes')} placeholder={t('notesPlaceholder')} rows={2} />
+        {/* TCK-2877 — « Autre » dit ce qu'il règle : la note est exigée (l'API aussi, `required_if`). */}
+        <FormTextarea<BookingPaymentFormValues>
+          control={form.control}
+          name="notes"
+          label={t('notes')}
+          placeholder={type === 'other' ? t('notesAutre') : t('notesPlaceholder')}
+          required={type === 'other'}
+          rows={2}
+        />
         <p className="flex gap-2 text-ui leading-snug text-muted-foreground">
           <Info className="mt-0.5 size-4 flex-none" strokeWidth={1.75} aria-hidden="true" />
           {t('recu')}

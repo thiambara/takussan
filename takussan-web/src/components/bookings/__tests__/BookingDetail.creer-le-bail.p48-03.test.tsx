@@ -15,6 +15,11 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: vi.fn() }));
 vi.mock('@/hooks/usePaymentProviders', () => ({
   usePaymentProviders: () => ({ providers: [] }),
 }));
+// TCK-2877 — la carte « Nuits du bien » d'un séjour, au bureau : ses lectures, vides.
+vi.mock('@/lib/queries/nuits-du-bien', () => ({
+  useSejoursDuBien: () => ({ data: { data: [] }, isLoading: false, isError: false }),
+  useNuitsBloqueesDuBien: () => ({ data: undefined, isLoading: false, isError: true }),
+}));
 vi.mock('@/lib/queries/bookings', () => ({
   useBooking: vi.fn(),
   useCancelBooking: () => ({ mutateAsync: vi.fn(), isPending: false }),

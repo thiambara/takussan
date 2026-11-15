@@ -86,4 +86,21 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — agent d'implémentation (vague 92), front seul.
+
+**Fait**
+
+- `DatesDuSejour` (`detail/pieces-du-detail.tsx`) : « à partir de {heure} » / « avant {heure} » sous chaque jour, depuis `property.check_in_from` / `check_out_before`, 14:00 / 11:00 par défaut (dits, jamais écrits) ; « 3 nuits · 2 voyageurs » quand `guests` est servi.
+- « Rembourser » d'un séjour **confirmé** : `Autres gestes` au téléphone (avant « Annuler le séjour »), en-tête au bureau (entre Annuler et Enregistrer un paiement) ; sous `can_refund`, hors client, s'il reste un paiement `paid` pas entièrement remboursé. `BookingRefundDialog` est exporté et sert les deux entrées ; plusieurs paiements remboursables se choisissent en pastilles. Le bloc « Remboursement à traiter » d'une réservation fermée est inchangé.
+- **Défaut voisin corrigé** : le plafond du remboursement était `payment.amount` ; il est désormais payé − `refund_amount` (TCK-1214 laisse `paid` une ligne remboursée en partie). `BookingPayment` déclare `refund_amount` / `refund_reason`.
+- **Défaut voisin corrigé** : l'encaissé de la fiche (jauge, solde, « Enregistrer un paiement » prérempli) et `CustomerPayCta` comptaient une caution ou un paiement « autre » ; ils les excluent comme `BookingPaymentService::dueFromCustomer`.
+- Carte « Nuits du bien · {mois} » au bureau (`detail/nuits-du-bien.tsx`, lectures dans `lib/queries/nuits-du-bien.ts`), au personnel et au bailleur, jamais au client : le mois de l'arrivée, ce séjour en plein, les autres séjours confirmés en teinte, les demandes en attente hachurées, les nuits bloquées par le bailleur (`/properties/{id}/unavailabilities`, 403 toléré) barrées et hors des libres. Plages `[début, fin)` (ADR-0041). L'index `/api/bookings` n'a pas de filtre de dates : les séjours du bien sont lus page par page (`lireToutesLesPages`, 100 par page), comme `usePropertyConfirmedStays`.
+- Teinte « autres » en `bg-primary/15` et non `bg-accent/20` de la maquette : `check-valeurs-arbitraires-app` réserve l'accent aux badges *featured*. La table des cases est déclarée dans `TABLES_DE_TONS_CONNUES` (`scripts/check-status-badge-unique.mjs`) : c'est l'occupation d'une nuit, pas un statut.
+- Feuille de refus : « Message à {prénom} », aide « Le motif lui est transmis avec ce message. » ; envoie `reason` (motif en mots + message, ce qui reste écrit sur la réservation), `reason_code` (pastille → `BookingRejectionReason`, table `CODE_DU_MOTIF`) et `message` (borné à 500, la borne de l'API). Clé `refuser.precision` retirée.
+- Feuille de paiement : types Acompte, Solde, Caution, Autre (ordre de la maquette), puis Frais ; « Autre » exige une note (refine zod, clé `validation.booking.notesRequiredForOther` ; l'API la juge aussi).
+- **Garde rouge corrigée** : `traducteurs-de-messages.test.ts` rougissait sur `FeuilleDeContreOffre.tsx` (TCK-2876 appelait `msgValidation` hors de `lib/schemas/`) : schéma déplacé en `contreOffreSchema` dans `lib/schemas/booking.ts`.
+
+**Tests** : `BookingDetail.sejour.tck-2877.test.tsx` (neuf, 12), `feuilles.tck-2594.test.tsx` (refus, paiement, plafond) ; tous les `BookingDetail.*` et `feuilles/*` verts (106 + 59). Ablations une à une (heure par défaut, `canRefundStay`, `reason_code`, exclusion de la caution, plafond, refine « Autre », nuits en attente) : chacune rougit son test, fichier restauré au md5.
+
+**Non mesuré (navigateur interdit par le brief du lot)** : AC5 (« Payer en ligne » sur le solde : `GesteDuPaiement` le rend sur toute ligne `pending`, et `CustomerPayCta` crée la ligne du solde côté client — inchangé), AC6 (les trois feuilles passent par `FeuilleOuPanneau`, feuille du bas sous 80 rem), AC7 (bloc et avertissement « déjà reversé » inchangés, couverts par `feuilles.tck-2594`), AC-F1/F2.
+
