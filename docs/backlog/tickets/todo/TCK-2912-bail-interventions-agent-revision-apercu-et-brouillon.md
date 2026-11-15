@@ -92,4 +92,56 @@ Audit (`audit-f4-patrimoine.md`, app-baux) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, vague 92, worktree `feat/audit-manques-2026-11-15`). Aucune mesure au
+navigateur (consigne du lot) : AC-F2 à AC-F6 **non mesurés** ; fidélité jugée à la lecture de la maquette.
+
+**Prémisses re-mesurées — ce qui différait**
+- AC3 était déjà livré : `Partie` rend Appeler / WhatsApp dès que `agent.phone` est servi (TCK-2906 le sert au
+  personnel). Seul le test manquait (ajouté) ; l'écart accepté « agent responsable » de `TCK-2645.json` est retiré.
+- La liste des interventions de l'agence (`InterventionsDeLAgence`, zone de TCK-2918) ne lit PAS
+  `filter[lease_id]` dans l'adresse (seulement `bien`, `q`, `priorite`, `metier`, `status`, `vue`) ; l'API, elle,
+  filtre `lease_id`. La ligne mène à `/app/maintenance?filter[lease_id]=…` comme le ticket le fixe : la liste
+  s'ouvre NON filtrée tant que TCK-2918 ne lit pas ce paramètre (reste, fichier tenu par un agent en cours).
+- « Encaisser 1 422 750 F » est, dans la maquette, le bouton de la carte « Actions » du bureau ; le téléphone
+  n'y montre pas de montant. Le geste principal est UN composant (barre collée ET carte) : le montant est dit aux deux.
+- `useReviewLeaseRent` n'invalidait pas `['leases','summary']` (comptes des onglets de la file) : ajouté.
+
+**Décisions mineures (tranchées ici)**
+- Montant de « Encaisser » = `remaining_amount + late_fee_outstanding` de l'échéance visée (`totalDuDeLEcheance`,
+  la somme que la carte Loyer dit « total ») ; sans échéance visée, « Encaisser » seul. Le dialogue d'encaissement
+  n'est pas touché.
+- Préavis : en mois quand les jours en font un multiple de 30 (« préavis 3 mois »), en jours sinon. Révision :
+  « révision possible le … » à venir, « révision possible depuis le … » passée ; rien sans date (TCK-2906 la tait
+  hors bail actif). Ligne Interventions : rendue dès `total > 0`, « n en cours · <titre> », ou « Aucune en
+  cours » ; l'état de la dernière (« devis attendu ») n'est pas écrit (libellés dans l'espace `maintenance`).
+- Onglets : le compte en 12 px à côté du nom (maquette `OngletsSoulignes`), nom accessible « Documents (6) » ;
+  rien sans compte servi.
+- Brouillon : clé dérivée de l'adresse seule (`lease-new[.booking-n][.property-n][.customer-n]`) ; ne garde que
+  les champs SAISIS (`dirtyFields`) et l'étape — un formulaire seulement prérempli n'écrit rien (TCK-566) ; repris
+  `shouldDirty` (les défauts du bien arrivés ensuite ne le réécrivent pas) ; effacé dès que `POST /api/leases`
+  réussit (aussi quand la signature échoue ensuite). « Brouillon » (téléphone) et « brouillon enregistré à HH:MM »
+  (bureau, `SuiviDuBrouillon` relie l'en-tête serveur au formulaire) ne s'affichent qu'après un enregistrement.
+  Clé hors des règles du bandeau de reprise (`lib/wizard-drafts.ts`) : pas de lien de reprise depuis l'accueil.
+- Aperçu : le PDF de l'API dans un cadre (`<iframe>` d'un `blob:`) + « Voir le contrat en entier » ; aucun article
+  recomposé côté front. Demandé 1 s après la dernière saisie, jamais deux fois le même corps, au bureau seulement
+  (`useMatchesMedia`), et seulement quand bien, locataire, début et loyer/prix sont saisis (pas de `safeParse` du
+  schéma : la garde `traducteurs-de-messages` l'interdit sans traduction) ; un 429 / réseau garde l'aperçu d'avant.
+- Préavis à la création : champ en jours (1-365, schéma + `CreateLeasePayload`), prérempli par
+  `defaults.notice_period_days` (« Réglage de la plateforme »), équivalent « 3 mois » dessous ; ôté d'une vente
+  (`TERMES_DE_LOCATION`) ; ligne « Préavis » au récapitulatif « Vérifier » du téléphone.
+- « Réviser » de la file : la feuille s'ouvre sur la liste ; le bail se lit au toucher comme la fiche le lit
+  (`useLease(id, { avecLocataire })`, même clé de cache) avec ses échéances, et se juge comme la fiche
+  (`gestesSecondaires`) ; refusé ou illisible → la fiche (`?geste=reviser`), qui le dit.
+- ⚠ **Dialogue centré au bureau** : `FeuilleDuBas` reçoit `bureau="dialogue"` (opt-in, 520 px, défaut `panneau`
+  inchangé) ; `FeuilleDeRevision` l'emploie, sur la fiche comme sur la liste. **Renverse, pour cette feuille, la
+  décision du porteur du 2026-11-11 (panneau latéral)** : à signaler dans la PR.
+
+**Mesures** — tests neufs : `LeaseDetail.dossier.tck-2912` (12), `CreateLeaseForm.brouillon-et-apercu.tck-2912`
+(8), `liste-des-baux.tck-2644` (+2, « Réviser » : le cas `rent_review_open` du `it.each` « vers la fiche » retiré) ;
+`LeaseDetail.fiche.tck-2645` : « Encaisser » visé par son `data-testid` (il nomme le montant). 16 ablations une à
+une, toutes rouges, restaurées au md5. Joués verts : tous les tests de `components/leases/**`, les primitives
+`ui` (TCK-2688, TCK-2690), `show-sans-fields.garde`, `fields-demandables.tck-1184`, `ressource-de-detail.partage`,
+`traducteurs-de-messages`, `new/__tests__/page.tck-2643` ; ESLint, `tsc --noEmit`, `check:i18n`,
+`check:i18n-namespaces`, `check:classes-emises`, `check:vouvoiement`, gardes racine `scripts/check-*.mjs` : verts.
+Fiches de fidélité : `TCK-2645.json` (7 écarts retirés, 3 posés), `TCK-2643.json` (3 retirés, alias « Préavis »
+retiré, 3 posés). La fiche de la révision est l'écran a-4 de `TCK-2645.json`.

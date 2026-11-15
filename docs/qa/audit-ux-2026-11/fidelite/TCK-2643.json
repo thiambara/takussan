@@ -108,19 +108,11 @@
   ],
   "zones": [],
   "alias": {
-    "Préavis": "Indemnité de départ",
     "Réglages de l’agence appliqués": "Réglages de la plateforme appliqués"
   },
   "ancres": [],
   "ignorer": [],
   "ecarts_acceptes": [
-    {
-      "ecran": "a-2-*, a-3-telephone",
-      "element": "lien « Brouillon » de l’en-tête (enregistrement automatique)",
-      "propriete": "absent du produit ; le titre « Nouveau bail » prend sa largeur (+73 px au téléphone)",
-      "exception": "décision produit",
-      "motif": "écart du lot 3 (TCK-2643) : le brouillon est un bail en base (statut `draft`) créé par « Créer le brouillon » ; un enregistrement automatique pendant la saisie écrirait un bail à chaque étape. Le geste reste dans la barre d’action"
-    },
     {
       "ecran": "a-2-*, a-3-telephone",
       "element": "icônes lucide du formulaire (×, −, +, chevrons) et bordure des boutons",
@@ -178,13 +170,6 @@
       "motif": "décision 7 : aucune page n'écrit un réglage d'agence (`POST /api/settings` en portée agence n'a aucun appelant au front) ; un « Modifier » mènerait nulle part. Les valeurs reprises se modifient dans le bail lui-même (critère « préremplir n'est pas imposer ») ; le geste vers les réglages de l'agence attend un ticket à part"
     },
     {
-      "ecran": "a-2-*, a-3-telephone",
-      "element": "« Préavis » → « Indemnité de départ »",
-      "propriete": "libellé (alias de la fiche) et largeur",
-      "exception": "décision produit",
-      "motif": "décision 5 : le bail porte l’indemnité de départ anticipé (en mois de loyer), pas un préavis ; la règle de préavis vit dans le contrat"
-    },
-    {
       "ecran": "a-2-*",
       "element": "commission",
       "propriete": "en lecture seule, avec « Taux de l’agence, appliqué aux reversements »",
@@ -197,13 +182,6 @@
       "propriete": "champ de montant au lieu du texte calculé « = 1 340 000 F »",
       "exception": "décision de session (team-lead, 2026-11-12, pas de régression)",
       "motif": "le produit garde la saisie d’un montant qui n’est pas un multiple du loyer (tests « montants hors pas » du lot 3) : retirer le champ serait une régression ; le pas-à-pas en mois reste à côté"
-    },
-    {
-      "ecran": "a-2-bureau-*",
-      "element": "« Aperçu du contrat » dans la colonne de droite",
-      "propriete": "absent du produit ; « Envoyer à la signature » et « Créer le brouillon » montent de 202 px",
-      "exception": "décision produit",
-      "motif": "écart du lot 3 : le contrat se rend côté serveur à l’envoi (`signature-request`) ; un aperçu client dupliquerait le gabarit"
     },
     {
       "ecran": "a-2-bureau-*",
@@ -246,6 +224,27 @@
       "propriete": "absent du produit",
       "exception": "vérité des données",
       "motif": "sous le bord de l’écran relevé : la colonne du produit est plus haute de 38 px (mentions de source), la section commence sous les 900 px"
+    },
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "« Brouillon » de l’en-tête (téléphone) et « brouillon enregistré à 10:42 » (bureau)",
+      "propriete": "rendus une fois la saisie enregistrée (aucun avant la première saisie) ; heure servie par l’API",
+      "exception": "donnée",
+      "motif": "TCK-2912 : le brouillon de SAISIE (`PUT /api/me/wizard-drafts/{key}`, champs saisis seuls, TCK-566) ; « Brouillon » n’est pas un bouton (le bail brouillon reste « Créer le brouillon »)"
+    },
+    {
+      "ecran": "a-2-*, a-3-telephone",
+      "element": "champ « Préavis » (« 3 mois »)",
+      "propriete": "saisi en jours (« 90 j »), l’équivalent en mois écrit dessous (« 3 mois ») ; au bureau, dernier des réglages, suivi de « Indemnité de départ »",
+      "exception": "donnée",
+      "motif": "TCK-2912 : `notice_period_days` est en jours (1 à 365, TCK-2906) ; l’indemnité de départ, terme du bail que la maquette ne dessine pas, reste à côté"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Aperçu du contrat » : le texte du contrat, « Voir les 4 pages »",
+      "propriete": "le PDF de l’API dans un cadre (pas un extrait recomposé) ; « Voir le contrat en entier » au lieu du nombre de pages",
+      "exception": "technique",
+      "motif": "TCK-2912 : `POST /api/leases/contract-preview` rend le PDF du gabarit (le front ne recompose aucun article) ; le nombre de pages n’est pas lisible (aucun en-tête exposé par l’API)"
     }
   ],
   "hors_perimetre": [

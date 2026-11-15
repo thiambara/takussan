@@ -2974,7 +2974,9 @@
         "prochaine": "Prochaine action d’abord",
         "nom": "Par nom",
         "recents": "Les plus récents d’abord",
-        "pertinence": "Les plus pertinents d’abord"
+        "pertinence": "Les plus pertinents d’abord",
+        "etape": "Par étape",
+        "referent": "Par référent"
       },
       "trierPar": "Trier par {colonne}",
       "filtres": "Filtres",
@@ -3014,6 +3016,14 @@
         "designerAria": "Me désigner référent de {name}",
         "designe": "Vous êtes le référent de {name}",
         "erreur": "La désignation n’a pas abouti. Réessayez."
+      },
+      "cetteSemaine": "Relances prévues cette semaine",
+      "pied": {
+        "aRelancer": "{count, plural, one {# client à relancer} other {# clients à relancer}}",
+        "tous": "{count, plural, one {# client} other {# clients}}",
+        "voirPlus": "Voir plus",
+        "chargement": "Chargement…",
+        "erreur": "La suite n’a pas pu être chargée. Réessayez."
       }
     },
     "customerDetail": {
@@ -3130,7 +3140,9 @@
       "allStages": "Toutes les étapes",
       "allStatuses": "Tous les statuts",
       "stage": "Étape",
-      "activeStages": "Prospects actifs"
+      "activeStages": "Prospects actifs",
+      "aucuneEtiquette": "Aucune étiquette",
+      "creerEtiquetteDepuisLaFiche": "Ajoutez-en une depuis la fiche d’un client, avec « + Étiquette »."
     },
     "tags": {
       "sectionTitle": "Étiquettes",
@@ -3198,7 +3210,10 @@
       "plusTardDansModifier": "Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier » de la fiche, quand vous aurez le temps.",
       "sondeEnPauseJusqua": "La vérification des doublons est en pause jusqu’à {heure} (heure de Dakar). Vous pouvez enregistrer la fiche.",
       "sondeEnPause": "La vérification des doublons est en pause pour le moment. Vous pouvez enregistrer la fiche.",
-      "sondeImpossible": "La vérification des doublons n’a pas pu se faire. Vous pouvez enregistrer la fiche."
+      "sondeImpossible": "La vérification des doublons n’a pas pu se faire. Vous pouvez enregistrer la fiche.",
+      "suiviPar": "suivi par {nom}",
+      "quartiersProches": "Quartiers proches",
+      "ajouterQuartierProche": "Ajouter {quartier}"
     },
     "fiche": {
       "referentCourt": "référent {nom}",
@@ -3373,7 +3388,8 @@
       },
       "ecrire": "Écrire",
       "ecrireA": "Écrire à {nom}",
-      "nouvelleTache": "Nouvelle tâche"
+      "nouvelleTache": "Nouvelle tâche",
+      "ecrireSansCompte": "{prenom} n’a pas encore de compte : invitez-le pour lui écrire ici."
     }
   },
   "agentCrm": {

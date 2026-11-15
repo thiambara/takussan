@@ -3017,7 +3017,9 @@
         "prochaine": "Next action first",
         "nom": "By name",
         "recents": "Newest first",
-        "pertinence": "Most relevant first"
+        "pertinence": "Most relevant first",
+        "etape": "By stage",
+        "referent": "By referent"
       },
       "trierPar": "Sort by {colonne}",
       "filtres": "Filters",
@@ -3057,6 +3059,14 @@
         "designerAria": "Make me the account manager of {name}",
         "designe": "You are now the account manager of {name}",
         "erreur": "The assignment did not go through. Try again."
+      },
+      "cetteSemaine": "Follow-ups due this week",
+      "pied": {
+        "aRelancer": "{count, plural, one {# client to follow up} other {# clients to follow up}}",
+        "tous": "{count, plural, one {# client} other {# clients}}",
+        "voirPlus": "Show more",
+        "chargement": "Loading…",
+        "erreur": "The next clients could not be loaded. Please try again."
       }
     },
     "customerDetail": {
@@ -3173,7 +3183,9 @@
       "allStages": "All stages",
       "allStatuses": "All statuses",
       "stage": "Stage",
-      "activeStages": "Active prospects"
+      "activeStages": "Active prospects",
+      "aucuneEtiquette": "No tags",
+      "creerEtiquetteDepuisLaFiche": "Add one from a client’s page, with “+ Tag”."
     },
     "tags": {
       "sectionTitle": "Tags",
@@ -3241,7 +3253,10 @@
       "plusTardDansModifier": "Occupation, language, ID document, bedrooms, stage, cities and minimum budget: under “Edit” on the record, whenever you have time.",
       "sondeEnPauseJusqua": "Duplicate checking is paused until {heure} (Dakar time). You can still save the record.",
       "sondeEnPause": "Duplicate checking is paused for now. You can still save the record.",
-      "sondeImpossible": "We couldn’t check for duplicates. You can still save the record."
+      "sondeImpossible": "We couldn’t check for duplicates. You can still save the record.",
+      "suiviPar": "followed by {nom}",
+      "quartiersProches": "Nearby neighbourhoods",
+      "ajouterQuartierProche": "Add {quartier}"
     },
     "fiche": {
       "referentCourt": "agent {nom}",
@@ -3416,7 +3431,8 @@
       },
       "ecrire": "Message",
       "ecrireA": "Message {nom}",
-      "nouvelleTache": "New task"
+      "nouvelleTache": "New task",
+      "ecrireSansCompte": "{prenom} doesn’t have an account yet: invite them so you can write to them here."
     }
   },
   "agentCrm": {

@@ -138,7 +138,7 @@ function EtatDuMois({
           <p className="mt-1 pl-6 text-ui text-foreground">
             {t.rich('penaliteDue', {
               montant: f.montantCourt(penalite, echeance.currency),
-              total: f.montantCourt(echeance.remaining_amount + penalite, echeance.currency),
+              total: f.montantCourt(totalDuDeLEcheance(echeance), echeance.currency),
               m: (morceau) => <span className="font-medium tabular-nums">{morceau}</span>,
             })}
           </p>
@@ -162,25 +162,60 @@ function EtatDuMois({
   );
 }
 
+/**
+ * TCK-2912 — le préavis tel que la maquette le dit (« préavis 3 mois ») : en mois quand les jours en
+ * font un nombre entier (30 jours le mois, la convention du contrat de TCK-2906 : « 90 jour(s) (3 mois) »),
+ * en jours sinon. `null` sans préavis servi.
+ */
+export function usePreavis() {
+  const t = useTranslations('lease.fiche.duree');
+  return (jours: number | null | undefined): string | null => {
+    if (typeof jours !== 'number' || jours <= 0) return null;
+    return jours % 30 === 0 ? t('preavisMois', { n: jours / 30 }) : t('preavisJours', { n: jours });
+  };
+}
+
+/**
+ * TCK-2912 — ce qui reste dû sur une échéance, pénalité comprise : la somme que la carte « Loyer »
+ * dit « total » (maquette a-1 : 1 355 000 + 67 750 = « total 1 422 750 F ») et que « Encaisser » nomme.
+ */
+export function totalDuDeLEcheance(echeance: Pick<LeasePayment, 'remaining_amount' | 'late_fee_outstanding'>): number {
+  return echeance.remaining_amount + (echeance.late_fee_outstanding > 0 ? echeance.late_fee_outstanding : 0);
+}
+
 export function CarteDuree({ lease, className }: { readonly lease: LeaseWithRelations; readonly className?: string }) {
   const t = useTranslations('lease.fiche.duree');
   const f = useFormatteurs();
+  const preavisDe = usePreavis();
   const date = (d: string) => f.date(d, { day: 'numeric', month: 'short', year: 'numeric' });
   const indemnite = lease.early_termination_penalty_months ?? 0;
   const total = lease.end_date ? Math.max(1, moisEntre(lease.start_date, lease.end_date) + 1) : null;
-  const ecoules = Math.max(0, moisEntre(lease.start_date, aujourdhuiADakar()) + 1);
+  const aujourdhui = aujourdhuiADakar();
+  const ecoules = Math.max(0, moisEntre(lease.start_date, aujourdhui) + 1);
   const enCours = total !== null && lease.status !== 'draft' && lease.status !== 'pending_signature' && ecoules >= 1 && ecoules <= total;
+  // TCK-2912 — maquette a-1 : « Durée · préavis 3 mois », puis « 5ᵉ mois sur 36 · révision possible le
+  // 1 juil. 2027 ». La date est celle de l'API (TCK-2906 : nulle sans révision possible) ; passée, la
+  // révision est ouverte depuis ce jour.
+  const preavis = preavisDe(lease.notice_period_days);
+  const titre = [t('titre'), preavis, indemnite > 0 ? t('indemnite', { mois: indemnite }) : null].filter(Boolean).join(' · ');
+  const revisionLe = lease.next_revision_date ? lease.next_revision_date.slice(0, 10) : null;
+  const revision = revisionLe
+    ? revisionLe > aujourdhui
+      ? t('revisionLe', { date: date(revisionLe) })
+      : t('revisionDepuis', { date: date(revisionLe) })
+    : null;
+  const suivi = [enCours && total !== null ? t('avancement', { n: ecoules, total }) : null, revision].filter(Boolean).join(' · ');
   return (
     <Carte className={cn('p-4', className)} data-testid="carte-duree">
-      <p className="text-ui text-muted-foreground">{indemnite > 0 ? t('titreIndemnite', { mois: indemnite }) : t('titre')}</p>
+      <p className="text-ui text-muted-foreground">{titre}</p>
       <p className="mt-0.5 text-base font-semibold tabular-nums">
         {lease.end_date ? t('periode', { debut: date(lease.start_date), fin: date(lease.end_date) }) : t('sansFin', { debut: date(lease.start_date) })}
       </p>
-      {enCours && total !== null ? (
-        <>
-          <Jauge part={ecoules / total} className="mt-3" />
-          <p className="mt-1.5 text-ui text-muted-foreground">{t('avancement', { n: ecoules, total })}</p>
-        </>
+      {enCours && total !== null ? <Jauge part={ecoules / total} className="mt-3" /> : null}
+      {suivi ? (
+        <p className="mt-1.5 text-ui text-muted-foreground" data-testid="suivi-de-la-duree">
+          {suivi}
+        </p>
       ) : null}
     </Carte>
   );

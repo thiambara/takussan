@@ -62,6 +62,13 @@ interface FeuilleDuBasProps
   readonly pied?: React.ReactNode
   readonly className?: string
   readonly children: React.ReactNode
+  /**
+   * TCK-2912 — la forme dès `md`. `panneau` (défaut) : le panneau latéral droit de TCK-2688.
+   * `dialogue` : le dialogue centré de 520 px de la maquette (`app-baux` a-4, « Réviser le loyer »),
+   * demandé par le ticket pour cette seule feuille — il renverse, pour elle, la décision du porteur du
+   * 2026-11-11 ; la modalité et le régime du verrou restent ceux du panneau.
+   */
+  readonly bureau?: "panneau" | "dialogue"
 }
 
 function FeuilleDuBas({
@@ -73,8 +80,10 @@ function FeuilleDuBas({
   pied,
   className,
   children,
+  bureau: formeDuBureau = "panneau",
   ...props
 }: FeuilleDuBasProps) {
+  const dialogue = formeDuBureau === "dialogue"
   const t = useTranslations("common.actions")
   const [ouverteSeule, setOuverteSeule] = React.useState(defaultOpen)
   const ouverte = open ?? ouverteSeule
@@ -102,7 +111,10 @@ function FeuilleDuBas({
             "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
             "max-md:data-open:slide-in-from-bottom max-md:data-closed:slide-out-to-bottom",
             // TCK-2688 — dès md, le panneau latéral droit (cf. `PanneauDroit`), modal.
-            "md:inset-x-auto md:inset-y-0 md:right-0 md:max-h-none md:w-panneau md:max-w-full md:rounded-none md:border-l md:border-border md:shadow-panneau md:data-open:slide-in-from-right md:data-closed:slide-out-to-right",
+            dialogue
+              ? // TCK-2912 — ou le dialogue centré de la maquette (`app-baux` a-4) : 520 px, coins de 16 px.
+                "md:inset-auto md:top-1/2 md:left-1/2 md:w-130 md:max-w-[calc(100%-var(--spacing)*8)] md:max-h-[calc(100dvh-var(--spacing)*8)] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl md:data-open:zoom-in-95 md:data-closed:zoom-out-95"
+              : "md:inset-x-auto md:inset-y-0 md:right-0 md:max-h-none md:w-panneau md:max-w-full md:rounded-none md:border-l md:border-border md:shadow-panneau md:data-open:slide-in-from-right md:data-closed:slide-out-to-right",
             className
           )}
           {...props}
@@ -114,7 +126,10 @@ function FeuilleDuBas({
           />
           <div
             data-slot="feuille-du-bas-en-tete"
-            className="flex flex-none items-center gap-2 py-1 pr-1 pl-4 md:h-14 md:border-b md:border-border md:py-0 md:pr-2 md:pl-5"
+            className={cn(
+              "flex flex-none items-center gap-2 py-1 pr-1 pl-4 md:h-14 md:border-b md:border-border md:py-0 md:pr-2 md:pl-5",
+              dialogue && "md:pr-3 md:pl-6"
+            )}
           >
             <SheetTitle className="min-w-0 flex-1 truncate text-titre-court font-semibold">{titre}</SheetTitle>
             <SheetClose
@@ -128,6 +143,7 @@ function FeuilleDuBas({
             data-slot="feuille-du-bas-corps"
             className={cn(
               "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 md:p-5",
+              dialogue && "md:p-6",
               pied ? "pb-4" : "pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))]"
             )}
           >
@@ -136,7 +152,10 @@ function FeuilleDuBas({
           {pied ? (
             <div
               data-slot="feuille-du-bas-pied"
-              className="flex-none border-t border-border px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] md:flex md:justify-end md:gap-2 md:px-5 md:py-3"
+              className={cn(
+                "flex-none border-t border-border px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] md:flex md:justify-end md:gap-2 md:px-5 md:py-3",
+                dialogue && "md:px-6 md:py-4"
+              )}
             >
               {pied}
             </div>
