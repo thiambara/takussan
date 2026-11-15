@@ -63,4 +63,15 @@ Aucun endpoint neuf. La note reste le texte `notes` de la pièce, envoyé comme 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (branche `feat/audit-manques-2026-11-15`).
+
+**Prémisse re-mesurée :** le champ est bien `note` dans `EcranDUnePiece.tsx` (borne 1000). Le mécanisme de dictée partagé existe déjà (TCK-2880 : `lib/dictee.ts`, `hooks/useDictee.ts`) : réutilisé tel quel, rien de neuf. **Aucune dépendance à TCK-2900** (la dictée écrit du texte, aucun fichier audio).
+
+**Ce qui est livré :** au téléphone seulement, un bouton micro (44 px) dans le coin haut droit du champ « Note de la pièce », nommé « Dicter la note » (« Arrêter la dictée » pendant l'écoute, `aria-pressed`), en couleur primaire pendant l'écoute avec « J'écoute… Touchez le micro pour arrêter. » sous le champ. Le texte reconnu s'ajoute à la fin de la note (`ajouterALaNote`, borné à 1000) ; plusieurs phrases du même évènement s'ajoutent sur la DERNIÈRE note (réf. de la pièce courante). Les erreurs (`dictee.erreurs.*`, déjà traduites par TCK-2880) se disent sous le champ, la note reste. Chaque pièce est un écran remonté (`key` du parcours) : la dictée s'arrête au changement de pièce (testé). Au bureau, rien ne change. Sans API, aucun bouton.
+- Espace `dictee` ajouté à la frontière `(dashboard)/app/inventories` de `src/i18n/namespaces.json` (la garde `check-i18n-namespaces` rougissait : le libellé d'erreur se serait affiché en clé brute) — une seule ligne, les plafonds non régénérés.
+
+**Tests :** `ParcoursDeTerrain.tck-2647.test.tsx` (+6, reconnaissance doublée) : AC1 (bouton présent/absent selon l'API), AC2 (« Mur fissuré » + « peinture refaite », puis le `PATCH` de « Pièce suivante » porte `rooms[0].notes`), deux phrases d'un même évènement, AC3 (`not-allowed`), arrêt au changement de pièce, AC4 (bureau). Ablations une à une, rouges puis restaurées (md5 identique) : micro au bureau, garde de disponibilité, ajout en fin, réf. de la dernière note, message d'erreur.
+
+**À signaler au porteur (confidentialité) :** la reconnaissance vocale du navigateur envoie d'ordinaire le son au service de son éditeur (Google pour Chrome, Apple pour Safari) ; Takussan ne reçoit ni ne stocke aucun son. À dire dans la politique de confidentialité si la dictée est retenue (TCK-537 suit les écarts politique / code) — même remarque que TCK-2880.
+
+**Non mesuré :** AC5 (dictée réelle sur Chrome Android ou émulation 390) — les relevés au navigateur sont suspendus pour ce lot.

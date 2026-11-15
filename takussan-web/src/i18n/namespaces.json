@@ -331,6 +331,7 @@
     ],
     "(dashboard)/app/inventories": [
       "console",
+      "dictee",
       "inventory",
       "lease",
       "media"
