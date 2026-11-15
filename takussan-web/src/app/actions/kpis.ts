@@ -28,7 +28,36 @@ export async function createKpiConfigAction(
       method: 'POST',
       body: input,
     });
-    revalidatePath('/app/overview/kpis');
+    revalidatePath('/app/reports/indicators');
+    return { ok: true, data: res.data };
+  } catch (err) {
+    journaliserErreurInattendue('kpis', err);
+    return { ok: false, message: (err as Error).message };
+  }
+}
+
+/**
+ * TCK-2629 — l'ordre et le masquage d'un indicateur (`sort_order`, `is_enabled`), écrits à « Terminé » du
+ * réglage de la vue d'ensemble : `PATCH kpi-configs/{id}`, que l'API accepte depuis TCK-032.
+ */
+export async function updateKpiConfigAction(
+  id: number,
+  input: Partial<Pick<KpiConfigInput, 'sort_order' | 'is_enabled' | 'label' | 'format'>>,
+): Promise<{ ok: true; data: KpiConfig } | { ok: false; message: string }> {
+  const token = await getToken();
+  if (!token) {
+    const tErr = await getTranslations('errors');
+    return { ok: false, message: tErr('missingToken') };
+  }
+
+  try {
+    const res = await apiRequest<{ data: KpiConfig }>(cheminApi`/api/kpi-configs/${id}`, {
+      token,
+      method: 'PATCH',
+      body: input,
+    });
+    revalidatePath('/app/reports');
+    revalidatePath('/app/reports/indicators');
     return { ok: true, data: res.data };
   } catch (err) {
     journaliserErreurInattendue('kpis', err);
@@ -42,7 +71,7 @@ export async function deleteKpiConfigAction(id: number): Promise<{ ok: boolean }
 
   try {
     await apiRequest(cheminApi`/api/kpi-configs/${id}`, { token, method: 'DELETE' });
-    revalidatePath('/app/overview/kpis');
+    revalidatePath('/app/reports/indicators');
     return { ok: true };
   } catch (err) {
     journaliserErreurInattendue('kpis', err);

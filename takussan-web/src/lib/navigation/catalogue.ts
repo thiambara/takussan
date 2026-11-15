@@ -1,20 +1,14 @@
 import {
   BarChart3,
-  BellRing,
   BookmarkCheck,
   Building2,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
   ClipboardCheck,
-  ClipboardList,
-  Coins,
   CreditCard,
-  Download,
   FileText,
   FolderOpen,
-  Gauge,
-  HandCoins,
   Heart,
   Inbox,
   LayoutDashboard,
@@ -22,6 +16,7 @@ import {
   MessageSquare,
   MessageSquareQuote,
   PlusCircle,
+  Receipt,
   Search,
   Users,
   Wrench,
@@ -223,7 +218,9 @@ const TABLE = [
     accessible: (ctx) => client(ctx) || occupeUnLogement(ctx.roles),
   },
   // TCK-633 lot F (ADR-0061 §1) — le portefeuille de l'espace ; l'API tranche (`boost.spend`).
-  { id: 'credits', href: HREF_CREDITS, cle: 'credits', icone: Coins, accessible: ({ roles }) => voitLePortefeuille(roles) },
+  // TCK-2742 — `CreditCard`, l'icône de toutes les maquettes (118 lignes, 18 pages). La ligne « Crédits »
+  // du menu et de la feuille du compte garde `Coins` (app-coque a-5) : elle ne lit pas cette entrée.
+  { id: 'credits', href: HREF_CREDITS, cle: 'credits', icone: CreditCard, accessible: ({ roles }) => voitLePortefeuille(roles) },
   // TCK-591 §3 — « Mes tâches » : même garde que son layout (`assertCanReachAgentArea`).
   { id: 'taches', href: '/app/tasks', cle: 'myTasks', icone: ListChecks, accessible: ({ roles }) => peutOuvrirMesBiens(roles) },
   // ADR-0089 — l'action principale du client : la recherche du site public.
@@ -233,7 +230,8 @@ const TABLE = [
     id: 'recherches',
     href: '/app/saved-searches',
     cle: 'savedSearches',
-    icone: BookmarkCheck,
+    // TCK-2742 — `Search`, comme les maquettes (app-reservations, app-accueil, app-visites).
+    icone: Search,
     accessible: ({ roles }) => occupeUnLogement(roles),
   },
   {
@@ -288,48 +286,25 @@ const TABLE = [
     accessible: (ctx) => client(ctx) || isOwner(ctx.roles) || personnel(ctx.roles),
   },
   // TCK-595 (ADR-0049 §3) — le grand livre des commissions.
-  { id: 'commissions', href: '/app/commissions', cle: 'commissions', icone: HandCoins, accessible: ({ roles }) => personnel(roles) },
+  // TCK-2742 — `Receipt`, l'icône de toutes les maquettes (248 lignes, 25 pages).
+  { id: 'commissions', href: '/app/commissions', cle: 'commissions', icone: Receipt, accessible: ({ roles }) => personnel(roles) },
   { id: 'documents', href: '/app/documents', cle: 'documents', icone: FolderOpen, accessible: () => true },
   {
     id: 'etats-des-lieux',
     href: '/app/inventories',
     cle: 'inventories',
-    icone: ClipboardList,
+    // TCK-2742 — `ClipboardCheck`, comme les maquettes (201 lignes, 18 pages), qui le partagent avec
+    // « Entrées en attente » : le dessin retenu (décision du lead du 2026-11-11).
+    icone: ClipboardCheck,
     accessible: (ctx) => client(ctx) || personnel(ctx.roles) || isOwner(ctx.roles),
   },
-  // TCK-266 — les locataires dont l'état des lieux d'entrée attend depuis plus de 7 jours.
-  {
-    id: 'entrees-en-attente',
-    href: '/app/leases/onboarding-pending',
-    cle: 'onboardingPending',
-    icone: ClipboardCheck,
-    accessible: ({ roles }) => personnel(roles),
-  },
   // TCK-379 — aucun tableau de bord pour le prestataire (`docs/features.md` §2.5).
-  // Revue de TCK-2478 (M2) — la condition EXACTE de la garde d'`app/(dashboard)/app/overview/page.tsx` :
-  // l'admin, l'agent et le bailleur y sont aiguillés vers leur vue ; sinon, seul le prestataire non
-  // locataire est renvoyé sur `/app`. `occupeUnLogement` l'ouvrait à tout prestataire (plancher
-  // `customer`) : un lien vers une redirection. Toucher l'une, c'est toucher l'autre.
-  {
-    id: 'statistiques',
-    href: '/app/overview',
-    cle: 'statistics',
-    icone: BarChart3,
-    accessible: ({ roles }) =>
-      isAdmin(roles) || isAgent(roles) || isOwner(roles) || !(isServiceProvider(roles) && !isTenant(roles)),
-  },
-  {
-    id: 'exports',
-    href: '/app/overview/exports',
-    cle: 'exports',
-    icone: Download,
-    accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles),
-  },
-  // TCK-595 (AC17 bis) — plus pour l'agent : `reports.view_agency`, rôle d'admin d'agence.
-  { id: 'vue-agence', href: '/app/overview/agency', cle: 'agencyView', icone: BarChart3, accessible: ({ roles }) => isAdmin(roles) },
-  // TCK-284 — PAS standard-only (`docs/features.md` §1.12, liste fermée).
-  { id: 'kpis', href: '/app/overview/kpis', cle: 'kpis', icone: Gauge, accessible: ({ roles }) => isAdmin(roles) },
-  { id: 'alertes', href: '/app/overview/alerts', cle: 'alerts', icone: BellRing, accessible: ({ roles }) => isAdmin(roles) },
+  // TCK-2628 (ADR-0096 § 3) — « Rapports » remplace « Statistiques », « Vue agence », « Indicateurs »,
+  // « Alertes » et « Exports », devenus des onglets (`lib/navigation/rapports.ts`). La condition est celle
+  // de la table des onglets : une persona qui a une vue d'ensemble (admin, agent, bailleur, hôte, plateforme)
+  // — la garde de `/app/reports` (`garderLesRapports`) juge la même chose. Le locataire, le client et le
+  // prestataire n'en ont pas (AC6).
+  { id: 'rapports', href: '/app/reports', cle: 'reports', icone: BarChart3, accessible: ({ roles }) => isAdmin(roles) || isAgent(roles) || isOwner(roles) },
   // TCK-256 — l'annuaire des propriétaires ; standard-only par la page et par l'API.
   { id: 'proprietaires', href: '/app/owners', cle: 'owners', icone: Users, accessible: ({ roles }) => isAdmin(roles) },
   { id: 'clients', href: '/app/customers', cle: 'crm', icone: Users, accessible: ({ roles }) => personnel(roles) || isOwner(roles) },

@@ -32,8 +32,10 @@ class AuthController extends Controller
     public function register(RegisterRequest $request): JsonResponse
     {
         $user = User::create([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
+            // TCK-2605 — facultatifs : absents, ils s'écrivent `''`, comme
+            // `PhoneLoginService::createAccount()` ; l'étape prénom les demande ensuite.
+            'first_name' => (string) ($request->validated('first_name') ?? ''),
+            'last_name' => (string) ($request->validated('last_name') ?? ''),
             'email' => $request->email,
             'password' => $request->password,
             // TCK-689 (P11.01) — la langue négociée par `SetLocaleMiddleware` (le front envoie

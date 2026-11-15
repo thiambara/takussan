@@ -1,0 +1,189 @@
+{
+  "ticket": "TCK-2673",
+  "ecrans": [
+    {
+      "page": "app-moderation",
+      "approche": "b",
+      "ecran": 0,
+      "nom": "File des avis",
+      "references": {
+        "telephone": "references/app-moderation/b-0-telephone.json",
+        "bureau-1440": "references/app-moderation/b-0-bureau-1440.json",
+        "bureau-1280": "references/app-moderation/b-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/moderation (téléphone : ?filter[risk]=low)",
+        "persona": "admin",
+        "etat": "l'admin de Dakar Immo (base de démo du 2026-11-12) : 55 avis en attente, 16 à risque (tous `low_rating`), 39 sans risque, 1 bien à valider. Téléphone : pastille « Sans risque », 12 cases cochées par le perturbateur ; bureau : l'avis n° 15 ouvert (premier à risque), la réponse de la maquette saisie, 12 cases cochées. Tout envoi non-GET est refusé dans la page (scratchpad terrain-5/2673/p-b0-tel.js, p-b0-bureau.js) : rien n'est publié ni répondu"
+      }
+    },
+    {
+      "page": "app-moderation",
+      "approche": "b",
+      "ecran": 1,
+      "nom": "Détail d’un avis",
+      "references": {
+        "telephone": "references/app-moderation/b-1-telephone.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/moderation?selected=15",
+        "persona": "admin",
+        "etat": "l'avis n° 15 (Yacine Diouf, 3 sur 5, à risque), plein écran ; la réponse de la maquette saisie dans « Répondre publiquement » ; tout envoi non-GET est refusé (p-b1-tel.js)"
+      }
+    },
+    {
+      "page": "app-moderation",
+      "approche": "b",
+      "ecran": 2,
+      "nom": "Bien à valider",
+      "references": {
+        "telephone": "references/app-moderation/b-2-telephone.json",
+        "bureau-1440": "references/app-moderation/b-2-bureau-1440.json",
+        "bureau-1280": "references/app-moderation/b-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/moderation/properties (téléphone : ?selected=352)",
+        "persona": "admin",
+        "etat": "le bien 352 de Dakar Immo, seul en attente : loyer mensuel de 1 095 619 F CFA, `apartment`, déposé par Mouhamed Sene (propriétaire), `submitted_at` nul, 4 photos sur 5 attendues, adresse incomplète, aucune médiane comparable. Bureau : « Prix incohérent » et le texte de la maquette saisis par le perturbateur (p-b2-bureau.js) ; tout envoi non-GET est refusé : rien n'est publié ni renvoyé"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency/moderation · /app/agency/moderation/properties",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Notes de 4 et 5, sans signalement": "Notes de 4 et 5, sans signalement ni coordonnées",
+    "Biens et agents": "Tous les sujets",
+    "Masquer ou supprimer demande un motif (hors sujet, injure, coordonnées personnelles, faux avis) et quelques mots : les deux sont journalisés.": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…), journalisé avec vos mots s’il y en a."
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "barre d'onglets du téléphone (« Accueil », « Argent », « Biens », « Messages », « Menu », pastille « 2 ») et barre latérale du bureau (rubriques, libellés, compteurs, « 99+ », « Démarrer »)",
+      "motif": "primitives de la coque, communes à tout /app, hors périmètre (famille 3) — mêmes exclusions que TCK-2670 et TCK-2671"
+    },
+    {
+      "element": "« Aller au contenu principal »",
+      "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran tant qu'il n'a pas le focus — même exception que TCK-2619 et TCK-2670"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "b-*",
+      "element": "sujets, auteurs, notes, textes, dates, photos, comptes (« 16 », « 39 », « 55 ») et tout ce qui suit en y",
+      "propriete": "texte, nombre de lignes, y",
+      "exception": "vérité des données",
+      "motif": "base de démo du 2026-11-12 : 16 avis à risque et 39 sans risque (la maquette : 4 et 51), tous sur des biens ; aucun avis n'est écrit en base pour imiter la maquette"
+    },
+    {
+      "ecran": "b-0, b-1",
+      "element": "les trois alias de libellés (`alias`)",
+      "propriete": "texte",
+      "exception": "règle métier",
+      "motif": "la règle « sans risque » de l'API est dite entière (`risk.reasons` : `low_rating`, `reported`, `contact_details`, TCK-2672) ; « Sujet » propose les options déjà servies (biens, agences, utilisateurs) ; le rappel du motif reprend les libellés de `common.moderationReasons`, et le texte libre n'est exigé que pour « Autre motif » (TCK-597). Les réponses et la demande de correction saisies par les perturbateurs sont le texte de la maquette, tel quel"
+    },
+    {
+      "ecran": "b-0 bureau",
+      "element": "le groupe « À regarder de près » porte 16 cartes avant « Sans risque » (la maquette : 3 sur 4)",
+      "propriete": "hauteur de la liste, y du groupe sans risque et de « Publier la sélection »",
+      "exception": "vérité des données",
+      "motif": "chaque file se lit par pages de 20 (« Voir les N suivants ») : les 16 avis à risque tiennent dans la première ; la maquette tronque son groupe à trois cartes sans le dire"
+    },
+    {
+      "ecran": "b-0 bureau, b-1",
+      "element": "« Supprimer », « Ignorer les signalements » et le menu « ⋯ » de l'en-tête du téléphone",
+      "propriete": "absents",
+      "exception": "règle métier",
+      "motif": "gestes de la plateforme (verif-597 M3, décision 4a) : l'admin d'une agence ne les a pas ; le super-admin les voit (`platform`)"
+    },
+    {
+      "ecran": "b-0 bureau, b-2 bureau",
+      "element": "champ « Chercher un bien, un auteur, un agent » de la tête de la file des avis",
+      "propriete": "absent sur l'onglet « Avis » ; « Rechercher un bien… » sur « Biens à valider »",
+      "exception": "contrat de données",
+      "motif": "`GET /api/reviews` n'a pas de filtre de recherche (ReviewController::index) ; filtrer la liste rapatriée est interdit (sparse fieldsets, filtre serveur). La recherche des biens existe (`filter[search]`) et reste"
+    },
+    {
+      "ecran": "b-0 bureau, b-1",
+      "element": "« Autres avis sur ce bien », la note moyenne du sujet (« 4,2 ★ sur 12 avis »), « Locataire depuis mars 2025 »",
+      "propriete": "absents",
+      "exception": "contrat de données",
+      "motif": "TCK-2672 sert `target {title, subtitle, photo_url, agent}` et `context_kind`, pas la moyenne ni les autres avis du sujet ; le sous-titre montre la référence et l'agent qui suit le bien ; le contexte de l'auteur s'affiche quand l'API le rend (« Locataire », « A visité le bien »…)"
+    },
+    {
+      "ecran": "b-0, b-1",
+      "element": "titre de l'avis (« Moyen ») au-dessus du texte",
+      "propriete": "présent dans le produit",
+      "exception": "vérité des données",
+      "motif": "l'avis de la démo porte un titre ; la maquette n'en a pas"
+    },
+    {
+      "ecran": "b-1, b-0 bureau",
+      "element": "le compteur « 166 / 600 » sous le champ de réponse, et non dans la boîte",
+      "propriete": "y, bordure",
+      "exception": "règle du design system",
+      "motif": "primitive `Textarea` de l'app ; l'aide est un `aria-describedby` sous le champ"
+    },
+    {
+      "ecran": "b-2",
+      "element": "« Appartement » en première puce des caractéristiques ; « Ouvrir l’aperçu complet de la fiche », « Ouvrir en grand », « Écrire » et le menu « ⋯ » absents",
+      "propriete": "présent / absents",
+      "exception": "critère d'acceptation, contrat de données",
+      "motif": "AC6 demande le type en français ; aucune route ne sert la fiche publique d'un bien non publié, ni de fil avec l'auteur depuis la modération (pas de cible « Écrire ») — un lien mort n'est pas posé"
+    },
+    {
+      "ecran": "b-2",
+      "element": "« le 9 nov. à 16:20 » de la soumission",
+      "propriete": "absent",
+      "exception": "vérité des données",
+      "motif": "`submitted_at` est nul pour le bien de démo : une date absente ne s'invente pas ; elle s'affiche quand l'API la rend"
+    },
+    {
+      "ecran": "b-2",
+      "element": "liste de contrôle : « 2 points à voir » (photos, adresse), « Prix sans comparaison »",
+      "propriete": "texte, pastilles",
+      "exception": "vérité des données",
+      "motif": "les `checks` de l'API pour le bien 352 (4 photos sur 5, adresse incomplète, `price_vs_median` nul sous 5 biens comparables) ; un écart à la médiane de 25 % ou plus devient un point à voir"
+    },
+    {
+      "ecran": "b-2 téléphone",
+      "element": "pastille « 1 / 4 » sur fond plein (`bg-foreground`) au lieu de `bg-foreground/75`",
+      "propriete": "couleur de fond",
+      "exception": "règle du design system",
+      "motif": "texte sur une photo quelconque : un fond translucide ne garantit aucun contraste (encre sans alpha)"
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2673/cmp-v3-b{0,1,2}-…",
+    "le": "2026-11-12, base de démo, jetons de l'app",
+    "resultats": {
+      "b0": "téléphone 21 conformes · 53 écarts · 4 absents · 16,75 % ; 1440 52 · 220 · 72 · 12,43 % ; 1280 50 · 222 · 71 · 12,52 %",
+      "b1": "téléphone 25 · 17 · 22 · 16,11 %",
+      "b2": "téléphone 23 · 12 · 12 · 49,55 % (photos du bien de démo, pleine largeur) ; 1440 57 · 128 · 40 · 24,12 % ; 1280 57 · 128 · 40 · 22,9 %"
+    },
+    "corriges_pendant_la_passe": [
+      "le titre de la coque au téléphone disait « Modération avis » (libellé du menu) : « Modération », déclaré par la page",
+      "le détail d'un avis et le bien à valider au téléphone sont pleine largeur (`PagePleineLargeur`) : la photo touche les bords, comme la maquette (b-2 : 21 → 23 conformes)",
+      "le début du texte d'une carte n'était pas coupé à deux lignes (`block` annulait `line-clamp-2`)",
+      "la mosaïque du bureau laissait une case vide à quatre photos : la deuxième prend deux rangées",
+      "titre et prix de l'aperçu sur les jetons `text-affiche-22/26/28` (la classe `text-titre-page` n'existait pas)",
+      "« ↑ ↓ avis suivant » dans l'en-tête du détail, à deux colonnes seulement",
+      "espaces insécables dans les guillemets de trois textes fr"
+    ],
+    "criteres": {
+      "AC3": "mesure CDP à 390 × 844 (perturbateur p-ac3.js) : `?selected=15` rend le texte entier à y 283–331 (non coupé), « Masquer » et « Publier » à y 724–768, sans défilement (scrollY 0) et sans la liste (0 carte)",
+      "AC6": "mesure dans le DOM (p-ac6.js), téléphone et 1440 : prix « 1 095 619 F CFA » + « / mois », puce « Appartement », soumission « Propriétaire · son 72ᵉ bien chez vous » ; /XOF/ et /apartment/ absents de `main`"
+    },
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024` sur /app/agency/moderation (nue, ?filter[risk]=low, ?selected=15) et /app/agency/moderation/properties (nue, ?selected=352) : débord 0 et coupes 0 partout ; à 768, les ellipses relevées sont celles du rail de 60 px de la coque (famille 3)"
+  }
+}

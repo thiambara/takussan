@@ -43,6 +43,7 @@ class ModerationDAgenceExigePublierTest extends TestCase
         $this->postJson("/api/properties/{$this->property->id}/approve")->assertForbidden();
         $this->postJson("/api/properties/{$this->property->id}/reject", [
             'rejection_reason' => 'Photos insuffisantes pour publication sur la plateforme.',
+            'reason_code' => 'photos',
         ])->assertForbidden();
         $this->assertSame(PropertyStatus::PendingReview, $this->property->fresh()->status);
         $this->getJson('/api/properties/moderation')->assertForbidden();
@@ -78,6 +79,7 @@ class ModerationDAgenceExigePublierTest extends TestCase
 
         $this->postJson("/api/properties/{$this->property->id}/reject", [
             'rejection_reason' => 'Photos insuffisantes pour publication sur la plateforme.',
+            'reason_code' => 'photos',
         ])->assertOk();
         $this->assertSame(PropertyStatus::Rejected, $this->property->fresh()->status);
     }

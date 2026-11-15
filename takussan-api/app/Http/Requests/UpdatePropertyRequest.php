@@ -14,6 +14,7 @@ use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
 use App\Rules\HoteDeVisiteVirtuelle;
+use App\Rules\JourIso;
 use App\Services\Geo\GeoAddressRules;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\HierarchyService;
@@ -75,7 +76,7 @@ class UpdatePropertyRequest extends BaseFormRequest
             'parking_spaces' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:500'],
             // TCK-633 lot F (ADR-0061 §5) — dérivé des boosts, écrit par `BoostLifecycle` seul.
             'featured' => ['prohibited'],
-            'available_from' => ['sometimes', 'nullable', 'date'],
+            'available_from' => ['sometimes', 'nullable', 'date', new JourIso],
             'parent_id' => [
                 'sometimes',
                 'nullable',

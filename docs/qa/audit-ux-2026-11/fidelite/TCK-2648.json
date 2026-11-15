@@ -1,0 +1,141 @@
+{
+  "ticket": "TCK-2648",
+  "ecrans": [
+    {
+      "page": "app-etats-des-lieux",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Récapitulatif et signatures",
+      "references": {
+        "telephone": "references/app-etats-des-lieux/a-2-telephone.json",
+        "bureau-1440": "references/app-etats-des-lieux/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-etats-des-lieux/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/inventories/19?etape=signatures",
+        "persona": "agent (« Sokhna Sène · Dakar Immo · Agent » dans la maquette)",
+        "etat": "l'état des lieux 19 de la démo (signé : la démo n'en a aucun à signer), dont la lecture CLIENTE `GET /api/inventories/19` est doublée par un état des lieux « en attente de signature » construit d'après la maquette : 6 pièces, 41 éléments, 23 photos (vignettes unies), 3 réserves Abîmé, notes générales, `can_sign_as: [tenant_onsite, landlord]`, le locataire et le mandant nommés (garde48.js). Le perturbateur (p-a2.js) touche « Lui envoyer un code par SMS » — `POST …/sign/onsite-code` reçoit dans la page un FAUX 202 (« +221 77 ••• 18 90 »), aucune requête ne part, aucun SMS —, trace la signature du locataire plein écran, la valide, et saisit « 48 » : l'état « Code attendu » de la maquette. Toute autre écriture est refusée dans la page. Relevés du 2026-11-13 (t8/fid/e48-prod3, e48-cmp3 ; r48-3.log) : téléphone 13 conformes · 19 écarts · 4 absents (11,28 % de pixels), bureau 1440 68 · 120 · 24 (5,6 %), 1280 68 · 120 · 24 (6,19 %) — l'essentiel des écarts et absents du bureau est la coque. Balayage 390/768/1024/1280/1440 : aucun débord, aucune coupe ; ellipses : les libellés du rail replié de la coque à 768."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/inventories/19?etape=signatures",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-8, t8/fid/ : garde48.js (chargé AVANT la page par `FID_AVANT`) refuse toute écriture, répond lui-même au seul `POST /api/inventories/19/sign/onsite-code` (faux 202, rien ne part) et double la lecture cliente `GET /api/inventories/19` ; p-a2.js amène l'état « Code attendu » ; relevés releves48.sh"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Très bon": "Excellent",
+    "Moyen": "Correct",
+    "Terminer et envoyer le PDF": "Terminer"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-2-*",
+      "element": "coque : barre latérale, en-tête, barre d'onglets, compteurs, avatar, lien d'évitement",
+      "propriete": "boîtes, libellés, état actif, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; les compteurs et l'avatar sont ceux de la démo ; au téléphone l'écran déclare `formulaire` (pas de barre d'onglets), comme `EcranApp sansOnglets`"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Terminer et envoyer le PDF » → « Terminer » (alias)",
+      "propriete": "texte, position de l'icône",
+      "exception": "fonction",
+      "motif": "à la seconde signature, l'API fige l'état des lieux et n'envoie RIEN (`InventorySignatureService::sign` ; `InventoryOnboardingObserver` ne fait que cocher la checklist) : le ticket interdit de promettre un envoi qui n'existe pas (Hors périmètre). Le PDF se télécharge depuis la fiche, où « Terminer » ramène"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Très bon » → « Excellent », « Moyen » → « Correct » (alias)",
+      "propriete": "texte",
+      "exception": "i18n",
+      "motif": "les libellés existants de l'énumération `InventoryCondition` (`inventory.conditions.*`), partagés par la fiche et les pièces ; les renommer est une décision de libellé hors de ce ticket"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "bien, locataire, référence du bail, vignette du bien",
+      "propriete": "textes, image",
+      "exception": "données de démo",
+      "motif": "la démo sert « Appartement F3 à Grand Yoff · Yacine Ndiaye · LS-FC-JVF2WZ » ; la maquette « Appartement F3 · Mermoz · Aminata Diop · LS-7KQ2ME »"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "vignettes des réserves, tracé du locataire",
+      "propriete": "pixels, nœud (img au lieu du svg dessiné)",
+      "exception": "données de démo",
+      "motif": "la démo n'a aucun média (TCK-301) : les vignettes sont unies ; le tracé est celui que le perturbateur dessine, rendu en image (`data:` du canevas) là où la maquette dessine un svg"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Lui envoyer un code par SMS » sous le bloc de l'agence",
+      "propriete": "nœud absent",
+      "exception": "fonction",
+      "motif": "aucune API ne l'existe : l'agence signe pour le bailleur au titre du mandat, sans code (`role=landlord`) ; seul le locataire reçoit un code (ADR-0098). Le ticket ne demande que « Signer » pour ce bloc"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "puces « Abîmé », « Code attendu »",
+      "propriete": "bordure, rayon, fond, marges, largeur",
+      "exception": "composant partagé",
+      "motif": "`StatusBadge` (TCK-2687) est la primitive des statuts du produit ; la maquette dessine un `Statut` local sans bordure"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "pastilles de l'état général non choisies",
+      "propriete": "couleur du texte, couleur de bordure",
+      "exception": "accessibilité",
+      "motif": "les jetons `encre-douce` et `controle-vide` des pastilles de TCK-2647 : la bordure d'un contrôle tient 3:1 sur la carte, `foreground/20` non"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Refaire », « Renvoyer le code »",
+      "propriete": "hauteur, position",
+      "exception": "accessibilité",
+      "motif": "de vrais boutons, cible tactile de 44 px (`plancher-tactile-10`) là où la maquette pose un texte"
+    },
+    {
+      "ecran": "a-2-telephone",
+      "element": "« ⋯ » de l'en-tête",
+      "propriete": "—",
+      "exception": "fonction",
+      "motif": "rendu par la coque dès que la page déclare des actions : il porte « Revenir aux pièces » au téléphone"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "cases du code : six, de 48 px",
+      "propriete": "nombre, largeur",
+      "exception": "données de l'API",
+      "motif": "l'API envoie un code de 6 chiffres (`SignatureOtpService`) ; la maquette en dessine 4 (le ticket le note). `CasesDuCode` est la primitive du code SMS (TCK-2604)"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "ordre des réserves",
+      "propriete": "position",
+      "exception": "données de démo",
+      "motif": "les réserves suivent l'ordre des pièces de l'état des lieux (Séjour, Chambre 2, Cuisine dans la doublure) ; la maquette les liste Séjour, Cuisine, Chambre 2"
+    },
+    {
+      "ecran": "a-2-bureau-*",
+      "element": "« Il manque le code de … et la signature de l'agence » sous la mention",
+      "propriete": "nœud absent de la maquette",
+      "exception": "fonction",
+      "motif": "au bureau, « Terminer » reste désactivé jusqu'aux deux signatures : la phrase dit pourquoi, comme la barre du bas au téléphone"
+    },
+    {
+      "ecran": "a-2-*",
+      "element": "« Rien reçu ? Renvoyer le code (dans 0:58) »",
+      "propriete": "délai",
+      "exception": "données",
+      "motif": "le compte à rebours part du 202 (60 s, le délai de l'API) : la maquette fige « 0:42 »"
+    }
+  ],
+  "ecarts_ouverts": []
+}

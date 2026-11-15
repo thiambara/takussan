@@ -17,6 +17,14 @@ interface MemberAgencyRoleSelectProps {
   readonly agencyId: number;
   /** L'affectation courante — le profil de ce membre DANS cette agence. */
   readonly assignment: AgencyRoleAssignment;
+  /**
+   * TCK-2667 — `ligne` : la rangée de la fiche du membre (maquette `app-equipe`, a, « Fiche ») —
+   * libellé à gauche, sélecteur compact à droite, « Attribuer » et « Annuler » dessous une fois la
+   * valeur changée. Le geste est le même : rien ne part sans le bouton.
+   */
+  readonly disposition?: 'bloc' | 'ligne';
+  /** Le libellé de la rangée (`ligne`) ; la description du rôle choisi s'écrit dessous quand il en a une. */
+  readonly libelle?: string;
 }
 
 /**
@@ -41,8 +49,9 @@ interface MemberAgencyRoleSelectProps {
  * La charte interdit le sélecteur natif visible ; le menu de `Select` se
  * monte dans un portail, ce qui fonctionne depuis l'intérieur d'un `Sheet`.
  */
-export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRoleSelectProps) {
+export function MemberAgencyRoleSelect({ agencyId, assignment, disposition = 'bloc', libelle }: MemberAgencyRoleSelectProps) {
   const t = useTranslations('admin.roles');
+  const tCommon = useTranslations('common.actions');
   const nomDuRole = useNomDuRole();
   const messageErreur = useMessageErreurApi();
   const rolesQuery = useAgencyRoles(agencyId);
@@ -63,17 +72,12 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
     setSelected(assignment.agency_role_id);
   }
 
-  const options: readonly AgencyRole[] = (rolesQuery.data?.data ?? []).filter(
-    (role) => role.base_profile_type === assignment.profile_type,
-  );
+  const options: readonly AgencyRole[] = (rolesQuery.data?.data ?? []).filter((role) => role.base_profile_type === assignment.profile_type);
 
   const dirty = selected !== assignment.agency_role_id;
 
   const submit = () => {
-    assign.mutate(
-      { profile_type: assignment.profile_type, agency_role_id: selected },
-      { onError: () => setSelected(assignment.agency_role_id) },
-    );
+    assign.mutate({ profile_type: assignment.profile_type, agency_role_id: selected }, { onError: () => setSelected(assignment.agency_role_id) });
   };
 
   const typeLabel = (): string => {
@@ -84,6 +88,69 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
   const optionsSelect = options.map((role) => ({ value: String(role.id), label: nomDuRole(role) }));
 
   const selectId = `member-agency-role-${assignment.profile_type}-${assignment.profile_id}`;
+
+  const erreur = assign.error ? (
+    <p className="text-xs text-destructive" role="alert">
+      {messageErreur(assign.error)}
+    </p>
+  ) : null;
+  const attribuer = (
+    <Button size="sm" disabled={assign.isPending} onClick={submit}>
+      {assign.isPending ? <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" /> : null}
+      {assign.isPending ? t('assign.submitting') : t('assign.submit')}
+    </Button>
+  );
+
+  if (disposition === 'ligne') {
+    const description = options.find((role) => role.id === selected)?.description ?? null;
+    return (
+      <div
+        className="flex min-h-[3.25rem] flex-col justify-center border-b border-border/70 px-4 py-2.5 last:border-b-0"
+        data-testid={`member-agency-role-${assignment.profile_type}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <Label htmlFor={selectId} className="text-ui font-normal text-muted-foreground">
+              {libelle ?? t('assign.label', { type: typeLabel() })}
+            </Label>
+            {description ? <p className="text-ui text-muted-foreground">{description}</p> : null}
+          </div>
+          {rolesQuery.isLoading ? (
+            <p className="flex-none text-xs text-muted-foreground">{t('assign.loading')}</p>
+          ) : (
+            <Select
+              value={String(selected)}
+              disabled={assign.isPending}
+              onValueChange={(next) => {
+                if (next !== null) setSelected(Number(next));
+              }}
+              items={optionsSelect}
+            >
+              <SelectTrigger id={selectId} className="w-auto max-w-[60%] flex-none gap-1.5 border-border bg-card px-3 font-medium">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {optionsSelect.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+        {erreur ? <div className="mt-1.5">{erreur}</div> : null}
+        {dirty ? (
+          <div className="mt-2 flex justify-end gap-2">
+            <Button size="sm" variant="ghost" disabled={assign.isPending} onClick={() => setSelected(assignment.agency_role_id)}>
+              {tCommon('cancel')}
+            </Button>
+            {attribuer}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2" data-testid={`member-agency-role-${assignment.profile_type}`}>
@@ -112,20 +179,9 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
         </Select>
       )}
 
-      {assign.error ? (
-        <p className="text-xs text-destructive" role="alert">
-          {messageErreur(assign.error)}
-        </p>
-      ) : null}
+      {erreur}
 
-      {dirty ? (
-        <Button size="sm" disabled={assign.isPending} onClick={submit}>
-          {assign.isPending ? (
-            <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" />
-          ) : null}
-          {assign.isPending ? t('assign.submitting') : t('assign.submit')}
-        </Button>
-      ) : null}
+      {dirty ? attribuer : null}
     </div>
   );
 }

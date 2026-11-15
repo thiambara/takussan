@@ -17,20 +17,10 @@ type Reponse = { data?: { data: { etapes: { code: string; faite: boolean }[] } }
 
 const etat = vi.hoisted(() => ({
   reponse: {} as Reponse,
-  profil: null as string | null,
-  profilResoluParLApi: undefined as string | null | undefined,
   options: [] as { enabled: boolean }[],
 }));
 vi.mock('@/lib/queries/demarrage-espace', () => ({
   useDemarrageDeLEspace: (options: { enabled: boolean }) => (etat.options.push(options), etat.reponse),
-}));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ activeProfileId: etat.profil }) }));
-// Le profil que l'API a résolu (`/api/me/profiles` → `meta.active_profile_id`), lu par le sélecteur
-// de profil de la barre : le même cache.
-vi.mock('@/hooks/useProfiles', () => ({
-  useMyProfiles: () => ({
-    data: etat.profilResoluParLApi === undefined ? undefined : { data: [], meta: { active_profile_id: etat.profilResoluParLApi, count: 1 } },
-  }),
 }));
 
 const CODES = ['premier_bien', 'kyc', 'equipe'];
@@ -46,8 +36,6 @@ const ui = (
 describe('<DemarrerDeLEspace> — TCK-2479 (AC5)', () => {
   beforeEach(() => {
     etat.reponse = {};
-    etat.profil = null;
-    etat.profilResoluParLApi = undefined;
     etat.options = [];
   });
 
@@ -103,46 +91,21 @@ describe('<DemarrerDeLEspace> — TCK-2479 (AC5)', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('bailleur : ses libellés, et le KYC rouvre SON assistant', () => {
+  it('bailleur : ses libellés, et ses pièces se donnent sur « Vos pièces » (TCK-2614, 3a)', () => {
     etat.reponse = {
       data: { data: { etapes: [{ code: 'premier_bien', faite: false }, { code: 'kyc', faite: false }] } },
     };
-    etat.profil = 'owner:3';
     render(ui('bailleur'));
     expect(screen.getByRole('link', { name: /Proposer un premier bien/ })).toHaveAttribute('href', '/app/properties/new');
-    expect(screen.getByRole('link', { name: /Envoyer vos pièces d’identité/ })).toHaveAttribute(
-      'href',
-      '/onboarding/owner?owner=3',
-    );
+    expect(screen.getByRole('link', { name: /Envoyer vos pièces d’identité/ })).toHaveAttribute('href', '/app/pieces');
     expect(screen.getByText('0 sur 2')).toBeInTheDocument();
   });
 
-  /**
-   * Mesuré au navigateur (tâche 6) : la connexion ne pose pas le cookie `active_profile_id`, donc
-   * `activeProfileId` vaut `null` pour un bailleur connecté normalement. Le lien perdait `?owner=`, et
-   * `/onboarding/owner` renvoie alors vers `/app` un profil déjà actif : l'étape bouclait. Le profil
-   * que l'API a résolu prend le relais.
-   */
-  it('bailleur sans cookie de profil : le KYC rouvre l’assistant du profil que l’API a résolu', () => {
-    etat.reponse = { data: { data: { etapes: [{ code: 'kyc', faite: false }] } } };
-    etat.profil = null;
-    etat.profilResoluParLApi = 'owner:2';
-    render(ui('bailleur'));
-    expect(screen.getByRole('link', { name: /Envoyer vos pièces d’identité/ })).toHaveAttribute(
-      'href',
-      '/onboarding/owner?owner=2',
-    );
-  });
-
-  it('le profil choisi dans le client prime sur la lecture de l’API (un changement d’espace en cours)', () => {
-    etat.reponse = { data: { data: { etapes: [{ code: 'kyc', faite: false }] } } };
-    etat.profil = 'owner:3';
-    etat.profilResoluParLApi = 'owner:2';
-    render(ui('bailleur'));
-    expect(screen.getByRole('link', { name: /Envoyer vos pièces d’identité/ })).toHaveAttribute(
-      'href',
-      '/onboarding/owner?owner=3',
-    );
+  it('agent et prestataire : l’étape « Pièces » (TCK-2614, AC1)', () => {
+    etat.reponse = { data: { data: { etapes: [{ code: 'pieces', faite: false }] } } };
+    render(ui('espace'));
+    expect(screen.getByRole('link', { name: /Envoyer vos pièces/ })).toHaveAttribute('href', '/app/pieces');
+    expect(screen.getByText('0 sur 1')).toBeInTheDocument();
   });
 
   it('un clic sur une étape referme le tiroir (onNavigate)', async () => {

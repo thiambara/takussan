@@ -4,13 +4,25 @@ import { useId, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, Lock, PanelLeftClose, PanelLeftOpen, Pin, Plus, PlusCircle, Search, ShieldCheck } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { ChevronDown, GripVertical, Lock, PanelLeftClose, PanelLeftOpen, Pin, Plus, PlusCircle, Search, ShieldCheck } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Logo, SymboleTakussan } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { useCurrentLocale } from '@/i18n/hooks';
@@ -42,10 +54,14 @@ import { RecentsDeLaBarre } from './RecentsDeLaBarre';
 import {
   FOCUS_RING,
   FOCUS_RING_RENTRANT,
+  ENCRE_AU_REPOS,
+  ENCRE_D_ICONE_ACTIVE,
+  ENCRE_D_ICONE_REPOS,
   ICONE_DE_LIGNE,
   LIBELLE_DE_LIGNE,
   STYLE_COMPTEUR,
   STYLE_EPINGLE,
+  STYLE_POIGNEE,
   STYLE_LIGNE,
   STYLE_LIGNE_ACTIVE,
   STYLE_LIGNE_REPOS,
@@ -153,6 +169,8 @@ interface SidebarItemProps {
   readonly epingle?: EpingleDeLigne;
   /** TCK-2480 — la barre est réduite MAINTENANT : le libellé passe en infobulle (survol et focus). */
   readonly infobulle?: boolean;
+  /** TCK-2619 — la poignée d'une épingle, en mode « Modifier le menu » : avant le lien, dans la ligne. */
+  readonly poignee?: ReactNode;
 }
 
 /**
@@ -172,6 +190,7 @@ function SidebarItem({
   nomAccessible,
   epingle,
   infobulle = false,
+  poignee,
 }: SidebarItemProps) {
   const { labelKey, labelSpace, icon: Icon, emphasized, locked, counterKey } = entree;
   const t = useTranslations('nav.sidebar');
@@ -225,16 +244,18 @@ function SidebarItem({
               'relative flex-1',
               STYLE_LIGNE,
               FOCUS_RING_RENTRANT,
-              active
-                ? 'font-medium text-foreground'
-                : emphasized
-                  ? 'font-medium text-foreground'
-                  : 'text-foreground',
+              // TCK-2691 (C9) — au repos, l'encre douce opaque ; l'active et la mise en avant, l'encre pleine.
+              active || emphasized ? 'font-medium text-foreground' : ENCRE_AU_REPOS,
             )}
           />
         }
       >
-        <Icon className={cn(ICONE_DE_LIGNE, active && 'text-primary')} strokeWidth={TRAIT_D_ICONE} aria-hidden />
+        {/* TCK-2691 (C6) — l'icône au repos en `muted-foreground`, l'active en `primary`. */}
+        <Icon
+          className={cn(ICONE_DE_LIGNE, active ? ENCRE_D_ICONE_ACTIVE : ENCRE_D_ICONE_REPOS)}
+          strokeWidth={TRAIT_D_ICONE}
+          aria-hidden
+        />
         <span className={LIBELLE_DE_LIGNE}>{label}</span>
         {counterKey && counter && counter > 0 ? (
           compteDansAujourdhui ? (
@@ -250,7 +271,7 @@ function SidebarItem({
         {valeur !== undefined ? (
           <span
             data-slot="valeur-entree"
-            className="ml-auto shrink-0 text-[12.5px] font-medium tabular-nums text-foreground icones:hidden"
+            className="ml-auto shrink-0 text-xs font-semibold tabular-nums text-foreground icones:hidden"
           >
             {valeur}
           </span>
@@ -264,10 +285,11 @@ function SidebarItem({
     <div
       data-ligne=""
       className={cn(
-        'group/ligne flex items-center rounded-lg transition-colors motion-reduce:transition-none',
+        'flex items-center rounded-lg transition-colors motion-reduce:transition-none',
         active ? 'bg-foreground/8' : 'hover:bg-foreground/5',
       )}
     >
+      {poignee}
       {lien}
       {/* TCK-2480 — l'épingle est une SŒUR du lien (un bouton dans un lien n'est pas valide) : bouton à
           bascule, nom constant, état dans `aria-pressed`. Refusée (A7, cinq épingles), elle reste
@@ -291,10 +313,111 @@ function SidebarItem({
   );
 }
 
+/**
+ * TCK-2691 (C8) — les lignes du menu se suivent sans interstice au bureau, comme la maquette (pas de
+ * 32,4 px) ; le tiroir garde le pixel qui sépare ses voiles (TCK-2490, TCK-2619).
+ */
+const ESPACE_ENTRE_LIGNES = 'max-md:space-y-px';
+
 /** Un compte qu'un groupe replié cache, et qu'« Aujourd'hui » ne porte pas. */
 interface CompteCache {
   readonly nombre: number;
   readonly libelle: string;
+}
+
+/**
+ * TCK-2619 — une épingle ordonnable, en mode « Modifier le menu » : la ligne entière se glisse (souris,
+ * doigt) depuis sa poignée, et se dépose sur une autre épingle. `@dnd-kit/core` (déjà au dépôt, pipeline
+ * CRM) : déplaçable ET cible de dépôt, la ligne suit le doigt en vertical seulement.
+ */
+function LigneOrdonnable({ id, children }: { readonly id: string; readonly children: (poignee: PoigneeOrdonnable) => ReactNode }) {
+  const deplacable = useDraggable({ id });
+  const cible = useDroppable({ id });
+  const decalage = deplacable.transform?.y ?? 0;
+  return (
+    <div
+      ref={(noeud) => {
+        deplacable.setNodeRef(noeud);
+        cible.setNodeRef(noeud);
+      }}
+      data-ordonnable={id}
+      style={decalage ? { transform: `translate3d(0, ${decalage}px, 0)` } : undefined}
+      className={cn(deplacable.isDragging && 'relative z-10 rounded-lg bg-card shadow-sm')}
+    >
+      {children({ ecouteurs: deplacable.listeners, attributs: deplacable.attributes })}
+    </div>
+  );
+}
+
+interface PoigneeOrdonnable {
+  readonly ecouteurs: ReturnType<typeof useDraggable>['listeners'];
+  readonly attributs: ReturnType<typeof useDraggable>['attributes'];
+}
+
+/**
+ * TCK-2619 — la poignée : un bouton (le glisser n'est pas le seul chemin, WCAG 2.5.7) que les flèches
+ * haut et bas déplacent d'un rang. Son nom dit le geste ; le rang se lit dans une région polie.
+ */
+function PoigneeDEpingle({
+  id,
+  libelle,
+  ordonnable,
+  onDeplacer,
+}: {
+  readonly id: string;
+  readonly libelle: string;
+  readonly ordonnable: PoigneeOrdonnable;
+  readonly onDeplacer: (pas: 1 | -1) => void;
+}) {
+  const t = useTranslations('nav.sidebar.edition');
+  return (
+    <button
+      type="button"
+      data-poignee={id}
+      aria-label={t('deplacer', { libelle })}
+      aria-roledescription={ordonnable.attributs['aria-roledescription']}
+      aria-describedby={ordonnable.attributs['aria-describedby']}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        onDeplacer(event.key === 'ArrowUp' ? -1 : 1);
+      }}
+      className={cn(STYLE_POIGNEE, FOCUS_RING)}
+      {...ordonnable.ecouteurs}
+    >
+      <GripVertical className="size-4" aria-hidden />
+    </button>
+  );
+}
+
+/**
+ * TCK-2619 — le bandeau du mode « Modifier le menu » (maquette `app-coque`, « Menu (tiroir) », bureau) :
+ * la limite, le compte, le geste, et « Terminé », qui rend le menu à sa lecture.
+ */
+function BandeauDEdition({ nombre, onTerminer }: { readonly nombre: number; readonly onTerminer: () => void }) {
+  const t = useTranslations('nav.sidebar.edition');
+  return (
+    <div
+      data-slot="bandeau-d-edition"
+      className="mx-2 mb-2 flex shrink-0 items-center gap-2 rounded-lg bg-secondary px-3 py-2 text-ui icones:hidden"
+    >
+      <p className="min-w-0 flex-1 leading-snug">
+        <span className="font-semibold">{t('titre', { max: EPINGLES_MAX })}</span>
+        <span className="block text-muted-foreground">{t('compte', { nombre, max: EPINGLES_MAX })}</span>
+      </p>
+      <button
+        type="button"
+        data-slot="terminer-l-edition"
+        onClick={onTerminer}
+        className={cn(
+          'inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-ui font-medium text-primary-foreground hover:bg-primary/90 max-md:h-10',
+          FOCUS_RING,
+        )}
+      >
+        {t('terminer')}
+      </button>
+    </div>
+  );
 }
 
 interface GroupeDuMenuProps {
@@ -406,7 +529,13 @@ function GroupeDuMenu({
       data-groupe={groupe.id}
       // TCK-2490 (ADR-0090 §7) — dans le rail, un filet sépare les groupes (maquette « Atelier ») : les
       // titres y sont lus, pas montrés ; la bascule d'un groupe replié reste son chevron, nommé en infobulle.
-      className={cn(!premier && 'mt-5 icones:mt-2 icones:border-t icones:border-border/60 icones:pt-2')}
+      // TCK-2691 (C8) — au bureau, le titre (25,2 px : cible ≥ 24 px du bouton de repli, WCAG 2.5.8) ne
+      // garde que `mt-1` au-dessus de lui, sans marge dessous : 3,6 + 25,2 = 28,8 px, la place que la
+      // maquette donne à `mt-3` + un titre de 18 px. Le tiroir garde son rythme (TCK-2619).
+      className={cn(
+        !premier && (avecTitre ? 'mt-1 max-md:mt-5' : 'mt-5'),
+        !premier && 'icones:mt-2 icones:border-t icones:border-border/60 icones:pt-2',
+      )}
     >
       {bascule ? (
         <Tooltip disabled={!infobulle}>
@@ -419,7 +548,7 @@ function GroupeDuMenu({
                 aria-controls={idListe}
                 onClick={basculer}
                 className={cn(
-                  'group/titre relative mb-0.5 flex h-7 w-full items-center gap-1 rounded-md px-2.5 text-left transition-colors hover:text-foreground max-md:h-9 icones:justify-center icones:px-0',
+                  'group/titre relative flex h-7 w-full max-md:mb-0.5 items-center gap-1 rounded-md px-2 text-left transition-colors hover:text-foreground max-md:h-9 icones:justify-center icones:px-0',
                   STYLE_TITRE,
                   FOCUS_RING,
                 )}
@@ -455,7 +584,7 @@ function GroupeDuMenu({
           </TooltipContent>
         </Tooltip>
       ) : avecTitre ? (
-        <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
+        <p id={idTitre} className={cn('flex h-7 items-center px-2 max-md:mb-0.5 icones:sr-only', STYLE_TITRE)}>
           {libelle}
         </p>
       ) : null}
@@ -467,10 +596,10 @@ function GroupeDuMenu({
           aria-hidden={ferme || undefined}
           className={cn(STYLE_REPLI, ferme ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}
         >
-          <div className="min-h-0 space-y-px overflow-hidden">{groupe.entrees.map((e) => rendreEntree(e, ferme))}</div>
+          <div className={cn('min-h-0 overflow-hidden', ESPACE_ENTRE_LIGNES)}>{groupe.entrees.map((e) => rendreEntree(e, ferme))}</div>
         </div>
       ) : (
-        <div id={idListe} className="space-y-px">
+        <div id={idListe} className={ESPACE_ENTRE_LIGNES}>
           {groupe.entrees.map((e) => rendreEntree(e, false))}
         </div>
       )}
@@ -557,14 +686,13 @@ function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
           />
         }
       >
-        <Search className={ICONE_DE_LIGNE} strokeWidth={TRAIT_D_ICONE} aria-hidden />
+        <Search className={cn(ICONE_DE_LIGNE, ENCRE_D_ICONE_REPOS)} strokeWidth={TRAIT_D_ICONE} aria-hidden />
         <span className="min-w-0 flex-1 truncate text-left icones:sr-only">{t('ouvrir')}</span>
         <span aria-hidden className="ml-auto flex shrink-0 gap-0.5 max-md:hidden tactile:hidden icones:hidden">
           {touches.map((touche) => (
-            <kbd
-              key={touche}
-              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[11px] font-medium leading-none text-muted-foreground ring-1 ring-inset ring-border"
-            >
+            // TCK-2712 (11b, ADR-0106) — les touches de la maquette : fond `muted`, 11 px, la police mono et
+            // l'interligne de la ligne (15,7 px à 1440) — plus d'anneau ni de boîte de 20 px.
+            <kbd key={touche} className="rounded bg-muted px-1 text-legende text-muted-foreground">
               {touche}
             </kbd>
           ))}
@@ -592,7 +720,7 @@ export function AppSidebar({
   const tAdmin = useTranslations('nav.admin');
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const locale = useCurrentLocale();
   const idBase = useId();
   // TCK-2481 — la composition du menu et ses compteurs, partagées avec la barre d'onglets mobile
@@ -669,6 +797,30 @@ export function AppSidebar({
     flushSync(() => prefs.basculerEpingle(persona, id, menu.epingles));
     barre.current?.querySelector<HTMLButtonElement>(`button[data-epingle="${id}"]`)?.focus();
   };
+  // TCK-2619 — le mode « Modifier le menu » : punaises et poignées n'existent que là (tiroir et colonne).
+  // Local à CE montage : le tiroir et la colonne fixe ne s'ouvrent pas en édition l'un pour l'autre. Le
+  // focus suit le geste, comme pour l'épingle : « Terminé » à l'entrée, « Modifier le menu » à la sortie.
+  const [edition, setEdition] = useState(false);
+  const changerEdition = (suivante: boolean) => {
+    flushSync(() => setEdition(suivante));
+    barre.current
+      ?.querySelector<HTMLButtonElement>(suivante ? '[data-slot="terminer-l-edition"]' : '[data-slot="modifier-le-menu"]')
+      ?.focus();
+  };
+  // TCK-2619 — l'ordre des épingles : le tableau `epingles`, récrit au rang voulu (glisser, ou flèches).
+  const deplacerLEpingle = (id: EntreeComposee['id'], vers: number) => {
+    flushSync(() => prefs.deplacerEpingle(persona, id, vers, menu.epingles));
+    barre.current?.querySelector<HTMLButtonElement>(`button[data-poignee="${id}"]`)?.focus();
+  };
+  const capteurs = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+  );
+  const surDepot = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const vers = menu.epingles.indexOf(String(over.id) as EntreeComposee['id']);
+    if (vers !== -1) deplacerLEpingle(String(active.id) as EntreeComposee['id'], vers);
+  };
   // Même famille (décision de la session) — la croix de « Démarrer » démonte le bloc qui avait le
   // focus : il passe au premier élément focalisable du menu qui le SUIT (le premier groupe hors
   // « Épinglés », qui le précède), cherché dans CETTE barre, sans effet. Pas de `flushSync` ici,
@@ -682,9 +834,10 @@ export function AppSidebar({
     prefs.masquerDemarrer(persona);
   };
 
-  const rendreEntree = (entree: EntreeRendue, replie = false) => (
+  const rendreEntree = (entree: EntreeRendue, replie = false, poignee?: ReactNode) => (
     <SidebarItem
       key={entree.href}
+      poignee={poignee}
       entree={entree}
       href={lien(entree)}
       active={entree.href === activeHref}
@@ -693,13 +846,14 @@ export function AppSidebar({
       dansUnRepli={replie}
       onNavigate={onNavigate}
       {...(entree.href === HREF_CREDITS && solde !== null
-        ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
+        ? { valeur: fmt.nombre(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
         : {})}
       infobulle={infobulle}
       epingle={
         // TCK-2480 (A7) — ni l'action, ni la carte, ni « Aussi … » (`epinglable` absent), ni une ligne
         // cadenassée. Le geste repart des épingles RENDUES (`menu.epingles`).
-        prefs.actif && entree.epinglable && !entree.locked
+        // TCK-2619 — seulement en mode « Modifier le menu ».
+        edition && prefs.actif && entree.epinglable && !entree.locked
           ? {
               epinglee: entree.epinglee === true,
               plein: menu.epingles.length >= EPINGLES_MAX,
@@ -719,8 +873,14 @@ export function AppSidebar({
   // l'action et « Aller à », AVANT « Aujourd'hui » et « Démarrer ». La composition ne change pas (c'est
   // une donnée de `dispositions.ts`) : seul le rendu le hisse. Épinglé, il est dans « Épinglés » et
   // n'ouvre plus le groupe de tête : rien n'est hissé.
+  // TCK-2618 — l'agent aussi ouvre sa tête sur le tableau de bord, sous le nom « Aujourd'hui » : il y
+  // RESTE, au-dessus de « Messagerie » et « Tâches » (maquette `app-coque`, gelée le 2026-11-11). La
+  // décision de la revue porte sur le tableau de bord de l'admin d'agence, et lui seul est hissé.
   const tete = autresComposes[0];
-  const tableauEnTete = tete?.id === 'tete' && tete.entrees[0]?.id === 'tableau-de-bord' ? tete.entrees[0] : null;
+  // TCK-2619 — en édition, rien n'est hissé : le tableau de bord reste dans son groupe, épinglable.
+  const tableauEnTete =
+    !edition &&
+    menu.persona === 'admin-agence' && tete?.id === 'tete' && tete.entrees[0]?.id === 'tableau-de-bord' ? tete.entrees[0] : null;
   const autres = tableauEnTete
     ? [{ ...tete!, entrees: tete!.entrees.slice(1) }, ...autresComposes.slice(1)].filter((g) => g.entrees.length > 0)
     : autresComposes;
@@ -738,6 +898,26 @@ export function AppSidebar({
         },
       ];
     });
+  // TCK-2619 — en édition, une épingle porte sa poignée et se glisse parmi les autres.
+  const rendreEpinglee = (entree: EntreeRendue, replie = false) => {
+    const rang = menu.epingles.indexOf(entree.id);
+    return (
+      <LigneOrdonnable key={entree.href} id={entree.id}>
+        {(ordonnable) => (
+          rendreEntree(
+            entree,
+            replie,
+            <PoigneeDEpingle
+              id={entree.id}
+              libelle={libelleDEntree(entree)}
+              ordonnable={ordonnable}
+              onDeplacer={(pas) => deplacerLEpingle(entree.id, rang + pas)}
+            />,
+          )
+        )}
+      </LigneOrdonnable>
+    );
+  };
   const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
     <GroupeDuMenu
       key={groupe.id}
@@ -746,7 +926,7 @@ export function AppSidebar({
       premier={premier}
       idBase={idBase}
       activeHref={activeHref}
-      rendreEntree={rendreEntree}
+      rendreEntree={edition && groupe.id === 'epingles' ? rendreEpinglee : rendreEntree}
       onBasculer={basculerGroupe}
       infobulle={infobulle}
       comptesCaches={comptesCachesDu(groupe)}
@@ -760,7 +940,8 @@ export function AppSidebar({
       className={cn(
         // TCK-2490 (ADR-0090 §1) — la colonne « Atelier » : le lin un cran sous la page (`--muted` à
         // 45 % sur le fond de la coque), un filet à droite ; 272 px, rail de 60 px (§7).
-        'flex h-full flex-col border-r border-border/70 bg-muted/45 transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+        // TCK-2691 (C12) — le filet droit à l'encre de bord pleine, comme la maquette.
+        'flex h-full flex-col border-r border-border bg-muted/45 transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
         tiroir ? 'w-full border-r-0' : 'w-[272px] icones:w-[60px]',
         className,
       )}
@@ -769,14 +950,17 @@ export function AppSidebar({
           cloche et le bouton « Replier » à droite ; rail : le symbole, la cloche et le bouton, l'un sous
           l'autre.
           Le tiroir n'a pas de cloche : l'en-tête mobile, qu'il recouvre, porte la sienne. */}
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
+      {/* TCK-2691 (C12) — `px-4` et un lien sans marge propre : le logo à 14,4 px du bord, comme la maquette. */}
+      <div className="flex h-14 shrink-0 items-center gap-2 px-4 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
         {/* Revue adverse (M4) — dans le rail aussi : de 768 à 1023 px c'est le mode par défaut, et sans
-            elle la coque n'avait plus de lien vers l'accueil. Le symbole seul ; le nom reste lu. */}
+            elle la coque n'avait plus de lien vers l'accueil. Le symbole seul ; le nom reste lu.
+            TCK-2619 — la marque ramène à l'espace de travail (`/app`), elle n'en fait plus sortir : le
+            site public est au menu du compte (« Voir le site public »). Colonne, rail et tiroir. */}
         <Link
-          href="/"
+          href="/app"
           onClick={onNavigate}
           data-slot="marque"
-          className={cn('inline-flex shrink-0 rounded-md px-1.5 py-1 icones:px-1', FOCUS_RING)}
+          className={cn('inline-flex shrink-0 rounded-md py-1 icones:px-1', FOCUS_RING)}
         >
           <span data-slot="marque-complete" className="inline-flex icones:hidden">
             <Logo nom={tCommon('appName')} />
@@ -786,9 +970,11 @@ export function AppSidebar({
             <span className="sr-only">{tCommon('appName')}</span>
           </span>
         </Link>
-        {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur. */}
-        {tiroir ? null : (
-          <div className="ml-auto flex items-center gap-0.5 icones:ml-0 icones:flex-col icones:gap-1">
+        {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur.
+            TCK-2619 — ni en mode « Modifier le menu » : la maquette (« Menu (tiroir) », bureau) n'y garde
+            que la marque, la cloche et la bascule reviennent avec « Terminé ». */}
+        {tiroir || edition ? null : (
+          <div className="ml-auto flex items-center gap-2 icones:ml-0 icones:flex-col icones:gap-1">
             <NotificationBell align="start" />
             {prefs.actif ? (
               <BasculeDesIcones
@@ -808,9 +994,12 @@ export function AppSidebar({
           le tableau de bord hissé, « Aujourd'hui », le menu et « Récents ». Le tableau de bord hissé hors
           du `<nav>` échappait à qui saute au menu par les repères. La marque, la cloche et le compte, qui
           ne mènent pas dans l'espace, restent hors du repère. */}
+      {edition ? <BandeauDEdition nombre={menu.epingles.length} onTerminer={() => changerEdition(false)} /> : null}
       <nav aria-label={t('navLabel')} className="flex min-h-0 flex-1 flex-col">
-        {(action && IconeAction) || onOuvrirPalette || tableauEnTete ? (
-          <div className="shrink-0 space-y-px px-2 pb-2">
+        {/* TCK-2619 — en édition, la colonne ne montre que ce qui s'épingle (maquette « Menu (tiroir) »,
+            bureau) : ni l'action, ni « Aller à », ni « Aujourd'hui », ni « Démarrer », ni « Récents ». */}
+        {!edition && ((action && IconeAction) || onOuvrirPalette || tableauEnTete) ? (
+          <div className={cn('shrink-0 px-2 pb-2', ESPACE_ENTRE_LIGNES)}>
             {action && IconeAction ? (
               <Tooltip disabled={!infobulle}>
                 <TooltipTrigger
@@ -824,17 +1013,20 @@ export function AppSidebar({
                         // TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué.
                         // L'action dit ce qu'elle fait en entier : elle passe à la ligne, jamais d'ellipse.
                         STYLE_LIGNE,
-                        'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-10',
+                        'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-11',
                         actionCourante ? STYLE_LIGNE_ACTIVE : 'hover:bg-foreground/5',
                         FOCUS_RING_RENTRANT,
                       )}
                     />
                   }
                 >
-                  <span className="-mx-0.5 inline-flex size-[22px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <IconeAction className="size-3.5" strokeWidth={2.25} aria-hidden />
+                  {/* TCK-2691 (C8) — la pastille de la maquette (`size-6`), le libellé en 600. */}
+                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    {/* TCK-2691 — l'icône de la maquette : `size-4`, trait 2. « 2.0 » et non 2 : l'attribut
+                        `stroke-width="2"` est celui que la portée `/app` récrit à 1,5 (`globals.css`). */}
+                    <IconeAction className="size-4" strokeWidth="2.0" aria-hidden />
                   </span>
-                  <span className="min-w-0 text-left font-medium leading-snug text-pretty text-foreground icones:sr-only">
+                  <span className="min-w-0 text-left font-semibold leading-snug text-pretty text-foreground icones:sr-only">
                     {libelleAction}
                   </span>
                 </TooltipTrigger>
@@ -855,15 +1047,23 @@ export function AppSidebar({
         >
           {/* TCK-2490 (ADR-0090 §3) — ce qui attend une réponse, HORS du menu (`data-slot="menu"`) : le
               menu ne bouge jamais selon un compteur. Rien n'est rendu quand rien n'attend. */}
-          <AujourdhuiDeLaBarre lignes={aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
+          <AujourdhuiDeLaBarre lignes={edition ? [] : aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
           <div data-slot="menu" className="relative">
             {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire. */}
-            {epingles ? rendreGroupe(epingles, true) : null}
+            {epingles ? (
+              edition ? (
+                <DndContext sensors={capteurs} collisionDetection={closestCenter} onDragEnd={surDepot}>
+                  {rendreGroupe(epingles, true)}
+                </DndContext>
+              ) : (
+                rendreGroupe(epingles, true)
+              )
+            ) : null}
             {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le menu, il défile
                 avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
                 sans mise en service, dans un espace suspendu, et (TCK-2480, A9) masqué par l'utilisateur
                 pour ce persona : ni groupe, ni lecture. */}
-            {menu.demarrer ? (
+            {menu.demarrer && !edition ? (
               <DemarrerDeLEspace
                 mode={menu.demarrer}
                 ouverte={(href) => cheminOuvert(ctxMenu, href)}
@@ -878,6 +1078,7 @@ export function AppSidebar({
             {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
           </div>
           {/* TCK-2490 (ADR-0090 §5) — les pages récentes de l'appareil, quatre au plus, sans icône. */}
+          {edition ? null : (
           <RecentsDeLaBarre
             compte={user.id}
             groupes={groupes}
@@ -886,9 +1087,26 @@ export function AppSidebar({
             lien={lien}
             onNavigate={onNavigate}
           />
+          )}
+          {/* TCK-2619 — l'entrée du mode « Modifier le menu », discrète, en bas du menu (tiroir et colonne,
+              jamais le rail). Sans fournisseur, aucun geste ne s'enregistre : rien. */}
+          {prefs.actif && !edition ? (
+            <button
+              type="button"
+              data-slot="modifier-le-menu"
+              onClick={() => changerEdition(true)}
+              className={cn(
+                'mt-3 flex h-9 w-full items-center gap-2 border-t border-border px-2 text-ui text-muted-foreground hover:text-foreground max-md:h-11 max-md:text-sm icones:hidden',
+                FOCUS_RING_RENTRANT,
+              )}
+            >
+              <Pin className="size-4" aria-hidden />
+              {t('edition.modifier')}
+            </button>
+          ) : null}
         </div>
       </nav>
-      <div className="shrink-0 space-y-px border-t border-border/70 p-2">
+      <div className="shrink-0 space-y-px border-t border-border p-2">
         {/* TCK-2490 (ADR-0090 §6) — les cartes deviennent des lignes de statut, au-dessus du compte.
             Rail : la ligne de mise en location garde son icône ; « Passer en agence » se cache. */}
         {menu.carte ? (

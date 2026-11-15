@@ -90,13 +90,15 @@ describe('TCK-2482 AC3 — la palette ne propose que le menu RENDU', () => {
   });
 
   it('une entrée cadenassée n’est jamais proposée', () => {
+    // TCK-2628 — « Statistiques » est devenue « Rapports » ; le témoin garde le test d'être vide.
     const s = sources('agent');
+    expect(optionsDeLaPalette(s, LIBELLES).map(hrefDe), 'témoin').toContain('/app/reports');
     const groupes = s.groupes.map((g) => ({
       ...g,
-      entrees: g.entrees.map((e) => (e.id === 'statistiques' ? { ...e, locked: true } : e)),
+      entrees: g.entrees.map((e) => (e.id === 'rapports' ? { ...e, locked: true } : e)),
     }));
-    const hrefs = optionsDeLaPalette({ ...s, groupes, recents: ['/app/overview'] }, LIBELLES).map(hrefDe);
-    expect(hrefs).not.toContain('/app/overview');
+    const hrefs = optionsDeLaPalette({ ...s, groupes, recents: ['/app/reports'] }, LIBELLES).map(hrefDe);
+    expect(hrefs).not.toContain('/app/reports');
   });
 
   it('une entrée du complément porte sa précision ; une entrée de « Plus » n’en porte aucune', () => {

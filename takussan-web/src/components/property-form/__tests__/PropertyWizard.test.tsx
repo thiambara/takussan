@@ -345,7 +345,7 @@ describe('PropertyWizard — le brouillon', () => {
 
     expect(await screen.findByRole('progressbar', { value: { text: 'Étape 4 sur 6' } })).toBeInTheDocument();
     // TCK-564 — le prix repris se RELIT groupé (espace fine insécable de `fr-SN`).
-    expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u202f000\u202f000');
+    expect((screen.getByLabelText(/^prix/i) as HTMLInputElement).value).toBe('7\u00a0000\u00a0000');
     expect(screen.getByText(/repris votre brouillon/i)).toHaveAttribute('role', 'status');
     // TCK-631 — l'en-tête dit l'état du brouillon : celui-ci existe sur le serveur.
     expect(screen.getByRole('banner')).toHaveTextContent('Brouillon enregistré');
@@ -463,7 +463,7 @@ describe('PropertyWizard — le brouillon', () => {
   // vérification) restait verte. La rue et le code postal le disent aussi.
   it.each([
     ['rue', /^rue/i, 'x'.repeat(256), /la rue est trop longue/i],
-    ['code postal', /code postal/i, '1'.repeat(21), /le code postal est trop long/i],
+    ['code postal', /^code postal/i, '1'.repeat(21), /le code postal est trop long/i],
   ] as const)('une erreur de %s dans la section repliée la déplie', async (_nom, libelle, valeur, message) => {
     const user = userEvent.setup();
     monter();
@@ -591,7 +591,9 @@ describe('PropertyWizard — TCK-564, retour testeur du 2026-09-23', () => {
     expect(typeBien(/^terrain$/i)).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: /^vendre$/i })).toHaveAttribute('aria-checked', 'true');
     // L'état visible, pas seulement l'ARIA : c'est ce que le testeur ne voyait pas.
-    expect(typeBien(/^terrain$/i).className).toContain('bg-primary');
+    // TCK-2819 (lot 2) — la tuile retenue de la maquette : bord et anneau `primary`.
+    expect(typeBien(/^terrain$/i).className).toContain('ring-primary');
+    expect(typeBien(/^maison$/i).className).not.toContain('ring-primary');
 
     await user.click(suivant()); //                          → étape 2
     await user.type(screen.getByLabelText(/ville/i), 'Dakar');
@@ -600,7 +602,9 @@ describe('PropertyWizard — TCK-564, retour testeur du 2026-09-23', () => {
     const bail = screen.getByRole('button', { name: /^bail$/i });
     await user.click(bail);
     expect(bail).toHaveAttribute('aria-pressed', 'true');
-    expect(bail.className).toContain('bg-primary');
+    // TCK-2819 (lot 2) — la pastille retenue de la maquette, en encre pleine.
+    expect(bail.className).toContain('bg-foreground');
+    expect(screen.getByRole('button', { name: /^titre foncier$/i }).className).not.toContain('bg-foreground');
   });
 
   it('W10 — le prix se lit groupé pendant la frappe, et part à l’API en NOMBRE sans séparateur', async () => {
@@ -611,7 +615,7 @@ describe('PropertyWizard — TCK-564, retour testeur du 2026-09-23', () => {
 
     const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
     await user.type(prix, '49000000');
-    expect(prix.value).toBe('49\u202f000\u202f000');
+    expect(prix.value).toBe('49\u00a0000\u00a0000');
 
     await user.click(suivant()); //                          → photos
     await user.click(suivant()); //                          → finition
@@ -727,6 +731,8 @@ describe('PropertyWizard — la soumission', () => {
     await user.click(screen.getByRole('button', { name: /publier/i }));
 
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"publication"');
     const envois = vi.mocked(uploadPropertyPhotosAction).mock.calls.map(([, fd]) =>
       ((fd as FormData).getAll('photos') as File[]).map((f) => f.name),
     );

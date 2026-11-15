@@ -47,6 +47,7 @@ use Database\Seeders\Operations\DocumentShareLinkSeeder;
 use Database\Seeders\Operations\MaintenanceRequestSeeder;
 use Database\Seeders\Operations\MessageSeeder;
 use Database\Seeders\Operations\TaskSeeder;
+use Database\Seeders\Support\ClotureDesCandidaturesSeeder;
 use Database\Seeders\Support\DemoUsersSeeder;
 use Database\Seeders\Support\EdgeCaseSeeder;
 use Database\Seeders\Support\FilterCoverageSeeder;
@@ -141,6 +142,8 @@ class YearOfActivitySeeder extends Seeder
         PostProcessingSeeder::class,
         FilterCoverageSeeder::class,
         EdgeCaseSeeder::class,
+        // TCK-2747 (réserve r1) — APRÈS les fixtures, qui sèment des baux actifs sur des biens tirés de l'agence.
+        ClotureDesCandidaturesSeeder::class,
         // PropertyMediaSeeder runs last so properties created by FilterCoverage
         // / EdgeCase get media too. The seeder iterates Property::all() and
         // skips any that already have files in the `photos` collection, so

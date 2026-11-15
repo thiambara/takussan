@@ -29,6 +29,7 @@ import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { lireTable } from '@/lib/table-de-statut';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * Les catégories connues ; leur libellé vit dans `superAdmin.integrations.categories.*`. Il était
@@ -172,7 +173,8 @@ export function IntegrationEditDialog({
           <DialogTitle>{integration ? t('editIntegration', { label: integration.label }) : t('editGeneric')}</DialogTitle>
         </DialogHeader>
         {schema.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-muted" />
+          // TCK-2534 — la primitive, pas un `div` maison. Dans la boîte (rendue hors du `main`), elle garde `--muted`.
+          <Skeleton className="h-32 rounded-lg" aria-hidden="true" />
         ) : (
           <div className="space-y-3">
             {fields.map((field) => (

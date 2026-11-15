@@ -2,8 +2,13 @@
 
 namespace App\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
+use App\Models\Enums\NotificationType;
 use App\Models\Property;
+use App\Models\User;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Services\Notifications\NotificationRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -15,6 +20,9 @@ use Illuminate\Notifications\Notification;
  * privé, qu'il ne peut ni publier ni rendre public. Sans cette notification, la proposition
  * attendrait dans la liste de l'agence sans que personne ne sache qu'elle existe. Elle part vers
  * chaque administrateur ACTIF de l'agence, sur la cloche seulement (canal `database`).
+ *
+ * TCK-2704 — la ligne de cloche porte le code `property.proposed` : un bien à examiner, « à
+ * traiter » pour l'admin (`NotificationClassification`). `data` garde sa forme (`type`, ids).
  */
 class PropertyProposedNotification extends Notification implements ShouldQueue
 {
@@ -32,6 +40,20 @@ class PropertyProposedNotification extends Notification implements ShouldQueue
     }
 
     /** @return array<string, mixed> */
+    public function toAppNotification(object $notifiable): array
+    {
+        return [
+            'type' => NotificationType::System,
+            'code' => NotificationCode::PropertyProposed->value,
+            'params' => $this->params(),
+            'target' => NotificationTarget::of('property', $this->property->id)->toArray(),
+            'title' => $this->render($notifiable, 'title'),
+            'body' => $this->render($notifiable, 'body'),
+            'data' => $this->toArray($notifiable),
+        ];
+    }
+
+    /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
         return [
@@ -41,5 +63,22 @@ class PropertyProposedNotification extends Notification implements ShouldQueue
             'proposed_by_id' => $this->property->user_id,
             'title' => __('notifications.property_proposed.title', ['title' => $this->property->title]),
         ];
+    }
+
+    /** @return array{property: string} */
+    private function params(): array
+    {
+        return ['property' => (string) $this->property->title];
+    }
+
+    private function render(object $notifiable, string $surface): string
+    {
+        return app(NotificationRenderer::class)->render(
+            NotificationCode::PropertyProposed,
+            $this->params(),
+            app()->getLocale(),
+            $notifiable instanceof User ? $notifiable->timezone : null,
+            $surface,
+        );
     }
 }

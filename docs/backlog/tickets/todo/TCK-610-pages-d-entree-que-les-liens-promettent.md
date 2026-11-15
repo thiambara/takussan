@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-10
 depends_on: []
 blocks: []
 spec_refs:
@@ -22,6 +22,17 @@ tags: [front, back, invitation, 2fa, onboarding, console, operateurs, parcours]
 ---
 
 # TCK-610 — Les pages d'entrée que les liens promettent
+
+> **Mise à jour du 2026-11-10 (audit UX, famille 2) — la partie invitation sort de ce ticket.**
+> La page `/invitations/accept` existe désormais (TCK-626). L'aperçu public d'une invitation et son
+> acceptation par code SMS passent à **TCK-2609** (aperçu par le jeton, API), **TCK-2610**
+> (acceptation par code, un seul compte) et **TCK-2611** (la page), qui **discriminent** les états du
+> jeton (expiré, annulé, accepté, inconnu) : la règle « 404 unique, sans oracle » prescrite plus bas
+> est remplacée, décision du porteur 3b du 2026-11-10 (README de l'audit UX) et ADR de l'aperçu
+> d'invitation. Ce qui reste valable ici et que ces tickets citent : `Referrer-Policy`, et le jeton
+> hors de toute mesure d'audience. **Ce ticket ne garde que** le renouvellement de l'appareil de
+> second facteur (point 2) et l'entrée des opérateurs `viewer` / `support` dans la console
+> (points 3 et 4) ; ses critères sur l'invitation ne sont plus à cocher ici.
 
 ## Objectif utilisateur
 

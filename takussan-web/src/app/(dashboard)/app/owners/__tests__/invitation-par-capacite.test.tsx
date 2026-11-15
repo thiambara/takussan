@@ -21,10 +21,12 @@ vi.mock('@/components/owners/OwnersList', () => ({
   OwnersList: ({ canInvite }: { canInvite: boolean }) => <p>{canInvite ? 'Ajouter' : 'sans invitation'}</p>,
 }));
 vi.mock('@/components/service-providers/ServiceProvidersList', () => ({
+  // TCK-2653 — la page lit la taille de page de la liste pour sa première lecture serveur.
+  PAR_PAGE: 100,
   ServiceProvidersList: ({ canInvite }: { canInvite: boolean }) => <p>{canInvite ? 'Ajouter' : 'sans invitation'}</p>,
 }));
 
-import OwnersPage from '../page';
+import OwnersPage from '../(liste)/page';
 import ProvidersPage from '../../maintenance/providers/page';
 
 const agent = { id: 3, agency_id: 1, roles: ['agent', 'customer'] };

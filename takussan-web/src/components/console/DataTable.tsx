@@ -145,11 +145,16 @@ export function DataTable<Row>({
   // La densité, en un seul endroit. `py` diffère entre les deux, `px` jamais : une table compacte
   // reste alignée sur les autres colonne par colonne.
   const cellPadding = density === 'compact' ? 'px-3 py-1.5' : 'px-3 py-2.5';
+  // TCK-2688 — sous la portée `/app`, la cellule de la maquette (`px-3 py-3`) ; l'en-tête garde
+  // `py-2.5`. La densité `compact` reste à `py-1.5` partout : aucune maquette ne la dessine.
+  const cellPaddingCorps = density === 'compact' ? cellPadding : cn(cellPadding, 'portee-app:py-3');
 
   const tableau = (
     <div
       className={cn(
         'overflow-hidden rounded-xl bg-card ring-1 ring-border',
+        // TCK-2688 — le conteneur de la maquette : un vrai bord de 1 px, pas un anneau.
+        'portee-app:border portee-app:border-border portee-app:ring-0',
         carteMobile ? 'hidden md:block' : className,
       )}
       data-testid={carteMobile ? undefined : dataTestId}
@@ -158,8 +163,11 @@ export function DataTable<Row>({
         <TableCaption className="sr-only">{caption}</TableCaption>
         <TableHeader
           className={cn(
-            'bg-muted/60',
-            stickyHeader && 'sticky top-0 z-10 bg-muted/70 backdrop-blur',
+            'bg-muted/60 portee-app:bg-muted/40',
+            // L'en-tête collant de la portée est OPAQUE : `muted/40` composé sur `--card` (la même
+            // couleur rendue), sans quoi les lignes défileraient lisibles sous les libellés.
+            stickyHeader &&
+              'sticky top-0 z-10 bg-muted/70 backdrop-blur portee-app:bg-[color-mix(in_srgb,var(--muted)_40%,var(--card))] portee-app:backdrop-blur-none',
           )}
         >
           <TableRow className="hover:bg-transparent">
@@ -180,7 +188,7 @@ export function DataTable<Row>({
                 <TableCell
                   key={column.id}
                   className={cn(
-                    cellPadding,
+                    cellPaddingCorps,
                     'align-top whitespace-normal',
                     column.align === 'end' && 'text-right',
                     column.className,
@@ -220,7 +228,10 @@ export function DataTable<Row>({
       {rows.length > 0 ? (
         <ul aria-label={caption} data-testid="data-table-cartes" className="space-y-3 md:hidden">
           {rows.map((row) => (
-            <li key={rowKey(row)} className="rounded-xl bg-card p-4 ring-1 ring-border">
+            <li
+              key={rowKey(row)}
+              className="rounded-xl bg-card p-4 ring-1 ring-border portee-app:border portee-app:border-border portee-app:ring-0"
+            >
               {carteMobile(row)}
             </li>
           ))}
@@ -228,7 +239,7 @@ export function DataTable<Row>({
       ) : emptyState ? (
         <div
           data-testid="data-table-cartes"
-          className="overflow-hidden rounded-xl bg-card ring-1 ring-border md:hidden *:rounded-none *:border-0 *:bg-transparent"
+          className="overflow-hidden rounded-xl bg-card ring-1 ring-border portee-app:border portee-app:border-border portee-app:ring-0 md:hidden *:rounded-none *:border-0 *:bg-transparent"
         >
           {emptyState}
         </div>
@@ -260,6 +271,8 @@ function DataTableHeaderCell<Row>({
       className={cn(
         padding,
         'h-auto text-xs font-semibold uppercase tracking-wide text-muted-foreground',
+        // TCK-2688 — l'en-tête de la maquette : casse normale, graisse 500, sans interlettrage.
+        'portee-app:font-medium portee-app:normal-case portee-app:tracking-normal',
         column.align === 'end' && 'text-right',
         column.className,
       )}
@@ -279,7 +292,7 @@ function DataTableHeaderCell<Row>({
           //            `bg-muted/60` sur `--card` (#f7f4ec, le fond RÉEL de cet en-tête) 4,82:1
           //   sombre — `--card` #2a2018 4,83:1 · `--background` #1f1812 5,31:1
           //            `bg-muted/60` sur `--card` (#34281f) 4,32:1
-          className="-mx-1 -my-1 inline-flex items-center gap-1 rounded-sm px-1 py-1 uppercase transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="-mx-1 -my-1 inline-flex items-center gap-1 rounded-sm px-1 py-1 uppercase transition-colors portee-app:normal-case hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           aria-label={column.sortLabel}
         >
           {column.header}

@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         // vedettes du jeu de démonstration converties en Vedettes offertes.
         $this->call(BoostProductSeeder::class);
         $this->call(OfferedFeaturedSeeder::class);
+        $this->call(Support\DemoTenantSeeder::class); // TCK-2684 : locataire de démo à adresse stable (outil de fidélité, AC8)
     }
 
     /**

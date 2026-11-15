@@ -1,0 +1,448 @@
+{
+  "ticket": "TCK-2654",
+  "ecrans": [
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Locataire — signaler",
+      "references": {
+        "telephone": "references/app-interventions/a-3-telephone.json",
+        "bureau-1440": "references/app-interventions/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance/new",
+        "persona": "locataire (persona `locataire` de personas.json)",
+        "etat": "le formulaire rempli dans la page (perturber-signaler.js : deux photos tirées d'un canvas, « Plomberie », « Urgent ») ; `--bloquer '*/api/maintenance-requests*'`. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v6 du 2026-11-13 (14 h 50 – 14 h 56, terrain-6, takussan-web/.fidelite/TCK-2654/v6) : telephone 35 conformes · 11 écarts · 19 absents (14,26 % de pixels) ; bureau-1440 86 conformes · 55 écarts · 29 absents (1,66 % de pixels) ; bureau-1280 86 conformes · 55 écarts · 29 absents (1,86 % de pixels). Corrigé depuis v1 : la carte pleine largeur au téléphone, 640 px centrée au bureau (x536 à 1440, comme la maquette), la tuile de prise de vue à 72 px, les vignettes et la tuile galerie à 72 px, les tuiles de catégorie à 84 px, le fil d'Ariane « Interventions ». Balayage 390/768/1024/1280/1440 (fidelite balayer, 15 h 05, même garde) : aucun débord, aucune coupe ; seules ellipses, 22 à 768 : les libellés du rail replié de la coque (comme TCK-2644)."
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Locataire — demande envoyée",
+      "references": {
+        "telephone": "references/app-interventions/a-4-telephone.json",
+        "bureau-1440": "references/app-interventions/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance/44/envoyee",
+        "persona": "locataire2 (user 78, ajouté à personas.json avec l'accord de team-lead ; jeton révoqué en fin de relevé)",
+        "etat": "la demande #44 de la démo, terminée (trois étapes faites, aucune photo). Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v6 : telephone 27 conformes · 11 écarts · 3 absents (11,07 % de pixels) ; bureau-1440 37 conformes · 56 écarts · 25 absents (3,37 % de pixels) ; bureau-1280 37 conformes · 56 écarts · 25 absents (3,79 % de pixels). La carte mesure 480 px au bureau (x616 à 1440, comme la maquette). Balayage 390/768/1024/1280/1440 (fidelite balayer, 15 h 05, même garde) : aucun débord, aucune coupe ; seules ellipses, 22 à 768 : les libellés du rail replié de la coque (comme TCK-2644)."
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Locataire — mes demandes, « C’est réparé ? »",
+      "references": {
+        "telephone": "references/app-interventions/a-5-telephone.json",
+        "bureau-1440": "references/app-interventions/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance",
+        "persona": "locataire2 (user 78)",
+        "etat": "les demandes de la démo de user 78 (une terminée à confirmer, des closes, aucune en cours). Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v6 : telephone 14 conformes · 20 écarts · 17 absents (7,73 % de pixels) ; bureau-1440 31 conformes · 84 écarts · 41 absents (3,03 % de pixels) ; bureau-1280 31 conformes · 84 écarts · 41 absents (3,34 % de pixels). La carte « à confirmer » mesure 640 px au bureau, comme la maquette. Balayage 390/768/1024/1280/1440 (fidelite balayer, 15 h 05, même garde) : aucun débord, aucune coupe ; seules ellipses, 22 à 768 : les libellés du rail replié de la coque (comme TCK-2644)."
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Bailleur — devis à approuver",
+      "references": {
+        "telephone": "references/app-interventions/a-6-telephone.json",
+        "bureau-1440": "references/app-interventions/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance",
+        "persona": "proprietaire (persona `proprietaire` de personas.json)",
+        "etat": "La démo n'a AUCUN devis en `awaiting_owner` ni aucun plafond fixé (sonde GET des personas proprietaire et proprietaire2, 2026-11-13), et le relevé n'écrit rien : les trois GET de la vue — liste des devis à décider, liste en cours, fiche du devis — sont DOUBLÉS dans la page par doublure-bailleur.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Étanchéité de la terrasse, 485 000, plafond 150 000, les deux photos de public/maquettes ; Peinture du séjour, Serrure du portail — chaque ligne en cours lit SA fiche, qui sert le plafond de 150 000). La coque, /me et le reste sont réels. Ce relevé mesure la MISE EN PAGE ; les données, elles, sont éprouvées par interventions-du-bailleur.tck-2654.test.tsx. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v13 du 2026-11-13 (19 h 31, terrain-6, takussan-web/.fidelite/TCK-2654/v13, après L3b partie 2 : le lien du PDF du devis sous le rappel du plafond) : telephone 20 conformes · 12 écarts · 8 absents (25,73 % de pixels) ; bureau-1440 44 conformes · 82 écarts · 33 absents (5,9 % de pixels) ; bureau-1280 45 conformes · 81 écarts · 33 absents (7,01 % de pixels). Au bureau, deux colonnes comme la maquette : le devis (x320 à 1440) et « En cours sur vos biens » (x982) ; les photos à gauche des lignes du devis dès xl. Balayage 390/768/1024/1280/1440 (19 h 31, même doublure) : aucun débord, aucune coupe ; seules ellipses, 25 à 768 : les libellés du rail replié de la coque (relevé v13, après L3b : la décision du devis vit dans DecisionDuDevis, « Sous le seuil : sans accord » à x1266 y248 comme la maquette)."
+      }
+    },
+    {
+      "page": "app-interventions",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Prestataire — ma semaine",
+      "references": {
+        "telephone": "references/app-interventions/a-7-telephone.json",
+        "bureau-1440": "references/app-interventions/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-interventions/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/maintenance",
+        "persona": "prestataire (persona `prestataire` de personas.json, user 18)",
+        "etat": "La démo n'a, pour le prestataire 18 (persona `prestataire`), rien à accepter ni rien de prévu cette semaine (sonde GET, 2026-11-13), et le relevé n'écrit rien : la file `a_accepter`, la semaine (`filter[scheduled_from]`) et les fiches #51 à #54 sont DOUBLÉES dans la page par doublure-prestataire.js (chargé avec garde.js par `FID_AVANT`), avec les exemples de la maquette (Fuite sous l’évier à accepter, Robinet d’arrêt et Chauffe-eau jeudi, Chasse d’eau terminée lundi). Les FACTURES sont réelles (les six de la démo, à valider), comme la coque et /me. L'horloge de la page est avancée au mardi 10 novembre 2026, 8 h à Dakar, « aujourd'hui » de la maquette (même semaine que le relevé). Ce relevé mesure la MISE EN PAGE ; les données sont éprouvées par interventions-du-prestataire.tck-2654.test.tsx et semaine-du-prestataire.tck-2654.test.ts. Toute requête autre que GET/HEAD est refusée dans la page (FID_AVANT=garde.js, copie locale de l'outil qui ne diffère du dépôt que par l'injection de garde.js et le chemin WEB) ; les dialogues d'accueil sont fermés par « Passer » dans la page (perturber-bienvenue.js), le POST /api/me/welcome-seen étant refusé par la garde, donc rien n'est écrit. Relevé v11 du 2026-11-13 (17 h 42, terrain-6, takussan-web/.fidelite/TCK-2654/v11) : telephone 25 conformes · 21 écarts · 11 absents (1,96 % de pixels) ; bureau-1440 56 conformes · 92 écarts · 34 absents (4,88 % de pixels) ; bureau-1280 56 conformes · 92 écarts · 34 absents (5,1 % de pixels). Au bureau, deux colonnes dès xl comme la maquette : la grille de la semaine et « Mes factures » (x301 à 1440), « À accepter » et « Prochaines » (x1031) ; textes de la grille, des cartes et de la tournée aux x, y, tailles et graisses de la maquette. Balayage 390/768/1024/1280/1440 (17 h 43, même doublure) : aucun débord, aucune coupe ; ellipses : à 390 les titres et références des factures (statut et montant restent entiers, AC5), à 1280 et 1440 les titres des blocs d'une heure de la grille, à 768 les libellés du rail replié de la coque."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/maintenance/new, /app/maintenance/44/envoyee, /app/maintenance",
+    "persona": "locataire, locataire2, proprietaire, prestataire",
+    "disposition": "aucune (téléphone) / locataire et bailleur au bureau",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-6, impl/lot2/terrain-6/2654/fid/ : garde.js chargé AVANT la page par `FID_AVANT`, perturber-signaler.js, perturber-bienvenue.js, doublure-bailleur.js (a-6), doublure-prestataire.js (a-7) ; releve-v6.sh, releve-a6.sh, releve-a7.sh, balayage-a7.sh"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "L’intervention est terminée": "L'intervention est terminée",
+    "C’est réparé": "C'est réparé",
+    "Retirer la photo": "Retirer la photo 1",
+    "J’accepte": "J'accepte"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*",
+      "element": "coque : barre latérale, en-tête, cloche « 2 », barre d'onglets (« Interventio… » tronqué), titre de l'en-tête (16 px contre 17, largeur)",
+      "propriete": "boîtes, libellés, tailles, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; les comptes sont ceux de la démo. Au téléphone (a-5), la maquette dessine des lignes « Terminées » sous sa barre d'onglets : l'outil apparie ces textes et icônes (lucide-check, lucide-chevron-right) aux onglets du produit, d'où des écarts « coque · barre d'onglets › texte/icône » qui sont du contenu de page décalé, pas la coque"
+    },
+    {
+      "ecran": "app-interventions a-3-telephone",
+      "element": "formulaire au téléphone : pas de barre d'onglets, croix au lieu de la flèche ; « Envoyer à l'agence » à y784 contre 720",
+      "propriete": "présence, ordonnée",
+      "exception": "hors périmètre",
+      "motif": "le formulaire est ouvert plein écran par la coque (TCK-2617) : sans barre d'onglets, le bouton descend de sa hauteur"
+    },
+    {
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*, a-6-*",
+      "element": "boutons (« Envoyer à l'agence », « C'est réparé », « Le problème persiste », « Signaler un problème », « Refuser »)",
+      "propriete": "bordure 1 px, écart 8 px, marge intérieure 16 px contre 12",
+      "exception": "règle du design system",
+      "motif": "la primitive `Button` porte ces valeurs ; aucune surcharge locale (ADR-0106 § 2 c)"
+    },
+    {
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*, a-6-*",
+      "element": "icônes lucide",
+      "propriete": "épaisseur du trait 1,75 contre 1,5",
+      "exception": "règle du design system",
+      "motif": "l'épaisseur est celle de la charte (TCK-2685)"
+    },
+    {
+      "ecran": "app-interventions a-3-*",
+      "element": "champ du titre",
+      "propriete": "hauteur",
+      "exception": "règle du design system",
+      "motif": "la hauteur vient de la primitive `Input` (garde check-champs-uniformes, TCK-2460)"
+    },
+    {
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*, a-6-*",
+      "element": "textes secondaires",
+      "propriete": "couleur du texte",
+      "exception": "charte",
+      "motif": "les maquettes écrivent text-foreground/70 et /80 ; le produit pose l'encre opaque text-encre-douce, comme TCK-2644 et TCK-2596 : une encre de texte ne s'atténue pas par l'opacité (garde encre-sans-alpha, TCK-658)"
+    },
+    {
+      "ecran": "app-interventions a-4-*, a-5-*",
+      "element": "aplat de succès (« Demande envoyée », carte « à confirmer »)",
+      "propriete": "couleur de fond et de bordure",
+      "exception": "règle du design system",
+      "motif": "la maquette pose accent/10 ; le produit pose border-success/20 bg-success/5 et text-success : check-valeurs-arbitraires-app (aplat-accent) réserve l'aplat d'accent aux pastilles « en vedette »"
+    },
+    {
+      "ecran": "app-interventions a-3-*",
+      "element": "note vocale (lucide-mic, « 1 message vocal », « Message vocal »)",
+      "propriete": "présence",
+      "exception": "hors périmètre",
+      "motif": "la note vocale n'est pas du ticket TCK-2654"
+    },
+    {
+      "ecran": "app-interventions a-4-*",
+      "element": "étapes et contenu de la demande",
+      "propriete": "état des étapes, photo, ordonnée (+44 px)",
+      "exception": "donnée",
+      "motif": "la #44 de la démo est terminée : trois étapes faites, aucune photo, les étapes remontent de 44 px"
+    },
+    {
+      "ecran": "app-interventions a-4-*",
+      "element": "« l'agence répond d'ordinaire dans l'heure »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucune source ne sert ce délai (décision 2 de team-lead : aucun texte inventé)"
+    },
+    {
+      "ecran": "app-interventions a-3-*",
+      "element": "sous-titre « Dakar Immo »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le produit écrit « votre agence » : l'agence n'est connue qu'une fois le logement choisi"
+    },
+    {
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*",
+      "element": "heures (« 10 h 12 »)",
+      "propriete": "texte",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 22:59 » par le formateur commun `f.heure`"
+    },
+    {
+      "ecran": "app-interventions a-4-*, a-5-*",
+      "element": "« close le »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le produit écrit « terminée le » : la date lue est `completed_at`"
+    },
+    {
+      "ecran": "app-interventions a-5-*",
+      "element": "métier de l'artisan, fenêtre de passage, « Changer le créneau », « Écrire à l'agence »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "l'API ne les sert pas au locataire"
+    },
+    {
+      "ecran": "app-interventions a-5-bureau-*",
+      "element": "note « Les réparations… prises en charge selon votre bail : aucun montant… »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucune source ne sert ce texte (décision 2 : aucun texte inventé)"
+    },
+    {
+      "ecran": "app-interventions a-5-*",
+      "element": "« Tout voir »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "le lien n'apparaît qu'au-delà de trois demandes closes ; la démo de user 78 en a moins"
+    },
+    {
+      "ecran": "app-interventions a-5-*",
+      "element": "section « En cours »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "user 78 n'a aucune demande en cours dans la démo ; la section est éprouvée par mes-demandes-du-locataire.tck-2654.test.tsx"
+    },
+    {
+      "ecran": "app-interventions a-3-*, a-4-*, a-5-*",
+      "element": "titres, biens, dates et états des demandes",
+      "propriete": "texte, présence, ordonnée",
+      "exception": "donnée",
+      "motif": "ceux de la démo (user 182 : « Bureaux à Grand Yoff ») ; la maquette dessine ses propres exemples"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "coque : barre latérale (rubriques, compteur « 3 », « Démarrer »), en-tête",
+      "propriete": "boîtes, libellés, tailles, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; les comptes sont ceux de la démo. L'outil apparie par rang les textes de la page aux rôles « coque · barre latérale › texte N » : les écarts ainsi nommés sur « Peinture du séjour », « 180 000 F », « Dépose… » sont du contenu de page décalé, pas la coque"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "montants (« 485 000 F »)",
+      "propriete": "texte, largeur",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 485 000 F CFA » par le formateur commun `f.montant`, comme toute la console"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« 3 biens gérés par Dakar Immo — » du sous-titre",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le sous-titre compte ce que les deux listes rendent (meta.total) ; le nombre de biens et l'agence ne sont pas lus par cette vue"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« , locataire » après le nom du demandeur",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'API ne sert pas le rôle du demandeur sur la demande"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "métier, note (★ 4,6) et nombre d'interventions de l'artisan dans l'en-tête du devis",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'API ne les sert pas au bailleur ; le produit écrit « Devis de <nom> »"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Dakar Immo a consulté deux autres artisans (…) et recommande ce devis »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucune source ne sert la mise en concurrence (décision 2 de team-lead : aucun texte inventé) ; le rappel du plafond, lui, est servi (owner_approval_threshold)"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« ; l'agence vous proposera une autre solution » après « Un refus demande un motif »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "aucun mécanisme ne garantit cette proposition : la machine d'état (MaintenanceStateMachine) mène rejected → quote_submitted | cancelled ; le produit écrit ce que la transition garantit, « ; un nouveau devis pourra vous être soumis » (décision b de team-lead)"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Fin prévue ven. 13 nov. »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "aucune date de fin prévue n'est servie ; le produit écrit le passage (`scheduled_at`) : « Aujourd'hui à 10:00 »"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "carte « Depuis janvier » (Interventions 12, dont 9 closes, À votre charge 1 521 000 F) et « Historique par bien »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucun agrégat annuel des interventions n'est servi au bailleur"
+    },
+    {
+      "ecran": "app-interventions a-6-telephone",
+      "element": "« En cours sur vos biens » (y 754)",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "la maquette la pose aussi, sous le pli (pages/app/app-interventions-autres.tsx, section après la carte du devis) ; elle remonte dans le pli du produit de la hauteur des textes de donnée absents de la carte (★ de l'artisan, « a consulté deux autres artisans », lien PDF), comme « Total du devis » et « Refuser » (y −22 et −84)"
+    },
+    {
+      "ecran": "app-interventions a-6-bureau-*",
+      "element": "« Approuver », « Refuser », « Un refus demande un motif »",
+      "propriete": "ordonnée (−57,5 px)",
+      "exception": "donnée",
+      "motif": "la ligne « Dakar Immo a consulté deux autres artisans… » et le lien PDF, absents (voir plus haut), remontent les gestes ; leurs x et tailles sont ceux de la maquette"
+    },
+    {
+      "ecran": "app-interventions a-6-bureau-*",
+      "element": "lignes « coque · barre latérale › texte N » portant un texte de page (« Peinture du séjour », « 180 000 F », « Depuis janvier », « 12 »…)",
+      "propriete": "toutes",
+      "exception": "technique",
+      "motif": "l'outil apparie par RANG les textes au rôle de la barre latérale ; comparés texte à texte (même clé des deux côtés, relevé v9), tous les textes communs ont le x, l'y, la taille, la graisse et la police de la maquette, hors encre (ligne « textes secondaires ») et ordonnée des gestes (ligne ci-dessus)"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "heures (« 15 h »)",
+      "propriete": "texte",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 15:00 » par le formateur commun `f.heure`"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "coque : barre latérale (rubriques du prestataire, compteurs), en-tête, barre d'onglets (« 3 », « 1 »)",
+      "propriete": "boîtes, libellés, tailles, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; ses rubriques et compteurs sont ceux du compte prestataire de la démo"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "boutons (« J’accepte », « Je refuse », « Itinéraire », « Kit d’accès »)",
+      "propriete": "marge intérieure 16 px contre 12, largeur (+8), couleur de bordure",
+      "exception": "règle du design system",
+      "motif": "la primitive `Button` (variante outline, taille lg) porte ces valeurs ; aucune surcharge locale (ADR-0106 § 2 c)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "pastilles « Urgente », « À valider »",
+      "propriete": "fond, bordure, rayon, marges",
+      "exception": "règle du design system",
+      "motif": "la primitive `StatusBadge` (tons danger, warning) ; aucune pastille locale (check-status-badge-unique)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "icônes lucide (lock, map-pin, navigation, key-round)",
+      "propriete": "épaisseur du trait",
+      "exception": "règle du design system",
+      "motif": "l'épaisseur est celle de la charte (TCK-2685)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« Adresse et contact du locataire visibles après acceptation » et son cadenas",
+      "propriete": "couleur",
+      "exception": "charte",
+      "motif": "encre opaque text-encre-douce au lieu de text-foreground/70 (garde encre-sans-alpha, TCK-658)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "heures (« 9 h », « 14 h » de la tournée et de la carte)",
+      "propriete": "texte",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 09:00 » par le formateur commun `f.heure` ; les heures pleines de la grille, elles, s'écrivent « 9 h » comme la maquette"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "jours (« Jeu. 12 nov. », « Lun. 9 »…)",
+      "propriete": "texte (casse)",
+      "exception": "technique",
+      "motif": "le formateur rend « jeu. 12 nov. » ; la capitale est posée par `first-letter:uppercase`, que l'outil ne lit pas (il compare le texte du DOM)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« 9 h – 11 h » (fenêtre du passage) et la hauteur des blocs de la grille (deux heures dans la maquette)",
+      "propriete": "texte, hauteur",
+      "exception": "donnée",
+      "motif": "l'API ne sert que le début du créneau (`scheduled_at`) : un bloc couvre une heure et son titre s'abrège (ellipse) au lieu de passer à la ligne"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« À facturer · 2 », « Facturer », « , 2 à facturer » du sous-titre",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "la facture naît seule à la fin des travaux (`MaintenanceRequestObserver`, montant > 0) et le prestataire n'a aucun POST de facture : décision 1 a de team-lead, question produit renvoyée au porteur"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« Relevé de mes factures » (lucide-download), « Calendrier »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "aucun export des factures du prestataire ni aucun calendrier propre ne sont servis ; « Toutes » mène au registre complet (`?factures=toutes`)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« Wave · 2 nov. », « Paiement le 15 nov. » (moyen et date de paiement d'une facture)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "ni le moyen ni la date prévue de paiement ne sont servis au prestataire ; le produit écrit « Envoyée le … » et « Validée le … » (created_at, validated_at)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "factures (titres, montants, références, « Validée », « Payée », position de « À percevoir »)",
+      "propriete": "texte, présence, ordonnée",
+      "exception": "donnée",
+      "motif": "les six factures réelles de la démo, toutes à valider : quatre tiennent dans le pli au bureau, « À percevoir » passe dessous ; la maquette dessine trois exemples"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "montants (« 283 981 F »)",
+      "propriete": "texte, largeur",
+      "exception": "règle du design system",
+      "motif": "le produit écrit « 283 981 F CFA » par le formateur commun `f.montant`, comme toute la console"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "adresse du passage (« Rue PE-12, résidence Les Filaos, apt 3B »)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la rue servie par `access.street` ; sans rue, le quartier et la ville"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "« Cette semaine » (largeur du titre), « Mes interventions » (largeur)",
+      "propriete": "largeur",
+      "exception": "technique",
+      "motif": "le titre occupe sa ligne ; dans la maquette il partage une rangée avec « Calendrier » ou « Relevé de mes factures », absents (voir plus haut)"
+    },
+    {
+      "ecran": "app-interventions a-7-*",
+      "element": "mise en page en deux colonnes",
+      "propriete": "seuil",
+      "exception": "décision produit",
+      "motif": "deux colonnes et la grille dès `xl` (1280), comme la maquette, et non dès `lg` comme l'écrivait le ticket : décision 3 a de team-lead ; sous `xl`, la semaine en liste par jour, comme au téléphone"
+    },
+    {
+      "ecran": "app-interventions a-6-*",
+      "element": "« Devis DV-2026-118 (PDF) » (lucide-download)",
+      "propriete": "libellé : « Télécharger le devis (PDF) » ; trait de l'icône 1,75 / 1,5 contre 2",
+      "exception": "donnée",
+      "motif": "le lien est rendu (QuotePdfButton, forme « lien », sous can_view_quote_pdf, L3b partie 2) ; l'API ne sert aucune référence de devis (« DV-… ») : le libellé reprend la clé existante du geste de la fiche. Le trait suit TCK-2685 (A § 7)."
+    }
+  ],
+  "ecarts_ouverts": []
+}

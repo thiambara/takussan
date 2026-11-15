@@ -216,17 +216,18 @@ describe('AC2 — le menu montre exactement les pages d’agence que le profil p
   });
 
   it.each([
-    ['agent', AGENT],
-    ['bailleur', BAILLEUR],
-    ['locataire', LOCATAIRE],
-  ] as const)('%s : aucune page, donc ni « Agence » ni « Mon espace »', (_nom, p) => {
+    // TCK-2618 — le tableau de bord de l'agent s'appelle « Aujourd'hui ».
+    ['agent', AGENT, 'Aujourd’hui'],
+    ['bailleur', BAILLEUR, 'Tableau de bord'],
+    ['locataire', LOCATAIRE, 'Tableau de bord'],
+  ] as const)('%s : aucune page, donc ni « Agence » ni « Mon espace »', (_nom, p, accueil) => {
     monterLaBarre(p);
     expect(screen.queryByRole('group', { name: 'Agence' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Administration' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Mon espace' })).toBeNull();
     expect(liensVersLaSection()).toEqual([]);
     // Le reste du menu est bien rendu : l'absence de pages d'agence n'est pas une barre vide.
-    expect(screen.getByRole('link', { name: 'Tableau de bord' })).toHaveAttribute('href', '/app');
+    expect(screen.getByRole('link', { name: accueil })).toHaveAttribute('href', '/app');
   });
 });
 

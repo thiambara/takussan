@@ -1,8 +1,8 @@
 # ADR-0042 — Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier »
 
-- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*)
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*) et **le 2026-11-14**, deux fois (cf. § *Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`* et § *Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail), [TCK-2803](../backlog/tickets/done/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md) (le bailleur qui signe), [TCK-2810](../backlog/tickets/done/TCK-2810-signature-du-personnel-au-profil-actif.md) (le personnel signe depuis le profil actif)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -198,3 +198,93 @@ un garant à l'enfant suit la règle du § 1 : cela défige son contrat.
 **Ce qui n'est pas gardé.** Recopier les garants reste au porteur, si un avis juridique dit que le
 cautionnement suit le bail renouvelé (OHADA). Que le rattachement d'un garant à un enfant déjà né
 `active` défige bien son contrat n'a pas été re-mesuré par ce ticket.
+
+## Amendement du 2026-11-10 — les charges sont un terme du bail
+
+- **Ticket** : [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md).
+- **Décision du porteur** (2026-11-10, point n° 7, option b) : les charges du bail entrent dans le lot de l'audit UX de la partie connectée ([ADR-0100](0100-une-page-paiements-par-public.md) § 6).
+
+**Constat** (relevé sur `dev`, 1bce3798a). Le bien porte `monthly_charges` (§ 1.1) ; le bail n'a **aucune** colonne de charges. Le type d'échéance `charges` existe (`LeasePaymentType::Charges`), avec son reçu (`DocumentPdfController`) et sa place dans l'encaissé et les reversements (`CollectedPayments`, `PayoutCalculator`), mais seule la saisie manuelle en crée (`POST leases/{lease}/payments`) : l'échéancier (`LeaseService::generateSchedule`) n'écrit que le loyer et la caution. Le contrat (`pdf.leases.contract`) n'imprime aucune charge.
+
+**Décision.**
+
+1. **`leases.monthly_charges`** (décimal, facultatif) est un **terme imprimé** : il entre dans `Lease::CONTRACT_PRINTED_TERMS`, et le contrat l'imprime par une ligne « Charges mensuelles » sous le loyer — **seulement quand il est posé et non nul**. Le § 1 s'applique tel quel : modifié avant la signature, il défige ; après, il se refuse (`lease.terms_locked`).
+2. **Un bail en attente de signature sans charges ne défige pas** : la ligne n'est pas imprimée quand la colonne est nulle, donc le rendu et l'empreinte d'un contrat déjà figé restent les mêmes. Aucun bail signé ne change.
+3. **L'échéancier appelle les charges à part** : pour chaque échéance de loyer, une échéance `charges` de même période, de même date et de montant `monthly_charges × mois de la période`. Elle suit le loyer dans la sortie anticipée et dans le renouvellement (mêmes règles d'annulation et de recouvrement). Elle n'est **jamais** soumise à la pénalité de retard (`LateFeeCalculator` reste réservé au loyer) ni à la révision du loyer.
+4. **Le préremplissage** : à la création du bail, `monthly_charges` vient du bien (`properties.monthly_charges`), modifiable ; l'agent le voit dans le total à l'entrée.
+5. **Le renouvellement** reporte les charges du parent comme les autres termes imprimés.
+
+**Ce qui n'est pas décidé.** La régularisation annuelle des charges (le type `regularization` existe, saisi à la main) reste manuelle.
+
+## Amendement du 2026-11-14 — « le bailleur » qui signe est celui de `BailleurDuBien`
+
+- **Ticket** : [TCK-2803](../backlog/tickets/done/TCK-2803-bloc-locataire-des-baux-hors-de-la-fiche.md).
+- **Précise** : le § 4 (« le bailleur signe lui-même »).
+
+**Constat** (mesuré le 2026-11-14). `LandlordSignatory::isLandlord` comparait `leases.landlord_id` à
+l'utilisateur. Or `landlord_id` recopie l'agent qui a saisi le bien pour l'agence (TCK-1926). L'agent
+créateur PARTI de l'agence, à qui `GET leases/{lease}` rend 403, obtenait donc le code
+(`signature/otp` 202) et signait le bail au nom du bailleur (`signature` 200, réponse portant le
+locataire entier). Il signait aussi l'état des lieux pour le bailleur, dont c'était la seule garde.
+
+**Décision.**
+
+1. **« Le bailleur » du § 4 s'entend au sens de `BailleurDuBien::est`** (TCK-1718, TCK-1926) : le
+   désigné du bail, ET bail sans agence ou profil propriétaire dans l'agence du bail. C'est la règle de
+   `LeasePolicy::view`. Elle vaut pour toutes les portes qui partagent `LandlordSignatory` : le code et
+   la signature, la voie papier, la signature d'état des lieux, `can_sign_as` et
+   `can_activate_on_paper`.
+2. **L'agent créateur, parti ou non, n'est pas bailleur du seul fait de `landlord_id`.** En poste, il
+   signe par la voie du personnel mandaté (`leases.sign` dans l'agence du bail, le rôle système
+   `agent` la tient) : l'état final d'une signature est le même qu'avant (mesuré par instantané :
+   preuves, voie papier, état des lieux, journal, notifications). Parti, il ne signe plus. Un agent en
+   poste dont le rôle personnalisé n'a pas `leases.sign` perd la signature.
+3. **`onBehalfOf` garde sa comparaison brute** : l'agent créateur en poste qui signe par mandat reste
+   enregistré « pour lui-même », comme avant. Aucune preuve déjà écrite ne change.
+
+**Ce qui n'était pas décidé**, et l'est depuis. Le personnel de deux agences, sans profil actif dans
+celle du bail, signait encore pour le bailleur (`isStaffAt`) alors que `view` le refusait (profil
+actif, ADR-0031 §3). Ce n'était pas un accès hors droit. Il était nommé comme exception dans le test de
+TCK-2803 ; l'alignement est décidé par l'amendement suivant (TCK-2810).
+
+## Amendement du 2026-11-14 (bis) — le personnel signe depuis le profil actif
+
+- **Ticket** : [TCK-2810](../backlog/tickets/done/TCK-2810-signature-du-personnel-au-profil-actif.md).
+- **Décision du porteur du lot** (2026-11-14) : l'exception nommée par TCK-2803 se ramène à zéro.
+- **Précise** : le § 4 (« le personnel de l'agence signe pour le compte du bailleur ») et la décision 1
+  de l'amendement précédent.
+
+**Constat** (relu sur `765093279`, 2026-11-14). La lecture du bail juge le personnel sur le **profil
+actif** : `LeasePolicy::view` → `BasePolicy::isStaffOf` → `User::staffAgencyId()` (ADR-0031 §1 et §3).
+La voie 2 de `LandlordSignatory` le jugeait sur **toute** agence où il est personnel
+(`MembershipCapabilityResolver::isStaffAt($user, $lease->agency_id)`). Le personnel de A et de B, profil
+actif B, recevait donc le code (`signature/otp` 202) et signait pour le bailleur un bail de A qu'il ne
+lisait pas (`GET leases/{lease}` 403). La signature d'état des lieux, dont `LandlordSignatory` est la
+seule garde, l'admettait de même. La voie papier était déjà alignée : `ActivateLeaseRequest` exige aussi
+`LeasePolicy::update`, qui juge le personnel par `isStaffOf`.
+
+**Décision.**
+
+1. **Le personnel mandaté se juge comme dans `view`** : personnel de l'agence du bail **au sens du
+   profil actif** (`$user->staffAgencyId() === $lease->agency_id`), et `leases.sign` dans cette agence
+   (`canActAt`, inchangé). La délégation de rôle en vigueur compte toujours : `staffAgencyId` la lit par
+   `isStaffAt`, restreint à l'agence du profil actif.
+2. **La règle est plus large que « personnel de deux agences »** : perd aussi la signature le personnel
+   de A dont le profil actif est un profil de bailleur dans B, et le compte de plusieurs agences sans
+   profil résolu (aucune auto-bascule, donc aucun périmètre). Dans chacun de ces cas, `view` le refuse
+   déjà ; il signe en basculant sur son profil de A, d'où il lit le bail.
+3. **Elle vaut pour toutes les portes qui partagent `LandlordSignatory`** : le code et la signature du
+   bail (`LeasePolicy::sign`, `LeaseSignatureService::assertSigner`), `rolesFor` et `can_sign_as`, la
+   signature d'état des lieux (`InventorySignatureService::canSignAs`), et la voie papier (déjà fermée
+   par `update`, inchangée).
+4. **La voie du bailleur ne change pas** (`BailleurDuBien::est`, amendement précédent) : un bailleur
+   signe pour lui-même quel que soit son profil actif. `onBehalfOf` et tout ce qui s'enregistre
+   (preuves, `on_behalf_of`, `owner_signed_by`, `owner_signed_on_behalf_of`) ne changent pas pour le
+   personnel dont le profil actif est l'agence du bail.
+
+**Hors de la décision.** Les autres usages d'`isStaffAt` jugent un TIERS (la cible d'une affectation)
+et restent voulus. Aucune bascule automatique de profil depuis l'écran de signature.
+
+**Application.** `app/Services/Lease/LandlordSignatory.php::isMandatedStaff()` ; la confrontation de
+toutes les portes à `view` (`BailLocataireDeLaListeEtDesGestesTest::test_ac1_chaque_porte_de_geste_est_incluse_dans_view`,
+qui attend désormais `[]`, état des lieux compris) et `tests/Feature/Lease/SignatureAuProfilActifTest.php`.

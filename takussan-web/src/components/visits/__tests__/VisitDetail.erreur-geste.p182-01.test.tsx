@@ -2,10 +2,13 @@
  * P182.01 — une erreur de l'API sur un geste de la visite (confirmer, terminer, absent, annuler,
  * replanifier) s'affiche. Avant, la promesse rejetée n'était rattrapée par rien : le clic ne
  * produisait aucun message, et le dialogue d'annulation restait ouvert sans rien dire.
+ *
+ * TCK-2587 (lot B) — au bureau, « Annuler la visite » vit sous « ⋯ » (« Plus d’actions »).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { ApiError } from '@/lib/api';
 import { VisitDetail } from '../VisitDetail';
@@ -18,7 +21,11 @@ const annuler = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
 const toastAdd = vi.fn();
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'] } }) }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/app/visits/1',
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/lib/queries/visits', () => ({
   useVisit: () => ({ data: { data: etat.visit }, isLoading: false, isError: false }),
@@ -29,6 +36,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useClaimVisit: () => neutre,
   useProposeVisitSlot: () => neutre,
   useMarkVisitNoShow: () => neutre,
+  useCreneauxDeVisite: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  useAttribuerEnLot: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 const MESSAGE_API = 'Cette visite ne peut plus être annulée.';
@@ -50,6 +59,12 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
   };
 }
 
+/** TCK-2587 (lot B) — la fiche lit le prix du bien et le profil actif : un client de requêtes. */
+function rendreLeDetail() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(withIntl(<QueryClientProvider client={client}><VisitDetail id={1} /></QueryClientProvider>));
+}
+
 describe('<VisitDetail> — erreur d’un geste de transition (P182.01)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,7 +73,7 @@ describe('<VisitDetail> — erreur d’un geste de transition (P182.01)', () => 
 
   it('affiche le message de l’API quand la confirmation échoue', async () => {
     confirmer.mutateAsync.mockRejectedValue(new ApiError(422, { message: MESSAGE_API }));
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
     await userEvent.click(screen.getByRole('button', { name: 'Confirmer la visite' }));
 
@@ -69,9 +84,10 @@ describe('<VisitDetail> — erreur d’un geste de transition (P182.01)', () => 
 
   it('affiche le message de l’API dans le dialogue d’annulation, qui reste ouvert', async () => {
     annuler.mutateAsync.mockRejectedValue(new ApiError(422, { message: MESSAGE_API }));
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Annuler' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    await userEvent.click(await screen.findByRole('button', { name: /^Annuler la visite/ }));
     const dialogue = await screen.findByRole('dialog');
     await userEvent.type(within(dialogue).getByRole('textbox'), 'Plus disponible');
     await userEvent.click(within(dialogue).getByRole('button', { name: 'Annuler la visite' }));

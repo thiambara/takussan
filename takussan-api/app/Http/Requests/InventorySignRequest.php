@@ -28,6 +28,10 @@ use Illuminate\Validation\Rule;
  * `file:///tmp/x.png` are refused, TCK-1239). That boundary belongs to the engine and
  * its configuration; this rule does not rely on it.
  *
+ * TCK-2646 (ADR-0098) — `code` : le code reçu par SMS par le locataire, exigé (par le service) quand
+ * un membre du personnel recueille sa signature sur son appareil ; ignoré quand le locataire signe
+ * depuis son compte. `tenant_onsite` n'est PAS un rôle de cette requête : c'est `role=tenant` + `code`.
+ *
  * Authorisation (tenant vs landlord link) is enforced downstream in
  * `InventorySignatureService::sign()` — it needs the inventory context that is
  * not available here.
@@ -77,6 +81,8 @@ class InventorySignRequest extends FormRequest
                 'max:'.self::MAX_SIGNATURE_BYTES,
                 new SignatureDataUrlRule,
             ],
+            // TCK-2646 — six chiffres, comme le code du bail (`SignLeaseRequest`).
+            'code' => ['nullable', 'string', 'regex:/^\d{6}$/'],
         ];
     }
 }

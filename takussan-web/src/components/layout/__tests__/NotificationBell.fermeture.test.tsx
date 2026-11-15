@@ -73,12 +73,13 @@ const UTILISATEUR: User = {
   created_at: '2026-05-08T10:00:00.000000Z',
 };
 
-function rendre(align: 'start' | 'end' = 'start') {
+function rendre(align: 'start' | 'end' = 'start', dansLaColonne = false) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const cloche = <NotificationBell align={align} />;
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <NotificationBell align={align} />
+        {dansLaColonne ? <aside data-testid="colonne">{cloche}</aside> : cloche}
         <MenuDuCompte user={UTILISATEUR} libelleRole="Bailleur" />
         <main>Aucune conversation.</main>
       </QueryClientProvider>,
@@ -104,6 +105,8 @@ function geometrie(ecran: number, clocheGauche: number, largeur: number) {
   const rectOrigine = Element.prototype.getBoundingClientRect;
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     if (this.getAttribute('aria-label') === 'Notifications') return new DOMRect(clocheGauche, 10, 36, 36);
+    // TCK-2634 — la colonne de 272 px, pleine hauteur, quand la cloche y est rendue.
+    if (this.getAttribute('data-testid') === 'colonne') return new DOMRect(0, 0, 272, 740);
     if (portePanneau(this)) return new DOMRect(0, 0, largeur, 440);
     return rectOrigine.call(this);
   });
@@ -211,14 +214,25 @@ describe('Panneau des notifications — une fenêtre à la fois (TCK-569, M14)',
     await waitFor(() => expect(bordGauche(panneau())).toBe(8));
   });
 
-  // TCK-2491 — en bureau, la cloche est dans l'en-tête de la colonne, à gauche de l'écran : le panneau
-  // s'aligne sur son bord GAUCHE et s'ouvre vers le contenu (196 à 580 px à 1366).
-  it('en bureau, le panneau s’aligne sur le bord gauche de la cloche de la colonne (196 à 580 px)', async () => {
-    geometrie(1366, 196, 384);
+  // TCK-2491 — en bureau, la cloche est dans l'en-tête de la colonne. TCK-2634 — le panneau ne s'ouvre
+  // plus SOUS la cloche (il recouvrait le bloc « Aujourd'hui » de la colonne) mais À DROITE DE LA
+  // COLONNE, à 8 px de son bord (maquette `PanneauCloche`, `left-[280px]` contre une colonne de 272).
+  it('en bureau, le panneau s’ouvre à droite de la colonne, à 8 px de son bord (280 px)', async () => {
+    geometrie(1366, 196, 400);
+    const utilisateur = userEvent.setup();
+    rendre('start', true);
+
+    await utilisateur.click(cloche());
+    await waitFor(() => expect(bordGauche(panneau())).toBe(280));
+  });
+
+  // Hors de toute colonne (repli), le panneau se pose à droite de la cloche elle-même.
+  it('hors de la colonne, le panneau s’ouvre à droite de la cloche (196 + 36 + 8)', async () => {
+    geometrie(1366, 196, 400);
     const utilisateur = userEvent.setup();
     rendre('start');
 
     await utilisateur.click(cloche());
-    await waitFor(() => expect(bordGauche(panneau())).toBe(196));
+    await waitFor(() => expect(bordGauche(panneau())).toBe(240));
   });
 });

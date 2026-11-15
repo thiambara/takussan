@@ -173,7 +173,7 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
 });
 
 describe('TCK-2483 — les modules masqués par l’agence', () => {
-  const TOUS = ['commissions', 'inventories', 'move_in_follow_up', 'provider_book', 'calendar', 'credits', 'analytics'];
+  const TOUS = ['commissions', 'inventories', 'provider_book', 'calendar', 'credits', 'analytics'];
   const ids = (menu: ReturnType<typeof composerMenu>) => [
     ...entreesDuMenu(menu).map((e) => e.id),
     ...(menu.action ? [menu.action.id] : []),
@@ -191,11 +191,14 @@ describe('TCK-2483 — les modules masqués par l’agence', () => {
     };
     const sans = ids(composerMenu({ ...ctx, masquees: undefined }, 'agent'));
     const rendus = ids(composerMenu(ctx, 'agent'));
-    for (const id of ['commissions', 'etats-des-lieux', 'kpis', 'alertes', 'exports'] as const) {
+    for (const id of ['commissions', 'etats-des-lieux'] as const) {
       expect(sans, `témoin : ${id} est rendu sans masque`).toContain(id);
       expect(rendus, id).not.toContain(id);
     }
     expect(rendus).toContain('calendrier');
+    // TCK-2628 — `analytics` ne retire plus d'entrée : Exports, Alertes et Indicateurs sont des onglets de
+    // « Rapports », que le module retire de la barre d'onglets. « Rapports » reste (la vue d'ensemble).
+    expect(rendus).toContain('rapports');
   });
 
   it('l’admin aussi : il voit le menu de son équipe', () => {
@@ -217,15 +220,16 @@ describe('TCK-2483 — les modules masqués par l’agence', () => {
       roles: ['customer', 'agency_admin', 'owner'],
       capacites: ['properties.create'],
       cheminsAdmin: [],
-      masquees: destinationsMasquees(['commissions', 'analytics']),
+      masquees: destinationsMasquees(['commissions', 'credits']),
     };
     expect(groupe(composerMenu({ ...ctx, masquees: undefined }, 'bailleur'), 'aussi'), 'témoin').toEqual(
-      expect.arrayContaining(['commissions', 'kpis']),
+      expect.arrayContaining(['commissions', 'credits']),
     );
     const aussi = groupe(composerMenu(ctx, 'bailleur'), 'aussi');
     expect(aussi).not.toContain('commissions');
-    expect(aussi).not.toContain('kpis');
-    expect(aussi).toContain('vue-agence');
+    expect(aussi).not.toContain('credits');
+    // TCK-2628 — « Vue agence » est devenue « Rapports », que le bailleur porte déjà dans sa disposition.
+    expect(aussi).toContain('proprietaires');
   });
 
   it('une épingle (TCK-2480) vers une destination masquée est ignorée au rendu', () => {

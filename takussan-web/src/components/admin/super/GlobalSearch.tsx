@@ -62,7 +62,7 @@ export function GlobalSearch() {
       >
         <Search className="size-4" aria-hidden="true" />
         <span className="hidden sm:inline">{t('trigger')}</span>
-        <kbd className="hidden rounded bg-background px-1.5 font-mono text-[11px] sm:inline">{t('shortcut')}</kbd>
+        <kbd className="hidden rounded bg-background px-1.5 font-mono text-[0.6875rem] sm:inline">{t('shortcut')}</kbd>
       </button>
       {open ? <GlobalSearchDialog onClose={() => setOpen(false)} /> : null}
     </>
@@ -148,7 +148,7 @@ function GlobalSearchDialog({ onClose }: { onClose: () => void }) {
           <div id={listId} role="listbox" aria-label={t('title')}>
             {groupes.map(([type, items]) => (
               <div key={type} role="group" aria-label={typeLabel(type)} className="pb-2">
-                <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                <p className="px-2 pb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {typeLabel(type)}
                 </p>
                 {items.map((hit) => {

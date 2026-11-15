@@ -8,6 +8,7 @@ use App\Models\Enums\TaskStatus;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\TelephoneSaisi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
 
@@ -133,6 +134,7 @@ class TaskAuthorizationTest extends ApiTestCase
         $this->assertDatabaseCount('tasks', 0);
     }
 
+    /** TCK-2595 — le libellé se lit sous `view` du parent ; `subtitle` et `cover_url` s'y ajoutent. */
     public function test_the_taskable_label_is_rendered_to_whoever_may_attach_to_the_parent(): void
     {
         $customer = $this->customer();
@@ -152,11 +154,11 @@ class TaskAuthorizationTest extends ApiTestCase
             ->keyBy(fn ($row) => $row['taskable']['type']);
 
         $this->assertSame(
-            ['type' => 'customer', 'id' => $customer->id, 'label' => 'Awa Diop', 'phone' => $customer->phone],
+            ['type' => 'customer', 'id' => $customer->id, 'label' => 'Awa Diop', 'phone' => $customer->phone, 'subtitle' => TelephoneSaisi::normaliser($customer->phone), 'cover_url' => null],
             $rows['customer']['taskable'],
         );
         $this->assertSame(
-            ['type' => 'property', 'id' => $property->id, 'label' => 'Villa des Almadies', 'phone' => null],
+            ['type' => 'property', 'id' => $property->id, 'label' => 'Villa des Almadies', 'phone' => null, 'subtitle' => null, 'cover_url' => null],
             $rows['property']['taskable'],
         );
     }

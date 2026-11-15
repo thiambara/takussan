@@ -1,4 +1,5 @@
 import { cheminApi } from '@/lib/chemin-api';
+import { filtresDeLHistorique, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
 
 /**
  * Client-side helpers for triggering CSV/XLSX/PDF downloads (TCK-032 P2).
@@ -45,4 +46,18 @@ export function buildExportUrl(options: ExportOptions): string {
   if (options.to) qs.set('to', options.to);
   if (options.limit) qs.set('limit', String(options.limit));
   return cheminApi`/api/export/${options.entity}?${qs.toString()}`;
+}
+
+/**
+ * TCK-2721 — le lien d'export du REGISTRE des encaissements (« Argent ») : l'entité
+ * `payment_history`, servie par la sélection de `GET /api/payments/history`, avec les `filter[…]` et
+ * le tri de l'écran (ceux de `usePaymentsHistory`, par {@link filtresDeLHistorique}). Hors de
+ * {@link ExportEntity} : le formulaire d'exports de `/app/overview/exports` ne la propose pas.
+ */
+export function lienDExportDuRegistre(params: UsePaymentsHistoryParams, format: ExportFormat = 'csv'): string {
+  const qs = new URLSearchParams();
+  qs.set('format', format);
+  for (const [cle, valeur] of Object.entries(filtresDeLHistorique(params))) qs.set(`filter[${cle}]`, String(valeur));
+  qs.set('sort', params.sort ?? '-date');
+  return cheminApi`/api/export/payment_history?${qs.toString()}`;
 }

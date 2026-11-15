@@ -150,11 +150,11 @@ describe('PropertyForm — edit mode', () => {
     renderForm(maison());
 
     const prix = screen.getByLabelText(/^prix/i) as HTMLInputElement;
-    expect(prix.value).toBe('85\u202f000\u202f000');
+    expect(prix.value).toBe('85\u00a0000\u00a0000');
 
     await user.clear(prix);
     await user.type(prix, '90000000');
-    expect(prix.value).toBe('90\u202f000\u202f000');
+    expect(prix.value).toBe('90\u00a0000\u00a0000');
 
     await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
     await waitFor(() => expect(updatePropertyAction).toHaveBeenCalledOnce());

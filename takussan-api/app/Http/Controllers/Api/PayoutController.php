@@ -52,7 +52,7 @@ class PayoutController extends Controller
 
     public function store(StorePayoutRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $landlord = User::findOrFail($data['landlord_id']);
         $payout = $this->payouts->create($request->user(), $landlord, $data);

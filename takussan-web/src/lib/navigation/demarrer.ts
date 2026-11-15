@@ -8,7 +8,7 @@
  */
 export type ModeDemarrer = 'espace' | 'bailleur';
 
-export const CODES_D_ETAPE = ['premier_bien', 'kyc', 'equipe'] as const;
+export const CODES_D_ETAPE = ['premier_bien', 'kyc', 'equipe', 'pieces'] as const;
 export type CodeDEtape = (typeof CODES_D_ETAPE)[number];
 
 export interface EtapeDeDemarrage {
@@ -23,28 +23,24 @@ export interface EtapeARendre {
   readonly cle: string;
 }
 
-/** `owner:3` → 3 ; tout autre jeton → `null`. */
-function profilBailleur(idProfilActif: string | null): number | null {
-  const [type, id] = (idProfilActif ?? '').split(':');
-  return type === 'owner' && id !== undefined && /^\d+$/.test(id) ? Number(id) : null;
-}
-
 /**
- * L'écran qui fait chaque étape. Le KYC du bailleur est son assistant d'onboarding, repris sur SON
- * profil (`?owner=`, `profilAReprendre`, TCK-589) : sans lui, l'assistant prendrait le premier
- * profil « à compléter », et un profil déjà actif renverrait vers `/app`.
+ * L'écran qui fait chaque étape.
+ *
+ * TCK-2614 (décisions 1a, 2a, 3a) — les pièces d'un invité se donnent sur « Vos pièces » (`/app/pieces`) : l'étape
+ * `pieces` de l'agent et du prestataire, et l'étape `kyc` du BAILLEUR, qui rouvrait son assistant d'onboarding
+ * (`/onboarding/owner?owner=`, TCK-589). L'écran lit le profil ACTIF, celui sur lequel l'API a jugé l'étape : il n'a
+ * plus besoin de `?owner=`. L'assistant, lui, ne change pas (il garde ses pièces jusqu'à TCK-2613).
  */
-function lienDe(code: CodeDEtape, mode: ModeDemarrer, idProfilActif: string | null): string {
+function lienDe(code: CodeDEtape, mode: ModeDemarrer): string {
   switch (code) {
     case 'premier_bien':
       return '/app/properties/new';
     case 'equipe':
       return '/app/agency/team';
-    case 'kyc': {
-      if (mode === 'espace') return '/app/agency/kyc';
-      const id = profilBailleur(idProfilActif);
-      return id === null ? '/onboarding/owner' : `/onboarding/owner?owner=${id}`;
-    }
+    case 'pieces':
+      return '/app/pieces';
+    case 'kyc':
+      return mode === 'espace' ? '/app/agency/kyc' : '/app/pieces';
   }
 }
 
@@ -65,14 +61,13 @@ function connue(e: EtapeDeDemarrage): e is EtapeDeDemarrage & { readonly code: C
 export function etapesARendre(
   etapes: readonly EtapeDeDemarrage[],
   mode: ModeDemarrer,
-  idProfilActif: string | null,
   ouverte: (href: string) => boolean = () => true,
 ): { readonly restantes: readonly EtapeARendre[]; readonly faites: number; readonly total: number } {
-  const connues = etapes.filter(connue).filter((e) => ouverte(lienDe(e.code, mode, idProfilActif)));
+  const connues = etapes.filter(connue).filter((e) => ouverte(lienDe(e.code, mode)));
   return {
     restantes: connues
       .filter((e) => !e.faite)
-      .map((e) => ({ code: e.code, href: lienDe(e.code, mode, idProfilActif), cle: `etapes.${mode}.${e.code}` })),
+      .map((e) => ({ code: e.code, href: lienDe(e.code, mode), cle: `etapes.${mode}.${e.code}` })),
     faites: connues.filter((e) => e.faite).length,
     total: connues.length,
   };

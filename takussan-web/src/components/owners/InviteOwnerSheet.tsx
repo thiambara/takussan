@@ -113,8 +113,11 @@ export function InviteOwnerSheet({
         setFieldErrors(error.validationErrors);
         return;
       }
-      const description =
-        error.status === 409
+      // TCK-2753 (ADR-0108 § 5) — un bailleur PARTI ne se réinvite pas : l'API le dit par un code.
+      const parti = error.status === 409 && (error.data as { code?: unknown } | null)?.code === 'owner.invite_departed';
+      const description = parti
+        ? t('errors.departed')
+        : error.status === 409
           ? t('errors.already_member')
           : error.status === 403
             ? t('errors.forbidden')

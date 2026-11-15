@@ -30,6 +30,7 @@ const donnees = {
   links: { first: null, last: null, prev: null, next: null },
 } as never;
 
+// TCK-2653 — la liste se rend aussi en cartes au téléphone (`carteMobile`) : les requêtes visent la table.
 describe('<ServiceProvidersList> — numéro saisi à l’invitation', () => {
   it('rend le numéro de la fiche dans la colonne Téléphone, et un tiret sans numéro', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -39,7 +40,7 @@ describe('<ServiceProvidersList> — numéro saisi à l’invitation', () => {
       </QueryClientProvider>,
     ));
 
-    await screen.findByText('Ibrahima Fall');
+    await within(await screen.findByRole('table')).findByText('Ibrahima Fall');
     const entetes = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
     const colonne = entetes.indexOf('Téléphone');
     expect(colonne).toBeGreaterThan(-1);

@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { Upload } from 'lucide-react';
+import { FileUp, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,20 +56,34 @@ export function ImportStatementForm({ agencyId }: { readonly agencyId: number })
 
   return (
     <form onSubmit={soumettre} className="space-y-3" aria-label={t('title')}>
-      <div className="grid gap-3 sm:grid-cols-[2fr_1fr_2fr]">
+      <div className="grid gap-4">
         <div className="space-y-1.5">
+          {/* TCK-2675 — un vrai bouton traduit : le contrôle natif disait « Choose File » et « No file
+              chosen » dans la langue du navigateur, pas dans celle de la page. Le champ reste dans le
+              formulaire (masqué), le bouton l'ouvre ; le libellé nomme le fichier choisi. */}
           <Label htmlFor="releve-fichier">{t('file')}</Label>
-          <Input
+          <input
             id="releve-fichier"
             ref={fichierRef}
             type="file"
             accept=".csv,.ofx,.txt,text/csv"
+            className="sr-only"
+            tabIndex={-1}
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null;
               setFichier(f);
               if (f) setFormat(formatDeduit(f.name));
             }}
           />
+          <div className="flex min-w-0 items-center gap-2">
+            <Button type="button" variant="outline" className="flex-none" onClick={() => fichierRef.current?.click()}>
+              <FileUp data-icon="inline-start" aria-hidden="true" />
+              {t('choisir')}
+            </Button>
+            <span className="min-w-0 truncate text-sm text-muted-foreground" data-testid="releve-fichier-nom">
+              {fichier ? fichier.name : t('aucunFichier')}
+            </span>
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="releve-format">{t('format')}</Label>

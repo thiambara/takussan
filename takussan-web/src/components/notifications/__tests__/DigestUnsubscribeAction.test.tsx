@@ -15,9 +15,12 @@ import { DigestUnsubscribeAction } from '../DigestUnsubscribeAction';
 import DigestUnsubscribePage, { generateMetadata } from '@/app/[locale]/(public)/notifications/unsubscribe/page';
 
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (cle: string) => cle }));
-vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
-vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
-vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+// TCK-2514 — la page vit dans la coque de lien NUE : plus de `Navbar` ni de `Footer` à neutraliser,
+// seul le sélecteur de langue du pied lit le routeur.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/fr/notifications/unsubscribe',
+}));
 
 const T = fr.search.alertPages;
 const SIGNATURE = 'a'.repeat(64);
@@ -108,5 +111,20 @@ describe('/[locale]/notifications/unsubscribe — la page', () => {
     render(withIntl(page));
 
     expect(screen.getByRole('button', { name: T.digest.button })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: T.digest.title })).toBeInTheDocument();
+  });
+
+  it('AC4 (TCK-2514) — dans la coque de lien : ni recherche, ni favoris, ni comparateur, ni navigation', async () => {
+    const page = await DigestUnsubscribePage({
+      searchParams: Promise.resolve({ user: '42', expires: '1893456000', signature: SIGNATURE }),
+    });
+    const { container } = render(withIntl(page));
+
+    expect(container.querySelector('[data-coque-lien]')).not.toBeNull();
+    expect(screen.queryByRole('search')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('navigation')).toBeNull();
+    const hrefs = screen.queryAllByRole('link').map((a) => a.getAttribute('href') ?? '');
+    expect(hrefs.filter((h) => /favorites|compare|\/properties/.test(h))).toEqual([]);
   });
 });

@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl';
 import type { User, UserRole } from '@/types/user';
 import { getPrimaryRole } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Camera, ChevronRight } from 'lucide-react';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -37,9 +39,16 @@ const ROLE_KEYS: Record<UserRole, string> = {
 
 interface ProfileHeaderProps {
   user: User;
+  /**
+   * TCK-2635 — ce que la personne est, et où (« Agent · Dakar Immo ») : lu des profils par la page.
+   * Absent : le rôle principal du compte.
+   */
+  readonly fonction?: string | null;
+  /** Le chemin de SA fiche publique (`/agents/{slug}`), quand elle existe. */
+  readonly fiche?: string | null;
 }
 
-export function ProfileHeader({ user }: ProfileHeaderProps) {
+export function ProfileHeader({ user, fonction, fiche }: ProfileHeaderProps) {
   const t = useTranslations('profile.header');
   const tRoles = useTranslations('profile.roles');
   const tNav = useTranslations('nav');
@@ -135,26 +144,18 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     router.refresh();
   }
 
-  return (
-    <section className="flex flex-col items-center gap-4 text-center">
-      <Avatar className="size-24">
-        {currentUser.avatar_url ? (
-          <AvatarImage src={currentUser.avatar_url} alt={libelle} />
-        ) : null}
-        <AvatarFallback className="bg-foreground text-2xl text-primary-foreground">{initials}</AvatarFallback>
-      </Avatar>
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-foreground">{libelle}</h1>
-        {currentUser.email && currentUser.email !== libelle ? (
-          <p className="text-sm text-muted-foreground">{currentUser.email}</p>
-        ) : null}
-        {primaryRole ? (
-          <span className="inline-block rounded-full bg-card px-3 py-1 text-xs font-semibold text-foreground">
-            {tRoles(ROLE_KEYS[primaryRole])}
-          </span>
-        ) : null}
-      </div>
+  const ligne = fonction ?? (primaryRole ? tRoles(ROLE_KEYS[primaryRole]) : null);
+  const courriel = currentUser.email && currentUser.email !== libelle ? currentUser.email : null;
 
+  // TCK-2635 — l'identité du sommaire (maquette `app-profil`, `IdentiteMobile` et la carte de
+  // `ASommaireBureau`) : la photo et son badge « appareil photo », qui ouvre « Modifier le profil »
+  // (photo, prénom, nom, bio) ; le nom ; « Agent · Dakar Immo » (au bureau, suivi du courriel) ;
+  // « Voir ma fiche publique », en lien au téléphone, en bouton au bureau.
+  return (
+    <section
+      data-slot="identite-du-profil"
+      className="flex items-center gap-4 md:gap-5 md:rounded-2xl md:border md:border-border md:bg-card md:p-5"
+    >
       <Dialog
         open={open}
         onOpenChange={(nextOpen) => {
@@ -162,13 +163,23 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           setOpen(nextOpen);
         }}
       >
-        <DialogTrigger
-          render={
-            <Button variant="outline" className="rounded-md">
-              {t('edit')}
-            </Button>
-          }
-        />
+        <span className="relative flex-none">
+          <Avatar className="size-16 lg:size-20">
+            {currentUser.avatar_url ? <AvatarImage src={currentUser.avatar_url} alt={libelle} /> : null}
+            <AvatarFallback className="text-2xl lg:text-3xl">{initials}</AvatarFallback>
+          </Avatar>
+          <DialogTrigger
+            render={
+              <button
+                type="button"
+                aria-label={t('edit')}
+                className="absolute -right-1 -bottom-1 inline-flex size-7 items-center justify-center rounded-full bg-foreground text-background ring-2 ring-background outline-none focus-visible:ring-3 focus-visible:ring-ring"
+              >
+                <Camera className="size-3.5" strokeWidth={1.75} aria-hidden="true" />
+              </button>
+            }
+          />
+        </span>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('edit')}</DialogTitle>
@@ -275,6 +286,32 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           </form>
         </DialogContent>
       </Dialog>
+      <div className="min-w-0 flex-1">
+        {/* TCK-2635 — `h2` : le titre de la page est « Profil » (bureau) ou celui de l'en-tête (téléphone). */}
+        <h2 className="truncate font-display text-xl font-semibold tracking-titre text-foreground">{libelle}</h2>
+        {ligne || courriel ? (
+          <p className="text-sm text-muted-foreground max-md:truncate md:break-words">
+            {ligne}
+            {courriel ? (
+              <span className="max-md:hidden">
+                {ligne ? ' · ' : null}
+                {courriel}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+        {fiche ? (
+          <a href={fiche} className="mt-1 inline-flex items-center text-sm font-medium text-primary md:hidden">
+            {t('voirMaFiche')}
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </a>
+        ) : null}
+      </div>
+      {fiche ? (
+        <a href={fiche} className={cn(buttonVariants({ variant: 'outline' }), 'max-md:hidden')}>
+          {t('voirMaFiche')}
+        </a>
+      ) : null}
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
 
@@ -48,35 +48,43 @@ function reponse(page: number, seedHour?: string) {
   };
 }
 
-const hrefDe = (nom: string) =>
-  within(screen.getByRole('navigation', { name: 'Pagination' })).getByRole('link', { name: nom }).getAttribute('href') ?? '';
-const parametresDe = (nom: string) => new URLSearchParams(hrefDe(nom).split('?')[1] ?? '');
+/**
+ * TCK-2499 — la pagination numérotée a cédé la place à « Voir N biens de plus », qui reste un LIEN
+ * vers la page suivante (robots, clic modifié). La graine voyage avec lui ; le chemin du début,
+ * rendu quand l'URL ouvre une page au-delà de la première, garde la forme canonique.
+ */
+const lienSuivant = () => screen.getByRole('link', { name: /^Voir \d+ biens? de plus$/ });
+const parametresDe = (lien: HTMLElement) => new URLSearchParams((lien.getAttribute('href') ?? '').split('?')[1] ?? '');
 
 beforeEach(() => {
   mockApiFetch.mockReset();
   parametres = new URLSearchParams('contract_type=rent');
 });
 
-describe('TCK-1008 — l’heure de graine voyage avec la pagination', () => {
-  it('les liens vers les pages suivantes portent la `seed_hour` de la réponse', async () => {
+describe('TCK-1008 — l’heure de graine voyage avec la page suivante', () => {
+  it('le lien « Voir N biens de plus » porte la page suivante et la `seed_hour` de la réponse', async () => {
     mockApiFetch.mockResolvedValue(reponse(1, '2026-10-13T00'));
     render(withIntl(<PropertiesDiscoveryPage />));
     await screen.findByTestId('carte-22');
 
-    for (const nom of ['2', '3', 'Page suivante']) {
-      expect(parametresDe(nom).get('seed_hour')).toBe('2026-10-13T00');
-      expect(parametresDe(nom).get('contract_type')).toBe('rent');
-    }
+    const suivant = parametresDe(lienSuivant());
+    expect(suivant.get('page')).toBe('2');
+    expect(suivant.get('seed_hour')).toBe('2026-10-13T00');
+    expect(suivant.get('contract_type')).toBe('rent');
   });
 
-  it('le lien de la page 1 garde la forme canonique', async () => {
+  it('page 2 ouverte par l’URL : le chemin du début garde la forme canonique, la suite mène à la 3', async () => {
     parametres = new URLSearchParams('contract_type=rent&page=2&seed_hour=2026-10-13T00');
     mockApiFetch.mockResolvedValue(reponse(2, '2026-10-13T00'));
     render(withIntl(<PropertiesDiscoveryPage />));
     await screen.findByTestId('carte-22');
 
-    expect(hrefDe('1')).toBe('/fr/properties?contract_type=rent');
-    expect(parametresDe('3').get('seed_hour')).toBe('2026-10-13T00');
+    expect(screen.getByRole('link', { name: 'Revenir aux premiers biens' })).toHaveAttribute(
+      'href',
+      '/fr/properties?contract_type=rent',
+    );
+    expect(parametresDe(lienSuivant()).get('page')).toBe('3');
+    expect(parametresDe(lienSuivant()).get('seed_hour')).toBe('2026-10-13T00');
   });
 
   it('une réponse sans `seed_hour` (API antérieure) n’écrit rien', async () => {
@@ -84,6 +92,6 @@ describe('TCK-1008 — l’heure de graine voyage avec la pagination', () => {
     render(withIntl(<PropertiesDiscoveryPage />));
     await screen.findByTestId('carte-22');
 
-    expect(parametresDe('2').has('seed_hour')).toBe(false);
+    expect(parametresDe(lienSuivant()).has('seed_hour')).toBe(false);
   });
 });

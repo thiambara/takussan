@@ -19,6 +19,8 @@ class SavedSearch extends AbstractModel
         'criteria' => 'array',
         'is_active' => 'boolean',
         'last_notified_at' => 'datetime',
+        // TCK-2507 — la dernière ouverture par le titulaire (`POST …/viewed`), pas dans `$fillable`.
+        'last_viewed_at' => 'datetime',
         'metadata' => 'array',
     ];
 

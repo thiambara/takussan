@@ -91,3 +91,33 @@ export async function unsubscribeAccountSearch(link: AccountUnsubscribeLink): Pr
   const qs = new URLSearchParams({ expires: link.expires, signature: link.signature });
   await apiFetch(cheminApi`/saved-searches/${link.searchId}/unsubscribe${qs}`, post({}));
 }
+
+/**
+ * TCK-2513 / TCK-2514 — l'alerte à laquelle répond un lien, LUE sans rien consommer :
+ * `GET /api/public/search-alerts/by-token?token=…`. Un jeton de confirmation encore valide rend
+ * `kind: 'confirm'`, un jeton de désinscription `kind: 'unsubscribe'` ; tout jeton qui ne sert pas
+ * rend un 404, le même pour tous. Aucun contact ne sort. `matches` vaut `null` quand le moteur n'a
+ * pas pu compter : on n'affiche alors aucun chiffre.
+ */
+export interface AlerteDuLien {
+  readonly kind: 'confirm' | 'unsubscribe';
+  readonly name: string | null;
+  readonly criteria: Record<string, unknown>;
+  readonly frequency: 'daily' | 'weekly' | 'off' | null;
+  readonly matches: number | null;
+}
+
+export async function fetchPublicSearchAlertByToken(token: string): Promise<AlerteDuLien> {
+  const qs = new URLSearchParams({ token });
+  const res = await apiFetch<{ data: AlerteDuLien }>(cheminApi`/public/search-alerts/by-token${qs}`);
+  return res.data;
+}
+
+/**
+ * TCK-2513 — espacer plutôt que couper : `POST /api/public/search-alerts/frequency`
+ * `{ token, frequency }`, avec le jeton de DÉSINSCRIPTION. L'abonné reste inscrit ; un jeton
+ * inconnu rend la même réponse qu'un succès.
+ */
+export async function updatePublicSearchAlertFrequency(token: string, frequency: 'weekly'): Promise<void> {
+  await apiFetch('/public/search-alerts/frequency', post({ token, frequency }));
+}

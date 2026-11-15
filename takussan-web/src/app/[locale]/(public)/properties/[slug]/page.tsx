@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/feedback';
 import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
+import { BarreDOngletsPublique } from '@/components/navigation-publique/BarreDOngletsPublique';
 import { alternatesPubliques } from '@/lib/alternates';
 import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { DonneesStructurees } from '@/lib/jsonld';
@@ -58,7 +59,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (estRetire(etat)) {
       // L'objet est rendu SUR PLACE, pas par une fonction d'aide : `canonique-de-chaque-page.test.ts`
       // ne juge que les objets littéraux, et un appel lui serait opaque.
-      const tRetire = await getTranslations('property.retired');
+      const tRetire = await getTranslations('propertyRetired');
       return {
         title: tRetire(`title.${etat.state}`),
         description: tRetire('metaDescription'),
@@ -151,7 +152,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * branche — la seule qui compte ici — non testable sous jsdom.
  */
 async function bienIndisponible() {
-  const t = await getTranslations('property.detail');
+  const t = await getTranslations('propertyDetail');
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -176,10 +177,14 @@ export default async function PropertyDetailPage({ params }: Props) {
     if (estRetire(etat)) {
       return (
         <>
-          <Navbar />
-          <NavbarSpacer />
+          {/* TCK-2568 — le bien retiré garde la barre du site ET la barre d'onglets au téléphone
+              (maquette des erreurs, « Bien retiré ») : son chemin est celui d'une fiche, qui n'a ni
+              l'une ni l'autre. */}
+          <Navbar auTelephone="barre-du-site" />
+          <NavbarSpacer auTelephone="barre-du-site" />
           <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{await bienRetire(etat)}</main>
           <Footer />
+          <BarreDOngletsPublique presente />
         </>
       );
     }
@@ -218,7 +223,7 @@ export default async function PropertyDetailPage({ params }: Props) {
         */}
         <DonneesStructurees
           donnees={jsonLdFilDAriane(
-            maillonsDeFiche(resultat.bien, await getTranslations('property.detail'), hrefQuartier, hrefVille),
+            maillonsDeFiche(resultat.bien, await getTranslations('propertyDetail'), hrefQuartier, hrefVille),
             locale,
           )}
         />
@@ -232,10 +237,15 @@ export default async function PropertyDetailPage({ params }: Props) {
       </>
     );
 
+  // TCK-2568 — une fiche servie n'a pas la barre du site au téléphone (son retour est sur la photo) ;
+  // une fiche indisponible (panne de l'API) ouvre sur la barre de MARQUE, comme l'écran « Erreur
+  // serveur » de la maquette (Erreurs A).
+  const auTelephone = resultat.etat === 'trouve' ? undefined : 'marque';
+
   return (
     <>
-      <Navbar />
-      <NavbarSpacer />
+      <Navbar auTelephone={auTelephone} />
+      <NavbarSpacer auTelephone={auTelephone} />
       {/* TCK-895 (P31.02) — le repère du contenu, posé ici et non dans `PropertyDetailContent`. */}
       <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{corps}</main>
       <Footer />

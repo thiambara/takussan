@@ -1,8 +1,14 @@
 import { valeurBornee } from '@/hooks/useVueDansLUrl';
 import type { VisitStatus } from '@/types/visit';
 
-/** TCK-171, TCK-590 — les onglets de la liste des visites (« Non attribuées » : le personnel seul). */
-export const ONGLETS_DES_VISITES = ['unassigned', 'requested', 'confirmed', 'past', 'cancelled'] as const;
+/**
+ * TCK-171, TCK-590 — les onglets de la liste des visites (« Non attribuées » : le personnel seul).
+ *
+ * TCK-2587 — « Toutes » (`all`) : la portée entière, sans borne de statut ni de date. C'est l'onglet
+ * qu'ouvre la pastille « Toutes N » du bureau, qui compte `counts.all` : une pastille qui annonce N
+ * ouvre une liste de N. Il n'est PAS le défaut (« Demandées » le reste, pour `?tab=` absent).
+ */
+export const ONGLETS_DES_VISITES = ['all', 'unassigned', 'requested', 'confirmed', 'past', 'cancelled'] as const;
 export type OngletDesVisites = (typeof ONGLETS_DES_VISITES)[number];
 
 /**
@@ -37,6 +43,8 @@ export interface BornesDeLOnglet {
  */
 export function bornesDeLOnglet(onglet: OngletDesVisites, maintenant: string): BornesDeLOnglet {
   switch (onglet) {
+    case 'all':
+      return {};
     case 'unassigned':
       return { status: 'scheduled', unassigned: true, scheduled_at_min: maintenant };
     case 'requested':

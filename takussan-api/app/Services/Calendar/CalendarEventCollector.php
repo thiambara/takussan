@@ -4,6 +4,7 @@ namespace App\Services\Calendar;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeaseStatus;
@@ -19,6 +20,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Visit\VisitSchedulingService;
 use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -141,7 +143,7 @@ class CalendarEventCollector
             $events = $events->merge($this->bookings($start, $end, $restrict));
         }
         if (in_array('visit', $types, true)) {
-            $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId));
+            $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId, $isAdmin, $staffAgencyIds));
         }
         if (in_array('task', $types, true)) {
             $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds, $memberAgencyIds));
@@ -189,7 +191,9 @@ class CalendarEventCollector
     /** @return Collection<int, array<string, mixed>> */
     private function bookings(Carbon $start, Carbon $end, \Closure $restrict): Collection
     {
+        // TCK-2735 (ADR-0102 § 3) — une barre de séjour n'est qu'un séjour : ni candidature ni offre.
         $query = Booking::query()
+            ->where('kind', BookingKind::Stay)
             ->whereIn('status', [BookingStatus::Confirmed, BookingStatus::Pending])
             ->whereDate('start_date', '<=', $end)
             ->whereDate('end_date', '>=', $start);
@@ -211,8 +215,16 @@ class CalendarEventCollector
         ]);
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function visits(Carbon $start, Carbon $end, \Closure $restrict, bool $mine, int $userId): Collection
+    /**
+     * TCK-2585 — un événement `visit` dit aussi avec qui et où (`visitor_name`, `address_line`,
+     * `neighborhood`), au super-admin et au PERSONNEL de l'agence du bien seulement (`$staffAgencyIds`,
+     * déjà bornées à l'agence de l'agenda) : le bailleur et le collaborateur hors personnel gardent
+     * l'événement sans ces clés. Le nom est celui de la fiche, à défaut celui saisi.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function visits(Carbon $start, Carbon $end, \Closure $restrict, bool $mine, int $userId, bool $isAdmin = false, array $staffAgencyIds = []): Collection
     {
         $query = PropertyVisit::query()
             ->whereIn('status', [VisitStatus::Scheduled, VisitStatus::Confirmed])
@@ -223,27 +235,83 @@ class CalendarEventCollector
             $query->where('agent_id', $userId);
         }
 
-        return $query->with('property:id,title,slug')->get()->map(function (PropertyVisit $v) {
+        // TCK-2585 — l'agence du bien, son adresse et la fiche : en trois requêtes pour la fenêtre.
+        return $query->with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])->get()->map(function (PropertyVisit $v) use ($isAdmin, $staffAgencyIds) {
+            $terrain = self::terrain($v, $isAdmin, $staffAgencyIds);
             $startAt = $v->scheduled_at;
             $endAt = $startAt && $v->duration_minutes
                 ? $startAt->copy()->addMinutes((int) $v->duration_minutes)
                 : $startAt;
+            $title = $v->property?->title ?? __('messages.visit');
+
+            // TCK-2502 — une visite demandée par tranche, heure pas encore fixée : un événement
+            // SUR LA JOURNÉE (son jour à Dakar), la tranche dans le titre. Jamais un rendez-vous
+            // minuté au début de tranche — le flux .ics le pousserait dans Google ou Apple Agenda,
+            // qui y poseraient leurs propres alertes. Confirmée, l'heure est fixée et la tranche
+            // tombe : elle redevient un rendez-vous minuté.
+            if ($v->preferred_window !== null && $startAt !== null) {
+                $day = $startAt->copy()->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d').' 00:00:00';
+
+                return [
+                    'key' => "visit-{$v->id}",
+                    'id' => $v->id,
+                    'type' => 'visit',
+                    'kind' => 'window',
+                    'title' => __('calendar.visit_window_title', ['title' => $title, 'window' => __('visits.windows.'.$v->preferred_window->value)]),
+                    // Le titre du bien seul : le flux .ics compose son résumé dans SA langue.
+                    'property_title' => $title,
+                    'start' => $day,
+                    'end' => $day,
+                    'status' => $v->status,
+                    'all_day' => true,
+                    'preferred_window' => $v->preferred_window->value,
+                    'duration_minutes' => $v->duration_minutes,
+                    'property_id' => $v->property_id,
+                    'property_slug' => $v->property?->slug,
+                    'resource_url' => "/app/visits/{$v->id}",
+                ] + $terrain;
+            }
 
             return [
                 'key' => "visit-{$v->id}",
                 'id' => $v->id,
                 'type' => 'visit',
-                'title' => $v->property?->title ?? __('messages.visit'),
+                'title' => $title,
                 'start' => $startAt?->toDateTimeString(),
                 'end' => $endAt?->toDateTimeString(),
                 'status' => $v->status,
                 'all_day' => false,
+                'preferred_window' => null,
                 'duration_minutes' => $v->duration_minutes,
                 'property_id' => $v->property_id,
                 'property_slug' => $v->property?->slug,
                 'resource_url' => "/app/visits/{$v->id}",
-            ];
+            ] + $terrain;
         });
+    }
+
+    /**
+     * TCK-2585 — le visiteur et l'adresse d'une visite, pour le personnel de l'agence du bien ;
+     * aucune clé pour tout autre lecteur.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return array{visitor_name?: ?string, address_line?: ?string, neighborhood?: ?string}
+     */
+    private static function terrain(PropertyVisit $v, bool $isAdmin, array $staffAgencyIds): array
+    {
+        $agencyId = $v->property?->agency_id;
+        if (! $isAdmin && ($agencyId === null || ! in_array((int) $agencyId, $staffAgencyIds, true))) {
+            return [];
+        }
+
+        $fiche = $v->customer !== null ? trim($v->customer->first_name.' '.$v->customer->last_name) : '';
+        $address = $v->property?->address;
+
+        return [
+            'visitor_name' => $fiche !== '' ? $fiche : $v->visitor_name,
+            'address_line' => $address?->street,
+            'neighborhood' => $address?->neighborhood,
+        ];
     }
 
     /**

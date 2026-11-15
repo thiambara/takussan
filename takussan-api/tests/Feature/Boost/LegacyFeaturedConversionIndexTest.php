@@ -24,12 +24,14 @@ class LegacyFeaturedConversionIndexTest extends TestCase
     /** @return list<int> */
     private function sponsorises(): array
     {
-        return array_column($this->getJson('/api/public/properties/search?per_page=5')->assertOk()->json('sponsored'), 'id');
+        // TCK-2500 — une page d'une carte, qui ne porte pas la vedette (plus ancienne) : une vedette déjà parmi les cartes de
+        // la page n'est plus servie en emplacement.
+        return array_column($this->getJson('/api/public/properties/search?per_page=1')->assertOk()->json('sponsored'), 'id');
     }
 
     public function test_un_bien_sans_agence_ne_reste_pas_vedette_dans_l_index(): void
     {
-        $sansEspace = Property::factory()->published()->create(['agency_id' => null, 'featured' => true]);
+        $sansEspace = Property::factory()->published()->create(['agency_id' => null, 'featured' => true, 'published_at' => now()->subDay()]);
         Property::factory()->count(2)->published()->create();
         $this->indexProperties();
         app(PlatformSettingService::class)->bulkUpdate([

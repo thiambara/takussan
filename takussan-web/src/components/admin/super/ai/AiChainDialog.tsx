@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
@@ -54,7 +55,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   const t = useTranslations('superAdmin.pages.ai.chain');
   const tAi = useTranslations('superAdmin.pages.ai');
   const tRoles = useTranslations('superAdmin.pages.ai.roles');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const montant = useMontantIa();
   const garde = useGardeDoubleFacteur();
@@ -79,7 +80,7 @@ export function AiChainDialog({ open, onOpenChange, row, providers }: Props) {
   const brute = evaluation.data?.data;
   const run = brute && brute.candidate?.provider === chain[0]?.provider && brute.candidate?.model === chain[0]?.model ? brute : undefined;
   const enCours = run !== undefined && ['queued', 'running'].includes(run.status);
-  const nombre = (valeur: number) => format.number(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nombre = (valeur: number) => fmt.nombre(valeur, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const reports = run?.status === 'done' && run.report ? Object.values(run.report.usages) : [];
   const below = run?.status === 'done' && run.below_baseline === true;
   const motifRequis = below || motifExige;

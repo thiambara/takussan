@@ -27,8 +27,8 @@ const AGENTS = [
   { id: 8, name: 'Awa Diop' },
 ];
 
-function rendre() {
-  return render(withIntl(<PropertyListFilters currentUserId={1} agentOptions={AGENTS} />));
+function rendre(mode: 'gestion' | 'annonces' = 'annonces') {
+  return render(withIntl(<PropertyListFilters currentUserId={1} agentOptions={AGENTS} mode={mode} />));
 }
 
 /** La barre d'ordinateur : ce que la feuille remplace sous `lg`. */
@@ -82,9 +82,10 @@ describe('<PropertyListFilters> sur téléphone (TCK-644)', () => {
     const ordinateur = barreOrdinateur();
     expect(ordinateur.className.split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'lg:contents']));
     expect(within(ordinateur).getByRole('combobox', { name: 'Tri' })).toBeInTheDocument();
-    // …et le bouton qui les rassemble n'existe QUE sous `lg`.
+    // …et le bouton qui les rassemble est visible sous `lg` (TCK-2638, lot B2 : au bureau, le MÊME
+    // bouton déplie le panneau — une seule commande « Filtres » dans le DOM).
     const bouton = screen.getByRole('button', { name: /^Filtres et tri/ });
-    expect(bouton.className.split(/\s+/)).toContain('lg:hidden');
+    expect(bouton.className.split(/\s+/)).not.toContain('hidden');
     expect(within(bouton).getByText('Filtres')).toBeVisible();
   });
 
@@ -132,8 +133,11 @@ describe('<PropertyListFilters> sur téléphone (TCK-644)', () => {
 
   it('AC2 — chaque commande de la feuille produit la MÊME URL que sa jumelle d’ordinateur', async () => {
     const user = userEvent.setup();
-    rendre();
+    // TCK-2638 (lot B2) — au bureau, le panneau de la Gestion porte les cases et les critères ; la barre,
+    // le tri. jsdom rend le panneau (ouvert dès `w1440`, CSS non chargée).
+    rendre('gestion');
     const ordinateur = barreOrdinateur();
+    const avances = screen.getByTestId('filtres-avances-ordinateur');
 
     // Tri
     await choisir(user, ordinateur, 'Tri', 'Prix croissant');
@@ -149,7 +153,7 @@ describe('<PropertyListFilters> sur téléphone (TCK-644)', () => {
       ['Mes biens', '?only_mine=1'],
       ['Archivés', '?include_archived=1'],
     ] as const) {
-      await user.click(within(ordinateur).getByRole('checkbox', { name: nom }));
+      await user.click(within(avances).getByRole('switch', { name: nom }));
       const depuisOrdinateur = derniereUrl();
       feuille = await ouvrirFeuille(user);
       await user.click(within(feuille).getByRole('checkbox', { name: nom }));
@@ -158,9 +162,7 @@ describe('<PropertyListFilters> sur téléphone (TCK-644)', () => {
       await fermerFeuille(user);
     }
 
-    // Les listes des filtres avancés : la barre d'ordinateur les déplie d'abord.
-    await user.click(within(ordinateur).getByRole('button', { name: /Filtres avancés/ }));
-    const avances = screen.getByTestId('filtres-avances-ordinateur');
+    // Les listes des filtres avancés : dans le panneau.
     for (const [combobox, option, attendu] of [
       ['Statut', 'Disponible', '?status=available'],
       ['Type', 'Villa', '?type=villa'],

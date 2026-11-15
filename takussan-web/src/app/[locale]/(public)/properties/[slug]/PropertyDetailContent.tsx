@@ -8,10 +8,12 @@ import { recentlyViewedStorage } from '@/lib/recently-viewed';
 import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
+import { EnTeteDePage } from '@/components/navigation-publique/EnTeteDePage';
 import { PropertyBreadcrumb } from './components/PropertyBreadcrumb';
 import { PropertyHeader } from './components/PropertyHeader';
 import { PropertyGalleryMosaic } from './components/PropertyGalleryMosaic';
 import { PropertyMobileGallery } from './components/PropertyMobileGallery';
+import { GestesSurPhoto } from './components/GestesSurPhoto';
 import { PropertyLightbox } from './components/PropertyLightbox';
 import { PropertySpecsStrip } from './components/PropertySpecsStrip';
 import { PropertyDescription } from './components/PropertyDescription';
@@ -19,13 +21,14 @@ import { PropertyCharacteristics } from './components/PropertyCharacteristics';
 import { PropertyAmenities } from './components/PropertyAmenities';
 import { PropertyBookingCard } from './components/PropertyBookingCard';
 import { PropertyAgentCard } from './components/PropertyAgentCard';
-import { useIntentionDeReservation } from './components/useIntentionDeReservation';
+import { useReservationDeLaFiche } from '@/components/bookings/useReservationDeLaFiche';
 import { useAuth } from '@/context/AuthContext';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { usePropertyConversation } from '@/lib/queries/conversations';
 import { construireBrouillonBien } from '@/lib/messages/brouillonBien';
 import { peutContacterLeBien } from '@/lib/property/contactDuBien';
 import { PropertyMobileBottomBar } from './components/PropertyMobileBottomBar';
+import { PropertyMobileContact } from './components/PropertyMobileContact';
 import { PropertyLocationMap } from './components/PropertyLocationMap';
 import { PropertyPriceHistory } from './components/PropertyPriceHistory';
 import { PropertyDocuments } from './components/PropertyDocuments';
@@ -35,6 +38,7 @@ import { PropertySimilar } from './components/PropertySimilar';
 import { PropertyRecentlyViewed } from './components/PropertyRecentlyViewed';
 import { PropertySafetyNotice } from './components/PropertySafetyNotice';
 import { PropertyVirtualTour } from './components/PropertyVirtualTour';
+import { actionsDuContrat } from './components/actions-de-la-fiche';
 
 /**
  * TCK-850 (P33.04) — les quatre dialogues se chargent à la première ouverture, pas avant le premier
@@ -112,8 +116,13 @@ export function PropertyDetailContent({
    * est massivement vue par des anonymes.
    */
   const { user, isLoading } = useAuth();
-  // TCK-589 — retour de connexion/inscription avec `?action=reserver` : la boîte se rouvre.
-  const intentionReservation = useIntentionDeReservation(!isLoading, () => setReservationOpen(true));
+  // TCK-2510 — « Réserver » ET le retour de connexion `?action=reserver` (TCK-589) : un séjour court
+  // va au tunnel plein écran, dates reprises ; le dossier au mois et l'offre d'achat, à la boîte.
+  const { ouvrir: ouvrirReservation, intention: intentionReservation } = useReservationDeLaFiche(
+    property,
+    !isLoading,
+    () => setReservationOpen(true),
+  );
   const chatDraft = useChatDraft();
   const { data: resolutionResponse } = usePropertyConversation(user ? property.slug : null);
   const resolution = resolutionResponse?.data ?? null;
@@ -176,7 +185,36 @@ export function PropertyDetailContent({
         la règle reste : pendant l'animation, le `transform` est posé.
       */}
       <div className="animate-fade-in-up">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">
+        {/*
+          TCK-2501 — « Le prix d'abord ». Sous `md`, la photo ouvre la page (4:3, un tiers d'un écran
+          de 844 px), puis prix, titre, coût d'entrée et interlocuteur — tous avant le premier
+          défilement. Le prix et le coût d'entrée arrivaient à ~2 200 px, l'agent à ~2 700 : le bloc
+          de réservation de bureau était rendu APRÈS le contenu (audit UX 2026-11, P1). Les deux
+          galeries existaient déjà (carrousel sous `md`, mosaïque au-delà) : seul l'ordre change.
+        */}
+        {/* TCK-2568 — au téléphone, la fiche n'a pas la barre du site : le retour est posé sur la
+            photo (maquette de la fiche, approche A) ; de `md` à `lg`, une rangée de retour.
+            TCK-2503 — partager et favori l'y rejoignent sous `md` (`GestesSurPhoto`) ; à partir de
+            `md`, ils restent sous le titre (`PropertyHeader`). */}
+        <div className="relative">
+          <EnTeteDePage
+            variante="sur-photo"
+            retour={{ repli: '/properties' }}
+            action={
+              <GestesSurPhoto propertyId={property.id} prix={property.price} onShare={() => setShareOpen(true)} />
+            }
+          />
+          <div className="md:hidden">
+            <PropertyMobileGallery
+              photos={photos}
+              title={property.title}
+              onOpenLightbox={handleOpenLightbox}
+            />
+          </div>
+        </div>
+
+        {/* Sous `md`, le fil d'Ariane passe en fin de page (avant les biens similaires). */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">
           <PropertyBreadcrumb property={property} hrefQuartier={hrefQuartier} hrefVille={hrefVille} />
         </div>
 
@@ -189,21 +227,28 @@ export function PropertyDetailContent({
           />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">
-          <div className="hidden md:block">
-            <PropertyGalleryMosaic
-              photos={photos}
-              title={property.title}
-              onOpenLightbox={handleOpenLightbox}
-            />
-          </div>
-          <div className="md:hidden -mx-4">
-            <PropertyMobileGallery
-              photos={photos}
-              title={property.title}
-              onOpenLightbox={handleOpenLightbox}
-            />
-          </div>
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">
+          <PropertyGalleryMosaic
+            photos={photos}
+            title={property.title}
+            onOpenLightbox={handleOpenLightbox}
+          />
+        </div>
+
+        {/* TCK-2501 — sous `lg` : coût d'entrée, interlocuteur, canaux et action seconde. */}
+        <div className="lg:hidden max-w-7xl mx-auto px-4 sm:px-6 mt-4">
+          <PropertyMobileContact
+            property={property}
+            contact={destinataire}
+            agency={property.agency}
+            canMessage={peutContacter}
+            onMessage={ouvrirContact}
+            onRequestVisit={() => setVisitOpen(true)}
+            onRequestBooking={ouvrirReservation}
+          />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* TCK-598 (V19) — la visite virtuelle se range avec la galerie ; rien ne se charge avant
               le clic, et rien ne s'affiche sans URL. */}
           <div className="mt-3 empty:hidden">
@@ -235,6 +280,8 @@ export function PropertyDetailContent({
               ownerId={property.owner?.id ?? null}
               agencyId={property.agency?.id ?? null}
             />
+            {/* Sous `lg`, la carte de contact n'est pas dans la colonne : le conseil la suit ici. */}
+            <PropertySafetyNotice className="lg:hidden" />
             <div className="pt-2">
               <PropertyReportButton slug={property.slug} />
             </div>
@@ -242,28 +289,26 @@ export function PropertyDetailContent({
 
           {/* TCK-505 (#12) — `min-w-0`, comme la colonne principale : sans lui, un enfant de grille
               garde `min-width: auto` et tout contenu plus large que la colonne élargit la page. */}
-          <aside className="min-w-0 space-y-4 lg:sticky lg:top-40 self-start">
+          {/* TCK-2501 — bureau seulement : sous `lg`, la barre basse et le bloc de contact la remplacent. */}
+          <aside className="hidden min-w-0 space-y-4 lg:block lg:sticky lg:top-40 self-start">
             <PropertyBookingCard
               property={property}
-              onRequestVisit={() => setVisitOpen(true)}
-              onRequestBooking={() => setReservationOpen(true)}
-              onMessage={ouvrirContact}
-              canMessage={peutContacter}
-            />
-            <PropertyAgentCard
               contact={destinataire}
-              agency={property.agency}
-              propertySlug={property.slug}
-              propertyTitle={property.title}
+              onRequestVisit={() => setVisitOpen(true)}
+              onRequestBooking={ouvrirReservation}
               onMessage={ouvrirContact}
               canMessage={peutContacter}
             />
+            <PropertyAgentCard contact={destinataire} agency={property.agency} />
             {/* TCK-598 (V8) — hors de la carte de contact (TCK-590), juste sous elle. */}
             <PropertySafetyNotice />
           </aside>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-12">
+          <div className="md:hidden">
+            <PropertyBreadcrumb property={property} hrefQuartier={hrefQuartier} hrefVille={hrefVille} />
+          </div>
           <PropertySimilar slug={property.slug} donneesInitiales={similairesInitiaux} />
           <PropertyRecentlyViewed excludeId={property.id} />
         </div>
@@ -272,8 +317,11 @@ export function PropertyDetailContent({
       <div className="lg:hidden">
         <PropertyMobileBottomBar
           property={property}
+          contact={destinataire}
+          canMessage={peutContacter}
+          onMessage={ouvrirContact}
           onRequestVisit={() => setVisitOpen(true)}
-          onRequestBooking={() => setReservationOpen(true)}
+          onRequestBooking={ouvrirReservation}
         />
       </div>
 
@@ -284,7 +332,23 @@ export function PropertyDetailContent({
         startIndex={lightboxIndex}
         title={property.title}
       />
-      {visitMonte && <PropertyVisitDialog slug={property.slug} open={visitOpen} onOpenChange={setVisitOpen} />}
+      {visitMonte && (
+        <PropertyVisitDialog
+          property={property}
+          contactName={destinataire?.name ?? null}
+          open={visitOpen}
+          onOpenChange={setVisitOpen}
+          // TCK-2503 — location au dossier (décision 3a) : l'écran de suite mène au dossier.
+          onPrepareApplication={
+            actionsDuContrat(property).secondaire === 'apply'
+              ? () => {
+                  setVisitOpen(false);
+                  setReservationOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
       {reservationMonte && (
         <PropertyReservationDialog
           property={property}

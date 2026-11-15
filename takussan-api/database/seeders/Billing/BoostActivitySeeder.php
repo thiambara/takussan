@@ -256,9 +256,17 @@ class BoostActivitySeeder extends Seeder
             }
 
             $this->planifier($date, function () use ($agency, $bien, $offre, $acheteurId): void {
-                if ($this->grandLivre->balance($agency) >= $offre->price_credits) {
-                    $this->achats->purchase($bien, $offre, User::query()->findOrFail($acheteurId));
+                // TCK-2776 — la campagne en cours est ce qu'un visiteur voit aujourd'hui : elle ne dépend
+                // pas du solde que les achats tirés au hasard ont laissé. Le programme de lancement complète
+                // ce qui manque, par le geste de la plateforme. Sans ce complément, une petite agence
+                // (taille 0,4 : 24 crédits par mois, 3 Vedettes de 35 à 60) n'en gardait que ce que le
+                // hasard des achats lui laissait — mesuré le 2026-11-15 : 2 en CI (SeedingFeatureTablesTest),
+                // 0 sur l'arbre d'avant TCK-2776 à 01:45 ; sans crédit de bienvenue, 0 sans ce complément, 3 avec.
+                $manque = $offre->price_credits - $this->grandLivre->balance($agency);
+                if ($manque > 0) {
+                    $this->grandLivre->adminAdjust($agency, $manque, $this->ctx->operateur(), 'Programme de lancement : complément de campagne', 45);
                 }
+                $this->achats->purchase($bien, $offre, User::query()->findOrFail($acheteurId));
             });
         }
     }

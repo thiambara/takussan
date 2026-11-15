@@ -26,7 +26,7 @@ import {
 } from './onglet-des-visites';
 
 /**
- * TCK-171 — 4 tabs: Demandées / Confirmées / Passées / Annulées.
+ * TCK-171 — 4 tabs: Demandées / Confirmées / Passées / Annulées (+ « Toutes » en tête, TCK-2587).
  * Filtering is server-side via spatie filters.
  *
  * TCK-590 — un cinquième onglet, « Non attribuées », pour le personnel de l'agence : une demande
@@ -46,12 +46,13 @@ export function VisitsList() {
   const setTab = (next: TabKey) => remplacer({ tab: next === 'requested' ? null : next });
 
   // TCK-867 (P02.10) — arrondi à la minute (vers le bas) : l'instant entre dans la clé de cache
-  // des cinq `useVisits`, et à la milliseconde chaque montage en faisait cinq clés neuves.
+  // des `useVisits` (cinq alors), et à la milliseconde chaque montage en faisait autant de clés neuves.
   const nowIso = useMemo(() => debutDeLaMinute(new Date()), []);
 
   // TCK-2005 (P171.03) — une page par onglet, dans l'état de la liste : une page de 30 sans page
   // suivante taisait la 31ᵉ visite, sous un compteur d'onglet qui annonçait le total.
   const [pages, setPages] = useState<Record<TabKey, number>>({
+    all: 1,
     unassigned: 1,
     requested: 1,
     confirmed: 1,
@@ -59,6 +60,14 @@ export function VisitsList() {
     cancelled: 1,
   });
   const allerA = (onglet: TabKey) => (page: number) => setPages((avant) => ({ ...avant, [onglet]: page }));
+
+  // TCK-2587 — « Toutes » : la portée entière, celle que compte la pastille « Toutes N » du bureau.
+  const all = useVisits({
+    ...bornesDeLOnglet('all', nowIso),
+    sort: '-scheduled_at',
+    per_page: 30,
+    page: pages.all,
+  });
 
   // TCK-2479 (revue, I2) — le périmètre de chaque onglet est celui que le compteur du menu reprend.
   const unassigned = useVisits({
@@ -97,6 +106,7 @@ export function VisitsList() {
   });
 
   const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits> }> = [
+    { value: 'all', label: t('list.tabs.all'), query: all },
     ...(personnel
       ? [{ value: 'unassigned' as const, label: tPlanning('unassigned'), query: unassigned }]
       : []),

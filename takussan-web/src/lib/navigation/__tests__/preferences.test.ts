@@ -4,12 +4,12 @@ import {
   avecPersona,
   epinglesApresBascule,
   estParDefaut,
-  lirePreferencesDeNavigation,
   prefsApresEpingle,
   prefsApresRepli,
   prefsDe,
   versLeCorps,
 } from '../preferences';
+import { lirePreferencesDeNavigation } from '../preferences-schema';
 
 const AGENT = { v: 1, personas: { agent: { epingles: ['commissions'] } } } as const;
 

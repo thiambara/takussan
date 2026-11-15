@@ -11,7 +11,7 @@ import type { KycDossierStatus } from '@/types/super-admin';
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
  * Mesuré le 2026-08-27 : l'élargir à ses quatre cas laissait **16 fichiers / 118 tests verts**.
- * `kycDemandeUnGeste` n'alimente que l'emphase de la pastille d'`AgencyQueues`, et aucune
+ * `kycDemandeUnGeste` n'alimentait que l'emphase de la pastille du bloc de files de l'époque, et aucune
  * assertion ne la lisait — le test qui portait le sujet s'appelle « ne signale un geste que
  * quand il y en a un » et n'assérait en fait que le TON.
  *
@@ -151,5 +151,52 @@ describe('agency-queues — les comptes de file (TCK-375)', () => {
     expect(params.get('per_page')).toBe('1');
     // La portée vient du profil actif côté serveur — c'est la frontière d'isolation.
     expect(params.has('filter[agency_id]')).toBe(false);
+  });
+});
+
+/**
+ * TCK-2799 — repris des tests du bloc de files de l'ancienne vue d'agence (TCK-375), retiré : ce qu'ils tenaient
+ * sur les OPTIONS partagées, que la barre (`useCompteursDuMenu`), l'accueil (`useFilesDeLAdmin`), la modération et
+ * la fiche de l'agence lisent toujours.
+ */
+describe('agency-queues — les options partagées (repris de TCK-375 par TCK-2799)', () => {
+  it('en agence `individual`, ni la modération ni les invitations ne se demandent ; un `kind` INCONNU les garde', async () => {
+    const { propertyModerationCountQueryOptions, pendingInvitationsCountQueryOptions } = await import('@/lib/queries/agency-queues');
+    for (const options of [propertyModerationCountQueryOptions, pendingInvitationsCountQueryOptions]) {
+      expect(options('jeton', false).enabled).toBe(false);
+      expect(options('jeton', undefined).enabled).toBe(true);
+      expect(options('jeton', true).enabled).toBe(true);
+      expect(options(null, true).enabled).toBe(false);
+    }
+  });
+
+  it('sans agence résolue, le dossier KYC ne se demande pas', async () => {
+    const { agencyKycQueryOptions } = await import('@/lib/queries/agency-queues');
+    expect(agencyKycQueryOptions(null).enabled).toBe(false);
+    expect(agencyKycQueryOptions(7).enabled).toBe(true);
+  });
+
+  it('UNE source par compte : la clé ne s’écrit en ligne nulle part ailleurs dans `src` (AC5 de TCK-375)', async () => {
+    // Deux `queryKey` pour le même nombre, ce sont deux requêtes et, après une décision qui n'invalide que l'une, un
+    // badge à 3 devant une file à 4. La clé partagée est la constante ; un lecteur qui la réécrit en ligne rougit ici.
+    const { readFileSync, readdirSync, statSync } = await import('node:fs');
+    const { join, relative } = await import('node:path');
+    const racine = join(process.cwd(), 'src');
+    const fautifs: string[] = [];
+    const parcourir = (dossier: string) => {
+      for (const nom of readdirSync(dossier)) {
+        const chemin = join(dossier, nom);
+        if (statSync(chemin).isDirectory()) {
+          if (nom !== '__tests__' && nom !== 'messages') parcourir(chemin);
+        } else if (/\.tsx?$/.test(nom) && !chemin.endsWith(join('lib', 'queries', 'agency-queues.ts'))) {
+          const texte = readFileSync(chemin, 'utf8');
+          if (/\[\s*'property-moderation'\s*,\s*'pending-count'\s*\]|\[\s*'agency-invitations'\s*,\s*'pending-count'\s*\]/.test(texte)) {
+            fautifs.push(relative(racine, chemin));
+          }
+        }
+      }
+    };
+    parcourir(racine);
+    expect(fautifs).toEqual([]);
   });
 });

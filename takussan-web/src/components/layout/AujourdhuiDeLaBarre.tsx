@@ -10,6 +10,7 @@ import { compteAffiche } from './compte-affiche';
 import type { EntreeRendue } from './useMenuDeLEspace';
 import {
   FOCUS_RING_RENTRANT,
+  ENCRE_D_ICONE_REPOS,
   ICONE_DE_LIGNE,
   STYLE_LIGNE,
   STYLE_LIGNE_REPOS,
@@ -57,10 +58,15 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate, infobulle = f
       // Rail : un filet le sépare du menu, comme entre deux groupes.
       className="mb-5 icones:mb-2 icones:border-b icones:border-border/60 icones:pb-2"
     >
-      <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
+      {/* TCK-2712 (11c) — 18 px dans la colonne (`pb-1`, la maquette) ; la ligne de 28 px d'avant au tiroir. */}
+      <p
+        id={idTitre}
+        className={cn('px-2 pb-1 max-md:mb-0.5 max-md:flex max-md:h-7 max-md:items-center max-md:pb-0 icones:sr-only', STYLE_TITRE)}
+      >
         {t('titre')}
       </p>
-      <ul className="space-y-px">
+      {/* TCK-2712 (11c) — sans interstice dans la colonne (pas de 28,8 px à 1440), comme le menu. */}
+      <ul className="max-md:space-y-px">
         {lignes.map((ligne, rang) => {
           const Icone = entrees.find((e) => e.counterKey === ligne.cle)?.icon;
           const libelle = t(`lignes.${ligne.cle}`);
@@ -73,11 +79,22 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate, infobulle = f
                       href={ligne.href}
                       onClick={onNavigate}
                       // `relative` : le point du rail se pose sur l'icône.
-                      className={cn('relative', STYLE_LIGNE, STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT, 'transition-colors')}
+                      // TCK-2712 (11c, ADR-0106) — dans la colonne dépliée, la ligne de la maquette : `h-8` en
+                      // 13 px ; le rail garde la hauteur des lignes du menu, le tiroir sa ligne de 40 px en 15 px.
+                      className={cn('relative', STYLE_LIGNE, 'h-8 text-ui icones:h-9', STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT, 'transition-colors')}
                     />
                   }
                 >
-                  {Icone ? <Icone className={ICONE_DE_LIGNE} strokeWidth={TRAIT_D_ICONE} aria-hidden /> : null}
+                  {/* TCK-2691 (C6) — l'icône au repos en `muted-foreground`. TCK-2712 (11c) — la maquette
+                      n'en dessine aucune dans la colonne dépliée ; le rail la garde (revue I1 de TCK-2490 :
+                      chaque ligne y devient son icône) et le tiroir aussi (aucune maquette du téléphone). */}
+                  {Icone ? (
+                    <Icone
+                      className={cn(ICONE_DE_LIGNE, ENCRE_D_ICONE_REPOS, 'hidden max-md:block icones:block')}
+                      strokeWidth={TRAIT_D_ICONE}
+                      aria-hidden
+                    />
+                  ) : null}
                   <span
                     aria-hidden
                     data-slot="point-aujourdhui"
@@ -90,8 +107,10 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate, infobulle = f
                     data-slot="compte-aujourdhui"
                     className={cn(
                       // Rail : le nombre quitte l'œil (le point et l'infobulle le portent), il reste lu.
-                      'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1.5 text-[11.5px] font-semibold tabular-nums icones:sr-only',
-                      rang === 0 ? 'bg-primary text-primary-foreground' : 'bg-foreground/7 text-foreground',
+                      // TCK-2712 (11c) — le compte de la maquette : rond, 11 px 600 ; neutre sur `muted` à
+                      // l'encre douce OPAQUE (la maquette écrit `foreground/70` : TCK-658, aucune encre translucide).
+                      'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-legende font-semibold tabular-nums icones:sr-only',
+                      rang === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-encre-douce',
                     )}
                   >
                     {/* M1 — plafonné comme le menu ; plafonné, le vrai compte reste lu. */}

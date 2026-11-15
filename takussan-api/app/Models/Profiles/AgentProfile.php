@@ -29,6 +29,9 @@ class AgentProfile extends AbstractModel
         'license_number', 'commission_rate',
         'specialty', 'hire_date', 'active_until',
         'metadata',
+        // TCK-2518 — langues (codes de `directory.languages`) et quartiers (`geo_neighborhoods`) de
+        // l'annuaire. `median_response_minutes` n'est PAS ici : son seul écrivain est le job nocturne.
+        'languages', 'neighborhood_ids',
     ];
 
     protected $casts = [
@@ -37,6 +40,9 @@ class AgentProfile extends AbstractModel
         'hire_date' => 'date',
         'active_until' => 'date',
         'metadata' => 'array',
+        'languages' => 'array',
+        'neighborhood_ids' => 'array',
+        'median_response_minutes' => 'integer',
     ];
 
     /**

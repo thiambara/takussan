@@ -9,7 +9,7 @@ interface Spec {
 }
 
 export function PropertySpecsStrip({ property }: { property: PropertyDetail }) {
-  const t = useTranslations('property.detail.specs');
+  const t = useTranslations('propertyDetail.specs');
   const specs: Spec[] = [];
   if (property.bedrooms) specs.push({ icon: BedDouble, value: property.bedrooms, label: t('bedrooms') });
   if (property.bathrooms) specs.push({ icon: Bath, value: property.bathrooms, label: t('bathrooms') });

@@ -8,6 +8,7 @@ use App\Http\Requests\Public\PublicPortfolioRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Agency;
+use App\Models\AgencySpotlight;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
@@ -17,6 +18,8 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Geo\GeoAddressCanonicalizer;
+use App\Services\Public\AgencyShowcase;
 use App\Services\Public\PublicProfileFacts;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -119,24 +122,12 @@ class PublicAgencyController extends Controller
      */
     public function index(IndexPublicProfilesRequest $request): JsonResponse
     {
-        $base = Agency::query()
-            ->where('agencies.status', AgencyStatus::Active)
-            // TCK-1313 (P85.04) — un espace `individual` n'est pas une agence de l'annuaire : la
-            // personne y a déjà sa fiche sous `/agents/{slug}`. Même filtre dans `show()` et
-            // `properties()`, sans quoi l'annuaire et la fiche se contrediraient.
-            ->where('agencies.kind', AgencyKind::Standard)
-            ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio())
+        $base = self::agencesDeLAnnuaire()
             // `withCount` produit une sous-requête corrélée nommée : c'est ce qui rend
             // `sort=-portfolio_count` possible sans jointure ni `GROUP BY` sur la page.
             ->withCount(['properties as portfolio_count' => fn (Builder $q) => $q->publicPortfolio()]);
 
-        if (($ville = $request->ville()) !== null) {
-            $base->whereHas('properties', fn (Builder $q) => $q->publicPortfolio()
-                ->whereHas('address', fn ($a) => $a->whereRaw(
-                    CaseInsensitive::sql('city').' = ?',
-                    [CaseInsensitive::fold($ville)],
-                )));
-        }
+        self::filtrerParVille($base, $request->ville());
 
         $agences = QueryBuilder::for($base, $request)
             ->allowedFilters(
@@ -170,8 +161,13 @@ class PublicAgencyController extends Controller
         $ids = $agences->getCollection()->map(fn (Agency $a) => (int) $a->id)->all();
         $portefeuilles = PublicProfileFacts::portefeuilles('agency_id', $ids);
         $avis = PublicProfileFacts::avis(Agency::class, $ids);
+        // TCK-2518 — la vitrine : trois photos de biens publics et les baux signés du mois, par lot.
+        $vitrine = app(AgencyShowcase::class);
+        $couvertures = $vitrine->covers($agences->getCollection());
+        $bauxDuMois = $vitrine->leasesSignedThisMonth($ids);
 
-        $data = $agences->getCollection()->map(function (Agency $agence) use ($portefeuilles, $avis) {
+        // TCK-2520 — une ligne de l'annuaire, réutilisée pour la place « Mise en avant » ci-dessous.
+        $enLigne = function (Agency $agence, array $portefeuilles, array $avis, array $couvertures, array $bauxDuMois): array {
             $portefeuille = $portefeuilles[(int) $agence->id];
 
             return [
@@ -198,15 +194,108 @@ class PublicAgencyController extends Controller
                 'rent_count' => $portefeuille['rent_count'],
                 'sale_count' => $portefeuille['sale_count'],
                 'reviews' => $avis[(int) $agence->id],
+                // TCK-2518 — ni `tagline` ni `highlights` ici : du texte libre, servi par paquets de 48
+                // et filtrable, est le vecteur de moisson que `description` est déjà (cf. ci-dessus).
+                // La fiche les sert, une à la fois.
+                'cover' => $couvertures[(int) $agence->id] ?? [],
+                'leases_signed_this_month' => $bauxDuMois[(int) $agence->id] ?? 0,
+                'median_response_minutes' => $agence->median_response_minutes,
             ];
-        })->values()->all();
+        };
+        $data = $agences->getCollection()
+            ->map(fn (Agency $agence) => $enLigne($agence, $portefeuilles, $avis, $couvertures, $bauxDuMois))
+            ->values()->all();
 
-        return $this->paginated($agences, $data, [
-            // La FACETTE de ville, dérivée du catalogue éligible : le front ne compose aucune
-            // liste de villes, il rend celle-ci. Une liste écrite côté front serait juste le jour
-            // où on l'écrit — et le catalogue bouge sans que le dépôt change.
-            'cities' => PublicProfileFacts::villesDuCatalogue('agency_id')->all(),
+        // TCK-2520 (ADR-0092) — la place « Mise en avant » de la ville demandée (sans ville : celle de
+        // l'annuaire entier), À CÔTÉ de la liste : l'agence y garde son rang (décision 1a). Elle n'est
+        // émise que si l'agence passe le filtre de `data` pour cette ville, ville comprise :
+        // suspendue, `individual`, sans bien public, ou sans bien public DANS cette ville, jamais.
+        $miseEnAvant = $this->miseEnAvant($request->ville());
+        $spotlight = $miseEnAvant === null ? null : $enLigne(
+            $miseEnAvant,
+            PublicProfileFacts::portefeuilles('agency_id', [(int) $miseEnAvant->id]),
+            PublicProfileFacts::avis(Agency::class, [(int) $miseEnAvant->id]),
+            $vitrine->covers([$miseEnAvant]),
+            $vitrine->leasesSignedThisMonth([(int) $miseEnAvant->id]),
+        );
+
+        return $this->json([
+            'data' => $data,
+            'meta' => $this->paginationMeta($agences, [
+                // La FACETTE de ville, dérivée du catalogue éligible : le front ne compose aucune
+                // liste de villes, il rend celle-ci. Une liste écrite côté front serait juste le jour
+                // où on l'écrit — et le catalogue bouge sans que le dépôt change.
+                'cities' => PublicProfileFacts::villesDuCatalogue('agency_id')->all(),
+            ]),
+            'spotlight' => $spotlight,
         ]);
+    }
+
+    /**
+     * Les agences que l'annuaire peut lister : actives, `standard`, avec au moins un bien public.
+     *
+     * TCK-1313 (P85.04) — un espace `individual` n'est pas une agence de l'annuaire : la personne y
+     * a déjà sa fiche sous `/agents/{slug}`. Même filtre dans `show()` et `properties()`, sans quoi
+     * l'annuaire et la fiche se contrediraient. TCK-2520 — la place « Mise en avant » passe par le
+     * même filtre : une place ne ramène jamais une agence que l'annuaire refuse (ADR-0092 § 4).
+     *
+     * @return Builder<Agency>
+     */
+    private static function agencesDeLAnnuaire(): Builder
+    {
+        return Agency::query()
+            ->where('agencies.status', AgencyStatus::Active)
+            ->where('agencies.kind', AgencyKind::Standard)
+            ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio());
+    }
+
+    /**
+     * `filter[city]` : au moins un bien public dont l'adresse porte ce nom de ville. Une seule
+     * écriture, pour la liste et pour la place « Mise en avant » (TCK-2520, ADR-0092 § 4) : une
+     * vitrine qui jugerait la ville autrement que `data` montrerait à Dakar une agence que la liste de
+     * Dakar refuse.
+     *
+     * @param  Builder<Agency>  $agences
+     */
+    private static function filtrerParVille(Builder $agences, ?string $ville): void
+    {
+        if ($ville === null) {
+            return;
+        }
+
+        $agences->whereHas('properties', fn (Builder $q) => $q->publicPortfolio()
+            ->whereHas('address', fn ($a) => $a->whereRaw(
+                CaseInsensitive::sql('city').' = ?',
+                [CaseInsensitive::fold($ville)],
+            )));
+    }
+
+    /**
+     * TCK-2520 (ADR-0092 § 5) — l'agence de la place active pour cette ville, si elle est éligible.
+     * La ville du filtre est un NOM : celle du référentiel qui le porte, unique dans le pays ; un nom
+     * ambigu ou inconnu n'a pas de vitrine. Sans filtre, la place de l'annuaire entier.
+     */
+    private function miseEnAvant(?string $ville): ?Agency
+    {
+        $villeId = null;
+        if ($ville !== null) {
+            $villeId = app(GeoAddressCanonicalizer::class)->villeParNom($ville, null)?->id;
+            if ($villeId === null) {
+                return null;
+            }
+        }
+
+        $place = AgencySpotlight::query()->activeAt($villeId, now())->first();
+
+        if ($place === null) {
+            return null;
+        }
+
+        // La requête de `data`, filtre de ville compris : la place n'ajoute aucune agence à la liste.
+        $eligible = self::agencesDeLAnnuaire()->whereKey($place->agency_id);
+        self::filtrerParVille($eligible, $ville);
+
+        return $eligible->with(['addresses', 'media'])->first();
     }
 
     public function show(Request $request, string $slug): JsonResponse
@@ -320,7 +409,8 @@ class PublicAgencyController extends Controller
 
                     return [
                         'id' => $u->id,
-                        'slug' => $u->username,
+                        // TCK-2519 — le slug au nom quand il est posé.
+                        'slug' => $u->slugDeFiche(),
                         'full_name' => trim($u->first_name.' '.$u->last_name),
                         'public_role' => ($roles[(int) $u->id] ?? 'owner') === 'agent' && $professionnelsIci->has((int) $u->id)
                             ? 'agent'
@@ -334,6 +424,10 @@ class PublicAgencyController extends Controller
                         'portfolio_count' => (int) ($portfolioCounts[$u->id] ?? 0),
                     ];
                 })
+                // TCK-2506 — « L'équipe » ne liste que les agents de CETTE agence : un particulier
+                // qui lui confie son bien n'y paraît plus, et le bandeau (`stats.agents`) compte
+                // exactement ce que la liste montre.
+                ->filter(fn (array $membre) => $membre['public_role'] === 'agent')
                 ->sortByDesc('portfolio_count')
                 ->values();
 
@@ -364,6 +458,13 @@ class PublicAgencyController extends Controller
                 'email' => $agency->email,
                 'phone' => $agency->phone,
                 'city' => $agency->addresses->first()?->city,
+                // TCK-2518 — la vitrine. Tous facultatifs : `null` / `[]`, la fiche s'en passe sans trou.
+                'tagline' => $agency->tagline,
+                'highlights' => array_values($agency->highlights ?? []),
+                'showcase' => PropertyResource::collection(app(AgencyShowcase::class)->showcase($agency))->toArray($request),
+                'cover' => app(AgencyShowcase::class)->covers([$agency])[(int) $agency->id] ?? [],
+                'leases_signed_this_month' => app(AgencyShowcase::class)->leasesSignedThisMonth([(int) $agency->id])[(int) $agency->id],
+                'median_response_minutes' => $agency->median_response_minutes,
                 'stats' => [
                     'rent_count' => $rentCount,
                     'sale_count' => $saleCount,

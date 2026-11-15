@@ -20,12 +20,14 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\BankStatement;
 use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
+use App\Models\Enums\VisitWindow;
 use App\Models\KycDossier;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -38,7 +40,9 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Booking\PropertyCalendarSyncService;
+use App\Services\Documents\DocumentExpiryReminder;
 use App\Services\Kyc\KycExpiryService;
+use App\Services\Lease\RentReviewService;
 use App\Services\Model\BookingService;
 use App\Services\Visit\VisitNotifier;
 use App\Support\Http\DnsResolver;
@@ -79,6 +83,9 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::VisitRescheduledByVisitor,
         NotificationCode::VisitCancelledByVisitor,
         NotificationCode::VisitRequested,
+        NotificationCode::VisitRequestedWindow,
+        NotificationCode::VisitCancelledWindow,
+        NotificationCode::VisitCancelledByVisitorWindow,
         NotificationCode::VisitConfirmed,
         NotificationCode::VisitRescheduled,
         NotificationCode::VisitCancelled,
@@ -92,6 +99,10 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::PropertyCalendarConflict,
         NotificationCode::ImpersonationEnded,
         NotificationCode::AgencyMemberDeletionRequested,
+        // TCK-2642 — l'avis de révision au bailleur.
+        NotificationCode::LeaseRentReviewedLandlord,
+        // TCK-2783 — le rappel d'expiration d'une pièce.
+        NotificationCode::DocumentExpiringSoon,
     ];
 
     protected function setUp(): void
@@ -176,6 +187,28 @@ class FormeDesDatesDeNotificationTest extends TestCase
         }
     }
 
+    /** TCK-2502 — la demande par tranche porte un JOUR (`date`), pas un instant. */
+    public function test_la_visite_demandee_par_tranche(): void
+    {
+        $visit = PropertyVisit::factory()->create([
+            'property_id' => $this->property->id,
+            'agent_id' => $this->agent->id,
+            'visitor_id' => $this->client->id,
+            'status' => VisitStatus::Scheduled,
+            'scheduled_at' => VisitWindow::Morning->startOn(now()->addDays(2)->format('Y-m-d'))->utc(),
+            'preferred_window' => VisitWindow::Morning,
+        ]);
+
+        $notifier = app(VisitNotifier::class);
+        $notifier->requested($visit);
+        $notifier->cancelledByAgency($visit);
+        $notifier->cancelledByVisitor($visit);
+
+        $this->assertFormes(NotificationCode::VisitRequestedWindow);
+        $this->assertFormes(NotificationCode::VisitCancelledWindow);
+        $this->assertFormes(NotificationCode::VisitCancelledByVisitorWindow);
+    }
+
     public function test_l_echeance_du_dossier_kyc(): void
     {
         $agency = Agency::factory()->create(['is_verified' => true]);
@@ -192,6 +225,22 @@ class FormeDesDatesDeNotificationTest extends TestCase
         app(KycExpiryService::class)->run();
 
         $this->assertFormes(NotificationCode::KycExpiringSoon);
+    }
+
+    /** TCK-2783 — le rappel d'expiration d'une pièce de « Mes pièces ». */
+    public function test_l_echeance_d_une_piece(): void
+    {
+        $user = User::factory()->create();
+        Document::factory()->create([
+            'documentable_type' => User::class,
+            'documentable_id' => $user->id,
+            'uploaded_by' => $user->id,
+            'expiry_date' => Document::today()->addDays(7)->toDateString(),
+        ]);
+
+        app(DocumentExpiryReminder::class)->run();
+
+        $this->assertFormes(NotificationCode::DocumentExpiringSoon);
     }
 
     public function test_la_delegation_activee(): void
@@ -301,6 +350,23 @@ class FormeDesDatesDeNotificationTest extends TestCase
         app(AccountDeletionService::class)->requestDeletion($this->agent);
 
         $this->assertFormes(NotificationCode::AgencyMemberDeletionRequested);
+    }
+
+    /** TCK-2642 — la révision de loyer, revue par l'admin d'agence : le bailleur est prévenu, `effective_date` en date. */
+    public function test_la_revision_de_loyer_au_bailleur(): void
+    {
+        $lease = Lease::factory()->active()->create([
+            'landlord_id' => User::factory()->create()->id,
+            'monthly_rent' => 200_000,
+            'start_date' => now()->subMonths(13)->toDateString(),
+            'end_date' => now()->addMonths(11)->toDateString(),
+        ]);
+
+        app(RentReviewService::class)->review($lease, User::factory()->create(), [
+            'new_rent' => 205_000, 'reason' => 'Révision annuelle', 'effective_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $this->assertFormes(NotificationCode::LeaseRentReviewedLandlord);
     }
 
     public function test_chaque_code_date_du_catalogue_est_eprouve_ici(): void

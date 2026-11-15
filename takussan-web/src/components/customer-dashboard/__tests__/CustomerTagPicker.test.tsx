@@ -71,7 +71,7 @@ describe('CustomerTagPicker', () => {
       />,
     ));
 
-    const input = screen.getByPlaceholderText('Ajouter un tag…');
+    const input = screen.getByPlaceholderText('Ajouter une étiquette…');
     fireEvent.change(input, { target: { value: 'new' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -84,7 +84,7 @@ describe('CustomerTagPicker', () => {
 
     render(withIntl(<CustomerTagPicker customerId={1} initialTags={[]} />));
 
-    const input = screen.getByPlaceholderText('Ajouter un tag…');
+    const input = screen.getByPlaceholderText('Ajouter une étiquette…');
     fireEvent.change(input, { target: { value: 'tagname' } });
     fireEvent.keyDown(input, { key: ',' });
 
@@ -98,7 +98,7 @@ describe('CustomerTagPicker', () => {
       <CustomerTagPicker customerId={1} initialTags={[makeTag(42, 'vip')]} />,
     ));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retirer le tag vip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retirer l’étiquette vip' }));
 
     await waitFor(() => expect(mockDetach).toHaveBeenCalledWith(1, 42));
     await waitFor(() => expect(screen.queryByText('vip')).toBeNull());
@@ -109,7 +109,7 @@ describe('CustomerTagPicker', () => {
 
     render(withIntl(<CustomerTagPicker customerId={1} initialTags={[]} />));
 
-    const input = screen.getByPlaceholderText('Ajouter un tag…');
+    const input = screen.getByPlaceholderText('Ajouter une étiquette…');
     fireEvent.change(input, { target: { value: 'overflowing' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -121,7 +121,7 @@ describe('CustomerTagPicker', () => {
   it('disables input when 10 tags are present', () => {
     const tenTags = Array.from({ length: 10 }, (_, i) => makeTag(i + 1, `tag${i + 1}`));
     render(withIntl(<CustomerTagPicker customerId={1} initialTags={tenTags} />));
-    const input = screen.getByPlaceholderText('Max 10 tags');
+    const input = screen.getByPlaceholderText('10 étiquettes au plus');
     expect((input as HTMLInputElement).disabled).toBe(true);
   });
 
@@ -137,12 +137,12 @@ describe('CustomerTagPicker', () => {
       />,
     ));
 
-    const input = screen.getByPlaceholderText('Ajouter un tag…');
+    const input = screen.getByPlaceholderText('Ajouter une étiquette…');
     await act(async () => {
       fireEvent.change(input, { target: { value: 'v' } });
     });
 
-    expect(screen.queryByRole('list')).toBeTruthy();
+    expect(screen.queryByRole('listbox')).toBeTruthy();
     expect(screen.queryByText('vip')).toBeTruthy();
     expect(screen.queryByText('prospect')).toBeNull();
   });

@@ -39,7 +39,7 @@ import Page from '../page';
 
 async function rendre(roles: string[]) {
   getMeAction.mockResolvedValue({ id: 1, roles });
-  render(withIntl(await Page()));
+  render(withIntl(await Page({ searchParams: Promise.resolve({}) })));
 }
 
 beforeEach(() => {

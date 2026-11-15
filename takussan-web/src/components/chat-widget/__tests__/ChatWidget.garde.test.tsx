@@ -9,6 +9,9 @@ import { render, screen } from '@testing-library/react';
 
 const charge = vi.hoisted(() => vi.fn());
 const useAuthMock = vi.fn<() => { user: { id: number } | null }>();
+const chemin = vi.hoisted(() => ({ valeur: '/' as string | null }));
+
+vi.mock('next/navigation', () => ({ usePathname: () => chemin.valeur }));
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => useAuthMock(),
@@ -24,10 +27,21 @@ import { ChatWidget } from '../ChatWidget';
 describe('<ChatWidget> garde', () => {
   beforeEach(() => {
     useAuthMock.mockReset();
+    chemin.valeur = '/';
   });
 
   it('ne rend rien et ne charge pas le corps pour un visiteur anonyme', async () => {
     useAuthMock.mockReturnValue({ user: null });
+    const { container } = render(<ChatWidget />);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(container).toBeEmptyDOMElement();
+    expect(charge).not.toHaveBeenCalled();
+  });
+
+  // TCK-2619 — AVANT le cas connecté : l'usine du module ne compte qu'un premier chargement.
+  it.each(['/app', '/app/leases', '/app/messages'])('ne charge pas le corps sous la console (%s), même connecté', async (route) => {
+    useAuthMock.mockReturnValue({ user: { id: 1 } });
+    chemin.valeur = route;
     const { container } = render(<ChatWidget />);
     await new Promise((r) => setTimeout(r, 50));
     expect(container).toBeEmptyDOMElement();

@@ -1,0 +1,60 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T02:02:19.486Z",
+  "duree_ms": 4358,
+  "commit": "925795e2974a",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-entree-orientation",
+  "approche": "a",
+  "ecran": 0,
+  "nom": "Prénom"
+ },
+ "appareil": "telephone",
+ "W": 390,
+ "H": 844,
+ "DPR": 2,
+ "rem": 16,
+ "spacingPx": 4,
+ "densite": 1,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"TAKUSSAN Takussan Comment tu t’appelles ? Ton prénom apparaît sur tes annonces e","tag":"div","r":{"x":0,"y":0,"w":390,"h":844},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"TAKUSSAN Takussan","tag":"header","r":{"x":0,"y":0,"w":390,"h":56},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,1,0],"couleurBord":[235,229,214,0.7],"rayon":[0,0,0,0],"ombre":null,"marges":[0,4,0,4],"ecart":4},
+  {"type":"icone","cle":"svg","r":{"x":16,"y":11.5,"w":34,"h":24},"dans":[1,0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":58,"y":15.5,"w":115.9,"h":28},"dans":[1,0],"police":"bricolageExt","taille":18,"graisse":600,"interligne":28,"espacement":2.5,"couleur":[31,24,18,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":15,"y":10.5,"w":1,"h":1},"dans":[1,0],"police":"dmSansExt","taille":16,"graisse":400,"interligne":24,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":5,"type":"boite","dans":[1,0],"cle":"","tag":"span","r":{"x":348,"y":24.5,"w":16,"h":6},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":6,"type":"boite","dans":[1,0],"cle":"","tag":"span","r":{"x":368,"y":24.5,"w":6,"h":6},"slot":null,"fid":null,"fond":[34,27,20,0.15],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Comment tu t’appelles ?","tag":"h1","r":{"x":16,"y":76,"w":358,"h":31.4},"dans":[0],"police":"bricolageExt","taille":28,"graisse":600,"interligne":31.4,"espacement":-0.7,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Ton prénom apparaît sur tes annonces et tes messages.","tag":"p","r":{"x":16,"y":115.4,"w":358,"h":45},"dans":[0],"police":"dmSansExt","taille":15,"graisse":400,"interligne":22.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Prénom","tag":"p","r":{"x":16,"y":184.4,"w":61.3,"h":20},"dans":[0],"police":"dmSansExt","taille":14,"graisse":500,"interligne":20,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"*","tag":"span","r":{"x":66.8,"y":185.4,"w":10.5,"h":18},"dans":[0],"police":"dmSansExt","taille":14,"graisse":500,"interligne":20,"espacement":0,"couleur":[183,1,16,1],"casse":"none","chiffres":"normal"},
+  {"id":11,"type":"boite","dans":[0],"cle":"Awa","tag":"div","r":{"x":16,"y":210.4,"w":358,"h":44},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[168,83,50,1],"rayon":[10,10,10,10],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.540443 0.0913644 0.0798483 / 0.15) 0px 0px 0px 3px, rgba(0, 0, 0, 0) 0px 0px 0px 0px","marges":[0,14,0,14],"ecart":10},
+  {"type":"texte","cle":"Awa","tag":"span","r":{"x":31,"y":218.9,"w":328,"h":27},"dans":[11,0],"police":"dmSansExt","taille":16,"graisse":400,"interligne":24,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":13,"type":"boite","dans":[11,0],"cle":"","tag":"span","r":{"x":62.6,"y":221.9,"w":1.5,"h":20},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Nom","tag":"p","r":{"x":16,"y":270.4,"w":102.9,"h":20},"dans":[0],"police":"dmSansExt","taille":14,"graisse":500,"interligne":20,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"(facultatif)","tag":"span","r":{"x":46.9,"y":271.4,"w":71.9,"h":18},"dans":[0],"police":"dmSansExt","taille":14,"graisse":400,"interligne":20,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"id":16,"type":"boite","dans":[0],"cle":"Diop","tag":"div","r":{"x":16,"y":296.4,"w":358,"h":44},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[144,133,113,0.45],"rayon":[10,10,10,10],"ombre":null,"marges":[0,14,0,14],"ecart":10},
+  {"type":"texte","cle":"Diop","tag":"span","r":{"x":31,"y":306.4,"w":328,"h":24},"dans":[16,0],"police":"dmSansExt","taille":16,"graisse":400,"interligne":24,"espacement":0,"couleur":[110,101,90,0.8],"casse":"none","chiffres":"normal"},
+  {"id":18,"type":"boite","dans":[0],"cle":"CE QUE LES AUTRES VERRONT A Awa · à l’instant Bonjour, le studio de Mermoz est-i","tag":"div","r":{"x":16,"y":364.4,"w":358,"h":141},"slot":null,"fid":null,"fond":[240,235,225,0.4],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[14,14,14,14],"ombre":null,"marges":[14,14,14,14],"ecart":0},
+  {"type":"texte","cle":"Ce que les autres verront","tag":"p","r":{"x":31,"y":379.4,"w":328,"h":16.5},"dans":[18,0],"police":"dmSansExt","taille":11,"graisse":600,"interligne":16.5,"espacement":0.9,"couleur":[110,101,90,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"A","tag":"span","r":{"x":31,"y":407.9,"w":36,"h":36},"dans":[18,0,21],"police":"dmSansExt","taille":14,"graisse":600,"interligne":20,"espacement":0,"couleur":[93,110,79,1],"casse":"none","chiffres":"normal"},
+  {"id":21,"type":"boite","dans":[18,0],"cle":"A","tag":"span","r":{"x":31,"y":407.9,"w":36,"h":36},"slot":null,"fid":null,"fond":[94,107,81,0.15],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Awa","tag":"span","r":{"x":77,"y":408.9,"w":28.2,"h":18},"dans":[18,0],"police":"dmSansExt","taille":14,"graisse":600,"interligne":20,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"· à l’instant","tag":"span","r":{"x":108.9,"y":408.9,"w":68.7,"h":18},"dans":[18,0],"police":"dmSansExt","taille":14,"graisse":400,"interligne":20,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Bonjour, le studio de Mermoz est-il toujours libre ?","tag":"p","r":{"x":77,"y":433.9,"w":282,"h":56.5},"dans":[18,0,25],"police":"dmSansExt","taille":14,"graisse":400,"interligne":19.3,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":25,"type":"boite","dans":[18,0],"cle":"Bonjour, le studio de Mermoz est-il toujours libre ?","tag":"p","r":{"x":77,"y":433.9,"w":282,"h":56.5},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[8,18,18,18],"ombre":null,"marges":[8,12,8,12],"ecart":0},
+  {"id":26,"type":"boite","dans":[0],"cle":"Continuer","tag":"div","r":{"x":0,"y":763,"w":390,"h":81},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,0,0,0],"couleurBord":[235,229,213,1],"rayon":[0,0,0,0],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.215465 0.0073894 0.0141341 / 0.4) 0px -6px 16px -12px","marges":[12,16,20,16],"ecart":0},
+  {"type":"texte","cle":"Continuer","tag":"span","r":{"x":16,"y":776,"w":358,"h":48},"dans":[26,0,28],"police":"dmSansExt","taille":16,"graisse":600,"interligne":24,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":28,"type":"boite","dans":[26,0],"cle":"Continuer","tag":"span","r":{"x":16,"y":776,"w":358,"h":48},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,24,0,24],"ecart":8}
+ ]
+}

@@ -4,23 +4,31 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ActivateLeaseRequest;
+use App\Http\Requests\Api\AbandonLeaseDraftRequest;
 use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
 use App\Http\Requests\Api\StoreLeaseRequest;
 use App\Http\Requests\Api\TerminateLeaseRequest;
 use App\Http\Requests\UpdateLeaseRequest;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LeaseResource;
+use App\Models\Booking;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Lease\LeaseAttention;
+use App\Services\Lease\LeaseDueSummary;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
-use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
+use App\Sorts\LeaseStatusRankSort;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Spatie\QueryBuilder\AllowedSort;
 
 class LeaseController extends Controller
 {
@@ -30,28 +38,36 @@ class LeaseController extends Controller
     {
         $user = $request->user();
 
-        $base = Lease::query()->with(['property.address', 'property.media', 'tenant']);
+        // TCK-2803 — `tenant` n'est plus chargé d'office : spatie le charge sous `include=tenant`
+        // (`$requestLoadable`), et le rendu le borne plus bas.
+        $base = Lease::query()->with(['property.address', 'property.media']);
 
-        if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail
-                // sans agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent
-                // créateur suspendu ou retiré ne liste plus le bail qui le désigne.
-                $q->where(fn ($b) => BailleurDuBien::restreindre($b, $user, 'landlord_id'))
-                    ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
-                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
-                // listait les ressources de tous les autres.
-                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
-                    $q->orWhere('agency_id', $staffAgencyId);
-                }
-            });
-        }
+        // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail sans
+        // agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent créateur suspendu
+        // ou retiré ne liste plus le bail qui le désigne. TCK-587 — le périmètre d'agence est celui du
+        // PERSONNEL (ADR-0031). TCK-2637 — la clause vit dans `Lease::scopeVisibleTo()`, que lit aussi
+        // l'occupation des biens (bloc `tenant`).
+        $base->visibleTo($user);
 
+        // TCK-2642 (P3 de l'audit) — par défaut, les baux en cours avant les brouillons et les baux
+        // finis (`sort=etat`, `LeaseStatusRankSort`), puis les plus récents. Le défaut se passe en
+        // `AllowedSort` : un nom nu, spatie le prend pour une COLONNE (`order by "etat"`).
         $paginator = Lease::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+            ->defaultSort(AllowedSort::custom('etat', new LeaseStatusRankSort), '-created_at')
             ->paginate();
 
-        return $this->paginated($paginator, LeaseResource::collection($paginator)->toArray($request));
+        $this->attachComputed($paginator->getCollection(), $request);
+
+        // TCK-2803 — le bloc `tenant` de chaque ligne, par la décision de la fiche (TCK-2780) : sous
+        // `include=tenant` seulement, borné par `fields[customers]`. Le locataire reste chargé entier :
+        // spatie lit les champs d'une relation incluse sous `tenants`, que la liste refuse (400) ; les
+        // gardes de `CustomerResource` se jugent donc sur la fiche complète, sans relecture par ligne.
+        $avecLocataire = in_array('tenant', $this->requestedIncludes($request), true);
+        $champs = $avecLocataire ? CustomerResource::champsDemandesDuBloc($request) : null;
+
+        return $this->paginated($paginator, $paginator->getCollection()
+            ->map(fn (Lease $lease): array => LeaseResource::make($lease)->avecLocataire($avecLocataire, $champs)->resolve($request))
+            ->all());
     }
 
     public function store(StoreLeaseRequest $request): JsonResponse
@@ -65,7 +81,8 @@ class LeaseController extends Controller
         $lease = $this->leases->create($property, $request->user(), $data);
 
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property', 'tenant']))->resolve($request),
+            // TCK-2803 — sans le locataire : la réponse d'un geste ne le rend pas (`LeaseResource`).
+            'data' => LeaseResource::make($lease->load(['property']))->resolve($request),
         ], 201);
     }
 
@@ -73,11 +90,46 @@ class LeaseController extends Controller
     {
         $this->authorize('view', $lease);
 
+        // TCK-2642 — la fiche ne passe pas par `buildQuery()` : ses inclusions se lisent à la main.
+        // TCK-2780 — `tenant` en est une : rendu sous `include=tenant` seulement, et borné par
+        // `fields[customers]` (le nom que valide la liste). Chargé entier : les gardes de
+        // `CustomerResource` se jugent sur la fiche complète, le bornage ne vaut que pour le rendu.
+        $includes = $this->requestedIncludes($request);
+        $avecLocataire = in_array('tenant', $includes, true);
+        $lease->load(array_values(array_intersect(['landlord', 'agent', 'tenant'], $includes)));
+        $this->attachComputed($lease->newCollection([$lease]), $request);
+
         return $this->json([
-            'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'signatures.signer', 'signatures.onBehalfOf']))
+            'data' => LeaseResource::make($lease->load(['property.address', 'signatures.signer', 'signatures.onBehalfOf']))
                 ->forViewer($request->user())
+                ->avecLocataire($avecLocataire, $avecLocataire ? CustomerResource::champsDemandesDuBloc($request) : null)
                 ->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2642 — `include=attention` (la file « À traiter », une requête pour la page) et
+     * `include=due_summary` (le résumé d'échéance, une requête) : absents sans l'inclusion.
+     *
+     * @param  Collection<int, Lease>  $leases
+     */
+    private function attachComputed(Collection $leases, Request $request): void
+    {
+        $includes = $this->requestedIncludes($request);
+        if (in_array('attention', $includes, true)) {
+            LeaseAttention::for($request->user())->attach($leases);
+        }
+        if (in_array('due_summary', $includes, true)) {
+            LeaseDueSummary::attach($leases);
+        }
+    }
+
+    /** @return list<string> */
+    private function requestedIncludes(Request $request): array
+    {
+        $raw = ParametreUnique::chaine($request, 'include');
+
+        return $raw === null ? [] : array_map('trim', explode(',', $raw));
     }
 
     /**
@@ -144,6 +196,30 @@ class LeaseController extends Controller
         return $this->json([
             'data' => LeaseResource::make($lease)->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2764 — abandonner un brouillon jamais envoyé en signature (suppression douce). La réponse
+     * rend la candidature d'origine telle qu'elle est restée, pour que l'écran propose de la fermer
+     * par son propre geste (`reject` si `pending`, `cancel` si `confirmed`).
+     */
+    public function destroy(AbandonLeaseDraftRequest $request, Lease $lease): JsonResponse
+    {
+        $abandonne = $this->leases->abandonDraft($lease, $request->user(), $request->validated('reason'));
+
+        return $this->json(['data' => [
+            'id' => $abandonne->id,
+            'abandoned_at' => $this->instant($abandonne->deleted_at),
+            'origin_booking' => self::candidatureDOrigine($abandonne),
+        ]]);
+    }
+
+    /** @return array{id: int, status: string|null}|null */
+    private static function candidatureDOrigine(Lease $lease): ?array
+    {
+        $candidature = $lease->booking_id !== null ? Booking::query()->whereKey($lease->booking_id)->first(['id', 'status']) : null;
+
+        return $candidature === null ? null : ['id' => $candidature->id, 'status' => $candidature->status?->value];
     }
 
     public function terminate(TerminateLeaseRequest $request, Lease $lease): JsonResponse
@@ -282,14 +358,29 @@ class LeaseController extends Controller
     {
         $this->authorize('view', $lease);
 
-        $guarantors = $lease->guarantors()->get()->map(fn (Guarantor $g) => [
-            'id' => $g->id,
-            'first_name' => $g->first_name,
-            'last_name' => $g->last_name,
-            'email' => $g->email,
-            'phone' => $g->phone,
-            'role' => $g->pivot->role ?? null,
-        ])->values();
+        // TCK-2762 — ce que la fiche du bail fait du garant : `can_edit` par ligne, jugé par la policy du
+        // GARANT (`GuarantorPolicy::update`, celle de `PUT /api/guarantors/{id}`), et non par celle du
+        // bail. Sur une ligne modifiable seulement : `id_on_file` (une pièce est renseignée — jamais son
+        // numéro, même masqué : cette route est ouverte au locataire) et `leases_count` (le garant est
+        // partagé, le modifier touche tous ses baux).
+        $user = $request->user();
+        $guarantors = $lease->guarantors()->withCount('leasesPivot')->get()->map(function (Guarantor $g) use ($user): array {
+            $modifiable = $user->can('update', $g);
+
+            return [
+                'id' => $g->id,
+                'first_name' => $g->first_name,
+                'last_name' => $g->last_name,
+                'email' => $g->email,
+                'phone' => $g->phone,
+                'role' => $g->pivot->role ?? null,
+                'can_edit' => $modifiable,
+                ...($modifiable ? [
+                    'id_on_file' => $g->id_type !== null && is_string($g->id_number) && trim($g->id_number) !== '',
+                    'leases_count' => (int) $g->leases_pivot_count,
+                ] : []),
+            ];
+        })->values();
 
         return $this->json(['data' => $guarantors]);
     }

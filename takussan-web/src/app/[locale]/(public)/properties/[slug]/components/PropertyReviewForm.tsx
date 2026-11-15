@@ -14,7 +14,7 @@ interface PropertyReviewFormProps {
 }
 
 export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormProps) {
-  const t = useTranslations('property.reviews.form');
+  const t = useTranslations('propertyReviews.form');
   const messageErreur = useMessageErreurApi();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);

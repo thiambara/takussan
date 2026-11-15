@@ -10,16 +10,21 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Policies\DocumentPolicy;
+use App\Support\Http\ParametreUnique;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Document extends AbstractModel implements HasMedia
 {
@@ -30,11 +35,17 @@ class Document extends AbstractModel implements HasMedia
         'name', 'type', 'description',
         'is_verified', 'verified_by', 'verified_at',
         'expiry_date', 'metadata',
+        // TCK-2759 — un document de fiche client gardé pour l'agence (ADR-0099, amendement du 2026-11-12).
+        'is_internal',
     ];
+
+    /** TCK-2759 — la valeur de la colonne en mémoire aussi : un document créé sans le dire n'est pas interne. */
+    protected $attributes = ['is_internal' => false];
 
     protected $casts = [
         'type' => DocumentType::class,
         'is_verified' => 'boolean',
+        'is_internal' => 'boolean',
         'verified_at' => 'datetime',
         'expiry_date' => 'date',
         'metadata' => 'array',
@@ -55,7 +66,104 @@ class Document extends AbstractModel implements HasMedia
         PlatformProfile::class,
     ];
 
-    protected static array $requestFilterable = ['documentable_id', 'documentable_type', 'uploaded_by', 'type', 'is_verified'];
+    // TCK-2655 — `documentable_type` et `expiring_within_days` sont des filtres sur mesure
+    // ({@see self::customQueryFilters()}).
+    protected static array $requestFilterable = ['documentable_id', 'uploaded_by', 'type', 'is_verified'];
+
+    /**
+     * TCK-2655 (ADR-0099 §5) — les cibles se nomment par un alias court, plus par le nom de classe
+     * complet (encore accepté). `owner_profile` est lisible en liste ; `store` garde sa propre liste.
+     */
+    public const TARGET_ALIASES = [
+        'property' => Property::class,
+        'lease' => Lease::class,
+        'customer' => Customer::class,
+        'owner_profile' => OwnerProfile::class,
+        'inventory' => Inventory::class,
+        'booking' => Booking::class,
+        'user' => User::class,
+        'agency' => Agency::class,
+    ];
+
+    /** TCK-2655 — « expire bientôt » : la pastille de l'agence et le compte du coffre (ambre à 42 j). */
+    public const EXPIRING_SOON_DAYS = 60;
+
+    /** TCK-2655 — le fuseau dans lequel se lit « aujourd'hui » pour l'expiration. */
+    public const EXPIRY_TIMEZONE = 'Africa/Dakar';
+
+    /** Le nom de classe d'un alias de cible, ou du nom complet ; nul s'il n'est pas une cible connue. */
+    public static function targetClass(mixed $type): ?string
+    {
+        if (! is_string($type) || $type === '') {
+            return null;
+        }
+        $lower = strtolower($type);
+
+        return self::TARGET_ALIASES[$lower]
+            ?? collect(self::TARGET_ALIASES)->first(fn (string $fqcn): bool => strtolower($fqcn) === $lower);
+    }
+
+    /**
+     * TCK-2655 — `filter[documentable_type]=lease` (alias ou nom complet, liste à virgules ; un type
+     * inconnu ne rend rien) et `filter[expiring_within_days]=N` : expire entre aujourd'hui (Dakar)
+     * et dans N jours inclus ; déjà expiré, sans date ou valeur illisible : non.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('documentable_type', function (Builder $q, mixed $value): void {
+                $raw = ParametreUnique::valeur($value);
+                $classes = array_values(array_filter(array_map(
+                    fn (string $t): ?string => self::targetClass(trim($t)),
+                    $raw === null ? [] : explode(',', $raw),
+                )));
+                $classes === [] ? $q->whereRaw('1 = 0') : $q->whereIn($q->qualifyColumn('documentable_type'), $classes);
+            })->delimiter(''),
+            // TCK-2841 (ADR-0099, amendement du 2026-11-14) — déclaré pour être accepté ; la borne de
+            // l'arbre (le bien et ses baux hors brouillon) et sa garde vivent dans la requête de base
+            // (`DocumentPolicy::listableOnPropertyAndLeases`), que `DocumentController::index` choisit.
+            AllowedFilter::callback('property_with_leases', function (): void {})->delimiter(''),
+            AllowedFilter::callback('expiring_within_days', function (Builder $q, mixed $value): void {
+                $raw = ParametreUnique::valeur($value);
+                if ($raw === null || ! ctype_digit($raw) || strlen($raw) > 4) {
+                    $q->whereRaw('1 = 0');
+
+                    return;
+                }
+                $today = self::today();
+                $q->whereBetween($q->qualifyColumn('expiry_date'), [$today->toDateString(), $today->addDays((int) $raw)->toDateString()]);
+            })->delimiter(''),
+        ];
+    }
+
+    /** Aujourd'hui à Dakar, en date de calendrier. */
+    public static function today(): CarbonImmutable
+    {
+        return CarbonImmutable::now(self::EXPIRY_TIMEZONE)->startOfDay();
+    }
+
+    /**
+     * TCK-2655 — les comptes `expiring_soon` et `unverified` d'une requête déjà bornée, en une requête.
+     *
+     * @param  Builder<self>  $scoped
+     * @return array{expiring_soon: int, unverified: int}
+     */
+    public static function attentionCounts(Builder $scoped): array
+    {
+        $today = self::today();
+        // `select([])` d'abord : la liste porte les colonnes de `fields[documents]`, qu'un agrégat ne
+        // peut pas côtoyer sans GROUP BY (PostgreSQL refuse).
+        $row = (clone $scoped)->toBase()->reorder()->select([])
+            ->selectRaw(
+                'count(*) filter (where expiry_date between ? and ?) as expiring_soon, count(*) filter (where is_verified = false) as unverified',
+                [$today->toDateString(), $today->addDays(self::EXPIRING_SOON_DAYS)->toDateString()],
+            )
+            ->first();
+
+        return ['expiring_soon' => (int) ($row->expiring_soon ?? 0), 'unverified' => (int) ($row->unverified ?? 0)];
+    }
 
     /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
     protected static array $requestFilterableTypes = ['uploaded_by' => TypedExactFilter::IDENTIFIANT, 'is_verified' => TypedExactFilter::BOOLEEN];
@@ -72,6 +180,8 @@ class Document extends AbstractModel implements HasMedia
         'created_at', 'updated_at',
         // TCK-987 (P58.02) — la clé de `verifier`, que `DocumentResource` rend déjà.
         'verified_by',
+        // TCK-2759 — `DocumentResource` rend `is_internal`.
+        'is_internal',
     ];
 
     /** TCK-697 — pièce (`PIECE_TYPES`) rattachée à un profil (`PROFILE_TYPES`). */
@@ -112,8 +222,98 @@ class Document extends AbstractModel implements HasMedia
             'documentable_id' => $this->documentable_id,
             'uploaded_by' => $this->uploaded_by,
             'created_at' => $this->created_at?->timestamp,
+            // TCK-2781 — ce que la règle de lecture lit du porteur, pour que la recherche l'écrive en
+            // filtre borné (`DocumentSearchService::filtreDeLecture`) au lieu d'un `NOT id IN [...]`.
+            'is_internal' => (bool) $this->is_internal,
+            ...$this->porteurPourLIndex(),
         ];
     }
+
+    /**
+     * Les porteurs que la règle d'auteur ({@see DocumentPolicy::restreindreAuTeleverseur()})
+     * juge par leur agence : hors de cette liste (`User`, prestataire, plateforme), un téléversement
+     * n'est jamais retiré, et `carrier_agency_id` reste nul.
+     */
+    public const PORTEURS_D_AGENCE = [
+        Property::class, Lease::class, Booking::class, Customer::class, Agency::class,
+        Inventory::class, AgencyUpgradeRequest::class,
+        OwnerProfile::class, AgentProfile::class, AgencyAdminProfile::class,
+    ];
+
+    /**
+     * TCK-2781 — les faits du porteur que la règle de lecture lit, recopiés dans l'index. Un porteur
+     * supprimé (en douceur ou non) ne se charge pas : présent faux, agence et sujet nuls — la règle SQL
+     * le juge de même (`whereHasMorph` ne le trouve pas).
+     *
+     *  - `carrier_present` : le porteur existe. Le super-admin ne lit l'interne que d'une fiche présente,
+     *    dont l'agence peut être nulle ;
+     *  - `carrier_agency_id` : l'agence du porteur, celle du bien pour un état des lieux (bien supprimé :
+     *    nulle), nulle hors de {@see self::PORTEURS_D_AGENCE} ;
+     *  - `subject_user_id` : le compte que la règle d'auteur épargne — le locataire du bail, le client de
+     *    la réservation, le `user_id` de la fiche ou du profil.
+     *
+     * Ces faits se réindexent quand leur source change : `DocumentsDuPorteurObserver`.
+     *
+     * @return array{carrier_present: bool, carrier_agency_id: ?int, subject_user_id: ?int}
+     */
+    public function porteurPourLIndex(): array
+    {
+        $porteur = $this->documentable_type !== null ? $this->documentable : null;
+        $dAgence = $porteur !== null && in_array($porteur::class, self::PORTEURS_D_AGENCE, true);
+
+        $agence = match (true) {
+            ! $dAgence => null,
+            $porteur instanceof Agency => $porteur->id,
+            $porteur instanceof Inventory => $porteur->property?->agency_id,
+            default => $porteur->agency_id,
+        };
+        $sujet = match (true) {
+            $porteur instanceof Lease => $porteur->tenant?->user_id,
+            $porteur instanceof Booking => $porteur->customer?->user_id,
+            $porteur instanceof Customer, $porteur instanceof OwnerProfile,
+            $porteur instanceof AgentProfile, $porteur instanceof AgencyAdminProfile => $porteur->user_id,
+            default => null,
+        };
+
+        return [
+            'carrier_present' => $porteur !== null,
+            'carrier_agency_id' => $agence !== null ? (int) $agence : null,
+            'subject_user_id' => $sujet !== null ? (int) $sujet : null,
+        ];
+    }
+
+    /**
+     * TCK-2781 — `toSearchableArray()` lit le porteur et, selon son type, son bien, son locataire ou son
+     * client : chargés d'avance, sinon une importation ou une réindexation coûte quatre requêtes par document.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with(['documentable' => fn (MorphTo $morph) => $morph->morphWith(self::PRECHARGE_DU_PORTEUR)]);
+    }
+
+    /**
+     * Le porteur est RECHARGÉ, jamais repris de la mémoire : chargé plus tôt avec une partie de ses
+     * colonnes (`fields[...]`), il rendrait une agence nulle — la valeur qui laisse passer.
+     *
+     * @param  Collection<int, Document>  $models
+     */
+    public function makeSearchableUsing(Collection $models): Collection
+    {
+        if ($models instanceof \Illuminate\Database\Eloquent\Collection && $models->isNotEmpty()) {
+            $models->load(['documentable' => fn (MorphTo $morph) => $morph->morphWith(self::PRECHARGE_DU_PORTEUR)]);
+        }
+
+        return $models;
+    }
+
+    private const PRECHARGE_DU_PORTEUR = [
+        Inventory::class => ['property'],
+        Lease::class => ['tenant'],
+        Booking::class => ['customer'],
+    ];
 
     public function shouldBeSearchable(): bool
     {

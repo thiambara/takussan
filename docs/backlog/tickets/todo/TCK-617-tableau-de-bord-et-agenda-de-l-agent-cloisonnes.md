@@ -7,7 +7,7 @@ family: full
 estimate: M
 wave: 76
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-11-10
 depends_on: []
 blocks: []
 spec_refs:
@@ -23,6 +23,15 @@ tags: [back, front, tableau-de-bord, agenda, ical, crm, cloisonnement, sessions,
 ---
 
 # TCK-617 — Le tableau de bord et l'agenda de l'agent, cloisonnés
+
+> **Mise à jour du 2026-11-10 (audit UX, familles 3 et 5).** La vue agent `/app/overview/agent`
+> disparaît : son contenu se répartit entre **« Aujourd'hui »**, l'accueil de l'agent (**TCK-2596**),
+> et l'onglet « Vue d'ensemble » de la page **Rapports** (**TCK-2628**). La règle du point 1 (les
+> visites d'une autre agence n'y passent plus) doit tenir **sur ces deux pages** : à livrer avant
+> TCK-2628, ou ses critères se vérifient sur les nouvelles adresses. **Le point 3 est déjà corrigé**
+> (P56.01 : `PipelineStatsService` lit `attribute_changes`) ; le taux de conversion qui lit encore
+> `updated_at` est repris par **TCK-2591**. Les points 1, 2, 4 et 6 restent entiers ; le point 5
+> attend toujours sa décision.
 
 ## Objectif utilisateur
 

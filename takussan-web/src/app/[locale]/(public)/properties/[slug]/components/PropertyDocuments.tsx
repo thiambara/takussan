@@ -21,7 +21,7 @@ function formatSize(bytes: number): string {
 }
 
 export function PropertyDocuments({ documents }: PropertyDocumentsProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const publicDocs = documents.filter((d) => d.public);
 
   if (publicDocs.length === 0) return null;

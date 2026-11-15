@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * TCK-628 — la section « À vendre » de l'accueil, lue sur la recherche publique EXISTANTE.
+ * TCK-2495 — les sections de l'accueil lues par le serveur seul : les quartiers de la ville des
+ * rangées (tuiles) et son offre (bloc propriétaire), sur deux endpoints qui existaient déjà.
  *
  * Le double est posé à la frontière du réseau (`apiFetch`), comme dans `rendu-serveur.test.tsx`.
- * Les tuiles par ville, par type et par quartier ont été retirées le 2026-10-10 : le test garde
- * aussi qu'aucune de leurs requêtes ne part plus.
+ * « À vendre » (TCK-628) a quitté l'accueil : le test garde aussi qu'aucune recherche ne part plus.
  */
 
 const urls: string[] = [];
@@ -25,36 +25,71 @@ vi.mock('@/lib/api', async (importOriginal) => {
   };
 });
 
-const { raccourcisDeLAccueil } = await import('../raccourcis-de-l-accueil');
-
-const BIEN = { id: 1, title: 'Villa', slug: 'villa', contract_type: 'sale' };
+const { raccourcisDeLAccueil, QUARTIERS_DE_L_ACCUEIL_MAX } = await import('../raccourcis-de-l-accueil');
 
 beforeEach(() => {
   urls.length = 0;
   vi.spyOn(console, 'error').mockImplementation(() => {});
   reponses = {
-    '/public/properties/search': { data: [BIEN], meta: { total: 1 } },
+    '/public/properties/neighborhoods': {
+      data: [
+        { value: 'Mermoz', count: 12 },
+        { value: 'Ngor', count: 9 },
+        { value: 'Vide', count: 0 },
+      ],
+      meta: { truncated: false },
+    },
+    '/public/properties/cities': {
+      data: [
+        { value: 'Dakar', count: 190, contracts: { rent: 127, sale: 63 } },
+        { value: 'Thiès', count: 8, contracts: { rent: 4, sale: 4 } },
+      ],
+      meta: { truncated: false },
+    },
   };
 });
 
 describe('raccourcisDeLAccueil', () => {
-  it('demande la vente à la recherche publique, et rien d’autre', async () => {
-    const r = await raccourcisDeLAccueil('fr');
+  it('lit les quartiers et l’offre de LA ville des rangées, et aucune recherche', async () => {
+    const r = await raccourcisDeLAccueil('Dakar');
 
-    expect(r.vente?.map((b) => b.id)).toEqual([1]);
-    expect(urls).toHaveLength(1);
-    expect(new URLSearchParams(urls[0]!.split('?')[1]).get('contract_type')).toBe('sale');
+    expect(r.ville).toBe('Dakar');
+    expect(r.quartiers).toEqual([
+      { nom: 'Mermoz', compte: 12 },
+      { nom: 'Ngor', compte: 9 },
+    ]);
+    expect(r.offre).toEqual({ ville: 'Dakar', location: 127, vente: 63 });
+    expect(urls.some((u) => u.startsWith('/public/properties/search'))).toBe(false);
+    expect(new URLSearchParams(urls.find((u) => u.includes('neighborhoods'))!.split('?')[1]).get('city')).toBe('Dakar');
   });
 
-  it('coupe les emplacements : la rangée ne les affiche pas, ils ne comptent donc aucune impression (TCK-687)', async () => {
-    await raccourcisDeLAccueil('fr');
-
-    expect(new URLSearchParams(urls[0]!.split('?')[1]).get('placements')).toBe('false');
+  it('la ville se retrouve sans tenir compte de la casse', async () => {
+    expect((await raccourcisDeLAccueil('dakar')).offre?.location).toBe(127);
   });
 
-  it('en panne, la section disparaît', async () => {
-    reponses['/public/properties/search'] = new Error('Meilisearch éteint');
+  it(`au plus ${8} tuiles`, async () => {
+    reponses['/public/properties/neighborhoods'] = {
+      data: Array.from({ length: 12 }, (_, i) => ({ value: `Q${i}`, count: 20 - i })),
+      meta: { truncated: false },
+    };
+    expect((await raccourcisDeLAccueil('Dakar')).quartiers).toHaveLength(QUARTIERS_DE_L_ACCUEIL_MAX);
+  });
 
-    expect((await raccourcisDeLAccueil('fr')).vente).toBeNull();
+  it('un compte de contrat absent n’est pas zéro : pas d’offre plutôt qu’un chiffre faux', async () => {
+    reponses['/public/properties/cities'] = { data: [{ value: 'Dakar', count: 190 }], meta: { truncated: false } };
+    expect((await raccourcisDeLAccueil('Dakar')).offre).toBeNull();
+  });
+
+  it('en panne, chaque section disparaît seule', async () => {
+    reponses['/public/properties/neighborhoods'] = new Error('API éteinte');
+    const r = await raccourcisDeLAccueil('Dakar');
+    expect(r.quartiers).toBeNull();
+    expect(r.offre).not.toBeNull();
+  });
+
+  it('sans ville (découverte en panne), rien n’est demandé', async () => {
+    const r = await raccourcisDeLAccueil(null);
+    expect(r).toEqual({ ville: null, quartiers: null, offre: null });
+    expect(urls).toHaveLength(0);
   });
 });

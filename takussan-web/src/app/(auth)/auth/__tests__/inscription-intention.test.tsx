@@ -3,6 +3,10 @@
  * l'intention d'origine (`?redirect=`) traverse connexion → inscription → vérification de
  * l'e-mail → `/onboarding/intention`.
  *
+ * TCK-2606 — l'inscription est l'onglet « Créer un compte » de la voie e-mail (`VoieEmail`) : trois
+ * contrôles, `{email, password}` seulement, et le geste (`?intention=`) suit le `redirect`. L'écran
+ * « Vérifiez votre adresse » est éprouvé par `oubli-et-verification.tck-2606.test.tsx`.
+ *
  * ⚠ « jamais sans jeton » s'éprouve sur DEUX témoins : `openSession` (seul chemin vers le cookie,
  * garde `AuthContext.chemin-unique`) et `fetch` — un `set-token` reçu vide EFFACE le cookie.
  */
@@ -22,16 +26,14 @@ vi.mock('@/lib/auth', () => ({
   register: (...args: unknown[]) => registerMock(...args),
   login: vi.fn(),
   isTwoFactorChallenge: () => false,
+  oauthProviders: async () => [],
+  oauthRedirect: vi.fn(),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ openSession: openSessionMock }),
 }));
 
-vi.mock('@/components/auth/OAuthButtons', () => ({
-  OAuthButtons: () => <div />,
-  OAuthSeparator: () => <div />,
-}));
 
 vi.mock('@/app/actions/auth', () => ({ resendVerificationEmailAction: vi.fn() }));
 
@@ -40,9 +42,23 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParams,
 }));
 
-const { default: RegisterPage } = await import('../register/page');
-const { default: LoginPage } = await import('../login/page');
-const { default: VerifyEmailPage } = await import('../verify-email/page');
+const { VoieEmail } = await import('@/components/auth/VoieEmail');
+const { lireActionDEntree } = await import('@/components/auth/lien-connexion');
+// TCK-2604 — `/auth/register` redirige vers la connexion (`?voie=inscription`) ; TCK-2606 — son
+// formulaire est l'onglet « Créer un compte » de la voie e-mail.
+function RegisterPage() {
+  return (
+    <VoieEmail
+      intention={null}
+      redirect={searchParams.get('redirect')}
+      action={lireActionDEntree(searchParams.get('intention'))}
+      ongletInitial="creation"
+      erreurOAuth={null}
+      motDePasseModifie={false}
+    />
+  );
+}
+const { FormulaireDeConnexion: LoginPage } = await import('../login/FormulaireDeConnexion');
 
 beforeEach(() => {
   pushMock.mockReset();
@@ -61,11 +77,8 @@ afterEach(() => {
 async function sInscrire(): Promise<void> {
   const user = userEvent.setup();
   render(withIntl(<RegisterPage />));
-  await user.type(screen.getByLabelText(/^Prénom/), 'Fatou');
-  await user.type(screen.getByLabelText(/^Nom/), 'Diop');
-  await user.type(screen.getByLabelText(/^Adresse email/), 'fatou.diop@example.com');
-  await user.type(screen.getByLabelText(/^Mot de passe/), 'Secret123!');
-  await user.type(screen.getByLabelText(/^Confirmer le mot de passe/), 'Secret123!');
+  await user.type(screen.getByLabelText('E-mail'), 'fatou.diop@example.com');
+  await user.type(screen.getByLabelText('Mot de passe'), 'Secret123!');
   await user.click(screen.getByRole('checkbox'));
   await user.click(screen.getByRole('button', { name: 'Créer mon compte' }));
   await waitFor(() => expect(registerMock).toHaveBeenCalledTimes(1));
@@ -91,6 +104,23 @@ describe('AC5 — l’inscription ouvre la session avec le jeton reçu', () => {
     );
   });
 
+  it('AC1 (TCK-2606) — n’envoie que l’adresse et le mot de passe : ni prénom, ni nom, ni confirmation', async () => {
+    registerMock.mockResolvedValue({ token: 'jeton', expires_at: null, user: { id: 12 }, message: 'ok' });
+
+    await sInscrire();
+
+    expect(registerMock).toHaveBeenCalledWith({ email: 'fatou.diop@example.com', password: 'Secret123!' });
+  });
+
+  it('le geste interrompu suit la page à rouvrir jusqu’à la vérification de l’adresse', async () => {
+    searchParams = new URLSearchParams({ redirect: '/properties/villa-ngor', intention: 'reservation' });
+    registerMock.mockResolvedValue({ token: 'jeton', expires_at: null, user: { id: 12 }, message: 'ok' });
+
+    await sInscrire();
+
+    expect(pushMock).toHaveBeenCalledWith('/auth/verify-email?redirect=%2Fproperties%2Fvilla-ngor&intention=reservation');
+  });
+
   it('sans jeton dans la réponse : aucune session ouverte, aucun set-token, retour à la connexion', async () => {
     registerMock.mockResolvedValue({ user: { id: 12 }, message: 'ok' });
 
@@ -98,55 +128,46 @@ describe('AC5 — l’inscription ouvre la session avec le jeton reçu', () => {
 
     expect(openSessionMock).not.toHaveBeenCalled();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/auth/set-token'))).toBe(false);
-    expect(pushMock).toHaveBeenCalledWith('/auth/login');
+    expect(pushMock).toHaveBeenCalledWith('/auth/login?voie=email');
   });
 
-  it('« Déjà un compte ? » garde l’intention', () => {
+  it('l’onglet « J’ai un compte » revient à la connexion sans quitter la page', async () => {
     searchParams = new URLSearchParams({ redirect: '/properties/villa-ngor' });
     render(withIntl(<RegisterPage />));
-    expect(screen.getByRole('link', { name: 'Se connecter' })).toHaveAttribute(
-      'href',
-      '/auth/login?redirect=%2Fproperties%2Fvilla-ngor',
-    );
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'J’ai un compte' }));
+    expect(screen.getByRole('button', { name: 'Me connecter' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });
 
+// TCK-2604 — `/auth/register` redirige vers la connexion ; TCK-2606 — l'onglet « Créer un compte » y
+// ouvre l'inscription sur place, et c'est elle qui porte l'intention jusqu'à la vérification.
 describe('AC5b — « Créer un compte » de la connexion porte le redirect assaini', () => {
-  it('/auth/login?redirect=/properties/x → le lien d’inscription la porte, encodée', () => {
-    searchParams = new URLSearchParams({ redirect: '/properties/x' });
+  async function sInscrireDepuisLaConnexion(): Promise<void> {
+    const user = userEvent.setup();
+    registerMock.mockResolvedValue({ token: 'jeton', expires_at: null, user: { id: 1 }, message: 'ok' });
     render(withIntl(<LoginPage />));
-    expect(screen.getByRole('link', { name: "S'inscrire" })).toHaveAttribute(
-      'href',
-      '/auth/register?redirect=%2Fproperties%2Fx',
-    );
+    await user.click(screen.getByRole('tab', { name: 'Créer un compte' }));
+    await user.type(screen.getByLabelText('E-mail'), 'fatou.diop@example.com');
+    await user.type(screen.getByLabelText('Mot de passe'), 'Secret123!');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Créer mon compte' }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
+  }
+
+  it('/auth/login?redirect=/properties/x → l’inscription la porte, encodée', async () => {
+    searchParams = new URLSearchParams({ redirect: '/properties/x' });
+    await sInscrireDepuisLaConnexion();
+    expect(pushMock).toHaveBeenCalledWith('/auth/verify-email?redirect=%2Fproperties%2Fx');
   });
 
   it.each(['//evil.example', '/\\evil.example', 'https://evil.example'])(
-    '%s est abandonnée : le lien reste nu',
-    (brute) => {
+    '%s est abandonnée : la suite reste nue',
+    async (brute) => {
       searchParams = new URLSearchParams({ redirect: brute });
-      render(withIntl(<LoginPage />));
-      expect(screen.getByRole('link', { name: "S'inscrire" })).toHaveAttribute('href', '/auth/register');
+      await sInscrireDepuisLaConnexion();
+      expect(pushMock).toHaveBeenCalledWith('/auth/verify-email');
     },
   );
-});
-
-describe('la vérification de l’e-mail relaie l’intention à /onboarding/intention', () => {
-  it('« Continuer » porte la destination', () => {
-    searchParams = new URLSearchParams({ redirect: '/properties/x?action=reserver' });
-    render(withIntl(<VerifyEmailPage />));
-    expect(screen.getByRole('link', { name: 'Continuer, je vérifierai plus tard' })).toHaveAttribute(
-      'href',
-      `/onboarding/intention?redirect=${encodeURIComponent('/properties/x?action=reserver')}`,
-    );
-  });
-
-  it('une destination hors du site n’est pas relayée', () => {
-    searchParams = new URLSearchParams({ redirect: '//evil.example' });
-    render(withIntl(<VerifyEmailPage />));
-    expect(screen.getByRole('link', { name: 'Continuer, je vérifierai plus tard' })).toHaveAttribute(
-      'href',
-      '/onboarding/intention',
-    );
-  });
 });

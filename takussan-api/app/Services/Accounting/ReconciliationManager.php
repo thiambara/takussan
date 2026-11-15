@@ -4,6 +4,7 @@ namespace App\Services\Accounting;
 
 use App\Events\Accounting\BankStatementFinalized;
 use App\Events\Accounting\BankStatementLineMatched;
+use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
@@ -28,6 +29,9 @@ use Illuminate\Validation\ValidationException;
 
 class ReconciliationManager
 {
+    /** Le seuil d'une confirmation EN LOT, en pourcentage : celui du front (`SEUIL_SUR` de `ResteARapprocher`). */
+    public const BATCH_MIN_CONFIDENCE = 90;
+
     private const ALLOWED_PAYMENT_TYPES = [
         BookingPayment::class,
         LeasePayment::class,
@@ -45,10 +49,22 @@ class ReconciliationManager
 
     /**
      * Confirm a match between a bank statement line and a payment.
+     *
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 5) — `$part = LeasePayment::PART_LATE_FEE`
+     * rapproche la pénalité payée SEULE d'une échéance, sa seconde part : ses propres colonnes
+     * (`late_fee_bank_reconciled_at`, `late_fee_bank_statement_line_id`), son montant figé, son
+     * encaisseur. Le loyer de la même ligne garde son rapprochement.
      */
-    public function confirmMatch(BankStatementLine $line, Model $payment, User $caller): BankStatementLine
+    public function confirmMatch(BankStatementLine $line, Model $payment, User $caller, ?string $part = null): BankStatementLine
     {
         $statement = $line->statement;
+        $lateFee = $part !== null;
+        if ($lateFee && ($part !== LeasePayment::PART_LATE_FEE || ! $payment instanceof LeasePayment)) {
+            abort_code(422, 'payment.type_unknown');
+        }
+        [$reconciledAt, $lineColumn] = $lateFee
+            ? ['late_fee_bank_reconciled_at', 'late_fee_bank_statement_line_id']
+            : ['bank_reconciled_at', 'bank_statement_line_id'];
 
         // Guard: statement must be open for review
         if (! in_array($statement->status, [BankStatementStatus::ReadyForReview, BankStatementStatus::PartiallyReconciled], true)) {
@@ -101,7 +117,21 @@ class ReconciliationManager
         // TCK-1415 (P141.01) — un encaissement de la plateforme n'arrive pas seul sur le compte de
         // l'agence : il y arrive fondu dans le net du reversement de la plateforme. La lecture de la
         // clôture (`PlatformPayoutService::isSettledByPlatform`).
-        if (($payment instanceof BookingPayment || $payment instanceof LeasePayment)
+        // TCK-2793 — pour la pénalité payée seule, l'encaisseur est celui de SON checkout, jamais
+        // celui du loyer : un loyer encaissé par la plateforme laisse rapprocher une pénalité
+        // encaissée par l'agence, et inversement.
+        if ($lateFee) {
+            if ($payment->lateFeeAloneSettlement() === null) {
+                throw ValidationException::withMessages([
+                    'payment_id' => [__('reconciliation.validation.late_fee_not_reconcilable')],
+                ]);
+            }
+            if ($this->platformPayouts->lateFeeAloneSettledByPlatform($payment)) {
+                throw ValidationException::withMessages([
+                    'payment_id' => [__('reconciliation.validation.settled_by_platform')],
+                ]);
+            }
+        } elseif (($payment instanceof BookingPayment || $payment instanceof LeasePayment)
             && $this->platformPayouts->isSettledByPlatform($payment)) {
             throw ValidationException::withMessages([
                 'payment_id' => [__('reconciliation.validation.settled_by_platform')],
@@ -120,7 +150,7 @@ class ReconciliationManager
         }
 
         // Guard: not already reconciled
-        if ($payment->bank_statement_line_id !== null) {
+        if ($payment->{$lineColumn} !== null) {
             throw ValidationException::withMessages([
                 'payment' => [__('reconciliation.validation.already_reconciled')],
             ]);
@@ -132,7 +162,7 @@ class ReconciliationManager
         }
 
         $statusAtMatch = null;
-        $line = DB::transaction(function () use ($line, $payment, $caller, &$statusAtMatch) {
+        $line = DB::transaction(function () use ($line, $payment, $caller, &$statusAtMatch, $part, $reconciledAt, $lineColumn) {
             // Lock the line to prevent concurrent updates. Use findOrFail: the
             // row may have been deleted between the initial fetch and the lock,
             // and the unguarded `find()` would then fatal on `$locked->...`.
@@ -150,7 +180,7 @@ class ReconciliationManager
             }
 
             $payment->refresh();
-            if ($payment->bank_statement_line_id !== null) {
+            if ($payment->{$lineColumn} !== null) {
                 throw ValidationException::withMessages([
                     'payment' => [__('reconciliation.validation.already_reconciled')],
                 ]);
@@ -160,6 +190,7 @@ class ReconciliationManager
                 'match_status' => BankStatementLineMatchStatus::Confirmed,
                 'matched_payment_type' => get_class($payment),
                 'matched_payment_id' => $payment->id,
+                'matched_part' => $part,
                 'confirmed_at' => now(),
                 'confirmed_by' => $caller->id,
             ]);
@@ -168,8 +199,8 @@ class ReconciliationManager
             $statusAtMatch = $payment->status instanceof \BackedEnum ? $payment->status->value : $payment->status;
 
             $payment->update([
-                'bank_reconciled_at' => $locked->posted_at,
-                'bank_statement_line_id' => $locked->id,
+                $reconciledAt => $locked->posted_at,
+                $lineColumn => $locked->id,
             ]);
 
             // TCK-1919 (P157.06, décision du porteur) — les autres lignes suggérées sur ce paiement
@@ -180,10 +211,14 @@ class ReconciliationManager
                 ->where('match_status', BankStatementLineMatchStatus::Suggested)
                 ->where('matched_payment_type', get_class($payment))
                 ->where('matched_payment_id', $payment->id)
+                // TCK-2793 — la même part seulement : confirmer le loyer ne libère pas la ligne
+                // proposée sur sa pénalité payée seule, ni l'inverse.
+                ->when($part === null, fn ($q) => $q->whereNull('matched_part'), fn ($q) => $q->where('matched_part', $part))
                 ->update([
                     'match_status' => BankStatementLineMatchStatus::Unmatched,
                     'matched_payment_type' => null,
                     'matched_payment_id' => null,
+                    'matched_part' => null,
                     'match_confidence' => null,
                 ]);
 
@@ -198,13 +233,14 @@ class ReconciliationManager
             return $locked;
         });
 
-        $expected = $this->expectedAmount($payment);
+        $expected = $lateFee ? $payment->expectedLateFeeBankAmount() : $this->expectedAmount($payment);
         activity('BankStatementLine')
             ->causedBy($caller)
             ->performedOn($line)
             ->withProperties([
                 'payment_type' => get_class($payment),
                 'payment_id' => $payment->id,
+                'payment_part' => $part,
                 'match_confidence' => $line->match_confidence,
                 // TCK-828 (P25.07) — ce que la confirmation ne refuse pas, elle le laisse lire :
                 // le statut de l'encaissement et l'écart entre la ligne et le montant attendu.
@@ -218,6 +254,57 @@ class ReconciliationManager
         $this->events->dispatch(new BankStatementLineMatched($line));
 
         return $line;
+    }
+
+    /**
+     * TCK-2674 — confirmer d'un geste des lignes PROPOSÉES par le matcher, TOUT OU RIEN : une
+     * transaction, les lignes verrouillées dans l'ordre des identifiants, puis chacune confirmée par
+     * {@see self::confirmMatch()} sur le paiement qu'elle propose — mêmes gardes, mêmes effets sur la
+     * ligne, le paiement et les autres propositions, même journal (`matched`). Une ligne inconnue,
+     * d'une autre agence, d'un relevé clos ou qui n'est plus `suggested` (y compris parce que la
+     * confirmation d'une ligne précédente du lot l'a libérée) → 422
+     * `reconciliation.batch_not_confirmable` ; un refus du geste unitaire annule aussi le lot entier.
+     * Une ligne proposée sous {@see self::BATCH_MIN_CONFIDENCE} aussi (contre-vérification de f05a8d1a5,
+     * r2) : le seuil de « Confirmer les N » n'était tenu que par le front. Le geste unitaire `match`,
+     * choix lu ligne par ligne, n'a pas ce seuil.
+     *
+     * @param  list<int>  $lineIds
+     * @return list<int> les lignes confirmées, dans l'ordre des identifiants
+     */
+    public function confirmSuggestedBatch(Agency $agency, array $lineIds, User $caller): array
+    {
+        $lineIds = array_values(array_unique(array_map('intval', $lineIds)));
+
+        return DB::transaction(function () use ($agency, $lineIds, $caller): array {
+            $lines = BankStatementLine::query()->with('statement')
+                ->whereKey($lineIds)->orderBy('id')->lockForUpdate()->get();
+
+            $confirmable = fn (BankStatementLine $line): bool => $line->match_status === BankStatementLineMatchStatus::Suggested
+                && $line->matched_payment_type !== null && $line->matched_payment_id !== null
+                && (int) $line->match_confidence >= self::BATCH_MIN_CONFIDENCE
+                && (int) $line->statement?->agency_id === (int) $agency->id
+                && in_array($line->statement?->status, ReconciliationOverviewService::OPEN_STATEMENT_STATUSES, true);
+
+            abort_code_if(
+                $lines->count() !== count($lineIds) || ! $lines->every($confirmable),
+                422,
+                'reconciliation.batch_not_confirmable',
+            );
+
+            $confirmed = [];
+            foreach ($lines as $line) {
+                // Relue : la confirmation d'une ligne précédente du lot a pu la libérer (TCK-1919 —
+                // deux lignes qui proposent le même paiement), et elle n'a alors plus de paiement.
+                $fresh = BankStatementLine::query()->with('statement')->findOrFail($line->id);
+                $payment = $confirmable($fresh) ? $fresh->matchedPayment()->first() : null;
+                abort_code_if($payment === null, 422, 'reconciliation.batch_not_confirmable');
+
+                $this->confirmMatch($fresh, $payment, $caller, $fresh->matched_part);
+                $confirmed[] = (int) $fresh->id;
+            }
+
+            return $confirmed;
+        });
     }
 
     /** Le montant que la ligne devrait porter, colonne par colonne comme le matcher la compare. */
@@ -245,19 +332,13 @@ class ReconciliationManager
         }
 
         DB::transaction(function () use ($line) {
-            $payment = $line->matchedPayment;
-
-            if ($payment !== null) {
-                $payment->update([
-                    'bank_reconciled_at' => null,
-                    'bank_statement_line_id' => null,
-                ]);
-            }
+            $this->releasePayment($line);
 
             $line->update([
                 'match_status' => BankStatementLineMatchStatus::Unmatched,
                 'matched_payment_type' => null,
                 'matched_payment_id' => null,
+                'matched_part' => null,
                 'confirmed_at' => null,
                 'confirmed_by' => null,
             ]);
@@ -288,19 +369,14 @@ class ReconciliationManager
         DB::transaction(function () use ($line) {
             // If confirmed, unmatch first to free the payment
             if ($line->match_status === BankStatementLineMatchStatus::Confirmed) {
-                $payment = $line->matchedPayment;
-                if ($payment !== null) {
-                    $payment->update([
-                        'bank_reconciled_at' => null,
-                        'bank_statement_line_id' => null,
-                    ]);
-                }
+                $this->releasePayment($line);
             }
 
             $line->update([
                 'match_status' => BankStatementLineMatchStatus::Ignored,
                 'matched_payment_type' => null,
                 'matched_payment_id' => null,
+                'matched_part' => null,
                 'confirmed_at' => null,
                 'confirmed_by' => null,
             ]);
@@ -353,6 +429,32 @@ class ReconciliationManager
         $this->events->dispatch(new BankStatementFinalized($statement));
 
         return $statement->refresh();
+    }
+
+    /**
+     * Libère le paiement d'une ligne confirmée : le rapprochement de la part que la ligne désigne
+     * (TCK-2793 — la pénalité payée seule, ou le reste), jamais celui de l'autre part.
+     */
+    private function releasePayment(BankStatementLine $line): void
+    {
+        $payment = $line->matchedPayment;
+        if ($payment === null) {
+            return;
+        }
+
+        if ($line->matched_part === LeasePayment::PART_LATE_FEE && $payment instanceof LeasePayment) {
+            // Seulement si c'est bien CETTE ligne qui la rapproche.
+            if ((int) $payment->late_fee_bank_statement_line_id === (int) $line->id) {
+                $payment->update(['late_fee_bank_reconciled_at' => null, 'late_fee_bank_statement_line_id' => null]);
+            }
+
+            return;
+        }
+
+        $payment->update([
+            'bank_reconciled_at' => null,
+            'bank_statement_line_id' => null,
+        ]);
     }
 
     private function resolvePaymentAgencyId(Model $payment): ?int

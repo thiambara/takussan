@@ -1,6 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
+import { estDansLaConsole } from '@/components/layout/plein-ecran';
 import { useAuth } from '@/context/AuthContext';
 
 /**
@@ -16,11 +18,17 @@ import { useAuth } from '@/context/AuthContext';
  *
  * ⚠ N'ajouter ici aucun import du corps ni de la messagerie : ce fichier est dans le graphe du
  * layout racine. Garde : `src/app/__tests__/js-initial-du-layout-racine.test.ts`.
+ *
+ * TCK-2619 — **ni le corps ni son morceau ne se chargent sous `/app`**, à aucune largeur
+ * (`estDansLaConsole`) : la console porte la messagerie dans sa barre d'onglets et dans sa colonne.
+ * Un lien vers `/app/messages?conversation=…` est ouvert par la page de la messagerie, jamais par le
+ * widget.
  */
 const CorpsDuWidget = dynamic(() => import('./CorpsDuWidget').then((m) => m.CorpsDuWidget));
 
 export function ChatWidget() {
   const { user } = useAuth();
-  if (!user) return null;
+  const pathname = usePathname();
+  if (!user || estDansLaConsole(pathname)) return null;
   return <CorpsDuWidget />;
 }

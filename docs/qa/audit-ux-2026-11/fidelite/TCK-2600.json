@@ -1,0 +1,329 @@
+{
+  "ticket": "TCK-2600",
+  "ecrans": [
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Départ : le bien",
+      "references": {
+        "telephone": "references/app-entree-publier/a-0-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js)."
+      }
+    },
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Le lieu",
+      "references": {
+        "telephone": "references/app-entree-publier/a-1-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js). « Continuer », puis « Utiliser Dakar, Dakar » (e1.part.js)."
+      }
+    },
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Les caractéristiques",
+      "references": {
+        "telephone": "references/app-entree-publier/a-2-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js). « Continuer », puis « Utiliser Dakar, Dakar » (e1.part.js). « Continuer », surface 38 m², « Bon état » si proposé (e2.part.js)."
+      }
+    },
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Le prix",
+      "references": {
+        "telephone": "references/app-entree-publier/a-3-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js). « Continuer », puis « Utiliser Dakar, Dakar » (e1.part.js). « Continuer », surface 38 m², « Bon état » si proposé (e2.part.js). « Continuer », loyer 250 000 saisi (e3.part.js)."
+      }
+    },
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Les photos",
+      "references": {
+        "telephone": "references/app-entree-publier/a-4-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js). « Continuer », puis « Utiliser Dakar, Dakar » (e1.part.js). « Continuer », surface 38 m², « Bon état » si proposé (e2.part.js). « Continuer », loyer 250 000 saisi (e3.part.js). « Continuer », quatre photos de /maquettes (studio-1, detail-1, cuisine, studio-2) déposées par DataTransfer (e4.part.js)."
+      }
+    },
+    {
+      "page": "app-entree-publier",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Le titre et la finition",
+      "references": {
+        "telephone": "references/app-entree-publier/a-5-telephone.json",
+        "bureau-1440": "references/app-entree-publier/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-entree-publier/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/publish",
+        "persona": "aucune",
+        "etat": "aucun compte, brouillon local seulement (IndexedDB du profil jetable). Cumulatif depuis le départ : le départ, aucun brouillon : « Louer » et « Studio » choisis (e0.part.js). « Continuer », puis « Utiliser Dakar, Dakar » (e1.part.js). « Continuer », surface 38 m², « Bon état » si proposé (e2.part.js). « Continuer », loyer 250 000 saisi (e3.part.js). « Continuer », quatre photos de /maquettes (studio-1, detail-1, cuisine, studio-2) déposées par DataTransfer (e4.part.js). « Continuer », titre « Studio meublé lumineux à Mermoz » (e5.part.js)."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/publish",
+    "persona": "aucune",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-9, impl/lot2/2600f/ : a0.js … a5.js (commun.part.js + e0…eN.part.js + fin.part.js, cumulatifs), injectés par relever.zsh, qui prend le verrou de mesure et BLOQUE au réseau request-code, verify-code, auto-onboard, wizard-drafts et auth/profile. L'assistant sans compte n'écrit rien sur le serveur avant la feuille de compte (AC3).",
+    "releves": {
+      "dossiers": "scratchpad de terrain-9, impl/lot2/2600f/ : bureau final3-prod-a-{0..5}-{bureau-1440,bureau-1280} et final3-cmp-a-*/ (final3.log, 2026-11-13, état livré) ; téléphone final2-prod-a-{0..5}-telephone et final2-cmp-a-*-telephone (final2.log : le cadre ne s'applique que dès `lg`, rien n'a changé sous 1024 depuis). Chaque dossier cmp porte rapport.md, rideau.html, cote-a-cote.png. « Avant » : les relevés pris avant toute modification (base-prod-*), comparés avec CETTE fiche (basefiche2-cmp-*, basefiche2.log pour le bureau ; basefiche-cmp-*-telephone pour le téléphone). Lecture : conformes · écarts · absents · pixels. Les deux à quatre conformes de moins que final2 à 1440 (a-1 à a-5) sont la couleur de « Précédent » et de « Plus tard », 80 % dans la maquette, encre pleine ici : écart accepté (TCK-658)",
+      "resultats": {
+        "a-0": {
+          "telephone": "2 · 38 · 19 · 22,89 % (avant : 24,23 %)",
+          "bureau-1440": "16 · 54 · 21 · 10,01 % (avant : 4 · 60 · 24 · 15,77 %)",
+          "bureau-1280": "16 · 54 · 21 · 11,26 % (avant : 4 · 60 · 24 · 14,92 %)"
+        },
+        "a-1": {
+          "telephone": "2 · 21 · 21 · 12,55 % (avant : 12,55 %)",
+          "bureau-1440": "18 · 40 · 21 · 8,55 % (avant : 4 · 47 · 23 · 14,27 %)",
+          "bureau-1280": "18 · 40 · 21 · 9,62 % (avant : 4 · 47 · 23 · 13,23 %)"
+        },
+        "a-2": {
+          "telephone": "2 · 28 · 28 · 14,16 % (avant : 14,16 %)",
+          "bureau-1440": "15 · 48 · 26 · 8,05 % (avant : 4 · 52 · 28 · 14,96 %)",
+          "bureau-1280": "15 · 48 · 26 · 9,06 % (avant : 4 · 52 · 28 · 14,01 %)"
+        },
+        "a-3": {
+          "telephone": "2 · 15 · 32 · 12,72 % (avant : 12,72 %)",
+          "bureau-1440": "17 · 25 · 37 · 7,29 % (avant : 4 · 31 · 39 · 13,65 %)",
+          "bureau-1280": "17 · 25 · 37 · 8,2 % (avant : 4 · 31 · 39 · 12,6 %)"
+        },
+        "a-4": {
+          "telephone": "2 · 20 · 13 · 33,7 % (avant : 33,7 %)",
+          "bureau-1440": "18 · 29 · 16 · 14,55 % (avant : 4 · 35 · 19 · 19,18 %)",
+          "bureau-1280": "18 · 29 · 16 · 16,37 % (avant : 4 · 35 · 19 · 19,93 %)"
+        },
+        "a-5": {
+          "telephone": "2 · 14 · 15 · 17,62 % (avant : 17,62 %)",
+          "bureau-1440": "15 · 37 · 20 · 12,95 % (avant : 4 · 38 · 23 · 16,66 %)",
+          "bureau-1280": "15 · 37 · 20 · 14,56 % (avant : 4 · 38 · 23 · 17,03 %)"
+        }
+      },
+      "balayage": "balayer2.mjs (BALAYAGE de fidelite + géométrie du cadre), état livré, règle de cadence 7 : a0 à a5 × 360 et 1280, plus 1024 où la disposition change (balayage3.log, balayage-barre.log, 2026-11-13). Requêtes autres que GET : [] sur les 18. Document sans défilement, aucune coupe, geste du pied visible partout. 1280 : question 560 à x 113, aperçu 400 à x 767, pied à y 812 sur la même grille (113 / 767), « Continuer » 176 × 40, « Effacer ce brouillon » dans la barre (y 9). 1024 : colonnes à x 29 et 595 (6 px entre elles), pied aligné, « Effacer » dans la ligne d'état (y 58), débord 0. 360 (colonne unique, inchangée hors `lg`) : débord 0, SAUF a-4 : 1 px — « Précédent », « Plus tard » et « Continuer » côte à côte, « Continuer » finit à 361. Les classes de ce pied hors `lg` sont celles de `/app` (diff), le débord n'est pas du cadre : signalé, hors de ce ticket. Ellipses : au plus 2, dans le contenu des étapes. Limite NON MESURÉE : l'outil lance Chrome avec `--hide-scrollbars` (une barre forcée par CSS reste à 0 px). À 1024, une barre classique de 15 px (Windows) rétrécirait la zone défilante sous 1 017,6 px : `minmax(0,35rem)` évite alors le débord en rétrécissant la question (≈ 551 px au lieu de 560), mais le pied, hors de la zone défilante, garde sa grille : décalage attendu d'environ 7 px entre corps et pied à 1024 sous Windows.",
+      "ecritures": "aucune : relever.zsh et balayer.mjs bloquent au réseau request-code, verify-code, auto-onboard, wizard-drafts et auth/profile ; l'assistant sans compte n'émet que des GET (AC3)"
+    }
+  },
+  "roles": [
+    {
+      "nom": "pied de l’assistant",
+      "appareil": "desktop",
+      "maquette": {
+        "zone": {
+          "y": 800,
+          "h": 100,
+          "wMin": 1200
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 800,
+          "h": 100,
+          "wMin": 1200
+        }
+      }
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Publier ton bien": "Publier votre bien",
+    "Publie ton bien gratuitement": "Publiez votre bien gratuitement",
+    "Tu es une agence ou un agent ?": "Vous êtes une agence ou un agent ?",
+    "Un brouillon t’attend déjà ?": "Un brouillon vous attend déjà ?",
+    "Aucun compte à créer pour commencer : ton numéro est demandé à la fin, au moment": "Aucun compte à créer pour commencer : votre numéro est demandé à la fin, au mome",
+    "Seule la surface compte vraiment ; le reste aide ton annonce à ressortir dans le": "Seule la surface compte vraiment ; le reste aide votre annonce à ressortir dans ",
+    "Brouillon gardé dans ce navigateur — il passera dans ton compte au moment de pub": "Brouillon gardé dans ce navigateur — il passera dans votre compte au moment de p",
+    "Étape facultative : « Plus tard » passe au titre, tu ajouteras des photos depuis": "Étape facultative : « Plus tard » passe au titre, vous ajouterez des photos depu",
+    "En publiant , tu acceptes les et la .": "En publiant, vous acceptez les et la .",
+    "Parle-nous du studio": "Parlez-nous du studio",
+    "Ajoute des photos": "Ajoutez des photos",
+    "Glisse-dépose tes photos ici": "Glissez-déposez vos photos ici",
+    "Tes photos viendront ici": "Vos photos viendront ici",
+    "On en a composé un d’après tes réponses. Corrige-le librement.": "Nous en avons composé un d’après vos réponses. Corrigez-le librement.",
+    "Ton numéro": "Votre numéro",
+    "Ton numéro et ton prénom te sont demandés juste après, pour que les intéressés p": "Votre numéro et votre prénom vous sont demandés juste après, pour que les intére"
+  },
+  "alias_motifs": {
+    "vouvoiement": "« tu » → « vous » : règle des libellés du produit (ADR-0095) — barre, départ, notes du pied, étapes, aperçu"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ignorer_motif": "rien d'ignoré : chaque écart restant est classé ci-dessous (acceptés, ouverts)",
+  "zones_motif": "aucune zone à contenu identique : la barre d'entrée (CoqueDEntree) porte le pas et la note du brouillon, propres à chaque écran",
+  "coque": false,
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-0 à a-5 (bureau)",
+      "element": "« Publier votre bien » (titre de la barre)",
+      "propriete": "largeur +13,5, x −6,7",
+      "exception": "alias (vouvoiement)",
+      "motif": "« Publier ton bien » → « Publier votre bien » (ADR-0095) : le libellé est plus long, centré au même axe"
+    },
+    {
+      "ecran": "a-1 à a-5 (bureau)",
+      "element": "« Brouillon gardé dans ce navigateur » (note de la barre)",
+      "propriete": "largeur −18",
+      "exception": "aucune — appariement du relevé",
+      "motif": "dans la maquette, le nœud texte est le <span> qui porte aussi la coche (12,6 + écart 5,4 = 18) ; dans le produit, le texte a son propre <span> : coche, écart, taille (13 px) et couleur sont conformes. Le décalage en x (−111,7) est celui de « Effacer ce brouillon », à sa droite : voir les écarts ouverts"
+    },
+    {
+      "ecran": "a-0 à a-5 (bureau)",
+      "element": "« Quitter »",
+      "propriete": "écart (gap) 7,2 → 0",
+      "exception": "aucune — sans effet de rendu",
+      "motif": "le `BoutonE` de la maquette porte `gap-2` sur un seul enfant (le libellé) : l'écart ne s'applique à rien. Boîte, police, bord et rayon conformes. La barre est `CoqueDEntree` (TCK-2598)"
+    },
+    {
+      "ecran": "a-0 à a-5 (bureau)",
+      "element": "pied de l’assistant (rôle)",
+      "propriete": "marge bas 0 → 14,4",
+      "exception": "aucune — même rendu",
+      "motif": "la maquette pose `pb-4` sur la grille intérieure, le produit sur le pied lui-même (`paddingBottom`, qui ajoute la zone sûre au téléphone) : le pied mesure 100 px des deux côtés (y 800), son contenu — segments, libellés, gestes, note — est conforme"
+    },
+    {
+      "ecran": "a-5 (bureau)",
+      "element": "« conditions générales », « politique de confidentialité » (note du pied)",
+      "propriete": "retrait +12,7",
+      "exception": "alias (vouvoiement)",
+      "motif": "« vous acceptez » est plus long que « tu acceptes » : les liens glissent d'autant sur la ligne ; taille (12 px ×0,9), interligne et couleur conformes"
+    },
+    {
+      "ecran": "a-0 à a-5 (bureau)",
+      "element": "« lucide-check » de la barre et de « Pour publier »",
+      "propriete": "x, y, taille, couleur, trait",
+      "exception": "aucune — appariement du relevé",
+      "motif": "le relevé apparie les coches par ordre de lecture : la coche de la barre (conforme : 12,6, trait 2,5, accent) suit « Brouillon gardé » (−111,7, cf. « Effacer ce brouillon ») ; celles de « Pour publier » (`ListePourPublier`) relèvent de l'écart ouvert de la colonne d'aperçu"
+    },
+    {
+      "ecran": "a-1 à a-5 (bureau)",
+      "element": "« Précédent », « Plus tard » (gestes fantômes du pied)",
+      "propriete": "couleur : encre pleine au lieu de l'encre à 80 %",
+      "exception": "règle du design system (jetons de couleur, TCK-658)",
+      "motif": "une encre de texte ne s'atténue pas par l'opacité (`encre-sans-alpha.contraste.test.ts`) ; même règle que « Revenir à l’annonce » dans la fiche TCK-2601"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-0 à a-5 (téléphone)",
+      "element": "titre de la barre « Publier votre bien » : interligne 24 au lieu de 20",
+      "motif": "`CoqueDEntree` (TCK-2598, TCK-2611) — la barre des écrans d'entrée"
+    },
+    {
+      "ecran": "a-0",
+      "element": "les preuves chiffrées du départ (« 1 240 recherches à Dakar cette semaine », « 0 F de commission »)",
+      "motif": "TCK-2603"
+    },
+    {
+      "ecran": "a-6, a-7, a-8",
+      "element": "le compte et l'écran « En ligne »",
+      "motif": "TCK-2601 (fiche TCK-2601.json), TCK-2602"
+    }
+  ],
+  "notes": [
+    "Le cadre d'entrée (`cadreDEntree` de `WizardShell`) n'est monté que par `/publish` (`AssistantDePublication` en mode anonyme). Sur `/app/properties/new`, deux changements seulement, sans effet de rendu attendu : le libellé du geste principal n'est plus enveloppé d'un <span> (le texte du bouton lui-même), et la colonne du panneau de compte passe de la section de `PanneauDeCompte` au nœud de `WizardShell` qui la reçoit (mêmes classes). Épinglé par des tests de classes et de structure (`WizardShell.cadre-d-entree.tck-2600.test.tsx`, « sans cadre d'entrée » ; `PropertyWizard.depuis-publication.tck-2601.test.tsx`), ablations rouges — pas relevé au navigateur sur /app.",
+    "Le panneau de compte de TCK-2601 suit la colonne de 560 px du cadre : son décalage de +52 / +52,8 px (fiche TCK-2601, écart accepté « hors périmètre (TCK-2600) ») disparaît."
+  ],
+  "ecarts_ouverts": [
+    {
+      "ecran": "a-0 à a-5 (bureau ≥ 1280 : barre ; téléphone et bureau < 1280 : ligne d'état sous la barre)",
+      "element": "« Effacer ce brouillon »",
+      "propriete": "absent de la maquette ; au bureau, la note de la barre glisse de −111,7 px à sa gauche ; au téléphone, la ligne d'état (44 px) descend l'étape d'autant",
+      "proposition": "accepter (fonction du ticket)",
+      "motif": "le brouillon de /publish vit dans ce navigateur (ADR-0093) : l'effacer est le seul moyen de repartir de zéro sans outils de développeur, et le ticket le demande (« le repli en mémoire se dit, et « Effacer ce brouillon » vide tout »). Aucune maquette ne le dessine. Dès 1280 il passe dans la barre, après la note (« Brouillon gardé dans ce navigateur · Effacer ce brouillon ») : la ligne d'état, que la maquette n'a pas, descendait la question de 40 px. Sous le verrou du compte (TCK-2601, AC5), il est inerte où qu'il soit. À trancher par team-lead ou le porteur, ou à dessiner"
+    },
+    {
+      "ecran": "a-0 à a-5 (téléphone)",
+      "element": "ligne d'état « Brouillon gardé sur ce téléphone » (icône lucide-smartphone)",
+      "propriete": "absente de la maquette, 44 px sous la barre",
+      "proposition": "accepter (fonction du ticket)",
+      "motif": "la maquette téléphone ne dit nulle part où vit le brouillon ; le produit le dit, et c'est là que le repli en mémoire (« refus », « quota ») s'annonce (ADR-0093). Même décision que la ligne précédente"
+    },
+    {
+      "ecran": "a-0 (bureau)",
+      "element": "« Brouillon gardé dans ce navigateur » dès le départ",
+      "propriete": "absent de la maquette sur a-0 (présent dès a-1)",
+      "proposition": "accepter",
+      "motif": "la note est rendue dès l'ouverture de /publish, avant toute réponse : elle dit où le brouillon sera gardé (et, en repli, qu'il ne l'est pas — ADR-0093). La maquette ne l'affiche qu'à partir du lieu (a-1), alors même que a-0 a déjà « Louer » et « Studio » choisis. La n'afficher qu'après la première réponse ne rendrait pas a-0 conforme"
+    },
+    {
+      "ecran": "a-0, a-2, a-5 (bureau)",
+      "element": "« Aperçu de l’annonce », « Ce que les visiteurs verront » (et toute la colonne d'aperçu)",
+      "propriete": "y 104 → 93,6",
+      "proposition": "suit l'écart ouvert des étapes",
+      "motif": "même règle des deux côtés : la colonne est collante à 104 px du haut de la page (`top-[calc(6.5rem-var(--spacing)*16)]` sous la barre de 57,6). Collée, elle ne descend à 104 que si la colonne de la question est plus haute qu'elle ; c'est le cas dans la maquette sur a-0, a-2 et a-5, pas dans le produit, dont les étapes (partagées, ci-dessous) sont plus courtes. Conforme sur a-1, a-3 et a-4"
+    },
+    {
+      "ecran": "a-0 à a-5 (téléphone et bureau)",
+      "element": "le contenu des six étapes (`StepBien`, `ChampsLieu`, `StepCaracteristiques`, `StepPrix`, `MediaDropzone`, finition)",
+      "propriete": "bureau 1440 : 47 · 34 · 43 · 33 · 16 · 24 lignes (a-0 à a-5) ; téléphone : 43 · 24 · 32 · 33 · 20 · 15",
+      "proposition": "ticket de suite, au périmètre à trancher",
+      "motif": "ces étapes sont celles de `/app/properties/new` (un seul assistant, AC4 : mêmes champs pour le même couple) : les redessiner d'après `app-entree-publier` change aussi l'assistant connecté, que la maquette ne couvre pas. Exemples : cartes du contrat et des types, région/ville/quartier en grille, « Utiliser ma position » et « Placer sur la carte » en pastilles, loyer + « Par Mois/Semaine/Jour/An » au lieu de Prix + Fréquence, « Total à l'entrée », dépôt des photos et « Couverture », apostrophes droites des libellés partagés (« Coût d'entrée », « Titre de l'annonce »)"
+    },
+    {
+      "ecran": "a-0 à a-5 (bureau)",
+      "element": "la colonne d'aperçu : carte (`ApercuAnnonce`) et « Pour publier » (`ListePourPublier`)",
+      "propriete": "bureau 1440 : 21 · 19 · 21 · 21 · 19 · 21 lignes ; « Pour publier » 12,6 px au lieu de 15 / 600, notes « en cours », « facultatif », « à la fin » dans le libellé (« · en cours ») au lieu d'alignées à droite, puce 20 px ; carte : pastille « En location », « Vos photos viendront ici », titre, lieu, prix",
+      "proposition": "ticket de suite, avec le précédent",
+      "motif": "composants partagés avec la colonne d'aperçu de `/app/properties/new` ; même question de périmètre que les étapes"
+    },
+    {
+      "ecran": "a-0 à a-5 (téléphone)",
+      "element": "pied de l'assistant au téléphone (segments, « Précédent », « Continuer »), bandeau d'aperçu",
+      "propriete": "10 à 20 lignes par écran : pied 98 px au lieu de 117, « Continuer » 144 × 44 au lieu de 172 × 48 (16 px / 600), « Précédent » 14 px / 500",
+      "proposition": "ticket de suite, avec les précédents",
+      "motif": "le cadre d'entrée de cette livraison ne s'applique que dès `lg` (le `GabaritBureau` de la maquette) ; au téléphone, le pied de `WizardShell` est celui de `/app/properties/new`. Le `PiedAssistant` de la maquette (gestes de 48) est à porter avec les étapes"
+    },
+    {
+      "ecran": "a-5 (téléphone, bureau)",
+      "element": "geste final",
+      "propriete": "« Publier l’annonce » au lieu de « Publier »",
+      "proposition": "garder « Publier l’annonce »",
+      "motif": "libellé de l'assistant partagé (`finishLabel`), repris par la feuille de compte (TCK-2601) : « Publier » seul ne dit pas quoi"
+    }
+  ]
+}

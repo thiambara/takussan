@@ -3,6 +3,9 @@
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\InvitationPrefillController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationCodeController;
+use App\Http\Controllers\Public\InvitationRenewalRequestController;
+use App\Http\Controllers\Public\PublicInvitationPreviewController;
 use Illuminate\Support\Facades\Route;
 
 // TCK-249 — Public accept endpoint. Mounted outside the auth:sanctum
@@ -14,8 +17,26 @@ use Illuminate\Support\Facades\Route;
 Route::post('invitations/{token}/accept', InvitationAcceptController::class)
     ->name('invitations.accept');
 
+// TCK-2609 (ADR-0094 §1-3) — l'aperçu d'une invitation par son jeton, et la demande d'un nouveau
+// lien quand il a expiré : sans compte, le jeton est le secret porteur. Bornés par IP.
+Route::prefix('public/invitations')->group(function (): void {
+    Route::get('{token}', PublicInvitationPreviewController::class)
+        ->middleware('throttle:public-invitation-preview')->name('public.invitations.preview');
+    Route::post('{token}/renewal-request', InvitationRenewalRequestController::class)
+        ->middleware('throttle:public-invitation-renewal')->name('public.invitations.renewal-request');
+    // TCK-2610 (ADR-0094 § 5) — accepter par code SMS, comme on se connecte : les limiteurs de `auth/phone/*` (par IP à
+    // l'envoi, par numéro à la vérification — celui de l'invitation par SMS, lu dans le jeton), 404 drapeau éteint.
+    Route::post('{token}/code', [InvitationCodeController::class, 'send'])
+        ->middleware('throttle:auth-phone-send')->name('public.invitations.code');
+    Route::post('{token}/verify', [InvitationCodeController::class, 'verify'])
+        ->middleware('throttle:auth-phone-verify')->name('public.invitations.verify-code');
+});
+
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
+    // TCK-2665 — l'admin supprime les invitations expirées de son agence, des rôles nommés. Littérale,
+    // avant les routes à `{invitation}`.
+    Route::delete('invitations/expired', [InvitationController::class, 'purgeExpired'])->name('invitations.purge-expired');
     // P208.01 (TCK-2190) — plus de création générique : les routes par rôle
     // (`routes/api/agencies.php`) et la cooptation (`routes/api/admin.php`) émettent.
     Route::get('invitations/{invitation}', [InvitationController::class, 'show'])->name('invitations.show');

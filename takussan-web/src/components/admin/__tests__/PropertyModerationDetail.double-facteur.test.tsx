@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ContexteGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { ApiError } from '@/lib/api';
 import type { GardeDoubleFacteurFn } from '@/lib/double-facteur';
-import { approveProperty, rejectProperty, type ModerationProperty } from '@/lib/queries/property-moderation';
+import { approveProperty, fetchPropertyModerationDetail, rejectProperty, type ModerationProperty } from '@/lib/queries/property-moderation';
 import { withIntl } from '@/test/intl';
 import { PropertyModerationDetail } from '../PropertyModerationDetail';
 
@@ -15,7 +15,12 @@ import { PropertyModerationDetail } from '../PropertyModerationDetail';
  * (`PropertyModerationController`, `ProtectedActions::PLATFORM_TWO_FACTOR`) : le refus passe par
  * la garde, puis la décision est rejouée.
  */
-vi.mock('@/lib/queries/property-moderation', () => ({ approveProperty: vi.fn(), rejectProperty: vi.fn() }));
+vi.mock('@/lib/queries/property-moderation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/property-moderation')>()),
+  approveProperty: vi.fn(),
+  rejectProperty: vi.fn(),
+  fetchPropertyModerationDetail: vi.fn(),
+}));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
 
 const refus = () => new ApiError(403, { code: 'two_factor_required', message: 'Second facteur requis.' });
@@ -51,6 +56,15 @@ describe('<PropertyModerationDetail> — second facteur', () => {
   beforeEach(() => {
     vi.mocked(approveProperty).mockReset();
     vi.mocked(rejectProperty).mockReset();
+    // TCK-2673 — le détail du bien se lit avant que les gestes ne s'affichent.
+    vi.mocked(fetchPropertyModerationDetail).mockResolvedValue({
+      data: {
+        id: 42, reference_number: 'T-42', title: 'Villa aux Almadies', slug: null, status: 'pending', type: 'villa',
+        contract_type: 'sale', rent_period: null, price: 100000, currency: 'XOF', area: null, bedrooms: null, bathrooms: null,
+        description: null, photos: [], address: null, agency_id: 7, submitted_at: null, submitted_by: null, submitted_count_in_agency: 0,
+        checks: { photos_count: 0, photos_expected: 5, address_complete: false, description_words: 0, description_has_contact: false, price_vs_median: null },
+      },
+    } as never);
   });
 
   it('l’approbation refusée passe par la garde, puis est rejouée', async () => {
@@ -58,7 +72,7 @@ describe('<PropertyModerationDetail> — second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
     const onModerated = monter(garde);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Approuver' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Publier' }));
 
     await waitFor(() => expect(onModerated).toHaveBeenCalled());
     expect(garde).toHaveBeenCalledWith('two_factor_required');
@@ -70,14 +84,14 @@ describe('<PropertyModerationDetail> — second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
     const onModerated = monter(garde);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Rejeter' }));
+    await userEvent.click(await screen.findByRole('radio', { name: 'Photos floues ou trop peu nombreuses' }));
     await userEvent.type(screen.getByRole('textbox'), MOTIF);
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmer le rejet' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Demander une correction' }));
 
     await waitFor(() => expect(onModerated).toHaveBeenCalled());
     expect(garde).toHaveBeenCalledWith('two_factor_required');
     expect(rejectProperty).toHaveBeenCalledTimes(2);
-    expect(rejectProperty).toHaveBeenLastCalledWith(42, MOTIF, 'jeton');
+    expect(rejectProperty).toHaveBeenLastCalledWith(42, { reasonCode: 'photos', rejectionReason: MOTIF }, 'jeton');
   });
 
   it('garde abandonnée : pas de rejeu, l’erreur s’affiche', async () => {
@@ -85,7 +99,7 @@ describe('<PropertyModerationDetail> — second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => false);
     const onModerated = monter(garde);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Approuver' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Publier' }));
 
     expect(await screen.findByText('Second facteur requis.')).toBeInTheDocument();
     expect(garde).toHaveBeenCalledTimes(1);

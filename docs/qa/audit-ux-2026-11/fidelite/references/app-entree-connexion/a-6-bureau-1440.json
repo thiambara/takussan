@@ -1,0 +1,51 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T02:00:50.505Z",
+  "duree_ms": 5409,
+  "commit": "925795e2974a",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-entree-connexion",
+  "approche": "a",
+  "ecran": 6,
+  "nom": "Lien envoyé"
+ },
+ "appareil": "bureau-1440",
+ "W": 1440,
+ "H": 900,
+ "DPR": 2,
+ "rem": 14.4,
+ "spacingPx": 3.6,
+ "densite": 0.9,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"Retour à la connexion TAKUSSAN Takussan Lien envoyé à a•••@gmail.com Ouvre-le po","tag":"div","r":{"x":0,"y":0,"w":1440,"h":900},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"Retour à la connexion TAKUSSAN Takussan","tag":"header","r":{"x":0,"y":0,"w":1440,"h":57.6},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,1,0],"couleurBord":[235,229,213,1],"rayon":[0,0,0,0],"ombre":null,"marges":[0,28.8,0,28.8],"ecart":0},
+  {"type":"texte","cle":"Retour à la connexion","tag":"span","r":{"x":28.8,"y":12.1,"w":174,"h":32.4},"dans":[1,0,3],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":3,"type":"boite","dans":[1,0],"cle":"Retour à la connexion","tag":"span","r":{"x":28.8,"y":12.1,"w":174,"h":32.4},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,12.6,0,12.6],"ecart":5.4},
+  {"type":"icone","cle":"lucide-arrow-left","r":{"x":42.4,"y":21.1,"w":14.4,"h":14.4},"dans":[3,1,0],"couleur":[31,24,18,1],"trait":"2","texteParent":"Retour à la connexion"},
+  {"type":"icone","cle":"svg","r":{"x":220.8,"y":13.9,"w":34,"h":21.6},"dans":[1,0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":262,"y":17.5,"w":104.3,"h":25.2},"dans":[1,0],"police":"bricolageExt","taille":16.2,"graisse":600,"interligne":25.2,"espacement":2.3,"couleur":[31,24,18,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":219.8,"y":12.9,"w":1,"h":1},"dans":[1,0],"police":"dmSansExt","taille":14.4,"graisse":400,"interligne":21.6,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":8,"type":"boite","dans":[0],"cle":"","tag":"span","r":{"x":480,"y":115.2,"w":43.2,"h":43.2},"slot":null,"fid":null,"fond":[93,110,79,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-mail-check","r":{"x":490.8,"y":126,"w":21.6,"h":21.6},"dans":[8,0],"couleur":[252,249,243,1],"trait":"1.5","texteParent":""},
+  {"type":"texte","cle":"Lien envoyé à a•••@gmail.com","tag":"h1","r":{"x":480,"y":172.8,"w":480,"h":77.8},"dans":[0],"police":"bricolageExt","taille":36,"graisse":600,"interligne":38.9,"espacement":-0.9,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Ouvre-le pour choisir un nouveau mot de passe. Il reste valable 60 minutes.","tag":"p","r":{"x":480,"y":261.3,"w":480,"h":51},"dans":[0],"police":"dmSansExt","taille":17,"graisse":400,"interligne":25.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Ouvrir Gmail","tag":"span","r":{"x":480,"y":337.5,"w":200,"h":43.2},"dans":[0,13],"police":"dmSansExt","taille":16,"graisse":600,"interligne":24,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":13,"type":"boite","dans":[0],"cle":"Ouvrir Gmail","tag":"span","r":{"x":480,"y":337.5,"w":200,"h":43.2},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,21.6,0,21.6],"ecart":7.2},
+  {"type":"texte","cle":"Renvoyer dans 60 s","tag":"span","r":{"x":694.4,"y":350.1,"w":114.1,"h":18},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"tabular-nums"},
+  {"id":15,"type":"boite","dans":[0],"cle":"Tu as un numéro sur ton compte ? Reçois plutôt un code par SMS — sans rien réini","tag":"div","r":{"x":480,"y":409.5,"w":480,"h":88.1},"slot":null,"fid":null,"fond":[89,115,77,0.08],"bords":[1,1,1,1],"couleurBord":[95,110,80,0.2],"rayon":[12.6,12.6,12.6,12.6],"ombre":null,"marges":[12.6,12.6,12.6,12.6],"ecart":10.8},
+  {"type":"icone","cle":"lucide-smartphone","r":{"x":493.6,"y":424.9,"w":18,"h":18},"dans":[15,0],"couleur":[93,110,79,1],"trait":"1.5","texteParent":"Tu as un numéro sur ton compte ? Reçois "},
+  {"type":"texte","cle":"Tu as un numéro sur ton compte ?","tag":"p","r":{"x":522.4,"y":423.1,"w":424,"h":17.3},"dans":[15,0],"police":"dmSansExt","taille":12.6,"graisse":600,"interligne":17.3,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Reçois plutôt un code par SMS — sans rien réinitialiser.","tag":"p","r":{"x":522.4,"y":442.2,"w":424,"h":17.3},"dans":[15,0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":17.3,"espacement":0,"couleur":[31,24,17,0.75],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Recevoir un code","tag":"span","r":{"x":522.4,"y":466.7,"w":102.4,"h":16},"dans":[15,0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":17.3,"espacement":0,"couleur":[168,83,50,1],"casse":"none","chiffres":"normal"}
+ ]
+}

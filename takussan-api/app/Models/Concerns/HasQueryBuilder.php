@@ -166,10 +166,15 @@ trait HasQueryBuilder
      * explicite est présent, donc un tri demandé par le client reste souverain
      * (AC4) et la pertinence ne s'applique qu'à défaut.
      *
-     * @param  string  ...$fallback  Les tris à appliquer hors recherche.
+     * Relevé de back-3 (2026-11-13) — un tri par défaut en CHAÎNE devient `AllowedSort::field()` chez
+     * spatie, jamais le tri personnalisé du même nom : `'-priority'` triait la priorité comme du texte
+     * à côté d'un `sort=-priority` par rang. Une colonne à tri personnalisé passe donc ici son
+     * `AllowedSort` (`'-nom'` pour l'ordre décroissant), comme `MaintenanceRequest::triParDefaut()`.
+     *
+     * @param  AllowedSort|string  ...$fallback  Les tris à appliquer hors recherche.
      * @return array<int, AllowedSort|string>
      */
-    public static function defaultSortsWithRelevance(string ...$fallback): array
+    public static function defaultSortsWithRelevance(AllowedSort|string ...$fallback): array
     {
         $ids = static::$searchRelevanceIds[static::class] ?? null;
 
@@ -272,10 +277,13 @@ trait HasQueryBuilder
                 // TCK-1840 (P186.02) — le repli SQL replie la casse et prend `%` et `_` au pied de la
                 // lettre, comme les recherches de TCK-600 (piège n° 9 du CLAUDE.md de l'API).
                 $motif = '%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%';
-                $q->where(function (Builder $inner) use ($fields, $motif) {
+                $q->where(function (Builder $inner) use ($fields, $motif, $value) {
                     foreach ($fields as $field) {
                         $inner->orWhereRaw(CaseInsensitive::sql($field).' like ?', [$motif]);
                     }
+                    // TCK-2772 — dans le MÊME groupe `OR` : une clause posée hors de lui sortirait
+                    // du périmètre que la requête de base impose (l'agence, par exemple).
+                    static::extraSearchClauses($inner, $motif, $value);
                 });
                 // TCK-1401 (P151.01) — texte libre : sans délimiteur, spatie découpe « Diop, Awa » en tableau.
             })->delimiter('');
@@ -288,6 +296,14 @@ trait HasQueryBuilder
 
         return array_merge($exact, $partial, $range, $search, $custom);
     }
+
+    /**
+     * TCK-2772 — des clauses de recherche que `$requestSearchFields` ne peut pas porter : une colonne
+     * d'un autre modèle (par `orWhereHas`/`orWhereExists`), une clé d'une colonne JSON. Appelée DANS le
+     * groupe `OR` du repli SQL de `filter[search]`, avec le motif déjà replié et échappé (`%…%`) et la
+     * valeur brute. Chaque clause s'écrit en `orWhere…`. Défaut : aucune.
+     */
+    protected static function extraSearchClauses(Builder $inner, string $motif, string $valeur): void {}
 
     /**
      * Override on a model to add filters that don't fit the exact/partial/range
@@ -311,6 +327,18 @@ trait HasQueryBuilder
     protected static function customQuerySorts(): array
     {
         return [];
+    }
+
+    /**
+     * Les relations qu'une requête peut charger par `include=` : la seule liste de noms qu'un lecteur
+     * de la requête peut traiter comme des relations (vérification adverse de abfa84589 — un nom
+     * d'include venu de l'URL n'appelle jamais une méthode du modèle qui n'y figure pas).
+     *
+     * @return list<string>
+     */
+    public static function getRequestLoadable(): array
+    {
+        return array_values(static::$requestLoadable ?? []);
     }
 
     /** @return array<int, AllowedInclude> */

@@ -23,6 +23,8 @@ return [
         'payout_not_completed' => 'Only a completed payout can be reconciled with a debit.',
         'invoice_not_reconcilable' => 'Only a sent, overdue or paid invoice can be reconciled with a credit.',
         'settled_by_platform' => 'This payment was collected by the platform: it reaches your account with the platform payout, not on its own.',
+        // TCK-2793 — la pénalité payée seule d'une échéance, sa seconde part.
+        'late_fee_not_reconcilable' => 'This instalment has no late fee paid on its own online, collected by your agency, to reconcile.',
         'platform_payout_not_paid' => 'Only a paid platform payout can be reconciled with a credit.',
         'file_not_utf8' => 'The file is not UTF-8 encoded: export it again as UTF-8 from your bank or spreadsheet.',
     ],

@@ -1,0 +1,26 @@
+{
+ "page": "app-moderation",
+ "approche": "b",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "File des avis",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Détail d’un avis",
+   "sansBureau": "En bureau, le détail est la colonne de droite de la file (écran « File des avis ») : sujet, note, texte, signalements, réponse publique et gestes."
+  },
+  {
+   "e": 2,
+   "nom": "Bien à valider",
+   "sansBureau": null
+  }
+ ]
+}

@@ -222,7 +222,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
     id: 'property-form-save-bar',
     corner: 'bottom-full',
     height: barreSurDeuxLignes ? SAVE_BAR_HEIGHT_TWO_ROWS_PX : SAVE_BAR_HEIGHT_PX,
-    safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
+    safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
   });
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =

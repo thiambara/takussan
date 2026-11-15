@@ -8,6 +8,8 @@ use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -27,6 +29,18 @@ class SearchPublicPropertyRequest extends BaseFormRequest
     public const VILLES_MAX = 20;
 
     public const VILLE_LONGUEUR_MAX = 120;
+
+    /**
+     * TCK-2607 — les bornes de `locations` : au plus 12 quartiers de 100 caractères (la borne de
+     * `location`). L'alerte en exige au moins 2 (`SavedSearchCriteria`) ; l'URL en accepte 1 : la
+     * puce d'un quartier se retire seule, et la liste qui reste ne doit pas rendre 422.
+     */
+    public const QUARTIERS_MAX = 12;
+
+    public const QUARTIER_LONGUEUR_MAX = 100;
+
+    /** TCK-2517 — les comptes par option que `facets` peut demander, plafonnés à ces quatre. */
+    public const FACETTES = ['contract_type', 'type', 'bedrooms', 'neighborhood'];
 
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
@@ -64,6 +78,7 @@ class SearchPublicPropertyRequest extends BaseFormRequest
         }
 
         $this->villesEnListe();
+        $this->enListe('locations');
         $this->ecreteDisponibiliteAuPresent();
     }
 
@@ -75,15 +90,25 @@ class SearchPublicPropertyRequest extends BaseFormRequest
      */
     private function villesEnListe(): void
     {
-        $valeur = $this->input('cities');
+        $this->enListe('cities');
+    }
+
+    /**
+     * Une liste à virgules (`cities=Dakar,Thiès`, `locations=Mermoz,Ngor`) devient un tableau,
+     * segments vides retirés ; un tableau passe tel quel, sa règle le juge. TCK-2607 : la forme
+     * de `cities`, reprise pour `locations`.
+     */
+    private function enListe(string $cle): void
+    {
+        $valeur = $this->input($cle);
 
         if (! is_string($valeur)) {
             return;
         }
 
-        $this->merge(['cities' => array_values(array_filter(
+        $this->merge([$cle => array_values(array_filter(
             array_map('trim', explode(',', $valeur)),
-            fn (string $ville) => $ville !== '',
+            fn (string $segment) => $segment !== '',
         ))]);
     }
 
@@ -138,6 +163,21 @@ class SearchPublicPropertyRequest extends BaseFormRequest
                 function (string $attribut, mixed $valeur, Closure $echec): void {
                     foreach ((array) $valeur as $ville) {
                         if (! is_string($ville) || mb_strlen($ville) > self::VILLE_LONGUEUR_MAX) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
+            // TCK-2607 — plusieurs quartiers, en OU, chacun résolu comme `location` (référentiel
+            // puis clé repliée du texte libre) : « Voir les N biens » de l'orientation et le lien
+            // d'une alerte à `criteria.locations`.
+            'locations' => [
+                'nullable', 'array', 'max:'.self::QUARTIERS_MAX,
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach ((array) $valeur as $quartier) {
+                        if (! is_string($quartier) || mb_strlen($quartier) > self::QUARTIER_LONGUEUR_MAX) {
                             $echec(__('validation.in', ['attribute' => $attribut]));
 
                             return;
@@ -229,7 +269,32 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             // front affichait « 0 bien trouve ». La borne n'a de sens qu'a la SAISIE, pas a
             // la relecture d'une URL ecrite hier. `date` reste, elle garde le 422 sur
             // `available_from=not-a-date` (PublicPropertySearchFiltersTest).
-            'available_from' => 'nullable|date',
+            // TCK-2768 — et `JourIso` refuse ce que `date` relisait de travers (« 12/11/2026 » → le 11 décembre) :
+            // le front écarte d'abord une valeur d'URL que l'API refuserait, une recherche partagée ne pourrit pas.
+            'available_from' => ['nullable', 'date', new JourIso],
+            // TCK-2496 — les biens publiés APRÈS cet instant (ISO 8601) : le front compte ainsi les biens nouveaux d'une
+            // recherche récente (`per_page=1`, `meta.total`). Jamais dans le futur : rien n'y est publié, et un 0
+            // silencieux y passerait pour une réponse.
+            // TCK-2768 — un instant (le front envoie `toISOString()`) : `InstantIso`, qui admet aussi un jour seul.
+            'published_after' => ['nullable', 'date', new InstantIso, 'before_or_equal:now'],
+            // TCK-2517 — les biens d'une agence, d'un agent : le slug de leur fiche publique (`ProfilDuFiltre`). Un slug
+            // inconnu ou hors ligne rend une liste vide, jamais une erreur. Sous l'un d'eux, la liste suit le prédicat du
+            // portefeuille des fiches (public ET disponible).
+            'agency' => 'nullable|string|max:120',
+            'agent' => 'nullable|string|max:120',
+            // TCK-2517 — les comptes par option (`meta.facets`), liste à virgules parmi `FACETTES`.
+            'facets' => [
+                'nullable', 'string', 'max:100',
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach (explode(',', (string) $valeur) as $facette) {
+                        if (! in_array(trim($facette), self::FACETTES, true)) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
             // TCK-687 (P18.01) — `false` coupe les emplacements ET les places réservées : ni

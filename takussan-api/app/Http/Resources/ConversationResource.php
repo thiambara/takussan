@@ -63,8 +63,10 @@ class ConversationResource extends BaseResource
                     'id' => $user->pivot?->id,
                     'user_id' => $user->id,
                     'role' => $user->pivot?->role?->value,
+                    // TCK-2632 — l'archive, privée comme la sourdine : le front marque « Archivée »
+                    // un fil rouvert par `filter[participant]`.
                     ...($this->estLeLecteur($user, $request)
-                        ? ['is_muted' => (bool) $user->pivot?->is_muted]
+                        ? ['is_muted' => (bool) $user->pivot?->is_muted, 'archived_at' => $this->iso($user->pivot?->archived_at)]
                         : []),
                     'last_read_at' => $this->estLeLecteur($user, $request)
                         ? $this->iso($user->pivot?->last_read_at)

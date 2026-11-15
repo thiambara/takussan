@@ -189,7 +189,9 @@ class AgencyController extends Controller
         $request->query->remove('include');
 
         $query = User::buildAgencyMembersQuery(User::query()->membreDe((int) $agency->id), $request, (int) $agency->id);
-        $query->defaultSort('first_name');
+        // Le tri collationné (ADR-0025), pas `AllowedSort::field('first_name')`, que spatie tire d'une chaîne :
+        // l'ordre des octets plaçait « awa » et « Élodie » après « Zeynab ».
+        $query->defaultSorts(...User::nameSorts());
 
         $paginator = $query->paginate($this->tailleDePage($request, 20));
 

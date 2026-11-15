@@ -9,10 +9,16 @@
  *
  * TCK-593 (Parties 2 et 3) — l'échéancier lit les montants tels que l'API les rend : la pénalité
  * appliquée (`late_fee_amount`), le montant dû (`amount_due`), la quittance (`receipt_available`).
+ *
+ * TCK-2645 — la ligne de la maquette `app-baux` : la pénalité se lit comme un ÉTAT, « Marquer la
+ * pénalité réglée » et « Copier le lien de paiement » passent dans le menu de la ligne, « Payer »
+ * n'est offert qu'au locataire du bail (décision 3 a), la caution n'est plus parmi les loyers (AC5),
+ * « Payé » est en `--success`, l'échéance en cours vient en tête.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -142,11 +148,36 @@ function avecEcheances(echeances: LeasePayment[]) {
   });
 }
 
-function rendre(canManage = false, bail: { agencyId?: number | null; landlordId?: number } = {}) {
+/** Sans gestion, le lecteur est le locataire du bail (TCK-2645 : lui seul a « Payer »). */
+function rendre(
+  canManage = false,
+  bail: { agencyId?: number | null; landlordId?: number } = {},
+  options: { locataire?: boolean; limite?: number; toutes?: boolean; aujourdhui?: string; onEncaisser?: (id: number) => void } = {},
+) {
   const { agencyId = 1, landlordId = 7 } = bail;
+  const { locataire = !canManage, limite, toutes, aujourdhui, onEncaisser } = options;
   return render(
-    withIntl(<LeaseSchedule leaseId={1} agencyId={agencyId} landlordId={landlordId} canManage={canManage} canRecordPayment={canManage} />),
+    withIntl(
+      <LeaseSchedule
+        leaseId={1}
+        agencyId={agencyId}
+        landlordId={landlordId}
+        canManage={canManage}
+        canRecordPayment={canManage}
+        locataire={locataire}
+        limite={limite}
+        toutes={toutes}
+        aujourdhui={aujourdhui}
+        onEncaisser={onEncaisser}
+      />,
+    ),
   );
+}
+
+/** TCK-2645 — « Marquer la pénalité réglée », dans le menu de la ligne d'août. */
+async function marquerLaPenalite() {
+  await userEvent.setup().click(screen.getByRole('button', { name: /Autres gestes pour Loyer · août 2026/ }));
+  await userEvent.setup().click(await screen.findByRole('menuitem', { name: fr.lease.fiche.echeancier.marquerPenalite }));
 }
 
 /** Le 409 que l'API rend tant qu'un checkout incluant la pénalité vit. */
@@ -189,24 +220,31 @@ describe('LeaseSchedule — utilisable sur téléphone (TCK-505 #5, TCK-593 Part
     for (const el of [liste, ...liste.querySelectorAll(':scope > li, :scope > li > div, :scope > li > div > p')]) {
       expect(String(el.getAttribute('class') ?? '')).not.toMatch(/whitespace-nowrap|min-w-\[|(^|\s)w-\[/);
     }
-    // Une ligne est une carte empilée sous `lg`, une rangée au-delà.
+    // Une ligne est une carte empilée sous `lg`, une rangée au-delà — depuis TCK-2645 (lot 3), une
+    // rangée de la grille commune, sous l'en-tête de la table de la maquette.
     for (const li of within(liste).getAllByRole('listitem')) {
-      expect(li).toHaveClass('flex-col', 'lg:flex-row');
+      expect(li).toHaveClass('flex-col', 'lg:grid', 'lg:grid-cols-subgrid');
     }
   });
 });
 
 describe('LeaseSchedule — montants lus tels que l’API les rend (TCK-593 Partie 3)', () => {
-  it('affiche la pénalité appliquée : « +7 500 F CFA » (le « FCFA » des AC, tel qu’Intl le rend) pour late_fee_amount = 7500', () => {
-    avecEcheances([enRetard()]);
+  it('la pénalité appliquée se lit comme un état : « Pénalité 7 500 F · due » (TCK-2645)', () => {
+    avecEcheances([enRetard({ late_fee_payable_online: true })]);
     rendre();
-    expect(texte(screen.getByTestId('penalite').textContent)).toBe('+7 500 F CFA');
+    expect(texte(screen.getByTestId('penalite').textContent)).toBe('Pénalité 7 500 F · due');
   });
 
   it('rappelle à part une pénalité que l’agence n’encaisse pas en ligne', () => {
     avecEcheances([enRetard({ late_fee_payable_online: false })]);
     rendre();
-    expect(screen.getByText(fr.lease.schedule.lateFee.atAgency)).toBeInTheDocument();
+    expect(texte(screen.getByTestId('penalite').textContent)).toBe('Pénalité 7 500 F · à régler à l’agence');
+  });
+
+  it('une pénalité réglée dit quand', () => {
+    avecEcheances([enRetard({ status: 'paid', late_fee_outstanding: 0, late_fee_paid_at: '2026-10-12T09:00:00+00:00', is_overdue: false, amount_due: 0 })]);
+    rendre();
+    expect(texte(screen.getByTestId('penalite').textContent)).toMatch(/^Pénalité 7 500 F · réglée le 12 oct\./);
   });
 
   it('le type ne réintroduit pas `late_fee` : la clé n’existe pas dans la ressource', () => {
@@ -228,23 +266,23 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     rendre();
     const payer = /^Payer /;
 
-    expect(within(ligne(/LP-2026-0011|1 juil/)).queryByRole('button', { name: payer })).toBeNull();
-    expect(within(ligne(/1 août 2026.*\+7 500/)).getByRole('button', { name: payer })).toBeInTheDocument();
+    expect(within(ligne(/juillet 2026/)).queryByRole('button', { name: payer })).toBeNull();
+    expect(within(ligne(/août 2026.*Pénalité 7 500/)).getByRole('button', { name: payer })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: payer })).toHaveLength(2);
   });
 
   it('« Quittance PDF » sur une échéance dont la quittance est disponible, et seulement elle', () => {
     avecEcheances([PAYEE, enRetard()]);
     rendre();
-    expect(screen.getAllByRole('button', { name: fr.lease.schedule.receiptPdf })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: fr.lease.fiche.echeancier.quittance })).toHaveLength(1);
   });
 
-  it('« Pénalité réglée » pour qui gère le bail, et la mutation vise l’échéance', () => {
+  it('« Marquer la pénalité réglée », dans le menu de la ligne, pour qui gère le bail ; la mutation vise l’échéance', async () => {
     avecEcheances([PAYEE, enRetard()]);
     markLateFeePaid.mockResolvedValue({});
     rendre(true);
 
-    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    await marquerLaPenalite();
     expect(markLateFeePaid).toHaveBeenCalledWith({ paymentId: 12 });
   });
 
@@ -258,7 +296,7 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     });
     rendre(true);
 
-    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    await marquerLaPenalite();
     const dialogue = await screen.findByRole('dialog');
     const o = fr.lease.schedule.lateFee.override;
     expect(texte(within(dialogue).getByText(/Un paiement en ligne de/).textContent)).toContain('157 500 F CFA');
@@ -301,7 +339,7 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
       // Le bailleur du bail (50) — c'est un bail D'AGENCE : il n'y passe pas outre.
       const { unmount } = rendre(true, { landlordId: 50 });
 
-      fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+      await marquerLaPenalite();
       await waitFor(() => expect(toastAdd, qui).toHaveBeenCalledTimes(1));
       expect(screen.queryByRole('dialog'), qui).toBeNull();
       const { title, type } = toastAdd.mock.calls[0][0] as { title: string; type: string };
@@ -317,7 +355,7 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     refusSansPassageOutre = refusCheckoutEnCours();
     rendre(true, { agencyId: null, landlordId: 50 });
 
-    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    await marquerLaPenalite();
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(toastAdd).not.toHaveBeenCalled();
   });
@@ -328,7 +366,7 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     refusSansPassageOutre = refusCheckoutEnCours();
     rendre(true, { agencyId: null, landlordId: 7 });
 
-    fireEvent.click(screen.getByRole('button', { name: fr.lease.schedule.lateFee.markPaid }));
+    await marquerLaPenalite();
     await waitFor(() => expect(toastAdd).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
@@ -340,7 +378,7 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     providers.mockReturnValue(['wave']);
     rendre(true);
 
-    const annulee = ligne(/LP-2026-0012|150 000/);
+    const annulee = ligne(/août 2026/);
     expect(within(annulee).getByText(fr.lease.schedule.status.cancelled)).toBeTruthy();
     expect(within(annulee).queryByText(fr.lease.schedule.status.other)).toBeNull();
     expect(within(annulee).queryByText(fr.lease.schedule.status.late)).toBeNull();
@@ -349,10 +387,21 @@ describe('LeaseSchedule — gestes par échéance (TCK-593 Partie 2)', () => {
     expect(texte(annulee.textContent)).not.toContain(fr.lease.schedule.lateFee.atAgency);
   });
 
-  it('pas de « Pénalité réglée » pour le locataire', () => {
+  it('pas de « Pénalité réglée » pour le locataire : ni menu, ni geste', () => {
     avecEcheances([enRetard()]);
     rendre(false);
-    expect(screen.queryByRole('button', { name: fr.lease.schedule.lateFee.markPaid })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Autres gestes pour/ })).toBeNull();
+  });
+
+  it('la gestion n’a pas « Payer » sur la ligne (décision 3 a) : « Encaisser » ouvre le paiement reçu de CETTE échéance', () => {
+    providers.mockReturnValue(['wave']);
+    avecEcheances([PAYEE, enRetard()]);
+    const onEncaisser = vi.fn();
+    rendre(true, {}, { onEncaisser });
+    expect(screen.queryByRole('button', { name: /^Payer / })).toBeNull();
+    expect(within(ligne(/juillet 2026/)).queryByRole('button', { name: fr.lease.fiche.echeancier.encaisser })).toBeNull();
+    fireEvent.click(within(ligne(/août 2026/)).getByRole('button', { name: fr.lease.fiche.echeancier.encaisser }));
+    expect(onEncaisser).toHaveBeenCalledWith(12);
   });
 });
 
@@ -396,12 +445,15 @@ describe('LeaseSchedule — lien de paiement (TCK-602)', () => {
     avecEcheances([PAYEE, enRetard()]);
     const url = 'https://www.takussan.com/pay/' + 'a'.repeat(43);
     issuePaymentLink.mockResolvedValue({ data: { url, expires_at: null } });
+    // `userEvent.setup()` pose son propre presse-papiers : le nôtre se pose APRÈS.
+    const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     rendre(true);
 
-    expect(within(ligne(/LP-2026-0011|juil/)).queryByTestId('lien-de-paiement')).toBeNull();
-    fireEvent.click(screen.getByTestId('lien-de-paiement'));
+    expect(within(ligne(/juillet 2026/)).queryByRole('button', { name: /Autres gestes pour/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Autres gestes pour Loyer · août 2026/ }));
+    fireEvent.click(await screen.findByTestId('lien-de-paiement'));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(url));
     expect(issuePaymentLink).toHaveBeenCalledWith({ paymentId: 12 });
@@ -451,8 +503,9 @@ describe('LeaseSchedule — un libellé par statut de PaymentStatus (TCK-1264, P
 
   it.each([
     ['pending', DANS_UN_AN, fr.lease.schedule.status.pending],
-    ['paid', '2026-07-05', fr.lease.schedule.status.paid],
-    ['late', '2026-07-05', fr.lease.schedule.status.late],
+    // TCK-2645 (lot 3) — « Payé le 3 juil. », « En retard de N j » : l'état et sa date.
+    ['paid', '2026-07-05', /^Payé le 3 juil\.$/],
+    ['late', '2026-07-05', /^En retard de \d+ j$/],
     ['partially_paid', '2026-07-05', fr.payments.status.partially_paid],
     ['failed', '2026-07-05', fr.payments.status.failed],
     ['refunded', '2026-07-05', fr.payments.status.refunded],
@@ -461,21 +514,62 @@ describe('LeaseSchedule — un libellé par statut de PaymentStatus (TCK-1264, P
     avecEcheances([{ ...PAYEE, status, due_date }]);
     rendre();
 
-    const echeance = ligne(/LP-2026-0011|250 000/);
+    const echeance = ligne(/juillet 2026|250 000/);
     expect(within(echeance).getByText(libelle)).toBeTruthy();
     expect(within(echeance).queryByText(fr.lease.schedule.status.other)).toBeNull();
   });
 
-  it('une restitution de dépôt `pending` échue garde son statut : jamais « En retard »', () => {
+  it('une restitution de dépôt `pending` échue n’est jamais « En retard » : elle n’est plus parmi les loyers (TCK-2645)', () => {
     avecEcheances([
       { ...PAYEE, payment_type: 'deposit_refund', status: 'pending', due_date: '2026-07-05', paid_at: null },
+      { ...PAYEE, id: 15, reference_number: 'LP-2026-0015', period_start: '2026-09-01', period_end: '2026-09-30' },
     ]);
     rendre();
 
-    const restitution = ligne(/LP-2026-0011|250 000/);
-    expect(within(restitution).queryByText(fr.lease.schedule.status.late)).toBeNull();
-    expect(within(restitution).getByText(fr.lease.schedule.status.pending)).toBeTruthy();
-    expect(restitution.className).not.toContain('bg-destructive');
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.queryByText(fr.lease.schedule.status.late)).toBeNull();
+  });
+});
+
+describe('LeaseSchedule — la ligne de la maquette (TCK-2645)', () => {
+  it('AC5 — la caution n’est pas parmi les loyers ; « Payé » porte `--success`', () => {
+    avecEcheances([{ ...PAYEE, id: 20, payment_type: 'deposit', period_start: '2026-06-25' }, PAYEE]);
+    rendre();
+    const lignes = screen.getAllByRole('listitem');
+    expect(lignes).toHaveLength(1);
+    expect(texte(lignes[0].textContent)).toMatch(/^Loyer · juillet 2026/);
+    const paye = within(lignes[0]).getByText(/^Payé le 3 juil\.$/);
+    expect(paye.closest('[class*="text-success"]')).not.toBeNull();
+    expect(paye.closest('[class*="text-primary"]')).toBeNull();
+  });
+
+  it('l’échéance en cours en tête : les retards, puis les dues, puis le passé du plus récent au plus ancien', () => {
+    avecEcheances([
+      PAYEE,
+      { ...PAYEE, id: 16, period_start: '2026-06-01', period_end: '2026-06-30', due_date: '2026-06-05' },
+      enRetard(),
+      { ...enRetard({ id: 17 }), status: 'pending', is_overdue: false, late_fee_amount: null, late_fee_outstanding: 0, period_start: '2026-09-01', period_end: '2026-09-30', due_date: '2026-09-05' },
+      { ...PAYEE, id: 18, payment_type: 'charges', period_start: '2026-08-01', period_end: '2026-08-31', due_date: '2026-08-05', status: 'paid' },
+    ]);
+    rendre();
+    const ordre = screen.getAllByRole('listitem').map((li) => li.getAttribute('data-testid'));
+    expect(ordre).toEqual(['echeance-12', 'echeance-17', 'echeance-18', 'echeance-11', 'echeance-16']);
+    expect(texte(screen.getByTestId('echeance-18').querySelector('p')?.textContent)).toBe('Charges · août 2026');
+  });
+
+  it('`limite` montre les N prochaines, puis « Les n échéances » déplie', () => {
+    avecEcheances([PAYEE, enRetard(), { ...PAYEE, id: 16, period_start: '2026-06-01', due_date: '2026-06-05' }]);
+    rendre(false, {}, { limite: 2 });
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Les 3 échéances' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('l’état vide du locataire parle de son logement, jamais « Générez l’échéancier »', () => {
+    avecEcheances([]);
+    rendre(false, {}, { locataire: true });
+    expect(screen.getByText(fr.lease.fiche.echeancier.videLocataireTitre)).toBeInTheDocument();
+    expect(screen.queryByText(fr.lease.schedule.empty_description)).toBeNull();
   });
 });
 
@@ -497,7 +591,7 @@ describe('LeaseSchedule — le retard est celui de l’API (TCK-1831, P183.01)',
     avecEcheances([{ ...PAYEE, status: 'pending', due_date: '2026-10-23', paid_at: null, is_overdue: false }]);
     rendre();
 
-    const echeance = ligne(/LP-2026-0011|250 000/);
+    const echeance = ligne(/juillet 2026|250 000/);
     expect(within(echeance).getByText(fr.lease.schedule.status.pending)).toBeTruthy();
     expect(within(echeance).queryByText(fr.lease.schedule.status.late)).toBeNull();
     expect(echeance.className).not.toContain('bg-destructive');
@@ -507,7 +601,78 @@ describe('LeaseSchedule — le retard est celui de l’API (TCK-1831, P183.01)',
     avecEcheances([{ ...PAYEE, status: 'pending', due_date: '2026-10-22', paid_at: null, is_overdue: true }]);
     rendre();
 
-    const echeance = ligne(/LP-2026-0011|250 000/);
-    expect(within(echeance).getByText(fr.lease.schedule.status.late)).toBeTruthy();
+    const echeance = ligne(/juillet 2026|250 000/);
+    // TCK-2645 (lot 3) — le compte des jours part d'aujourd'hui à Dakar, une fois l'échéance dite échue.
+    expect(within(echeance).getByText('En retard de 1 j')).toBeTruthy();
+  });
+});
+
+/**
+ * TCK-2645 (lot 3) — maquette a-1, bureau : l'échéancier est la TABLE de la maquette (Période ·
+ * Échéance · Montant · Pénalité · Statut), sans quitter la liste. jsdom n'applique aucune media-query :
+ * on fixe ici la structure (en-tête commun, sous-grilles, libellés masqués à l'œil seulement), la
+ * mise en page se relève au navigateur (`fidelite compare`, balayage 768-1440).
+ */
+describe('LeaseSchedule — la table de la maquette au bureau (TCK-2645, lot 3)', () => {
+  const NOVEMBRE = enRetard({ id: 30, period_start: '2026-11-01', period_end: '2026-11-30', due_date: '2026-11-05', late_fee_payable_online: true });
+
+  it('« En retard de 6 j » compté depuis l’échéance que l’API dit échue ; jamais sans elle', () => {
+    avecEcheances([NOVEMBRE, { ...NOVEMBRE, id: 31, status: 'pending', is_overdue: false, period_start: '2026-10-01', due_date: '2026-10-05', late_fee_amount: null, late_fee_outstanding: 0 }]);
+    rendre(true, {}, { aujourdhui: '2026-11-11' });
+    expect(within(screen.getByTestId('echeance-30')).getByText('En retard de 6 j')).toBeTruthy();
+    // Échue d'après l'horloge, mais l'API ne la dit pas en retard : « À venir », sans compte.
+    expect(within(screen.getByTestId('echeance-31')).getByText(fr.lease.schedule.status.pending)).toBeTruthy();
+    expect(within(screen.getByTestId('echeance-31')).queryByText(/En retard/)).toBeNull();
+  });
+
+  it('« Payé le 29 oct. » d’une échéance qui a porté une pénalité : en attention ; dans le délai de grâce : en succès', () => {
+    avecEcheances([
+      { ...PAYEE, id: 40, period_start: '2026-10-01', due_date: '2026-10-05', paid_at: '2026-10-29T10:00:00+00:00', late_fee_amount: 7500, late_fee_paid_at: '2026-10-29T10:00:00+00:00' },
+      // Réglée après l'échéance mais sans pénalité (délai de grâce) : pas un retard.
+      { ...PAYEE, id: 41, period_start: '2026-09-01', due_date: '2026-09-05', paid_at: '2026-09-08T10:00:00+00:00' },
+    ]);
+    rendre(true);
+    expect(within(screen.getByTestId('echeance-40')).getByText('Payé le 29 oct.').closest('[data-tone]')?.getAttribute('data-tone')).toBe('attention');
+    expect(within(screen.getByTestId('echeance-41')).getByText('Payé le 8 sept.').closest('[data-tone]')?.getAttribute('data-tone')).toBe('success');
+  });
+
+  it('un en-tête commun, visuel seulement, et des lignes qui en suivent les colonnes', () => {
+    avecEcheances([NOVEMBRE, PAYEE]);
+    rendre(true);
+    const entete = screen.getByTestId('entete-echeancier');
+    expect(entete.getAttribute('aria-hidden')).toBe('true');
+    expect(entete).toHaveClass('max-lg:hidden', 'lg:grid-cols-subgrid');
+    expect([...entete.children].map((c) => c.textContent)).toEqual(['Période', 'Échéance', 'Montant', 'Pénalité', 'Statut', '']);
+    // Plus large que sa carte (1024-1280, bail de 22 échéances mesuré) : la grille défile dans la carte, jamais rognée.
+    expect(screen.getByTestId('grille-echeancier')).toHaveClass('lg:grid', 'lg:overflow-x-auto');
+    expect(screen.getByTestId('echeancier')).toHaveClass('lg:col-span-full', 'lg:grid-cols-subgrid');
+    // La ligne garde l'écart de colonnes de la grille : son `gap-2` du téléphone ne doit pas le réduire au bureau.
+    expect(screen.getByTestId('grille-echeancier')).toHaveClass('lg:gap-x-6');
+    for (const li of screen.getAllByRole('listitem')) expect(li).toHaveClass('lg:gap-x-6');
+  });
+
+  it('chaque cellule garde son libellé pour qui écoute : masqué à l’œil au bureau, jamais retiré', () => {
+    avecEcheances([NOVEMBRE, PAYEE]);
+    rendre(true);
+    const retard = screen.getByTestId('echeance-30');
+    expect(texte(retard.textContent)).toContain('Loyer · novembre 2026');
+    expect(texte(retard.textContent)).toContain('Échéance : 5 nov.');
+    expect(texte(screen.getByTestId('penalite').textContent)).toBe('Pénalité 7 500 F · due');
+    const masques = [...retard.querySelectorAll('.lg\\:sr-only')].map((e) => texte(e.textContent));
+    expect(masques).toEqual(['Loyer · ', 'Échéance : ', 'Pénalité ', ' · due']);
+    // Le mois s'écrit avec sa capitale au bureau (« Novembre 2026 ») ; la ligne payée n'a pas de pénalité : un tiret, muet.
+    expect(retard.querySelector('.lg\\:capitalize')?.textContent).toBe('novembre 2026');
+    const tiret = within(screen.getByTestId('echeance-11')).getByText('—');
+    expect(tiret.getAttribute('aria-hidden')).toBe('true');
+    expect(tiret).toHaveClass('max-lg:hidden');
+  });
+
+  it('« Les n échéances » tenu par la fiche : ni bouton sous la liste, ni repli sans elle', () => {
+    avecEcheances([PAYEE, enRetard(), { ...PAYEE, id: 16, period_start: '2026-06-01', due_date: '2026-06-05' }]);
+    const { rerender } = rendre(false, {}, { limite: 2, toutes: false });
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'Les 3 échéances' })).toBeNull();
+    rerender(withIntl(<LeaseSchedule leaseId={1} agencyId={1} landlordId={7} limite={2} toutes />));
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
   });
 });

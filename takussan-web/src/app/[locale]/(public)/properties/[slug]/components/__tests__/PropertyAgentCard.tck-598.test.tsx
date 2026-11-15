@@ -27,9 +27,6 @@ function monter(contact: PropertyOwnerLite) {
       <PropertyAgentCard
         contact={contact}
         agency={null}
-        propertySlug="villa"
-        propertyTitle="Villa des Almadies"
-        onMessage={() => {}}
       />,
     ),
   );

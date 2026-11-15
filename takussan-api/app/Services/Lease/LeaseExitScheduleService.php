@@ -8,6 +8,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
+use App\Services\Model\LeaseService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -109,7 +110,8 @@ class LeaseExitScheduleService
 
     /**
      * Les échéances de loyer dont la période commence après la date de sortie (à défaut de
-     * période, l'échéance elle-même).
+     * période, l'échéance elle-même). TCK-2679 — et celles de charges, appelées à côté du loyer :
+     * un locataire parti ne doit pas plus les unes que les autres.
      *
      * @return Collection<int, LeasePayment>
      */
@@ -119,7 +121,7 @@ class LeaseExitScheduleService
 
         return LeasePayment::query()
             ->where('lease_id', $lease->id)
-            ->where('payment_type', LeasePaymentType::Rent->value)
+            ->whereIn('payment_type', LeaseService::SCHEDULED_PERIOD_TYPES)
             ->where(function ($q) use ($exit) {
                 $q->whereDate('period_start', '>', $exit)
                     ->orWhere(fn ($q) => $q->whereNull('period_start')->whereDate('due_date', '>', $exit));

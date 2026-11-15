@@ -35,7 +35,11 @@ export type Review = {
   content: string | null;
   is_approved: boolean;
   status: ReviewStatus | null;
-  reported_count: number;
+  /**
+   * TCK-2722 — absent pour qui ne modère pas l'avis (`viewReports`) : l'auteur et le public ne lisent
+   * pas le nombre de signalements. La file de modération lit le sien par `reviews-moderation.ts`.
+   */
+  reported_count?: number;
   reply_content: string | null;
   replied_at: string | null;
   created_at: string | null;
@@ -114,7 +118,8 @@ export interface ReceivedReviewsParams {
 
 export const RECEIVED_REVIEWS_PER_PAGE = 20;
 
-export function useReceivedReviews(params: ReceivedReviewsParams) {
+/** `enabled` : TCK-2635 — le compte de l'onglet « Reçus » ne se demande qu'à qui peut en recevoir. */
+export function useReceivedReviews(params: ReceivedReviewsParams, options: { readonly enabled?: boolean } = {}) {
   const filter: Record<string, string> = {};
   if (params.propertyId) filter.property_id = String(params.propertyId);
   if (params.replied !== undefined) filter.replied = params.replied ? '1' : '0';
@@ -130,7 +135,7 @@ export function useReceivedReviews(params: ReceivedReviewsParams) {
   return useApiQuery<PaginatedResponse<Review>>(
     ['received-reviews', params],
     '/api/reviews/received',
-    { params: spatieParams },
+    { params: spatieParams, enabled: options.enabled },
   );
 }
 

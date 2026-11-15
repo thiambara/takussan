@@ -59,9 +59,10 @@ describe('<ConversationList> vide (TCK-645)', () => {
 
     const vide = screen.getByTestId('conversations-vide');
     expect(vide).not.toHaveClass('border');
-    expect(vide).toHaveClass('border-0');
-    // Il remplit la hauteur de la liste au lieu de flotter en haut d'un grand vide.
-    expect(vide).toHaveClass('min-h-full');
+    expect(vide).not.toHaveClass('border-dashed');
+    // TCK-2632 (a-4) — l'état vide des maquettes de `/app` (`EmptyState variant="nue"`), posé à
+    // 96 px du haut de la liste : ni carte ni pointillé.
+    expect(vide).toHaveClass('pt-24');
   });
 });
 

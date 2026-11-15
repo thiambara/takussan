@@ -168,7 +168,8 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
             rows={2}
             value={description}
             disabled={readOnly || isPending}
-            placeholder={t('editor.description_placeholder')}
+            // TCK-2676 — un champ qu'on ne peut pas remplir n'invite pas à écrire (rôle système).
+            placeholder={readOnly ? undefined : t('editor.description_placeholder')}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>

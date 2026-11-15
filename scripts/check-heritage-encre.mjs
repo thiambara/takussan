@@ -132,9 +132,12 @@ const TOLERES = new Set([]);
  * d'écriture rendait la lecture aveugle, le script sortirait en 0 avec un message d'apparence
  * saine. Relevé le 2026-08-30 (299), puis le 2026-10-29 (405, TCK-2389 : la page « Publier pour lui »
  * porte sept conteneurs de plus sur 398 ; le dépôt avait déjà crû de 299 à 398 sans que le chiffre
- * bouge). S'il bouge pour de bon, corriger ICI, avec la date.
+ * bouge), puis le 2026-11-12 (548 : les écrans de l'audit UX de /app, lots 1 et 2 — la fiche d'une
+ * visite de TCK-2587 franchit la marge ; croissance du code, la lecture n'a pas changé de forme), puis le
+ * 2026-11-13 (740 : l'ajout au coffre de TCK-2656, lot 2, franchit la marge ; même croissance, même forme).
+ * S'il bouge pour de bon, corriger ICI, avec la date.
  */
-const CONTENEURS_ATTENDUS = 405;
+const CONTENEURS_ATTENDUS = 740;
 /** Marge de respiration : le dépôt bouge, la lecture non. En dehors, il faut regarder. */
 const TOLERANCE_CONTENEURS = 0.35;
 
@@ -218,6 +221,25 @@ const JETONS_SOMBRE = {
   input: '#413b36',
   'sidebar-border': '#352f2a',
 };
+
+/*
+ * TCK-2686 — les teintes de l'échelle de densité de `/app` (`bg-fond-contour` du bouton contour…)
+ * sont des ALIAS : `--color-fond-contour: var(--background)` dans le `@theme` du bloc
+ * `densite-de-l-app`. La garde les résout vers le jeton qu'ils valent hors portée — sans quoi la
+ * recette de `outline` n'avait plus de fond hexadécimal et l'auto-épreuve tombait sur `undefined`.
+ * Sous la portée `/app` (thème clair), le fond du contour devient `--card` (#fff) : à moins de 2 %
+ * de luminance de `--background`, un couple qui passe ici passe là.
+ */
+// TCK-2687 — même lecture pour le bloc `primitives-de-l-app` (le repli de l'avatar : `fond-avatar`,
+// `encre-avatar`, alias de `muted` et `muted-foreground` hors portée).
+for (const marque of ['/* densite-de-l-app:début', '/* primitives-de-l-app:début']) {
+  const i = css.indexOf(marque);
+  const t = i === -1 ? null : css.slice(i).match(/@theme \{([\s\S]*?)\n\}/);
+  for (const m of t ? t[1].matchAll(/--color-([a-z0-9-]+)\s*:\s*var\(--([a-z0-9-]+)\)\s*;/g) : []) {
+    if (JETONS_CLAIR[m[2]]) JETONS_CLAIR[m[1]] = JETONS_CLAIR[m[2]];
+    if (JETONS_SOMBRE[m[2]]) JETONS_SOMBRE[m[1]] = JETONS_SOMBRE[m[2]];
+  }
+}
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────
 // LA LECTURE DES UTILITAIRES ET DES RECETTES DE VARIANTE
@@ -713,7 +735,7 @@ if (perimees.length > 0) {
 const ecart = Math.abs(compteurs.conteneurs - CONTENEURS_ATTENDUS) / CONTENEURS_ATTENDUS;
 if (ecart > TOLERANCE_CONTENEURS) {
   console.error(
-    `✗ CLIQUET — ${compteurs.conteneurs} conteneur(s) lus, alors que le dernier relevé (2026-10-29) en`
+    `✗ CLIQUET — ${compteurs.conteneurs} conteneur(s) lus, alors que le dernier relevé (2026-11-13) en`
     + ` donnait ${CONTENEURS_ATTENDUS} (±${Math.round(TOLERANCE_CONTENEURS * 100)} %).`,
   );
   console.error('  Ce chiffre échoue dans LES DEUX SENS, et c’est le sens descendant qui compte :');

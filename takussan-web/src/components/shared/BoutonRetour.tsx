@@ -20,11 +20,18 @@ export interface BoutonRetourProps {
  *
  * ⚠ `history.length > 1` ne le dit pas : arriver depuis un moteur de recherche donne 2, et
  * `router.back()` ferait quitter le site. La Navigation API répond exactement (elle ne liste que
- * les entrées de la même origine) ; à défaut, le référent de la première page chargée.
+ * les entrées de la même origine) ; à défaut, le référent de la première page chargée — ET un
+ * historique d'au moins deux entrées.
+ *
+ * ⚠ Le référent seul ne suffit pas (TCK-2568, revue du 2026-11-09) : un NOUVEL ONGLET ouvert depuis
+ * le site (clic molette, `target="_blank"`, `window.open`) a un référent du site et un historique
+ * d'UNE entrée. `history.back()` n'y fait rien ; le lien doit alors mener au repli. Mesuré sous
+ * Safari iOS d'avant la Navigation API : le bouton ne faisait rien.
  */
-function peutRevenirSurLeSite(): boolean {
+export function peutRevenirSurLeSite(): boolean {
   const navigation = (window as Window & { navigation?: { canGoBack?: unknown } }).navigation;
   if (typeof navigation?.canGoBack === 'boolean') return navigation.canGoBack;
+  if (window.history.length < 2) return false;
   try {
     return document.referrer !== '' && new URL(document.referrer).origin === window.location.origin;
   } catch {

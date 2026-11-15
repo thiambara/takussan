@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 
 /** TCK-2385 — la période du tableau de bord IA, en jours civils. */
 class AiDashboardRequest extends BaseFormRequest
@@ -17,8 +18,8 @@ class AiDashboardRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'from' => ['required', 'date_format:Y-m-d'],
-            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'from' => ['required', 'date_format:Y-m-d', new JourIso],
+            'to' => ['required', 'date_format:Y-m-d', new JourIso, 'after_or_equal:from'],
         ];
     }
 }

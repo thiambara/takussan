@@ -11,8 +11,25 @@
  */
 const ROUTES_PLEIN_ECRAN: readonly string[] = ['/app/properties/new'];
 
+/**
+ * TCK-2602 — « Votre annonce est en ligne », la sortie de la publication d'un espace particulier :
+ * l'écran porte la coque d'entrée (sa barre, sa sortie « Aller à mon espace »). Un motif ancré, pour
+ * la même raison que l'égalité stricte : la fiche `/app/properties/{id}` garde sa coque.
+ */
+const MOTIFS_PLEIN_ECRAN: readonly RegExp[] = [/^\/app\/properties\/\d+\/en-ligne$/];
+
 export function estPleinEcran(pathname: string | null | undefined): boolean {
-  return pathname != null && ROUTES_PLEIN_ECRAN.includes(pathname);
+  return pathname != null && (ROUTES_PLEIN_ECRAN.includes(pathname) || MOTIFS_PLEIN_ECRAN.some((motif) => motif.test(pathname)));
+}
+
+/**
+ * TCK-2619 (décision 6 a, ADR-0090) — `/app` et toutes ses pages : la console. Le widget de messagerie
+ * (`ChatWidget`) ne s'y monte plus, à aucune largeur : la barre d'onglets (téléphone) et l'entrée
+ * « Messagerie » de la colonne (bureau) y mènent déjà, et le lanceur recouvrait le coin bas droit du
+ * contenu. Il reste sur le site public.
+ */
+export function estDansLaConsole(pathname: string | null | undefined): boolean {
+  return pathname != null && (pathname === '/app' || pathname.startsWith('/app/'));
 }
 
 /**
@@ -23,7 +40,7 @@ export function estPleinEcran(pathname: string | null | undefined): boolean {
  */
 export function porteLaBarreDOnglets(pathname: string | null | undefined): boolean {
   if (pathname == null || estPleinEcran(pathname)) return false;
-  return pathname === '/app' || pathname.startsWith('/app/');
+  return estDansLaConsole(pathname);
 }
 
 /**

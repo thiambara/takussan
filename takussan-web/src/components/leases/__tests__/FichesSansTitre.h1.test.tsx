@@ -41,6 +41,10 @@ vi.mock('@/lib/queries/documents', () => ({
   useDocumentWithVersions: requete,
 }));
 
+// TCK-2645 — la fiche lit ses fournisseurs de paiement (geste « Payer ») et son onglet dans l'URL.
+vi.mock('@/hooks/usePaymentProviders', () => ({ usePaymentProviders: () => ({ providers: [], isLoading: false }) }));
+vi.mock('@/hooks/useVueDansLUrl', () => ({ useVueDansLUrl: () => ({ params: new URLSearchParams(), remplacer: () => undefined }) }));
+
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: null }),
 }));

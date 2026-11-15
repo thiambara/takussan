@@ -51,6 +51,40 @@ export interface MenuCompose {
 type DestinationDuCatalogue = Destination & { readonly id: IdDestination };
 
 const PAR_ID: ReadonlyMap<string, DestinationDuCatalogue> = new Map(CATALOGUE.map((d) => [d.id, d]));
+
+/**
+ * TCK-2799 (ADR-0096, amendement du 2026-11-14 § 5) — les épingles d'une destination qui a quitté le
+ * catalogue, et celle qui l'a remplacée. TCK-2628 a fondu cinq vues en une destination, « Rapports » :
+ * les préférences enregistrées gardent leurs anciens identifiants (l'API n'en valide que la forme).
+ */
+export const EPINGLES_DEVENUES: Readonly<Record<string, IdDestination>> = {
+  'vue-agence': 'rapports',
+  statistiques: 'rapports',
+  kpis: 'rapports',
+  alertes: 'rapports',
+  exports: 'rapports',
+};
+
+/**
+ * TCK-2799 — les épingles enregistrées, relues sur le catalogue d'aujourd'hui : une ancienne se lit sous sa
+ * remplaçante, à la place de la PREMIÈRE ancienne épinglée, une seule fois ; si la remplaçante est déjà
+ * épinglée, les anciennes s'effacent et elle garde sa place. Le reste passe tel quel (la composition juge
+ * ensuite l'accès : une persona sans « Rapports » n'en reçoit aucune).
+ */
+export function epinglesMigrees(epingles: readonly string[]): string[] {
+  const devenue = (id: string): IdDestination | undefined => (Object.hasOwn(EPINGLES_DEVENUES, id) ? EPINGLES_DEVENUES[id] : undefined);
+  const deja = new Set<string>(epingles.filter((id) => devenue(id) === undefined));
+  const sortie: string[] = [];
+  for (const id of epingles) {
+    const cible = devenue(id);
+    if (cible === undefined) sortie.push(id);
+    else if (!deja.has(cible)) {
+      deja.add(cible);
+      sortie.push(cible);
+    }
+  }
+  return sortie;
+}
 /** TCK-2483 — le persona hors personnel ne perd rien de ce qu'il ouvre lui-même. */
 const SANS_MASQUE: ReadonlySet<string> = new Set();
 
@@ -95,7 +129,7 @@ export function composerMenu(
     id: d.id,
     href: d.href,
     labelKey: cle ?? disposition.libelles?.[d.id] ?? cleDe(d, ctx),
-    icon: iconeDe(d, ctx),
+    icon: disposition.icones?.[d.id] ?? iconeDe(d, ctx),
     groupe,
     ...(d.espace ? { labelSpace: d.espace } : {}),
     ...(d.misEnAvant ? { emphasized: true } : {}),
@@ -119,9 +153,9 @@ export function composerMenu(
   // TCK-2480 — « Épinglés » : pris AVANT les groupes, donc retirés de leur groupe d'origine. Une épingle
   // ne vise que ce que le PERSONA ouvre (`prendre` juge sur `juge(d)`, jamais sur l'union : le
   // complément ne s'épingle pas), jamais l'action principale ni la carte ; un identifiant inconnu ou
-  // fermé est ignoré, et au-delà de cinq aussi.
+  // fermé est ignoré, et au-delà de cinq aussi. TCK-2799 — une épingle d'une vue fondue dans « Rapports » s'y lit.
   const epingles: EntreeComposee[] = [];
-  for (const id of preferences.epingles ?? []) {
+  for (const id of epinglesMigrees(preferences.epingles ?? [])) {
     if (epingles.length >= EPINGLES_MAX) break;
     const d = PAR_ID.get(id);
     if (!d || d.id === action?.id || d.id === disposition.carte) continue;
@@ -243,4 +277,17 @@ export function cheminOuvert(ctx: ContexteDeMenu, href: string): boolean {
   const portees = CATALOGUE.filter((d) => d.href === chemin);
   const page: ContexteDeMenu = { ...ctx, masquees: SANS_MASQUE };
   return portees.length === 0 || portees.some((d) => estOuverte(d, page));
+}
+
+/**
+ * TCK-2617 — la destination qui sert ce chemin POUR CE COMPTE (« Mes baux » au bailleur, « Baux » au
+ * personnel), d'où l'en-tête du téléphone tire son titre ; à défaut d'une destination ouverte, la
+ * première qui porte le chemin. Jugée comme `cheminOuvert`, et ici pour la même raison : seul le
+ * compositeur juge l'ouverture d'une destination (`modules.test.ts`, TCK-2483). Masque d'agence ignoré.
+ */
+export function destinationDuChemin(ctx: ContexteDeMenu, href: string): Destination | null {
+  const chemin = href.split('?')[0];
+  const portees = CATALOGUE.filter((d) => d.href === chemin);
+  const page: ContexteDeMenu = { ...ctx, masquees: SANS_MASQUE };
+  return portees.find((d) => estOuverte(d, page)) ?? portees[0] ?? null;
 }

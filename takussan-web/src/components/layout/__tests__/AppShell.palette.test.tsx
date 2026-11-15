@@ -299,7 +299,8 @@ describe('TCK-2483 — la coque passe les modules masqués à la barre et à la 
     const u = userEvent.setup();
     await u.keyboard('{Control>}k{/Control}');
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
-    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Messagerie', 'Tableau de bord']);
+    // TCK-2618 — `/app` est « Aujourd'hui » au menu de l'agent : la palette lit le même libellé.
+    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Messagerie', 'Aujourd’hui']);
   });
 });
 

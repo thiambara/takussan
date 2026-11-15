@@ -24,7 +24,9 @@ class RadarBackfillSimilarityTest extends TestCase
     {
         $this->freezeSecond();
         $ancienne = RadarListing::factory()->extracted(['description' => ['value' => self::DESCRIPTION]])->create();
-        $brute = RadarListing::factory()->create();
+        // Le texte brut est fixé : la fabrique tire un `paragraph()` qui passe parfois sous MIN_CHARS (60),
+        // et `of()` rend alors null — l'annonce n'est pas complétée et le compte tombe à 1, au hasard.
+        $brute = RadarListing::factory()->create(['raw_text' => 'Villa fictive à vendre aux Almadies, quatre chambres, piscine, jardin arboré, titre foncier.']);
         $recente = RadarListing::factory()->extracted()->create();
         $purgee = RadarListing::factory()->create();
         RadarListing::query()->whereKey([$ancienne->id, $brute->id])->update(['similarity_text' => null]);

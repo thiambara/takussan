@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 class LateFeeSettlement
 {
     /**
-     * @param  array{paid_at?: ?string, payment_method?: ?string, override_open_checkout?: bool, override_reason?: ?string}  $data
+     * @param  array{paid_at?: \DateTimeInterface|string|null, payment_method?: ?string, override_open_checkout?: bool, override_reason?: ?string}  $data
      */
     public function markPaid(LeasePayment $payment, User $by, array $data = []): LeasePayment
     {
@@ -42,6 +42,16 @@ class LateFeeSettlement
                     $gateway->refuseOpenCheckout($locked, $open);
                 }
                 $overridden = $gateway->supersedeOpenCheckout($locked, (string) ($data['override_reason'] ?? ''));
+            }
+            // TCK-2778 — de même pour un checkout ouvert de la pénalité SEULE (lien `late_fee`) : il
+            // l'encaisserait une seconde fois. Refusé, sauf passage outre ; écarté, payé quand même,
+            // il devient un double encaissement signalé (`kind: late_fee`).
+            $openAlone = $gateway->openLateFeeAloneCheckout($locked);
+            if ($openAlone !== null) {
+                if (empty($data['override_open_checkout'])) {
+                    $gateway->refuseOpenCheckout($locked, $openAlone);
+                }
+                $overridden = $gateway->supersedeLateFeeAloneCheckout($locked, (string) ($data['override_reason'] ?? ''));
             }
 
             $metadata = is_array($locked->metadata) ? $locked->metadata : [];

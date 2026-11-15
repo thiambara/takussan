@@ -14,33 +14,21 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
-import { useSimilairesDesVus } from '@/hooks/useSimilairesDesVus';
 
 interface RecentlyViewedCarouselProps {
   readonly excludeId?: number;
-  /**
-   * L'accueil complète la rangée par des biens similaires aux biens consultés, jusqu'à
-   * `CIBLE_DE_LA_RANGEE` cartes (cf. `useSimilairesDesVus`). La fiche d'un bien ne le fait pas :
-   * elle a déjà sa propre section « Biens similaires ».
-   */
-  readonly completerParDesSimilaires?: boolean;
 }
 
 /**
- * Rangée « Vus récemment » — TCK-129.
+ * Rangée « Vus récemment » — TCK-129. Depuis TCK-2495, la seule fiche d'un bien la monte : l'accueil
+ * ne la porte plus, et le complément « biens similaires » qu'il demandait est retiré avec elle.
  * Calque le visuel des autres rangées (PropertyRow), mais sans flèches et avec
  * un CTA destructif « Effacer l'historique » à la place de « Tout voir ».
  */
-export function RecentlyViewedCarousel({
-  excludeId,
-  completerParDesSimilaires = false,
-}: RecentlyViewedCarouselProps) {
+export function RecentlyViewedCarousel({ excludeId }: RecentlyViewedCarouselProps) {
   const t = useTranslations('recentlyViewed');
   const { items, loading, clear } = useRecentlyViewed(excludeId);
-  const similaires = useSimilairesDesVus(items, completerParDesSimilaires && !loading);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  // Le titre ne promet des similaires que lorsqu'il y en a dans la rangée.
-  const avecSimilaires = similaires.length > 0;
 
   // TCK-181 — masquer la rangée uniquement si le localStorage est vide ; on
   // accepte de rendre la section même avec un seul item visité.
@@ -50,9 +38,9 @@ export function RecentlyViewedCarousel({
     <>
       <PropertyRow
         variant="standard"
-        eyebrow={avecSimilaires ? t('withSimilar.eyebrow') : t('eyebrow')}
-        title={avecSimilaires ? t('withSimilar.title') : t('title')}
-        properties={avecSimilaires ? [...items, ...similaires] : items}
+        eyebrow={t('eyebrow')}
+        title={t('title')}
+        properties={items}
         loading={loading}
         error={null}
         showArrows={false}

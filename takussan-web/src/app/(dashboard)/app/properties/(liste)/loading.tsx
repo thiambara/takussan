@@ -16,6 +16,8 @@ export default function Loading() {
         </div>
         <div className="h-10 w-36 shrink-0 animate-pulse rounded-xl bg-muted/70 lg:h-9 lg:rounded-lg" />
       </div>
+      {/* TCK-2638 — le sélecteur « Gestion · Annonces », dans les deux modes. */}
+      <div className="h-11 w-full animate-pulse rounded-lg bg-muted/60 lg:w-56" />
       <div className="-mx-4 flex gap-2 overflow-hidden px-4 md:-mx-6 md:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:gap-3 lg:px-0">
         {Array.from({ length: 4 }).map((_, i) => (
           <div

@@ -34,6 +34,10 @@ vi.mock('@/lib/queries/saved-searches', () => ({
   useCreateSavedSearchMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+// TCK-2499 — un bien à rendre (le bandeau de puces se tait quand la liste n'en a aucun) : la
+// carte n'est pas l'objet de ce fichier.
+vi.mock('@/components/property/PropertyCard', () => ({ PropertyCard: () => null }));
+
 import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';
 
 function reponse(total: number) {
@@ -84,6 +88,7 @@ describe('TCK-552 · TCK-635 — la sauvegarde n’existe sous lg que s’il y a
 
   it('avec un filtre : le bouton est dans la rangée d’outils, rendu à toutes les largeurs, et actif', async () => {
     parametres = new URLSearchParams('furnished=true');
+    mockApiFetch.mockResolvedValue({ ...reponse(12), data: [{ id: 1, title: 'Villa', slug: 'villa', contract_type: 'rent' }] });
     await monte();
     const sauver = screen.getByRole('button', { name: /sauvegarder la recherche/i });
     expect(sauver.closest('[data-rangee-outils]')).not.toBeNull();
@@ -91,7 +96,12 @@ describe('TCK-552 · TCK-635 — la sauvegarde n’existe sous lg que s’il y a
     expect(sauver).not.toHaveAttribute('aria-disabled');
     // Le mot affiché est court ; le nom accessible le CONTIENT (WCAG 2.5.3).
     expect(sauver).toHaveTextContent('Sauvegarder');
-    expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
+    // TCK-2499 — les puces reviennent, collées sous l'en-tête, mais HORS de l'en-tête et de la
+    // rangée d'outils (TCK-635 les en avait retirées).
+    const puces = document.querySelector('[data-rangee="puces"]')!;
+    expect(puces.closest('[data-puces-collees]')).not.toBeNull();
+    expect(puces.closest('[data-rangee-outils]')).toBeNull();
+    expect(puces.closest('[data-entete-resultats]')).toBeNull();
   });
 });
 

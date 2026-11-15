@@ -55,6 +55,11 @@ class IpRateLimitKeyTest extends ApiTestCase
             'public-contact-lead' => 'public-contact-lead',
             'public-search-alert' => 'public-search-alert',
             'public-contact-click' => 'public-contact-click',
+            // TCK-2599 — la résolution d'un lien Google Maps sans compte.
+            'public-geo-link' => 'public-geo-link',
+            // TCK-2609 — l'aperçu d'une invitation par son jeton, et la demande d'un nouveau lien.
+            'public-invitation-preview' => 'public-invitation-preview',
+            'public-invitation-renewal' => 'public-invitation-renewal',
         ]);
     }
 

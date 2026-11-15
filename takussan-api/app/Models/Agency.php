@@ -47,6 +47,10 @@ class Agency extends AbstractModel implements HasMedia
         'commission_rate', 'status', 'kind', 'is_verified',
         'moderation_required', 'bank_csv_mapping', 'primary_admin_id',
         'legal_name', 'ninea', 'rccm', 'legal_address', 'default_tax_rate',
+        // TCK-2504 (décision de la session, 2026-11-09) — les réglages, dont les moyens de paiement
+        // hors ligne que les locataires lisent sur leurs liens : les changer en silence est la
+        // fraude par détournement de paiement que le journal doit voir.
+        'settings',
     ];
 
     protected $fillable = [
@@ -60,6 +64,9 @@ class Agency extends AbstractModel implements HasMedia
         // par `PayoutApprovalThreshold` (capacité, deux approbateurs, trace).
         'default_tax_rate',
         'legal_name', 'ninea', 'rccm', 'legal_address',
+        // TCK-2518 — la vitrine de la fiche publique. `median_response_minutes` n'est PAS ici : son
+        // seul écrivain est le job nocturne `RefreshDirectoryResponseTimes`.
+        'tagline', 'highlights', 'showcase_property_ids',
     ];
 
     protected $casts = [
@@ -80,6 +87,10 @@ class Agency extends AbstractModel implements HasMedia
         // VERIF-594 M-2 — un relâchement du seuil en attente d'un second détenteur.
         'pending_payout_threshold' => 'decimal:2',
         'pending_payout_threshold_requested_at' => 'datetime',
+        // TCK-2518 — la vitrine de l'annuaire public.
+        'highlights' => 'array',
+        'showcase_property_ids' => 'array',
+        'median_response_minutes' => 'integer',
     ];
 
     protected $attributes = [
@@ -107,6 +118,8 @@ class Agency extends AbstractModel implements HasMedia
         'payout_approval_threshold', 'default_tax_rate', 'legal_name', 'ninea', 'rccm', 'legal_address',
         // TCK-987 (P58.02) — la clé de `primaryAdmin`, que `AgencyResource` rend déjà.
         'primary_admin_id',
+        // TCK-2518 — la vitrine de la fiche publique, que l'écran de saisie relit.
+        'tagline', 'highlights', 'showcase_property_ids', 'median_response_minutes',
     ];
 
     /**

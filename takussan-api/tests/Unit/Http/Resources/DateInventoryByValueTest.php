@@ -63,18 +63,59 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2593
+        'App\Http\Resources\BookingResource::visits_on_property' => '`when()` sur un compte que seul '
+            .'`BookingCustomerFacts::prime()` pose (index et présentation de `BookingController`, TCK-2593) : un ENTIER '
+            .'(`(int)`, visites terminées du client sur le bien), jamais une date. Le sujet vient d\'une factory.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
+        'App\Http\Resources\CustomerResource::bookings_count' => "`when()` sur l'attribut `bookings_count` (TCK-2589, `include=bookingsCount`) — "
+            .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
+        'App\Http\Resources\CustomerResource::leases_count' => "`when()` sur l'attribut `leases_count` (TCK-2589, `include=leasesCount`) — "
+            .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
         'App\Http\Resources\CustomerResource::tasks_count' => "`whenCounted('tasks')` — un compteur ENTIER, jamais une date. "
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
+        'App\Http\Resources\CustomerResource::visits_count' => "`whenCounted('visits')` (TCK-2588, `include=visitsCount`) — "
+            .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
+        // TCK-2773 (ADR-0099, amendement du 2026-11-13) — les auteurs d'un document jugés pour le lecteur, sur
+        // la fiche seule : `when()` sur `avecAuteurs()` (show, store, verify, visibility de `DocumentController`)
+        // ou sur `avecJuge()` (les versions de `DocumentVersionController`, et celles de la fiche). Le parcours
+        // résout la ressource seule, sans juge. Chacune vaut `{name: string|null, role: string|null}` ou `null`
+        // (`AuteurDuDocument::de()`) : un nom ou un code de rôle, jamais une date.
+        // TCK-2841 (ADR-0099, amendement du 2026-11-14) — le bail porteur d'une ligne de liste, lu sur le
+        // `documentable` que `DocumentResource::page()` charge : `{id: int, reference_number: string|null,
+        // status: string}` (`enumValue`), jamais une date. Le parcours résout la ressource seule, sans porteur chargé.
+        'App\Http\Resources\DocumentResource::lease' => '`when()` sur un porteur `Lease` chargé (TCK-2841) : `{id, '
+            .'reference_number, status}`, jamais une date. Le parcours ne charge pas le porteur.',
+        'App\Http\Resources\DocumentResource::uploaded_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '
+            .'ou `null` (`AuteurDuDocument::de()`), jamais une date. Le parcours ne passe pas par la fiche.',
+        'App\Http\Resources\DocumentResource::verified_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '
+            .'ou `null`, jamais une date. Même raison que `uploaded_by_person`.',
+        'App\Http\Resources\DocumentVersionResource::uploaded_by_person' => '`when()` sur `avecJuge()` (TCK-2773), que seuls '
+            .'`DocumentVersionController` et la fiche posent : `{name, role}` ou `null`, jamais une date.',
         'App\Http\Resources\InventoryResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P189.02) : '
             .'un booléen, jamais une date.',
         'App\Http\Resources\InventoryResource::can_sign_as' => '`when()` sur un lecteur posé par `forViewer()`, '
             .'que seul `InventoryController::show` appelle (TCK-596) : une liste de rôles (`tenant`, `landlord`), '
             .'jamais une date.',
+        // TCK-2648 — les parties et les signataires nommés de la fiche, sous `forViewer()` seulement (rangés
+        // dans l'ordre alphabétique, autour de `sign_on_behalf_of`).
+        'App\Http\Resources\InventoryResource::landlord' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::owner_signed_by' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::owner_signed_on_behalf_of' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
         'App\Http\Resources\InventoryResource::sign_on_behalf_of' => '`when()` sur le même lecteur que `can_sign_as` '
             .'(TCK-596) : un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InventoryResource::tenant' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant, un nom et un prénom, jamais une date.',
+        'App\Http\Resources\InventoryResource::tenant_signed_via' => '`when()` sur le lecteur de `forViewer()` (TCK-2648) : '
+            .'un identifiant et un nom, jamais une date.',
+        'App\Http\Resources\InvitationResource::abilities' => '`when()` sur un appelant connu ET une invitation née '
+            .'d\'une fiche client (TCK-2668, D1) — le parcours n\'a ni l\'un ni l\'autre. Deux booléens (`resend`, '
+            .'`revoke`), jamais une date.',
         'App\Http\Resources\KycDossierResource::shared_identifiers' => '`when(super-admin)` — même forme, même absence de date (TCK-601).',
         'App\Http\Resources\LeaseResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P152.02) : '
             .'quatre booléens, jamais une date.',
@@ -86,18 +127,39 @@ class DateInventoryByValueTest extends TestCase
             .'(`tenant`, `landlord`), jamais une date.',
         'App\Http\Resources\LeaseResource::early_termination_penalty_months' => '`when()` sur le même lecteur posé par '
             .'`forViewer()` (P98.05, TCK-1166) : un nombre de mois ENTIER (`penaltyMonthsFor(): int`), jamais une date.',
+        // TCK-2764 r1 (2881df543) — déclarée ici par back-4 (TCK-2648) : la garde rougissait sur HEAD sans elle.
+        'App\Http\Resources\LeaseResource::has_inventory' => '`when()` sur le lecteur d\'`origin_booking` (qui peut '
+            .'abandonner le brouillon) : un booléen, jamais une date.',
+        'App\Http\Resources\LeaseResource::origin_booking' => '`when()` sur le même lecteur posé par `forViewer()` et '
+            .'sur `can(\'abandon\')` (TCK-2764) : `{id, status}` de la réservation d\'origine, un entier et la valeur de '
+            .'`BookingStatus`, ou `null` ; jamais une date.',
+        'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '
+            .'(TCK-2642) : un pourcentage (`RentReviewService::maxPctFor(): float`), jamais une date.',
         'App\Http\Resources\PropertyCollaboratorResource::commission_share' => '`when()` sur `partsLisibles()` (P241.01, '
             .'TCK-2364) : réservée à qui peut fixer les conditions de commission, absente pour le bailleur. Le cast `decimal:2` '
             .'du modèle, une chaîne numérique, jamais une date.',
         'App\Http\Resources\PropertyResource::abilities' => '`when()` sur le détail lu par un appelant connu (TCK-999) : '
             .'un booléen `transfer_owner`, jamais une date.',
+        'App\Http\Resources\PropertyResource::owner_profile_id' => '`when()` sur le détail lu par un appelant connu (TCK-2639) : '
+            .'un identifiant ENTIER (le profil de bailleur que la fiche ouvrirait) ou nul, jamais une date.',
         'App\Http\Resources\PropertyResource::pending_owner' => '`when()` sur `pending_owner_profile_id` et la lecture du '
             .'personnel (TCK-1000) : un identifiant ENTIER et un nom, jamais une date.',
         'App\Http\Resources\PropertyResource::primary_contact_source' => '`when()` refusé sur `public.*` (TCK-603, '
             .'ADR-0059 §6) — or la route du second appelant répond « oui » à tout `routeIs()`, `public.*` compris. '
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',
+        // TCK-2638 (lot B2) — ⚠ la SEULE entrée de cette liste qui porte une date : sa forme est gardée ailleurs.
+        'App\Http\Resources\PropertyResource::sponsored_until' => '`when()` sur un appelant connu (refusé sur `public.*`), '
+            .'les seules routes `properties.index` / `properties.show`, et le personnel de l\'agence du bien ou son bailleur '
+            .'(vérification adverse d1) — or la route du second appelant répond « oui » à `public.*`, et le premier n\'a pas '
+            .'de route. C\'EST une date (fin du boost, cast `datetime`), émise par `$this->iso()` : sa forme est gardée par '
+            .'`scripts/check-resource-date-format.mjs` (suffixe `_until`, ajouté pour elle) et par la valeur exacte '
+            .'`2026-11-18T23:59:59+00:00` de `Tests\Feature\Property\BoostEnCoursDansLaListeTest`.',
         'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
             .'un booléen, jamais une date.',
+        'App\Http\Resources\ReviewResource::reported_count' => '`when(viewReports)` (TCK-2722) : même lecteur que '
+            .'`risk`, que le parcours n\'atteint pas. Un compteur ENTIER (`(int)`), jamais une date.',
+        'App\Http\Resources\ReviewResource::risk' => '`when(viewReports)` (TCK-2672) : le parcours ne lit pas en '
+            .'modérateur de l\'avis. `{level, reasons}`, deux vocabulaires fermés (`high|low`, codes), jamais une date.',
     ];
 
     /** Profondeur maximale du parcours — un garde-fou contre un graphe cyclique, pas une limite métier. */

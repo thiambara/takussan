@@ -4,6 +4,7 @@ namespace Database\Seeders\Activity;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\LeaseStatus;
@@ -16,6 +17,7 @@ use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Models\PropertyVisit;
+use App\Services\Model\BookingService;
 use App\Support\Search\PropertyLabels;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Support\SeedingContext;
@@ -76,6 +78,40 @@ class LeaseSeeder extends Seeder
             Property::whereIn('id', $rentedPropertyIds)
                 ->update(['status' => PropertyStatus::Rented->value]);
         }
+
+        self::fermerLesCandidaturesSurUnBienLoue();
+    }
+
+    /**
+     * TCK-2747 (décision 6 du porteur, 2026-11-12) — le jeu de démo ne laisse pas de candidature
+     * acceptée sur un logement qu'un bail d'un autre client occupe à son début : l'API la refuse
+     * désormais (`409 booking.property_already_leased`), et la démo la contredisait (mesuré le
+     * 2026-11-12 : 9 des 20 candidatures acceptées l'avaient été après le bail). Les réservations
+     * sont semées AVANT les baux (`BookingSeeder`) : elles se ferment ici, comme le bail les aurait
+     * closes à son envoi en signature (TCK-2734) — `rejected`. La règle est celle de l'API
+     * (`BookingService::bauxQuiOccupent()`), pas une copie.
+     *
+     * @return int le nombre de candidatures closes
+     */
+    public static function fermerLesCandidaturesSurUnBienLoue(): int
+    {
+        $closes = Booking::query()
+            ->where('kind', BookingKind::Application->value)
+            ->where('status', BookingStatus::Confirmed->value)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Booking $b) => BookingService::bauxQuiOccupent($b)->exists());
+
+        foreach ($closes as $candidature) {
+            $fermee = $candidature->confirmed_at ?? $candidature->created_at;
+            Booking::withoutEvents(fn () => $candidature->forceFill([
+                'status' => BookingStatus::Rejected->value,
+                'cancelled_at' => $fermee,
+                'updated_at' => $fermee,
+            ])->save());
+        }
+
+        return $closes->count();
     }
 
     private function seedAgencyLeases(int $agencyId): void

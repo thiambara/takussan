@@ -15,6 +15,7 @@ use App\Models\Lease;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Media\PdfImageEmbedder;
 use App\Services\Media\PrivateMediaAccess;
@@ -91,7 +92,7 @@ class InventoryController extends Controller
 
     public function store(InventoryStoreRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $user = $request->user();
 
@@ -113,7 +114,9 @@ class InventoryController extends Controller
 
         // TCK-596 — `room_photos` (URL signées, par pièce) et `can_sign_as` ne sortent qu'ici,
         // jamais dans `index` : une URL signée par ligne de liste n'a pas de lecteur.
-        $inventory->load(['lease.tenant', 'property', 'media']);
+        // TCK-2648 — les noms que la fiche sert sous `forViewer` (le locataire, le bailleur, qui a signé
+        // et pour qui) : chargés ici, une requête par relation.
+        $inventory->load(['lease.tenant', 'lease.landlord', 'tenant', 'property', 'media', 'tenantSignedVia', 'ownerSignedBy', 'ownerSignedOnBehalfOf']);
 
         return $this->json([
             'data' => InventoryResource::make($inventory)
@@ -184,6 +187,9 @@ class InventoryController extends Controller
             $request->user(),
             $data['role'],
             $data['signature'],
+            // TCK-2646 (ADR-0098) — le code du locataire, quand le personnel recueille sa signature.
+            $data['code'] ?? null,
+            $request,
         );
 
         return $this->json([
@@ -191,17 +197,39 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * TCK-2646 (ADR-0098) — envoie au locataire le code qui l'authentifie sur l'appareil du membre du
+     * personnel qui l'appelle. Le service est la garde : 403 hors du personnel habilité, 409 déjà
+     * signé, 422 sans numéro vérifié au compte du locataire, 423 sous verrou, 429 avant 60 s.
+     */
+    public function sendOnsiteCode(Request $request, Inventory $inventory): JsonResponse
+    {
+        $sent = $this->signatures->sendOnsiteCode($inventory, $request->user());
+
+        return $this->json(['data' => $sent], 202);
+    }
+
     public function downloadPdf(Request $request, Inventory $inventory): SymfonyResponse
     {
         $this->authorize('view', $inventory);
 
+        // TCK-2655 — la condition est celle du modèle, que le coffre lit aussi pour lister.
         abort_code_unless(
-            $inventory->signed_at !== null
-                || ($inventory->tenant_signed && $inventory->owner_signed),
+            $inventory->pdfAvailable(),
             SymfonyResponse::HTTP_CONFLICT,
             'inventory.pdf_unsigned'
         );
 
+        return $this->renderPdf($inventory);
+    }
+
+    /**
+     * TCK-2770 — le rendu du PDF, après l'autorisation et la condition de signature : servi par
+     * {@see self::downloadPdf()} et repris tel quel par l'archive du coffre
+     * ({@see ArchiveDuCoffre}), qui a jugé l'entrée par la même règle.
+     */
+    public function renderPdf(Inventory $inventory): SymfonyResponse
+    {
         // P130.02 (TCK-1250) — le bien supprimé (suppression douce) reste celui du bail : le gabarit
         // le lit, au lieu de rendre 500 sur `$property->id`. La policy a pu déjà charger la relation,
         // à `null` sous la portée `SoftDeletes` : `loadMissing` ne la relirait pas.
@@ -249,6 +277,10 @@ class InventoryController extends Controller
             'owner_signature' => $inventory->owner_signature_data,
             'traceability_hash' => $this->signatures->traceabilityHash($inventory),
             'owner_signed_on_behalf' => $this->ownerSignedOnBehalf($inventory),
+            // TCK-2646 (ADR-0098 §5) — la signature du locataire recueillie sur place, par code SMS.
+            'tenant_signed_onsite' => $inventory->tenant_signature_method === Inventory::TENANT_METHOD_ONSITE_OTP
+                ? __('inventories.pdf.signed_onsite', ['destination' => (string) $inventory->tenant_otp_destination])
+                : null,
             'filename' => $filename,
         ]);
     }
@@ -314,7 +346,7 @@ class InventoryController extends Controller
         // recomposé au téléchargement, une photo ajoutée après signature changerait le document signé.
         $this->assertDraft($inventory);
 
-        $inventory = $this->inventories->addRoomPhotos($inventory, $request->file('photos'), $request->input('room_name'));
+        $inventory = $this->inventories->addRoomPhotos($inventory, $request->file('photos'), $request->input('room_name'), $request->validated('element_label'));
 
         return $this->json([
             'data' => $inventory->getMedia('room_photos')->map(fn ($m) => [
@@ -323,6 +355,8 @@ class InventoryController extends Controller
                 // servie par personne. La réponse est déjà autorisée (`update` sur l'inventaire).
                 'url' => $this->privateMedia->signedUrl($m),
                 'room_name' => $m->getCustomProperty('room_name'),
+                // TCK-2646 — l'élément photographié, nul pour une vue de la pièce.
+                'element_label' => $m->getCustomProperty('element_label'),
             ]),
         ]);
     }

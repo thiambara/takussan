@@ -20,10 +20,14 @@ class DocumentShareLinkSeeder extends Seeder
             return;
         }
 
-        $targetIds = Document::query()
-            ->inRandomOrder()
-            ->limit((int) ceil($total * 0.2))
-            ->pluck('id');
+        // Tirés par la graine, jamais par `inRandomOrder()` : le `random()` de PostgreSQL ne la lit pas.
+        // Les bornes de `randomDateBetween()` dépendent du document tiré, et un tirage borné de PHP
+        // consomme un nombre variable de valeurs (rejet) : un autre document décalait tout ce qui
+        // suit, environ un seed sur cinq (TCK-2380, mesuré le 2026-11-09 sur BoostActivitySeeder).
+        $targetIds = Tirage::plusieurs(
+            Document::query()->orderBy('id')->pluck('id'),
+            (int) ceil($total * 0.2),
+        );
 
         Document::query()
             ->whereIn('id', $targetIds)

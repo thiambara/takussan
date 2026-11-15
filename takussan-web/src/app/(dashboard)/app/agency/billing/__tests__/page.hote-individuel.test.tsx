@@ -25,6 +25,8 @@ vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () =>
 vi.mock('@/components/billing/AgencyBillingClient', () => ({
   AgencyBillingClient: () => <div data-testid="bloc-abonnement" />,
 }));
+// TCK-2671 — le bloc prix et jauges (son propre test : page.offre.tck-2671.test.tsx).
+vi.mock('@/lib/queries/offre', () => ({ fetchAbonnement: async () => null, fetchQuotaDeLAgence: async () => null }));
 vi.mock('@/components/billing/AgencyPayoutsClient', () => ({
   AgencyPayoutsClient: () => <div data-testid="bloc-reversements" />,
 }));

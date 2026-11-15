@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react';
+import { Tag as IconeEtiquette, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -57,6 +57,12 @@ interface Props {
   suggestions?: (Pick<Tag, 'id' | 'name' | 'color'> & { slug?: string | null })[];
   /** Deeplink: clicking a tag navigates to list filtered by that tag */
   onTagClick?: (tagName: string) => void;
+  /**
+   * TCK-2589 (maquette a-1, décision 3a) — `ligne` : au repos, une ligne « icône · pastilles ·
+   * + Étiquette » (la carte du référent de la fiche client) ; « + Étiquette » ouvre le champ et les
+   * pastilles retirables, « Terminé » (ou Échap) le referme. `champ` (défaut) : le champ toujours ouvert.
+   */
+  forme?: 'champ' | 'ligne';
 }
 
 export function CustomerTagPicker({
@@ -64,8 +70,10 @@ export function CustomerTagPicker({
   initialTags,
   suggestions = [],
   onTagClick,
+  forme = 'champ',
 }: Props) {
   const t = useTranslations('crm.tags');
+  const [ouvert, setOuvert] = useState(false);
   const libelle = useLibelleEtiquette();
   const [tags, setTags] = useState<TagChip[]>(initialTags);
   const [input, setInput] = useState('');
@@ -73,6 +81,23 @@ export function CustomerTagPicker({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
+  const champ = useRef<HTMLInputElement>(null);
+  const ajouter = useRef<HTMLButtonElement>(null);
+  const idListe = useId();
+  // La suggestion désignée au clavier (flèches) : -1, aucune — Entrée prend alors la saisie.
+  const [actif, setActif] = useState(-1);
+  /**
+   * Où rendre le focus quand l'élément qui l'avait disparaît ou se désactive (contre-vérification de
+   * TCK-2589 : il tombait sur `body`) : « + Étiquette » quand la ligne se referme, la pastille voisine
+   * (ou le champ) quand une pastille est retirée, le champ après un ajout — le champ est désactivé
+   * pendant l'envoi.
+   */
+  const rendreFocus = useRef<{ readonly vers: 'ajouter' | 'champ' } | { readonly vers: 'retirer'; readonly id: number; readonly voisin: number | null } | null>(null);
+
+  // La forme « ligne » s'ouvre sur le geste « + Étiquette » : le curseur va au champ.
+  useEffect(() => {
+    if (forme === 'ligne' && ouvert) champ.current?.focus();
+  }, [forme, ouvert]);
 
   const filteredSuggestions = suggestions.filter(
     (s) =>
@@ -80,6 +105,24 @@ export function CustomerTagPicker({
       libelle(s).toLowerCase().includes(input.toLowerCase().trim()) &&
       !tags.some((t) => t.name === s.name),
   );
+  const listeOuverte = showSuggestions && filteredSuggestions.length > 0;
+  const designee = listeOuverte && actif < filteredSuggestions.length ? actif : -1;
+
+  useEffect(() => {
+    const r = rendreFocus.current;
+    if (!r || isPending) return;
+    if (r.vers === 'ajouter') {
+      if (ouvert) return;
+      ajouter.current?.focus();
+    } else if (r.vers === 'retirer') {
+      const croix = (id: number) => containerRef.current?.querySelector<HTMLButtonElement>(`[data-retirer="${id}"]`) ?? null;
+      // Refusé : la pastille est toujours là, sa croix reprend le focus ; retirée : la voisine, sinon le champ.
+      (croix(r.id) ?? (r.voisin === null ? null : croix(r.voisin)) ?? champ.current)?.focus();
+    } else {
+      champ.current?.focus();
+    }
+    rendreFocus.current = null;
+  }, [isPending, ouvert, tags]);
 
   const attach = useCallback(
     (name: string) => {
@@ -105,6 +148,8 @@ export function CustomerTagPicker({
 
   const detach = useCallback(
     (tagId: number) => {
+      const i = tags.findIndex((x) => x.id === tagId);
+      rendreFocus.current = { vers: 'retirer', id: tagId, voisin: tags[i + 1]?.id ?? tags[i - 1]?.id ?? null };
       setError(null);
       startTransition(async () => {
         const res = await detachCustomerTagAction(customerId, tagId);
@@ -115,15 +160,47 @@ export function CustomerTagPicker({
         }
       });
     },
-    [customerId],
+    [customerId, tags],
   );
 
+  const refermer = () => {
+    rendreFocus.current = { vers: 'ajouter' };
+    setOuvert(false);
+  };
+
+  const choisir = (s: (typeof suggestions)[number]) => {
+    rendreFocus.current = { vers: 'champ' };
+    attach(s.name);
+    setShowSuggestions(false);
+    setActif(-1);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const n = filteredSuggestions.length;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n > 0) {
+      e.preventDefault();
+      setShowSuggestions(true);
+      if (e.key === 'ArrowDown') setActif(designee + 1 >= n ? 0 : designee + 1);
+      else setActif(designee <= 0 ? n - 1 : designee - 1);
+      return;
+    }
+    if (e.key === 'Enter' && designee >= 0) {
+      // Une suggestion désignée : Entrée la prend, pas la saisie partielle.
+      e.preventDefault();
+      choisir(filteredSuggestions[designee]);
+      return;
+    }
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
+      rendreFocus.current = { vers: 'champ' };
       attach(input);
     }
-    if (e.key === 'Escape') setShowSuggestions(false);
+    if (e.key === 'Escape') {
+      // Sans suggestion ouverte, Échap referme la forme « ligne ».
+      if (forme === 'ligne' && !listeOuverte) refermer();
+      setShowSuggestions(false);
+      setActif(-1);
+    }
   };
 
   // Close suggestion list on outside click
@@ -136,6 +213,49 @@ export function CustomerTagPicker({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const erreur = error ? (
+    <p role="alert" className="text-xs text-destructive">
+      {error}
+    </p>
+  ) : null;
+
+  if (forme === 'ligne' && !ouvert) {
+    return (
+      <div className="space-y-2" data-slot="etiquettes-en-ligne">
+        <div role="group" aria-label={t('ligne.titre')} className="flex flex-wrap items-center gap-2">
+          <IconeEtiquette className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+          {tags.map((tag) =>
+            onTagClick ? (
+              <button
+                key={tag.id}
+                type="button"
+                aria-label={t('filterAria', { tag: libelle(tag) })}
+                onClick={() => onTagClick(tag.name)}
+                className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-xs font-medium text-encre-douce outline-none hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring"
+              >
+                {libelle(tag)}
+              </button>
+            ) : (
+              <span key={tag.id} className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-xs font-medium text-encre-douce">
+                {libelle(tag)}
+              </span>
+            ),
+          )}
+          <button
+            ref={ajouter}
+            type="button"
+            aria-label={t('ligne.ajouterAria')}
+            onClick={() => setOuvert(true)}
+            className="rounded-sm text-ui font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
+          >
+            {t('ligne.ajouter')}
+          </button>
+        </div>
+        {erreur}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="space-y-2">
@@ -171,6 +291,7 @@ export function CustomerTagPicker({
               <button
                 type="button"
                 aria-label={t('removeAria', { tag: libelle(tag) })}
+                data-retirer={tag.id}
                 className="relative grid size-5 place-items-center rounded-full transition-colors hover:bg-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 after:absolute after:-inset-x-0.5 after:-inset-y-2"
                 onClick={() => detach(tag.id)}
                 disabled={isPending}
@@ -185,33 +306,42 @@ export function CustomerTagPicker({
       <div className="relative">
         <Input
           type="text"
+          role="combobox"
           aria-label={t('inputLabel')}
+          aria-autocomplete="list"
+          aria-expanded={listeOuverte}
+          aria-controls={listeOuverte ? idListe : undefined}
+          aria-activedescendant={designee >= 0 ? `${idListe}-${designee}` : undefined}
           placeholder={tags.length >= 10 ? t('maxReachedPlaceholder') : t('addPlaceholder')}
           disabled={tags.length >= 10 || isPending}
           value={input}
           onChange={(e) => {
             setInput(e.target.value);
             setShowSuggestions(true);
+            setActif(-1);
           }}
           onKeyDown={onKeyDown}
           onFocus={() => setShowSuggestions(true)}
+          ref={champ}
         />
 
-        {showSuggestions && filteredSuggestions.length > 0 && (
-          <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-md">
-            {filteredSuggestions.map((s) => {
+        {listeOuverte && (
+          // Le focus reste dans le champ (combobox) : les flèches désignent une option, Entrée la prend.
+          <ul id={idListe} role="listbox" aria-label={t('inputLabel')} className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-md">
+            {filteredSuggestions.map((s, i) => {
               const c = tagColor(s.name);
               return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      attach(s.name);
-                      setShowSuggestions(false);
-                    }}
-                  >
+                <li
+                  key={s.id}
+                  id={`${idListe}-${i}`}
+                  role="option"
+                  aria-selected={i === designee}
+                  className={cn('w-full cursor-pointer px-3 py-2 text-left text-sm transition-colors hover:bg-muted', i === designee && 'bg-muted')}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    choisir(s);
+                  }}
+                >
                     <span
                       className={cn(
                         'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
@@ -222,7 +352,6 @@ export function CustomerTagPicker({
                     >
                       {libelle(s)}
                     </span>
-                  </button>
                 </li>
               );
             })}
@@ -230,10 +359,15 @@ export function CustomerTagPicker({
         )}
       </div>
 
-      {error ? (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
+      {erreur}
+      {forme === 'ligne' ? (
+        <button
+          type="button"
+          onClick={refermer}
+          className="rounded-sm text-ui font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          {t('ligne.terminer')}
+        </button>
       ) : null}
     </div>
   );

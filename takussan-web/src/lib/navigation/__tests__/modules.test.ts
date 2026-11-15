@@ -7,6 +7,7 @@ import { composerMenu, entreesDuMenu } from '../composer-menu';
 import { DISPOSITIONS } from '../dispositions';
 import { CODES_DE_MODULE, destinationsMasquees, MODULES_D_AGENCE, modulesMasquesDe } from '../modules';
 import { PERSONAS } from '../personas';
+import { MODULE_DE_L_ONGLET } from '../rapports';
 import type { ContexteDeMenu } from '../types';
 
 /**
@@ -19,8 +20,13 @@ const MASQUABLES = CODES_DE_MODULE.flatMap((c) => MODULES_D_AGENCE[c]);
 const JAMAIS: readonly IdDestination[] = ['tableau-de-bord', 'messagerie', 'mes-biens', 'baux', 'paiements', 'demandes'];
 
 describe('TCK-2483 — les modules d’agence', () => {
-  it('chaque module retire au moins une destination, et une destination n’est que dans un module', () => {
-    for (const code of CODES_DE_MODULE) expect(MODULES_D_AGENCE[code].length, code).toBeGreaterThan(0);
+  // TCK-2628 — `analytics` ne retire plus d'entrée du menu : Exports, Alertes et Indicateurs sont devenus des
+  // onglets de « Rapports », que le module retire de la barre d'onglets (`MODULE_DE_L_ONGLET`).
+  it('chaque module retire au moins une destination ou un onglet de « Rapports », et une destination n’est que dans un module', () => {
+    const DES_ONGLETS = new Set(Object.values(MODULE_DE_L_ONGLET));
+    for (const code of CODES_DE_MODULE) expect(MODULES_D_AGENCE[code].length + (DES_ONGLETS.has(code) ? 1 : 0), code).toBeGreaterThan(0);
+    expect(MODULES_D_AGENCE.analytics).toEqual([]);
+    expect(Object.entries(MODULE_DE_L_ONGLET).filter(([, c]) => c === 'analytics').map(([id]) => id)).toEqual(['exports', 'alertes']);
     expect(new Set(MASQUABLES).size).toBe(MASQUABLES.length);
   });
 
@@ -65,8 +71,24 @@ describe('TCK-2483 — les modules d’agence', () => {
   });
 
   it('destinationsMasquees déroule les modules et ignore un code inconnu', () => {
-    expect([...destinationsMasquees(['analytics', 'obsolete'])].sort()).toEqual(['alertes', 'exports', 'kpis']);
+    expect([...destinationsMasquees(['credits', 'analytics', 'obsolete'])].sort()).toEqual(['credits']);
     expect(destinationsMasquees([]).size).toBe(0);
+  });
+
+  // TCK-2644 (AC8) — `move_in_follow_up` a quitté la liste : une agence qui l'avait enregistré garde
+  // un menu entier, sans erreur, et la valeur ne masque rien.
+  it('une agence dont `hidden_modules` vaut ["move_in_follow_up"] : la valeur est ignorée, le menu se rend entier', () => {
+    expect(CODES_DE_MODULE).not.toContain('move_in_follow_up');
+    const lus = modulesMasquesDe({ hidden_modules: ['move_in_follow_up'] });
+    expect(lus).toEqual([]);
+    expect(modulesMasquesDe({ hidden_modules: ['move_in_follow_up', 'calendar'] })).toEqual(['calendar']);
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: [] };
+    for (const persona of ['agent', 'admin-agence'] as const) {
+      const sans = entreesDuMenu(composerMenu({ ...ctx, masquees: destinationsMasquees([]) }, persona)).map((e) => e.id);
+      const avec = entreesDuMenu(composerMenu({ ...ctx, masquees: destinationsMasquees(lus) }, persona)).map((e) => e.id);
+      expect(avec, persona).toEqual(sans);
+      expect(avec, persona).toContain('baux');
+    }
   });
 });
 
@@ -100,14 +122,29 @@ describe('TCK-2483 — le masquage ne se contourne pas', () => {
 
   // Re-mesuré le 2026-11-06 : l'appelant est `components/layout/useMenuDeLEspace.ts` (TCK-2481), le
   // hook que partagent la barre, la barre d'onglets et la palette — pas `AppSidebar`.
+  //
+  // Une exception NOMINATIVE (TCK-2670) : l'aperçu du menu de la fiche de l'agence compose le menu
+  // d'un agent SANS masque, pour y montrer barrées les entrées que la saisie masque. Ce n'est pas
+  // une surface de navigation : aucune de ses lignes n'est un lien.
   it('tout appelant de `composerMenu` pose `masquees` (`destinationsMasquees`)', () => {
-    const appelants = SOURCES.filter(({ f, texte }) => !f.startsWith('lib/navigation/') && /\bcomposerMenu\(/.test(texte));
+    const APERCU_SANS_MASQUE = ['components/admin-agency/fiche/SectionMenu.tsx'];
+    const appelants = SOURCES.filter(
+      ({ f, texte }) => !f.startsWith('lib/navigation/') && !APERCU_SANS_MASQUE.includes(f) && /\bcomposerMenu\(/.test(texte),
+    );
     expect(appelants.length, 'aucun appelant trouvé : le motif est à revoir').toBeGreaterThan(0);
     expect(appelants.filter(({ texte }) => !/\bmasquees:\s*destinationsMasquees\(/.test(texte)).map(({ f }) => f)).toEqual([]);
   });
 
   it('`hidden_modules` n’est lu par aucune page ni aucune garde — affichage seulement', () => {
-    const AUTORISES = ['lib/navigation/modules.ts', 'lib/schemas/agency.ts', 'types/agency.ts', 'components/admin-agency/AgencyConfigForm.tsx'];
+    // TCK-2670 — la fiche de l'agence l'édite : son schéma, sa section « Menu » et son compte de modifications.
+    const AUTORISES = [
+      'lib/navigation/modules.ts',
+      'lib/schemas/agency.ts',
+      'types/agency.ts',
+      'lib/agence/fiche.ts',
+      'components/admin-agency/fiche/SectionMenu.tsx',
+      'components/admin-agency/fiche/FicheDeLAgence.tsx',
+    ];
     const lecteurs = SOURCES.filter(({ texte }) => texte.includes('hidden_modules')).map(({ f }) => f);
     expect(lecteurs.filter((f) => !AUTORISES.includes(f))).toEqual([]);
   });
@@ -116,10 +153,14 @@ describe('TCK-2483 — le masquage ne se contourne pas', () => {
   // Relevé le 2026-11-06 : le layout de `/app` (qui le passe à la coque), la fiche de l'agence (qui
   // l'édite, par `reglagesDeLaFiche()` de `lib/schemas/agency.ts` depuis TCK-2486), le hook du menu
   // (qui le passe au compositeur) — et `modules.ts`, qui les définit.
-  it('le masque n’est lu (`modulesMasquesDe`, `destinationsMasquees`) que par le menu et la fiche', () => {
+  //
+  // TCK-2628 — et le contexte de « Rapports », qui retire de la BARRE d'onglets ceux que l'agence masque, comme le
+  // menu ; aucune de ses gardes ne le lit (`lib/rapports/__tests__/gardes-serveur`, « `analytics` masqué »).
+  it('le masque n’est lu (`modulesMasquesDe`, `destinationsMasquees`) que par le menu, la fiche et la barre de « Rapports »', () => {
     expect(appelantsDe('modulesMasquesDe')).toEqual([
       'app/(dashboard)/app/layout.tsx',
       'lib/navigation/modules.ts',
+      'lib/rapports/contexte-serveur.ts',
       'lib/schemas/agency.ts',
     ]);
     expect(appelantsDe('destinationsMasquees')).toEqual(['components/layout/useMenuDeLEspace.ts', 'lib/navigation/modules.ts']);

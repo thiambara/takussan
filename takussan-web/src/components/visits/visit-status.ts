@@ -21,9 +21,13 @@ export const VISIT_STATUS_LABEL_KEY: Record<VisitStatus, string> = {
  */
 export const VISIT_STATUS_TONE: Record<VisitStatus, StatusTone> = {
   scheduled: 'attention',
-  confirmed: 'info',
-  completed: 'success',
-  cancelled: 'neutral',
+  // TCK-2587 (lot C) — les tons des maquettes retenues (`StatutVisite`, app-visites) : la visite
+  // confirmée est la bonne nouvelle (vert), la terminée ne demande plus rien (neutre), l'annulée et
+  // l'absence sont des échecs (rouge). Elles peignaient confirmée en bleu, terminée en vert, annulée
+  // en neutre.
+  confirmed: 'success',
+  completed: 'neutral',
+  cancelled: 'danger',
   no_show: 'danger',
 };
 

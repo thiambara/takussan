@@ -1,22 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useWatch } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { FormGlobalError, FormInput, FormTextarea } from '@/components/forms';
+import { FormAmountInput, FormGlobalError, FormTextarea } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useRefundBookingPayment } from '@/lib/queries/bookings';
 import { bookingRefundSchema, type BookingRefundFormValues } from '@/lib/schemas/booking';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { Locale } from '@/i18n/config';
 import type { Booking, BookingPayment } from '@/types/booking';
+import { useNomDuClient } from './liste/pieces';
+import { Avertissement, FeuilleOuPanneau, useEnPanneau } from './feuilles/pieces-des-feuilles';
 
 interface BookingRefundPanelProps {
   readonly booking: Booking;
@@ -90,7 +87,7 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
       {canAct && target !== null && (
         <BookingRefundDialog
           key={target.id}
-          bookingId={booking.id}
+          booking={booking}
           payment={target}
           locale={locale}
           onClose={() => setTarget(null)}
@@ -100,27 +97,40 @@ export function BookingRefundPanel({ booking, locale, isCustomer }: BookingRefun
   );
 }
 
+/**
+ * TCK-2594 — « Rembourser Awa Diop » (maquette `app-reservations` a, écran « Rembourser ») : la
+ * feuille du bas au téléphone, le panneau droit dès `xl`. Le montant est prérempli de ce que le
+ * client a payé et l'aide en dit le plafond ; l'avertissement des fonds déjà reversés reste
+ * (TCK-2153) ; le bouton, destructif, dit le montant qu'il rend.
+ */
 function BookingRefundDialog({
-  bookingId,
+  booking,
   payment,
   locale,
   onClose,
 }: {
-  readonly bookingId: number;
+  readonly booking: Booking;
   readonly payment: BookingPayment;
   readonly locale: Locale;
   readonly onClose: () => void;
 }) {
   const t = useTranslations('bookings.detail.refund');
-  const tCommon = useTranslations('common');
-  const refund = useRefundBookingPayment(bookingId);
+  const tFeuille = useTranslations('bookings.feuilles.rembourser');
+  const f = useFormatteurs();
+  const panneau = useEnPanneau();
+  const formId = useId();
+  const nomDuClient = useNomDuClient();
+  const refund = useRefundBookingPayment(booking.id);
+  const devise = payment.currency ?? booking.currency ?? 'XOF';
+  const nom = nomDuClient(booking);
+  const prenom = booking.customer?.first_name?.trim() || nom;
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     BookingRefundFormValues,
     unknown
   >({
     schema: bookingRefundSchema,
-    defaultValues: { refund_amount: payment.amount, refund_reason: '' },
+    defaultValues: { refund_amount: Number(payment.amount), refund_reason: '' },
     onSubmit: async (values) => {
       await refund.mutateAsync({ paymentId: payment.id, ...values });
       return undefined;
@@ -130,59 +140,64 @@ function BookingRefundDialog({
     },
   });
 
+  const montant = useWatch({ control: form.control, name: 'refund_amount' });
+
+  const pied = (
+    <Button
+      type="submit"
+      form={formId}
+      variant="destructive"
+      size={panneau ? 'default' : 'xl'}
+      className={panneau ? undefined : 'w-full'}
+      disabled={isSubmitting}
+    >
+      {isSubmitting
+        ? t('submitting')
+        : typeof montant === 'number' && montant > 0
+          ? tFeuille('rembourserMontant', { montant: f.montantCourt(montant, devise) })
+          : t('action')}
+    </Button>
+  );
+
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t('dialogTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('dialogDescription', { amount: formatCurrency(payment.amount, locale) })}
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            void handleSubmit(e);
-          }}
-          className="space-y-4"
-        >
-          {/* TCK-2153 (P205.02) — avertir sans refuser : la reprise suit (ADR-0039, 2026-10-24). */}
-          {payment.paid_out != null && (
-            <p
-              role="alert"
-              className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground"
-            >
-              {t('paidOutWarning', {
-                date: formatDate(payment.paid_out.processed_at, locale),
-                reference: payment.paid_out.reference_number,
-              })}
-            </p>
-          )}
-          <FormGlobalError>{globalError}</FormGlobalError>
-          <FormInput<BookingRefundFormValues>
+    <FeuilleOuPanneau open onOpenChange={(open) => !open && onClose()} titre={tFeuille('titre', { nom })} pied={pied}>
+      <form
+        id={formId}
+        onSubmit={(e) => {
+          void handleSubmit(e);
+        }}
+        className="space-y-4 pt-1"
+      >
+        <FormGlobalError>{globalError}</FormGlobalError>
+        <div>
+          <FormAmountInput<BookingRefundFormValues>
             control={form.control}
             name="refund_amount"
-            type="number"
-            label={t('fields.amount')}
+            label={tFeuille('montant')}
+            currency={devise}
+            unite="F"
             required
-            min={1}
-            step={1}
           />
-          <FormTextarea<BookingRefundFormValues>
-            control={form.control}
-            name="refund_reason"
-            label={t('fields.reason')}
-            rows={2}
-          />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose}>
-              {tCommon('actions.cancel')}
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? t('submitting') : t('submit')}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {tFeuille('montantAide', { montant: f.montantCourt(payment.amount, devise), prenom })}
+          </p>
+        </div>
+        <FormTextarea<BookingRefundFormValues>
+          control={form.control}
+          name="refund_reason"
+          label={t('fields.reason')}
+          rows={3}
+        />
+        {/* TCK-2153 (P205.02) — avertir sans refuser : la reprise suit (ADR-0039, 2026-10-24). */}
+        {payment.paid_out != null && (
+          <Avertissement>
+            {t('paidOutWarning', {
+              date: formatDate(payment.paid_out.processed_at, locale),
+              reference: payment.paid_out.reference_number,
+            })}
+          </Avertissement>
+        )}
+      </form>
+    </FeuilleOuPanneau>
   );
 }

@@ -112,10 +112,10 @@ export function PropertyRowLocal({
       <div className="mb-6 flex items-end justify-between gap-4 px-1">
         <div className="space-y-1.5">
           <p className="pg-eyebrow text-[var(--pg-accent)]">{eyebrow}</p>
-          <h2 className="pg-display text-[26px] md:text-[30px] leading-[1.1] font-semibold text-[var(--pg-ink)]">
+          <h2 className="pg-display text-[1.625rem] md:text-[1.875rem] leading-[1.1] font-semibold text-[var(--pg-ink)]">
             {title}
           </h2>
-          <p className="text-[11px] font-medium text-[var(--pg-ink-muted)]/70 pt-1">
+          <p className="text-[0.6875rem] font-medium text-[var(--pg-ink-muted)]/70 pt-1">
             Variante : <span className="font-semibold">{spec.label}</span>
           </p>
         </div>
@@ -124,7 +124,7 @@ export function PropertyRowLocal({
           {viewAllHref && (
             <Link
               href={viewAllHref}
-              className="hidden md:inline-flex items-center gap-1 text-[14px] font-semibold text-[var(--pg-ink)] hover:text-[var(--pg-accent)] transition-colors"
+              className="hidden md:inline-flex items-center gap-1 text-[0.875rem] font-semibold text-[var(--pg-ink)] hover:text-[var(--pg-accent)] transition-colors"
             >
               Tout voir
               <span aria-hidden="true" className="text-[var(--pg-accent)]">▸</span>

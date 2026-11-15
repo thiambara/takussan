@@ -1,0 +1,124 @@
+{
+  "ticket": "TCK-2614",
+  "ecrans": [
+    {
+      "page": "app-entree-assistants",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Pièces au téléphone",
+      "references": {
+        "telephone": "references/app-entree-assistants/a-3-telephone.json",
+        "bureau-1440": "references/app-entree-assistants/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-entree-assistants/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/pieces",
+        "persona": "proprietaire (persona `proprietaire` de personas.json, bailleur de Dakar Immo)",
+        "etat": "La démo n'a, pour le bailleur, aucune pièce envoyée (sonde GET /api/me/pieces, 2026-11-13 : cni, rib, ninea à `missing`), et le relevé n'écrit rien : le seul GET /api/me/pieces est DOUBLÉ dans la page par garde-et-doublure-pieces.js (chargé par `FID_AVANT`, toute requête autre que GET/HEAD refusée et comptée), avec l'état de la maquette : pièce d'identité à fournir, RIB envoyé (« rib-cbao-ndiaye.pdf », 240 Ko, aujourd'hui à 9 h 12 UTC = Dakar), NINEA à taper et FACULTATIF (`required: false`, comme l'API le rend pour ce bailleur sans `owner_type` — décision 2b du porteur, 2026-11-13). La coque, /me et « Démarrer » sont réels. perturber-ninea.js tape « 0 123 456 7G2 » dans le champ (saisie LOCALE, aucun envoi) et le met au focus, comme la maquette. Ce relevé mesure la MISE EN PAGE ; les données et les gestes sont éprouvés par vos-pieces.tck-2614.test.tsx (13 tests) et pieces.tck-2614.test.ts. Relevé v4 du 2026-11-13 (terrain-6, takussan-web/.fidelite/TCK-2614/v4, après la décision 2b) : telephone 5 conformes · 34 écarts · 22 absents (14,24 % de pixels — le décalage de 18 px de toute la page sous la ligne d'information, qui perd sa première phrase (écart de donnée), et le bloc « Variante » propre à la maquette) ; bureau-1440 46 conformes · 121 écarts · 67 absents (6,76 %) ; bureau-1280 50 conformes · 117 écarts · 67 absents (7,18 %). « Facultatif » et « Si vos biens sont en société » sont désormais rendus comme la maquette, et l'en-tête dit « 1 sur 2 ». Au bureau : tableau pièce · état · action aux colonnes de la maquette (1,3fr · 120 px · 1,4fr), zone de dépôt, aside de 320 px dès xl. Balayage 390/768/1024/1280/1440 (même doublure) : aucun débord, aucune coupe ; ellipses : le nom et le détail du fichier envoyé à 1024 et 1280 (comme la maquette à 1280, « rib-cbao-n… »), les libellés du rail replié de la coque à 768. AC3 : à 390, « Envoyer mes pièces » est dans la barre collée en bas (visible sans défilement) ; à 1280, les pièces sont en tableau."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/pieces",
+    "persona": "proprietaire",
+    "disposition": "bailleur",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-6, impl/lot2/terrain-6/2614/fid/ : garde-et-doublure-pieces.js (FID_AVANT), perturber-ninea.js ; releve-a3.sh, balayage.sh"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Tes pièces": "Vos pièces",
+    "Tu peux utiliser ton espace en attendant.": "Vous pouvez utiliser votre espace en attendant.",
+    "Pour recevoir tes loyers": "Pour recevoir vos loyers",
+    "Dépose le fichier ici ou": "Déposez le fichier ici ou",
+    "parcours": "parcourez",
+    "240 Ko · aujourd’hui, 9 h 12": "240 Ko · aujourd’hui, 09:12",
+    "Si tes biens sont en société": "Si vos biens sont en société"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "tutoiement de la maquette (« Tes pièces », « Tu peux… ton espace », « tes loyers », « Dépose… parcours »)",
+      "propriete": "libellé",
+      "exception": "règle du produit",
+      "motif": "ADR-0095 et le ticket : vouvoiement — alias de la fiche"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "« Dakar Immo les vérifie sous 48 h. » (première phrase de la ligne d'information au téléphone, du sous-titre au bureau)",
+      "propriete": "présence ; au téléphone, la ligne tient sur une ligne et toute la page remonte de 18 px",
+      "exception": "donnée",
+      "motif": "décision 5a de team-lead (2026-11-13) : aucun délai de vérification ni vérificateur n'est garanti par un mécanisme (la vérification par l'agence est hors périmètre, famille 6 ; promesses-de-delai) ; seule la phrase sourcée reste — aucune route ne refuse l'usage de l'espace faute de pièce"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-bureau-*",
+      "element": "aside « Ce que ça débloque » (RIB — « le reversement de tes loyers, le 10 de chaque mois » ; Pièce d'identité — « la signature de tes mandats et de tes baux »)",
+      "propriete": "présence ; la carte « Les trois états d'une pièce » monte à sa place",
+      "exception": "donnée",
+      "motif": "décision 5a : aucune de ces deux promesses n'est tenue par une pièce (rien ne bloque sur une pièce, aucun reversement daté au 10)"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "« Variante · les pièces de l'agent et du prestataire » (Carte professionnelle, Pièce d'identité, Photo de profil, Assurance RC pro)",
+      "propriete": "présence",
+      "exception": "hors périmètre",
+      "motif": "annotation de la maquette, pas un élément de l'écran : le même écran rend ces lignes pour l'agent et le prestataire (vos-pieces.tck-2614.test.tsx, AC1 et prestataire). Leurs lignes de détail (« numéro et photo de la carte », « visible sur tes annonces ») ne sont pas reprises : l'envoi n'accepte pas de numéro de carte, et rien ne montre la photo de pièce sur les annonces"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "coque : barre latérale (groupe « Démarrer » dessiné pièce par pièce, barre de progression, « Vérifier mon numéro » barré), en-tête du téléphone",
+      "propriete": "boîtes, libellés, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 et le groupe « Démarrer » TCK-2479/2490 : l'API rend une étape `kyc` pour le bailleur (« Envoyer vos pièces d'identité »), pas une étape par pièce ; ce ticket la fait pointer vers /app/pieces (décision 3a)"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "pastilles « À fournir », « Envoyée », « Vérifiée »",
+      "propriete": "bordure 1 px, rayon 26, marges 2 px ; « Envoyée » au ton `info` (bleu) contre l'accent de la maquette",
+      "exception": "règle du design system",
+      "motif": "la primitive StatusBadge (TCK-2687) : l'accent de marque est réservé aux badges featured (en-tête de StatusBadge.tsx) ; aucune surcharge locale (ADR-0106 § 2 c)"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "« Envoyer mes pièces » (barre collante et en-tête du bureau)",
+      "propriete": "rayon 10 contre plein, graisse 500 contre 600, marges intérieures, ombre de la barre",
+      "exception": "règle du design system",
+      "motif": "primitives Button et BarreDAction (TCK-2686, TCK-2689) ; aucune surcharge locale"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "icônes lucide (info, chevrons de la légende)",
+      "propriete": "trait 1,75 (téléphone) / 1,5 (bureau) contre 2",
+      "exception": "règle du design system",
+      "motif": "TCK-2685 (A § 7) : le trait par défaut des icônes sous la portée de /app"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "champ NINEA au focus",
+      "propriete": "anneau et bordure du focus",
+      "exception": "règle du design system",
+      "motif": "la primitive Input porte l'état de focus ; aucune surcharge locale"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-*",
+      "element": "« Joindre le fichier » sous le champ NINEA",
+      "propriete": "absents de la maquette",
+      "exception": "donnée",
+      "motif": "le ticket : « le joindre en fichier reste possible par un lien discret » (contrainte « Le NINEA en fichier reste accepté »)"
+    },
+    {
+      "ecran": "app-entree-assistants a-3-bureau-*",
+      "element": "rem de la maquette 14,4 px contre 16 px",
+      "propriete": "tailles relevées en rem",
+      "exception": "règle du design system",
+      "motif": "ADR-0107 / TCK-2692 : la densité du bureau passe par les jetons, la racine reste à 16 px"
+    }
+  ],
+  "ecarts_ouverts": []
+}

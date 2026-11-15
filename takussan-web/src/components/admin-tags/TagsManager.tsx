@@ -286,7 +286,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                             className="inline-block size-3 rounded-full border border-input"
                             style={{ backgroundColor: tag.color }}
                           />
-                          <code className="text-[11px]">{tag.color}</code>
+                          <code className="text-[0.6875rem]">{tag.color}</code>
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>

@@ -131,7 +131,9 @@ class PrintedIdentityFrozenTest extends TestCase
     private function scaffold(): array
     {
         $agency = Agency::factory()->create(['name' => 'Agence Alpha']);
-        $landlord = User::factory()->create(['first_name' => 'Moussa', 'last_name' => 'Fall']);
+        // TCK-2803 — le bailleur d'un bien d'agence y détient un profil propriétaire : sans lui, il n'est
+        // pas le bailleur du bail (`BailleurDuBien`), ne le lit pas, et ne signe plus pour lui.
+        $landlord = User::factory()->withOwnerProfile($agency)->create(['first_name' => 'Moussa', 'last_name' => 'Fall']);
         $property = Property::factory()->create(['user_id' => $landlord->id, 'agency_id' => $agency->id, 'title' => 'Villa Alpha']);
         Address::query()->where('addressable_type', $property->getMorphClass())->where('addressable_id', $property->id)->delete();
         $property->address()->create(['street' => 'Rue Alpha', 'city' => 'Dakar', 'country' => 'SN']);

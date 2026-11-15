@@ -172,6 +172,8 @@ describe('<HostIndividualWizard> — trois étapes', () => {
     fireEvent.click(screen.getByRole('button', { name: /Terminer|Publier|Créer/i }));
 
     await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/properties/new'));
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
     const [toast] = toastAdd.mock.calls.at(-1)!;
     expect(toast.description).not.toMatch(/brouillon/i);
   });
@@ -194,6 +196,30 @@ describe('<HostIndividualWizard> — trois étapes', () => {
 
     expect(screen.getByText(RAIL.recap.rows.spaceName)).toBeInTheDocument();
     expect(screen.queryByText(/wave/i)).not.toBeInTheDocument();
+  });
+
+  it('TCK-2616 — la devise se lit « F CFA », à l’étape de l’espace comme au récapitulatif', () => {
+    // Le code `XOF` reste la valeur envoyée à l'API (`agency.currency`) ; il ne s'affiche plus.
+    const { container } = render(withIntl(<HostIndividualWizard />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    expect(screen.getAllByText(RAIL.identity.currencies.XOF).length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/XOF/);
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    expect(screen.getByText(RAIL.recap.rows.currency)).toBeInTheDocument();
+    expect(screen.getByText(RAIL.identity.currencies.XOF)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/XOF/);
+  });
+
+  it('TCK-2616 (vérification) — la liste ouverte des devises se lit en toutes lettres, sans aucun code', async () => {
+    // Le test précédent ne lit que la valeur affichée : la liste n'était jamais ouverte, et des
+    // options rendues par leur code (« XOF », « EUR ») restaient vertes (ablation de la vérification).
+    render(withIntl(<HostIndividualWizard />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: RAIL.identity.fields.currency }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent?.trim());
+    expect(options).toEqual(['XOF', 'XAF', 'EUR', 'USD'].map((c) => RAIL.identity.currencies[c as keyof typeof RAIL.identity.currencies]));
+    expect(options.join(' ')).not.toMatch(/\b(?:XOF|XAF|EUR|USD)\b/);
   });
 
   it('un brouillon enregistré à l’ancienne étape 3 reprend sans casse', async () => {

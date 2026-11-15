@@ -1,7 +1,9 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
 import { getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
-import { typeDuProfilActif } from '@/lib/navigation/personas';
+import { profilLieDeLaCoque, typeDuProfilActif } from '@/lib/navigation/personas';
+import { espacesAChoisir } from '@/lib/espaces-serveur';
+import { ChoixDEspace } from '@/components/profile/ChoixDEspace';
 import { modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
@@ -30,6 +32,17 @@ import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
+
+  // TCK-2621 — un compte de plusieurs agences que l'API n'a lié à aucun profil choisit son espace AVANT
+  // la coque : l'écran la remplace (pas de modale d'accueil dessous, pas de menu d'un persona deviné).
+  const espaces = await espacesAChoisir(user);
+  if (espaces) {
+    return (
+      <IntlProvider messages={await messagesPour('(dashboard)/app')}>
+        <ChoixDEspace espaces={espaces} prenom={user.first_name ?? ''} userId={user.id} />
+      </IntlProvider>
+    );
+  }
 
   let agencyIsStandard: boolean | undefined;
   let hasPendingUpgrade: boolean | undefined;
@@ -97,9 +110,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const acces = await accesAdmin(user);
   // TCK-1278 (P136.02) — la même lecture des capacités (promesse `cache()`ée), passée au navigateur.
   const capacites = await capacitesAmorcees(user);
-  // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF. Pendant une
-  // impersonation, `getActiveProfileId` ne rend rien (TCK-600) : le persona se déduit des rôles.
-  const typeProfilActif = typeDuProfilActif(await getActiveProfileId());
+  // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF : le cookie, sinon (TCK-2621)
+  // le profil que l'API a lié à la requête — dernier espace retenu, auto-bascule, ou celui de la cible
+  // pendant une impersonation (`getActiveProfileId` n'y rend rien, TCK-600).
+  const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));
   // TCK-2480 (AC5) — la barre réduite aux icônes, réglage de l'appareil : lue ici pour que la largeur
   // soit dans le HTML serveur.
   const modeIcones = await getModeIconesDuMenu();

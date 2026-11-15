@@ -108,6 +108,13 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     PREPARATION.current = { data: undefined, isError: false, isFetching: false, error: null };
   });
 
+  // TCK-2641 — ouvert depuis la fiche d'un bailleur : ce bailleur et ce mois, déjà choisis.
+  it('ouvert depuis la fiche, prépare le calcul du bailleur et du mois donnés', () => {
+    render(withIntl(<CreatePayoutDialog open onOpenChange={() => {}} bailleurInitial={42} periodeInitiale={{ du: '2026-09-01', au: '2026-09-30' }} />));
+    expect(PREPARATION_ARGS.at(-1)).toEqual({ landlord_id: 42, period_start: '2026-09-01', period_end: '2026-09-30' });
+    expect(screen.getByRole('combobox', { name: 'Bailleur' })).toHaveTextContent('Awa Diop');
+  });
+
   // P220.06 (TCK-2136) — un bailleur lié à un compte sans nom garde le nom de son invitation.
   it("nomme un bailleur au compte sans nom par le nom saisi à l'invitation", async () => {
     const avant = OWNERS.data.data;

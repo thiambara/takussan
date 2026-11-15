@@ -84,6 +84,12 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/neighborhoods', [PublicPropertyController::class, 'neighborhoods'])
         ->name('properties.neighborhoods');
 
+    // TCK-2498 — la répartition des prix de la liste (histogramme du budget). Le limiteur du groupe, celui de la
+    // liste ; la réponse est en cache applicatif par jeu de filtres (`RepartitionDesPrix::TTL`). Segment littéral :
+    // au-dessus de `properties/{slug}`.
+    Route::get('properties/price-distribution', [PublicPropertyController::class, 'priceDistribution'])
+        ->name('properties.price-distribution');
+
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
         ->middleware('throttle:30,1,public-compare')
         ->name('properties.compare');

@@ -1,0 +1,229 @@
+{
+ "ticket": "TCK-2598",
+ "ecrans": [
+  {
+   "page": "app-entree-connexion",
+   "approche": "a",
+   "ecran": 1,
+   "nom": "Numéro (arrivée directe)",
+   "references": {
+    "telephone": "references/app-entree-connexion/a-1-telephone.json",
+    "bureau-1440": "references/app-entree-connexion/a-1-bureau-1440.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/auth/login",
+    "persona": "aucune",
+    "etat": "arrivée directe, sans intention ; seule la COQUE est de ce ticket (barre, colonne, absence de panneau) — le contenu de l'écran est à TCK-2604"
+   }
+  },
+  {
+   "page": "app-entree-connexion",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Mot de passe oublié",
+   "references": {
+    "telephone": "references/app-entree-connexion/a-5-telephone.json",
+    "bureau-1440": "references/app-entree-connexion/a-5-bureau-1440.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/auth/forgot-password",
+    "persona": "aucune",
+    "etat": "la colonne centrée sous la barre de tunnel (`ColonneCentree` : barre de 64 px, colonne de 480 px) — la forme de bureau d'un écran d'entrée SANS objet ; seule la coque est comparée"
+   }
+  },
+  {
+   "page": "app-entree-invitation",
+   "approche": "a",
+   "ecran": 2,
+   "nom": "Lien expiré",
+   "references": {
+    "telephone": "references/app-entree-invitation/a-2-telephone.json",
+    "bureau-1440": "references/app-entree-invitation/a-2-bureau-1440.json",
+    "bureau-1280": "references/app-entree-invitation/a-2-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/invitations/accept",
+    "persona": "aucune",
+    "etat": "sans `token` : « Ce lien d'invitation est incomplet » — l'écran d'erreur le plus proche de « lien expiré » que la démo rende sans écrire ; seule la COQUE (barre de la marque) est comparée, le contenu est au ticket de l'invitation"
+   }
+  },
+  {
+   "page": "app-entree-orientation",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Prénom",
+   "references": {
+    "telephone": "references/app-entree-orientation/a-0-telephone.json",
+    "bureau-1440": "references/app-entree-orientation/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-entree-orientation/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/onboarding/intention",
+    "persona": "(aucune de démo)",
+    "etat": "compte sans prénom : aucune persona de démo n'en est un, et en créer un écrirait en base — non relevé ; la barre (« Votre compte est créé », pastilles 1/2, « Retour au site ») est éprouvée par CoqueDEntree.tck-2598.test.tsx"
+   }
+  },
+  {
+   "page": "app-entree-publier",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Départ : le bien",
+   "references": {
+    "telephone": "references/app-entree-publier/a-0-telephone.json",
+    "bureau-1440": "references/app-entree-publier/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-entree-publier/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/publish",
+    "persona": "(aucune de démo)",
+    "etat": "`/publish` est un écran de passage : deux_espaces y est redirigé vers /app/properties/new (relevé refusé), un compte sans espace en créerait un (écriture) — non relevé ; seule la barre (« ✕ » + « Publier votre bien », « Quitter » au bureau) est de ce ticket, éprouvée par le test de la coque"
+   }
+  }
+ ],
+ "produit": {
+  "route": "/auth/login",
+  "persona": "aucune",
+  "disposition": null,
+  "etat": "voir `ecrans[].produit` : un ticket de coque compare plusieurs routes",
+  "defiler": null,
+  "perturber": "AC1 : scratchpad terrain-5/2598/clavier.js (focalise le champ numéro, `visualViewport.height` réduit de 336 px, événement `resize`) ; AC2 : colonne.js (largeur de la colonne, images chargées)"
+ },
+ "roles": [
+  {
+   "nom": "coque d'entrée · barre du téléphone",
+   "appareil": "mobile",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   },
+   "contenu": false
+  },
+  {
+   "nom": "coque d'entrée · barre du bureau",
+   "appareil": "desktop",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 57.6,
+     "tol": 6,
+     "wMin": 1200
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 57.6,
+     "tol": 6,
+     "wMin": 1200
+    }
+   },
+   "contenu": false
+  }
+ ],
+ "zones": [
+  {
+   "appareil": "desktop",
+   "nom": "coque d'entrée · barre du bureau",
+   "role": "coque d'entrée · barre du bureau"
+  },
+  {
+   "appareil": "mobile",
+   "nom": "coque d'entrée · barre du téléphone",
+   "role": "coque d'entrée · barre du téléphone"
+  }
+ ],
+ "alias": {
+  "Ton compte est créé": "Votre compte est créé",
+  "Publier ton bien": "Publier votre bien"
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-1-telephone",
+   "element": "en-tête d'accueil (photo de ville de 176 px, flèche sur photo, logo clair, « Tes visites, tes favoris, tes annonces. »)",
+   "propriete": "présence, hauteur",
+   "exception": "donnée",
+   "motif": "le ticket retire le bandeau photo et interdit toute image décorative sans intention (AC2) ; TCK-2604 précise « sans intention, aucune villa ni slogan : la marque seule (une photo de Dakar libre de droits, fournie par le porteur ; sans elle, la marque seule) ». Aucune photo n'est fournie : la barre de 56 px de la coque (flèche unique, marque). Mesuré : « Recevoir un code » finit à 456 px, au-dessus du clavier émulé (508), contre 595 avant"
+  },
+  {
+   "ecran": "a-1-bureau-1440",
+   "element": "`DeuxColonnes` : panneau photo de 45 % à gauche et formulaire de 400 px",
+   "propriete": "disposition, largeur",
+   "exception": "incohérence des maquettes",
+   "motif": "sans objet d'intention, la forme de bureau est la colonne centrée de 480 px sous la barre de tunnel — `ColonneCentree` (connexion a-5/a-6), orientation, invitation : valeur majoritaire, et texte du ticket (« colonne de formulaire de 480 px ; le panneau voisin porte l'objet de l'intention »). Mesuré à 1280 : colonne 480 px, aucune image chargée (avant : 403 px et la villa d'Unsplash). Le 45 %/400 px avec objet est à TCK-2604"
+  },
+  {
+   "ecran": "a-5-bureau-1440",
+   "element": "coque d'entrée · barre du bureau › pastille de retour",
+   "propriete": "hauteur (39,6 px contre 32,4)",
+   "exception": "accessibilité",
+   "motif": "le plancher de 44 px de `RetourAuth` (TCK-560, W3), gardé par RetourAuth.test.tsx « garde 44 px quel que soit le className » ; c'est l'essentiel des 0,85 % de pixels de la zone de barre (libellé aligné par perturbation, cf. hors périmètre)"
+  },
+  {
+   "ecran": "orientation a-0/a-1 téléphone, invitation a-* téléphone et bureau",
+   "element": "« Retour au site » dans la barre",
+   "propriete": "absent de la maquette",
+   "exception": "incohérence des maquettes",
+   "motif": "contrainte du ticket : « “Retour au site” des écrans d'onboarding » reste ; l'invitation est servie par la même coque d'onboarding (`OnboardingShell`). Il porte la confirmation de sortie (AC3)"
+  },
+  {
+   "ecran": "invitation a-2 (téléphone, bureau)",
+   "element": "marque (`Marque className=\"h-5\"`)",
+   "propriete": "position verticale (y 17,5 contre 11,5 au téléphone ; 5,4 px au bureau)",
+   "exception": "incohérence des maquettes",
+   "motif": "la marque de l'invitation est rabattue à 20 px de haut ; celle du kit de la famille (connexion a-5, orientation a-0/a-1) ne l'est pas. Valeur majoritaire : la coque rend la marque au pixel de l'orientation (svg 16, 11,5 au téléphone) et de la connexion a-5 (220,8, 13,9 au bureau)"
+  },
+  {
+   "ecran": "invitation a-2 (téléphone, bureau)",
+   "element": "barre (rembourrage pl-4 pr-3 au téléphone ; filet border-border/70 au bureau)",
+   "propriete": "marges de boîte, couleur de bordure",
+   "exception": "incohérence des maquettes",
+   "motif": "`BarreEntree` (px-1, la marque à 16 px par son propre retrait) et `BarreBureau` (border-border plein) du kit de la famille : le contenu tombe aux mêmes positions, seule la boîte diffère"
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "element": "a-5 · libellé et destination du retour (« Retour à la connexion »)",
+   "ticket": "TCK-2606",
+   "motif": "le retour de `/auth/forgot-password` mène aujourd'hui au site public (TCK-568, `PAGES_AVEC_RETOUR`) ; ramener à la connexion change sa destination, c'est l'écran de TCK-2606 (« Mot de passe oublié » ; TCK-2604 ne porte que le numéro et le code). Comparé ici avec le libellé de la maquette posé par perturbation (scratchpad terrain-5/2598/libelle-retour.js) : zone de barre à 0,85 %, contre 2,54 % sans"
+  },
+  {
+   "element": "contenu de chaque écran sous la barre (titre, champ, boutons, voies, CGU)",
+   "ticket": "TCK-2600, TCK-2604, TCK-2608, TCK-2611, TCK-2613",
+   "motif": "« contenus inchangés (chaque page est refaite par son propre ticket) » — Delta du ticket"
+  },
+  {
+   "element": "panneau d'objet de la connexion (bien quitté, 45 % à gauche, formulaire de 400 px — `DeuxColonnes`)",
+   "ticket": "TCK-2604",
+   "motif": "la coque porte l'emplacement `objet` ; aucune page ne le déclare encore"
+  },
+  {
+   "element": "pied collé de chaque écran (le bouton principal dans `pied`)",
+   "ticket": "tickets de page",
+   "motif": "la coque porte l'emplacement `pied` (suivi du clavier, `visualViewport`) ; les pages y déplacent leur bouton avec leur refonte"
+  },
+  {
+   "element": "invitation · « Aide » / « Besoin d'aide ? » dans la barre",
+   "ticket": "ticket de l'invitation (famille 86)",
+   "motif": "un lien d'aide propre à l'écran d'invitation, absent des autres maquettes de la famille ; la coque porte « Retour au site » à cette place (écart accepté ci-dessous)"
+  }
+ ]
+}

@@ -295,7 +295,7 @@ describe('TCK-571 — aucune lecture `watch(…)` dans src/, le motif que le Rea
         'components/payments/CreatePayoutDialog.tsx',
         'components/payments/CreateInvoiceDialog.tsx',
         'components/leases/CreateLeaseForm.tsx',
-        'components/admin-agency/AgencyConfigForm.tsx',
+        'components/admin-agency/fiche/FicheDeLAgence.tsx', // AgencyConfigForm avant TCK-2670
         'components/property-form/PropertyWizard.tsx',
       ]),
     );

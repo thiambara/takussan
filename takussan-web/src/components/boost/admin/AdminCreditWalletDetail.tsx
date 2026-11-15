@@ -25,6 +25,7 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
   const t = useTranslations('superAdmin.credits.detail');
   const tListe = useTranslations('superAdmin.credits');
   const tCredits = useTranslations('credits');
+  const tCommon = useTranslations('common.status');
   const f = useFormatteurs();
   const garde = useGardeDoubleFacteur();
   const messageErreur = useMessageErreurApi();
@@ -70,6 +71,9 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
     <DataState
       loading={wallet.isLoading}
       error={wallet.isError ? tListe('loadError') : null}
+      erreurBrute={wallet.error}
+      messageRefus={tCommon('forbidden')}
+      messageIntrouvable={tCommon('notFound')}
       onRetry={() => void wallet.refetch()}
       retryLabel={tListe('retry')}
     >
@@ -86,7 +90,7 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
           <h3 id="ajustement" className="font-medium text-foreground">{t('adjustTitle')}</h3>
           <p className="text-sm text-muted-foreground">{t('adjustHelp')}</p>
           <form
-            className="grid gap-3 sm:grid-cols-[10rem_1fr_auto] sm:items-end"
+            className="grid gap-3 sm:grid-cols-[calc(var(--spacing)*40)_1fr_auto] sm:items-end"
             onSubmit={(event) => {
               event.preventDefault();
               if (valide) ajuster.mutate({ amount: valeur, reason: motif.trim() });

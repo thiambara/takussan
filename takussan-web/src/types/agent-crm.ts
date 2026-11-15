@@ -1,22 +1,7 @@
 /**
- * TCK-591 — formes des réponses du CRM de l'agent (journal de la fiche, rapprochement, passation,
+ * TCK-591 — formes des réponses du CRM de l'agent (rapprochement, passation,
  * absences, flux d'agenda, actions en masse). Alignées sur les contrôleurs de `takussan-api`.
  */
-
-export type ActivitySubject = 'customer' | 'note' | 'task' | 'other';
-
-export interface CustomerActivityEntry {
-  id: number;
-  subject: ActivitySubject;
-  subject_id: number | null;
-  event: string | null;
-  changes: {
-    attributes: Record<string, unknown> | null;
-    old: Record<string, unknown> | null;
-  };
-  causer: { id: number; name: string } | null;
-  created_at: string;
-}
 
 export interface MatchingProperty {
   id: number;
@@ -65,6 +50,10 @@ export interface AgentAbsence {
   ends_at: string | null;
   status: 'scheduled' | 'active' | 'expired' | 'revoked';
   reason: string | null;
+  /** TCK-2666 — le remplaçant peut agir à la place de l'absent : une délégation liée EN COURS. */
+  substitute_can_act?: boolean;
+  /** TCK-2666 — la dernière délégation liée à l'absence, s'il y en a une. */
+  delegation_id?: number | null;
 }
 
 export interface CalendarFeedState {

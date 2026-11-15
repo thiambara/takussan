@@ -152,6 +152,8 @@ class PublicRoleTest extends TestCase
 
         $proprietaire = $this->publieur('index-proprietaire', $agence);
         OwnerProfile::factory()->create(['user_id' => $proprietaire->id, 'agency_id' => $agence->id]);
+        // TCK-2506 — un propriétaire n'est à l'index que s'il l'a choisi.
+        $proprietaire->forceFill(['listed_in_public_directory' => true])->save();
 
         $agent = $this->publieur('index-agent', $agence);
         AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agence->id]);
@@ -177,9 +179,10 @@ class PublicRoleTest extends TestCase
         $reponse = $this->getJson('/api/public/agencies/equipe-mixte')->assertOk();
 
         $roles = collect($reponse->json('data.agents'))->pluck('public_role', 'slug')->all();
-        $this->assertSame(['equipe-proprietaire' => 'owner', 'equipe-agent' => 'agent'], $roles);
-        // Deux personnes dans l'équipe, UN agent : avant TCK-573, la statistique « Agents » valait 2.
-        $reponse->assertJsonPath('data.stats.agents', 1)->assertJsonCount(2, 'data.agents');
+        // TCK-2506 — le propriétaire a quitté l'équipe : elle ne liste plus que les agents, et la
+        // statistique « Agents » (2 avant TCK-573) compte exactement ce qu'elle montre.
+        $this->assertSame(['equipe-agent' => 'agent'], $roles);
+        $reponse->assertJsonPath('data.stats.agents', 1)->assertJsonCount(1, 'data.agents');
     }
 
     /**
@@ -208,10 +211,10 @@ class PublicRoleTest extends TestCase
         $reponse = $this->getJson('/api/public/agencies/equipe-statuts')->assertOk();
 
         $roles = collect($reponse->json('data.agents'))->pluck('public_role', 'slug')->sortKeys()->all();
+        // TCK-2506 — ce qui n'est pas `agent` quitte l'équipe : le profil suspendu et le publieur
+        // n'y sont plus, l'admin actif (sans `AgentProfile`) y reste.
         $this->assertSame([
             'equipe-admin-actif' => 'agent',
-            'equipe-agent-suspendu' => 'owner',
-            'equipe-courtier' => 'owner',
         ], $roles);
         $reponse->assertJsonPath('data.stats.agents', 1);
     }
@@ -241,10 +244,9 @@ class PublicRoleTest extends TestCase
         $reponse = $this->getJson('/api/public/agencies/equipe-enseigne-a')->assertOk();
 
         $roles = collect($reponse->json('data.agents'))->pluck('public_role', 'slug')->sortKeys()->all();
+        // TCK-2506 — présentés en propriétaires ici, les agents de B quittent l'équipe de A.
         $this->assertSame([
-            'equipe-admin-de-b' => 'owner',
             'equipe-agent-de-a' => 'agent',
-            'equipe-agent-de-b' => 'owner',
         ], $roles);
         $reponse->assertJsonPath('data.stats.agents', 1);
 
@@ -303,6 +305,8 @@ class PublicRoleTest extends TestCase
 
         $this->getJson('/api/public/agents/awa-hote')->assertOk()->assertJsonPath('data.public_role', 'owner');
         $this->getJson('/api/public/agents/moussa-admin')->assertOk()->assertJsonPath('data.public_role', 'agent');
+        // TCK-2506 — l'hôte est un propriétaire : à l'index sur option seulement.
+        $hote->forceFill(['listed_in_public_directory' => true])->save();
 
         $index = collect($this->getJson('/api/public/agents?per_page=48')->assertOk()->json('data'))
             ->pluck('public_role', 'slug')

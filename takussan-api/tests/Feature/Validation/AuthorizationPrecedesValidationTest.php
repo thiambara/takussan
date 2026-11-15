@@ -382,6 +382,35 @@ class AuthorizationPrecedesValidationTest extends ApiTestCase
             ->assertStatus(403);
     }
 
+    /**
+     * Suivi de vérification de TCK-2720/2721 (re-mesuré le 2026-11-12) — `ShowExportRequest`
+     * autorisait tout compte connecté : un appelant sans droit d'exporter recevait 422 et les formats
+     * acceptés comme le plafond de `limit`. La règle d'`ExportController` est reprise dans
+     * `authorize()` : l'entité inconnue (404), puis le refus (403), avant les règles.
+     */
+    public function test_export_denies_before_it_validates(): void
+    {
+        // Ni personnel ni bailleur : les finances de l'agence ne s'exportent pas.
+        $this->actingAs(User::factory()->create(), 'sanctum');
+
+        $this->getJson('/api/export/payouts?format=docx&limit=0')
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'export.forbidden');
+        // L'entité inconnue prime aussi sur la validation.
+        $this->getJson('/api/export/inconnue?format=docx&limit=0')
+            ->assertStatus(404)
+            ->assertJsonPath('code', 'export.entity_unknown');
+    }
+
+    public function test_export_still_validates_for_an_authorized_caller(): void
+    {
+        $this->apiActingAsRole('super_admin');
+
+        $this->getJson('/api/export/payouts?format=docx&limit=0')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['format', 'limit']);
+    }
+
     // -----------------------------------------------------------------
     // Profil possédé — `assertOwner()`, six sites
     // -----------------------------------------------------------------

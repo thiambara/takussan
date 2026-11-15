@@ -262,7 +262,7 @@ const TEMOINS = [
   join(WEB_SRC, 'components', 'home', 'Footer.tsx'),
   join(WEB_SRC, 'components', 'property', 'PropertyCard.tsx'),
   join(WEB_SRC, 'components', 'search', 'FilterSidebar.tsx'),
-  join(WEB_SRC, 'components', 'compare', 'CompareTable.tsx'),
+  join(WEB_SRC, 'components', 'compare', 'CompareColonnes.tsx'),
   join(WEB_SRC, 'components', 'favorites', 'FavoritesPopover.tsx'),
   join(WEB_SRC, 'components', 'bookings', 'BookingTunnel.tsx'),
 ];

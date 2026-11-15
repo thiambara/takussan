@@ -13,7 +13,17 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentFrequency;
+use App\Policies\LeasePolicy;
+use App\Services\Lease\LeaseAttention;
 use App\Services\Lease\LeaseRenewalService;
+use App\Services\Lease\LeaseSearch;
+use App\Services\Property\BailleurDuBien;
+use App\Services\Property\Occupation;
+use App\Sorts\LeaseAttentionSort;
+use App\Sorts\LeaseStatusRankSort;
+use App\Support\Http\ParametreUnique;
+use App\Support\Query\InclusionLueParLeControleur;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,8 +32,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
+use Spatie\QueryBuilder\AllowedSort;
 
 class Lease extends AbstractModel implements HasMedia
 {
@@ -44,6 +59,12 @@ class Lease extends AbstractModel implements HasMedia
      */
     public const OPEN_STATUSES = [...self::ONGOING_STATUSES, LeaseStatus::PendingSignature->value];
 
+    /** TCK-2642 — `attention[]`, posé pour une page par `LeaseAttention::attach()` ; `null` : non demandé. */
+    private ?array $attention = null;
+
+    /** TCK-2642 — `next_due`, `overdue_count`, `overdue_amount`, posés par `LeaseDueSummary` ; `null` : non demandés. */
+    private ?array $dueSummary = null;
+
     protected $fillable = [
         'property_id', 'landlord_id', 'tenant_id', 'agency_id',
         'booking_id', 'renewed_from_lease_id', 'guarantor_id',
@@ -52,6 +73,9 @@ class Lease extends AbstractModel implements HasMedia
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
         'monthly_rent', 'sale_price', 'currency',
+        // TCK-2679 (ADR-0042, amendement du 2026-11-10) — les charges, terme imprimé au contrat et
+        // appelées par l'échéancier à côté du loyer. Nulles sur un bail antérieur.
+        'monthly_charges',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
@@ -75,6 +99,7 @@ class Lease extends AbstractModel implements HasMedia
         'currency' => Currency::class,
         'payment_frequency' => PaymentFrequency::class,
         'monthly_rent' => 'decimal:2',
+        'monthly_charges' => 'decimal:2',
         'sale_price' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
         'deposit_refunded_amount' => 'decimal:2',
@@ -109,7 +134,8 @@ class Lease extends AbstractModel implements HasMedia
 
     // TCK-807 (P21.05) — seules les relations que `LeaseResource` émet : un `include=` accepté puis
     // absent de la réponse se lit comme une relation vide. `RequestLoadableEmittedTest` le garde.
-    protected static array $requestLoadable = ['property', 'tenant', 'renewedFrom', 'renewals'];
+    // TCK-2642 — `landlord` et `agent` : les parties nommées, par une projection fixe (`LeaseResource`).
+    protected static array $requestLoadable = ['property', 'tenant', 'renewedFrom', 'renewals', 'landlord', 'agent'];
 
     protected static array $requestCountable = ['payments', 'maintenanceRequests', 'documents', 'renewals'];
 
@@ -120,7 +146,7 @@ class Lease extends AbstractModel implements HasMedia
         'booking_id', 'guarantor_id', 'renewed_from_lease_id',
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
-        'monthly_rent', 'sale_price', 'currency',
+        'monthly_rent', 'monthly_charges', 'sale_price', 'currency',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
@@ -137,6 +163,149 @@ class Lease extends AbstractModel implements HasMedia
         'early_termination_effective_date', 'early_termination_penalty_amount',
         'early_termination_reason', 'notice_period_days', 'early_termination_invoice_id',
     ];
+
+    /**
+     * TCK-2637 — les baux que `$user` peut lire, en requête : la clause de `GET /api/leases`, qui
+     * suit {@see LeasePolicy::view()} (TCK-1926, TCK-587). Le bailleur DÉSIGNÉ par `landlord_id`
+     * et propriétaire dans l'agence (`BailleurDuBien`), le locataire, le personnel de l'agence du
+     * bail ; le super-admin, tous. Lue par la liste des baux et par l'occupation des biens (bloc
+     * `tenant`, filtres `tenant` et `rent_late`, tri `retard`), pour qu'une même ligne ne soit pas
+     * lisible par un chemin et refusée par l'autre.
+     *
+     * @param  Builder<Lease>  $query
+     * @return Builder<Lease>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where(fn ($b) => BailleurDuBien::restreindre($b, $user, $q->qualifyColumn('landlord_id'), $q->qualifyColumn('agency_id')))
+                ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
+            if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                $q->orWhere($q->qualifyColumn('agency_id'), $staffAgencyId);
+            }
+        });
+    }
+
+    /**
+     * TCK-2642 — deux inclusions calculées, lues par le contrôleur pour toute la page, et non des
+     * relations : `include=attention` (`attention[]`, {@see LeaseAttention::attach()}) et
+     * `include=due_summary` (`next_due`, `overdue_count`, `overdue_amount`). Ni l'une ni l'autre
+     * n'est un champ de `fields[leases]` (ADR-0021).
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [
+            ...parent::getAllowedQueryIncludes(),
+            AllowedInclude::custom('attention', new InclusionLueParLeControleur),
+            AllowedInclude::custom('due_summary', new InclusionLueParLeControleur),
+        ];
+    }
+
+    /**
+     * TCK-2642 — la file « À traiter » et la recherche :
+     *
+     * - `filter[a_traiter]=1` : au moins un motif ({@see LeaseAttention}) ;
+     * - `filter[motif]=<motif>` : ce motif (autre valeur : 422) ;
+     * - `filter[onboarding_pending]=1` : l'entrée en attente, la règle de
+     *   `GET /api/agencies/{agency}/tenant-onboarding-pending` (personnel de l'agence seulement) ;
+     * - `filter[search]` : {@see LeaseSearch}.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        $flag = function (string $name, mixed $value): bool {
+            $flag = ParametreUnique::valeur($value);
+            if ($flag === null || $flag === '') {
+                return false;
+            }
+            Validator::make([$name => $flag], [$name => ['boolean']])->validate();
+
+            return filter_var($flag, FILTER_VALIDATE_BOOL);
+        };
+
+        return [
+            AllowedFilter::callback('a_traiter', function (Builder $q, mixed $value) use ($flag): void {
+                if ($flag('a_traiter', $value)) {
+                    LeaseAttention::for(request()->user())->whereAny($q);
+                }
+            }),
+            AllowedFilter::callback('motif', function (Builder $q, mixed $value): void {
+                $motif = ParametreUnique::valeur($value);
+                if ($motif === null || $motif === '') {
+                    return;
+                }
+                Validator::make(['motif' => $motif], ['motif' => [Rule::in(LeaseAttention::MOTIFS)]])->validate();
+                LeaseAttention::for(request()->user())->whereMotif($q, $motif);
+            }),
+            AllowedFilter::callback('onboarding_pending', function (Builder $q, mixed $value) use ($flag): void {
+                if ($flag('onboarding_pending', $value)) {
+                    LeaseAttention::for(request()->user())->whereMotif($q, 'onboarding_incomplete');
+                }
+            }),
+            AllowedFilter::callback('search', function (Builder $q, mixed $value): void {
+                // P216.05 (ADR-0075) — `filter[search][]=…` vaut une recherche absente.
+                $term = ParametreUnique::valeur($value);
+                if ($term !== null) {
+                    LeaseSearch::apply($q, $term);
+                }
+            })->delimiter(''),
+        ];
+    }
+
+    /**
+     * TCK-2642 — `sort=attention` (la file) et `sort=etat` (en cours d'abord, le tri par défaut).
+     *
+     * @return array<int, AllowedSort>
+     */
+    protected static function customQuerySorts(): array
+    {
+        return [
+            AllowedSort::custom('attention', new LeaseAttentionSort),
+            AllowedSort::custom('etat', new LeaseStatusRankSort),
+        ];
+    }
+
+    /** @param  list<array<string, mixed>>  $entries */
+    public function setAttentionBlock(array $entries): void
+    {
+        $this->attention = $entries;
+    }
+
+    /** @return list<array<string, mixed>>|null */
+    public function attentionBlock(): ?array
+    {
+        return $this->attention;
+    }
+
+    /** @param  array{next_due: ?array<string, mixed>, overdue_count: int, overdue_amount: float}  $summary */
+    public function setDueSummary(array $summary): void
+    {
+        $this->dueSummary = $summary;
+    }
+
+    /** @return array{next_due: ?array<string, mixed>, overdue_count: int, overdue_amount: float}|null */
+    public function dueSummary(): ?array
+    {
+        return $this->dueSummary;
+    }
+
+    /**
+     * TCK-2637 — le bail COURANT de son bien ({@see Occupation::current()}).
+     *
+     * @param  Builder<Lease>  $query
+     * @return Builder<Lease>
+     */
+    public function scopeCurrent(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => Occupation::current($q, $q->getModel()->getTable()));
+    }
 
     public function property(): BelongsTo
     {
@@ -325,7 +494,7 @@ class Lease extends AbstractModel implements HasMedia
      */
     public const CONTRACT_PRINTED_TERMS = [
         'type', 'start_date', 'end_date', 'renewal_date',
-        'monthly_rent', 'sale_price', 'currency', 'deposit_amount',
+        'monthly_rent', 'monthly_charges', 'sale_price', 'currency', 'deposit_amount',
         'payment_frequency', 'payment_day',
         'late_fee_percent', 'late_fee_grace_days', 'notice_period_days',
         'early_termination_penalty_months', 'rent_review_max_pct',

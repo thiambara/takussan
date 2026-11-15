@@ -2,7 +2,10 @@ import { apiFetch } from '@/lib/api';
 import { type DomainesDeFacette, domainesStatiques } from '@/lib/canonique';
 import { DEFAULT_LOCALE } from '@/i18n/config';
 import { cheminApi } from '@/lib/chemin-api';
-import type { ContractType } from '@/types/property';
+import { FRAICHEUR_DOMAINE_VILLES, replie, type ComptesParContrat } from '@/lib/queries/domaine-des-lieux';
+
+// Définis dans un module SANS zod (`domaine-des-lieux.ts`), pour l'accueil client ; réexportés ici.
+export { FRAICHEUR_DOMAINE_VILLES, replie, type ComptesParContrat };
 
 /**
  * Le DOMAINE de la facette `city` — TCK-433, passe 2.
@@ -22,8 +25,6 @@ import type { ContractType } from '@/types/property';
  * c'est une intention.*
  */
 
-/** P35.05 — le compte de la ville par contrat ; l'API sert les deux, zéro compris. */
-export type ComptesParContrat = Readonly<Partial<Record<ContractType, number>>>;
 
 type VilleAvecCompte = {
   readonly value: string;
@@ -45,13 +46,6 @@ type ReponseVilles = {
  */
 export const SEUIL_VILLE_INDEXABLE = 3;
 
-/**
- * Fraîcheur du domaine. Une ville entre ou sort du catalogue au rythme des annonces, pas des
- * déploiements — et l'appel se fait dans la `generateMetadata` de la page publique la plus
- * parcourue. `revalidate` partage donc une seule réponse entre tous les visiteurs d'une heure,
- * là où le défaut de `fetch` sous Next 16 (`no-store`) en ferait un aller-retour par rendu.
- */
-export const FRAICHEUR_DOMAINE_VILLES = 3600;
 
 /**
  * Les villes du catalogue, repliées en minuscules → la casse CANONIQUE du catalogue.
@@ -111,10 +105,6 @@ export const SEUIL_QUARTIER_INDEXABLE = 3;
 
 type ReponseQuartiers = ReponseVilles;
 
-/** La graphie de repli d'une ville ou d'un quartier — la même que `villesDuCatalogue`. */
-export function replie(valeur: string): string {
-  return valeur.trim().toLocaleLowerCase('fr');
-}
 
 /**
  * Les quartiers INDEXABLES d'une ville : repli de casse → graphie canonique, pour les seuls

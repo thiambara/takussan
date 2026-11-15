@@ -45,10 +45,26 @@ class DashboardAgentService
 
     public const SCOPE_AGENCY = 'agency';
 
-    public function summary(User $agent, string $scope = self::SCOPE_MINE, ?int $agencyId = null): array
+    /**
+     * TCK-2791 — seules les commissions suivent la période (`commissions_month`, et `commissions_year`, le
+     * cumul de l'année du mois servi jusqu'à sa fin) ; le reste est l'état du jour, listé dans
+     * `period.as_of_today`.
+     */
+    public const ETATS_DU_JOUR = [
+        'properties_managed', 'pipeline', 'bookings.pending', 'visits.upcoming_7d', 'visits.today', 'visits.today_items',
+        'tasks.open', 'tasks.overdue', 'tasks.today', 'tasks.items',
+        'pipeline_ops.pending_bookings', 'pipeline_ops.leases_to_sign', 'pipeline_ops.tasks_today',
+        'recent_activity', 'maintenance.open',
+    ];
+
+    public function summary(User $agent, string $scope = self::SCOPE_MINE, ?int $agencyId = null, ?PeriodeDuTableauDeBord $periode = null): array
     {
-        $monthStart = now()->startOfMonth();
-        $monthEnd = now()->endOfMonth();
+        $periode ??= PeriodeDuTableauDeBord::moisEnCours();
+        $monthStart = $periode->debut;
+        $monthEnd = $periode->fin;
+        // Le cumul de l'année : celle du mois servi, jusqu'à la fin de l'année en cours (inchangé) ou du mois passé.
+        $yearStart = $monthStart->setTimezone(PeriodeDuTableauDeBord::TIMEZONE)->startOfYear()->setTimezone((string) config('app.timezone'));
+        $yearEnd = $periode->estLeMoisEnCours() ? now()->endOfYear() : $monthEnd;
         $agency = $scope === self::SCOPE_AGENCY && $agencyId !== null;
 
         $managed = $this->propertyScope($agent, $scope, $agencyId)->toBase()->get(['properties.id', 'properties.status']);
@@ -110,10 +126,10 @@ class DashboardAgentService
 
         if ($agency) {
             $commissionsMonth = DashboardAgencyService::commissionBetween($agencyId, $monthStart, $monthEnd);
-            $commissionsYear = DashboardAgencyService::commissionBetween($agencyId, now()->startOfYear(), now()->endOfYear());
+            $commissionsYear = DashboardAgencyService::commissionBetween($agencyId, $yearStart, $yearEnd);
         } else {
             $commissionsMonth = $this->ledgerTotal($agent, $agencyId, $monthStart, $monthEnd);
-            $commissionsYear = $this->ledgerTotal($agent, $agencyId, now()->startOfYear(), now()->endOfYear());
+            $commissionsYear = $this->ledgerTotal($agent, $agencyId, $yearStart, $yearEnd);
         }
 
         // Tasks owned by the agent
@@ -205,10 +221,7 @@ class DashboardAgentService
             'agent_id' => $agent->id,
             'agency_id' => $agencyId,
             'scope' => $agency ? self::SCOPE_AGENCY : self::SCOPE_MINE,
-            'period' => [
-                'start' => $monthStart->toIso8601String(),
-                'end' => $monthEnd->toIso8601String(),
-            ],
+            'period' => $periode->enTete(self::ETATS_DU_JOUR),
             'properties_managed' => $propertiesManaged,
             'pipeline' => $pipeline,
             'bookings' => [

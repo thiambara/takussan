@@ -72,7 +72,7 @@ export function LocationPickerMap({ lat, lng, centre, onChange }: LocationPicker
     <MapContainer
       center={center}
       zoom={DEFAULT_ZOOM}
-      style={{ height: '240px', width: '100%', borderRadius: '0.5rem' }}
+      style={{ height: '240px', width: '100%', borderRadius: 'calc(var(--radius) * 0.8)' }}
       scrollWheelZoom={false}
     >
       <TileLayer

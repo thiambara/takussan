@@ -32,9 +32,14 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 interface InvoiceDetailDialogProps {
   readonly invoiceId: number | null;
   readonly onClose: () => void;
+  /**
+   * TCK-2651 — le bailleur (page « Loyers ») : aucun identifiant technique, ni `#id` en repli de
+   * référence (facture, avoir), ni le client désigné par « #42 ».
+   */
+  readonly sansIdentifiants?: boolean;
 }
 
-export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogProps) {
+export function InvoiceDetailDialog({ invoiceId, onClose, sansIdentifiants = false }: InvoiceDetailDialogProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.invoiceDetail');
   const tStatus = useTranslations('payments.invoiceStatus');
@@ -66,7 +71,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
         <DialogHeader>
           <DialogTitle>
             {t(isCreditNote ? 'creditNoteTitle' : 'title', {
-              reference: invoice?.reference_number ?? `#${invoiceId}`,
+              reference: invoice?.reference_number ?? (sansIdentifiants ? '—' : `#${invoiceId}`),
             })}
           </DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
@@ -90,10 +95,12 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
             </div>
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('customer')}</dt>
-                <dd className="mt-0.5 text-foreground">#{invoice.customer_id}</dd>
-              </div>
+              {sansIdentifiants ? null : (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('customer')}</dt>
+                  <dd className="mt-0.5 text-foreground">#{invoice.customer_id}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('dueDate')}</dt>
                 <dd className="mt-0.5 text-foreground">
@@ -147,7 +154,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                 <ul className="mt-2 space-y-1 text-sm">
                   {invoice.credit_notes.map((note) => (
                     <li key={note.id} className="flex justify-between gap-3">
-                      <span>{note.reference_number ?? `#${note.id}`}</span>
+                      <span>{note.reference_number ?? (sansIdentifiants ? '—' : `#${note.id}`)}</span>
                       <span className="tabular-nums">
                         {formatCurrency(note.total_amount, locale, { currency: note.currency || 'XOF' })}
                       </span>

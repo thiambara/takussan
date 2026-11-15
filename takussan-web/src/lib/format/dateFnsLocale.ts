@@ -16,7 +16,7 @@ import type { Locale } from '@/i18n/config';
  *
  *   · `src/components/ui/date-picker.tsx`      `format(selected, 'd MMMM yyyy', { locale: fr })`
  *   · `src/components/ui/date-time-picker.tsx` idem, plus un `'à'` français DANS le motif
- *   · `src/components/dashboard/admin/AgencyRevenueSnapshot.tsx` une table de 12 mois écrite à la
+ *   · l'aperçu des revenus de l'ancienne vue d'agence (retiré par TCK-2799) : une table de 12 mois écrite à la
  *     main (`janv.`, `févr.`, …), dont le scanner ne voyait que 3 entrées sur 12 — les seules
  *     accentuées.
  *

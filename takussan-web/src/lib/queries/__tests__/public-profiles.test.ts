@@ -6,6 +6,7 @@ import {
   RESSOURCES_DE_PROFIL,
   TAILLE_DE_PAGE,
   TAILLE_DE_PAGE_MAX,
+  compterProfils,
   listerProfilsPublics,
   listerSlugsDeProfils,
   requeteDIndex,
@@ -21,7 +22,7 @@ import {
  * `takussan-api/tests/Feature/Public/PublicProfileIndexTest.php` qui le tient, sur la vraie base.
  */
 
-type ReponseFeinte = { data: unknown[]; meta: Record<string, unknown> };
+type ReponseFeinte = { data: unknown[]; meta: Record<string, unknown>; spotlight?: unknown };
 
 function feindreFetch(...reponses: ReponseFeinte[]) {
   let appel = 0;
@@ -145,6 +146,52 @@ describe('listerProfilsPublics — la lecture de la réponse', () => {
     expect(resultat.profils[0]!.reviews.average).toBeNull();
   });
 
+  it('TCK-2520 — `spotlight` (racine de la réponse des agences) devient la vitrine, normalisée comme une ligne', async () => {
+    feindreFetch({
+      ...page([AGENCE]),
+      spotlight: { ...AGENCE, id: 9, slug: 'teranga', name: 'Teranga', leases_signed_this_month: 12 },
+    } as ReponseFeinte);
+    const resultat = await listerProfilsPublics('agencies', { ville: 'Dakar' }, 'fr');
+
+    expect(resultat.vitrine).toMatchObject({ slug: 'teranga', nom: 'Teranga', leases_signed_this_month: 12 });
+    // Elle ne retire rien à la liste : l'API la sert À CÔTÉ de `data`.
+    expect(resultat.profils).toHaveLength(1);
+  });
+
+  it('TCK-2520 — sans `spotlight`, ou sur l’index des agents, pas de vitrine', async () => {
+    feindreFetch({ ...page([AGENCE]), spotlight: null } as ReponseFeinte);
+    expect((await listerProfilsPublics('agencies', {}, 'fr')).vitrine).toBeNull();
+
+    feindreFetch({ ...page([AGENT]), spotlight: { ...AGENCE } } as ReponseFeinte);
+    expect((await listerProfilsPublics('agents', {}, 'fr')).vitrine).toBeNull();
+  });
+
+  it('TCK-2518 — faits de l’annuaire : délai, couverture, langues, quartiers ; absents → vides, jamais inventés', async () => {
+    feindreFetch(
+      page([
+        {
+          ...AGENCE,
+          median_response_minutes: 42,
+          cover: [
+            { property_id: 1, slug: 'a', photo_url: 'https://m.test/1.webp' },
+            { property_id: 2, slug: 'b', photo_url: null },
+          ],
+        },
+        { ...AGENT, languages: ['fr', 3, 'wo'], neighborhoods: [{ id: 4, name: 'Mermoz' }, { id: 5, name: '' }] },
+        { ...AGENCE, id: 8, median_response_minutes: 'Infinity' },
+      ]),
+    );
+    const [agence, agent, sansDelai] = (await listerProfilsPublics('agencies', {}, 'fr')).profils;
+
+    expect(agence!.median_response_minutes).toBe(42);
+    expect(agence!.cover).toEqual([{ property_id: 1, slug: 'a', photo_url: 'https://m.test/1.webp' }]);
+    expect(agent!.languages).toEqual(['fr', 'wo']);
+    expect(agent!.neighborhoods).toEqual([{ id: 4, name: 'Mermoz' }]);
+    expect(sansDelai!.median_response_minutes).toBeNull();
+    expect(sansDelai!.languages).toEqual([]);
+    expect(sansDelai!.leases_signed_this_month).toBe(0);
+  });
+
   it('LÈVE quand l’API échoue — un tableau vide serait un « aucun résultat » faux', async () => {
     vi.stubGlobal(
       'fetch',
@@ -261,6 +308,38 @@ describe('verdictDeFacette — l’espace d’URL indexables est BORNÉ par le c
     expect(url).toContain('per_page=1');
     // URLSearchParams encode les crochets : la garde doit chercher la forme RÉELLEMENT émise.
     expect(url).toContain('filter%5Bcity%5D=Dakar');
+  });
+});
+
+describe('compterProfils — le compte d’un onglet de l’annuaire (TCK-2521)', () => {
+  it('rend le `total` de la ville, en ne demandant qu’UNE ligne et sans recherche par nom', async () => {
+    const spy = feindreFetch(page([AGENCE], { total: 12 }));
+
+    expect(await compterProfils('agents', 'Dakar', 'fr')).toBe(12);
+    const url = String(spy.mock.calls[0]![0]);
+    expect(url).toContain('/public/agents');
+    expect(url).toContain('per_page=1');
+    expect(url).toContain('filter%5Bcity%5D=Dakar');
+    expect(url).not.toContain('filter%5Bsearch%5D');
+  });
+
+  // Revue du 2026-11-09 — le test de l'index double `compterProfils` lui-même : rien n'éprouvait son
+  // `catch`. Rendre 0 afficherait « Agents 0 » sur un catalogue intact ; lever ferait tomber la page.
+  it('une PANNE rend `null` — ni 0, ni une exception qui ferait tomber la page', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}), text: async () => '' })),
+    );
+
+    const compte = await compterProfils('agents', 'Dakar', 'fr');
+    expect(compte).toBeNull();
+    expect(compte).not.toBe(0);
+  });
+
+  it('un réseau coupé (fetch qui lève) rend `null` aussi', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('fetch failed'); }));
+
+    await expect(compterProfils('agencies', undefined, 'fr')).resolves.toBeNull();
   });
 });
 

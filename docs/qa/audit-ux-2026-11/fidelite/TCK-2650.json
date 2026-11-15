@@ -1,0 +1,378 @@
+{
+  "ticket": "TCK-2650",
+  "ecrans": [
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Locataire — quelque chose est dû",
+      "references": {
+        "telephone": "references/app-paiements/a-0-telephone.json",
+        "bureau-1440": "references/app-paiements/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "le bail 22 de la démo (LS-0DPA75TK, « Garage à Ouest Foire », 1 355 000 F, Dakar Immo), résumé réel `due` : deux pénalités payables à l'agence, aucun `next_rent` servi. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 24 · 13 · 9 (12.19 %) ; bureau 1440 72 · 157 · 42 (9.49 %) ; 1280 68 · 152 · 42 (10.58 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Locataire — payer, choix du moyen",
+      "references": {
+        "telephone": "references/app-paiements/a-1-telephone.json",
+        "bureau-1440": "references/app-paiements/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments?fid=payer",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "le même résumé, doublé par garde50.js (`fid=payer`) : le loyer de décembre en `next_rent`, payable en ligne, les dus et les fournisseurs ouverts (Wave, Orange Money) ; p-50-payer.js touche « Payer maintenant » : la feuille ouverte, aucune initiation ne part. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 24 · 22 · 10 (29.7 %) ; bureau 1440 69 · 174 · 41 (67.35 %) ; 1280 67 · 164 · 42 (63.58 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Locataire — à jour",
+      "references": {
+        "telephone": "references/app-paiements/a-2-telephone.json",
+        "bureau-1440": "references/app-paiements/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments?fid=a-jour",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "`fid=a-jour` : résumé `up_to_date`, total 0, le loyer de décembre à venir. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 24 · 26 · 8 (15.94 %) ; bureau 1440 67 · 170 · 40 (9.42 %) ; 1280 79 · 158 · 40 (10.11 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Locataire — échéancier pas encore émis",
+      "references": {
+        "telephone": "references/app-paiements/a-3-telephone.json",
+        "bureau-1440": "references/app-paiements/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments",
+        "persona": "locataire_76 (utilisateur 76)",
+        "etat": "utilisateur 76 (bail 195, LS-FC-MT5YXV, 500 000 F) : échéancier `none`. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 24 · 13 · 5 (7.89 %) ; bureau 1440 38 · 92 · 33 (6.88 %) ; 1280 41 · 89 · 33 (7.79 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Retour — en cours de confirmation",
+      "references": {
+        "telephone": "references/app-paiements/a-5-telephone.json",
+        "bureau-1440": "references/app-paiements/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments/return?payment_type=lease-payments&payment_id=9001&status=success&fid=attente",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "la page de retour : `GET /api/lease-payments/9001/verify` répondu DANS la page par garde50.js (`fid=` : pending, paid, failed, paid + refund_pending, 404) — la vérification n'atteint jamais l'API. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 34 · 2 · 3 (0.74 %) ; bureau 1440 49 · 42 · 23 (0.76 %) ; 1280 49 · 42 · 23 (0.85 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Retour — confirmé",
+      "references": {
+        "telephone": "references/app-paiements/a-6-telephone.json",
+        "bureau-1440": "references/app-paiements/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments/return?payment_type=lease-payments&payment_id=9001&status=success&fid=confirme",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "la page de retour : `GET /api/lease-payments/9001/verify` répondu DANS la page par garde50.js (`fid=` : pending, paid, failed, paid + refund_pending, 404) — la vérification n'atteint jamais l'API. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 32 · 4 · 5 (1.65 %) ; bureau 1440 45 · 46 · 25 (0.97 %) ; 1280 45 · 46 · 25 (1.09 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Retour — non abouti",
+      "references": {
+        "telephone": "references/app-paiements/a-7-telephone.json",
+        "bureau-1440": "references/app-paiements/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments/return?payment_type=lease-payments&payment_id=9001&status=failed&fid=echec",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "la page de retour : `GET /api/lease-payments/9001/verify` répondu DANS la page par garde50.js (`fid=` : pending, paid, failed, paid + refund_pending, 404) — la vérification n'atteint jamais l'API. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 35 · 2 · 3 (0.45 %) ; bureau 1440 50 · 41 · 23 (0.66 %) ; 1280 50 · 41 · 23 (0.75 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Retour — remboursement",
+      "references": {
+        "telephone": "references/app-paiements/a-8-telephone.json",
+        "bureau-1440": "references/app-paiements/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments/return?payment_type=lease-payments&payment_id=9001&fid=rembourse",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "la page de retour : `GET /api/lease-payments/9001/verify` répondu DANS la page par garde50.js (`fid=` : pending, paid, failed, paid + refund_pending, 404) — la vérification n'atteint jamais l'API. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 27 · 8 · 8 (5.24 %) ; bureau 1440 39 · 51 · 28 (2.01 %) ; 1280 39 · 51 · 28 (2.26 %)."
+      }
+    },
+    {
+      "page": "app-paiements",
+      "approche": "a",
+      "ecran": 9,
+      "nom": "Retour — lien invalide",
+      "references": {
+        "telephone": "references/app-paiements/a-9-telephone.json",
+        "bureau-1440": "references/app-paiements/a-9-bureau-1440.json",
+        "bureau-1280": "references/app-paiements/a-9-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/payments/return?payment_type=lease-payments&payment_id=9001&fid=invalide",
+        "persona": "locataire_f4 (utilisateur 78)",
+        "etat": "la page de retour : `GET /api/lease-payments/9001/verify` répondu DANS la page par garde50.js (`fid=` : pending, paid, failed, paid + refund_pending, 404) — la vérification n'atteint jamais l'API. Relevés r2 du 2026-11-13 (scratchpad `r2-2650/cmp4…cmp6`, rideau `rideau.html` de chaque dossier) — conformes · écarts · absents (% pixels de l'écran entier, indicatif) : téléphone 29 · 2 · 2 (0.24 %) ; bureau 1440 37 · 39 · 22 (0.61 %) ; 1280 37 · 39 · 22 (0.69 %)."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/payments et /app/payments/return",
+    "persona": "locataire",
+    "disposition": "locataire",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-8, t8/fid/ : garde50.js (chargé AVANT la page par `FID_AVANT`) refuse toute écriture (fetch, XHR, sendBeacon), double par `?fid=` les seules LECTURES nommées ci-dessus, et tient pour vus les accueils du compte (`GET /api/me/welcome-seen` : client, et locataire par bail) — sans quoi « Trouvez le bien parfait » puis « Vos paiements » couvraient la page ; p-50-payer.js ouvre la feuille de paiement ; relevés releves50.sh. Balayage 390/768/1024/1280/1440 de /app/payments et du retour confirmé : aucun débord, aucune coupe ; ellipses : les libellés du rail replié de la coque à 768."
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-*",
+      "element": "coque : barre latérale, en-tête, barre d'onglets, compteurs, avatar",
+      "propriete": "boîtes, libellés, état actif, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; les compteurs, le nom et l'avatar sont ceux de la démo"
+    },
+    {
+      "ecran": "a-0, a-1, a-2, a-3",
+      "element": "bien, montants, pénalités, dates, références, agence",
+      "propriete": "textes",
+      "exception": "données de démo",
+      "motif": "la démo sert le bail 22 (« Garage à Ouest Foire », 1 355 000 F, pénalités d'octobre et de juillet à 67 750 F, la seconde payée le 4 août) et l'utilisateur 76 ; la maquette « Villa 4 chambres · Sacré-Cœur 3 »"
+    },
+    {
+      "ecran": "a-0, a-3",
+      "element": "carte « Prochain loyer · dans 25 jours »",
+      "propriete": "présence",
+      "exception": "données de démo",
+      "motif": "le résumé réel du bail 22 ne sert aucun `next_rent` (rien d'émis à venir) : la carte ne se rend pas sans échéance ; elle est relevée sur a-1 (`fid=payer`)"
+    },
+    {
+      "ecran": "a-0, a-2, a-3 (bureau)",
+      "element": "sous-titre « Villa 4 chambres · Sacré-Cœur 3 — bail LS-… »",
+      "propriete": "texte",
+      "exception": "fonction",
+      "motif": "le sous-titre est rendu par la page serveur (« Ce que vous devez, vos paiements et vos quittances. ») ; nommer le bien demanderait le résumé côté serveur. Au téléphone, comme la maquette, l'en-tête n'est plus visible (`max-lg:sr-only`, la barre du haut porte « Paiements »)"
+    },
+    {
+      "ecran": "a-* (bureau)",
+      "element": "« Mon bail » : photo du bien, adresse, période du bail ; « Mon agence » : gestionnaire et « Message »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "`GET /api/me/rent-summary` ne sert ni photo, ni adresse, ni période, ni gestionnaire : aucune ligne n'est inventée. « Échéance » ne se dit que d'un `next_rent` servi, ou « Pas encore émise » (`none`)"
+    },
+    {
+      "ecran": "a-0, a-* (bureau)",
+      "element": "« Payer à l'agence » : adresse, horaires, Wave marchand",
+      "propriete": "texte",
+      "exception": "données de démo",
+      "motif": "l'agence de la démo n'a déclaré aucun moyen hors ligne : la page dit « L'agence n'a pas encore indiqué de moyen de paiement à distance » et donne son téléphone"
+    },
+    {
+      "ecran": "a-1",
+      "element": "feuille « Payer » : « Frais de paiement 0 F », Free Money, Carte bancaire, pictogrammes et sous-lignes des fournisseurs",
+      "propriete": "y",
+      "exception": "fonction",
+      "motif": "la maquette pose quatre fournisseurs et « Frais de paiement 0 F » ; le serveur en ouvre deux et ne sert aucun frais (écart déjà consigné) : la feuille est moins haute et ses lignes se décalent. Largeur et abscisse des options (x 79 → 31) : le pictogramme du fournisseur, absent (écart déjà consigné)"
+    },
+    {
+      "ecran": "a-5 à a-9",
+      "element": "montant, période, fournisseur, référence",
+      "propriete": "textes",
+      "exception": "données",
+      "motif": "tout vient de `verify.payment` (TCK-2650, back-4), doublé ici ; le grand montant est `checkout_amount` quand il est servi, et « dont pénalité de retard » est la part figée par le serveur (`checkout_late_fee_amount`, décision 6a), jamais l'écart à la ligne"
+    },
+    {
+      "ecran": "a-3",
+      "element": "persona",
+      "propriete": "compte",
+      "exception": "données de démo",
+      "motif": "« échéancier pas encore émis » n'est plus reproductible sur le locataire de la maquette (bail expiré) : relevé sur l'utilisateur 76 (bail 195, `none`), validé par team-lead le 2026-11-13"
+    },
+    {
+      "ecran": "a-* (téléphone)",
+      "element": "tout le contenu de la page (« À régler », « Vous êtes à jour », « Votre premier loyer… », « Historique », les titres du retour) et leurs icônes",
+      "propriete": "y (+8 px)",
+      "exception": "hors périmètre",
+      "motif": "marge haute de l'enveloppe de la coque (`ENVELOPPE_DU_CONTENU`, `py-6` au téléphone, TCK-2691) : la maquette pose la page 16 px sous l'en-tête, le produit 24 ; le contenu est une translation pure de +8 px (relevé r2 : section de tête y 72 contre 80)"
+    },
+    {
+      "ecran": "a-*",
+      "element": "« Aller au contenu principal », en-tête de la page sous `sr-only` au téléphone (« Paiements », « Ce que vous devez, vos paiements et vos quittances. »), « Fermer » (nom du ✕ de la feuille)",
+      "propriete": "présence",
+      "exception": "accessibilité mesurée",
+      "motif": "lien d'évitement de la coque, titre de page lu par les lecteurs d'écran (hors de l'écran au téléphone, `max-lg:sr-only` : rien ne se dessine) et nom accessible du bouton de fermeture ; la maquette n'a ni l'un ni les autres"
+    },
+    {
+      "ecran": "a-0, a-1, a-2 (bureau)",
+      "element": "colonne « Mon bail » et historique : ordonnées",
+      "propriete": "y",
+      "exception": "données de démo",
+      "motif": "la maquette pose au-dessus de l'historique la carte « Prochain loyer » et les six échéances (la démo n'en sert aucune sur a-0), et dans « Mon bail » une photo de 112 px et une adresse que le résumé ne sert pas : tout ce qui suit remonte. Abscisses et largeurs conformes depuis r2 (colonne 720 px, « Mon bail » 340 px)"
+    },
+    {
+      "ecran": "a-* (téléphone et bureau)",
+      "element": "icônes lucide (check, chevron-right, download, phone, x, refresh-cw, circle-alert du tableau)",
+      "propriete": "épaisseur du trait (2 → 1,75 au téléphone, 1,5 au bureau)",
+      "exception": "contrainte technique",
+      "motif": "trait de la portée /app (`globals.css`, `svg.lucide[stroke-width=\"2\"]`, TCK-2685) ; même exception que TCK-2625, TCK-2634, TCK-2654"
+    },
+    {
+      "ecran": "a-0, a-1, a-2",
+      "element": "« Quittance », « Quittance PDF », « Reçu PDF »",
+      "propriete": "largeur, marges, taille de police (13 → 14 px), fond, couleur de l'icône",
+      "exception": "contrainte technique",
+      "motif": "`BoutonTelechargement` (primitive `Button` outline, `size=lg` au téléphone) : la maquette dessine une « pièce » maison (`BoutonPiece`, 13 px, px-3, icône sourde) ; la primitive porte le téléchargement authentifié et son état, ses valeurs sont celles de toute la console"
+    },
+    {
+      "ecran": "a-0, a-2 (téléphone), a-0, a-1, a-2 (bureau)",
+      "element": "« Due » de la note de pénalité",
+      "propriete": "présence (badge à part)",
+      "exception": "incohérence des maquettes",
+      "motif": "le téléphone de la maquette écrit « Due » à part (`NotePenalite`), le tableau du bureau l'écrit en fin de phrase (« · due ») ; le produit garde une seule forme, celle du téléphone. « absent de la maquette » sur a-0 : la maquette a la note sous le pli, la démo dans le premier écran"
+    },
+    {
+      "ecran": "a-5, a-6, a-7, a-8",
+      "element": "« Moyen » : « Wave · 77 ••• 20 18 » ; « Remboursement lancé le … »",
+      "propriete": "texte, présence",
+      "exception": "donnée",
+      "motif": "`verify` ne sert ni le numéro du payeur (liste fermée de back-4, non-fuite : ni `metadata`, ni téléphone) ni la date du remboursement : « Moyen » dit le fournisseur seul, « Statut » dit « Remboursement à venir »"
+    },
+    {
+      "ecran": "a-6, a-8",
+      "element": "texte de la carte (« Votre paiement est bien reçu. Votre quittance est disponible. », « Votre paiement est arrivé sur une échéance déjà payée. L’agence vous le rendra. ») ; « Retour aux paiements » (couleur)",
+      "propriete": "texte, couleur, boîte",
+      "exception": "donnée",
+      "motif": "la maquette nomme le montant en phrase, le compte Wave et un délai de 3 jours ouvrés que le serveur ne sert pas : la phrase ne garde que ce qui est su. Le lien discret est `ghost` de la primitive (encre opaque `text-foreground`, la maquette écrit `text-foreground/80`, refusé par `encre-sans-alpha`)"
+    },
+    {
+      "ecran": "a-8",
+      "element": "icône du remboursement : `RotateCcw` au lieu de `Undo2`",
+      "propriete": "icône",
+      "exception": "contrainte technique",
+      "motif": "garde de la coque (TCK-2617) : une flèche à gauche est réservée au retour ; même icône, même disque (`bg-muted text-accent` : `bg-accent/15` est refusé par `check-valeurs-arbitraires-app`, aplat d'accent réservé aux badges *featured*)"
+    },
+    {
+      "ecran": "a-8",
+      "element": "« Moyen », « Référence », « Statut », « Contacter l’agence », « Retour aux paiements »",
+      "propriete": "y (−20 px)",
+      "exception": "donnée",
+      "motif": "la phrase du remboursement est plus courte d'une ligne (le serveur ne sert ni le compte Wave ni le délai, cf. plus haut) : ce qui suit remonte. Depuis r2, la carte du retour prend au téléphone la marge de la maquette (x 20, 40 px sous l'en-tête) et 480 px au bureau (`max-w-[30rem]`) : a-5, a-6, a-7 et a-9 n'ont plus d'écart de position"
+    },
+    {
+      "ecran": "a-1",
+      "element": "feuille « Payer » : « Payer maintenant », « Total débité », « Moyen de paiement », Wave, Orange Money, ✕",
+      "propriete": "y",
+      "exception": "données de démo",
+      "motif": "la maquette pose quatre fournisseurs et « Frais de paiement 0 F » ; le serveur en ouvre deux et ne sert aucun frais (écart déjà consigné) : la feuille est moins haute et ses lignes se décalent. Largeur et abscisse des options (x 79 → 31) : le pictogramme du fournisseur, absent (écart déjà consigné)"
+    },
+    {
+      "ecran": "a-3",
+      "element": "« Aucun paiement pour l’instant », « Vos paiements et leurs quittances apparaîtront ici. » ; icône du reçu (couleur)",
+      "propriete": "police, largeur, y",
+      "exception": "contrainte technique",
+      "motif": "état vide de la primitive `EmptyState` (titre `text-corps` 600) ; la maquette dessine un texte maison"
+    },
+    {
+      "ecran": "a-2",
+      "element": "« Prochain loyer » (couleur) ; note de pénalité « due » (⚠) au lieu de « réglée » (✓)",
+      "propriete": "couleur, présence",
+      "exception": "charte, donnée",
+      "motif": "encre opaque `text-encre-douce` au lieu de `text-foreground/80` (garde `encre-sans-alpha`) ; `fid=a-jour` ne double que le résumé : l'historique réel de la démo porte une pénalité encore due, la maquette une pénalité réglée"
+    },
+    {
+      "ecran": "a-0, a-1, a-2, a-3 (bureau)",
+      "element": "historique : lignes, moyens (« Virement bancaire »), justificatifs (« Reçu PDF » de la caution), « Caution » ; « Mon bail » : « Période », adresse, horaires",
+      "propriete": "présence, y, largeur",
+      "exception": "données de démo",
+      "motif": "six lignes réelles du bail 22 (dont la caution, AC5) contre cinq lignes dessinées ; le résumé ne sert ni la période du bail ni l'adresse du bien (écart déjà consigné pour « Mon bail »)"
+    },
+    {
+      "ecran": "a-0, a-1, a-2, a-3",
+      "element": "largeur des titres (« Paiements », « Historique », « Échéances à venir ») et des en-têtes du tableau (« Période », « Payé », « Montant », « Justificatif »)",
+      "propriete": "largeur (±3 px pour les en-têtes)",
+      "exception": "contrainte technique",
+      "motif": "le titre du produit est un bloc qui occupe sa ligne (`h1`, `h2`), celui de la maquette une boîte à la taille du texte dans une rangée ; police, graisse, x conformes. Tableau en disposition automatique : la largeur des colonnes suit leur contenu (même exception que TCK-2587)"
+    },
+    {
+      "ecran": "a-1 (bureau)",
+      "element": "« Annuler » du pied du panneau ; « Payer maintenant » de la carte « Prochain loyer »",
+      "propriete": "hauteur (44 et 43,2 contre 32,4), largeur, taille de police (15 contre 12,6)",
+      "exception": "contrainte technique",
+      "motif": "« Annuler » garde `size=lg` du pied de la feuille, un seul composant pour le téléphone et le panneau (`PayerUneEcheance`). « Payer maintenant » de la carte : la maquette le dessine « grand » pleine largeur au téléphone et « normal » à droite au bureau ; r2 le passe en `size=xl` pour le téléphone (conforme à 390), ce qui élargit l'écart du bureau (39,6 px en r1, 43,2 en r2). Arbitrage pour le téléphone, à trancher par le porteur au rideau"
+    },
+    {
+      "ecran": "a-1",
+      "element": "« Total débité »",
+      "propriete": "hauteur, interligne (22,5 → 21,4)",
+      "exception": "contrainte technique",
+      "motif": "jeton `text-corps` de la portée /app, interligne du jeton"
+    },
+    {
+      "ecran": "a-6, a-7, a-9",
+      "element": "« Télécharger la quittance », « Réessayer », « Voir mes paiements »",
+      "propriete": "bordure (1 px transparente), marge gauche et taille de l'icône (16 px contre 18)",
+      "exception": "contrainte technique",
+      "motif": "bordure transparente de 1 px de la primitive `Button` et marge `has-data-[icon=inline-start]` ; même exception que TCK-2581 ; l'icône d'un `Button` est `size-4` par la primitive"
+    },
+    {
+      "ecran": "a-*",
+      "element": "barre latérale du bureau : « Mettre un bien en location », « Recherches sauvegardées », « Mon bail », « Paiements » (entrée active), « Aujourd’hui », « Messages non lus » ; titre de l'en-tête « Paiement » au téléphone",
+      "propriete": "présence, couleur, marges, largeur",
+      "exception": "hors périmètre",
+      "motif": "entrées et état actif du menu de la coque (TCK-2617, TCK-2619), lues sur le compte relevé"
+    }
+  ],
+  "ecarts_ouverts": [
+    {
+      "ecran": "a-0, a-1, a-2, a-3 (bureau)",
+      "element": "« Appeler », « WhatsApp »",
+      "propriete": "couleur de bordure (lue absente), largeur (+5 px)",
+      "motif": "liens `<a>` aux classes `buttonVariants({ variant: 'outline', size: 'sm' })` (`MonBail.tsx`) : le relevé mesure une bordure de 1 px mais n'en lit pas la couleur, alors qu'il la lit (`#ebe5d5`) sur « Quittance PDF », même variante. Cause non établie en r2 ; la maquette dessine `Bouton contour petit`"
+    }
+  ]
+}

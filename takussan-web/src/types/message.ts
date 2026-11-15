@@ -15,6 +15,11 @@ export type ConversationParticipant = {
   user_id: number;
   role: 'member' | 'admin';
   is_muted?: boolean;
+  /**
+   * TCK-2632 — rendu pour le SEUL lecteur, comme `is_muted` (clé absente pour les autres) : le fil
+   * qu'il a archivé. Envoyer un message le désarchive (`sendMessage`).
+   */
+  archived_at?: string | null;
   last_read_at: string | null;
   joined_at: string;
   left_at: string | null;
@@ -60,6 +65,11 @@ export type MessageAttachment = {
   url: string;
   mime_type: string | null;
   size: number | null;
+  /**
+   * TCK-2631 — la vignette signée (400 px). `null` pour un PDF, une note vocale, ou tant que la file
+   * `media` ne l'a pas produite : retomber alors sur `url`.
+   */
+  thumbnail_url?: string | null;
 };
 
 export type Message = {
@@ -138,4 +148,58 @@ export type PropertyConversationResolution = {
     name: string;
     avatar_url: string | null;
   } | null;
+};
+
+/**
+ * TCK-2630 — `GET /api/conversations/{id}/context` : la colonne de contexte d'un fil. Chaque bloc vaut
+ * `null` s'il n'existe pas ou n'est pas lisible par l'appelant.
+ *
+ * `customer` est ABSENT (clé omise) pour qui n'est pas du personnel de l'agence du fil : un client,
+ * un bailleur ou un prestataire ne voit jamais qu'une fiche existe. Pour le personnel, `null` sans
+ * fiche ; `stage`, `phone` et `assigned_agent` valent `null` ensemble sans droit de lecture.
+ */
+export type ConversationContext = {
+  property: {
+    id: number;
+    slug: string;
+    title: string;
+    reference_number: string | null;
+    price: number | null;
+    status: string | null;
+    cover_url: string | null;
+  } | null;
+  lease: {
+    id: number;
+    status: string | null;
+    reference: string | null;
+    tenant_name: string | null;
+  } | null;
+  maintenance: {
+    id: number;
+    status: string | null;
+    title: string | null;
+    scheduled_at: string | null;
+  } | null;
+  customer?: {
+    id: number;
+    full_name: string | null;
+    stage: string | null;
+    phone: string | null;
+    assigned_agent: { id: number; name: string } | null;
+  } | null;
+  /**
+   * TCK-2748 — la relation de chaque participant ACTUEL au contexte du fil, dérivée par l'API du bail,
+   * de l'intervention et du bien, et jugée sur ce que l'appelant peut lire : un participant absent de
+   * la liste n'a pas de relation lisible (jamais devinée côté front). `category` : celle de
+   * l'intervention, pour le prestataire seul. Facultatif : une réponse d'avant TCK-2748 n'en porte pas.
+   */
+  participants?: ReadonlyArray<RelationAuFil>;
+};
+
+export type CodeDeRelationAuFil = 'prestataire' | 'locataire' | 'proprietaire' | 'agent';
+
+export type RelationAuFil = {
+  user_id: number;
+  relation: CodeDeRelationAuFil;
+  category?: string | null;
 };

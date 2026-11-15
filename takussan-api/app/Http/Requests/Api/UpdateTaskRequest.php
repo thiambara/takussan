@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
+use App\Rules\InstantIso;
 use Illuminate\Validation\Rule;
 
 /**
@@ -17,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateTaskRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -29,7 +33,9 @@ class UpdateTaskRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('view', $this->route('task')) === true;
+        // TCK-2595 — `update` et non plus `view` : la lecture d'équipe (`TaskPolicy::readsAsTeam`)
+        // ouvre la tâche d'un collègue, pas sa modification.
+        return $this->user()?->can('update', $this->route('task')) === true;
     }
 
     /** @return array<string, mixed> */
@@ -39,9 +45,15 @@ class UpdateTaskRequest extends BaseFormRequest
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'assigned_to_id' => ['sometimes', 'nullable', 'exists:users,id'],
-            'due_at' => ['sometimes', 'nullable', 'date'],
+            'due_at' => ['sometimes', 'nullable', 'date', new InstantIso],
             'status' => ['sometimes', Rule::enum(TaskStatus::class)],
             'priority' => ['sometimes', Rule::enum(TaskPriority::class)],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['due_at'];
     }
 }

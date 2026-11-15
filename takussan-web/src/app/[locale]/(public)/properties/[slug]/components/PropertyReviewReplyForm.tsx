@@ -27,8 +27,8 @@ export function PropertyReviewReplyForm({
   onSubmit,
   onCancel,
 }: PropertyReviewReplyFormProps) {
-  const t = useTranslations('property.reviews.replyForm');
-  const tForm = useTranslations('property.reviews.form');
+  const t = useTranslations('propertyReviews.replyForm');
+  const tForm = useTranslations('propertyReviews.form');
   const messageErreur = useMessageErreurApi();
   const [content, setContent] = useState(initialContent ?? '');
   const [error, setError] = useState<string | null>(null);

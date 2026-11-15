@@ -1,7 +1,7 @@
 /**
  * TCK-761 (P15.04) — `admin-agency.ts` rend le `code` d'un refus de second facteur, comme
  * `admin-settings.ts` depuis TCK-293. Une action serveur ne transmet pas d'`ApiError` : sans ce
- * code, `AgencyConfigForm` ne peut pas confier le refus à `GardeDoubleFacteur`, et l'admin d'agence
+ * code, la fiche de l'agence (`fiche/FicheDeLAgence`, TCK-2670) ne peut pas confier le refus à `GardeDoubleFacteur`, et l'admin d'agence
  * sans 2FA lit une erreur de formulaire au lieu de la boîte qui la lui fait configurer.
  *
  * Seul `apiRequest` est doublé : l'action et le module de requêtes sont les vrais.

@@ -124,7 +124,7 @@ export function AdminBoosts() {
       <section aria-labelledby="offrir" className="space-y-3 rounded-xl border border-border bg-card p-4">
         <h2 id="offrir" className="font-medium text-foreground">{t('offer.title')}</h2>
         <form
-          className="grid gap-3 sm:grid-cols-[10rem_1fr] sm:items-end"
+          className="grid gap-3 sm:grid-cols-[calc(var(--spacing)*40)_1fr] sm:items-end"
           onSubmit={(event) => {
             event.preventDefault();
             if (offreValide) offrir.mutate({ propertyId: bienOffert, product_id: offre.produit, reason: offre.motif.trim() });

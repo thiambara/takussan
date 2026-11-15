@@ -1,0 +1,46 @@
+{
+ "page": "app-profil",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Sommaire",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Coordonnées",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Préférences de notifications",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Fiche publique (agent)",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "Mes avis",
+   "sansBureau": null
+  },
+  {
+   "e": 5,
+   "nom": "Sécurité",
+   "sansBureau": null
+  },
+  {
+   "e": 6,
+   "nom": "Sommaire (bailleur)",
+   "sansBureau": null
+  }
+ ]
+}

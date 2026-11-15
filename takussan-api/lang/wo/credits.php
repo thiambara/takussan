@@ -24,4 +24,8 @@ return [
             'body_with_expired' => 'Yokk gis-gisu « :property » taxaw na. Kredi yu ñu delloo : :credits. Kredi yu ñu delloowul ndax seen jamono jeex na : :expired.',
         ],
     ],
+    // TCK-2520 (ADR-0092) — une seule agence mise en avant par ville et par instant.
+    'spotlight' => [
+        'overlap' => 'Une place est déjà réservée pour cette ville sur cette période.',
+    ],
 ];

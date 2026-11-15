@@ -28,6 +28,7 @@ const donnees = {
   links: { first: null, last: null, prev: null, next: null },
 } as never;
 
+// TCK-2653 — la liste se rend aussi en cartes au téléphone (`carteMobile`) : les requêtes visent la table.
 describe('<ServiceProvidersList> — badge « Assuré »', () => {
   it('ne marque que le prestataire assuré', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -37,8 +38,8 @@ describe('<ServiceProvidersList> — badge « Assuré »', () => {
       </QueryClientProvider>,
     ));
 
-    const assure = (await screen.findByText('Fatou Sarr')).closest('tr') as HTMLElement;
-    const nonAssure = screen.getByText('Awa Sarr').closest('tr') as HTMLElement;
+    const assure = (await within(await screen.findByRole('table')).findByText('Fatou Sarr')).closest('tr') as HTMLElement;
+    const nonAssure = within(screen.getByRole('table')).getByText('Awa Sarr').closest('tr') as HTMLElement;
     expect(within(assure).getByText('Assuré')).toBeInTheDocument();
     expect(within(nonAssure).queryByText('Assuré')).not.toBeInTheDocument();
   });

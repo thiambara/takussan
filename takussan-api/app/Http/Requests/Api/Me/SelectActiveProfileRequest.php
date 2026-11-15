@@ -19,6 +19,9 @@ class SelectActiveProfileRequest extends BaseFormRequest
     {
         return [
             'profile_id' => ['required', 'string', 'regex:'.self::compositeIdPattern()],
+            // TCK-2620 (ADR-0004, amendement du 2026-11-10) — « se souvenir de mon choix » : vrai par
+            // défaut ; faux = « pour cette fois », et efface l'espace retenu sur le compte.
+            'remember' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -37,6 +40,12 @@ class SelectActiveProfileRequest extends BaseFormRequest
      * couvrait que le front. Une liste d'alias écrite à la main est juste le
      * jour où on l'écrit — celle-ci n'est plus écrite.
      */
+    /** `remember` absent vaut vrai : retenir est le défaut. */
+    public function retenir(): bool
+    {
+        return $this->boolean('remember', true);
+    }
+
     public static function compositeIdPattern(): string
     {
         $alias = array_map(

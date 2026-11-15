@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PaymentMethod;
+use App\Rules\InstantIso;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class MarkPaidLeasePaymentRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -62,12 +66,18 @@ class MarkPaidLeasePaymentRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'paid_at' => ['nullable', 'date'],
+            'paid_at' => ['nullable', 'date', new InstantIso],
             'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
             'transaction_id' => ['nullable', 'string', 'max:255'],
             // Passe 2, M5 — passer outre au checkout ouvert, motif obligatoire.
             'override_open_checkout' => ['sometimes', 'boolean'],
             'override_reason' => ['nullable', 'string', 'max:500', 'required_if_accepted:override_open_checkout'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['paid_at'];
     }
 }

@@ -17,16 +17,19 @@ export const BOOKING_STATUS_LABEL_KEY: Record<BookingStatus, string> = {
 /**
  * Revue design 2026-09-16 — les statuts se peignaient en variantes de `Badge` : « Confirmée »
  * prenait l'aplat terracotta de la marque, et « Annulée » et « Expirée » le même gris que le
- * reste. Le ton passe par `StatusBadge` (TCK-472), avec le même sens que les visites :
- * « en attente » demande une décision, « confirmée » est une information, « terminée » un succès.
+ * reste. Le ton passe par `StatusBadge` (TCK-472).
+ *
+ * TCK-2594 — les tons de la maquette retenue (`app-reservations`, `TON_ETAT`) : « À décider »
+ * demande une décision, « Confirmée » est un succès (la demande a abouti), « Terminée » est close,
+ * au neutre comme une annulée ou une expirée ; « Refusée » seule est un refus.
  */
 export const BOOKING_STATUS_TONE: Record<BookingStatus, StatusTone> = {
   pending: 'attention',
-  confirmed: 'info',
+  confirmed: 'success',
   rejected: 'danger',
   cancelled: 'neutral',
   expired: 'neutral',
-  completed: 'success',
+  completed: 'neutral',
 };
 
 /** Ton d'un paiement de réservation ; un statut inconnu de l'API retombe sur le neutre. */

@@ -369,10 +369,11 @@ const WEB_SRC = join(ROOT, 'takussan-web', 'src');
  *             trois fichiers nommés.
  *   `file`  — un fichier précis d'un répertoire partagé, quand ses voisins ne sont PAS rendus
  *             par la console. `src/components/kyc/` est le cas : `kyc-components.tsx` est monté
- *             par `admin/super/agency-detail.tsx`, mais `KycUploader.tsx` ne l'est que par les
- *             trois assistants d'onboarding (vérifié par `grep` le 2026-08-27). Mettre le
- *             répertoire entier aurait fait rougir la garde sur un fichier que la console ne
- *             rend pas — et la réponse humaine à ce rouge-là est une exception, pas un correctif.
+ *             par `admin/super/agency-detail.tsx`, mais `KycUploader.tsx` ne l'était que par les
+ *             trois assistants d'onboarding (vérifié par `grep` le 2026-08-27 ; retiré par TCK-2796,
+ *             le 2026-11-14). Mettre le répertoire entier aurait fait rougir la garde sur un fichier
+ *             que la console ne rend pas — et la réponse humaine à ce rouge-là est une exception,
+ *             pas un correctif.
  *
  * ⚠ La forme `file` a la faiblesse que la forme `glob` a fermée : un fichier neuf déposé à côté
  * n'est PAS couvert. C'est `resteNonGarde()` qui le rattrape — il apparaîtra dans le reste, et
@@ -1577,10 +1578,10 @@ const PERIMETRES_ONBOARDING = [
   // Les six pages de routes plus leur layout : déjà à zéro le 2026-08-27. *Un répertoire déjà
   // propre est le moins cher à mettre sous cliquet, et c'est le seul moment où ça ne coûte rien.*
   { type: 'dir', chemin: join(WEB_SRC, 'app', 'onboarding') },
-  // La forme `file`, pour la raison exacte qui la justifie dans `PERIMETRES` : ses voisins de
-  // `src/components/kyc/` ne sont PAS rendus par les assistants (`kyc-components.tsx` l'est par
-  // la console, `AgencyKycClient.tsx` par `/app/agency/kyc` — `/admin/agency/kyc` avant ADR-0064).
-  { type: 'file', chemin: join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx') },
+  // ⚠ L'entrée `file` de `components/kyc/KycUploader.tsx` est RETIRÉE avec le fichier (TCK-2796, le
+  // 2026-11-14) : TCK-2613 a ôté aux assistants leur téléverseur, les pièces partent de « Vos
+  // pièces » (`/app/pieces`), que l'espace « tableau de bord /app » garde par sa clôture. Les
+  // assistants eux-mêmes restent sous le cliquet bilatéral du RESTE ci-dessous, à zéro.
 ];
 
 /*
@@ -1632,10 +1633,10 @@ const TEMOINS = {
     join(WEB_SRC, 'app', 'onboarding', 'agent', 'page.tsx'),
     join(WEB_SRC, 'app', 'onboarding', 'owner', 'page.tsx'),
     join(WEB_SRC, 'app', 'onboarding', 'service-provider', 'page.tsx'),
-    // ⚠ LE témoin de ce ticket : le fichier que deux gardes se renvoyaient. Son retrait de
-    // `PERIMETRES_ONBOARDING` sortirait la garde en 0 sans un mot, sur le seul fichier pour
-    // lequel l'espace a été créé.
-    join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx'),
+    // TCK-2796 — `components/kyc/KycUploader.tsx`, LE témoin de TCK-385 (le fichier que deux gardes
+    // se renvoyaient), est retiré avec le fichier : il n'avait plus de montage. Un fichier vivant de
+    // l'espace le remplace — la page de l'assistant du particulier, qui monte `HostIndividualWizard`.
+    join(WEB_SRC, 'app', 'onboarding', 'host', 'page.tsx'),
   ],
   'tableau de bord /app': [
     // TCK-426 — le fichier a été DÉPLACÉ, pas supprimé : `app/page.tsx` vit désormais sous le
@@ -1846,7 +1847,8 @@ const ESPACES = [
     natureDuReste: "assistants d'onboarding non encore portés, plus le module TOTP",
     reference: "24 sur la clôture entière le 2026-08-27, à la naissance de l'espace",
     // 8 fichiers analysés le 2026-08-27, sans le moindre mou : les sept de `src/app/onboarding`
-    // (six pages plus le layout) et `KycUploader.tsx`.
+    // (six pages plus le layout) et `KycUploader.tsx`. Inchangé par TCK-2796 (2026-11-14) : retirer
+    // `KycUploader.tsx` laisse 10 fichiers analysés, tous sous `src/app/onboarding`, au-dessus du plancher.
     plancherFichiers: 8,
   },
 ];

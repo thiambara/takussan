@@ -216,6 +216,11 @@ class SavedSearchMatchesNotification extends Notification implements SupportsWha
                 $value = $value[0] ?? null;
                 $key = 'city';
             }
+            if ($key === 'locations') {
+                // TCK-2607 — la liste à virgules que lit la page publique (`locations=Mermoz,Ngor`),
+                // et non `locations[0]=…`, que `http_build_query` écrirait d'un tableau.
+                $value = implode(',', (array) $value);
+            }
             if ($value === null || $value === '' || $value === []) {
                 continue;
             }

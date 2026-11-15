@@ -262,4 +262,22 @@ class PlatformPayoutTest extends TestCase
             'paid_at' => $paidAt,
         ]));
     }
+
+    /** TCK-2743 (lot 3) — la date du virement, reçue avec décalage : l'instant désigné. */
+    public function test_processed_at_recu_avec_decalage_est_l_instant_designe(): void
+    {
+        $closer = $this->actingAsRole('super_admin');
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create(['is_verified' => true]);
+        $payout = PlatformPayout::factory()->create(['agency_id' => $agency->id, 'closed_by_id' => $closer->id]);
+        $this->postJson("/api/admin/payouts/{$payout->id}/approve")->assertOk();
+
+        $this->actingAs($closer);
+        $this->postJson("/api/admin/payouts/{$payout->id}/mark-paid", [
+            'processed_at' => '2026-05-15T12:00:00+02:00',
+            'payment_reference' => 'WIRE-43',
+        ])->assertOk();
+
+        $this->assertSame('2026-05-15 10:00:00', $payout->refresh()->getRawOriginal('processed_at'));
+    }
 }

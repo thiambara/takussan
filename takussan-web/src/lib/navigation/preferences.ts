@@ -1,11 +1,10 @@
-import { z } from 'zod';
-import { PERSONAS, type Persona } from './personas';
+import type { Persona } from './personas';
 
 /**
  * TCK-2480 (ADR-0089 §6) — les préférences du menu de `/app`, sur le COMPTE et par persona :
  * `preferences.navigation = { v: 1, personas: { <persona>: { epingles, replies, ouverts, demarrer_masque } } }`.
  *
- * L'API n'en valide que la forme (`UpdateMeRequest`) ; ce schéma la lit, et la fixture
+ * L'API n'en valide que la forme (`UpdateMeRequest`) ; `preferences-schema.ts` la lit, et la fixture
  * `takussan-api/tests/fixtures/preferences-navigation.json` garde que les deux disent la même chose.
  * Une valeur illisible vaut la disposition par défaut : une préférence ne casse jamais le menu.
  *
@@ -29,32 +28,6 @@ export interface PreferencesDeNavigation {
 }
 
 export const NAVIGATION_VIDE: PreferencesDeNavigation = { v: 1, personas: {} };
-
-const IDENTIFIANT = z.string().max(64).regex(/^[a-z0-9-]+$/);
-
-/** PHP encode un tableau associatif vide en `[]` : un `{}` écrit revient de l'API sous cette forme. */
-const VIDE_DE_PHP = z.array(z.never()).transform(() => ({}));
-
-const SCHEMA_DU_PERSONA = z.union([
-  z.strictObject({
-    epingles: z.array(IDENTIFIANT).max(EPINGLES_MAX).optional(),
-    replies: z.array(IDENTIFIANT).max(REPLIS_MAX).optional(),
-    ouverts: z.array(IDENTIFIANT).max(REPLIS_MAX).optional(),
-    demarrer_masque: z.boolean().optional(),
-  }),
-  VIDE_DE_PHP,
-]);
-
-export const SCHEMA_NAVIGATION = z.strictObject({
-  v: z.literal(1),
-  personas: z.union([z.partialRecord(z.enum(PERSONAS), SCHEMA_DU_PERSONA), VIDE_DE_PHP]),
-});
-
-/** `user.preferences?.navigation`, tel que l'API le rend : lu par le schéma, jamais cru. */
-export function lirePreferencesDeNavigation(brut: unknown): PreferencesDeNavigation {
-  const lu = SCHEMA_NAVIGATION.safeParse(brut);
-  return lu.success ? lu.data : NAVIGATION_VIDE;
-}
 
 export function prefsDe(navigation: PreferencesDeNavigation, persona: Persona): PreferencesDuPersona {
   return navigation.personas[persona] ?? {};
@@ -116,6 +89,20 @@ export function prefsApresEpingle(p: PreferencesDuPersona, rendues: readonly str
   const epingles = epinglesApresBascule(rendues, id);
   const ajoutee = epingles.length > rendues.length;
   return ajoutee ? { ...p, epingles, replies: (p.replies ?? []).filter((g) => g !== 'epingles') } : { ...p, epingles };
+}
+
+/**
+ * TCK-2619 — déplacer l'épingle `id` au rang `vers` (borné), en repartant des épingles RENDUES : c'est
+ * l'ordre du tableau `epingles` qui fait celui du groupe « Épinglés » (`composerMenu`). Une épingle
+ * absente ne bouge rien ; une épingle déjà à sa place non plus (même tableau, aucune écriture utile).
+ */
+export function epinglesApresDeplacement(rendues: readonly string[], id: string, vers: number): string[] {
+  const depuis = rendues.indexOf(id);
+  if (depuis === -1) return [...rendues];
+  const cible = Math.max(0, Math.min(rendues.length - 1, vers));
+  const sortie = rendues.filter((e) => e !== id);
+  sortie.splice(cible, 0, id);
+  return sortie;
 }
 
 /** Replier (`replie`) ou ouvrir un groupe : seul l'écart au défaut de la disposition s'enregistre. */

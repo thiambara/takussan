@@ -37,7 +37,7 @@ return [
         'unavailable' => 'Unavailable',
         'pending' => 'Pending',
         'draft' => 'Draft',
-        'published' => 'Published',
+        'published' => 'Approved',
         'archived' => 'Archived',
         'pending_review' => 'In review',
         'rejected' => 'Rejected',

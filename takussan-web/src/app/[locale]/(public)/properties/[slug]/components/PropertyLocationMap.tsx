@@ -17,7 +17,7 @@ interface PropertyLocationMapProps {
 }
 
 export function PropertyLocationMap({ latitude, longitude, address }: PropertyLocationMapProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
 
   if (latitude == null || longitude == null) {
     return (

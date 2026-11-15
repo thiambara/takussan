@@ -33,7 +33,7 @@ vi.mock('next/navigation', () => ({
 const { DUREE_URL_SIGNEE_KYC_MS, DUREE_URL_SIGNEE_MEDIA_MS } = await import('@/lib/url-signee');
 const { useDocuments, useDocumentVersions } = await import('@/lib/queries/documents');
 const { useMaintenanceRequest } = await import('@/lib/queries/maintenance');
-const { AgencyKycClient } = await import('@/components/kyc/AgencyKycClient');
+const { VerificationDeLAgence } = await import('@/components/kyc/VerificationDeLAgence');
 const { AgencyDetailPage } = await import('@/components/admin/super/agency-detail');
 const { default: SuperAdminKycPage } = await import('@/app/(super-admin)/super-admin/kyc/page');
 
@@ -103,10 +103,10 @@ describe('documents et maintenance — `file_url` et `url` signés pour 30 min',
 });
 
 describe('KYC — `signed_url` signé pour 15 min', () => {
-  it('l’écran KYC de l’agence (`AgencyKycClient`)', () => {
+  it('l’écran de vérification de l’agence (`VerificationDeLAgence`, TCK-2671)', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
     const client = nouveauClient();
-    render(withIntl(<QueryClientProvider client={client}><AgencyKycClient agencyId={12} /></QueryClientProvider>));
+    render(withIntl(<QueryClientProvider client={client}><VerificationDeLAgence agencyId={12} /></QueryClientProvider>));
     attendRafraichissementAvant(client, ['agency', 12, 'kyc'], DUREE_URL_SIGNEE_KYC_MS);
   });
 

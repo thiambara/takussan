@@ -105,6 +105,8 @@ class SuperAdminCooptationTest extends TestCase
             'metadata' => ['requires_2fa' => true, 'first_name' => 'Pen', 'last_name' => 'Ding'],
         ]);
 
+        // TCK-2610 (ADR-0094 § 7) — l'invité ouvre le lien hors de la session de l'invitant : connecté, il accepterait pour ce compte.
+        $this->app['auth']->forgetGuards();
         $this->postJson('/api/invitations/'.$invitation->token.'/accept', [
             'first_name' => 'Pen',
             'last_name' => 'Ding',

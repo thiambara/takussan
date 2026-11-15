@@ -55,6 +55,28 @@ class SponsoredRotationPickTest extends TestCase
         $this->assertEqualsCanonicalizing($ids, array_values(array_unique($vus)));
     }
 
+    /**
+     * TCK-2500 — `pickExcluding()` ne change ni le mélange ni la tranche : sans exclusion, c'est `pick()` ; avec, le bien
+     * exclu est remplacé par le suivant dans le même ordre, et `take` borne le nombre rendu.
+     */
+    public function test_pick_excluding_suit_la_meme_rotation(): void
+    {
+        $ids = range(1, 17);
+        foreach ([1, 2, 3, 7, 12] as $page) {
+            $this->assertSame(SponsoredRotation::pick($ids, 'g', $page, 3), SponsoredRotation::pickExcluding($ids, 'g', $page, 3, [], 3), "page {$page}");
+        }
+
+        $tranche = SponsoredRotation::pick($ids, 'g', 2, 3);
+        $suite = SponsoredRotation::pick($ids, 'g', 3, 3);
+        $this->assertSame(
+            [$tranche[0], $tranche[2], $suite[0]],
+            SponsoredRotation::pickExcluding($ids, 'g', 2, 3, [$tranche[1]], 3),
+        );
+        $this->assertSame([$tranche[0]], SponsoredRotation::pickExcluding($ids, 'g', 2, 3, [], 1));
+        $this->assertSame([], SponsoredRotation::pickExcluding($ids, 'g', 2, 0, [], 3));
+        $this->assertSame([], SponsoredRotation::pickExcluding([1, 2], 'g', 1, 3, [1, 2], 3));
+    }
+
     public function test_bornes(): void
     {
         $this->assertSame([], SponsoredRotation::pick([], 'g', 1, 3));

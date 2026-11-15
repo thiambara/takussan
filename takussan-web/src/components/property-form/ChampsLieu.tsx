@@ -252,7 +252,7 @@ export function ChampsLieu({
         ) : null}
         <FormError id="champ-quartier-error">{quartier.fieldState.error?.message}</FormError>
         {/* ADR-0062 §3 — la mention ODbL est due là où le référentiel est servi. */}
-        <p className="mt-1 text-[11px] text-muted-foreground">{t('address.osmCredit')}</p>
+        <p className="mt-1 text-[0.6875rem] text-muted-foreground">{t('address.osmCredit')}</p>
       </div>
     </>
   );

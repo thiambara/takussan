@@ -19,7 +19,7 @@ class MaintenanceController extends Controller
 
     public function store(StoreMaintenanceRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         return $this->json(['data' => $this->maintenance->schedule($data, $request->user())], 201);
     }

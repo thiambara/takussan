@@ -41,7 +41,6 @@ const estClient = (fichier: string) => /^\s*['"]use client['"]/.test(readFileSyn
 const PAGES_SERVEUR = [
   '(dashboard)/app/overview/agent/page.tsx',
   '(dashboard)/app/overview/owner/page.tsx',
-  '(dashboard)/app/overview/tenant/page.tsx',
   '(super-admin)/super-admin/system/page.tsx',
 ];
 

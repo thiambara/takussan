@@ -6,6 +6,7 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Property;
+use App\Policies\MaintenanceRequestPolicy;
 use App\Rules\AssignableProvider;
 use Illuminate\Validation\Rule;
 
@@ -36,6 +37,14 @@ class StoreMaintenanceRequestRequest extends BaseFormRequest
         return is_numeric($id) ? Property::query()->find((int) $id) : null;
     }
 
+    /** TCK-2652 — le donneur d'ordre du bien visé, au sens du contrôleur (`isPrincipalFor`). */
+    private function isPrincipal(): bool
+    {
+        $user = $this->user();
+
+        return $user !== null && MaintenanceRequestPolicy::isPrincipalFor($user, $this->targetProperty());
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -50,7 +59,9 @@ class StoreMaintenanceRequestRequest extends BaseFormRequest
             // avec son agence, ou membre de son équipe).
             'assigned_to' => ['nullable', 'integer', new AssignableProvider($this->targetProperty())],
             'title' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+            // TCK-2652 — facultative pour le demandeur (le locataire signale d'un geste, le titre se
+            // déduit de la catégorie) ; exigée du donneur d'ordre, dont le formulaire ne change pas.
+            'description' => [Rule::requiredIf(fn (): bool => $this->isPrincipal()), 'nullable', 'string'],
             'category' => ['required', Rule::enum(MaintenanceCategory::class)],
             'priority' => ['nullable', Rule::enum(MaintenancePriority::class)],
         ];

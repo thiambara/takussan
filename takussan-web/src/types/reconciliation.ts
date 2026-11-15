@@ -48,7 +48,9 @@ export type MatchedPaymentType =
   | 'invoice'
   | 'payout'
   // TCK-1421 (P141.02) — le virement de clôture de la plateforme, rapproché d'un crédit.
-  | 'platform_payout';
+  | 'platform_payout'
+  // TCK-2793 — la pénalité de retard payée seule d'une échéance, rapprochée à part de son loyer.
+  | 'lease_payment_late_fee';
 
 export interface BankStatementLine {
   id: number;
@@ -109,3 +111,51 @@ export interface CsvMapping {
   decimal_separator: DecimalSeparator | null;
   thousands_separator: ThousandsSeparator;
 }
+
+/**
+ * TCK-2674 / TCK-2675 — le rapprochement vu par paiement, sur un mois (`period=YYYY-MM`) :
+ * `GET /api/agencies/{a}/reconciliation/overview`. Une table vide arrive en objet (`{}`).
+ */
+export interface ReconciliationOverview {
+  period: string;
+  payments_total: number;
+  confirmed_automatically: { total: number; by_provider: Record<string, number> };
+  to_reconcile: { total: number; by_method: Record<string, number> };
+  reconciled_manually: number;
+}
+
+/** La ligne de banque que l'API propose pour un paiement (la meilleure, sur un relevé ouvert). */
+export interface SuggestedBankLine {
+  id: number;
+  statement_id: number;
+  date: string | null;
+  label: string | null;
+  amount: number | string;
+  confidence: number | string | null;
+}
+
+/** Un paiement encaissé sans passerelle et pas encore rapproché (`…/reconciliation/pending-payments`). */
+export interface PendingPayment {
+  type: 'lease_payment' | 'booking_payment';
+  id: number;
+  reference: string | null;
+  payer: { id: number; name: string | null } | null;
+  property: { id: number; title: string | null } | null;
+  amount: number | string;
+  /**
+   * Ce que la banque doit porter (la règle du matcher) : la pénalité réglée le même jour comprise, ou
+   * le montant figé d'un règlement en ligne. Absent d'une API antérieure : `amount`.
+   */
+  expected_bank_amount?: number | string | null;
+  currency: string | null;
+  paid_at: string | null;
+  payment_method: string | null;
+  suggested_line: SuggestedBankLine | null;
+}
+
+/** Le filtre de la liste : tout, avec ou sans ligne proposée, ou un moyen de paiement. */
+export type FiltreDuReste =
+  | { readonly type: 'tout' }
+  | { readonly type: 'suggestion' }
+  | { readonly type: 'sans' }
+  | { readonly type: 'moyen'; readonly moyen: string };

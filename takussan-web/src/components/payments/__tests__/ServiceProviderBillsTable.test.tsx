@@ -30,6 +30,11 @@ vi.mock('@/lib/queries/payments', () => ({
 }));
 const AUTH = vi.hoisted(() => ({ user: { id: 77, agency_id: 3 } }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => AUTH }));
+// TCK-2750 — le mode agence lit sa page dans l'adresse.
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
 
 const FACTURE = {
   id: 501,
@@ -65,17 +70,28 @@ describe('ServiceProviderBillsTable — factures d’intervention (TCK-594)', ()
     avec(FACTURE, { ...FACTURE, id: 502, reference_number: 'SPB-2026-0002', status: 'rejected', rejection_reason: 'Pièce non posée.' });
     render(withIntl(<ServiceProviderBillsTable mode="provider" />));
 
-    expect(PARAMS.at(-1)).toEqual({ provider_id: 77 });
+    expect(PARAMS.at(-1)).toEqual({ provider_id: 77, page: 1, per_page: 20 });
     expect(screen.getByText('SPB-2026-0001')).toBeInTheDocument();
     expect(screen.getByText('Pièce non posée.')).toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('TCK-2677 — `titreMasque` : la section garde son nom pour les lecteurs d’écran, le titre ne s’affiche pas', () => {
+    const { unmount } = render(withIntl(<ServiceProviderBillsTable mode="agency" />));
+    expect(screen.getByRole('heading', { level: 2, name: 'Factures des prestataires' })).not.toHaveClass('sr-only');
+    unmount();
+
+    render(withIntl(<ServiceProviderBillsTable mode="agency" titreMasque />));
+    const titre = screen.getByRole('heading', { level: 2, name: 'Factures des prestataires' });
+    expect(titre).toHaveClass('sr-only');
+    expect(screen.getByRole('region', { name: 'Factures des prestataires' })).toBeInTheDocument();
   });
 
   it('l’agence lit le dépassement du devis, puis valide en refacturant au bailleur', async () => {
     VALIDATE.mutateAsync.mockResolvedValue({ data: {} });
     render(withIntl(<ServiceProviderBillsTable mode="agency" />));
 
-    expect(PARAMS.at(-1)).toEqual({ agency_id: 3 });
+    expect(PARAMS.at(-1)).toEqual({ agency_id: 3, page: 1, per_page: 20 });
     expect(screen.getByText('Dépasse le devis approuvé')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Refacturer au bailleur' }));
     fireEvent.click(screen.getByRole('button', { name: 'Valider' }));

@@ -28,13 +28,18 @@ export async function fetchMyProfiles(token: string, activeProfileId?: string): 
   );
 }
 
+/**
+ * TCK-2621 — `remember` (TCK-2620) : `true` retient l'espace sur le COMPTE, `false` l'oublie. Absent,
+ * l'API applique son défaut (`true`) : les bascules du menu du compte retiennent toutes l'espace.
+ */
 export async function patchActiveProfile(
   token: string,
   profileId: string,
+  remember?: boolean,
 ): Promise<{ data: Profile }> {
   return apiRequest<{ data: Profile }>('/api/me/active-profile', {
     method: 'PATCH',
     token,
-    body: { profile_id: profileId },
+    body: remember === undefined ? { profile_id: profileId } : { profile_id: profileId, remember },
   });
 }

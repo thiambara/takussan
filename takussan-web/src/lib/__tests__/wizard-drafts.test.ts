@@ -6,6 +6,9 @@ import {
   estDemarcheAReprendre,
 } from '@/lib/wizard-drafts';
 import type { WizardDraft } from '@/types/wizard-draft';
+import en from '@/messages/en.json';
+import fr from '@/messages/fr.json';
+import wo from '@/messages/wo.json';
 
 describe('resolveWizardResume', () => {
   it('matches exact rules', () => {
@@ -108,6 +111,20 @@ describe('estDemarcheAReprendre — TCK-566', () => {
     });
     expect(estDemarcheAReprendre(brouillon('property-create-wizard', { type: 'villa' }))).toBe(true);
     expect(estDemarcheAReprendre(brouillon('property-create-wizard', { currency: 'XOF' }))).toBe(false);
+  });
+
+  it('TCK-2601 — l’annonce commencée sans compte : sa ligne à elle, à côté d’un brouillon connecté, jamais confondue', () => {
+    const connecte = projectDraftForBanner(brouillon('property-create-wizard', { title: 'Villa à Ngor' }));
+    const publication = projectDraftForBanner(brouillon('property-create-wizard:publication', { title: 'Appartement à Mermoz' }));
+    expect(publication).toMatchObject({ resumeHref: '/app/properties/new?brouillon=publication', i18nKey: 'property-create-wizard-publication' });
+    expect(connecte).toMatchObject({ resumeHref: '/app/properties/new', i18nKey: 'property-create-wizard' });
+    expect(estDemarcheAReprendre(brouillon('property-create-wizard:publication', { title: 'Appartement à Mermoz' }))).toBe(true);
+    // Deux noms distincts, dans chaque langue.
+    for (const messages of [fr, en, wo]) {
+      const libelles = messages.wizardDrafts.banner.labels as Record<string, string>;
+      expect(libelles['property-create-wizard-publication']).toBeTruthy();
+      expect(libelles['property-create-wizard-publication']).not.toBe(libelles['property-create-wizard']);
+    }
   });
 
   it('écarte une clé qu’aucune règle ne sait reprendre', () => {

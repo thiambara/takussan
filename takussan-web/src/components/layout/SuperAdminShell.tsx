@@ -90,7 +90,10 @@ export function SuperAdminShell({ user, abilities, children }: SuperAdminShellPr
           // lien d'évitement déplacerait le défilement sans déplacer le focus, et la tabulation
           // suivante repartirait du haut du document.
           tabIndex={-1}
-          className="relative min-h-0 flex-1 overflow-y-auto bg-muted focus:outline-none"
+          // TCK-2534 — `--skeleton` : le fond de cette zone EST `--muted`, la couleur par défaut d'un
+          // squelette, qui y devenait invisible. Un cran vers le texte (`--foreground`), mélangé ICI pour
+          // suivre le thème : plus sombre en clair, plus clair en sombre.
+          className="relative min-h-0 flex-1 overflow-y-auto bg-muted [--skeleton:color-mix(in_oklab,var(--foreground)_10%,var(--muted))] focus:outline-none"
         >
           {/* TCK-572 — les bandeaux du site DANS la zone qui défile, comme `AppShell` : rendus par
               le layout racine, ils précédaient cette coque `h-dvh` et le document débordait de

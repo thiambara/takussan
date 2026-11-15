@@ -6,14 +6,18 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
+use App\Policies\OwnerProfilePolicy;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
@@ -107,6 +111,16 @@ class PropertyResource extends BaseResource
             'status' => $this->whenHas('status', fn ($valeur) => $valeur?->value),
             'status_label' => $this->enumLabel($this->status, 'properties.status'),
             'visibility' => $this->whenHas('visibility', fn ($valeur) => $valeur?->value),
+            // TCK-2637 (ADR-0097 § 1) — « en ligne » et l'occupation, posés pour la page par le
+            // contrôleur (`include=online`, `include=occupancy`) : rien sinon.
+            ...($this->resource instanceof Property && $this->resource->onlineFlag() !== null
+                ? ['is_online' => $this->resource->onlineFlag()] : []),
+            // TCK-2678 (ADR-0097 § 5) — les codes de motif d'un bien hors ligne (`include=offlineReasons`),
+            // posés par le seul `PropertyController` : ni une route publique ni un lecteur imbriqué ne les pose.
+            ...($this->resource instanceof Property && $this->resource->offlineReasonsFlag() !== null
+                ? ['offline_reasons' => $this->resource->offlineReasonsFlag()] : []),
+            ...($this->resource instanceof Property && $this->resource->occupancyBlock() !== null
+                ? ['occupancy' => $this->buildOccupancy($this->resource->occupancyBlock())] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),
@@ -126,6 +140,21 @@ class PropertyResource extends BaseResource
             // par `BoostLifecycle` ; nul sans badge actif.
             'badge' => $this->whenHas('badge', fn ($valeur) => $valeur?->value),
             'badge_until' => $this->whenHas('badge_until', fn ($valeur) => $this->iso($valeur)),
+            // TCK-2638 (lot B2) — la pastille « Boostée » de la liste pro : la mise en avant payée, projetée
+            // par `BoostLifecycle` (décision du porteur : en cours = `sponsored_until` > maintenant, jugé
+            // par l'écran). Hors surface publique : la fin d'un boost n'est pas une donnée du catalogue.
+            // Vérification adverse (d1) — sur la liste et la fiche pro SEULES, et au SEUL personnel de
+            // l'agence du bien et à son bailleur : le bien imbriqué d'un bail (`/api/leases?include=property`)
+            // ou d'une réservation (`/api/bookings?include=property`) est chargé avec toutes ses colonnes,
+            // et son locataire ou son candidat n'a pas à lire ce que l'agence a payé. La route d'abord :
+            // ailleurs, aucun jugement, donc aucune requête par ligne (`LeaseIndexQueryCountTest`).
+            'sponsored_until' => $this->when(
+                $appelantConnu
+                    && $request->routeIs('properties.index', 'properties.show')
+                    && array_key_exists('sponsored_until', $this->resource->getAttributes())
+                    && $this->leBoostSeLitPar($request->user()),
+                fn () => $this->iso($this->resource->sponsored_until),
+            ),
             // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :
             // `DASHBOARD_PROPERTY_FIELDS` (`takussan-web/src/lib/queries/properties-server.ts`)
             // les demande explicitement, et `PropertyList.tsx` les rend dans chaque ligne du
@@ -263,6 +292,13 @@ class PropertyResource extends BaseResource
                     ? ['profile_id' => (int) $profil->id, 'name' => $profil->display_name]
                     : null,
             ),
+            // TCK-2639 — la fiche du bien mène à celle de son bailleur (`/app/owners/{id}`, TCK-2641) :
+            // le profil de bailleur du titulaire dans l'agence du bien, rendu à qui la fiche du
+            // bailleur s'ouvrirait (la règle même de `ShowOwnerProfileRequest`), nul pour tout autre.
+            'owner_profile_id' => $this->when(
+                $isDetail && $appelantConnu,
+                fn (): ?int => $this->profilDuBailleurLisible($request->user()),
+            ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),
                 fn () => $this->buildAgency()
@@ -290,6 +326,11 @@ class PropertyResource extends BaseResource
                 $appelantConnu,
                 fn () => $this->whenHas('rejection_reason'),
             ),
+            // TCK-2672 — le code du motif, rendu à l'auteur avec le texte.
+            'rejection_reason_code' => $this->when(
+                $appelantConnu,
+                fn () => $this->whenHas('rejection_reason_code'),
+            ),
             'submitted_at' => $this->when(
                 $appelantConnu,
                 fn () => $this->whenHas('submitted_at', fn ($valeur) => $this->iso($valeur)),
@@ -308,6 +349,26 @@ class PropertyResource extends BaseResource
     /**
      * @return array<string, mixed>
      */
+    /**
+     * TCK-2637 — le bloc de `PropertyOccupancy`, ses dates calendaires en `Y-m-d` (ADR-0018).
+     *
+     * @param  array<string, mixed>  $block
+     * @return array<string, mixed>
+     */
+    private function buildOccupancy(array $block): array
+    {
+        $block['vacant_since'] = $this->calendarDate($block['vacant_since']);
+        if (is_array($block['lease'] ?? null)) {
+            $block['lease']['start_date'] = $this->calendarDate($block['lease']['start_date']);
+            $block['lease']['end_date'] = $this->calendarDate($block['lease']['end_date']);
+        }
+        if (is_array($block['current_month'] ?? null)) {
+            $block['current_month']['due_date'] = $this->calendarDate($block['current_month']['due_date']);
+        }
+
+        return $block;
+    }
+
     private function buildLocation(mixed $address): array
     {
         $quarter = $address?->neighborhood;
@@ -388,6 +449,34 @@ class PropertyResource extends BaseResource
     }
 
     /**
+     * TCK-2638 (lot B2, vérification adverse d1) — la fin d'un boost se lit par le personnel de l'agence
+     * du bien (ou le super-admin) et par son bailleur ({@see BailleurDuBien::est()}, qui ne coûte
+     * aucune requête quand l'appelant n'est pas désigné par `user_id`). Sur la liste, l'amorce de
+     * `PropertyController::index`, qui compte l'appelant parmi ses utilisateurs, juge le personnel en
+     * mémoire.
+     */
+    private function leBoostSeLitPar(User $user): bool
+    {
+        return BailleurDuBien::est($user, $this->resource->getAttribute('user_id'), $this->resource->getAttribute('agency_id'))
+            || $this->lePersonnelLit($user);
+    }
+
+    /** TCK-2639 — l'identifiant du profil de bailleur du titulaire, si l'appelant en ouvre la fiche. */
+    private function profilDuBailleurLisible(User $user): ?int
+    {
+        $agencyId = $this->resource->getAttribute('agency_id');
+        $ownerId = $this->resource->getAttribute('user_id');
+        if ($agencyId === null || $ownerId === null) {
+            return null;
+        }
+        $profil = OwnerProfile::query()->where('agency_id', $agencyId)->where('user_id', $ownerId)->first();
+
+        return $profil !== null && OwnerProfilePolicy::isInActorAgency($user, $profil) && $user->can('viewDetail', $profil)
+            ? (int) $profil->getKey()
+            : null;
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function buildOwner(): ?array
@@ -441,8 +530,9 @@ class PropertyResource extends BaseResource
             'id' => $user->id,
             // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
             'name' => $user->nameWithoutContact(),
-            // TCK-177 — used to link the contact card to /agents/[slug].
-            'slug' => $user->username,
+            // TCK-177 — used to link the contact card to /agents/[slug]. TCK-2519 — le slug au nom
+            // quand il est posé, le `username` sinon (la fiche redirige alors en 301).
+            'slug' => $user->slugDeFiche(),
             'avatar_url' => $user->avatarUrl(),
             'is_agent' => $this->actsAsAgent($user),
             'member_since' => $this->iso($user->created_at),

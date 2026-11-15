@@ -9,7 +9,9 @@ use App\Models\AgencyRole;
 use App\Models\Enums\Capability;
 use App\Models\User;
 use App\Services\Membership\AffectationsDeRole;
+use App\Services\Reporting\TeamMemberSummary;
 use App\Support\AgencyKindGuard;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +19,7 @@ use Illuminate\Support\Arr;
 
 class UserAdminController extends Controller
 {
-    public function index(Request $request, AffectationsDeRole $affectations): JsonResponse
+    public function index(Request $request, AffectationsDeRole $affectations, TeamMemberSummary $summary): JsonResponse
     {
         $actor = $request->user();
         $agencyId = $request->activeProfile()?->agency_id;
@@ -44,11 +46,7 @@ class UserAdminController extends Controller
         if (! $actor->isSuperAdmin()) {
             AgencyKindGuard::ensureStandardForNonGlobal($actor, $agencyId);
 
-            $base = User::query()->where(function ($q) use ($agencyId) {
-                $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
-                    ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
-                    ->orWhereHas('agencyAdminProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
-            });
+            $base = $this->teamBase((int) $agencyId);
         }
 
         // `filter[role]` is delegated to a spatie/laravel-QUERY-BUILDER
@@ -79,6 +77,19 @@ class UserAdminController extends Controller
             $item->setAttribute('two_factor_enabled', (bool) ($enabled[$item->getKey()] ?? false));
         }
 
+        // TCK-2665 — `include=team_summary` : ce que chaque membre de la page porte dans l'agence.
+        // `commissions_due_amount` ne sort que pour qui lit l'argent de l'agence (`payouts.approve`
+        // ou `reports.view_agency`) ; sinon la clé est absente.
+        $resumes = [];
+        if ($base !== null && in_array('team_summary', $this->includes($request), true)) {
+            $agence = Agency::query()->findOrFail($agencyId);
+            $resumes = $summary->for(
+                (int) $agencyId,
+                array_map(fn (User $u) => (int) $u->getKey(), $items),
+                $actor->canActAt(Capability::PayoutsApprove, $agence) || $actor->canActAt(Capability::ReportsViewAgency, $agence),
+            );
+        }
+
         // TCK-791 (piste P21.02) — sans `fields[users]`, la projection par défaut de P21.01 et non
         // la ligne `users` entière (38 clés, `google_id`, `metadata`, second numéro). Les relations
         // demandées par `include=` restent rendues. Avec `fields[users]`, `User::$queryFields`
@@ -90,6 +101,14 @@ class UserAdminController extends Controller
                 'two_factor_enabled' => $user->getAttribute('two_factor_enabled'),
                 ...Arr::except($user->relationsToArray(), ['media']),
             ], $items);
+        }
+
+        if ($resumes !== []) {
+            $items = array_map(function (User|array $item) use ($resumes) {
+                $ligne = is_array($item) ? $item : $item->toArray();
+
+                return [...$ligne, ...($resumes[(int) $ligne['id']] ?? [])];
+            }, $items);
         }
 
         // TCK-1770 (P136.04) — sur demande, les affectations de rôle des lignes de la page, jugées
@@ -107,6 +126,21 @@ class UserAdminController extends Controller
             );
         }
 
+        // TCK-2665 — les pastilles de l'équipe : comptes par rôle et absents, sur l'ensemble filtré
+        // HORS `filter[role]` (la liste des collaborateurs garde le compte des bailleurs), pas sur la page.
+        if ($base !== null) {
+            $sansRole = $request->duplicate(Arr::except($request->query(), []));
+            $filtres = $sansRole->query('filter');
+            if (is_array($filtres)) {
+                unset($filtres['role']);
+                $sansRole->query->set('filter', $filtres);
+            }
+            $ensemble = User::buildAgencyTeamQuery($this->teamBase((int) $agencyId), $sansRole, (int) $agencyId)
+                ->getEloquentBuilder()
+                ->reorder();
+            $extra['counts'] = $summary->counts($ensemble, (int) $agencyId);
+        }
+
         return $this->paginated($paginator, $items, $extra);
     }
 
@@ -120,6 +154,34 @@ class UserAdminController extends Controller
     // et `deleteOwnAccount` sans step-up. L'effacement n'a plus qu'un chemin :
     // `AccountDeletionService` — demande par l'utilisateur (`me/deletion-request`) ou par un
     // opérateur (`POST /api/admin/users/{user}/erase`).
+
+    /**
+     * Les membres de l'agence : un profil d'agent, de bailleur ou d'administrateur dans l'agence.
+     * TCK-2665 — extrait : `meta.counts` repart de la même base.
+     *
+     * @return Builder<User>
+     */
+    private function teamBase(int $agencyId): Builder
+    {
+        return User::query()->where(function ($q) use ($agencyId) {
+            $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
+                ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agencyId))
+                ->orWhereHas('agencyAdminProfiles', fn ($qq) => $qq->where('agency_id', $agencyId));
+        });
+    }
+
+    /**
+     * Les noms de `include=` (virgules ou liste).
+     *
+     * @return list<string>
+     */
+    private function includes(Request $request): array
+    {
+        $valeur = $request->query('include');
+        $noms = is_array($valeur) ? $valeur : explode(',', (string) $valeur);
+
+        return array_values(array_filter(array_map(fn ($n) => is_string($n) ? trim($n) : '', $noms)));
+    }
 
     /** Les capacités qui ouvrent la section `team` du front (`PAGES_ADMIN`, TCK-1412). */
     private function tientUneCapaciteDEquipe(User $actor, int $agencyId): bool

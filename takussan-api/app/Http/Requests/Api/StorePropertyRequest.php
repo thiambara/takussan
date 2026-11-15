@@ -14,6 +14,7 @@ use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
 use App\Rules\HoteDeVisiteVirtuelle;
+use App\Rules\JourIso;
 use App\Services\Geo\GeoAddressRules;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\HierarchyService;
@@ -106,7 +107,7 @@ class StorePropertyRequest extends BaseFormRequest
             // TCK-633 — une vente sur plan annonce l'année de LIVRAISON : trois ans au plus.
             'year_built' => ['nullable', 'integer', 'min:1800', 'max:'.((int) date('Y') + 3)],
             'parking_spaces' => ['nullable', 'integer', 'min:0', 'max:500'],
-            'available_from' => ['nullable', 'date'],
+            'available_from' => ['nullable', 'date', new JourIso],
             'agency_id' => ['nullable', Rule::exists('agencies', 'id')->withoutTrashed()],
             // TCK-997 (P15.06, P50.01) — le bailleur au nom duquel le personnel saisit le bien. Le
             // titulaire se juge par `TitulaireALaSaisie` (bailleur actif de l'agence du bien).

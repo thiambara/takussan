@@ -13,6 +13,11 @@ use Illuminate\Http\Request;
  * `available` se lit sur `property_is_public`, calculé par `scopePublic()` (cf.
  * `FavoriteController::projected()`), jamais recalculé ici : {@see Favorite::availabilityOf()}.
  * ⚠ `alert_baseline_price` n'est jamais émis : un prix de référence décrit le bien.
+ *
+ * TCK-2507 — `price_change` : prix courant − `price_at_favorite`, pour un bien `available` seulement (un bien sorti
+ * du public ne dit aucun prix, pas même un écart), `null` quand l'un des deux prix manque (favori antérieur à la
+ * colonne : `null`, jamais 0). `price_at_favorite` lui-même ne sort pas, par la règle ci-dessus : seul l'écart sort.
+ * Calculé en centimes entiers ({@see Favorite::cents()}), jamais en flottant ; émis comme `price` l'est.
  */
 class FavoriteResource extends BaseResource
 {
@@ -38,7 +43,19 @@ class FavoriteResource extends BaseResource
                     'title' => $this->property->title,
                 ],
             }),
+            'price_change' => $availability === Favorite::AVAILABLE ? $this->priceChange() : null,
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    private function priceChange(): int|float|null
+    {
+        $avant = Favorite::cents($this->resource->getRawOriginal('price_at_favorite'));
+        $maintenant = Favorite::cents($this->property?->getRawOriginal('price'));
+        if ($avant === null || $maintenant === null) {
+            return null;
+        }
+
+        return ($maintenant - $avant) / 100;
     }
 }

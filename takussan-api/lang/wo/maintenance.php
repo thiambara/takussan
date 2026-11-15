@@ -24,6 +24,8 @@ return [
 
     'errors' => [
         'not_assignable' => 'Compte bii mënul jot liggéey bii : war na doon prestataire bu dox te am collaboration bu dox ak agence bi moom kër gi, walla ku bokk ci équipe bi.',
+        // TCK-2715 — la borne haute du passage (`MaintenanceRequest::SCHEDULING_HORIZON_MONTHS`).
+        'beyond_scheduling_horizon' => 'Le passage ne peut pas être fixé à plus d\'un an d\'ici.',
         'invitation_request_invalid' => 'Laaj liggéey bi ñu boole ci war na bokk ci agence bii te bañ a doon lu ñu tëj walla neenal.',
     ],
 

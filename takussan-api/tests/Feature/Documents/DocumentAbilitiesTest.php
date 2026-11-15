@@ -51,10 +51,13 @@ class DocumentAbilitiesTest extends TestCase
         }
 
         Sanctum::actingAs($owner);
-        $gestes = ['update' => $attendu, 'share' => $attendu, 'delete' => $attendu];
+        // TCK-2759 — `set_visibility` ne s'offre que sur une fiche client : jamais sur un bien.
+        // TCK-2729 5a — `manage_own_share_links` : le bailleur bloqué voit et révoque ses liens, sur la
+        // fiche seule (faux sur la liste, où il ne se juge pas).
+        $gestes = ['update' => $attendu, 'share' => $attendu, 'delete' => $attendu, 'manage_own_share_links' => false, 'set_visibility' => false];
 
         $this->getJson("/api/documents/{$document->id}")->assertOk()
-            ->assertJsonPath('data.abilities', $gestes);
+            ->assertJsonPath('data.abilities', array_replace($gestes, ['manage_own_share_links' => $suspendu]));
 
         $this->getJson('/api/documents')->assertOk()
             ->assertJsonPath('data.0.id', $document->id)
@@ -63,6 +66,28 @@ class DocumentAbilitiesTest extends TestCase
         // Le verdict servi est celui que l'API applique au geste.
         $this->postJson("/api/documents/{$document->id}/share", [])
             ->assertStatus($attendu ? 201 : 403);
+    }
+
+    /**
+     * TCK-2729 5a — le bailleur PARTI (`inactive`, ADR-0108 § 5) n'écrit rien : ni « Partager », ni ses
+     * liens, que seul le bailleur bloqué garde (le cas `bailleur suspendu` ci-dessus).
+     */
+    public function test_le_bailleur_parti_ne_se_voit_offrir_aucun_lien(): void
+    {
+        $agency = Agency::factory()->create();
+        $owner = User::factory()->withOwnerProfile($agency)->create();
+        $property = Property::factory()->create(['user_id' => $owner->id, 'agency_id' => $agency->id]);
+        $document = Document::factory()->create([
+            'documentable_type' => Property::class,
+            'documentable_id' => $property->id,
+            'uploaded_by' => $owner->id,
+        ]);
+        OwnerProfile::query()->where('user_id', $owner->id)->update(['status' => OwnerProfileStatus::Inactive->value]);
+
+        Sanctum::actingAs($owner);
+        $this->getJson("/api/documents/{$document->id}")->assertOk()
+            ->assertJsonPath('data.abilities.share', false)
+            ->assertJsonPath('data.abilities.manage_own_share_links', false);
     }
 
     /**

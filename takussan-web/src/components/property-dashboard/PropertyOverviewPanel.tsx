@@ -81,7 +81,7 @@ function buildChecklist(property: PropertyDetail): ChecklistItem[] {
 }
 
 export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
-  const t = useTranslations('property.dashboard.overview');
+  const t = useTranslations('propertyDashboard.overview');
   const localeBrute = useLocale();
   const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
   const checklist = buildChecklist(property);

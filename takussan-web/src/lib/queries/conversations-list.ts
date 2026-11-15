@@ -44,12 +44,57 @@ export const CONVERSATION_PROPERTY_FIELDS: string[] = ['id', 'title', 'slug'];
  * page, qui ignoraient les fils au-delà des 30 premiers.
  */
 export type ConversationListPage = PaginatedResponse<Conversation> & {
-  meta: PaginatedResponse<Conversation>['meta'] & { unread_total?: number };
+  meta: PaginatedResponse<Conversation>['meta'] & {
+    unread_total?: number;
+    /**
+     * TCK-2630 — les comptes des puces « Tous · Non lus · Groupes », sur toute la liste hors archives
+     * et SANS les filtres de la requête : ils ne bougent pas quand une puce ou la recherche filtre.
+     * `unread` compte des FILS (sourdine comprise), là où `unread_total` compte des messages.
+     */
+    counts?: { all: number; unread: number; group: number };
+  };
 };
 
-/** Les paramètres d'une page de la liste, partagés par la pastille et le défilement infini. */
-export function conversationListParams(page: number, perPage: number): SpatieQueryParams {
+/**
+ * TCK-2632 — les filtres de la liste, appliqués par le SERVEUR (TCK-2630), jamais sur la page
+ * chargée : `filter[search]` (nom d'un membre, titre ou référence du bien, sujet ; la casse se
+ * replie, pas les accents ; moins de 2 caractères : ignorée), `filter[unread]`, `filter[type]`,
+ * `filter[participant]` (les fils où cette personne est membre actuel — restreint la liste de
+ * l'appelant, ne l'élargit jamais).
+ */
+export type FiltresDeLaListe = {
+  readonly recherche?: string;
+  readonly nonLus?: boolean;
+  readonly type?: 'direct' | 'group';
+  readonly participant?: number;
+};
+
+/** La forme canonique des filtres : celle de la clé de requête (une saisie vide n'est pas un filtre). */
+export function filtresCanoniques(filtres: FiltresDeLaListe = {}): FiltresDeLaListe {
+  const recherche = filtres.recherche?.trim() ?? '';
   return {
+    ...(recherche.length > 0 ? { recherche } : {}),
+    ...(filtres.nonLus ? { nonLus: true } : {}),
+    ...(filtres.type ? { type: filtres.type } : {}),
+    ...(filtres.participant ? { participant: filtres.participant } : {}),
+  };
+}
+
+/** Les paramètres d'une page de la liste, partagés par la pastille et le défilement infini. */
+export function conversationListParams(
+  page: number,
+  perPage: number,
+  filtres: FiltresDeLaListe = {},
+): SpatieQueryParams {
+  const f = filtresCanoniques(filtres);
+  const filter = {
+    ...(f.recherche ? { search: f.recherche } : {}),
+    ...(f.nonLus ? { unread: '1' } : {}),
+    ...(f.type ? { type: f.type } : {}),
+    ...(f.participant ? { participant: String(f.participant) } : {}),
+  };
+  return {
+    ...(Object.keys(filter).length > 0 ? { filter } : {}),
     // P100.05 (TCK-1186) — `fields` inerte : `ConversationController::index` ne passe pas par `buildQuery`
     // (`Conversation::$queryFields` vide) ; il ne réduit pas la charge. Gardé pour déclarer ce que lit l'écran.
     fields: {

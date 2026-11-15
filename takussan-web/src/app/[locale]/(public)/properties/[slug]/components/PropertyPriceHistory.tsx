@@ -31,7 +31,7 @@ const DATE_DU_CHANGEMENT = {
 } as const;
 
 export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   // TCK-1908 (P196.02) — l'API émet le code du motif ; le texte vient d'ici, code brut en repli.
   const tReason = useTranslations('property.priceChangeReasons');
   const localeBrute = useLocale();

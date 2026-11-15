@@ -9,7 +9,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   const token = jetonEspaceApplicatif(request.cookies);
   if (!token) return NextResponse.json(null, { status: 401 });
 
-  let payload: { profile_id?: unknown };
+  let payload: { profile_id?: unknown; remember?: unknown };
   try {
     payload = await request.json();
   } catch {
@@ -20,8 +20,14 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ code: 'profile_id_required' }, { status: 422 });
   }
 
+  // TCK-2621 — « Se souvenir de mon choix » (TCK-2620) : relayé tel quel, booléen ou absent. Il était
+  // perdu ici : le relais ne transmettait que `profile_id`, et l'API retenait toujours.
+  if (payload.remember !== undefined && typeof payload.remember !== 'boolean') {
+    return NextResponse.json({ code: 'remember_must_be_boolean' }, { status: 422 });
+  }
+
   try {
-    const result = await patchActiveProfile(token, payload.profile_id);
+    const result = await patchActiveProfile(token, payload.profile_id, payload.remember);
     const response = NextResponse.json(result);
     response.cookies.set(ACTIVE_PROFILE_COOKIE, result.data.id, {
       httpOnly: true,

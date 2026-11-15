@@ -9,6 +9,9 @@
  * test : retirer un test est fermé à l'agent qui a écrit celui-ci (ADR-0066). Ils restent, au
  * porteur de trancher.
  *
+ * `useUpdateInventory` (lib/queries/inventory.ts) est sorti de la liste : il est revenu AVEC un
+ * appelant, le parcours de terrain de l'état des lieux qui enregistre chaque pièce (TCK-2647).
+ *
  * Deux `formatCurrency` homonymes coexistaient : `lib/format.ts` prend une LANGUE en second
  * argument, `lib/format/currency.ts` une DEVISE. `formatCurrency(prix, 'fr')` écrit au mauvais
  * module rendait `150 000 F CFA` par le repli sur XOF, sans erreur de type (`string`) : la confusion
@@ -46,7 +49,6 @@ const EXPORTS_RETIRES: ReadonlyArray<readonly [string, string]> = [
   ['lib/queries/documents.ts', 'useDocument'],
   ['lib/queries/favorites.ts', 'useInvalidateFavorites'],
   ['lib/queries/inventory.ts', 'useInventoriesForProperty'],
-  ['lib/queries/inventory.ts', 'useUpdateInventory'],
   ['lib/schemas/search.ts', 'contractTypeSchema'],
   ['lib/schemas/search.ts', 'rentPeriodSchema'],
   ['lib/schemas/search.ts', 'sortSchema'],

@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { isAgencyAdmin } from '@/lib/roles';
 import { useAccueilsVus } from '@/hooks/useAccueilsVus';
+import { useAccueilSuspendu } from '@/lib/arrivee-de-parcours';
 
 /**
  * TCK-269 — Drives the one-shot "Welcome to your standard agency" modale
@@ -76,7 +77,9 @@ export function useAgencyStandardWelcomeOnce(
   const [dismissed, setDismissed] = useState(false);
   const acknowledgedRef = useRef(false);
 
-  const eligible = actif && vus !== null && !vus.includes(key) && !dismissed;
+  // TCK-2615 — ni sur un écran plein, ni à l'arrivée d'un parcours ; la fenêtre n'est pas marquée vue.
+  const suspendue = useAccueilSuspendu();
+  const eligible = actif && vus !== null && !vus.includes(key) && !dismissed && !suspendue;
 
   const acknowledge = () => {
     if (acknowledgedRef.current || !actif) return;

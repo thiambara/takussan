@@ -16,13 +16,16 @@
  * "F CFA") that drift from the spec contract. Instead we format the number
  * in `decimal` style and append the symbol from {@link CURRENCY_METADATA}.
  *
- * The Blade `@currency` directive shares this exact contract — keep them in
- * sync if you tweak any rule below.
+ * The Blade `@currency` directive (`App\Services\Formatting\CurrencyFormatter`) shares this exact
+ * contract, thousands groups included: U+00A0 on both sides since TCK-2714 (front, `./groupes`) and
+ * TCK-2794 (API, `CurrencyFormatter::nombre()`, which also renders `wo` as `fr-SN`).
  *
  * TCK-917 — s'appelait `formatCurrency`, comme celui de `lib/format.ts`, dont le second argument
  * est une LANGUE et non une devise. `formatCurrency(prix, 'fr')` importé d'ici retombait sans bruit
  * sur XOF : les deux noms ne se confondent plus.
  */
+
+import { formaterGroupesLisibles } from './groupes';
 
 const DEFAULT_CURRENCY: CurrencyCode = 'XOF';
 
@@ -93,11 +96,12 @@ export function formatMontant(
   const minimumFractionDigits = options.minimumFractionDigits
     ?? Math.min(meta.decimalPlaces, maximumFractionDigits);
 
-  const number = new Intl.NumberFormat(locale, {
+  // TCK-2714 — les groupes de milliers en U+00A0, pas en U+202F (`./groupes`).
+  const number = formaterGroupesLisibles(new Intl.NumberFormat(locale, {
     style: 'decimal',
     minimumFractionDigits,
     maximumFractionDigits,
-  }).format(amount);
+  }), amount);
 
   return meta.position === 'before'
     ? `${meta.symbol}${number}`
@@ -141,17 +145,17 @@ export function formatPriceShort(
   if (abs >= 1_000_000_000) return `${formatShort(amount / 1_000_000_000, locale)} ${suffixes.B}`;
   if (abs >= 1_000_000) return `${formatShort(amount / 1_000_000, locale)} ${suffixes.M}`;
   if (abs >= 1_000) return `${formatShort(amount / 1_000, locale)} ${suffixes.K}`;
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(amount);
+  return formaterGroupesLisibles(new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }), amount);
 }
 
 function formatShort(value: number, locale: string): string {
   // Show one decimal only when the rounded integer would lose info — keeps
   // "120 K" (not "120,0 K") while still rendering "1,2 M".
   const fractionDigits = Math.abs(value) >= 100 || Number.isInteger(value) ? 0 : 1;
-  return new Intl.NumberFormat(locale, {
+  return formaterGroupesLisibles(new Intl.NumberFormat(locale, {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
-  }).format(value);
+  }), value);
 }
 
 /**

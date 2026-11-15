@@ -22,11 +22,20 @@ class RegisterRequest extends FormRequest
 
     public function rules(): array
     {
+        // TCK-2605 — l'adresse et le mot de passe suffisent : le prénom est demandé à l'écran
+        // suivant (`EtapePrenom`), comme pour un compte né par téléphone ou par Google. La
+        // confirmation devient facultative, mais une confirmation ENVOYÉE est toujours vérifiée —
+        // y compris vide (`""` → null par `ConvertEmptyStringsToNull`), qui refuse comme avant.
         return [
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'first_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'last_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'confirmed', Password::defaults()],
+            'password' => array_values(array_filter([
+                'required',
+                'string',
+                $this->exists('password_confirmation') ? 'confirmed' : null,
+                Password::defaults(),
+            ])),
         ];
     }
 }

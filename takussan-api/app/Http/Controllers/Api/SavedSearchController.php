@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MarkSavedSearchViewedRequest;
 use App\Http\Requests\Api\StoreSavedSearchRequest;
 use App\Http\Requests\Api\UpdateSavedSearchRequest;
 use App\Http\Resources\SavedSearchResource;
@@ -119,6 +120,18 @@ class SavedSearchController extends Controller
         $savedSearch->forceFill(['notification_frequency' => 'off'])->save();
 
         return $this->json(['data' => ['notification_frequency' => 'off']]);
+    }
+
+    /**
+     * TCK-2507 — le titulaire a ouvert sa recherche ({@see MarkSavedSearchViewedRequest}, 404 pour un autre). Sans
+     * toucher `updated_at` : une ouverture n'est pas une modification de la recherche.
+     */
+    public function viewed(MarkSavedSearchViewedRequest $request, SavedSearch $savedSearch): JsonResponse
+    {
+        $savedSearch->timestamps = false;
+        $savedSearch->forceFill(['last_viewed_at' => now()])->save();
+
+        return $this->json(null, 204);
     }
 
     public function destroy(Request $request, SavedSearch $savedSearch): JsonResponse

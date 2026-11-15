@@ -1,0 +1,157 @@
+{
+  "ticket": "TCK-2647",
+  "ecrans": [
+    {
+      "page": "app-etats-des-lieux",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Démarrer",
+      "references": {
+        "telephone": "references/app-etats-des-lieux/a-0-telephone.json",
+        "bureau-1440": "references/app-etats-des-lieux/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-etats-des-lieux/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/inventories/new?lease=208",
+        "persona": "agent (« Sokhna Sène · Dakar Immo · Agent » dans la maquette)",
+        "etat": "le bail 208 de la démo (F3 à Grand Yoff, Yacine Ndiaye, actif : le type déduit est « Entrée »), modèle lu par `GET /api/inventory-templates?property_id=27` ; aucune donnée doublée. Toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=garde47.js`, copie de garde.js de TCK-2590) ; « Commencer » n'est pas touché. Relevés du 2026-11-13 (t8/fid/e47-prod*, e47-cmp*) — avant (ancien formulaire, r47-avant) : téléphone 1 conforme · 5 écarts · 41 absents (28,97 % de pixels), bureau 1440 28 · 115 · 54 (10,04 %), 1280 28 · 115 · 54 (11,32 %) ; après (cmp2) : téléphone 18 · 11 · 8 (3,59 %), bureau 1440 41 · 127 · 21 (5,1 %), 1280 41 · 127 · 21 (5,74 %). Balayage 390/768/1024/1280/1440 : aucun débord, aucune coupe ; ellipses : la date du sélecteur à 390 (écart accepté), les libellés du rail replié de la coque à 768"
+      }
+    },
+    {
+      "page": "app-etats-des-lieux",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Une pièce",
+      "references": {
+        "telephone": "references/app-etats-des-lieux/a-1-telephone.json",
+        "bureau-1440": "references/app-etats-des-lieux/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-etats-des-lieux/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/inventories/19",
+        "persona": "agent",
+        "etat": "la démo n'a AUCUN brouillon (45 entrées et 5 sorties, toutes signées) : l'état des lieux 19 existe (le layout serveur vérifie l'existence), et sa seule lecture cliente `GET /api/inventories/19` est doublée par garde47.js d'un brouillon d'entrée sur le bail 208 construit d'après la maquette (Séjour en cours, ses six éléments qualifiés comme a-1, « Porte » abîmée et précisée ; cinq pièces à faire, `completed: false`). Toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=garde47.js`, copie de garde.js de TCK-2590). Relevés du 2026-11-13 : cmp1 téléphone 20 · 29 · 7 (9,73 %), 1440 46 · 203 · 25 (10,95 %) ; après la colonne des pièces à 320 px et « ⋯ » (cmp2) : téléphone 20 · 29 · 7 (9,49 %), bureau 1440 58 · 191 · 25 (9,19 %), 1280 58 · 191 · 25 (8,7 %). Balayage 390 → 1440 : aucun débord, aucune coupe ; ellipses : le rail de la coque à 768 seulement"
+      }
+    },
+    {
+      "page": "app-etats-des-lieux",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Sortie — comparaison",
+      "references": {
+        "telephone": "references/app-etats-des-lieux/a-3-telephone.json",
+        "bureau-1440": "references/app-etats-des-lieux/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-etats-des-lieux/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/inventories/38",
+        "persona": "agent",
+        "etat": "l'état des lieux 38 (une sortie signée de la démo) dont la lecture cliente `GET /api/inventories/38` est doublée par une SORTIE en brouillon sur le bail 208, rattachée à l'entrée signée 19 (lue réellement : sa date, ses photos) ; trois pièces terminées, la Cuisine en cours (4 / 6) avec les six éléments de la maquette, états d'entrée, « Plaques de cuisson » et « Placards » abîmés à 35 000 F et 50 000 F. Toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=garde47.js`, copie de garde.js de TCK-2590). Relevés du 2026-11-13 : cmp1 téléphone 4 · 33 · 6 (16,6 %, le titre repoussé sur deux lignes par « Modifier la pièce »), 1440 46 · 186 · 28 (10,37 %) ; après « ⋯ » et le dépôt de photos sous le tableau (cmp2) : téléphone 12 · 25 · 7 (6,64 %), bureau 1440 46 · 186 · 28 (9,05 %), 1280 47 · 185 · 28 (11,79 %). Balayage 390 → 1440 : aucun débord, aucune coupe ; ellipses : le rail de la coque à 768 seulement"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/inventories/new?lease=208 · /app/inventories/19 · /app/inventories/38",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-8, t8/fid/ : garde47.js (chargé AVANT la page par `FID_AVANT`) refuse toute écriture et double la seule lecture cliente `GET /api/inventories/{19|38}` par un brouillon construit d'après la maquette (la démo n'a aucun brouillon) ; relevés releves47.sh"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-etats-des-lieux a-0-*, a-1-*, a-3-*",
+      "element": "coque : barre latérale, en-tête, barre d'onglets, compteurs, avatar",
+      "propriete": "boîtes, libellés, état actif, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 ; les compteurs et l'avatar sont ceux de la démo ; au téléphone, les écrans a-1 et a-3 déclarent `conversation` (ni en-tête ni onglets de la coque), comme la maquette"
+    },
+    {
+      "ecran": "a-0-*, a-1-*, a-3-*",
+      "element": "bien, locataire, référence du bail, caution, date de l'entrée",
+      "propriete": "textes",
+      "exception": "données de démo",
+      "motif": "la démo sert « Appartement F3 à Grand Yoff · Yacine Ndiaye · LS-FC-JVF2WZ », caution 500 000 F, entrée du 1 juil. 2026 ; la maquette « Appartement F3 · Mermoz · Aminata Diop · LS-7KQ2ME », 1 340 000 F, 10 nov. 2026"
+    },
+    {
+      "ecran": "a-1-*, a-3-*",
+      "element": "vignettes des photos de la pièce, de l'entrée et des éléments",
+      "propriete": "nœuds absents, pixels",
+      "exception": "données de démo",
+      "motif": "la démo est semée sans médias (`SEED_DOWNLOAD_MEDIA=false`, TCK-301) : aucune photo à montrer ; sans photo, l'écran rend la tuile « Ajouter des photos » ou l'appareil à la place, et au bureau le dépôt occupe la première case"
+    },
+    {
+      "ecran": "a-0-*",
+      "element": "« 57 éléments proposés », pas de case « Balcon »",
+      "propriete": "texte, nœud absent",
+      "exception": "données de l'API",
+      "motif": "le modèle F3 de l'API (TCK-2646, `InventoryTemplates`) a six pièces et 57 éléments ; la maquette en montre 41 et propose un balcon décoché. Les noms viennent de l'API dans la langue de la requête : pas de dictionnaire front (validé par team-lead)"
+    },
+    {
+      "ecran": "a-0-*",
+      "element": "« Commencer : Séjour »",
+      "propriete": "texte",
+      "exception": "i18n",
+      "motif": "« Commencer par le Séjour » demande l'article et la contraction de chaque nom de pièce, libre (« Autre pièce ») ou venu de l'API ; « Commencer : {piece} » se traduit sans grammaire par nom"
+    },
+    {
+      "ecran": "a-0-*",
+      "element": "champ « Date et heure »",
+      "propriete": "texte (« 13 novembre 2026 à 04:22 » tronqué contre « Auj. · 10:30 »)",
+      "exception": "composant partagé",
+      "motif": "`DateTimePicker` (`ui/date-time-picker.tsx`) n'a pas de format d'affichage court ; le changer touche tous ses écrans — hors du ticket"
+    },
+    {
+      "ecran": "a-1-bureau-*, a-3-bureau-*",
+      "element": "« Précision » d'un élément abîmé",
+      "propriete": "champ éditable au lieu d'un texte",
+      "exception": "fonction",
+      "motif": "la précision se saisit dans la ligne au bureau (elle figure dans les réserves) ; la maquette montre la valeur posée"
+    },
+    {
+      "ecran": "a-1-*, a-3-*",
+      "element": "« ⋯ » (Modifier la pièce) sur la ligne « Les éléments » / à droite du titre de la pièce",
+      "propriete": "nœud ajouté",
+      "exception": "fonction de l'ancien formulaire",
+      "motif": "rien ne se perd de l'ancien formulaire (audit famille 4, § 4) : renommer la pièce, son état, la retirer, ajouter une pièce. Un bouton d'icône nommé : un libellé repoussait sur deux lignes le titre de la sortie au téléphone (cmp1 → cmp2 : 4 → 12 conformes)"
+    },
+    {
+      "ecran": "a-1-*",
+      "element": "« brouillon enregistré à 10:42 »",
+      "propriete": "texte absent à l'ouverture",
+      "exception": "données",
+      "motif": "l'heure s'affiche au premier enregistrement de la séance (« Pièce suivante », « Enregistrer et quitter ») ; la ressource ne sert pas l'heure de la dernière écriture"
+    },
+    {
+      "ecran": "a-1-bureau-*",
+      "element": "deux colonnes",
+      "propriete": "seuil `xl` et non `lg`",
+      "exception": "décision du porteur (via team-lead)",
+      "motif": "à 1024, la largeur utile (694 px, takussan-web/CLAUDE.md) ne tient pas la liste de 320 px et le tableau à pastilles ; la colonne est à 320 px comme la maquette"
+    },
+    {
+      "ecran": "a-3-bureau-*",
+      "element": "dépôt de photos de la pièce",
+      "propriete": "sous le tableau, absent du haut",
+      "exception": "fonction",
+      "motif": "la maquette n'a pas de dépôt de pièce en sortie au bureau (les photos sont celles des éléments) ; il reste disponible, sous le tableau et la note d'usure"
+    },
+    {
+      "ecran": "a-3-*",
+      "element": "« ✕ » à côté d'une retenue",
+      "propriete": "nœud ajouté",
+      "exception": "fonction",
+      "motif": "retirer une retenue proposée ; le montant se touche pour le modifier"
+    }
+  ],
+  "ecarts_ouverts": []
+}

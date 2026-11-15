@@ -4,6 +4,8 @@ namespace App\Domain\Settings;
 
 use App\Models\Enums\AgencyModule;
 use App\Models\Enums\WatermarkPosition;
+use App\Rules\TelephoneJoignable;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -27,6 +29,9 @@ final class AgencySettings
     private const STRING = 'string';
 
     private const LIST = 'list';
+
+    /** TCK-2504 — les réglages qui portent un numéro de téléphone saisi, normalisé avant validation. */
+    public const PHONE_KEYS = ['offline_payment_wave_number', 'offline_payment_orange_money_number'];
 
     /**
      * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>}>
@@ -71,6 +76,22 @@ final class AgencySettings
             // du menu de son personnel. AFFICHAGE : aucun droit, aucune garde n'en dépend.
             // `AgencyUpdateRequest` la refuse à une agence `individual` (aucune équipe). Liste remplacée
             // en bloc par la fusion de premier niveau du contrôleur ; `null` rend le défaut.
+            // TCK-2504 — les moyens de paiement HORS LIGNE que l'agence déclare, rendus au locataire
+            // sur ses liens de paiement (`GET /api/pay/{jeton}`, bloc `offline_payment`). Les numéros
+            // arrivent normalisés en E.164 (`AgencyUpdateRequest::prepareForValidation`, la
+            // normalisation de tout téléphone saisi) ; `null` retire la clé.
+            'offline_payment_wave_number' => [
+                'type' => self::STRING, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
+            ],
+            'offline_payment_orange_money_number' => [
+                'type' => self::STRING, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi],
+            ],
+            'offline_payment_bank_details' => [
+                'type' => self::STRING, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'string', 'max:500'],
+            ],
             'hidden_modules' => [
                 'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
                 'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],

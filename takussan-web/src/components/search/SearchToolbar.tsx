@@ -127,7 +127,7 @@ export function SearchToolbar({
   const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
 
   return (
-    <div {...fieldDensityScope()} className="mb-5 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+    <div {...fieldDensityScope()} className="mb-3 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
       <div data-entete-resultats className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         {titre}
         <p className="shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground" aria-live="polite">
@@ -381,7 +381,7 @@ export function PucesDeFiltres({
           {/* TCK-552 — la recherche libre se signale par une ICÔNE, plus par des guillemets
               bruts (`"Dakar"`, P8). Le libellé de `q` dans `SEARCH_FILTER_KEYS` garde ses
               guillemets : il sert aussi le RÉSUMÉ d'une recherche sauvegardée
-              (`SavedSearchesList`), une chaîne jointe par « · » où rien d'autre ne distingue
+              (`useResumeDeCriteres`), une chaîne jointe par « · » où rien d'autre ne distingue
               le texte libre d'une ville. Ici, l'icône le fait. */}
           {cle === 'q' ? (
             <>

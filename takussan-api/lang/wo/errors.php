@@ -61,9 +61,15 @@ return [
     'agency_upgrade' => [
         // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
         'kyc_not_verified' => 'Le dossier KYC de l\'agence doit être vérifié avant d\'approuver son passage en agence professionnelle.',
+        // TCK-2681 — le plan du passage (billing.upgrade_plan_code) est introuvable ou retiré.
+        'plan_unavailable' => 'Le plan du passage en pro est introuvable ou retiré : réactivez-le avant d\'approuver.',
+        // TCK-2730 — l'abonnement ouvert porte une commission ou des quotas négociés : le passage les clôturerait sans les reporter.
+        'subscription_has_overrides' => 'L\'abonnement en cours de cette agence porte des dérogations (commission ou quotas) : retirez-les avant d\'approuver son passage en agence professionnelle.',
     ],
     'agent_absence' => [
         'overlaps' => 'Ñàkk bu jëm ci moom dafa am ba noppi walla mu ngi dox ci diir boobu.',
+        // TCK-2666 — modifier une absence terminée ou révoquée.
+        'closed' => 'Cette absence est terminée ou révoquée : elle ne se modifie plus.',
     ],
     'agent_handover' => [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
@@ -100,16 +106,24 @@ return [
         'unauthenticated' => 'War nga dugg ci sa compte.',
     ],
     'booking' => [
+        // TCK-2734 (décision 7 du porteur, 2026-11-12 : le bail libère le bien à son envoi en signature)
+        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou envoyez son bail en signature, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
+        // TCK-2579
+        'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
         'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
+        // TCK-2579
+        'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
         'not_found' => 'Wootu bi gisuñu ko.',
         'not_in_active_agency' => 'Wootu bii bokkul ci sa agence bu dox bi.',
         'not_pending_confirm' => 'Wootu buy xaar rekk lañu mën a dëggal.',
         'not_pending_reject' => 'Wootu buy xaar rekk lañu mën a bañ.',
         'own_property' => 'Mënuloo woote sa kër boppam.',
+        // TCK-2747 (décision 6 du porteur, 2026-11-12)
+        'property_already_leased' => 'Ce logement est loué, ou un bail est en préparation, pour la date d\'entrée demandée : la candidature ne peut être acceptée que pour une entrée après la fin du bail.',
         'property_unavailable' => 'Kër gii nekkul ci woote.',
     ],
     'booking_payment' => [
@@ -148,6 +162,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Komisiyoŋ bu ñu war a fey rekk lañu mën a bind ne fey nañu ko walla neenal ko.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'Ces commissions ne peuvent pas être soldées ensemble : elles doivent toutes appartenir au même bénéficiaire, dans votre agence.',
+        'paid_before_earned' => 'La date de paiement précède la date à laquelle une commission a été acquise.',
     ],
     'credits' => [
         'insufficient' => 'Sa kredi doyul : des na la :missing kredi (sa kredi : :balance).',
@@ -164,9 +181,13 @@ return [
         'invite_already_linked' => "Cette fiche est déjà rattachée à un compte : il n'y a personne à inviter.",
         'invite_no_contact' => "Cette fiche n'a pas de coordonnée où envoyer l'invitation : ajoutez une adresse e-mail.",
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
+        // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
+        'suggested_stage_stale' => "Cette étape proposée n'est plus d'actualité : rechargez la fiche.",
     ],
     'dashboard' => [
         'invalid_scope' => 'Wàll wi ñu laaj war na nekk « mine » walla « agency ».',
+        // TCK-2791 — `period` des tableaux de bord : une liste fermée.
+        'invalid_period' => 'La période demandée doit être « current_month » ou « last_month ».',
     ],
     'data_export' => [
         'expired' => 'Export données bii jeex na.',
@@ -181,7 +202,21 @@ return [
         'reason_required' => 'Su delloo gi gen, motivation lañu war a indi.',
     ],
     'document' => [
+        // TCK-2770 — l'archive d'un dossier du coffre
+        'archive_empty' => 'Ce dossier ne contient aucun document à archiver.',
+        'archive_too_large' => 'Ce dossier dépasse ce qu\'une archive peut réunir (:max_files documents, :max_mb Mo) : téléchargez ses documents un par un.',
+        'archive_unavailable' => 'Les documents de ce dossier ne se téléchargent pas en archive.',
+        'archive_render_busy' => 'Le service qui produit les documents est saturé : réessayez dans une minute.',
+        'archive_render_failed' => 'Un document de ce dossier n\'a pas pu être produit : l\'archive n\'a pas été créée. Réessayez, ou téléchargez ses documents un par un.',
+        // TCK-2812 — le lien signé de l'archive préparée
+        'archive_link_invalid' => 'Ce lien de téléchargement n’est pas valide, ou il a expiré.',
+        'archive_expired' => 'Cette archive n’est plus disponible : préparez-en une nouvelle.',
         'file_missing' => 'Amul benn fichier bu ñu takk ci document bii.',
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12)
+        'internal_customer_only' => 'Seul un document de fiche client peut être gardé pour l\'agence.',
+        'internal_own_upload' => 'Une pièce déposée par le client lui-même reste visible pour lui.',
+        // TCK-2655
+        'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Modèle document bi gisuñu ko.',
@@ -270,6 +305,19 @@ return [
         'pdf_unsigned' => 'PDF bi dina am su ñaari wàll yi signeree.',
         'signed_locked' => 'État des lieux bu ñu signer, mënatuñu ko soppi.',
         'tenant_not_found' => 'Luwekat bu bail bi gisuñu ko.',
+        // TCK-2646 — la sortie ne reprend qu'une entrée signée du bail ou d'un bail qu'il renouvelle.
+        'entry_inventory_invalid' => 'Seule une entrée signée de ce bail, ou d\'un bail qu\'il renouvelle, peut être reprise par la sortie.',
+        // TCK-2647 — un brouillon garde des éléments sans état ; la soumission les refuse.
+        'unqualified_elements' => 'Chaque élément doit avoir un état avant la soumission à signature.',
+    ],
+    // TCK-2646 (ADR-0098) — la signature du locataire sur le téléphone de l'agent, par code SMS.
+    'inventory_signature' => [
+        'code_required' => 'Saisissez le code reçu par le locataire.',
+        'code_locked' => 'Trop de codes faux : la signature sur place est bloquée pendant 15 minutes.',
+        'invalid_code' => 'Code invalide ou expiré.',
+        'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
+        'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou faites signer le locataire depuis son compte.',
+        'tenant_without_phone' => 'Le locataire n\'a pas de compte avec un numéro vérifié : il signe depuis son compte.',
     ],
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
@@ -320,11 +368,19 @@ return [
         'not_activatable' => 'Bayle bu nekk ci brouillon walla buñuy xaar xaatim rekk lañu mën a doxal.',
         'not_active_schedule' => 'Bail buy dox rekk moo mën a defar échéancier.',
         'not_draft_activate' => 'Bail bu nekk brouillon rekk lañu mën a doxal.',
+        // TCK-2764 — abandonner un brouillon jamais envoyé en signature.
+        'not_draft_abandon' => 'Seul un bail en brouillon, jamais envoyé en signature, s\'abandonne : un bail envoyé ou en vigueur se résilie.',
+        'abandon_has_payments' => 'Une échéance de ce brouillon est saisie : de l\'argent saisi ne disparaît pas avec un brouillon. Annulez-la, puis abandonnez le brouillon.',
+        // TCK-2764 4a — seul un état des lieux engagé retient le brouillon ; un brouillon d'état des lieux part avec lui.
+        'abandon_has_inventory' => 'Un état des lieux engagé — envoyé en signature, signé ou contesté — est établi sur ce brouillon : il ne disparaît pas avec lui. Ce brouillon ne peut donc pas être abandonné.',
         'not_found' => 'Bail bi gisuñu ko.',
         'rent_review_above_contract_cap' => 'Kontra bi ñu xaatim dafa tëj soppi lowe bi ci :max % : mënuñu ko forcer. Jaaral ci yeesal bayle bi walla ab yokk bu ñu xaatim.',
         'renewal_overlaps_paid_schedule' => 'Ab fey ci bayle bi am, ci jamono ji yeesal bi di jël, fey nañu ko ba noppi walla ñu ngi koy fey : yeesal bi du ko far. Delloo ko, walla nga tàmbali yeesal bi ginnaaw ko ; yeesal buy xaar xaatim, dañu koy dakkal, ba noppi defar beneen.',
         'termination_overlaps_paid_schedule' => 'Une échéance de loyer postérieure à la date de sortie est déjà réglée ou en cours de règlement : la résiliation ne l\'annule pas. Remboursez-la, puis résiliez.',
         'renewal_parent_not_renewable' => 'Bayle bi ñuy yeesal du dox ba tey (yégle walla dakkal) : yeesal bii mënul a am doole. Dakkal ko, ba noppi defar beneen su soxlawee.',
+        // TCK-2753 (r0) — un bail échu ne se renouvelle ni sur un bien supprimé, ni au nom d'un bailleur parti.
+        'renewal_property_deleted' => 'Le bien de ce bail a été supprimé : le bail ne se renouvelle plus. Créez un nouveau bail sur un bien de l\'agence.',
+        'renewal_owner_departed' => 'Le propriétaire de ce bail a quitté l\'agence, ou son accès est suspendu : le bail ne se renouvelle plus à son nom.',
         'schedule_exists' => 'Échéancier bi defar nañu ko ba noppi.',
         'terms_locked' => 'Sarti bayle bu ñu xaatim mënuñu leen soppi : defal ab yokk walla bayle bu bees.',
         // P48.03 (TCK-2352) — le bail tiré d'une réservation.
@@ -342,6 +398,7 @@ return [
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
         'no_destination' => 'Aucun moyen de vous envoyer le code : vérifiez votre numéro de téléphone depuis votre profil, puis réessayez.',
         'tenant_without_account' => 'Kiy luye bayle bii amul kont : xaatimal ci kayit te boole ci kontraa bi ñu scanné.',
+        'tenant_without_name' => 'Le locataire de ce bail n\'a pas de nom : complétez sa fiche (prénom et nom), puis relancez la demande de signature.',
     ],
     'lease_payment' => [
         'cancelled' => 'Fey bii, yeesal bi moo ko far : warul ñu koy fey te duñu ko jël.',
@@ -349,6 +406,7 @@ return [
         'deposit_refund_paid_by_payout' => 'Kaution bu ñu delloo, ci reversement bi lañu koy fey, du ak loxo.',
         'late_fee_not_due' => 'Amul penalité bu des ci fey bii.',
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
+        'not_overdue' => 'Seule une échéance due, non soldée et échue se relance.',
         'receipt_not_a_payment' => 'Kaution bu ñu delloo du fey bu luwékat bi : amul kitaas.',
         'receipt_unpaid' => 'Kitaas bi, ñu ngi koy jox rekk su luyer bi feyoo.',
         'type_from_schedule' => 'Un loyer ou une caution naît de l\'échéancier du bail : cette saisie ne prend que les charges, régularisations et pénalités.',
@@ -358,6 +416,8 @@ return [
         'password_reset_not_sent' => 'E-mail soppi baatu jàll bi mënuñu ko yónni.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'Les travaux sont terminés : l\'intervention ne s\'accepte plus.',
         'actual_cost_needs_owner' => 'Njëg jii weesu na digu liggéey bu boroom kër gi ak li mu nangu : boroom kër gi rekk mën koo bind.',
         'already_accepted' => 'Liggéey bi nangu nañu ko ba noppi.',
         'amount_too_large' => 'Lim bii, bu ñu ko yokk ba unité devise bi, ëpp na li ñu mëna bind.',
@@ -367,12 +427,17 @@ return [
         'decline_after_accept' => 'Liggéey bi nangu nañu ko walla tàmbali nañu ko ba noppi : mënatul a bañ.',
         'dedicated_endpoint' => 'Soppi statut bii am na yoonam bu ko moom, du jaar ci statut bu ñépp.',
         'in_progress' => 'Maintenance mi ngi dox. Jéemaatal ci kanam.',
+        'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Mënuñu yokk nataal ci laaj bu ñu tëj walla neenal.',
         'quote_amount_too_large' => 'Limu devis bi yépp ëpp na li ñu mëna bind.',
         'quote_expired' => 'Devis bii amatul solo : bisu jeexitalam wees na.',
         'reassign_after_completion' => 'Liggéey bi jeex na : liggéey bi kenn du ko jotaat.',
         'status_transition_invalid' => 'Soppi statut intervention bii nangouñu ko.',
         'terminal_request' => 'Laaj bu ñu tëj walla bu ñu neenal, kenn mënatu koo soppi.',
+        // TCK-2786
+        'not_awaiting_owner' => 'Cette intervention n\'attend pas la décision du bailleur : il n\'y a rien à lui rappeler.',
+        'owner_reminder_too_soon' => 'Le bailleur a été relancé il y a moins de 24 heures. Vous pourrez le relancer à partir de :available_at.',
+        'owner_unavailable' => 'Le bailleur de ce bien est parti, suspendu ou injoignable : il ne peut pas être relancé.',
     ],
     'media' => [
         'evidence_locked' => 'Fichier bii seede la : kenn mënu koo far.',
@@ -405,6 +470,16 @@ return [
         'service_provider_not_owner' => 'Mënuloo soppi profil prestataire bii.',
         'service_provider_suspended' => 'Profil prestataire bii dañu ko taxawal : jeexal bindu bi du ko yeesal.',
     ],
+    'owner' => [
+        'already_departed' => 'Ce propriétaire a déjà quitté l\'agence.',
+        'departure_draft' => 'Ce propriétaire n\'a pas encore rejoint l\'agence : révoquez son invitation plutôt.',
+        'departure_individual' => 'Dans une agence individuelle, l\'hôte est aussi le propriétaire : il ne peut pas être retiré de sa propre agence.',
+        'departure_not_empty' => 'Ce propriétaire ne peut pas quitter l\'agence tant qu\'il y a des biens, des baux en cours ou de l\'argent qui lui est dû.',
+        'departure_self' => 'Vous ne pouvez pas retirer votre propre profil de propriétaire : un autre administrateur doit le faire.',
+        'invite_departed' => 'Ce propriétaire a quitté l\'agence : il ne peut pas y être invité de nouveau.',
+        // TCK-2753 (r2) — le dossier d'un bailleur parti ou suspendu est figé.
+        'profile_read_only' => 'Ce profil de propriétaire n\'est plus actif dans l\'agence (départ ou suspension) : son dossier ne se modifie plus.',
+    ],
     'password_reset' => [
         'invalid_link' => 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.',
     ],
@@ -415,11 +490,16 @@ return [
         'checkout_in_progress' => 'Fey ci internet mungi dox ci bii échéance : jéemaatal ci ay simili.',
         'currency_unsupported' => 'Prestataire :provider nanguwul xaalisu :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy nanguwul XOF : jëfandikoo Wave walla Orange Money ngir fey ci XOF.',
+        'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',
         'filter_entity_invalid' => 'Filtre xeetu mbir bi baaxul.',
+        'filter_id_invalid' => 'Filtre d\'identifiant invalide.',
+        'filter_payment_method_invalid' => 'Filtre de moyen de paiement invalide.',
         'filter_status_invalid' => 'Filtre statut bi baaxul.',
         'integration_agency_missing' => 'Intégration fay bi méngoowul ak benn agence.',
         'integration_credential_missing' => 'Intégration fay bi matul: benn identifiant amul.',
         'integration_missing' => 'Amul benn intégration fay buy dox ci prestataire bii.',
+        // TCK-2778 — le lien de la pénalité seule, pour une agence qui ne l'encaisse pas en ligne.
+        'late_fee_not_collected_online' => 'Votre agence n\'encaisse pas ses pénalités de retard en ligne : relancez sans lien, la pénalité se règle à l\'agence.',
         'not_payable' => 'Fey bii mënatul a fey ci internet : fey nañ ko ba noppi, delloo nañ ko, walla amul dara lu ñu war a fey.',
         'paid_amount_invalid' => 'Xaalis bi ñu fay mënul a nekk ci suufu tus.',
         'provider_failed' => 'Prestataire fay :provider mënul def laaj bi.',
@@ -478,6 +558,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',
+        'upgrade_offer_missing' => 'L\'offre du passage en pro n\'est pas disponible pour le moment.',
     ],
     'platform' => [
         'ability_missing' => 'Sa daraja operatëer mayu la nga def lii.',
@@ -527,15 +608,20 @@ return [
         'listings_exceeded' => 'Quota annonce yuy dox ci sa offre yegg na.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'Une des lignes du lot n\'est pas une ligne proposée d\'un relevé ouvert de l\'agence : rien n\'a été confirmé.',
         'cross_agency' => 'Bii paiement du ci bii agence.',
         'duplicate_file' => 'Bii relevé dañu ko wone nanu bii agence.',
     ],
     'reporting' => [
         'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',
+        'invalid_period' => 'La période demandée doit être un mois au format AAAA-MM.',
         'range_too_wide' => 'Diggante bi nga laaj ëpp na :max intervalle « :granularity ». Wàññil diggante bi walla yokk granularité bi.',
         'report_unknown' => 'Rapport bii xamuñu ko.',
     ],
     'review' => [
+        // TCK-2672 — un lot dont un avis est inconnu, n'est plus en attente, ou hors du périmètre de l'appelant.
+        'batch_not_moderatable' => 'Un des avis du lot ne peut pas être publié par vous : rien n\'a été publié.',
         'agency_already_reviewed' => 'Joxe nga xalaat ci agence bii ba noppi.',
         'moderation_decision_invalid' => 'Dogal modération bi baaxul.',
         'no_reply' => 'Xalaat bii amul tontu buñu mën a far.',
@@ -548,6 +634,10 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Super admin rekk mën na jox super_admin.',
+    ],
+    // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
+    'role_delegation' => [
+        'covers_absence' => 'Cette délégation couvre une absence : modifiez ou révoquez l\'absence, qui la porte.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [
@@ -649,10 +739,18 @@ return [
     'visit' => [
         'active_limit_reached' => 'Am nga ba noppi :max seeti yuy dox ci kër gii. Neenalal benn balaa ngay laaj beneen.',
         'already_assigned' => 'Seetaan bii, keneen ci ajaans bi moo ko jël.',
+        // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        // TCK-2716 — « Créer sa fiche » depuis une visite.
+        'agency_mismatch' => 'Le client naîtrait dans une autre agence que celle du bien de la visite : passez sur l\'espace de cette agence.',
+        'agent_not_staff' => 'L\'agent choisi doit faire partie du personnel de l\'agence du bien.',
+        // TCK-2744 — l'agent a déjà une visite confirmée qui chevauche cette heure (sur un autre bien).
+        'agent_overlap' => 'L\'agent est déjà pris à cette heure par une autre visite confirmée.',
         'cannot_cancel' => 'Seeti bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_complete' => 'Seeti bii mënuñu ko jeexal ni mu nekke léegi.',
         'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Seeti bu jeex walla bu ñu neenal, mënatuñu ko soppi.',
+        // TCK-2716 — une visite rattachée n'est jamais rattachée à une autre fiche.
+        'customer_already_linked' => 'Cette visite a déjà sa fiche client.',
         'feedback_agent_only' => 'Agent bi ko yor rekk moo mën a joxe xalaatu agent bi.',
         'feedback_not_completed' => 'Xalaat bi, su seeti bi jeexee rekk lañu ko mën a joxe.',
         'feedback_visitor_only' => 'Ki seeti rekk moo mën a joxe xalaatu kiliyaan bi.',
@@ -660,9 +758,14 @@ return [
         'not_scheduled_confirm' => 'Seeti bu ñu planifier rekk lañu mën a dëggal.',
         'property_unavailable' => 'Kër gii, seeti mënuñu ko.',
         'reassign_forbidden' => 'Soppi ajaanu seetaan bu ñu joxe ba noppi, laaj na sañ-sañu joxe.',
+        'report_exists' => 'Cette visite a déjà son compte rendu : modifiez-le.',
+        'report_missing' => 'Cette visite n\'a pas encore de compte rendu à modifier.',
+        'report_not_closable' => 'Seule une visite terminée, ou confirmée dont l\'heure est passée, reçoit un compte rendu.',
         'reschedule_inactive' => 'Seetaan bu ngi xaar walla bu ñu dëggal rekk moo mën a soppi waxtu.',
         'slot_overlap' => 'Beneen seeti bu ñu dëggal am na ba noppi ci waxtu wii ci kër gii.',
         'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a dëggal, jeexal, neenal walla toxal seetaan bii.',
+        // TCK-2502 — confirmer une visite demandée par tranche, c'est en fixer l'heure.
+        'time_required' => 'Cette visite a été demandée pour une tranche de la journée : fixez l\'heure pour la confirmer.',
     ],
     'webhook' => [
         'endpoint_gone' => 'Adrees bii dootul liggéey : intégration bu nekk am na sa adrees.',
@@ -840,5 +943,10 @@ return [
         'not_found' => 'Lien fey bii amul.',
         'gone' => 'Lien fey bii jariñatul. Laajal :agency benn bu bees.',
         'receipt_unavailable' => 'Kitaas bi dafay am su fey bi agsee rekk.',
+    ],
+    // TCK-2811 — un échec du pilote PDF, sur toute route qui rend un PDF
+    'pdf' => [
+        'render_busy' => 'Le service qui produit les documents PDF est saturé : réessayez dans une minute.',
+        'render_failed' => 'Le document PDF n\'a pas pu être produit. Réessayez dans un instant.',
     ],
 ];

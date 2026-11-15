@@ -24,4 +24,8 @@ return [
             'body_with_expired' => 'The promotion of “:property” has stopped. Credits refunded: :credits. Credits not refunded because they had already expired: :expired.',
         ],
     ],
+    // TCK-2520 (ADR-0092) — une seule agence mise en avant par ville et par instant.
+    'spotlight' => [
+        'overlap' => 'A spot is already booked for this city during this period.',
+    ],
 ];

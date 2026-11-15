@@ -1,0 +1,46 @@
+{
+  "_lisez-moi": "MODÈLE de fiche de fidélité (TCK-2684, AC-F1). Copier en docs/qa/audit-ux-2026-11/fidelite/TCK-<n°>.json AVEC le ticket, remplir, retirer les clés `_…`. La fiche se passe telle quelle à `fidelite.mjs compare --roles` : `roles`, `zones`, `alias`, `ancres` et `ignorer` s'ajoutent aux rôles de coque (scripts/fidelite/roles-coque.json), sauf `\"coque\": false`. Exemple complet : exemple-notifications.json.",
+  "ticket": "TCK-NNNN",
+  "ecrans": [
+    {
+      "page": "app-<page>",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "<nom de l'écran dans la visionneuse>",
+      "references": {
+        "telephone": "references/app-<page>/a-0-telephone.json",
+        "bureau-1440": "references/app-<page>/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-<page>/a-0-bureau-1280.json"
+      },
+      "gele_le": "AAAA-MM-JJ",
+      "_reference": "Une maquette retouchée après le gel produit une NOUVELLE référence, datée et nommée ici (ADR-0106, Conséquences)."
+    }
+  ],
+  "produit": {
+    "route": "/app/<chemin>",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "<l'état à reproduire : onglet, filtre, liste vide ou pleine, menu ouvert…>",
+    "defiler": null,
+    "perturber": null,
+    "_produit": "persona : une clé de scripts/fidelite/personas.json. `perturber` : un script (corps de fonction) qui met la page dans l'état voulu (ouvrir un menu) ; `defiler` : la tranche d'un écran long, en px."
+  },
+  "roles": [
+    {
+      "nom": "<rôle d'un composant de données : ligne, carte, panneau…>",
+      "appareil": "mobile",
+      "maquette": { "boiteDe": "<texte de la maquette dans la boîte>", "min": 48 },
+      "produit": { "boiteDe": "<texte du produit dans la boîte>", "min": 48 },
+      "_selecteurs": "boiteDe {texte, min, rang} · slot {slot, tag, rang} (data-slot shadcn) · fid {fid} (data-fid) · zone {y, h, tol, wMin} · texte {texte, type, rang}. `appareil` : mobile | desktop | absent (les deux). `contenu: false` pour ne pas comparer le contenu de la boîte."
+    }
+  ],
+  "zones": [
+    { "nom": "<zone à contenu identique : tête de page, barre de filtres>", "appareil": "mobile", "x": 0, "y": 56, "w": 390, "h": 48 }
+  ],
+  "alias": { "<libellé de la maquette>": "<libellé du produit (vouvoiement, renommage décidé)>" },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    { "ecran": "a-0-telephone", "element": "<élément>", "propriete": "<propriété>", "exception": "accessibilité | technique | incohérence des maquettes (ADR-0106 § 2)", "motif": "<mesure ou décision>" }
+  ]
+}

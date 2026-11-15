@@ -6,6 +6,7 @@ use App\Jobs\Billing\RenewAgencySubscriptionPeriods;
 use App\Jobs\Booking\CompleteEndedBookingsJob;
 use App\Jobs\Booking\ExpirePendingBookingsJob;
 use App\Jobs\Crm\SendProspectMatchDigest;
+use App\Jobs\Documents\PurgerLesArchivesDuCoffre;
 use App\Jobs\EscalateUrgentMaintenanceJob;
 use App\Jobs\ExpireBookings;
 use App\Jobs\Invoice\SendOverdueRemindersJob;
@@ -16,6 +17,7 @@ use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\RecordQueueHeartbeat;
+use App\Jobs\RefreshDirectoryResponseTimes;
 use App\Jobs\RefreshNewBuildSearchLabel;
 use App\Jobs\Reporting\PurgeExpiredReportExports;
 use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
@@ -56,8 +58,9 @@ Schedule::job(new ConfirmEarlyTerminationsJob)->dailyAt('03:00')->withoutOverlap
 // TCK-1153 (P81.02) — un bail `active` dont la fin est passée, sans renouvellement en vigueur,
 // passe `expired` : sa caution se restitue. Idempotente (ne lit que des baux `active`).
 Schedule::job(new ExpireEndedLeasesJob)->dailyAt('03:15')->withoutOverlapping();
-// TCK-1301 (P115.01) — une réservation `confirmed` dont la fin est passée passe `completed` : le
-// séjour mené ne s'annule plus. Idempotente (ne lit que des réservations `confirmed`).
+// TCK-1301 (P115.01) — un séjour `confirmed` dont la fin est passée passe `completed` : le séjour
+// mené ne s'annule plus. TCK-2735 — un séjour seulement : candidature et offre ont pour issue le bail
+// ou la vente. Idempotente (ne lit que des séjours `confirmed`).
 Schedule::job(new CompleteEndedBookingsJob)->dailyAt('03:30')->withoutOverlapping();
 Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 // TCK-599 (ADR-0050) — alertes de recherche (comptes et abonnés confirmés), par le moteur de
@@ -107,6 +110,10 @@ Schedule::command('ai:eval --all')->dailyAt('02:30')->withoutOverlapping(120)->w
 // TCK-506 (revue de PR 253) — « neuf » est figé à l'indexation : sans ceci, un
 // bien de 2025 indexé en 2026 répond encore à `q=neuf` en 2028.
 Schedule::job(new RefreshNewBuildSearchLabel)->dailyAt('04:00')->withoutOverlapping();
+// TCK-2518 — le délai de réponse habituel des agences et des agents de l'annuaire (médiane sur 90 jours, `null` sous cinq
+// conversations répondues). Idempotent : chaque passage recalcule l'état entier depuis les messages et le pose, `null`
+// compris ; deux passages, même concurrents, rendent le même état.
+Schedule::job(new RefreshDirectoryResponseTimes)->dailyAt('04:20')->timezone('Africa/Dakar')->withoutOverlapping();
 Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(60); // TCK-032 P3
 // TCK-083 — Hourly reminder for tasks whose `due_at` falls in the
 // 23–25 h window. Idempotence is guaranteed by the marker stored in
@@ -122,8 +129,15 @@ Schedule::job(new PurgeExpiredReportExports)->dailyAt('02:40')->withoutOverlappi
 // TCK-1143 (P63.04) — les exports du journal d'activité ne survivent pas à leur lien (24 h).
 // Idempotent : la purge ne supprime que des fichiers échus, et rien ne les recrée.
 Schedule::job(new PurgeExpiredActivityLogExports)->hourly()->withoutOverlapping(60);
+// TCK-2812 (ADR-0099, amendement du 2026-11-14) — les archives préparées du coffre ne survivent pas à
+// leur lien (24 h) ; échouées ou perdues, elles s'effacent après 24 h. Idempotent : une ligne effacée
+// n'est plus relue, et effacer un fichier absent ne fait rien.
+Schedule::job(new PurgerLesArchivesDuCoffre)->hourly()->withoutOverlapping(60);
 // TCK-601 (ADR-0044 §5) — KYC d'agence : relances J-30 / J-7 puis expiration le jour venu.
 Schedule::command('kyc:expire-dossiers')->dailyAt('06:00')->withoutOverlapping();
+// TCK-2783 — rappel d'expiration d'une pièce du coffre à J-60 et J-7 (jour de Dakar). Idempotent :
+// les jalons envoyés sont mémorisés sur la pièce avec la date visée.
+Schedule::command('documents:remind-expiring')->dailyAt('07:00')->timezone('Africa/Dakar')->withoutOverlapping();
 // TCK-096 — Escalate urgent maintenance requests to agency managers
 Schedule::job(new EscalateUrgentMaintenanceJob)->hourly()->withoutOverlapping(60);
 
@@ -271,3 +285,8 @@ Schedule::command('radar:embed-listings')->everyFifteenMinutes()->withoutOverlap
 // modèle (seul `demand_count` est recompté, sans IA, au même résultat) ; le job est unique et deux passages se sérialisent sur la
 // ligne du réglage ; une cible déjà créée en double est refusée par l'empreinte de ses critères.
 Schedule::command('radar:refresh-demand-targets')->dailyAt('03:40')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-2519 — le slug au nom des fiches `/agents/{slug}` : pose celui d'une fiche devenue publique depuis le dernier passage
+// (jusque-là résolue par `username`, puis redirigée en 301), et recalcule celui d'un compte qui a changé de rôle. Idempotente :
+// un slug déjà juste n'est pas réécrit (`PublicSlugService::appliquer`), et une collision est tranchée par suffixe sur la ligne.
+Schedule::command('users:public-slugs')->hourlyAt(25)->withoutOverlapping(60);

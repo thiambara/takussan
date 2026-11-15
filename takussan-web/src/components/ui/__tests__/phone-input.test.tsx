@@ -164,7 +164,7 @@ describe('<PhoneInput> — TCK-566', () => {
     };
     try {
       render(<Banc />);
-      expect(screen.getByLabelText('Numéro').style.paddingInlineStart).toBe('calc(51px + 0.625rem)');
+      expect(screen.getByLabelText('Numéro').style.paddingInlineStart).toBe('calc(51px + var(--spacing) * 2.5)');
     } finally {
       HTMLElement.prototype.getBoundingClientRect = origine;
     }
@@ -172,6 +172,6 @@ describe('<PhoneInput> — TCK-566', () => {
 
   it('sans mise en page mesurable, le retrait retombe sur l’estimation', () => {
     render(<Banc />);
-    expect(screen.getByLabelText('Numéro').style.paddingInlineStart).toBe('calc(4ch + 1.625rem)');
+    expect(screen.getByLabelText('Numéro').style.paddingInlineStart).toBe('calc(4ch + var(--spacing) * 6.5)');
   });
 });

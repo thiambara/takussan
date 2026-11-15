@@ -5,13 +5,13 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2, ChevronRight, Circle } from 'lucide-react';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import { PAGES_ADMIN, type CheminAdmin } from '@/lib/access/pages-admin';
 import { cheminMiseEnService, cleMiseEnService, type SetupStatusResponse } from '@/lib/queries/mise-en-service';
 import type { AgencyKind } from '@/types/agency';
+import { DESTINATIONS_DE_MISE_EN_SERVICE as DESTINATIONS, etatDeMiseEnService } from './etapes-de-mise-en-service';
 
 /**
  * TCK-589 — la carte « Mise en service » en tête du tableau de bord d'agence (`/app/overview/agency`
- * depuis TCK-647 ; ses libellés ont quitté `admin.pages.setupStatus` pour `dashboard.agencySetup`,
+ * depuis TCK-647, la vue d'ensemble de « Rapports », `/app/reports`, depuis TCK-2628 ; ses libellés ont quitté `admin.pages.setupStatus` pour `dashboard.agencySetup`,
  * l'espace `admin` n'étant pas servi sous `/app`).
  *
  * Une ligne par étape que l'API déclare (`GET /api/agencies/{agency}/setup-status`) : cochée quand
@@ -24,40 +24,11 @@ import type { AgencyKind } from '@/types/agency';
  * la progression — le total reste celui du serveur.
  */
 
-/**
- * L'écran qui fait chaque étape. Les pages d'administration sont tenues à la table des pages
- * (`CheminAdmin`, TCK-649) : un chemin qu'elle ne déclare pas ne compile pas.
- */
-const DESTINATIONS: Readonly<Record<string, CheminAdmin | '/app/properties/new' | '/app/profile'>> = {
-  kyc_verified: '/app/agency/kyc',
-  logo: '/app/agency',
-  commission_rate: '/app/agency',
-  payment_integration: '/app/agency/integrations',
-  first_member: '/app/agency/team',
-  first_published_property: '/app/properties/new',
-  admin_two_factor: '/app/profile',
-};
-
-/** L'étape qui en conditionne d'autres, montrée la première (TCK-761). */
-const ETAPE_EN_TETE = 'admin_two_factor';
-
-/**
- * TCK-777 (P15.08) — une étape s'applique à l'agence quand l'écran qui la fait lui est ouvert. La
- * règle n'est pas recopiée : elle se lit dans la table des pages (`agence: 'standard'`). Pour une
- * agence `individual`, « premier membre » (`/app/agency/team`) tombe ainsi : l'hôte solo n'a pas
- * d'équipe, et l'étape ne serait jamais faite.
- */
-function etapeApplicable(key: string, kind: AgencyKind | null): boolean {
-  if (kind === 'standard') return true;
-  const page = PAGES_ADMIN.find((p) => p.chemin === DESTINATIONS[key]);
-  return page?.exige.agence !== 'standard';
-}
-
 interface MiseEnServiceProps {
   readonly agencyId: number | null;
   /**
    * Le `kind` de l'agence, qui filtre les étapes. `standard` par défaut : c'est la seule agence
-   * que sert `/app/overview/agency`.
+   * dont la vue d'ensemble de « Rapports » la monte (`garderLaVueDEnsemble`).
    */
   readonly kind?: AgencyKind | null;
 }
@@ -71,20 +42,11 @@ export function MiseEnService({ agencyId, kind = 'standard' }: MiseEnServiceProp
     { enabled: agencyId !== null, retry: false },
   );
 
-  if (!data || data.data.complete) return null;
-  // TCK-777 — la progression et la disparition se jugent sur les étapes qui s'appliquent, pas sur
-  // `complete`, que l'API calcule sur les sept.
-  const etapes = data.data.steps.filter((e) => etapeApplicable(e.key, kind));
-  if (etapes.length === 0 || etapes.every((e) => e.done)) return null;
-
-  const faites = etapes.filter((e) => e.done).length;
-  // TCK-761 (P15.04) — la 2FA de l'admin passe en tête : elle conditionne trois autres étapes
-  // (commission, intégration de paiement, premier membre), que l'API refuse sans elle
-  // (`ProtectedActions::AGENCY_TWO_FACTOR`). Les autres gardent l'ordre de l'API
-  // (`sort` est stable, et trie la copie que rend `filter`).
-  const connues = etapes
-    .filter((e) => e.key in DESTINATIONS)
-    .sort((a, b) => Number(b.key === ETAPE_EN_TETE) - Number(a.key === ETAPE_EN_TETE));
+  // TCK-2622 — la règle des étapes (applicables, 2FA en tête, total du serveur) est partagée avec le
+  // bandeau d'une ligne de l'accueil : `etapes-de-mise-en-service.ts`.
+  const etat = etatDeMiseEnService(data, kind);
+  if (!etat) return null;
+  const { faites, connues, total } = etat;
 
   return (
     <section
@@ -97,21 +59,21 @@ export function MiseEnService({ agencyId, kind = 'standard' }: MiseEnServiceProp
           {t('title')}
         </h2>
         <p className="text-xs tabular-nums text-muted-foreground">
-          {t('progress', { done: faites, total: etapes.length })}
+          {t('progress', { done: faites, total })}
         </p>
       </div>
       <p className="mt-1 text-sm text-muted-foreground text-pretty">{t('description')}</p>
       <div
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={etapes.length}
+        aria-valuemax={total}
         aria-valuenow={faites}
-        aria-label={t('progress', { done: faites, total: etapes.length })}
+        aria-label={t('progress', { done: faites, total })}
         className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted"
       >
         <div
           className="h-full rounded-full bg-primary transition-[width] duration-300"
-          style={{ width: `${Math.round((faites / etapes.length) * 100)}%` }}
+          style={{ width: `${Math.round((faites / total) * 100)}%` }}
         />
       </div>
       <ul className="mt-3 divide-y divide-border">

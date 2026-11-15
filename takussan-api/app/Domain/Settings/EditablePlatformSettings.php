@@ -2,9 +2,12 @@
 
 namespace App\Domain\Settings;
 
+use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Invoice\OverdueReminderService;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\LeaseDefaults;
 use App\Services\Lease\RentReviewService;
+use App\Support\ScopedSetting;
 use Illuminate\Validation\Rule;
 
 /**
@@ -25,7 +28,8 @@ use Illuminate\Validation\Rule;
  * `/api/settings`, sans règle ni journal ; elle s'écrit ici, et seulement ici. La ligne d'une agence
  * l'emporte toujours. **Le défaut est la constante du service**, référencée : deux défauts qui
  * divergent feraient lire deux valeurs selon le chemin. Lecteurs : `OverdueReminderService`,
- * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`.
+ * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`,
+ * et `LeaseDefaults` pour `lease.late_fee_*` (TCK-2643, préremplissage d'un bail neuf).
  *
  * TCK-2394 (ADR-0079) — catégorie `radar` : `radar.mandate_agency_id` → `App\Services\Radar\RadarMandate`.
  */
@@ -103,10 +107,15 @@ class EditablePlatformSettings
                 'default' => RentReviewService::DEFAULT_MAX_PCT, 'public' => false,
                 'rules' => ['required', 'numeric', 'gt:0', 'max:100'],
             ],
+            // TCK-2842 — LA borne de l'indemnité de départ anticipé, déclarée ici seulement : la
+            // validation du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`, `RenewLeaseRequest`, par
+            // `reglesDeBornes()`), le préremplissage (`LeaseDefaults`) et la lecture à l'exécution
+            // (`EarlyTerminationService::resolvePenaltyMonths`, par `clamp()`) la lisent. 0 = aucune
+            // indemnité, valable pour une agence comme pour un bail ; 12, la borne que les baux portaient.
             'lease.early_termination_penalty_months' => [
                 'category' => 'rentals', 'type' => 'integer',
                 'default' => EarlyTerminationService::SETTING_DEFAULT_MONTHS, 'public' => false,
-                'rules' => ['required', 'integer', 'min:1', 'max:24'],
+                'rules' => ['required', 'integer', 'min:0', 'max:12'],
             ],
             'lease.require_signature' => [
                 'category' => 'rentals', 'type' => 'boolean', 'default' => false, 'public' => false,
@@ -118,11 +127,33 @@ class EditablePlatformSettings
                 'default' => null, 'public' => false,
                 'rules' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
             ],
+            // TCK-2643 — APRÈS le plafond : la catégorie se rend dans cet ordre, et `late_fees.cap_percent`
+            // garde son rang (`RentalSettingsCatalogueTest` le lit en `data.rentals.4`).
+            // La pénalité de retard qu'un bail NEUF reprend (`LeaseDefaults`, préremplissage
+            // seul : `LateFeeCalculator` lit la colonne du bail). Défaut 0 = pas de pénalité (décision de
+            // la session du 2026-11-12) ; bornes = celles du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`).
+            'lease.late_fee_percent' => [
+                'category' => 'rentals', 'type' => 'decimal',
+                'default' => LeaseDefaults::DEFAULT_LATE_FEE_PERCENT, 'public' => false,
+                'rules' => ['required', 'numeric', 'min:0', 'max:50'],
+            ],
+            'lease.late_fee_grace_days' => [
+                'category' => 'rentals', 'type' => 'integer',
+                'default' => LeaseDefaults::DEFAULT_LATE_FEE_GRACE_DAYS, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:30'],
+            ],
             // TCK-2394 (ADR-0079, proposé) — l'espace où le Radar publie sous mandat, par son identifiant ; 0 : aucun. Lu par
             // `App\Services\Radar\RadarMandate`, et seulement drapeau `radar_mandate` allumé.
             'radar.mandate_agency_id' => [
                 'category' => 'radar', 'type' => 'integer', 'default' => 0, 'public' => false,
                 'rules' => ['required', 'integer', 'min:0'],
+            ],
+            // TCK-2588 (ADR-0103 § 4) — le seuil de la relance « sans contact » d'une fiche d'une étape
+            // vivante. Lu par `App\Services\Crm\CustomerFollowUpQuery`, ligne d'agence d'abord.
+            'crm.follow_up_days' => [
+                'category' => 'crm', 'type' => 'integer',
+                'default' => CustomerFollowUpQuery::DEFAULT_DAYS, 'public' => false,
+                'rules' => ['required', 'integer', 'min:1', 'max:90'],
             ],
         ];
     }
@@ -142,6 +173,55 @@ class EditablePlatformSettings
         }
 
         return $value;
+    }
+
+    /**
+     * r6 (r1 de la vérification de 65d3142b6) — la valeur atteint-elle le PLANCHER des règles de la clé
+     * (`min:x` : au moins x ; `gt:x` : plus que x) ? Une ligne d'agence sous le plancher n'est pas un
+     * réglage ({@see ScopedSetting::numericAgencyValue()}) : `{"value": 0}` sur une clé
+     * en `min:1` ou `gt:0` est une ligne écrite avant sa règle, et le global reprend la main. Au-dessus
+     * du plafond, {@see self::clamp()} la ramène : la ligne dit bien quelque chose de l'agence.
+     */
+    public static function atteintLePlancher(string $key, float $value): bool
+    {
+        foreach (self::get($key)['rules'] as $rule) {
+            if (is_string($rule) && preg_match('/^(min|gt):(-?[0-9.]+)$/', $rule, $m) === 1) {
+                if ($m[1] === 'min' ? $value < (float) $m[2] : $value <= (float) $m[2]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * TCK-2842 — la borne `min` (`min:x` ou `gt:x`) ou `max` des règles de la clé, `null` sans elle.
+     */
+    public static function borne(string $key, string $quelle): int|float|null
+    {
+        $motif = $quelle === 'max' ? 'max' : 'min|gt';
+        foreach (self::get($key)['rules'] as $rule) {
+            if (is_string($rule) && preg_match('/^('.$motif.'):(-?[0-9.]+)$/', $rule, $m) === 1) {
+                return str_contains($m[2], '.') ? (float) $m[2] : (int) $m[2];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * TCK-2842 — les règles de bornes de la clé (`min:`, `gt:`, `max:`), telles quelles, pour qu'une
+     * autre validation (celle du bail) applique la borne du catalogue au lieu de la recopier.
+     *
+     * @return list<string>
+     */
+    public static function reglesDeBornes(string $key): array
+    {
+        return array_values(array_filter(
+            self::get($key)['rules'],
+            fn (mixed $rule) => is_string($rule) && preg_match('/^(min|gt|max):-?[0-9.]+$/', $rule) === 1,
+        ));
     }
 
     public static function has(string $key): bool

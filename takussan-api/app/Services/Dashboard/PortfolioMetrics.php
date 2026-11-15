@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\LeasePaymentType;
@@ -11,6 +12,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Services\Payout\PayoutClawbacks;
@@ -43,7 +45,8 @@ use Illuminate\Support\Facades\DB;
  *   l'exclusion par statut courant, et un bien resté vacant tout un mois passé puis archivé en sort.
  * - *Occupation longue durée* = jours-biens couverts par un bail hors `draft` et `pending_signature`
  *   ÷ (biens éligibles × jours du mois). Fin effective = la plus tôt de `end_date` et `terminated_at`,
- *   incluse. Un jour d'un bien ne compte qu'une fois, même sous deux baux.
+ *   incluse. Un jour d'un bien ne compte qu'une fois, même sous deux baux. *Aujourd'hui*, seuls les
+ *   baux `active | terminating` occupent (TCK-2626) : {@see self::longStayOccupancyToday()}.
  * - *Occupation courte durée* = nuitées des réservations `confirmed | completed` (`end_date` exclue)
  *   ÷ (biens éligibles × jours du mois). `null` sans bien éligible.
  * - *Encaissé*, *Impayé* : {@see CollectedPayments}.
@@ -160,6 +163,7 @@ class PortfolioMetrics
                     interval '1 day'
                 ) AS d
                 WHERE b.deleted_at IS NULL
+                  AND b.kind = ?
                   AND b.status IN (?, ?)
                   AND e.created_at < (date_trunc('month', d) + interval '1 month')
                   AND (e.is_current OR d < ?::date)
@@ -189,6 +193,8 @@ class PortfolioMetrics
             $eligibleBindings,
             [$start->toDateString(), $end->startOfMonth()->toDateString()],
             [$start->toDateString(), $end->toDateString()],
+            // TCK-2735 (ADR-0102 § 3) — seul un séjour occupe des nuits.
+            [BookingKind::Stay->value],
             array_map(static fn (BookingStatus $s): string => $s->value, self::OCCUPYING_BOOKING_STATUSES),
             [$this->currentMonthStart(), $this->currentMonthStart()],
         ));
@@ -204,14 +210,25 @@ class PortfolioMetrics
     }
 
     /**
-     * Occupation longue durée AUJOURD'HUI : biens éligibles couverts par un bail ce jour-là.
-     * `null` sans bien éligible, comme l'occupation courte durée : « rien à occuper » n'est pas
-     * « tout est vacant » (TCK-1114).
+     * Occupation longue durée AUJOURD'HUI : biens éligibles couverts par un bail ce jour-là, rendue
+     * AVEC sa base (TCK-2626) — « 100 % » se lit « 2 sur 2 », pas à côté de « 54 disponibles » qui
+     * comptent la vente et la courte durée.
+     *
+     * Le taux est `null` sans bien éligible, comme l'occupation courte durée : « rien à occuper »
+     * n'est pas « tout est vacant » (TCK-1114).
+     *
+     * TCK-2626 — aujourd'hui, seul un bail EN COURS occupe (`Lease::ONGOING_STATUSES` : `active`,
+     * `terminating`), la règle de « Baux actifs » : un bail `terminated` sans `terminated_at`, ou
+     * `expired` avant son `end_date`, n'occupe plus son bien. La série mensuelle passée garde
+     * `NON_OCCUPYING_LEASE_STATUSES` : un bail fini a bien occupé les jours d'avant sa fin (TCK-1173).
+     *
+     * @return array{rate_percent: float|null, eligible_count: int, occupied_count: int}
      */
-    public function longStayOccupancyToday(PortfolioScope $scope): ?float
+    public function longStayOccupancyToday(PortfolioScope $scope): array
     {
         [$eligibleSql, $eligibleBindings] = $this->eligibleSql($scope, [RentPeriod::Monthly, RentPeriod::Yearly]);
         $today = now()->toDateString();
+        $ongoing = implode(', ', array_fill(0, count(Lease::ONGOING_STATUSES), '?'));
 
         $sql = <<<SQL
             WITH eligible AS ({$eligibleSql})
@@ -221,7 +238,7 @@ class PortfolioMetrics
                     SELECT 1 FROM leases l
                     WHERE l.property_id = e.id
                       AND l.deleted_at IS NULL
-                      AND l.status NOT IN (?, ?)
+                      AND l.status IN ({$ongoing})
                       AND l.start_date <= ?::date
                       AND COALESCE(LEAST(l.end_date, l.terminated_at::date), ?::date) >= ?::date
                 )) AS occupied
@@ -232,13 +249,18 @@ class PortfolioMetrics
 
         $row = DB::selectOne($sql, array_merge(
             $eligibleBindings,
-            array_map(static fn (LeaseStatus $s): string => $s->value, self::NON_OCCUPYING_LEASE_STATUSES),
+            Lease::ONGOING_STATUSES,
             [$today, $today, $today, now()],
         ));
 
         $n = (int) ($row->n ?? 0);
+        $occupied = (int) ($row->occupied ?? 0);
 
-        return $n > 0 ? round(((int) $row->occupied / $n) * 100, 2) : null;
+        return [
+            'rate_percent' => $n > 0 ? round(($occupied / $n) * 100, 2) : null,
+            'eligible_count' => $n,
+            'occupied_count' => $occupied,
+        ];
     }
 
     /**

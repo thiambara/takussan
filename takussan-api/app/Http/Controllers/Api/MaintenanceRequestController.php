@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\AcceptMaintenanceRequestRequest;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
 use App\Http\Requests\Api\ContestMaintenanceResolutionRequest;
@@ -24,6 +25,8 @@ use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\CurrencyUnit;
+use App\Services\Maintenance\MaintenanceJournal;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Membership\AdminsDeLAgence;
@@ -57,7 +60,7 @@ class MaintenanceRequestController extends Controller
         $query = MaintenanceRequest::buildQuery($base, $request);
 
         $paginator = $query
-            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
             ->paginate();
 
         // TCK-592 (P17) — « Mes interventions » montre le quartier et l'agence : comme `show()`, le
@@ -75,6 +78,27 @@ class MaintenanceRequestController extends Controller
         );
     }
 
+    /**
+     * TCK-2652 — `GET /api/maintenance-requests/summary` : les comptes des files d'attente
+     * ({@see MaintenanceQueue}) sous la portée de l'index, en un appel. Les autres filtres de la
+     * requête s'appliquent (statut, priorité, catégorie…), jamais `filter[file]` : il viderait les
+     * autres files. Chaque compte égale le `meta.total` de `GET …?filter[file]=<file>`.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $filters = $request->query('filter');
+        $filters = is_array($filters) ? Arr::except($filters, ['file']) : [];
+
+        // Les seuls filtres : ni tri, ni champs, ni inclusions — un compte ne les lit pas.
+        $scoped = MaintenanceRequest::buildQuery(
+            MaintenanceRequest::query()->visibleTo($user),
+            Request::create($request->path(), 'GET', $filters === [] ? [] : ['filter' => $filters]),
+        )->getEloquentBuilder();
+
+        return $this->json(['data' => MaintenanceQueue::counts($scoped, $user)]);
+    }
+
     public function indexForProperty(Request $request, Property $property): JsonResponse
     {
         $this->authorize('view', $property);
@@ -85,7 +109,7 @@ class MaintenanceRequestController extends Controller
         $query = MaintenanceRequest::buildQuery($base, $request);
 
         $paginator = $query
-            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance('-priority', '-created_at'))
+            ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
             ->paginate();
 
         return $this->paginated($paginator, MaintenanceRequestResource::collection($paginator)->toArray($request));
@@ -138,6 +162,9 @@ class MaintenanceRequestController extends Controller
             'status' => MaintenanceStatus::Open->value,
             'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
         ]));
+        // TCK-2786 — la première entrée du journal (« Signalée par … ») ; une demande sans elle est
+        // antérieure au journal, qui s'ouvre alors sur « avant le journal ».
+        app(MaintenanceJournal::class)->recordCreated($mr, $user);
 
         // TCK-1991 (P169.03) — l'escalade compte ses 30 minutes depuis le passage en urgent.
         if ($mr->priority === MaintenancePriority::Urgent) {
@@ -207,6 +234,12 @@ class MaintenanceRequestController extends Controller
         abort_code_if($this->machine->isTerminal($maintenanceRequest->status), 422, 'maintenance.terminal_request');
 
         $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
+
+        // TCK-2700 — un créneau envoyé avec son décalage est l'instant qu'il désigne (même conversion
+        // que l'acceptation) : écrit tel quel, le cast `datetime` en gardait l'heure murale.
+        if (($data['scheduled_at'] ?? null) !== null) {
+            $data['scheduled_at'] = MaintenanceRequest::scheduledInstant((string) $data['scheduled_at']);
+        }
 
         // TCK-2010 (P184.02) — tout ou rien : `assign()` peut encore refuser (`completed`,
         // `maintenance.reassign_after_completion`) après que l'heure, la priorité et le coût réel
@@ -342,12 +375,13 @@ class MaintenanceRequestController extends Controller
     /**
      * TCK-592 — le prestataire assigné accepte l'intervention : `accepted_at`. Le kit d'accès
      * (rue, coordonnées, téléphone du demandeur) ne s'ouvre qu'après.
+     *
+     * TCK-2680 — avec `scheduled_at`, le prestataire propose son passage dans le même geste.
+     * L'autorisation (`respondToAssignment`) court dans le FormRequest, avant la validation.
      */
-    public function accept(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    public function accept(AcceptMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('respondToAssignment', $maintenanceRequest);
-
-        $mr = $this->service->accept($maintenanceRequest, $request->user());
+        $mr = $this->service->accept($maintenanceRequest, $request->user(), $request->scheduledAt());
 
         return $this->json(['data' => MaintenanceRequestResource::make($mr)->resolve($request)]);
     }

@@ -1,0 +1,259 @@
+{
+  "ticket": "TCK-2645",
+  "ecrans": [
+    {
+      "page": "app-baux",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Fiche — dossier du bail",
+      "references": {
+        "telephone": "references/app-baux/a-1-telephone.json",
+        "bureau-1440": "references/app-baux/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-baux/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leases/4",
+        "persona": "agent au téléphone (la coque de la maquette : « Aujourd’hui · Demandes · Clients · Messages · Menu »), admin au bureau (« Awa Diop · Dakar Immo · Administratrice »)",
+        "etat": "le bail 4 de la démo, choisi parce qu'il rend l'état de la maquette : actif, loyer du mois en retard (`is_overdue`), caution encaissée ; aucune donnée bouchonnée (la fiche lit l'API au client, mais la coque et la page lisent au serveur). Toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=garde.js`, copie de celle de TCK-2590) ; `p-a1.js` attend la carte « Loyer » et remonte en haut ; relevés du 2026-11-12 (t8/fid/prod*, cmp*) — avant la fiche : téléphone 12 conformes · 9 écarts · 50 absents, bureau 1440 32 · 141 · 161, 1280 32 · 141 · 155 ; après (21 h 54, cmp2 ; téléphone re-relevé à 22 h 05 après le retrait de l'ancre de signature vide, cmp3) : téléphone 23 · 22 · 10 (8,42 % de pixels), bureau 1440 57 · 171 · 98 (11 %), 1280 56 · 172 · 91 (11,54 %). Balayage 390/768/1024/1280/1440 (admin) et 390/768/1024 (agent) : aucun débord, aucune coupe ; seules ellipses : les libellés du rail replié de la coque à 768"
+      }
+    },
+    {
+      "page": "app-baux",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Feuille « Réviser le loyer »",
+      "references": {
+        "telephone": "references/app-baux/a-4-telephone.json",
+        "bureau-1440": "references/app-baux/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-baux/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leases/4?geste=reviser",
+        "persona": "agent au téléphone, admin au bureau (comme a-1)",
+        "etat": "la feuille ouverte par `?geste=reviser` sur la fiche du bail 4 ; `p-a4.js` saisit 665 600 (+4 %), choisit « Indexation » et écrit le motif de la maquette ; rien n'est envoyé (garde.js refuserait l'envoi) ; relevé du 2026-11-12 21 h 54 (cmp2) : téléphone 22 · 24 · 46 ; bureau 1440 24 · 199 · 139, 1280 24 · 199 · 139 (le fond de la maquette est la liste, celui du produit la fiche ; au bureau, panneau latéral au lieu du dialogue centré : écarts acceptés)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/leases/4",
+    "persona": "agent / admin",
+    "disposition": "agent / admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad de terrain-8, t8/fid/ : garde.js (chargé AVANT la page par `FID_AVANT`, copie locale de l'outil t8/outil/fidelite.mjs qui ne diffère du dépôt que par cette ligne et le chemin WEB), commun.js + a1.js → p-a1.js, commun.js + a4.js → p-a4.js ; relevés releves.sh"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-baux a-1-*, a-4-*",
+      "element": "coque : barre latérale, en-tête, barre d'onglets (« Menu » allumé dans la maquette), compteurs",
+      "propriete": "boîtes, libellés, état actif, pixels des zones de coque",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/2618/2619 (terrain-5) ; « Menu » ne s'allume que tiroir ouvert (`BarreDOnglets`), même constat que TCK-2641 et TCK-2670 ; les compteurs sont ceux de la démo. Au téléphone, l'outil apparie le rôle « barre d'onglets » de la maquette à la ligne « État des lieux d'entrée » (y 816) : appariement de l'outil"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "pastilles « Actif », « Habitation » (et les états de l'échéancier)",
+      "propriete": "bordure 1 px transparente, rayon 26 px (23,4 au bureau), fond à 11 %, marges ±2 px",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge`, seule pastille de statut admise (`check-status-badge-unique`) — même exception que TCK-2587, TCK-2639, TCK-2662"
+    },
+    {
+      "ecran": "app-baux a-1-*, a-4-*",
+      "element": "boutons (« Encaisser », « Contrat PDF », « Proposer la révision », gestes de la carte « Actions »)",
+      "propriete": "bordure 1 px transparente (+2 px de largeur) ; hauteur 32,4 au bureau (h-controle) au lieu de 36 ; « Encaisser » de la barre 14 px / 500 au lieu de 15 / 600",
+      "exception": "règle du design system",
+      "motif": "primitive `Button` (bordure transparente, `h-controle` de la portée /app) et `BarreDAction taille=\"action\"` (48 px, comme TCK-2587) — même exception que TCK-2580, TCK-2635"
+    },
+    {
+      "ecran": "app-baux a-1-*, a-4-*",
+      "element": "icônes lucide",
+      "propriete": "trait 2 → 1,75 (1,5 au bureau) ; icône de « Encaisser » 18 → 16 px",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes sous la portée /app (TCK-2685) ; taille d'icône portée par `Button` — même exception que TCK-2584, TCK-2587"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "gestes « Appeler » / « WhatsApp » des parties",
+      "propriete": "nom accessible (« Appeler » → « Appeler Fatou Wade », « WhatsApp » → « Écrire à … sur WhatsApp ») ; WhatsApp : bord 1 px, fond /10",
+      "exception": "accessibilité",
+      "motif": "deux parties ont chacune leurs deux gestes : le nom dit qui on joint (même exception que TCK-2587) ; l'outil apparie par nom et les compte absents. Le logo WhatsApp est `IconeWhatsApp` (svg anonyme des deux côtés)"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "avatar du bailleur",
+      "propriete": "aplat d'accent /15 → `bg-fond-avatar`",
+      "exception": "règle du design system",
+      "motif": "l'accent est réservé aux badges mis en avant (`check-valeurs-arbitraires-app`, aplat-accent) — même exception que TCK-2587"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "agent responsable : Appeler / WhatsApp",
+      "propriete": "absents du produit",
+      "exception": "décision 5",
+      "motif": "on n'appelle que le numéro que l'API sert ; `LeaseResource::party()` ne sert jamais le téléphone de l'agent"
+    },
+    {
+      "ecran": "app-baux a-1-bureau-*",
+      "element": "garant dans la carte « Parties » (bureau) et ligne « Garant (1) » du dossier (téléphone)",
+      "propriete": "écart levé (TCK-2762) ; reste le texte de la pièce : « pièce d’identité manquante » sur la démo, et « renseignée » (pas « reçue ») quand elle l'est",
+      "exception": "donnée",
+      "motif": "la carte « Garants » (`GuarantorSection`) est retirée : le garant est une ligne de « Parties » au bureau, « Garant (n) » au dossier sur téléphone, et la gestion (ajout, modification, pièce) passe par `FeuilleDesGarants`. Relevé a-1 en lecture seule (garde.js : 2 écritures refusées, 0 erreur) le 2026-11-13 sur les baux 1, 3 et 5 de la démo, qui portent chacun un garant (le bail 4 n'en a aucun). Au bureau, la ligne coïncide avec la maquette : x 1129,8 (1440) et 969,8 (1280), largeur 240,8, hauteur 17,9, DM Sans 13 px, graisse 400, couleur rgb(110,101,90), 20,6 px entre le nom et le détail dans les deux. Le décalage vertical de +13,8 px vient des lignes au-dessus (agent +10, bailleur +6), pas de la ligne du garant. Le comparateur apparie pourtant la ligne de la maquette (« reçue ») à un autre nœud, d'où les quatre écarts « texte 91 / 84 » du rapport : le texte diffère parce qu'aucun garant de la démo n'a de pièce au dossier, et la lecture seule interdit d'en ajouter une. Le libellé « renseignée » (`lease.guarantor.pieceRenseignee`) dit que le numéro est saisi, pas qu'une pièce a été reçue : on garde ce mot, puisque l'API ne sert qu'`id_on_file` (type et numéro présents). Sur téléphone, la ligne « Garant (1) » du dossier est sous les 844 px du relevé, comme dans la maquette. Relevés : scratchpad du lot 2, b3fid/prod{1,3,5} et cmp{1,3,5}"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "ligne « Interventions (3) » du dossier",
+      "propriete": "absente",
+      "exception": "technique",
+      "motif": "la maintenance n'a pas de filtre `lease_id` ; décision (a) du lot : information seule, non implémentée — question posée"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "ligne « Conditions et clauses »",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "le bail 4 n'a ni `terms` ni `special_conditions` ; la ligne est éprouvée en test (« conditions-du-bail »)"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "ligne « État des lieux d'entrée »",
+      "propriete": "chevron → bouton de téléchargement",
+      "exception": "technique",
+      "motif": "aucun écran d'état des lieux dans l'app : la ligne télécharge le PDF généré (`inventory_move_in`)"
+    },
+    {
+      "ecran": "app-baux a-1-bureau-*",
+      "element": "carte « Actions » : « Enregistrer un préavis » et « Résilier le bail »",
+      "propriete": "un seul des deux (« Résilier le bail » au personnel, « Donner mon préavis » au locataire)",
+      "exception": "technique",
+      "motif": "l'API n'a qu'un geste, `requestEarlyTermination` (`requested_by_role` libre, journalisé) : deux entrées ouvriraient le même dialogue"
+    },
+    {
+      "ecran": "app-baux a-1-bureau-*",
+      "element": "« Encaisser 1 422 750 F »",
+      "propriete": "montant absent du bouton",
+      "exception": "décision 8",
+      "motif": "décision 8 de la session : « Encaisser » sans montant total, la pénalité reste un geste de ligne (le dialogue porte le montant de l'échéance choisie)"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "échéancier : menu « ⋯ » d'une ligne",
+      "propriete": "absent de la maquette",
+      "exception": "fonction existante",
+      "motif": "« Marquer la pénalité réglée » et « Copier le lien de paiement » (P189.03) n'ont pas d'autre accès sur la fiche"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "onglets « Documents (6) », « Historique (14) »",
+      "propriete": "sans compte",
+      "exception": "technique",
+      "motif": "aucun compte servi sans lire les deux listes ; « Historique » n'existe que pour qui l'API l'ouvre (décision 11)"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "tout ce qui suit l'en-tête : montants, nombre d'échéances, état du mois, ordonnées",
+      "propriete": "valeurs et y",
+      "exception": "donnée",
+      "motif": "bail 4 de la démo (Fatou Wade, 640 000 F, une échéance en retard, EDL généré) au lieu du bail de la maquette (36 échéances)"
+    },
+    {
+      "ecran": "app-baux a-4-*",
+      "element": "fond de la feuille : la LISTE des baux dans la maquette, la fiche du bail dans le produit",
+      "propriete": "tout ce qui est sous la feuille, et la hauteur de la feuille",
+      "exception": "technique",
+      "motif": "la révision s'ouvre depuis la fiche (`?geste=reviser`, point d'entrée de TCK-2644) ; la liste et son geste « Réviser » sont TCK-2644/TCK-2642"
+    },
+    {
+      "ecran": "app-baux a-4-*",
+      "element": "puces de motif (« Indexation », « Travaux », « Accord des parties »)",
+      "propriete": "bordure 1 px de la primitive ; état pressé porté aussi par `aria-pressed`",
+      "exception": "règle du design system",
+      "motif": "primitive `PuceDeFiltre`, à la mesure du CHOIX de la maquette depuis le lot 3 (h-10, px-4, coche sur la puce retenue) : les trois puces passent sur deux lignes comme dans la maquette, mesuré 125 × 40, 85 × 40, 160 × 40 au téléphone"
+    },
+    {
+      "ecran": "app-baux a-4-bureau-*",
+      "element": "la feuille « Réviser le loyer » au bureau",
+      "propriete": "panneau latéral droit de 480 px pleine hauteur au lieu du dialogue centré de 520 px",
+      "exception": "décision du porteur",
+      "motif": "`FeuilleDuBas` devient le panneau latéral dès `md` (décision du porteur du 2026-11-11, TCK-2688, docblock de la primitive) ; contenu identique, pied « Annuler / Proposer la révision »"
+    },
+    {
+      "ecran": "app-baux a-1-bureau-*",
+      "element": "avatars de la carte « Parties »",
+      "propriete": "40 px au lieu de 36",
+      "exception": "technique",
+      "motif": "un seul DOM pour le téléphone (40) et le bureau ; à la densité du bureau l'avatar rend 36 px de jeton × 0,9 — écart d'une taille, sans effet sur la ligne"
+    },
+    {
+      "ecran": "app-baux a-1-telephone",
+      "element": "ligne « Documents » du dossier",
+      "propriete": "absente de la maquette",
+      "exception": "technique",
+      "motif": "au téléphone, l'onglet « Documents » du bureau n'a pas d'autre accès : la ligne y mène (décision a du lot, Documents → onglet)"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "carte « Durée » : « préavis 3 mois » et « révision possible le 1 juil. 2027 »",
+      "propriete": "l'indemnité de départ anticipé, sans date de révision",
+      "exception": "décision 10",
+      "motif": "décision 10 de la session (même choix que TCK-2643, décision 5) : l'API ne sert pas de date de révision"
+    },
+    {
+      "ecran": "app-baux a-1-*, a-4-*",
+      "element": "encres en alpha de la maquette (texte de la pastille « Habitation », icônes de ligne du dossier)",
+      "propriete": "couleur (rgba(31,24,17,0.75) / rgba(31,24,19,0.7) → encre douce opaque)",
+      "exception": "règle du design system",
+      "motif": "jeton opaque `encre-douce` imposé dans /app par `encre-sans-alpha.contraste.test.ts` — même exception que TCK-2580, TCK-2581"
+    },
+    {
+      "ecran": "app-baux a-1-telephone",
+      "element": "chevron du lien du bien",
+      "propriete": "x (233,6 → 300,1)",
+      "exception": "donnée",
+      "motif": "le chevron suit le titre du bien (« Appartement lumineux F2 à Grand Yoff » contre « Villa 5 chambres · Ouest Foire »)"
+    },
+    {
+      "ecran": "app-baux a-1-bureau-*",
+      "element": "échéancier : largeur des colonnes, une seule ligne, pas d'action « Les 36 échéances »",
+      "propriete": "x des cellules et des en-têtes, hauteur de la carte",
+      "exception": "donnée",
+      "motif": "le bail 4 n'a qu'une échéance : la grille (sous-grilles d'une liste, six pistes `auto` comme une table) se règle sur une ligne au lieu de six, et l'action de la carte n'apparaît qu'au-delà de six échéances. Vérifié sur le bail 36 (22 échéances) à 390/1024/1280/1440 : en-tête et cellules au même x à chaque colonne, aucun débord de la grille ni de la carte, titre non coupé au téléphone (« Échéancier » seul à côté de « Les 22 échéances »). À 1280, la colonne de droite ouverte, « Novembre 2026 » passe sur deux lignes plutôt que de déborder"
+    },
+    {
+      "ecran": "app-baux a-1-bureau-*",
+      "element": "cellule « Pénalité » : « 32 000 F · à régler à l'agence » au lieu de « 67 750 F »",
+      "propriete": "texte et largeur de la colonne",
+      "exception": "donnée",
+      "motif": "la pénalité du bail 4 n'est pas encaissable en ligne (`late_fee_payable_online` faux) : le produit le dit, la maquette n'a pas ce cas. Une pénalité due en ligne se lit « 32 000 F » seul au bureau (« Pénalité » et « · due » restent pour qui écoute, masqués à l'œil)"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "« En retard de 7 j » au lieu de « En retard de 6 j »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le compte part de l'échéance du bail 4 (5 nov.) et du jour du relevé (12 nov.) ; la carte Loyer et la ligne partagent `joursEntre`"
+    },
+    {
+      "ecran": "app-baux a-4-telephone",
+      "element": "aide « Première échéance au nouveau loyer : … » sous « À partir du »",
+      "propriete": "absente (−20 px : le titre de la feuille à y 162 au lieu de 142)",
+      "exception": "donnée",
+      "motif": "l'aide n'apparaît que si une échéance de l'échéancier tombe à la date d'effet ou après ; le bail 4 n'a que celle de novembre. Le bloc d'identité (avatar 40, 64 px) et tout ce qui suit « Motif » sont à la mesure de la maquette"
+    },
+    {
+      "ecran": "app-baux a-1-*",
+      "element": "« Quittance » de la ligne",
+      "propriete": "lien `BoutonTelechargement` (variante link) : icône `Download` de la primitive, état « en cours » pendant le téléchargement",
+      "exception": "règle du design system",
+      "motif": "la quittance se télécharge avec le Bearer (`BoutonTelechargement`) ; la forme suit la maquette depuis le lot 3 (lien primaire « Quittance », plus de bouton à bord « Quittance PDF »). Absente du bail 4 (aucune échéance payée) : vue sur le bail 36"
+    }
+  ],
+  "ecarts_ouverts": []
+}

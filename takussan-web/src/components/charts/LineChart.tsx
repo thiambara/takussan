@@ -13,7 +13,7 @@ const VIEW_W = 640;
 const VIEW_H = 260;
 /**
  * Le repère de tracé — même construction que `BarChart`, dont l'en-tête porte le raisonnement
- * (TCK-532) : les étiquettes étaient des `<text>` en `text-[10px]` DANS un SVG mis à l'échelle,
+ * (TCK-532) : les étiquettes étaient des `<text>` en taille arbitraire de 10 px DANS un SVG mis à l'échelle,
  * donc sous 5 px sur téléphone. Elles sont désormais du HTML en `text-xs` placé en pourcentages ;
  * le tracé seul reste en SVG, étiré sur sa cellule, trait en `non-scaling-stroke`.
  */
@@ -179,8 +179,8 @@ export function LineChart({ data, title, unit, className, abscisses }: Props) {
                 className={cn(
                   'absolute top-0 whitespace-nowrap text-xs leading-4 text-muted-foreground',
                   i === 0 ? '' : i === labels.length - 1 ? '-translate-x-full' : '-translate-x-1/2',
-                  eclaircir && rang % 2 === 1 && '@max-[36rem]:hidden',
-                  eclaircir && rang % 4 === 2 && '@max-[16.5rem]:hidden',
+                  eclaircir && rang % 2 === 1 && 'max-lg:@max-[36rem]:hidden lg:@max-[32.4rem]:hidden',
+                  eclaircir && rang % 4 === 2 && 'max-lg:@max-[16.5rem]:hidden lg:@max-[14.85rem]:hidden',
                 )}
                 style={{ left: pourcent(fraction) }}
               >

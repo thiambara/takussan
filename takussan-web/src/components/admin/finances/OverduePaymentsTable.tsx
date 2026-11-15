@@ -35,12 +35,23 @@ type Ligne = AgingBalance['rows'][number];
  *
  * Le nom du composant est conservé : c'est l'onglet qu'il rend, et ses consommateurs ne changent pas.
  */
-export function OverduePaymentsTable() {
+interface OverduePaymentsTableProps {
+  /**
+   * TCK-2660 — le regroupement FIXÉ par l'appelant : sans bascule. La vue « Par bailleur » des
+   * impayés monte la balance âgée par bailleur ; sans la prop, la bascule d'avant reste.
+   */
+  readonly regroupement?: AgingGroupBy;
+  /** TCK-2660 — un bailleur devient un bouton qui ouvre ses impayés (`filter[landlord_id]`). */
+  readonly surBailleur?: (bailleur: { readonly id: number; readonly nom: string }) => void;
+}
+
+export function OverduePaymentsTable({ regroupement, surBailleur }: OverduePaymentsTableProps = {}) {
   const locale = useLocale() as Locale;
   const t = useTranslations('admin.finances.aging');
   const { user } = useAuth();
   const agencyId = user?.agency_id ?? undefined;
-  const [groupBy, setGroupBy] = useState<AgingGroupBy>('tenant');
+  const [groupByChoisi, setGroupBy] = useState<AgingGroupBy>('tenant');
+  const groupBy = regroupement ?? groupByChoisi;
 
   const query = useAgingBalance(agencyId, groupBy);
 
@@ -62,6 +73,14 @@ export function OverduePaymentsTable() {
           >
             {nom}
           </Link>
+        ) : groupBy === 'landlord' && row.id !== null && surBailleur ? (
+          <button
+            type="button"
+            onClick={() => surBailleur({ id: row.id as number, nom })}
+            className="rounded-sm text-left underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            {nom}
+          </button>
         ) : (
           <span>{nom}</span>
         );
@@ -85,6 +104,7 @@ export function OverduePaymentsTable() {
 
   return (
     <div className="space-y-4">
+      {regroupement ? null : (
       <div role="group" aria-label={t('groupByLabel')} className="flex flex-wrap gap-2">
         {(['tenant', 'landlord'] as const).map((g) => (
           <Button
@@ -99,6 +119,7 @@ export function OverduePaymentsTable() {
           </Button>
         ))}
       </div>
+      )}
 
       <QueryBoundary
         query={query}

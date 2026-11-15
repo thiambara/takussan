@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Settings\EditablePlatformSettings;
 use App\Http\Requests\Api\StoreLeaseRequest;
+use App\Rules\JourIso;
+use App\Services\Lease\EarlyTerminationService;
 
 /**
  * TCK-089 — Validation du payload `POST /api/leases/{lease}/renew`.
@@ -33,16 +36,18 @@ class RenewLeaseRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'start_date' => ['sometimes', 'nullable', 'date'],
-            'end_date' => ['sometimes', 'nullable', 'date', 'after:start_date'],
+            'start_date' => ['sometimes', 'nullable', 'date', new JourIso],
+            'end_date' => ['sometimes', 'nullable', 'date', new JourIso, 'after:start_date'],
             'monthly_rent' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            // TCK-2679 — renégociables comme le loyer ; absentes, héritées du parent.
+            'monthly_charges' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'late_fee_percent' => ['sometimes', 'nullable', 'numeric', 'between:0,50'],
             'late_fee_grace_days' => ['sometimes', 'nullable', 'integer', 'between:0,30'],
             // VERIF-596 passe 3 (N1') — renégocier les termes figés au renouvellement est légitime ;
             // mêmes bornes que `UpdateLeaseRequest`. Absents, ils sont hérités du parent.
-            'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', 'between:0,12'],
+            'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', ...EditablePlatformSettings::reglesDeBornes(EarlyTerminationService::SETTING_KEY)], // TCK-2842
             'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
             'terms' => ['sometimes', 'nullable', 'string'],
             // P209.05 (TCK-2177) — la borne de la création : un renouvellement crée aussi un bail.

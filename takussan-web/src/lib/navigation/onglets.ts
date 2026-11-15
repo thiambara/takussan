@@ -14,10 +14,19 @@ export const ONGLETS_AU_PLUS = 4;
 
 /**
  * Libellés courts, clé sous `nav.sidebar.onglets` — les mots du ticket. Une destination absente garde
- * le libellé de son entrée (persona compris : « Interventions », « Biens »).
+ * le libellé de son entrée (persona compris : « Interventions », « Biens ») ; le libellé d'onglet PROPRE
+ * AU PERSONA (`Disposition.libellesDOnglets`) l'emporte sur les deux (TCK-2618 : « Aujourd'hui » de
+ * l'agent, « Biens » du bailleur).
+ *
+ * TCK-2618 — « Messages » et non « Messagerie », tronqué à 360 avec une pastille ; « Argent » pour les
+ * finances de l'agence, une page de `nav.admin` dont l'onglet lit donc `nav.sidebar` ; « Clients » et non
+ * « Clients (CRM) », le mot de la maquette sous le pouce de l'agent.
  */
 export const LIBELLES_COURTS: Partial<Record<IdDestination, string>> = {
   'tableau-de-bord': 'accueil',
+  messagerie: 'messages',
+  'agence-finances': 'argent',
+  clients: 'clients',
   favoris: 'favoris',
   visites: 'visites',
   demandes: 'demandes',
@@ -32,9 +41,12 @@ interface GroupeDEntrees<E> {
   readonly entrees: readonly E[];
 }
 
-function abreger<E extends EntreeComposee>(entree: E): E {
-  const court = LIBELLES_COURTS[entree.id];
-  return court ? { ...entree, labelKey: `onglets.${court}` } : entree;
+function abreger<E extends EntreeComposee>(entree: E, propres: Partial<Record<IdDestination, string>>): E {
+  const cle = propres[entree.id] ?? (LIBELLES_COURTS[entree.id] ? `onglets.${LIBELLES_COURTS[entree.id]}` : null);
+  if (!cle) return entree;
+  // Ces libellés vivent sous `nav.sidebar` : une page d'agence (`nav.admin`) quitte son espace.
+  const { labelSpace: _espace, ...reste } = entree;
+  return { ...reste, labelKey: cle } as E;
 }
 
 /**
@@ -52,6 +64,8 @@ function abreger<E extends EntreeComposee>(entree: E): E {
 export function ongletsDuMenu<E extends EntreeComposee & { readonly locked?: boolean }>(
   groupes: readonly GroupeDEntrees<E>[],
   onglets: readonly IdDestination[],
+  /** TCK-2618 — les libellés d'onglet propres au persona (`Disposition.libellesDOnglets`). */
+  libellesDuPersona: Partial<Record<IdDestination, string>> = {},
 ): E[] {
   const parId = new Map<string, E>();
   for (const groupe of groupes) {
@@ -64,6 +78,6 @@ export function ongletsDuMenu<E extends EntreeComposee & { readonly locked?: boo
   const reserve = [...parId.values()].filter((e) => !declares.has(e.id));
   return [...declares].slice(0, ONGLETS_AU_PLUS).flatMap((id) => {
     const entree = parId.get(id) ?? reserve.shift();
-    return entree ? [abreger(entree)] : [];
+    return entree ? [abreger(entree, libellesDuPersona)] : [];
   });
 }

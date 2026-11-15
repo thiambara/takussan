@@ -241,7 +241,7 @@ export function TimeSeriesChart({
                 x={PADDING.left - 8}
                 y={g.y + 3.5}
                 textAnchor="end"
-                className="fill-muted-foreground text-[11px] tabular-nums"
+                className="fill-muted-foreground text-[0.6875rem] tabular-nums"
               >
                 {format(g.valeur)}
               </text>
@@ -264,7 +264,7 @@ export function TimeSeriesChart({
                 x={xPour(i)}
                 y={VIEW_H - 12}
                 textAnchor="middle"
-                className="fill-muted-foreground text-[11px] tabular-nums"
+                className="fill-muted-foreground text-[0.6875rem] tabular-nums"
               >
                 {etiquette(p)}
               </text>

@@ -1,8 +1,8 @@
 # ADR-0088 — Le journal des recherches est anonyme et agrégé, et une recherche n'est montrée qu'après cinq visiteurs distincts
 
-- **Statut** : Accepté le 2026-11-04 par le porteur (option a) — modalités : décisions de la session, à revoir
+- **Statut** : Accepté le 2026-11-04 par le porteur (option a) — modalités : décisions de la session, à revoir ; **amendé le 2026-11-09** (TCK-2511, quatrième sortie) et **le 2026-11-10** (TCK-2603, cinquième sortie, § 4), cinquième sortie **validée par le porteur le 2026-11-14**
 - **Date** : 2026-11-04
-- **Tickets** : TCK-2472 (journal), TCK-2473 (analyse de la saisie), TCK-2474 (index et route des suggestions), TCK-2475 (barre de recherche), TCK-2476 (variantes tenues par l'IA)
+- **Tickets** : TCK-2472 (journal), TCK-2473 (analyse de la saisie), TCK-2474 (index et route des suggestions), TCK-2475 (barre de recherche), TCK-2476 (variantes tenues par l'IA) ; amendements : TCK-2511 (quatrième sortie), TCK-2603 (cinquième sortie)
 - **Dépend de** : [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md), [ADR-0076](0076-le-socle-ia.md)
 
 ## Contexte
@@ -38,6 +38,38 @@ Mesuré le 2026-11-04 sur `dev` `74506074b` :
 4. **Une recherche n'est montrée qu'après cinq visiteurs distincts** sur un même jour, et seulement si elle rend encore
    des résultats. La demande sans résultat ne sort que vers l'usage `radar.cibles` (ADR-0087 §6), l'usage `search.variantes`
    (§7, en saisies normalisées seulement) et la console.
+   *Amendement du 2026-11-09 (TCK-2511)* : une quatrième sortie, **un agrégat et rien d'autre** — le nombre de
+   recherches des 30 derniers jours dont le filtre de quartier est le quartier commun des annonces d'un lien de
+   réclamation du Radar, montré au seul porteur de ce lien signé, et seulement à partir de
+   `radar.claim.demand_min_searches` (50). Aucune saisie, aucune recherche, aucun compte de visiteurs ne sort ; sous le
+   seuil, rien. Le seuil de cinq réseaux ne s'applique pas : il protège une recherche *montrée*, et un total par quartier
+   n'en montre aucune. `privacy.ts` le dit (§6).
+   *Amendement du 2026-11-10 (TCK-2603 ; audit UX famille 2, décision n° 1 (a) du porteur, publier sans compte —
+   [ADR-0093](0093-publier-sans-compte-le-brouillon-vit-dans-le-navigateur.md))* : une cinquième sortie, **publique**, et
+   elle aussi **un agrégat et rien d'autre**. C'est le nombre de recherches des 7 derniers jours dont le **filtre de ville**
+   est une ville du référentiel, servi par `GET /api/public/publish/demand?city=` au départ de la publication (« 1 240
+   recherches à Dakar cette semaine »).
+   - **Granularité** : la ville seule. Ni quartier, ni type, ni prix, ni jour, ni aucune autre ventilation. Une seule
+     ville par appel.
+   - **Seuil** : `publish.demand_min_searches` (200, valeur décidée par le porteur le 2026-11-10). Sous le seuil, `null`, et rien ne s'affiche.
+   - **Arrondi** à la dizaine inférieure, **par l'API** : le total n'est pas une mesure exacte qui se compare d'un jour à
+     l'autre, et la réponse brute ne le contient jamais (1 247 sort `1240`). Un arrondi laissé au front publierait le
+     total exact. Le seuil se juge sur le total exact (199 → `null`, 200 → `200`).
+   - **Cache** d'une heure, et limiteur `public-read`.
+   - Sans ville demandée, la réponse porte la ville qui a le plus de recherches sur la période. C'est le seul classement
+     qui sorte, et il ne nomme qu'une ville.
+   - Aucune saisie, aucune recherche et aucun compte de visiteurs ne sort : la réponse est `{data: {city, searches_7d}}`,
+     **et aucune autre clé**.
+   - Le seuil de cinq réseaux ne s'applique pas, pour la raison de la quatrième sortie : il protège une recherche
+     *montrée*, et un total hebdomadaire par ville n'en montre aucune.
+   - **Pourquoi elle peut être publique, quand la quatrième est réservée au porteur d'un lien signé** : un total de ville
+     au-dessus de 200 ne dit rien d'une personne ni d'une recherche, là où un total de **quartier**, petit, approche la
+     recherche isolée. Le seul risque est concurrentiel : un tiers apprend la demande par ville. Il est accepté, c'est un
+     chiffre de vitrine.
+   - `privacy.ts` le dit, et `VERSION_DOCUMENTS` avance dans la PR qui l'écrit (§ 6).
+   - *Validé par le porteur le 2026-11-14 (« je valide tout »)*, tel qu'écrit ci-dessus : total d'une ville sur 7 jours,
+     arrondi à la dizaine inférieure côté API, seuil `publish.demand_min_searches` = 200 sous lequel `searches_7d` est
+     `null`, aucune autre clé que `city` et `searches_7d`. Les modalités de cette sortie ne sont plus « à revoir ».
 5. **Rétention** : les lignes du journal vivent 13 mois.
 6. **`privacy.ts` le dit**, et `VERSION_DOCUMENTS` avance, dans la PR qui l'écrit.
 7. **L'IA ne travaille jamais à la frappe.** La suggestion se calcule par du code et un index dédié. L'IA tient hors ligne

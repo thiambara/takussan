@@ -30,6 +30,8 @@ const fetchPropertyMock = vi.fn();
 vi.mock('@/lib/queries/properties-server', () => ({
   fetchDashboardProperty: (...a: unknown[]) => fetchPropertyMock(...a),
 }));
+// TCK-2639 — la carte « Occupation » lit l'API (React Query) : hors du sujet de ce test.
+vi.mock('@/components/property-dashboard/fiche/CarteOccupation', () => ({ CarteOccupation: () => null }));
 vi.mock('@/components/property-dashboard/PropertyDetailTabs', () => ({ PropertyDetailTabs: () => null }));
 vi.mock('@/components/property-dashboard/PropertyHeaderActions', () => ({ PropertyHeaderActions: () => null }));
 vi.mock('@/components/property-dashboard/PropertyStatusBadge', () => ({ PropertyStatusBadge: () => null }));

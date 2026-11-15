@@ -1,10 +1,11 @@
-import Link from 'next/link';
-import { useTranslations } from 'next-intl';
-import { SearchX } from 'lucide-react';
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 
-import { EmptyState } from '@/components/feedback';
-import { buttonVariants } from '@/components/ui/button';
-import { RetourVersLaListe } from './RetourVersLaListe';
+import { getMeAction } from '@/app/actions/auth';
+import { accueilNommeAujourdhui } from '@/lib/navigation/accueil-nomme';
+import { profilLieDeLaCoque, typeDuProfilActif } from '@/lib/navigation/personas';
+import { getActiveProfileId } from '@/lib/session';
+import { CorpsDeLIntrouvable } from './CorpsDeLIntrouvable';
 
 /**
  * L'introuvable DU TABLEAU DE BORD — et le mot « du » porte tout le fichier.
@@ -44,29 +45,44 @@ import { RetourVersLaListe } from './RetourVersLaListe';
  * `__tests__/introuvable.test.tsx`, qui échoue si un segment dynamique apparaît sous `/app` sans
  * y figurer, ou si une destination citée n'a pas de `page.tsx` sur le disque.
  *
- * ⚠ **Ce fichier n'est PAS `'use client'`, et ce n'est pas un détail de style.** Mesuré : un
- * `not-found.tsx` client n'est pas rendu dans le HTML de la réponse 404 — l'écran reste vide
- * jusqu'à l'hydratation. Le message et le retour au tableau de bord sont donc servis par le
- * serveur ; seul le raccourci contextuel vit dans `RetourVersLaListe`, qui porte le relevé.
+ * ## TCK-2619 — une adresse fausse propose d'aller ailleurs
+ *
+ * H1 « Page introuvable », la phrase qui ne tranche pas (ci-dessus), puis « Aller à… » OUVERT dans la page
+ * (le champ et l'index de la palette), les récents et quatre entrées du menu, et deux retours :
+ * « Retour à la liste » quand l'URL en a une, « Retour à l'accueil » (« Retour à Aujourd'hui » chez
+ * l'agent : `accueilNommeAujourdhui`, sur les entrées mêmes du layout — `getMeAction` est mis en cache
+ * pour la requête, aucune lecture de plus). Au téléphone, l'en-tête de la coque porte le H1 (la page le déclare, forme
+ * `racine`) et celui du contenu est masqué par la règle « un seul H1 » (`globals.css`, TCK-2617) ; le
+ * disque de l'icône ne paraît qu'au téléphone (maquette `app-coque`, « Page introuvable »).
+ *
+ * ⚠ **Aucun de ces composants n'est dans le HTML de la réponse 404, et rien dans ce fichier n'y peut
+ * rien** — mesuré le 2026-11-14 sur `next build` + `next start` (TCK-2740). Une sonde HORS de `/app`
+ * (un `not-found.tsx` serveur, une page qui appelle `notFound()`) rend la même chose que `/app/zzz` :
+ * **404**, document d'erreur de Next (`<html id="__next_error__">`, 58 octets de corps hors scripts),
+ * le texte n'étant que dans la charge RSC. La même sonde sous un `<Suspense>` rend **200**, son repli
+ * dans le corps, et toujours pas le texte. Témoin : `/app` (200) a 65 Ko de corps. La frontière
+ * `not-found` est une frontière d'erreur CLIENT, que le rendu serveur de React n'exécute pas : Next
+ * 16.3.1 ne rend jamais au serveur un introuvable atteint par `notFound()`, et l'écran (coque
+ * comprise) n'arrive qu'à l'hydratation. Ce n'est ni TCK-426 ni propre à `/app`. Le relevé du
+ * 2026-08-27 qui disait le contraire est démenti ; il a vraisemblablement lu la réponse entière, où la
+ * charge RSC porte tous les textes. La structure serveur est gardée : elle ne coûte rien, et le
+ * cliquet de `introuvable.test.tsx` ne la garde plus pour le HTML.
+ *
+ * ## Le titre (TCK-2740 AC4)
+ *
+ * Le seul morceau du `<head>` que le serveur rend pour une 404 : Next résout les métadonnées du
+ * document d'erreur avec `errorConvention: 'not-found'`, donc celles du `not-found.tsx` le plus
+ * profond — celui-ci. Sans `generateMetadata` ici, l'onglet disait « Tableau de bord » (défaut de
+ * `(dashboard)/layout.tsx`). Après l'hydratation, Next réécrit l'onglet avec le titre de la PAGE
+ * demandée : l'attrape-tout `[...introuvable]` porte donc le même, une fiche absente garde le sien.
  */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.notFound');
+  return { title: t('heading') };
+}
 
-export default function AppNotFound() {
-  const t = useTranslations('dashboard.notFound');
-
-  return (
-    <EmptyState
-      data-testid="app-not-found"
-      icon={<SearchX className="size-8" aria-hidden="true" />}
-      title={t('title')}
-      description={t('description')}
-      action={
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <RetourVersLaListe />
-          <Link href="/app" className={buttonVariants({ variant: 'outline' })}>
-            {t('backToDashboard')}
-          </Link>
-        </div>
-      }
-    />
-  );
+export default async function AppNotFound() {
+  const user = await getMeAction();
+  const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));
+  return <CorpsDeLIntrouvable aujourdhui={accueilNommeAujourdhui({ roles: user.roles, typeProfilActif })} />;
 }

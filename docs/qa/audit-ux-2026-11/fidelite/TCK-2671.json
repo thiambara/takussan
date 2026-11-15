@@ -1,0 +1,194 @@
+{
+  "ticket": "TCK-2671",
+  "ecrans": [
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Vérification",
+      "references": {
+        "telephone": "references/app-identite-agence/a-5-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/kyc",
+        "persona": "admin",
+        "etat": "l'admin de Dakar Immo (agence 1, base de démo du 2026-11-12) : dossier de vérification `pending`, pièces RCCM et NINEA fournies, pièce du dirigeant à l'échéance passée ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2671/p-rien.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Offre (agence déjà pro)",
+      "references": {
+        "telephone": "references/app-identite-agence/a-8-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/settings/agency/upgrade",
+        "persona": "admin",
+        "etat": "Dakar Immo, agence `standard` (déjà professionnelle) : son plan lu de l'API (`/api/me/subscription`, `/api/me/quota`) ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2671/p-rien.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 9,
+      "nom": "Passage en pro (hôte)",
+      "references": {
+        "telephone": "references/app-identite-agence/a-9-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-9-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-9-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/settings/agency/upgrade",
+        "persona": "hote",
+        "etat": "l'hôte du Studio de Aminata (agence 4, admin@studio-aminata.sn, agence `individual`) : sa dernière demande (n° 1) est `pending`, la n° 2 `rejected` — l'écran montre donc l'état « en cours » et non la reprise d'un refus (cf. écarts) ; prix lu de `GET /api/me/upgrade-offer` ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2671/p-rien.js) : rien n'est enregistré"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency/kyc · /app/settings/agency/upgrade",
+    "persona": "admin · hote",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "barre d'onglets du téléphone (« Accueil », « Argent », « Biens »/« Mes biens », « Loyers »/« Réservations », « Messages », « Menu », pastille « 2 ») et barre latérale du bureau (rubriques, libellés, compteurs, « 99+ », « Démarrer », « Vue agence », « Mon espace », « Réduire la barre »)",
+      "motif": "exclus du ticket (hors périmètre : le menu de bureau et ses libellés, famille 3) ; primitives de la coque, communes à tout /app — mêmes exclusions que TCK-2670, TCK-2664 et TCK-2677. Pour l'hôte (a-9), la barre est celle d'une agence individuelle"
+    },
+    {
+      "element": "« Aller au contenu principal »",
+      "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran tant qu'il n'a pas le focus — même exception que TCK-2619, TCK-2660 et TCK-2670"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-*",
+      "element": "nom, adresse en ligne, sections et états de la navigation, jauge, pièces et dates du dossier, plan et consommation, demandes de passage",
+      "propriete": "texte, largeur, nombre de lignes et y de tout ce qui suit",
+      "exception": "vérité des données",
+      "motif": "base de démo du 2026-11-12 : Dakar Immo a un dossier `pending` (pas `verified`), aucune raison sociale ni siège ; l'hôte a une demande `pending` ; aucune valeur n'est écrite en base pour imiter la maquette"
+    },
+    {
+      "ecran": "a-5",
+      "element": "« Vérifié · sert aussi à vos mentions légales », « Agence vérifiée » (historique), « Une pièce a expiré » et son icône",
+      "propriete": "absents du produit ; « Fourni · … », « Remplacer » absents de la maquette",
+      "exception": "vérité des données",
+      "motif": "la maquette montre un dossier VÉRIFIÉ dont la pièce du dirigeant a expiré ; le dossier de la démo est `pending` : ses pièces sont « Fourni », se remplacent, et l'historique ne porte que les dates que l'API rend (aucune vérification passée)"
+    },
+    {
+      "ecran": "a-5",
+      "element": "champ de la date d'expiration (« Choisir une date » et icône calendrier au lieu de « jj/mm/aaaa »)",
+      "propriete": "texte, icône",
+      "exception": "règle du design system",
+      "motif": "primitive `DatePicker` de l'app (déclencheur à libellé et icône `calendar`), pas d'`<input type=date>` local"
+    },
+    {
+      "ecran": "a-5, a-9",
+      "element": "bandeau « Une pièce de votre vérification a expiré » de la coque, et la tête de page sous lui",
+      "propriete": "absent, y",
+      "exception": "vérité des données",
+      "motif": "le bandeau suit le dossier (verified + pièce expirée) ; absent pour un dossier `pending` ; la maquette a-8 l'a, le produit non : la tête remonte de 54 px"
+    },
+    {
+      "ecran": "a-8",
+      "element": "« Pro » au lieu de « Offre Pro », « 50 000 F CFA » au lieu de « 50 000 F », « / mois » décalé en x",
+      "propriete": "texte, x",
+      "exception": "vérité des données",
+      "motif": "le nom du plan est celui de l'API (`plan.name`) et le prix `monthly_price_xof` formaté en F CFA (décision 14) : aucun libellé de plan ni montant écrit dans le code"
+    },
+    {
+      "ecran": "a-8",
+      "element": "« 120 » biens en ligne pour une limite de 100",
+      "propriete": "texte, absent de la maquette",
+      "exception": "vérité des données",
+      "motif": "consommation lue de `/api/me/quota` (AC5) : la démo dépasse sa limite ; la jauge le dit tel quel"
+    },
+    {
+      "ecran": "a-8",
+      "element": "détail de « Co-administration » (« Administrer l’agence à plusieurs » au lieu des noms des admins) et « Aucune action n'est requise — toutes les fonctionnalités équipe sont actives. »",
+      "propriete": "texte, absents de la maquette",
+      "exception": "vérité des données",
+      "motif": "l'API ne rend pas la liste des administrateurs à cet écran : le détail reste générique, et la phrase d'état est celle de l'écran « déjà professionnelle »"
+    },
+    {
+      "ecran": "a-8",
+      "element": "« Sans engagement » de la maquette",
+      "propriete": "absent du produit",
+      "exception": "décision produit",
+      "motif": "Décision 14 du ticket, re-mesurée le 2026-11-12 après TCK-2681 (done) : le produit ne tient toujours pas la phrase. TCK-2681 pose l'abonnement à l'approbation, et l'écran dit désormais ce qu'elle autorise (« Votre abonnement commence à l'approbation », agency.upgrade.page.prix.suite) ; mais l'agence n'a aucun moyen de résilier : la seule résiliation est un geste de l'opérateur (POST /api/admin/agencies/{agency}/subscription/cancel, AgencySubscriptionService::cancel, journal « Abonnement résilié par Takussan »), aucun texte contractuel ne dit « sans engagement », et ADR-0104 § 6 n'autorise que « commence à l'approbation »"
+    },
+    {
+      "ecran": "a-8",
+      "element": "chevrons des lignes « Ce que le passage en pro a ouvert »",
+      "propriete": "couleur (alpha 0,7), trait (2 → 1,75)",
+      "exception": "règle du design system",
+      "motif": "encre sans alpha (`encre-sans-alpha`) : `text-muted-foreground` plein ; trait des icônes de ligne de l'app"
+    },
+    {
+      "ecran": "a-9",
+      "element": "« Demande refusée », « Refusée », motif du refus, formulaire « Votre demande » prérempli (« Raison sociale », « NINEA », « RIB professionnel », « Adresse fiscale », statuts « à remplacer », « Changer », « Prendre en photo », « Choisir un fichier », « Envoyer la demande ») ; « Demande en cours », « En cours », « Révoquer la demande » absents de la maquette",
+      "propriete": "absents d'un côté",
+      "exception": "vérité des données",
+      "motif": "décision du team-lead (2026-11-12) : relevé sur la demande `pending` de la démo, sans écrire de refus en base ; l'état refusé (motif en premier bloc, formulaire prérempli, `resubmit_of`, NINEA et RIB absents du corps) est prouvé par les tests (`UpgradeRequestForm.test.tsx`, `UpgradeRequestStatus`, `page.tck-2671.test.tsx`) — AC4"
+    },
+    {
+      "ecran": "a-9",
+      "element": "« Inviter une équipe d'agents… », « Co-administrer l'agence à plusieurs (multi-admins). »",
+      "propriete": "absents de la maquette (texte)",
+      "exception": "vérité des données",
+      "motif": "« Pourquoi passer en pro ? » liste ce que l'offre publiée ouvre (`GET /api/me/upgrade-offer`), pas un texte de maquette"
+    },
+    {
+      "ecran": "a-* bureau",
+      "element": "adresse en ligne (`www.takussan.com/agencies/…` au lieu de `takussan.com/agences/…`)",
+      "propriete": "texte, largeur",
+      "exception": "vérité des données",
+      "motif": "`origineSite()` et la route publique réelle `/agencies/{slug}` — même écart que TCK-2670"
+    },
+    {
+      "ecran": "a-* bureau",
+      "element": "tête de page et colonne des sections",
+      "propriete": "y",
+      "exception": "règle du design system",
+      "motif": "tête de la coque de /app (`PageHeader`) — même écart que TCK-2670"
+    },
+    {
+      "ecran": "a-*",
+      "element": "tailles de texte, interlettrage et encres secondaires",
+      "propriete": "taille de police, espacement des lettres, couleur",
+      "exception": "règle du design system",
+      "motif": "jetons de l'app (`text-corps`, `text-ui`, `text-legende`…) — même écart que TCK-2670"
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2671/cmp-v4-a{5,9}-…, cmp-v2-a8-…",
+    "le": "2026-11-12, base de démo, jetons de l'app ; a-5 et a-9 après le retrait de la jauge (v4), a-8 en v2",
+    "resultats": {
+      "a5": "téléphone 26 conformes · 25 écarts · 12 absents · 8,64 % ; 1440 65 · 174 · 32 · 7,04 % ; 1280 64 · 173 · 32 · 7,82 %",
+      "a8": "téléphone 24 · 22 · 6 · 13,66 % ; 1440 64 · 178 · 33 · 13,1 % ; 1280 13,08 %",
+      "a9": "téléphone 17 · 15 · 23 · 22,74 % (état « en cours » au lieu du refus) ; 1440 31 · 128 · 75 · 9,92 % ; 1280 31 · 121 · 67 · 10,7 %"
+    },
+    "corriges_pendant_la_passe": [
+      "jauge de complétude retirée de la vérification et du passage en pro de l'hôte (absente des maquettes a-5 et a-9 ; gardée sur l'offre pro, a-8) : a-5 bureau 23,32 % → 7,04 %, a-9 bureau 13,13 % → 9,92 %",
+      "AC6 : « Prendre en photo » et « Choisir un fichier » étaient tronqués à 320 et 360 px (143 px chacun) ; libellés passés à la ligne — 143 × 45 px à 360, entiers, `scrollWidth − innerWidth = 0` (mesure CDP, scratchpad terrain-5/2671/ac6.mjs)",
+      "apostrophes typographiques de quatre textes fr de l'écran (en et wo inchangés)",
+      "`MISSING_MESSAGE admin.agencyConfig.fiche` sur /app/settings/agency/upgrade : frontière i18n `app/(dashboard)/app/settings/layout.tsx`"
+    ],
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024` sur /app/agency/kyc (admin) et /app/settings/agency/upgrade (admin, hote) : débord 0 et coupes 0 partout ; à 768, les ellipses relevées sont celles du rail de 60 px de la coque (famille 3)"
+  }
+}

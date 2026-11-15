@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentRequest;
+use App\Http\Requests\Api\UpdateDocumentVisibilityRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Agency;
 use App\Models\Booking;
@@ -15,8 +16,10 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
+use App\Services\Documents\DocumentVisibility;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\ImpersonationContext;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -46,7 +49,29 @@ class DocumentController extends Controller
         //
         // P218.06 (TCK-2295) — sous la règle d'auteur de `DocumentPolicy::view` (ADR-0031, amendement du
         // 2026-10-25, D3) : l'agent suspendu ou retiré ne liste plus ce qu'il a téléversé dans l'agence.
-        $base = DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
+        //
+        // TCK-2655 (ADR-0099 §1) — AVEC une cible (`filter[documentable_type]` + `filter[documentable_id]`),
+        // la liste suit la lecture : tout ce que `view` ouvre sur cette cible, quel qu'en soit l'auteur
+        // ({@see DocumentPolicy::listableOn()}). Une cible illisible ou introuvable retombe sur la règle
+        // de TCK-820, jamais sur un 403 ou un 404 qui dirait qu'elle existe (TCK-732).
+        //
+        // TCK-2841 (ADR-0099, amendement du 2026-11-14) — `filter[property_with_leases]={id}` : le bien
+        // ET ses baux hors brouillon, chaque cible jugée par sa lecture
+        // ({@see DocumentPolicy::listableOnPropertyAndLeases()}). Il prime sur la cible simple ; un
+        // identifiant mal formé ou introuvable ne rend rien, sans repli sur la règle de TCK-820 (un bien
+        // illisible suit la règle d'auteur, dans l'arbre).
+        $filter = $request->query('filter');
+        if (is_array($filter) && array_key_exists('property_with_leases', $filter)) {
+            $property = $this->propertyOf($filter['property_with_leases']);
+            $base = $property !== null
+                ? DocumentPolicy::listableOnPropertyAndLeases(Document::query(), $user, $property)
+                : Document::query()->whereRaw('1 = 0');
+        } else {
+            $target = $this->targetOf($request);
+            $base = $target !== null
+                ? DocumentPolicy::listableOn(Document::query(), $user, $target)
+                : DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
+        }
 
         // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
         // rattachées à un profil ne se listent pas.
@@ -71,6 +96,10 @@ class DocumentController extends Controller
             $counts[$type->value] = (int) ($parType[$type->value] ?? 0);
         }
 
+        // TCK-2655 — les pastilles « expire bientôt » et « à vérifier » de toute la liste filtrée, lues
+        // avant la pagination (qui borne la requête).
+        $attention = Document::attentionCounts($query->getEloquentBuilder());
+
         // P20.05 (TCK-901) — le fichier et la version active de chaque ligne se lisent sur `media`
         // chargé une fois pour la page, et non par deux requêtes par document.
         $paginator = $query
@@ -78,7 +107,7 @@ class DocumentController extends Controller
             ->with('media')
             ->paginate();
 
-        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts]);
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts, ...$attention]);
     }
 
     public function store(StoreDocumentRequest $request): JsonResponse
@@ -103,6 +132,7 @@ class DocumentController extends Controller
             'documentable_id' => $model->getKey(),
             'documentable_type' => $fqcn,
             'uploaded_by' => $user->id,
+            'is_internal' => $this->internalAtUpload($request, $user, $model),
             'name' => $data['name'],
             'type' => $data['type'],
             'description' => $data['description'] ?? null,
@@ -113,8 +143,57 @@ class DocumentController extends Controller
         $document->addMediaFromRequest('file')->toMediaCollection('file');
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->resolve($request),
+            // TCK-2773 — un document seul : ses auteurs nommés selon le lecteur.
+            'data' => DocumentResource::make($document->refresh())->avecAuteurs()->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2759 (ADR-0099, amendement du 2026-11-12, §§ 2, 4 et 5) — `is_internal` d'un téléversement :
+     *
+     * - sans le champ : vrai pour le lecteur des documents internes d'une fiche client (le personnel
+     *   qui dépose sur une fiche), faux partout ailleurs — le défaut tombe du côté réparable ;
+     * - `true` : 422 `document.internal_customer_only` hors d'une fiche client, puis 403 pour qui n'en
+     *   lit pas les documents internes (le client, un bailleur), et 422 `document.internal_own_upload`
+     *   pour le sujet de la fiche — rien n'est créé.
+     */
+    private function internalAtUpload(StoreDocumentRequest $request, User $user, Model $porteur): bool
+    {
+        if (! $request->has('is_internal')) {
+            return $porteur instanceof Customer && ! $this->isSubjectOf($user, $porteur)
+                && $user->can('keepsInternalOn', [Document::class, $porteur]);
+        }
+
+        if (! $request->boolean('is_internal')) {
+            return false;
+        }
+
+        abort_code_unless($porteur instanceof Customer, 422, 'document.internal_customer_only');
+        $this->authorize('keepsInternalOn', [Document::class, $porteur]);
+        abort_code_if($this->isSubjectOf($user, $porteur), 422, 'document.internal_own_upload');
+
+        return true;
+    }
+
+    /** TCK-2759 — le sujet de la fiche (`customers.user_id`), dont la pièce n'est jamais interne. */
+    private function isSubjectOf(User $user, Customer $customer): bool
+    {
+        return $customer->user_id !== null && (int) $customer->user_id === (int) $user->id;
+    }
+
+    /**
+     * TCK-2759 (ADR-0099, amendement du 2026-11-12) — `PATCH /api/documents/{document}/visibility` :
+     * garder pour l'agence, ou montrer au client, un document de fiche client
+     * ({@see DocumentVisibility}). Autorisé par `DocumentPolicy::setVisibility()`.
+     */
+    public function visibility(UpdateDocumentVisibilityRequest $request, Document $document, DocumentVisibility $visibility): JsonResponse
+    {
+        $document = $visibility->change($document, $request->boolean('is_internal'), $request->user());
+
+        return $this->json([
+            // TCK-2773
+            'data' => DocumentResource::make($document)->avecAuteurs()->resolve($request),
+        ]);
     }
 
     public function show(Request $request, Document $document, PersonalDataAccessLogger $accessLog): JsonResponse
@@ -123,7 +202,8 @@ class DocumentController extends Controller
         $accessLog->recordPlatformPieceRead($request->user(), $document);
 
         return $this->json([
-            'data' => DocumentResource::make($document)->resolve($request),
+            // TCK-2773 — la fiche : qui a ajouté, vérifié, versionné, selon le lecteur.
+            'data' => DocumentResource::make($document)->avecAuteurs()->resolve($request),
         ]);
     }
 
@@ -142,7 +222,8 @@ class DocumentController extends Controller
         ]);
 
         return $this->json([
-            'data' => DocumentResource::make($document->refresh())->resolve($request),
+            // TCK-2773
+            'data' => DocumentResource::make($document->refresh())->avecAuteurs()->resolve($request),
         ]);
     }
 
@@ -152,6 +233,37 @@ class DocumentController extends Controller
         $document->delete();
 
         return $this->json([], 204);
+    }
+
+    /**
+     * TCK-2655 — la cible d'une liste : un type de {@see Document::TARGET_ALIASES} et UN identifiant
+     * scalaire, qui désignent une ligne existante. Toute autre forme (liste, tableau, type inconnu,
+     * ligne absente ou supprimée) n'est pas une cible.
+     */
+    private function targetOf(Request $request): ?Model
+    {
+        $filter = $request->query('filter');
+        if (! is_array($filter)) {
+            return null;
+        }
+
+        $class = Document::targetClass($filter['documentable_type'] ?? null);
+        $id = $filter['documentable_id'] ?? null;
+        if ($class === null || ! is_string($id) || ! ctype_digit($id) || strlen($id) > 18) {
+            return null;
+        }
+
+        return $class::query()->find((int) $id);
+    }
+
+    /** TCK-2841 — le bien d'un `filter[property_with_leases]` : UN identifiant scalaire d'une ligne existante. */
+    private function propertyOf(mixed $id): ?Property
+    {
+        if (! is_string($id) || ! ctype_digit($id) || strlen($id) > 18) {
+            return null;
+        }
+
+        return Property::query()->find((int) $id);
     }
 
     protected function resolveDocumentableType(string $type): ?string

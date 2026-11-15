@@ -191,7 +191,7 @@ class CustomerScopeTest extends ApiTestCase
 
         $this->actingAsApi($landlord)->apiGet("/api/customers/{$tenant->id}")->assertForbidden();
         $vus = [
-            'bail' => $this->apiGet("/api/leases/{$lease->id}")->assertOk()->json('data.tenant'),
+            'bail' => $this->apiGet("/api/leases/{$lease->id}?include=tenant")->assertOk()->json('data.tenant'),
             'liste des baux' => collect($this->apiGet('/api/leases?include=tenant')->assertOk()->json('data'))
                 ->firstWhere('id', $lease->id)['tenant'],
             'réservation' => $this->apiGet("/api/bookings/{$booking->id}")->assertOk()->json('data.customer'),
@@ -211,7 +211,7 @@ class CustomerScopeTest extends ApiTestCase
             ->assertJsonPath('data.id_number_masked', '•••• 8877')
             ->assertJsonPath('data.emergency_contact_phone', '+221770000009')
             ->assertJsonPath('data.metadata.source', 'salon');
-        $this->apiGet("/api/leases/{$lease->id}")
+        $this->apiGet("/api/leases/{$lease->id}?include=tenant")
             ->assertOk()
             ->assertJsonPath('data.tenant.id_type', 'id_card')
             ->assertJsonPath('data.tenant.id_number_masked', '•••• 8877')

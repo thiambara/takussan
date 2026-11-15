@@ -48,6 +48,7 @@ use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
+use App\Observers\DocumentsDuPorteurObserver;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -98,6 +99,7 @@ use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
 use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
@@ -537,6 +539,16 @@ class AppServiceProvider extends ServiceProvider
         // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2599 (ADR-0093) — `POST /public/geo/resolve-link` : un lien collé SANS compte déclenche
+        // une requête SORTANTE. Par IP (réseau /64 en IPv6), et plus serré que la route connectée
+        // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.
+        RateLimiter::for('public-geo-link', fn (Request $request) => Limit::perMinute(10)->by('geo-link-ip:'.$this->clientNetwork($request)));
+
+        // TCK-2609 (ADR-0094 §3) — l'aperçu d'une invitation par son jeton, sans compte : par IP, assez
+        // large pour un invité qui recharge, assez serré pour qu'on n'y énumère pas de jetons. La
+        // demande d'un nouveau lien écrit à l'invitant : 5 par heure.
+        RateLimiter::for('public-invitation-preview', fn (Request $request) => Limit::perMinute(30)->by('invitation-preview-ip:'.$this->clientNetwork($request)));
+        RateLimiter::for('public-invitation-renewal', fn (Request $request) => Limit::perHour(5)->by('invitation-renewal-ip:'.$this->clientNetwork($request)));
 
         // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
         // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
@@ -655,6 +667,20 @@ class AppServiceProvider extends ServiceProvider
         // limiteur, et chaque note vocale pèse jusqu'à 2 Mo (ADR-0038). Route authentifiée : la clé
         // est l'utilisateur déjà authentifié par `auth:sanctum` (le throttle passe après dans la
         // priorité des middlewares).
+        // TCK-2590 (décision 8 du porteur, 2026-11-12) — la sonde de doublon au numéro COMPLET peut
+        // signaler une fiche que l'appelant ne lit pas (tout à `null`) : vingt par HEURE et par
+        // personne, en plus des vingt par minute de la route. Le préfixe n'y compte pas
+        // (`CustomerDuplicateDetector::numeroComplet()`, le prédicat même de la sonde). L'e-mail complet
+        // qui désigne une fiche masquée puise dans le même seau, mais après la sonde, dans son contrôleur
+        // (troisième porte, nuit du 2026-11-12) ; la création, la mise à jour et la conversion d'une demande
+        // aussi (`CustomerDuplicateDetector::budgeterLesSignalementsMasques`).
+        RateLimiter::for(CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET, fn (Request $request) => CustomerDuplicateDetector::numeroComplet(
+            is_string($request->query('phone')) ? $request->query('phone') : null,
+        ) !== null
+            ? Limit::perHour(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE)
+                ->by(CustomerDuplicateDetector::seauDuNumeroComplet($request->user()?->id ?? $this->clientNetwork($request)))
+            : Limit::none());
+
         RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
@@ -689,6 +715,20 @@ class AppServiceProvider extends ServiceProvider
             $token = (string) $request->route('token');
 
             return ClaimLinks::phoneOf($token) ?? 'radar-claim:'.hash('sha256', $token);
+        }
+
+        // TCK-2610 (ADR-0094 § 5) — l'invitation par SMS ne porte pas le numéro dans le corps : le seau est celui du numéro
+        // de l'invitation, que le jeton désigne (le même que la connexion par téléphone pour ce numéro). Par e-mail, le
+        // numéro saisi, comme `auth/phone/verify-code`. Un jeton inconnu a son propre seau, sans numéro.
+        if ($request->routeIs('public.invitations.verify-code')) {
+            $token = (string) $request->route('token');
+            $invitation = Invitation::query()->where('token', $token)->first(['email', 'phone']);
+            if ($invitation === null) {
+                return 'invitation-code:'.hash('sha256', $token);
+            }
+            if ($invitation->email === null) {
+                return preg_replace('/\s+/', '', (string) $invitation->phone) ?? '';
+            }
         }
 
         // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
@@ -791,6 +831,12 @@ class AppServiceProvider extends ServiceProvider
         RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
+
+        // TCK-2781 — l'index des documents recopie l'agence, la présence et le sujet de leur porteur :
+        // ils se réindexent quand l'un change (`DocumentsDuPorteurObserver::COLONNES`).
+        foreach (array_keys(DocumentsDuPorteurObserver::COLONNES) as $porteur) {
+            $porteur::observe(DocumentsDuPorteurObserver::class);
+        }
 
         // TCK-266 — onboarding checklist auto-completion observers.
         // Inventory.signed (move-in) → inventory_completed item ;

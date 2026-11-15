@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\JourIso;
 use Illuminate\Support\Carbon;
 
 /**
@@ -21,8 +22,8 @@ class PublicPropertyAvailabilityRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after:from'],
+            'from' => ['nullable', 'date_format:Y-m-d', new JourIso],
+            'to' => ['nullable', 'date_format:Y-m-d', new JourIso, 'after:from'],
         ];
     }
 

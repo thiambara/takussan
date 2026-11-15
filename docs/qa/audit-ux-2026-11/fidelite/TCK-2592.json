@@ -1,0 +1,196 @@
+{
+  "ticket": "TCK-2592",
+  "ecrans": [
+    {
+      "page": "app-pipeline",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste",
+      "references": {
+        "telephone": "references/app-pipeline/a-0-telephone.json",
+        "bureau-1440": "references/app-pipeline/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-pipeline/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/crm/pipeline (Liste par défaut pour le personnel : agent au téléphone, admin au bureau)",
+        "persona": "agent au téléphone (« Moi », comme la maquette), admin au bureau (« Agence », comme la maquette : « Awa Diop · Administratrice »)",
+        "etat": "les prospects de la base de démo, sans bouchon ; toute requête autre que GET/HEAD est refusée dans la page (`FID_AVANT=garde.js`) ; `p-attendre.js` attend la fin des chargements"
+      }
+    },
+    {
+      "page": "app-pipeline",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Kanban",
+      "references": {
+        "telephone": "references/app-pipeline/a-1-telephone.json",
+        "bureau-1440": "references/app-pipeline/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-pipeline/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/crm/pipeline?vue=etapes&etape=negotiating (téléphone, agent) · /app/crm/pipeline?vue=etapes (bureau, admin)",
+        "persona": "agent au téléphone, admin au bureau",
+        "etat": "données de la démo ; au téléphone `p-tel-etapes.js` déplie « Changer d’étape » sur la première carte de Négociation"
+      }
+    },
+    {
+      "page": "app-pipeline",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Motif de perte",
+      "references": {
+        "telephone": "references/app-pipeline/a-2-telephone.json",
+        "bureau-1440": "references/app-pipeline/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-pipeline/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "comme a-1",
+        "persona": "agent au téléphone, admin au bureau",
+        "etat": "données de la démo ; `p-tel-motif.js` choisit « Perdu » dans la carte dépliée, `p-bur-motif.js` porte la première carte de Négociation au clavier (Espace, → →, Espace) sur le bandeau Perdu ; les deux choisissent « Ne répond plus » et saisissent la précision de la maquette — rien n’est enregistré (garde.js refuse toute écriture)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/crm/pipeline",
+    "persona": "agent (téléphone) · admin (bureau)",
+    "disposition": "agent au téléphone · admin au bureau (chaque relevé passe sa persona)",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2, p2592/ : garde.js (chargé AVANT la page par `FID_AVANT`), pert/commun.js + pert/<écran>.js → p-<écran>.js ; relevés releves.sh → prod/, comparaison → cmp/"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Pipeline": "Prospects"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-pipeline a-*",
+      "element": "« Cherche » de chaque carte et ligne (« Villa Almadies · offre 85 000 000 F »), et l'ordonnée de tout ce qui suit",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "mesuré le 2026-11-12 (sonde-criteres.mjs, comptes seulement) : 0 des 344 clients de la démo n'a un critère de recherche (budget, contrat, villes, types) ; la ligne est lue par useLecteurDuClient, la même que la liste des clients (TCK-2590), et paraît dès qu'un critère existe"
+    },
+    {
+      "ecran": "app-pipeline a-*",
+      "element": "comptes, noms, retards, prochaines actions, médianes (« 38 prospects actifs », « 6 à relancer », « médiane 2 j »…)",
+      "propriete": "texte et largeur",
+      "exception": "donnée",
+      "motif": "les prospects de la démo, sans bouchon : 7 actifs pour l'agent (Moi), 53 pour l'agence, 46 à relancer, médianes nulles sur 3 étapes sur 4"
+    },
+    {
+      "ecran": "app-pipeline a-*",
+      "element": "« Dernier contact : appel il y a 9 j », « Appel il y a 3 j » (le canal du dernier contact)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "écart « décision 5 a » levé par TCK-2766 : l'API sert `last_contact {channel, at}` et le pipeline écrit « appel il y a 9 j » (capitale par `first-letter:uppercase`, comme la maquette), « WhatsApp hier », « Dernier contact : appel il y a 9 j » au téléphone. Éprouvé en test de composant (`PageDuPipeline.tck-2592.test.tsx`, ablations rouges). Sur la démo, les fiches gardent la durée seule (« Contacté il y a 9 j ») : le canal n'est tenu que depuis la migration du 2026-11-13, sans reprise de l'existant (le journal n'a pas le canal des notes ni des visites), et la mesure est en lecture seule. Restent hors du contrat les formes « bail il y a 9 j », « candidature hier », « demande il y a 8 j » et « visite lun. 9 nov. » (une date, pas une durée) : ce ne sont pas des contacts tenus par `touchCustomer()`. Une visite se dit « visite il y a N j »"
+    },
+    {
+      "ecran": "app-pipeline a-0-bureau-*, a-1-bureau-*, a-2-bureau-*",
+      "element": "note pointillée « L'agent au bureau ouvre la même vue sur Moi (38). »",
+      "propriete": "absente du produit",
+      "exception": "hors produit",
+      "motif": "une note de la maquette (NoteDeMaquette) adressée au porteur, pas un élément de l'écran"
+    },
+    {
+      "ecran": "app-pipeline a-1-bureau-*",
+      "element": "l'aperçu de la carte en vol",
+      "propriete": "position",
+      "exception": "état",
+      "motif": "la maquette pose la carte penchée dans sa colonne ET le bandeau Perdu en cible ; le produit, porté au clavier (Espace, → →), pose l'aperçu sur le bandeau qu'il survole : seul le bandeau survolé se dit « Déposer : motif demandé », les colonnes ne bougent pas, comme la maquette"
+    },
+    {
+      "ecran": "app-pipeline a-2-*",
+      "element": "voile du dialogue (flou) ; zone de précision (bord `border-input`, rayon `lg`, texte `text-champ`, poignée de redimensionnement)",
+      "propriete": "fond, bord, rayon, taille de police",
+      "exception": "primitive",
+      "motif": "Dialog (`bg-scrim/10 backdrop-blur-xs`) et Textarea (TCK-2686, TCK-2460 : l'uniformité des champs) sont des primitives communes à tous les écrans ; la maquette dessine un `div`"
+    },
+    {
+      "ecran": "app-pipeline a-*-bureau-*",
+      "element": "champ de recherche (bord `border-input`, loupe)",
+      "propriete": "bord, icône",
+      "exception": "primitive",
+      "motif": "DebouncedSearchInput, commun aux listes de la console"
+    },
+    {
+      "ecran": "app-pipeline a-*",
+      "element": "pastille d'initiales du référent",
+      "propriete": "fond",
+      "exception": "garde",
+      "motif": "la maquette pose `bg-accent/15`, que check-valeurs-arbitraires-app réserve aux badges featured : `bg-fond-avatar` (jeton des avatars, comme le carnet des bailleurs), encre `text-accent` gardée"
+    },
+    {
+      "ecran": "app-pipeline a-*-telephone",
+      "element": "cloche (pastille « 7 »), compteurs de la barre d'onglets",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "compteurs du compte de démo"
+    },
+    {
+      "ecran": "app-pipeline a-0-bureau-*",
+      "element": "pastille d'étape de la liste (« Visite », « Négociation »…)",
+      "propriete": "fond et couleur du texte",
+      "exception": "primitive",
+      "motif": "EtapeDuClient (customer-dashboard/liste/pieces), la pastille d'étape de la liste des clients : une étape se dit de la même couleur sur les deux listes ; la maquette pose ses propres tons"
+    },
+    {
+      "ecran": "app-pipeline a-*",
+      "element": "segment actif (Liste / Étapes, À relancer / À jour / Tous)",
+      "propriete": "ombre",
+      "exception": "jeton",
+      "motif": "`shadow-actif`, le jeton de l'item actif d'un contrôle segmenté (docs/design-guidelines.md) ; la maquette pose l'ombre `shadow` de Tailwind"
+    },
+    {
+      "ecran": "app-pipeline a-*-bureau-*",
+      "element": "déclencheurs « Étape », « Étiquette » non choisis",
+      "propriete": "couleur",
+      "exception": "garde",
+      "motif": "la maquette pose une encre translucide (foreground à 85 %), que la garde encre-sans-alpha refuse : `text-encre-douce`, son équivalent opaque"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "coque (barre latérale, en-tête, barre d'onglets)",
+      "ticket": "TCK-2617",
+      "motif": "au bureau le rôle « coque · barre latérale » apparie toute la page (~150 lignes de rôle par relevé) : seules les ancres se lisent"
+    },
+    {
+      "element": "onglet « Clients » (téléphone) et entrée « Clients » (barre latérale) non actifs sur /app/crm/pipeline",
+      "ticket": "navigation (src/data/navigation.ts, BarreDOnglets — hors de ce lot)",
+      "motif": "la maquette les montre actifs ; la résolution de l'onglet actif (`resolveActiveHref`) ne rattache pas /app/crm/pipeline à /app/customers"
+    }
+  ],
+  "_alias": "titre du bureau : « Pipeline » de la maquette, interdit par AC5 (décision 11a) → « Mes prospects » sur Moi, « Prospects » sur l'agence ou un agent (décision 2 a)",
+  "decisions_produit": [
+    {
+      "decision": "1 b (team-lead, 2026-11-12)",
+      "element": "tuile « Conversion des sorties » du bureau (AC4)",
+      "etat": "elle ouvre `sorties=30` : Gagné et Perdu dépliés et BORNÉS aux sorties des 30 derniers jours (`filter[exited_within_days]=30`, lu dans le journal par `PipelineStatsService::sortiesRecentes`, la définition même de `exits_last_30d`), comptés par leur propre pagination (`meta.total`), jamais par `exits_last_30d` qui compte des passages — « Charger plus » seulement s'il reste une page ; « Déplier » et l'en-tête du portefeuille gardent `sorties=1`, les colonnes entières comptées par `stage_counts`",
+      "ecart": "le compte de la tuile est un compte de PASSAGES : une fiche sortie deux fois dans la période compte deux fois et paraît une fois ; une fiche rouverte compte et ne paraît dans aucune colonne ; une fiche créée directement Gagné compte comme une sortie (pour la tuile comme pour le filtre)"
+    },
+    {
+      "decision": "4 a (team-lead, 2026-11-12)",
+      "element": "« Reporter » sur une relance dont la prochaine action est une tâche en retard",
+      "etat": "offert seulement si `next_action.manage` est vrai : `TaskPolicy::update` jugé pour la page (créateur membre, assigné du personnel, remplaçant d'un absent ; le lecteur d'équipe lit sans modifier) ; absent sur une visite",
+      "ecart": "aucun envers la maquette"
+    },
+    {
+      "decision": "10 a (team-lead, 2026-11-12)",
+      "element": "« Ajouter un client » dans l'en-tête du téléphone de /app/crm/pipeline",
+      "etat": "retiré, comme la maquette (aucun « Ajouter un client » dans app-pipeline) ; le geste reste sur la liste des clients (/app/customers), où la création vit",
+      "ecart": "aucun envers la maquette ; c'est un retrait envers le produit d'avant, consigné ici"
+    },
+    {
+      "decision": "9 a (team-lead, 2026-11-12)",
+      "element": "ancien kanban (PipelineKanban, PipelineColumn, PipelineCard, PipelineStatsBar, CustomerDetailSheet) et leurs tests",
+      "etat": "supprimés : plus aucune page ne les montait ; ce qu'ils éprouvaient est repris sur PageDuPipeline.tck-2592 (« ce que l’ancien kanban éprouvait ») ; ReasonDialog et constants gardés"
+    }
+  ]
+}

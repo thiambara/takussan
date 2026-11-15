@@ -21,6 +21,10 @@ interface LeasePaymentDialogProps {
   readonly leaseId: number;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** TCK-2660 — l'échéance présélectionnée (« Encaisser un paiement » depuis le dossier d'un impayé). */
+  readonly paiementInitial?: number;
+  /** TCK-2660 — appelé après l'encaissement, avec l'échéance réglée. */
+  readonly onEncaisse?: (paymentId: number) => void;
 }
 
 /** Les valeurs d'enum du backend ; les libellés vivent sous `lease.payment.methods.*`. */
@@ -34,7 +38,7 @@ const PAYMENT_METHODS = ['cash', 'bank_transfer', 'mobile_money', 'check', 'card
  * côté de celle qui restait due. Seules les échéances en attente ou en retard se règlent ici, comme
  * le refuse l'API pour les autres (`lease_payment.cannot_mark_paid`).
  */
-export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePaymentDialogProps) {
+export function LeasePaymentDialog({ leaseId, open, onOpenChange, paiementInitial, onEncaisse }: LeasePaymentDialogProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.payment');
   const tMethods = useTranslations('lease.payment.methods');
@@ -60,7 +64,7 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
   >({
     schema: leasePaymentSchema,
     defaultValues: {
-      payment_id: '',
+      payment_id: paiementInitial ? String(paiementInitial) : '',
       payment_method: 'cash',
       paid_at: '',
       reference_number: '',
@@ -72,6 +76,7 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
         ...(paid_at ? { paid_at } : {}),
         ...(reference_number ? { transaction_id: reference_number } : {}),
       });
+      onEncaisse?.(Number(payment_id));
       return undefined;
     },
     onSuccess: () => {

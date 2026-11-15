@@ -158,7 +158,7 @@ export function ProfileBadge({ profile, variant = 'pill', className }: ProfileBa
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+        'inline-flex items-center rounded-full px-2 py-0.5 text-[0.6875rem] font-medium',
         profileTypeColor(profile.type),
         className,
       )}

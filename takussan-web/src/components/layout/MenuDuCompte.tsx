@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import { Bell, Check, ChevronsUpDown, Coins, LogOut, ShieldCheck, UserCircle, UserRound } from 'lucide-react';
-import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { BellRing, Check, ChevronDown, ChevronsUpDown, Coins, ExternalLink, LogOut, ShieldCheck, User as IconeProfil, UserRound } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { EspacesDuMenu } from '@/components/profile/EspacesDuMenu';
 import { useAuth } from '@/context/AuthContext';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useChangementDeLangue } from '@/hooks/useChangementDeLangue';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { LOCALES, LOCALE_LABELS, LOCALE_SHORT, type Locale } from '@/i18n/config';
@@ -25,6 +27,7 @@ import { HREF_CREDITS, voitLePortefeuille } from '@/lib/navigation/acces-app';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types/user';
+import { FeuilleDuCompte } from './FeuilleDuCompte';
 import { FOCUS_RING_RENTRANT } from './styles-de-la-barre';
 
 /** TCK-2491 — la page des préférences de notification (« Réglages » du menu du compte). */
@@ -36,6 +39,12 @@ interface MenuDuCompteProps {
   readonly libelleRole: string;
   /** Le tiroir se referme quand un choix navigue. */
   readonly onNavigate?: () => void;
+  /**
+   * TCK-2617 — `en-tete` : le déclencheur de l'en-tête d'ACCUEIL au téléphone (l'espace en bouton :
+   * initiales de 28 px, nom de l'espace en 15 px, chevron) ; le même menu s'ouvre dessous. Défaut :
+   * le pied de la colonne.
+   */
+  readonly variante?: 'pied' | 'en-tete';
 }
 
 /**
@@ -57,13 +66,13 @@ interface MenuDuCompteProps {
  * - Le solde ne paraît que connu (jamais un « 0 » qui ne serait pas un solde, comme `PastilleCredits`),
  *   et seulement pour qui voit le portefeuille.
  */
-export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProps) {
+export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' }: MenuDuCompteProps) {
   const router = useRouter();
   const { logout } = useAuth();
   const t = useTranslations('nav');
   const tCompte = useTranslations('nav.sidebar.compte');
   const tAdmin = useTranslations('nav.admin');
-  const format = useFormatter();
+  const fmt = useFormatteurs();
   const locale = useLocale() as Locale;
   const langue = useChangementDeLangue();
   // TCK-623 — un compte sans nom (téléphone, OAuth) : une silhouette, et ce qui désigne le compte.
@@ -83,51 +92,104 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
     router.push(href);
   };
 
+  // TCK-2619 — au téléphone (sous `md` : le tiroir et l'en-tête d'accueil), le compte s'ouvre en FEUILLE
+  // DU BAS ; dès `md`, le menu déroulant de la colonne. Rendu serveur : le menu (instantané `false`), puis
+  // la feuille à l'hydratation — le déclencheur ne change pas d'aspect.
+  const telephone = useMatchesMedia('(width < 48rem)');
+  const declencheur =
+    variante === 'en-tete'
+      ? {
+          'data-slot': 'espace-de-l-en-tete',
+          className: cn(
+            'flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 pr-2 text-left transition-colors hover:bg-foreground/5 data-popup-open:bg-foreground/5',
+            FOCUS_RING_RENTRANT,
+          ),
+          children: (
+            <>
+              {/* Le nom accessible est le texte visible : l'espace (ou le compte, sans agence). */}
+              <Avatar className="size-7" aria-hidden>
+                {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
+                <AvatarFallback className="text-legende font-semibold">
+                  {initiales ?? <UserRound className="size-4" aria-hidden="true" />}
+                </AvatarFallback>
+              </Avatar>
+              {/* TCK-2617 — L'ESPACE, tel que le pied le nomme (`espace`, première partie) : l'agence, sinon le
+                  persona (« Locataire »), jamais le nom de la personne — il est déjà dans la feuille. */}
+              <span className="min-w-0 truncate text-corps font-semibold text-foreground">{actif?.agency?.name ?? (libelleRole || libelle)}</span>
+              <ChevronDown className="size-4 shrink-0 stroke-2 text-muted-foreground" aria-hidden />
+            </>
+          ),
+        }
+      : {
+          'data-slot': 'pied-du-compte',
+          className: cn(
+            'flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-foreground/5 data-popup-open:bg-foreground/5 icones:justify-center',
+            FOCUS_RING_RENTRANT,
+          ),
+          children: (
+            <>
+              {/* Les initiales sont une image du nom, qui suit : hors du nom accessible.
+                  TCK-2691 (C7) — 28,8 px au bureau, 36 px dans le tiroir ; le repli PAR DÉFAUT de l'avatar
+                  (TCK-2687 : `secondary` / `primary-deep`, 6,72:1) et non plus une pastille d'encre noire. Le
+                  « soi » de la maquette (`accent/15`, `text-accent`) tombe sous 4,5:1 sur la colonne
+                  (`AppSidebar.contraste.test.tsx`, ADR-0106 exception 1). */}
+              <Avatar className="size-8 max-md:size-9" aria-hidden>
+                {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
+                <AvatarFallback className="text-xs font-semibold max-md:text-avatar-36">
+                  {initiales ?? <UserRound className="size-4" aria-hidden="true" />}
+                </AvatarFallback>
+              </Avatar>
+              <span className="min-w-0 flex-1 icones:sr-only">
+                <span className="block truncate text-sm font-semibold text-foreground">{libelle}</span>
+                {/* Un séparateur LU : sans lui, le nom accessible collait le nom à l'espace. */}
+                {espace ? <span className="sr-only">, </span> : null}
+                <span className="block truncate text-xs text-muted-foreground">{espace}</span>
+              </span>
+              <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground icones:hidden" aria-hidden />
+            </>
+          ),
+        };
+
+  if (telephone) {
+    return (
+      <FeuilleDuCompte
+        user={user}
+        libelle={libelle}
+        initiales={initiales}
+        solde={voitLeSolde ? solde : null}
+        administration={entree ? { href: entree.href, libelle: tAdmin(entree.cle) } : null}
+        hrefPreferences={HREF_PREFERENCES}
+        onNavigate={onNavigate}
+        declencheur={<button type="button" {...declencheur} />}
+      />
+    );
+  }
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        data-slot="pied-du-compte"
-        className={cn(
-          'flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-foreground/5 data-popup-open:bg-foreground/5 icones:justify-center',
-          FOCUS_RING_RENTRANT,
-        )}
-      >
-        {/* Les initiales sont une image du nom, qui suit : hors du nom accessible. */}
-        <Avatar className="size-8" aria-hidden>
-          {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
-          <AvatarFallback className="bg-foreground text-xs font-semibold text-background">
-            {initiales ?? <UserRound className="size-4" aria-hidden="true" />}
-          </AvatarFallback>
-        </Avatar>
-        <span className="min-w-0 flex-1 icones:sr-only">
-          <span className="block truncate text-sm font-medium text-foreground">{libelle}</span>
-          {/* Un séparateur LU : sans lui, le nom accessible collait le nom à l'espace. */}
-          {espace ? <span className="sr-only">, </span> : null}
-          <span className="block truncate text-xs text-muted-foreground">{espace}</span>
-        </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground icones:hidden" aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" voile data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-1rem)]">
+      <DropdownMenuTrigger {...declencheur} />
+      <DropdownMenuContent align="start" voile data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-var(--spacing)*4)]">
         <div className="px-3 py-2">
           <p className="truncate text-sm font-medium text-foreground">{libelle}</p>
           {user.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}
         </div>
         <DropdownMenuSeparator />
         {/* Le changement d'espace : rien quand il n'y a pas de choix ; son titre ne paraît qu'avec lui. */}
-        <EspacesDuMenu titre={tCompte('changerDEspace')} />
+        <EspacesDuMenu titre={tCompte('vosEspaces')} />
         {voitLeSolde && solde !== null ? (
           <DropdownMenuItem data-slot="solde-du-compte" onClick={() => aller(HREF_CREDITS)}>
             <Coins className="size-4" aria-hidden="true" />
             <span className="flex-1">{tCompte('credits')}</span>
-            <span className="tabular-nums text-muted-foreground">{format.number(solde)}</span>
+            <span className="tabular-nums text-muted-foreground">{fmt.nombre(solde)}</span>
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={() => aller('/app/profile')}>
-          <UserCircle className="size-4" aria-hidden="true" />
+          {/* Les icônes de la maquette « Compte et espaces » (bureau), les mêmes que la feuille du téléphone. */}
+          <IconeProfil className="size-4" aria-hidden="true" />
           <span>{t('myProfile')}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => aller(HREF_PREFERENCES)}>
-          <Bell className="size-4" aria-hidden="true" />
+          <BellRing className="size-4" aria-hidden="true" />
           <span>{tCompte('preferences')}</span>
         </DropdownMenuItem>
         {entree ? (
@@ -136,6 +198,11 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
             <span>{tAdmin(entree.cle)}</span>
           </DropdownMenuItem>
         ) : null}
+        {/* TCK-2619 — la marque mène désormais à `/app` : le site public s'ouvre d'ici, dans la langue. */}
+        <DropdownMenuItem data-slot="site-public" onClick={() => aller(hrefLocalise('/', locale))}>
+          <ExternalLink className="size-4" aria-hidden="true" />
+          <span>{tCompte('sitePublic')}</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <MenuPrimitive.Group>
           <MenuPrimitive.GroupLabel className="px-3 pt-2 pb-1 text-xs font-semibold text-muted-foreground">

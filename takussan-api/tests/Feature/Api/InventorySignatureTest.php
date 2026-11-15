@@ -579,7 +579,8 @@ class InventorySignatureTest extends TestCase
 
         Sanctum::actingAs($this->agencyAgent($agency));
         $this->getJson("/api/inventories/{$inventory->id}")->assertOk()
-            ->assertJsonPath('data.can_sign_as', ['landlord'])
+            // TCK-2646 (ADR-0098) — le personnel recueille aussi la signature du locataire sur place.
+            ->assertJsonPath('data.can_sign_as', ['landlord', 'tenant_onsite'])
             ->assertJsonPath('data.sign_on_behalf_of.id', $owner->id)
             ->assertJsonPath('data.sign_on_behalf_of.full_name', $owner->getFullNameAttribute());
 

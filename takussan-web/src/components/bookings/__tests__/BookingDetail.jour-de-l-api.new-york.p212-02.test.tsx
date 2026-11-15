@@ -7,6 +7,8 @@ process.env.TZ = 'America/New_York';
 
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+// TCK-2594 — la fiche lit le personnel actif (« Fiche » du client) : hors du sujet ici.
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';
 import { BookingDetail } from '../BookingDetail';

@@ -54,7 +54,7 @@ export function ReportDialog({
   onSubmit,
   withDetails = true,
 }: ReportDialogProps) {
-  const t = useTranslations('property.report');
+  const t = useTranslations('propertyReport');
   const { user } = useAuth();
   const idPrefix = useId();
   const [reason, setReason] = useState(reasons[0]?.value ?? 'other');

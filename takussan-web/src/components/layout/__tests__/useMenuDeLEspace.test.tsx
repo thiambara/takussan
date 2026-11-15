@@ -14,7 +14,7 @@ vi.mock('@/hooks/useCan', () => ({
   useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: [] } } }),
 }));
 const navigation = vi.hoisted(() => ({ courante: null as PreferencesDeNavigation | null }));
-vi.mock('../PreferencesDuMenu', () => ({
+vi.mock('../contexte-preferences-du-menu', () => ({
   usePreferencesDuMenu: () => ({ navigation: navigation.courante ?? { v: 1, personas: {} } }),
 }));
 

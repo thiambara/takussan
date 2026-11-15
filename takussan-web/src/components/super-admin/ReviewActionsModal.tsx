@@ -38,6 +38,38 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
  */
 export type ReviewMode = 'approve' | 'reject';
 
+/**
+ * TCK-2730 — l'API refuse l'approbation tant que l'abonnement ouvert porte des dérogations
+ * (`409 agency_upgrade.subscription_has_overrides`) et les rend dans `overrides`. Le message est
+ * celui de l'API ; la liste se nomme avec les libellés du panneau des dérogations
+ * (`billing.agencySubscription.overrides`), où le super-admin les retire.
+ */
+const CODE_DEROGATIONS = 'agency_upgrade.subscription_has_overrides';
+const LIBELLE_DEROGATION = {
+  max_active_listings: 'listings',
+  max_agents: 'agents',
+  max_branches: 'branches',
+} as const;
+
+type Derogation = { readonly libelle: 'fee' | 'listings' | 'agents' | 'branches'; readonly valeur: number };
+
+function derogationsDe(erreur: ApiError): Derogation[] {
+  const corps = erreur.data as { code?: unknown; overrides?: { platform_fee_pct?: unknown; limits?: unknown } } | null;
+  if (corps?.code !== CODE_DEROGATIONS || !corps.overrides) return [];
+  const liste: Derogation[] = [];
+  if (typeof corps.overrides.platform_fee_pct === 'number') {
+    liste.push({ libelle: 'fee', valeur: corps.overrides.platform_fee_pct });
+  }
+  const limites = corps.overrides.limits;
+  if (limites && typeof limites === 'object') {
+    for (const [cle, valeur] of Object.entries(limites as Record<string, unknown>)) {
+      const libelle = LIBELLE_DEROGATION[cle as keyof typeof LIBELLE_DEROGATION];
+      if (libelle && typeof valeur === 'number') liste.push({ libelle, valeur });
+    }
+  }
+  return liste;
+}
+
 const REJECT_MIN_CHARS = 5;
 
 export interface ReviewActionsModalProps {
@@ -56,9 +88,11 @@ export function ReviewActionsModal({
   onDecided,
 }: ReviewActionsModalProps) {
   const t = useTranslations('superAdmin.reviewModal');
+  const tDerogations = useTranslations('billing.agencySubscription.overrides');
   const messageErreur = useMessageErreurApi();
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [derogations, setDerogations] = useState<Derogation[]>([]);
   const toast = useToast();
 
   // Reset state via the parent's close handler — keeps render pure
@@ -67,6 +101,7 @@ export function ReviewActionsModal({
     if (!next) {
       setComment('');
       setError(null);
+      setDerogations([]);
     }
     onOpenChange(next);
   };
@@ -91,6 +126,7 @@ export function ReviewActionsModal({
     onError: (e) => {
       if (e instanceof ApiError) {
         setError(messageErreur(e));
+        setDerogations(derogationsDe(e));
       } else {
         setError(t('genericError'));
       }
@@ -105,6 +141,7 @@ export function ReviewActionsModal({
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setDerogations([]);
     if (mode === 'reject' && trimmedLength < REJECT_MIN_CHARS) {
       // Defensive — the disabled button should already prevent this.
       setError(t('minCharsError', { min: String(REJECT_MIN_CHARS) }));
@@ -157,6 +194,16 @@ export function ReviewActionsModal({
           </div>
 
           {error ? <ErrorState message={error} /> : null}
+          {derogations.length > 0 ? (
+            <ul className="space-y-1 text-sm" aria-label={tDerogations('title')}>
+              {derogations.map((d) => (
+                <li key={d.libelle} className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">{tDerogations(d.libelle)}</span>
+                  <span className="font-medium tabular-nums">{d.valeur}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>

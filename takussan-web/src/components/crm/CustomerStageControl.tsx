@@ -18,6 +18,11 @@ interface CustomerStageControlProps {
   readonly customerId: number;
   readonly name: string;
   readonly stage: CustomerPipelineStage;
+  /**
+   * TCK-2589 — `puce` : la pastille de l'étape en tête de la fiche (maquette `app-clients-fiche` a),
+   * le seul contrôle d'étape de la fiche. Même sélecteur, même motif pour une étape terminale.
+   */
+  readonly forme?: 'puce';
 }
 
 /**
@@ -25,7 +30,7 @@ interface CustomerStageControlProps {
  * pipeline, le même `ReasonDialog` pour une étape terminale (le motif part au serveur, qui en fait
  * une note épinglée). La fiche se relit ensuite côté serveur (`router.refresh()`).
  */
-export function CustomerStageControl({ customerId, name, stage }: CustomerStageControlProps) {
+export function CustomerStageControl({ customerId, name, stage, forme }: CustomerStageControlProps) {
   const t = useTranslations('crm.pipeline');
   const tCrm = useTranslations('agentCrm.pipeline');
   const router = useRouter();
@@ -58,7 +63,7 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
   const optionsEtape = PIPELINE_STAGES.map((s) => ({ value: s, label: t(`stage.${s}`) }));
 
   return (
-    <div className="flex flex-wrap items-center gap-2" data-testid="customer-stage-control">
+    <div className={forme === 'puce' ? 'inline-flex flex-wrap items-center gap-2' : 'flex flex-wrap items-center gap-2'} data-testid="customer-stage-control">
       <Select
         value={stage}
         disabled={mutation.isPending}
@@ -67,7 +72,15 @@ export function CustomerStageControl({ customerId, name, stage }: CustomerStageC
         }}
         items={optionsEtape}
       >
-        <SelectTrigger aria-label={tCrm('stageSelect', { name })}>
+        <SelectTrigger
+          aria-label={tCrm('stageSelect', { name })}
+          size={forme === 'puce' ? 'sm' : 'default'}
+          className={
+            forme === 'puce'
+              ? 'h-7 gap-1 rounded-full border-0 bg-secondary px-2.5 py-0 font-sans text-ui font-semibold text-primary-deep data-[size=sm]:h-7 data-[size=sm]:rounded-full dark:bg-secondary dark:hover:bg-secondary [&_svg]:text-primary-deep'
+              : undefined
+          }
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

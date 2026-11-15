@@ -21,6 +21,7 @@ use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Middleware\ShareRequestLogContext;
 use App\Http\Requests\Accounting\UpdateBankCsvMappingRequest;
 use App\Http\Requests\UpsertWizardDraftRequest;
+use App\Services\Pdf\EchecDuPilotePdf;
 use App\Support\Logging\SafeExceptionContext;
 use App\Support\TrustedProxyList;
 use Illuminate\Database\QueryException;
@@ -32,6 +33,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Spatie\LaravelPdf\Exceptions\CouldNotGeneratePdf;
 use Spatie\MediaLibrary\MediaCollections\Exceptions\FileCannotBeAdded;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -142,6 +144,14 @@ return Application::configure(basePath: dirname(__DIR__))
             // Spatie, qui porte le chemin temporaire du fichier.
             if ($e instanceof FileCannotBeAdded) {
                 $e = new ApiError(422, 'media.file_rejected');
+            }
+
+            // TCK-2811 — un échec du pilote PDF n'est jamais un 500 nu, sur AUCUNE route qui rend un PDF
+            // (exports compris : leur `PdfBuilder` se rend à la conversion en réponse) : 503
+            // `pdf.render_busy` + `Retry-After` pour une limite de débit, 502 `pdf.render_failed` sinon.
+            // L'exception d'origine est rapportée comme toute autre. Détecteur unique : `EchecDuPilotePdf`.
+            if ($e instanceof CouldNotGeneratePdf) {
+                $e = EchecDuPilotePdf::versApi($e);
             }
 
             if ($e instanceof ApiError) {

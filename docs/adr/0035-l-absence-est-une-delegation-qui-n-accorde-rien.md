@@ -1,6 +1,6 @@
 # ADR-0035 — L'absence d'un agent est une délégation qui nomme l'absent et n'accorde aucun droit
 
-- **Statut** : Accepté
+- **Statut** : Accepté, **amendé le 2026-11-10** (cf. § *Amendement du 2026-11-10 — l'absence peut porter une délégation liée*) et **le 2026-11-12** (cf. § *Amendement du 2026-11-12 — une délégation n'accorde jamais `team.delegate_role`*), cet amendement **validé par le porteur le 2026-11-12**
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-591](../backlog/tickets/done/TCK-591-crm-agenda-agent-et-passation.md)
 
@@ -91,3 +91,120 @@ cycle de vie des délégations et n'accorde aucune capacité.**
 - `tests/Feature/Agency/AgentAbsenceTest.php` (AC14 de TCK-591) : pendant l'absence le remplaçant voit
   les tâches et le résolveur le rend ; après la date de fin, plus rien ; aucune ligne existante n'a
   changé ; aucune capacité n'est accordée.
+
+## Amendement du 2026-11-10 — l'absence peut porter une délégation liée (TCK-2666, TCK-2668)
+
+- **Statut** : Accepté le 2026-11-10 (décision 3 (a) de la famille 6 de l'audit UX : *fusionner absence et
+  délégation en « Couvrir une absence »*, recommandation validée par le porteur) — modalités : décisions
+  de la session, à revoir.
+- **Amende** : le § 5 (Surface) et la première conséquence. **La règle de tête ne change pas** :
+  l'absence n'accorde toujours rien.
+
+**Contexte** (relevé sur `dev`, 1bce3798a, le 2026-11-10 ; audit
+[`06-agence.md`](../qa/audit-ux-2026-11/06-agence.md)).
+
+- L'agence a deux gestes pour un congé :
+  - l'**absence** de cet ADR, qui n'accorde rien, déclarée sur la page Équipe ;
+  - la **délégation temporaire** de la page Rôles, qui prête un rôle.
+
+  Ils vivent dans la même table, `role_delegations`, sans aucun lien entre eux. Une absence ne se
+  modifie pas : il n'y a pas de `PATCH`.
+- L'admin ne sait pas lequel choisir quand Awa part en congé et que Moussa doit pouvoir valider ce
+  qu'elle validait. Il doit faire les deux, aux mêmes dates, puis penser à révoquer les deux.
+
+**Décision.** **Une absence peut porter une délégation de rôle ordinaire, liée à elle, créée, modifiée
+et révoquée avec elle. Le droit vient de la délégation, jamais de l'absence.**
+
+1. **Le lien est porté par la délégation.** `role_delegations.covers_absence_id` est une FK nullable
+   vers la ligne d'absence, dans la même table, `cascadeOnDelete`, unique **parmi les délégations
+   vivantes** : une absence porte au plus une délégation `scheduled` ou `active`. *Amendé le
+   2026-11-11 (TCK-2666, décision de la session) : la première rédaction disait « unique » tout court ;
+   changer de remplaçant, ou retirer puis rendre le droit d'agir, révoque la délégation liée et en crée
+   une neuve — un index plein refusait la seconde, ou obligeait à effacer le lien de l'ancienne et à
+   perdre l'historique. Index unique partiel PostgreSQL (`WHERE status IN ('scheduled','active')`).*
+   - *Corrigé le 2026-11-11 (TCK-2666, décision de la session) :* l'unicité est **partielle** —
+     `role_delegations_live_cover_unique`, index unique sur `covers_absence_id` `WHERE status IN
+     ('scheduled', 'active')`. Une absence porte au plus **une délégation vivante** ; changer de
+     remplaçant, ou retirer puis rendre le droit, révoque la délégation et en crée une autre, et les
+     délégations révoquées gardent leur lien : **l'historique reste** (« couvre l'absence de… »).
+2. **La délégation liée** donne au remplaçant de l'absence le **rôle de base de l'absent** dans
+   l'agence (`agent` ou `agency_admin`), sur la **même période**. Ce n'est jamais un autre rôle. Elle
+   reste une délégation ordinaire : `delegationsAllow` la borne par les capacités du délégant
+   (TCK-395), et `isStaffAt` la compte comme aujourd'hui.
+3. **La créer exige `team.delegate_role`**, comme `POST role-delegations`. L'agent qui déclare sa propre
+   absence sans cette capacité déclare une absence **sans** délégation, comme aujourd'hui : le § 4
+   tient.
+4. **Le cycle de vie est un seul geste.**
+   - Modifier les dates ou le remplaçant de l'absence modifie la délégation liée. Le `PATCH` des
+     absences est neuf.
+   - Révoquer l'absence, ou la laisser expirer, révoque ou expire la délégation **dans la même
+     transaction**.
+   - La délégation liée ne se révoque pas seule depuis la page Rôles : elle renvoie à l'absence.
+5. **Les délégations sans absence restent possibles** depuis la page Rôles.
+6. **Ce qui ne change pas** :
+   - `absence_cover` n'accorde rien ;
+   - le routage des tâches et la vue des tâches du § 3 sont inchangés ;
+   - la console des délégations exclut toujours les **lignes d'absence**. Elle liste la délégation
+     liée, puisque c'est une délégation de rôle, en la nommant (« couvre l'absence d'Awa ») ;
+   - la double authentification et le journal sont exigés comme aujourd'hui, sur la création, la
+     modification neuve et la révocation. Une entrée par acte nomme la délégation liée.
+
+**Conséquences.**
+
+- Il y a deux lignes en base pour un geste à l'écran. La première conséquence du présent ADR se
+  précise : une lecture qui veut les délégations de rôle filtre toujours `replaces_user_id IS NULL`, et
+  elle **inclut** les délégations liées.
+- **Un remplaçant peut recevoir plus que l'absent n'avait.** C'est le cas quand l'absent a un rôle
+  personnalisé restreint : la délégation prête le rôle **système** de base, borné par le délégant et non
+  par l'absent. C'est le comportement de la page Rôles aujourd'hui, et c'est un geste explicite de
+  l'admin. L'écran le dit au moment de cocher « lui donner le rôle d'Awa ».
+- Les notifications de délégation partent pour la délégation liée : elle accorde un rôle, et leur texte
+  le dit. Celles d'absence restent muettes.
+- Les tests de cet ADR (`AgentAbsenceTest`) restent verts tels quels. Une absence **sans** délégation
+  n'accorde toujours aucune capacité.
+
+**Application.** Migration `add_covers_absence_id_to_role_delegations`. `AgentAbsenceService`
+crée, modifie et révoque en une transaction. `PATCH /api/agencies/{agency}/absences/{delegation}`.
+Gardes : création liée, modification propagée, révocation propagée dans la même transaction (vérifiée
+par ablation), refus sans `team.delegate_role`, absence sans délégation inchangée.
+
+## Amendement du 2026-11-12 — une délégation n'accorde jamais `team.delegate_role` (TCK-2668)
+
+- **Statut** : Accepté le 2026-11-12 (décision de la session, relayée par team-lead, sur le constat D3 de la passe adverse de 776dc214f) ; **validé par le porteur le 2026-11-12** (nuit, point 7 de ses huit validations) : une délégation n'accorde jamais `team.delegate_role`, et une agence dont l'unique administrateur est absent attend son retour pour ces gestes.
+- **Précise** : le point 3 de l'amendement du 2026-11-10 (« la créer exige `team.delegate_role` ») et la règle de TCK-395. **La règle de tête ne change pas** : l'absence n'accorde toujours rien.
+
+**Contexte** (relevé le 2026-11-12, passe adverse de 776dc214f, constat D3) :
+
+- **L'API juge déléguer sur la détention PROPRE.** `RoleDelegationPolicy` exige `canActDirectlyAt(Capability::TeamDelegateRole)` depuis TCK-395 : un délégué ne sous-délègue pas. C'est la non-transitivité de TCK-395. Une sous-délégation n'accorderait rien, puisque son délégant ne détient rien en propre.
+- **Le résolveur des capacités disait l'inverse.** `MembershipCapabilityResolver::delegationsAllow` accordait `team.delegate_role` à qui la recevait par délégation, puisque le rôle système prêté (`agency_admin`) la porte. `/me/capabilities` la rendait donc au remplaçant qui « peut agir » à la place d'un administrateur absent.
+- **D'où un écran qui ment.** L'écran offrait au remplaçant « Déclarer », « Modifier » et « Terminer l'absence » pour les autres, et la redélégation. L'API rendait 403 à chacun.
+- **Le témoin de TCK-395 épinglait ce défaut.** `RoleDelegationCapabilityTest::test_un_delegue_ne_peut_pas_sous_deleguer` affirmait que le délégué détenait `team.delegate_role` par `canActAt`, tout en vérifiant le 403.
+
+**Décision.** **Une délégation n'accorde jamais `team.delegate_role`.** C'est la seule capacité qu'une délégation ne prête pas. Les autres capacités du rôle prêté restent accordées, bornées par le délégant (TCK-395).
+
+1. **Ce que le remplaçant ne fait pas.** Le remplaçant d'une absence qui « peut agir », comme tout délégué :
+   - ne déclare, ne modifie ni ne termine l'absence **d'un autre** ;
+   - ne crée, ne modifie ni ne révoque de délégation ;
+   - ne redélègue pas.
+2. **Ce qu'il garde.** Il déclare toujours **sa propre** absence, sans délégation, par le § 4. Ce droit ne vient pas de `team.delegate_role`.
+3. **Une seule règle, deux lecteurs.** Le résolveur (`canActAt`, donc `/me/capabilities`) et la policy (`canActDirectlyAt`) disent la même chose pour cette capacité. L'écran ne propose que ce que l'API accepte.
+
+**Conséquences.**
+
+- **Un administrateur absent n'est pas remplacé pour la gestion des absences et des délégations.** Le remplaçant ne gère que le reste du rôle prêté. Ces gestes restent :
+  - à un autre administrateur qui détient la capacité en propre ;
+  - à l'administrateur principal (`primary_admin_id`), que `RoleDelegationPolicy::viewAny` admet ;
+  - à la console.
+
+  Une agence dont l'unique administrateur est absent attend son retour pour ces seuls gestes. C'est voulu : le droit de donner des droits ne se prête pas.
+- **Un rôle personnalisé** qui donne `team.delegate_role` à un agent le lui donne **en propre** : il n'est pas concerné.
+
+**Application.**
+
+- `MembershipCapabilityResolver::delegationsAllow` rend `false` pour `Capability::TeamDelegateRole` avant tout examen des délégations. Ce corps est unique : il sert le chemin unitaire et la passe groupée (TCK-457).
+- Garde : le témoin de `RoleDelegationCapabilityTest::test_un_delegue_ne_peut_pas_sous_deleguer` (TCK-395) est **inversé**.
+  - Le délégué garde la capacité prêtée (`team.invite`).
+  - `canActAt` **et** `canActDirectlyAt` rendent faux pour `team.delegate_role`.
+  - La liste et la création de délégations rendent 403.
+  - Le témoin se vérifie par ablation : retirer la condition du résolveur doit le rendre rouge.
+

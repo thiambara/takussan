@@ -92,7 +92,9 @@ describe('routes légales', () => {
 
   it('les trois cases de consentement du ticket citent ROUTES_LEGALES', () => {
     for (const fichier of [
-      'app/(auth)/auth/register/page.tsx',
+      // TCK-2604 — le formulaire d'inscription a quitté `/auth/register` (redirection vers la connexion) ;
+      // TCK-2606 — il est l'onglet « Créer un compte » de la voie e-mail.
+      'components/auth/VoieEmail.tsx',
       'components/onboarding/HostIndividualWizard.tsx',
       'app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx',
     ]) {

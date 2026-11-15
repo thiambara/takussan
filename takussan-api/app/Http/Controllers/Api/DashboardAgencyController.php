@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Services\Dashboard\DashboardAgencyService;
 use App\Services\Dashboard\KpiResolver;
+use App\Services\Dashboard\PeriodeDuTableauDeBord;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
  * - `?include=timeseries` — appends a 12-month revenue/occupancy chart.
  * - `?months=6` — overrides the chart window (1..36).
  * - `?fields[summary]=properties,finance` — sparse sections (spatie-style).
+ * - `?period=last_month` — TCK-2791 : le mois résumé (`current_month` par défaut, liste fermée, 422 sinon).
  *
  * TCK-2373 (P249.02) — `data.kpis` : les indicateurs configurés par l'agence (`kpi_configs`),
  * activés et ordonnés, avec libellé, format et valeur ; `[]` sans configuration.
@@ -55,7 +57,10 @@ class DashboardAgencyController extends Controller
             'agency.standard_only',
         );
 
-        $data = $this->service->summary($agency);
+        // TCK-2791 — APRÈS les gardes : la période ne change aucun droit.
+        $periode = PeriodeDuTableauDeBord::depuisLaRequete($request);
+
+        $data = $this->service->summary($agency, $periode);
         $data['kpis'] = KpiResolver::configuredTiles($agency, $data);
 
         // Sparse sections via ?fields[summary]=properties,finance,…

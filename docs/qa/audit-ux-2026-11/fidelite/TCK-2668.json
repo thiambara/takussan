@@ -1,0 +1,180 @@
+{
+ "ticket": "TCK-2668",
+ "ecrans": [
+  {
+   "page": "app-equipe",
+   "approche": "a",
+   "ecran": 2,
+   "nom": "Couvrir une absence",
+   "references": {
+    "telephone": "references/app-equipe/a-2-telephone.json",
+    "bureau-1440": "references/app-equipe/a-2-bureau-1440.json",
+    "bureau-1280": "references/app-equipe/a-2-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/agency/team?membre=3",
+    "persona": "admin",
+    "etat": "la fiche de l'agent n° 3 ouverte (base de démo du 2026-11-12 : 12 collaborateurs, aucune absence), « Déclarer » de la carte « Absences » pressé, puis la feuille remplie comme la maquette — fin choisie dans le calendrier, le premier remplaçant, la case « peut agir » cochée, motif « Congé » — SANS l'enregistrer. Tout envoi non-GET est refusé dans la page (scratchpad terrain-5/2668/fid/p-absence-remplie.js) ; aucun n'est parti"
+   }
+  },
+  {
+   "page": "app-equipe",
+   "approche": "a",
+   "ecran": 3,
+   "nom": "Inviter et invitations",
+   "references": {
+    "telephone": "references/app-equipe/a-3-telephone.json",
+    "bureau-1440": "references/app-equipe/a-3-bureau-1440.json",
+    "bureau-1280": "references/app-equipe/a-3-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/agency/team?vue=invitations",
+    "persona": "admin",
+    "etat": "l'admin de Dakar Immo (base de démo du 2026-11-12) : 0 invitation d'équipe en cours, 1 expirée (les 27 autres expirées sont des invitations de locataires, qui ne s'y listent plus — AC3). Formulaire vide. Tout envoi non-GET est refusé (p-rien.js)"
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/agency/team?membre=3 · /app/agency/team?vue=invitations",
+  "persona": "admin",
+  "disposition": "admin-agence",
+  "etat": "voir `ecrans[].produit`",
+  "defiler": null,
+  "perturber": "scratchpad terrain-5/2668/fid/p-absence-remplie.js (a-2), p-rien.js (a-3)"
+ },
+ "roles": [],
+ "zones": [],
+ "alias": {
+  "Visible des administratrices seulement.": "Visible des administrateurs seulement.",
+  "Renvoyer": "Relancer",
+  "Révoquer": "Annuler",
+  "lun. 10 nov.": "jeu. 12 nov.",
+  "ven. 14 nov.": "sam. 14 nov.",
+  "1 invitation en cours": "(aucune en cours : le sous-titre ne la nomme pas)",
+  "Expirées · 28": "Expirées · 1",
+  "Les invitations de locataires se suivent désormais sur leur bail, plus ici.": "Les invitations de locataires se suivent désormais sur la fiche du client, plus ici."
+ },
+ "ancres": [],
+ "ignorer": [
+  {
+   "element": "barre d'onglets du téléphone (« Accueil », « Argent », « Biens », « Messages », « Menu », pastille « 2 ») et barre latérale du bureau (rubriques, libellés, compteurs, « Démarrer »)",
+   "motif": "primitives de la coque, communes à tout /app, hors périmètre (famille 3) — mêmes exclusions que TCK-2670, TCK-2671 et TCK-2673"
+  },
+  {
+   "element": "« Aller au contenu principal »",
+   "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran tant qu'il n'a pas le focus — même exception que TCK-2619 et TCK-2670"
+  },
+  {
+   "element": "le flou et le contenu derrière le dialogue « Couvrir une absence » (bureau)",
+   "motif": "le voile est celui de la primitive `Dialog` (commune à /app) ; derrière, la fiche ouverte d'où part « Déclarer » (le ticket : « s'ouvre depuis la fiche »), quand la maquette dessine la liste seule — c'est l'essentiel des 75 % de pixels du bureau a-2"
+  },
+  {
+   "element": "« … » de l'en-tête du téléphone (a-3)",
+   "motif": "la maquette ne dit pas ce que ce menu contiendrait ; aucun geste de l'écran ne s'y range (même absence qu'en a-0 de TCK-2667)"
+  }
+ ],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-2",
+   "element": "les onze collègues proposés (la maquette en dessine trois), leurs noms, biens suivis, « aucun bien », « portefeuille le plus chargé » en bas de liste ; la personne absente (Sokhna Sene, 25 biens) ; les dates (aujourd'hui → J+2) ; « Admin peut agir à sa place »",
+   "propriete": "texte, y, hauteur de la feuille et du dialogue",
+   "exception": "vérité des données",
+   "motif": "base de démo du 2026-11-12 : 12 collaborateurs sans absence ; la case, le texte d'aide, le motif et le pied suivent plus bas, la feuille défile et « Enregistrer l'absence » reste à l'écran (pied fixe, AC5)"
+  },
+  {
+   "ecran": "a-2",
+   "element": "la ligne sous la case : « {Remplaçant} reçoit le rôle « Agent » de {absent} dans l'agence, en plus du sien. Ce droit s'arrête seul le … au soir » au lieu de « Signer un bail, encaisser un loyer, répondre à ses clients »",
+   "propriete": "texte",
+   "exception": "règle métier",
+   "motif": "ADR-0035, amendement : la délégation liée donne au remplaçant le rôle de base de l'absent, et « l'écran le dit au moment de cocher » — la liste de gestes de la maquette n'est pas ce que le rôle permet pour tout absent"
+  },
+  {
+   "ecran": "a-2",
+   "element": "le champ « Du » / « Au (inclus) » : icône de calendrier, bord et hauteur du champ",
+   "propriete": "icône, couleur de bord, hauteur",
+   "exception": "technique",
+   "motif": "primitive `DatePicker` commune à 37 écrans (bouton qui ouvre un calendrier) ; l'affichage du jour suit la maquette (« jeu. 12 nov. », `formatAffiche`, ajouté pour ce ticket)"
+  },
+  {
+   "ecran": "a-2",
+   "element": "case « peut agir » décochée à l'ouverture d'une absence neuve",
+   "propriete": "état",
+   "exception": "règle métier",
+   "motif": "la délégation est un choix explicite (ADR-0035) ; la maquette la montre cochée, le relevé la coche avant de photographier"
+  },
+  {
+   "ecran": "a-3",
+   "element": "« Prénom », « Nom », « Téléphone (facultatif) » dans « Inviter un membre »",
+   "propriete": "absents de la maquette",
+   "exception": "incohérence des maquettes",
+   "motif": "`InviteAgentRequest` exige prénom et nom ; le téléphone sert l'invitation par SMS (parcours d'entrée retenu, famille 2). Le formulaire d'avant (`InviteAgentDialog`) les portait déjà"
+  },
+  {
+   "ecran": "a-3",
+   "element": "« Lien par WhatsApp » / « Par WhatsApp »",
+   "propriete": "absent du produit",
+   "exception": "règle métier",
+   "motif": "hors périmètre du ticket (« L'invitation envoyée par lien WhatsApp »)"
+  },
+  {
+   "ecran": "a-3",
+   "element": "« La personne choisit son mot de passe en l'ouvrant. »",
+   "propriete": "texte",
+   "exception": "règle métier",
+   "motif": "contrainte du ticket : la phrase suit le parcours d'entrée retenu (code SMS) — « En l'ouvrant, la personne crée son compte ou se connecte, puis rejoint l'agence. »"
+  },
+  {
+   "ecran": "a-3",
+   "element": "« Relancer » sur chaque ligne expirée",
+   "propriete": "absent de la maquette",
+   "exception": "règle métier",
+   "motif": "le geste existant (relancer une invitation expirée la ressuscite, TCK-368) est gardé, contrainte « gestes existants à garder »"
+  },
+  {
+   "ecran": "a-3",
+   "element": "la ligne « moussa.ba@… » en cours, les quatre autres expirées, « et 23 autres, plus anciennes », « 1 invitation en cours » du sous-titre et le compte de l'onglet",
+   "propriete": "absent du produit",
+   "exception": "vérité des données",
+   "motif": "0 invitation d'équipe en cours et 1 expirée en démo ; lignes, repli à cinq et dépli rendus et testés (`LesInvitations.test.tsx`)"
+  },
+  {
+   "ecran": "a-3 bureau",
+   "element": "le formulaire sous les listes entre `lg` et `xl`",
+   "propriete": "disposition",
+   "exception": "incohérence des maquettes",
+   "motif": "le ticket dit « à droite dès `lg` », la maquette `max-xl:w-full` : la maquette fait foi (ADR-0106) ; à 1024 la colonne de 400 px laisserait 294 px aux listes"
+  },
+  {
+   "ecran": "a-* bureau",
+   "element": "tailles de texte, hauteurs de champ, interlignes",
+   "propriete": "taille de police, hauteur",
+   "exception": "technique",
+   "motif": "densité ×0,9 du bureau portée par les jetons (ADR-0107) ; la colonne du formulaire reprend les 400 px de la maquette en `w-[25rem]`, le dialogue ses 560 px en `sm:max-w-[35rem]`"
+  }
+ ],
+ "comparaisons": {
+  "dossier": "takussan-web/.fidelite/TCK-2668/cmp-{v3-a2,v2-a3}-…",
+  "le": "2026-11-12, base de démo, jetons de l'app",
+  "resultats": {
+   "a2": "téléphone 40 conformes · 22 écarts · 25 absents · 9,02 % ; 1440 49 · 281 · 99 · 75,67 % ; 1280 49 · 281 · 99 · 73,23 % (bureau : le fond du dialogue, cf. `ignorer`)",
+   "a3": "téléphone 24 · 14 · 18 · 15,25 % ; 1440 42 · 119 · 41 · 7,22 % ; 1280 42 · 119 · 41 · 7,99 %"
+  },
+  "corriges_pendant_la_passe": [
+   "le pied du dialogue (« Annuler », « Enregistrer l'absence ») sortait de l'écran au bureau dès qu'il y avait onze collègues : la primitive est une grille à rangées automatiques, le corps ne rétrécissait pas ; le dialogue est désormais une colonne flexible, le corps défile entre l'en-tête et le pied",
+   "les dates s'affichaient « 12 novembre 2… » (tronqué) : « jeu. 12 nov. » comme la maquette (`DatePicker.formatAffiche`)",
+   "sous l'onglet « Invitations », l'en-tête perdait son sous-titre et le compte de « Membres » (la liste n'était lue que sous son onglet)",
+   "la colonne du formulaire mesurait 360 px (`w-100` sous la densité) : 400 px comme la maquette (`w-[25rem]`)",
+   "le bandeau des absences écrivait « jusqu’au 14 nov.. »"
+  ],
+  "criteres": {
+   "AC1": "vu au réseau, envoi REFUSÉ dans la page (scratchpad terrain-5/2668/fid/p-ac1.js) : `POST /api/agencies/1/absences` {\"user_id\":3,\"substitute_id\":2,\"ends_at\":\"2026-11-15 23:59:59\",\"reason\":null,\"substitute_can_act\":true} ; la fiche « Absent du 10 nov. au 14 nov. » et « Khady Diallo reçoit ses nouvelles demandes et peut agir à sa place » : FicheDuMembre.absences.test.tsx",
+   "AC2": "sans `team.delegate_role` ni admin principal, ni case ni `substitute_can_act` dans l'envoi : CouvrirUneAbsence.test.tsx (ablations : la case rendue, la clé envoyée → rouges)",
+   "AC3": "démo : « Expirées · 1 » (27 de locataires exclues) ; « Tout effacer » → confirmation « Effacer l’invitation expirée ? » → `DELETE /api/invitations/expired?filter[role]=owner,agent,agent_senior,agent_manager,agency_admin,service_provider`, REFUSÉ dans la page (p-ac3.js) ; tests LesInvitations et invitations-file-et-equipe (ablations : liste et purge sans filtre de rôle → rouges)",
+   "AC4": "fiche client : « Invitation expirée · le 9 nov. » et « Relancer » → `POST /api/invitations/{id}/resend` (InviterACreerSonCompte.test.tsx) ; non joué en démo (une relance peut envoyer un vrai message)",
+   "AC5": "à 360 × 640 la feuille remplie : « Enregistrer l’absence » de 580 à 628 px, dans la fenêtre ; 360 × 780 : 720 à 768 ; débord 0 (scratchpad terrain-5/2668/fid/ac5.mjs)"
+  },
+  "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024,1280` sur ?vue=invitations et ?membre=3 : débord 0, dépassements 0, coupes 0 partout ; ellipses à 768 : libellés du rail de la coque ; à 1024 : e-mails tronqués du tableau des membres (voulu). Le formulaire passe sous les listes avant `xl`"
+ }
+}

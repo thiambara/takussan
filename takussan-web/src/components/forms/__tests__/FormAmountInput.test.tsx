@@ -13,7 +13,8 @@ import { FormAmountInput } from '../FormAmountInput';
  * branchement : la frappe, le curseur, la valeur remise à react-hook-form, et une valeur posée
  * depuis l'extérieur (brouillon repris, `reset`).
  */
-const FINE = '\u202f';
+/** TCK-2714 — le groupe de milliers affiché : l'insécable de pleine largeur (U+00A0). */
+const GROUPE = '\u00a0';
 
 type Valeurs = { price: unknown; currency: string };
 
@@ -49,7 +50,7 @@ describe('FormAmountInput', () => {
 
     await user.type(champ(), '49000000');
 
-    expect(champ().value).toBe(`49${FINE}000${FINE}000`);
+    expect(champ().value).toBe(`49${GROUPE}000${GROUPE}000`);
     expect(sonde.form?.getValues('price')).toBe(49_000_000);
   });
 
@@ -62,7 +63,7 @@ describe('FormAmountInput', () => {
   it('corrige un chiffre au MILIEU sans renvoyer le curseur en fin de champ', async () => {
     const user = userEvent.setup();
     const { sonde, champ } = monter({ price: 1_500_000 });
-    expect(champ().value).toBe(`1${FINE}500${FINE}000`);
+    expect(champ().value).toBe(`1${GROUPE}500${GROUPE}000`);
 
     // Curseur juste après le « 1 », puis « 2 » : « 12 500 000 ». Un curseur renvoyé en fin
     // écrirait le « 3 » suivant tout au bout (125 000 003).
@@ -70,7 +71,7 @@ describe('FormAmountInput', () => {
     champ().setSelectionRange(1, 1);
     await user.keyboard('23');
 
-    expect(champ().value).toBe(`123${FINE}500${FINE}000`);
+    expect(champ().value).toBe(`123${GROUPE}500${GROUPE}000`);
     expect(sonde.form?.getValues('price')).toBe(123_500_000);
   });
 
@@ -93,7 +94,7 @@ describe('FormAmountInput', () => {
 
     await user.click(screen.getByRole('button', { name: 'reprendre' }));
 
-    expect(champ().value).toBe(`7${FINE}000${FINE}000`);
+    expect(champ().value).toBe(`7${GROUPE}000${GROUPE}000`);
   });
 
   it('une valeur changée AILLEURS pendant la frappe remplace le texte tapé — le champ garde le focus', async () => {
@@ -108,7 +109,7 @@ describe('FormAmountInput', () => {
     act(() => sonde.form?.setValue('price', 7_000_000));
 
     expect(champ()).toHaveFocus();
-    expect(champ().value).toBe(`7${FINE}000${FINE}000`);
+    expect(champ().value).toBe(`7${GROUPE}000${GROUPE}000`);
   });
 
   it('des centimes COLLÉS en franc CFA tombent — ils ne multiplient pas le prix par 100', async () => {
@@ -118,13 +119,33 @@ describe('FormAmountInput', () => {
 
     await user.paste('1 500,00');
 
-    expect(champ().value).toBe(`1${FINE}500`);
+    expect(champ().value).toBe(`1${GROUPE}500`);
     expect(sonde.form?.getValues('price')).toBe(1500);
+  });
+
+  // TCK-2714 (AC3) — « 1 482 166 » COLLÉ avec chacune des trois espaces, en franc CFA et en euro :
+  // le formulaire reçoit le nombre, le champ le réécrit en U+00A0.
+  it.each([
+    ['U+202F', '\u202f', 'XOF'],
+    ['U+00A0', '\u00a0', 'XOF'],
+    ['U+0020', ' ', 'XOF'],
+    ['U+202F', '\u202f', 'EUR'],
+    ['U+00A0', '\u00a0', 'EUR'],
+    ['U+0020', ' ', 'EUR'],
+  ])('« 1 482 166 » collé avec %s (%s) rend 1482166 et s’affiche en U+00A0', async (_, sep, devise) => {
+    const user = userEvent.setup();
+    const { sonde, champ } = monter({ currency: devise });
+    await user.click(champ());
+
+    await user.paste(`1${sep}482${sep}166`);
+
+    expect(champ().value).toBe(`1${GROUPE}482${GROUPE}166`);
+    expect(sonde.form?.getValues('price')).toBe(1_482_166);
   });
 
   it('un brouillon d’avant le correctif (prix en CHAÎNE) s’affiche groupé lui aussi', () => {
     const { champ } = monter({ price: '7000000' });
-    expect(champ().value).toBe(`7${FINE}000${FINE}000`);
+    expect(champ().value).toBe(`7${GROUPE}000${GROUPE}000`);
   });
 
   it('en euros, la virgule décimale tient, et le clavier propose la virgule', async () => {
@@ -134,15 +155,15 @@ describe('FormAmountInput', () => {
 
     await user.type(champ(), '1500,5');
 
-    expect(champ().value).toBe(`1${FINE}500,5`);
+    expect(champ().value).toBe(`1${GROUPE}500,5`);
     expect(sonde.form?.getValues('price')).toBe(1500.5);
   });
 
   // Revue adverse, 3ᵉ passe : mesuré au clavier sur ce composant, une frappe de l'AUTRE signe
   // derrière des décimales multipliait le prix par 10 ou 100 (« 1500,5. » → 15 005).
   it.each([
-    ['1500,5.', 'fr', `1${FINE}500,5`],
-    ['1500,50.', 'fr', `1${FINE}500,50`],
+    ['1500,5.', 'fr', `1${GROUPE}500,5`],
+    ['1500,50.', 'fr', `1${GROUPE}500,50`],
     ['1500.5,', 'en', '1,500.5'],
   ] as const)('en euros, « %s » (%s) : l’autre signe tapé de trop ne change pas l’ordre de grandeur', async (frappe, locale, affichage) => {
     const user = userEvent.setup();
@@ -158,11 +179,11 @@ describe('FormAmountInput', () => {
   // texte COLLÉ. Au clavier, « 1. » devenait « 1, » avant que le moindre chiffre suive : « 1.500 »
   // tapé valait 1,50 €, « 150.000 » 150 €, et « ,50 » était ensuite avalé. Ces cas FRAPPENT.
   it.each([
-    ['1.500', 'fr', `1${FINE}500`, 1500],
-    ['150.000', 'fr', `150${FINE}000`, 150_000],
-    ['1.500,50', 'fr', `1${FINE}500,50`, 1500.5],
-    ['49.000.000', 'fr', `49${FINE}000${FINE}000`, 49_000_000],
-    ['1.500', 'wo', `1${FINE}500`, 1500],
+    ['1.500', 'fr', `1${GROUPE}500`, 1500],
+    ['150.000', 'fr', `150${GROUPE}000`, 150_000],
+    ['1.500,50', 'fr', `1${GROUPE}500,50`, 1500.5],
+    ['49.000.000', 'fr', `49${GROUPE}000${GROUPE}000`, 49_000_000],
+    ['1.500', 'wo', `1${GROUPE}500`, 1500],
     ['1,500.50', 'en', '1,500.50', 1500.5],
   ] as const)('en euros, « %s » TAPÉ (%s) : le point suivi de trois chiffres groupe', async (frappe, locale, affichage, prix) => {
     const user = userEvent.setup();
@@ -227,7 +248,7 @@ describe('FormAmountInput', () => {
 
   it('l’exemple suit la locale : « 25 000 000 » en français, « 25,000,000 » en anglais', () => {
     const { champ } = monter();
-    expect(champ()).toHaveAttribute('placeholder', `25${FINE}000${FINE}000`);
+    expect(champ()).toHaveAttribute('placeholder', `25${GROUPE}000${GROUPE}000`);
   });
 
   it('l’exemple suit la locale anglaise', () => {

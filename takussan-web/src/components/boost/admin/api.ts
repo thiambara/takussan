@@ -110,3 +110,56 @@ export function offerBoost(propertyId: number, body: { readonly product_id: numb
 export function fetchBoostStats(params: { readonly from: string; readonly to: string }): Promise<BoostStatsResponse> {
   return lire(cheminApi`/api/super-admin/boost-stats${new URLSearchParams(params)}`);
 }
+
+/** TCK-2520 (ADR-0092) — une place « Mise en avant » de l'annuaire des agences, offerte par la plateforme. */
+export interface AgencySpotlight {
+  readonly id: number;
+  readonly agency_id: number;
+  readonly agency: { readonly id: number; readonly name: string; readonly slug: string; readonly status: string | null } | null;
+  readonly geo_city_id: number | null;
+  readonly city: { readonly id: number; readonly name: string } | null;
+  readonly starts_at: string;
+  readonly ends_at: string;
+  readonly note: string | null;
+  readonly granted_by: { readonly id: number; readonly name: string } | null;
+}
+
+export type AgencySpotlightWhen = '' | 'current' | 'upcoming' | 'past';
+
+export interface NewAgencySpotlight {
+  readonly agency_id: number;
+  readonly geo_city_id: number | null;
+  readonly starts_at: string;
+  readonly ends_at: string;
+  readonly note: string;
+}
+
+export interface AgencyChoice {
+  readonly id: number;
+  readonly name: string;
+}
+
+export function fetchAgencySpotlights(params: { readonly when?: AgencySpotlightWhen; readonly page?: number }): Promise<{ readonly data: readonly AgencySpotlight[]; readonly meta: PaginationMeta }> {
+  const qs = new URLSearchParams();
+  if (params.when) qs.set('filter[when]', params.when);
+  qs.set('page', String(params.page ?? 1));
+  return lire(cheminApi`/api/super-admin/agency-spotlights${qs}`);
+}
+
+export function createAgencySpotlight(body: NewAgencySpotlight): Promise<{ readonly data: AgencySpotlight }> {
+  return ecrire('/api/super-admin/agency-spotlights', 'POST', body);
+}
+
+export function deleteAgencySpotlight(id: number): Promise<unknown> {
+  return fetch(cheminApi`/api/super-admin/agency-spotlights/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  }).then((res) => jsonOrThrow<unknown>(res));
+}
+
+/** Les agences actives dont le nom contient la saisie — le choix de l'agence à mettre en avant. */
+export function searchActiveAgencies(search: string): Promise<{ readonly data: readonly AgencyChoice[] }> {
+  const qs = new URLSearchParams({ 'filter[search]': search, 'filter[status]': 'active', per_page: '10' });
+  return lire(cheminApi`/api/super-admin/agencies${qs}`);
+}

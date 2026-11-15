@@ -47,6 +47,12 @@ class LeasePaymentResource extends BaseResource
             'late_fee_outstanding' => $this->resource->lateFeeOutstanding(),
             'late_fee_payable_online' => $gateway->lateFeeIncluded($this->resource),
             'amount_due' => (float) ($gateway->amountDue($this->resource) ?? 0),
+            // TCK-2778 — les verdicts des deux gestes sur la pénalité de retard SEULE, restée due sur
+            // un loyer payé : la relance notée (`subject: late_fee`), et le lien qui ne fait payer
+            // qu'elle — seulement si l'agence encaisse ses pénalités en ligne. Le front ne refait
+            // pas la règle.
+            'late_fee_reminder_allowed' => $this->resource->lateFeeAloneOutstanding(),
+            'late_fee_link_allowed' => $gateway->lateFeeAloneCollectibleOnline($this->resource),
             // TCK-594 (P5-3) — une caution rendue n'a pas de quittance de loyer.
             'receipt_available' => $this->status === PaymentStatus::Paid && $this->payment_type !== LeasePaymentType::DepositRefund,
             // TCK-1831 (P183.01) — le retard, jugé UNE fois ici à la règle de `scopeOverdue` : le front

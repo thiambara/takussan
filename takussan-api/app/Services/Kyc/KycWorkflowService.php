@@ -13,6 +13,7 @@ use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Membership\AdminsDeLAgence;
 use App\Services\Model\NotificationService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,35 @@ class KycWorkflowService
 
     public const CODE_DOCUMENTS_MISSING = 'kyc.documents_missing';
 
+    /**
+     * TCK-2669 (ADR-0104 § 7) — la fenêtre de renouvellement : sur un dossier vérifié, la pièce du
+     * dirigeant expirée ou expirant dans ce nombre de jours se remplace. C'est la première relance
+     * ({@see KycExpiryService::REMINDER_DAYS}).
+     */
+    public const RENEWAL_WINDOW_DAYS = 30;
+
+    /** TCK-2669 — la seule pièce qui expire, donc la seule qui se renouvelle sur un dossier vérifié. */
+    public const RENEWABLE_DOCUMENT = 'director_id';
+
+    /**
+     * TCK-2671 — le premier jour où la pièce du dirigeant d'un dossier VÉRIFIÉ se remplace : le jour
+     * où l'échéance du dossier tombe à {@see self::RENEWAL_WINDOW_DAYS} jours ou moins. `null` pour
+     * un dossier non vérifié ou sans échéance (verrouillé). C'est la règle que juge
+     * {@see self::assertNotVerified()}, et la seule : `KycDossierResource::renewal` la sert au front,
+     * qui n'en recopie rien.
+     */
+    public static function renewalOpensOn(KycDossier $dossier): ?CarbonImmutable
+    {
+        if ($dossier->status !== KycDossierStatus::Verified || $dossier->expires_at === null) {
+            return null;
+        }
+
+        // `début du jour + N j >= échéance` : le premier minuit qui le tient.
+        $limite = CarbonImmutable::instance($dossier->expires_at)->subDays(self::RENEWAL_WINDOW_DAYS);
+
+        return $limite->equalTo($limite->startOfDay()) ? $limite : $limite->startOfDay()->addDay();
+    }
+
     public function __construct(private readonly NotificationService $notifications) {}
 
     /**
@@ -61,18 +91,70 @@ class KycWorkflowService
         ])->load('subject');
     }
 
-    /** @param  string|null  $expiresAt  échéance de la pièce (`Y-m-d`), exigée pour `director_id` */
-    public function upload(KycDossier $dossier, UploadedFile $file, string $documentType, ?string $expiresAt = null): Media
+    /**
+     * @param  string|null  $expiresAt  échéance de la pièce (`Y-m-d`), exigée pour `director_id`
+     * @param  string|null  $documentNumber  TCK-2669 — le numéro porté par une pièce RCCM ou NINEA
+     */
+    public function upload(KycDossier $dossier, UploadedFile $file, string $documentType, ?string $expiresAt = null, ?string $documentNumber = null, ?User $actor = null): Media
     {
-        $this->assertNotVerified($dossier);
+        if ($dossier->status === KycDossierStatus::Verified) {
+            return $this->renew($dossier, $file, $documentType, $expiresAt, $documentNumber, $actor);
+        }
         if (! in_array($documentType, self::AGENCY_REQUIRED_DOCUMENTS, true)) {
             abort_code(422, self::CODE_UNKNOWN_DOCUMENT_TYPE);
         }
 
+        return $this->attach($dossier, $file, $documentType, $expiresAt, $documentNumber);
+    }
+
+    /**
+     * TCK-2669 (ADR-0104 § 7) — sur un dossier VÉRIFIÉ, seule la pièce du dirigeant expirée ou
+     * expirant sous {@see self::RENEWAL_WINDOW_DAYS} jours se remplace ; tout autre envoi reste
+     * refusé (`kyc.locked`). Le dossier passe `submitted` et les super-admins sont prévenus, comme à
+     * une soumission. L'échéance du dossier reste celle de l'ancienne pièce jusqu'à la
+     * vérification, et `agencies.is_verified` ne bouge pas : c'est `kyc:expire-dossiers` qui le
+     * retire à cette échéance si le renouvellement n'est pas vérifié d'ici là.
+     */
+    private function renew(KycDossier $dossier, UploadedFile $file, string $documentType, ?string $expiresAt, ?string $documentNumber, ?User $actor): Media
+    {
+        [$locked, $media] = DB::transaction(function () use ($dossier, $file, $documentType, $expiresAt, $documentNumber, $actor): array {
+            $locked = $this->lock($dossier);
+            // Expiré entre la lecture et le verrou : un dépôt ordinaire, sans transition.
+            if ($locked->status !== KycDossierStatus::Verified) {
+                return [null, $this->attach($locked, $file, $documentType, $expiresAt, $documentNumber)];
+            }
+            $this->assertNotVerified($locked, $documentType);
+
+            $media = $this->attach($locked, $file, $documentType, $expiresAt, $documentNumber);
+            $locked->update([
+                'status' => KycDossierStatus::Submitted,
+                'submitted_at' => now(),
+                'rejection_reason' => null,
+            ]);
+
+            activity('KYC')
+                ->causedBy($actor)
+                ->performedOn($locked)
+                ->withProperties(['renewal' => true, 'previous_expires_at' => $locked->expires_at?->toIso8601String()])
+                ->event('kyc_submitted')
+                ->log('Dossier KYC soumis');
+
+            return [$locked, $media];
+        });
+
+        if ($locked !== null) {
+            $this->notifySubmitted($locked);
+        }
+
+        return $media;
+    }
+
+    private function attach(KycDossier $dossier, UploadedFile $file, string $documentType, ?string $expiresAt, ?string $documentNumber): Media
+    {
         return $dossier
             ->addMedia($file)
             ->usingFileName(str()->slug($documentType).'.'.strtolower($file->getClientOriginalExtension()))
-            ->withCustomProperties(array_filter(['document_type' => $documentType, 'expires_at' => $expiresAt]))
+            ->withCustomProperties(array_filter(['document_type' => $documentType, 'expires_at' => $expiresAt, 'document_number' => $documentNumber]))
             ->toMediaCollection('documents');
     }
 
@@ -202,9 +284,21 @@ class KycWorkflowService
         return KycDossier::query()->whereKey($dossier->getKey())->lockForUpdate()->firstOrFail();
     }
 
-    private function assertNotVerified(KycDossier $dossier): void
+    /**
+     * Un dossier vérifié est verrouillé — sauf, TCK-2669, pour la pièce du dirigeant dans la fenêtre
+     * de renouvellement, quand `$documentType` la désigne.
+     */
+    private function assertNotVerified(KycDossier $dossier, ?string $documentType = null): void
     {
-        if ($dossier->status === KycDossierStatus::Verified) {
+        if ($dossier->status !== KycDossierStatus::Verified) {
+            return;
+        }
+
+        $opensOn = self::renewalOpensOn($dossier);
+        $renewable = $documentType === self::RENEWABLE_DOCUMENT
+            && $opensOn !== null
+            && now()->startOfDay()->gte($opensOn);
+        if (! $renewable) {
             abort_code(422, self::CODE_LOCKED);
         }
     }

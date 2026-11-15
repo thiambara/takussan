@@ -6,6 +6,8 @@
  * fermée et d'un formulaire vide. L'URL est le seul transport qui survit à `redirect=`, à la
  * vérification de l'e-mail et à `/onboarding/intention`.
  */
+import { estUnJourDeLApi } from '@/lib/jour-de-l-api';
+
 export interface IntentionReservation {
   readonly debut: string;
   readonly fin: string;
@@ -13,11 +15,13 @@ export interface IntentionReservation {
 
 const PARAM_ACTION = 'action';
 const ACTION_RESERVER = 'reserver';
-const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Un jour que l'API admettra (`JourIso`, TCK-2768), ou rien. `Date.parse` ne suffisait pas : il relit
+ * « 2027-02-30 » en 2 mars, que l'API refuse (422) — q1 de la contre-vérification de c3ab22af4.
+ */
 function dateValide(brute: string | null): string {
-  if (brute === null || !DATE_ISO.test(brute)) return '';
-  return Number.isNaN(Date.parse(`${brute}T00:00:00Z`)) ? '' : brute;
+  return brute !== null && estUnJourDeLApi(brute) ? brute : '';
 }
 
 /** Le chemin de la fiche qui rouvre la boîte de réservation, dates comprises quand il y en a. */

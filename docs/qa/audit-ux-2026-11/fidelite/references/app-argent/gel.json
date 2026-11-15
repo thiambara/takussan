@@ -1,0 +1,31 @@
+{
+ "page": "app-argent",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Tableau du mois",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Impayés et relance",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Relancer (feuille, panneau)",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Encaissements",
+   "sansBureau": null
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 # ADR-0090 — La coque de `/app` perd sa barre du haut : une colonne pleine hauteur porte la marque, « Aller à », le compte et ce qui attend
 
-- **Statut** : Accepté le 2026-11-06 par le porteur (choix entre quatre maquettes, puis recommandations validées)
+- **Statut** : Accepté le 2026-11-06 par le porteur (choix entre quatre maquettes, puis recommandations validées) ; **§ 4 et § 8 amendés le 2026-11-10** (cf. § *Amendement du 2026-11-10 — l'en-tête du téléphone, une seule flèche, le plein écran*)
 - **Date** : 2026-11-06
 - **Tickets** : TCK-2489 → TCK-2491
 - **Prolonge** : [ADR-0089](0089-le-menu-de-app-se-derive-du-profil-actif.md) — le menu reste une donnée composée par persona ; cet ADR décide de sa **présentation** et de la place des contrôles globaux
@@ -80,3 +80,75 @@ Quatre maquettes ont été soumises au porteur le 2026-11-06 (Atelier, Encre, Ra
 - **Carnet** (page en feuille posée sur le lin, sections en texte seul) : élégante, mais la marge
   autour de la page coûte de la largeur aux tableaux ; son bloc « Aujourd'hui » est repris.
 - **Garder la barre du haut pour le logo et la langue** : deux barres pour peu de contenu ; écarté.
+
+## Amendement du 2026-11-10 — l'en-tête du téléphone, une seule flèche, le plein écran
+
+- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 5 (a) : *le titre de la page en haut, sans
+  logo* ; décisions 3 a et 6 a de la famille 3 ; demande transverse : *« les flèches de navigation back
+  en mobile doivent être les mêmes dans toutes les pages »* ; décision n° 4 (b) pour la place
+  d'« Aujourd'hui ») — modalités : décisions de la session, à revoir.
+- **Amende** : le § 4 (ce qui ouvre le menu) et le § 8 (l'en-tête compacte sous `md`). Les §§ 1 à 3 et 5
+  à 7 ne changent pas.
+- **Tickets** : TCK-2617 (en-tête, flèche, plein écran), TCK-2619 (plus de bouton flottant, marque vers
+  `/app`), TCK-2618 (place d'« Aujourd'hui ») ; par adoption, toutes les pages des familles 4 à 6.
+
+**Contexte** (relevé sur `dev`, 1bce3798a, le 2026-11-10 ; audit
+[`03-coque-et-accueil.md`](../qa/audit-ux-2026-11/03-coque-et-accueil.md)).
+
+- Sous `md`, l'en-tête du § 8 porte la marque, « Aller à » et la cloche. Le titre de la page est dans le
+  contenu, et il disparaît au défilement.
+- Un fil de conversation est cerné par deux en-têtes et la barre d'onglets : il ne reste que 40 % de
+  l'écran pour les messages.
+- Chaque page dessine sa propre flèche de retour : 14 px ici, 16 px là, `ChevronLeft` ailleurs.
+- Le site public a déjà son en-tête de page partagé, `EnTeteDePage`
+  ([ADR-0091](0091-la-navigation-mobile-du-site-public-suit-le-profil.md), amendement du 2026-11-09,
+  TCK-2568).
+- Un bouton flottant (Messagerie) reste monté au bureau dans `/app`. Il est retiré du téléphone depuis
+  TCK-2481.
+
+**Décision.**
+
+1. **Le § 8 est remplacé.** Sous `md`, l'en-tête de la coque prend **une forme parmi quatre**, et aucune
+   ne porte la marque :
+   - **racine**, une page d'onglet ou de menu : le titre de la page, puis la cloche et « Aller à ». Le titre
+     **est** le H1 de la page, et il reste visible au défilement ;
+   - **accueil** : la salutation de l'accueil
+     ([ADR-0096](0096-l-accueil-est-la-journee-et-les-rapports-sont-une-page.md)), puis la cloche ;
+   - **détail** : la flèche de retour, le titre et une action au plus ;
+   - **plein écran** : un fil de conversation ouvert, un formulaire ou un tunnel n'ont **ni en-tête de
+     coque ni barre d'onglets**. La page porte son propre en-tête, avec la même flèche.
+2. **Les pages déclarent à la coque** leur titre, leur forme et leurs actions, au lieu de dessiner leur
+   en-tête. Une page qui ne déclare rien prend la forme « racine », avec son titre de métadonnées.
+3. **Une seule flèche de retour**, la même dans `/app` et sur le site public : celle d'`EnTeteDePage`, par
+   le même composant ou par un composant partagé.
+   - Un test garde qu'aucune page de `/app` ne dessine la sienne.
+   - Son repli suit la règle d'ADR-0091 : la page précédente du site, sinon un parent sûr.
+4. **Au bureau**, un fil d'Ariane remplace les « ← Retour » des pages de détail.
+5. **Aucun bouton flottant dans `/app`**, au bureau compris. La messagerie est au menu et dans
+   « Aujourd'hui ».
+6. **La marque mène à `/app`**, dans la colonne du bureau et dans le tiroir.
+7. **Le § 4 est amendé.** Le tableau de bord ouvre le menu de l'admin d'agence, et désormais aussi celui
+   de l'**agent**, sous le nom « Aujourd'hui ». Pour l'agent, c'est la même destination que l'ancien
+   « Tableau de bord », qui disparaît de son menu (amendement d'ADR-0089 du 2026-11-10). Pour les autres
+   personas, le § 4 tient.
+
+**Conséquences.**
+
+- **La règle entre dans `docs/design-guidelines.md`** : les quatre formes, la flèche unique, le plein
+  écran, et pas de flottant.
+- **Toutes les pages des familles 4 à 6 adoptent la déclaration à la coque.** C'est pourquoi TCK-2617
+  passe tôt dans l'ordre des lots.
+- `dispositions-validees.test.ts` change exprès pour l'agent.
+- Sous `md`, « Aller à » quitte l'en-tête des formes « détail » et « plein écran ». Il reste dans le
+  tiroir « Menu » et dans les formes « racine » et « accueil ».
+- Les mesures de la coque (largeurs, contraste, ordre de tabulation, sombre) se refont au navigateur
+  pour les quatre formes.
+
+**Application.** La coque de `/app` lit la déclaration de la page (nom indicatif : un contexte d'en-tête
+alimenté par la page). Gardes :
+
+- une forme par type de page, éprouvée à 360 et 390 px ;
+- « une seule flèche », qui refuse toute flèche locale dans `src/app/(dashboard)` ;
+- « aucun bouton flottant dans `/app` » ;
+- la marque mène à `/app`.
+

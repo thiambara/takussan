@@ -9,19 +9,29 @@
  * frontend".
  */
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
+
+import { useAuth } from '@/context/AuthContext';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { PaginatedResponse, ApiResponse, SpatieQueryParams } from '@/types/api';
 import type {
   Inventory,
+  InventoryCondition,
+  InventoryRoom,
   InventorySignatureRole,
   InventoryStatus,
+  InventoryTemplate,
+  InventoryTemplateKey,
   InventoryType,
 } from '@/types/inventory';
 import type {
   InventoryCreateInput,
   InventoryDisputeInput,
 } from '@/lib/schemas/inventory';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 export const inventoryKeys = {
   all: ['inventory'] as const,
@@ -81,12 +91,12 @@ function toSpatieParams(
   };
 }
 
-/** `GET /api/inventories`. */
-export function useInventories(params?: InventoryListParams) {
+/** `GET /api/inventories`. `enabled` à `false` : la requête ne part pas (TCK-2639, bail illisible). */
+export function useInventories(params?: InventoryListParams, enabled = true) {
   return useApiQuery<PaginatedResponse<Inventory>>(
     inventoryKeys.list(params),
     '/api/inventories',
-    { params: toSpatieParams(params, LIST_FIELDS, '-created_at') },
+    { params: toSpatieParams(params, LIST_FIELDS, '-created_at'), enabled },
   );
 }
 
@@ -127,6 +137,11 @@ export interface InventorySignInput {
   readonly role: InventorySignatureRole;
   /** Base64-encoded PNG payload — a canvas `toDataURL('image/png')`. */
   readonly signature: string;
+  /**
+   * TCK-2648 — la signature du locataire SUR PLACE (ADR-0098) : le code reçu par SMS, saisi sur le
+   * téléphone de l'agent. Absent, c'est la signature depuis le compte de la partie, inchangée.
+   */
+  readonly code?: string;
 }
 
 export function useSignInventory(id: number) {
@@ -134,10 +149,29 @@ export function useSignInventory(id: number) {
     {
       path: cheminApi`/api/inventories/${id}/sign`,
       method: 'POST',
-      body: (input) => ({ role: input.role, signature: input.signature }),
+      body: (input) => ({ role: input.role, signature: input.signature, ...(input.code ? { code: input.code } : {}) }),
     },
     { invalidate: [inventoryKeys.all, inventoryKeys.detail(id)] },
   );
+}
+
+/** TCK-2648 — où le code est parti : le canal et le numéro masqué (« +221 77 ••• 18 90 »). */
+export interface CodeSurPlaceEnvoye {
+  readonly channel: string;
+  readonly destination: string;
+}
+
+/**
+ * TCK-2648 (ADR-0098) — `POST /api/inventories/{id}/sign/onsite-code` : l'API envoie au locataire, par
+ * SMS, le code qu'il dira à l'agent. 202 `{data: {channel, destination}}`. Rien à invalider : l'état
+ * des lieux ne change pas.
+ */
+export function useEnvoyerCodeSurPlace(id: number) {
+  return useApiMutation<ApiResponse<CodeSurPlaceEnvoye>, void>({
+    path: cheminApi`/api/inventories/${id}/sign/onsite-code`,
+    method: 'POST',
+    body: () => ({}),
+  });
 }
 
 /** `POST /api/inventories/{id}/dispute`. */
@@ -155,6 +189,8 @@ export function useDisputeInventory(id: number) {
 export interface UploadInventoryRoomPhotosInput {
   readonly files: readonly File[];
   readonly roomName: string;
+  /** TCK-2646 — la photo d'un élément de la pièce (un élément abîmé). */
+  readonly elementLabel?: string;
 }
 
 export function useUploadInventoryRoomPhotos(id: number) {
@@ -163,10 +199,11 @@ export function useUploadInventoryRoomPhotos(id: number) {
       path: cheminApi`/api/inventories/${id}/room-photos`,
       method: 'POST',
       formData: true,
-      body: ({ files, roomName }) => {
+      body: ({ files, roomName, elementLabel }) => {
         const fd = new FormData();
         for (const file of files) fd.append('photos[]', file);
         fd.append('room_name', roomName);
+        if (elementLabel) fd.append('element_label', elementLabel);
         return fd;
       },
     },
@@ -187,4 +224,176 @@ export function useDeleteInventoryRoomPhoto(id: number) {
     },
     { invalidate: [inventoryKeys.detail(id)] },
   );
+}
+
+/**
+ * TCK-2647 — `PATCH /api/inventories/{id}` : un brouillon seulement, et `rooms` remplace TOUTES les
+ * pièces. Le parcours de terrain l'appelle à chaque « Pièce suivante » (et à « Enregistrer et quitter »)
+ * avec toutes les pièces : un échec garde la saisie à l'écran, rien n'avance.
+ *
+ * Pas d'invalidation du détail : le parcours tient la saisie, une relecture à chaque pièce la
+ * remplacerait par la réponse pendant que l'agent qualifie la suivante. La réponse est rendue.
+ */
+export interface InventoryPatchInput {
+  readonly rooms?: readonly InventoryRoom[];
+  readonly general_condition?: InventoryCondition;
+  readonly conducted_at?: string | null;
+  readonly notes?: string | null;
+}
+
+export function useUpdateInventory(id: number) {
+  return useApiMutation<ApiResponse<Inventory>, InventoryPatchInput>(
+    { path: cheminApi`/api/inventories/${id}`, method: 'PATCH' },
+    { invalidate: [['inventory', 'list']] },
+  );
+}
+
+/**
+ * TCK-2647 — le choix du modèle à « Démarrer » : celui du bien par défaut (`property_id`), ou un
+ * autre type quand l'agent en choisit un (la fiche du bien peut se tromper de type). Chaque clé se
+ * lit par le type et le nombre de chambres qui y mènent (`InventoryTemplates::keyFor`).
+ */
+export function parametresDuModele(cle: InventoryTemplateKey, chambres: number | null | undefined): Record<string, string> {
+  const n = typeof chambres === 'number' && chambres > 0 ? chambres : null;
+  switch (cle) {
+    case 'studio':
+      return { property_type: 'studio' };
+    case 'f2':
+      return { property_type: 'apartment', bedrooms: '1' };
+    case 'f3':
+      return { property_type: 'apartment', bedrooms: '2' };
+    case 'f4_plus':
+      return { property_type: 'apartment', bedrooms: String(Math.max(n ?? 3, 3)) };
+    case 'villa':
+      return n ? { property_type: 'villa', bedrooms: String(n) } : { property_type: 'villa' };
+    case 'shop':
+      return { property_type: 'shop' };
+    case 'office':
+      return { property_type: 'office' };
+    default:
+      return { property_type: 'land' };
+  }
+}
+
+/** TCK-2646 — `GET /api/inventory-templates?property_id=` (ou `?property_type=&bedrooms=`). */
+export function useInventoryTemplate(requete: Record<string, string> | null) {
+  const parametres = new URLSearchParams(requete ?? {});
+  return useApiQuery<ApiResponse<InventoryTemplate>>(
+    ['inventory', 'template', parametres.toString()],
+    cheminApi`/api/inventory-templates${parametres}`,
+    { enabled: requete !== null, staleTime: 60 * 60 * 1000 },
+  );
+}
+
+/**
+ * TCK-2647 — le bail d'un état des lieux, pour l'en-tête qui le nomme de bout en bout (P1 de
+ * l'audit) : le bien (titre, photo, type, chambres), le locataire, la référence ; et ce qui déduit
+ * le type (statut) et borne les retenues (caution). `show` lit ses champs à la main : pas de
+ * `fields[leases]` ; seul `fields[customers]` borne le locataire (TCK-2780).
+ */
+export interface ContexteDuBail {
+  readonly id: number;
+  readonly reference_number: string | null;
+  readonly status: string;
+  readonly start_date: string | null;
+  readonly end_date: string | null;
+  readonly deposit_amount: number | string | null;
+  readonly property_id: number;
+  readonly property?: {
+    readonly id: number;
+    readonly title: string | null;
+    readonly main_photo_url?: string | null;
+    readonly type?: string | null;
+    readonly bedrooms?: number | null;
+  } | null;
+  readonly tenant?: { readonly first_name?: string | null; readonly last_name?: string | null } | null;
+}
+
+/** TCK-2780 — ce que « Démarrer » lit du locataire : son nom (`nomDuLocataire`), ni téléphone ni e-mail. */
+export const CHAMPS_DU_LOCATAIRE_DU_CONTEXTE = ['id', 'first_name', 'last_name'];
+
+/**
+ * Le contexte du bail d'un état des lieux. `avecLocataire: false` ne charge pas le locataire : le
+ * parcours et le récapitulatif lisent son nom sur l'état des lieux (`InventoryResource`, `{id, full_name,
+ * first_name}`). « Démarrer », avant tout état des lieux, le demande, borné à son nom : depuis TCK-2780,
+ * `GET /api/leases/{id}` ne rend le locataire que sous `include=tenant`, et seulement les clés de
+ * `fields[customers]` (l'écart q1 de la contre-vérification de 065941306 est fermé).
+ */
+export function useContexteDuBail(leaseId: number | null | undefined, { avecLocataire = true }: { readonly avecLocataire?: boolean } = {}) {
+  return useApiQuery<ApiResponse<ContexteDuBail>>(
+    ['inventory', 'contexte-du-bail', leaseId ?? 0, avecLocataire ? 'locataire' : 'sans-locataire'],
+    cheminApi`/api/leases/${leaseId ?? 0}`,
+    {
+      params: avecLocataire
+        ? { include: ['tenant', 'property'], fields: { customers: CHAMPS_DU_LOCATAIRE_DU_CONTEXTE } }
+        : { include: ['property'] },
+      enabled: Boolean(leaseId),
+    },
+  );
+}
+
+/**
+ * TCK-2647 — l'entrée signée la plus récente d'un bail : une sortie en reprend les pièces à « Démarrer »
+ * (et le serveur y rattache les états d'entrée). Aucune : la sortie part du modèle, comme une entrée.
+ */
+export function useEntreeSignee(leaseId: number | null | undefined, enabled = true) {
+  return useApiQuery<PaginatedResponse<Inventory>>(
+    ['inventory', 'entree-signee', leaseId ?? 0],
+    '/api/inventories',
+    {
+      params: {
+        // `rooms` n'est pas un champ sélectionnable (`Inventory::$queryFields`) : la liste rend
+        // l'identifiant, `useInventory` (show) les pièces et leurs photos.
+        fields: { inventories: ['id', 'lease_id', 'type', 'status', 'conducted_at'] },
+        filter: { lease_id: leaseId ?? 0, type: 'move_in', status: 'signed' },
+        sort: '-conducted_at',
+        per_page: 1,
+      },
+      enabled: Boolean(leaseId) && enabled,
+    },
+  );
+}
+
+/**
+ * TCK-2647 — la recherche du bail quand `/app/inventories/new` n'en reçoit pas : les baux en cours
+ * (`active`, `terminating` — TCK-379), cherchés par le serveur (`filter[search]` : référence, bien,
+ * locataire), chacun nommant son locataire (P2 de l'audit).
+ */
+export interface BailAInventorier {
+  readonly id: number;
+  readonly reference_number: string | null;
+  readonly status: string;
+  readonly property?: { readonly id: number; readonly title: string | null; readonly main_photo_url?: string | null } | null;
+  readonly tenant?: { readonly first_name?: string | null; readonly last_name?: string | null } | null;
+}
+
+export function useBauxAInventorier(recherche: string) {
+  const terme = recherche.trim();
+  const locale = useLocale();
+  const { token } = useAuth();
+  // TCK-1371 (P135.04) — TOUTES les pages : une page de 50 laissait les plus anciens dehors.
+  return useQuery<PaginatedResponse<BailAInventorier>, ApiError>({
+    queryKey: ['inventory', 'baux-a-inventorier', terme],
+    queryFn: ({ signal }) =>
+      lireToutesLesPages((page) =>
+        apiRequest<PaginatedResponse<BailAInventorier>>(
+          cheminApi`/api/leases${requete(
+            buildQueryString({
+              fields: {
+                leases: ['id', 'reference_number', 'status', 'property_id', 'tenant_id'],
+                properties: ['id', 'title'],
+                customers: ['id', 'first_name', 'last_name'],
+              },
+              // TCK-1438 — un bail en préavis a son état des lieux de sortie à produire.
+              filter: { status: 'active,terminating', ...(terme ? { search: terme } : {}) },
+              include: ['property', 'tenant'],
+              sort: ['-created_at'],
+              page,
+              per_page: PAR_PAGE_MAX,
+            }),
+          )}`,
+          { token: token ?? undefined, locale, signal },
+        ),
+      ),
+  });
 }

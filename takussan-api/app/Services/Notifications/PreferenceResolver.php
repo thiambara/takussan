@@ -84,6 +84,8 @@ class PreferenceResolver
         'favorite_unavailable',
         // TCK-2432 — l'annonce source d'un bien publié par le Radar a disparu : le bien est-il toujours disponible ?
         'property_availability_check',
+        // TCK-2783 — `documents:remind-expiring` : une pièce du coffre expire dans 60 puis 7 jours.
+        'document_expiring',
     ];
 
     /**

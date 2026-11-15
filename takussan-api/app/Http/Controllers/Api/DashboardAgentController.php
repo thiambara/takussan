@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Services\Dashboard\DashboardAgentService;
+use App\Services\Dashboard\PeriodeDuTableauDeBord;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,9 @@ use Illuminate\Http\Request;
  * système). L'accès de base est le personnel de l'agence active (`staffAgencyId()`), plus
  * l'ancien rattachement direct de l'utilisateur à une agence (pont de compatibilité qui ignorait
  * le profil actif).
+ *
+ * TCK-2791 — `period=last_month` : le mois résumé (`current_month` par défaut, liste fermée, 422 sinon),
+ * lu après les gardes.
  */
 class DashboardAgentController extends Controller
 {
@@ -41,7 +45,9 @@ class DashboardAgentController extends Controller
             $this->authorize('viewReports', $agency);
         }
 
-        $data = $this->service->summary($user, $scope, $agencyId);
+        $periode = PeriodeDuTableauDeBord::depuisLaRequete($request);
+
+        $data = $this->service->summary($user, $scope, $agencyId, $periode);
 
         $fieldsParam = $request->input('fields.summary');
         if (is_string($fieldsParam) && $fieldsParam !== '') {

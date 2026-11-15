@@ -34,6 +34,8 @@ const TOUS_LES_FILTRES: SearchFilters = {
   city: 'Dakar',
   // P185.02 (TCK-2061) — les villes du profil, une puce par ville.
   cities: ['Thiès', 'Rufisque'],
+  // TCK-2607 — plusieurs quartiers, une puce par quartier.
+  locations: ['Mermoz', 'Ngor'],
   // TCK-635 — la région précise la ville homonyme : agrégée à `city`, pas de puce propre.
   region: 'Kolda',
   // TCK-346 — le rayon PORTE la puce, `lat`/`lng` y sont agrégées : trois clés, une puce.
@@ -109,6 +111,8 @@ describe('<PucesDeFiltres> — les puces de filtre actif', () => {
       'Dakar',
       'Thiès',
       'Rufisque',
+      'Quartier : Mermoz',
+      'Quartier : Ngor',
       'Dans un rayon de 5 km',
       // TCK-552 — le mot de la pastille des cartes.
       'En location',

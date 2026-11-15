@@ -27,7 +27,7 @@ export function AvertissementNumeroNonVerifie({ phoneVerifiedAt, annoncesEnLigne
     >
       <PhoneOff className="size-4 shrink-0 text-primary" aria-hidden="true" />
       <p className="min-w-0 flex-1 text-pretty">{t('unverifiedWarning')}</p>
-      <Link href="/app/profile#coordonnees" className="font-semibold text-primary underline">
+      <Link href="/app/profile/contact" className="font-semibold text-primary underline">
         {t('unverifiedLink')}
       </Link>
     </div>

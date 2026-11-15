@@ -2,10 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
+import { Phone } from 'lucide-react';
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { RangeeDeSecurite } from './RangeeDeSecurite';
 import { Input } from '@/components/ui/input';
 import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { useAuth } from '@/context/AuthContext';
+import { formaterTelephone } from '@/lib/phone';
 import {
   phoneSendOtpAction,
   phoneVerifyOtpAction,
@@ -32,6 +36,7 @@ export function PhoneVerificationSection({
   // server actions) : ses libellés vivent sous `profile.contact.*`, et les
   // rejouer ici créerait des clés jumelles.
   const tOtp = useTranslations('profile.contact');
+  const tCommon = useTranslations('common.actions');
   const { user, setUser } = useAuth();
   // TCK-2040 (P202.03) — l'état se lit dans la propriété, que `ProfileSecuritySection` tire du
   // contexte : un numéro changé dans « Coordonnées » repasse ici à « non vérifié ». La copie
@@ -80,69 +85,59 @@ export function PhoneVerificationSection({
     });
   }
 
+  // TCK-2635 — une rangée de la carte « Sécurité » (maquette `RangeeSecurite`) : « Vérifier » à droite,
+  // le code à saisir déplié dessous.
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">
-            {t('title')}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {phone ? t('descriptionWithPhone', { phone }) : t('descriptionNoPhone')}
-          </p>
-        </div>
-        <span
-          className={
-            'rounded-full px-2 py-1 text-xs font-semibold ' +
-            (verified
-              ? 'bg-success/15 text-success'
-              : 'bg-card text-muted-foreground')
-          }
-        >
-          {verified ? tOtp('verified') : tOtp('notVerified')}
-        </span>
-      </div>
-
+    <RangeeDeSecurite
+      icone={Phone}
+      titre={t('titreCourt')}
+      statut={
+        phone ? (
+          <StatusBadge
+            data-testid="security-phone-status"
+            tone={verified ? 'success' : 'attention'}
+            label={verified ? tOtp('verified') : tOtp('notVerified')}
+          />
+        ) : undefined
+      }
+      detail={phone ? (verified ? formaterTelephone(phone) : t('detail', { phone: formaterTelephone(phone) })) : t('descriptionNoPhone')}
+      action={
+        !verified && phone ? (
+          <Button size="sm" variant="outline" onClick={handleSend} disabled={pending}>
+            {pending && !sent ? tOtp('sending') : sent ? tOtp('resendCode') : tOtp('verify')}
+          </Button>
+        ) : undefined
+      }
+    >
       {error ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
       {feedback ? (
-        <p role="status" className="mt-3 text-sm text-success">
+        <p role="status" className="text-sm text-success">
           {feedback}
         </p>
       ) : null}
-
-      {!verified && phone ? (
-        <div className="mt-4 space-y-3">
-          <div>
-            <Button onClick={handleSend} disabled={pending} variant="outline">
-              {pending && !sent ? tOtp('sending') : sent ? tOtp('resendCode') : t('sendCode')}
-            </Button>
-          </div>
-
-          {sent ? (
-            <form onSubmit={handleVerify} className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                autoComplete="one-time-code"
-                aria-label={tOtp('otpCodeAria')}
-                required
-              />
-              <Button type="submit" disabled={pending || code.length !== 6}>
-                {pending ? tOtp('verifying') : tOtp('verify')}
-              </Button>
-            </form>
-          ) : null}
-          {sent ? <CodeDePreproduction code={apercu} onUtiliser={setCode} /> : null}
-        </div>
+      {!verified && phone && sent ? (
+        <form onSubmit={handleVerify} className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="123456"
+            autoComplete="one-time-code"
+            aria-label={tOtp('otpCodeAria')}
+            required
+          />
+          <Button type="submit" disabled={pending || code.length !== 6}>
+            {pending ? tOtp('verifying') : tCommon('confirm')}
+          </Button>
+        </form>
       ) : null}
-    </div>
+      {!verified && phone && sent ? <CodeDePreproduction code={apercu} onUtiliser={setCode} /> : null}
+    </RangeeDeSecurite>
   );
 }

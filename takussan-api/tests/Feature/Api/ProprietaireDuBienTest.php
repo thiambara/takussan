@@ -9,6 +9,7 @@ use App\Models\Enums\UserStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
@@ -350,5 +351,139 @@ class ProprietaireDuBienTest extends ApiTestCase
         $this->assertSame([], $this->getJson('/api/property-visits?include=customer')->assertOk()->json('data'));
         $this->patchJson("/api/property-visits/{$visite->id}", ['notes' => 'x'])->assertForbidden();
         $this->assertFalse($agent->fresh()->can('update', $visite->fresh()));
+    }
+
+    /** TCK-2717 — une visite sans fiche ni compte, sur un bien de X. */
+    private function visiteAnonyme(Property $bien, array $attributes = []): PropertyVisit
+    {
+        return PropertyVisit::factory()->create($attributes + [
+            'property_id' => $bien->id, 'customer_id' => null, 'visitor_id' => null,
+            'visitor_name' => 'Moussa Fall', 'visitor_phone' => '+221778889900',
+            'status' => VisitStatus::Scheduled, 'scheduled_at' => $this->creneau(jours: 4),
+        ]);
+    }
+
+    /**
+     * TCK-2717 AC1 (décision du porteur du 2026-11-11, option a) — le bailleur d'un bien d'agence lit
+     * le visiteur SANS fiche par la carte comme par les champs : `visitor_display` rend exactement le
+     * nom et le numéro de `visitor_*`, `kind` sans fiche, et jamais le rang de visite ; la `metadata`
+     * reste à la console. Au détail comme à l'index ; un visiteur à compte rend `kind = 'account'`.
+     */
+    public function test_tck2717_ac1_le_bailleur_lit_la_carte_reduite_du_visiteur_sans_fiche(): void
+    {
+        $b = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $b);
+        $v = $this->visiteAnonyme($bien, ['metadata' => ['feedback_agent' => 'avis interne']]);
+        $compte = $this->visiteAnonyme($bien, ['visitor_id' => $this->client()->id, 'scheduled_at' => $this->creneau(jours: 5)]);
+
+        Sanctum::actingAs($b);
+        $detail = $this->getJson("/api/property-visits/{$v->id}")->assertOk();
+        $this->assertSame(['name' => 'Moussa Fall', 'phone' => '+221778889900', 'kind' => 'anonymous', 'visits_on_property' => null], $detail->json('data.visitor_display'));
+        $this->assertSame($detail->json('data.visitor_name'), $detail->json('data.visitor_display.name'));
+        $this->assertSame($detail->json('data.visitor_phone'), $detail->json('data.visitor_display.phone'));
+        $detail->assertJsonMissingPath('data.metadata');
+        $this->assertStringNotContainsString('avis interne', $detail->getContent());
+
+        $lignes = collect($this->getJson('/api/property-visits?per_page=100')->assertOk()->json('data'))->keyBy('id');
+        $this->assertSame('Moussa Fall', $lignes[$v->id]['visitor_display']['name']);
+        $this->assertNull($lignes[$v->id]['visitor_display']['visits_on_property']);
+        $this->assertArrayNotHasKey('metadata', $lignes[$v->id]);
+        $this->assertSame('account', $lignes[$compte->id]['visitor_display']['kind']);
+        $this->assertNull($lignes[$compte->id]['visitor_display']['visits_on_property']);
+    }
+
+    /**
+     * TCK-2717 AC2 — même bailleur, visite rattachée à une fiche : ni `visitor_*` ni la carte. La carte
+     * ne sort jamais plus que `visitor_*` au même lecteur (ni le nom de la fiche, ni `kind: 'customer'`).
+     */
+    public function test_tck2717_ac2_le_bailleur_ne_lit_pas_la_carte_d_une_visite_a_fiche(): void
+    {
+        $b = $this->bailleur($this->x);
+        $bien = $this->bienDe($this->x, $b);
+        $fiche = $this->ficheClient($this->x, attributes: ['first_name' => 'Fiche', 'last_name' => 'Secrete', 'phone' => '+221775551101']);
+        $w = $this->visiteAnonyme($bien, ['customer_id' => $fiche->id, 'visitor_name' => 'Fiche Secrete', 'visitor_phone' => '+221775551101']);
+
+        Sanctum::actingAs($b);
+        $detail = $this->getJson("/api/property-visits/{$w->id}")->assertOk()
+            ->assertJsonPath('data.visitor_name', null)
+            ->assertJsonPath('data.visitor_phone', null)
+            ->assertJsonPath('data.visitor_display', null);
+        $liste = $this->getJson('/api/property-visits?per_page=100')->assertOk();
+        $this->assertNull(collect($liste->json('data'))->keyBy('id')[$w->id]['visitor_display']);
+        foreach ([$detail, $liste] as $reponse) {
+            $this->assertStringNotContainsString('775551101', $reponse->getContent());
+            $this->assertStringNotContainsString('Secrete', $reponse->getContent());
+        }
+    }
+
+    /** TCK-2717 AC3 — pour le personnel de X, la carte de la console est inchangée : rang entier, `kind` juste. */
+    public function test_tck2717_ac3_la_carte_de_la_console_est_inchangee(): void
+    {
+        $bien = $this->bienDe($this->x);
+        $v = $this->visiteAnonyme($bien);
+        $fiche = $this->ficheClient($this->x, attributes: ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'phone' => '+221775551102']);
+        $w = $this->visiteAnonyme($bien, ['customer_id' => $fiche->id, 'scheduled_at' => $this->creneau(jours: 6)]);
+
+        Sanctum::actingAs($this->personnel($this->x));
+        $carte = $this->getJson("/api/property-visits/{$v->id}")->assertOk()->json('data.visitor_display');
+        $this->assertSame('anonymous', $carte['kind']);
+        $this->assertSame('Moussa Fall', $carte['name']);
+        $this->assertIsInt($carte['visits_on_property']);
+        $carteW = $this->getJson("/api/property-visits/{$w->id}")->assertOk()->json('data.visitor_display');
+        $this->assertSame('customer', $carteW['kind']);
+        $this->assertSame('Awa Ndiaye', $carteW['name']);
+        $this->assertIsInt($carteW['visits_on_property']);
+    }
+
+    /**
+     * Vérification de TCK-2717 (m1) — le propriétaire qui est AUSSI personnel de l'agence du bien n'est
+     * pas « hors console » (`isStaffAt`, tout espace). Sous un profil de cette agence, même celui de
+     * propriétaire, il est personnel (`staffAgencyId`, ADR-0031 §1) : la carte de la console, rang
+     * compris. Ouvert dans une AUTRE agence où il est aussi agent, il n'est personnel actif de rien ici,
+     * et la carte réduite ne lui est pas servie pour autant — `null`, le même jugement que l'avis, qui
+     * lui garde le contact (`VisitRequestRoutingTest::test_tck2717_le_proprietaire_personnel_de_l_agence_garde_le_contact`).
+     * Sans ce cas, retirer `isStaffAt` du prédicat ne rougissait que du côté de l'avis.
+     */
+    public function test_tck2717_le_proprietaire_personnel_de_l_agence_n_est_pas_hors_console(): void
+    {
+        $double = $this->bailleur($this->x);
+        AgentProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->x->id]);
+        $ailleurs = AgentProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->agence()->id]);
+        $proprietaire = OwnerProfile::query()->where('user_id', $double->id)->firstOrFail();
+        $bien = $this->bienDe($this->x, $double->fresh());
+        $v = $this->visiteAnonyme($bien);
+
+        Sanctum::actingAs($double->fresh());
+        $console = $this->getJson("/api/property-visits/{$v->id}", ['X-Profile-Id' => "owner:{$proprietaire->id}"])->assertOk()
+            ->json('data.visitor_display');
+        $this->assertSame('anonymous', $console['kind']);
+        $this->assertIsInt($console['visits_on_property'], 'sous un profil de l\'agence du bien : la carte de la console');
+
+        $this->getJson("/api/property-visits/{$v->id}", ['X-Profile-Id' => "agent:{$ailleurs->id}"])->assertOk()
+            ->assertJsonPath('data.visitor_display', null)
+            ->assertJsonPath('data.visitor_name', 'Moussa Fall');
+    }
+
+    /**
+     * TCK-2717 AC4 — le compte à double casquette (personnel de Y, bailleur du bien dans X) lit la carte
+     * réduite de la visite anonyme, et la carte n'ouvre pas le préremplissage : `create_customer = false`.
+     * Un visiteur sans rapport avec le bien, lui, ne lit pas la carte de sa propre visite.
+     */
+    public function test_tck2717_ac4_la_double_casquette_lit_la_carte_sans_creer_de_fiche(): void
+    {
+        $double = $this->personnel($this->agence());
+        OwnerProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->x->id]);
+        $bien = $this->bienDe($this->x, $double->fresh());
+        $visiteur = $this->client();
+        $v = $this->visiteAnonyme($bien, ['visitor_id' => $visiteur->id]);
+
+        Sanctum::actingAs($double->fresh());
+        $this->getJson("/api/property-visits/{$v->id}")->assertOk()
+            ->assertJsonPath('data.visitor_display.name', 'Moussa Fall')
+            ->assertJsonPath('data.visitor_display.visits_on_property', null)
+            ->assertJsonPath('data.abilities.create_customer', false);
+
+        Sanctum::actingAs($visiteur);
+        $this->getJson("/api/property-visits/{$v->id}")->assertOk()->assertJsonPath('data.visitor_display', null);
     }
 }

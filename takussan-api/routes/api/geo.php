@@ -29,6 +29,11 @@ Route::middleware(['throttle:public-read', 'cache.headers:public;max_age=300;eta
 // TCK-633 (AC9) — un lien court collé : requête SORTANTE, d'où le compte exigé et le limiteur serré.
 Route::middleware(['auth:sanctum', 'throttle:20,1'])->post('geo/resolve-link', GeoLinkController::class)->name('geo.resolve-link');
 
+// TCK-2599 (ADR-0093) — la même résolution SANS compte, pour l'annonce commencée avant l'inscription :
+// même contrôleur, même FormRequest, même liste d'hôtes. Hors du groupe `public/geo` ci-dessus pour
+// ne porter QUE son limiteur par IP (10/min) : `public-read` (90/min) n'a rien à y ajouter.
+Route::middleware('throttle:public-geo-link')->post('public/geo/resolve-link', GeoLinkController::class)->name('public.geo.resolve-link');
+
 // TCK-633 (AC5) — la file des quartiers proposés : super-admin seulement.
 Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin/geo')->name('admin.geo.')->group(function () {
     Route::get('neighborhoods', [GeoNeighborhoodAdminController::class, 'index'])->name('neighborhoods.index');

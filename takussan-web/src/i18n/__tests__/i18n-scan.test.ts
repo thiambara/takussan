@@ -90,6 +90,10 @@ describe('scanner i18n — ce qu’il NE DOIT PAS compter', () => {
   it('ignore les directives de prologue', () => {
     expect(scan("'use client';\nexport const A = 1;")).toHaveLength(0);
     expect(scan("'use server';\nexport const A = 1;")).toHaveLength(0);
+    // React Compiler : la directive se pose en tête du CORPS d'une fonction, et porte deux mots.
+    expect(scan("const f = () => {\n  'use no memo';\n  return 1;\n};")).toHaveLength(0);
+    // Une phrase entre guillemets qui commence par « use » reste un libellé.
+    expect(scan("const t = 'use this one';")).toHaveLength(1);
   });
 
   it('ignore les chemins de module', () => {

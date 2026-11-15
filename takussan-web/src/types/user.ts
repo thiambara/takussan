@@ -67,13 +67,16 @@ export type UserPreferences = {
   entry_intent?: EntryIntent;
   /**
    * TCK-2480 (ADR-0089 §6) — épingles et replis du menu de `/app`, par persona. `unknown` à dessein :
-   * il se LIT par `lirePreferencesDeNavigation` (`@/lib/navigation/preferences`), jamais directement.
+   * il se LIT par `lirePreferencesDeNavigation` (`@/lib/navigation/preferences-schema`), jamais directement.
    */
   navigation?: unknown;
 };
 
-/** Les réponses possibles à la question d'orientation (TCK-493). */
-export const ENTRY_INTENTS = ['search', 'publish', 'skipped'] as const;
+/**
+ * Les réponses possibles à la question d'orientation (TCK-493). TCK-2608 — `professional`, la troisième
+ * porte (ajoutée côté API par TCK-2607, `UpdateMeRequest`).
+ */
+export const ENTRY_INTENTS = ['search', 'publish', 'professional', 'skipped'] as const;
 export type EntryIntent = (typeof ENTRY_INTENTS)[number];
 
 export type User = {
@@ -110,6 +113,12 @@ export type User = {
    */
   force_2fa_reconfigure?: boolean;
   agency_id?: number | null;
+  /**
+   * TCK-2620 / TCK-2621 — le profil que l'API a LIÉ à la requête (`type:id`), `null` sans profil lié :
+   * cookie, indice, dernier espace retenu ou auto-bascule (`ResolveActiveProfile`). Rendu pour SOI
+   * seulement. La coque y lit le persona quand le cookie manque (`profilLieDeLaCoque`).
+   */
+  active_profile_id?: string | null;
   roles: UserRole[];
   status: UserStatus;
   /** TCK-253 — empty `{}` when the user has set nothing yet. */
@@ -128,5 +137,7 @@ export type User = {
   terms_accepted_at?: string | null;
   /** TCK-1497 — le fuseau du compte (IANA), réglé au profil ; pour SOI seulement. */
   timezone?: string | null;
+  /** TCK-2506 — paraître dans l'annuaire public des propriétaires ; pour SOI seulement. */
+  listed_in_public_directory?: boolean;
   created_at: string;
 };

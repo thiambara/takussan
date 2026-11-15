@@ -1,0 +1,245 @@
+{
+  "ticket": "TCK-2625",
+  "ecrans": [
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Locataire",
+      "references": {
+        "telephone": "references/app-accueil/a-3-telephone.json",
+        "bureau-1440": "references/app-accueil/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "locataire",
+        "etat": "locataire de la démo (Modou Fall, Dakar Immo), relevé le 2026-11-13 : bail « Bureaux à Grand Yoff » à 615 000 F par mois ; 11 échéances échues pour 338 250 F à régler (carte en mode « À régler », paiement en ligne fermé pour cette échéance : « Comment payer à l’agence ») ; aucune échéance dans les 30 prochains jours ; dernière quittance de novembre payée le 9 nov. ; aucune visite ni intervention. La maquette : un loyer de novembre en retard, « Payer », deux échéances à venir. Le geste « Payer » est relevé à part (AC2, dus doublés en lecture : voir `mesures`)",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Prestataire",
+      "references": {
+        "telephone": "references/app-accueil/a-4-telephone.json",
+        "bureau-1440": "references/app-accueil/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "prestataire",
+        "etat": "prestataire de la démo (Astou), relevé le 2026-11-13 : aucune intervention aujourd’hui ni d’ici la fin de la semaine, aucun devis demandé. La maquette : deux interventions du jour (Itinéraire, Commencer) et des devis en attente",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Client",
+      "references": {
+        "telephone": "references/app-accueil/a-5-telephone.json",
+        "bureau-1440": "references/app-accueil/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "client",
+        "etat": "client de la démo (Demo Client), relevé le 2026-11-13 : aucune visite, aucun favori dont le prix a bougé, aucune recherche sauvegardée — l'accueil rend la seule invitation « Trouver un logement ». La maquette : une visite confirmée, deux favoris en baisse, une recherche sauvegardée ; au bureau, « Plus » replié dans la barre latérale (ses liens /app/payments et /app/maintenance ne sont pas visibles)",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app",
+    "persona": "voir `ecrans[].produit`",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "_roles": "Aucun rôle apparié en plus des rôles communs de la coque : les blocs s'apparient par leurs libellés et icônes (ancres) ; les données de la démo diffèrent de la maquette (lecture seule), un rôle de carte comparerait des contenus différents.",
+  "zones": [
+    {
+      "appareil": "mobile",
+      "nom": "coque · barre d'onglets",
+      "role": "coque · barre d'onglets"
+    }
+  ],
+  "alias": {
+    "Bonjour Ousmane": "le prénom du compte relevé (« Bonjour Modou »)",
+    "Bonjour Fatou": "le prénom du compte relevé (« Bonjour Demo »)",
+    "Loyer de novembre": "la carte du loyer : « Loyer de {mois} » pour une seule échéance due, « À régler » + « N échéances · Voir le détail » quand plusieurs le sont (CarteDuLoyer)"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-accueil a-3-*, a-4-*, a-5-*",
+      "element": "noms, biens, montants, dates, nombre de rangées, vignettes et cartes, ordonnées qui en découlent",
+      "propriete": "texte, y, présence, nombre de rangées",
+      "exception": "donnée",
+      "motif": "comptes de démo en lecture seule (garde d'écriture), relevés le 2026-11-13 : voir `ecrans[].produit.etat`. Rien n'est bouchonné dans les relevés a-3, a-4 et a-5 (seule la mesure AC2, à part, double les lectures des dus) ; la démo n'a ni séjour ni intervention du jour, et on n'en sème pas."
+    },
+    {
+      "ecran": "app-accueil a-3-*",
+      "element": "carte « À régler 338 250 F · 11 échéances » et « Comment payer à l’agence » au lieu de « Loyer de novembre · Payer »",
+      "propriete": "texte, présence",
+      "exception": "donnée",
+      "motif": "plusieurs échéances échues et paiement en ligne non ouvert pour cette échéance par le serveur ; « Payer » est mesuré à part (AC2) : 48 px, entièrement visible au-dessus de la ligne de flottaison (top 276, bas 324 sur 844), ton alerte"
+    },
+    {
+      "ecran": "app-accueil a-3-*",
+      "element": "ligne « Wave · Orange Money · Free Money » sous « Payer »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "les fournisseurs ouverts ne sont connus qu'à l'initiation, pour CETTE échéance (TCK-2650) : la carte n'en promet aucun"
+    },
+    {
+      "ecran": "app-accueil a-3-*",
+      "element": "« Mon logement » : photo du bien, date de fin du bail, nom de l'agent",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "non servis par la lecture du bail du locataire ; « Géré par {agence} » à la place"
+    },
+    {
+      "ecran": "app-accueil a-3-*",
+      "element": "« Ce mois »",
+      "propriete": "présence",
+      "exception": "décision",
+      "motif": "la maquette n'en dessine pas pour le locataire, et ses chiffres (`overdue_amount` de /dashboard/me) contredisaient la carte (« En retard 0 F » à côté de « 338 250 F à régler ») : une seule vérité du montant, la carte"
+    },
+    {
+      "ecran": "app-accueil a-3-bureau-*",
+      "element": "« Derniers paiements » et « Votre entrée dans les lieux » sous la carte, à gauche",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "l'historique vit sur /app/payments (TCK-2650) et la dernière quittance dans « Mon logement » ; l'entrée dans les lieux n'est pas servie au locataire sur l'accueil"
+    },
+    {
+      "ecran": "app-accueil a-4-*",
+      "element": "« Mes devis en attente » : seuls les devis demandés (quote_requested), pas ceux déjà envoyés",
+      "propriete": "nombre de rangées",
+      "exception": "décision",
+      "motif": "un devis envoyé attend le bailleur, pas le prestataire : ce n'est pas une file du prestataire"
+    },
+    {
+      "ecran": "app-accueil a-5-*",
+      "element": "« Les 6 favoris » (compte total)",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "seuls les favoris dont le prix a bougé sont lus (filter[price_changed]=1, per_page=2) ; « Tous vos favoris » mène à la liste"
+    },
+    {
+      "ecran": "app-accueil a-5-*",
+      "element": "titre « Vos favoris ont bougé » quand un prix a monté",
+      "propriete": "texte",
+      "exception": "règle",
+      "motif": "« prix en baisse » seulement quand TOUS les écarts lus sont négatifs"
+    },
+    {
+      "ecran": "app-accueil a-5-bureau-*",
+      "element": "favoris dans la colonne de gauche (maquette : droite)",
+      "propriete": "x",
+      "exception": "décision",
+      "motif": "ordre du téléphone gardé (visites → favoris → recherches) ; la colonne de droite porte les documents et l'invitation"
+    },
+    {
+      "ecran": "app-accueil a-*-bureau-*",
+      "element": "toutes les mesures en rem (16 contre 14,4)",
+      "propriete": "tailles et positions",
+      "exception": "technique",
+      "motif": "référence gelée antérieure à TCK-2692 (ADR-0107)"
+    },
+    {
+      "ecran": "app-accueil a-*-*",
+      "element": "trait des icônes lucide : 2 → 1,75 au téléphone, 1,5 dès md",
+      "propriete": "trait",
+      "exception": "règle du design system",
+      "motif": "trait par défaut de la portée `/app` (globals.css)"
+    },
+    {
+      "ecran": "app-accueil a-3-*, a-4-*, a-5-*",
+      "element": "en-tête de la coque (titre de page, nom du profil, pastilles de la barre d'onglets), « Aller au contenu principal », ellipses du rail à 768 et de « Interventions » dans la barre d'onglets à 360",
+      "propriete": "position, texte, présence",
+      "exception": "composant partagé",
+      "motif": "socle TCK-2622 et coque (TCK-2617) : hors du périmètre de ce ticket ; leurs écarts sont à la fiche TCK-2622"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-4-*",
+      "element": "interventions du jour (Itinéraire, Commencer)",
+      "motif": "aucune intervention aujourd'hui ni cette semaine pour le prestataire de la démo ; éprouvé en vitest (10 ablations), dont l'adresse et le téléphone du locataire jamais montrés avant l'acceptation"
+    }
+  ],
+  "mesures": {
+    "date": "2026-11-13",
+    "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare / balayer",
+    "commit": "arbre de travail (HEAD c8f21ee9e + TCK-2625)",
+    "resultats": [
+      {
+        "ecran": "a-3-telephone",
+        "ligne": "29 conformes · 12 écarts · 16 absents · 13,04 % pixels",
+        "note": "après réordonnancement (carte, Mon logement, échéances, ce qui m'attend, documents), retrait de « Ce mois » et de sa cellule vide ; premier relevé : 10 · 23 · 26 · 15,81 %"
+      },
+      {
+        "ecran": "a-3-bureau-1440",
+        "ligne": "22 conformes · 85 écarts · 62 absents · 9,21 % pixels",
+        "note": "rem 16 contre 14,4 ; la colonne part désormais du haut de la carte, comme la maquette (« Mon logement » y = 122,3 ; 140,3 avec la cellule vide de « Ce mois ») ; les trois conformes perdus ne l'étaient que par le décalage de 18 px, qui compensait en partie la photo du bien absente (écart « donnée ») ; premier relevé : 24 · 88 · 66 · 9,66 %"
+      },
+      {
+        "ecran": "a-3-bureau-1280",
+        "ligne": "22 conformes · 85 écarts · 62 absents · 9,58 % pixels"
+      },
+      {
+        "ecran": "a-3 AC2 (téléphone, dus doublés en lecture)",
+        "ligne": "« Payer » 48 px, top 276 / bas 324 sur 844, entièrement visible, ton alerte ; aucune écriture tentée"
+      },
+      {
+        "ecran": "a-4-telephone",
+        "ligne": "22 conformes · 11 écarts · 29 absents · 10,43 % pixels"
+      },
+      {
+        "ecran": "a-4-bureau-1440",
+        "ligne": "19 conformes · 38 écarts · 72 absents · 4,87 % pixels"
+      },
+      {
+        "ecran": "a-4-bureau-1280",
+        "ligne": "19 conformes · 38 écarts · 72 absents · 5,36 % pixels"
+      },
+      {
+        "ecran": "a-5-telephone",
+        "ligne": "21 conformes · 10 écarts · 31 absents · 22,12 % pixels",
+        "note": "l'invitation seule (donnée)"
+      },
+      {
+        "ecran": "a-5-bureau-1440",
+        "ligne": "22 conformes · 61 écarts · 65 absents · 6,91 % pixels",
+        "note": "r2 : relevé accepté après le correctif de LIENS_VISIBLES (lien rogné par le panneau « Plus » replié, voir `mesures.r2`) ; l'invitation seule (donnée) ; rem 16 contre 14,4"
+      },
+      {
+        "ecran": "a-5-bureau-1280",
+        "ligne": "22 conformes · 61 écarts · 65 absents · 6,78 % pixels"
+      },
+      {
+        "ecran": "balayage /app (locataire, prestataire, client)",
+        "ligne": "360, 390, 768, 1024, 1280, 1440 : débord 0, dépassement 0, aucune coupe ; client au bureau (1024, 1280, 1440) repris en r2 : idem, aucune ellipse",
+        "note": "ellipses : rail à 768 et « Interventions » de la barre d'onglets à 360 (coque) ; « Fuite, panne, serrure… » à 360 et 1280 (truncate voulu du détail de « Mon logement »)"
+      }
+    ],
+    "r2": {
+      "date": "2026-11-13",
+      "motif": "le relevé du client au bureau était refusé par un faux positif de l'outil : LIENS_VISIBLES comptait les liens du panneau « Plus » replié (monté, hauteur 0, overflow hidden). Corrigé dans scripts/fidelite/inventaire.mjs (un lien n'est visible que si sa boîte survit aux ancêtres qui la rognent), cas éprouvés fixtures/liens-visibles.html et verifier-liens-visibles.mjs",
+      "non_regression": "locataire au bureau (1440) et au téléphone, prestataire au bureau (1440) : relevés acceptés, /app/payments et /app/maintenance toujours vus chez le locataire"
+    }
+  }
+}

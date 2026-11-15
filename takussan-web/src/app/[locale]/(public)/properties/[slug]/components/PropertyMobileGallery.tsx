@@ -13,7 +13,7 @@ interface PropertyMobileGalleryProps {
 }
 
 export function PropertyMobileGallery({ photos, title, onOpenLightbox }: PropertyMobileGalleryProps) {
-  const t = useTranslations('property.detail');
+  const t = useTranslations('propertyDetail');
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
   const [selected, setSelected] = useState(0);
 

@@ -36,9 +36,12 @@ vi.mock('next/navigation', () => ({
 
 const me = vi.hoisted(() => ({ user: null as User | null }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => me.user }));
-vi.mock('@/components/pipeline/PipelineKanban', () => ({
-  PipelineKanban: () => null,
+vi.mock('@/components/pipeline/PageDuPipeline', () => ({
+  PageDuPipeline: () => null,
 }));
+// TCK-2592 — la page lit le jeton, les capacités, les étiquettes et l'agence : sans jeton, rien ne part.
+vi.mock('@/lib/session', () => ({ getToken: async () => null }));
+vi.mock('@/lib/access/pages-admin-server', () => ({ capacitesDuProfilActif: async () => [] }));
 // `getTranslations` est une API serveur ; sous jsdom, next-intl la refuse. On ne teste pas les
 // libellés ici — seulement QUI passe le garde, qui s'exécute AVANT cette ligne.
 vi.mock('next-intl/server', () => ({
@@ -107,7 +110,10 @@ describe('/app/crm/pipeline — le lien n’élargit aucun accès (TCK-379)', ()
     // deviendrait une invitation vers un 403 — la forme de défaut que ce lot corrige ailleurs.
     const src = (p: string) => fs.readFileSync(path.resolve(__dirname, p), 'utf8');
     expect(src('../../../customers/layout.tsx')).toContain('assertCanReachAgentArea');
-    expect(src('../../../customers/(liste)/page.tsx')).toContain('/app/crm/pipeline');
+    // TCK-2590 — le lien « Étapes » a quitté la page pour la liste qu'elle rend (`ListeDesClients`) :
+    // c'est toujours CETTE page, sous ce même layout, qui le dessert.
+    expect(src('../../../customers/(liste)/page.tsx')).toContain('ListeDesClients');
+    expect(src('../../../../../../components/customer-dashboard/liste/ListeDesClients.tsx')).toContain('/app/crm/pipeline');
     const guards = src('../../../../../../lib/auth/guards.ts');
     expect(guards).toContain('isAgent(roles) || isOwner(roles) || isAdmin(roles)');
     // ⚠ Cette ligne exigeait que la page RECOPIE l'expression de rôles en ligne

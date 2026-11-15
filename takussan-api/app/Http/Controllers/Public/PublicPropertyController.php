@@ -14,6 +14,7 @@ use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Requests\Public\MapPublicPropertyRequest;
 use App\Http\Requests\Public\NeighborhoodsPublicPropertyRequest;
+use App\Http\Requests\Public\PriceDistributionRequest;
 use App\Http\Requests\Public\ReportPublicPropertyRequest;
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
@@ -27,6 +28,7 @@ use App\Http\Resources\ReviewResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\ContractType;
@@ -35,6 +37,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Rules\PersonnelDeLAgence;
@@ -54,6 +57,7 @@ use App\Services\Property\SimilarPropertiesService;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
+use App\Services\Search\RepartitionDesPrix;
 use App\Services\Search\SearchJournal;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
@@ -387,13 +391,28 @@ class PublicPropertyController extends Controller
         ]);
     }
 
+    /**
+     * TCK-2498 — la répartition des prix des biens que la liste rendrait sous ces filtres, sans bornes de prix :
+     * `{ data: { buckets: [{from, to, count}], min, max } }`. Voir {@see RepartitionDesPrix}.
+     */
+    public function priceDistribution(PriceDistributionRequest $request, RepartitionDesPrix $repartition): JsonResponse
+    {
+        return $this->json(['data' => $repartition->calculer($request->filtres())]);
+    }
+
     public function search(SearchPublicPropertyRequest $request, PropertySearchService $service, SearchJournal $journal): array
     {
         $validated = $request->validated();
 
         $result = $service->search($validated);
         // TCK-2472 (ADR-0088) — le journal anonyme des recherches : page 1 seulement, après la réponse, jamais en échec.
-        $journal->recordPublicSearch($request, $validated, $result);
+        // TCK-2496 — pas un compte de biens nouveaux (`published_after`) : le front le demande pour chaque recherche
+        // récente qu'il affiche, sans que personne n'ait cherché. TCK-2517 — pas une recherche dans les biens d'une
+        // fiche (`agency`, `agent`) : son total est celui d'un portefeuille, et un zéro y passerait pour une demande
+        // sans offre du catalogue entier (le Radar, les variantes d'écriture).
+        if (empty($validated['published_after']) && empty($validated['agency']) && empty($validated['agent'])) {
+            $journal->recordPublicSearch($request, $validated, $result);
+        }
 
         return $result;
     }
@@ -845,12 +864,18 @@ class PublicPropertyController extends Controller
             ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
             : null;
 
+        // TCK-2502 — un jour et une tranche, à la place d'une heure : la visite est rangée au début
+        // de la tranche, à Dakar, et la tranche dit que l'heure reste à fixer par l'agent.
+        $window = isset($data['preferred_window']) ? VisitWindow::from($data['preferred_window']) : null;
+
         $visit = $scheduling->createOrFail($property, $user, [
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
             'customer_id' => $customerId,
             'agent_id' => $agentId,
-            'scheduled_at' => $data['scheduled_at'],
+            // TCK-2743 — hors tranche, l'instant que l'heure reçue désigne, et non son heure murale.
+            'scheduled_at' => $window !== null ? $window->startOn($data['date'])->utc() : $request->scheduledAt(),
+            'preferred_window' => $window,
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,
             'status' => VisitStatus::Scheduled->value,
@@ -976,6 +1001,11 @@ class PublicPropertyController extends Controller
                 // valait le 21 à 00:00. La date choisie reste telle quelle dans `metadata`.
                 'expires_at' => FinInclusive::de($data['offer_expires_at']),
                 'notes' => $data['message'] ?? null,
+                // TCK-2579 (ADR-0102) — la nature et les termes de l'offre ont leurs colonnes ;
+                // `metadata` reste écrit comme avant, et n'est plus lu.
+                'kind' => BookingKind::Offer->value,
+                'offer_expires_at' => $data['offer_expires_at'],
+                'list_price_at_booking' => $property->price,
                 'metadata' => [
                     'kind' => 'offer',
                     'offer_amount' => (float) $data['offer_amount'],
@@ -1016,6 +1046,7 @@ class PublicPropertyController extends Controller
             // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
             // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
             $customer = $customers->findOrCreateFromUser($user, $property);
+            $kind = BookingKind::forProperty($locked);
 
             return Booking::create([
                 'property_id' => $property->id,
@@ -1031,6 +1062,10 @@ class PublicPropertyController extends Controller
                 'currency' => $locked->currency,
                 'status' => BookingStatus::Pending->value,
                 'notes' => $data['message'] ?? null,
+                // TCK-2579 (ADR-0102) — séjour ou candidature, d'après le bien relu sous le verrou ;
+                // une candidature retient le loyer affiché.
+                'kind' => $kind,
+                'list_price_at_booking' => $kind === BookingKind::Application ? $locked->price : null,
                 'metadata' => ['guests' => $data['guests']],
             ]);
         });

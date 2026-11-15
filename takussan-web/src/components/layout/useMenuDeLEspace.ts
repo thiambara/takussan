@@ -16,7 +16,7 @@ import { destinationsMasquees } from '@/lib/navigation/modules';
 import { personaDeLaCoque, type Persona } from '@/lib/navigation/personas';
 import { prefsDe } from '@/lib/navigation/preferences';
 import type { ContexteDeMenu } from '@/lib/navigation/types';
-import { usePreferencesDuMenu } from './PreferencesDuMenu';
+import { usePreferencesDuMenu } from './contexte-preferences-du-menu';
 
 /**
  * Une entrée rendue : celle du menu composé, plus le cadenas de l'agence `individual`.

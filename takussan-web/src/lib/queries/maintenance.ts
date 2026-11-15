@@ -37,6 +37,8 @@ export const maintenanceKeys = {
   byProperty: (propertyId: number, params?: MaintenanceListParams) =>
     ['maintenance', 'property', propertyId, params ?? {}] as const,
   detail: (id: number) => ['maintenance', 'detail', id] as const,
+  /** TCK-2786 — le journal d'une demande. */
+  journal: (id: number) => ['maintenance', 'journal', id] as const,
 };
 
 /** Sparse fieldsets — keep responses minimal (CLAUDE.md rule #1). */
@@ -414,5 +416,38 @@ export function useStartMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
     { path: cheminApi`/api/maintenance-requests/${id}/start`, method: 'POST' },
     { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+/**
+ * TCK-2786 — `POST /api/maintenance-requests/{id}/owner-reminders` : « Relancer le bailleur ». La
+ * relance part par Takussan (notification au bailleur), jamais par son contact. 409 hors
+ * `awaiting_owner`, dans les 24 h d'une relance, ou vers un bailleur parti ou suspendu.
+ */
+export function useRemindMaintenanceOwner(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRequest>, void>(
+    { path: cheminApi`/api/maintenance-requests/${id}/owner-reminders`, method: 'POST' },
+    { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id), maintenanceKeys.journal(id)] },
+  );
+}
+
+/** TCK-2786 — une entrée du journal : un code (le libellé est au front), un instant, un acteur réduit. */
+export interface EntreeDuJournal {
+  readonly id: number | null;
+  /** `null` pour l'entrée « avant le journal ». */
+  readonly at: string | null;
+  /** `created`, `status.<cause>`, `owner_reminded`, `owner_unavailable`, `journal.before`. */
+  readonly code: string;
+  readonly actor: { readonly id: number; readonly full_name: string } | null;
+  readonly from: MaintenanceStatus | null;
+  readonly to: MaintenanceStatus | null;
+}
+
+/** TCK-2786 — `GET /api/maintenance-requests/{id}/journal`, dans l'ordre où c'est arrivé. */
+export function useMaintenanceJournal(id: number, enabled: boolean) {
+  return useApiQuery<PaginatedResponse<EntreeDuJournal> & { meta: { starts_with_request?: boolean } }>(
+    maintenanceKeys.journal(id),
+    cheminApi`/api/maintenance-requests/${id}/journal`,
+    { params: { per_page: 100 }, enabled: enabled && id > 0 },
   );
 }

@@ -13,6 +13,9 @@ use App\Models\KpiConfig;
  */
 class KpiResolver
 {
+    /** TCK-2791 — les seules métriques qui suivent `period` ; toutes les autres sont l'état du jour. */
+    public const METRIQUES_DU_MOIS = ['revenue_month', 'commission_month'];
+
     public function __construct(private readonly DashboardAgencyService $agencyService) {}
 
     /**
@@ -56,9 +59,10 @@ class KpiResolver
      * dans le résumé déjà calculé (une requête de plus, constante). Une métrique hors de
      * {@see self::flatten()} n'a pas de valeur servie : elle est omise, jamais rendue à zéro.
      * Liste vide sans configuration : le tableau de bord garde alors ses tuiles par défaut.
+     * TCK-2791 — `as_of_today` : la tuile dit l'état du jour, pas le mois servi (`period=last_month`).
      *
      * @param  array<string, mixed>  $summary
-     * @return list<array{metric: string, label: string, format: string, value: float|int|null}>
+     * @return list<array{metric: string, label: string, format: string, value: float|int|null, as_of_today: bool}>
      */
     public static function configuredTiles(Agency $agency, array $summary): array
     {
@@ -76,6 +80,7 @@ class KpiResolver
                 'label' => $config->label,
                 'format' => $config->format,
                 'value' => $values[$config->metric],
+                'as_of_today' => ! in_array($config->metric, self::METRIQUES_DU_MOIS, true),
             ])
             ->values()
             ->all();

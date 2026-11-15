@@ -301,13 +301,30 @@ class ReceiptPdfTest extends TestCase
     }
 
     /**
+     * TCK-2794, AC3 — les montants de la quittance groupent leurs milliers par l'insécable U+00A0,
+     * comme l'écran : sur le HTML BRUT du gabarit, sans aucune normalisation des espaces.
+     */
+    public function test_tck2794_la_quittance_groupe_ses_montants_par_l_insecable(): void
+    {
+        $ctx = $this->leaseDue(null, ['status' => PaymentStatus::Paid, 'paid_at' => now(), 'late_fee_paid_at' => now()]);
+
+        $html = $this->renderedReceipt($ctx, brut: true);
+
+        $this->assertStringContainsString("150\u{00A0}000\u{00A0}F CFA", $html);
+        $this->assertStringContainsString("157\u{00A0}500\u{00A0}F CFA", $html);
+        $this->assertStringContainsString("7\u{00A0}500\u{00A0}F CFA", $html);
+        $this->assertStringNotContainsString("\u{202F}", $html);
+        $this->assertStringNotContainsString('&#8239;', $html);
+    }
+
+    /**
      * Rend la quittance par la VRAIE route (le PDF est produit), et relit le HTML du gabarit à partir
      * des données que la route lui a passées : le texte d'un PDF compressé ne se lit pas.
-     * Les espaces insécables du formatage monétaire sont ramenées à l'espace simple.
+     * Les espaces insécables du formatage monétaire sont ramenées à l'espace simple, sauf `$brut`.
      *
      * @param  array<string, mixed>  $ctx
      */
-    private function renderedReceipt(array $ctx): string
+    private function renderedReceipt(array $ctx, bool $brut = false): string
     {
         $captured = null;
         View::composer('pdf.receipts.rent', function ($view) use (&$captured): void {
@@ -319,6 +336,9 @@ class ReceiptPdfTest extends TestCase
         $this->assertNotNull($captured, 'Le gabarit de quittance n\'a pas été rendu.');
 
         $html = view('pdf.receipts.rent', $captured)->render();
+        if ($brut) {
+            return $html;
+        }
 
         return str_replace(["\u{202F}", "\u{00A0}", '&nbsp;', '&#160;', '&#8239;'], ' ', $html);
     }

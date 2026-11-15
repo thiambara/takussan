@@ -88,7 +88,7 @@ class LeasePaymentController extends Controller
         $payment->loadMissing('lease');
         abort_unless($payment->lease, 404);
 
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $payment = $this->payments->markPaid($payment, $data, $request->user());
 
@@ -103,7 +103,7 @@ class LeasePaymentController extends Controller
      */
     public function markLateFeePaid(MarkLateFeePaidRequest $request, LeasePayment $payment, LateFeeSettlement $settlement): JsonResponse
     {
-        $payment = $settlement->markPaid($payment, $request->user(), $request->validated());
+        $payment = $settlement->markPaid($payment, $request->user(), $request->validatedAvecInstants());
 
         return $this->json([
             'data' => LeasePaymentResource::make($payment->refresh())->resolve($request),

@@ -51,7 +51,7 @@ export function PropertyCardWide({ property, priority, index = 0 }: PropertyCard
             />
 
             {property.contract_type && (
-              <div className={`absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+              <div className={`absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.625rem] font-semibold ${
                 isSale ? 'pg-badge-tx-sale' : 'pg-badge-tx-rent'
               }`}>
                 {isSale ? 'Vente' : 'Location'}
@@ -63,19 +63,19 @@ export function PropertyCardWide({ property, priority, index = 0 }: PropertyCard
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1 pr-1">
           <div className="space-y-1">
             <Link href={`/properties/${property.slug}`}>
-              <h3 className="pg-display text-[16px] leading-[20px] font-semibold text-[var(--pg-ink)] line-clamp-2">
+              <h3 className="pg-display text-[1rem] leading-[20px] font-semibold text-[var(--pg-ink)] line-clamp-2">
                 {property.title}
               </h3>
             </Link>
 
             {location && (
-              <p className="text-[12px] text-[var(--pg-ink-muted)] flex items-center gap-1 truncate">
+              <p className="text-[0.75rem] text-[var(--pg-ink-muted)] flex items-center gap-1 truncate">
                 <MapPin className="size-3 shrink-0" />
                 <span className="truncate">{location}</span>
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[11px] font-medium text-[var(--pg-ink-muted)]">
+            <div className="flex flex-wrap items-center gap-1 pt-0.5 text-[0.6875rem] font-medium text-[var(--pg-ink-muted)]">
               {property.bedrooms != null && property.bedrooms > 0 && (
                 <span>{property.bedrooms} ch</span>
               )}
@@ -96,15 +96,15 @@ export function PropertyCardWide({ property, priority, index = 0 }: PropertyCard
 
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-[16px] font-bold text-[var(--pg-accent)] pg-tabular leading-tight">
+              <p className="text-[1rem] font-bold text-[var(--pg-accent)] pg-tabular leading-tight">
                 {formatPrice(property.price, property.currency ?? 'XOF')}
                 {property.contract_type === 'rent' && property.rent_period && (
-                  <span className="text-[11px] font-semibold text-[var(--pg-ink-muted)] ml-0.5">
+                  <span className="text-[0.6875rem] font-semibold text-[var(--pg-ink-muted)] ml-0.5">
                     /{RENT_PERIOD_SHORT[property.rent_period]}
                   </span>
                 )}
               </p>
-              <p className="text-[10px] text-[var(--pg-ink-muted)] mt-0.5">{timeAgo}</p>
+              <p className="text-[0.625rem] text-[var(--pg-ink-muted)] mt-0.5">{timeAgo}</p>
             </div>
 
             <button

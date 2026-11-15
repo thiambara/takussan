@@ -41,6 +41,27 @@ final class ObservedRefundPayout
             return null;
         }
 
+        return $this->create($payment, $amount, $at, $issuedById);
+    }
+
+    /**
+     * TCK-2793 (ADR-0039, amendement du 2026-11-14, point 6) — le remboursement de la pénalité payée
+     * SEULE : le point 9 se lit sur l'encaisseur de la PÉNALITÉ (l'intégration de son checkout), pas
+     * sur celui du loyer. Encaissée par l'agence, son remboursement est un débit de son relevé.
+     */
+    public function recordLateFeeAlone(LeasePayment $payment, float $amount, CarbonInterface $at): ?Payout
+    {
+        if ($amount <= 0 || $payment->lateFeeAloneSettlement() === null
+            || $this->platformPayouts->lateFeeAloneSettledByPlatform($payment)) {
+            return null;
+        }
+
+        return $this->create($payment, $amount, $at, null);
+    }
+
+    private function create(LeasePayment|BookingPayment $payment, float $amount, CarbonInterface $at, ?int $issuedById): ?Payout
+    {
+
         [$agencyId, $landlordId, $leaseId, $bookingId] = $this->parties($payment);
         if ($landlordId === null) {
             // `payouts.landlord_id` n'est pas nullable : sans bailleur, pas de constaté. Tracé, pour

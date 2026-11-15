@@ -127,3 +127,33 @@ describe('les espaces proposés et la bascule', () => {
     await waitFor(() => expect(refreshUserMock).toHaveBeenCalled());
   });
 });
+
+describe('TCK-2621 — « rôle · ville », coché, jamais le slug', () => {
+  const corps: MyProfilesResponse = {
+    data: [
+      { id: 'agent:5', type: 'agent', numeric_id: 5, agency_id: 1, agency: { id: 1, name: 'Dakar Immo', slug: 'dakar-immo', kind: 'standard', city: 'Dakar' }, status: 'active', created_at: null },
+      { id: 'owner:9', type: 'owner', numeric_id: 9, agency_id: 2, agency: { id: 2, name: 'Thiès Properties', slug: 'thies-properties', kind: 'standard', city: null }, status: 'active', created_at: null },
+    ],
+    meta: { active_profile_id: 'owner:9', count: 2 },
+  };
+
+  it('chaque ligne : agence, puis « rôle · ville » (le rôle seul sans ville) ; aucun slug', async () => {
+    await ouvrir(repondre(corps));
+    const dakar = await screen.findByTestId('espace-du-menu-agent:5');
+    expect(dakar).toHaveTextContent('Dakar Immo');
+    expect(dakar).toHaveTextContent('Agent · Dakar');
+    const thies = screen.getByTestId('espace-du-menu-owner:9');
+    expect(thies).toHaveTextContent(/Propriétaire$/);
+    const menu = screen.getByRole('menu');
+    expect(menu.textContent).not.toMatch(/dakar-immo|thies-properties/);
+  });
+
+  it('l’espace actif porte la coche (et `aria-current`), l’autre un cercle vide', async () => {
+    await ouvrir(repondre(corps));
+    const actif = await screen.findByTestId('espace-du-menu-owner:9');
+    expect(actif).toHaveAttribute('aria-current', 'true');
+    expect(actif.querySelector('svg.lucide-check')).not.toBeNull();
+    expect(screen.getByTestId('espace-du-menu-agent:5').querySelector('svg.lucide-check')).toBeNull();
+  });
+});
+

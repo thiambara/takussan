@@ -1,0 +1,198 @@
+{
+ "ticket": "TCK-2636",
+ "ecrans": [
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 2,
+   "nom": "Préférences de notifications",
+   "references": {
+    "telephone": "references/app-profil/a-2-telephone.json",
+    "bureau-1440": "references/app-profil/a-2-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-2-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile/notifications",
+    "persona": "admin",
+    "etat": "admin d'agence (Dakar Immo), téléphone vérifié, WhatsApp non refusé : SMS et WhatsApp ouverts sur les cinq événements mobiles, cochés par défaut sur l'échéance, le retard, le statut de réservation et le rappel de visite (TCK-588) ; notification mobile sans transport (`broadcasting.default` = log) ; au téléphone, Baux et Messages ouverts, les cinq autres groupes repliés sur leur résumé (comme la maquette, arbitrage du 2026-11-11). Seconde mesure en `agent` pour la coque (même barre d'onglets que la maquette)."
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/profile/notifications",
+  "persona": "admin",
+  "disposition": "admin-agence",
+  "etat": "voir `ecrans[].produit`",
+  "defiler": null,
+  "perturber": null
+ },
+ "coque": true,
+ "_coque": "Rôles de coque par défaut (roles-coque.json). La maquette dessine la coque de l'AGENT (onglets Aujourd'hui · Demandes · Clients · Messages · Menu) ; la mesure principale est en `admin`, seul compte de démo dont WhatsApp se règle (téléphone vérifié) — ses onglets sont ceux de l'admin d'agence (TCK-2618). Les zones de coque se jugent donc sur la mesure en `agent` (`mesures`, suffixe `-agent`).",
+ "roles": [
+  {
+   "appareil": "mobile",
+   "nom": "rangée « Loyer en retard »",
+   "maquette": {
+    "boiteDe": "Loyer en retard",
+    "min": 60
+   },
+   "produit": {
+    "boiteDe": "Loyer en retard",
+    "min": 60
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "desktop",
+   "nom": "carte du groupe « Baux »",
+   "maquette": {
+    "boiteDe": "Baux",
+    "min": 100
+   },
+   "produit": {
+    "boiteDe": "Baux",
+    "min": 100
+   },
+   "contenu": false
+  }
+ ],
+ "_roles": "La rangée « Loyer en retard » est la seule dont la donnée coïncide avec la maquette (quatre puces cochées, WhatsApp compris) : son contenu se compare. La carte « Baux » se compare en géométrie seule (`contenu: false`) : huit événements dans le produit, quatre dans la maquette (cf. écarts acceptés, « événements »).",
+ "zones": [],
+ "_zones": "Aucune zone à contenu identique. La barre d'onglets a été mesurée sur la mesure `agent` (mêmes onglets que la maquette) : 1,31 % de pixels différents, parce que la maquette met « Menu » en avant (icône primaire, 600) sur une page du profil et que la coque du produit ne met « Menu » en avant que tiroir ouvert (TCK-2618) — un comportement de la coque, pas de cette page (signalé, hors périmètre). L'en-tête du téléphone porte le titre de la route (cf. alias). Pas de zone de tête de page : la maquette du téléphone n'a que l'en-tête de réglage (cf. écarts acceptés).",
+ "alias": {
+  "Notifications": "Préférences de notifications",
+  "Pour chaque événement, touchez les canaux par lesquels vous voulez être prévenue.": "Pour chaque événement, choisissez les canaux qui vous préviennent.",
+  "Pour chaque événement, les canaux par lesquels vous êtes prévenue.": "Pour chaque événement, choisissez les canaux qui vous préviennent."
+ },
+ "_alias": {
+  "Notifications → Préférences de notifications": "titre de la route déclaré par la coque (`HORS_MENU`, `nav.sidebar.compte.preferences`) et par le H1 ; le renommage du profil relève de son sommaire (TCK-2635).",
+  "« prévenue » → « qui vous préviennent »": "la maquette accorde au persona dessiné (une agente) ; le produit ne connaît pas le genre du compte : tournure neutre, vouvoiement gardé. Une seule phrase au téléphone et au bureau (« touchez » ne vaut pas au pointeur)."
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-2-*",
+   "element": "événements de chaque groupe",
+   "propriete": "libellés, nombre de rangées, positions qui suivent",
+   "exception": "donnée",
+   "motif": "la maquette illustre des événements que l'API n'émet pas (« Bail à signer », « Bail arrivant à terme », « Nouvelle demande de contact », « Demande d'intervention », « Devis à valider », « Vérification d'identité », « Bien validé ou refusé », « Mise en avant terminée ») ; le produit rend les 20 de `PreferenceResolver::EVENTS` (AC3, garde de parité), sous les libellés de la maquette quand elle en a un (« Loyer en retard », « Échéance de loyer à venir », « Statut d'une réservation », « Rappel de visite », « Avis reçu », « Seuil dépassé », « Nouveau message »). Baux compte 8 rangées au lieu de 4 : tout ce qui suit descend."
+  },
+  {
+   "ecran": "a-2-*",
+   "element": "« Rappel de visite »",
+   "propriete": "groupe",
+   "exception": "donnée",
+   "motif": "la maquette le range sous Réservations ; le ticket ne déplace que les six événements oubliés, `visit_reminder` reste dans Alertes."
+  },
+  {
+   "ecran": "a-2-*",
+   "element": "état des puces et des cases",
+   "propriete": "coché / non coché, largeur des puces (coche)",
+   "exception": "donnée",
+   "motif": "l'état vient des préférences du compte (défauts TCK-588) : « E-mail » coché partout chez l'admin, « Paiement de loyer reçu » sans SMS ni WhatsApp."
+  },
+  {
+   "ecran": "a-2-telephone",
+   "element": "puces SMS / WhatsApp des événements non mobiles",
+   "propriete": "absentes du produit",
+   "exception": "donnée",
+   "motif": "aucun envoi ne les honorerait (`channel_unavailable`, TCK-588) : le produit ne propose pas de puce morte et le dit en une ligne du groupe (« SMS et WhatsApp : pas d’envoi pour les autres événements de ce groupe. »), comme la maquette le fait pour la notification mobile."
+  },
+  {
+   "ecran": "a-2-telephone",
+   "element": "tête de page",
+   "propriete": "H1 et description sous l'en-tête (Δ y ≈ +84 px sur tout le contenu)",
+   "exception": "composant partagé",
+   "motif": "`PageHeader` rend le H1 sous l'en-tête du téléphone sur toutes les racines de /app (TCK-2617) ; la maquette « réglage » n'a que l'en-tête et un paragraphe. Le fil d'Ariane, lui, ne s'affiche plus au téléphone (`fil`, flèche unique). Le gabarit des pages du profil relève de TCK-2635."
+  },
+  {
+   "ecran": "a-2-bureau-*",
+   "element": "sommaire du profil, tête « Profil », largeur du contenu",
+   "propriete": "absents, x, largeur des cartes (812 → 603 px)",
+   "exception": "composant partagé",
+   "motif": "le sommaire à gauche et la page « Profil » large sont TCK-2635 (hors périmètre) ; `ProfileLayout` garde `max-w-2xl`, la matrice suit sa largeur. Colonnes de canal de 76 px sur l'échelle (68,4 au bureau dense, ADR-0107)."
+  },
+  {
+   "ecran": "a-2-*",
+   "element": "toast « Enregistré »",
+   "propriete": "forme et place",
+   "exception": "composant partagé",
+   "motif": "le toast sombre du produit, en bas, pleine largeur au téléphone (TCK-2688, décision D8 : « un toast ne change pas de place selon la page ») ; la maquette dessine une pastille centrée. Le relevé est pris au repos : la maquette dessine l'écran juste après un enregistrement, le toast est éprouvé à part (AC2, au navigateur)."
+  },
+  {
+   "ecran": "a-2-*",
+   "element": "case et coche",
+   "propriete": "taille 18 px, trait de coche 2,5",
+   "exception": "composant partagé",
+   "motif": "la case du produit (`Checkbox`, TCK-2690 : 18 px, rayon 5) ; la maquette dessine 20 px et un trait de 2."
+  },
+  {
+   "ecran": "a-2-*",
+   "element": "encre des puces inactives",
+   "propriete": "couleur",
+   "exception": "accessibilité",
+   "motif": "la maquette écrit `text-foreground/70` (translucide) ; le produit l'encre douce opaque (`text-encre-douce`, TCK-2685 / TCK-658 : aucune encre de texte translucide)."
+  },
+  {
+   "ecran": "a-2-*",
+   "element": "coque",
+   "propriete": "onglets, colonne",
+   "exception": "donnée",
+   "motif": "persona admin (cf. `_coque`)."
+  },
+  {
+   "ecran": "a-2-telephone",
+   "element": "onglet « Menu »",
+   "propriete": "couleur de l'icône, graisse du libellé",
+   "exception": "composant partagé",
+   "motif": "la coque ne met « Menu » en avant que tiroir ouvert (TCK-2618) ; la maquette le fait sur une page du profil. Comportement de toute page hors menu : hors périmètre, signalé."
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "element": "sommaire du profil et gabarit des pages de réglage (en-tête « Notifications », colonne de liens au bureau)",
+   "ticket": "TCK-2635",
+   "motif": "« Hors périmètre : le sommaire du profil (TCK-2635) »."
+  },
+  {
+   "element": "« Vérification d'identité · Toujours envoyée : sécurité du compte » (rangée imposée)",
+   "ticket": "—",
+   "motif": "l'API ne rend aucun événement réglable de ce type : `kyc_status_changed` est un CRITICAL_EVENT, hors de `PreferenceResolver::EVENTS`, et n'a pas de case. Aucune donnée derrière la rangée."
+  },
+  {
+   "element": "masquage des événements que le persona ne reçoit jamais",
+   "ticket": "—",
+   "motif": "hors périmètre du ticket (règle de l'API à poser d'abord)."
+  }
+ ],
+ "_absents": "Aucun libellé ni icône de la maquette n'est absent sans alias ou motif : les événements illustrés sans équivalent et la rangée imposée sont aux écarts acceptés et hors périmètre ; le sommaire, la tête « Profil » et « Supprimer mon compte » (bureau) relèvent de TCK-2635 ; le cadenas et la ligne « Notification mobile : pas encore disponible. » sont rendus. Absents de la maquette, avec motif : le H1 et la description de la tête de page (cf. écarts), le bandeau « téléphone non vérifié » (absent chez l'admin, présent chez l'agent : existant, gardé), la ligne « SMS et WhatsApp : pas d’envoi… » (cf. écarts), et les rangées des événements que la maquette n'illustre pas.",
+ "mesures": {
+  "a-2-telephone": {
+   "ligne": "21 conformes · 68 écarts · 47 absents · 25.26 % pixels",
+   "releve_le": "2026-11-11 21:22 Z",
+   "commit": "8fd075b66bf5",
+   "rideau": ".fidelite/TCK-2636/cmp-a-2-telephone/"
+  },
+  "a-2-bureau-1440": {
+   "ligne": "24 conformes · 215 écarts · 90 absents · 8.17 % pixels",
+   "releve_le": "2026-11-11 21:17 Z",
+   "commit": "8fd075b66bf5",
+   "rideau": ".fidelite/TCK-2636/cmp-a-2-bureau-1440/"
+  },
+  "a-2-bureau-1280": {
+   "ligne": "24 conformes · 215 écarts · 90 absents · 8.81 % pixels",
+   "releve_le": "2026-11-11 21:17 Z",
+   "commit": "8fd075b66bf5",
+   "rideau": ".fidelite/TCK-2636/cmp-a-2-bureau-1280/"
+  },
+  "a-2-telephone-agent": {
+   "ligne": "28 conformes · 59 écarts · 42 absents · 25.18 % pixels",
+   "releve_le": "2026-11-11 21:17 Z",
+   "commit": "8fd075b66bf5",
+   "rideau": ".fidelite/TCK-2636/cmp-a-2-telephone-agent/",
+   "note": "persona agent : coque de la maquette ; zone « barre d'onglets » 1,31 % (cf. `_zones`)"
+  }
+ }
+}

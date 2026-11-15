@@ -4,9 +4,12 @@ namespace App\Models;
 
 use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
+use App\Services\Dashboard\ThresholdAlertReading;
 use App\Sorts\ThresholdAlertSeveritySort;
+use App\Support\Query\InclusionLueParLeControleur;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\QueryBuilder\AllowedInclude;
 use Spatie\QueryBuilder\AllowedSort;
 
 /**
@@ -48,6 +51,17 @@ class ThresholdAlert extends AbstractModel
     }
 
     protected static array $requestLoadable = ['agency'];
+
+    /**
+     * TCK-2627 — `include=triggers` : les dix derniers déclenchements, lus au journal par
+     * {@see ThresholdAlertReading}, et non une relation.
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [...parent::getAllowedQueryIncludes(), AllowedInclude::custom('triggers', new InclusionLueParLeControleur)];
+    }
 
     protected static array $queryFields = [
         'id', 'agency_id', 'metric', 'operator', 'threshold',

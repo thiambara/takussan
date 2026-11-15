@@ -7,7 +7,10 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use App\Services\Maintenance\OwnerApprovalThreshold;
+use App\Services\Maintenance\OwnerReminder;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Http\Request;
@@ -27,6 +30,13 @@ class MaintenanceRequestResource extends BaseResource
         'quote_decision_by_id', 'quote_rejection_reason', 'quote_decision_by',
         'quote_lines', 'quote_valid_until', 'quote_estimated_duration_days',
     ];
+
+    /**
+     * TCK-2652 (décision famille 4 n° 6a, amendement de §1.8) — l'estimation et le coût réel suivent
+     * le devis : servis au donneur d'ordre, au bailleur du bien et au prestataire assigné, jamais au
+     * demandeur locataire. Clés absentes, comme {@see self::QUOTE_FIELDS}.
+     */
+    private const COST_FIELDS = ['estimated_cost', 'actual_cost'];
 
     public function toArray(Request $request): array
     {
@@ -57,6 +67,8 @@ class MaintenanceRequestResource extends BaseResource
             'completed_at' => $this->iso($this->completed_at),
             'resolution_notes' => $this->resolution_notes,
             'accepted_at' => $this->iso($this->accepted_at),
+            // TCK-2786 — la dernière relance du bailleur (« Relancé il y a … ») ; au donneur d'ordre seul.
+            'owner_reminded_at' => $this->iso($this->owner_reminded_at),
             'access_instructions' => $this->access_instructions,
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
             'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user())),
@@ -65,24 +77,40 @@ class MaintenanceRequestResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
         ];
 
+        // TCK-2652 — la file d'attente de la ligne, sans requête ({@see MaintenanceQueue::describe()}).
+        $queue = MaintenanceQueue::describe($this->resource);
+        $data['file'] = $queue['file'];
+        $data['waiting_on'] = $queue['waiting_on'];
+        $data['waiting_since'] = $this->iso($queue['waiting_since']);
+        $data['slot_overdue_days'] = $queue['slot_overdue_days'];
+        $data['auto_close_at'] = $this->iso($queue['auto_close_at']);
+
         $user = $request->user();
         // TCK-900 (P20.02) — une fois par ligne, et l'agence du personnel une fois par requête.
         $isPrincipal = $this->isPrincipal($user);
 
         if (! $this->seesQuote($user, $isPrincipal)) {
-            $data = array_diff_key($data, array_flip(self::QUOTE_FIELDS));
+            $data = array_diff_key($data, array_flip([...self::QUOTE_FIELDS, ...self::COST_FIELDS]));
         }
 
         // Les consignes d'accès s'écrivent par le donneur d'ordre et se lisent, par le prestataire,
         // dans le bloc `access` — jamais par le demandeur.
         if (! $isPrincipal) {
-            unset($data['access_instructions']);
+            unset($data['access_instructions'], $data['owner_reminded_at']);
         }
 
         if ($user !== null && $this->isDetailRequest($request)) {
             $data['media'] = $this->mediaBlock($user);
             $data['conversation_id'] = $this->conversationIdFor($user);
             $data['abilities'] = $this->abilitiesBlock($user);
+            // TCK-2654 (décision 1a) — le plafond de travaux du bailleur (ADR-0037), pour que l'écran du
+            // devis le rappelle : servi au seul donneur d'ordre (le bailleur du bien, le personnel de
+            // son agence), jamais au locataire, au prestataire, à un autre bailleur ni à une autre
+            // agence — clé ABSENTE. Au détail seulement : une lecture par demande.
+            if ($isPrincipal) {
+                $threshold = app(OwnerApprovalThreshold::class)->of($this->resource);
+                $data['owner_approval_threshold'] = $threshold !== null ? (float) $threshold : null;
+            }
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
             }
@@ -189,7 +217,10 @@ class MaintenanceRequestResource extends BaseResource
         $status = $mr->status ?? MaintenanceStatus::Open;
         $terminal = $machine->isTerminal($status);
         $isProvider = $user->can('actAsProvider', $mr);
-        $canRespond = ! $terminal && $user->can('respondToAssignment', $mr) && $mr->accepted_at === null;
+        // TCK-2652 — ni sur une demande rendue (`completed`) : « J'accepte » s'y affichait, le serveur
+        // refuse désormais ce geste (409). Même ensemble que la file `a_accepter`.
+        $canRespond = ! in_array($status, MaintenanceQueue::NOT_ACCEPTABLE, true)
+            && $user->can('respondToAssignment', $mr) && $mr->accepted_at === null;
 
         // Mêmes portes que `UpdateStatusMaintenanceRequestRequest::authorize()` : `update` PUIS
         // (acteur, cible). Le demandeur n'a pas `update` : il confirme par son propre geste.
@@ -219,6 +250,10 @@ class MaintenanceRequestResource extends BaseResource
             'can_upload_before_photos' => ! $terminal && $isProvider && $mr->accepted_at !== null,
             'can_confirm_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::Closed]),
             'can_contest_resolution' => $user->can('respondToResolution', [$mr, MaintenanceStatus::InProgress]),
+            // TCK-2786 — « Relancer le bailleur » : l'acteur (`remindOwner`), puis le statut, la cadence
+            // et le bailleur joignable, que `OwnerReminder::remind()` rejuge sous le verrou.
+            'can_remind_owner' => $user->can('remindOwner', $mr) && app(OwnerReminder::class)->possible($mr),
+            'can_view_journal' => $user->can('viewJournal', $mr),
             'transitions' => $transitions,
         ];
     }

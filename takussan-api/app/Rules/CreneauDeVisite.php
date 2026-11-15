@@ -3,7 +3,7 @@
 namespace App\Rules;
 
 use App\Services\Visit\VisitSchedulingService;
-use Carbon\CarbonImmutable;
+use App\Support\InstantRecu;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -24,7 +24,8 @@ class CreneauDeVisite implements ValidationRule
         }
 
         try {
-            $local = CarbonImmutable::parse($value)->setTimezone(VisitSchedulingService::TIMEZONE);
+            // TCK-2743 — LA conversion de l'écriture : la règle juge l'instant qui sera stocké.
+            $local = InstantRecu::utc($value)->setTimezone(VisitSchedulingService::TIMEZONE);
         } catch (\Throwable) {
             return; // la règle `date` le refuse déjà
         }

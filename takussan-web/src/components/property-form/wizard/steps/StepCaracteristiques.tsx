@@ -32,6 +32,13 @@ import { NombreEnListe } from '../NombreEnListe';
  * ⚠ Aucun `useCallback` / `useMemo` : le React Compiler s'en charge (ADR-0015), et une
  * mémoïsation manuelle fait ABANDONNER la compilation de tout le composant.
  */
+const LIBELLES_BATIMENT = {
+  floor_number: 'fields.floorNumber',
+  total_floors: 'fields.totalFloors',
+  year_built: 'fields.yearBuilt',
+  parking_spaces: 'fields.parking',
+} as const;
+
 export function StepCaracteristiques({
   form,
   tags,
@@ -54,11 +61,8 @@ export function StepCaracteristiques({
   const pertinent = (cle: ConditionalFieldKey) => isFieldRelevant(cle, ctx);
   const etatActuel = etatSuivi || undefined;
 
-  // Un terrain ne rend AUCUN des quatre : sans ce garde, la grille resterait montée, vide, et
-  // l'espacement de l'étape s'ouvrirait sur rien.
-  const grilleBatiment: readonly ConditionalFieldKey[] = [
-    'floor_number', 'total_floors', 'year_built', 'parking_spaces',
-  ];
+  // Les quatre mesures d'un bâtiment, dans l'ordre de la maquette ; un terrain n'en rend aucune.
+  const grilleBatiment = ['floor_number', 'total_floors', 'year_built', 'parking_spaces'] as const;
 
   return (
     <>
@@ -72,52 +76,47 @@ export function StepCaracteristiques({
         seule des douze clés conditionnelles à ne pas interroger la matrice, et c'est précisément
         le genre d'exception qui survit à un changement de la règle.
       */}
-      {pertinent('area') ? (
-        <FormInput
-          control={control}
-          name="area"
-          label={t(areaLabelKey(ctx.type))}
-          type="number"
-          inputMode="numeric"
-          min={0}
-          placeholder={t('placeholders.area')}
-        />
-      ) : null}
-
-      {pertinent('bedrooms') || pertinent('bathrooms') ? (
-        <div className="wizard-field-rise grid gap-4 sm:grid-cols-2">
-          {/* TCK-633 (AC10) — les nombres se choisissent dans une liste. */}
-          {pertinent('bedrooms') ? (
+      {/*
+        TCK-2819 (lot 2) — maquette a-2 : les mesures dans UNE grille de deux colonnes, à toute largeur,
+        « Meublé » en case dans la dernière cellule. La composition reste celle de la matrice : chaque
+        cellule interroge `pertinent()`, aucune condition sur le type n'est écrite ici.
+      */}
+      <div className="grid grid-cols-2 gap-4">
+        {pertinent('area') ? (
+          <FormInput
+            control={control}
+            name="area"
+            label={t(areaLabelKey(ctx.type))}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            placeholder={t('placeholders.area')}
+          />
+        ) : null}
+        {/* TCK-633 (AC10) — les nombres se choisissent dans une liste. */}
+        {pertinent('bedrooms') ? (
+          <div className="wizard-field-rise">
             <NombreEnListe form={form} name="bedrooms" label={t('fields.bedrooms')} />
-          ) : null}
-          {pertinent('bathrooms') ? (
+          </div>
+        ) : null}
+        {pertinent('bathrooms') ? (
+          <div className="wizard-field-rise">
             <NombreEnListe form={form} name="bathrooms" label={t('fields.bathrooms')} />
-          ) : null}
-        </div>
-      ) : null}
-
-      {grilleBatiment.some(pertinent) ? (
-        <div className="wizard-field-rise grid gap-4 sm:grid-cols-2" style={{ animationDelay: '60ms' }}>
-          {pertinent('floor_number') ? (
-            <NombreEnListe form={form} name="floor_number" label={t('fields.floorNumber')} />
-          ) : null}
-          {pertinent('total_floors') ? (
-            <NombreEnListe form={form} name="total_floors" label={t('fields.totalFloors')} />
-          ) : null}
-          {pertinent('year_built') ? (
-            <NombreEnListe form={form} name="year_built" label={t('fields.yearBuilt')} />
-          ) : null}
-          {pertinent('parking_spaces') ? (
-            <NombreEnListe form={form} name="parking_spaces" label={t('fields.parking')} />
-          ) : null}
-        </div>
-      ) : null}
-
-      {pertinent('furnished') ? (
-        <div className="wizard-field-rise" style={{ animationDelay: '120ms' }}>
-          <FormCheckbox control={control} name="furnished" label={t('fields.furnished')} />
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+        {grilleBatiment.filter(pertinent).map((cle) => (
+          <div key={cle} className="wizard-field-rise" style={{ animationDelay: '60ms' }}>
+            <NombreEnListe form={form} name={cle} label={t(LIBELLES_BATIMENT[cle])} />
+          </div>
+        ))}
+        {pertinent('furnished') ? (
+          <div className="wizard-field-rise flex items-end" style={{ animationDelay: '120ms' }}>
+            <div className="flex min-h-11 w-full items-center rounded-lg border border-input bg-card px-3.5 has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+              <FormCheckbox control={control} name="furnished" label={t('fields.furnished')} />
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       {pertinent('title_type') ? (
         <div className="wizard-field-rise space-y-2" style={{ animationDelay: '180ms' }}>

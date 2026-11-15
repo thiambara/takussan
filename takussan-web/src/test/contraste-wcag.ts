@@ -37,6 +37,8 @@
  * {@link JETONS_SOMBRE}, dont l'en-tête porte le détail et l'angle mort qui a produit l'erreur.
  */
 
+import { DENSITE_DE_L_APP, PRIMITIVES_DE_L_APP, TAILLES_DE_TEXTE } from '@/lib/jetons-de-l-app';
+
 /** Seuil WCAG 1.4.11 — indicateur non textuel (anneau de focus, bordure porteuse de sens). */
 export const SEUIL_NON_TEXTUEL = 3;
 /** Seuil WCAG 1.4.3 AA — texte normal (< 18,66 px gras / < 24 px). */
@@ -56,6 +58,22 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   'secondary-foreground': '#1f1812',
   muted: '#f1ece0',
   'muted-foreground': '#6e655a',
+  // TCK-2685 — l'encre douce de la partie connectée, et son inverse (opaques, cf. `globals.css`).
+  'encre-douce': '#4c4641',
+  'encre-douce-inverse': '#bab6b0',
+  // TCK-2686 — les teintes OPAQUES de l'échelle de densité, à leur valeur HORS portée `/app`
+  // (`globals.css`, bloc `densite-de-l-app`) : le contour peint `background`, le bouton doux écrit
+  // `secondary-foreground`. Sous la portée claire, elles deviennent `card` (#ffffff) et
+  // `primary-deep` (#823c20) — mesurées au navigateur sur la vitrine (TCK-2686, AC3).
+  'fond-contour': '#fcf9f3',
+  'encre-bouton-doux': '#1f1812',
+  // TCK-2687 — le repli de l'avatar, HORS portée (`globals.css`, bloc `primitives-de-l-app`) :
+  // `muted` et `muted-foreground`. Sous la portée : `secondary` et `primary-deep` (6,72:1).
+  'fond-avatar': '#f1ece0',
+  'encre-avatar': '#6e655a',
+  // TCK-2690 — le bord de la case vide et la piste de l'interrupteur éteint (`globals.css`, bloc
+  // `primitives-de-l-app`) : `--input` en clair, `--muted-foreground` en sombre (1,44:1 sinon).
+  'controle-vide': '#918672',
   accent: '#5d6e4f',
   'accent-foreground': '#fcf9f3',
   warning: '#8a5410',
@@ -252,8 +270,19 @@ export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   'primary-deep': '#d6916b',
   secondary: '#3a2e23',
   'secondary-foreground': '#fcf9f3',
+  // TCK-2686 — mêmes alias qu'en clair (`background`, `secondary-foreground`), sur les jetons sombres.
+  'fond-contour': '#1f1812',
+  'encre-bouton-doux': '#fcf9f3',
   muted: '#3a2e23',
   'muted-foreground': '#b8aa97',
+  // TCK-2687 — mêmes alias qu'en clair (`muted`, `muted-foreground`), sur les jetons sombres.
+  'fond-avatar': '#3a2e23',
+  'encre-avatar': '#b8aa97',
+  // TCK-2690 — `--muted-foreground` sombre : `--input` sombre (#413b36) rendrait 1,44:1 sur `--card`.
+  'controle-vide': '#b8aa97',
+  // TCK-2685 — même composition qu'en clair, sur les jetons sombres.
+  'encre-douce': '#d2cec7',
+  'encre-douce-inverse': '#615c56',
   accent: '#7d8d6e',
   'accent-foreground': '#1f1812',
   // TCK-480 — cf. la note de `JETONS_CLAIR` : le jeton est hexadécimal des deux côtés
@@ -352,17 +381,30 @@ const NON_COULEURS: Readonly<Record<string, ReadonlySet<string>>> = {
     'xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl', '7xl', '8xl', '9xl',
     'left', 'center', 'right', 'justify', 'start', 'end',
     'wrap', 'nowrap', 'balance', 'pretty', 'ellipsis', 'clip',
+    // TCK-2685 — l'échelle de texte de la partie connectée (`text-ui`, `text-corps`…) : des TAILLES,
+    // lues dans la table qui nomme les jetons de `globals.css` (`jetons-de-l-app.test.ts` les confronte).
+    ...Object.keys(TAILLES_DE_TEXTE),
+    // TCK-2686 — les tailles de l'échelle de densité (`text-champ`…), et l'encre du bouton discret,
+    // qui hors portée `/app` vaut `currentColor` : une encre HÉRITÉE, pas posée.
+    ...DENSITE_DE_L_APP.text,
+    'encre-discrete',
+    // TCK-2687 — la police du repli de l'avatar (`text-avatar-28`…) : des tailles.
+    ...PRIMITIVES_DE_L_APP.text,
   ]),
   bg: new Set([
     'auto', 'cover', 'contain', 'none', 'fixed', 'local', 'scroll', 'clip-text', 'clip-border',
     'clip-padding', 'clip-content', 'origin-border', 'origin-padding', 'origin-content',
     'repeat', 'no-repeat', 'repeat-x', 'repeat-y', 'repeat-round', 'repeat-space',
     'top', 'bottom', 'left', 'right', 'center', 'blend-normal', 'blend-multiply',
+    // TCK-2686 — le fond des champs : transparent hors portée `/app` (un fond qui ne repeint rien).
+    'fond-champ',
   ]),
   outline: new Set(['none', 'hidden', 'solid', 'dashed', 'dotted', 'double']),
   border: new Set([
     'solid', 'dashed', 'dotted', 'double', 'hidden', 'none',
     'x', 'y', 't', 'r', 'b', 'l', 's', 'e', 'collapse', 'separate', 'spacing',
+    // TCK-2686 — le bord du bouton danger : transparent hors portée `/app`.
+    'bord-danger',
   ]),
   ring: new Set(['inset']),
 };
@@ -371,7 +413,7 @@ const NON_COULEURS: Readonly<Record<string, ReadonlySet<string>>> = {
  * `bg-muted/60`, `text-white/55`, `outline-ring`, `bg-primary` → `{ jeton, alpha }`.
  * Rend `null` si la classe n'est pas un utilitaire de couleur du préfixe demandé.
  *
- * Trou déclaré : les valeurs arbitraires (`bg-[#f5f5f4]`, `text-[10px]`) ne matchent pas et sont
+ * Trou déclaré : les valeurs arbitraires (`bg-[#f5f5f4]`, `text-[0.625rem]`) ne matchent pas et sont
  * donc IGNORÉES, pas mesurées. `check-super-admin-tokens.mjs` les refuse par ailleurs.
  */
 export function litUtilitaireDeCouleur(

@@ -182,7 +182,8 @@ export function DateTimePicker({
               className={cn(
                 // TCK-468 — 44 px sous une portée `data-field-density="comfortable"`.
                 FIELD_DENSITY_HEIGHT,
-                "flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[invalid=true]:border-destructive data-[invalid=true]:ring-3 data-[invalid=true]:ring-destructive/20 dark:bg-input/30 dark:hover:bg-input/50",
+                // TCK-2686 — hauteur, texte et fond par les jetons de l'échelle de densité (cf. `input.tsx`).
+                "flex h-controle w-full items-center justify-between gap-2 rounded-lg border border-input bg-fond-champ px-3 py-1 text-declencheur transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 data-[invalid=true]:border-destructive data-[invalid=true]:ring-3 data-[invalid=true]:ring-destructive/20 dark:bg-input/30 dark:hover:bg-input/50",
                 !selected && "text-muted-foreground",
                 className,
                 buttonClassName,

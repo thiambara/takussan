@@ -38,14 +38,14 @@ export function TypographySwitcher({ active, onChange }: TypographySwitcherProps
             aria-label={`Typographie ${t.name}`}
             title={t.name}
             onClick={() => onChange(t.key)}
-            className={`px-3 h-7 rounded-full text-[12px] font-semibold transition-colors flex items-center gap-1.5 ${
+            className={`px-3 h-7 rounded-full text-[0.75rem] font-semibold transition-colors flex items-center gap-1.5 ${
               isActive
                 ? 'pg-typo-active'
                 : 'text-[var(--pg-ink-muted)] hover:text-[var(--pg-ink)]'
             }`}
           >
             <span
-              className="text-[14px] leading-none"
+              className="text-[0.875rem] leading-none"
               style={{ fontFamily: t.displayVar, letterSpacing: '-0.02em' }}
             >
               Aa

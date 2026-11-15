@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Audit;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\InstantIso;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -20,8 +21,8 @@ class ExportActivityLogRequest extends BaseFormRequest
             'format' => ['required', Rule::in(['csv', 'xlsx'])],
             'filter' => ['sometimes', 'array'],
             'filter.causer_id' => ['sometimes', 'nullable', 'integer'],
-            'filter.date_from' => ['sometimes', 'nullable', 'date'],
-            'filter.date_to' => ['sometimes', 'nullable', 'date'],
+            'filter.date_from' => ['sometimes', 'nullable', 'date', new InstantIso],
+            'filter.date_to' => ['sometimes', 'nullable', 'date', new InstantIso],
             'filter.event' => ['sometimes', 'nullable', 'string', 'max:50'],
             'filter.subject_type' => ['sometimes', 'nullable', 'string', 'max:255'],
             'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],

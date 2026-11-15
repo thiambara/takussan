@@ -1,0 +1,344 @@
+{
+  "ticket": "TCK-2597",
+  "ecrans": [
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Mon agenda — jour",
+      "references": {
+        "telephone": "references/app-agenda/a-0-telephone.json",
+        "bureau-1440": "references/app-agenda/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "agence Dakar Immo de la démo, persona agent (Sokhna Sene), relevé le jour même (vendredi 13 novembre 2026 : deux visites « à confirmer », 10:01 et 12:36, aucune tâche, aucun séjour ; au bureau, la semaine du 9 au 15). La maquette : trois visites (dont une confirmée), deux tâches, un créneau libre et deux séjours repliés",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Filtres et légende",
+      "references": {
+        "telephone": "references/app-agenda/a-1-telephone.json",
+        "bureau-1440": "references/app-agenda/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "comme a-0, feuille des filtres ouverte (téléphone) ou panneau droit (bureau, dès 1280), « Mes rendez-vous », Visites et Tâches allumées",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS), puis ouvre les filtres"
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Occupation des biens",
+      "references": {
+        "telephone": "references/app-agenda/a-2-telephone.json",
+        "bureau-1440": "references/app-agenda/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar?mode=occupation&mine=0",
+        "persona": "agent",
+        "etat": "persona agent, « Toute l'agence », mode Occupation : aucun séjour dans la démo (`kind=stay` = 0) ; les biens en location par ordre de titre, tous « Libre », quatre interventions de novembre en points",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Mois (admin)",
+      "references": {
+        "telephone": "references/app-agenda/a-3-telephone.json",
+        "bureau-1440": "references/app-agenda/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar?view=month",
+        "persona": "admin",
+        "etat": "persona admin (Dakar Immo), mois de novembre 2026 : visites et interventions, aucun séjour ni échéance de bail dans la fenêtre ; la maquette : séjours en barres, échéances, visites",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Événement",
+      "references": {
+        "telephone": "references/app-agenda/a-4-telephone.json",
+        "bureau-1440": "references/app-agenda/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "comme a-0, la première visite du jour ouverte (fiche : quand, durée, adresse, visiteur, gestes)",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS), puis ouvre la première visite"
+      }
+    },
+    {
+      "page": "app-agenda",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Abonnement iCal",
+      "references": {
+        "telephone": "references/app-agenda/a-5-telephone.json",
+        "bureau-1440": "references/app-agenda/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-agenda/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/calendar",
+        "persona": "agent",
+        "etat": "comme a-0, feuille « Abonnement iCal » ouverte (bouton de la tête de page au bureau, ligne des filtres au téléphone), puis « Générer un nouveau lien » : la réponse de l'API est simulée par le perturbateur (rien ne part), pour montrer l'état « lien émis » de la maquette",
+        "perturber": "garde d'écriture du relevé ; /api/me/calendar-feed répondu SUR PLACE (GET → actif sans URL, POST → actif avec une URL factice), puis ouvre l'abonnement et touche « Générer un nouveau lien » (le GET simulé dit le lien actif)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/calendar",
+    "persona": "agent",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "_roles": "Aucun rôle apparié : la démo n'a ni séjour ni tâche à heure fixe le jour du relevé, et ses visites ne sont pas celles de la maquette (visiteurs, heures, biens) ; les blocs s'apparient par leur texte, et l'écart de donnée est déclaré plus bas.",
+  "zones": [],
+  "alias": {
+    "Mardi 10 novembre": "le jour du relevé en toutes lettres, au calendrier de Dakar",
+    "Cette semaine : 3 visites, dont 1 à confirmer · 2 tâches": "le résumé de la période relevée ; un compte nul se tait (« rien de prévu » quand tout est nul)",
+    "Séjour · Villa Almadies": "la barre d'un séjour au mois porte le titre du bien (« Séjour · {titre} ») : l'API ne sert pas le nom du client d'une réservation dans l'agenda",
+    "Confirmée": "statut d'une visite ou d'une réservation confirmée ; « En attente » pour une visite `scheduled` (à confirmer) ou une réservation `pending`, au motif hachuré"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-agenda a-*",
+      "element": "contenu des journées, semaines et mois : visiteurs, heures, biens et comptes de la démo (deux visites le 10, aucune tâche, aucune visite confirmée)",
+      "propriete": "texte, présence, ordonnée de ce qui suit",
+      "exception": "donnée",
+      "motif": "la démo n'a pas l'état de la maquette (sondes en lecture seule du 2026-11-13 : `GET /api/calendar?mine=1&types[]=visit&types[]=task` du 9 au 15 novembre → cinq visites `scheduled`, aucune tâche)"
+    },
+    {
+      "ecran": "app-agenda a-0-*, a-2-*, a-3-*",
+      "element": "séjours (barres du mois, barres de l'occupation, « 2 séjours en cours », arrivées et départs du jour), échéances de bail",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "la démo n'a aucun séjour (`GET /api/bookings?filter[kind]=stay` → 0 pour Dakar Immo) ni aucun `lease_event` dans la fenêtre octobre-janvier, pour l'admin comme pour les bailleurs ; les barres sont éprouvées par les tests de composant (`CalendarPage.test.tsx` : un séjour de 23 nuits = quatre barres au mois ; `occupation.tck-2597.test.ts`)"
+    },
+    {
+      "ecran": "app-agenda a-2-bureau-*, a-3-*",
+      "element": "nom du client sur la barre d'un séjour (« Awa Diop · 6 nuits »)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'événement `booking` de `/api/calendar` ne porte que le titre du bien et la référence : la barre dit « {n} nuits · {référence} » à l'occupation et « Séjour · {bien} » au mois. Servir le client demande une évolution de l'API (CalendarEventCollector), hors périmètre"
+    },
+    {
+      "ecran": "app-agenda a-*-telephone",
+      "element": "en-tête de la coque (titre, « Moi ▾ », « + »)",
+      "propriete": "trait, couleur",
+      "exception": "coque",
+      "motif": "rendus par `EnTeteMobile` (TCK-2617), communs à toutes les racines"
+    },
+    {
+      "ecran": "app-agenda a-*-bureau-*",
+      "element": "toutes les mesures en rem (rem 16 du produit contre 14,4 de la maquette gelée)",
+      "propriete": "tailles et positions",
+      "exception": "technique",
+      "motif": "la référence gelée est antérieure à TCK-2692 (ADR-0107) ; densité 0,9 des deux côtés"
+    },
+    {
+      "ecran": "app-agenda a-5-*",
+      "element": "le lien iCal et « Copier » dès l'ouverture de la feuille ; « Générer un nouveau lien » quand le lien est actif mais n'est plus affiché",
+      "propriete": "présence",
+      "exception": "sécurité",
+      "motif": "le lien secret ne se montre qu'une fois, à sa génération (TCK-591) : rouverte plus tard, la feuille dit « Créé le / Dernier accès / Contenu » et propose de régénérer. Le relevé montre l'état « lien émis » par une réponse simulée (aucune écriture)"
+    },
+    {
+      "ecran": "app-agenda a-5-*",
+      "element": "intro de la feuille et ligne « Contenu »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la maquette dit « Vos visites et vos tâches » ; le flux sert tous les types que voit son porteur (`CalendarFeedService::events`, `mine: true`) : le texte dit « Vos rendez-vous » / « Vos rendez-vous de l’agenda » pour ne pas promettre un filtre qui n'existe pas"
+    },
+    {
+      "ecran": "app-agenda a-0-*, a-3-telephone",
+      "element": "lien « Occupation : N séjours en cours ▸ »",
+      "propriete": "couleur de fond",
+      "exception": "règle du design system",
+      "motif": "`bg-accent/n` est refusé par la garde des valeurs arbitraires (opacité sur l'accent) : `bg-secondary`, le fond doux de la palette Lin"
+    },
+    {
+      "ecran": "app-agenda a-*",
+      "element": "chiffre du jour, « +N », « Planifier », lien de la fiche",
+      "propriete": "couleur",
+      "exception": "accessibilité (ADR-0106 § 2 a)",
+      "motif": "`text-primary-deep` (contraste AA sur fond clair, TCK-658) au lieu de `text-primary` de la maquette"
+    },
+    {
+      "ecran": "app-agenda a-2-telephone",
+      "element": "pastille « 14 j » à côté de la plage",
+      "propriete": "chevron",
+      "exception": "décision produit",
+      "motif": "la période du téléphone est fixe (14 jours) : la pastille n'ouvre aucun choix, le chevron de la maquette promettrait un menu absent"
+    },
+    {
+      "ecran": "app-agenda a-2-bureau-*",
+      "element": "quartier sous le titre du bien dans la colonne des biens",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la ligne dit l'état (« Libre », « Occupé jusqu'au … ») ; le quartier n'est pas dans `fields[properties]` de l'index (id, title) et l'ajouter demande une jointure d'adresse, hors périmètre"
+    },
+    {
+      "ecran": "app-agenda a-*-telephone",
+      "element": "onglet « Menu » de la barre du bas (actif dans la maquette)",
+      "propriete": "couleur, graisse",
+      "exception": "coque",
+      "motif": "`/app/calendar` n'est pas une entrée de la barre d'onglets : la coque n'allume aucun onglet (TCK-2617)"
+    },
+    {
+      "ecran": "app-agenda a-*-telephone (360-383 px)",
+      "element": "barre de période du téléphone : flèches, libellé du menu de vue, libellé sur deux lignes",
+      "propriete": "taille, texte, retour à la ligne",
+      "exception": "contrainte technique",
+      "motif": "la barre ne laisse que 72 à 76 px à la période : sous 24rem, flèches de 36 px (cible ≥ 24 px, WCAG 2.5.8) et barre sans gouttière ; le menu dit « Sem. » (« Semaine » laissait 47 px, plage coupée sur quatre lignes) ; la période passe sur deux lignes plutôt que d'être tronquée (« 24 déc. – 6 janv. »). Balayé à 360, 375 et 390 sur dix libellés longs (sept., févr., semaines et plages à cheval sur deux mois et deux années) : aucune troncature ni ligne cachée. À 390 sur le mois en cours, mesures de la maquette"
+    },
+    {
+      "ecran": "app-agenda a-5-*",
+      "element": "le lien émis (URL entière dans le champ, pas « takussan.com/ical/9f3c…e21.ics ») et la consigne sous le champ (« Copiez-le maintenant : il ne sera plus affiché. Qui a ce lien… »)",
+      "propriete": "texte, hauteur",
+      "exception": "sécurité",
+      "motif": "le champ porte le lien réel, sélectionnable et copiable ; le lien n'étant montré qu'une fois (TCK-591), la consigne le dit — la feuille monte de 22 px au téléphone"
+    },
+    {
+      "ecran": "app-agenda a-5-*",
+      "element": "valeurs de « Créé le » et « Dernier accès » (« 3 nov. 2026, 10:12 », « 13 nov. 2026, 09:41 » contre « Mar. 3 nov. 2026 », « Aujourd'hui · 09:41 »)",
+      "propriete": "texte",
+      "exception": "décision de la session (team-lead, 2026-11-13)",
+      "motif": "dates absolues gardées : la forme relative (« Aujourd'hui · 09:41 ») demande une règle de formatage commune à l'app, qu'on ne crée pas pour un seul écran"
+    },
+    {
+      "ecran": "app-agenda a-*",
+      "element": "encres de texte atténuées de la maquette (text-foreground/60 à /85 : jours passés et hors mois, légende, barre « +N séjours », séjour en attente, mouvements du lien d'occupation, filtres, abonnement)",
+      "propriete": "couleur",
+      "exception": "charte",
+      "motif": "TCK-658 / garde encre-sans-alpha : une encre de texte ne s'atténue pas par l'opacité ; /70 à /85 → `text-encre-douce`, /60 → `text-muted-foreground`, comme TCK-2596"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-*",
+      "element": "libellé « Agenda » de l'entrée du menu",
+      "motif": "famille 3 du ticket (le menu) ; le titre de la page et de l'onglet disent « Agenda »"
+    }
+  ],
+  "mesures": {
+    "date": "2026-11-13",
+    "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare --roles TCK-2597.json",
+    "commit": "arbre de travail (TCK-2597), relevé le 2026-11-13 sur le jour même",
+    "resultats": [
+      {
+        "ecran": "a-0-telephone",
+        "ligne": "28 conformes · 38 écarts · 5 absents · 23,32 % pixels",
+        "note": "donnée : deux visites en attente le 13 (titres sur deux lignes : tout ce qui suit descend de 20,6 px), aucune tâche ; le compte d'occupation dit « Aucun séjour en cours » ; coque (en-tête, onglet Menu)"
+      },
+      {
+        "ecran": "a-0-bureau-1440",
+        "ligne": "64 conformes · 178 écarts · 25 absents · 9,95 % pixels",
+        "note": "barre latérale (coque) et rem 16 contre 14,4 ; visites de la démo"
+      },
+      {
+        "ecran": "a-0-bureau-1280",
+        "ligne": "70 conformes · 141 écarts · 22 absents · 13,33 % pixels"
+      },
+      {
+        "ecran": "a-1-telephone",
+        "ligne": "35 conformes · 57 écarts · 10 absents · 6,54 % pixels"
+      },
+      {
+        "ecran": "a-1-bureau-1440",
+        "ligne": "65 conformes · 205 écarts · 29 absents · 8,42 % pixels"
+      },
+      {
+        "ecran": "a-1-bureau-1280",
+        "ligne": "75 conformes · 163 écarts · 27 absents · 8,38 % pixels"
+      },
+      {
+        "ecran": "a-2-telephone",
+        "ligne": "26 conformes · 22 écarts · 9 absents · 11 % pixels",
+        "note": "aucun séjour : biens tous « Libre », pas de barres"
+      },
+      {
+        "ecran": "a-2-bureau-1440",
+        "ligne": "56 conformes · 189 écarts · 37 absents · 16,96 % pixels",
+        "note": "aucun séjour ni échéance (22 biens libres, deux interventions en points) ; en-têtes de jours D/L/M… alignés sur la maquette"
+      },
+      {
+        "ecran": "a-2-bureau-1280",
+        "ligne": "56 conformes · 189 écarts · 37 absents · 16,86 % pixels"
+      },
+      {
+        "ecran": "a-3-telephone",
+        "ligne": "27 conformes · 23 écarts · 6 absents · 4,8 % pixels"
+      },
+      {
+        "ecran": "a-3-bureau-1440",
+        "ligne": "88 conformes · 159 écarts · 24 absents · 28,83 % pixels",
+        "note": "le mois de l'admin : 124 visites en novembre (deux puces et « +N » par jour), aucun séjour en barre ; structure (carte, sept colonnes, puces, « 13 · aujourd'hui ») conforme"
+      },
+      {
+        "ecran": "a-3-bureau-1280",
+        "ligne": "96 conformes · 151 écarts · 24 absents · 28,1 % pixels"
+      },
+      {
+        "ecran": "a-4-telephone",
+        "ligne": "28 conformes · 56 écarts · 13 absents · 13,76 % pixels"
+      },
+      {
+        "ecran": "a-4-bureau-1440",
+        "ligne": "66 conformes · 196 écarts · 31 absents · 8,47 % pixels"
+      },
+      {
+        "ecran": "a-4-bureau-1280",
+        "ligne": "71 conformes · 154 écarts · 35 absents · 8,44 % pixels"
+      },
+      {
+        "ecran": "a-5-telephone",
+        "ligne": "31 conformes · 51 écarts · 9 absents · 12,87 % pixels",
+        "note": "état « lien émis » par réponse simulée (49,65 % sans : la feuille ne montrait que « Créer mon lien »)"
+      },
+      {
+        "ecran": "a-5-bureau-1440",
+        "ligne": "68 conformes · 192 écarts · 28 absents · 8,61 % pixels"
+      },
+      {
+        "ecran": "a-5-bureau-1280",
+        "ligne": "73 conformes · 155 écarts · 26 absents · 8,58 % pixels"
+      },
+      {
+        "ecran": "balayage fr (agent jour, admin mois, agent occupation)",
+        "ligne": "360, 375, 390, 768, 1024, 1280, 1440 (agent jour, admin mois, agent occupation) : débord 0, aucune coupe ; ellipses seulement dans le rail de la coque à 768. Puis 360, 375, 390 sur dix libellés longs (Sept. 2026, Févr. 2027 au jour et au mois ; « 20 nov. – 3 déc. », « 24 déc. – 6 janv. » à l'occupation ; semaines « 7–13 sept. », « 30 nov. – 6 déc. » ; « 30 jours ») : aucune troncature, aucune ligne cachée (scrollWidth et scrollHeight sondés)",
+        "note": "`balayer` ne pose pas NEXT_LOCALE : balayé avec une copie locale de l'outil qui le pose. Corrigé en route : « Nov. 2026 » tronqué à 360 et 375 ; « Sept. 2026 » et « 20 nov. – 3 déc. » à 390 ; « 24 déc. 2026 – 6 janv. 2027 » partout ; la semaine du téléphone (« 30 nov. – 6 déc. 2026 » dans 47 px, quatre lignes dont deux cachées — invisible au détecteur d'ellipses) ; « 13–Nov 26 » en anglais"
+      }
+    ]
+  }
+}

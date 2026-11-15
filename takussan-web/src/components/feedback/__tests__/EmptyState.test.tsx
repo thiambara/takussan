@@ -41,7 +41,7 @@ describe('EmptyState', () => {
 
   it('laisse passer className et les props résiduelles', () => {
     // Les deux besoins qui ont dicté la signature : `PropertiesDiscoveryPage` rend son état vide
-    // DANS une grille (`col-span-full`), et `TeamConsole` ancre un `data-testid` dessus.
+    // DANS une grille (`col-span-full`), et `ConsoleDeLEquipe` ancre un `data-testid` dessus.
     render(
       <EmptyState className="col-span-full" data-testid="team-console-empty" title="Vide" />,
     );

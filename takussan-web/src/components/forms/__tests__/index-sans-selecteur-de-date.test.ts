@@ -19,7 +19,6 @@ const APP = join(RACINE_SRC, 'app');
 
 const PAGES_SANS_DATE = [
   '(auth)/auth/login/page.tsx',
-  '(auth)/auth/register/page.tsx',
   '(dashboard)/app/agency/page.tsx',
   '(dashboard)/app/customers/new/page.tsx',
   '(dashboard)/app/maintenance/new/page.tsx',

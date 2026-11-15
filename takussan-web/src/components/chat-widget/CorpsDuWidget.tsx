@@ -11,7 +11,8 @@ import { ChatView } from '@/components/messages/ChatView';
 import { PropertyDraftChatView } from '@/components/messages/PropertyDraftChatView';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { useFloatingDockSlot } from '@/components/floating-dock';
-import { estPleinEcran, porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
+import { estDansLaConsole, estPleinEcran, porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
+import { estSurLeSitePublic } from '@/lib/navigation/barre-publique';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { CHAT_FAB_MOBILE_HEIGHT_PX, CHAT_LAUNCHER_DESKTOP_HEIGHT_PX } from './reserve';
@@ -19,6 +20,7 @@ import { useUnreadCount } from './useUnreadCount';
 
 /** Tailwind `md` breakpoint — desktop launcher visible at >= 768px. */
 const MD_BREAKPOINT_PX = 768;
+const LG_BREAKPOINT_PX = 1024;
 
 /*
  * Static logical heights of the chat launchers (TCK-644 : dans `./reserve`, à côté de la place
@@ -145,14 +147,28 @@ export function CorpsDuWidget() {
     pathname.startsWith('/app/messages/') ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/onboarding/') ||
+    // TCK-2611 — la page d'invitation est une page d'entrée (coque d'onboarding) : la bulle se posait sur
+    // son pied collé, au téléphone.
+    pathname.startsWith('/invitations/') ||
     // TCK-631 — le parcours de publication est plein écran : la bulle se posait sur son pied.
-    estPleinEcran(pathname);
+    estPleinEcran(pathname) ||
+    // TCK-2619 — la console, à toute largeur. `ChatWidget` ne monte déjà plus ce corps sous `/app` ;
+    // la règle est redite ici pour qui le monterait directement.
+    estDansLaConsole(pathname);
   const isVisible = Boolean(user) && !isHiddenByRoute;
   // TCK-2481 — sous `md`, la barre d'onglets de `/app` porte « Messagerie » chez les huit personas
   // (garde : `lib/navigation/__tests__/onglets.test.ts`) : le bouton flottant mobile se posait sur
   // elle. Il ne se rend plus sur `/app` et ne réclame aucun créneau du dock ; le lanceur de bureau
   // ne change pas.
-  const sansBoutonMobile = porteLaBarreDOnglets(pathname);
+  //
+  // TCK-2493 (ADR-0091 §4) — sur le SITE PUBLIC non plus : sous `lg`, la barre d'onglets publique
+  // porte « Messages », et là où elle s'efface (fiche, tunnels), une autre couche d'action tient le bas
+  // de l'écran — une seule à la fois. Le lanceur de bureau ne se montre sur le site public qu'à partir
+  // de `lg`, où la barre n'existe plus ; le panneau, lui, reste ouvrable par une fiche dès `md`.
+  const surLeSitePublic = estSurLeSitePublic(pathname);
+  const sansBoutonMobile = porteLaBarreDOnglets(pathname) || surLeSitePublic;
+  const sousLg = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
+  const lanceurDeBureauMasque = surLeSitePublic && sousLg;
 
   // Register both launchers with the FloatingDock orchestrator (TCK-275).
   // Tailwind hides one of them visually (`hidden md:block` vs `md:hidden`) —
@@ -166,7 +182,7 @@ export function CorpsDuWidget() {
     corner: 'bottom-right',
     priority: 0,
     height: CHAT_LAUNCHER_DESKTOP_HEIGHT_PX,
-    enabled: isVisible && !isMobile,
+    enabled: isVisible && !isMobile && !lanceurDeBureauMasque,
   });
   const mobileSlot = useFloatingDockSlot({
     id: 'chat-widget-mobile-fab',
@@ -207,7 +223,7 @@ export function CorpsDuWidget() {
           <div
             role="dialog"
             aria-label={t('panelAriaLabel')}
-            className="pointer-events-auto mb-3 flex h-[min(520px,calc(100dvh-7rem))] w-[360px] flex-col overflow-hidden rounded-2xl bg-background shadow-xl ring-1 ring-foreground/10"
+            className="pointer-events-auto mb-3 flex h-[min(520px,calc(100dvh-var(--spacing)*28))] w-[360px] flex-col overflow-hidden rounded-2xl bg-background shadow-xl ring-1 ring-foreground/10"
             data-testid="chat-widget-panel"
           >
             <header className="flex items-center justify-between border-b border-border/60 bg-background px-4 py-3">
@@ -299,6 +315,9 @@ export function CorpsDuWidget() {
           className={cn(
             'pointer-events-auto relative inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary pr-6 pl-5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
             open && 'scale-95',
+            // TCK-2493 — même plage que `lanceurDeBureauMasque`, par le CSS : rien ne clignote avant
+            // que la requête média ne réponde.
+            surLeSitePublic && 'hidden lg:inline-flex',
           )}
         >
           <MessageSquare className="size-5 shrink-0" aria-hidden />
@@ -307,7 +326,7 @@ export function CorpsDuWidget() {
             <span
               data-testid="chat-widget-badge"
               aria-live="polite"
-              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-background"
             >
               <span aria-hidden>{badgeLabel}</span>
               <span className="sr-only">
@@ -334,7 +353,7 @@ export function CorpsDuWidget() {
             <span
               data-testid="chat-widget-mobile-badge"
               aria-live="polite"
-              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-background"
             >
               <span aria-hidden>{badgeLabel}</span>
               <span className="sr-only">

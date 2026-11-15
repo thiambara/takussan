@@ -41,8 +41,17 @@ export interface CalendarEvent {
   duration_minutes?: number | null;
   property_id?: number | null;
   property_slug?: string | null;
-  /** `lease_event` : `end` (fin de bail) ou `renewal` (renouvellement). */
-  kind?: 'end' | 'renewal' | null;
+  /** `lease_event` : `end` (fin de bail) ou `renewal` (renouvellement) ; `visit` : `window` (demandée par tranche). */
+  kind?: 'end' | 'renewal' | 'window' | null;
+  /** TCK-2585 — visite, pour le personnel de l'agence du bien seulement : le visiteur et l'adresse. */
+  visitor_name?: string | null;
+  address_line?: string | null;
+  neighborhood?: string | null;
+  /** Visite demandée par tranche (`morning`…) : journée entière, la tranche dans le titre. */
+  preferred_window?: string | null;
+  /** Tâche : ce à quoi elle est rattachée. */
+  taskable_type?: 'customer' | 'property' | null;
+  taskable_id?: number | null;
   /** Deeplink vers la page détail (`/app/bookings/{id}` ou `/app/visits/{id}`). */
   resource_url: string;
 }

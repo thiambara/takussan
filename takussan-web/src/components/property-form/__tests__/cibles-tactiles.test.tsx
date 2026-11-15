@@ -3,7 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 
 import { withIntl } from '@/test/intl';
-import { fieldDensityScope } from '@/components/ui/field-density';
+import {
+  FIELD_DENSITY_HEIGHT,
+  FIELD_DENSITY_HEIGHT_SIZED,
+  fieldDensityScope,
+} from '@/components/ui/field-density';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
 
@@ -72,10 +76,9 @@ import { StepPhotos } from '../wizard/steps/StepPhotos';
 
 /** 44 px ou plus, sans condition. `min-h-16` = 64 px : le `Textarea` est déjà au-dessus. */
 const HAUTEURS_SUFFISANTES = ['h-11', 'h-12', 'h-14', 'min-h-11', 'min-h-12', 'min-h-14', 'min-h-16'];
-const CLASSES_DE_DENSITE = [
-  'in-data-[field-density=comfortable]:h-11',
-  'in-data-[field-density=comfortable]:data-[size=default]:h-11',
-];
+// TCK-2686 — lues dans `field-density.ts` : la hauteur confortable est devenue le jeton
+// `h-controle-confortable` (44 px, 2,75rem fixes au pointeur grossier sous la portée `/app`).
+const CLASSES_DE_DENSITE = [FIELD_DENSITY_HEIGHT, FIELD_DENSITY_HEIGHT_SIZED];
 
 /**
  * Tout ce qu'un doigt vise dans un formulaire. Trois exclusions, chacune motivée :
@@ -183,7 +186,7 @@ describe('AC1 — publication : tous les champs sont à 44 px, et les pastilles 
     const boutons = Array.from(container.querySelectorAll('button'));
     expect(boutons.length, 'StepBien : aucun bouton trouvé').toBeGreaterThan(0);
     for (const b of boutons) {
-      expect(b.className, `StepBien : cible sous 44 px — "${b.textContent}"`).toMatch(/(^|\s)min-h-(11|20)(\s|$)/);
+      expect(b.className, `StepBien : cible sous 44 px — "${b.textContent}"`).toMatch(/(^|\s)min-h-(11|14|19|20)(\s|$)/);
     }
   });
 
@@ -211,7 +214,11 @@ describe('AC1 — publication : tous les champs sont à 44 px, et les pastilles 
   it('étape Prix — c’est ici que vit le `FormDatePicker`, le champ qu’aucune reprise locale n’atteignait', () => {
     const { container } = harnais({ contract_type: 'rent' }, (form) => <StepPrix form={form} />);
     expect(container.querySelector('[data-slot="date-picker-trigger"]')).not.toBeNull();
-    expect(container.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
+    // TCK-2819 (lot 2) — plus de liste au prix : la fréquence est en pastilles (44 px, `min-h-11`), les
+    // mois en compteurs dont les gestes − / + font 44 px.
+    expect(container.querySelector('[role="radiogroup"] [role="radio"]')).toHaveClass('min-h-11');
+    container.querySelectorAll('[data-compteur] button').forEach((b) => expect(b).toHaveClass('size-11'));
+    expect(container.querySelectorAll('[data-compteur] button').length).toBeGreaterThanOrEqual(4);
     exigeCiblesConfortables(container, 'StepPrix');
   });
 
@@ -262,7 +269,7 @@ describe('la garde refuse ce qu’elle doit refuser', () => {
       <form>
         <input
           id="hors-portee"
-          className="h-8 in-data-[field-density=comfortable]:h-11"
+          className={`h-8 ${FIELD_DENSITY_HEIGHT}`}
         />
       </form>,
     );

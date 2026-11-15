@@ -1,4 +1,5 @@
 import { CURRENCY_METADATA } from '@/lib/format/currency';
+import { formaterGroupesLisibles } from '@/lib/format/groupes';
 
 /**
  * TCK-2448 (ADR-0086) — l'argent du socle IA à l'écran. L'API le rend en chaînes décimales, en dollars,
@@ -67,14 +68,14 @@ export function formaterMontantIa(montant: string | null | undefined, devise: De
   const options: Intl.NumberFormatOptions = infime
     ? { maximumSignificantDigits: CHIFFRES_SIGNIFICATIFS }
     : { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces };
-  return habiller(new Intl.NumberFormat(locale, options).format(enChaine(montant)), devise);
+  return habiller(formaterGroupesLisibles(new Intl.NumberFormat(locale, options), enChaine(montant)), devise);
 }
 
 /** Un tarif saisi : tous ses chiffres, car c'est lui qu'on relit avant de le corriger. */
 export function formaterTarifIa(montant: string | null | undefined): string {
   if (!estMontantIa(montant)) return ABSENT;
   const { locale, decimalPlaces } = CURRENCY_METADATA.USD;
-  return habiller(new Intl.NumberFormat(locale, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: DECIMALES_MAX }).format(enChaine(montant)), 'USD');
+  return habiller(formaterGroupesLisibles(new Intl.NumberFormat(locale, { minimumFractionDigits: decimalPlaces, maximumFractionDigits: DECIMALES_MAX }), enChaine(montant)), 'USD');
 }
 
 /** L'équivalent en XOF, à présenter comme approximatif ; `null` sans taux lisible. */

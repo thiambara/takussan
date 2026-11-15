@@ -382,8 +382,12 @@ class MembershipCapabilityResolverTest extends TestCase
      * ajouté est `payments.reconcile`, le rapprochement bancaire, que l'admin tenait par son seul
      * type de profil : accordé à `agency_admin`, pas à l'agent système (`payments.record`, qu'il
      * tient, lui aurait ouvert les relevés de toute l'agence).
+     *
+     * **Décision du 2026-11-11 — TCK-2640, 46/48 → 47/49.** Le cas ajouté est `owners.update` :
+     * régler le plafond de travaux d'un bailleur du carnet. Accordé à `agency_admin`, pas à l'agent
+     * système (le plafond borne ce que l'équipe décide pour le bailleur).
      */
-    public function test_agency_admin_breadth_is_pinned_to_46_of_48(): void
+    public function test_agency_admin_breadth_is_pinned_to_47_of_49(): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -395,13 +399,13 @@ class MembershipCapabilityResolverTest extends TestCase
         ));
 
         $this->assertCount(
-            46,
+            47,
             $granted,
             'La largeur de `agency_admin` a changé. Ce n’est pas un compte à '.
             'rafraîchir : c’est une décision à prendre, puis à reporter dans le '.
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
-        $this->assertCount(48, Capability::cases());
+        $this->assertCount(49, Capability::cases());
     }
 
     /**
@@ -439,5 +443,40 @@ class MembershipCapabilityResolverTest extends TestCase
 
         $this->assertSame($expected, $this->resolver->allows($user, Capability::MaintenanceClose, $agency));
         $this->assertSame($expected, $user->isProviderAt($agency->id));
+    }
+
+    /**
+     * TCK-2739 — l'amorce de `primed()` se vide même quand le rappel lève (`finally`) : sinon le
+     * niveau de plateforme qu'elle a lu survivrait à l'exception, un super-admin révoqué ensuite
+     * resterait accordé, et la prochaine amorce, croyant en tenir une, ne s'armerait pas.
+     */
+    public function test_l_amorce_se_vide_quand_le_rappel_leve(): void
+    {
+        $agency = Agency::factory()->create();
+        $super = User::factory()->create();
+        $profil = PlatformProfile::factory()->superAdmin()->create(['user_id' => $super->id]);
+
+        try {
+            MembershipCapabilityResolver::primed([$super->id], [$agency->id], function () use ($super, $agency): never {
+                $this->assertTrue($this->resolver->allows($super, Capability::TeamInvite, $agency));
+                $this->assertNotFalse(MembershipCapabilityResolver::niveauPlateformeAmorce($super->id), 'l’amorce est armée dans le rappel');
+
+                throw new \RuntimeException('rappel interrompu');
+            });
+            $this->fail('l’exception du rappel doit traverser primed()');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('rappel interrompu', $e->getMessage());
+        }
+
+        $this->assertFalse(MembershipCapabilityResolver::niveauPlateformeAmorce($super->id), 'plus d’amorce après l’exception');
+        $this->assertNull(MembershipCapabilityResolver::amorce('staff', $super->id, $agency->id));
+
+        $profil->update(['revoked_at' => now()]);
+        $this->assertFalse($this->resolver->allows($super->fresh(), Capability::TeamInvite, $agency), 'la révocation se lit, pas l’amorce périmée');
+
+        // La prochaine amorce s'arme bien : elle ne se croit pas imbriquée dans la précédente.
+        $autre = User::factory()->create();
+        PlatformProfile::factory()->superAdmin()->create(['user_id' => $autre->id]);
+        $this->assertNotFalse(MembershipCapabilityResolver::primed([$autre->id], [$agency->id], fn () => MembershipCapabilityResolver::niveauPlateformeAmorce($autre->id)));
     }
 }

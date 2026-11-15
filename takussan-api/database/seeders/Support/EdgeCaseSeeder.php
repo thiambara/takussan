@@ -223,7 +223,7 @@ class EdgeCaseSeeder extends Seeder
         $ownerId = $owners->first()->id;
 
         // 1. Property avec 0 visite, 0 booking (inactive)
-        Property::withoutEvents(fn () => Property::create([
+        Property::withoutEvents(fn () => Property::create(Property::avecPeriodeParDefaut([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
             'reference_number' => 'PR-EC-'.strtoupper(Tirage::code(6)),
@@ -243,7 +243,7 @@ class EdgeCaseSeeder extends Seeder
             'published_at' => null,
             'created_at' => now()->subDays(60),
             'updated_at' => now(),
-        ]));
+        ])));
 
         // 2. Property avec surface minimale
         $this->createPropertyWithSpecifics($agencyId, $ownerId, [
@@ -549,7 +549,7 @@ class EdgeCaseSeeder extends Seeder
     {
         $title = $attributes['title'] ?? 'Property Edge Case';
 
-        return Property::withoutEvents(fn () => Property::create(array_merge([
+        return Property::withoutEvents(fn () => Property::create(Property::avecPeriodeParDefaut(array_merge([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
             'reference_number' => 'PR-EC-'.strtoupper(Tirage::code(6)),
@@ -570,6 +570,6 @@ class EdgeCaseSeeder extends Seeder
             'published_at' => now(),
             'created_at' => now()->subDays(30),
             'updated_at' => now(),
-        ], $attributes)));
+        ], $attributes))));
     }
 }

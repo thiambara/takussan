@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Requests\Invitation\PurgeExpiredInvitationsRequest;
 use App\Http\Resources\InvitationResource;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Services\Invitation\ExpiredInvitationPurge;
 use App\Services\Invitation\InvitationService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -106,6 +108,22 @@ class InvitationController extends Controller
         return $this->json([
             'data' => InvitationResource::make($invitation)->resolve($request),
         ]);
+    }
+
+    /**
+     * DELETE /api/invitations/expired?filter[role]=agent,agency_admin
+     *
+     * TCK-2665 — l'admin range ses invitations : les expirées de son agence, des rôles nommés, sont
+     * supprimées (`ExpiredInvitationPurge`). Double authentification exigée, comme renvoyer et
+     * révoquer (`ProtectedActions::AGENCY_TWO_FACTOR`).
+     */
+    public function purgeExpired(PurgeExpiredInvitationsRequest $request, ExpiredInvitationPurge $purge): JsonResponse
+    {
+        $agency = $request->agency();
+        abort_if($agency === null, 403);
+        $this->authorize('purgeExpired', [Invitation::class, $agency]);
+
+        return $this->json(['deleted' => $purge->purge($agency, $request->roles(), $request->user())]);
     }
 
     /**

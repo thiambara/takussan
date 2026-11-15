@@ -1,0 +1,161 @@
+{
+  "ticket": "TCK-2675",
+  "ecrans": [
+    {
+      "page": "app-rapprochement",
+      "approche": "c",
+      "ecran": 0,
+      "nom": "Reste à rapprocher",
+      "references": {
+        "telephone": "references/app-rapprochement/c-0-telephone.json",
+        "bureau-1440": "references/app-rapprochement/c-0-bureau-1440.json",
+        "bureau-1280": "references/app-rapprochement/c-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/finances/reconciliation?period=2026-11",
+        "persona": "admin",
+        "etat": "RÉPONSES SIMULÉES dans la page : la base de démo n'a AUCUN relevé importé (état c-1), l'écran c-0 ne s'y reproduit pas. Les seules lectures du rapprochement (`…/reconciliation/overview`, `…/reconciliation/pending-payments`, `…/bank-statements`) rendent les données de la maquette (846 paiements, 812 confirmés par Wave et Orange Money, 34 à rapprocher dont 21 espèces et 13 virements, 27 avec suggestion dont 19 à 90 % et plus, six relevés), puis le cache du rapprochement est vidé (QueryClient trouvé par la fibre React). Tout envoi non-GET est refusé dans la page avant le réseau ; aucun n'est parti. Scratchpad terrain-5/2675/fid/p-reste.js et commun.js"
+      }
+    },
+    {
+      "page": "app-rapprochement",
+      "approche": "c",
+      "ecran": 1,
+      "nom": "Aucun relevé",
+      "references": {
+        "telephone": "references/app-rapprochement/c-1-telephone.json",
+        "bureau-1440": "references/app-rapprochement/c-1-bureau-1440.json",
+        "bureau-1280": "references/app-rapprochement/c-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/finances/reconciliation?period=2026-11",
+        "persona": "admin",
+        "etat": "la base de démo telle quelle (relue le 2026-11-12, GET …/reconciliation/overview?period=2026-11) : Dakar Immo, novembre 2026 — 75 paiements, 0 confirmé par une passerelle, 75 à rapprocher (Wave 30, virements 17, Orange Money 14, espèces 8, Free Money 6), aucun relevé importé ; intégrations Wave et Orange Money actives. Tout envoi non-GET est refusé dans la page (p-rien.js) ; aucun n'est parti"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency/finances/reconciliation?period=2026-11",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad terrain-5/2675/fid/p-reste.js (c-0, réponses simulées), p-rien.js (c-1, démo réelle)"
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Virement": "Virement bancaire (nom du moyen, `payments.methods`) — la rangée et la carte disent désormais « Virement » comme la maquette",
+    "Wave Business": "Wave",
+    "Colonnes par banque": "Réglages de l’import",
+    "Ce que Wave et Orange Money ont confirmé est déjà rapproché. Il reste les espèces et les virements.": "Ce qu’une passerelle de paiement a confirmé est déjà rapproché ; le reste se rapproche d’un relevé de banque.",
+    "Aucun dépôt en banque ne correspond encore à ces espèces.": "Aucun dépôt en banque ne correspond encore à ce paiement.",
+    "CSV ou OFX · on vous montre ce qu’on a lu avant d’importer": "CSV ou OFX de votre banque",
+    "6 à traiter": "Partiellement rapproché (statut du relevé, lu de l’API)",
+    "3 lignes non lues": "À vérifier (statut) et « ⚠ 3 lignes non lues — vérifiez le paramétrage CSV. »"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "barre d'onglets du téléphone (« Accueil », « Argent », « Biens », « Messages », « Menu », pastille « 2 ») et barre latérale du bureau (rubriques, libellés, compteurs, « Démarrer », « Faire vérifier l’agence »)",
+      "motif": "primitives de la coque, communes à tout /app, hors périmètre (famille 3) — mêmes exclusions que TCK-2667, TCK-2668, TCK-2670"
+    },
+    {
+      "element": "« Aller au contenu principal »",
+      "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran tant qu'il n'a pas le focus"
+    },
+    {
+      "element": "« ⋯ » de l'en-tête du téléphone (maquette)",
+      "motif": "menu d'en-tête de la coque ; la page n'y déclare aucune action"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "c-0 téléphone",
+      "element": "le bandeau « 19 suggestions à plus de 90 % · même montant, même référence » et « Confirmer les 19 », au-dessus des cartes",
+      "propriete": "absent de la maquette du téléphone ; décale les cartes de ~240 px",
+      "exception": "décision produit (objectif du ticket)",
+      "motif": "l'objectif du ticket est que l'admin « confirme d'un geste les correspondances sûres » ; la maquette du bureau porte ce geste, celle du téléphone ne le dessine pas. Le retirer au téléphone priverait l'admin du geste là où il gère « depuis le téléphone » ; le bandeau est celui du bureau, même texte, même règle (≥ 90 %, une seule requête)"
+    },
+    {
+      "ecran": "c-0 bureau",
+      "element": "« Ignorer » sur la rangée d'un paiement sans ligne de banque",
+      "propriete": "absent du produit (« Chercher » à sa place)",
+      "exception": "donnée",
+      "motif": "aucune route n'ignore un PAIEMENT : `…/ignore` porte sur une LIGNE de relevé. Noté au ticket"
+    },
+    {
+      "ecran": "c-0 bureau",
+      "element": "« Délier » (lucide-unlink) sur chaque rangée qui a une ligne proposée",
+      "propriete": "absent de la maquette",
+      "exception": "décision produit",
+      "motif": "défaire une proposition (DELETE …/bank-statement-lines/{id}/match), le geste que le détail d'un relevé offre déjà : sans lui, une proposition fausse ne se retire qu'en ouvrant le relevé"
+    },
+    {
+      "ecran": "c-0 bureau",
+      "element": "les relevés de la colonne de droite : « 1 oct. 2026 → 31 oct. 2026 » d'une période qui n'est pas un mois entier ; « Partiellement rapproché » / « À vérifier » au lieu de « 6 à traiter » / « 3 lignes non lues »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le statut est celui que l'API rend (`status`), et les lignes non lues se disent sous le relevé ; un relevé d'un mois entier se nomme par son mois (« Octobre 2026 »), comme la maquette"
+    },
+    {
+      "ecran": "c-0 téléphone",
+      "element": "sélecteur de mois",
+      "propriete": "absent des deux (la maquette du téléphone n'en a pas)",
+      "exception": "—",
+      "motif": "au téléphone, le mois suit `?period=` ; noté au ticket"
+    },
+    {
+      "ecran": "c-1",
+      "element": "« 812 confirmés », « 540 confirmés en novembre », et « Tout ce qui est passé par Wave et Orange Money est déjà rapproché. »",
+      "propriete": "absent du produit",
+      "exception": "donnée",
+      "motif": "la démo n'a aucun paiement confirmé par une passerelle en novembre (`confirmed_automatically.total` 0, `by_provider` vide) : la phrase n'est rendue que s'il y a des fournisseurs, et le compte dit « Aucun ce mois-ci ». Wave et Orange Money sont bien des intégrations actives : « Paiements en ligne » les nomme, « Connecté »"
+    },
+    {
+      "ecran": "c-1",
+      "element": "« Banques prises en charge » et « on vous montre ce qu’on a lu avant d’importer »",
+      "propriete": "absent du produit",
+      "exception": "décision produit (D-67)",
+      "motif": "le produit n'a ni liste de banques ni aperçu avant import : le ticket interdit de le promettre"
+    },
+    {
+      "ecran": "c-0, c-1 téléphone",
+      "element": "coque · barre d'onglets",
+      "propriete": "3,46 % de pixels différents",
+      "exception": "hors périmètre — la coque n'est pas du ticket",
+      "motif": "la maquette allume « Menu » ; le produit allume « Argent », la rubrique dont le rapprochement est le détail (`parent: /app/agency/finances`), et la pastille « 2 » des messages est une donnée. « coque · en-tête » 0,15 %"
+    },
+    {
+      "ecran": "c-0, c-1",
+      "element": "montants, noms, biens, dates",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "c-0 : données de la maquette, simulées ; c-1 : la démo (75 paiements en novembre, 0 confirmé tout seul, 75 à rapprocher)"
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2675/cmp-v2-{c0,c1}-…",
+    "le": "2026-11-12 vers 21:00, base de démo, jetons de l'app ; charge machine élevée (load 12 à 39)",
+    "resultats": {
+      "c0": "téléphone 18 conformes · 24 écarts · 7+3 absents · 28,16 % (le bandeau du lot décale les cartes, cf. écart) ; 1440 77 · 221 · 11+28 · 14,88 % ; 1280 80 · 217 · 11+28 · 13,39 %",
+      "c1": "téléphone 20 · 16 · 5+5 · 11,25 % ; 1440 50 · 127 · 24+17 · 6,24 % ; 1280 44 · 133 · 24+17 · 8,23 %"
+    },
+    "corriges_apres_la_passe": [
+      "le moyen nommé selon la place, comme la maquette : « espèces et virements » dans la phrase du téléphone, « Espèces 21 · Virements 13 » au compte du bureau et sur les pastilles, « Virement » sur la rangée et la carte (`useNomDuMoyen(forme)`, clés admin.reconciliation.reste.moyens.*)",
+      "un relevé d'un mois entier se nomme par son mois (« Octobre 2026 ») au lieu de ses deux bornes",
+      "la page répondait 500 au rendu serveur (MISSING_MESSAGE `admin.reconciliation.title` dans l'en-tête de la coque) : le titre vit dans `nav.admin.reconciliation`, garde `en-tete-de-la-coque.dictionnaire-de-la-coque.test.ts`"
+    ],
+    "criteres": {
+      "AC1": "v2-ac1-bureau-1440 (réponses simulées, p-ac1.js) : un clic sur « Confirmer les 19 » → un seul envoi, POST /api/agencies/1/bank-statement-lines/confirm-batch, 19 identifiants, tous de confiance 95 (≥ 90) ; l'envoi est refusé dans la page, rien n'est écrit. La disparition des 19 cartes n'est prouvée qu'en test (ResteARapprocher.test, la liste se relit après la réponse)",
+      "AC2": "v2-ac2-bureau-1440 (données réelles de la démo, relevés simulés seulement pour sortir de l'écran « aucun relevé ») : pastille « Espèces 8 » → GET …/pending-payments?filter[payment_method]=cash&page=1&per_page=20&period=2026-11, meta.total 8, 8 cartes rendues, aucun envoi",
+      "AC3": "GET /api/agencies/1/bank-statements/999 → 404 `http.not_found` (sonde, jeton admin) ; /app/agency/finances/reconciliation/999 répond 200 (avant la correction de la coque : 500) ; « Ce relevé n'existe pas », « Retour au rapprochement », sans « Réessayer » : rapprochement.test (404 et 403), rouge par ablation",
+      "AC4": "v2-ac4-telephone (390 × 844, détail du relevé 5 simulé, p-ac4.js) : débord du document 0, pas de tableau, « Valider » de la première ligne à x 33-101, y 558 (à l'écran)",
+      "AC5": "rapprochement.test « AC5 — ni date, ni amount, ni label, ni d/m/Y dans le DOM » (balayage du DOM des réglages), rouge par ablation"
+    },
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024,1280` sur /app/agency/finances/reconciliation?period=2026-11 et /…/999 : débord 0 et coupes 0 partout ; à 768, les ellipses sont celles du rail de 60 px de la coque (famille 3)"
+  }
+}

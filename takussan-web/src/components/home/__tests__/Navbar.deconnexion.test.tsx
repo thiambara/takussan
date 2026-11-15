@@ -37,17 +37,13 @@ vi.mock('@/hooks/useSuggest', () => ({
   useSuggest: () => ({ data: undefined, isLoading: false, isFetching: false }),
 }));
 
-vi.mock('@/components/auth/OAuthButtons', () => ({
-  OAuthButtons: () => null,
-  OAuthSeparator: () => null,
-}));
 
 const { AuthProvider, useAuth } = await import('@/context/AuthContext');
 const { useApiQuery } = await import('@/hooks/useApiQuery');
 const { createQueryClient } = await import('@/lib/query-client');
 const { getIds: favorisLocaux } = await import('@/lib/favoritesStore');
 const { Navbar } = await import('@/components/home/Navbar');
-const { default: LoginPage } = await import('@/app/(auth)/auth/login/page');
+const { FormulaireDeConnexion: LoginPage } = await import('@/app/(auth)/auth/login/FormulaireDeConnexion');
 
 const A = {
   id: 7, first_name: 'Astou', last_name: 'Dieng', full_name: 'Astou Dieng',
@@ -117,16 +113,17 @@ describe('Navbar publique — déconnexion (TCK-509, AC3)', () => {
     expect(await screen.findByText('Bearer jeton-A')).toBeInTheDocument();
     await waitFor(() => expect(favorisLocaux()).toEqual([42]));
 
-    await user.click(screen.getByRole('button', { name: 'Menu utilisateur' }));
-    await user.click(screen.getByRole('button', { name: 'Déconnexion' }));
+    // TCK-2494 — la déconnexion de bureau vit dans le menu « Mon espace ».
+    await user.click(screen.getByRole('button', { name: /Mon espace/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Se déconnecter' }));
     await waitFor(() => expect(router.push).toHaveBeenCalled());
     const apresDeconnexion = appels.length;
     expect(appels.some((a) => a.url === '/api/auth/logout')).toBe(true);
     await waitFor(() => expect(favorisLocaux()).toEqual([]));
 
-    await user.type(screen.getByLabelText('Adresse email*'), 'agent1@dakarimmo.sn');
-    await user.type(screen.getByLabelText('Mot de passe*'), 'password');
-    await user.click(screen.getByRole('button', { name: 'Se connecter' }));
+    await user.type(screen.getByLabelText('E-mail'), 'agent1@dakarimmo.sn');
+    await user.type(screen.getByLabelText('Mot de passe'), 'password');
+    await user.click(screen.getByRole('button', { name: 'Me connecter' }));
 
     await waitFor(() => expect(screen.getByTestId('sonde')).toHaveTextContent('Bearer jeton-B'));
     expect(appels.slice(apresDeconnexion).filter((a) => a.auth === 'Bearer jeton-A')).toEqual([]);

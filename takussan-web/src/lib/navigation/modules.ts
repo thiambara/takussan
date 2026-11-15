@@ -9,13 +9,17 @@ import type { Persona } from './personas';
  * (`modules.parity.test.ts`) ; la TABLE vers le catalogue appartient au front (principe 5).
  * AFFICHAGE seulement : aucune page, aucune garde ne lit ce réglage (`modules.test.ts`).
  *
+ * TCK-2644 (amendement du 2026-11-10 d'ADR-0089, point 4) — `move_in_follow_up` a quitté la liste :
+ * « Entrées en attente » est devenue l'onglet « En attente du locataire » de la liste des baux. Une
+ * valeur déjà enregistrée dans `hidden_modules` est ignorée par `modulesMasquesDe`, qui ne garde que
+ * les codes connus.
+ *
  * Ne s'y ajoute jamais une destination à compteur, d'écriture, jugée sur l'espace, une page
  * d'agence, une action principale ni un onglet mobile — `modules.test.ts` le refuse.
  */
 export const CODES_DE_MODULE = [
   'commissions',
   'inventories',
-  'move_in_follow_up',
   'provider_book',
   'calendar',
   'credits',
@@ -27,13 +31,13 @@ export type CodeDeModule = (typeof CODES_DE_MODULE)[number];
 export const MODULES_D_AGENCE: Readonly<Record<CodeDeModule, readonly IdDestination[]>> = {
   commissions: ['commissions'],
   inventories: ['etats-des-lieux'],
-  // La liste suit la checklist d'onboarding du locataire, pas les seuls états des lieux : un module à part.
-  move_in_follow_up: ['entrees-en-attente'],
   provider_book: ['carnet-prestataires'],
   calendar: ['calendrier'],
   credits: ['credits'],
-  // Les statistiques (`/app/overview`) et la vue d'agence restent : ce module est le pilotage AVANCÉ.
-  analytics: ['kpis', 'alertes', 'exports'],
+  // TCK-2628 (amendement du 2026-11-10 d'ADR-0089, § 3) — le pilotage avancé n'a plus d'entrée de menu :
+  // Indicateurs, Alertes et Exports sont des onglets de « Rapports », que ce module retire de la BARRE
+  // d'onglets (`ongletsDesRapports`, `indicateursOuverts`). « Rapports » reste tant qu'il reste un onglet.
+  analytics: [],
 };
 
 /** Les personas dont la DISPOSITION se masque. Les autres ne perdent que leur complément « Aussi … ». */

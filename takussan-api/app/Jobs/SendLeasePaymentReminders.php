@@ -38,13 +38,20 @@ use Illuminate\Support\Facades\Log;
  *     J-3 sur `due_date = today + 3` ; retard sur `due_date ∈ {today - 1, today - 7}`. Un jalon
  *     manqué se rattrape pendant `CATCH_UP_DAYS` jours (TCK-739).
  *   · **Montant.** Le solde (`remaining_amount`), pas `amount` — une échéance partiellement
- *     payée annonçait la somme entière.
+ *     payée annonçait la somme entière. Au locataire, ce que son lien encaisse
+ *     (`PaymentGatewayService::amountDue()`, pénalité comprise si l'agence l'encaisse en ligne —
+ *     TCK-2706, d3) ; au bailleur et à l'agent, le solde.
  *   · **Jours.** `(int) due_date->diffInDays(now(), true)`. Carbon 3 rend `diffInDays` SIGNÉ et
  *     FLOTTANT : la forme d'avant annonçait « en retard de -7.33 jour(s) ».
  *   · **Destinataires.** Le locataire, avec ou sans compte ({@see ContactSansCompte}) ; le
- *     bailleur (`overdue_landlord`) ; l'agent, UN récapitulatif par jour (`overdue_digest`).
+ *     bailleur (`overdue_landlord`) ; l'agent, UN récapitulatif par jour ET par agence
+ *     (`overdue_digest`, TCK-2806).
  *   · **Pas de doublon.** Un marqueur par jalon dans `metadata`, posé sous verrou de ligne
  *     comme `SendPropertyVisitReminders` : un second passage le même jour n'envoie rien.
+ *
+ * TCK-2679 (ADR-0100 § 6) — les charges du bail sont appelées à côté du loyer, à la même date : les
+ * échéances d'un même bail et d'une même date partent dans UNE relance, pour leur solde cumulé. Un
+ * locataire ne reçoit pas deux messages le même jour pour un même terme.
  */
 class SendLeasePaymentReminders implements ShouldQueue
 {
@@ -66,28 +73,39 @@ class SendLeasePaymentReminders implements ShouldQueue
 
     public function handle(NotificationService $notifications): void
     {
-        foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $payment) {
-            $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentDueSoon, [
-                'amount' => $this->remaining($payment),
+        foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $dues) {
+            $payment = $dues[0];
+            $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentDueSoon, [
+                'amount' => $this->remaining($dues, $this->payableAmount(...)),
                 'due_date' => $payment->due_date?->toDateString(),
                 'property' => $payment->lease?->property?->title,
-            ]);
+            ] + $this->detail($dues, $this->payableAmount(...)));
         }
 
-        /** @var array<int, array{agent: User, count: int, total: float, currency: ?Currency}> $digests */
+        /**
+         * TCK-2806 — un récapitulatif par agent ET par agence, clé `agent|agence` : un agent de deux
+         * agences en reçoit deux, chacun avec le compte, le total et l'agence de sa page `/app/payments`
+         * (qui filtre sur `leases.agency_id`). Indexé par agent seul, il mêlait les deux agences.
+         *
+         * @var array<string, array{agent: User, agency: int, count: int, total: float, currency: ?Currency}> $digests
+         */
         $digests = [];
         foreach (self::OVERDUE_DAYS as $offset) {
-            foreach ($this->claim(now()->subDays($offset), "overdue_{$offset}") as $payment) {
+            foreach ($this->claim(now()->subDays($offset), "overdue_{$offset}") as $dues) {
+                $payment = $dues[0];
                 $days = (int) $payment->due_date->diffInDays(now(), true);
                 $lease = $payment->lease;
-                $amount = $this->remaining($payment);
+                // TCK-2706 (d3) — le locataire lit ce que son lien encaisse, pénalité comprise quand
+                // l'agence l'encaisse en ligne ; le bailleur et l'agent lisent le solde de l'échéance.
+                $amount = $this->remaining($dues, $this->dueAmount(...));
+                $detail = $this->detail($dues, $this->dueAmount(...));
 
-                $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentOverdue, [
-                    'amount' => $amount,
+                $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentOverdue, [
+                    'amount' => $this->remaining($dues, $this->payableAmount(...)),
                     'days' => $days,
                     'due_date' => $payment->due_date->toDateString(),
                     'property' => $lease?->property?->title,
-                ]);
+                ] + $this->detail($dues, $this->payableAmount(...)));
 
                 $landlord = $lease?->landlord;
                 if ($landlord) {
@@ -96,15 +114,21 @@ class SendLeasePaymentReminders implements ShouldQueue
                         'days' => $days,
                         'property' => $lease->property?->title,
                         'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
-                    ], NotificationTarget::of('lease', $lease->id), agencyId: self::agenceDuBail($lease));
+                    ] + $detail, NotificationTarget::of('lease', $lease->id), agencyId: self::agenceDuBail($lease));
                 }
 
                 // L'agent : le contact principal du bien, quand ce n'est pas le bailleur lui-même.
-                $agent = $lease?->property ? PrimaryPropertyContact::for($lease->property) : null;
+                // TCK-2806 — un bail sans agence (bailleur direct) n'a pas de page de section
+                // d'agence où mener : pas de récapitulatif.
+                $agence = self::agenceDuBail($lease);
+                $agent = $agence !== null && $lease?->property ? PrimaryPropertyContact::for($lease->property) : null;
                 if ($agent && $agent->id !== $landlord?->id) {
-                    $digests[$agent->id] ??= ['agent' => $agent, 'count' => 0, 'total' => 0.0, 'currency' => $payment->currency];
-                    $digests[$agent->id]['count']++;
-                    $digests[$agent->id]['total'] += (float) $amount['amount'];
+                    $cle = $agent->id.'|'.$agence;
+                    $digests[$cle] ??= ['agent' => $agent, 'agency' => $agence, 'count' => 0, 'total' => 0.0, 'currency' => $payment->currency];
+                    // Le récapitulatif compte des ÉCHÉANCES : une relance fusionnée (TCK-2679) en porte
+                    // plusieurs.
+                    $digests[$cle]['count'] += count($dues);
+                    $digests[$cle]['total'] += (float) $amount['amount'];
                 }
             }
         }
@@ -113,7 +137,7 @@ class SendLeasePaymentReminders implements ShouldQueue
             $notifications->send($digest['agent'], NotificationCode::LeasePaymentOverdueDigest, [
                 'count' => $digest['count'],
                 'total' => NotificationRenderer::money($digest['total'], $digest['currency']),
-            ], NotificationTarget::of('payments'));
+            ], NotificationTarget::of('payments')->forAgency($digest['agency']));
         }
     }
 
@@ -125,7 +149,11 @@ class SendLeasePaymentReminders implements ShouldQueue
      * d'être rendue : deux passages concurrents ne relancent pas deux fois la même échéance, et
      * un envoi qui lève ne laisse pas marquées, sans envoi, celles qui le suivent.
      *
-     * @return \Generator<int, LeasePayment>
+     * TCK-2679 — rendues PAR GROUPE d'un même bail et d'une même date (le loyer et ses charges) :
+     * chaque échéance du groupe est réservée sous son verrou, puis le groupe des réservées part dans
+     * une seule relance. Le loyer passe en tête : c'est lui que porte le lien de paiement.
+     *
+     * @return \Generator<int, non-empty-list<LeasePayment>>
      */
     private function claim(CarbonInterface $dueDate, string $milestone): \Generator
     {
@@ -148,32 +176,112 @@ class SendLeasePaymentReminders implements ShouldQueue
             ->orderBy('id')
             ->get();
 
-        foreach ($candidates as $payment) {
-            $claimed = DB::transaction(function () use ($payment, $key): bool {
-                $locked = LeasePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
-                if (! $locked
-                    || ! in_array($locked->status, self::OPEN_STATUSES, true)
-                    || ! empty(($locked->metadata ?? [])[$key])
-                ) {
-                    return false;
-                }
-                $locked->forceFill(['metadata' => [...($locked->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
-                // Le statut et le solde relus sous le verrou, les relations gardées.
-                $payment->setRawAttributes($locked->getAttributes(), true);
+        $groups = $candidates->groupBy(fn (LeasePayment $payment) => $payment->lease_id.'|'.$payment->due_date?->toDateString());
 
-                return true;
-            });
+        foreach ($groups as $group) {
+            $claimed = $group
+                ->filter(fn (LeasePayment $payment) => $this->claimOne($payment, $key))
+                ->sortBy(fn (LeasePayment $payment) => $payment->payment_type === LeasePaymentType::Rent ? 0 : 1)
+                ->values()
+                ->all();
 
-            if ($claimed) {
-                yield $payment;
+            if ($claimed !== []) {
+                yield $claimed;
             }
         }
     }
 
-    /** @return array{amount: string, currency: string} */
-    private function remaining(LeasePayment $payment): array
+    private function claimOne(LeasePayment $payment, string $key): bool
     {
-        return NotificationRenderer::money($payment->remaining_amount, $payment->currency);
+        return DB::transaction(function () use ($payment, $key): bool {
+            $locked = LeasePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
+            if (! $locked
+                || ! in_array($locked->status, self::OPEN_STATUSES, true)
+                || ! empty(($locked->metadata ?? [])[$key])
+            ) {
+                return false;
+            }
+            $locked->forceFill(['metadata' => [...($locked->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
+            // Le statut et le solde relus sous le verrou, les relations gardées.
+            $payment->setRawAttributes($locked->getAttributes(), true);
+
+            return true;
+        });
+    }
+
+    /**
+     * Le solde cumulé des échéances relancées ensemble (TCK-2679).
+     *
+     * @param  non-empty-list<LeasePayment>  $dues
+     * @param  \Closure(LeasePayment): float  $montant  {@see dueAmount()} ou {@see payableAmount()}
+     * @return array{amount: string, currency: string}
+     */
+    private function remaining(array $dues, \Closure $montant): array
+    {
+        $total = array_sum(array_map($montant, $dues));
+
+        return NotificationRenderer::money(Currency::roundAmount($total, $dues[0]->currency), $dues[0]->currency);
+    }
+
+    /**
+     * TCK-2706 (voie 2 du porteur, 2026-11-11) — le détail d'une relance qui porte des charges : le
+     * solde du loyer (`rent`) et celui des charges (`charges`), qui font choisir le texte « loyer et
+     * charges » ou « charges » ({@see NotificationCode::variant()}). Vide — le texte du loyer
+     * d'aujourd'hui, octet pour octet — pour un loyer seul, et pour un groupe qui porte autre chose
+     * que le loyer et les charges, ou deux échéances d'un même type : ces textes ne sauraient pas le
+     * dire, ni la relance donner un lien à chacune.
+     *
+     * @param  non-empty-list<LeasePayment>  $dues
+     * @param  \Closure(LeasePayment): float  $montant  {@see dueAmount()} ou {@see payableAmount()}
+     * @return array<string, array{amount: string, currency: string}>
+     */
+    private function detail(array $dues, \Closure $montant): array
+    {
+        $byType = [];
+        foreach ($dues as $due) {
+            $type = $due->payment_type;
+            if (! in_array($type, [LeasePaymentType::Rent, LeasePaymentType::Charges], true) || isset($byType[$type->value])) {
+                return [];
+            }
+            $byType[$type->value] = $due;
+        }
+        if (! isset($byType[LeasePaymentType::Charges->value])) {
+            return [];
+        }
+
+        $detail = [];
+        foreach ($byType as $type => $due) {
+            $detail[$type] = NotificationRenderer::money($montant($due), $due->currency);
+        }
+
+        return $detail;
+    }
+
+    /**
+     * Le solde d'une échéance arrondi à l'unité de sa devise, AVANT toute somme — l'arrondi de
+     * `PaymentGatewayService::amountDue()` (TCK-593), sans la pénalité : ce que lisent le bailleur et
+     * l'agent ({@see payableAmount()} pour le locataire). Sommer les
+     * soldes bruts puis arrondir annonçait 650 001 pour deux liens qui encaissent 500 001 + 150 001
+     * (vérification adverse de TCK-2706, d1).
+     */
+    private function dueAmount(LeasePayment $due): float
+    {
+        return Currency::roundAmount((float) $due->remaining_amount, $due->currency);
+    }
+
+    /**
+     * TCK-2706 (vérification adverse, d3) — ce que le LOCATAIRE est invité à payer :
+     * `PaymentGatewayService::amountDue()`, la somme même que son lien encaisse — le solde, plus la
+     * pénalité restant due quand l'agence du bail l'encaisse en ligne. Le SMS d'un loyer de 500 000
+     * à pénalité de 25 000 annonçait 500 000 quand son lien en encaissait 525 000. Une échéance qui ne
+     * se paie pas en ligne (ou sans montant lisible) garde son solde ({@see dueAmount()}) : `amountDue()`
+     * y rendrait 0 ou `null`, pas ce qui reste dû.
+     */
+    private function payableAmount(LeasePayment $due): float
+    {
+        $gateway = app(PaymentGatewayService::class);
+
+        return $gateway->isPayable($due) ? ($gateway->amountDue($due) ?? $this->dueAmount($due)) : $this->dueAmount($due);
     }
 
     /**
@@ -181,10 +289,17 @@ class SendLeasePaymentReminders implements ShouldQueue
      * journalisé, sans exception. Un compte sans téléphone vérifié reçoit en plus le canal mobile
      * au numéro de sa fiche (TCK-1493).
      *
+     * TCK-2706 (voie 2 du porteur, 2026-11-11) — le contact sans compte d'une relance qui porte les
+     * charges reçoit le lien de CHAQUE échéance : `payment_url` celui du loyer (ou des charges seules),
+     * `charges_url` celui des charges. Tous ou aucun : le SMS annonce chaque montant, et un montant
+     * annoncé sans son lien ne se paierait pas par le message.
+     *
+     * @param  non-empty-list<LeasePayment>  $dues  le loyer en tête ({@see claim()})
      * @param  array<string, mixed>  $params
      */
-    private function notifyTenant(NotificationService $notifications, LeasePayment $payment, NotificationCode $code, array $params): void
+    private function notifyTenant(NotificationService $notifications, array $dues, NotificationCode $code, array $params): void
     {
+        $payment = $dues[0];
         $lease = $payment->lease;
         $tenant = $lease?->tenant;
         $target = $lease ? NotificationTarget::of('lease', $lease->id) : null;
@@ -208,12 +323,21 @@ class SendLeasePaymentReminders implements ShouldQueue
         if ($contact?->hasPhone()) {
             // TCK-602 (ADR-0051 §1) — 588 a prévu la place du lien, 602 le génère : le MÊME lien à
             // chaque relance, seulement si l'échéance se paie en ligne (un fournisseur au moins).
+            // TCK-2706 — sans détail (`charges`), le seul lien de la tête du groupe, comme avant.
+            $payables = $code->variant($params) !== null ? $dues : [$payment];
             $gateway = app(PaymentGatewayService::class);
             $guard = null;
-            if ($gateway->isPayable($payment) && $gateway->availableProviders($payment) !== []) {
-                $params['payment_url'] = app(LeasePaymentLinkService::class)->urlFor($payment, locale: $contact->locale);
-                // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.
-                $guard = DeferredSmsGuard::forPayLink($params['payment_url']);
+            $enLigne = array_filter($payables, fn (LeasePayment $due): bool => $gateway->isPayable($due) && $gateway->availableProviders($due) !== []);
+            if (count($enLigne) === count($payables)) {
+                $links = app(LeasePaymentLinkService::class);
+                $urls = array_map(fn (LeasePayment $due): string => $links->urlFor($due, locale: $contact->locale), $payables);
+                $params['payment_url'] = $urls[0];
+                if (isset($urls[1])) {
+                    $params['charges_url'] = $urls[1];
+                }
+                // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir ;
+                // TCK-2706 — tous ses liens.
+                $guard = count($urls) === 1 ? DeferredSmsGuard::forPayLink($urls[0]) : DeferredSmsGuard::forPayLinks(...$urls);
             }
             // P207.01 (TCK-2157) — au plus une fois (TCK-740) : un SMS que tous les fournisseurs
             // refusent n'est pas renvoyé, et laisse une activité d'exploitation sur l'échéance.

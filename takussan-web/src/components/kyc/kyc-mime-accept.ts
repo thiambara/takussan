@@ -3,8 +3,8 @@
  * (takussan-api). `image/*` let a GIF or an AVIF through, refused in 422.
  * Kept in sync by `accept-des-televersements.parity.tck-1888.test.tsx`.
  *
- * Module à part (TCK-2150) : `kyc-components.tsx` le lit sans importer `KycUploader`, dont les
- * espaces de traduction ne sont pas déclarés sur la console super-admin.
+ * Module à part (TCK-2150) : `kyc-components.tsx` (console super-admin) et « Vos pièces » (`VosPieces.tsx`) le lisent
+ * sans importer de composant, donc sans en embarquer les espaces de traduction.
  */
 export const KYC_MIME_ACCEPT = [
   'image/jpeg',

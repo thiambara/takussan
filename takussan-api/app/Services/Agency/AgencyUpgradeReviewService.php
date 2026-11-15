@@ -3,6 +3,9 @@
 namespace App\Services\Agency;
 
 use App\Events\AgencyUpgradeApproved;
+use App\Exceptions\ApiError;
+use App\Models\Agency;
+use App\Models\AgencySubscription;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
@@ -10,6 +13,8 @@ use App\Models\Enums\KycDossierStatus;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeApprovedNotification;
 use App\Notifications\AgencyUpgradeRejectedNotification;
+use App\Services\Billing\AgencySubscriptionService;
+use App\Services\Billing\UpgradeOffer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +33,8 @@ use Throwable;
  *  - approve → activity log `agency_upgrade_approved`, dispatch
  *    {@see AgencyUpgradeApproved} (consumed by TCK-269 to flip the
  *    Agency.kind), notify submitter via
- *    {@see AgencyUpgradeApprovedNotification}.
+ *    {@see AgencyUpgradeApprovedNotification} ; dans la même transaction, l'agence est abonnée
+ *    au plan du passage (TCK-2681, {@see self::subscribeToUpgradePlan()}).
  *  - reject  → activity log `agency_upgrade_rejected`, notify submitter
  *    via {@see AgencyUpgradeRejectedNotification} with the motif.
  *
@@ -39,6 +45,8 @@ class AgencyUpgradeReviewService
 {
     public function __construct(
         private readonly AgencyKindFlipService $kindFlipService,
+        private readonly UpgradeOffer $upgradeOffer,
+        private readonly AgencySubscriptionService $subscriptions,
     ) {}
 
     public function approve(
@@ -68,6 +76,8 @@ class AgencyUpgradeReviewService
         // standard by the time it fires.
         $approved = DB::transaction(function () use ($request, $reviewer, $comment): AgencyUpgradeRequest {
             $request = $this->lockPending($request);
+            // TCK-2730 — avant toute écriture, et avant la bascule de type : rien d'écrit à moitié.
+            $this->assertNoNegotiatedOverrides($request);
             $request->update([
                 'status' => AgencyUpgradeRequestStatus::Approved->value,
                 'reviewed_by' => $reviewer->id,
@@ -94,6 +104,8 @@ class AgencyUpgradeReviewService
                 // and the request remains `pending` — operators can retry.
                 throw $e;
             }
+
+            $this->subscribeToUpgradePlan($request, $reviewer);
 
             // ShouldDispatchAfterCommit on the event keeps TCK-269's
             // listener safe — it only fires once the row is persisted.
@@ -149,6 +161,79 @@ class AgencyUpgradeReviewService
         $this->notifySubmitter($rejected, new AgencyUpgradeRejectedNotification($rejected));
 
         return $rejected->fresh() ?? $rejected;
+    }
+
+    /**
+     * TCK-2681 (ADR-0104 § 6, décidé par le porteur le 2026-11-10) — l'approbation abonne l'agence
+     * au plan que l'hôte a lu avant de demander (`GET /api/me/upgrade-offer`, même résolution :
+     * {@see UpgradeOffer}). Sans essai ni dérogation, et sans prélèvement : l'abonnement est posé,
+     * aucun paiement n'est déclenché. Dans la transaction de l'approbation : un plan introuvable ou
+     * retiré fait tout échouer — la demande reste `pending`, l'agence `individual`. Un abonnement
+     * ouvert (posé à la main avant) est clos par `assign()` comme tout changement de plan ; le
+     * journal en garde les identifiants.
+     */
+    protected function subscribeToUpgradePlan(AgencyUpgradeRequest $request, User $reviewer): void
+    {
+        $plan = $this->upgradeOffer->plan();
+        abort_code_unless($plan, 422, 'agency_upgrade.plan_unavailable');
+
+        $agency = Agency::query()->whereKey($request->agency_id)->firstOrFail();
+        $replaced = AgencySubscription::query()
+            ->where('agency_id', $agency->id)
+            ->whereNull('ended_at')
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $subscription = $this->subscriptions->assign($agency, $plan, $reviewer);
+
+        activity('AgencyUpgradeRequest')
+            ->performedOn($subscription)
+            ->causedBy($reviewer)
+            ->withProperties([
+                'agency_id' => $agency->id,
+                'plan_id' => $plan->id,
+                'agency_upgrade_request_id' => $request->id,
+                'replaced_subscription_ids' => $replaced,
+            ])
+            ->event('agency_upgrade_subscription_assigned')
+            ->log('agency_upgrade_subscription_assigned');
+    }
+
+    /**
+     * TCK-2730 (décision du porteur du 2026-11-11, option b, provisoire) — `assign()` clôt tout
+     * abonnement ouvert, dérogations comprises, et le nouveau n'en porte aucune (« sans essai ni
+     * dérogation », TCK-2681). Plutôt que de les faire disparaître en silence, l'approbation est
+     * refusée tant que l'abonnement ouvert en porte une : `409 agency_upgrade.subscription_has_overrides`,
+     * avec les dérogations dans `overrides`. Le super-admin les retire (TCK-2222), puis approuve.
+     * Pas de report automatique : une dérogation de quota est une valeur ABSOLUE
+     * (`QuotaResolver::effectiveLimits`), qui pourrait abaisser un quota du plan pro.
+     *
+     * Lu sous verrou, dans la transaction de l'approbation : une dérogation posée entre la lecture
+     * et la clôture ne passe pas.
+     */
+    protected function assertNoNegotiatedOverrides(AgencyUpgradeRequest $request): void
+    {
+        $open = AgencySubscription::query()
+            ->where('agency_id', $request->agency_id)
+            ->whereNull('ended_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($open as $subscription) {
+            $overrides = array_filter([
+                'platform_fee_pct' => $subscription->platform_fee_pct_override !== null
+                    ? (float) $subscription->platform_fee_pct_override
+                    : null,
+                'limits' => ($subscription->limits_override ?? []) !== [] ? $subscription->limits_override : null,
+            ], fn ($value) => $value !== null);
+
+            if ($overrides !== []) {
+                throw (new ApiError(409, 'agency_upgrade.subscription_has_overrides'))->with(['overrides' => $overrides]);
+            }
+        }
     }
 
     /**

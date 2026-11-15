@@ -46,7 +46,7 @@ function nights(start: string, end: string): { from: Date; to: Date } {
  * peut faire, l'API en juge (`PropertyPolicy::update`) : un refus s'affiche tel qu'elle le dit.
  */
 export function PropertyCalendarPanel({ propertyId }: PropertyCalendarPanelProps) {
-  const t = useTranslations('property.dashboard.calendar');
+  const t = useTranslations('propertyDashboard.calendar');
   const messageErreur = useMessageErreurApi();
   const dfLocale = localeDateFns(useLocale());
   const [today] = useState(() => iso(new Date()));
@@ -142,7 +142,7 @@ function BlockDatesSection({
   readonly today: string;
   readonly errorOf: (e: unknown) => string;
 }) {
-  const t = useTranslations('property.dashboard.calendar');
+  const t = useTranslations('propertyDashboard.calendar');
   const create = useCreateUnavailability(propertyId);
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
@@ -210,7 +210,7 @@ function BlockRow({
   readonly longDate: (day: string) => string;
   readonly errorOf: (e: unknown) => string;
 }) {
-  const t = useTranslations('property.dashboard.calendar');
+  const t = useTranslations('propertyDashboard.calendar');
   const remove = useDeleteUnavailability(propertyId);
   const [error, setError] = useState<string | null>(null);
   const lastNight = format(addDays(parseISO(row.ends_on), -1), 'yyyy-MM-dd');
@@ -260,7 +260,7 @@ function FeedsSection({
   readonly feeds: readonly PropertyCalendarFeed[];
   readonly errorOf: (e: unknown) => string;
 }) {
-  const t = useTranslations('property.dashboard.calendar');
+  const t = useTranslations('propertyDashboard.calendar');
   const create = useCreateCalendarFeed(propertyId);
   const [url, setUrl] = useState('');
   const [label, setLabel] = useState('');
@@ -331,7 +331,7 @@ function FeedRow({
   readonly feed: PropertyCalendarFeed;
   readonly errorOf: (e: unknown) => string;
 }) {
-  const t = useTranslations('property.dashboard.calendar');
+  const t = useTranslations('propertyDashboard.calendar');
   const sync = useSyncCalendarFeed(propertyId);
   const remove = useDeleteCalendarFeed(propertyId);
   const [error, setError] = useState<string | null>(null);
@@ -393,7 +393,7 @@ function ExportLinkSection({
   readonly propertyId: number;
   readonly errorOf: (e: unknown) => string;
 }) {
-  const t = useTranslations('property.dashboard.calendar');
+  const t = useTranslations('propertyDashboard.calendar');
   const generate = useGenerateIcalLink(propertyId);
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);

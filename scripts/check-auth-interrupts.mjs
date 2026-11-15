@@ -239,13 +239,10 @@ const REFUS_ARTISANAL = [
   'src/app/(dashboard)/app/agency/finances/page.tsx',
   'src/app/(dashboard)/app/agency/layout.tsx',
   'src/app/(dashboard)/app/maintenance/providers/layout.tsx',
-  'src/app/(dashboard)/app/overview/agency/layout.tsx',
-  'src/app/(dashboard)/app/overview/agent/layout.tsx',
-  'src/app/(dashboard)/app/overview/alerts/layout.tsx',
-  'src/app/(dashboard)/app/overview/exports/layout.tsx',
-  'src/app/(dashboard)/app/overview/kpis/layout.tsx',
-  'src/app/(dashboard)/app/overview/owner/layout.tsx',
-  'src/app/(dashboard)/app/overview/page.tsx',
+  // TCK-2628 (ADR-0096) — les sept refus de `overview` ont QUITTÉ cet inventaire : les vues sont devenues
+  // les onglets de « Rapports », dont chaque `layout.tsx` appelle une garde de `lib/rapports/gardes-serveur.ts`
+  // (`garderLesRapports`, `garderLaVueDEnsemble`, `garderLOnglet`, `garderLesIndicateurs`) au lieu de juger le
+  // rôle à la main ; les anciennes adresses ne rendent qu'une redirection. Le plafond descend de 12 à 5.
   'src/app/(dashboard)/app/owners/layout.tsx',
   // Le VINGT-DEUXIÈME, trouvé par la revue de TCK-378 en mutant cette garde : il décide du rôle
   // EN LIGNE (`user.roles.includes('agency_admin') || user.roles.includes('super_admin')`, l. 35)
@@ -264,7 +261,7 @@ const REFUS_ARTISANAL = [
  * sans un mot. Le chiffre est donc redit ici, et l'écart entre les deux fait échouer la garde :
  * *remonter un plafond doit coûter deux lignes et un argument, pas une.*
  */
-const PLAFOND_MESURE = 12;
+const PLAFOND_MESURE = 5;
 
 const EXTENSIONS = /\.(tsx?|jsx?|mjs|cjs)$/;
 

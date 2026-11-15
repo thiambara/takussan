@@ -1,0 +1,327 @@
+{
+  "ticket": "TCK-2670",
+  "ecrans": [
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Sommaire",
+      "references": {
+        "telephone": "references/app-identite-agence/a-0-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency",
+        "persona": "admin",
+        "etat": "l'admin de Dakar Immo (agence 1, base de démo du 2026-11-12) : fiche à 25 % (9 points, dont la vérification `pending` et sa pièce du dirigeant expirée) ; au bureau, la section Identité ouverte à droite avec téléphone et site saisis comme la maquette (`p-a0.js`) ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Identité et contact",
+      "references": {
+        "telephone": "references/app-identite-agence/a-1-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency?section=identite",
+        "persona": "admin",
+        "etat": "section Identité de Dakar Immo, sans saisie ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Fiche publique",
+      "references": {
+        "telephone": "references/app-identite-agence/a-2-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency?section=publique",
+        "persona": "admin",
+        "etat": "section Fiche publique, la 1re raison saisie comme la maquette (`p-a2.js`, « modifié » et barre d'action) ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Paiement hors ligne",
+      "references": {
+        "telephone": "references/app-identite-agence/a-3-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency?section=paiement",
+        "persona": "admin",
+        "etat": "section Paiement hors ligne, le numéro Wave saisi comme la maquette (`p-a3.js`) ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Facturation et mentions",
+      "references": {
+        "telephone": "references/app-identite-agence/a-4-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency?section=facturation",
+        "persona": "admin",
+        "etat": "section Facturation : NINEA, RCCM et siège vides ; le dossier de vérification de démo ne porte aucun numéro, donc aucune proposition de reprise ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Règles",
+      "references": {
+        "telephone": "references/app-identite-agence/a-6-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency?section=regles",
+        "persona": "admin",
+        "etat": "section Règles : seuil d'approbation sans demande en attente, pénalités et sécurité de l'équipe telles qu'en base ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    },
+    {
+      "page": "app-identite-agence",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Menu",
+      "references": {
+        "telephone": "references/app-identite-agence/a-7-telephone.json",
+        "bureau-1440": "references/app-identite-agence/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-identite-agence/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency?section=menu",
+        "persona": "admin",
+        "etat": "section Menu, « Crédits » décoché comme la maquette (`p-a7.js`, « modifié », « Masqué », barre d'action) ; tout envoi non-GET est refusé dans la page (`--perturber`, scratchpad terrain-5/2670/p-*.js) : rien n'est enregistré"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Onboardings en attente": "Entrées en attente"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "barre d'onglets du téléphone (« Accueil », « Argent », « Biens », « Messages », « Menu », pastille « 2 ») et barre latérale du bureau (rubriques, libellés, compteurs, « 99+ », « Démarrer », « Vue agence », « Réduire la barre »)",
+      "motif": "exclus du ticket : navigation de la famille 3 ; les deux barres sont les primitives de la coque, communes à tout /app — mêmes exclusions que TCK-2664 et TCK-2677"
+    },
+    {
+      "element": "« Aller au contenu principal »",
+      "motif": "lien d'évitement de la coque (WCAG 2.4.1), hors écran tant qu'il n'a pas le focus — même exception que TCK-2619 et TCK-2660"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-*",
+      "element": "nom, adresse en ligne, logo, couverture, téléphones, raisons, biens de la sélection, numéros de paiement, état de la vérification",
+      "propriete": "texte, largeur, nombre de lignes et y de tout ce qui suit",
+      "exception": "vérité des données",
+      "motif": "Dakar Immo dans la base de démo du 2026-11-12 : raison sociale, siège, NINEA, RCCM et raisons vides (« à remplir »), aucune sélection (« 0 sur 6 »), un seul moyen de paiement saisi pendant le relevé, dossier de vérification `pending` avec la pièce du dirigeant expirée ; aucune valeur n'est écrite en base pour imiter la maquette"
+    },
+    {
+      "ecran": "a-0",
+      "element": "jauge et liste « À faire » (« Raison sociale », « Adresse du siège », « Pourquoi nous », « Vérification de l'agence » au lieu de « NINEA et RCCM… »)",
+      "propriete": "pourcentage, texte, nombre de points",
+      "exception": "décision produit",
+      "motif": "décision 1 a (team-lead, 2026-11-12) : le pourcentage est toujours calculé (9 points, 25 % pour la démo), jamais le 60 % de la maquette ; la liste suit les points manquants de la base"
+    },
+    {
+      "ecran": "a-0 téléphone",
+      "element": "détails des lignes du sommaire (« Aucun moyen renseigné », « Dossier à compléter » au lieu de « NINEA et RCCM à reprendre »)",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "le détail de chaque ligne est dérivé de l'état de la section : aucun moyen de paiement en base, vérification à compléter ; sans numéro au dossier, rien n'est « à reprendre »"
+    },
+    {
+      "ecran": "a-4",
+      "element": "encart « NINEA et RCCM manquent sur vos factures » et « Reprendre ces deux numéros », placeholders « À reprendre » ; tout ce qui suit remonte (−219 px au téléphone)",
+      "propriete": "absents du produit, y",
+      "exception": "vérité des données",
+      "motif": "l'encart n'apparaît que si le dossier de vérification porte un NINEA ou un RCCM (`document_number`) que la fiche n'a pas ; le dossier de démo n'en porte aucun. Le cas est épinglé par les tests de la section (reprise sans enregistrement)"
+    },
+    {
+      "ecran": "a-4 bureau",
+      "element": "facture d'exemple (« Honoraires de gestion »…) de l'aperçu",
+      "propriete": "texte, y",
+      "exception": "vérité des données",
+      "motif": "l'aperçu imprime les mentions de la base (raison sociale et siège vides) ; les lignes de la facture d'exemple suivent"
+    },
+    {
+      "ecran": "a-3",
+      "element": "« Orange Money », « Virement bancaire » et leurs icônes « copier » de l'aperçu du locataire",
+      "propriete": "absents du produit",
+      "exception": "vérité des données",
+      "motif": "l'aperçu ne montre que les moyens renseignés : seul Wave l'est (saisi pendant le relevé) ; un moyen vide n'est jamais proposé au locataire"
+    },
+    {
+      "ecran": "a-3",
+      "element": "aides « Banque, titulaire du compte, RIB ou IBAN » et « Son lien de paiement »",
+      "propriete": "absents de la maquette",
+      "exception": "décision produit",
+      "motif": "aides des champs existants du formulaire (clés antérieures au ticket), reliées par `aria-describedby` ; la maquette les remplit de valeurs à la place"
+    },
+    {
+      "ecran": "a-2",
+      "element": "« 64 autres biens publiés. Suggestion : vos biens les plus vus ce mois. Utiliser cette sélection » au pied de la liste des biens à choisir",
+      "propriete": "absent du produit (sous le pli : hors des références gelées, nommé ici d'après la maquette, `SelectionVitrine`)",
+      "exception": "donnée",
+      "motif": "aucune donnée ne dit « les plus vus ce mois » : l'API ne garde que `properties.views_count`, un cumul depuis la publication, sans vue datée (aucune table ni colonne d'événements de vue). Une suggestion « ce mois » serait inventée, et un classement sur le cumul dirait autre chose que la maquette. Le produit garde la recherche « Titre ou référence » et la liste des biens publiés, plus récents d'abord (`parametresDesBiensPublics`), seule voie pour ajouter un bien. Non construit (Notes du ticket)."
+    },
+    {
+      "ecran": "a-2",
+      "element": "deuxième ligne des rangées de la sélection et des biens à choisir : « PR-SDB2VYCR · 347 697 F / mois » au lieu de « TK-48213 · 650 000 F »",
+      "propriete": "texte (période après le loyer ; sous le pli, hors des références gelées)",
+      "exception": "décision produit",
+      "motif": "décision du team-lead (2026-11-13) : le prix est construit comme la maquette (`{reference} · {prix}`, `text-ui`, `text-muted-foreground`, comme la ligne de référence d'avant), et une location dit sa période (« / mois », « / jour »…, au mois quand l'annonce n'en porte pas, règle de `loyerDuBien`) : sans elle, un loyer se lirait comme un prix de vente, la liste mêlant ventes et locations. Sans prix (absent ou 0) : la référence seule. Mesuré sur la démo à 390 : « PR-L2KE6THD · 32 000 000 F », « PR-0YXBYTXK · 2 140 000 F / mois » ; balayage 390 à 1440 sans débord ni ellipse dans la section."
+    },
+    {
+      "ecran": "a-6",
+      "element": "« Une demande de relèvement du seuil à 1 000 000 F… » et « Confirmer »",
+      "propriete": "absents du produit",
+      "exception": "vérité des données",
+      "motif": "aucune demande de seuil en attente dans la démo ; le bloc et son bouton sont couverts par les tests de la section Règles"
+    },
+    {
+      "ecran": "a-6",
+      "element": "interrupteurs « Activé »",
+      "propriete": "absents du produit",
+      "exception": "règle du design system",
+      "motif": "primitive `Switch` (état lu par `aria-checked`, sans texte « Activé » dans la pastille)"
+    },
+    {
+      "ecran": "a-0, a-2, a-3, a-7",
+      "element": "barre d'action (« modifié », « N modification(s) non enregistrée(s) », « Annuler », « Enregistrer ») et barre d'onglets",
+      "propriete": "présence, y",
+      "exception": "décision produit",
+      "motif": "règle du team-lead : la barre d'onglets s'efface devant « Enregistrer » tant qu'il y a des changements non enregistrés, et seulement alors ; le relevé reproduit la saisie de la maquette (`p-a*.js`), le nombre de modifications suit ce qui est saisi"
+    },
+    {
+      "ecran": "a-7",
+      "element": "« Onboardings en attente »",
+      "propriete": "texte",
+      "exception": "décision produit",
+      "motif": "décision 5 b (team-lead, 2026-11-12) : la case reprend le libellé du module `modules.items.move_in_follow_up.label`, « Entrées en attente » (alias de cette fiche)"
+    },
+    {
+      "ecran": "a-* bureau",
+      "element": "tête de page et colonne du sommaire",
+      "propriete": "y (−14,4 px puis −54 px)",
+      "exception": "règle du design system",
+      "motif": "tête de la coque de /app (`PageHeader`) : la maquette pose sa propre tête plus haute ; position relative des sections, police et encre identiques"
+    },
+    {
+      "ecran": "a-*",
+      "element": "tailles de texte, interlettrage et encres secondaires",
+      "propriete": "taille de police, espacement des lettres, couleur",
+      "exception": "règle du design system",
+      "motif": "jetons de l'app (`text-corps`, `text-ui`, `text-legende`, `text-titre-court`, `text-affiche-22/26`, `tracking-titre`, `size-icone` : `check-valeurs-arbitraires-app`) et encre douce opaque au lieu des encres translucides (`encre-sans-alpha`) — mêmes exceptions que TCK-2664"
+    },
+    {
+      "ecran": "a-*",
+      "element": "champs de saisie",
+      "propriete": "hauteur, bordure",
+      "exception": "règle du design system",
+      "motif": "primitive `Input` à sa hauteur (aucun `h-11` local, `check-champs-uniformes`) ; les placeholders d'`<input>` ne sont pas des nœuds de texte pour le relevé (« Ex. : Visites le samedi » est bien affiché)"
+    },
+    {
+      "ecran": "a-* téléphone",
+      "element": "disposition à une colonne jusqu'à `md`",
+      "propriete": "disposition",
+      "exception": "décision produit",
+      "motif": "la fiche passe en deux colonnes (sommaire + section) à `md` ; en dessous, une section à la fois avec retour au sommaire, comme la maquette du téléphone"
+    },
+    {
+      "ecran": "a-4",
+      "element": "avertissement de devise",
+      "propriete": "absent du produit",
+      "exception": "décision produit",
+      "motif": "l'avertissement ne s'affiche qu'au changement de devise (il porte sur les montants existants), pas à l'ouverture"
+    },
+    {
+      "ecran": "a-0, a-1, a-4, a-6 téléphone",
+      "element": "coque · barre d'onglets du bas (zone de la coque, AC-F4)",
+      "propriete": "0,87 % (a-0) et 1,94 % (a-1, a-4, a-6) de pixels différents, au-delà des 0,5 %",
+      "exception": "hors périmètre — la coque n'est pas du ticket",
+      "motif": "la maquette dessine l'onglet « Menu » actif ; le produit, sur /app/agency, n'en allume aucun : /app/agency n'est la destination d'aucun des cinq onglets, et « Menu » ne s'allume que tiroir ouvert (`BarreDOnglets`, `menuOuvert`) — règle de la barre commune à tout /app (famille 3), même écart que TCK-2641. Mesuré : rapports locaux .fidelite/TCK-2670/cmp-v5-a{0,1,4,6}-telephone ; « coque · en-tête » 0,01 % (a-0), 0 % ailleurs"
+    },
+    {
+      "ecran": "a-2, a-3 téléphone",
+      "element": "coque · barre d'onglets du bas (zone de la coque, AC-F4)",
+      "propriete": "27,27 % de pixels différents",
+      "exception": "décision de la session (team-lead)",
+      "motif": "une saisie est en cours (raison, numéro Wave) : le produit efface la barre d'onglets devant la barre d'action tant qu'il y a des changements non enregistrés ; la maquette dessine les deux. Même cause que l'écart « barre d'action » ci-dessus. En a-7, saisie faite des deux côtés : 0 %"
+    },
+    {
+      "ecran": "a-* bureau",
+      "element": "zones de la coque",
+      "propriete": "non mesurées",
+      "exception": "outil",
+      "motif": "`fidelite compare` ne rend de part par zone (« coque · barre d'onglets », « coque · en-tête ») qu'au téléphone ; au bureau, la coque (colonne de 272 px) est rangée hors du ticket, avec la tête de page, à l'écart « a-* bureau · tête de page et colonne du sommaire »"
+    },
+    {
+      "ecran": "a-7",
+      "element": "les huit cases du menu, et le libellé et l'aide de chaque module",
+      "propriete": "case 18 px au lieu de 22 ; libellés et aides x −4 px, largeur +4 px",
+      "exception": "(c) incohérence des maquettes entre elles — ADR-0106 § 2 c",
+      "motif": "la case est celle de la partie connectée (`ui/checkbox`, TCK-2690) : 18 px, rayon 5 px, la valeur majoritaire des maquettes ; cet écran en dessinait une de 22 px. Avant (v5), un `<input type=checkbox>` natif de 22 px — position juste, dessin du navigateur ; la coche dessinée de la maquette y manquait (absents)"
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2670/cmp-v5-a{0,1,2,3,4,6,7}-…",
+    "le": "2026-11-12, base de démo, jetons de l'app ; perturbateurs a-0, a-2 (raison « Gestion locative depuis 2017 » saisie) et a-7 (`module-credits` décoché), alias « Onboardings en attente »",
+    "resultats": {
+      "a0": "téléphone 16 conformes · 36 écarts · 13 absents · 11,58 % ; 1440 63 · 179 · 32 · 12,61 % ; 1280 63 · 178 · 31 · 13,05 %",
+      "a1": "téléphone 23 · 17 · 3 · 10,13 % ; 1440 12,02 % ; 1280 12,76 %",
+      "a2": "téléphone 5 · 13 · 16 · 15,44 % (saisie faite : barre d'action présente, barre d'onglets effacée) ; 1440 16,29 % ; 1280 17,89 %",
+      "a3": "téléphone 8,82 % ; 1440 11,68 % ; 1280 12,82 %",
+      "a4": "téléphone 27,72 % (encart de reprise absent, −219 px) ; 1440 16,57 % ; 1280 17,5 %",
+      "a6": "téléphone 10,56 % ; 1440 12,71 % ; 1280 13,73 %",
+      "a7": "téléphone 32 · 5 · 24 · 11,93 % (une case décochée : barre d'action présente) ; 1440 11,99 % ; 1280 12,7 % ; v6 (2026-11-12 21:14, case de la partie connectée, charge élevée) : téléphone 9 · 34 · 18 · 12,71 % ; 1440 50 · 244 · 42 · 11,98 % ; 1280 49 · 240 · 50 · 12,65 % — les écarts neufs sont le décalage de 4 px de la case (écart accepté, § 2 c), les coches de la maquette ne sont plus absentes"
+    },
+    "corriges_pendant_la_passe": [
+      "apostrophe typographique de « Seuil d’approbation des reversements (F CFA) » (fr seulement ; en et wo inchangés)"
+    ],
+    "remarques": [
+      "a-2 et a-7 au téléphone : la maquette montre À LA FOIS la barre d'onglets et la barre d'action ; le produit efface la barre d'onglets tant qu'il y a des changements non enregistrés (règle du team-lead, écart déjà accepté)",
+      "a-7 (2026-11-12, après vérification) : les cases du menu sont désormais la case de la partie connectée (`ui/checkbox`, 18 px — ADR-0106 § 2 c, la valeur majoritaire des maquettes ; celle de cet écran en dessine une de 22 px) et non plus des `<input type=checkbox>` natifs. « Affiché » / « Masqué », noms de la case dessinée de la maquette, ne s'écrivent pas : la case porte le nom du module et son état coché (WCAG 4.1.2), et « Masqué » reste l'icône barrée de l'aperçu"
+    ],
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024` sur /app/agency et chacune de ses sections (`?section=…`) : débord 0 et coupes 0 partout ; à 768, ~47 ellipses, toutes dans le rail de 60 px de la coque (famille 3)",
+    "ac5": "2026-11-12 21:14, relevé .fidelite/TCK-2670/v6-ac5-telephone (390 × 844, admin, base de démo, HEAD de la branche) : le sommaire ENTIER mesuré hors fenêtre — débord du document 0 (scrollWidth 390), huit lignes (« Identité et contact » … « Offre et passage en pro »), hauteurs 61 px (la huitième 60 px), bord droit le plus à droite 390 ; le sommaire descend à 1018 px, la huitième ligne commence à 897"
+  },
+  "coque": true
+}

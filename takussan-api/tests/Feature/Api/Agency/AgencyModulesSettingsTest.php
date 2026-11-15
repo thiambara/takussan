@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Agency;
 use App\Domain\Settings\AgencySettings;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Models\Agency;
+use App\Models\Enums\AgencyModule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -183,10 +184,34 @@ class AgencyModulesSettingsTest extends ApiTestCase
         [$admin, $agency] = $this->admin();
         Sanctum::actingAs($admin);
 
-        // Sept éléments (la borne) : la règle d'élément tient toujours, l'erreur porte sur l'élément.
+        // Six éléments (la borne) : la règle d'élément tient toujours, l'erreur porte sur l'élément.
         $this->patchJson("/api/agencies/{$agency->id}", [
-            'settings' => ['hidden_modules' => ['commissions', 'inventories', 'move_in_follow_up', 'provider_book', 'calendar', 'credits', 'payments']],
-        ])->assertStatus(422)->assertJsonValidationErrors('settings.hidden_modules.6');
+            'settings' => ['hidden_modules' => ['commissions', 'inventories', 'provider_book', 'calendar', 'credits', 'payments']],
+        ])->assertStatus(422)->assertJsonValidationErrors('settings.hidden_modules.5');
+    }
+
+    /**
+     * TCK-2644 (ADR-0089, amendement du 2026-11-10, point 4) — `move_in_follow_up` a quitté la liste
+     * fermée. Une agence qui l'avait enregistré se relit sans lui, et son admin réécrit ses modules
+     * masqués sans erreur ; le code retiré n'est plus accepté à l'écriture.
+     */
+    public function test_move_in_follow_up_enregistre_est_ignore_et_ne_bloque_pas_l_ecriture(): void
+    {
+        [$admin, $agency] = $this->admin(['hidden_modules' => ['move_in_follow_up']]);
+        $this->assertNotContains('move_in_follow_up', array_column(AgencyModule::cases(), 'value'));
+
+        // La fiche se lit sans erreur ; le code retiré est ignoré par la lecture typée (`AgencySettings::read`),
+        // comme par celle du front (`modulesMasquesDe`), qui ne le renverra donc jamais à l'écriture.
+        Sanctum::actingAs($this->agentDe($agency));
+        $this->getJson("/api/agencies/{$agency->id}")->assertOk();
+        $this->assertSame([], $agency->setting('hidden_modules'));
+
+        Sanctum::actingAs($admin);
+        $this->patchJson("/api/agencies/{$agency->id}", ['settings' => ['hidden_modules' => ['calendar']]])->assertOk();
+        $this->assertSame(['calendar'], $agency->refresh()->settings['hidden_modules']);
+
+        $this->patchJson("/api/agencies/{$agency->id}", ['settings' => ['hidden_modules' => ['move_in_follow_up']]])
+            ->assertStatus(422)->assertJsonValidationErrors('settings.hidden_modules.0');
     }
 
     public function test_les_regles_viennent_du_catalogue(): void

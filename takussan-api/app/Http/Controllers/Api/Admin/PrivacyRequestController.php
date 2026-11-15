@@ -41,8 +41,9 @@ class PrivacyRequestController extends Controller
 
     public function store(StorePrivacyRequestRequest $request): JsonResponse
     {
-        $entry = PrivacyRequest::query()->create($request->validated() + [
-            'received_at' => $request->validated('received_at') ?? now(),
+        $data = $request->validatedAvecInstants();
+        $entry = PrivacyRequest::query()->create($data + [
+            'received_at' => $data['received_at'] ?? now(),
             'status' => PrivacyRequestStatus::Received,
             'handled_by' => $request->user()->id,
         ]);

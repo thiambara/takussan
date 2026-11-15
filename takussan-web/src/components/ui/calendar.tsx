@@ -66,7 +66,7 @@ export function Calendar({
           defaults.weekday,
           // `opacity-100` : la feuille de react-day-picker pose 0,75 sur les jours de la semaine, ce
           // qui ramenait le jeton à 3,33:1 (TCK-1032).
-          "flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground opacity-100",
+          "flex-1 text-[calc(var(--spacing)*2.8)] font-medium uppercase tracking-wide text-muted-foreground opacity-100",
         ),
         week: cn(defaults.week, "mt-1 flex w-full"),
         day: cn(

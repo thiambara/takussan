@@ -22,8 +22,13 @@ describe('TCK-2477 — le catalogue des destinations', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('compte les 41 destinations (les 29 de dev 0b7deae44, « Mes tâches », « Chercher un bien », 10 pages d’agence)', () => {
-    expect(CATALOGUE).toHaveLength(41);
+  // TCK-2644 — « Entrées en attente » est devenue l'onglet « En attente du locataire » des baux : 40.
+  // TCK-2628 — « Statistiques », « Exports », « Vue agence », « KPIs » et « Alertes » sont devenus les onglets
+  // d'UNE destination, « Rapports » : 40 − 5 + 1 = 36.
+  it('compte les 36 destinations (les 29 de dev 0b7deae44, « Mes tâches », « Chercher un bien », 10 pages d’agence, moins « Entrées en attente », cinq vues fondues en « Rapports »)', () => {
+    expect(CATALOGUE).toHaveLength(36);
+    expect(CATALOGUE.map((d) => d.id)).toEqual(expect.arrayContaining(['rapports']));
+    expect(CATALOGUE.map((d) => d.id)).not.toEqual(expect.arrayContaining(['statistiques']));
   });
 
   it('deux destinations d’un même href ne sont jamais accessibles ensemble', () => {

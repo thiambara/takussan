@@ -75,7 +75,8 @@ describe('TCK-555 — la grille de /properties', () => {
   it('une colonne sous `md`, et les paliers de bureau inchangés', async () => {
     render(withIntl(<PropertiesDiscoveryPage />));
     const carte = await screen.findByTestId('carte-22');
-    const classes = carte.parentElement!.className.split(/\s+/);
+    // TCK-2499 — chaque bien vit dans une cellule (ligne + carte) : la grille est l'élément `aria-busy`.
+    const classes = carte.closest('[aria-busy]')!.className.split(/\s+/);
     // TOUS les paliers de colonnes, à l'égalité : une inclusion laissait passer un
     // `sm:grid-cols-2` (deux colonnes de 640 à 767 px, contre l'AC1) comme un `lg:grid-cols-4`
     // (le bureau change, contre la contrainte du ticket) — mutants survivants du tour 1.
@@ -119,9 +120,17 @@ describe('TCK-635 — les places payées dans la grille', () => {
     });
   }
 
+  /** TCK-2499 (revue) — une page 1 qui ne s'ouvre PAS sur une place réservée : l'emplacement de tête y reste. */
+  const SANS_PLACE_RESERVEE = {
+    data: [
+      { id: 22, title: 'Villa', contract_type: 'rent', placement: 'organic', badge: null },
+      { id: 23, title: 'Studio', contract_type: 'rent', placement: 'organic', badge: 'urgent' },
+    ],
+  };
+
   it('l’emplacement sponsorisé est une cellule de la grille, AVANT les biens organiques, en robe', async () => {
     parametres = new URLSearchParams('');
-    repondre();
+    repondre(SANS_PLACE_RESERVEE);
     render(withIntl(<PropertiesDiscoveryPage />));
     const organique = await screen.findByTestId('carte-22');
     const sponsor = screen.getByTestId('carte-90');
@@ -129,10 +138,19 @@ describe('TCK-635 — les places payées dans la grille', () => {
     expect(grille).toContainElement(sponsor);
     expect(sponsor.compareDocumentPosition(organique) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(sponsor).toHaveAttribute('data-robe', 'sponsorise');
-    // Les conteneurs de l'emplacement sont `contents` : chaque `<li>` est une cellule de la grille.
-    const section = screen.getByRole('region', { name: 'Annonces sponsorisées' });
-    expect(section.className.split(/\s+/)).toContain('contents');
-    expect(section.querySelector('ul')!.className.split(/\s+/)).toContain('contents');
+    // TCK-2500 — l'emplacement est une cellule DIRECTE de la grille, insérée à sa `position` (ici
+    // sans position : en tête), et non plus une section posée avant les biens.
+    expect(sponsor.closest('[data-emplacement="sponsorise"]')!.parentElement).toBe(grille);
+  });
+
+  it('l’emplacement sponsorisé reçoit la transaction filtrée : pas de pastille « En location » redite sur sa photo', async () => {
+    // TCK-2499 — « deux éléments au plus sur une photo ». La carte ne montre la transaction que
+    // si elle DIFFÈRE du filtre ; la lui taire sur un emplacement y posait une pastille de plus
+    // (mesuré au navigateur à 390 px : « En location » + favori + « Sponsorisé »).
+    parametres = new URLSearchParams('contract_type=rent');
+    repondre(SANS_PLACE_RESERVEE);
+    render(withIntl(<PropertiesDiscoveryPage />));
+    expect(await screen.findByTestId('carte-90')).toHaveAttribute('data-transaction-filtree', 'rent');
   });
 
   it('une place réservée porte la robe « vedette », un bien organique aucune ; le badge passe à la carte', async () => {
@@ -142,6 +160,9 @@ describe('TCK-635 — les places payées dans la grille', () => {
     expect(await screen.findByTestId('carte-22')).toHaveAttribute('data-robe', 'vedette');
     expect(screen.getByTestId('carte-23')).not.toHaveAttribute('data-robe');
     expect(screen.getByTestId('carte-23')).toHaveAttribute('data-badge', 'urgent');
+    // TCK-2499 (revue) — la page s'ouvre sur une place réservée : l'emplacement de TÊTE n'est pas
+    // inséré (trois places payées d'affilée au premier écran), cf. `suiteDesPages`.
+    expect(screen.queryByTestId('carte-90')).toBeNull();
   });
 
   it('sans bien organique, aucun emplacement n’est rendu', async () => {
@@ -208,16 +229,20 @@ describe('TCK-635 — la taille de page vit avec la pagination', () => {
     await screen.findByTestId('carte-22');
     expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
     expect(screen.queryByRole('combobox', { name: /par page/i })).toBeNull();
+    // TCK-2499 — tout est affiché : rien à voir de plus.
+    expect(screen.queryByRole('link', { name: /de plus$/ })).toBeNull();
   });
 
-  it('deux pages ou plus : la taille de page est à côté de la pagination, pas dans l’en-tête', async () => {
+  // TCK-2499 — « Voir N biens de plus » a remplacé la pagination numérotée.
+  it('deux pages ou plus : la taille de page est à côté de « Voir N biens de plus », pas dans l’en-tête', async () => {
     parametres = new URLSearchParams('');
     repondre(3);
     render(withIntl(<PropertiesDiscoveryPage />));
     const parPage = await screen.findByRole('combobox', { name: /par page/i });
     const pied = parPage.closest('[data-pied-de-liste]')!;
     expect(pied).not.toBeNull();
-    expect(pied).toContainElement(screen.getByRole('navigation', { name: 'Pagination' }));
+    expect(pied).toContainElement(screen.getByRole('link', { name: /^Voir \d+ biens? de plus$/ }));
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).toBeNull();
     expect(parPage.closest('[data-rangee-outils]')).toBeNull();
   });
 });

@@ -2,6 +2,8 @@
 
 namespace App\Http\Filters;
 
+use App\Rules\InstantIso;
+use App\Rules\JourIso;
 use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Validator;
@@ -17,6 +19,10 @@ use Spatie\QueryBuilder\Filters\Filter;
  * par la règle `numeric`. Une valeur illisible rend 422, comme `DateBoundaryFilter`, au lieu d'un
  * 500 (`22P02`, `22007`). Une borne haute en date seule sur un horodatage couvre tout le jour
  * (`< DayRange::after`) : `<= 2026-10-22` aurait écarté une visite de 12 h ce jour-là.
+ *
+ * TCK-2768 — la forme suit le cast : un jour `AAAA-MM-JJ` strict ({@see JourIso}) sur une colonne `date`, un
+ * jour ou un instant ISO 8601 ({@see InstantIso}) sur un horodatage. `date` seule relisait « 12/11/2026 » au
+ * 11 décembre.
  */
 class RangeFilter implements Filter
 {
@@ -33,7 +39,7 @@ class RangeFilter implements Filter
 
         Validator::make(
             ['filter' => [$property => $value]],
-            ["filter.{$property}" => $isDate ? ['string', 'date'] : ['numeric']],
+            ["filter.{$property}" => $isDate ? ['string', 'date', $isTimestamp ? new InstantIso : new JourIso] : ['numeric']],
         )->validate();
 
         if ($this->direction === 'min') {

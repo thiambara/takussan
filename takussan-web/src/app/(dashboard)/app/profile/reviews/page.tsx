@@ -1,44 +1,23 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { getMeAction } from '@/app/actions/auth';
-import { ProfileLayout } from '@/components/profile/ProfileLayout';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { ProfileReviewsList } from '@/components/profile/ProfileReviewsList';
-import { getTranslations } from 'next-intl/server';
-import { PageHeader } from '@/components/console';
+import { SectionDuProfil } from '@/components/profile/sommaire/SectionDuProfil';
+import { faitsDuSommaire } from '@/lib/profil/faits-du-sommaire';
+import { noteDeLaFiche } from '@/lib/profil/note-de-la-fiche';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.profileReviews');
   return { title: t('metaTitle') };
 }
 
+/** TCK-2635 — « Mes avis », une section du profil (l'adresse d'avant le ticket l'ouvre), en trois onglets. */
 export default async function ProfileReviewsPage() {
-  const t = await getTranslations('dashboard.pages.profileReviews');
-  // Force a session check — if the user isn't authenticated, getMeAction
-  // redirects them to /auth/login.
-  const user = await getMeAction();
-
+  const faits = await faitsDuSommaire();
+  // AC5 — la note de l'agent est celle de sa fiche publique, lue par la même requête qu'elle.
+  const note = await noteDeLaFiche(faits, await getLocale());
   return (
-    <ProfileLayout>
-      <PageHeader
-        eyebrow={
-          <span className="normal-case tracking-normal">
-            <Link
-              href="/app/profile"
-              className="-my-1 inline-flex min-h-6 items-center rounded-sm underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {t('breadcrumbProfile')}
-            </Link>
-            <span aria-hidden="true" className="mx-1">
-              /
-            </span>
-            <span>{t('breadcrumbCurrent')}</span>
-          </span>
-        }
-        title={t('title')}
-        description={t('subtitle')}
-      />
-
-      <ProfileReviewsList roles={user.roles} />
-    </ProfileLayout>
+    <SectionDuProfil section="avis">
+      <ProfileReviewsList roles={faits.user.roles} note={note} />
+    </SectionDuProfil>
   );
 }

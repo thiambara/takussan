@@ -170,9 +170,22 @@ class NotificationTemplateService
         }
     }
 
+    /**
+     * TCK-2718 — une variable rendue vide emporte l'espace qui la précède quand une ponctuation la
+     * suit : « Bonjour {{ user.first_name }}, » rend « Bonjour, » pour un compte sans prénom
+     * (TCK-2605), et non « Bonjour , ». Une valeur non vide, et le texte autour, restent tels quels.
+     */
     private function renderString(string $template, array $data): string
     {
-        return preg_replace_callback('/{{\s*([a-zA-Z0-9_.]+)\s*}}/', fn (array $match) => (string) data_get($data, $match[1], ''), $template) ?? $template;
+        return preg_replace_callback(
+            '/(\h*){{\s*([a-zA-Z0-9_.]+)\s*}}(?=([,.!?:]?))/u',
+            function (array $match) use ($data): string {
+                $value = (string) data_get($data, $match[2], '');
+
+                return $value === '' && $match[3] !== '' ? '' : $match[1].$value;
+            },
+            $template,
+        ) ?? $template;
     }
 
     private function fallbackSubject(string $event, string $channel, string $locale): string

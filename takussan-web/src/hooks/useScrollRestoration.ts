@@ -109,6 +109,15 @@ function lireOuPoserCle(): string {
   return neuve;
 }
 
+/**
+ * TCK-2499 — la clé de l'entrée d'historique COURANTE, posée si elle manque : la même que celle qui
+ * range la position, pour qu'un état de la liste (les pages déjà chargées par « Voir N biens de
+ * plus ») se retrouve au retour arrière sur la même entrée, et jamais sur une nouvelle.
+ */
+export function cleDeLEntreeCourante(): string {
+  return lireOuPoserCle();
+}
+
 function memoriser(cle: string, position: Position): void {
   memoire.set(cle, position);
   try {

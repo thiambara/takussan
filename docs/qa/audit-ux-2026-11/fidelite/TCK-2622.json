@@ -1,0 +1,192 @@
+{
+  "ticket": "TCK-2622",
+  "ecrans": [
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Admin d’agence",
+      "references": {
+        "telephone": "references/app-accueil/a-1-telephone.json",
+        "bureau-1440": "references/app-accueil/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "admin",
+        "etat": "agence Dakar Immo de la démo, admin (Admin Dakar Immo), relevé le 2026-11-13 : mise en service 5 étapes sur 7 (KYC et 2FA restent), `dashboard/me` 95 202 604 F encaissés, 16 échéances impayées pour 33 715 000 F, occupation 46,94 %, 90 baux actifs, aucun KPI personnalisé. La maquette : 6 sur 7, Awa, 73 %, 92 baux",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    },
+    {
+      "page": "app-accueil",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "Rien à faire (bailleur)",
+      "references": {
+        "telephone": "references/app-accueil/a-6-telephone.json",
+        "bureau-1440": "references/app-accueil/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-accueil/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "proprietaire",
+        "etat": "bailleur owner1 de la démo, relevé le 2026-11-13 : 69 biens (5 loués, 54 libres), 13 baux actifs, 11 437 597 F encaissés sur 18 180 000 F attendus, aucune échéance en retard",
+        "perturber": "garde d'écriture du relevé (fetch et XHR refusent tout verbe autre que GET/HEAD/OPTIONS)"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app",
+    "persona": "voir `ecrans[].produit`",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "_roles": "Aucun rôle apparié : les blocs « À faire », « Équipe aujourd’hui » et « Loyers de novembre » sont ceux de TCK-2624 (hors périmètre) ; les chiffres de « Ce mois » s'apparient par leur libellé.",
+  "zones": [],
+  "alias": {
+    "Mardi 10 novembre": "le jour du relevé, en toutes lettres (« Vendredi 13 novembre »)",
+    "6/7": "le compte de la mise en service de l'agence relevée (« 5/7 » : KYC et 2FA restent)",
+    "Il reste une étape : activez la double authentification de l’administrateur.": "quand deux étapes ou plus restent : « Prochaine étape : activez la double authentification de l’administrateur. »",
+    "Bonjour Awa": "le prénom du compte relevé (« Bonjour Admin », « Bonjour » + prénom du bailleur)"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-accueil a-1-*, a-6-*",
+      "element": "valeurs et contextes de « Ce mois » (95 202 604 F, 16 échéances, 46,94 %, 90 baux ; bailleur 69 biens · 5 loués · 54 libres, 13 baux, 11 437 597 F sur 18 180 000 F), absence de « +8 % »",
+      "propriete": "texte, largeur",
+      "exception": "donnée",
+      "motif": "sonde en lecture seule du 2026-11-13 (`GET /api/dashboard/me`, `GET /api/agencies/{id}/setup-status`) ; l'API ne sert aucune variation d'un mois sur l'autre, le contexte « +8 % » n'est pas rendu plutôt qu'inventé"
+    },
+    {
+      "ecran": "app-accueil a-1-*",
+      "element": "anneau, compte et chevron de la ligne de mise en service, fond de la ligne ; chevron de « Rapport » et de la ligne (vert sage rgb(93,110,79) → success rgb(63,107,69))",
+      "propriete": "couleur",
+      "exception": "règle du design system",
+      "motif": "`success` au lieu de `accent` : `check-valeurs-arbitraires-app` refuse `bg-accent/<n>` ; teinte verte de la charte la plus proche"
+    },
+    {
+      "ecran": "app-accueil a-1-bureau-*, a-6-bureau-*",
+      "element": "« Ce mois » sur toute la largeur, en quatre tuiles, au lieu de la colonne droite de 360 px",
+      "propriete": "position, largeur",
+      "exception": "décision de la session (recommandation terrain-10 au team-lead, 2026-11-13)",
+      "motif": "sans les blocs du persona (TCK-2624, TCK-2625), une seule colonne : une colonne gauche vide serait pire ; la disposition à deux colonnes dès xl est en place et se déclenche avec le slot `blocs`"
+    },
+    {
+      "ecran": "app-accueil a-1-*, a-6-*",
+      "element": "unité des montants : « F » au lieu de « F CFA »",
+      "propriete": "texte",
+      "exception": "décision du porteur (décision 14, ADR-0106 § 2)",
+      "motif": "« F » dans `/app`, « F CFA » sur l'offre et l'abonnement (fidelite-au-pixel.md, décision 14 ; TCK-2685) : la maquette de l'accueil porte « F CFA », la décision l'emporte"
+    },
+    {
+      "ecran": "app-accueil a-*-telephone",
+      "element": "en-tête de la coque : avatar en initiales, nom du compte (« Dakar Immo » au lieu de « Mes biens » pour le bailleur), couleur de la loupe et de la cloche ; pastille « 2 » de la barre d'onglets",
+      "propriete": "texte, couleur, position",
+      "exception": "composant partagé",
+      "motif": "rendus par `EnTeteMobile` et la barre d'onglets (TCK-2617), communs à toutes les racines ; hors du périmètre de ce ticket"
+    },
+    {
+      "ecran": "app-accueil a-*-bureau-*",
+      "element": "toutes les mesures en rem (rem 16 du produit contre 14,4 de la maquette gelée), barre latérale",
+      "propriete": "tailles et positions",
+      "exception": "technique",
+      "motif": "la référence gelée est antérieure à TCK-2692 (ADR-0107) ; la barre latérale est la coque"
+    },
+    {
+      "ecran": "app-accueil a-*-telephone",
+      "element": "ordonnée de « Ce mois » (-568 px admin, -523 px bailleur)",
+      "propriete": "y",
+      "exception": "décision de la session (recommandation terrain-10 au team-lead, 2026-11-13)",
+      "motif": "conséquence des blocs absents (TCK-2624) : « Ce mois » suit directement le salut"
+    },
+    {
+      "ecran": "app-accueil a-1-telephone",
+      "element": "libellé de l'étape (« Activez la double authentification ») : rgba(31,24,18,0.85) → encre douce rgb(76,70,65)",
+      "propriete": "couleur",
+      "exception": "règle du design system",
+      "motif": "garde encre-sans-alpha : l'encre à alpha est refusée, `text-encre-douce` est son jeton opaque"
+    },
+    {
+      "ecran": "app-accueil a-*-*",
+      "element": "trait des icônes lucide (chevrons, flèches des tuiles) : 2 → 1,75 au téléphone, 1,5 dès md",
+      "propriete": "trait",
+      "exception": "règle du design system",
+      "motif": "trait par défaut de la portée `/app` (globals.css, TCK-2685 A § 7), appliqué à toute icône sans `strokeWidth` explicite ; l'icône « portefeuille » de la barre d'onglets est la coque"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "ecran": "a-1-*",
+      "element": "« À faire », « Équipe aujourd’hui », « Loyers de novembre »",
+      "motif": "blocs du persona admin : TCK-2624"
+    },
+    {
+      "ecran": "a-6-*",
+      "element": "« Tout est à jour » (l'état sans rien à faire du bailleur)",
+      "motif": "il n'a de sens qu'au-dessus des blocs « À faire » qu'il remplace : TCK-2624/TCK-2625 ; la primitive `ToutEstAJour` existe (EtatsDeBloc.tsx)"
+    },
+    {
+      "ecran": "a-7-*",
+      "element": "squelettes et panne par bloc",
+      "motif": "« Ce mois » est lu par le serveur (un perturbateur du navigateur ne le fait pas tomber) ; les squelettes et la panne concernent les blocs de TCK-2624. Les primitives `ErreurDeBloc`, `SqueletteDeCarte`, `SqueletteDesChiffres` et la panne de « Ce mois » (`chiffres === null`, « Réessayer ») sont testées (socle.tck-2622.test.tsx)"
+    },
+    {
+      "ecran": "persona hote (balayage /app ; pas d'écran de maquette)",
+      "element": "« Ce mois » de l'hôte : Biens 0, Baux actifs 0, Encaissé 0 F, au-dessus de visites à confirmer sur les biens de son agence",
+      "motif": "écart de la DÉMO, pas du produit (relevé en lecture seule le 2026-11-13) : `/api/dashboard/me` sert à l'hôte la vue bailleur voulue par TCK-595, mais l'agence `individual` de la démo (Studio de Aminata) a un admin sans `OwnerProfile` et 82 biens à trois autres bailleurs — forme qu'aucun parcours produit ne crée. Correction du seeder : TCK-2776"
+    }
+  ],
+  "mesures": {
+    "date": "2026-11-13",
+    "outil": "node scripts/fidelite/fidelite.mjs releve (garde d'écriture) / compare --roles TCK-2622.json",
+    "commit": "arbre de travail (TCK-2622 : socle de l'accueil)",
+    "resultats": [
+      {
+        "ecran": "a-1-telephone",
+        "ligne": "26 conformes · 11 écarts · 22 absents · 12,15 % pixels",
+        "note": "ligne de mise en service, salut et date conformes ; absents = blocs de TCK-2624 ; « Ce mois » remonte de 568 px ; coque · en-tête 2,82 %"
+      },
+      {
+        "ecran": "a-1-bureau-1440",
+        "ligne": "34 conformes · 121 écarts · 146 absents · 9,25 % pixels",
+        "note": "absents = blocs de TCK-2624 ; « Ce mois » pleine largeur (décision) ; rem 16 contre 14,4"
+      },
+      {
+        "ecran": "a-1-bureau-1280",
+        "ligne": "34 conformes · 121 écarts · 146 absents · 10,01 % pixels"
+      },
+      {
+        "ecran": "a-6-telephone",
+        "ligne": "22 conformes · 14 écarts · 10 absents · 5,84 % pixels",
+        "note": "barre d'onglets 0 % ; coque · en-tête 6,04 % (avatar, nom du compte)"
+      },
+      {
+        "ecran": "a-6-bureau-1440",
+        "ligne": "29 conformes · 99 écarts · 35 absents · 4,28 % pixels"
+      },
+      {
+        "ecran": "a-6-bureau-1280",
+        "ligne": "29 conformes · 99 écarts · 35 absents · 4,71 % pixels"
+      },
+      {
+        "ecran": "a-7",
+        "ligne": "non relevé",
+        "note": "voir hors_perimetre"
+      },
+      {
+        "ecran": "balayage /app (admin, proprietaire, locataire, client, prestataire, hote)",
+        "ligne": "360, 375, 390, 768, 1024, 1280, 1440 : débord 0, aucune coupe",
+        "note": "ellipses seulement dans le rail à 768 (coque) et « Interventions » dans la barre d'onglets à 360 (coque)"
+      }
+    ]
+  }
+}

@@ -5,12 +5,19 @@ import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * TCK-2687 — les six tailles des maquettes retenues (97 % de leurs usages), en px fixes : elles ne
+ * rétrécissent pas au bureau. `sm`, `default` et `lg` restent celles d'avant (24, 32, 40 sur
+ * l'échelle ×0,9).
+ */
+type TailleAvatar = "default" | "sm" | "lg" | "28" | "32" | "36" | "40" | "44" | "48"
+
 function Avatar({
   className,
   size = "default",
   ...props
 }: AvatarPrimitive.Root.Props & {
-  size?: "default" | "sm" | "lg"
+  size?: TailleAvatar
 }) {
   return (
     <AvatarPrimitive.Root
@@ -18,6 +25,7 @@ function Avatar({
       data-size={size}
       className={cn(
         "group/avatar relative flex size-8 shrink-0 overflow-hidden rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
+        "data-[size=28]:size-avatar-28 data-[size=32]:size-avatar-32 data-[size=36]:size-avatar-36 data-[size=40]:size-avatar-40 data-[size=44]:size-avatar-44 data-[size=48]:size-avatar-48",
         className
       )}
       {...props}
@@ -46,7 +54,14 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+        // TCK-2687 — le repli lit des JETONS de couleur (`globals.css`, bloc `primitives-de-l-app`) :
+        // hors portée `/app`, `bg-muted text-muted-foreground` comme avant ; sous la portée, le beige
+        // de chrome et l'encre profonde. Un appelant qui repeint (`bg-foreground text-background`)
+        // les REMPLACE (`tailwind-merge` connaît les jetons). La graisse 600 est une variante : hors
+        // portée, le repli n'en pose aucune et hérite, comme avant.
+        "flex size-full items-center justify-center rounded-full bg-fond-avatar text-sm text-encre-avatar group-data-[size=sm]/avatar:text-xs portee-app:font-semibold",
+        // La police vaut 0,36 × la taille, pour les six tailles en px.
+        "group-data-[size=28]/avatar:text-avatar-28 group-data-[size=32]/avatar:text-avatar-32 group-data-[size=36]/avatar:text-avatar-36 group-data-[size=40]/avatar:text-avatar-40 group-data-[size=44]/avatar:text-avatar-44 group-data-[size=48]/avatar:text-avatar-48",
         className
       )}
       {...props}
@@ -98,6 +113,8 @@ function AvatarGroupCount({
     />
   )
 }
+
+export type { TailleAvatar }
 
 export {
   Avatar,

@@ -161,8 +161,14 @@ class OwnerProfileSensitiveDataTest extends ApiTestCase
         $this->actingAsWithStepUp($agent);
         $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertForbidden()->assertJsonPath('code', 'http.forbidden');
 
+        // L'admin d'une AUTRE agence : 404, comme la fiche (`GET /api/owners/{id}`) et comme un
+        // identifiant qui n'existe pas — la réponse ne dit pas si le profil existe ailleurs.
         $this->actingAsWithStepUp($this->apiActingAsRole('agency_admin', ['agency' => Agency::factory()->create()]));
-        $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertForbidden()->assertJsonPath('code', 'http.forbidden');
+        $this->apiGet("/api/owners/{$profile->id}/sensitive")->assertNotFound();
+        $this->apiGet("/api/owners/{$profile->id}")->assertNotFound();
+        $inexistant = (int) OwnerProfile::query()->max('id') + 1000;
+        $this->apiGet("/api/owners/{$inexistant}/sensitive")->assertNotFound();
+        $this->assertSame(1, Activity::query()->where('log_name', PersonalDataAccessLogger::LOG_NAME)->count(), 'un refus n\'est pas une consultation');
     }
 
     /** AC4 — l'archive du droit d'accès contient le RIB complet du titulaire. */

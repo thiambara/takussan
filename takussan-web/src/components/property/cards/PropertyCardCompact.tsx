@@ -9,6 +9,7 @@ import { CardMeta } from './CardMeta';
 import { PropertyPhoto } from './PropertyPhoto';
 import { LienDeCarte, TITRE_REACTIF, VoileDInteraction } from './LienDeCarte';
 import { ActionsSurPhoto } from './ActionsSurPhoto';
+import { PastilleEtFavoriDAccueil } from './PastilleDAccueil';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_RANGEE } from '@/components/property/card-image-sizes';
@@ -24,6 +25,7 @@ export function PropertyCardCompact({
   property,
   index = 0,
   priority = false,
+  allegee = false,
 }: PropertyCardCommonProps) {
   const t = useTranslations('property.cards');
   const tPeriods = useTranslations('property.rentPeriodsShort');
@@ -51,34 +53,38 @@ export function PropertyCardCompact({
         <VoileDInteraction />
 
         {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
-        <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-1.5">
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
-            {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
-            <NewBuildChip condition={property.condition} compact />
+        {allegee ? (
+          <PastilleEtFavoriDAccueil property={property} />
+        ) : (
+          <div className="absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
+              <NewBuildChip condition={property.condition} compact />
+            </div>
+            {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
+            <ActionsSurPhoto property={property} />
           </div>
-          {/* Favori, puis comparateur en dessous (TCK-561) — au-dessus du lien de la carte (TCK-554). */}
-          <ActionsSurPhoto property={property} />
-        </div>
+        )}
       </div>
 
       <div className="mt-2.5 space-y-0.5">
         <h3
           id={idTitre}
           title={property.title}
-          className={`font-display text-[15px] leading-5 font-semibold text-foreground truncate ${TITRE_REACTIF}`}
+          className={`font-display text-[0.9375rem] leading-5 font-semibold text-foreground truncate ${TITRE_REACTIF}`}
         >
           {property.title}
         </h3>
         <CardMeta
           uneLigne
-          className="text-[13px] leading-[18px] text-muted-foreground"
+          className="text-[0.8125rem] leading-[18px] text-muted-foreground"
           items={[
             quarter,
             property.bedrooms != null && property.bedrooms > 0 && t('bedroomsShort', { count: property.bedrooms }),
             property.area != null && `${property.area} m²`,
           ]}
         />
-        <p className="pt-0.5 text-[14px] leading-5 font-semibold text-foreground tabular-nums truncate">
+        <p className="pt-0.5 text-[0.875rem] leading-5 font-semibold text-foreground tabular-nums truncate">
           {formatPrice(property.price, property.currency ?? 'XOF')}
           {property.contract_type === 'rent' && property.rent_period && (
             <span className="ml-0.5 font-normal text-muted-foreground">

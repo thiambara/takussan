@@ -6,12 +6,16 @@ use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Services\Dashboard\DashboardOwnerService;
+use App\Services\Dashboard\PeriodeDuTableauDeBord;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * GET /api/dashboard/owner — landlord portfolio KPIs (TCK-032 P1).
+ *
+ * TCK-2791 — `period=last_month` : le mois résumé (`current_month` par défaut, liste fermée, 422 sinon),
+ * lu après les gardes.
  */
 class DashboardOwnerController extends Controller
 {
@@ -31,7 +35,9 @@ class DashboardOwnerController extends Controller
             403,
         );
 
-        $data = $this->service->summary($user);
+        $periode = PeriodeDuTableauDeBord::depuisLaRequete($request);
+
+        $data = $this->service->summary($user, $periode);
 
         $fieldsParam = $request->input('fields.summary');
         if (is_string($fieldsParam) && $fieldsParam !== '') {

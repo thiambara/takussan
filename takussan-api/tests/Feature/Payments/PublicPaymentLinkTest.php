@@ -94,7 +94,8 @@ class PublicPaymentLinkTest extends TestCase
 
     /**
      * AC15 — inconnu 404 ; révoqué 410 ; expiré 410 ; `initiate` sur `paid` 409 ; fournisseur non
-     * disponible 422. Une caution rendue, une échéance remboursée ou supprimée : 410.
+     * disponible 422. Une caution rendue, une échéance remboursée ou supprimée : 410 — sauf la
+     * LECTURE d'une échéance remboursée, 200 depuis TCK-2504.
      */
     public function test_unknown_gone_paid_and_unavailable_answers(): void
     {
@@ -119,12 +120,14 @@ class PublicPaymentLinkTest extends TestCase
         $this->getJson("/api/pay/{$fresh}")->assertOk()->assertJsonPath('data.amount_due', 0)->assertJsonPath('data.providers', []);
         $this->postJson("/api/pay/{$fresh}/initiate", ['provider' => 'wave'])->assertStatus(409)->assertJsonPath('code', 'payment.not_payable');
 
+        // TCK-2504 — une échéance remboursée se LIT (200, son état et `paid_at`, cf.
+        // `PayLinkAlreadyPaidTest`) ; elle ne se paie toujours pas (410). Une caution rendue : 410.
         foreach ([
-            'remboursée' => ['status' => PaymentStatus::Refunded->value],
-            'caution rendue' => ['status' => PaymentStatus::Pending->value, 'payment_type' => LeasePaymentType::DepositRefund->value],
-        ] as $label => $state) {
+            'remboursée' => [['status' => PaymentStatus::Refunded->value], 200],
+            'caution rendue' => [['status' => PaymentStatus::Pending->value, 'payment_type' => LeasePaymentType::DepositRefund->value], 410],
+        ] as $label => [$state, $show]) {
             $this->setRow($ctx['payment'], $state);
-            $this->getJson("/api/pay/{$fresh}")->assertStatus(410);
+            $this->getJson("/api/pay/{$fresh}")->assertStatus($show);
             $this->postJson("/api/pay/{$fresh}/initiate", ['provider' => 'wave'])->assertStatus(410);
         }
         $this->setRow($ctx['payment'], ['status' => PaymentStatus::Pending->value, 'payment_type' => LeasePaymentType::Rent->value, 'paid_at' => null]);

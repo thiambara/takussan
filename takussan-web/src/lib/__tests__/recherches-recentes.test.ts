@@ -50,6 +50,14 @@ describe('recherches récentes', () => {
     expect(lireRecherchesRecentes()).toEqual([{ texte: 'ok', qs: 'q=ok' }]);
   });
 
+  it('une entrée au texte vide ou blanc est écartée : elle se rendrait en option sans nom (revue de TCK-2497)', () => {
+    window.localStorage.setItem(
+      RECHERCHES_RECENTES_CLE,
+      JSON.stringify([{ texte: '', qs: 'type=villa' }, { texte: '   ', qs: 'type=land' }, { texte: 'Mermoz', qs: 'location=Mermoz' }]),
+    );
+    expect(lireRecherchesRecentes()).toEqual([{ texte: 'Mermoz', qs: 'location=Mermoz' }]);
+  });
+
   it('un stockage qui lève (navigation privée, quota) ne casse rien', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('SecurityError'); });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('QuotaExceededError'); });

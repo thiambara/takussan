@@ -57,12 +57,27 @@ describe('branche anonyme', () => {
         />,
       ),
     );
+    // TCK-2604 — une seule porte, et l'action interrompue : la connexion montre ce bien.
     expect(screen.getByRole('link', { name: 'Créer un compte' }).getAttribute('href')).toBe(
-      `/auth/register?redirect=${RETOUR}`,
+      `/auth/login?redirect=${RETOUR}&intention=reservation`,
     );
     expect(screen.getByRole('link', { name: 'Se connecter' }).getAttribute('href')).toBe(
-      `/auth/login?redirect=${RETOUR}`,
+      `/auth/login?redirect=${RETOUR}&intention=reservation`,
     );
+  });
+
+  it('TCK-2604 — « Déposer mon dossier » (location au mois) dit une candidature, pas une visite', () => {
+    render(
+      withIntl(
+        <PropertyReservationDialog
+          property={{ ...bien, rent_period: 'monthly' } as PropertyDetail}
+          open
+          onOpenChange={() => {}}
+        />,
+      ),
+    );
+    const href = screen.getByRole('link', { name: 'Se connecter' }).getAttribute('href') ?? '';
+    expect(href).toMatch(/&intention=candidature$/);
   });
 });
 

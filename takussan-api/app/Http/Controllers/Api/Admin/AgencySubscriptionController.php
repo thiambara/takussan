@@ -28,7 +28,7 @@ class AgencySubscriptionController extends Controller
     public function store(AssignAgencySubscriptionRequest $request, Agency $agency): JsonResponse
     {
         $plan = Plan::query()->findOrFail($request->integer('plan_id'));
-        $subscription = $this->subscriptions->assign($agency, $plan, $request->user(), $request->validated());
+        $subscription = $this->subscriptions->assign($agency, $plan, $request->user(), $request->validatedAvecInstants());
 
         return $this->json([
             'data' => (new AgencySubscriptionResource($subscription))->resolve($request),

@@ -16,7 +16,7 @@ type State = {
  * l'approche de sa section : les avis, en bas de fiche, ne coûtent plus une requête à chaque visite.
  */
 export function usePropertyReviews(slug: string, propertyId: number, actif = true) {
-  const t = useTranslations('property.reviews');
+  const t = useTranslations('propertyReviews');
   const [state, setState] = useState<State>({ data: null, loading: true, error: null });
   const [reloadTick, setReloadTick] = useState(0);
 

@@ -30,6 +30,12 @@ describe('<Money />', () => {
     expect(useAgencyCurrencyMock).not.toHaveBeenCalled();
   });
 
+  it('TCK-2714 — groups by U+00A0 (not Intl’s U+202F), exactly', () => {
+    const { container } = render(<Money value={1_482_166} currency="XOF" />);
+    expect(container.textContent).toContain('1\u00a0482\u00a0166\u00a0F CFA');
+    expect(container.textContent).not.toContain('\u202f');
+  });
+
   it('formats with an explicit EUR currency', () => {
     const { container } = render(<Money value={150_000.5} currency="EUR" />);
     expect(normalize(container.textContent)).toContain('150 000,50 €');

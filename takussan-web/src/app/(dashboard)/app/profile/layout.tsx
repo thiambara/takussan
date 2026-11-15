@@ -1,5 +1,6 @@
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
+import { CadreDuProfil } from '@/components/profile/sommaire/CadreDuProfil';
 
 /**
  * Frontière de dictionnaire de la section `profile` de `/app` (ADR-0022, amendement du 2026-10-25).
@@ -8,7 +9,13 @@ import { messagesPour } from '@/i18n/messages';
  * `IntlProvider` les ajoute au dictionnaire du parent. La règle E de
  * `scripts/check-i18n-namespaces.mjs` exige ce layout dès que la section atteint un tel espace ;
  * sans lui, ils entreraient dans le document de tous les écrans de `/app`.
+ *
+ * TCK-2635 — et le cadre du profil : au bureau, le sommaire collant à gauche de chaque section.
  */
 export default async function Layout({ children }: { readonly children: React.ReactNode }) {
-  return <IntlProvider messages={await messagesPour('(dashboard)/app/profile')}>{children}</IntlProvider>;
+  return (
+    <IntlProvider messages={await messagesPour('(dashboard)/app/profile')}>
+      <CadreDuProfil>{children}</CadreDuProfil>
+    </IntlProvider>
+  );
 }

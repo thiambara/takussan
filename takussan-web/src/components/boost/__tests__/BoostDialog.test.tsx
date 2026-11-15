@@ -177,4 +177,41 @@ describe('BoostDialog (TCK-633 lot F)', () => {
     await user.click(screen.getByRole('button', { name: /Vedette 7 jours/ }));
     expect(cle()).not.toBe(premiere);
   });
+
+  // Contre-vérification de TCK-2664 — après un refus `credits.insufficient`, le refus fait foi jusqu'à
+  // ce que la relecture des crédits RÉUSSISSE. `refetch()` se résout aussi sur un échec : effacer le
+  // refus à ce moment rendait la parole au solde d'avant (« Il vous restera » revenait, Confirmer
+  // se rouvrait sur un achat que le serveur venait de refuser).
+  describe('le refus « solde insuffisant » et la relecture des crédits', () => {
+    const refus = { status: 422, data: { code: 'credits.insufficient', params: { missing: 8, balance: 12 } } };
+
+    async function refuserPuisRelire(relu: { isSuccess: boolean; isError: boolean }) {
+      etat(100);
+      const reset = vi.fn();
+      const refetch = vi.fn(() => Promise.resolve(relu));
+      vi.mocked(useCredits).mockReturnValue({ data: { data: { balance: 100, lots: [] }, movements: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }, isLoading: false, isError: false, refetch } as never);
+      vi.mocked(useBuyBoost).mockReturnValue({ mutate, isPending: false, error: null, reset } as never);
+      // `beforeEach(() => mutate.mockReset())` rend le mock, que vitest rappelle SANS argument en nettoyage.
+      mutate.mockImplementation((_v?: unknown, o?: { onError: (e: unknown) => void }) => o?.onError(refus));
+      const user = userEvent.setup();
+      ouvrir();
+      await user.click(screen.getByRole('button', { name: /Vedette 7 jours/ }));
+      await user.click(screen.getByRole('button', { name: 'Confirmer' }));
+      await vi.waitFor(() => expect(refetch).toHaveBeenCalled());
+      await Promise.resolve();
+      await Promise.resolve();
+      return reset;
+    }
+
+    it('relecture réussie : le refus s’efface, le solde relu parle', async () => {
+      const reset = await refuserPuisRelire({ isSuccess: true, isError: false });
+      await vi.waitFor(() => expect(reset).toHaveBeenCalledTimes(1));
+    });
+
+    it('relecture échouée : le refus reste, l’ancien solde ne revient pas', async () => {
+      const reset = await refuserPuisRelire({ isSuccess: false, isError: true });
+      await new Promise((r) => setTimeout(r, 20));
+      expect(reset).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +21,13 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   duplicatePropertyAction: vi.fn(),
   updatePropertyStatusAction: vi.fn(),
   updatePropertyVisibilityAction: vi.fn(),
+}));
+
+// Réserve de verif-patrimoine (2026-11-12) — l'issue d'un geste se dit par un toast.
+const toast = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => toast,
 }));
 
 vi.mock('@/components/documents/AddDocumentButton', () => ({
@@ -73,6 +80,8 @@ describe('PropertyHeaderActions', () => {
     await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Publier' }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent(attendu);
+    await waitFor(() =>
+      expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ type: 'success', title: expect.stringMatching(attendu) })),
+    );
   });
 });

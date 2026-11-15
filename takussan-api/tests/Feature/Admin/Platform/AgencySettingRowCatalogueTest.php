@@ -44,7 +44,7 @@ class AgencySettingRowCatalogueTest extends TestCase
             'hausse de loyer à 500 %' => [RentReviewService::SETTING_KEY, ['value' => 500]],
             'plafond des pénalités à 1000 %' => ['late_fees.cap_percent', ['value' => 1000]],
             'indemnité de 99 mois' => [EarlyTerminationService::SETTING_KEY, ['value' => 99]],
-            'indemnité de 0 mois' => [EarlyTerminationService::SETTING_KEY, ['value' => 0]],
+            'indemnité de 13 mois' => [EarlyTerminationService::SETTING_KEY, ['value' => 13]], // TCK-2842 : 0 vaut, 12 au plus
             'relances non numériques' => [OverdueReminderService::SETTING_KEY, ['value' => 'abc']],
             'relance à 400 jours' => [OverdueReminderService::SETTING_KEY, ['value' => [3, 400]]],
             'signature non booléenne' => ['lease.require_signature', ['value' => 'peut-être']],
@@ -123,7 +123,7 @@ class AgencySettingRowCatalogueTest extends TestCase
         }
 
         $this->assertSame(100.0, app(RentReviewService::class)->resolveMaxPct($agence->id));
-        $this->assertSame(24, app(EarlyTerminationService::class)->resolvePenaltyMonths($agence->id));
+        $this->assertSame(12, app(EarlyTerminationService::class)->resolvePenaltyMonths($agence->id)); // TCK-2842
         $this->assertSame(100.0, (new ReflectionMethod(LateFeeCalculator::class, 'capPercent'))->invoke(app(LateFeeCalculator::class), $agence->id));
     }
 

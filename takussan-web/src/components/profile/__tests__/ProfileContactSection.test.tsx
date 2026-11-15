@@ -73,8 +73,12 @@ describe('<ProfileContactSection>', () => {
     const user = userEvent.setup();
     render(withIntl(<ProfileContactSection user={BASE_USER} />));
     const input = screen.getByTestId('phone-input');
-    await user.type(input, '0770000000');
-    expect(await screen.findByRole('alert')).toHaveTextContent(/E\.164/);
+    // TCK-2635 — l'indicatif +221 est en préfixe (`PhoneInput`) : « 0770000000 » compose désormais un
+    // numéro valide ; un numéro international trop court reste refusé.
+    await user.type(input, '+12');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/format international/);
+    // TCK-2635 (AC2) — le jargon de la norme ne s'affiche plus.
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/E\.164/);
     expect(screen.getByTestId('contact-save')).toBeDisabled();
   });
 
@@ -95,6 +99,24 @@ describe('<ProfileContactSection>', () => {
 
     const fd = updateProfileMock.mock.calls[0][0] as FormData;
     expect(fd.get('phone')).toBe('+221770000000');
+  });
+
+  // TCK-2635 — « Modifications enregistrées. » ne reste pas à côté de « 1 modification non enregistrée ».
+  it('tait « enregistrées » dès la modification suivante', async () => {
+    const user = userEvent.setup();
+    updateProfileMock.mockResolvedValue({
+      ok: true,
+      user: { ...BASE_USER, phone: '+221770000000', phone_verified_at: null },
+    });
+
+    render(withIntl(<ProfileContactSection user={BASE_USER} />));
+    await user.type(screen.getByTestId('phone-input'), '+221770000000');
+    await user.click(screen.getByTestId('contact-save'));
+    expect(await screen.findByText('Modifications enregistrées.')).toBeInTheDocument();
+
+    await user.type(screen.getByTestId('phone-input'), '1');
+    expect(screen.getByText('1 modification non enregistrée')).toBeInTheDocument();
+    expect(screen.queryByText('Modifications enregistrées.')).toBeNull();
   });
 
   it('flips the badge to "Non vérifié" after a successful save resets phone_verified_at', async () => {

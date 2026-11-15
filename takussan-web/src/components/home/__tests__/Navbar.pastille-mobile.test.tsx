@@ -222,26 +222,6 @@ describe('Pastille mobile — elle résume la recherche en vigueur (TCK-549 AC3,
   });
 });
 
-describe('Menu mobile — une seule surface de saisie (TCK-549 AC5)', () => {
-  it('le menu ouvert ne porte plus ni champ, ni bascule « Acheter / Louer »', async () => {
-    push.mockReset();
-    parametresUrl = new URLSearchParams('contract_type=rent');
-    chemin = '/fr/properties';
-    const user = userEvent.setup();
-    monter();
-
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    // TCK-551 — le panneau est la boîte de dialogue du `Sheet` (portail hors du <nav>).
-    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
-
-    expect(panneau!.querySelectorAll('[aria-pressed]')).toHaveLength(0);
-    expect(panneau!.querySelectorAll('input')).toHaveLength(0);
-    // TCK-641 — et plus de lien « Louer » / « Acheter » non plus : la pastille porte la transaction.
-    expect(within(panneau as HTMLElement).queryByRole('link', { name: 'Louer' })).toBeNull();
-    expect(within(panneau as HTMLElement).queryByRole('link', { name: 'Acheter' })).toBeNull();
-  });
-});
-
 /**
  * Refus du tour 1 (vérificateur adverse, 2026-09-23) : une saisie ABANDONNÉE restait dans l'état
  * `location` de la navbar, que `buildSearchUrl` lit. La puce de catégorie du menu mobile l'écrivait

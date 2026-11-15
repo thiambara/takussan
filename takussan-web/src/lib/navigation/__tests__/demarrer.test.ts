@@ -15,7 +15,7 @@ const TROIS = [
 
 describe('TCK-2479 — etapesARendre', () => {
   it('une agence neuve : trois liens, dans l’ordre de l’API', () => {
-    expect(etapesARendre(TROIS, 'espace', null)).toEqual({
+    expect(etapesARendre(TROIS, 'espace')).toEqual({
       restantes: [
         { code: 'premier_bien', href: '/app/properties/new', cle: 'etapes.espace.premier_bien' },
         { code: 'kyc', href: '/app/agency/kyc', cle: 'etapes.espace.kyc' },
@@ -30,7 +30,6 @@ describe('TCK-2479 — etapesARendre', () => {
     const { restantes, faites, total } = etapesARendre(
       [{ ...TROIS[0]!, faite: true }, TROIS[1]!, TROIS[2]!],
       'espace',
-      null,
     );
     expect(restantes.map((e) => e.code)).toEqual(['kyc', 'equipe']);
     expect([faites, total]).toEqual([1, 3]);
@@ -40,43 +39,44 @@ describe('TCK-2479 — etapesARendre', () => {
     const { restantes, faites, total } = etapesARendre(
       TROIS.map((e) => ({ ...e, faite: true })),
       'espace',
-      null,
     );
     expect(restantes).toEqual([]);
     expect([faites, total]).toEqual([3, 3]);
   });
 
   it('un code inconnu ne fait ni lien ni compte', () => {
-    expect(etapesARendre([{ code: 'logo', faite: false }], 'espace', null)).toEqual({
+    expect(etapesARendre([{ code: 'logo', faite: false }], 'espace')).toEqual({
       restantes: [],
       faites: 0,
       total: 0,
     });
   });
 
-  it('bailleur : le KYC rouvre SON assistant ; sans profil bailleur actif, l’assistant choisit', () => {
+  it('TCK-2614 (3a) — bailleur : son KYC se fait sur « Vos pièces », quel que soit le profil', () => {
     const kyc = [{ code: 'kyc', faite: false }];
-    expect(etapesARendre(kyc, 'bailleur', 'owner:3').restantes[0]).toEqual({
-      code: 'kyc',
-      href: '/onboarding/owner?owner=3',
-      cle: 'etapes.bailleur.kyc',
+    expect(etapesARendre(kyc, 'bailleur').restantes[0]).toEqual({ code: 'kyc', href: '/app/pieces', cle: 'etapes.bailleur.kyc' });
+  });
+
+  it('TCK-2614 (AC1, 2a) — l’étape « Pièces » de l’agent et du prestataire mène à « Vos pièces »', () => {
+    expect(etapesARendre([{ code: 'pieces', faite: false }], 'espace')).toEqual({
+      restantes: [{ code: 'pieces', href: '/app/pieces', cle: 'etapes.espace.pieces' }],
+      faites: 0,
+      total: 1,
     });
-    expect(etapesARendre(kyc, 'bailleur', null).restantes[0]?.href).toBe('/onboarding/owner');
-    expect(etapesARendre(kyc, 'bailleur', 'agency_admin:2').restantes[0]?.href).toBe('/onboarding/owner');
-    expect(etapesARendre(kyc, 'bailleur', 'owner:abc').restantes[0]?.href).toBe('/onboarding/owner');
+    expect(etapesARendre([{ code: 'pieces', faite: true }], 'espace')).toEqual({ restantes: [], faites: 1, total: 1 });
   });
 });
 
 describe('TCK-2479 — « Démarrer » dans les dispositions et le menu composé', () => {
-  it('admin d’agence et hôte : l’espace ; bailleur : le sien ; personne d’autre', () => {
+  it('admin d’agence, hôte, agent et prestataire (TCK-2614) : l’espace ; bailleur : le sien ; personne d’autre', () => {
     expect(Object.fromEntries(PERSONAS.map((p) => [p, DISPOSITIONS[p].demarrer ?? null]))).toEqual({
       client: null,
       locataire: null,
       bailleur: 'bailleur',
-      agent: null,
+      agent: 'espace',
       'admin-agence': 'espace',
       hote: 'espace',
-      prestataire: null,
+      prestataire: 'espace',
       plateforme: null,
     });
   });
@@ -85,7 +85,7 @@ describe('TCK-2479 — « Démarrer » dans les dispositions et le menu composé
     const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: [] };
     expect(composerMenu(ctx, 'admin-agence').demarrer).toBe('espace');
     expect(composerMenu({ ...ctx, agenceSuspendue: true }, 'admin-agence').demarrer).toBeNull();
-    expect(composerMenu(ctx, 'agent').demarrer).toBeNull();
+    expect(composerMenu(ctx, 'client').demarrer).toBeNull();
     expect(composerMenu(ctx, 'admin-agence').priorites).toBe(DISPOSITIONS['admin-agence'].priorites);
   });
 
@@ -113,7 +113,6 @@ describe('Revue de TCK-2479 (M6) — une étape ne vise jamais une page que le c
     capacites: string[],
     mode: ModeDemarrer,
     codes: string[],
-    idProfilActif: string | null = null,
   ) {
     const personnel = roles.includes('agency_admin') || roles.includes('agent');
     const ctx: ContexteDeMenu = {
@@ -123,7 +122,7 @@ describe('Revue de TCK-2479 (M6) — une étape ne vise jamais une page que le c
       cheminsAdmin: accesDepuis({ roles, agence: agence ? { kind: agence } : null, capacites }).chemins,
     };
     const etapes = codes.map((code) => ({ code, faite: false }));
-    const rendu = etapesARendre(etapes, mode, idProfilActif, (href) => cheminOuvert(ctx, href));
+    const rendu = etapesARendre(etapes, mode, (href) => cheminOuvert(ctx, href));
     return { hrefs: rendu.restantes.map((e) => e.href), total: rendu.total };
   }
 
@@ -154,16 +153,14 @@ describe('Revue de TCK-2479 (M6) — une étape ne vise jamais une page que le c
     ]);
   });
 
-  it('bailleur : il PROPOSE un bien (`/app/properties/new`), et son assistant n’est pas une page du menu', () => {
-    expect(liens(BAILLEUR, null, [], 'bailleur', ['premier_bien', 'kyc'], 'owner:3').hrefs).toEqual([
-      '/app/properties/new',
-      '/onboarding/owner?owner=3',
-    ]);
+  it('bailleur : il PROPOSE un bien (`/app/properties/new`), et « Vos pièces » n’est pas une page du menu', () => {
+    expect(liens(BAILLEUR, null, [], 'bailleur', ['premier_bien', 'kyc']).hrefs).toEqual(['/app/properties/new', '/app/pieces']);
   });
 
   it('cheminOuvert ignore la requête, et ne juge pas un chemin hors catalogue', () => {
     const ctx: ContexteDeMenu = { roles: ADMIN, capacites: [], cheminsAdmin: [] };
     expect(cheminOuvert(ctx, '/app/agency/kyc?x=1')).toBe(false);
     expect(cheminOuvert(ctx, '/onboarding/owner')).toBe(true);
+    expect(cheminOuvert(ctx, '/app/pieces')).toBe(true);
   });
 });

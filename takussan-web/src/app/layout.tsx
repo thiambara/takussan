@@ -158,7 +158,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-sans antialiased">
         <IntlProviderRacine locale={locale} messages={messages}>
           <QueryProvider>
-            <AuthProvider initialUser={initialUser} initialToken={token ?? null} initialActiveProfileId={activeProfileId ?? null}>
+            {/* TCK-2816 — l'impersonation part en BOOLÉEN : `impersonation` porte ici la valeur du
+                cookie, c'est-à-dire le jeton de la cible, qui ne rejoint jamais la page. */}
+            <AuthProvider
+              initialUser={initialUser}
+              initialToken={token ?? null}
+              initialActiveProfileId={activeProfileId ?? null}
+              impersonation={Boolean(impersonation)}
+            >
               <FeatureFlagProvider>
                 <UserLocationProvider>
                   <FloatingDockProvider>

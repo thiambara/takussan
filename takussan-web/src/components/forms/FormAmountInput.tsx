@@ -54,6 +54,12 @@ export type FormAmountInputProps<TFieldValues extends FieldValues> = NativeInput
   readonly example?: number;
   /** Classe du conteneur externe. */
   readonly containerClassName?: string;
+  /**
+   * TCK-2580 — l'unité DANS le champ, à droite (« F/mois », « F ») : la maquette écrit
+   * « 250 000 F/mois » comme valeur. Elle est décrite au lecteur d'écran (`aria-describedby`) et
+   * ne fait pas partie de la valeur.
+   */
+  readonly unite?: React.ReactNode;
 };
 
 /**
@@ -81,10 +87,12 @@ export function FormAmountInput<TFieldValues extends FieldValues>({
   className,
   containerClassName,
   required,
+  unite,
   ...inputProps
 }: FormAmountInputProps<TFieldValues>) {
   const inputId = id ?? `field-${String(name)}`;
   const errorId = `${inputId}-error`;
+  const uniteId = `${inputId}-unite`;
 
   return (
     <Controller
@@ -100,21 +108,35 @@ export function FormAmountInput<TFieldValues extends FieldValues>({
                 {required ? <span aria-hidden="true" className="ml-0.5 text-destructive">*</span> : null}
               </label>
             ) : null}
-            <ChampMontant
-              {...inputProps}
-              valeurDuFormulaire={field.value}
-              nom={field.name}
-              surValeur={field.onChange}
-              surSortie={field.onBlur}
-              refDuFormulaire={field.ref}
-              id={inputId}
-              hasError={hasError}
-              errorId={errorId}
-              required={required}
-              decimales={decimalesDeDevise(currency ?? 'XOF')}
-              example={example}
-              className={className}
-            />
+            <div className={unite ? 'relative' : undefined}>
+              <ChampMontant
+                {...inputProps}
+                decritPar={unite ? uniteId : undefined}
+                valeurDuFormulaire={field.value}
+                nom={field.name}
+                surValeur={field.onChange}
+                surSortie={field.onBlur}
+                refDuFormulaire={field.ref}
+                id={inputId}
+                hasError={hasError}
+                errorId={errorId}
+                required={required}
+                decimales={decimalesDeDevise(currency ?? 'XOF')}
+                example={example}
+                className={className}
+                // La place de l'unité, à SA mesure : un `pr-20` fixe (« F/mois ») rognait un montant
+                // de neuf chiffres derrière « F » dans une demi-colonne de 390 px (mesuré, TCK-2580).
+                style={unite ? { paddingInlineEnd: `calc(${typeof unite === 'string' ? unite.length : 6}ch + 1.25rem)` } : undefined}
+              />
+              {unite ? (
+                <span
+                  id={uniteId}
+                  className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-champ text-foreground"
+                >
+                  {unite}
+                </span>
+              ) : null}
+            </div>
             <FormError id={errorId}>{fieldState.error?.message}</FormError>
           </div>
         );
@@ -135,6 +157,8 @@ type ChampMontantProps = NativeInputProps & {
   readonly errorId: string;
   readonly decimales: number;
   readonly example?: number;
+  /** TCK-2580 — ce qui décrit aussi le champ (l'unité), en plus de l'erreur. */
+  readonly decritPar?: string;
 };
 
 /**
@@ -154,6 +178,7 @@ function ChampMontant({
   decimales,
   example,
   className,
+  decritPar,
   ...inputProps
 }: ChampMontantProps) {
   const locale = useLocale() as Locale;
@@ -194,7 +219,7 @@ function ChampMontant({
       inputMode={decimales > 0 ? 'decimal' : 'numeric'}
       autoComplete="off"
       aria-invalid={hasError || undefined}
-      aria-describedby={hasError ? errorId : undefined}
+      aria-describedby={[hasError ? errorId : null, decritPar ?? null].filter(Boolean).join(' ') || undefined}
       aria-required={required || undefined}
       // Chiffres à chasse fixe : un montant qui se regroupe sous le doigt ne doit pas danser.
       className={cn('tabular-nums', className)}

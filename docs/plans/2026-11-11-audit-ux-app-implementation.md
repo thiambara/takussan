@@ -1,0 +1,484 @@
+# Plan d'implémentation — audit UX de la partie connectée (familles 2 à 6), TCK-2578 → TCK-2692
+
+> **Pour les agents :** chaque ticket s'implémente par la compétence `implementing-specs`
+> (`.agent/skills/implementing-specs/SKILL.md`, relayée par `/implement-spec`). Ce plan ne la
+> remplace pas : il dit **dans quel ordre**, **avec qui**, **sous quelles règles communes** et
+> **avec quelle preuve**. Les cases `- [ ]` se cochent dans le journal en bas de page.
+
+**But :** livrer les 115 tickets des vagues 86 à 91 de sorte que chaque écran de `/app` soit, à la
+mesure, celui que le porteur a validé — téléphone, bureau 1440 et bureau 1280 — sans régression.
+
+**Architecture :** d'abord le terrain (vague 91 : outil de fidélité, densité par jetons, primitives,
+coque), en parallèle de **tout le back** (aucun ticket back ne dépend du terrain) ; puis trois
+pages d'étalonnage ; puis les pages par famille, chaque famille tenue par des agents qui enchaînent
+leurs tickets dans un **arbre partagé**, la session commitant par ticket.
+
+**Pile :** Laravel 13 / PHP 8.4 / PostgreSQL 17 · Next.js 16 / React 19 / Tailwind 4 /
+`@base-ui/react` · outil de fidélité de TCK-2684 (CDP, styles calculés, références JSON gelées).
+
+- **Date** : 2026-11-11
+- **Décidé par** : le porteur — « je valide tout, commit les docs puis PR vers dev […] concocte un
+  plan pour implémenter tous les tickets avec les meilleures pratiques en web design. Je te fais
+  confiance, gère tout. »
+- **Sources** : [audit](../qa/audit-ux-2026-11/README.md) (familles 2 à 6),
+  [fidélité au pixel](../qa/audit-ux-2026-11/fidelite-au-pixel.md) et ses annexes A à D,
+  [ADR-0106](../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md),
+  [ADR-0107](../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md), les tickets eux-mêmes.
+- **Feu vert** : le 2026-11-11, après lecture du plan, le porteur : « suis ton plan
+  d'implémentation et implémente tous les tickets selon tes propres recommandations ». Avec
+  « gère tout », c'est une **délégation de fusion** au sens de la famille 1 : une PR fusionnée
+  seulement sur CI verte, chaque ticket vérifié avant de passer à `done`.
+
+## Contraintes globales (valent pour chaque ticket)
+
+- **La maquette retenue fait foi au pixel** (ADR-0106), à taille réelle : téléphone 390 × 844 à
+  `rem` 16 ; bureau 1440 × 900 à `rem` 16 et densité ×0,9 (ADR-0107) ; bureau 1280 là où une
+  maquette 1280 existe ; sous 1280, la règle d'ADR-0106 § 4. **Trois exceptions seulement** :
+  accessibilité mesurée, contrainte technique, incohérence entre maquettes (valeur majoritaire).
+- **Aucune valeur arbitraire** dans `src/app/(dashboard)` et ses composants (`text-[13px]`,
+  `shadow-[…]`…) : des jetons (TCK-2685), en `rem` calculés. Racine à 16 px partout (ADR-0107).
+- **Densité au pointeur** : au doigt, contrôles de 44/48 px quelle que soit la largeur (TCK-2686,
+  AC8). **Rail d'icônes de 60 px entre 768 et 1023 px** (TCK-2480) : on ne le retire pas.
+- **Vouvoiement partout** (ADR-0095 amendée) ; « F » dans `/app`, « F CFA » sur l'offre et
+  l'abonnement ; dates sans l'année de l'année en cours.
+- **i18n** : une clé neuve part avec `fr`, `en` et `wo` ; **le wolof est en pause** — `wo` porte
+  le texte français tel quel. Le front possède le texte ; l'API émet des codes.
+- **Données** : sparse fieldsets (`fields[…]`), filtres côté serveur, `include=` ; le préfixe
+  `/api` est écrit par l'appelant d'`apiRequest`/`useApiQuery`.
+- **Autorisation** : capacités par profil (`Capability`, `MembershipCapabilityResolver`) ;
+  l'agence est la frontière d'isolation ; jamais `Spatie\Permission`.
+- **Montants** : décimal en base, entier ×100 à la frontière d'un driver de paiement.
+- **Migrations** : pensées pour PostgreSQL ; `down()` juste ; jamais `migrate:fresh` sur la base
+  de démo partagée (`php artisan migrate` seulement).
+- **Tests** : TDD ; chaque test d'une règle vérifié **par ablation** (retirer le correctif, voir
+  rouge, restaurer par `cp`, prouver par `md5`). Les agents ne lancent que **leurs** tests
+  (`php artisan test <fichiers>`, `npx vitest run <fichiers>`, `php bin/impacted-tests.php
+  --run --connus`) ; **jamais une suite entière, ni agent ni session** : la CI la joue.
+- **Avant chaque commit** : `./vendor/bin/pint` (API) ; `npm run lint` + `npx tsc --noEmit` sur le
+  front ; `npm run check:i18n` ; les gardes `scripts/check-*.mjs` touchées.
+- **Modèle** : implémentation et vérification sur **Opus 5.5** ; un agent de test déclare son
+  identifiant avant chaque lot.
+
+## Les meilleures pratiques, rendues vérifiables
+
+Le porteur demande « les meilleures pratiques en web design ». Elles ne s'ajoutent pas aux tickets
+comme un vœu : chacune a sa **mesure** et son **moment**.
+
+| Pratique | Règle | Où elle est prouvée |
+|---|---|---|
+| Une seule échelle, réglage de l'utilisateur respecté | racine 16 px, densité ×0,9 par jetons, texte en `rem` | TCK-2692 (police navigateur à 20 px → le texte grossit), garde de TCK-2685 |
+| Contraste | texte ≥ 4,5:1, contour de contrôle et icône utile ≥ 3:1 (WCAG 1.4.3, 1.4.11) | test de contraste des jetons (TCK-2685), AC-F de chaque page |
+| Focus visible | anneau plein, jamais retiré, jamais masqué par un en-tête collant (WCAG 2.4.7, 2.4.11) | AC-F, parcours clavier de chaque page à la PR |
+| Cibles | 44 px au doigt, 24 px minimum partout (WCAG 2.5.8) | TCK-2686 AC1/AC8, vitrine |
+| Reflow | aucune page ne défile horizontalement, de 320 à 1440 px (WCAG 1.4.10) ; une table défile dans son cadre | balayage de chaque page touchée à 390/768/1024/1280/1440 (§ Preuve) |
+| Texte qui ne disparaît pas | aucun nom, montant, statut ni date tronqué ; un texte secondaire cède en ellipse, jamais en coupe nette | même balayage (ellipse ≠ coupe) |
+| Champs | étiquette visible liée, erreur reliée (`aria-describedby`), `inputmode` et `autocomplete` justes, 16 px au téléphone (pas de zoom iOS) | AC des tickets de formulaire, `useApiForm` |
+| États | chargement (squelette à la forme du contenu, pas de saut), vide utile (dit quoi faire), erreur qui dit comment s'en sortir | chaque page : les trois états relevés à la PR |
+| Mouvement | `prefers-reduced-motion` respecté ; aucune animation porteuse de sens seule | revue de PR, garde existante s'il y en a une |
+| Stabilité | pas de saut de mise en page (dimensions réservées, images dimensionnées) ; CLS < 0,1 sur les pages refaites | relevé Lighthouse de la page à la PR |
+| Sémantique | un `h1` par page, titres en ordre, listes en `ul`, tables en `table`, landmarks | AC-F (rôles appariés par l'outil), revue |
+| Composants | une primitive = un dessin ; jamais de copie locale d'une primitive | gardes existantes (`check-champs-uniformes`, `check-status-badge-unique`…) + revue |
+| Responsive par le contenu | requêtes de conteneur là où un composant vit à plusieurs largeurs (ADR-0107 les rend possibles) ; `lg`/`xl` pour la page ; `min-[1440px]:` seulement là où la maquette 1280 l'exige | revue, balayage |
+
+## Ordre
+
+```
+Vague 91 (terrain)                         Back (toutes familles)          Textes sans fidélité
+  TCK-2684 outil + gel                       5 agents, un par famille        TCK-2615, 2616, 2683, 2676
+     │                                       (aucune dépendance au terrain)
+  TCK-2692 racine 16 / densité par jetons
+     │
+  TCK-2685 jetons
+     ├── TCK-2686 densité ──┬── TCK-2688 primitives existantes 2
+     │                      └── TCK-2689 primitives neuves 1
+     ├── TCK-2687 primitives existantes 1
+     └── TCK-2690 primitives neuves 2 ── TCK-2691 coque (avec 2686)
+                                     │
+                        Étalonnage : TCK-2617 (coque téléphone), TCK-2580 → TCK-2581 (P0 famille 5),
+                                     TCK-2659 (Argent) — tolérances fixées sur ces trois-là
+                                     │
+                        Pages, par famille (§ Lots F)
+```
+
+### Étape 0 — avant toute ligne de code
+
+- [x] Le porteur dit « on attaque » (2026-11-11, ci-dessus).
+- [ ] Un compte de démo **locataire avec un bail actif** existe (TCK-2684, AC8) : le compte
+      « locataire » de la démo montre aujourd'hui le menu d'un client.
+- [ ] Les maquettes locales sont **sauvegardées hors du dépôt** (archive datée) : elles ne vivent
+      que dans l'arbre principal, hors git, et le gel des références les lit.
+
+### Étape 1 — le terrain (vague 91), en série
+
+Un seul agent « terrain », qui enchaîne : chaque ticket touche `globals.css`, `src/components/ui/`
+ou la coque, et le suivant lit ce que le précédent a posé.
+
+- [ ] **TCK-2684** — l'outil de fidélité (`takussan-web/scripts/fidelite/`) et le **gel des
+      références** (`docs/qa/audit-ux-2026-11/fidelite/references/`, JSON) des écrans retenus,
+      téléphone, 1440 et 1280.
+- [ ] **TCK-2692** — retirer `html { font-size: 90% }`, poser la densité ×0,9 par jetons ;
+      preuve : comparaison avant/après **= 0** au-delà des tolérances sur le site public et `/app`,
+      à 1440, 1280 et 1024 ; 390 inchangé.
+- [ ] **TCK-2685** — les jetons de `/app` en `rem` calculés, la vitrine, la garde des valeurs
+      arbitraires.
+- [ ] **TCK-2686**, **TCK-2687**, **TCK-2690** — peuvent se suivre dans n'importe quel ordre ;
+      2686 avant 2688 et 2689 ; 2690 et 2686 avant 2691.
+- [ ] **TCK-2688**, **TCK-2689**, **TCK-2691**.
+- [ ] **Point porteur n° 1** : la vitrine des primitives à 390 et 1440, et `/app/leases` dans la
+      coque refaite. Il valide ou corrige avant qu'une page ne s'appuie dessus.
+
+### Étape 1 bis — en parallèle de l'étape 1 : tout le back, et les textes
+
+Aucun ticket back ne dépend du terrain. Cinq agents, un par famille, chacun enchaîne ses tickets
+dans l'ordre de leurs `depends_on` :
+
+| Agent | Tickets, dans l'ordre |
+|---|---|
+| back-entrée (86) | 2599 · 2605 · 2607 · 2609 → 2610 · 2612 · 2680 |
+| back-coque (87) | 2620 · 2623 · 2626 · 2627 · 2630 · 2631 · 2633 |
+| back-patrimoine (88) | 2679 → 2649 → 2640 · 2637 · 2642 · 2646 · 2652 · 2655 |
+| back-commercial (89) | 2578 → 2583 → 2588 · 2579 → 2593 · 2591 (après 2588) · 2582 · 2585 · 2595 |
+| back-agence (90) | 2657 → 2658 · 2661 · 2663 · 2665 · 2666 · 2669 → 2681 · 2672 · 2674 |
+| textes | 2616 · 2683 · 2615 · 2676 (front sans dépendance au terrain : vocabulaire, vouvoiement, modale de bienvenue, matrice des rôles) |
+
+**Zones tenues par un seul agent** (deux agents n'y écrivent jamais en même temps) :
+`routes/api.php` (écrit par un agent à la fois, sous verrou `mkdir`), le modèle `Reservation`
+(back-commercial), `Lease` et l'échéancier (back-patrimoine), les paiements et relances
+(back-agence pour 2657/2658, back-patrimoine pour 2649 — **2649 attend 2657 s'ils se
+recoupent : à re-mesurer au démarrage**), les invitations (back-entrée pour 2609/2610,
+back-agence pour 2665 : 2665 passe après 2610).
+
+### Étape 2 — étalonnage, trois pages
+
+- [ ] **TCK-2617** (coque au téléphone), **TCK-2580 → TCK-2581** (la suite après une visite, le
+      P0 de la famille 5), **TCK-2659** (page Argent).
+- [ ] Les tolérances de l'outil (≤ 0,5 % de pixels sur zone à contenu identique, ±1 px de
+      dimension, ±2 px de position, ±3/255 par canal) sont **ajustées sur ces trois PR** et écrites
+      dans TCK-2684 et ADR-0106 § 5 si elles bougent.
+- [ ] **Point porteur n° 2** : il compare ces trois écrans à leurs maquettes sur le rideau de la
+      PR. Ce qu'il refuse ici corrige la méthode avant qu'elle ne s'applique à 100 pages.
+
+### Étape 3 — les pages, par famille
+
+Après l'étalonnage, les familles avancent en parallèle (au plus **quatre agents front** à la fois :
+au-delà, la machine sature et les mesures de l'outil ne valent plus rien). Chaque agent enchaîne :
+
+| Lot | Tickets, dans l'ordre (dépendances satisfaites) |
+|---|---|
+| F-coque (87) | 2618 → 2619 · 2621 · 2636 · 2635 · 2634 · 2632 |
+| F-commercial (89) | 2586 · 2584 · 2587 · 2590 · 2589 · 2592 · 2594 · 2596 · 2597 |
+| F-patrimoine (88) | 2638 → 2678 · 2643 · 2644 · 2645 · 2639 · 2641 · 2647 → 2648 · 2650 · 2651 · 2653 · 2654 · 2656 |
+| F-agence (90) | 2660 → 2682 · 2677 · 2662 · 2664 · 2667 → 2668 · 2670 · 2671 · 2673 · 2675 |
+| F-entrée (86) | 2598 → 2604 → 2606 · 2600 → 2601 → 2602 · 2603 · 2608 · 2611 · 2614 → 2613 |
+| F-accueil (87, en dernier) | 2622 (après 2596, 2618) → 2624 (après 2660) · 2625 → 2628 → 2629 (après 2657) |
+
+Les dépendances **entre familles** fixent l'ordre des lots : 2622 attend 2596 (commercial) ;
+2624 attend 2660 (agence) ; 2629 attend 2657 (back-agence) ; 2667 attend 2641 (patrimoine) ;
+2644 attend 2658 (back-agence) ; 2613 attend 2680 (back-entrée).
+
+**Zones tenues par un seul agent** : la coque (`AppShell`, `AppSidebar`, `EnTeteMobile`,
+`BarreDOnglets`, `src/data/navigation.ts`) → F-coque seul après la vague 91 ; les dictionnaires
+`fr`/`en`/`wo` → **un outil d'écriture sous verrou**, pour tous (une clé perdue des trois
+dictionnaires laisse la parité verte) ; `src/lib/queries/<domaine>.ts` → l'agent du domaine.
+
+## Le protocole d'un ticket (chaque agent, chaque ticket)
+
+1. **Re-mesurer la prémisse.** Chaque affirmation du ticket (fichier, ligne, comportement, compte)
+   est re-mesurée avant de coder ; ce qui diffère s'écrit dans « Notes d'implémentation ». *Sur un
+   lot passé, 8 tickets sur 11 étaient contredits par la mesure.*
+2. **Relever « avant »** : l'outil de fidélité sur la page réelle (téléphone, 1440, 1280 si la
+   maquette existe), et le balayage (débord, coupe nette, ellipse) à 390/768/1024/1280/1440.
+3. **TDD** : le test rouge d'abord (règle métier, autorisation par profil, isolation d'agence,
+   rendu des états), puis le code minimal, puis vert.
+4. **Fidélité** : `fidelite compare` contre les références gelées jusqu'à **0 écart hors
+   tolérance**, ou un écart accepté par l'une des trois exceptions d'ADR-0106 § 2, écrit dans le
+   tableau « écarts acceptés ».
+5. **Ablation** de chaque test de règle (retirer, rouge, restaurer par `cp`, `md5`).
+6. **Les trois états** de la page (chargement, vide, erreur) relevés et conformes.
+7. **Accessibilité** : parcours clavier (ordre, focus visible, échappement des feuilles), noms
+   accessibles des boutons-icônes, `h1` unique ; contraste par la garde.
+8. **Gardes et vérifications** : ses tests, `impacted-tests --connus`, `pint`, `lint`, `tsc`,
+   `check:i18n`, les `scripts/check-*.mjs` touchés.
+9. **Rapport JSON sur disque** (verdict d'abord : AC par AC, mesuré ou non, ablations rejouées),
+   message final d'une ligne. **Aucune commande git qui écrit** : la session commite.
+
+## Vérification adverse, avant chaque PR
+
+Un vérificateur par ticket, dont la valeur est de **refuser** : il rejoue les ablations lui-même,
+relance l'outil de fidélité et le balayage, refuse tout AC coché sans exécution derrière, et rend
+un booléen honnête (`ablation_rejouee`, `fidelite_rejouee`). Un refus repart à l'implémenteur ; la
+contre-vérification est faite par un **autre** vérificateur.
+
+## Rythme, PR et fusion
+
+- **Une PR vers `dev` par lot terminé** (ou par vague de lots), commits **un par ticket**, en
+  français, préfixés (`feat(web): … (TCK-2617)`).
+- La PR porte : le tableau des écarts par écran, le rideau maquette ↔ page, les écarts acceptés et
+  leur exception, les mesures de stabilité (CLS).
+- La **CI joue les suites** pendant que le lot suivant avance ; personne ne lance une suite entière
+  en local.
+- **Fusion seulement sur CI verte** (délégation du porteur du 2026-11-11) ; après chaque fusion, relever le run du push sur `dev` (il diffère de celui de la
+  PR : rapport de couverture).
+- Le statut d'un ticket passe à `done` **après la fusion sur `dev`**, ticket par ticket, vérifié —
+  jamais en bloc ; `node docs/backlog/ranger-tickets.mjs` range le fichier.
+- Après la fusion d'un ticket qui modifie une spec : `/sync-specs`.
+
+## Pièges déjà payés (à mettre dans chaque prompt)
+
+- L'arbre peut bouger sous l'agent : une autre session peut commiter ; vérifier `git rev-parse dev`
+  contre `HEAD` avant de brancher.
+- Une commande de plus de ~10 minutes ne se délègue pas : elle est coupée sans rien dire.
+- `timeout` n'existe pas sur ce poste : `perl -e 'alarm N; exec @ARGV'`.
+- Ne jamais arrêter une tâche de fond sans lire sa commande : elle peut appartenir à un autre agent.
+- Mesures au navigateur : **une passe à la fois**, sous le verrou
+  `mkdir <scratchpad>/verrou-mesure` (rendu en `trap`) — à quatre agents simultanés, la charge
+  monte à 300 sur 8 cœurs et les passes ne produisent plus rien.
+- Mesurer le défileur de la page (`scrollWidth − clientWidth`), pas seulement `main` : un `sr-only`
+  en position absolue dans une carte non positionnée élargit le défileur sans qu'un élément
+  visible dépasse.
+- Une ellipse n'est pas une coupe : l'outil distingue `text-overflow: ellipsis` d'un texte coupé
+  net par un ancêtre `overflow-hidden`.
+- `wo` = le texte français ; une clé neuve part avec ses trois langues.
+
+## Risques
+
+| Risque | Parade |
+|---|---|
+| TCK-2692 change un rendu tiers (Leaflet, react-day-picker) | comparaison avant/après de leurs pages dans la preuve de 2692 ; feuille de compensation ciblée |
+| Les références gelées divergent des maquettes retouchées plus tard | une retouche après le gel produit une nouvelle référence, datée et nommée dans la fiche du ticket (ADR-0106) |
+| Conflits sur les dictionnaires i18n | outil d'écriture sous verrou, refus d'écraser une valeur divergente |
+| Une page dépend d'un back non fusionné | l'API partagée tourne sur `dev` ; un front ne démarre qu'après la fusion de son back |
+| Données de démo absentes pour un état (vide, erreur, locataire avec bail) | seeders ciblés dans le ticket qui en a besoin, jamais `migrate:fresh` |
+| Saturation de la machine | quatre agents front au plus, une passe de mesure à la fois, aucune suite locale |
+
+## Journal
+
+_(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, fusion)_
+
+### 2026-11-11 — lot 1 (branche `feat/audit-ux-app-lot-1`), en cours
+
+- Commités : TCK-2599, TCK-2605, TCK-2616, TCK-2683, TCK-2620, TCK-2578, TCK-2657, TCK-2684 (partiel : gel complet en cours), TCK-2679 (AC5 avec TCK-2649), TCK-2623, TCK-2658.
+- **Décisions prises par la session** (délégation du porteur, à relire au point d'étape) :
+  - TCK-2657 AC3 : `CaseInsensitive` ne replie que la casse (ADR-0020 § 2) ; AC3 réécrit dans le ticket.
+  - TCK-2620 : un dernier espace retenu dont l'**agence** est suspendue reste lié (comme le cookie
+    et l'auto-bascule) — ADR-0004 (amendement) et ADR-0048 § 4 l'emportent sur la phrase du ticket ;
+    aucun test ne fige l'un ou l'autre. `remember=false` **efface** la valeur retenue (le ticket),
+    là où ADR-0004 § Application dit « n'écrit rien » : formulation de l'ADR à harmoniser au
+    `/sync-specs`.
+  - TCK-2616 : deux libellés de rôle partagés avec `/app` changent aussi (« Gérer les pièces de
+    l'agence », « Confirmer ou refuser une réservation »).
+  - TCK-2658 : la relance notée est réservée au personnel de l'agence du bail (nouvelle
+    `LeasePaymentPolicy::remind`, ADR-0105), pas `update` comme l'écrivait le ticket (qui ouvrait au
+    locataire et au bailleur) ; code 409 `lease_payment.not_overdue` gardé (conflit d'état, comme
+    `visit.report_not_closable`) là où ADR-0105 dit 422 : à harmoniser au `/sync-specs`.
+  - TCK-2679 : le contrôle « échéancier déjà émis » reste sur le loyer (l'étendre aux charges
+    rouvrait TCK-957) ; suivi TCK-2706 : le lien d'une relance fusionnée ne règle que le loyer, et le
+    texte « Votre loyer de … » annonce loyer + charges.
+- Commits partiels : `commiter.mjs --partiel <fichier>=<regex>` pour les fichiers partagés
+  (`lang/*/errors.php`, `docs/spatie-query-builder.md`, modèles) ; deux commits ont dû être
+  amendés (positions de hunk, doc commitée en entier) avant la garde « autres tickets cités ».
+- **Décision à reposer au porteur — repli des accents dans les recherches** : deux tickets
+  (TCK-2657 AC3, TCK-2630 AC1 → TCK-2632 AC2) voulaient que « thies » trouve « Thiès ». Tranché (a)
+  pour le lot : la casse seule (ADR-0020 § 2). Le repli des accents changerait la règle de toutes
+  les recherches : un ADR à part, si le porteur le veut.
+- Suites relevées, à ranger en tickets avant la PR : le Radar (`RadarDemandSignals`, `ClaimDemand`)
+  ne lit pas `criteria.locations` (TCK-2607) ; ~60 biens « Property Test Filter » d'owner1 sur la
+  base de démo (résidus de tests) ; `rent_period` NULL sur 381/451 biens `rent` de la démo (TCK-2703,
+  en cours).
+- Outil de clés i18n : un `wo` déjà traduit est désormais conservé (ADR-0095 § 4), signalé par
+  l'agent des textes après qu'une ablation l'a écrasé (restauré).
+- Références de fidélité gelées : PR #1665 fusionnée sur `dev` (46c0b49f1). Les dossiers
+  `references/app-*` sont non suivis sur la branche du lot : les retirer de l'arbre avant d'y
+  fusionner `dev` (contenu identique), sinon git refuse la fusion.
+- TCK-2640 : l'agent reçoit 403 sur la fiche du bailleur (`viewDetail`, admin de l'agence), mais la
+  liste (`viewAny`) lui rend les chiffres du mandat — c'est la lettre du ticket ; l'accès de l'agent à
+  la fiche reste à trancher. Le plafond de travaux s'applique aux devis **approuvés** après lui
+  (lu à l'approbation), là où models-spec dit « soumis » : `/sync-specs`. Recherche du carnet par
+  repli PHP (`Str::ascii`) sur le carnet borné d'une agence, comme `CleDeQuartier`.
+- TCK-2579 : la fabrique de réservation pose `kind = stay` par défaut. **À trancher par le porteur** :
+  depuis « seul un séjour occupe des nuits » (ADR-0102 § 3), deux candidatures DATÉES qui se
+  chevauchent sur une même location peuvent être confirmées toutes deux (lu dans le code, non
+  éprouvé). L'export iCal, l'agenda agrégé, `PortfolioMetrics` et `CompleteEndedBookingsJob` lisent
+  encore les réservations confirmées sans leur nature (hors périmètre) : suite à ranger en ticket.
+- TCK-2663 : les « contacts » d'une mise en avant comptent tous les canaux (formulaire, clics WhatsApp
+  et Appeler de `property_contact_leads`), pour la mesure comme pour « sans contact depuis 30 jours » :
+  une seule définition. Le seul formulaire = un `channel = form` à deux endroits, si le porteur le veut.
+- TCK-2610 : sous la session d'un AUTRE compte que le destinataire, `accept()` rend désormais 403
+  `invitation.email_mismatch` / `phone_mismatch` au lieu de créer le compte de l'invité (ADR-0094
+  § 7) — visible sur la page actuelle avant TCK-2611 ; `/verify` exige `phone` même pour une
+  invitation par e-mail ; le code SMS est consommé même si l'acceptation est refusée. Les trois sont
+  reportés dans le contrat de TCK-2611. Rouge de `NumeroPublieVerifieTest` sur l'aperçu public de
+  TCK-2609 (693cb3b42) : corrigé à part.
+- TCK-2631 (sécurité) : une URL signée de pièce jointe déjà émise reste lisible 30 min par qui la
+  détient, ancien membre compris (route `media.private.show` hors `auth:sanctum`, comme la note
+  vocale d'ADR-0038) ; aucune URL neuve ne lui est émise (403 sur `GET …/messages`). Accepté pour le
+  lot ; **suivi à écrire** : durée plus courte pour `attachments`, ou route authentifiée. Antivirus
+  absent : ardoise D-73 rouverte.
+- TCK-2633 : une notification sans code prend d'abord la famille de sa cible stockée
+  (`target.kind`), puis celle de son type — sinon « Mise en avant terminée » (sans code, type
+  `system`) tombait en « système » ; une table exhaustive gardée par un test. Règle ajoutée au brief :
+  tout `NotificationCode` neuf reçoit sa famille.
+- TCK-2666 : la délégation qui couvre une absence est unique **parmi les vivantes** (index partiel
+  `scheduled`/`active`), pas unique tout court comme l'écrivait l'amendement d'ADR-0035 : changer de
+  suppléant, ou couper puis rouvrir `substitute_can_act`, crée une ligne neuve et garde l'historique.
+  L'ADR est corrigé par une ligne datée.
+- TCK-2612 : pièces requises = toutes celles que l'envoi accepte sauf l'assurance RC pro
+  (`PiecesDuProfil::FACULTATIVES`) ; l'état `rejected` est au contrat mais jamais rendu — rien ne
+  consigne le refus d'une pièce de profil (suivi à écrire si l'écran doit le montrer).
+- TCK-2637 : `is_online` se demande par `include=online`, pas par `fields[]` (une exception à
+  ADR-0021 refusée par la session : c'est la voie (b) que le porteur avait écartée) ; ADR-0097 § 1
+  amendé par une ligne datée. Suivi : les autres listes de biens (`children`, biens d'un bailleur,
+  console) acceptent filtres et includes sans rendre `occupancy`/`is_online`.
+- TCK-2704 (neuf, voie coque) : donner un code aux notifications qui n'en ont pas (au moins
+  BoostEnded, PropertyProposed, UrgentMaintenanceCreated, AgencyUpgradeRequestSubmitted) — seul un
+  code rend « à traiter » juste ; passe avant TCK-2634.
+- TCK-2700 (neuf) : l'heure d'intervention envoyée avec un décalage est convertie (PATCH et
+  acceptation). **Suivi à écrire** : le même défaut sur `PropertyVisit.scheduled_at`, `Task.due_at`
+  et les autres écritures relevées dans les Notes de TCK-2700.
+- **Question au porteur — quota d'agents** (TCK-2669) : `max_agents` n'est appliqué NULLE PART —
+  `QuotaResolver::assertCanAddAgent` n'a aucun appelant (relevé par l'agent). L'écran affiche donc
+  `agents.used` = profils d'agent ACTIFS, et la méthode morte lit le même compte. **Suivi à écrire** :
+  appliquer le quota d'agents ; la définition (actifs seuls, ou tout profil non supprimé — qu'un agent
+  suspendu libère ou non une place) est une règle tarifaire à confirmer par le porteur à ce moment-là.
+- TCK-2593 : la fiche client imbriquée dans une réservation sortait entière vers tout lecteur — le
+  client lisait son étape commerciale, le bailleur du bien le téléphone et l'étape du candidat.
+  Désormais téléphone, étape et visites passées au seul personnel actif de l'agence (règle des
+  visites, TCK-590). **À confirmer par le porteur** : si le bailleur doit pouvoir joindre le
+  candidat, c'est une décision à part (aucun écran ne lisait ces champs).
+- TCK-2704 : une intervention urgente peut compter deux fois « à traiter » pour la même personne
+  (créateur du bien → `maintenance.created`, admin principal → `maintenance.urgent_created`, puis
+  l'escalade) — accepté pour le lot, à revoir avec la maquette de TCK-2634. 21 autres classes de
+  notification restent sans code (relevé dans TCK-2704 « Hors périmètre »).
+- TCK-2681 : l'approbation d'un passage en pro abonne l'agence au plan de `UpgradeOffer` dans la
+  transaction ; sans plan pro actif → 422 et rien ne reste. **Déploiement** : la production (phase
+  F) doit semer le plan pro avant la première approbation (la préproduction l'a par `PlanSeeder`).
+  **Suivi à écrire** : la recopie « si vide » d'`AgencyKindFlipService` (ADR-0104 § Application)
+  n'est portée par aucun ticket.
+- TCK-2642 : sur la démo, la file « À traiter » des baux compte 167 baux sur 358, dont 126 pour
+  `late_fee_unpaid` (surtout des pénalités de 2024 sur des baux expirés ou renouvelés). Règle du
+  ticket appliquée telle quelle. **Au porteur** : borner ce motif aux baux en cours, ou à une
+  ancienneté ? Le tri par défaut de `GET /api/leases` devient « en cours d'abord », puis
+  `-created_at`.
+- CI de la PR #1666 (2026-11-11) : rouges sur trois gardes d'architecture (TCK-2609, TCK-2583,
+  TCK-2658), `check-locale-figee` et le recensement des pages publiques (TCK-2685) — corrigés par la
+  session ; les agents ne jouaient que leurs propres tests. Le brief commun exige désormais
+  `tests/Unit/Architecture`, `tests/Feature/Architecture` et `tests/Feature/Database` côté back,
+  et toutes les gardes `scripts/check-*.mjs` côté front.
+- TCK-2672 : `POST /api/properties/{id}/reject` exige désormais `reason_code` ; l'écran qui le
+  choisira est TCK-2673 (lointain). Pont posé par la session dans le même commit :
+  `rejectProperty()` envoie `other` par défaut — à retirer quand TCK-2673 propose le choix.
+  Hors de son ticket, noté : `filter[risk]`, `sort=risk` et `meta.risk_counts` restent ouverts sur
+  la liste de l'auteur (rien n'y est révélé qu'il ne lise déjà). /sync-specs :
+  `properties.rejection_reason_code`, règle de risque d'un avis, deux routes neuves.
+- TCK-2674 (arbitré par la session) : « à rapprocher » = payé dans la période, non réglé par une
+  passerelle, non rapproché — la règle littérale laissait les 1 479 paiements de la démo hors des
+  deux paniers. Les factures restent hors de la vue d'ensemble (aucune date de paiement en base) ;
+  **suivi possible** : une colonne `paid_at` sur les factures. **Au porteur** pour confirmation.
+- TCK-2646 (arbitré par la session) : la sortie d'un bail renouvelé s'appuie sur l'entrée signée
+  de la chaîne de renouvellement (même locataire, même bien) ; le bailleur qui a conduit l'état
+  des lieux peut le contester comme partie.
+- **Décisions du porteur du 2026-11-11 (après le redémarrage de la machine)** :
+  1. `late_fee_unpaid` borné aux baux en cours (`active`, `terminating`) — fait (127e3bde9) ;
+  2. le bailleur du bien lit le téléphone et l'étape du candidat à une réservation (les visites
+     passées restent au personnel) — fait (00e529fe2) ;
+  3. arbitrages de TCK-2674 (paiements à rapprocher, factures) et TCK-2646 (sortie d'un bail
+     renouvelé, contestation) validés ;
+  4. variante de bouton sombre gardée (TCK-2686) ; la feuille du bas s'ouvre en panneau latéral dès
+     `md` (TCK-2690 → à faire dans TCK-2688) ; `/super-admin` mesurable au navigateur : le super-admin
+     de démo local est enrôlé au second facteur (secret hors dépôt, chmod 600).
+- **Plantage de la machine (2026-11-11, ~06:50)** : quatre agents jouaient en parallèle de gros lots
+  de tests. Règle de charge désormais en tête du brief : seulement les tests écrits ou modifiés,
+  jamais de dossier entier ni de seeders, ablations une à une, deux agents qui testent au plus ; la
+  régression large est celle de la CI de la PR. Le redémarrage a vidé `/private/tmp` (rapports et
+  passations des agents) : les quatre tickets en cours (TCK-2591, TCK-2646, TCK-2674, TCK-2688) sont
+  repris depuis l'arbre et leurs Notes.
+- **Reprise (2026-11-11, matinée)** : TCK-2674, TCK-2646, TCK-2591, TCK-2688 repris depuis l'arbre
+  et commités ; puis TCK-2582, TCK-2585, TCK-2595, TCK-2652 (back-3) et TCK-2689, TCK-2691
+  (terrain-4). Tout le back de l'étape 1 bis est commité, sauf TCK-2655 (en cours).
+- **Arbitrages de la session pendant la reprise** (au porteur pour confirmation) :
+  - TCK-2591 : la visite du compte d'un client ne compte que si elle porte sur un bien de l'agence
+    de la fiche (sinon fuite entre agences) ; un fait de la même seconde que la création de la fiche
+    compte (lectures d'ADR-0103 § 5, qui ne tranche aucun des deux cas).
+  - TCK-2582 : budget déduit seulement d'un prix de vente ou d'un loyer mensuel ; `seeking_cities`
+    non déduit ; une demande déjà convertie qui crée une visite rejoint sa fiche, sans 409. La note
+    `lead_message` est une seconde copie du message : un futur effacement devra la suivre.
+  - TCK-2585 : la confirmation en lot est le geste unitaire ligne par ligne, mêmes autorisations et
+    mêmes codes (parité testée sur six cas), aucune attribution implicite ; l'onglet « Aujourd'hui »
+    = toute visite du jour à Dakar, quel que soit son statut ; la recherche par nom ignore la casse,
+    pas les accents (suivi).
+  - TCK-2595 : la vue d'équipe se juge sur `crm.view_all` (capacité, pas rôle : tout agent au rôle
+    par défaut la reçoit) ; une tâche listée s'ouvre en lecture (`TaskPolicy::view`, même portée que
+    `filter[team]`), l'écriture garde sa règle (`UpdateTaskRequest` délègue à `update`).
+  - TCK-2652 : l'ancienneté d'attente est l'entrée dans la file courante (`queue_entered_at`, remis
+    à zéro par le dispatch, le refus, la réassignation) ; `a_accepter` = `can_accept` (file et bouton
+    sur une règle) ; correspondance catégorie → métier (`structural`, `appliance`, `cleaning`,
+    `pest_control`) **au porteur** — sans elle, ces demandes n'ont pas de prestataire suggéré.
+- **Web CI rouge de TCK-2688 à TCK-2691** (deux cliquets de contraste attribués à tort aux maquettes
+  locales) : corrigé par 9a4b016d9. Le compteur des encres inverses sans fond déclaré passe de 415 à
+  430 (quinze `text-muted-foreground` opaques, tous au-dessus de 4,5:1) — **suivi** : déclarer leurs
+  fonds plutôt que d'élargir le trou.
+- **Point porteur n° 1 (2026-11-11)** — captures envoyées au porteur ; la session applique ses
+  recommandations, que le porteur peut renverser : 1 feuille du bas modale dès `md` ; 2 icône du toast
+  à l'encre du toast ; 3 toast relevé au-dessus de la pastille publique ; 4 barre d'action à boutons
+  de 44 px (barre de 69) ; 5 dock flottant relevé par la barre d'action ; 6 contrôle segmenté sur les
+  neuf listes, « Aperçu / Modifier » de la fiche bien en `line` (au ticket de la page) ; 7 texte des
+  boutons à la taille du téléphone sous pointeur grossier dès `lg` ; 8 la pleine largeur retire aussi
+  `py-6` au téléphone ; 9 titres de groupe de 25,2 px gardés ; 10 avatar sans photo au repli par
+  défaut ; 11 petits écarts de la colonne alignés sur la maquette. Les points 3, 4, 5, 7 et 11 font
+  TCK-2712 avant l'étalonnage. Dette relevée (TCK-2688) : 4 `buttonVariants` sans `cn()`,
+  `aria-modal` absent de Dialog/SheetContent, texte de 11 px de DocumentShareDialog, couleurs de `cn`
+  sans test, ProfileHeader.
+- Étape 0 : maquettes archivées hors du dépôt (`~/.takussan-demo/sauvegardes/`, 2026-11-11) ;
+  locataire de démo `locataire@agency1.demo.takussan.sn` (TCK-2684).
+- **Réponses du porteur (2026-11-11, après le point n° 1)** : les onze recommandations du point
+  n° 1 sont validées ; les arbitrages de la reprise sont confirmés ; l'effacement d'un compte de
+  visiteur efface aussi les copies du compte rendu (`customer_notes`, `activity_log`) ; `/sync-specs`
+  à la fin du lot. Correspondance catégorie → métier : laissée à la recommandation de la session
+  (`structural` → maçonnerie ; `appliance` → climatisation + électricité ; deux métiers neufs
+  `cleaning` et `pest_control` ; `other` → aucune suggestion), en ticket à part.
+- **Vérification adverse, famille commerciale** (verdicts hors dépôt) : acceptés TCK-2578, 2579,
+  2582, 2585, 2593, 2595 ; refusés puis corrigés TCK-2583 (`agency_id` interdit hors super-admin,
+  e8c5a63ae), TCK-2588 (visites de la fiche au seul personnel de son agence, cd07e9c27), TCK-2591
+  (étape proposée au seul personnel, b0f642e42). Les contre-vérifications de 2583/2588 ont trouvé
+  **le même motif par un autre canal** — le bailleur auteur d'une fiche lisait l'heure d'un compte
+  rendu sur le bien d'un autre bailleur par `last_contacted_at`, `follow_up`, leur filtre et leurs
+  tris — fermé par a598a9f4f (quatre ablations rouges). **Le motif à chercher partout** : un acteur
+  hors personnel qui lit un fait interne de l'agence, y compris par un **tri** sur une valeur tue.
+- **Étalonnage (étape 2), après-midi du 2026-11-11** — TCK-2580, TCK-2581 et TCK-2659 livrés, chacun
+  refusé puis repris jusqu'à l'acceptation par un **second** vérificateur :
+  - TCK-2581 : la metadata d'une visite (avis interne de l'agence) servie à tout lecteur → au seul
+    personnel (012106f3b) ; `abilities.feedback_customer` pour le client rattaché par la fiche
+    (627ecd6e6) ; « Créer sa fiche » ne porte plus le téléphone dans l'URL et ne pré-remplit que
+    depuis `visitor_display` (65ad322aa, 8a556c9dd : le repli copiait le prospect d'une agence dans le
+    CRM d'une autre pour un compte double).
+  - TCK-2580 : l'entrée de la saisie n'était gardée sur aucune des deux pages (l'AC « le bailleur ne
+    l'a nulle part » était coché aussi par sa suppression pour tous) → tests de page entière ;
+    recherche de biens bornée à l'agence du profil personnel actif (3b7ac7cbe).
+  - TCK-2659 : l'export annonçait des « encaissements » et sortait les échéances (R1) ; le « mois » avait
+    trois sens sur un écran (M1) → `filter[paid_from]`/`filter[paid_to]` neufs côté API (9f0c10404,
+    2acfdfdea) ; **décision de session D2** : filtré sur un statut non soldé, le registre borne par
+    l'échéance, sinon par l'encaissé (a66aea9ce) ; la contre-vérification a trouvé « Échoué » à 0 pour
+    tout mois et « Restant dû » qui ignorait les impayés du mois (2fcd7fb57, 9a0808ea1, 767a9a98a).
+    **M2 à confirmer par le porteur** : les totaux du registre restent servis à un lecteur sans
+    `reports.view_agency` — ce ne sont que les sommes des lignes qu'il lit déjà (épinglé par test).
+  - Le Web CI de b5552cdb2 a rougi sur trois gardes de dépôt que les tests de l'écran ne jouent pas
+    (promesses de délai, flèche de retour unique, pluriels) : f1bd713ae. **Leçon** : un agent front
+    joue `src/test/__tests__`, `src/i18n/__tests__` et `src/components/layout/__tests__` à chaque passe.
+  - Ablations dans l'arbre partagé : un vérificateur a restauré un fichier qu'un implémenteur éditait
+    (rien de perdu, vérifié par md5) → règle : restaurer seulement si le md5 est celui du mutant, et la
+    session ne déclare un fichier libre qu'après le commit de son éditeur.
+- **Contre-vérifications finales** des correctifs du matin jamais rejoués : TCK-2583 et TCK-2658
+  acceptés ; TCK-2623 refusé pour une borne d'agence (l'équipe elle-même) gardée par aucun test.
+- **Suites écrites en tickets** (8fa7cd6ac, 0be3711b5) : TCK-2714 (groupes de milliers U+202F →
+  U+00A0, décision n° 11 du point 2) et TCK-2715 à TCK-2733, chacun portant la recommandation de
+  session comme décision provisoire, « si refusée → obsolete ». Restent hors ticket : l'état
+  « rejected » des pièces de profil (TCK-2612 — qui refuse ? spec à écrire d'abord).
+- **Statuts** : 58 tickets à `done` sur verdict accepté (9d0725918) ; TCK-2623 suit son test.
+  `/sync-specs` (demandé par le porteur pour la fin du lot) part en PR à part après la fusion.
+
+### 2026-11-11 — lot 1 fusionné, lot 2 ouvert (branche `feat/audit-ux-app-lot-2`)
+
+- #1666 (lot 1, 59 tickets) fusionnée sur `dev` (747bacc29), CI du push verte ; `/sync-specs` en #1667 (db5b31b64) ; suites TCK-2734 à 2737 et TCK-2713 à done (vérification adverse acceptée) en #1668 (ea1211cf4).
+- Deux créneaux de test pour tous les agents (`mkdir creneau-1|creneau-2`), consigne du porteur après le plantage de la machine ; au plus deux agents testent à la fois, et non quatre agents front comme l'écrivait l'étape 3.
+- Décisions du porteur (« je valide tout ») : TCK-2659 M2 (les totaux du registre sont la somme des lignes que le lecteur lit, même sans `reports.view_agency`) et D2 (un statut impayé borne par l'échéance, sinon par le paiement) gardés ; TCK-2719, 2722, 2723, 2726, 2734 et 2736 en (a). TCK-2737 en (b), deux modes, choix du team-lead.
+- En cours : F-coque (terrain-5, 2618), F-commercial (terrain-4, 2586), suites back (back-3, 2735), vérification de 2704 (son code était déjà sur `dev` ; tests par les vrais émetteurs ajoutés).

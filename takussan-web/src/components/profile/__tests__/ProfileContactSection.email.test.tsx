@@ -71,7 +71,7 @@ describe('<ProfileContactSection> — adresse e-mail (TCK-632)', () => {
     });
     render(withIntl(<ProfileContactSection user={COMPTE_TELEPHONE} />));
 
-    const champ = screen.getByLabelText('Email');
+    const champ = screen.getByLabelText('Courriel');
     expect(champ).not.toBeDisabled();
     expect(champ).not.toHaveAttribute('readonly');
     expect(screen.getByText(/nous vous enverrons un lien/i)).toBeInTheDocument();
@@ -105,10 +105,10 @@ describe('<ProfileContactSection> — adresse e-mail (TCK-632)', () => {
     updateProfileMock.mockResolvedValue({ ok: true, user: { ...verifie, bio: 'Bio' } });
     render(withIntl(<ProfileContactSection user={verifie} />));
 
-    expect(screen.getByLabelText('Email')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText('Courriel')).toHaveAttribute('readonly');
     expect(screen.queryByTestId('email-verify-block')).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Bio'), 'Bio');
+    await user.type(screen.getByLabelText('Présentation'), 'Bio');
     await user.click(screen.getByTestId('contact-save'));
 
     await waitFor(() => expect(updateProfileMock).toHaveBeenCalled());
@@ -119,7 +119,7 @@ describe('<ProfileContactSection> — adresse e-mail (TCK-632)', () => {
     const user = userEvent.setup();
     render(withIntl(<ProfileContactSection user={{ ...COMPTE_TELEPHONE, email: 'awa@example.sn' }} />));
 
-    const champ = screen.getByLabelText('Email');
+    const champ = screen.getByLabelText('Courriel');
     await user.clear(champ);
     await user.type(champ, 'AWA@example.sn');
 
@@ -130,7 +130,7 @@ describe('<ProfileContactSection> — adresse e-mail (TCK-632)', () => {
     const user = userEvent.setup();
     render(withIntl(<ProfileContactSection user={{ ...COMPTE_TELEPHONE, email: 'awa@example.sn' }} />));
 
-    const champ = screen.getByLabelText('Email');
+    const champ = screen.getByLabelText('Courriel');
     await user.clear(champ);
     expect(screen.getByRole('alert')).toHaveTextContent(/adresse e-mail valide/i);
     expect(screen.getByTestId('contact-save')).toBeDisabled();

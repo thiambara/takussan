@@ -1,0 +1,237 @@
+{
+ "ticket": "TCK-2621",
+ "ecrans": [
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 6,
+   "nom": "Choisir un espace (connexion)",
+   "references": {
+    "telephone": "references/app-coque/a-6-telephone.json",
+    "bureau-1440": "references/app-coque/a-6-bureau-1440.json",
+    "bureau-1280": "references/app-coque/a-6-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "deux_espaces",
+    "etat": "compte 176 (agent chez Dakar Immo, propriétaire chez Thiès Properties), SANS cookie d’espace ni espace retenu sur le compte (`users.metadata.last_active_profile` nul) : le layout de /app rend l’écran à la place de la coque. Relevé AVANT le choix d’AC1, qui retient l’espace."
+   }
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Compte et espaces",
+   "references": {
+    "telephone": "references/app-coque/a-5-telephone.json",
+    "bureau-1440": "references/app-coque/a-5-bureau-1440.json",
+    "bureau-1280": "references/app-coque/a-5-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "deux_espaces",
+    "etat": "même compte, l’espace choisi DANS la page sans le retenir (`--perturber choisir-compte-telephone.js` / `choisir-compte-bureau.js` : Thiès Properties, case décochée — `remember=false`, le compte reste sans espace retenu), puis la feuille du compte au téléphone, le menu au pied de la colonne au bureau. Ce ticket n’y juge que le bloc « Vos espaces » ; le reste de l’écran est jugé par TCK-2619."
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app",
+  "persona": "deux_espaces",
+  "disposition": "bailleur",
+  "etat": "voir chaque écran (`ecrans[].produit`)",
+  "defiler": null,
+  "perturber": null
+ },
+ "coque": false,
+ "_coque": "L’écran de choix REMPLACE la coque (ni colonne, ni en-tête, ni barre d’onglets) : les rôles de coque de roles-coque.json n’y trouvent rien, et au bureau la « barre latérale » (zone pleine hauteur) apparie le fond de la maquette au <body> du produit. Ils sont écartés ; le dialogue du bureau est désigné par son titre.",
+ "roles": [
+  {
+   "appareil": "desktop",
+   "nom": "choix · dialogue",
+   "maquette": {
+    "boiteDe": "Dans quel espace travaillez-vous ?",
+    "min": 300
+   },
+   "produit": {
+    "boiteDe": "Dans quel espace travaillez-vous ?",
+    "min": 300
+   },
+   "contenu": false
+  }
+ ],
+ "_roles": "`contenu: false` : l’ordre des cartes diffère (cf. écarts acceptés, « ordre des espaces »), et l’appariement du contenu par ordre de lecture comparerait « Dakar Immo » à « Thiès Properties ». Les libellés se comparent par ancre.",
+ "zones": [],
+ "_zones": "Aucune zone à contenu identique : l’écran de choix n’a ni coque, ni tête de page, ni barre de filtres, et tout son contenu dépend du compte (prénom, agences, rôles, villes). Le bloc « Vos espaces » de a-5 est jugé par ancres et par la géométrie relevée (`mesures`).",
+ "alias": {
+  "Se souvenir de mon choix sur cet appareil": "Se souvenir de mon choix",
+  "Continuer en tant que cliente": "Continuer en tant que client",
+  "Agent · Dakar": "Agent",
+  "Propriétaire · Thiès": "Propriétaire"
+ },
+ "_alias": {
+  "Se souvenir de mon choix sur cet appareil → Se souvenir de mon choix": "« sur cet appareil » serait faux : `remember` retient l’espace sur le COMPTE (`users.metadata.last_active_profile`, TCK-2620), qui le retrouve depuis tout appareil ; c’est ce qu’AC2 éprouve (reconnexion sans cookie).",
+  "Continuer en tant que cliente → Continuer en tant que client": "le produit ne connaît pas le genre du compte : le libellé garde la forme non marquée, comme « client » ailleurs dans /app.",
+  "Agent · Dakar → Agent, Propriétaire · Thiès → Propriétaire": "DONNÉE : la sous-ligne est « rôle · ville » (`sousLigneDEspace`), et les deux agences de la base de démo n’ont aucune adresse (`agency.city` nul) ; la ville est omise avec son séparateur. Le porteur de l’équipe a refusé d’écrire des adresses dans la base : « les agences sans adresse sont un cas réel, et l’écran doit le tenir ». Le cas avec ville est épinglé par FeuilleDuCompte.espaces.tck-2621 et ChoixDEspace.tck-2621 (« Propriétaire · Thiès », « Agent · Dakar »).",
+  "phrase d’accueil : « … depuis l’accueil » (téléphone) / « … depuis le menu du compte » (bureau)": "la maquette écrit deux fins de phrase selon l’appareil ; le produit en garde une, « depuis le menu du compte », vraie aux deux tailles : au téléphone, la feuille « Mon compte » s’ouvre du bouton d’espace de l’en-tête de l’accueil (TCK-2617) et depuis l’onglet « Menu ». La phrase est une donnée pour l’outil (prénom) : elle n’est pas comparée."
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-6-*, a-5-*",
+   "element": "ordre des espaces",
+   "propriete": "position",
+   "exception": "donnée",
+   "motif": "la maquette met Dakar Immo (agent) en tête et la présélectionne ; le produit range les espaces par rôle, propriétaire d’abord (`TYPE_ORDER`), le MÊME ordre dans l’écran de choix, la feuille et le menu du compte (contrainte « pas de régression : le regroupement des espaces par rôle »). La présélection suit : la première carte. Les icônes « coche » et les cartes se croisent donc d’une ligne (Δ y des `lucide-check`)."
+  },
+  {
+   "ecran": "a-6-*, a-5-*",
+   "element": "hauteur des cartes d’espace",
+   "propriete": "hauteur, positions qui suivent",
+   "exception": "donnée",
+   "motif": "la maquette écrit trois lignes (agence, « rôle · ville », compteurs) ; le produit deux, la ville étant absente de la base (cf. `_alias`) et les compteurs hors périmètre du ticket. Cartes de 79,5 px au lieu de 103 (téléphone, écran de choix), 66 au lieu de 79 (feuille) ; tout ce qui suit remonte d’autant."
+  },
+  {
+   "ecran": "a-6-*",
+   "element": "prénom de la phrase d’accueil",
+   "propriete": "texte",
+   "exception": "donnée",
+   "motif": "« Sokhna » dans la maquette, « Khady » pour le compte 176 ; même phrase (`profile.choixDEspace.sousTitre`), pluriel compris."
+  },
+  {
+   "ecran": "a-6-*, a-5-*",
+   "element": "sigle de l’espace non retenu",
+   "propriete": "fond, couleur",
+   "exception": "accessibilité (ADR-0106 § 2 a)",
+   "motif": "la maquette écrit `accent/15` + `text-accent` (sous 4,5:1, et l’accent est réservé aux badges featured, `check-valeurs-arbitraires-app`) ; le produit prend le repli de l’avatar, `secondary` / `primary-deep` (6,72:1). Le sigle retenu est conforme (`primary`)."
+  },
+  {
+   "ecran": "a-6-*, a-5-*",
+   "element": "pastille vide de l’espace non retenu",
+   "propriete": "couleur du bord",
+   "exception": "accessibilité (ADR-0106 § 2 a)",
+   "motif": "la maquette écrit `border` (1,26:1) ; le produit `controle-vide` (`--input`, 3,59:1 sur `--card`), WCAG 1.4.11."
+  },
+  {
+   "ecran": "a-6-*",
+   "element": "case « Se souvenir de mon choix »",
+   "propriete": "taille, position (1 px), rayon",
+   "exception": "primitive (ADR-0106 § 2 c)",
+   "motif": "la maquette dessine une case de 20 px rayon 8 ; le produit rend la primitive `Checkbox` (18 px, `rounded-case`), la seule case de /app."
+  },
+  {
+   "ecran": "a-6-bureau-1440, a-6-bureau-1280",
+   "element": "sigle des cartes",
+   "propriete": "taille de police",
+   "exception": "technique",
+   "motif": "la maquette écrit 14 px fixes à 1440 ; le produit `text-sm`, 12,6 px à la densité ×0,9 du bureau (ADR-0107). Aucun jeton de texte ne vaut 14 px fixes au bureau, et `check-valeurs-arbitraires-app` refuse une taille entre crochets ; le sigle est décoratif (`aria-hidden`). Sa boîte suit la maquette : `md:size-11`, 39,6 px pour 40."
+  },
+  {
+   "ecran": "a-5-bureau-1440, a-5-bureau-1280",
+   "element": "sigle des lignes du menu",
+   "propriete": "taille de police",
+   "exception": "technique",
+   "motif": "même cause : 12 px fixes dans la maquette, `text-xs` (10,8) au bureau. Boîte et rayon suivent la maquette : `size-9 rounded-xl`, 32,4 px pour 32, rayon 12,6."
+  },
+  {
+   "ecran": "a-6-bureau-1440, a-6-bureau-1280",
+   "element": "dialogue de choix",
+   "propriete": "largeur (−1,6 px), interligne de la case (22,5 pour 21,4)",
+   "exception": "technique",
+   "motif": "largeur : `max-w-xl`, jeton de conteneur à densité ×0,9 (518,4 px pour 520) ; interligne : le jeton `text-corps` (15/22,5) sert la case au téléphone et au bureau, la maquette lui donne au bureau l’interligne de `text-sm`. Hauteur de la ligne identique (39,6 px, `min-h-11`)."
+  },
+  {
+   "ecran": "a-6-bureau-1440, a-6-bureau-1280",
+   "element": "dialogue de choix",
+   "propriete": "ombre (notation)",
+   "exception": "technique",
+   "motif": "même ombre, `shadow-carte-d-entree` (0 24px 60px −28px, `--shadow-color` à 45 %, jeton nommé par ce ticket) ; la maquette la compose `in_oklab`, le produit `in_srgb` comme toutes les ombres nommées (docs/design-guidelines.md : même couleur rendue). L’outil compare la chaîne calculée."
+  },
+  {
+   "ecran": "a-5-bureau-1440, a-5-bureau-1280",
+   "element": "ligne de l’espace retenu dans le menu du compte",
+   "propriete": "fond",
+   "exception": "état de capture",
+   "motif": "le perturbateur ouvre le menu par un `click()` de script : base-ui met la première ligne en `data-highlighted` (`bg-muted`), qui couvre `bg-primary/5`. Même artefact relevé par TCK-2619 (TCK-2619.absents.json, « data-highlighted »)."
+  },
+  {
+   "ecran": "a-5-telephone",
+   "element": "feuille du compte",
+   "propriete": "position verticale (Δ y +82 de tout le bloc)",
+   "exception": "donnée",
+   "motif": "la feuille est ancrée en bas et sa hauteur suit son contenu : cartes de deux lignes (cf. « hauteur des cartes ») et pas de ligne « Crédits » pour ce compte (décision du porteur, TCK-2619). À l’intérieur de la feuille, le bloc est à la place de la maquette : « Vos espaces » à 120 px du haut de la feuille des deux côtés, cartes, sigles (40 px, rayon 14) et pastilles conformes."
+  },
+  {
+   "ecran": "a-5-bureau-1440, a-5-bureau-1280",
+   "element": "menu du compte › « Vos espaces »",
+   "propriete": "boîte du libellé (x −3, largeur +5,6), position verticale (Δ y −54)",
+   "exception": "primitive (ADR-0106 § 2 c)",
+   "motif": "le libellé est la primitive `DropdownMenuLabel` (`px-3`) dans le `p-1` du menu : sa BOÎTE va d’un bord à l’autre, son texte commence à 21,4 px contre 20,8. Le menu s’ouvre vers le haut depuis le pied de la colonne, sa hauteur suit son contenu (lignes sans « Crédits », cf. TCK-2619). Les cartes suivent la maquette au dixième : x 13,3 / 13,6, largeur 217,8 / 217,6 (`px-0.75`), sigle 32,4 / 32 à 21,5 / 21,8, texte à 64,7 / 64,6, coche à 201,3 / 201,4."
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "element": "compteurs par espace (« 4 demandes · 2 visites aujourd’hui », « 2 biens · 1 loyer en retard »)",
+   "ticket": "—",
+   "motif": "Hors périmètre du ticket : l’API ne les sert pas sans une lecture par espace."
+  },
+  {
+   "element": "a-5 · tout ce qui n’est pas le bloc « Vos espaces » (tête du compte, raccourcis, lignes, langue, déconnexion, colonne)",
+   "ticket": "TCK-2619",
+   "motif": "jugé par la fiche TCK-2619 sur le persona agent."
+  }
+ ],
+ "mesures": {
+  "a-5-bureau-1280-choisir-compte-bureau": {
+   "ligne": "4 conformes · 41 écarts · 114 absents · 14.8 % pixels",
+   "releve_le": "2026-11-11 20:47 Z",
+   "commit": "50228121dd20",
+   "rideau": ".fidelite/TCK-2621/cmp-a-5-bureau-1280-choisir-compte-bureau/"
+  },
+  "a-5-bureau-1440-choisir-compte-bureau": {
+   "ligne": "4 conformes · 41 écarts · 114 absents · 13.92 % pixels",
+   "releve_le": "2026-11-11 20:47 Z",
+   "commit": "50228121dd20",
+   "rideau": ".fidelite/TCK-2621/cmp-a-5-bureau-1440-choisir-compte-bureau/"
+  },
+  "a-5-telephone-choisir-compte-telephone": {
+   "ligne": "18 conformes · 9 écarts · 48 absents · 17.21 % pixels",
+   "releve_le": "2026-11-11 20:46 Z",
+   "commit": "50228121dd20",
+   "rideau": ".fidelite/TCK-2621/cmp-a-5-telephone-choisir-compte-telephone/"
+  },
+  "a-6-bureau-1280": {
+   "ligne": "4 conformes · 7 écarts · 1 absents · 5.36 % pixels",
+   "releve_le": "2026-11-11 20:44 Z",
+   "commit": "50228121dd20",
+   "rideau": ".fidelite/TCK-2621/cmp-a-6-bureau-1280/"
+  },
+  "a-6-bureau-1440": {
+   "ligne": "4 conformes · 7 écarts · 1 absents · 4.76 % pixels",
+   "releve_le": "2026-11-11 20:43 Z",
+   "commit": "50228121dd20",
+   "rideau": ".fidelite/TCK-2621/cmp-a-6-bureau-1440/"
+  },
+  "a-6-telephone": {
+   "ligne": "5 conformes · 5 écarts · 1 absents · 6.89 % pixels",
+   "releve_le": "2026-11-11 20:43 Z",
+   "commit": "50228121dd20",
+   "rideau": ".fidelite/TCK-2621/cmp-a-6-telephone/"
+  },
+  "balayage-a-6": {
+   "largeurs": "360, 390, 768, 1024, 1280, 1440",
+   "debord": 0,
+   "coupes": 0,
+   "ellipses": 0,
+   "commande": "node scripts/fidelite/fidelite.mjs balayer --url /app --persona deux_espaces --largeurs 360,390,768,1024,1280,1440"
+  },
+  "sans-defilement-telephone": {
+   "390x844": "scrollHeight 844 = innerHeight ; « Continuer dans … » finit à 760, « Continuer en tant que client » à 812",
+   "360x780": "scrollHeight 780 = innerHeight ; bas des actions à 696 et 748",
+   "releve_le": "2026-11-11 20:50 Z"
+  }
+ },
+ "_absents": "Aucun libellé ni aucune icône du bloc « Vos espaces » (a-5) et de l’écran de choix (a-6) n’est absent sans alias ou motif. Écran de choix : « Vos espaces » y est la `<legend>` masquée du groupe de radios (lecteur d’écran, `sr-only`), que la maquette n’a pas — absent de la maquette par motif d’accessibilité. Compte et espaces : les absents des rapports a-5 tombent HORS du bloc (raccourcis de l’accueil du bailleur sous la feuille, groupes « Catalogue »/« Gestion » de l’agent contre « Activité » du bailleur dans la colonne) — persona de la page, jugée par TCK-2619."
+}

@@ -22,6 +22,11 @@ const STATUTS: Record<MatchedPaymentType, { readonly espace: string; readonly va
     espace: 'payments.status',
     valeurs: ['pending', 'paid', 'late', 'partially_paid', 'failed', 'refunded', 'cancelled'],
   },
+  // TCK-2793 — la pénalité payée seule : le statut de son échéance.
+  lease_payment_late_fee: {
+    espace: 'payments.status',
+    valeurs: ['pending', 'paid', 'late', 'partially_paid', 'failed', 'refunded', 'cancelled'],
+  },
   invoice: {
     espace: 'payments.invoiceStatus',
     valeurs: ['draft', 'sent', 'paid', 'overdue', 'cancelled', 'void'],

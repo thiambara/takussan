@@ -1,8 +1,12 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import fr from '@/messages/fr.json';
 import { withIntl } from '@/test/intl';
 import { navigationDeTest } from '@/test/navigation-url';
 import { AuditTrail } from '../AuditTrail';
@@ -195,8 +199,9 @@ describe('<AuditTrail> (TCK-376)', () => {
 
     const lien = await within(await celluleObjet()).findByRole('link');
     expect(lien).toHaveAttribute('href', '/app/properties/12');
-    expect(lien).toHaveTextContent('Property');
-    expect(lien).toHaveTextContent('#12');
+    // TCK-2676 — le libellé, plus « Property #12 » ; le nom du modèle au survol.
+    expect(lien).toHaveTextContent(/^Bien immobilier n° 12$/);
+    expect(lien).toHaveAttribute('title', 'Property #12');
   });
 
   it.each([
@@ -215,9 +220,9 @@ describe('<AuditTrail> (TCK-376)', () => {
   // exactement le cas qu'une résolution par convention (`Property` → `/properties`) aurait
   // envoyé sur un 404.
   it.each([
-    ['App\\Models\\Invoice', 9, 'Invoice'],
-    ['App\\Models\\User', 4, 'User'],
-  ])('AC4 — %s n’a pas d’écran : la cellule reste du texte', async (subject_type, subject_id, court) => {
+    ['App\\Models\\Invoice', 9, 'Facture'],
+    ['App\\Models\\User', 4, 'Utilisateur'],
+  ])('AC4 — %s n’a pas d’écran : la cellule reste du texte', async (subject_type, subject_id, libelle) => {
     mockFetchLogs.mockResolvedValue(reponse([makeLog({ subject_type, subject_id })]));
     render(wrap(<AuditTrail />));
     await waitFor(() => expect(mockFetchLogs).toHaveBeenCalled());
@@ -225,8 +230,7 @@ describe('<AuditTrail> (TCK-376)', () => {
     const cellule = await celluleObjet();
     expect(within(cellule).queryByRole('link')).not.toBeInTheDocument();
     // Le libellé, lui, ne disparaît PAS : le journal continue de dire de quoi il parle.
-    expect(cellule).toHaveTextContent(court);
-    expect(cellule).toHaveTextContent(`#${subject_id}`);
+    expect(cellule).toHaveTextContent(`${libelle} n° ${subject_id}`);
   });
 
   it('AC4 — une ligne sans objet rend un tiret, jamais un lien', async () => {
@@ -250,7 +254,7 @@ describe('<AuditTrail> (TCK-376)', () => {
 
     const cellule = await celluleObjet();
     expect(within(cellule).queryByRole('link')).not.toBeInTheDocument();
-    expect(cellule).toHaveTextContent('Property');
+    expect(cellule).toHaveTextContent(/^Bien immobilier$/);
   });
 
   // ─── AC5 — le menu d'export passe par la primitive du dépôt ────────────────────────────────
@@ -431,8 +435,8 @@ describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => 
     expect(acteur.textContent).not.toBe('system');
   });
 
-  // P06.09 (TCK-2336) — l'inconnu se lit par sa DESCRIPTION brute, plus par son code ; sans
-  // description, par son code : le journal n'en cache toujours aucun.
+  // P06.09 (TCK-2336) — l'inconnu se lit par sa DESCRIPTION, plus par son code. TCK-2676 : sans
+  // description qui soit une phrase, « Autre action », le code au survol — jamais brut à l'écran.
   it('un événement métier porte son libellé, un événement inconnu se lit par sa description', async () => {
     mockFetchLogs.mockResolvedValue(reponse([
       makeLog({ id: 1, event: 'agent_suspended', description: 'agent_suspended' }),
@@ -445,7 +449,8 @@ describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => 
     const lignes = await screen.findAllByRole('row');
     expect(within(lignes[1]).getAllByRole('cell')[2]).toHaveTextContent(/^Agent suspendu$/);
     expect(within(lignes[2]).getAllByRole('cell')[2]).toHaveTextContent(/^Agent invité$/);
-    expect(within(lignes[3]).getAllByRole('cell')[2]).toHaveTextContent(/^evenement_sans_description$/);
+    expect(within(lignes[3]).getAllByRole('cell')[2]).toHaveTextContent(/^Autre action$/);
+    expect(within(lignes[3]).getByTitle('evenement_sans_description')).toBeInTheDocument();
   });
 
   it('P06.09 — la description brute quitte l’écran : plus de colonne « Description »', async () => {
@@ -459,5 +464,114 @@ describe('<AuditTrail> — membre et acteur système (TCK-601 · AC18b)', () => 
     expect(within(lignes[1]).getAllByRole('cell')[2]).toHaveTextContent(/^Export$/);
     expect(screen.queryByRole('columnheader', { name: 'Description' })).not.toBeInTheDocument();
     expect(screen.queryByText('Exported audit trail')).not.toBeInTheDocument();
+  });
+  // ─── TCK-2676 — des mots et non des codes ──────────────────────────────────────────────────
+  it('TCK-2676 AC4 — une réservation expirée ne montre ni `booking_expired` ni `Booking #276`', async () => {
+    mockFetchLogs.mockResolvedValue(reponse([
+      makeLog({ event: 'booking_expired', description: 'booking_expired', subject_type: 'App\\Models\\Booking', subject_id: 276 }),
+    ]));
+    render(wrap(<AuditTrail />));
+
+    const lignes = await screen.findAllByRole('row');
+    const ligne = lignes[1];
+    expect(ligne.textContent).not.toContain('booking_expired');
+    expect(ligne.textContent).not.toContain('Booking');
+    expect(within(ligne).getAllByRole('cell')[2]).toHaveTextContent(/^Réservation expirée$/);
+    expect(within(ligne).getAllByRole('cell')[3]).toHaveTextContent(/^Réservation n° 276$/);
+    // Les codes restent au survol, pour le support.
+    expect(within(ligne).getByTitle('booking_expired')).toBeInTheDocument();
+    expect(within(ligne).getByRole('link')).toHaveAttribute('title', 'Booking #276');
+  });
+
+  it('TCK-2676 — aucune valeur d’API rendue brute : événements, types d’objet, inconnus compris', async () => {
+    // Les couples relevés sur le journal de démo d'une agence (`activity_log` où `agency_id` est
+    // posé, 2026-11-11), plus un événement et un type d'objet que le front ne connaît pas.
+    const RELEVES: [string, string, string][] = [
+      ['created', 'created', 'App\\Models\\LeasePayment'],
+      ['updated', 'updated', 'App\\Models\\CustomerNote'],
+      ['paid', 'marked as paid', 'App\\Models\\LeasePayment'],
+      ['booking_expired', 'booking_expired', 'App\\Models\\Booking'],
+      ['super_admin_subscription_assigned', 'Agency subscription assigned', 'App\\Models\\AgencySubscription'],
+      ['property.report_resolved', 'property.report_resolved', 'App\\Models\\Property'],
+      ['kyc_submitted', 'Dossier KYC soumis', 'App\\Models\\KycDossier'],
+      ['invitation_accepted', 'invitation_accepted', 'App\\Models\\Invitation'],
+      ['agent_invited', 'agent_invited', 'App\\Models\\Invitation'],
+      ['owner_onboarding_completed', 'owner_onboarding_completed', 'App\\Models\\Profiles\\OwnerProfile'],
+      ['sp_collaboration_added', 'sp_collaboration_added', 'App\\Models\\Profiles\\ServiceProviderAgencyCollaboration'],
+      ['host_individual_onboarded', 'host_individual_onboarded', 'App\\Models\\Agency'],
+      ['created', 'created', 'App\\Models\\Profiles\\AgentProfile'],
+      ['created', 'created', 'App\\Models\\BookingPayment'],
+      ['updated', 'updated', 'App\\Models\\CommissionEntry'],
+      ['evenement_de_demain', 'evenement_de_demain', 'App\\Models\\Gadget'],
+    ];
+    mockFetchLogs.mockResolvedValue(reponse(RELEVES.map(([event, description, subject_type], i) =>
+      makeLog({ id: i + 1, event, description, subject_type, subject_id: 100 + i }))));
+    render(wrap(<AuditTrail />));
+
+    const lignes = (await screen.findAllByRole('row')).slice(1);
+    expect(lignes).toHaveLength(RELEVES.length);
+    lignes.forEach((ligne, i) => {
+      const [event, description, fqcn] = RELEVES[i];
+      const court = fqcn.split('\\').pop() as string;
+      const [, , action, objet] = within(ligne).getAllByRole('cell');
+      expect(action.textContent, `ligne ${event}`).not.toContain(event);
+      // Ni le code, ni une description qui en a la forme (`created`, `marked as paid` en anglais).
+      expect(action.textContent, `ligne ${event}`).not.toMatch(/^[a-z0-9_. -]+$/);
+      if (description !== 'Dossier KYC soumis') expect(action.textContent).not.toBe(description);
+      // Un événement relevé a sa phrase : « Autre action » est réservé à l'inconnu.
+      if (event !== 'evenement_de_demain') expect(action.textContent, `ligne ${event}`).not.toBe('Autre action');
+      expect(objet.textContent, `objet ${fqcn}`).not.toContain('#');
+      expect(objet.textContent, `objet ${fqcn}`).toMatch(/^\D+ n° \d+$/);
+      // Un nom de modèle composé (`LeasePayment`, `AgentProfile`) n'est jamais un mot français.
+      if (/[a-z][A-Z]/.test(court)) expect(objet.textContent, `objet ${fqcn}`).not.toContain(court);
+    });
+    expect(within(lignes.at(-1) as HTMLElement).getAllByRole('cell')[2]).toHaveTextContent(/^Autre action$/);
+    expect(within(lignes.at(-1) as HTMLElement).getAllByRole('cell')[3]).toHaveTextContent(/^Autre objet n° 115$/);
+  });
+
+  it('TCK-2676 — un identifiant long se lit tel quel, sans séparateur de milliers', async () => {
+    mockFetchLogs.mockResolvedValue(reponse([
+      makeLog({ subject_type: 'App\\Models\\LeasePayment', subject_id: 12345 }),
+    ]));
+    render(wrap(<AuditTrail />));
+    expect(await celluleObjet()).toHaveTextContent(/^Paiement de loyer n° 12345$/);
+  });
+
+  it('TCK-2676 — la date au format commun, plus « 01/08/2026 10:00 »', async () => {
+    mockFetchLogs.mockResolvedValue(reponse());
+    render(wrap(<AuditTrail />));
+    const lignes = await screen.findAllByRole('row');
+    const date = within(lignes[1]).getAllByRole('cell')[0];
+    expect(date).toHaveTextContent('1 août 2026, 10:00');
+    expect(date.textContent).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
+  });
+
+  /**
+   * Chaque événement qu'écrit l'API a son libellé, sauf ceux de la console de la plateforme
+   * (`super_admin_*`, `radar_*`, `ops_*`, `search_alias_*`), qu'une agence ne lit pas. Sans
+   * libellé, la ligne se lirait « Autre action » : pas brute, mais muette.
+   *
+   * ⚠ CE QU'IL VOIT : `->event('x')`, `->event($c ? 'x' : 'y')` et les constantes `…EVENT = 'x'`.
+   * Il ne voit PAS un nom passé par variable (`->event($category)` de la passation d'un agent,
+   * `$this->log($collaboration, $actor, 'x')`…) : ceux-là ont leur libellé, posé à la main.
+   */
+  it('TCK-2676 — chaque événement d’agence écrit par l’API a son libellé', () => {
+    const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..', 'takussan-api', 'app');
+    const evenements = new Set<string>();
+    for (const f of readdirSync(racine, { recursive: true }) as string[]) {
+      if (!f.endsWith('.php')) continue;
+      const php = readFileSync(join(racine, f), 'utf8');
+      for (const m of php.matchAll(/->event\('([a-z_.]+)'\)/g)) evenements.add(m[1]);
+      for (const m of php.matchAll(/->event\(\$\w+ \? '([a-z_.]+)' : '([a-z_.]+)'\)/g)) evenements.add(m[1]).add(m[2]);
+      if (/->event\((?:self|static|\w+)::\w*EVENT\)/.test(php)) {
+        for (const m of php.matchAll(/const \w*EVENT = '([a-z_.]+)';/g)) evenements.add(m[1]);
+      }
+    }
+    expect(evenements.size, 'aucun événement relevé — la garde n’aurait rien vérifié').toBeGreaterThan(50);
+    const libelles = fr.admin.audit.events as Record<string, string>;
+    const sansLibelle = [...evenements]
+      .filter((e) => !/^(super_admin_|radar_|ops_|search_alias_)/.test(e))
+      .filter((e) => !libelles[e.replace(/\./g, '_')]);
+    expect(sansLibelle).toEqual([]);
   });
 });

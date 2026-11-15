@@ -129,4 +129,20 @@ class RoleDelegationPolicy
             || $absence->delegator_id === $user->id
             || $this->viewAny($user, $absence->agency);
     }
+
+    /**
+     * TCK-2666 (ADR-0035, amendement du 2026-11-10) — modifier une absence : ceux qui peuvent la
+     * révoquer. Quand la modification CRÉE ou CHANGE le droit d'agir du remplaçant (`$touchesGrant` :
+     * une délégation liée restera en cours, et ses dates, son remplaçant ou son existence bougent),
+     * il faut en plus pouvoir déléguer (`create`), comme sur la page Rôles. Retirer ce droit, ou ne
+     * toucher qu'au motif, n'accorde rien : la règle de la révocation suffit.
+     */
+    public function updateAbsence(User $user, RoleDelegation $absence, bool $touchesGrant): bool
+    {
+        if (! $this->revokeAbsence($user, $absence)) {
+            return false;
+        }
+
+        return ! $touchesGrant || $this->viewAny($user, $absence->agency);
+    }
 }

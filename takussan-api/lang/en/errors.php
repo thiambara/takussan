@@ -61,9 +61,15 @@ return [
     'agency_upgrade' => [
         // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
         'kyc_not_verified' => 'The agency KYC dossier must be verified before its upgrade to a professional agency can be approved.',
+        // TCK-2681 — the upgrade plan (billing.upgrade_plan_code) is missing or retired.
+        'plan_unavailable' => 'The pro upgrade plan is missing or retired: reactivate it before approving.',
+        // TCK-2730 — the open subscription carries a negotiated fee or quotas: the upgrade would close it without carrying them over.
+        'subscription_has_overrides' => 'This agency\'s current subscription carries overrides (fee or quotas): remove them before approving its switch to a professional agency.',
     ],
     'agent_absence' => [
         'overlaps' => 'An absence of this member is already scheduled or ongoing over this period.',
+        // TCK-2666 — modifier une absence terminée ou révoquée.
+        'closed' => 'This absence has ended or been revoked: it can no longer be changed.',
     ],
     'agent_handover' => [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
@@ -100,16 +106,24 @@ return [
         'unauthenticated' => 'You must be signed in.',
     ],
     'booking' => [
+        // TCK-2734 (décision 7 du porteur, 2026-11-12 : le bail libère le bien à son envoi en signature)
+        'application_already_accepted' => 'Another application has already been accepted for this property: cancel it, or send its lease for signature, before accepting a second one.',
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
+        // TCK-2579
+        'customer_required' => 'A booking recorded by the agency must name a customer.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
         'dates_unavailable' => 'These dates are not available for this property.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
+        // TCK-2579
+        'kind_mismatch' => 'This kind of request does not match the property: an application is for a monthly rental, an offer for a property for sale.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
         'not_pending_confirm' => 'Only a pending booking can be confirmed.',
         'not_pending_reject' => 'Only a pending booking can be rejected.',
         'own_property' => 'You cannot book your own property.',
+        // TCK-2747 (décision 6 du porteur, 2026-11-12)
+        'property_already_leased' => 'This property is let, or a lease is being prepared, for the requested move-in date: the application can only be accepted for a move-in after the lease ends.',
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [
@@ -148,6 +162,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Only a commission that is due can be marked paid or cancelled.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'These commissions cannot be settled together: they must all belong to the same beneficiary, in your agency.',
+        'paid_before_earned' => 'The payment date is earlier than the date a commission was earned.',
     ],
     'credits' => [
         'insufficient' => 'Insufficient balance: you are missing :missing credits (balance: :balance).',
@@ -164,9 +181,13 @@ return [
         'invite_already_linked' => 'This record is already linked to an account: there is no one to invite.',
         'invite_no_contact' => 'This record has no contact detail to send the invitation to: add an email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
+        // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
+        'suggested_stage_stale' => 'This suggested stage is no longer current: reload the customer.',
     ],
     'dashboard' => [
         'invalid_scope' => 'The requested scope must be “mine” or “agency”.',
+        // TCK-2791 — `period` des tableaux de bord : une liste fermée.
+        'invalid_period' => 'The requested period must be “current_month” or “last_month”.',
     ],
     'data_export' => [
         'expired' => 'This data export has expired.',
@@ -181,7 +202,21 @@ return [
         'reason_required' => 'A reason is required for a partial refund.',
     ],
     'document' => [
+        // TCK-2770 — the archive of a vault folder
+        'archive_empty' => 'This folder holds no document to archive.',
+        'archive_too_large' => 'This folder exceeds what an archive can hold (:max_files documents, :max_mb MB): download its documents one by one.',
+        'archive_unavailable' => 'The documents of this folder cannot be downloaded as an archive.',
+        'archive_render_busy' => 'The service that produces the documents is overloaded: try again in a minute.',
+        'archive_render_failed' => 'A document of this folder could not be produced: the archive was not created. Try again, or download its documents one by one.',
+        // TCK-2812 — le lien signé de l'archive préparée
+        'archive_link_invalid' => 'This download link is not valid, or it has expired.',
+        'archive_expired' => 'This archive is no longer available: prepare a new one.',
         'file_missing' => 'No file is attached to this document.',
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12)
+        'internal_customer_only' => 'Only a document on a customer record can be kept for the agency.',
+        'internal_own_upload' => 'A document uploaded by the customer stays visible to them.',
+        // TCK-2655
+        'invalid_target' => 'The expected target is “lease:{id}” or “property:{id}”.',
         'owner_not_found' => 'The item to attach the document to was not found.',
         'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
@@ -270,6 +305,19 @@ return [
         'pdf_unsigned' => 'The PDF is available once both parties have signed.',
         'signed_locked' => 'A signed inventory can no longer be changed.',
         'tenant_not_found' => 'The lease tenant was not found.',
+        // TCK-2646 — the exit only takes over a signed entry of the lease or of a lease it renews.
+        'entry_inventory_invalid' => 'Only a signed entry inventory of this lease, or of a lease it renews, can be taken over by the exit.',
+        // TCK-2647 — un brouillon garde des éléments sans état ; la soumission les refuse.
+        'unqualified_elements' => 'Every element needs a condition before the inventory is submitted for signature.',
+    ],
+    // TCK-2646 (ADR-0098) — the tenant signs on the agent's phone, with an SMS code.
+    'inventory_signature' => [
+        'code_required' => 'Enter the code the tenant received.',
+        'code_locked' => 'Too many wrong codes: on-site signing is locked for 15 minutes.',
+        'invalid_code' => 'Invalid or expired code.',
+        'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
+        'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or have the tenant sign from their account.',
+        'tenant_without_phone' => 'The tenant has no account with a verified phone number: they sign from their account.',
     ],
     'invitation' => [
         'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',
@@ -320,11 +368,19 @@ return [
         'not_activatable' => 'Only a draft lease or one awaiting signature can be activated.',
         'not_active_schedule' => 'Only an active lease can generate a payment schedule.',
         'not_draft_activate' => 'Only a draft lease can be activated.',
+        // TCK-2764 — abandonner un brouillon jamais envoyé en signature.
+        'not_draft_abandon' => 'Only a draft lease, never sent for signature, can be abandoned: a lease that was sent or is in force is terminated.',
+        'abandon_has_payments' => 'A due of this draft has been recorded: money recorded does not disappear with a draft. Cancel it, then abandon the draft.',
+        // TCK-2764 4a — seul un état des lieux engagé retient le brouillon ; un brouillon d'état des lieux part avec lui.
+        'abandon_has_inventory' => 'An inventory on this draft has been committed — sent for signature, signed or disputed: it cannot disappear with the draft. This draft therefore cannot be abandoned.',
         'not_found' => 'Lease not found.',
         'rent_review_above_contract_cap' => 'The signed contract caps the rent review at :max %: this cap cannot be forced. Use a renewal or a signed amendment.',
         'renewal_overlaps_paid_schedule' => 'A due of the current lease, in the period the renewal takes over, is already paid or being paid: the renewal does not cancel it. Refund it, or start the renewal after it; a renewal already awaiting signature must be terminated, then a new one created.',
         'termination_overlaps_paid_schedule' => 'A rent due after the move-out date is already paid or being paid: the termination does not cancel it. Refund it, then terminate.',
         'renewal_parent_not_renewable' => 'The renewed lease is no longer in force (notice given or terminated): this renewal can no longer take effect. Terminate it, then create another one if needed.',
+        // TCK-2753 (r0) — un bail échu ne se renouvelle ni sur un bien supprimé, ni au nom d'un bailleur parti.
+        'renewal_property_deleted' => 'This lease\'s property has been deleted: the lease can no longer be renewed. Create a new lease on one of the agency\'s properties.',
+        'renewal_owner_departed' => 'This lease\'s owner has left the agency, or their access is suspended: the lease can no longer be renewed in their name.',
         'schedule_exists' => 'The payment schedule has already been generated.',
         'terms_locked' => 'The terms of a signed lease can no longer be changed: draw up an amendment or a new lease.',
         // P48.03 (TCK-2352) — le bail tiré d'une réservation.
@@ -342,6 +398,7 @@ return [
         'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or contact support.',
         'no_destination' => 'There is no way to send you the code: verify your phone number from your profile, then try again.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
+        'tenant_without_name' => 'The tenant of this lease has no name: complete their record (first and last name), then request the signature again.',
     ],
     'lease_payment' => [
         'cancelled' => 'This instalment was cancelled by a renewal: it is no longer due and cannot be collected.',
@@ -349,6 +406,7 @@ return [
         'deposit_refund_paid_by_payout' => 'A refunded deposit is settled by its payout, never by hand.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
         'lease_not_active' => 'Only an active lease, or one under notice, can take a payment line.',
+        'not_overdue' => 'Only an instalment that is due, unsettled and past its due date can be chased.',
         'receipt_not_a_payment' => 'A refunded deposit is not a tenant payment: it has no receipt.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
         'type_from_schedule' => 'Rent and deposit lines come from the lease schedule: this entry only takes charges, regularizations and penalties.',
@@ -358,6 +416,8 @@ return [
         'password_reset_not_sent' => 'The password reset email could not be sent.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'The work is done: the job can no longer be accepted.',
         'actual_cost_needs_owner' => 'This cost exceeds the landlord\'s works threshold and what they approved: only the landlord can record it.',
         'already_accepted' => 'The request is already accepted.',
         'amount_too_large' => 'This amount, rounded to the currency unit, exceeds the largest amount that can be recorded.',
@@ -367,12 +427,17 @@ return [
         'decline_after_accept' => 'The request has already been accepted or started: it can no longer be declined.',
         'dedicated_endpoint' => 'This status change goes through its own action, not through the generic status.',
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
+        'no_longer_assigned' => 'This job has been handed to another provider: it can no longer be accepted on your behalf.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
         'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
         'quote_expired' => 'This quote is no longer valid: its validity date has passed.',
         'reassign_after_completion' => 'The work is done: the job can no longer be reassigned.',
         'status_transition_invalid' => 'This maintenance status change is not allowed.',
         'terminal_request' => 'A closed or cancelled request can no longer be changed.',
+        // TCK-2786
+        'not_awaiting_owner' => 'This maintenance request is not awaiting the owner\'s decision: there is nothing to remind them of.',
+        'owner_reminder_too_soon' => 'The owner was reminded less than 24 hours ago. You can remind them again from :available_at.',
+        'owner_unavailable' => 'The owner of this property has left, is suspended or cannot be reached: they cannot be reminded.',
     ],
     'media' => [
         'evidence_locked' => 'This file is evidence: it cannot be deleted.',
@@ -405,6 +470,16 @@ return [
         'service_provider_not_owner' => 'You cannot edit this service provider profile.',
         'service_provider_suspended' => 'This service provider profile is suspended: completing onboarding does not reactivate it.',
     ],
+    'owner' => [
+        'already_departed' => 'This owner has already left the agency.',
+        'departure_draft' => 'This owner has not joined the agency yet: revoke their invitation instead.',
+        'departure_individual' => 'In an individual agency, the host is also the owner and cannot be removed from their own agency.',
+        'departure_not_empty' => 'This owner cannot leave the agency while they still have properties, ongoing leases or money owed to them.',
+        'departure_self' => 'You cannot remove your own owner profile: another administrator must do it.',
+        'invite_departed' => 'This owner has left the agency and cannot be invited again.',
+        // TCK-2753 (r2) — le dossier d'un bailleur parti ou suspendu est figé.
+        'profile_read_only' => 'This owner profile is no longer active in the agency (departed or suspended): its file can no longer be changed.',
+    ],
     'password_reset' => [
         'invalid_link' => 'This reset link is invalid or has expired. Request a new one.',
     ],
@@ -415,11 +490,16 @@ return [
         'checkout_in_progress' => 'An online payment is in progress on this instalment: try again in a few minutes.',
         'currency_unsupported' => 'The provider :provider does not accept the :currency currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy does not accept XOF: use Wave or Orange Money for a payment in XOF.',
+        'filter_days_late_invalid' => 'Invalid days-late filter: a non-negative integer is expected.',
         'filter_entity_invalid' => 'Invalid item type filter.',
+        'filter_id_invalid' => 'Invalid identifier filter.',
+        'filter_payment_method_invalid' => 'Invalid payment method filter.',
         'filter_status_invalid' => 'Invalid status filter.',
         'integration_agency_missing' => 'The payment integration does not match any agency.',
         'integration_credential_missing' => 'The payment integration is incomplete: a credential is missing.',
         'integration_missing' => 'No active payment integration for this provider.',
+        // TCK-2778 — le lien de la pénalité seule, pour une agence qui ne l'encaisse pas en ligne.
+        'late_fee_not_collected_online' => 'Your agency does not collect late fees online: send the reminder without a link, the late fee is paid at the agency.',
         'not_payable' => 'This payment can no longer be paid online: it is already settled, refunded or has nothing due.',
         'paid_amount_invalid' => 'The paid amount cannot be negative.',
         'provider_failed' => 'The payment provider :provider could not process the request.',
@@ -478,6 +558,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',
+        'upgrade_offer_missing' => 'The pro upgrade offer is not available right now.',
     ],
     'platform' => [
         'ability_missing' => 'Your operator level does not allow this action.',
@@ -527,16 +608,21 @@ return [
         'listings_exceeded' => 'Your plan\'s active listing quota has been reached.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'One of the lines in the batch is not a suggested line of an open statement of this agency: nothing was confirmed.',
         'cross_agency' => 'The target payment does not belong to this agency.',
         'duplicate_file' => 'This statement has already been imported for this agency.',
     ],
     'reporting' => [
         'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
+        'invalid_period' => 'The requested period must be a month in YYYY-MM format.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
     ],
     'review' => [
         'agency_already_reviewed' => 'You have already reviewed this agency.',
+        // TCK-2672 — a batch holding a review that is unknown, no longer pending, or outside the caller's perimeter.
+        'batch_not_moderatable' => 'One of the reviews in the batch cannot be published by you: nothing was published.',
         'moderation_decision_invalid' => 'Invalid moderation decision.',
         'no_reply' => 'This review has no reply to delete.',
         'property_already_reviewed' => 'You have already reviewed this property.',
@@ -548,6 +634,10 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Only a super admin can grant the super_admin role.',
+    ],
+    // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
+    'role_delegation' => [
+        'covers_absence' => 'This delegation covers an absence: change or revoke the absence, which carries it.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [
@@ -649,10 +739,18 @@ return [
     'visit' => [
         'active_limit_reached' => 'You already have :max active visits on this property. Cancel one before requesting another.',
         'already_assigned' => 'This visit is already handled by another member of the agency.',
+        // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        // TCK-2716 — « Créer sa fiche » depuis une visite.
+        'agency_mismatch' => 'The customer would be created in another agency than the one of the visit\'s property: switch to that agency\'s workspace.',
+        'agent_not_staff' => 'The chosen agent must be on the property\'s agency staff.',
+        // TCK-2744 — l'agent a déjà une visite confirmée qui chevauche cette heure (sur un autre bien).
+        'agent_overlap' => 'The agent is already booked at this time by another confirmed visit.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
         'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
         'closed' => 'A completed or cancelled visit can no longer be changed.',
+        // TCK-2716 — une visite rattachée n'est jamais rattachée à une autre fiche.
+        'customer_already_linked' => 'This visit already has a customer record.',
         'feedback_agent_only' => 'Only the agent in charge can give the agent feedback.',
         'feedback_not_completed' => 'Feedback is only possible once the visit is completed.',
         'feedback_visitor_only' => 'Only the visitor can give the customer feedback.',
@@ -660,9 +758,14 @@ return [
         'not_scheduled_confirm' => 'Only a scheduled visit can be confirmed.',
         'property_unavailable' => 'This property is not open for visits.',
         'reassign_forbidden' => 'Changing the agent of an already assigned visit requires the assign right.',
+        'report_exists' => 'This visit already has a report: edit it instead.',
+        'report_missing' => 'This visit has no report to edit yet.',
+        'report_not_closable' => 'Only a completed visit, or a confirmed visit whose time has passed, can be reported.',
         'reschedule_inactive' => 'Only a pending or confirmed visit can change slot.',
         'slot_overlap' => 'Another confirmed visit already covers this slot on this property.',
         'staff_only' => 'Only the staff of the property\'s agency can confirm, complete, cancel or move this visit.',
+        // TCK-2502 — confirmer une visite demandée par tranche, c'est en fixer l'heure.
+        'time_required' => 'This visit was requested for a time of day: set the time to confirm it.',
     ],
     'webhook' => [
         'endpoint_gone' => 'This notification address is no longer in service: each integration now has its own.',
@@ -840,5 +943,10 @@ return [
         'not_found' => 'This payment link does not exist.',
         'gone' => 'This payment link is no longer valid. Ask :agency for a new one.',
         'receipt_unavailable' => 'The receipt is only available once the payment has been received.',
+    ],
+    // TCK-2811 — un échec du pilote PDF, sur toute route qui rend un PDF
+    'pdf' => [
+        'render_busy' => 'The service that produces PDF documents is overloaded: try again in a minute.',
+        'render_failed' => 'The PDF document could not be produced. Try again in a moment.',
     ],
 ];

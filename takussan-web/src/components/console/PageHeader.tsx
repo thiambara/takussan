@@ -1,6 +1,14 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { cn } from '@/lib/utils';
+
+/** Une étape du fil d'Ariane. La dernière est la page courante : sans lien. */
+interface EtapeDuFil {
+  readonly label: ReactNode;
+  readonly href?: string;
+}
 
 interface PageHeaderProps {
   /** Titre de page. Déjà traduit — cf. le docblock d'`EmptyState`. */
@@ -11,6 +19,18 @@ interface PageHeaderProps {
   readonly eyebrow?: ReactNode;
   /** Boutons ou liens alignés à droite du titre. */
   readonly actions?: ReactNode;
+  /**
+   * TCK-2687 — le fil d'Ariane, au-dessus du titre (page de détail). `label` nomme la zone pour les
+   * lecteurs d'écran : déjà traduit (`console.pageHeader.breadcrumb`), ce composant ne traduit rien.
+   */
+  readonly fil?: { readonly label: string; readonly etapes: readonly EtapeDuFil[] };
+  /** TCK-2687 — un bandeau pleine largeur AU-DESSUS du titre (KYC à finir, agence suspendue). */
+  readonly bandeau?: ReactNode;
+  /**
+   * TCK-2687 — sous l'en-tête : onglets soulignés ou barre de filtres, à 20 px (`mt-5`). TCK-2804 — des
+   * onglets de page marqués `ONGLETS_DE_PAGE` collent sous l'en-tête du téléphone ; une barre de filtres, non.
+   */
+  readonly dessous?: ReactNode;
   readonly className?: string;
 }
 
@@ -43,21 +63,38 @@ interface PageHeaderProps {
  * Purement présentationnel : ni `'use client'`, ni `useTranslations`. Les pages serveur peuvent
  * donc l'importer sans embarquer de frontière client.
  */
-export function PageHeader({ title, description, eyebrow, actions, className }: PageHeaderProps) {
-  return (
+export function PageHeader({
+  title,
+  description,
+  eyebrow,
+  actions,
+  fil,
+  bandeau,
+  dessous,
+  className,
+}: PageHeaderProps) {
+  const enTete = (
     <header
       className={cn(
         'flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between',
-        className,
+        // Sans emplacement neuf, l'en-tête est la racine et prend la classe de l'appelant : le DOM
+        // des 103 appelants d'avant TCK-2687 ne change pas d'un nœud.
+        !(fil || bandeau || dessous) && className,
       )}
     >
       <div className="min-w-0">
+        {/* TCK-2617 — le titre de la page, déclaré à l'en-tête du téléphone de `/app` (son H1 sous `md`
+            pour une racine, son nom court pour un détail). Hors de la coque (`/super-admin`), rien. */}
+        {typeof title === 'string' ? <DeclarerEnTete priorite="en-tete-de-page" titre={title} /> : null}
         {eyebrow ? (
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="font-display text-2xl font-bold tracking-tight text-balance text-foreground">{title}</h1>
+        {/* TCK-2687 — sous la portée `/app` : 600 et −0,02 em (`tracking-titre`), 20 px / 28 au
+            téléphone ; `text-2xl` (21,6 px rendu) au bureau. Ailleurs (`/super-admin`), l'en-tête
+            d'avant, 700 et −0,025 em. */}
+        <h1 className="font-display text-2xl font-bold tracking-tight text-balance text-foreground portee-app:font-semibold portee-app:tracking-titre portee-app:max-md:text-xl">{title}</h1>
         {description ? (
           <p className="mt-1 text-sm text-pretty text-muted-foreground">{description}</p>
         ) : null}
@@ -65,6 +102,92 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
+
+  if (!(fil || bandeau || dessous)) return enTete;
+
+  return (
+    <div className={cn(dessous && ONGLETS_COLLES_AU_TELEPHONE, className)}>
+      {bandeau ? <div className="mb-5">{bandeau}</div> : null}
+      {fil ? <FilDAriane {...fil} /> : null}
+      {enTete}
+      {dessous ? <div className={DESSOUS_DE_L_EN_TETE}>{dessous}</div> : null}
+    </div>
+  );
 }
 
-export type { PageHeaderProps };
+/**
+ * TCK-2804 — le marqueur d'une rangée d'ONGLETS DE PAGE (onglets soulignés qui changent la vue de la page),
+ * à poser sur la rangée elle-même. Une barre de filtres ne le porte pas : elle ne colle pas.
+ *
+ * Sous `md`, il décide de trois choses, toutes en CSS (`:has()`) — ni contexte, ni effet, ni saut au rendu :
+ * - l'enveloppe de la coque perd sa marge haute (`ENVELOPPE_DU_CONTENU`) : les onglets commencent juste sous
+ *   l'en-tête du téléphone, comme la maquette (`EcranRapports` : `EnTeteRacine` puis `OngletsTel`, y = 56) ;
+ * - `PageHeader` colle sous l'en-tête au défilement (ci-dessous) ;
+ * - le `<main>` réserve leur hauteur au défilement vers une ancre ou un focus (`AppShell`, `scroll-pt-12`).
+ *
+ * La rangée porte son fond plein et son filet bas (maquette : « fond plein et filet, sans ombre »).
+ */
+export const ONGLETS_DE_PAGE = { 'data-onglets-de-page': '' } as const;
+
+/**
+ * TCK-2804 — sous `md`, un `PageHeader` dont l'emplacement `dessous` porte des onglets de page colle sous
+ * l'en-tête du téléphone. C'est la RACINE qui colle, pas l'emplacement : un élément collant ne colle que
+ * dans son bloc conteneur, et celui de l'emplacement est cette racine, haute des seuls onglets. La racine,
+ * elle, est posée dans le conteneur de la page, qui défile. Ce qui reste de l'en-tête au téléphone colle
+ * avec les onglets : le titre d'une page à onglets est dans l'en-tête de la coque (TCK-2617), et Rapports
+ * masque le reste. Le fond plein couvre la boîte de la racine. Dès `md`, rien.
+ */
+const ONGLETS_COLLES_AU_TELEPHONE =
+  'max-md:has-[[data-onglets-de-page]]:sticky max-md:has-[[data-onglets-de-page]]:top-0 max-md:has-[[data-onglets-de-page]]:z-20 max-md:has-[[data-onglets-de-page]]:bg-background';
+
+/**
+ * TCK-2687 — l'emplacement `dessous`, à 20 px de l'en-tête. TCK-2804 — à 0 sous `md` quand il porte des
+ * onglets de page : l'en-tête n'y a pas de hauteur, et les 20 px descendaient les onglets sous la maquette.
+ */
+const DESSOUS_DE_L_EN_TETE = 'mt-5 max-md:has-[[data-onglets-de-page]]:mt-0';
+
+/**
+ * TCK-2687 — le fil d'Ariane de la maquette (`TeteDePage`, `chrome-app.tsx:300`) : 13 px
+ * (`text-ui`), encre discrète, séparateur « › » (décoratif, tu aux lecteurs d'écran : la liste dit
+ * déjà l'ordre), `mb-2` ; la page courante en encre douce, marquée `aria-current`.
+ *
+ * TCK-2617 — **dès `md` seulement** : il remplace le lien « ← Retour » des pages de détail au bureau
+ * (et dans le rail, de 768 à 1023, sans quoi cette plage n'aurait ni flèche ni fil) ; au téléphone,
+ * c'est la flèche de l'en-tête de la coque (la maquette « Page de détail » n'y a pas de fil). Exporté :
+ * une page de détail sans `PageHeader` (`LeaseDetail`) le pose elle-même.
+ */
+export function FilDAriane({
+  label,
+  etapes,
+  className,
+}: {
+  readonly label: string;
+  readonly etapes: readonly EtapeDuFil[];
+  readonly className?: string;
+}) {
+  return (
+    <nav aria-label={label} className={cn('mb-2 max-md:hidden', className)}>
+      <ol className="flex flex-wrap items-center gap-1.5 text-ui text-muted-foreground">
+        {etapes.map((etape, i) => {
+          const derniere = i === etapes.length - 1;
+          return (
+            <li key={i} className="flex items-center gap-1.5">
+              {i > 0 ? <span aria-hidden="true">›</span> : null}
+              {derniere || !etape.href ? (
+                <span className={derniere ? 'text-encre-douce' : undefined} aria-current={derniere ? 'page' : undefined}>
+                  {etape.label}
+                </span>
+              ) : (
+                <Link href={etape.href} className="hover:text-foreground hover:underline">
+                  {etape.label}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+export type { EtapeDuFil, PageHeaderProps };

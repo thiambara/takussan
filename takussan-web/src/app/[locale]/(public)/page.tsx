@@ -3,6 +3,7 @@ import { Suspense, use } from 'react';
 import { getLocale } from 'next-intl/server';
 
 import { HomepageDiscovery } from '@/components/property/HomepageDiscovery';
+import { CarteDeRappel } from '@/components/navigation-publique/CarteDeRappel';
 import { alternatesPubliques } from '@/lib/alternates';
 import { decouverteDeLAccueil } from '@/lib/queries/public-discovery';
 import { raccourcisDeLAccueil, type RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
@@ -67,7 +68,10 @@ export default async function Home() {
   // rangées suivent dans la MÊME réponse diffusée : leurs titres et leurs liens
   // `/properties/<slug>` restent dans le HTML servi (TCK-432, `accueil-diffuse-avant-ses-rangees`).
   // Aucune des deux ne rejette : chacune rend `null` sur panne.
-  const donnees = Promise.all([decouverteDeLAccueil(locale), raccourcisDeLAccueil(locale)]);
+  // TCK-2495 — les quartiers et l'offre parlent de la ville que les rangées servent (`near.city`) :
+  // ils partent derrière la découverte, mais sont en cache partagé d'une heure (`raccourcisDeLAccueil`).
+  const decouverte = decouverteDeLAccueil(locale);
+  const donnees = Promise.all([decouverte, decouverte.then((d) => raccourcisDeLAccueil(d?.near.city ?? null))]);
 
   // Le repli est l'accueil SANS données : son propre squelette (barre, rangées en chargement),
   // sans `<h1>` — le repli et le contenu sont tous deux dans le HTML diffusé, et la page n'en
@@ -87,5 +91,10 @@ function AccueilServi({
   readonly donnees: Promise<[HomepageDiscoveryData | null, RaccourcisDeLAccueil]>;
 }) {
   const [rangees, raccourcis] = use(donnees);
-  return <HomepageDiscovery donneesInitiales={rangees} raccourcis={raccourcis} />;
+  // TCK-2493 (ADR-0091) — connecté, ce qui attend le persona en tête de l'accueil ; rien pour l'anonyme.
+  // La clé : l'élément traverse la frontière serveur → client et se pose parmi les enfants du `<main>`,
+  // où React exige d'un nœud venu du serveur qu'il soit nommé (avertissement relevé au navigateur).
+  return (
+    <HomepageDiscovery donneesInitiales={rangees} raccourcis={raccourcis} rappel={<CarteDeRappel key="carte-de-rappel" />} />
+  );
 }

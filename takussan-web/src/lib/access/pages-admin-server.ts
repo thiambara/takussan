@@ -4,7 +4,8 @@ import { cache } from 'react';
 import { getMeAction } from '@/app/actions/auth';
 import { ApiError, apiRequest } from '@/lib/api';
 import { ROUTE_VERIF_INDISPONIBLE, resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { isAdmin, isAgencyAdmin, isSuperAdmin } from '@/lib/roles';
+import { adresseDeLArgent, type ParametresDeLaPage } from '@/lib/finances/depuis-les-paiements';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import type { User } from '@/types/user';
 import type { LectureDesCapacites } from './capacites-amorcees';
@@ -170,4 +171,42 @@ export async function garderPageAdmin(chemin: CheminAdmin): Promise<void> {
 
   const acces = accesDepuis(await contexteAdmin(user, TOUT, 'affichage'));
   redirect(acces.chemins.find((c) => c !== chemin) ?? '/app');
+}
+
+/**
+ * TCK-2677 (ADR-0100 § 4) — `/app/payments` mène-t-il ce compte à « Argent » ? Oui pour l'admin de
+ * l'agence active, celui que `PAGES_ADMIN` laisse entrer dans `/app/agency/finances`, et pour lui
+ * seul :
+ *
+ *  · l'agent n'y va pas — « Argent » lui reste fermé (décision du porteur du 2026-11-10) ;
+ *  · l'hôte (agence `individual`) garde `/app/payments` (ADR-0100 § 5). `/app/agency/finances`
+ *    n'exige pas `standard` : le `kind` se lit donc ICI, et il faut l'y lire POSITIVEMENT — une agence
+ *    dont on n'a pas pu lire le `kind` laisse l'ancien écran (lecture d'affichage : une panne ne
+ *    fait tomber ni la page ni la décision) ;
+ *  · l'admin qui est AUSSI bailleur dans l'agence y va (TCK-2749) : son relevé de gérance
+ *    (`OwnerStatementPanel`) est au registre « Reversements » de « Argent », là où l'onglet
+ *    `payouts` de l'ancien écran le lui donnait (`AdminFinancesTabs`) ;
+ *  · le super-admin non plus : il n'est pas « l'admin de l'agence active ».
+ *
+ * L'agence passe par `resolveAgencyOrNull`, `cache()`ée par rendu : le layout de `/app` l'a déjà lue.
+ */
+export async function menerALArgent(user: User): Promise<boolean> {
+  const roles = user.roles;
+  if (isSuperAdmin(roles) || !isAgencyAdmin(roles)) return false;
+  if (typeof user.agency_id !== 'number') return false;
+  const page = pageAdmin('/app/agency/finances');
+  if (page === undefined) return false;
+  const ctx = await contexteAdmin(user, { agence: true, capacites: false }, 'affichage');
+  return ctx.agence?.kind === 'standard' && pageAccessible(page, ctx);
+}
+
+/**
+ * TCK-2677 — LE terminateur de `/app/payments` : mène l'admin de l'agence active à « Argent », sur
+ * l'onglet qui correspond (`adresseDeLArgent`), et ne fait rien pour tout autre compte. Comme
+ * `garderPageAdmin`, il refuse par `redirect()` depuis la PAGE (un layout ne lit pas
+ * `searchParams`) : son 307 ne tient que tant qu'aucun `loading.tsx` ne couvre la page —
+ * `app/__tests__/etats-de-route.test.ts` le compte parmi ses terminateurs.
+ */
+export async function aiguillerVersLArgent(user: User, searchParams: Promise<ParametresDeLaPage>): Promise<void> {
+  if (await menerALArgent(user)) redirect(adresseDeLArgent(await searchParams));
 }

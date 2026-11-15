@@ -10,7 +10,6 @@ use App\Services\Admin\NotificationTemplateService;
 use App\Services\Formatting\CurrencyFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use NumberFormatter;
 
 /**
  * TCK-588 (ADR-0032) — rend une notification par code, pour UNE surface et UNE langue.
@@ -99,6 +98,7 @@ class NotificationRenderer
                 NotificationCode::PARAM_PROVIDER => $this->provider($value, $textMax),
                 NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
                 NotificationCode::PARAM_PERSON => $this->person($value, $locale, $textMax),
+                NotificationCode::PARAM_VISIT_WINDOW => $this->visitWindow($value, $locale),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -129,6 +129,17 @@ class NotificationRenderer
         };
 
         $candidates = [];
+        // TCK-2706 — la variante d'une relance fusionnée (loyer et charges, ou charges seules) passe
+        // avant tout : sans elle, le texte du loyer annoncerait les charges sous le mot « loyer ».
+        $variant = $code->variant($params);
+        if ($variant !== null) {
+            if ($this->hasOptional($code, $params)) {
+                $candidates[] = $base.$surface.'_'.$variant.'_link';
+                $candidates[] = $base.$fallback.'_'.$variant.'_link';
+            }
+            $candidates[] = $base.$surface.'_'.$variant;
+            $candidates[] = $base.$fallback.'_'.$variant;
+        }
         if ($this->lacksName($code, $params)) {
             $candidates[] = $base.$surface.'_unnamed';
             $candidates[] = $base.$fallback.'_unnamed';
@@ -195,6 +206,17 @@ class NotificationRenderer
         $key = 'invitations.roles.'.$code;
 
         return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
+    }
+
+    /** TCK-2502 — la tranche de la journée dans la langue du destinataire, jamais son code. */
+    private function visitWindow(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'visits.windows.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
     }
 
     /** P164.01 (TCK-1468) — le libellé du fournisseur d'intégration, jamais son code. */
@@ -358,10 +380,9 @@ class NotificationRenderer
         };
     }
 
+    /** TCK-2794 — le montant du gabarit historique, groupé comme tout montant rendu (U+00A0). */
     private function number(float $value, string $locale): string
     {
-        $formatter = new NumberFormatter($locale, NumberFormatter::DECIMAL);
-
-        return (string) $formatter->format($value);
+        return CurrencyFormatter::nombre($value, $locale);
     }
 }

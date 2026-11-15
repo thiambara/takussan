@@ -3,8 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Building2 } from 'lucide-react';
 import { getMeAction } from '@/app/actions/auth';
 import { garderPageAdmin } from '@/lib/access/pages-admin-server';
-import { TeamConsole } from '@/components/admin/TeamConsole';
-import { InviteMemberButton } from '@/components/admin/InviteMemberButton';
+import { ConsoleDeLEquipe } from '@/components/admin/equipe/ConsoleDeLEquipe';
 import { EmptyState } from '@/components/feedback';
 import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
@@ -19,6 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
+ * TCK-2667 — « Une personne, une fiche » (`ConsoleDeLEquipe`), qui remplace la console de TCK-277.
+ *
  * TCK-277 — unified team console (fusion of the TCK-065 team page and the
  * TCK-133 users page). Single screen with segmented tabs for the
  * different role typologies plus a single «&nbsp;Inviter&nbsp;» CTA.
@@ -60,28 +61,21 @@ export default async function TeamPage() {
   // au-dessus. Faire tomber la page entière parce qu'on n'a pas pu relire une
   // agence dont on vient de valider le `kind` serait un pas en arrière.
   const token = await getToken();
-  const agency = token
-    ? await resolveAgencyOrNull(token, user.agency_id, 'TeamPage', 'affichage')
-    : null;
+  const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'TeamPage', 'affichage') : null;
 
   // TCK-1412 (P148.02) — la page s'ouvre aussi par capacité, à un compte sans rôle d'administration :
   // les gestes que l'API juge par le profil d'admin lui sont alors cachés.
   const estAdmin = isAdmin(user.roles);
 
+  // TCK-2667 — la console porte son en-tête : au téléphone celui de la coque (« Équipe » et
+  // « Inviter »), au bureau `PageHeader` et ses onglets Membres · Invitations · Performance.
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={tPage('title')}
-        description={tPage('subtitle')}
-        actions={<InviteMemberButton agencyId={user.agency_id} estAdmin={estAdmin} />}
-      />
-      <TeamConsole
-        agencyId={user.agency_id}
-        estAdmin={estAdmin}
-        currentUserId={user.id}
-        agencyKind={agency?.kind ?? null}
-        primaryAdminId={agency?.primary_admin_id ?? null}
-      />
-    </div>
+    <ConsoleDeLEquipe
+      agencyId={user.agency_id}
+      estAdmin={estAdmin}
+      currentUserId={user.id}
+      agencyKind={agency?.kind ?? null}
+      primaryAdminId={agency?.primary_admin_id ?? null}
+    />
   );
 }

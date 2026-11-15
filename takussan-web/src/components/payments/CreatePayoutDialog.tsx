@@ -32,6 +32,13 @@ interface CreatePayoutDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onCreated?: (payoutId: number) => void;
+  /**
+   * TCK-2641 — ouvert depuis la fiche d'un bailleur : ce bailleur (`landlord_id`, l'id de son
+   * compte) et les bornes du mois du relevé, présélectionnés. La préparation part aussitôt
+   * (`GET /api/payouts/preparation`). Fermer le dialogue y revient ; sans ces props, rien ne change.
+   */
+  readonly bailleurInitial?: number;
+  readonly periodeInitiale?: { readonly du: string; readonly au: string };
 }
 
 type PlatformFeeLine = PayoutPreparation['lines']['lease_payments'][number] | PayoutPreparation['lines']['booking_payments'][number];
@@ -57,7 +64,7 @@ function ownerName(owner: OwnerProfileSummary): string {
  * d'intervention imputés, le net. Aucun montant ne se saisit ; le serveur recalcule tout à la
  * création depuis les identifiants cités.
  */
-export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayoutDialogProps) {
+export function CreatePayoutDialog({ open, onOpenChange, onCreated, bailleurInitial, periodeInitiale }: CreatePayoutDialogProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payoutDialog');
   const tMethod = useTranslations('payments.methods');
@@ -66,9 +73,9 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const { user } = useAuth();
   const agencyId = user?.agency_id ?? null;
 
-  const [landlordId, setLandlordId] = useState('');
-  const [periodStart, setPeriodStart] = useState('');
-  const [periodEnd, setPeriodEnd] = useState('');
+  const [landlordId, setLandlordId] = useState(bailleurInitial !== undefined ? String(bailleurInitial) : '');
+  const [periodStart, setPeriodStart] = useState(periodeInitiale?.du ?? '');
+  const [periodEnd, setPeriodEnd] = useState(periodeInitiale?.au ?? '');
   // VERIF-594 N-1 — `null` : pas encore choisie. La destination par défaut du bénéficiaire, si elle
   // est vérifiée pour l'agence, est alors présélectionnée (le serveur la prend de même).
   const [payoutMethodChoice, setPayoutMethodId] = useState<string | null>(null);
@@ -171,9 +178,9 @@ export function CreatePayoutDialog({ open, onOpenChange, onCreated }: CreatePayo
   const canSubmit = prep !== undefined && lineCount > 0 && prep.totals.net >= 0 && !createPayout.isPending;
 
   const reset = () => {
-    setLandlordId('');
-    setPeriodStart('');
-    setPeriodEnd('');
+    setLandlordId(bailleurInitial !== undefined ? String(bailleurInitial) : '');
+    setPeriodStart(periodeInitiale?.du ?? '');
+    setPeriodEnd(periodeInitiale?.au ?? '');
     setPayoutMethodId(null);
     setPaymentMethod('');
     setScheduledAt('');

@@ -6,6 +6,7 @@ import type {
 } from '@/types/customer';
 import type { PipelineCustomerCard, PipelineStats, Task } from '@/types/pipeline';
 import { cheminApi, requete } from '@/lib/chemin-api';
+import type { FiltresDuPipeline, ParametresDesStats } from '@/lib/crm/pipeline';
 import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
 
 /**
@@ -27,12 +28,20 @@ export const PIPELINE_CARD_FIELDS = [
   'updated_at',
   'created_at',
   'added_by_id',
-] as const;
-
-export const PIPELINE_ADDED_BY_FIELDS = [
-  'id',
-  'first_name',
-  'last_name',
+  // TCK-2592 — la carte enrichie : ce qu'il cherche, le dernier contact, la prochaine action, la
+  // relance et son retard, le référent, l'étape proposée. Calculés pour le seul personnel (TCK-2588,
+  // TCK-2591) : `null` pour le bailleur, sans erreur.
+  'seeking_contract_type',
+  'budget_max',
+  'seeking_property_types',
+  'seeking_cities',
+  'seeking_neighborhoods',
+  // TCK-2766 — le dernier contact ET son canal (« Appel il y a 9 j ») ; remplace `last_contacted_at`, dont il porte l'instant.
+  'last_contact',
+  'next_action',
+  'follow_up',
+  'referent',
+  'suggested_stage',
 ] as const;
 
 export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
@@ -46,26 +55,32 @@ export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
 
 export const PIPELINE_COLUMN_PAGE_SIZE = 50;
 
+/**
+ * TCK-2592 — le tri des cartes : la relance la plus ancienne d'abord, comme la liste ; hors personnel,
+ * l'API retombe d'elle-même sur la date de création (`Customer::buildQuery`).
+ */
+export const PIPELINE_SORT = '-follow_up_days';
+
 export interface FetchPipelineColumnParams {
   readonly stage: CustomerPipelineStage;
   readonly perPage?: number;
   /** TCK-591 — « Charger plus » : la colonne s'arrêtait à ses 50 premières cartes, sans le dire. */
   readonly page?: number;
+  /** TCK-2592 — la portée et la barre de filtres (`lib/crm/pipeline`), les mêmes que les statistiques. */
+  readonly filtres?: FiltresDuPipeline;
 }
 
 export function buildPipelineColumnParams({
   stage,
   perPage = PIPELINE_COLUMN_PAGE_SIZE,
   page,
+  filtres,
 }: FetchPipelineColumnParams): SpatieQueryParams {
   return {
-    fields: {
-      customers: PIPELINE_CARD_FIELDS,
-      users: PIPELINE_ADDED_BY_FIELDS,
-    },
-    filter: { pipeline_stage: stage, status: 'active' },
-    include: ['addedBy', 'tasksCount'],
-    sort: '-updated_at',
+    fields: { customers: PIPELINE_CARD_FIELDS },
+    filter: { status: 'active', ...filtres, pipeline_stage: stage },
+    include: ['tasksCount'],
+    sort: PIPELINE_SORT,
     per_page: perPage,
     ...(page && page > 1 ? { page } : {}),
   };
@@ -75,22 +90,81 @@ export async function fetchPipelineColumn(
   token: string,
   params: FetchPipelineColumnParams,
 ): Promise<PipelineCustomerCard[]> {
+  return (await fetchPipelineColumnPage(token, params)).cartes;
+}
+
+export interface PageDeColonne {
+  readonly cartes: PipelineCustomerCard[];
+  /** `meta.total` de la lecture : ce que la colonne compte, toutes pages comprises. */
+  readonly total: number;
+}
+
+/**
+ * Une page de colonne ET son compte : une colonne bornée (`sorties=30`) n'a pas d'autre compte que sa
+ * propre pagination — « Charger plus » ne s'offre que si elle a une autre page à lire.
+ */
+export async function fetchPipelineColumnPage(token: string, params: FetchPipelineColumnParams): Promise<PageDeColonne> {
   const qs = buildQueryString(buildPipelineColumnParams(params));
-  const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: unknown }>(
+  const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: { total?: number } }>(
     cheminApi`/api/customers${requete(qs)}`,
+    { token },
+  );
+  return { cartes: res.data, total: res.meta?.total ?? res.data.length };
+}
+
+export interface FetchPipelineListParams {
+  /** Les filtres des colonnes, plus le segment (`follow_up`) ; jamais d'étape : les étapes vivantes. */
+  readonly filtres: FiltresDuPipeline;
+  readonly page?: number;
+  readonly perPage?: number;
+}
+
+/** TCK-2592 — la liste des relances (téléphone) et la vue Liste (bureau) : les étapes vivantes, triées par retard. */
+export function buildPipelineListParams({ filtres, page, perPage = PIPELINE_COLUMN_PAGE_SIZE }: FetchPipelineListParams): SpatieQueryParams {
+  return {
+    fields: { customers: PIPELINE_CARD_FIELDS },
+    filter: { ...filtres, stage_group: 'active' },
+    include: ['tasksCount'],
+    sort: PIPELINE_SORT,
+    per_page: perPage,
+    ...(page && page > 1 ? { page } : {}),
+  };
+}
+
+export interface PagePipeline {
+  readonly lignes: PipelineCustomerCard[];
+  readonly total: number;
+}
+
+export async function fetchPipelineList(token: string, params: FetchPipelineListParams): Promise<PagePipeline> {
+  const qs = buildQueryString(buildPipelineListParams(params));
+  const res = await apiRequest<{ data: PipelineCustomerCard[]; meta?: { total?: number } }>(cheminApi`/api/customers${requete(qs)}`, { token });
+  return { lignes: res.data, total: res.meta?.total ?? res.data.length };
+}
+
+export async function fetchPipelineStats(
+  token: string,
+  params?: ParametresDesStats,
+): Promise<PipelineStats> {
+  // TCK-2592 — `scope` et les filtres des colonnes (TCK-2591) ; sans paramètre, la lecture d'avant.
+  const qs = params ? buildQueryString({ filter: { ...params.filter }, ...(params.scope ? { extra: { scope: params.scope } } : {}) }) : '';
+  const res = await apiRequest<ApiResponse<PipelineStats>>(
+    cheminApi`/api/customers/pipeline-stats${requete(qs)}`,
     { token },
   );
   return res.data;
 }
 
-export async function fetchPipelineStats(
-  token: string,
-): Promise<PipelineStats> {
-  const res = await apiRequest<ApiResponse<PipelineStats>>(
-    '/api/customers/pipeline-stats',
-    { token },
-  );
-  return res.data;
+/**
+ * TCK-2591 — « Plus tard » sur la proposition d'étape : `reason_event` nomme le fait que l'agent a vu
+ * (409 `customer.suggested_stage_stale` s'il n'est plus celui de la proposition courante).
+ */
+export async function dismissSuggestedStage(token: string, customerId: number, reasonEvent: string): Promise<void> {
+  await apiRequest<void>(cheminApi`/api/customers/${customerId}/suggested-stage/dismiss`, {
+    method: 'POST',
+    body: { reason_event: reasonEvent },
+    token,
+  });
 }
 
 export async function patchCustomerPipelineStage(

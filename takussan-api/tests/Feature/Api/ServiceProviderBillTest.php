@@ -228,4 +228,21 @@ class ServiceProviderBillTest extends TestCase
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-N1', 'payout_method_id' => $destination->id])
             ->assertOk()->assertJsonPath('data.status', 'completed');
     }
+
+    /** TCK-2743 (AC5) — le paiement programmé d'une facture, reçu avec décalage : l'instant désigné. */
+    public function test_le_paiement_programme_avec_decalage_est_l_instant_designe(): void
+    {
+        Notification::fake();
+        $agency = $this->moneyAgency();
+        $request = $this->request($agency, $this->provider($agency));
+        $request->update(['status' => MaintenanceStatus::Completed]);
+        $bill = ServiceProviderBill::query()->sole();
+        $this->actingWithStepUp($this->agencyAdmin($agency));
+        $this->postJson("/api/service-provider-bills/{$bill->id}/validate")->assertOk();
+
+        $id = $this->postJson("/api/service-provider-bills/{$bill->id}/pay", ['scheduled_at' => '2030-11-20T11:00:00+01:00'])
+            ->assertCreated()->json('data.id');
+
+        $this->assertSame('2030-11-20 10:00:00', Payout::query()->findOrFail($id)->getRawOriginal('scheduled_at'));
+    }
 }

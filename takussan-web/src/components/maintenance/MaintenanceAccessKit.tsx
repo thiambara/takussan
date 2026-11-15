@@ -80,7 +80,7 @@ export function MaintenanceAccessKit({ request }: { readonly request: Maintenanc
 }
 
 /** Les coordonnées quand elles existent, sinon l'adresse en clair. */
-function directionsUrl(access: MaintenanceAccess): string | null {
+export function directionsUrl(access: MaintenanceAccess): string | null {
   if (access.latitude !== null && access.longitude !== null) {
     return `https://www.google.com/maps/dir/?api=1&destination=${access.latitude},${access.longitude}`;
   }

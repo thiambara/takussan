@@ -12,6 +12,7 @@ use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Policies\DocumentPolicy;
 
 /**
  * Tenant-facing dashboard — upcoming payments, active lease, documents.
@@ -114,7 +115,9 @@ class DashboardTenantService
             ->open()
             ->count();
 
-        $recentDocs = Document::query()
+        // TCK-2759 (ADR-0099, amendement du 2026-11-12) — un document interne de sa fiche n'entre pas
+        // dans les récents du sujet : la forme SQL de `DocumentPolicy::readsInternalOf()`.
+        $recentDocs = DocumentPolicy::restreindreAuxLecteursDInternes(Document::query(), $user)
             ->where(function ($q) use ($user, $customerIds) {
                 $q->where('uploaded_by', $user->id);
                 if ($customerIds !== []) {

@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// TCK-2594 — la fiche lit le personnel actif (« Fiche » du client) : hors du sujet ici.
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true, useAgenceDuPersonnelActif: () => 1 }));
 
 import { withIntl } from '@/test/intl';
 import { BookingDetail } from '../BookingDetail';
@@ -30,6 +32,7 @@ vi.mock('@/lib/queries/bookings', () => ({
 const CANDIDATURE = {
   id: 7,
   agency_id: 5,
+  kind: 'application',
   status: 'confirmed',
   reference_number: 'BK-7',
   start_date: '2099-01-01',
@@ -85,6 +88,11 @@ describe('BookingDetail — « Créer le bail » (P48.03)', () => {
 
   it('ne se montre pas sur une demande en attente', () => {
     rendu({ ...CANDIDATURE, status: 'pending' }, ['leases.create']);
+    expect(screen.queryByRole('link', { name: 'Créer le bail' })).toBeNull();
+  });
+
+  it('TCK-2594 — ne se montre pas sur un séjour confirmé, même d’un bien à louer : le bail suit une candidature', () => {
+    rendu({ ...CANDIDATURE, kind: 'stay' }, ['leases.create']);
     expect(screen.queryByRole('link', { name: 'Créer le bail' })).toBeNull();
   });
 

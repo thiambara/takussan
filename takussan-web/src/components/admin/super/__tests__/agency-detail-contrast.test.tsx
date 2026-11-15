@@ -259,8 +259,9 @@ describe('bandeau « Actions de modération » — encre héritée sur fond repe
 
     // Une garde qui n'a plus rien à mesurer rend le même vert qu'une garde satisfaite : le bouton
     // `outline` DOIT être passé au détecteur, sans quoi le vert ci-dessus ne dit rien.
+    // TCK-2686 — le fond du contour est le jeton `fond-contour` (`bg-background` hors portée `/app`).
     const deverifier = Array.from(section.querySelectorAll('button'))
-      .find((b) => /bg-background/.test(b.className));
+      .find((b) => /bg-fond-contour/.test(b.className));
     expect(deverifier, "le bouton `outline` n'est plus dans le bandeau : le détecteur mesure du vide")
       .toBeDefined();
     // Et c'est bien CELUI que TCK-471 a trouvé invisible — pas un autre `outline` qui aurait pris
@@ -290,7 +291,7 @@ describe('bandeau « Actions de modération » — encre héritée sur fond repe
     // relevé navigateur de l'en-tête.
     expect(boutons.map((b) => (/bg-primary/.test(b.className) && 'default')
       || (/bg-destructive/.test(b.className) && 'destructive')
-      || (/bg-background/.test(b.className) && 'outline')
+      || (/bg-fond-contour/.test(b.className) && 'outline')
       || 'inconnue')).toEqual(['default', 'destructive', 'outline']);
   });
 });

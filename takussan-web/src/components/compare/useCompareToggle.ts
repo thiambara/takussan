@@ -20,7 +20,7 @@ import { useToast } from '@/components/ui/toast';
  */
 export function useCompareToggle(propertyId: number, preview?: ComparePreview) {
   const t = useTranslations('compare.button');
-  const { has, toggle, ids } = useCompare();
+  const { has, toggle } = useCompare();
   const toast = useToast();
 
   const isSelected = has(propertyId);
@@ -37,16 +37,11 @@ export function useCompareToggle(propertyId: number, preview?: ComparePreview) {
       return result;
     }
 
-    if (result.status === 'added') {
-      toast.add({
-        title: t('added'),
-        description: t('addedBody', { count: ids.length + 1, max: COMPARE_MAX_IDS }),
-        type: 'info',
-      });
-    }
-
+    // TCK-2509 — plus de toast à chaque ajout : la pastille du comparateur (TCK-2493) dit déjà
+    // « 3 », et les toasts s'empilaient en haut de l'écran sur l'en-tête (audit UX 2026-11, § 6).
+    // Le refus, lui, se dit : rien d'autre ne l'annonce.
     return result;
-  }, [toggle, propertyId, preview, toast, ids.length, t]);
+  }, [toggle, propertyId, preview, toast, t]);
 
   return {
     isSelected,

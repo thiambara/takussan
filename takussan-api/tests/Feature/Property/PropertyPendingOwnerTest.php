@@ -75,6 +75,9 @@ class PropertyPendingOwnerTest extends ApiTestCase
 
     private function accepter(Invitation $invitation): TestResponse
     {
+        // TCK-2610 (ADR-0094 § 7) — l'invité ouvre le lien hors de la session de l'agent : connecté, il accepterait pour ce compte.
+        $this->app['auth']->forgetGuards();
+
         return $this->postJson('/api/invitations/'.$invitation->token.'/accept', [
             'first_name' => 'Awa',
             'last_name' => 'Diop',

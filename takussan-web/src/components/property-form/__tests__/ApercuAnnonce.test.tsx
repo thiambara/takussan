@@ -65,7 +65,7 @@ describe('CarteApercu', () => {
 
   it('un loyer porte sa période — mensuelle quand elle n’est pas encore choisie', () => {
     const c = carte({ type: 'apartment', contract_type: 'rent', price: 450_000 });
-    expect(c.getByTestId('apercu-prix')).toHaveTextContent(/450\s000\sF CFA\s*\/mois/);
+    expect(c.getByTestId('apercu-prix')).toHaveTextContent(/450\s000\sF CFA \/ mois/);
   });
 
   it('un prix de vente n’a pas de période', () => {
@@ -73,18 +73,19 @@ describe('CarteApercu', () => {
     expect(c.getByTestId('apercu-prix')).toHaveTextContent(/25\s000\s000\sF CFA$/);
   });
 
-  it('liste les composantes du coût d’entrée, ET son total indicatif (TCK-633)', () => {
+  // TCK-2819 (lot 2) — la carte ne dit plus que « À l’entrée : … » (maquette `CarteApercu`) ; les
+  // composantes, le total et la note de TCK-633 sont épinglés à l'encadré de l'étape du prix
+  // (`StepPrix.encadre.tck-2819.test.tsx`), mêmes valeurs, mêmes montants.
+  it('ne dit que le total, « À l’entrée : … » — les composantes vivent à l’étape du prix (TCK-633, TCK-2819)', () => {
     const c = carte({
       type: 'apartment', contract_type: 'rent', rent_period: 'monthly', price: 450_000,
       advance_months: 2, deposit_months: 1, agency_fee_months: 1,
     });
-    expect(c.getByText('2 mois d’avance, 1 mois de caution, 1 mois de frais d’agence')).toBeInTheDocument();
-    // 4 × 450 000 = 1 800 000 : le montant que `CoutDEntree` (API) rend pour la même entrée.
-    expect(c.getByTestId('apercu-total-entree')).toHaveTextContent(/^Total à l’entrée : 1\s800\s000\sF CFA$/);
-    expect(c.getByText(/montant indicatif, calculé d’après vos réponses/i)).toBeInTheDocument();
+    expect(c.getByTestId('apercu-total-entree')).toHaveTextContent(/^À l’entrée : 1\s800\s000\sF CFA$/);
+    expect(c.queryByText(/mois d’avance/)).not.toBeInTheDocument();
   });
 
-  it('le total compte les charges de l’avance et le demi-mois de frais (TCK-633)', () => {
+  it('le total de la carte compte les charges de l’avance et le demi-mois de frais (TCK-633)', () => {
     const c = carte({
       type: 'apartment', contract_type: 'rent', rent_period: 'monthly', price: 450_000,
       advance_months: 1, deposit_months: 1, agency_fee_months: 1.5, monthly_charges: 10_000,
@@ -98,6 +99,7 @@ describe('CarteApercu', () => {
       type: 'apartment', contract_type: 'rent', rent_period: 'weekly', price: 50_000, advance_months: 2,
     });
     expect(c.queryByText(/mois d’avance/)).not.toBeInTheDocument();
+    expect(c.queryByTestId('apercu-total-entree')).not.toBeInTheDocument();
   });
 });
 
@@ -138,7 +140,7 @@ describe('BarreApercu', () => {
     );
 
     const barre = screen.getByRole('button', { name: 'Ouvrir l’aperçu de l’annonce' });
-    expect(barre).toHaveTextContent(/450\s000\sF CFA \/mois/);
+    expect(barre).toHaveTextContent(/450\s000\sF CFA \/ mois/);
     expect(screen.queryByTestId('apercu-annonce')).not.toBeInTheDocument();
 
     await user.click(barre);

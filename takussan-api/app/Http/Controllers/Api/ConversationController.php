@@ -9,23 +9,37 @@ use App\Http\Requests\Api\StoreConversationRequest;
 use App\Http\Requests\Api\ToggleMuteConversationRequest;
 use App\Http\Requests\Api\UpdateConversationRequest;
 use App\Http\Requests\Conversation\CreateGroupConversationRequest;
+use App\Http\Requests\Conversation\ListConversationsRequest;
+use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Conversation;
-use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
+use App\Models\User;
+use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\ConversationThreadContext;
+use App\Services\Messaging\ConversationWriter;
+use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\GroupConversationService;
+use App\Support\CaseInsensitive;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Spatie\Image\Exceptions\CouldNotLoadImage;
 
 class ConversationController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /** TCK-2630 — au-delà, la saisie est une phrase : on ne garde que les premiers mots. */
+    private const SEARCH_TERMS = 6;
+
+    public function index(ListConversationsRequest $request): JsonResponse
     {
         $user = $request->user();
         $includeArchived = (bool) $request->boolean('archived');
@@ -49,21 +63,33 @@ class ConversationController extends Controller
                         ->orWhereColumn('lecteur.last_read_at', '<', 'messages.created_at')));
         };
 
-        $liste = Conversation::query()
-            ->whereHas('participants', function ($q) use ($user, $includeArchived) {
+        // TCK-2630 — le cloisonnement est posé UNE fois, sur une base commune : la liste (archives
+        // ou non) et les compteurs des puces (`meta.counts`, toujours hors archives) en dérivent.
+        // Le rappeler pour chacune rejouerait `answeredPropertyIds()` (une requête par appel).
+        $cloisonne = Conversation::query()
+            // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
+            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user));
+        // `$archives` : `true` les seuls archivés, `false` les seuls actifs, `null` les deux.
+        $ou = fn (?bool $archives) => (clone $cloisonne)
+            ->whereHas('participants', function ($q) use ($user, $archives) {
                 $q->where('user_id', $user->id);
                 // TCK-085 — participants who left a group no longer see it.
                 $q->whereNull('conversation_participants.left_at');
-                if ($includeArchived) {
+                if ($archives === true) {
                     $q->whereNotNull('conversation_participants.archived_at');
-                } else {
+                } elseif ($archives === false) {
                     $q->whereNull('conversation_participants.archived_at');
                 }
-            })
-            // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
-            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user));
+            });
+        $liste = $ou($includeArchived);
+        // TCK-2632 (décision b) — `filter[participant]` cherche LE fil qu'on a avec une personne
+        // (« Nouvelle conversation ») : archivé ou non, il est rendu, pour être rouvert plutôt que
+        // doublé. La page seule s'élargit ; `unread_total` et `meta.counts` gardent leur base.
+        $page = $request->validated('filter.participant') !== null ? $ou(null) : $liste;
 
-        $paginator = (clone $liste)
+        $paginator = (clone $page)
+            // TCK-2630 — les filtres ne portent que sur la page : ni `unread_total` ni `meta.counts`.
+            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus))
             ->with([
                 'property.media',
                 'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
@@ -88,20 +114,109 @@ class ConversationController extends Controller
             ->tap($nonLus)
             ->count();
 
+        // TCK-2630 — les compteurs des puces, sur tout le cloisonné hors archives et SANS les
+        // filtres : `all` et `group` en une requête, `unread` par la définition même du compte de
+        // la liste (`$nonLus`). `unread` compte des FILS, sourdine comprise — la puce « Non lus »
+        // filtre par `filter[unread]`, qui ne regarde pas la sourdine ; `unread_total` compte des
+        // MESSAGES hors sourdine (la pastille).
+        $actifs = $ou(false);
+        $parType = (clone $actifs)->toBase()
+            ->selectRaw('count(*) as tous, count(*) filter (where conversations.type = ?) as groupes', [ConversationType::Group->value])
+            ->first();
+        $counts = [
+            'all' => (int) $parType->tous,
+            'unread' => (clone $actifs)->whereHas('messages', $nonLus)->count(),
+            'group' => (int) $parType->groupes,
+        ];
+
         return $this->paginated(
             $paginator,
             ConversationResource::collection($paginator)->toArray($request),
-            ['unread_total' => $unreadTotal],
+            ['unread_total' => $unreadTotal, 'counts' => $counts],
         );
     }
 
-    public function store(StoreConversationRequest $request, GroupConversationService $groups): JsonResponse
+    /**
+     * TCK-2630 — `filter[search]`, `filter[unread]`, `filter[type]`, cumulables, typés par
+     * {@see ListConversationsRequest}.
+     *
+     * La recherche : chaque mot (au plus {@see self::SEARCH_TERMS}) doit trouver le prénom ou le nom
+     * d'un membre ACTUEL autre que l'appelant, le titre ou la référence du bien, ou le sujet du fil.
+     * La casse se replie par `CaseInsensitive` (ADR-0025 : `lower()` nu ne replie que l'ASCII sous
+     * `--locale=C`) ; les accents ne se replient pas (ADR-0020 §2, pas d'`unaccent` sans ticket) —
+     * la règle de la recherche de biens de `ConversationContextController`. `%` et `_` sont pris au
+     * pied de la lettre. Moins de 2 caractères : ignorée. Une condition de plus, jamais une requête
+     * par fil.
+     *
+     * @param  Builder<Conversation>  $query
+     */
+    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus): void
+    {
+        $filtres = $request->validated('filter') ?? [];
+
+        if (($filtres['type'] ?? null) !== null) {
+            $query->where('conversations.type', $filtres['type']);
+        }
+
+        if (in_array($filtres['unread'] ?? null, ['1', 'true'], true)) {
+            $query->whereHas('messages', $nonLus);
+        }
+
+        // TCK-2632 — les fils où cette personne est membre ACTUEL. Le filtre RESTREINT la liste
+        // de l'appelant, déjà cloisonnée et limitée à ses propres fils : il n'ouvre jamais le fil
+        // de deux tiers, quel que soit l'identifiant demandé.
+        if (($filtres['participant'] ?? null) !== null) {
+            $query->whereHas('participants', fn (Builder $m) => $m
+                ->where('users.id', (int) $filtres['participant'])
+                ->whereNull('conversation_participants.left_at'));
+        }
+
+        $saisie = trim((string) ($filtres['search'] ?? ''));
+        if (mb_strlen($saisie) < 2) {
+            return;
+        }
+
+        $mots = array_slice(preg_split('/\s+/u', $saisie, -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, self::SEARCH_TERMS);
+        foreach ($mots as $mot) {
+            $motif = '%'.addcslashes(CaseInsensitive::fold($mot), '\\%_').'%';
+            $query->where(fn (Builder $q) => $q
+                ->whereRaw(CaseInsensitive::sql('conversations.subject').' LIKE ?', [$motif])
+                ->orWhereHas('property', fn (Builder $p) => $p
+                    ->whereRaw(CaseInsensitive::sql('properties.title').' LIKE ?', [$motif])
+                    ->orWhereRaw(CaseInsensitive::sql('properties.reference_number').' LIKE ?', [$motif]))
+                ->orWhereHas('participants', fn (Builder $m) => $m
+                    ->whereNull('conversation_participants.left_at')
+                    ->where('users.id', '!=', $user->id)
+                    ->where(fn (Builder $n) => $n
+                        ->whereRaw(CaseInsensitive::sql('users.first_name').' LIKE ?', [$motif])
+                        ->orWhereRaw(CaseInsensitive::sql('users.last_name').' LIKE ?', [$motif]))));
+        }
+    }
+
+    /**
+     * TCK-2630 — `GET /api/conversations/{conversation}/context` : le bien, le bail, l'intervention
+     * et, pour le personnel de l'agence du fil, la fiche CRM de l'autre participant d'une directe.
+     *
+     * La garde est celle de `show` (`ensureParticipant` → `ConversationAccess::allows`) : 403 pour
+     * un non-participant, un ancien membre ou un fil d'intervention devenu inaccessible. Chaque
+     * bloc se juge ensuite seul ({@see ConversationThreadContext}) et vaut `null` s'il est interdit.
+     */
+    public function context(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        return $this->json([
+            'data' => ConversationContextResource::make(ConversationThreadContext::for($request->user(), $conversation))->resolve($request),
+        ]);
+    }
+
+    public function store(StoreConversationRequest $request, GroupConversationService $groups, DirectConversationService $directes, ConversationWriter $writer): JsonResponse
     {
         // TCK-085 — group requests get the dedicated FormRequest
         // (subject required, 3..20 total participants).
         $type = $request->input('type', ConversationType::Direct->value);
         if ($type === ConversationType::Group->value) {
-            return $this->storeGroup($request, $groups);
+            return $this->storeGroup($request, $groups, $writer);
         }
 
         $data = $request->validated();
@@ -115,51 +230,40 @@ class ConversationController extends Controller
         abort_code_if(count($participantIds) === 0, 422, 'conversation.participant_required');
         $data['participants'] = $participantIds;
 
-        $initialMessage = null;
+        $creee = false;
 
-        $conversation = DB::transaction(function () use ($data, $user, &$initialMessage) {
-            $conversation = Conversation::create([
-                'subject' => $data['subject'] ?? null,
-                'type' => $data['type'] ?? ConversationType::Direct->value,
-                'status' => ConversationStatus::Active->value,
-                'created_by' => $user->id,
-                'property_id' => $data['property_id'] ?? null,
-                'lease_id' => $data['lease_id'] ?? null,
-            ]);
-
-            $participantIds = array_unique(array_merge($data['participants'], [$user->id]));
-            foreach ($participantIds as $pid) {
-                $conversation->participants()->attach($pid, ['joined_at' => now()]);
-            }
+        // Contre-vérification de TCK-2632 — une directe n'est PAS recréée : la directe existante
+        // entre les deux mêmes personnes, dans le même contexte, est rendue (200), son message
+        // initial y est posté. Une directe relie l'acteur et UNE autre personne
+        // (`StoreConversationRequest`), jamais un bien (TCK-888). Le verrou de la paire ferme la course.
+        //
+        // TCK-2782 — le message initial passe par `ConversationWriter`, jugé comme un envoi
+        // (`ConversationAccess::allowsWriting`) : une directe REPRISE où l'auteur lit sans écrire rend
+        // 403, sans message ni notification ; une directe neuve refusée est annulée avec lui.
+        $conversation = DB::transaction(function () use ($data, $user, $directes, $writer, &$creee) {
+            [$conversation, $creee] = $directes->firstOrCreate(
+                $user,
+                (int) $data['participants'][0],
+                isset($data['lease_id']) ? (int) $data['lease_id'] : null,
+                $data['subject'] ?? null,
+            );
 
             if (! empty($data['initial_message'])) {
-                $message = $conversation->messages()->create([
-                    'sender_id' => $user->id,
+                // TCK-805 (P38.03) — notifié comme tout message, après le COMMIT (`ConversationWriter`).
+                $writer->post($user, $conversation, [
                     'content' => $data['initial_message'],
                     'type' => MessageType::Text->value,
                 ]);
-                $conversation->update([
-                    'last_message_id' => $message->id,
-                    'last_message_preview' => mb_substr($message->content, 0, 255),
-                    'last_message_at' => now(),
-                ]);
-                $initialMessage = $message;
             }
 
             return $conversation;
         });
 
-        // TCK-805 (P38.03) — the initial message is notified like any other, after the commit
-        // (same path as sendMessage()).
-        if ($initialMessage !== null) {
-            NotifyNewMessageJob::dispatch($initialMessage->id);
-        }
-
-        $conversation->loadMissing('property');
+        $conversation->refresh()->loadMissing('property');
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->resolve($request),
-        ], 201);
+        ], $creee ? 201 : 200);
     }
 
     /**
@@ -169,7 +273,7 @@ class ConversationController extends Controller
      * required, 2..19 *other* participants → 3..20 total). The creator is
      * promoted to admin automatically by the service.
      */
-    protected function storeGroup(Request $request, GroupConversationService $groups): JsonResponse
+    protected function storeGroup(Request $request, GroupConversationService $groups, ConversationWriter $writer): JsonResponse
     {
         // Re-validate via the dedicated FormRequest. We instantiate it
         // manually because we branched off `Request` after the route hit
@@ -181,25 +285,20 @@ class ConversationController extends Controller
 
         $user = $request->user();
 
+        // TCK-2782 — le message initial s'écrit dans la transaction de création, AVANT les invitations,
+        // par `ConversationWriter` (jugé comme un envoi) : un refus (403) ne laisse ni groupe vide ni
+        // invitation. TCK-805 (P38.03) : notifié comme tout message, après le COMMIT.
+        $initial = $data['initial_message'] ?? null;
         $conversation = $groups->create(
             $user,
             $data['subject'],
             array_map('intval', $data['participants']),
             $data['property_id'] ?? null,
             $data['lease_id'] ?? null,
+            avantLesInvitations: empty($initial) ? null : function (Conversation $groupe) use ($writer, $user, $initial): void {
+                $writer->post($user, $groupe, ['content' => $initial, 'type' => MessageType::Text->value]);
+            },
         );
-
-        if (! empty($data['initial_message'])) {
-            $message = $conversation->messages()->create([
-                'sender_id' => $user->id,
-                'content' => $data['initial_message'],
-                'type' => MessageType::Text->value,
-            ]);
-            $conversation->refresh();
-
-            // TCK-805 (P38.03) — same notification path as sendMessage().
-            NotifyNewMessageJob::dispatch($message->id);
-        }
 
         $conversation->loadMissing('property');
 
@@ -319,64 +418,80 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function sendMessage(SendMessageConversationRequest $request, Conversation $conversation): JsonResponse
+    public function sendMessage(SendMessageConversationRequest $request, Conversation $conversation, ConversationWriter $writer): JsonResponse
     {
-
         $data = $request->validated();
 
         $sender = $request->user();
 
-        // Group the message insert, conversation pointer update, sender
-        // read-marker and participant auto-unarchive in one transaction so
-        // a mid-write failure can't leave half of them applied.
         // TCK-592 — ADR-0038 : une note vocale porte son fichier (collection privée `attachments`)
         // et sa durée déclarée ; son texte est un aperçu neutre pour la liste des conversations.
         $isAudio = ($data['type'] ?? null) === MessageType::Audio->value;
         $audio = $isAudio ? $request->file('audio') : null;
+        // TCK-2631 (ADR-0038, amendement du 2026-11-10) — une photo ou un PDF, préparés AVANT la
+        // transaction : une photo illisible est refusée sans message ni fichier.
+        $piece = $this->pieceJointe($request);
 
-        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio) {
-            $message = $conversation->messages()->create([
-                'sender_id' => $sender->id,
-                'content' => $isAudio ? __('messaging.audio_preview') : $data['content'],
-                'type' => $data['type'] ?? MessageType::Text->value,
-                'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
-            ]);
-
+        // TCK-2782 — LE point d'écriture (`ConversationWriter`) : message, pointeur du fil, lecture de
+        // l'auteur et désarchivage en une transaction, puis `NotifyNewMessageJob` après le COMMIT. La
+        // pièce est rangée dans la transaction, avant le pointeur ; `authorize()` a déjà jugé
+        // `allowsWriting`, que le service rejoue (la même règle pour le message initial).
+        $message = $writer->post($sender, $conversation, [
+            // TCK-2631 — la légende d'une pièce est facultative ; `content` n'est pas nullable, et
+            // une pièce sans légende porte une chaîne vide (son aperçu est `neutralPreview()`).
+            'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
+            'type' => $data['type'] ?? MessageType::Text->value,
+            'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
+        ], function (Message $message) use ($audio, $piece): void {
             if ($audio !== null) {
                 $message->addMedia($audio)->toMediaCollection('attachments');
             }
 
-            $conversation->update([
-                'last_message_id' => $message->id,
-                'last_message_preview' => mb_substr($message->content, 0, 255),
-                'last_message_at' => now(),
-            ]);
-
-            // Auto-mark the sender's own read pointer so the new message
-            // doesn't show up as unread on the sender's side.
-            $conversation->participants()->updateExistingPivot($sender->id, [
-                'last_read_at' => now(),
-                'archived_at' => null,
-            ]);
-
-            // Un-archive the conversation for other participants so a new
-            // incoming message makes the thread reappear in their list.
-            DB::table('conversation_participants')
-                ->where('conversation_id', $conversation->id)
-                ->where('user_id', '!=', $sender->id)
-                ->update(['archived_at' => null]);
-
-            return $message;
+            if ($piece !== null) {
+                $message->addMedia($piece['path'])
+                    ->usingName($piece['name'])
+                    ->usingFileName($piece['file_name'])
+                    ->toMediaCollection('attachments');
+            }
         });
-
-        // Fire-and-forget notification so we don't block the response on
-        // mail / broadcasting I/O. Dispatched after the transaction commits
-        // so the worker is guaranteed to see the persisted message.
-        NotifyNewMessageJob::dispatch($message->id);
 
         return $this->json([
             'data' => MessageResource::make($message)->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — la pièce jointe à ranger, ou `null`.
+     *
+     * Une photo est RÉENCODÉE (`AvatarReencode`, le même geste que l'avatar) : GD n'écrit aucune
+     * métadonnée, la position GPS d'une photo prise chez le locataire ne survit pas, et l'orientation
+     * EXIF est appliquée aux pixels avant de disparaître. Ses pixels sont déjà bornés par la requête
+     * (`PixelsAuPlus`). Un en-tête lisible sur une image que GD ne décode pas rend 422
+     * `media.file_rejected`. Un PDF n'est pas réécrit (ses métadonnées restent, comme dans un
+     * courriel) ; aucun antivirus ne l'analyse (dette D-73).
+     *
+     * @return array{path: string|UploadedFile, name: string, file_name: string}|null
+     */
+    private function pieceJointe(SendMessageConversationRequest $request): ?array
+    {
+        $type = $request->validated('type');
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile || ! in_array($type, [MessageType::Image->value, MessageType::Document->value], true)) {
+            return null;
+        }
+
+        $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        if ($type === MessageType::Document->value) {
+            return ['path' => $file, 'name' => $name, 'file_name' => $name.'.pdf'];
+        }
+
+        try {
+            $path = AvatarReencode::sansMetadonnees($file);
+        } catch (CouldNotLoadImage) {
+            abort_code(422, 'media.file_rejected');
+        }
+
+        return ['path' => $path, 'name' => $name, 'file_name' => AvatarReencode::nomDeFichier($file)];
     }
 
     public function markAsRead(Request $request, Conversation $conversation): JsonResponse

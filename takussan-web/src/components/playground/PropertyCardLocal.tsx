@@ -58,7 +58,7 @@ export function PropertyCardLocal({ property, priority, index = 0 }: PropertyCar
 
           {/* Badge transaction — top-left */}
           {property.contract_type && (
-            <div className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-md text-[11px] font-semibold ${
+            <div className={`absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-md text-[0.6875rem] font-semibold ${
               isSale ? 'pg-badge-tx-sale' : 'pg-badge-tx-rent'
             }`}>
               <span className="size-1.5 rounded-full bg-current opacity-70" />
@@ -67,7 +67,7 @@ export function PropertyCardLocal({ property, priority, index = 0 }: PropertyCar
           )}
 
           {/* Time — bottom-left */}
-          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--pg-cream)]/90 backdrop-blur-sm text-[10px] font-medium text-[var(--pg-ink)] shadow-[0_1px_4px_rgba(27,40,69,0.10)]">
+          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--pg-cream)]/90 backdrop-blur-sm text-[0.625rem] font-medium text-[var(--pg-ink)] shadow-[0_1px_4px_rgba(27,40,69,0.10)]">
             <Clock className="size-3 opacity-70" strokeWidth={2} />
             {timeAgo}
           </div>
@@ -98,27 +98,27 @@ export function PropertyCardLocal({ property, priority, index = 0 }: PropertyCar
 
         {/* Body — ordre prix → titre → location → méta (alignement app). */}
         <div className="pg-card-meta mt-4 space-y-1">
-          <p className="text-[var(--pg-accent)] font-bold text-[15px] pg-tabular truncate">
+          <p className="text-[var(--pg-accent)] font-bold text-[0.9375rem] pg-tabular truncate">
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="text-[12px] font-semibold text-[var(--pg-ink-muted)] ml-0.5">
+              <span className="text-[0.75rem] font-semibold text-[var(--pg-ink-muted)] ml-0.5">
                 /{RENT_PERIOD_SHORT[property.rent_period]}
               </span>
             )}
           </p>
 
-          <h3 className="pg-display font-medium text-[14px] leading-snug text-[var(--pg-ink)] line-clamp-2 h-10">
+          <h3 className="pg-display font-medium text-[0.875rem] leading-snug text-[var(--pg-ink)] line-clamp-2 h-10">
             {property.title}
           </h3>
 
           {location && (
-            <p className="text-[13px] text-[var(--pg-ink-muted)] flex items-center gap-1.5 truncate">
+            <p className="text-[0.8125rem] text-[var(--pg-ink-muted)] flex items-center gap-1.5 truncate">
               <MapPin className="size-3.5 shrink-0" />
               <span className="truncate">{location}</span>
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] font-semibold text-[var(--pg-ink-muted)]">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[0.6875rem] font-semibold text-[var(--pg-ink-muted)]">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
                 <span>{property.bedrooms} ch</span>

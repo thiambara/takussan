@@ -90,6 +90,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',
         'api/kyc/documents/{media}' => '{media} : Media sans fabrique',
+        'api/me/document-vault/archives/{archive}/download' => '{archive} : sans liaison de modèle',
         'api/me/payouts/{payout}' => '{payout} : sans liaison de modèle',
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
         'api/media/{media}/sign' => '{media} : Media sans fabrique',
@@ -110,9 +111,14 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/public/properties/{slug}/conversation' => '{slug} : sans liaison de modèle',
         'api/public/agents/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agents/{slug}/properties' => '{slug} : sans liaison de modèle',
+        // TCK-2609 — l'aperçu d'une invitation : le jeton n'est lié à aucun modèle par la route.
+        'api/public/invitations/{token}' => '{token} : sans liaison de modèle',
         'api/public/agencies/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agencies/{slug}/properties' => '{slug} : sans liaison de modèle',
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',
+        // TCK-2627 — liée (`ThresholdAlert $thresholdAlert`), mais sous le nom `{threshold_alert}` de
+        // `apiResource`, que ce parcours ne rapproche pas ; et `ThresholdAlert` n'a pas de fabrique.
+        'api/threshold-alerts/{threshold_alert}' => '{threshold_alert} : sans liaison de modèle',
         'api/webhooks/sms/lafricamobile/status/{token}/{notification}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/status/{token}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/radar/{token}' => '{token} : sans liaison de modèle',
