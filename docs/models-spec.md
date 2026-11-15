@@ -396,6 +396,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 128. [ExportFile](#128-exportfile-) 🆕
 129. [PropertyDailyView](#129-propertydailyview-) 🆕
 130. [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) 🆕
+131. [MaintenanceQuoteAlternative](#131-maintenancequotealternative-) 🆕
 
 ### Enums
 
@@ -1545,6 +1546,7 @@ contrainte en base.
 - `maintenanceRequests()` → hasMany MaintenanceRequest
 - `documents()` → morphMany Document
 - `rescheduleRequests()` → hasMany [MaintenanceRescheduleRequest](#130-maintenancereschedulerequest-) ; `pendingRescheduleRequest()` → hasOne, la demande de créneau en attente (TCK-2917)
+- `quoteAlternatives()` → hasMany [MaintenanceQuoteAlternative](#131-maintenancequotealternative-) : les devis concurrents consultés, rendus au détail dans `quote_alternatives[]` aux seuls donneurs d'ordre (TCK-2911)
 - `payouts()` → hasMany Payout 🆕
 - `invoices()` → morphMany Invoice 🆕
 - `onboardingChecklist()` → hasOne TenantOnboardingChecklist 🆕 (TCK-266)
@@ -4204,13 +4206,26 @@ travaux suivante fait naître une facture neuve.
 | amount | decimal(14,2) | | | Coût réel, à défaut devis approuvé |
 | currency | string(3) | | 'XOF' | |
 | exceeds_quote | boolean | | false | Coût réel > devis approuvé |
-| status | string(30) | | 'pending_validation' | `ServiceProviderBillStatus` : `pending_validation`, `validated`, `rejected`, `paid`, `cancelled` |
+| status | string(30) | | 'pending_validation' | `ServiceProviderBillStatus` : `draft` (TCK-2911, née ainsi à la clôture depuis ADR-0120), `pending_validation`, `validated`, `rejected`, `paid`, `cancelled` |
+| submitted_at | timestamp | oui | null | TCK-2911 (ADR-0120 § 1) — l'instant de « Facturer » ; nul pour un brouillon et pour une facture antérieure |
 | validated_by_id | FK users | oui | null | `nullOnDelete`, `sp_bills_validated_by_fk` |
 | validated_at | timestamp | oui | null | |
 | rejection_reason | text | oui | null | |
 | rechargeable_to_landlord | boolean | | true | |
 | imputed_payout_id | FK payouts | oui | null | Reversement bailleur qui la retient (`nullOnDelete`, `sp_bills_imputed_payout_fk`) |
 | created_at / updated_at | timestamp | | auto | |
+
+<!-- TCK-2911 (ADR-0120 § 1, § 2). -->
+**Brouillon (TCK-2911, ADR-0120) :** depuis 2026-11-15, l'observateur crée la facture en **`draft`** (« À
+facturer »), mêmes conditions et même montant qu'avant ; les factures antérieures gardent leur statut. Le brouillon
+n'est lu que de son prestataire (la liste et le détail de l'agence ne le rendent pas), ne se valide, ne se paie ni ne
+s'impute ; la contestation l'annule. `POST /api/service-provider-bills/{bill}/submit` (le prestataire de la facture
+seul, depuis `draft`, travail encore rendu) le passe `pending_validation` avec, facultatifs, le montant final
+(arrondi à l'unité de la devise, `exceeds_quote` recalculé), `provider_reference` et la pièce (collection privée
+`invoice`, rendue en `invoice.url` signée au détail). `GET /api/service-provider-bills/statement/pdf?from=&to=` : le
+relevé PDF des factures de l'appelant, hors brouillons, datées par `COALESCE(submitted_at, created_at)`. « À la
+charge du bailleur » = refacturable ET `validated`/`paid` (`ServiceProviderBill::CHARGED_TO_LANDLORD_STATUSES`,
+`scopeChargedToLandlord`), lue par `PayoutCalculator` et par `GET /api/owner/maintenance-summary`.
 
 **Contraintes :** index unique partiel `sp_bills_one_open_per_request` sur `maintenance_request_id`
 `WHERE status NOT IN ('rejected','cancelled')` — une seule facture ouverte par demande. C'est ce qui
@@ -6203,6 +6218,34 @@ Index : `(maintenance_request_id, status)`. Pas d'`agency_id` : la ligne se lit 
 
 **Relations :** `maintenanceRequest()` → belongsTo MaintenanceRequest ; `requester()`, `resolvedBy()` → belongsTo User.
 Côté [MaintenanceRequest](#21-maintenancerequest-) : `rescheduleRequests()` → hasMany, `pendingRescheduleRequest()` → hasOne (la plus récente `pending`).
+
+---
+
+### 131. MaintenanceQuoteAlternative 🆕
+
+<!-- TCK-2911 (ADR-0120 § 3). -->
+
+**Table :** `maintenance_quote_alternatives` — un devis consulté et non retenu pour une intervention, la « mise en
+concurrence » que le bailleur lit à côté du devis recommandé (`quote_*` de la demande). Écrit par le **personnel actif
+de l'agence du bien** qui détient `maintenance.assign` (`POST`/`DELETE /api/maintenance-requests/{id}/quote-alternatives[/{alternative}]`,
+policy `manageQuoteAlternatives`), jamais sur une demande close ou annulée, cinq au plus par demande. Lu au détail de
+la demande (`quote_alternatives[]`) des seuls **donneurs d'ordre** — clé absente pour tout prestataire (l'assigné
+compris) et pour le demandeur.
+
+| Champ | Type | Null | Défaut | Description |
+|---|---|---|---|---|
+| maintenance_request_id | FK maintenance_requests | | | L'intervention (`cascadeOnDelete`) |
+| provider_id | FK users | oui | null | Le prestataire consulté, s'il a un compte (`nullOnDelete`) |
+| provider_name | string(150) | oui | null | Nom libre, exigé sans `provider_id` |
+| amount | decimal(14,2) | | | Montant du devis, arrondi à l'unité de la devise |
+| currency | string(3) | | 'XOF' | |
+| created_by_id | FK users | oui | null | Qui l'a enregistré (`nullOnDelete`) |
+| created_at / updated_at | timestamp | | auto | |
+
+Index : `maintenance_request_id`. Pas d'`agency_id` : la ligne se lit toujours par sa demande. Pièce facultative :
+collection privée `quote` (PDF ou image), rendue en URL d'API signée.
+
+**Relations :** `maintenanceRequest()` → belongsTo MaintenanceRequest ; `provider()`, `createdBy()` → belongsTo User.
 
 ---
 

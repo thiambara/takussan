@@ -17,6 +17,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Payments\LeasePaymentLinkService;
 use Closure;
@@ -122,6 +123,8 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
             'relevé mensuel — GET owner-statements/pdf?period=YYYY-MM' => ['releveMensuel', ['app/Http/Controllers/Api/OwnerStatementController.php']],
             'attestation annuelle — GET owner-statements/pdf?period=YYYY' => ['attestationAnnuelle', ['app/Http/Controllers/Api/OwnerStatementController.php']],
             'devis d’intervention — GET maintenance-requests/{id}/quote/pdf' => ['devis', ['app/Http/Controllers/Api/MaintenanceQuoteController.php']],
+            // TCK-2911 (ADR-0120 § 2) — le relevé des factures du prestataire.
+            'relevé des factures du prestataire — GET service-provider-bills/statement/pdf' => ['releveDesFactures', ['app/Http/Controllers/Api/ServiceProviderBillStatementController.php']],
             'état des lieux — GET inventories/{inventory}/pdf' => ['etatDesLieux', ['app/Http/Controllers/Api/InventoryController.php']],
             'reçu de réservation — GET booking-payments/{payment}/receipt' => ['recuDeReservation', ['app/Http/Controllers/Api/BookingPaymentController.php', 'app/Services/Payments/PaymentReceiptPdf.php']],
             'export en PDF — GET export/{entity}?format=pdf' => ['exportPdf', ['app/Http/Controllers/Api/ExportController.php', 'app/Services/Export/ExportWriter.php']],
@@ -368,6 +371,16 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
         $this->connecter($prestataire);
 
         return fn (): TestResponse => $this->get("/api/maintenance-requests/{$mr->id}/quote/pdf");
+    }
+
+    /** TCK-2911 (ADR-0120 § 2) — le prestataire et une facture envoyée du mois. */
+    private function releveDesFactures(): Closure
+    {
+        ['provider' => $prestataire] = $this->maintenanceScenario(MaintenanceStatus::Completed);
+        ServiceProviderBill::factory()->create(['provider_id' => $prestataire->id, 'agency_id' => $this->agency->id]);
+        $this->connecter($prestataire);
+
+        return fn (): TestResponse => $this->get('/api/service-provider-bills/statement/pdf');
     }
 
     private function etatDesLieux(): Closure

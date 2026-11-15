@@ -13,7 +13,6 @@ use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Enums\PlatformPayoutStatus;
-use App\Models\Enums\ServiceProviderBillStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\LeasePayment;
 use App\Models\PlatformPayout;
@@ -340,11 +339,8 @@ final class PayoutCalculator
             ->join('properties', 'properties.id', '=', 'service_provider_bills.property_id')
             ->where('service_provider_bills.agency_id', $agencyId)
             ->where('properties.user_id', $landlordId)
-            ->where('service_provider_bills.rechargeable_to_landlord', true)
-            ->whereIn('service_provider_bills.status', [
-                ServiceProviderBillStatus::Validated->value,
-                ServiceProviderBillStatus::Paid->value,
-            ])
+            // TCK-2911 (ADR-0120 § 4) — refacturable, validée ou payée : la règle du bilan du bailleur.
+            ->chargedToLandlord()
             ->whereNull('service_provider_bills.imputed_payout_id')
             // TCK-2270 (P224.01) — pour un travail rendu : ni contestée, ni reprise, ni annulée.
             ->whereRequestBillable()

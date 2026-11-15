@@ -461,6 +461,8 @@ return [
         'in_progress' => 'Maintenance mi ngi dox. Jéemaatal ci kanam.',
         'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Mënuñu yokk nataal ci laaj bu ñu tëj walla neenal.',
+        // TCK-2911 (ADR-0120 § 3).
+        'quote_alternatives_full' => 'Une intervention compte au plus :max devis concurrents.',
         'quote_amount_too_large' => 'Limu devis bi yépp ëpp na li ñu mëna bind.',
         'quote_expired' => 'Devis bii amatul solo : bisu jeexitalam wees na.',
         'reassign_after_completion' => 'Liggéey bi jeex na : liggéey bi kenn du ko jotaat.',
@@ -701,6 +703,8 @@ return [
     ],
     'service_provider_bill' => [
         'already_in_payout' => 'Bii facture d\'intervention mi ngi ci reversement bu ñu nekk di def.',
+        // TCK-2911 (ADR-0120 § 1) — « Facturer » depuis le brouillon seulement.
+        'not_draft' => 'Cette facture d\'intervention a déjà été envoyée.',
         'not_payable' => 'Facture d\'intervention bu ñu valider rekk lañuy fey.',
         'not_pending' => 'Bii facture d\'intervention du xaar validation.',
         'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',

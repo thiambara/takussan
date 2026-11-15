@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\MaintenanceJournalController;
 use App\Http\Controllers\Api\MaintenanceOwnerReminderController;
+use App\Http\Controllers\Api\MaintenanceQuoteAlternativeController;
 use App\Http\Controllers\Api\MaintenanceQuoteController;
 use App\Http\Controllers\Api\MaintenanceRequestController;
 use App\Http\Controllers\Api\MaintenanceRescheduleRequestController;
@@ -51,6 +52,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // TCK-2917 (ADR-0118 § 3) — le demandeur demande un autre créneau ; `scheduled_at` ne change pas.
     Route::post('maintenance-requests/{maintenanceRequest}/reschedule-requests', [MaintenanceRescheduleRequestController::class, 'store'])->name('maintenance-requests.reschedule-requests.store');
+
+    // TCK-2911 (ADR-0120 § 3) — les devis concurrents consultés : le personnel de l'agence du bien.
+    Route::post('maintenance-requests/{maintenanceRequest}/quote-alternatives', [MaintenanceQuoteAlternativeController::class, 'store'])->name('maintenance-requests.quote-alternatives.store');
+    Route::delete('maintenance-requests/{maintenanceRequest}/quote-alternatives/{alternative}', [MaintenanceQuoteAlternativeController::class, 'destroy'])
+        ->whereNumber('alternative')->name('maintenance-requests.quote-alternatives.destroy');
 
     // History per property
     Route::get('properties/{property}/maintenance-requests', [MaintenanceRequestController::class, 'indexForProperty'])->name('properties.maintenance-requests.index');

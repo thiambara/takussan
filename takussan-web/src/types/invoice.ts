@@ -356,7 +356,8 @@ export type OwnerStatementRectification = {
 };
 
 /** TCK-594 (ADR-0039 §8) — la facture d'un prestataire pour une intervention terminée. */
-export type ServiceProviderBillStatus = 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
+/** TCK-2911 (ADR-0120 § 1) — `draft` : « À facturer », lue du seul prestataire, envoyée par `POST …/submit`. */
+export type ServiceProviderBillStatus = 'draft' | 'pending_validation' | 'validated' | 'rejected' | 'paid' | 'cancelled';
 
 export type ServiceProviderBill = {
   id: number;
@@ -376,6 +377,10 @@ export type ServiceProviderBill = {
   rechargeable_to_landlord: boolean;
   imputed_payout_id: number | null;
   created_at: string | null;
+  /** TCK-2911 (ADR-0120 § 1) — l'instant de « Facturer » (nul pour un brouillon ou une facture antérieure). */
+  submitted_at?: string | null;
+  /** TCK-2911 — la pièce du prestataire, au détail seulement (URL d'API signée). */
+  invoice?: { id: number; name: string; mime_type: string | null; size: number; url: string } | null;
   /** TCK-2654 — servis par `include=maintenanceRequest,property`, réduits au titre. */
   maintenance_request?: { readonly id: number; readonly title: string } | null;
   property?: { readonly id: number; readonly title: string } | null;

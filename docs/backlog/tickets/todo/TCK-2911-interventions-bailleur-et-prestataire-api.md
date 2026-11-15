@@ -75,4 +75,19 @@ Audit (`audit-f4-patrimoine.md`, app-interventions **e6** bailleur : « Depuis j
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (worktree `feat/audit-manques-2026-11-15`), [ADR-0120](../../../adr/0120-la-facture-du-prestataire-nait-en-brouillon-et-les-devis-concurrents.md) écrit d'abord.
+
+**Prémisses re-mesurées — ce qui différait :**
+- Aucune migration de statut n'était nécessaire : `service_provider_bills.status` est une chaîne sans contrainte, et l'index unique partiel `sp_bills_one_open_per_request` compte déjà `draft` parmi les factures ouvertes. Migration ajoutée pour `submitted_at` (l'instant de « Facturer »).
+- AC4 était déjà vrai par construction (un brouillon ne se valide pas, donc ne s'impute pas) : la garde a été vérifiée par ablation de la vraie porte (la liste de statuts de `scopeChargedToLandlord`), pas de l'observateur.
+- « Montant du devis approuvé » : l'observateur garde ses conditions (prestataire assigné, montant > 0 : coût réel, à défaut devis approuvé). Une intervention sans montant ne naît toujours pas de facture.
+
+**Choix (décisions mineures tranchées, « valide tes choix ») :**
+- Le brouillon n'est lu que de son prestataire : la liste et le détail de l'agence l'excluent (pièce non encore reçue, ADR-0039 § 8). `submit` : 403 pour tout autre que le prestataire (personnel compris), 422 `service_provider_bill.not_draft`, 422 `request_not_completed` rejugé sous verrou ; `amount` facultatif arrondi à l'unité de la devise, `exceeds_quote` recalculé, `provider_reference` et pièce (`invoice`, privée) facultatifs. La contestation annule le brouillon (`ReopenedRequestBills`, explicitement).
+- Relevé : hors brouillons, daté `COALESCE(submitted_at, created_at)`, défaut le mois en cours, 366 jours au plus ; totaux « facturé » (hors rejetées/annulées) et « dont payé » par devise. Gabarit `pdf.service-provider-bills.statement`, libellés `maintenance.bill_statement_pdf.*` (fr/en/wo).
+- Bilan : `total` = interventions signalées depuis `since`, **hors annulées** ; `closed` = statut `closed` seul ; `charged_amount` = factures de ces interventions, refacturables, `validated`/`paid` (`ServiceProviderBill::CHARGED_TO_LANDLORD_STATUSES`, lu aussi par `PayoutCalculator::rechargeableBills` et `PayoutService::billImputable` — une source). Périmètre `PortfolioScope::landlord()->dansLAgence()`. Route dans `routes/api/owners.php`.
+- Devis concurrents : écriture `isTeamPrincipalFor` + `maintenance.assign` (règle de `remindOwner`), lecture aux seuls donneurs d'ordre (clé absente pour le prestataire assigné et le demandeur), 5 au plus, pas sur une demande close/annulée ; pièce privée `quote`. Les gestes rendent la demande au détail.
+
+**Mesures :** 19 tests neufs verts (4 fichiers) ; 26 ablations rouges puis restaurées (md5) — seule la garde `requestIsBillable` de `submit` restait verte sous le premier test (le brouillon est annulé avant) : test dédié ajouté (statut écrit hors observateur). `ServiceProviderBillTest` et `FactureDInterventionRouverteTest` adaptés (la facture est d'abord « envoyée »). Gardes : `MediaDiskCollectionsTest` (deux collections privées), `LimiteDeDebitDuPilotePdfTest` (ligne du relevé), `LabelKeysCoverValuesTest` (statuts du relevé), architecture ×3, balayages ×3, `LangGroupParityTest`, `scripts/check-*.mjs` verts.
+
+**Front (types seulement, écrans = TCK-2919) :** `draft` dans l'union `ServiceProviderBillStatus`, `submitted_at` et `invoice` déclarés (`types/invoice.ts`), ton `draft` (`components/payments/constants.ts`), libellé `payments.serviceProviderBills.status.draft` (« À facturer ») — exigés par `check-status-unions` / `check-status-labels`.

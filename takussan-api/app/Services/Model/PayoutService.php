@@ -670,7 +670,8 @@ class PayoutService
     private function billImputable(ServiceProviderBill $bill): bool
     {
         return $bill->rechargeable_to_landlord
-            && in_array($bill->status, [ServiceProviderBillStatus::Validated, ServiceProviderBillStatus::Paid], true)
+            // TCK-2911 (ADR-0120 § 4) — la liste posée une fois sur le modèle.
+            && in_array($bill->status, ServiceProviderBill::CHARGED_TO_LANDLORD_STATUSES, true)
             && $bill->requestIsBillable();
     }
 

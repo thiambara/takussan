@@ -203,6 +203,18 @@ class MaintenanceRequestPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2911 (ADR-0120 § 3) — enregistrer ou retirer un devis concurrent consulté : le PERSONNEL actif
+     * de l'agence du bien qui gère les interventions (`maintenance.assign`), la règle de
+     * {@see self::remindOwner()}. Jamais le bailleur (il lit la mise en concurrence, il ne la fait
+     * pas), le prestataire ni le locataire. Le super-admin passe par `Gate::before`.
+     */
+    public function manageQuoteAlternatives(User $user, MaintenanceRequest $request): bool
+    {
+        return self::isTeamPrincipalFor($user, $request->property)
+            && $user->canActAt(Capability::MaintenanceAssign, $request->property->agency);
+    }
+
+    /**
      * TCK-2786 — lire le journal de la demande : le personnel actif de l'agence du bien, et le
      * super-admin (`Gate::before`). Ni le bailleur, ni le locataire, ni le prestataire dans ce
      * ticket (TCK-2654 dira ce qu'ils en verraient).

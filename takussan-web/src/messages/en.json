@@ -8644,7 +8644,12 @@
         "precedente": "Previous room",
         "quitter": "Save and exit",
         "photosNonEnvoyees": "{n, plural, one {# photo has not been sent yet} other {# photos have not been sent yet}}: keep this screen open, sending resumes when the network is back.",
-        "photoRefusee": "A photo was refused. Take it again, then try again."
+        "photoRefusee": "A photo was refused. Take it again, then try again.",
+        "dictee": {
+          "dicter": "Dictate the note",
+          "arreter": "Stop dictation",
+          "ecoute": "Listening… Tap the mic to stop."
+        }
       },
       "liste": {
         "titre": "Rooms",

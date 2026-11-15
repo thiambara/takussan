@@ -461,6 +461,8 @@ return [
         'in_progress' => 'Maintenance en cours. Réessayez dans quelques instants.',
         'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Impossible d\'ajouter des photos à une demande clôturée ou annulée.',
+        // TCK-2911 (ADR-0120 § 3).
+        'quote_alternatives_full' => 'Une intervention compte au plus :max devis concurrents.',
         'quote_amount_too_large' => 'Le montant total du devis dépasse le maximum enregistrable.',
         'quote_expired' => 'Ce devis n\'est plus valable : sa date de validité est passée.',
         'reassign_after_completion' => 'Les travaux sont terminés : l\'intervention ne se réassigne plus.',
@@ -701,6 +703,8 @@ return [
     ],
     'service_provider_bill' => [
         'already_in_payout' => 'Cette facture d\'intervention est déjà dans un reversement en cours.',
+        // TCK-2911 (ADR-0120 § 1) — « Facturer » depuis le brouillon seulement.
+        'not_draft' => 'Cette facture d\'intervention a déjà été envoyée.',
         'not_payable' => 'Seule une facture d\'intervention validée se paie.',
         'not_pending' => 'Cette facture d\'intervention n\'attend plus de validation.',
         'request_not_completed' => 'Le travail de cette intervention n\'est pas rendu (contestée, reprise ou annulée) : sa facture ne se valide, ne se paie ni ne se refacture.',

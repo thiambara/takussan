@@ -57,4 +57,28 @@ return [
             'supply' => 'Supply',
         ],
     ],
+
+    // TCK-2911 (ADR-0120 § 2) — the service provider's bill statement.
+    'bill_statement_pdf' => [
+        'title' => 'My bills statement',
+        'provider' => 'Service provider',
+        'period' => 'Period',
+        'reference' => 'Reference',
+        'date' => 'Date',
+        'request' => 'Job',
+        'property' => 'Property',
+        'status' => 'Status',
+        'amount' => 'Amount',
+        'empty' => 'No bill over this period.',
+        'billed_total' => 'Total billed (excluding rejected and cancelled)',
+        'paid_total' => 'Of which paid',
+        'statuses' => [
+            'draft' => 'To invoice',
+            'pending_validation' => 'Awaiting validation',
+            'validated' => 'Validated',
+            'rejected' => 'Rejected',
+            'paid' => 'Paid',
+            'cancelled' => 'Cancelled',
+        ],
+    ],
 ];

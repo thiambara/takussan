@@ -89,6 +89,8 @@ export const PAYOUT_STATUS_TONE: Record<PayoutStatus, StatusTone> = {
 
 /** TCK-594 (ADR-0039 §8) — la facture d'intervention attend la validation de l'agence. */
 export const SERVICE_PROVIDER_BILL_STATUS_TONE: Record<ServiceProviderBillStatus, StatusTone> = {
+  // TCK-2911 (ADR-0120 § 1) — le brouillon du prestataire, pas encore envoyé.
+  draft: 'neutral',
   pending_validation: 'attention',
   validated: 'info',
   rejected: 'danger',

@@ -26,4 +26,13 @@ class ServiceProviderBillPolicy
 
         return $agency !== null && $user->canActAt(Capability::PayoutsCreate, $agency);
     }
+
+    /**
+     * TCK-2911 (ADR-0120 § 1) — « Facturer » : le prestataire de la facture, et lui seul. Ni le
+     * personnel (qui valide, il n'émet pas), ni un autre prestataire. Le statut se juge sous verrou.
+     */
+    public function submit(User $user, ServiceProviderBill $bill): bool
+    {
+        return $bill->provider_id !== null && (int) $bill->provider_id === (int) $user->id;
+    }
 }

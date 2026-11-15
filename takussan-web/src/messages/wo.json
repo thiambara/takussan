@@ -7407,7 +7407,12 @@
         "precedente": "Pièce précédente",
         "quitter": "Enregistrer et quitter",
         "photosNonEnvoyees": "{n, plural, one {# photo n’est pas encore envoyée} other {# photos ne sont pas encore envoyées}} : gardez cet écran ouvert, l’envoi reprend au retour du réseau.",
-        "photoRefusee": "Une photo a été refusée. Reprenez-la, puis réessayez."
+        "photoRefusee": "Une photo a été refusée. Reprenez-la, puis réessayez.",
+        "dictee": {
+          "dicter": "Dicter la note",
+          "arreter": "Arrêter la dictée",
+          "ecoute": "J’écoute… Touchez le micro pour arrêter."
+        }
       },
       "liste": {
         "titre": "Les pièces",

@@ -461,6 +461,8 @@ return [
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
         'no_longer_assigned' => 'This job has been handed to another provider: it can no longer be accepted on your behalf.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
+        // TCK-2911 (ADR-0120 § 3).
+        'quote_alternatives_full' => 'A maintenance request holds at most :max competing quotes.',
         'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
         'quote_expired' => 'This quote is no longer valid: its validity date has passed.',
         'reassign_after_completion' => 'The work is done: the job can no longer be reassigned.',
@@ -701,6 +703,8 @@ return [
     ],
     'service_provider_bill' => [
         'already_in_payout' => 'This maintenance bill is already in an ongoing payout.',
+        // TCK-2911 (ADR-0120 § 1) — « Facturer » depuis le brouillon seulement.
+        'not_draft' => 'This maintenance bill has already been sent.',
         'not_payable' => 'Only a validated maintenance bill can be paid.',
         'not_pending' => 'This maintenance bill is no longer awaiting validation.',
         'request_not_completed' => 'The work on this maintenance request is not delivered (contested, resumed or cancelled): its bill cannot be validated, paid or recharged.',

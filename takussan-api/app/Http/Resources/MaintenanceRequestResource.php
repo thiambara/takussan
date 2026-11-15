@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\MaintenanceStatus;
+use App\Models\MaintenanceQuoteAlternative;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
@@ -74,6 +75,9 @@ class MaintenanceRequestResource extends BaseResource
             // TCK-2917 (ADR-0118 § 1) — le motif de qui a annulé : à tout lecteur de la demande.
             'cancellation_reason' => $this->cancellation_reason,
             'access_instructions' => $this->access_instructions,
+            // TCK-2900 (ADR-0113 § 4) — la demande porte-t-elle une note vocale ? Le fichier, lui, n'est
+            // servi qu'au détail (`media.voice_note`). En liste : la sous-requête `withVoiceNoteFlag`.
+            'has_voice_note' => $this->resource->hasVoiceNote(),
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
             'requester' => $this->whenLoaded('requester', fn () => $this->requesterSummary($request->user(), $this->isDetailRequest($request))),
             'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
@@ -115,6 +119,12 @@ class MaintenanceRequestResource extends BaseResource
                 $threshold = app(OwnerApprovalThreshold::class)->of($this->resource);
                 $data['owner_approval_threshold'] = $threshold !== null ? (float) $threshold : null;
             }
+            // TCK-2911 (ADR-0120 § 3) — la mise en concurrence : aux seuls donneurs d'ordre (bailleur du
+            // bien, personnel de l'agence). Clé ABSENTE pour tout prestataire, l'assigné compris (le prix
+            // d'un concurrent n'est pas le sien), et pour le demandeur. Au détail : une requête.
+            if ($isPrincipal) {
+                $data['quote_alternatives'] = $this->quoteAlternativesBlock();
+            }
             if ($this->opensAccess($user)) {
                 $data['access'] = $this->accessBlock();
             }
@@ -154,7 +164,7 @@ class MaintenanceRequestResource extends BaseResource
      * TCK-2088 (P180.02) — `thumbnail_url` sert la vignette des photos à la galerie, `url`
      * l'original au clic ; l'original tant que la file ne l'a pas produite, et toujours pour un devis.
      *
-     * @return array<string, list<array<string, mixed>>>
+     * @return array<string, mixed>
      */
     private function mediaBlock(User $user): array
     {
@@ -179,6 +189,10 @@ class MaintenanceRequestResource extends BaseResource
                 ->values()
                 ->all();
         }
+
+        // TCK-2900 (ADR-0113 § 4) — la note vocale du signalement : les lecteurs de `photos`, ni plus
+        // ni moins (ce bloc entier) ; un objet `{id, url, duration, mime_type}` ou `null`.
+        $block['voice_note'] = $this->resource->voiceNoteBlock();
 
         return $block;
     }
@@ -410,6 +424,40 @@ class MaintenanceRequestResource extends BaseResource
             'note' => $pending->note,
             'requested_at' => $this->iso($pending->created_at),
         ];
+    }
+
+    /**
+     * TCK-2911 (ADR-0120 § 3) — les devis consultés et non retenus, leur pièce en URL d'API signée.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function quoteAlternativesBlock(): array
+    {
+        $access = app(PrivateMediaAccess::class);
+
+        return $this->resource->quoteAlternatives()->with(['provider:id,first_name,last_name,username', 'media'])->get()
+            ->map(function (MaintenanceQuoteAlternative $alternative) use ($access): array {
+                $media = $alternative->getFirstMedia('quote');
+
+                return [
+                    'id' => $alternative->id,
+                    'provider_id' => $alternative->provider_id,
+                    'provider_name' => $alternative->provider !== null
+                        ? (trim($alternative->provider->first_name.' '.$alternative->provider->last_name) ?: $alternative->provider->username)
+                        : $alternative->provider_name,
+                    'amount' => (float) $alternative->amount,
+                    'currency' => $alternative->currency?->value ?? 'XOF',
+                    'file' => $media instanceof Media ? [
+                        'id' => $media->id,
+                        'name' => $media->file_name,
+                        'mime_type' => $media->mime_type,
+                        'url' => $access->signedUrl($media),
+                    ] : null,
+                    'created_at' => $this->iso($alternative->created_at),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function userSummary(?User $user): ?array

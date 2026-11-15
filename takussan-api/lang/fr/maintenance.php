@@ -57,4 +57,28 @@ return [
             'supply' => 'Fourniture',
         ],
     ],
+
+    // TCK-2911 (ADR-0120 § 2) — le relevé des factures du prestataire.
+    'bill_statement_pdf' => [
+        'title' => 'Relevé de mes factures',
+        'provider' => 'Prestataire',
+        'period' => 'Période',
+        'reference' => 'Référence',
+        'date' => 'Date',
+        'request' => 'Intervention',
+        'property' => 'Bien',
+        'status' => 'Statut',
+        'amount' => 'Montant',
+        'empty' => 'Aucune facture sur cette période.',
+        'billed_total' => 'Total facturé (hors rejetées et annulées)',
+        'paid_total' => 'Dont payé',
+        'statuses' => [
+            'draft' => 'À facturer',
+            'pending_validation' => 'En attente de validation',
+            'validated' => 'Validée',
+            'rejected' => 'Rejetée',
+            'paid' => 'Payée',
+            'cancelled' => 'Annulée',
+        ],
+    ],
 ];
