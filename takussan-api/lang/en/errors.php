@@ -123,8 +123,14 @@ return [
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
         // TCK-2870 (ADR-0110 § 1)
         'field_not_for_kind' => 'This field does not belong to this kind of request: an application states its term, an offer its financing, deadline and conditions, a stay neither.',
+        // TCK-2893 (ADR-0110 § 3)
+        'guarantor_already_attached' => 'This guarantor is already attached to this request.',
+        'guarantor_not_attached' => 'This guarantor is not attached to this request.',
+        'guarantor_not_for_kind' => 'Only an application or an offer can have a guarantor.',
         // TCK-2579
         'kind_mismatch' => 'This kind of request does not match the property: an application is for a monthly rental, an offer for a property for sale.',
+        // TCK-2893 (ADR-0110 § 3)
+        'max_guarantors' => 'A request cannot have more than 3 guarantors.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
         'not_pending_confirm' => 'Only a pending booking can be confirmed.',

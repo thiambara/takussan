@@ -235,7 +235,12 @@ final class BookingCustomerFacts
         return $biens[$id];
     }
 
-    private static function servesStaff(Request $request, Booking $booking): bool
+    /**
+     * Le lecteur est-il du personnel actif de l'agence de la réservation (ou le super-admin) ?
+     * TCK-2893 — public : `BookingGuarantorFacts` sert ses clés sous ce même verdict, jamais une
+     * seconde règle du « personnel ».
+     */
+    public static function servesStaff(Request $request, Booking $booking): bool
     {
         $user = $request->user();
         if ($user === null) {

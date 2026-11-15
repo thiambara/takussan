@@ -3383,7 +3383,8 @@
         "sousTitre": "Client record"
       },
       "ecrire": "Message",
-      "ecrireA": "Message {nom}"
+      "ecrireA": "Message {nom}",
+      "nouvelleTache": "New task"
     }
   },
   "agentCrm": {
@@ -18244,6 +18245,10 @@
         "confirmed_by_owner": {
           "title": "Visit confirmed by the landlord: {property}",
           "body": "{owner} confirmed the visit on {scheduled_at}."
+        },
+        "no_show": {
+          "title": "Missed visit: {property}",
+          "body": "The visit planned on {date} did not take place. You can request another one."
         }
       },
       "message": {
@@ -18693,7 +18698,8 @@
           "rescheduled_by_visitor": "New times proposed",
           "cancelled_by_visitor": "Visits cancelled by the visitor",
           "cancelled_by_visitor_window": "Visits cancelled by the visitor",
-          "confirmed_by_owner": "Visits confirmed by the landlord"
+          "confirmed_by_owner": "Visits confirmed by the landlord",
+          "no_show": "Missed visits"
         },
         "lease_payment": {
           "overdue_landlord": "Unpaid rents",
@@ -20264,7 +20270,8 @@
       "semaine": "This week",
       "plusTard": "Later",
       "sans": "No due date",
-      "faites": "Done"
+      "faites": "Done",
+      "sansRattachement": "Not linked"
     },
     "pastilles": {
       "libelle": "Due date",
@@ -20374,7 +20381,30 @@
         "aujourdhui": "today",
         "demain": "tomorrow",
         "lundi": "Monday"
-      }
+      },
+      "annuler": "Cancel"
+    },
+    "aideBalayage": "Swipe right: done. Swipe left: postpone (tomorrow, Monday, choose).",
+    "grouper": {
+      "libelle": "Group by",
+      "echeance": "Due date",
+      "rattachement": "Linked record"
+    },
+    "rattachement": {
+      "libelle": "Linked to",
+      "tout": "All",
+      "customer": "Customers",
+      "property": "Properties"
+    },
+    "tableau": {
+      "titre": "Task",
+      "rattachement": "Linked to",
+      "echeance": "Due",
+      "actions": "Actions",
+      "reporter": "Postpone",
+      "reporterAria": "Postpone “{titre}”",
+      "modifier": "Edit",
+      "modifierAria": "Edit “{titre}”"
     }
   },
   "accueil": {
@@ -20704,7 +20734,10 @@
         "sansDate": "Visit to be scheduled",
         "confirmee": "Confirmed",
         "aConfirmer": "Awaiting confirmation",
-        "voir": "View the visit"
+        "voir": "View the visit",
+        "deplacer": "Reschedule",
+        "itineraire": "Directions",
+        "deplacerImpossible": "Could not load the time slots for this visit. Try again from the visit."
       },
       "recherches": {
         "titre": "Your searches",
@@ -20728,6 +20761,16 @@
           "monthly": "/ month",
           "yearly": "/ year"
         }
+      },
+      "reponse": {
+        "aRepondu": "{nom} replied to you",
+        "citation": "“{texte}”",
+        "lire": "Read"
+      },
+      "chercher": "Find a property",
+      "publier": {
+        "question": "Have a property to rent out?",
+        "suite": "List it in a few minutes."
       }
     },
     "locataire": {

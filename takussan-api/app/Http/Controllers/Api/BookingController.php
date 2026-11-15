@@ -14,9 +14,11 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
+use App\Services\Booking\BookingGuarantorFacts;
 use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\BookingService;
+use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +47,8 @@ class BookingController extends Controller
         BookingCustomerFacts::prime($request, $paginator->getCollection());
         // TCK-2872 — la complétude du dossier de la page, en une requête.
         app(BookingDossierService::class)->prime($request, $paginator->getCollection());
+        // TCK-2893 — garants et revenus de la page, au seul personnel.
+        BookingGuarantorFacts::prime($request, $paginator->getCollection());
 
         return $this->paginated($paginator, BookingResource::collection($paginator)->toArray($request));
     }
@@ -162,6 +166,31 @@ class BookingController extends Controller
     }
 
     /**
+     * TCK-2893 (ADR-0110 § 4, ADR-0070 § 5) — le revenu déclaré EN CLAIR, en nombre : l'admin de
+     * l'agence de la réservation seul (`BookingPolicy::viewSensitive`), sous step-up
+     * (`ProtectedActions::STEP_UP`, refusé sous impersonation), journalisé (surface
+     * `booking_sensitive`, rattachée à l'agence de la réservation).
+     */
+    public function sensitive(Request $request, Booking $booking, PersonalDataAccessLogger $accessLog): JsonResponse
+    {
+        $this->authorize('viewSensitive', $booking);
+
+        $accessLog->record(
+            $request->user(),
+            $booking,
+            PersonalDataAccessLogger::SURFACE_BOOKING_SENSITIVE,
+            $booking->agency_id !== null ? (int) $booking->agency_id : null,
+        );
+
+        return $this->json([
+            'data' => [
+                'id' => $booking->id,
+                'declared_monthly_income' => $booking->declared_monthly_income !== null ? (float) $booking->declared_monthly_income : null,
+            ],
+        ]);
+    }
+
+    /**
      * ADR-0071 (TCK-1509, P95.03) — le seul chemin de présentation d'une réservation : le `show`
      * et les écritures (`store`, `confirm`, `cancel`, `reject`) rendent la même forme. Chaque
      * auteur d'une écriture est lecteur du `show` (`BookingPolicy` : créateur, bailleur, personnel
@@ -176,6 +205,8 @@ class BookingController extends Controller
         BookingCustomerFacts::prime($request, [$booking]);
         // TCK-2872 — et la complétude du dossier.
         app(BookingDossierService::class)->prime($request, [$booking]);
+        // TCK-2893 — et les garants et revenus.
+        BookingGuarantorFacts::prime($request, [$booking]);
         $data = BookingResource::make($booking)->resolve($request);
         // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
         $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);

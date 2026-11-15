@@ -40,8 +40,10 @@ use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyReport;
+use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Booking\BookingConditions;
+use App\Services\Booking\BookingGuarantorService;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Boost\BoostStatsRecorder;
@@ -1018,6 +1020,9 @@ class PublicPropertyController extends Controller
                     'list_price_at_offer' => (float) $property->price,
                 ],
             ] + BookingConditions::columnsFor(BookingKind::Offer, $property, (string) $data['offer_amount'], $data));
+            // TCK-2893 — le garant déclaré : une fiche neuve sur une offre neuve, rien ne peut le refuser ici
+            // (nature, statut, borne de trois, `guarantor_id` interdit au tunnel).
+            $this->rattacherLeGarantDeclare($booking, $data, $user);
 
             // TCK-596 — l'offre prévient qui doit la traiter : elle ne prévenait personne.
             BookingRequested::dispatch($booking, $user->id);
@@ -1056,7 +1061,7 @@ class PublicPropertyController extends Controller
             BookingConditions::refuseForeignFields($kind, $data);
             $customer = $customers->findOrCreateFromUser($user, $property);
 
-            return Booking::create([
+            $booking = Booking::create([
                 'property_id' => $property->id,
                 'customer_id' => $customer->id,
                 'created_by_id' => $user->id,
@@ -1076,6 +1081,10 @@ class PublicPropertyController extends Controller
                 'list_price_at_booking' => $kind === BookingKind::Application ? $locked->price : null,
                 'metadata' => ['guests' => $data['guests']],
             ] + BookingConditions::columnsFor($kind, $locked, (string) $amounts['total_amount'], $data));
+            // TCK-2893 — après tous les refus, dans la transaction (un séjour l'a déjà refusé).
+            $this->rattacherLeGarantDeclare($booking, $data, $user);
+
+            return $booking;
         });
 
         // TCK-596 — la demande publique prévient qui doit la traiter : elle ne prévenait personne.
@@ -1084,6 +1093,20 @@ class PublicPropertyController extends Controller
         return $this->json([
             'data' => BookingResource::make($booking)->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 3) — le garant que le candidat déclare dans le tunnel : une fiche neuve
+     * (`guarantor_id` y est interdit), rattachée par la règle commune (trois au plus, pièces du
+     * garant ajoutées au dossier).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function rattacherLeGarantDeclare(Booking $booking, array $data, User $user): void
+    {
+        if (! empty($data['guarantor'])) {
+            app(BookingGuarantorService::class)->attach($booking, (array) $data['guarantor'], $user);
+        }
     }
 
     /**

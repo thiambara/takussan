@@ -136,6 +136,26 @@ class BookingPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2893 (ADR-0110 § 3) — rattacher ou retirer un garant : les auteurs du dossier, comme le
+     * dépôt d'une pièce ({@see self::uploadDossierPiece()}) — le client de la réservation, qui le
+     * déclare, ou le personnel de l'agence du bien. Ni le bailleur, ni un autre candidat.
+     */
+    public function manageGuarantors(User $user, Booking $booking): bool
+    {
+        return $this->uploadDossierPiece($user, $booking);
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 4, ADR-0070 § 5) — le revenu déclaré EN CLAIR : un profil d'admin dans
+     * l'agence de la réservation, comme la pièce du client (`CustomerPolicy::viewSensitive`). Une
+     * réservation sans agence n'a pas de lecteur en clair ; le super-admin passe par `Gate::before`.
+     */
+    public function viewSensitive(User $user, Booking $booking): bool
+    {
+        return $booking->agency_id !== null && $user->isAgencyAdminAt((int) $booking->agency_id);
+    }
+
+    /**
      * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
      * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
      * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.

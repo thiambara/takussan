@@ -150,9 +150,13 @@ class DataExportBuilder
                 ->whereIn('customer_id', $customerIds)
                 ->orWhere('created_by_id', $user->id)
                 ->get()
-                ->map(fn (Booking $booking) => $customerIds->contains($booking->customer_id) || $propertyIds->contains($booking->property_id)
-                    ? $booking->toArray()
-                    : self::project($booking->toArray(), self::BOOKING_ACT))
+                // TCK-2893 (ADR-0070 § 7) — le revenu déclaré du candidat est dans SA ligne, en clair ; le
+                // bailleur du bien reçoit la ligne sans lui (`Booking::$hidden`).
+                ->map(fn (Booking $booking) => $customerIds->contains($booking->customer_id)
+                    ? $booking->makeVisible(Booking::SENSITIVE)->toArray()
+                    : ($propertyIds->contains($booking->property_id)
+                        ? $booking->toArray()
+                        : self::project($booking->toArray(), self::BOOKING_ACT)))
                 ->all(),
             'leases.json' => $leases->toArray(),
             'payments.json' => [

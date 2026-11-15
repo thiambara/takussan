@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\AgencyMemberRoleController;
 use App\Http\Controllers\Api\AgentProfileController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
 use App\Http\Controllers\Api\Auth\TwoFactorController;
+use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\BookingPaymentController;
 use App\Http\Controllers\Api\CommissionEntryController;
 use App\Http\Controllers\Api\CustomerController;
@@ -309,6 +310,8 @@ final class ProtectedActions
         // clair : même règle que celle du bailleur.
         CustomerController::class.'@sensitive',
         GuarantorController::class.'@sensitive',
+        // TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat, en clair : même règle.
+        BookingController::class.'@sensitive',
     ];
 
     /**

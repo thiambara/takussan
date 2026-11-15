@@ -37,7 +37,9 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'end_date' => ['required', 'date', new JourIso, 'after:start_date'],
                 'guests' => ['required', 'integer', 'min:1', 'max:50'],
                 'message' => ['nullable', 'string', 'max:1000'],
-            ]) + StoreBookingRequest::conditionRules();
+            ]) + StoreBookingRequest::conditionRules()
+            // TCK-2893 (ADR-0110 § 3) — le candidat peut déclarer un garant : une fiche neuve seulement.
+            + StoreBookingRequest::guarantorRules(existant: false);
     }
 
     /**

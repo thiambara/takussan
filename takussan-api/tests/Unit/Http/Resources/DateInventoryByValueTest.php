@@ -63,10 +63,20 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2893 — posés par `BookingGuarantorFacts::prime()` pour le seul personnel de l'agence du bien.
+        'App\Http\Resources\BookingResource::declared_monthly_income_masked' => '`when()` sur un masque que seul '
+            .'`BookingGuarantorFacts::prime()` pose (TCK-2893) : `Masking::presence()`, `••••` ou `null` — jamais une date.',
         // TCK-2872
         'App\Http\Resources\BookingResource::dossier' => '`when()` sur une complétude que seul '
             .'`BookingDossierService::prime()` pose (index et présentation de `BookingController`, TCK-2872) : deux ENTIERS '
             .'et une liste de codes de pièce (`DossierPiece`), ou `null` pour un séjour — jamais une date.',
+        // TCK-2893
+        'App\Http\Resources\BookingResource::guarantors' => '`when()` sur une liste que seul `BookingGuarantorFacts::prime()` '
+            .'pose (TCK-2893) : `id` (ENTIER), prénom, nom et lien (chaînes de `guarantors`) — jamais une date.',
+        'App\Http\Resources\BookingResource::has_guarantor' => '`when()` sur un BOOLÉEN que seul '
+            .'`BookingGuarantorFacts::prime()` pose (TCK-2893) — jamais une date.',
+        'App\Http\Resources\BookingResource::income_to_rent_ratio' => '`when()` sur un rapport que seul '
+            .'`BookingGuarantorFacts::prime()` pose (TCK-2893) : un NOMBRE au dixième (`BookingConditions::incomeToRentRatio`) ou `null` — jamais une date.',
         // TCK-2870 — posés par `BookingCustomerFacts::prime()` pour le seul personnel, comme `visits_on_property`.
         'App\Http\Resources\BookingResource::last_visit_on_property' => '`when()` sur la dernière visite que seul '
             .'`BookingCustomerFacts::prime()` pose (TCK-2870) : sa date passe par `$this->iso()` (instant, forme d\'ADR-0018), '

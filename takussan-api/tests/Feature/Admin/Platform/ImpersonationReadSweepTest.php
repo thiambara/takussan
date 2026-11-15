@@ -181,6 +181,11 @@ class ImpersonationReadSweepTest extends TestCase
             ->assertJsonPath('data.id_number_masked', '•••• '.substr(self::NUMERO_DE_PIECE, -4))
             ->assertJsonPath('data.monthly_income_masked', '••••');
         $this->assertSame([self::REVENU], $this->marques('{"monthly_income":'.(float) self::REVENU_DE_GARDE.'}', $finDeSession));
+        // TCK-2893 — le revenu déclaré du candidat : la réservation en porte un (masque servi au
+        // personnel de l'agence, ici l'admin cible), jamais le montant.
+        $this->getJson("/api/bookings/{$this->valeurs['booking']}")->assertOk()
+            ->assertJsonPath('data.declared_monthly_income_masked', '••••')
+            ->assertJsonPath('data.has_guarantor', true);
         $this->assertContains(self::PIECE_DE_PROFIL, $this->marquesDe('/api/documents', $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe("/api/leases/{$this->valeurs['lease']}/deposit-refund", $finDeSession));
         $this->assertContains(self::URL_SIGNEE_DURABLE, $this->marquesDe('/api/notifications', $finDeSession));
@@ -304,6 +309,11 @@ class ImpersonationReadSweepTest extends TestCase
             'id_number' => self::NUMERO_DE_PIECE,
             'monthly_income' => self::REVENU_DE_GARDE,
         ]);
+
+        // TCK-2893 (ADR-0110 § 4) — la réservation porte le revenu déclaré du candidat (chiffré) et
+        // cette caution : `bookings` et `bookings/{booking}` ne doivent rendre que le masque.
+        $booking->forceFill(['declared_monthly_income' => self::REVENU_DE_GARDE])->save();
+        $booking->guarantors()->attach($caution->id);
 
         $conversation = Conversation::factory()->create(['created_by' => $this->cible->id, 'property_id' => $property->id]);
         $conversation->participants()->attach($this->cible->id, ['joined_at' => now()]);

@@ -23,8 +23,13 @@ use App\Services\Maintenance\CurrencyUnit;
  */
 final class BookingConditions
 {
-    /** @var list<string> les champs qu'une candidature reçoit en entrée */
-    public const APPLICATION_INPUT = ['term_months', 'renewable'];
+    /**
+     * Les champs qu'une candidature reçoit en entrée. TCK-2893 (ADR-0110 § 4) — le revenu déclaré
+     * du candidat en est : une offre ou un séjour qui l'envoie reçoit `booking.field_not_for_kind`.
+     *
+     * @var list<string>
+     */
+    public const APPLICATION_INPUT = ['term_months', 'renewable', 'declared_monthly_income'];
 
     /** @var list<string> les champs qu'une offre reçoit en entrée */
     public const OFFER_INPUT = ['financing', 'signature_within_days', 'conditions'];
@@ -56,6 +61,8 @@ final class BookingConditions
         foreach ($etrangers as $champ) {
             abort_code_if(array_key_exists($champ, $input) && $input[$champ] !== null, 422, 'booking.field_not_for_kind');
         }
+        // TCK-2893 (ADR-0110 § 3) — le garant facultatif : une candidature ou une offre, jamais un séjour.
+        abort_code_if($kind === BookingKind::Stay && ! empty($input['guarantor']), 422, 'booking.field_not_for_kind');
     }
 
     /**
@@ -77,6 +84,8 @@ final class BookingConditions
                     : null,
                 'advance_months_at_booking' => $property->advance_months,
                 'agency_fee_months_at_booking' => $property->agency_fee_months !== null ? (string) $property->agency_fee_months : null,
+                // TCK-2893 — chiffré par le cast ; écrit en chaîne (jamais un flottant).
+                'declared_monthly_income' => isset($input['declared_monthly_income']) ? (string) $input['declared_monthly_income'] : null,
             ],
             BookingKind::Offer => [
                 'financing' => $input['financing'] ?? null,
@@ -109,5 +118,21 @@ final class BookingConditions
         $total = bcadd(bcadd(bcmul($loyer, (string) $avance, 4), (string) ($booking->security_deposit_amount ?? '0'), 4), $frais, 4);
 
         return CurrencyUnit::round($total, 2);
+    }
+
+    /**
+     * TCK-2893 (ADR-0110 § 4) — le revenu déclaré rapporté au loyer de la candidature, arrondi au
+     * dixième (demi au-dessus), en décimal : 950 000 / 300 000 → `3.2`. `null` hors candidature,
+     * sans revenu, ou sans loyer positif. Ce n'est pas un masquage (ADR-0110, Conséquences) : il
+     * n'est servi qu'au personnel de l'agence du bien.
+     */
+    public static function incomeToRentRatio(mixed $kind, mixed $income, mixed $rent): ?float
+    {
+        $kind = $kind instanceof BookingKind ? $kind : BookingKind::tryFrom((string) $kind);
+        if ($kind !== BookingKind::Application || ! is_numeric($income) || ! is_numeric($rent) || bccomp((string) $rent, '0', 2) <= 0) {
+            return null;
+        }
+
+        return (float) bcdiv(bcadd(bcdiv(bcmul((string) $income, '10', 4), (string) $rent, 4), '0.5', 4), '1', 0) / 10;
     }
 }

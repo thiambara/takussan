@@ -10,6 +10,7 @@ use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingExpirationService;
+use App\Services\Booking\BookingGuarantorFacts;
 use Illuminate\Http\Request;
 
 class BookingResource extends BaseResource
@@ -22,6 +23,8 @@ class BookingResource extends BaseResource
         $faits = $this->resource instanceof Booking ? BookingCustomerFacts::propertyFacts($request, $this->resource) : null;
         // TCK-2872 — la complétude du dossier, préparée pour la page par `BookingDossierService::prime`.
         [$dossierServi, $dossier] = $this->resource instanceof Booking ? BookingDossierService::summaryFor($request, $this->resource) : [false, null];
+        // TCK-2893 — garants et revenus, au seul personnel, préparés par `BookingGuarantorFacts::prime`.
+        $garants = $this->resource instanceof Booking ? BookingGuarantorFacts::for($request, $this->resource) : null;
 
         return [
             'id' => $this->id,
@@ -103,6 +106,13 @@ class BookingResource extends BaseResource
             // dossier) ; servi à qui lit la réservation (le client, le personnel de l'agence du bien, le
             // bailleur — les lecteurs des pièces, ADR-0099), seulement quand la page l'a préparé.
             'dossier' => $this->when($dossierServi, fn (): ?array => $dossier),
+            // TCK-2893 (ADR-0110 § 3 et 4) — au SEUL personnel de l'agence du bien : le garant (nom,
+            // lien), le revenu déclaré MASQUÉ et son rapport au loyer, arrondi au dixième. Le montant
+            // ne sort jamais en clair ici (lecture dédiée : `GET /api/bookings/{booking}/sensitive`).
+            'has_guarantor' => $this->when($garants !== null, fn (): bool => $garants['has_guarantor']),
+            'guarantors' => $this->when($garants !== null, fn (): array => $garants['guarantors']),
+            'declared_monthly_income_masked' => $this->when($garants !== null, fn (): ?string => $garants['declared_monthly_income_masked']),
+            'income_to_rent_ratio' => $this->when($garants !== null, fn (): ?float => $garants['income_to_rent_ratio']),
             'created_at' => $this->iso($this->created_at),
         ];
     }

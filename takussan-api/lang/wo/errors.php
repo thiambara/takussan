@@ -123,8 +123,14 @@ return [
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
         // TCK-2870 (ADR-0110 § 1)
         'field_not_for_kind' => 'Ce champ n\'appartient pas à cette nature de demande : une candidature dit sa durée, une offre son financement, son délai et ses conditions, un séjour aucun des deux.',
+        // TCK-2893 (ADR-0110 § 3)
+        'guarantor_already_attached' => 'Ce garant est déjà rattaché à cette demande.',
+        'guarantor_not_attached' => 'Ce garant n\'est pas rattaché à cette demande.',
+        'guarantor_not_for_kind' => 'Seules une candidature et une offre peuvent avoir un garant.',
         // TCK-2579
         'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
+        // TCK-2893 (ADR-0110 § 3)
+        'max_guarantors' => 'Une demande ne peut pas avoir plus de 3 garants.',
         'not_found' => 'Wootu bi gisuñu ko.',
         'not_in_active_agency' => 'Wootu bii bokkul ci sa agence bu dox bi.',
         'not_pending_confirm' => 'Wootu buy xaar rekk lañu mën a dëggal.',

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Admin\BookingController as AdminBookingController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\BookingDossierController;
+use App\Http\Controllers\Api\BookingGuarantorController;
 use App\Http\Controllers\Api\BookingPaymentController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('bookings/{booking}/dossier', [BookingDossierController::class, 'index'])->name('bookings.dossier.index');
     Route::post('bookings/{booking}/dossier/{piece}/document', [BookingDossierController::class, 'upload'])->name('bookings.dossier.upload');
     Route::post('bookings/{booking}/dossier/{piece}/request', [BookingDossierController::class, 'requestPiece'])->name('bookings.dossier.request');
+
+    // TCK-2893 (ADR-0110 § 3 et 4) — les garants d'une candidature ou d'une offre (trois au plus), et
+    // le revenu déclaré du candidat EN CLAIR : admin de l'agence, sous step-up, consultation journalisée.
+    Route::post('bookings/{booking}/guarantors', [BookingGuarantorController::class, 'store'])->name('bookings.guarantors.store');
+    Route::delete('bookings/{booking}/guarantors/{guarantor}', [BookingGuarantorController::class, 'destroy'])->name('bookings.guarantors.destroy');
+    Route::get('bookings/{booking}/sensitive', [BookingController::class, 'sensitive'])
+        ->whereNumber('booking')
+        ->name('bookings.sensitive');
 
     // TCK-101 — admin force-expire (agency_admin / super_admin). Moved out of
     // /api/admin/* (now super-admin only since TCK-144) — controller still

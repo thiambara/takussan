@@ -104,7 +104,7 @@ class StoreBookingRequest extends BaseFormRequest
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date', new InstantIso],
-        ] + self::conditionRules();
+        ] + self::conditionRules() + self::guarantorRules(existant: true);
     }
 
     /**
@@ -124,7 +124,38 @@ class StoreBookingRequest extends BaseFormRequest
             'financing' => ['sometimes', 'nullable', Rule::enum(OfferFinancing::class)],
             'signature_within_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
             'conditions' => ['sometimes', 'nullable', 'string', 'max:500'],
+            // TCK-2893 (ADR-0110 § 4) — le revenu mensuel déclaré du candidat (candidature seule,
+            // chiffré en base) ; borne du ticket, 1e10.
+            'declared_monthly_income' => ['sometimes', 'nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:'.self::MAX_DECLARED_INCOME],
         ];
+    }
+
+    /** TCK-2893 — le plus grand revenu mensuel déclaré admis. */
+    public const MAX_DECLARED_INCOME = 10_000_000_000;
+
+    /**
+     * TCK-2893 (ADR-0110 § 3) — le garant facultatif d'une candidature ou d'une offre, à la création :
+     * une fiche neuve (champs de `StoreGuarantorRequest`) ou, pour le personnel seulement
+     * (`$existant`), une fiche existante par `guarantor.guarantor_id`. Un séjour qui l'envoie reçoit
+     * 422 `booking.field_not_for_kind` (`BookingConditions`). Créé APRÈS tous les refus, dans la
+     * transaction qui crée la réservation (`BookingGuarantorService::attach`).
+     *
+     * @return array<string, mixed>
+     */
+    public static function guarantorRules(bool $existant): array
+    {
+        $rules = [
+            'guarantor' => ['sometimes', 'nullable', 'array'],
+            'guarantor.guarantor_id' => $existant
+                ? ['sometimes', 'nullable', 'integer', Rule::exists('guarantors', 'id')->withoutTrashed()]
+                : ['prohibited'],
+        ];
+        $requis = $existant ? 'required_without:guarantor.guarantor_id' : 'required';
+        foreach (AttachBookingGuarantorRequest::fieldRules($requis) as $champ => $regles) {
+            $rules['guarantor.'.$champ] = ['exclude_without:guarantor', ...$regles];
+        }
+
+        return $rules;
     }
 
     /**

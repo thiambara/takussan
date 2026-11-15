@@ -18,6 +18,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Policies\BookingPolicy;
 use App\Services\Booking\BookingConditions;
+use App\Services\Booking\BookingGuarantorService;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
@@ -142,6 +143,11 @@ class BookingService
 
         abort_unless($isStaff || $isBookingForSelf, 403);
 
+        // TCK-2893 (ADR-0110 § 3) — le garant facultatif n'est pas une colonne : rattaché après la
+        // création, dans la même transaction (`refuseForeignFields` l'a déjà refusé à un séjour).
+        $garant = ! empty($data['guarantor']) ? (array) $data['guarantor'] : null;
+        unset($data['guarantor']);
+
         if ($recorded) {
             // TCK-2579 — ni devis ni nuits : le montant est celui du client.
             $data = array_merge($data, $this->recordedTerms($property, $kind, $data));
@@ -160,7 +166,7 @@ class BookingService
 
         // TCK-596 — une demande sur des nuits déjà confirmées est refusée dès la demande, sous le
         // verrou de la ligne du bien que `confirm` prend aussi.
-        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient, $recorded): Booking {
+        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient, $recorded, $garant): Booking {
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
             // TCK-2579 (ADR-0102 §3) — une candidature ou une offre ne bloque aucune nuit et ne
             // passe pas par la disponibilité : seul le séjour y est soumis.
@@ -173,13 +179,20 @@ class BookingService
                 $data['customer_id'] = $this->customers->findOrCreateFromUser($user, $property)->id;
             }
 
-            return Booking::create(array_merge($data, [
+            $booking = Booking::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::booking(),
                 'created_by_id' => $user->id,
                 'agency_id' => $property->agency_id,
                 'status' => BookingStatus::Pending->value,
                 'expires_at' => $data['expires_at'] ?? now()->addDays(7),
             ]));
+
+            // TCK-2893 — après tous les refus : un 422 ne laisse ni réservation ni fiche de garant.
+            if ($garant !== null) {
+                app(BookingGuarantorService::class)->attach($booking, $garant, $user);
+            }
+
+            return $booking;
         });
 
         // TCK-596 — prévenir qui doit traiter la demande (bailleur, personnel, agent du bien) est

@@ -16,8 +16,10 @@ use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class Booking extends AbstractModel
@@ -37,7 +39,21 @@ class Booking extends AbstractModel
         'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
         'advance_months_at_booking', 'agency_fee_months_at_booking',
         'financing', 'signature_within_days', 'conditions',
+        // TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat, chiffré (`self::SENSITIVE`).
+        'declared_monthly_income',
     ];
+
+    /**
+     * TCK-2893 (ADR-0110 § 4, ADR-0070 § 3) — le revenu mensuel déclaré du candidat : chiffré (cast
+     * `encrypted` simple, colonne `text`), absent de toute sérialisation (`$hidden`, donc de
+     * `toArray()` et de l'export du bailleur) et du journal d'activité
+     * ({@see self::getActivitylogOptions()}). Il ne sort que masqué et en rapport au loyer
+     * (`BookingGuarantorFacts`), et en clair par `GET /api/bookings/{booking}/sensitive` seul. Hors
+     * de `$queryFields` : `fields[bookings]=declared_monthly_income` rend 400.
+     */
+    public const SENSITIVE = ['declared_monthly_income'];
+
+    protected $hidden = self::SENSITIVE;
 
     protected $casts = [
         'status' => BookingStatus::class,
@@ -64,7 +80,24 @@ class Booking extends AbstractModel
         'agency_fee_months_at_booking' => 'decimal:2',
         'financing' => OfferFinancing::class,
         'signature_within_days' => 'integer',
+        // TCK-2893
+        'declared_monthly_income' => 'encrypted',
     ];
+
+    /**
+     * TCK-2893 — la règle d'`Auditable` (le `fillable`, colonnes changées seulement), SANS le revenu
+     * déclaré : le journal écrirait la valeur déchiffrée, et `PropertyRedactor` ne masque qu'à la
+     * lecture du journal, pas en base.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logExcept(self::SENSITIVE)
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName(class_basename(static::class));
+    }
 
     /**
      * TCK-1914 (P170.01, décision du porteur) — les statuts où le client paie sa réservation, à la
@@ -214,6 +247,12 @@ class Booking extends AbstractModel
     public function dossierItems(): HasMany
     {
         return $this->hasMany(BookingDossierItem::class);
+    }
+
+    /** TCK-2893 (ADR-0110 § 3) — les garants de la candidature ou de l'offre, trois au plus. */
+    public function guarantors(): BelongsToMany
+    {
+        return $this->belongsToMany(Guarantor::class, 'booking_guarantor')->withTimestamps();
     }
 
     public function payments(): HasMany
