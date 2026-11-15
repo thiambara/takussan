@@ -5063,7 +5063,8 @@
         "echeance": "Échéance",
         "penalite": "Pénalité",
         "commission": "Commission",
-        "indemnite": "Indemnité de départ"
+        "indemnite": "Indemnité de départ",
+        "preavis": "Préavis"
       },
       "valeurs": {
         "penalite": "{taux} % après {jours} j",
@@ -5116,6 +5117,22 @@
         "loyerAnnonceMensuel": "loyer annoncé {montant} / mois",
         "loyerAnnoncePeriode": "loyer annoncé {montant} {periode}",
         "prixAnnonce": "prix annoncé {montant}"
+      },
+      "preavis": {
+        "titre": "Préavis",
+        "equivalent": "{mois, plural, one {# mois} other {# mois}}",
+        "jours": "{jours, plural, one {# jour} other {# jours}}"
+      },
+      "brouillon": {
+        "libelle": "Brouillon",
+        "enregistreA": "brouillon enregistré à {heure}"
+      },
+      "apercu": {
+        "titre": "Aperçu du contrat",
+        "cadre": "Aperçu du contrat de bail",
+        "ouvrir": "Voir le contrat en entier",
+        "incomplet": "L’aperçu s’affiche dès que le bien, le locataire, le début et le loyer sont renseignés.",
+        "indisponible": "Aperçu indisponible pour l’instant. Vérifiez les conditions saisies."
       }
     },
     "payment": {
@@ -6264,7 +6281,7 @@
       "joindre": {
         "appeler": "Appeler {nom}",
         "whatsapp": "Écrire à {nom} sur WhatsApp",
-        "message": "Bonjour {nom}, je vous écris au sujet de votre demande « {titre} »."
+        "message": "Bonjour {nom}, ici votre agence, au sujet de votre demande « {titre} »."
       },
       "motifDAnnulation": "Motif de l’annulation"
     },
@@ -8683,7 +8700,7 @@
         "signaturesSurPlace": "Signatures sur place",
         "signatures": "Signatures",
         "revenirAuxPieces": "Revenir aux pièces",
-        "terminer": "Terminer",
+        "terminer": "Terminer et envoyer le PDF",
         "manque": {
           "aucun": "Les deux parties ont signé : l’état des lieux est figé.",
           "lesDeux": "Il manque {locataire} et la signature de l’agence",
@@ -8693,6 +8710,11 @@
           "codeDElide": "le code d’{prenom}",
           "signatureDe": "la signature de {prenom}",
           "signatureDElide": "la signature d’{prenom}"
+        },
+        "pdf": {
+          "aDeux": "Le PDF part à {a} et à {b}.",
+          "aUn": "Le PDF part à {a}.",
+          "aPersonne": "Aucune partie n’a de compte à aviser : le PDF se télécharge depuis la fiche."
         }
       },
       "signatures": {
@@ -8733,7 +8755,8 @@
           "effacer": "Effacer",
           "valider": "Valider"
         },
-        "reessayer": "Réessayer"
+        "reessayer": "Réessayer",
+        "signerAuTitreDuMandat": "Signer au titre du mandat"
       }
     }
   },
@@ -17682,7 +17705,8 @@
       "chargesNonNegative": "Les charges doivent être ≥ 0.",
       "lateFeePercentInvalid": "Pénalité invalide (0 à 50 %).",
       "graceDaysInvalid": "Nombre de jours de grâce invalide (de 0 à 30).",
-      "earlyTerminationInvalid": "Indemnité invalide (0 à 12 mois)."
+      "earlyTerminationInvalid": "Indemnité invalide (0 à 12 mois).",
+      "noticePeriodInvalid": "Préavis invalide (1 à 365 jours)."
     },
     "maintenance": {
       "propertyRequired": "Sélectionnez un bien.",

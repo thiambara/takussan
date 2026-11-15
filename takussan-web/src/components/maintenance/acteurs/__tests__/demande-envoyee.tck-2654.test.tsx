@@ -116,4 +116,25 @@ describe('DemandeEnvoyee — TCK-2654', () => {
     const { container } = monter();
     expect(container.textContent).not.toMatch(/\bF\b|CFA|45\s?000|50\s?000/);
   });
+
+  // TCK-2918 (e4, AC7) — la médiane de prise en charge de l'agence, par tranche ; aucune phrase sans elle.
+  describe('le délai de réponse de l’agence (TCK-2918)', () => {
+    it.each([
+      [42, 'L’agence répond d’ordinaire dans l’heure.'],
+      [60, 'L’agence répond d’ordinaire dans l’heure.'],
+      [300, 'L’agence répond d’ordinaire dans la journée.'],
+      [2 * 1440 + 5, 'L’agence répond d’ordinaire sous 3 jours.'],
+    ])('%i min → « %s »', (minutes, phrase) => {
+      lecture.demande = demande({ maintenance_response_minutes: minutes });
+      monter();
+      expect(document.querySelector('[data-slot="delai-de-reponse"]')?.textContent?.trim()).toBe(phrase);
+    });
+
+    it('nul (moins de 5 demandes) : aucune phrase de délai', () => {
+      lecture.demande = demande({ maintenance_response_minutes: null });
+      const { container } = monter();
+      expect(container.querySelector('[data-slot="delai-de-reponse"]')).toBeNull();
+      expect(container.textContent).not.toMatch(/répond d’ordinaire/);
+    });
+  });
 });

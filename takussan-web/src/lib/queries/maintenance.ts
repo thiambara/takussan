@@ -20,6 +20,7 @@ import type {
   MaintenancePriority,
   MaintenanceQuoteLineKind,
   MaintenanceRequest,
+  MaintenanceRescheduleRequest,
   MaintenanceStatus,
 } from '@/types/maintenance';
 import type {
@@ -226,6 +227,23 @@ export function useDeclineMaintenance(id: number) {
   return useApiMutation<ApiResponse<MaintenanceRequest>, { reason: string }>(
     { path: cheminApi`/api/maintenance-requests/${id}/decline`, method: 'POST' },
     { relireSurErreur: true, invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
+  );
+}
+
+/**
+ * TCK-2918 — « Changer le créneau » du demandeur : `POST /api/maintenance-requests/{id}/reschedule-requests`
+ * (TCK-2917, ADR-0118 § 3), un à trois instants ISO à venir et un mot. Ne change pas `scheduled_at` :
+ * la demande attend la réponse de l'agence (`pending_reschedule_request` au détail).
+ */
+export interface DemandeDeCreneauInput {
+  readonly proposed_slots: readonly string[];
+  readonly note?: string;
+}
+
+export function useDemanderUnAutreCreneau(id: number) {
+  return useApiMutation<ApiResponse<MaintenanceRescheduleRequest>, DemandeDeCreneauInput>(
+    { path: cheminApi`/api/maintenance-requests/${id}/reschedule-requests`, method: 'POST' },
+    { invalidate: [maintenanceKeys.all, maintenanceKeys.detail(id)] },
   );
 }
 

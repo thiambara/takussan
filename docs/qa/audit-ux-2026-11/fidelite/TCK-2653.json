@@ -103,13 +103,6 @@
       "motif": "la demande #10 de la démo n'a ni photo ni message vocal ; la galerie (MaintenanceGallery) s'affiche sous la frise quand la demande en a"
     },
     {
-      "ecran": "a-1 / a-2 (trois appareils)",
-      "element": "numéro du demandeur, « Appeler » et « WhatsApp » du locataire",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "l'API ne sert pas le téléphone du demandeur sur la demande (`requester` : id, name, email, username) ; le servir est une décision d'API (TCK-2637 : le numéro d'un locataire va aux seuls lecteurs du bail), hors de ce ticket"
-    },
-    {
       "ecran": "a-1 / a-2 (bureau)",
       "element": "« Journal »",
       "propriete": "présence",
@@ -143,13 +136,6 @@
       "propriete": "présence (absent de la maquette)",
       "exception": "donnée",
       "motif": "AC3 : « Autre action » liste `abilities.transitions` ; le serveur permet `in_progress` sur #10"
-    },
-    {
-      "ecran": "a-2 (bureau, téléphone)",
-      "element": "« Annuler la demande » : « Le locataire est prévenu, avec votre motif »",
-      "propriete": "texte",
-      "exception": "donnée",
-      "motif": "décision n° 6 : `PUT …/status` n'accepte pas de motif ; l'annulation se confirme sans motif"
     },
     {
       "ecran": "a-2 (téléphone)",
@@ -188,20 +174,6 @@
     },
     {
       "ecran": "a-8 (trois appareils)",
-      "element": "« 1 créneau dépassé »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "non servi par prestataire (TCK-2652 ne le calcule pas ; hors de TCK-2772)"
-    },
-    {
-      "ecran": "a-8 (bureau)",
-      "element": "« ⋯ » de chaque ligne",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucun geste de plus à y porter : appel et WhatsApp sont sur la ligne, relance et révocation pour une invitation"
-    },
-    {
-      "ecran": "a-8 (trois appareils)",
       "element": "notes ★, métiers et zones, « Invitation envoyée », Renvoyer / Révoquer",
       "propriete": "valeur, présence",
       "exception": "donnée",
@@ -209,17 +181,31 @@
     },
     {
       "ecran": "a-8 (téléphone)",
-      "element": "pastilles de métier comptées (« Plomberie 2 »)",
-      "propriete": "texte",
-      "exception": "donnée",
-      "motif": "seule « Tous » porte un compte (le carnet entier) ; un compte par métier demanderait un comptage côté client ou un appel par métier"
-    },
-    {
-      "ecran": "a-8 (téléphone)",
       "element": "flèche de retour",
       "propriete": "présence",
       "exception": "coque",
       "motif": "le carnet est une entrée racine du menu : l'en-tête de la coque est celui d'une racine (titre, « + », recherche, cloche)"
+    },
+    {
+      "ecran": "a-8 (bureau)",
+      "element": "« Voir la fiche » du menu « ⋯ » de ligne",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "TCK-2918 : aucune fiche de prestataire n'existe dans l'application (aucune route) ; le « ⋯ » porte les gestes réels de la ligne (Appeler, WhatsApp ; Renvoyer l'invitation, Révoquer pour une invitation)"
+    },
+    {
+      "ecran": "a-8 (téléphone)",
+      "element": "pastille « Invités 1 »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "TCK-2918 : les pastilles filtrent par métier et portent `meta.trade_counts` ; le statut se filtre au bureau (« Tous les statuts ») — une pastille de statut parmi les métiers mêlerait deux filtres"
+    },
+    {
+      "ecran": "a-0 (bureau)",
+      "element": "glisser-déposer d'une carte vers une colonne autre que « En cours »",
+      "propriete": "comportement",
+      "exception": "donnée",
+      "motif": "TCK-2918 : les colonnes sont des files dérivées par l'API, pas des statuts ; seul le dépôt dans « En cours » depuis « À dispatcher » ou « En retard » a un geste (confier à un prestataire). Les autres dépôts sont refusés visiblement, sans requête (lib/maintenance/depot.ts)"
     }
   ]
 }

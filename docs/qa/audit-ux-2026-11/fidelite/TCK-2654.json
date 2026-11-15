@@ -171,13 +171,6 @@
       "motif": "la #44 de la démo est terminée : trois étapes faites, aucune photo, les étapes remontent de 44 px"
     },
     {
-      "ecran": "app-interventions a-4-*",
-      "element": "« l'agence répond d'ordinaire dans l'heure »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucune source ne sert ce délai (décision 2 de team-lead : aucun texte inventé)"
-    },
-    {
       "ecran": "app-interventions a-3-*",
       "element": "sous-titre « Dakar Immo »",
       "propriete": "texte",
@@ -200,17 +193,10 @@
     },
     {
       "ecran": "app-interventions a-5-*",
-      "element": "métier de l'artisan, fenêtre de passage, « Changer le créneau », « Écrire à l'agence »",
+      "element": "métier de l'artisan, fenêtre de passage",
       "propriete": "présence",
       "exception": "donnée",
-      "motif": "l'API ne les sert pas au locataire"
-    },
-    {
-      "ecran": "app-interventions a-5-bureau-*",
-      "element": "note « Les réparations… prises en charge selon votre bail : aucun montant… »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "aucune source ne sert ce texte (décision 2 : aucun texte inventé)"
+      "motif": "l'API ne les sert pas au locataire (TCK-2918 a levé « Changer le créneau » et « Écrire à l'agence »)"
     },
     {
       "ecran": "app-interventions a-5-*",

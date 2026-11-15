@@ -22,6 +22,7 @@ import { MaintenanceAccessKit } from './MaintenanceAccessKit';
 import { MaintenanceAssignmentBlock } from './MaintenanceAssignmentBlock';
 import { MaintenanceCompleteForm } from './MaintenanceCompleteForm';
 import { MaintenanceGallery } from './MaintenanceGallery';
+import { MotifDAnnulation } from './MotifDAnnulation';
 import { MaintenanceProviderResponse } from './MaintenanceProviderResponse';
 import { MaintenanceResolutionResponse } from './MaintenanceResolutionResponse';
 import { MaintenanceStepper } from './MaintenanceStepper';
@@ -208,12 +209,21 @@ function StatusActions({
 }) {
   const t = useTranslations('maintenance.detail');
   const tStatus = useTranslations('maintenance.status');
+  const tAnnulation = useTranslations('maintenance.annulation');
   const transition = useTransitionMaintenanceStatus(request.id);
+  // TCK-2918 — « Annulée » ouvre la saisie du motif : l'API le refuse sans (ADR-0118 § 1).
+  const [annulation, setAnnulation] = useState(false);
 
   if (TERMINAL.includes(request.status)) {
     return (
       <div className="rounded-xl bg-card p-4 text-sm text-muted-foreground sm:p-5">
         {t('terminal', { status: tStatus(request.status) })}
+        {/* TCK-2918 — le motif de qui a annulé, lu par le locataire, le bailleur et le prestataire. */}
+        {request.status === 'cancelled' && request.cancellation_reason ? (
+          <p data-slot="motif-de-l-annulation" className="mt-2 text-foreground">
+            {tAnnulation('motifLu', { motif: request.cancellation_reason })}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -240,13 +250,21 @@ function StatusActions({
             type="button"
             variant={next === 'cancelled' ? 'outline' : 'default'}
             disabled={transition.isPending}
-            onClick={() => transition.mutate({ status: next })}
+            onClick={() => (next === 'cancelled' ? setAnnulation(true) : transition.mutate({ status: next }))}
             className="h-11 sm:h-9"
           >
             {tStatus(next)}
           </Button>
         ))}
       </div>
+      <MotifDAnnulation
+        open={annulation}
+        onOpenChange={setAnnulation}
+        titre={request.title}
+        enCours={transition.isPending}
+        onConfirmer={(reason) => transition.mutate({ status: 'cancelled', reason }, { onSuccess: () => setAnnulation(false) })}
+        erreur={annulation && transition.isError ? t('transition_error') : null}
+      />
       {transition.isError ? (
         <p role="alert" className="mt-2 text-xs text-destructive">
           {t('transition_error')}

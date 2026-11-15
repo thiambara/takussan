@@ -56,7 +56,16 @@ export const maintenanceStatusSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-export type MaintenanceStatusInput = z.infer<typeof maintenanceStatusSchema>;
+/**
+ * TCK-2918 — le type de l'appel : `cancelled` EXIGE `reason` (sans lui, l'API rend 422). Le compilateur
+ * refuse ainsi toute annulation envoyée sans motif, où qu'elle soit écrite.
+ */
+export type MaintenanceStatusInput =
+  | { readonly status: Exclude<MaintenanceStatus, 'cancelled'>; readonly reason?: undefined }
+  | { readonly status: 'cancelled'; readonly reason: string };
+
+/** TCK-2918 — la borne du motif d'annulation (`UpdateStatusMaintenanceRequestRequest`, `max:500`). */
+export const MOTIF_D_ANNULATION_MAX = 500;
 
 /**
  * Payload for `PUT /api/maintenance-requests/{id}/complete`.

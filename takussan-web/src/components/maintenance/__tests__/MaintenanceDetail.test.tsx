@@ -270,4 +270,36 @@ describe('<MaintenanceDetail>', () => {
       expect(screen.queryByRole('heading', { name: 'Changer le statut' })).not.toBeInTheDocument();
     });
   });
+
+  // TCK-2918 — la fiche des autres rôles (le bailleur compris) annule avec un motif : l'API rend 422
+  // sans lui (ADR-0118 § 1), et le motif est relu par qui lit une demande annulée.
+  describe('annuler avec un motif (TCK-2918)', () => {
+    it('« Annulée » ouvre la saisie du motif ; confirmer sans motif est impossible ; le motif part avec le statut', async () => {
+      maintenanceQuery.data = {
+        data: makeRequest({ status: 'open', abilities: { ...NO_ABILITIES, can_manage_quotes: true, transitions: ['acknowledged', 'cancelled'] } }),
+      };
+
+      render(wrap(<MaintenanceDetail id={7} />));
+      fireEvent.click(screen.getByRole('button', { name: 'Annulée' }));
+      expect(transitionMutation.mutate).not.toHaveBeenCalled();
+
+      const dialogue = await screen.findByRole('dialog', { name: 'Annuler la demande ?' });
+      const confirmer = within(dialogue).getByRole('button', { name: 'Annuler la demande' });
+      expect(confirmer).toBeDisabled();
+      fireEvent.change(within(dialogue).getByLabelText('Motif de l’annulation'), { target: { value: '  Le bailleur fait intervenir son artisan ' } });
+      fireEvent.click(confirmer);
+
+      expect(transitionMutation.mutate).toHaveBeenCalledTimes(1);
+      expect(transitionMutation.mutate.mock.calls[0][0]).toEqual({ status: 'cancelled', reason: 'Le bailleur fait intervenir son artisan' });
+    });
+
+    it('une demande annulée rend le motif de qui l’a annulée', () => {
+      maintenanceQuery.data = {
+        data: makeRequest({ status: 'cancelled', cancellation_reason: 'Le bailleur fait intervenir son artisan', abilities: NO_ABILITIES }),
+      };
+
+      render(wrap(<MaintenanceDetail id={7} />));
+      expect(screen.getByText('Motif : Le bailleur fait intervenir son artisan')).toBeInTheDocument();
+    });
+  });
 });

@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { SheetClose } from '@/components/ui/sheet';
+import { MotifDAnnulation } from '@/components/maintenance/MotifDAnnulation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { aDesAutresActions, autresActions, PRIORITES_DECROISSANTES } from '@/lib/maintenance/fiche';
+import { aDesAutresActions, autresActions, PRIORITES_DECROISSANTES, type SansAnnulation } from '@/lib/maintenance/fiche';
 import type { InterventionEnFile } from '@/lib/maintenance/files';
 import { useRequestMaintenanceQuote, useTransitionMaintenanceStatus, useUpdateMaintenanceRequest } from '@/lib/queries/maintenance';
 import { cn } from '@/lib/utils';
@@ -24,12 +25,12 @@ import type { MaintenancePriority, MaintenanceStatus } from '@/types/maintenance
  * Rien n'est inventé : sans `abilities.transitions`, aucun statut n'est proposé ; « Terminée » ne
  * l'est jamais (elle passe par le rapport), ni « Assignée » sans prestataire (`autresActions`).
  *
- * L'annulation se confirme ; l'API ne prend pas de motif (`PUT …/status` n'accepte que `status`) :
- * la confirmation le dit au lieu de demander un motif que personne ne lirait.
+ * L'annulation se confirme avec un motif (TCK-2918) : l'API l'exige (ADR-0118 § 1, 422 sans lui) et
+ * le locataire le lit — « Le locataire est prévenu, avec votre motif ».
  */
 type Entree =
   | { readonly cle: 'devis' }
-  | { readonly cle: 'transition'; readonly statut: MaintenanceStatus }
+  | { readonly cle: 'transition'; readonly statut: SansAnnulation }
   | { readonly cle: 'priorite' }
   | { readonly cle: 'rapport' };
 
@@ -196,7 +197,7 @@ export function AutreActionListe({ etat }: { readonly etat: EtatDAutreAction }) 
   );
 }
 
-/** Les deux feuilles qui partent d'« Autre action » : choisir la priorité, confirmer l'annulation. */
+/** Les deux feuilles qui partent d'« Autre action » : choisir la priorité, annuler avec un motif. */
 export function FeuillesDAutreAction({ etat }: { readonly etat: EtatDAutreAction }) {
   const t = useTranslations('maintenance.fiche.autre');
   const { request, ecritures } = etat;
@@ -212,31 +213,14 @@ export function FeuillesDAutreAction({ etat }: { readonly etat: EtatDAutreAction
         />
       </FeuilleDuBas>
 
-      <FeuilleDuBas
+      {/* TCK-2918 — le motif est exigé par l'API (ADR-0118 § 1) et lu par le locataire. */}
+      <MotifDAnnulation
         open={etat.annulation}
         onOpenChange={etat.setAnnulation}
-        titre={t('annuler.confirmerTitre')}
-        pied={
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => etat.setAnnulation(false)}>
-              {t('annuler.garder')}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              className="flex-1"
-              disabled={ecritures.transition.isPending}
-              onClick={() => {
-                ecritures.transition.mutate({ status: 'cancelled' }, { onSuccess: () => etat.setAnnulation(false) });
-              }}
-            >
-              {t('annuler.confirmer')}
-            </Button>
-          </div>
-        }
-      >
-        <p className="text-sm leading-relaxed text-muted-foreground">{t('annuler.confirmerTexte', { titre: request.title })}</p>
-      </FeuilleDuBas>
+        titre={request.title}
+        enCours={ecritures.transition.isPending}
+        onConfirmer={(reason) => ecritures.transition.mutate({ status: 'cancelled', reason }, { onSuccess: () => etat.setAnnulation(false) })}
+      />
     </>
   );
 }

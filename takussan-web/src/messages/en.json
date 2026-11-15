@@ -5106,7 +5106,8 @@
         "echeance": "Due day",
         "penalite": "Late fee",
         "commission": "Commission",
-        "indemnite": "Early termination fee"
+        "indemnite": "Early termination fee",
+        "preavis": "Notice period"
       },
       "valeurs": {
         "penalite": "{taux}% after {jours} d",
@@ -5159,6 +5160,22 @@
         "loyerAnnonceMensuel": "advertised rent {montant} / month",
         "loyerAnnoncePeriode": "advertised rent {montant} {periode}",
         "prixAnnonce": "advertised price {montant}"
+      },
+      "preavis": {
+        "titre": "Notice period",
+        "equivalent": "{mois, plural, one {# month} other {# months}}",
+        "jours": "{jours, plural, one {# day} other {# days}}"
+      },
+      "brouillon": {
+        "libelle": "Draft",
+        "enregistreA": "draft saved at {heure}"
+      },
+      "apercu": {
+        "titre": "Contract preview",
+        "cadre": "Lease contract preview",
+        "ouvrir": "View the full contract",
+        "incomplet": "The preview appears once the property, tenant, start date and rent are filled in.",
+        "indisponible": "Preview unavailable for now. Check the terms you entered."
       }
     },
     "payment": {
@@ -6307,7 +6324,7 @@
       "joindre": {
         "appeler": "Call {nom}",
         "whatsapp": "Message {nom} on WhatsApp",
-        "message": "Hello {nom}, I am writing about your request “{titre}”."
+        "message": "Hello {nom}, this is your agency, about your request “{titre}”."
       },
       "motifDAnnulation": "Reason for cancelling"
     },
@@ -8683,7 +8700,7 @@
         "signaturesSurPlace": "On-site signatures",
         "signatures": "Signatures",
         "revenirAuxPieces": "Back to the rooms",
-        "terminer": "Finish",
+        "terminer": "Finish and send the PDF",
         "manque": {
           "aucun": "Both parties have signed: the inventory is locked.",
           "lesDeux": "Still missing: {locataire} and the agency’s signature",
@@ -8693,6 +8710,11 @@
           "codeDElide": "{prenom}’s code",
           "signatureDe": "{prenom}’s signature",
           "signatureDElide": "{prenom}’s signature"
+        },
+        "pdf": {
+          "aDeux": "The PDF goes to {a} and {b}.",
+          "aUn": "The PDF goes to {a}.",
+          "aPersonne": "Neither party has an account to notify: download the PDF from the record."
         }
       },
       "signatures": {
@@ -8733,7 +8755,8 @@
           "effacer": "Clear",
           "valider": "Confirm"
         },
-        "reessayer": "Try again"
+        "reessayer": "Try again",
+        "signerAuTitreDuMandat": "Sign under the management mandate"
       }
     }
   },
@@ -17682,7 +17705,8 @@
       "chargesNonNegative": "Charges must be ≥ 0.",
       "lateFeePercentInvalid": "Invalid late fee (0 to 50%).",
       "graceDaysInvalid": "Invalid number of grace days (0 to 30).",
-      "earlyTerminationInvalid": "Invalid penalty (0 to 12 months)."
+      "earlyTerminationInvalid": "Invalid penalty (0 to 12 months).",
+      "noticePeriodInvalid": "Invalid notice period (1 to 365 days)."
     },
     "maintenance": {
       "propertyRequired": "Select a property.",
