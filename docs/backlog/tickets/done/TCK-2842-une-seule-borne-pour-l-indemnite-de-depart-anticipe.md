@@ -1,7 +1,7 @@
 ---
 id: TCK-2842
 title: "Une seule borne pour l'indemnité de départ anticipé : catalogue, bail et lecture à l'exécution"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
@@ -80,16 +80,16 @@ n'a été trouvé pour cette indemnité. Recommandations retenues, **validées p
 |---|---|---|---|
 | Démo locale (PostgreSQL 5433) | aucune (ni globale ni d'agence) | aucune | null : 170, 2 : 188 |
 | Seeders | aucun n'écrit la clé | — | — |
-| Préproduction | **non relevé** : pas d'accès depuis l'agent | ? | ? |
+| Préproduction (`takussan_preview`, 2026-11-15 00:39, transaction `READ ONLY`, session) | aucune (ni globale ni d'agence) | aucune | 2 : 196, null : 170 |
 
 Aucune migration de données n'est nécessaire localement : la lecture ramène toute ligne > 12 à 12
 (AC5). ⚠ En préproduction, une ligne d'agence à **0** écrite avant la règle se lisait jusqu'ici « pas
 de réglage » (le global reprenait la main) ; elle se lit désormais « aucune indemnité ». Le relevé de
-préproduction tranche s'il faut la retirer.
+préproduction tranche s'il faut la retirer : aucune ligne de la clé n'y existe, rien à retirer (2026-11-15).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le relevé des lignes hors borne est écrit dans le ticket (environnement, ids, valeurs)
+- [x] AC1 — Le relevé des lignes hors borne est écrit dans le ticket (environnement, ids, valeurs)
   avant tout changement de règle.
 - [x] AC2 — La borne est déclarée dans la règle du catalogue seulement. `StoreLeaseRequest`,
   `UpdateLeaseRequest`, `RenewLeaseRequest` et `LeaseDefaults` la lisent. Une ablation qui change la

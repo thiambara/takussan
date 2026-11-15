@@ -1,7 +1,7 @@
 ---
 id: TCK-2819
 title: "Les étapes et l'aperçu de l'assistant d'annonce suivent la maquette, sur /publish comme sur /app/properties/new"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: L
@@ -52,13 +52,13 @@ entrées montrent les mêmes champs.
 
 Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevée au bureau 1440 et au téléphone :
 
-- [ ] **Contenu des six étapes** (`StepBien`, `ChampsLieu`, `StepCaracteristiques`, `StepPrix`, `MediaDropzone`,
+- [x] **Contenu des six étapes** (`StepBien`, `ChampsLieu`, `StepCaracteristiques`, `StepPrix`, `MediaDropzone`,
   finition) — écarts relevés au bureau 47 · 34 · 43 · 33 · 16 · 24 lignes, au téléphone 43 · 24 · 32 · 33 · 20 · 15.
   Parmi eux : cartes du contrat et des types ; région, ville et quartier en grille ; « Utiliser ma position » et
   « Placer sur la carte » en pastilles ; loyer suivi de « Par Mois / Semaine / Jour / An » au lieu de Prix + Fréquence ;
   « Total à l'entrée » ; dépôt des photos et « Couverture » ; apostrophes typographiques des libellés partagés
   (« Coût d'entrée », « Titre de l'annonce »).
-- [ ] **Colonne d'aperçu** : la carte (`ApercuAnnonce` : pastille « En location », « Vos photos viendront ici », titre,
+- [x] **Colonne d'aperçu** : la carte (`ApercuAnnonce` : pastille « En location », « Vos photos viendront ici », titre,
   lieu, prix) et « Pour publier » (`ListePourPublier` : titre 15 px / 600 au lieu de 12,6, notes « en cours »,
   « facultatif », « à la fin » alignées à droite au lieu d'être dans le libellé, puce). Écarts relevés : 21 · 19 · 21 ·
   21 · 19 · 21 lignes. La colonne collante retrouve son `y` de 104 sur a-0, a-2 et a-5 quand les étapes reprennent leur
@@ -91,7 +91,7 @@ Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevé
   (`scrollWidth − innerWidth = 0`), a-4 à 360 compris.
 - [x] AC4 — Au téléphone, le geste « Continuer » mesure 48 px de haut et reste visible sans défilement de la page à
   chaque étape.
-- [ ] AC-F1 à AC-F6 — comme TCK-2600 (fiche, zéro écart non expliqué, rien ne manque, zones identiques, preuve dans la PR,
+- [x] AC-F1 à AC-F6 — comme TCK-2600 (fiche, zéro écart non expliqué, rien ne manque, zones identiques, preuve dans la PR,
   largeurs intermédiaires), avec `fidelite compare` sur a-0 à a-5. Les écarts listés « ce qui reste accepté » ci-dessus
   sont reportés tels quels.
 
@@ -134,13 +134,43 @@ Les lignes d'écart viennent de la fiche de TCK-2600 (`ecarts_ouverts`), relevé
 - AC3 / AC4 re-mesurés sur le DOM du lot 2 : débord 0 sur a-0 à a-5 aux six largeurs, « Continuer » 48 px visible à
   chaque étape (fiche, `resultats_lot2.balayage`) ; `/app/properties/new` balayé à l'étape 1 seule.
 
-**Ce qui reste (suite, ticket à écrire)** : « Contacts sur place » et la note « C’est tout pour l’annonce » (composant
+**Ce qui restait (lot 2 → livré au lot 3)** : « Contacts sur place » et la note « C’est tout pour l’annonce » (composant
 partagé avec la fiche du bien), la phrase des CGU sous « Publier l’annonce » au téléphone, le repli de l'encadré du
 coût d'entrée, le `y` de 104 de la colonne collante à re-relever, AC-F1 à AC-F6 (écarts ouverts de la fiche).
 
 **Ce qui restait (lot 2)** : le contenu des six étapes (premier point du delta, encore ouvert), dont dépendent le `y` de 104
 de la colonne collante (deuxième point : la carte et « Pour publier » sont livrés, le `y` suit les étapes), la phrase des
 CGU sous « Publier l’annonce » au téléphone, la réduction du coût d'entrée de l'aperçu à « À l’entrée : … » (décision du 2026-11-14 : composantes et note restent sous la carte jusqu'à ce que l'encadré de l'étape du prix les porte ; les assertions de TCK-633 y suivront) et AC-F1 à AC-F6 (écarts ouverts nommés dans la fiche `TCK-2819.json`).
+
+**Preuves (lot 3, 2026-11-14)** — décisions 1a à 5a validées par le porteur le 2026-11-14 :
+
+- Contacts sur place (maquette a-5) : `ContactsSurPlace` prend `presentation="assistant"` (titre 17 px Bricolage, carte,
+  « Qui ? » / « Numéro » côte à côte dès le téléphone, « Retirer » texte, « Ajouter un contact » en pastille pointillée de
+  44 px), passée par `PropertyWizard` aux deux entrées ; la fiche du bien garde son dessin.
+  `…/contact/__tests__/ContactsSurPlace.assistant.tck-2819.test.tsx` ; ablations : variante éteinte → 3 rouges, variante
+  forcée → la fiche rougit, `presentation` retirée de `PropertyWizard` → rouge (`PublierSansCompte.finition.tck-2819`).
+  La note « C’est tout pour l’annonce » existait déjà sur `/publish` (TCK-2600) : non dupliquée, sa place sous les
+  contacts est épinglée.
+- Phrase des CGU sous « Publier l’annonce » au téléphone : `WizardShell` reçoit `sousLesGestes` (sous `lg` seul), `/publish`
+  y pose à la finition la même phrase que la note du pied au bureau. `…/publication/__tests__/PublierSansCompte.finition.tck-2819.test.tsx` ;
+  ablations : rendu retiré → rouge ; phrase à toutes les étapes → rouge.
+- Repli de l'encadré du coût d'entrée (décision 1a) : en-tête bouton `aria-expanded`, ouvert à chaque montage, état hors
+  brouillon ; replié, seuls compteurs et charges se cachent — total, composantes et note restent lus (TCK-633).
+  `…/property-form/__tests__/EncadreCoutDEntree.repli.tck-2819.test.tsx` ; ablations : repli sans effet, total caché avec
+  le corps, fermé au montage → rouges.
+- `y` de 104 re-relevé : la maquette elle-même pose la colonne à 93,6 sur a-3 / a-4 et à 104 sur a-0 / a-2 / a-5 (colonne
+  collante qui ne descend que sous une question plus haute qu'elle) ; le produit suit le même mécanisme. Un décalage forcé
+  a été essayé puis retiré (il décalait a-3 et a-4, conformes). Écart a-0 / a-2 expliqué dans la fiche.
+- AC-F1 à AC-F6 : fiche `TCK-2819.json`, `ecarts_ouverts` vide — chaque écart restant est dans `ecarts_acceptes`
+  (décisions 2a ligne d'état, 3a surtitre, 4a aide du quartier / note des photos, 5a aide de la visite) ou `hors_perimetre`.
+  Relevés 390 et 1280 de a-0 à a-5 (`produit.releves.resultats_lot3`) : a-5 bureau 17 → 31 conformes, a-3 / a-4 bureau
+  19 / 18 → 30 / 30.
+- AC3 / AC4 re-mesurés (a-5 avec un contact sur place) : débord 0 sur a-0 à a-5 aux six largeurs, aucune requête autre que
+  GET, geste final 48 px visible sous `lg` (a-5 : y 731 sur 844 avec la phrase des CGU dessous).
+- AC1 / AC2 verts (`etapes-identiques`, `brouillon-d-avant`, `PropertyForm.edition-inchangee`) ; dossiers `property-form`,
+  `publication`, `contact` : 66 fichiers, 652 tests verts (et `PropertyDetailTabs.contacts.tck-633` : la fiche du bien).
+
+**Validation (2026-11-15)** : le porteur valide les rideaux du lot 3 (`impl/lot3/w3-2819/l3-cmp-*`, `l3b-cmp-*`) — AC-F5 tenu, le ticket passe `done`.
 
 ## Hors périmètre
 

@@ -269,11 +269,23 @@ function LigneDuReglage({
         >
           <GripVertical className="size-4" aria-hidden="true" />
         </button>
+        {/* TCK-2629 (O9) — sous `lg`, la ligne n'a pas la place d'un libellé, d'un aperçu et de quatre commandes :
+            l'aperçu passe sous le libellé, qui passe à la ligne plutôt que d'être coupé. */}
         <span className="min-w-0 flex-1 leading-tight">
-          <span className={cn('block truncate text-corps font-medium', !chiffre.is_enabled && 'text-muted-foreground')}>{chiffre.label}</span>
-          {chiffre.label !== metrique ? <span className="block truncate text-xs text-muted-foreground">{metrique}</span> : null}
+          <span className={cn('block text-corps font-medium break-words lg:truncate', !chiffre.is_enabled && 'text-muted-foreground')}>{chiffre.label}</span>
+          {apercu !== null || chiffre.label !== metrique ? (
+            <span className="block truncate text-xs text-muted-foreground">
+              {apercu !== null ? (
+                <span className="tabular-nums lg:hidden" data-slot="apercu-dessous">
+                  {apercu}
+                  {chiffre.label !== metrique ? ' · ' : null}
+                </span>
+              ) : null}
+              {chiffre.label !== metrique ? metrique : null}
+            </span>
+          ) : null}
         </span>
-        {apercu !== null ? <span className="flex-none text-sm tabular-nums text-muted-foreground" data-slot="apercu">{apercu}</span> : null}
+        {apercu !== null ? <span className="flex-none text-sm tabular-nums text-muted-foreground max-lg:hidden" data-slot="apercu">{apercu}</span> : null}
         <button
           type="button"
           disabled={rang === 0 || enCours}

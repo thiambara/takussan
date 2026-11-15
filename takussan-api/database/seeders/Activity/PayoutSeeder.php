@@ -58,6 +58,13 @@ class PayoutSeeder extends Seeder
             }
 
             $moyen = $this->ctx->moyensDeReversement[(int) $lease->landlord_id] ?? null;
+            // TCK-2776 — seule une destination vérifiée par l'agence du bail reçoit un reversement
+            // (`PayoutService::defaultVerifiedDestination`). L'hôte d'une agence `individual`, seul
+            // bailleur de ses biens, ne vérifie pas la sienne (`SegregationOfDuties`) : ses reversements
+            // restent sans destination, comme ceux que l'application préparerait.
+            if ($moyen !== null && ! $moyen->isVerifiedFor((int) $lease->agency_id)) {
+                $moyen = null;
+            }
             Payout::withoutEvents(function () use (
                 $lease, $gross, $commission, $net, $periodStart, $processedAt, $payments, $moyen
             ) {

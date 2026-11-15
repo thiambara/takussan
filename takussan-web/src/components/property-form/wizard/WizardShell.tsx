@@ -99,6 +99,11 @@ export type WizardShellProps = {
   readonly cadreDEntree?: boolean;
   /** Ce que le pied dit sous l'aperçu, dans le cadre d'entrée (dès `lg`). */
   readonly noteDuPied?: React.ReactNode;
+  /**
+   * TCK-2819 (lot 3) — une ligne SOUS les gestes, au téléphone seulement (`PiedAssistant`, `dessous`, de
+   * la maquette : la phrase des CGU sous « Publier »). Dès `lg`, c'est `noteDuPied` qui la porte.
+   */
+  readonly sousLesGestes?: React.ReactNode;
 };
 
 /**
@@ -153,6 +158,7 @@ function GrilleDEntree({
 export function WizardShell({
   steps, index, direction, onNavigate, onFinish, finishLabel, busy = false, parts,
   entete, apercu, barreApercu, bandeau, refDuPanneau, panneauOuvert = false, cadreDEntree = false, noteDuPied,
+  sousLesGestes,
 }: WizardShellProps) {
   const t = useTranslations('property.wizard');
   const etape = steps[index];
@@ -450,6 +456,12 @@ export function WizardShell({
                   </Button>
                 </div>
               </div>
+              {/* Maquette a-5 (téléphone) : `mt-2.5` sous les gestes — le `pb-1` de leur rangée, puis 6. */}
+              {sousLesGestes ? (
+                <div data-sous-les-gestes="" className="px-4 pt-1.5 sm:px-8 lg:hidden">
+                  {sousLesGestes}
+                </div>
+              ) : null}
             </GrilleDEntree>
           </div>
         </div>

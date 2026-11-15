@@ -20925,7 +20925,8 @@
       "relueToutesLesHeures": "The measure is checked every hour.",
       "modificationEchec": "The change failed. Please try again.",
       "enregistrer": "Save",
-      "uniteHeures": "hours"
+      "uniteHeures": "hours",
+      "valeurActuelle": "Current value: {valeur}"
     },
     "reglage": {
       "titre": "Customise the figures",

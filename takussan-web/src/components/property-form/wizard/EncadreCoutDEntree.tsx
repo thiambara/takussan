@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useId, type KeyboardEvent } from 'react';
+import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWatch, type UseFormReturn } from 'react-hook-form';
-import { Minus, Plus } from 'lucide-react';
+import { ChevronUp, Minus, Plus } from 'lucide-react';
 
 import { FormAmountInput } from '@/components/forms';
 import { coutDEntreeTotal } from '@/lib/cout-d-entree';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { cn } from '@/lib/utils';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 
 import { isFieldRelevant } from '../field-matrix';
@@ -192,15 +193,42 @@ export function EncadreCoutDEntree({
   const devise = useWatch({ control: form.control, name: 'currency' });
   const cout = useCoutDEntree(form);
   const idTitre = useId();
+  const idCorps = useId();
+  const [ouvert, setOuvert] = useState(true);
   useRetirerLesFraisDAgence(form, fraisDAgence);
 
   return (
     <section aria-labelledby={idTitre} data-testid="encadre-cout-d-entree" className="rounded-xl border border-border bg-card">
-      <div className="px-4 py-3 leading-tight">
-        <h2 id={idTitre} className="text-corps font-semibold text-foreground">{t('entryCost.legend')}</h2>
-        <p className="mt-0.5 text-ui text-muted-foreground">{t('entryCost.boxHint')}</p>
-      </div>
-      <div className="divide-y divide-border border-t border-border px-4 lg:grid lg:grid-cols-2 lg:gap-x-8 lg:divide-y-0">
+      {/*
+        TCK-2819 (lot 3) — l'en-tête replie l'encadré (maquette a-3 : chevron). La maquette ne dessine que
+        l'état ouvert : ouvert à chaque montage, l'état n'entre pas au brouillon, et le repli ne cache que
+        les compteurs et les charges — le total, ses composantes et la note restent lus (TCK-633). Cachés,
+        non démontés : la valeur et une erreur de saisie y restent attachées.
+      */}
+      <h2 className="m-0">
+        <button
+          type="button"
+          aria-expanded={ouvert}
+          aria-controls={idCorps}
+          onClick={() => setOuvert((o) => !o)}
+          className="flex w-full items-center gap-3 rounded-t-xl px-4 py-3 text-left leading-tight focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <span className="min-w-0 flex-1">
+            <span id={idTitre} className="block text-corps font-semibold text-foreground">{t('entryCost.legend')}</span>
+            <span className="mt-0.5 block text-ui font-normal text-muted-foreground">{t('entryCost.boxHint')}</span>
+          </span>
+          <ChevronUp
+            className={cn('size-5 flex-none text-muted-foreground transition-transform', !ouvert && 'rotate-180')}
+            aria-hidden="true"
+          />
+        </button>
+      </h2>
+      <div
+        id={idCorps}
+        data-corps-du-cout=""
+        hidden={!ouvert}
+        className="divide-y divide-border border-t border-border px-4 lg:grid lg:grid-cols-2 lg:gap-x-8 lg:divide-y-0"
+      >
         <Compteur form={form} name="advance_months" libelle={t('entryCost.advance')} pas={1} loyer={cout.loyer} />
         <Compteur form={form} name="deposit_months" libelle={t('entryCost.deposit')} pas={1} loyer={cout.loyer} />
         {fraisDAgence ? (

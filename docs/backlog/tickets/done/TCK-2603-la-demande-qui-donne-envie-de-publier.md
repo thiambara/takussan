@@ -1,13 +1,13 @@
 ---
 id: TCK-2603
 title: "« 1 240 recherches à Dakar cette semaine » : un chiffre vrai sur le départ de la publication"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: S
 wave: 86
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-14
 depends_on: [TCK-2600, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -45,29 +45,59 @@ Re-mesure : aucun endpoint public ne compte les recherches. Le journal anonyme d
 
 ## Delta à produire
 
-- [ ] Amendement d'ADR-0088 écrit et accepté avant le code.
-- [ ] Route `GET /api/public/publish/demand`, contrôleur, FormRequest, réglage `publish.demand_min_searches`, cache.
-- [ ] `privacy.ts` dit la nouvelle sortie (ADR-0088 §6) et `VERSION_DOCUMENTS` avance.
-- [ ] Front : la carte de preuves de `/publish`.
-- [ ] Tests : `PublicPublishDemandTest` (seuil → `null`, compte des 7 jours, ville inconnue → 422, aucune autre clé dans la réponse) ; front : carte absente quand `null`.
+- [x] Amendement d'ADR-0088 écrit et accepté avant le code.
+- [x] Route `GET /api/public/publish/demand`, contrôleur, FormRequest, réglage `publish.demand_min_searches`, cache.
+- [x] `privacy.ts` dit la nouvelle sortie (ADR-0088 §6) et `VERSION_DOCUMENTS` avance.
+- [x] Front : la carte de preuves de `/publish`.
+- [x] Tests : `PublicPublishDemandTest` (seuil → `null`, compte des 7 jours, ville inconnue → 422, aucune autre clé dans la réponse) ; front : carte absente quand `null`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 (amendé le 2026-11-13) — 199 recherches « Dakar » sur 7 jours → `searches_7d: null` ; 1 247 → `1240`, et la
+- [x] AC1 (amendé le 2026-11-13) — 199 recherches « Dakar » sur 7 jours → `searches_7d: null` ; 1 247 → `1240`, et la
       réponse brute ne contient pas `1247` ; la page affiche « 1 240 ». *Raison : l'amendement d'ADR-0088 (cinquième
       sortie) arrondit ce qui SORT du journal ; arrondir au front laissait le total exact dans une réponse publique.
       Décision de la session, 2026-11-13.*
-- [ ] AC2 — La réponse ne contient que `city` et `searches_7d` (test de forme exacte).
-- [ ] AC3 — API injoignable : le départ de `/publish` s'affiche sans la case du chiffre, sans message d'erreur.
+- [x] AC2 — La réponse ne contient que `city` et `searches_7d` (test de forme exacte).
+- [x] AC3 — API injoignable : le départ de `/publish` s'affiche sans la case du chiffre, sans message d'erreur.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
-- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2603.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
-- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
-- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
-- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
-- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
-- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+- [x] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2603.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [x] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+- [x] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+- [x] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+- [x] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
+- [x] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
+
+## Preuves
+
+*Relevé le 2026-11-14 sur `feat/audit-ux-app-lot-4` (livraison : bbe2a972d, bb71374f2 ; arbre de travail qui porte en plus
+les modifications non commitées de TCK-2819).*
+
+- **ADR** : amendement d'ADR-0088 « cinquième sortie » (2026-11-10), **validé par le porteur le 2026-11-14** (« je valide
+  tout ») — statut et § 4 précisés : arrondi par l'API, la réponse brute ne porte jamais le total exact, aucune autre clé
+  que `city` et `searches_7d` ; index `docs/adr/README.md` suivi.
+- **API** : `php artisan test tests/Feature/Public/PublicPublishDemandTest.php` → 19 verts (50 assertions) : AC1 (199 →
+  `null`, 1 247 → `1240`, `1247` absent de la réponse brute), AC2 (forme exacte), 422 hors référentiel, fenêtre,
+  cache d'une heure, `throttle:public-read`.
+- **Front** : `npx vitest run PreuvesDuDepart.tck-2603 PublierSansCompte.preuves.tck-2603 textes.test.ts` → 49 verts
+  (carte absente sous le seuil, AC3 API injoignable sans case ni message, place entre le sous-titre et la question,
+  `VERSION_DOCUMENTS` et phrase de `privacy.ts` épinglées).
+- **Ablations rejouées le 2026-11-14** (restaurées, md5 vérifié) : arrondi retiré (`return max(0, $total)`) → 3 rouges
+  API dont « le total exact ne sort jamais » ; garde du `null` retirée dans `PreuvesDuDepart` → 2 rouges front. Les
+  ablations du 2026-11-13 sont listées aux notes ci-dessus.
+- **Navigateur** (pile de dev, `/publish`, sans écriture) : la vraie API rend `{city: 'Dakar', searches_7d: null}`
+  (journal de démo sous le seuil) et la carte n'est pas rendue ; réponse doublée au cache de React Query → « 1 240 /
+  recherches à Dakar cette semaine ».
+- **Fidélité** (fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2603.json`) : AC-F2/F5 — téléphone `2 · 36 · 8 · 21,73 %`,
+  bureau 1280 `14 · 57 · 9 · 11,74 %` pour l'écran entier, dont tout écart hors de la carte relève de TCK-2600
+  (`hors_perimetre`) ; écarts propres à la carte : quatre, acceptés et motivés (second chiffre absent par contrainte
+  du ticket, hauteur qui en découle, encre opaque TCK-658, groupe U+00A0). Rideaux : scratchpad de la session,
+  `impl/lot2/2603/fid/cmp1-a-0-{telephone,bureau-1280}/rideau.html` — **le porteur valide sur le rideau**. AC-F4 :
+  aucune zone à contenu identique déclarée (motif dans la fiche). AC-F6 : à 768 et 1024, `scrollWidth − innerWidth` = 0,
+  carte pleine largeur de sa colonne (704 et 560 px).
+
+**Validation (2026-11-14)** : le porteur valide les deux rideaux (téléphone et bureau 1280) — AC-F5 tenu, le ticket passe `done`.
 
 ## Hors périmètre
 
