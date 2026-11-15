@@ -1,13 +1,13 @@
 ---
 id: TCK-2768
 title: "Les dates reçues refusent les formes que la règle `date` relit de travers — un jour `AAAA-MM-JJ` strict, années bornées"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 90
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-15
 depends_on: [TCK-2752]
 blocks: []
 spec_refs:
@@ -144,25 +144,25 @@ Les lecteurs de `MapPublicPropertyRequest`, `PriceDistributionRequest` et `Sugge
 
 **API**
 
-- [ ] `App\Rules\JourIso` (`ValidationRule`) :
+- [x] `App\Rules\JourIso` (`ValidationRule`) :
   - admet une chaîne `AAAA-MM-JJ` exactement (`\A\d{4}-\d{2}-\d{2}\z`) ;
   - le jour doit exister (`checkdate`) ;
   - l'année doit être dans [`InstantIso::ANNEE_MIN`, `JourIso::ANNEE_MAX`], le plafond tranché plus haut (2100
     s'il est égal à `InstantIso::ANNEE_MAX`, qu'il lit alors par référence) ;
   - `null` n'est pas jugé ici (`nullable` en répond) ; toute autre valeur, ou une chaîne qui n'est pas un jour,
     échoue sur `validation.rules.jour`.
-- [ ] Le libellé `validation.rules.jour` en `fr`, `en` et `wo` (wo = texte français, wolof en pause).
+- [x] Le libellé `validation.rules.jour` en `fr`, `en` et `wo` (wo = texte français, wolof en pause).
   `LangGroupParity` reste vert.
-- [ ] Famille J : `new JourIso` posé juste après `'date'` sur les 36 champs de FormRequest et dans
+- [x] Famille J : `new JourIso` posé juste après `'date'` sur les 36 champs de FormRequest et dans
   `SavedSearchCriteria`. Les deux règles en chaîne (`'nullable|date'` de `available_from` et de `published_after`
   dans `SearchPublicPropertyRequest`) sont réécrites en tableau. Le commentaire TCK-335 est gardé et complété.
-- [ ] Famille I : `new InstantIso` posé juste après `'date'` sur `IndexAuditLogRequest` (`from`, `to`),
+- [x] Famille I : `new InstantIso` posé juste après `'date'` sur `IndexAuditLogRequest` (`from`, `to`),
   `ExportActivityLogRequest` (`filter.date_from`, `filter.date_to`), `published_after`, et dans
   `DateBoundaryFilter::exiger` (`['string', 'date', new InstantIso]`). Le docblock de `DateBoundaryFilter` dit les
   formes admises.
-- [ ] `RangeFilter` : `['string', 'date', $isTimestamp ? new InstantIso : new JourIso]`. Son docblock dit les
+- [x] `RangeFilter` : `['string', 'date', $isTimestamp ? new InstantIso : new JourIso]`. Son docblock dit les
   deux formes.
-- [ ] **Garde** (dans `tests/Unit/Architecture/InstantRecuConvertiTest.php`, ou un fichier frère qui réutilise sa
+- [x] **Garde** (dans `tests/Unit/Architecture/InstantRecuConvertiTest.php`, ou un fichier frère qui réutilise sa
   lecture des règles) : `test_aucune_date_recue_n_est_nue`.
   - Pour **tout** champ que `reglesDate()` relève dans `app/Http/Requests`, quelle que soit sa colonne, chaque
     `date` de l'expression a son `new JourIso` ou son `new InstantIso`, dans chaque branche.
@@ -179,34 +179,34 @@ Les lecteurs de `MapPublicPropertyRequest`, `PriceDistributionRequest` et `Sugge
     et au moins 3 occurrences hors FormRequest.
   - Un test de lecture épingle les formes : un champ en `'nullable|date'` compte zéro, une branche conditionnelle
     sans la règle rougit, et `date_format` est ignoré.
-- [ ] **Le test d'activité qui poste un instant** (`ActivityLogEndpointTest`, l.147-150) reste vert sans
+- [x] **Le test d'activité qui poste un instant** (`ActivityLogEndpointTest`, l.147-150) reste vert sans
   changement : c'est la preuve que la famille I garde l'instant.
-- [ ] **Les voisins** : les tests qui postent l'un de ces champs (`start_date`, `end_date`, `period_start`,
+- [x] **Les voisins** : les tests qui postent l'un de ces champs (`start_date`, `end_date`, `period_start`,
   `period_end`, `due_date`, `issue_date`, `expiry_date`, `available_from`, `valid_until`, `effective_date`, `from`,
   `to`, `since`, `until`, `date_from`, `date_to`). Un test qui poste un objet Carbon non converti, sérialisé en
   instant par `postJson`, ou un instant, sur un champ de la famille J, poste désormais `toDateString()`. C'est un
   changement du contrat de test, comme les deux tests renommés par TCK-2752. Chaque changement est nommé dans
   les notes.
-- [ ] **Mesure avant fusion, sans écrire** : sur la base de démo et sur la préproduction, compter les recherches
+- [x] **Mesure avant fusion, sans écrire** : sur la base de démo et sur la préproduction, compter les recherches
   sauvegardées dont `criteria` porte un `available_from` que `JourIso` refuserait (forme, jour inexistant, année
   hors de la plage). Si le compte n'est pas nul, s'arrêter et le signaler à la session avant de fusionner : une relecture rendrait 422.
 
 **Front**
 
-- [ ] La recherche publique ne relaie à l'API un `available_from`, lu dans l'URL ou dans les critères d'une
+- [x] La recherche publique ne relaie à l'API un `available_from`, lu dans l'URL ou dans les critères d'une
   recherche sauvegardée, que si l'API l'accepterait : forme `AAAA-MM-JJ`, jour qui existe, année dans la plage
   retenue. Sinon la valeur est traitée comme absente : la recherche s'affiche sans ce critère, sans erreur. Le
   même filtre s'applique avant d'enregistrer une recherche.
 
 **Tests**
 
-- [ ] `tests/Unit/Rules/JourIsoTest.php` :
+- [x] `tests/Unit/Rules/JourIsoTest.php` :
   - admis : un jour ordinaire, le 29 février d'une année bissextile, `1970-01-01`, le 31 décembre de l'année plafond ;
   - refusés : « 99999-01-01 », « 10000-01-01 », « 0099-01-01 », « 1969-12-31 », le 1er janvier qui suit l'année plafond, « 12/11/2026 »,
     « 2026-11-12T10:00:00Z », « 2026-11-12 10:00 », « 2026-W46 », « 1 Nov 2026 », « 2026-02-30 », « 2026-1-5 »,
     un octet nul intérieur, un saut de ligne final, un entier, un tableau ;
   - le libellé.
-- [ ] `tests/Feature/Validation/JourIsoRecuTest.php`, par HTTP, sur des écrivains **sans** borne relative, où la
+- [x] `tests/Feature/Validation/JourIsoRecuTest.php`, par HTTP, sur des écrivains **sans** borne relative, où la
   forme relue s'écrivait vraiment :
   - `POST /api/leases` (`start_date` = « 99999-01-01 » puis « 12/11/2026 ») : 422, aucun bail créé ;
   - `POST /api/invoices` (`issue_date`) : 422 ;
@@ -214,14 +214,14 @@ Les lecteurs de `MapPublicPropertyRequest`, `PriceDistributionRequest` et `Sugge
   - `POST /api/leases/{lease}/payments` (`period_start`) : 422 ;
   - les mêmes avec `AAAA-MM-JJ` : la réponse attendue, et le jour stocké est celui envoyé ;
   - une lecture : `GET /api/calendar` avec `start_date=12/11/2026` rend 422.
-- [ ] `RangeFilter`, par HTTP : `filter[<colonne date>_min]=12/11/2026` rend 422, et `=2026-11-12` rend 200.
+- [x] `RangeFilter`, par HTTP : `filter[<colonne date>_min]=12/11/2026` rend 422, et `=2026-11-12` rend 200.
   Sur une colonne `datetime`, `filter[<colonne>_max]=2026-11-12 10:00` rend 200.
-- [ ] Famille I, par HTTP : `GET /api/activity-log?filter[date_from]=12/11/2026` rend 422.
+- [x] Famille I, par HTTP : `GET /api/activity-log?filter[date_from]=12/11/2026` rend 422.
   `filter[date_from]=2026-11-12 10:00:00` rend 200 (le test existant). `published_after=99999-01-01` rend 422,
   et un instant `toISOString()` passé rend 200.
-- [ ] Front : un test de la fonction qui construit l'appel de la recherche publique, et de celle qui enregistre une
+- [x] Front : un test de la fonction qui construit l'appel de la recherche publique, et de celle qui enregistre une
   recherche. `12/11/2026`, `2026-02-30` et `1960-01-01` ne sont pas envoyés ; `2026-11-12` l'est.
-- [ ] **Ablations**, chacune rouge, puis restaurée et vérifiée par md5 :
+- [x] **Ablations**, chacune rouge, puis restaurée et vérifiée par md5 :
   - la règle retirée d'un champ de la famille J sans test HTTP (par exemple `RadarObservatoryRequest.filter.since`),
     qui fait rougir la garde ;
   - `JourIso` retiré de `StoreLeaseRequest.start_date`, qui fait rougir le test HTTP ;
@@ -232,21 +232,21 @@ Les lecteurs de `MapPublicPropertyRequest`, `PriceDistributionRequest` et `Sugge
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Sur chaque champ de la famille J, « 99999-01-01 », « 0099-01-01 », « 12/11/2026 » et un instant
+- [x] **AC1** — Sur chaque champ de la famille J, « 99999-01-01 », « 0099-01-01 », « 12/11/2026 » et un instant
   (« 2026-11-12T10:00:00Z ») rendent 422. Par HTTP sur les quatre écrivains nommés et le calendrier ; partout
   ailleurs, par la garde (présence de la règle) et par le test unitaire (la règle refuse).
-- [ ] **AC2** — Sur chaque champ de la famille I, sur chaque borne qui passe par `DateBoundaryFilter`, et sur
+- [x] **AC2** — Sur chaque champ de la famille I, sur chaque borne qui passe par `DateBoundaryFilter`, et sur
   `RangeFilter` (selon le cast de la colonne),
   « 99999-01-01 » et « 12/11/2026 » rendent 422. Une date seule et un instant ISO restent admis
   (`ActivityLogEndpointTest` reste vert sans changement).
-- [ ] **AC3** — Toute valeur `AAAA-MM-JJ` d'un jour qui existe, d'une année de 1970 au plafond retenu, reste
+- [x] **AC3** — Toute valeur `AAAA-MM-JJ` d'un jour qui existe, d'une année de 1970 au plafond retenu, reste
   acceptée, et le jour stocké est celui
   envoyé. Aucun écran du front ne voit un refus neuf sur un parcours de saisie.
-- [ ] **AC4** — La garde rougit sur une `date` nue : ni `JourIso` ni `InstantIso`, dans un FormRequest, quelle que
+- [x] **AC4** — La garde rougit sur une `date` nue : ni `JourIso` ni `InstantIso`, dans un FormRequest, quelle que
   soit la colonne, ou dans un tableau de règles hors FormRequest. Prouvé par ablation.
-- [ ] **AC5** — Un lien de recherche publique dont `available_from` vaut « 12/11/2026 » ou « 2026-02-30 » affiche
+- [x] **AC5** — Un lien de recherche publique dont `available_from` vaut « 12/11/2026 » ou « 2026-02-30 » affiche
   les résultats sans ce critère, et non une erreur ni « 0 bien trouvé ».
-- [ ] **AC6** — La mesure des recherches sauvegardées est écrite dans les notes, avec la base, la date et le
+- [x] **AC6** — La mesure des recherches sauvegardées est écrite dans les notes, avec la base, la date et le
   compte. Un compte non nul a été signalé avant la fusion.
 
 ## Hors périmètre
@@ -355,7 +355,7 @@ erreur, dans `.next/types/validator.ts` : c'est un artefact périmé de `next de
 
 - Base de démo `takussan` (PostgreSQL :5433), le 2026-11-13 : 57 recherches sauvegardées, **0** portent
   `available_from`, donc **0** seraient refusées.
-- La préproduction est mesurée par la session, pas ici.
+- Préproduction (`takussan_preview`), 2026-11-15 00:39, transaction `READ ONLY`, session : 59 recherches sauvegardées, **0** portent `available_from`, donc **0** seraient refusées.
 
 **Limites.**
 
@@ -451,3 +451,31 @@ pas par un rendu de l'écran.
 - Les visites (`MesVisites`, `par-le-temps`), la journée et la boîte des demandes posent des bornes calculées.
 - La route `/api/export/[entity]` relaie l'URL que l'écran a construite à partir de ses paramètres, désormais
   filtrés.
+
+### Preuves (clôture, 2026-11-15)
+
+Relu et rejoué sur `feat/audit-ux-app-lot-5` (874b2d2ab), qui contient 7981e617d et 8fe54d923 ; charge 4,0 / 4,8 / 5,0.
+
+- **Delta API** : `App\Rules\JourIso` tient la forme `\A…\z`, `checkdate` et les années [`InstantIso::ANNEE_MIN`, 2199],
+  et renvoie `validation.rules.jour` (fr/en/wo). Relu, `new JourIso` est sur les 36 champs de la famille J et dans
+  `SavedSearchCriteria`, et `new InstantIso` sur `IndexAuditLogRequest`, `ExportActivityLogRequest`, `published_after`
+  et `DateBoundaryFilter::exiger`. `RangeFilter` suit le cast, et `SearchPublicPropertyRequest` est réécrit en tableau.
+- **Tests API** : `JourIsoTest`, `JourIsoRecuTest`, `JourIsoFormatRecuTest`, `AlerteRejoueeJourIsoTest`,
+  `InstantRecuConvertiTest`, `ActivityLogEndpointTest`, `LangGroupParityTest` et `PublicPropertyPublishedAfterTest`
+  (un instant ISO reste admis sur `published_after`) : **90 verts**. `ActivityLogEndpointTest` n'a pas changé depuis
+  4770ac9d3 (TCK-1261).
+- **Tests front** : les 6 fichiers `*tck-2768*` donnent **15 verts**.
+- **Voisins** : pas rejoués ici. Les notes en rapportent environ 2 490 verts, et c'est la CI de `dev` qui les porte.
+- **Ablations refaites** (chacune rouge, puis restaurée, md5 vérifié) :
+  - `JourIso` retiré de `RadarObservatoryRequest.filter.since` : la garde rougit (AC4).
+  - `JourIso` retiré de `StoreLeaseRequest.start_date` : 4 rouges HTTP (AC1).
+  - Dans la règle :
+    - bornes retirées : 3 rouges ;
+    - `\z` remplacé par `$` : 1 rouge ;
+    - `checkdate` retiré : 3 rouges ;
+    - non-chaîne admise : 2 rouges.
+  - `InstantIso` retiré de `DateBoundaryFilter` : 2 rouges. Règle retirée de `RangeFilter` : 2 rouges (AC2).
+  - Lecture hors FormRequest neutralisée dans la garde : la garde rougit (AC4).
+  - Filtre du front réduit à la seule forme : 3 rouges, dont `2026-02-30` (AC5).
+- **AC6** : la démo (2026-11-13, 57 recherches) et la préproduction (2026-11-15, 59 recherches) donnent chacune
+  **0** `available_from`. Il n'y avait rien à signaler avant la fusion.
