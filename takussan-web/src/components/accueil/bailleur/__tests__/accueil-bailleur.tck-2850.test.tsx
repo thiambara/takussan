@@ -24,7 +24,7 @@ const etat = vi.hoisted(() => ({
   appels: [] as string[],
   etapes: [
     { code: 'premier_bien', faite: true },
-    { code: 'kyc', faite: false },
+    { code: 'piece:cni', faite: false },
   ] as { code: string; faite: boolean }[],
   reversements: [] as unknown[],
   enCours: 0,
@@ -100,7 +100,7 @@ beforeEach(() => {
     appels: [],
     etapes: [
       { code: 'premier_bien', faite: true },
-      { code: 'kyc', faite: false },
+      { code: 'piece:cni', faite: false },
     ],
     reversements: [],
     enCours: 0,
@@ -115,12 +115,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('AC1 — « Démarrer » du bailleur', () => {
-  it('au téléphone : « 1/2 · Envoyez vos pièces d’identité », qui mène à l’étape', async () => {
+  it('au téléphone : « 1/2 · Envoyez votre pièce d’identité », qui mène à l’étape (TCK-2947 : une étape par pièce)', async () => {
     monter(<DemarrerDuBailleur />);
-    const lien = await screen.findByRole('link', { name: 'Démarrer, 1 sur 2 : Envoyez vos pièces d’identité' });
+    const lien = await screen.findByRole('link', { name: 'Démarrer, 1 sur 2 : Envoyez votre pièce d’identité' });
     expect(lien.getAttribute('href')).toBe('/app/pieces');
     expect(within(lien).getByText('1/2')).toBeTruthy();
-    expect(within(lien).getByText('Envoyez vos pièces d’identité')).toBeTruthy();
+    expect(within(lien).getByText('Envoyez votre pièce d’identité')).toBeTruthy();
     expect(within(lien).queryByText('Continuer')).toBeNull();
   });
 
@@ -128,14 +128,27 @@ describe('AC1 — « Démarrer » du bailleur', () => {
     monter(<DemarrerDuBailleur large />);
     const lien = await screen.findByRole('link', { name: /Démarrer, 1 sur 2/ });
     expect(within(lien).getByText('Démarrer · 1 étape sur 2')).toBeTruthy();
-    expect(within(lien).getByText('Envoyez vos pièces d’identité pour recevoir vos reversements.')).toBeTruthy();
+    // TCK-2947 — aucune promesse que le code ne tient : aucune pièce ne conditionne un reversement (décision 5a de TCK-2614).
+    expect(within(lien).getByText('Envoyez votre pièce d’identité depuis « Vos pièces ».')).toBeTruthy();
+    expect(lien.textContent).not.toMatch(/reversement/i);
     expect(within(lien).getByText('Continuer')).toBeTruthy();
+  });
+
+  it('TCK-2947 (AC3) — premier bien et pièce d’identité faits, le RIB reste : l’étape suivante est le RIB', async () => {
+    etat.etapes = [
+      { code: 'premier_bien', faite: true },
+      { code: 'piece:cni', faite: true },
+      { code: 'piece:rib', faite: false },
+    ];
+    monter(<DemarrerDuBailleur />);
+    const lien = await screen.findByRole('link', { name: 'Démarrer, 2 sur 3 : Envoyez votre RIB' });
+    expect(lien.getAttribute('href')).toBe('/app/pieces');
   });
 
   it('étapes toutes faites : ni ligne ni bandeau', async () => {
     etat.etapes = [
       { code: 'premier_bien', faite: true },
-      { code: 'kyc', faite: true },
+      { code: 'piece:cni', faite: true },
     ];
     monter(
       <>

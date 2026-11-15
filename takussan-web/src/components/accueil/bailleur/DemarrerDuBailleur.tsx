@@ -6,13 +6,24 @@ import { useTranslations } from 'next-intl';
 
 import { Anneau } from '@/components/accueil/BandeauMiseEnService';
 import { usePreferencesDuMenu } from '@/components/layout/contexte-preferences-du-menu';
-import { etapesARendre } from '@/lib/navigation/demarrer';
+import { etapesARendre, pieceDeLEtape, type CodeDEtape } from '@/lib/navigation/demarrer';
 import { prefsDe } from '@/lib/navigation/preferences';
 import { useDemarrageDeLEspace } from '@/lib/queries/demarrage-espace';
 import { cn } from '@/lib/utils';
 
-const ETAPES_DU_BAILLEUR = ['kyc', 'premier_bien'] as const;
+/**
+ * Les étapes que l'accueil sait dire. TCK-2947 — les pièces du bailleur une à une (`piece:<code>`, TCK-2944) : la pièce
+ * d'identité, le RIB, le NINEA (requis d'une société seulement) ; l'ancienne étape unique `kyc` n'est plus rendue.
+ * Leur phrase ne promet rien que le code ne tienne : aucune pièce ne conditionne un reversement (décision 5a de TCK-2614).
+ */
+const ETAPES_DU_BAILLEUR = ['premier_bien', 'piece:cni', 'piece:rib', 'piece:ninea'] as const satisfies readonly CodeDEtape[];
 type EtapeDuBailleur = (typeof ETAPES_DU_BAILLEUR)[number];
+
+/** La clé d'une étape sous `etapes` et `enPhrase` : `premier_bien`, ou `pieces.<code>`. */
+function cleDe(code: EtapeDuBailleur): string {
+  const piece = pieceDeLEtape(code);
+  return piece ? `pieces.${piece}` : code;
+}
 
 /**
  * TCK-2850 (maquette `app-accueil` a, e2 « Bailleur ») — « Démarrer » du bailleur sur son accueil :
@@ -47,7 +58,8 @@ export function DemarrerDuBailleur({ large = false }: { readonly large?: boolean
   const suivante = restantes.find((e): e is typeof e & { readonly code: EtapeDuBailleur } => (ETAPES_DU_BAILLEUR as readonly string[]).includes(e.code));
   if (!suivante) return null;
 
-  const etape = t(`etapes.${suivante.code}`);
+  const cle = cleDe(suivante.code);
+  const etape = t(`etapes.${cle}`);
   return (
     <Link
       href={suivante.href}
@@ -63,7 +75,7 @@ export function DemarrerDuBailleur({ large = false }: { readonly large?: boolean
         {large ? `${t('titre')} · ${t('compteLong', { fait: faites, total })}` : `${faites}/${total}`}
       </span>
       <span className="min-w-0 flex-1 truncate text-encre-douce">
-        {large ? t(`enPhrase.${suivante.code}`) : etape}
+        {large ? t(`enPhrase.${cle}`) : etape}
       </span>
       {large ? <span className="flex-none text-ui font-medium text-success">{t('continuer')}</span> : null}
       <ChevronRight className="size-4 flex-none text-success" aria-hidden="true" />

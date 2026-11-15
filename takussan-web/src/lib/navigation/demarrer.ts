@@ -6,14 +6,30 @@
  * dit (principe 5 du `CLAUDE.md` racine). Un code que ce fichier ne connaît pas n'est ni rendu ni
  * compté : le groupe ne montre jamais un lien sans destination.
  */
+import { CODES_DE_PIECE, type CodeDePiece } from '@/lib/pieces/pieces';
+
 export type ModeDemarrer = 'espace' | 'bailleur';
 
-export const CODES_D_ETAPE = ['premier_bien', 'kyc', 'equipe', 'pieces'] as const;
-export type CodeDEtape = (typeof CODES_D_ETAPE)[number];
+/**
+ * TCK-2947 — une étape par pièce requise, `piece:<code>` (TCK-2944) : le `<code>` est celui de `GET /api/me/pieces`
+ * (`CODES_DE_PIECE`), la même table que l'écran « Vos pièces ». L'ancienne étape unique `pieces` (agent, prestataire)
+ * et l'étape `kyc` du bailleur ne sont plus rendues par l'API : elles ne sont plus connues ici. `kyc` reste l'étape
+ * de vérification de l'AGENCE (mode `espace`).
+ */
+export type CodeDEtapeDePiece = `piece:${CodeDePiece}`;
+export const CODES_D_ETAPE = [
+  'premier_bien',
+  'kyc',
+  'equipe',
+  ...CODES_DE_PIECE.map((c): CodeDEtapeDePiece => `piece:${c}`),
+] as const;
+export type CodeDEtape = 'premier_bien' | 'kyc' | 'equipe' | CodeDEtapeDePiece;
 
 export interface EtapeDeDemarrage {
   readonly code: string;
   readonly faite: boolean;
+  /** TCK-2944 — l'état d'une étape `piece:*` (`manquante` | `envoyee` | `verifiee` | `refusee`) ; absent ailleurs. */
+  readonly etat?: string;
 }
 
 export interface EtapeARendre {
@@ -24,24 +40,29 @@ export interface EtapeARendre {
 }
 
 /**
- * L'écran qui fait chaque étape.
+ * L'écran qui fait chaque étape — `null` : l'étape n'existe pas dans ce mode (ni rendue ni comptée).
  *
- * TCK-2614 (décisions 1a, 2a, 3a) — les pièces d'un invité se donnent sur « Vos pièces » (`/app/pieces`) : l'étape
- * `pieces` de l'agent et du prestataire, et l'étape `kyc` du BAILLEUR, qui rouvrait son assistant d'onboarding
- * (`/onboarding/owner?owner=`, TCK-589). L'écran lit le profil ACTIF, celui sur lequel l'API a jugé l'étape : il n'a
- * plus besoin de `?owner=`. L'assistant, lui, ne change pas (il garde ses pièces jusqu'à TCK-2613).
+ * TCK-2614 (décisions 1a, 2a, 3a) — les pièces d'un invité se donnent sur « Vos pièces » (`/app/pieces`), qui lit le
+ * profil ACTIF, celui sur lequel l'API a jugé l'étape. TCK-2947 — une étape par pièce, toutes vers cet écran ; `kyc`
+ * n'est plus que la vérification de l'agence (`/app/agency/kyc`), jamais une étape du bailleur.
  */
-function lienDe(code: CodeDEtape, mode: ModeDemarrer): string {
+function lienDe(code: CodeDEtape, mode: ModeDemarrer): string | null {
+  if (code.startsWith('piece:')) return '/app/pieces';
   switch (code) {
     case 'premier_bien':
       return '/app/properties/new';
     case 'equipe':
       return '/app/agency/team';
-    case 'pieces':
-      return '/app/pieces';
     case 'kyc':
-      return mode === 'espace' ? '/app/agency/kyc' : '/app/pieces';
+      return mode === 'espace' ? '/app/agency/kyc' : null;
+    default:
+      return null;
   }
+}
+
+/** La clé du libellé, sous `nav.sidebar.demarrer` : `etapes.<mode>.<code>`, ou `etapes.pieces.<code de pièce>`. */
+function cleDe(code: CodeDEtape, mode: ModeDemarrer): string {
+  return code.startsWith('piece:') ? `etapes.pieces.${code.slice('piece:'.length)}` : `etapes.${mode}.${code}`;
 }
 
 function connue(e: EtapeDeDemarrage): e is EtapeDeDemarrage & { readonly code: CodeDEtape } {
@@ -63,11 +84,12 @@ export function etapesARendre(
   mode: ModeDemarrer,
   ouverte: (href: string) => boolean = () => true,
 ): { readonly restantes: readonly EtapeARendre[]; readonly faites: number; readonly total: number } {
-  const connues = etapes.filter(connue).filter((e) => ouverte(lienDe(e.code, mode)));
+  const connues = etapes
+    .filter(connue)
+    .map((e) => ({ ...e, href: lienDe(e.code, mode) }))
+    .filter((e): e is typeof e & { readonly href: string } => e.href !== null && ouverte(e.href));
   return {
-    restantes: connues
-      .filter((e) => !e.faite)
-      .map((e) => ({ code: e.code, href: lienDe(e.code, mode), cle: `etapes.${mode}.${e.code}` })),
+    restantes: connues.filter((e) => !e.faite).map((e) => ({ code: e.code, href: e.href, cle: cleDe(e.code, mode) })),
     faites: connues.filter((e) => e.faite).length,
     total: connues.length,
   };
@@ -79,4 +101,9 @@ export function etapesARendre(
  */
 export function resteADemarrer(etapes: readonly EtapeDeDemarrage[]): boolean {
   return etapes.some((e) => connue(e) && !e.faite);
+}
+
+/** TCK-2947 — le code de pièce d'une étape `piece:<code>`, `null` pour toute autre étape. */
+export function pieceDeLEtape(code: CodeDEtape): CodeDePiece | null {
+  return code.startsWith('piece:') ? (code.slice('piece:'.length) as CodeDePiece) : null;
 }

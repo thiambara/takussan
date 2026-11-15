@@ -66,4 +66,36 @@ Le nouvel entrant sait ce que chaque pièce lui ouvre, quand elle sera vérifié
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 (implementing-specs) — décisions mineures tranchées par l'agent (consigne du porteur : « valide tes choix »).
+
+- **Promesses re-mesurées dans l'API — aucune ligne de « Ce que ça débloque » n'est tenue** :
+  - RIB → reversement : un reversement se prépare et se paie sur une destination de paiement (`PayoutMethod`, vérifiée par
+    un membre de l'agence — `takussan-api/app/Services/Payout/PayoutPreparationService.php:89-101`, `PayoutMethodService.php`),
+    jamais sur le RIB envoyé comme pièce (`DocumentType::Rib` n'est lu que par l'envoi et `PiecesDuProfil`). « Le 10 de chaque
+    mois » est faux : le jour est `owner_profiles.payout_day` (1-28) ou celui de l'agence (`PayoutMethodController.php:37-45`).
+  - Pièce d'identité → signature : `LeaseSignatureService` / `LandlordSignatory` ne lisent aucune pièce ; aucun mandat ne se
+    signe en ligne. Plus largement, « requise ne bloque rien » (`PiecesDuProfil`, en-tête).
+  - Donc la liste déclarée `takussan-web/src/lib/pieces/ce-que-ca-debloque.ts` (`CE_QUE_CA_DEBLOQUE`, chaque ligne avec sa
+    citation `regle`) est **vide** ; `CeQueCaDebloque` ne rend aucune carte sans ligne ; la légende des trois états reste.
+    **AC1 partiel** : l'aside n'est pas rendu, par la contrainte « promesses vérifiées » qui prime sur l'AC.
+- **Délai (AC2)** : aucune règle ni réglage de délai de vérification. Le vérificateur n'est pas non plus l'agence :
+  `POST /api/documents/{document}/verify` est réservé au super-admin (`DocumentController.php:271-276`) et aucun écran ne
+  l'appelle. Décision (la plus sûre) : ni « sous 48 h » ni « {agence} les vérifie » ; la phrase sourcée de TCK-2614 reste
+  (« Vous pouvez utiliser votre espace en attendant. »). Test : `vos-pieces.tck-2947.test.tsx`.
+- **« Démarrer » pièce par pièce (AC3)** : `lib/navigation/demarrer.ts` connaît `piece:<code>` pour chaque code de
+  `CODES_DE_PIECE` (même table que l'écran), tous vers `/app/pieces`, libellés `nav.sidebar.demarrer.etapes.pieces.<code>`
+  (« Envoyer votre RIB », « Envoyer votre pièce d'identité »…). L'ancienne étape unique `pieces` et l'étape `kyc` du
+  bailleur ne sont plus connues (l'API ne les rend plus) ; `kyc` reste l'étape de vérification de l'agence, libellé et lien
+  inchangés. Clés retirées : `etapes.espace.pieces`, `etapes.bailleur.kyc`, `accueil.bailleur.demarrer.{etapes,enPhrase}.kyc`.
+- **Décision : une étape faite SORT du groupe** (règle AC5 de TCK-2479 gardée) et compte dans « n sur m » — c'est le
+  « change d'état » de l'AC3 ; pas de ligne barrée comme la maquette. Écart écrit dans la fiche TCK-2614.
+- **Accueil du bailleur** (`DemarrerDuBailleur`) : il ne connaissait que `kyc` → avec l'API de TCK-2944 il taisait les
+  pièces. Il dit désormais `piece:cni|rib|ninea` (« Envoyez votre RIB ») ; la phrase du bureau ne promet plus les
+  reversements (« Envoyez votre RIB depuis « Vos pièces ». »).
+- **Fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2614.json` (AC-F1)** : entrée « coque / Démarrer » réécrite (pièces une à
+  une couvertes ; restent le barré, la barre de progression, « Vérifier mon numéro ») ; motifs de l'aside et du délai
+  complétés des citations ci-dessus. **AC-F2 non mesuré** (consigne du lot : pas de relevé au navigateur).
+- Tests : `vos-pieces.tck-2947.test.tsx` (4, neuf), `demarrer.test.ts` (+6, 2 réécrits), `DemarrerDeLEspace.test.tsx`,
+  `AppSidebar.test.tsx`, `accueil-bailleur.tck-2850.test.tsx` mis à jour ; voisins (routes-atteignables, palette,
+  préférences, AppSidebar.*, vos-pieces.tck-2614) verts. Ablations (une à une, restaurées par `cp`, vérifiées par md5/cmp) :
+  étape `piece:*` sans lien → 3 rouges ; accueil sans les pièces → 3 rouges ; carte jamais rendue → 1 rouge.

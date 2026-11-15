@@ -1242,8 +1242,9 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
   it.each([
     ['hote', 'espace', ['/app/properties/new', '/app/agency/kyc']],
     ['bailleur', 'bailleur', ['/app/properties/new', '/app/pieces']],
-  ] as const)('%s : ses étapes, dans son vocabulaire (mode %s)', (persona, _mode, hrefs) => {
-    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc'));
+  ] as const)('%s : ses étapes, dans son vocabulaire (mode %s)', (persona, mode, hrefs) => {
+    // TCK-2947 — l'API rend `kyc` à l'agence (sa vérification), une étape par pièce au bailleur.
+    demarrageMock.mockReturnValue(etapes('premier_bien', mode === 'espace' ? 'kyc' : 'piece:cni'));
     renderSidebar(persona, '/app');
     const groupe = screen.getByRole('group', { name: 'Démarrer' });
     expect(within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(hrefs);
@@ -1280,12 +1281,13 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
     expect(screen.queryByRole('group', { name: 'Démarrer' })).toBeNull();
   });
 
-  it.each(['agent', 'prestataire'] as const)('TCK-2614 — %s : l’étape « Pièces », vers « Vos pièces »', (persona) => {
-    demarrageMock.mockReturnValue(etapes('pieces'));
+  it.each(['agent', 'prestataire'] as const)('TCK-2614, TCK-2947 — %s : une étape par pièce, vers « Vos pièces »', (persona) => {
+    demarrageMock.mockReturnValue(etapes('piece:cni', 'piece:photo'));
     renderSidebar(persona, '/app');
     const groupe = screen.getByRole('group', { name: 'Démarrer' });
     expect(within(groupe).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
-      ['Envoyer vos piècesÀ faire', '/app/pieces'],
+      ['Envoyer votre pièce d’identitéÀ faire', '/app/pieces'],
+      ['Envoyer votre photo de profilÀ faire', '/app/pieces'],
     ]);
   });
 

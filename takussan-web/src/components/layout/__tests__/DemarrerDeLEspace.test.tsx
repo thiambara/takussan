@@ -91,21 +91,47 @@ describe('<DemarrerDeLEspace> — TCK-2479 (AC5)', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('bailleur : ses libellés, et ses pièces se donnent sur « Vos pièces » (TCK-2614, 3a)', () => {
+  it('bailleur : ses libellés, et ses pièces une à une sur « Vos pièces » (TCK-2614, 3a ; TCK-2947)', () => {
     etat.reponse = {
-      data: { data: { etapes: [{ code: 'premier_bien', faite: false }, { code: 'kyc', faite: false }] } },
+      data: {
+        data: {
+          etapes: [
+            { code: 'premier_bien', faite: false },
+            { code: 'piece:cni', faite: false },
+            { code: 'piece:rib', faite: false },
+          ],
+        },
+      },
     };
     render(ui('bailleur'));
     expect(screen.getByRole('link', { name: /Proposer un premier bien/ })).toHaveAttribute('href', '/app/properties/new');
-    expect(screen.getByRole('link', { name: /Envoyer vos pièces d’identité/ })).toHaveAttribute('href', '/app/pieces');
-    expect(screen.getByText('0 sur 2')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Envoyer votre pièce d’identité/ })).toHaveAttribute('href', '/app/pieces');
+    expect(screen.getByRole('link', { name: /Envoyer votre RIB/ })).toHaveAttribute('href', '/app/pieces');
+    expect(screen.getByText('0 sur 3')).toBeInTheDocument();
   });
 
-  it('agent et prestataire : l’étape « Pièces » (TCK-2614, AC1)', () => {
-    etat.reponse = { data: { data: { etapes: [{ code: 'pieces', faite: false }] } } };
+  it('TCK-2947 (AC3) — le RIB envoyé sort du groupe, l’étape unique « Vos pièces » n’existe plus', () => {
+    etat.reponse = {
+      data: {
+        data: {
+          etapes: [
+            { code: 'piece:cni', faite: false },
+            { code: 'piece:rib', faite: true },
+            { code: 'pieces', faite: false },
+          ],
+        },
+      },
+    };
+    render(ui('bailleur'));
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Envoyer votre pièce d’identitéÀ faire']);
+    expect(screen.getByText('1 sur 2')).toBeInTheDocument();
+  });
+
+  it('agent et prestataire : une étape par pièce (TCK-2614, AC1 ; TCK-2947)', () => {
+    etat.reponse = { data: { data: { etapes: [{ code: 'piece:license', faite: false }, { code: 'piece:cni', faite: true }] } } };
     render(ui('espace'));
-    expect(screen.getByRole('link', { name: /Envoyer vos pièces/ })).toHaveAttribute('href', '/app/pieces');
-    expect(screen.getByText('0 sur 1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Envoyer votre carte professionnelle/ })).toHaveAttribute('href', '/app/pieces');
+    expect(screen.getByText('1 sur 2')).toBeInTheDocument();
   });
 
   it('un clic sur une étape referme le tiroir (onNavigate)', async () => {
