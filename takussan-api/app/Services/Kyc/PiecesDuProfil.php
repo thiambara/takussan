@@ -16,14 +16,14 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * TCK-2612 — la liste à faire des pièces d'un profil d'invité (bailleur, agent, prestataire) : `GET /api/me/pieces` la rend,
- * l'étape « Pièces » de « Démarrer » (et l'étape `kyc` du bailleur) la juge ({@see DemarrageDeLEspace}).
+ * « Démarrer » en fait une étape par pièce requise (TCK-2944, {@see DemarrageDeLEspace}).
  *
  *  - Les pièces sont celles que les envois acceptent, dans leur ordre : les tables `KYC_KIND_TO_TYPE` des trois requêtes
  *    d'envoi. Le `code` est la sorte de l'envoi (`cni`, `rib`, `ninea`, `license`, `photo`, `insurance`).
  *  - Toutes sont REQUISES pour que l'étape soit faite, sauf l'assurance RC pro du prestataire et — TCK-2614 (décision 2b,
  *    porteur, 2026-11-13) — le NINEA d'un bailleur qui n'est pas une société (`metadata.owner_type` ≠ `company`, la règle
  *    d'{@see OwnerProfile::companyName()}). « Requise » ne bloque rien : aucune route ne refuse l'usage de l'espace faute
- *    de pièce. `required` et {@see requisesEnvoyees()} lisent la même règle : l'écran et l'étape ne se contredisent pas.
+ *    de pièce. L'écran et « Démarrer » lisent tous deux `required` : ils ne se contredisent pas.
  *  - L'état se lit sur le `Document` vivant du profil (une ligne par profil et par type, {@see ProfilePieces}) : `verified`
  *    quand `is_verified`, `sent` sinon, `missing` sans ligne. La vérification est portée PAR PIÈCE (`documents.is_verified`) ;
  *    aucun `KycDossier` n'existe pour un profil (relevé du 2026-11-11 : il n'est attaché qu'aux agences).
@@ -141,15 +141,5 @@ class PiecesDuProfil
             'size' => (int) $media->size,
             'sent_at' => BaseResource::instantOnWire($media->created_at),
         ];
-    }
-
-    /** Toutes les pièces requises du profil sont envoyées ou vérifiées. Un profil sans liste n'a rien d'envoyé. */
-    public function requisesEnvoyees(?Model $profil): bool
-    {
-        $pieces = $this->pour($profil);
-
-        return $pieces !== [] && collect($pieces)
-            ->where('required', true)
-            ->every(fn (array $p) => in_array($p['state'], ['sent', 'verified'], true));
     }
 }

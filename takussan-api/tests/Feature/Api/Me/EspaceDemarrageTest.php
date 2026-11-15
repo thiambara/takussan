@@ -87,8 +87,8 @@ class EspaceDemarrageTest extends ApiTestCase
     /**
      * L'hôte n'a pas d'équipe (TCK-777), et lit les étapes de SON AGENCE sous ses DEUX profils.
      *
-     * Le KYC vérifié de l'agence distingue les deux lectures : sous le profil bailleur, l'étape `kyc`
-     * du bailleur (`metadata.kyc.submitted_at`, absent ici) rendrait `false`. Sans ce fait, l'état
+     * Le KYC vérifié de l'agence distingue les deux lectures : sous le profil bailleur, les étapes du
+     * bailleur rendraient ses pièces (`piece:*`, TCK-2944) et non `kyc`. Sans ce fait, l'état
      * vide des deux lectures est identique, et le test ne voyait pas la branche de l'hôte retirée
      * (ablation 5, mesurée verte avant ce renfort).
      */
@@ -118,18 +118,24 @@ class EspaceDemarrageTest extends ApiTestCase
 
         $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
             ['code' => 'premier_bien', 'faite' => false],
-            ['code' => 'kyc', 'faite' => false],
+            ['code' => 'piece:cni', 'faite' => false, 'etat' => 'manquante'],
+            ['code' => 'piece:rib', 'faite' => false, 'etat' => 'manquante'],
         ]]]);
 
         Property::factory()->draft()->create(['agency_id' => $agence->id, 'user_id' => $bailleur->id]);
         $this->assertFalse($this->etape($entete, 'premier_bien'), 'un brouillon n’est pas un premier bien');
 
         Property::factory()->published()->create(['agency_id' => $agence->id, 'user_id' => $bailleur->id]);
+        // TCK-2944 — les pièces une à une ; la soumission (`metadata.kyc.submitted_at`) ne fait plus passer d'étape.
         $profil->forceFill(['metadata' => ['kyc' => ['submitted_at' => now()->toIso8601String()]]])->save();
+        $this->assertFalse($this->etape($entete, 'piece:cni'), 'une soumission ne dit pas quelle pièce est partie');
+        $this->piece($profil, DocumentType::IdCard, $bailleur);
+        $this->piece($profil, DocumentType::Rib, $bailleur);
 
         $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
             ['code' => 'premier_bien', 'faite' => true],
-            ['code' => 'kyc', 'faite' => true],
+            ['code' => 'piece:cni', 'faite' => true, 'etat' => 'envoyee'],
+            ['code' => 'piece:rib', 'faite' => true, 'etat' => 'envoyee'],
         ]]]);
     }
 
@@ -145,29 +151,35 @@ class EspaceDemarrageTest extends ApiTestCase
     }
 
     /**
-     * TCK-2612 (AC2) — l'agent a une étape « Pièces » : à faire sans pièce, faite quand ses trois pièces requises sont parties.
-     * Rouge sur `dev` : `etapes: []`.
+     * TCK-2612 (AC2) — l'agent a ses pièces dans « Démarrer » ; TCK-2944 : une étape par pièce requise, chacune faite
+     * quand elle part (ou est vérifiée).
      */
-    public function test_l_agent_a_l_etape_pieces_faite_quand_ses_pieces_requises_sont_envoyees(): void
+    public function test_l_agent_a_une_etape_par_piece_faite_quand_elle_est_envoyee(): void
     {
         $agent = $this->apiActingAsRole('agent');
         $profil = AgentProfile::query()->where('user_id', $agent->id)->sole();
         $entete = $this->entete('agent', $profil->id);
 
         $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
-            ['code' => 'pieces', 'faite' => false],
+            ['code' => 'piece:license', 'faite' => false, 'etat' => 'manquante'],
+            ['code' => 'piece:cni', 'faite' => false, 'etat' => 'manquante'],
+            ['code' => 'piece:photo', 'faite' => false, 'etat' => 'manquante'],
         ]]]);
 
         $this->piece($profil, DocumentType::Other, $agent);
         $this->piece($profil, DocumentType::IdCard, $agent);
-        $this->assertFalse($this->etape($entete, 'pieces'), 'la photo manque encore');
+        $this->assertFalse($this->etape($entete, 'piece:photo'), 'la photo manque encore');
 
         $this->piece($profil, DocumentType::Photo, $agent, ['is_verified' => true, 'verified_at' => now()]);
-        $this->assertTrue($this->etape($entete, 'pieces'));
+        $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
+            ['code' => 'piece:license', 'faite' => true, 'etat' => 'envoyee'],
+            ['code' => 'piece:cni', 'faite' => true, 'etat' => 'envoyee'],
+            ['code' => 'piece:photo', 'faite' => true, 'etat' => 'verifiee'],
+        ]]]);
     }
 
-    /** TCK-2612 — le prestataire : sa pièce d'identité suffit, l'assurance RC pro est facultative. */
-    public function test_le_prestataire_a_l_etape_pieces_sans_attendre_l_assurance(): void
+    /** TCK-2612 — le prestataire : sa pièce d'identité suffit, l'assurance RC pro est facultative (TCK-2944 : pas une étape). */
+    public function test_le_prestataire_a_sa_seule_piece_requise_sans_l_assurance(): void
     {
         $prestataire = User::factory()->withServiceProviderProfile()->create();
         $this->actingAs($prestataire, 'sanctum');
@@ -176,19 +188,19 @@ class EspaceDemarrageTest extends ApiTestCase
 
         $this->piece($profil, DocumentType::Insurance, $prestataire);
         $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
-            ['code' => 'pieces', 'faite' => false],
+            ['code' => 'piece:cni', 'faite' => false, 'etat' => 'manquante'],
         ]]]);
 
         $this->piece($profil, DocumentType::IdCard, $prestataire);
-        $this->assertTrue($this->etape($entete, 'pieces'));
+        $this->assertTrue($this->etape($entete, 'piece:cni'));
     }
 
     /**
-     * TCK-2612 — l'étape `kyc` du bailleur compte le NINEA saisi comme la pièce NINEA : pièce d'identité et RIB envoyés, NINEA
-     * tapé → faite, sans soumission. Sans le NINEA, elle reste à faire. TCK-2614 (décision 2b) : pour une SOCIÉTÉ — le NINEA
+     * TCK-2612 — le NINEA saisi compte comme la pièce NINEA ; TCK-2944 : c'est l'étape `piece:ninea`. Sans le NINEA, elle
+     * reste à faire ; tapé → `envoyee`, faite. TCK-2614 (décision 2b) : pour une SOCIÉTÉ — le NINEA
      * d'un particulier est facultatif (`NineaFacultatifDuParticulierTest`).
      */
-    public function test_le_ninea_saisi_compte_pour_l_etape_kyc_du_bailleur(): void
+    public function test_le_ninea_saisi_compte_pour_l_etape_piece_ninea_du_bailleur(): void
     {
         $agence = Agency::factory()->create();
         $bailleur = $this->apiActingAsRole('owner', ['agency' => $agence]);
@@ -198,10 +210,10 @@ class EspaceDemarrageTest extends ApiTestCase
         $this->piece($profil, DocumentType::IdCard, $bailleur);
         $this->piece($profil, DocumentType::Rib, $bailleur);
 
-        $this->assertFalse($this->etape($entete, 'kyc'), 'le NINEA manque');
+        $this->assertFalse($this->etape($entete, 'piece:ninea'), 'le NINEA manque');
 
         $profil->forceFill(['tax_id' => '01234567G2'])->save();
-        $this->assertTrue($this->etape($entete, 'kyc'));
+        $this->assertTrue($this->etape($entete, 'piece:ninea'));
     }
 
     public function test_un_compte_sans_profil_n_a_pas_d_etape(): void

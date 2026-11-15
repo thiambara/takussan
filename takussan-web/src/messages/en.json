@@ -933,7 +933,8 @@
       },
       "dates": {
         "du": "From {debut} to {fin}",
-        "aPartirDu": "From {debut}"
+        "aPartirDu": "From {debut}",
+        "visiteDemandee": "Visit requested for {debut}"
       },
       "actions": {
         "reservation": {
@@ -972,7 +973,16 @@
       },
       "aideIndicatif": "+221 is already set. Abroad? Start with +",
       "avecAgence": "With {agence}",
-      "exempleNumero": "77 000 00 00"
+      "exempleNumero": "77 000 00 00",
+      "avecAgenceEtDelai": {
+        "minutes": "With {agence} · replies in about {n} min",
+        "heures": "With {agence} · replies in about {n} h",
+        "jours": "With {agence} · replies in about {n, plural, one {# day} other {# days}}"
+      },
+      "accueil": {
+        "slogan": "Your visits, your favourites, your listings.",
+        "retour": "Back to the site"
+      }
     },
     "voieEmail": {
       "titre": "With your email",

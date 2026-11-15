@@ -881,7 +881,8 @@
       },
       "dates": {
         "du": "Du {debut} au {fin}",
-        "aPartirDu": "À partir du {debut}"
+        "aPartirDu": "À partir du {debut}",
+        "visiteDemandee": "Visite demandée pour {debut}"
       },
       "actions": {
         "reservation": {
@@ -920,7 +921,16 @@
       },
       "aideIndicatif": "+221 est déjà posé. À l’étranger ? Commencez par +",
       "avecAgence": "Avec {agence}",
-      "exempleNumero": "77 000 00 00"
+      "exempleNumero": "77 000 00 00",
+      "avecAgenceEtDelai": {
+        "minutes": "Avec {agence} · réponse en {n} min environ",
+        "heures": "Avec {agence} · réponse en {n} h environ",
+        "jours": "Avec {agence} · réponse en {n, plural, one {# jour} other {# jours}} environ"
+      },
+      "accueil": {
+        "slogan": "Vos visites, vos favoris, vos annonces.",
+        "retour": "Retour au site"
+      }
     },
     "voieEmail": {
       "titre": "Avec votre e-mail",

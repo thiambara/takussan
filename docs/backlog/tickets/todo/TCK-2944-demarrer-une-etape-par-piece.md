@@ -37,13 +37,13 @@ Le nouvel entrant voit dans « Démarrer » chaque pièce qui lui manque (RIB, p
 
 ## Delta à produire
 
-- [ ] `DemarrageDeLEspace` : étapes par pièce.
-- [ ] Tests : `DemarrageEtapesParPieceTest` (bailleur : RIB + CNI ; agence : NINEA + RCCM ; une pièce envoyée → `envoyee`, `faite` selon la règle actuelle).
+- [x] `DemarrageDeLEspace` : étapes par pièce.
+- [x] Tests : `DemarrageEtapesParPieceTest` (bailleur : RIB + CNI ; agence : NINEA + RCCM ; une pièce envoyée → `envoyee`, `faite` selon la règle actuelle).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un bailleur à qui manquent RIB et pièce d'identité reçoit deux étapes `piece:rib` et `piece:identity`, non faites ; après envoi du RIB, `piece:rib` est `envoyee`.
-- [ ] AC2 — Un bailleur et un agent ne reçoivent plus d'étape `kyc` ni `pieces` ; un admin d'agence reçoit toujours `premier_bien`, `kyc` (vérification de l'agence) et `equipe`, inchangés (test de non-régression).
+- [x] AC1 — Un bailleur à qui manquent RIB et pièce d'identité reçoit deux étapes `piece:rib` et `piece:identity`, non faites ; après envoi du RIB, `piece:rib` est `envoyee`.
+- [x] AC2 — Un bailleur et un agent ne reçoivent plus d'étape `kyc` ni `pieces` ; un admin d'agence reçoit toujours `premier_bien`, `kyc` (vérification de l'agence) et `equipe`, inchangés (test de non-régression).
 
 ## Hors périmètre
 
@@ -51,4 +51,23 @@ Le nouvel entrant voit dans « Démarrer » chaque pièce qui lui manque (RIB, p
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 (implementing-specs) :
+
+- **Écart sur le code (prémisse re-mesurée)** : l'AC1 écrit `piece:identity` ; aucune pièce ne porte ce nom. Le `<code>` est celui de
+  `PiecesDuProfil` (la sorte de l'envoi : `cni`, `rib`, `ninea`, `license`, `photo`, `insurance`), le même que `GET /api/me/pieces`
+  — une seule table de libellés pour l'écran `/app/pieces` et le menu (TCK-2947). Donc `piece:cni` et `piece:rib`.
+- **Pièces requises seules** : une pièce facultative (assurance RC pro du prestataire, NINEA du bailleur particulier, décision 2b
+  de TCK-2614) n'est pas une étape — le « n sur m » ne compte que ce qui est demandé.
+- `faite` = pièce envoyée ou vérifiée (règle de TCK-2612) ; `etat` traduit `missing|sent|verified|rejected` →
+  `manquante|envoyee|verifiee|refusee` (`refusee` n'est jamais rendu aujourd'hui, comme `rejected`).
+- **Décision (la plus sûre, une seule source)** : `metadata.kyc.submitted_at` du bailleur ne fait plus passer d'étape — une
+  soumission ne dit pas QUELLE pièce est partie ; seul le `Document` vivant le dit. Un bailleur qui avait soumis sans fichier
+  voit ses pièces manquantes revenir, ce qui est juste.
+- `PiecesDuProfil::requisesEnvoyees()` n'avait plus de lecteur : retirée.
+- Delta du ticket « agence : NINEA + RCCM » : contredit par le contrat et l'AC2 (l'étape `kyc` de l'agence est sa vérification,
+  inchangée) ; non fait, l'AC2 l'emporte — l'agence est testée en non-régression.
+- Front : `lib/navigation/demarrer.ts` ignore un code inconnu → jusqu'à TCK-2947, le bailleur/agent/prestataire ne voient plus
+  l'étape des pièces dans le menu (aucune casse). Tests front : moqués, non touchés.
+- Tests : `DemarrageEtapesParPieceTest` (5, neuf), `EspaceDemarrageTest` (14, mis à jour), `NineaFacultatifDuParticulierTest`
+  (3, mis à jour) verts ; gardes d'architecture (3 classes) vertes ; `scripts/check-*.mjs` toutes vertes. Ablations : sans le
+  filtre `required` → prestataire rouge ; `faite` sur `verified` seul → AC1 rouge ; restauré (md5).
