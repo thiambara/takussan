@@ -215,7 +215,7 @@ class BookingGuarantorTest extends TestCase
         Sanctum::actingAs($candidat);
 
         $id = $this->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
             'guarantor' => ['first_name' => 'Ibrahima', 'last_name' => 'Dieng', 'relationship_to_tenant' => 'son frère'],
         ])->assertCreated()->assertJsonMissingPath('data.guarantors')->json('data.id');
         $booking = Booking::query()->findOrFail($id);
@@ -232,7 +232,7 @@ class BookingGuarantorTest extends TestCase
         $existant = Guarantor::factory()->create(['added_by_id' => $candidat->id]);
         Sanctum::actingAs($candidat);
         $this->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
             'guarantor' => ['guarantor_id' => $existant->id],
         ])->assertStatus(422)->assertJsonValidationErrors(['guarantor.guarantor_id']);
 

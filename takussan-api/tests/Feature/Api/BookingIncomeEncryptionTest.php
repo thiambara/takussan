@@ -139,7 +139,7 @@ class BookingIncomeEncryptionTest extends TestCase
 
         $candidat = User::factory()->create();
         $corps = (string) $this->comme($candidat)->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1, 'declared_monthly_income' => 870000,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'declared_monthly_income' => 870000,
         ])->assertCreated()->assertJsonMissingPath('data.income_to_rent_ratio')->getContent();
         $this->assertStringNotContainsString('870000', $corps);
         $this->assertSame('870000', Booking::query()->latest('id')->firstOrFail()->declared_monthly_income);
@@ -152,7 +152,7 @@ class BookingIncomeEncryptionTest extends TestCase
 
         $autre = User::factory()->create();
         $this->comme($autre)->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
         ])->assertCreated();
 
         $this->getJson("/api/bookings/{$booking->id}")->assertForbidden();

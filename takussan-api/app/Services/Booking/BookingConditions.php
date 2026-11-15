@@ -63,6 +63,8 @@ final class BookingConditions
         }
         // TCK-2893 (ADR-0110 § 3) — le garant facultatif : une candidature ou une offre, jamais un séjour.
         abort_code_if($kind === BookingKind::Stay && ! empty($input['guarantor']), 422, 'booking.field_not_for_kind');
+        // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs : un séjour seulement.
+        abort_code_if($kind !== BookingKind::Stay && ($input['guests'] ?? null) !== null, 422, 'booking.field_not_for_kind');
     }
 
     /**

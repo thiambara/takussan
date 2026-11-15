@@ -301,6 +301,12 @@ export interface PropertyDetail extends PropertyListItem {
    * entière (P60.03).
    */
   available_from?: string | null;
+  /**
+   * TCK-2892 — `HH:MM`, l'heure d'arrivée (« à partir de ») et de départ (« avant ») d'un bien à la
+   * nuit ou à la semaine ; `null` quand le bien ne les dit pas (l'écran affiche alors 14:00 / 11:00).
+   */
+  check_in_from?: string | null;
+  check_out_before?: string | null;
   year_built: number | null;
   parking_spaces: number | null;
   views_count: number;

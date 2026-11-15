@@ -55,7 +55,7 @@ class BookingSourceTest extends TestCase
         Sanctum::actingAs($this->client);
 
         return $this->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", $extra + [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
         ]);
     }
 

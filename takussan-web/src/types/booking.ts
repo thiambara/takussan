@@ -11,7 +11,8 @@ export type BookingStatus =
   | 'expired'
   | 'completed';
 
-export type BookingPaymentType = 'deposit' | 'advance' | 'fee';
+// TCK-2892 — `security_deposit` (la caution d'un séjour) et `other` (qui exige une note).
+export type BookingPaymentType = 'deposit' | 'advance' | 'fee' | 'security_deposit' | 'other';
 
 // TCK-1266 (P146.01) — les cas de `PaymentStatus` côté API, à l'identique : l'échec d'un paiement
 // en ligne écrit `failed` sur un `BookingPayment`.
@@ -153,6 +154,8 @@ export type Booking = {
   property_visits_count?: number;
   /** TCK-2870 — le rang d'une offre parmi celles du bien (1 = la première). */
   offer_rank?: number | null;
+  /** TCK-2892 — le nombre de voyageurs d'un séjour ; `null` hors séjour (ou s'il n'a pas été dit). */
+  guests?: number | null;
   /** TCK-2870 — durée d'une candidature, en mois, et son renouvellement ; nulles hors candidature. */
   term_months?: number | null;
   renewable?: boolean | null;
@@ -161,8 +164,8 @@ export type Booking = {
   security_deposit_amount?: number | null;
   advance_months_at_booking?: number | null;
   agency_fee_months_at_booking?: number | null;
-  /** TCK-2870 — les conditions d'une offre. */
-  financing?: string | null;
+  /** TCK-2870 — les conditions d'une offre ; `financing` : les cas d'`OfferFinancing` (TCK-2876). */
+  financing?: OfferFinancing | null;
   signature_within_days?: number | null;
   conditions?: string | null;
   /** TCK-2870 — « À verser à l'entrée », DÉRIVÉ par l'API ; `null` hors candidature ou avant TCK-2870. */
@@ -178,6 +181,45 @@ export type Booking = {
   /** Jamais affiché (ADR-0110 § 4) : la fiche dit le rapport au loyer, pas le montant. */
   declared_monthly_income_masked?: string | null;
   income_to_rent_ratio?: number | null;
+  // ── TCK-2876 — les clés de TCK-2873 et TCK-2874 (ADR-0110 § 5, 6 et 8) ──
+  /** TCK-2873 — la DERNIÈRE contre-offre de l'agence (`null` sans contre-offre) ; les précédentes ne sont pas servies. */
+  counter_offer?: BookingCounterOffer | null;
+  /** TCK-2873 — qui doit agir sur une réservation en attente : le client (contre-offre ouverte) ou l'agence ; `null` hors `pending`. */
+  awaiting?: 'customer' | 'agency' | null;
+  /** TCK-2874 — l'origine : le tunnel public, le lien d'invitation envoyé après la visite, ou la saisie du personnel. */
+  source?: BookingSource;
+  /** TCK-2874 — le passage de la fiche client en Négociation à l'acceptation, au seul personnel ; `null` sans changement. */
+  stage_change?: BookingStageChange | null;
+};
+
+/** TCK-2870 / TCK-2876 — `OfferFinancing` côté API : comptant, crédit immobilier, apport et crédit. */
+export type OfferFinancing = 'cash' | 'mortgage' | 'mixed';
+
+/** TCK-2874 / TCK-2876 — `BookingSource` côté API. */
+export type BookingSource = 'public' | 'invitation' | 'staff';
+
+/** TCK-2873 / TCK-2876 — `CounterOfferStatus` côté API. Une `pending` échue est déjà servie `expired`. */
+export type CounterOfferStatus = 'pending' | 'accepted' | 'declined' | 'superseded' | 'expired';
+
+/** TCK-2873 / TCK-2876 — `BookingResource::counter_offer`. `valid_until` est un JOUR (`AAAA-MM-JJ`), valable jusqu'au soir à Dakar. */
+export type BookingCounterOffer = {
+  id: number;
+  amount: number;
+  message: string | null;
+  valid_until: string | null;
+  status: CounterOfferStatus;
+  created_at: string | null;
+  responded_at: string | null;
+};
+
+/** TCK-2874 / TCK-2876 — `BookingResource::stage_change` (étapes de `CustomerPipelineStage`). */
+export type BookingStageChange = {
+  from: string;
+  to: string;
+  at: string;
+  /** `null` une fois le passage annulé. */
+  undoable_until: string | null;
+  undone_at: string | null;
 };
 
 /** TCK-2872 / TCK-2875 — une pièce du dossier d'une candidature ou d'une offre (`DossierPiece` côté API). */

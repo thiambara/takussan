@@ -39,4 +39,12 @@ return [
         'property_unavailable' => 'Property unavailable',
         'other' => 'Other reason',
     ],
+    // TCK-2892 — le type d'un paiement de réservation, imprimé sur le reçu (`BookingPaymentType::label`).
+    'payment_types' => [
+        'deposit' => 'Deposit',
+        'advance' => 'Balance',
+        'fee' => 'Fee',
+        'security_deposit' => 'Security deposit',
+        'other' => 'Other',
+    ],
 ];

@@ -174,7 +174,8 @@ export type CreateBookingPaymentPayload = {
   amount?: number;
   /** TCK-2594 — les huit moyens que `StoreBookingPaymentRequest` accepte (`PaymentMethod`). */
   payment_method?: (typeof PAYMENT_METHOD_VALUES)[number];
-  payment_type?: 'deposit' | 'advance' | 'fee';
+  // TCK-2892 — `other` exige `notes`.
+  payment_type?: 'deposit' | 'advance' | 'fee' | 'security_deposit' | 'other';
   /**
    * TCK-172 — set to `pending` for the customer self-service gateway flow. TCK-1266 — sans
    * `cancelled`, que `StoreBookingPaymentRequest` refuse. TCK-1311 — ni `refunded` : une ligne

@@ -45,6 +45,8 @@ class Booking extends AbstractModel
         'declared_monthly_income',
         // TCK-2874 (ADR-0110 § 6) — l'origine (`BookingSource`).
         'source',
+        // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs d'un séjour.
+        'guests',
     ];
 
     /**
@@ -88,6 +90,8 @@ class Booking extends AbstractModel
         'signature_within_days' => 'integer',
         // TCK-2893
         'declared_monthly_income' => 'encrypted',
+        // TCK-2892
+        'guests' => 'integer',
     ];
 
     /**
@@ -181,6 +185,8 @@ class Booking extends AbstractModel
         'financing', 'signature_within_days', 'conditions',
         // TCK-2874 (ADR-0110 § 6)
         'source',
+        // TCK-2892 (ADR-0110 § 1)
+        'guests',
     ];
 
     /**

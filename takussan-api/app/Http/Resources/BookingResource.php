@@ -92,6 +92,9 @@ class BookingResource extends BaseResource
             // TCK-2870 (ADR-0110 § 1) — les conditions : durée et renouvellement, instantané de la
             // caution, de l'avance et des frais (candidature) ; financement, délai, conditions (offre).
             // Nulles pour une nature qui ne les écrit pas ; omises sous un sparse fieldset qui ne les lit pas.
+            // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs d'un séjour, `null` pour une autre nature
+            // (et pour un séjour qui ne l'a pas dit) ; omis sous un sparse fieldset qui ne le lit pas.
+            'guests' => $this->when($this->lue('guests'), fn (): ?int => $this->guests),
             'term_months' => $this->when($this->lue('term_months'), fn (): ?int => $this->term_months),
             'renewable' => $this->when($this->lue('renewable'), fn (): ?bool => $this->renewable),
             'security_deposit_months' => $this->when($this->lue('security_deposit_months'), fn (): ?int => $this->security_deposit_months),

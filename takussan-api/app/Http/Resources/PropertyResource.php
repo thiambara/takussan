@@ -19,6 +19,7 @@ use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\CoutDEntree;
+use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
 use App\Services\Property\TitulaireALaSaisie;
@@ -134,6 +135,9 @@ class PropertyResource extends BaseResource
             'year_built' => $this->whenHas('year_built'),
             'parking_spaces' => $this->whenHas('parking_spaces'),
             'available_from' => $this->whenHas('available_from', fn ($valeur) => $this->calendarDate($valeur)),
+            // TCK-2892 — `HH:MM`, `null` quand le bien ne les dit pas (le front affiche 14:00 / 11:00).
+            'check_in_from' => $this->whenHas('check_in_from', fn ($valeur) => HeuresDuSejour::lue($valeur)),
+            'check_out_before' => $this->whenHas('check_out_before', fn ($valeur) => HeuresDuSejour::lue($valeur)),
             'furnished' => $this->whenHas('furnished', fn ($valeur) => (bool) $valeur),
             'featured' => $this->whenHas('featured', fn ($valeur) => (bool) $valeur),
             // TCK-633 lot F (ADR-0061 §5) — le badge acheté (« Urgent », « Baisse de prix »), projeté

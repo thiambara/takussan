@@ -197,7 +197,9 @@ function ReservationForm({
       await submit({
         start_date: startDate,
         end_date: endDate,
-        guests,
+        // TCK-2892 — le nombre de voyageurs n'appartient qu'à un séjour : l'API le refuse à une
+        // candidature (422 `booking.field_not_for_kind`).
+        ...(isShortStay ? { guests } : {}),
         message: message || undefined,
         // TCK-2874 (ADR-0110 § 6) — ouverte par le lien d'invitation : l'API écrit `source = invitation`.
         via: lireIndiceInvitation(window.location.search),
@@ -244,17 +246,19 @@ function ReservationForm({
             />
           </label>
         </div>
-        <label className="block space-y-1 text-sm">
-          <span className="text-foreground">{t('booking.guests')}</span>
-          <Input
-            type="number"
-            required
-            min={1}
-            max={20}
-            value={guests}
-            onChange={(e) => setGuests(Number(e.target.value) || 1)}
-          />
-        </label>
+        {isShortStay && (
+          <label className="block space-y-1 text-sm">
+            <span className="text-foreground">{t('booking.guests')}</span>
+            <Input
+              type="number"
+              required
+              min={1}
+              max={20}
+              value={guests}
+              onChange={(e) => setGuests(Number(e.target.value) || 1)}
+            />
+          </label>
+        )}
         <label className="block space-y-1 text-sm">
           <span className="text-foreground">{t('booking.message')}</span>
           <Textarea

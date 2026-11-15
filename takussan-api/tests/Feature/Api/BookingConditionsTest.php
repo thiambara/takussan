@@ -191,7 +191,7 @@ class BookingConditionsTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.financing', 'mortgage')->assertJsonPath('data.signature_within_days', 60);
 
         $this->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 2, 'term_months' => 6,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'term_months' => 6,
         ])->assertCreated()
             ->assertJsonPath('data.kind', 'application')
             ->assertJsonPath('data.term_months', 6)
@@ -211,7 +211,7 @@ class BookingConditionsTest extends TestCase
             'offer_amount' => 85000000, 'offer_expires_at' => '2026-11-21', 'terms_accepted' => true, 'term_months' => 12,
         ])->assertStatus(422)->assertJsonPath('code', 'booking.field_not_for_kind');
         $this->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 2, 'financing' => 'cash',
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'financing' => 'cash',
         ])->assertStatus(422)->assertJsonPath('code', 'booking.field_not_for_kind');
         // Un séjour n'a aucune condition, pas même la durée d'une candidature.
         $this->postJson("/api/public/properties/{$this->daily->slug}/booking-request", [

@@ -160,10 +160,14 @@ class BookingService
             // TCK-2579 — ni devis ni nuits : le montant est celui du client.
             $data = array_merge($data, $this->recordedTerms($property, $kind, $data));
         } else {
-            // TCK-1065 (P80.02) — le nombre de voyageurs n'a pas de colonne : il va dans `metadata`,
-            // sous la forme qu'écrit déjà `PublicPropertyController::bookingRequest()`.
-            if (array_key_exists('guests', $data)) {
-                $data['metadata'] = ['guests' => (int) $data['guests']];
+            // TCK-1065 (P80.02) — le nombre de voyageurs, sous la forme qu'écrit aussi
+            // `PublicPropertyController::bookingRequest()`.
+            // TCK-2892 (ADR-0110 § 1) — en colonne (`guests`) ; `metadata.guests` reste écrit et n'est
+            // plus lu.
+            if (isset($data['guests'])) {
+                $data['guests'] = (int) $data['guests'];
+                $data['metadata'] = ['guests' => $data['guests']];
+            } else {
                 unset($data['guests']);
             }
 

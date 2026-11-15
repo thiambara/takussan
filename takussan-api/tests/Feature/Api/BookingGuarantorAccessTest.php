@@ -78,7 +78,7 @@ class BookingGuarantorAccessTest extends TestCase
 
         $autreCandidat = User::factory()->create();
         $this->comme($autreCandidat)->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
         ])->assertCreated();
 
         $refuses = [

@@ -24,6 +24,7 @@ use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Payments\RentMonthStatus;
+use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\Occupation;
 use App\Services\Property\PropertyOccupancy;
 use App\Sorts\PropertyRentLateSort;
@@ -104,6 +105,8 @@ class Property extends AbstractModel implements HasMedia
         'virtual_tour_url',
         // TCK-1000 — le bailleur invité pour qui le bien a été saisi, jusqu'à l'acceptation.
         'pending_owner_profile_id',
+        // TCK-2892 — les heures d'arrivée et de départ d'un séjour (`HeuresDuSejour`).
+        'check_in_from', 'check_out_before',
     ];
 
     protected $casts = [
@@ -191,6 +194,8 @@ class Property extends AbstractModel implements HasMedia
         'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
         'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges', 'virtual_tour_url',
         'ranked_at', 'sponsored_until', 'badge', 'badge_until',
+        // TCK-2892
+        'check_in_from', 'check_out_before',
     ];
 
     /**
@@ -253,6 +258,22 @@ class Property extends AbstractModel implements HasMedia
         static::saving(function (self $m) {
             if ($m->condition !== null && ! PropertyCondition::appliesTo($m->type)) {
                 $m->condition = null;
+            }
+        });
+
+        // TCK-2892 — invariant : les heures d'arrivée et de départ n'appartiennent qu'à un séjour
+        // (location à la nuit ou à la semaine). Un bien qui passe au mois ou à la vente les perd,
+        // comme l'état d'un terrain (TCK-508) : gardées, elles s'afficheraient sur une fiche qui
+        // n'en a pas. ⚠ `withoutEvents()` (les seeders) le contourne.
+        static::saving(function (self $m) {
+            // Seulement quand une heure est posée ET que le contrat est lu : un modèle chargé sans
+            // ces colonnes ne doit rien effacer.
+            $attributs = $m->getAttributes();
+            if (($m->check_in_from !== null || $m->check_out_before !== null)
+                && array_key_exists('contract_type', $attributs) && array_key_exists('rent_period', $attributs)
+                && ! HeuresDuSejour::sApplique($m->contract_type, $m->rent_period)) {
+                $m->check_in_from = null;
+                $m->check_out_before = null;
             }
         });
 

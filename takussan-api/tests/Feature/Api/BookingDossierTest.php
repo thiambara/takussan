@@ -120,7 +120,7 @@ class BookingDossierTest extends TestCase
             'offer_amount' => 85000000, 'offer_expires_at' => '2026-11-21', 'terms_accepted' => true,
         ])->assertCreated();
         $this->postJson("/api/public/properties/{$this->monthly->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 2,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
         ])->assertCreated();
         $this->postJson("/api/public/properties/{$this->daily->slug}/booking-request", [
             'start_date' => '2026-12-01', 'end_date' => '2026-12-03', 'guests' => 2,

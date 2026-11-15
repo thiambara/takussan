@@ -134,7 +134,6 @@ class PropertyBookingRequestTest extends TestCase
         $this->postJson("/api/public/properties/{$property->slug}/booking-request", [
             'start_date' => now()->addDay()->toDateString(),
             'end_date' => now()->addDays(11)->toDateString(),
-            'guests' => 1,
         ])->assertCreated();
 
         $booking = Booking::query()->sole();

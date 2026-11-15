@@ -1084,7 +1084,11 @@ class PublicPropertyController extends Controller
                 // une candidature retient le loyer affiché.
                 'kind' => $kind,
                 'list_price_at_booking' => $kind === BookingKind::Application ? $locked->price : null,
-                'metadata' => ['guests' => $data['guests']],
+                // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs a sa colonne (un séjour seul : une
+                // candidature qui l'envoie a été refusée ci-dessus) ; `metadata.guests` reste écrit
+                // et n'est plus lu.
+                'guests' => $kind === BookingKind::Stay ? (int) $data['guests'] : null,
+                'metadata' => isset($data['guests']) ? ['guests' => (int) $data['guests']] : null,
             ] + BookingConditions::columnsFor($kind, $locked, (string) $amounts['total_amount'], $data));
             // TCK-2893 — après tous les refus, dans la transaction (un séjour l'a déjà refusé).
             $this->rattacherLeGarantDeclare($booking, $data, $user);

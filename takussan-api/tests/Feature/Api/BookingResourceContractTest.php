@@ -32,6 +32,9 @@ class BookingResourceContractTest extends TestCase
         'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
         'advance_months_at_booking', 'agency_fee_months_at_booking',
         'financing', 'signature_within_days', 'conditions', 'entry_amount',
+        // TCK-2892 (ADR-0110 § 1) — le nombre de voyageurs d'un séjour ; et l'origine (TCK-2874,
+        // ADR-0110 § 6), servie depuis TCK-2874 sans que ce contrat l'ait reçue.
+        'guests', 'source',
     ];
 
     /** Seulement quand `payments` est chargé (TCK-596). */

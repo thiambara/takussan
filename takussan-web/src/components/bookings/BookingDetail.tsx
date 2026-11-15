@@ -62,6 +62,9 @@ import {
 } from './detail/pieces-du-detail';
 import { AutresCandidatures, Completude, PiecesDuDossier, useSyntheseDeLaCandidature } from './detail/dossier';
 import { HistoriqueDeLaFiche, type EvenementDeLHistorique } from './detail/historique';
+// TCK-2876 — la contre-offre, le financement et la feuille « Contre-proposer ».
+import { ContreOffreEnCours, contreOffreEnCours, useEvenementsDeLaContreOffre, useLibelleDuFinancement } from './detail/contre-offre';
+import { FeuilleDeContreOffre } from './feuilles/FeuilleDeContreOffre';
 
 /**
  * Listes figées hors composant : `useCanAll` mémoïse sur la RÉFÉRENCE du
@@ -84,6 +87,9 @@ const PAYMENT_TYPE_LABEL_KEY: Record<string, string> = {
   deposit: 'paymentType.deposit',
   advance: 'paymentType.advance',
   fee: 'paymentType.fee',
+  // TCK-2892
+  security_deposit: 'paymentType.security_deposit',
+  other: 'paymentType.other',
 };
 
 const PAYMENT_STATUS_LABEL_KEY: Record<string, string> = {
@@ -148,6 +154,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const syntheseDe = useSyntheseDeLaCandidature();
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [action, setAction] = useState<'confirm' | 'reject' | 'cancel' | null>(null);
+  // TCK-2876 — la feuille « Contre-proposer », montée seulement ouverte (elle porte sa mutation).
+  const [contreOffreOuverte, setContreOffreOuverte] = useState(false);
+  const libelleDuFinancement = useLibelleDuFinancement();
+  const evenementsDeLaContreOffre = useEvenementsDeLaContreOffre();
   const bookingQuery = useBooking(bookingId);
   const { data, isLoading, isError } = bookingQuery;
   const { user } = useAuth();
@@ -248,6 +258,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     !stayStarted;
   const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
   const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
+  // TCK-2876 (ADR-0110 § 5) — « Contre-proposer » : une OFFRE en attente, sous la capacité
+  // d'Accepter, au seul personnel de l'agence (`BookingPolicy::proposeCounterOffer` refuse le bailleur).
+  const canCounterOffer = canConfirm && booking.kind === 'offer' && personnel && !isCustomer;
   const canRegisterPayment = staffMay(canRecordPayments);
   // P48.03 (TCK-2352) — la candidature acceptée d'un bien à louer mène au bail prérempli. L'API
   // vérifie que le locataire est le client de la réservation, et la passe à `completed`.
@@ -328,6 +341,19 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     />
   );
 
+  /**
+   * TCK-2876 — « En vente depuis 47 jours · 6 visites · première offre reçue. » Les visites du bien
+   * (tous visiteurs) et le rang de l'offre ne sont servis qu'au personnel : absents, ils se taisent.
+   */
+  const faitsDuBien =
+    nature === 'offer'
+      ? [
+          booking.property?.published_at ? tFiche('offre.enVenteDepuis', { n: joursDepuis(booking.property.published_at, maintenant) }) : null,
+          booking.property_visits_count != null ? tFiche('offre.visites', { n: booking.property_visits_count }) : null,
+          booking.offer_rank ? tFiche('offre.rang', { premiere: booking.offer_rank === 1 ? 'oui' : 'non', rang: booking.offer_rank }) : null,
+        ].filter((x): x is string => x !== null)
+      : [];
+
   const comparaison =
     nature === 'offer' && m.forme === 'offre' ? (
       <>
@@ -338,9 +364,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           ecartPourcentage={m.ecart !== null ? ecartEnClair(f.pourcentage(m.ecart, { maximumFractionDigits: 1, signDisplay: 'exceptZero' })) : null}
           part={m.affiche && m.montant !== null ? m.montant / m.affiche : null}
         />
-        {booking.property?.published_at ? (
-          <p className="mt-2 text-ui text-muted-foreground">{tFiche('offre.enVenteDepuis', { n: joursDepuis(booking.property.published_at, maintenant) })}</p>
-        ) : null}
+        {faitsDuBien.length > 0 ? <p className="mt-2 text-ui text-muted-foreground">{tFiche('offre.faits', { faits: faitsDuBien.join(' · ') })}</p> : null}
       </>
     ) : null;
 
@@ -389,6 +413,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     .filter(Boolean)
     .join(' · ');
 
+  // TCK-2876 — le financement en clair, la contre-offre ouverte (au seul personnel : la réponse du client est TCK-2879).
+  const financement = libelleDuFinancement(booking.financing);
+  const contreOffre = isCustomer ? null : contreOffreEnCours(booking);
+  const enTeteDuQuoi = contreOffre ? <ContreOffreEnCours co={contreOffre} prenom={prenom} montant={montant(contreOffre.amount)} f={f} /> : null;
+
   /** QUOI : dans les mots de la nature, puis ce que toute demande porte (acompte, échéance, référence). */
   const lignesDuQuoi = (
     <dl className="divide-y divide-border">
@@ -423,6 +452,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </LigneCle>
         </>
       ) : null}
+      {/* TCK-2876 (ADR-0110 § 1) — comment l'acheteur paie, en combien de temps il signe, sous quelles conditions. */}
+      {nature === 'offer' && financement ? <LigneCle cle={tFiche('quoi.financement')}>{financement}</LigneCle> : null}
+      {nature === 'offer' && booking.signature_within_days ? (
+        <LigneCle cle={tFiche('quoi.delaiDeSignature')}>{tFiche('quoi.jours', { n: booking.signature_within_days })}</LigneCle>
+      ) : null}
+      {nature === 'offer' && booking.conditions?.trim() ? <LigneCle cle={tFiche('quoi.conditions')}>{booking.conditions.trim()}</LigneCle> : null}
       {nature !== 'stay' && booking.deposit_amount ? (
         <LigneCle cle={tFiche('quoi.acompte')}>
           <span className="tabular-nums">{montant(booking.deposit_amount)}</span>
@@ -491,7 +526,11 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     booking.refund_status != null ? <BookingRefundPanel booking={booking} locale={locale} isCustomer={isCustomer} /> : null;
 
   const historique = (
-    <HistoriqueDeLaFiche booking={booking} evenements={evenementsDeLHistorique(booking, nature, nom, tFiche, t)} personnel={personnel} formater={(at) => instantEnClair(f, at)} />
+    <HistoriqueDeLaFiche
+      booking={booking}
+      // TCK-2876 — la contre-offre (son envoi, sa réponse) entre à sa date ; au seul personnel (TCK-2879 pour le client).
+      evenements={[...evenementsDeLHistorique(booking, nature, nom, tFiche, t), ...(isCustomer ? [] : evenementsDeLaContreOffre(booking.counter_offer, montant))]}
+      personnel={personnel} formater={(at) => instantEnClair(f, at)} />
   );
 
   /**
@@ -526,6 +565,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const annuler = () => setAction('cancel');
   const libelleAnnuler = tFiche('gestes.annuler', { nature });
   const sejourAvecPaiement = nature === 'stay' && canRegisterPayment && booking.status === 'confirmed';
+  /** TCK-2876 — « Contre-proposer », ou « Modifier la contre-offre » quand une contre-offre attend le client. */
+  const libelleContreProposer = tFiche('contreOffre.geste', { modifier: contreOffre ? 'oui' : 'non' });
+  const boutonContreProposer = (variant: 'outline' | 'ghost', className?: string) => (
+    <Button type="button" variant={variant} className={className} onClick={() => setContreOffreOuverte(true)}>
+      {libelleContreProposer}
+    </Button>
+  );
   /** Le geste principal : décider, créer le bail, ou encaisser un séjour. */
   const suite: ReactNode =
     canConfirm || canReject ? (
@@ -535,6 +581,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             {t('actions.reject')}
           </Button>
         ) : null}
+        {canCounterOffer ? boutonContreProposer('outline') : null}
         {canConfirm ? (
           <Button type="button" onClick={() => setAction('confirm')}>
             {telephone ? null : <Check className="size-4" aria-hidden="true" />}
@@ -589,6 +636,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           setAction(null);
         }}
       />
+      {canCounterOffer && contreOffreOuverte ? (
+        <FeuilleDeContreOffre
+          bookingId={booking.id}
+          open
+          onOpenChange={setContreOffreOuverte}
+          prixAffiche={prixDuBien}
+          enCours={contreOffre}
+          devise={devise}
+          maintenant={maintenant}
+          onEnvoyee={() => toast.add({ title: tFiche('contreOffre.toast', { prenom }), type: 'success' })}
+        />
+      ) : null}
     </>
   );
 
@@ -646,6 +705,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </SectionDuTelephone>
         ) : null}
         <SectionDuTelephone titre={tFiche('sections.quoi')}>
+          {enTeteDuQuoi ? <div className="mb-3">{enTeteDuQuoi}</div> : null}
           {lignesDuQuoi}
           {(nature !== 'stay' || isCustomer) && message ? <div className="mt-3">{message}</div> : null}
         </SectionDuTelephone>
@@ -668,7 +728,12 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         ) : null}
         <SectionDuTelephone titre={tFiche('sections.historique')}>{historique}</SectionDuTelephone>
         {/* Des boutons de 48 px, comme la maquette (`Bouton taille="grand"`). */}
-        {suite ? <BarreDAction taille="action">{suite}</BarreDAction> : null}
+        {/* TCK-2876 — trois gestes (maquette e4) : Refuser et Accepter à la largeur de leur libellé, Contre-proposer prend le reste. */}
+        {suite ? (
+          <BarreDAction taille="action" className={canCounterOffer ? '*:first:not-last:flex-none *:last:not-first:flex-none' : undefined}>
+            {suite}
+          </BarreDAction>
+        ) : null}
         {dialogues}
       </PagePleineLargeur>
     );
@@ -696,6 +761,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                 {tFiche('decision.accepter', { montant: montant(m.montant) })}
               </Button>
             ) : null}
+            {/* TCK-2876 — le 3ᵉ geste de la carte (maquette e4) : Accepter, Contre-proposer, Refuser. */}
+            {canCounterOffer ? boutonContreProposer('outline', 'w-full') : null}
             {canReject ? (
               <Button type="button" variant="ghost" className="w-full" onClick={() => setAction('reject')}>
                 {t('actions.reject')}
@@ -745,6 +812,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   const carteQuoi = (
     <CarteDuBureau titre={tFiche('sections.quoi')}>
+      {enTeteDuQuoi ? <div className="px-4 pt-4">{enTeteDuQuoi}</div> : null}
       <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2">
         <div>
           {bien}

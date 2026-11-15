@@ -173,7 +173,8 @@ export interface VisitFeedbackPayload {
 export interface BookingRequestPayload {
   start_date: string;
   end_date: string;
-  guests: number;
+  /** TCK-2892 — un séjour seulement : l'API refuse le nombre sur une candidature (422). */
+  guests?: number;
   message?: string;
   /** TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans droit. */
   via?: 'invitation';

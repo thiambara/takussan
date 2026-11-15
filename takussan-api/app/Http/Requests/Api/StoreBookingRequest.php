@@ -103,6 +103,8 @@ class StoreBookingRequest extends BaseFormRequest
             'notes' => ['nullable', 'string'],
             // TCK-1065 (P80.02) — le nombre que le tunnel exige (1 à 20, `booking.ts`) ; rangé dans
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
+            // TCK-2892 — et désormais en colonne `bookings.guests` ; un séjour seul (interdit à la
+            // candidature et à l'offre saisies, refusé à toute autre nature par `BookingConditions`).
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date', new InstantIso],
             // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation : un libellé, aucun droit.

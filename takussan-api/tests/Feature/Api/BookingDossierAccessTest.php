@@ -55,11 +55,11 @@ class BookingDossierAccessTest extends TestCase
         // Deux candidats au MÊME bien, chacun par le tunnel public.
         Sanctum::actingAs($this->client);
         $this->booking = Booking::query()->findOrFail($this->postJson("/api/public/properties/{$property->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
         ])->assertCreated()->json('data.id'));
         Sanctum::actingAs($this->rival);
         $this->rivalBooking = Booking::query()->findOrFail($this->postJson("/api/public/properties/{$property->slug}/booking-request", [
-            'start_date' => '2026-12-01', 'end_date' => '2027-12-01', 'guests' => 1,
+            'start_date' => '2026-12-01', 'end_date' => '2027-12-01',
         ])->assertCreated()->json('data.id'));
 
         Sanctum::actingAs($this->client);
