@@ -2108,6 +2108,13 @@
           "creeeSansTitre": "Tâche créée",
           "faite": "Tâche faite : {titre}",
           "faiteSansTitre": "Tâche faite"
+        },
+        "demandeSur": "Demande reçue sur {bien}",
+        "reservation": {
+          "created": "{nature, select, stay {Demande de séjour déposée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}}",
+          "confirmed": "{nature, select, stay {Séjour confirmé} application {Candidature acceptée} offer {Offre acceptée} other {Réservation confirmée}}",
+          "rejected": "{nature, select, stay {Demande de séjour refusée} application {Candidature refusée} offer {Offre refusée} other {Réservation refusée}}",
+          "counter_offer": "Contre-offre de {montant} envoyée"
         }
       },
       "dossier": {
@@ -7835,7 +7842,14 @@
             "titre": "La file s’arrête aux 100 échéances les plus en retard",
             "detail": "Sélectionnez les autres dans la liste pour les relancer."
           }
-        }
+        },
+        "tri": {
+          "label": "Trier les impayés",
+          "retard": "Tri : retard",
+          "montant": "Tri : montant dû"
+        },
+        "balancePdf": "Balance âgée en PDF",
+        "enRetard": "{count, plural, one {# échéance en retard} other {# échéances en retard}}"
       }
     },
     "audit": {
@@ -8068,7 +8082,8 @@
         "counter_offer_declined": "Contre-proposition déclinée",
         "counter_offer_expired": "Contre-proposition expirée",
         "lead_unhandled": "Demande remise à traiter",
-        "data_export_redownloaded": "Export retéléchargé"
+        "data_export_redownloaded": "Export retéléchargé",
+        "owner_mandate_terms_updated": "Mandat d'un bailleur modifié"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -10300,7 +10315,8 @@
       "photo": "Nataal",
       "rib": "RIB",
       "ninea": "NINEA",
-      "other": "Beneen"
+      "other": "Beneen",
+      "management_mandate": "Mandat de gestion"
     },
     "entities": {
       "property": "Kër",
@@ -11220,7 +11236,8 @@
           "cash": "Achat comptant",
           "mortgage": "Achat à crédit",
           "mixed": "Apport et crédit"
-        }
+        },
+        "garantNomme": "Garant : {nom}{lien, select, aucun {} other {, {lien}}}{autres, plural, =0 {} other { +#}}"
       },
       "quoi": {
         "loyerPropose": "Loyer proposé",
@@ -11283,13 +11300,14 @@
       },
       "suiteBail": {
         "titre": "Candidature acceptée",
-        "texte": "Reste à créer le bail : il est déjà rempli avec ce que la candidature sait.",
         "locataire": "Locataire",
         "bien": "Bien",
         "loyer": "Loyer",
         "debut": "Début",
-        "modifiable": "Tout reste modifiable avant l’envoi en signature.",
-        "caution": "Caution"
+        "caution": "Caution",
+        "pret": "Bail prêt à créer",
+        "repris": "Repris de la candidature. Tout reste modifiable dans le formulaire du bail.",
+        "garant": "Garant"
       },
       "paiement": {
         "ligne": "{type} · {montant}",
@@ -11304,7 +11322,8 @@
         "creee": "{nature, select, stay {Demande de séjour envoyée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}} par {nom}",
         "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}",
         "visite": "{agent, select, aucun {Visite effectuée} other {Visite effectuée avec {agent}}}",
-        "citation": "{quoi} — « {texte} »"
+        "citation": "{quoi} — « {texte} »",
+        "demande": "Demande de contact reçue"
       },
       "dossier": {
         "completude": "{recues}/{total} pièces",
@@ -11364,6 +11383,70 @@
         "erreur": "Les nuits du bien n’ont pas pu être lues.",
         "jour": "{jour} : {etat, select, ceSejour {ce séjour} autres {un autre séjour} bloquee {bloquée} enAttente {une demande en attente} other {libre}}",
         "bloquees": "Bloquées"
+      },
+      "origine": {
+        "depose": "{prenom} a déposé sa candidature",
+        "parLeLien": "par le lien envoyé après la visite",
+        "deposee": "Déposée {jour} à {heure}{invitation, select, oui { par le lien envoyé après la visite} other {}}"
+      },
+      "reponse": {
+        "heures": "réponse attendue sous {n} h",
+        "jours": "{n, plural, one {réponse attendue sous # jour} other {réponse attendue sous # jours}}",
+        "depassee": "délai de réponse dépassé"
+      },
+      "acceptee": {
+        "titre": "Candidature acceptée",
+        "prevenu": "{prenom} est prévenu"
+      },
+      "etape": {
+        "passe": "Passé en {etape}",
+        "detail": "{de} → {a}, proposé par la candidature",
+        "annuler": "Annuler",
+        "remise": "Étape remise en {etape}",
+        "echec": "L’étape n’a pas pu être remise."
+      },
+      "fil": {
+        "titre": "Le fil de {prenom}",
+        "ficheClient": "Fiche client",
+        "demandeAuBail": "De la demande au bail",
+        "jours": "{n, plural, one {# jour} other {# jours}}",
+        "vide": "Rien dans le fil pour l’instant.",
+        "chargement": "Chargement du fil…"
+      },
+      "bailRepris": {
+        "titre": "Nouveau bail · repris de la candidature",
+        "locataire": "Locataire",
+        "locataireAide": "Sa fiche client devient la fiche du locataire.",
+        "debut": "Début du bail",
+        "duree": "Durée",
+        "loyer": "Loyer mensuel",
+        "caution": "Caution",
+        "garant": "Garant",
+        "garantAide": "Pièce d’identité à recevoir avant la signature.",
+        "repris": "{n, plural, one {Un champ repris de la candidature.} other {# champs repris de la candidature.}} À la signature, le bien passe en « Loué » et la fiche de {prenom} vous propose l’étape Gagné.",
+        "annuler": "Annuler",
+        "formulaire": "Ouvrir le formulaire complet",
+        "creer": "Créer le bail",
+        "echec": "Le bail n’a pas été créé."
+      },
+      "garants": {
+        "titre": "Garants",
+        "aucun": "Aucun garant pour l’instant.",
+        "ajouter": "Ajouter un garant",
+        "retirer": "Retirer {nom}",
+        "prenom": "Prénom",
+        "nom": "Nom",
+        "telephone": "Téléphone",
+        "lien": "Lien avec le candidat",
+        "enregistrer": "Ajouter le garant",
+        "echec": "Le garant n’a pas été enregistré.",
+        "codes": {
+          "pasPourCetteNature": "Seules une candidature et une offre peuvent avoir un garant.",
+          "dejaRattache": "Ce garant est déjà rattaché à cette demande.",
+          "pasRattache": "Ce garant n’est plus rattaché à cette demande.",
+          "troisAuPlus": "Une demande ne peut pas avoir plus de 3 garants.",
+          "dossierClos": "Cette demande est close : ses garants ne changent plus."
+        }
       }
     },
     "feuilles": {
@@ -16091,7 +16174,8 @@
       "envoyerRib": "Envoyer le RIB",
       "envoyerRibAria": "Envoyer le RIB du compte {masked}",
       "ribEnvoyeToast": "RIB envoyé : votre compte est en revue.",
-      "ribEchec": "Le RIB n’a pas pu être envoyé."
+      "ribEchec": "Le RIB n’a pas pu être envoyé.",
+      "jourDeVersement": "reversements du {jour} de chaque mois"
     },
     "serviceProvider": {
       "title": "Sama liggéeyu liggéeykat",
@@ -16573,7 +16657,7 @@
       "downloading": "Mu ngi yebbi…",
       "download": "Yebbi",
       "scopeNotice": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër walla ajaŋ).",
-      "rowCap": "Un fichier compte au plus {max} lignes, {pdf} en PDF.",
+      "rowCap": "{max} lignes au plus par export, {pdf} en PDF.",
       "truncated": "Le fichier s'arrête à {plafond} lignes : la période en compte davantage. Resserrez-la pour tout obtenir.",
       "failed": "Le téléchargement a échoué. Réessayez.",
       "scopeNoticeFull": "Ekspoor yi dinañu topp sa wàll (ajaas, boroom kër, luwaakat) — amul xibaar bu génn sa wàll.",
@@ -21360,7 +21444,9 @@
       "prereglages": {
         "moisDernier": "Mois dernier",
         "ceMois": "Ce mois",
-        "annee": "Année {annee}"
+        "annee": "Année {annee}",
+        "trimestre": "Trimestre",
+        "autre": "Autre…"
       },
       "telechargerAria": "Télécharger {titre} en {format}",
       "cartes": {
@@ -21397,8 +21483,14 @@
         "lignes": "Lignes",
         "gestes": "Actions"
       },
-      "pied": "Aucun fichier n’est conservé : « Refaire » relance l’export avec les mêmes paramètres. {max} lignes au plus, {pdf} en PDF.",
-      "telechargerLExport": "Télécharger l’export"
+      "pied": "Chaque fichier se retélécharge pendant {jours} jours ; ensuite, « Refaire » relance l’export avec les mêmes paramètres. {max} lignes au plus, {pdf} en PDF.",
+      "telechargerLExport": "Télécharger l’export",
+      "lignesAExporter": "{n, plural, =0 {Aucune ligne à exporter.} one {{lignes} ligne à exporter.} other {{lignes} lignes à exporter.}}",
+      "tropDeLignes": "{lignes} lignes à exporter : c’est plus que les {limite} qu’un export de ce format peut contenir. Réduisez la période ou choisissez un autre format.",
+      "retelecharger": "Retélécharger",
+      "retelechargerAria": "Retélécharger l’export {type}, {periode}",
+      "retelechargerExpire": "Ce fichier n’est plus disponible : utilisez « Refaire » pour relancer l’export.",
+      "retelechargerEchec": "Le téléchargement a échoué. Réessayez."
     },
     "alertes": {
       "declencheeLe": "Déclenchée le {date}",
@@ -21407,7 +21499,9 @@
       "destinatairesCompte": "{n, plural, =0 {Personne} one {# administrateur} other {# administrateurs}}",
       "canaux": {
         "email": "E-mail",
-        "inapp": "notification"
+        "inapp": "notification",
+        "whatsapp": "WhatsApp",
+        "both": "E-mail et WhatsApp"
       },
       "seuil": "seuil {valeur}",
       "delai": "{h} h",
@@ -21417,7 +21511,7 @@
       "nouvelle": "Nouvelle alerte",
       "resume": "{n, plural, =0 {Aucune alerte} one {# alerte} other {# alertes}} · {declenchees, plural, =0 {aucune franchie} one {# franchie} other {# franchies}} · mesures relues toutes les heures",
       "suppressionEchec": "La suppression a échoué. Réessayez.",
-      "videDescription": "Créez une alerte : les administrateurs seront prévenus quand l’indicateur franchit le seuil. Les mesures sont relues toutes les heures.",
+      "videDescription": "Créez une alerte : les personnes choisies (par défaut, les administrateurs) sont prévenues quand l’indicateur franchit le seuil. Les mesures sont relues toutes les heures.",
       "actuel": "Actuel",
       "previent": "Prévient {qui} · {canal}",
       "auPlusUne": "Au plus une alerte toutes les {delai}",
@@ -21435,12 +21529,21 @@
       "recents": "Déclenchements récents",
       "condition": "Condition",
       "quiEstPrevenu": "Qui est prévenu",
-      "quiEstPrevenuValeur": "Les administrateurs actifs de l’agence, par notification et par e-mail.",
       "relueToutesLesHeures": "La mesure est relue toutes les heures.",
       "modificationEchec": "La modification a échoué. Réessayez.",
       "enregistrer": "Enregistrer",
       "uniteHeures": "heures",
-      "valeurActuelle": "Valeur actuelle : {valeur}"
+      "valeurActuelle": "Valeur actuelle : {valeur}",
+      "canalChoix": {
+        "email": "E-mail",
+        "whatsapp": "WhatsApp",
+        "both": "Les deux"
+      },
+      "tousLesAdministrateurs": "Tous les administrateurs",
+      "quiEstPrevenuAide": "Sans choix, tous les administrateurs qui peuvent lire ce chiffre sont prévenus.",
+      "destinatairesChargement": "Lecture des destinataires possibles…",
+      "canalWhatsappAide": "WhatsApp ne parvient qu’aux personnes qui l’ont activé dans leurs préférences, avec un numéro vérifié.",
+      "suite": "{canal} · {n, plural, =0 {personne prévenue} one {# personne prévenue} other {# personnes prévenues}}"
     },
     "reglage": {
       "titre": "Personnaliser les chiffres",
@@ -21461,7 +21564,16 @@
       "enregistrer": "Enregistrer",
       "termine": "Terminé",
       "annuler": "Annuler",
-      "enregistre": "Enregistré."
+      "enregistre": "Enregistré.",
+      "modifierAria": "Modifier le libellé et le format de {libelle}",
+      "metrique": "Métrique : {metrique}",
+      "metriqueAvecValeur": "Métrique : {metrique} (aujourd’hui : {valeur})",
+      "libelleVide": "Chaque chiffre a besoin d’un libellé : complétez celui qui est vide.",
+      "formats": {
+        "number": "Nombre",
+        "currency": "Montant",
+        "percent": "Pourcentage"
+      }
     },
     "description": "{nom} · {periode}",
     "descriptionPeriode": "du {debut} au {fin}",

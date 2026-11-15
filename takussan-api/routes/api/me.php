@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\EspaceDemarrageController;
 use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
+use App\Http\Controllers\Api\Me\MeLocateController;
 use App\Http\Controllers\Api\Me\MePiecesController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
@@ -49,6 +50,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('rent-summary', TenantRentSummaryController::class)->name('me.rent-summary');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
+    // TCK-2847 (ADR-0116) — l'espace de l'appelant sous lequel une fiche se lit, pour la page « introuvable ».
+    Route::get('locate', MeLocateController::class)->middleware('throttle:30,1')->name('me.locate');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
     Route::get('data-exports', [DataExportController::class, 'index'])->name('me.data-exports.index');
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');

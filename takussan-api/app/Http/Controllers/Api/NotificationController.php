@@ -53,31 +53,48 @@ class NotificationController extends Controller
      * inchangé), celles « à traiter », et leur nombre par famille — une famille sans non-lue est
      * absente de l'objet.
      *
-     * @return array{0: int, 1: array{a_traiter_non_lues: int, par_famille: object}}
+     * TCK-2847 — la même requête compte aussi TOUTES les notifications, lues comprises : `total` et
+     * `total_par_famille` (la puce « Toutes 42 » de la maquette = somme des familles), à côté des
+     * non-lues, qui ne changent pas. Une famille sans notification est absente de l'objet.
+     *
+     * @return array{0: int, 1: array{a_traiter_non_lues: int, par_famille: object, total: int, total_par_famille: object}}
      */
     private function unreadCounts(int $userId): array
     {
+        // TCK-2847 — sans `whereNull('read_at')` : les non-lues se comptent par `filter`, le total à côté.
         $groupes = AppNotification::query()
             ->where('user_id', $userId)
-            ->whereNull('read_at')
             ->toBase()
-            ->selectRaw('code, type, '.NotificationClassification::TARGET_KIND_SQL.' as target_kind, count(*) as total')
+            ->selectRaw('code, type, '.NotificationClassification::TARGET_KIND_SQL.' as target_kind, count(*) filter (where read_at is null) as non_lues, count(*) as total')
             ->groupByRaw('code, type, '.NotificationClassification::TARGET_KIND_SQL)
             ->get();
 
         $unread = 0;
         $aTraiter = 0;
         $parFamille = [];
+        $total = 0;
+        $totalParFamille = [];
         foreach ($groupes as $groupe) {
-            $n = (int) $groupe->total;
+            $n = (int) $groupe->non_lues;
             $classe = NotificationClassification::of($groupe->code, $groupe->type, $groupe->target_kind);
+            $famille = $classe['famille']->value;
+            $total += (int) $groupe->total;
+            $totalParFamille[$famille] = ($totalParFamille[$famille] ?? 0) + (int) $groupe->total;
+            if ($n === 0) {
+                continue;
+            }
             $unread += $n;
             $aTraiter += $classe['a_traiter'] ? $n : 0;
-            $parFamille[$classe['famille']->value] = ($parFamille[$classe['famille']->value] ?? 0) + $n;
+            $parFamille[$famille] = ($parFamille[$famille] ?? 0) + $n;
         }
 
         // Un objet même vide : `{}`, jamais `[]`.
-        return [$unread, ['a_traiter_non_lues' => $aTraiter, 'par_famille' => (object) $parFamille]];
+        return [$unread, [
+            'a_traiter_non_lues' => $aTraiter,
+            'par_famille' => (object) $parFamille,
+            'total' => $total,
+            'total_par_famille' => (object) $totalParFamille,
+        ]];
     }
 
     public function markAsRead(Request $request, AppNotification $notification): JsonResponse

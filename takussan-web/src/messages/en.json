@@ -1912,7 +1912,7 @@
       "downloading": "Downloading…",
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
-      "rowCap": "A file holds at most {max} rows, {pdf} in PDF.",
+      "rowCap": "At most {max} rows per export, {pdf} as PDF.",
       "truncated": "The file stops at {plafond} rows: the period holds more. Narrow it to get everything.",
       "failed": "The download failed. Please try again.",
       "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
@@ -3340,6 +3340,13 @@
           "creeeSansTitre": "Task created",
           "faite": "Task done: {titre}",
           "faiteSansTitre": "Task done"
+        },
+        "demandeSur": "Enquiry received about {bien}",
+        "reservation": {
+          "created": "{nature, select, stay {Stay request submitted} application {Application submitted} offer {Offer submitted} other {Booking created}}",
+          "confirmed": "{nature, select, stay {Stay confirmed} application {Application accepted} offer {Offer accepted} other {Booking confirmed}}",
+          "rejected": "{nature, select, stay {Stay request declined} application {Application declined} offer {Offer declined} other {Booking declined}}",
+          "counter_offer": "Counter-offer of {montant} sent"
         }
       },
       "dossier": {
@@ -9067,7 +9074,14 @@
             "titre": "The queue stops at the 100 most overdue instalments",
             "detail": "Select the others in the list to remind them."
           }
-        }
+        },
+        "tri": {
+          "label": "Sort unpaid items",
+          "retard": "Sort: days late",
+          "montant": "Sort: amount due"
+        },
+        "balancePdf": "Aged balance as PDF",
+        "enRetard": "{count, plural, one {# overdue instalment} other {# overdue instalments}}"
       }
     },
     "audit": {
@@ -9300,7 +9314,8 @@
         "counter_offer_declined": "Counter-offer declined",
         "counter_offer_expired": "Counter-offer expired",
         "lead_unhandled": "Request reopened",
-        "data_export_redownloaded": "Export downloaded again"
+        "data_export_redownloaded": "Export downloaded again",
+        "owner_mandate_terms_updated": "Landlord mandate updated"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -10873,7 +10888,8 @@
       "photo": "Photo",
       "rib": "Bank details (RIB)",
       "ninea": "NINEA",
-      "other": "Other"
+      "other": "Other",
+      "management_mandate": "Management mandate"
     },
     "entities": {
       "property": "Property",
@@ -11793,7 +11809,8 @@
           "cash": "Cash purchase",
           "mortgage": "Mortgage purchase",
           "mixed": "Down payment and mortgage"
-        }
+        },
+        "garantNomme": "Guarantor: {nom}{lien, select, aucun {} other {, {lien}}}{autres, plural, =0 {} other { +#}}"
       },
       "quoi": {
         "loyerPropose": "Proposed rent",
@@ -11856,13 +11873,14 @@
       },
       "suiteBail": {
         "titre": "Application accepted",
-        "texte": "All that remains is to create the lease: it is already filled in with what the application holds.",
         "locataire": "Tenant",
         "bien": "Property",
         "loyer": "Rent",
         "debut": "Start",
-        "modifiable": "Everything can still be changed before it is sent for signature.",
-        "caution": "Security deposit"
+        "caution": "Security deposit",
+        "pret": "Lease ready to create",
+        "repris": "Taken from the application. Everything can still be changed in the lease form.",
+        "garant": "Guarantor"
       },
       "paiement": {
         "ligne": "{type} · {montant}",
@@ -11877,7 +11895,8 @@
         "creee": "{nature, select, stay {Stay request sent} application {Application submitted} offer {Offer submitted} other {Booking created}} by {nom}",
         "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}",
         "visite": "{agent, select, aucun {Visit completed} other {Visit completed with {agent}}}",
-        "citation": "{quoi} — “{texte}”"
+        "citation": "{quoi} — “{texte}”",
+        "demande": "Contact request received"
       },
       "dossier": {
         "completude": "{recues}/{total} documents",
@@ -11937,6 +11956,70 @@
         "erreur": "The property’s nights could not be loaded.",
         "jour": "{jour}: {etat, select, ceSejour {this stay} autres {another stay} bloquee {blocked} enAttente {a pending request} other {free}}",
         "bloquees": "Blocked"
+      },
+      "origine": {
+        "depose": "{prenom} submitted an application",
+        "parLeLien": "via the link sent after the viewing",
+        "deposee": "Submitted {jour} at {heure}{invitation, select, oui { via the link sent after the viewing} other {}}"
+      },
+      "reponse": {
+        "heures": "reply expected within {n} h",
+        "jours": "{n, plural, one {reply expected within # day} other {reply expected within # days}}",
+        "depassee": "reply deadline passed"
+      },
+      "acceptee": {
+        "titre": "Application accepted",
+        "prevenu": "{prenom} has been notified"
+      },
+      "etape": {
+        "passe": "Moved to {etape}",
+        "detail": "{de} → {a}, prompted by the application",
+        "annuler": "Undo",
+        "remise": "Stage set back to {etape}",
+        "echec": "The stage could not be set back."
+      },
+      "fil": {
+        "titre": "{prenom}’s timeline",
+        "ficheClient": "Client record",
+        "demandeAuBail": "From enquiry to lease",
+        "jours": "{n, plural, one {# day} other {# days}}",
+        "vide": "Nothing in the timeline yet.",
+        "chargement": "Loading the timeline…"
+      },
+      "bailRepris": {
+        "titre": "New lease · from the application",
+        "locataire": "Tenant",
+        "locataireAide": "Their client record becomes the tenant record.",
+        "debut": "Lease start",
+        "duree": "Term",
+        "loyer": "Monthly rent",
+        "caution": "Security deposit",
+        "garant": "Guarantor",
+        "garantAide": "ID document to receive before signing.",
+        "repris": "{n, plural, one {One field taken from the application.} other {# fields taken from the application.}} On signing, the property becomes “Rented” and {prenom}’s record suggests the Won stage.",
+        "annuler": "Cancel",
+        "formulaire": "Open the full form",
+        "creer": "Create the lease",
+        "echec": "The lease was not created."
+      },
+      "garants": {
+        "titre": "Guarantors",
+        "aucun": "No guarantor yet.",
+        "ajouter": "Add a guarantor",
+        "retirer": "Remove {nom}",
+        "prenom": "First name",
+        "nom": "Last name",
+        "telephone": "Phone",
+        "lien": "Relationship to the applicant",
+        "enregistrer": "Add the guarantor",
+        "echec": "The guarantor was not saved.",
+        "codes": {
+          "pasPourCetteNature": "Only an application or an offer can have a guarantor.",
+          "dejaRattache": "This guarantor is already attached to this request.",
+          "pasRattache": "This guarantor is no longer attached to this request.",
+          "troisAuPlus": "A request cannot have more than 3 guarantors.",
+          "dossierClos": "This request is closed: its guarantors can no longer change."
+        }
       }
     },
     "feuilles": {
@@ -16664,7 +16747,8 @@
       "envoyerRib": "Send the RIB",
       "envoyerRibAria": "Send the RIB for account {masked}",
       "ribEnvoyeToast": "RIB sent: your account is under review.",
-      "ribEchec": "The RIB could not be sent."
+      "ribEchec": "The RIB could not be sent.",
+      "jourDeVersement": "paid out on the {jour} of each month"
     },
     "serviceProvider": {
       "title": "My provider activity",
@@ -21360,7 +21444,9 @@
       "prereglages": {
         "moisDernier": "Last month",
         "ceMois": "This month",
-        "annee": "Year {annee}"
+        "annee": "Year {annee}",
+        "trimestre": "Quarter",
+        "autre": "Other…"
       },
       "telechargerAria": "Download {titre} as {format}",
       "cartes": {
@@ -21397,8 +21483,14 @@
         "lignes": "Rows",
         "gestes": "Actions"
       },
-      "pied": "No file is kept: “Redo” runs the export again with the same settings. At most {max} rows, {pdf} as PDF.",
-      "telechargerLExport": "Download the export"
+      "pied": "Each file can be downloaded again for {jours} days; after that, “Redo” runs the export again with the same settings. At most {max} rows, {pdf} as PDF.",
+      "telechargerLExport": "Download the export",
+      "lignesAExporter": "{n, plural, =0 {No rows to export.} one {{lignes} row to export.} other {{lignes} rows to export.}}",
+      "tropDeLignes": "{lignes} rows to export: more than the {limite} an export in this format can hold. Shorten the period or pick another format.",
+      "retelecharger": "Download again",
+      "retelechargerAria": "Download the {type} export again, {periode}",
+      "retelechargerExpire": "This file is no longer available: use “Redo” to run the export again.",
+      "retelechargerEchec": "The download failed. Please try again."
     },
     "alertes": {
       "declencheeLe": "Triggered on {date}",
@@ -21407,7 +21499,9 @@
       "destinatairesCompte": "{n, plural, =0 {Nobody} one {# administrator} other {# administrators}}",
       "canaux": {
         "email": "email",
-        "inapp": "notification"
+        "inapp": "notification",
+        "whatsapp": "WhatsApp",
+        "both": "Email and WhatsApp"
       },
       "seuil": "threshold {valeur}",
       "delai": "{h} h",
@@ -21417,7 +21511,7 @@
       "nouvelle": "New alert",
       "resume": "{n, plural, =0 {No alerts} one {# alert} other {# alerts}} · {declenchees, plural, =0 {none crossed} one {# crossed} other {# crossed}} · measures checked every hour",
       "suppressionEchec": "Deletion failed. Please try again.",
-      "videDescription": "Create an alert: administrators are notified when the indicator crosses the threshold. Measures are checked every hour.",
+      "videDescription": "Create an alert: the people you choose (by default, administrators) are notified when the indicator crosses the threshold. Measures are checked every hour.",
       "actuel": "Current",
       "previent": "Notifies {qui} · {canal}",
       "auPlusUne": "At most one alert every {delai}",
@@ -21435,12 +21529,21 @@
       "recents": "Recent triggers",
       "condition": "Condition",
       "quiEstPrevenu": "Who is notified",
-      "quiEstPrevenuValeur": "The agency’s active administrators, by notification and email.",
       "relueToutesLesHeures": "The measure is checked every hour.",
       "modificationEchec": "The change failed. Please try again.",
       "enregistrer": "Save",
       "uniteHeures": "hours",
-      "valeurActuelle": "Current value: {valeur}"
+      "valeurActuelle": "Current value: {valeur}",
+      "canalChoix": {
+        "email": "Email",
+        "whatsapp": "WhatsApp",
+        "both": "Both"
+      },
+      "tousLesAdministrateurs": "All administrators",
+      "quiEstPrevenuAide": "With no one chosen, every administrator who can read this figure is notified.",
+      "destinatairesChargement": "Loading possible recipients…",
+      "canalWhatsappAide": "WhatsApp only reaches people who turned it on in their preferences, with a verified number.",
+      "suite": "{canal} · {n, plural, =0 {nobody notified} one {# person notified} other {# people notified}}"
     },
     "reglage": {
       "titre": "Customise the figures",
@@ -21461,7 +21564,16 @@
       "enregistrer": "Save",
       "termine": "Done",
       "annuler": "Cancel",
-      "enregistre": "Saved."
+      "enregistre": "Saved.",
+      "modifierAria": "Edit the label and format of {libelle}",
+      "metrique": "Metric: {metrique}",
+      "metriqueAvecValeur": "Metric: {metrique} (today: {valeur})",
+      "libelleVide": "Every figure needs a label: fill in the empty one.",
+      "formats": {
+        "number": "Number",
+        "currency": "Amount",
+        "percent": "Percentage"
+      }
     },
     "description": "{nom} · {periode}",
     "descriptionPeriode": "from {debut} to {fin}",

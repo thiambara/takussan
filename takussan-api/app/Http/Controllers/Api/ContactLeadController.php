@@ -33,19 +33,9 @@ class ContactLeadController extends Controller
 
     public function index(Request $request, PropertyContactLeadPolicy $policy): JsonResponse
     {
-        $user = $request->user();
+        // TCK-2847 — la portée vit dans la policy (`scopeIndex`), que la ligne d'activité des espaces lit aussi.
         $base = PropertyContactLead::query();
-
-        if (! $user->isSuperAdmin()) {
-            $agencyId = $policy->agencyScopeFor($user);
-
-            $base->where(function ($q) use ($user, $agencyId, $policy) {
-                $q->where(fn ($d) => $policy->scopeDestinataire($d, $user));
-                if ($agencyId !== null) {
-                    $q->orWhere('agency_id', $agencyId);
-                }
-            });
-        }
+        $policy->scopeIndex($base, $request->user());
 
         $paginator = PropertyContactLead::buildQuery($base, $request)
             ->defaultSort('-created_at')
