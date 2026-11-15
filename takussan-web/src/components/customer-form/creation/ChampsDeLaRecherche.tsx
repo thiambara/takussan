@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl';
 import { Controller, useWatch, type Control } from 'react-hook-form';
 
 import { Input } from '@/components/ui/input';
+import { quartiersProches, villeDesQuartiers } from '@/lib/crm/quartiers-proches';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { useQuartiersDuReferentiel, useVillesDuReferentiel } from '@/lib/queries/referentiel-public';
 import { seekingPropertyTypeValues, type CustomerFormValues } from '@/lib/schemas/customer';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +31,7 @@ export function ChampsDeLaRecherche({ control, prefixe = 'creation' }: { readonl
   const tTypes = useTranslations('nav.categories');
   const [tousLesTypes, setTousLesTypes] = useState(false);
   const contrat = useWatch({ control, name: 'seeking_contract_type' });
+  const villes = useWatch({ control, name: 'seeking_cities' });
   return (
     <div className="space-y-4">
       <Controller
@@ -99,7 +102,7 @@ export function ChampsDeLaRecherche({ control, prefixe = 'creation' }: { readonl
           );
         }}
       />
-      <Controller control={control} name="seeking_neighborhoods" render={({ field }) => <Quartiers id={`${prefixe}-quartiers`} valeur={field.value ?? ''} onChange={field.onChange} />} />
+      <Controller control={control} name="seeking_neighborhoods" render={({ field }) => <Quartiers id={`${prefixe}-quartiers`} valeur={field.value ?? ''} villes={villes ?? ''} onChange={field.onChange} />} />
       <Controller
         control={control}
         name="budget_max"
@@ -109,11 +112,26 @@ export function ChampsDeLaRecherche({ control, prefixe = 'creation' }: { readonl
   );
 }
 
+const enListe = (v: string) => v.split(',').map((x) => x.trim()).filter(Boolean);
+
+/**
+ * TCK-2890 — les trois quartiers approuvés les plus proches de ceux choisis (`lib/crm/quartiers-proches`),
+ * dans la ville recherchée (sinon Dakar). Rien n'est demandé tant qu'aucun quartier n'est choisi.
+ */
+function useQuartiersProches(choisis: readonly string[], villesCherchees: string): string[] {
+  const actif = choisis.length > 0;
+  const villes = useVillesDuReferentiel(actif);
+  const ville = actif ? villeDesQuartiers(enListe(villesCherchees), villes.data?.data ?? []) : null;
+  const quartiers = useQuartiersDuReferentiel(ville?.id ?? null);
+  return actif ? quartiersProches(choisis, quartiers.data?.data ?? []) : [];
+}
+
 /** Les quartiers en pastilles : Entrée ou virgule ajoute, la croix retire ; la valeur reste « A, B ». */
-function Quartiers({ id, valeur, onChange }: { readonly id: string; readonly valeur: string; readonly onChange: (v: string) => void }) {
+function Quartiers({ id, valeur, villes, onChange }: { readonly id: string; readonly valeur: string; readonly villes: string; readonly onChange: (v: string) => void }) {
   const t = useTranslations('crm.creation');
   const [saisie, setSaisie] = useState('');
-  const liste = valeur.split(',').map((x) => x.trim()).filter(Boolean);
+  const liste = enListe(valeur);
+  const proches = useQuartiersProches(liste, villes);
   const ajouter = () => {
     const q = saisie.trim().replace(/,$/, '').trim();
     if (q && !liste.some((x) => x.toLocaleLowerCase() === q.toLocaleLowerCase())) onChange([...liste, q].join(', '));
@@ -159,6 +177,23 @@ function Quartiers({ id, valeur, onChange }: { readonly id: string; readonly val
           className="-my-1.5 w-auto min-w-24 flex-1 rounded-none border-0 bg-transparent px-1 focus-visible:ring-0 dark:bg-transparent"
         />
       </div>
+      {/* TCK-2890 — maquette e2/e4 : « + Sacré-Cœur · + Point E · + Liberté 6 », un toucher ajoute. */}
+      {proches.length > 0 ? (
+        <ul aria-label={t('quartiersProches')} data-slot="quartiers-proches" className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-ui">
+          {proches.map((q) => (
+            <li key={q}>
+              <button
+                type="button"
+                aria-label={t('ajouterQuartierProche', { quartier: q })}
+                onClick={() => onChange([...liste, q].join(', '))}
+                className="relative rounded-sm font-medium text-primary outline-none after:absolute after:-inset-x-1 after:-inset-y-3 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                + {q}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

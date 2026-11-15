@@ -6,8 +6,12 @@
  *  · `vue` : `a-relancer` · `mes-clients` · `negociation` · `sans-referent` ; absente : « Tous ».
  *    Une vue est un filtre de l'API ({@link filtresDeLaVue}), jamais un tri côté client.
  *    « Sans référent » est la vue de l'admin ; les vues ne valent que pour le personnel.
- *  · `sort` : borné aux tris que l'API accepte sur une colonne (`TRIS_DES_COLONNES`). L'étape et le
- *    référent ne se trient pas : l'API rend 400 (relevé le 2026-11-12).
+ *  · `sort` : borné aux tris que l'API accepte sur une colonne (`TRIS_DES_COLONNES`). TCK-2890 —
+ *    l'étape (`pipeline_stage`, dans l'ordre du parcours) et le référent (par nom, sans référent en
+ *    dernier) se trient depuis TCK-2889.
+ *  · TCK-2890 — « À relancer » lit `filter[follow_up]=week` : les relances dues, puis les fiches dont
+ *    la prochaine action tombe d'ici dimanche (« Relances prévues cette semaine »), triées
+ *    `-follow_up_days,next_action_at` — les retards d'abord, la semaine dans l'ordre du jour.
  *  · `per_page` : 10, 20 (défaut, absent de l'URL) ou 50 — transmis tel quel (TCK-2590 AC4).
  *  · `page`, `search`, `pipeline_stage`, `status`, `tags` : comme avant (TCK-042, TCK-093).
  *  · `stage_group=active` : les étapes vivantes (`filter[stage_group]`, TCK-2588), cible de « Prospects »
@@ -27,12 +31,19 @@ export const PAR_PAGE_PAR_DEFAUT: ParPage = 20;
 export const TRIS_DES_COLONNES = {
   client: 'last_name',
   prochaine: 'next_action_at',
+  // TCK-2890 — servis par TCK-2889.
+  etape: 'pipeline_stage',
+  referent: 'referent',
 } as const;
+
+/** TCK-2890 — le tri de « À relancer » : les retards d'abord, puis la semaine dans l'ordre du jour. */
+export const TRI_DES_RELANCES = '-follow_up_days,next_action_at';
 export type ColonneTriable = keyof typeof TRIS_DES_COLONNES;
 
 const TRIS_ACCEPTES = new Set<string>([
   ...Object.values(TRIS_DES_COLONNES).flatMap((s) => [s, `-${s}`]),
   '-follow_up_days',
+  TRI_DES_RELANCES,
 ]);
 
 type Brut = Record<string, string | string[] | undefined>;
@@ -72,7 +83,8 @@ export interface FiltresDesClients {
   readonly pipeline_stage?: string;
   readonly search?: string;
   readonly tags?: string;
-  readonly follow_up?: '1';
+  /** `week` (TCK-2890) : les relances dues ET celles prévues d'ici dimanche — la vue « À relancer ». */
+  readonly follow_up?: '1' | 'week';
   readonly referent?: 'me' | 'none';
   /** TCK-2596 — `active` : les étapes vivantes, lead à négociation. */
   readonly stage_group?: 'active';
@@ -82,7 +94,7 @@ export interface FiltresDesClients {
 export function filtresDeLaVue(vue: VueDesClients): Partial<FiltresDesClients> {
   switch (vue) {
     case 'a-relancer':
-      return { follow_up: '1' };
+      return { follow_up: 'week' };
     case 'mes-clients':
       return { referent: 'me' };
     case 'negociation':
@@ -98,7 +110,7 @@ export function filtresDeLaVue(vue: VueDesClients): Partial<FiltresDesClients> {
 export function triParDefaut(vue: VueDesClients, lecteur: LecteurDeLaListe, recherche: boolean): string | undefined {
   // TCK-702 — une recherche se classe par pertinence côté API : aucun tri explicite.
   if (recherche) return undefined;
-  if (vue === 'a-relancer') return '-follow_up_days';
+  if (vue === 'a-relancer') return TRI_DES_RELANCES;
   // Hors personnel, la prochaine action est nulle sur chaque ligne : la plus récente d'abord, comme avant.
   return lecteur.personnel ? TRIS_DES_COLONNES.prochaine : '-created_at';
 }

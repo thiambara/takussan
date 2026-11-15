@@ -2032,7 +2032,8 @@
       "maintenance": {
         "metaTitle": "Maintenance",
         "title": "Maintenance",
-        "subtitle": "Requests and intervention tracking"
+        "subtitle": "Requests and intervention tracking",
+        "subtitleDuBail": "Maintenance requests for this lease"
       },
       "payments": {
         "title": "Payments",
@@ -2640,7 +2641,15 @@
         "aCorrigerBureau": "{n, plural, one {# value to fix} other {# values to fix}} before saving"
       },
       "erreurLecture": "The settings could not be loaded.",
-      "erreurEcriture": "The setting could not be saved."
+      "erreurEcriture": "The setting could not be saved.",
+      "vide": "Your agency hasn’t set anything yet: every new lease uses the platform values. Change a value to apply it to all your future leases.",
+      "lectureSeule": "You can view these settings, but not change them. Only someone who manages the agency can change them.",
+      "bail": {
+        "venu": "You came from the new lease for <nom>{locataire}</nom>. Your entries are kept as a draft.",
+        "venuSansNom": "You came from a new lease. Your entries are kept as a draft.",
+        "enregistre": "<fort>Settings saved.</fort> Your future leases will use them.",
+        "reprendre": "Resume the lease"
+      }
     }
   },
   "compare": {
@@ -5079,7 +5088,8 @@
         "detail": "Due day, late fee and early termination fee",
         "detailAvecCommission": "Due day, late fee, commission and early termination fee",
         "modifier": "Edit",
-        "nouvelOnglet": "agency settings (opens in a new tab)"
+        "cible": "the agency settings",
+        "brouillonEchec": "Your entries couldn’t be kept as a draft: stay on this lease and try again in a moment."
       },
       "echeance": "Due day",
       "echeanceAide": "Day of the month, 1 to 28",

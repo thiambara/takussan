@@ -1403,7 +1403,15 @@
         "aCorrigerBureau": "{n, plural, one {# valeur à corriger} other {# valeurs à corriger}} avant d’enregistrer"
       },
       "erreurLecture": "Les réglages n’ont pas pu être chargés.",
-      "erreurEcriture": "Le réglage n’a pas pu être enregistré."
+      "erreurEcriture": "Le réglage n’a pas pu être enregistré.",
+      "vide": "Votre agence n’a encore rien réglé : chaque nouveau bail reprend les valeurs de la plateforme. Changez une valeur pour qu’elle s’applique à tous vos prochains baux.",
+      "lectureSeule": "Vous pouvez consulter ces réglages, pas les modifier. Seule une personne qui administre l’agence peut les changer.",
+      "bail": {
+        "venu": "Vous venez du nouveau bail de <nom>{locataire}</nom>. Votre saisie est gardée en brouillon.",
+        "venuSansNom": "Vous venez d’un nouveau bail. Votre saisie est gardée en brouillon.",
+        "enregistre": "<fort>Réglages enregistrés.</fort> Vos prochains baux les reprennent.",
+        "reprendre": "Reprendre le bail"
+      }
     }
   },
   "compare": {
@@ -3842,7 +3850,8 @@
         "detail": "Échéance, pénalité de retard et indemnité de départ",
         "detailAvecCommission": "Échéance, pénalité de retard, commission et indemnité de départ",
         "modifier": "Modifier",
-        "nouvelOnglet": "les réglages de l’agence (s’ouvre dans un nouvel onglet)"
+        "cible": "les réglages de l’agence",
+        "brouillonEchec": "Votre saisie n’a pas pu être gardée en brouillon : restez sur ce bail et réessayez dans un instant."
       },
       "echeance": "Échéance",
       "echeanceAide": "Jour du mois, de 1 à 28",
@@ -17145,7 +17154,8 @@
       "maintenance": {
         "metaTitle": "Wattu",
         "title": "Wattu",
-        "subtitle": "Ñaan ak topptoo liggéey yi"
+        "subtitle": "Ñaan ak topptoo liggéey yi",
+        "subtitleDuBail": "Les interventions de ce bail"
       },
       "payments": {
         "title": "Pey yi",

@@ -25,7 +25,7 @@ import { useToast } from '@/components/ui/toast';
 import { PlanifierDialog } from '@/components/visits/PlanifierUneVisite';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
-import { type ColonneTriable, sensDeLaColonne, triAuClic, type VueDesClients } from '@/lib/crm/liste-des-clients';
+import { type ColonneTriable, sensDeLaColonne, TRI_DES_RELANCES, triAuClic, type VueDesClients } from '@/lib/crm/liste-des-clients';
 import { initiales } from '@/lib/fiche-publique';
 import { type CanalDeContactClient, useDesignerReferent, useEnregistrerContactClient } from '@/lib/queries/customer-gestures';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 
 import { EtapeDuClient, GestesDuClient, InitialesDuClient, type LectureDuClient, useLecteurDuClient } from './pieces';
+import { useSuiteDeLaListe } from './suite-de-la-liste';
 
 /**
  * TCK-1038 (P70.01) — un écran de lecture ne charge pas zod ni react-hook-form : la création courte
@@ -79,8 +80,10 @@ export interface ListeDesClientsProps {
  *    nom, relance en retard ou prochaine action, étape et sa recherche ; Appeler et WhatsApp).
  *  · Bureau (dès `lg`) : les vues en onglets, Étape · Statut · Étiquettes et la recherche, puis le
  *    tableau Client · Cherche · Étape · Prochaine action · Référent · Étiquettes, triable par client
- *    et par prochaine action, ses gestes au survol. Sous `xl`, le tableau garde sa largeur et défile
- *    dans sa carte.
+ *    et par prochaine action — et, TCK-2890, par étape et par référent —, ses gestes au survol. Sous
+ *    `xl`, le tableau garde sa largeur et défile dans sa carte.
+ *  · TCK-2890 — au téléphone, « Relances prévues cette semaine » sépare les retards de la semaine dans
+ *    « À relancer », et le pied « N clients à relancer · Voir plus » remplace la pagination.
  *
  * Tout l'état vit dans l'URL (`lib/crm/liste-des-clients`) : la page serveur lit, ce composant écrit.
  */
@@ -105,6 +108,13 @@ export function ListeDesClients(props: ListeDesClientsProps) {
   const choisirVue = (v: VueDesClients) => remplacer({ vue: v === 'tous' ? null : v, sort: null, page: null });
   const clients = page.data ?? [];
   const lignes = clients.map((c) => ({ client: c, lecture: lire(c) }));
+  // TCK-2890 — au téléphone, « Voir plus » ajoute la page suivante sous les lignes (pas de pagination).
+  const suite = useSuiteDeLaListe(page, { personnel, admin });
+  const lignesDuTelephone = suite.clients.map((c) => ({ client: c, lecture: lire(c) }));
+  // TCK-2890 — « À relancer » : les relances dues, puis « Relances prévues cette semaine » (l'API les
+  // rend dans cet ordre, `TRI_DES_RELANCES`). Le séparateur précède la première ligne qui n'est pas en retard
+  // — sous ce tri seulement : une recherche (pertinence) ou un tri de colonne mêle les deux groupes.
+  const debutDeLaSemaine = vue === 'a-relancer' && props.tri === TRI_DES_RELANCES ? lignesDuTelephone.findIndex((l) => !l.lecture.prochaine?.enRetard) : -1;
   const total = comptes.tous ?? null;
   const aRelancer = comptes['a-relancer'] ?? null;
   const sansReferent = comptes['sans-referent'] ?? null;
@@ -207,15 +217,19 @@ export function ListeDesClients(props: ListeDesClientsProps) {
       ) : (
         <>
           <ul className="border-t border-border lg:hidden" aria-label={t('caption')}>
-            {lignes.map(({ client, lecture }) => (
+            {lignesDuTelephone.map(({ client, lecture }, i) => (
               <li key={client.id}>
+                {/* TCK-2890 — maquette e0 : le bandeau entre les retards et la semaine. */}
+                {i === debutDeLaSemaine ? (
+                  <p data-slot="relances-de-la-semaine" className="border-b border-border bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground">
+                    {t('cetteSemaine')}
+                  </p>
+                ) : null}
                 <LigneDuClient client={client} lecture={lecture} noter={noter?.(client.id)} />
               </li>
             ))}
           </ul>
-          <div className="px-4 pt-4 md:px-0 lg:hidden">
-            <PropertyPagination meta={page.meta} />
-          </div>
+          <PiedDuTelephone total={page.meta.total} aRelancer={vue === 'a-relancer'} suite={suite} />
 
           <div className="hidden pt-6 lg:block">
             <div className="overflow-hidden rounded-xl border border-border bg-card max-xl:overflow-x-auto">
@@ -255,6 +269,41 @@ const VUE_DU_BUREAU = [
   'portee-app:group-data-[variant=default]/tabs-list:group-data-[size=sm]/tabs-list:leading-normal',
 ].join(' ');
 
+/**
+ * TCK-2890 — le pied de la liste au téléphone (maquette e0) : « 6 clients à relancer · Voir plus » sur
+ * « À relancer », « 141 clients · Voir plus » ailleurs ; « Voir plus » charge la page suivante sur place
+ * et disparaît quand tout est là.
+ */
+function PiedDuTelephone({ total, aRelancer, suite }: { readonly total: number; readonly aRelancer: boolean; readonly suite: ReturnType<typeof useSuiteDeLaListe> }) {
+  const t = useTranslations('crm.list.pied');
+  return (
+    <div data-slot="pied-de-la-liste" className="px-4 py-5 text-center text-ui text-muted-foreground lg:hidden">
+      <p>
+        {aRelancer ? t('aRelancer', { count: total }) : t('tous', { count: total })}
+        {suite.encore ? (
+          <>
+            {' · '}
+            <button
+              type="button"
+              onClick={suite.voirPlus}
+              disabled={suite.chargement}
+              aria-busy={suite.chargement || undefined}
+              className="relative font-medium text-primary underline-offset-4 outline-none after:absolute after:-inset-x-2 after:-inset-y-3 hover:underline focus-visible:underline disabled:opacity-60"
+            >
+              {suite.chargement ? t('chargement') : t('voirPlus')}
+            </button>
+          </>
+        ) : null}
+      </p>
+      {suite.erreur ? (
+        <p role="alert" className="mt-2 text-destructive">
+          {t('erreur')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function OutilsDuTelephone({ tri, crmTags }: { readonly tri: string | undefined; readonly crmTags: readonly CrmTagOption[] }) {
   const t = useTranslations('crm.list');
   const tFiltres = useTranslations('crm.filters');
@@ -263,13 +312,17 @@ function OutilsDuTelephone({ tri, crmTags }: { readonly tri: string | undefined;
   const libelleDuTri =
     tri === undefined
       ? t('tri.pertinence')
-      : tri === '-follow_up_days'
+      : tri.startsWith('-follow_up_days')
         ? t('tri.relance')
         : tri.endsWith('next_action_at')
           ? t('tri.prochaine')
           : tri.endsWith('last_name')
             ? t('tri.nom')
-            : t('tri.recents');
+            : tri.endsWith('pipeline_stage')
+              ? t('tri.etape')
+              : tri.endsWith('referent')
+                ? t('tri.referent')
+                : t('tri.recents');
   const ouverte = recherche || f.search !== '';
   return (
     <>
@@ -415,7 +468,12 @@ function TableDesClients({ lignes, tri, personnel, noter, designer, onTri, onEti
             </EnTeteTriable>
           </Th>
           <Th>{t('columns.cherche')}</Th>
-          <Th className="w-[calc(var(--spacing)*32.22)]">{t('columns.etape')}</Th>
+          {/* TCK-2890 — Étape (dans l'ordre du parcours) et Référent (par nom) se trient (TCK-2889). */}
+          <Th className="w-[calc(var(--spacing)*32.22)]" sens={sensDeLaColonne(tri, 'etape')}>
+            <EnTeteTriable colonne="etape" tri={tri} onTri={onTri}>
+              {t('columns.etape')}
+            </EnTeteTriable>
+          </Th>
           <Th className="w-[calc(var(--spacing)*69.44)]" sens={personnel ? sensDeLaColonne(tri, 'prochaine') : undefined}>
             {personnel ? (
               <EnTeteTriable colonne="prochaine" tri={tri} onTri={onTri}>
@@ -425,7 +483,11 @@ function TableDesClients({ lignes, tri, personnel, noter, designer, onTri, onEti
               t('columns.prochaine')
             )}
           </Th>
-          <Th className="w-[calc(var(--spacing)*29.17)] w1440:w-[calc(var(--spacing)*41.67)]">{t('columns.referent')}</Th>
+          <Th className="w-[calc(var(--spacing)*29.17)] w1440:w-[calc(var(--spacing)*41.67)]" sens={sensDeLaColonne(tri, 'referent')}>
+            <EnTeteTriable colonne="referent" tri={tri} onTri={onTri}>
+              {t('columns.referent')}
+            </EnTeteTriable>
+          </Th>
           <Th className="w-[calc(var(--spacing)*41.67)]">{t('columns.tags')}</Th>
         </tr>
       </thead>

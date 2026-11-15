@@ -12,11 +12,11 @@ const ADMIN = { personnel: true, admin: true };
 const BAILLEUR = { personnel: false, admin: false };
 
 describe('lireLaListe — les vues', () => {
-  it('« À relancer » émet filter[follow_up]=1 et trie par -follow_up_days (AC2)', () => {
+  it('« À relancer » émet filter[follow_up]=week et trie les retards puis la semaine (AC2 ; TCK-2890)', () => {
     const e = lireLaListe({ vue: 'a-relancer' }, AGENT);
     expect(e.vue).toBe('a-relancer');
-    expect(e.filtres.follow_up).toBe('1');
-    expect(e.tri).toBe('-follow_up_days');
+    expect(e.filtres.follow_up).toBe('week');
+    expect(e.tri).toBe('-follow_up_days,next_action_at');
   });
 
   it('« Mes clients » : referent=me ; « Négociation » : l’étape negotiating, qui l’emporte sur celle de l’URL', () => {
@@ -63,10 +63,11 @@ describe('lireLaListe — par page et tri', () => {
     expect(lireLaListe({}, BAILLEUR).tri).toBe('-created_at');
   });
 
-  it('un tri d’URL est borné aux colonnes triables de l’API ; l’étape et le référent ne le sont pas', () => {
+  it('un tri d’URL est borné aux colonnes triables de l’API ; l’étape et le référent le sont depuis TCK-2889 (TCK-2890)', () => {
     expect(lireLaListe({ sort: '-last_name' }, AGENT).tri).toBe('-last_name');
-    expect(lireLaListe({ sort: 'pipeline_stage' }, AGENT).tri).toBe('next_action_at');
-    expect(lireLaListe({ sort: 'referent' }, AGENT).tri).toBe('next_action_at');
+    expect(lireLaListe({ sort: 'pipeline_stage' }, AGENT).tri).toBe('pipeline_stage');
+    expect(lireLaListe({ sort: '-referent' }, AGENT).tri).toBe('-referent');
+    expect(lireLaListe({ sort: 'created_at' }, AGENT).tri).toBe('next_action_at');
     // Hors personnel, la prochaine action est nulle partout : son tri n'a pas de sens.
     expect(lireLaListe({ sort: 'next_action_at' }, BAILLEUR).tri).toBe('-created_at');
   });
@@ -78,5 +79,10 @@ describe('lireLaListe — par page et tri', () => {
     expect(sensDeLaColonne('-last_name', 'client')).toBe('desc');
     expect(sensDeLaColonne('next_action_at', 'prochaine')).toBe('asc');
     expect(sensDeLaColonne('next_action_at', 'client')).toBeNull();
+    // TCK-2890 — Étape et Référent.
+    expect(triAuClic('next_action_at', 'etape')).toBe('pipeline_stage');
+    expect(triAuClic('pipeline_stage', 'etape')).toBe('-pipeline_stage');
+    expect(triAuClic(undefined, 'referent')).toBe('referent');
+    expect(sensDeLaColonne('-referent', 'referent')).toBe('desc');
   });
 });

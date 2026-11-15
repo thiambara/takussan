@@ -3,7 +3,7 @@
  * personnel : un bailleur garde la lecture de ses fiches, sans l'entrée de création ni le kanban.
  *
  * TCK-2590 — la page lit l'URL et la traduit en lecture de l'API : la vue « À relancer » émet
- * `filter[follow_up]=1&sort=-follow_up_days` (AC2), `per_page` est transmis (AC4), chaque vue est
+ * `filter[follow_up]=week&sort=-follow_up_days,next_action_at` (AC2 ; TCK-2890), `per_page` est transmis (AC4), chaque vue est
  * comptée (`per_page=1`) ; le rendu est celui de `ListeDesClients` (son test porte les gestes).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -55,10 +55,10 @@ describe('/app/customers — entrées réservées au personnel (TCK-591 §9)', (
 });
 
 describe('/app/customers — l’URL lue (TCK-2590)', () => {
-  it('« À relancer » : filter[follow_up]=1 et sort=-follow_up_days ; les comptes de chaque vue (AC2)', async () => {
+  it('« À relancer » : filter[follow_up]=week et sort=-follow_up_days,next_action_at ; les comptes de chaque vue (AC2 ; TCK-2890)', async () => {
     me.roles = ['agent'];
     const p = await ouvrir({ vue: 'a-relancer' });
-    expect(api.liste).toHaveBeenCalledWith('jeton', expect.objectContaining({ sort: '-follow_up_days', filters: expect.objectContaining({ follow_up: '1' }) }));
+    expect(api.liste).toHaveBeenCalledWith('jeton', expect.objectContaining({ sort: '-follow_up_days,next_action_at', filters: expect.objectContaining({ follow_up: 'week' }) }));
     expect(p.comptes).toEqual({ 'a-relancer': 6, 'mes-clients': 38, negociation: 10, tous: 141 });
     expect(api.compte).toHaveBeenCalledWith('jeton', {});
   });

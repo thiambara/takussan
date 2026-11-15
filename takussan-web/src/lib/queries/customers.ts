@@ -59,8 +59,11 @@ export interface DashboardCustomerFilters {
   readonly search?: string;
   readonly tags?: string;
   readonly tags_all?: string;
-  /** TCK-2588 — `1` : les fiches à relancer (« À relancer », TCK-2590). */
-  readonly follow_up?: '1';
+  /**
+   * TCK-2588 — `1` : les fiches à relancer. TCK-2890 — `week` : les mêmes, plus celles dont la
+   * prochaine action tombe d'ici dimanche (la vue « À relancer » de la liste).
+   */
+  readonly follow_up?: '1' | 'week';
   /** TCK-2588 — `me` : « Mes clients » ; `none` : « Sans référent ». */
   readonly referent?: 'me' | 'none';
   /** TCK-2588 — `active` : les étapes vivantes (« Prospects » de « Ma journée », TCK-2596). */

@@ -23,6 +23,11 @@ vi.mock('@/app/actions/dashboard-customers', () => ({
   createCustomerAction: vi.fn(),
   updateCustomerAction: (...a: unknown[]) => actions.update(...a),
 }));
+// TCK-2890 — les quartiers proches lisent le référentiel (React Query) : hors sujet ici, sans réponse.
+vi.mock('@/lib/queries/referentiel-public', () => ({
+  useVillesDuReferentiel: () => ({ data: undefined }),
+  useQuartiersDuReferentiel: () => ({ data: undefined }),
+}));
 vi.mock('@/components/customer-form/RevelationNumeroDePiece', () => ({ RevelationNumeroDePiece: () => <button type="button">Afficher</button> }));
 
 import { ModifierLaFiche } from '../ModifierLaFiche';
