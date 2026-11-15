@@ -15,6 +15,7 @@ import { ErrorState } from '@/components/feedback';
 import { ApiError } from '@/lib/api';
 import { PageHeader, StatusBadge } from '@/components/console';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -587,6 +588,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     return (
       <PagePleineLargeur data-slot="fiche-de-la-reservation" className="pb-6">
         <DeclarerEnTete forme="detail" titre={titreDeLEnTete} repli={versLaListe} />
+        {/* TCK-2846 — au téléphone aussi : la fiche entre dans les récents sous son titre. */}
+        <RetenirLaFiche type="reservation" id={booking.id} titre={titre} chemin={`/app/bookings/${booking.id}`} />
         <h1 className="sr-only">{titre}</h1>
         <div className="p-4">
           <div className="flex items-center gap-2">
@@ -708,6 +711,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   return (
     <PagePleineLargeur data-slot="fiche-de-la-reservation">
       <DeclarerEnTete forme="detail" titre={titreDeLEnTete} repli={versLaListe} />
+      {/* TCK-2846 — la fiche entre dans les récents sous son titre (« Réservation · Bien »). */}
+      <RetenirLaFiche type="reservation" id={booking.id} titre={titre} chemin={`/app/bookings/${booking.id}`} />
       <PageHeader
         fil={{
           label: tConsole('breadcrumb'),

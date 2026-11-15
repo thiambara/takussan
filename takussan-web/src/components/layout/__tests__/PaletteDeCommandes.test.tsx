@@ -73,13 +73,15 @@ const utilisateur = (roles: UserRole[]): User =>
   ({ id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles, agency_id: 3 }) as unknown as User;
 
 const fermer = vi.fn();
+/** TCK-2846 — les récents sont rangés par espace : celui de la coque de ces épreuves. */
+const ESPACE = 'agent:5';
 function ui(roles: UserRole[], typeProfilActif: ProfileType | null = null, ouverte = true, modulesMasques: readonly string[] = []) {
   return withIntl(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <PaletteDeCommandes
         ouverte={ouverte}
         onOuverteChange={fermer}
-        contexteDuMenu={{ user: utilisateur(roles), agencyIsStandard: true, typeProfilActif, modulesMasques }}
+        contexteDuMenu={{ user: utilisateur(roles), agencyIsStandard: true, typeProfilActif, modulesMasques, espaceActif: ESPACE }}
       />
     </QueryClientProvider>,
   );
@@ -244,7 +246,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
   });
 
   it('« Récents » sur un champ vide : résolus sur le menu, l’inaccessible et la page courante absents ; disparaissent à la frappe', async () => {
-    for (const chemin of ['/app/agency/team', '/app', '/app/leases/4', '/app/payments']) retenirPage(1, chemin);
+    for (const chemin of ['/app/agency/team', '/app', '/app/leases/4', '/app/payments']) retenirPage(1, ESPACE, chemin);
     const u = userEvent.setup();
     render(ui(LOCATAIRE));
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
@@ -318,7 +320,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
           <PaletteDeCommandes
             ouverte
             onOuverteChange={fermer}
-            contexteDuMenu={{ user: utilisateur(['customer', 'agent', 'owner']), agencyIsStandard: true, typeProfilActif: 'agent', modulesMasques: [] }}
+            contexteDuMenu={{ user: utilisateur(['customer', 'agent', 'owner']), agencyIsStandard: true, typeProfilActif: 'agent', modulesMasques: [], espaceActif: ESPACE }}
           />
         </QueryClientProvider>,
       ),
@@ -349,7 +351,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
   it('AC5 — axe : aucune violation, champ vide (cinq groupes possibles) et sans résultat', async () => {
     etat.nonLus = 2;
     etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
-    retenirPage(1, '/app/messages');
+    retenirPage(1, ESPACE, '/app/messages');
     const u = userEvent.setup();
     render(ui(['customer', 'agent', 'owner'], 'agent'));
     const dialogue = await screen.findByRole('dialog');
@@ -534,7 +536,7 @@ describe('TCK-2845 — « Aller à… » comme la maquette', () => {
           <PaletteDeCommandes
             ouverte
             onOuverteChange={fermer}
-            contexteDuMenu={{ user: utilisateur(ADMIN), agencyIsStandard: true, typeProfilActif: 'agency_admin', modulesMasques: [] }}
+            contexteDuMenu={{ user: utilisateur(ADMIN), agencyIsStandard: true, typeProfilActif: 'agency_admin', modulesMasques: [], espaceActif: ESPACE }}
           />
         </ContexteDesPreferences.Provider>
       </QueryClientProvider>,
@@ -598,7 +600,7 @@ describe('TCK-2845 — « Aller à… » comme la maquette', () => {
   it('AC3 — admin, 3 demandes, 2 épingles, un second espace : l’ordre de la maquette, le nombre en pastille', async () => {
     etat.demandes = 3;
     autreEspace();
-    retenirPage(1, '/app/messages');
+    retenirPage(1, ESPACE, '/app/messages');
     render(uiAdmin(['baux', 'rapports']));
     const liste = await screen.findByRole('listbox');
     await waitFor(() => expect(titres(liste)).toEqual(['Actions', 'À traiter', 'Aller à', 'Récents', 'Espaces']));
@@ -614,7 +616,7 @@ describe('TCK-2845 — « Aller à… » comme la maquette', () => {
   it('les flèches suivent l’ordre affiché : Aller à, puis Récents, puis Espaces', async () => {
     etat.demandes = 3;
     autreEspace();
-    retenirPage(1, '/app/messages');
+    retenirPage(1, ESPACE, '/app/messages');
     const u = userEvent.setup();
     render(uiAdmin());
     const champ = await screen.findByRole('combobox');

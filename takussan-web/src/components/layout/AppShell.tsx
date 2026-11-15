@@ -67,6 +67,8 @@ interface AppShellProps {
    * s'applique. Absent (tests) : aucun.
    */
   modulesMasques?: readonly string[];
+  /** TCK-2846 — l'espace actif lié par le layout (`profilLieDeLaCoque`) : la clé des récents. Absent : aucun récent. */
+  espaceActif?: string | null;
 }
 
 /**
@@ -93,6 +95,7 @@ function CoqueDeLApp({
   typeProfilActif,
   modeIcones = 'complet',
   modulesMasques = [],
+  espaceActif = null,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -142,7 +145,8 @@ function CoqueDeLApp({
   useRaccourciDeLaPalette({ actif: !pleinEcran, ouverte: paletteOuverte, changer: changerPalette });
   // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`), pour la
   // palette ET l'écrivain de ses récents — TCK-2483 : les modules masqués compris.
-  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended, modulesMasques };
+  // TCK-2846 — et l'espace actif, qui range les récents.
+  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended, modulesMasques, espaceActif };
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -242,6 +246,7 @@ function CoqueDeLApp({
                     typeProfilActif={typeProfilActif}
                     agencySuspended={agencySuspended}
                     modulesMasques={modulesMasques}
+                    espaceActif={espaceActif}
                     onOuvrirPalette={(depuis) => changerPalette(true, depuis)}
                   />
                 </div>
@@ -263,6 +268,7 @@ function CoqueDeLApp({
                       typeProfilActif={typeProfilActif}
                       agencySuspended={agencySuspended}
                       modulesMasques={modulesMasques}
+                      espaceActif={espaceActif}
                       tiroir
                       // TCK-2490 — « Aller à » depuis le tiroir : le tiroir se ferme, la palette s'ouvre, et
                       // c'est « Menu » (qui a ouvert le tiroir) qui reprend le focus à sa fermeture.

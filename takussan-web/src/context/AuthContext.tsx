@@ -22,6 +22,7 @@ import {
   chargerAuPremierAbonne,
 } from '@/lib/favoritesStore';
 import { favoritesQueryKeys, fetchAllFavoritePropertyIds } from '@/lib/queries/favorites';
+import { oublierLesPagesRecentes } from '@/lib/navigation/pages-recentes';
 
 type AuthContextValue = {
   user: User | null;
@@ -258,6 +259,8 @@ export function AuthProvider({
         // TCK-1992 (P172.01) — seul un 401 dit la session morte. Toute autre erreur (API en
         // panne, lente, limitée, refus de second facteur) garde l'utilisateur en place.
         setUser(null);
+        // TCK-2846 — une session morte efface aussi les récents de la coque, comme « Se déconnecter ».
+        oublierLesPagesRecentes();
         fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
         return 'fermee';
       }
@@ -339,6 +342,8 @@ export function AuthProvider({
     // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage
     // ci-dessus dès que `user` repasse à `null` — c'est apprendre la déconnexion qui manquait.
     queryClient.clear();
+    // TCK-2846 — les récents de la coque (noms des fiches ouvertes) ne survivent pas à la session.
+    oublierLesPagesRecentes();
     setActiveProfileId(null);
     setToken(null);
     setUser(null);

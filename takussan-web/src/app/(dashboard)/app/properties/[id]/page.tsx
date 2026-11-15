@@ -18,6 +18,7 @@ import { PastilleHorsLigne } from '@/components/property-dashboard/fiche/Pastill
 import { BlocResponsable } from '@/components/property-dashboard/fiche/PiecesDeLaLocation';
 import { PhotosDuBien } from '@/components/property-dashboard/fiche/PhotosDuBien';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { OublierLaFiche, RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
 import { PARAMETRE_BOOSTER } from '@/components/boost/parametre-booster';
 import { ProprietaireEtResponsable } from '@/components/property-dashboard/ProprietaireEtResponsable';
@@ -88,11 +89,15 @@ export default async function Page({ params, searchParams }: { params: Params; s
       // · Et surtout, il ne DISAIT rien : on quittait la page sans savoir pourquoi. Le panneau
       //   nomme le refus et propose le retour, comme `CustomerDetailUnavailable`.
       return (
-        <PropertyDetailUnavailable
-          title={t('forbidden_title')}
-          message={t('forbidden_message')}
-          backLabel={t('back_cta')}
-        />
+        <>
+          {/* TCK-2846 — une fiche qui n'est plus lisible sort des récents. */}
+          <OublierLaFiche chemin={`/app/properties/${id}`} />
+          <PropertyDetailUnavailable
+            title={t('forbidden_title')}
+            message={t('forbidden_message')}
+            backLabel={t('back_cta')}
+          />
+        </>
       );
     }
     throw e;
@@ -187,6 +192,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
     // TCK-2639 (TCK-2691, C1) — pleine largeur au téléphone : la photo va bord à bord sous l'en-tête de
     // la coque, chaque bloc pose sa marge (`max-md:px-4`).
     <PagePleineLargeur className="space-y-6 max-md:space-y-3 max-md:pb-6">
+      {/* TCK-2846 — la fiche entre dans les récents sous son titre (« Villa 4 chambres à Ngor · Bien »). */}
+      <RetenirLaFiche type="bien" id={property.id} titre={property.title} chemin={`/app/properties/${property.id}`} />
       {/* TCK-2639 — au téléphone, les gestes de l'en-tête passent dans « ⋯ » (la feuille de l'en-tête
           de la coque) : aucune rangée de boutons ne précède le titre ni l'occupation (AC5). */}
       <DeclarerEnTete

@@ -9,6 +9,7 @@ import { ChevronRight, MapPin } from 'lucide-react';
 import { PageHeader } from '@/components/console';
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { MaintenanceCompleteForm } from '@/components/maintenance/MaintenanceCompleteForm';
 import { MaintenanceGallery } from '@/components/maintenance/MaintenanceGallery';
@@ -114,6 +115,8 @@ function Corps({ request }: { readonly request: InterventionEnFile }) {
       {/* Téléphone : « Autre action » est la feuille de « ⋯ » (maquette « Fiche — Autre action »). */}
       <DeclarerEnTete forme="detail" titre={t('titreCourt')} repli="/app/maintenance" actions={autre.present ? <AutreActionListe etat={autre} /> : undefined} />
       <FeuillesDAutreAction etat={autre} />
+      {/* TCK-2846 — la fiche entre dans les récents sous le titre de la demande, pas « Intervention ». */}
+      <RetenirLaFiche type="intervention" id={request.id} titre={request.title} chemin={`/app/maintenance/${request.id}`} />
 
       <div className="max-md:hidden">
         <PageHeader

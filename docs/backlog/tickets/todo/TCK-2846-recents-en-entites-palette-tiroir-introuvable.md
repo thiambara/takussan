@@ -76,4 +76,53 @@ Relevé le 2026-11-15 : `lib/navigation/pages-recentes.ts` retient des **chemins
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_2026-11-15 — agent délégué (vague 92), sur 56cb33890 (TCK-2845)._
+
+**Re-mesure de la prémisse** : exacte. `pages-recentes.ts` retenait des chemins bruts par compte, la palette,
+`RecentsDeLaBarre` et `SecoursDeLIntrouvable` les résolvaient sur les entrées du menu (« Baux »,
+« Commissions »). Aucune purge à la déconnexion n'existait (AC4 était rouge par construction).
+
+**Ce qui est livré** :
+
+- Un magasin (`src/lib/navigation/pages-recentes.ts`) : une clé par compte, `{ v: 2, espaces: { <profil>: [...] } }`,
+  8 au plus par espace. Deux sortes d'entrées : une **page du menu** (`{ chemin }`) et une **fiche**
+  (`{ chemin, type, id, titre }`, rien d'autre). Espace inconnu : ni lecture ni écriture.
+- Une lecture commune, `recentsResolus` (`palette.ts`) : palette (5, horloge, nom + type en précision),
+  colonne/tiroir (4, nom seul, maquette e3), page introuvable (4, nom + « Récent », maquette e8).
+- La coque ne retient plus que les pages qui **sont** une entrée du menu (`entreeDe(chemin) === chemin`) :
+  une fiche n'est plus jamais réduite à sa section. Les fiches s'écrivent par `RetenirLaFiche`
+  (`components/layout/RetenirLaFiche.tsx`) : bien, client, bailleur (pages serveur), bail, réservation,
+  intervention (composants de fiche), visite (`visits/[id]/RetenirLaVisite.tsx`, même `useVisit` — la
+  fiche est dans `components/visits`, tenu par TCK-2880), demande (`ContactLeadsInbox`, seulement sur
+  `?ouverte=` explicite, jamais la première ligne ouverte d'office au bureau).
+- Ordre des écritures : la fiche d'une page montée avec la coque écrit AVANT elle (effet d'enfant) ; une page
+  du menu dont la fiche de tête est la sienne (`/app/leads` sous `/app/leads?ouverte=9`) n'est donc pas
+  ajoutée, et une fiche retire la page de sa section. Les deux ordres sont testés.
+- Espace : `app/layout.tsx` passe l'identifiant lié (`profilLieDeLaCoque`) à `AppShell` → `espaceActif` du
+  contexte du menu et d'`AppSidebar`. Un compte SANS profil (client, locataire : l'API lie `null`) reçoit
+  l'espace `compte` (`espaceDesRecents`) — sans quoi ces deux personas perdaient « Récents ».
+- Couverture : une fiche n'est rendue que si le menu couvre sa section ; `palette.test.ts` garde la table
+  par persona (admin, hôte, plateforme : toutes ; agent, bailleur : toutes sauf `/app/owners`, que leur
+  layout refuse).
+- Déconnexion : `AuthContext.logout` appelle `oublierLesPagesRecentes()` (toutes les clés
+  `takussan.pages-recentes.*`), et la session morte (401 de `/api/auth/me`) aussi.
+- Introuvable : la page introuvable oublie son propre chemin (une fiche 404) ; les panneaux « accès refusé »
+  du bien et du client montent `OublierLaFiche` (403).
+- AC5 : un titre qui ressemble à un courriel ou à un téléphone n'est pas retenu (`titreRetenable`) ; le client
+  est retenu par `nomCompletDe` (jamais le repli courriel/téléphone de `nomAffichable`), la demande par `name`,
+  la visite par le titre du bien.
+- Migration douce : l'ancienne valeur (tableau de chemins) est ignorée sans erreur et remplacée à la première écriture.
+- Politique de confidentialité § 8 : « pages et fiches de votre espace ouvertes récemment, avec leur nom ».
+  `VERSION_DOCUMENTS` **non avancée** (décision au porteur : une avance peut redemander l'acceptation).
+- Hors périmètre initial, demandé par la session : `SecoursDeLIntrouvable` rend le nombre d'une ligne
+  « À traiter » en pastille (`option.compte`), comme la palette.
+
+**Écarts** : prestataire et conversation de groupe ne sont pas branchés (pas de route `[id]` dans `/app`) ;
+l'intervention n'est retenue que dans la fiche du personnel (`FicheDIntervention`), pas dans
+`MaintenanceDetail` des autres rôles. Une page hors menu qui n'est pas une fiche (`/app/settings/notifications`)
+n'est plus retenue (elle apparaissait sous sa section).
+
+Une demande ouverte (`/app/leads?ouverte=9`) reste proposée dans les récents pendant qu'on la lit : la page
+courante est comparée sans sa requête.
+
+**Non mesuré** : AC6, AC-F1, AC-F2 (le brief interdit le navigateur ; le front servi tourne sur un autre arbre).

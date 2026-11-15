@@ -32,6 +32,7 @@ import { BoutonTelechargement } from '@/components/documents/BoutonTelechargemen
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { ErreurDeLecture, ErrorState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { detailMontantDu } from '@/components/payments/montant-du';
@@ -413,6 +414,8 @@ function FicheDuBail({ lease, paiements, locataire, principal, secondaires, ongl
   return (
     <PagePleineLargeur data-slot="fiche-du-bail" className="max-md:pb-6">
       <DeclarerEnTete forme="detail" titre={titre} repli="/app/leases" actions={actionsDeLEnTete} />
+      {/* TCK-2846 — la fiche entre dans les récents sous son titre (« Bail de Moussa Diallo »). */}
+      <RetenirLaFiche type="bail" id={lease.id} titre={titre} chemin={`/app/leases/${lease.id}`} />
 
       <div className="max-md:hidden">
         <PageHeader

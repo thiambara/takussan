@@ -11,6 +11,7 @@ import { Pagination } from '@/components/console/Pagination';
 import { EmptyState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
@@ -154,6 +155,13 @@ export function ContactLeadsInbox() {
   };
   const vuesDuBureau: VueDeLaBoite[] = vues.map((v) => ({ filtre: v, ...comptesDesVues[v] }));
 
+  // TCK-2846 — une demande OUVERTE par l'utilisateur (`?ouverte=`, pas la première ligne ouverte d'office
+  // au bureau) entre dans les récents sous le nom du demandeur (« Moussa Diallo · Demande »). `name` seul :
+  // jamais le téléphone ni le courriel que `nomDe` prend en repli.
+  const ficheRetenue =
+    idOuverte !== null && ouverte?.id === idOuverte ? (
+      <RetenirLaFiche type="demande" id={ouverte.id} titre={ouverte.name} chemin={`/app/leads?ouverte=${ouverte.id}`} />
+    ) : null;
   const planification = aPlanifier ? <PlanifierDepuisLaDemande lead={aPlanifier} nom={nomDe(aPlanifier)} onClose={() => setAPlanifier(null)} /> : null;
 
   // ── Téléphone : la demande ouverte remplace la liste. ─────────────────────────────────────────
@@ -192,6 +200,7 @@ export function ContactLeadsInbox() {
           }
         />
         {planification}
+        {ficheRetenue}
       </PagePleineLargeur>
     );
   }
@@ -306,6 +315,7 @@ export function ContactLeadsInbox() {
   return (
     <PagePleineLargeur data-slot="boite-des-demandes" className="flex flex-col">
       <DeclarerEnTete titre={t('shortTitle')} />
+      {ficheRetenue}
       <div className="max-md:hidden">
         <PageHeader
           title={t('title')}

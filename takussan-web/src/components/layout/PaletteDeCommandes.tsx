@@ -17,7 +17,7 @@ import { espacesAProposer } from '@/lib/espaces';
 import { lignesAujourdhui } from '@/lib/navigation/a-traiter';
 import type { EntreeComposee } from '@/lib/navigation/composer-menu';
 import { DISPOSITIONS } from '@/lib/navigation/dispositions';
-import { lirePagesRecentes } from '@/lib/navigation/pages-recentes';
+import { lirePagesRecentes, type PageRecente } from '@/lib/navigation/pages-recentes';
 import {
   GROUPES_DE_LA_PALETTE,
   avecLaRechercheDAnnonces,
@@ -127,7 +127,7 @@ interface RetenirLaPageRecenteProps {
  */
 export function RetenirLaPageRecente({ contexteDuMenu, chemin }: RetenirLaPageRecenteProps) {
   const { groupes } = useMenuDeLEspace(contexteDuMenu);
-  useRetenirLaPageRecente(contexteDuMenu.user.id, chemin, resolveurDesRecents(groupes));
+  useRetenirLaPageRecente(contexteDuMenu.user.id, contexteDuMenu.espaceActif, chemin, resolveurDesRecents(groupes));
   return null;
 }
 
@@ -147,12 +147,13 @@ interface ContenuDeLaPaletteProps {
  */
 export function useOptionsDeLaPalette(
   contexteDuMenu: ContexteDuMenuDeLEspace,
-  { actif, recents }: { readonly actif: boolean; readonly recents: readonly string[] },
+  { actif, recents }: { readonly actif: boolean; readonly recents: readonly PageRecente[] },
 ): OptionDeLaPalette[] {
   const t = useTranslations('nav.palette');
   const tMenu = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
   const tTypes = useTranslations('profile.types');
+  const tRecents = useTranslations('nav.recents');
   const pathname = usePathname();
   // S1, S2 — LE menu de la barre et SES compteurs : la palette ne juge aucun accès elle-même, n'appelle
   // ni `composerMenu` ni `estOuverte` (gardes de TCK-2483, S8), et passe le contexte INTACT (A17).
@@ -192,6 +193,8 @@ export function useOptionsDeLaPalette(
       espace: (p) => t('basculerVers', { espace: p.agency?.name ?? profileTypeLabel(p.type, tTypes) }),
       roleDeLEspace: (p) => (p.agency?.name ? profileTypeLabel(p.type, tTypes) : null),
       motsEspace: decouperLesMots(t('synonymesEspace')),
+      // TCK-2846 — « Bien », « Demande » : le type d'une fiche récente, en précision.
+      typeDeFiche: (type) => tRecents(`types.${type}`),
     },
   );
 }
@@ -208,7 +211,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
   // disparaît) palette ouverte décale les rangs, jamais la cible d'Entrée. `null` : la première.
   const [cleActive, setCleActive] = useState<string | null>(null);
   // A8 — lus une fois par ouverture (le contenu est démonté à la fermeture).
-  const [recents] = useState(() => lirePagesRecentes(contexteDuMenu.user.id));
+  const [recents] = useState(() => lirePagesRecentes(contexteDuMenu.user.id, contexteDuMenu.espaceActif));
   const options = useOptionsDeLaPalette(contexteDuMenu, { actif: ouverte, recents });
   const bascule = useSwitchActiveProfile();
   // Revue M3 — une bascule en cours OÙ QU'ELLE AIT ÉTÉ LANCÉE (le sélecteur, avant ⌘K) : l'`isPending`

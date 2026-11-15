@@ -117,6 +117,8 @@ interface AppSidebarProps {
    * le focus à la fermeture. Absent (tests, coque montée ailleurs) : pas de ligne.
    */
   readonly onOuvrirPalette?: (depuis: HTMLElement) => void;
+  /** TCK-2846 — l'espace actif : « Récents » est rangé par espace. Absent : aucun récent. */
+  readonly espaceActif?: string | null;
 }
 
 /**
@@ -714,6 +716,7 @@ export function AppSidebar({
   modulesMasques,
   tiroir = false,
   onOuvrirPalette,
+  espaceActif = null,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
@@ -1081,6 +1084,7 @@ export function AppSidebar({
           {edition ? null : (
           <RecentsDeLaBarre
             compte={user.id}
+            espace={espaceActif}
             groupes={groupes}
             pathname={pathname}
             libelle={libelleDEntree}

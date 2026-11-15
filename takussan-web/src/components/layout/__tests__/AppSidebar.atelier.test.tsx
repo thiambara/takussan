@@ -51,6 +51,9 @@ vi.mock('@/app/actions/notifications', () => ({
 }));
 
 const ROLES: UserRole[] = ['customer', 'agent'];
+/** TCK-2846 — l'espace de ces épreuves, et la valeur du magasin des récents pour des pages du menu. */
+const ESPACE = 'agent:3';
+const enMagasin = (chemins: readonly string[]) => JSON.stringify({ v: 2, espaces: { [ESPACE]: chemins.map((chemin) => ({ chemin })) } });
 const USER = { id: 42, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.sn', roles: ROLES } as unknown as User;
 
 function monter(onOuvrirPalette?: (depuis: HTMLElement) => void) {
@@ -58,7 +61,7 @@ function monter(onOuvrirPalette?: (depuis: HTMLElement) => void) {
     withIntl(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
-          <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} onOuvrirPalette={onOuvrirPalette} />
+          <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} espaceActif={ESPACE} onOuvrirPalette={onOuvrirPalette} />
         </AccesAdminProvider>
       </QueryClientProvider>,
     ),
@@ -129,7 +132,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
       withIntl(
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
           <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
-            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} tiroir />
+            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} espaceActif={ESPACE} tiroir />
           </AccesAdminProvider>
         </QueryClientProvider>,
       ),
@@ -166,7 +169,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
       withIntl(
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
           <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
-            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} tiroir onNavigate={onNavigate} />
+            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} espaceActif={ESPACE} tiroir onNavigate={onNavigate} />
           </AccesAdminProvider>
         </QueryClientProvider>,
       ),
@@ -226,7 +229,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
       withIntl(
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
           <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
-            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} tiroir={tiroir} onNavigate={onNavigate} />
+            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} espaceActif={ESPACE} tiroir={tiroir} onNavigate={onNavigate} />
           </AccesAdminProvider>
         </QueryClientProvider>,
       ),
@@ -305,7 +308,8 @@ describe('TCK-2490 (ADR-0090 §5) — « Récents »', () => {
     chemin.courant = courant[1];
     window.localStorage.setItem(
       clePagesRecentes(USER.id),
-      JSON.stringify([
+      // TCK-2846 — la forme du magasin : par espace, des pages du menu (`{ chemin }`).
+      enMagasin([
         courant[1], // la page courante : écartée
         `${a[1]}/12`, // une fiche sous l'entrée A : résolue sur A
         a[1], // A encore : doublon, écarté

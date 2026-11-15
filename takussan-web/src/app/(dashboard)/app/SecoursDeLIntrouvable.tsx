@@ -2,16 +2,17 @@
 
 import { useEffect, useEffectEvent, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { History } from 'lucide-react';
 
 import { useContexteDuMenuDeLaCoque } from '@/components/layout/contexte-du-menu-de-la-coque';
 import { useOptionsDeLaPalette } from '@/components/layout/PaletteDeCommandes';
-import { useCheminsRecents } from '@/components/layout/RecentsDeLaBarre';
+import { usePagesRecentes } from '@/components/layout/RecentsDeLaBarre';
 import type { ParametresDuMenu } from '@/components/layout/useMenuDeLEspace';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { hrefLocalise } from '@/i18n/navigation';
+import { oublierPage } from '@/lib/navigation/pages-recentes';
 import { chercherDansLaPalette, type OptionDeLaPalette } from '@/lib/navigation/palette';
 
 /** Maquette `app-coque`, « Page introuvable » : quatre récents, puis quatre entrées du menu. */
@@ -44,7 +45,15 @@ function Recherche({ contexteDuMenu, idChamp, idListe }: ListeDeSecoursProps & {
   const router = useRouter();
   const locale = useCurrentLocale();
   const [saisie, setSaisie] = useState('');
-  const recents = useCheminsRecents(contexteDuMenu.user.id);
+  const recents = usePagesRecentes(contexteDuMenu.user.id, contexteDuMenu.espaceActif);
+  // TCK-2846 — une fiche qui n'est plus lisible (introuvable) sort des récents, sans rien afficher : la
+  // lecture commune l'écarte déjà de CE rendu (page courante), on l'oublie pour les suivants.
+  const pathname = usePathname();
+  const compte = contexteDuMenu.user.id;
+  const espace = contexteDuMenu.espaceActif;
+  useEffect(() => {
+    if (pathname) oublierPage(compte, espace, pathname);
+  }, [compte, espace, pathname]);
   // Des pages seulement : la bascule d'espace reste à la palette (elle a sa confirmation d'état).
   const options = useOptionsDeLaPalette(contexteDuMenu, { actif: true, recents }).filter((o) => o.cible.type === 'lien');
   const requete = saisie.trim();
@@ -112,6 +121,16 @@ function Recherche({ contexteDuMenu, idChamp, idListe }: ListeDeSecoursProps & {
                 >
                   <Icone className="size-icone shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{o.libelle}</span>
+                  {/* TCK-2846 — le nombre d'une ligne « À traiter » (TCK-2845 l'a sorti du libellé) : la
+                      pastille de la palette. */}
+                  {o.compte ? (
+                    <span
+                      data-slot="pastille"
+                      className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-secondary px-1.5 text-xs font-semibold tabular-nums text-primary-deep"
+                    >
+                      {o.compte}
+                    </span>
+                  ) : null}
                   {o.groupe === 'recents' ? <span className="shrink-0 text-xs text-muted-foreground">{t('recent')}</span> : null}
                 </Link>
               </li>

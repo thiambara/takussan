@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { FicheDuBailleur } from '@/components/owners/fiche/FicheDuBailleur';
+import { RetenirLaFiche } from '@/components/layout/RetenirLaFiche';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { assertCanReachOwnerAccount } from '@/lib/auth/guards';
 import { exigerRessource, idDeDetail } from '@/lib/detail/ressource-de-detail';
@@ -67,21 +68,25 @@ export default async function Page({ params, searchParams }: { readonly params: 
   const peut = (capacite: string) => (capacites ?? []).includes(capacite);
 
   return (
-    <FicheDuBailleur
-      owner={owner}
-      period={period}
-      moisCourant={courant}
-      biens={biens}
-      agencyId={agencyId}
-      droits={{
-        plafond: peut('owners.update'),
-        reversement: peut('payouts.create'),
-        suspension: peut('team.suspend'),
-        // TCK-2753 — `OwnerProfilePolicy::depart` : l'admin actif de l'agence — celui que le layout laisse passer.
-        depart: true,
-        // `OwnerProfilePolicy::viewSensitive` : l'admin actif de l'agence — celui que le layout laisse passer.
-        sensible: true,
-      }}
-    />
+    <>
+      {/* TCK-2846 — la fiche entre dans les récents sous le nom du bailleur. */}
+      <RetenirLaFiche type="bailleur" id={id} titre={owner.company_name ?? owner.contact?.full_name} chemin={`/app/owners/${id}`} />
+      <FicheDuBailleur
+        owner={owner}
+        period={period}
+        moisCourant={courant}
+        biens={biens}
+        agencyId={agencyId}
+        droits={{
+          plafond: peut('owners.update'),
+          reversement: peut('payouts.create'),
+          suspension: peut('team.suspend'),
+          // TCK-2753 — `OwnerProfilePolicy::depart` : l'admin actif de l'agence — celui que le layout laisse passer.
+          depart: true,
+          // `OwnerProfilePolicy::viewSensitive` : l'admin actif de l'agence — celui que le layout laisse passer.
+          sensible: true,
+        }}
+      />
+    </>
   );
 }

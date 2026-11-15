@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Search, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, History, Search, type LucideIcon } from 'lucide-react';
 import { replierPourRecherche } from '@/components/ui/combobox';
 import type { Profile } from '@/types/profile';
 import { parametreDe } from '@/types/search';
@@ -6,6 +6,7 @@ import type { LigneAujourdhui } from './a-traiter';
 import { APP_EXACT_ROOTS, resolveActiveHref } from './active-path';
 import type { IdDestination } from './catalogue';
 import type { EntreeComposee, GroupeCompose } from './composer-menu';
+import { estUneFiche, sansRequete, type PageRecente, type TypeDeFiche } from './pages-recentes';
 
 /**
  * TCK-2482 (ADR-0089 §4) — la palette de commandes de `/app` : ce qu'elle propose, et comment elle
@@ -63,8 +64,8 @@ export interface SourcesDeLaPalette {
   readonly pastilles: readonly LigneAujourdhui[];
   /** Les espaces à proposer (`espacesAProposer`), l'espace actif déjà retiré. */
   readonly espaces: readonly Profile[];
-  /** Les chemins retenus sur l'appareil (`lirePagesRecentes`), le plus récent d'abord. */
-  readonly recents: readonly string[];
+  /** TCK-2846 — les pages et fiches retenues sur l'appareil (`lirePagesRecentes`), le plus récent d'abord. */
+  readonly recents: readonly PageRecente[];
   readonly pathname: string | null;
 }
 
@@ -82,6 +83,8 @@ export interface LibellesDeLaPalette {
   /** TCK-2845 — la précision d'un espace (son rôle, « Propriétaire ») ; `null` si le libellé le dit déjà. */
   readonly roleDeLEspace: (p: Profile) => string | null;
   readonly motsEspace: readonly string[];
+  /** TCK-2846 — le type d'une fiche récente (« Bien », « Demande »), en précision. */
+  readonly typeDeFiche: (type: TypeDeFiche) => string;
 }
 
 export const RECENTS_AFFICHES = 5;
@@ -107,11 +110,61 @@ function cibleDe(e: EntreeComposee): CibleDeLaPalette {
   return { type: 'lien', href: e.href, ...(e.publique ? { publique: true as const } : {}) };
 }
 
+/**
+ * TCK-2846 — un récent tel que le rendent la palette, la colonne/le tiroir et la page introuvable.
+ * Une page du menu porte son `entree` (le libellé se résout au rendu) ; une fiche son `titre` et son `type`.
+ */
+export interface RecentResolu {
+  /** Unique : `fiche:<type>:<id>` ou `page:<href>`. */
+  readonly cle: string;
+  readonly href: string;
+  readonly entree: EntreeDuMenuRendu | null;
+  readonly titre: string;
+  readonly type: TypeDeFiche | null;
+}
+
+/**
+ * TCK-2846 — LA lecture des récents, commune aux trois surfaces : dans l'ordre retenu (le plus récent
+ * d'abord), `max` au plus, sans la page courante.
+ *
+ * - Une page du menu se résout sur le menu D'AUJOURD'HUI (`resolveurDesRecents`) : une entrée qu'il ne
+ *   rend plus disparaît ; dédoublonnée par entrée ; écartée quand la page courante relève de la même.
+ * - Une fiche reste tant que le menu couvre sa section (un espace qui perd le module perd ses fiches),
+ *   dédoublonnée par entité ; écartée quand c'est la page courante.
+ */
+export function recentsResolus(
+  recents: readonly PageRecente[],
+  groupes: readonly GroupeDuMenuRendu[],
+  pathname: string | null,
+  max: number,
+): RecentResolu[] {
+  const entreeDe = resolveurDesRecents(groupes);
+  const parHref = new Map<string, EntreeDuMenuRendu>();
+  for (const g of groupes) for (const e of g.entrees) if (!e.locked && !parHref.has(e.href)) parHref.set(e.href, e);
+  const courant = entreeDe(pathname);
+  const vus = new Set<string>();
+  const rendus: RecentResolu[] = [];
+  for (const page of recents) {
+    if (rendus.length === max) break;
+    if (estUneFiche(page)) {
+      const cle = `fiche:${page.type}:${page.id}`;
+      if (vus.has(cle) || page.chemin === pathname || entreeDe(sansRequete(page.chemin)) === null) continue;
+      vus.add(cle);
+      rendus.push({ cle, href: page.chemin, entree: null, titre: page.titre, type: page.type });
+      continue;
+    }
+    const href = entreeDe(page.chemin);
+    const e = href === null ? undefined : parHref.get(href);
+    if (!e || href === courant || vus.has(`page:${e.href}`)) continue;
+    vus.add(`page:${e.href}`);
+    rendus.push({ cle: `page:${e.href}`, href: e.href, entree: e, titre: '', type: null });
+  }
+  return rendus;
+}
+
 export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette): OptionDeLaPalette[] {
   const options: OptionDeLaPalette[] = [];
   const rendues = s.groupes.flatMap((g) => g.entrees.filter((e) => !e.locked).map((e) => ({ e, g })));
-  const parHref = new Map<string, EntreeComposee>();
-  for (const { e } of rendues) if (!parHref.has(e.href)) parHref.set(e.href, e);
 
   // ➊ — l'action principale telle que la barre la rend (absente d'un espace suspendu, TCK-600).
   if (s.action) {
@@ -170,18 +223,19 @@ export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette
     });
   }
 
-  // Récents — résolus sur le menu D'AUJOURD'HUI : un chemin qu'il ne couvre plus disparaît. Déjà
-  // dédoublonnés par entrée à l'écriture (revue I3) ; le dédoublonnage ici couvre un menu qui a changé.
-  const entreeDe = resolveurDesRecents(s.groupes);
-  const courant = entreeDe(s.pathname);
-  const vus = new Set<string>();
-  for (const chemin of s.recents) {
-    if (vus.size === RECENTS_AFFICHES) break;
-    const href = entreeDe(chemin);
-    const e = href === null ? undefined : parHref.get(href);
-    if (!e || href === courant || vus.has(e.href)) continue;
-    vus.add(e.href);
-    options.push({ cle: `recents:${e.id}`, groupe: 'recents', libelle: l.entree(e), motsCles: [], icone: e.icon, cible: cibleDe(e) });
+  // Récents — TCK-2846 : LA lecture commune (`recentsResolus`), la même que la colonne et la page
+  // introuvable. Une fiche y est nommée par son titre, son type en précision ; une page du menu par
+  // son entrée. Icône d'horloge pour toutes (maquette `app-coque` e4).
+  for (const r of recentsResolus(s.recents, s.groupes, s.pathname, RECENTS_AFFICHES)) {
+    options.push({
+      cle: `recents:${r.cle}`,
+      groupe: 'recents',
+      libelle: r.entree ? l.entree(r.entree) : r.titre,
+      ...(r.type ? { precision: l.typeDeFiche(r.type) } : {}),
+      motsCles: [],
+      icone: History,
+      cible: r.entree ? cibleDe(r.entree) : { type: 'lien', href: r.href },
+    });
   }
 
   for (const p of s.espaces) {

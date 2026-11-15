@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { History, Search } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import fr from '@/messages/fr.json';
 import { CATALOGUE, estOuverte, type IdDestination } from '../catalogue';
@@ -56,6 +56,7 @@ const LIBELLES: LibellesDeLaPalette = {
   espace: (p) => `Basculer vers ${p.agency?.name ?? p.type}`,
   roleDeLEspace: (p) => (p.agency?.name ? p.type : null),
   motsEspace: ['espace', 'profil'],
+  typeDeFiche: (type) => ({ bien: 'Bien', demande: 'Demande' } as Record<string, string>)[type] ?? type,
 };
 
 function sources(persona: Persona, autres: Partial<SourcesDeLaPalette> = {}): SourcesDeLaPalette {
@@ -99,7 +100,7 @@ describe('TCK-2482 AC3 — la palette ne propose que le menu RENDU', () => {
       ...g,
       entrees: g.entrees.map((e) => (e.id === 'rapports' ? { ...e, locked: true } : e)),
     }));
-    const hrefs = optionsDeLaPalette({ ...s, groupes, recents: ['/app/reports'] }, LIBELLES).map(hrefDe);
+    const hrefs = optionsDeLaPalette({ ...s, groupes, recents: [{ chemin: '/app/reports' }] }, LIBELLES).map(hrefDe);
     expect(hrefs).not.toContain('/app/reports');
   });
 
@@ -140,11 +141,39 @@ describe('TCK-2482 — les autres groupes', () => {
     const options = optionsDeLaPalette(
       sources('locataire', {
         pathname: '/app/leases',
-        recents: ['/app/agency/team', '/app/payments/12', '/app/leases/3', '/app/payments', '/app'],
+        recents: ['/app/agency/team', '/app/payments/12', '/app/leases/3', '/app/payments', '/app'].map((chemin) => ({ chemin })),
       }),
       LIBELLES,
     );
-    expect(du('recents', options).map((o) => o.cle)).toEqual(['recents:paiements', 'recents:tableau-de-bord']);
+    expect(du('recents', options).map((o) => o.cle)).toEqual(['recents:page:/app/payments', 'recents:page:/app']);
+  });
+
+  it('TCK-2846 (AC1) — une fiche récente est rendue par son nom, son type en précision, l’horloge pour icône', () => {
+    const options = optionsDeLaPalette(
+      sources('agent', {
+        recents: [
+          { chemin: '/app/leads?ouverte=9', type: 'demande', id: '9', titre: 'Moussa Diallo' },
+          { chemin: '/app/properties/42', type: 'bien', id: '42', titre: 'Villa 4 chambres à Ngor' },
+        ],
+      }),
+      LIBELLES,
+    );
+    const recents = du('recents', options);
+    expect(recents.map((o) => [o.libelle, o.precision, hrefDe(o)])).toEqual([
+      ['Moussa Diallo', 'Demande', '/app/leads?ouverte=9'],
+      ['Villa 4 chambres à Ngor', 'Bien', '/app/properties/42'],
+    ]);
+    expect(recents.every((o) => o.icone === History)).toBe(true);
+    // Aucune ligne « Biens » ni « Demandes » pour ces deux visites.
+    expect(recents.filter((o) => o.cle.startsWith('recents:page:'))).toEqual([]);
+  });
+
+  it('TCK-2846 — la fiche courante n’est pas proposée ; une fiche dont le menu ne couvre plus la section non plus', () => {
+    const fiche = { chemin: '/app/properties/42', type: 'bien', id: '42', titre: 'Villa' } as const;
+    const ailleurs = { chemin: '/app/agency/team/3', type: 'bien', id: '3', titre: 'Hors menu' } as const;
+    expect(du('recents', optionsDeLaPalette(sources('agent', { recents: [fiche] }), LIBELLES))).toHaveLength(1);
+    expect(du('recents', optionsDeLaPalette(sources('agent', { recents: [fiche], pathname: '/app/properties/42' }), LIBELLES))).toEqual([]);
+    expect(du('recents', optionsDeLaPalette(sources('locataire', { recents: [ailleurs] }), LIBELLES))).toEqual([]);
   });
 
   it('les espaces viennent en dernier et portent leur profil', () => {
@@ -328,7 +357,7 @@ describe('TCK-2845 — ordre, pastilles et précisions', () => {
     const options = optionsDeLaPalette(
       sources('agent', {
         pastilles: [{ cle: 'pendingVisits', nombre: 3, href: '/app/visits?tab=requested' }],
-        recents: ['/app/payments', '/app/leases'],
+        recents: [{ chemin: '/app/payments' }, { chemin: '/app/leases' }],
         espaces: [profil],
       }),
       LIBELLES,
@@ -373,5 +402,27 @@ describe('TCK-2845 — ordre, pastilles et précisions', () => {
     const avec = { id: 'owner:7', type: 'owner', numeric_id: 7, agency_id: 3, agency: AGENCE, status: 'active', created_at: null } as const;
     const options = optionsDeLaPalette(sources('agent', { espaces: [avec] }), LIBELLES);
     expect(chercherDansLaPalette(options, 'owner').map((o) => o.cle)).toContain('espaces:owner:7');
+  });
+});
+
+/**
+ * TCK-2846 — une fiche retenue n'est rendue que si le menu couvre sa section (`recentsResolus`) : chaque
+ * fiche branchée doit donc être couverte pour les personas qui l'ouvrent, sans quoi son type est retenu
+ * pour rien. Relevé le 2026-11-15 : seule la fiche du bailleur (`/app/owners`, admin de l'agence) manque à
+ * l'agent et au bailleur — que son layout refuse de toute façon.
+ */
+describe('TCK-2846 — les fiches branchées sont couvertes par le menu de qui les ouvre', () => {
+  const FICHES = ['/app/properties/1', '/app/leads', '/app/customers/1', '/app/leases/1', '/app/bookings/1', '/app/visits/1', '/app/maintenance/1', '/app/owners/1'];
+  const nonCouvertes = (p: Persona) => {
+    const entreeDe = resolveurDesRecents(composerMenu(COMPTES[p], p).groupes);
+    return FICHES.filter((c) => entreeDe(c) === null);
+  };
+
+  it.each(['admin-agence', 'hote', 'plateforme'] as const)('%s : toutes', (p) => {
+    expect(nonCouvertes(p)).toEqual([]);
+  });
+
+  it.each(['agent', 'bailleur'] as const)('%s : toutes sauf la fiche du bailleur (réservée à l’admin)', (p) => {
+    expect(nonCouvertes(p)).toEqual(['/app/owners/1']);
   });
 });

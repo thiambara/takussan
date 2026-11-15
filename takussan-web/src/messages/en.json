@@ -9230,7 +9230,8 @@
         "review_moderated": "Review published (batch)",
         "booking_not_selected": "Application not selected",
         "document_visibility_changed": "Document visibility changed",
-        "lease_draft_abandoned": "Lease draft abandoned"
+        "lease_draft_abandoned": "Lease draft abandoned",
+        "visit_confirmed_by_owner": "Visit confirmed by the landlord"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -11107,7 +11108,11 @@
         "verifieLe": "Verified on",
         "fichier": "File",
         "precision": "Details",
-        "quiLe": "{qui}, on {date}"
+        "quiLe": "{qui}, on {date}",
+        "rattacheA": "Attached to",
+        "bien": "Property",
+        "bailRef": "Lease {reference}",
+        "bienEtQuartier": "{bien}, {quartier}"
       },
       "versions": {
         "titre": "Versions ({n})",
@@ -11201,6 +11206,64 @@
           "customer": "The client"
         }
       }
+    },
+    "agence": {
+      "titre": "Documents",
+      "compte": {
+        "documents": "{n, plural, =0 {No documents} one {# document} other {# documents}}",
+        "expirent": "{n, plural, one {# expiring soon} other {# expiring soon}}",
+        "aVerifier": "{n} to verify"
+      },
+      "recherche": "Search a document, a tenant, a property",
+      "ajouter": "Add a document",
+      "filtres": "Filter documents",
+      "puces": {
+        "tous": "All",
+        "tout": "All",
+        "expire": "Expiring soon",
+        "nonVerifies": "Not verified",
+        "generes": "Generated"
+      },
+      "arbre": "Agency folders",
+      "tousLesDocuments": "All documents",
+      "dossiers": {
+        "property_pieces": "Property documents",
+        "contract": "Contract",
+        "inventories": "Inventories",
+        "receipts": "Receipts",
+        "tenant_pieces": "Tenant documents",
+        "agency_pieces": "Agency documents"
+      },
+      "bailDe": "Lease {nom}",
+      "bailDetail": "{reference} · since {date}",
+      "bienDetail": "{quartier} · {documents}",
+      "resume": {
+        "unBail": "Lease {locataire} · {documents}",
+        "baux": "{n, plural, one {# lease} other {# leases}} · {documents}"
+      },
+      "agenceDetail": "NINEA, trade register, templates · {documents}",
+      "alerte": {
+        "uneExpireDans": "1 expires in {jours, plural, one {# day} other {# days}}",
+        "uneExpireAujourdhui": "1 expires today",
+        "expirent": "{n, plural, one {# expiring soon} other {# expiring soon}}",
+        "aVerifier": "{n} to verify"
+      },
+      "memeBail": "In the same lease",
+      "tuileGeneres": "{n, plural, one {# · generated} other {# · generated}}",
+      "ouvrirDossier": "Open the “{nom}” folder",
+      "vide": {
+        "dossier": "No documents in this folder.",
+        "filtre": "No document matches this filter.",
+        "recherche": "No agency document matches “{q}”.",
+        "agence": "No documents yet: add the first document of a property, a lease or the agency."
+      },
+      "biensSansDocument": "{n, plural, one {# property without documents} other {# properties without documents}}",
+      "chargement": "Loading the agency’s documents…",
+      "echec": "The agency’s documents could not be loaded.",
+      "reessayer": "Retry",
+      "partagerNomme": "Share “{nom}”",
+      "apercu": "Document preview",
+      "fil": "Folder shown"
     }
   },
   "bookings": {
@@ -18101,6 +18164,10 @@
         "application_not_selected": {
           "title": "Application not selected",
           "body": "Your application {reference} for {property} was not selected: the property has been allocated to another tenant."
+        },
+        "dossier_piece_requested": {
+          "title": "Document requested for your file",
+          "body": "For your request {reference} ({property}), the agency asks you for: {piece, select, identity {identity document} payslips {salary slips} employment_certificate {employment certificate} guarantor_commitment {guarantor commitment} guarantor_identity {guarantor identity document} proof_of_funds {proof of funds} other {a document}}. Upload it from your booking."
         }
       },
       "account": {
@@ -18173,6 +18240,10 @@
         "cancelled_window": {
           "title": "Your visit of {property} is cancelled",
           "body": "The visit requested for {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} is cancelled."
+        },
+        "confirmed_by_owner": {
+          "title": "Visit confirmed by the landlord: {property}",
+          "body": "{owner} confirmed the visit on {scheduled_at}."
         }
       },
       "message": {
@@ -18621,7 +18692,8 @@
           "reminder": "Visit reminders",
           "rescheduled_by_visitor": "New times proposed",
           "cancelled_by_visitor": "Visits cancelled by the visitor",
-          "cancelled_by_visitor_window": "Visits cancelled by the visitor"
+          "cancelled_by_visitor_window": "Visits cancelled by the visitor",
+          "confirmed_by_owner": "Visits confirmed by the landlord"
         },
         "lease_payment": {
           "overdue_landlord": "Unpaid rents",

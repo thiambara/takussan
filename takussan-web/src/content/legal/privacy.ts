@@ -167,7 +167,7 @@ Nous n’utilisons **aucun cookie publicitaire ni de traceur de réseau social**
 - **active_profile_id** — mémoriser le profil sous lequel vous agissez (30 jours) ;
 - **NEXT_LOCALE** — mémoriser votre langue (1 an) ;
 - **menu_icones** — mémoriser, sur cet appareil, si le menu de votre espace s’affiche en entier ou réduit à ses icônes (1 an) ;
-- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages de votre espace ouvertes récemment (palette de commandes), favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures) ;
+- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages et fiches de votre espace ouvertes récemment, avec leur nom (palette de commandes), favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures) ;
 - **takussan.coordonnees** (stockage local) — vos nom et numéro de téléphone saisis dans le formulaire de contact sans compte ou dans une demande de visite faite sans être connecté, gardés sur cet appareil seulement, pour préremplir votre prochaine demande ; ils sont remplacés à chaque demande et restent jusqu’à ce que vous les effaciez ;
 - **takussan.arrivee** (stockage de session) — la source du lien partagé par lequel vous êtes arrivé sur le site (ses paramètres utm_source et utm_medium), transmise avec une demande de contact ou de visite et avec un clic sur WhatsApp ou Appeler ; effacée à la fermeture de l’onglet.
 
@@ -347,7 +347,7 @@ We use **no advertising cookies or social-network trackers**. Items stored on yo
 - **active_profile_id** — remembers the profile you act under (30 days);
 - **NEXT_LOCALE** — remembers your language (1 year);
 - **menu_icones** — remembers, on this device, whether the menu of your space is shown in full or reduced to its icons (1 year);
-- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages of your space (command palette), offline favourites and comparison list, last payment method chosen, approximate location (24 hours);
+- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages and records of your space, with their name (command palette), offline favourites and comparison list, last payment method chosen, approximate location (24 hours);
 - **takussan.coordonnees** (local storage) — your name and phone number entered in the no-account contact form or in a visit request made while signed out, kept on this device only, to prefill your next request; they are replaced with each request and remain until you clear them;
 - **takussan.arrivee** (session storage) — the source of the shared link through which you arrived on the site (its utm_source and utm_medium parameters), sent with a contact or visit request and with a click on WhatsApp or Call; cleared when you close the tab.
 

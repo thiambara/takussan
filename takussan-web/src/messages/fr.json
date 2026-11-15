@@ -9230,7 +9230,8 @@
         "review_moderated": "Avis publié (lot)",
         "booking_not_selected": "Candidature non retenue",
         "document_visibility_changed": "Visibilité d'un document changée",
-        "lease_draft_abandoned": "Brouillon de bail abandonné"
+        "lease_draft_abandoned": "Brouillon de bail abandonné",
+        "visit_confirmed_by_owner": "Visite confirmée par le bailleur"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -11107,7 +11108,11 @@
         "verifieLe": "Vérifié le",
         "fichier": "Fichier",
         "precision": "Précision",
-        "quiLe": "{qui}, le {date}"
+        "quiLe": "{qui}, le {date}",
+        "rattacheA": "Rattaché à",
+        "bien": "Bien",
+        "bailRef": "Bail {reference}",
+        "bienEtQuartier": "{bien}, {quartier}"
       },
       "versions": {
         "titre": "Versions ({n})",
@@ -11201,6 +11206,64 @@
           "customer": "Le client"
         }
       }
+    },
+    "agence": {
+      "titre": "Documents",
+      "compte": {
+        "documents": "{n, plural, =0 {Aucun document} one {# document} other {# documents}}",
+        "expirent": "{n, plural, one {# expire bientôt} other {# expirent bientôt}}",
+        "aVerifier": "{n} à vérifier"
+      },
+      "recherche": "Chercher un document, un locataire, un bien",
+      "ajouter": "Ajouter un document",
+      "filtres": "Filtrer les documents",
+      "puces": {
+        "tous": "Tous",
+        "tout": "Tout",
+        "expire": "Expire bientôt",
+        "nonVerifies": "Non vérifiés",
+        "generes": "Générés"
+      },
+      "arbre": "Dossiers de l’agence",
+      "tousLesDocuments": "Tous les documents",
+      "dossiers": {
+        "property_pieces": "Pièces du bien",
+        "contract": "Contrat",
+        "inventories": "États des lieux",
+        "receipts": "Quittances",
+        "tenant_pieces": "Pièces du locataire",
+        "agency_pieces": "Pièces de l’agence"
+      },
+      "bailDe": "Bail {nom}",
+      "bailDetail": "{reference} · depuis le {date}",
+      "bienDetail": "{quartier} · {documents}",
+      "resume": {
+        "unBail": "Bail {locataire} · {documents}",
+        "baux": "{n, plural, one {# bail} other {# baux}} · {documents}"
+      },
+      "agenceDetail": "NINEA, registre de commerce, modèles · {documents}",
+      "alerte": {
+        "uneExpireDans": "1 expire dans {jours, plural, one {# jour} other {# jours}}",
+        "uneExpireAujourdhui": "1 expire aujourd’hui",
+        "expirent": "{n, plural, one {# expire bientôt} other {# expirent bientôt}}",
+        "aVerifier": "{n} à vérifier"
+      },
+      "memeBail": "Dans le même bail",
+      "tuileGeneres": "{n, plural, one {# · généré} other {# · générés}}",
+      "ouvrirDossier": "Ouvrir le dossier « {nom} »",
+      "vide": {
+        "dossier": "Aucun document dans ce dossier.",
+        "filtre": "Aucun document ne correspond à ce filtre.",
+        "recherche": "Aucun document de l’agence ne correspond à « {q} ».",
+        "agence": "Aucun document pour l’instant : ajoutez la première pièce d’un bien, d’un bail ou de l’agence."
+      },
+      "biensSansDocument": "{n, plural, one {# bien sans document} other {# biens sans document}}",
+      "chargement": "Chargement des documents de l’agence…",
+      "echec": "Les documents de l’agence n’ont pas pu être chargés.",
+      "reessayer": "Réessayer",
+      "partagerNomme": "Partager « {nom} »",
+      "apercu": "Aperçu du document",
+      "fil": "Dossier affiché"
     }
   },
   "bookings": {
@@ -18101,6 +18164,10 @@
         "application_not_selected": {
           "title": "Candidature non retenue",
           "body": "Votre candidature {reference} pour {property} n'a pas été retenue : le logement a été attribué à un autre locataire."
+        },
+        "dossier_piece_requested": {
+          "title": "Pièce demandée pour votre dossier",
+          "body": "Pour votre demande {reference} ({property}), l'agence vous demande : {piece, select, identity {pièce d'identité} payslips {bulletins de salaire} employment_certificate {attestation de travail} guarantor_commitment {engagement du garant} guarantor_identity {pièce d'identité du garant} proof_of_funds {justificatif de fonds} other {une pièce}}. Déposez-la depuis votre réservation."
         }
       },
       "account": {
@@ -18173,6 +18240,10 @@
         "cancelled_window": {
           "title": "Votre visite de {property} est annulée",
           "body": "La visite demandée le {date}, {window, select, morning {le matin} afternoon {l'après-midi} other {en soirée}} est annulée."
+        },
+        "confirmed_by_owner": {
+          "title": "Visite confirmée par le bailleur : {property}",
+          "body": "{owner} a confirmé la visite du {scheduled_at}."
         }
       },
       "message": {
@@ -18621,7 +18692,8 @@
           "reminder": "Rappels de visite",
           "rescheduled_by_visitor": "Autres créneaux proposés",
           "cancelled_by_visitor": "Visites annulées par le visiteur",
-          "cancelled_by_visitor_window": "Visites annulées par le visiteur"
+          "cancelled_by_visitor_window": "Visites annulées par le visiteur",
+          "confirmed_by_owner": "Visites confirmées par le bailleur"
         },
         "lease_payment": {
           "overdue_landlord": "Loyers impayés",
