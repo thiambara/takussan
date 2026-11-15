@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MaintenanceCompletionReportController;
 use App\Http\Controllers\Api\MaintenanceJournalController;
 use App\Http\Controllers\Api\MaintenanceOwnerReminderController;
 use App\Http\Controllers\Api\MaintenanceQuoteAlternativeController;
@@ -44,6 +45,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('maintenance-requests/{maintenanceRequest}/quote/approve', [MaintenanceQuoteController::class, 'approveQuote'])->name('maintenance-requests.quote.approve');
     Route::post('maintenance-requests/{maintenanceRequest}/quote/reject', [MaintenanceQuoteController::class, 'rejectQuote'])->name('maintenance-requests.quote.reject');
     Route::get('maintenance-requests/{maintenanceRequest}/quote/pdf', [MaintenanceQuoteController::class, 'pdf'])->name('maintenance-requests.quote.pdf');
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le rapport de fin d'intervention, généré depuis la demande.
+    Route::get('maintenance-requests/{maintenanceRequest}/completion-report/pdf', MaintenanceCompletionReportController::class)->name('maintenance-requests.completion-report.pdf');
     Route::post('maintenance-requests/{maintenanceRequest}/start', [MaintenanceQuoteController::class, 'start'])->name('maintenance-requests.start');
 
     // TCK-2786 — « Relancer le bailleur » (une par 24 h, en `awaiting_owner`) et le journal de la demande.

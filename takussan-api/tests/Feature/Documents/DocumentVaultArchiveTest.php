@@ -226,6 +226,12 @@ class DocumentVaultArchiveTest extends TestCase
         $files = $this->contenu($this->archive("property:{$this->property->id}"));
         $this->assertCount(count($dossier['entries']), $files);
         $this->assertSame('BIEN', $files['Assurance du bien.pdf']);
+
+        // TCK-2897 — les pièces du bail sont dans son sous-dossier, qui s'archive par sa clé.
+        $bail = collect($this->coffre()['folders'])->firstWhere('key', "lease:{$this->lease->id}");
+        $this->assertTrue($bail['read_only']);
+        $files = $this->contenu($this->archive("lease:{$this->lease->id}"));
+        $this->assertCount(count($bail['entries']), $files);
         $this->assertSame('BAIL', $files['Avenant signé.pdf']);
     }
 

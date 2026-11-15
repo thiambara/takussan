@@ -125,6 +125,9 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
             'devis d’intervention — GET maintenance-requests/{id}/quote/pdf' => ['devis', ['app/Http/Controllers/Api/MaintenanceQuoteController.php']],
             // TCK-2911 (ADR-0120 § 2) — le relevé des factures du prestataire.
             'relevé des factures du prestataire — GET service-provider-bills/statement/pdf' => ['releveDesFactures', ['app/Http/Controllers/Api/ServiceProviderBillStatementController.php']],
+            // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le PDF d'une facture et le rapport de fin d'intervention.
+            'facture du prestataire — GET service-provider-bills/{bill}/pdf' => ['factureDuPrestataire', ['app/Http/Controllers/Api/ServiceProviderBillPdfController.php']],
+            'rapport de fin d’intervention — GET maintenance-requests/{id}/completion-report/pdf' => ['rapportDeFinDIntervention', ['app/Http/Controllers/Api/MaintenanceCompletionReportController.php']],
             'état des lieux — GET inventories/{inventory}/pdf' => ['etatDesLieux', ['app/Http/Controllers/Api/InventoryController.php']],
             'reçu de réservation — GET booking-payments/{payment}/receipt' => ['recuDeReservation', ['app/Http/Controllers/Api/BookingPaymentController.php', 'app/Services/Payments/PaymentReceiptPdf.php']],
             'export en PDF — GET export/{entity}?format=pdf' => ['exportPdf', ['app/Http/Controllers/Api/ExportController.php', 'app/Services/Export/ExportWriter.php']],
@@ -381,6 +384,25 @@ class LimiteDeDebitDuPilotePdfTest extends TestCase
         $this->connecter($prestataire);
 
         return fn (): TestResponse => $this->get('/api/service-provider-bills/statement/pdf');
+    }
+
+    /** TCK-2897 — le prestataire et sa facture envoyée. */
+    private function factureDuPrestataire(): Closure
+    {
+        ['provider' => $prestataire, 'mr' => $mr, 'agency' => $agence, 'property' => $bien] = $this->maintenanceScenario(MaintenanceStatus::Completed);
+        $facture = ServiceProviderBill::factory()->create(['provider_id' => $prestataire->id, 'agency_id' => $agence->id, 'property_id' => $bien->id, 'maintenance_request_id' => $mr->id]);
+        $this->connecter($prestataire);
+
+        return fn (): TestResponse => $this->get("/api/service-provider-bills/{$facture->id}/pdf");
+    }
+
+    /** TCK-2897 — le prestataire assigné et son intervention close. */
+    private function rapportDeFinDIntervention(): Closure
+    {
+        ['mr' => $mr, 'provider' => $prestataire] = $this->maintenanceScenario(MaintenanceStatus::Closed, ['resolution_notes' => 'Joint remplacé.', 'completed_at' => now()]);
+        $this->connecter($prestataire);
+
+        return fn (): TestResponse => $this->get("/api/maintenance-requests/{$mr->id}/completion-report/pdf");
     }
 
     private function etatDesLieux(): Closure

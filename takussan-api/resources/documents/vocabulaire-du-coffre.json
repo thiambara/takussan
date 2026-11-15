@@ -60,6 +60,16 @@
       "fr": "Facture",
       "en": "Invoice",
       "wo": "Facture"
+    },
+    "maintenance_quote": {
+      "fr": "Devis",
+      "en": "Quote",
+      "wo": "Devis"
+    },
+    "maintenance_completion_report": {
+      "fr": "Rapport de fin d’intervention",
+      "en": "Job completion report",
+      "wo": "Rapport de fin d’intervention"
     }
   },
   "types": {

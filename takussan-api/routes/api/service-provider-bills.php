@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ServiceProviderBillController;
+use App\Http\Controllers\Api\ServiceProviderBillPdfController;
 use App\Http\Controllers\Api\ServiceProviderBillStatementController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('service-provider-bills.statement.pdf');
     Route::get('service-provider-bills/{bill}', [ServiceProviderBillController::class, 'show'])
         ->where('bill', '[0-9]{1,18}')->name('service-provider-bills.show');
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le PDF d'une facture, servi par le coffre.
+    Route::get('service-provider-bills/{bill}/pdf', ServiceProviderBillPdfController::class)
+        ->where('bill', '[0-9]{1,18}')->name('service-provider-bills.pdf');
     Route::post('service-provider-bills/{serviceProviderBill}/validate', [ServiceProviderBillController::class, 'validateBill'])
         ->name('service-provider-bills.validate');
     Route::post('service-provider-bills/{serviceProviderBill}/reject', [ServiceProviderBillController::class, 'reject'])

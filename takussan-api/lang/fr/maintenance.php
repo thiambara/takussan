@@ -81,4 +81,35 @@ return [
             'cancelled' => 'Annulée',
         ],
     ],
+
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le PDF d'une facture d'intervention.
+    'bill_pdf' => [
+        'title' => 'Facture d\'intervention',
+        'reference' => 'Référence',
+        'provider_reference' => 'Référence du prestataire',
+        'date' => 'Date',
+        'request' => 'Intervention',
+        'property' => 'Bien',
+        'provider' => 'Prestataire',
+        'status' => 'Statut',
+        'amount' => 'Montant',
+    ],
+
+    // TCK-2897 (ADR-0099, amendement du 2026-11-15) — le rapport de fin d'intervention.
+    'completion_report_pdf' => [
+        'title' => 'Rapport de fin d\'intervention',
+        'request' => 'Intervention',
+        'property' => 'Bien',
+        'provider' => 'Prestataire',
+        'reported_at' => 'Signalée le',
+        'started_at' => 'Commencée le',
+        'completed_at' => 'Terminée le',
+        'cost' => 'Coût réel',
+        'description' => 'Travaux demandés',
+        'resolution' => 'Travaux réalisés',
+        'no_notes' => 'Aucune note.',
+        'photos_before' => 'Photos avant',
+        'photos_after' => 'Photos après',
+        'no_photos' => 'Aucune photo.',
+    ],
 ];

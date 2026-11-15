@@ -15,6 +15,7 @@ use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Property\BailleurDuBien;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -169,6 +170,26 @@ class MaintenanceRequestPolicy extends BasePolicy
     public function viewQuote(User $user, MaintenanceRequest $request): bool
     {
         return $this->actAsProvider($user, $request) || self::isPrincipalFor($user, $request->property);
+    }
+
+    /**
+     * TCK-2897 (ADR-0099, amendement du 2026-11-15) — le rapport de fin d'intervention en PDF : le
+     * prestataire ASSIGNÉ (la règle d'`actAsProvider`, que le coffre du prestataire juge en SQL) et le
+     * personnel de l'agence du bien. Hors du cercle de la demande — ni lecteur de la demande, ni
+     * prestataire ou personnel de l'agence du bien —, 404 : la demande ne se révèle pas. Dans le cercle
+     * (le demandeur, le bailleur, un autre prestataire de l'agence), 403. Le super-admin passe par
+     * `Gate::before`.
+     */
+    public function viewCompletionReport(User $user, MaintenanceRequest $request): Response
+    {
+        if ($this->actAsProvider($user, $request) || self::isTeamPrincipalFor($user, $request->property)) {
+            return Response::allow();
+        }
+
+        $inTheCircle = $this->view($user, $request)
+            || app(ProviderEligibility::class)->isAssignable($user, $request->property);
+
+        return $inTheCircle ? Response::deny() : Response::denyAsNotFound();
     }
 
     /**

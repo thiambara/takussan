@@ -7,16 +7,19 @@ use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
+use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\BailleurDuBien;
@@ -45,15 +48,17 @@ use Illuminate\Support\Facades\Gate;
  *  - état des lieux : `view` de l'état des lieux et `Inventory::pdfAvailable()` (`downloadPdf`) ;
  *  - relevé et attestation : `viewOwnerStatement` pour (le bailleur, l'agence du profil actif) ;
  *  - facture d'intervention : `provider_id` = l'appelant, la branche prestataire de
- *    `ServiceProviderBillController::visibleTo`.
+ *    `ServiceProviderBillController::visibleTo` et de `ServiceProviderBillPolicy::downloadPdf` (TCK-2897) ;
+ *  - devis et rapport de fin d'intervention (TCK-2897) : `actAsProvider`, sous sa forme SQL
+ *    ({@see self::addQuotesAndReports()}).
  *
  * Les documents générés ne sont jamais copiés en `Document` : ils se listent depuis leur source et se
  * téléchargent par leur endpoint (`download_path`, chemin HTTP complet, préfixe `/api` compris).
  *
  * **Dossiers selon le profil actif** : le locataire n'a pas de profil — ses dossiers « bail » et
- * « quittances » viennent de ses baux, quel que soit le profil actif ; « bien » et « relevés » au
- * profil bailleur actif (son agence) ; « factures » au profil prestataire actif ; « mes pièces »
- * toujours. Un document n'apparaît que dans UN dossier : celui de sa cible quand elle a un dossier,
+ * « quittances » viennent de ses baux, quel que soit le profil actif ; « bien » (et, sous lui, un
+ * sous-dossier par bail : `parent`, TCK-2897) et « relevés » au profil bailleur actif (son agence) ;
+ * « factures » et « devis et rapports » au profil prestataire actif ; « mes pièces » toujours. Un document n'apparaît que dans UN dossier : celui de sa cible quand elle a un dossier,
  * sinon « mes pièces ».
  *
  * **Le bailleur bloqué** (TCK-2729, décision (a) du porteur du 2026-11-11) : un profil propriétaire
@@ -214,8 +219,15 @@ final class DocumentVault
         foreach ([[$properties, false], [$frozen, true]] as [$set, $readOnly]) {
             foreach ($set as $property) {
                 $this->addTargetFolder('property', $property, $property->title, [['type' => 'property', 'id' => $property->id]], $readOnly);
+                // TCK-2897 (ADR-0099, amendement du 2026-11-15) — un sous-dossier par bail hors brouillon
+                // (`ownerProperties` les a déjà retirés), au nom du locataire, sous le dossier du bien : le
+                // contrat, les états des lieux et les pièces du bail y vont, le bien garde les siennes. Le
+                // dossier de bail du locataire, s'il existe déjà, le reste (la clé est la même).
                 foreach ($property->leases as $lease) {
-                    $this->mapTarget('lease', $lease->id, "property:{$property->id}", [['type' => 'lease', 'id' => $lease->id], ['type' => 'property', 'id' => $property->id]]);
+                    if (! isset($this->folders["lease:{$lease->id}"])) {
+                        $this->addTargetFolder('lease', $lease, $lease->tenant?->full_name, [['type' => 'lease', 'id' => $lease->id], ['type' => 'property', 'id' => $property->id]], $readOnly);
+                        $this->folders["lease:{$lease->id}"]['parent'] = "property:{$property->id}";
+                    }
                 }
             }
         }
@@ -234,6 +246,7 @@ final class DocumentVault
         }
         if ($activeProfile instanceof ServiceProviderProfile) {
             $this->addBills();
+            $this->addQuotesAndReports();
         }
 
         $documents = $this->uploadedDocuments($leases, $allProperties, $contractLeases, $activeProfile instanceof OwnerProfile ? (int) $activeProfile->id : null);
@@ -257,9 +270,11 @@ final class DocumentVault
         }
 
         return [
-            // Un dossier de cible, « mes pièces » et « mes factures » existent même vides ; un dossier
-            // d'année ou de relevés n'existe que par ses entrées.
-            'folders' => array_map(fn (array $folder): array => $folder + ['read_only' => false], array_values($this->folders)),
+            // Un dossier de cible, « mes pièces », « mes factures » et « devis et rapports » existent même
+            // vides ; un dossier d'année ou de relevés n'existe que par ses entrées. TCK-2897 — `parent`
+            // (la clé du dossier qui le contient : le bien d'un sous-dossier de bail) et `reference` (celle
+            // d'un dossier de bail), nuls ailleurs : une seule forme, la liste reste plate.
+            'folders' => array_map(fn (array $folder): array => $folder + ['read_only' => false, 'parent' => null, 'reference' => null], array_values($this->folders)),
             'counts' => $this->counts($documents),
             'attachable_targets' => $attachable,
         ];
@@ -357,6 +372,10 @@ final class DocumentVault
     {
         $key = "{$type}:{$target->getKey()}";
         $this->folders[$key] = ['key' => $key, 'kind' => $type, 'target' => ['type' => $type, 'id' => (int) $target->getKey()], 'name' => $name, 'year' => null, 'read_only' => $readOnly, 'entries' => []];
+        // TCK-2897 — la référence d'un dossier de bail (deux baux d'un même bien, ou d'un même locataire).
+        if ($target instanceof Lease) {
+            $this->folders[$key]['reference'] = $target->reference_number;
+        }
         $this->mapTarget($type, (int) $target->getKey(), $key, $targets);
     }
 
@@ -501,7 +520,11 @@ final class DocumentVault
         }
     }
 
-    /** « Mes factures » : les factures d'intervention du prestataire (fiche JSON : aucune n'a de PDF). */
+    /**
+     * « Mes factures » : les factures d'intervention du prestataire. TCK-2897 — chacune se télécharge en
+     * PDF (`service-provider-bills.pdf`), que `ServiceProviderBillPolicy::downloadPdf` ouvre à son
+     * prestataire, brouillon compris : la même branche que la liste.
+     */
     private function addBills(): void
     {
         $bills = ServiceProviderBill::query()
@@ -516,9 +539,62 @@ final class DocumentVault
                 'category' => 'provider_bill',
                 'title' => $bill->reference_number,
                 'date' => $this->day($bill->created_at),
-                'download_path' => route('service-provider-bills.show', ['bill' => $bill->id], false),
+                'download_path' => route('service-provider-bills.pdf', ['bill' => $bill->id], false),
             ]);
         }
+    }
+
+    /**
+     * TCK-2897 (ADR-0099, amendement du 2026-11-15) — « Devis et rapports » : les devis soumis par le
+     * prestataire (`maintenance-requests.quote.pdf`, `viewQuote`) et un rapport de fin d'intervention par
+     * demande au travail rendu (`maintenance-requests.completion-report.pdf`, `viewCompletionReport`),
+     * listés depuis la demande, jamais copiés.
+     *
+     * La règle de ces deux endpoints, pour le prestataire, est `actAsProvider` : ASSIGNÉ et encore
+     * assignable au bien (`ProviderEligibility::isAssignable`, une requête par demande). Sa forme SQL : les
+     * agences où il l'est, lues une fois ({@see ProviderEligibility::agencyIdsWhereAssignable()}), puis une
+     * requête sur les demandes — un nombre de requêtes qui ne dépend pas du nombre de demandes.
+     */
+    private function addQuotesAndReports(): void
+    {
+        $this->folders['quotes_reports'] = ['key' => 'quotes_reports', 'kind' => 'quotes_reports', 'target' => null, 'name' => null, 'year' => null, 'entries' => []];
+
+        $agencies = app(ProviderEligibility::class)->agencyIdsWhereAssignable($this->user);
+        if ($agencies === []) {
+            return;
+        }
+
+        $done = array_map(fn (MaintenanceStatus $s): string => $s->value, ServiceProviderBill::BILLABLE_REQUEST_STATUSES);
+        $requests = MaintenanceRequest::query()
+            ->where('assigned_to', $this->user->id)
+            ->whereHas('property', fn (Builder $q) => $q->whereIn('agency_id', $agencies))
+            ->where(fn (Builder $q) => $q->whereNotNull('quote_submitted_at')->orWhereIn('status', $done))
+            ->orderByDesc('id')
+            ->get(['id', 'title', 'status', 'quote_submitted_at', 'completed_at', 'updated_at']);
+
+        $entries = [];
+        foreach ($requests as $request) {
+            if ($request->quote_submitted_at !== null) {
+                $entries[] = $this->normalised([
+                    'kind' => self::KIND_GENERATED,
+                    'category' => 'maintenance_quote',
+                    'title' => $request->title,
+                    'date' => $this->day($request->quote_submitted_at),
+                    'download_path' => route('maintenance-requests.quote.pdf', ['maintenanceRequest' => $request->id], false),
+                ]);
+            }
+            if (in_array($request->status, ServiceProviderBill::BILLABLE_REQUEST_STATUSES, true)) {
+                $entries[] = $this->normalised([
+                    'kind' => self::KIND_GENERATED,
+                    'category' => 'maintenance_completion_report',
+                    'title' => $request->title,
+                    'date' => $this->day($request->completed_at ?? $request->updated_at),
+                    'download_path' => route('maintenance-requests.completion-report.pdf', ['maintenanceRequest' => $request->id], false),
+                ]);
+            }
+        }
+        usort($entries, fn (array $a, array $b): int => strcmp((string) ($b['date'] ?? ''), (string) ($a['date'] ?? '')));
+        $this->folders['quotes_reports']['entries'] = $entries;
     }
 
     /**

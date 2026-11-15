@@ -196,12 +196,16 @@ describe('TCK-2656 — nature et geste d’une entrée', () => {
     expect(natureDeLEntree(genere('mandate', '2026-07-05', '/x'))).toBe('autre');
   });
 
-  it('télécharge un généré par son endpoint, ouvre la fiche d’une pièce, et rien pour une facture sans PDF', () => {
+  it('télécharge un généré par son endpoint, ouvre la fiche d’une pièce, et la facture en PDF (TCK-2897)', () => {
     expect(gesteDeLEntree(genere('lease_contract', '2026-06-29', '/api/leases/22/contract/pdf'))).toEqual({
       geste: 'telecharger',
       chemin: '/api/leases/22/contract/pdf',
     });
     expect(gesteDeLEntree(piece(210, 'Contrat'))).toEqual({ geste: 'ouvrir', documentId: 210 });
-    expect(gesteDeLEntree(genere('provider_bill', '2026-11-06', '/api/service-provider-bills/4'))).toEqual({ geste: 'aucun' });
+    // TCK-2897 — la facture d'intervention se télécharge en PDF.
+    expect(gesteDeLEntree(genere('provider_bill', '2026-11-06', '/api/service-provider-bills/4/pdf'))).toEqual({
+      geste: 'telecharger',
+      chemin: '/api/service-provider-bills/4/pdf',
+    });
   });
 });

@@ -53,6 +53,9 @@ const CATEGORIES_GENEREES = [
   'owner_statement',
   'annual_attestation',
   'provider_bill',
+  // TCK-2897 — « Devis et rapports » du prestataire.
+  'maintenance_quote',
+  'maintenance_completion_report',
 ] as const;
 
 type Messages = typeof fr;
