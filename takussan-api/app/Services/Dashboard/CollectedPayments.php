@@ -3,6 +3,7 @@
 namespace App\Services\Dashboard;
 
 use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -186,7 +187,11 @@ final class CollectedPayments
     {
         $query ??= BookingPayment::query();
 
-        return $query->where('booking_payments.status', PaymentStatus::Paid->value);
+        // TCK-2892 — une caution de séjour est rendue au départ : ce n'est pas de l'argent encaissé,
+        // comme la caution de bail ({@see self::DEPOSIT_TYPES}).
+        return $query
+            ->where('booking_payments.status', PaymentStatus::Paid->value)
+            ->where('booking_payments.payment_type', '!=', BookingPaymentType::SecurityDeposit->value);
     }
 
     /**

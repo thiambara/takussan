@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\BookingStatus;
+use App\Services\Dashboard\CollectedPayments;
 use App\Services\Model\BookingPaymentService;
 use App\Services\Payments\PaymentReceiptPdf;
 use App\Services\Pdf\DocumentPdfService;
@@ -114,5 +115,18 @@ class BookingPaymentTypesTest extends TestCase
         $this->assertStringContainsString('<td>Caution</td>', $rendus[0]);
         $this->assertStringContainsString('<td>Autre</td>', $rendus[1]);
         $this->assertStringNotContainsString('security_deposit', $rendus[0]);
+    }
+
+    /** Une caution de séjour se rend au départ : elle n'entre pas dans l'argent encaissé des tableaux de bord. */
+    public function test_une_caution_de_sejour_n_est_pas_un_encaissement(): void
+    {
+        $this->record(50_000, 'security_deposit')->assertCreated();
+        $this->record(10_000, 'advance')->assertCreated();
+
+        $encaisse = (float) CollectedPayments::bookingIncome(
+            BookingPayment::query()->where('booking_id', $this->booking->id)
+        )->sum('amount');
+
+        $this->assertSame(10_000.0, $encaisse);
     }
 }
