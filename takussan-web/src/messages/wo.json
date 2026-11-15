@@ -8066,7 +8066,8 @@
         "counter_offer_proposed": "Contre-proposition faite",
         "counter_offer_accepted": "Contre-proposition acceptée",
         "counter_offer_declined": "Contre-proposition déclinée",
-        "counter_offer_expired": "Contre-proposition expirée"
+        "counter_offer_expired": "Contre-proposition expirée",
+        "lead_unhandled": "Demande remise à traiter"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -11213,7 +11214,12 @@
         "revenusNonDeclares": "Revenus non déclarés",
         "garant": "{oui, select, oui {Garant : oui} other {Garant : non}}",
         "visiteLe": "{jour}.",
-        "visiteLeAvecVerdict": "{jour} : « {verdict} »."
+        "visiteLeAvecVerdict": "{jour} : « {verdict} ».",
+        "achat": {
+          "cash": "Achat comptant",
+          "mortgage": "Achat à crédit",
+          "mixed": "Apport et crédit"
+        }
       },
       "quoi": {
         "loyerPropose": "Loyer proposé",
@@ -11341,7 +11347,8 @@
           "superseded": "Contre-offre remplacée",
           "expired": "Contre-offre expirée"
         },
-        "toast": "Contre-offre envoyée à {prenom}"
+        "toast": "Contre-offre envoyée à {prenom}",
+        "gesteCourt": "Modifier"
       }
     },
     "feuilles": {
@@ -15714,7 +15721,9 @@
       },
       "tete": {
         "moyenneAria": "Note moyenne : {moyenne} sur 5",
-        "nombre": "{nombre, plural, one {# avis reçu} other {# avis reçus}}"
+        "nombre": "{nombre, plural, one {# avis reçu} other {# avis reçus}}",
+        "repartitionAria": "Répartition des notes",
+        "ligneAria": "{note, plural, one {# étoile} other {# étoiles}} : {nombre, plural, one {# avis} other {# avis}}"
       },
       "filtres": {
         "titre": "Filtrer les avis reçus",
@@ -15722,7 +15731,13 @@
       },
       "opportunitySubmitOne": "Publier mon avis",
       "noteAria": "Note : {note} sur 5",
-      "pastilleEnAttente": "En attente de validation"
+      "pastilleEnAttente": "En attente de validation",
+      "enAttenteDeValidation": "{count, plural, one {# avis en attente de validation} other {# avis en attente de validation}}",
+      "bailClos": {
+        "titre": "Bail clôturé le {date} · {bien}",
+        "detail": "Votre avis sur votre ancien logement",
+        "noter": "Noter"
+      }
     },
     "contact": {
       "title": "Jokkoo yi",
@@ -16028,7 +16043,11 @@
         "tous": "{canaux} : pas d’envoi pour ces événements.",
         "autres": "{canaux} : pas d’envoi pour les autres événements de ce groupe."
       },
-      "enregistrementImmediat": "Chaque case s’enregistre dès qu’elle est cochée."
+      "enregistrementImmediat": "Chaque case s’enregistre dès qu’elle est cochée.",
+      "imposes": {
+        "identity_verification": "Vérification d’identité"
+      },
+      "imposeRaison": "Toujours envoyée : sécurité du compte."
     },
     "payoutMethods": {
       "title": "Fan ngay bëgg a jot sa fey",

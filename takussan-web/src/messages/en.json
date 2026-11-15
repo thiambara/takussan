@@ -9298,7 +9298,8 @@
         "counter_offer_proposed": "Counter-offer made",
         "counter_offer_accepted": "Counter-offer accepted",
         "counter_offer_declined": "Counter-offer declined",
-        "counter_offer_expired": "Counter-offer expired"
+        "counter_offer_expired": "Counter-offer expired",
+        "lead_unhandled": "Request reopened"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -11786,7 +11787,12 @@
         "revenusNonDeclares": "Income not declared",
         "garant": "{oui, select, oui {Guarantor: yes} other {Guarantor: no}}",
         "visiteLe": "{jour}.",
-        "visiteLeAvecVerdict": "{jour}: “{verdict}”."
+        "visiteLeAvecVerdict": "{jour}: “{verdict}”.",
+        "achat": {
+          "cash": "Cash purchase",
+          "mortgage": "Mortgage purchase",
+          "mixed": "Down payment and mortgage"
+        }
       },
       "quoi": {
         "loyerPropose": "Proposed rent",
@@ -11914,7 +11920,8 @@
           "superseded": "Counter-offer replaced",
           "expired": "Counter-offer expired"
         },
-        "toast": "Counter-offer sent to {prenom}"
+        "toast": "Counter-offer sent to {prenom}",
+        "gesteCourt": "Edit"
       }
     },
     "feuilles": {
@@ -16287,7 +16294,9 @@
       },
       "tete": {
         "moyenneAria": "Average rating: {moyenne} out of 5",
-        "nombre": "{nombre, plural, one {# review received} other {# reviews received}}"
+        "nombre": "{nombre, plural, one {# review received} other {# reviews received}}",
+        "repartitionAria": "Rating breakdown",
+        "ligneAria": "{note, plural, one {# star} other {# stars}}: {nombre, plural, one {# review} other {# reviews}}"
       },
       "filtres": {
         "titre": "Filter received reviews",
@@ -16295,7 +16304,13 @@
       },
       "opportunitySubmitOne": "Publish my review",
       "noteAria": "Rating: {note} out of 5",
-      "pastilleEnAttente": "Awaiting approval"
+      "pastilleEnAttente": "Awaiting approval",
+      "enAttenteDeValidation": "{count, plural, one {# review awaiting approval} other {# reviews awaiting approval}}",
+      "bailClos": {
+        "titre": "Lease ended on {date} · {bien}",
+        "detail": "Your review of your former home",
+        "noter": "Rate"
+      }
     },
     "contact": {
       "title": "Contact details",
@@ -16601,7 +16616,11 @@
         "tous": "{canaux}: not sent for these events.",
         "autres": "{canaux}: not sent for the other events in this group."
       },
-      "enregistrementImmediat": "Each box is saved as soon as it is ticked."
+      "enregistrementImmediat": "Each box is saved as soon as it is ticked.",
+      "imposes": {
+        "identity_verification": "Identity verification"
+      },
+      "imposeRaison": "Always sent: account security."
     },
     "payoutMethods": {
       "title": "Where to receive your payouts",

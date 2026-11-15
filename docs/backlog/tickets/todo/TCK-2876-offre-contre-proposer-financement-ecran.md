@@ -71,4 +71,28 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémentation (agent délégué, vague 92).** Front seul : l'API (TCK-2870, 2873, 2874) était commitée.
+
+Livré :
+- `types/booking.ts` (bloc TCK-2876) : `counter_offer` (`BookingCounterOffer`), `awaiting`, `source` (`BookingSource`), `stage_change` (`BookingStageChange`), `financing` resserré sur `OfferFinancing` ; union `CounterOfferStatus`.
+- `lib/queries/booking-counter-offer.ts` : `useContreProposer` → `POST /api/bookings/{id}/counter-offers` (`amount`, `message?`, `valid_until`), relit la fiche et la liste. Hors de `bookings.ts` : les 15 tests de la fiche mockent ce module-là en fabrique fermée.
+- `feuilles/FeuilleDeContreOffre.tsx` (non dessinée) : feuille du bas / panneau dès `xl`, montant prérempli du prix affiché (ou de la contre-offre ouverte qu'on modifie), validité 3 · 7 · 15 · 30 jours (3 par défaut, envoyée comme JOUR de Dakar, `decalerJour`), message facultatif (≤ 500), « Contre-proposer {montant} » ; l'erreur de l'API (prose localisée de `booking.counter_offer_*`) reste dans la feuille. Montée seulement ouverte (elle porte sa mutation).
+- `detail/contre-offre.tsx` : la contre-offre « en cours » (`counter_offer.status = pending` ET `awaiting = customer` ET réservation `pending`) en tête du Quoi, téléphone et bureau (« Contre-offre de 90 000 000 F envoyée · en attente d'Ibrahima jusqu'au dim. 15 nov. ») ; l'historique (envoi, puis acceptée / déclinée à `responded_at`, ou expirée au soir de `valid_until`) ; les libellés du financement par code.
+- Fiche : « Contre-proposer » / « Modifier la contre-offre » dans la barre du téléphone (Refuser et Accepter à la largeur de leur libellé, le geste du milieu prend le reste), dans l'en-tête du bureau, et 3ᵉ bouton de la carte « Décision » (ordre de la maquette : Accepter {montant}, Contre-proposer, Refuser) ; Quoi : Financement, Délai de signature, Conditions avant « Valable jusqu'au » ; « En vente depuis 47 jours · 6 visites · première offre reçue. » (`offre.enVenteDepuis` perd son point, recomposé par `offre.faits` ; un fait non servi se tait).
+- `customer-timeline.ts` : jalon `counter_offer` et sa `counter_offer {id, amount (chaîne), valid_until, status}`. `lib/crm/fil-du-client.ts` : `cleDeLEntree` (type, id, jalon, id de contre-offre), utilisée par le rendu de `FilDuClient` ET par la fusion des pages.
+
+Écarts à la prémisse / choix :
+- **Défaut voisin corrigé** : `entreesDesPages` dédoublonnait sur `type:id` (+ jalon pour les seules visites) — l'acceptation d'une réservation (même id que son dépôt) et la seconde contre-offre d'une réservation étaient SUPPRIMÉES du fil, pas seulement mal clées. Même clé que le rendu désormais.
+- « Contre-proposer » est gardé par `canConfirm` ET `personnel` (personnel actif de l'agence) : `BookingPolicy::proposeCounterOffer` refuse le bailleur, que `canConfirm` admet. Jamais au client.
+- L'état en cours et l'historique de la contre-offre ne sont montrés qu'au personnel : la vue du client est TCK-2879.
+- L'API ne sert que la DERNIÈRE contre-offre : l'historique de la fiche ne relit pas une contre-offre remplacée (le fil de la fiche client, lui, en a une entrée par contre-offre).
+- Gardes : `CounterOfferStatus` passe de `SANS_UNION` / `SANS_LIBELLE` à `CORRESPONDANCES` (`types/booking.ts`) et `LIBELLES` (`bookings.fiche.contreOffre.statut`, lu par `detail/contre-offre.tsx`).
+- Test périmé mis à jour : `BookingDetail.trois-natures.tck-2594` (la barre d'une offre a désormais trois gestes).
+- Bloc Qui (`detail/pieces-du-detail.tsx`, bloc TCK-2876) : le fait « Achat comptant » / « Achat à crédit » / « Apport et crédit » d'une offre (maquette e4). La phrase « Sam. 31 oct. sur place, puis jeu. 5 nov. en visite virtuelle » reste écart de donnée (`last_visit_on_property` ne sert que la dernière visite).
+- Au téléphone, « Modifier la contre-offre » dit « Modifier » dans la barre (trois gestes dans ~340 px) ; le nom accessible garde le libellé entier.
+- Le montant prérempli est le « Prix affiché » de la comparaison (`list_price_at_booking`), à défaut le prix du bien.
+- Non changé : la route `counter-offers` n'a pas le middleware `idempotent` (comme `confirm` / `reject`) ; le double envoi est tenu par la feuille (bouton désactivé pendant l'envoi).
+
+Tests : `BookingDetail.offre.tck-2876` (14 : AC1 ×2, bailleur/client/acceptée, AC4, AC3, financement par code, faits et rang, AC2 envoi, AC2 état en cours, modifier, « Modifier » au téléphone, « Achat comptant », déclinée, client), `booking-counter-offer.tck-2876` (1, la route réelle), `FilDuClient.cles.tck-2876` (2). Treize ablations une à une, toutes rouges puis restaurées (md5) : geste de la barre, garde du personnel, lignes du Quoi, validité envoyée, « en cours » sans état, rang, tête du Quoi au bureau, historique montré au client, bouton de la carte Décision, clé du rendu, clé de la fusion des pages, libellé court de la barre, fait « Achat comptant ». 40 fichiers de test du domaine verts (293). `tsc`, ESLint, `check:i18n`, `check:i18n-namespaces`, `check:classes-emises`, `check:vouvoiement`, toutes les `scripts/check-*.mjs` (racine et front) vertes.
+
+Fidélité : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2876.json` (feuille et état en cours déclarés « hors maquette ») ; AC-F2 non mesuré (pas de navigateur dans ce lot).

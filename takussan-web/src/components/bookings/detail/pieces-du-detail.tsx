@@ -184,6 +184,8 @@ export function BlocQui({
     b.customer?.occupation?.trim() || null,
     revenus,
     garant,
+    // TCK-2876 — une offre dit comment l'acheteur paie (maquette e4 : « Achat comptant »).
+    b.kind === 'offer' && b.financing ? t(`qui.achat.${b.financing}`) : null,
     b.visits_on_property && !(candidature && derniere?.scheduled_at) ? t('qui.visites', { n: b.visits_on_property }) : null,
   ].filter((x): x is string => !!x);
   const jourDeLaVisite = derniere?.scheduled_at

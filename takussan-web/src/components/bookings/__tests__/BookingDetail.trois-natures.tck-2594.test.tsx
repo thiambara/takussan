@@ -170,11 +170,12 @@ describe('BookingDetail — trois natures (TCK-2594)', () => {
     }
   });
 
-  it('au téléphone, la suite est dans la barre collante : Refuser et Accepter, une seule fois', () => {
+  // TCK-2876 — une offre en attente porte aussi « Contre-proposer », entre Refuser et Accepter (maquette e4).
+  it('au téléphone, la suite est dans la barre collante : Refuser, Contre-proposer et Accepter, une seule fois', () => {
     ecran.telephone = true;
     rendre(OFFRE);
     const barre = document.querySelector<HTMLElement>('[data-slot="barre-d-action"]')!;
-    expect(within(barre).getAllByRole('button').map((b) => b.textContent)).toEqual([fr.bookings.detail.actions.reject, fr.bookings.detail.actions.accept]);
+    expect(within(barre).getAllByRole('button').map((b) => b.textContent)).toEqual([fr.bookings.detail.actions.reject, 'Contre-proposer', fr.bookings.detail.actions.accept]);
     expect(screen.getAllByRole('button', { name: fr.bookings.detail.actions.accept })).toHaveLength(1);
   });
 

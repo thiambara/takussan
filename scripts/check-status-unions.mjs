@@ -68,6 +68,8 @@ const CORRESPONDANCES = {
   BankStatementLineMatchStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankLineMatchStatus' }],
   BankStatementStatus: [{ fichier: 'src/types/reconciliation.ts', nom: 'BankStatementStatus' }],
   BookingStatus: [{ fichier: 'src/types/booking.ts', nom: 'BookingStatus' }],
+  // TCK-2876 — l'union arrive avec l'écran du personnel.
+  CounterOfferStatus: [{ fichier: 'src/types/booking.ts', nom: 'CounterOfferStatus' }],
   // TCK-2812 — l'archive préparée d'un dossier du coffre.
   DocumentVaultArchiveStatus: [{ fichier: 'src/lib/documents/coffre.ts', nom: 'StatutDeLArchivePreparee' }],
   CommissionEntryStatus: [{ fichier: 'src/lib/queries/commissions.ts', nom: 'CommissionEntryStatus' }],
@@ -115,8 +117,6 @@ const SANS_UNION = {
   AgentProfileStatus: 'aucune union nommée au front',
   BoostStatus: 'aucune union nommée au front',
   CollaborationStatus: 'aucune union nommée au front',
-  // TCK-2873
-  CounterOfferStatus: 'TCK-2873 : l\'API seule pour l\'instant — l\'union du front arrive avec ses écrans (TCK-2876 personnel, TCK-2879 client)',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
   SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API suffit pour l\'instant)',

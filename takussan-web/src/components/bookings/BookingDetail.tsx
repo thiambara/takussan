@@ -364,6 +364,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           ecartPourcentage={m.ecart !== null ? ecartEnClair(f.pourcentage(m.ecart, { maximumFractionDigits: 1, signDisplay: 'exceptZero' })) : null}
           part={m.affiche && m.montant !== null ? m.montant / m.affiche : null}
         />
+        {/* TCK-2876 — les faits du bien sous la comparaison. */}
         {faitsDuBien.length > 0 ? <p className="mt-2 text-ui text-muted-foreground">{tFiche('offre.faits', { faits: faitsDuBien.join(' · ') })}</p> : null}
       </>
     ) : null;
@@ -567,9 +568,17 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const sejourAvecPaiement = nature === 'stay' && canRegisterPayment && booking.status === 'confirmed';
   /** TCK-2876 — « Contre-proposer », ou « Modifier la contre-offre » quand une contre-offre attend le client. */
   const libelleContreProposer = tFiche('contreOffre.geste', { modifier: contreOffre ? 'oui' : 'non' });
-  const boutonContreProposer = (variant: 'outline' | 'ghost', className?: string) => (
-    <Button type="button" variant={variant} className={className} onClick={() => setContreOffreOuverte(true)}>
-      {libelleContreProposer}
+  // Au téléphone, trois gestes tiennent dans ~340 px : « Modifier la contre-offre » s'y dit « Modifier »
+  // (le nom accessible garde le libellé entier, qui contient le mot visible).
+  const boutonContreProposer = (variant: 'outline' | 'ghost', className?: string, court = false) => (
+    <Button
+      type="button"
+      variant={variant}
+      className={className}
+      aria-label={court && contreOffre ? libelleContreProposer : undefined}
+      onClick={() => setContreOffreOuverte(true)}
+    >
+      {court && contreOffre ? tFiche('contreOffre.gesteCourt') : libelleContreProposer}
     </Button>
   );
   /** Le geste principal : décider, créer le bail, ou encaisser un séjour. */
@@ -581,7 +590,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             {t('actions.reject')}
           </Button>
         ) : null}
-        {canCounterOffer ? boutonContreProposer('outline') : null}
+        {/* TCK-2876 — entre Refuser et Accepter (maquette e4), dans la barre comme dans l'en-tête. */}
+        {canCounterOffer ? boutonContreProposer('outline', undefined, telephone) : null}
         {canConfirm ? (
           <Button type="button" onClick={() => setAction('confirm')}>
             {telephone ? null : <Check className="size-4" aria-hidden="true" />}
@@ -636,12 +646,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           setAction(null);
         }}
       />
+      {/* TCK-2876 — la feuille « Contre-proposer », montée ouverte seulement. */}
       {canCounterOffer && contreOffreOuverte ? (
         <FeuilleDeContreOffre
           bookingId={booking.id}
           open
           onOpenChange={setContreOffreOuverte}
-          prixAffiche={prixDuBien}
+          prixAffiche={m.forme === 'offre' && m.affiche !== null ? m.affiche : prixDuBien}
           enCours={contreOffre}
           devise={devise}
           maintenant={maintenant}
@@ -705,6 +716,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </SectionDuTelephone>
         ) : null}
         <SectionDuTelephone titre={tFiche('sections.quoi')}>
+          {/* TCK-2876 — la contre-offre en cours, en tête du Quoi. */}
           {enTeteDuQuoi ? <div className="mb-3">{enTeteDuQuoi}</div> : null}
           {lignesDuQuoi}
           {(nature !== 'stay' || isCustomer) && message ? <div className="mt-3">{message}</div> : null}
@@ -812,6 +824,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   const carteQuoi = (
     <CarteDuBureau titre={tFiche('sections.quoi')}>
+      {/* TCK-2876 — la contre-offre en cours, en tête du Quoi. */}
       {enTeteDuQuoi ? <div className="px-4 pt-4">{enTeteDuQuoi}</div> : null}
       <div className="grid grid-cols-1 gap-6 p-4 lg:grid-cols-2">
         <div>

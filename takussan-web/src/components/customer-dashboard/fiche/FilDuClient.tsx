@@ -34,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { entreesDesPages, filtreDeLURL, FILTRES_DU_FIL, PARAMETRE_DU_FILTRE, pageSuivante, requeteAvecFiltre, typesDuFiltre, type CleDeFiltre } from '@/lib/crm/fil-du-client';
+import { cleDeLEntree, entreesDesPages, filtreDeLURL, FILTRES_DU_FIL, PARAMETRE_DU_FILTRE, pageSuivante, requeteAvecFiltre, typesDuFiltre, type CleDeFiltre } from '@/lib/crm/fil-du-client';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { createCustomerNote } from '@/lib/queries/customers';
@@ -467,7 +467,7 @@ export function FilDuClient({
       <>
         <ol data-slot="entrees-du-fil">
           {entrees.map((e, i) => (
-            <Entree key={`${e.type}-${e.id}-${e.type === 'visit' ? e.milestone : ''}`} entree={e} dernier={i === entrees.length - 1 && !fil.hasNextPage} />
+            <Entree key={cleDeLEntree(e)} entree={e} dernier={i === entrees.length - 1 && !fil.hasNextPage} />
           ))}
         </ol>
         {fil.hasNextPage ? (

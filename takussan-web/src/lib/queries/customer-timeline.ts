@@ -1,6 +1,7 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import type { PaginatedResponse } from '@/types/api';
+import type { CounterOfferStatus } from '@/types/booking';
 import type { CustomerPipelineStage } from '@/types/customer';
 
 /**
@@ -110,7 +111,8 @@ export interface ReservationDuFil {
   readonly type: 'booking';
   readonly id: number;
   readonly at: string;
-  readonly milestone: 'created' | 'confirmed' | 'rejected';
+  /** TCK-2876 — `counter_offer` (TCK-2873) : une entrée PAR contre-offre, sous l'`id` de sa réservation. */
+  readonly milestone: 'created' | 'confirmed' | 'rejected' | 'counter_offer';
   readonly kind: 'stay' | 'application' | 'offer' | null;
   /** Le statut COURANT de la réservation, pas celui du jalon. */
   readonly status: string | null;
@@ -119,6 +121,16 @@ export interface ReservationDuFil {
   readonly currency: string | null;
   readonly start_date: string | null;
   readonly property: { readonly id: number; readonly title: string } | null;
+  /**
+   * TCK-2876 — le jalon `counter_offer` seul : la contre-offre (son prix en CHAÎNE décimale, sa validité,
+   * un jour, et son état COURANT). Son `id` distingue deux contre-offres d'une même réservation.
+   */
+  readonly counter_offer?: {
+    readonly id: number;
+    readonly amount: string;
+    readonly valid_until: string | null;
+    readonly status: CounterOfferStatus;
+  };
 }
 
 export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil | ReservationDuFil;
