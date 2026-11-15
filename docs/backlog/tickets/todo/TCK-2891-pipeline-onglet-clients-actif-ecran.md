@@ -41,18 +41,18 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Delta à produire
 
-- [ ] Catalogue de navigation : correspondance de « Clients » étendue à `/app/crm`.
-- [ ] Test de la coque : onglet et entrée actifs sur `/app/crm/pipeline`, une seule entrée active.
+- [x] Catalogue de navigation : correspondance de « Clients » étendue à `/app/crm`.
+- [x] Test de la coque : onglet et entrée actifs sur `/app/crm/pipeline`, une seule entrée active.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 390, sur `/app/crm/pipeline`, l'onglet « Clients » de la barre du bas porte `aria-current="page"`.
-- [ ] AC2 — À 1440, l'entrée « Clients » de la barre latérale porte `aria-current="page"` et aucune autre.
-- [ ] AC3 — Vérifier au navigateur, avec un client qui a des critères et un contact récent, la ligne « Cherche » et le canal du dernier contact (« appel il y a 9 j ») sur les cartes et lignes du pipeline (e0, e1) ; corriger si absents.
+- [x] AC1 — À 390, sur `/app/crm/pipeline`, l'onglet « Clients » de la barre du bas porte `aria-current="page"`.
+- [x] AC2 — À 1440, l'entrée « Clients » de la barre latérale porte `aria-current="page"` et aucune autre.
+- [x] AC3 — Vérifier au navigateur, avec un client qui a des critères et un contact récent, la ligne « Cherche » et le canal du dernier contact (« appel il y a 9 j ») sur les cartes et lignes du pipeline (e0, e1) ; corriger si absents.
 
 **Fidélité** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md)) :
 
-- [ ] AC-F1 — La fiche existante de TCK-2592 est mise à jour : l'écart « onglet Clients non actif » est retiré de ses `hors_perimetre`.
+- [x] AC-F1 — La fiche existante de TCK-2592 est mise à jour : l'écart « onglet Clients non actif » est retiré de ses `hors_perimetre`.
 
 ## Hors périmètre
 
@@ -60,4 +60,13 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Re-mesure (2026-11-15).** Prémisse confirmée : l'entrée `clients` du catalogue (`lib/navigation/catalogue.ts`) n'avait pour href que `/app/customers`, et aucune destination ne couvrait `/app/crm` ; les trois résolutions de l'entrée active (`AppSidebar`, `BarreDOnglets`, `resolveurDesRecents` de la palette) passaient le chemin brut à `resolveActiveHref`. Le ticket cite `src/data/navigation.ts` : la navigation de la console vit dans `src/lib/navigation/` (il n'y a rien à y changer).
+
+**Livré.**
+- `Destination.couvreAussi` (catalogue) : d'autres racines que la destination couvre ; « Clients » porte `couvreAussi: ['/app/crm']`.
+- `cheminDuMenu(pathname)` (catalogue) : un chemin sous une racine `couvreAussi` devient le `href` de la destination ; passé à `resolveActiveHref` par la barre latérale, la barre d'onglets et les récents de la palette (une seule lecture, l'onglet et l'entrée ne divergent pas). Le plus-long-préfixe garantit qu'aucune autre entrée ne s'allume en même temps.
+- Fiche de fidélité `docs/qa/audit-ux-2026-11/fidelite/TCK-2592.json` : l'écart « onglet Clients non actif » retiré de `hors_perimetre` (AC-F1).
+
+**Tests.** `BarreDOnglets.test.tsx` (agent, `/app/crm/pipeline` : « Clients » porte `aria-current`, un seul) et `AppSidebar.test.tsx` (agent : `activeLabels()` = `['Clients']`). Rouges avant le correctif ; ablation de `couvreAussi` : les deux rougissent, restauré par `cp` (md5 identique). Fichiers voisins verts (BarreDOnglets, AppSidebar, AppShell.barre-d-onglets, palette, catalogue, active-path, pages-recentes : 332 tests). ESLint et `tsc --noEmit` propres.
+
+**AC3.** Pas de navigateur dans ce lot (consigne du porteur) : vérifié par le code et les tests existants — `lecture.ts` rédige « Cherche » (`cherche`) et le canal du dernier contact (`dernier.canal`, TCK-2766) ; `CarteDuPipeline` (e1) et `ListeDuBureau` (e0) les rendent ; `PageDuPipeline.tck-2592.test.tsx` les éprouve (« appel il y a 9 j », ligne « Villa · Almadies · … ») — 22 tests verts. Rien à corriger.

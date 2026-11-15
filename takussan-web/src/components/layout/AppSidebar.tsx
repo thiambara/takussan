@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { cheminLocalise } from '@/i18n/routing';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
+import { cheminDuMenu } from '@/lib/navigation/catalogue';
 import { HREF_CREDITS } from '@/lib/navigation/acces-app';
 import type { NavCounterKey } from '@/lib/navigation/types';
 import {
@@ -821,8 +822,9 @@ export function AppSidebar({
 
   // TCK-2478 — l'action principale concourt avec les entrées : sur sa page (`/app/properties/new`),
   // c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
+  // TCK-2891 — `cheminDuMenu` : une page couverte par une destination (`/app/crm/*` → « Clients »).
   const activeHref = resolveActiveHref(
-    pathname,
+    cheminDuMenu(pathname),
     [...entrees.map((e) => e.href), ...(menu.action && !menu.action.publique ? [menu.action.href] : [])],
     APP_EXACT_ROOTS,
   );

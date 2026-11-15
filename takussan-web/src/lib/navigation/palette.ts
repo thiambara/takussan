@@ -4,7 +4,7 @@ import type { Profile } from '@/types/profile';
 import { parametreDe } from '@/types/search';
 import type { LigneAujourdhui } from './a-traiter';
 import { APP_EXACT_ROOTS, resolveActiveHref } from './active-path';
-import type { IdDestination } from './catalogue';
+import { cheminDuMenu, type IdDestination } from './catalogue';
 import type { EntreeComposee, GroupeCompose } from './composer-menu';
 import { estUneFiche, sansRequete, type PageRecente, type TypeDeFiche } from './pages-recentes';
 
@@ -103,7 +103,8 @@ export function decouperLesMots(texte: string): string[] {
  */
 export function resolveurDesRecents(groupes: readonly GroupeDuMenuRendu[]): (chemin: string | null) => string | null {
   const hrefs = [...new Set(groupes.flatMap((g) => g.entrees.filter((e) => !e.locked).map((e) => e.href)))];
-  return (chemin) => resolveActiveHref(chemin, hrefs, APP_EXACT_ROOTS);
+  // TCK-2891 — la même lecture que les barres : `/app/crm/*` est une page de « Clients ».
+  return (chemin) => resolveActiveHref(cheminDuMenu(chemin), hrefs, APP_EXACT_ROOTS);
 }
 
 function cibleDe(e: EntreeComposee): CibleDeLaPalette {

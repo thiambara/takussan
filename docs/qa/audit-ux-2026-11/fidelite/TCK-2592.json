@@ -160,11 +160,6 @@
       "element": "coque (barre latérale, en-tête, barre d'onglets)",
       "ticket": "TCK-2617",
       "motif": "au bureau le rôle « coque · barre latérale » apparie toute la page (~150 lignes de rôle par relevé) : seules les ancres se lisent"
-    },
-    {
-      "element": "onglet « Clients » (téléphone) et entrée « Clients » (barre latérale) non actifs sur /app/crm/pipeline",
-      "ticket": "navigation (src/data/navigation.ts, BarreDOnglets — hors de ce lot)",
-      "motif": "la maquette les montre actifs ; la résolution de l'onglet actif (`resolveActiveHref`) ne rattache pas /app/crm/pipeline à /app/customers"
     }
   ],
   "_alias": "titre du bureau : « Pipeline » de la maquette, interdit par AC5 (décision 11a) → « Mes prospects » sur Moi, « Prospects » sur l'agence ou un agent (décision 2 a)",

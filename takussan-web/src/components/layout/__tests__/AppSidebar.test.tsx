@@ -756,6 +756,12 @@ describe('AC3 — aria-current="page"', () => {
     expect(screen.getByRole('link', { name: 'Baux' })).toHaveAttribute('aria-current', 'page');
   });
 
+  // TCK-2891 — le pipeline est une page de « Clients » (`/app/crm/*`) : l'entrée s'allume, et aucune autre.
+  it('TCK-2891 — « Clients » est la seule entrée active sur /app/crm/pipeline', () => {
+    renderSidebar('agent', '/app/crm/pipeline');
+    expect(activeLabels()).toEqual(['Clients']);
+  });
+
   // TCK-649 — la barre de l'ancienne console est partie ; sa règle reste, sur les pages d'agence :
   // sur `/app/agency/moderation/properties`, « Modération avis » et « Modération biens » sont deux
   // préfixes valides, et une seule entrée s'allume (dans « Agence », ouvert par elle).
