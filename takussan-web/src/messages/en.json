@@ -3723,22 +3723,14 @@
     "group": {
       "create": {
         "title": "New group",
-        "step1Description": "Add at least 2 participants (you'll be included automatically).",
-        "step2Description": "Give the group a subject and optionally link it to a property or lease.",
-        "participantsLabel": "Participants",
         "participantInputPlaceholder": "Search by name…",
         "participantsHint": "Your agency’s team and the people you have already exchanged messages with.",
         "add": "Add",
         "removeParticipant": "Remove {name}",
         "minParticipants": "At least {min} participants total (including you).",
         "maxParticipants": "At most {max} participants total.",
-        "subjectLabel": "Subject",
         "subjectRequired": "Subject is required.",
-        "propertyLabel": "Property (optional)",
-        "leaseLabel": "Lease (optional)",
         "cancel": "Cancel",
-        "next": "Next",
-        "back": "Back",
         "create": "Create group",
         "createFailed": "Failed to create the group.",
         "searching": "Searching…",
@@ -3863,7 +3855,6 @@
       "microphoneDenied": "The microphone is not accessible. Allow it in your browser.",
       "sendFailed": "The voice note was not sent. Please try again.",
       "label": "Voice note",
-      "duration": "{seconds} s",
       "borne": "Voice note · {max} seconds max",
       "lire": "Play",
       "pause": "Pause"
@@ -12100,7 +12091,16 @@
         "compte": "{n} of {total}",
         "suivantes": "{n, plural, =1 {Show the next one} other {Show the next #}}",
         "ouvrir": "Open",
-        "lotResultat": "{ok, plural, =0 {No visit done} =1 {1 visit done} other {# visits done}} · {failed, plural, =0 {no refusal} =1 {1 refusal} other {# refusals}}"
+        "lotResultat": "{ok, plural, =0 {No visit done} =1 {1 visit done} other {# visits done}} · {failed, plural, =0 {no refusal} =1 {1 refusal} other {# refusals}}",
+        "statutFiltre": "Status",
+        "statutFixe": "The tab sets the status",
+        "statuts": {
+          "tous": "All",
+          "requested": "Requested",
+          "confirmed": "Confirmed",
+          "completed": "Completed",
+          "cancelled": "Cancelled"
+        }
       },
       "refus": {
         "http_forbidden": "You cannot act on this visit.",
@@ -12122,7 +12122,16 @@
       },
       "agentIndisponible": "This viewing’s agent is no longer available: reassign it",
       "reattribuer": "Reassign",
-      "absentPrevenu": "The visitor has been notified, with a way to book another visit."
+      "absentPrevenu": "The visitor has been notified, with a way to book another visit.",
+      "semaine": {
+        "compte": "{n, plural, =0 {No visits this week} one {# visit this week} other {# visits this week}}",
+        "tronquee": "The first {n} of {total} visits: narrow by agent or property to see the others."
+      },
+      "affichage": {
+        "libelle": "Display",
+        "liste": "List",
+        "semaine": "Week"
+      }
     },
     "fiche": {
       "titre": "Visit",

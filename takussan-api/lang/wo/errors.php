@@ -538,6 +538,8 @@ return [
         'integration_misconfigured' => 'Feyu internet bi baaxul ngir jottalikat bii. Jokkool ak sa ajaas.',
     ],
     'payout' => [
+        // TCK-2863
+        'bank_statement_bank_only' => 'Un relevé d\'identité bancaire ne s\'envoie que pour un compte bancaire.',
         'agency_required' => 'Reversement dañu koy def ci turu agence.',
         'already_paid_out' => 'Benn ci pièce yi dañu ko delloo ba noppi.',
         'amount_changed_since_approval' => 'Montant bi soppiku na ginnaaw ba ñu ko nangoo : nangu ko ci kanam.',

@@ -30,6 +30,8 @@ use App\Services\Review\ReviewReportService;
 use App\Services\Review\ReviewRiskClassifier;
 use App\Support\Http\ParametreUnique;
 use App\Support\VisitorFingerprint;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -315,27 +317,66 @@ class ReviewController extends Controller
             ->latest('reviews.created_at')
             ->latest('reviews.id');
 
-        if (isset($filters['property_id'])) {
-            $query->where('reviews.reviewable_type', Property::class)
-                ->where('reviews.reviewable_id', (int) $filters['property_id']);
-        }
-        if (isset($filters['replied'])) {
-            $replied = filter_var($filters['replied'], FILTER_VALIDATE_BOOLEAN);
-            $replied ? $query->whereNotNull('reviews.reply_content') : $query->whereNull('reviews.reply_content');
-        }
+        // TCK-2863 — les filtres du sujet et de la réponse valent aussi pour `meta.distribution` et
+        // `meta.pending_count` ; le filtre de STATUT non : il choisit un onglet, et la répartition
+        // (avis publiés) comme le compte en attente décrivent toute la boîte.
+        $filtrer = function (Builder $q) use ($filters): Builder {
+            if (isset($filters['property_id'])) {
+                $q->where('reviews.reviewable_type', Property::class)
+                    ->where('reviews.reviewable_id', (int) $filters['property_id']);
+            }
+            if (isset($filters['replied'])) {
+                $replied = filter_var($filters['replied'], FILTER_VALIDATE_BOOLEAN);
+                $replied ? $q->whereNotNull('reviews.reply_content') : $q->whereNull('reviews.reply_content');
+            }
+            if (isset($filters['subject_type'])) {
+                $q->where('reviews.reviewable_type', IndexReceivedReviewsRequest::SUBJECT_TYPES[$filters['subject_type']]);
+            }
+
+            return $q;
+        };
+        $filtrer($query);
         if (isset($filters['status'])) {
             $query->where('reviews.status', $filters['status']);
-        }
-        if (isset($filters['subject_type'])) {
-            $query->where('reviews.reviewable_type', IndexReceivedReviewsRequest::SUBJECT_TYPES[$filters['subject_type']]);
         }
 
         $paginator = $query->paginate((int) $request->validated('per_page', 20));
 
         return $this->json([
             'data' => ReviewResource::collection($paginator->getCollection())->toArray($request),
-            'meta' => $this->paginationMeta($paginator),
+            'meta' => [
+                ...$this->paginationMeta($paginator),
+                ...$this->receivedMeta($request->user(), $received, $filtrer),
+            ],
         ]);
+    }
+
+    /**
+     * TCK-2863 — la répartition 5→1 des avis PUBLIÉS (`is_approved`, comme la note de la fiche
+     * publique) de la boîte, et le nombre d'avis reçus qui attendent leur validation : sur tout
+     * l'ensemble filtré, indépendamment de la page.
+     *
+     * @param  Closure(Builder): Builder  $filtrer
+     * @return array{distribution: array<int, int>, pending_count: int}
+     */
+    private function receivedMeta(User $user, ReceivedReviews $received, Closure $filtrer): array
+    {
+        $parNote = $filtrer($received->for($user))
+            ->where('reviews.is_approved', true)
+            ->toBase()
+            ->select('reviews.rating', DB::raw('count(*) as total'))
+            ->groupBy('reviews.rating')
+            ->pluck('total', 'rating');
+
+        $distribution = [];
+        foreach ([5, 4, 3, 2, 1] as $note) {
+            $distribution[$note] = (int) ($parNote[$note] ?? 0);
+        }
+
+        return [
+            'distribution' => $distribution,
+            'pending_count' => $filtrer($received->pendingFor($user))->count(),
+        ];
     }
 
     /**
@@ -557,7 +598,12 @@ class ReviewController extends Controller
     /** TCK-597 — `GET /api/me/review-opportunities` : ce que l'acteur peut noter, avec la preuve. */
     public function opportunities(Request $request, ReviewEligibility $eligibility): JsonResponse
     {
-        return $this->json(['data' => $eligibility->opportunities($request->user())]);
+        return $this->json([
+            'data' => $eligibility->opportunities($request->user()),
+            // TCK-2863 — à part de `data`, dont chaque ligne garde sa forme `{type, subject, context}` :
+            // les baux clôturés récemment, à noter ; `target` est l'opportunité à poster telle quelle.
+            'lease_closed' => $eligibility->closedLeaseOpportunities($request->user()),
+        ]);
     }
 
     /** L'agence du bien de la preuve : celle qui modère l'avis (ADR-0043 §1). */

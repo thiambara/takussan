@@ -43,6 +43,28 @@ class ReceivedReviews
     }
 
     /**
+     * TCK-2863 — les avis reçus qui attendent encore leur validation : ceux qui visent l'acteur (ses
+     * biens, lui comme agent, son profil prestataire) et, pour l'admin actif d'une agence, ceux de
+     * l'agence. `for()` ne rend pas à un agent les avis en attente qui le visent (il ne les lit pas
+     * avant leur publication) : seul leur NOMBRE sort, jamais leur contenu.
+     *
+     * @return Builder<Review>
+     */
+    public function pendingFor(User $user): Builder
+    {
+        $adminAgencyId = $this->adminAgency($user);
+
+        return Review::query()
+            ->where('reviews.status', ReviewStatus::Pending->value)
+            ->where(function (Builder $scope) use ($user, $adminAgencyId) {
+                $scope->where(fn (Builder $mine) => $this->targetsActor($mine, $user));
+                if ($adminAgencyId !== null) {
+                    $scope->orWhere('reviews.agency_id', $adminAgencyId);
+                }
+            });
+    }
+
+    /**
      * TCK-1478 (P86.05) — la branche « collaborateur » ne vaut que sur les biens d'une agence dont
      * l'appelant est personnel : c'est la règle de `ReviewPolicy::reply` pour un bien. Un `co_owner`
      * ou un `viewer` bailleur, ou un ancien agent resté en ligne, n'y lit plus les avis d'un bien

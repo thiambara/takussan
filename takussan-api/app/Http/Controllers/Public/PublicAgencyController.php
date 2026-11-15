@@ -402,7 +402,8 @@ class PublicAgencyController extends Controller
             : User::query()
                 ->whereIn('id', $teamUserIds)
                 ->where('status', UserStatus::Active)
-                ->with(['agentProfiles' => fn ($q) => $q->where('agency_id', $agency->id)])
+                // TCK-2863 — `media` : l'avatar de chaque membre, chargé une fois.
+                ->with(['media', 'agentProfiles' => fn ($q) => $q->where('agency_id', $agency->id)])
                 ->get()
                 ->map(function (User $u) use ($portfolioCounts, $roles, $professionnelsIci) {
                     $profile = $u->agentProfiles->first();
@@ -419,7 +420,8 @@ class PublicAgencyController extends Controller
                         // exposed on an unauthenticated, slug-enumerable endpoint —
                         // a turnkey harvesting vector. Contact happens via the agency
                         // business email/phone below, not individual agents.
-                        'avatar_url' => $u->avatar_url ?? null,
+                        // TCK-2863 — `avatarUrl()` : `$u->avatar_url` n'existe pas et rendait toujours null.
+                        'avatar_url' => $u->avatarUrl(),
                         'specialty' => $profile?->specialty,
                         'portfolio_count' => (int) ($portfolioCounts[$u->id] ?? 0),
                     ];

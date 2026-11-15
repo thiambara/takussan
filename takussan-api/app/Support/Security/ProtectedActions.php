@@ -279,6 +279,8 @@ final class ProtectedActions
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',
         MePayoutMethodController::class.'@destroy',
+        // TCK-2863 — envoyer le RIB d'un compte bancaire : une écriture de la destination comme les autres.
+        MePayoutMethodController::class.'@bankStatement',
         // VERIF-594 passe 4, P4-6 (décision de session, réversible) — qui vérifie une destination
         // décide où l'argent part ; un membre sans second facteur, agent compris, ne vérifie plus.
         PayoutMethodController::class.'@verify',

@@ -66,6 +66,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('payout-methods', [MePayoutMethodController::class, 'store'])->name('me.payout-methods.store');
     Route::patch('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'update'])->name('me.payout-methods.update');
     Route::delete('payout-methods/{payoutMethod}', [MePayoutMethodController::class, 'destroy'])->name('me.payout-methods.destroy');
+    // TCK-2863 — le RIB d'un compte bancaire « à confirmer », sous step-up comme les écritures ci-dessus.
+    Route::post('payout-methods/{payoutMethod}/bank-statement', [MePayoutMethodController::class, 'bankStatement'])->name('me.payout-methods.bank-statement');
 
     // TCK-250 — Resumable wizard drafts. `{key}` is a logical identifier owned
     // by the consumer wizard (e.g. `host-individual-wizard`,

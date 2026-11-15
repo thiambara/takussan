@@ -538,6 +538,8 @@ return [
         'integration_misconfigured' => 'Le paiement en ligne est mal configuré pour ce prestataire. Contactez votre agence.',
     ],
     'payout' => [
+        // TCK-2863
+        'bank_statement_bank_only' => 'Un relevé d\'identité bancaire ne s\'envoie que pour un compte bancaire.',
         'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',
         'already_paid_out' => 'Une des pièces citées est déjà reversée.',
         'amount_changed_since_approval' => 'Le montant a changé depuis l\'approbation : faites-le approuver à nouveau.',

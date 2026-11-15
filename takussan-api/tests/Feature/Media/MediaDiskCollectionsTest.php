@@ -10,6 +10,7 @@ use App\Models\KycDossier;
 use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Message;
+use App\Models\PayoutMethod;
 use App\Models\PrivacyRequest;
 use App\Models\Property;
 use App\Models\RadarConsent;
@@ -63,6 +64,8 @@ class MediaDiskCollectionsTest extends TestCase
         // les trois autres.
         MaintenanceRequest::class => ['photos' => 'private', 'completion_photos' => 'private', 'quotes' => 'private', 'before_photos' => 'private'],
         Message::class => ['attachments' => 'private'],
+        // TCK-2863 — le relevé d'identité bancaire d'un compte de versement : privé.
+        PayoutMethod::class => ['bank_statement' => 'private'],
         // TCK-539 (D2) — l'original d'une photo est privé, ses conversions (filigranées) publiques.
         // TCK-601 — la preuve de réponse d'une demande de droits : document du demandeur, privé.
         PrivacyRequest::class => ['proof' => 'private'],

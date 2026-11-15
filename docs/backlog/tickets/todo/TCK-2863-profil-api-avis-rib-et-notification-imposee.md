@@ -64,4 +64,25 @@ Relevé le 2026-11-15 (`dev` 8c60f4c58) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré le 2026-11-15 (agent, arbre `takussan-manques`). Chaque règle a un test vérifié rouge sans son correctif (ablation, restauration prouvée par md5).
+
+**Avis reçus (AC1)** — `meta.distribution {5..1}` et `meta.pending_count` sur `GET /api/reviews/received`.
+- Prémisse qui différait : `ReceivedReviews::for()` ne rend à un agent (non admin) QUE les avis publiés. Un compte « sur ce que l'appelant voit » donnait 0 en attente, contre l'AC1. Ajout de `ReceivedReviews::pendingFor()` (même `targetsActor`, + l'agence de l'admin) : seul le NOMBRE sort, jamais le contenu.
+- « Approuvé » = `is_approved` (comme la note de la fiche publique ; un avis signalé reste publié). Les filtres sujet/réponse valent pour les deux comptes ; `filter[status]` non (il choisit l'onglet).
+
+**Bail clôturé (AC2)** — `ReviewEligibility::closedLeaseOpportunities()`, rendu sous une clé SŒUR `lease_closed` de `GET /api/me/review-opportunities` (et non dans `data`) : chaque ligne de `data` garde sa forme `{type, subject, context}` que lit le front (`ReviewOpportunity`). Forme : `{kind: 'lease_closed', lease {id, end_date, property_title}, target}`, `target` étant l'opportunité « bien » du bail, à poster telle quelle.
+- Clos = `terminated` (date `terminated_at`) ou `expired` (date `end_date`) ; fenêtre `config('reviews.lease_closed_window_days')` = 90 (fichier `config/reviews.php`, sans clé d'env). Disparaît dès que le locataire a noté le bien (même règle « déjà noté » que `opportunities()`).
+- Écart avec la maquette : la carte `CarteAvisEnAttente` montre « Ousmane Niang, locataire » (le bailleur noterait son locataire) ; le ticket dit « pour le locataire », suivi tel quel — aucun avis sur un locataire n'existe (ADR-0043).
+
+**RIB (AC3)** — `POST /api/me/payout-methods/{payoutMethod}/bank-statement` (`StorePayoutMethodBankStatementRequest`, titulaire seul ; pdf/jpg/jpeg/png/webp ≤ `MediaUploadRequest::MAX_DOCUMENT_KB`), sous step-up (`ProtectedActions::STEP_UP`). Compte mobile money → 422 `payout.bank_statement_bank_only`.
+- « En revue » n'est PAS une ligne de `payout_method_verifications` (dont l'existence vaut « vérifiée » et autorise le versement) : colonne `payout_methods.bank_statement_submitted_at` (migration `2026_11_15_286300`), informative. `PayoutMethodResource` gagne `verification_status` (`verified` | `in_review` | `to_confirm`), `bank_statement_submitted_at`, `bank_statement_media_id`. Aucun ADR : rien ne change de ce que vérifie `isVerifiedFor` (ADR-0039 §6).
+- `PayoutMethod` porte la collection privée `bank_statement` (ligne ajoutée à `MediaDiskCollectionsTest::EXPECTED`). Changer nature/numéro/titulaire retire le RIB et la date (le RIB était celui de l'ancien compte).
+- Défaut voisin corrigé : le personnel qui vérifie ne pouvait pas lire la pièce (`MediaPolicy::sign` ne connaissait que `user_id`/`agency_id`). `sign` accepte désormais, pour la seule collection `bank_statement`, qui détient `PayoutMethodPolicy::verify` ; `delete` reste au titulaire.
+
+**Préférences (AC4)** — `catalog` dans `GET /api/me/notification-preferences` (`App\Domain\Notifications\PreferenceCatalog`), `?persona=` (FormRequest `ShowNotificationPreferencesRequest`) le filtre. `events` et la matrice sont INCHANGÉS (des tests figent `events === EVENTS`, et tout `EVENTS` devient réglable par `updateMany()`).
+- `identity_verification` = le verdict KYC `kyc_status_changed`, déjà CRITIQUE (in-app + e-mail toujours) : `locked: true`, `channels: [inapp, email]`, `reason: always_sent`. Un test prouve qu'une préférence coupée n'arrête pas l'envoi.
+- Personas : table DÉCLARÉE (noms de `takussan-web/src/lib/navigation/personas.ts`), recensée par test contre `PreferenceResolver::EVENTS`. Aucune source n'existait (`NotificationClassification` ne porte pas de destinataire).
+
+**Avatar (ajout de périmètre, trouvé par TCK-2862)** — `PublicAgentController::show()` servait `$agent->avatar_url` (inexistant → toujours null) : sert `avatarUrl()` (miniature), `media` préchargé. Même défaut corrigé dans l'équipe de `PublicAgencyController` (ligne 422). Test `PublicAvatarDeLaFicheTest`, rouge avant le correctif sur les deux.
+
+**Hors ticket, constaté** : `scripts/check-models-spec.mjs` rouge sur `ConversationReport` (TCK-2859, déjà commité) — spec, à reporter par `/sync-specs`.

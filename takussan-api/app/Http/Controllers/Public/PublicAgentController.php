@@ -220,7 +220,7 @@ class PublicAgentController extends Controller
 
     public function show(Request $request, string $slug): JsonResponse
     {
-        $agent = $this->ficheOu404($slug, ['agency', 'addresses', 'agentProfiles']);
+        $agent = $this->ficheOu404($slug, ['agency', 'addresses', 'agentProfiles', 'media']); // TCK-2863 — `media` : l'avatar
         $role = PublicProfileFacts::rolesPublics([(int) $agent->id])[(int) $agent->id];
         $canonique = $agent->slugDeFiche();
 
@@ -310,7 +310,9 @@ class PublicAgentController extends Controller
                 // booléen que `primary_contact.phone_verified` de la fiche du bien.
                 'phone' => $agent->numeroPrincipalPublic(),
                 'phone_verified' => $agent->phone_verified_at !== null,
-                'avatar_url' => $agent->avatar_url ?? null,
+                // TCK-2863 — `avatarUrl()`, la miniature : `$agent->avatar_url` n'existe pas sur `User`
+                // et rendait toujours null — la fiche n'affichait jamais la photo.
+                'avatar_url' => $agent->avatarUrl(),
                 'bio' => $agent->bio,
                 'city' => $agent->addresses->first()?->city,
                 'preferred_language' => $agent->preferred_language,

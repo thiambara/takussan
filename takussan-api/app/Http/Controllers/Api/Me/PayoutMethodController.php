@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\StorePayoutMethodBankStatementRequest;
 use App\Http\Requests\Api\Me\StorePayoutMethodRequest;
 use App\Http\Requests\Api\Me\UpdatePayoutMethodRequest;
 use App\Http\Resources\PayoutMethodResource;
@@ -21,7 +22,7 @@ class PayoutMethodController extends Controller
     public function index(Request $request): JsonResponse
     {
         $methods = PayoutMethod::query()
-            ->with('verifications')
+            ->with(['verifications', 'media']) // TCK-2863 — `media` : le RIB, chargé une fois
             ->where('user_id', $request->user()->id)
             ->orderByDesc('is_default')
             ->orderBy('id')
@@ -42,6 +43,17 @@ class PayoutMethodController extends Controller
         $method = $this->methods->update($payoutMethod, $request->validated());
 
         return $this->json(['data' => PayoutMethodResource::make($method)->resolve($request)]);
+    }
+
+    /**
+     * TCK-2863 — `POST /api/me/payout-methods/{payoutMethod}/bank-statement` : le RIB d'un compte
+     * bancaire du titulaire, sous step-up 2FA comme les autres écritures (TCK-589).
+     */
+    public function bankStatement(StorePayoutMethodBankStatementRequest $request, PayoutMethod $payoutMethod): JsonResponse
+    {
+        $method = $this->methods->attachBankStatement($payoutMethod, $request->file('file'));
+
+        return $this->json(['data' => PayoutMethodResource::make($method)->resolve($request)], 201);
     }
 
     public function destroy(Request $request, PayoutMethod $payoutMethod): JsonResponse

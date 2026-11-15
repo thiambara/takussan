@@ -2491,22 +2491,14 @@
     "group": {
       "create": {
         "title": "Bantu bu bees",
-        "step1Description": "Yokk lu néew 2 nit (yaw lañu lay boole automatiquement).",
-        "step2Description": "Joxal kuréel gi lépp lu am, te bind ko ci benn ber walla benn kontaaru waxtaanu (lu ñu bëgg).",
-        "participantsLabel": "Ñi bokk",
         "participantInputPlaceholder": "Seet ci tur…",
         "participantsHint": "Ekip bu sa agence ak ñi nga waxtaanoon ak ñoom.",
         "add": "Yokk",
         "removeParticipant": "Génne {name}",
         "minParticipants": "Lu néew {min} nit ci kuréel gi (boole yaw).",
         "maxParticipants": "Lu ëpp {max} nit ci kuréel gi.",
-        "subjectLabel": "Sujet",
         "subjectRequired": "Sujet bi danu ko soxla.",
-        "propertyLabel": "Ber (lu ñu bëgg)",
-        "leaseLabel": "Kontaaru lokal (lu ñu bëgg)",
         "cancel": "Bayyi",
-        "next": "Topp",
-        "back": "Dellu",
         "create": "Sosal kuréel gi",
         "createFailed": "Mënul sosal kuréel gi.",
         "searching": "Mi ngi wut…",
@@ -2631,7 +2623,6 @@
       "microphoneDenied": "Mikoro bi manuñu ko jot. Maye ko ci sa navigatëer.",
       "sendFailed": "Kàddu gi yónneesu ko. Jéemaatal.",
       "label": "Kàddu",
-      "duration": "{seconds} s",
       "borne": "Note vocale · {max} secondes au plus",
       "lire": "Lire",
       "pause": "Pause"
@@ -11527,7 +11518,16 @@
         "compte": "{n} sur {total}",
         "suivantes": "{n, plural, =1 {Afficher la suivante} other {Afficher les # suivantes}}",
         "ouvrir": "Ouvrir",
-        "lotResultat": "{ok, plural, =0 {Aucune visite traitée} =1 {1 visite traitée} other {# visites traitées}} · {failed, plural, =0 {aucun refus} =1 {1 refus} other {# refus}}"
+        "lotResultat": "{ok, plural, =0 {Aucune visite traitée} =1 {1 visite traitée} other {# visites traitées}} · {failed, plural, =0 {aucun refus} =1 {1 refus} other {# refus}}",
+        "statutFiltre": "Statut",
+        "statutFixe": "L’onglet fixe le statut",
+        "statuts": {
+          "tous": "Tous",
+          "requested": "Demandées",
+          "confirmed": "Confirmées",
+          "completed": "Terminées",
+          "cancelled": "Annulées"
+        }
       },
       "refus": {
         "http_forbidden": "Vous n’avez pas la main sur cette visite.",
@@ -11549,7 +11549,16 @@
       },
       "agentIndisponible": "L’agent de cette visite n’est plus disponible : réattribuez-la",
       "reattribuer": "Réattribuer",
-      "absentPrevenu": "Le visiteur en est prévenu, avec de quoi reprendre une visite."
+      "absentPrevenu": "Le visiteur en est prévenu, avec de quoi reprendre une visite.",
+      "semaine": {
+        "compte": "{n, plural, =0 {Aucune visite cette semaine} one {# visite cette semaine} other {# visites cette semaine}}",
+        "tronquee": "Les {n} premières visites sur {total} : affinez par agent ou par bien pour voir les autres."
+      },
+      "affichage": {
+        "libelle": "Affichage",
+        "liste": "Liste",
+        "semaine": "Semaine"
+      }
     },
     "fiche": {
       "titre": "Visite",

@@ -204,8 +204,8 @@ return [
         // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
         'suggested_stage_stale' => 'This suggested stage is no longer current: reload the customer.',
         // TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation.
-        'stage_undo_unavailable' => "This stage has changed since the acceptance: there is nothing left to undo.",
-        'stage_undo_expired' => "The move to Negotiating can only be undone within 24 hours of the acceptance.",
+        'stage_undo_unavailable' => 'This stage has changed since the acceptance: there is nothing left to undo.',
+        'stage_undo_expired' => 'The move to Negotiating can only be undone within 24 hours of the acceptance.',
     ],
     'dashboard' => [
         'invalid_scope' => 'The requested scope must be “mine” or “agency”.',
@@ -538,6 +538,8 @@ return [
         'integration_misconfigured' => 'Online payment is misconfigured for this provider. Please contact your agency.',
     ],
     'payout' => [
+        // TCK-2863
+        'bank_statement_bank_only' => 'A bank details statement can only be sent for a bank account.',
         'agency_required' => 'A payout is issued on behalf of an agency.',
         'already_paid_out' => 'One of the cited items has already been paid out.',
         'amount_changed_since_approval' => 'The amount changed since it was approved: have it approved again.',
