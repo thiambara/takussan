@@ -92,6 +92,35 @@ class PhoneLoginService
     }
 
     /**
+     * TCK-2940 (ADR-0126 § 4) — {@see self::requestCode()}, le code dicté par un appel. Mêmes bornes que le SMS — borne
+     * par numéro vérifiée avant et comptée après, verrou du numéro, plafond du jour dans `callCodeTo()` —, seul le délai
+     * entre deux appels est propre : l'appel part pendant le délai de renvoi du SMS. Ne dit rien de l'issue.
+     */
+    public function requestVoiceCode(string $phone, ?string $locale): void
+    {
+        if (! $this->codes->canCallTo(self::SCOPE, $phone)) {
+            return;
+        }
+        $this->quota->ensureAvailable($phone);
+
+        if ($this->lock->isNumberLocked($phone)) {
+            $this->codes->holdVoiceCooldownFor(self::SCOPE, $phone);
+            $this->quota->hit($phone);
+
+            return;
+        }
+
+        try {
+            $sent = $this->codes->callCodeTo(self::SCOPE, $phone, $locale);
+        } catch (SmsCodeUndelivered) {
+            $sent = true;
+        }
+        if ($sent) {
+            $this->quota->hit($phone);
+        }
+    }
+
+    /**
      * @param  array{two_factor_code?: ?string, recovery_code?: ?string, device_name?: ?string, terms_version?: ?string}  $proof
      */
     public function verify(string $phone, string $code, array $proof, ?string $locale): JsonResponse

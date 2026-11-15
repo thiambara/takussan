@@ -6,8 +6,11 @@ use App\Exceptions\ApiError;
 use App\Http\Resources\InvitationResource;
 use App\Http\Resources\UserResource;
 use App\Models\Invitation;
+use App\Models\User;
 use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
+use App\Support\CanonicalPhone;
+use App\Support\Masking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,18 +28,32 @@ use Illuminate\Support\Facades\DB;
  */
 class InvitationCodeAcceptance
 {
+    /** TCK-2939 — « numéro corrigé par l'invité ». */
+    public const EVENT_PHONE_CORRECTED = 'invitation_phone_corrected';
+
     public function __construct(
         private readonly PhoneLoginService $login,
         private readonly InvitationService $invitations,
         private readonly PhoneVerificationService $codes,
     ) {}
 
-    /** @return array{retry_after: int} */
-    public function sendCode(string $phone, ?string $locale): array
+    /**
+     * TCK-2940 (ADR-0126) — `voice` : le même code, dicté par un appel. `retry_after` est le délai de la voie demandée ;
+     * `voice_available` dit à l'écran s'il peut proposer « le recevoir par appel ».
+     *
+     * @return array{retry_after: int, channel: string, voice_available: bool}
+     */
+    public function sendCode(string $phone, ?string $locale, string $channel = 'sms'): array
     {
-        $this->login->requestCode($phone, $locale);
+        if ($channel === 'voice') {
+            $this->login->requestVoiceCode($phone, $locale);
+            $retryAfter = $this->codes->callToAvailableIn(PhoneLoginService::SCOPE, $phone) ?: PhoneVerificationService::VOICE_COOLDOWN_SECONDS;
+        } else {
+            $this->login->requestCode($phone, $locale);
+            $retryAfter = $this->codes->sendToAvailableIn(PhoneLoginService::SCOPE, $phone) ?: $this->codes->retryAfter();
+        }
 
-        return ['retry_after' => $this->codes->sendToAvailableIn(PhoneLoginService::SCOPE, $phone) ?: $this->codes->retryAfter()];
+        return ['retry_after' => $retryAfter, 'channel' => $channel, 'voice_available' => PhoneVerificationService::voiceAvailable()];
     }
 
     /**
@@ -54,6 +71,10 @@ class InvitationCodeAcceptance
                 if ($outcome instanceof JsonResponse) {
                     return $outcome;
                 }
+
+                // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 4) — le numéro corrigé par l'invité devient celui de
+                // l'invitation, dans cette transaction : un refus de l'acceptation le défait avec le reste.
+                $this->correctNumber($invitation, $outcome['user'], $phone);
 
                 $accepted = $this->invitations->acceptByVerifiedPhone($invitation, $outcome['user'], [
                     'first_name' => $input['first_name'] ?? null,
@@ -75,5 +96,34 @@ class InvitationCodeAcceptance
 
             throw $e;
         }
+    }
+
+    /**
+     * TCK-2939 (ADR-0094, amendement du 2026-11-15 § 4) — une invitation par SMS dont l'invité a corrigé le numéro :
+     * le code vient de prouver ce numéro, l'invitation lui est réadressée (le numéro VÉRIFIÉ du compte, forme du compte),
+     * et le journal le dit, numéros masqués. Une invitation partagée (ADR-0123 § 4) ne se réadresse jamais — la
+     * requête le refuse déjà en 422, cette garde ne s'en remet pas à elle.
+     */
+    private function correctNumber(Invitation $invitation, User $user, string $phone): void
+    {
+        if ($invitation->email !== null || CanonicalPhone::fold($phone) === CanonicalPhone::fold((string) $invitation->phone)) {
+            return;
+        }
+        if ($invitation->estPartagee()) {
+            abort_code(403, 'invitation.phone_mismatch');
+        }
+
+        $previous = (string) $invitation->phone;
+        $invitation->forceFill(['phone' => (string) $user->phone])->save();
+
+        activity('Invitation')
+            ->performedOn($invitation)
+            ->causedBy($user)
+            ->withProperties([
+                'from' => $previous === '' ? null : Masking::phone($previous),
+                'to' => Masking::phone((string) $user->phone),
+            ])
+            ->event(self::EVENT_PHONE_CORRECTED)
+            ->log(self::EVENT_PHONE_CORRECTED);
     }
 }

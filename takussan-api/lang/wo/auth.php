@@ -20,6 +20,8 @@ return [
     // TCK-589 — duggu ak telefon, tëj, session, 2FA bu war (yokk rekk).
     'phone' => [
         'sms_code' => 'Takussan : sa kod mooy :code. Dina jeex ci :minutes simili. Bul ko wax kenn.',
+        // TCK-2940 (ADR-0126) — le texte que l'appel dicte (le wolof est en pause : texte français).
+        'voice_code' => 'Bonjour. Votre code Takussan est : :digits. Je répète : :digits. Il expire dans :minutes minutes. Ne le communiquez à personne.',
         'taken' => 'Nimero bii dëggal nañu ko ba noppi ci beneen kont.',
         'code_invalid' => 'Kod bi baaxul walla jeex na.',
         'already_verified' => 'Nimero bii dëggal nañu ko ba noppi.',

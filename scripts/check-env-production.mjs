@@ -152,6 +152,8 @@ const VIDES_PERMISES = [
   'APPLE_PRIVATE_KEY_PATH', 'CDN_BASE_URL', 'CDN_PULL_ZONE', 'BUNNY_STORAGE_ZONE',
   // TCK-2471 — défaut vide dans `config/radar_whatsapp.php` ; attend l'approbation par Meta du gabarit d'`accord.v4`.
   'RADAR_WHATSAPP_ACCORD_V4_TEMPLATE',
+  // TCK-2940 (ADR-0126) — défaut vide (voie « par appel » éteinte) ; attend l'ouverture du compte voix LAfricaMobile.
+  'PHONE_VOICE_CODE_DRIVER', 'VOICE_LAM_BASE_URL', 'VOICE_LAM_LOGIN',
 ];
 
 const CLE_DE_SECRET = /(?:^|_)(?:KEY|KEYS|KEY_ID|SECRET|PASSWORD|TOKEN|ACCOUNT_ID)$/;
