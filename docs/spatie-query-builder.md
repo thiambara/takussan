@@ -273,7 +273,8 @@ Sous `fields[property_visits]`, la réponse ne porte que `id`, les clés nommée
 |---|---|---|
 | `visitor_display` | la carte du visiteur `{name, phone, kind, visits_on_property}` ou `null` | aucune (`VisitReadContext`) |
 | `report` | le compte rendu, `null` s'il n'est pas écrit ; clé absente hors du personnel de l'agence du bien | `reported_at`, `report_*`, `reported_by_id` |
-| `abilities` | `{manage, feedback_customer, create_customer}`, au détail seulement | aucune |
+| `abilities` | `{manage, confirm, feedback_customer, create_customer}`, au détail seulement (`confirm` : TCK-2849) | aucune |
+| `can_confirm` | TCK-2849 (ADR-0112) — le lecteur peut confirmer la visite ou en proposer un autre créneau (`PropertyVisitPolicy::peutConfirmer`, bailleur au titre de `settings.owners_confirm_visits` compris) ; en liste, seulement nommée | aucune (`VisitReadContext`) |
 
 Ces clés ne sortent que **nommées**. `PropertyVisit::buildQuery()` les retire avant spatie
 (`PropertyVisitResource::FIELDS`), et un autre nom inconnu rend toujours 400. Une clé demandée n'ouvre aucun

@@ -38,6 +38,7 @@ use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitReadContext;
 use App\Services\Visit\VisitReportService;
 use App\Services\Visit\VisitSchedulingService;
+use App\Support\Logging\SafeExceptionContext;
 use App\Support\TelephoneSaisi;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -284,7 +285,10 @@ class PropertyVisitController extends Controller
                 // `agitPourLeBien` (403 `visit.staff_only`) — décision de la session : même cas, même code.
                 abort_code_if($visit === null, 404, 'http.not_found');
                 abort_code_unless($user->can('update', $visit), 403, 'http.forbidden');
-                abort_code_unless($this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
+                // TCK-2849 — la règle du geste unitaire, bailleur au titre du réglage compris.
+                abort_code_unless(PropertyVisitPolicy::peutConfirmer($user, $visit), 403, 'visit.staff_only');
+                $parLeBailleur = ! $this->agitPourLeBien($user, $visit);
+                $avant = $visit->scheduled_at;
 
                 $confirmed = $this->scheduling->confirmOrFail($visit, $row['scheduled_at']);
                 $confirmed->load('property', 'visitor');
@@ -295,6 +299,9 @@ class PropertyVisitController extends Controller
                 } catch (Throwable $e) {
                     Log::warning('visit.bulk_confirm.notify_failed', ['visit_id' => $id, 'error' => $e->getMessage()]);
                     $sms = false;
+                }
+                if ($parLeBailleur) {
+                    $this->confirmeeParLeBailleur($confirmed, $user, $avant);
                 }
 
                 return $sms === null ? [] : ['sms_sent' => $sms];
@@ -693,7 +700,12 @@ class PropertyVisitController extends Controller
         // Vérification adverse, passe 3 (B2″) — confirmer, c'est le geste qui fait partir le SMS au
         // visiteur (contrainte 4) : la même garde que `update` et `cancel`. Sur un bien d'agence,
         // le bailleur, l'agent parti et l'agent suspendu encore assigné confirmaient (200 + SMS).
-        abort_code_unless($this->agitPourLeBien($request->user(), $visit), 403, 'visit.staff_only');
+        // TCK-2849 (ADR-0112) — ou le bailleur actif du bien, quand l'agence le lui confie
+        // (`owners_confirm_visits`) : ce geste seul, jamais `update`, `complete` ni `cancel`.
+        $user = $request->user();
+        abort_code_unless(PropertyVisitPolicy::peutConfirmer($user, $visit), 403, 'visit.staff_only');
+        $parLeBailleur = ! $this->agitPourLeBien($user, $visit);
+        $avant = $visit->scheduled_at;
 
         // TCK-075 AC2 — source-state check, overlap guard and status
         // flip happen inside a single DB transaction with row-level
@@ -703,7 +715,10 @@ class PropertyVisitController extends Controller
         $visit = $this->scheduling->confirmOrFail($visit, $request->scheduledAt());
         $visit->load('property', 'visitor');
 
-        $sms = $this->notifier->confirmed($visit, $request->user());
+        $sms = $this->notifier->confirmed($visit, $user);
+        if ($parLeBailleur) {
+            $this->confirmeeParLeBailleur($visit, $user, $avant);
+        }
 
         return $this->json($this->avecSortDuSms(['data' => PropertyVisitResource::make($visit)->resolve($request)], $sms));
     }
@@ -928,6 +943,36 @@ class PropertyVisitController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * TCK-2849 (ADR-0112 § 4 et § 5) — une visite confirmée par le BAILLEUR au titre du réglage de
+     * l'agence : l'agent attribué l'apprend, avec le nom du bailleur (à défaut d'agent joignable, le
+     * repli des avis de l'agence), et le journal nomme le bailleur comme auteur. Un avis qui échoue ne
+     * défait pas la confirmation.
+     */
+    private function confirmeeParLeBailleur(PropertyVisit $visit, User $bailleur, ?\DateTimeInterface $avant): void
+    {
+        $nouveauCreneau = $avant !== null && $visit->scheduled_at !== null
+            && ! $visit->scheduled_at->equalTo($avant);
+
+        activity()
+            ->performedOn($visit)
+            ->causedBy($bailleur)
+            ->withProperties([
+                // L'agence du bien : `PropertyVisit` ne porte pas d'`agency_id` (AuditAgencyResolver).
+                'agency_id' => $visit->property?->agency_id,
+                'scheduled_at' => $visit->scheduled_at?->toIso8601String(),
+                'previous_scheduled_at' => $nouveauCreneau ? $avant?->format(DATE_ATOM) : null,
+            ])
+            ->event('visit.confirmed_by_owner')
+            ->log('visit.confirmed_by_owner');
+
+        try {
+            $this->notifier->confirmedByOwner($visit, $bailleur);
+        } catch (Throwable $e) {
+            Log::warning('visit.confirmed_by_owner.notify_failed', ['visit_id' => $visit->id] + SafeExceptionContext::of($e));
+        }
     }
 
     /** P152.04 — la règle vit dans {@see PropertyVisitPolicy::agitPourLeBien}, que la ressource lit aussi. */

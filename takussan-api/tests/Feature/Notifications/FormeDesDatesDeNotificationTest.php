@@ -103,6 +103,8 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::LeaseRentReviewedLandlord,
         // TCK-2783 — le rappel d'expiration d'une pièce.
         NotificationCode::DocumentExpiringSoon,
+        // TCK-2849 — la visite confirmée par le bailleur, à l'agent.
+        NotificationCode::VisitConfirmedByOwner,
     ];
 
     protected function setUp(): void
@@ -178,11 +180,13 @@ class FormeDesDatesDeNotificationTest extends TestCase
         $notifier->cancelledByAgency($visit);
         $notifier->rescheduledByVisitor($visit);
         $notifier->cancelledByVisitor($visit);
+        $notifier->confirmedByOwner($visit, $this->client); // TCK-2849
         app()->call([new SendPropertyVisitReminders, 'handle']);
 
         foreach ([NotificationCode::VisitRequested, NotificationCode::VisitConfirmed, NotificationCode::VisitRescheduled,
             NotificationCode::VisitCancelled, NotificationCode::VisitReminder,
-            NotificationCode::VisitRescheduledByVisitor, NotificationCode::VisitCancelledByVisitor] as $code) {
+            NotificationCode::VisitRescheduledByVisitor, NotificationCode::VisitCancelledByVisitor,
+            NotificationCode::VisitConfirmedByOwner /* TCK-2849 */] as $code) {
             $this->assertFormes($code);
         }
     }

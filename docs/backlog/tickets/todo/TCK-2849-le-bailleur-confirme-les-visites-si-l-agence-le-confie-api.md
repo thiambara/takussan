@@ -64,4 +64,46 @@ Décision : [ADR-0112](../../../adr/0112-le-bailleur-confirme-les-visites-quand-
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 (agent, arbre `takussan-manques`). ADR-0112 lu **Accepté** (le ticket le disait encore « Proposé »).
+
+**Écarts à la prémisse**
+
+- **Pas de migration** : le réglage est une entrée du catalogue `AgencySettings` (`settings.owners_confirm_visits`,
+  `bool`, défaut `false`), le lieu de tous les interrupteurs d'agence (`watermark_enabled`,
+  `late_fee_online_collection`…). L'écriture (`PATCH /api/agencies/{id}`, `AgencyUpdateRequest`, `configure` :
+  administrateur), la normalisation booléenne et la lecture (`AgencyResource.settings`, clé absente = faux) suivent
+  sans autre code. L'ADR laissait le lieu au ticket.
+- `agitPourLeBien` n'est **pas** élargie (elle sert aussi `update`, `complete`, `no-show`, `cancel`,
+  `bulk-assign` et `abilities.manage`) : prédicat neuf `PropertyVisitPolicy::peutConfirmer` =
+  `agitPourLeBien` OU `bailleurConfirme` (bien d'agence, `properties.user_id` = l'appelant,
+  `PersonnelDeLAgence::estBailleur` — profil ACTIF et compte joignable —, réglage vrai). Lu par `confirm` et par
+  `bulk-confirm` (parité « même cas, même code » de TCK-2585).
+- La capacité est rendue : `abilities.confirm` sur le détail ; `can_confirm` (booléen) sur le détail et, en liste,
+  **sur demande** (`fields[property_visits]=…,can_confirm`), jugé sur `VisitReadContext` avec un verdict par agence
+  et par requête (aucune requête par ligne). Le statut n'y entre pas (`confirm` rend 422 hors `scheduled`).
+  **Pour TCK-2869** : l'accueil du bailleur lit `GET /api/property-visits` — ajouter `can_confirm` à ses `fields`.
+- Avis : code neuf `visit.confirmed_by_owner` (`property`, `scheduled_at`, `timezone`, `owner` en `PARAM_PERSON`),
+  famille V, non mobile, vers `agencyRecipients()` (agent attribué utilisable, sinon le repli des admins), l'auteur
+  du geste écarté. Un seul code pour la confirmation et l'autre créneau (l'heure est dans le texte).
+- Journal : `activity()` explicite, `event('visit.confirmed_by_owner')`, causer = le bailleur, `agency_id` de
+  l'agence du bien passé en propriété (`PropertyVisit` n'a pas d'`agency_id` : `AuditAgencyResolver` le lit là),
+  `previous_scheduled_at` posé quand le créneau change. Le personnel qui confirme n'écrit rien de neuf.
+
+**Mesures**
+
+- `php artisan test tests/Feature/Visits/OwnerConfirmsAgencyVisitTest.php` → 11 verts (97 assertions).
+- AC4 : `blocked` et `inactive` sont déjà refusés par `update` (`landlordWrites`) ; le cas qui ATTEINT la branche
+  est le profil `draft` (AC5). Ablations (une à une, restauration par `cp`, md5 vérifié) :
+  `estBailleur` → `BailleurDuBien::tientUnProfil` (tout statut) rougit AC5 ; réglage ignoré rougit AC1 ; avis à
+  l'agent retiré rougit AC2 ; verdict de liste forcé à faux rougit la parité liste/détail.
+- Gardes : `check-notification-codes` vert (129 codes) ; `NotificationFamilyTableTest`, `LangGroupParityTest`,
+  `NotificationParamTypesTest`, `MobileClassEventsTest`, `FormeDesDatesDeNotificationTest` (code ajouté à
+  `EPROUVES`), `DateInventoryByValueTest` (`can_confirm` inscrite), `ImpersonationReadSweepTest`,
+  `ValeursEnListeParcoursDesRoutesTest`, les trois gardes d'architecture : verts. `AuditTrail.test.tsx -t TCK-2676`
+  vert ; `check:i18n` vert. `check-models-spec` rouge sur `BookingDossierItem` (TCK-2872, pas ce ticket).
+- Le prédicat n'est joué qu'une fois par réponse de détail (`can_confirm` et `abilities.confirm` partagent le verdict).
+  `docs/spatie-query-builder.md` et le double front `src/test/visites-comme-l-api.ts` (`CLES_D_UNE_VISITE`, garde
+  `visites-champs-lus.tck-2797`) connaissent `can_confirm` ; `AgencySettingAccessorTest` vert.
+- **Reste** : le journal porte la première entrée de sujet `PropertyVisit`, que `AuditTrail.tsx`
+  (`KNOWN_SUBJECT_TYPES`) et `audit-subject-links` ne nomment pas encore ; le type front `AgencySettings` n'a pas
+  `owners_confirm_visits` — tous deux côté écran (TCK-2869).

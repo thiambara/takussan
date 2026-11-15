@@ -12,6 +12,7 @@ use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\ProprietaireHorsConsole;
 use App\Services\Visit\VisitReadContext;
 use Illuminate\Http\Request;
@@ -26,7 +27,8 @@ class PropertyVisitResource extends BaseResource
      * `PropertyVisit::buildQuery()`), et la ressource ne les rend que nommées. Lue par la garde du
      * front `fields-demandables` : une liste à plat.
      */
-    public const FIELDS = ['visitor_display', 'report', 'abilities'];
+    // TCK-2849 — `can_confirm` : la capacité de confirmer, nommée en liste par l'accueil du bailleur.
+    public const FIELDS = ['visitor_display', 'report', 'abilities', 'can_confirm'];
 
     /**
      * Les colonnes que `report` lit, mises au `SELECT` sans que l'appelant les demande.
@@ -122,6 +124,11 @@ class PropertyVisitResource extends BaseResource
         // `report_*` au `SELECT` ({@see COLONNES_DU_COMPTE_RENDU}) : le cas « absent faute de `reported_at` »
         // de TCK-2779 n'existe plus.
         $rapportLisible = $this->compteRenduLisible($request);
+        // TCK-2849 — jugé une fois, lu par `can_confirm` et `abilities.confirm`.
+        $verdictConfirmer = null;
+        $peutConfirmer = function () use ($request, &$verdictConfirmer): bool {
+            return $verdictConfirmer ??= $this->peutConfirmer($request);
+        };
 
         return [
             'id' => $this->id,
@@ -210,8 +217,17 @@ class PropertyVisitResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
             // P152.04 — sur LA visite de la route seulement (une batterie de règles par ligne d'une
             // liste coûterait) : {@see PropertyVisitPolicy::gere()}.
+            // TCK-2849 (ADR-0112) — « Confirmer » et « Autre créneau » permis à ce lecteur (le statut
+            // n'y entre pas : `confirm` le refuse en 422). En liste, sur demande seulement
+            // (`fields[property_visits]=…,can_confirm`) : l'accueil du bailleur n'offre le geste que là.
+            'can_confirm' => $this->when(
+                $this->isDetailRequest($request) || in_array('can_confirm', self::requestedFields($request) ?? [], true),
+                $peutConfirmer,
+            ),
             'abilities' => $this->when($this->isDetailRequest($request), fn (): array => [
                 'manage' => PropertyVisitPolicy::gere($request->user(), $this->resource),
+                // TCK-2849 — le prédicat de `confirm` : `manage`, ou le bailleur au titre du réglage.
+                'confirm' => $peutConfirmer(),
                 // Vérification de TCK-2581 — déposer l'avis du VISITEUR : le `$isCustomer` de
                 // `PropertyVisitController::feedback`, le visiteur (`visitor_id`) ou le client
                 // rattaché par la fiche (`customer.user_id`). Le front le déduisait de `customer`,
@@ -495,6 +511,52 @@ class PropertyVisitResource extends BaseResource
         if (! array_key_exists($agencyId, $verdicts)) {
             $verdicts[$agencyId] = $user !== null && PersonnelDeLAgence::personnelActifDe($user, $agencyId);
             $request->attributes->set('visits.staff_of', $verdicts);
+        }
+
+        return $verdicts[$agencyId];
+    }
+
+    /**
+     * TCK-2849 — {@see PropertyVisitPolicy::peutConfirmer()} pour une ligne : sur LA visite de la
+     * route, le prédicat lui-même ; dans une liste, la même règle jugée sur le contexte relu de la
+     * page (`VisitReadContext` : agence, créateur du bien, agent), les verdicts d'agence retenus pour
+     * la requête — aucune requête par ligne. La parité des deux est testée
+     * (`OwnerConfirmsAgencyVisitTest`).
+     */
+    private function peutConfirmer(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return false;
+        }
+        if ($this->isDetailRequest($request)) {
+            return PropertyVisitPolicy::peutConfirmer($user, $this->resource);
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        $ctx = VisitReadContext::for($request, $this->resource);
+        if ($ctx === null) {
+            return false;
+        }
+        $moi = (int) $user->id;
+        if (! $ctx['property_live']) {
+            return $ctx['agent_id'] === $moi;
+        }
+        $agencyId = $ctx['agency_id'];
+        if ($agencyId === null) {
+            return ($ctx['agent_id'] === $moi || $ctx['owner_id'] === $moi) && PrimaryPropertyContact::joignable($user);
+        }
+        if ($this->personnelDe($request, $agencyId)) {
+            return true;
+        }
+        if ($ctx['owner_id'] !== $moi) {
+            return false;
+        }
+        $verdicts = $request->attributes->get('visits.owner_confirms', []);
+        if (! array_key_exists($agencyId, $verdicts)) {
+            $verdicts[$agencyId] = PropertyVisitPolicy::bailleurConfirmeDans($user, $agencyId);
+            $request->attributes->set('visits.owner_confirms', $verdicts);
         }
 
         return $verdicts[$agencyId];

@@ -92,6 +92,13 @@ final class AgencySettings
                 'type' => self::STRING, 'default' => null,
                 'rules' => ['sometimes', 'nullable', 'string', 'max:500'],
             ],
+            // TCK-2849 (ADR-0112 § 1) — « Les bailleurs confirment les visites de leurs biens » :
+            // faux par défaut, la règle de TCK-590 (le personnel seul) tient. Vrai, le bailleur ACTIF
+            // d'un bien confirme ou propose un autre créneau (`PropertyVisitPolicy::bailleurConfirme`).
+            'owners_confirm_visits' => [
+                'type' => self::BOOL, 'default' => false,
+                'rules' => ['sometimes', 'nullable', 'boolean'],
+            ],
             'hidden_modules' => [
                 'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
                 'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],

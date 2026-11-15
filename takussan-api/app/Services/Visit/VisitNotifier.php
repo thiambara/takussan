@@ -109,6 +109,16 @@ class VisitNotifier
         return $this->toVisitor($visit, NotificationCode::VisitRescheduled, $emetteur);
     }
 
+    /**
+     * TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite, à son heure ou à un autre créneau :
+     * l'agent attribué l'apprend, avec le nom du bailleur — à défaut d'agent joignable, le repli des
+     * avis de l'agence ({@see self::agencyRecipients()}). Jamais le bailleur lui-même.
+     */
+    public function confirmedByOwner(PropertyVisit $visit, User $bailleur): void
+    {
+        $this->toAgency($visit, NotificationCode::VisitConfirmedByOwner, sauf: $bailleur);
+    }
+
     /** Le visiteur propose un autre créneau : l'agence est prévenue. */
     public function rescheduledByVisitor(PropertyVisit $visit): void
     {
@@ -208,14 +218,22 @@ class VisitNotifier
         return $agencyId !== null ? (int) $agencyId : null;
     }
 
-    private function toAgency(PropertyVisit $visit, NotificationCode $code, bool $withPrimaryAndOwner = false): void
+    private function toAgency(PropertyVisit $visit, NotificationCode $code, bool $withPrimaryAndOwner = false, ?User $sauf = null): void
     {
         foreach ($this->agencyRecipients($visit, $withPrimaryAndOwner) as $recipient) {
+            // TCK-2849 — l'auteur du geste n'est pas prévenu de son propre geste.
+            if ($sauf !== null && $recipient->is($sauf)) {
+                continue;
+            }
             try {
+                $params = $this->params($visit, $code, $recipient->timezone, $recipient);
+                if ($code === NotificationCode::VisitConfirmedByOwner) {
+                    $params['owner'] = trim(($sauf?->first_name ?? '').' '.($sauf?->last_name ?? ''));
+                }
                 $this->notifications->send(
                     $recipient,
                     $code,
-                    $this->params($visit, $code, $recipient->timezone, $recipient),
+                    $params,
                     NotificationTarget::of('visit', $visit->id),
                     // P203.01 (TCK-2161) — l'intégration de l'agence du bien.
                     agencyId: $this->agenceDuBien($visit),
