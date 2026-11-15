@@ -28,6 +28,12 @@ GET /api/properties?filter[area_min]=80
 GET /api/leases?filter[monthly_rent_min]=100000
 ```
 
+Sur une colonne de date, la borne se juge selon le cast (`RangeFilter`, TCK-2768) : un jour `AAAA-MM-JJ` strict,
+jour réel, années 1970-2199 (`JourIso`) sur une colonne `date` ; un jour ou un instant ISO 8601, années 1970-2100
+(`InstantIso`) sur un horodatage. Les bornes `filter[date_from|date_to]` qui passent par `DateBoundaryFilter`
+admettent un jour ou un instant (`InstantIso`). Toute autre forme (« 12/11/2026 », « 99999-01-01 ») rend 422
+([features.md §2.4](features.md#24-recherche--filtres)).
+
 ### Tri
 
 ```

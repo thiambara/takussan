@@ -80,7 +80,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P0 | 🧑‍💼 | Modifier / supprimer un bien (soft delete) |
 | P0 | 🧑‍💼 | Attribuer automatiquement une référence unique à chaque bien (ex : TK-2025-001) |
 | P1 | 🧑‍💼 | Uploader plans, vidéos et visites virtuelles 360° — la visite virtuelle ou vidéo est un **lien https** vers un hébergeur autorisé ; le téléversement de fichiers vidéo reste à décider (TCK-598) |
-| P1 | 🏢🧑‍💼 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) ; pas de frais d'agence pour un espace particulier ; le total à l'entrée s'affiche dès l'aperçu de la publication (TCK-633) |
+| P1 | 🏢🧑‍💼 | Renseigner le coût d'entrée d'une location mensuelle : mois de caution, mois d'avance, frais d'agence en mois de loyer, charges mensuelles (TCK-598) ; pas de frais d'agence pour un espace particulier ; le total à l'entrée s'affiche dès l'aperçu de la publication (TCK-633) ; dans l'assistant, sur `/publish` comme sur `/app/properties/new`, l'aperçu n'en dit que le total (« À l'entrée : … »), et les composantes, le total et la note vivent dans l'encadré « Coût d'entrée » de l'étape du prix, dont l'en-tête replie les compteurs et les charges sans masquer le total (TCK-2819) |
 | P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) — une seule liste d'équipements, traduite, en sélection multiple avec recherche ; un équipement absent s'ajoute à l'annonce tel que saisi, sans traduction, et n'est proposé aux autres qu'après validation super-admin (TCK-633) |
 | P1 | 🏢🧑‍💼 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
 | P1 | 🏢🧑‍💼 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
@@ -105,7 +105,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P1 | 👤 | Publier sans compte : l'anonyme remplit toute l'annonce (toutes les étapes, fréquence Mois / Semaine / Jour / An), gardée dans son navigateur (valeurs et photos survivent au rechargement) ; le compte (numéro, code, prénom **et** nom) est demandé dans une feuille au moment de publier, qui remplace « Vos coordonnées pour les intéressés » sans perte de donnée ; publication directe seulement sans espace ou avec un seul espace particulier, sinon le brouillon est versé dans l'assistant connecté ; les champs propres aux agences sont masqués pour le particulier, pas retirés (décision 1 du porteur du 2026-11-10 ; TCK-2600, TCK-2601) |
 | P1 | 👤🏢 | Une annonce publiée ouvre l'écran « Ton annonce est en ligne » (partager, compléter, booster), pas un toast (TCK-2602) |
 | P1 | 👤 | Coller un lien Google Maps ou une position WhatsApp sans session (`POST /api/public/geo/resolve-link`, limiteur `public-geo-link` à 10 par minute, même liste d'hôtes que la version connectée) (TCK-2599) |
-| P2 | 👤🏢 | Le départ de la publication affiche le nombre de recherches de la ville sur 7 jours, au-dessus d'un seuil réglable (`publish.demand_min_searches`, 200) (TCK-2603) |
+| P2 | 👤 | Le départ de la publication sans compte (`/publish`) affiche le nombre de recherches de la ville sur les 7 derniers jours, aujourd'hui compris : `GET /api/public/publish/demand?city=` (sans session, limiteur `public-read`) rend `{city, searches_7d}` et rien d'autre, le total arrondi à la dizaine inférieure, `null` sous le seuil réglable (`publish.demand_min_searches`, 200) — la carte ne s'affiche alors pas. La ville d'une recherche est son critère `city` ou chacune de ses `cities`, rapprochée du référentiel (nom actuel ou ancien, sans casse ni accent) ; une ville hors référentiel rend 422 ; sans ville, la plus recherchée parmi celles au seuil, sinon `publish.demand_default_city` (Dakar) sans chiffre ; les totaux sont gardés une heure côté serveur. La politique de confidentialité le dit (§ 2.2) ([ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md) § 4, cinquième sortie ; TCK-2603) |
 | P1 | 🏢🧑‍💼 | Saisie des montants lisible : chiffres groupés selon la langue de l'écran, décimales selon la devise (aucune en franc CFA) ; la valeur envoyée reste un nombre (TCK-564, TCK-574) |
 | P2 | 🧑‍💼 | Dupliquer un bien (modèle / template) |
 | P2 | 🛡️ | Modération et validation avant publication, activable par l'admin d'agence : toute mise en ligne d'un bien jamais validé ou refusé (création, publication, changement de statut, modification) attend l'accord de l'admin (TCK-597) ; **l'admin valide un bien en le voyant entier (description, photos, adresse, auteur et son profil) avec une liste de contrôle (photos, adresse, description, prix comparé à la médiane des biens publiés de même type, transaction et quartier, à partir de 5 comparables) ; le refus se dit « demander une correction » et porte un code de motif** (TCK-2672, TCK-2673) |
@@ -470,7 +470,7 @@ Centralisation de tous les fichiers liés à une entité.
 | P1 | 🧑‍💼 | **Document interne de la fiche client** : le personnel range sur la fiche d'un client une pièce que le client ne lit pas — ni à l'écran, ni dans sa liste, son coffre ou son accueil, ni par un lien qu'il publierait ; seuls le personnel actif de l'agence et le super-admin la lisent, et jamais le sujet de la fiche, même s'il en est l'auteur ou membre de l'agence. Le personnel la pose en téléversant (« Visible par le client », **décoché par défaut**) ou la bascule ensuite, journalisé, et la bascule révoque les liens que le client avait publiés vers elle ; le client ne la pose jamais, une pièce qu'il a lui-même déposée n'est jamais interne, et la notion ne vaut que sur une fiche client. Les documents déposés avant restent visibles. L'export des données du client en garde les métadonnées, sans le fichier ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-12 ; TCK-2759) ; `PATCH /api/documents/{id}/visibility`, et la fiche lue par `include=documents` suit la même règle |
 | P2 | 🏠🏢🧑‍💼 | Expiration visible : « expire dans N jours », et filtre des documents qui expirent bientôt (TCK-2655, TCK-2656) |
 | P2 | 🏠🏢🔧🧑‍💼 | Rappel d'expiration d'une pièce à J-60 et à J-7 (`document.expiring_soon`, chaque jour à 07:00, jour de Dakar), une fois par jalon et par date d'expiration — une date nouvelle réarme les jalons, un jalon manqué se rattrape sans doublon (une pièce saisie à J-5 ne reçoit que celui de J-7) ; il va au compte porteur d'une pièce de « Mes pièces », sinon à son téléverseur, l'un comme l'autre seulement s'il la lit encore — jamais au sujet d'un document interne ; ni pièce expirée, ni supprimée, ni sans date ; les canaux suivent les préférences (TCK-2783) |
-| P2 | 🏠🏢🔧🧑‍💼 | « Tout télécharger » d'un dossier du coffre : une archive `.zip` de ses entrées exactes, servie aussitôt jusqu'à 40 entrées (`GET /api/me/document-vault/archive`, TCK-2770) ; au-delà, préparée en arrière-plan sous le profil actif de la demande, qui rejuge le coffre à la construction, puis remise par un lien signé réservé au demandeur et valable 24 heures — une demande identique en cours n'en lance pas une seconde ; refusée sous impersonation ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-14 ; TCK-2812) |
+| P2 | 🏠🏢🔧🧑‍💼 | « Tout télécharger » d'un dossier du coffre : une archive `.zip` de ses entrées exactes, servie aussitôt jusqu'à 40 entrées (`GET /api/me/document-vault/archive`, TCK-2770) ; au-delà, préparée en arrière-plan sous le profil actif de la demande, qui rejuge le coffre à la construction, puis remise par un lien signé réservé au demandeur et valable 24 heures — une demande identique en cours n'en lance pas une seconde ; refusée sous impersonation ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md), amendement du 2026-11-14 ; TCK-2812). Les pièces du coffre se lisent de la plus récente à la plus ancienne (`created_at` puis identifiant, décroissants : deux pièces de la même seconde gardent toujours le même ordre), et l'archive suit cet ordre : de deux noms égaux, sans égard à la casse, le plus récent garde le nom et les suivants prennent « (2) », « (3) »… (TCK-2770) |
 | P1 | 🏠🏢🔧🧑‍💼 | Fiche d'un document : qui l'a ajouté, vérifié, versionné ou partagé, nommé selon le lecteur par un juge unique (`AuteurDuDocument`) — le nom (sans coordonnée) à l'auteur lui-même, au super-admin et au personnel actif de l'agence du document, sauf s'il est le sujet de la fiche client qui le porte ; « Takussan » (`platform`) pour un opérateur de la plateforme hors console ; à tout autre lecteur un rôle, jamais un nom (`agency`, `landlord`, `tenant`, `customer`). Servi sur un document seul (`uploaded_by_person`, `verified_by_person`), sur chaque version et chaque lien de partage (`created_by_person`), jamais sur les listes ni sur le lien public ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md) amendé ; TCK-2773) |
 | P1 | 🧑‍💼 | Catégoriser par type (contrat, CNI, RIB, quittance, justificatif) |
 | P1 | 🏠🏢 | Partage sécurisé par lien temporaire |
@@ -744,6 +744,28 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 | P2 | 🛡️ | Journal anonyme et agrégé des recherches publiques : une ligne par jour et par recherche, rien par personne ; il nourrit les recherches populaires de la suggestion et la demande sans résultat du Radar (TCK-2472, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)) |
 | P3 | Tous | Recherche sémantique par embeddings |
 
+**Règles de gestion — dates reçues par l'API** (TCK-2752, TCK-2768). Une date mal formée est refusée (422), jamais
+relue comme un autre jour : la règle `date` de Laravel seule relisait « 99999-01-01 » en 2009, « 12/11/2026 » au
+11 décembre, et admettait « 0099-01-01 ».
+
+- **Un jour** (colonne `date`, ou borne lue au jour : bail, échéance, facture, pièce, réservation, reversement,
+  disponibilité d'un bien, bornes des recherches et des rapports…) suit `JourIso` : `AAAA-MM-JJ` exactement, un jour
+  qui existe, une année de 1970 à 2199 (plafond décidé par le porteur le 2026-11-13 : un bail emphytéotique signé
+  aujourd'hui finit après 2100). Un champ en `date_format:Y-m-d` la porte aussi ; les mois `Y-m` (période de
+  commissions, performance de l'équipe) n'en relèvent pas.
+- **Un jour ou un instant** (borne d'un horodatage : journal d'activité et son export, `published_after`, les
+  filtres `DateBoundaryFilter`) suit `InstantIso` : un jour, ou un instant ISO 8601 (`T` ou espace, secondes et
+  fractions facultatives, `Z` ou décalage ; sans décalage, l'heure se lit à Dakar), années de 1970 à 2100.
+- **Les filtres génériques `filter[<colonne>_min|_max]`** suivent le cast de la colonne : `JourIso` sur une date,
+  `InstantIso` sur un horodatage.
+- Les règles relatives (`after_or_equal:today`, `after:start_date`…) restent ; la forme s'y ajoute. Une garde
+  (`InstantRecuConvertiTest::test_aucune_date_recue_n_est_nue`) refuse toute règle `date` ou `date_format:Y-m-d`
+  sans l'une des deux, sur tout `app/`.
+- **Les liens ne pourrissent pas** (TCK-335) : la recherche publique, la carte et l'enregistrement d'une recherche
+  écartent un `available_from` que l'API refuserait, comme s'il était absent ; le rejeu d'une recherche sauvegardée
+  (alertes, compte) l'ignore de même côté serveur ; les écrans de la console qui relaient une borne d'URL (journal,
+  historique des paiements, Argent, liste des biens, agenda) l'ignorent au lieu d'afficher une liste vide.
+
 **Règles de gestion — journal et suggestions** ([ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)).
 
 - **Le journal ne garde rien par personne** (TCK-2472) : par jour et par recherche, la saisie normalisée (minuscules,
@@ -753,7 +775,8 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   empreintes propres au couple (jour, recherche) : elles ne relient ni deux jours, ni deux recherches d'un même
   visiteur ; effacées d'heure en heure dès 47 heures (`search:purge-journal`) ; les lignes vivent 13 mois. La politique
   de confidentialité le dit (§ 2.2, § 3, § 4.3 — l'envoi agrégé des recherches sans résultat au fournisseur d'IA — et
-  § 6) et `VERSION_DOCUMENTS` a avancé au 2026-11-04.
+  § 6) et `VERSION_DOCUMENTS` a avancé au 2026-11-04, puis au 2026-11-13 pour le total de ville du départ de la
+  publication (§ 2.2, TCK-2603).
 - **Ce qui est journalisé** : la page 1 de la liste publique (`GET /api/public/properties/search`) avec une saisie ou
   au moins un critère, après la réponse, sans jamais faire échouer la recherche. Pas une frappe (la suggestion
   n'écrit rien), pas un robot déclaré, pas la rangée « À vendre » de l'accueil (`placements=false`), pas une recherche
@@ -768,11 +791,14 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   compté sur `distinct_networks` : /24 en IPv4, /48 en IPv6 — cinq visiteurs d'un même réseau ne suffisent pas) et
   seulement si elle rend encore des résultats ; le compte affiché reste en visiteurs ; la demande sans résultat ne sort que vers le Radar
   ([§2.12](#212-radar--acquisition-dannonces), à deux visiteurs au moins), vers les variantes d'écriture (en texte
-  normalisé, ci-dessous) et la console, jamais au public (ADR-0088 §4 amendé). Une seule autre sortie, un agrégat et
-  rien d'autre : le nombre de recherches des 30 derniers jours sur le quartier des annonces d'un lien de réclamation
-  du Radar, montré au seul porteur de ce lien, à partir de 50 recherches et sans plancher de réseaux — aucune saisie,
-  aucune recherche, aucun compte de visiteurs ([§2.12](#212-radar--acquisition-dannonces), TCK-2511, ADR-0088 §4,
-  amendement du 2026-11-09).
+  normalisé, ci-dessous) et la console, jamais au public (ADR-0088 §4 amendé). Deux autres sorties, chacune un
+  agrégat et rien d'autre — aucune saisie, aucune recherche, aucun compte de visiteurs, sans plancher de réseaux :
+  - le nombre de recherches des 30 derniers jours sur le quartier des annonces d'un lien de réclamation du Radar,
+    montré au seul porteur de ce lien, à partir de 50 recherches ([§2.12](#212-radar--acquisition-dannonces),
+    TCK-2511, ADR-0088 §4, amendement du 2026-11-09) ;
+  - le nombre de recherches des 7 derniers jours d'une ville, **public**, au départ de la publication sans compte, à
+    partir de 200 recherches et arrondi à la dizaine inférieure : la réponse ne porte jamais le total exact
+    ([§1.1](#11-gestion-des-biens), TCK-2603, ADR-0088 §4, amendement du 2026-11-10, validé le 2026-11-14).
 - **La saisie libre est comprise par du code, jamais par l'IA** (TCK-2473, `SearchQueryParser`) : type (les mots de
   `lang/{fr,en}/properties.php` et les alias français ; le wolof lit le vocabulaire français), contrat et période,
   prix (« 500k », « 2 millions », « entre 300 et 600k », « max 450 000 »), chambres en **minimum** (« 3 chambres »,
@@ -912,14 +938,14 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 | P2 | 🛡️ | Impayé = échéance échue non payée, qu'une pénalité s'applique ou non (TCK-595) |
 | P2 | 🛡️ | Export CSV / Excel (paiements, baux, clients) — réservé aux détenteurs de `crm.export` (clients), `payments.export` (paiements), `reports.export` (baux, biens) ; chaque export est journalisé (entité, filtres, nombre de lignes) (TCK-587) |
 | P2 | 🛡️ | Exports reversements, factures, commissions, balance âgée, cautions (CSV / Excel) (TCK-595) |
-| P2 | 🛡️🏢🧑‍💼 | Exports prêts (préréglages de période) et liste des derniers exports de l'utilisateur, relancés avec les mêmes paramètres et les capacités du moment ; aucun fichier n'est conservé (TCK-2627, TCK-2629) |
+| P2 | 🛡️🏢🧑‍💼 | Exports prêts (préréglages de période) et liste des derniers exports de l'utilisateur, relancés avec les mêmes paramètres et les capacités du moment ; aucun fichier n'est conservé ; le fichier téléchargé porte le nom que l'API lui donne (TCK-2627, TCK-2629) |
 | P2 | 🛡️ | Métriques plateforme historisées chaque jour (flux encaissé, GMV, take rate, MRR hors essais) — strictement super_admin ; MRR hors essais (statut et fin d'essai), comptes en retard de paiement inclus (TCK-595) |
 | P2 | 🛡️ | Export PDF (quittances, factures, rapports) |
 | P2 | 🛡️ | Graphiques temporels (revenus, occupation) |
 | P2 | 🛡️ | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
 | P3 | 🛡️ | KPI personnalisables par agence — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) ; **réglés sur la vue d'ensemble de Rapports (ordre, masquage, ajout, aperçu)** (TCK-2629) |
 | P3 | 🛡️ | Les tuiles du dashboard agence lisent les KPI personnalisés : les seuls activés, par rang, avec leur libellé et leur format, valeurs calculées par l'API (`data.kpis` de `GET /api/dashboard/agency`) ; sans configuration, les six tuiles par défaut restent (TCK-2373) |
-| P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) ; **chaque alerte montre sa valeur actuelle, l'historique de ses déclenchements, ses destinataires (admins de l'agence) et ses canaux** (TCK-2627, TCK-2629) ; **une alerte sur un chiffre consolidé (revenus et commissions du mois, impayés en nombre et en montant, taux d'impayés) ne prévient que les admins qui lisent les rapports de l'agence (`reports.view_agency`), et sa valeur n'est montrée qu'à eux** (contre-vérification de TCK-2627) |
+| P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) ; **chaque alerte montre sa valeur actuelle, l'historique de ses déclenchements, ses destinataires (admins de l'agence) et ses canaux ; la création d'une alerte montre la valeur actuelle de la métrique choisie, « — » si la mesure manque** (TCK-2627, TCK-2629) ; **une alerte sur un chiffre consolidé (revenus et commissions du mois, impayés en nombre et en montant, taux d'impayés) ne prévient que les admins qui lisent les rapports de l'agence (`reports.view_agency`), et sa valeur n'est montrée qu'à eux** (contre-vérification de TCK-2627) |
 
 **Pas de tableau de bord prestataire (🔧), et c'est une décision, pas un oubli** (TCK-379, écrit
 ici par TCK-420). Le prestataire n'a ni portefeuille, ni cashflow, ni pipeline : sa vue de travail

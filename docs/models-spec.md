@@ -168,6 +168,12 @@ Les tables `lemon_squeezy_*` viennent d'un paquet, voir [`lemonsqueezy/laravel`]
 >   **tronque** avec un simple `NOTICE`. L'index existe alors sous un nom que Laravel ne calculera
 >   jamais, et c'est le `dropIndex()` d'une migration future qui échouera sur un index
 >   « introuvable » qui est pourtant là. C'est pourquoi ce document nomme ses index explicitement.
+>
+> **Une colonne `date` ne reçoit qu'un jour `AAAA-MM-JJ` strict** (TCK-2768) : chaque champ que l'API valide pour
+> une colonne `date` de ce document (`start_date`, `end_date`, `period_start`, `period_end`, `due_date`, `issue_date`,
+> `expiry_date`, `available_from`, `valid_until`, `effective_date`…) passe par la règle `JourIso` — jour réel, années
+> 1970 à 2199 — et une autre forme rend 422. Une colonne `datetime` reçoit un jour ou un instant ISO 8601 (`InstantIso`,
+> TCK-2752, années 1970 à 2100). Le détail est en [features.md §2.4](features.md#24-recherche--filtres).
 
 ---
 
