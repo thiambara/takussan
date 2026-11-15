@@ -208,6 +208,12 @@ l'ouverture du ticket.
     seul ne l'aurait pas vu. La garde statique `JsonApiResource` est dans le même fichier, ablation faite (une sonde
     dans `app/` la rend rouge).
 
+## Reste sur dev
+
+- AC4 : `deploy/takussan/smoke-web.sh` sur l'image du front, machine au repos (session, décision 2a du 2026-11-14).
+- AC5 : le décompte Dependabot après la fusion de cette PR, relu dans les notes.
+- Le ticket passe `done` quand les deux sont écrits.
+
 ## Hors périmètre
 
 - Lever la pause de Dependabot, ou ajouter un audit composer à la CI : un ticket à part, qui serait utile puisque
