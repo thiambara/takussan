@@ -55,4 +55,34 @@ Le nouvel agent sait, dès son arrivée, ce que cherche son premier prospect, av
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Livré (2026-11-15).**
+
+- `App\Services\Onboarding\AgentFirstLead` (neuf) : la recherche (heuristique `added_by_id`, inchangée) et la
+  projection du premier prospect, **partagées** par `GET …/first-lead` et par `complete()`
+  (`AgentOnboardingService::resolveFirstLead`, qui avait sa propre copie) — le type front `AgentFirstLeadEntry`
+  vaut donc pour les deux réponses.
+- Champs ajoutés : `need` (`{contract_type, property_types, cities, neighborhoods, min_bedrooms}` ou `null` si aucun
+  critère), `budget_min`/`budget_max` (chaînes `decimal:2`, comme `CustomerResource`), `last_contacted_at`
+  (instant `instantOnWire`), `last_contact_channel`, `origin`
+  (`{kind: "contact_lead"|"interested_property", channel, received_at, property_id, property_title, property_reference}`
+  ou `null` ; bien supprimé lu `withTrashed`), `agency_note` (`{body, author_name, created_at}` ou `null`).
+- `role-capabilities` : `granted` (= `capabilities`, gardée pour les lecteurs actuels) et `denied` =
+  `Capability::agencyAssignable()` moins `granted`. Le « catalogue affichable » est ce catalogue d'agence, sans
+  seconde liste (les réservées plateforme n'y sont pas).
+
+**Prémisse qui différait.** `customer_notes` n'a **aucune notion de note privée** (pas de colonne, pas de règle
+d'auteur) : la seule règle de lecture est `CustomerNoteKind::staffOnlyValues()` (compte rendu de visite, message
+d'origine). Décision (option la plus sûre) : `agency_note` = la dernière note **libre** (`kind` nul), épinglée
+d'abord ; jamais une note `visit_report`/`lead_message` (le profil est `draft`, pas encore du personnel) ni une note
+d'étape (`conversion`, `loss`) ; à défaut, la colonne `customers.notes` sans auteur. Pas de filtre par auteur (la
+maquette signe la note de l'invitant). AC2 est écrit contre cette règle.
+`agency_role_id` est NOT NULL : le cas « sans rôle » est défensif et n'a pas de test.
+
+**Mesures.** `AgentFirstLeadProjectionTest` 6/6, `AgentRoleCapabilitiesDeniedTest` 2/2, `AgentRoleCapabilitiesTest` 3/3,
+`AgentOnboardingTest` 11/11, `DateInventoryByValueTest` 25/25, les trois gardes d'architecture vertes, gardes racine
+`scripts/check-*.mjs` toutes vertes. Ablations (rouges, restaurées md5) : colonne `source_contact_lead_id` retirée de
+la sélection → AC1 rouge ; `whereNull('kind')` retiré → AC2 (notes réservées) rouge ; `denied` vide → AC3 rouge ;
+ancienne projection remise dans `AgentOnboardingService::resolveFirstLead` → `AgentOnboardingTest::test_complete_flips…`
+rouge (assertion TCK-2942 ajoutée : `complete()` porte les mêmes clés). Le test de projection tourne sur un profil
+`draft` (l'état réel pendant l'assistant). Les 49 capacités du catalogue ont toutes leur libellé
+`admin.roles.capabilities.*` (fr) : `denied` est affichable tel quel par TCK-2945.

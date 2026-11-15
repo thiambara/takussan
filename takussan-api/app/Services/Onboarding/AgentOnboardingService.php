@@ -2,7 +2,6 @@
 
 namespace App\Services\Onboarding;
 
-use App\Models\Customer;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
@@ -116,37 +115,14 @@ class AgentOnboardingService
     }
 
     /**
-     * Surface the first pre-assigned lead for the welcome screen. The
-     * current schema has no dedicated `assigned_agent_id` column — we
-     * use `customers.added_by_id = $agent_profile->user_id` scoped by
-     * agency as a heuristic. Returns `null` when none.
+     * Surface the first pre-assigned lead for the welcome screen.
+     * TCK-2942 — la recherche et la projection vivent dans `AgentFirstLead`, partagée avec
+     * `GET /api/me/agent-profiles/{id}/first-lead` : les deux réponses portent les mêmes champs.
      *
      * @return array<string, mixed>|null
      */
     protected function resolveFirstLead(AgentProfile $agent): ?array
     {
-        if ($agent->user_id === null) {
-            return null;
-        }
-
-        $customer = Customer::query()
-            ->where('added_by_id', $agent->user_id)
-            ->when($agent->agency_id !== null, fn ($q) => $q->where('agency_id', $agent->agency_id))
-            ->orderBy('id')
-            ->first(['id', 'first_name', 'last_name', 'email', 'phone', 'pipeline_stage', 'agency_id']);
-
-        if ($customer === null) {
-            return null;
-        }
-
-        return [
-            'id' => $customer->id,
-            'first_name' => $customer->first_name,
-            'last_name' => $customer->last_name,
-            'full_name' => trim((string) $customer->first_name.' '.(string) $customer->last_name),
-            'email' => $customer->email,
-            'phone' => $customer->phone,
-            'pipeline_stage' => $customer->pipeline_stage?->value,
-        ];
+        return app(AgentFirstLead::class)->for($agent);
     }
 }

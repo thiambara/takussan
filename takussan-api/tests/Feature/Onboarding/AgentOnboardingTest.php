@@ -278,6 +278,12 @@ class AgentOnboardingTest extends TestCase
             ->assertJsonPath('data.first_lead.full_name', 'Mariama Ba')
             ->assertJsonPath('data.active_profile_id', "agent:{$agent->id}");
 
+        // TCK-2942 — `complete()` rend la même projection que `GET …/first-lead` (`AgentFirstLead`).
+        $this->assertSame(
+            ['need', 'budget_min', 'budget_max', 'last_contacted_at', 'last_contact_channel', 'origin', 'agency_note'],
+            array_values(array_intersect(array_keys($response->json('data.first_lead')), ['need', 'budget_min', 'budget_max', 'last_contacted_at', 'last_contact_channel', 'origin', 'agency_note'])),
+        );
+
         $cookieNames = array_map(fn ($c) => $c->getName(), $response->headers->getCookies());
         $this->assertContains('active_profile_id', $cookieNames);
 
