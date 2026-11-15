@@ -8458,6 +8458,25 @@
           "titre": "A job is waiting for you",
           "titreSans": "Your next jobs",
           "texteSans": "The agency’s requests, once your profile is complete"
+        },
+        "chiffres": {
+          "biens": "{n, plural, one {# property managed by the agency} other {# properties managed by the agency}}",
+          "parc": "The portfolio you will follow, from your space",
+          "loyer": "Your last rent",
+          "loyerRecu": "{montant} received on {date}",
+          "loyerRecuSansDate": "{montant} received",
+          "pieces": "{n, plural, one {# document to send} other {# documents to send}}",
+          "piecesDetail": "{liste} — whenever you like, from your space",
+          "piecesSansNoms": "Whenever you like, from your space",
+          "et": "{debut} and {fin}",
+          "noms": {
+            "rib": "bank details (RIB)",
+            "cni": "ID document",
+            "ninea": "NINEA",
+            "license": "professional card",
+            "photo": "profile photo",
+            "insurance": "professional liability insurance"
+          }
         }
       }
     },
@@ -8486,7 +8505,7 @@
         "pro": {
           "titre": "I'm a professional",
           "sous": "Agent, agency, property manager",
-          "promesse": "Your agency space opens right away: your properties, your leases, your payments.",
+          "promesse": "Your agency space opens right away: team, landlords, mandates.",
           "court": "Your pro space, right away"
         },
         "commencer": "Start"
@@ -8526,7 +8545,8 @@
           "partout": "All neighbourhoods",
           "budget": "{tranche} CFA francs"
         },
-        "erreurAlerte": "We couldn't save your alert. Try again, or skip this step."
+        "erreurAlerte": "We couldn't save your alert. Try again, or skip this step.",
+        "nouveau": "New"
       },
       "pro": {
         "barre": "Your professional space",
@@ -8545,39 +8565,35 @@
         "nomRequis": "Enter the agency name.",
         "ville": "Main city",
         "telephone": "Agency phone",
-        "telephoneAide": "Taken from your account. Another number can be given in the agency upgrade request.",
+        "telephoneAide": "Taken from your account. You can enter another one.",
         "deuxTemps": {
           "titre": "In two steps",
           "maintenant": "Right away",
-          "maintenantTexte": "Your space is ready: you add your properties and publish your listings.",
+          "maintenantTexte": "Your space is ready: you add your properties and your team.",
           "ensuite": "Then",
-          "ensuiteTexte": "Takussan checks the agency (NINEA, trade register)."
+          "ensuiteTexte": "Our team checks the agency (NINEA, trade register). Until then, your properties aren’t online and the rent collected is paid out to you after the check."
         },
         "creerBouton": "Create my pro space",
         "cgu": "By creating your space, you accept the <lien>terms of use</lien>.",
         "ceQueVousAurez": "What you will get",
         "avantages": {
-          "biens": {
-            "titre": "Your properties and listings",
-            "texte": "Publish, and follow requests and viewings in one place."
+          "equipe": {
+            "titre": "Your team",
+            "texte": "Invite your agents: each with their own access, properties and appointments."
           },
-          "baux": {
-            "titre": "Your leases",
-            "texte": "Renting, signing and due dates, followed end to end."
+          "bailleurs": {
+            "titre": "Your landlords",
+            "texte": "Their properties, rents and statements, organised by owner."
           },
-          "encaissements": {
-            "titre": "Your payments",
-            "texte": "Rents received, receipts and what is still due."
-          },
-          "credits": {
-            "titre": "Promotion credits",
-            "texte": "Boost a listing on the day you choose."
+          "mandats": {
+            "titre": "Your mandates",
+            "texte": "Letting, sale, management: tracked from signature to expiry."
           }
         },
         "erreur": "We couldn't open your space. Try again.",
         "lien": {
           "titre": "Ask your agency for the link",
-          "texte": "Its administrator sends it from their Takussan space. Paste it here: your access opens straight away.",
+          "texte": "Its administrator sends it from their space (Team, then “Invite”). Paste it here: your access opens straight away.",
           "libelle": "Invitation link",
           "coller": "Paste",
           "refuse": "This is not a Takussan invitation link. Paste the link your agency sent you.",
@@ -8595,7 +8611,10 @@
           "libelle": "Your number",
           "envoyer": "Get the code",
           "code": "Code received by SMS"
-        }
+        },
+        "villeChoisir": "Choose a city",
+        "villeAucune": "No city matches.",
+        "numeroNonVerifie": "Your number isn’t verified yet. Verify it below by SMS, then create your space."
       },
       "prenom": {
         "apercu": "What others will see",
@@ -11065,7 +11084,30 @@
         "accepted": "Statement received: processing has started.",
         "failed": "The statement import failed.",
         "choisir": "Choose a file",
-        "aucunFichier": "No file chosen"
+        "aucunFichier": "No file chosen",
+        "apercu": {
+          "lecture": "Reading the file…",
+          "titre": "What we read",
+          "lues": "{count, plural, =0 {No line read} one {# line read} other {# lines read}}",
+          "nonLues": "{count, plural, =0 {no line skipped} one {# line not read} other {# lines not read}}",
+          "periode": "From {debut} to {fin}",
+          "raisons": {
+            "missing_value": "missing value",
+            "invalid_date": "unreadable date",
+            "invalid_amount": "unreadable amount",
+            "invalid_direction": "unreadable direction",
+            "invalid_currency": "unrecognised currency",
+            "unreadable": "unreadable line",
+            "inconnue": "unspecified reason"
+          },
+          "ligneNonLue": "Line {line}: {raison}",
+          "etAutres": "{count, plural, one {and # more line} other {and # more lines}}",
+          "premieres": "{count, plural, one {The first line} other {The first # lines}}",
+          "dejaImporte": "This file has already been imported: importing it again would be refused.",
+          "aucuneLigne": "No line read: check the format or the import settings.",
+          "changer": "Change file",
+          "echec": "The statement could not be read."
+        }
       },
       "list": {
         "title": "Imported statements",
@@ -11237,7 +11279,10 @@
           "confirme": "Payment reconciled.",
           "delie": "The suggested line has been unlinked.",
           "echecConfirmer": "The reconciliation failed.",
-          "echecDelier": "The line could not be unlinked."
+          "echecDelier": "The line could not be unlinked.",
+          "ignorer": "Ignore",
+          "ignorerPour": "Ignore the payment from {qui}",
+          "plusPour": "More actions for {qui}"
         },
         "plus": "{count, plural, one {Show the other one} other {Show the # others}}",
         "pied": "{affiches, plural, one {# line shown} other {# lines shown}} of {total} · highest amounts first",
@@ -11285,6 +11330,33 @@
             "card": "card payments",
             "mobile_money": "mobile money"
           }
+        },
+        "ignorer": {
+          "titre": "Ignore this payment",
+          "description": "It leaves the payments to reconcile without being reconciled. You can restore it.",
+          "motif": "Why will it have no bank line?",
+          "motifs": {
+            "cash_kept": "Cash kept at the agency",
+            "other_account": "Paid into another account",
+            "other": "Other"
+          },
+          "note": "Specify the reason",
+          "noteRequise": "Specify the reason for “Other”.",
+          "valider": "Ignore the payment",
+          "ignore": "Payment ignored.",
+          "echec": "The payment could not be ignored.",
+          "annuler": "Undo",
+          "retabli": "The payment is back among those to reconcile.",
+          "echecRetablir": "The payment could not be restored."
+        },
+        "ignores": {
+          "resume": "{count, plural, one {# payment ignored this month} other {# payments ignored this month}}",
+          "voir": "Show",
+          "masquer": "Hide",
+          "retablir": "Restore",
+          "retablirPour": "Restore the payment from {qui}",
+          "quand": "{motif} · on {date}",
+          "erreur": "Ignored payments could not be loaded."
         }
       },
       "vide": {
@@ -11292,7 +11364,8 @@
         "auto": "Everything paid via {liste} is already reconciled.",
         "reste": "{count, plural, one {For the remaining payment, import your bank statement.} other {For the # remaining payments, import your bank statement.}}",
         "formats": "CSV or OFX from your bank",
-        "aucunReleve": "No statement yet."
+        "aucunReleve": "No statement yet.",
+        "formatsEtApercu": "CSV or OFX · we show you what we read before importing"
       },
       "releves": {
         "rubrique": "Statements",
@@ -11312,6 +11385,14 @@
         "connecte": "Connected",
         "confirmes": "{count, plural, =0 {none confirmed in {mois}} one {# confirmed in {mois}} other {# confirmed in {mois}}}",
         "aucune": "No online payment is connected."
+      },
+      "banques": {
+        "titre": "Supported banks",
+        "parFormat": "Statements are read by their format, whatever the bank:",
+        "formats": {
+          "csv": "CSV — adjustable columns",
+          "ofx": "OFX"
+        }
       }
     },
     "agencyPublicProfile": {

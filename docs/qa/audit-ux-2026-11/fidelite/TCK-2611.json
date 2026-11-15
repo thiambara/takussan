@@ -299,10 +299,10 @@
     },
     {
       "ecran": "a-1 (téléphone)",
-      "element": "cases du code (56 px), « Rien reçu ? » sur une ligne, encadré de test et note qui suivent",
-      "propriete": "y (−15,5 px)",
+      "element": "cases du code (56 px), puis « Rien reçu ? », encadré de test et note qui suivent",
+      "propriete": "y (+4 px)",
       "exception": "composant partagé",
-      "motif": "sans voie par appel, la phrase tient sur une ligne (−19,5) ; les cases sont `CasesDuCode` de la famille d'entrée, 56 px comme la connexion (TCK-2604), la maquette de l'invitation 52 (+4). Au bureau, les deux tiennent : aucun écart"
+      "motif": "les cases sont `CasesDuCode` de la famille d'entrée, 56 px comme la connexion (TCK-2604), la maquette de l'invitation 52 (+4). L'écart de la phrase sur une ligne (−19,5) est fermé par TCK-2948 : « …, ou le recevoir par appel. » est rendu quand `…/code` dit la voie active (`voice_available`, `.env.docker` pose le pilote `log`) ; voie inactive, la phrase s'arrête au renvoi et tient sur une ligne (AC2 de TCK-2948). Au bureau : aucun écart"
     },
     {
       "ecran": "a-1 (téléphone, bureau)",

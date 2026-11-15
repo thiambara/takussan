@@ -62,6 +62,9 @@ const LIEN_PRIMAIRE =
   'inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-primary underline decoration-1 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 const LIEN_DISCRET =
   'inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-muted-foreground underline decoration-1 underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
+/** TCK-2948 — les gestes de la ligne « Rien reçu ? » (renvoyer, le recevoir par appel). */
+const LIEN_DU_CODE =
+  'rounded-lg font-medium text-primary underline decoration-primary/40 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring';
 const TITRE = 'font-display text-[1.625rem] font-semibold leading-[1.15] tracking-[-0.02em] xl:text-[2rem] xl:leading-[1.12] xl:tracking-[-0.025em]';
 
 /** « 77 123 45 67 » : l'indicatif du Sénégal se tait ; un numéro étranger le garde. */
@@ -501,19 +504,45 @@ function EcranDuCode({
         ) : null}
         <p className="mt-3 flex flex-wrap items-center gap-x-1 text-[0.8125rem] text-muted-foreground">
           {t('code.rienRecu')}{' '}
-          {entree.attente > 0 ? (
+          {entree.voixDisponible ? (
+            // TCK-2948 — « Renvoyer le code dans 0:38, ou le recevoir par appel. » : l'appel partage le rebours
+            // du renvoi (inactif pendant), et n'est rendu que si la dernière réponse de `…/code` dit la voie active.
+            <span>
+              {t.rich('code.ouParAppel', {
+                texte: entree.attente > 0 ? t('code.renvoyerDans', { temps: minutes(entree.attente) }) : t('code.renvoyer'),
+                renvoi: (m) =>
+                  entree.attente > 0 ? (
+                    <span className="tabular-nums">{m}</span>
+                  ) : (
+                    <button type="button" disabled={entree.envoi} onClick={() => void entree.envoyerCode()} className={cn(LIEN_DU_CODE, '-my-3 min-h-11')}>
+                      {m}
+                    </button>
+                  ),
+                appel: (m) => (
+                  <button
+                    type="button"
+                    disabled={entree.envoi || entree.attente > 0}
+                    onClick={() => void entree.envoyerCode('voice')}
+                    className={cn(LIEN_DU_CODE, '-my-3 min-h-11 disabled:cursor-default disabled:text-muted-foreground disabled:no-underline')}
+                  >
+                    {m}
+                  </button>
+                ),
+              })}
+            </span>
+          ) : entree.attente > 0 ? (
             <span className="tabular-nums">{t('code.renvoyerDans', { temps: minutes(entree.attente) })}</span>
           ) : (
-            <button
-              type="button"
-              disabled={entree.envoi}
-              onClick={() => void entree.envoyerCode()}
-              className="-my-3 min-h-11 rounded-lg font-medium text-primary underline decoration-primary/40 underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
-            >
+            <button type="button" disabled={entree.envoi} onClick={() => void entree.envoyerCode()} className={cn(LIEN_DU_CODE, '-my-3 min-h-11')}>
               {t('code.renvoyer')}
             </button>
           )}
         </p>
+        {entree.appelDemande ? (
+          <p role="status" className="mt-2 text-[0.8125rem] text-foreground">
+            {t('code.appelEnCours')}
+          </p>
+        ) : null}
         <EncadreDeTest code={entree.apercu} className="mt-5" />
         <p className="mt-6 flex items-start gap-2.5 rounded-2xl bg-muted/70 p-3.5 text-[0.8125rem] leading-snug text-encre-douce xl:hidden">
           <UserCheck className="mt-0.5 size-4 flex-none text-muted-foreground" aria-hidden="true" />

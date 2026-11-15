@@ -10,7 +10,7 @@ import { useCurrentLocale } from '@/i18n/hooks';
 import { ApiError } from '@/lib/api';
 import { exigeConditions, exigeDoubleFacteur } from '@/lib/connexion-telephone';
 import { destinationDInvitation } from '@/lib/invitation-destination';
-import { demanderCodeDInvitation, verifierCodeDInvitation, type ReponseDeVerification } from '@/lib/invitation-code';
+import { demanderCodeDInvitation, verifierCodeDInvitation, type CanalDuCode, type ReponseDeVerification } from '@/lib/invitation-code';
 
 /**
  * TCK-2611 (ADR-0094 § 5) — l'automate de l'entrée par code d'une invitation : le numéro (saisi pour
@@ -65,6 +65,9 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
   const [caseConditions, setCaseConditions] = useState(false);
   const [versionAcceptee, setVersionAcceptee] = useState<string | null>(null);
   const [codeRefuse, setCodeRefuse] = useState(false);
+  // TCK-2948 — la voie « appel » : offerte seulement si la dernière réponse de `…/code` la dit active.
+  const [voixDisponible, setVoixDisponible] = useState(false);
+  const [appelDemande, setAppelDemande] = useState(false);
   const verificationEnCours = useRef(false);
 
   // Compte à rebours du renvoi : `retry_after` est la seule source.
@@ -82,18 +85,34 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
     return t('echec');
   }
 
-  async function envoyerCode(): Promise<void> {
+  /**
+   * Le code par SMS (défaut) ou, TCK-2948, dicté par un appel (`channel: "voice"`, même code, mêmes
+   * limites) : l'appel relance le même rebours que le renvoi.
+   */
+  async function envoyerCode(canal: CanalDuCode = 'sms'): Promise<void> {
     setEnvoi(true);
     setErreur(null);
     setConnexionDemandee(null);
     try {
-      const demande = await demanderCodeDInvitation(jeton, parSms ? null : telephone, locale);
+      const telephoneEnvoye = parSms ? null : telephone;
+      const demande =
+        canal === 'voice'
+          ? await demanderCodeDInvitation(jeton, telephoneEnvoye, locale, 'voice')
+          : await demanderCodeDInvitation(jeton, telephoneEnvoye, locale);
       setAttente(demande.attente);
       setApercu(demande.codeApercu);
+      setVoixDisponible(demande.voixDisponible);
+      setAppelDemande(canal === 'voice');
       setCode('');
       setCodeRefuse(false);
       setEtape('code');
     } catch (err) {
+      if (canal === 'voice' && err instanceof ApiError && err.status === 422) {
+        // TCK-2948 — pilote ou clé d'appel absents (TCK-2940 : 422 sur `channel`) : le lien se retire, le SMS reste.
+        setVoixDisponible(false);
+        setErreur(t('appelIndisponible'));
+        return;
+      }
       if (err instanceof ApiError && err.status === 404 && corps(err).code !== 'invitation.token_not_found') {
         // Drapeau éteint entre l'affichage et l'envoi : la voie mot de passe reste.
         onMotDePasse();
@@ -202,6 +221,7 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
 
   function revenirAuNumero(): void {
     setEtape('numero');
+    setAppelDemande(false);
     setCode('');
     setCodeRefuse(false);
     setErreur(null);
@@ -232,6 +252,8 @@ export function useEntreeParInvitation({ jeton, parSms, noms, onMotDePasse }: Op
     codeDeSecours,
     basculerCodeDeSecours,
     attente,
+    voixDisponible,
+    appelDemande,
     apercu,
     envoi,
     erreur,

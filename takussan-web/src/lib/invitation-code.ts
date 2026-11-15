@@ -17,19 +17,33 @@ export interface DemandeDeCode {
   readonly attente: number;
   /** TCK-620 (ADR-0060) — le code, quand l'API le rend (hors production seulement). */
   readonly codeApercu: string | null;
+  /**
+   * TCK-2948 (ADR-0126) — `voice_available` de la réponse : l'écran ne propose « le recevoir par appel »
+   * que s'il est VRAI. Absent ou d'une autre forme : faux (la voie n'existe pas tant que l'API ne la dit pas).
+   */
+  readonly voixDisponible: boolean;
 }
 
+/** TCK-2948 — la voie du code : SMS (défaut, corps inchangé) ou appel qui dicte le même code (TCK-2940). */
+export type CanalDuCode = 'sms' | 'voice';
+
 /** `POST /api/public/invitations/{token}/code`. */
-export async function demanderCodeDInvitation(jeton: string, telephone: string | null, locale?: Locale): Promise<DemandeDeCode> {
-  const res = await apiRequest<{ data?: { retry_after?: unknown } }>(cheminApi`/api/public/invitations/${jeton}/code`, {
+export async function demanderCodeDInvitation(
+  jeton: string,
+  telephone: string | null,
+  locale?: Locale,
+  canal: CanalDuCode = 'sms',
+): Promise<DemandeDeCode> {
+  const res = await apiRequest<{ data?: { retry_after?: unknown; voice_available?: unknown } }>(cheminApi`/api/public/invitations/${jeton}/code`, {
     method: 'POST',
-    body: telephone ? { phone: telephone } : {},
+    body: { ...(telephone ? { phone: telephone } : {}), ...(canal === 'voice' ? { channel: 'voice' } : {}) },
     locale,
   });
   const attente = res?.data?.retry_after;
   return {
     attente: typeof attente === 'number' && Number.isFinite(attente) && attente > 0 ? Math.ceil(attente) : 60,
     codeApercu: codeApercu(res),
+    voixDisponible: res?.data?.voice_available === true,
   };
 }
 
