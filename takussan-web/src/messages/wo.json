@@ -47,6 +47,18 @@
       "conflict_of_interest": "Njariñ boo xam ne dafa am",
       "off_topic": "Bokkul ci",
       "other": "Leneen"
+    },
+    "noteVocale": {
+      "enregistrer": "Enregistrer un message vocal",
+      "maintenir": "Gardez appuyé pour enregistrer un message vocal",
+      "arreter": "Arrêter l'enregistrement",
+      "relacher": "Relâchez pour terminer",
+      "supprimer": "Supprimer le message vocal",
+      "libelle": "Message vocal",
+      "ecouter": "Écouter le message vocal",
+      "pause": "Mettre le message vocal en pause",
+      "micRefuse": "Le micro n'est pas accessible. Autorisez-le dans votre navigateur.",
+      "lectureImpossible": "Ce message vocal ne peut pas être lu."
     }
   },
   "console": {
@@ -19090,7 +19102,7 @@
         },
         "reschedule_requested": {
           "title": "Autre créneau demandé : « {request} »",
-          "body": "Le locataire demande un autre créneau pour « {request} » ({slots} proposé(s)). Le créneau actuel ne change pas tant que vous n'en posez pas un nouveau."
+          "body": "Le locataire propose {slots, plural, one {# autre créneau} other {# autres créneaux}} pour « {request} ». Le créneau actuel ne change pas tant que vous n'en posez pas un nouveau."
         }
       },
       "maintenance_quote": {
@@ -22389,7 +22401,6 @@
         "valide": "Validé"
       },
       "responsable": {
-        "detail": "Agent responsable",
         "aucun": "Non désigné",
         "principal": "Agent principal",
         "collaborateurs": "{count, plural, one {# collaborateur} other {# collaborateurs}}"
@@ -22415,7 +22426,6 @@
         "brouillon": "Brouillon",
         "horsLigne": "Hors ligne"
       },
-      "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
       "caption": "Annonces",
       "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
       "quota": {

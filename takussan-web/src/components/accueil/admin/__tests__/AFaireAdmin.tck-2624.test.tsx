@@ -284,6 +284,32 @@ describe('les files lues', () => {
   });
 });
 
+describe('TCK-2854 — le chargement de « À faire » (maquette e7)', () => {
+  it('AC3 — au bureau, des groupes à rangées (titre + au moins deux rangées), pas des cartes ; au téléphone, des cartes', async () => {
+    monter();
+    const chargement = document.querySelector<HTMLElement>('[data-slot="a-faire-chargement"]')!;
+    expect(chargement).not.toBeNull();
+    expect(chargement).toHaveAttribute('aria-busy', 'true');
+
+    const [aTelephone, auBureau] = [...chargement.children].filter((e) => !e.classList.contains('sr-only')) as HTMLElement[];
+    expect(aTelephone!.className).toContain('md:hidden');
+    expect(aTelephone!.querySelectorAll('[data-slot="squelette-de-carte"]')).toHaveLength(2);
+
+    expect(auBureau!.className).toContain('max-md:hidden');
+    expect(auBureau!.querySelector('[data-slot="squelette-de-carte"]')).toBeNull();
+    const groupes = [...auBureau!.querySelectorAll<HTMLElement>('[data-slot="squelette-de-groupe"]')];
+    expect(groupes.length).toBeGreaterThan(0);
+    for (const g of groupes) {
+      // Le titre du groupe (une barre d'en-tête), puis ses rangées.
+      expect(g.firstElementChild!.className).toMatch(/border-b/);
+      expect(g.querySelectorAll('[data-slot="squelette-de-rangee"]').length).toBeGreaterThanOrEqual(2);
+    }
+
+    await screen.findAllByText('3 demandes à attribuer');
+    expect(document.querySelector('[data-slot="a-faire-chargement"]')).toBeNull();
+  });
+});
+
 describe('« À faire » ne liste que l’inachevé', () => {
   it('une file vide n’a aucune ligne, ni au téléphone ni au bureau', async () => {
     Object.assign(etat, { biens: 0, avis: 0 });

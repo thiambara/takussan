@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -19,6 +19,8 @@ const { ETAT, rafraichir } = vi.hoisted(() => ({
     user: { id: 1, roles: ['agency_admin'] as string[], agency_id: 7 as number | null, first_name: 'Awa' },
     agence: { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } } as unknown,
     lecture: null as unknown,
+    // TCK-2854 — une lecture de `/dashboard/me` retardée : la promesse que le test résout à la main.
+    retard: null as Promise<void> | null,
     kpis: [] as unknown[],
     // TCK-2853 — les biens de la recherche publique que l'invitation à chercher montre.
     biensPublics: [] as unknown[],
@@ -35,6 +37,7 @@ vi.mock('@/lib/queries/kpis', () => ({ fetchKpisActifs: async () => ETAT.kpis })
 vi.mock('@/lib/queries/dashboard-me', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/queries/dashboard-me')>()),
   fetchDashboardMe: async () => {
+    if (ETAT.retard) await ETAT.retard;
     if (ETAT.lecture instanceof Error) throw ETAT.lecture;
     return ETAT.lecture;
   },
@@ -101,8 +104,14 @@ const ADMIN = {
   },
 };
 
+/** TCK-2854 — `act` asynchrone : « Ce mois » de l'admin se lit en flux (`use` sous `Suspense`). */
 async function monter() {
-  return render(withIntl(await DashboardPage()));
+  const page = await DashboardPage();
+  let rendu!: ReturnType<typeof render>;
+  await act(async () => {
+    rendu = render(withIntl(page));
+  });
+  return rendu;
 }
 
 /** Les deux rendus de « Ce mois » : les puces du téléphone et les tuiles du bureau. */
@@ -115,6 +124,7 @@ beforeEach(() => {
   ETAT.agence = { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } };
   ETAT.lecture = ADMIN;
   ETAT.kpis = [];
+  ETAT.retard = null;
   ETAT.biensPublics = [];
   rafraichir.mockReset();
 });
@@ -146,6 +156,43 @@ describe('TCK-2622 — « Ce mois »', () => {
     const tuile = chiffres().find((a) => a.closest('.max-md\\:hidden'))!;
     expect(tuile).toHaveAttribute('href', '/app/customers');
     expect(tuile).toHaveTextContent('Clients suivis');
+  });
+});
+
+describe('TCK-2854 — « Ce mois » de l’admin, lu en flux', () => {
+  it('AC2 — lecture retardée : un squelette `aria-busy` tient la place de « Ce mois » pendant que « À faire » est rendu, puis les chiffres', async () => {
+    let liberer!: () => void;
+    ETAT.retard = new Promise<void>((r) => {
+      liberer = r;
+    });
+    const { container } = await monter();
+
+    // La page n'a pas attendu `/dashboard/me` : « À faire » et l'équipe sont là, « Ce mois » est un squelette.
+    expect(screen.getByTestId('a-faire-admin')).toBeInTheDocument();
+    expect(screen.getByTestId('equipe-du-jour')).toBeInTheDocument();
+    const squelette = container.querySelector('[data-slot="ce-mois-chargement"]');
+    expect(squelette).not.toBeNull();
+    expect(squelette).toHaveAttribute('aria-busy', 'true');
+    expect(squelette!.querySelector('[data-slot="squelette-des-chiffres"]')).not.toBeNull();
+    expect(chiffres()).toHaveLength(0);
+    // À la place de « Ce mois » : la cellule de la colonne de droite, avant l'équipe.
+    expect(squelette!.compareDocumentPosition(screen.getByTestId('equipe-du-jour')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await act(async () => {
+      liberer();
+    });
+    expect(container.querySelector('[data-slot="ce-mois-chargement"]')).toBeNull();
+    expect(chiffres()).toHaveLength(8);
+  });
+
+  it('lecture en échec : « Ce mois » garde son erreur et « Réessayer »', async () => {
+    ETAT.lecture = new Error('500');
+    const { container } = await monter();
+
+    expect(container.querySelector('[data-slot="ce-mois-chargement"]')).toBeNull();
+    const erreur = container.querySelector('[data-slot="ce-mois"] [role="alert"]');
+    expect(erreur).toHaveTextContent('Impossible de charger les chiffres du mois.');
+    expect(screen.getByTestId('a-faire-admin')).toBeInTheDocument();
   });
 });
 

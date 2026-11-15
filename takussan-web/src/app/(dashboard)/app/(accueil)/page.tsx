@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
@@ -10,7 +11,7 @@ import { AFaireBailleur, type FilesDeLHote } from '@/components/accueil/bailleur
 import { EnCoursSurVosBiens } from '@/components/accueil/bailleur/EnCoursSurVosBiens';
 import { LoyersDuMois } from '@/components/accueil/bailleur/LoyersDuMois';
 import { ResumeDuBailleur } from '@/components/accueil/bailleur/ResumeDuBailleur';
-import { CeMois } from '@/components/accueil/CeMois';
+import { CeMois, CeMoisEnFlux, SqueletteDeCeMois } from '@/components/accueil/CeMois';
 import { FavorisQuiBougent } from '@/components/accueil/client/FavorisQuiBougent';
 import { ChercherUnBien, PublierUnBien, SiAucuneRecherche } from '@/components/accueil/client/ChercherEtPublier';
 import { InvitationARechercher, lienDeLaRecherche, lireInvitationARechercher } from '@/components/accueil/client/InvitationARechercher';
@@ -36,7 +37,7 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { localeDeLaRequete } from '@/i18n/locale-serveur';
-import { chiffresDuMois, rapportDuMois } from '@/lib/accueil/chiffres-du-mois';
+import { chiffresDuMois, rapportDuMois, type ChiffreDuMois } from '@/lib/accueil/chiffres-du-mois';
 import { lireLoyersDuMois } from '@/lib/accueil/loyers-du-mois';
 import { vueBailleurOuverte } from '@/lib/access/tableau-du-bailleur';
 import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
@@ -71,6 +72,32 @@ async function lireLeTableau(): Promise<{ data: DashboardMePayload } | null | 'e
     return await fetchDashboardMe();
   } catch {
     return 'echec';
+  }
+}
+
+/**
+ * « Ce mois » d'après la lecture de `/dashboard/me` : `chiffres` à `null` = la lecture a échoué (le bloc
+ * le dit), `[]` = rien à compter pour ce persona. TCK-2854 — une fonction, pour que l'admin d'agence la
+ * lise EN FLUX (la page ne l'attend pas) ; elle ne rejette jamais.
+ */
+async function lireCeMois(
+  lecture: Promise<{ data: DashboardMePayload } | null | 'echec'>,
+  contexte: { persona: ReturnType<typeof resoudrePersona>; agenceStandard: boolean },
+): Promise<{ chiffres: ChiffreDuMois[] | null; rapport: string | null }> {
+  const lue = await lecture;
+  if (lue === 'echec') return { chiffres: null, rapport: null };
+  if (!aDesChiffres(lue)) return { chiffres: [], rapport: null };
+  try {
+    const chiffres = chiffresDuMois({
+      persona: contexte.persona,
+      role: lue.data.role,
+      metrics: lue.data.metrics,
+      kpis: lue.data.role === 'agency_admin' ? await fetchKpisActifs() : [],
+      agenceStandard: contexte.agenceStandard,
+    });
+    return { chiffres, rapport: rapportDuMois(lue.data.role) };
+  } catch {
+    return { chiffres: null, rapport: null };
   }
 }
 
@@ -118,8 +145,8 @@ export default async function DashboardPage() {
     return <NoAgencyState title={t('noAgency')} />;
   }
 
-  const lecture = await lireLeTableau();
-  const payload = lecture === 'echec' ? null : lecture;
+  // TCK-2854 — la lecture part tout de suite ; l'admin d'agence ne l'attend pas (« Ce mois » en flux).
+  const lectureDuTableau = lireLeTableau();
 
   // TCK-270 — le bandeau « Personnalisez votre agence » (logo manquant) ; TCK-777 — le `kind` filtre
   // les étapes de la mise en service. Une agence illisible ne casse rien : bandeau caché, `kind` nul.
@@ -142,6 +169,18 @@ export default async function DashboardPage() {
     agenceIndividuelle: kind === 'individual',
   });
 
+  // TCK-2624 — l'admin d'une agence (standard : l'agence individuelle est l'hôte) voit ce qui attend
+  // sa décision, et son équipe du jour. Les lectures sont bornées à l'agence active par l'API.
+  // TCK-2854 — son accueil ne lit `/dashboard/me` que pour « Ce mois » : la page ne l'attend pas, le bloc
+  // se dessine (squelette) pendant que « À faire » rend. Le persona `admin-agence` vient du profil actif
+  // ou, sans profil actif, de `TYPE_DOMINANT` (owner, agent, agency_admin…) : un compte qui a aussi le rôle
+  // `agent` y est donc l'agent. Côté API, `DashboardRoleResolver::resolve` juge `isAgencyAdminAt` AVANT
+  // `isAgentAt` : l'admin de l'agence active reçoit la vue `agency_admin`, jamais `agent` — la journée de
+  // l'agent ne se décide pas sur ce chemin.
+  const accueilAdmin = persona === 'admin-agence' && adminDAgence ? user.agency_id! : null;
+  const lecture = accueilAdmin !== null ? null : await lectureDuTableau;
+  const payload = lecture === 'echec' ? null : lecture;
+
   // TCK-2596 (ADR-0096) — l'accueil de l'AGENT est sa journée : « À régler », la chronologie, ses
   // chiffres en bas. Le rôle est celui du profil ACTIF (`dashboard/me`) ; si la lecture a échoué, le
   // persona décide, et la journée montre ses chiffres en « — ».
@@ -154,22 +193,9 @@ export default async function DashboardPage() {
   const locale = await localeDeLaRequete();
 
   // « Ce mois » : `null` = la lecture a échoué (le bloc le dit), `[]` = rien à compter pour ce persona.
-  const chiffres =
-    lecture === 'echec'
-      ? null
-      : aDesChiffres(payload)
-        ? chiffresDuMois({
-            persona,
-            role: payload.data.role,
-            metrics: payload.data.metrics,
-            kpis: payload.data.role === 'agency_admin' ? await fetchKpisActifs() : [],
-            agenceStandard: kind === 'standard',
-          })
-        : [];
-
-  // TCK-2624 — l'admin d'une agence (standard : l'agence individuelle est l'hôte) voit ce qui attend
-  // sa décision, et son équipe du jour. Les lectures sont bornées à l'agence active par l'API.
-  const accueilAdmin = persona === 'admin-agence' && adminDAgence ? user.agency_id! : null;
+  // TCK-2854 — l'admin le lit en flux (plus bas) : ses chiffres ne sont jamais vides (`chiffresDeLAgence`).
+  const ceMoisLu = accueilAdmin !== null ? null : await lireCeMois(lectureDuTableau, { persona, agenceStandard: kind === 'standard' });
+  const chiffres = ceMoisLu?.chiffres ?? null;
   const aujourdhui = jourADakar(new Date());
   const jour = jourEnClair(locale, aujourdhui);
 
@@ -326,12 +352,17 @@ export default async function DashboardPage() {
       // TCK-2625 — pas de « Ce mois » pour le locataire : la maquette (a-3) n'en dessine pas, et ses chiffres
       // (`overdue_amount` de `/dashboard/me`) contredisaient la carte du loyer — « En retard 0 F » à côté de
       // « 338 250 F à régler » (relevé du 2026-11-13). Une seule vérité du montant : la carte.
+      // TCK-2854 — l'admin : « Ce mois » en flux, son squelette à sa place pendant la lecture.
       ceMois={
-        !accueilLocataire && (chiffres === null || chiffres.length > 0) ? (
+        accueilAdmin !== null ? (
+          <Suspense fallback={<SqueletteDeCeMois rapport={rapportDuMois('agency_admin')} />}>
+            <CeMoisEnFlux lecture={lireCeMois(lectureDuTableau, { persona, agenceStandard: kind === 'standard' })} />
+          </Suspense>
+        ) : !accueilLocataire && ceMoisLu && (chiffres === null || chiffres.length > 0) ? (
           <CeMois
             chiffres={chiffres}
-            rapport={payload ? rapportDuMois(payload.data.role) : null}
-            pleineLargeur={accueilAdmin === null && !accueilBailleur && !accueilLocataire && !accueilClient && !accueilPrestataire}
+            rapport={ceMoisLu.rapport}
+            pleineLargeur={!accueilBailleur && !accueilLocataire && !accueilClient && !accueilPrestataire}
           />
         ) : null
       }

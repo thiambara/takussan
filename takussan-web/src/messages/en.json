@@ -47,6 +47,18 @@
       "conflict_of_interest": "Conflict of interest",
       "off_topic": "Off topic",
       "other": "Other reason"
+    },
+    "noteVocale": {
+      "enregistrer": "Record a voice message",
+      "maintenir": "Press and hold to record a voice message",
+      "arreter": "Stop recording",
+      "relacher": "Release to finish",
+      "supprimer": "Delete the voice message",
+      "libelle": "Voice message",
+      "ecouter": "Play the voice message",
+      "pause": "Pause the voice message",
+      "micRefuse": "The microphone isn't available. Allow it in your browser.",
+      "lectureImpossible": "This voice message can't be played."
     }
   },
   "console": {
@@ -19090,7 +19102,7 @@
         },
         "reschedule_requested": {
           "title": "Another time slot requested: \"{request}\"",
-          "body": "The tenant asks for another time slot for \"{request}\" ({slots} proposed). The current slot stays until you set a new one."
+          "body": "The tenant proposes {slots, plural, one {# other time slot} other {# other time slots}} for \"{request}\". The current slot stays until you set a new one."
         }
       },
       "maintenance_quote": {
@@ -22389,7 +22401,6 @@
         "valide": "Approved"
       },
       "responsable": {
-        "detail": "Responsible agent",
         "aucun": "Not assigned",
         "principal": "Lead agent",
         "collaborateurs": "{count, plural, one {# collaborator} other {# collaborators}}"
@@ -22415,7 +22426,6 @@
         "brouillon": "Draft",
         "horsLigne": "Offline"
       },
-      "chiffres": "{vues, plural, one {# view} other {# views}} · {favoris, plural, one {# favourite} other {# favourites}}",
       "caption": "Listings",
       "sousTitre": "{total, plural, one {# property in the portfolio} other {# properties in the portfolio}} · {online, plural, =0 {none online} other {# online}}",
       "quota": {

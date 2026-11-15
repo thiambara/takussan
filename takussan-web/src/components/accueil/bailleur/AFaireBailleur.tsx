@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { CalendarCheck, ChevronRight, FileText, MessageSquareReply, Wallet } from 'lucide-react';
 
 import { LigneDeVisite } from '@/components/accueil/admin/LigneDeVisite';
-import { ErreurDeBloc, SqueletteDeCarte, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
+import { ErreurDeBloc, SqueletteDeCarte, SqueletteDeGroupes, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
 import { CarteAFaire, CarteFile, GroupeAFaire, LienTonal, RangeeAFaire, TitreBloc, TitreColonne } from '@/components/accueil/pieces';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { aUneLigne, etatDeLaRequete, etatDuBloc, type EtatDeFile } from '@/lib/accueil/a-faire';
@@ -100,11 +100,19 @@ export function AFaireBailleur({
 
   let corps: ReactNode;
   if (bloc === 'chargement') {
+    // TCK-2854 — comme l'admin (maquette e7) : des cartes au téléphone, des groupes à rangées au bureau
+    // (`GroupesDuBureau`), pas des cartes.
     corps = (
-      <ul className="space-y-3 max-md:px-4" aria-busy="true">
-        <SqueletteDeCarte />
-        <SqueletteDeCarte />
-      </ul>
+      <div aria-busy="true" data-slot="a-faire-chargement">
+        <span className="sr-only">{tBlocs('chargement')}</span>
+        <div className="space-y-3 px-4 md:hidden">
+          <SqueletteDeCarte />
+          <SqueletteDeCarte />
+        </div>
+        <div className="max-md:hidden">
+          <SqueletteDeGroupes />
+        </div>
+      </div>
     );
   } else if (bloc === 'echec') {
     corps = <ErreurDeBloc quoi={tBlocs('quoi.aFaire')} onReessayer={reessayer} className="max-md:mx-4" />;

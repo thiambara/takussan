@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -19,6 +19,8 @@ const { ETAT } = vi.hoisted(() => ({
 }));
 
 vi.mock('next-intl/server', async () => (await import('@/test/intl')).mockTraductionsServeur());
+// TCK-2854 — « Ce mois » de l'admin se rend en flux une fois lu : son « Réessayer » tient le routeur.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }), usePathname: () => '/app' }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ETAT.user }));
 vi.mock('@/app/actions/admin-agency', () => ({ fetchAgencyAction: async () => ETAT.agence }));
 vi.mock('@/lib/session', () => ({ getActiveProfileId: async () => null }));
@@ -106,7 +108,11 @@ describe('accueil — la mise en service, en une ligne', () => {
 
   it('admin d’une agence standard : montée aussi', async () => {
     ETAT.agence = { ok: true, data: { id: 7, kind: 'standard', logo_url: 'x.png' } };
-    render(await DashboardPage());
+    // TCK-2854 — l'admin d'une agence standard lit « Ce mois » en flux : son squelette lit ses libellés.
+    const page = await DashboardPage();
+    await act(async () => {
+      render(withIntl(page));
+    });
 
     expect(screen.getByTestId('mise-en-service')).toHaveAttribute('data-kind', 'standard');
   });

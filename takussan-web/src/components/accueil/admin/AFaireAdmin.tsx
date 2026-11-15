@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Building2, CalendarClock, ShieldCheck, Star, UserPlus, Wallet } from 'lucide-react';
 
-import { ErreurDeBloc, SqueletteDeCarte, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
+import { ErreurDeBloc, SqueletteDeCarte, SqueletteDeGroupes, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
 import { ACTION_DANGER, CarteAFaire, CarteFile, GroupeAFaire, LienTonal, RangeeAFaire, TitreBloc, TitreColonne } from '@/components/accueil/pieces';
 import { AttribuerDialog } from '@/components/leads/boite/AttribuerDialog';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -87,11 +87,19 @@ export function AFaireAdmin({ agencyId }: { readonly agencyId: number }) {
 
   let corps: ReactNode;
   if (files.bloc === 'chargement') {
+    // TCK-2854 (maquette e7) — au téléphone, des cartes ; au bureau, des groupes à rangées (la forme
+    // des files une fois lues), pas des cartes.
     corps = (
-      <ul className="space-y-3 max-md:px-4" aria-busy="true">
-        <SqueletteDeCarte />
-        <SqueletteDeCarte />
-      </ul>
+      <div aria-busy="true" data-slot="a-faire-chargement">
+        <span className="sr-only">{tBlocs('chargement')}</span>
+        <div className="space-y-3 px-4 md:hidden">
+          <SqueletteDeCarte />
+          <SqueletteDeCarte />
+        </div>
+        <div className="max-md:hidden">
+          <SqueletteDeGroupes />
+        </div>
+      </div>
     );
   } else if (files.bloc === 'echec') {
     corps = <ErreurDeBloc quoi={tBlocs('quoi.aFaire')} onReessayer={files.reessayer} className="max-md:mx-4" />;

@@ -154,6 +154,27 @@ afterEach(() => {
   expect(lecturesHorsFields()).toEqual([]);
 });
 
+describe('TCK-2854 — le chargement de « À faire » du bailleur', () => {
+  it('au bureau, des groupes à rangées (titre + au moins deux rangées), pas des cartes ; au téléphone, des cartes', async () => {
+    monter(<AFaireBailleur landlordId={21} />);
+    const chargement = document.querySelector<HTMLElement>('[data-slot="a-faire-chargement"]')!;
+    expect(chargement).not.toBeNull();
+    expect(chargement).toHaveAttribute('aria-busy', 'true');
+    const [aTelephone, auBureau] = [...chargement.children].filter((e) => !e.classList.contains('sr-only')) as HTMLElement[];
+    expect(aTelephone!.className).toContain('md:hidden');
+    expect(aTelephone!.querySelectorAll('[data-slot="squelette-de-carte"]')).toHaveLength(2);
+    expect(auBureau!.className).toContain('max-md:hidden');
+    expect(auBureau!.querySelector('[data-slot="squelette-de-carte"]')).toBeNull();
+    const groupes = [...auBureau!.querySelectorAll<HTMLElement>('[data-slot="squelette-de-groupe"]')];
+    expect(groupes.length).toBeGreaterThan(0);
+    for (const g of groupes) {
+      expect(g.firstElementChild!.className).toMatch(/border-b/);
+      expect(g.querySelectorAll('[data-slot="squelette-de-rangee"]').length).toBeGreaterThanOrEqual(2);
+    }
+    await waitFor(() => expect(document.querySelector('[data-slot="a-faire-chargement"]')).toBeNull());
+  });
+});
+
 describe('les files du bailleur', () => {
   it('« Loyers en retard » ne lit que les échéances DONT IL EST LE BAILLEUR, sans la relance de l’agence', async () => {
     monter(<AFaireBailleur landlordId={21} />);
