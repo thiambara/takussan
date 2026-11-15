@@ -1,7 +1,7 @@
 ---
 id: TCK-2787
 title: "Lot dépendances : fermer les alertes de sécurité ouvertes — next en tête (8 critiques), et ce que Dependabot ne voit pas (composer, laravel/framework)"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: M
@@ -146,37 +146,37 @@ l'ouverture du ticket.
 
 ## Delta à produire
 
-- [ ] Relevé initial daté (les trois audits et Dependabot), dans les notes.
-- [ ] `takussan-web` : `next` et les paquets d'exécution vulnérables à leur version corrigée ; `npm audit` sans
+- [x] Relevé initial daté (les trois audits et Dependabot), dans les notes.
+- [x] `takussan-web` : `next` et les paquets d'exécution vulnérables à leur version corrigée ; `npm audit` sans
   critique ni haute à l'exécution.
-- [ ] `takussan-api` : `composer update` ciblé (`laravel/framework`, `symfony/*`, `league/*`, `phpoffice/phpspreadsheet`,
+- [x] `takussan-api` : `composer update` ciblé (`laravel/framework`, `symfony/*`, `league/*`, `phpoffice/phpspreadsheet`,
   `phpseclib/phpseclib`) dans leurs lignes majeures ; `npm` de l'API (`concurrently`, `shell-quote`, `vite`).
-- [ ] Exposition au `TokenGuard` et à l'inclusion de relation : mesurée le 2026-11-13 (voir le Contrat de données),
+- [x] Exposition au `TokenGuard` et à l'inclusion de relation : mesurée le 2026-11-13 (voir le Contrat de données),
   à re-vérifier d'un `grep` avant la montée. Si le verdict a changé, l'écrire dans les notes.
-- [ ] Garde d'architecture `tests/Unit/Architecture/AucunGuardTokenTest.php` : aucun guard de `config('auth.guards')`
+- [x] Garde d'architecture `tests/Unit/Architecture/AucunGuardTokenTest.php` : aucun guard de `config('auth.guards')`
   n'a `driver = token`, et aucun `TokenGuard`, `createTokenDriver` ni `Auth::viaRequest` n'apparaît dans `app/`,
   `config/` ni `bootstrap/`.
-- [ ] Garde `tests/Feature/Architecture/IncludeNomDeMethodeRefuseTest.php`. Sur chaque route `GET` qui passe par
+- [x] Garde `tests/Feature/Architecture/IncludeNomDeMethodeRefuseTest.php`. Sur chaque route `GET` qui passe par
   `buildQuery()` (énumérée par le routeur, pas listée à la main), `include=truncate`, `include=unguard`,
   `include=delete` et une forme imbriquée (`include=<relation admise>.truncate`) rendent 400. La table visée
   garde son nombre de lignes, et `Model::isUnguarded()` reste faux. Une garde statique refuse aussi
   `JsonApiResource` dans `app/` tant qu'aucune liste blanche des includes imbriqués ne l'accompagne.
-- [ ] Relevé final daté, avec la liste de ce qui reste ouvert et pourquoi (pas de correctif, montée majeure, faux
+- [x] Relevé final daté, avec la liste de ce qui reste ouvert et pourquoi (pas de correctif, montée majeure, faux
   positif mesuré).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `npm audit --omit=dev` de `takussan-web` ne rend ni critique ni haute.
-- [ ] AC2 — `composer audit` de `takussan-api` ne rend ni critique ni haute. Chaque avis restant est listé dans les
+- [x] AC1 — `npm audit --omit=dev` de `takussan-web` ne rend ni critique ni haute.
+- [x] AC2 — `composer audit` de `takussan-api` ne rend ni critique ni haute. Chaque avis restant est listé dans les
   notes avec sa raison.
-- [ ] AC3 — `npm audit` de `takussan-api` ne rend aucune critique.
+- [x] AC3 — `npm audit` de `takussan-api` ne rend aucune critique.
 - [ ] AC4 — La CI de la PR est verte sur les trois workflows (API, front, dépôt), et `smoke-web.sh` passe sur l'image
   du front.
 - [ ] AC5 — Le décompte Dependabot de fin, relevé par la même commande `gh api` en lecture, est écrit dans les notes,
   avec ce qui reste ouvert.
-- [ ] AC6 — La garde `AucunGuardTokenTest` existe et elle est verte. Vérifiée par ablation : un guard
+- [x] AC6 — La garde `AucunGuardTokenTest` existe et elle est verte. Vérifiée par ablation : un guard
   `'api' => ['driver' => 'token', 'provider' => 'users']` ajouté à `config/auth.php` la rend rouge.
-  - Garde écrite en avance du lot le 2026-11-13, <sha> à venir, sous `tests/Feature/Architecture/` et non
+  - Garde écrite en avance du lot le 2026-11-13, 7641542ea, sous `tests/Feature/Architecture/` et non
     `tests/Unit/` : elle lit la configuration et le routeur, donc étend `Tests\TestCase`. Quatre tests : les guards
     sont exactement `web` (session) et `sanctum` ; aucun `TokenGuard`, `RequestGuard`, `createTokenDriver`,
     `viaRequest`, `Auth::extend` ni `'driver' => 'token'` dans le code de `app/`, `config/`, `bootstrap/`,
@@ -193,11 +193,11 @@ l'ouverture du ticket.
     `BROADCAST_CONNECTION=null` en préproduction (`docs/infra/prod-drivers.json`, mesuré le 2026-11-01). Le canal
     privé `App.Models.User.{userId}` (`routes/channels.php`) et les deux événements qui y diffusent (`NewNotification`,
     `NewMessage`) restent déclarés. Le jour où un client temps réel s'y abonne, sa route passe sous `auth:sanctum`.
-- [ ] AC7 — La garde `IncludeNomDeMethodeRefuseTest` existe et elle est verte sur toutes les routes énumérées.
+- [x] AC7 — La garde `IncludeNomDeMethodeRefuseTest` existe et elle est verte sur toutes les routes énumérées.
   Vérifiée par ablation : retirer le filtre `getRequestLoadable()` de
   `CustomerCommercialAttributes::clesEtrangeresDesIncludes()` la rend rouge (l'appel a lieu avant le refus de
   spatie).
-  - Garde écrite en avance du lot le 2026-11-13, <sha> à venir. Mesuré : **67 routes retenues** (le plancher
+  - Garde écrite en avance du lot le 2026-11-13, 844560fe1. Mesuré : **67 routes retenues** (le plancher
     `RETENUES_MIN`), chaque nom envoyé seul et sous `fields[<table>]=id` de toutes les tables d'un modèle à
     `buildQuery()`, comparé à un témoin `include=__sonde__` (les sources du Radar s'écrivent à la première lecture :
     sans témoin, faux positif). Trois routes à `buildQuery(` où la sonde reste muette, nommées dans `SONDE_MUETTE`
@@ -207,6 +207,12 @@ l'ouverture du ticket.
     `customers` et ses cascades, `include=unguard` lève la protection — alors que le statut reste 400 : le statut
     seul ne l'aurait pas vu. La garde statique `JsonApiResource` est dans le même fichier, ablation faite (une sonde
     dans `app/` la rend rouge).
+
+## Reste sur dev
+
+- AC4 : `deploy/takussan/smoke-web.sh` sur l'image du front, machine au repos (session, décision 2a du 2026-11-14).
+- AC5 : le décompte Dependabot après la fusion de cette PR, relu dans les notes.
+- Le ticket passe `done` quand les deux sont écrits.
 
 ## Hors périmètre
 
@@ -258,3 +264,63 @@ l'API : 4 (2 critiques, 2 hautes). `composer audit` : 23 avis (1 critique, 5 hau
 **Reste, après la PR** : AC4 (CI verte sur les trois workflows, `smoke-web.sh` sur l'image du front), AC5
 (décompte Dependabot de fin, à relever après fusion sur `dev`, l'alerte ne se fermant qu'une fois le lock sur la
 branche par défaut), et les 3 alertes fantômes de `package.json` racine (« dismiss » sur demande du porteur).
+
+### 2026-11-14 (soir) — re-mesure sur `dev` après la fusion de #1673, branche `chore/deps-securite-2787`
+
+**#1673 est fusionnée** (2026-11-14 14:24 Z, `3aea4820e`). Sa CI était verte sur les trois workflows : API
+(`lint-and-test`, rollback des migrations, image), front (ESLint, tsc, Vitest, build, image), dépôt (gardes
+documentaires). Cela tient la première moitié d'AC4.
+
+**Relevé du 2026-11-14 à 22:00 (heure locale), sur `origin/dev` 66099de74, avant cette branche.**
+
+- `composer audit --locked` : 0 avis. `npm audit` de l'API : 0.
+- `npm audit` du front : 16 (2 basses, 14 moyennes) ; `--omit=dev` : 6 (2 basses, 4 moyennes), 0 critique, 0 haute.
+- **Dependabot : 82 ouvertes** (8 critiques, 25 hautes, 38 moyennes, 11 basses), même commande `gh api`.
+  - **Le compte ne dit pas l'état du dépôt.** La dernière mise à jour des alertes date du 2026-11-01 (`updated_at`),
+    alors que les locks corrigés sont sur `dev` (branche par défaut) depuis 12:16 Z. Dependabot n'a pas réévalué.
+  - Mesure par alerte : pour chacune, toutes les instances du paquet dans le lock visé (y compris imbriquées) ont été
+    comparées à sa `vulnerable_version_range` (script `semver`). **79 sur 82 sont hors plage**, dont les 8 critiques
+    `next` (lock en 16.4.6). Les **3 restantes** étaient `vitest` / `@vitest/mocker` 4.1.10 (n° 22, 24, 68 :
+    moyennes, développement).
+  - Les 3 alertes fantômes du `package.json` racine (n° 1, 2, 3, `vite`) ont été **fermées par la session**
+    (« dismiss », motif « manifeste inexistant »), sur décision du porteur du 2026-11-14. Elles n'apparaissent plus.
+
+**Correction d'une note précédente.** « `vitest` : le correctif est la v5, majeure » était faux. La ligne 4
+a reçu le correctif : `vitest` 4.1.12 (étiquette `V4`), première version corrigée de l'avis le plus haut (4.1.12).
+
+**Montée de cette branche (mineures et correctifs seulement).**
+
+- `vitest` ^4.1.5 → **^4.1.12** (lock 4.1.12, `@vitest/mocker` 4.1.12), et `@vitest/ui` ^4.1.10 → **^4.1.12**.
+  Ferme les alertes Dependabot n° 22, 24, 68.
+- `eslint` ^10 (lock 10.8.1) → **^10.15.0** (lock 10.15.0). Il tire `minimatch ^11.0.5` et sort d'`npm audit`.
+  Les avertissements de pair (`eslint-plugin-import`, `-jsx-a11y`, `-react` déclarent `<= ^9`) existaient déjà
+  avec 10.8.1.
+
+**Relevé final (2026-11-14, 22:15), sur la branche.**
+
+- AC1 : `npm audit --omit=dev` du front : 6 (2 basses, 4 moyennes), **0 critique, 0 haute**.
+  `npm audit` complet : 12 (2 basses, 10 moyennes).
+- AC2 : `composer audit --locked` : **0 avis**.
+- AC3 : `npm audit` de l'API : **0**.
+- Dependabot, mesuré contre les locks de la branche : **0 alerte sur 82 dont la version installée tombe encore
+  dans la plage**. Il faut encore que Dependabot réévalue après la fusion (AC5).
+- **Ce qui reste ouvert dans `npm audit`, et pourquoi.**
+  - `minimatch` 10.2.6 (10 moyennes, via `typescript-eslint` 8.72.2 et `shadcn` → `ts-morph` → `@ts-morph/common`).
+    Aucune version amont ne déclare `^11` : la seule voie est une surcharge `overrides` d'une majeure transitive.
+    C'est **TCK-2843**.
+  - `deepmerge` via `@shadcn/registry` (2 basses). Le seul correctif proposé est `shadcn@1.0.0`, une régression
+    de trois majeures : faux correctif, laissé ouvert.
+- Preuves locales, sans suite entière :
+  - front : `npx eslint .` sort en 0, `npx tsc --noEmit` est propre, 6 fichiers Vitest à `vi.mock` passent
+    (32 tests) sous 4.1.12 ;
+  - API : `pint --test` passe, `AucunGuardTokenTest` + `IncludeNomDeMethodeRefuseTest` sont verts (6 tests) ;
+  - pas de `npm run build` : `next` n'a pas bougé sur cette branche.
+- Exposition `TokenGuard` / inclusion de relation : les deux gardes sont vertes sur `dev`, et le verdict est
+  inchangé.
+
+**Reste.**
+
+- AC4, seconde moitié : `deploy/takussan/smoke-web.sh` sur l'image du front (Docker), à lancer par la session.
+- AC5 : le décompte Dependabot de fin, à relever après la fusion de cette branche, une fois les alertes
+  réévaluées (rien ne bouge depuis le 2026-11-01). Si elles restent figées, le relevé par alerte ci-dessus est
+  la mesure.
