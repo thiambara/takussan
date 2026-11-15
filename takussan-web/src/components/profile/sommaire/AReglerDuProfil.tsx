@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { BadgeCheck, Phone, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Landmark, Phone, ShieldCheck, type LucideIcon } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
 import { ceQuIlReste } from '@/lib/profil/completude-de-la-fiche';
@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils';
 const ICONE: Readonly<Record<IdARegler, LucideIcon>> = {
   telephone: Phone,
   'double-authentification': ShieldCheck,
+  // TCK-2864 — l'encart des pièces porte le bouclier de la maquette (`ABailleurMobile`).
+  pieces: ShieldCheck,
+  rib: Landmark,
   fiche: BadgeCheck,
 };
 
@@ -34,13 +37,16 @@ export async function AReglerDuProfil({ liste }: { readonly liste: readonly AReg
     getLocale(),
   ]);
   // TCK-2862 — « Compléter votre fiche » dit le pourcentage et ce qui manque (le même calcul que la jauge).
-  const detail = ({ id, completude }: ARegler) =>
+  const detail = ({ id, completude, compte }: ARegler) =>
     completude
       ? t(`${id}.detailPourcentage`, {
           pourcentage: completude.pourcentage,
           reste: ceQuIlReste(completude.manquants, (c, v) => tManque(c, v), locale),
         })
-      : t(`${id}.detail`);
+      : compte
+        ? // TCK-2864 — « 1 sur 3 envoyées » : le compte de « Vos pièces » (`compteDesPieces`).
+          t(`${id}.detailCompte`, { envoyees: compte.envoyees, requises: compte.requises })
+        : t(`${id}.detail`);
   return (
     <section aria-labelledby="a-regler-du-profil" data-slot="a-regler-du-profil">
       <h2 id="a-regler-du-profil" className="mb-2 text-corps font-semibold">

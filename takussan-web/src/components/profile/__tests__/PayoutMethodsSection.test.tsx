@@ -20,7 +20,11 @@ vi.mock('@/lib/queries/payments', () => ({
   useCreateMyPayoutMethod: () => CREATE,
   useSetDefaultPayoutMethod: () => AUTRE,
   useDeleteMyPayoutMethod: () => AUTRE,
+  // TCK-2864 — l'envoi du RIB (couvert par `PayoutMethodsSection.rib.tck-2864.test.tsx`).
+  useSendPayoutBankStatement: () => AUTRE,
 }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 
 describe('PayoutMethodsSection — où recevoir ses versements (TCK-594)', () => {
   beforeEach(() => {

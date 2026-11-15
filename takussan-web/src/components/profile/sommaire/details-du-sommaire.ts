@@ -1,7 +1,15 @@
 import { formaterTelephone } from '@/lib/phone';
 import { isAgent, isServiceProvider } from '@/lib/roles';
 import { localeDisplayLabel, type Locale } from '@/i18n/config';
-import { FUSEAU_DE_DAKAR, completudeDuSommaire, profilDAgent, type FaitsDuSommaire, type IdDeRangee } from '@/lib/profil/sommaire';
+import {
+  FUSEAU_DE_DAKAR,
+  compteBancaireAConfirmer,
+  completudeDuSommaire,
+  piecesAEnvoyer,
+  profilDAgent,
+  type FaitsDuSommaire,
+  type IdDeRangee,
+} from '@/lib/profil/sommaire';
 import type { NoteDeLaFiche } from '@/lib/profil/note-de-la-fiche';
 import type { ProfileType } from '@/types/profile';
 
@@ -16,13 +24,21 @@ type Traduire = (cle: string, valeurs?: Record<string, string | number>) => stri
  * sont ceux de sa fiche publique (`noteDeLaFiche`), et rien pour les autres personas.
  */
 export function detailsDuSommaire(
-  { user, profils }: FaitsDuSommaire,
+  { user, profils, pieces, versements }: FaitsDuSommaire,
   {
     t,
     tTypes,
+    tKinds,
     locale,
     note = null,
-  }: { readonly t: Traduire; readonly tTypes: Traduire; readonly locale: Locale; readonly note?: NoteDeLaFiche | null },
+  }: {
+    readonly t: Traduire;
+    readonly tTypes: Traduire;
+    /** TCK-2864 — `payments.payoutMethodKinds` : « Wave », « Virement bancaire »… */
+    readonly tKinds?: Traduire;
+    readonly locale: Locale;
+    readonly note?: NoteDeLaFiche | null;
+  },
 ): Readonly<Record<IdDeRangee, string>> {
   const agent = isAgent(user.roles) ? profilDAgent(profils) : null;
   const completude = completudeDuSommaire({ user, profils });
@@ -47,6 +63,14 @@ export function detailsDuSommaire(
       ? t('espaces.plusieurs', { count: actifs.length })
       : t('espaces.aucun');
 
+  // TCK-2864 — « Wave · un compte à confirmer » (maquette `LIGNES_BAILLEUR`) : le moyen par défaut, et ce
+  // qui attend le titulaire. Sans moyens lus, la ligne d'avant.
+  const parDefaut = versements?.find((m) => m.is_default) ?? versements?.[0];
+  const moyen = parDefaut && tKinds ? tKinds(parDefaut.kind) : null;
+  const versement = moyen
+    ? compteBancaireAConfirmer(versements) ? t('versementAConfirmer', { moyen }) : moyen
+    : t('versement');
+
   return {
     coordonnees,
     fiche: completude
@@ -57,10 +81,13 @@ export function detailsDuSommaire(
     }),
     pro,
     recherche: t('recherche'),
-    versement: t('versement'),
+    versement,
     annuaire: t(user.listed_in_public_directory ? 'annuaire.inscrit' : 'annuaire.nonInscrit'),
     notifications: t('notifications'),
-    securite: t(user.two_factor_enabled ? 'securite.active' : 'securite.inactive'),
+    // TCK-2864 — les pièces à envoyer passent avant l'état du second facteur (maquette `LIGNES_BAILLEUR`).
+    securite: piecesAEnvoyer(pieces)
+      ? t('securite.piecesAEnvoyer')
+      : t(user.two_factor_enabled ? 'securite.active' : 'securite.inactive'),
     espaces,
     menu: t('menu'),
     langue: localeDisplayLabel(locale, locale),

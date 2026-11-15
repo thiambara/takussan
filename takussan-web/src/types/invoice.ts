@@ -178,6 +178,13 @@ export type PayoutMethod = {
   is_default: boolean;
   verified: boolean;
   verified_at?: string | null;
+  /**
+   * TCK-2863 / TCK-2864 — `in_review` : RIB envoyé, pas encore vérifié (informatif : seul `verified` permet de
+   * verser) ; `to_confirm` : rien d'envoyé. Absent d'une API plus ancienne.
+   */
+  verification_status?: 'verified' | 'in_review' | 'to_confirm';
+  bank_statement_submitted_at?: string | null;
+  bank_statement_media_id?: number | null;
 };
 
 type PreparationLine = {

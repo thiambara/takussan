@@ -486,6 +486,28 @@ export function useSetDefaultPayoutMethod() {
   );
 }
 
+/**
+ * TCK-2864 — le RIB d'un compte bancaire « à confirmer » (`POST /api/me/payout-methods/{id}/bank-statement`,
+ * TCK-2863) : un PDF ou une image, sous step-up 2FA comme les autres écritures des destinations —
+ * `useApiMutation` résout le refus sur place (`GardeDoubleFacteur`) puis rejoue l'envoi. Succès : le
+ * compte passe « En revue ».
+ */
+export function useSendPayoutBankStatement() {
+  return useApiMutation<ApiResponse<PayoutMethod>, { id: number; file: File }>(
+    {
+      path: ({ id }) => cheminApi`/api/me/payout-methods/${id}/bank-statement`,
+      method: 'POST',
+      formData: true,
+      body: ({ file }) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        return fd;
+      },
+    },
+    { invalidate: [['payout-methods']] },
+  );
+}
+
 export function useDeleteMyPayoutMethod() {
   return useApiMutation<null, { id: number }>(
     { path: ({ id }) => cheminApi`/api/me/payout-methods/${id}`, method: 'DELETE', body: () => undefined },

@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Pagination } from '@/components/console/Pagination';
 import {
+  type LeaseClosedOpportunity,
   type ReceivedStatus,
   type ReceivedSubjectType,
   type Review,
@@ -88,7 +89,7 @@ export function ProfileReviewsList({
   const publies = useAuthoredReviews();
   const comptes: Record<Onglet, number | undefined> = {
     recus: recus.data?.meta?.total,
-    'a-laisser': opportunites.data ? groupByContext(opportunites.data.data).length : undefined,
+    'a-laisser': opportunites.data ? groupesALaisser(opportunites.data).length : undefined,
     publies: publies.data?.data.length,
   };
 
@@ -104,7 +105,7 @@ export function ProfileReviewsList({
     <Tabs value={onglet} onValueChange={choisir} className="gap-5">
       {/* Au-dessus des onglets, comme la maquette (`AAvisMobile`, `AAvisBureau`) : la note se lit d'où
           qu'on regarde ses avis. */}
-      {recoit && note ? <NoteDeLaFicheEnTete note={note} /> : null}
+      {recoit ? <TeteDesAvis note={note} agent={isAgent(roles)} /> : null}
       <TabsList variant="line" aria-label={t('onglets.titre')}>
         {ouverts.map((o) => (
           <TabsTrigger key={o} value={o}>
@@ -132,29 +133,64 @@ export function ProfileReviewsList({
 }
 
 /**
- * La note de la fiche publique, en tête des reçus (maquette `TeteAvis`) : la moyenne, ses étoiles et
- * le nombre d'avis. La répartition par étoile de la maquette n'est pas rendue : la fiche ne la donne
- * pas, et la calculer sur une page d'avis chargée serait une autre valeur.
+ * La tête des reçus (maquette `TeteAvis`) : la moyenne, ses étoiles, le nombre d'avis, et — TCK-2864 —
+ * la RÉPARTITION 5 → 1 des avis publiés (`meta.distribution`, TCK-2863), calculée par l'API sur toute
+ * la boîte, jamais sur une page chargée.
+ *
+ * La moyenne et le nombre se tirent de cette même répartition : les barres et « N avis reçus » se
+ * lisent alors sur le même ensemble. Pour l'agent, l'ensemble est celui des avis qui le visent
+ * (`subject_type=agent`), celui de sa fiche publique. Sans répartition (API plus ancienne, aucun avis
+ * publié), la note de la fiche (`note`) seule, comme avant ; sans elle non plus, rien.
  */
-function NoteDeLaFicheEnTete({ note }: { readonly note: NoteDeLaFiche }) {
+const NOTES = [5, 4, 3, 2, 1] as const;
+
+export function repartitionDesNotes(
+  distribution: Partial<Record<string, number>> | undefined,
+): { readonly lignes: readonly { readonly note: number; readonly nombre: number }[]; readonly total: number; readonly moyenne: number | null } {
+  const lignes = NOTES.map((note) => ({ note, nombre: Math.max(0, Number(distribution?.[String(note)] ?? 0) || 0) }));
+  const total = lignes.reduce((n, l) => n + l.nombre, 0);
+  const moyenne = total > 0 ? lignes.reduce((n, l) => n + l.note * l.nombre, 0) / total : null;
+  return { lignes, total, moyenne };
+}
+
+function TeteDesAvis({ note, agent }: { readonly note: NoteDeLaFiche | null; readonly agent: boolean }) {
   const t = useTranslations('profile.reviews');
   const locale = useLocale();
-  const moyenne = moyenneLisible(note.moyenne, locale);
+  const boite = useReceivedReviews(agent ? { page: 1, subjectType: 'agent' } : { page: 1 });
+  const repartition = repartitionDesNotes(boite.data?.meta?.distribution);
+  const tete =
+    repartition.moyenne !== null ? { moyenne: repartition.moyenne, nombre: repartition.total } : note;
+  if (!tete) return null;
+  const moyenne = moyenneLisible(tete.moyenne, locale);
   return (
-    <div data-slot="note-de-la-fiche" className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 md:max-w-105">
-      <p className="font-display text-4xl font-semibold tabular-nums tracking-titre">{moyenne}</p>
-      <div className="min-w-0">
-        <div className="flex gap-0.5" role="img" aria-label={t('tete.moyenneAria', { moyenne })}>
+    <div data-slot="note-de-la-fiche" className="flex items-center gap-5 rounded-xl border border-border bg-card p-4 md:max-w-105">
+      <div className="flex-none text-center">
+        <p className="font-display text-4xl font-semibold tabular-nums tracking-titre">{moyenne}</p>
+        <div className="mt-1 flex justify-center gap-0.5" role="img" aria-label={t('tete.moyenneAria', { moyenne })}>
           {[1, 2, 3, 4, 5].map((n) => (
             <Star
               key={n}
               aria-hidden="true"
-              className={cn('size-3.5', n <= Math.round(note.moyenne) ? 'fill-primary text-primary' : 'text-border')}
+              className={cn('size-3.5', n <= Math.round(tete.moyenne) ? 'fill-primary text-primary' : 'text-border')}
             />
           ))}
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">{t('tete.nombre', { nombre: note.nombre })}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('tete.nombre', { nombre: tete.nombre })}</p>
       </div>
+      {repartition.total > 0 ? (
+        <ul data-slot="repartition-des-notes" aria-label={t('tete.repartitionAria')} className="min-w-0 flex-1 space-y-1">
+          {repartition.lignes.map((l) => (
+            <li key={l.note} data-note={l.note} className="flex items-center gap-2 text-xs tabular-nums text-muted-foreground">
+              <span aria-hidden="true" className="w-2">{l.note}</span>
+              <span aria-hidden="true" className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <span className="block h-full rounded-full bg-primary" style={{ width: `${(l.nombre / repartition.total) * 100}%` }} />
+              </span>
+              <span aria-hidden="true" data-slot="compte" className="w-4 text-right">{l.nombre}</span>
+              <span className="sr-only">{t('tete.ligneAria', { note: l.note, nombre: l.nombre })}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -226,9 +262,38 @@ function groupByContext(items: readonly ReviewOpportunity[]): OpportunityGroup[]
   }));
 }
 
+/**
+ * TCK-2864 — un groupe « à laisser », et, s'il vient d'un bail CLÔTURÉ (`lease_closed`, TCK-2863), ce
+ * bail : le groupe se montre alors en carte compacte « Bail clôturé le … · Noter » (maquette
+ * `CarteAvisEnAttente`), et « Noter » ouvre son formulaire.
+ */
+type GroupeALaisser = OpportunityGroup & { readonly bailClos?: LeaseClosedOpportunity };
+
+/**
+ * Les groupes à laisser, bail clôturé compris, chacun UNE fois : l'invitation `lease_closed` vise le
+ * bien du bail, que `data` propose déjà (sous ce bail, ou sous une réservation du même bien). Elle
+ * marque alors ce groupe-là ; sinon elle en forme un, avec sa seule cible.
+ */
+export function groupesALaisser(reponse: {
+  readonly data: readonly ReviewOpportunity[];
+  readonly lease_closed?: readonly LeaseClosedOpportunity[];
+}): GroupeALaisser[] {
+  const groupes: GroupeALaisser[] = groupByContext(reponse.data);
+  for (const bail of reponse.lease_closed ?? []) {
+    const { target } = bail;
+    const i = groupes.findIndex((g) => g.items.some((it) => it.type === target.type && it.subject.id === target.subject.id));
+    if (i >= 0) groupes[i] = { ...groupes[i]!, bailClos: bail };
+    else groupes.push({ key: `${target.context.type}:${target.context.id}`, context: target.context, items: [target], bailClos: bail });
+  }
+  return groupes;
+}
+
 function ReviewOpportunitiesList() {
   const t = useTranslations('profile.reviews');
   const opportunitiesQuery = useReviewOpportunities();
+  // TCK-2864 — la carte compacte du bail clôturé est celle du BUREAU (`AAvisBureau`) : la maquette du
+  // téléphone ne la dessine pas, il garde le formulaire d'emblée.
+  const telephone = useMatchesMedia('(width < 48rem)');
 
   if (opportunitiesQuery.isLoading) {
     return (
@@ -244,7 +309,7 @@ function ReviewOpportunitiesList() {
     return <ErrorState message={t('opportunitiesError')} />;
   }
 
-  const groups = groupByContext(opportunitiesQuery.data?.data ?? []);
+  const groups = groupesALaisser(opportunitiesQuery.data ?? { data: [] });
 
   if (groups.length === 0) {
     return (
@@ -261,10 +326,35 @@ function ReviewOpportunitiesList() {
     <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,calc(var(--spacing)*90)),1fr))] items-start gap-4">
       {groups.map((group) => (
         <li key={group.key}>
-          <OpportunityForm group={group} />
+          {group.bailClos && !telephone ? <CarteBailClos group={group} bail={group.bailClos} /> : <OpportunityForm group={group} />}
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * TCK-2864 — « Bail clôturé le 31 oct. · F3, Sacré-Cœur 3 » et « Noter » (maquette `CarteAvisEnAttente`) :
+ * la carte compacte d'un bail clôturé, qui s'ouvre sur le formulaire d'avis de ce bail.
+ */
+function CarteBailClos({ group, bail }: { readonly group: OpportunityGroup; readonly bail: LeaseClosedOpportunity }) {
+  const t = useTranslations('profile.reviews');
+  const locale = useLocale() as Locale;
+  const [ouvert, setOuvert] = useState(false);
+  if (ouvert) return <OpportunityForm group={group} />;
+  // `end_date` est un jour (`2026-10-31`) : lu à minuit UTC, il se dit en UTC, sinon la veille ailleurs.
+  const date = formatDate(bail.lease.end_date, locale, { dateStyle: undefined, day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const bien = bail.lease.property_title ?? bail.target.subject.title ?? t('targetFallback');
+  return (
+    <article data-slot="bail-clos" className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-corps font-semibold text-foreground">{t('bailClos.titre', { date, bien })}</p>
+        <p className="truncate text-ui text-muted-foreground">{t('bailClos.detail')}</p>
+      </div>
+      <Button type="button" variant="outline" size="sm" className="flex-none" onClick={() => setOuvert(true)}>
+        {t('bailClos.noter')}
+      </Button>
+    </article>
   );
 }
 
@@ -524,12 +614,22 @@ function ReceivedReviewsInbox({ withPropertyFilter }: { readonly withPropertyFil
     </>
   );
   const filtresActifs = [propertyFilter, replyFilter, statusFilter, subjectFilter].filter((v) => v !== ALL).length;
+  // TCK-2864 — « 1 avis en attente de validation » (maquette `AAvisMobile`) : le compte de l'API, sur
+  // toute la boîte filtrée (sauf le statut) ; rien à zéro.
+  const enAttente = meta?.pending_count ?? 0;
+  const ligneEnAttente =
+    enAttente > 0 ? (
+      <p data-slot="avis-en-attente" className="min-w-0 flex-1 text-ui text-muted-foreground">
+        {t('enAttenteDeValidation', { count: enAttente })}
+      </p>
+    ) : null;
 
   return (
     <div className="space-y-4">
       {telephone ? (
         // TCK-2635 — au téléphone, les filtres passent dans une feuille (maquette `BoutonFiltres`).
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-2">
+          {ligneEnAttente}
           <FeuilleDuBas
             titre={t('filtres.titre')}
             declencheur={
@@ -544,7 +644,10 @@ function ReceivedReviewsInbox({ withPropertyFilter }: { readonly withPropertyFil
           </FeuilleDuBas>
         </div>
       ) : (
-        <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">{filtres}</div>
+        <>
+          <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">{filtres}</div>
+          {ligneEnAttente}
+        </>
       )}
 
       {reviewsQuery.isLoading ? (
