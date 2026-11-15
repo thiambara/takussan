@@ -334,7 +334,7 @@ function CarteIntervention({
           </p>
         ) : null}
         {intervention.tenant_quote ? (
-          <blockquote data-citation="" className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground/85">
+          <blockquote data-citation="" className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground">
             {t('carte.citation', { texte: intervention.tenant_quote })}
           </blockquote>
         ) : null}

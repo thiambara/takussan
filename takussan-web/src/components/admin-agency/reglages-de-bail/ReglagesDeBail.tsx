@@ -391,7 +391,7 @@ function Encart({
       className={cn('flex items-start gap-3 rounded-xl p-3.5 text-sm max-sm:flex-wrap', ton === 'succes' ? 'bg-success/10' : 'bg-muted/60')}
     >
       <span className={cn('mt-0.5 flex-none', ton === 'succes' ? 'text-success' : 'text-muted-foreground')}>{icone}</span>
-      <p className="min-w-0 flex-1 text-foreground/85">{children}</p>
+      <p className="min-w-0 flex-1 text-foreground">{children}</p>
       {action ? <span className="flex-none max-sm:w-full max-sm:pl-8">{action}</span> : null}
     </div>
   );

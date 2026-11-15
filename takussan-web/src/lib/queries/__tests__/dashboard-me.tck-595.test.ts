@@ -30,7 +30,9 @@ describe('aDesChiffres — l’accueil a-t-il des chiffres à montrer', () => {
   it('l’accueil emploie bien ce prédicat pour choisir entre « Ce mois » et état vide', () => {
     // TCK-2622 — les tuiles sont devenues « Ce mois » (`chiffresDuMois`), toujours derrière ce prédicat.
     const source = readFileSync(join(process.cwd(), 'src/app/(dashboard)/app/(accueil)/page.tsx'), 'utf8');
-    expect(source).toMatch(/aDesChiffres\(payload\)\s*\?\s*chiffresDuMois\(/);
-    expect(source).toContain('<DashboardEmpty roles={user.roles} />');
+    // TCK-2854 — « Ce mois » est lu en flux (`lireCeMois`) : sans chiffres, le prédicat rend `[]` AVANT
+    // `chiffresDuMois`, et c'est cette liste vide qui choisit l'état vide.
+    expect(source).toMatch(/if \(!aDesChiffres\(lue\)\) return \{ chiffres: \[\], rapport: null \};\s*try \{\s*const chiffres = chiffresDuMois\(/);
+    expect(source).toMatch(/chiffres !== null && chiffres\.length === 0[^?]*\? <DashboardEmpty roles=\{user\.roles\} \/>/);
   });
 });

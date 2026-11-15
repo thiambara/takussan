@@ -211,7 +211,7 @@ function CarteGlissable({ i, file, maintenant }: { readonly i: InterventionEnFil
             {...listeners}
             aria-label={tK('saisir', { titre: i.title })}
             data-slot="poignee"
-            className="flex cursor-grab touch-none rounded p-1 text-muted-foreground/60 outline-none hover:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring active:cursor-grabbing"
+            className="flex cursor-grab touch-none rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring active:cursor-grabbing"
           >
             <GripVertical className="size-4" aria-hidden="true" />
           </button>

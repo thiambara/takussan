@@ -260,7 +260,7 @@ function EncartDAppel({ appel, devise }: { readonly appel: AppelDuClient; readon
   }
   if (!texte) return null;
   return (
-    <p data-slot="encart-d-appel" className={cn('mt-3 rounded-lg px-3 py-2 text-sm leading-snug', appel.geste === 'acompte' ? 'bg-warning/15' : 'bg-muted/60 text-foreground/80')}>
+    <p data-slot="encart-d-appel" className={cn('mt-3 rounded-lg px-3 py-2 text-sm leading-snug', appel.geste === 'acompte' ? 'bg-warning/15' : 'bg-muted/60 text-foreground')}>
       {texte}
     </p>
   );

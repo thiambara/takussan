@@ -340,7 +340,7 @@ function ChampA({
         <label htmlFor={saisieId} className="mb-1.5 block text-sm font-medium">
           {t('a')}
         </label>
-        <div className="flex min-h-11 flex-wrap items-center gap-1.5 rounded-lg border border-input bg-card px-2.5 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <div className="flex min-h-11 flex-wrap items-center gap-1.5 rounded-lg border border-input bg-card px-2.5 py-1 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring">
           {contenu}
         </div>
         <p id={`${id}-aide`} className="mt-1 text-xs text-muted-foreground">

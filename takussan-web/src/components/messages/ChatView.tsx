@@ -476,7 +476,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
                   onClick={chargerLesPrecedents}
                   disabled={isFetchingNextPage}
                   aria-busy={isFetchingNextPage || undefined}
-                  className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground/75 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-70"
+                  className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-70"
                 >
                   {isFetchingNextPage ? t('chat.loadingMore') : t('chat.chargerPrecedents')}
                 </button>

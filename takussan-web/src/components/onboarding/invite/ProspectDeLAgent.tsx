@@ -360,7 +360,7 @@ function DetailsDuProspect({ prospect }: { readonly prospect: AgentFirstLeadEntr
         </dl>
       ) : null}
       {note ? (
-        <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground/85" data-testid="note-de-l-agence">
+        <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2.5 text-[0.8125rem] leading-snug text-foreground" data-testid="note-de-l-agence">
           {note.author_name ? t('note.signee', { note: note.body, auteur: note.author_name }) : t('note.seule', { note: note.body })}
         </p>
       ) : null}

@@ -146,7 +146,7 @@ export function CarteAnnonce({
                   contacts: property.stats_30d.contacts,
                   visites: property.stats_30d.visits,
                 })}{' '}
-                <span className="text-muted-foreground/80">{t('fenetre30j')}</span>
+                <span className="text-muted-foreground">{t('fenetre30j')}</span>
               </span>
             </>
           ) : (

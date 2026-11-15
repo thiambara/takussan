@@ -181,7 +181,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
           <Onde
             niveaux={onde.niveaux}
             progression={onde.progression}
-            className="min-w-0 flex-1 overflow-hidden text-foreground/70"
+            className="min-w-0 flex-1 overflow-hidden text-muted-foreground"
             data-testid={recording ? 'onde-enregistrement' : 'onde-ecoute'}
           />
           <span className="flex-none text-ui tabular-nums text-encre-douce">

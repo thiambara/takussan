@@ -675,7 +675,7 @@ function SmsEnvoye({ sms }: { readonly sms: SmsRemis }) {
   return (
     <div data-slot="sms-envoye">
       <p className="mb-2 text-legende font-semibold tracking-surtitre text-muted-foreground uppercase">{t('smsSentAt', { time: heure })}</p>
-      <p className="rounded-xl bg-muted px-3.5 py-3 text-sm leading-relaxed whitespace-pre-line text-foreground/85">{sms.body}</p>
+      <p className="rounded-xl bg-muted px-3.5 py-3 text-sm leading-relaxed whitespace-pre-line text-foreground">{sms.body}</p>
     </div>
   );
 }

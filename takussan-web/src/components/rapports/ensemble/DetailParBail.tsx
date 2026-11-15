@@ -121,8 +121,8 @@ export function DetailParBail({
                       <th scope="row" className="truncate px-4 py-3 text-left font-medium">
                         {bien(e)}
                       </th>
-                      <td className="truncate px-4 py-3 text-foreground/80">{client(e)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-foreground/80">{signe(e)}</td>
+                      <td className="truncate px-4 py-3 text-foreground">{client(e)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-foreground">{signe(e)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{loyer(e)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums">{commission(e)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
