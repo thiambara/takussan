@@ -22,6 +22,8 @@ export const journeeQueryKeys = {
   prospects: () => ['customers', 'journee', 'prospects'] as const,
   /** Sous `['visits', 'list']` : un geste sur une visite (confirmer, clore…) relit la bande. */
   visitesDeLaSemaine: (debut: string, fin: string) => ['visits', 'list', 'journee', 'semaine', debut, fin] as const,
+  /** TCK-2856 — sous `['customers']` : une fiche modifiée (relance, critères) relit les suggestions. */
+  suggestions: () => ['customers', 'journee', 'suggestions'] as const,
 };
 
 /** Les seules colonnes que la bande de la semaine lit : le jour, et ce qui écarte une visite. */
@@ -123,4 +125,29 @@ export function useReporterTache() {
     { path: ({ id }) => cheminApi`/api/tasks/${id}`, method: 'PATCH', body: ({ echeance }) => ({ due_at: echeance }) },
     INVALIDER,
   );
+}
+
+/** TCK-2856 — les gestes nominatifs de « Journée libre » (`GET /api/dashboard/me?include=suggestions`, TCK-2855). */
+export interface SuggestionsDeLaJournee {
+  /** Le client à relancer qui attend depuis le plus longtemps. */
+  readonly follow_up: { readonly customer: { readonly id: number; readonly full_name: string }; readonly waiting_days: number } | null;
+  /** Le client qui a le plus de biens rapprochés non encore proposés, et trois d'entre eux. */
+  readonly matches: {
+    readonly customer: { readonly id: number; readonly first_name: string | null };
+    readonly count: number;
+    readonly sample: readonly { readonly id: number; readonly title: string | null; readonly neighborhood: string | null }[];
+  } | null;
+}
+
+/**
+ * TCK-2856 — lues seulement quand la journée est libre (`actif`) : le rapprochement coûte un COUNT par
+ * fiche côté API (TCK-2855), et il n'a d'écran que celui-là. `include` est une CHAÎNE (`include=suggestions`) :
+ * l'API n'inclut rien pour un tableau.
+ */
+export function useSuggestionsDeLaJournee(actif: boolean) {
+  return useApiQuery<{ data: { suggestions?: SuggestionsDeLaJournee | null } }>(journeeQueryKeys.suggestions(), '/api/dashboard/me', {
+    params: { include: 'suggestions' },
+    enabled: actif,
+    staleTime: 60_000,
+  });
 }

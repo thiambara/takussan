@@ -4397,7 +4397,8 @@
         "validated": "Validée",
         "rejected": "Rejetée",
         "paid": "Payée",
-        "cancelled": "Annulée"
+        "cancelled": "Annulée",
+        "draft": "À facturer"
       }
     },
     "retour": {
@@ -5235,10 +5236,14 @@
       },
       "duree": {
         "titre": "Durée",
-        "titreIndemnite": "Durée · indemnité de départ : {mois} mois",
         "periode": "{debut} → {fin}",
         "sansFin": "Depuis le {debut}, sans terme",
-        "avancement": "{n, selectordinal, one {#ᵉʳ} other {#ᵉ}} mois sur {total}"
+        "avancement": "{n, selectordinal, one {#ᵉʳ} other {#ᵉ}} mois sur {total}",
+        "preavisMois": "préavis {n} mois",
+        "preavisJours": "préavis {n, plural, one {# jour} other {# jours}}",
+        "indemnite": "indemnité de départ : {mois} mois",
+        "revisionLe": "révision possible le {date}",
+        "revisionDepuis": "révision possible depuis le {date}"
       },
       "caution": {
         "titre": "Caution",
@@ -5307,7 +5312,8 @@
         "resilier": "Résilier le bail",
         "abandonner": "Abandonner le brouillon",
         "abandonEmpeche": "Ce brouillon porte une échéance saisie, comme une caution : il ne s'abandonne pas. Annulez ou remboursez-la d'abord.",
-        "abandonEmpecheEtatDesLieux": "Un état des lieux engagé — envoyé en signature, signé ou contesté — est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux ne disparaît pas avec lui."
+        "abandonEmpecheEtatDesLieux": "Un état des lieux engagé — envoyé en signature, signé ou contesté — est établi sur ce brouillon : il ne s'abandonne pas, l'état des lieux ne disparaît pas avec lui.",
+        "encaisserMontant": "Encaisser {montant}"
       },
       "dossier": {
         "titre": "Le dossier",
@@ -5324,14 +5330,19 @@
         "conditions": "Conditions et clauses",
         "documents": "Documents",
         "documentsDetail": "Contrat, états des lieux, pièces déposées",
-        "garants": "Garant ({n})"
+        "garants": "Garant ({n})",
+        "interventions": "Interventions ({n})",
+        "interventionsEnCours": "{n} en cours",
+        "interventionsAucuneEnCours": "Aucune en cours"
       },
       "onglets": {
         "libelle": "Vues du bail",
         "dossier": "Dossier",
         "documents": "Documents",
         "historique": "Historique",
-        "retour": "Retour au dossier"
+        "retour": "Retour au dossier",
+        "documentsCompte": "Documents ({n})",
+        "historiqueCompte": "Historique ({n})"
       },
       "documents": {
         "vide": "Aucun document pour ce bail.",
@@ -5909,6 +5920,26 @@
         "bienRecherche": "Chercher un bien…",
         "effacer": "Effacer",
         "appliquer": "Voir les interventions"
+      },
+      "kanban": {
+        "glissez": "Glissez une carte vers « En cours » pour choisir un prestataire",
+        "deposez": "Déposez une carte ici",
+        "saisir": "Déplacer « {titre} »",
+        "instructions": "Pour déplacer une demande, appuyez sur Espace ou Entrée, changez de colonne avec les flèches, puis appuyez sur Espace ou Entrée pour la reposer, ou sur Échap pour annuler. Seule « En cours » s’atteint ainsi, depuis « À dispatcher » ou « En retard » : le choix du prestataire s’ouvre.",
+        "refus": "« {titre} » ne va pas dans « {file} » en glissant : seule « En cours » s’atteint ainsi, en choisissant un prestataire. Ouvrez la fiche pour les autres gestes.",
+        "annonces": {
+          "saisie": "« {titre} » est saisie.",
+          "survol": "« {titre} » est au-dessus de « {file} ».",
+          "horsDesFiles": "« {titre} » n’est au-dessus d’aucune colonne.",
+          "lachee": "« {titre} » est lâchée sur « {file} ».",
+          "annulee": "Déplacement de « {titre} » annulé : elle reste à sa place."
+        },
+        "confier": {
+          "titre": "Confier « {titre} »",
+          "erreur": "La demande n’a pas pu être chargée.",
+          "interdit": "Vous ne pouvez pas confier cette demande à un prestataire.",
+          "voirLaFiche": "Voir la demande"
+        }
       }
     },
     "locataire": {
@@ -7820,7 +7851,11 @@
         "placeholder": "Nom, téléphone, quartier",
         "label": "Rechercher un prestataire"
       },
-      "inviteLeDejaInscrit": "Invité le {date}"
+      "inviteLeDejaInscrit": "Invité le {date}",
+      "creneauxDepasses": "{count, plural, one {# créneau dépassé} other {# créneaux dépassés}}",
+      "menu": {
+        "ouvrir": "Plus d’actions pour {nom}"
+      }
     }
   },
   "onboarding": {
@@ -20789,7 +20824,8 @@
       "proposerSansPrenom": "{n, plural, one {# bien à proposer à un client} other {# biens à proposer à un client}}",
       "proposerQuartiers": "Biens {lieux}",
       "aLieu": "à {lieu}",
-      "proposerDetail": "Qui correspondent à sa recherche"
+      "proposerDetail": "Qui correspondent à sa recherche",
+      "liste": "{debut} et {fin}"
     }
   },
   "agenda": {

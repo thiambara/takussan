@@ -4440,7 +4440,8 @@
         "validated": "Validated",
         "rejected": "Rejected",
         "paid": "Paid",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "draft": "To invoice"
       }
     },
     "retour": {
@@ -5278,10 +5279,14 @@
       },
       "duree": {
         "titre": "Term",
-        "titreIndemnite": "Term · early exit fee: {mois} months",
         "periode": "{debut} → {fin}",
         "sansFin": "Since {debut}, open-ended",
-        "avancement": "Month {n} of {total}"
+        "avancement": "Month {n} of {total}",
+        "preavisMois": "{n, plural, one {# month’s notice} other {# months’ notice}}",
+        "preavisJours": "{n, plural, one {# day’s notice} other {# days’ notice}}",
+        "indemnite": "early exit fee: {mois} months",
+        "revisionLe": "rent review possible on {date}",
+        "revisionDepuis": "rent review open since {date}"
       },
       "caution": {
         "titre": "Deposit",
@@ -5350,7 +5355,8 @@
         "resilier": "Terminate the lease",
         "abandonner": "Abandon the draft",
         "abandonEmpeche": "This draft carries a recorded due, such as a deposit: it cannot be abandoned. Cancel or refund it first.",
-        "abandonEmpecheEtatDesLieux": "A committed inventory — sent for signature, signed or disputed — has been drawn up on this draft: it cannot be abandoned, as the inventory cannot disappear with it."
+        "abandonEmpecheEtatDesLieux": "A committed inventory — sent for signature, signed or disputed — has been drawn up on this draft: it cannot be abandoned, as the inventory cannot disappear with it.",
+        "encaisserMontant": "Record {montant}"
       },
       "dossier": {
         "titre": "The file",
@@ -5367,14 +5373,19 @@
         "conditions": "Terms and clauses",
         "documents": "Documents",
         "documentsDetail": "Contract, inspections, uploaded files",
-        "garants": "Guarantor ({n})"
+        "garants": "Guarantor ({n})",
+        "interventions": "Maintenance ({n})",
+        "interventionsEnCours": "{n} in progress",
+        "interventionsAucuneEnCours": "None in progress"
       },
       "onglets": {
         "libelle": "Lease views",
         "dossier": "File",
         "documents": "Documents",
         "historique": "History",
-        "retour": "Back to the file"
+        "retour": "Back to the file",
+        "documentsCompte": "Documents ({n})",
+        "historiqueCompte": "History ({n})"
       },
       "documents": {
         "vide": "No documents for this lease.",
@@ -5952,6 +5963,26 @@
         "bienRecherche": "Search a property…",
         "effacer": "Clear",
         "appliquer": "Show requests"
+      },
+      "kanban": {
+        "glissez": "Drag a card to “In progress” to choose a service provider",
+        "deposez": "Drop a card here",
+        "saisir": "Move “{titre}”",
+        "instructions": "To move a request, press Space or Enter, change column with the arrow keys, then press Space or Enter to drop it, or Escape to cancel. Only “In progress” can be reached this way, from “To dispatch” or “Overdue”: the service provider choice opens.",
+        "refus": "“{titre}” cannot be dragged into “{file}”: only “In progress” can be reached this way, by choosing a service provider. Open the request for other actions.",
+        "annonces": {
+          "saisie": "“{titre}” is picked up.",
+          "survol": "“{titre}” is over “{file}”.",
+          "horsDesFiles": "“{titre}” is not over any column.",
+          "lachee": "“{titre}” was dropped on “{file}”.",
+          "annulee": "Moving “{titre}” was cancelled: it stays where it was."
+        },
+        "confier": {
+          "titre": "Assign “{titre}”",
+          "erreur": "The request could not be loaded.",
+          "interdit": "You cannot assign this request to a service provider.",
+          "voirLaFiche": "View the request"
+        }
       }
     },
     "locataire": {
@@ -7820,7 +7851,11 @@
         "placeholder": "Name, phone, area",
         "label": "Search for a provider"
       },
-      "inviteLeDejaInscrit": "Invited on {date}"
+      "inviteLeDejaInscrit": "Invited on {date}",
+      "creneauxDepasses": "{count, plural, one {# missed time slot} other {# missed time slots}}",
+      "menu": {
+        "ouvrir": "More actions for {nom}"
+      }
     }
   },
   "onboarding": {
@@ -20789,7 +20824,8 @@
       "proposerSansPrenom": "{n, plural, one {# property to suggest to a client} other {# properties to suggest to a client}}",
       "proposerQuartiers": "Properties {lieux}",
       "aLieu": "in {lieu}",
-      "proposerDetail": "Matching their search"
+      "proposerDetail": "Matching their search",
+      "liste": "{debut} and {fin}"
     }
   },
   "agenda": {

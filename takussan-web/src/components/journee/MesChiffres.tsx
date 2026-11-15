@@ -14,6 +14,10 @@ export interface ChiffresDeLAgent {
   readonly tasks_open?: unknown;
   readonly tasks_overdue?: unknown;
   readonly commissions_month?: unknown;
+  /** TCK-2855 — mes biens gérés sans aucune photo. */
+  readonly properties_without_photo?: unknown;
+  /** TCK-2855 — mes commissions dues, pas encore versées (un décimal, parfois servi en chaîne). */
+  readonly commissions_upcoming?: unknown;
 }
 
 const nombre = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
@@ -50,11 +54,14 @@ export function MesChiffres({ chiffres, aRelancer, mois, sansPied, className }: 
     const n = nombre(v);
     return n === null ? '—' : f.nombre(n);
   };
+  // TCK-2856 — « 3 sans photo », « 310 000 F à venir » : une sous-ligne à zéro (ou absente) se tait.
+  const sansPhoto = nombre(chiffres.properties_without_photo) ?? 0;
+  const aVenir = nombre(chiffres.commissions_upcoming) ?? 0;
   const cases: readonly { readonly cle: keyof typeof CIBLES_DES_CHIFFRES; readonly libelle: string; readonly valeur: string; readonly contexte: string | null; readonly alerte?: boolean }[] = [
-    { cle: 'biens', libelle: t('biens'), valeur: valeur(chiffres.properties_managed), contexte: null },
+    { cle: 'biens', libelle: t('biens'), valeur: valeur(chiffres.properties_managed), contexte: sansPhoto > 0 ? t('sansPhoto', { n: sansPhoto }) : null },
     { cle: 'prospects', libelle: t('prospects'), valeur: valeur(chiffres.pipeline_total), contexte: aRelancer !== null && aRelancer > 0 ? t('aRelancer', { n: aRelancer }) : null },
     { cle: 'taches', libelle: t('taches'), valeur: valeur(chiffres.tasks_open), contexte: enRetard > 0 ? t('dontEnRetard', { n: enRetard }) : t('aucuneEnRetard'), alerte: enRetard > 0 },
-    { cle: 'commissions', libelle: t('commissions', { mois }), valeur: nombre(chiffres.commissions_month) === null ? '—' : f.montantCourt(nombre(chiffres.commissions_month), 'XOF'), contexte: null },
+    { cle: 'commissions', libelle: t('commissions', { mois }), valeur: nombre(chiffres.commissions_month) === null ? '—' : f.montantCourt(nombre(chiffres.commissions_month), 'XOF'), contexte: aVenir > 0 ? t('aVenir', { montant: f.montantCourt(aVenir, 'XOF') }) : null },
   ];
   return (
     <div data-slot="mes-chiffres" className={cn('overflow-hidden rounded-xl border border-border bg-card', className)}>

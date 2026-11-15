@@ -151,3 +151,20 @@ export function joursDepuis(depuis: string, maintenant: Date): number {
   const b = Date.parse(`${jourADakar(maintenant)}T00:00:00Z`);
   return Math.max(1, Math.round((b - a) / 86_400_000));
 }
+
+/**
+ * TCK-2856 — le compte à rebours de la prochaine visite (« dans 45 min », « dans 1 h 20 ») : l'écart
+ * entre `maintenant` et `instant`, arrondi à la minute SUPÉRIEURE (à 30 s de l'heure, « dans 1 min »,
+ * jamais « dans 0 min »). `null` dès que l'heure est passée : la ligne reprend sa durée.
+ */
+export function compteARebours(instant: number, maintenant: Date): { readonly heures: number; readonly minutes: number } | null {
+  const ecart = instant - maintenant.getTime();
+  if (!(ecart > 0)) return null;
+  const total = Math.ceil(ecart / 60_000);
+  return { heures: Math.floor(total / 60), minutes: total % 60 };
+}
+
+/** TCK-2856 — la prochaine visite de la journée : la première dont l'heure n'est pas passée. */
+export function prochaineVisite(moments: readonly Moment[], maintenant: Date): Extract<Moment, { genre: 'visite' }> | null {
+  return (moments.find((m) => m.genre === 'visite' && m.instant > maintenant.getTime()) as Extract<Moment, { genre: 'visite' }> | undefined) ?? null;
+}
