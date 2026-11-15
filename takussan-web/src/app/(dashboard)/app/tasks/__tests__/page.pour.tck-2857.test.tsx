@@ -45,7 +45,8 @@ describe('Tâches — « Nouvelle tâche » préremplie depuis une fiche (TCK-28
     render(await Page({ searchParams: Promise.resolve({ nouvelle: '1', pour: 'customer:12' }) }));
     expect(page).toHaveBeenCalledWith(expect.objectContaining({ ouvrirNouvelle: true, rattachement: { type: 'customer', id: 12, label: 'Mariama Fall' } }));
     const qs = new URLSearchParams(etat.chemins[0]!.split('?')[1]);
-    expect(qs.get('fields[customers]')).toBe('id,first_name,last_name,email,phone');
+    // TCK-2875 — un show ignore `fields` (garde show-sans-fields) : la lecture n'en envoie aucun.
+    expect(qs.get('fields[customers]')).toBeNull();
   });
 
   it('un bien : son titre', async () => {
