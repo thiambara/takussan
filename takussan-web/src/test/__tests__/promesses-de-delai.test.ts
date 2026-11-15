@@ -36,6 +36,9 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'admin.team.equipe.invitations.formulaire.validite':
     'takussan-api/app/Services/Invitation/InvitationService.php:139 — DEFAULT_TTL_DAYS = 7, posé à :247 (send)',
   'crm.customerDetail.inviteAccount.relancee': 'idem — InvitationService.php:139, reposé à :571 (resend)',
+  // TCK-2938 (trouvé rouge, posé par TCK-2928) — le message WhatsApp « Par WhatsApp » / « Repartager » de
+  // l'équipe porte le lien d'une invitation envoyée ou relancée : même validité.
+  'admin.team.equipe.invitations.messageWhatsApp': 'idem — InvitationService.php:139, posé à :247 (send) et :571 (resend)',
   // TCK-2611 — l'écran « Cette invitation a expiré » de /invitations/accept : toute invitation tient son
   // `expires_at` de send (:247) ou de resend (:571), aucun autre écrivain.
   'invitationAccept.ferme.expiree.texte': 'idem — InvitationService.php:139, posé à :247 (send) et :571 (resend)',

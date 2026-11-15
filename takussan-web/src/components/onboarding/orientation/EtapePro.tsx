@@ -4,9 +4,9 @@ import { useId, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useFormatter, useTranslations } from 'next-intl';
-import { BadgeCheck, Check, ClipboardPaste, FileSignature, House, Megaphone, ShieldCheck, Wallet } from 'lucide-react';
+import { BadgeCheck, Building2, Check, ClipboardPaste, FileSignature, ShieldCheck, Users } from 'lucide-react';
 
-import { hostIndividualOnboardAction } from '@/app/actions/onboarding';
+import { ouvrirMonAgenceAction } from '@/app/actions/onboarding';
 import { phoneSendOtpAction, phoneVerifyOtpAction } from '@/app/actions/security';
 import { BOUTON_D_ENTREE } from '@/components/auth/BoutonCollant';
 import { CasesDuCode, LONGUEUR_DU_CODE } from '@/components/auth/CasesDuCode';
@@ -14,6 +14,7 @@ import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { TitreDEntree } from '@/components/auth/PiecesDuCourriel';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Button } from '@/components/ui/button';
+import { Combobox, replierPourIdentite } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -23,6 +24,7 @@ import { lireInvitation, type ApercuDInvitation } from '@/lib/invitation-apercu'
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { lienDInvitationSuivi } from '@/lib/orientation';
 import { numeroComposable } from '@/lib/phone';
+import { useVillesDuReferentiel } from '@/lib/queries/referentiel-public';
 import { cn } from '@/lib/utils';
 
 import { DeclarerBarreDOrientation } from './BarreDOrientation';
@@ -43,17 +45,22 @@ type Choix = 'creer' | 'rejoindre';
 const ID_FORMULAIRE = 'orientation-pro';
 /** Les libellés des maquettes a-3 et a-4 : à la largeur de leur texte, sur l'interligne de 20 px du texte `sm`. */
 const LIBELLE = 'self-start leading-(--text-sm--line-height)';
+/** La ville proposée d'emblée (maquette a-3), si le référentiel n'en a qu'une de ce nom. */
+const VILLE_PAR_DEFAUT = 'Dakar';
 
 /**
  * TCK-2608 — « Votre agence sur Takussan » : créer son espace, ou rejoindre une agence.
  *
- * **Créer** ouvre un espace INDIVIDUEL (`POST /api/host/individual/onboard`, comme l'assistant hôte), puis
- * la demande de passage en agence, pré-remplie du nom saisi (`raison_sociale`, AC3) : c'est elle que
- * Takussan vérifie. ⚠ **L'écran ne promet ni équipe ni délai** (AC3) : un espace individuel n'a pas
- * d'équipe (features § 1.12), et aucun mécanisme ne tient « sous 48 h ».
+ * **Créer** — TCK-2938 (ADR-0125) : ouvre une AGENCE `standard` tout de suite (`POST /api/me/agencies`),
+ * l'appelant en est l'administrateur principal, puis mène à `/app` dans cette agence. Elle est vérifiée
+ * ensuite ; d'ici là elle ne met aucun bien en ligne et n'est pas reversée — « En deux temps » le dit.
+ * ⚠ **Aucun délai n'est promis** (ADR-0125 § 8 : « Sous 48 h » de la maquette n'est pas tenu).
+ * La ville principale se CHOISIT dans le référentiel (`geo_city_id`) : rien hors liste n'est envoyé.
  *
- * Le numéro : l'API exige celui du compte (`phone_mismatch` sinon). Vérifié, il est REPRIS ; sinon il se
- * vérifie ici, par SMS, avant la création.
+ * Le numéro : l'API exige un numéro VÉRIFIÉ sur le compte (`agency.phone_unverified`). Non vérifié, il
+ * se vérifie ici, par SMS, avant la création ; vérifié, il préremplit le téléphone de l'agence, qu'on
+ * peut changer. Un compte qui administre déjà une agence ou un espace (409 `agency.already_admin`) va à
+ * la demande de passage en agence, son chemin (ADR-0125 § 2).
  *
  * **Rejoindre** : un lien collé n'est suivi que s'il est une URL `/invitations/accept?token=…` de
  * Takussan (`lienDInvitationSuivi`) ; l'agence qui invite est lue (`GET`, lecture seule — ADR-0094), puis
@@ -69,7 +76,12 @@ export function EtapePro({ marque, compte, onRetour }: { readonly marque: string
 
   // Créer
   const [nom, setNom] = useState('');
-  const [ville, setVille] = useState('Dakar');
+  const villes = useVillesDuReferentiel();
+  const optionsVilles = (villes.data?.data ?? []).map((v) => ({ value: String(v.id), label: v.name }));
+  // `undefined` : rien de touché, la ville par défaut s'applique ; `null` : choix effacé.
+  const [villeChoisie, setVilleChoisie] = useState<string | null | undefined>(undefined);
+  const homonymesDeDakar = optionsVilles.filter((o) => replierPourIdentite(o.label) === replierPourIdentite(VILLE_PAR_DEFAUT));
+  const ville = villeChoisie === undefined ? (homonymesDeDakar.length === 1 ? homonymesDeDakar[0]!.value : null) : villeChoisie;
   const [telephone, setTelephone] = useState(compte.telephone ?? '');
   const [verifie, setVerifie] = useState(compte.telephoneVerifie);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -110,16 +122,30 @@ export function EtapePro({ marque, compte, onRetour }: { readonly marque: string
     }
     if (!verifie) return;
     setEnCours(true);
-    const resultat = await hostIndividualOnboardAction({
-      agency: { name: nom.trim(), primary_city: ville.trim() || 'Dakar', currency: 'XOF' },
-      // Le numéro vérifié du compte : l'API n'exige le code que d'un numéro non vérifié.
-      phone_otp: { phone: telephone, code: '' },
-      cgu_accepted: true,
+    // Une valeur hors du référentiel ne part jamais : seul un identifiant de la liste est envoyé.
+    const geoCityId = ville !== null && optionsVilles.some((o) => o.value === ville) ? Number(ville) : null;
+    const resultat = await ouvrirMonAgenceAction({
+      name: nom.trim(),
+      geo_city_id: geoCityId,
+      phone: numeroComposable(telephone) ? telephone : null,
     });
-    // Le compte qui a déjà un espace va directement à la demande : l'API le dit
-    // par un 409 (`already_onboarded`, `HostIndividualOnboardingService`).
-    const dejaUnEspace = !resultat.ok && resultat.status === 409;
-    if (!resultat.ok && !dejaUnEspace) {
+    if (!resultat.ok) {
+      if (resultat.code === 'agency.phone_unverified') {
+        // Le compte n'a pas (ou plus) de numéro vérifié : la vérification se remontre ici, sur le numéro
+        // du COMPTE — `send-otp` écrit le numéro tapé sur le compte, pas celui de l'agence.
+        setVerifie(false);
+        setTelephone(compte.telephone ?? '');
+        setErreur(t('numeroNonVerifie'));
+        setEnCours(false);
+        return;
+      }
+      if (resultat.status === 409) {
+        // Déjà administrateur d'une agence ou d'un espace : son chemin est la demande de passage.
+        await refreshUser();
+        marquerArriveeDeParcours('assistant');
+        router.push(`/app/settings/agency/upgrade?raison_sociale=${encodeURIComponent(nom.trim())}`);
+        return;
+      }
       setErreur(resultat.message || t('erreur'));
       setEnCours(false);
       return;
@@ -127,7 +153,8 @@ export function EtapePro({ marque, compte, onRetour }: { readonly marque: string
     await refreshUser();
     // TCK-2615 — l'arrivée qui suit un parcours n'ouvre aucune fenêtre de bienvenue.
     marquerArriveeDeParcours('assistant');
-    router.push(`/app/settings/agency/upgrade?raison_sociale=${encodeURIComponent(nom.trim())}`);
+    // Le cookie du profil actif est posé par l'action : `/app` s'ouvre dans l'agence créée (AC2).
+    router.push('/app');
   }
 
   const apercu = lecture.data?.issue === 'valide' ? lecture.data.apercu : null;
@@ -221,12 +248,20 @@ export function EtapePro({ marque, compte, onRetour }: { readonly marque: string
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`${id}-ville`} className={LIBELLE}>{t('ville')}</Label>
-              <Input id={`${id}-ville`} maxLength={120} autoComplete="address-level2" value={ville} onChange={(e) => setVille(e.target.value)} />
+              <Combobox
+                id={`${id}-ville`}
+                options={optionsVilles}
+                value={ville}
+                onChange={(option) => setVilleChoisie(option?.value ?? null)}
+                placeholder={t('villeChoisir')}
+                aucunResultat={t('villeAucune')}
+                chargement={villes.isLoading}
+              />
             </div>
             {verifie ? (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor={`${id}-telephone`} className={LIBELLE}>{t('telephone')}</Label>
-                <PhoneInput id={`${id}-telephone`} value={telephone} onValueChange={() => undefined} disabled aide={t('telephoneAide')} />
+                <PhoneInput id={`${id}-telephone`} value={telephone} onValueChange={setTelephone} aide={t('telephoneAide')} />
               </div>
             ) : null}
           </div>
@@ -350,7 +385,10 @@ function AgenceQuiInvite({ apercu, roles }: { readonly apercu: ApercuDInvitation
   );
 }
 
-/** « En deux temps » : ce qui s'ouvre maintenant, ce que Takussan vérifie ensuite — sans délai promis. */
+/**
+ * « En deux temps » : ce qui s'ouvre maintenant, ce que Takussan vérifie ensuite — sans délai promis
+ * (ADR-0125 § 8), et ce qui attend la vérification : la mise en ligne et les reversements (§ 5).
+ */
 function EnDeuxTemps({ className }: { readonly className?: string }) {
   const t = useTranslations('onboarding.orientation.pro.deuxTemps');
   const temps = [
@@ -385,14 +423,18 @@ function EnDeuxTemps({ className }: { readonly className?: string }) {
   );
 }
 
+/**
+ * TCK-2938 — l'agence ouverte (ADR-0125) a une équipe, des bailleurs et des mandats : les trois rangées
+ * de la maquette. « Des crédits de mise en avant » n'y est pas : l'ouverture n'en donne aucun (§ 5) et
+ * rien ne se met en ligne avant la vérification.
+ */
 const AVANTAGES = [
-  { id: 'biens', icone: House },
-  { id: 'baux', icone: FileSignature },
-  { id: 'encaissements', icone: Wallet },
-  { id: 'credits', icone: Megaphone },
+  { id: 'equipe', icone: Users },
+  { id: 'bailleurs', icone: Building2 },
+  { id: 'mandats', icone: FileSignature },
 ] as const;
 
-/** L'objet du bureau : ce que l'espace donne, et rien qu'un espace individuel ne tienne (pas d'équipe). */
+/** L'objet du bureau : ce que l'agence ouvre tout de suite. */
 function CeQueVousAurez() {
   const t = useTranslations('onboarding.orientation.pro');
   return (
