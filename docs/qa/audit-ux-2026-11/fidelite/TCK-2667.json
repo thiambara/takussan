@@ -115,20 +115,6 @@
   },
   {
    "ecran": "a-1",
-   "element": "« 9 en location, 14 à louer ou à vendre », « 3 baux · la plus ancienne date du 30 oct. », « Activée depuis le 3 févr. », « iPhone · Dakar », « Rappeler », et les chevrons de « Biens suivis » et « Clients et visites »",
-   "propriete": "absent du produit",
-   "exception": "vérité des données",
-   "motif": "l'API ne sert ni la ventilation des biens suivis, ni l'ancienneté des commissions dues, ni la date d'activation de la 2FA, ni l'appareil de la dernière connexion ; « Rappeler » est hors périmètre (aucun envoi n'existe) ; aucune liste de biens ni de clients ne se filtre par agent (le chevron de « Commissions dues » mène à `/app/commissions?agent=`, qui existe). Rien n'est inventé"
-  },
-  {
-   "ecran": "a-1",
-   "element": "« 5 visites cette semaine »",
-   "propriete": "texte",
-   "exception": "vérité des données",
-   "motif": "le portefeuille (`GET …/team/{user}/portfolio`) compte les visites à venir, pas celles de la semaine ; le libellé dit ce que le nombre compte (alias)"
-  },
-  {
-   "ecran": "a-1",
    "element": "« Khady Diallo … peut agir à sa place » (carte d'absence) et la carte « Absences » de la maquette",
    "propriete": "texte ; forme de la carte",
    "exception": "règle métier",
@@ -147,6 +133,13 @@
    "propriete": "taille de police, hauteur, largeur",
    "exception": "technique",
    "motif": "densité ×0,9 du bureau portée par les jetons (ADR-0107) ; les valeurs fixes de la maquette reprises en `rem` calculés sont la hauteur des rangées du tableau (`min-h-[3.625rem]`, 58 px), des rangées de la fiche (`min-h-[3.25rem]`, 52 px) et la largeur de la recherche (`w-[21.25rem]`, 340 px)"
+  },
+  {
+   "ecran": "a-1",
+   "element": "« iPhone · Dakar » (Dernière connexion)",
+   "propriete": "texte",
+   "exception": "vérité des données",
+   "motif": "TCK-2928 : le détail rend la famille d'appareil telle que l'API la sert (`iPhone · Safari`, ADR-0124 § 1) puis la ville ; aucune base de villes n'est branchée (`NullLoginCityResolver`, ADR-0124 § 2) : la ville est absente tant qu'elle ne l'est pas"
   }
  ],
  "comparaisons": {

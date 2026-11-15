@@ -197,7 +197,8 @@ export async function fetchPendingAgencyInvitations(
  * administrateur exige `team.assign_role` côté API.
  */
 export interface InviteAgencyAgentPayload {
-  readonly email: string;
+  /** TCK-2928 — absente pour une invitation partagée : l'API la refuse (`prohibited_if`, ADR-0123). */
+  readonly email?: string | null;
   /**
    * P234.01 (TCK-2280) — ni `agent_senior` ni `agent_manager`, jamais appliqués. TCK-2365 —
    * `agency_admin` : l'acceptation crée aussi le profil d'administrateur.
@@ -206,17 +207,37 @@ export interface InviteAgencyAgentPayload {
   readonly first_name: string;
   readonly last_name: string;
   readonly phone?: string | null;
+  /**
+   * TCK-2928 (ADR-0123) — `share` : rien ne part, la réponse rend `share_url` une seule fois, que
+   * l'invitant envoie lui-même par WhatsApp. Exige le numéro, refuse l'e-mail.
+   */
+  readonly delivery?: 'share';
 }
+
+/** TCK-2928 — la réponse d'une invitation partagée : `share_url`, une seule fois, en `no-store`. */
+export type InvitationPartagee = InvitationSummary & { readonly phone?: string | null; readonly share_url?: string };
 
 export async function inviteAgencyAgent(
   agencyId: number,
   payload: InviteAgencyAgentPayload,
   token: string,
-): Promise<ApiResponse<InvitationSummary>> {
-  return apiRequest<ApiResponse<InvitationSummary>>(
+): Promise<ApiResponse<InvitationPartagee>> {
+  return apiRequest<ApiResponse<InvitationPartagee>>(
     cheminApi`/api/agencies/${agencyId}/agents/invite`,
     { method: 'POST', body: payload, token },
   );
+}
+
+/**
+ * TCK-2928 — « Repartager » : un lien neuf pour une invitation d'équipe adressée au seul numéro
+ * (`POST /api/invitations/{id}/share-link`, TCK-2927) ; le jeton est renouvelé, l'ancien lien meurt.
+ */
+export async function partagerLeLienDeLInvitation(token: string, invitationId: number): Promise<InvitationPartagee> {
+  const res = await apiRequest<ApiResponse<InvitationPartagee>>(cheminApi`/api/invitations/${invitationId}/share-link`, {
+    method: 'POST',
+    token,
+  });
+  return res.data;
 }
 
 /**

@@ -106,6 +106,8 @@ export interface DashboardPropertyFilters {
   readonly listing?: string;
   /** TCK-2908 — le profil de bailleur (`filter[owner_profile_id]`, TCK-2905) : invité compris. */
   readonly owner_profile_id?: string;
+  /** TCK-2928 — les biens que ce membre gère (`filter[agent]`, TCK-2926) : saisis ou suivis en collaborateur. */
+  readonly agent?: string;
 }
 
 /**
@@ -150,6 +152,8 @@ function buildListParams({
   if (filters?.listing) filter.listing = filters.listing;
   // TCK-2908 — « Tous les bailleurs » (TCK-2905) : le profil du bailleur, filtré côté serveur.
   if (filters?.owner_profile_id) filter.owner_profile_id = filters.owner_profile_id;
+  // TCK-2928 — la liste ouverte depuis la fiche d'un membre de l'équipe.
+  if (filters?.agent) filter.agent = filters.agent;
 
   return {
     fields: { properties: DASHBOARD_PROPERTY_FIELDS },
@@ -184,10 +188,14 @@ export async function fetchDashboardProperties(
  */
 export async function fetchPortfolioSummary(
   token: string,
-  portee: { readonly user_id?: string; readonly include_archived?: string } = {},
+  portee: { readonly user_id?: string; readonly agent?: string; readonly include_archived?: string } = {},
 ): Promise<ResumeDuPortefeuille> {
+  // TCK-2928 — la portée « biens d'un membre » (`filter[agent]`) compte aussi les pastilles.
+  const portage: Record<string, string> = {};
+  if (portee.user_id) portage.user_id = portee.user_id;
+  if (portee.agent) portage.agent = portee.agent;
   const qs = buildQueryString({
-    filter: portee.user_id ? { user_id: portee.user_id } : undefined,
+    filter: Object.keys(portage).length > 0 ? portage : undefined,
     extra: portee.include_archived === '1' ? { include_archived: '1' } : undefined,
   });
   const res = await apiRequest<ApiResponse<ResumeDuPortefeuille>>(

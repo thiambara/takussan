@@ -135,6 +135,9 @@ export default async function Page({
     include_archived: asString(params.include_archived),
     // TCK-2908 — « Tous les bailleurs » : un identifiant de profil, ou rien (jamais relayé tel quel).
     owner_profile_id: /^\d+$/.test(asString(params.owner_profile_id) ?? '') ? asString(params.owner_profile_id) : undefined,
+    // TCK-2928 — « Biens suivis » de la fiche d'un membre : `filter[agent]` (TCK-2926), la règle que la
+    // fiche compte ; un identifiant, ou rien.
+    agent: /^[1-9]\d*$/.test(asString(params.agent) ?? '') ? asString(params.agent) : undefined,
   };
   const sort = asString(params.sort);
 
@@ -192,7 +195,7 @@ export default async function Page({
   const agence = estDeLAgence(user.roles);
   const [premiere, resume, quota, offre, bailleurs] = await Promise.all([
     listeDansLesBornes(token, listeDuMode(modeDemande)),
-    fetchPortfolioSummary(token, { user_id: filters.user_id, include_archived: filters.include_archived }),
+    fetchPortfolioSummary(token, { user_id: filters.user_id, agent: filters.agent, include_archived: filters.include_archived }),
     // Le quota est celui de l'AGENCE (`GET /api/me/quota`) : le bailleur ne le consomme pas (TCK-627).
     agence ? fetchListingQuotaAction() : Promise.resolve(null),
     // TCK-2908 — « Offre Pro » à côté du quota : le nom de l'offre (`GET /api/me/subscription`, TCK-2669),
@@ -205,7 +208,7 @@ export default async function Page({
   // Décision 4 a — le sélecteur n'est proposé qu'à un compte qui a des biens à louer. Sous une portée
   // (« Mes biens », un agent choisi), le résumé ne compte que cette portée : le sélecteur reste, pour
   // que la bascule ne change pas de mode.
-  const selecteur = Boolean(filters.user_id) || gestionProposee(resume);
+  const selecteur = Boolean(filters.user_id || filters.agent) || gestionProposee(resume);
   const mode: ModeDeListe = selecteur ? modeDemande : 'annonces';
   const response = mode === modeDemande ? premiere : await listeDansLesBornes(token, listeDuMode(mode));
 

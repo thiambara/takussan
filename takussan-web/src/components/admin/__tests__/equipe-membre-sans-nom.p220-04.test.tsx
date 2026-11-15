@@ -102,7 +102,6 @@ describe('console Équipe — membre sans nom (P220.04)', () => {
               currentUserId={1}
               affectations={[]}
               peutAttribuerLeRole={false}
-              peutLireLePortefeuille={false}
               suspension={null}
               onSuspension={vi.fn()}
               peutDeleguer={false}

@@ -22,6 +22,8 @@ const AGENCE = 12;
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1 }, token: 'jeton', isLoading: false }) }));
 vi.mock('../FormulaireDInvitation', () => ({ FormulaireDInvitation: () => <p data-testid="formulaire" /> }));
+// TCK-2928 — le drapeau `phone_login` n'est jamais lu sur l'API (voir LesInvitations.whatsapp.tck-2928).
+vi.mock('@/components/auth/useConnexionParTelephone', () => ({ useConnexionParTelephone: () => false }));
 
 const fetchPendingAgencyInvitations = vi.fn();
 const resendInvitation = vi.fn();

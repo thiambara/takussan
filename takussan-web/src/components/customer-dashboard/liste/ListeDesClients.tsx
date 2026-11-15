@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ArrowDownUp, ChevronDown, ChevronUp, KanbanSquare, Plus, Search, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
+import { ArrowDownUp, ChevronDown, ChevronUp, KanbanSquare, Plus, Search, SlidersHorizontal, UserPlus, Users, X } from 'lucide-react';
 
 import { PageHeader } from '@/components/console';
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
@@ -71,6 +71,11 @@ export interface ListeDesClientsProps {
   readonly crmTags: readonly CrmTagOption[];
   /** Une vue, un filtre ou une recherche est posé : l'état vide le dit au lieu d'inviter à créer. */
   readonly filtre: boolean;
+  /**
+   * TCK-2928 — `?referent={user_id}` (« Clients et visites » de la fiche d'un membre) : la liste est
+   * filtrée côté serveur sur ce référent ; une puce le nomme et le retire.
+   */
+  readonly referentFiltre?: string;
 }
 
 /**
@@ -201,6 +206,13 @@ export function ListeDesClients(props: ListeDesClientsProps) {
         ) : null}
         <OutilsDuTelephone tri={props.tri} crmTags={props.crmTags} />
       </div>
+
+      {props.referentFiltre ? (
+        <PuceDuReferent
+          nom={clients.find((c) => String(c.referent?.id) === props.referentFiltre)?.referent?.name ?? null}
+          onRetirer={() => remplacer({ referent: null, page: null })}
+        />
+      ) : null}
 
       {enregistrement.isError ? (
         <p role="alert" className="mx-4 mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-ui text-destructive md:mx-0">
@@ -634,6 +646,28 @@ function ClientsVides({ personnel, filtre, onAjouter }: { readonly personnel: bo
           }
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * TCK-2928 — la puce du référent choisi depuis la fiche d'un membre (`?referent=`) : son nom, lu sur
+ * les lignes (chacune le porte), et le geste qui la retire.
+ */
+function PuceDuReferent({ nom, onRetirer }: { readonly nom: string | null; readonly onRetirer: () => void }) {
+  const t = useTranslations('crm.list.referentFiltre');
+  return (
+    <div className="flex px-4 pt-3 md:px-0 lg:pt-4" data-slot="puce-du-referent">
+      <button
+        type="button"
+        onClick={onRetirer}
+        className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-foreground outline-none transition-colors hover:bg-border focus-visible:ring-3 focus-visible:ring-ring lg:min-h-7 lg:px-2.5"
+      >
+        <span className="text-muted-foreground">{t('libelle')}</span>
+        <span className="font-medium">{nom ?? t('choisi')}</span>
+        <X aria-hidden="true" className="size-3 text-muted-foreground" />
+        <span className="sr-only">{t('retirer')}</span>
+      </button>
     </div>
   );
 }

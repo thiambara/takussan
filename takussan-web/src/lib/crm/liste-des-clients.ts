@@ -17,6 +17,9 @@
  *  · `stage_group=active` : les étapes vivantes (`filter[stage_group]`, TCK-2588), cible de « Prospects »
  *    de « Ma journée » avec « Mes clients » (TCK-2596 AC2). Toute autre valeur est ignorée : l'API la
  *    refuserait d'un 422.
+ *  · TCK-2928 — `referent={user_id}` : les clients dont ce membre est le référent (`filter[referent]`),
+ *    ouverts depuis « Clients et visites » de sa fiche d'équipe. Un identifiant seulement ; une vue qui
+ *    pose son propre référent (« Mes clients », « Sans référent ») l'emporte.
  */
 
 export const VUES_DES_CLIENTS = ['a-relancer', 'mes-clients', 'negociation', 'sans-referent'] as const;
@@ -85,7 +88,8 @@ export interface FiltresDesClients {
   readonly tags?: string;
   /** `week` (TCK-2890) : les relances dues ET celles prévues d'ici dimanche — la vue « À relancer ». */
   readonly follow_up?: '1' | 'week';
-  readonly referent?: 'me' | 'none';
+  /** `me`, `none`, ou (TCK-2928) l'identifiant d'un membre. */
+  readonly referent?: 'me' | 'none' | `${number}`;
   /** TCK-2596 — `active` : les étapes vivantes, lead à négociation. */
   readonly stage_group?: 'active';
 }
@@ -147,9 +151,16 @@ export function lireLaListe(brut: Brut, lecteur: LecteurDeLaListe): EtatDeLaList
       search,
       tags: une(brut.tags),
       ...(une(brut.stage_group) === 'active' ? { stage_group: 'active' as const } : {}),
+      ...referentDeLUrl(brut, lecteur),
       ...filtresDeLaVue(vue),
     },
   };
+}
+
+/** TCK-2928 — `referent={user_id}` de l'URL, pour le personnel seulement ; toute autre valeur est ignorée. */
+export function referentDeLUrl(brut: Brut, lecteur: LecteurDeLaListe): Pick<FiltresDesClients, 'referent'> {
+  const r = une(brut.referent);
+  return lecteur.personnel && r && /^[1-9]\d{0,18}$/.test(r) ? { referent: r as `${number}` } : {};
 }
 
 /** Le sens du tri d'une colonne dans l'état courant : `asc`, `desc`, ou `null` (non triée). */

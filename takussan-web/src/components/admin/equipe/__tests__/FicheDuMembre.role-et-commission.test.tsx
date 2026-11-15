@@ -74,7 +74,6 @@ function monter(peutAttribuerLeRole: boolean, affectations: AgencyRoleAssignment
           currentUserId={1}
           affectations={affectations}
           peutAttribuerLeRole={peutAttribuerLeRole}
-          peutLireLePortefeuille={false}
           suspension={null}
           onSuspension={vi.fn()}
           peutDeleguer={false}

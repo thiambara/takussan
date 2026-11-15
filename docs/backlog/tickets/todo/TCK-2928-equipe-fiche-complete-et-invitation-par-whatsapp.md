@@ -70,4 +70,38 @@ L'admin lit tout un membre sur sa fiche et passe à ses biens ou à ses clients 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_2026-11-15 — implémenté (agent délégué, arbre `takussan-manques`)._
+
+**Prémisses re-mesurées.** Ni la liste des biens ni celle des clients ne lisaient un agent/référent dans l'URL : ajoutés
+(`/app/properties?agent={id}` → `filter[agent]` sur la liste ET sur `portfolio-summary` ; `/app/customers?referent={id}` →
+`filter[referent]={id}`, déjà accepté par l'API). Le formulaire exigeait l'e-mail ; l'API refuse l'e-mail avec `delivery: share`.
+« Clients et visites » lisait le portefeuille de passation (`…/members/{u}/portfolio`, sous `team.remove`, visites « à venir ») :
+remplacé par la fiche `GET …/team/{u}` (TCK-2926) ; la prop `peutLireLePortefeuille` disparaît (4 appelants).
+
+**Décisions tranchées (« valide tes choix »).**
+- « Biens suivis » : `rented` = en location ; `available` + `published` = à louer ou à vendre ; tout autre statut (brouillon…)
+  se dit « , N autres » plutôt que de laisser une somme fausse. Fiche illisible (403, panne) : repli sur la ligne du tableau
+  (compte, 2FA, dernière connexion), sans « Rappeler » ni « Clients et visites ».
+- « Commissions dues » reste gardée par la ligne du tableau (`commissions_due_amount`, lecteurs de l'argent, AC4 de TCK-2667) ;
+  montant et détail « N baux · la plus ancienne date du … » lus sur la fiche.
+- « Dernière connexion » : détail = famille d'appareil telle que servie (`iPhone · Safari`) puis la ville — la ville est nulle
+  tant qu'aucune base n'est branchée (ADR-0124 § 2). Écart consigné dans la fiche TCK-2667.
+- « Rappeler » : jamais sur sa propre fiche ; 429 → « Déjà rappelé aujourd'hui » (toast info) ; 409 → la fiche se relit.
+- « Par WhatsApp » / « Lien par WhatsApp » : seulement si `phone_login` est ouvert (sinon l'API refuse `delivery`). Par WhatsApp,
+  le numéro est requis et l'e-mail doit rester VIDE (erreur sur le champ plutôt qu'un e-mail ignoré en silence). L'onglet
+  s'ouvre vide dans le geste (motif de `RelanceDUnImpaye`), seulement si la saisie passe la validation ; il part vers
+  `wa.me/<numéro rendu par l'API>?text=<message + share_url>` ou se referme sur un refus. Bloqué malgré tout : l'onglet courant
+  part vers `wa.me`. Le lien n'est écrit dans aucun stockage, ni état React, ni journal (testé : `Storage.setItem` jamais
+  appelé, lien absent du DOM). Message générique (vouvoiement), sans nom d'agence (non disponible à l'écran).
+- « Repartager » (`POST /api/invitations/{id}/share-link`) : sur une invitation d'équipe (`agent`/`agency_admin`) sans e-mail et
+  avec numéro, sous double authentification (garde existante) ; le toast dit que l'ancien lien ne fonctionne plus.
+- AC6 (absences en cours au navigateur) et AC-F2/AC-F3 (relevés `fidelite compare`) : **non mesurés** — consigne du porteur
+  (pas de navigateur dans ce lot ; le front servi en local tourne sur un autre arbre).
+- AC-F1 : TCK-2667 — retirés « 9 en location… Rappeler, chevrons » et « 5 visites cette semaine », ajouté l'écart
+  « iPhone · Dakar » ; TCK-2668 — retiré « Lien par WhatsApp / Par WhatsApp », ajouté « absents sans `phone_login` ; Repartager ».
+
+**Preuves.** vitest : 24 fichiers liés, 215 tests verts (dont `FicheDuMembre.tck-2928` 9, `FormulaireDInvitation.whatsapp.tck-2928`
+4, `LesInvitations.whatsapp.tck-2928` 4, `biens-du-membre.tck-2928` 2, `liste-des-clients.tck-2928` 3,
+`ListeDesClients.referent.tck-2928` 2). Ablations une à une, rouges sans correctif, restaurées par `cp` (md5 vérifié) :
+`delivery: share`, `filter[agent]` de la liste, `referentDeLUrl`, branche 429 du rappel, chevron des biens, ouverture `wa.me`
+du repartage. `tsc --noEmit`, eslint des fichiers touchés, `check:i18n`, toutes les gardes `scripts/check-*.mjs` : verts.

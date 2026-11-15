@@ -65,7 +65,7 @@ export interface DashboardCustomerFilters {
    */
   readonly follow_up?: '1' | 'week';
   /** TCK-2588 — `me` : « Mes clients » ; `none` : « Sans référent ». */
-  readonly referent?: 'me' | 'none';
+  readonly referent?: 'me' | 'none' | `${number}`;
   /** TCK-2588 — `active` : les étapes vivantes (« Prospects » de « Ma journée », TCK-2596). */
   readonly stage_group?: 'active';
 }

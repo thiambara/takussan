@@ -111,6 +111,8 @@ const ADVANCED_KEYS = [
   'user_id',
   // TCK-2908 — « Tous les bailleurs » (le panneau du bureau, mode Gestion).
   'owner_profile_id',
+  // TCK-2928 — les biens d'un membre, ouverts depuis sa fiche (`filter[agent]`).
+  'agent',
   'created_from',
   'created_to',
 ] as const;
@@ -1103,6 +1105,13 @@ function buildActiveChips(
   if (userId) {
     const agent = ctx.agentOptions.find((a) => String(a.id) === userId);
     chips.push({ key: 'user_id', label: ctx.tChips('agent'), value: agent?.name ?? userId });
+  }
+  // TCK-2928 — « Biens suivis » de la fiche d'un membre : le nom, lu sur les lignes (il saisit ou suit
+  // chacune), sinon l'identifiant.
+  const suiviPar = searchParams.get('agent');
+  if (suiviPar) {
+    const agent = ctx.agentOptions.find((a) => String(a.id) === suiviPar);
+    chips.push({ key: 'agent', label: ctx.tChips('suiviPar'), value: agent?.name ?? suiviPar });
   }
   // TCK-2908 — le bailleur choisi au bureau se retire aussi au téléphone, où le panneau n'est pas.
   const ownerProfileId = searchParams.get('owner_profile_id');

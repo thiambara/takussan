@@ -68,7 +68,7 @@ export default async function Page({
   const designer = personnel && (capacites ?? []).includes('crm.assign') ? { moi } : null;
   const comptesDesVues: Partial<Record<VueDesClients, number | null>> = Object.fromEntries(vues.map((v, i) => [v, comptes[i] ?? null]));
 
-  const filtre = etat.vue !== 'tous' || Boolean(etat.filtres.search || etat.filtres.status || etat.filtres.pipeline_stage || etat.filtres.stage_group || etat.filtres.tags);
+  const filtre = etat.vue !== 'tous' || Boolean(etat.filtres.search || etat.filtres.status || etat.filtres.pipeline_stage || etat.filtres.stage_group || etat.filtres.tags || etat.filtres.referent);
 
   return (
     <ListeDesClients
@@ -82,6 +82,7 @@ export default async function Page({
       designer={designer}
       crmTags={crmTags}
       filtre={filtre}
+      referentFiltre={etat.filtres.referent && /^\d+$/.test(etat.filtres.referent) ? etat.filtres.referent : undefined}
     />
   );
 }
