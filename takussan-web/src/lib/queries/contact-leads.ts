@@ -1,8 +1,15 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
+
+import { useAuth } from '@/context/AuthContext';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import { cheminApi } from '@/lib/chemin-api';
+import { cheminApi, requete } from '@/lib/chemin-api';
+import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
+import { DELAI_DE_PREVENANCE_MINUTES, type CreneauDuServeur } from '@/lib/visites/planification';
 
 /**
  * TCK-590 — la boîte « Demandes » : `/api/contact-leads`.
@@ -45,7 +52,11 @@ export interface ContactLead {
    */
   readonly known_customer?: DemandeDejaCliente | null;
   readonly created_at: string;
-  readonly property?: { id: number; title: string; slug: string } | null;
+  /**
+   * TCK-2885 (TCK-2884) — `address` : le seul quartier du bien (`include=property.address`), jamais la
+   * rue ; clé absente sous `include=property` seul.
+   */
+  readonly property?: { id: number; title: string; slug: string; address?: { neighborhood: string | null } | null } | null;
   readonly recipient?: { id: number; first_name: string | null; last_name: string | null } | null;
 }
 
@@ -145,7 +156,9 @@ export function parametresDesDemandes(
       users: ['id', 'first_name', 'last_name'],
     },
     filter: filtres,
-    include: ['property', 'recipient'],
+    // TCK-2885 — `property.address` : le quartier sur la ligne (« Chambre meublée · Ouakam »). Sans
+    // `fields[…]` pour l'adresse : l'API le refuse (400), elle n'en émet que `neighborhood` (TCK-2884).
+    include: ['property.address', 'recipient'],
     sort: [triDesDemandes(filtre)],
     page,
     per_page: 20,
@@ -285,6 +298,83 @@ export function useHandleLead() {
     { path: ({ id }) => cheminApi`/api/contact-leads/${id}/handle`, method: 'POST', body: () => ({}) },
     INVALIDER,
   );
+}
+
+/** TCK-2885 (TCK-2884) — « Annuler » un traitement : la demande revient à traiter. */
+export function useUnhandleLead() {
+  return useApiMutation<ApiResponse<ContactLead>, { id: number }>(
+    { path: ({ id }) => cheminApi`/api/contact-leads/${id}/unhandle`, method: 'POST', body: () => ({}) },
+    INVALIDER,
+  );
+}
+
+/* ───────────────────────── TCK-2885 — deux créneaux libres pour le message prérempli ───────────────────────── */
+
+/** Un créneau libre proposé dans le message : son jour (`AAAA-MM-JJ`, Dakar) et son heure murale. */
+export interface CreneauLibre {
+  readonly jour: string;
+  readonly heure: string;
+}
+
+/** La fenêtre de recherche : aujourd'hui et les six jours suivants. */
+export const JOURS_DE_RECHERCHE_DES_CRENEAUX = 7;
+
+/**
+ * Les `n` premiers créneaux LIBRES des sept jours qui viennent, jour après jour : un jour n'est lu
+ * que tant qu'il en manque (aujourd'hui suffit le plus souvent : une requête). Un créneau pris, ou
+ * à moins de 30 min (le délai de prévenance du serveur, comme `creneauxProposes`), n'est jamais
+ * proposé. Un jour illisible (403, réseau) arrête la recherche : on propose ce qu'on a.
+ */
+export async function chercherCreneauxLibres(
+  lireLeJour: (jour: string) => Promise<readonly CreneauDuServeur[]>,
+  maintenant: Date,
+  n = 2,
+): Promise<readonly CreneauLibre[]> {
+  const auPlusTot = maintenant.getTime() + DELAI_DE_PREVENANCE_MINUTES * 60_000;
+  const trouves: CreneauLibre[] = [];
+  const aujourdhui = jourDeLApi(maintenant);
+  for (let i = 0; i < JOURS_DE_RECHERCHE_DES_CRENEAUX && trouves.length < n; i++) {
+    const jour = decalerJour(aujourdhui, i);
+    let creneaux: readonly CreneauDuServeur[];
+    try {
+      creneaux = await lireLeJour(jour);
+    } catch {
+      break;
+    }
+    for (const c of creneaux) {
+      if (trouves.length >= n) break;
+      if (c.available && Date.parse(c.start) >= auPlusTot) trouves.push({ jour, heure: c.label });
+    }
+  }
+  return trouves;
+}
+
+/**
+ * Les deux premiers créneaux libres de l'utilisateur pour ce bien (`GET /api/property-visits/slots`,
+ * l'occupation de l'appelant). Lu pour la SEULE demande ouverte : une ligne de la liste n'en coûte
+ * aucun.
+ */
+export function useCreneauxLibresDuBien(propertyId: number | null, options: { enabled?: boolean } = {}) {
+  const { token } = useAuth();
+  const locale = useLocale();
+  const actif = (options.enabled ?? true) && propertyId !== null;
+  return useQuery({
+    queryKey: ['visits', 'creneaux-libres', propertyId, jourDeLApi()],
+    queryFn: ({ signal }) =>
+      chercherCreneauxLibres(
+        async (jour) =>
+          (
+            await apiRequest<{ data: { slots: readonly CreneauDuServeur[] } }>(
+              cheminApi`/api/property-visits/slots${requete(buildQueryString({ extra: { property_id: propertyId, date: jour } }))}`,
+              { token: token ?? undefined, locale, signal },
+            )
+          ).data.slots,
+        new Date(),
+      ),
+    enabled: actif,
+    staleTime: 60_000,
+    retry: false,
+  });
 }
 
 /**

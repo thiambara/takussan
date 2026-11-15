@@ -90,12 +90,19 @@ function Option({ choisie, onClick, children }: { readonly choisie: boolean; rea
 interface FiltresDuBureauProps {
   readonly affinage: AffinageDesDemandes;
   readonly onAffiner: (changements: Record<string, string | number | null>) => void;
-  /** L'agence dont les agents se proposent ; `null` : pas de filtre Agent (le bailleur). */
+  /** L'agence dont les agents se proposent (`crm.assign` : la liste des membres) ; `null` : aucune lecture. */
   readonly agenceDesAgents: number | null;
+  /**
+   * TCK-2885 — le filtre « Agent » est montré à qui lit toute la boîte (`crm.view_all`) ou attribue
+   * (`crm.assign`). Sans `crm.assign`, la liste des membres lui est refusée (`AgencyPolicy::
+   * listAssignableStaff`, règle inchangée) : il choisit parmi les destinataires des demandes lues.
+   */
+  readonly filtreAgent?: boolean;
+  readonly agentsConnus?: readonly { id: number; first_name: string | null; last_name: string | null }[];
 }
 
 /** Bien, Agent, Canal : trois filtres fermés, chacun dans l'URL (`?bien=`, `?agent=`, `?canal=`). */
-export function FiltresDuBureau({ affinage, onAffiner, agenceDesAgents }: FiltresDuBureauProps) {
+export function FiltresDuBureau({ affinage, onAffiner, agenceDesAgents, filtreAgent = agenceDesAgents !== null, agentsConnus = [] }: FiltresDuBureauProps) {
   const t = useTranslations('contactLeads.desktop');
   const [terme, setTerme] = useState('');
   const biens = useApiQuery<PaginatedResponse<{ id: number; title: string }>>(['properties', 'demandes', terme], '/api/properties', {
@@ -110,7 +117,8 @@ export function FiltresDuBureau({ affinage, onAffiner, agenceDesAgents }: Filtre
     },
   );
   const bienChoisi = biens.data?.data.find((b) => b.id === affinage.bien);
-  const agentChoisi = agents.data?.data.find((a) => a.id === affinage.agent);
+  const listeDesAgents = [...(agents.data?.data ?? []), ...agentsConnus].filter((a, i, tous) => tous.findIndex((b) => b.id === a.id) === i);
+  const agentChoisi = listeDesAgents.find((a) => a.id === affinage.agent);
 
   return (
     <>
@@ -129,14 +137,14 @@ export function FiltresDuBureau({ affinage, onAffiner, agenceDesAgents }: Filtre
           </div>
         )}
       </Filtre>
-      {agenceDesAgents !== null ? (
+      {filtreAgent ? (
         <Filtre libelle={agentChoisi ? nomAffichable(agentChoisi) : t('agent')} actif={affinage.agent != null}>
           {(fermer) => (
             <div className="max-h-80 overflow-y-auto">
               <Option choisie={affinage.agent == null} onClick={() => (onAffiner({ agent: null }), fermer())}>
                 {t('anyAgent')}
               </Option>
-              {(agents.data?.data ?? []).map((a) => (
+              {listeDesAgents.map((a) => (
                 <Option key={a.id} choisie={affinage.agent === a.id} onClick={() => (onAffiner({ agent: a.id }), fermer())}>
                   {nomAffichable(a)}
                 </Option>

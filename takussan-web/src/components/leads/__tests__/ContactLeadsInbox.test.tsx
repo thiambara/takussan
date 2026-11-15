@@ -34,11 +34,18 @@ const etat = vi.hoisted(() => ({
   delais: null as DelaisDeReponse | null,
   delaisActives: [] as boolean[],
   planifier: null as Record<string, unknown> | null,
+  // TCK-2885 — les créneaux libres lus pour la demande ouverte, l'agence active, l'utilisateur.
+  creneaux: undefined as { jour: string; heure: string }[] | undefined,
+  lecturesDesCreneaux: [] as [number | null, { enabled?: boolean } | undefined][],
+  agence: null as string | null,
+  moi: {} as Record<string, unknown>,
 }));
 const handle = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const convert = { mutateAsync: vi.fn().mockResolvedValue({ customer: { id: 88 } }), isPending: false };
 const assign = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const contact = { mutate: vi.fn() };
+const unhandle = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+const toastClose = vi.fn();
 const refetch = vi.fn();
 const toastAdd = vi.fn();
 
@@ -61,6 +68,11 @@ vi.mock('@/lib/queries/contact-leads', () => ({
     return { data: etat.designe.data ? { data: etat.designe.data } : undefined, isError: etat.designe.isError ?? false };
   },
   useHandleLead: () => handle,
+  useUnhandleLead: () => unhandle,
+  useCreneauxLibresDuBien: (id: number | null, options?: { enabled?: boolean }) => {
+    etat.lecturesDesCreneaux.push([id, options]);
+    return { data: etat.creneaux };
+  },
   useConvertLead: () => convert,
   useAssignLead: () => assign,
   useEnregistrerContact: () => contact,
@@ -109,12 +121,14 @@ vi.mock('@/hooks/useCan', () => ({
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 7, roles: etat.roles, agency_id: 3 } }),
+  useAuth: () => ({ user: { id: 7, roles: etat.roles, agency_id: 3, ...etat.moi } }),
 }));
 
 vi.mock('@/components/ui/toast', () => ({
-  useToast: () => ({ add: toastAdd }),
+  useToast: () => ({ add: toastAdd, close: toastClose }),
+  ActionDuToast: (p: Record<string, unknown>) => <button type="button" {...p} />,
 }));
+vi.mock('@/hooks/useNomDeLAgenceActive', () => ({ useNomDeLAgenceActive: () => etat.agence }));
 
 // L'en-tête du téléphone est rendu PAR LA COQUE : on retient ce que la boîte y déclare.
 const declarations = vi.hoisted(() => [] as Record<string, unknown>[]);
@@ -190,6 +204,11 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
     etat.delais = null;
     etat.delaisActives = [];
     etat.planifier = null;
+    etat.creneaux = undefined;
+    etat.lecturesDesCreneaux = [];
+    etat.agence = null;
+    etat.moi = {};
+    toastAdd.mockReturnValue('toast-1');
     declarations.length = 0;
   });
 
@@ -597,7 +616,8 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
 
       await user.click(await screen.findByRole('button', { name: 'Oui, c’est traité' }));
       expect(handle.mutateAsync).toHaveBeenCalledWith({ id: 1 });
-      expect(toastAdd).toHaveBeenCalledWith({ title: 'Demande traitée.', type: 'success' });
+      // TCK-2885 — 6 s pour « Annuler ».
+      expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Demande traitée.', type: 'success', timeout: 6000 }));
       await waitFor(() => expect(screen.queryByText('Vous avez répondu à Awa ?')).not.toBeInTheDocument());
     });
 
@@ -799,6 +819,182 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
 
       expect(screen.queryByText('Les demandes n’ont pas pu être chargées')).not.toBeInTheDocument();
       expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    });
+  });
+
+  describe('TCK-2885 — raccourcis, quartier, filtre Agent, « Annuler », message prérempli', () => {
+    const A = () => lead({ id: 1, name: 'Awa Diop' });
+    const B = () => lead({ id: 2, name: 'Mouhamed Ba', created_at: '2026-11-10T11:50:00Z' });
+
+    function touche(cle: string, cible: EventTarget = document.body) {
+      act(() => {
+        cible.dispatchEvent(new KeyboardEvent('keydown', { key: cle, bubbles: true, cancelable: true }));
+      });
+    }
+
+    it('AC1 — au bureau, le pied « J K parcourir · V visite · T traiter » ; J ouvre la suivante, K la précédente', () => {
+      etat.leads = [A(), B()];
+      const { rerender } = rendre();
+      const pied = document.querySelector('[data-slot="pied-des-raccourcis"]');
+      expect(Array.from(pied?.children ?? []).map((c) => c.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['J K parcourir', 'V visite', 'T traiter']);
+      expect(screen.getByRole('list', { name: 'Demandes' })).toHaveAttribute('aria-keyshortcuts', 'J K');
+      expect(within(panneau()).getByRole('button', { name: 'Proposer une visite' })).toHaveAttribute('aria-keyshortcuts', 'V');
+      expect(within(panneau()).getByRole('button', { name: 'Marquer traitée' })).toHaveAttribute('aria-keyshortcuts', 'T');
+
+      touche('j');
+      expect(remplacer).toHaveBeenLastCalledWith('?ouverte=2', { scroll: false });
+
+      etat.recherche = 'ouverte=2';
+      rerender(withIntl(<ContactLeadsInbox />));
+      touche('k');
+      expect(remplacer).toHaveBeenLastCalledWith('?ouverte=1', { scroll: false });
+    });
+
+    it('AC1 — T marque traitée, passe à la suivante ; « Annuler » (6 s) appelle `unhandle` et la remet en tête', async () => {
+      etat.leads = [B(), A()];
+      const { rerender } = rendre();
+
+      touche('t');
+      await waitFor(() => expect(handle.mutateAsync).toHaveBeenCalledWith({ id: 2 }));
+      const toast = toastAdd.mock.calls.at(-1)![0] as { title: string; timeout: number; data: { action: ReactNode } };
+      expect(toast).toEqual(expect.objectContaining({ title: 'Demande marquée traitée.', type: 'success', timeout: 6000 }));
+      await waitFor(() => expect(remplacer).toHaveBeenLastCalledWith('?ouverte=1', { scroll: false }));
+
+      // La liste relue ne la porte plus ; « Annuler » la rend, EN TÊTE.
+      etat.leads = [A()];
+      rerender(withIntl(<ContactLeadsInbox />));
+      const action = render(withIntl(<>{toast.data.action}</>));
+      await userEvent.setup().click(within(action.container).getByRole('button', { name: 'Annuler' }));
+
+      expect(toastClose).toHaveBeenCalledWith('toast-1');
+      await waitFor(() => expect(unhandle.mutateAsync).toHaveBeenCalledWith({ id: 2 }));
+      await waitFor(() => expect(remplacer).toHaveBeenLastCalledWith('?ouverte=2', { scroll: false }));
+      const lignes = within(screen.getByRole('list', { name: 'Demandes' })).getAllByRole('listitem');
+      expect(lignes.map((l) => within(l).getAllByRole('button')[0].getAttribute('aria-label'))).toEqual([
+        'Ouvrir la demande de Mouhamed Ba',
+        'Ouvrir la demande de Awa Diop',
+      ]);
+    });
+
+    it('« Marquer traitée » et « Oui, c’est traité » offrent eux aussi « Annuler »', async () => {
+      const user = userEvent.setup();
+      rendre();
+      await user.click(within(panneau()).getByRole('button', { name: 'Marquer traitée' }));
+      await waitFor(() => expect(toastAdd).toHaveBeenCalled());
+      const action = render(withIntl(<>{(toastAdd.mock.calls.at(-1)![0] as { data: { action: ReactNode } }).data.action}</>));
+      expect(within(action.container).getByRole('button', { name: 'Annuler' })).toBeInTheDocument();
+    });
+
+    it('V ouvre « Proposer une visite » préremplie de la demande ouverte', () => {
+      rendre();
+      touche('v');
+      expect(screen.getByTestId('planifier')).toBeInTheDocument();
+      expect(etat.planifier).toEqual(expect.objectContaining({ demande: expect.objectContaining({ id: 1 }) }));
+    });
+
+    it('AC2 — taper « t » (ou « j ») dans la recherche ne traite ni ne parcourt rien', async () => {
+      etat.leads = [A(), B()];
+      const user = userEvent.setup();
+      rendre();
+      await user.type(screen.getByLabelText('Nom, téléphone, e-mail…'), 'tj');
+      expect(handle.mutateAsync).not.toHaveBeenCalled();
+      expect(remplacer).not.toHaveBeenCalledWith('?ouverte=2', expect.anything());
+    });
+
+    it('inactifs sous un dialogue ouvert, avec un modificateur, ou au téléphone', () => {
+      etat.leads = [A(), B()];
+      const { unmount } = rendre();
+      const dialogue = document.createElement('div');
+      dialogue.setAttribute('role', 'dialog');
+      document.body.appendChild(dialogue);
+      touche('t');
+      touche('j');
+      dialogue.remove();
+      act(() => {
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 't', ctrlKey: true, bubbles: true }));
+      });
+      expect(handle.mutateAsync).not.toHaveBeenCalled();
+      expect(remplacer).not.toHaveBeenCalled();
+      unmount();
+
+      etat.large = false;
+      rendre();
+      expect(document.querySelector('[data-slot="pied-des-raccourcis"]')).toBeNull();
+      touche('j');
+      touche('t');
+      expect(handle.mutateAsync).not.toHaveBeenCalled();
+      expect(remplacer).not.toHaveBeenCalled();
+      expect(pousser).not.toHaveBeenCalled();
+    });
+
+    it('le toast n’est pas un dialogue qui bloque : J marche pendant qu’il est affiché', () => {
+      etat.leads = [A(), B()];
+      rendre();
+      const toaster = document.createElement('div');
+      toaster.setAttribute('data-slot', 'toaster');
+      toaster.innerHTML = '<div role="dialog"></div>';
+      document.body.appendChild(toaster);
+      touche('j');
+      toaster.remove();
+      expect(remplacer).toHaveBeenLastCalledWith('?ouverte=2', { scroll: false });
+    });
+
+    it('AC3 — la ligne lit « Chambre meublée · Ouakam » ; sans quartier, le titre seul', () => {
+      etat.large = false;
+      etat.leads = [
+        lead({ id: 1, property: { id: 10, title: 'Chambre meublée', slug: 'chambre', address: { neighborhood: 'Ouakam' } } }),
+        lead({ id: 2, property: { id: 11, title: 'Studio', slug: 'studio', address: null } }),
+      ];
+      rendre();
+      const lignes = screen.getAllByRole('listitem');
+      expect(within(lignes[0]).getByText('Chambre meublée · Ouakam')).toBeInTheDocument();
+      expect(within(lignes[1]).getByText('Studio')).toBeInTheDocument();
+    });
+
+    it('AC4 — `crm.view_all` sans `crm.assign` voit le filtre « Agent » (sans lire les membres) ; sans `crm.view_all`, non', () => {
+      etat.capacites = ['crm.view_all'];
+      lecturesDesMembres.length = 0;
+      const { unmount } = rendre();
+      expect(screen.getByRole('button', { name: 'Agent' })).toBeInTheDocument();
+      expect(lecturesDesMembres.filter((l) => (l[2] as { enabled?: boolean }).enabled !== false)).toHaveLength(0);
+      unmount();
+
+      etat.capacites = [];
+      rendre();
+      expect(screen.queryByRole('button', { name: 'Agent' })).not.toBeInTheDocument();
+    });
+
+    it('AC5 — le message nomme l’agent, l’agence, le bien et son quartier, et propose les deux créneaux libres', () => {
+      etat.moi = { first_name: 'Sokhna', last_name: 'Sène' };
+      etat.agence = 'Dakar Immo';
+      etat.creneaux = [
+        { jour: '2026-11-14', heure: '10:00' },
+        { jour: '2026-11-16', heure: '17:30' },
+      ];
+      etat.leads = [lead({ name: 'Mouhamed Ba', property: { id: 10, title: 'Chambre meublée', slug: 'chambre', address: { neighborhood: 'Ouakam' } } })];
+      rendre();
+      const attendu = 'Bonjour Mouhamed, c’est Sokhna Sène de Dakar Immo, au sujet de « Chambre meublée · Ouakam ». Je vous propose samedi 10:00 ou lundi 17:30.';
+      const wa = within(panneau()).getByRole('link', { name: 'Répondre à Mouhamed Ba par WhatsApp' });
+      expect(new URL(wa.getAttribute('href') ?? '').searchParams.get('text')).toBe(attendu);
+      expect(within(panneau()).getByText(`« ${attendu} »`)).toBeInTheDocument();
+      // Les créneaux se lisent pour la demande OUVERTE et son bien, pas pour chaque ligne.
+      expect(etat.lecturesDesCreneaux.at(-1)).toEqual([10, { enabled: true }]);
+    });
+
+    it('sans créneau libre, la phrase de proposition disparaît ; un seul, il est seul proposé ; sans agence, « c’est {agent} »', () => {
+      etat.moi = { first_name: 'Sokhna', last_name: 'Sène' };
+      etat.leads = [lead({ name: 'Mouhamed Ba', property: { id: 10, title: 'Chambre meublée', slug: 'chambre', address: { neighborhood: 'Ouakam' } } })];
+      const texte = () =>
+        new URL(within(panneau()).getByRole('link', { name: 'Répondre à Mouhamed Ba par WhatsApp' }).getAttribute('href') ?? '').searchParams.get('text');
+
+      etat.creneaux = [];
+      const { unmount } = rendre();
+      expect(texte()).toBe('Bonjour Mouhamed, c’est Sokhna Sène, au sujet de « Chambre meublée · Ouakam ».');
+      unmount();
+
+      etat.creneaux = [{ jour: '2026-11-14', heure: '10:00' }];
+      rendre();
+      expect(texte()).toBe('Bonjour Mouhamed, c’est Sokhna Sène, au sujet de « Chambre meublée · Ouakam ». Je vous propose samedi 10:00.');
     });
   });
 });

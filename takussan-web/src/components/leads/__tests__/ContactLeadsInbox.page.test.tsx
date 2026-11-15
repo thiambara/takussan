@@ -28,6 +28,9 @@ vi.mock('@/lib/queries/contact-leads', () => ({
   },
   useContactLead: () => ({ data: undefined, isError: false }),
   useHandleLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-2885 — « Annuler » et les créneaux du message prérempli.
+  useUnhandleLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreneauxLibresDuBien: () => ({ data: undefined }),
   useConvertLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAssignLead: () => ({ mutateAsync: vi.fn(), isPending: false }),
   // TCK-2584 — les comptes, les délais, le geste de contact et le bien de la demande ouverte.
@@ -50,7 +53,8 @@ vi.mock('@/components/console/Pagination', () => ({
 vi.mock('@/hooks/useApiQuery', () => ({ useApiQuery: () => ({ data: { data: [] }, isLoading: false }) }));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: false, isLoading: false }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'], agency_id: 3 } }) }));
-vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
+vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn(), close: vi.fn() }), ActionDuToast: (p: Record<string, unknown>) => <button type="button" {...p} /> }));
+vi.mock('@/hooks/useNomDeLAgenceActive', () => ({ useNomDeLAgenceActive: () => null }));
 
 beforeEach(() => {
   etat.recherche = 'filtre=all';

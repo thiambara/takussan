@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { CircleAlert, Clock, Inbox, RotateCw } from 'lucide-react';
@@ -29,6 +29,7 @@ import {
   useCompteDeLaVue,
   useContactLead,
   useContactLeads,
+  useCreneauxLibresDuBien,
   useDelaisDeReponse,
   useDemandesEnRetard,
   useUnhandledLeadsCount,
@@ -40,9 +41,12 @@ import { BandeauDesDelais } from './boite/BandeauDesDelais';
 import { DemandeOuverte } from './boite/DemandeOuverte';
 import { FiltresDuBureau, VuesDuBureau, type VueDeLaBoite } from './boite/FiltresDuBureau';
 import { LigneDeDemande } from './boite/LigneDeDemande';
-import { useNomDeLaDemande } from './boite/pieces';
+import { useMessageWhatsApp } from './boite/message-whatsapp';
+import { PiedDesRaccourcis, useNomDeLaDemande } from './boite/pieces';
+import { useRaccourcisDeLaBoite } from './boite/raccourcis';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { BarreDeRetour, useRetourDeContact } from './boite/RetourDeContact';
+import { useTraiterLaDemande } from './boite/traiter';
 import { affinageDesDemandes, FILTRES_DES_DEMANDES, filtreDesDemandes, identifiantDeLUrl } from './filtre-des-demandes';
 
 /** Les vues « à traiter » : l'ordre des plus anciennes, l'âge en rouge, le compte en pied de liste. */
@@ -89,11 +93,18 @@ export function ContactLeadsInbox() {
   // P97.04 (TCK-1120) — la cible `lead` : la demande désignée, en tête, quelle que soit la vue.
   const designee = useContactLead(identifiantDeLUrl(params.get('lead')));
   const enTete = designee.isError ? null : (designee.data?.data ?? null);
+  // TCK-2885 — la demande rendue à la liste par « Annuler » revient EN TÊTE de la vue où on l'a
+  // traitée (l'ordre « plus anciennes d'abord » la remettrait à sa place chronologique, hors de vue).
+  const [remise, setRemise] = useState<{ cle: string; lead: ContactLead } | null>(null);
+  const remiseIci = remise?.cle === cleDeVue && filtre !== 'handled' ? remise.lead : null;
   const idOuverte = identifiantDeLUrl(params.get('ouverte'));
 
   // « Non attribuées » : au seul personnel qui attribue (P152.05 : la capacité, pas le rôle).
   const { can: peutAttribuer } = useCan('crm.assign', user?.agency_id ?? undefined, user !== null);
   const vues = FILTRES_DES_DEMANDES.filter((v) => v !== 'unassigned' || peutAttribuer);
+  // TCK-2885 — le filtre « Agent » à qui lit d'autres demandes que les siennes (`crm.view_all`,
+  // `ContactLeadController`) ; la règle d'accès ne bouge pas.
+  const { can: voitToutLaBoite } = useCan('crm.view_all', user?.agency_id ?? undefined, user !== null);
   // Le compte « À traiter » est celui du menu (même clé, même requête : la pastille et la puce disent
   // le même nombre).
   const aTraiter = useUnhandledLeadsCount();
@@ -112,20 +123,22 @@ export function ContactLeadsInbox() {
   const compteEnRetard = enRetard.data?.meta.total ?? null;
   const compteNonAttribuees = nonAttribuees.data?.meta.total ?? null;
   const page_ = query.data?.data ?? [];
-  const lignes = enTete ? [enTete, ...page_.filter((l) => l.id !== enTete.id)] : page_;
+  const prepose = [enTete, remiseIci].filter((l, i, tous): l is ContactLead => l !== null && tous.findIndex((m) => m?.id === l.id) === i);
+  const lignes = prepose.length ? [...prepose, ...page_.filter((l) => !prepose.some((p) => p.id === l.id))] : page_;
   const ouverteDansLaListe = idOuverte !== null ? (lignes.find((l) => l.id === idOuverte) ?? null) : null;
   const ouverteLue = useContactLead(idOuverte !== null && ouverteDansLaListe === null ? idOuverte : null);
   // Au bureau, sans `?ouverte=`, la première ligne est ouverte : le panneau de droite n'est jamais vide.
   const ouverte = ouverteDansLaListe ?? ouverteLue.data?.data ?? (large ? (lignes[0] ?? null) : null);
 
-  const messageWhatsApp = (lead: ContactLead) => {
-    const nom = prenomDuDemandeur(lead.name) ?? nomDe(lead);
-    return lead.property ? t('whatsappReplyProperty', { name: nom, title: lead.property.title }) : t('whatsappReply', { name: nom });
-  };
+  // TCK-2885 — le message prérempli : l'agent, l'agence, le bien et son quartier ; pour la demande
+  // OUVERTE seule, les deux premiers créneaux libres (une ligne de la liste n'en lit aucun).
+  const composer = useMessageWhatsApp();
+  const avecTelephone = Boolean(ouverte?.phone) && !ouverte?.handled_at;
+  const creneaux = useCreneauxLibresDuBien(ouverte?.property_id ?? null, { enabled: avecTelephone });
   const gestes = (lead: ContactLead) => ({
     lead,
     nom: nomDe(lead),
-    messageWhatsApp: messageWhatsApp(lead),
+    messageWhatsApp: composer(lead, nomDe(lead), lead.id === ouverte?.id ? (creneaux.data ?? []) : []),
     onContact: retour.signaler,
     onVisite: setAPlanifier,
   });
@@ -137,6 +150,49 @@ export function ContactLeadsInbox() {
     else router.push(requeteAvec(params, { ouverte: lead.id }), { scroll: true });
   };
   const choisirVue = (v: FiltreDesDemandes) => remplacer({ filtre: v === 'todo' ? null : v, ouverte: null });
+
+  // TCK-2885 — traiter (bouton, T, « Oui, c'est traité ») : « Annuler » sur le toast pendant 6 s.
+  const { traiter, enCours: traitementEnCours } = useTraiterLaDemande({
+    onTraitee: (lead) => {
+      if (remise?.lead.id === lead.id) setRemise(null);
+    },
+    onAnnulee: (lead) => {
+      setRemise({ cle: cleDeVue, lead: { ...lead, handled_at: null, handled_by_id: null } });
+      if (large) remplacer({ ouverte: lead.id });
+    },
+  });
+  // Au bureau, une demande traitée dans une vue « à traiter » quitte la liste : le panneau passe à la
+  // suivante (sinon `?ouverte=` la garderait ouverte, et T suivant ne ferait rien).
+  const traiterDepuisLeBureau = async (lead: ContactLead) => {
+    const rang = lignes.findIndex((l) => l.id === lead.id);
+    const suivante = rang >= 0 ? (lignes[rang + 1] ?? lignes[rang - 1] ?? null) : null;
+    const fait = await traiter(lead);
+    if (fait && large && VUES_A_TRAITER.includes(filtre)) remplacer({ ouverte: suivante?.id ?? null });
+  };
+  const traiterDepuisLeRetour = (lead: ContactLead, options: { court: boolean }) => traiter(lead, options);
+
+  // TCK-2885 — J K parcourir · V visite · T traiter : au bureau, sur la liste, sans feuille ouverte.
+  const parcourir = (pas: 1 | -1) => {
+    const rang = ouverte ? lignes.findIndex((l) => l.id === ouverte.id) : -1;
+    const cible = rang < 0 ? lignes[0] : lignes[rang + pas];
+    if (cible) ouvrir(cible);
+  };
+  useRaccourcisDeLaBoite(large && aPlanifier === null && lignes.length > 0, {
+    j: () => parcourir(1),
+    k: () => parcourir(-1),
+    v: () => {
+      if (ouverte) setAPlanifier(ouverte);
+    },
+    t: () => {
+      if (ouverte && !ouverte.handled_at && !ouverte.customer_id && !traitementEnCours) void traiterDepuisLeBureau(ouverte);
+    },
+  });
+  // La ligne ouverte au clavier reste visible dans la liste qui défile.
+  const idOuverteAffichee = large ? (ouverte?.id ?? null) : null;
+  useEffect(() => {
+    if (idOuverteAffichee === null) return;
+    document.querySelector('[data-slot="ligne-de-demande"][data-ouverte]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [idOuverteAffichee]);
 
   const sousTitre = (() => {
     if (query.isLoading) return t('inbox.loading');
@@ -193,10 +249,19 @@ export function ContactLeadsInbox() {
           {...gestes(ouverte)}
           maintenant={maintenant}
           regime="telephone"
+          onTraiter={(lead) => void traiter(lead)}
+          traitementEnCours={traitementEnCours}
           position={position}
           repli={`/app/leads${requeteAvec(params, { ouverte: null })}`}
           pied={
-            retour.retour ? <BarreDeRetour retour={retour.retour} regime="telephone" maintenant={maintenant} onFermer={retour.fermer} /> : undefined
+            retour.retour ? <BarreDeRetour
+                retour={retour.retour}
+                regime="telephone"
+                maintenant={maintenant}
+                onFermer={retour.fermer}
+                onTraiter={traiterDepuisLeRetour}
+                traitementEnCours={traitementEnCours}
+              /> : undefined
           }
         />
         {planification}
@@ -287,7 +352,7 @@ export function ContactLeadsInbox() {
 
   const liste = (
     <>
-      <ul aria-label={t('inbox.listLabel')} className="border-t border-border lg:border-t-0">
+      <ul aria-label={t('inbox.listLabel')} aria-keyshortcuts={large ? 'J K' : undefined} className="border-t border-border lg:border-t-0">
         {lignes.map((lead) => (
           <LigneDeDemande
             key={lead.id}
@@ -307,6 +372,7 @@ export function ContactLeadsInbox() {
       {VUES_A_TRAITER.includes(filtre) && total !== null ? (
         <p className="px-4 py-5 text-center text-ui text-muted-foreground lg:hidden">{t('inbox.listFooter', { count: total })}</p>
       ) : null}
+      {large && lignes.length ? <PiedDesRaccourcis /> : null}
     </>
   );
 
@@ -330,6 +396,8 @@ export function ContactLeadsInbox() {
                   affinage={affinage}
                   onAffiner={(c) => remplacer({ ...c, ouverte: null })}
                   agenceDesAgents={user?.agency_id && peutAttribuer ? user.agency_id : null}
+                  filtreAgent={peutAttribuer || voitToutLaBoite}
+                  agentsConnus={lignes.flatMap((l) => (l.recipient ? [l.recipient] : []))}
                 />
                 <div className="ml-auto">{rechercher}</div>
               </div>
@@ -360,7 +428,14 @@ export function ContactLeadsInbox() {
               au-dessus de la barre d'onglets, sur la liste ; de 768 à 1023 aussi (`md:flex`). */}
           {retour.retour ? (
             <BarreDAction className="md:flex">
-              <BarreDeRetour retour={retour.retour} regime="telephone" maintenant={maintenant} onFermer={retour.fermer} />
+              <BarreDeRetour
+                retour={retour.retour}
+                regime="telephone"
+                maintenant={maintenant}
+                onFermer={retour.fermer}
+                onTraiter={traiterDepuisLeRetour}
+                traitementEnCours={traitementEnCours}
+              />
             </BarreDAction>
           ) : null}
         </>
@@ -381,8 +456,17 @@ export function ContactLeadsInbox() {
               {...gestes(ouverte)}
               maintenant={maintenant}
               regime="bureau"
+              onTraiter={(lead) => void traiterDepuisLeBureau(lead)}
+              traitementEnCours={traitementEnCours}
               pied={
-                retour.retour ? <BarreDeRetour retour={retour.retour} regime="bureau" maintenant={maintenant} onFermer={retour.fermer} /> : undefined
+                retour.retour ? <BarreDeRetour
+                    retour={retour.retour}
+                    regime="bureau"
+                    maintenant={maintenant}
+                    onFermer={retour.fermer}
+                    onTraiter={traiterDepuisLeRetour}
+                    traitementEnCours={traitementEnCours}
+                  /> : undefined
               }
             />
           ) : etat === 'chargement' ? (

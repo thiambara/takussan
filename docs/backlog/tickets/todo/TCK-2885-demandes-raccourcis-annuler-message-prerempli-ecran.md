@@ -81,4 +81,48 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — livré (front).
+
+- **Raccourcis** (`components/leads/boite/raccourcis.ts`) : un écouteur `keydown` sur le document, actif
+  au bureau (`lg`), liste non vide, sans feuille « Proposer une visite » ouverte. Ignorés : Ctrl/⌘/Alt/Maj,
+  touche répétée, focus dans un champ (input, textarea, select, contenteditable, textbox, combobox),
+  toute surface ouverte (`dialog`, `alertdialog`, `menu`, `listbox`) **hors du toast** — base-ui donne au
+  toast le rôle `dialog` : sans l'exception, J était bloqué 6 s après chaque T. J/K ouvrent la ligne
+  suivante/précédente (`?ouverte=`), V ouvre la planification préremplie, T traite la demande ouverte
+  (non traitée, non convertie) puis, dans une vue « à traiter », ouvre la suivante (sinon `?ouverte=`
+  gardait la traitée et T suivant ne faisait rien). `aria-keyshortcuts` : la liste (`J K`), « Proposer une
+  visite » (`V`), « Marquer traitée » (`T`). Pied « J K parcourir · V visite · T traiter » sous la liste
+  au bureau ; « V visite · T traiter » dans la barre de gestes dès 1440 (`min-[90rem]`).
+- **Traiter + « Annuler »** (`boite/traiter.tsx`, `useTraiterLaDemande`) : un seul chemin pour T,
+  « Marquer traitée » (deux régimes) et « Oui, c'est traité » ; il vit dans la BOÎTE (la demande ouverte se
+  démonte avant les 6 s). Toast `timeout: 6000`, `ActionDuToast` « Annuler » → `toast.close` puis
+  `POST …/unhandle` (`useUnhandleLead`) ; la demande rendue est **préposée en tête** de la vue où on l'a
+  traitée (état local, comme la désignée `?lead=` — l'ordre « plus anciennes d'abord » l'aurait remise à
+  sa place chronologique), et rouverte au bureau.
+- **Quartier** : `include=property.address` (sans `fields[addresses]`, cf. TCK-2884) ; « Titre · Quartier »
+  sur la ligne et sur la carte du bien de la demande ouverte (maquette a-0, l. 165) ; titre seul sans quartier.
+- **Filtre « Agent »** : montré sous `crm.view_all` OU `crm.assign`. ⚠ Écart : la liste des membres
+  (`GET /agencies/{a}/members` hors administration) reste réservée à `crm.assign`
+  (`AgencyPolicy::listAssignableStaff`) — la règle d'accès ne bouge pas (décision du ticket). Sans
+  `crm.assign`, le filtre propose les destinataires des demandes lues (`recipient`, déjà visibles) ; avec,
+  les membres plus ces destinataires. Dans le système, l'agent porte les deux capacités : le cas ne vise
+  qu'un rôle personnalisé.
+- **Message prérempli** (`boite/message-whatsapp.ts`) : « Bonjour {prénom}, c'est {agent} de {agence}, au
+  sujet de « {bien · quartier} ». Je vous propose {jour heure} ou {jour heure}. » — agent = `libelleDe(user)`,
+  agence = `useNomDeLAgenceActive` (sans agence : « c'est {agent} » seul ; sans nom d'agent : les anciens
+  libellés `whatsappReply*`). Créneaux : `useCreneauxLibresDuBien` → `chercherCreneauxLibres`, jour par jour
+  (`GET /property-visits/slots`, occupation de l'appelant), `available` et ≥ maintenant + 30 min, arrêt à
+  deux, sept jours au plus, un jour illisible arrête la recherche. ⚠ Écart : lu pour la **seule demande
+  ouverte** (20 lignes × 7 jours = 140 requêtes sinon) ; les gestes WhatsApp des LIGNES (téléphone) gardent
+  le message sans la phrase de proposition. Un créneau seul : « Je vous propose {jour heure}. » Les deux
+  premiers libres sont pris tels quels (peuvent être 10:00 et 10:30 le même jour).
+- **Tests** : `ContactLeadsInbox.test.tsx` (bloc TCK-2885, 11 tests), `contact-leads.creneaux-libres.tck-2885.test.ts`
+  (3). Mocks des trois fichiers de la boîte complétés (`useUnhandleLead`, `useCreneauxLibresDuBien`,
+  `ActionDuToast`, `close`, `useNomDeLAgenceActive`) ; l'assertion du toast « Demande traitée. » passe à
+  `objectContaining` (+ `timeout: 6000`). 10 ablations rouges une à une, restaurées au md5.
+- **Non mesuré** : AC6 et AC-F1/F2 (brief du lot : ni navigateur ni relevé de fidélité). Par lecture : la
+  barre « Vous avez répondu ? » est au-dessus des onglets au téléphone (`BarreDAction`) et au pied du panneau
+  au bureau ; le bandeau des délais à l'administrateur dès `lg` — couverts par les tests existants (AC2, AC5
+  de TCK-2584).
+- Clés i18n (`contactLeads.whatsapp.*`, `toasts.undo`, `shortcuts.*`) : déjà emportées par le commit
+  d2cc6a051 (TCK-2866), qui a pris `messages/*.json` entiers.
