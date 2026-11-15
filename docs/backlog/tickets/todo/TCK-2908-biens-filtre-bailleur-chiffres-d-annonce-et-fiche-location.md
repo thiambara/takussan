@@ -86,4 +86,62 @@ Audit (`audit-f4-patrimoine.md`) : app-biens **e0** (bureau, filtre par bailleur
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, vague 92, worktree `feat/audit-manques-2026-11-15`). Aucune mesure au
+navigateur (consigne du lot : l'API et le front servis tournent sur un autre arbre) : AC9 et AC-F2 à AC-F6 restent
+**non mesurés** ; la fidélité est jugée à la lecture de la maquette (e0, e1, e2, téléphone et bureau).
+
+**Prémisses re-mesurées — ce qui différait**
+- `stats_30d` n'était PAS déclaré côté front (seuls `maintenance_summary`, `next_revision_date`,
+  `next_due_notice_date` l'étaient) : ajouté à `PropertyListItem` ; `'stats30d'` ajouté à `InclusionDeGestion`.
+- `published` se dit déjà « Validé » par `PropertyStatusBadge` (TCK-2638) : la pastille neuve n'est pas rendue
+  pour ce statut (sinon « Validé » deux fois).
+- `approved_at` n'est remis à nul qu'au refus (`PropertyModerationService::reject`) : la pastille se garde aussi
+  sur le statut (`pending_review`, `rejected`, `draft` exclus) — un bien revenu en modération ne la porte pas.
+- Le moyen de paiement de l'historique vient de `GET /api/payments/history` (`PaymentHistory`, `payment_method`
+  des lignes de bail), pas de `LeasePaymentResource`.
+- `show` sert déjà `collaborators` (`PrimaryPropertyContact::eagerLoads()`), avec l'agent principal (`is_primary`).
+
+**Décisions mineures (tranchées ici)**
+- « Tous les bailleurs » : lu au serveur (`lib/biens/bailleurs-du-filtre.ts`, `GET /api/owners` toutes pages,
+  `filter[agency_id]`, SANS filtre de statut ni exclusion des invités : la valeur est le PROFIL, invités compris —
+  pas `useBailleursActifs`, qui ne rend que les actifs inscrits, par compte). Personnel seulement ; une lecture
+  refusée (agent sans carnet) n'affiche pas la liste et le groupe garde son nom « Agent et portée ». Panneau du
+  mode Gestion seulement (maquette e0, bureau) ; le filtre vaut dans les deux modes, et la puce « Bailleur : … »
+  le nomme et le retire partout (téléphone et mode Annonces compris).
+  La page ne relaie qu'un identifiant numérique. Les comptes du panneau et des tuiles (`portfolio-summary`) ne
+  suivent pas le bailleur choisi (même règle qu'avant : seuls `user_id` et `include_archived` les bornent).
+- Carte d'annonce : sans `stats_30d`, AUCUNE ligne de chiffres (jamais `views_count` sous « (30 j) »).
+  `views_count` et `favorites_count` quittent `DASHBOARD_PROPERTY_FIELDS` (plus aucun lecteur de la liste ; le tri
+  `sort=views_count` n'en a pas besoin) ; plancher de `property-fields.coverage.test.ts` : 13 → 11 colonnes lues.
+- « Offre {nom} » lit `plan.label` (`fetchAbonnement`, include=plan) ; tout échec (403 `agency.staff_only`,
+  panne) rend `null` : rien d'affiché. À droite du texte de la jauge, téléphone et bureau. Le texte de la jauge
+  reste « N annonces actives sur M » (le quota compte les ACTIVES, ADR-0097 § 6), pas « en ligne ».
+- Avis d'échéance : `next_due_notice_date` vise la PREMIÈRE échéance non avisée, qui peut être celle du mois
+  (voire passée) : il ne s'accole au prochain loyer que s'il tombe après l'échéance du mois et au plus tard le
+  jour du prochain loyer (`avisDuProchainLoyer`) ; sinon la ligne garde sa forme.
+- Révision : « Révision possible le 1 juil. 2027 » + « Clause d'indexation annuelle » (une date n'est servie que
+  pour un plafond non figé à 0, règle de 12 mois) ; rien sans date.
+- « Agent principal » remplace « Agent responsable » sous le nom de l'agent (libellé de la maquette a-2) ;
+  « · N collaborateur(s) » = collaborateurs ni `is_primary`, ni le responsable affiché.
+- Carte « N interventions en cours » : colonne de droite du bureau, sur tous les onglets et pour tout bien (pas
+  seulement loué), carte à part sous celle de l'agent (celle-ci n'existe que pour un bien loué dont l'API dit
+  l'agent) ; détail = titre · état (`maintenance.status`) de la dernière ouverte ; lien `/app/maintenance/{id}`.
+- Historique des loyers : « Reçu le 29 oct. · Wave » — libellés de `payments.methods` (« Virement bancaire »
+  pour « virement ») ; « · quittance envoyée » non rendu (aucune donnée servie).
+
+**Mesures** — tests neufs : `ListeDesBiens.tck-2908` (10), `FicheDuBien.tck-2908` (8, horloge figée en 2026),
+`valide-et-interventions.tck-2908` (5, `published` compris), `bailleur-et-offre.tck-2908` (8),
+`lib/biens/__tests__/bailleurs-du-filtre.tck-2908` (1), `properties.test.ts` (+1) ; tests mis
+à jour : `CarteAnnonce.tck-2638` (chiffres), `PropertyList.test` (anglais), `FicheDuBien.tck-2639` (« Agent
+principal »), `gestion.tck-2638` (les deux lectures neuves bouchonnées : elles ne comptent pas parmi les appels
+de la liste), `property-fields.coverage` (plancher). 15 ablations une à une, toutes rouges, restaurées au md5.
+Joués verts : `components/property-dashboard/**/__tests__` (39 fichiers), les 17 fichiers de tests des pages
+`/app/properties`, `properties.test.ts`, `property-fields.coverage.test.ts`, `show-sans-fields.garde`, `fields-demandables.tck-1184`,
+`ressource-de-detail.partage.tck-1384` ; ESLint, `tsc --noEmit` (seules
+erreurs : `components/messages/VoiceNoteRecorder.tsx`, hors zone, en cours ailleurs), `check:i18n`, gardes racine
+et front toutes vertes. Fiches de fidélité : `TCK-2638.json` — retirés « Tous les bailleurs », « Offre Pro » et « 312 vues · 9 contacts · 3 visites
+(30 j) » ; `TCK-2639.json` — retirés « Validé » et les lignes levées (restent « quittance envoyée » et le préavis de la
+démo), alias « virement » / « devis attendu », carte d'intervention à part motivée.
+⚠ Les clés i18n de ce ticket (et la suppression de `annonces.chiffres`, `fiche.responsable.detail`) sont déjà dans
+le commit d522921dc (TCK-2854) : tant que TCK-2908 n'est pas commité, HEAD appelle deux clés absentes — à commiter
+avant tout push.

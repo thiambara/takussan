@@ -109,6 +109,11 @@ export interface PropertyListItem {
   visibility: string | null;
   views_count?: number;
   favorites_count?: number;
+  /**
+   * TCK-2905 (ADR-0117) / TCK-2908 — vues, contacts et visites des 30 derniers jours, servis sur
+   * `include=stats30d` seulement (clé ABSENTE sinon) : la ligne de chiffres de la carte d'annonce.
+   */
+  stats_30d?: { readonly views: number; readonly contacts: number; readonly visits: number };
   location: {
     quarter: string | null;
     city: string | null;

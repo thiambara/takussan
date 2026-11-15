@@ -20718,7 +20718,9 @@
       "messageTache": "Hello {nom}, ",
       "libreJusqua": "Free until {heure}",
       "planifier": "Visit",
-      "rienCeJour": "Nothing planned that day."
+      "rienCeJour": "Nothing planned that day.",
+      "dansMinutes": "in {n} min",
+      "dansHeures": "{minutes, plural, =0 {in {h} h} other {in {h} h {m}}}"
     },
     "chiffres": {
       "titre": "My figures",
@@ -20736,17 +20738,26 @@
         "taches": "Tasks",
         "commissions": "Commissions"
       },
-      "rapport": "See this month’s report"
+      "rapport": "See this month’s report",
+      "sansPhoto": "{n} without a photo",
+      "aVenir": "{montant} upcoming"
     },
     "libre": {
       "titre": "Nothing planned today.",
       "texte": "No visit, no task, nothing to handle. A chance to get ahead:",
       "relancer": "{n, plural, one {# prospect to follow up} other {# prospects to follow up}}",
-      "relancerDetail": "Your clients waiting to hear from you",
       "planifier": "Schedule a visit",
       "planifierDetail": "The whole day is free",
       "client": "Add a client",
-      "clientDetail": "A contact met in the field"
+      "clientDetail": "A contact met in the field",
+      "relancerUn": "Follow up with {nom}",
+      "relancerAttend": "{nom} has been waiting {n, plural, one {# day} other {# days}}",
+      "relancerNom": "{nom} is waiting to hear from you",
+      "proposer": "{n, plural, one {# property to suggest to {prenom}} other {# properties to suggest to {prenom}}}",
+      "proposerSansPrenom": "{n, plural, one {# property to suggest to a client} other {# properties to suggest to a client}}",
+      "proposerQuartiers": "Properties {lieux}",
+      "aLieu": "in {lieu}",
+      "proposerDetail": "Matching their search"
     }
   },
   "agenda": {

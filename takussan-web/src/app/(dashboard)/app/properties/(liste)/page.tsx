@@ -14,6 +14,8 @@ import {
   type ModeDeListe,
 } from '@/lib/biens/mode-de-liste';
 import { modeMemoriseDesBiens } from '@/lib/biens/mode-memorise';
+import { fetchBailleursDuFiltre, type BailleurDuFiltre } from '@/lib/biens/bailleurs-du-filtre';
+import { fetchAbonnement } from '@/lib/queries/offre';
 import { nomAffichable } from '@/lib/identite';
 import { getToken } from '@/lib/session';
 import { isOwner, isSuperAdmin } from '@/lib/roles';
@@ -131,6 +133,8 @@ export default async function Page({
     created_from: jourDeLApiOuRien(asString(params.created_from)),
     created_to: jourDeLApiOuRien(asString(params.created_to)),
     include_archived: asString(params.include_archived),
+    // TCK-2908 — « Tous les bailleurs » : un identifiant de profil, ou rien (jamais relayé tel quel).
+    owner_profile_id: /^\d+$/.test(asString(params.owner_profile_id) ?? '') ? asString(params.owner_profile_id) : undefined,
   };
   const sort = asString(params.sort);
 
@@ -180,16 +184,22 @@ export default async function Page({
               ? asString(params.listing)
               : undefined,
           },
-          // TCK-2678 — la carte d'un bien hors ligne dit son premier motif.
-          inclusions: ['online', 'offlineReasons'],
+          // TCK-2678 — la carte d'un bien hors ligne dit son premier motif. TCK-2908 — et ses chiffres des
+          // 30 derniers jours (`stats30d`, TCK-2905) : « 312 vues · 9 contacts · 3 visites (30 j) ».
+          inclusions: ['online', 'offlineReasons', 'stats30d'],
         };
 
   const agence = estDeLAgence(user.roles);
-  const [premiere, resume, quota] = await Promise.all([
+  const [premiere, resume, quota, offre, bailleurs] = await Promise.all([
     listeDansLesBornes(token, listeDuMode(modeDemande)),
     fetchPortfolioSummary(token, { user_id: filters.user_id, include_archived: filters.include_archived }),
     // Le quota est celui de l'AGENCE (`GET /api/me/quota`) : le bailleur ne le consomme pas (TCK-627).
     agence ? fetchListingQuotaAction() : Promise.resolve(null),
+    // TCK-2908 — « Offre Pro » à côté du quota : le nom de l'offre (`GET /api/me/subscription`, TCK-2669),
+    // lu par le seul personnel ; un refus (403 `agency.staff_only`) ou une panne n'affichent rien.
+    agence ? nomDeLOffre(token) : Promise.resolve(null),
+    // TCK-2908 — « Tous les bailleurs » (panneau du bureau, mode Gestion) : sans lecture possible, pas de liste.
+    agence && user.agency_id ? fetchBailleursDuFiltre(token, user.agency_id).catch(() => null) : Promise.resolve(null),
   ]);
 
   // Décision 4 a — le sélecteur n'est proposé qu'à un compte qui a des biens à louer. Sous une portée
@@ -210,13 +220,23 @@ export default async function Page({
     publier: proposeAuBailleur(user.roles) ? tNav('proposeProperty') : t('publish'),
   };
 
-  if (mode === 'gestion') return pageGestion(contexte);
+  if (mode === 'gestion') return pageGestion({ ...contexte, bailleurs });
   return pageAnnonces({
     ...contexte,
+    bailleurs,
     // Maquette a-1 : le portefeuille et ce qui en est en ligne, sous le titre (bureau).
     sousTitre: tAnnonces('sousTitre', { total: resume.total, online: resume.online }),
-    quota: quota && quota.limit !== null ? { used: quota.used, limit: quota.limit } : null,
+    quota: quota && quota.limit !== null ? { used: quota.used, limit: quota.limit, offre } : null,
   });
+}
+
+/** TCK-2908 — le nom de l'offre de l'agence (« Pro »), `null` sans abonnement, sans droit ou en panne. */
+async function nomDeLOffre(token: string): Promise<string | null> {
+  try {
+    return (await fetchAbonnement(token))?.plan?.label ?? null;
+  } catch {
+    return null;
+  }
 }
 
 type Utilisateur = Awaited<ReturnType<typeof getMeAction>>;
@@ -330,8 +350,8 @@ function CoqueDeLaListe({
  * TCK-2638 — le mode Gestion : la liste avec l'occupation (`include=occupancy,online`) et les comptes
  * des pastilles et des tuiles en UN appel `portfolio-summary` — aucune liste `per_page=1` (AC3).
  */
-function pageGestion(contexte: ContexteDeLaPage) {
-  const { user, response, resume } = contexte;
+function pageGestion(contexte: ContexteDeLaPage & { readonly bailleurs: readonly BailleurDuFiltre[] | null }) {
+  const { user, response, resume, bailleurs } = contexte;
   const agentOptions = buildAgentOptions(response.data, user);
   // TCK-2638 (lot B2) — au bureau, le panneau de filtres et UNE carte : barre, table, pagination en pied.
   return (
@@ -342,6 +362,7 @@ function pageGestion(contexte: ContexteDeLaPage) {
         agentOptions={agentOptions}
         mode="gestion"
         basculeMesBiens={estDeLAgence(user.roles)}
+        bailleurOptions={bailleurs ?? undefined}
         resume={resume}
         total={response.meta.total}
         sousLaBarre={<PastillesGestion resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />}
@@ -360,19 +381,26 @@ function pageGestion(contexte: ContexteDeLaPage) {
  * désormais). Les cartes à grande photo, puis le quota : discret en bas de liste au téléphone, en jauge
  * fine à côté des onglets au bureau.
  */
-function pageAnnonces(contexte: ContexteDeLaPage & { readonly quota: { readonly used: number; readonly limit: number } | null }) {
-  const { user, response, resume, quota } = contexte;
+function pageAnnonces(
+  contexte: ContexteDeLaPage & {
+    readonly quota: { readonly used: number; readonly limit: number; readonly offre: string | null } | null;
+    readonly bailleurs: readonly BailleurDuFiltre[] | null;
+  },
+) {
+  const { user, response, resume, quota, bailleurs } = contexte;
   const agentOptions = buildAgentOptions(response.data, user);
   return (
     <CoqueDeLaListe {...contexte} mode="annonces">
       <div className="hidden items-end gap-8 lg:flex">
         <OngletsAnnonces resume={resume} className="flex-1" />
-        {quota ? <JaugeDuQuota used={quota.used} limit={quota.limit} presentation="bureau" /> : null}
+        {quota ? <JaugeDuQuota used={quota.used} limit={quota.limit} offre={quota.offre} presentation="bureau" /> : null}
       </div>
       <PropertyListFilters
         currentUserId={user.id}
         agentOptions={agentOptions}
         basculeMesBiens={estDeLAgence(user.roles)}
+        // TCK-2908 — pas de liste en Annonces, mais la puce d'un bailleur venu de la Gestion le nomme.
+        bailleurOptions={bailleurs ?? undefined}
         sousLaBarre={<PastillesAnnonces resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />}
         pied={<Pagination meta={response.meta} />}
       >
@@ -380,7 +408,7 @@ function pageAnnonces(contexte: ContexteDeLaPage & { readonly quota: { readonly 
       </PropertyListFilters>
       {quota ? (
         <div className="px-4 md:px-0 lg:hidden">
-          <JaugeDuQuota used={quota.used} limit={quota.limit} presentation="telephone" />
+          <JaugeDuQuota used={quota.used} limit={quota.limit} offre={quota.offre} presentation="telephone" />
         </div>
       ) : null}
     </CoqueDeLaListe>

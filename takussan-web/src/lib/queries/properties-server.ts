@@ -70,8 +70,9 @@ export const DASHBOARD_PROPERTY_FIELDS = [
   'rent_period',
   'status',
   'visibility',
-  'views_count',
-  'favorites_count',
+  // TCK-2908 — ni `views_count` ni `favorites_count` : la carte d'annonce lit désormais `stats_30d`
+  // (`include=stats30d`), et plus aucun composant de la liste ne lit le compteur de toujours. Le tri
+  // « Plus vues d'abord » (`sort=views_count`) n'a pas besoin de la colonne dans la réponse.
   'bedrooms',
   'area',
   'published_at',
@@ -103,6 +104,8 @@ export interface DashboardPropertyFilters {
   readonly tenant?: string;
   /** TCK-2638 (lot B) — `online`, `pending`, `draft` ou `offline` : la pastille du mode Annonces. */
   readonly listing?: string;
+  /** TCK-2908 — le profil de bailleur (`filter[owner_profile_id]`, TCK-2905) : invité compris. */
+  readonly owner_profile_id?: string;
 }
 
 /**
@@ -111,7 +114,7 @@ export interface DashboardPropertyFilters {
  * ADR-0097), que lisent les deux modes ; le motif d'un bien hors ligne (`offlineReasons`, TCK-2678), que
  * lit la carte du mode Annonces.
  */
-export type InclusionDeGestion = 'occupancy' | 'online' | 'offlineReasons';
+export type InclusionDeGestion = 'occupancy' | 'online' | 'offlineReasons' | 'stats30d';
 
 export interface FetchDashboardPropertiesParams {
   readonly page?: number;
@@ -145,6 +148,8 @@ function buildListParams({
   if (filters?.rent_late) filter.rent_late = filters.rent_late;
   if (filters?.tenant) filter.tenant = filters.tenant;
   if (filters?.listing) filter.listing = filters.listing;
+  // TCK-2908 — « Tous les bailleurs » (TCK-2905) : le profil du bailleur, filtré côté serveur.
+  if (filters?.owner_profile_id) filter.owner_profile_id = filters.owner_profile_id;
 
   return {
     fields: { properties: DASHBOARD_PROPERTY_FIELDS },
@@ -202,7 +207,8 @@ export async function fetchDashboardProperty(
   idOrSlug: string | number,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    cheminApi`/api/properties/${idOrSlug}${requete(buildQueryString({ include: ['occupancy', 'online', 'offlineReasons'] }))}`,
+    // TCK-2908 — `maintenanceSummary` (TCK-2906) : la carte « N interventions en cours » du bureau.
+    cheminApi`/api/properties/${idOrSlug}${requete(buildQueryString({ include: ['occupancy', 'online', 'offlineReasons', 'maintenanceSummary'] }))}`,
     { token },
   );
   return res.data;

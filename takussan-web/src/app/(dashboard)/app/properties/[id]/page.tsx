@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 import Link from 'next/link';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, BadgeCheck } from 'lucide-react';
 
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getMeAction } from '@/app/actions/auth';
@@ -34,6 +34,8 @@ import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/
 import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { StatusBadge } from '@/components/console/StatusBadge';
+import { CarteInterventionsEnCours } from '@/components/property-dashboard/fiche/CarteInterventionsEnCours';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent } from '@/lib/roles';
@@ -174,9 +176,22 @@ export default async function Page({ params, searchParams }: { params: Params; s
   ]
     .filter(Boolean)
     .join(' · ');
+  // TCK-2908 — « Validé » (maquette a-2, décision 2) : la modération, lue sur `approved_at` et distincte de
+  // « En ligne ». Un bien revenu en modération, refusé ou en brouillon ne la porte pas, même daté ; ni un bien
+  // `published`, dont la pastille de statut dit déjà « Validé » (TCK-2638).
+  const valide =
+    Boolean(property.approved_at) && !['pending_review', 'rejected', 'draft', 'published'].includes(property.status ?? '');
   const pastilles = (focalisable: boolean) => (
     <>
       <PropertyStatusBadge status={property.status} />
+      {valide ? (
+        <StatusBadge
+          tone="neutral"
+          icon={<BadgeCheck className="size-3.5" strokeWidth={1.75} aria-hidden="true" />}
+          label={tFiche('valide')}
+          data-testid="pastille-valide"
+        />
+      ) : null}
       <PropertyVisibilityBadge visibility={property.visibility} />
       {property.is_online === undefined ? null : (
         // La copie du téléphone est tue aux lecteurs d'écran (`aria-hidden`) : rien n'y prend le focus.
@@ -272,6 +287,8 @@ export default async function Page({ params, searchParams }: { params: Params; s
         <aside className="hidden flex-none space-y-4 xl:sticky xl:top-6 xl:block xl:w-100" data-slot="colonne-occupation">
           <CarteOccupation property={property} personnel={staff} lienVersLeBailleur={lienVersLeBailleur} />
           {locatif ? <BlocResponsable property={property} /> : null}
+          {/* TCK-2908 (maquette e2, bureau) — « 1 intervention en cours », sur tous les onglets ; rien sans elle. */}
+          <CarteInterventionsEnCours resume={property.maintenance_summary ?? null} />
         </aside>
       </div>
     </PagePleineLargeur>

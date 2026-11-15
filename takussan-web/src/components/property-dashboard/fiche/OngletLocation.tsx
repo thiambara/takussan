@@ -232,6 +232,7 @@ function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
   const t = useTranslations('propertyDashboard.fiche.loyers');
   const tEtat = useTranslations('propertyDashboard.gestion.etat');
   const tRacine = useTranslations();
+  const tMoyen = useTranslations('payments.methods');
   const f = useFormatteurs();
   const moisDe = useMoisDeLEcheance();
   const lignes = (location.echeances.data?.data ?? []).filter((l) => l.source === 'lease').slice(0, 4);
@@ -276,9 +277,13 @@ function CarteDesLoyers({ location }: { readonly location: LocationDuBien }) {
                         : tEtat('aEcheanceSansDate')
                       : tEtat(etat);
                 const penalite = row.late_fee_outstanding ?? 0;
+                // TCK-2908 (maquette a-2) — le moyen de l'échéance reçue : « Reçu le 29 oct. · Wave ».
+                const moyen = row.payment_method && row.payment_method !== 'none' && tMoyen.has(row.payment_method) ? tMoyen(row.payment_method) : null;
                 const detail =
                   etat === 'paye' && row.paid_at
-                    ? t('recuLe', { date: f.jourMois(row.paid_at) })
+                    ? moyen
+                      ? t('recuLeParMoyen', { date: f.jourMois(row.paid_at), moyen })
+                      : t('recuLe', { date: f.jourMois(row.paid_at) })
                     : row.due_date
                       ? penalite > 0
                         ? t('echeanceEtPenalite', { date: f.jourMois(row.due_date), montant: f.montantCourt(penalite, row.currency) })

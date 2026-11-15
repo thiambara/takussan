@@ -20718,7 +20718,9 @@
       "messageTache": "Bonjour {nom}, ",
       "libreJusqua": "Libre jusqu’à {heure}",
       "planifier": "Visite",
-      "rienCeJour": "Rien de prévu ce jour-là."
+      "rienCeJour": "Rien de prévu ce jour-là.",
+      "dansMinutes": "dans {n} min",
+      "dansHeures": "{minutes, plural, =0 {dans {h} h} other {dans {h} h {m}}}"
     },
     "chiffres": {
       "titre": "Mes chiffres",
@@ -20736,17 +20738,26 @@
         "taches": "Tâches",
         "commissions": "Commissions"
       },
-      "rapport": "Voir le rapport du mois"
+      "rapport": "Voir le rapport du mois",
+      "sansPhoto": "{n} sans photo",
+      "aVenir": "{montant} à venir"
     },
     "libre": {
       "titre": "Rien de prévu aujourd’hui.",
       "texte": "Ni visite, ni tâche, rien à régler. De quoi prendre de l’avance :",
       "relancer": "{n, plural, one {# prospect à relancer} other {# prospects à relancer}}",
-      "relancerDetail": "Vos clients qui attendent un signe",
       "planifier": "Planifier une visite",
       "planifierDetail": "Toute la journée est libre",
       "client": "Ajouter un client",
-      "clientDetail": "Un contact rencontré sur le terrain"
+      "clientDetail": "Un contact rencontré sur le terrain",
+      "relancerUn": "Relancer {nom}",
+      "relancerAttend": "{nom} attend depuis {n, plural, one {# jour} other {# jours}}",
+      "relancerNom": "{nom} attend un signe de vous",
+      "proposer": "{n, plural, one {# bien à proposer à {prenom}} other {# biens à proposer à {prenom}}}",
+      "proposerSansPrenom": "{n, plural, one {# bien à proposer à un client} other {# biens à proposer à un client}}",
+      "proposerQuartiers": "Biens {lieux}",
+      "aLieu": "à {lieu}",
+      "proposerDetail": "Qui correspondent à sa recherche"
     }
   },
   "agenda": {

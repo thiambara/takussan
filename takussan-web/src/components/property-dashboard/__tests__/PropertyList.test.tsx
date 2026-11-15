@@ -103,14 +103,15 @@ describe('PropertyList', () => {
    * la table ; ses libellés sont ceux qu'on éprouve.
    */
   it('rend l’anglais en locale en — aucun libellé français ne subsiste', () => {
-    render(withIntl(<PropertyList page={makePage(makeProperty({ is_online: false }))} />, 'en'));
+    // TCK-2908 — la ligne de chiffres est celle des 30 derniers jours (`stats_30d`).
+    render(withIntl(<PropertyList page={makePage(makeProperty({ is_online: false, stats_30d: { views: 12, contacts: 3, visits: 1 } }))} />, 'en'));
 
     expect(screen.getAllByText('Draft').length).toBeGreaterThan(0);
     expect(screen.getByText('Private')).toBeInTheDocument();
-    expect(screen.getByText('12 views · 3 favourites')).toBeInTheDocument();
+    expect(screen.getByTestId('chiffres-30-jours')).toHaveTextContent('12 views · 3 contacts · 1 visit (30 d)');
     expect(screen.getByRole('list', { name: 'Listings' })).toBeInTheDocument();
     expect(screen.queryByText('Brouillon')).not.toBeInTheDocument();
     expect(screen.queryByText('Privé')).not.toBeInTheDocument();
-    expect(screen.queryByText(/vues|favoris/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vues|visites|favoris/)).not.toBeInTheDocument();
   });
 });
