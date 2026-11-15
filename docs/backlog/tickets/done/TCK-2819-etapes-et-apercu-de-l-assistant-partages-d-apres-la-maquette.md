@@ -1,7 +1,7 @@
 ---
 id: TCK-2819
 title: "Les étapes et l'aperçu de l'assistant d'annonce suivent la maquette, sur /publish comme sur /app/properties/new"
-status: review
+status: done
 phase: P2
 family: front
 estimate: L
@@ -169,6 +169,8 @@ CGU sous « Publier l’annonce » au téléphone, la réduction du coût d'entr
   GET, geste final 48 px visible sous `lg` (a-5 : y 731 sur 844 avec la phrase des CGU dessous).
 - AC1 / AC2 verts (`etapes-identiques`, `brouillon-d-avant`, `PropertyForm.edition-inchangee`) ; dossiers `property-form`,
   `publication`, `contact` : 66 fichiers, 652 tests verts (et `PropertyDetailTabs.contacts.tck-633` : la fiche du bien).
+
+**Validation (2026-11-15)** : le porteur valide les rideaux du lot 3 (`impl/lot3/w3-2819/l3-cmp-*`, `l3b-cmp-*`) — AC-F5 tenu, le ticket passe `done`.
 
 ## Hors périmètre
 
