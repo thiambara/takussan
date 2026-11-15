@@ -89,6 +89,8 @@ final class NotificationClassification
         'booking.cancelled' => [self::D, false],
         'booking.recorded_on_behalf' => [self::D, false],
         'booking.application_not_selected' => [self::D, false],
+        // TCK-2872 — le client a une pièce à fournir : un geste attendu de lui.
+        'booking.dossier_piece_requested' => [self::D, true],
 
         // ─── Visites ──────────────────────────────────────────────────────────────────────
         'visit.reminder' => [self::V, false],
@@ -102,6 +104,8 @@ final class NotificationClassification
         'visit.rescheduled' => [self::V, false],
         'visit.cancelled' => [self::V, false],
         'visit.cancelled_window' => [self::V, false],
+        // TCK-2849 — une information : la visite est déjà confirmée, l'agent n'a rien à faire.
+        'visit.confirmed_by_owner' => [self::V, false],
 
         // ─── Messages et demandes de contact ──────────────────────────────────────────────
         // Un message se traite dans la messagerie, qui a ses propres non-lus.

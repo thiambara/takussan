@@ -117,6 +117,25 @@ class BookingPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2872 (ADR-0110 § 2) — déposer une pièce du dossier : le CLIENT de la réservation, ou le
+     * personnel de l'agence du bien (actif). Plus étroit que `DocumentPolicy::attachTo`, qui admet
+     * aussi le bailleur et l'auteur : le dossier se remplit par le candidat ou par l'agence.
+     */
+    public function uploadDossierPiece(User $user, Booking $booking): bool
+    {
+        return $user->isSuperAdmin()
+            || $this->isStaffOf($user, $booking->agency_id)
+            || ($booking->customer !== null && $booking->customer->user_id !== null
+                && (int) $booking->customer->user_id === (int) $user->id);
+    }
+
+    /** TCK-2872 (ADR-0110 § 2) — « Demander » une pièce : le personnel de l'agence du bien seul. */
+    public function requestDossierPiece(User $user, Booking $booking): bool
+    {
+        return $user->isSuperAdmin() || $this->isStaffOf($user, $booking->agency_id);
+    }
+
+    /**
      * TCK-596 (VERIF-596, hors diff fermé ici) — le propriétaire du bien confirme, refuse et annule,
      * sauf s'il est suspendu (`blocked`) dans l'agence de la réservation : la règle de 587
      * (`landlordWrites`) que le bail, l'état des lieux et le remboursement appliquaient déjà.

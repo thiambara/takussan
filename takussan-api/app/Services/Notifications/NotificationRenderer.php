@@ -99,6 +99,8 @@ class NotificationRenderer
                 NotificationCode::PARAM_MONTH => $this->month($value, $locale, $textMax),
                 NotificationCode::PARAM_PERSON => $this->person($value, $locale, $textMax),
                 NotificationCode::PARAM_VISIT_WINDOW => $this->visitWindow($value, $locale),
+                // TCK-2872
+                NotificationCode::PARAM_DOSSIER_PIECE => $this->dossierPiece($value, $locale),
                 default => is_scalar($value) && (string) $value !== '' ? $this->text((string) $value, $textMax) : '—',
             };
         }
@@ -206,6 +208,17 @@ class NotificationRenderer
         $key = 'invitations.roles.'.$code;
 
         return $this->text(trans()->has($key, $locale) ? __($key, [], $locale) : $code, $max);
+    }
+
+    /** TCK-2872 — le libellé de la pièce de dossier, jamais le code brut quand il est connu. */
+    private function dossierPiece(mixed $code, string $locale): string
+    {
+        if (! is_string($code) || $code === '') {
+            return '—';
+        }
+        $key = 'bookings.dossier_pieces.'.$code;
+
+        return trans()->has($key, $locale) ? __($key, [], $locale) : $code;
     }
 
     /** TCK-2502 — la tranche de la journée dans la langue du destinataire, jamais son code. */

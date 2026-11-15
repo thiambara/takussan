@@ -13,6 +13,7 @@ use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Booking\BookingCustomerFacts;
+use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingMoneyAccess;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\BookingService;
@@ -42,6 +43,8 @@ class BookingController extends Controller
 
         // TCK-2593 — `visits_on_property` de la page, en une requête.
         BookingCustomerFacts::prime($request, $paginator->getCollection());
+        // TCK-2872 — la complétude du dossier de la page, en une requête.
+        app(BookingDossierService::class)->prime($request, $paginator->getCollection());
 
         return $this->paginated($paginator, BookingResource::collection($paginator)->toArray($request));
     }
@@ -171,6 +174,8 @@ class BookingController extends Controller
         $booking->load(['property.address', 'customer', 'payments', 'createdBy:'.self::AUTEUR]);
         // TCK-2593 — `visits_on_property`, comme à la liste.
         BookingCustomerFacts::prime($request, [$booking]);
+        // TCK-2872 — et la complétude du dossier.
+        app(BookingDossierService::class)->prime($request, [$booking]);
         $data = BookingResource::make($booking)->resolve($request);
         // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
         $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);

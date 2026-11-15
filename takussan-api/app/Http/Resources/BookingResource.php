@@ -8,6 +8,7 @@ use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingCustomerFacts;
+use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingExpirationService;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,8 @@ class BookingResource extends BaseResource
         // TCK-2870 — au seul personnel, préparés pour la page par `BookingCustomerFacts::prime`.
         [$derniereServie, $derniere] = $this->resource instanceof Booking ? BookingCustomerFacts::lastVisitOnProperty($request, $this->resource) : [false, null];
         $faits = $this->resource instanceof Booking ? BookingCustomerFacts::propertyFacts($request, $this->resource) : null;
+        // TCK-2872 — la complétude du dossier, préparée pour la page par `BookingDossierService::prime`.
+        [$dossierServi, $dossier] = $this->resource instanceof Booking ? BookingDossierService::summaryFor($request, $this->resource) : [false, null];
 
         return [
             'id' => $this->id,
@@ -96,6 +99,10 @@ class BookingResource extends BaseResource
             // « À verser à l'entrée », DÉRIVÉ, jamais écrit (`BookingConditions::entryAmount`) : seulement
             // quand toutes les colonnes qu'il lit sont lues — sinon un montant faux plutôt qu'absent.
             'entry_amount' => $this->when($this->toutesLues(BookingConditions::ENTRY_AMOUNT_COLUMNS), fn (): ?float => ($montant = BookingConditions::entryAmount($this->resource)) !== null ? (float) $montant : null),
+            // TCK-2872 (ADR-0110 § 2) — `{ received, required, missing }`, `null` pour un séjour (sans
+            // dossier) ; servi à qui lit la réservation (le client, le personnel de l'agence du bien, le
+            // bailleur — les lecteurs des pièces, ADR-0099), seulement quand la page l'a préparé.
+            'dossier' => $this->when($dossierServi, fn (): ?array => $dossier),
             'created_at' => $this->iso($this->created_at),
         ];
     }

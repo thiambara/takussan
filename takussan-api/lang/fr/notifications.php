@@ -486,6 +486,12 @@ return [
                 'body' => 'Votre candidature :reference pour :property n\'a pas été retenue : le logement a été attribué à un autre locataire.',
                 'sms' => 'Takussan : candidature :reference non retenue (:property).',
             ],
+            // TCK-2872 — au client : l'agence lui demande une pièce de son dossier.
+            'dossier_piece_requested' => [
+                'title' => 'Pièce demandée pour votre dossier',
+                'body' => 'Pour votre demande :reference (:property), l\'agence vous demande : :piece. Déposez-la depuis votre réservation.',
+                'sms' => 'Takussan : pour votre demande :reference (:property), l\'agence vous demande : :piece.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [
@@ -554,6 +560,13 @@ return [
                 'body' => 'Le visiteur propose le :scheduled_at. La visite attend votre confirmation.',
                 'mail_body' => "Le visiteur a proposé un autre créneau pour :property. La visite attend votre confirmation.\nCréneau proposé : :scheduled_at (fuseau :timezone).",
                 'sms' => 'Takussan : le visiteur propose le :scheduled_at (:timezone) pour :property.',
+            ],
+            // TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite : à l'agent attribué, avec son nom.
+            'confirmed_by_owner' => [
+                'title' => 'Visite confirmée par le bailleur : :property',
+                'body' => ':owner a confirmé la visite du :scheduled_at.',
+                'mail_body' => ":owner, bailleur du bien, a confirmé la visite de :property.\nCréneau : :scheduled_at (fuseau :timezone).",
+                'sms' => 'Takussan : :owner a confirmé la visite de :property le :scheduled_at (:timezone).',
             ],
             // TCK-2502 — annulations d'une visite demandée par tranche, heure jamais fixée.
             'cancelled_by_visitor_window' => [

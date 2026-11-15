@@ -10,6 +10,7 @@ use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
 use App\Models\Enums\OfferFinancing;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingSearch;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
@@ -156,7 +157,16 @@ class Booking extends AbstractModel
             }
         }
 
-        return parent::performInsert($query);
+        $inserted = parent::performInsert($query);
+
+        // TCK-2872 (ADR-0110 § 2) — le dossier d'une candidature ou d'une offre naît avec elle, par
+        // TOUS les chemins de création (saisie du personnel, tunnel public, seeders, fabrique) : ici
+        // et non dans un écouteur `created`, que `Booking::withoutEvents()` ferait taire.
+        if ($inserted !== false) {
+            app(BookingDossierService::class)->seed($this);
+        }
+
+        return $inserted;
     }
 
     /**
@@ -198,6 +208,12 @@ class Booking extends AbstractModel
     public function agency(): BelongsTo
     {
         return $this->belongsTo(Agency::class);
+    }
+
+    /** TCK-2872 (ADR-0110 § 2) — les pièces du dossier ; aucune pour un séjour. */
+    public function dossierItems(): HasMany
+    {
+        return $this->hasMany(BookingDossierItem::class);
     }
 
     public function payments(): HasMany

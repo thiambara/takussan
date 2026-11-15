@@ -13,4 +13,14 @@ return [
     'refund_task' => [
         'title' => 'Refund to process — booking :reference',
     ],
+    // TCK-2872 (ADR-0110 § 2) — the documents of the file, for a notification text.
+    'dossier_pieces' => [
+        'identity' => 'identity document',
+        'payslips' => 'salary slips',
+        'employment_certificate' => 'employment certificate',
+        'guarantor_commitment' => 'guarantor commitment',
+        'guarantor_identity' => 'guarantor identity document',
+        'proof_of_funds' => 'proof of funds',
+        'other' => 'other document',
+    ],
 ];

@@ -114,6 +114,12 @@ return [
         'customer_required' => 'A booking recorded by the agency must name a customer.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
         'dates_unavailable' => 'These dates are not available for this property.',
+        // TCK-2872 (ADR-0110 § 2)
+        'dossier_closed' => 'This request is closed: its file can still be read, but no longer accepts documents or requests.',
+        'dossier_not_found' => 'This booking has no file: only an application and an offer have one.',
+        'dossier_piece_not_found' => 'This document is not part of the file of this request.',
+        'dossier_piece_received' => 'This document has already been received: there is nothing to request.',
+        'dossier_request_throttled' => 'This document was already requested less than 24 hours ago.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
         // TCK-2870 (ADR-0110 § 1)
         'field_not_for_kind' => 'This field does not belong to this kind of request: an application states its term, an offer its financing, deadline and conditions, a stay neither.',

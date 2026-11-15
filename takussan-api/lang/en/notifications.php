@@ -481,6 +481,12 @@ return [
                 'body' => 'Your application :reference for :property was not selected: the property has been allocated to another tenant.',
                 'sms' => 'Takussan: application :reference not selected (:property).',
             ],
+            // TCK-2872 — to the customer: the agency asks for a document of their file.
+            'dossier_piece_requested' => [
+                'title' => 'Document requested for your file',
+                'body' => 'For your request :reference (:property), the agency asks you for: :piece. Upload it from your booking.',
+                'sms' => 'Takussan: for your request :reference (:property), the agency asks you for: :piece.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [
@@ -549,6 +555,13 @@ return [
                 'body' => 'The visitor suggests :scheduled_at. The visit awaits your confirmation.',
                 'mail_body' => "The visitor has suggested another slot for :property. The visit awaits your confirmation.\nSuggested slot: :scheduled_at (time zone :timezone).",
                 'sms' => 'Takussan: the visitor suggests :scheduled_at (:timezone) for :property.',
+            ],
+            // TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite : à l'agent attribué, avec son nom.
+            'confirmed_by_owner' => [
+                'title' => 'Visit confirmed by the landlord: :property',
+                'body' => ':owner confirmed the visit on :scheduled_at.',
+                'mail_body' => ":owner, the property's landlord, confirmed the visit of :property.\nTime: :scheduled_at (time zone :timezone).",
+                'sms' => 'Takussan: :owner confirmed the visit of :property on :scheduled_at (:timezone).',
             ],
             // TCK-2502 — cancellations of a visit requested by time of day, time never set.
             'cancelled_by_visitor_window' => [

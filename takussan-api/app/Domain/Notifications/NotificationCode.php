@@ -69,6 +69,8 @@ enum NotificationCode: string
     // TCK-2734 (seconde porte, décision du porteur du 2026-11-12) — au CLIENT : un bail a été créé
     // sur le bien pour un autre locataire ; sa candidature, en attente ou acceptée, est close.
     case BookingApplicationNotSelected = 'booking.application_not_selected';
+    /** TCK-2872 (ADR-0110 § 2) — au client : l'agence lui demande une pièce de son dossier (`BookingDossierService::request`). */
+    case BookingDossierPieceRequested = 'booking.dossier_piece_requested';
 
     // ─── Visites, messages, leads ───────────────────────────────────────────────────────
     case VisitReminder = 'visit.reminder';
@@ -86,6 +88,8 @@ enum NotificationCode: string
     case VisitCancelledByVisitor = 'visit.cancelled_by_visitor';
     /** TCK-2502 — le visiteur annule une visite demandée par tranche, heure jamais fixée. */
     case VisitCancelledByVisitorWindow = 'visit.cancelled_by_visitor_window';
+    /** TCK-2849 (ADR-0112 § 4) — le bailleur a confirmé la visite (ou posé un autre créneau) : à l'agent attribué. */
+    case VisitConfirmedByOwner = 'visit.confirmed_by_owner';
     // Vers le visiteur, compte ou contact sans compte : un geste HUMAIN de l'agence.
     case VisitConfirmed = 'visit.confirmed';
     case VisitRescheduled = 'visit.rescheduled';
@@ -319,6 +323,13 @@ enum NotificationCode: string
      */
     public const PARAM_VISIT_WINDOW = 'visit_window';
 
+    /**
+     * TCK-2872 (ADR-0110 § 2) — une pièce de dossier CODÉE (`DossierPiece` : `identity`, `payslips`…),
+     * traduite au rendu sous `bookings.dossier_pieces.<code>`. La cloche du front reçoit le code brut,
+     * que son texte ICU lit par un `select` (comme `visit_window`).
+     */
+    public const PARAM_DOSSIER_PIECE = 'dossier_piece';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -331,10 +342,12 @@ enum NotificationCode: string
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled,
             self::BookingRecordedOnBehalf /* TCK-2579 */,
-            self::BookingApplicationNotSelected /* TCK-2734 */ => NotificationType::Booking,
+            self::BookingApplicationNotSelected /* TCK-2734 */,
+            self::BookingDossierPieceRequested /* TCK-2872 */ => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
-            self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => NotificationType::Visit,
+            self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow,
+            self::VisitConfirmedByOwner /* TCK-2849 */ => NotificationType::Visit,
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
@@ -395,11 +408,13 @@ enum NotificationCode: string
             self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled,
             self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */,
-            self::BookingApplicationNotSelected /* TCK-2734 : la suite de sa demande */ => 'booking_status_changed',
+            self::BookingApplicationNotSelected /* TCK-2734 : la suite de sa demande */,
+            self::BookingDossierPieceRequested /* TCK-2872 : la suite de sa demande */ => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
-            self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => 'visit_reminder',
+            self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow,
+            self::VisitConfirmedByOwner /* TCK-2849 */ => 'visit_reminder',
             self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
@@ -491,6 +506,7 @@ enum NotificationCode: string
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::BookingRecordedOnBehalf /* TCK-2579 */,
             self::BookingApplicationNotSelected /* TCK-2734 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::BookingDossierPieceRequested /* TCK-2872 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'piece' => self::PARAM_DOSSIER_PIECE],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
@@ -508,6 +524,8 @@ enum NotificationCode: string
             self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => ['property' => self::PARAM_TEXT, 'date' => self::PARAM_DATE, 'window' => self::PARAM_VISIT_WINDOW],
             self::VisitRescheduledByVisitor, self::VisitCancelledByVisitor,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT],
+            // TCK-2849 — et le bailleur qui a confirmé.
+            self::VisitConfirmedByOwner => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT, 'owner' => self::PARAM_PERSON],
             self::KycSubmitted => ['agency' => self::PARAM_TEXT],
             self::KycVerified => [],
             self::KycRejected => ['reason' => self::PARAM_TEXT],
@@ -734,6 +752,8 @@ enum NotificationCode: string
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
             // TCK-2734 — comme le refus : la fin de sa demande, conséquence d'un geste de l'agence.
             self::BookingApplicationNotSelected => true,
+            // TCK-2872 — un geste humain de l'agence (« Demander »), borné à une fois par pièce et par 24 h.
+            self::BookingDossierPieceRequested => true,
             // TCK-2579 — un geste humain de l'agence, vers un client qui peut n'avoir que le
             // téléphone de sa fiche ; la limite horaire par numéro du canal le borne.
             self::BookingRecordedOnBehalf => true,

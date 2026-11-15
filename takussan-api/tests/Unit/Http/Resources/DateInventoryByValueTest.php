@@ -63,6 +63,10 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2872
+        'App\Http\Resources\BookingResource::dossier' => '`when()` sur une complétude que seul '
+            .'`BookingDossierService::prime()` pose (index et présentation de `BookingController`, TCK-2872) : deux ENTIERS '
+            .'et une liste de codes de pièce (`DossierPiece`), ou `null` pour un séjour — jamais une date.',
         // TCK-2870 — posés par `BookingCustomerFacts::prime()` pour le seul personnel, comme `visits_on_property`.
         'App\Http\Resources\BookingResource::last_visit_on_property' => '`when()` sur la dernière visite que seul '
             .'`BookingCustomerFacts::prime()` pose (TCK-2870) : sa date passe par `$this->iso()` (instant, forme d\'ADR-0018), '
@@ -171,6 +175,9 @@ class DateInventoryByValueTest extends TestCase
             .'`2026-11-18T23:59:59+00:00` de `Tests\Feature\Property\BoostEnCoursDansLaListeTest`.',
         'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
             .'un booléen, jamais une date.',
+        // TCK-2849 — sur la visite de la route, ou nommée dans `fields[property_visits]` : un `bool`.
+        'App\Http\Resources\PropertyVisitResource::can_confirm' => '`when()` sur la visite de la route ou sur demande '
+            .'(`fields[property_visits]=…,can_confirm`, TCK-2849) : un booléen (`peutConfirmer`), jamais une date.',
         'App\Http\Resources\ReviewResource::reported_count' => '`when(viewReports)` (TCK-2722) : même lecteur que '
             .'`risk`, que le parcours n\'atteint pas. Un compteur ENTIER (`(int)`), jamais une date.',
         'App\Http\Resources\ReviewResource::risk' => '`when(viewReports)` (TCK-2672) : le parcours ne lit pas en '

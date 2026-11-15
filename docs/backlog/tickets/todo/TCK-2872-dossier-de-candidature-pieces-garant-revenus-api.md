@@ -72,4 +72,49 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémentation (agent délégué, vague 92).**
+
+Re-mesure de la prémisse :
+- `DocumentPolicy::reaches` portait DÉJÀ la branche `Booking` (auteur encore membre, client, bailleur, personnel) et
+  `listableOn` / `Document::TARGET_ALIASES` / `DocumentController::ALLOWED_DOCUMENTABLE_TYPES` connaissent déjà
+  `booking` : aucune édition des fichiers de documents (TCK-2895) n'a été nécessaire. Les tests d'accès
+  (`BookingDossierAccessTest`) gardent ce code existant ; ils ne sont pas vérifiés par ablation sur ces fichiers.
+- Trois chemins de création, pas deux (`BookingService::create`, et les branches offre et location de
+  `PublicPropertyController::bookingRequest`), plus seeders et fabrique : la liste se pose dans
+  `Booking::performInsert` (comme la nature, TCK-2579), donc par tous les chemins, `withoutEvents()` compris.
+
+Décisions prises (à relire) :
+- **Rattrapage** : la migration pose la liste fixe sur les candidatures et offres existantes (sans elle, leur
+  dossier dirait « complet »).
+- **Reçue = un document VIVANT** : `documents` se supprime en douceur, `nullOnDelete` ne joue donc qu'à
+  l'effacement définitif ; un document supprimé rend la pièce manquante.
+- **Lecteurs de `dossier` et de `GET …/dossier`** : ceux de la réservation (`BookingPolicy::view` : client,
+  personnel de l'agence, bailleur, auteur encore membre) — les mêmes que ceux des pièces (ADR-0099).
+- **Dépôt** : `BookingPolicy::uploadDossierPiece` (client ou personnel de l'agence du bien, plus étroit que
+  `DocumentPolicy::attachTo`) ; **Demander** : `BookingPolicy::requestDossierPiece` (personnel seul).
+- **Types** : PDF, JPEG, PNG, HEIC/HEIF, 10 Mo — liste propre à la requête (`AcceptedUploads::document` admet
+  aussi tableurs et texte). Le `name` du document est le nom du fichier déposé ; `type` = `id_card` pour les
+  pièces d'identité, `other` sinon.
+- **Re-dépôt** d'une pièce reçue : permis, il remplace la pièce ; l'ancien document reste au coffre de la réservation.
+- **Fermée** = tout statut hors `pending`/`confirmed` (refusée, annulée, expirée, **terminée**) : 422
+  `booking.dossier_closed` au dépôt ET à la demande ; le dossier reste lisible.
+- **Client sans compte** : la demande est datée, aucun avis ; la réponse le dit (`customer_notified: false`).
+- **Notification** : paramètre `piece` d'une nature neuve `dossier_piece` (comme `visit_window`), traduite par
+  `NotificationRenderer` sous `bookings.dossier_pieces.<code>` ; la cloche lit le code par un `select` ICU.
+  Famille « demandes », **à traiter** ; interrupteur `booking_status_changed` ; **mobile** (WhatsApp/SMS) :
+  oui, geste humain de l'agence borné à une fois par pièce et par 24 h.
+- Codes d'erreur neufs : `booking.dossier_not_found` (404 séjour), `booking.dossier_piece_not_found` (404 pièce
+  hors liste), `booking.dossier_piece_received` (422), `booking.dossier_request_throttled` (429), `booking.dossier_closed` (422).
+- Réponses : `GET` → `data: { received, required, missing, pieces: [{ piece, required, received, received_at,
+  requested_at, document: { id, name, type, created_at } | null }] }` ; dépôt → 201 `data` (la pièce) + `dossier`
+  (la complétude) ; demande → 200 `data` (la pièce) + `customer_notified`.
+
+Mesures : rattrapage sur la base de démo — 230 candidatures × 3 + 72 offres × 2 = 834 lignes attendues, 834
+mesurées, aucune sur un séjour. Quatorze ablations (une par règle testée), toutes rouges puis restaurées (md5).
+`removePieces` juge « reçue » comme le reste du service (document vivant) : une pièce dont le document a été
+supprimé se retire.
+
+Reste :
+- `scripts/check-models-spec.mjs` rougit : `BookingDossierItem` n'est pas dans `docs/models-spec.md` (à reporter
+  par `/sync-specs`, avec `DossierPiece`).
+- La migration a été jouée sur la base de démo locale (`php artisan migrate`, avec celle de TCK-2870).

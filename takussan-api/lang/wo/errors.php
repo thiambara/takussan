@@ -114,6 +114,12 @@ return [
         'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
         'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
+        // TCK-2872 (ADR-0110 § 2)
+        'dossier_closed' => 'Cette demande est close : son dossier reste lisible, mais n\'accepte plus de pièce ni de demande.',
+        'dossier_not_found' => 'Cette réservation n\'a pas de dossier : seules une candidature et une offre en ont un.',
+        'dossier_piece_not_found' => 'Cette pièce ne fait pas partie du dossier de cette demande.',
+        'dossier_piece_received' => 'Cette pièce est déjà reçue : il n\'y a rien à demander.',
+        'dossier_request_throttled' => 'Cette pièce a déjà été demandée il y a moins de 24 heures.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
         // TCK-2870 (ADR-0110 § 1)
         'field_not_for_kind' => 'Ce champ n\'appartient pas à cette nature de demande : une candidature dit sa durée, une offre son financement, son délai et ses conditions, un séjour aucun des deux.',
