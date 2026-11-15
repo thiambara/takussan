@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { EyeOff, Flag, Loader2, MessageSquareReply, Trash2, X } from 'lucide-react';
@@ -11,12 +11,16 @@ import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
 import {
   LONGUEUR_MAX_DE_LA_REPONSE,
   fetchReviewReports,
+  fetchReviewSubjectSummary,
+  reviewSubjectSummaryKey,
   moderateReview,
   replyToReview,
   type ModerationDecision,
   type ModerationReview,
 } from '@/lib/queries/reviews-moderation';
 import { BarreDAction } from '@/components/ui/barre-d-action';
+import { SheetClose } from '@/components/ui/sheet';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,8 +35,6 @@ interface ModerationDetailProps {
   readonly review: ModerationReview;
   /** Après une décision : le message à dire (« Avis publié. »), la file se relit. */
   readonly onModerated: (message?: string) => void;
-  /** Super-admin : retirer et ignorer des signalements lui sont réservés (verif-597 M3). */
-  readonly platform?: boolean;
   /** Le nom de l'agence qui signe la réponse publique ; `null` s'il n'a pas pu être lu. */
   readonly agencyName?: string | null;
   /** Au téléphone, les gestes principaux vont dans la barre collante du bas. */
@@ -59,13 +61,19 @@ class EchecDEtape extends Error {
  * TCK-067 → TCK-2673 — le détail d'un avis (maquette `app-moderation` B, `DetailAvis`) : le SUJET
  * (photo, titre, lien vers sa fiche), l'auteur, la note, le texte entier, le risque et les
  * signalements, la réponse publique, puis les gestes — Publier (avec la réponse quand elle est
- * écrite), Masquer ; Supprimer et Ignorer les signalements restent à la plateforme (verif-597 M3).
- * Masquer, supprimer ou ignorer demande un motif codé, confirmé (TCK-597, ADR-0043 § 7).
+ * écrite), Masquer ; Supprimer et Ignorer les signalements quand l'API les autorise (TCK-2931 :
+ * `can_delete`, `can_dismiss_reports` — l'admin d'agence les tient sur un avis de son périmètre,
+ * publié compris, ADR-0043 amendé le 2026-11-15). Masquer, supprimer ou ignorer demande un motif
+ * codé, confirmé (TCK-597, ADR-0043 § 7) ; supprimer exige en plus quelques mots, à l'écran comme
+ * à l'API pour l'agence (TCK-2930) — l'écran les exige de tous : le geste est irréversible.
+ *
+ * TCK-2931 — à côté de l'avis, le résumé de son sujet (`subject-summary`) : la note moyenne publiée
+ * dans le bloc du sujet, « Locataire depuis … » dans la ligne de l'auteur, et jusqu'à 3 autres avis
+ * publiés. Le résumé est un plus : illisible, il ne rend rien, jamais une erreur.
  */
 export function ModerationDetail({
   review,
   onModerated,
-  platform = false,
   agencyName = null,
   telephone = false,
   raccourcis = false,
@@ -74,7 +82,7 @@ export function ModerationDetail({
   const tFile = useTranslations('admin.moderation.file');
   const tReasons = useTranslations('common.moderationReasons');
   const tCommon = useTranslations('common.actions');
-  const { jourMois, dateTime } = useFormatteurs();
+  const { jourMois, dateTime, date, nombre } = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   // TCK-1203 — trancher un avis exige la 2FA d'un profil plateforme (`ReviewController@moderate`).
@@ -85,6 +93,14 @@ export function ModerationDetail({
   const [reason, setReason] = useState('');
   const [reponse, setReponse] = useState(review.reply_content ?? '');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // TCK-2931 — le panneau de confirmation, amené à l'écran quand un geste l'ouvre (depuis « ⋯ » de
+  // l'en-tête, au téléphone, le toucher semblait sinon sans effet : le panneau est bas dans le corps).
+  const panneauRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!pending) return;
+    panneauRef.current?.scrollIntoView?.({ block: 'center' });
+    panneauRef.current?.focus({ preventScroll: true });
+  }, [pending]);
 
   const reportedCount = review.reported_count ?? 0;
   const { data: reportsData } = useQuery({
@@ -92,6 +108,15 @@ export function ModerationDetail({
     queryFn: () => fetchReviewReports(review.id, token ?? ''),
     enabled: Boolean(token) && reportedCount > 0,
   });
+
+  // TCK-2931 — le résumé du sujet ; sous `['reviews-moderation', …]`, relu avec la file après une décision.
+  const { data: resumeLu } = useQuery({
+    queryKey: reviewSubjectSummaryKey(review.id),
+    queryFn: () => fetchReviewSubjectSummary(review.id, token ?? ''),
+    enabled: Boolean(token),
+    staleTime: 60_000,
+  });
+  const resume = resumeLu?.data ?? null;
 
   const reponseNeuve = reponse.trim() !== '' && reponse.trim() !== (review.reply_content ?? '').trim();
 
@@ -146,13 +171,15 @@ export function ModerationDetail({
 
   // TCK-597 (ADR-0043 §7) — un motif CODÉ, choisi dans une liste traduite ; le complément libre
   // est facultatif, sauf pour « autre ».
+  // TCK-2931 — supprimer exige un texte en plus du motif codé (TCK-2930 : l'API l'exige de l'agence).
+  const texteExige = pending?.decision === 'delete' || reasonTextRequired(reasonCode);
   const confirmPending = () => {
     if (!pending) return;
     if (reasonCode === '') {
       setErrorMessage(t('reasonCodeRequired'));
       return;
     }
-    if (reasonTextRequired(reasonCode) && reason.trim().length === 0) {
+    if (texteExige && reason.trim().length === 0) {
       setErrorMessage(t('reasonRequired'));
       return;
     }
@@ -170,7 +197,10 @@ export function ModerationDetail({
   // n'offre rien, il dit pourquoi : l'avis porte sur l'agence elle-même, il est déjà publié (verif-597
   // M3 : seule la plateforme le retire), ou il relève de la plateforme.
   const decidable = review.can_moderate === true;
-  const notice = decidable
+  // TCK-2931 — les deux gestes de l'amendement d'ADR-0043, lus dans la policy, jamais déduits du rôle.
+  const supprimable = review.can_delete === true;
+  const ignorable = review.can_dismiss_reports === true && reportedCount > 0;
+  const notice = decidable || supprimable || ignorable
     ? null
     : review.reviewable_type === AGENCY_SUBJECT
       ? t('platformOnly')
@@ -197,20 +227,58 @@ export function ModerationDetail({
       {t('hide')}
     </Button>
   );
-  const gestesDeLaPlateforme = platform ? (
-    <>
-      <Button variant="ghost" className="text-destructive" onClick={() => handleDecision('delete')} disabled={occupe}>
-        <Trash2 className="size-4" aria-hidden="true" />
-        {t('delete')}
-      </Button>
-      {reportedCount > 0 ? (
-        <Button variant="ghost" onClick={() => handleDecision('ignore')} disabled={occupe}>
-          <X className="size-4" aria-hidden="true" />
-          {t('ignoreReports')}
-        </Button>
-      ) : null}
-    </>
-  ) : null;
+  const gestesSecondaires =
+    supprimable || ignorable ? (
+      <>
+        {supprimable ? (
+          <Button variant="ghost" className="text-destructive" onClick={() => handleDecision('delete')} disabled={occupe}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            {t('delete')}
+          </Button>
+        ) : null}
+        {ignorable ? (
+          <Button variant="ghost" onClick={() => handleDecision('ignore')} disabled={occupe}>
+            <X className="size-4" aria-hidden="true" />
+            {t('ignoreReports')}
+          </Button>
+        ) : null}
+      </>
+    ) : null;
+  // Au téléphone, « ⋯ » de l'en-tête (maquette `:468`) : la feuille de la coque se ferme au toucher.
+  const gestesDuTelephone =
+    supprimable || ignorable ? (
+      <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="gestes-secondaires-de-l-avis">
+        {supprimable ? (
+          <SheetClose
+            render={<Button type="button" variant="outline" className="h-12 w-full justify-start gap-3 text-destructive" />}
+            onClick={() => handleDecision('delete')}
+          >
+            <Trash2 className="size-5" aria-hidden="true" />
+            {t('delete')}
+          </SheetClose>
+        ) : null}
+        {ignorable ? (
+          <SheetClose render={<Button type="button" variant="outline" className="h-12 w-full justify-start gap-3" />} onClick={() => handleDecision('ignore')}>
+            <X className="size-5" aria-hidden="true" />
+            {t('ignoreReports')}
+          </SheetClose>
+        ) : null}
+      </div>
+    ) : null;
+
+  // TCK-2931 — « 4,2 ★ sur 12 avis » : la moyenne publiée du sujet, absente sans avis publié.
+  const noteDuSujet =
+    resume && resume.subject.average_rating !== null && resume.subject.reviews_count > 0
+      ? tFile('resume.noteDuSujet', {
+          note: nombre(resume.subject.average_rating, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+          n: resume.subject.reviews_count,
+        })
+      : null;
+  const locataireDepuis = resume?.author.tenant_since
+    ? tFile('resume.locataireDepuis', { date: date(`${resume.author.tenant_since.slice(0, 10)}T12:00:00`, { dateStyle: undefined, month: 'long', year: 'numeric' }) })
+    : null;
+  const autresAvis = resume?.others ?? [];
+  const sujetDesAutres = review.target?.type ?? 'inconnu';
   const enregistrerLaReponse = (
     <Button onClick={() => repondre.mutate()} disabled={occupe || !reponseNeuve}>
       {repondre.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
@@ -238,7 +306,7 @@ export function ModerationDetail({
       </header>
 
       <div className={cn('space-y-4', telephone ? 'p-4' : 'p-5')}>
-        <BlocDuSujet sujet={review.target} />
+        <BlocDuSujet sujet={review.target} note={noteDuSujet} />
 
         <div>
           <div className="flex items-center gap-3">
@@ -246,7 +314,7 @@ export function ModerationDetail({
             <div className="min-w-0 flex-1 leading-tight">
               <p className="text-corps font-semibold">{auteur}</p>
               <p className="text-ui text-muted-foreground">
-                {[contexte, tFile('auteur.numero', { id: review.id }), jourMois(review.created_at)].filter(Boolean).join(' · ')}
+                {[locataireDepuis ?? contexte, tFile('auteur.numero', { id: review.id }), jourMois(review.created_at)].filter(Boolean).join(' · ')}
               </p>
             </div>
           </div>
@@ -291,6 +359,30 @@ export function ModerationDetail({
           </div>
         ) : null}
 
+        {autresAvis.length > 0 ? (
+          <section aria-labelledby={`${idReponse}-autres`} data-slot="autres-avis-du-sujet">
+            <h3 id={`${idReponse}-autres`} className="text-ui font-semibold text-muted-foreground">
+              {tFile(`resume.autres.${sujetDesAutres}`)}
+            </h3>
+            <ul className="mt-1.5 divide-y divide-border rounded-lg border border-border">
+              {autresAvis.map((autre) => (
+                <li key={autre.id} className="flex items-center gap-2.5 px-3 py-2 text-ui">
+                  <EtoilesDeLAvis note={autre.rating} />
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-medium">{autre.author_name ?? t('anonymous')}</span>
+                    {autre.excerpt ? ` — ${autre.excerpt}` : null}
+                  </span>
+                  {autre.created_at ? (
+                    <span className="flex-none text-xs text-muted-foreground">
+                      {tFile('resume.publieEn', { mois: date(autre.created_at, { dateStyle: undefined, month: 'short' }) })}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {repondable ? (
           <div>
             <label htmlFor={idReponse} className="mb-1.5 flex items-center gap-2 text-sm font-medium">
@@ -321,7 +413,7 @@ export function ModerationDetail({
         ) : null}
 
         {pending ? (
-          <div className="rounded-lg border border-border bg-muted p-4" data-testid="moderation-confirm">
+          <div ref={panneauRef} tabIndex={-1} className="rounded-lg border border-border bg-muted p-4 outline-none" data-testid="moderation-confirm">
             <p className="mb-2 text-sm font-semibold">
               {pending.decision === 'delete' ? t('confirmDelete') : pending.decision === 'hide' ? t('confirmHide') : t('confirmIgnore')}
             </p>
@@ -341,7 +433,7 @@ export function ModerationDetail({
               </Select>
             </label>
             <label htmlFor={`${idReponse}-motif`} className="mt-3 block text-xs text-muted-foreground">
-              {reasonTextRequired(reasonCode) ? t('reasonLabelRequired') : t('reasonLabel')}
+              {pending.decision === 'delete' ? t('reasonLabelDelete') : reasonTextRequired(reasonCode) ? t('reasonLabelRequired') : t('reasonLabel')}
             </label>
             <Textarea
               id={`${idReponse}-motif`}
@@ -370,10 +462,11 @@ export function ModerationDetail({
           </p>
         ) : null}
 
-        {/* Au téléphone, les gestes réservés à la plateforme restent dans le corps : la barre n'en porte que deux. */}
-        {telephone && decidable && gestesDeLaPlateforme ? <div className="flex flex-wrap gap-2">{gestesDeLaPlateforme}</div> : null}
-        {decidable ? <p className="text-ui text-muted-foreground">{tFile('motifRappel')}</p> : null}
+        {decidable || supprimable ? <p className="text-ui text-muted-foreground">{tFile('motifRappel')}</p> : null}
       </div>
+
+      {/* TCK-2931 — au téléphone, « Supprimer » et « Ignorer les signalements » vont dans « ⋯ » de l'en-tête. */}
+      {telephone && gestesDuTelephone ? <DeclarerEnTete actions={gestesDuTelephone} /> : null}
 
       {telephone ? (
         decidable && !pending ? (
@@ -384,15 +477,19 @@ export function ModerationDetail({
         ) : !decidable && repondable ? (
           <BarreDAction>{enregistrerLaReponse}</BarreDAction>
         ) : null
-      ) : decidable ? (
+      ) : decidable || gestesSecondaires || repondable ? (
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3.5">
-          {gestesDeLaPlateforme}
+          {gestesSecondaires}
           <span className="flex-1" />
-          {masquer}
-          {publier}
+          {decidable ? (
+            <>
+              {masquer}
+              {publier}
+            </>
+          ) : repondable ? (
+            enregistrerLaReponse
+          ) : null}
         </div>
-      ) : repondable ? (
-        <div className="flex justify-end border-t border-border px-5 py-3.5">{enregistrerLaReponse}</div>
       ) : null}
     </section>
   );

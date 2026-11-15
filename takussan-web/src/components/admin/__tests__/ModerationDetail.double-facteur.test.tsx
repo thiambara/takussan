@@ -18,6 +18,9 @@ import { ModerationDetail } from '../ModerationDetail';
 vi.mock('@/lib/queries/reviews-moderation', () => ({
   fetchReviewReports: vi.fn(() => Promise.resolve({ data: [], meta: { total: 0 } })),
   moderateReview: vi.fn(),
+  // TCK-2931 — le résumé du sujet, lu à côté de l'avis : illisible ici, il ne rend rien.
+  fetchReviewSubjectSummary: vi.fn(() => Promise.reject(new Error('hors sujet'))),
+  reviewSubjectSummaryKey: (id: number) => ['reviews-moderation', 'subject-summary', id],
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
 
@@ -43,7 +46,7 @@ function monter(garde: GardeDoubleFacteurFn) {
   render(withIntl(
     <QueryClientProvider client={client}>
       <ContexteGardeDoubleFacteur.Provider value={garde}>
-        <ModerationDetail review={AVIS} onModerated={onModerated} platform />
+        <ModerationDetail review={AVIS} onModerated={onModerated} />
       </ContexteGardeDoubleFacteur.Provider>
     </QueryClientProvider>,
   ));

@@ -26,6 +26,10 @@ vi.mock('@/lib/queries/property-moderation', async (importOriginal) => ({
   fetchPropertyModerationDetail: vi.fn(),
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton' }) }));
+// TCK-2931 — « Écrire » à l'auteur (`EcrireA`) lit le routeur et cherche le fil à deux.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/lib/queries/conversations', () => ({ useTrouverLeFilDirect: () => vi.fn() }));
+vi.mock('@/components/messages/BrouillonDirect', () => ({ BrouillonDirect: () => null }));
 
 const LIGNE = { id: 352, title: 'Appartement aux Mamelles' } as unknown as ModerationProperty;
 

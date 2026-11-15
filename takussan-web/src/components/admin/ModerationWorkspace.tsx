@@ -4,10 +4,11 @@ import { useEffect, useEffectEvent, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ShieldAlert, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { SearchX, ShieldAlert, SlidersHorizontal, TriangleAlert, X } from 'lucide-react';
 
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { PageHeader } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -61,6 +62,8 @@ const P_SUJET = 'filter[subject_type]';
 const P_RISQUE = 'filter[risk]';
 /** TCK-2673 — « Tous les statuts » s'écrit, puisque l'URL nue vaut « En attente » ; jamais envoyé. */
 const TOUS = 'all';
+/** TCK-2931 — `filter[search]` de l'API (TCK-2930) : cherché par le serveur, jamais dans la page lue. */
+const P_RECHERCHE = 'filter[search]';
 
 const PAR_PAGE = 20;
 const REQUETE_DEUX_COLONNES = '(width >= 80rem)';
@@ -116,6 +119,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
   const subjectType = url.lire(P_SUJET);
   const risqueDuTelephone: ReviewRiskLevel = url.lire(P_RISQUE) === 'low' ? 'low' : 'high';
   const selectedId = Number.parseInt(url.lire('selected'), 10) || null;
+  const recherche = url.lire(P_RECHERCHE).trim();
 
   const [coches, setCoches] = useState<ReadonlySet<number>>(new Set());
   // TCK-2673 d1 — ce que « Tout cocher » a réellement coché : la lecture ne rend que les avis
@@ -129,7 +133,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
   const [erreurDuLot, setErreurDuLot] = useState<string | null>(null);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
 
-  const filtres = { status, reported, subjectType };
+  const filtres = { status, reported, subjectType, recherche };
   const lecture = (risk: ReviewRiskLevel) => ({
     queryKey: ['reviews-moderation', 'queue', { ...filtres, risk }],
     queryFn: ({ pageParam }: { pageParam: number }) =>
@@ -137,6 +141,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
         status: (status || undefined) as never,
         reported: reported || undefined,
         subjectType: subjectType || undefined,
+        search: recherche || undefined,
         risk,
         page: pageParam,
         perPage: PAR_PAGE,
@@ -171,6 +176,8 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
         status: 'pending',
         reported: reported || undefined,
         subjectType: subjectType || undefined,
+        // TCK-2931 — « Tout cocher » coche la liste CHERCHÉE, pas la file entière.
+        search: recherche || undefined,
         risk: 'low',
         page: 1,
         perPage: MAX_AVIS_PAR_LOT,
@@ -425,8 +432,34 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
       retryLabel={tCommon('actions.retry')}
     />
   ) : toutes.length === 0 ? (
-    <ModerationEmpty />
+    recherche ? (
+      <EmptyState
+        icon={<SearchX className="size-8" aria-hidden="true" />}
+        title={tFile('recherche.aucunResultat', { q: recherche })}
+        description={tFile('recherche.aucunResultatAide')}
+        action={
+          <Button variant="outline" onClick={() => url.poserFiltres({ [P_RECHERCHE]: null })}>
+            {tFile('recherche.effacer')}
+          </Button>
+        }
+      />
+    ) : (
+      <ModerationEmpty />
+    )
   ) : null;
+
+  // TCK-2931 — le champ « Chercher » (maquette `app-moderation` B, `TeteModeration`) : saisie
+  // immédiate, envoi retardé (`DebouncedSearchInput`), la valeur vit dans l'URL.
+  const champDeRecherche = (classe?: string) => (
+    <DebouncedSearchInput
+      className={classe}
+      value={recherche}
+      onCommit={(next) => url.poserFiltres({ [P_RECHERCHE]: next || null })}
+      placeholder={tFile('recherche.placeholder')}
+      aria-label={tFile('recherche.aria')}
+      busy={aRisque.isFetching || sansRisque.isFetching}
+    />
+  );
 
   /* ── Téléphone ─────────────────────────────────────────────────────────────────────────── */
 
@@ -444,7 +477,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
         <>
           <DeclarerEnTete forme="detail" titre={titre} repli={hrefDeLaFile} />
           <PagePleineLargeur>
-            <ModerationDetail key={selected.id} review={selected} onModerated={onModerated} platform={platform} agencyName={agencyName} telephone />
+            <ModerationDetail key={selected.id} review={selected} onModerated={onModerated} agencyName={agencyName} telephone />
           </PagePleineLargeur>
         </>
       );
@@ -476,6 +509,20 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
             {tFile('puces.biens')}
           </PuceDeFiltre>
         </RangeeDePuces>
+        {recherche ? (
+          // TCK-2931 — la recherche vit dans la feuille des filtres : son terme reste lisible, et s'efface, depuis la liste.
+          <p className="flex items-center gap-2 px-4 pb-2 text-ui text-muted-foreground" data-slot="recherche-active">
+            <span className="min-w-0 flex-1 truncate">{tFile('recherche.active', { q: recherche })}</span>
+            <button
+              type="button"
+              onClick={() => url.poserFiltres({ [P_RECHERCHE]: null })}
+              aria-label={tFile('recherche.effacer')}
+              className="inline-flex size-11 flex-none items-center justify-center rounded-full hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </p>
+        ) : null}
         <div className="space-y-3 px-4 empty:hidden">{messages}</div>
         {etatDeLaFile ?? (
           <>
@@ -523,7 +570,10 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
             </Button>
           }
         >
-          <div className="space-y-3">{controlesDesFiltres(true)}</div>
+          <div className="space-y-3">
+            {champDeRecherche('w-full')}
+            {controlesDesFiltres(true)}
+          </div>
         </FeuilleDuBas>
       </PagePleineLargeur>
     );
@@ -578,7 +628,6 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
         key={selected.id}
         review={selected}
         onModerated={onModerated}
-        platform={platform}
         agencyName={agencyName}
         raccourcis={deuxColonnes}
       />
@@ -590,6 +639,7 @@ export function ModerationWorkspace({ platform = false, agencyName = null }: Mod
       <PageHeader
         title={tPage('title')}
         description={sousTitre}
+        actions={champDeRecherche('w-full lg:w-[calc(var(--spacing)*75)]')}
         dessous={
           <Tabs value="avis" onValueChange={(v) => v === 'biens' && router.push(PAGE_DES_BIENS)}>
             <TabsList variant="line" aria-label={tFile('onglets.aria')}>

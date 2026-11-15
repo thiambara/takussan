@@ -64,7 +64,7 @@
   "alias": {
     "Notes de 4 et 5, sans signalement": "Notes de 4 et 5, sans signalement ni coordonnées",
     "Biens et agents": "Tous les sujets",
-    "Masquer ou supprimer demande un motif (hors sujet, injure, coordonnées personnelles, faux avis) et quelques mots : les deux sont journalisés.": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…), journalisé avec vos mots s’il y en a."
+    "Masquer ou supprimer demande un motif (hors sujet, injure, coordonnées personnelles, faux avis) et quelques mots : les deux sont journalisés.": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…) ; supprimer demande aussi quelques mots. Motif et mots sont journalisés."
   },
   "ancres": [],
   "ignorer": [
@@ -90,7 +90,7 @@
       "element": "les trois alias de libellés (`alias`)",
       "propriete": "texte",
       "exception": "règle métier",
-      "motif": "la règle « sans risque » de l'API est dite entière (`risk.reasons` : `low_rating`, `reported`, `contact_details`, TCK-2672) ; « Sujet » propose les options déjà servies (biens, agences, utilisateurs) ; le rappel du motif reprend les libellés de `common.moderationReasons`, et le texte libre n'est exigé que pour « Autre motif » (TCK-597). Les réponses et la demande de correction saisies par les perturbateurs sont le texte de la maquette, tel quel"
+      "motif": "la règle « sans risque » de l'API est dite entière (`risk.reasons` : `low_rating`, `reported`, `contact_details`, TCK-2672) ; « Sujet » propose les options déjà servies (biens, agences, utilisateurs) ; le rappel du motif reprend les libellés de `common.moderationReasons`, et le texte libre est exigé pour « Autre motif » (TCK-597) et pour toute suppression (TCK-2931) — masquer un avis en attente garde la règle de TCK-597. Les réponses et la demande de correction saisies par les perturbateurs sont le texte de la maquette, tel quel"
     },
     {
       "ecran": "b-0 bureau",
@@ -98,27 +98,6 @@
       "propriete": "hauteur de la liste, y du groupe sans risque et de « Publier la sélection »",
       "exception": "vérité des données",
       "motif": "chaque file se lit par pages de 20 (« Voir les N suivants ») : les 16 avis à risque tiennent dans la première ; la maquette tronque son groupe à trois cartes sans le dire"
-    },
-    {
-      "ecran": "b-0 bureau, b-1",
-      "element": "« Supprimer », « Ignorer les signalements » et le menu « ⋯ » de l'en-tête du téléphone",
-      "propriete": "absents",
-      "exception": "règle métier",
-      "motif": "gestes de la plateforme (verif-597 M3, décision 4a) : l'admin d'une agence ne les a pas ; le super-admin les voit (`platform`)"
-    },
-    {
-      "ecran": "b-0 bureau, b-2 bureau",
-      "element": "champ « Chercher un bien, un auteur, un agent » de la tête de la file des avis",
-      "propriete": "absent sur l'onglet « Avis » ; « Rechercher un bien… » sur « Biens à valider »",
-      "exception": "contrat de données",
-      "motif": "`GET /api/reviews` n'a pas de filtre de recherche (ReviewController::index) ; filtrer la liste rapatriée est interdit (sparse fieldsets, filtre serveur). La recherche des biens existe (`filter[search]`) et reste"
-    },
-    {
-      "ecran": "b-0 bureau, b-1",
-      "element": "« Autres avis sur ce bien », la note moyenne du sujet (« 4,2 ★ sur 12 avis »), « Locataire depuis mars 2025 »",
-      "propriete": "absents",
-      "exception": "contrat de données",
-      "motif": "TCK-2672 sert `target {title, subtitle, photo_url, agent}` et `context_kind`, pas la moyenne ni les autres avis du sujet ; le sous-titre montre la référence et l'agent qui suit le bien ; le contexte de l'auteur s'affiche quand l'API le rend (« Locataire », « A visité le bien »…)"
     },
     {
       "ecran": "b-0, b-1",
@@ -136,10 +115,10 @@
     },
     {
       "ecran": "b-2",
-      "element": "« Appartement » en première puce des caractéristiques ; « Ouvrir l’aperçu complet de la fiche », « Ouvrir en grand », « Écrire » et le menu « ⋯ » absents",
-      "propriete": "présent / absents",
-      "exception": "critère d'acceptation, contrat de données",
-      "motif": "AC6 demande le type en français ; aucune route ne sert la fiche publique d'un bien non publié, ni de fil avec l'auteur depuis la modération (pas de cible « Écrire ») — un lien mort n'est pas posé"
+      "element": "« Appartement » en première puce des caractéristiques",
+      "propriete": "présent",
+      "exception": "critère d'acceptation",
+      "motif": "AC6 demande le type en français. TCK-2931 : « Ouvrir l’aperçu complet de la fiche » (téléphone), « Ouvrir en grand » (bureau) et « Écrire » à qui a soumis le bien sont posés — l'aperçu vit sous /app/agency/moderation/properties/{id}, rendu depuis la lecture de modération"
     },
     {
       "ecran": "b-2",
@@ -161,6 +140,27 @@
       "propriete": "couleur de fond",
       "exception": "règle du design system",
       "motif": "texte sur une photo quelconque : un fond translucide ne garantit aucun contraste (encre sans alpha)"
+    },
+    {
+      "ecran": "b-1, b-0 bureau",
+      "element": "« Autres avis sur ce bien » : la ligne « en attente » de la maquette",
+      "propriete": "absente",
+      "exception": "règle métier",
+      "motif": "TCK-2930/TCK-2931 : seuls les avis PUBLIÉS du sujet sont rendus (3 au plus, « publié en … ») ; un avis en attente n'est pas encore une parole publique"
+    },
+    {
+      "ecran": "b-1, b-0 bureau",
+      "element": "« Masquer » sur un avis publié ou signalé, pour l'admin d'agence",
+      "propriete": "absent",
+      "exception": "règle métier",
+      "motif": "ADR-0043 amendé le 2026-11-15 (TCK-2930) : l'admin d'agence supprime et ignore les signalements d'un avis de son périmètre quel que soit son statut ; masquer reste un geste de l'avis en attente. « Supprimer » et « Ignorer les signalements » suivent `can_delete` / `can_dismiss_reports` de l'API, au bureau en pied du détail, au téléphone dans « ⋯ » de l'en-tête"
+    },
+    {
+      "ecran": "b-0 téléphone",
+      "element": "champ « Chercher un bien, un auteur, un agent »",
+      "propriete": "dans la feuille « Filtres », et une ligne « Recherche : « … » » effaçable au-dessus de la liste quand une recherche est active",
+      "exception": "critère d'acceptation",
+      "motif": "la maquette du téléphone ne montre pas de recherche ; TCK-2931 la range dans la feuille des filtres (delta du ticket)"
     }
   ],
   "comparaisons": {
