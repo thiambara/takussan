@@ -49,6 +49,8 @@ class ReconciliationOverviewTest extends ApiTestCase
             'confirmed_automatically' => ['total' => 812, 'by_provider' => ['wave' => 540, 'orange_money' => 272]],
             'to_reconcile' => ['total' => 34, 'by_method' => ['cash' => 21, 'bank_transfer' => 13]],
             'reconciled_manually' => 0,
+            // TCK-2932 — les paiements sortis du reste à rapprocher.
+            'ignored' => 0,
         ]]);
     }
 

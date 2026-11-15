@@ -2758,6 +2758,32 @@ aussi d'une ligne de crédit, mais ne passe pas par `matched_payment` : il porte
 
 ---
 
+### 41 bis. ReconciliationIgnoredPayment
+
+<!-- TCK-2932 -->
+**Table :** `reconciliation_ignored_payments` (TCK-2932, `2026_11_15_293200`)
+**Description :** Un paiement sorti du « reste à rapprocher » parce qu'il n'aura jamais de ligne de banque (espèces gardées en caisse, versé sur un autre compte). Les paiements du reste à rapprocher sont polymorphes (`LeasePayment`, `BookingPayment`) : une table, pas une colonne. **La ligne ne touche jamais le paiement** — ni statut, ni montant, ni `bank_reconciled_at`, ni quittance, ni reversement, ni solde ; `ReconciliationOverviewService` classe seulement le paiement `ignored` au lieu de `to_reconcile` (après « confirmé par passerelle » et « rapproché à la main »). Défaire le geste supprime la ligne ; les deux gestes sont journalisés sur le paiement (`activity_log`, événements `payment_ignored` / `payment_unignored`, motif et note en propriétés).
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant du geste (`DELETE …/reconciliation/ignored-payments/{id}`) |
+| agency_id | FK agencies | | | Agence (`cascadeOnDelete`) |
+| payable_type | string | | | CLASSE du paiement, comme `bank_statement_lines.matched_payment_type` |
+| payable_id | bigint | | | Identifiant du paiement |
+| reason | IgnoredPaymentReason (string 32) | | | `cash_kept`, `other_account`, `other` ; chaîne sans `enum()` SQL ([ADR-0007](adr/0007-pas-d-enum-sql.md)) |
+| note | text | oui | null | Texte libre, exigé pour `other` (500 caractères au plus) |
+| ignored_by_id | FK users | oui | null | Qui a ignoré (`nullOnDelete`). `_id` : une colonne `ignored_by` heurterait la relation `ignoredBy` (TCK-986) |
+| created_at | datetime | | auto | Quand |
+| updated_at | datetime | | auto | |
+
+**Index :** `unique(payable_type, payable_id)` — un paiement n'est ignoré qu'une fois ; `(agency_id, created_at)` — la liste de l'agence.
+
+**Relations :** `agency()` → belongsTo Agency ; `payable()` → morphTo → LeasePayment | BookingPayment ; `ignoredBy()` → belongsTo User (via `ignored_by_id`).
+
+**Règles :** réservé à qui rapproche (`BankStatementPolicy::viewAny` : admin de l'agence et `payments.reconcile`) ; seul un paiement du reste à rapprocher s'ignore (payé, hors passerelle, non rapproché, pas une caution rendue — sinon 422 `reconciliation.payment_not_pending`) ; un paiement d'une autre agence rend 404.
+
+---
+
 ### 42. KycDossier 🆕
 
 **Table :** `kyc_dossiers`
