@@ -8828,7 +8828,8 @@
             "deposit": "Booking · deposit",
             "advance": "Booking · advance",
             "fee": "Booking · fee",
-            "autre": "Booking"
+            "autre": "Booking",
+            "security_deposit": "Booking · security deposit"
           },
           "rentDuCourt": "{mois} rent",
           "chargesDuCourt": "{mois} charges",
@@ -11454,7 +11455,9 @@
     "paymentType": {
       "deposit": "Deposit",
       "advance": "Balance",
-      "fee": "Fee"
+      "fee": "Fee",
+      "security_deposit": "Security deposit",
+      "other": "Other"
     },
     "paymentStatus": {
       "pending": "Pending",

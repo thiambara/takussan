@@ -8828,7 +8828,8 @@
             "deposit": "Réservation · arrhes",
             "advance": "Réservation · acompte",
             "fee": "Réservation · frais",
-            "autre": "Réservation"
+            "autre": "Réservation",
+            "security_deposit": "Réservation · caution"
           },
           "rentDuCourt": "Loyer {mois}",
           "chargesDuCourt": "Charges {mois}",
@@ -11454,7 +11455,9 @@
     "paymentType": {
       "deposit": "Acompte",
       "advance": "Solde",
-      "fee": "Frais"
+      "fee": "Frais",
+      "security_deposit": "Caution",
+      "other": "Autre"
     },
     "paymentStatus": {
       "pending": "En attente",

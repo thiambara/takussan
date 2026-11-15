@@ -190,6 +190,21 @@ final class CollectedPayments
     }
 
     /**
+     * TCK-2865 — les loyers ATTENDUS : les échéances de loyer (`rent`) hors annulées (une échéance remplacée par un
+     * renouvellement n'est plus due ; une échéance en échec de paiement reste attendue). La règle de « Loyers du
+     * mois » du bailleur (TCK-2623, `expected_count`) et de sa série `timeseries.expected` ; le lecteur borne
+     * `due_date`.
+     */
+    public static function rentExpected(?Builder $query = null): Builder
+    {
+        $query ??= LeasePayment::query();
+
+        return $query
+            ->where('lease_payments.payment_type', LeasePaymentType::Rent->value)
+            ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value);
+    }
+
+    /**
      * Échéances dues et non réglées (sans la condition d'échéance, que le lecteur pose : échue pour un
      * impayé, à venir pour un « prochain loyer »). Jamais une restitution de caution.
      */

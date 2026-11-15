@@ -48,7 +48,8 @@ class DashboardAgentService
     /**
      * TCK-2791 — seules les commissions suivent la période (`commissions_month`, et `commissions_year`, le
      * cumul de l'année du mois servi jusqu'à sa fin) ; le reste est l'état du jour, listé dans
-     * `period.as_of_today`.
+     * `period.as_of_today`. TCK-2865 — sous `last_12_months`, `commissions_month` est la somme des douze mois, et
+     * `commissions_year` le cumul de l'année en cours.
      */
     public const ETATS_DU_JOUR = [
         'properties_managed', 'pipeline', 'bookings.pending', 'visits.upcoming_7d', 'visits.today', 'visits.today_items',
@@ -63,8 +64,10 @@ class DashboardAgentService
         $monthStart = $periode->debut;
         $monthEnd = $periode->fin;
         // Le cumul de l'année : celle du mois servi, jusqu'à la fin de l'année en cours (inchangé) ou du mois passé.
-        $yearStart = $monthStart->setTimezone(PeriodeDuTableauDeBord::TIMEZONE)->startOfYear()->setTimezone((string) config('app.timezone'));
-        $yearEnd = $periode->estLeMoisEnCours() ? now()->endOfYear() : $monthEnd;
+        // TCK-2865 — sous `last_12_months`, l'année du DERNIER mois servi (le mois en cours) : la fin de la période,
+        // jamais son début (décembre de l'an passé ferait courir le cumul sur deux années).
+        $yearStart = $monthEnd->setTimezone(PeriodeDuTableauDeBord::TIMEZONE)->startOfYear()->setTimezone((string) config('app.timezone'));
+        $yearEnd = $periode->couvreAujourdhui() ? now()->endOfYear() : $monthEnd;
         $agency = $scope === self::SCOPE_AGENCY && $agencyId !== null;
 
         $managed = $this->propertyScope($agent, $scope, $agencyId)->toBase()->get(['properties.id', 'properties.status']);

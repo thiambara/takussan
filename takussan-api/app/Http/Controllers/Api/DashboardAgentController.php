@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
  *
  * TCK-2791 — `period=last_month` : le mois résumé (`current_month` par défaut, liste fermée, 422 sinon),
  * lu après les gardes.
+ * TCK-2865 — `period=last_12_months` : les douze mois glissants terminés au mois en cours.
  */
 class DashboardAgentController extends Controller
 {

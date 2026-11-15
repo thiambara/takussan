@@ -6,6 +6,7 @@ use App\Models\Enums\ContactLeadChannel;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,6 +34,12 @@ class ContactLeadResponseStatsService
 
     /** TCK-2871 — … et jamais sous 10 premières réponses mesurées (pas de chiffre sur un trop petit échantillon). */
     public const CLIENT_MIN_SAMPLE = 10;
+
+    /**
+     * TCK-2865 — le délai d'un agent (et de l'équipe) dans `team-performance` : jamais sous 5 premières réponses
+     * mesurées sur la période — le seuil de l'annuaire (`directory.response_time.min_conversations`).
+     */
+    public const TEAM_MIN_SAMPLE = 5;
 
     private const MEDIAN_SQL = 'percentile_cont(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_responded_at - created_at)))';
 
@@ -63,12 +70,7 @@ class ContactLeadResponseStatsService
 
         $agencyRow = $responded()->selectRaw("{$median} AS median, COUNT(*) AS n")->first();
 
-        $byAgent = $responded()
-            ->whereNotNull('first_responded_by_id')
-            ->groupBy('first_responded_by_id')
-            ->selectRaw("first_responded_by_id AS user_id, {$median} AS median, COUNT(*) AS n")
-            ->get()
-            ->keyBy('user_id');
+        $byAgent = $this->byResponder($responded());
 
         $openByAgent = $open()
             ->whereNotNull('recipient_user_id')
@@ -125,6 +127,56 @@ class ContactLeadResponseStatsService
         }
 
         return ['median_hours' => max(1, (int) round($seconds / 3600)), 'sample' => $sample];
+    }
+
+    /**
+     * TCK-2865 — le délai de première réponse de chaque agent ET de l'équipe sur une période bornée
+     * (`team-performance`), en MINUTES arrondies : la même médiane que {@see self::compute()}, sur les demandes
+     * déposées dans `[$from, $to]`. Sous {@see TEAM_MIN_SAMPLE} réponses, `null` (absent de `agents`).
+     *
+     * @param  list<int>  $userIds  les agents dont on veut le délai
+     * @return array{agents: array<int, int>, team: ?int} minutes par identifiant d'agent, et celles de l'équipe
+     *                                                    (une médiane sur toutes les demandes de l'agence, jamais
+     *                                                    la médiane des médianes)
+     */
+    public function minutesForTeam(int $agencyId, array $userIds, CarbonInterface $from, CarbonInterface $to): array
+    {
+        $responded = fn () => $this->responded($agencyId, $from)->where('created_at', '<=', $to);
+
+        $agents = [];
+        foreach ($this->byResponder($responded()->whereIn('first_responded_by_id', $userIds)) as $id => $row) {
+            $minutes = $this->minutesAboveThreshold($row->median, (int) $row->n);
+            if ($minutes !== null) {
+                $agents[(int) $id] = $minutes;
+            }
+        }
+
+        $team = $responded()->selectRaw(self::MEDIAN_SQL.' AS median, COUNT(*) AS n')->first();
+
+        return ['agents' => $agents, 'team' => $this->minutesAboveThreshold($team?->median, (int) ($team?->n ?? 0))];
+    }
+
+    /**
+     * La médiane et le compte des premières réponses, par répondant : UNE requête groupée, lue par
+     * {@see self::compute()} et {@see self::minutesForTeam()}.
+     *
+     * @return Collection<int|string, object{user_id: int, median: mixed, n: int}>
+     */
+    private function byResponder(Builder $responded): Collection
+    {
+        return $responded
+            ->whereNotNull('first_responded_by_id')
+            ->groupBy('first_responded_by_id')
+            ->selectRaw('first_responded_by_id AS user_id, '.self::MEDIAN_SQL.' AS median, COUNT(*) AS n')
+            ->get()
+            ->keyBy('user_id');
+    }
+
+    private function minutesAboveThreshold(mixed $median, int $sample): ?int
+    {
+        $seconds = $this->seconds($median);
+
+        return $seconds === null || $sample < self::TEAM_MIN_SAMPLE ? null : (int) round($seconds / 60);
     }
 
     /** Les demandes du formulaire de l'agence, déposées depuis `$since`, qui ont reçu une première réponse. */

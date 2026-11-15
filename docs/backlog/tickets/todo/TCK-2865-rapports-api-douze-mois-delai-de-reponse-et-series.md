@@ -57,4 +57,36 @@ Relevé le 2026-11-15 (`dev` 8c60f4c58) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré le 2026-11-15 (arbre `takussan-manques`).
+
+- **Période `last_12_months`** (`PeriodeDuTableauDeBord`) : de décembre 2025 à novembre 2026 un jour de novembre.
+  `enTete()` gagne `months` (la liste `AAAA-MM` des mois couverts, un seul sous les deux autres périodes). Les
+  tableaux de bord agence, agent et bailleur la servent : les montants « du mois » valent pour la période ENTIÈRE
+  (`somme()` sur les mois couverts : encaissé, reversé, commission, loyers du mois du bailleur) ; la courte durée est
+  UNE mesure sur la période (`PortfolioMetrics::shortStayOccupancyOver`, nuitées ÷ capacité, jamais une moyenne de
+  taux) ; `commissions_year` de l'agent reste le cumul de l'année EN COURS (dérivé de la fin de la période, plus de
+  son début). `team-performance` garde `period=Y-m` : `last_12_months` y rend 422 (test), jamais un mois substitué.
+- **Délai de réponse — écart à la prémisse** : le ticket renvoyait à `Directory/ResponseTimes` (fils de messagerie de
+  prospect) ; la session a demandé de réutiliser le calcul de TCK-2871 (`ContactLeadResponseStatsService`, demandes du
+  formulaire, `first_responded_at`), que l'onglet Équipe affiche déjà (`contact-leads/response-stats`). C'est celui-ci :
+  `minutesForTeam()` partage la requête groupée par répondant avec `compute()` (`byResponder()`), sur les demandes
+  déposées DANS le mois de la ligne (comme les autres colonnes), seuil `TEAM_MIN_SAMPLE = 5` (celui de l'annuaire).
+  `totals` : `agents`, la somme de chaque colonne de compte ou de montant, et `median_response_minutes` de l'équipe =
+  une médiane sur toutes les demandes de l'agence, jamais la médiane des médianes.
+- **`timeseries.overdue`** (agence, `PortfolioMetrics::overdueByMonth`, une requête) : une échéance compte pour le mois M
+  si elle était échue à la fin de M (avant le 1er du mois suivant ; le mois en cours : avant aujourd'hui) et non soldée
+  à cette date — encore due aujourd'hui (au reste dû), ou `paid | refunded` avec `paid_at` postérieur (au montant). Jamais
+  une restitution de caution. Le point du mois en cours vaut `finance.overdue_amount` (testé). **Limite** : un versement
+  partiel n'est pas daté ; une échéance encore partiellement payée compte à son reste dû d'aujourd'hui dans chaque mois.
+- **`timeseries.expected`** (bailleur, `PortfolioMetrics::expectedRentByMonth`) : Σ des échéances `rent` hors annulées
+  échéant dans le mois — la règle extraite en `CollectedPayments::rentExpected()`, que `loyersDuMois()` lit aussi.
+- **Budget de requêtes** (`DashboardQueryBudgetTest`) relevé délibérément : `owner` 27 → 28, `agency` 30 → 31 (une
+  requête de série de plus chacun, constante en mois). `TeamPerformanceLeadsHandledTest` ne compte plus que la requête
+  des demandes traitées (le délai lit aussi `property_contact_leads`).
+- Front : types déclarés (`TeamPerformanceRow.median_response_minutes`, `TeamPerformanceTotals`,
+  `DashboardAgencyTimeseries.overdue`) ; `PERIODES_DES_RAPPORTS` non touché (TCK-2867).
+- Ablations (une à une, restaurées par `cp`, md5 vérifié) : statut courant seul ou loyer soldé compté → AC3 rouge ; douze
+  mois = un mois, somme → premier mois, année de l'agent depuis le début, borne du bailleur → AC1 rouge ; seuil à 1,
+  fenêtre non bornée au mois → AC2 rouge ; annulées comptées → AC4 rouge. Sous douze mois, reversé = premier mois ou courte durée =
+  moyenne des taux mensuels → rouge (`test_owner_twelve_months_sum_the_payouts_and_pool_the_short_stay_occupancy`).
+- Message 422 `errors.dashboard.invalid_period` (fr/en/wo) : nomme désormais les trois valeurs.

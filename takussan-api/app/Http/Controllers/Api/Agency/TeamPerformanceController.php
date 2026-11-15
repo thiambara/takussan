@@ -15,6 +15,10 @@ use Illuminate\Support\Carbon;
  *
  * Reporting cross-équipe : `reports.view_agency` à l'agence (`AgencyPolicy::viewReports`), et une
  * agence `standard` seulement (`features.md` §1.12, comme `GET /api/dashboard/agency`).
+ *
+ * TCK-2865 — chaque ligne porte `median_response_minutes` (délai de première réponse, `null` sous le seuil), et la
+ * réponse `totals`. `period` reste un mois `Y-m` : `last_12_months` y rend 422 (la règle de validation), jamais un
+ * mois substitué.
  */
 class TeamPerformanceController extends Controller
 {

@@ -32,6 +32,7 @@ class DashboardAgencyService
 
     /**
      * TCK-2791 — les chiffres « du mois » (encaissé, reversé, commission, courte durée) suivent `$periode` ;
+     * TCK-2865 — sous `last_12_months`, ils valent pour les douze mois (somme ; courte durée : une seule mesure) ;
      * les autres sont l'état du jour, listés dans `period.as_of_today` ({@see self::ETATS_DU_JOUR}).
      */
     public const ETATS_DU_JOUR = [
@@ -47,7 +48,6 @@ class DashboardAgencyService
         $periode ??= PeriodeDuTableauDeBord::moisEnCours();
         $monthStart = $periode->debut;
         $monthEnd = $periode->fin;
-        $month = $periode->mois();
         $scope = PortfolioScope::agency((int) $agency->id);
         $propertyIds = Property::query()->select('id')->where('agency_id', $agency->id);
 
@@ -92,12 +92,14 @@ class DashboardAgencyService
         $leaseIncome = $this->metrics->leaseIncomeByMonth($scope, $monthStart, $monthEnd);
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $monthStart, $monthEnd);
         $netPaidOut = $this->metrics->netPaidOutByMonth($scope, $monthStart, $monthEnd);
-        $shortStay = $this->metrics->shortStayOccupancy($scope, $monthStart, $monthEnd);
+        // TCK-2865 — une seule mesure sur la période (nuitées ÷ capacité), jamais une moyenne de taux.
+        $shortStay = $this->metrics->shortStayOccupancyOver($scope, $monthStart, $monthEnd);
         $occupancyToday = $this->metrics->longStayOccupancyToday($scope);
         $overdue = $this->metrics->overdue($scope);
 
-        $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
-        $bookingIncomeMonth = $bookingIncome[$month] ?? 0.0;
+        // TCK-2865 — la somme des mois servis : un mois, ou douze sous `last_12_months`.
+        $leaseIncomeMonth = $periode->somme($leaseIncome);
+        $bookingIncomeMonth = $periode->somme($bookingIncome);
 
         return [
             'agency_id' => $agency->id,
@@ -123,7 +125,7 @@ class DashboardAgencyService
                 'revenue_month' => round($leaseIncomeMonth + $bookingIncomeMonth, 2),
                 'lease_income_month' => $leaseIncomeMonth,
                 'booking_income_month' => $bookingIncomeMonth,
-                'net_paid_out_month' => $netPaidOut[$month] ?? 0.0,
+                'net_paid_out_month' => $periode->somme($netPaidOut),
                 'deposits_held' => $this->metrics->depositsHeld($scope),
                 'commission_month' => self::commissionBetween((int) $agency->id, $monthStart, $monthEnd),
                 'overdue_count' => $overdue['count'],
@@ -139,7 +141,7 @@ class DashboardAgencyService
                 'rate_percent' => $occupancyToday['rate_percent'],
                 'eligible_count' => $occupancyToday['eligible_count'],
                 'occupied_count' => $occupancyToday['occupied_count'],
-                'short_stay_percent' => $shortStay[$month] ?? null,
+                'short_stay_percent' => $shortStay,
             ],
         ];
     }
@@ -147,7 +149,7 @@ class DashboardAgencyService
     /**
      * Monthly time-series: revenue (encaissé) and long-stay occupancy, one grouped query each.
      *
-     * @return array{months: array<int,string>, revenue: array<int,float>, occupancy: array<int,float|null>, short_stay_occupancy: array<int,float|null>}
+     * @return array{months: array<int,string>, overdue: array<int,float>, revenue: array<int,float>, occupancy: array<int,float|null>, short_stay_occupancy: array<int,float|null>}
      */
     public function monthlyTimeseries(Agency $agency, int $months = 12): array
     {
@@ -160,11 +162,14 @@ class DashboardAgencyService
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $from, $to);
         $occupancy = $this->metrics->longStayOccupancy($scope, $from, $to);
         $shortStay = $this->metrics->shortStayOccupancy($scope, $from, $to);
+        $overdue = $this->metrics->overdueByMonth($scope, $from, $to);
 
         $labels = array_keys($leaseIncome);
 
         return [
             'months' => $labels,
+            // TCK-2865 — l'impayé en fin de mois (le mois en cours : à aujourd'hui), {@see PortfolioMetrics::overdueByMonth()}.
+            'overdue' => array_map(static fn (string $m): float => $overdue[$m] ?? 0.0, $labels),
             'revenue' => array_map(static fn (string $m): float => round($leaseIncome[$m] + ($bookingIncome[$m] ?? 0.0), 2), $labels),
             'occupancy' => array_map(static fn (string $m): ?float => $occupancy[$m] ?? null, $labels),
             'short_stay_occupancy' => array_map(static fn (string $m): ?float => $shortStay[$m] ?? null, $labels),

@@ -7596,7 +7596,8 @@
             "deposit": "Réservation · arrhes",
             "advance": "Réservation · acompte",
             "fee": "Réservation · frais",
-            "autre": "Réservation"
+            "autre": "Réservation",
+            "security_deposit": "Réservation · caution"
           },
           "rentDuCourt": "Loyer {mois}",
           "chargesDuCourt": "Charges {mois}",
@@ -10881,7 +10882,9 @@
     "paymentType": {
       "deposit": "Waar",
       "advance": "Des bi",
-      "fee": "Peyoor"
+      "fee": "Peyoor",
+      "security_deposit": "Caution",
+      "other": "Autre"
     },
     "paymentStatus": {
       "pending": "Muy xaar",

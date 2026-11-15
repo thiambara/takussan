@@ -18,9 +18,10 @@ import type { PeriodeDesRapports } from '@/lib/rapports/periode';
 
 /**
  * TCK-2791 — `key` : la période servie (`period=last_month`) ; `as_of_today` : les chemins des chiffres qui restent
- * l'état du jour quelle que soit la période. Absents de la lecture du locataire.
+ * l'état du jour quelle que soit la période. Absents de la lecture du locataire. TCK-2865 — `months` : les mois
+ * couverts (`AAAA-MM`), un seul pour un mois, douze pour `last_12_months`.
  */
-export type PeriodWindow = { start: string; end: string; key?: PeriodeDesRapports; as_of_today?: string[] };
+export type PeriodWindow = { start: string; end: string; key?: PeriodeDesRapports; months?: string[]; as_of_today?: string[] };
 
 export type OwnerDashboard = {
   owner_id: number;

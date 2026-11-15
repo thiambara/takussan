@@ -23,6 +23,8 @@ use Illuminate\Http\Request;
  * - `?months=6` — overrides the chart window (1..36).
  * - `?fields[summary]=properties,finance` — sparse sections (spatie-style).
  * - `?period=last_month` — TCK-2791 : le mois résumé (`current_month` par défaut, liste fermée, 422 sinon).
+ * - `?period=last_12_months` — TCK-2865 : les douze mois glissants terminés au mois en cours (sommes sur la période).
+ * - TCK-2865 — `timeseries.overdue` : l'impayé en fin de mois, au reste dû (`PortfolioMetrics::overdueByMonth`).
  *
  * TCK-2373 (P249.02) — `data.kpis` : les indicateurs configurés par l'agence (`kpi_configs`),
  * activés et ordonnés, avec libellé, format et valeur ; `[]` sans configuration.
