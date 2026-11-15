@@ -123,13 +123,6 @@
       "propriete": "libellé",
       "exception": "règle du produit",
       "motif": "décision de team-lead (2026-11-14, 2a) : la coque d'entrée partagée (TCK-2598) dit « Quitter » sur toutes ses pages. L'assistant reprend pourtant réellement là où l'invité l'a laissé (brouillon serveur à chaque écran, reprise par ?owner=/?agent=/?sp= et par le bandeau de /app, écran imposé par le numéro vérifié) : « Reprendre plus tard » serait plus juste — piste notée au ticket pour toute la coque. « Étape N sur 2 » est désormais écrit (`avancementEcrit`)."
-    },
-    {
-      "ecran": "app-entree-assistants a-4-bureau-1280",
-      "element": "« 3 biens suivis… », « Ton dernier loyer », « 2 pièces à envoyer » du panneau « {agence} t'attend »",
-      "propriete": "texte",
-      "exception": "donnée et décision",
-      "motif": "décision de team-lead (2026-11-14) : avant le code, le panneau (CeQuiVousAttend) ne montre rien que l'invité n'ait déjà vu — l'agence, le rôle, et le titre de l'intervention que la page d'invitation lui montrait (`awaiting.maintenance_request.title`) ; biens, loyer et pièces sont à l'écran 2"
     }
   ],
   "ecarts_ouverts": [],
@@ -193,6 +186,12 @@
       "element": "variante « déjà prestataire d'une autre agence »",
       "resolu_le": "2026-11-15",
       "comment": "TCK-2946 (AC4) : avec le lien de l'invitation (?sp=), le prestataire qui a plus d'une collaboration passait au panneau multi-agences (TCK-262), sans la carte ni la fin d'onboarding ; il passe désormais par l'écran 2, avec la note « Vous travaillez déjà avec … » (MultiAgences). Sans lien de reprise, le panneau reste. page.tck-2613, InterventionDuPrestataire.tck-2946 AC4. Lu, non relevé au navigateur."
+    },
+    {
+      "ecran": "app-entree-assistants a-4-bureau-1280",
+      "element": "« 3 biens suivis… », « Ton dernier loyer », « 2 pièces à envoyer » du panneau « {agence} t'attend »",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2949 (ADR-0094 amendé le 2026-11-15 § 6) : `GET /api/me/profiles/{alias}:{id}/invite-summary` (TCK-2939), lu par la page (`fetchResumeDInvite`, 404 → null), chiffre `CeQuiVousAttend` : « N biens suivis par l'agence » + titres, « Votre dernier loyer · 350 000 F reçus le 5 nov. », « N pièces à envoyer · RIB et pièce d'identité — … ». Chaque ligne seulement si l'API la sert ; sans résumé, les lignes génériques. Vouvoiement (ADR-0095). CeQuiVousAttend.tck-2949. Relevé au navigateur non fait (consigne du lot 2026-11-15)."
     }
   ]
 }

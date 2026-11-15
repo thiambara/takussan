@@ -3,6 +3,7 @@
  * (maquette `app-entree-assistants` a, « Ton numéro, étape commune », bureau). AVANT le code, le panneau ne montre
  * rien que l'invité n'ait déjà vu (team-lead, 2026-11-14) : l'agence, le rôle, et le titre de l'intervention que la
  * page d'invitation lui montrait (`awaiting.maintenance_request.title`) — jamais ses pièces ni un compte de biens.
+ * TCK-2949 — c'est le panneau SANS résumé : `invite-summary` (TCK-2939) le chiffre, cf. `CeQuiVousAttend.tck-2949.test.tsx`.
  */
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';

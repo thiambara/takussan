@@ -57,4 +57,35 @@ L'invité qui vérifie son numéro voit déjà ce qui l'attend chez l'agence : s
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, arbre `takussan-manques`).
+
+**Prémisses re-mesurées** :
+- `invite-summary` ne répond qu'au titulaire d'un profil **actif** (`ActiveProfileResolver::resolve`) ; les pages
+  d'assistant choisissent le profil par `profilAReprendre` (souvent `draft`). L'acceptation de l'invitation passe le
+  profil à `active` (mesuré par TCK-2939, `AcceptationNActiveQueLeBrouillonTest`), donc l'invité qui arrive par son
+  lien est servi ; un profil resté en brouillon reçoit 404 → panneau sans chiffres (AC2). Règle d'accès hors périmètre.
+- Ton : le ticket dit « tutoiement de l'entrée conservé », mais le panneau livré (TCK-2613) est au **vouvoiement**
+  (ADR-0095 : la maquette tutoie, elle n'est pas une référence de ton) → « Votre dernier loyer », pas « Ton ».
+- L'API ne rend qu'un **compte** de pièces (`missing_documents`), pas leurs noms.
+
+**Décisions tranchées** (« valide tes choix ») :
+- Lecture **serveur** dans les trois pages (`/onboarding/owner|agent|service-provider`), dans leur `Promise.all`,
+  par `fetchResumeDInvite` (`src/lib/resume-d-invite.ts`) qui porte le `catch → null` une seule fois.
+- Lignes, chacune seulement si servie : bailleur — « N biens suivis par l'agence » + titres (remplace la ligne
+  générique ; compte 0/nul → ligne générique), « Votre dernier loyer · {montantCourt} reçus le {jourMois} »
+  (`paid_at` nul → « {montant} reçus ») ; agent — sa ligne générique (prospects), puis « N biens suivis par l'agence ·
+  Le parc que vous suivrez, depuis votre espace », jamais de loyer ; prestataire — l'intervention jointe, jamais de
+  biens ni de loyer ; les trois — « N pièces à envoyer » si `missing_documents > 0`.
+- Noms des pièces : tirés de `GET /api/me/pieces` (déjà lu par la page) avec le filtre de l'API (obligatoires et
+  `missing`, pas `aDonner` qui compterait les refusées), écrits seulement si leur nombre égale le compte du résumé ;
+  sinon « Quand vous voulez, depuis votre espace ».
+- Clés neuves sous `onboarding.invite.attente.chiffres.*` (15, par l'outil de verrou ; `wo` = `fr`).
+
+**Preuves** : `CeQuiVousAttend.tck-2949` 7/7 (AC1, AC2 ×2, ligne par rôle, noms discordants) ; tests des pages
+mis à jour (`resume` passé ; 404 du seul résumé → `null`, les autres lectures intactes) ; `src/components/onboarding/invite/__tests__`
++ tests des assistants 107/107 ; `tsc` propre (hors `ResteARapprocher.test.tsx`, TCK-2933 en cours) ; eslint ;
+`check:*` front et `scripts/check-*.mjs` verts. Ablations une à une (restaurées par `cp`, md5 vérifié), toutes
+rouges : ligne des biens retirée (AC1), `catch` retiré du helper (page prestataire), garde « noms = compte » retirée.
+- AC-F1 : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2613.json`, l'écart accepté « 3 biens suivis… » passé en
+  `ecarts_resolus` (2026-11-15).
+- AC-F2 **non mesuré** : pas de relevé au navigateur dans ce lot (consigne du porteur, 2026-11-15).

@@ -11,6 +11,7 @@ import { WizardReprenable, type WizardStep } from '@/components/wizard/WizardRep
 import { agentOnboardCompleteAction } from '@/app/actions/agent-onboarding';
 import { INDICATIF_PAR_DEFAUT, recomposerTelephone, relireTelephoneBrouillon } from '@/lib/phone';
 import type { PieceDuProfil } from '@/lib/pieces/pieces';
+import type { ResumeDInvite } from '@/lib/resume-d-invite';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
 import { CeQuiVousAttend } from './invite/CeQuiVousAttend';
@@ -39,6 +40,8 @@ export type AgentOnboardingWizardProps = {
   specialite?: string | null;
   /** Les pièces du profil (`GET /api/me/pieces`, `X-Profile-Id`) ; `null` si la lecture a échoué. */
   pieces?: readonly PieceDuProfil[] | null;
+  /** TCK-2949 — le résumé chiffré du panneau de l'étape du numéro (`invite-summary`) ; `null` : sans chiffres. */
+  resume?: ResumeDInvite | null;
 };
 
 /**
@@ -54,7 +57,7 @@ function specialiteConnue(valeur: string | null | undefined): Specialisation | '
   return (SPECIALISATIONS as readonly string[]).includes(valeur ?? '') ? (valeur as Specialisation) : '';
 }
 
-export function AgentOnboardingWizard({ agentProfileId, agence = null, specialite = null, pieces = null }: AgentOnboardingWizardProps) {
+export function AgentOnboardingWizard({ agentProfileId, agence = null, specialite = null, pieces = null, resume = null }: AgentOnboardingWizardProps) {
   const t = useTranslations('agents.onboarding');
   const router = useRouter();
   const toast = useToast();
@@ -136,7 +139,7 @@ export function AgentOnboardingWizard({ agentProfileId, agence = null, specialit
               numero={api.data.phone.number}
               onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
               agence={agence}
-              panneau={<CeQuiVousAttend qui="agent" agence={agence} />}
+              panneau={<CeQuiVousAttend qui="agent" agence={agence} resume={resume} pieces={pieces} />}
               onVerifie={() => {
                 api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
                 api.allerA(1);

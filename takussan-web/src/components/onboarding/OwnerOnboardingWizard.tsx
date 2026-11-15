@@ -16,6 +16,7 @@ import {
 } from '@/lib/phone';
 import type { InterlocuteurDuBailleur } from '@/lib/owner-onboarding';
 import type { PieceDuProfil } from '@/lib/pieces/pieces';
+import type { ResumeDInvite } from '@/lib/resume-d-invite';
 
 import { AssistantDInvite, etapeDInvite } from './invite/AssistantDInvite';
 import { BiensDuBailleur } from './invite/BiensDuBailleur';
@@ -42,6 +43,8 @@ export type OwnerOnboardingWizardProps = {
   pieces?: readonly PieceDuProfil[] | null;
   /** TCK-2838 — l'interlocuteur à l'agence (`GET /api/me/owner-profiles/{id}/interlocuteur`) ; `null` : aucune carte. */
   interlocuteur?: InterlocuteurDuBailleur | null;
+  /** TCK-2949 — le résumé chiffré du panneau de l'étape du numéro (`invite-summary`) ; `null` : sans chiffres. */
+  resume?: ResumeDInvite | null;
 };
 
 /**
@@ -64,7 +67,7 @@ function relireBrouillon(data: WizardData): WizardData {
   };
 }
 
-export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = null, interlocuteur = null }: OwnerOnboardingWizardProps) {
+export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = null, interlocuteur = null, resume = null }: OwnerOnboardingWizardProps) {
   const t = useTranslations('owners.onboarding');
   const router = useRouter();
   const toast = useToast();
@@ -122,7 +125,7 @@ export function OwnerOnboardingWizard({ ownerProfileId, agence = null, pieces = 
               numero={api.data.phone.number}
               onNumero={(number) => api.setData({ ...api.data, phone: { ...api.data.phone, number, verified: false } })}
               agence={agence}
-              panneau={<CeQuiVousAttend qui="bailleur" agence={agence} />}
+              panneau={<CeQuiVousAttend qui="bailleur" agence={agence} resume={resume} pieces={pieces} />}
               onVerifie={() => {
                 api.setData({ ...api.data, phone: { ...api.data.phone, code: '', verified: true } });
                 api.allerA(1);

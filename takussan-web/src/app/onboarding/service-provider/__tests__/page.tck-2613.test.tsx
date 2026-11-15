@@ -45,6 +45,8 @@ vi.mock('@/lib/api', async (importOriginal) => ({
     if (path === '/api/me/pieces') return { data: PIECES };
     if (path === '/api/me/service-provider/agencies') return { data: AGENCES, meta: { total: 3, service_provider_profile_id: reponse.profilDesAgences } };
     if (path === '/api/me/profiles/31') return { data: REGLAGES };
+    // TCK-2949 — le résumé chiffré : 404 de l'API (profil pas encore actif) → l'assistant le reçoit `null`.
+    if (path === '/api/me/profiles/service_provider:31/invite-summary') throw new Error('404');
     throw new Error(`inattendu : ${path}`);
   }),
 }));
@@ -107,6 +109,7 @@ describe('/onboarding/service-provider — ce que l’écran 2 de l’assistant 
       categorie: 'Plomberie',
       reglages: REGLAGES,
       pieces: PIECES,
+      resume: null,
     });
     expect(coque.props.sortie).toBe('quitter');
     expect(coque.props.largeur).toBe('assistant');
@@ -119,6 +122,7 @@ describe('/onboarding/service-provider — ce que l’écran 2 de l’assistant 
       '/api/me/profiles/31/intervention-d-origine?fields[intervention_d_origine]=title,category,place,photo,quote,respond_by,reported_at,reference,reported_by_role,tenant_quote,detail_url',
     );
     expect(reponse.appels.find((a) => a.path === '/api/me/pieces')?.headers).toEqual({ 'X-Profile-Id': 'service_provider:31' });
+    expect(chemins).toContain('/api/me/profiles/service_provider:31/invite-summary');
   });
 
   it('la liste des agences d’un AUTRE profil du compte ne prête pas son agence', async () => {
@@ -135,6 +139,7 @@ describe('/onboarding/service-provider — ce que l’écran 2 de l’assistant 
       categorie: null,
       reglages: null,
       pieces: null,
+      resume: null,
     });
   });
 });

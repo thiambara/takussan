@@ -9,6 +9,7 @@ import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
 import { fetchInterlocuteurDuBailleur } from '@/lib/owner-onboarding';
+import { fetchResumeDInvite } from '@/lib/resume-d-invite';
 import type { MesPiecesResponse } from '@/lib/pieces/pieces';
 
 /**
@@ -54,7 +55,8 @@ export default async function OwnerOnboardingPage({
   // TCK-2613 — l'écran 2 les rappelle, sans en exiger aucune. Un échec de lecture ne rappelle rien.
   // TCK-2838 — l'interlocuteur à l'agence, lu ici (une lecture serveur, pas une action de plus à l'écran 2).
   // Un échec de lecture ne montre aucune carte.
-  const [pieces, interlocuteur] = await Promise.all([
+  // TCK-2949 — le résumé chiffré du panneau de l'étape du numéro ; 404 ou échec → `null`, le panneau sans chiffres.
+  const [pieces, interlocuteur, resume] = await Promise.all([
     apiRequest<MesPiecesResponse>('/api/me/pieces', {
       token,
       headers: { 'X-Profile-Id': `owner:${owner.numeric_id}` },
@@ -62,6 +64,7 @@ export default async function OwnerOnboardingPage({
     fetchInterlocuteurDuBailleur(token, owner.numeric_id)
       .then((res) => res.data)
       .catch(() => null),
+    fetchResumeDInvite(token, 'owner', owner.numeric_id),
   ]);
 
   // TCK-2613 — deux écrans dans la coque d'entrée : chaque écran porte son titre, la barre dit l'agence et l'étape.
@@ -72,6 +75,7 @@ export default async function OwnerOnboardingPage({
         agence={owner.agency?.name ?? null}
         pieces={pieces?.data ?? null}
         interlocuteur={interlocuteur}
+        resume={resume}
       />
     </OnboardingShell>
   );

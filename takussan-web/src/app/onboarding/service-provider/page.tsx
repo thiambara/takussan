@@ -11,6 +11,7 @@ import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { profilAReprendre } from '@/lib/onboarding-reprise';
 import type { MesPiecesResponse } from '@/lib/pieces/pieces';
+import { fetchResumeDInvite } from '@/lib/resume-d-invite';
 import { fetchInterventionDOrigine, fetchReglagesDuPrestataire, fetchSpAgencies } from '@/lib/service-provider-onboarding';
 import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
 
@@ -102,7 +103,8 @@ export default async function ServiceProviderOnboardingPage({
   // TCK-2613 — ce que l'écran 2 montre, lu ici : l'intervention jointe (projection minimale, titulaire seul), les
   // réglages du profil et ses pièces (`X-Profile-Id`) pour « Complétez votre profil », l'agence qui invite. Une
   // lecture en échec n'empêche pas d'entrer : l'écran montre ce qu'il a.
-  const [intervention, reglages, pieces, agences] = await Promise.all([
+  // TCK-2949 — le résumé chiffré du panneau de l'étape du numéro ; 404 ou échec → `null`, le panneau sans chiffres.
+  const [intervention, reglages, pieces, agences, resume] = await Promise.all([
     fetchInterventionDOrigine(token, sp.numeric_id).catch(() => null),
     fetchReglagesDuPrestataire(token, sp.numeric_id).catch(() => null),
     apiRequest<MesPiecesResponse>('/api/me/pieces', {
@@ -110,6 +112,7 @@ export default async function ServiceProviderOnboardingPage({
       headers: { 'X-Profile-Id': `service_provider:${sp.numeric_id}` },
     }).catch(() => null),
     agenciesRes?.ok ? Promise.resolve(agenciesRes.data) : fetchSpAgencies(token).catch(() => null),
+    fetchResumeDInvite(token, 'service_provider', sp.numeric_id),
   ]);
   // L'agence qui invite : la collaboration la plus récente encore ouverte de CE profil (la liste est celle du
   // premier profil prestataire du compte : un autre profil n'y prête pas son agence).
@@ -138,6 +141,7 @@ export default async function ServiceProviderOnboardingPage({
         categorie={categorie}
         reglages={reglages?.data ?? null}
         pieces={pieces?.data ?? null}
+        resume={resume}
         {...(autresAgences.length > 0 ? { autresAgences } : {})}
       />
     </OnboardingShell>
