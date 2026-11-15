@@ -243,6 +243,8 @@ return [
         'invalid_target' => 'The expected target is “lease:{id}” or “property:{id}”.',
         'owner_not_found' => 'The item to attach the document to was not found.',
         'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
+        // TCK-2909
+        'profile_piece_by_kyc' => "An ID document, bank details or NINEA is uploaded through the profile's documents flow.",
         'pdf_template_missing' => 'The document template was not found.',
         'pdf_uploader_missing' => 'The document cannot be generated without an author.',
         'unsupported_type' => 'This kind of item cannot hold documents.',
@@ -543,6 +545,8 @@ return [
         'integration_misconfigured' => 'Online payment is misconfigured for this provider. Please contact your agency.',
     ],
     'payout' => [
+        // TCK-2909
+        'notice_unavailable' => 'Only a completed payout to a landlord has a payout notice.',
         // TCK-2863
         'bank_statement_bank_only' => 'A bank details statement can only be sent for a bank account.',
         'agency_required' => 'A payout is issued on behalf of an agency.',

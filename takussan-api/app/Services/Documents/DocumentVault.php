@@ -236,7 +236,7 @@ final class DocumentVault
             $this->addBills();
         }
 
-        $documents = $this->uploadedDocuments($leases, $allProperties, $contractLeases);
+        $documents = $this->uploadedDocuments($leases, $allProperties, $contractLeases, $activeProfile instanceof OwnerProfile ? (int) $activeProfile->id : null);
         $this->addUploaded($documents);
 
         if (! app(ImpersonationContext::class)->active()) {
@@ -531,7 +531,7 @@ final class DocumentVault
      * @param  Collection<int, Lease>  $allLeases
      * @return Collection<int, Document>
      */
-    private function uploadedDocuments(Collection $leases, Collection $properties, Collection $allLeases): Collection
+    private function uploadedDocuments(Collection $leases, Collection $properties, Collection $allLeases, ?int $ownerProfileId = null): Collection
     {
         $customers = Customer::query()->where('user_id', $this->user->id)->get()
             ->filter(fn (Customer $c): bool => $this->policy->readsTarget($this->user, $c));
@@ -550,6 +550,9 @@ final class DocumentVault
             Inventory::class => $inventories->pluck('id')->all(),
             Customer::class => $customers->pluck('id')->all(),
             User::class => [$this->user->id],
+            // TCK-2909 — le profil bailleur actif : le mandat que l'agence y a déposé (« mes pièces »).
+            // Ses pièces KYC y sont déjà, par la règle d'auteur ; `DocumentPolicy::view` les lui ouvre.
+            OwnerProfile::class => $ownerProfileId !== null ? [$ownerProfileId] : [],
         ];
         $this->readableTargets = array_map(fn (array $ids): array => array_values(array_map('intval', $ids)), $readable);
 

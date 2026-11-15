@@ -35,6 +35,13 @@ class OwnerProfileResource extends BaseResource
             }
         }
 
+        // TCK-2909 — les jours du mandat : des jours calendaires (`Y-m-d`), jamais un instant.
+        foreach (['mandate_starts_on', 'mandate_ends_on'] as $column) {
+            if (array_key_exists($column, $attributes)) {
+                $attributes[$column] = $this->calendarDate($profile->getAttribute($column));
+            }
+        }
+
         // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.
         return array_merge($attributes, IncludedUserResource::inParent($profile, $profile->relationsToArray()), [
             'rib_masked' => $this->masked($profile, 'rib', Masking::iban(...)),

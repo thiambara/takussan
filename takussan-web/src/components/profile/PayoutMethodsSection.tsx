@@ -69,6 +69,9 @@ export function PayoutMethodsSection() {
   const idFormulaire = useId();
 
   const methods = data?.data ?? [];
+  // TCK-2909 — « reversements du 5 de chaque mois » sous le moyen par défaut, quand le mandat du profil
+  // bailleur actif porte un jour de versement ; rien sinon (maquette `app-profil-pieces`, l. 701).
+  const jourDeVersement = typeof data?.meta?.payout_day === 'number' ? data.meta.payout_day : null;
 
   const run = async (fn: () => Promise<unknown>, fallback: string) => {
     setError(null);
@@ -177,6 +180,12 @@ export function PayoutMethodsSection() {
                         <span aria-hidden="true"> · </span>
                         <span>{ribAttendu ? t('ribAttendu') : t('ribEnvoye')}</span>
                       </>
+                    ) : null}
+                    {method.is_default && jourDeVersement !== null ? (
+                      <span data-slot="jour-de-versement">
+                        <span aria-hidden="true"> · </span>
+                        <span>{t('jourDeVersement', { jour: jourDeVersement })}</span>
+                      </span>
                     ) : null}
                   </p>
                 </div>

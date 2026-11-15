@@ -13,6 +13,7 @@ use App\Models\Document;
 use App\Models\Enums\DocumentType;
 use App\Models\Inventory;
 use App\Models\Lease;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
@@ -40,6 +41,8 @@ class DocumentController extends Controller
         'user' => User::class,
         'agency' => Agency::class,
         'inventory' => Inventory::class,
+        // TCK-2909 (ADR-0099 § 5) — le profil d'un bailleur : le mandat signé, déposé par l'agence.
+        'owner_profile' => OwnerProfile::class,
     ];
 
     public function index(Request $request, AgencyDocumentVault $vault): JsonResponse
@@ -175,6 +178,15 @@ class DocumentController extends Controller
             $model === null || ! $user->can('attachTo', [Document::class, $model]),
             404,
             'document.owner_not_found'
+        );
+
+        // TCK-2909 — une pièce KYC (CNI, RIB, NINEA) d'un profil passe par son parcours de pièces
+        // (`/api/me/…/kyc/upload`), jamais par ce dépôt : déposée ici par l'agence, elle échapperait à
+        // la vérification et serait lue par son seul téléverseur.
+        abort_code_if(
+            in_array($model::class, Document::PROFILE_TYPES, true) && in_array(DocumentType::tryFrom((string) $data['type']), Document::PIECE_TYPES, true),
+            422,
+            'document.profile_piece_by_kyc'
         );
 
         $document = Document::create([

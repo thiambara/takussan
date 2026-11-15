@@ -7693,7 +7693,10 @@
         "recherche": "Chercher un locataire, un bien",
         "bailleur": {
           "filtre": "Bailleur : {nom}",
-          "retirer": "Retirer le filtre du bailleur {nom}"
+          "retirer": "Retirer le filtre du bailleur {nom}",
+          "tous": "Tous les bailleurs",
+          "label": "Filtrer par bailleur",
+          "sansNom": "Bailleur sans nom"
         },
         "vide": {
           "titre": "Aucun impayé",
@@ -11423,7 +11426,7 @@
         "caution": "Caution",
         "garant": "Garant",
         "garantAide": "Pièce d’identité à recevoir avant la signature.",
-        "repris": "{n, plural, one {Un champ repris de la candidature.} other {# champs repris de la candidature.}} À la signature, le bien passe en « Loué » et la fiche de {prenom} vous propose l’étape Gagné.",
+        "repris": "{n, plural, one {Un champ repris de la candidature.} other {# champs repris de la candidature.}} Une fois le bail signé, le bien est loué dès le début du bail et la fiche de {prenom} vous propose l’étape Gagné.",
         "annuler": "Annuler",
         "formulaire": "Ouvrir le formulaire complet",
         "creer": "Créer le bail",

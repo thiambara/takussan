@@ -13,6 +13,7 @@ use App\Services\Public\AgentPublic;
  * TCK-2838 — la personne qui, à l'agence, s'occupe d'un bailleur invité.
  *
  * La règle :
+ *  0. (TCK-2909) le référent du mandat désigné par l'agence, s'il y est encore membre actif (`source: referent`) ;
  *  1. l'invitant de la DERNIÈRE invitation qui désigne CE profil (`invitable_*`) au nom de CETTE agence
  *     (`invitations.agency_id = owner_profiles.agency_id`), s'il y est encore membre actif — profil d'agent ou
  *     d'administrateur `active` dans cette agence, compte `active` ;
@@ -28,7 +29,7 @@ use App\Services\Public\AgentPublic;
  */
 class InterlocuteurDuBailleur
 {
-    /** @return array{source: 'inviter'|'agency', first_name: ?string, last_name: ?string, role: 'agent'|'agency_admin'|'agency', phone: ?string, whatsapp: bool}|null */
+    /** @return array{source: 'referent'|'inviter'|'agency', first_name: ?string, last_name: ?string, role: 'agent'|'agency_admin'|'agency', phone: ?string, whatsapp: bool}|null */
     public function pour(OwnerProfile $profil): ?array
     {
         if ($profil->agency_id === null) {
@@ -37,20 +38,26 @@ class InterlocuteurDuBailleur
         $agence = Agency::query()->find((int) $profil->agency_id);
         $numeroDeLAgence = is_string($agence?->phone) && $agence->phone !== '' ? $agence->phone : null;
 
-        $invitant = $this->invitant($profil);
-        $role = $invitant === null ? null : $this->role($invitant, (int) $profil->agency_id);
-        if ($invitant !== null && $role !== null) {
-            $numero = $this->aUneFicheServie($invitant) ? $invitant->numeroPrincipalPublic() : null;
-            $prenom = $invitant->first_name ?: null;
-            $nom = $invitant->last_name ?: null;
+        // TCK-2909 — le référent du mandat (`owner_profiles.referent_agent_id`), quand l'agence en a
+        // désigné un et qu'il y est encore membre actif, passe avant l'invitant : c'est la personne que
+        // l'agence a choisie pour suivre ce bailleur. Même forme, même règle du numéro.
+        $candidats = [['referent', $this->referent($profil)], ['inviter', $this->invitant($profil)]];
+        foreach ($candidats as [$source, $membre]) {
+            $role = $membre === null ? null : $this->role($membre, (int) $profil->agency_id);
+            if ($membre === null || $role === null) {
+                continue;
+            }
+            $numero = $this->aUneFicheServie($membre) ? $membre->numeroPrincipalPublic() : null;
+            $prenom = $membre->first_name ?: null;
+            $nom = $membre->last_name ?: null;
             if ($prenom !== null || $nom !== null || $numero !== null || $numeroDeLAgence !== null) {
                 return [
-                    'source' => 'inviter',
+                    'source' => $source,
                     'first_name' => $prenom,
                     'last_name' => $nom,
                     'role' => $role,
                     'phone' => $numero ?? $numeroDeLAgence,
-                    'whatsapp' => $numero !== null && $invitant->phone_whatsapp === true,
+                    'whatsapp' => $numero !== null && $membre->phone_whatsapp === true,
                 ];
             }
         }
@@ -65,6 +72,14 @@ class InterlocuteurDuBailleur
             'phone' => $numeroDeLAgence,
             'whatsapp' => false,
         ];
+    }
+
+    /** TCK-2909 — le référent désigné, compte `active` (son rôle dans l'agence est jugé ensuite). */
+    private function referent(OwnerProfile $profil): ?User
+    {
+        $referent = $profil->referent_agent_id !== null ? User::query()->find($profil->referent_agent_id) : null;
+
+        return $referent !== null && $referent->status === UserStatus::Active ? $referent : null;
     }
 
     private function invitant(OwnerProfile $profil): ?User

@@ -243,6 +243,8 @@ return [
         'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'L\'objet auquel rattacher le document est introuvable.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
+        // TCK-2909
+        'profile_piece_by_kyc' => "Une pièce d'identité, un RIB ou un NINEA se dépose depuis le parcours des pièces du profil.",
         'pdf_template_missing' => 'Le modèle de document est introuvable.',
         'pdf_uploader_missing' => 'Le document ne peut pas être généré sans auteur.',
         'unsupported_type' => 'Ce type d\'objet ne peut pas porter de document.',
@@ -543,6 +545,8 @@ return [
         'integration_misconfigured' => 'Le paiement en ligne est mal configuré pour ce prestataire. Contactez votre agence.',
     ],
     'payout' => [
+        // TCK-2909
+        'notice_unavailable' => 'Seul un reversement au bailleur, versé, a un avis de versement.',
         // TCK-2863
         'bank_statement_bank_only' => 'Un relevé d\'identité bancaire ne s\'envoie que pour un compte bancaire.',
         'agency_required' => 'Un reversement s\'émet au nom d\'une agence.',

@@ -16,6 +16,8 @@ export type DocumentType =
   // TCK-1272 (P134.02) — pièces du bailleur, posées par son accueil (`DocumentType::Rib`, `Ninea`).
   | 'rib'
   | 'ninea'
+  // TCK-2909 — le mandat de gestion signé, déposé par l'agence sur le profil du bailleur.
+  | 'management_mandate'
   | 'other';
 
 /**

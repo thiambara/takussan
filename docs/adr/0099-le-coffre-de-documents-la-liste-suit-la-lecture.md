@@ -347,3 +347,24 @@ Relevé sur `feat/audit-manques-2026-11-15` le 2026-11-15 :
 
 - `DocumentPolicy::listableOnAgency()` ; `App\Services\Documents\AgencyDocumentVault` ; `DocumentVaultController::agency` (`GET /api/agency/document-vault`) ; `DocumentController::index` (`filter[agency]`, `filter[generated]`) ; `Document::toSearchableArray()` et `config/scout.php` ; `DocumentsDuPorteurObserver` ; `DocumentResource` (`context`).
 - Gardes : `AgencyDocumentVaultTest` (arbre, comptes, alertes, dossier de l'agence, autre agence, agent retiré, impersonation, double appartenance, requêtes constantes, parité liste ↔ `show`, totaux ↔ méta de la liste), vérifiées par ablation de la condition d'agence ; `DocumentContexteTest`.
+
+## Amendement du 2026-11-15 — le profil du bailleur, cible d'un dépôt de l'agence (TCK-2909)
+
+### Contexte
+
+Le § 5 nommait l'alias `owner_profile`, mais `POST /api/documents` ne l'acceptait pas et `DocumentPolicy::reaches()` n'avait aucune branche pour un profil : l'agence ne pouvait déposer aucune pièce du bailleur, dont le mandat de gestion signé que sa fiche montre.
+
+### Décision
+
+1. **`owner_profile` est une cible de dépôt.** Le personnel actif de l'agence du profil (`isStaffOf`) y dépose et y lit ; le **titulaire** du profil y lit (jamais il n'y dépose par cette route : ses pièces passent par son parcours de pièces). Aucune autre agence, aucun autre bailleur : 404 au dépôt, 403 à la fiche, rien à la liste.
+2. **Les pièces KYC d'un profil (CNI, RIB, NINEA, `Document::PIECE_TYPES`) restent fermées à la branche du porteur** : `view` les refuse à qui n'en est pas le téléverseur (le titulaire) ou le super-admin, `listableOn` les retire de la liste d'un lecteur qui lit la cible par cette branche, le dépôt d'un de ces types sur un profil par `POST /api/documents` est refusé (422 `document.profile_piece_by_kyc`), et `share` ne les ouvre plus au personnel de l'agence du profil — sa branche « personnel de l'agence du porteur » publiait, AVANT ce ticket, un lien public vers la CNI d'un bailleur. Ouvrir le profil au personnel n'ouvre donc rien de ce que seul le super-admin lisait.
+3. **Un type neuf, `management_mandate`** (le mandat de gestion signé). La fiche du bailleur (`GET /api/owners/{id}`) rend la dernière pièce de ce type (`mandate_document` : nom, date, taille, type, chemin de sa fiche) ; le coffre du bailleur la range dans « mes pièces », sous son profil bailleur actif.
+
+### Conséquences
+
+- Le compte par type de la liste porte une clé de plus (`management_mandate`) ; le vocabulaire du coffre aussi.
+- Les documents d'un profil de bailleur vivent sur la fiche du bailleur : la liste de l'agence (`filter[agency]=current`, § 4 de l'amendement du 2026-11-15) ne les range pas, comme les pièces d'une fiche client.
+
+### Application
+
+`DocumentController` (`ALLOWED_DOCUMENTABLE_TYPES`, refus des pièces), `DocumentPolicy::reaches()` / `view()` / `listableOn()`, `DocumentVault` (cible du profil actif), `OwnerDirectory::detail()`. Gardes : `OwnerDocumentUploadTest` (dépôt, lecture de la fiche, du coffre, parité avec une autre agence, les quatre portes des pièces KYC), vérifiées par ablation.

@@ -106,7 +106,8 @@ export async function fetchOwnerProperties(
  * Le rôle est un code ; le texte se compose ici, sous `onboarding.invite.bailleur.interlocuteur.roles`.
  */
 export type InterlocuteurDuBailleur = {
-  source: 'inviter' | 'agency';
+  // TCK-2909 — `referent` : le référent du mandat désigné par l'agence, avant l'invitant.
+  source: 'referent' | 'inviter' | 'agency';
   first_name?: string | null;
   last_name?: string | null;
   role?: 'agent' | 'agency_admin' | 'agency';

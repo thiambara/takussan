@@ -21,6 +21,8 @@ export const DOCUMENT_TYPE_ORDER: readonly DocumentType[] = [
   'passport',
   'rib',
   'ninea',
+  // TCK-2909
+  'management_mandate',
   'insurance',
   'inventory_report',
   'photo',

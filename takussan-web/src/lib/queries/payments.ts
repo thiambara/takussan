@@ -460,7 +460,8 @@ export function useOwnerStatement(period: string, landlordId?: number) {
  * prestataire). L'API ne rend jamais que le numéro MASQUÉ à l'agence ; l'écran ne montre que lui.
  */
 export function useMyPayoutMethods(enabled = true) {
-  return useApiQuery<ApiResponse<PayoutMethod[]>>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
+  // TCK-2909 — `meta.payout_day` : le jour de versement du mandat du profil bailleur actif (1-28), `null` sinon.
+  return useApiQuery<ApiResponse<PayoutMethod[]> & { meta?: { payout_day?: number | null } }>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
     enabled,
   });
 }

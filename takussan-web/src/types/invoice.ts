@@ -57,6 +57,8 @@ export type Payout = {
   status: PayoutStatus;
   /** TCK-594 (ADR-0039 §2) — le bénéficiaire explicite ; une caution rendue est `tenant`. */
   payee_role?: PayeeRole | null;
+  /** TCK-2909 — acompte, solde, restitution, remboursement constaté, facture de prestataire ; `null` pour un reversement au bailleur antérieur. */
+  nature?: 'advance' | 'balance' | 'deposit_refund' | 'refund' | 'provider_bill' | null;
   service_provider_bill_id?: number | null;
   approved_by_id?: number | null;
   approved_at?: string | null;

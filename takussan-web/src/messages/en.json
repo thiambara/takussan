@@ -8925,7 +8925,10 @@
         "recherche": "Search a tenant or a property",
         "bailleur": {
           "filtre": "Landlord: {nom}",
-          "retirer": "Remove the landlord filter {nom}"
+          "retirer": "Remove the landlord filter {nom}",
+          "tous": "All landlords",
+          "label": "Filter by landlord",
+          "sansNom": "Unnamed landlord"
         },
         "vide": {
           "titre": "No unpaid rent",
@@ -11996,7 +11999,7 @@
         "caution": "Security deposit",
         "garant": "Guarantor",
         "garantAide": "ID document to receive before signing.",
-        "repris": "{n, plural, one {One field taken from the application.} other {# fields taken from the application.}} On signing, the property becomes “Rented” and {prenom}’s record suggests the Won stage.",
+        "repris": "{n, plural, one {One field taken from the application.} other {# fields taken from the application.}} Once the lease is signed, the property is let from the lease start and {prenom}’s record suggests the Won stage.",
         "annuler": "Cancel",
         "formulaire": "Open the full form",
         "creer": "Create the lease",

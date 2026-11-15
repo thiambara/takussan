@@ -2,8 +2,12 @@
 
 namespace App\Services\Owners;
 
+use App\Http\Requests\Api\Owners\UpdateOwnerProfileRequest;
+use App\Models\Address;
 use App\Models\Agency;
+use App\Models\Document;
 use App\Models\Enums\Capability;
+use App\Models\Enums\DocumentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PayeeRole;
@@ -14,6 +18,7 @@ use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerStatementPolicy;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Invitation\InvitationService;
 use App\Services\Payout\OwnerStatementService;
 use App\Services\Payout\OwnerStatementSnapshots;
@@ -472,6 +477,8 @@ final class OwnerDirectory
                 'full_name' => $profile->display_name !== '' ? $profile->display_name : null,
                 'email' => (is_string($landlord?->email) && trim($landlord->email) !== '' ? $landlord->email : null) ?? self::metadataString($profile, 'email'),
                 'phone' => (is_string($landlord?->phone) && trim($landlord->phone) !== '' ? $landlord->phone : null) ?? self::metadataString($profile, 'phone'),
+                // TCK-2909 — l'adresse du compte (sa dernière adresse), `null` sans compte ni adresse.
+                'address' => self::addressOf($landlord),
             ],
             'pending_invitation_id' => OwnerProfile::query()->whereKey($profile->id)
                 ->select(['pending_invitation_id' => Invitation::idEnvoyeePour(new OwnerProfile)
@@ -487,6 +494,9 @@ final class OwnerDirectory
                 'fees' => (float) ($totals['fees'] ?? 0),
                 'net' => (float) ($totals['net'] ?? 0),
                 'paid_out' => (float) ($totals['paid_out'] ?? 0),
+                // TCK-2909 — les encaissements du mois : les lignes de loyer et d'acompte du MÊME relevé
+                // que `collected` (les pénalités de retard, portées par une ligne de loyer, n'en sont pas).
+                'collections_count' => count($statement['lines']['lease_payments'] ?? []) + count($statement['lines']['booking_payments'] ?? []),
                 // L'écart DU MOIS (`net − paid_out` de la période) : le reste à verser est `balance`.
                 'remaining_to_pay' => (float) ($totals['remaining_to_pay'] ?? 0),
                 'from_snapshot' => ($statement['snapshot'] ?? null) !== null,
@@ -502,6 +512,9 @@ final class OwnerDirectory
             ],
             'next_payout' => $statement['next_payout'] ?? null,
             'works_approval_threshold' => $profile->works_approval_threshold !== null ? (float) $profile->works_approval_threshold : null,
+            // TCK-2909 — les termes du mandat, et la pièce « mandat de gestion » déposée sur le profil.
+            'mandate' => $this->mandateOf($profile),
+            'mandate_document' => self::mandateDocumentOf($profile),
             'agency_commission_rate' => $agencyRate,
             // TCK-2641 — les identifiants sensibles, MASQUÉS seulement (ADR-0044 § 1), comme sur une
             // ligne du carnet ({@see OwnerProfileResource}) : la fiche porte « Afficher », qui passe par
@@ -512,6 +525,77 @@ final class OwnerDirectory
             // Le taux d'un bail peut différer de celui de l'agence : les taux propres des baux en cours.
             'lease_commission_rates' => $leaseRates,
         ];
+    }
+
+    /**
+     * TCK-2909 — les termes du mandat ({@see UpdateOwnerProfileRequest}) :
+     * dates (jours calendaires), moyen et jour de versement, et le référent nommé ; `is_active` faux
+     * quand il n'est plus personnel actif de l'agence (la valeur reste écrite, l'écran le signale).
+     *
+     * @return array<string, mixed>
+     */
+    private function mandateOf(OwnerProfile $profile): array
+    {
+        $referent = $profile->referent_agent_id !== null ? User::withTrashed()->find($profile->referent_agent_id) : null;
+
+        return [
+            'starts_on' => $profile->mandate_starts_on?->toDateString(),
+            'ends_on' => $profile->mandate_ends_on?->toDateString(),
+            'payout_method' => $profile->payout_method?->value,
+            'payout_day' => $profile->payout_day,
+            'referent' => $referent === null ? null : [
+                'id' => $referent->id,
+                'first_name' => $referent->first_name,
+                'last_name' => $referent->last_name,
+                'is_active' => PersonnelDeLAgence::estPersonnel($referent, $profile->agency_id),
+            ],
+        ];
+    }
+
+    /**
+     * TCK-2909 — la dernière pièce `management_mandate` déposée sur le profil : nom, date, taille et
+     * type du fichier qui fait foi, et le chemin de sa fiche (`GET /api/documents/{id}`, qui juge la
+     * lecture). `null` sans pièce.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function mandateDocumentOf(OwnerProfile $profile): ?array
+    {
+        $document = Document::query()
+            ->where('documentable_type', OwnerProfile::class)
+            ->where('documentable_id', $profile->id)
+            ->where('type', DocumentType::ManagementMandate->value)
+            ->with('media')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+        if ($document === null) {
+            return null;
+        }
+        $file = $document->currentFile();
+
+        return [
+            'id' => $document->id,
+            'name' => $document->name,
+            'created_at' => $document->created_at,
+            'file_size' => $file?->size,
+            'mime_type' => $file?->mime_type,
+            'download_path' => route('documents.show', ['document' => $document->id], false),
+        ];
+    }
+
+    /** TCK-2909 — l'adresse lisible de la dernière adresse du compte. */
+    private static function addressOf(?User $landlord): ?string
+    {
+        if ($landlord === null) {
+            return null;
+        }
+
+        return Address::query()
+            ->where('addressable_type', $landlord->getMorphClass())
+            ->where('addressable_id', $landlord->id)
+            ->orderByDesc('id')
+            ->first()?->full_address;
     }
 
     /** @param  callable(string): string  $mask */

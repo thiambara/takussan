@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\PayoutController;
 use App\Http\Controllers\Api\PayoutMethodController;
+use App\Http\Controllers\Api\PayoutNoticePdfController;
 use App\Http\Controllers\Api\PayoutPreparationController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,6 +12,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-594 — littérale, donc AVANT `payouts/{payout}`.
     Route::get('payouts/preparation', [PayoutPreparationController::class, 'show'])->name('payouts.preparation');
     Route::get('payouts/{payout}', [PayoutController::class, 'show'])->name('payouts.show');
+    // TCK-2909 — l'avis de versement d'un reversement au bailleur terminé (PDF).
+    Route::get('payouts/{payout}/notice/pdf', PayoutNoticePdfController::class)->name('payouts.notice.pdf');
     // TCK-594 (ADR-0039 §4) × TCK-589 — `approve` et `mark-processed` sont sous step-up 2FA :
     // `ProtectedActions::STEP_UP`, lue par `RequireRecentTwoFactor` (middleware du groupe `api`).
     Route::post('payouts/{payout}/approve', [PayoutController::class, 'approve'])->name('payouts.approve');

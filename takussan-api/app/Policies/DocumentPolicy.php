@@ -69,6 +69,13 @@ class DocumentPolicy extends BasePolicy
             return true;
         }
 
+        // TCK-2909 — une pièce KYC de profil (CNI, RIB, NINEA) ne s'ouvre jamais par la branche du
+        // porteur : depuis que le personnel de l'agence atteint le profil du bailleur, elle ouvrirait à
+        // l'agence ce que seul le titulaire (son téléverseur, ci-dessus) et le super-admin lisent.
+        if ($model->isProfilePiece()) {
+            return false;
+        }
+
         $documentable = $model->documentable;
 
         return $documentable !== null && $this->reaches($user, $documentable, writing: false);
@@ -128,7 +135,9 @@ class DocumentPolicy extends BasePolicy
             || ($this->landlordWrites($user, $model->uploaded_by, $agencyId)
                 && $this->televerseurGarde($user, $model, writing: true))
             || ($porteur && isset($porteur->user_id) && $this->landlordWrites($user, $porteur->user_id, $agencyId))
-            || ($porteur && isset($porteur->agency_id) && $this->isStaffOf($user, $porteur->agency_id));
+            // TCK-2909 — jamais une pièce KYC de profil (CNI, RIB, NINEA) par la branche du personnel :
+            // elle publiait un lien public vers la pièce d'identité d'un bailleur, que `view` lui refuse.
+            || (! $model->isProfilePiece() && $porteur && isset($porteur->agency_id) && $this->isStaffOf($user, $porteur->agency_id));
     }
 
     /**
@@ -422,7 +431,12 @@ class DocumentPolicy extends BasePolicy
         }
 
         if (! $user->isSuperAdmin() && app(self::class)->readsTarget($user, $target)) {
-            return $query;
+            // TCK-2909 — sur un profil, la branche du porteur n'ouvre pas les pièces KYC (`view`) : le
+            // titulaire les liste par la règle d'auteur, jamais le personnel.
+            return in_array($target::class, Document::PROFILE_TYPES, true)
+                ? $query->where(fn (Builder $q) => $q->excludingProfilePieces()
+                    ->orWhereIn('id', self::restreindreAuTeleverseur(Document::query(), $user)->select('id')))
+                : $query;
         }
 
         return self::restreindreAuTeleverseur($query, $user);
@@ -606,6 +620,14 @@ class DocumentPolicy extends BasePolicy
 
         if ($documentable instanceof User) {
             return $documentable->id === $user->id;
+        }
+
+        if ($documentable instanceof OwnerProfile) {
+            // TCK-2909 (ADR-0099 § 5) — le profil du bailleur dans une agence : son titulaire le lit
+            // (le mandat que l'agence y a déposé), le personnel de cette agence le lit et y dépose.
+            // Les pièces KYC du profil restent fermées à la branche du porteur (`view`).
+            return (! $writing && $documentable->user_id !== null && (int) $documentable->user_id === $user->id)
+                || $this->isStaffOf($user, $documentable->agency_id);
         }
 
         if ($documentable instanceof Agency) {

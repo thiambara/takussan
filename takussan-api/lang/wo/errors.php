@@ -243,6 +243,8 @@ return [
         'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
+        // TCK-2909
+        'profile_piece_by_kyc' => "Une pièce d'identité, un RIB ou un NINEA se dépose depuis le parcours des pièces du profil.",
         'pdf_template_missing' => 'Modèle document bi gisuñu ko.',
         'pdf_uploader_missing' => 'Document bi mënuñu ko defar te amul ki ko def.',
         'unsupported_type' => 'Xeetu mbir mii mënul am document.',
@@ -543,6 +545,8 @@ return [
         'integration_misconfigured' => 'Feyu internet bi baaxul ngir jottalikat bii. Jokkool ak sa ajaas.',
     ],
     'payout' => [
+        // TCK-2909
+        'notice_unavailable' => 'Seul un reversement au bailleur, versé, a un avis de versement.',
         // TCK-2863
         'bank_statement_bank_only' => 'Un relevé d\'identité bancaire ne s\'envoie que pour un compte bancaire.',
         'agency_required' => 'Reversement dañu koy def ci turu agence.',
