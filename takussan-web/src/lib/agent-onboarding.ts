@@ -46,6 +46,43 @@ export type AgentFirstLeadEntry = {
   email: string | null;
   phone: string | null;
   pipeline_stage: string | null;
+  // TCK-2945 — la carte complète du premier prospect (projection `AgentFirstLead` de TCK-2942, la même pour
+  // `GET …/first-lead` et pour `complete()`). Chaque champ peut être `null` : la carte n'en rend alors pas la ligne.
+  need: AgentFirstLeadNeed | null;
+  /** Chaînes `decimal:2` (« 300000.00 »), comme `CustomerResource`. */
+  budget_min: string | null;
+  budget_max: string | null;
+  /** Instant ISO. */
+  last_contacted_at: string | null;
+  last_contact_channel: string | null;
+  origin: AgentFirstLeadOrigin | null;
+  agency_note: AgentFirstLeadNote | null;
+};
+
+/** TCK-2945 — les critères de recherche de la fiche ; `null` côté API quand aucun n'est posé. */
+export type AgentFirstLeadNeed = {
+  contract_type: 'rent' | 'sale' | string | null;
+  property_types: string[];
+  cities: string[];
+  neighborhoods: string[];
+  min_bedrooms: number | null;
+};
+
+/** TCK-2945 — d'où vient le prospect : la demande de contact et son bien, sinon le bien d'intérêt. */
+export type AgentFirstLeadOrigin = {
+  kind: 'contact_lead' | 'interested_property';
+  channel: string | null;
+  received_at: string | null;
+  property_id: number | null;
+  property_title: string | null;
+  property_reference: string | null;
+};
+
+/** TCK-2945 — la note libre de l'agence sur la fiche ; `author_name` nul pour la colonne `customers.notes`. */
+export type AgentFirstLeadNote = {
+  body: string;
+  author_name: string | null;
+  created_at: string | null;
 };
 
 export type AgentFirstLeadResponse = {

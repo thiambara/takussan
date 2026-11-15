@@ -38,6 +38,16 @@ interface MeCapabilities {
   readonly capabilities: readonly CapabilityValue[];
 }
 
+/**
+ * TCK-2945 — `GET /api/me/agent-profiles/{id}/role-capabilities` (TCK-2942) : `capabilities` (= `granted`) ce que
+ * le RÔLE donne, `denied` ce que le catalogue d'un rôle d'agence offre et que ce rôle ne donne pas. Optionnels :
+ * une réponse d'avant TCK-2942 n'en porte pas, et l'écran ne liste alors aucun refus.
+ */
+export interface AgentRoleCapabilities extends MeCapabilities {
+  readonly granted?: readonly CapabilityValue[];
+  readonly denied?: readonly CapabilityValue[];
+}
+
 export const meCapabilityKeys = {
   all: ['me', 'capabilities'] as const,
   forAgency: (agencyId?: number) => ['me', 'capabilities', agencyId ?? 'active'] as const,
@@ -77,7 +87,8 @@ export function useMyCapabilities(agencyId?: number, enabled = true) {
  * un droit présent — ne jamais s'en servir pour proposer un geste.
  */
 export function useAgentRoleCapabilities(agentProfileId: number) {
-  return useApiQuery<ApiResponse<MeCapabilities>>(
+  // TCK-2945 — la réponse porte aussi `denied`.
+  return useApiQuery<ApiResponse<AgentRoleCapabilities>>(
     ['me', 'agent-profiles', agentProfileId, 'role-capabilities'],
     `/api/me/agent-profiles/${agentProfileId}/role-capabilities`,
     { staleTime: 5 * 60 * 1000 },

@@ -310,8 +310,10 @@ export function BiensDuBailleur({ ownerProfileId, agence, telephone, pieces, int
       </div>
 
       {aDonnerAuBureau.length > 0 || interlocuteur ? (
-        <aside className="hidden space-y-4 pt-13 xl:block">
+        <aside className="hidden space-y-4 pt-13 lg:block" data-testid="volet-du-bailleur">
           {/* TCK-2838 — au bureau seulement : au téléphone, rien de neuf (ticket). */}
+          {/* TCK-2945 — dès `lg` (et non plus dès `xl`) : de 1024 à 1279, une colonne, ce volet SOUS les biens
+              (maquette `max-xl:max-w-[640px]`, aside jamais caché ; ADR-0106 § 4) ; à droite dès `xl`. */}
           {interlocuteur ? <CarteDeLInterlocuteur interlocuteur={interlocuteur} agence={agence} /> : null}
           {aDonnerAuBureau.length > 0 ? (
           <div className="rounded-2xl border border-border bg-card p-5" data-testid="a-faire-pour-etre-paye">

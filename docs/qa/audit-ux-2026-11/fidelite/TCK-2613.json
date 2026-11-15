@@ -98,10 +98,10 @@
     },
     {
       "ecran": "app-entree-assistants a-0/a-1/a-2",
-      "element": "contenus (biens, prospect, intervention, numéro masqué, compteurs « n sur 5 »)",
-      "propriete": "texte, présence des états « Loué » / « En travaux », budget, dernier contact, origine du prospect",
+      "element": "contenus (biens, intervention, numéro masqué, compteurs « n sur 5 »)",
+      "propriete": "texte, présence des états « Loué » / « En travaux »",
       "exception": "donnée",
-      "motif": "relevé sur la démo : ses biens sont « Disponible », son prospect n'a ni budget ni dernier contact ni origine renseignés"
+      "motif": "relevé sur la démo : ses biens sont « Disponible »"
     },
     {
       "ecran": "app-entree-assistants a-2-*",
@@ -139,13 +139,6 @@
       "motif": "décision de team-lead (2026-11-14, 2a) : la coque d'entrée partagée (TCK-2598) dit « Quitter » sur toutes ses pages. L'assistant reprend pourtant réellement là où l'invité l'a laissé (brouillon serveur à chaque écran, reprise par ?owner=/?agent=/?sp= et par le bandeau de /app, écran imposé par le numéro vérifié) : « Reprendre plus tard » serait plus juste — piste notée au ticket pour toute la coque. « Étape N sur 2 » est désormais écrit (`avancementEcrit`)."
     },
     {
-      "ecran": "app-entree-assistants a-1-*",
-      "element": "droits refusés (✗) de la liste « Ce que vous pouvez faire dans l'agence »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "GET /api/me/agent-profiles/{id}/role-capabilities (TCK-589) ne sert que les droits que le rôle accorde ; la maquette en montre un extrait avec des refus. Servir les refus serait un delta d'API (ticket à part si le porteur le veut)"
-    },
-    {
       "ecran": "app-entree-assistants a-4-bureau-1280",
       "element": "« 3 biens suivis… », « Ton dernier loyer », « 2 pièces à envoyer » du panneau « {agence} t'attend »",
       "propriete": "texte",
@@ -178,6 +171,24 @@
       "element": "colonne de 1080 px sans panneau voisin (écart non listé en v1)",
       "resolu_le": "2026-11-14",
       "comment": "EtapeDuNumero : `xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]`, colonne de 480 px et CeQuiVousAttend à droite dès xl ; mesuré 480 + 542 px à 1280"
+    },
+    {
+      "ecran": "app-entree-assistants a-1-*",
+      "element": "carte du premier prospect : besoin, budget, dernier contact, « Venu par », note de l'agence (ex-écart accepté [1], part du prospect)",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2942 (projection `AgentFirstLead`) + TCK-2945 (`DetailsDuProspect` dans ProspectDeLAgent) : chaque ligne seulement si l'API la rend ; assistants.tck-2945 AC3"
+    },
+    {
+      "ecran": "app-entree-assistants a-1-*",
+      "element": "droits refusés (✗) de « Ce que vous pouvez faire dans l'agence » (ex-écart accepté [7])",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2942 : `denied` sur role-capabilities ; TCK-2945 : accordés (✓) puis « Pas dans votre rôle » (✗), lus de `denied` ; assistants.tck-2945 AC4"
+    },
+    {
+      "ecran": "app-entree-assistants a-0/a-4 bureau 1024-1279",
+      "element": "volet de droite caché sous 1280 (« À faire pour être payé », interlocuteur ; « {agence} vous attend »)",
+      "resolu_le": "2026-11-15",
+      "comment": "TCK-2945 : `hidden lg:block` (était `xl:block`), une colonne et le volet DESSOUS de 1024 à 1279 (ADR-0106 § 4) ; colonne du numéro 480 px centrée dès lg ; assistants.tck-2945 AC1/AC2"
     }
   ]
 }
