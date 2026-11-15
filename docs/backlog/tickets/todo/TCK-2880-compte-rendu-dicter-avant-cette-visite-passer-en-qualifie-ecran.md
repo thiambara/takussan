@@ -92,4 +92,22 @@ Ce que la maquette qui fait foi dessine et qui manque — vérifié dans ses fic
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté (vague 92), front seul.**
+
+- **Dictée** : un mécanisme partagé, écrit ici pour TCK-2903 — `lib/dictee.ts` (constructeur `SpeechRecognition` / `webkitSpeechRecognition`, langue `fr-FR`/`en-US`, `wo` → `fr-FR`, `ajouterALaNote` borné à 2000, codes d'erreur) et `hooks/useDictee.ts` (disponibilité par `useSyncExternalStore`, faux au serveur : bouton absent du DOM sans l'API ; écoute, durée cumulée, arrêt au démontage). Rendu sous la note du compte rendu, dans la même boîte (`NoteDictee` de la maquette) : « Dicter », « J'écoute… », « 0:14 dictées · modifiable », erreur sous le champ (espace i18n `dictee.erreurs`, réutilisable par TCK-2903).
+- **« Et maintenant ? »** : l'interrupteur et « Terminer » sont retirés. La question `PasserEnQualifie` n'est rendue que si l'API propose « Qualifié » : `suggested_stage` est désormais lu au show de la fiche — ajouté à `ATTRIBUTS_CALCULES_DE_LA_FICHE` (seule exception de `show-sans-fields.garde`), la fiche client le reçoit aussi. « Oui » = `PATCH …/pipeline-stage` (relu avant d'écrire, comme avant) ; « Plus tard » = `POST …/suggested-stage/dismiss` avec le `reason` de l'API (un 409 retire aussi la question). **Choisir une suite n'écrit plus l'étape** (ADR-0103 § 5 : « Oui » est le geste de l'agent).
+- **« Passer »** (en-tête du téléphone, maintenant un bouton) : sans suite choisie et avec fiche, `POST /api/tasks` « Relancer {prénom} » échue demain 09:00 (Dakar), puis `follow_up = remind` sur le compte rendu — c'est ce qui empêche un second « Passer » de reposer la tâche ; toast « Relance posée pour demain · Annuler » (Annuler : `DELETE /api/tasks/{id}` puis `follow_up = null`).
+- La phrase « Sans choix, une relance est proposée demain dans « Aujourd'hui » » n'est dite qu'au téléphone avec fiche : au bureau, aucun « Passer » ne la pose.
+- **Bureau** (même condition partout : personnel et compte rendu à droite, `apresLaVisite`) : en-tête « Voir le bien » (→ `/app/properties/{id}`, la fiche du bien du back-office ; le lien public de la carte du bien est retiré dans cette disposition pour ne pas doubler) et « Ouvrir la fiche de {prénom} » ; carte du visiteur « {téléphone} · 1re visite · Prospect » (la pastille de rang et la ligne « Étape » ne s'y répètent plus) ; carte « Avant cette visite » sous le visiteur (`AvantCetteVisite`), au seul personnel actif de l'agence (`ficheClient`) et avec fiche client.
+
+- **La question ne lit que l'API** : la réponse de l'écriture ne sait pas qu'un « Plus tard » l'a écartée (sinon elle revenait au remontage, pendant la relecture de la fiche) — elle paraît donc après la relecture de la fiche.
+- **Décision à trancher** : « Passer » trace aussi `follow_up = remind` (le ticket ne le demande pas) pour qu'un second « Passer » ne repose pas la tâche ; « Annuler » le remet à `null` (vérifié : `VisitReportService` écrit le null, `TaskPolicy::delete` permet au créateur).
+
+**Prémisses qui différaient**
+- Le contrat cite `GET …/timeline?types=…` : le paramètre réel est `filter[type]=note,contact,visit`. Une requête, `per_page=50` ; la borne (début prévu de la visite) et le tri des seules notes `lead_message` se font au front, l'ordre est celui de l'API.
+- « Plus tard » exige le `reason` exact de la proposition courante : il n'était lisible nulle part côté écran (d'où l'ajout de `suggested_stage` au show).
+- « Visite confirmée, SMS envoyé » : le fil ne dit pas si le SMS est parti — libellé du fil de la fiche (« Visite confirmée · {rendez-vous} »).
+
+**Tests** : `compte-rendu.tck-2880.test.tsx` (14) ; `compte-rendu.tck-2581.test.tsx` réécrit sur la question (l'interrupteur n'existe plus) ; `fiche-du-client.tck-2589.test.ts` (le champ ajouté). Ablations rouges : append de la dictée, disponibilité forcée, borne de « Avant », étape écrite par une suite, « Passer » sans tâche.
+
+**Non mesuré** : AC-F2 (pas de relevé au navigateur pour ce lot) ; AC5 « visible le lendemain dans Aujourd'hui » repose sur la mécanique existante des tâches échues, non rejouée ici.

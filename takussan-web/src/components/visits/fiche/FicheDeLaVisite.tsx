@@ -37,6 +37,8 @@ import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { CustomerDetail } from '@/types/customer';
 import type { PropertyVisit } from '@/types/visit';
 
+import { AvantCetteVisite } from '@/components/visits/compte-rendu/AvantCetteVisite';
+
 import { AutreHeure } from './AutreHeure';
 import { AdresseCourte, AutresGestes, CarteCreneau, CarteEnRoute, CarteLieu, CarteVisiteur, DeclencheurDeGeste, Etapes, Etiquette, Monogramme, PastilleDeStatut, PhotoDuBien, type AutreGeste } from './pieces';
 
@@ -709,6 +711,15 @@ function PlusDActions({ gestes }: { readonly gestes: readonly AutreGeste[] }) {
 }
 
 /**
+ * TCK-2880 — la fiche du bureau quand le compte rendu tient la droite (`colonne` faux : le personnel
+ * de l'agence, compte rendu à faire ou fait). UNE condition pour l'en-tête (« Voir le bien », « Ouvrir
+ * la fiche de … »), la ligne du visiteur (« 1ʳᵉ visite · Prospect ») et « Avant cette visite ».
+ */
+function apresLaVisite(p: FicheDeLaVisiteProps): boolean {
+  return p.personnel && !p.colonne;
+}
+
+/**
  * L'en-tête de page du bureau, et la barre du jour J dessous. Posé par le conteneur au-dessus de la
  * grille du compte rendu (TCK-2581) : le titre court sur toute la largeur.
  */
@@ -767,9 +778,22 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
   } else if (personnel) {
     const premiere = proposees.heures[0] ?? null;
     const confirmer = g.confirmer;
+    // TCK-2880 — la visite terminée, compte rendu à droite (maquette `app-fil-commercial` a-4/a-5) :
+    // « Voir le bien » et « Ouvrir la fiche de {prénom} » dans l'en-tête.
+    const fiche = apresLaVisite(p) && v.customer?.id ? `/app/customers/${v.customer.id}` : null;
     actions = (
       <>
         <PlusDActions gestes={autres} />
+        {apresLaVisite(p) && v.property_id ? (
+          <Link href={`/app/properties/${v.property_id}`} className={buttonVariants({ variant: 'outline' })}>
+            {t('bureau.voirLeBien')}
+          </Link>
+        ) : null}
+        {fiche ? (
+          <Link href={fiche} className={buttonVariants({ variant: 'outline' })}>
+            {l.prenom ? t('bureau.ouvrirLaFicheDe', { prenom: l.prenom }) : t('bureau.ouvrirLaFiche')}
+          </Link>
+        ) : null}
         {etat === 'a-confirmer' && confirmer ? (
           <>
             <Button variant="outline" onClick={() => p.onAutreHeure(true)}>
@@ -971,7 +995,8 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
       slot="carte-bien"
       titre={t('bureau.bien')}
       action={
-        v.property?.slug ? (
+        // TCK-2880 — après la visite, « Voir le bien » est dans l'en-tête (maquette a-4/a-5).
+        v.property?.slug && !apresLaVisite(p) ? (
           <Link href={`/properties/${v.property.slug}`} className={LIEN_DE_CARTE}>
             {t('lieu.voirLeBien')}
           </Link>
@@ -996,6 +1021,9 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
   );
 
   const visiteurCarte = !p.visiteur ? <CarteVisiteurBureau p={p} l={l} message={messageGenerique} /> : null;
+  // TCK-2880 — « Avant cette visite » : la demande, la réponse, la confirmation, sous le visiteur ;
+  // au seul personnel actif de l'agence (`ficheClient`), et seulement s'il y a une fiche client.
+  const avant = apresLaVisite(p) && p.ficheClient && v.customer?.id ? <AvantCetteVisite clientId={v.customer.id} visite={v} /> : null;
   const sesVisites = personnel && p.colonne && v.customer_id ? <SesVisites v={v} /> : null;
   const biens = p.ficheClient && p.colonne && v.customer?.id ? <BiensCorrespondants clientId={v.customer.id} prenom={l.prenom ?? l.nom} numero={l.numero} /> : null;
 
@@ -1011,6 +1039,7 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
           {creneau}
           {bienCarte}
           {!p.colonne ? visiteurCarte : null}
+          {avant}
         </div>
         {p.colonne ? (
           <div className="min-w-0 space-y-6">
@@ -1067,6 +1096,8 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
   const etape = client?.pipeline_stage && tCrm.has(client.pipeline_stage) ? tCrm(client.pipeline_stage) : null;
   const fiche = p.personnel && v.customer?.id ? `/app/customers/${v.customer.id}` : null;
   const affiche = l.numero ?? l.brut;
+  const apres = apresLaVisite(p);
+  const ligneApres = [affiche && formaterTelephone(affiche) !== l.nom ? formaterTelephone(affiche) : null, l.rang, etape].filter(Boolean).join(' · ');
   return (
     <CarteBureau
       slot="carte-visiteur"
@@ -1084,14 +1115,19 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
           <Monogramme nom={l.nom} className="size-11 text-base" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-action font-semibold text-foreground">{l.nom}</p>
-            {affiche && formaterTelephone(affiche) !== l.nom ? <p className="text-sm tabular-nums text-muted-foreground">{formaterTelephone(affiche)}</p> : null}
+            {apres ? (
+              // TCK-2880 — « {téléphone} · 1ʳᵉ visite · Prospect » (maquette a-4/a-5, la carte « Le visiteur »).
+              ligneApres ? <p data-slot="ligne-du-visiteur" className="text-ui tabular-nums text-muted-foreground">{ligneApres}</p> : null
+            ) : affiche && formaterTelephone(affiche) !== l.nom ? (
+              <p className="text-sm tabular-nums text-muted-foreground">{formaterTelephone(affiche)}</p>
+            ) : null}
             {l.email ? (
               <a href={`mailto:${l.email}`} className="block truncate text-sm text-muted-foreground hover:text-foreground hover:underline">
                 {l.email}
               </a>
             ) : null}
           </div>
-          {p.personnel && l.rang ? <span className="inline-flex h-6 flex-none items-center rounded-full bg-secondary px-2.5 text-xs font-medium text-primary-deep">{l.rang}</span> : null}
+          {p.personnel && l.rang && !apres ? <span className="inline-flex h-6 flex-none items-center rounded-full bg-secondary px-2.5 text-xs font-medium text-primary-deep">{l.rang}</span> : null}
         </div>
         {l.numero || fiche ? (
           <div className="mt-4 flex gap-2">
@@ -1120,7 +1156,7 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
             ) : null}
           </div>
         ) : null}
-        {cherche || etape ? (
+        {cherche || (etape && !apres) ? (
           <dl data-slot="cherche-etape" className="mt-4 space-y-3 border-t border-border pt-4">
             {cherche ? (
               <div>
@@ -1128,7 +1164,7 @@ function CarteVisiteurBureau({ p, l, message }: { readonly p: FicheDeLaVisitePro
                 <dd className="mt-0.5 text-sm text-foreground">{cherche}</dd>
               </div>
             ) : null}
-            {etape ? (
+            {etape && !apres ? (
               <div>
                 <dt className="text-ui text-muted-foreground">{t('etape')}</dt>
                 <dd className="mt-0.5 text-sm text-foreground">{etape}</dd>

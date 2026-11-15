@@ -177,7 +177,8 @@ export async function fetchDashboardCustomer(
  * l'API, et qu'aucun autre nom n'est envoyé.
  */
 // TCK-2761 — `visit_places` : l'adresse du bien de chaque visite à venir, rendue sur `upcoming_visits[]`.
-export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent', 'visit_places'] as const;
+// TCK-2880 — `suggested_stage` : l'étape proposée et son fait, que « Plus tard » renvoie (« Et maintenant ? »).
+export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent', 'visit_places', 'suggested_stage'] as const;
 
 /**
  * TCK-2589 — ce que la fiche lit en une requête : pièces, étiquettes, bien d'intérêt, origine, les

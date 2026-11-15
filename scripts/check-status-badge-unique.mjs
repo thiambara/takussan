@@ -148,6 +148,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
     "trois tons de la PASTILLE D'ICÔNE d'une suite à donner (neutre, conseillée, WhatsApp) : une "
     + 'action proposée, jamais un statut — la pastille ne porte pas de texte, elle est doublée par '
     + 'le titre de la ligne'],
+  // TCK-2880 — « Avant cette visite » : les faits du fil d'avant la visite, au bureau.
+  ['takussan-web/src/components/visits/compte-rendu/AvantCetteVisite.tsx',
+    "la couleur d'un TYPE de fait du fil (demande, jalon de visite, geste de contact), comme "
+    + "`FilDuClient`, peinte sur la PASTILLE D'ICÔNE d'une ligne, jamais un statut — et le ton "
+    + 'WhatsApp est un aplat PLEIN (`bg-success text-success-foreground`), que `StatusBadge` ne rend pas'],
   // TCK-2654, lot 4 — la semaine du prestataire.
   ['takussan-web/src/components/maintenance/acteurs/InterventionsDuPrestataire.tsx',
     "trois GENRES d'un créneau (prévu, à accepter, fait) peints sur les BLOCS d'une grille de la "

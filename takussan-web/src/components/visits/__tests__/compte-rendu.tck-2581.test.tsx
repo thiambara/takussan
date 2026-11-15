@@ -264,75 +264,61 @@ describe('TCK-2581 — le compte rendu', () => {
     expect(screen.queryByRole('link', { name: /Envoyer par WhatsApp/ })).toBeNull();
   });
 
-  it('AC3 — l\'interrupteur est allumé ; éteint puis « Terminer » : aucun PATCH d\'étape', async () => {
+  // TCK-2880 — l'interrupteur et « Terminer » ont laissé la place à la question « Passer en Qualifié ? ».
+  it('TCK-2880 — « Passer en Qualifié ? » : aucun interrupteur, et rien ne part sans « Oui »', async () => {
     const user = userEvent.setup();
     monter();
     await enregistrer(user, /^Intéressé$/);
-    const interrupteur = await screen.findByRole('switch');
-    expect(interrupteur.getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByText('Passer en « Qualifié »')).toBeTruthy();
-    // Rien ne part tant qu'on n'a pas validé.
-    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(0);
-
-    await user.click(interrupteur);
-    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+    expect(await screen.findByText('Passer en Qualifié ?')).toBeTruthy();
+    expect(screen.getByText('Prospect → Qualifié')).toBeTruthy();
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Terminer' })).toBeNull();
     await new Promise((r) => setTimeout(r, 50));
     expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(0);
   });
 
-  it('AC3 — allumé, « Terminer » envoie l\'étape « Qualifié », une seule fois', async () => {
+  it('TCK-2880 — « Oui » envoie l\'étape « Qualifié », une seule fois, et la question se retire', async () => {
     const user = userEvent.setup();
     monter();
     await enregistrer(user, /^Intéressé$/);
-    await screen.findByRole('switch');
-    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+    await user.click(await screen.findByRole('button', { name: 'Oui' }));
     await waitFor(() => expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1));
     expect(ecritures('/api/customers/37/pipeline-stage')[0]?.corps).toEqual({ pipeline_stage: 'qualified' });
     expect(ecritures('/api/customers/37/pipeline-stage')[0]?.methode).toBe('PATCH');
+    await waitFor(() => expect(screen.queryByText('Passer en Qualifié ?')).toBeNull());
   });
 
-  it('choisir une suite la trace (`follow_up`) et applique l\'étape allumée', async () => {
+  it('TCK-2880 — choisir une suite la trace (`follow_up`) SANS écrire l\'étape (ADR-0103 § 5)', async () => {
     const user = userEvent.setup();
     monter();
     await enregistrer(user, /^Intéressé$/);
     await user.click(await screen.findByRole('link', { name: /Envoyer par WhatsApp/ }));
     await waitFor(() => expect(ecritures('/api/property-visits/228/report').filter((e) => e.methode === 'PATCH')).toHaveLength(1));
     expect(ecritures('/api/property-visits/228/report').find((e) => e.methode === 'PATCH')?.corps).toEqual({ follow_up: 'invite_apply' });
-    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(0);
   });
 
-  it('AC3 — choisir une suite PUIS « Terminer » : l\'étape ne s\'écrit qu\'une fois', async () => {
-    // La fiche relue reste « Prospect » (le double ne la change pas) : seule la mémoire de l'écran
-    // (`etapeAppliquee`) retient que l'étape est déjà partie.
+  it('AC3 — l\'étape a avancé depuis l\'ouverture de l\'écran : « Oui » ne l\'écrase pas', async () => {
     const user = userEvent.setup();
     monter();
     await enregistrer(user, /^Intéressé$/);
-    await user.click(await screen.findByRole('link', { name: /Envoyer par WhatsApp/ }));
-    await waitFor(() => expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1));
-    await user.click(screen.getByRole('button', { name: 'Terminer' }));
-    await new Promise((r) => setTimeout(r, 100));
-    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1);
-  });
-
-  it('AC3 — l\'étape a avancé depuis l\'ouverture de l\'écran : « Terminer » ne l\'écrase pas', async () => {
-    const user = userEvent.setup();
-    monter();
-    await enregistrer(user, /^Intéressé$/);
-    expect((await screen.findByRole('switch')).getAttribute('aria-checked')).toBe('true');
+    const oui = await screen.findByRole('button', { name: 'Oui' });
     // Un collègue fait avancer la fiche pendant que l'écran est ouvert : l'écran l'ignore encore.
     etat.etape = 'negotiation';
-    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+    await user.click(oui);
     await new Promise((r) => setTimeout(r, 100));
     expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(0);
   });
 
-  it('une fiche déjà « Qualifié » : pas d\'interrupteur', async () => {
+  it('une fiche déjà « Qualifié » : pas de question', async () => {
     etat.etape = 'qualified';
     const user = userEvent.setup();
     monter();
     await enregistrer(user, /^Intéressé$/);
     await screen.findByText('Inviter à candidater');
-    await waitFor(() => expect(screen.queryByRole('switch')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Passer en Qualifié ?')).toBeNull());
+    expect(screen.queryByRole('switch')).toBeNull();
   });
 
   it('AC5 — « Créer le bail » est inactif sans candidature acceptée', async () => {
@@ -462,7 +448,7 @@ describe('TCK-2581 — au téléphone, deux étapes plein écran', () => {
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith('/app/visits/228?etape=et-maintenant'));
   });
 
-  it('« Modifier » puis retour sans enregistrer : la validation suivante ne réécrit pas l\'étape sur un `from` périmé', async () => {
+  it('« Modifier » puis retour sans enregistrer : la question ne revient pas sur un `from` périmé', async () => {
     // L'écran « Et maintenant ? » se démonte à « Modifier » ; `SuiteDeLaVisite` garde la réponse de
     // l'écriture (`suggested_stage.from` = « Prospect »), et un écran remonté oublie ce qu'il a écrit.
     ecrans(true);
@@ -484,7 +470,7 @@ describe('TCK-2581 — au téléphone, deux étapes plein écran', () => {
 
     nav.recherche = 'etape=et-maintenant';
     rerender(arbre());
-    await user.click(await screen.findByRole('link', { name: /Envoyer par WhatsApp/ }));
+    await user.click(await screen.findByRole('button', { name: 'Oui' }));
     await waitFor(() => expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1));
 
     nav.recherche = 'etape=compte-rendu';
@@ -492,8 +478,9 @@ describe('TCK-2581 — au téléphone, deux étapes plein écran', () => {
     await screen.findByRole('heading', { level: 1, name: 'Comment s’est passée la visite ?' });
     nav.recherche = 'etape=et-maintenant';
     rerender(arbre());
-    await user.click(await screen.findByRole('button', { name: 'Terminer' }));
-    await new Promise((r) => setTimeout(r, 100));
+    // TCK-2880 — la fiche relue est « Qualifié » : la question ne revient pas, rien ne se réécrit.
+    await screen.findByText('Inviter à candidater');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Oui' })).toBeNull());
     expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1);
   });
 
