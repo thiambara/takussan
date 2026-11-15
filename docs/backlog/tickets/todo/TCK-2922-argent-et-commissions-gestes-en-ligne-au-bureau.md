@@ -79,4 +79,45 @@ La spec ne détaille pas ces gestes de ligne : à reporter par `/sync-specs`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté (agent délégué).**
+
+Prémisses re-mesurées, et ce qui différait :
+
+- **« Refuser » n'existait pas dans le détail** : `PayoutDetailDialog` n'offre « Annuler » qu'aux statuts
+  `pending/scheduled/processing`, sans motif, et `POST /api/payouts/{id}/cancel` n'en prenait aucun. « Le même
+  motif que le refus du détail » n'existait donc pas. Corrigé ici plutôt que d'envoyer un motif jeté : l'API
+  accepte `reason` (facultatif, ≤ 500, `CancelPayoutRequest`, autorisation inchangée `PayoutPolicy::update`),
+  gardé dans `metadata.cancel_reason` (non exposé par `PayoutResource` : aucune clé de ressource neuve). Le
+  « Refuser » en ligne l'exige. Test `PayoutTest::test_cancel_keeps_the_refusal_reason`.
+- **L'annulation n'est pas gardée par `payouts.approve`** mais par `PayoutPolicy::update` (le préparateur, ou
+  `payouts.create`) : « Refuser » suit `gestes.peutAnnulerUnReversement` (= `payouts.create`) ou le préparateur ;
+  la carte entière reste sous `payouts.approve` (AC2).
+- **« Approuver » en ligne = le geste du détail** : même mutation (`usePayoutApprove`, step-up 2FA résolu par
+  `useApiMutation`), sans `payout_method_id` (le détail garde par défaut la destination PRÉVUE). Sans destination
+  prévue (hors caution rendue), le détail en préselectionne une : la ligne ouvre alors le détail au lieu
+  d'approuver sans. Le préparateur voit « Approuver » désactivé, avec la raison du détail (quatre yeux).
+- **« relancé à l'instant »** : la ligne le dit quand la NOTE de la relance a été prise (la promesse que
+  `FeuilleDeRelance` passe à `onFermer`) ; une note refusée ne marque rien. La relance est la `FeuilleDeRelance`
+  de l'écran Impayés (panneau latéral dès `md`) : aucune seconde implémentation.
+- **AC4** : « Restant dû » remplacé par « En attente » (`status=pending`, borné par l'échéance, règle D2) ;
+  « N virement(s) annoncé(s) » seulement si une seconde lecture `payment_method=bank_transfer` compte autant que
+  la première (ou si le moyen filtré est le virement), sinon « N paiement(s) en attente ». Clés `totaux.restant`
+  et `totaux.aEncaisser` retirées (plus lues).
+- **AC5** : l'export des commissions n'a pas de filtre par bénéficiaire (`from`, `to`, `limit`) ; le relevé de
+  l'agent est celui que la vue admin sert déjà (`?agent=`, contrat du ticket). L'icône de la rangée (déjà un
+  `FileText` vers `?agent=`, nommée « Lignes de {nom} ») devient « Relevé de l'agent — {nom} » (+ `title`) ; le
+  lien `?agent=` reste. Clé `commissions.admin.lignesDe` retirée.
+- **AC3** : le menu ⋯ (`TableDesImpayes`, partagé avec Rapports : options TCK-2868 intactes) — « Fiche client »,
+  « Encaisser un paiement » (`LeasePaymentDialog`, monté par `Impayes`, `onEncaisser` facultatif), « Voir le
+  bail ». Le clic d'un élément du menu (portail) remontait à la rangée et aurait ouvert le dossier : la garde de
+  la rangée ignore `[role=menuitem]`. Colonne des gestes 9,5 → 11,75 rem.
+- Garde `check-i18n-namespaces` : un import de `DialogueDeGeste` (commissions) depuis « Argent » franchissait la
+  frontière ; le dialogue de refus est écrit sur les primitives `Dialog`.
+
+Tests (ablation une à une, restauration vérifiée par md5) : `argent/__tests__/gestes-en-ligne.tck-2922.test.tsx`
+(10), `argent.tck-2659` (N1 « Restant dû » → 2 tests AC4), `impayes.tck-2660` (2 tests ⋯), `commissions.tck-2662`
+(1 test AC5), `PayoutTest` (1). Fiches de fidélité : entrées couvertes retirées de TCK-2659, 2677, 2660, 2682
+(TCK-2662 n'en portait aucune pour l'icône).
+
+**Non mesuré** (pas de navigateur dans ce lot) : AC6, AC-F2, AC-F3 — à relever au navigateur par la session.
+

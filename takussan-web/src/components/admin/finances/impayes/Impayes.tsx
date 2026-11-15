@@ -144,6 +144,9 @@ export function Impayes({
   const [pagesTelephone, setPagesTelephone] = useState(1);
   const [aRelancer, setARelancer] = useState<{ readonly row: PaymentHistoryRow; readonly ouverte: boolean } | null>(null);
   const [dossier, setDossier] = useState<{ readonly row: PaymentHistoryRow; readonly relancer: boolean; readonly ouvert: boolean } | null>(null);
+  // TCK-2922 — « Encaisser un paiement » du menu ⋯ d'une rangée (bureau), sans passer par le dossier.
+  const [aEncaisser, setAEncaisser] = useState<PaymentHistoryRow | null>(null);
+  const queryClient = useQueryClient();
 
   const f = useFormatteurs();
   const l = useLectureDImpaye();
@@ -353,6 +356,8 @@ export function Impayes({
                       }}
                       selection={{ coche: selection.coche, changer: selection.changer, figee: fileApi.file !== null }}
                       enCours={fileApi.enCours?.id ?? null}
+                      // TCK-2922 — le menu ⋯ de la rangée.
+                      onEncaisser={fileApi.file ? undefined : setAEncaisser}
                     />
                   </div>
                 ) : (
@@ -386,6 +391,21 @@ export function Impayes({
             row={aRelancer.row}
             ouverte={aRelancer.ouverte}
             onFermer={() => setARelancer((a) => (a ? { ...a, ouverte: false } : a))}
+          />
+        ) : null}
+        {/* TCK-2922 — l'encaissement ouvert depuis le menu ⋯ : le même dialogue que le pied du dossier. */}
+        {aEncaisser?.lease_id ? (
+          <LeasePaymentDialog
+            leaseId={aEncaisser.lease_id}
+            open
+            onOpenChange={(ouvert) => {
+              if (!ouvert) setAEncaisser(null);
+            }}
+            paiementInitial={aEncaisser.id}
+            onEncaisse={(paymentId) => {
+              selection.retirer([paymentId]);
+              void queryClient.invalidateQueries({ queryKey: ['payments', 'history'] });
+            }}
           />
         ) : null}
         {dossier ? (

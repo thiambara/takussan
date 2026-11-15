@@ -10738,7 +10738,8 @@
         "tailleMo": "{n} Mo",
         "tailleKo": "{n} Ko",
         "leBailNumero": "Le bail {reference} de ce bien",
-        "rangeImpose": "Le document sera rangé dans « {dossier} »."
+        "rangeImpose": "Le document sera rangé dans « {dossier} ».",
+        "luSurLaPhoto": "Lu sur la photo."
       },
       "archive": {
         "toutTelecharger": "Tout télécharger",

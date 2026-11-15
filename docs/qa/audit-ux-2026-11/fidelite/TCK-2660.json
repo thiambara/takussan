@@ -112,11 +112,6 @@
       "exception": "décision du porteur (validation du 2026-11-14)"
     },
     {
-      "element": "« ⋯ » (« Plus d’actions ») au bout de chaque rangée (a-1, a-2 bureau)",
-      "motif": "la rangée n’a pas d’autre geste que « Relancer », l’appel et le dossier (clic sur la ligne) : le menu de la maquette ne porte rien que la ligne n’offre déjà. Sans lui, « Relancer » et le téléphone se rangent au bord droit de la colonne (+18 à +24 px). Le porteur a validé le 2026-11-14 la maquette retouchée qui garde « ⋯ », en sachant que le produit ne le porte pas : écart entériné",
-      "exception": "décision du porteur (validation du 2026-11-14)"
-    },
-    {
       "element": "« Rappel automatique » dans la colonne « Dernière relance » (bureau)",
       "motif": "vérité des données : la base de démo du 2026-11-14 porte des relances automatiques sur ces échéances (`last_reminder.source = automatic`)"
     }
@@ -267,7 +262,7 @@
       "element": "« Dernière relance » (« jamais relancé ») et colonnes de la table",
       "propriete": "interligne (15,8 → 18), x des colonnes (« Montant dû » +13, « Dernière relance » +20,3 px), largeurs et hauteur des libellés d’en-tête (14,4 → 36,5 px)",
       "exception": "règle du design system",
-      "motif": "`DataTable` (cellule et en-tête de la table, TCK-2688) ; les colonnes se répartissent sans la colonne « ⋯ » (cf. `ignorer`)"
+      "motif": "`DataTable` (cellule et en-tête de la table, TCK-2688) ; les colonnes se répartissent avec la colonne « ⋯ » (TCK-2922)"
     },
     {
       "ecran": "a-2-bureau-*",

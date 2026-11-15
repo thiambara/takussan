@@ -11316,7 +11316,8 @@
         "tailleMo": "{n} MB",
         "tailleKo": "{n} KB",
         "leBailNumero": "This property’s lease {reference}",
-        "rangeImpose": "The document will be filed under “{dossier}”."
+        "rangeImpose": "The document will be filed under “{dossier}”.",
+        "luSurLaPhoto": "Read from the photo."
       },
       "archive": {
         "toutTelecharger": "Download all",

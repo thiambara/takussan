@@ -431,12 +431,13 @@ export function usePayoutMarkFailed(payoutId: number) {
   );
 }
 
+/** TCK-2922 — `reason` : le motif du « Refuser » en ligne, gardé par l'API (`metadata.cancel_reason`). */
 export function usePayoutCancel(payoutId: number) {
-  return useApiMutation<ApiResponse<Payout>, void>(
+  return useApiMutation<ApiResponse<Payout>, { reason?: string } | void>(
     {
       path: cheminApi`/api/payouts/${payoutId}/cancel`,
       method: 'POST',
-      body: () => undefined,
+      body: (v) => v ?? undefined,
     },
     { relireSurErreur: true, invalidate: [['payouts']] },
   );

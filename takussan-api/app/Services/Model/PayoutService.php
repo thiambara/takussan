@@ -382,10 +382,11 @@ class PayoutService
         return $payout;
     }
 
-    public function cancel(Payout $payout, ?User $actor = null): Payout
+    /** TCK-2922 — `$reason` : le motif du refus (« Refuser » en ligne), gardé dans `metadata.cancel_reason`. */
+    public function cancel(Payout $payout, ?User $actor = null, ?string $reason = null): Payout
     {
         // VERIF-594 M-5 — jugé sous verrou, comme `markFailed`.
-        DB::transaction(function () use ($payout, $actor): void {
+        DB::transaction(function () use ($payout, $actor, $reason): void {
             /** @var Payout $locked */
             $locked = Payout::query()->whereKey($payout->id)->lockForUpdate()->firstOrFail();
 
@@ -396,7 +397,9 @@ class PayoutService
             );
 
             $previous = $locked->status;
-            $locked->update(['status' => PayoutStatus::Cancelled]);
+            $locked->update(['status' => PayoutStatus::Cancelled]
+                // TCK-2922 — le motif du refus, à côté des autres marques du reversement.
+                + ($reason !== null ? ['metadata' => array_merge($locked->metadata ?? [], ['cancel_reason' => $reason])] : []));
             $this->detachItems($locked);
             $this->releaseDeposit($locked, $previous, 'cancelled', $actor);
         });

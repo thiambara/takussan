@@ -145,6 +145,8 @@ function brancherLeReseau() {
           ? lignes.filter(
               (l) =>
                 (!p('status') || l.status === p('status')) &&
+                // TCK-2922 — le moyen (« En attente » : « N virement(s) annoncé(s) »).
+                (!p('payment_method') || (p('payment_method') ?? '').split(',').includes(l.payment_method ?? '')) &&
                 (!(p('paid_from') || p('paid_to')) || dans(l.paid_at, p('paid_from'), p('paid_to'))) &&
                 (!(p('date_from') || p('date_to')) || dans(l.paid_at, p('date_from'), p('date_to')) || dans(l.period_start, p('date_from'), p('date_to'))),
             )
@@ -480,22 +482,38 @@ describe('vérification adverse de TCK-2659', () => {
     }
   });
 
-  it('N1 — « Restant dû » de novembre compte l’échéance en retard de novembre, pas celle d’octobre', async () => {
+  // TCK-2922 — la 3ᵉ case est « En attente » (maquette e3), plus « Restant dû ».
+  it('AC4 (TCK-2922) — « En attente » lit `status=pending` bornée par l’échéance : 1 800 000 F · 1 virement annoncé', async () => {
     serveurBorneParEncaissement = true;
     lignes = [
       ligne({ id: 400, status: 'paid' }),
-      ligne({ id: 401, status: 'late', paid_at: null, paid_amount: 0, amount: 250_000, remaining_amount: 250_000, period_start: '2026-11-01', due_date: '2026-11-05' }),
-      ligne({ id: 402, status: 'late', paid_at: null, paid_amount: 0, amount: 300_000, remaining_amount: 300_000, period_start: '2026-10-01', due_date: '2026-10-05' }),
+      ligne({ id: 401, status: 'pending', payment_method: 'bank_transfer', paid_at: null, paid_amount: 0, amount: 1_800_000, remaining_amount: 1_800_000, period_start: '2026-11-01', due_date: '2026-11-05' }),
+      // Une échéance en attente d'octobre : hors du mois.
+      ligne({ id: 402, status: 'pending', payment_method: 'wave', paid_at: null, paid_amount: 0, amount: 300_000, remaining_amount: 300_000, period_start: '2026-10-01', due_date: '2026-10-05' }),
     ];
     rendre('tab=encaissements&period=2026-11');
 
-    await waitFor(() => expect(lecturesDeLaBande(null).length).toBeGreaterThan(0));
-    for (const u of lecturesDeLaBande(null)) {
+    await waitFor(() => expect(lecturesDeLaBande('pending').length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaBande('pending')) {
       expect(u.searchParams.get('filter[date_from]')).toBe('2026-11-01');
       expect(u.searchParams.has('filter[paid_from]')).toBe(false);
     }
-    await waitFor(() => expect(within(celluleDeTotal('Restant dû')).getByText(/^250\s?000/)).toBeInTheDocument());
-    expect(within(celluleDeTotal('Restant dû')).queryByText(/550\s?000|300\s?000/)).not.toBeInTheDocument();
+    await waitFor(() => expect(within(celluleDeTotal('En attente')).getByText(/^1\s?800\s?000/)).toBeInTheDocument());
+    expect(within(celluleDeTotal('En attente')).getByText('1 virement annoncé')).toBeInTheDocument();
+    expect(screen.queryByText('Restant dû')).not.toBeInTheDocument();
+  });
+
+  it('AC4 (TCK-2922) — des paiements en attente qui ne sont pas tous des virements : « N paiements en attente »', async () => {
+    serveurBorneParEncaissement = true;
+    lignes = [
+      ligne({ id: 401, status: 'pending', payment_method: 'bank_transfer', paid_at: null, paid_amount: 0, amount: 1_800_000, period_start: '2026-11-01' }),
+      ligne({ id: 403, status: 'pending', payment_method: 'wave', paid_at: null, paid_amount: 0, amount: 200_000, period_start: '2026-11-01' }),
+    ];
+    rendre('tab=encaissements&period=2026-11');
+
+    await waitFor(() => expect(within(celluleDeTotal('En attente')).getByText('2 paiements en attente')).toBeInTheDocument());
+    expect(within(celluleDeTotal('En attente')).getByText(/^2\s?000\s?000/)).toBeInTheDocument();
+    expect(within(celluleDeTotal('En attente')).queryByText(/virement/)).not.toBeInTheDocument();
   });
 
   const reversementAApprouver = { id: 77, reference_number: 'PO-2026-0077', net_amount: 1_400_000, currency: 'XOF', status: 'awaiting_approval', period_start: '2026-10-01', issuer: { id: 3, name: 'Ibou Fall' } };

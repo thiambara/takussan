@@ -118,10 +118,6 @@
       "motif": "exclus du ticket : navigation de la famille 3 ; primitives de la coque, communes à tout /app"
     },
     {
-      "element": "« ⋯ » (« Plus d’actions ») au bout de chaque rangée (a-1, a-2 bureau)",
-      "motif": "la rangée n’a pas d’autre geste que « Relancer », l’appel et le dossier (clic sur la ligne) : le menu de la maquette ne porte rien que la ligne n’offre déjà. Sans lui, « Relancer » et le téléphone se rangent au bord droit de la colonne (+18 à +24 px)"
-    },
-    {
       "element": "« Remis », l’icône SMS (lucide-message-square-text) de l’historique des relances",
       "motif": "hors du ticket : Takussan n’envoie ni SMS ni e-mail de relance manuelle (ADR-0105), et rien ne mesure la remise d’un message"
     },
@@ -284,7 +280,7 @@
       "element": "« Dernière relance » (« jamais relancé ») et colonnes de la table",
       "propriete": "interligne (15,8 → 18), x des colonnes (−46 à +17 px), largeurs d’en-tête",
       "exception": "règle du design system",
-      "motif": "`DataTable` (cellule héritée de la table, TCK-2688) ; les colonnes se répartissent sans la colonne de coches (TCK-2682, cf. `ignorer`) et sans la colonne « ⋯ »"
+      "motif": "`DataTable` (cellule héritée de la table, TCK-2688) ; les colonnes se répartissent sans la colonne de coches (TCK-2682, cf. `ignorer`) et avec la colonne « ⋯ » (TCK-2922)"
     },
     {
       "ecran": "a-2-bureau-*",

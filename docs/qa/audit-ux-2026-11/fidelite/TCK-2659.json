@@ -125,14 +125,6 @@
   "ancres": [],
   "ignorer": [
     {
-      "element": "boutons « Relancer » des impayés (a-0 bureau) et l'écran de relance",
-      "motif": "exclus du ticket : la relance est TCK-2660"
-    },
-    {
-      "element": "« Refuser » / « Approuver » en ligne dans « À faire · reversements à approuver » (a-0 bureau)",
-      "motif": "la ligne ouvre le détail du reversement (`PayoutDetailDialog`, « Examiner »), où l'approbation existe déjà avec ses contrôles (destination vérifiée, seuil) ; approuver d'un clic depuis la liste est à trancher au point porteur n° 2"
-    },
-    {
       "element": "« À reverser ce mois »",
       "motif": "exclu du ticket"
     },
@@ -178,13 +170,6 @@
       "motif": "le ticket demande le filtre de période ; le mois est dans l'en-tête, « Dates » pose des bornes Du / Au libres"
     },
     {
-      "ecran": "a-3-bureau-*",
-      "element": "bandeau des totaux, 3ᵉ case",
-      "propriete": "texte (« En attente · 1 virement annoncé » → « Restant dû · à encaisser »)",
-      "exception": "vérité des données",
-      "motif": "`meta.totals` de l'API somme le restant dû de la sélection ; aucun compte de paiements « en attente » n'est lu sans une requête de plus"
-    },
-    {
       "ecran": "a-0-*, a-3-*",
       "element": "pastilles de statut (« Payé », « En attente », « Échoué ») au bureau",
       "propriete": "fond, bordure, rayon, marges",
@@ -211,13 +196,6 @@
       "propriete": "seuil (dès `xl`, le ticket dit « dès `lg` »)",
       "exception": "technique",
       "motif": "la maquette pose les deux colonnes dès `xl` (colonne droite 432 px, gauche 580 px au moins) : à `lg` (largeur utile 694 px) la colonne gauche tomberait sous 300 px. Le produit suit la maquette retenue ; le ticket est à reformuler"
-    },
-    {
-      "ecran": "a-0-bureau-*",
-      "element": "« À faire · impayés les plus anciens » : colonnes montant et relance",
-      "propriete": "x (montant à 688 px au lieu de 569 à 1440)",
-      "exception": "décision produit",
-      "motif": "la colonne « Relancer » est hors du ticket (TCK-2660, cf. `ignorer`) : sans elle la grille garde ses deux colonnes de droite (116 et 124 px de maquette) et le montant se range où était la relance. TCK-2660 réinsère la colonne"
     },
     {
       "ecran": "a-3-bureau-*",
