@@ -1,7 +1,7 @@
 ---
 id: TCK-2776
 title: "La démo sème l'hôte d'une agence individuelle comme le bailleur de ses biens"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -86,14 +86,24 @@ que ce relevé a manquée, il s'arrête et la remonte (b) au lieu de corriger le
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après `migrate:fresh --seed` (lancé par le porteur, jamais par un agent), `GET /api/dashboard/me`
+- [x] AC1 — Après `migrate:fresh --seed` (lancé par le porteur, jamais par un agent), `GET /api/dashboard/me`
   de l'hôte rend `role: owner` et `portfolio_total` égal au nombre de biens hors portefeuille-sorti de
   l'agence 4 (différent de 0).
 - [x] AC2 — `AgenceIndividuelleSemeeTest` est rouge si l'on rétablit la boucle de bailleurs pour l'agence
   `individual` (vérification par ablation).
-- [ ] AC3 — L'accueil `/app` de la persona `hote` : « Ce mois » compte les mêmes biens que ceux dont
+- [x] AC3 — L'accueil `/app` de la persona `hote` : « Ce mois » compte les mêmes biens que ceux dont
   l'accueil montre les visites (relevé de fidélité, lecture seule).
 - [x] AC4 — Les comptes des agences `standard` (biens, bailleurs, baux) sont inchangés à la graine près.
+
+**Preuves AC1 et AC3 (session, 2026-11-15, démo remise à zéro par la session — décision 2a du porteur)** :
+
+- SQL, lecture seule : bailleurs de `studio-aminata` = `50` seul, égal à `primary_admin_id` ; biens dont le bailleur
+  n'est pas l'admin : 0 ; biens hors archivés et vendus : 80 ; visites sur un bien d'un autre bailleur : 0.
+- `GET /api/dashboard/me` (jeton de l'hôte) : 200, `role: owner`, `portfolio_total: 80`, `leases_active: 40`,
+  `cashflow_month: 16705000`, `overdue_count: 1`.
+- Relevé `/app`, persona `hote`, téléphone 390 et bureau 1280 (`fidelite.mjs releve`) : « Ce mois » affiche Biens 80,
+  Baux actifs 40, Encaissé 16,7 M F, En retard 1,6 M F ; les visites à confirmer portent sur ces biens (contrôle SQL
+  ci-dessus). La visite guidée du premier passage recouvre l'écran : elle n'altère pas les chiffres lus.
 
 ## Hors périmètre
 
