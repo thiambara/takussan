@@ -104,13 +104,6 @@
     },
     {
       "ecran": "a-1 / a-2 (bureau)",
-      "element": "« Journal »",
-      "propriete": "présence",
-      "exception": "donnée",
-      "motif": "décision n° 3 : aucune source d'historique de la demande n'est servie par l'API"
-    },
-    {
-      "ecran": "a-1 / a-2 (bureau)",
       "element": "« Statut · Assigné à · Prévu le · Coût réel » et la frise",
       "propriete": "présence (absents de la maquette)",
       "exception": "donnée",

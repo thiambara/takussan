@@ -59,4 +59,10 @@ Sans objet (documentation).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté (TCK-2904).**
+
+- Re-mesure du Journal : `JournalDeLaDemande` est importé l. 39 et rendu l. 180 (bureau, `max-xl:hidden`) et l. 186 (téléphone, `xl:hidden`) de `takussan-web/src/components/maintenance/fiche/FicheDIntervention.tsx` — le ticket citait l. 172/178, les numéros ont glissé. Entrée « « Journal » » retirée de `TCK-2653.json` ; la fiche ne porte aucune liste d'éléments conformes, rien n'y est ajouté.
+- Re-mesure du rappel : `documents:remind-expiring` planifié chaque jour à 07:00 (Dakar) dans `takussan-api/routes/console.php:145` (`RemindExpiringDocuments.php`, J-60 puis J-7) ; la promesse est rendue par `AjoutAuCoffre.tsx:545-558` (`PromesseDuRappel`) et `DocumentDetailClient.tsx:163` via `lib/documents/rappel-d-expiration.ts:33` (`CLE_DE_LA_PROMESSE`).
+- **Prémisse différente** : TCK-2899 est déjà commité sur cette branche (4a3b369e0) — `AjoutAuCoffre.tsx:550-556` affiche « Lu sur la photo. » quand la date lue (MRZ) est encore dans le champ. « Lu sur la photo » n'est donc plus absent par manque de fonction mais conditionnel à la donnée. Décision (option la plus sûre, satisfait AC2) : l'entrée de `TCK-2656.json` est réécrite en « « Lu sur la photo » — présence — donnée », avec renvoi à TCK-2899 et la mention que la promesse des 60 jours n'est plus un écart (TCK-2783), plutôt que supprimée.
+- Non touché (contrainte « rien d'autre ») : la phrase de `notes` de l'écran a-2 de `TCK-2656.json` qui dit « l'interrupteur « Remplace » et la ligne « Lu sur la photo », absents par décision » — récit d'un relevé daté, pas un écart.
+- AC1 : `grep -n '« Journal »' TCK-2653.json` → aucune ligne. AC2 : « aucun rappel d'expiration de document » → 0 occurrence ; l'entrée nomme « Lu sur la photo » et cite TCK-2899. AC3 : `JSON.parse` OK sur les deux ; aucune garde `scripts/check-*.mjs` ne lit `fidelite/` (grep) et toutes sont vertes ; `takussan-web/scripts/fidelite/fidelite.mjs` est l'outil de relevé au navigateur, pas une garde (non lancé, consigne).

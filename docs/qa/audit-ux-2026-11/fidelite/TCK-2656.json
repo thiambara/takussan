@@ -357,10 +357,10 @@
     },
     {
       "ecran": "app-documents a-2-*",
-      "element": "« Lu sur la photo. Nous vous préviendrons 60 jours avant. »",
-      "propriete": "absent",
-      "exception": "vérité des données",
-      "motif": "aucune lecture du texte de la photo, et aucun rappel d'expiration de document n'existe dans l'API."
+      "element": "« Lu sur la photo »",
+      "propriete": "présence",
+      "exception": "donnée",
+      "motif": "TCK-2899 : rendu seulement quand la date d'expiration a été lue sur la photo (bande MRZ, dans le navigateur) et que le champ la porte encore ; une image sans bande lisible n'affiche rien. La promesse « Nous vous préviendrons 60 jours avant » n'est plus un écart : le rappel J-60/J-7 existe depuis TCK-2783 (TCK-2904)."
     },
     {
       "ecran": "app-documents a-2-*",
