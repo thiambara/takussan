@@ -105,7 +105,7 @@ export function LoyersDuBailleur() {
         </p>
       ) : null}
 
-      <OngletsDesLoyers actif={onglet} />
+      <OngletsDesLoyers actif={onglet} compteVersements={releve?.payouts_count} />
 
       {onglet === 'revenus' ? (
         <RevenusDuBailleur

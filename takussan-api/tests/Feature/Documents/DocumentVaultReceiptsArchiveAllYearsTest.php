@@ -3,6 +3,7 @@
 namespace Tests\Feature\Documents;
 
 use App\Jobs\Documents\BatirLArchiveDuCoffreJob;
+use App\Models\AppNotification;
 use App\Models\DocumentVaultArchive;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
@@ -123,5 +124,10 @@ class DocumentVaultReceiptsArchiveAllYearsTest extends TestCase
         $etat = collect($this->getJson('/api/me/document-vault/archives')->assertOk()->json('data'))->firstWhere('folder', 'receipts:all');
         $this->assertSame(['ready', 14], [$etat['status'], $etat['entries_count']]);
         $this->assertCount(14, $this->noms($this->get($etat['download_path'])));
+
+        // TCK-2916 — le coffre ne liste pas `receipts:all` : l'avis mène à la page des paiements, où « Tout
+        // télécharger » de l'historique remet l'archive prête — jamais au coffre, où elle n'apparaît pas.
+        $avis = AppNotification::query()->where('user_id', $this->tenant->id)->where('code', 'document.archive_ready')->sole();
+        $this->assertEquals(['kind' => 'receipts_archive', 'id' => null, 'path' => '/app/payments'], $avis->target);
     }
 }

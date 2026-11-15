@@ -206,6 +206,12 @@ enum NotificationCode: string
     /** TCK-2642 — le loyer d'un bail a été révisé : le bailleur en est prévenu, comme le locataire. */
     case LeaseRentReviewedLandlord = 'lease.rent_reviewed_landlord';
 
+    /**
+     * TCK-2913 (ADR-0098, amendement B) — l'état des lieux est signé par les deux parties : son PDF
+     * (empreinte figée) se télécharge depuis sa fiche. Au locataire et au bailleur du bail.
+     */
+    case InventorySignedPdfAvailable = 'inventory.signed_pdf_available';
+
     // ─── Sorties d'argent (TCK-594, ADR-0039) ───────────────────────────────────────────
     case PayoutAwaitingApproval = 'payout.awaiting_approval';
     case PayoutDue = 'payout.due';
@@ -401,6 +407,7 @@ enum NotificationCode: string
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
             self::LeaseSignatureCompleted => NotificationType::Lease,
             self::LeaseRentReviewedLandlord /* TCK-2642 */ => NotificationType::Lease,
+            self::InventorySignedPdfAvailable /* TCK-2913 */ => NotificationType::Lease,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
@@ -465,6 +472,8 @@ enum NotificationCode: string
             self::PropertySubmittedForReview,
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing,
             self::LeaseSignatureRequested, self::LeaseSignedByParty, self::LeaseSignatureCompleted,
+            // TCK-2913 — comme la signature du bail : un acte contractuel, sans interrupteur.
+            self::InventorySignedPdfAvailable,
             // TCK-597 — le retrait d'une annonce et l'issue d'un signalement : non désactivables.
             self::ModerationPropertyHidden, self::ModerationPropertyRemoved,
             self::ModerationReportUpheld, self::ModerationReportDismissed,
@@ -565,6 +574,7 @@ enum NotificationCode: string
             // TCK-2783 — `days_left` : les jours qui restent au jour de Dakar (60, 7, ou moins au rattrapage).
             self::DocumentExpiringSoon => ['document_name' => self::PARAM_TEXT, 'expires_at' => self::PARAM_DATE, 'days_left' => self::PARAM_COUNT],
             // TCK-2812 — sans paramètre : la cible ouvre le coffre, où l'archive se montre sous son dossier.
+            // TCK-2916 — sauf l'archive des quittances (`receipts:all`, `receipts:lease:{id}`) : cible `receipts_archive`, la page des paiements.
             self::DocumentArchiveReady, self::DocumentArchiveFailed => [],
             // P164.04 (TCK-1808) — le code du rôle système (`agency_admin`), ou le nom d'un rôle créé,
             // que le repli de `role()` rend tel quel.
@@ -602,6 +612,8 @@ enum NotificationCode: string
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
             self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
+            // TCK-2913
+            self::InventorySignedPdfAvailable => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             // TCK-2642
             self::LeaseRentReviewedLandlord => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'old' => self::PARAM_MONEY, 'new' => self::PARAM_MONEY, 'effective_date' => self::PARAM_DATE],
             self::PayoutAwaitingApproval, self::PayoutDue => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],

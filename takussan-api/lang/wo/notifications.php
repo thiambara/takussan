@@ -688,15 +688,16 @@ return [
                 'sms' => 'Takussan : votre pièce « :document_name » expire le :expires_at.',
             ],
             // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            // TCK-2916 — l'avis ouvre le coffre, ou la page des paiements pour l'archive des quittances : le texte ne nomme aucun des deux.
             'archive_ready' => [
                 'title' => 'Votre archive est prête',
-                'body' => 'L’archive des documents que vous avez demandée est prête. Téléchargez-la depuis vos documents dans les 24 heures.',
-                'sms' => 'Takussan : votre archive de documents est prête dans vos documents, pour 24 heures.',
+                'body' => 'L’archive que vous avez demandée est prête. Ouvrez cet avis pour la télécharger dans les 24 heures.',
+                'sms' => 'Takussan : votre archive est prête dans votre espace, pour 24 heures.',
             ],
             'archive_failed' => [
                 'title' => 'Votre archive n’a pas pu être préparée',
-                'body' => 'L’archive des documents que vous avez demandée n’a pas pu être préparée. Réessayez depuis vos documents.',
-                'sms' => 'Takussan : votre archive de documents n’a pas pu être préparée. Réessayez depuis vos documents.',
+                'body' => 'L’archive que vous avez demandée n’a pas pu être préparée. Ouvrez cet avis pour réessayer.',
+                'sms' => 'Takussan : votre archive n’a pas pu être préparée. Réessayez depuis votre espace.',
             ],
         ],
         'kyc' => [
@@ -937,6 +938,14 @@ return [
                 'title' => 'Loyer révisé : :reference',
                 'body' => 'Le loyer du bail :reference pour :property passe de :old à :new à partir du :effective_date.',
                 'sms' => 'Takussan : loyer du bail :reference révisé (:old -> :new) au :effective_date.',
+            ],
+        ],
+        // TCK-2913 (ADR-0098, amendement B) — l'état des lieux signé par les deux parties : son PDF.
+        'inventory' => [
+            'signed_pdf_available' => [
+                'title' => 'État des lieux signé : bail :reference',
+                'body' => 'Le locataire et le bailleur ont signé l’état des lieux du bail :reference pour :property. Téléchargez son PDF depuis la fiche de l’état des lieux.',
+                'sms' => 'Takussan : l’état des lieux du bail :reference est signé. Son PDF est dans votre espace.',
             ],
         ],
         'prospect_match' => [

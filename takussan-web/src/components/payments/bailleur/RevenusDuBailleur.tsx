@@ -1,18 +1,21 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { CalendarClock, Check, ChevronRight, Clock, FileSpreadsheet, FileText, House } from 'lucide-react';
+import { CalendarClock, Check, ChevronRight, Clock, Download, FileSpreadsheet, FileText, House } from 'lucide-react';
 
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTelechargementApi } from '@/hooks/useTelechargementApi';
+import { cheminApi } from '@/lib/chemin-api';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 import { dateDuMois } from '@/lib/finances/mois';
 import { usePaymentsHistory, usePayouts } from '@/lib/queries/payments';
 import { cn } from '@/lib/utils';
-import type { OwnerStatement, OwnerStatementProperty, OwnerStatementTotals, PayoutStatus } from '@/types/invoice';
+import type { OwnerStatement, OwnerStatementProperty, OwnerStatementTotals, Payout, PayoutStatus } from '@/types/invoice';
 
-import { PAYOUT_STATUS_TONE } from '../constants';
+import { aUnAvis, PAYOUT_STATUS_TONE } from '../constants';
 import { estAnnee, tauxUnique } from './adresse';
 import type { FormatDuReleve } from './useTelechargerLeReleve';
 
@@ -81,6 +84,7 @@ export function RevenusDuBailleur({ releve, chargement, erreur, periode, bailleu
       <div className="min-w-0 space-y-5 lg:space-y-4">
         <TeteDuReste releve={releve} />
         <Ventilation releve={releve} periode={periode} />
+        <RegleDeVersement releve={releve} className="hidden lg:block" />
         <DocumentsDuReleve periode={periode} telechargement={telechargement} className="md:hidden" />
       </div>
       <div className="min-w-0 space-y-5 lg:space-y-6">
@@ -97,13 +101,25 @@ export function RevenusDuBailleur({ releve, chargement, erreur, periode, bailleu
 export function TeteDuReste({ releve }: { readonly releve: OwnerStatement }) {
   const t = useTranslations('payments.bailleur.tete');
   const tMoyens = useTranslations('payments.methods');
+  const tSortes = useTranslations('payments.payoutMethodKinds');
   const f = useFormatteurs();
   const solde = releve.balance;
   const prochain = releve.next_payout ?? null;
+  // TCK-2916 — « par virement » : le nom court du moyen, en minuscule dans la phrase (maquette e4).
   const moyen = prochain?.payment_method
-    ? tMoyens.has(prochain.payment_method)
-      ? tMoyens(prochain.payment_method)
-      : prochain.payment_method.replace(/_/g, ' ')
+    ? t.has(`moyensCourts.${prochain.payment_method}`)
+      ? t(`moyensCourts.${prochain.payment_method}`)
+      : tMoyens.has(prochain.payment_method)
+        ? tMoyens(prochain.payment_method)
+        : prochain.payment_method.replace(/_/g, ' ')
+    : null;
+  // TCK-2916 (TCK-2915) — le compte où part le versement, MASQUÉ tel que l'API le sert (« •••• 4521 ») ; un
+  // portefeuille se nomme (« Wave •••• 4521 »), un compte bancaire non : la phrase dit déjà « par virement ».
+  const sorte = prochain?.payout_method_kind ?? null;
+  const compte = prochain?.payout_method_masked
+    ? sorte && sorte !== 'bank_transfer' && tSortes.has(sorte)
+      ? `${tSortes(sorte)} ${prochain.payout_method_masked}`
+      : prochain.payout_method_masked
     : null;
   const gras = (morceau: React.ReactNode) => <span className="font-semibold">{morceau}</span>;
 
@@ -125,6 +141,11 @@ export function TeteDuReste({ releve }: { readonly releve: OwnerStatement }) {
                 ? t.rich('prochain', { date: f.jourMois(prochain.scheduled_at), moyen, b: gras })
                 : t.rich('prochainSansMoyen', { date: f.jourMois(prochain.scheduled_at), b: gras })
               : t('enPreparation')}
+            {compte ? (
+              <span className="block text-ui text-encre-douce" data-testid="compte-du-versement">
+                {compte}
+              </span>
+            ) : null}
           </span>
         </p>
       ) : null}
@@ -206,6 +227,23 @@ function Ventilation({ releve, periode }: { readonly releve: OwnerStatement; rea
         </div>
       ) : null}
     </section>
+  );
+}
+
+/* ─────────────────────────────────────── Règle de versement ─────────────────────────────────────── */
+
+/**
+ * TCK-2916 — « Le versement part le 15 de chaque mois… » : le jour SERVI (`payout_rule.day`, celui du mandat,
+ * sinon celui de l'agence — TCK-2915), jamais un jour écrit en dur. Sans règle, rien.
+ */
+function RegleDeVersement({ releve, className }: { readonly releve: OwnerStatement; readonly className?: string }) {
+  const t = useTranslations('payments.bailleur');
+  const jour = releve.payout_rule?.day ?? null;
+  if (jour === null) return null;
+  return (
+    <p className={cn('px-1 text-ui leading-snug text-muted-foreground', className)} data-testid="regle-de-versement">
+      {t('regle', { jour })}
+    </p>
   );
 }
 
@@ -302,11 +340,70 @@ function EtatDuMois({ bien }: { readonly bien: OwnerStatementProperty }) {
   );
 }
 
-function VignetteDuBien({ className }: { readonly className?: string }) {
+/** TCK-2916 — la vignette du bien (`photo_url`, TCK-2915) ; la maison à défaut de photo. */
+function VignetteDuBien({ url, taille, className }: { readonly url: string | null | undefined; readonly taille: number; readonly className?: string }) {
   return (
-    <span className={cn('inline-flex flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground', className)} aria-hidden="true">
-      <House className="size-5" strokeWidth={1.75} />
+    <span
+      className={cn('relative inline-flex flex-none items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground', className)}
+      aria-hidden="true"
+      data-slot="vignette-du-bien"
+    >
+      {url ? <Image src={url} alt="" fill sizes={`${taille}px`} className="object-cover" /> : <House className="size-5" strokeWidth={1.75} />}
     </span>
+  );
+}
+
+/* ─────────────────────────────────────────── Relances ─────────────────────────────────────────── */
+
+type Relance = NonNullable<OwnerStatementProperty['reminders']>[number] & { readonly at: string };
+
+/** Les relances datées d'un bien en retard, de la plus ancienne à la plus récente (l'API les sert à rebours). */
+function relancesDe(bien: OwnerStatementProperty): readonly Relance[] {
+  if (bien.month_status !== 'late') return [];
+  return (bien.reminders ?? []).filter((r): r is Relance => typeof r.at === 'string' && r.at !== '').slice().sort((a, b) => a.at.localeCompare(b.at));
+}
+
+/**
+ * TCK-2916 (ADR-0105, amendement du 2026-11-15) — sous « Par bien », pourquoi un loyer manque : l'agence a
+ * relancé. Au téléphone, la dernière relance ; au bureau, chacune avec son canal (et son auteur quand il est
+ * servi). Jamais la note interne : l'API ne la sert pas au bailleur.
+ */
+function NotesDeRelance({ releve, biens, variante }: { readonly releve: OwnerStatement; readonly biens: readonly OwnerStatementProperty[]; readonly variante: 'telephone' | 'bureau' }) {
+  const t = useTranslations('payments.bailleur.relances');
+  const tBien = useTranslations('payments.bailleur.parBien');
+  const f = useFormatteurs();
+  const relances = biens.map((bien) => ({ bien, relances: relancesDe(bien) })).filter((x) => x.relances.length > 0);
+  if (relances.length === 0) return null;
+  const canal = (r: Relance) => {
+    const cle = r.channel === 'whatsapp' || r.channel === 'call' ? r.channel : 'other';
+    return r.by_name
+      ? // Devant un prénom, l'élision suit la voyelle écrite : « d'Awa », mais « de Yacine », « de Habib ».
+        t('canalNomme', { canal: cle, nom: r.by_name, voyelle: /^[aeiouàâäéèêëîïôöùûü]/i.test(r.by_name) ? 'oui' : 'non' })
+      : t('canal', { canal: cle });
+  };
+  // « … le 8 nov. (WhatsApp) et le 10 nov. (appel) » : la conjonction vient du dictionnaire — le wolof porte le
+  // texte français, qu'`Intl.ListFormat('wo')` joindrait sans « et ».
+  const liste = (morceaux: readonly string[]) =>
+    morceaux.length <= 1 ? (morceaux[0] ?? '') : t('liste', { debut: morceaux.slice(0, -1).join(', '), fin: morceaux[morceaux.length - 1] as string });
+  // « … le 8 nov. Son loyer… » : la date abrégée porte déjà son point, la phrase n'en ajoute pas un second.
+  const phrase = (debut: string) => `${debut}${debut.endsWith('.') ? '' : '.'} ${t('suite')}`;
+  return (
+    <div data-slot={`relances-${variante}`}>
+      {relances.map(({ bien, relances: rs }) => {
+        const nom = bien.title ?? tBien('bienSansTitre');
+        const derniere = rs[rs.length - 1] as Relance;
+        return (
+          <p
+            key={bien.property_id}
+            className={cn('text-ui leading-snug text-muted-foreground', variante === 'telephone' ? 'border-t border-border px-4 py-3' : 'mt-2 px-1')}
+          >
+            {variante === 'telephone'
+              ? phrase(t('telephone', { bien: nom, agence: releve.agency.name, date: f.jourMois(derniere.at) }))
+              : t('bureau', { bien: nom, agence: releve.agency.name, liste: liste(rs.map((r) => t('une', { date: f.jourMois(r.at), canal: canal(r) }))) })}
+          </p>
+        );
+      })}
+    </div>
   );
 }
 
@@ -340,21 +437,24 @@ function ParBien({ releve, periode }: { readonly releve: OwnerStatement; readonl
       ) : (
         <>
           {/* Téléphone : une carte, une ligne par bien. */}
-          <ul className="mt-3 divide-y divide-border rounded-xl border border-border bg-card lg:hidden" data-slot="par-bien-liste">
-            {biens.map((bien) => (
-              <li key={bien.property_id} className="flex items-center gap-3 px-4 py-3" data-slot="ligne-du-bien">
-                <VignetteDuBien className="size-12" />
-                <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block truncate text-corps font-semibold text-foreground">{titre(bien)}</span>
-                  <span className="block truncate text-ui text-muted-foreground">{locataire(bien)}</span>
-                  <span className="mt-1.5 block">
-                    <EtatDuMois bien={bien} />
+          <div className="mt-3 rounded-xl border border-border bg-card lg:hidden">
+            <ul className="divide-y divide-border" data-slot="par-bien-liste">
+              {biens.map((bien) => (
+                <li key={bien.property_id} className="flex items-center gap-3 px-4 py-3" data-slot="ligne-du-bien">
+                  <VignetteDuBien url={bien.photo_url} taille={48} className="size-12" />
+                  <span className="min-w-0 flex-1 leading-tight">
+                    <span className="block truncate text-corps font-semibold text-foreground">{titre(bien)}</span>
+                    <span className="block truncate text-ui text-muted-foreground">{locataire(bien)}</span>
+                    <span className="mt-1.5 block">
+                      <EtatDuMois bien={bien} />
+                    </span>
                   </span>
-                </span>
-                <span className="flex-none self-start pt-0.5 text-corps font-semibold tabular-nums text-foreground">{m(bien.expected_rent)}</span>
-              </li>
-            ))}
-          </ul>
+                  <span className="flex-none self-start pt-0.5 text-corps font-semibold tabular-nums text-foreground">{m(bien.expected_rent)}</span>
+                </li>
+              ))}
+            </ul>
+            <NotesDeRelance releve={releve} biens={biens} variante="telephone" />
+          </div>
           {/* Bureau : le tableau. Les colonnes de TEXTE (bien, locataire) se rétrécissent (`max-w-0`, deux lignes
               au plus, texte entier en `title` et dans le DOM pour les lecteurs d'écran) ; les montants gardent leur
               largeur, d'un tenant. Aucun titre ni nom, si long soit-il, n'élargit donc la table hors de sa carte ;
@@ -376,9 +476,17 @@ function ParBien({ releve, periode }: { readonly releve: OwnerStatement; readonl
                   <tr key={bien.property_id}>
                     <td className="max-w-0 px-4 py-3">
                       <span className="flex min-w-0 items-center gap-3">
-                        <VignetteDuBien className="size-10" />
-                        <span className="line-clamp-2 min-w-0 font-semibold leading-tight [overflow-wrap:anywhere] text-foreground" title={titre(bien)}>
-                          {titre(bien)}
+                        <VignetteDuBien url={bien.photo_url} taille={40} className="size-10" />
+                        <span className="min-w-0 leading-tight">
+                          <span className="line-clamp-2 font-semibold [overflow-wrap:anywhere] text-foreground" title={titre(bien)}>
+                            {titre(bien)}
+                          </span>
+                          {/* TCK-2916 — la référence du bail de la ligne (TCK-2915), sous le bien. */}
+                          {bien.lease_reference ? (
+                            <span className="block truncate text-xs text-muted-foreground" data-slot="bail-du-bien">
+                              {t('bail', { reference: bien.lease_reference })}
+                            </span>
+                          ) : null}
                         </span>
                       </span>
                     </td>
@@ -409,6 +517,9 @@ function ParBien({ releve, periode }: { readonly releve: OwnerStatement; readonl
                 </tr>
               </tfoot>
             </table>
+          </div>
+          <div className="hidden lg:block">
+            <NotesDeRelance releve={releve} biens={biens} variante="bureau" />
           </div>
         </>
       )}
@@ -450,11 +561,39 @@ function LienDesOperations({ periode, bailleurId, className }: { readonly period
 
 /* ─────────────────────────────────────── Derniers versements ─────────────────────────────────────── */
 
+/** TCK-2916 — « Acompte de novembre », « Solde d'octobre » (élision devant une voyelle) ; la période à défaut de nature. */
+function useLibelleDuVersement() {
+  const t = useTranslations('payments.bailleur.versements');
+  const f = useFormatteurs();
+  return (v: Payout): string => {
+    const mois = v.period_start ? f.date(v.period_start, { month: 'long', timeZone: 'UTC' }) : null;
+    const voyelle = mois !== null && /^[aeiouyàâäéèêëîïôöùûüh]/i.test(mois) ? 'oui' : 'non';
+    switch (v.nature) {
+      case 'advance':
+        return mois ? t('nature.advance', { mois, voyelle }) : t('nature.advanceSansMois');
+      case 'balance':
+        return mois ? t('nature.balance', { mois, voyelle }) : t('nature.balanceSansMois');
+      case 'deposit_refund':
+      case 'refund':
+      case 'provider_bill':
+        return t(`nature.${v.nature}`);
+      default:
+        return mois ? t('versementDe', { mois }) : t('versement');
+    }
+  };
+}
+
+/**
+ * TCK-2651, TCK-2916 — les trois derniers versements : la nature (acompte, solde), le moyen et la référence,
+ * et « Avis », l'avis de versement en PDF (`GET /api/payouts/{id}/notice/pdf`, TCK-2909), porteur du jeton.
+ */
 function DerniersVersements({ className }: { readonly className?: string }) {
   const t = useTranslations('payments.bailleur.versements');
   const tStatut = useTranslations('payments.payoutStatus');
   const tMoyens = useTranslations('payments.methods');
   const f = useFormatteurs();
+  const libelleDe = useLibelleDuVersement();
+  const avis = useTelechargementApi();
   const lecture = usePayouts({ page: 1, per_page: 3 });
   const versements = lecture.data?.data ?? [];
 
@@ -478,22 +617,40 @@ function DerniersVersements({ className }: { readonly className?: string }) {
             const quand = v.processed_at ?? v.scheduled_at ?? v.created_at;
             const moyen = v.payment_method ? (tMoyens.has(v.payment_method) ? tMoyens(v.payment_method) : v.payment_method.replace(/_/g, ' ')) : null;
             const detail = [moyen, v.reference_number].filter(Boolean).join(' · ');
+            const date = quand ? f.jourMois(quand) : '—';
             return (
-              <li key={v.id} className="flex items-center gap-4 px-4 py-3 text-sm">
-                <span className="w-16 flex-none text-muted-foreground">{quand ? f.jourMois(quand) : '—'}</span>
+              <li key={v.id} className="flex items-center gap-4 px-4 py-3 text-sm" data-slot="versement">
+                <span className="w-16 flex-none text-muted-foreground">{date}</span>
                 <span className="min-w-0 flex-1 leading-tight">
-                  <span className="block font-medium text-foreground">
-                    {v.period_start ? t('versementDe', { mois: f.date(v.period_start, { month: 'long', timeZone: 'UTC' }) }) : t('versement')}
-                  </span>
+                  <span className="block font-medium text-foreground">{libelleDe(v)}</span>
                   {detail ? <span className="block truncate text-xs text-muted-foreground">{detail}</span> : null}
                 </span>
                 <StatusBadge tone={PAYOUT_STATUS_TONE[v.status as PayoutStatus] ?? 'neutral'} label={tStatut(v.status)} />
                 <span className="w-28 flex-none text-right font-semibold tabular-nums text-foreground">{f.montantCourt(v.net_amount, v.currency ?? 'XOF')}</span>
+                {aUnAvis(v) ? (
+                  <button
+                    type="button"
+                    disabled={avis.enCours}
+                    onClick={() => void avis.telecharger(cheminApi`/api/payouts/${v.id}/notice/pdf`, `avis-de-versement-${v.reference_number || v.id}.pdf`)}
+                    aria-label={t('avisAria', { date })}
+                    className="inline-flex h-8 flex-none items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-ui font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60"
+                  >
+                    <Download className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                    {t('avis')}
+                  </button>
+                ) : (
+                  <span className="w-[4.5rem] flex-none" aria-hidden="true" />
+                )}
               </li>
             );
           })}
         </ul>
       )}
+      {avis.echec ? (
+        <p role="alert" className="mt-2 px-1 text-ui text-destructive">
+          {t('echecAvis')}
+        </p>
+      ) : null}
     </section>
   );
 }

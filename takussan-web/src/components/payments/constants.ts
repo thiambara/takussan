@@ -1,5 +1,5 @@
 import type { StatusTone } from '@/components/console';
-import type { InvoiceStatus, PayoutMethodKind, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
+import type { InvoiceStatus, Payout, PayoutMethodKind, PayoutStatus, ServiceProviderBillStatus } from '@/types/invoice';
 
 /**
  * Variantes de badge et helpers purs des vues « paiements » (TCK-063). À garder
@@ -140,3 +140,7 @@ export const DESTINATION_KINDS_BY_METHOD: Partial<Record<(typeof PAYMENT_METHOD_
   bank_transfer: ['bank_transfer'],
 };
 
+/** TCK-2916 — l'API n'a d'avis de versement que d'un reversement AU BAILLEUR terminé (422 `payout.notice_unavailable` sinon). */
+export function aUnAvis(v: Pick<Payout, 'status' | 'payee_role'>): boolean {
+  return v.status === 'completed' && (v.payee_role ?? 'landlord') === 'landlord';
+}

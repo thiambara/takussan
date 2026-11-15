@@ -17,6 +17,7 @@ import type { PaymentHistoryRow, ResumeDuLoyer } from '@/types/invoice';
 import { CommentPayerALAgence } from './locataire/CommentPayerALAgence';
 import { HistoriqueDuLocataire } from './locataire/HistoriqueDuLocataire';
 import { MonBail } from './locataire/MonBail';
+import { ToutTelechargerLesQuittances } from './locataire/ToutTelechargerLesQuittances';
 import { aujourdHuiADakar } from './locataire/resume';
 import { CarteDuProchainLoyer, TeteDesPaiements } from './locataire/TeteDesPaiements';
 import { detailMontantDu } from './montant-du';
@@ -87,6 +88,9 @@ export function CustomerPayments() {
   const dernierePage = historique.data?.meta?.last_page ?? 1;
   const aVenir = etat === 'none' ? [] : echeancesAVenir(lignesDues, aujourdHui);
   // La caution versée, si elle est sur la page d'historique chargée (« Mon bail »).
+  // TCK-2916 — un bail lu (résumé servi) et un historique non vide : le geste ne dépend pas de la page affichée
+  // (une page sans ligne payée ne le cache pas) ; sans quittance, l'API répond `archive_empty`, que le geste dit.
+  const aDesQuittances = etat !== null && (historique.data?.meta?.total ?? 0) > 0;
   const caution = lignes.find((row) => row.source === 'lease' && row.payment_type === 'deposit' && row.status === 'paid')?.amount ?? null;
 
   return (
@@ -112,9 +116,14 @@ export function CustomerPayments() {
         )}
 
         <section aria-labelledby="historique-paiements">
-          <h2 id="historique-paiements" className="mb-3 font-display text-lg font-semibold tracking-titre text-foreground">
-            {t('historique.titre')}
-          </h2>
+          {/* TCK-2916 — l'action du titre (maquette e0/e2) : toutes les quittances en une archive, au seul
+              locataire qui en a (le coffre ne réunit les quittances que du locataire ; l'API refuse le reste). */}
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 id="historique-paiements" className="font-display text-lg font-semibold tracking-titre text-foreground">
+              {t('historique.titre')}
+            </h2>
+            {aDesQuittances ? <ToutTelechargerLesQuittances /> : null}
+          </div>
           {historique.isLoading ? (
             <Skeleton className="h-40 rounded-xl" />
           ) : historique.isError ? (

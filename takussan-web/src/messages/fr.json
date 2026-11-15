@@ -4724,7 +4724,8 @@
         "une": "le {date} ({canal})",
         "canal": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}}",
         "canalNomme": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}} {voyelle, select, oui {d’} other {de }}{nom}",
-        "suite": "Son loyer s’ajoutera à votre versement dès qu’il sera encaissé."
+        "suite": "Son loyer s’ajoutera à votre versement dès qu’il sera encaissé.",
+        "liste": "{debut} et {fin}"
       }
     }
   },
@@ -8917,7 +8918,24 @@
           "reversementSansReference": "Reversement sans référence",
           "preparePar": "préparé par {nom}",
           "examiner": "Examiner",
-          "joursDeRetardCourt": "{count} j de retard"
+          "joursDeRetardCourt": "{count} j de retard",
+          "relanceALInstant": "relancé à l’instant",
+          "approuver": "Approuver",
+          "approuverAria": "Approuver le reversement {reference}",
+          "refuser": "Refuser",
+          "refuserAria": "Refuser le reversement {reference}",
+          "examinerAria": "Examiner le reversement {reference}",
+          "approuveEchec": "L’approbation n’a pas abouti.",
+          "refus": {
+            "titre": "Refuser le reversement {reference}",
+            "detail": "Le reversement de {montant} est annulé : ses lignes pourront entrer dans un prochain reversement.",
+            "motif": "Motif du refus",
+            "motifAide": "Il reste noté sur le reversement.",
+            "motifExemple": "Ex. : montant à revoir avec le bailleur",
+            "confirmer": "Refuser le reversement",
+            "garder": "Garder",
+            "echec": "Le refus n’a pas abouti."
+          }
         },
         "tuiles": {
           "encaisse": "Encaissé",
@@ -9011,11 +9029,12 @@
             "lignes": "{count, plural, one {# ligne} other {# lignes}}",
             "paye": "Payé",
             "paiements": "{count, plural, one {# paiement} other {# paiements}}",
-            "restant": "Restant dû",
-            "aEncaisser": "à encaisser",
             "echoue": "Échoué",
             "aReprendre": "{count, plural, =0 {rien à reprendre} one {# paiement à reprendre} other {# paiements à reprendre}}",
-            "dontCautions": "dont cautions {montant} ({count})"
+            "dontCautions": "dont cautions {montant} ({count})",
+            "enAttente": "En attente",
+            "virementsAnnonces": "{count, plural, one {# virement annoncé} other {# virements annoncés}}",
+            "paiementsEnAttente": "{count, plural, =0 {aucun paiement en attente} one {# paiement en attente} other {# paiements en attente}}"
           },
           "colonnes": {
             "payeur": "Payeur",
@@ -9106,7 +9125,9 @@
           "encaisser": "Encaisser un paiement",
           "ficheClient": "Fiche client",
           "ouvrirDossier": "Ouvrir le dossier de {nom}",
-          "retoucherWhatsApp": "Touchez encore pour ouvrir WhatsApp"
+          "retoucherWhatsApp": "Touchez encore pour ouvrir WhatsApp",
+          "plusDActions": "Plus d’actions — {nom}",
+          "voirLeBail": "Voir le bail"
         },
         "relancer": {
           "titre": "Relancer {nom}",
@@ -12759,7 +12780,14 @@
       "agentDe": "Agent · {agence}",
       "appelerAgent": "Appeler {nom}",
       "whatsappAgent": "Écrire à {nom} sur WhatsApp",
-      "messageAgent": "Bonjour {nom}, je vous écris au sujet de ma visite : {bien}."
+      "messageAgent": "Bonjour {nom}, je vous écris au sujet de ma visite : {bien}.",
+      "delaiDeReponse": "L’agence vous répond d’ordinaire en {heures} h",
+      "annulee": {
+        "parVous": "Annulée par vous",
+        "parVousMotif": "Annulée par vous : « {motif} »",
+        "parLAgence": "Annulée par l’agence",
+        "parLAgenceMotif": "Annulée par l’agence : « {motif} »"
+      }
     }
   },
   "superAdmin": {
@@ -18612,7 +18640,16 @@
       "budgetUpTo": "≤ {amount}",
       "doneCriteria": "Bien d’intérêt et critères repris ({criteria})",
       "smsSentAt": "SMS envoyé à {time}",
-      "nextLead": "Demande suivante"
+      "nextLead": "Demande suivante",
+      "notified": {
+        "sms": "Un SMS a prévenu {name}.",
+        "smsEmail": "Un SMS et un e-mail ont prévenu {name}.",
+        "email": "Un e-mail a prévenu {name}.",
+        "whatsapp": "Un message WhatsApp a prévenu {name}.",
+        "whatsappEmail": "Un message WhatsApp et un e-mail ont prévenu {name}.",
+        "aucun": "Ni SMS ni e-mail n’est parti : prévenez {name} par un autre moyen.",
+        "leVisiteur": "le visiteur"
+      }
     },
     "propose": {
       "cta": "Proposer un autre créneau",
@@ -19254,11 +19291,11 @@
         },
         "archive_ready": {
           "title": "Votre archive est prête",
-          "body": "L’archive des documents que vous avez demandée est prête. Téléchargez-la depuis vos documents dans les 24 heures."
+          "body": "L’archive que vous avez demandée est prête. Ouvrez cet avis pour la télécharger dans les 24 heures."
         },
         "archive_failed": {
           "title": "Votre archive n’a pas pu être préparée",
-          "body": "L’archive des documents que vous avez demandée n’a pas pu être préparée. Réessayez depuis vos documents."
+          "body": "L’archive que vous avez demandée n’a pas pu être préparée. Ouvrez cet avis pour réessayer."
         }
       },
       "inventory": {
@@ -19764,7 +19801,6 @@
       "solder": "Solder",
       "solderAria": "Solder {nom}",
       "solderMontant": "Solder {montant}",
-      "lignesDe": "Lignes de {nom}",
       "ouvrirAgent": "Ouvrir les lignes de {nom}",
       "total": "Total",
       "exporter": "Exporter",
@@ -19775,7 +19811,9 @@
       "beneficiaireTous": "Bénéficiaire : tous",
       "tous": "Tous les bénéficiaires",
       "dusLignes": "dus · {count, plural, one {# ligne} other {# lignes}} · payé cette année : {paye}",
-      "sansNom": "Bénéficiaire #{id}"
+      "sansNom": "Bénéficiaire #{id}",
+      "releveDe": "Relevé de l’agent — {nom}",
+      "releve": "Relevé de l’agent"
     },
     "menu": {
       "actions": "Marquer payée, annuler",

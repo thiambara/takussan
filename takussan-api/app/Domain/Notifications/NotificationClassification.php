@@ -209,6 +209,8 @@ final class NotificationClassification
         'lease.signature_completed' => [self::S, false],
         // TCK-2642 — au bailleur : son loyer a changé, il est informé (le geste est fait).
         'lease.rent_reviewed_landlord' => [self::P, false],
+        // TCK-2913 — l'état des lieux signé, son PDF prêt : une information, comme le bail signé.
+        'inventory.signed_pdf_available' => [self::S, false],
 
         // ─── Reversements, commissions, relevés du bailleur ───────────────────────────────
         'payout.awaiting_approval' => [self::P, true],
@@ -302,6 +304,10 @@ final class NotificationClassification
         'document' => self::S,
         // TCK-2812 — le coffre, où se télécharge l'archive préparée.
         'document_archive' => self::S,
+        // TCK-2916 — la page des paiements, où se télécharge l'archive préparée des quittances.
+        'receipts_archive' => self::S,
+        // TCK-2913 — la fiche d'un état des lieux, où se télécharge son PDF signé.
+        'inventory' => self::S,
     ];
 
     /**

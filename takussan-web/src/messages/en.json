@@ -4767,7 +4767,8 @@
         "une": "on {date} ({canal})",
         "canal": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}}",
         "canalNomme": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}} from {nom}",
-        "suite": "The rent will be added to your payout as soon as it is collected."
+        "suite": "The rent will be added to your payout as soon as it is collected.",
+        "liste": "{debut} and {fin}"
       }
     }
   },
@@ -8917,7 +8918,24 @@
           "reversementSansReference": "Payout without reference",
           "preparePar": "prepared by {nom}",
           "examiner": "Review",
-          "joursDeRetardCourt": "{count} d late"
+          "joursDeRetardCourt": "{count} d late",
+          "relanceALInstant": "reminded just now",
+          "approuver": "Approve",
+          "approuverAria": "Approve payout {reference}",
+          "refuser": "Decline",
+          "refuserAria": "Decline payout {reference}",
+          "examinerAria": "Review payout {reference}",
+          "approuveEchec": "The approval did not go through.",
+          "refus": {
+            "titre": "Decline payout {reference}",
+            "detail": "The {montant} payout is cancelled: its lines can go into a later payout.",
+            "motif": "Reason for declining",
+            "motifAide": "It stays recorded on the payout.",
+            "motifExemple": "E.g. amount to review with the landlord",
+            "confirmer": "Decline the payout",
+            "garder": "Keep",
+            "echec": "Declining did not go through."
+          }
         },
         "tuiles": {
           "encaisse": "Collected",
@@ -9011,11 +9029,12 @@
             "lignes": "{count, plural, one {# line} other {# lines}}",
             "paye": "Paid",
             "paiements": "{count, plural, one {# payment} other {# payments}}",
-            "restant": "Outstanding",
-            "aEncaisser": "to collect",
             "echoue": "Failed",
             "aReprendre": "{count, plural, =0 {nothing to retry} one {# payment to retry} other {# payments to retry}}",
-            "dontCautions": "incl. deposits {montant} ({count})"
+            "dontCautions": "incl. deposits {montant} ({count})",
+            "enAttente": "Pending",
+            "virementsAnnonces": "{count, plural, one {# transfer announced} other {# transfers announced}}",
+            "paiementsEnAttente": "{count, plural, =0 {no pending payment} one {# pending payment} other {# pending payments}}"
           },
           "colonnes": {
             "payeur": "Payer",
@@ -9106,7 +9125,9 @@
           "encaisser": "Record a payment",
           "ficheClient": "Customer record",
           "ouvrirDossier": "Open {nom}’s file",
-          "retoucherWhatsApp": "Tap again to open WhatsApp"
+          "retoucherWhatsApp": "Tap again to open WhatsApp",
+          "plusDActions": "More actions — {nom}",
+          "voirLeBail": "View the lease"
         },
         "relancer": {
           "titre": "Remind {nom}",
@@ -12759,7 +12780,14 @@
       "agentDe": "Agent · {agence}",
       "appelerAgent": "Call {nom}",
       "whatsappAgent": "Message {nom} on WhatsApp",
-      "messageAgent": "Hello {nom}, I am writing about my visit: {bien}."
+      "messageAgent": "Hello {nom}, I am writing about my visit: {bien}.",
+      "delaiDeReponse": "The agency usually replies within {heures} h",
+      "annulee": {
+        "parVous": "Cancelled by you",
+        "parVousMotif": "Cancelled by you: “{motif}”",
+        "parLAgence": "Cancelled by the agency",
+        "parLAgenceMotif": "Cancelled by the agency: “{motif}”"
+      }
     }
   },
   "superAdmin": {
@@ -18612,7 +18640,16 @@
       "budgetUpTo": "≤ {amount}",
       "doneCriteria": "Property of interest and criteria saved ({criteria})",
       "smsSentAt": "SMS sent at {time}",
-      "nextLead": "Next request"
+      "nextLead": "Next request",
+      "notified": {
+        "sms": "A text message notified {name}.",
+        "smsEmail": "A text message and an email notified {name}.",
+        "email": "An email notified {name}.",
+        "whatsapp": "A WhatsApp message notified {name}.",
+        "whatsappEmail": "A WhatsApp message and an email notified {name}.",
+        "aucun": "No text message or email was sent: let {name} know another way.",
+        "leVisiteur": "the visitor"
+      }
     },
     "propose": {
       "cta": "Propose another slot",
@@ -19254,11 +19291,11 @@
         },
         "archive_ready": {
           "title": "Your archive is ready",
-          "body": "The document archive you requested is ready. Download it from your documents within 24 hours."
+          "body": "The archive you requested is ready. Open this notification to download it within 24 hours."
         },
         "archive_failed": {
           "title": "Your archive could not be prepared",
-          "body": "The document archive you requested could not be prepared. Try again from your documents."
+          "body": "The archive you requested could not be prepared. Open this notification to try again."
         }
       },
       "inventory": {
@@ -19764,7 +19801,6 @@
       "solder": "Settle",
       "solderAria": "Settle {nom}",
       "solderMontant": "Settle {montant}",
-      "lignesDe": "{nom}'s lines",
       "ouvrirAgent": "Open {nom}'s lines",
       "total": "Total",
       "exporter": "Export",
@@ -19775,7 +19811,9 @@
       "beneficiaireTous": "Beneficiary: all",
       "tous": "All beneficiaries",
       "dusLignes": "owed · {count, plural, one {# line} other {# lines}} · paid this year: {paye}",
-      "sansNom": "Beneficiary #{id}"
+      "sansNom": "Beneficiary #{id}",
+      "releveDe": "Agent statement — {nom}",
+      "releve": "Agent statement"
     },
     "menu": {
       "actions": "Mark as paid, cancel",

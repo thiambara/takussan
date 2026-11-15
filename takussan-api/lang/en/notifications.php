@@ -687,15 +687,16 @@ return [
                 'sms' => 'Takussan: your document ":document_name" expires on :expires_at.',
             ],
             // TCK-2812 — l'archive préparée d'un dossier du coffre, au seul demandeur.
+            // TCK-2916 — l'avis ouvre le coffre, ou la page des paiements pour l'archive des quittances : le texte ne nomme aucun des deux.
             'archive_ready' => [
                 'title' => 'Your archive is ready',
-                'body' => 'The document archive you requested is ready. Download it from your documents within 24 hours.',
-                'sms' => 'Takussan: your document archive is ready in your documents, for 24 hours.',
+                'body' => 'The archive you requested is ready. Open this notification to download it within 24 hours.',
+                'sms' => 'Takussan: your archive is ready in your account, for 24 hours.',
             ],
             'archive_failed' => [
                 'title' => 'Your archive could not be prepared',
-                'body' => 'The document archive you requested could not be prepared. Try again from your documents.',
-                'sms' => 'Takussan: your document archive could not be prepared. Try again from your documents.',
+                'body' => 'The archive you requested could not be prepared. Open this notification to try again.',
+                'sms' => 'Takussan: your archive could not be prepared. Try again from your account.',
             ],
         ],
         'kyc' => [
@@ -936,6 +937,14 @@ return [
                 'title' => 'Rent reviewed: :reference',
                 'body' => 'The rent of lease :reference for :property changes from :old to :new from :effective_date.',
                 'sms' => 'Takussan: rent of lease :reference reviewed (:old -> :new) from :effective_date.',
+            ],
+        ],
+        // TCK-2913 (ADR-0098, amendement B) — l'état des lieux signé par les deux parties : son PDF.
+        'inventory' => [
+            'signed_pdf_available' => [
+                'title' => 'Inventory signed: lease :reference',
+                'body' => 'The tenant and the landlord have signed the inventory of lease :reference for :property. Download its PDF from the inventory page.',
+                'sms' => 'Takussan: the inventory of lease :reference is signed. Its PDF is in your account.',
             ],
         ],
         'prospect_match' => [
