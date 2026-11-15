@@ -309,7 +309,15 @@
         "titre": "Pin up to {max} pages",
         "compte": "{nombre} of {max} · drag to reorder",
         "terminer": "Done",
-        "deplacer": "Move {libelle} (up and down arrows)"
+        "deplacer": "Move {libelle} (up and down arrows)",
+        "reinitialiser": "Reset the menu",
+        "confirmation": {
+          "titre": "Reset the menu?",
+          "texte": "Your pins, collapsed groups and hidden “Get started” return to this space’s default layout.",
+          "confirmer": "Reset",
+          "annuler": "Cancel"
+        },
+        "epingler": "Drag {libelle} to the pins (up arrow)"
       },
       "reports": "Reports"
     },
@@ -2205,7 +2213,13 @@
       "aide": "Check the link, or go straight to where you meant to go.",
       "backHome": "Back to home",
       "backToday": "Back to Today",
-      "recent": "Recent"
+      "recent": "Recent",
+      "autreEspace": {
+        "titre": "{type, select, bien {This property} client {This client} bail {This lease} intervention {This job} visite {This visit} reservation {This booking} bailleur {This landlord} other {This item}} is in the {espace} space",
+        "role": "You are {role, select, agent {an agent} owner {an owner} agency_admin {an administrator} service_provider {a service provider} other {a member}} there.",
+        "actuel": "You are currently working in {espace}.",
+        "basculer": "Switch to {espace}"
+      }
     },
     "agencySetup": {
       "title": "Agency setup",
@@ -6997,7 +7011,6 @@
         "telephone": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out} other {}}",
         "bureau": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out to date} other {}}"
       },
-      "triReste": "Sorted by balance to pay",
       "mentionSensible": "IBAN, tax ID and ID number are on the landlord's page, masked; “Show” records the access in the agency log.",
       "occupation": "{biens, plural, =0 {No properties} one {# property · {occupes, plural, =0 {vacant} other {occupied}}} other {# properties · {tous, select, oui {all occupied} other {{occupes, plural, =0 {none occupied} other {# occupied}}}}}}",
       "occupes": "{n, plural, =0 {none occupied} other {# occupied}}",
@@ -7022,7 +7035,20 @@
         "appelerAria": "Call {nom}",
         "whatsappAria": "Message {nom} on WhatsApp",
         "message": "Hello {prenom},"
-      }
+      },
+      "filtres": {
+        "bouton": "Filters and sorting",
+        "titre": "Filters and sorting",
+        "tri": "Sort by",
+        "vues": "Show",
+        "fermer": "Show landlords"
+      },
+      "tris": {
+        "nom": "Name",
+        "reste": "Balance to pay",
+        "versement": "Last payout"
+      },
+      "triCourant": "Sorted by {tri, select, nom {name} reste {balance to pay} other {last payout}}"
     },
     "fiche": {
       "depuis": "Landlord since {date}",
@@ -7052,7 +7078,8 @@
         "commissionAgence": "Agency commission",
         "tauxDetail": "{taux}% of rents",
         "leDate": "on {date}",
-        "duMois": "In {mois}"
+        "duMois": "In {mois}",
+        "encaissements": "{n, plural, one {# payment collected} other {# payments collected}}"
       },
       "reglages": {
         "titre": "Mandate settings",
@@ -7066,8 +7093,25 @@
         "tauxDesBaux": "Rates specific to some leases: {taux}",
         "enregistrer": "Save",
         "annuler": "Cancel",
-        "enregistre": "Ceiling saved",
-        "echec": "The ceiling was not saved"
+        "enregistre": "Mandate settings saved",
+        "echec": "The mandate settings were not saved",
+        "versement": "Payout",
+        "versementMoyenEtJour": "{moyen}, before the {jour, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} of the month",
+        "versementJour": "Before the {jour, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} of the month",
+        "mandat": "Mandate",
+        "datesDuMandat": "{debut} → {fin}",
+        "depuisLe": "Since {date}",
+        "jusquAu": "Until {date}",
+        "datesARenseigner": "Mandate dates to fill in",
+        "jourInvalide": "Choose a day between 1 and 28.",
+        "moyen": "Payout method",
+        "jour": "Paid out before (day of the month)",
+        "jourExemple": "For example: 10",
+        "debut": "Mandate start",
+        "fin": "Mandate end",
+        "referent": "Handled by",
+        "aucunReferent": "No one assigned",
+        "nonPrecise": "Not specified"
       },
       "biens": {
         "titre": "Their properties ({n})",
@@ -7085,7 +7129,20 @@
         "historique": "Full history",
         "chargement": "Loading…",
         "aucun": "No payout yet.",
-        "periode": "{mois} payout"
+        "periode": "{mois} payout",
+        "nature": {
+          "advance": "{mois} advance",
+          "balance": "{mois} balance",
+          "advanceSansMois": "Advance",
+          "balanceSansMois": "Balance",
+          "deposit_refund": "Deposit refund",
+          "refund": "Refund",
+          "provider_bill": "Service provider bill"
+        },
+        "recu": "Receipt",
+        "recuAria": "Receipt for the payout of {date}",
+        "titreDuRecu": "Payout notice of {date}",
+        "echecDuRecu": "The receipt could not be prepared"
       },
       "pieces": {
         "titre": "Documents and identifiers",
@@ -7098,7 +7155,9 @@
         "mention": "“Show” reveals the value and records the access in the agency log.",
         "erreurAffichage": "The identifiers could not be shown",
         "afficherAria": "Show in full: {quoi}",
-        "masquerAria": "Hide: {quoi}"
+        "masquerAria": "Hide: {quoi}",
+        "ajouter": "Add",
+        "mandat": "Signed management mandate"
       },
       "acces": {
         "titre": "Access and departure",
@@ -7138,7 +7197,13 @@
         "partiLe": "Left on {date}",
         "parti": "Has left the agency",
         "partiEffet": "They no longer have access to your agency. Their statements and history remain available."
-      }
+      },
+      "menu": {
+        "modifierLeMandat": "Edit the mandate",
+        "accesEtDepart": "Access and departure"
+      },
+      "suiviPar": "handled by {nom}",
+      "suiviParAncien": "handled by {nom} (no longer with the agency)"
     }
   },
   "ownerWelcome": {
@@ -10901,7 +10966,8 @@
       "customer": "Customer",
       "user": "User",
       "agency": "Agency",
-      "inventory": "Inventory report"
+      "inventory": "Inventory report",
+      "owner_profile": "Landlord"
     },
     "actions": {
       "add_document": "Add a document"
@@ -11148,7 +11214,8 @@
         "sansFichier": "First choose a file or take a photo.",
         "tailleMo": "{n} MB",
         "tailleKo": "{n} KB",
-        "leBailNumero": "This property’s lease {reference}"
+        "leBailNumero": "This property’s lease {reference}",
+        "rangeImpose": "The document will be filed under “{dossier}”."
       },
       "archive": {
         "toutTelecharger": "Download all",
@@ -17006,6 +17073,13 @@
       "enLigne": "{count, plural, =0 {No properties online} one {# property online} other {# properties online}}",
       "whatsapp": "WhatsApp",
       "voirSesBiens": "See their properties"
+    },
+    "activite": {
+      "demandes": "{count, plural, one {# request} other {# requests}}",
+      "visitesAujourdhui": "{count, plural, one {# visit today} other {# visits today}}",
+      "biens": "{count, plural, one {# property} other {# properties}}",
+      "loyersEnRetard": "{count, plural, one {# overdue rent} other {# overdue rents}}",
+      "interventionsAujourdhui": "{count, plural, one {# job today} other {# jobs today}}"
     }
   },
   "contact": {
@@ -21386,19 +21460,27 @@
         "occupation": "Occupancy · last 12 months",
         "commissions": "Commissions · last 12 months",
         "bauxSignes": "Leases signed · last 12 months",
-        "cashflow": "Collected · last 12 months"
+        "cashflow": "Collected · last 12 months",
+        "impayes": "Unpaid · last 12 months",
+        "encaisseEtAttendu": "Collected and expected · last 12 months"
       },
       "courts": {
         "encaisse": "Collected",
         "occupation": "Occupancy",
         "commissions": "Commissions",
         "bauxSignes": "Leases signed",
-        "cashflow": "Collected"
+        "cashflow": "Collected",
+        "impayes": "Unpaid"
       },
       "choix": "Chart shown",
       "variationMois": "{mois}: {pourcent}% on {precedent}",
       "variationPoints": "{ecart} points over a year",
-      "depuisJanvier": "of which {montant} since January"
+      "depuisJanvier": "of which {montant} since January",
+      "attendu": "Expected",
+      "partDeLAttendu": "{pourcent}% of expected",
+      "voirLeTableau": "View table",
+      "voirLeGraphique": "View chart",
+      "serie": "Series"
     },
     "equipe": {
       "titre": "Team this month",
@@ -21427,7 +21509,10 @@
         "heuresMinutes": "{h} h {m}",
         "heures": "{h} h"
       },
-      "titreMoisDernier": "Team last month"
+      "titreMoisDernier": "Team last month",
+      "totalEquipe": "Team · {n, plural, one {# agent} other {# agents}}",
+      "totalMediane": "median {delai}",
+      "delaiInsuffisant": "Not enough conversations to measure the response time."
     },
     "enChiffres": "In figures",
     "chiffresCles": "Key figures · this month",
@@ -21586,9 +21671,37 @@
       "aria": "Report period",
       "choisir": "Period: {periode}",
       "current_month": "This month",
-      "last_month": "Last month"
+      "last_month": "Last month",
+      "last_12_months": "12 months"
     },
-    "chiffresClesMoisDernier": "Key figures · last month"
+    "chiffresClesMoisDernier": "Key figures · last month",
+    "choisirLAgence": "Workspace: {nom}. Switch workspace",
+    "espaces": "Your workspaces",
+    "plusDActions": "More actions",
+    "chiffresClesDouzeMois": "Key figures · 12 months",
+    "detailParBail": {
+      "titre": "Breakdown by lease",
+      "ongletCommissions": "Commissions tab",
+      "toutLeReleve": "Full statement",
+      "bailSansNom": "Lease without a property",
+      "sansClient": "No client on file",
+      "clientSigne": "{client} · signed {date}",
+      "versee": "Paid",
+      "verseeLe": "Paid on {date}",
+      "aVenir": "Upcoming",
+      "annulee": "Cancelled",
+      "erreur": "Unable to load the breakdown by lease.",
+      "vide": "No commissions yet: they appear when a lease is signed.",
+      "colonnes": {
+        "bail": "Lease",
+        "client": "Client",
+        "signeLe": "Signed on",
+        "loyer": "Monthly rent",
+        "commission": "Commission",
+        "versement": "Payout"
+      }
+    },
+    "demandesEnAttente": "Pending requests"
   },
   "propertyDashboard": {
     "overview": {

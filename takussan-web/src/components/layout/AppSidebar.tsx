@@ -19,6 +19,8 @@ import { ChevronDown, GripVertical, Lock, PanelLeftClose, PanelLeftOpen, Pin, Pl
 import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
 import { useTranslations } from 'next-intl';
@@ -332,9 +334,21 @@ interface CompteCache {
  * doigt) depuis sa poignée, et se dépose sur une autre épingle. `@dnd-kit/core` (déjà au dépôt, pipeline
  * CRM) : déplaçable ET cible de dépôt, la ligne suit le doigt en vertical seulement.
  */
-function LigneOrdonnable({ id, children }: { readonly id: string; readonly children: (poignee: PoigneeOrdonnable) => ReactNode }) {
+function LigneOrdonnable({
+  id,
+  cible: estUneCible = true,
+  children,
+}: {
+  readonly id: string;
+  /**
+   * TCK-2848 — seule une ÉPINGLE reçoit un dépôt : une ligne non épinglée se glisse, mais ne capte rien
+   * (sinon `closestCenter` lui rendait un glisser d'épingle, ignoré, au lieu de l'épingle la plus proche).
+   */
+  readonly cible?: boolean;
+  readonly children: (poignee: PoigneeOrdonnable) => ReactNode;
+}) {
   const deplacable = useDraggable({ id });
-  const cible = useDroppable({ id });
+  const cible = useDroppable({ id, disabled: !estUneCible });
   const decalage = deplacable.transform?.y ?? 0;
   return (
     <div
@@ -365,27 +379,39 @@ function PoigneeDEpingle({
   libelle,
   ordonnable,
   onDeplacer,
+  aEpingler,
 }: {
   readonly id: string;
   readonly libelle: string;
   readonly ordonnable: PoigneeOrdonnable;
   readonly onDeplacer: (pas: 1 | -1) => void;
+  /**
+   * TCK-2848 — la poignée d'une ligne NON épinglée (la maquette en dessine une sur chaque ligne) : la
+   * flèche haut, ou la ligne glissée sur une épingle, l'épingle à ce rang. `plein` : cinq épingles, le
+   * geste est refusé (`aria-disabled`), comme la punaise.
+   */
+  readonly aEpingler?: { readonly plein: boolean };
 }) {
   const t = useTranslations('nav.sidebar.edition');
+  const tEpingle = useTranslations('nav.sidebar.epingle');
+  const refusee = aEpingler?.plein === true;
   return (
     <button
       type="button"
       data-poignee={id}
-      aria-label={t('deplacer', { libelle })}
+      aria-label={aEpingler ? t('epingler', { libelle }) : t('deplacer', { libelle })}
+      aria-disabled={refusee || undefined}
+      title={refusee ? tEpingle('plein') : undefined}
       aria-roledescription={ordonnable.attributs['aria-roledescription']}
       aria-describedby={ordonnable.attributs['aria-describedby']}
       onKeyDown={(event) => {
         if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
         event.preventDefault();
+        if (refusee) return;
         onDeplacer(event.key === 'ArrowUp' ? -1 : 1);
       }}
       className={cn(STYLE_POIGNEE, FOCUS_RING)}
-      {...ordonnable.ecouteurs}
+      {...(refusee ? {} : ordonnable.ecouteurs)}
     >
       <GripVertical className="size-4" aria-hidden />
     </button>
@@ -419,6 +445,40 @@ function BandeauDEdition({ nombre, onTerminer }: { readonly nombre: number; read
         {t('terminer')}
       </button>
     </div>
+  );
+}
+
+/**
+ * TCK-2848 — la confirmation de « Réinitialiser le menu » (colonne, mode « Modifier le menu ») : le geste
+ * efface épingles, replis et « Démarrer » masqué du persona, il ne s'annule pas d'un clic.
+ */
+function ConfirmerLaRemiseAZero({
+  open,
+  onOpenChange,
+  onConfirmer,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onConfirmer: () => void;
+}) {
+  const t = useTranslations('nav.sidebar.edition.confirmation');
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('titre')}</DialogTitle>
+          <DialogDescription>{t('texte')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {t('annuler')}
+          </Button>
+          <Button type="button" onClick={onConfirmer}>
+            {t('confirmer')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -819,11 +879,27 @@ export function AppSidebar({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
   );
+  // TCK-2848 — une ligne non épinglée a aussi sa poignée : elle s'épingle au rang voulu, en UNE
+  // écriture (les deux gestes composent sur l'état en attente du fournisseur, `modifier`).
+  const epinglerAuRang = (id: EntreeComposee['id'], vers: number) => {
+    if (menu.epingles.length >= EPINGLES_MAX || menu.epingles.includes(id)) return;
+    flushSync(() => {
+      prefs.basculerEpingle(persona, id, menu.epingles);
+      prefs.deplacerEpingle(persona, id, vers, [...menu.epingles, id]);
+    });
+    barre.current?.querySelector<HTMLButtonElement>(`button[data-poignee="${id}"]`)?.focus();
+  };
   const surDepot = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
+    const id = String(active.id) as EntreeComposee['id'];
     const vers = menu.epingles.indexOf(String(over.id) as EntreeComposee['id']);
-    if (vers !== -1) deplacerLEpingle(String(active.id) as EntreeComposee['id'], vers);
+    if (vers === -1) return;
+    if (menu.epingles.includes(id)) deplacerLEpingle(id, vers);
+    else epinglerAuRang(id, vers);
   };
+  // TCK-2848 — « Réinitialiser le menu » dans la colonne, en mode « Modifier le menu » : le geste du
+  // profil (`reinitialiser`, une seule écriture de `preferences.navigation`), après confirmation.
+  const [confirmerLaRemiseAZero, setConfirmerLaRemiseAZero] = useState(false);
   // Même famille (décision de la session) — la croix de « Démarrer » démonte le bloc qui avait le
   // focus : il passe au premier élément focalisable du menu qui le SUIT (le premier groupe hors
   // « Épinglés », qui le précède), cherché dans CETTE barre, sans effet. Pas de `flushSync` ici,
@@ -921,6 +997,30 @@ export function AppSidebar({
       </LigneOrdonnable>
     );
   };
+  // TCK-2848 — en édition, une ligne qui s'épingle (et ne l'est pas) porte aussi sa poignée : la glisser
+  // sur une épingle, ou la flèche haut, l'épingle (maquette « Menu (tiroir) », bureau : une poignée par ligne).
+  const rendreAEpingler = (entree: EntreeRendue, replie = false) =>
+    prefs.actif && entree.epinglable && !entree.locked ? (
+      <LigneOrdonnable key={entree.href} id={entree.id} cible={false}>
+        {(ordonnable) =>
+          rendreEntree(
+            entree,
+            replie,
+            <PoigneeDEpingle
+              id={entree.id}
+              libelle={libelleDEntree(entree)}
+              ordonnable={ordonnable}
+              aEpingler={{ plein: menu.epingles.length >= EPINGLES_MAX }}
+              onDeplacer={(pas) => {
+                if (pas === -1) epinglerAuRang(entree.id, menu.epingles.length);
+              }}
+            />,
+          )
+        }
+      </LigneOrdonnable>
+    ) : (
+      rendreEntree(entree, replie)
+    );
   const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
     <GroupeDuMenu
       key={groupe.id}
@@ -929,7 +1029,7 @@ export function AppSidebar({
       premier={premier}
       idBase={idBase}
       activeHref={activeHref}
-      rendreEntree={edition && groupe.id === 'epingles' ? rendreEpinglee : rendreEntree}
+      rendreEntree={edition ? (groupe.id === 'epingles' ? rendreEpinglee : rendreAEpingler) : rendreEntree}
       onBasculer={basculerGroupe}
       infobulle={infobulle}
       comptesCaches={comptesCachesDu(groupe)}
@@ -1052,15 +1152,16 @@ export function AppSidebar({
               menu ne bouge jamais selon un compteur. Rien n'est rendu quand rien n'attend. */}
           <AujourdhuiDeLaBarre lignes={edition ? [] : aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
           <div data-slot="menu" className="relative">
-            {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire. */}
-            {epingles ? (
-              edition ? (
-                <DndContext sensors={capteurs} collisionDetection={closestCenter} onDragEnd={surDepot}>
-                  {rendreGroupe(epingles, true)}
-                </DndContext>
-              ) : (
-                rendreGroupe(epingles, true)
-              )
+            {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire.
+                TCK-2848 — en édition, UN contexte de glisser pour tout le menu : une ligne d'un groupe se
+                dépose sur une épingle. */}
+            {edition ? (
+              <DndContext sensors={capteurs} collisionDetection={closestCenter} onDragEnd={surDepot}>
+                {epingles ? rendreGroupe(epingles, true) : null}
+                {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
+              </DndContext>
+            ) : epingles ? (
+              rendreGroupe(epingles, true)
             ) : null}
             {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le menu, il défile
                 avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
@@ -1078,7 +1179,7 @@ export function AppSidebar({
             ) : null}
             {/* `premier` : sans « Épinglés », le premier groupe ouvre le menu (la marge basse de
                 « Démarrer », qui peut ne rien rendre, ne se double pas d'une marge haute). */}
-            {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
+            {edition ? null : autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
           </div>
           {/* TCK-2490 (ADR-0090 §5) — les pages récentes de l'appareil, quatre au plus, sans icône. */}
           {edition ? null : (
@@ -1092,6 +1193,21 @@ export function AppSidebar({
             onNavigate={onNavigate}
           />
           )}
+          {/* TCK-2848 — « Réinitialiser le menu », en bas de la colonne en édition (maquette « Menu
+              (tiroir) », bureau), en plus du profil. Le geste demande confirmation. */}
+          {prefs.actif && edition ? (
+            <button
+              type="button"
+              data-slot="reinitialiser-le-menu"
+              onClick={() => setConfirmerLaRemiseAZero(true)}
+              className={cn(
+                'mt-4 flex h-9 items-center rounded-md px-2 text-ui font-medium text-primary hover:underline max-md:h-11 max-md:text-sm icones:hidden',
+                FOCUS_RING_RENTRANT,
+              )}
+            >
+              {t('edition.reinitialiser')}
+            </button>
+          ) : null}
           {/* TCK-2619 — l'entrée du mode « Modifier le menu », discrète, en bas du menu (tiroir et colonne,
               jamais le rail). Sans fournisseur, aucun geste ne s'enregistre : rien. */}
           {prefs.actif && !edition ? (
@@ -1139,6 +1255,14 @@ export function AppSidebar({
             administration, langue, déconnexion — ce que portait la barre du haut. */}
         <MenuDuCompte user={user} libelleRole={t(`personas.${persona}`)} onNavigate={onNavigate} />
       </div>
+      <ConfirmerLaRemiseAZero
+        open={confirmerLaRemiseAZero}
+        onOpenChange={setConfirmerLaRemiseAZero}
+        onConfirmer={() => {
+          setConfirmerLaRemiseAZero(false);
+          prefs.reinitialiser(persona);
+        }}
+      />
     </aside>
   );
 }

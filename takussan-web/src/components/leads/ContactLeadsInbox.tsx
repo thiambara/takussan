@@ -407,7 +407,12 @@ export function ContactLeadsInbox() {
       </div>
       {large ? null : (
         <>
-          <RangeeDePuces aria-label={t('filters.label')} className="border-b border-border bg-background md:mt-5 md:px-0">
+          {/* TCK-2848 (AC6) — au téléphone, les puces restent collées en haut au défilement (maquette
+              `app-coque` e1, comme les puces de l'historique des notifications). */}
+          <RangeeDePuces
+            aria-label={t('filters.label')}
+            className="border-b border-border bg-background max-md:sticky max-md:top-0 max-md:z-10 md:mt-5 md:px-0"
+          >
             {vues.map((v) => (
               <PuceDeFiltre key={v} active={v === filtre} compte={comptesDesVues[v]?.compte} onClick={() => choisirVue(v)}>
                 {t(`filters.${v}`)}

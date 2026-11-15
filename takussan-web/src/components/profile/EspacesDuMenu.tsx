@@ -2,11 +2,13 @@
 
 import { useTranslations } from 'next-intl';
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useActiviteDesEspaces } from '@/hooks/useActiviteDesEspaces';
 import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { espacesAProposer, sousLigneDEspace } from '@/lib/espaces';
 import { cn } from '@/lib/utils';
 import { PROFILE_TYPES, type Profile, type ProfileType } from '@/types/profile';
 import { IndicateurDeChoix, SigleDEspace } from './ChoixDEspace';
+import { LigneDActivite } from './LigneDActivite';
 import { profileTypeLabel } from './ProfileBadge';
 
 /**
@@ -49,7 +51,10 @@ function useEspacesDuCompte() {
   const grouped = new Map<ProfileType, Profile[]>();
   for (const type of TYPE_ORDER) grouped.set(type, []);
   for (const p of profiles) grouped.get(p.type)?.push(p);
-  return { switchMutation, activeId, profiles, grouped };
+  // TCK-2848 — la ligne d'activité de chaque espace, lue seulement quand il y a un choix à montrer (les
+  // deux surfaces ne rendent rien sinon) ; elles ne sont montées qu'ouvertes.
+  const activites = useActiviteDesEspaces(profiles.length > 1);
+  return { switchMutation, activeId, profiles, grouped, activites };
 }
 
 /**
@@ -63,7 +68,7 @@ function useEspacesDuCompte() {
  */
 export function EspacesDuMenu({ titre }: { readonly titre?: string }) {
   const tTypes = useTranslations('profile.types');
-  const { switchMutation, activeId, profiles, grouped } = useEspacesDuCompte();
+  const { switchMutation, activeId, profiles, grouped, activites } = useEspacesDuCompte();
   if (profiles.length <= 1) return null;
   return (
     <>
@@ -101,6 +106,8 @@ export function EspacesDuMenu({ titre }: { readonly titre?: string }) {
                       <span className="truncate text-xs text-muted-foreground">
                         {sousLigneDEspace(role, profile.agency?.city)}
                       </span>
+                      {/* TCK-2848 — ce qui attend dans cet espace (AC3, 1440) ; rien à zéro. */}
+                      <LigneDActivite espace={profile} activites={activites} className="mt-0.5 text-xs text-encre-douce" />
                     </span>
                     <IndicateurDeChoix actif={isActive} />
                   </DropdownMenuItem>
@@ -122,7 +129,7 @@ export function EspacesDuMenu({ titre }: { readonly titre?: string }) {
  */
 export function EspacesDeLaFeuille({ titre }: { readonly titre: string }) {
   const tTypes = useTranslations('profile.types');
-  const { switchMutation, activeId, profiles, grouped } = useEspacesDuCompte();
+  const { switchMutation, activeId, profiles, grouped, activites } = useEspacesDuCompte();
   if (profiles.length <= 1) return null;
   return (
     <section data-slot="espaces-de-la-feuille" aria-label={titre} className="pb-2">
@@ -154,6 +161,8 @@ export function EspacesDeLaFeuille({ titre }: { readonly titre: string }) {
                     <span className="truncate text-corps font-semibold">{nom}</span>
                     {/* TCK-2621 — « rôle · ville », jamais le slug. */}
                     <span className="truncate text-ui text-muted-foreground">{sousLigneDEspace(role, profile.agency?.city)}</span>
+                    {/* TCK-2848 — la ligne d'activité (maquette « Compte et espaces », téléphone). */}
+                    <LigneDActivite espace={profile} activites={activites} className="mt-0.5 text-xs text-encre-douce" />
                   </span>
                   <IndicateurDeChoix actif={isActive} />
                 </button>

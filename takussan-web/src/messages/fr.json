@@ -309,7 +309,15 @@
         "titre": "Épinglez jusqu’à {max} pages",
         "compte": "{nombre} sur {max} · glissez pour ordonner",
         "terminer": "Terminé",
-        "deplacer": "Déplacer {libelle} (flèches haut et bas)"
+        "deplacer": "Déplacer {libelle} (flèches haut et bas)",
+        "reinitialiser": "Réinitialiser le menu",
+        "confirmation": {
+          "titre": "Réinitialiser le menu ?",
+          "texte": "Vos épingles, groupes repliés et « Démarrer » masqué reviennent à la disposition par défaut de cet espace.",
+          "confirmer": "Réinitialiser",
+          "annuler": "Annuler"
+        },
+        "epingler": "Glisser {libelle} vers les épingles (flèche haut)"
       },
       "reports": "Rapports"
     },
@@ -2162,7 +2170,13 @@
       "aide": "Vérifiez le lien, ou allez directement où vous vouliez aller.",
       "backHome": "Retour à l’accueil",
       "backToday": "Retour à Aujourd’hui",
-      "recent": "Récent"
+      "recent": "Récent",
+      "autreEspace": {
+        "titre": "{type, select, bien {Ce bien} client {Ce client} bail {Ce bail} intervention {Cette intervention} visite {Cette visite} reservation {Cette réservation} bailleur {Ce bailleur} other {Cet élément}} est dans l’espace {espace}",
+        "role": "Vous y êtes {role, select, agent {agent} owner {propriétaire} agency_admin {administrateur} service_provider {prestataire} other {membre}}.",
+        "actuel": "Vous travaillez en ce moment dans {espace}.",
+        "basculer": "Basculer vers {espace}"
+      }
     },
     "agencySetup": {
       "title": "Mise en service de l’agence",
@@ -6997,7 +7011,6 @@
         "telephone": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser} other {}}",
         "bureau": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser à ce jour} other {}}"
       },
-      "triReste": "Tri : reste à verser",
       "mentionSensible": "RIB, NINEA et numéro de pièce se lisent sur la fiche du bailleur, masqués ; « Afficher » inscrit la consultation au journal.",
       "occupation": "{biens, plural, =0 {Aucun bien} one {# bien · {occupes, plural, =0 {vacant} other {occupé}}} other {# biens · {tous, select, oui {tous occupés} other {{occupes, plural, =0 {aucun occupé} one {# occupé} other {# occupés}}}}}}",
       "occupes": "{n, plural, =0 {aucun occupé} one {# occupé} other {# occupés}}",
@@ -7022,7 +7035,20 @@
         "appelerAria": "Appeler {nom}",
         "whatsappAria": "Écrire à {nom} sur WhatsApp",
         "message": "Bonjour {prenom},"
-      }
+      },
+      "filtres": {
+        "bouton": "Filtres et tri",
+        "titre": "Filtres et tri",
+        "tri": "Trier par",
+        "vues": "Afficher",
+        "fermer": "Voir les bailleurs"
+      },
+      "tris": {
+        "nom": "Nom",
+        "reste": "Reste à verser",
+        "versement": "Dernier versement"
+      },
+      "triCourant": "Tri : {tri, select, nom {nom} reste {reste à verser} other {dernier versement}}"
     },
     "fiche": {
       "depuis": "Bailleur depuis {date}",
@@ -7052,7 +7078,8 @@
         "commissionAgence": "Commission d’agence",
         "tauxDetail": "{taux} % des loyers",
         "leDate": "le {date}",
-        "duMois": "En {mois}"
+        "duMois": "En {mois}",
+        "encaissements": "{n, plural, one {# encaissement} other {# encaissements}}"
       },
       "reglages": {
         "titre": "Réglages du mandat",
@@ -7066,8 +7093,25 @@
         "tauxDesBaux": "Taux propres à certains baux : {taux}",
         "enregistrer": "Enregistrer",
         "annuler": "Annuler",
-        "enregistre": "Plafond enregistré",
-        "echec": "Le plafond n’a pas été enregistré"
+        "enregistre": "Réglages du mandat enregistrés",
+        "echec": "Les réglages du mandat n’ont pas été enregistrés",
+        "versement": "Versement",
+        "versementMoyenEtJour": "{moyen}, avant le {jour} du mois",
+        "versementJour": "Avant le {jour} du mois",
+        "mandat": "Mandat",
+        "datesDuMandat": "{debut} → {fin}",
+        "depuisLe": "Depuis le {date}",
+        "jusquAu": "Jusqu’au {date}",
+        "datesARenseigner": "Dates du mandat à renseigner",
+        "jourInvalide": "Choisissez un jour entre 1 et 28.",
+        "moyen": "Moyen de versement",
+        "jour": "Versé avant le (jour du mois)",
+        "jourExemple": "Par exemple : 10",
+        "debut": "Début du mandat",
+        "fin": "Fin du mandat",
+        "referent": "Suivi par",
+        "aucunReferent": "Aucun référent",
+        "nonPrecise": "Non précisé"
       },
       "biens": {
         "titre": "Ses biens ({n})",
@@ -7085,7 +7129,20 @@
         "historique": "Tout l’historique",
         "chargement": "Chargement…",
         "aucun": "Aucun reversement pour l’instant.",
-        "periode": "Reversement de {mois}"
+        "periode": "Reversement de {mois}",
+        "nature": {
+          "advance": "Acompte {voyelle, select, oui {d’} other {de }}{mois}",
+          "balance": "Solde {voyelle, select, oui {d’} other {de }}{mois}",
+          "advanceSansMois": "Acompte",
+          "balanceSansMois": "Solde",
+          "deposit_refund": "Restitution de caution",
+          "refund": "Remboursement",
+          "provider_bill": "Facture de prestataire"
+        },
+        "recu": "Reçu",
+        "recuAria": "Reçu du reversement du {date}",
+        "titreDuRecu": "Avis de versement du {date}",
+        "echecDuRecu": "Le reçu n’a pas pu être préparé"
       },
       "pieces": {
         "titre": "Documents et identifiants",
@@ -7098,7 +7155,9 @@
         "mention": "« Afficher » révèle la valeur et inscrit la consultation au journal de l’agence.",
         "erreurAffichage": "Les identifiants n’ont pas pu être affichés",
         "afficherAria": "Afficher en clair : {quoi}",
-        "masquerAria": "Masquer : {quoi}"
+        "masquerAria": "Masquer : {quoi}",
+        "ajouter": "Ajouter",
+        "mandat": "Mandat de gestion signé"
       },
       "acces": {
         "titre": "Accès et départ",
@@ -7138,7 +7197,13 @@
         "partiLe": "Parti le {date}",
         "parti": "A quitté l’agence",
         "partiEffet": "Il n’a plus accès à votre agence. Ses relevés et son historique restent consultables."
-      }
+      },
+      "menu": {
+        "modifierLeMandat": "Modifier le mandat",
+        "accesEtDepart": "Accès et départ"
+      },
+      "suiviPar": "suivi par {nom}",
+      "suiviParAncien": "suivi par {nom} (plus dans l’agence)"
     }
   },
   "ownerWelcome": {
@@ -10901,7 +10966,8 @@
       "customer": "Client",
       "user": "Utilisateur",
       "agency": "Agence",
-      "inventory": "État des lieux"
+      "inventory": "État des lieux",
+      "owner_profile": "Bailleur"
     },
     "actions": {
       "add_document": "Ajouter un document"
@@ -11148,7 +11214,8 @@
         "sansFichier": "Choisissez d’abord un fichier ou prenez une photo.",
         "tailleMo": "{n} Mo",
         "tailleKo": "{n} Ko",
-        "leBailNumero": "Le bail {reference} de ce bien"
+        "leBailNumero": "Le bail {reference} de ce bien",
+        "rangeImpose": "Le document sera rangé dans « {dossier} »."
       },
       "archive": {
         "toutTelecharger": "Tout télécharger",
@@ -17006,6 +17073,13 @@
       "enLigne": "{count, plural, =0 {Aucun bien en ligne} one {# bien en ligne} other {# biens en ligne}}",
       "whatsapp": "WhatsApp",
       "voirSesBiens": "Voir ses biens"
+    },
+    "activite": {
+      "demandes": "{count, plural, one {# demande} other {# demandes}}",
+      "visitesAujourdhui": "{count, plural, one {# visite aujourd’hui} other {# visites aujourd’hui}}",
+      "biens": "{count, plural, one {# bien} other {# biens}}",
+      "loyersEnRetard": "{count, plural, one {# loyer en retard} other {# loyers en retard}}",
+      "interventionsAujourdhui": "{count, plural, one {# intervention aujourd’hui} other {# interventions aujourd’hui}}"
     }
   },
   "contact": {
@@ -21386,19 +21460,27 @@
         "occupation": "Occupation · 12 derniers mois",
         "commissions": "Commissions · 12 derniers mois",
         "bauxSignes": "Baux signés · 12 derniers mois",
-        "cashflow": "Encaissé · 12 derniers mois"
+        "cashflow": "Encaissé · 12 derniers mois",
+        "impayes": "Impayés · 12 derniers mois",
+        "encaisseEtAttendu": "Encaissé et attendu · 12 derniers mois"
       },
       "courts": {
         "encaisse": "Encaissé",
         "occupation": "Occupation",
         "commissions": "Commissions",
         "bauxSignes": "Baux signés",
-        "cashflow": "Encaissé"
+        "cashflow": "Encaissé",
+        "impayes": "Impayés"
       },
       "choix": "Graphique affiché",
       "variationMois": "{mois} : {pourcent} % sur {precedent}",
       "variationPoints": "{ecart} points en un an",
-      "depuisJanvier": "dont {montant} depuis janvier"
+      "depuisJanvier": "dont {montant} depuis janvier",
+      "attendu": "Attendu",
+      "partDeLAttendu": "{pourcent} % de l’attendu",
+      "voirLeTableau": "Voir le tableau",
+      "voirLeGraphique": "Voir le graphique",
+      "serie": "Série"
     },
     "equipe": {
       "titre": "Équipe ce mois",
@@ -21427,7 +21509,10 @@
         "heuresMinutes": "{h} h {m}",
         "heures": "{h} h"
       },
-      "titreMoisDernier": "Équipe le mois dernier"
+      "titreMoisDernier": "Équipe le mois dernier",
+      "totalEquipe": "Équipe · {n, plural, one {# agent} other {# agents}}",
+      "totalMediane": "médiane {delai}",
+      "delaiInsuffisant": "Pas assez de conversations pour mesurer le délai de réponse."
     },
     "enChiffres": "En chiffres",
     "chiffresCles": "Chiffres clés · ce mois",
@@ -21586,9 +21671,37 @@
       "aria": "Période du rapport",
       "choisir": "Période : {periode}",
       "current_month": "Ce mois",
-      "last_month": "Mois dernier"
+      "last_month": "Mois dernier",
+      "last_12_months": "12 mois"
     },
-    "chiffresClesMoisDernier": "Chiffres clés · mois dernier"
+    "chiffresClesMoisDernier": "Chiffres clés · mois dernier",
+    "choisirLAgence": "Espace : {nom}. Changer d’espace",
+    "espaces": "Vos espaces",
+    "plusDActions": "Plus d’actions",
+    "chiffresClesDouzeMois": "Chiffres clés · 12 mois",
+    "detailParBail": {
+      "titre": "Détail par bail",
+      "ongletCommissions": "Onglet Commissions",
+      "toutLeReleve": "Tout le relevé",
+      "bailSansNom": "Bail sans bien",
+      "sansClient": "Client non renseigné",
+      "clientSigne": "{client} · signé le {date}",
+      "versee": "Versée",
+      "verseeLe": "Versée le {date}",
+      "aVenir": "À venir",
+      "annulee": "Annulée",
+      "erreur": "Impossible de charger le détail par bail.",
+      "vide": "Aucune commission pour l’instant : elles apparaissent à la signature d’un bail.",
+      "colonnes": {
+        "bail": "Bail",
+        "client": "Client",
+        "signeLe": "Signé le",
+        "loyer": "Loyer mensuel",
+        "commission": "Commission",
+        "versement": "Versement"
+      }
+    },
+    "demandesEnAttente": "Demandes en attente"
   },
   "propertyDashboard": {
     "overview": {

@@ -184,12 +184,19 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     expect(icone('Mon profil')).toContain('lucide-user');
     expect(icone('Préférences de notification')).toContain('lucide-bell-ring');
     // La langue : trois `menuitemradio`, la courante cochée, chacune nommée dans SA langue.
+    // TCK-2848 (AC5) — dessinés en contrôle segmenté « FR · EN · WO » sur la ligne « Langue » : le texte est
+    // le code, le nom accessible la langue entière ; le groupe est nommé « Langue ».
     const langues = within(menu).getAllByRole('menuitemradio');
-    expect(langues.map((l) => [l.textContent, l.getAttribute('aria-checked'), l.getAttribute('lang')])).toEqual([
-      ['FrançaisFR', 'true', 'fr'],
-      ['EnglishEN', 'false', 'en'],
-      ['WolofWO', 'false', 'wo'],
+    expect(
+      langues.map((l) => [l.textContent, l.getAttribute('aria-label'), l.getAttribute('aria-checked'), l.getAttribute('lang')]),
+    ).toEqual([
+      ['FR', 'Français', 'true', 'fr'],
+      ['EN', 'English', 'false', 'en'],
+      ['WO', 'Wolof', 'false', 'wo'],
     ]);
+    const segments = menu.querySelector<HTMLElement>('[data-slot="segments-de-langue"]')!;
+    expect([...segments.children]).toEqual(langues);
+    expect(within(menu).getByRole('group', { name: 'Langue' })).toContainElement(segments);
     await u.click(langues[1]!);
     expect(choisirLangue).toHaveBeenCalledWith('en');
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
