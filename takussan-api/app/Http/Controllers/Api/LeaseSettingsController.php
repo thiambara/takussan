@@ -13,8 +13,12 @@ use Illuminate\Http\Request;
  * `/app/agency/lease-settings` montre et fait changer. Lecture seule ; l'écriture passe par
  * `POST /api/settings` (portée `agency`) et le retour à la plateforme par `DELETE /api/settings/{id}`.
  *
- * À qui configure l'agence (`AgencyPolicy::configure`), comme la liste `GET /api/settings` : ni un
- * agent, ni un bailleur, ni l'admin d'une autre agence.
+ * TCK-2920 (ADR-0111) — la LECTURE est au personnel actif de l'agence de l'espace actif (admin,
+ * agent) et à qui la configure (`AgencyPolicy::viewLeaseSettings`) : ni un bailleur, ni un
+ * prestataire, ni un profil non actif, ni le personnel d'une autre agence (la route ne lit que
+ * l'agence de l'espace actif). L'ÉCRITURE reste à `AgencyPolicy::configure`, et `can_edit` le dit
+ * pour l'appelant — calculé, jamais une constante : c'est lui que l'écran lit pour choisir l'état
+ * « Lecture seule ». La liste générale `GET /api/settings` n'est pas ouverte (ADR-0111 § 4).
  */
 class LeaseSettingsController extends Controller
 {
@@ -22,10 +26,11 @@ class LeaseSettingsController extends Controller
     {
         $agencyId = $request->user()->agency_id;
         abort_if($agencyId === null, 403);
-        $this->authorize('configure', Agency::query()->findOrFail($agencyId));
+        $agence = Agency::query()->findOrFail($agencyId);
+        $this->authorize('viewLeaseSettings', $agence);
 
         return $this->json(['data' => [
-            'can_edit' => true,
+            'can_edit' => $request->user()->can('configure', $agence),
             'settings' => $reglages->pour((int) $agencyId),
         ]]);
     }

@@ -22025,7 +22025,8 @@
         "priceMax": "Max price",
         "createdFrom": "Created after",
         "createdTo": "Created before",
-        "agent": "Agent"
+        "agent": "Agent",
+        "owner": "Landlord"
       },
       "mobile": {
         "button": "Filters",
@@ -22047,9 +22048,12 @@
         "lieu": "Location",
         "agentEtPortee": "Agent and scope",
         "afficher": "Show",
-        "plus": "More criteria"
+        "plus": "More criteria",
+        "bailleurEtAgent": "Landlord and agent"
       },
-      "total": "{count, plural, one {# property} other {# properties}}"
+      "total": "{count, plural, one {# property} other {# properties}}",
+      "ownerLabel": "Landlord",
+      "ownerAll": "All landlords"
     },
     "actions": {
       "error": "Action failed. Please try again.",
@@ -22293,7 +22297,10 @@
           "brouillon": "In preparation",
           "aucun": "No move-in inspection",
           "echec": "The inspection could not be loaded."
-        }
+        },
+        "avisDEcheance": "due notice on {date}",
+        "revision": "Rent review possible on {date}",
+        "revisionDetail": "Annual indexation clause"
       },
       "bailleur": {
         "titre": "Landlord",
@@ -22330,7 +22337,8 @@
         "vide": "No instalment recorded.",
         "recuLe": "Received on {date}",
         "echeanceLe": "Due on {date}",
-        "echeanceEtPenalite": "Due on {date} · late fee {montant} due"
+        "echeanceEtPenalite": "Due on {date} · late fee {montant} due",
+        "recuLeParMoyen": "Received on {date} · {moyen}"
       },
       "carte": {
         "loyerDe": "{mois} rent",
@@ -22377,11 +22385,17 @@
       "identite": {
         "surface": "{area} m²",
         "enLigne": "Online",
-        "horsLigne": "Offline"
+        "horsLigne": "Offline",
+        "valide": "Approved"
       },
       "responsable": {
         "detail": "Responsible agent",
-        "aucun": "Not assigned"
+        "aucun": "Not assigned",
+        "principal": "Lead agent",
+        "collaborateurs": "{count, plural, one {# collaborator} other {# collaborators}}"
+      },
+      "interventions": {
+        "enCours": "{count, plural, one {# ongoing work order} other {# ongoing work orders}}"
       }
     },
     "annonces": {
@@ -22407,9 +22421,12 @@
       "quota": {
         "texte": "{used, plural, one {# active listing} other {# active listings}} of {limit}",
         "aria": "Your agency’s listing quota",
-        "definition": "Available, approved or pending"
+        "definition": "Available, approved or pending",
+        "offre": "{nom} plan"
       },
-      "boostee": "Boosted until {date}"
+      "boostee": "Boosted until {date}",
+      "chiffres30j": "{vues, plural, one {# view} other {# views}} · {contacts, plural, one {# contact} other {# contacts}} · {visites, plural, one {# visit} other {# visits}}",
+      "fenetre30j": "(30 d)"
     },
     "horsLigne": {
       "phrase": {

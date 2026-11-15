@@ -57,4 +57,29 @@ Un agent de l'agence peut consulter les réglages de bail que chaque bail neuf r
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — livré (agent délégué).**
+
+- `AgencyPolicy::viewLeaseSettings` = `PersonnelDeLAgence::personnelActifDe(appelant, agence)`
+  (profil actif de personnel de cette agence, compte joignable — le prédicat ADR-0031 § 1 déjà
+  partagé par les visites) **OU** `configure` (qui peut écrire peut lire : l'admin principal sans
+  profil matérialisé). `LeaseSettingsController` autorise par elle ; `can_edit` =
+  `can('configure', agence)`. Docblock réécrit.
+- Le super-admin : `Gate::before` le laisse passer, mais la route lit l'agence de l'espace actif
+  (`abort_if(agency_id === null, 403)`, inchangé) — un super-admin sans agence n'a rien à lire.
+- **Prémisse différait (AC3)** : « un admin de l'agence B reçoit 403 » n'est pas atteignable — la
+  route n'a pas de paramètre d'agence, elle lit celle de l'espace actif ; l'admin de B lit donc les
+  siens (200) et jamais la valeur de A (test qui pose 7 sur A et lit `platform` côté B). Le cas
+  « personnel d'une autre agence » est éprouvé par un agent de A dont l'espace actif est un profil
+  de bailleur dans B (`X-Profile-Id`) : 403.
+- Test existant adapté : `ReglagesDeBailDeLAgenceTest::test_l_ecran_est_refuse_a_qui_ne_configure_pas_l_agence`
+  (agent + bailleur → 403) devient `test_l_ecran_est_refuse_au_bailleur` ; l'agent garde son 403
+  en écriture (AC4 de TCK-2832, inchangé).
+- Tests : `tests/Feature/Settings/LeaseSettingsReadTest.php` (12 cas) — agent actif 200 /
+  `can_edit:false` ; admin principal, admin avec `agency.update` → `true` ; admin sans
+  `agency.update` → 200 / `false` ; agent suspendu, inactif, compte bloqué, bailleur, prestataire
+  → 403 ; agent qui lit → 403 en `POST /api/settings` et `DELETE /api/settings/{id}`.
+- Ablations (une à une, restaurées par `cp`, md5 vérifié) : `can_edit => true` → AC1 rouge ;
+  `configure` ouvert au personnel actif → AC4 rouge ; `viewLeaseSettings` → `true` → 3 cas d'AC3
+  rouges (les autres sont refusés en amont : pas d'agence active).
+- Garde racine `check-models-spec` rouge sur `MaintenanceRescheduleRequest` : modèle de TCK-2917
+  (agent en cours), hors de cette zone.

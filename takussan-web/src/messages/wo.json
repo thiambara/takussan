@@ -22025,7 +22025,8 @@
         "priceMax": "Njëg gu réy",
         "createdFrom": "Sosu ginnaaw",
         "createdTo": "Sosu laata",
-        "agent": "Ajaŋ"
+        "agent": "Ajaŋ",
+        "owner": "Bailleur"
       },
       "mobile": {
         "button": "Filtre yi",
@@ -22047,9 +22048,12 @@
         "lieu": "Lieu",
         "agentEtPortee": "Agent et portée",
         "afficher": "Afficher",
-        "plus": "Plus de critères"
+        "plus": "Plus de critères",
+        "bailleurEtAgent": "Bailleur et agent"
       },
-      "total": "{count, plural, one {# bien} other {# biens}}"
+      "total": "{count, plural, one {# bien} other {# biens}}",
+      "ownerLabel": "Bailleur",
+      "ownerAll": "Tous les bailleurs"
     },
     "actions": {
       "error": "Aksioŋ bi antuwul. Jéematal.",
@@ -22293,7 +22297,10 @@
           "brouillon": "En préparation",
           "aucun": "Aucun état des lieux d’entrée",
           "echec": "L’état des lieux n’a pas pu être lu."
-        }
+        },
+        "avisDEcheance": "avis d’échéance le {date}",
+        "revision": "Révision possible le {date}",
+        "revisionDetail": "Clause d’indexation annuelle"
       },
       "bailleur": {
         "titre": "Bailleur",
@@ -22330,7 +22337,8 @@
         "vide": "Aucune échéance enregistrée.",
         "recuLe": "Reçu le {date}",
         "echeanceLe": "Échéance le {date}",
-        "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
+        "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due",
+        "recuLeParMoyen": "Reçu le {date} · {moyen}"
       },
       "carte": {
         "loyerDe": "Loyer de {mois}",
@@ -22377,11 +22385,17 @@
       "identite": {
         "surface": "{area} m²",
         "enLigne": "En ligne",
-        "horsLigne": "Hors ligne"
+        "horsLigne": "Hors ligne",
+        "valide": "Validé"
       },
       "responsable": {
         "detail": "Agent responsable",
-        "aucun": "Non désigné"
+        "aucun": "Non désigné",
+        "principal": "Agent principal",
+        "collaborateurs": "{count, plural, one {# collaborateur} other {# collaborateurs}}"
+      },
+      "interventions": {
+        "enCours": "{count, plural, one {# intervention en cours} other {# interventions en cours}}"
       }
     },
     "annonces": {
@@ -22407,9 +22421,12 @@
       "quota": {
         "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
         "aria": "Quota d’annonces de votre agence",
-        "definition": "Disponibles, validées ou en attente"
+        "definition": "Disponibles, validées ou en attente",
+        "offre": "Offre {nom}"
       },
-      "boostee": "Boostée jusqu’au {date}"
+      "boostee": "Boostée jusqu’au {date}",
+      "chiffres30j": "{vues, plural, one {# vue} other {# vues}} · {contacts, plural, one {# contact} other {# contacts}} · {visites, plural, one {# visite} other {# visites}}",
+      "fenetre30j": "(30 j)"
     },
     "horsLigne": {
       "phrase": {
