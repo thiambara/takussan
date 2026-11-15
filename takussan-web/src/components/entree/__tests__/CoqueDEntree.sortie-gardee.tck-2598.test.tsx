@@ -89,7 +89,7 @@ describe('r1 — la marque est une sortie gardée', () => {
     expect(clics.at(-1)).toEqual({ href: '/', annule: false });
   });
 
-  it('la marque de la barre du panneau (bureau large) et celle d’un retour : la même garde', () => {
+  it('la marque de la barre du panneau (bureau) et celle d’un retour : la même garde', () => {
     render(
       withIntl(
         <CoqueDEntree
@@ -102,8 +102,9 @@ describe('r1 — la marque est une sortie gardée', () => {
         </CoqueDEntree>,
       ),
     );
-    // Téléphone (après le retour), barre du panneau, barre de 1024-1280.
-    expect(marques()).toHaveLength(3);
+    // Téléphone (après le retour), barre du panneau. TCK-2936 — plus de barre de 1024-1280 : avec un
+    // panneau, dès 1024, la barre de 64 px n'est pas rendue.
+    expect(marques()).toHaveLength(2);
     for (const marque of marques()) {
       fireEvent.click(marque);
       expect(screen.getByRole('dialog')).toBeInTheDocument();

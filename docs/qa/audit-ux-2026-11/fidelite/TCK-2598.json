@@ -157,18 +157,11 @@
  "ignorer": [],
  "ecarts_acceptes": [
   {
-   "ecran": "a-1-telephone",
-   "element": "en-tête d'accueil (photo de ville de 176 px, flèche sur photo, logo clair, « Tes visites, tes favoris, tes annonces. »)",
-   "propriete": "présence, hauteur",
+   "ecran": "a-1 (téléphone, bureau 1440 et 1024)",
+   "element": "photo de l'accueil (arrivée directe, en-tête de 176 px et panneau de 45 %)",
+   "propriete": "contenu de l'image",
    "exception": "donnée",
-   "motif": "le ticket retire le bandeau photo et interdit toute image décorative sans intention (AC2) ; TCK-2604 précise « sans intention, aucune villa ni slogan : la marque seule (une photo de Dakar libre de droits, fournie par le porteur ; sans elle, la marque seule) ». Aucune photo n'est fournie : la barre de 56 px de la coque (flèche unique, marque). Mesuré : « Recevoir un code » finit à 456 px, au-dessus du clavier émulé (508), contre 595 avant"
-  },
-  {
-   "ecran": "a-1-bureau-1440",
-   "element": "`DeuxColonnes` : panneau photo de 45 % à gauche et formulaire de 400 px",
-   "propriete": "disposition, largeur",
-   "exception": "incohérence des maquettes",
-   "motif": "sans objet d'intention, la forme de bureau est la colonne centrée de 480 px sous la barre de tunnel — `ColonneCentree` (connexion a-5/a-6), orientation, invitation : valeur majoritaire, et texte du ticket (« colonne de formulaire de 480 px ; le panneau voisin porte l'objet de l'intention »). Mesuré à 1280 : colonne 480 px, aucune image chargée (avant : 403 px et la villa d'Unsplash). Le 45 %/400 px avec objet est à TCK-2604"
+   "motif": "TCK-2936 : la maquette pose une photo locale du porteur (`public/maquettes/maison-blanche.jpg`, hors git, droits inconnus) ; le produit montre la photo Unsplash que la connexion portait jusqu'à TCK-2598 (licence Unsplash), `PHOTO_D_ACCUEIL` dans `components/auth/AccueilDeLaPorte.tsx` — une constante à changer pour une photo de Dakar fournie. Disposition, hauteur, voile, marque claire et slogan : ceux de la maquette"
   },
   {
    "ecran": "a-5-bureau-1440",
@@ -213,7 +206,7 @@
   {
    "element": "panneau d'objet de la connexion (bien quitté, 45 % à gauche, formulaire de 400 px — `DeuxColonnes`)",
    "ticket": "TCK-2604",
-   "motif": "la coque porte l'emplacement `objet` ; aucune page ne le déclare encore"
+   "motif": "déclaré par la connexion (TCK-2604) ; TCK-2936 le rend dès 1024 (plus seulement dès 1280), et l'arrivée directe y pose la photo d'accueil"
   },
   {
    "element": "pied collé de chaque écran (le bouton principal dans `pied`)",

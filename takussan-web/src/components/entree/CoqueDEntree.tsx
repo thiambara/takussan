@@ -48,9 +48,8 @@ export interface DeclarationDEntree {
   /** L'intention, titre de la barre (« Publier votre bien »). */
   readonly titre?: string;
   /**
-   * TCK-2604 — le titre de la seule barre du bureau, quand il diffère de celui du téléphone : entre 1024
-   * et 1280, la barre de 64 px dit l'action ET le bien (« Votre demande de visite · Studio meublé »), que
-   * le panneau dit dès 1280 et l'en-tête du téléphone jusqu'à 1024. Absent : `titre`.
+   * TCK-2604 — le titre de la seule barre du bureau (64 px), quand il diffère de celui du téléphone.
+   * Absent : `titre`. TCK-2936 — sans effet avec un `panneau`, qui remplace cette barre dès 1024.
    */
   readonly titreDeBureau?: string;
   /** L'avancement du parcours ENTIER, compte compris. */
@@ -81,11 +80,12 @@ export interface DeclarationDEntree {
    */
   readonly enTete?: ReactNode;
   /**
-   * TCK-2604 — au bureau LARGE (dès `xl`, 1280 px : « Bureau (≥ 1280 px) » du ticket), le panneau de
-   * GAUCHE de la maquette `DeuxColonnes` : 45 % de la largeur, pleine hauteur, et la barre passe dans
-   * la colonne de droite (retour à gauche, marque à droite), au-dessus d'un formulaire de 400 px. Un
-   * pourcentage, jamais une piste fixe. Entre 1024 et 1280, pas de panneau : la coque est celle d'une
-   * page sans panneau (barre de 64 px, `retourBureau` compris, colonne de 480 px).
+   * TCK-2604 — au bureau, le panneau de GAUCHE de la maquette `DeuxColonnes` : 45 % de la largeur,
+   * pleine hauteur, et la barre passe dans la colonne de droite (retour à gauche, marque à droite),
+   * au-dessus d'un formulaire de 400 px. Un pourcentage, jamais une piste fixe.
+   * TCK-2936 — dès `lg` (1024), plus seulement dès `xl` : la maquette parle sous 1280 (sa carte porte
+   * des variantes `max-lg:`), ADR-0106 § 4 s'efface devant elle. Avec un panneau, la barre de 64 px
+   * n'est donc jamais rendue.
    */
   readonly panneau?: ReactNode;
   /** La pastille de retour du bureau, quand la page en dit une plus juste (« Retour à l'annonce »). */
@@ -355,7 +355,7 @@ export function CoqueDEntree({
         {panneau ? (
           <aside
             data-panneau-d-entree=""
-            className="sticky top-0 hidden h-dvh w-[45%] flex-none self-start overflow-hidden xl:block"
+            className="sticky top-0 hidden h-dvh w-[45%] flex-none self-start overflow-hidden lg:block"
           >
             {panneau}
           </aside>
@@ -416,20 +416,16 @@ export function CoqueDEntree({
           )}
 
           {panneau ? (
-            /* Bureau large à deux colonnes (`DeuxColonnes`) : la barre de la colonne de droite, sans filet. */
-            <header className="hidden h-16 flex-none items-center justify-between px-10 xl:flex">
+            /* Bureau à deux colonnes (`DeuxColonnes`, dès 1024 — TCK-2936) : la barre de la colonne de droite, sans filet. */
+            <header className="hidden h-16 flex-none items-center justify-between px-10 lg:flex">
               {retourBureau ?? <span />}
               <Marque nom={libelles.marque} bloquee={sortieBloquee} onClick={auClicDeSortie} />
             </header>
           ) : null}
           {/* Bureau : 64 px — retour et marque ; l'intention et l'avancement au centre ; la sortie.
-              Avec un panneau, elle ne sert qu'entre 1024 et 1280, où le panneau ne paraît pas. */}
-          <header
-            className={cn(
-              'sticky top-0 z-20 hidden h-16 flex-none items-center border-b border-border bg-background px-8 lg:flex',
-              panneau ? 'xl:hidden' : null,
-            )}
-          >
+              Avec un panneau, jamais : la barre de la colonne de droite la remplace dès 1024 (TCK-2936). */}
+          {panneau ? null : (
+          <header className="sticky top-0 z-20 hidden h-16 flex-none items-center border-b border-border bg-background px-8 lg:flex">
             <div className="flex flex-1 items-center gap-5 whitespace-nowrap">
               {retourBureau ?? null}
               <Marque nom={libelles.marque} bloquee={sortieBloquee} onClick={auClicDeSortie} />
@@ -463,6 +459,7 @@ export function CoqueDEntree({
               )}
             </div>
           </header>
+          )}
 
           {pleinEcran ? (
             <main {...(densiteDesChamps ? fieldDensityScope() : {})} className="flex min-h-0 flex-1 flex-col">
@@ -471,7 +468,7 @@ export function CoqueDEntree({
           ) : (
           <main
             {...(densiteDesChamps ? fieldDensityScope() : {})}
-            className={cn('flex-1 px-4 pb-8 pt-5', 'lg:px-8 lg:pb-16 lg:pt-16', panneau ? 'xl:px-10 xl:pt-12' : null, volets ? 'lg:pt-14' : null)}
+            className={cn('flex-1 px-4 pb-8 pt-5', panneau ? 'lg:px-10 lg:pb-16 lg:pt-12' : 'lg:px-8 lg:pb-16 lg:pt-16', volets ? 'lg:pt-14' : null)}
           >
             {/* Sous 1280, la colonne et l'objet s'empilent : aucun panneau ne reste à côté du contenu. */}
             <div
@@ -498,7 +495,7 @@ export function CoqueDEntree({
                         : volets
                           ? 'max-w-[30rem] lg:max-w-[35rem]'
                           : 'max-w-4xl',
-                  panneau ? 'xl:max-w-[25rem]' : objet ? (objetAGauche ? 'xl:mx-0 xl:w-[25rem] xl:flex-none xl:pt-4' : volets ? 'xl:mx-0 xl:w-[35rem] xl:flex-none' : 'xl:mx-0 xl:w-[30rem] xl:flex-none') : null,
+                  panneau ? 'lg:max-w-[25rem]' : objet ? (objetAGauche ? 'xl:mx-0 xl:w-[25rem] xl:flex-none xl:pt-4' : volets ? 'xl:mx-0 xl:w-[35rem] xl:flex-none' : 'xl:mx-0 xl:w-[30rem] xl:flex-none') : null,
                 )}
               >
                 {children}
