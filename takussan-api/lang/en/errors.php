@@ -24,6 +24,11 @@ return [
         'date_range_too_long' => 'Date range must not exceed 1 year.',
     ],
     'agency' => [
+        // TCK-2937 (ADR-0125) — l'agence ouverte depuis l'orientation.
+        'already_admin' => 'You already manage an agency: use its space.',
+        'ninea_taken' => 'This NINEA is already held by another agency.',
+        'phone_unverified' => 'Verify your phone number first to open an agency.',
+        'unverified_publication' => 'Your agency must be verified by our team before a property can go online.',
         'active_profile_missing' => 'No active agency profile.',
         'admin_email_taken' => 'An account already exists with this administrator email.',
         'admin_phone_taken' => 'An account already exists with this verified manager phone number.',
@@ -652,6 +657,12 @@ return [
         'batch_not_confirmable' => 'One of the lines in the batch is not a suggested line of an open statement of this agency: nothing was confirmed.',
         'cross_agency' => 'The target payment does not belong to this agency.',
         'duplicate_file' => 'This statement has already been imported for this agency.',
+        // TCK-2932 — sortir un paiement du reste à rapprocher, et l'y remettre.
+        'ignored_payment_not_found' => 'This ignored payment cannot be found in this agency.',
+        'payment_already_ignored' => 'This payment has already been removed from the payments to reconcile.',
+        'payment_not_found' => 'This payment cannot be found in this agency.',
+        'payment_not_pending' => 'Only a paid, non-gateway, unreconciled payment can be removed from the payments to reconcile.',
+        'preview_unreadable' => 'The statement could not be read: its header or content does not match the selected format.',
     ],
     'reporting' => [
         'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',

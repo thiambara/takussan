@@ -9117,7 +9117,7 @@
         "reponseSansPublication": "Votre réponse est enregistrée, mais l’avis n’est pas encore publié : la publication n’a pas abouti. Réessayez « Publier ».",
         "reponseEchec": "La réponse n’a pas été enregistrée et rien n’a été publié. Vérifiez votre connexion, puis réessayez.",
         "decisionEchec": "La décision n’a pas été enregistrée. Vérifiez votre connexion, puis réessayez.",
-        "motifRappel": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…), journalisé avec vos mots s’il y en a.",
+        "motifRappel": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…) ; supprimer demande aussi quelques mots. Motif et mots sont journalisés.",
         "plusDActions": "Supprimer, ignorer les signalements",
         "retourALaFile": "Retour à la file",
         "videRisque": "Aucun avis à risque en attente.",
@@ -9806,7 +9806,11 @@
         "inventory_pdf_sent": "PDF de l’état des lieux envoyé aux parties",
         "invitation_share_link_issued": "Lien d'invitation renouvelé pour partage",
         "review_removed": "Avis supprimé",
-        "review_reports_ignored": "Signalements d’un avis ignorés"
+        "review_reports_ignored": "Signalements d’un avis ignorés",
+        "agency_self_opened": "Agence ouverte depuis l'orientation",
+        "invitation_phone_corrected": "Numéro corrigé par l'invité",
+        "payment_ignored": "Paiement sorti du reste à rapprocher",
+        "payment_unignored": "Paiement remis dans le reste à rapprocher"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",

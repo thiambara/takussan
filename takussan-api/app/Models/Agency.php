@@ -13,6 +13,7 @@ use App\Models\Enums\Currency;
 use App\Observers\AgencyBoostObserver;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -91,6 +92,9 @@ class Agency extends AbstractModel implements HasMedia
         'highlights' => 'array',
         'showcase_property_ids' => 'array',
         'median_response_minutes' => 'integer',
+        // TCK-2937 (ADR-0125) — l'ouverture en libre-service depuis l'orientation. Hors de
+        // `$fillable` : seul `OwnAgencyOpeningService` l'écrit (`forceFill`).
+        'self_opened_at' => 'datetime',
     ];
 
     protected $attributes = [
@@ -290,6 +294,33 @@ class Agency extends AbstractModel implements HasMedia
         return $this->kind === AgencyKind::Standard
             && filled(data_get($this->metadata, 'welcome.standard_unlocked_at'))
             && blank(data_get($this->metadata, self::SLUG_CHANGED_AT));
+    }
+
+    /**
+     * TCK-2937 (ADR-0125 § 5, § 6) — une agence ouverte en libre-service que personne de la
+     * plateforme n'a JAMAIS vérifiée : elle travaille en interne, mais ne met aucun bien en ligne et
+     * n'a pas de fiche publique. Les agences de la console et des passages en pro (`self_opened_at`
+     * nulle) n'y sont jamais. Une fois vérifiée, elle n'y revient pas : l'échéance de la pièce
+     * (`kyc:expire-dossiers`) retire `is_verified` mais garde `verified_at`, et suit la règle commune.
+     */
+    public function awaitsFirstVerification(): bool
+    {
+        return $this->self_opened_at !== null && ! $this->is_verified && $this->verified_at === null;
+    }
+
+    /**
+     * TCK-2937 (ADR-0125 § 5) — la négation de {@see awaitsFirstVerification()}, en requête : ce que
+     * la fiche et le portefeuille publics d'une agence peuvent montrer.
+     *
+     * @param  Builder<Agency>  $query
+     * @return Builder<Agency>
+     */
+    public function scopeVisibleInPublicDirectory(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull($q->qualifyColumn('self_opened_at'))
+            ->orWhere($q->qualifyColumn('is_verified'), true)
+            ->orWhereNotNull($q->qualifyColumn('verified_at')));
     }
 
     public function kycDossier(): MorphOne

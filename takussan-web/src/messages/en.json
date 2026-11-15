@@ -9117,7 +9117,7 @@
         "reponseSansPublication": "Your reply is saved, but the review is not published yet: publishing failed. Try “Publish” again.",
         "reponseEchec": "The reply was not saved and nothing was published. Check your connection, then try again.",
         "decisionEchec": "The decision was not saved. Check your connection, then try again.",
-        "motifRappel": "Hiding or deleting requires a reason (off-topic, abusive, personal data, fake review…), logged with your words if any.",
+        "motifRappel": "Hiding or deleting requires a reason (off-topic, abusive, personal data, fake review…); deleting also requires a few words. Both are logged.",
         "plusDActions": "Delete, ignore reports",
         "retourALaFile": "Back to the queue",
         "videRisque": "No at-risk review pending.",
@@ -9806,7 +9806,11 @@
         "inventory_pdf_sent": "Inventory PDF sent to the parties",
         "invitation_share_link_issued": "Invitation link renewed for sharing",
         "review_removed": "Review deleted",
-        "review_reports_ignored": "Review reports dismissed"
+        "review_reports_ignored": "Review reports dismissed",
+        "agency_self_opened": "Agency opened from onboarding",
+        "invitation_phone_corrected": "Phone number corrected by the invitee",
+        "payment_ignored": "Payment removed from the payments to reconcile",
+        "payment_unignored": "Payment put back into the payments to reconcile"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Me\AgentProfileController as MeAgentProfileController;
 use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\EspaceDemarrageController;
+use App\Http\Controllers\Api\Me\InviteSummaryController;
+use App\Http\Controllers\Api\Me\MeAgencyController;
 use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeLocateController;
@@ -50,6 +52,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('rent-summary', TenantRentSummaryController::class)->name('me.rent-summary');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
+    // TCK-2939 (ADR-0094, amendement du 2026-11-15 § 6) — le résumé chiffré de l'étape du numéro, au titulaire du profil.
+    Route::get('profiles/{profile}/invite-summary', InviteSummaryController::class)
+        ->where('profile', '[a-z_]{1,32}:[0-9]{1,18}')
+        ->name('me.profiles.invite-summary');
     // TCK-2847 (ADR-0116) — l'espace de l'appelant sous lequel une fiche se lit, pour la page « introuvable ».
     Route::get('locate', MeLocateController::class)->middleware('throttle:30,1')->name('me.locate');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
@@ -57,6 +63,11 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('quota', [SubscriptionController::class, 'quota'])->name('me.quota.show');
+    // TCK-2937 (ADR-0125) — « Créer mon espace pro » : l'agence `standard` ouverte tout de suite,
+    // vérifiée ensuite (admin principal actif, dossier KYC ouvert). 409 si déjà admin d'une agence.
+    Route::post('agencies', [MeAgencyController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('me.agencies.store');
     // TCK-2669 (ADR-0104 § 6) — le prix du passage en pro, lu du plan en base.
     Route::get('upgrade-offer', [SubscriptionController::class, 'upgradeOffer'])->name('me.upgrade-offer.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');

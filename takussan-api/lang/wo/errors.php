@@ -24,6 +24,11 @@ return [
         'date_range_too_long' => 'La période exportée ne doit pas dépasser un an.',
     ],
     'agency' => [
+        // TCK-2937 (ADR-0125) — l'agence ouverte depuis l'orientation.
+        'already_admin' => 'Vous administrez déjà une agence : passez par son espace.',
+        'ninea_taken' => 'Ce NINEA est déjà porté par une autre agence.',
+        'phone_unverified' => 'Vérifiez d\'abord votre numéro de téléphone pour ouvrir une agence.',
+        'unverified_publication' => 'Votre agence doit être vérifiée par notre équipe avant de mettre un bien en ligne.',
         'active_profile_missing' => 'Amul benn profil agence bu dox.',
         'admin_email_taken' => 'Am na compte bu am e-mail administrateur bii ba noppi.',
         'admin_phone_taken' => 'Un compte existe déjà avec ce numéro vérifié du gérant.',
@@ -652,6 +657,12 @@ return [
         'batch_not_confirmable' => 'Une des lignes du lot n\'est pas une ligne proposée d\'un relevé ouvert de l\'agence : rien n\'a été confirmé.',
         'cross_agency' => 'Bii paiement du ci bii agence.',
         'duplicate_file' => 'Bii relevé dañu ko wone nanu bii agence.',
+        // TCK-2932 — sortir un paiement du reste à rapprocher, et l'y remettre.
+        'ignored_payment_not_found' => 'Ce paiement ignoré est introuvable dans cette agence.',
+        'payment_already_ignored' => 'Ce paiement est déjà sorti du reste à rapprocher.',
+        'payment_not_found' => 'Ce paiement est introuvable dans cette agence.',
+        'payment_not_pending' => 'Seul un paiement encaissé, hors passerelle et non rapproché peut être sorti du reste à rapprocher.',
+        'preview_unreadable' => "Le relevé n'a pas pu être lu : son en-tête ou son contenu ne correspond pas au format choisi.",
     ],
     'reporting' => [
         'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',

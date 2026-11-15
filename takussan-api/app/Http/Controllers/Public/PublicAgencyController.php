@@ -246,6 +246,8 @@ class PublicAgencyController extends Controller
         return Agency::query()
             ->where('agencies.status', AgencyStatus::Active)
             ->where('agencies.kind', AgencyKind::Standard)
+            // TCK-2937 (ADR-0125 § 5) — une agence ouverte en libre-service et pas encore vérifiée.
+            ->visibleInPublicDirectory()
             ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio());
     }
 
@@ -306,6 +308,8 @@ class PublicAgencyController extends Controller
             ->where('slug', $slug)
             ->where('status', AgencyStatus::Active)
             ->where('kind', AgencyKind::Standard)
+            // TCK-2937 (ADR-0125 § 5) — pas de fiche publique avant la première vérification.
+            ->visibleInPublicDirectory()
             ->with('addresses')
             ->first();
 
@@ -498,6 +502,8 @@ class PublicAgencyController extends Controller
             ->where('slug', $slug)
             ->where('status', AgencyStatus::Active)
             ->where('kind', AgencyKind::Standard)
+            // TCK-2937 (ADR-0125 § 5) — ni portefeuille public avant la première vérification.
+            ->visibleInPublicDirectory()
             ->first();
 
         abort_if($agency === null, 404);

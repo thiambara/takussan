@@ -54,4 +54,54 @@ Le professionnel qui crée son espace depuis l'orientation travaille tout de sui
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15, agent d'implémentation, « valide tes choix » du porteur : à chaque point, l'option la plus sûre, écrite dans l'ADR.
+
+**Décision.** [ADR-0125](../../../adr/0125-l-espace-pro-de-l-orientation-est-une-agence-verifiee-ensuite.md), écrit avant le code. Le numéro 0124 était déjà pris (TCK-2926).
+
+**Livré.**
+
+- `POST /api/me/agencies`, servi par :
+  - `MeAgencyController@store` ;
+  - `StoreOwnAgencyRequest` (`name`, `geo_city_id`, `phone`, `ninea`) ;
+  - `OwnAgencyOpeningService`.
+- Une seule transaction, avec la ligne du compte verrouillée. Elle ouvre :
+  - l'agence `standard`, `active`, non vérifiée, avec `self_opened_at` ;
+  - l'`AgencyAdminProfile` actif, posé comme profil actif (cookie), et un `AgentProfile`, comme l'admin de la console ;
+  - le dossier KYC `pending` (`dossierForAgency`) ;
+  - l'adresse « Siège » si une ville est donnée.
+- 409 `agency.already_admin` ; 422 `agency.phone_unverified` (numéro vérifié exigé, ADR § 2) ; 422 `agency.ninea_taken`. Une agence ouverte en libre-service et jamais vérifiée ne compte pas comme porteuse du NINEA : un squatteur ne bloque pas le vrai titulaire.
+- Aucun abonnement posé à l'ouverture : `me/subscription` et `me/quota` répondent 200 (testé).
+- La restriction est levée par la PREMIÈRE vérification (`verified_at`). Une agence échue ensuite suit la règle commune.
+- Ce que l'agence ne peut pas faire avant sa vérification (ADR § 5) :
+  - mettre un bien en ligne : 422 `agency.unverified_publication`, posé dans `PropertyObserver` (`creating` et `updating`, exemption de modération comprise) ;
+  - avoir une fiche ou un portefeuille publics : 404, par `Agency::scopeVisibleInPublicDirectory` dans `PublicAgencyController` ;
+  - être reversée : règle existante `platform_payout.agency_unverified`, prouvée par un test ;
+  - recevoir les crédits de bienvenue : `SpaceCreated` n'est pas déclenché.
+- Migration `2026_11_15_293700_add_self_opened_at_to_agencies`.
+- Événement d'activité `agency_self_opened`, avec son libellé front (`admin.audit.events.agency_self_opened`).
+
+**Prémisses qui différaient.**
+
+- « Même refus que le passage en pro (TCK-601) » : ce refus n'existe pas. `SharedLegalIdentifierDetector` est un signal pour la revue, jamais un refus. Le 422 est une règle neuve, propre à l'ouverture, faute de revue humaine avant elle (ADR § 3). Le détecteur gagne `nineaHolders()`.
+- « Liste des villes servie » : elle existe déjà, `GET /api/public/geo/cities`. Aucune route neuve.
+- Le passage en pro n'a jamais posé `is_verified` : une agence `standard` non vérifiée publie aujourd'hui. La restriction ne vise donc que les agences ouvertes en libre-service (`self_opened_at`), pour ne rien changer aux agences de la console ni aux passages en pro.
+- L'admin d'agence doit avoir la 2FA pour les actions protégées (`RequireTwoFactor`). L'écran (TCK-2938) doit l'enrôler sur place à sa première 403, comme pour tout admin.
+
+**« Sous 48 h ».** Pas promis (ADR § 8) : aucun délai de revue n'est mesuré ni engagé. L'écran dit « Notre équipe vérifie l'agence », sans délai.
+
+**Mesures.**
+
+- `php artisan test tests/Feature/Onboarding/OrientationCreateAgencyTest.php` : 21 verts (88 assertions), route de publication réelle comprise.
+- Onze ablations, chacune rouge sans le correctif :
+  - la garde de l'observateur ;
+  - la garde sous l'exemption ;
+  - le scope public ;
+  - le refus du NINEA ;
+  - le 409 ;
+  - le dossier `pending` ;
+  - `is_verified` à vrai (reversements et mise en ligne) ;
+  - l'exception du NINEA jamais vérifié ;
+  - le numéro vérifié ;
+  - le bien déplacé ;
+  - la première vérification (`verified_at`).
+- Non-régression : `PublicAgencyIsVerifiedTest`, `PublicIndividualSpaceIsNotAnAgencyTest`, `PropertyObserverTest`, `PropertyModerationTest`, `HostAutoOnboardTest` : 34 verts.
