@@ -49,11 +49,12 @@ describe('les lectures et le geste du dossier (TCK-2875)', () => {
     expect(options.params?.fields?.bookings).toEqual(expect.arrayContaining(['id', 'customer_id', 'agency_id']));
   });
 
-  it('le fil du client se lit réduit aux notes et aux visites, une page de 100', () => {
+  it('le fil du client se lit réduit à ses types (notes, visites, contacts, réservations), une page de 100', () => {
     renderHook(() => useVisitesDuClient(3));
     const [, chemin, options] = lectures.at(-1) as [unknown, string, Options];
     expect(chemin).toBe('/api/customers/3/timeline');
-    expect(options.params?.filter).toEqual({ type: 'note,visit' });
+    // TCK-2878 — une lecture pour toute la fiche : les gestes de contact et les jalons de réservation aussi.
+    expect(options.params?.filter).toEqual({ type: 'note,visit,contact,booking' });
     expect(options.params?.per_page).toBe(100);
   });
 });

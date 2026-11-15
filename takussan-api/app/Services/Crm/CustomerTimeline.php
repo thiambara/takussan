@@ -330,7 +330,10 @@ final class CustomerTimeline
             ->get(['id', 'booking_id', 'amount', 'status', 'valid_until', 'created_at', 'responded_at'])
             ->keyBy('id');
 
-        $notes = CustomerNote::query()->with(['author', ...($staff ? ['visit'] : [])])->whereKey($ids('note'))->get()->keyBy('id');
+        // TCK-2878 — le bien de la demande d'une note `lead_message` (au personnel : hors de lui, la note ne sort pas).
+        $notes = CustomerNote::query()
+            ->with(['author', ...($staff ? ['visit', 'contactLead' => fn ($l) => $l->select(['id', 'property_id'])->with(['property' => fn ($p) => $p->withTrashed()->select(['id', 'title'])])] : [])])
+            ->whereKey($ids('note'))->get()->keyBy('id');
         $visits = PropertyVisit::query()
             ->with(['property' => fn ($p) => $p->withTrashed()->select(['id', 'title'])])
             ->whereKey($ids('visit'))
@@ -389,7 +392,17 @@ final class CustomerTimeline
                 'objections' => array_values($visit->report_objections ?? []),
                 'follow_up' => $visit->report_follow_up?->value,
             ]] : []),
+            // TCK-2878 (TCK-2875 AC6) — le bien demandé, sur le seul message d'une demande, au seul personnel.
+            ...($staff && $note->kind === CustomerNoteKind::LeadMessage ? ['property' => $this->bienDeLaDemande($note)] : []),
         ];
+    }
+
+    /** TCK-2878 — `{id, title}` du bien de la demande de la note, ou `null` (demande inconnue, sans bien). */
+    private function bienDeLaDemande(CustomerNote $note): ?array
+    {
+        $bien = $note->contactLead?->property;
+
+        return $bien !== null ? ['id' => $bien->id, 'title' => $bien->title] : null;
     }
 
     /** @return array<string, mixed> */

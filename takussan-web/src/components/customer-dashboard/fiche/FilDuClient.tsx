@@ -10,7 +10,10 @@ import {
   CalendarClock,
   CalendarX,
   CircleCheck,
+  CircleX,
   ClipboardCheck,
+  FileText,
+  Handshake,
   Inbox,
   ListChecks,
   Loader2,
@@ -38,7 +41,7 @@ import { cleDeLEntree, entreesDesPages, filtreDeLURL, FILTRES_DU_FIL, PARAMETRE_
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { createCustomerNote } from '@/lib/queries/customers';
-import { FIL_QUERY_KEY, fetchCustomerTimeline, type EntreeDuFil, type NoteDuFil, type VisiteDuFil } from '@/lib/queries/customer-timeline';
+import { FIL_QUERY_KEY, fetchCustomerTimeline, type EntreeDuFil, type NoteDuFil, type ReservationDuFil, type VisiteDuFil } from '@/lib/queries/customer-timeline';
 import { createCustomerTask } from '@/lib/queries/pipeline';
 import { cn } from '@/lib/utils';
 import { jourADakar } from '@/lib/visites/par-le-temps';
@@ -133,8 +136,9 @@ function EntreeNote({ note, dernier, epinglee }: { readonly note: NoteDuFil; rea
   const punaise = note.pinned ? <Pin className="ml-1.5 inline size-3.5 text-primary" role="img" aria-label={t('epingleeAria')} /> : null;
 
   if (note.kind === 'lead_message') {
+    // TCK-2878 — « Demande reçue sur {bien} » quand l'API sert le bien de la demande.
     return (
-      <LigneDuFil icone={Inbox} titre={t('demande')} date={date(note.at)} dernier={dernier}>
+      <LigneDuFil icone={Inbox} titre={note.property?.title ? t('demandeSur', { bien: note.property.title }) : t('demande')} date={date(note.at)} dernier={dernier}>
         {note.body ? <CitationDuMessage message={note.body} /> : null}
       </LigneDuFil>
     );
@@ -200,11 +204,44 @@ function EntreeVisite({ visite, dernier }: { readonly visite: VisiteDuFil; reado
   );
 }
 
+/**
+ * TCK-2878 (ADR-0110 § 9) — un jalon de réservation : son dépôt, son acceptation, son refus, ou une
+ * contre-offre. Le lien mène à la réservation ; le détail dit le bien et la référence.
+ */
+function EntreeReservation({ reservation, dernier }: { readonly reservation: ReservationDuFil; readonly dernier: boolean }) {
+  const t = useTranslations('crm.fiche.fil.reservation');
+  const f = useFormatteurs();
+  const date = useDateDeLigne();
+  const nature = reservation.kind ?? 'autre';
+  const jalon = reservation.milestone;
+  const montant = reservation.counter_offer ? f.montantCourt(Number(reservation.counter_offer.amount), reservation.currency ?? 'XOF') : null;
+  const titre = jalon === 'counter_offer' && montant ? t('counter_offer', { montant }) : t(jalon === 'counter_offer' ? 'created' : jalon, { nature });
+  const icone = jalon === 'confirmed' ? Handshake : jalon === 'rejected' ? CircleX : FileText;
+  const ton = jalon === 'confirmed' ? 'succes' : jalon === 'rejected' ? 'neutre' : 'primaire';
+  const detail = [reservation.property?.title ?? null, reservation.reference_number].filter(Boolean).join(' · ');
+  return (
+    <LigneDuFil
+      icone={icone}
+      ton={ton}
+      titre={
+        <Link href={`/app/bookings/${reservation.id}`} className="font-medium underline-offset-2 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring">
+          {titre}
+        </Link>
+      }
+      date={date(reservation.at)}
+      dernier={dernier}
+    >
+      {detail ? <p className="text-ui text-muted-foreground">{detail}</p> : null}
+    </LigneDuFil>
+  );
+}
+
 const CANAUX = ['call', 'whatsapp', 'email', 'sms'] as const;
 type Canal = (typeof CANAUX)[number];
 const ICONE_DU_CANAL: Record<Canal, LucideIcon | typeof IconeWhatsApp> = { call: PhoneOutgoing, whatsapp: IconeWhatsApp, email: Mail, sms: MessageSquare };
 
-function Entree({ entree, dernier }: { readonly entree: EntreeDuFil; readonly dernier: boolean }) {
+/** TCK-2878 — exportée : la fiche d'une candidature montre « Le fil de {prénom} » avec ces mêmes lignes. */
+export function Entree({ entree, dernier }: { readonly entree: EntreeDuFil; readonly dernier: boolean }) {
   const t = useTranslations('crm.fiche.fil');
   const tStage = useTranslations('crm.pipeline.stage');
   const tChamps = useTranslations('agentCrm.activity.fields');
@@ -237,6 +274,9 @@ function Entree({ entree, dernier }: { readonly entree: EntreeDuFil; readonly de
       const titre = titreDeLaTache ? t(faite ? 'tache.faite' : 'tache.creee', { titre: titreDeLaTache }) : t(faite ? 'tache.faiteSansTitre' : 'tache.creeeSansTitre');
       return <LigneDuFil icone={faite ? CircleCheck : ListChecks} ton={faite ? 'succes' : 'neutre'} titre={titre} date={date(entree.at, entree.causer?.name)} dernier={dernier} />;
     }
+    // TCK-2878 — servie par l'API depuis TCK-2894, tue jusqu'ici.
+    case 'booking':
+      return <EntreeReservation reservation={entree} dernier={dernier} />;
   }
 }
 

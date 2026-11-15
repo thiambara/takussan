@@ -44,6 +44,11 @@ export interface NoteDuFil {
   readonly property_visit_id: number | null;
   readonly author: PersonneDuFil | null;
   readonly report?: CompteRenduDuFil;
+  /**
+   * TCK-2878 (TCK-2875 AC6) — le bien de la demande dont une note `lead_message` reprend le message,
+   * au seul personnel ; `null` : demande inconnue ou sans bien. Absente des autres notes.
+   */
+  readonly property?: { readonly id: number; readonly title: string } | null;
 }
 
 /** Un jalon de visite : sa demande, sa confirmation ou son annulation (7a). */

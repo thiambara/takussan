@@ -1,9 +1,11 @@
 'use client';
 
+// TCK-2878 — le nom d'un garant, par la règle du nom affichable.
+import { nomAffichable } from '@/lib/identite';
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { Check, Plus, RotateCcw, XCircle } from 'lucide-react';
+import { Check, FileSignature, Plus, RotateCcw, XCircle } from 'lucide-react';
 import {
   useBooking,
   useCancelBooking,
@@ -67,6 +69,11 @@ import { HistoriqueDeLaFiche, type EvenementDeLHistorique } from './detail/histo
 // TCK-2876 — la contre-offre, le financement et la feuille « Contre-proposer ».
 import { ContreOffreEnCours, contreOffreEnCours, useEvenementsDeLaContreOffre, useLibelleDuFinancement } from './detail/contre-offre';
 import { FeuilleDeContreOffre } from './feuilles/FeuilleDeContreOffre';
+// TCK-2878 — la candidature arrive (origine, réponse attendue, le fil du client), puis le bail repris.
+import { BandeauAcceptee, BandeauDOrigine, EtapeDuClient, FilDeLaCandidature, useDepotEnClair } from './detail/candidature-et-bail';
+import { GarantsDeLaCandidature } from './detail/garants';
+import { PanneauDuBailRepris } from './feuilles/PanneauDuBailRepris';
+import { heuresAvantLaReponse } from '@/lib/reservations/candidature';
 
 /**
  * Listes figées hors composant : `useCanAll` mémoïse sur la RÉFÉRENCE du
@@ -160,6 +167,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const [contreOffreOuverte, setContreOffreOuverte] = useState(false);
   // TCK-2877 — la feuille « Rembourser » d'un séjour confirmé.
   const [remboursementOuvert, setRemboursementOuvert] = useState(false);
+  // TCK-2878 — le panneau « Nouveau bail · repris de la candidature » (bureau), monté ouvert seulement.
+  const [bailOuvert, setBailOuvert] = useState(false);
+  const depotEnClair = useDepotEnClair();
   const libelleDuFinancement = useLibelleDuFinancement();
   const evenementsDeLaContreOffre = useEvenementsDeLaContreOffre();
   const bookingQuery = useBooking(bookingId);
@@ -297,7 +307,20 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     const recue = booking.created_at ?? booking.booking_date;
     return recue ? tFiche('etat.recue', { age: age(recue) }) : null;
   })();
-  const ligneDeTete = [tFiche(`natureCourte.${nature}`), etat].filter(Boolean).join(' · ');
+  /**
+   * TCK-2878 — « réponse attendue sous 35 h » : l'échéance RÉELLE (`response_deadline`) dite en heures
+   * restantes (en jours au-delà de 72 h), à la place de la ligne « Expire le » d'une candidature.
+   */
+  const heuresRestantes = nature === 'application' ? heuresAvantLaReponse(booking, maintenant) : null;
+  const reponseAttendue =
+    heuresRestantes === null
+      ? null
+      : heuresRestantes === 0
+        ? tFiche('reponse.depassee')
+        : heuresRestantes <= 72
+          ? tFiche('reponse.heures', { n: heuresRestantes })
+          : tFiche('reponse.jours', { n: Math.ceil(heuresRestantes / 24) });
+  const ligneDeTete = [tFiche(`natureCourte.${nature}`), etat, reponseAttendue].filter(Boolean).join(' · ');
   const prixDuBien = booking.property?.price ?? null;
   const affiche =
     prixDuBien === null
@@ -474,7 +497,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {acompte ? <span className="text-success"> {tFiche('quoi.paye')}</span> : null}
         </LigneCle>
       ) : null}
-      {expireLe ? (
+      {/* TCK-2878 — une candidature dit sa réponse attendue en tête, plus « Expire le ». */}
+      {expireLe && !reponseAttendue ? (
         <LigneCle cle={nature === 'offer' ? tFiche('quoi.valable') : t('expiresAt')}>{jourEnClair(f, expireLe, true)}</LigneCle>
       ) : null}
       {/* Au bureau, la référence est dans le sous-titre de l'en-tête. */}
@@ -496,7 +520,24 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           ...(m.montant !== null ? [{ cle: tFiche('suiteBail.loyer'), valeur: tFiche('quoi.loyer', { montant: montant(m.montant) }) }] : []),
           // TCK-2875 — la caution que le bail reprend (TCK-2894).
           ...(booking.security_deposit_amount != null ? [{ cle: tFiche('suiteBail.caution'), valeur: montant(booking.security_deposit_amount) }] : []),
-          ...(booking.start_date ? [{ cle: tFiche('suiteBail.debut'), valeur: f.date(booking.start_date, { dateStyle: undefined, day: 'numeric', month: 'short', year: 'numeric' }) }] : []),
+          // TCK-2878 — « 1ᵉʳ déc. 2026 · 12 mois » (maquette e7) : le début et la durée de la candidature.
+          ...(booking.start_date
+            ? [
+                {
+                  cle: tFiche('suiteBail.debut'),
+                  valeur: [
+                    f.date(booking.start_date, { dateStyle: undefined, day: 'numeric', month: 'short', year: 'numeric' }),
+                    booking.term_months ? tFiche('quoi.dureeValeur', { n: booking.term_months, renouvelable: 'non' }) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+                },
+              ]
+            : []),
+          // TCK-2878 — le garant que le bail reprend (TCK-2894).
+          ...((booking.guarantors?.length ?? 0) > 0
+            ? [{ cle: tFiche('suiteBail.garant'), valeur: (booking.guarantors ?? []).map((g) => nomAffichable(g)).join(', ') }]
+            : []),
         ]}
       />
     ) : null;
@@ -550,7 +591,31 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   // Une CANDIDATURE seulement : l'offre (maquette « Offre ») n'a pas de dossier à l'écran — TCK-2876.
   const dossier = nature === 'application' && booking.dossier && booking.dossier.required > 0 ? booking.dossier : null;
   const completude = dossier ? <Completude recues={dossier.received} total={dossier.required} /> : null;
-  const piecesDuDossier = dossier ? <PiecesDuDossier bookingId={booking.id} personnel={personnel} maintenant={maintenant} /> : null;
+  // TCK-2878 — les garants d'une candidature ouverte, sous ses pièces, au seul personnel (le geste garant).
+  const garantsDeLaCandidature =
+    dossier && personnel && !isCustomer && booking.guarantors !== undefined && (booking.status === 'pending' || booking.status === 'confirmed') ? (
+      <GarantsDeLaCandidature booking={booking} />
+    ) : null;
+  const piecesDuDossier = dossier ? (
+    <>
+      <PiecesDuDossier bookingId={booking.id} personnel={personnel} maintenant={maintenant} />
+      {garantsDeLaCandidature}
+    </>
+  ) : null;
+
+  /**
+   * TCK-2878 (maquette `app-fil-commercial` e6/e7) — le dépôt et la suite d'une candidature, au
+   * personnel : le bandeau du dépôt, l'acceptation et le passage de la fiche, le fil du client.
+   */
+  const candidatureDuPersonnel = nature === 'application' && personnel && !isCustomer && !!booking.customer_id;
+  const acceptee = nature === 'application' && booking.status === 'confirmed';
+  const bandeauDOrigine = candidatureDuPersonnel ? <BandeauDOrigine booking={booking} prenom={prenom} /> : null;
+  const bandeauAcceptee = acceptee && !isCustomer ? <BandeauAcceptee booking={booking} prenom={prenom} /> : null;
+  const etapeDuClient = acceptee && personnel && !isCustomer && booking.stage_change ? <EtapeDuClient booking={booking} maintenant={maintenant} /> : null;
+  const filDuClient = (forme: 'carte' | 'section') =>
+    candidatureDuPersonnel && (booking.status === 'pending' || booking.status === 'confirmed') ? (
+      <FilDeLaCandidature booking={booking} prenom={prenom} forme={forme} />
+    ) : null;
 
   const avisEtPaiementDuClient = (
     <>
@@ -609,9 +674,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         ) : null}
       </>
     ) : canCreateLease ? (
-      <Link href={`/app/leases/new?booking_id=${booking.id}`} className={buttonVariants()}>
-        {t('actions.createLease')}
-      </Link>
+      // TCK-2878 — au bureau, le panneau « Nouveau bail · repris de la candidature » ; au téléphone, le formulaire prérempli.
+      telephone ? (
+        <Link href={`/app/leases/new?booking_id=${booking.id}`} className={buttonVariants()}>
+          <FileSignature className="size-4" aria-hidden="true" />
+          {t('actions.createLease')}
+        </Link>
+      ) : (
+        <Button type="button" onClick={() => setBailOuvert(true)}>
+          <FileSignature className="size-4" aria-hidden="true" />
+          {t('actions.createLease')}
+        </Button>
+      )
     ) : sejourAvecPaiement ? (
       <Button type="button" onClick={() => setPaymentOpen(true)}>
         <Plus className="size-4" aria-hidden="true" />
@@ -678,6 +752,17 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         />
       ) : null}
       {/* TCK-2877 — « Rembourser » d'un séjour confirmé, montée ouverte seulement. */}
+      {/* TCK-2878 — le bail repris de la candidature, montée ouverte seulement. */}
+      {canCreateLease && bailOuvert && !telephone ? (
+        <PanneauDuBailRepris
+          booking={booking}
+          nom={nom}
+          prenom={prenom}
+          // Sans le prix affiché : le loyer du bail est celui de la candidature, pas le prix courant du bien.
+          bien={<BienDeLaDemande titre={titreDuBien} photo={booking.property?.main_photo_url} affiche={null} lien={lienDuBien} />}
+          onOpenChange={setBailOuvert}
+        />
+      ) : null}
       {canRefundStay && remboursementOuvert ? (
         <BookingRefundDialog booking={booking} paiements={remboursables} locale={locale} onClose={() => setRemboursementOuvert(false)} />
       ) : null}
@@ -726,12 +811,21 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         <RetenirLaFiche type="reservation" id={booking.id} titre={titre} chemin={`/app/bookings/${booking.id}`} />
         <h1 className="sr-only">{titre}</h1>
         <div className="p-4">
+          {/* TCK-2878 — maquette e6 : le bandeau du dépôt en tête. */}
+          {bandeauDOrigine ? <div className="mb-4">{bandeauDOrigine}</div> : null}
           <div className="flex items-center gap-2">
             <StatutDeLaDemande statut={booking.status} />
             <span className="text-ui text-muted-foreground">{ligneDeTete}</span>
           </div>
           <div className="mt-3">{bien}</div>
         </div>
+        {/* TCK-2878 — maquette e7 : l'acceptation, puis le passage de la fiche en Négociation, avant le bail prêt. */}
+        {bandeauAcceptee || etapeDuClient ? (
+          <div className="space-y-4 px-4 pb-4">
+            {bandeauAcceptee}
+            {etapeDuClient}
+          </div>
+        ) : null}
         {suiteDuBail || comparaison || dates ? (
           <div className="px-4 pb-4">
             {suiteDuBail}
@@ -739,6 +833,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             {dates}
           </div>
         ) : null}
+        {/* TCK-2878 — « De la demande au bail · N jours » : le fil du client sous le bail prêt. */}
+        {acceptee ? filDuClient('section') : null}
         {montantDuSejour ? <SectionDuTelephone titre={tFiche('sections.montant')}>{montantDuSejour}</SectionDuTelephone> : null}
         {qui ? (
           <SectionDuTelephone titre={tFiche('sections.qui')}>
@@ -917,7 +1013,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         description={
           <span className="inline-flex flex-wrap items-center gap-2">
             <StatutDeLaDemande statut={booking.status} />
-            <span>{[titreDuBien, etat, booking.reference_number].filter(Boolean).join(' · ')}</span>
+            {/* TCK-2878 — « Déposée dim. 8 nov. à 20:12 par le lien envoyé après la visite · réponse attendue sous 48 h ». */}
+            <span>{[titreDuBien, depotEnClair(booking) ?? etat, reponseAttendue, booking.reference_number].filter(Boolean).join(' · ')}</span>
           </span>
         }
         actions={
@@ -947,9 +1044,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {remboursement}
         </div>
         <div className="min-w-0 space-y-5">
+          {/* TCK-2878 — maquette e7 bureau : l'acceptation et le passage en Négociation en tête de la colonne. */}
+          {bandeauAcceptee}
+          {etapeDuClient}
           {suiteDuBail}
           {decisionDeLOffre}
           {decisionDeLaCandidature}
+          {/* TCK-2878 — « Le fil de {prénom} » (e6 et e7), sous la décision. */}
+          {filDuClient('carte')}
           {/* TCK-2877 — maquette e5 : les nuits du bien autour du séjour, au personnel. */}
           {nature === 'stay' && isDashboardAgent && !isCustomer && booking.property?.id && booking.start_date && booking.end_date ? (
             <NuitsDuBien bookingId={booking.id} propertyId={booking.property.id} debut={booking.start_date.slice(0, 10)} fin={booking.end_date.slice(0, 10)} />

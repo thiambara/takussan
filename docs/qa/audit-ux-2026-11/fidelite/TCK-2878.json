@@ -1,0 +1,127 @@
+{
+  "ticket": "TCK-2878",
+  "ecrans": [
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 6,
+      "nom": "La candidature arrive",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-6-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-6-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-6-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/{id}",
+        "persona": "agent",
+        "etat": "candidature `pending`, `source = invitation`, déposée il y a 13 h, `response_deadline` à +35 h, dossier 3/4 (`guarantor_identity` manquante), un garant (« Ibrahima Dieng · frère »), `term_months = 12`, caution 2 mois, client en Qualifié ; fil : demande sur ce bien (`lead_message` avec `property`), visite confirmée, compte rendu « intéressé », réponse WhatsApp, candidature déposée",
+        "releve_le": null
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Acceptée : le bail",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-7-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings/{id} (bureau : panneau « Nouveau bail » ouvert par « Créer le bail »)",
+        "persona": "agent",
+        "etat": "la même candidature `confirmed` le lendemain à 09:05, `stage_change {from: qualified, to: negotiating, undoable_until: +24 h, undone_at: null}`, client avec compte (`customer.user_id`)",
+        "releve_le": null
+      }
+    }
+  ],
+  "produit": {
+    "route": "voir `ecrans[].produit`",
+    "persona": "agent",
+    "disposition": null,
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-fil-commercial a-6-telephone, a-7-telephone",
+      "element": "onglet actif de la barre du bas : « Menu » et non « Clients »",
+      "propriete": "état",
+      "exception": "maquettes contradictoires",
+      "motif": "la fiche d'une réservation est la page `/app/bookings/{id}` (destination « Réservations », hors des onglets de l'agent) : la barre allume « Menu » (TCK-2801), comme le dessinent les six écrans de candidature de la maquette `app-reservations` a (`onglet=\"menu\"`). Allumer « Clients » pour une candidature contredirait cette maquette et le ferait aussi pour les séjours et les offres ; AC6 non mesuré au navigateur"
+    },
+    {
+      "ecran": "app-fil-commercial a-7-*",
+      "element": "« Mouhamed est prévenu par SMS et e-mail »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "« {prénom} est prévenu » sans canal : l'API prévient par e-mail, et sur le mobile seulement s'il est vérifié — WhatsApp d'abord, le SMS sinon (TCK-2874, AC4). Un client sans compte n'est pas prévenu : la phrase se tait"
+    },
+    {
+      "ecran": "app-fil-commercial a-6-*, a-7-*",
+      "element": "« Lien de candidature envoyé par WhatsApp » (fil)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "l'invitation n'a pas d'événement propre : c'est un geste de contact sur la demande (ADR-0101 § 4, TCK-2894) ; le fil dit « Réponse WhatsApp », comme la fiche client"
+    },
+    {
+      "ecran": "app-fil-commercial a-6-*, a-7-*",
+      "element": "« Candidature déposée, 3 pièces sur 4 » ; « Compte rendu : intéressé · étape Qualifié » ; « Candidature acceptée · étape Négociation » (fil)",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le jalon de réservation du fil ne porte ni dossier ni étape (TCK-2894 : jamais le dossier) ; la complétude se lit dans la carte Dossier, l'étape dans l'encart « Passé en Négociation »"
+    },
+    {
+      "ecran": "app-fil-commercial a-7-bureau-*",
+      "element": "« À la signature, Mouhamed passe en Gagné et le bien en « Loué » »",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "le bail signé occupe le bien dès son DÉBUT (`Occupation::occupying` : `start_date <= aujourd'hui`), pas au jour de la signature ; et la fiche ne passe pas seule en Gagné : l'étape lui est PROPOSÉE (`CustomerSuggestedStageQuery::LEASE_SIGNED`). Le panneau le dit : « Une fois le bail signé, le bien est loué dès le début du bail et la fiche de {prénom} vous propose l'étape Gagné » (AC7, à confirmer par le porteur)"
+    },
+    {
+      "ecran": "app-fil-commercial a-7-*",
+      "element": "carte « Bail prêt à créer » (téléphone) aussi au bureau, au-dessus de la carte du fil",
+      "propriete": "présence",
+      "exception": "hors maquette",
+      "motif": "la suite du bail (maquette `app-reservations` e3) reste lisible au personnel sans `leases.create`, qui n'ouvre pas le panneau"
+    },
+    {
+      "ecran": "app-fil-commercial a-6-*",
+      "element": "liste « Garants » sous les pièces du dossier, « Ajouter un garant » (feuille) et « Retirer »",
+      "propriete": "présence",
+      "exception": "hors maquette",
+      "motif": "seul chemin du front vers `POST|DELETE /api/bookings/{id}/guarantors` (TCK-2893) et ses refus, traduits par le front (`bookings.fiche.garants.codes`) ; grammaire des feuilles de la fiche"
+    },
+    {
+      "ecran": "app-fil-commercial a-6-*",
+      "element": "« Tout ouvrir » sur le bloc des pièces du dossier",
+      "propriete": "présence",
+      "exception": "hors périmètre",
+      "motif": "la carte Dossier est celle de TCK-2875 (maquette `app-reservations` e1), qui ouvre chaque pièce par « Ouvrir » ; aucune route n'ouvre toutes les pièces à la fois"
+    },
+    {
+      "ecran": "app-fil-commercial a-7-bureau-*",
+      "element": "carte du bien du panneau : prix affiché absent, adresse remplacée par le quartier",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "la carte reprend celle de la fiche (`BienDeLaDemande`) sans le prix courant, pour ne pas le confondre avec le loyer de la candidature ; l'adresse complète n'est pas servie à la fiche d'une réservation"
+    },
+    {
+      "ecran": "app-fil-commercial a-7-telephone",
+      "element": "chevron « › » après « Créer le bail »",
+      "propriete": "présence",
+      "exception": "grammaire",
+      "motif": "le geste de la barre d'action de la fiche porte son icône (`FileSignature`) sans chevron, comme les autres gestes principaux de `BarreDAction`"
+    }
+  ]
+}

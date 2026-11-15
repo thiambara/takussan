@@ -1,5 +1,7 @@
 'use client';
 
+// TCK-2878 — le nom d'un garant, par la règle du nom affichable.
+import { nomAffichable } from '@/lib/identite';
 import { useId, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -179,7 +181,15 @@ export function BlocQui({
         ? t('qui.revenusNonDeclares')
         : t('qui.revenus', { rapport: f.nombre(b.income_to_rent_ratio, { maximumFractionDigits: 1 }) })
       : null;
-  const garant = candidature && b.has_guarantor !== undefined ? t('qui.garant', { oui: b.has_guarantor ? 'oui' : 'non' }) : null;
+  // TCK-2878 — maquette e6 : « Garant · Oui · Ibrahima Dieng, son frère » — le garant NOMMÉ quand l'API le sert.
+  const premierGarant = b.guarantors?.[0];
+  const nomDuGarant = premierGarant ? nomAffichable(premierGarant) : '';
+  const garant =
+    candidature && nomDuGarant
+      ? t('qui.garantNomme', { nom: nomDuGarant, lien: premierGarant?.relationship_to_tenant?.trim() || 'aucun', autres: (b.guarantors?.length ?? 1) - 1 })
+      : candidature && b.has_guarantor !== undefined
+        ? t('qui.garant', { oui: b.has_guarantor ? 'oui' : 'non' })
+        : null;
   const faits = [
     b.customer?.occupation?.trim() || null,
     revenus,
@@ -368,9 +378,9 @@ export function SuiteDuBail({ lignes, className }: { readonly lignes: readonly {
         <span className="inline-flex size-6 items-center justify-center rounded-full bg-success text-success-foreground">
           <Check className="size-4" aria-hidden="true" />
         </span>
-        {t('titre')}
+        {/* TCK-2878 — l'acceptation se dit dans son bandeau (maquette e7) : la carte est le bail prêt. */}
+        {t('pret')}
       </p>
-      <p className="mt-1.5 text-sm leading-snug text-foreground">{t('texte')}</p>
       <dl className="mt-3 divide-y divide-success/20 rounded-lg bg-card px-3">
         {lignes.map((l) => (
           <LigneCle key={l.cle} cle={l.cle}>
@@ -378,7 +388,7 @@ export function SuiteDuBail({ lignes, className }: { readonly lignes: readonly {
           </LigneCle>
         ))}
       </dl>
-      <p className="mt-2.5 text-ui text-muted-foreground">{t('modifiable')}</p>
+      <p className="mt-2.5 text-ui text-muted-foreground">{t('repris')}</p>
     </div>
   );
 }

@@ -95,3 +95,65 @@ export function visitesEffectueesSurLeBien(entrees: readonly EntreeDuFil[], prop
   }
   return faits;
 }
+
+/* ─────────────────────────── TCK-2878 — la candidature arrive, puis le bail ─────────────────────────── */
+
+/** TCK-2878 — les demandes de contact du client sur CE bien (`lead_message` du fil, dont l'API sert le bien). */
+export function demandesSurLeBien(entrees: readonly EntreeDuFil[], propertyId: number): { readonly cle: string; readonly at: string }[] {
+  return entrees
+    .filter((e): e is NoteDuFil => e.type === 'note' && e.kind === 'lead_message' && e.property?.id === propertyId)
+    .map((e) => ({ cle: `demande-${e.id}`, at: e.at }));
+}
+
+/**
+ * TCK-2878 — la fin d'un bail repris d'une candidature : début + `term_months`, veille comprise, sans
+ * débordement de mois (31 janv. + 1 mois → 28 févr., puis la veille) — la convention de
+ * `LeaseService::create` (`addMonthsNoOverflow()->subDay()`). Jours `AAAA-MM-JJ`, sans fuseau.
+ */
+export function finDuTerme(debut: string, mois: number): string {
+  const [a, m, j] = debut.split('-').map((x) => Number.parseInt(x, 10));
+  const cible = new Date(Date.UTC(a, m - 1 + mois, 1));
+  const dernierDuMois = new Date(Date.UTC(cible.getUTCFullYear(), cible.getUTCMonth() + 1, 0)).getUTCDate();
+  const jour = new Date(Date.UTC(cible.getUTCFullYear(), cible.getUTCMonth(), Math.min(j, dernierDuMois) - 1));
+  return jour.toISOString().slice(0, 10);
+}
+
+/** Un montant de l'API (nombre, ou chaîne décimale) en nombre ; `null` s'il n'en est pas un. */
+function montantLu(v: unknown): number | null {
+  const n = typeof v === 'string' ? Number(v) : v;
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+}
+
+/**
+ * TCK-2878 (ADR-0102 § 3, TCK-2894) — ce que le bail reprend d'une CANDIDATURE : le loyer qu'elle
+ * propose (le prix du bien à sa création, jamais le prix courant du bien), sa caution, son début et la
+ * fin de son terme. Une clé absente (caution non dite, terme inconnu) ne se reprend pas : l'API la
+ * reprendrait elle-même, ou le bail la demande.
+ */
+export function termesDuBailRepris(
+  b: Pick<Booking, 'kind' | 'total_amount' | 'security_deposit_amount' | 'start_date' | 'end_date' | 'term_months'>,
+): { readonly monthly_rent?: number; readonly deposit_amount?: number; readonly start_date?: string; readonly end_date?: string } {
+  if (b.kind !== 'application') return {};
+  const loyer = montantLu(b.total_amount);
+  const caution = montantLu(b.security_deposit_amount);
+  const debut = b.start_date?.slice(0, 10) || undefined;
+  const fin = b.end_date?.slice(0, 10) || (debut && b.term_months ? finDuTerme(debut, b.term_months) : undefined);
+  return {
+    ...(loyer !== null && loyer > 0 ? { monthly_rent: loyer } : {}),
+    ...(caution !== null ? { deposit_amount: caution } : {}),
+    ...(debut ? { start_date: debut } : {}),
+    ...(fin ? { end_date: fin } : {}),
+  };
+}
+
+/**
+ * TCK-2878 — « reçue il y a 13 h · réponse attendue sous 35 h » : le temps qui reste avant l'échéance
+ * réelle (`response_deadline`), en heures entamées ; `null` hors d'une demande en attente ou sans
+ * échéance ; `0` une fois l'échéance passée.
+ */
+export function heuresAvantLaReponse(b: Pick<Booking, 'status' | 'response_deadline'>, maintenant: Date): number | null {
+  if (b.status !== 'pending' || !b.response_deadline) return null;
+  const reste = Date.parse(b.response_deadline) - maintenant.getTime();
+  if (!Number.isFinite(reste)) return null;
+  return reste <= 0 ? 0 : Math.ceil(reste / 3_600_000);
+}

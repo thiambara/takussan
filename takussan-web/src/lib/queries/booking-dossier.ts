@@ -53,11 +53,18 @@ export function useAutresCandidaturesDuBien(propertyId: number) {
 }
 
 /**
- * Les visites et les comptes rendus du client, au fil de sa fiche (`filter[type]=note,visit`), en une
- * page de 100 — la borne de l'API. Le front borne au bien (`visitesEffectueesSurLeBien`).
+ * Les visites et les comptes rendus du client, au fil de sa fiche, en une page de 100 — la borne de
+ * l'API. Le front borne au bien (`visitesEffectueesSurLeBien`).
+ *
+ * TCK-2878 — UNE lecture du fil pour toute la fiche de la réservation : l'historique (visites, demande
+ * de contact sur ce bien), « Le fil de {prénom} » et « De la demande au bail » la partagent. Elle lit
+ * aussi les gestes de contact (le lien envoyé après la visite) et les jalons de réservation.
  */
-export function useVisitesDuClient(customerId: number) {
-  return useApiQuery<PaginatedResponse<EntreeDuFil>>(['customer-timeline', customerId, 'note,visit', 'reservation'], cheminApi`/api/customers/${customerId}/timeline`, {
-    params: { filter: { type: 'note,visit' }, per_page: 100 },
+export const TYPES_DU_FIL_DE_LA_RESERVATION = 'note,visit,contact,booking';
+
+export function useVisitesDuClient(customerId: number, enabled = true) {
+  return useApiQuery<PaginatedResponse<EntreeDuFil>>(['customer-timeline', customerId, TYPES_DU_FIL_DE_LA_RESERVATION, 'reservation'], cheminApi`/api/customers/${customerId}/timeline`, {
+    params: { filter: { type: TYPES_DU_FIL_DE_LA_RESERVATION }, per_page: 100 },
+    enabled,
   });
 }

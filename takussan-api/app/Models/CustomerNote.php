@@ -17,7 +17,8 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
     use Auditable, HasFactory, SoftDeletes;
 
     /** TCK-2578 — `property_visit_id` : la visite que cite une note `visit_report` (une par visite). */
-    protected $fillable = ['customer_id', 'author_id', 'body', 'pinned', 'kind', 'property_visit_id'];
+    /** TCK-2878 — `contact_lead_id` : la demande dont une note `lead_message` reprend le message. */
+    protected $fillable = ['customer_id', 'author_id', 'body', 'pinned', 'kind', 'property_visit_id', 'contact_lead_id'];
 
     protected $casts = [
         'pinned' => 'boolean',
@@ -50,6 +51,12 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
     public function visit(): BelongsTo
     {
         return $this->belongsTo(PropertyVisit::class, 'property_visit_id');
+    }
+
+    /** TCK-2878 — la demande de contact d'une note `lead_message` (son bien borne l'historique d'une candidature). */
+    public function contactLead(): BelongsTo
+    {
+        return $this->belongsTo(PropertyContactLead::class, 'contact_lead_id');
     }
 
     /**

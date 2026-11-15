@@ -415,6 +415,8 @@ class ContactLeadService
                 'kind' => CustomerNoteKind::LeadMessage,
                 'body' => $message,
                 'pinned' => true,
+                // TCK-2878 — la note nomme sa demande : le fil sert le bien demandé.
+                'contact_lead_id' => $lead->id,
             ]);
             // Datée de la demande : le fil la range au jour où la personne a écrit.
             $note->created_at = $lead->created_at ?? now();

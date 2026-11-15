@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 
 import { useVisitesDuClient } from '@/lib/queries/booking-dossier';
-import { visitesEffectueesSurLeBien, type VisiteEffectuee } from '@/lib/reservations/candidature';
+import { demandesSurLeBien, visitesEffectueesSurLeBien, type VisiteEffectuee } from '@/lib/reservations/candidature';
 import type { Booking } from '@/types/booking';
 
 import { HistoriqueDeLaReservation } from './pieces-du-detail';
@@ -16,8 +16,8 @@ export type EvenementDeLHistorique = { readonly quoi: string; readonly at: strin
  * mêle aux événements de la réservation les visites EFFECTUÉES du client sur ce bien, lues au fil de
  * sa fiche (TCK-2894) : « Visite effectuée avec Sokhna Sène — « Intéressé, veut revoir la cuisine » ».
  *
- * Le fil n'est lu qu'au personnel de l'agence (lui seul en reçoit les visites), et seulement quand
- * l'API dit qu'une visite a eu lieu sur ce bien (`last_visit_on_property`) : sans elle, rien à mêler.
+ * Le fil n'est lu qu'au personnel de l'agence (lui seul en reçoit les visites). TCK-2878 : il l'est
+ * même sans visite sur ce bien — la demande de contact qui précède la candidature y entre aussi.
  */
 export function HistoriqueDeLaFiche({
   booking,
@@ -30,7 +30,9 @@ export function HistoriqueDeLaFiche({
   readonly personnel: boolean;
   readonly formater: (at: string) => string;
 }) {
-  const lireLeFil = personnel && booking.kind !== 'stay' && !!booking.last_visit_on_property && !!booking.customer_id && !!booking.property_id;
+  // TCK-2878 (TCK-2875 AC6) — la demande de contact sur ce bien entre aussi, avec ou sans visite : le
+  // fil se lit pour toute candidature ou offre du personnel (une lecture, partagée par la fiche).
+  const lireLeFil = personnel && booking.kind !== 'stay' && !!booking.customer_id && !!booking.property_id;
   return lireLeFil ? (
     <HistoriqueAvecLesVisites booking={booking} evenements={evenements} formater={formater} />
   ) : (
@@ -57,7 +59,9 @@ function HistoriqueAvecLesVisites({
     const texte = [verdict, v.note ? (verdict ? minusculeInitiale(v.note) : v.note) : null].filter(Boolean).join(', ');
     return { cle: v.cle, at: v.at, quoi: texte ? t('citation', { quoi, texte }) : quoi };
   };
-  return <HistoriqueDeLaReservation lignes={misesEnForme([...evenements, ...visites.map(ligne)], formater)} />;
+  // TCK-2878 (TCK-2875 AC6) — « Demande de contact reçue », bornée au bien par l'API (note `lead_message`).
+  const demandes = fil.data ? demandesSurLeBien(fil.data.data, booking.property_id).map((d) => ({ ...d, quoi: t('demande') })) : [];
+  return <HistoriqueDeLaReservation lignes={misesEnForme([...evenements, ...visites.map(ligne), ...demandes], formater)} />;
 }
 
 /** Du plus récent au plus ancien. */

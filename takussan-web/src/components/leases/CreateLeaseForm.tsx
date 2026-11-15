@@ -46,6 +46,8 @@ import type { FormatDateOptions } from '@/lib/format';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import type { Booking } from '@/types/booking';
+// TCK-2878 — ce que le bail reprend d'une candidature (loyer, caution, terme).
+import { termesDuBailRepris } from '@/lib/reservations/candidature';
 import type { CustomerListItem } from '@/types/customer';
 import type { LeaseDefaults, SourceDuDefaut } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
@@ -207,7 +209,14 @@ function CreateLeaseFormDepuisReservation({ bookingId, ...commun }: { readonly b
 
 function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormValues> {
   const bien = reservation.property;
-  const devise = DEVISES.find((code) => code === bien?.currency);
+  // TCK-2878 — la devise de la réservation d'abord (celle de son montant), sinon celle du bien.
+  const devise = DEVISES.find((code) => code === (reservation.currency ?? bien?.currency));
+  /**
+   * TCK-2878 (ADR-0102 § 3, TCK-2894) — une CANDIDATURE donne au bail SON loyer (le prix du bien à sa
+   * création, pas le prix courant), sa caution et la fin de son terme. Le formulaire envoyait toujours
+   * le loyer courant du bien et une caution à 0, qui l'emportent sur la reprise de l'API.
+   */
+  const termes = termesDuBailRepris(reservation);
   return {
     property_id: reservation.property_id,
     tenant_id: reservation.customer_id,
@@ -216,6 +225,7 @@ function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormVa
     end_date: reservation.end_date?.slice(0, 10) ?? '',
     ...(bien?.contract_type === 'rent' && typeof bien.price === 'number' ? { monthly_rent: bien.price } : {}),
     ...(devise ? { currency: devise } : {}),
+    ...termes,
   };
 }
 
@@ -479,7 +489,8 @@ function FormulaireDuBail({
     }
     // Une caution que l'agent n'a pas saisie vaut les mois du bien × le loyer DU FORMULAIRE : celui
     // du bien, ou celui que l'agent a tapé avant de le choisir, ou celui de la réservation.
-    if (!form.getFieldState('deposit_amount').isDirty) {
+    // TCK-2878 — une caution reprise de la candidature reste la sienne : elle ne suit pas les mois du bien.
+    if (!form.getFieldState('deposit_amount').isDirty && !deLaReservation.has('deposit_amount')) {
       const loyerCourant = form.getValues('monthly_rent');
       const mois = defauts.deposit_months?.value ?? moisEntiers(form.getValues('deposit_amount'), loyerCourant);
       moisDeCautionSuivis.current = mois;

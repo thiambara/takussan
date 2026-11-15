@@ -207,6 +207,12 @@ export function useConfirmBooking(bookingId: number) {
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],
+        // TCK-2878 — l'acceptation (ou le refus) entre au fil du client et fait avancer sa fiche : « Le fil de
+        // {prénom} » et « De la demande au bail » se relisent, comme la fiche et le pipeline.
+        ['customer-timeline'],
+        ['customers'],
+        ['crm-pipeline'],
+        ['agent-crm'],
       ],
     },
   );
@@ -221,6 +227,9 @@ export function useRejectBooking(bookingId: number) {
       invalidate: [
         ['bookings', 'detail', bookingId],
         ['bookings', 'list'],
+        // TCK-2878 — l'acceptation (ou le refus) entre au fil du client et fait avancer sa fiche : « Le fil de
+        // {prénom} » et « De la demande au bail » se relisent, comme la fiche et le pipeline.
+        ['customer-timeline'],
       ],
     },
   );

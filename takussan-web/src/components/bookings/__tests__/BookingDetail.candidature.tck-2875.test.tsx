@@ -32,6 +32,13 @@ vi.mock('@/lib/queries/bookings', () => ({
   useCreateBookingPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRefundBookingPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+// TCK-2878 — les gestes de la candidature et du bail (retour d'étape, bail repris, garants) : hors du sujet ici.
+vi.mock('@/lib/queries/candidature-et-bail', () => ({
+  useAnnulerLePassageDEtape: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreerLeBailRepris: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAjouterUnGarant: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRetirerUnGarant: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 const lu = vi.hoisted(() => ({
   pieces: [] as PieceDuDossier[],
   demander: vi.fn(),
@@ -158,13 +165,14 @@ describe('BookingDetail — candidature, conditions et dossier (TCK-2875)', () =
     rendre(OUSMANE);
     const qui = document.querySelector<HTMLElement>('[data-slot="bloc-qui"]')!;
     expect(texte(qui)).toContain('Revenus 3,2 × le loyer');
-    expect(texte(qui)).toContain('Garant : oui');
+    // TCK-2878 — le garant NOMMÉ (maquette e6 : « Garant · Oui · Ibrahima Dieng, son frère »).
+    expect(texte(qui)).toContain('Garant : Awa Ba, parent');
     expect(texte(document.body)).not.toContain('9•••••');
     expect(texte(qui.querySelector<HTMLElement>('[data-slot="deja-visite"]')!)).toBe('A déjà visité ce bien. Sam. 7 nov. : « Intéressé ».');
   });
 
   it('le lecteur à qui l’API ne sert ni revenus ni garant ne voit aucune de ces pastilles', () => {
-    const { income_to_rent_ratio: _r, has_guarantor: _g, declared_monthly_income_masked: _m, ...sansFaits } = OUSMANE;
+    const { income_to_rent_ratio: _r, has_guarantor: _g, guarantors: _gs, declared_monthly_income_masked: _m, ...sansFaits } = OUSMANE;
     rendre(sansFaits);
     const qui = document.querySelector<HTMLElement>('[data-slot="bloc-qui"]')!;
     expect(texte(qui)).not.toContain('Revenus');
@@ -267,12 +275,12 @@ describe('BookingDetail — candidature, conditions et dossier (TCK-2875)', () =
     expect(texte(document.querySelector<HTMLElement>('[data-slot="bloc-qui"]')!)).not.toContain('Garant');
   });
 
-  it('le fil du client n’est pas lu hors du personnel, ni sans visite sur ce bien', () => {
+  it('le fil du client n’est pas lu hors du personnel ; TCK-2878 : il l’est sans visite sur ce bien (la demande de contact y entre)', () => {
     ecran.personnel = false;
     rendre(OUSMANE);
     expect(lu.filLu).toBe(0);
     ecran.personnel = true;
     rendre({ ...OUSMANE, last_visit_on_property: null });
-    expect(lu.filLu).toBe(0);
+    expect(lu.filLu).toBeGreaterThan(0);
   });
 });
