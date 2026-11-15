@@ -3,17 +3,21 @@
 import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
-import { RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { Check, FileText, Lock, RotateCcw, Settings2 } from 'lucide-react';
 
 import { DataState } from '@/components/console';
 import { StatusBadge } from '@/components/console/StatusBadge';
 import { ID_DU_BAS_DU_CADRE } from '@/components/admin-agency/fiche/CadreDeLaFiche';
 import { DialogueDeSortie, useGardeDeSortie } from '@/components/admin-agency/fiche/garde-de-sortie';
 import { classesDuChamp } from '@/components/admin-agency/fiche/pieces';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Input } from '@/components/ui/input';
+import { lienDuBail, type RetourAuBail } from '@/lib/agence/retour-au-bail';
 import { ApiError, messageErreurApi } from '@/lib/api';
+import { nomAffichable } from '@/lib/identite';
+import { useLeaseCustomer } from '@/lib/queries/leases';
 import {
   useEnregistrerReglageDeBail,
   useReglagesDeBail,
@@ -54,8 +58,13 @@ const enNombre = (saisie: string): number => (saisie.trim() === '' ? Number.NaN 
  * par l'agence « Revenir à la valeur de la plateforme », qui RETIRE la ligne d'agence — jamais une
  * ligne à 0 (TCK-2643 r6). Les bornes affichées et jugées sont celles que l'API renvoie : la règle
  * du catalogue qui valide l'écriture.
+ *
+ * TCK-2921 — trois états de la maquette : « Vide (rien de réglé) » (e1, aucun réglage de source
+ * `agency`), « Venu du nouveau bail » / « Enregistré (venu du bail) » (e3, e4 : `retour`, un encart
+ * et « Reprendre le bail »), et « Lecture seule » (e5) — choisi sur `can_edit` de l'API SEUL : les
+ * valeurs en texte, aucun champ, ni « Revenir à la valeur de la plateforme » ni barre d'enregistrement.
  */
-export function ReglagesDeBail() {
+export function ReglagesDeBail({ retour = null }: { readonly retour?: RetourAuBail | null } = {}) {
   const t = useTranslations('agency.reglagesDeBail');
   const tFiche = useTranslations('admin.agencyConfig.fiche');
   const tCommon = useTranslations('common.actions');
@@ -64,12 +73,17 @@ export function ReglagesDeBail() {
   const enregistrer = useEnregistrerReglageDeBail();
   const revenir = useRevenirALaPlateforme();
   const reglages = lecture.data?.data.settings ?? [];
+  // TCK-2921 — l'état lecture se choisit sur `can_edit` SEUL, jamais sur le rôle.
+  const enLecture = lecture.data !== undefined && lecture.data.data.can_edit !== true;
+  const rienDeRegle = !enLecture && reglages.length > 0 && reglages.every((r) => r.source === 'platform');
 
   const [saisies, setSaisies] = useState<Saisies>({});
   const [erreurs, setErreurs] = useState<Erreurs>({});
   const [globale, setGlobale] = useState<string | null>(null);
   const [annonce, setAnnonce] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
+  // TCK-2921 (e4) — venu du bail, un enregistrement réussi passe l'encart du bail au ton succès.
+  const [enregistreDepuisLeBail, setEnregistreDepuisLeBail] = useState(false);
 
   const modifies = reglages.filter((r) => saisies[r.key] !== undefined && enNombre(saisies[r.key]!) !== r.value);
   const enErreur = reglages.filter((r) => erreurs[r.key] !== undefined).length;
@@ -104,6 +118,7 @@ export function ReglagesDeBail() {
   const soumettre = async () => {
     setAnnonce(null);
     setGlobale(null);
+    setEnregistreDepuisLeBail(false);
     const refus: Erreurs = {};
     for (const r of modifies) {
       const motif = refusDe(r, enNombre(saisies[r.key]!));
@@ -132,13 +147,17 @@ export function ReglagesDeBail() {
     }
     setSaisies(restantes);
     setErreurs(rejets);
-    if (Object.keys(rejets).length === 0 && Object.keys(restantes).length === 0) setAnnonce(t('enregistre'));
+    if (Object.keys(rejets).length === 0 && Object.keys(restantes).length === 0) {
+      setAnnonce(t('enregistre'));
+      if (retour !== null) setEnregistreDepuisLeBail(true);
+    }
   };
 
   const revenirALaPlateforme = async (r: ReglageDeBail) => {
     if (r.setting_id === null) return;
     setAnnonce(null);
     setGlobale(null);
+    setEnregistreDepuisLeBail(false);
     try {
       await revenir.mutateAsync({ settingId: r.setting_id });
       setSaisies(({ [r.key]: _retiree, ...reste }) => reste);
@@ -171,12 +190,23 @@ export function ReglagesDeBail() {
         skeletonRowClassName="h-44"
       >
         <div className="space-y-4">
+          {enLecture ? (
+            <Encart icone={<Lock className="size-icone" strokeWidth={1.75} aria-hidden="true" />}>{t('lectureSeule')}</Encart>
+          ) : null}
+          {!enLecture && retour !== null ? <EncartDuBail retour={retour} enregistre={enregistreDepuisLeBail} /> : null}
+          {rienDeRegle ? (
+            <Encart icone={<Settings2 className="size-icone" strokeWidth={1.75} aria-hidden="true" />}>{t('vide')}</Encart>
+          ) : null}
           {globale !== null ? (
             <p role="alert" className="rounded-xl bg-destructive/10 p-3.5 text-sm text-destructive">
               {globale}
             </p>
           ) : null}
-          <p aria-live="polite" className={cn('rounded-xl bg-success/10 p-3.5 text-sm text-foreground', annonce === null && 'sr-only')}>
+          {/* TCK-2921 (e4) — venu du bail, l'encart du bail DIT l'enregistrement : l'annonce n'est plus que lue. */}
+          <p
+            aria-live="polite"
+            className={cn('rounded-xl bg-success/10 p-3.5 text-sm text-foreground', (annonce === null || enregistreDepuisLeBail) && 'sr-only')}
+          >
             {annonce}
           </p>
           <div className="grid gap-4 xl:grid-cols-2">
@@ -184,6 +214,7 @@ export function ReglagesDeBail() {
               <CarteDeReglage
                 key={r.key}
                 reglage={r}
+                lectureSeule={enLecture}
                 saisie={saisies[r.key] ?? String(r.value)}
                 modifie={modifies.includes(r)}
                 erreur={erreurs[r.key] ?? null}
@@ -193,6 +224,7 @@ export function ReglagesDeBail() {
                   setSaisies((s) => ({ ...s, [r.key]: valeur }));
                   setErreurs(({ [r.key]: _retiree, ...reste }) => reste);
                   setAnnonce(null);
+                  setEnregistreDepuisLeBail(false);
                 }}
                 onRevenir={() => void revenirALaPlateforme(r)}
               />
@@ -201,7 +233,7 @@ export function ReglagesDeBail() {
         </div>
       </DataState>
 
-      {nombre > 0 ? (
+      {nombre > 0 && !enLecture ? (
         <>
           {/* Au téléphone : la barre d'action de la coque, comme la fiche. */}
           <BarreDAction>
@@ -255,6 +287,7 @@ export function ReglagesDeBail() {
 
 function CarteDeReglage({
   reglage,
+  lectureSeule,
   saisie,
   modifie,
   erreur,
@@ -264,6 +297,8 @@ function CarteDeReglage({
   onRevenir,
 }: {
   readonly reglage: ReglageDeBail;
+  /** TCK-2921 (e5) — la valeur en texte : aucun champ, aucune borne, aucun retour à la plateforme. */
+  readonly lectureSeule: boolean;
   readonly saisie: string;
   readonly modifie: boolean;
   readonly erreur: string | null;
@@ -288,6 +323,11 @@ function CarteDeReglage({
         {t(`cles.${cle}.aide`)}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        {lectureSeule ? (
+          <p className="font-display text-2xl font-semibold tabular-nums tracking-titre" data-slot="valeur-du-reglage">
+            {valeurAvecUnite(reglage.value)}
+          </p>
+        ) : (
         <div className="relative w-[8.25rem] flex-none">
           <label htmlFor={`${id}-champ`} className="sr-only">
             {t(`cles.${cle}.titre`)}
@@ -305,10 +345,11 @@ function CarteDeReglage({
             {t(`suffixes.${unite}`, { valeur: Number(saisie) || 0 })}
           </span>
         </div>
+        )}
         <StatusBadge tone={reglage.source === 'agency' ? 'primary' : 'neutral'} label={reglage.source === 'agency' ? t('source.agence') : t('source.plateforme')} />
         {modifie ? <span className="rounded-full bg-secondary px-1.5 py-px text-legende font-medium text-primary-deep">{tChamp('modifie')}</span> : null}
       </div>
-      {erreur !== null ? (
+      {lectureSeule ? null : erreur !== null ? (
         <p id={`${id}-bornes`} className="mt-1.5 text-ui font-medium text-destructive">
           {erreur}
         </p>
@@ -321,7 +362,7 @@ function CarteDeReglage({
         <p className="mr-auto py-2 text-muted-foreground">
           {t('plateforme')} <span className="font-medium tabular-nums text-foreground">{valeurAvecUnite(reglage.platform_value)}</span>
         </p>
-        {reglage.setting_id !== null ? (
+        {reglage.setting_id !== null && !lectureSeule ? (
           <Button type="button" variant="link" className="h-auto min-h-11 gap-1.5 px-0 text-ui font-medium" disabled={occupe} onClick={onRevenir}>
             <RotateCcw className="size-3.5 flex-none" aria-hidden="true" />
             {t('revenir')}
@@ -330,4 +371,71 @@ function CarteDeReglage({
       </div>
     </section>
   );
+}
+
+/** TCK-2921 — l'encart en tête de la section (maquette `Encart`) : neutre, ou succès (e4). */
+function Encart({
+  icone,
+  children,
+  action,
+  ton = 'neutre',
+}: {
+  readonly icone: ReactNode;
+  readonly children: ReactNode;
+  readonly action?: ReactNode;
+  readonly ton?: 'neutre' | 'succes';
+}) {
+  return (
+    <div
+      data-slot="encart-des-reglages"
+      className={cn('flex items-start gap-3 rounded-xl p-3.5 text-sm max-sm:flex-wrap', ton === 'succes' ? 'bg-success/10' : 'bg-muted/60')}
+    >
+      <span className={cn('mt-0.5 flex-none', ton === 'succes' ? 'text-success' : 'text-muted-foreground')}>{icone}</span>
+      <p className="min-w-0 flex-1 text-foreground/85">{children}</p>
+      {action ? <span className="flex-none max-sm:w-full max-sm:pl-8">{action}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * TCK-2921 (e3, e4) — venu du nouveau bail : la saisie y est gardée en brouillon (TCK-2912), et
+ * « Reprendre le bail » y ramène — même adresse, donc même brouillon, et des défauts relus. Un lien :
+ * la garde de sortie le retient tant qu'une modification des réglages n'est pas enregistrée.
+ */
+function EncartDuBail({ retour, enregistre }: { readonly retour: RetourAuBail; readonly enregistre: boolean }) {
+  const t = useTranslations('agency.reglagesDeBail.bail');
+  return (
+    <Encart
+      ton={enregistre ? 'succes' : 'neutre'}
+      icone={
+        enregistre ? (
+          <Check className="size-icone" strokeWidth={2.25} aria-hidden="true" />
+        ) : (
+          <FileText className="size-icone" strokeWidth={1.75} aria-hidden="true" />
+        )
+      }
+      action={
+        <Link href={lienDuBail(retour)} className={enregistre ? buttonVariants() : buttonVariants({ variant: 'outline' })}>
+          {t('reprendre')}
+        </Link>
+      }
+    >
+      {enregistre ? (
+        t.rich('enregistre', { fort: (morceau) => <span className="font-semibold text-foreground">{morceau}</span> })
+      ) : retour.locataireId !== undefined ? (
+        <VenuDuBailDe locataireId={retour.locataireId} />
+      ) : (
+        t('venuSansNom')
+      )}
+    </Encart>
+  );
+}
+
+/** « Vous venez du nouveau bail de … » : le locataire lu par son identifiant ; illisible, la phrase sans nom. */
+function VenuDuBailDe({ locataireId }: { readonly locataireId: number }) {
+  const t = useTranslations('agency.reglagesDeBail.bail');
+  const client = useLeaseCustomer(locataireId).data?.data;
+  const nom = client ? client.full_name || nomAffichable({ id: client.id, first_name: client.first_name, last_name: client.last_name }, '') : '';
+  if (nom === '') return <>{t('venuSansNom')}</>;
+  return <>{t.rich('venu', { locataire: nom, nom: (morceau) => <span className="font-medium text-foreground">{morceau}</span> })}</>;
 }

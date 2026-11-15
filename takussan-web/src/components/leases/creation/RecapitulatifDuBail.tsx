@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import Image from 'next/image';
 import { Settings2 } from 'lucide-react';
 
@@ -54,10 +54,12 @@ export function CarteDeRecapitulatif({
  * viennent les valeurs — l'agence quand l'une d'elles en vient, la plateforme sinon.
  *
  * TCK-2832 — « Modifier » (maquette) mène à `/app/agency/lease-settings`, à qui l'API dit pouvoir
- * écrire ces réglages (`can_edit_agency_settings`), jamais déduit du rôle. Il s'ouvre dans un NOUVEL
- * onglet : la navigation interne ne déclenche pas l'avertissement de départ, et la saisie du bail
- * serait perdue sans un mot. Au retour, les défauts se relisent (`useLeaseDefaults`, `staleTime: 0`)
- * et le nouveau réglage préremplit les champs que l'agent n'a pas touchés.
+ * écrire ces réglages (`can_edit_agency_settings`), jamais déduit du rôle.
+ *
+ * TCK-2921 — dans le MÊME onglet (plus de `target="_blank"`) : le formulaire garde d'abord sa saisie
+ * en brouillon (TCK-2912), puis part (`onClick`) ; l'adresse porte `?depuis=bail` et les identifiants
+ * du bail, et « Reprendre le bail » y ramène. Les défauts s'y relisent (`useLeaseDefaults`,
+ * `staleTime: 0`) : le nouveau réglage préremplit les champs que l'agent n'a pas touchés.
  */
 export function ReglagesAppliques({
   titre,
@@ -67,12 +69,22 @@ export function ReglagesAppliques({
 }: {
   readonly titre: string;
   readonly detail: string;
-  /** Le libellé du lien et son complément lu seul (« s'ouvre dans un nouvel onglet ») ; absent : pas de lien. */
-  readonly modifier?: { readonly libelle: string; readonly nouvelOnglet: string };
+  /**
+   * Le libellé du lien, son complément lu seul (« les réglages de l'agence »), son adresse et le geste
+   * qui garde la saisie avant de partir ; `erreur` : la saisie n'a pas pu être gardée. Absent : pas de lien.
+   */
+  readonly modifier?: {
+    readonly libelle: string;
+    readonly cible: string;
+    readonly href: string;
+    readonly onClick: (evenement: MouseEvent<HTMLAnchorElement>) => void;
+    readonly erreur?: string | null;
+  };
   readonly className?: string;
 }) {
   return (
-    <div className={cn('flex items-center gap-3 rounded-xl border border-border bg-card p-3.5', className)}>
+    <div className={className}>
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5">
       <span className="inline-flex size-9 flex-none items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Settings2 className="size-icone" strokeWidth={1.75} aria-hidden="true" />
       </span>
@@ -82,14 +94,19 @@ export function ReglagesAppliques({
       </p>
       {modifier ? (
         <a
-          href="/app/agency/lease-settings"
-          target="_blank"
-          rel="noopener"
+          href={modifier.href}
+          onClick={modifier.onClick}
           className="flex-none rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
         >
           {modifier.libelle}
-          <span className="sr-only"> {modifier.nouvelOnglet}</span>
+          <span className="sr-only"> {modifier.cible}</span>
         </a>
+      ) : null}
+    </div>
+      {modifier?.erreur ? (
+        <p role="alert" className="mt-1.5 text-ui font-medium text-destructive">
+          {modifier.erreur}
+        </p>
       ) : null}
     </div>
   );

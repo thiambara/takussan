@@ -21056,7 +21056,9 @@
       "planifierCourt": "Planifier une visite",
       "planifierA": "Planifier une visite à {heure}",
       "planifierLe": "Planifier une visite le {jour}",
-      "planifierCreneau": "Planifier une visite {jour} à {heure}"
+      "planifierCreneau": "Planifier une visite {jour} à {heure}",
+      "dansMinutes": "dans {n} min",
+      "dansHeures": "{minutes, plural, =0 {dans {h} h} other {dans {h} h {m}}}"
     },
     "occupation": {
       "enCours": "{n, plural, =0 {Aucun séjour en cours} one {# séjour en cours} other {# séjours en cours}}",

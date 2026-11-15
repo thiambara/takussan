@@ -203,13 +203,15 @@ describe('sectionsMontrees', () => {
       'offre',
     ]);
   });
-  it('individuelle : pas de menu de l’équipe ; sans configurer l’agence : ni fiche publique ni réglages de bail', () => {
+  // TCK-2921 (ADR-0111) — les réglages de bail se LISENT sans configurer l'agence (état « lecture seule »).
+  it('individuelle : pas de menu de l’équipe ; sans configurer l’agence : pas de fiche publique, mais les réglages de bail', () => {
     expect(sectionsMontrees({ individuelle: true, vitrine: false })).toEqual([
       'identite',
       'paiement',
       'facturation',
       'verification',
       'regles',
+      'bail',
       'offre',
     ]);
   });

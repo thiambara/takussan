@@ -74,4 +74,54 @@ Qui règle les baux de l'agence sait quand rien n'est encore réglé, revient au
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — livré (agent délégué).**
+
+- **Accès** : `PAGES_ADMIN` reçoit l'exigence `personnel: true` sur `/app/agency/lease-settings` — un
+  profil `agent` rattaché à une agence y entre sans capacité (l'API juge `personnelActifDe`, qui n'en
+  est pas une). Ces pages ne sont ni une entrée « Administration » ni un repli : `cheminsDEntree`
+  (nouveau) les écarte d'`entreeAdmin`, du repli de `garderPageAdmin` et de `repliDeLaVueBailleur` —
+  sans quoi chaque agent recevait « Administration » vers les réglages de bail. `sectionsMontrees`
+  montre « Réglages de bail » à tout lecteur de la fiche. La page ne redirige plus ; l'état lecture
+  se choisit dans `ReglagesDeBail` sur `can_edit` SEUL.
+- **Décision (mineure, tranchée)** : « Mon agence » (`/app/agency`) reste fermée à l'agent. Sur la
+  page des réglages, l'agent n'a donc ni la navigation des sections (chaque entrée le renverrait) ni
+  le repli `/app/agency` au téléphone (`/app`) ; `CadreDeLaFiche` reçoit `navigation` et `repli`, et
+  ne lit plus le dossier KYC quand ni navigation ni jauge ne s'affichent. « La section de Mon agence »
+  de l'AC4 se lit donc : la section-page, atteinte par son adresse.
+- **Retour au bail** : `lib/agence/retour-au-bail.ts`. Aucun chemin libre ne voyage (redirection
+  ouverte) : `?depuis=bail&booking_id=&property=&customer=&locataire=`, entiers positifs ;
+  « Reprendre le bail » reconstruit `/app/leases/new?…` — même adresse, donc même clé de brouillon
+  (`cleDuBrouillonDeBail`). Le nom du locataire est relu par `locataire` (`useLeaseCustomer`) : le
+  brouillon ne garde que les champs SAISIS, un locataire venu de `?customer=` ou d'une candidature
+  n'y est pas ; sans locataire choisi, « Vous venez d'un nouveau bail. ». Aucun nom dans l'adresse.
+- **« Modifier »** (même onglet) : `await brouillon.flush()` (la dernière frappe est encore dans
+  l'attente de 800 ms) PUIS `router.push` ; un brouillon en échec retient la page et le dit
+  (`lease.form.reglages.brouillonEchec`). Un clic modifié (⌘/Ctrl) reste au navigateur. Clé
+  `lease.form.reglages.nouvelOnglet` retirée, remplacée par `reglages.cible`.
+- **e4** : l'annonce « Réglages enregistrés… » reste lue (`aria-live`) mais n'est plus montrée quand
+  l'encart du bail la dit. **e1** : pas en lecture seule (« Changez une valeur » ne s'adresse pas à qui
+  ne peut pas). En lecture, aucun encart de bail (on n'y vient que par « Modifier », réservé à qui écrit).
+- **Prémisse différait** : l'encart « Réglages de l'agence appliqués » vit dans la section
+  Conditions (étape 3 au téléphone), pas au récapitulatif « Vérifier » ; « ramène au récapitulatif »
+  = ramène à l'étape enregistrée dans le brouillon.
+- **Aucun lien ne mène l'agent à la page** : il l'atteint par son adresse. « Modifier » (nouveau
+  bail) reste réservé à qui écrit (`can_edit_agency_settings`), et l'API ne rend aucun drapeau
+  « peut lire » où accrocher un lien « Voir » ; « Mon agence » lui reste fermée.
+- **Limite de l'étape** : un formulaire seulement prérempli n'écrit aucun brouillon (TCK-566) ; revenu
+  au bail, il repart de l'étape initiale de l'adresse (au téléphone, Conditions quand le bien et le
+  locataire y sont).
+- **Tests** : `ReglagesDeBail.tck-2921` (9), `CreateLeaseForm.retour-au-bail.tck-2921` (5, dont l'aller-
+  retour : loyer 250 000 et locataire repris, pénalité relue à 8 % ; au téléphone, l'étape Conditions
+  part et revient), `retour-au-bail.tck-2921` (3), `lease-settings/__tests__/page.tck-2921` (3 : agent non
+  renvoyé, sans navigation, repli `/app` ; admin avec navigation ; retour et repli du bail),
+  `pages-admin.test` (5 cas + 3 attentes mises à jour), `pages-admin-server.test` (2 cas : l'agent ouvre
+  les réglages, et refusé sur `/app/agency` va sur `/app`), `fiche.test`,
+  `CreateLeaseForm.modifier-les-reglages.tck-2832` (`_blank` → même onglet). 12 ablations une à une,
+  toutes rouges, restaurées par `cp` (md5 vérifié). Tests de `admin-agency/fiche`, `app/agency`,
+  `lib/navigation` et `components/layout` rejoués : 88 fichiers verts.
+- **Fidélité** : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2921.json` (e1, e3, e4, e5) écrite ;
+  références de la maquette à geler par la session ; AC-F2 à AC-F4 **non mesurés** (consigne du lot :
+  aucun relevé au navigateur), jugés à la lecture de la maquette.
+- Hors zone, rouges d'agents en cours : `app/tasks/__tests__/page.pour.tck-2857` (`fields[customers]`,
+  zone de TCK-2890 — il double `pages-admin-server`) ; `check-i18n-namespaces` (espace `journee` aux
+  frontières calendar/visits, zone de TCK-2886).

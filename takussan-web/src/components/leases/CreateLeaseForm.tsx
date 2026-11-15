@@ -64,6 +64,7 @@ import { SectionDuBail, TitreDeBloc } from './creation/SectionDuBail';
 import { TotalALEntreeDuBail } from './creation/TotalALEntreeDuBail';
 import { ApercuDuContrat } from './creation/ApercuDuContrat';
 import { cleDuBrouillonDeBail, usePoserLeBrouillon } from './creation/BrouillonDuBail';
+import { lienVersLesReglagesDepuisLeBail, type RetourAuBail } from '@/lib/agence/retour-au-bail';
 
 /**
  * ⚠ Ce formulaire emploie un VOCABULAIRE DIFFÉRENT de `LeaseDetail` pour le même enum
@@ -153,7 +154,13 @@ interface CreateLeaseFormProps {
 }
 
 export function CreateLeaseForm({ bookingId, propertyId, customerId, personnel = false, retour = '/app/leases' }: CreateLeaseFormProps = {}) {
-  const commun = { personnel, retour, cleDuBrouillon: cleDuBrouillonDeBail({ bookingId, propertyId, customerId }) };
+  const commun = {
+    personnel,
+    retour,
+    cleDuBrouillon: cleDuBrouillonDeBail({ bookingId, propertyId, customerId }),
+    // TCK-2921 — l'adresse du bail, en identifiants : « Reprendre le bail » la reconstruit.
+    idsDuBail: { bookingId, propertyId, customerId },
+  };
   if (bookingId) {
     return <CreateLeaseFormDepuisReservation bookingId={bookingId} {...commun} />;
   }
@@ -169,6 +176,8 @@ interface Commun {
   readonly locatairePrechoisi?: number;
   /** TCK-2912 — la clé du brouillon, dérivée de l'adresse seule (`cleDuBrouillonDeBail`). */
   readonly cleDuBrouillon: string;
+  /** TCK-2921 — les identifiants de l'adresse du bail, portés vers les réglages pour y revenir. */
+  readonly idsDuBail: RetourAuBail;
 }
 
 function AiguillageDuBien({ propertyId, ...commun }: { readonly propertyId?: number } & Commun) {
@@ -305,6 +314,7 @@ function FormulaireDuBail({
   personnel,
   retour,
   cleDuBrouillon,
+  idsDuBail,
 }: {
   readonly reservation: Booking | null;
   readonly bienPrechoisi?: number;
@@ -396,6 +406,30 @@ function FormulaireDuBail({
   useEffect(() => {
     poserLeBrouillon(enregistreLe);
   }, [enregistreLe, poserLeBrouillon]);
+
+  /**
+   * TCK-2921 — « Modifier » les réglages de l'agence, dans le MÊME onglet : la saisie est d'abord
+   * écrite en brouillon (`flush` : la dernière frappe est encore dans l'attente de 800 ms), puis la
+   * page part, avec les identifiants du bail et du locataire choisi. Un brouillon qui n'a pas pu
+   * s'écrire retient la page : partir perdrait la saisie sans un mot.
+   */
+  const [brouillonEnEchec, setBrouillonEnEchec] = useState(false);
+  const lienDesReglages = (locataire: number) =>
+    lienVersLesReglagesDepuisLeBail({ ...idsDuBail, locataireId: locataire > 0 ? locataire : undefined });
+  const versLesReglages = async (evenement: React.MouseEvent<HTMLAnchorElement>) => {
+    // Un clic modifié (nouvel onglet, fenêtre) reste au navigateur : la page en cours ne part pas.
+    if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey || evenement.button !== 0) return;
+    evenement.preventDefault();
+    // L'adresse du lien rendu : celle du locataire choisi à cet instant.
+    const destination = evenement.currentTarget.getAttribute('href');
+    setBrouillonEnEchec(false);
+    const ecriture = await brouillon.flush();
+    if (!ecriture.ok) {
+      setBrouillonEnEchec(true);
+      return;
+    }
+    if (destination) router.push(destination);
+  };
 
   const customerLabel = (customer: CustomerListItem | LocataireRetenu) =>
     formatCustomerLabel(customer, (id) => t('customerFallback', { id: String(id) }));
@@ -1080,7 +1114,13 @@ function FormulaireDuBail({
                   detail={commission !== null ? t('reglages.detailAvecCommission') : t('reglages.detail')}
                   modifier={
                     defauts.can_edit_agency_settings
-                      ? { libelle: t('reglages.modifier'), nouvelOnglet: t('reglages.nouvelOnglet') }
+                      ? {
+                          libelle: t('reglages.modifier'),
+                          cible: t('reglages.cible'),
+                          href: lienDesReglages(selectedTenantId),
+                          onClick: (e) => void versLesReglages(e),
+                          erreur: brouillonEnEchec ? t('reglages.brouillonEchec') : null,
+                        }
                       : undefined
                   }
                   className="md:mt-1"

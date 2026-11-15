@@ -21056,7 +21056,9 @@
       "planifierCourt": "Schedule a viewing",
       "planifierA": "Schedule a viewing at {heure}",
       "planifierLe": "Schedule a viewing on {jour}",
-      "planifierCreneau": "Schedule a viewing on {jour} at {heure}"
+      "planifierCreneau": "Schedule a viewing on {jour} at {heure}",
+      "dansMinutes": "in {n} min",
+      "dansHeures": "{minutes, plural, =0 {in {h} h} other {in {h} h {m}}}"
     },
     "occupation": {
       "enCours": "{n, plural, =0 {No stay in progress} one {# stay in progress} other {# stays in progress}}",

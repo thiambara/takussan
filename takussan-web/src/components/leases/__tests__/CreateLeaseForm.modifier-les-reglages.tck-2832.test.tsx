@@ -7,7 +7,7 @@ import { withIntl } from '@/test/intl';
 /**
  * TCK-2832 — « Modifier » dans l'encart « Réglages de l'agence appliqués » du nouveau bail : montré à
  * qui l'API dit pouvoir écrire ces réglages (`can_edit_agency_settings`), jamais déduit du rôle ; il
- * mène à `/app/agency/lease-settings` dans un nouvel onglet, pour que la saisie du bail ne se perde pas.
+ * mène à `/app/agency/lease-settings` — dans le même onglet depuis TCK-2921, la saisie gardée en brouillon.
  *
  * Mocks repris de `CreateLeaseForm.creation.tck-2643.test.tsx` (TCK-2643, ci-dessous) :
  *
@@ -142,16 +142,16 @@ import { CreateLeaseForm } from '../CreateLeaseForm';
 
 
 describe('CreateLeaseForm — « Modifier » les réglages de l’agence (TCK-2832)', () => {
-  it('AC3 — à qui peut écrire les réglages : un lien vers l’écran, dans un nouvel onglet', async () => {
+  // TCK-2921 — dans le MÊME onglet, avec le retour au bail (`CreateLeaseForm.retour-au-bail.tck-2921`).
+  it('AC3 — à qui peut écrire les réglages : un lien vers l’écran, dans le même onglet (TCK-2921)', async () => {
     DEFAUTS.set(11, { data: { ...(DEFAUTS.get(11)!.data as object), can_edit_agency_settings: true } });
     render(withIntl(<CreateLeaseForm propertyId={11} customerId={7} />));
 
     const encart = (await screen.findByText('Réglages de l’agence appliqués')).closest('div') as HTMLElement;
     const lien = within(encart).getByRole('link', { name: /Modifier/ });
-    expect(lien).toHaveAttribute('href', '/app/agency/lease-settings');
-    expect(lien).toHaveAttribute('target', '_blank');
-    expect(lien).toHaveAccessibleName(/^Modifier ?les réglages de l’agence \(s’ouvre dans un nouvel onglet\)$/);
-    expect(lien).toHaveAttribute('rel', 'noopener');
+    expect(lien.getAttribute('href')).toMatch(/^\/app\/agency\/lease-settings\?depuis=bail&/);
+    expect(lien).not.toHaveAttribute('target');
+    expect(lien).toHaveAccessibleName(/^Modifier ?les réglages de l’agence$/);
   });
 
   it.each([
