@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
@@ -42,6 +43,8 @@ class Booking extends AbstractModel
         'financing', 'signature_within_days', 'conditions',
         // TCK-2893 (ADR-0110 § 4) — le revenu déclaré du candidat, chiffré (`self::SENSITIVE`).
         'declared_monthly_income',
+        // TCK-2874 (ADR-0110 § 6) — l'origine (`BookingSource`).
+        'source',
     ];
 
     /**
@@ -58,6 +61,8 @@ class Booking extends AbstractModel
 
     protected $casts = [
         'status' => BookingStatus::class,
+        // TCK-2874
+        'source' => BookingSource::class,
         'currency' => Currency::class,
         'cancellation_by' => CancellationBy::class,
         'total_amount' => 'decimal:2',
@@ -174,6 +179,8 @@ class Booking extends AbstractModel
         'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
         'advance_months_at_booking', 'agency_fee_months_at_booking',
         'financing', 'signature_within_days', 'conditions',
+        // TCK-2874 (ADR-0110 § 6)
+        'source',
     ];
 
     /**

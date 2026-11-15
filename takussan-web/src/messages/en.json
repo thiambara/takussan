@@ -3718,7 +3718,21 @@
       "gesteNonConsigne": "The contact wasn’t logged on the customer record.",
       "sourdineEchouee": "Notifications couldn’t be changed. Try again.",
       "archivee": "Archived",
-      "chargerPrecedents": "Load earlier messages"
+      "chargerPrecedents": "Load earlier messages",
+      "lu": "Read",
+      "auteurEtRole": "{nom} · {role}",
+      "role": {
+        "tenant": "tenant",
+        "owner": "owner",
+        "service_provider": "service provider",
+        "agent": "agent",
+        "agency_admin": "agency admin",
+        "customer": "client"
+      },
+      "marquerNonLue": "Mark as unread",
+      "nonLueEchouee": "The conversation was not marked as unread. Please try again.",
+      "ajouterUnParticipant": "Add a participant",
+      "signaler": "Report the conversation"
     },
     "group": {
       "create": {
@@ -3967,13 +3981,60 @@
       "voirLaFiche": "View client record",
       "ficheDuClient": "Customer record",
       "nomEtEtape": "{nom} · {etape} stage",
-      "planifier": "Schedule a visit"
+      "planifier": "Schedule a visit",
+      "projet": "Project",
+      "derniereVisite": "Last visit",
+      "aucuneVisite": "None yet",
+      "premierContact": "First contact",
+      "dateEtOrigine": "{date}, {origine}",
+      "origine": {
+        "form": "via the listing",
+        "whatsapp": "via WhatsApp",
+        "call": "by phone"
+      },
+      "contrat": {
+        "sale": "Purchase",
+        "rent": "Rental"
+      },
+      "jusqua": "up to {montant}",
+      "aPartirDe": "from {montant}",
+      "entre": "{min} to {max}",
+      "demandeDu": "Contact request of {date}",
+      "demandeLiee": "Linked contact request",
+      "surLAnnonce": "Via the listing “{titre}”"
     },
     "bureau": {
       "sousTitre": "{nonLues, plural, =0 {All read} one {# unread} other {# unread}} · {total, plural, one {# conversation} other {# conversations}}",
       "aucune": "No conversations"
     },
-    "titreTelephone": "Messages"
+    "titreTelephone": "Messages",
+    "signaler": {
+      "titre": "Report the conversation",
+      "description": "The Takussan team will read your report. The other participants are not notified.",
+      "motif": "Reason",
+      "motifs": {
+        "spam": "Spam",
+        "harassment": "Harassment",
+        "fraud": "Fraud or scam",
+        "inappropriate": "Inappropriate content",
+        "other": "Other"
+      },
+      "commentaire": "Add details (optional)",
+      "envoyer": "Report",
+      "choisirUnMotif": "Choose a reason.",
+      "fait": "Conversation reported",
+      "faitDetail": "Thank you. The Takussan team will review it.",
+      "deja": "You have already reported this conversation.",
+      "echec": "The report was not sent. Please try again."
+    },
+    "elargir": {
+      "titre": "Add a participant",
+      "explication": "A new group will be created with {nom}, you and the people you add. The history of this conversation stays between the two of you.",
+      "personnes": "People to add",
+      "creer": "Create the group",
+      "choisirUnePersonne": "Choose at least one person.",
+      "echec": "The group was not created. Please try again."
+    }
   },
   "payments": {
     "gateway": {

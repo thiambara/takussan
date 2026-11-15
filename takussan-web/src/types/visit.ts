@@ -175,6 +175,8 @@ export interface BookingRequestPayload {
   end_date: string;
   guests: number;
   message?: string;
+  /** TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans droit. */
+  via?: 'invitation';
 }
 
 /**
@@ -187,6 +189,8 @@ export interface OfferRequestPayload {
   offer_expires_at: string;
   terms_accepted: true;
   message?: string;
+  /** TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans droit. */
+  via?: 'invitation';
 }
 
 export interface ReportPayload {

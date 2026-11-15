@@ -29,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/{customer}/relationships', [CustomerController::class, 'relationships'])->name('customers.relationships.index');
     Route::post('customers/{customer}/primary-contact', [CustomerController::class, 'setPrimaryContact'])->name('customers.primary-contact');
     Route::patch('customers/{customer}/pipeline-stage', [CustomerController::class, 'updatePipelineStage'])->name('customers.pipeline-stage');
+    // TCK-2874 (ADR-0110 § 8) — défaire le passage en Négociation fait par l'acceptation, dans les 24 h.
+    Route::post('customers/{customer}/pipeline-stage/undo', [CustomerController::class, 'undoPipelineStage'])->name('customers.pipeline-stage.undo');
     // TCK-2591 — « Plus tard » sur l'étape proposée : 204, journalisé ; l'étape ne bouge pas.
     Route::post('customers/{customer}/suggested-stage/dismiss', [CustomerController::class, 'dismissSuggestedStage'])->name('customers.suggested-stage.dismiss');
     // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte (lien à usage unique).

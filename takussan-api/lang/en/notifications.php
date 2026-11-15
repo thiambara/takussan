@@ -462,6 +462,8 @@ return [
             'rejected' => [
                 'title' => 'Booking declined',
                 'body' => 'Your booking :reference for :property was declined.',
+                // TCK-2874 (ADR-0110 § 7) — the reason and the staff's note, when there are any.
+                'body_link' => 'Your booking :reference for :property was declined. Reason: :reason_code',
                 'sms' => 'Takussan: booking :reference declined (:property).',
             ],
             'cancelled' => [

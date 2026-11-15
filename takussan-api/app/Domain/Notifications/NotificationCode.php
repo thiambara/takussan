@@ -343,6 +343,13 @@ enum NotificationCode: string
      */
     public const PARAM_COUNTER_OFFER_ANSWER = 'counter_offer_answer';
 
+    /**
+     * TCK-2874 (ADR-0110 § 7) — le motif CODÉ d'un refus de réservation (`BookingRejectionReason`),
+     * traduit au rendu sous `bookings.rejection_reasons.<code>`, suivi de la précision `message` du
+     * personnel, telle quelle. Sans code, la précision seule.
+     */
+    public const PARAM_BOOKING_REJECTION_REASON = 'booking_rejection_reason';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -663,6 +670,9 @@ enum NotificationCode: string
             // TCK-2871 — la page publique du bien, où « Demander une visite » existe : absente quand le
             // bien n'est plus public (le texte sans lien, variante de base).
             self::VisitNoShow => ['url' => self::PARAM_URL],
+            // TCK-2874 (ADR-0110 § 7) — le motif codé et la précision du personnel : absents d'un
+            // refus d'avant ou sans motif (le texte de base, sans « Motif : »).
+            self::BookingRejected => ['reason_code' => self::PARAM_BOOKING_REJECTION_REASON, 'message' => self::PARAM_TEXT],
             default => [],
         };
     }

@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\BookingRejectionReason;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-305 — extrait de BookingController::reject(), où les règles étaient écrites en ligne.
@@ -35,6 +37,10 @@ class RejectBookingRequest extends BaseFormRequest
     {
         return [
             'reason' => ['nullable', 'string'],
+            // TCK-2874 (ADR-0110 § 7) — le motif CODÉ (une pastille de la feuille de décision) et la
+            // précision du personnel, transmis tels quels au client dans `booking.rejected`.
+            'reason_code' => ['sometimes', 'nullable', Rule::enum(BookingRejectionReason::class)],
+            'message' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\Currency;
 use App\Models\Enums\OfferFinancing;
 use App\Models\Property;
@@ -104,6 +105,8 @@ class StoreBookingRequest extends BaseFormRequest
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date', new InstantIso],
+            // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation : un libellé, aucun droit.
+            'via' => self::viaRule(),
         ] + self::conditionRules() + self::guarantorRules(existant: true);
     }
 
@@ -156,6 +159,17 @@ class StoreBookingRequest extends BaseFormRequest
         }
 
         return $rules;
+    }
+
+    /**
+     * TCK-2874 (ADR-0110 § 6) — `via=invitation`, posé par le lien « Inviter à candidater » et
+     * transmis par la fiche publique au tunnel. Une autre valeur est refusée (422) plutôt qu'ignorée.
+     *
+     * @return list<mixed>
+     */
+    public static function viaRule(): array
+    {
+        return ['sometimes', 'nullable', 'string', Rule::in([BookingSource::VIA_INVITATION])];
     }
 
     /**

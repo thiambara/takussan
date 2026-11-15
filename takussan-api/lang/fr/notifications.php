@@ -467,6 +467,8 @@ return [
             'rejected' => [
                 'title' => 'Réservation refusée',
                 'body' => 'Votre réservation :reference pour :property a été refusée.',
+                // TCK-2874 (ADR-0110 § 7) — le motif et la précision du personnel, quand il y en a.
+                'body_link' => 'Votre réservation :reference pour :property a été refusée. Motif : :reason_code',
                 'sms' => 'Takussan : réservation :reference refusée (:property).',
             ],
             'cancelled' => [

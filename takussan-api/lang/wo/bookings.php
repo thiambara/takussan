@@ -28,4 +28,15 @@ return [
         'accepted' => 'accepté',
         'declined' => 'décliné',
     ],
+    // TCK-2874 (ADR-0110 § 7) — le motif codé d'un refus, rendu dans `booking.rejected`.
+    'rejection_reasons' => [
+        'incomplete_file' => 'Dossier incomplet',
+        'insufficient_income' => 'Revenus insuffisants',
+        'property_allocated' => 'Bien déjà attribué',
+        'offer_too_low' => 'Offre trop basse',
+        'property_sold' => 'Bien déjà vendu',
+        'dates_unavailable' => 'Dates indisponibles',
+        'property_unavailable' => 'Bien indisponible',
+        'other' => 'Autre motif',
+    ],
 ];

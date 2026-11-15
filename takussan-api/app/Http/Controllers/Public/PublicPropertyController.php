@@ -29,6 +29,7 @@ use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingSource;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\ContractType;
@@ -998,6 +999,8 @@ class PublicPropertyController extends Controller
                 'customer_id' => $customer->id,
                 'created_by_id' => $user->id,
                 'agency_id' => $property->agency_id,
+                // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans aucun droit.
+                'source' => BookingSource::fromVia($data['via'] ?? null)->value,
                 'start_date' => null,
                 'end_date' => null,
                 'total_amount' => (float) $data['offer_amount'],
@@ -1066,6 +1069,8 @@ class PublicPropertyController extends Controller
                 'customer_id' => $customer->id,
                 'created_by_id' => $user->id,
                 'agency_id' => $property->agency_id,
+                // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation, sans aucun droit.
+                'source' => BookingSource::fromVia($data['via'] ?? null)->value,
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
                 // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à

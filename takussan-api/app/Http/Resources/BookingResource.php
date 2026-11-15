@@ -12,6 +12,7 @@ use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingDossierService;
 use App\Services\Booking\BookingExpirationService;
 use App\Services\Booking\BookingGuarantorFacts;
+use App\Services\Crm\AcceptanceStageChange;
 use Illuminate\Http\Request;
 
 class BookingResource extends BaseResource
@@ -120,6 +121,17 @@ class BookingResource extends BaseResource
             // (index et présentation de `BookingController`) : jamais une requête par ligne.
             'counter_offer' => $this->whenLoaded('latestCounterOffer', fn (): ?array => $this->counterOfferCard()),
             'awaiting' => $this->whenLoaded('latestCounterOffer', fn (): ?string => $this->awaiting()),
+            // TCK-2874 (ADR-0110 § 6) — l'origine : `public`, `invitation` (« par le lien envoyé après la
+            // visite »), `staff` ; omise sous un sparse fieldset qui ne la lit pas.
+            'source' => $this->when($this->lue('source'), fn (): ?string => $this->source?->value ?? 'public'),
+            // TCK-2874 (ADR-0110 § 8) — le passage en Négociation fait à l'acceptation (`from`, `to`, `at`,
+            // `undoable_until`, `undone_at`), `null` sans changement. Il dit l'étape de la fiche : au SEUL
+            // personnel de l'agence (la règle de `customer.pipeline_stage`, TCK-2593), lu dans `metadata`
+            // (aucune requête par ligne).
+            'stage_change' => $this->when(
+                $this->resource instanceof Booking && $this->lue('metadata') && BookingCustomerFacts::servesStaff($request, $this->resource),
+                fn (): ?array => AcceptanceStageChange::forBooking($this->resource),
+            ),
             'created_at' => $this->iso($this->created_at),
         ];
     }

@@ -39,7 +39,9 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'message' => ['nullable', 'string', 'max:1000'],
             ]) + StoreBookingRequest::conditionRules()
             // TCK-2893 (ADR-0110 § 3) — le candidat peut déclarer un garant : une fiche neuve seulement.
-            + StoreBookingRequest::guarantorRules(existant: false);
+            + StoreBookingRequest::guarantorRules(existant: false)
+            // TCK-2874 (ADR-0110 § 6) — l'indice du lien d'invitation.
+            + ['via' => StoreBookingRequest::viaRule()];
     }
 
     /**

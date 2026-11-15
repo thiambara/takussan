@@ -462,6 +462,8 @@ return [
             'rejected' => [
                 'title' => 'Réservation bi gàntu nañu ko',
                 'body' => 'Sa réservation :reference ngir :property, gàntu nañu ko.',
+                // TCK-2874 (ADR-0110 § 7) — wolof en pause : le texte français.
+                'body_link' => 'Votre réservation :reference pour :property a été refusée. Motif : :reason_code',
                 'sms' => 'Takussan : réservation :reference gàntu nañu ko (:property).',
             ],
             'cancelled' => [

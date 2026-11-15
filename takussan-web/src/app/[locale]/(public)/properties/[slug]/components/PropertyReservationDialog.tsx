@@ -26,6 +26,7 @@ import { quoteBooking } from '@/lib/booking-quote';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import {
   cheminIntentionReservation,
+  lireIndiceInvitation,
   type IntentionReservation,
 } from '@/lib/property/intention-reservation';
 import { useTranslations } from 'next-intl';
@@ -74,7 +75,11 @@ export function PropertyReservationDialog({
   if (!user) {
     // TCK-589 — la connexion ET l'inscription ramènent à la fiche, boîte rouverte : sans compte, le
     // visiteur n'avait qu'une porte, et l'inscription le perdait en route.
-    const retour = isOfferFlow ? `/properties/${property.slug}` : cheminIntentionReservation(property.slug, intention ?? {});
+    // TCK-2874 — l'indice d'invitation (`via=invitation`) survit à la connexion.
+    const via = typeof window !== 'undefined' ? lireIndiceInvitation(window.location.search) : undefined;
+    const retour = isOfferFlow
+      ? `/properties/${property.slug}${via ? `?via=${via}` : ''}`
+      : cheminIntentionReservation(property.slug, intention ?? {}, via);
     // TCK-2604 — une seule porte : la connexion par numéro crée le compte au premier code. Les deux
     // liens y mènent, avec l'action interrompue — la connexion montre ce bien et dit ce geste.
     const href = hrefConnexionPour(retour, ACTION_D_ENTREE[action]);
@@ -194,6 +199,8 @@ function ReservationForm({
         end_date: endDate,
         guests,
         message: message || undefined,
+        // TCK-2874 (ADR-0110 § 6) — ouverte par le lien d'invitation : l'API écrit `source = invitation`.
+        via: lireIndiceInvitation(window.location.search),
       });
       onClose();
       onSuccess?.();
@@ -350,6 +357,8 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           offer_expires_at: offerExpiresAt,
           terms_accepted: true,
           message: message || undefined,
+          // TCK-2874 (ADR-0110 § 6)
+          via: lireIndiceInvitation(window.location.search),
         },
         idempotence.cle(),
       );

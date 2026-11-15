@@ -2486,7 +2486,21 @@
       "gesteNonConsigne": "Le contact n’a pas été noté sur la fiche du client.",
       "sourdineEchouee": "Les notifications n’ont pas pu être modifiées. Réessayez.",
       "archivee": "Archivée",
-      "chargerPrecedents": "Charger les messages précédents"
+      "chargerPrecedents": "Charger les messages précédents",
+      "lu": "Lu",
+      "auteurEtRole": "{nom} · {role}",
+      "role": {
+        "tenant": "locataire",
+        "owner": "propriétaire",
+        "service_provider": "prestataire",
+        "agent": "agent",
+        "agency_admin": "administrateur de l’agence",
+        "customer": "client"
+      },
+      "marquerNonLue": "Marquer comme non lue",
+      "nonLueEchouee": "La conversation n’a pas été remise en non lue. Réessayez.",
+      "ajouterUnParticipant": "Ajouter un participant",
+      "signaler": "Signaler la conversation"
     },
     "group": {
       "create": {
@@ -2735,13 +2749,60 @@
       "voirLaFiche": "Voir la fiche du client",
       "ficheDuClient": "Fiche du client",
       "nomEtEtape": "{nom} · étape {etape}",
-      "planifier": "Planifier une visite"
+      "planifier": "Planifier une visite",
+      "projet": "Projet",
+      "derniereVisite": "Dernière visite",
+      "aucuneVisite": "Aucune encore",
+      "premierContact": "Premier contact",
+      "dateEtOrigine": "{date}, {origine}",
+      "origine": {
+        "form": "par l’annonce",
+        "whatsapp": "par WhatsApp",
+        "call": "par téléphone"
+      },
+      "contrat": {
+        "sale": "Achat",
+        "rent": "Location"
+      },
+      "jusqua": "jusqu’à {montant}",
+      "aPartirDe": "à partir de {montant}",
+      "entre": "{min} à {max}",
+      "demandeDu": "Demande de contact du {date}",
+      "demandeLiee": "Demande de contact liée",
+      "surLAnnonce": "Par l’annonce « {titre} »"
     },
     "bureau": {
       "sousTitre": "{nonLues, plural, =0 {Tout est lu} one {# non lue} other {# non lues}} · {total, plural, one {# conversation} other {# conversations}}",
       "aucune": "Aucune conversation"
     },
-    "titreTelephone": "Messages"
+    "titreTelephone": "Messages",
+    "signaler": {
+      "titre": "Signaler la conversation",
+      "description": "L’équipe Takussan lira votre signalement. Les autres participants n’en sont pas avertis.",
+      "motif": "Motif",
+      "motifs": {
+        "spam": "Messages indésirables",
+        "harassment": "Harcèlement",
+        "fraud": "Fraude ou arnaque",
+        "inappropriate": "Contenu inapproprié",
+        "other": "Autre"
+      },
+      "commentaire": "Précisez (facultatif)",
+      "envoyer": "Signaler",
+      "choisirUnMotif": "Choisissez un motif.",
+      "fait": "Conversation signalée",
+      "faitDetail": "Merci. L’équipe Takussan va l’examiner.",
+      "deja": "Vous avez déjà signalé cette conversation.",
+      "echec": "Le signalement n’a pas été envoyé. Réessayez."
+    },
+    "elargir": {
+      "titre": "Ajouter un participant",
+      "explication": "Un nouveau groupe sera créé avec {nom}, vous et les personnes ajoutées. L’historique de cette conversation reste entre vous deux.",
+      "personnes": "Personnes à ajouter",
+      "creer": "Créer le groupe",
+      "choisirUnePersonne": "Choisissez au moins une personne.",
+      "echec": "Le groupe n’a pas été créé. Réessayez."
+    }
   },
   "payments": {
     "gateway": {

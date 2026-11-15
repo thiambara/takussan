@@ -63,9 +63,9 @@ describe('TCK-2581 — compte rendu : ce qui se décide sans écran', () => {
     expect(etapeAProposer('interested', null)).toBe(false);
   });
 
-  it('le lien d\'invitation rouvre la boîte de la fiche publique : langue, slug, `?action=reserver`', () => {
-    expect(lienDInvitation('http://localhost:3000/', 'fr', 'studio-yoff')).toBe('http://localhost:3000/fr/properties/studio-yoff?action=reserver');
-    expect(lienDInvitation('https://x.sn', 'en', 'a b')).toBe('https://x.sn/en/properties/a%20b?action=reserver');
+  it('le lien d\'invitation rouvre la boîte de la fiche publique : langue, slug, `?action=reserver&via=invitation` (TCK-2874)', () => {
+    expect(lienDInvitation('http://localhost:3000/', 'fr', 'studio-yoff')).toBe('http://localhost:3000/fr/properties/studio-yoff?action=reserver&via=invitation');
+    expect(lienDInvitation('https://x.sn', 'en', 'a b')).toBe('https://x.sn/en/properties/a%20b?action=reserver&via=invitation');
   });
 
   it('la relance tombe à J+N, 09:00 à Dakar (UTC)', () => {

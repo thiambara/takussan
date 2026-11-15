@@ -88,6 +88,11 @@ class DateInventoryByValueTest extends TestCase
             .'`BookingCustomerFacts::prime()` pose (TCK-2870) : un ENTIER (`(int)`), jamais une date.',
         'App\Http\Resources\BookingResource::property_visits_count' => '`when()` sur un compte que seul '
             .'`BookingCustomerFacts::prime()` pose (TCK-2870) : un ENTIER (`(int)`), jamais une date.',
+        // TCK-2874
+        'App\Http\Resources\BookingResource::stage_change' => '`when()` au seul personnel de l\'agence, sur le '
+            .'`metadata.stage_change` qu\'écrit l\'acceptation (`AcceptanceStageChange::forBooking`) : `from` et `to` sont des '
+            .'valeurs d\'enum, `at`, `undoable_until` et `undone_at` passent par `toIso8601String()` (instants, forme d\'ADR-0018) ; '
+            .'la forme exacte est vérifiée par `BookingAcceptanceStageTest`. Le sujet du parcours vient d\'une factory, sans acceptation.',
         // TCK-2593
         'App\Http\Resources\BookingResource::visits_on_property' => '`when()` sur un compte que seul '
             .'`BookingCustomerFacts::prime()` pose (index et présentation de `BookingController`, TCK-2593) : un ENTIER '

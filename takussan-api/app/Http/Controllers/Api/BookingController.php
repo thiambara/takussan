@@ -9,6 +9,7 @@ use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingRejectionReason;
 use App\Models\Enums\BookingStatus;
 use App\Models\Property;
 use App\Models\User;
@@ -161,7 +162,14 @@ class BookingController extends Controller
 
         $data = $request->validated();
 
-        $booking = $this->bookings->reject($booking, $data['reason'] ?? null, $request->user());
+        // TCK-2874 (ADR-0110 § 7) — le motif codé et la précision partent au client.
+        $booking = $this->bookings->reject(
+            $booking,
+            $data['reason'] ?? null,
+            $request->user(),
+            isset($data['reason_code']) ? BookingRejectionReason::from($data['reason_code']) : null,
+            $data['message'] ?? null,
+        );
 
         return $this->json(['data' => $this->presenter($request, $booking)]);
     }

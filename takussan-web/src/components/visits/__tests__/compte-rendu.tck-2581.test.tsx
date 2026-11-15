@@ -232,7 +232,7 @@ describe('TCK-2581 — le compte rendu', () => {
     const bouton = await screen.findByRole('link', { name: /Envoyer par WhatsApp/ });
     const texte = decodeURIComponent((bouton.getAttribute('href') ?? '').split('?text=')[1] ?? '');
     expect(texte).toBe(
-      `Bonjour Aliou, voici le lien pour déposer votre candidature pour Studio · Yoff : ${window.location.origin}/fr/properties/studio-yoff?action=reserver`,
+      `Bonjour Aliou, voici le lien pour déposer votre candidature pour Studio · Yoff : ${window.location.origin}/fr/properties/studio-yoff?action=reserver&via=invitation`, // TCK-2874
     );
     expect(texte).not.toContain('Budget serré');
     expect(texte).not.toMatch(/Prix|Garant|price|guarantor/i);
