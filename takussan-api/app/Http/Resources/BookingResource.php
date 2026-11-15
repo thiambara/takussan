@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingExpirationService;
 use Illuminate\Http\Request;
@@ -15,6 +16,9 @@ class BookingResource extends BaseResource
     public function toArray(Request $request): array
     {
         $visites = $this->resource instanceof Booking ? BookingCustomerFacts::visitsOnProperty($request, $this->resource) : null;
+        // TCK-2870 — au seul personnel, préparés pour la page par `BookingCustomerFacts::prime`.
+        [$derniereServie, $derniere] = $this->resource instanceof Booking ? BookingCustomerFacts::lastVisitOnProperty($request, $this->resource) : [false, null];
+        $faits = $this->resource instanceof Booking ? BookingCustomerFacts::propertyFacts($request, $this->resource) : null;
 
         return [
             'id' => $this->id,
@@ -65,6 +69,33 @@ class BookingResource extends BaseResource
             // TCK-2593 — les visites terminées de ce client sur ce bien, au seul personnel, en une
             // requête pour la page (`BookingCustomerFacts::prime`) ; omise sinon.
             'visits_on_property' => $this->when($visites !== null, $visites),
+            // TCK-2870 — la dernière de ces visites : sa date et le verdict de son compte rendu
+            // (ADR-0101 § 3), `null` sans visite ; mêmes lecteurs que `visits_on_property`, qui reste
+            // un nombre (le front le lit comme tel).
+            'last_visit_on_property' => $this->when($derniereServie, fn (): ?array => $derniere === null ? null : [
+                'scheduled_at' => $this->iso($derniere['scheduled_at']),
+                'report_verdict' => $derniere['report_verdict'],
+            ]),
+            // TCK-2870 (ADR-0110, maquette e4) — ce que le bien dit autour de la réservation, au seul
+            // personnel de l'agence ; `offer_rank` pour une offre seule.
+            'other_pending_on_property' => $this->when($faits !== null, fn (): int => $faits['other_pending_on_property']),
+            'property_visits_count' => $this->when($faits !== null, fn (): int => $faits['property_visits_count']),
+            'offer_rank' => $this->when(($faits['offer_rank'] ?? null) !== null, fn (): ?int => $faits['offer_rank']),
+            // TCK-2870 (ADR-0110 § 1) — les conditions : durée et renouvellement, instantané de la
+            // caution, de l'avance et des frais (candidature) ; financement, délai, conditions (offre).
+            // Nulles pour une nature qui ne les écrit pas ; omises sous un sparse fieldset qui ne les lit pas.
+            'term_months' => $this->when($this->lue('term_months'), fn (): ?int => $this->term_months),
+            'renewable' => $this->when($this->lue('renewable'), fn (): ?bool => $this->renewable),
+            'security_deposit_months' => $this->when($this->lue('security_deposit_months'), fn (): ?int => $this->security_deposit_months),
+            'security_deposit_amount' => $this->when($this->lue('security_deposit_amount'), fn (): ?float => $this->security_deposit_amount !== null ? (float) $this->security_deposit_amount : null),
+            'advance_months_at_booking' => $this->when($this->lue('advance_months_at_booking'), fn (): ?int => $this->advance_months_at_booking),
+            'agency_fee_months_at_booking' => $this->when($this->lue('agency_fee_months_at_booking'), fn (): ?float => $this->agency_fee_months_at_booking !== null ? (float) $this->agency_fee_months_at_booking : null),
+            'financing' => $this->when($this->lue('financing'), fn (): ?string => $this->financing?->value),
+            'signature_within_days' => $this->when($this->lue('signature_within_days'), fn (): ?int => $this->signature_within_days),
+            'conditions' => $this->when($this->lue('conditions'), fn (): ?string => $this->conditions),
+            // « À verser à l'entrée », DÉRIVÉ, jamais écrit (`BookingConditions::entryAmount`) : seulement
+            // quand toutes les colonnes qu'il lit sont lues — sinon un montant faux plutôt qu'absent.
+            'entry_amount' => $this->when($this->toutesLues(BookingConditions::ENTRY_AMOUNT_COLUMNS), fn (): ?float => ($montant = BookingConditions::entryAmount($this->resource)) !== null ? (float) $montant : null),
             'created_at' => $this->iso($this->created_at),
         ];
     }
@@ -131,6 +162,22 @@ class BookingResource extends BaseResource
     {
         return $this->resource instanceof Booking
             && ($this->resource->wasRecentlyCreated || array_key_exists($colonne, $this->resource->getAttributes()));
+    }
+
+    /**
+     * TCK-2870 — toutes ces colonnes ont été lues (ou le modèle vient d'être créé).
+     *
+     * @param  list<string>  $colonnes
+     */
+    private function toutesLues(array $colonnes): bool
+    {
+        foreach ($colonnes as $colonne) {
+            if (! $this->lue($colonne)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** TCK-2579 — l'auteur chargé ET sa colonne lue : sinon `null` dirait « sans auteur » à tort. */

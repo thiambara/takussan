@@ -17,6 +17,7 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\BookingPolicy;
+use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
@@ -104,6 +105,9 @@ class BookingService
         // `StoreBookingRequest::authorize()` l'a déjà refusé : défense pour un appelant hors HTTP.
         abort_unless(! $recorded || $isStaff, 403);
         abort_code_if($recorded && $asked !== $kind, 422, 'booking.kind_mismatch');
+        // TCK-2870 (ADR-0110 § 1) — une nature n'écrit que ses champs : un champ d'une autre nature
+        // est refusé, pas ignoré. Hors saisie du personnel, la règle du séjour (aucune condition).
+        BookingConditions::refuseForeignFields($recorded ? $kind : BookingKind::Stay, $data);
 
         // TCK-2579 (ADR-0102 §2) — une réservation saisie par le personnel a TOUJOURS un client :
         // sans `customer_id`, elle naissait sans client (l'ancienne branche « personnel » de
@@ -256,7 +260,21 @@ class BookingService
             'end_date' => null,
             'offer_expires_at' => $offerExpiresAt,
             'expires_at' => $offerExpiresAt !== null ? FinInclusive::de($offerExpiresAt) : ($data['expires_at'] ?? null),
-        ];
+        ] + $this->conditionsFor($property, $kind, $data, $listPrice);
+    }
+
+    /**
+     * TCK-2870 (ADR-0110 § 1) — durée et renouvellement, ou financement, délai et conditions ; pour
+     * une candidature, l'instantané du bien calculé sur SON montant.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function conditionsFor(Property $property, BookingKind $kind, array $data, ?string $listPrice): array
+    {
+        $amount = isset($data['total_amount']) ? (string) $data['total_amount'] : ($listPrice ?? '0');
+
+        return BookingConditions::columnsFor($kind, $property, $amount, $data);
     }
 
     public function confirm(Booking $booking): Booking

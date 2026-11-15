@@ -66,4 +66,37 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`~/takussan-ma
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (arbre `takussan-manques`, vague 92).
+
+- **Où vit la règle** : `App\Services\Booking\BookingConditions` — champs d'entrée par nature, refus
+  `booking.field_not_for_kind` (lu sur les données reçues, une clé à `null` vaut une clé absente), instantané du bien,
+  `entryAmount()` en bcmath (jamais un flottant). Appelée par les DEUX chemins de création : `BookingService::create`
+  (saisie du personnel ; hors saisie, règle du séjour) et `PublicPropertyController::bookingRequest` (offre : avant la
+  fiche ; location : sur le bien relu sous verrou, avant la résolution de la fiche).
+- **Faits du bien** (`other_pending_on_property`, `property_visits_count`, `offer_rank`) : une requête pour la page dans
+  `BookingCustomerFacts::prime`, par ids en SQL ; le rang se calcule sur toutes les offres du bien (tous statuts, hors
+  supprimées), date de création puis id. Au seul personnel de l'agence (même porte que `visits_on_property`).
+- **Écarts à la prémisse** :
+  - `agency_fee_months_at_booking` est `decimal(4,2)`, pas `smallint` : `properties.agency_fee_months` est
+    `decimal(4,2)` (un demi-mois de frais existe ; un entier tronquerait l'instantané).
+  - `visits_on_property` reste un NOMBRE (le front le lit comme tel : `pieces-du-detail.tsx`, `types/booking.ts`) ; la
+    date et le verdict de la dernière visite sortent dans une clé sœur `last_visit_on_property` =
+    `{scheduled_at (instant ISO), report_verdict}` ou `null`, mêmes lecteurs. La colonne du verdict s'appelle
+    `report_outcome` (`VisitReportOutcome`) ; la clé servie garde le nom du ticket, `report_verdict`. La date est
+    `scheduled_at` (le jour de la visite), pas `completed_at` (le jour du compte rendu).
+  - `entry_amount` : `null` hors candidature et pour une candidature d'avant TCK-2870 (`term_months` nul, toujours écrit
+    depuis) — jamais un montant inventé ; omis sous un sparse fieldset qui ne lit pas toutes ses colonnes
+    (`BookingConditions::ENTRY_AMOUNT_COLUMNS`). Les frais d'agence entrent comme loyer × mois de frais.
+  - Aucune ligne existante rattrapée (une candidature d'avant n'a pas vu ces conditions).
+- **Reste au front** : le code `booking.field_not_for_kind` n'a pas de traduction dans `saisieDemande.codes.booking.*`
+  (table explicite de `saisie-de-demande.ts`) ; `types/booking.ts` ne porte pas encore les clés neuves — TCK-2875/2876.
+- **Tests** : `BookingConditionsTest` (10), `BookingPropertyFactsTest` (2), `BookingResourceFieldsTest` (3), AC4 dans
+  `BookingCustomerFieldsTest` (+2), `BookingResourceContractTest` (clés). Ablations une à une, toutes rouges puis
+  restaurées par `md5` : refus par nature, caution sur le prix du bien au lieu du montant, départage du rang par l'id,
+  porte du personnel, ordre de la dernière visite, `entry_amount` partiel, candidature d'avant, réservations supprimées
+  comptées.
+- **Gardes jouées** : les trois d'architecture, `LangGroupParityTest`, `AmountRepresentationTest`, `DateRepresentationTest`
+  (verts) ; `DateInventoryByValueTest` : mes quatre clés inscrites (bloc TCK-2870, forme de `last_visit_on_property`
+  vérifiée par l'AC4), le test reste rouge sur `DocumentResource::context` (TCK-2895). Joués aussi, non modifiés :
+  `StaffRecordsApplicationTest`, `StaffRecordsOfferTest`, `PublicBookingWritesKindTest`, `ModelsTest` (verts).
+  `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest` : CI de la PR.

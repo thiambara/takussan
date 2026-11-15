@@ -115,6 +115,8 @@ return [
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
         'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
+        // TCK-2870 (ADR-0110 § 1)
+        'field_not_for_kind' => 'Ce champ n\'appartient pas à cette nature de demande : une candidature dit sa durée, une offre son financement, son délai et ses conditions, un séjour aucun des deux.',
         // TCK-2579
         'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
         'not_found' => 'Wootu bi gisuñu ko.',

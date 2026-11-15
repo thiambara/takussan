@@ -115,6 +115,8 @@ return [
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
         'dates_unavailable' => 'These dates are not available for this property.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
+        // TCK-2870 (ADR-0110 § 1)
+        'field_not_for_kind' => 'This field does not belong to this kind of request: an application states its term, an offer its financing, deadline and conditions, a stay neither.',
         // TCK-2579
         'kind_mismatch' => 'This kind of request does not match the property: an application is for a monthly rental, an offer for a property for sale.',
         'not_found' => 'Booking not found.',

@@ -3,11 +3,14 @@
 namespace App\Services\Booking;
 
 use App\Models\Booking;
+use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingStatus;
 use App\Models\Enums\VisitStatus;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -35,6 +38,12 @@ final class BookingCustomerFacts
 
     private const BAILLEUR = 'bookings.landlord_of';
 
+    // TCK-2870
+    private const DERNIERE_VISITE = 'bookings.last_visit_on_property';
+
+    // TCK-2870
+    private const FAITS_DU_BIEN = 'bookings.property_facts';
+
     /**
      * @param  iterable<Booking>  $bookings
      */
@@ -42,16 +51,22 @@ final class BookingCustomerFacts
     {
         $ids = [];
         $biens = [];
+        $personnel = [];
         foreach ($bookings as $booking) {
-            if ($booking->customer_id !== null && self::servesStaff($request, $booking)) {
+            $servi = self::servesStaff($request, $booking);
+            if ($servi) {
+                $personnel[] = (int) $booking->id;
+            }
+            if ($booking->customer_id !== null && $servi) {
                 $ids[] = (int) $booking->id;
             } elseif ($booking->property_id !== null) {
                 $biens[(int) $booking->property_id] = true;
             }
         }
         self::primeLandlord($request, array_keys($biens));
+        self::primePropertyFacts($request, $personnel);
 
-        $counts = $ids === [] ? [] : DB::table('bookings as b')
+        $lignes = $ids === [] ? collect() : DB::table('bookings as b')
             ->join('customers as c', 'c.id', '=', 'b.customer_id')
             ->join('property_visits as v', fn (JoinClause $j) => $j
                 ->on('v.property_id', '=', 'b.property_id')
@@ -61,12 +76,88 @@ final class BookingCustomerFacts
                     ->orWhere(fn ($compte) => $compte->whereNotNull('c.user_id')->whereColumn('v.visitor_id', 'c.user_id'))))
             ->whereIn('b.id', $ids)
             ->groupBy('b.id')
-            ->selectRaw('b.id as id, count(distinct v.id) as n')
-            ->pluck('n', 'id')
-            ->map(fn ($n) => (int) $n)
+            // TCK-2870 — la dernière visite terminée (date, puis id pour départager) et son verdict
+            // de compte rendu, dans la même requête.
+            ->selectRaw('b.id as id, count(distinct v.id) as n, (array_agg(v.scheduled_at order by v.scheduled_at desc, v.id desc))[1] as last_at, (array_agg(v.report_outcome order by v.scheduled_at desc, v.id desc))[1] as last_outcome')
+            ->get()
+            ->keyBy('id');
+
+        $counts = $lignes->map(fn ($l) => (int) $l->n)->all();
+        $request->attributes->set(self::VISITES, $counts + array_fill_keys($ids, 0));
+
+        $dernieres = $lignes->map(fn ($l): array => [
+            'scheduled_at' => Carbon::parse($l->last_at),
+            'report_verdict' => $l->last_outcome,
+        ])->all();
+        $request->attributes->set(self::DERNIERE_VISITE, $dernieres + array_fill_keys($ids, null));
+    }
+
+    /**
+     * TCK-2870 — la dernière visite terminée de ce client sur ce bien (`scheduled_at`, et le verdict
+     * de son compte rendu, `report_verdict`), servie avec `visits_on_property` au seul personnel ;
+     * `null` dans le tableau rendu quand il n'y en a aucune.
+     *
+     * @return array{0: bool, 1: array{scheduled_at: \DateTimeInterface, report_verdict: ?string}|null} servie ?, valeur
+     */
+    public static function lastVisitOnProperty(Request $request, Booking $booking): array
+    {
+        $dernieres = $request->attributes->get(self::DERNIERE_VISITE);
+        if (! is_array($dernieres) || ! array_key_exists((int) $booking->id, $dernieres)) {
+            return [false, null];
+        }
+
+        return [true, $dernieres[(int) $booking->id]];
+    }
+
+    /**
+     * TCK-2870 (ADR-0110, maquette e4 « 6 visites · première offre reçue ») — ce que le bien dit
+     * autour de la réservation, au seul personnel de l'agence, en UNE requête pour la page :
+     *
+     * - `other_pending_on_property` : les AUTRES réservations `pending` de même nature sur le bien ;
+     * - `property_visits_count` : les visites terminées du bien, tous visiteurs ;
+     * - `offer_rank` (offre seule) : son rang parmi toutes les offres reçues sur le bien, quel que
+     *   soit leur statut, par date de création puis id — calculé sur TOUTES les offres du bien, pas
+     *   sur les seules lignes de la page.
+     *
+     * Lu par les ids en SQL, jamais par les attributs du modèle : un sparse fieldset peut avoir omis
+     * `kind` ou `property_id`. Les réservations supprimées (douce) ne comptent pas.
+     *
+     * @param  list<int>  $ids
+     */
+    private static function primePropertyFacts(Request $request, array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $offre = BookingKind::Offer->value;
+        $faits = DB::table('bookings as b')
+            ->whereIn('b.id', $ids)
+            ->selectRaw('b.id as id')
+            ->selectRaw('(select count(*) from bookings o where o.property_id = b.property_id and o.kind = b.kind and o.status = ? and o.id <> b.id and o.deleted_at is null) as other_pending', [BookingStatus::Pending->value])
+            ->selectRaw('(select count(*) from property_visits v where v.property_id = b.property_id and v.status = ?) as visits', [VisitStatus::Completed->value])
+            ->selectRaw('case when b.kind = ? then (select count(*) from bookings o where o.property_id = b.property_id and o.kind = ? and o.deleted_at is null and (o.created_at < b.created_at or (o.created_at = b.created_at and o.id <= b.id))) end as offer_rank', [$offre, $offre])
+            ->get()
+            ->mapWithKeys(fn ($l): array => [(int) $l->id => [
+                'other_pending_on_property' => (int) $l->other_pending,
+                'property_visits_count' => (int) $l->visits,
+                'offer_rank' => $l->offer_rank !== null ? (int) $l->offer_rank : null,
+            ]])
             ->all();
 
-        $request->attributes->set(self::VISITES, $counts + array_fill_keys($ids, 0));
+        $request->attributes->set(self::FAITS_DU_BIEN, $faits + ($request->attributes->get(self::FAITS_DU_BIEN) ?? []));
+    }
+
+    /**
+     * TCK-2870 — `null` : pas servi (lecteur hors du personnel, ou page non préparée par `prime()`).
+     *
+     * @return array{other_pending_on_property: int, property_visits_count: int, offer_rank: ?int}|null
+     */
+    public static function propertyFacts(Request $request, Booking $booking): ?array
+    {
+        $faits = $request->attributes->get(self::FAITS_DU_BIEN);
+
+        return is_array($faits) && array_key_exists((int) $booking->id, $faits) ? $faits[(int) $booking->id] : null;
     }
 
     /** `null` : pas servi (lecteur hors du personnel, client absent, ou page non préparée). */

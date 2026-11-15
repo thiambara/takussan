@@ -63,6 +63,17 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2870 — posés par `BookingCustomerFacts::prime()` pour le seul personnel, comme `visits_on_property`.
+        'App\Http\Resources\BookingResource::last_visit_on_property' => '`when()` sur la dernière visite que seul '
+            .'`BookingCustomerFacts::prime()` pose (TCK-2870) : sa date passe par `$this->iso()` (instant, forme d\'ADR-0018), '
+            .'le verdict est une valeur d\'enum (`report_outcome`) ; la forme exacte est vérifiée par '
+            .'`BookingCustomerFieldsTest::test_ac4_the_staff_reads_the_date_and_the_verdict_of_the_last_visit`. Le sujet vient d\'une factory.',
+        'App\Http\Resources\BookingResource::offer_rank' => '`when()` sur un rang que seul `BookingCustomerFacts::prime()` '
+            .'pose (TCK-2870) : un ENTIER (`(int)`), jamais une date.',
+        'App\Http\Resources\BookingResource::other_pending_on_property' => '`when()` sur un compte que seul '
+            .'`BookingCustomerFacts::prime()` pose (TCK-2870) : un ENTIER (`(int)`), jamais une date.',
+        'App\Http\Resources\BookingResource::property_visits_count' => '`when()` sur un compte que seul '
+            .'`BookingCustomerFacts::prime()` pose (TCK-2870) : un ENTIER (`(int)`), jamais une date.',
         // TCK-2593
         'App\Http\Resources\BookingResource::visits_on_property' => '`when()` sur un compte que seul '
             .'`BookingCustomerFacts::prime()` pose (index et présentation de `BookingController`, TCK-2593) : un ENTIER '
@@ -86,6 +97,10 @@ class DateInventoryByValueTest extends TestCase
         // TCK-2841 (ADR-0099, amendement du 2026-11-14) — le bail porteur d'une ligne de liste, lu sur le
         // `documentable` que `DocumentResource::page()` charge : `{id: int, reference_number: string|null,
         // status: string}` (`enumValue`), jamais une date. Le parcours résout la ressource seule, sans porteur chargé.
+        // TCK-2895 (ADR-0099, amendement du 2026-11-15, § 7) — le contexte de la fiche : `{property: {id, title,
+        // neighborhood}|null, lease: {id, reference_number, tenant_name}|null}` ou `null`, jamais une date.
+        'App\Http\Resources\DocumentResource::context' => '`when()` sur `avecAuteurs()` (TCK-2895) : `{property: {id, title, '
+            .'neighborhood}, lease: {id, reference_number, tenant_name}}` ou `null`, jamais une date. Le parcours ne passe pas par la fiche.',
         'App\Http\Resources\DocumentResource::lease' => '`when()` sur un porteur `Lease` chargé (TCK-2841) : `{id, '
             .'reference_number, status}`, jamais une date. Le parcours ne charge pas le porteur.',
         'App\Http\Resources\DocumentResource::uploaded_by_person' => '`when()` sur `avecAuteurs()` (TCK-2773) : `{name, role}` '

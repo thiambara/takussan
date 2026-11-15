@@ -41,6 +41,7 @@ use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Booking\BookingConditions;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Boost\BoostStatsRecorder;
@@ -984,6 +985,10 @@ class PublicPropertyController extends Controller
         );
 
         if ($isSale) {
+            // TCK-2870 (ADR-0110 § 1) — une offre n'écrit que ses conditions : la durée d'une
+            // candidature y est refusée, avant toute écriture (la fiche se résout juste après).
+            BookingConditions::refuseForeignFields(BookingKind::Offer, $data);
+
             // L'offre d'achat n'a aucune garde après ce point : la fiche se résout ici.
             $customer = $customers->findOrCreateFromUser($user, $property);
             $booking = Booking::create([
@@ -1012,7 +1017,7 @@ class PublicPropertyController extends Controller
                     'offer_expires_at' => $data['offer_expires_at'],
                     'list_price_at_offer' => (float) $property->price,
                 ],
-            ]);
+            ] + BookingConditions::columnsFor(BookingKind::Offer, $property, (string) $data['offer_amount'], $data));
 
             // TCK-596 — l'offre prévient qui doit la traiter : elle ne prévenait personne.
             BookingRequested::dispatch($booking, $user->id);
@@ -1045,8 +1050,11 @@ class PublicPropertyController extends Controller
             // P213.03 (TCK-2199) — la fiche se résout après la garde des nuits, dans la transaction :
             // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
             // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
-            $customer = $customers->findOrCreateFromUser($user, $property);
             $kind = BookingKind::forProperty($locked);
+            // TCK-2870 (ADR-0110 § 1) — séjour ou candidature d'après le bien relu : un champ d'une
+            // autre nature est refusé avant que la fiche ne soit résolue.
+            BookingConditions::refuseForeignFields($kind, $data);
+            $customer = $customers->findOrCreateFromUser($user, $property);
 
             return Booking::create([
                 'property_id' => $property->id,
@@ -1067,7 +1075,7 @@ class PublicPropertyController extends Controller
                 'kind' => $kind,
                 'list_price_at_booking' => $kind === BookingKind::Application ? $locked->price : null,
                 'metadata' => ['guests' => $data['guests']],
-            ]);
+            ] + BookingConditions::columnsFor($kind, $locked, (string) $amounts['total_amount'], $data));
         });
 
         // TCK-596 — la demande publique prévient qui doit la traiter : elle ne prévenait personne.

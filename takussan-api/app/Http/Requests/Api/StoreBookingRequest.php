@@ -7,6 +7,7 @@ use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\Currency;
+use App\Models\Enums\OfferFinancing;
 use App\Models\Property;
 use App\Rules\InstantIso;
 use App\Rules\JourIso;
@@ -103,6 +104,26 @@ class StoreBookingRequest extends BaseFormRequest
             // `metadata.guests` par `BookingService::create()`, comme la demande publique.
             'guests' => [Rule::prohibitedIf($recorded), 'sometimes', 'integer', 'min:1', 'max:20'],
             'expires_at' => ['nullable', 'date', new InstantIso],
+        ] + self::conditionRules();
+    }
+
+    /**
+     * TCK-2870 (ADR-0110 § 1) — les conditions d'une candidature (durée 1 à 120 mois,
+     * renouvellement) et d'une offre (financement, signature sous 1 à 365 jours, conditions de 500
+     * caractères au plus). Toutes facultatives ici : qu'un champ appartienne à la nature se juge
+     * APRÈS, sur la nature du bien (`BookingConditions::refuseForeignFields`, 422
+     * `booking.field_not_for_kind`). Partagées avec le tunnel public.
+     *
+     * @return array<string, mixed>
+     */
+    public static function conditionRules(): array
+    {
+        return [
+            'term_months' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:120'],
+            'renewable' => ['sometimes', 'nullable', 'boolean'],
+            'financing' => ['sometimes', 'nullable', Rule::enum(OfferFinancing::class)],
+            'signature_within_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
+            'conditions' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }
 

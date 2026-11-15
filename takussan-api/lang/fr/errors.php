@@ -115,6 +115,8 @@ return [
         'dates_overlap' => 'Une autre réservation confirmée occupe déjà ces dates sur ce bien.',
         'dates_unavailable' => 'Ces dates ne sont pas disponibles pour ce bien.',
         'expire_race' => 'Le statut de la réservation a changé entre-temps. Rechargez la page.',
+        // TCK-2870 (ADR-0110 § 1)
+        'field_not_for_kind' => 'Ce champ n\'appartient pas à cette nature de demande : une candidature dit sa durée, une offre son financement, son délai et ses conditions, un séjour aucun des deux.',
         // TCK-2579
         'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
         'not_found' => 'Réservation introuvable.',

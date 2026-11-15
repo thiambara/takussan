@@ -8,6 +8,7 @@ use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use App\Models\Enums\OfferFinancing;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Booking\BookingSearch;
 use App\Support\Http\ParametreUnique;
@@ -31,6 +32,10 @@ class Booking extends AbstractModel
         'cancellation_by', 'cancellation_reason', 'metadata',
         // TCK-2579 (ADR-0102) — la nature, et ce qu'une offre ou une candidature retient du bien.
         'kind', 'offer_expires_at', 'list_price_at_booking',
+        // TCK-2870 (ADR-0110 § 1) — les conditions de la candidature et de l'offre.
+        'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
+        'advance_months_at_booking', 'agency_fee_months_at_booking',
+        'financing', 'signature_within_days', 'conditions',
     ];
 
     protected $casts = [
@@ -49,6 +54,15 @@ class Booking extends AbstractModel
         'kind' => BookingKind::class,
         'offer_expires_at' => 'date',
         'list_price_at_booking' => 'decimal:2',
+        // TCK-2870
+        'term_months' => 'integer',
+        'renewable' => 'boolean',
+        'security_deposit_months' => 'integer',
+        'security_deposit_amount' => 'decimal:2',
+        'advance_months_at_booking' => 'integer',
+        'agency_fee_months_at_booking' => 'decimal:2',
+        'financing' => OfferFinancing::class,
+        'signature_within_days' => 'integer',
     ];
 
     /**
@@ -121,6 +135,10 @@ class Booking extends AbstractModel
         'created_at', 'updated_at',
         // TCK-2579
         'kind', 'offer_expires_at', 'list_price_at_booking',
+        // TCK-2870 (ADR-0110 § 1)
+        'term_months', 'renewable', 'security_deposit_months', 'security_deposit_amount',
+        'advance_months_at_booking', 'agency_fee_months_at_booking',
+        'financing', 'signature_within_days', 'conditions',
     ];
 
     /**

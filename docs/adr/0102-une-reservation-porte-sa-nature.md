@@ -1,6 +1,6 @@
 # ADR-0102 — Une réservation porte sa nature : séjour, candidature ou offre ; même table, trois objets à l'écran
 
-- **Statut** : Accepté le 2026-11-10 (décision 2 (a) de la famille 5 : *une page, un sélecteur de nature* ; décision n° 9 (c) : *saisie par l'agent possible*) — modalités : décisions de la session, à revoir
+- **Statut** : Accepté le 2026-11-10 (décision 2 (a) de la famille 5 : *une page, un sélecteur de nature* ; décision n° 9 (c) : *saisie par l'agent possible*) — modalités : décisions de la session, à revoir — **complété par [ADR-0110](0110-la-candidature-et-l-offre-portent-leurs-conditions-et-leur-dossier.md)** (conditions et dossier de la candidature et de l'offre, TCK-2870)
 - **Date** : 2026-11-10
 - **Tickets** : TCK-2579 (API : nature, saisie par le personnel), TCK-2580 (saisir une candidature ou une offre), TCK-2593 (recherche, compteurs), TCK-2594 (un écran, trois natures) ; les lisent : TCK-2581, TCK-2591
 - **Va avec** : [ADR-0101](0101-le-fil-commercial-vit-dans-la-fiche-client.md)

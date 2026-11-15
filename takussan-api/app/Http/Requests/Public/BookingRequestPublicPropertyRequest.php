@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Public;
 
+use App\Http\Requests\Api\StoreBookingRequest;
 use App\Rules\JourIso;
 
 /**
@@ -20,7 +21,9 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
         // Le 404 sur un slug inconnu doit primer sur le 422 : cf. l'en-tête de la classe de base.
         $isSale = $this->property()->contract_type?->value === 'sale';
 
-        return $isSale
+        // TCK-2870 (ADR-0110 § 1) — les conditions des deux natures, aux deux formes : qu'un champ
+        // appartienne à la nature se juge sur le bien relu (`BookingConditions::refuseForeignFields`).
+        return ($isSale
             ? [
                 'offer_amount' => ['required', 'numeric', 'min:1'],
                 // TCK-2752 — la validité est un JOUR (le seul que le tunnel envoie) : un instant près de
@@ -34,7 +37,7 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'end_date' => ['required', 'date', new JourIso, 'after:start_date'],
                 'guests' => ['required', 'integer', 'min:1', 'max:50'],
                 'message' => ['nullable', 'string', 'max:1000'],
-            ];
+            ]) + StoreBookingRequest::conditionRules();
     }
 
     /**
