@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Agency\AgencyMostViewedPropertiesController;
 use App\Http\Controllers\Api\Agency\AgencyResponseTimeController;
 use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
 use App\Http\Controllers\Api\Agency\ServiceProviderInvitationController;
 use App\Http\Controllers\Api\Agency\TeamController;
+use App\Http\Controllers\Api\Agency\TeamMemberController;
 use App\Http\Controllers\Api\Agency\TeamMemberSuspensionController;
 use App\Http\Controllers\Api\Agency\TeamPerformanceController;
 use App\Http\Controllers\Api\Agency\TenantOnboardingPendingController;
@@ -64,6 +66,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Agency stats (P1 — simple aggregates, no cache).
     Route::get('agencies/{agency}/stats', [AgencyStatsController::class, 'show'])->name('agencies.stats.show');
+    // TCK-2923 — les biens publics de l'agence les plus vus du mois, pour choisir sa vitrine.
+    Route::get('agencies/{agency}/properties/most-viewed', AgencyMostViewedPropertiesController::class)->name('agencies.properties.most-viewed');
 
     // TCK-595 (§6, §7) — pilotage : performance d'équipe (agences `standard`) et balance âgée.
     Route::get('agencies/{agency}/team-performance', [TeamPerformanceController::class, 'show'])->name('agencies.team-performance');
@@ -103,6 +107,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // remove sont sur /api/profiles/{agent_profile} (routes/api/profiles.php).
     Route::get('agencies/{agency}/team', [TeamController::class, 'index'])
         ->name('agencies.team.index');
+    // TCK-2926 (ADR-0124) — la fiche d'un membre (portefeuille, commissions dues, dernière connexion, 2FA)
+    // et le rappel d'activer sa double authentification.
+    Route::get('agencies/{agency}/team/{user}', [TeamMemberController::class, 'show'])
+        ->name('agencies.team.show');
+    Route::post('agencies/{agency}/team/{user}/two-factor-reminder', [TeamMemberController::class, 'remindTwoFactor'])
+        ->name('agencies.team.two-factor-reminder');
     Route::post('agencies/{agency}/agents/invite', AgentInvitationController::class)
         ->middleware('throttle:invitations-send')
         ->name('agencies.agents.invite');

@@ -9777,7 +9777,8 @@
         "lead_unhandled": "Request reopened",
         "data_export_redownloaded": "Export downloaded again",
         "owner_mandate_terms_updated": "Landlord mandate updated",
-        "inventory_pdf_sent": "Inventory PDF sent to the parties"
+        "inventory_pdf_sent": "Inventory PDF sent to the parties",
+        "invitation_share_link_issued": "Invitation link renewed for sharing"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -11492,7 +11493,7 @@
         "bailDe": "Lease · {nom}",
         "quittances": "Rent receipts {annee}",
         "quittancesSansAnnee": "Rent receipts",
-        "releves": "Statements and certificates",
+        "releves": "Statements and invoices",
         "factures": "My invoices",
         "devisEtRapports": "Quotes and reports",
         "mesPieces": "My documents",
@@ -11504,7 +11505,7 @@
         "receipts": "A receipt is added for every rent paid.",
         "pieces": "ID, employment certificate, insurance: what the agency asks you for.",
         "property": "Land title, insurance, mandate: what you file for this property.",
-        "statements": "Your monthly statements will arrive here.",
+        "statements": "Your monthly statements and the repair invoices charged to you will arrive here.",
         "bills": "Your invoices are filed here after each completed job.",
         "quotes_reports": "Your quotes and completion reports are filed here."
       },
@@ -19157,6 +19158,10 @@
         "reactivated": {
           "title": "Your account is reactivated",
           "body": "Your Takussan account has been reactivated. Reason: {reason}. You can sign in again."
+        },
+        "two_factor_reminder": {
+          "title": "Turn on two-factor authentication",
+          "body": "{agency} asks you to turn on two-factor authentication for your account. Turn it on from your profile security settings."
         }
       },
       "invitation": {

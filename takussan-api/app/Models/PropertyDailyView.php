@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * TCK-2905 (ADR-0117) — les vues d'un bien un jour donné : un nombre, sans visiteur. Écrite par le seul
  * `PropertyViewCounter::record()` ; jamais exposée telle quelle (la liste agence en rend la somme sur
- * 30 jours, `stats_30d.views`).
+ * 30 jours, `stats_30d.views`). TCK-2923 — deux autres sommes, jamais la ligne : `views_7d` et
+ * `views_prev_7d` d'une mise en avant (`BoostMeasures::viewsComparison`), et les vues du mois des biens
+ * publics de l'agence (`AgencyMostViewedPropertiesController`).
  */
 class PropertyDailyView extends AbstractModel
 {

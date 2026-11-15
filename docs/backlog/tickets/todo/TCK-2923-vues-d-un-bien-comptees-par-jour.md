@@ -59,4 +59,30 @@ Livré par ce ticket :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, worktree `feat/audit-manques-2026-11-15`). Aucune migration : la table
+`property_daily_views` de TCK-2905 (ADR-0117) est la seule source, lue, jamais réécrite.
+
+- **`GET /api/credits/boosts`** : `views_7d` et `views_prev_7d` au premier niveau de la ligne (pas dans `measures`,
+  dont `CreditsBoostsListTest` fige la forme exacte), posés par `BoostMeasures::viewsComparison()` — une requête
+  `VALUES … JOIN property_daily_views` pour toute la page (le test de budget de requêtes reste vert).
+- **Décision (fenêtre de `views_7d`)** : « les 7 derniers jours » DE LA MISE EN AVANT, et non d'aujourd'hui — de
+  `max(jour du début, jour de fin − 6)` au jour de fin (`ended_at`, ou aujourd'hui si elle court). Motif : la maquette
+  `app-credits` affiche le ratio aussi sur une mise en avant terminée (« Villa · Kaolack, terminée le 4 nov. ») ; les
+  7 jours d'aujourd'hui n'y diraient rien. Le jour du début compte dans la mise en avant ; `views_prev_7d` = les 7
+  jours qui précèdent ce jour. Jours UTC (ceux de `PropertyViewCounter`). Les deux lectures coïncident sur l'AC1.
+- **Pour TCK-2925 : les deux fenêtres ne sont pas toujours égales.** `views_prev_7d` couvre toujours 7 jours ;
+  `views_7d` en couvre moins quand la mise en avant est plus courte (une Remontée : 1 jour ; une Vedette commencée
+  avant-hier : 3 jours). Le front compare à durée égale ou n'affiche pas de ratio tant que la mise en avant n'a pas
+  7 jours.
+- **`GET /api/agencies/{agency}/properties/most-viewed?limit=N`** (1 à 12, défaut 6, `AgencyMostViewedPropertiesController`
+  + `AgencyMostViewedPropertiesRequest`) : autorisation `AgencyPolicy::configure` — la règle de `AgencyUpdateRequest`,
+  jumelle back de `peutEcrireLaVitrine` — jugée avant la validation. « Publié » = `publicPortfolio()` (le prédicat de
+  `AgencyShowcase`). Jointure interne : un bien sans vue ce mois n'y est pas ; égalité → le plus récent. La ligne a la
+  forme de `BienDeVitrine` du front + `views_month` ; photo par `PublicPhotoUrl` (filigrane respecté).
+- Tests : `CreditBoostViewsComparisonTest` (3), `AgencyMostViewedPropertiesTest` (4) — verts ; 7 ablations une à une,
+  toutes rouges, restaurées au md5. Gardes vertes : `CreditsBoostsListTest`, les 3 classes d'architecture,
+  `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`, `DateInventoryByValueTest`, `PerPageBorneTest`,
+  `scripts/check-*.mjs`, `gen-features-by-actor --check`.
+- Docs : `docs/spatie-query-builder.md` (section des mises en avant) ; docblock de `PropertyDailyView` mis à jour (il
+  disait la table « jamais exposée » qu'en `stats_30d`).
+

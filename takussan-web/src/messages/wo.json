@@ -8538,7 +8538,8 @@
         "lead_unhandled": "Demande remise à traiter",
         "data_export_redownloaded": "Export retéléchargé",
         "owner_mandate_terms_updated": "Mandat d'un bailleur modifié",
-        "inventory_pdf_sent": "PDF de l’état des lieux envoyé aux parties"
+        "inventory_pdf_sent": "PDF de l’état des lieux envoyé aux parties",
+        "invitation_share_link_issued": "Lien d'invitation renouvelé pour partage"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -10913,7 +10914,7 @@
         "bailDe": "Bail · {nom}",
         "quittances": "Quittances {annee}",
         "quittancesSansAnnee": "Quittances",
-        "releves": "Relevés et attestations",
+        "releves": "Relevés et factures",
         "factures": "Mes factures",
         "devisEtRapports": "Devis et rapports",
         "mesPieces": "Mes pièces",
@@ -10925,7 +10926,7 @@
         "receipts": "Une quittance s’ajoute à chaque loyer payé.",
         "pieces": "Pièce d’identité, attestation de travail, assurance : ce que l’agence vous demande.",
         "property": "Titre foncier, assurance, mandat : ce que vous rangez pour ce bien.",
-        "statements": "Vos relevés mensuels arriveront ici.",
+        "statements": "Vos relevés mensuels et les factures d’intervention qui vous sont refacturées arriveront ici.",
         "bills": "Vos factures se rangent ici à chaque intervention terminée.",
         "quotes_reports": "Vos devis et vos rapports de fin d’intervention se rangent ici."
       },
@@ -19157,6 +19158,10 @@
         "reactivated": {
           "title": "Sa kont ubbi nañu ko",
           "body": "Sa kont Takussan ubbi nañu ko. Lu ko waral : {reason}. Mën nga dugg ci kaw."
+        },
+        "two_factor_reminder": {
+          "title": "Activez la double authentification",
+          "body": "{agency} vous demande d'activer la double authentification sur votre compte. Activez-la depuis la sécurité de votre profil."
         }
       },
       "invitation": {

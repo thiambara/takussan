@@ -141,6 +141,7 @@ GET /api/properties?per_page=10&page=2
 | `filter[rent_late]` | callback | TCK-2637 — `1` : le loyer du mois en retard sur le bail courant que l'appelant peut lire |
 | `filter[tenant]` | callback | TCK-2637 — chaque mot dans le prénom ou le nom du locataire du bail EN COURS lisible par l'appelant (casse repliée, accents non) |
 | `filter[owner_profile_id]` | callback | TCK-2905 — les biens d'un profil bailleur : `user_id` du profil dans l'agence du profil, OU `pending_owner_profile_id` (bailleur invité sans compte). Borné à l'agence du personnel de l'appelant (ou à ses propres profils, super-admin sans borne) : un profil d'une autre agence ou inconnu rend une liste vide ; non entier → 400 ; une liste vaut un filtre absent |
+| `filter[agent]` | callback | TCK-2926 — les biens que ce membre gère (`Property::scopeManagedBy`, la règle de « Mes chiffres » : saisis par lui ou suivis en collaborateur `agent|manager`), dans l'agence du personnel de l'appelant ; un compte qui n'est pas membre de cette agence ou inconnu rend une liste vide (super-admin sans agence : toutes agences) ; non entier → 400 ; une liste vaut un filtre absent |
 | `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured`, `retard` | `retard` (TCK-2637) : loyers du mois en retard d'abord, le plus ancien en tête, puis les autres |
 
 **`filter[id]`** (TCK-2524) — lire des biens par leurs ids, avec leurs `fields` : la vitrine de
@@ -538,6 +539,34 @@ contacts, visits}`, mesurées de `starts_at` à `ended_at` (ou maintenant) : des
 du demandeur ; `contacts` compte tous les canaux (TCK-2663). `GET /api/credits/suggestions?limit=N`
 (1 à 10, défaut 10) : les biens publics de l'espace sans contact depuis 30 jours ni boost en cours,
 du moins vu au plus vu, `{…property, views_count, last_contact_at}` et `meta.total` (TCK-2663).
+
+Chaque ligne porte aussi `views_7d` et `views_prev_7d` : les vues de la fiche (`property_daily_views`,
+ADR-0117) des sept derniers jours de la mise en avant — de `max(jour du début, jour de fin − 6)` au jour
+de `ended_at`, ou à aujourd'hui si elle court — et des sept jours qui précèdent le jour du début ; jours
+UTC, `0` sans vue. `views_7d` couvre moins de 7 jours quand la mise en avant est plus courte (une
+Remontée : 1 jour) ; `views_prev_7d` en couvre toujours 7 (TCK-2923).
+
+`GET /api/agencies/{agency}/properties/most-viewed?limit=N` (1 à 12, défaut 6) : les biens publics
+(`publicPortfolio`) de l'agence vus ce mois civil, du plus vu au moins vu (égalité : le plus récent),
+`{id, title, reference_number, main_photo_url, price, currency, contract_type, rent_period,
+views_month}`. Forme fixe ; à qui peut écrire la vitrine (`AgencyPolicy::configure`, 403 avant 422)
+(TCK-2923).
+
+`GET /api/credits/lots` : les lots qu'on ne peut plus dépenser, de l'espace actif, le plus récent d'abord ; même
+autorisation que `GET /api/credits` (TCK-2924).
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[state]` | `spent` \| `expired` | `spent` : vidé sans mouvement `expire` ; `expired` : soldé par un mouvement `expire`, ou échu avec un reste pas encore balayé ; absent : les deux ; autre valeur → 422 (TCK-2924) |
+| `fields[credit_lots]` | liste | `id, origin, initial_amount, remaining_amount, expires_at, reason, created_at` ; chaque ligne porte aussi `state` (TCK-2924) |
+| `per_page` | 1 à 50 | défaut 20 (TCK-2924) |
+
+`GET /api/credits/boosts/report?days=7|30|90` (défaut 30 ; autre valeur → 422) : `data.days[]` — chaque jour UTC de la
+période, aujourd'hui compris, `{date, impressions, clicks, views}`, 0 sans mesure ; `views` = les vues de fiche d'un
+bien un jour où l'une de ses mises en avant courait, une fois par bien et par jour — et `data.boosts[]` : chaque mise
+en avant qui a couru dans la période, `{id, kind, variant, status, starts_at, ended_at, property, impressions, clicks,
+views}` totalisés sur la période ; `meta {days, from, to}`. Forme fixe ; même autorisation que `GET /api/credits`
+(TCK-2924).
 
 ### Équipe de l'agence — `GET /api/users`, chemin d'agence (TCK-2665)
 
