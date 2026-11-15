@@ -376,7 +376,7 @@ describe('« À faire » ne liste que l’inachevé', () => {
 
 describe('« En cours sur vos biens »', () => {
   it('l’intervention, son bien, et qui passe quand ; rien en cours : pas de bloc', async () => {
-    const { unmount } = monter(<EnCoursSurVosBiens />);
+    const { unmount } = monter(<EnCoursSurVosBiens landlordId={21} />);
     expect(await screen.findByText('Fuite sous évier · F2, Grand Yoff')).toBeTruthy();
     expect(screen.getByText('Astou Sy intervient aujourd’hui à 09:30')).toBeTruthy();
     // Sans passage fixé : « passage à fixer », jamais un statut technique.
@@ -387,7 +387,7 @@ describe('« En cours sur vos biens »', () => {
     expect(screen.getByRole('link', { name: 'Fuite sous évier · F2, Grand Yoff' }).getAttribute('href')).toBe('/app/maintenance/72');
     unmount();
     etat.enCours = 0;
-    monter(<EnCoursSurVosBiens />);
+    monter(<EnCoursSurVosBiens landlordId={21} />);
     await waitFor(() => expect(lectures('/api/maintenance-requests').length).toBeGreaterThan(1));
     expect(document.querySelector('[data-slot="en-cours-sur-vos-biens"]')).toBeNull();
   });

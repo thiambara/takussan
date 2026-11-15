@@ -8,8 +8,9 @@ import { AFaireAdmin } from '@/components/accueil/admin/AFaireAdmin';
 import { EquipeDuJour } from '@/components/accueil/admin/EquipeDuJour';
 import { ResumeDuJour } from '@/components/accueil/admin/ResumeDuJour';
 import { AFaireBailleur, type FilesDeLHote } from '@/components/accueil/bailleur/AFaireBailleur';
+import { DemarrerDuBailleur } from '@/components/accueil/bailleur/DemarrerDuBailleur';
 import { EnCoursSurVosBiens } from '@/components/accueil/bailleur/EnCoursSurVosBiens';
-import { LoyersDuMois } from '@/components/accueil/bailleur/LoyersDuMois';
+import { PlaceDesLoyers } from '@/components/accueil/bailleur/PlaceDesLoyers';
 import { ResumeDuBailleur } from '@/components/accueil/bailleur/ResumeDuBailleur';
 import { CeMois, CeMoisEnFlux, SqueletteDeCeMois } from '@/components/accueil/CeMois';
 import { FavorisQuiBougent } from '@/components/accueil/client/FavorisQuiBougent';
@@ -218,6 +219,11 @@ export default async function DashboardPage() {
   // TCK-2853 — « Chercher un bien » (tête du bureau, pleine largeur au téléphone).
   const rechercheDuClient = invitation ? lienDeLaRecherche(invitation, locale) : null;
 
+  const ceMoisRendu =
+    !accueilLocataire && ceMoisLu && (chiffres === null || chiffres.length > 0) ? (
+      <CeMois chiffres={chiffres} rapport={ceMoisLu.rapport} pleineLargeur={!accueilBailleur && !accueilLocataire && !accueilClient && !accueilPrestataire} />
+    ) : null;
+
   return (
     <SocleDeLAccueil
       titre={prenom ? t('greeting', { name: prenom }) : t('greetingNoName')}
@@ -237,6 +243,9 @@ export default async function DashboardPage() {
       // TCK-777 (P15.08) — la mise en service, pour tout admin d'agence, individuelle comprise ; elle
       // disparaît une fois l'agence prête. TCK-2622 — repliée en une ligne.
       miseEnService={adminDAgence ? { agencyId: user.agency_id!, kind } : null}
+      // TCK-2850 — « Démarrer » du bailleur (maquette e2) : la ligne au téléphone, le bandeau « Continuer » au
+      // bureau ; la même lecture et la même étape que le menu. L'hôte a la mise en service de son agence.
+      demarrage={persona === 'bailleur' ? { telephone: <DemarrerDuBailleur />, bureau: <DemarrerDuBailleur large /> } : null}
       // TCK-2853 — au bureau, « Chercher un bien » dans la tête de page (maquette e5).
       actions={rechercheDuClient ? <ChercherUnBien href={rechercheDuClient} pleineLargeur={false} /> : undefined}
       bandeaux={
@@ -259,7 +268,8 @@ export default async function DashboardPage() {
           <AFaireAdmin agencyId={accueilAdmin} />
         ) : accueilBailleur ? (
           <>
-            {loyers ? <LoyersDuMois loyers={loyers} jour={aujourdhui} className="max-md:mx-4 md:mb-5" /> : null}
+            {/* TCK-2850 — à gauche au-dessus de « À faire » ; à droite au bureau large quand rien n'attend (e6). */}
+            {loyers ? <PlaceDesLoyers place="blocs" loyers={loyers} jour={aujourdhui} landlordId={user.id} hote={filesDeLHote} className="max-md:mx-4 md:mb-5" /> : null}
             <AFaireBailleur landlordId={user.id} hote={filesDeLHote} />
           </>
         ) : accueilLocataire ? (
@@ -305,7 +315,7 @@ export default async function DashboardPage() {
         accueilAdmin !== null ? (
           <EquipeDuJour agencyId={accueilAdmin} />
         ) : accueilBailleur ? (
-          <EnCoursSurVosBiens />
+          <EnCoursSurVosBiens landlordId={user.id} />
         ) : accueilLocataire ? (
           // TCK-2852 — au téléphone : « Mon logement » (photo, fin de bail, trois gestes), puis « À finir » ;
           // au bureau, à droite : la carte du logement (l'agent et « Écrire »), puis « Interventions en
@@ -358,13 +368,15 @@ export default async function DashboardPage() {
           <Suspense fallback={<SqueletteDeCeMois rapport={rapportDuMois('agency_admin')} />}>
             <CeMoisEnFlux lecture={lireCeMois(lectureDuTableau, { persona, agenceStandard: kind === 'standard' })} />
           </Suspense>
-        ) : !accueilLocataire && ceMoisLu && (chiffres === null || chiffres.length > 0) ? (
-          <CeMois
-            chiffres={chiffres}
-            rapport={ceMoisLu.rapport}
-            pleineLargeur={!accueilBailleur && !accueilLocataire && !accueilClient && !accueilPrestataire}
-          />
-        ) : null
+        ) : loyers && accueilBailleur ? (
+          // TCK-2850 (maquette e6) — rien à faire : « Loyers du mois » au-dessus de « Ce mois », à droite.
+          <>
+            <PlaceDesLoyers place="colonne" loyers={loyers} jour={aujourdhui} landlordId={user.id} hote={filesDeLHote} />
+            {ceMoisRendu}
+          </>
+        ) : (
+          ceMoisRendu
+        )
       }
     />
   );

@@ -107,7 +107,8 @@ export function PageHeader({
 
   return (
     <div className={cn(dessous && ONGLETS_COLLES_AU_TELEPHONE, className)}>
-      {bandeau ? <div className="mb-5">{bandeau}</div> : null}
+      {/* TCK-2850 — `empty:hidden` : un bandeau qui ne rend rien (étapes toutes faites) ne laisse pas sa marge. */}
+      {bandeau ? <div className="mb-5 empty:hidden">{bandeau}</div> : null}
       {fil ? <FilDAriane {...fil} /> : null}
       {enTete}
       {dessous ? <div className={DESSOUS_DE_L_EN_TETE}>{dessous}</div> : null}

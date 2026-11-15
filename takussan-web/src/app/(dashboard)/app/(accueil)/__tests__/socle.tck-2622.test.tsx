@@ -60,6 +60,18 @@ vi.mock('@/components/accueil/bailleur/AFaireBailleur', () => ({
   ),
 }));
 vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurVosBiens: () => <div data-testid="en-cours" /> }));
+// TCK-2850 — « Démarrer » et la place des loyers lisent react-query : éprouvés par `accueil-bailleur.tck-2850`.
+// La page les CHOISIT ; la carte de gauche reste la vraie (« Loyers de novembre »), la droite ne se rend pas.
+vi.mock('@/components/accueil/bailleur/DemarrerDuBailleur', () => ({
+  DemarrerDuBailleur: ({ large }: { large?: boolean }) => <div data-testid={large ? 'demarrer-bureau' : 'demarrer-telephone'} />,
+}));
+vi.mock('@/components/accueil/bailleur/PlaceDesLoyers', async () => {
+  const { LoyersDuMois } = await import('@/components/accueil/bailleur/LoyersDuMois');
+  return {
+    PlaceDesLoyers: ({ place, ...props }: { place: string } & React.ComponentProps<typeof LoyersDuMois>) =>
+      place === 'blocs' ? <LoyersDuMois {...props} /> : <div data-testid="loyers-a-droite" />,
+  };
+});
 vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
 // TCK-2625 — les blocs du locataire, du client et du prestataire, doublés : la page les CHOISIT.
 vi.mock('@/components/accueil/locataire/CarteDuLoyer', () => ({ CarteDuLoyer: () => <div data-testid="carte-du-loyer" /> }));
@@ -309,6 +321,26 @@ describe('TCK-2624 (lot 2) — les blocs du bailleur et de l’hôte', () => {
     expect(screen.queryByTestId('a-faire-admin')).toBeNull();
   });
 
+  it('TCK-2850 — le bailleur : « Démarrer » au téléphone et au bureau, « Loyers du mois » posé aux deux places', async () => {
+    ETAT.user = { id: 4, roles: ['owner'], agency_id: null, first_name: 'Mouhamed' };
+    ETAT.lecture = { data: { role: 'owner', metrics: { rent_month: { received_count: 8, expected_count: 14, received_amount: 11_400_000 } }, sections: [] } };
+    await monter();
+    expect(screen.getByTestId('demarrer-telephone').closest('.md\\:hidden')).not.toBeNull();
+    expect(screen.getByTestId('demarrer-bureau').closest('.max-md\\:hidden')).not.toBeNull();
+    // e6 : la place de droite est montée (elle ne rend que si rien n'attend) ; e2 : celle de gauche.
+    expect(screen.getByTestId('loyers-a-droite')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /^Loyers de / })).toBeInTheDocument();
+  });
+
+  it('TCK-2850 — l’hôte n’a pas « Démarrer » du bailleur (il a la mise en service de son agence)', async () => {
+    ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
+    await monter();
+    expect(screen.queryByTestId('demarrer-telephone')).toBeNull();
+    expect(screen.queryByTestId('demarrer-bureau')).toBeNull();
+    // Deux gardes : la page ne le donne qu'au persona `bailleur`, et le socle fait primer la mise en service.
+    expect(screen.getAllByTestId('mise-en-service').length).toBeGreaterThan(0);
+  });
+
   it('l’hôte (admin d’une agence individuelle) garde réservations et avis de la Vue bailleur', async () => {
     ETAT.agence = { ok: true, data: { id: 7, kind: 'individual', logo_url: 'x.png' } };
     await monter();
@@ -401,6 +433,20 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     expect(erreur).toHaveTextContent('Impossible de charger ce qui vous attend.');
     fireEvent.click(within(erreur!).getByRole('button', { name: /Réessayer/ }));
     expect(rafraichir).toHaveBeenCalledTimes(1);
+  });
+
+  it('TCK-2850 — ni le client ni le locataire n’ont « Démarrer » du bailleur', async () => {
+    ETAT.user = { id: 9, roles: ['customer'], agency_id: null, first_name: 'Fatou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: { ...SITUATION, leases_active: 0 }, sections: [] } };
+    const { unmount } = await monter();
+    expect(screen.queryByTestId('demarrer-telephone')).toBeNull();
+    expect(screen.queryByTestId('demarrer-bureau')).toBeNull();
+    unmount();
+    ETAT.user = { id: 9, roles: ['tenant'], agency_id: null, first_name: 'Fatou' };
+    ETAT.lecture = { data: { role: 'tenant', metrics: SITUATION, sections: [] } };
+    await monter();
+    expect(screen.queryByTestId('demarrer-telephone')).toBeNull();
+    expect(screen.queryByTestId('demarrer-bureau')).toBeNull();
   });
 
   it('le client : ses visites, ses recherches et l’invitation à chercher, sans carte du loyer ni état vide', async () => {

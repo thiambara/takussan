@@ -9,11 +9,12 @@ import { LigneDeVisite } from '@/components/accueil/admin/LigneDeVisite';
 import { ErreurDeBloc, SqueletteDeCarte, SqueletteDeGroupes, ToutEstAJour } from '@/components/accueil/EtatsDeBloc';
 import { CarteAFaire, CarteFile, GroupeAFaire, LienTonal, RangeeAFaire, TitreBloc, TitreColonne } from '@/components/accueil/pieces';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { aUneLigne, etatDeLaRequete, etatDuBloc, type EtatDeFile } from '@/lib/accueil/a-faire';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { InterventionEnFile } from '@/lib/maintenance/files';
 import { useVisitesAConfirmer } from '@/lib/queries/accueil';
-import { useLoyersEnRetard } from '@/lib/queries/accueil-bailleur';
+import { useLoyersEnRetard, useRelancesDesLoyers } from '@/lib/queries/accueil-bailleur';
 import { useDevisAttendantLeBailleur } from '@/lib/queries/maintenance-signalement';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
@@ -53,6 +54,24 @@ const DESTINATIONS = {
   avis: '/app/profile/reviews?reply=unreplied&subject=property',
 } as const;
 
+/**
+ * TCK-2850 — les files de « À faire » et l'état du bloc (`chargement`, `echec`, `aJour`, `lignes`), en UN
+ * endroit : `AFaireBailleur` les rend, `PlaceDesLoyers` y lit si le bailleur n'a rien à faire (maquette e6 :
+ * « Loyers du mois » passe alors à droite au bureau). Mêmes clés de cache : aucune lecture de plus.
+ */
+export function useFilesDuBailleur(landlordId: number, hote: FilesDeLHote | null) {
+  const visites = useVisitesAConfirmer(true);
+  const devis = useDevisAttendantLeBailleur();
+  const loyers = useLoyersEnRetard(landlordId, true);
+  const etats = {
+    visites: etatDeLaRequete(visites, (d) => d.meta.total),
+    devis: etatDeLaRequete(devis, (d) => d.meta.total),
+    loyers: etatDeLaRequete(loyers, (d) => d.meta.total),
+  };
+  const files: EtatDeFile[] = [etats.visites, etats.devis, etats.loyers, ...(hote ? [hote.reservations, hote.avis] : [])];
+  return { visites, devis, loyers, etats, files, bloc: etatDuBloc(files) };
+}
+
 export function AFaireBailleur({
   landlordId,
   hote = null,
@@ -69,20 +88,10 @@ export function AFaireBailleur({
 }) {
   const t = useTranslations('accueil.bailleur');
   const tBlocs = useTranslations('accueil.blocs');
-  const visites = useVisitesAConfirmer(true);
-  const devis = useDevisAttendantLeBailleur();
-  const loyers = useLoyersEnRetard(landlordId, true);
+  const { visites, devis, loyers, etats, files, bloc } = useFilesDuBailleur(landlordId, hote);
   const [devisOuvert, setDevisOuvert] = useState<InterventionEnFile | null>(null);
   const [refuses, setRefuses] = useState<ReadonlySet<string>>(new Set());
   const refuser = (cle: string) => setRefuses((avant) => new Set(avant).add(cle));
-
-  const etats = {
-    visites: etatDeLaRequete(visites, (d) => d.meta.total),
-    devis: etatDeLaRequete(devis, (d) => d.meta.total),
-    loyers: etatDeLaRequete(loyers, (d) => d.meta.total),
-  };
-  const files: EtatDeFile[] = [etats.visites, etats.devis, etats.loyers, ...(hote ? [hote.reservations, hote.avis] : [])];
-  const bloc = etatDuBloc(files);
   const reessayer = () => {
     for (const q of [visites, devis, loyers]) if (q.isError) void q.refetch();
   };
@@ -300,9 +309,19 @@ function GroupesDuBureau({ l }: { readonly l: Lignes }) {
   const t = useTranslations('accueil.bailleur');
   const f = useFormatteurs();
   const lireDevis = useLectureDuDevis();
+  // TCK-2850 — « relancé par l'agence le 8 nov. » : la dernière relance notée, lue dans le relevé du bailleur ;
+  // au bureau seulement (ces rangées sont cachées au téléphone : pas de relevé lu pour rien).
+  const bureau = useMatchesMedia('(width >= 48rem)');
+  const relanceDe = useRelancesDesLoyers(bureau ? l.loyers : []);
   const { etats } = l;
   const total = (e: EtatDeFile) => (e.etat === 'pret' ? e.total : undefined);
   const autres = (e: EtatDeFile, montrees: number) => (e.etat === 'pret' ? Math.max(0, e.total - montrees) : 0);
+  // TCK-2850 — relancé : « 1 400 000 F · relancé par l'agence le 8 nov. » (maquette e2) ; sinon l'échéance.
+  const detailDuLoyer = (row: PaymentHistoryRow, relance: string | null) => {
+    const montant = f.montantCourt(row.amount_due ?? row.remaining_amount, row.currency ?? undefined);
+    if (relance) return t('loyers.relance', { montant, date: f.jourMois(relance) });
+    return row.due_date ? t('loyers.detail', { montant, echeance: f.jourMois(row.due_date) }) : montant;
+  };
   const pied = (e: EtatDeFile, montrees: number, cle: 'visites' | 'devis' | 'loyers', href: string) =>
     autres(e, montrees) > 0 ? { texte: t(`${cle}.autres`, { n: autres(e, montrees) }), href } : null;
 
@@ -359,11 +378,7 @@ function GroupesDuBureau({ l }: { readonly l: Lignes }) {
               icone={Wallet}
               ton="danger"
               titre={[row.payer?.name ?? t('loyers.sansLocataire'), row.property?.title ?? null].filter(Boolean).join(' · ')}
-              detail={
-                row.due_date
-                  ? t('loyers.detail', { montant: f.montantCourt(row.amount_due ?? row.remaining_amount, row.currency ?? undefined), echeance: f.jourMois(row.due_date) })
-                  : f.montantCourt(row.amount_due ?? row.remaining_amount, row.currency ?? undefined)
-              }
+              detail={detailDuLoyer(row, relanceDe(row))}
               quand={row.days_late ? t('loyers.jours', { n: row.days_late }) : null}
               gestes={<LienTonal href={DESTINATIONS.loyer(row)} className={TONAL_RANGEE}>{t('voir')}</LienTonal>}
             />

@@ -28,8 +28,8 @@ interface BandeauMiseEnServiceProps {
   readonly large?: boolean;
 }
 
-/** L'anneau de progression (20 px). */
-function Anneau({ fait, total }: { readonly fait: number; readonly total: number }) {
+/** L’anneau de progression (20 px). TCK-2850 — partagé avec « Démarrer » du bailleur (`DemarrerDuBailleur`). */
+export function Anneau({ fait, total }: { readonly fait: number; readonly total: number }) {
   const r = 8;
   const c = 2 * Math.PI * r;
   return (

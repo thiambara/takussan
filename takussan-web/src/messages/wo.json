@@ -4781,7 +4781,8 @@
         },
         "voir": "Voir ma demande",
         "appeler": "Appeler l’agence",
-        "erreur": "La demande n’a pas pu être chargée."
+        "erreur": "La demande n’a pas pu être chargée.",
+        "delai": "L’agence répond d’ordinaire {tranche, select, heure {dans l’heure} journee {dans la journée} other {{n, plural, one {sous # jour} other {sous # jours}}}}."
       },
       "demandes": {
         "titre": "Interventions",
@@ -4814,6 +4815,24 @@
           "termineeLe": "{categorie} · terminée le {date}",
           "close": "{categorie} · close",
           "annulee": "{categorie} · annulée"
+        },
+        "noteDuBail": "Les réparations de votre logement sont prises en charge selon votre bail : aucun montant ne vous est demandé ici.",
+        "gestes": {
+          "ecrire": "Écrire à l’agence",
+          "changer": "Changer le créneau",
+          "enAttente": "Vous avez proposé {n, plural, one {un autre créneau} other {# autres créneaux}} le {date} : votre demande attend la réponse de l’agence.",
+          "creneau": {
+            "titre": "Proposer un autre créneau",
+            "texte": "Proposez jusqu’à trois créneaux. Le passage prévu ne change pas tant que l’agence n’a pas répondu.",
+            "creneauN": "Créneau {n}",
+            "ajouter": "Ajouter un créneau",
+            "passe": "Un créneau proposé est déjà passé : choisissez une date à venir.",
+            "note": "Un mot pour l’agence (facultatif)",
+            "exemple": "Par exemple : je travaille le matin",
+            "attente": "Votre demande attendra la réponse de l’agence.",
+            "envoyer": "Envoyer la demande",
+            "echec": "La demande n’a pas pu être envoyée. Réessayez."
+          }
         }
       }
     },
@@ -4927,7 +4946,8 @@
         "couvre": "couvre {zone}",
         "choisir": "Choisir",
         "choisie": "Choisi",
-        "titreTelephone": "Prestataire suggéré"
+        "titreTelephone": "Prestataire suggéré",
+        "creneauxDepasses": "{count, plural, one {# créneau dépassé} other {# créneaux dépassés}}"
       },
       "geste": {
         "retard": {
@@ -5003,11 +5023,7 @@
         },
         "annuler": {
           "titre": "Annuler la demande",
-          "texte": "La demande est close sans intervention",
-          "confirmerTitre": "Annuler la demande ?",
-          "confirmerTexte": "« {titre} » sera annulée et quittera les files. Ce geste ne s’annule pas.",
-          "garder": "Garder la demande",
-          "confirmer": "Annuler la demande"
+          "texte": "Le locataire est prévenu, avec votre motif"
         }
       },
       "frise": {
@@ -5019,7 +5035,13 @@
         "a_confirmer": "À confirmer",
         "terminee": "Terminée",
         "sansObjet": "sans objet : aucun devis"
-      }
+      },
+      "joindre": {
+        "appeler": "Appeler {nom}",
+        "whatsapp": "Écrire à {nom} sur WhatsApp",
+        "message": "Bonjour {nom}, je vous écris au sujet de votre demande « {titre} »."
+      },
+      "motifDAnnulation": "Motif de l’annulation"
     },
     "relanceDuBailleur": {
       "relancer": "Relancer le bailleur",
@@ -5058,6 +5080,16 @@
         "journal_before": "Avant le journal",
         "autre": "Étape"
       }
+    },
+    "annulation": {
+      "titre": "Annuler la demande ?",
+      "texte": "« {titre} » sera annulée et quittera les files. Le locataire est prévenu, avec votre motif. Ce geste ne s’annule pas.",
+      "motif": "Motif de l’annulation",
+      "exemple": "Par exemple : le bailleur fait intervenir son artisan",
+      "aide": "Le locataire, le bailleur et le prestataire le liront.",
+      "garder": "Garder la demande",
+      "confirmer": "Annuler la demande",
+      "motifLu": "Motif : {motif}"
     }
   },
   "recentlyViewed": {

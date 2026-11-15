@@ -6018,7 +6018,8 @@
         },
         "voir": "See my request",
         "appeler": "Call the agency",
-        "erreur": "The request could not be loaded."
+        "erreur": "The request could not be loaded.",
+        "delai": "The agency usually replies {tranche, select, heure {within the hour} journee {within the day} other {{n, plural, one {within # day} other {within # days}}}}."
       },
       "demandes": {
         "titre": "Repairs",
@@ -6051,6 +6052,24 @@
           "termineeLe": "{categorie} · finished on {date}",
           "close": "{categorie} · closed",
           "annulee": "{categorie} · cancelled"
+        },
+        "noteDuBail": "Repairs to your home are covered according to your lease: no amount is asked of you here.",
+        "gestes": {
+          "ecrire": "Message the agency",
+          "changer": "Change the time slot",
+          "enAttente": "You suggested {n, plural, one {another time slot} other {# other time slots}} on {date}: your request is awaiting the agency’s reply.",
+          "creneau": {
+            "titre": "Suggest another time slot",
+            "texte": "Suggest up to three time slots. The planned visit does not change until the agency has replied.",
+            "creneauN": "Time slot {n}",
+            "ajouter": "Add a time slot",
+            "passe": "A suggested time slot has already passed: choose an upcoming date.",
+            "note": "A note for the agency (optional)",
+            "exemple": "For example: I work in the mornings",
+            "attente": "Your request will await the agency’s reply.",
+            "envoyer": "Send the request",
+            "echec": "The request could not be sent. Please try again."
+          }
         }
       }
     },
@@ -6164,7 +6183,8 @@
         "couvre": "covers {zone}",
         "choisir": "Choose",
         "choisie": "Chosen",
-        "titreTelephone": "Suggested provider"
+        "titreTelephone": "Suggested provider",
+        "creneauxDepasses": "{count, plural, one {# missed time slot} other {# missed time slots}}"
       },
       "geste": {
         "retard": {
@@ -6240,11 +6260,7 @@
         },
         "annuler": {
           "titre": "Cancel the request",
-          "texte": "The request is closed without a job",
-          "confirmerTitre": "Cancel the request?",
-          "confirmerTexte": "“{titre}” will be cancelled and leave the queues. This cannot be undone.",
-          "garder": "Keep the request",
-          "confirmer": "Cancel the request"
+          "texte": "The tenant is notified, with your reason"
         }
       },
       "frise": {
@@ -6256,7 +6272,13 @@
         "a_confirmer": "To confirm",
         "terminee": "Done",
         "sansObjet": "not applicable: no quote"
-      }
+      },
+      "joindre": {
+        "appeler": "Call {nom}",
+        "whatsapp": "Message {nom} on WhatsApp",
+        "message": "Hello {nom}, I am writing about your request “{titre}”."
+      },
+      "motifDAnnulation": "Reason for cancelling"
     },
     "relanceDuBailleur": {
       "relancer": "Remind the owner",
@@ -6295,6 +6317,16 @@
         "journal_before": "Before the log",
         "autre": "Step"
       }
+    },
+    "annulation": {
+      "titre": "Cancel the request?",
+      "texte": "“{titre}” will be cancelled and leave the queues. The tenant is notified, with your reason. This cannot be undone.",
+      "motif": "Reason for cancelling",
+      "exemple": "For example: the landlord is sending his own tradesperson",
+      "aide": "The tenant, the landlord and the service provider will read it.",
+      "garder": "Keep the request",
+      "confirmer": "Cancel the request",
+      "motifLu": "Reason: {motif}"
     }
   },
   "recentlyViewed": {
