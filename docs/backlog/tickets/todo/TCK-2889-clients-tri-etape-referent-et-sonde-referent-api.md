@@ -55,4 +55,12 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté.**
+
+- Re-mesure : prémisses justes (`$requestSortable` sans étape ni référent ; sonde à `{id, name, stage}`, `CustomerDuplicateProbeController` l. 38-42). L'enum compte six étapes (`lead` d'abord) : l'ordre du tri est celui des cas de `CustomerPipelineStage` (nouveau, prospect, qualifié, négociation, gagné, perdu), valeur inconnue en dernier.
+- `App\Sorts\CustomerPipelineStageSort` : `CASE` lié (bindings) sur les cas de l'enum ; départage par `DepartageQueryBuilder`.
+- `App\Sorts\CustomerReferentSort` : sous-requête corrélée — le même référent que l'attribut `referent` (`CustomerCommercialAttributes::referents()` : relation `asReferent` de plus petit id, compte non supprimé), nom `TRIM(CONCAT(prénom, ' ', nom))` en `COLLATE "und-x-icu"` (comme `CollatedNameSort` ; `CaseInsensitive` ne trie pas), `NULLS LAST` dans les deux sens. Décision : le départage par id est posé DANS le tri, dans son sens, car `NULLS LAST` clôt le SQL et `DepartageQueryBuilder` y lirait toujours « croissant ». Le référent étant servi à tout lecteur de la liste (`fields[customers]=referent` sans borne), le tri ne se dégrade pour personne.
+- Sonde : le référent est ajouté dans `CustomerDuplicateDetector::probe()` seulement (pas dans `present()`, que lit aussi le 409 de la création) : une requête de plus (`referents()`), pour les seules fiches visibles ; masquée → `null`, comme l'étape. Le nom seul, jamais une coordonnée.
+- `CustomerDuplicateProbeTest` mis à jour (forme à quatre clés). Type front `DoublonSonde.referent?` déclaré (`takussan-web/src/lib/queries/customer-duplicates.ts`) pour TCK-2890.
+- Ablations (rouges sans le correctif, restaurées par md5) : tri alphabétique au lieu du rang ; tri du référent sans collation ni `NULLS LAST` ; départage du référent retiré ; référent de la sonde forcé à `null`.
+

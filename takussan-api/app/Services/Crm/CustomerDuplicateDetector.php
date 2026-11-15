@@ -127,7 +127,7 @@ class CustomerDuplicateDetector
      * Un numéro trop court, ou qui n'est ni complet ni sénégalais, ne sonde rien.
      * La création (`find()`, 409) garde l'égalité stricte : un préfixe n'y désigne personne.
      *
-     * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>
+     * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string, referent: ?array{id: int, name: string}}>
      */
     public function probe(?int $agencyId, ?string $phone, ?string $email, User $viewer): array
     {
@@ -168,8 +168,18 @@ class CustomerDuplicateDetector
             ->limit(self::MAX_MATCHES)
             ->get();
 
-        return $this->present($matches, $viewer, fn (Customer $c) => ($complete !== null && $c->phone === $complete)
+        $presentes = $this->present($matches, $viewer, fn (Customer $c) => ($complete !== null && $c->phone === $complete)
             || ($prefix !== null && str_starts_with((string) $c->phone, $prefix)));
+
+        // TCK-2889 — le référent de chaque fiche trouvée (`{id, name}`, ou `null`), à qui en lit déjà
+        // l'étape : une fiche masquée (`id` à `null`) ne le livre pas. Le seul nom, jamais une
+        // coordonnée ; le même référent que l'attribut `referent` de la liste, en une requête.
+        $visibles = array_values(array_filter(array_column($presentes, 'id'), fn ($id) => $id !== null));
+        $referents = $visibles === [] ? [] : CustomerCommercialAttributes::referents($visibles);
+
+        return array_map(fn (array $m) => $m + [
+            'referent' => $m['id'] !== null ? ($referents[$m['id']] ?? null) : null,
+        ], $presentes);
     }
 
     /**

@@ -17,6 +17,8 @@ use Illuminate\Http\JsonResponse;
  * ({@see CustomerDuplicateDetector::probe()}), et ne rend alors QUE les fiches que l'appelant lit :
  * le signalement masqué reste réservé à l'égalité (numéro complet, e-mail). La création garde
  * l'égalité stricte.
+ *
+ * TCK-2889 — et `referent` : `{id, name}` du référent de la fiche, `null` sans référent ou masquée.
  */
 class CustomerDuplicateProbeController extends Controller
 {
@@ -39,6 +41,8 @@ class CustomerDuplicateProbeController extends Controller
                 'id' => $m['id'],
                 'name' => $m['name'],
                 'stage' => $m['stage'],
+                // TCK-2889 — le référent de la fiche trouvée (`{id, name}` ou `null`), masqué comme l'étape.
+                'referent' => $m['referent'],
             ], $matches),
         ]);
     }

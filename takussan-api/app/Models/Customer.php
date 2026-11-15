@@ -19,6 +19,8 @@ use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
 use App\Sorts\CustomerLastContactedSort;
 use App\Sorts\CustomerNextActionSort;
+use App\Sorts\CustomerPipelineStageSort;
+use App\Sorts\CustomerReferentSort;
 use App\Support\Query\CompteDansLAgenceDeLaFiche;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -237,6 +239,9 @@ class Customer extends AbstractModel
                     AllowedSort::custom('first_name', new CollatedNameSort, 'customers.first_name'),
                     AllowedSort::custom('last_name', new CollatedNameSort, 'customers.last_name'),
                     AllowedSort::custom('next_action_at', new CustomerNextActionSort),
+                    // TCK-2889 — l'étape dans l'ordre du pipeline ; le référent par son nom affiché.
+                    AllowedSort::custom('pipeline_stage', new CustomerPipelineStageSort),
+                    AllowedSort::custom('referent', new CustomerReferentSort),
                     $internes
                         ? AllowedSort::custom('follow_up_days', new CustomerFollowUpSort)
                         : AllowedSort::field('follow_up_days', 'created_at'),
