@@ -64,4 +64,48 @@ Relevé le 2026-11-15 (`dev` 8c60f4c58) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré le 2026-11-15 (arbre `feat/audit-manques-2026-11-15`, base 8611a0949).
+
+**Re-mesure de la prémisse**
+- La clé est `data.metrics.visits_upcoming` dans `GET /api/dashboard/me` (adaptateur `TenantMeMetrics`) ;
+  le service la produit sous `visits.upcoming`. Les deux suivent.
+- AC5 était **rouge** avant le correctif : sans rattachement CRM ni fil passé, le locataire ne joignait
+  pas l'agent de son bail (`POST /api/conversations` → 422), un locataire n'ayant pas de profil dans
+  l'agence (règle 3 muette).
+- Moyens en ligne : une lecture existe, `GET …/payments/{type}/{id}/providers`
+  (`PaymentGatewayController::providers`), mais par échéance ; l'accueil (TCK-2852) affiche la ligne
+  « Wave · Orange Money · Free Money » sans échéance. D'où `online_means`.
+
+**Ce qui est livré**
+- `MessagingReach`, règle 5 : l'agent attribué d'un bail **en cours** (`Lease::ONGOING_STATUSES`) dont
+  l'acteur est le locataire (fiche non supprimée), tant qu'il a un profil agent ou administrateur
+  **actif** dans l'agence du bail. Le bail terminé ou l'agent suspendu ne joint plus (testés). Le
+  contact rendu par cette seule règle reçoit la relation `null` (`MessagingRelation` étiquette, ne
+  s'élargit pas).
+- `rent-summary.lease` : `end_date`, `property.cover_url` (même chemin que `ConversationContextResource`,
+  `PublicPhotoUrl::upTo(…, 'preview')`), `property.address_line` (« quartier, ville », jamais la rue),
+  `agent {user_id, name, avatar_url}` — `null` sans agent ou si `PersonnelDeLAgence::estPersonnel` est
+  faux (suspendu, parti, compte bloqué). Jamais téléphone ni courriel (assertion sur le corps brut).
+- `rent-summary.online_means` : codes `PaymentProvider` (`wave`, `orange_money`…) de
+  `PaymentGatewayService::availableProviders()` lus sur une échéance non enregistrée du bail affiché
+  (agence et devise du bail) ; `[]` sans bail. **Free Money n'a pas de pilote** : il n'y apparaît jamais,
+  le front ne doit pas le citer.
+- `visits_upcoming[]` : `property.cover_url`, `property.address_line`, `property.coordinates {lat, lng}`
+  **clé absente** hors visite `confirmed` (même règle que `PropertyVisitResource::adresseLisible`),
+  `agent {name}` ou `null`, `can_reschedule` = Policy `reschedule` ∧ statut dans
+  `VisitSchedulingService::ACTIVE_STATUSES`. Écart : la liste ne contient que des visites `scheduled` /
+  `confirmed` des fiches du compte, donc `can_reschedule` y vaut toujours `true` ; le champ reste pour que
+  le front ne déduise rien.
+- Chargements groupés (`property.media`, `property.address`, `property.agency`, `agent`, `customer`).
+
+**Mesures**
+- `TenantRentSummaryLeaseCardTest` (7) et `TenantDashboardVisitsTest` (4) verts ; les trois gardes
+  d'architecture vertes ; gardes racine vertes sauf `check-models-spec` (rouge sur `BookingDossierItem`,
+  hors de ce ticket).
+- Ablations (une à une, restaurées par `cp`, md5 vérifié) : règle 5 retirée → AC5 rouge ;
+  `estPersonnel` retiré → AC2 rouge ; coordonnées sans condition → test « non confirmée » rouge ;
+  `property.media` non groupé → AC4 rouge ; `customer` non groupé → AC4 rouge (31 vs 35 requêtes).
+  `property.agency` non groupé reste vert : le filigrane global est éteint en test, le chargement ne
+  sert que lorsqu'il est allumé.
+- Non joué en local (règle de charge) : `TenantRentSummaryTest`, `DashboardMeTest`, tests de
+  messagerie (`MessagingContactsTest`…), balayages — la CI de la PR.

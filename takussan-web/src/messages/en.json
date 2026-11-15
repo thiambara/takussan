@@ -552,6 +552,18 @@
       "fermer": "Close",
       "plusDActions": "More actions",
       "etape": "Step {n} of {total}"
+    },
+    "recents": {
+      "types": {
+        "bien": "Property",
+        "demande": "Request",
+        "client": "Client",
+        "bail": "Lease",
+        "intervention": "Maintenance",
+        "visite": "Viewing",
+        "reservation": "Booking",
+        "bailleur": "Landlord"
+      }
     }
   },
   "footer": {

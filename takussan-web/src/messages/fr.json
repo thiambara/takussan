@@ -552,6 +552,18 @@
       "fermer": "Fermer",
       "plusDActions": "Plus d’actions",
       "etape": "Étape {n} sur {total}"
+    },
+    "recents": {
+      "types": {
+        "bien": "Bien",
+        "demande": "Demande",
+        "client": "Client",
+        "bail": "Bail",
+        "intervention": "Intervention",
+        "visite": "Visite",
+        "reservation": "Réservation",
+        "bailleur": "Bailleur"
+      }
     }
   },
   "footer": {
