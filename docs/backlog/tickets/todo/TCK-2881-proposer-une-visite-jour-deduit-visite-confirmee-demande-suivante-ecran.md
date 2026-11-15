@@ -77,4 +77,40 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — livré (front).
+
+- **Prémisse re-mesurée — deux écarts.**
+  - Le plafond n'est PAS le prix du bien : `ContactLeadService::criteriaFromProperty` (TCK-2582) écrit
+    `budget_max` = prix × 1,2 (en entiers), et seulement pour une vente ou un loyer mensuel (ou sans
+    période). La ligne suit l'API (« ne promet rien que la création n'écrit pas ») : un loyer de 100 000 lit
+    « ≤ 120 000 F », pas « ≤ 100 000 F » comme la maquette. Miroir : `lib/visites/criteres-du-bien.ts`.
+  - L'API déduit les critères du bien de la DEMANDE (`$lead->property_id`), pas du bien de la visite :
+    la ligne est calculée dans la boîte (`PlanifierDepuisLaDemande`, bien relu par `useBienDeLaDemande`,
+    qui sert déjà `type`, `rent_period`, `location.quarter`) et passée sur `demande.criteres` ; « changer »
+    de bien ne la change pas. Le contrat (`seeking_contract_type`, aussi écrit) n'est pas cité (maquette).
+- **Jour du message** (`lib/visites/jour-du-message.ts`) : premier mot par POSITION, fr et en quelle que
+  soit la langue de l'interface (le client écrit), insensible à la casse, `aujourd'hui` à apostrophe
+  droite ou typographique. Un nom de jour → prochaine occurrence AUJOURD'HUI COMPRIS (« mardi » lu un
+  mardi = ce jour) ; « après-demain » = +2 (ajouté : sans lui, son « demain » était lu à tort) ; un mot
+  qui contient un jour (« samedis ») n'en est pas un. Jour de semaine pris sur le jour de l'API (UTC =
+  Dakar), jamais `getDay()`. Seulement quand l'appelant ne pose pas de `jour` (l'agenda garde le sien).
+  Le jour écrit au-delà des quatre pastilles y prend place : aujourd'hui, demain, le jour écrit et son
+  lendemain (maquette a-1 : « Aujourd'hui, Demain, Sam. 7 nov., Lun. 9 nov. »). La ligne « {prénom} a
+  écrit « samedi » : le jour est déjà choisi. » disparaît si l'agent choisit un autre jour.
+- **e2** : « Bien d'intérêt et critères repris (…) » seulement quand la fiche NAÎT de la demande
+  (`create_customer`) — rattachée à une fiche existante, seuls ses critères vides sont remplis, la ligne
+  promettrait trop. Bloc « SMS envoyé à 09:21 » (`f.heure`, Dakar) + texte, lus de `notification.sms`
+  (TCK-2871) ; absent (`null`, ou réponse sans `notification`) → aucun bloc.
+- **« Demande suivante → »** : `PlanifierDialog` reçoit `onDemandeSuivante` (facultatif : les autres
+  appelants n'ont pas de bouton). La boîte prend la suivante À L'OUVERTURE de la feuille (la planification
+  traite la demande et relit la liste, d'où elle sort) : la non traitée qui suit dans l'ordre de la vue,
+  sinon la première non traitée qui précède ; aucune → pas de bouton. Le clic ferme la feuille puis ouvre
+  la suivante (`?ouverte=`). Placé à côté de « Voir la fiche » (a-2) ; « Voir la visite » (TCK-2586 AC4)
+  passe dessous au téléphone. ⚠ Écart : le bureau de la maquette (a-2) n'a pas ce bouton ; le ticket le
+  veut dans les deux formats — il est rendu au bureau aussi.
+- **Tests** : `lib/visites/__tests__/jour-du-message.tck-2881.test.ts` (9), `criteres-du-bien.tck-2881.test.ts`
+  (3), `components/visits/__tests__/PlanifierUneVisite.demande.tck-2881.test.tsx` (7),
+  `ContactLeadsInbox.test.tsx` (bloc TCK-2881, 3 ; l'assertion exacte de `demande` d'AC3/TCK-2584 porte
+  `message` et `criteres`). 17 ablations une à une, toutes rouges, restaurées au md5 (une garde redondante
+  `ficheCreee` au rendu, que l'ablation laissait verte, a été retirée). 57 fichiers voisins verts (713).
+- **Non mesuré** : AC-F1/F2 (brief du lot : ni navigateur ni relevé de fidélité).

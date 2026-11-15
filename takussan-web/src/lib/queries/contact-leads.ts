@@ -282,6 +282,10 @@ export interface BienDeLaDemande {
   readonly currency?: string | null;
   readonly contract_type?: string | null;
   readonly main_photo_url?: string | null;
+  /** TCK-2881 — de quoi dire les critères que la fiche née de la demande reprendra (`criteresDuBien`). */
+  readonly type?: string | null;
+  readonly rent_period?: string | null;
+  readonly location?: { readonly quarter?: string | null } | null;
 }
 
 export function useBienDeLaDemande(id: number | null) {

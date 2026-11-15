@@ -665,7 +665,17 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
     await user.click(screen.getByRole('button', { name: 'Proposer une visite à Mouhamed Dieng' }));
 
     expect(screen.getByTestId('planifier')).toBeInTheDocument();
-    expect(etat.planifier?.demande).toEqual({ id: 1, nom: 'Mouhamed Dieng', prenom: 'Mouhamed', telephone: '+221771234567', ficheId: null });
+    // TCK-2881 — + le message (le jour écrit) et les critères que la fiche reprendra du bien de la
+    // demande : loyer de 85 000 sans période → plafond × 1,2, comme `criteriaFromProperty`.
+    expect(etat.planifier?.demande).toEqual({
+      id: 1,
+      nom: 'Mouhamed Dieng',
+      prenom: 'Mouhamed',
+      telephone: '+221771234567',
+      ficheId: null,
+      message: MESSAGE,
+      criteres: { type: null, quartier: null, budgetMax: 102_000 },
+    });
     expect(etat.planifier?.property).toEqual(expect.objectContaining({ id: 10, libelle: 'Villa à Almadies' }));
   });
 
@@ -995,6 +1005,50 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
       etat.creneaux = [{ jour: '2026-11-14', heure: '10:00' }];
       rendre();
       expect(texte()).toBe('Bonjour Mouhamed, c’est Sokhna Sène, au sujet de « Chambre meublée · Ouakam ». Je vous propose samedi 10:00.');
+    });
+  });
+
+  describe('TCK-2881 — « Demande suivante → » au succès de la planification', () => {
+    const A = () => lead({ id: 1, name: 'Awa Diop' });
+    const B = () => lead({ id: 2, name: 'Mouhamed Ba', created_at: '2026-11-10T11:50:00Z' });
+    const C = () => lead({ id: 3, name: 'Khady Fall', created_at: '2026-11-10T11:55:00Z' });
+
+    it('ouvre la demande non traitée qui SUIT, même une fois la planifiée sortie de la liste relue', async () => {
+      etat.leads = [A(), B(), C()];
+      etat.recherche = 'ouverte=2';
+      const { rerender } = rendre();
+      await userEvent.setup().click(within(panneau()).getByRole('button', { name: 'Proposer une visite' }));
+      expect(etat.planifier?.onDemandeSuivante).toBeTypeOf('function');
+
+      // La planification traite la demande : la liste relue ne la porte plus.
+      etat.leads = [A(), C()];
+      rerender(withIntl(<ContactLeadsInbox />));
+      act(() => (etat.planifier?.onDemandeSuivante as () => void)());
+      expect(remplacer).toHaveBeenLastCalledWith('?ouverte=3', { scroll: false });
+    });
+
+    it('une demande déjà traitée de la vue est sautée ; la dernière renvoie à la première non traitée', async () => {
+      etat.leads = [A(), lead({ id: 2, name: 'Mouhamed Ba', handled_at: '2026-11-10T11:58:00Z' }), C()];
+      const user = userEvent.setup();
+      const { unmount } = rendre();
+      await user.click(within(panneau()).getByRole('button', { name: 'Proposer une visite' }));
+      act(() => (etat.planifier?.onDemandeSuivante as () => void)());
+      expect(remplacer).toHaveBeenLastCalledWith('?ouverte=3', { scroll: false });
+      unmount();
+
+      etat.recherche = 'ouverte=3';
+      rendre();
+      await user.click(within(panneau()).getByRole('button', { name: 'Proposer une visite' }));
+      act(() => (etat.planifier?.onDemandeSuivante as () => void)());
+      expect(remplacer).toHaveBeenLastCalledWith('?ouverte=1', { scroll: false });
+    });
+
+    it('une seule demande à traiter : pas de « Demande suivante »', async () => {
+      etat.leads = [A()];
+      rendre();
+      await userEvent.setup().click(within(panneau()).getByRole('button', { name: 'Proposer une visite' }));
+      expect(screen.getByTestId('planifier')).toBeInTheDocument();
+      expect(etat.planifier?.onDemandeSuivante).toBeUndefined();
     });
   });
 });

@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarCheck, Check, CheckCircle2, ImageIcon, Info, Lock } from 'lucide-react';
+import { ArrowRight, CalendarCheck, Check, CheckCircle2, ImageIcon, Info, Lock } from 'lucide-react';
 
 import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
@@ -514,6 +514,19 @@ export interface VisitePlanifiee {
   readonly ficheId: number | null;
   /** Depuis une demande : la fiche est née d'elle (`create_customer`). */
   readonly ficheCreee: boolean;
+  /**
+   * TCK-2881 — les critères repris dans la fiche NÉE de la demande (« Chambre · Ouakam · ≤ 120 000 F ») ;
+   * `null` quand aucune fiche n'est née : une fiche existante ne reçoit que ses critères vides.
+   */
+  readonly criteres?: string | null;
+  /** TCK-2881 (TCK-2871) — le SMS remis au visiteur, son heure et son texte ; `null` sans SMS remis. */
+  readonly sms?: SmsRemis | null;
+}
+
+/** TCK-2871 — `notification.sms` de `POST /api/property-visits` : l'instant de la remise et le texte. */
+export interface SmsRemis {
+  readonly queued_at: string;
+  readonly body: string;
 }
 
 function PhraseDuSms({ visite, avecAgenda }: { readonly visite: VisitePlanifiee; readonly avecAgenda: boolean }) {
@@ -545,8 +558,8 @@ function Coche() {
 
 /**
  * « Visite confirmée » — `app-visites` a-6 (la carte à vignette) ou, depuis une demande,
- * `app-fil-commercial` a-2 (la tuile du jour et ce qui a été fait). Le texte du SMS envoyé, que la
- * maquette a-2 montre, n'est pas rendu par l'API : il n'est pas inventé ici.
+ * `app-fil-commercial` a-2 (la tuile du jour, ce qui a été fait, et — TCK-2881 — le SMS remis, tel que
+ * l'API le rend : `notification.sms`, TCK-2871 ; sans SMS remis, aucun bloc).
  */
 export function SuccesDeLaPlanification({ visite, depuisUneDemande }: { readonly visite: VisitePlanifiee; readonly depuisUneDemande: boolean }) {
   const t = useTranslations('visitPlanning.plan');
@@ -556,6 +569,7 @@ export function SuccesDeLaPlanification({ visite, depuisUneDemande }: { readonly
   if (depuisUneDemande) {
     const fait = [
       visite.ficheCreee ? t('doneCustomerCreated') : null,
+      visite.criteres ? t('doneCriteria', { criteria: visite.criteres }) : null,
       t('doneLeadHandled'),
       t('doneInAgenda'),
     ].filter((x): x is string => x !== null);
@@ -588,6 +602,7 @@ export function SuccesDeLaPlanification({ visite, depuisUneDemande }: { readonly
             ))}
           </ul>
         </div>
+        {visite.sms ? <SmsEnvoye sms={visite.sms} /> : null}
       </div>
     );
   }
@@ -611,6 +626,19 @@ export function SuccesDeLaPlanification({ visite, depuisUneDemande }: { readonly
   );
 }
 
+/** TCK-2881 — « SMS envoyé à 09:21 » (heure de Dakar) et le texte tel qu'il est parti. */
+function SmsEnvoye({ sms }: { readonly sms: SmsRemis }) {
+  const t = useTranslations('visitPlanning.plan');
+  const f = useFormatteurs();
+  const heure = f.heure(sms.queued_at);
+  return (
+    <div data-slot="sms-envoye">
+      <p className="mb-2 text-legende font-semibold tracking-surtitre text-muted-foreground uppercase">{t('smsSentAt', { time: heure })}</p>
+      <p className="rounded-xl bg-muted px-3.5 py-3 text-sm leading-relaxed whitespace-pre-line text-foreground/85">{sms.body}</p>
+    </div>
+  );
+}
+
 function libellesDuSucces(visite: VisitePlanifiee, locale: string) {
   const jourCourt = jourEnClair(visite.jour, locale);
   const premier = jourCourt.charAt(0).toLocaleUpperCase() + jourCourt.slice(1);
@@ -627,8 +655,7 @@ function libellesDuSucces(visite: VisitePlanifiee, locale: string) {
  * Les gestes du succès. Hors demande (`app-visites` a-6) : dans le corps, sous la carte — Voir la
  * visite, WhatsApp, une autre visite, en grands boutons pleine largeur au téléphone comme au panneau.
  * Depuis une demande (`app-fil-commercial` a-2) : dans le pied — WhatsApp en tête, puis Voir la fiche
- * et Voir la visite, qu'AC4 exige et qui prend la place de « Demande suivante » (celle-ci vit avec la
- * boîte des demandes, TCK-2584).
+ * et Voir la visite (TCK-2586 AC4), et « Demande suivante → » quand la boîte en passe une (TCK-2881).
  */
 export function GestesDuSucces({
   visite,
@@ -636,12 +663,15 @@ export function GestesDuSucces({
   messageWhatsApp,
   onAutreVisite,
   onFermer,
+  onDemandeSuivante,
 }: {
   readonly visite: VisitePlanifiee;
   readonly depuisUneDemande: boolean;
   readonly messageWhatsApp: string;
   readonly onAutreVisite: () => void;
   readonly onFermer: () => void;
+  /** TCK-2881 — « Demande suivante → », depuis une demande, quand la boîte en a une autre à traiter. */
+  readonly onDemandeSuivante?: () => void;
 }) {
   const t = useTranslations('visitPlanning.plan');
   // Au pied d'une demande, dès `xl` : la taille des boutons du pied du panneau.
@@ -691,14 +721,32 @@ export function GestesDuSucces({
         {t('viewCustomer')}
       </Link>
     ) : null;
-  // Le bureau aligne à droite, dans l'ordre de la maquette : Voir la visite, Voir la fiche, WhatsApp.
+  // TCK-2881 — « Demande suivante → » à côté de « Voir la fiche » (a-2) ; « Voir la visite » passe alors
+  // sous le couple au téléphone (TCK-2586 AC4 la garde).
+  const suivante = onDemandeSuivante ? (
+    <button type="button" onClick={onDemandeSuivante} className={cn(buttonVariants({ size: 'xl', variant: 'ghost' }), auPied)}>
+      {t('nextLead')}
+      <ArrowRight className="size-4" aria-hidden="true" />
+    </button>
+  ) : null;
+  const cellules = [fiche, voirLaVisite, suivante].filter((x) => x !== null);
+  // Le bureau aligne à droite, dans l'ordre de la maquette : (Demande suivante,) Voir la visite, Voir la
+  // fiche, WhatsApp.
   return (
     <div data-slot="gestes-du-succes" className="w-full space-y-2 xl:flex xl:flex-row-reverse xl:gap-2 xl:space-y-0">
       {whatsapp}
-      <div className={cn('grid gap-2 xl:contents', fiche ? 'grid-cols-2' : 'grid-cols-1')}>
-        {fiche}
-        {voirLaVisite}
-      </div>
+      {suivante ? (
+        <div className="grid grid-cols-2 gap-2 xl:contents">
+          {fiche ?? voirLaVisite}
+          {suivante}
+          {fiche ? <div className="col-span-2 grid xl:contents">{voirLaVisite}</div> : null}
+        </div>
+      ) : (
+        <div className={cn('grid gap-2 xl:contents', cellules.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
+          {fiche}
+          {voirLaVisite}
+        </div>
+      )}
     </div>
   );
 }

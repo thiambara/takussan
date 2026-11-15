@@ -4762,11 +4762,12 @@
       },
       "regle": "Payouts go out on day {jour} of each month for what has been collected. Rent received after that date joins the next payout.",
       "relances": {
-        "telephone": "{bien}: {agence} sent a reminder on {date}. The rent will be added to your payout as soon as it is collected.",
+        "telephone": "{bien}: {agence} sent a reminder on {date}",
         "bureau": "{bien}: {agence} sent reminders {liste}.",
         "une": "on {date} ({canal})",
         "canal": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}}",
-        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}} from {nom}"
+        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}} from {nom}",
+        "suite": "The rent will be added to your payout as soon as it is collected."
       }
     }
   },

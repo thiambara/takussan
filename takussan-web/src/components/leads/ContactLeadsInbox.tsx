@@ -16,6 +16,7 @@ import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { PlanifierDialog } from '@/components/visits/PlanifierUneVisite';
+import { criteresDuBien } from '@/lib/visites/criteres-du-bien';
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
@@ -116,7 +117,9 @@ export function ContactLeadsInbox() {
   const delais = useDelaisDeReponse({ enabled: admin && large });
 
   const retour = useRetourDeContact();
-  const [aPlanifier, setAPlanifier] = useState<ContactLead | null>(null);
+  // TCK-2881 — la demande à planifier, et la SUIVANTE de la boîte, prise à l'ouverture de la feuille :
+  // la planification traite la demande et relit la liste, d'où elle sort.
+  const [aPlanifier, setAPlanifierEtSuivante] = useState<{ lead: ContactLead; suivante: ContactLead | null } | null>(null);
 
   const total = query.data?.meta.total ?? null;
   const compteATraiter = aTraiter.data?.meta.total ?? null;
@@ -142,6 +145,15 @@ export function ContactLeadsInbox() {
     onContact: retour.signaler,
     onVisite: setAPlanifier,
   });
+
+  // TCK-2881 — « Demande suivante → » : la demande non traitée qui suit dans l'ordre de la vue, sinon
+  // la première non traitée qui la précède ; aucune autre → pas de bouton.
+  function setAPlanifier(lead: ContactLead) {
+    const autres = lignes.filter((l) => l.id !== lead.id && !l.handled_at);
+    const rang = lignes.findIndex((l) => l.id === lead.id);
+    const apres = rang >= 0 ? autres.find((l) => lignes.indexOf(l) > rang) : undefined;
+    setAPlanifierEtSuivante({ lead, suivante: apres ?? autres[0] ?? null });
+  }
 
   // Ouvrir : au téléphone une entrée d'historique (le retour arrière ferme la demande) ; au bureau,
   // un remplacement (cliquer dix lignes n'empile pas dix retours).
@@ -218,7 +230,15 @@ export function ContactLeadsInbox() {
     idOuverte !== null && ouverte?.id === idOuverte ? (
       <RetenirLaFiche type="demande" id={ouverte.id} titre={ouverte.name} chemin={`/app/leads?ouverte=${ouverte.id}`} />
     ) : null;
-  const planification = aPlanifier ? <PlanifierDepuisLaDemande lead={aPlanifier} nom={nomDe(aPlanifier)} onClose={() => setAPlanifier(null)} /> : null;
+  const suivanteAPlanifier = aPlanifier?.suivante ?? null;
+  const planification = aPlanifier ? (
+    <PlanifierDepuisLaDemande
+      lead={aPlanifier.lead}
+      nom={nomDe(aPlanifier.lead)}
+      onClose={() => setAPlanifierEtSuivante(null)}
+      onDemandeSuivante={suivanteAPlanifier ? () => ouvrir(suivanteAPlanifier) : undefined}
+    />
+  ) : null;
 
   // ── Téléphone : la demande ouverte remplace la liste. ─────────────────────────────────────────
   if (!large && ouverte) {
@@ -525,7 +545,17 @@ function PanneauxDuBureau({ children }: { readonly children: ReactNode }) {
  * ou celle que la demande retrouve (« déjà client·e »), reçoit la visite. La feuille attend la lecture
  * du bien : elle prend son préremplissage à l'ouverture.
  */
-function PlanifierDepuisLaDemande({ lead, nom, onClose }: { readonly lead: ContactLead; readonly nom: string; readonly onClose: () => void }) {
+function PlanifierDepuisLaDemande({
+  lead,
+  nom,
+  onClose,
+  onDemandeSuivante,
+}: {
+  readonly lead: ContactLead;
+  readonly nom: string;
+  readonly onClose: () => void;
+  readonly onDemandeSuivante?: () => void;
+}) {
   const lu = useBienDeLaDemande(lead.property_id);
   const f = useFormatteurs();
   const t = useTranslations('contactLeads');
@@ -544,9 +574,19 @@ function PlanifierDepuisLaDemande({ lead, nom, onClose }: { readonly lead: Conta
   const fiche = lead.customer_id ?? lead.known_customer?.id ?? null;
   return (
     <PlanifierDialog
-      demande={{ id: lead.id, nom, prenom: prenomDuDemandeur(lead.name), telephone: lead.phone, ficheId: fiche }}
+      demande={{
+        id: lead.id,
+        nom,
+        prenom: prenomDuDemandeur(lead.name),
+        telephone: lead.phone,
+        ficheId: fiche,
+        // TCK-2881 — le jour écrit, et les critères que la fiche reprendra du bien de la demande.
+        message: lead.message,
+        criteres: criteresDuBien(bien),
+      }}
       property={property}
       onClose={onClose}
+      onDemandeSuivante={onDemandeSuivante}
     />
   );
 }

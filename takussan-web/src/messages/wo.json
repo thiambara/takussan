@@ -3525,11 +3525,12 @@
       },
       "regle": "Le versement part le {jour, plural, =1 {1er} other {#}} de chaque mois pour ce qui est encaissé. Un loyer reçu après cette date rejoint le versement suivant.",
       "relances": {
-        "telephone": "{bien} : relancé par {agence} le {date}. Son loyer s’ajoutera à votre versement dès qu’il sera encaissé.",
+        "telephone": "{bien} : relancé par {agence} le {date}",
         "bureau": "{bien} : relancé par {agence} {liste}.",
         "une": "le {date} ({canal})",
         "canal": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}}",
-        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}} {voyelle, select, oui {d’} other {de }}{nom}"
+        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}} {voyelle, select, oui {d’} other {de }}{nom}",
+        "suite": "Son loyer s’ajoutera à votre versement dès qu’il sera encaissé."
       }
     }
   },
