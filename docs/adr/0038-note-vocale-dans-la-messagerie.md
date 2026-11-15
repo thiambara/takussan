@@ -80,7 +80,8 @@ Relu sur `pre-dev` 4a12ba515.
   `audio/x-m4a`, `audio/aac`, `audio/mpeg`. `video/mp4` n'y est pas.
 - Le front enregistre dans le premier format que le navigateur accepte, dans l'ordre
   `audio/webm;codecs=opus`, `audio/webm`, `audio/ogg;codecs=opus`, `audio/mp4`
-  (`VoiceNoteRecorder.tsx:15`). **`audio/mp4` est le dernier repli** : c'est celui d'un navigateur
+  (`VoiceNoteRecorder.tsx:15` ; depuis TCK-2901, `FORMATS_PREFERES` de
+  `components/note-vocale/useEnregistreurDeNoteVocale.ts`). **`audio/mp4` est le dernier repli** : c'est celui d'un navigateur
   qui n'enregistre ni WebM ni Ogg.
 - **`finfo` juge la marque `ftyp` du conteneur, pas sa piste.** Relevé par le mesureur et le
   délégué, le 2026-10-23, sur des fichiers produits par `afconvert` et sur des en-têtes `ftyp`

@@ -1,36 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Mic, Pause, Play, Send, SendHorizontal, Square, Trash2 } from 'lucide-react';
 
+import { BARRES_D_UNE_ONDE, ONDE_NEUTRE, Onde, minutesSecondes, reduireLesNiveaux, useNiveauxDuMicro, useOndeDuFichier } from '@/components/note-vocale/onde';
+import { VOICE_NOTE_MAX_SECONDS, useEnregistreurDeNoteVocale } from '@/components/note-vocale/useEnregistreurDeNoteVocale';
 import { Button } from '@/components/ui/button';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useSendVoiceNote } from '@/lib/queries/conversations';
 import { cn } from '@/lib/utils';
-import { BARRES_D_UNE_ONDE, ONDE_NEUTRE, Onde, minutesSecondes, reduireLesNiveaux, useNiveauxDuMicro, useOndeDuFichier } from './NoteVocale';
 
-/** ADR-0038 : 60 secondes au plus. L'enregistrement s'arrête de lui-même à la borne. */
-export const VOICE_NOTE_MAX_SECONDS = 60;
-
-/** Les formats que `SendMessageConversationRequest::AUDIO_MIMETYPES` accepte, par préférence. */
-const PREFERRED_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
-
-function supportsRecording(): boolean {
-  return (
-    typeof window !== 'undefined'
-    && typeof window.MediaRecorder !== 'undefined'
-    && typeof navigator !== 'undefined'
-    && typeof navigator.mediaDevices?.getUserMedia === 'function'
-  );
-}
-
-function pickMimeType(): string | undefined {
-  return PREFERRED_TYPES.find((type) => window.MediaRecorder.isTypeSupported?.(type));
-}
-
-/** La capacité du navigateur ne change pas en cours de page : rien à écouter. */
-const subscribeNothing = () => () => {};
+/**
+ * TCK-2901 — la borne vit avec l'enregistreur partagé (`useEnregistreurDeNoteVocale`) ; elle est
+ * ré-exportée ici pour les lecteurs de la messagerie. La garde de parité
+ * (`seuils-de-saisie.parity.test.ts`) lit sa définition là-bas.
+ */
+export { VOICE_NOTE_MAX_SECONDS };
 
 type Recorded = { blob: Blob; url: string; duration: number };
 
@@ -60,20 +46,20 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
   const t = useTranslations('messaging.voiceNote');
   const messageErreur = useMessageErreurApi();
   const send = useSendVoiceNote(conversationId);
-  // Lu après l'hydratation : le rendu serveur ne connaît ni `window` ni le micro.
-  const supported = useSyncExternalStore(subscribeNothing, supportsRecording, () => false);
-  const [recording, setRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const [recorded, setRecorded] = useState<Recorded | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const startedAtRef = useRef(0);
-  // « Jeter » pendant l'enregistrement : la note arrêtée n'est pas gardée.
-  const jeterRef = useRef(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  // TCK-2901 — l'enregistrement (micro, formats, borne de 60 s) est le socle partagé ; ce composant
+  // n'y ajoute que ce qui est propre à la messagerie : l'écoute dans le composeur et l'envoi.
+  const enregistreur = useEnregistreurDeNoteVocale({
+    onDebut: () => onActif?.(true),
+    onSansNote: () => onActif?.(false),
+    onNote: (note) => setRecorded({ blob: note.blob, url: URL.createObjectURL(note.blob), duration: note.duration }),
+  });
+  const { supporte: supported, enregistre: recording, ecoule: elapsed, flux } = enregistreur;
+  const error = sendError ?? (enregistreur.erreur === 'micro' ? t('microphoneDenied') : null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [lecture, setLecture] = useState(false);
   // TCK-2861 — l'onde : le niveau du micro pendant l'enregistrement, puis la position de l'écoute.
-  const [flux, setFlux] = useState<MediaStream | null>(null);
   const [ecoute, setEcoute] = useState(0);
   const echantillons = useNiveauxDuMicro(recording ? flux : null);
   // Sans échantillons (navigateur sans `AudioContext`), l'écoute décode le blob ; à défaut, l'onde neutre.
@@ -82,16 +68,6 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
     recorded ? `blob:${recorded.url}` : null,
   );
 
-  useEffect(() => {
-    if (!recording) return;
-    const timer = window.setInterval(() => {
-      const seconds = Math.floor((Date.now() - startedAtRef.current) / 1000);
-      setElapsed(seconds);
-      if (seconds >= VOICE_NOTE_MAX_SECONDS) recorderRef.current?.stop();
-    }, 250);
-    return () => window.clearInterval(timer);
-  }, [recording]);
-
   useEffect(() => () => {
     if (recorded) URL.revokeObjectURL(recorded.url);
   }, [recorded]);
@@ -99,46 +75,13 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
   if (!supported) return null;
 
   const start = async () => {
-    setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = pickMimeType();
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const duration = Math.min(
-          VOICE_NOTE_MAX_SECONDS,
-          Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)),
-        );
-        setRecording(false);
-        setFlux(null);
-        if (jeterRef.current) {
-          jeterRef.current = false;
-          onActif?.(false);
-          return;
-        }
-        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-        setRecorded({ blob, url: URL.createObjectURL(blob), duration });
-      };
-      recorderRef.current = recorder;
-      startedAtRef.current = Date.now();
-      setElapsed(0);
-      recorder.start();
-      setFlux(stream);
-      setRecording(true);
-      onActif?.(true);
-    } catch {
-      setError(t('microphoneDenied'));
-    }
+    setSendError(null);
+    await enregistreur.demarrer();
   };
 
   const submit = async () => {
     if (!recorded) return;
-    setError(null);
+    setSendError(null);
     try {
       await send.mutateAsync({ audio: recorded.blob, duration: recorded.duration });
       audioRef.current?.pause();
@@ -148,7 +91,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
       setRecorded(null);
       onActif?.(false);
     } catch (err) {
-      setError(messageErreur(err, t('sendFailed')));
+      setSendError(messageErreur(err, t('sendFailed')));
     }
   };
 
@@ -195,8 +138,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
           disabled={send.isPending}
           onClick={() => {
             if (recording) {
-              jeterRef.current = true;
-              recorderRef.current?.stop();
+              enregistreur.jeter();
             } else {
               jeter();
             }
@@ -251,7 +193,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
           <button
             type="button"
             className={cn(bouton, 'bg-foreground text-background hover:bg-foreground/90')}
-            onClick={() => recorderRef.current?.stop()}
+            onClick={() => enregistreur.arreter()}
             aria-label={t('stop')}
           >
             <Square className="size-4 fill-current" aria-hidden="true" />
@@ -307,7 +249,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
           type="button"
           variant="destructive"
           className="h-11 sm:h-9"
-          onClick={() => recorderRef.current?.stop()}
+          onClick={() => enregistreur.arreter()}
           aria-label={t('stop')}
         >
           <Square aria-hidden="true" />
