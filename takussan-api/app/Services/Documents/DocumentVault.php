@@ -563,7 +563,10 @@ final class DocumentVault
                 $any->orWhereIn('id', DocumentPolicy::restreindreAuTeleverseur(Document::query(), $this->user)->select('id'));
             })
             ->with('media')
-            ->orderByDesc('created_at');
+            ->orderByDesc('created_at')
+            // Deux pièces de la même seconde : l'identifiant départage, sinon l'ordre — et donc le
+            // « (2) » des noms égaux de l'archive — change d'une lecture à l'autre.
+            ->orderByDesc('id');
 
         if (app(ImpersonationContext::class)->active()) {
             $query->excludingProfilePieces();

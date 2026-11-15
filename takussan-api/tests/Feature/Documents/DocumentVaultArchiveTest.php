@@ -201,7 +201,9 @@ class DocumentVaultArchiveTest extends TestCase
         $this->connecter($this->tenant);
         $files = $this->contenu($this->archive('pieces'));
 
-        $this->assertEqualsCanonicalizing(['etc-passwd.pdf', 'Assurance.pdf', 'assurance (2).pdf'], array_keys($files));
+        // L'archive suit l'ordre du coffre, le plus récent d'abord (l'identifiant départage une même
+        // seconde) : la copie, créée en dernier, garde le nom ; la plus ancienne prend « (2) ».
+        $this->assertEqualsCanonicalizing(['etc-passwd.pdf', 'assurance.pdf', 'Assurance (2).pdf'], array_keys($files));
         foreach (array_keys($files) as $name) {
             $this->assertStringNotContainsString('/', $name);
             $this->assertStringNotContainsString('..', $name);
