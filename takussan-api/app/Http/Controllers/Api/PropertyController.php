@@ -33,6 +33,7 @@ use App\Services\Property\PropertyDuplicationService;
 use App\Services\Property\PropertyListScope;
 use App\Services\Property\PropertyOccupancy;
 use App\Services\Property\PropertyPublication;
+use App\Services\Property\PropertyStats30d;
 use App\Services\Property\PropertyViewCounter;
 use App\Services\Property\PublishReadiness;
 use App\Services\Property\ResponsibleAgentAssigner;
@@ -267,6 +268,12 @@ class PropertyController extends Controller
 
         if (in_array('occupancy', $includes, true)) {
             app(PropertyOccupancy::class)->attach($biens, $request->user());
+        }
+
+        // TCK-2905 (ADR-0117 § 4) — vues, contacts et visites des 30 derniers jours : trois agrégats pour la page.
+        if (in_array('stats30d', $includes, true)) {
+            $stats = app(PropertyStats30d::class)->for($biens->map(fn (Property $p) => (int) $p->getKey())->values()->all());
+            $biens->each(fn (Property $p) => $p->setStats30d($stats[(int) $p->getKey()]));
         }
     }
 

@@ -4308,7 +4308,10 @@
       "approveDestination": "Destination du paiement",
       "approveKeepDestination": "Garder la destination prévue ({masked})",
       "approveNoDestination": "Sans destination (espèces ou chèque)",
-      "approveDestinationOption": "{kind} · {masked} (vérifiée)"
+      "approveDestinationOption": "{kind} · {masked} (vérifiée)",
+      "avis": "Avis de versement (PDF)",
+      "echecAvis": "L’avis de versement n’a pas pu être téléchargé. Réessayez.",
+      "nomDeLAvis": "avis-de-versement-{reference}.pdf"
     },
     "customer": {
       "nextTitle": "Prochain paiement",
@@ -4522,6 +4525,27 @@
           "paye": "Payé",
           "montant": "Montant",
           "justificatif": "Justificatif"
+        },
+        "archive": {
+          "toutTelecharger": "Tout télécharger",
+          "toutTelechargerZip": "Tout télécharger (.zip)",
+          "aria": "Télécharger toutes vos quittances en une archive (.zip)",
+          "enCours": "Préparation de l’archive…",
+          "enPreparation": "Préparation en cours…",
+          "telechargerLArchive": "Télécharger l’archive",
+          "reessayer": "Réessayer",
+          "nomDuFichier": "quittances.zip",
+          "notes": {
+            "preparation": "Vos quittances sont nombreuses : l’archive se prépare. Nous vous préviendrons dès qu’elle sera prête, vous pouvez quitter cette page.",
+            "prete": "L’archive de vos quittances est prête. Elle reste disponible 24 heures.",
+            "echec": "L’archive de vos quittances n’a pas pu être préparée. Réessayez."
+          },
+          "errors": {
+            "vide": "Aucune quittance à réunir pour l’instant.",
+            "interdit": "Vous n’avez pas accès à ces quittances.",
+            "echec": "L’archive n’a pas pu être téléchargée. Réessayez.",
+            "demande": "La préparation de l’archive n’a pas pu être demandée. Réessayez."
+          }
         }
       },
       "agence": {
@@ -4583,7 +4607,8 @@
         "revenus": "Revenus",
         "versements": "Versements",
         "factures": "Factures",
-        "operations": "Opérations"
+        "operations": "Opérations",
+        "compteAria": "{libelle} ({n})"
       },
       "selecteur": {
         "choisir": "Période : {periode}. Choisir une autre période",
@@ -4597,7 +4622,17 @@
         "reste": "Reste à vous verser",
         "prochain": "Prochain versement prévu le <b>{date}</b> par {moyen}",
         "prochainSansMoyen": "Prochain versement prévu le <b>{date}</b>",
-        "enPreparation": "Un versement est en préparation."
+        "enPreparation": "Un versement est en préparation.",
+        "moyensCourts": {
+          "bank_transfer": "virement",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "espèces",
+          "check": "chèque",
+          "card": "carte"
+        }
       },
       "ventilation": {
         "titre": "Ce qui vous revient en {mois}",
@@ -4650,7 +4685,8 @@
           "vacant": "Vacant",
           "refunded": "Reçu puis remboursé"
         },
-        "voirLesBaux": "Voir les baux"
+        "voirLesBaux": "Voir les baux",
+        "bail": "Bail {reference}"
       },
       "operations": {
         "toutes": "Toutes les opérations",
@@ -4661,13 +4697,33 @@
         "tous": "Tous les versements",
         "versementDe": "Versement de {mois}",
         "versement": "Versement",
-        "vide": "Aucun versement pour l'instant."
+        "vide": "Aucun versement pour l'instant.",
+        "avis": "Avis",
+        "avisAria": "Télécharger l’avis du versement du {date}",
+        "echecAvis": "L’avis de versement n’a pas pu être téléchargé. Réessayez.",
+        "nature": {
+          "advance": "Acompte {voyelle, select, oui {d’} other {de }}{mois}",
+          "balance": "Solde {voyelle, select, oui {d’} other {de }}{mois}",
+          "advanceSansMois": "Acompte",
+          "balanceSansMois": "Solde",
+          "deposit_refund": "Restitution de caution",
+          "refund": "Remboursement",
+          "provider_bill": "Facture de prestataire"
+        }
       },
       "filtres": {
         "bien": "Bien",
         "tousLesBiens": "Tous les biens",
         "locataire": "Locataire",
         "tousLesLocataires": "Tous les locataires"
+      },
+      "regle": "Le versement part le {jour, plural, =1 {1er} other {#}} de chaque mois pour ce qui est encaissé. Un loyer reçu après cette date rejoint le versement suivant.",
+      "relances": {
+        "telephone": "{bien} : relancé par {agence} le {date}. Son loyer s’ajoutera à votre versement dès qu’il sera encaissé.",
+        "bureau": "{bien} : relancé par {agence} {liste}.",
+        "une": "le {date} ({canal})",
+        "canal": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}}",
+        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {appel} other {relance}} {voyelle, select, oui {d’} other {de }}{nom}"
       }
     }
   },
@@ -18548,7 +18604,13 @@
       "viewCustomer": "Voir la fiche",
       "alsoWhatsApp": "Envoyer aussi sur WhatsApp",
       "anotherVisit": "Planifier une autre visite",
-      "whatsAppMessage": "Bonjour {name}, votre visite de « {property} » est confirmée {when}. À bientôt !"
+      "whatsAppMessage": "Bonjour {name}, votre visite de « {property} » est confirmée {when}. À bientôt !",
+      "dayFromMessage": "{name} a écrit « {word} » : le jour est déjà choisi.",
+      "criteriaFromProperty": "Critères déduits du bien : {criteria}",
+      "budgetUpTo": "≤ {amount}",
+      "doneCriteria": "Bien d’intérêt et critères repris ({criteria})",
+      "smsSentAt": "SMS envoyé à {time}",
+      "nextLead": "Demande suivante"
     },
     "propose": {
       "cta": "Proposer un autre créneau",

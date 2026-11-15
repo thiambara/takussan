@@ -68,4 +68,34 @@ Audit (`audit-f4-patrimoine.md`, app-biens **e0** bureau : filtre par bailleur ;
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, worktree `feat/audit-manques-2026-11-15`).
+
+- **ADR-0117** (`docs/adr/0117-les-vues-d-un-bien-se-comptent-par-jour.md`) : la table `property_daily_views`.
+- **Écart au contrat : `include=stats30d`, et non `fields[properties]` ni `append`.** ADR-0021 écarte le champ
+  calculé derrière les sparse fieldsets ; la voie établie est l'inclusion calculée lue par le contrôleur
+  (`include=online`, `occupancy`, `offlineReasons`, ADR-0097 § 1). TCK-2908 demande donc
+  `GET /api/properties?include=stats30d` et lit `stats_30d { views, contacts, visits }`.
+- **Définitions retenues** (une seule fenêtre : depuis le début du jour J-29, aujourd'hui compris) :
+  `views` = somme de `property_daily_views` ; `contacts` = pistes `property_contact_leads` du bien (formulaire,
+  WhatsApp, appel — la définition de `RadarActivationReminders`) + fils `conversations` de type `direct` ouverts
+  sur le bien par un autre que son titulaire (le « contact équivalent » : `contact-message` ne crée pas de piste),
+  supprimés compris ; `visits` = visites créées OU terminées dans la fenêtre, hors `cancelled` (`no_show` compte :
+  elle était planifiée).
+- **`filter[owner_profile_id]`** : `pending_owner_profile_id = profil` OU (`user_id` du profil ET `agency_id` du
+  profil) — la borne d'agence empêche un bailleur à deux agences de fuir d'une liste à l'autre ; un profil invité
+  (`user_id` nul) n'ajoute pas de branche `user_id IS NULL`. Lisible : super-admin, personnel de l'agence du
+  profil (`staffAgencyId`), ou le bailleur lui-même ; sinon liste vide (200).
+- Écriture : `PropertyViewCounter::record()`, après le limiteur, upsert atomique `ON CONFLICT (property_id, day)`.
+  Purge : `properties:purge-daily-views`, chaque nuit à 04:20 (Dakar), > 400 jours.
+- Tests : `PropertyOwnerFilterTest` (4), `PropertyStats30dTest` (7), `PropertyDailyViewsWriteTest` (4) — 15 verts ;
+  9 ablations une à une, toutes rouges, restaurées au md5. Gardes : 3 classes d'architecture,
+  `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`, `DateInventoryByValueTest`,
+  `PublicPropertyViewCounterTest`, `PropertyOnlineFlagTest`, `PropertyIndexQueryBudgetTest` verts ;
+  `scripts/check-*.mjs` tous verts.
+- Docs : `docs/models-spec.md` (§ 129 PropertyDailyView), `docs/spatie-query-builder.md` (filtre et inclusion).
+- Fils directs portant un bien : seul `PropertyConversationResolver` (le `contact-message` du prospect) en crée ;
+  `POST /api/conversations` en direct n'en porte jamais (TCK-888). L'exclusion du titulaire est un filet.
+- Docblock périmé corrigé : `RadarActivationReminders` (« aucune vue n'est datée »).
+- Écart non corrigé (fichier tenu par TCK-2910) : `OwnerDirectory::addListColumns` compte `properties_count` par
+  `user_id` + `agency_id` seulement — un bailleur invité y vaut 0 bien alors que `filter[owner_profile_id]` lui rend
+  ses biens saisis (`pending_owner_profile_id`). À aligner dans `OwnerDirectory`.

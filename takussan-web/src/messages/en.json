@@ -4351,7 +4351,10 @@
       "approveDestination": "Payment destination",
       "approveKeepDestination": "Keep the planned destination ({masked})",
       "approveNoDestination": "No destination (cash or check)",
-      "approveDestinationOption": "{kind} · {masked} (verified)"
+      "approveDestinationOption": "{kind} · {masked} (verified)",
+      "avis": "Payout notice (PDF)",
+      "echecAvis": "The payout notice could not be downloaded. Please try again.",
+      "nomDeLAvis": "payout-notice-{reference}.pdf"
     },
     "customer": {
       "nextTitle": "Next payment",
@@ -4565,6 +4568,27 @@
           "paye": "Paid",
           "montant": "Amount",
           "justificatif": "Proof"
+        },
+        "archive": {
+          "toutTelecharger": "Download all",
+          "toutTelechargerZip": "Download all (.zip)",
+          "aria": "Download all your receipts as one archive (.zip)",
+          "enCours": "Preparing the archive…",
+          "enPreparation": "Being prepared…",
+          "telechargerLArchive": "Download the archive",
+          "reessayer": "Try again",
+          "nomDuFichier": "receipts.zip",
+          "notes": {
+            "preparation": "You have many receipts, so the archive is being prepared. We will let you know as soon as it is ready; you can leave this page.",
+            "prete": "The archive of your receipts is ready. It stays available for 24 hours.",
+            "echec": "The archive of your receipts could not be prepared. Please try again."
+          },
+          "errors": {
+            "vide": "There are no receipts to gather yet.",
+            "interdit": "You do not have access to these receipts.",
+            "echec": "The archive could not be downloaded. Please try again.",
+            "demande": "The archive could not be requested. Please try again."
+          }
         }
       },
       "agence": {
@@ -4626,7 +4650,8 @@
         "revenus": "Income",
         "versements": "Payouts",
         "factures": "Invoices",
-        "operations": "Transactions"
+        "operations": "Transactions",
+        "compteAria": "{libelle} ({n})"
       },
       "selecteur": {
         "choisir": "Period: {periode}. Choose another period",
@@ -4640,7 +4665,17 @@
         "reste": "Still owed to you",
         "prochain": "Next payout scheduled on <b>{date}</b> by {moyen}",
         "prochainSansMoyen": "Next payout scheduled on <b>{date}</b>",
-        "enPreparation": "A payout is being prepared."
+        "enPreparation": "A payout is being prepared.",
+        "moyensCourts": {
+          "bank_transfer": "bank transfer",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "cash",
+          "check": "cheque",
+          "card": "card"
+        }
       },
       "ventilation": {
         "titre": "What you earned in {mois}",
@@ -4693,7 +4728,8 @@
           "vacant": "Vacant",
           "refunded": "Received, then refunded"
         },
-        "voirLesBaux": "See leases"
+        "voirLesBaux": "See leases",
+        "bail": "Lease {reference}"
       },
       "operations": {
         "toutes": "All transactions",
@@ -4704,13 +4740,33 @@
         "tous": "All payouts",
         "versementDe": "{mois} payout",
         "versement": "Payout",
-        "vide": "No payout yet."
+        "vide": "No payout yet.",
+        "avis": "Notice",
+        "avisAria": "Download the notice of the payout of {date}",
+        "echecAvis": "The payout notice could not be downloaded. Please try again.",
+        "nature": {
+          "advance": "{mois} advance",
+          "balance": "{mois} balance",
+          "advanceSansMois": "Advance",
+          "balanceSansMois": "Balance",
+          "deposit_refund": "Deposit refund",
+          "refund": "Refund",
+          "provider_bill": "Service provider bill"
+        }
       },
       "filtres": {
         "bien": "Property",
         "tousLesBiens": "All properties",
         "locataire": "Tenant",
         "tousLesLocataires": "All tenants"
+      },
+      "regle": "Payouts go out on day {jour} of each month for what has been collected. Rent received after that date joins the next payout.",
+      "relances": {
+        "telephone": "{bien}: {agence} sent a reminder on {date}. The rent will be added to your payout as soon as it is collected.",
+        "bureau": "{bien}: {agence} sent reminders {liste}.",
+        "une": "on {date} ({canal})",
+        "canal": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}}",
+        "canalNomme": "{canal, select, whatsapp {WhatsApp} call {call} other {reminder}} from {nom}"
       }
     }
   },
@@ -18548,7 +18604,13 @@
       "viewCustomer": "View the record",
       "alsoWhatsApp": "Also send on WhatsApp",
       "anotherVisit": "Schedule another visit",
-      "whatsAppMessage": "Hello {name}, your visit to “{property}” is confirmed for {when}. See you soon!"
+      "whatsAppMessage": "Hello {name}, your visit to “{property}” is confirmed for {when}. See you soon!",
+      "dayFromMessage": "{name} wrote “{word}”: the day is already chosen.",
+      "criteriaFromProperty": "Criteria taken from the property: {criteria}",
+      "budgetUpTo": "≤ {amount}",
+      "doneCriteria": "Property of interest and criteria saved ({criteria})",
+      "smsSentAt": "SMS sent at {time}",
+      "nextLead": "Next request"
     },
     "propose": {
       "cta": "Propose another slot",

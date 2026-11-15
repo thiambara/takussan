@@ -394,6 +394,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 126. [BookingDossierItem](#126-bookingdossieritem-) 🆕
 127. [ConversationReport](#127-conversationreport-) 🆕
 128. [ExportFile](#128-exportfile-) 🆕
+129. [PropertyDailyView](#129-propertydailyview-) 🆕
 
 ### Enums
 
@@ -6149,6 +6150,26 @@ messages.
 Index : `(agency_id, user_id)`, `user_id`, `expires_at`.
 
 **Relations :** `user()` → belongsTo User.
+
+### 129. PropertyDailyView 🆕
+
+<!-- TCK-2905 (ADR-0117). -->
+
+**Table :** `property_daily_views` — les vues d'un bien, par jour : un nombre, **sans IP ni visiteur** (la
+déduplication reste celle du limiteur de `PropertyViewCounter`, en cache). Écrite au seul point qui compte une vue
+(`PropertyViewCounter::record()`, upsert sur `(property_id, day)`), à côté du cumul `properties.views_count` ; lue
+par `GET /api/properties?include=stats30d` (`stats_30d.views`) ; purgée au-delà de 400 jours par
+`properties:purge-daily-views` (chaque nuit).
+
+| Champ | Type | Null | Défaut | Description |
+|---|---|---|---|---|
+| property_id | FK properties | | | Le bien (`cascadeOnDelete`) |
+| day | date | | | Le jour (fuseau de l'application) |
+| views | unsignedInteger | | 0 | Vues comptées ce jour-là |
+
+Index : unique `(property_id, day)`, `day`.
+
+**Relations :** `property()` → belongsTo Property.
 
 ---
 

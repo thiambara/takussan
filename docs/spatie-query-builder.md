@@ -140,6 +140,7 @@ GET /api/properties?per_page=10&page=2
 | `filter[listing]` | callback | TCK-2638 — l'état d'annonce, une partition : `online` (= `filter[public]=1`), `pending` (pas en ligne ; `pending` ou `pending_review`), `draft` (pas en ligne ; brouillon), `offline` (tout le reste, négation de `scopePublic`) ; autre valeur → 422 |
 | `filter[rent_late]` | callback | TCK-2637 — `1` : le loyer du mois en retard sur le bail courant que l'appelant peut lire |
 | `filter[tenant]` | callback | TCK-2637 — chaque mot dans le prénom ou le nom du locataire du bail EN COURS lisible par l'appelant (casse repliée, accents non) |
+| `filter[owner_profile_id]` | callback | TCK-2905 — les biens d'un profil bailleur : `user_id` du profil dans l'agence du profil, OU `pending_owner_profile_id` (bailleur invité sans compte). Borné à l'agence du personnel de l'appelant (ou à ses propres profils, super-admin sans borne) : un profil d'une autre agence ou inconnu rend une liste vide ; non entier → 400 ; une liste vaut un filtre absent |
 | `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured`, `retard` | `retard` (TCK-2637) : loyers du mois en retard d'abord, le plus ancien en tête, puis les autres |
 
 **`filter[id]`** (TCK-2524) — lire des biens par leurs ids, avec leurs `fields` : la vitrine de
@@ -191,6 +192,12 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
   `scopePublic`. Servi sur `GET /api/properties` et `GET /api/properties/{property}`, au seul personnel
   de l'agence du bien sous son profil actif, au bailleur du bien et au super-admin (`MotifsHorsLigne`) ;
   aucun autre lecteur ne reçoit la clé. Pas plus qu'`is_online`, ce n'est un champ de `fields[properties]`.
+- **`include=stats30d`** (TCK-2905, ADR-0117 § 4) → `stats_30d { views, contacts, visits }`, sur
+  `GET /api/properties` seulement : les 30 derniers jours, aujourd'hui compris. `views` : les vues datées
+  (`property_daily_views`) ; `contacts` : les pistes du bien (formulaire, WhatsApp, appel) et les fils directs
+  ouverts sur le bien par un autre que son titulaire ; `visits` : les visites demandées ou terminées dans la
+  fenêtre, hors annulées. Trois requêtes pour la page, quel que soit le nombre de biens. Pas un champ de
+  `fields[properties]` ; jamais sur la liste publique.
 - **`owner_profile_id`** (fiche seulement, appelant connu ; TCK-2639) : le profil de bailleur du
   titulaire dans l'agence du bien, rendu à qui la fiche de ce bailleur s'ouvrirait
   (`OwnerProfilePolicy::isInActorAgency` et `viewDetail`), `null` pour tout autre.

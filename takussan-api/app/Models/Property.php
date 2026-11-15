@@ -87,6 +87,14 @@ class Property extends AbstractModel implements HasMedia
     /** TCK-2637 — le bloc `occupancy` posé par `PropertyOccupancy`, ou `null` s'il n'a pas été demandé. */
     private ?array $occupancyBlock = null;
 
+    /**
+     * TCK-2905 (ADR-0117 § 4) — `stats_30d`, posé pour une page entière par `PropertyStats30d` sur
+     * `include=stats30d` ; `null` : non demandé, et la ressource n'émet rien.
+     *
+     * @var array{views: int, contacts: int, visits: int}|null
+     */
+    private ?array $stats30d = null;
+
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',
         'title', 'slug', 'description',
@@ -215,6 +223,9 @@ class Property extends AbstractModel implements HasMedia
             // TCK-2678 — `offline_reasons` ({@see offlineReasonsAmong()}), à part de `online` : ses
             // lecteurs actuels ne paient pas ses requêtes.
             AllowedInclude::custom('offlineReasons', new InclusionLueParLeControleur),
+            // TCK-2905 (ADR-0117 § 4) — `stats_30d` (vues, contacts, visites sur 30 jours), amorcé pour la page
+            // par `PropertyController::index` seul ; jamais un champ de `fields[properties]` (ADR-0021).
+            AllowedInclude::custom('stats30d', new InclusionLueParLeControleur),
         ];
     }
 
@@ -865,6 +876,22 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-2905 — pose `stats_30d` sur une instance de la page (`PropertyController`).
+     *
+     * @param  array{views: int, contacts: int, visits: int}  $stats
+     */
+    public function setStats30d(array $stats): void
+    {
+        $this->stats30d = $stats;
+    }
+
+    /** @return array{views: int, contacts: int, visits: int}|null */
+    public function stats30d(): ?array
+    {
+        return $this->stats30d;
+    }
+
+    /**
      * TCK-2637 — `filter[occupancy]`, les tuiles de `portfolio-summary` et l'état du bloc
      * `occupancy` ({@see PropertyOccupancy::attach()}) : `occupied` (un bail
      * courant, préavis COMPRIS), `notice` (bail courant en préavis), `vacant` (aucun bail courant).
@@ -1103,6 +1130,38 @@ class Property extends AbstractModel implements HasMedia
                     }
                 }));
         })->delimiter('');
+
+        // TCK-2905 — « Tous les bailleurs » : les biens d'un profil bailleur, qu'il ait un compte (`user_id`, dans
+        // l'agence du profil) ou qu'il soit invité sans compte (`pending_owner_profile_id`, TCK-1000). Borné à
+        // l'agence du personnel de l'appelant (ou à ses propres profils) : un profil d'une autre agence, inconnu
+        // ou supprimé rend la même liste vide, jamais une erreur qui dirait qu'il existe.
+        $filters[] = AllowedFilter::callback('owner_profile_id', function (Builder $q, mixed $value): void {
+            $id = ParametreUnique::valeur($value);
+            if ($id === null || $id === '') {
+                return;
+            }
+            ExactIdentifierFilter::exiger($id, 'owner_profile_id');
+            $viewer = request()->user();
+            $profil = $viewer === null ? null : OwnerProfile::query()->find((int) $id, ['id', 'user_id', 'agency_id']);
+            $lisible = $profil !== null && (
+                $viewer->isSuperAdmin()
+                || ($profil->agency_id !== null && (int) $profil->agency_id === $viewer->staffAgencyId())
+                || ($profil->user_id !== null && (int) $profil->user_id === (int) $viewer->id)
+            );
+            if (! $lisible) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->where(function (Builder $w) use ($profil): void {
+                $w->where('pending_owner_profile_id', $profil->id);
+                // Un profil invité n'a pas de compte : `where('user_id', null)` serait `IS NULL`.
+                if ($profil->user_id !== null) {
+                    $w->orWhere(fn (Builder $compte) => $compte->where('user_id', $profil->user_id)
+                        ->where('agency_id', $profil->agency_id));
+                }
+            });
+        });
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {

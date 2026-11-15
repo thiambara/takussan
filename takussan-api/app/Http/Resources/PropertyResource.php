@@ -122,6 +122,10 @@ class PropertyResource extends BaseResource
                 ? ['offline_reasons' => $this->resource->offlineReasonsFlag()] : []),
             ...($this->resource instanceof Property && $this->resource->occupancyBlock() !== null
                 ? ['occupancy' => $this->buildOccupancy($this->resource->occupancyBlock())] : []),
+            // TCK-2905 (ADR-0117 § 4) — vues, contacts et visites des 30 derniers jours (`include=stats30d`),
+            // posés par le seul `PropertyController::index` : ni une route publique ni un lecteur imbriqué.
+            ...($this->resource instanceof Property && $this->resource->stats30d() !== null
+                ? ['stats_30d' => $this->resource->stats30d()] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),
