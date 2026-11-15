@@ -83,7 +83,7 @@ describe('TCK-2899 — le moteur d’OCR', () => {
     const trace = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     createWorker.mockRejectedValueOnce(new Error('réseau'));
     await expect(lireLaDateDExpiration(photo())).resolves.toBeNull();
-    expect(trace).toHaveBeenCalledWith(expect.stringContaining('MRZ'), 'réseau');
+    expect(trace).toHaveBeenCalledWith('[coffre:mrz]', 'réseau');
   });
 
   it('tesseract.js est CommonJS : ses exports seulement sous `default` suffisent aussi', async () => {

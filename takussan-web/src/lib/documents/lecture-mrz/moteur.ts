@@ -107,7 +107,7 @@ export async function lireLaDateDExpiration(fichier: Blob, signal?: AbortSignal)
     return null;
   } catch (erreur) {
     // Une trace sans rien de la photo : le nom de l'erreur seul (404 du modèle, wasm, lecture).
-    console.warn('[coffre] lecture de la MRZ impossible :', erreur instanceof Error ? erreur.message : 'erreur inconnue');
+    console.warn('[coffre:mrz]', erreur instanceof Error ? erreur.message : erreur);
     return null;
   } finally {
     signal?.removeEventListener('abort', surAbandon);
