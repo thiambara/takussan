@@ -62,13 +62,22 @@ class ContactLeadController extends Controller
         $this->authorize('view', $lead);
 
         return $this->json([
-            'data' => PropertyContactLeadResource::make($lead->load(['property', 'recipient']))->resolve($request),
+            // TCK-2884 — `property.address` : le quartier du bien, comme dans la liste.
+            'data' => PropertyContactLeadResource::make($lead->load(['property.address', 'recipient']))->resolve($request),
         ]);
     }
 
     public function handle(HandleContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
     {
         $lead = $this->leads->markHandled($lead, $request->user());
+
+        return $this->json(['data' => PropertyContactLeadResource::make($lead)->resolve($request)]);
+    }
+
+    /** TCK-2884 — « Annuler » un traitement : même autorisation que `handle`, 422 sur une demande non traitée. */
+    public function unhandle(HandleContactLeadRequest $request, PropertyContactLead $lead): JsonResponse
+    {
+        $lead = $this->leads->unhandle($lead, $request->user());
 
         return $this->json(['data' => PropertyContactLeadResource::make($lead)->resolve($request)]);
     }

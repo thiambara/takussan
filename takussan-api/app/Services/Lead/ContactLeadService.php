@@ -52,6 +52,9 @@ use Illuminate\Support\Facades\Log;
  */
 class ContactLeadService
 {
+    /** TCK-2884 — le journal d'une demande remise à traiter. */
+    public const UNHANDLED_EVENT = 'lead_unhandled';
+
     public function __construct(
         private readonly CustomerService $customers,
         private readonly NotificationService $notifications,
@@ -216,6 +219,35 @@ class ContactLeadService
         if ($lead->handled_at === null) {
             $lead->update(['handled_at' => now(), 'handled_by_id' => $actor->id]);
         }
+
+        return $lead->refresh();
+    }
+
+    /**
+     * TCK-2884 — « Annuler » après « Marquer traitée » : la demande revient à traiter.
+     *
+     * Seul le TRAITEMENT est défait (`handled_at`, `handled_by_id`) : ADR-0103, « répondre ne vaut pas
+     * traiter » — la première réponse (`first_responded_*`) et les gestes de contact du journal
+     * restent ; une demande convertie reste rattachée à sa fiche (`customer_id`). Une demande non
+     * traitée : 422 `lead.not_handled`, sous le verrou de la ligne (deux annulations croisées n'en
+     * journalisent qu'une). Le geste est journalisé (`event = lead_unhandled`), avec qui l'avait traitée.
+     */
+    public function unhandle(PropertyContactLead $lead, User $actor): PropertyContactLead
+    {
+        DB::transaction(function () use ($lead, $actor): void {
+            $fresh = PropertyContactLead::query()->whereKey($lead->id)->lockForUpdate()->firstOrFail();
+            abort_code_if($fresh->handled_at === null, 422, 'lead.not_handled');
+
+            $handledBy = $fresh->handled_by_id;
+            $fresh->update(['handled_at' => null, 'handled_by_id' => null]);
+
+            activity()
+                ->performedOn($fresh)
+                ->causedBy($actor)
+                ->withProperties(['handled_by_id' => $handledBy])
+                ->event(self::UNHANDLED_EVENT)
+                ->log(self::UNHANDLED_EVENT);
+        });
 
         return $lead->refresh();
     }

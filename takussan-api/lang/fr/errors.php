@@ -258,6 +258,8 @@ return [
     'export' => [
         'forbidden' => 'Vous n\'avez pas le droit d\'exporter ces données.',
         'entity_unknown' => 'Export inconnu.',
+        // TCK-2866 (ADR-0115) — le fichier gardé d'un export, passé son échéance.
+        'file_expired' => 'Ce fichier d\'export a expiré : relancez l\'export.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Trop de tâches en échec pour les relancer en une fois.',
@@ -381,6 +383,8 @@ return [
         'already_converted' => 'Cette demande a déjà été convertie en fiche client.',
         'contact_unavailable' => 'Ce bien n\'a plus de contact joignable pour le moment. Votre demande n\'a pas été envoyée.',
         'not_convertible' => 'Seule une demande déposée par le formulaire peut devenir une fiche client.',
+        // TCK-2884 — « Annuler » un traitement sur une demande non traitée.
+        'not_handled' => 'Cette demande n\'est pas marquée traitée : il n\'y a rien à annuler.',
         'without_agency' => 'Cette demande n\'est rattachée à aucune agence : elle ne peut pas devenir une fiche client.',
     ],
     'lease' => [
@@ -641,6 +645,8 @@ return [
     ],
     'reporting' => [
         'invalid_group_by' => 'Le regroupement demandé doit être « tenant » ou « landlord ».',
+        // TCK-2866 — `filter[landlord_id]` de la balance âgée (JSON et PDF).
+        'invalid_landlord' => 'Le bailleur demandé doit être un identifiant entier.',
         'invalid_period' => 'La période demandée doit être un mois au format AAAA-MM.',
         'range_too_wide' => 'La plage demandée dépasse le plafond de :max intervalles « :granularity ». Réduisez la plage ou élargissez la granularité.',
         'report_unknown' => 'Rapport inconnu.',
@@ -664,6 +670,10 @@ return [
     // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
     'role_delegation' => [
         'covers_absence' => 'Cette délégation couvre une absence : modifiez ou révoquez l\'absence, qui la porte.',
+    ],
+    // TCK-2866 — les destinataires choisis d'une alerte de seuil : ceux de sa mesure seulement.
+    'threshold_alert' => [
+        'recipient_not_allowed' => 'Ces destinataires ne peuvent pas recevoir cette alerte : :ids.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [

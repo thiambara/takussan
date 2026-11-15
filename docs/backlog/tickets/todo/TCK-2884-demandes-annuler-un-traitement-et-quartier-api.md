@@ -55,4 +55,37 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — livré.
+
+- **Dé-traiter** : `POST /api/contact-leads/{lead}/unhandle` (`contact-leads.unhandle`) →
+  `ContactLeadController::unhandle` → `ContactLeadService::unhandle`. Même `HandleContactLeadRequest`
+  que `handle` (403 avant tout 422 : l'intrus n'apprend rien de l'état). Sous `lockForUpdate` :
+  422 `lead.not_handled` si `handled_at` est nul, sinon `handled_at`/`handled_by_id` à `null`, et une
+  entrée du journal `event = lead_unhandled` (causer = l'acteur, `properties.handled_by_id` = qui
+  l'avait traitée). `customer_id` et `first_responded_*` ne sont pas touchés. Réponse : la demande
+  (`data`), comme `handle`.
+- **Quartier** : `include=property.address` sur `GET /api/contact-leads` ; `show` charge
+  `property.address` d'office. La ressource émet `property.address = {neighborhood}` (jamais la rue),
+  seulement si la relation est chargée : `include=property` garde sa forme d'avant (pas de clé `address`).
+- **Écarts au ticket** :
+  - L'include n'est pas dans `$requestLoadable` (qui ne nomme que les relations du modèle, confronté
+    à la ressource par `RequestLoadableEmittedTest`) mais ajouté par `getAllowedQueryIncludes()`, comme
+    `CommissionEntry` (`lease.property`, TCK-2661).
+  - **Pas de `fields[…]` pour l'adresse** (pour TCK-2885) : `fields[addresses]` rend 400 (non autorisé),
+    spatie nommerait la clé `fields[property.addresses]`, et un `select` partiel sur un `morphOne` qui
+    omet `addressable_id` rendrait `address: null` sans erreur. L'adresse se charge entière (une ligne
+    par bien, en une requête groupée) ; seule `neighborhood` sort. La requête de la console reste
+    `fields[property_contact_leads]=…&fields[properties]=id,title,slug&include=property.address,recipient`.
+- **Mesures** : `ContactLeadUnhandleTest` (4) et `ContactLeadNeighborhoodTest` (3) verts ; 6 ablations
+  rouges une à une (remise à null, 422, journal, quartier émis, lecture par ligne, `show`), restaurées
+  au md5. Requêtes : 21 pour 2 lignes comme pour 5 (après un appel à blanc : la résolution des
+  capacités est mémorisée au premier appel).
+- Libellés : `lead.not_handled` (lang fr/en/wo, wo en français) ; `admin.audit.events.lead_unhandled`
+  (« Demande remise à traiter »).
+- Gardes : `RequestLoadableEmittedTest`, `LangGroupParityTest`, `ImpersonationReadSweepTest`,
+  `DateInventoryByValueTest`, les trois classes d'architecture et `ContactLeadInboxTest` verts ; gardes
+  racine vertes. `ValeursEnListeParcoursDesRoutesTest` rouge, mais pas à cause de ce ticket : la route
+  `api/export/{entity}/count` de TCK-2866 n'est pas dans `HORS_PARCOURS` (ligne attendue :
+  `'api/export/{entity}/count' => '{entity} : sans liaison de modèle',`).
+- Les lecteurs du journal d'une demande (`CustomerTimeline::contacts`, `CustomerActivityFeed`)
+  filtrent sur `event = contacted` : `lead_unhandled` n'y est pas compté comme un geste.

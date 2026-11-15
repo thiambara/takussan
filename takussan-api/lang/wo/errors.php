@@ -258,6 +258,8 @@ return [
     'export' => [
         'forbidden' => 'Amuloo sañ-sañ génne donne yii.',
         'entity_unknown' => 'Export bii xamuñu ko.',
+        // TCK-2866 (ADR-0115) — le fichier gardé d'un export, passé son échéance.
+        'file_expired' => 'Ce fichier d\'export a expiré : relancez l\'export.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Liggéey yu daanu dafa bari lool ngir tàmbaliwaat leen benn yoon.',
@@ -381,6 +383,8 @@ return [
         'already_converted' => 'Laaj bii def nañu ko fiche kiliyaan ba noppi.',
         'contact_unavailable' => 'Kër gii amul ku ñu mën a jokkoo léegi. Sa laaj yónnewul.',
         'not_convertible' => 'Laaj bu ñu yónne ci formulaire bi rekk moo mën a nekk fiche kiliyaan.',
+        // TCK-2884 — « Annuler » un traitement sur une demande non traitée.
+        'not_handled' => 'Cette demande n\'est pas marquée traitée : il n\'y a rien à annuler.',
         'without_agency' => 'Laaj bii amul benn ajaans : du mën a nekk fiche kiliyaan.',
     ],
     'lease' => [
@@ -641,6 +645,8 @@ return [
     ],
     'reporting' => [
         'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',
+        // TCK-2866 — `filter[landlord_id]` de la balance âgée (JSON et PDF).
+        'invalid_landlord' => 'Le bailleur demandé doit être un identifiant entier.',
         'invalid_period' => 'La période demandée doit être un mois au format AAAA-MM.',
         'range_too_wide' => 'Diggante bi nga laaj ëpp na :max intervalle « :granularity ». Wàññil diggante bi walla yokk granularité bi.',
         'report_unknown' => 'Rapport bii xamuñu ko.',
@@ -664,6 +670,10 @@ return [
     // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
     'role_delegation' => [
         'covers_absence' => 'Cette délégation couvre une absence : modifiez ou révoquez l\'absence, qui la porte.',
+    ],
+    // TCK-2866 — les destinataires choisis d'une alerte de seuil : ceux de sa mesure seulement.
+    'threshold_alert' => [
+        'recipient_not_allowed' => 'Ces destinataires ne peuvent pas recevoir cette alerte : :ids.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [

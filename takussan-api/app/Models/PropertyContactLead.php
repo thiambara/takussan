@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
 
 /**
  * Une demande de contact déposée sur le site public — sur un bien, ou sur un agent (TCK-441).
@@ -109,6 +110,18 @@ class PropertyContactLead extends AbstractModel
      * contact » du menu (`filter[channel]` par défaut + `filter[handled]=0`), écrite une fois ici pour
      * les lectures qui comptent hors de la liste (« Équipe aujourd'hui »).
      */
+    /**
+     * TCK-2884 — `include=property.address` : le quartier du bien demandé dans la boîte. Déclaré ici et
+     * non dans `$requestLoadable`, qui ne nomme que les relations du modèle (`RequestLoadableEmittedTest`) ;
+     * la ressource n'en émet que `neighborhood`.
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [...parent::getAllowedQueryIncludes(), AllowedInclude::relationship('property.address')];
+    }
+
     public function scopeATraiter(Builder $query): Builder
     {
         return $query->where($query->qualifyColumn('channel'), ContactLeadChannel::Form->value)

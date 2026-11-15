@@ -11275,7 +11275,10 @@
         "acompte": "Acompte ({pourcentage})",
         "solde": "Solde",
         "aLArrivee": "· à l’arrivée",
-        "recus": "{recu} reçus sur {total}"
+        "recus": "{recu} reçus sur {total}",
+        "aPartirDe": "à partir de {heure}",
+        "avant": "avant {heure}",
+        "nuitsEtVoyageurs": "{nuits, plural, one {# nuit} other {# nuits}} · {voyageurs, plural, one {# voyageur} other {# voyageurs}}"
       },
       "suiteBail": {
         "titre": "Candidature acceptée",
@@ -11293,7 +11296,8 @@
       },
       "gestes": {
         "annuler": "{nature, select, stay {Annuler le séjour} other {Annuler la réservation}}",
-        "annulerAide": "{nature, select, stay {Possible jusqu’à l’arrivée, {date}.} application {Avec un motif, tant que le bail n’a pas commencé.} other {Avec un motif.}}"
+        "annulerAide": "{nature, select, stay {Possible jusqu’à l’arrivée, {date}.} application {Avec un motif, tant que le bail n’a pas commencé.} other {Avec un motif.}}",
+        "rembourser": "Rembourser"
       },
       "historique": {
         "creee": "{nature, select, stay {Demande de séjour envoyée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}} par {nom}",
@@ -11349,6 +11353,16 @@
         },
         "toast": "Contre-offre envoyée à {prenom}",
         "gesteCourt": "Modifier"
+      },
+      "nuitsDuBien": {
+        "titre": "Nuits du bien · {mois}",
+        "ceSejour": "Ce séjour",
+        "autres": "Autres séjours",
+        "enAttente": "En attente",
+        "libres": "{n, plural, =0 {Aucune nuit libre ce mois-ci.} one {# nuit libre ce mois-ci.} other {# nuits libres ce mois-ci.}}",
+        "erreur": "Les nuits du bien n’ont pas pu être lues.",
+        "jour": "{jour} : {etat, select, ceSejour {ce séjour} autres {un autre séjour} bloquee {bloquée} enAttente {une demande en attente} other {libre}}",
+        "bloquees": "Bloquées"
       }
     },
     "feuilles": {
@@ -11367,13 +11381,15 @@
         "referenceFacultative": "Facultative en espèces.",
         "notes": "Notes",
         "notesPlaceholder": "Facultatif.",
-        "recu": "Le reçu PDF se télécharge ensuite depuis les paiements de la fiche."
+        "recu": "Le reçu PDF se télécharge ensuite depuis les paiements de la fiche.",
+        "notesAutre": "Obligatoire : ce que règle ce paiement."
       },
       "rembourser": {
         "titre": "Rembourser {nom}",
         "montant": "Montant à rembourser",
         "montantAide": "Au plus {montant} : ce que {prenom} a payé.",
-        "rembourserMontant": "Rembourser {montant}"
+        "rembourserMontant": "Rembourser {montant}",
+        "paiement": "Paiement à rembourser"
       },
       "decision": {
         "refuser": {
@@ -11389,9 +11405,9 @@
             "bienIndisponible": "Bien indisponible",
             "autre": "Autre…"
           },
-          "precision": "Précision",
-          "aide": "Facultative, sauf pour « Autre ». Le motif reste sur la réservation ; {prenom} reçoit un avis de refus.",
-          "envoyer": "Refuser et prévenir {prenom}"
+          "aide": "Facultatif, sauf pour « Autre ». Le motif lui est transmis avec ce message.",
+          "envoyer": "Refuser et prévenir {prenom}",
+          "message": "Message à {prenom}"
         }
       },
       "contreOffre": {
@@ -16066,7 +16082,15 @@
       "add": "Yokk",
       "saveFailed": "Mënuñu denc fi ñuy fey.",
       "removeFailed": "Mënuñu far fi ñuy fey.",
-      "ajouter": "Ajouter un moyen de versement"
+      "ajouter": "Ajouter un moyen de versement",
+      "aConfirmer": "À confirmer",
+      "enRevue": "En revue",
+      "ribAttendu": "un relevé d’identité bancaire est attendu",
+      "ribEnvoye": "RIB reçu, en cours de vérification",
+      "envoyerRib": "Envoyer le RIB",
+      "envoyerRibAria": "Envoyer le RIB du compte {masked}",
+      "ribEnvoyeToast": "RIB envoyé : votre compte est en revue.",
+      "ribEchec": "Le RIB n’a pas pu être envoyé."
     },
     "serviceProvider": {
       "title": "Sama liggéeyu liggéeykat",
@@ -16222,6 +16246,17 @@
           "detail": "Indiquez vos langues et vos quartiers.",
           "action": "Compléter",
           "detailPourcentage": "{pourcentage} % · il manque {reste}."
+        },
+        "pieces": {
+          "titre": "Envoyez vos pièces d’identité pour recevoir vos reversements.",
+          "detailCompte": "{envoyees} sur {requises} envoyées.",
+          "detail": "Pièce d’identité et justificatifs demandés par votre agence.",
+          "action": "Envoyer"
+        },
+        "rib": {
+          "titre": "Confirmez votre compte bancaire",
+          "detail": "Un relevé d’identité bancaire est attendu.",
+          "action": "Envoyer le RIB"
         }
       },
       "details": {
@@ -16248,7 +16283,8 @@
         "notifications": "Par événement et par canal",
         "securite": {
           "active": "Double authentification activée",
-          "inactive": "Double authentification désactivée"
+          "inactive": "Double authentification désactivée",
+          "piecesAEnvoyer": "Pièces d’identité à envoyer"
         },
         "espaces": {
           "un": "{agence} · {role}",
@@ -16261,7 +16297,8 @@
         },
         "avis": "Reçus, à laisser et publiés",
         "donnees": "Exporter mes données",
-        "avisNote": "{nombre, plural, one {# reçu} other {# reçus}} · {moyenne} sur 5"
+        "avisNote": "{nombre, plural, one {# reçu} other {# reçus}} · {moyenne} sur 5",
+        "versementAConfirmer": "{moyen} · un compte à confirmer"
       },
       "nonEnregistrees": "{n, plural, one {# modification non enregistrée} other {# modifications non enregistrées}}",
       "espaces": {
@@ -17207,7 +17244,8 @@
       "guestsMin": "Lu mu néew benn nit.",
       "guestsMax": "Ba 20 nit.",
       "notesTooLong": "Bataaxal bi dafa gudd lool (ba 1000 araf).",
-      "acceptTerms": "Fàww nga nangu sart yi."
+      "acceptTerms": "Fàww nga nangu sart yi.",
+      "notesRequiredForOther": "Dites ce que règle ce paiement."
     },
     "customer": {
       "occupationTooLong": "Liggéey bi dafa gudd lool.",

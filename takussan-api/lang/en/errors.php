@@ -258,6 +258,8 @@ return [
     'export' => [
         'forbidden' => 'You are not allowed to export this data.',
         'entity_unknown' => 'Unknown export.',
+        // TCK-2866 (ADR-0115) — le fichier gardé d'un export, passé son échéance.
+        'file_expired' => 'This export file has expired: run the export again.',
     ],
     'failed_job' => [
         'bulk_retry_limit' => 'Too many failed jobs to retry at once.',
@@ -381,6 +383,8 @@ return [
         'already_converted' => 'This request has already been converted into a customer record.',
         'contact_unavailable' => 'This property has no reachable contact at the moment. Your request was not sent.',
         'not_convertible' => 'Only a request sent through the form can become a customer record.',
+        // TCK-2884 — « Annuler » un traitement sur une demande non traitée.
+        'not_handled' => 'This request is not marked as handled: there is nothing to undo.',
         'without_agency' => 'This request is not linked to any agency: it cannot become a customer record.',
     ],
     'lease' => [
@@ -641,6 +645,8 @@ return [
     ],
     'reporting' => [
         'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
+        // TCK-2866 — `filter[landlord_id]` de la balance âgée (JSON et PDF).
+        'invalid_landlord' => 'The requested landlord must be an integer identifier.',
         'invalid_period' => 'The requested period must be a month in YYYY-MM format.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
@@ -664,6 +670,10 @@ return [
     // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
     'role_delegation' => [
         'covers_absence' => 'This delegation covers an absence: change or revoke the absence, which carries it.',
+    ],
+    // TCK-2866 — les destinataires choisis d'une alerte de seuil : ceux de sa mesure seulement.
+    'threshold_alert' => [
+        'recipient_not_allowed' => 'These recipients cannot receive this alert: :ids.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [

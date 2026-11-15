@@ -11848,7 +11848,10 @@
         "acompte": "Deposit ({pourcentage})",
         "solde": "Balance",
         "aLArrivee": "· on arrival",
-        "recus": "{recu} received of {total}"
+        "recus": "{recu} received of {total}",
+        "aPartirDe": "from {heure}",
+        "avant": "before {heure}",
+        "nuitsEtVoyageurs": "{nuits, plural, one {# night} other {# nights}} · {voyageurs, plural, one {# guest} other {# guests}}"
       },
       "suiteBail": {
         "titre": "Application accepted",
@@ -11866,7 +11869,8 @@
       },
       "gestes": {
         "annuler": "{nature, select, stay {Cancel the stay} other {Cancel the booking}}",
-        "annulerAide": "{nature, select, stay {Possible until arrival, {date}.} application {With a reason, as long as the lease has not started.} other {With a reason.}}"
+        "annulerAide": "{nature, select, stay {Possible until arrival, {date}.} application {With a reason, as long as the lease has not started.} other {With a reason.}}",
+        "rembourser": "Refund"
       },
       "historique": {
         "creee": "{nature, select, stay {Stay request sent} application {Application submitted} offer {Offer submitted} other {Booking created}} by {nom}",
@@ -11922,6 +11926,16 @@
         },
         "toast": "Counter-offer sent to {prenom}",
         "gesteCourt": "Edit"
+      },
+      "nuitsDuBien": {
+        "titre": "Property nights · {mois}",
+        "ceSejour": "This stay",
+        "autres": "Other stays",
+        "enAttente": "Pending",
+        "libres": "{n, plural, =0 {No free nights this month.} one {# free night this month.} other {# free nights this month.}}",
+        "erreur": "The property’s nights could not be loaded.",
+        "jour": "{jour}: {etat, select, ceSejour {this stay} autres {another stay} bloquee {blocked} enAttente {a pending request} other {free}}",
+        "bloquees": "Blocked"
       }
     },
     "feuilles": {
@@ -11940,13 +11954,15 @@
         "referenceFacultative": "Optional for cash.",
         "notes": "Notes",
         "notesPlaceholder": "Optional.",
-        "recu": "The PDF receipt can then be downloaded from the booking’s payments."
+        "recu": "The PDF receipt can then be downloaded from the booking’s payments.",
+        "notesAutre": "Required: what this payment is for."
       },
       "rembourser": {
         "titre": "Refund {nom}",
         "montant": "Amount to refund",
         "montantAide": "At most {montant}: what {prenom} paid.",
-        "rembourserMontant": "Refund {montant}"
+        "rembourserMontant": "Refund {montant}",
+        "paiement": "Payment to refund"
       },
       "decision": {
         "refuser": {
@@ -11962,9 +11978,9 @@
             "bienIndisponible": "Property unavailable",
             "autre": "Other…"
           },
-          "precision": "Details",
-          "aide": "Optional, except for “Other”. The reason stays on the booking; {prenom} receives a decline notice.",
-          "envoyer": "Decline and notify {prenom}"
+          "aide": "Optional, except for “Other”. The reason is sent along with this message.",
+          "envoyer": "Decline and notify {prenom}",
+          "message": "Message to {prenom}"
         }
       },
       "contreOffre": {
@@ -16639,7 +16655,15 @@
       "add": "Add",
       "saveFailed": "The destination could not be saved.",
       "removeFailed": "The destination could not be removed.",
-      "ajouter": "Add a payout method"
+      "ajouter": "Add a payout method",
+      "aConfirmer": "To confirm",
+      "enRevue": "Under review",
+      "ribAttendu": "a bank account statement (RIB) is expected",
+      "ribEnvoye": "RIB received, being checked",
+      "envoyerRib": "Send the RIB",
+      "envoyerRibAria": "Send the RIB for account {masked}",
+      "ribEnvoyeToast": "RIB sent: your account is under review.",
+      "ribEchec": "The RIB could not be sent."
     },
     "serviceProvider": {
       "title": "My provider activity",
@@ -16795,6 +16819,17 @@
           "detail": "Add your languages and your neighbourhoods.",
           "action": "Complete",
           "detailPourcentage": "{pourcentage}% · still missing {reste}."
+        },
+        "pieces": {
+          "titre": "Send your identity documents to receive your payouts.",
+          "detailCompte": "{envoyees} of {requises} sent.",
+          "detail": "Identity document and proofs your agency asks for.",
+          "action": "Send"
+        },
+        "rib": {
+          "titre": "Confirm your bank account",
+          "detail": "A bank account statement (RIB) is expected.",
+          "action": "Send the RIB"
         }
       },
       "details": {
@@ -16821,7 +16856,8 @@
         "notifications": "By event and by channel",
         "securite": {
           "active": "Two-factor authentication on",
-          "inactive": "Two-factor authentication off"
+          "inactive": "Two-factor authentication off",
+          "piecesAEnvoyer": "Identity documents to send"
         },
         "espaces": {
           "un": "{agence} · {role}",
@@ -16834,7 +16870,8 @@
         },
         "avis": "Received, to leave and published",
         "donnees": "Export my data",
-        "avisNote": "{nombre} received · {moyenne} out of 5"
+        "avisNote": "{nombre} received · {moyenne} out of 5",
+        "versementAConfirmer": "{moyen} · one account to confirm"
       },
       "nonEnregistrees": "{n, plural, one {# unsaved change} other {# unsaved changes}}",
       "espaces": {
@@ -17207,7 +17244,8 @@
       "guestsMin": "At least 1 guest.",
       "guestsMax": "20 guests maximum.",
       "notesTooLong": "The message is too long (1000 characters max).",
-      "acceptTerms": "You must accept the terms."
+      "acceptTerms": "You must accept the terms.",
+      "notesRequiredForOther": "Say what this payment is for."
     },
     "customer": {
       "occupationTooLong": "The occupation is too long.",
