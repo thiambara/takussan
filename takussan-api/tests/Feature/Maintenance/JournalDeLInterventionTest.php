@@ -82,7 +82,9 @@ class JournalDeLInterventionTest extends ApiTestCase
 
         // L'acteur est réduit à son identifiant et son nom.
         $this->assertSame(['id' => $agent->id, 'full_name' => $agent->full_name], $journal[1]['actor']);
-        $this->assertSame(['id', 'at', 'code', 'actor', 'from', 'to'], array_keys($journal[0]));
+        // TCK-2900 (ADR-0113 § 6) — l'entrée du signalement compte aussi ses photos et sa note vocale.
+        $this->assertSame(['id', 'at', 'code', 'actor', 'from', 'to', 'photos_count', 'has_voice_note'], array_keys($journal[0]));
+        $this->assertSame(['id', 'at', 'code', 'actor', 'from', 'to'], array_keys($journal[1]));
     }
 
     /** AC5 — le personnel de l'agence et le super-admin lisent ; personne d'autre. */

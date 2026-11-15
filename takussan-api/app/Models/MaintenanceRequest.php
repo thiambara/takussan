@@ -45,6 +45,7 @@ use Spatie\QueryBuilder\QueryBuilder;
 class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMedia
 {
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+
     // TCK-2900 (ADR-0113 § 3) — la note vocale du signalement : collection privée `voice_notes`.
     use HasVoiceNotes;
 

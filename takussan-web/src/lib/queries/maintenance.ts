@@ -461,6 +461,10 @@ export interface EntreeDuJournal {
   readonly to: MaintenanceStatus | null;
   /** TCK-2917 (ADR-0118 § 1) — le motif, sur la seule entrée d'une annulation (clé absente ailleurs). */
   readonly reason?: string | null;
+  /** TCK-2900 (ADR-0113 § 6) — sur la seule entrée `created` : les photos du signalement, lues à la lecture. */
+  readonly photos_count?: number;
+  /** TCK-2900 (ADR-0113 § 6) — sur la seule entrée `created` : la demande porte une note vocale. */
+  readonly has_voice_note?: boolean;
 }
 
 /** TCK-2786 — `GET /api/maintenance-requests/{id}/journal`, dans l'ordre où c'est arrivé. */

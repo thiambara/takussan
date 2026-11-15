@@ -6157,7 +6157,9 @@
         "approuver": "Approve {montant}",
         "refuser": "Decline",
         "motif": "Declining requires a reason; a new quote may then be submitted to you.",
-        "echec": "The quote could not be approved."
+        "echec": "The quote could not be approved.",
+        "concurrents": "{agence} consulted {n, plural, one {another tradesperson} =2 {two other tradespeople} =3 {three other tradespeople} other {# other tradespeople}} ({montants}) and recommends this quote.",
+        "concurrentsSansAgence": "The agency consulted {n, plural, one {another tradesperson} =2 {two other tradespeople} =3 {three other tradespeople} other {# other tradespeople}} ({montants}) and recommends this quote."
       },
       "enCours": {
         "titre": "In progress on your properties",
@@ -6165,11 +6167,24 @@
         "passage": "{jour, select, aujourdhui {Today at {heure}} demain {Tomorrow at {heure}} hier {Yesterday at {heure}} other {On {date} at {heure}}}",
         "approuve": "Quote approved on {date}",
         "sousLeSeuil": "Below the threshold: no approval needed"
+      },
+      "bilan": {
+        "titre": "Since {mois}",
+        "parBien": "By property",
+        "historiqueParBien": "History by property",
+        "interventions": "Maintenance jobs",
+        "dontCloses": "{n, plural, =0 {none closed} other {# closed}}",
+        "aVotreCharge": "Charged to you",
+        "deduit": "deducted from your income",
+        "detailTitre": "Maintenance by property since {mois}",
+        "compteDuBien": "{total, plural, one {# job} other {# jobs}} · {closes} closed",
+        "bienSansTitre": "Untitled property",
+        "erreur": "Your maintenance summary could not be loaded."
       }
     },
     "prestataire": {
       "titre": "My jobs",
-      "sousTitre": "Week of {debut} to {fin} — {aAccepter, plural, =0 {nothing to accept} one {# to accept} other {# to accept}}, {prevues, plural, =0 {none scheduled} one {# scheduled} other {# scheduled}}",
+      "sousTitre": "Week of {debut} to {fin} — {aAccepter, plural, =0 {nothing to accept} one {# to accept} other {# to accept}}, {prevues, plural, =0 {none scheduled} one {# scheduled} other {# scheduled}}, {aFacturer, plural, =0 {nothing to invoice} other {# to invoice}}",
       "erreur": "Your jobs could not be loaded.",
       "aAccepter": {
         "titre": "To accept · {n}",
@@ -6192,7 +6207,8 @@
         "rienDePrevu": "{jours}: nothing scheduled",
         "vide": "Nothing scheduled for the rest of the week",
         "itineraire": "Directions",
-        "kit": "Access kit"
+        "kit": "Access kit",
+        "calendrier": "Calendar"
       },
       "factures": {
         "titre": "My invoices",
@@ -6201,10 +6217,41 @@
         "validee": "Approved on {date}",
         "aPercevoir": "To be received",
         "vide": "No invoices yet",
-        "videTexte": "A job completed with its cost creates its invoice.",
+        "videTexte": "A completed job first goes to “To invoice”; once sent, its invoice appears here.",
         "registre": "All my invoices",
         "erreur": "Your invoices could not be loaded.",
         "aPercevoirCompte": "{n, plural, one {# invoice} other {# invoices}}"
+      },
+      "aFacturer": {
+        "titre": "To invoice · {n}",
+        "facturer": "Invoice",
+        "facturerObjet": "Invoice “{objet}”",
+        "terminee": "{jour, select, aujourdhui {completed today} hier {completed yesterday} other {completed on {date}}}",
+        "saisie": {
+          "titre": "Invoice “{objet}”",
+          "montant": "Final amount ({devise})",
+          "montantAide": "Prefilled from the approved quote or the recorded cost. Correct it if the work cost something else.",
+          "reference": "Your invoice number (optional)",
+          "piece": "Your invoice, PDF or photo (optional)",
+          "envoyer": "Send the invoice",
+          "envoi": "Sending…",
+          "echec": "The invoice could not be sent."
+        }
+      },
+      "releve": {
+        "bouton": "My invoice statement",
+        "titre": "My invoice statement",
+        "aide": "Choose the period: the statement lists your sent invoices, their status and what you have been paid.",
+        "periode": "Statement period",
+        "moisEnCours": "{mois} (current month)",
+        "annee": "Since January {annee}",
+        "telecharger": "Download the statement",
+        "enCours": "Downloading…",
+        "echec": {
+          "interdit": "You do not have access to this statement.",
+          "indisponible": "This statement is not available for this period.",
+          "echec": "The statement could not be downloaded. Please try again."
+        }
       }
     },
     "fiche": {

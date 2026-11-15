@@ -30,7 +30,7 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 | Agency | `logo` | Logo de l'agence (fichier unique, disque public) |
 | Property | `photos`, `videos`, `plans` | Photos (originaux privés, conversions filigranées publiques — TCK-539), vidéos et plans (publics, sans conversion). La visite virtuelle n'est pas une collection : c'est le lien `properties.virtual_tour_url` (TCK-598) |
 | Message | `attachments` | Pièces jointes aux messages, notes vocales comprises |
-| MaintenanceRequest | `photos`, `before_photos`, `completion_photos`, `quotes` | Photos du problème, état constaté avant l'intervention (TCK-592), photos après intervention, pièces jointes des devis — toutes privées (TCK-538) |
+| MaintenanceRequest | `photos`, `before_photos`, `completion_photos`, `quotes`, `voice_notes` | Photos du problème, état constaté avant l'intervention (TCK-592), photos après intervention, pièces jointes des devis, note vocale du signalement (TCK-2900, ADR-0113) — toutes privées (TCK-538) |
 | Document | `file`, `versions` | Le fichier du document (unique) et ses versions numérotées (`custom_properties.version_number`) — toutes deux privées |
 | Inventory | `photos`, `room_photos` | Photos de l'état des lieux, par pièce |
 | Lease | `signed_contract`, `lease_deposit_refund` | Contrat figé que les parties signent (fichier unique, privé — ADR-0042 §1) ; pièces de la restitution du dépôt de garantie (`DepositRefundService`) |
@@ -1829,7 +1829,7 @@ voies peut n'identifier personne.
 **Index :** `(conversation_id, created_at)`.
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `attachments` (pièces jointes ; le fichier d'une note vocale y est rangé, collection privée — ADR-0038 : formats `SendMessageConversationRequest::AUDIO_MIMETYPES`, 2 Mo et 60 s au plus)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collection `attachments` (pièces jointes ; le fichier d'une note vocale y est rangé, collection privée — ADR-0038 : formats, 2 Mo et 60 s au plus dans `App\Support\Media\VoiceNoteRules`, règle partagée avec les autres porteurs depuis TCK-2900, ADR-0113)
 - `Searchable` (Scout) — indexe `content` sous la clé `body` ; un message supprimé n'est pas indexé
 
 **Note :** Le statut de lecture est déterminé en comparant `message.created_at` avec `conversation_participant.last_read_at`. Pas de colonne `read_at` sur le message lui-même.
@@ -1885,7 +1885,7 @@ voies peut n'identifier personne.
 **Index :** `(property_id, status)`, `(assigned_to, status)`.
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections **privées** (ADR-0029 §3, TCK-538) `photos` (photos du problème), `before_photos` (état constaté par le prestataire avant d'intervenir, TCK-592), `completion_photos` (photos après intervention), `quotes` (devis joints)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections **privées** (ADR-0029 §3, TCK-538) `photos` (photos du problème), `before_photos` (état constaté par le prestataire avant d'intervenir, TCK-592), `completion_photos` (photos après intervention), `quotes` (devis joints), `voice_notes` (la note vocale du signalement, une au plus, durée déclarée dans `custom_properties.duration` — trait `HasVoiceNotes`, bornes `VoiceNoteRules`, TCK-2900, ADR-0113)
 - `Searchable` (Scout) — `title`, `description`
 
 **Note :** `requester_id` pointe vers un User (la personne connectée). ⚠ Le modèle ne déclare

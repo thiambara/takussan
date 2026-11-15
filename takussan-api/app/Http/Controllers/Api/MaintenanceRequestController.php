@@ -37,6 +37,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -59,6 +60,8 @@ class MaintenanceRequestController extends Controller
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch.
         $query = MaintenanceRequest::buildQuery($base, $request);
+        // TCK-2900 — `has_voice_note` de chaque ligne en une sous-requête, après les champs choisis.
+        $query->withVoiceNoteFlag();
 
         $paginator = $query
             ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
@@ -108,6 +111,8 @@ class MaintenanceRequestController extends Controller
         $base = MaintenanceRequest::query()->where('property_id', $property->id)->visibleTo($request->user());
 
         $query = MaintenanceRequest::buildQuery($base, $request);
+        // TCK-2900 — `has_voice_note` de chaque ligne en une sous-requête, après les champs choisis.
+        $query->withVoiceNoteFlag();
 
         $paginator = $query
             ->defaultSorts(...MaintenanceRequest::defaultSortsWithRelevance(...MaintenanceRequest::triParDefaut()))
@@ -157,15 +162,28 @@ class MaintenanceRequestController extends Controller
         // `actAsPrincipal` : le personnel sans `maintenance.assign` reçoit le même 403.
         abort_if($assigneeId !== null && ! MaintenanceRequestPolicy::teamMayAssignOn($user, $property), 403);
         unset($data['assigned_to']);
+        // TCK-2900 (ADR-0113 § 3) — la note vocale n'est pas une colonne : déposée ci-dessous.
+        $voiceNote = $request->file('voice_note');
+        unset($data['voice_note'], $data['voice_note_duration']);
 
-        $mr = MaintenanceRequest::create(array_merge($data, [
-            'requester_id' => $user->id,
-            'status' => MaintenanceStatus::Open->value,
-            'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
-        ]));
-        // TCK-2786 — la première entrée du journal (« Signalée par … ») ; une demande sans elle est
-        // antérieure au journal, qui s'ouvre alors sur « avant le journal ».
-        app(MaintenanceJournal::class)->recordCreated($mr, $user);
+        // TCK-2900 — la demande, son entrée de journal et sa note vocale naissent ensemble : une note
+        // refusée au dépôt ne laisse pas de demande sans elle.
+        $mr = DB::transaction(function () use ($data, $user, $voiceNote, $request): MaintenanceRequest {
+            $mr = MaintenanceRequest::create(array_merge($data, [
+                'requester_id' => $user->id,
+                'status' => MaintenanceStatus::Open->value,
+                'priority' => $data['priority'] ?? MaintenancePriority::Normal->value,
+            ]));
+            // TCK-2786 — la première entrée du journal (« Signalée par … ») ; une demande sans elle est
+            // antérieure au journal, qui s'ouvre alors sur « avant le journal ».
+            app(MaintenanceJournal::class)->recordCreated($mr, $user);
+
+            if ($voiceNote instanceof UploadedFile) {
+                $mr->attachVoiceNote($voiceNote, $request->integer('voice_note_duration'));
+            }
+
+            return $mr;
+        });
 
         // TCK-1991 (P169.03) — l'escalade compte ses 30 minutes depuis le passage en urgent.
         if ($mr->priority === MaintenancePriority::Urgent) {
