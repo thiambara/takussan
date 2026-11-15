@@ -151,6 +151,18 @@ export type InterventionDOrigine = {
   /** URL signée (relative à l'API, hôte compris), valable quelques minutes : à lire au rendu, jamais à garder. */
   readonly photo?: { readonly url: string; readonly thumbnail_url: string; readonly count: number } | null;
   readonly quote?: { readonly amount: number; readonly currency: string | null } | null;
+  /**
+   * TCK-2943 (ADR-0122) — ce que le prestataire juge avant d'accepter. `respond_by` : l'échéance annoncée par l'agence
+   * (instant ISO, indicatif, `null` sans délai) ; `reference` : `INT-0042` ; `reported_by_role` : un rôle, jamais une
+   * identité ; `tenant_quote` : les mots du locataire seul, numéros, courriels, nom et rue masqués (`[TELEPHONE]`…),
+   * 280 caractères au plus ; `detail_url` : la fiche, qui répond 403 avant l'acceptation.
+   */
+  readonly respond_by?: string | null;
+  readonly reported_at?: string | null;
+  readonly reference?: string;
+  readonly reported_by_role?: 'tenant' | 'landlord' | 'agency' | null;
+  readonly tenant_quote?: string | null;
+  readonly detail_url?: string;
 };
 
 /** Les blocs que l'écran 2 lit (`fields[intervention_d_origine]`). */

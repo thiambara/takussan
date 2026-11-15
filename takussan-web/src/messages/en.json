@@ -291,13 +291,19 @@
           "espace": {
             "premier_bien": "Publish a first property",
             "kyc": "Get the agency verified",
-            "equipe": "Invite a first member",
-            "pieces": "Send your documents"
+            "equipe": "Invite a first member"
           },
           "bailleur": {
             "premier_bien": "Propose a first property",
-            "kyc": "Send your ID documents",
             "equipe": "Invite a first member"
+          },
+          "pieces": {
+            "cni": "Send your ID document",
+            "rib": "Send your bank details (RIB)",
+            "ninea": "Send your NINEA",
+            "license": "Send your professional card",
+            "photo": "Send your profile photo",
+            "insurance": "Send your professional liability insurance"
           }
         },
         "ecranPieces": "Your documents"
@@ -8226,7 +8232,53 @@
           "appeler": "Call",
           "whatsapp": "WhatsApp",
           "voirLaFiche": "View the file",
-          "erreur": "Your first lead could not be loaded. You will find it in your space."
+          "erreur": "Your first lead could not be loaded. You will find it in your space.",
+          "besoin": {
+            "cherche": "Looking for {quoi}",
+            "chercheA": "Looking for {quoi} in {lieu}",
+            "unBien": "a property",
+            "chambres": "{compte, plural, one {# bedroom min.} other {# bedrooms min.}}",
+            "nature": {
+              "rent": "to rent",
+              "sale": "to buy"
+            }
+          },
+          "budget": {
+            "libelle": "Budget",
+            "entre": "{min} – {max}",
+            "jusqua": "up to {montant}",
+            "des": "from {montant}",
+            "parMois": "{montant}/month"
+          },
+          "dernierContact": "Last contact",
+          "dernierContactLe": "{jour}, {heure}",
+          "origine": {
+            "libelle": "Came through",
+            "annonce": "Listing {reference}",
+            "demande": "A contact request"
+          },
+          "note": {
+            "signee": "“{note}” — {auteur}",
+            "seule": "“{note}”"
+          },
+          "types": {
+            "apartment": "apartment",
+            "house": "house",
+            "villa": "villa",
+            "land": "land",
+            "shop": "retail space",
+            "office": "office",
+            "studio": "studio",
+            "room": "room",
+            "warehouse": "warehouse",
+            "hotel": "hotel",
+            "resort": "complex",
+            "garage": "garage",
+            "parking": "parking space",
+            "farm": "farm",
+            "factory": "factory",
+            "other": "other property"
+          }
         },
         "sansProspect": {
           "titre": "No lead for you yet",
@@ -8251,7 +8303,8 @@
         "droits": {
           "titre": "What you can do in the agency",
           "compte": "{compte, plural, one {# right given by the agency} other {# rights given by the agency}}",
-          "pied": "Rights given by the agency. To change them, write to its administrator."
+          "pied": "Rights given by the agency. To change them, write to its administrator.",
+          "refuses": "Not in your role"
         },
         "rappel": "<fort>{compte, plural, one {# document left to add} other {# documents left to add}}</fort>: {liste}. From your space, under “To do”; nothing holds you back until then.",
         "rappelBureau": "To add next, in “Get started”: {liste}.",
@@ -21597,11 +21650,19 @@
         "lien": "Get started, {fait} of {total}: {etape}",
         "etapes": {
           "premier_bien": "Propose a first property",
-          "kyc": "Send your identity documents"
+          "pieces": {
+            "cni": "Send your ID document",
+            "rib": "Send your bank details (RIB)",
+            "ninea": "Send your NINEA"
+          }
         },
         "enPhrase": {
           "premier_bien": "Propose a first property to your agency.",
-          "kyc": "Send your identity documents to receive your payouts."
+          "pieces": {
+            "cni": "Send your ID document from “Your documents”.",
+            "rib": "Send your bank details (RIB) from “Your documents”.",
+            "ninea": "Send your NINEA from “Your documents”."
+          }
         }
       }
     },
@@ -21821,7 +21882,10 @@
       "ko": "{n} KB",
       "mo": "{n} MB"
     },
-    "facultatif": "Optional"
+    "facultatif": "Optional",
+    "debloque": {
+      "titre": "What it unlocks"
+    }
   },
   "rapports": {
     "titre": "Reports",

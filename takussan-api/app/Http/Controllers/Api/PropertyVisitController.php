@@ -973,7 +973,8 @@ class PropertyVisitController extends Controller
             ->withProperties([
                 // L'agence du bien : `PropertyVisit` ne porte pas d'`agency_id` (AuditAgencyResolver).
                 'agency_id' => $visit->property?->agency_id,
-                'scheduled_at' => $visit->scheduled_at?->toIso8601String(),
+                // TCK-2943 — la forme d'ADR-0018 (`ControllerInstantFormTest` rougissait sur `toIso8601String`).
+                'scheduled_at' => $this->instant($visit->scheduled_at),
                 'previous_scheduled_at' => $nouveauCreneau ? $avant?->format(DATE_ATOM) : null,
             ])
             ->event('visit.confirmed_by_owner')

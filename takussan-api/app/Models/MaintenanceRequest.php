@@ -177,6 +177,15 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     }
 
     /**
+     * TCK-2943 (ADR-0122 § 5) — la référence montrée d'une intervention, dérivée de l'identifiant : `INT-` suivi
+     * d'au moins quatre chiffres (`INT-0042`, `INT-12345`). Aucune colonne : l'identifiant la donne.
+     */
+    public function reference(): string
+    {
+        return sprintf('INT-%04d', $this->getKey());
+    }
+
+    /**
      * Le tri par RANG de priorité ({@see MaintenancePrioritySort}) : `sort=priority` et le tri par
      * défaut. `'-priority'` le rend décroissant par défaut (urgent d'abord).
      */

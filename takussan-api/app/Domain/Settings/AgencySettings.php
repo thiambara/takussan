@@ -67,6 +67,13 @@ final class AgencySettings
                 'type' => self::INT, 'default' => 48,
                 'rules' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
             ],
+            // TCK-2943 (ADR-0122 § 6) — le délai de réponse annoncé au prestataire invité sur l'intervention jointe,
+            // compté depuis l'invitation (`ServiceProviderOnboardingService::echeanceDeReponse`). Indicatif : aucun job
+            // ne le fait respecter. 0 = aucun délai annoncé ; `null` retire la clé, le défaut revient.
+            'maintenance_provider_response_hours' => [
+                'type' => self::INT, 'default' => 48,
+                'rules' => ['sometimes', 'nullable', 'integer', 'between:0,168'],
+            ],
             // TCK-963 — `TenantOnboardingService` ; `false` comme `0` coupent la checklist (TCK-970).
             'tenant_onboarding_enabled' => [
                 'type' => self::BOOL, 'default' => true,

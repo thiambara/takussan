@@ -281,13 +281,19 @@
           "espace": {
             "premier_bien": "Publier un premier bien",
             "kyc": "Faire vérifier l’agence",
-            "equipe": "Inviter un premier membre",
-            "pieces": "Envoyer vos pièces"
+            "equipe": "Inviter un premier membre"
           },
           "bailleur": {
             "premier_bien": "Proposer un premier bien",
-            "kyc": "Envoyer vos pièces d’identité",
             "equipe": "Inviter un premier membre"
+          },
+          "pieces": {
+            "cni": "Envoyer votre pièce d’identité",
+            "rib": "Envoyer votre RIB",
+            "ninea": "Envoyer votre NINEA",
+            "license": "Envoyer votre carte professionnelle",
+            "photo": "Envoyer votre photo de profil",
+            "insurance": "Envoyer votre assurance RC pro"
           }
         },
         "ecranPieces": "Vos pièces"
@@ -6987,7 +6993,53 @@
           "appeler": "Appeler",
           "whatsapp": "WhatsApp",
           "voirLaFiche": "Voir la fiche",
-          "erreur": "Votre premier prospect n’a pas pu être chargé. Vous le retrouverez dans votre espace."
+          "erreur": "Votre premier prospect n’a pas pu être chargé. Vous le retrouverez dans votre espace.",
+          "besoin": {
+            "cherche": "Cherche {quoi}",
+            "chercheA": "Cherche {quoi} à {lieu}",
+            "unBien": "un bien",
+            "chambres": "{compte, plural, one {# chambre min.} other {# chambres min.}}",
+            "nature": {
+              "rent": "en location",
+              "sale": "à l’achat"
+            }
+          },
+          "budget": {
+            "libelle": "Budget",
+            "entre": "{min} – {max}",
+            "jusqua": "jusqu’à {montant}",
+            "des": "dès {montant}",
+            "parMois": "{montant}/mois"
+          },
+          "dernierContact": "Dernier contact",
+          "dernierContactLe": "{jour}, {heure}",
+          "origine": {
+            "libelle": "Venu par",
+            "annonce": "Annonce {reference}",
+            "demande": "Une demande de contact"
+          },
+          "note": {
+            "signee": "« {note} » — {auteur}",
+            "seule": "« {note} »"
+          },
+          "types": {
+            "apartment": "appartement",
+            "house": "maison",
+            "villa": "villa",
+            "land": "terrain",
+            "shop": "commerce",
+            "office": "bureau",
+            "studio": "studio",
+            "room": "chambre",
+            "warehouse": "entrepôt",
+            "hotel": "hôtel",
+            "resort": "complexe",
+            "garage": "garage",
+            "parking": "parking",
+            "farm": "ferme",
+            "factory": "usine",
+            "other": "autre bien"
+          }
         },
         "sansProspect": {
           "titre": "Pas encore de prospect pour vous",
@@ -7012,7 +7064,8 @@
         "droits": {
           "titre": "Ce que vous pouvez faire dans l’agence",
           "compte": "{compte, plural, one {# droit donné par l’agence} other {# droits donnés par l’agence}}",
-          "pied": "Droits donnés par l’agence. Pour en changer, écrivez à son administrateur."
+          "pied": "Droits donnés par l’agence. Pour en changer, écrivez à son administrateur.",
+          "refuses": "Pas dans votre rôle"
         },
         "rappel": "<fort>{compte, plural, one {Il vous reste # pièce à ajouter} other {Il vous reste # pièces à ajouter}}</fort> : {liste}. Depuis votre espace, sous « À faire » ; rien ne vous bloque d’ici là.",
         "rappelBureau": "À ajouter ensuite, dans « Démarrer » : {liste}.",
@@ -21597,11 +21650,19 @@
         "lien": "Démarrer, {fait} sur {total} : {etape}",
         "etapes": {
           "premier_bien": "Proposez un premier bien",
-          "kyc": "Envoyez vos pièces d’identité"
+          "pieces": {
+            "cni": "Envoyez votre pièce d’identité",
+            "rib": "Envoyez votre RIB",
+            "ninea": "Envoyez votre NINEA"
+          }
         },
         "enPhrase": {
           "premier_bien": "Proposez un premier bien à votre agence.",
-          "kyc": "Envoyez vos pièces d’identité pour recevoir vos reversements."
+          "pieces": {
+            "cni": "Envoyez votre pièce d’identité depuis « Vos pièces ».",
+            "rib": "Envoyez votre RIB depuis « Vos pièces ».",
+            "ninea": "Envoyez votre NINEA depuis « Vos pièces »."
+          }
         }
       }
     },
@@ -21821,7 +21882,10 @@
       "ko": "{n} Ko",
       "mo": "{n} Mo"
     },
-    "facultatif": "Facultatif"
+    "facultatif": "Facultatif",
+    "debloque": {
+      "titre": "Ce que ça débloque"
+    }
   },
   "rapports": {
     "titre": "Rapports",
