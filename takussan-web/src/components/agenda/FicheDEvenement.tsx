@@ -64,7 +64,12 @@ export function FicheDEvenement({ evenement: e, visite }: { readonly evenement: 
         </LigneCle>
         {duree && e.type === 'visit' ? <LigneCle cle={t('duree')}>{t('minutes', { n: duree })}</LigneCle> : null}
         {e.type === 'visit' && e.address_line ? <LigneCle cle={t('adresse')}>{e.address_line}</LigneCle> : null}
-        {nom ? <LigneCle cle={t('visiteur')}>{nom}</LigneCle> : null}
+        {nom ? (
+          <LigneCle cle={t('visiteur')}>
+            {/* TCK-2888 — « Abdoulaye Cissé · 1ʳᵉ visite » : le rang servi par l'API (TCK-2886), la première seule. */}
+            {e.type === 'visit' && e.visit_rank === 1 ? t('premiereVisite', { nom }) : nom}
+          </LigneCle>
+        ) : null}
         {e.reference ? (
           <LigneCle cle={t('reference')}>
             <span className="tabular-nums">{e.reference}</span>

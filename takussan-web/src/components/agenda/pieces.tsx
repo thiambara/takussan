@@ -30,6 +30,16 @@ export function cleDuType(e: Pick<CalendarEvent, 'type' | 'kind'>): string {
   return e.type;
 }
 
+/**
+ * TCK-2888 — « dans 45 min », « dans 1 h 20 » : la formulation du compte à rebours de « Ma journée »
+ * (TCK-2856), sous l'espace de l'agenda (le calcul, sans libellé, vient de `lib/journee`).
+ */
+export function useTexteDuRebours() {
+  const t = useTranslations('agenda.jour');
+  return (r: { readonly heures: number; readonly minutes: number }) =>
+    r.heures === 0 ? t('dansMinutes', { n: r.minutes }) : t('dansHeures', { h: r.heures, m: String(r.minutes).padStart(2, '0'), minutes: r.minutes });
+}
+
 /** Pastille + type en mots ; en attente, pastille creuse et « · en attente ». */
 export function TypeMot({ evenement, detail, className }: { readonly evenement: Pick<CalendarEvent, 'type' | 'kind' | 'status'>; readonly detail?: string | null; readonly className?: string }) {
   const t = useTranslations('agenda');
@@ -102,16 +112,32 @@ export function Segmente<V extends string>({
 
 const OUTIL = 'inline-flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring';
 
+/** TCK-2888 — les durées de l'occupation au téléphone : quatorze ou trente cases par bien. */
+export const DUREES_DE_L_OCCUPATION = ['14', '30'] as const;
+export type DureeDeLOccupation = (typeof DUREES_DE_L_OCCUPATION)[number];
+
 /**
- * « 14 j » : la durée que montre l'occupation au téléphone, à la place du menu de vue. Une seule
- * durée y tient (quatorze cases par bien) : un libellé, pas un menu sans choix.
+ * « 14 j ▾ » : la durée que montre l'occupation au téléphone, à la place du menu de vue — un menu
+ * (14 j, 30 j), comme celui de la vue (TCK-2888 ; TCK-2597 la figeait à quatorze jours).
  */
-export function DureeDeLOccupation() {
+export function MenuDeDuree({ duree, onChange, className }: { readonly duree: DureeDeLOccupation; readonly onChange: (d: DureeDeLOccupation) => void; readonly className?: string }) {
   const t = useTranslations('agenda.periode');
+  const court = (d: DureeDeLOccupation) => (d === '30' ? t('trenteJoursCourt') : t('quatorzeJours'));
+  const long = (d: DureeDeLOccupation) => (d === '30' ? t('trenteJoursLong') : t('quatorzeJoursLong'));
   return (
-    <span className={cn(OUTIL, 'hover:bg-card')} aria-label={t('quatorzeJoursLong')}>
-      {t('quatorzeJours')}
-    </span>
+    <DropdownMenu>
+      <DropdownMenuTrigger aria-label={t('dureeLibelle', { duree: long(duree) })} data-testid="agenda-menu-duree" className={cn(OUTIL, className)}>
+        {court(duree)}
+        <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {DUREES_DE_L_OCCUPATION.map((d) => (
+          <DropdownMenuItem key={d} data-testid={`agenda-duree-${d}`} onClick={() => onChange(d)}>
+            {long(d)}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

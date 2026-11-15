@@ -73,4 +73,49 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — agent d'implémentation (vague 92).
+
+**Prémisse re-mesurée** : conforme. `CalendarEvent` portait déjà `customer_name`, `visit_rank`, `neighborhood`
+(TCK-2886) et `CalendarFeedState.url` (TCK-2887). La barre de l'occupation disait « {n} nuits · {référence} »,
+celle du mois « Séjour · {bien} » ; la colonne des biens lisait `fields[properties]=id,title` sans adresse ;
+« 14 j » était un libellé figé (écart « décision produit » de TCK-2597) ; la feuille iCal ne montrait le lien
+qu'à sa génération. Écart au ticket : l'agenda n'est pas sous `app/(dashboard)/app/agenda` mais
+`components/calendar/CalendarPage.tsx` + `components/agenda/`.
+
+**Livré** :
+- « dans N min » : `reboursDuProchain` (`lib/agenda/agenda.ts`) — le prochain événement À HEURE du jour
+  (visite, tâche, intervention ; jamais un séjour ni une journée entière), seulement si le jour affiché est
+  aujourd'hui à Dakar et à ≤ 120 min ; le compte est `compteARebours` de « Ma journée » (TCK-2856).
+  Téléphone : à droite du type, dans la tête de la carte (`JourDeLAgenda`, jour et mois) ; bureau : dans la
+  tête de la carte du jour (`SemaineDeLAgenda`), comme l'`action` de la maquette. Au-delà de 60 min :
+  « dans 1 h 20 ». Libellés `agenda.jour.dansMinutes` / `dansHeures` (même formulation que
+  `journee.chronologie` : l'agenda ne déclare pas l'espace `journee`, garde `check-i18n-namespaces` verte).
+- Fiche : « {visiteur} · 1ʳᵉ visite » pour `visit_rank === 1` seulement (pas de « 2e visite » : hors ticket).
+- Occupation : barre « {client} » / « {client} · en attente » quand `customer_name` est servi, sinon l'ancien
+  libellé (bailleur) ; quartier sous le titre au bureau (« Ngor · Libre jusqu'au 12 »), après le titre au
+  téléphone (« Studio meublé · Mermoz »). Source : `include=address` sur les trois lectures de biens de
+  l'agenda (`location.quarter`, précédent `useBiensEnLigne`), repli sur le `neighborhood` d'un événement.
+  Mois : « Séjour · {bien} · {client} ».
+- iCal : lien = celui de la génération, sinon `url` relu ; Copier, Google, Apple à la réouverture ; sans lien
+  relisible (`null` ou absent) : l'écran d'avant avec « Générer un nouveau lien ». À la révocation, l'état en
+  cache passe à `{ active: false }` (sinon le lien relu restait affiché jusqu'à la relecture). Texte « Copiez-le
+  maintenant : il ne sera plus affiché » devenu faux : clé `onceOnly` supprimée, `secret` à la place ; docblocks corrigés.
+- AC7 : `MenuDeDuree` (« 14 j ▾ » → 14 j / 30 j), `?duree=30` dans l'URL (effacé au changement de mode) ;
+  fenêtre, pas et plage suivent ; colonnes dynamiques au téléphone, à 30 j un numéro de jour sur trois (et
+  aujourd'hui) — 11 px par case.
+- Fidélité : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2888.json` (non relevée, consigne du porteur) ;
+  dans `TCK-2597.json`, retrait des écarts « nom du client », « quartier », « lien iCal dès l'ouverture »,
+  « 14 j sans chevron » et de l'alias « Séjour · Villa Almadies ».
+
+**AC5, AC6, AC-F2 — non mesurés au navigateur** (consigne du porteur) : relus au code et aux tests — barres
+continues et « +N séjours » (`MoisDeLAgenda`, `CalendarPage.test.tsx`), hachure de l'attente, losanges et
+points, compte du lien Occupation (`LienOccupation`), ligne « maintenant » (`data-slot="maintenant"`) et
+« + Planifier une visite » au survol d'un créneau (`Creneau`, `group-hover`) : présents, rien à corriger.
+
+**Mesures** : `CalendarPage.tck-2888.test.tsx` (9), `rebours.tck-2888.test.ts` (5),
+`CalendarSubscription.tck-2888.test.tsx` (4) et les 8 fichiers voisins (agenda, calendrier, iCal) : 63 verts.
+Ablations une à une, restaurées par `cp`, md5 vérifié : horizon de 2 h retiré → « trois heures » rouge ;
+rebours non rendu (téléphone / bureau) → AC1 rouge ; rang ignoré → AC2 rouge ; client retiré de la barre →
+« Awa Diop » rouge ; quartier de l'adresse retiré → 2 tests rouges ; lien relu ignoré → AC4 rouge ; cache non
+vidé à la révocation → « révoqué » rouge ; fenêtre figée à 14 j → AC7 rouge ; client retiré du mois → rouge.
+eslint, `tsc --noEmit`, `check:i18n`, toutes les gardes `scripts/check-*.mjs` (racine et web) vertes.
