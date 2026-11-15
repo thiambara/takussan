@@ -144,3 +144,29 @@ export function aPercevoir(factures: readonly Pick<ServiceProviderBill, 'amount'
   if (totalServi > factures.length) return null;
   return factures.filter((f) => STATUTS_A_PERCEVOIR.includes(f.status)).reduce((s, f) => s + Number(f.amount), 0);
 }
+
+/**
+ * TCK-2919 (ADR-0120 § 1) — « À facturer » : la facture née en brouillon à la fin des travaux, que le
+ * prestataire envoie par « Facturer ». Elle n'est pas encore émise : « Mes factures » ne la reprend pas.
+ */
+export const STATUT_A_FACTURER: ServiceProviderBillStatus = 'draft';
+
+/** TCK-2919 — « Mes factures » : les factures émises, tout statut sauf le brouillon (filtré par l'API). */
+export const STATUTS_DES_FACTURES_EMISES: readonly ServiceProviderBillStatus[] = ['pending_validation', 'validated', 'paid', 'rejected', 'cancelled'];
+
+/**
+ * TCK-2919 — le montant proposé à « Facturer » : celui du brouillon, que l'API a pris au coût réel, à
+ * défaut au devis approuvé (`MaintenanceRequestObserver::bill`). Rien n'est recalculé ici.
+ */
+export function montantAFacturer(brouillon: Pick<ServiceProviderBill, 'amount'>): string {
+  const montant = Number(brouillon.amount);
+  return Number.isFinite(montant) && montant > 0 ? String(Math.round(montant)) : '';
+}
+
+/** TCK-2919 — un montant saisi valide : un nombre strictement positif (`gt:0` de l'API). */
+export function montantSaisiValide(saisi: string): number | null {
+  const propre = saisi.replace(/[\s  ]/g, '').replace(',', '.');
+  if (propre === '') return null;
+  const n = Number(propre);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}

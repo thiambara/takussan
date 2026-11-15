@@ -7,14 +7,17 @@ import { CHAMPS_DES_DEMANDES_DU_LOCATAIRE } from '@/lib/maintenance/mes-demandes
 import {
   CHAMPS_DES_INTERVENTIONS_DU_PRESTATAIRE,
   FACTURES_LUES_POUR_LE_TOTAL,
+  STATUT_A_FACTURER,
   STATUTS_A_PERCEVOIR,
+  STATUTS_DES_FACTURES_EMISES,
   type SemaineDuPrestataire,
 } from '@/lib/maintenance/semaine-du-prestataire';
 import type { CorpsDuSignalement } from '@/lib/maintenance/signalement';
+import { cheminApi } from '@/lib/chemin-api';
 import { maintenanceKeys } from '@/lib/queries/maintenance';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { ServiceProviderBill } from '@/types/invoice';
-import type { MaintenanceRequest } from '@/types/maintenance';
+import type { BilanDesInterventionsDuBailleur, MaintenanceRequest } from '@/types/maintenance';
 
 /**
  * TCK-2654 — `POST /api/maintenance-requests` depuis le signalement du locataire : le corps peut ne
@@ -162,7 +165,8 @@ export function useFacturesDuPrestataire(moi: number | undefined) {
     {
       params: {
         fields: { service_provider_bills: CHAMPS_D_UNE_FACTURE, maintenance_requests: ['id', 'title'], properties: ['id', 'title'] },
-        filter: { provider_id: moi ?? 0 },
+        // TCK-2919 — le brouillon (« À facturer ») n'est pas une facture émise : il a sa section.
+        filter: { provider_id: moi ?? 0, status: STATUTS_DES_FACTURES_EMISES },
         include: ['maintenanceRequest', 'property'],
         sort: '-created_at',
         per_page: FACTURES_DU_PRESTATAIRE_PAR_PAGE,
@@ -189,4 +193,67 @@ export function useFacturesAPercevoir(moi: number | undefined) {
       enabled: moi !== undefined,
     },
   );
+}
+
+/** TCK-2919 — la clé commune des factures du prestataire : « Facturer » les relit toutes. */
+const CLE_DES_FACTURES = ['service-provider-bills'] as const;
+
+/**
+ * TCK-2919 (ADR-0120 § 1) — « À facturer » : SES brouillons, FILTRÉS par l'API (`filter[status]=draft`),
+ * l'intervention et le bien nommés. Le brouillon naît à la fin des travaux : son `created_at` en est
+ * la date (« terminée hier »).
+ */
+export function useFacturesAFacturer(moi: number | undefined) {
+  return useApiQuery<PaginatedResponse<ServiceProviderBill>>(
+    [...CLE_DES_FACTURES, 'prestataire', moi ?? 0, 'a-facturer'],
+    '/api/service-provider-bills',
+    {
+      params: {
+        fields: { service_provider_bills: CHAMPS_D_UNE_FACTURE, maintenance_requests: ['id', 'title'], properties: ['id', 'title'] },
+        filter: { provider_id: moi ?? 0, status: STATUT_A_FACTURER },
+        include: ['maintenanceRequest', 'property'],
+        sort: '-created_at',
+        per_page: 20,
+      },
+      enabled: moi !== undefined,
+    },
+  );
+}
+
+export interface FacturerVariables {
+  readonly id: number;
+  /** Le montant final : à défaut, l'API garde celui du brouillon. */
+  readonly amount: number;
+  readonly provider_reference?: string;
+  readonly file?: File | null;
+}
+
+/**
+ * TCK-2919 (ADR-0120 § 1) — « Facturer » : `POST /api/service-provider-bills/{id}/submit`, multipart
+ * (la pièce). La facture passe `pending_validation` : les listes du prestataire se relisent.
+ */
+export function useFacturer() {
+  return useApiMutation<ApiResponse<ServiceProviderBill>, FacturerVariables>(
+    {
+      path: ({ id }) => cheminApi`/api/service-provider-bills/${id}/submit`,
+      method: 'POST',
+      formData: true,
+      body: ({ amount, provider_reference, file }) => {
+        const fd = new FormData();
+        fd.append('amount', String(amount));
+        if (provider_reference) fd.append('provider_reference', provider_reference);
+        if (file) fd.append('file', file);
+        return fd;
+      },
+    },
+    { invalidate: [[...CLE_DES_FACTURES]] },
+  );
+}
+
+/**
+ * TCK-2919 (ADR-0120 § 4) — « Depuis janvier » : le bilan des interventions des biens du bailleur du
+ * profil actif, calculé par l'API (`since` par défaut : le 1er janvier de l'année en cours).
+ */
+export function useBilanDuBailleur() {
+  return useApiQuery<ApiResponse<BilanDesInterventionsDuBailleur>>([...maintenanceKeys.all, 'bailleur', 'bilan'], '/api/owner/maintenance-summary');
 }

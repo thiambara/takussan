@@ -69,6 +69,8 @@ export interface MaintenanceListParams {
   readonly priority?: MaintenancePriority;
   readonly category?: MaintenanceCategory;
   readonly property_id?: number;
+  /** TCK-2919 — les interventions d'un bail (`filter[lease_id]`, lien « Interventions » de la fiche du bail). */
+  readonly lease_id?: number;
   readonly page?: number;
   readonly per_page?: number;
   readonly sort?: string;
@@ -85,6 +87,7 @@ function toSpatieParams(
   if (params?.priority) filter.priority = params.priority;
   if (params?.category) filter.category = params.category;
   if (params?.property_id) filter.property_id = params.property_id;
+  if (params?.lease_id) filter.lease_id = params.lease_id;
   if (params?.search) filter.search = params.search;
 
   return {

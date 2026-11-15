@@ -9,6 +9,8 @@ import { PageHeader, StatusBadge } from '@/components/console';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { AFacturer } from '@/components/maintenance/acteurs/AFacturer';
+import { ReleveDesFactures } from '@/components/maintenance/acteurs/ReleveDesFactures';
 import { directionsUrl } from '@/components/maintenance/MaintenanceAccessKit';
 import { SERVICE_PROVIDER_BILL_STATUS_TONE } from '@/components/payments/constants';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -32,6 +34,7 @@ import {
 import { useAcceptMaintenance, useDeclineMaintenance, useMaintenanceRequest } from '@/lib/queries/maintenance';
 import {
   FACTURES_DU_PRESTATAIRE_PAR_PAGE,
+  useFacturesAFacturer,
   useFacturesAPercevoir,
   useFacturesDuPrestataire,
   useInterventionsAAccepter,
@@ -49,6 +52,9 @@ const HAUTEUR_D_UNE_HEURE_REM = 2.75;
 /** Le registre complet des factures du prestataire (sa table, triée et paginée). */
 const LIEN_DES_FACTURES = '/app/maintenance?factures=toutes';
 
+/** TCK-2919 — « Calendrier » : l'agenda en semaine, sur ses seules interventions (`typesDisponibles`). */
+export const LIEN_DU_CALENDRIER = '/app/calendar?view=week&types=maintenance';
+
 /** Un jour `AAAA-MM-JJ` en instant de midi : son libellé ne dépend d'aucun fuseau. */
 const midi = (jour: string) => new Date(`${jour}T12:00:00Z`);
 
@@ -62,12 +68,15 @@ const midi = (jour: string) => new Date(`${jour}T12:00:00Z`);
  *    demande terminée (AC4), quoi que dise la liste.
  *  · « Cette semaine » : les passages acceptés, par jour ; l'adresse, « Itinéraire » et « Kit d'accès »
  *    viennent du bloc `access` de la fiche, que l'API n'ouvre qu'après acceptation.
- *  · « Mes factures » en cartes, et « À percevoir » : la somme des factures à valider ou validées,
- *    filtrées par l'API (AC5) — aucun total quand l'API en compte plus qu'elle n'en a rendu.
+ *  · « Mes factures » en cartes (les factures ÉMISES, sans le brouillon), et « À percevoir » : la
+ *    somme des factures à valider ou validées, filtrées par l'API (AC5) — aucun total quand l'API en
+ *    compte plus qu'elle n'en a rendu.
+ *  · TCK-2919 (ADR-0120) — « À facturer · n » et « Facturer » (`AFacturer`) : les brouillons nés à la
+ *    fin des travaux ; « Calendrier » sur « Cette semaine » (téléphone) vers l'agenda ; « Relevé de mes
+ *    factures » en tête (bureau, `ReleveDesFactures`) ; le sous-titre compte « n à facturer ».
  *
  * Écarts de donnée à la maquette (décision 2 : rien d'inventé) : la fenêtre du passage (« 9 h –
- * 11 h », l'API ne sert que son début), « À facturer » (la facture naît seule à la fin des travaux),
- * « Relevé de mes factures », « Calendrier », le moyen et la date de paiement d'une facture.
+ * 11 h », l'API ne sert que son début), le moyen et la date de paiement d'une facture.
  */
 export function InterventionsDuPrestataire() {
   const t = useTranslations('maintenance.prestataire');
@@ -79,6 +88,7 @@ export function InterventionsDuPrestataire() {
 
   const aAccepter = useInterventionsAAccepter();
   const laSemaine = useSemaineDuPrestataire(moi, semaine);
+  const aFacturer = useFacturesAFacturer(moi);
 
   const cartes = aAccepter.data?.data ?? [];
   const nbAAccepter = aAccepter.data?.meta?.total ?? cartes.length;
@@ -86,9 +96,11 @@ export function InterventionsDuPrestataire() {
   const grille = grilleDeLaSemaine(interventions, semaine);
   const tournee = tourneeDeLaSemaine(interventions, semaine);
   const prevues = grille.creneaux.filter((c) => c.genre === 'prevu').length;
+  const brouillons = aFacturer.data?.data ?? [];
+  const nbAFacturer = aFacturer.data?.meta?.total ?? brouillons.length;
   // Sans compte lu, la semaine n'est pas demandée (`enabled`) : elle ne retient pas le rendu.
-  const charge = aAccepter.isPending || (moi !== undefined && laSemaine.isPending);
-  const erreur = aAccepter.isError || laSemaine.isError;
+  const charge = aAccepter.isPending || (moi !== undefined && (laSemaine.isPending || aFacturer.isPending));
+  const erreur = aAccepter.isError || laSemaine.isError || aFacturer.isError;
   const borne = (jour: string) => f.date(midi(jour), { dateStyle: undefined, day: 'numeric', month: 'long' });
   // « du 9 au 14 novembre » : le mois ne se dit qu'une fois quand la semaine n'en change pas.
   const debut =
@@ -106,8 +118,9 @@ export function InterventionsDuPrestataire() {
             description={
               charge || erreur
                 ? undefined
-                : t('sousTitre', { debut, fin: borne(semaine.jours[5]), aAccepter: nbAAccepter, prevues })
+                : t('sousTitre', { debut, fin: borne(semaine.jours[5]), aAccepter: nbAAccepter, prevues, aFacturer: nbAFacturer })
             }
+            actions={<ReleveDesFactures />}
           />
         </div>
 
@@ -122,6 +135,7 @@ export function InterventionsDuPrestataire() {
             onRetry={() => {
               void aAccepter.refetch();
               void laSemaine.refetch();
+              void aFacturer.refetch();
             }}
             retryLabel={tCommon('actions.retry')}
           />
@@ -145,9 +159,15 @@ export function InterventionsDuPrestataire() {
                 </section>
               ) : null}
               <section aria-labelledby="prestataire-semaine" className="space-y-3 xl:hidden">
-                <h2 id="prestataire-semaine" className="font-display text-lg font-semibold tracking-titre">
-                  {t('semaine.titre')}
-                </h2>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 id="prestataire-semaine" className="font-display text-lg font-semibold tracking-titre">
+                    {t('semaine.titre')}
+                  </h2>
+                  {/* Sous `xl`, sans grille de la semaine : l’agenda la remplace (TCK-2919). */}
+                  <Link href={LIEN_DU_CALENDRIER} className="flex-none text-sm font-medium text-primary-deep hover:underline" data-slot="vers-le-calendrier">
+                    {t('semaine.calendrier')}
+                  </Link>
+                </div>
                 <Tournee jours={tournee.jours} sansRien={tournee.sansRien} />
               </section>
               {tournee.jours.length > 0 ? (
@@ -159,6 +179,7 @@ export function InterventionsDuPrestataire() {
                   <Tournee jours={tournee.jours.slice(0, 1)} sansRien={tournee.jours.length === 1 ? tournee.sansRien : []} />
                 </section>
               ) : null}
+              <AFacturer factures={brouillons} total={nbAFacturer} />
             </div>
           </div>
         )}
