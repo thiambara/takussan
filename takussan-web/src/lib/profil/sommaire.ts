@@ -1,12 +1,13 @@
 import type { Profile } from '@/types/profile';
 import type { User } from '@/types/user';
 import { isAdmin, isAgent, isCustomerOnly, isOwner, isServiceProvider } from '@/lib/roles';
+import { completudeDeLaFiche, faitsDeLaFiche, type CompletudeDeLaFiche } from './completude-de-la-fiche';
 
 /**
  * TCK-2635 — le sommaire du profil (maquette `app-profil`, approche A, retenue le 2026-11-11) : une
  * rangée par section, chacune ouvre sa page ; un point sur ce qui demande une action ; « À régler » en
  * tête. Fonction PURE des faits rendus par l'API (`/api/auth/me`, `/api/me/profiles`) : ni supposition,
- * ni score inventé (le score de complétude de la fiche est hors périmètre du ticket).
+ * ni score inventé (la complétude de la fiche, TCK-2862, se calcule sur ces mêmes faits).
  *
  * L'ordre est celui des deux sommaires de la maquette (`LIGNES_AGENT`, `LIGNES_BAILLEUR`) : ce qui est
  * propre au persona (fiche, profil professionnel, recherche, versement, annuaire) suit les coordonnées.
@@ -66,7 +67,9 @@ export interface FaitsDuSommaire {
   readonly user: Pick<
     User,
     'roles' | 'phone' | 'phone_verified_at' | 'two_factor_enabled' | 'listed_in_public_directory' | 'timezone'
-  >;
+  > &
+    // TCK-2862 — la photo et la présentation, deux des cinq critères de la complétude de la fiche.
+    Partial<Pick<User, 'avatar_url' | 'bio'>>;
   /** `GET /api/me/profiles`, `null` s'il n'a pas pu être lu : rien n'en est alors déduit. */
   readonly profils: readonly Profile[] | null;
 }
@@ -112,6 +115,17 @@ export interface ARegler {
   /** La rangée qui porte le point. */
   readonly rangee: IdDeRangee;
   readonly href: string;
+  /** TCK-2862 — pour `fiche` : le pourcentage et ce qui manque (l'encart les dit). */
+  readonly completude?: CompletudeDeLaFiche;
+}
+
+/**
+ * TCK-2862 — la complétude de la fiche publique du compte, `null` s'il n'est pas agent ou si son profil
+ * d'agent n'a pas pu être lu. La même fonction que la jauge de la page (`completudeDeLaFiche`).
+ */
+export function completudeDuSommaire({ user, profils }: FaitsDuSommaire): CompletudeDeLaFiche | null {
+  const agent = isAgent(user.roles) ? profilDAgent(profils) : null;
+  return agent ? completudeDeLaFiche(faitsDeLaFiche(user, agent)) : null;
 }
 
 /**
@@ -119,7 +133,8 @@ export interface ARegler {
  * - le téléphone renseigné et non vérifié ;
  * - la double authentification inactive pour qui tient des clients et des baux (agent, admin
  *   d'agence : maquette a-0 et AC1) ;
- * - la fiche publique de l'agent sans langue ou sans quartier (TCK-2518) — jamais un pourcentage.
+ * - la fiche publique de l'agent incomplète (TCK-2862, cinq critères : `completudeDeLaFiche`) — le
+ *   pourcentage et ce qui manque, ceux de la jauge de la page.
  */
 export function aRegler({ user, profils }: FaitsDuSommaire): readonly ARegler[] {
   const liste: ARegler[] = [];
@@ -129,9 +144,9 @@ export function aRegler({ user, profils }: FaitsDuSommaire): readonly ARegler[] 
   if (!user.two_factor_enabled && (isAgent(user.roles) || isAdmin(user.roles))) {
     liste.push({ id: 'double-authentification', rangee: 'securite', href: HREF_DE_LA_RANGEE.securite.href });
   }
-  const agent = isAgent(user.roles) ? profilDAgent(profils) : null;
-  if (agent && ((agent.languages?.length ?? 0) === 0 || (agent.neighborhood_ids?.length ?? 0) === 0)) {
-    liste.push({ id: 'fiche', rangee: 'fiche', href: HREF_DE_LA_RANGEE.fiche.href });
+  const completude = completudeDuSommaire({ user, profils });
+  if (completude && completude.pourcentage < 100) {
+    liste.push({ id: 'fiche', rangee: 'fiche', href: HREF_DE_LA_RANGEE.fiche.href, completude });
   }
   return liste;
 }

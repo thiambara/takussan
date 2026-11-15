@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { BadgeCheck, Phone, ShieldCheck, type LucideIcon } from 'lucide-react';
 
 import { buttonVariants } from '@/components/ui/button';
+import { ceQuIlReste } from '@/lib/profil/completude-de-la-fiche';
 import type { ARegler, IdARegler } from '@/lib/profil/sommaire';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +28,19 @@ function varianteDuGeste(rang: number): 'default' | 'outline' {
 
 export async function AReglerDuProfil({ liste }: { readonly liste: readonly ARegler[] }) {
   if (liste.length === 0) return null;
-  const t = await getTranslations('profile.sommaire.aRegler');
+  const [t, tManque, locale] = await Promise.all([
+    getTranslations('profile.sommaire.aRegler'),
+    getTranslations('profile.completude.manque'),
+    getLocale(),
+  ]);
+  // TCK-2862 — « Compléter votre fiche » dit le pourcentage et ce qui manque (le même calcul que la jauge).
+  const detail = ({ id, completude }: ARegler) =>
+    completude
+      ? t(`${id}.detailPourcentage`, {
+          pourcentage: completude.pourcentage,
+          reste: ceQuIlReste(completude.manquants, (c, v) => tManque(c, v), locale),
+        })
+      : t(`${id}.detail`);
   return (
     <section aria-labelledby="a-regler-du-profil" data-slot="a-regler-du-profil">
       <h2 id="a-regler-du-profil" className="mb-2 text-corps font-semibold">
@@ -35,14 +48,18 @@ export async function AReglerDuProfil({ liste }: { readonly liste: readonly AReg
       </h2>
 
       <ul className="grid gap-2 md:hidden">
-        {liste.map(({ id, href }, i) => {
+        {liste.map((item, i) => {
+          const { id, href } = item;
           const Icone = ICONE[id];
           return (
             <li key={id} className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/6 p-3.5">
               <span className="inline-flex size-9 flex-none items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Icone className="size-icone" strokeWidth={1.75} aria-hidden="true" />
               </span>
-              <p className="min-w-0 flex-1 text-sm leading-snug">{t(`${id}.titre`)}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-snug">{t(`${id}.titre`)}</p>
+                {item.completude ? <p className="text-ui text-muted-foreground">{detail(item)}</p> : null}
+              </div>
               <Link href={href} className={buttonVariants({ size: 'sm', variant: varianteDuGeste(i) })}>
                 {t(`${id}.action`)}
               </Link>
@@ -52,7 +69,8 @@ export async function AReglerDuProfil({ liste }: { readonly liste: readonly AReg
       </ul>
 
       <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border bg-card max-md:hidden">
-        {liste.map(({ id, href }, i) => {
+        {liste.map((item, i) => {
+          const { id, href } = item;
           const Icone = ICONE[id];
           return (
             <li key={id} className="flex items-center gap-3 px-4 py-3">
@@ -61,7 +79,7 @@ export async function AReglerDuProfil({ liste }: { readonly liste: readonly AReg
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{t(`${id}.titre`)}</p>
-                <p className="text-ui text-muted-foreground">{t(`${id}.detail`)}</p>
+                <p className="text-ui text-muted-foreground">{detail(item)}</p>
               </div>
               <Link href={href} className={cn(buttonVariants({ size: 'sm', variant: varianteDuGeste(i) }), 'flex-none')}>
                 {t(`${id}.action`)}

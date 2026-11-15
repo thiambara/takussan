@@ -1,7 +1,7 @@
 import { formaterTelephone } from '@/lib/phone';
 import { isAgent, isServiceProvider } from '@/lib/roles';
 import { localeDisplayLabel, type Locale } from '@/i18n/config';
-import { FUSEAU_DE_DAKAR, profilDAgent, type FaitsDuSommaire, type IdDeRangee } from '@/lib/profil/sommaire';
+import { FUSEAU_DE_DAKAR, completudeDuSommaire, profilDAgent, type FaitsDuSommaire, type IdDeRangee } from '@/lib/profil/sommaire';
 import type { NoteDeLaFiche } from '@/lib/profil/note-de-la-fiche';
 import type { ProfileType } from '@/types/profile';
 
@@ -11,7 +11,8 @@ type Traduire = (cle: string, valeurs?: Record<string, string | number>) => stri
 /**
  * TCK-2635 — la ligne de détail de chaque rangée du sommaire au téléphone (maquette `ListeSommaire`),
  * tirée des faits rendus par l'API ; à défaut d'un fait, une ligne qui dit ce que la page contient.
- * Ni pourcentage de fiche, ni compte d'avis calculé ici : la note et le nombre d'avis de l'agent
+ * La fiche dit son pourcentage de complétude (TCK-2862, `completudeDuSommaire`, le même que la jauge).
+ * Ni compte d'avis calculé ici : la note et le nombre d'avis de l'agent
  * sont ceux de sa fiche publique (`noteDeLaFiche`), et rien pour les autres personas.
  */
 export function detailsDuSommaire(
@@ -24,6 +25,7 @@ export function detailsDuSommaire(
   }: { readonly t: Traduire; readonly tTypes: Traduire; readonly locale: Locale; readonly note?: NoteDeLaFiche | null },
 ): Readonly<Record<IdDeRangee, string>> {
   const agent = isAgent(user.roles) ? profilDAgent(profils) : null;
+  const completude = completudeDuSommaire({ user, profils });
   const actifs = (profils ?? []).filter((p) => p.status === 'active');
 
   const coordonnees = user.phone
@@ -47,7 +49,9 @@ export function detailsDuSommaire(
 
   return {
     coordonnees,
-    fiche: t('fiche.faits', {
+    fiche: completude
+      ? t('fiche.pourcentage', { pourcentage: completude.pourcentage })
+      : t('fiche.faits', {
       langues: agent?.languages?.length ?? 0,
       quartiers: agent?.neighborhood_ids?.length ?? 0,
     }),

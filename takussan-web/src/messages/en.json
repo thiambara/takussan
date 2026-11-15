@@ -10322,7 +10322,8 @@
           "membresSansDoubleFacteur": "{n, plural, one {# of {total} members has not turned it on yet} other {# of {total} members have not turned it on yet}}",
           "membresSansDoubleFacteurAuMoins": "{n, plural, one {At least # of {total} members has not turned it on yet} other {At least # of {total} members have not turned it on yet}}",
           "voirLEquipe": "View the team",
-          "demandeeLe": "Requested on {date}"
+          "demandeeLe": "Requested on {date}",
+          "groupeVisites": "Visits"
         },
         "menu": {
           "titre": "Team menu",
@@ -10332,6 +10333,10 @@
           "modulesAffiches": "Modules shown",
           "compteAffiches": "{n} of {total}"
         }
+      },
+      "ownersConfirmVisits": {
+        "label": "Landlords confirm visits to their properties",
+        "hint": "On: the landlord confirms a pending visit to their property, or proposes another time, from their home page; the assigned agent is notified. Off: only the agency confirms visits."
       }
     },
     "users": {
@@ -16551,7 +16556,7 @@
       },
       "aides": {
         "coordonnees": "How the agency and your clients reach you.",
-        "fiche": "Your business card on the website.",
+        "fiche": "Your business card on the site: it updates as you edit.",
         "pro": "What you do, and how.",
         "recherche": "What you are looking for, for listings that suit you.",
         "versement": "Where you receive your payouts.",
@@ -20677,7 +20682,9 @@
       },
       "visite": {
         "titre": "Visit to confirm",
-        "detail": "{bien} · proposed by {agent}"
+        "detail": "{bien} · proposed by {agent}",
+        "proposeePar": "Proposed by {agent}",
+        "proposeeParAvecVisiteur": "Proposed by {agent} · visitor: {visiteur}"
       },
       "visites": {
         "autres": "{n, plural, one {See the other visit to confirm} other {See the # other visits to confirm}}"

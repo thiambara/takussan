@@ -10322,7 +10322,8 @@
           "membresSansDoubleFacteur": "{n, plural, one {# membre sur {total} ne l’a pas encore activée} other {# membres sur {total} ne l’ont pas encore activée}}",
           "membresSansDoubleFacteurAuMoins": "{n, plural, one {Au moins # membre sur {total} ne l’a pas encore activée} other {Au moins # membres sur {total} ne l’ont pas encore activée}}",
           "voirLEquipe": "Voir l’équipe",
-          "demandeeLe": "Demandée le {date}"
+          "demandeeLe": "Demandée le {date}",
+          "groupeVisites": "Visites"
         },
         "menu": {
           "titre": "Menu de l’équipe",
@@ -10332,6 +10333,10 @@
           "modulesAffiches": "Modules affichés",
           "compteAffiches": "{n} sur {total}"
         }
+      },
+      "ownersConfirmVisits": {
+        "label": "Les bailleurs confirment les visites de leurs biens",
+        "hint": "Activé : le bailleur confirme une visite à confirmer de son bien, ou propose un autre créneau, depuis son accueil ; l’agent attribué en est prévenu. Désactivé : seule l’agence confirme les visites."
       }
     },
     "users": {
@@ -16551,7 +16556,7 @@
       },
       "aides": {
         "coordonnees": "Comment l’agence et vos clients vous joignent.",
-        "fiche": "Votre carte de visite sur le site.",
+        "fiche": "Votre carte de visite sur le site : elle se met à jour sous vos yeux.",
         "pro": "Ce que vous exercez, et comment.",
         "recherche": "Ce que vous cherchez, pour des annonces qui vous correspondent.",
         "versement": "Là où vous recevez vos reversements.",
@@ -20677,7 +20682,9 @@
       },
       "visite": {
         "titre": "Visite à confirmer",
-        "detail": "{bien} · proposée par {agent}"
+        "detail": "{bien} · proposée par {agent}",
+        "proposeePar": "Proposée par {agent}",
+        "proposeeParAvecVisiteur": "Proposée par {agent} · visiteur : {visiteur}"
       },
       "visites": {
         "autres": "{n, plural, one {Voir l’autre visite à confirmer} other {Voir les # autres visites à confirmer}}"

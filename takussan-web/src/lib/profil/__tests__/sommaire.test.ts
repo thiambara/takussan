@@ -24,6 +24,9 @@ function compte(roles: UserRole[], autre: Partial<FaitsDuSommaire['user']> = {})
     two_factor_enabled: true,
     listed_in_public_directory: false,
     timezone: 'Africa/Dakar',
+    // TCK-2862 — la photo et la présentation, deux critères de la complétude de la fiche.
+    avatar_url: 'https://cdn.exemple.sn/sokhna.jpg',
+    bio: 'Agent chez Dakar Immo depuis 2021.',
     ...autre,
   };
 }
@@ -36,7 +39,8 @@ const AGENT_COMPLET: Profile = {
   status: 'active',
   created_at: null,
   languages: ['fr', 'wo'],
-  neighborhood_ids: [3, 4],
+  // TCK-2862 — complète : cinq quartiers (la fiche complète en demande cinq).
+  neighborhood_ids: [3, 4, 5, 6, 7],
 };
 
 describe('TCK-2635 — les rangées du sommaire, par persona', () => {
@@ -83,12 +87,17 @@ describe('TCK-2635 — « À régler », sur des faits seulement', () => {
     expect(aRegler({ user: compte(['agent']), profils: [AGENT_COMPLET] })).toEqual([]);
   });
 
-  it('la fiche publique de l’agent sans langue ou sans quartier est à compléter ; des profils illisibles n’en disent rien', () => {
-    const ids = (profils: Profile[] | null) => aRegler({ user: compte(['agent']), profils }).map((a) => a.id);
+  it('TCK-2862 — la fiche publique de l’agent est à compléter tant qu’elle n’est pas à 100 % ; des profils illisibles n’en disent rien', () => {
+    const ids = (profils: Profile[] | null, autre = {}) => aRegler({ user: compte(['agent'], autre), profils }).map((a) => a.id);
     expect(ids([AGENT_COMPLET])).not.toContain('fiche');
     expect(ids([{ ...AGENT_COMPLET, languages: [] }])).toContain('fiche');
-    expect(ids([{ ...AGENT_COMPLET, neighborhood_ids: [] }])).toContain('fiche');
+    expect(ids([{ ...AGENT_COMPLET, neighborhood_ids: [3, 4] }])).toContain('fiche');
+    expect(ids([AGENT_COMPLET], { bio: null })).toContain('fiche');
     expect(ids(null)).not.toContain('fiche');
+    const fiche = aRegler({ user: compte(['agent'], { phone_verified_at: null }), profils: [{ ...AGENT_COMPLET, neighborhood_ids: [3, 4] }] }).find(
+      (a) => a.id === 'fiche',
+    );
+    expect(fiche?.completude).toEqual({ pourcentage: 60, manquants: [{ id: 'quartiers', restant: 3 }, { id: 'telephone' }] });
   });
 
   it('chaque chose à régler marque sa rangée d’un point', () => {
