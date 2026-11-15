@@ -22,6 +22,9 @@ class AgentMeMetrics implements DashboardMetrics
 
         return [
             'properties_managed' => $s['properties_managed'] ?? 0,
+            // TCK-2855 — « 3 sans photo » et « 310 000 F à venir » sous les chiffres de l'agent.
+            'properties_without_photo' => $s['properties_without_photo'] ?? 0,
+            'commissions_upcoming' => $s['finance']['commissions_upcoming'] ?? 0.0,
             'pipeline_total' => array_sum($pipeline),
             'pipeline_by_stage' => $pipeline,
             'bookings_pending' => $s['bookings']['pending'] ?? 0,

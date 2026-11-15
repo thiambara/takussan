@@ -56,6 +56,8 @@ class DashboardAgentService
         'tasks.open', 'tasks.overdue', 'tasks.today', 'tasks.items',
         'pipeline_ops.pending_bookings', 'pipeline_ops.leases_to_sign', 'pipeline_ops.tasks_today',
         'recent_activity', 'maintenance.open',
+        // TCK-2855 — deux états du jour de plus.
+        'properties_without_photo', 'finance.commissions_upcoming',
     ];
 
     public function summary(User $agent, string $scope = self::SCOPE_MINE, ?int $agencyId = null, ?PeriodeDuTableauDeBord $periode = null): array
@@ -76,7 +78,14 @@ class DashboardAgentService
         // P127.04 (TCK-1359) — les biens gérés sont ceux du portefeuille : un bien archivé ou vendu
         // n'en est plus. Les autres lectures du périmètre (réservations…) gardent tous les biens.
         $outOfPortfolio = array_map(static fn (PropertyStatus $s): string => $s->value, Property::OUT_OF_PORTFOLIO_STATUSES);
-        $propertiesManaged = $managed->whereNotIn('status', $outOfPortfolio)->count();
+        $inPortfolio = $managed->whereNotIn('status', $outOfPortfolio);
+        $propertiesManaged = $inPortfolio->count();
+
+        // TCK-2855 — parmi ces biens gérés (la même liste), ceux qui n'ont aucune photo (collection `photos`).
+        $propertiesWithoutPhoto = $inPortfolio->isEmpty() ? 0 : Property::query()
+            ->whereIn('properties.id', $inPortfolio->pluck('id'))
+            ->whereDoesntHave('media', fn (Builder $m) => $m->where('collection_name', 'photos'))
+            ->count();
 
         $pipelineScope = Customer::query();
         if ($agency) {
@@ -134,6 +143,14 @@ class DashboardAgentService
             $commissionsMonth = $this->ledgerTotal($agent, $agencyId, $monthStart, $monthEnd);
             $commissionsYear = $this->ledgerTotal($agent, $agencyId, $yearStart, $yearEnd);
         }
+
+        // TCK-2855 — SES lignes du grand livre dues et non versées, quelle que soit leur date : l'état du
+        // jour, dans les deux périmètres (« à venir » se dit de l'agent, jamais de l'agence).
+        $commissionsUpcoming = round((float) CommissionEntry::query()
+            ->where('beneficiary_id', $agent->id)
+            ->where('status', CommissionEntryStatus::Due->value)
+            ->when($agencyId !== null, fn ($q) => $q->where('agency_id', $agencyId))
+            ->sum('amount'), 2);
 
         // Tasks owned by the agent
         $openTasks = Task::where('assigned_to_id', $agent->id)
@@ -226,6 +243,7 @@ class DashboardAgentService
             'scope' => $agency ? self::SCOPE_AGENCY : self::SCOPE_MINE,
             'period' => $periode->enTete(self::ETATS_DU_JOUR),
             'properties_managed' => $propertiesManaged,
+            'properties_without_photo' => $propertiesWithoutPhoto,
             'pipeline' => $pipeline,
             'bookings' => [
                 'pending' => $pendingBookings,
@@ -238,6 +256,7 @@ class DashboardAgentService
             'finance' => [
                 'commissions_month' => round($commissionsMonth, 2),
                 'commissions_year' => round($commissionsYear, 2),
+                'commissions_upcoming' => $commissionsUpcoming,
             ],
             'tasks' => [
                 'open' => $openTasks,

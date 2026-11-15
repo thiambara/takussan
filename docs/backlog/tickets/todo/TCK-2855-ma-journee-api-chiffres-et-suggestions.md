@@ -62,4 +62,42 @@ Relevé le 2026-11-15 (`dev` 8c60f4c58) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré le 2026-11-15 (worktree `feat/audit-manques-2026-11-15`).
+
+**Contrat servi.**
+- `GET /api/dashboard/me` (agent) : `metrics.properties_without_photo` (int) et `metrics.commissions_upcoming`
+  (décimal). Aussi sous `GET /api/dashboard/agent` : `properties_without_photo`, `finance.commissions_upcoming`,
+  tous deux listés dans `period.as_of_today` (états du jour, la période ne les change pas).
+- `GET /api/dashboard/me?include=suggestions` (agent seul) : `data.suggestions = {follow_up, matches}`, chaque clé
+  `null` quand il n'y a rien. Sans `include`, la clé `suggestions` est absente (rien n'est calculé). Un `include`
+  en tableau n'inclut rien. Hors agent, `include=suggestions` est ignoré.
+
+**Décisions tranchées (consigne « valide tes choix »).**
+1. *Sans photo* : aucun média dans la collection `photos` (un plan ou une vidéo ne compte pas), parmi la même
+   liste que `properties_managed` (`Property::managedBy`, hors portefeuille sorti — la définition de
+   `TeamPerformanceService::propertiesManaged`), réutilisée telle quelle dans `DashboardAgentService::summary()`.
+2. *À venir* : SES lignes `due` du grand livre dans l'agence active, quelle que soit `earned_at` ; même dans le
+   périmètre `agency` de `/dashboard/agent`, c'est le chiffre de l'agent (« à venir » se dit de lui).
+3. *Les clients de l'agent* : ceux dont il est le référent (relation `agent_client` principale active — le
+   `filter[referent]=me` que lit déjà `JourneeLibre.tsx`), dans l'agence active, et lisibles
+   (`Customer::scopeVisibleTo`, la règle de `CustomerPolicy::view`).
+4. *Relance* : `CustomerFollowUpQuery` (filtre `follow_up=1` + tri `-follow_up_days`, puis `forPage()` pour
+   `waiting_days`), rien de recopié.
+5. *Non encore proposé* : Takussan n'enregistre aucun « envoi » d'un bien à un client. Un bien est tenu pour
+   proposé dès que le client l'a visité (une visite, quel que soit son état) ou demandé (réservation,
+   candidature ou offre non supprimée).
+6. *Rapprochement* : `ProspectMatcher::propertiesFor()` tel quel ; les candidats passent par
+   `ProspectMatcher::whereMatchable()` — extrait de `customersFor()` (actif, ni gagné ni perdu, au moins un
+   critère), qui l'appelle désormais : une seule définition.
+7. *Coût* : rapprochement calculé pour les 20 fiches rapprochables les plus récemment modifiées
+   (`AgentDaySuggestions::MATCH_CANDIDATES`), un COUNT chacune, et seulement sous `include=suggestions`. Pas de
+   cache : la suggestion doit tomber dès que le bien est proposé. `sample` : 3 biens, ordre de
+   `matching-properties` (publication décroissante). Égalité de compte : la fiche la plus récemment modifiée.
+
+**Prémisse re-mesurée.** Conforme au relevé du ticket (aucun des deux chiffres, aucune suggestion servis).
+
+**Tests.** `tests/Feature/Dashboard/AgentDayMetricsTest.php` (3), `tests/Feature/Dashboard/AgentDaySuggestionsTest.php`
+(7) — verts ; plus `ProspectMatcherTest`, `SendProspectMatchDigestTest`, `DashboardKeyValuesTest`, `DashboardMeTest`,
+`DashboardPeriodTest`, `DashboardQueryBudgetTest`, `DashboardAgentTest` et les trois gardes d'architecture : 68 verts.
+Ablations une à une (rouge, puis restauration prouvée par md5) : filtre photo, statut `due`, borne d'agence
+(AC5), `visibleTo` (AC5), exclusion des visites, exclusion des réservations, filtre du référent.
