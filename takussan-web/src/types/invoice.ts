@@ -406,8 +406,29 @@ export interface ResumeDuLoyer {
     readonly monthly_rent: number | null;
     readonly monthly_charges: number | null;
     readonly currency: string | null;
-    readonly property: { readonly id: number; readonly title: string } | null;
+    /** TCK-2852 (servi par TCK-2851) — jusqu'à quand court le bail (`AAAA-MM-JJ`). */
+    readonly end_date?: string | null;
+    /**
+     * TCK-2852 (servi par TCK-2851) — la photo du bien (`cover_url`) et son lieu en « quartier, ville »
+     * (`address_line`, jamais la rue).
+     */
+    readonly property: {
+      readonly id: number;
+      readonly title: string;
+      readonly cover_url?: string | null;
+      readonly address_line?: string | null;
+    } | null;
+    /**
+     * TCK-2852 (servi par TCK-2851) — l'agent du bail, `null` sans agent ou s'il n'est plus personnel
+     * actif de l'agence. Jamais de téléphone ni de courriel : le locataire lui écrit par la messagerie.
+     */
+    readonly agent?: { readonly user_id: number; readonly name: string; readonly avatar_url: string | null } | null;
     readonly agency: { readonly id: number; readonly name: string; readonly phone: string | null } | null;
   } | null;
   readonly offline_payment: MoyensHorsLigne | null;
+  /**
+   * TCK-2852 (servi par TCK-2851) — les fournisseurs EN LIGNE ouverts pour l'agence et la devise du bail
+   * (`wave`, `orange_money`…, codes de `PaymentProvider`) ; `[]` sans bail.
+   */
+  readonly online_means?: readonly string[];
 }

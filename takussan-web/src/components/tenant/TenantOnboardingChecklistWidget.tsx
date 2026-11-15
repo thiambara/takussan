@@ -30,14 +30,15 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type LeaseSummary = ActiveLeaseSummary;
 
-const ITEM_ORDER: TenantOnboardingChecklistItem[] = [
+// TCK-2852 — exportés : « Votre entrée dans les lieux » de l'accueil du locataire lit les mêmes étapes.
+export const ITEM_ORDER: readonly TenantOnboardingChecklistItem[] = [
   'welcome_seen',
   'inventory_completed',
   'first_payment',
   'documents_acknowledged',
 ];
 
-function isItemDone(checklist: TenantOnboardingChecklist, item: TenantOnboardingChecklistItem): boolean {
+export function isItemDone(checklist: TenantOnboardingChecklist, item: TenantOnboardingChecklistItem): boolean {
   switch (item) {
     case 'welcome_seen':
       return checklist.welcome_seen_at !== null;
@@ -98,29 +99,7 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
     return null;
   }
 
-  const handleClickItem = (item: TenantOnboardingChecklistItem): string | null => {
-    switch (item) {
-      case 'inventory_completed':
-        // TCK-379 — le paramètre s'appelle `lease`, PAS `lease_id`. Cette ligne était le SEUL
-        // chemin entrant de `/app/inventories/new` dans tout le front, et elle n'y arrivait
-        // pas : la page lit `searchParams.lease`, donc le locataire tombait sur l'écran
-        // « aucun bail sélectionné » au lieu du formulaire. Mesuré le 2026-08-27 — le ticket,
-        // lui, décrivait ce chemin comme fonctionnel.
-        return `/app/inventories/new?lease=${lease.id}`;
-      case 'first_payment':
-        // TCK-419 — `/app/payments/new` N'EXISTE PAS : `app/payments/` ne porte que `page.tsx`
-        // (les trois onglets historique/factures/payouts) et `return/` (retour passerelle).
-        // Ce lien était donc un 404 servi à CHAQUE nouveau locataire, sur l'étape la plus
-        // visible de sa checklist. L'endroit où un locataire paie réellement est le détail de
-        // SON bail : `LeaseDetail` y monte `LeaseSchedule`, qui porte le `PayOnlineButton` de
-        // chaque échéance. On y envoie donc, avec l'id de bail qu'on a déjà sous la main.
-        return `/app/leases/${lease.id}`;
-      // welcome_seen is owned by the modal hook ; documents_acknowledged is
-      // a direct POST handled below.
-      default:
-        return null;
-    }
-  };
+  const handleClickItem = (item: TenantOnboardingChecklistItem) => lienDeLEtape(item, lease.id);
 
   const reference = lease.reference_number ?? `#${lease.id}`;
 
@@ -237,4 +216,29 @@ function ChecklistRow({
 
   // welcome_seen with no action: just render the row inert.
   return content;
+}
+
+/** TCK-2852 — exporté : où mène une étape encore à faire (`null` : pas de lien). */
+export function lienDeLEtape(item: TenantOnboardingChecklistItem, leaseId: number): string | null {
+  switch (item) {
+    case 'inventory_completed':
+      // TCK-379 — le paramètre s'appelle `lease`, PAS `lease_id`. Cette ligne était le SEUL
+      // chemin entrant de `/app/inventories/new` dans tout le front, et elle n'y arrivait
+      // pas : la page lit `searchParams.lease`, donc le locataire tombait sur l'écran
+      // « aucun bail sélectionné » au lieu du formulaire. Mesuré le 2026-08-27 — le ticket,
+      // lui, décrivait ce chemin comme fonctionnel.
+      return `/app/inventories/new?lease=${leaseId}`;
+    case 'first_payment':
+      // TCK-419 — `/app/payments/new` N'EXISTE PAS : `app/payments/` ne porte que `page.tsx`
+      // (les trois onglets historique/factures/payouts) et `return/` (retour passerelle).
+      // Ce lien était donc un 404 servi à CHAQUE nouveau locataire, sur l'étape la plus
+      // visible de sa checklist. L'endroit où un locataire paie réellement est le détail de
+      // SON bail : `LeaseDetail` y monte `LeaseSchedule`, qui porte le `PayOnlineButton` de
+      // chaque échéance. On y envoie donc, avec l'id de bail qu'on a déjà sous la main.
+      return `/app/leases/${leaseId}`;
+    // welcome_seen is owned by the modal hook ; documents_acknowledged is
+    // a direct POST handled below.
+    default:
+      return null;
+  }
 }

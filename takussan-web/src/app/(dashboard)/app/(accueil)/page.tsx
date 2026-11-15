@@ -15,9 +15,13 @@ import { FavorisQuiBougent } from '@/components/accueil/client/FavorisQuiBougent
 import { InvitationARechercher, lireInvitationARechercher } from '@/components/accueil/client/InvitationARechercher';
 import { VosRecherches } from '@/components/accueil/client/VosRecherches';
 import { VosVisites, type VisiteAVenir } from '@/components/accueil/client/VosVisites';
+import { CarteDuLogement } from '@/components/accueil/locataire/CarteDuLogement';
 import { CarteDuLoyer } from '@/components/accueil/locataire/CarteDuLoyer';
+import { DerniersPaiements } from '@/components/accueil/locataire/DerniersPaiements';
 import { EcheancesDes30Jours } from '@/components/accueil/locataire/EcheancesDes30Jours';
+import { EntreeDansLesLieux } from '@/components/accueil/locataire/EntreeDansLesLieux';
 import { ErreurDeLaSituation } from '@/components/accueil/locataire/ErreurDeLaSituation';
+import { InterventionsEnCours } from '@/components/accueil/locataire/InterventionsEnCours';
 import { CeQuiMAttend, DocumentsRecents } from '@/components/accueil/locataire/MaSituation';
 import { MonLogement } from '@/components/accueil/locataire/MonLogement';
 import { ResumeDuLocataire } from '@/components/accueil/locataire/ResumeDuLocataire';
@@ -209,8 +213,10 @@ export default async function DashboardPage() {
           {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
           <WizardDraftsBanner />
           {/* TCK-266 / TCK-492 — la check-list d'entrée dans les lieux. `tenant` est le prédicat JUSTE
-              (le persona ne l'est pas : un bailleur qui loue aussi un logement la perdrait). */}
-          {isTenant(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
+              (le persona ne l'est pas : un bailleur qui loue aussi un logement la perdrait). TCK-2852 — le
+              persona locataire la lit DANS ses blocs (« À finir » sous « Mon logement », « Votre entrée dans
+              les lieux » à gauche au bureau), plus en bandeau de tête ; les autres la gardent ici. */}
+          {isTenant(user.roles) && !accueilLocataire ? <TenantOnboardingChecklistWidget /> : null}
         </>
       }
       // TCK-595 — un compte sans chiffres ni blocs de son persona garde son état vide (TCK-2625 : le
@@ -225,10 +231,14 @@ export default async function DashboardPage() {
             <AFaireBailleur landlordId={user.id} confirmeLesVisites={persona === 'hote'} hote={filesDeLHote} />
           </>
         ) : accueilLocataire ? (
-          // TCK-2625 — la carte du loyer, SEULE à gauche au bureau (« la carte du loyer à gauche, le reste à
-          // droite ») ; au téléphone, la colonne suit : la carte, puis « Mon logement » et ses trois gestes,
-          // puis ce que « Ma situation » montrait — l'ordre du ticket et de la maquette (a-3).
-          <CarteDuLoyer className="max-md:mx-4" />
+          // TCK-2852 (maquette a-3, bureau) — à gauche : la carte du loyer, « Derniers paiements », « Votre
+          // entrée dans les lieux ». Les deux derniers n'existent qu'au bureau (dès `md`) : au téléphone, la
+          // carte seule, puis la colonne.
+          <>
+            <CarteDuLoyer className="max-md:mx-4" />
+            <DerniersPaiements className="max-md:hidden" />
+            <EntreeDansLesLieux forme="bureau" className="max-md:hidden" />
+          </>
         ) : accueilClient ? (
           <>
             <VosVisites visites={situation?.visites ?? []} />
@@ -247,8 +257,14 @@ export default async function DashboardPage() {
         ) : accueilBailleur ? (
           <EnCoursSurVosBiens />
         ) : accueilLocataire ? (
+          // TCK-2852 — au téléphone : « Mon logement » (photo, fin de bail, trois gestes), puis « À finir » ;
+          // au bureau, à droite : la carte du logement (l'agent et « Écrire »), puis « Interventions en
+          // cours ». Les blocs ajoutés par le produit viennent APRÈS ceux de la maquette, à chaque largeur.
           <>
-            <MonLogement />
+            <MonLogement className="md:hidden" />
+            <EntreeDansLesLieux forme="telephone" className="md:hidden" />
+            <CarteDuLogement className="max-md:hidden" />
+            <InterventionsEnCours className="max-md:hidden" />
             {/* Les échéances lisent les dus, pas `/dashboard/me` : elles rendent même quand celui-ci est en panne. */}
             <EcheancesDes30Jours className="max-md:mx-4" />
             {lecture === 'echec' ? <ErreurDeLaSituation className="max-md:mx-4" /> : null}

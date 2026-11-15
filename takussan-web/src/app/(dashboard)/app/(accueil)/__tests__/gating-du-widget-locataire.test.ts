@@ -29,7 +29,9 @@ describe('AC5 — la check-list locataire est bien conditionnée au rôle tenant
     expect(source, `page introuvable ou vide : ${PAGE}`).toContain(
       '<TenantOnboardingChecklistWidget />',
     );
-    expect(source).toContain('isTenant(user.roles) ? <TenantOnboardingChecklistWidget /> : null');
+    // TCK-2852 — le persona locataire lit la check-list dans ses blocs (« À finir »), plus en bandeau ;
+    // le prédicat du bandeau reste `isTenant` pour tous les autres (un bailleur qui loue aussi).
+    expect(source).toContain('isTenant(user.roles) && !accueilLocataire ? <TenantOnboardingChecklistWidget /> : null');
 
     // `isCustomer` est devenu vrai pour tout compte authentifié : l'employer ici
     // monterait le widget — et sa requête de baux — pour l'agence entière.

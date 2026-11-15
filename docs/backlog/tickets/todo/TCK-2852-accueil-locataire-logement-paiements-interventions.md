@@ -76,4 +76,63 @@ Relevé (audit-f3-coque.md, app-accueil e3 et app-coque e10) : bureau gauche = `
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Livré le 2026-11-15 (arbre `feat/audit-manques-2026-11-15`), sur les champs de TCK-2851.
+
+**Re-mesure de la prémisse**
+- Interventions : la page du locataire ne lit PAS `filter[requester_id]` mais `useDemandesDuLocataire`
+  (portée `visibleTo` de l'API, sans colonne de coût) et `repartirDemandes`. Le bloc reprend cette
+  lecture (même clé, même cache) : « en cours » = terminées à confirmer + en cours.
+- Écrire : la conversation directe naît au premier envoi (`initial_message`, TCK-2632) ; le geste est
+  `EcrireA` (fil existant → `/app/messages?conversation=…`, sinon le brouillon, puis la même URL).
+- Moyens en ligne : `online_means` (TCK-2851). **Free Money n'a pas de pilote** : l'API ne le sert
+  jamais, la ligne ne le cite donc jamais aujourd'hui (la maquette le cite).
+
+**Ce qui est livré**
+- `MonLogement` (téléphone) : photo 64 px, « Bail jusqu'au … » à la place du loyer (le loyer reste sans
+  date de fin), tête cliquable vers `/app/leases/{id}` (le chevron de la maquette), « Contacter
+  l'agence » détaillé « agence · agent ».
+- `EntreeDansLesLieux` (neuf) : « Votre entrée dans les lieux » + « N étapes restantes », étapes
+  cochées / à faire, sur le bail du résumé du loyer ; au téléphone sous l'intertitre « À finir », après
+  « Mon logement » ; au bureau à gauche. Disparaît (intertitre compris) quand la check-list est finie.
+  Les étapes et liens viennent de `TenantOnboardingChecklistWidget` (exports `ITEM_ORDER`,
+  `isItemDone`, `lienDeLEtape`).
+- Bandeau de tête : retiré pour le persona locataire ; GARDÉ pour un non-locataire qui a le rôle
+  `tenant` (bailleur qui loue aussi, TCK-492).
+- `CarteDuLoyer` : ligne des moyens sous « Payer » (`online_means` → `payments.methods.*`, code
+  inconnu ignoré, vide → pas de ligne).
+- `DerniersPaiements` (neuf, bureau) : 3 derniers paiements réglés, date · période · moyen (dès `lg`) ·
+  montant · « Payé » · « Quittance », « Tous les paiements » → `/app/payments`. Même lecture que
+  « Mon logement » (une requête). « Quittance » = loyer ou charges soldés ; c'est un bouton
+  (téléchargement authentifié), pas un `<a>`.
+- `CarteDuLogement` (neuf, bureau, droite) : photo 160 px, titre, « quartier, ville », « Bail jusqu'au
+  … · loyer par mois », agent (avatar ou initiales, « agence · votre agent », « Écrire »). Sans agent :
+  « Géré par {agence} » et « Appeler » si le téléphone est joignable, sinon aucun geste.
+- `InterventionsEnCours` (neuf, bureau, droite) : liste (3 + « Voir les N interventions ») avec statut,
+  ou « Aucune intervention en cours dans votre logement. », et « Signaler un problème ».
+- Disposition : formes téléphone `md:hidden`, bureau `max-md:hidden` ; les blocs du produit (échéances,
+  ce qui m'attend, documents) restent après ceux de la maquette.
+
+**Écarts à la maquette (donnée)**
+- L'adresse avec la rue (« Villa 9042, … ») : l'API ne sert que quartier et ville (TCK-2851).
+- Les étapes de la check-list servie diffèrent de celles dessinées.
+- La ligne d'en-tête « …, 2 étapes d'entrée à finir » n'est pas reprise (`ResumeDuLocataire` inchangé).
+- « Free Money » : jamais servi (pas de pilote).
+- Avec un agent, la carte du bureau ne répète pas « Géré par {agence} » (la maquette non plus) : l'agence
+  est dans « {agence} · votre agent ».
+- Une seule check-list, celle du bail du résumé du loyer : un locataire de plusieurs baux en cours en
+  voyait une par bail dans l'ancien bandeau.
+- Une demande terminée qui attend la confirmation du locataire figure dans « Interventions en cours »,
+  avec le statut « Terminée » (le partage de la page Interventions).
+- L'avatar de l'agent passe par la primitive `Avatar` (comme la messagerie), pas `next/image`.
+
+**Mesures**
+- `accueil-locataire.tck-2852.test.tsx` (15), `marqueur-accueil-agence.tck-1766`, `socle.tck-2622` et `gating-du-widget-locataire` mis à
+  jour, tests du widget, `parametre-de-bail`, `routes-atteignables`, tests `payments/locataire` : verts.
+- Ablations (une à une, restaurées par `cp`, md5 vérifié) : fin de bail masquée → AC1 rouge ; quittance
+  sans condition → test « caution, pénalité » rouge ; moyens écrits en dur → AC5 rouge ; closes
+  incluses → AC4 rouge ; `EcrireA` sur l'agence → AC3 rouge ; bandeau rendu au locataire → socle rouge ;
+  « À finir » retiré de la page → socle rouge.
+- eslint, `tsc --noEmit`, `check:i18n`, `check-i18n-namespaces`, `npm run check:*`, gardes racine verts
+  (sauf `check-models-spec`, rouge sur `BookingDossierItem`, hors de ce ticket).
+- **Non mesuré** : AC-F1 à AC-F3 (fidélité au navigateur, débordement à 1024 / 768) — pas de relevé au
+  navigateur dans ce lot ; la fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2852.json` n'est pas écrite.

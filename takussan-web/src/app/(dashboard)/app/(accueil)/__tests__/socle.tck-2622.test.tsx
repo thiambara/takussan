@@ -40,7 +40,7 @@ vi.mock('@/lib/queries/dashboard-me', async (importOriginal) => ({
 vi.mock('@/components/accueil/BandeauMiseEnService', () => ({ BandeauMiseEnService: () => <div data-testid="mise-en-service" /> }));
 vi.mock('@/components/agency/BrandingBanner', () => ({ BrandingBanner: () => null }));
 vi.mock('@/components/wizard/WizardDraftsBanner', () => ({ WizardDraftsBanner: () => <div data-testid="brouillons" /> }));
-vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({ TenantOnboardingChecklistWidget: () => null }));
+vi.mock('@/components/tenant/TenantOnboardingChecklistWidget', () => ({ TenantOnboardingChecklistWidget: () => <div data-testid="bandeau-check-list" /> }));
 vi.mock('@/components/dashboard/DashboardEmpty', () => ({ DashboardEmpty: () => <div data-testid="etat-vide" /> }));
 vi.mock('@/components/journee/MaJournee', () => ({ MaJournee: () => <div data-testid="ma-journee" /> }));
 
@@ -57,7 +57,14 @@ vi.mock('@/components/accueil/bailleur/EnCoursSurVosBiens', () => ({ EnCoursSurV
 vi.mock('@/components/accueil/bailleur/ResumeDuBailleur', () => ({ ResumeDuBailleur: ({ jour }: { jour: string }) => jour }));
 // TCK-2625 — les blocs du locataire, du client et du prestataire, doublés : la page les CHOISIT.
 vi.mock('@/components/accueil/locataire/CarteDuLoyer', () => ({ CarteDuLoyer: () => <div data-testid="carte-du-loyer" /> }));
-vi.mock('@/components/accueil/locataire/MonLogement', () => ({ MonLogement: () => <div data-testid="mon-logement" /> }));
+vi.mock('@/components/accueil/locataire/MonLogement', () => ({ MonLogement: ({ className }: { className?: string }) => <div data-testid="mon-logement" className={className} /> }));
+// TCK-2852 — les blocs du bureau et « À finir », éprouvés par leurs propres tests (`accueil-locataire.tck-2852`).
+vi.mock('@/components/accueil/locataire/DerniersPaiements', () => ({ DerniersPaiements: ({ className }: { className?: string }) => <div data-testid="derniers-paiements" className={className} /> }));
+vi.mock('@/components/accueil/locataire/CarteDuLogement', () => ({ CarteDuLogement: ({ className }: { className?: string }) => <div data-testid="carte-du-logement" className={className} /> }));
+vi.mock('@/components/accueil/locataire/InterventionsEnCours', () => ({ InterventionsEnCours: ({ className }: { className?: string }) => <div data-testid="interventions-en-cours" className={className} /> }));
+vi.mock('@/components/accueil/locataire/EntreeDansLesLieux', () => ({
+  EntreeDansLesLieux: ({ forme, className }: { forme: string; className?: string }) => <div data-testid={`entree-${forme}`} className={className} />,
+}));
 vi.mock('@/components/accueil/locataire/EcheancesDes30Jours', () => ({ EcheancesDes30Jours: () => <div data-testid="echeances-30-jours" /> }));
 vi.mock('@/components/accueil/locataire/ResumeDuLocataire', () => ({ ResumeDuLocataire: ({ jour }: { jour: string }) => jour }));
 vi.mock('@/components/accueil/client/VosVisites', () => ({ VosVisites: ({ visites }: { visites: unknown[] }) => <div data-testid="vos-visites" data-n={visites.length} /> }));
@@ -279,11 +286,14 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     expect(screen.getByRole('heading', { name: 'Ce qui m\'attend' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Réservations en attente/ }).getAttribute('href')).toBe('/app/bookings');
     expect(screen.queryByTestId('etat-vide')).toBeNull();
-    // L'ordre du ticket au téléphone (et du document) : la carte, « Mon logement », les échéances, ce qui
-    // m'attend, les documents ; au bureau, la carte SEULE à gauche, le reste dans la colonne.
+    // TCK-2852 — l'ordre du document (celui du téléphone) : la carte, « Mon logement », « À finir », puis
+    // les blocs du produit (échéances, ce qui m'attend, documents) — jamais avant ceux de la maquette.
     const ordre = [
       screen.getByTestId('carte-du-loyer'),
       screen.getByTestId('mon-logement'),
+      screen.getByTestId('entree-telephone'),
+      screen.getByTestId('carte-du-logement'),
+      screen.getByTestId('interventions-en-cours'),
       screen.getByTestId('echeances-30-jours'),
       screen.getByRole('heading', { name: 'Ce qui m\'attend' }),
       screen.getByRole('heading', { name: 'Documents récents' }),
@@ -291,8 +301,33 @@ describe('TCK-2625 — les blocs du locataire, du client et du prestataire', () 
     for (let i = 1; i < ordre.length; i++) {
       expect(ordre[i - 1].compareDocumentPosition(ordre[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
-    expect(screen.getByTestId('mon-logement').closest('[class*="xl:row-span-2"]')).toBeNull();
-    expect(screen.getByTestId('carte-du-loyer').closest('[class*="xl:row-span-2"]')).not.toBeNull();
+    // Au bureau, à gauche : la carte du loyer, « Derniers paiements », « Votre entrée dans les lieux » ; à
+    // droite : la carte du logement et « Interventions en cours ».
+    const gauche = screen.getByTestId('carte-du-loyer').closest('[class*="xl:row-span-2"]');
+    expect(gauche).not.toBeNull();
+    for (const id of ['derniers-paiements', 'entree-bureau']) {
+      expect(screen.getByTestId(id).closest('[class*="xl:row-span-2"]')).toBe(gauche);
+      expect(screen.getByTestId(id).className).toContain('max-md:hidden');
+    }
+    for (const id of ['mon-logement', 'entree-telephone', 'carte-du-logement', 'interventions-en-cours']) {
+      expect(screen.getByTestId(id).closest('[class*="xl:row-span-2"]')).toBeNull();
+    }
+    // Chaque forme à sa largeur : le téléphone sous `md`, le bureau dès `md`.
+    expect(screen.getByTestId('mon-logement').className).toContain('md:hidden');
+    expect(screen.getByTestId('entree-telephone').className).toContain('md:hidden');
+    expect(screen.getByTestId('carte-du-logement').className).toContain('max-md:hidden');
+    expect(screen.getByTestId('interventions-en-cours').className).toContain('max-md:hidden');
+    // AC1 — plus de bandeau de check-list en tête pour le locataire.
+    expect(screen.queryByTestId('bandeau-check-list')).toBeNull();
+  });
+
+  it('TCK-2852 — un bailleur qui loue aussi un logement garde la check-list en bandeau (`isTenant`, pas le persona)', async () => {
+    ETAT.user = { id: 9, roles: ['customer', 'owner', 'tenant'], agency_id: null, first_name: 'Ousmane' };
+    ETAT.lecture = { data: { role: 'owner', metrics: {}, sections: [] } };
+    await monter();
+
+    expect(screen.getByTestId('bandeau-check-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('entree-telephone')).toBeNull();
   });
 
   it('le locataire, `/dashboard/me` en panne : la carte, « Mon logement » et les échéances rendent ; « Ce qui m’attend » dit son erreur', async () => {

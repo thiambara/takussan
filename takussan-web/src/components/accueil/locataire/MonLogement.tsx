@@ -1,8 +1,9 @@
 'use client';
 
 import type { ComponentType, ReactNode } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, FileText, MessageSquare, Wrench } from 'lucide-react';
+import { ChevronRight, FileText, Home, MessageSquare, Wrench } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { isReachable, telHref } from '@/components/crm/contact';
@@ -30,13 +31,16 @@ import { TitreBloc } from '../pieces';
  * la quittance, de l'historique filtré par l'API sur les paiements réglés (dix lignes : la première
  * de loyer ou de charges — l'API n'a pas de filtre par nature).
  *
- * Écarts de donnée à la maquette : la photo du bien, la fin du bail et l'agent (non servis).
+ * TCK-2852 — la tête porte la photo du bien et « Bail jusqu'au 31 août 2027 » à la place du loyer
+ * mensuel (servis par TCK-2851 ; sans date de fin, le loyer reste) ; elle mène au bail. « Contacter
+ * l'agence » nomme l'agent du bail à côté de l'agence quand il y en a un. C'est la forme du TÉLÉPHONE :
+ * au bureau, la carte du logement (`CarteDuLogement`) la remplace.
  */
 /**
  * Dix lignes réglées, pas trois : trois pénalités récentes masqueraient la quittance (décision du lead,
  * 2026-11-13). Sans ligne de loyer ou de charges parmi elles, pas de geste.
  */
-const QUITTANCES_LUES = 10;
+export const QUITTANCES_LUES = 10;
 
 export function MonLogement({ className }: { readonly className?: string }) {
   const t = useTranslations('accueil.locataire.logement');
@@ -52,6 +56,9 @@ export function MonLogement({ className }: { readonly className?: string }) {
     (r) => r.source === 'lease' && r.status === 'paid' && r.lease_id !== null && (r.payment_type === 'rent' || r.payment_type === 'charges'),
   );
   const loyer = bail.monthly_rent != null ? f.montantCourt(bail.monthly_rent, bail.currency ?? resume.data?.data?.currency ?? null) : null;
+  const finDuBail = bail.end_date ? f.date(bail.end_date, { day: 'numeric', month: 'long', year: 'numeric', dateStyle: undefined }) : null;
+  const photo = bail.property?.cover_url ?? null;
+  const agent = bail.agent?.name ?? null;
 
   return (
     <section aria-labelledby="mon-logement" className={cn('space-y-2', className)} data-slot="mon-logement">
@@ -59,11 +66,21 @@ export function MonLogement({ className }: { readonly className?: string }) {
         {t('titre')}
       </TitreBloc>
       <div className="overflow-hidden rounded-2xl border border-border bg-card max-md:mx-4">
-        <div className="px-4 py-3">
-          <p className="truncate text-corps font-semibold">{bail.property?.title ?? t('bienSansTitre')}</p>
-          {loyer ? <p className="truncate text-ui text-muted-foreground">{t('loyerParMois', { loyer })}</p> : null}
-          {agence?.name ? <p className="truncate text-ui text-muted-foreground">{t('gerePar', { agence: agence.name })}</p> : null}
-        </div>
+        <Link href={`/app/leases/${bail.id}`} className={cn(LIGNE, 'min-h-0 p-3')} data-slot="tete-du-logement">
+          <span className="relative inline-flex size-16 flex-none items-center justify-center overflow-hidden rounded-xl bg-muted text-muted-foreground">
+            {photo ? <Image src={photo} alt="" fill sizes="64px" className="object-cover" data-slot="photo-du-logement" /> : <Home className="size-6" strokeWidth={1.5} aria-hidden="true" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-corps font-semibold">{bail.property?.title ?? t('bienSansTitre')}</span>
+            {finDuBail ? (
+              <span className="block truncate text-ui text-muted-foreground">{t('bailJusquau', { date: finDuBail })}</span>
+            ) : loyer ? (
+              <span className="block truncate text-ui text-muted-foreground">{t('loyerParMois', { loyer })}</span>
+            ) : null}
+            {agence?.name ? <span className="block truncate text-ui text-muted-foreground">{t('gerePar', { agence: agence.name })}</span> : null}
+          </span>
+          <ChevronRight className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+        </Link>
         <ul className="divide-y divide-border border-t border-border">
           <li>
             <Raccourci icone={Wrench} titre={t('signaler')} detail={t('signalerDetail')} href="/app/maintenance/new" />
@@ -75,7 +92,12 @@ export function MonLogement({ className }: { readonly className?: string }) {
           ) : null}
           {isReachable(telephone) ? (
             <li>
-              <Raccourci icone={MessageSquare} titre={t('contacter')} detail={agence?.name ?? telephone} href={telHref(telephone)} />
+              <Raccourci
+                icone={MessageSquare}
+                titre={t('contacter')}
+                detail={agence?.name && agent ? t('agenceEtAgent', { agence: agence.name, agent }) : (agence?.name ?? agent ?? telephone)}
+                href={telHref(telephone)}
+              />
             </li>
           ) : null}
         </ul>
