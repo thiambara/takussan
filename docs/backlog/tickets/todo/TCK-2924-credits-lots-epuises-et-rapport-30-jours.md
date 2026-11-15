@@ -54,4 +54,31 @@ Relevé du 2026-11-15 : `GET /api/credits` (`Credits/CreditController.php:27`) n
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (agent délégué, worktree `feat/audit-manques-2026-11-15`), après TCK-2923 : le rapport porte
+donc les vues de fiche.
+
+- **Prémisse qui différait** : l'expiration (`CreditLedger::expireDue`) solde le lot à 0 avec un mouvement `expire`.
+  « Solde 0 » ne veut donc pas dire « épuisé ». **Décision** — deux états exclusifs, dont l'union est exactement le
+  complément de `spendable()` : `expired()` = un mouvement `expire`, OU un reste > 0 avec une date passée (pas encore
+  balayé) ; `spent()` = solde 0 sans mouvement `expire` (un lot vidé avant sa date reste épuisé quand la date passe).
+  Scopes `spent()`, `expired()`, `notSpendable()` sur `CreditLot`.
+- **`GET /api/credits/lots`** (`CreditLotController@index`, `IndexCreditLotsRequest`) : `HasQueryBuilder`
+  (`$queryFields` + filtre `state` sur `CreditLot`), `fields[credit_lots]`, `per_page` 1 à 50, plus récent d'abord ;
+  chaque ligne porte `state` (`CreditLot::stateSql()`). `filter[state]` inconnu → 422. `CreditLotResource` passe à
+  `whenHas` : `GET /api/credits` lit toutes les colonnes et garde sa forme (`CreditsApiTest` vert).
+- **`GET /api/credits/boosts/report?days=7|30|90`** (défaut 30, `CreditBoostReportController`) : `data.days[]`
+  (`date`, `impressions`, `clicks`, `views`), consécutifs, jours UTC, 0 sans mesure ; `data.boosts[]` (les mises en
+  avant qui ont couru dans la période, leurs totaux) ; `meta {days, from, to}`. **Décision (vues)** : `views` d'un jour =
+  les vues d'un bien un jour où l'une de ses mises en avant courait, comptées une fois par bien et par jour ; la somme
+  des `views` par mise en avant peut donc dépasser celle des jours si deux mises en avant du même bien se chevauchent
+  (impressions et clics : égalité exacte, AC2).
+- Même garde que `GET /api/credits` : `AuthorizesWalletReading` (403 avant 422) + `ReadsWallet` (422 `credits.no_space`).
+- Tests : `CreditLotsHistoryTest` (4), `CreditBoostReportTest` (4, dont deux mises en avant du même bien le même
+  jour : 9 vues au jour, pas 18) — verts ; 13 ablations une à une, toutes rouges, restaurées au md5 (une 14e, sur le
+  `whenHas` d'une colonne LUE, restait verte : elle ne testait rien et a été refaite sur une colonne omise).
+- Autres lecteurs de `CreditLotResource` vérifiés : `GET /api/credits` (`CreditsApiTest`) et la console
+  (`AdminCreditWalletController`, `AdminCreditsApiTest`, `AdminCreditsStepUpTest`) lisent toutes les colonnes : même forme.
+- Garde `DateInventoryByValueTest` : `CreditLotResource::state` inscrite dans `CLES_JAMAIS_ATTEINTES` (chaîne, jamais
+  une date). Les mêmes gardes que TCK-2923 sont vertes.
+- Docs : `docs/spatie-query-builder.md`.
+

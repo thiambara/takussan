@@ -103,6 +103,10 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
+        // TCK-2924
+        'App\Http\Resources\Credits\CreditLotResource::state' => "`whenHas('state')` — `spent` ou `expired`, une "
+            .'chaîne de `CreditLot::stateSql()` (TCK-2924), jamais une date. Elle ne vient que du `addSelect` de '
+            .'`CreditLotController::index` ; le sujet vient d\'une factory, pas de cette requête.',
         'App\Http\Resources\CustomerResource::bookings_count' => "`when()` sur l'attribut `bookings_count` (TCK-2589, `include=bookingsCount`) — "
             .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
         'App\Http\Resources\CustomerResource::leases_count' => "`when()` sur l'attribut `leases_count` (TCK-2589, `include=leasesCount`) — "
@@ -178,7 +182,7 @@ class DateInventoryByValueTest extends TestCase
             .'que seul `LeaseController::show` appelle. C\'EST une date de calendrier (`RentReviewSchedule::nextRevisionDate()`), '
             .'émise par `$this->calendarDate()` au format `2027-07-01`, ou `null` : sa forme est gardée par '
             .'`scripts/check-resource-date-format.mjs` et par la valeur exacte de `Tests\Feature\Lease\LeaseNextRevisionDateTest`.',
-        'App\Http\Resources\LeaseResource::origin_booking' =>'`when()` sur le même lecteur posé par `forViewer()` et '
+        'App\Http\Resources\LeaseResource::origin_booking' => '`when()` sur le même lecteur posé par `forViewer()` et '
             .'sur `can(\'abandon\')` (TCK-2764) : `{id, status}` de la réservation d\'origine, un entier et la valeur de '
             .'`BookingStatus`, ou `null` ; jamais une date.',
         'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '
