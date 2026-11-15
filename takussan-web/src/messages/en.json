@@ -3093,6 +3093,11 @@
         "voirPlus": "Show more",
         "chargement": "Loading…",
         "erreur": "The next clients could not be loaded. Please try again."
+      },
+      "referentFiltre": {
+        "libelle": "Lead agent:",
+        "choisi": "selected member",
+        "retirer": "Remove the lead agent filter"
       }
     },
     "customerDetail": {
@@ -9778,7 +9783,9 @@
         "data_export_redownloaded": "Export downloaded again",
         "owner_mandate_terms_updated": "Landlord mandate updated",
         "inventory_pdf_sent": "Inventory PDF sent to the parties",
-        "invitation_share_link_issued": "Invitation link renewed for sharing"
+        "invitation_share_link_issued": "Invitation link renewed for sharing",
+        "review_removed": "Review deleted",
+        "review_reports_ignored": "Review reports dismissed"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -10300,7 +10307,6 @@
           "biensSuivis": "Properties followed",
           "nbBiens": "{n, plural, =0 {No property} one {# property} other {# properties}}",
           "clientsEtVisites": "Clients and visits",
-          "nbClientsEtVisites": "{clients, plural, one {# active client} other {# active clients}} · {visites, plural, =0 {no upcoming visit} one {# upcoming visit} other {# upcoming visits}}",
           "commissionsDues": "Commissions due",
           "duesMontant": "{montant} in commissions due",
           "rienAPayer": "Nothing to pay",
@@ -10330,7 +10336,16 @@
           "modifierLeTaux": "Edit the commission rate, currently {valeur}",
           "typeDeProfil": "Profile in the agency",
           "typeDeProfilDetail": "Agent, administrator or landlord",
-          "enregistrer": "Save"
+          "enregistrer": "Save",
+          "biensVentiles": "{n, plural, one {# property} other {# properties}} · {location} rented, {marche} for rent or sale{autres, plural, =0 {} one {, # other} other {, # others}}",
+          "clientsEtVisitesSemaine": "{clients, plural, =0 {No active client} one {# active client} other {# active clients}} · {visites, plural, =0 {no visit this week} one {# visit this week} other {# visits this week}}",
+          "duesDetail": "{n, plural, one {# lease} other {# leases}} · the oldest dates from {date}",
+          "doubleAuthActiveeDepuis": "Enabled since {date}",
+          "rappeler": "Remind",
+          "rappelerAria": "Remind {nom} to enable two-factor authentication",
+          "rappelEnvoye": "Reminder sent to {nom}.",
+          "dejaRappele": "Already reminded today: one reminder per 24 hours.",
+          "rappelEchec": "The reminder could not be sent."
         },
         "absence": {
           "titre": "Cover an absence",
@@ -10410,8 +10425,17 @@
               "agency_admin": "The whole agency, the money, the team."
             },
             "validite": "The invitation link stays valid for 7 days. Opening it, the person creates an account or signs in, then joins the agency.",
-            "envoyee": "Invitation sent to {email}."
-          }
+            "envoyee": "Invitation sent to {email}.",
+            "partagee": "Invitation created for {telephone}: send the message in WhatsApp.",
+            "whatsappSansNumero": "A phone number is required to invite via WhatsApp.",
+            "whatsappSansEmail": "Via WhatsApp, the invitation is tied to the phone number only: leave the email address empty."
+          },
+          "parWhatsApp": "Via WhatsApp",
+          "lienParWhatsApp": "Link via WhatsApp",
+          "repartager": "Share again",
+          "repartagerAria": "Share {nom}’s invitation again via WhatsApp",
+          "repartagee": "New link created for {nom}: send it in WhatsApp. The previous one no longer works.",
+          "messageWhatsApp": "Hello, I am inviting you to join our team on Takussan. Open this link to create your account with your phone number (valid for 7 days): {lien}"
         }
       }
     },
@@ -10833,7 +10857,10 @@
           "ajouterCourt": "Add",
           "nombreDeBiens": "{n, plural, one {# property} other {# properties}}",
           "accrocheIci": "Your tagline will appear here.",
-          "prixParPeriode": "{montant} / {periode, select, daily {day} weekly {week} yearly {year} other {month}}"
+          "prixParPeriode": "{montant} / {periode, select, daily {day} weekly {week} yearly {year} other {month}}",
+          "autresBiens": "{n, plural, one {# other published property.} other {# other published properties.}}",
+          "suggestionPlusVus": "Suggestion: your most viewed properties this month.",
+          "utiliserLaSelection": "Use this selection"
         },
         "facturation": {
           "titre": "Billing and legal details",
@@ -20050,7 +20077,6 @@
       "parMiseEnAvant": "By promotion",
       "parJour": "Day by day",
       "aucune": "No promotion over these 30 days.",
-      "total": "Total",
       "col": {
         "jour": "Day",
         "affichages": "Impressions",
@@ -20058,7 +20084,8 @@
         "consultations": "Page visits"
       },
       "legende": "Impressions: the listing card shown in results. Views: the listing opened from a promotion. Page visits: every opening of the listing during a promotion.",
-      "periodeBoost": "since {date}"
+      "periodeBoost": "since {date}",
+      "periodeBoostFinie": "from {debut} to {fin}"
     },
     "lotsPasses": {
       "vide": "No spent or expired lot.",
@@ -22446,7 +22473,8 @@
         "createdFrom": "Created after",
         "createdTo": "Created before",
         "agent": "Agent",
-        "owner": "Landlord"
+        "owner": "Landlord",
+        "suiviPar": "Managed by"
       },
       "mobile": {
         "button": "Filters",

@@ -58,4 +58,48 @@ L'admin retrouve un avis par le bien, l'auteur ou l'agent, le juge en voyant ce 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémenté (agent délégué, vague 92).**
+
+- **ADR-0043 amendé d'abord** (§ « Amendement du 2026-11-15 », ligne d'index à jour) : décision
+  **déléguée** par le porteur (« valide tes choix »), réversible. L'admin d'agence **supprime** et
+  **ignore les signalements** d'un avis de bien ou d'agent de son périmètre, quel que soit son statut ;
+  approuver et masquer restent réservés à l'avis en attente ; avis sur l'agence, sur un prestataire,
+  d'une agence `individual` ou d'une autre agence → 403. Contrepoids : motif codé **et** texte exigés
+  de l'admin d'agence pour supprimer (la plateforme garde la règle du § 7), et chaque suppression ou
+  « ignorer » journalisé (`review.removed`, `review.reports_ignored` : acteur, code, texte, statut
+  d'avant, `by_platform`). `pending_count` d'agence inchangé (en attente seulement).
+- Capacités neuves `ReviewPolicy::delete` / `dismissReports` (sur `ReviewModerationScope::canDelete`
+  / `canDismissReports`) ; `ModerateReviewRequest::authorize()` choisit la capacité par décision ;
+  `can_moderate` garde son sens ; `ReviewResource` gagne `can_delete` et `can_dismiss_reports` (pour
+  TCK-2931).
+- `filter[search]` : titre et référence du bien, prénom / nom / identifiant de l'auteur et de l'agent
+  noté (chaque mot dans une même personne), `CaseInsensitive`, dans un seul groupe posé après le
+  cloisonnement et avant les comptes de risque (`meta.risk_counts` suit la recherche).
+- `GET /api/reviews/{review}/subject-summary` (`ReviewSubjectSummaryController`) : `subject`
+  (`average_rating` arrondie à 0,1, `reviews_count`, sur `is_approved = true`, l'avis compris s'il est
+  publié), `others` (3 derniers autres avis publiés : `id`, `rating`, `excerpt`, `author_name`,
+  `created_at`), `author.tenant_since`.
+
+**Prémisses qui différaient / choix tranchés.**
+
+- Il n'existe **aucune route de détail** d'un avis (`GET /reviews/{id}`) : « même policy que le
+  détail » n'a pas de référent. Choix : `viewSubjectSummary` = le périmètre de la **file**
+  (`inQueueScope` : super-admin, ou `reviews.agency_id` = agence modérée de l'acteur), avis sur
+  l'agence elle-même compris — les données rendues sont publiques (avis publiés).
+- `tenant_since` n'était rendu **nulle part** (ni API ni front). Il est servi par le résumé du sujet,
+  pas par `ReviewResource` : pas de requête par ligne de la file paginée, jamais lu par le public ni
+  par l'auteur. Bail compté : statuts de `ReviewEligibility::LEASE_STATUSES` + `renewed` (jamais
+  brouillon ni en signature), locataire = fiche client de l'auteur, agence = `leases.agency_id` ou
+  celle du bien (la colonne est nullable).
+- La maquette montre un avis « en attente » parmi les autres avis du sujet : la contrainte du ticket
+  (publiés seulement) l'emporte.
+- La maquette montre aussi « Masquer » sur un avis signalé : hors du delta (ADR inchangé sur ce
+  point), l'admin d'agence ne masque toujours qu'un avis en attente.
+
+**Tests** : `ReviewModerationSearchTest` (4), `ReviewSubjectSummaryTest` (4),
+`ReviewAgencyAdminDeleteTest` (5), verts ; `ReviewModerationScopeTest` réécrit pour l'amendement
+(les 403 sur `delete` retirés, masquer/refuser un publié gardés). Ablations (14) toutes rouges puis
+restaurées par md5. Joués aussi : ReviewModerationQueueTest, ReviewFlagsQueryCountTest,
+ReviewModerationWorkflowTest, ReviewTest, ReviewAuthorNameTest, ReceivedReviewsTest,
+BasePolicyCapabilityTest, les trois balayages, les trois gardes d'architecture, les gardes racine,
+`AuditTrail -t TCK-2676`, `check:i18n`.

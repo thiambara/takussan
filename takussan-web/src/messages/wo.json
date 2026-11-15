@@ -1854,6 +1854,11 @@
         "voirPlus": "Voir plus",
         "chargement": "Chargement…",
         "erreur": "La suite n’a pas pu être chargée. Réessayez."
+      },
+      "referentFiltre": {
+        "libelle": "Référent :",
+        "choisi": "membre choisi",
+        "retirer": "Retirer le filtre du référent"
       }
     },
     "customerDetail": {
@@ -8539,7 +8544,9 @@
         "data_export_redownloaded": "Export retéléchargé",
         "owner_mandate_terms_updated": "Mandat d'un bailleur modifié",
         "inventory_pdf_sent": "PDF de l’état des lieux envoyé aux parties",
-        "invitation_share_link_issued": "Lien d'invitation renouvelé pour partage"
+        "invitation_share_link_issued": "Lien d'invitation renouvelé pour partage",
+        "review_removed": "Avis supprimé",
+        "review_reports_ignored": "Signalements d’un avis ignorés"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -9061,7 +9068,6 @@
           "biensSuivis": "Biens suivis",
           "nbBiens": "{n, plural, =0 {Aucun bien} one {# bien} other {# biens}}",
           "clientsEtVisites": "Clients et visites",
-          "nbClientsEtVisites": "{clients, plural, one {# client actif} other {# clients actifs}} · {visites, plural, =0 {aucune visite à venir} one {# visite à venir} other {# visites à venir}}",
           "commissionsDues": "Commissions dues",
           "duesMontant": "{montant} de commissions dues",
           "rienAPayer": "Rien à payer",
@@ -9091,7 +9097,16 @@
           "modifierLeTaux": "Modifier le taux de commission, actuellement {valeur}",
           "typeDeProfil": "Profil dans l’agence",
           "typeDeProfilDetail": "Agent, administrateur ou bailleur",
-          "enregistrer": "Enregistrer"
+          "enregistrer": "Enregistrer",
+          "biensVentiles": "{n, plural, one {# bien} other {# biens}} · {location} en location, {marche} à louer ou à vendre{autres, plural, =0 {} one {, # autre} other {, # autres}}",
+          "clientsEtVisitesSemaine": "{clients, plural, =0 {Aucun client actif} one {# client actif} other {# clients actifs}} · {visites, plural, =0 {aucune visite cette semaine} one {# visite cette semaine} other {# visites cette semaine}}",
+          "duesDetail": "{n, plural, one {# bail} other {# baux}} · la plus ancienne date du {date}",
+          "doubleAuthActiveeDepuis": "Activée depuis le {date}",
+          "rappeler": "Rappeler",
+          "rappelerAria": "Rappeler à {nom} d’activer la double authentification",
+          "rappelEnvoye": "Rappel envoyé à {nom}.",
+          "dejaRappele": "Déjà rappelé aujourd’hui : un seul rappel par 24 heures.",
+          "rappelEchec": "Le rappel n’a pas pu partir."
         },
         "absence": {
           "titre": "Couvrir une absence",
@@ -9171,8 +9186,17 @@
               "agency_admin": "Toute l’agence, l’argent, l’équipe."
             },
             "validite": "Le lien d’invitation reste valable 7 jours. En l’ouvrant, la personne crée son compte ou se connecte, puis rejoint l’agence.",
-            "envoyee": "Invitation envoyée à {email}."
-          }
+            "envoyee": "Invitation envoyée à {email}.",
+            "partagee": "Invitation créée pour le {telephone} : envoyez le message dans WhatsApp.",
+            "whatsappSansNumero": "Le numéro de téléphone est requis pour inviter par WhatsApp.",
+            "whatsappSansEmail": "Par WhatsApp, l’invitation est liée au seul numéro : laissez l’adresse e-mail vide."
+          },
+          "parWhatsApp": "Par WhatsApp",
+          "lienParWhatsApp": "Lien par WhatsApp",
+          "repartager": "Repartager",
+          "repartagerAria": "Repartager par WhatsApp l’invitation de {nom}",
+          "repartagee": "Nouveau lien créé pour {nom} : envoyez-le dans WhatsApp. L’ancien ne fonctionne plus.",
+          "messageWhatsApp": "Bonjour, je vous invite à rejoindre notre équipe sur Takussan. Ouvrez ce lien pour créer votre compte avec votre numéro (valable 7 jours) : {lien}"
         }
       }
     },
@@ -9594,7 +9618,10 @@
           "ajouterCourt": "Ajouter",
           "nombreDeBiens": "{n, plural, one {# bien} other {# biens}}",
           "accrocheIci": "Votre accroche paraîtra ici.",
-          "prixParPeriode": "{montant} / {periode, select, daily {jour} weekly {semaine} yearly {an} other {mois}}"
+          "prixParPeriode": "{montant} / {periode, select, daily {jour} weekly {semaine} yearly {an} other {mois}}",
+          "autresBiens": "{n, plural, one {# autre bien publié.} other {# autres biens publiés.}}",
+          "suggestionPlusVus": "Suggestion : vos biens les plus vus ce mois.",
+          "utiliserLaSelection": "Utiliser cette sélection"
         },
         "facturation": {
           "titre": "Facturation et mentions légales",
@@ -20050,7 +20077,6 @@
       "parMiseEnAvant": "Par mise en avant",
       "parJour": "Jour par jour",
       "aucune": "Aucune mise en avant sur ces 30 jours.",
-      "total": "Total",
       "col": {
         "jour": "Jour",
         "affichages": "Affichages",
@@ -20058,7 +20084,8 @@
         "consultations": "Consultations"
       },
       "legende": "Affichages : la carte du bien montrée dans les résultats. Vues : la fiche ouverte depuis une mise en avant. Consultations : toutes les ouvertures de la fiche pendant une mise en avant.",
-      "periodeBoost": "depuis le {date}"
+      "periodeBoost": "depuis le {date}",
+      "periodeBoostFinie": "du {debut} au {fin}"
     },
     "lotsPasses": {
       "vide": "Aucun lot épuisé ou expiré.",
@@ -22446,7 +22473,8 @@
         "createdFrom": "Sosu ginnaaw",
         "createdTo": "Sosu laata",
         "agent": "Ajaŋ",
-        "owner": "Bailleur"
+        "owner": "Bailleur",
+        "suiviPar": "Suivis par"
       },
       "mobile": {
         "button": "Filtre yi",

@@ -1,6 +1,6 @@
 # ADR-0043 — Un avis a une cible, une preuve et un modérateur ; une annonce masquée par la plateforme tient à un verrou que seule la plateforme lève
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — qui le locataire peut noter comme agent*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — qui le locataire peut noter comme agent*) et **le 2026-11-15** (cf. § *Amendement du 2026-11-15 — l'admin d'agence supprime et ignore les signalements*)
 - **Date** : 2026-10-08
 - **Tickets** : [TCK-597](../backlog/tickets/done/TCK-597-avis-signalements-et-moderation.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation ») et
@@ -68,6 +68,10 @@ session). Sur un avis `pending` de son périmètre, il peut seulement **approuve
 Dès qu'un avis est publié (`approved` ou `reported`), seule la plateforme le retire, et l'agence ne
 fait plus qu'y répondre ou le signaler. Retirer, ignorer des signalements et supprimer sont réservés
 à la plateforme, même pour un avis en attente.
+
+> **Amendé le 2026-11-15** (TCK-2930, § en fin de document) : « supprimer » et « ignorer les
+> signalements » sont désormais ouverts à l'admin d'agence sur les avis de bien et d'agent de son
+> périmètre, quel que soit leur statut. Approuver et masquer restent réservés à l'avis en attente.
 
 Le motif est celui qui écarte déjà les avis sur l'agence : **juge et partie**. Un avis sur le bien
 ou sur l'agent d'une agence la juge tout autant. Dans la version précédente, l'admin d'agence
@@ -381,3 +385,53 @@ collaborateurs ; l'hôte d'une agence `individual` n'est pas proposé ; un locat
 sur l'agent du bail **et** un sur un collaborateur, avec la même preuve (201 les deux fois), et un
 second avis sur le même agent rend 422. Une migration élargit `reviews_author_context_uniq`, et
 son test vérifie qu'aucun avis existant ne la fait échouer. Chaque test se vérifie par ablation.
+
+## Amendement du 2026-11-15 — l'admin d'agence supprime et ignore les signalements
+
+Décision **déléguée** à la session d'implémentation par le porteur (« valide tes choix »,
+2026-11-15), sur TCK-2930 et la maquette `app-moderation` (persona `admin`, écran e1), qui confie à
+l'admin d'agence « Supprimer » et « Ignorer les signalements ». Réversible : la revenir, c'est
+retirer les deux capacités ci-dessous de `ReviewPolicy`. Elle amende le § 1.
+
+**Décision.** Sur un avis de **son périmètre** — cible bien ou agent
+(`Review::AGENCY_MODERATED_TYPES`), `reviews.agency_id` égal à l'agence de son profil actif,
+agence `standard`, `AgencyAdminProfile` actif —, l'admin d'agence peut, **quel que soit le statut
+de l'avis** (en attente, publié, signalé) :
+
+1. **supprimer** l'avis (`decision = delete`, capacité `ReviewPolicy::delete`) : suppression douce,
+   moyenne recomptée par l'observateur ; l'avis supprimé compte toujours pour l'unicité (§ 3,
+   verif-597 M2) ;
+2. **ignorer ses signalements** (`decision = ignore`, capacité `ReviewPolicy::dismissReports`).
+
+Ce qui **ne change pas** :
+
+- **Approuver et masquer** restent, pour l'admin d'agence, des gestes de l'avis **en attente**
+  (`AGENCY_DECISIONS`, verif-597 M3) : il ne masque pas un avis publié. `can_moderate` garde ce
+  sens.
+- **Les avis sur l'agence elle-même, sur un prestataire, d'une agence `individual` ou sans
+  `agency_id`** restent à la plateforme seule, pour ces deux gestes aussi : 403.
+- Un avis d'une autre agence : 403.
+- `pending_count` de l'agence ne compte toujours que les avis en attente : un avis signalé
+  n'est pas « à trancher » pour elle, elle peut seulement le supprimer ou en ignorer les
+  signalements.
+
+**Le contrepoids du « juge et partie ».** Le motif du § 1 tient toujours : supprimer un 1★ sur son
+propre bien fait monter sa moyenne. Le geste n'est donc ouvert qu'à visage découvert :
+
+- **un motif codé ET un texte** sont exigés de l'admin d'agence pour supprimer (la maquette :
+  « demande un motif […] et quelques mots ») ; la plateforme garde la règle du § 7 (texte requis
+  pour `other` seulement) ;
+- **chaque suppression et chaque « ignorer » est journalisé** dans le journal d'activité
+  (`review.removed`, `review.reports_ignored`), avec l'acteur, la décision, le code et le texte du
+  motif, et le statut de l'avis avant le geste — pour l'agence comme pour la plateforme. Le motif
+  reste aussi dans `reviews.metadata`.
+
+La plateforme peut ainsi relire, agence par agence, ce qui a été supprimé et pourquoi. Si l'usage
+le contredit (suppressions en série des avis défavorables), la réponse est de revenir sur cet
+amendement, pas d'ajouter un plafond.
+
+**Application.** `ReviewModerationScope::canDelete` / `::canDismissReports`, `ReviewPolicy::delete`
+/ `::dismissReports`, `ModerateReviewRequest::authorize()` (la capacité suit la décision),
+`ReviewResource` (`can_delete`, `can_dismiss_reports`), `ReviewModerationService` (journal) ;
+`tests/Feature/Api/ReviewAgencyAdminDeleteTest.php`.
+

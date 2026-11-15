@@ -28,6 +28,7 @@ use App\Services\Review\ReviewModerationService;
 use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
 use App\Services\Review\ReviewRiskClassifier;
+use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
 use App\Support\VisitorFingerprint;
 use Closure;
@@ -84,6 +85,13 @@ class ReviewController extends Controller
             if ($authorFilter !== null && $authorFilter !== '') {
                 $query->where('author_id', (int) $authorFilter);
             }
+        }
+
+        // TCK-2930 — `filter[search]` : le titre et la référence du bien, le nom de l'auteur, le nom
+        // de l'agent noté. Posé APRÈS le cloisonnement et dans un seul groupe : les OU ne sortent
+        // jamais du périmètre. Avant les comptes de risque, qui portent ainsi sur la liste cherchée.
+        if (! $isSelfFilter) {
+            self::search($query, $request->query('filter.search') ?? data_get($request->query('filter', []), 'search'));
         }
 
         $status = $request->query('filter.moderation_status')
@@ -196,6 +204,44 @@ class ReviewController extends Controller
             'data' => ReviewResource::collection($paginator)->toArray($request),
             'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount, 'risk_counts' => $riskCounts]),
         ]);
+    }
+
+    /**
+     * TCK-2930 — la recherche de la file, insensible à la casse ({@see CaseInsensitive}, ADR-0025 :
+     * « SACRÉ » trouve « Sacré-Cœur », mais « sacre » ne le trouve pas, faute de repli d'accents).
+     * Chaque mot doit se trouver dans le prénom ou le nom d'une même personne (« Fatou Ndiaye ») ;
+     * la saisie entière, dans le titre ou la référence du bien.
+     *
+     * @param  Builder<Review>  $query
+     */
+    private static function search(Builder $query, mixed $value): void
+    {
+        $value = trim(ParametreUnique::valeur($value) ?? '');
+        if ($value === '') {
+            return;
+        }
+
+        $motif = '%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%';
+        $mots = array_map(
+            fn (string $mot) => '%'.addcslashes(CaseInsensitive::fold($mot), '\\%_').'%',
+            preg_split('/\s+/u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+        );
+        $personne = function (Builder $u) use ($mots): void {
+            foreach ($mots as $mot) {
+                $u->where(fn (Builder $l) => $l
+                    ->whereRaw(CaseInsensitive::sql('users.first_name').' like ?', [$mot])
+                    ->orWhereRaw(CaseInsensitive::sql('users.last_name').' like ?', [$mot])
+                    ->orWhereRaw(CaseInsensitive::sql('users.username').' like ?', [$mot]));
+            }
+        };
+
+        $query->where(function (Builder $w) use ($motif, $personne): void {
+            $w->whereHasMorph('reviewable', [Property::class], fn (Builder $p) => $p
+                ->whereRaw(CaseInsensitive::sql('properties.title').' like ?', [$motif])
+                ->orWhereRaw(CaseInsensitive::sql('properties.reference_number').' like ?', [$motif]))
+                ->orWhereHasMorph('reviewable', [User::class], $personne)
+                ->orWhereHas('author', $personne);
+        });
     }
 
     /**

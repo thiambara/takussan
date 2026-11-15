@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\PropertyPortfolioController;
 use App\Http\Controllers\Api\PropertyPriceHistoryController;
 use App\Http\Controllers\Api\PropertyTagController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ReviewSubjectSummaryController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -112,6 +113,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('reviews/moderate-batch', [ReviewController::class, 'moderateBatch'])->name('reviews.moderate-batch');
     Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
     Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
+    // TCK-2930 — à côté d'un avis de la file : la note du sujet, ses autres avis publiés, « locataire depuis ».
+    Route::get('reviews/{review}/subject-summary', [ReviewSubjectSummaryController::class, 'show'])->name('reviews.subject-summary.show');
 
     // TCK-2432 — la source d'un bien publié par le Radar a disparu : la question au titulaire, et sa réponse.
     Route::get('properties/{property}/availability-check', [PropertyAvailabilityCheckController::class, 'show'])->name('properties.availability-check.show');

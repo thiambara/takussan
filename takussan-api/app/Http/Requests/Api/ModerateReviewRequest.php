@@ -24,10 +24,17 @@ class ModerateReviewRequest extends BaseFormRequest
         // en attente. Sans décision, la validation rend son 422.
         $decision = $this->input('decision');
 
-        return $this->user()?->can('moderate', [
-            $this->route('review'),
-            is_string($decision) && $decision !== '' ? $decision : null,
-        ]) === true;
+        // TCK-2930 (ADR-0043, amendement du 2026-11-15) — la capacité suit la décision : supprimer
+        // et ignorer les signalements ont la leur, ouverte à l'admin d'agence quel que soit le
+        // statut de l'avis ; approuver et masquer restent `moderate` (avis en attente).
+        return match ($decision) {
+            'delete' => $this->user()?->can('delete', $this->route('review')) === true,
+            'ignore' => $this->user()?->can('dismissReports', $this->route('review')) === true,
+            default => $this->user()?->can('moderate', [
+                $this->route('review'),
+                is_string($decision) && $decision !== '' ? $decision : null,
+            ]) === true,
+        };
     }
 
     /** @return array<string, mixed> */
@@ -36,7 +43,12 @@ class ModerateReviewRequest extends BaseFormRequest
         return [
             'decision' => ['required', Rule::in(['approve', 'hide', 'delete', 'ignore'])],
             'reason_code' => ['exclude_if:decision,approve', 'required', Rule::enum(ModerationReasonCode::class)],
-            'reason' => ['nullable', 'string', 'max:1000', 'required_if:reason_code,'.ModerationReasonCode::Other->value],
+            'reason' => [
+                'nullable', 'string', 'max:1000', 'required_if:reason_code,'.ModerationReasonCode::Other->value,
+                // TCK-2930 (ADR-0043, amendement du 2026-11-15) — l'admin d'agence qui supprime un
+                // avis de son périmètre écrit aussi quelques mots : le geste est à visage découvert.
+                Rule::requiredIf(fn (): bool => $this->input('decision') === 'delete' && $this->user()?->isSuperAdmin() !== true),
+            ],
         ];
     }
 }
