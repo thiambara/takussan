@@ -75,4 +75,36 @@ Relevé (RAPPORT.md, section « Aller à », vérifié par la session le 2026-11
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — livré (front seul), relevé au pixel non fait** (brief du lot : pas de navigateur).
+
+- **Prémisse re-mesurée, conforme** : `GROUPES_DE_LA_PALETTE` mettait `recents` avant `aller-a` ; le
+  libellé « À traiter » venait de `nav.sidebar.aTraiter.noms` (« 3 demandes non traitées ») ; la seule
+  précision était « Aussi … » ; ligne active `bg-accent text-accent-foreground` sans ↵ ; `top-[10vh]`.
+- **Piège évité** : réordonner la constante ne suffisait pas — `optionsDeLaPalette` poussait « Récents »
+  avant « Aller à », et sur un champ vide la liste plate (celle des flèches) n'est pas triée. Les pushes
+  sont réordonnés ; un test garde que ↓ parcourt les options dans l'ordre du DOM, avec des récents.
+- **Libellés neufs** (`nav.palette.*`) : `aTraiterLignes.*` (« Demandes non traitées », « Visites à
+  confirmer »… — la barre garde « Demandes à traiter » de `nav.sidebar.aujourdhui.lignes`, que je n'ai
+  pas repris pour coller à AC3), `basculerVers` (« Basculer vers {espace} », remplace `passerA`,
+  supprimée), `precisions.sitePublic`, `precisions.epinglee`, `echap`, `pied.*`. Le raccourci du pied
+  réutilise `raccourciMac`/`raccourciAutre` par `useSurApple`.
+- **Précisions** : « Épinglé » (entrée `epinglee`) passe avant celle du groupe ; « Agence » sur le groupe
+  `titre: 'agence'` ; une précision qui redit le libellé (la fiche « Agence ») est omise. L'espace :
+  libellé « Basculer vers {nom de l'agence} », rôle en précision ; sans agence, le rôle est le nom et
+  n'est pas répété. Le rôle, sorti du libellé, reste un mot-clé de l'option (« propriétaire » trouve la
+  bascule) — la précision n'est jamais cherchée.
+- **Revue I2 amendée** : le test exigeait un fond actif ≥ 3:1 contre la surface (`bg-accent`) ; la
+  maquette veut un gris léger. Le repère non textuel est désormais ↵ (≥ 3:1 sur `bg-muted`), texte
+  ≥ 4,5:1, en clair et en sombre ; plus un test « ↵ ne marque que la ligne active ».
+- **Écart à la maquette** : la ligne active est `bg-muted` (jeton) et non `bg-foreground/[0.07]` ;
+  le test exige qu'elle peigne son propre fond. Le champ du téléphone fait 44 px (hauteur de la primitive, garde
+  `check-champs-uniformes`, TCK-2460) et non 48 ; au bureau, c'est le conteneur du champ qui fait 52 px.
+  Le texte du champ reste celui de la primitive (16 px sous le pouce : iOS ne zoome pas). Le voile du
+  bureau est celui de `DialogOverlay` (non modifié, `ui/dialog.tsx` hors zone).
+- **jsdom** : les formes (plein écran sous `md`, `md:w-130` = 520 px, `md:top-28` = 112 px) sont
+  éprouvées sur les classes rendues. AC1/AC2 en mesure, AC-F1 à AC-F3 : **non mesurés**.
+- Consigne `check-valeurs-arbitraires-app` : la palette n'a plus de valeur arbitraire (ligne retirée).
+- **Reste hors zone** : `SecoursDeLIntrouvable` ne rend que `libelle` — une ligne « À traiter » trouvée
+  depuis la page introuvable n'y montre plus son nombre (`compte`) ; les clés `nav.sidebar.aTraiter.noms.*`
+  n'ont plus de lecteur.
+

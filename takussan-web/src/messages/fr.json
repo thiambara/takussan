@@ -487,7 +487,6 @@
         "generique": "Chercher un bien sur Takussan",
         "avecTexte": "Chercher « {q} » parmi les annonces"
       },
-      "passerA": "Passer à : {espace}",
       "aucun": "Aucune page pour « {q} »",
       "resultats": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
       "synonymesEspace": "espace, changer, basculer, passer",
@@ -528,6 +527,24 @@
         "agence-journal": "audit, historique, traces, journal",
         "agence-integrations": "api, webhooks, connecteurs",
         "rapports": "stats, statistiques, chiffres, performance, activité de l’agence, export, csv, excel, télécharger, indicateurs, kpi, objectifs, alertes, anomalies, signaux"
+      },
+      "basculerVers": "Basculer vers {espace}",
+      "aTraiterLignes": {
+        "unreadMessages": "Messages non lus",
+        "pendingVisits": "Visites à confirmer",
+        "unhandledLeads": "Demandes non traitées",
+        "reviewModeration": "Avis à modérer",
+        "propertyModeration": "Biens à valider"
+      },
+      "precisions": {
+        "sitePublic": "Site public",
+        "epinglee": "Épinglé"
+      },
+      "echap": "Échap",
+      "pied": {
+        "naviguer": "naviguer",
+        "ouvrir": "ouvrir",
+        "partout": "partout dans l’application"
       }
     },
     "coque": {
@@ -12117,7 +12134,9 @@
           "rent": "Location",
           "sale": "Achat"
         },
-        "commencerPossibleA": "« Commencer » possible à partir de {heure}"
+        "commencerPossibleA": "« Commencer » possible à partir de {heure}",
+        "voirLeBien": "Voir le bien",
+        "ouvrirLaFicheDe": "Ouvrir la fiche de {prenom}"
       },
       "fil": "Visites",
       "attribuee": "Visite attribuée",
@@ -19771,6 +19790,16 @@
         "report_not_closable": "Cette visite ne peut pas encore recevoir de compte rendu : elle n’a pas eu lieu.",
         "report_missing": "Aucun compte rendu à modifier pour cette visite."
       }
+    },
+    "dictee": {
+      "dicter": "Dicter",
+      "arreter": "Arrêter la dictée",
+      "ecoute": "J’écoute…",
+      "duree": "{duree} dictées · modifiable"
+    },
+    "avant": {
+      "titre": "Avant cette visite",
+      "parQui": "{geste} ({nom})"
     }
   },
   "etMaintenant": {
@@ -19831,13 +19860,24 @@
     "enregistre": "Enregistré à {heure}",
     "enregistreFiche": "Enregistré dans la fiche à {heure}",
     "modifier": "Modifier",
-    "qualifier": "Passer en « Qualifié »",
     "aujourdhui": "{etape} → Qualifié",
     "etapeAppliquee": "{prenom} passe en « Qualifié »",
-    "terminer": "Terminer",
     "fil": "Chaque choix s’écrit dans le fil de la fiche.",
     "sansFiche": "{nom} n’a pas encore de fiche client.",
-    "creerFiche": "Créer sa fiche"
+    "creerFiche": "Créer sa fiche",
+    "question": {
+      "titre": "Passer en Qualifié ?",
+      "plusTard": "Plus tard",
+      "oui": "Oui"
+    },
+    "filTelephone": "Chaque choix s’écrit dans le fil de la fiche. Sans choix, une relance est proposée demain dans « Aujourd’hui ».",
+    "relanceDuLendemain": {
+      "tacheTitre": "Relancer {prenom}",
+      "tacheDescription": "Après la visite de {bien}",
+      "posee": "Relance posée pour demain",
+      "annuler": "Annuler",
+      "retiree": "Relance retirée"
+    }
   },
   "coqueDEntree": {
     "retourAuSite": "Retour au site",
@@ -21904,5 +21944,13 @@
     "resubmitError": "Erreur lors de la resoumission. Veuillez réessayer.",
     "approvedTitle": "Bien approuvé et publié",
     "approvedOn": "Approuvé le {date}"
+  },
+  "dictee": {
+    "erreurs": {
+      "refusee": "Le micro est refusé : autorisez-le dans votre navigateur. Votre texte est conservé.",
+      "reseau": "La dictée demande une connexion. Votre texte est conservé.",
+      "silence": "Rien n’a été entendu. Réessayez.",
+      "autre": "La dictée s’est interrompue. Votre texte est conservé."
+    }
   }
 }

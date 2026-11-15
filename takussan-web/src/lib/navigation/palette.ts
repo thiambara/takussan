@@ -15,12 +15,14 @@ import type { EntreeComposee, GroupeCompose } from './composer-menu';
  *   destination que le menu ne rend pas — fermée au compte, ou cadenassée — n'y est jamais : la palette
  *   ne relit pas le catalogue, et `palette.test.ts` le garde sur les huit personas.
  * - Les groupes paraissent toujours dans l'ordre de `GROUPES_DE_LA_PALETTE` ; la frappe ne réordonne
- *   qu'À L'INTÉRIEUR d'un groupe.
+ *   qu'À L'INTÉRIEUR d'un groupe. TCK-2845 — l'ordre de la maquette : Actions · À traiter · Aller à ·
+ *   Récents · Espaces. {@link optionsDeLaPalette} rend ses options DANS CET ORDRE : la liste plate est
+ *   celle que parcourent les flèches, elle doit suivre l'ordre affiché.
  * - Aucun tri par usage (ADR-0089 §5) : « Récents » est un groupe à part, montré sur un champ vide.
  * - TCK-2489 (ADR-0090 §2) — la recherche d'annonces du site public y entre ({@link avecLaRechercheDAnnonces}) :
  *   « Annonces » est le DERNIER groupe, pour qu'Entrée sur « mess » ouvre la messagerie, pas la liste.
  */
-export const GROUPES_DE_LA_PALETTE = ['actions', 'a-traiter', 'recents', 'aller-a', 'espaces', 'annonces'] as const;
+export const GROUPES_DE_LA_PALETTE = ['actions', 'a-traiter', 'aller-a', 'recents', 'espaces', 'annonces'] as const;
 export type GroupeDeLaPalette = (typeof GROUPES_DE_LA_PALETTE)[number];
 
 export type CibleDeLaPalette =
@@ -32,8 +34,13 @@ export interface OptionDeLaPalette {
   readonly cle: string;
   readonly groupe: GroupeDeLaPalette;
   readonly libelle: string;
-  /** Affichée après le libellé (« Aussi administrateur ») ; jamais cherchée. */
+  /**
+   * Affichée à droite, en petit gris (« Aussi administrateur », TCK-2845 : « Épinglé », « Agence »,
+   * « Site public », le rôle d'un espace) ; jamais cherchée.
+   */
   readonly precision?: string;
+  /** TCK-2845 — le nombre d'une ligne « À traiter », rendu en pastille : jamais écrit dans le libellé. */
+  readonly compte?: number;
   /** Les synonymes déclarés dans les messages : cherchés, jamais affichés. */
   readonly motsCles: readonly string[];
   readonly icone: LucideIcon;
@@ -67,9 +74,13 @@ export interface LibellesDeLaPalette {
   readonly action: (e: EntreeComposee) => string;
   readonly carte: (e: EntreeComposee) => string;
   readonly precision: (g: GroupeCompose) => string | null;
+  /** TCK-2845 — la précision d'une entrée épinglée (« Épinglé ») : elle passe avant celle du groupe. */
+  readonly epinglee: string;
   readonly synonymes: (id: IdDestination) => readonly string[];
   readonly pastille: (p: LigneAujourdhui) => string;
   readonly espace: (p: Profile) => string;
+  /** TCK-2845 — la précision d'un espace (son rôle, « Propriétaire ») ; `null` si le libellé le dit déjà. */
+  readonly roleDeLEspace: (p: Profile) => string | null;
   readonly motsEspace: readonly string[];
 }
 
@@ -115,7 +126,8 @@ export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette
   }
 
   // À traiter — les lignes « Aujourd'hui », déjà jugées (`lignesAujourdhui`), cherchables aussi par le
-  // nom de leur entrée : « 3 visites en attente » se trouve par « visites ».
+  // nom de leur entrée : « Visites à confirmer » se trouve par « visites ». TCK-2845 — le nombre va en
+  // pastille (`compte`), le libellé n'en porte plus.
   for (const p of s.pastilles) {
     const e = rendues.find((r) => r.e.counterKey === p.cle)?.e;
     if (!e) continue;
@@ -123,33 +135,24 @@ export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette
       cle: `a-traiter:${p.cle}`,
       groupe: 'a-traiter',
       libelle: l.pastille(p),
+      compte: p.nombre,
       motsCles: [l.entree(e), ...l.synonymes(e.id)],
       icone: e.icon,
       cible: { type: 'lien', href: p.href },
     });
   }
 
-  // Récents — résolus sur le menu D'AUJOURD'HUI : un chemin qu'il ne couvre plus disparaît. Déjà
-  // dédoublonnés par entrée à l'écriture (revue I3) ; le dédoublonnage ici couvre un menu qui a changé.
-  const entreeDe = resolveurDesRecents(s.groupes);
-  const courant = entreeDe(s.pathname);
-  const vus = new Set<string>();
-  for (const chemin of s.recents) {
-    if (vus.size === RECENTS_AFFICHES) break;
-    const href = entreeDe(chemin);
-    const e = href === null ? undefined : parHref.get(href);
-    if (!e || href === courant || vus.has(e.href)) continue;
-    vus.add(e.href);
-    options.push({ cle: `recents:${e.id}`, groupe: 'recents', libelle: l.entree(e), motsCles: [], icone: e.icon, cible: cibleDe(e) });
-  }
-
   // Aller à — le menu entier, dans son ordre : groupes, « Plus », complément « Aussi … », puis la carte.
   for (const { e, g } of rendues) {
-    const precision = l.precision(g);
+    const libelle = l.entree(e);
+    // TCK-2845 — « Épinglé » passe avant la précision du groupe ; une précision qui redit le libellé
+    // (la fiche « Agence » du groupe Agence) n'est pas affichée.
+    const brute = e.epinglee ? l.epinglee : l.precision(g);
+    const precision = brute === libelle ? null : brute;
     options.push({
       cle: `aller-a:${e.id}`,
       groupe: 'aller-a',
-      libelle: l.entree(e),
+      libelle,
       ...(precision ? { precision } : {}),
       motsCles: l.synonymes(e.id),
       icone: e.icon,
@@ -167,12 +170,30 @@ export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette
     });
   }
 
+  // Récents — résolus sur le menu D'AUJOURD'HUI : un chemin qu'il ne couvre plus disparaît. Déjà
+  // dédoublonnés par entrée à l'écriture (revue I3) ; le dédoublonnage ici couvre un menu qui a changé.
+  const entreeDe = resolveurDesRecents(s.groupes);
+  const courant = entreeDe(s.pathname);
+  const vus = new Set<string>();
+  for (const chemin of s.recents) {
+    if (vus.size === RECENTS_AFFICHES) break;
+    const href = entreeDe(chemin);
+    const e = href === null ? undefined : parHref.get(href);
+    if (!e || href === courant || vus.has(e.href)) continue;
+    vus.add(e.href);
+    options.push({ cle: `recents:${e.id}`, groupe: 'recents', libelle: l.entree(e), motsCles: [], icone: e.icon, cible: cibleDe(e) });
+  }
+
   for (const p of s.espaces) {
+    const role = l.roleDeLEspace(p);
     options.push({
       cle: `espaces:${p.id}`,
       groupe: 'espaces',
       libelle: l.espace(p),
-      motsCles: l.motsEspace,
+      ...(role ? { precision: role } : {}),
+      // Le rôle quitte le libellé pour la précision, qui n'est jamais cherchée : il reste un mot-clé
+      // (« propriétaire » trouve « Basculer vers Agence Teranga »).
+      motsCles: role ? [...l.motsEspace, role] : l.motsEspace,
       icone: ArrowLeftRight,
       cible: { type: 'espace', profilId: p.id },
     });
@@ -222,6 +243,8 @@ export const CHEMIN_DES_ANNONCES = '/properties';
 export interface LibellesDesAnnonces {
   /** « Chercher un bien sur Takussan » : champ vide. */
   readonly generique: string;
+  /** TCK-2845 — sa précision, « Site public » : elle quitte `/app`. */
+  readonly sitePublic: string;
   /** « Chercher « {q} » parmi les annonces » : avec du texte tapé. */
   readonly avecTexte: (requete: string) => string;
 }
@@ -253,6 +276,7 @@ export function avecLaRechercheDAnnonces(
       cle: 'actions:annonces',
       groupe: 'actions',
       libelle: l.generique,
+      precision: l.sitePublic,
       motsCles: [],
       icone: Search,
       cible: { type: 'lien', href: CHEMIN_DES_ANNONCES, publique: true },

@@ -1,6 +1,6 @@
 /**
  * TCK-2482 — la palette montée seule, ouverte : rôles ARIA, clavier, AC2 (« loyer » chez le locataire),
- * AC3 (« Plus » trouvé, l'inaccessible jamais), AC4 (« Passer à : … » bascule, puis la palette suit le
+ * AC3 (« Plus » trouvé, l'inaccessible jamais), AC4 (« Basculer vers … » bascule, puis la palette suit le
  * persona que la coque rend), AC5 (axe). L'ouverture par ⌘K / Ctrl K et le retour du focus sont éprouvés
  * dans la coque (`AppShell.palette.test.tsx`).
  */
@@ -26,6 +26,9 @@ import {
   litUtilitaireDeCouleur,
   resoudreCouleur,
 } from '@/test/contraste-wcag';
+import { NAVIGATION_VIDE } from '@/lib/navigation/preferences';
+import type { Persona } from '@/lib/navigation/personas';
+import { Contexte as ContexteDesPreferences, type PreferencesDuMenu } from '../contexte-preferences-du-menu';
 import { PaletteDeCommandes } from '../PaletteDeCommandes';
 
 const etat = vi.hoisted(() => ({
@@ -35,6 +38,8 @@ const etat = vi.hoisted(() => ({
   /** Chaque appel de `useUnreadCount` : la règle de sondage se lit sur `enabled` (A13). */
   appelsNonLus: [] as { enabled?: boolean }[],
   profils: undefined as MyProfilesResponse | undefined,
+  /** TCK-2845 — les demandes non traitées (`meta.total`). */
+  demandes: 0,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -52,7 +57,9 @@ vi.mock('@/components/chat-widget/useUnreadCount', () => ({
   },
 }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
-vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
+vi.mock('@/lib/queries/contact-leads', () => ({
+  useUnhandledLeadsCount: (o: { enabled?: boolean } = {}) => (o.enabled ? { data: { meta: { total: etat.demandes } } } : {}),
+}));
 vi.mock('@/hooks/useProfiles', () => ({
   useMyProfiles: () => ({ data: etat.profils, isLoading: false }),
   useSwitchActiveProfile: () => ({ mutate: etat.mutate, isPending: false }),
@@ -89,6 +96,7 @@ beforeEach(() => {
   etat.nonLus = 0;
   etat.appelsNonLus = [];
   etat.profils = undefined;
+  etat.demandes = 0;
   window.localStorage.clear();
 });
 
@@ -184,7 +192,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     // Le sondage des non-lus rend 3 pendant que la palette est ouverte : « À traiter » s'insère AVANT.
     etat.nonLus = 3;
     rerender(ui(LOCATAIRE));
-    expect(screen.getByRole('option', { name: '3 messages non lus' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Messages non lus/ })).toBeInTheDocument();
     expect(active()).toBe('Mon bail');
     await u.keyboard('{Enter}');
     expect(etat.push).toHaveBeenCalledTimes(1);
@@ -198,13 +206,13 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     const champ = await screen.findByRole('combobox');
     await waitFor(() => expect(champ).toHaveFocus());
     const options = screen.getAllByRole('option');
-    const pastille = screen.getByRole('option', { name: '3 messages non lus' });
+    const pastille = screen.getByRole('option', { name: /^Messages non lus/ });
     const rang = options.indexOf(pastille);
     for (let i = 0; i < rang; i++) await u.keyboard('{ArrowDown}');
     expect(champ).toHaveAttribute('aria-activedescendant', pastille.id);
     etat.nonLus = 0;
     rerender(ui(LOCATAIRE));
-    expect(screen.queryByRole('option', { name: '3 messages non lus' })).toBeNull();
+    expect(screen.queryByRole('option', { name: /^Messages non lus/ })).toBeNull();
     const premiere = screen.getAllByRole('option')[0]!;
     expect(champ).toHaveAttribute('aria-activedescendant', premiere.id);
     expect(premiere).toHaveAttribute('aria-selected', 'true');
@@ -224,7 +232,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     const u = userEvent.setup();
     render(ui(LOCATAIRE));
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'À traiter' });
-    await u.click(within(groupe).getByRole('option', { name: '3 messages non lus' }));
+    await u.click(within(groupe).getByRole('option', { name: /^Messages non lus/ }));
     expect(etat.push).toHaveBeenCalledWith('/app/messages');
   });
 
@@ -253,7 +261,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(etat.push).toHaveBeenCalledWith(cheminLocalise('/properties', 'fr'));
   });
 
-  it('AC4 — « Passer à : … » bascule le profil actif ; la coque rendue sous le nouveau profil, la palette suit', async () => {
+  it('AC4 — « Basculer vers … » bascule le profil actif ; la coque rendue sous le nouveau profil, la palette suit', async () => {
     etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
     const roles: UserRole[] = ['customer', 'agent', 'owner'];
     const u = userEvent.setup();
@@ -265,7 +273,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Commissions']);
     await u.clear(champ);
     await u.type(champ, 'passer');
-    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Passer à : Propriétaire · Agence Teranga']);
+    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Basculer vers Agence TerangaPropriétaire']);
 
     await u.keyboard('{Enter}');
     expect(etat.mutate).toHaveBeenCalledWith('owner:7');
@@ -279,7 +287,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(pagesDe(screen.getByRole('listbox'))).toEqual(['CommissionsAussi agent']);
     await u.clear(champ);
     await u.type(champ, 'passer');
-    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Passer à : Agent · Agence Teranga']);
+    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Basculer vers Agence TerangaAgent']);
   });
 
   it('revue I4 — « profil » (ce qu’on tape pour « Mon profil », hors palette par A5) ne propose aucune bascule', async () => {
@@ -289,12 +297,12 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     const champ = await screen.findByRole('combobox');
     await u.type(champ, 'profil');
     const liste = screen.queryByRole('listbox');
-    expect(liste ? noms(liste).filter((n) => n.startsWith('Passer à')) : []).toEqual([]);
+    expect(liste ? noms(liste).filter((n) => n.startsWith('Basculer vers')) : []).toEqual([]);
     await u.keyboard('{Enter}');
     expect(etat.mutate).not.toHaveBeenCalled();
   });
 
-  it('revue M3 — une bascule déjà en cours (lancée au sélecteur) : « Passer à » désactivé, Entrée ne fait rien', async () => {
+  it('revue M3 — une bascule déjà en cours (lancée au sélecteur) : « Basculer vers » désactivé, Entrée ne fait rien', async () => {
     etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
     /** Le sélecteur d'espace, ailleurs dans la coque, dont le `PATCH` n'a pas encore répondu. */
     function BasculeEnCours() {
@@ -317,7 +325,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     );
     const champ = await screen.findByRole('combobox');
     await u.type(champ, 'passer');
-    const option = screen.getByRole('option', { name: 'Passer à : Propriétaire · Agence Teranga' });
+    const option = screen.getByRole('option', { name: /^Basculer vers Agence Teranga/ });
     await waitFor(() => expect(option).toHaveAttribute('aria-disabled', 'true'));
     await u.keyboard('{Enter}');
     await u.click(option);
@@ -330,12 +338,12 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(etat.push).toHaveBeenCalledWith('/app/commissions');
   });
 
-  it('revue M3 — sans bascule en cours, « Passer à » n’est pas désactivé', async () => {
+  it('revue M3 — sans bascule en cours, « Basculer vers » n’est pas désactivé', async () => {
     etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
     const u = userEvent.setup();
     render(ui(['customer', 'agent', 'owner'], 'agent'));
     await u.type(await screen.findByRole('combobox'), 'passer');
-    expect(screen.getByRole('option', { name: 'Passer à : Propriétaire · Agence Teranga' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByRole('option', { name: /^Basculer vers Agence Teranga/ })).not.toHaveAttribute('aria-disabled');
   });
 
   it('AC5 — axe : aucune violation, champ vide (cinq groupes possibles) et sans résultat', async () => {
@@ -363,7 +371,7 @@ describe('TCK-2489 — AC3 : « Chercher un bien » dans la palette, le texte ta
     const u = userEvent.setup();
     render(ui(BAILLEUR, 'owner'));
     const actions = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Actions' });
-    const option = within(actions).getByRole('option', { name: 'Chercher un bien sur Takussan' });
+    const option = within(actions).getByRole('option', { name: /^Chercher un bien sur Takussan/ });
     await u.pointer({ keys: '[MouseLeft>]', target: option });
     expect(etat.push).toHaveBeenCalledWith('/fr/properties');
     expect(fermer).toHaveBeenCalledWith(false);
@@ -399,13 +407,14 @@ describe('TCK-2489 — AC3 : « Chercher un bien » dans la palette, le texte ta
 });
 
 /**
- * Revue I2 — l'option active est le SEUL repère de ce qu'Entrée va ouvrir (le focus DOM reste au champ,
- * `aria-activedescendant` désigne l'option) : son fond se distingue de la surface du dialogue à 3:1
- * au moins (WCAG 1.4.11), et tout ce qu'elle porte s'y lit (4,5:1 le texte, 3:1 l'icône), en clair
- * comme en sombre. `bg-muted` sur `--popover` faisait 1,18:1. Mesuré sur les classes RENDUES, résolues
- * par les jetons du design system (`src/test/contraste-wcag.ts`) — pas sur le nom d'une classe.
+ * Revue I2, amendée par TCK-2845 — l'option active est le SEUL repère de ce qu'Entrée va ouvrir (le focus
+ * DOM reste au champ, `aria-activedescendant` désigne l'option). La revue I2 l'avait peinte d'un aplat
+ * `bg-accent` (≥ 3:1 contre la surface) ; la maquette (app-coque e4) veut un fond gris léger ET l'icône ↵.
+ * Le repère non textuel (WCAG 1.4.11) est désormais ↵ : il se lit à 3:1 au moins sur le fond de la ligne,
+ * et tout ce que la ligne porte s'y lit (4,5:1 le texte), en clair comme en sombre. Mesuré sur les
+ * classes RENDUES, résolues par les jetons du design system (`src/test/contraste-wcag.ts`).
  */
-describe('<PaletteDeCommandes> — l’option active se voit (revue I2)', () => {
+describe('<PaletteDeCommandes> — l’option active se voit (revue I2, TCK-2845)', () => {
   /** Le fond propre (sans variante) d'un élément ; `null` s'il n'en pose pas. */
   const fondPropre = (el: Element, jetons: Readonly<Record<string, string>>) => {
     const u = Array.from(el.classList)
@@ -425,7 +434,7 @@ describe('<PaletteDeCommandes> — l’option active se voit (revue I2)', () => 
   it.each([
     ['clair', JETONS_CLAIR],
     ['sombre', JETONS_SOMBRE],
-  ] as const)('%s : fond ≥ 3:1 sur le dialogue, libellé et précision ≥ 4,5:1, icône ≥ 3:1', async (_theme, jetons) => {
+  ] as const)('%s : ni aplat d’accent, ↵ ≥ 3:1 sur le fond de la ligne, libellé et précision ≥ 4,5:1', async (_theme, jetons) => {
     etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'owner:7', count: 2 } };
     const u = userEvent.setup();
     render(ui(['customer', 'agent', 'owner'], 'owner'));
@@ -435,17 +444,30 @@ describe('<PaletteDeCommandes> — l’option active se voit (revue I2)', () => 
     expect(active).not.toBeNull();
     // L'option porte une précision (« Aussi agent ») : elle se mesure aussi.
     expect(active!.textContent).toBe('CommissionsAussi agent');
+    expect(active!.className).not.toMatch(/\bbg-accent\b/);
 
+    // La ligne peint SON fond (gris léger) : ↵ et le texte se mesurent dessus.
     const fond = fondPropre(active!, jetons);
     expect(fond, 'l’option active ne peint aucun fond').not.toBeNull();
-    const surface = fondHerite(active!, jetons).hex;
-    expect(contraste(fond!, surface)).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
+    expect(fond).not.toBe(fondHerite(active!, jetons).hex);
+    const entree = active!.querySelector('[data-slot="entree"]');
+    expect(entree, 'la ligne active ne porte pas ↵').not.toBeNull();
+    expect(contraste(encre(entree, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
 
     const textes = Array.from(active!.querySelectorAll('span'));
     expect(textes).toHaveLength(2);
     for (const t of textes) expect(contraste(encre(t, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
-    const icone = active!.querySelector('svg');
-    expect(contraste(encre(icone, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
+  });
+
+  it('↵ ne marque QUE la ligne active', async () => {
+    const u = userEvent.setup();
+    render(ui(LOCATAIRE));
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    const marquees = () => screen.getAllByRole('option').filter((o) => o.querySelector('[data-slot="entree"]'));
+    expect(marquees().map((o) => o.id)).toEqual([champ.getAttribute('aria-activedescendant')]);
+    await u.keyboard('{ArrowDown}');
+    expect(marquees().map((o) => o.id)).toEqual([champ.getAttribute('aria-activedescendant')]);
   });
 });
 
@@ -481,5 +503,169 @@ describe('TCK-2483 — AC10 : la palette ne propose pas une destination masquée
 
   it('le bailleur de la même agence garde « États des lieux » (AC4)', async () => {
     expect(await chercher(BAILLEUR, 'owner', ['inventories'], 'etats')).toContain('États des lieux');
+  });
+});
+
+/**
+ * TCK-2845 — « Aller à… » comme la maquette (app-coque e4, téléphone et bureau). jsdom ne calcule aucune
+ * mise en page : les deux formes (plein écran sous `md`, fenêtre de 520 px au-dessus) se lisent sur les
+ * classes RENDUES ; leurs mesures au pixel sont l'affaire de la fiche de fidélité.
+ */
+describe('TCK-2845 — « Aller à… » comme la maquette', () => {
+  const ADMIN: UserRole[] = ['customer', 'agency_admin'];
+  const rien = () => {};
+  /** Les préférences du compte, avec des épingles sous `persona`. */
+  const preferences = (persona: Persona, epingles: readonly string[]): PreferencesDuMenu => ({
+    actif: true,
+    persona,
+    navigation: { ...NAVIGATION_VIDE, personas: { [persona]: { epingles } } },
+    modeIcones: 'complet',
+    basculerEpingle: rien,
+    deplacerEpingle: rien,
+    basculerRepli: rien,
+    masquerDemarrer: rien,
+    reinitialiser: rien,
+    choisirModeIcones: rien,
+  });
+  function uiAdmin(epingles: readonly string[] = []) {
+    return withIntl(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ContexteDesPreferences.Provider value={preferences('admin-agence', epingles)}>
+          <PaletteDeCommandes
+            ouverte
+            onOuverteChange={fermer}
+            contexteDuMenu={{ user: utilisateur(ADMIN), agencyIsStandard: true, typeProfilActif: 'agency_admin', modulesMasques: [] }}
+          />
+        </ContexteDesPreferences.Provider>
+      </QueryClientProvider>,
+    );
+  }
+  const titres = (liste: HTMLElement) =>
+    within(liste)
+      .getAllByRole('group')
+      .map((g) => document.getElementById(g.getAttribute('aria-labelledby') ?? '')?.textContent);
+  const autreEspace = () => {
+    etat.profils = {
+      data: [profil('agency_admin', 5), profil('owner', 7)],
+      meta: { active_profile_id: 'agency_admin:5', count: 2 },
+    };
+  };
+
+  it('AC1 — téléphone : plein écran (ni fenêtre ni coins), un « Fermer » de 44 px qui ferme, le champ a le focus', async () => {
+    const u = userEvent.setup();
+    render(ui(LOCATAIRE));
+    const dialogue = await screen.findByRole('dialog');
+    for (const c of ['inset-0', 'h-dvh', 'w-full', 'max-w-none', 'rounded-none', 'bg-background', 'p-0']) {
+      expect(dialogue).toHaveClass(c);
+    }
+    // Les classes de centrage de `DialogContent` sont neutralisées (tailwind-merge), pas seulement couvertes.
+    expect(dialogue).not.toHaveClass('top-1/2');
+    expect(dialogue).not.toHaveClass('sm:max-w-sm');
+    const champ = within(dialogue).getByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    const fermerBouton = within(dialogue).getByRole('button', { name: 'Fermer' });
+    expect(fermerBouton).toHaveClass('size-11', 'md:hidden');
+    // Un seul « Fermer » : celui du `Dialog` est retiré.
+    expect(within(dialogue).getAllByRole('button', { name: 'Fermer' })).toHaveLength(1);
+    await u.click(fermerBouton);
+    expect(fermer).toHaveBeenCalledWith(false);
+  });
+
+  it('AC2 — bureau : une fenêtre de 520 px à 112 px du haut, « Échap » à droite du champ, le pied des touches ; Échap ferme', async () => {
+    const u = userEvent.setup();
+    render(ui(LOCATAIRE));
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveClass('md:w-130', 'md:top-28', 'md:rounded-2xl', 'md:bg-popover');
+    const echap = within(dialogue).getByText('Échap');
+    expect(echap.tagName).toBe('KBD');
+    expect(echap).toHaveClass('hidden', 'md:inline-block');
+    // À droite du champ : dans le même en-tête, après lui.
+    const champ = within(dialogue).getByRole('combobox');
+    expect(champ.compareDocumentPosition(echap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const pied = dialogue.querySelector('[data-slot="pied-de-la-palette"]');
+    expect(pied).toHaveClass('hidden', 'md:flex');
+    expect(pied?.textContent).toMatch(/naviguer.*ouvrir.*partout dans l’application/);
+    await u.keyboard('{Escape}');
+    expect(fermer).toHaveBeenCalledWith(false);
+  });
+
+  it('la loupe est dans le champ', async () => {
+    render(ui(LOCATAIRE));
+    const champ = await screen.findByRole('combobox');
+    expect(champ.parentElement?.querySelector('svg.lucide-search')).not.toBeNull();
+  });
+
+  it('AC3 — admin, 3 demandes, 2 épingles, un second espace : l’ordre de la maquette, le nombre en pastille', async () => {
+    etat.demandes = 3;
+    autreEspace();
+    retenirPage(1, '/app/messages');
+    render(uiAdmin(['baux', 'rapports']));
+    const liste = await screen.findByRole('listbox');
+    await waitFor(() => expect(titres(liste)).toEqual(['Actions', 'À traiter', 'Aller à', 'Récents', 'Espaces']));
+    const groupe = within(liste).getByRole('group', { name: 'À traiter' });
+    const ligne = within(groupe).getAllByRole('option').find((o) => o.textContent?.startsWith('Demandes non traitées'));
+    expect(ligne).toBeDefined();
+    const pastille = ligne!.querySelector('[data-slot="pastille"]');
+    expect(pastille?.textContent).toBe('3');
+    // Le libellé exact, sans le nombre.
+    expect(ligne!.querySelector('span')?.textContent).toBe('Demandes non traitées');
+  });
+
+  it('les flèches suivent l’ordre affiché : Aller à, puis Récents, puis Espaces', async () => {
+    etat.demandes = 3;
+    autreEspace();
+    retenirPage(1, '/app/messages');
+    const u = userEvent.setup();
+    render(uiAdmin());
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Espaces' })).toBeInTheDocument());
+    const options = screen.getAllByRole('option');
+    const parcours: string[] = [champ.getAttribute('aria-activedescendant')!];
+    for (let i = 1; i < options.length; i++) {
+      await u.keyboard('{ArrowDown}');
+      parcours.push(champ.getAttribute('aria-activedescendant')!);
+    }
+    expect(parcours).toEqual(options.map((o) => o.id));
+  });
+
+  it('AC4 — « Site public », « Épinglé », « Agence » et le rôle de l’espace, à droite', async () => {
+    autreEspace();
+    render(uiAdmin(['baux']));
+    const liste = await screen.findByRole('listbox');
+    const precisionDe = (debut: string) =>
+      within(liste)
+        .getAllByRole('option')
+        .find((o) => o.querySelector('span')?.textContent === debut)
+        ?.querySelector('span.text-xs')?.textContent;
+    expect(precisionDe('Chercher un bien sur Takussan')).toBe('Site public');
+    expect(precisionDe('Baux')).toBe('Épinglé');
+    expect(precisionDe('Équipe')).toBe('Agence');
+    // La fiche « Agence » ne répète pas son groupe.
+    expect(precisionDe('Agence')).toBeUndefined();
+    await waitFor(() => expect(precisionDe('Basculer vers Agence Teranga')).toBe('Propriétaire'));
+  });
+
+  it('AC5 — la ligne active : ni aplat `bg-accent`, l’icône ↵ ; ↓ la déplace, Entrée navigue', async () => {
+    const u = userEvent.setup();
+    render(ui(LOCATAIRE));
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    const active = () => document.getElementById(champ.getAttribute('aria-activedescendant') ?? '')!;
+    expect(active().className).not.toMatch(/\bbg-accent\b/);
+    expect(active().querySelector('[data-slot="entree"]')).not.toBeNull();
+    const premiere = active();
+    await u.keyboard('{ArrowDown}');
+    expect(active()).not.toBe(premiere);
+    expect(premiere.querySelector('[data-slot="entree"]')).toBeNull();
+    await u.keyboard('{Enter}');
+    expect(etat.push).toHaveBeenCalledWith('/app/messages');
+  });
+
+  it('AC6 — sans compteur ni second espace : ni « À traiter » ni « Espaces »', async () => {
+    render(uiAdmin());
+    const liste = await screen.findByRole('listbox');
+    expect(titres(liste)).not.toContain('À traiter');
+    expect(titres(liste)).not.toContain('Espaces');
   });
 });

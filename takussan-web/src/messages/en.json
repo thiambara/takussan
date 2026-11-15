@@ -487,7 +487,6 @@
         "generique": "Search properties on Takussan",
         "avecTexte": "Search “{q}” in listings"
       },
-      "passerA": "Switch to: {espace}",
       "aucun": "No page for “{q}”",
       "resultats": "{count, plural, =0 {No results} one {# result} other {# results}}",
       "synonymesEspace": "space, switch, change",
@@ -528,6 +527,24 @@
         "agence-journal": "audit, log, history",
         "agence-integrations": "api, webhooks, connectors",
         "rapports": "stats, statistics, figures, analytics, performance, export, csv, excel, download, indicators, metrics, kpi, alerts, anomalies, warnings"
+      },
+      "basculerVers": "Switch to {espace}",
+      "aTraiterLignes": {
+        "unreadMessages": "Unread messages",
+        "pendingVisits": "Visits to confirm",
+        "unhandledLeads": "Unhandled requests",
+        "reviewModeration": "Reviews to moderate",
+        "propertyModeration": "Properties to approve"
+      },
+      "precisions": {
+        "sitePublic": "Public site",
+        "epinglee": "Pinned"
+      },
+      "echap": "Esc",
+      "pied": {
+        "naviguer": "navigate",
+        "ouvrir": "open",
+        "partout": "anywhere in the app"
       }
     },
     "coque": {
@@ -12117,7 +12134,9 @@
           "rent": "Rent",
           "sale": "Purchase"
         },
-        "commencerPossibleA": "“Start” available from {heure}"
+        "commencerPossibleA": "“Start” available from {heure}",
+        "voirLeBien": "View property",
+        "ouvrirLaFicheDe": "Open {prenom}’s record"
       },
       "fil": "Visits",
       "attribuee": "Visit assigned",
@@ -19771,6 +19790,16 @@
         "report_not_closable": "This visit can't take a report yet: it hasn't taken place.",
         "report_missing": "There is no report to edit for this visit."
       }
+    },
+    "dictee": {
+      "dicter": "Dictate",
+      "arreter": "Stop dictation",
+      "ecoute": "Listening…",
+      "duree": "{duree} dictated · editable"
+    },
+    "avant": {
+      "titre": "Before this visit",
+      "parQui": "{geste} ({nom})"
     }
   },
   "etMaintenant": {
@@ -19831,13 +19860,24 @@
     "enregistre": "Saved at {heure}",
     "enregistreFiche": "Saved to the record at {heure}",
     "modifier": "Edit",
-    "qualifier": "Move to “Qualified”",
     "aujourdhui": "{etape} → Qualified",
     "etapeAppliquee": "{prenom} moves to “Qualified”",
-    "terminer": "Done",
     "fil": "Each choice is written to the record's timeline.",
     "sansFiche": "{nom} has no client record yet.",
-    "creerFiche": "Create their record"
+    "creerFiche": "Create their record",
+    "question": {
+      "titre": "Move to Qualified?",
+      "plusTard": "Later",
+      "oui": "Yes"
+    },
+    "filTelephone": "Each choice is written to the record’s timeline. With no choice, a follow-up is suggested tomorrow in “Today”.",
+    "relanceDuLendemain": {
+      "tacheTitre": "Follow up with {prenom}",
+      "tacheDescription": "After the visit of {bien}",
+      "posee": "Follow-up set for tomorrow",
+      "annuler": "Undo",
+      "retiree": "Follow-up removed"
+    }
   },
   "coqueDEntree": {
     "retourAuSite": "Back to site",
@@ -21904,5 +21944,13 @@
     "resubmitError": "Resubmission failed. Please try again.",
     "approvedTitle": "Property approved and published",
     "approvedOn": "Approved on {date}"
+  },
+  "dictee": {
+    "erreurs": {
+      "refusee": "The microphone is blocked: allow it in your browser. Your text is kept.",
+      "reseau": "Dictation needs a connection. Your text is kept.",
+      "silence": "Nothing was heard. Please try again.",
+      "autre": "Dictation stopped. Your text is kept."
+    }
   }
 }

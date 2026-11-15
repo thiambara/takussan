@@ -49,10 +49,12 @@ const LIBELLES: LibellesDeLaPalette = {
   entree: (e) => (e.labelSpace === 'nav.admin' ? ADMIN[e.labelKey]! : (SIDEBAR[e.labelKey] as string)),
   action: (e) => ACTIONS[e.labelKey] ?? (SIDEBAR[e.labelKey] as string),
   carte: () => 'Mettre un bien en location',
-  precision: (g) => (g.id === 'aussi' ? 'Aussi' : null),
+  precision: (g) => (g.id === 'aussi' ? 'Aussi' : g.titre === 'agence' ? 'Agence' : null),
+  epinglee: 'Épinglé',
   synonymes: (id) => SYNONYMES[id] ?? [],
   pastille: (p) => `${p.nombre} ${p.cle}`,
-  espace: (p) => `Passer à : ${p.type}`,
+  espace: (p) => `Basculer vers ${p.agency?.name ?? p.type}`,
+  roleDeLEspace: (p) => (p.agency?.name ? p.type : null),
   motsEspace: ['espace', 'profil'],
 };
 
@@ -238,6 +240,7 @@ describe('revue I3 — resolveurDesRecents', () => {
 describe('TCK-2489 AC3 — la recherche d’annonces du site public entre dans la palette (ADR-0090 §2)', () => {
   const ANNONCES: LibellesDesAnnonces = {
     generique: 'Chercher un bien sur Takussan',
+    sitePublic: 'Site public',
     avecTexte: (q) => `Chercher « ${q} » parmi les annonces`,
   };
   const resultats = (persona: Persona, requete: string) =>
@@ -257,6 +260,8 @@ describe('TCK-2489 AC3 — la recherche d’annonces du site public entre dans l
       expect(liste[i]).toMatchObject({
         groupe: 'actions',
         libelle: 'Chercher un bien sur Takussan',
+        // TCK-2845 — la précision de la maquette : elle quitte `/app`.
+        precision: 'Site public',
         cible: { type: 'lien', href: '/properties', publique: true },
       });
       expect(liste.filter((o) => o.groupe === 'annonces')).toEqual([]);
@@ -303,5 +308,70 @@ describe('TCK-2489 AC3 — la recherche d’annonces du site public entre dans l
 
   it('« Annonces » est le dernier groupe de la palette', () => {
     expect(GROUPES_DE_LA_PALETTE.at(-1)).toBe('annonces');
+  });
+});
+
+/**
+ * TCK-2845 — « Aller à… » comme la maquette (app-coque e4) : l'ordre des groupes, le nombre en pastille,
+ * les précisions. La liste plate est celle que parcourent les flèches : son ordre doit être l'ordre affiché.
+ */
+describe('TCK-2845 — ordre, pastilles et précisions', () => {
+  const ADMIN_CTX = COMPTES['admin-agence'];
+  const AGENCE = { id: 3, name: 'Agence Teranga', slug: 'agence-teranga', kind: 'standard' as const };
+
+  it('l’ordre des groupes est celui de la maquette : Actions · À traiter · Aller à · Récents · Espaces', () => {
+    expect(GROUPES_DE_LA_PALETTE).toEqual(['actions', 'a-traiter', 'aller-a', 'recents', 'espaces', 'annonces']);
+  });
+
+  it('la liste plate suit cet ordre : aucun groupe ne revient après un groupe suivant', () => {
+    const profil = { id: 'owner:7', type: 'owner', numeric_id: 7, agency_id: 3, agency: AGENCE, status: 'active', created_at: null } as const;
+    const options = optionsDeLaPalette(
+      sources('agent', {
+        pastilles: [{ cle: 'pendingVisits', nombre: 3, href: '/app/visits?tab=requested' }],
+        recents: ['/app/payments', '/app/leases'],
+        espaces: [profil],
+      }),
+      LIBELLES,
+    );
+    const rangs = options.map((o) => GROUPES_DE_LA_PALETTE.indexOf(o.groupe));
+    expect(rangs).toEqual([...rangs].sort((a, b) => a - b));
+    expect([...new Set(options.map((o) => o.groupe))]).toEqual(['actions', 'a-traiter', 'aller-a', 'recents', 'espaces']);
+  });
+
+  it('« À traiter » porte son nombre en `compte`, pas dans le libellé', () => {
+    const options = optionsDeLaPalette(
+      sources('admin-agence', { pastilles: [{ cle: 'unhandledLeads', nombre: 3, href: '/app/leads' }] }),
+      { ...LIBELLES, pastille: () => 'Demandes non traitées' },
+    );
+    expect(du('a-traiter', options)).toEqual([expect.objectContaining({ libelle: 'Demandes non traitées', compte: 3 })]);
+  });
+
+  it('une entrée épinglée porte « Épinglé » ; une entrée du groupe Agence porte « Agence »', () => {
+    const menu = composerMenu(ADMIN_CTX, 'admin-agence', undefined, { epingles: ['baux'] });
+    const options = optionsDeLaPalette(
+      { action: menu.action, carte: menu.carte, groupes: menu.groupes, pastilles: [], espaces: [], recents: [], pathname: '/app' },
+      LIBELLES,
+    );
+    expect(options.find((o) => o.cle === 'aller-a:baux')?.precision).toBe('Épinglé');
+    expect(options.find((o) => o.cle === 'aller-a:agence-roles')?.precision).toBe('Agence');
+    expect(options.find((o) => o.cle === 'aller-a:tableau-de-bord')?.precision).toBeUndefined();
+    // La fiche « Agence » ne redit pas son groupe.
+    expect(options.find((o) => o.cle === 'aller-a:agence-fiche')).toMatchObject({ libelle: 'Agence' });
+    expect(options.find((o) => o.cle === 'aller-a:agence-fiche')?.precision).toBeUndefined();
+  });
+
+  it('« Basculer vers {agence} » porte le rôle ; sans agence, le rôle n’est pas répété', () => {
+    const avec = { id: 'owner:7', type: 'owner', numeric_id: 7, agency_id: 3, agency: AGENCE, status: 'active', created_at: null } as const;
+    const sans = { id: 'owner:8', type: 'owner', numeric_id: 8, agency_id: null, status: 'active', created_at: null } as const;
+    const options = du('espaces', optionsDeLaPalette(sources('agent', { espaces: [avec, sans] }), LIBELLES));
+    expect(options[0]).toMatchObject({ libelle: 'Basculer vers Agence Teranga', precision: 'owner' });
+    expect(options[1]).toMatchObject({ libelle: 'Basculer vers owner' });
+    expect(options[1]!.precision).toBeUndefined();
+  });
+
+  it('le rôle, passé en précision, reste cherchable : « owner » trouve « Basculer vers Agence Teranga »', () => {
+    const avec = { id: 'owner:7', type: 'owner', numeric_id: 7, agency_id: 3, agency: AGENCE, status: 'active', created_at: null } as const;
+    const options = optionsDeLaPalette(sources('agent', { espaces: [avec] }), LIBELLES);
+    expect(chercherDansLaPalette(options, 'owner').map((o) => o.cle)).toContain('espaces:owner:7');
   });
 });
