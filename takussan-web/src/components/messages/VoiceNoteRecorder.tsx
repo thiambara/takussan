@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useSendVoiceNote } from '@/lib/queries/conversations';
 import { cn } from '@/lib/utils';
+import { BARRES_D_UNE_ONDE, ONDE_NEUTRE, Onde, minutesSecondes, reduireLesNiveaux, useNiveauxDuMicro, useOndeDuFichier } from './NoteVocale';
 
 /** ADR-0038 : 60 secondes au plus. L'enregistrement s'arrête de lui-même à la borne. */
 export const VOICE_NOTE_MAX_SECONDS = 60;
@@ -32,11 +33,6 @@ function pickMimeType(): string | undefined {
 const subscribeNothing = () => () => {};
 
 type Recorded = { blob: Blob; url: string; duration: number };
-
-/** `0:14` — la durée d'une note, en minutes et secondes (maquette « 0:14 / 1:00 »). */
-function minutesSecondes(secondes: number): string {
-  return `${Math.floor(secondes / 60)}:${String(secondes % 60).padStart(2, '0')}`;
-}
 
 /**
  * TCK-592 (P19, ADR-0038) — enregistrer, réécouter, envoyer une note vocale. Le prestataire est
@@ -76,6 +72,15 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
   const jeterRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [lecture, setLecture] = useState(false);
+  // TCK-2861 — l'onde : le niveau du micro pendant l'enregistrement, puis la position de l'écoute.
+  const [flux, setFlux] = useState<MediaStream | null>(null);
+  const [ecoute, setEcoute] = useState(0);
+  const echantillons = useNiveauxDuMicro(recording ? flux : null);
+  // Sans échantillons (navigateur sans `AudioContext`), l'écoute décode le blob ; à défaut, l'onde neutre.
+  const ondeDuBlob = useOndeDuFichier(
+    recorded && (echantillons === null || echantillons.length === 0) ? recorded.url : null,
+    recorded ? `blob:${recorded.url}` : null,
+  );
 
   useEffect(() => {
     if (!recording) return;
@@ -110,6 +115,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
           Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)),
         );
         setRecording(false);
+        setFlux(null);
         if (jeterRef.current) {
           jeterRef.current = false;
           onActif?.(false);
@@ -122,6 +128,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
       startedAtRef.current = Date.now();
       setElapsed(0);
       recorder.start();
+      setFlux(stream);
       setRecording(true);
       onActif?.(true);
     } catch {
@@ -137,6 +144,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
       audioRef.current?.pause();
       audioRef.current = null;
       setLecture(false);
+      setEcoute(0);
       setRecorded(null);
       onActif?.(false);
     } catch (err) {
@@ -152,6 +160,7 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
     audioRef.current?.pause();
     audioRef.current = null;
     setLecture(false);
+    setEcoute(0);
     setRecorded(null);
     onActif?.(false);
   };
@@ -159,10 +168,19 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
   /*
    * TCK-2632 — dans le composeur de la messagerie (maquette `app-messagerie`, « Composeur » en
    * enregistrement et en écoute) : « jeter » à gauche, une pilule qui dit le temps sur la borne
-   * (« 0:14 / 1:00 »), puis « arrêter » ou « envoyer » en rond. L'onde de la maquette n'est pas
-   * dessinée : sans mesure du signal, elle ne dirait rien de vrai.
+   * (« 0:14 / 1:00 »), puis « arrêter » ou « envoyer » en rond.
+   *
+   * TCK-2861 — l'onde de la maquette est dessinée, et MESURÉE : en enregistrement, les derniers
+   * niveaux du micro (`useNiveauxDuMicro`) ; en écoute, toute la note réduite à ses crêtes, qui se
+   * remplit avec la lecture. Sans `AudioContext`, une onde neutre qui avance avec le chronomètre.
    */
   if (rond && (recording || recorded)) {
+    const mesure = echantillons !== null && echantillons.length > 0;
+    const onde = recording
+      ? mesure
+        ? { niveaux: [...Array<number>(Math.max(0, BARRES_D_UNE_ONDE - echantillons.length)).fill(0.05), ...echantillons.slice(-BARRES_D_UNE_ONDE)], progression: 1 }
+        : { niveaux: ONDE_NEUTRE, progression: elapsed / VOICE_NOTE_MAX_SECONDS }
+      : { niveaux: mesure ? reduireLesNiveaux(echantillons) : ondeDuBlob, progression: recorded ? ecoute / recorded.duration : 0 };
     const bouton = 'inline-flex size-11 flex-none items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-60';
     return (
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2" data-testid="note-vocale-en-cours">
@@ -198,7 +216,11 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
                 // Un lecteur sans élément : la pilule porte son propre bouton (maquette).
                 if (!audioRef.current) {
                   audioRef.current = new Audio(recorded.url);
-                  audioRef.current.onended = () => setLecture(false);
+                  audioRef.current.onended = () => {
+                    setLecture(false);
+                    setEcoute(0);
+                  };
+                  audioRef.current.ontimeupdate = () => setEcoute(audioRef.current?.currentTime ?? 0);
                 }
                 const a = audioRef.current;
                 if (a.paused) void a.play().then(() => setLecture(true)).catch(() => setLecture(false));
@@ -214,7 +236,12 @@ export function VoiceNoteRecorder({ conversationId, auRepos = 'visible', rond = 
               {lecture ? <Pause className="size-3.5 fill-current" aria-hidden="true" /> : <Play className="size-3.5 fill-current" aria-hidden="true" />}
             </button>
           )}
-          <span className="min-w-0 flex-1" />
+          <Onde
+            niveaux={onde.niveaux}
+            progression={onde.progression}
+            className="min-w-0 flex-1 overflow-hidden text-foreground/70"
+            data-testid={recording ? 'onde-enregistrement' : 'onde-ecoute'}
+          />
           <span className="flex-none text-ui tabular-nums text-encre-douce">
             {minutesSecondes(recording ? elapsed : (recorded?.duration ?? 0))}
             <span className="text-muted-foreground"> / {minutesSecondes(VOICE_NOTE_MAX_SECONDS)}</span>

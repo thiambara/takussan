@@ -194,10 +194,11 @@ describe('<NouvelleConversation> — rangée en sections (TCK-2830)', () => {
 
     await user.click(screen.getByRole('switch'));
     expect(screen.queryByRole('heading', { name: 'Clients récents' })).not.toBeInTheDocument();
-    // Dans le formulaire du groupe, le sélecteur porte aussi la ligne de détail.
-    await user.click(screen.getByLabelText('À'));
-    expect(await screen.findByRole('option', { name: /Malick Seck/ })).toHaveTextContent('Maison avec jardin · Thiès');
-    await user.keyboard('{Escape}');
+    // TCK-2861 — en groupe, au bureau, la liste paraît à la recherche dans « À », ligne de détail comprise
+    // (elle remplace le menu du sélecteur de TCK-2748).
+    fireEvent.change(screen.getByLabelText('À'), { target: { value: 'Mal' } });
+    expect(await screen.findByRole('button', { name: 'Malick Seck' })).toHaveAccessibleDescription('Maison avec jardin · Thiès');
+    fireEvent.change(screen.getByLabelText('À'), { target: { value: '' } });
 
     await user.click(screen.getByRole('switch'));
     await waitFor(() => expect(screen.getAllByRole('region')).toHaveLength(4));

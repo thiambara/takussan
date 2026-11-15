@@ -23,7 +23,6 @@ import { useMatchesMaxWidth, useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { ApercuDeLaPiece, BoutonDePieceJointe, usePieceEnAttente } from './composeur/PieceJointeDuComposeur';
 import { ReponsesRapides, insererLaReponse } from './composeur/ReponsesRapides';
 import { PiecesDeLaBulle } from './PiecesDeLaBulle';
-import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
 import { BoutonFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,11 +37,8 @@ import { EnTeteDuFil } from './EnTeteDuFil';
 import { MessageDateSeparator } from './MessageDateSeparator';
 import { ChatComposerShell } from './ChatComposerShell';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
-import {
-  urlDeLaPiece,
-  useLecteurDePieceAudio,
-  type RelirePiece,
-} from './PieceJointeDuFil';
+import { urlDeLaPiece, type RelirePiece } from './PieceJointeDuFil';
+import { LecteurDeNoteVocale } from './NoteVocale';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
@@ -78,7 +74,8 @@ interface ChatViewProps {
 
 /**
  * Realtime strategy: `useMessagesInfinite` loads 30 newest messages on mount
- * and pages older history when the user scrolls up; `useNewMessagesPolling`
+ * and pages older history on « Charger les messages précédents » (TCK-2861 — un bouton, plus le
+ * défilement infini : on remonte un fil à son rythme); `useNewMessagesPolling`
  * polls `?after_id=<latest>` every 3 s and merges results into the same cache
  * so polling never re-downloads loaded history. Polling pauses while the tab
  * is hidden (visibility listener below). See TCK-045 / pagination plan.
@@ -94,7 +91,6 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     typeof document === 'undefined' ? true : !document.hidden,
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const loadMoreRef = useRef<HTMLLIElement | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
@@ -193,13 +189,11 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   // and skip the auto-scroll-to-bottom for every subsequent conversation.
   const hasScrolledOnLoadRef = useRef(false);
   const lastIncomingIdRef = useRef<number | null>(null);
-  const scrollHeightBeforeFetchRef = useRef<number | null>(null);
   /** TCK-2632 — la personne est-elle en bas du fil ? (cf. l'observateur de taille plus bas) */
   const colleEnBasRef = useRef(true);
   useEffect(() => {
     hasScrolledOnLoadRef.current = false;
     lastIncomingIdRef.current = null;
-    scrollHeightBeforeFetchRef.current = null;
     colleEnBasRef.current = true;
   }, [conversationId]);
 
@@ -252,38 +246,39 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
     return () => observateur.disconnect();
   }, [premierContenu, conversationId]);
 
-  // Preserve scroll position when older history is prepended on scroll-up.
-  // Capture `scrollHeight` right before triggering `fetchNextPage`, then
-  // after the new page is rendered, restore the visual offset by adding the
-  // delta to `scrollTop`.
+  /**
+   * TCK-2861 — « Charger les messages précédents » (maquette e1/e5) au lieu du chargement à la
+   * sentinelle. Le message lu ne bouge pas : au clic on relève `scrollTop` ET `scrollHeight`, et une
+   * fois la page ajoutée au-dessus, on décale `scrollTop` de ce qu'elle a ajouté — le clic se fait
+   * rarement à `scrollTop = 0` (le bouton a sa hauteur, la personne a pu ne pas remonter tout en haut).
+   * Le fil « collé en bas » est décollé le temps du chargement : l'observateur de taille ne doit pas
+   * sauter en bas d'un fil court qui grandit par le haut.
+   */
   const pagesLength = infiniteData?.pages.length ?? 0;
   const prevPagesLengthRef = useRef(pagesLength);
+  const positionAvantChargementRef = useRef<{ haut: number; hauteur: number } | null>(null);
   useEffect(() => {
-    if (pagesLength > prevPagesLengthRef.current && scrollHeightBeforeFetchRef.current != null) {
-      const saved = scrollHeightBeforeFetchRef.current;
-      scrollHeightBeforeFetchRef.current = null;
+    const avant = positionAvantChargementRef.current;
+    if (pagesLength > prevPagesLengthRef.current && avant != null) {
+      positionAvantChargementRef.current = null;
       requestAnimationFrame(() => {
         const el = scrollRef.current;
         if (!el) return;
-        el.scrollTop = el.scrollHeight - saved;
+        el.scrollTop = avant.haut + (el.scrollHeight - avant.hauteur);
       });
     }
     prevPagesLengthRef.current = pagesLength;
   }, [pagesLength]);
 
-  // IntersectionObserver on the top sentinel triggers older-history fetch.
-  const isSentinelVisible = useIntersectionObserver(loadMoreRef, {
-    root: scrollRef,
-    rootMargin: '120px 0px 0px 0px',
-    enabled: Boolean(hasNextPage) && !isLoading,
-  });
-  useEffect(() => {
-    if (!isSentinelVisible || !hasNextPage || isFetchingNextPage || isLoading) return;
-    if (scrollRef.current) {
-      scrollHeightBeforeFetchRef.current = scrollRef.current.scrollHeight;
+  function chargerLesPrecedents() {
+    if (!hasNextPage || isFetchingNextPage) return;
+    const el = scrollRef.current;
+    if (el) {
+      positionAvantChargementRef.current = { haut: el.scrollTop, hauteur: el.scrollHeight };
+      colleEnBasRef.current = false;
     }
     void fetchNextPage();
-  }, [isSentinelVisible, hasNextPage, isFetchingNextPage, isLoading, fetchNextPage]);
+  }
 
   const renderItems = groupMessagesByDay(messages);
 
@@ -444,18 +439,19 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
               !isWidget && contexte?.ouvert && 'xl:max-w-[calc(var(--spacing)*172.2)]',
             )}
           >
-            <li
-              ref={loadMoreRef}
-              aria-hidden={!hasNextPage}
-              className={cn(
-                'flex justify-center',
-                hasNextPage ? 'py-2' : 'py-0',
-              )}
-            >
-              {isFetchingNextPage ? (
-                <span className="text-xs text-muted-foreground">{t('chat.loadingMore')}</span>
-              ) : null}
-            </li>
+            {hasNextPage ? (
+              <li className="flex justify-center pb-1">
+                <button
+                  type="button"
+                  onClick={chargerLesPrecedents}
+                  disabled={isFetchingNextPage}
+                  aria-busy={isFetchingNextPage || undefined}
+                  className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground/75 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-70"
+                >
+                  {isFetchingNextPage ? t('chat.loadingMore') : t('chat.chargerPrecedents')}
+                </button>
+              </li>
+            ) : null}
             {renderItems.map((item) => {
               if (item.kind === 'separator') {
                 return <MessageDateSeparator key={item.key} date={item.date} />;
@@ -595,7 +591,15 @@ function MessageBubble({
           </p>
         )}
         {message.type === 'audio' && message.attachments?.[0] ? (
-          <VoiceNotePlayer message={message} relirePiece={relirePiece} />
+          // TCK-2861 — la note vocale dessinée (rond, onde, « 0:23 ») : `NoteVocale.tsx`, isolé pour TCK-2901.
+          <LecteurDeNoteVocale
+            piece={message.attachments[0]}
+            duree={message.metadata?.duration}
+            relirePiece={relirePiece}
+            mienne={isOwn}
+            // L'élément reste écrit ICI : ses sous-titres absents sont gelés au nom de ce fichier.
+            rendreAudio={({ ref, ...attributs }) => <audio ref={ref} {...attributs} />}
+          />
         ) : message.type === 'image' || message.type === 'document' ? (
           // TCK-2632 — la pièce d'abord, la légende dessous ; une pièce sans légende rend
           // `content = ''` (TCK-2631) : pas de paragraphe vide.
@@ -625,30 +629,5 @@ function MessageBubble({
         </p>
       </div>
     </li>
-  );
-}
-
-/** TCK-592 (ADR-0038) — une note vocale : le lecteur, et la durée déclarée par l'émetteur. */
-function VoiceNotePlayer({ message, relirePiece }: { message: Message; relirePiece: RelirePiece }) {
-  const t = useTranslations('messaging.voiceNote');
-  const attachment = message.attachments[0];
-  const duration = message.metadata?.duration;
-  const { ref: audioRef, src, onError } = useLecteurDePieceAudio(attachment, relirePiece);
-
-  return (
-    <div className="flex flex-col gap-1">
-      <audio
-        ref={audioRef}
-        src={src}
-        onError={onError}
-        controls
-        preload="none"
-        className="h-9 w-56 max-w-full"
-        aria-label={t('label')}
-      />
-      {duration ? (
-        <span className="text-[0.6875rem] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
-      ) : null}
-    </div>
   );
 }

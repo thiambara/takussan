@@ -29,6 +29,9 @@ vi.mock('@/lib/queries/conversations', () => ({
   useCreateDirectConversation: () => ({ mutateAsync: creer, isPending: pending }),
   // TCK-2748 — le mode « groupe » du bureau monte la création ; non exercée ici.
   useCreateGroupConversation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-2861 — l'interrupteur ouvre le formulaire du groupe (bien, bail) : listes vides, non exercées.
+  useGroupPropertyOptions: () => ({ data: { data: [], meta: { total: 0 } }, isFetching: false, isError: false, refetch: vi.fn() }),
+  useGroupLeaseOptions: () => ({ data: { data: [], meta: { total: 0 } }, isFetching: false, isError: false, refetch: vi.fn() }),
 }));
 
 function monter(extra: { onNouveauGroupe?: () => void } = {}) {
@@ -81,6 +84,7 @@ describe('<NouvelleConversation> (TCK-2632)', () => {
   it('« Créer un groupe » n’existe que si l’espace le propose', () => {
     monter();
     expect(screen.queryByRole('button', { name: /Créer un groupe/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   // Maquette a/3 : « ✕ » en tête au téléphone (avant le titre), en fin de ligne au bureau.
@@ -96,12 +100,15 @@ describe('<NouvelleConversation> (TCK-2632)', () => {
     expect(p.onClose).toHaveBeenCalled();
   });
 
-  it('« Créer un groupe » ferme ce dialogue et ouvre la création', () => {
+  // TCK-2861 — attente changée, voulue : « Créer un groupe » n'ouvre plus un autre dialogue, c'est un
+  // interrupteur de la feuille (maquette e3) ; le dialogue ne se ferme pas.
+  it('« Créer un groupe » est un interrupteur de la feuille, qui ne ferme rien (TCK-2861)', () => {
     const onNouveauGroupe = vi.fn();
     const p = monter({ onNouveauGroupe });
-    fireEvent.click(screen.getByRole('button', { name: /Créer un groupe/ }));
-    expect(onNouveauGroupe).toHaveBeenCalled();
-    expect(p.onClose).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('switch', { name: /Créer un groupe/ }));
+    expect(onNouveauGroupe).not.toHaveBeenCalled();
+    expect(p.onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nom du groupe')).toBeInTheDocument();
   });
 });
 

@@ -77,4 +77,40 @@ Le lecteur réutilisable de note vocale est extrait par **TCK-2901** (famille 4,
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Livré (2026-11-15)
+
+- **Bulle vocale** : `takussan-web/src/components/messages/NoteVocale.tsx` (module ISOLÉ pour TCK-2901 : `Onde`, `minutesSecondes`, `useOndeDuFichier`, `useNiveauxDuMicro`, `LecteurDeNoteVocale`). Rond « Lire »/« Pause » (état lu sur les événements `play`/`pause`/`ended` de l'élément, pas sur le clic : le hook TCK-2736 relance seul après une URL périmée), onde qui se remplit, « 0:23 » depuis `metadata.duration` (MediaRecorder rend souvent `duration = Infinity`). L'onde est décodée dans le navigateur (`fetch` + `decodeAudioData`), mise en cache par **id de pièce** (pas par URL : chaque relecture du fil signe une URL neuve) ; sans `AudioContext` aucune requête, onde neutre de 28 barres. Un échec du dessin ne passe jamais par `relirePiece`.
+- L'élément `<audio>` (sans `controls`, caché) reste **écrit dans `ChatView.tsx`** par une prop `rendreAudio` : `check-eslint-suppressions` refuse une entrée neuve, et le gel `media-has-caption` est au nom de `ChatView.tsx`. TCK-2901 devra trancher (sous-titres / transcription) en sortant le lecteur.
+- **Composeur** : l'onde à côté de « m:ss / 1:00 » — niveaux mesurés du micro (`AnalyserNode`, relevé 100 ms, contexte fermé à l'arrêt/rejet/démontage) ; en écoute, la note réduite à ses crêtes, remplie avec la lecture. Sans `AudioContext`, onde neutre qui avance avec le chronomètre. Le commentaire « l'onde n'est pas dessinée » est remplacé. Les tests TCK-2632 de l'enregistreur sont inchangés et verts.
+- **« Charger les messages précédents »** : bouton en tête du fil, rendu seulement s'il y a une page précédente (plus de sentinelle `aria-hidden`). Position conservée par `scrollTop + (scrollHeight après − avant)` relevés AU CLIC ; le fil « collé en bas » est décollé le temps du chargement. Vaut aussi pour le widget flottant (même `ChatView`).
+- **Liste** : « Chargement des conversations plus anciennes… » (clé neuve `messaging.list.chargementPlusAnciennes` ; `chat.loadingMore` reste celle du fil).
+- **Nouvelle conversation** : champ « À » à puces aux deux formats (« À : » en rangée au téléphone, champ encadré « À » + aide au bureau), interrupteur « Créer un groupe » aux deux formats (au téléphone il remplace la rangée vers `NewGroupDialog`), aide « Activé d'office à partir de deux destinataires. » au bureau, phrase de pied au téléphone. Règle d'état : 2 puces → groupe ; retirer sous 2 → direct (même si l'interrupteur avait été allumé à la main) ; allumé à la main avec 0-1 puce → formulaire de groupe ; à ≥ 2 puces, `readOnly`. Une puce + « Écrire » → `useTrouverLeFilDirect` (fil existant ou brouillon). Une personne en puce n'est plus proposée. Au bureau, en groupe, la liste ne paraît qu'à la recherche.
+
+### Décisions
+
+- **Fail-closed (TCK-645)** : sans `onNouveauGroupe` (l'espace ne propose pas de groupe), pas de puces ; toucher une personne ouvre son fil comme avant — une deuxième ne peut jamais produire un groupe.
+- **Phrase de pied** : seulement si `useNomDeLAgenceActive()` rend un nom ; sans agence, elle serait fausse et n'est pas rendue. Vérifié : seul `AgentProfileResource` sert `agency_id` — un profil bailleur n'a pas d'agence, la phrase ne lui paraît pas.
+- La troncature « N sur M — précisez la recherche » se juge sur ce que le serveur a rendu, pas sur la liste privée des puces (sinon toute liste dont une personne est en puce se dirait tronquée).
+
+### À relever au navigateur
+
+- L'onde télécharge chaque note à l'ouverture du fil (l'élément est en `preload="none"`, le dessin non) et ouvre un `AudioContext` par bulle, fermé après décodage. Le CORS de l'URL signée décide si l'onde est réelle ou neutre.
+
+### Écarts à la prémisse
+
+- Lignes citées re-mesurées : `ChatView.tsx:632-654` (lecteur natif), `VoiceNoteRecorder.tsx:162` (commentaire), `ChatView.tsx:447-458` (sentinelle), `ConversationList.tsx:211-219`, `NouvelleConversation.tsx:55-57` / `:251-276` — conformes.
+- TCK-2901 n'est pas livré : la bulle est dessinée ici, dans un module isolé.
+
+### Tests dont l'attente change (voulu)
+
+- `NouvelleConversation.tck-2632` : « Créer un groupe ferme ce dialogue et ouvre la création » → c'est un interrupteur de la feuille.
+- `NouvelleConversation.groupe.tck-2748` : personnes choisies dans la liste sous « À » (plus le menu d'un sélecteur) ; au téléphone, interrupteur au lieu de la rangée vers `NewGroupDialog`.
+- `NouvelleConversation.sections.tck-2830` (dernier cas) : en groupe au bureau, la ligne de détail se lit dans la liste de recherche sous « À ».
+
+### Reste
+
+- `NewGroupDialog` n'est plus ouvert par aucun geste réel (`MessagesPage` le monte encore via `onNouveauGroupe`, gardé comme signal « groupe proposé ») : à retirer dans un ticket à part.
+- `MessagesPage.test.tsx` : son double de `NouvelleConversation` clique encore « Créer un groupe » → `NewGroupDialog`, un chemin que le vrai composant n'a plus.
+- `docs/qa/audit-ux-2026-11/fidelite/TCK-2632.json` porte des écarts acceptés que ce ticket lève (l. 336 « forme d'onde », l. 402 « la rangée mène à NewGroupDialog », l. 547 catégorie « forme d'onde, bulle de note vocale ») : à retirer au relevé (AC-F2).
+- AC5, AC-F1, AC-F2 : non mesurés au navigateur (lot sans navigateur). Fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2861.json` écrite à la lecture, `releve_le: null`.
+

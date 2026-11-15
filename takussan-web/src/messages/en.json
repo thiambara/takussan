@@ -11601,7 +11601,8 @@
       "detail": {
         "sejour": "{debut} → {fin}",
         "entree": "Move-in {date}",
-        "offre": "Listed {affiche} · {ecart}"
+        "offre": "Listed {affiche} · {ecart}",
+        "caution": "{n, plural, one {# month deposit} other {# months deposit}}"
       },
       "recue": {
         "min": "{n} min ago",
@@ -11614,7 +11615,8 @@
         "bien": "Property",
         "montant": "Amount",
         "statut": "Status",
-        "recue": "Received"
+        "recue": "Received",
+        "dossier": "File"
       },
       "caption": "Booking requests",
       "recherche": "Client, property, reference…",
@@ -11643,7 +11645,8 @@
         "filtre": "No request matches these filters."
       },
       "erreur": "Bookings could not be loaded.",
-      "clientSansNom": "Client #{id}"
+      "clientSansNom": "Client #{id}",
+      "expireDemain": "Expires tomorrow"
     },
     "client": {
       "titre": "My bookings",
@@ -11713,7 +11716,8 @@
         "paiements": "Payments",
         "historique": "History",
         "autresGestes": "{n, plural, one {Other action} other {Other actions}}",
-        "decision": "Decision"
+        "decision": "Decision",
+        "dossier": "Application file"
       },
       "qui": {
         "appeler": "Call",
@@ -11722,7 +11726,12 @@
         "dejaVisite": "Has already visited this property.",
         "visitesEnregistrees": "{n, plural, one {# visit recorded.} other {# visits recorded.}}",
         "visites": "{n, plural, one {# visit} other {# visits}}",
-        "messageWhatsApp": "Hello {prenom}, I am getting back to you about your {nature, select, stay {stay request} application {application} offer {offer} other {booking}} for {bien}."
+        "messageWhatsApp": "Hello {prenom}, I am getting back to you about your {nature, select, stay {stay request} application {application} offer {offer} other {booking}} for {bien}.",
+        "revenus": "Income {rapport} × the rent",
+        "revenusNonDeclares": "Income not declared",
+        "garant": "{oui, select, oui {Guarantor: yes} other {Guarantor: no}}",
+        "visiteLe": "{jour}.",
+        "visiteLeAvecVerdict": "{jour}: “{verdict}”."
       },
       "quoi": {
         "loyerPropose": "Proposed rent",
@@ -11732,7 +11741,12 @@
         "valable": "Valid until",
         "acompte": "Deposit",
         "paye": "· paid",
-        "reference": "Reference"
+        "reference": "Reference",
+        "duree": "Term",
+        "dureeValeur": "{n, plural, one {# month} other {# months}}{renouvelable, select, oui {, renewable} other {}}",
+        "caution": "Security deposit",
+        "cautionMois": "{n, plural, one {# month} other {# months}}",
+        "aVerser": "Due on move-in"
       },
       "offre": {
         "titre": "Purchase offer",
@@ -11746,7 +11760,16 @@
         "dessus": "The offer is {pourcentage} above the listed price.",
         "egale": "The offer matches the listed price.",
         "jusquA": "It stands until {date}.",
-        "accepter": "Accept {montant}"
+        "accepter": "Accept {montant}",
+        "revenus": "Income of {rapport} times the rent",
+        "revenusNonDeclares": "Income not declared",
+        "garant": "{oui, select, oui {guarantor declared} other {no guarantor}}",
+        "garantSeul": "{oui, select, oui {Guarantor declared} other {No guarantor}}",
+        "manque": "{piece, select, identity {The proof of identity is} payslips {The payslips are} employment_certificate {The employment certificate is} guarantor_commitment {The guarantor’s commitment is} guarantor_identity {The guarantor’s proof of identity is} proof_of_funds {The proof of funds is} other {A document is}} missing.",
+        "complet": "The file is complete.",
+        "autres": "{n, plural, one {# other application for this property} other {# other applications for this property}}",
+        "autreDossier": "{nom} · file {recues}/{total}",
+        "comparer": "Compare"
       },
       "sejour": {
         "arrivee": "Arrival",
@@ -11766,7 +11789,8 @@
         "bien": "Property",
         "loyer": "Rent",
         "debut": "Start",
-        "modifiable": "Everything can still be changed before it is sent for signature."
+        "modifiable": "Everything can still be changed before it is sent for signature.",
+        "caution": "Security deposit"
       },
       "paiement": {
         "ligne": "{type} · {montant}",
@@ -11778,7 +11802,38 @@
       },
       "historique": {
         "creee": "{nature, select, stay {Stay request sent} application {Application submitted} offer {Offer submitted} other {Booking created}} by {nom}",
-        "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}"
+        "saisie": "{nature, select, stay {Stay request recorded} application {Application recorded} offer {Offer recorded} other {Booking recorded}} by {nom}",
+        "visite": "{agent, select, aucun {Visit completed} other {Visit completed with {agent}}}",
+        "citation": "{quoi} — “{texte}”"
+      },
+      "dossier": {
+        "completude": "{recues}/{total} documents",
+        "completudeCourte": "{recues}/{total}",
+        "completudeAria": "{recues, plural, one {# document received} other {# documents received}} out of {total}",
+        "pieces": {
+          "identity": "Proof of identity",
+          "payslips": "Payslips",
+          "employment_certificate": "Employment certificate",
+          "guarantor_commitment": "Guarantor’s commitment",
+          "guarantor_identity": "Guarantor’s proof of identity",
+          "proof_of_funds": "Proof of funds",
+          "other": "Other document"
+        },
+        "recue": "{document} · received on {date}",
+        "pasEncore": "Not received yet",
+        "ouvrir": "Open",
+        "ouvrirAria": "Open: {piece}",
+        "demander": "Request",
+        "demanderAria": "Request: {piece}",
+        "demandeeInstant": "Requested just now",
+        "demandee": "Requested {age}",
+        "demandeeMotif": "A document can be requested again 24 h after the previous request.",
+        "sansCompte": "Request recorded. The client has no account: let them know yourself.",
+        "erreurs": {
+          "throttled": "This document was already requested less than 24 h ago.",
+          "closed": "This request is closed: its file can no longer be completed."
+        },
+        "erreurLecture": "The file could not be loaded."
       }
     },
     "feuilles": {
@@ -19882,7 +19937,7 @@
     "facultatif": "Optional",
     "message": "Message",
     "messagePlaceholder": "What the client told you",
-    "prevenu": "The client will be notified and can cancel.",
+    "prevenu": "The client will be notified and can complete their file.",
     "enregistrerCandidature": "Save the application",
     "enregistrerOffre": "Save the offer",
     "enregistrer": "Save",
@@ -19902,7 +19957,8 @@
     "codes": {
       "booking": {
         "customer_required": "Choose the client: a request recorded by the agency is always in their name.",
-        "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale."
+        "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale.",
+        "field_not_for_kind": "A field sent does not apply to this kind of request: check the kind selected."
       }
     }
   },

@@ -11601,7 +11601,8 @@
       "detail": {
         "sejour": "{debut} → {fin}",
         "entree": "Entrée {date}",
-        "offre": "Affiché {affiche} · {ecart}"
+        "offre": "Affiché {affiche} · {ecart}",
+        "caution": "{n, plural, one {caution # mois} other {caution # mois}}"
       },
       "recue": {
         "min": "il y a {n} min",
@@ -11614,7 +11615,8 @@
         "bien": "Bien",
         "montant": "Montant",
         "statut": "Statut",
-        "recue": "Reçue"
+        "recue": "Reçue",
+        "dossier": "Dossier"
       },
       "caption": "Demandes de réservation",
       "recherche": "Client, bien, référence…",
@@ -11643,7 +11645,8 @@
         "filtre": "Aucune demande ne correspond à ces filtres."
       },
       "erreur": "Les réservations n’ont pas pu être chargées.",
-      "clientSansNom": "Client #{id}"
+      "clientSansNom": "Client #{id}",
+      "expireDemain": "Expire demain"
     },
     "client": {
       "titre": "Mes réservations",
@@ -11713,7 +11716,8 @@
         "paiements": "Paiements",
         "historique": "Historique",
         "autresGestes": "{n, plural, one {Autre geste} other {Autres gestes}}",
-        "decision": "Décision"
+        "decision": "Décision",
+        "dossier": "Dossier"
       },
       "qui": {
         "appeler": "Appeler",
@@ -11722,7 +11726,12 @@
         "dejaVisite": "A déjà visité ce bien.",
         "visitesEnregistrees": "{n, plural, one {# visite enregistrée.} other {# visites enregistrées.}}",
         "visites": "{n, plural, one {# visite} other {# visites}}",
-        "messageWhatsApp": "Bonjour {prenom}, je reviens vers vous au sujet de votre {nature, select, stay {demande de séjour} application {candidature} offer {offre} other {réservation}} pour {bien}."
+        "messageWhatsApp": "Bonjour {prenom}, je reviens vers vous au sujet de votre {nature, select, stay {demande de séjour} application {candidature} offer {offre} other {réservation}} pour {bien}.",
+        "revenus": "Revenus {rapport} × le loyer",
+        "revenusNonDeclares": "Revenus non déclarés",
+        "garant": "{oui, select, oui {Garant : oui} other {Garant : non}}",
+        "visiteLe": "{jour}.",
+        "visiteLeAvecVerdict": "{jour} : « {verdict} »."
       },
       "quoi": {
         "loyerPropose": "Loyer proposé",
@@ -11732,7 +11741,12 @@
         "valable": "Valable jusqu’au",
         "acompte": "Acompte",
         "paye": "· payé",
-        "reference": "Référence"
+        "reference": "Référence",
+        "duree": "Durée",
+        "dureeValeur": "{n, plural, one {# mois} other {# mois}}{renouvelable, select, oui {, renouvelable} other {}}",
+        "caution": "Caution",
+        "cautionMois": "{n, plural, one {# mois} other {# mois}}",
+        "aVerser": "À verser à l’entrée"
       },
       "offre": {
         "titre": "Offre d’achat",
@@ -11746,7 +11760,16 @@
         "dessus": "L’offre est à {pourcentage} au-dessus du prix affiché.",
         "egale": "L’offre est au prix affiché.",
         "jusquA": "Elle tient jusqu’au {date}.",
-        "accepter": "Accepter {montant}"
+        "accepter": "Accepter {montant}",
+        "revenus": "Revenus de {rapport} fois le loyer",
+        "revenusNonDeclares": "Revenus non déclarés",
+        "garant": "{oui, select, oui {garant déclaré} other {sans garant}}",
+        "garantSeul": "{oui, select, oui {Garant déclaré} other {Sans garant}}",
+        "manque": "Il manque {piece, select, identity {la pièce d’identité} payslips {les bulletins de salaire} employment_certificate {l’attestation de travail} guarantor_commitment {l’engagement du garant} guarantor_identity {la pièce d’identité du garant} proof_of_funds {le justificatif des fonds} other {une pièce}}.",
+        "complet": "Le dossier est complet.",
+        "autres": "{n, plural, one {# autre candidature sur ce bien} other {# autres candidatures sur ce bien}}",
+        "autreDossier": "{nom} · dossier {recues}/{total}",
+        "comparer": "Comparer"
       },
       "sejour": {
         "arrivee": "Arrivée",
@@ -11766,7 +11789,8 @@
         "bien": "Bien",
         "loyer": "Loyer",
         "debut": "Début",
-        "modifiable": "Tout reste modifiable avant l’envoi en signature."
+        "modifiable": "Tout reste modifiable avant l’envoi en signature.",
+        "caution": "Caution"
       },
       "paiement": {
         "ligne": "{type} · {montant}",
@@ -11778,7 +11802,38 @@
       },
       "historique": {
         "creee": "{nature, select, stay {Demande de séjour envoyée} application {Candidature déposée} offer {Offre déposée} other {Réservation créée}} par {nom}",
-        "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}"
+        "saisie": "{nature, select, stay {Demande de séjour saisie} application {Candidature saisie} offer {Offre saisie} other {Réservation saisie}} par {nom}",
+        "visite": "{agent, select, aucun {Visite effectuée} other {Visite effectuée avec {agent}}}",
+        "citation": "{quoi} — « {texte} »"
+      },
+      "dossier": {
+        "completude": "{recues}/{total} pièces",
+        "completudeCourte": "{recues}/{total}",
+        "completudeAria": "{recues, plural, one {# pièce reçue} other {# pièces reçues}} sur {total}",
+        "pieces": {
+          "identity": "Pièce d’identité",
+          "payslips": "Bulletins de salaire",
+          "employment_certificate": "Attestation de travail",
+          "guarantor_commitment": "Engagement du garant",
+          "guarantor_identity": "Pièce d’identité du garant",
+          "proof_of_funds": "Justificatif des fonds",
+          "other": "Autre pièce"
+        },
+        "recue": "{document} · reçue le {date}",
+        "pasEncore": "Pas encore reçue",
+        "ouvrir": "Ouvrir",
+        "ouvrirAria": "Ouvrir : {piece}",
+        "demander": "Demander",
+        "demanderAria": "Demander : {piece}",
+        "demandeeInstant": "Demandée à l’instant",
+        "demandee": "Demandée {age}",
+        "demandeeMotif": "Une pièce se redemande 24 h après la demande précédente.",
+        "sansCompte": "Demande datée. Le client n’a pas de compte : prévenez-le vous-même.",
+        "erreurs": {
+          "throttled": "Cette pièce a déjà été demandée il y a moins de 24 h.",
+          "closed": "Cette demande est close : son dossier ne se complète plus."
+        },
+        "erreurLecture": "Le dossier n’a pas pu être lu."
       }
     },
     "feuilles": {
@@ -19882,7 +19937,7 @@
     "facultatif": "Facultatif",
     "message": "Message",
     "messagePlaceholder": "Ce que le client vous a dit",
-    "prevenu": "Le client sera prévenu et pourra annuler.",
+    "prevenu": "Le client sera prévenu et pourra compléter son dossier.",
     "enregistrerCandidature": "Enregistrer la candidature",
     "enregistrerOffre": "Enregistrer l’offre",
     "enregistrer": "Enregistrer",
@@ -19902,7 +19957,8 @@
     "codes": {
       "booking": {
         "customer_required": "Choisissez le client : une demande saisie par l’agence est toujours à son nom.",
-        "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre."
+        "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre.",
+        "field_not_for_kind": "Un champ envoyé ne vaut pas pour cette nature de demande : vérifiez la nature choisie."
       }
     }
   },
