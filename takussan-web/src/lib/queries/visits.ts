@@ -497,6 +497,8 @@ export const VISIT_CLIENT_FIELDS: string[] = [
   'completed_at',
   'cancelled_at',
   'cancellation_reason',
+  // TCK-2883 — « Annulée par vous » / « Annulée par l'agence » (TCK-2871).
+  'cancelled_by',
   'duration_minutes',
   'rating',
   'created_at',
@@ -534,6 +536,28 @@ export function useVisitesDuClient(
       ...(options.garderLaPage ? { placeholderData: keepPreviousData } : {}),
     },
   );
+}
+
+/** TCK-2883 (TCK-2871) — le délai de réponse ordinaire d'une agence, mesuré sur ses demandes. */
+export interface DelaiDeReponse {
+  readonly median_hours: number;
+  readonly sample: number;
+}
+
+/**
+ * TCK-2883 — « L'agence vous répond d'ordinaire en 2 h » : `GET /api/agencies/{agency}/response-time`.
+ * 204 (échantillon sous le seuil, aucune réponse mesurée) → `null` : aucune ligne, aucun chiffre
+ * inventé. Une erreur ne dit rien non plus (`retry: false`, la ligne n'apparaît pas). Une lecture par
+ * agence, partagée par toutes les demandes en attente qui la visent.
+ */
+export function useDelaiDeReponse(agencyId: number | null | undefined) {
+  const requete = useApiQuery<{ data?: DelaiDeReponse } | null>(
+    ['agencies', 'response-time', agencyId ?? null],
+    agencyId ? cheminApi`/api/agencies/${agencyId}/response-time` : '',
+    { enabled: Boolean(agencyId), retry: false, staleTime: 30 * 60_000 },
+  );
+  const d = requete.data?.data;
+  return d && typeof d.median_hours === 'number' && d.median_hours > 0 ? d : null;
 }
 
 /** Confirmer depuis la liste : l'heure fixée pour une tranche (`scheduled_at`), sinon rien. */

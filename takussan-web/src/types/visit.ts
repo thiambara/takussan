@@ -59,6 +59,8 @@ export interface PropertyVisit {
   completed_at?: string | null;
   cancelled_at?: string | null;
   cancellation_reason?: string | null;
+  /** TCK-2871 / TCK-2883 — qui a annulé (« Annulée par vous ») ; `null` avant la colonne, ou non annulée. */
+  cancelled_by?: 'visitor' | 'agency' | null;
   duration_minutes?: number | null;
   feedback?: string | null;
   rating?: number | null;
@@ -70,6 +72,10 @@ export interface PropertyVisit {
     slug?: string | null;
     /** TCK-2585 — la photo du bien, par le chemin des URL publiques (filigrane respecté). */
     cover_url?: string | null;
+    /** TCK-2871 / TCK-2883 — le QUARTIER, servi à tout lecteur dès la demande (la rue reste sous `address`). */
+    neighborhood?: string | null;
+    /** TCK-2883 — l'agence du bien (`GET /api/agencies/{agency}/response-time`) ; `null` sans agence. */
+    agency_id?: number | null;
     /**
      * TCK-2585 — l'adresse : au personnel et au propriétaire toujours, au visiteur une fois la visite
      * confirmée. Clé ABSENTE sinon.

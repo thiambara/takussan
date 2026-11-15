@@ -179,6 +179,10 @@ class PropertyVisitResource extends BaseResource
                 // TCK-2871 — le QUARTIER n'est pas l'adresse : servi à tout lecteur de la visite dès la
                 // demande ; la rue (`address.line`) reste à la règle d'`adresseLisible`, inchangée.
                 'neighborhood' => $this->property->address?->neighborhood,
+                // TCK-2883 — l'agence du bien, relue par `VisitReadContext` (le bloc suit `fields[properties]`,
+                // qui n'a pas à nommer `agency_id`) : « L'agence vous répond d'ordinaire en 2 h » lit
+                // `GET /api/agencies/{agency}/response-time` sur elle. `null` pour un bien sans agence.
+                'agency_id' => VisitReadContext::for($request, $this->resource)['agency_id'] ?? null,
                 ...($this->adresseLisible($request) ? ['address' => self::adresse($this->property)] : []),
             ]),
             // TCK-2585 — le visiteur tel que la carte le montre : la fiche, à défaut le compte, à défaut

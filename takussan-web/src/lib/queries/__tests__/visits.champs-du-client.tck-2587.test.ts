@@ -46,6 +46,8 @@ describe('VISIT_CLIENT_FIELDS', () => {
         'completed_at',
         'cancelled_at',
         'cancellation_reason',
+        // TCK-2883 — qui a annulé (« Annulée par vous ») : un fait de la visite, pas une saisie de l'agence.
+        'cancelled_by',
         'duration_minutes',
         'rating',
         'created_at',

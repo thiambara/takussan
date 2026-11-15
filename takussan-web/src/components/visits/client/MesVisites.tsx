@@ -20,7 +20,7 @@ import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { initiales } from '@/lib/fiche-publique';
 import { nomAffichable } from '@/lib/identite';
-import { useCancelVisit, useVisitesDuClient } from '@/lib/queries/visits';
+import { useCancelVisit, useDelaiDeReponse, useVisitesDuClient } from '@/lib/queries/visits';
 import { avisDonne, avisOuvert } from '@/lib/visites/fenetre-d-avis';
 import { cn } from '@/lib/utils';
 import type { PropertyVisit } from '@/types/visit';
@@ -381,6 +381,7 @@ function LigneEnAttente({ v }: { readonly v: PropertyVisit }) {
             </p>
           ) : null}
           <p className="truncate text-corps text-foreground">{bienEtQuartier(v, titre)}</p>
+          {v.status === 'scheduled' ? <DelaiDeReponse agencyId={v.property?.agency_id ?? null} /> : null}
         </div>
         <ChevronRight className="size-5 flex-none text-muted-foreground" aria-hidden="true" />
       </Link>
@@ -388,14 +389,44 @@ function LigneEnAttente({ v }: { readonly v: PropertyVisit }) {
   );
 }
 
+/**
+ * TCK-2883 — « L'agence vous répond d'ordinaire en 2 h » sous une demande en attente (maquette a-7).
+ * Rien quand l'API rend 204 (échantillon trop mince) ou quand le bien n'a pas d'agence.
+ */
+function DelaiDeReponse({ agencyId }: { readonly agencyId: number | null }) {
+  const t = useTranslations('visits.client');
+  const delai = useDelaiDeReponse(agencyId);
+  if (!delai) return null;
+  return (
+    <p data-slot="delai-de-reponse" className="truncate text-ui text-muted-foreground">
+      {t('delaiDeReponse', { heures: delai.median_hours })}
+    </p>
+  );
+}
+
+/**
+ * TCK-2883 — la ligne d'une visite annulée : qui l'a annulée (`cancelled_by`, TCK-2871), puis le motif.
+ * Sans auteur connu (visite annulée avant la colonne), le seul motif, comme avant.
+ */
+function useLigneDAnnulation() {
+  const t = useTranslations('visits.client');
+  return (v: PropertyVisit): string | null => {
+    if (v.status !== 'cancelled') return null;
+    const motif = v.cancellation_reason?.trim() || null;
+    const par = v.cancelled_by === 'visitor' ? 'parVous' : v.cancelled_by === 'agency' ? 'parLAgence' : null;
+    if (par) return motif ? t(`annulee.${par}Motif`, { motif }) : t(`annulee.${par}`);
+    return motif ? t('motif', { motif }) : null;
+  };
+}
+
 /** Une visite passée : le bien, le jour et la note donnée, le motif d'une annulation, le statut. */
 function LignePassee({ v }: { readonly v: PropertyVisit }) {
-  const t = useTranslations('visits.client');
   const tVisits = useTranslations('visits');
   const jour = useJour();
+  const annulation = useLigneDAnnulation();
   const statut = v.status ?? 'scheduled';
   const titre = v.property?.title?.trim() || tVisits('fallbackTitle', { id: String(v.id) });
-  const motif = statut === 'cancelled' ? v.cancellation_reason?.trim() || null : null;
+  const motif = annulation(v);
   return (
     <li>
       <Link
@@ -410,7 +441,7 @@ function LignePassee({ v }: { readonly v: PropertyVisit }) {
             {v.scheduled_at ? jour(v.scheduled_at) : null}
             {v.rating != null ? <Etoiles note={v.rating} /> : null}
           </p>
-          {motif ? <p className="truncate text-ui text-muted-foreground">{t('motif', { motif })}</p> : null}
+          {motif ? <p data-slot="ligne-d-annulation" className="truncate text-ui text-muted-foreground">{motif}</p> : null}
         </div>
         <StatusBadge tone={VISIT_STATUS_TONE[statut]} label={tVisits(VISIT_STATUS_LABEL_KEY[statut])} />
       </Link>

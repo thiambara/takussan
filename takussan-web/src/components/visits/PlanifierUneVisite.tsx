@@ -25,6 +25,7 @@ import { jourDuMessage } from '@/lib/visites/jour-du-message';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { cn } from '@/lib/utils';
 import {
+  canauxRemis,
   CarteDeLaDemande,
   ChoixDuBien,
   ChoixDuClient,
@@ -309,6 +310,7 @@ export function PlanifierDialog({
         ficheCreee: Boolean(demande && charge.create_customer),
         criteres: demande && charge.create_customer ? criteres : null,
         sms: smsRemis(reponse),
+        canaux: canauxRemis(reponse),
       });
       onPlanifiee?.();
     } catch (err) {

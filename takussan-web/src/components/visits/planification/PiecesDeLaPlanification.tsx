@@ -521,6 +521,40 @@ export interface VisitePlanifiee {
   readonly criteres?: string | null;
   /** TCK-2881 (TCK-2871) — le SMS remis au visiteur, son heure et son texte ; `null` sans SMS remis. */
   readonly sms?: SmsRemis | null;
+  /**
+   * TCK-2883 (TCK-2871) — les canaux REMIS au visiteur, lus de `notification` ; `null` quand la réponse
+   * n'en dit rien (la phrase d'avant, « Un SMS a prévenu … », reste alors).
+   */
+  readonly canaux?: CanauxRemis | null;
+}
+
+/** TCK-2883 — les canaux externes par lesquels le visiteur a été prévenu. */
+export interface CanauxRemis {
+  readonly sms: boolean;
+  readonly email: boolean;
+  readonly whatsapp: boolean;
+}
+
+/**
+ * TCK-2883 — `notification` de `POST /api/property-visits` (TCK-2871) en canaux remis. Le SMS se lit
+ * sur `notification.sms` (non nul = remis, repli d'un WhatsApp inéligible compris), JAMAIS sur
+ * `channels` seul : un SMS retenu par la borne y figure encore. WhatsApp : `channels` sans SMS remis.
+ * `null` sans `notification` lisible.
+ */
+export function canauxRemis(reponse: unknown): CanauxRemis | null {
+  const n = (reponse as { notification?: unknown } | null)?.notification;
+  if (!n || typeof n !== 'object') return null;
+  const { channels, sms } = n as { channels?: unknown; sms?: unknown };
+  if (!Array.isArray(channels)) return null;
+  const smsRemis = Boolean(sms && typeof sms === 'object');
+  return { sms: smsRemis, email: channels.includes('email'), whatsapp: !smsRemis && channels.includes('whatsapp') };
+}
+
+/** La clé de `visitPlanning.plan.notified` pour une combinaison de canaux remis. */
+function cleDesCanaux(c: CanauxRemis): 'sms' | 'smsEmail' | 'email' | 'whatsapp' | 'whatsappEmail' | 'aucun' {
+  if (c.sms) return c.email ? 'smsEmail' : 'sms';
+  if (c.whatsapp) return c.email ? 'whatsappEmail' : 'whatsapp';
+  return c.email ? 'email' : 'aucun';
 }
 
 /** TCK-2871 — `notification.sms` de `POST /api/property-visits` : l'instant de la remise et le texte. */
@@ -540,9 +574,16 @@ function PhraseDuSms({ visite, avecAgenda }: { readonly visite: VisitePlanifiee;
       </p>
     );
   }
+  // TCK-2883 — la phrase suit les canaux remis (« Un SMS et un e-mail ont prévenu Mouhamed ») : elle ne
+  // promet pas un canal qui n'est pas parti.
+  const phrase = visite.canaux
+    ? t(`notified.${cleDesCanaux(visite.canaux)}`, { name: visite.prenom ?? t('notified.leVisiteur') })
+    : visite.prenom
+      ? t('successSms', { name: visite.prenom })
+      : t('successSmsAnonymous');
   return (
-    <p className="mt-1.5 max-w-75 text-corps text-muted-foreground">
-      {visite.prenom ? t('successSms', { name: visite.prenom }) : t('successSmsAnonymous')}
+    <p data-slot="phrase-des-canaux" className="mt-1.5 max-w-75 text-corps text-muted-foreground">
+      {phrase}
       {avecAgenda ? ` ${t('successInAgenda')}` : null}
     </p>
   );

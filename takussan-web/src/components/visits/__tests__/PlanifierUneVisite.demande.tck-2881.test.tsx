@@ -122,6 +122,14 @@ describe('<PlanifierDialog> depuis une demande — TCK-2881', () => {
     expect(document.querySelector('[data-slot="sms-envoye"]')).toBeNull();
   });
 
+  // TCK-2883 — la phrase du succès suit `notification` de la réponse, de bout en bout.
+  it('TCK-2883 — `channels = [sms, email]` : « Un SMS et un e-mail ont prévenu Mouhamed. »', async () => {
+    plan.mutateAsync.mockResolvedValue({ data: { id: 8, customer_id: 91 }, sms_sent: true, notification: { channels: ['email', 'sms'], sms: SMS } });
+    render(withIntl(<PlanifierDialog property={BIEN} demande={DEMANDE} jour="2026-11-03" onClose={vi.fn()} />));
+    await confirmer(userEvent.setup());
+    expect(screen.getByText('Un SMS et un e-mail ont prévenu Mouhamed.')).toBeInTheDocument();
+  });
+
   it('AC4 — « Demande suivante » ferme la feuille puis ouvre la suivante ; sans suivante, pas de bouton', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

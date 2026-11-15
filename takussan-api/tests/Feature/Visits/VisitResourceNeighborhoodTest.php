@@ -114,4 +114,15 @@ class VisitResourceNeighborhoodTest extends ApiTestCase
 
         $this->getJson("/api/property-visits/{$visite->id}")->assertJsonPath('data.cancelled_by', null);
     }
+
+    /** TCK-2883 — l'agence du bien, que le client passe à `response-time`, même sous `fields[properties]` réduit. */
+    public function test_tck2883_le_client_lit_l_agence_du_bien_de_sa_visite_demandee(): void
+    {
+        $this->visite();
+        Sanctum::actingAs($this->visiteur);
+
+        $this->getJson('/api/property-visits?include=property&fields[properties]=id,title,slug&fields[property_visits]=id,property_id,status')
+            ->assertOk()
+            ->assertJsonPath('data.0.property.agency_id', $this->agence->id);
+    }
 }
