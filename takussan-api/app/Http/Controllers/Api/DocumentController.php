@@ -16,12 +16,15 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
+use App\Services\Documents\AgencyDocumentVault;
 use App\Services\Documents\DocumentVisibility;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Support\Http\ParametreUnique;
 use App\Support\ImpersonationContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class DocumentController extends Controller
 {
@@ -39,7 +42,7 @@ class DocumentController extends Controller
         'inventory' => Inventory::class,
     ];
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AgencyDocumentVault $vault): JsonResponse
     {
         $user = $request->user();
 
@@ -60,8 +63,27 @@ class DocumentController extends Controller
         // ({@see DocumentPolicy::listableOnPropertyAndLeases()}). Il prime sur la cible simple ; un
         // identifiant mal formé ou introuvable ne rend rien, sans repli sur la règle de TCK-820 (un bien
         // illisible suit la règle d'auteur, dans l'arbre).
+        //
+        // TCK-2895 (ADR-0099, amendement du 2026-11-15) — `filter[agency]=current` : les documents de
+        // l'agence du profil actif que son arbre compte ({@see DocumentPolicy::listableOnAgency()}), pour
+        // son personnel actif ; toute autre valeur ou tout autre appelant ne rend rien. Avec
+        // `filter[generated]=1`, ses générés ({@see self::generatedOfAgency()}) ; `filter[generated]=1`
+        // sans la cible agence ne rend rien.
         $filter = $request->query('filter');
-        if (is_array($filter) && array_key_exists('property_with_leases', $filter)) {
+        $agencyTarget = is_array($filter) && array_key_exists('agency', $filter);
+        $currentAgency = $agencyTarget && ParametreUnique::valeur($filter['agency']) === 'current'
+            && ! $user->isSuperAdmin() && $user->staffAgencyId() !== null;
+        $generated = is_array($filter) && array_key_exists('generated', $filter)
+            && in_array(ParametreUnique::valeur($filter['generated']), ['1', 'true'], true);
+        if ($generated && $currentAgency) {
+            return $this->generatedOfAgency($request, $vault);
+        }
+
+        if ($generated || ($agencyTarget && ! $currentAgency)) {
+            $base = Document::query()->whereRaw('1 = 0');
+        } elseif ($agencyTarget) {
+            $base = DocumentPolicy::listableOnAgency(Document::query(), $user);
+        } elseif (is_array($filter) && array_key_exists('property_with_leases', $filter)) {
             $property = $this->propertyOf($filter['property_with_leases']);
             $base = $property !== null
                 ? DocumentPolicy::listableOnPropertyAndLeases(Document::query(), $user, $property)
@@ -107,7 +129,34 @@ class DocumentController extends Controller
             ->with('media')
             ->paginate();
 
-        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts, ...$attention]);
+        // TCK-2895 — la pastille « Générés » de la liste de l'agence.
+        $extra = $currentAgency ? ['generated' => $vault->generatedCount($user)] : [];
+
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts, ...$attention, ...$extra]);
+    }
+
+    /**
+     * TCK-2895 (ADR-0099, amendement du 2026-11-15, § 5) — les générés de l'agence, dans la forme d'une
+     * entrée du coffre (un généré n'est pas un `Document`), chacun avec son contexte, retenus par
+     * `filter[search]` (titre, bien, locataire), paginés par le serveur dans l'enveloppe de la liste.
+     */
+    private function generatedOfAgency(Request $request, AgencyDocumentVault $vault): JsonResponse
+    {
+        $filter = $request->query('filter');
+        $search = is_array($filter) && array_key_exists('search', $filter) ? ParametreUnique::valeur($filter['search']) : null;
+        $entries = $vault->generatedEntries($request->user(), $search);
+
+        $perPage = (new Document)->getPerPage();
+        $page = max(1, (int) (is_numeric($request->query('page')) ? $request->query('page') : 1));
+        $paginator = new LengthAwarePaginator(
+            array_slice($entries, ($page - 1) * $perPage, $perPage),
+            count($entries),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()],
+        );
+
+        return $this->paginated($paginator, $paginator->items(), ['generated' => count($entries)]);
     }
 
     public function store(StoreDocumentRequest $request): JsonResponse

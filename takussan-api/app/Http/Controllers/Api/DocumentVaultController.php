@@ -7,6 +7,7 @@ use App\Http\Requests\Api\DocumentVaultArchiveRequest;
 use App\Http\Requests\Api\DocumentVaultRequest;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Documents\AgencyDocumentVault;
 use App\Services\Documents\ArchiveDuCoffre;
 use App\Services\Documents\DocumentVault;
 use App\Support\Http\ParametreUnique;
@@ -60,6 +61,20 @@ class DocumentVaultController extends Controller
             'Content-Disposition' => 'attachment; filename="documents.zip"',
             'Cache-Control' => 'private, max-age=0, no-cache',
         ]);
+    }
+
+    /**
+     * TCK-2895 (ADR-0099, amendement du 2026-11-15) — `GET /api/agency/document-vault` : l'arbre compté
+     * des documents de l'agence du profil actif ({@see AgencyDocumentVault}), pour son personnel actif
+     * seul. Le locataire, le bailleur, le prestataire, l'agent suspendu ou retiré et le super-admin (pas
+     * de coffre de plateforme, TCK-820) : 403.
+     */
+    public function agency(Request $request, AgencyDocumentVault $vault): JsonResponse
+    {
+        $user = $request->user();
+        abort_if($user->isSuperAdmin() || $user->staffAgencyId() === null, 403);
+
+        return $this->json(['data' => $vault->tree($user)]);
     }
 
     public function generated(Request $request): JsonResponse

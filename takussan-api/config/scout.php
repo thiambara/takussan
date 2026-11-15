@@ -270,7 +270,9 @@ return [
                 'pagination' => $pagination,
             ],
             Document::class => [
-                'searchableAttributes' => ['title', 'description'],
+                // TCK-2895 (ADR-0099, amendement du 2026-11-15, § 6) — le bien et le locataire du porteur,
+                // après le nom et la description de la pièce (la règle `attribute` les classe ensuite).
+                'searchableAttributes' => ['title', 'description', 'carrier_tenant_name', 'carrier_property_title'],
                 // TCK-2781 — la lecture s'écrit au moteur par un filtre borné par les agences du lecteur
                 // (`DocumentSearchService::filtreDeLecture`) : `is_internal` et les faits du porteur
                 // (`Document::porteurPourLIndex`). `id` n'est plus filtrable : le `NOT id IN [...]` de

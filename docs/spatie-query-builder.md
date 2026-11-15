@@ -305,6 +305,21 @@ Même pattern : `filter[status]`, `filter[search]` (selon le model), `sort`.
 Chaque ligne de liste dont le porteur est un bail porte `lease: {id, reference_number, status}`, lu
 sur le porteur déjà chargé pour la page (TCK-2841).
 
+<!-- TCK-2895 -->
+`Document` ajoute la **cible agence** (TCK-2895, ADR-0099 amendé le 2026-11-15) — l'arbre compté de la
+même portée se lit par `GET /api/agency/document-vault` :
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[agency]` | `current` | les pièces des biens de l'agence du profil actif, de ses baux hors brouillon et de l'agence elle-même (`DocumentPolicy::listableOnAgency`), pour son personnel actif ; toute autre valeur, ou tout autre appelant, ne rend rien. Se combine avec `filter[documentable_type]` + `filter[documentable_id]` (un dossier de l'arbre) et les autres filtres ; la méta ajoute `generated` (le compte des générés) |
+| `filter[generated]` | `1` | avec `filter[agency]=current` seulement : les générés de l'agence (contrats, états des lieux signés, quittances) en entrées du coffre (`kind`, `category`, `title`, `date`, `download_path`, `context`), paginés par le serveur ; `filter[search]` y cherche le titre, le bien et le locataire. Sans la cible agence : rien |
+
+`filter[search]` trouve aussi une pièce par le **nom du locataire** de son bail et le **titre du bien** de
+son porteur (index `carrier_tenant_name`, `carrier_property_title`), dans toute liste de documents.
+La fiche d'un document (`GET /api/documents/{id}`, jamais une liste) porte `context: {property: {id,
+title, neighborhood}, lease: {id, reference_number, tenant_name}|null}` pour qui lit sa cible, sinon `null`.
+<!-- /TCK-2895 -->
+
 ### Conversations — `GET /api/conversations` (TCK-2630)
 
 Ne passe **pas** par `HasQueryBuilder` : la liste est cloisonnée par

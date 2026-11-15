@@ -74,4 +74,11 @@ Constat (audit du 2026-11-15, `audit-f4-patrimoine.md`, app-documents **e4**, et
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-15 (agent, worktree `takussan-manques`).
+
+- **ADR-0099 amendé d'abord** (§ « Amendement du 2026-11-15 — le coffre de l'agence ») : `GET /api/agency/document-vault`, la cible `filter[agency]=current` (seule valeur acceptée, jamais un identifiant d'URL), `filter[generated]=1`, la recherche par l'index, le `context` de la fiche ; ce que l'arbre ne range pas (fiches client, réservations, pièces jointes d'un état des lieux, brouillons).
+- **Un seul prédicat** : `DocumentPolicy::listableOnAgency()` (biens de l'agence de `staffAgencyId()`, baux hors brouillon par `leases.agency_id` ET dont le bien est de l'agence, l'agence elle-même) sert l'arbre (`AgencyDocumentVault::uploadedCounts`, une requête groupée) et la liste.
+- **Écart de forme** : le texte « 1 expire dans 42 jours » n'est pas servi ; chaque dossier porte `next_expiry_date` et le front l'écrit (principe 5). Les générés comptent dans `documents`, jamais dans les alertes (ADR-0099 § 3).
+- **Recherche** : `Document` est `Searchable`, le repli SQL (`extraSearchClauses`) ne joue jamais pour lui. L'index recopie `carrier_tenant_name` et `carrier_property_title` (cherchables après `title`, `description`) ; `DocumentsDuPorteurObserver` réindexe sur `customers.first_name/last_name`, `properties.title` (et les documents des baux du bien), `leases.property_id`. Vaut pour toute liste de documents (la portée reste la garde).
+- **Mesures** : `AgencyDocumentVaultTest` 10 tests verts ; ablations une à une, chacune rouge puis restaurée par `cp` (md5 vérifié) : condition d'agence du SQL (AC2), exclusion des brouillons (AC2), libellés de l'index (AC4), cascade de l'observateur (AC4), `context` (AC6), garde `readsTarget` du contexte (AC6), 403 du contrôleur (AC8), amorce `primed` (AC7 : 179 requêtes contre 23).
+- **Reste** : réimport de l'index des documents sur chaque environnement déployé (`scout:sync-index-settings` puis `scout:import "App\Models\Document"`) ; `/sync-specs` (§ 1.10) ; les classes de recherche existantes (`RechercheDocumentsPariteSqlMoteurTest`, `DocumentVaultSearchTest`, `DocumentListRelevanceTest`) et `DocumentIndexQueryBudgetTest` sont laissées à la CI (règle de charge).

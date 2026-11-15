@@ -22,6 +22,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me/document-vault/archives/{archive}/download', [DocumentVaultArchiveController::class, 'download'])
         ->whereUuid('archive')
         ->name('me.document-vault.archives.download');
+    // TCK-2895 (ADR-0099, amendement du 2026-11-15) — le coffre de l'agence : l'arbre compté, pour son
+    // personnel actif.
+    Route::get('agency/document-vault', [DocumentVaultController::class, 'agency'])->name('agency.document-vault');
     Route::get('documents/generated', [DocumentVaultController::class, 'generated'])->name('documents.generated');
     Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('documents/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');

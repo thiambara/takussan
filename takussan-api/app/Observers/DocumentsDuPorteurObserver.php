@@ -35,10 +35,12 @@ class DocumentsDuPorteurObserver
 {
     /** Les colonnes de chaque porteur que l'index recopie. */
     public const COLONNES = [
-        Property::class => ['agency_id'],
-        Lease::class => ['agency_id', 'tenant_id'],
+        // TCK-2895 — `title`, `property_id`, `first_name`, `last_name` : le titre du bien et le nom du
+        // locataire que l'index recopie (`Document::libellesDuPorteur`).
+        Property::class => ['agency_id', 'title'],
+        Lease::class => ['agency_id', 'tenant_id', 'property_id'],
         Booking::class => ['agency_id', 'customer_id'],
-        Customer::class => ['agency_id', 'user_id'],
+        Customer::class => ['agency_id', 'user_id', 'first_name', 'last_name'],
         Agency::class => [],
         Inventory::class => ['property_id'],
         AgencyUpgradeRequest::class => ['agency_id'],
@@ -83,6 +85,8 @@ class DocumentsDuPorteurObserver
             $porteurs = [$classe => $ids];
             if ($classe === Property::class) {
                 $porteurs[Inventory::class] = Inventory::withTrashed()->whereIn('property_id', $ids)->pluck('id')->all();
+                // TCK-2895 — le titre du bien est aussi celui des documents de ses baux.
+                $porteurs[Lease::class] = Lease::withTrashed()->whereIn('property_id', $ids)->pluck('id')->all();
             }
             if ($classe === Customer::class) {
                 $porteurs[Lease::class] = Lease::withTrashed()->whereIn('tenant_id', $ids)->pluck('id')->all();

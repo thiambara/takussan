@@ -483,6 +483,37 @@ class DocumentPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2895 (ADR-0099, amendement du 2026-11-15, « le coffre de l'agence ») — LA portée de la cible
+     * `agency` : les documents des biens de l'agence du profil actif, de ses baux HORS BROUILLON (par
+     * `leases.agency_id`, la colonne que lit `reaches`) et de l'agence elle-même, pour son personnel
+     * ACTIF (`staffAgencyId()`). Pour lui, `view` = `reaches(porteur)` = `isStaffOf(agence du porteur)` :
+     * vrai sur chaque ligne retenue (aucune n'est interne : le drapeau ne vaut que sur une fiche client).
+     * Hors du personnel actif — locataire, bailleur, prestataire, agent retiré, super-admin (TCK-820) — :
+     * rien. L'arbre (`AgencyDocumentVault`) et la liste (`filter[agency]=current`) la lisent toutes deux.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    public static function listableOnAgency(Builder $query, User $user): Builder
+    {
+        $agencyId = $user->isSuperAdmin() ? null : $user->staffAgencyId();
+        if ($agencyId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHasMorph('documentable', [Property::class, Lease::class, Agency::class], function (Builder $q, string $type) use ($agencyId): void {
+            match ($type) {
+                Agency::class => $q->whereKey($agencyId),
+                // Le bail se range sous son bien : un bail dont le bien n'est pas (ou plus) de l'agence
+                // n'a pas de nœud dans l'arbre, et la liste ne rend que ce que l'arbre compte.
+                Lease::class => $q->where('agency_id', $agencyId)->where('status', '!=', LeaseStatus::Draft->value)
+                    ->whereHas('property', fn (Builder $p) => $p->where('agency_id', $agencyId)),
+                default => $q->where('agency_id', $agencyId),
+            };
+        });
+    }
+
+    /**
      * TCK-587 — supprimer un document : la règle d'`update()`, inchangée (le téléverseur seul).
      *
      * `DocumentController::destroy` autorisait par `update` ; il autorise désormais par `delete`,
