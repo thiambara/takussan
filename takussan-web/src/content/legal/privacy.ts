@@ -138,6 +138,7 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Journal des recherches** : 13 mois pour les compteurs par jour ; moins de 48 heures pour l’empreinte du jour qui sert à compter les visiteurs distincts.
 - **Journaux d’accès des serveurs** : quelques jours, par rotation automatique.
 - **Archive d’export de vos données** : 7 jours, puis suppression automatique.
+- **Fichiers exportés par le personnel d’une agence** (listes de clients, baux, paiements) : 7 jours, retéléchargeables par leur seul auteur, puis suppression automatique.
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
 - **Annonces relevées ailleurs et jamais publiées** : 90 jours à compter du relevé, et effacées dès que vous demandez à ne plus être contacté. Ne subsiste alors qu’une empreinte chiffrée de votre numéro, qui sert seulement à ne jamais vous recontacter. La représentation numérique de leur texte s’efface avec elles.
 - **Preuve de votre accord à la publication** : tant que les annonces concernées sont en ligne, puis ⚠ 3 ans.
@@ -328,6 +329,7 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Search log**: 13 months for the daily counters; less than 48 hours for the daily fingerprint used to count distinct visitors.
 - **Server access logs**: a few days, by automatic rotation.
 - **Data export archive**: 7 days, then automatically deleted.
+- **Files exported by an agency’s staff** (lists of clients, leases, payments): 7 days, downloadable again by their author only, then automatically deleted.
 - **Unpublished listing drafts**: 90 days without changes.
 - **Listings collected elsewhere and never published**: 90 days from collection, and erased as soon as you ask not to be contacted. All that remains is an encrypted fingerprint of your number, used only to never contact you again. The numerical representation of their text is deleted with them.
 - **Proof of your agreement to publication**: for as long as the listings concerned are online, then ⚠ 3 years.

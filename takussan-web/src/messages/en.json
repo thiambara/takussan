@@ -9299,7 +9299,8 @@
         "counter_offer_accepted": "Counter-offer accepted",
         "counter_offer_declined": "Counter-offer declined",
         "counter_offer_expired": "Counter-offer expired",
-        "lead_unhandled": "Request reopened"
+        "lead_unhandled": "Request reopened",
+        "data_export_redownloaded": "Export downloaded again"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -18108,7 +18109,8 @@
       "converted": "Client record created.",
       "assigned": "Request assigned.",
       "error": "The action did not go through.",
-      "handledShort": "Request handled."
+      "handledShort": "Request handled.",
+      "undo": "Undo"
     },
     "shortTitle": "Requests",
     "inbox": {
@@ -18226,6 +18228,20 @@
       "hoursMinutes": "{h} h {m}",
       "minutes": "{m} min",
       "none": "—"
+    },
+    "whatsapp": {
+      "intro": "Hello {name}, this is {agent} from {agency}",
+      "introAlone": "Hello {name}, this is {agent}",
+      "about": "{intro}, about “{title}”.",
+      "followUp": "{intro}, following up on your request on Takussan.",
+      "twoSlots": "I can offer you {first} or {second}.",
+      "oneSlot": "I can offer you {first}."
+    },
+    "shortcuts": {
+      "label": "Keyboard shortcuts",
+      "browse": "browse",
+      "visit": "visit",
+      "handle": "mark handled"
     }
   },
   "visitPlanning": {

@@ -9299,7 +9299,8 @@
         "counter_offer_accepted": "Contre-proposition acceptée",
         "counter_offer_declined": "Contre-proposition déclinée",
         "counter_offer_expired": "Contre-proposition expirée",
-        "lead_unhandled": "Demande remise à traiter"
+        "lead_unhandled": "Demande remise à traiter",
+        "data_export_redownloaded": "Export retéléchargé"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -18108,7 +18109,8 @@
       "converted": "Fiche client créée.",
       "assigned": "Demande attribuée.",
       "error": "L’action n’a pas abouti.",
-      "handledShort": "Demande traitée."
+      "handledShort": "Demande traitée.",
+      "undo": "Annuler"
     },
     "shortTitle": "Demandes",
     "inbox": {
@@ -18226,6 +18228,20 @@
       "hoursMinutes": "{h} h {m}",
       "minutes": "{m} min",
       "none": "—"
+    },
+    "whatsapp": {
+      "intro": "Bonjour {name}, c’est {agent} de {agency}",
+      "introAlone": "Bonjour {name}, c’est {agent}",
+      "about": "{intro}, au sujet de « {title} ».",
+      "followUp": "{intro}, je fais suite à votre demande sur Takussan.",
+      "twoSlots": "Je vous propose {first} ou {second}.",
+      "oneSlot": "Je vous propose {first}."
+    },
+    "shortcuts": {
+      "label": "Raccourcis clavier",
+      "browse": "parcourir",
+      "visit": "visite",
+      "handle": "traiter"
     }
   },
   "visitPlanning": {

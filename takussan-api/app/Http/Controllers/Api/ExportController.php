@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ShowExportRequest;
+use App\Models\Activity;
 use App\Services\Export\ExportDataService;
+use App\Services\Export\ExportFiles;
 use App\Services\Export\ExportWriter;
-use Illuminate\Contracts\Support\Responsable;
+use Illuminate\Http\JsonResponse;
 
 /**
  * GET /api/export/{entity}?format=csv|xlsx|pdf
@@ -28,6 +30,7 @@ class ExportController extends Controller
     public function __construct(
         private readonly ExportDataService $data,
         private readonly ExportWriter $writer,
+        private readonly ExportFiles $files,
     ) {}
 
     public function show(ShowExportRequest $request, string $entity)
@@ -41,16 +44,14 @@ class ExportController extends Controller
         $validated = $request->validated();
         $format = $validated['format'] ?? 'csv';
 
-        // TCK-2721 — les filtres du registre (`filter[…]`, `sort`) ne passent PAS par les règles de
-        // `ShowExportRequest` : la sélection de l'historique les lit et les refuse elle-même (422),
-        // ici, APRÈS le 403 — comme la liste.
-        $registre = $entity === 'payment_history'
-            ? ['history_filters' => (array) $request->input('filter', []), 'history_sort' => $request->input('sort', '-date')]
-            : [];
+        $registre = $this->registre($request, $entity);
 
         $payload = $this->data->collect($entity, $user, $validated + $registre + ['own_lines_only' => $ownLinesOnly]);
 
-        activity('export')
+        // TCK-2866 (ADR-0115) — le fichier est rendu UNE fois : servi, et gardé pour « Retélécharger ».
+        $file = $this->writer->render($format, $payload);
+
+        $activity = activity('export')
             ->causedBy($user)
             ->event('data_exported')
             ->withProperties([
@@ -63,15 +64,45 @@ class ExportController extends Controller
             ])
             ->log('data_exported');
 
-        $response = $this->writer->respond($format, $payload);
+        if ($activity instanceof Activity) {
+            $this->files->keep($user, $staffAgencyId ?? $user->agency_id, $activity, $entity, $format, $ownLinesOnly, $file);
+        }
+
+        $response = $this->writer->serve($file['bytes'], $file['filename'], $file['mime']);
 
         // TCK-1308 (piste P112.03) — la coupure au plafond se signale par un en-tête, que le relais
         // du front transmet à l'écran ; le fichier, lui, reste tel quel.
         if ($payload['truncated']) {
-            $response = $response instanceof Responsable ? $response->toResponse($request) : $response;
             $response->headers->set('X-Export-Truncated', (string) $payload['limit']);
         }
 
         return $response;
+    }
+
+    /**
+     * TCK-2866 — `GET /api/export/{entity}/count` : `{count, limit}`, le nombre de lignes que
+     * l'export produirait avec les MÊMES paramètres (bornes, `filter[…]` du registre, lignes propres
+     * du bénéficiaire), sous le même droit et dans le même ordre (404, 403, puis 422), et le plafond
+     * du format au-delà duquel le fichier serait coupé.
+     */
+    public function count(ShowExportRequest $request, string $entity): JsonResponse
+    {
+        $filters = $request->validated() + $this->registre($request, $entity) + ['own_lines_only' => $request->ownLinesOnly()];
+
+        return $this->json(['data' => $this->data->count($entity, $request->user(), $filters)]);
+    }
+
+    /**
+     * TCK-2721 — les filtres du registre (`filter[…]`, `sort`) ne passent PAS par les règles de
+     * `ShowExportRequest` : la sélection de l'historique les lit et les refuse elle-même (422),
+     * APRÈS le 403 — comme la liste.
+     *
+     * @return array<string, mixed>
+     */
+    private function registre(ShowExportRequest $request, string $entity): array
+    {
+        return $entity === 'payment_history'
+            ? ['history_filters' => (array) $request->input('filter', []), 'history_sort' => $request->input('sort', '-date')]
+            : [];
     }
 }

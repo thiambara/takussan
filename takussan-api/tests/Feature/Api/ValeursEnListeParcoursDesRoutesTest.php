@@ -89,8 +89,12 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/share/{token}/download' => '{token} : sans liaison de modèle',
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',
+        // TCK-2866 — le compte avant l'export, même paramètre.
+        'api/export/{entity}/count' => '{entity} : sans liaison de modèle',
         'api/kyc/documents/{media}' => '{media} : Media sans fabrique',
         'api/me/document-vault/archives/{archive}/download' => '{archive} : sans liaison de modèle',
+        // TCK-2866 — le fichier gardé d'un export, par l'identifiant du journal.
+        'api/me/exports/{id}/download' => '{id} : sans liaison de modèle',
         'api/me/payouts/{payout}' => '{payout} : sans liaison de modèle',
         'api/me/wizard-drafts/{key}' => '{key} : sans liaison de modèle',
         'api/media/{media}/sign' => '{media} : Media sans fabrique',

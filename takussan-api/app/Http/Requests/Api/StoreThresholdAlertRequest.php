@@ -53,6 +53,11 @@ class StoreThresholdAlertRequest extends BaseFormRequest
             'severity' => ['sometimes', Rule::in(ThresholdAlert::allowedSeverities())],
             'is_enabled' => ['sometimes', 'boolean'],
             'cooldown_hours' => ['sometimes', 'integer', 'min:1', 'max:720'],
+            // TCK-2866 — qui est prévenu (vide ou `null` = tous ceux de la mesure ; le sous-ensemble se
+            // juge dans le contrôleur, `ThresholdAlertRecipients::assertChoosable()`) et par quel canal.
+            'recipient_ids' => ['sometimes', 'nullable', 'array', 'max:100'],
+            'recipient_ids.*' => ['integer', 'distinct'],
+            'channel' => ['sometimes', Rule::in(ThresholdAlert::allowedChannels())],
         ];
     }
 }

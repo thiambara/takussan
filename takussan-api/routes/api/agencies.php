@@ -68,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-595 (§6, §7) — pilotage : performance d'équipe (agences `standard`) et balance âgée.
     Route::get('agencies/{agency}/team-performance', [TeamPerformanceController::class, 'show'])->name('agencies.team-performance');
     Route::get('agencies/{agency}/finance/aging', [AgingBalanceController::class, 'show'])->name('agencies.finance.aging');
+    // TCK-2866 — la même balance âgée, imprimée (filtre bailleur compris), sous la même garde.
+    Route::get('agencies/{agency}/finance/aging.pdf', [AgingBalanceController::class, 'pdf'])->name('agencies.finance.aging.pdf');
     // TCK-2657 (ADR-0100 § 4) — le point de l'argent d'un mois, sous la même Policy que la balance âgée.
     Route::get('agencies/{agency}/finance/summary', [FinanceSummaryController::class, 'show'])->name('agencies.finance.summary');
 

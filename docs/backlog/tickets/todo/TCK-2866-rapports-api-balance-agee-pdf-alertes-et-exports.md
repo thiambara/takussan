@@ -63,4 +63,42 @@ Relevé le 2026-11-15 (`dev` 8c60f4c58) :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-15 — implémenté (worktree `feat/audit-manques-2026-11-15`, base 073679378).
+
+**ADR-0115** écrit d'abord : le fichier d'un export se garde `exports.retention_days` jours (7), à son seul auteur,
+re-jugé sous ses capacités d'aujourd'hui ; révise « aucun fichier n'est conservé » (TCK-2629). Politique de
+confidentialité § 6 complétée (fr, en).
+
+Ce qui est livré (contrats pour TCK-2868) :
+
+- **Balance âgée PDF** : `GET /api/agencies/{agency}/finance/aging.pdf` (garde `viewReports`, comme le JSON), même
+  lecture `AgingBalanceService::forAgency()` ; `filter[landlord_id]` (ou `landlord_id`) vaut pour le JSON ET le PDF
+  (422 `reporting.invalid_landlord` si ce n'est pas un entier) ; `group_by` aussi. Le JSON gagne `landlord_id`.
+- **Tri par montant dû** : déjà servi (`PaymentHistory::sortKey`, `sort=-remaining_amount`) — seul le test manquait.
+- **Alertes** : colonnes `recipient_ids` (jsonb, `null` = tous) et `channel` (`email` | `whatsapp` | `both`, défaut
+  `email`). Choix hors de `forMetric()` → 422 `threshold_alert.recipient_not_allowed` (création ; mise à jour
+  re-jugée sur la mesure NOUVELLE même sans renvoyer le choix). Au déclenchement, choix re-jugé ; un choix devenu
+  vide ne revient PAS à « tous ». Lecture : `channel`, `channels` (cloche + canaux de l'alerte), `recipients` = choix
+  effectif, `recipient_ids` et `recipient_candidates [{id,name}]` au seul lecteur qui peut modifier (sinon `null`/`[]`) ;
+  `triggers[]` gagne `channel` et `recipients_count`. Neuf : `GET /api/threshold-alerts/recipient-candidates?metric=…`
+  (garde de la création). WhatsApp : préférence du destinataire (`threshold_alert`/`whatsapp`, **désactivée par
+  défaut** : chacun doit la cocher), numéro vérifié, et **hors fenêtre de service un gabarit Meta approuvé pour
+  l'événement `threshold_alert` est exigé** (registre `notification_templates`, aucun n'existe aujourd'hui) ; pas de
+  repli SMS (`smsFallbackAllowed() = false`).
+- **Exports conservés** : table `export_files`, disque `media-library.disk_name` ; `GET /api/me/exports` rend par ligne
+  `id` et `file {available, expires_at}` ; `GET /api/me/exports/{id}/download` : 403 autre auteur (super-admin
+  compris), 410 `export.file_expired` à l'échéance (avant et après purge), 403 `export.forbidden` si l'auteur ne
+  pourrait plus le refaire (`ShowExportRequest::judge()`, extrait d'`authorize()`), 404 sinon ; journal
+  `data_export_redownloaded` (libellé front posé). Purge horaire `exports:purge-files`. Clé `EXPORT_RETENTION_DAYS`
+  (.env.example, .env.docker commentées ; gabarit de production à 7).
+- **Compte** : `GET /api/export/{entity}/count` → `{data: {count, limit}}`, même requête que le fichier
+  (`ExportDataService::query()`, extraite des constructeurs) ; `payment_history` par `PaymentHistory::select()` qui rend
+  désormais `count` ; `deposits` par baux.
+
+Écarts à la prémisse : le tri existait ; AC5 parle de `filter[…]` sur les baux, mais l'export des baux ne filtre que
+par `from`/`to` (seul `payment_history` lit `filter[…]`) — testé ainsi. TOC de `models-spec.md` : 126 et 127 y
+manquaient, ajoutés avec 128 (ExportFile).
+
+Tests : `OverdueSortByAmountTest`, `ExportCountTest`, `AgedBalancePdfTest`, `ThresholdAlertRecipientsChoiceTest`,
+`ExportRetentionTest` (37 verts avec `MeExportsTest` mis à jour) ; ablations rouges une à une ; voisins verts
+(exports, alertes, balayages, gardes d'architecture, gardes racine).

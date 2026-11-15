@@ -391,6 +391,9 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 123. [SearchAliasSetting](#123-searchaliassetting-) 🆕
 124. [AgencySpotlight](#124-agencyspotlight-) 🆕
 125. [LeasePaymentReminder](#125-leasepaymentreminder-) 🆕
+126. [BookingDossierItem](#126-bookingdossieritem-) 🆕
+127. [ConversationReport](#127-conversationreport-) 🆕
+128. [ExportFile](#128-exportfile-) 🆕
 
 ### Enums
 
@@ -3674,6 +3677,8 @@ du délai de refroidissement `cooldown_hours` depuis `last_triggered_at`.
 | last_value | decimal(14,4) | oui | null | Dernière valeur observée — casté `decimal:4` |
 | cooldown_hours | unsignedSmallInteger | | 24 | Délai minimal entre deux déclenchements |
 | settings | jsonb | oui | null | Réglages additionnels — casté `array` |
+| recipient_ids | jsonb | oui | null | TCK-2866 — destinataires choisis, sous-ensemble de `ThresholdAlertRecipients::forMetric()` ; `null` = tous ; caché de la ressource (rendu au seul lecteur qui peut modifier l'alerte) |
+| channel | string(16) | | 'email' | TCK-2866 — `email`, `whatsapp` ou `both` (`allowedChannels()`) ; la cloche part toujours |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -6119,6 +6124,30 @@ signalement ne gèle rien ; seul le super-admin le lit (`GET /api/admin/conversa
 messages.
 
 **Relations :** `conversation()` → belongsTo Conversation ; `reporter()` → belongsTo User.
+
+### 128. ExportFile 🆕
+
+<!-- TCK-2866 (ADR-0115). -->
+
+**Table :** `export_files` — le fichier gardé d'un export (`GET /api/export/{entity}`), pour « Retélécharger »
+(`GET /api/me/exports/{id}/download`) : les octets servis, sur le disque privé (`media-library.disk_name`),
+`exports.retention_days` jours (7 par défaut), puis effacés par `exports:purge-files` (horaire).
+
+| Champ | Type | Null | Défaut | Description |
+|---|---|---|---|---|
+| agency_id | FK agencies | oui | | Agence active de l'auteur à l'export (`cascadeOnDelete`), re-jugée au retéléchargement |
+| user_id | FK users | | | L'auteur, seul à pouvoir retélécharger (`cascadeOnDelete`) |
+| activity_id | FK activity_log, unique | | | La ligne du journal `export` / `data_exported` (l'`id` de « Mes derniers exports ») |
+| entity | string(32) | | | L'entité exportée (`ShowExportRequest::CAPABILITY`) |
+| format | string(8) | | | `csv`, `xlsx` ou `pdf` |
+| own_lines_only | boolean | | false | Le fichier ne porte que les commissions de son auteur (TCK-2661) |
+| filename, mime, size_bytes | string, string, bigint | | | Le fichier tel que servi |
+| disk, path | string(32), text | | | Jamais rendus ; `path` chiffré (cast `encrypted`) |
+| expires_at | timestamp | | | Échéance : 410 `export.file_expired` au-delà |
+
+Index : `(agency_id, user_id)`, `user_id`, `expires_at`.
+
+**Relations :** `user()` → belongsTo User.
 
 ---
 
