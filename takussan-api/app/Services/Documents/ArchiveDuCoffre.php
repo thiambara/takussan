@@ -33,6 +33,8 @@ use ZipStream\ZipStream;
  * règles. Aucun document interne hors du personnel (TCK-2759), la règle d'auteur, les pièces de profil
  * retirées sous impersonation (TCK-697), le dossier en lecture seule du bailleur bloqué (TCK-2729), qui
  * se lit et se télécharge donc. Un dossier absent du coffre de l'appelant rend 404 : jamais une archive vide.
+ * TCK-2915 — deux dossiers virtuels réunissent des quittances déjà jugées : `receipts:all` et
+ * `receipts:lease:{id}` ({@see self::dossierDesQuittances()}).
  *
  *  - une pièce téléversée : son fichier qui fait foi ({@see Document::currentFile()}, TCK-2300), lu en
  *    flux par {@see PrivateMediaAccess::readStream()}. Jamais `getPath()` : les médias sont sur R2 (ADR-0029) ;
@@ -199,7 +201,8 @@ final class ArchiveDuCoffre
      */
     private function entreesDuDossier(User $user, ?Model $activeProfile, string $cle, int $maxFichiers): array
     {
-        $dossier = collect($this->vault->for($user, $activeProfile)['folders'])->firstWhere('key', $cle);
+        $dossiers = collect($this->vault->for($user, $activeProfile)['folders']);
+        $dossier = self::dossierDesQuittances($dossiers->all(), $cle) ?? $dossiers->firstWhere('key', $cle);
         abort_if($dossier === null, 404);
         abort_code_if($dossier['kind'] === 'bills', 422, 'document.archive_unavailable');
 
@@ -208,6 +211,42 @@ final class ArchiveDuCoffre
         $this->refuserAuDela(count($entrees) > $maxFichiers, $maxFichiers);
 
         return $entrees;
+    }
+
+    /**
+     * TCK-2915 (ADR-0099, amendement du 2026-11-15) — les dossiers VIRTUELS des quittances, qui ne se
+     * listent pas dans le coffre (une quittance n'y apparaît que dans son dossier d'année) :
+     *
+     *  - `receipts:all` : toutes les quittances de l'appelant, l'union de ses dossiers `receipts:{année}` ;
+     *  - `receipts:lease:{id}` : celles d'un de ses baux, dans ces mêmes dossiers.
+     *
+     * Les entrées sont celles que le coffre a DÉJÀ jugées : aucune quittance que l'appelant ne peut
+     * ouvrir. Sans quittance, le dossier existe, vide (422 `document.archive_empty`, jamais un 404) ;
+     * `null` pour toute autre clé.
+     *
+     * @param  list<array<string, mixed>>  $dossiers
+     * @return array<string, mixed>|null
+     */
+    private static function dossierDesQuittances(array $dossiers, string $cle): ?array
+    {
+        if ($cle !== 'receipts:all' && preg_match('/^receipts:lease:([0-9]+)$/', $cle, $m) !== 1) {
+            return null;
+        }
+        $bail = isset($m[1]) ? (int) $m[1] : null;
+
+        $entrees = [];
+        foreach ($dossiers as $dossier) {
+            if ($dossier['kind'] !== 'receipts') {
+                continue;
+            }
+            foreach ($dossier['entries'] as $entree) {
+                if ($bail === null || in_array(['type' => 'lease', 'id' => $bail], $entree['targets'] ?? [], true)) {
+                    $entrees[] = $entree;
+                }
+            }
+        }
+
+        return ['key' => $cle, 'kind' => 'receipts', 'entries' => $entrees];
     }
 
     private function refuserAuDela(bool $condition, int $maxFichiers = self::MAX_FICHIERS): void

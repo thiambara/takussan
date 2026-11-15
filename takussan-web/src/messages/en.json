@@ -7079,7 +7079,18 @@
         "tauxDetail": "{taux}% of rents",
         "leDate": "on {date}",
         "duMois": "In {mois}",
-        "encaissements": "{n, plural, one {# payment collected} other {# payments collected}}"
+        "encaissements": "{n, plural, one {# payment collected} other {# payments collected}}",
+        "leDateParMoyen": "on {date}, by {moyen}",
+        "moyens": {
+          "bank_transfer": "bank transfer",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "mobile money",
+          "cash": "cash",
+          "check": "cheque",
+          "card": "card"
+        }
       },
       "reglages": {
         "titre": "Mandate settings",
@@ -10232,7 +10243,9 @@
         "thresholdConfirm": "Confirm",
         "thresholdConfirming": "Confirming…",
         "thresholdConfirmed": "The new threshold now applies.",
-        "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
+        "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified.",
+        "payoutDay": "Payout day for landlords",
+        "payoutDayHint": "The day of the month (1 to 28) payouts are sent, when the landlord’s mandate does not set one. Empty: no day announced."
       },
       "offlinePayment": {
         "title": "Offline payment",
@@ -17398,7 +17411,8 @@
       "thresholdInvalid": "The threshold is a positive whole amount, without decimals.",
       "legalNameTooLong": "The company name must not exceed 255 characters.",
       "legalIdTooLong": "This number must not exceed 30 characters.",
-      "legalAddressTooLong": "The address must not exceed 1000 characters."
+      "legalAddressTooLong": "The address must not exceed 1000 characters.",
+      "payoutDayRange": "The payout day is a number between 1 and 28."
     },
     "booking": {
       "guestsRequired": "The number of guests is required.",

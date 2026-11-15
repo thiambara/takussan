@@ -9,6 +9,7 @@ use App\Http\Requests\Api\Me\UpdatePayoutMethodRequest;
 use App\Http\Resources\PayoutMethodResource;
 use App\Models\PayoutMethod;
 use App\Models\Profiles\OwnerProfile;
+use App\Services\Payout\PayoutDay;
 use App\Services\Payout\PayoutMethodService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,11 +33,16 @@ class PayoutMethodController extends Controller
         // TCK-2909 — le jour de versement du mandat (« reversements du N de chaque mois »), quand le
         // profil actif est un bailleur dont l'agence l'a réglé ; `null` sinon. Il vaut pour l'agence de
         // ce profil, les moyens de versement pour le compte.
+        // TCK-2915 — par la résolution unique ({@see PayoutDay}) : le jour du mandat, sinon celui de
+        // l'agence ; `payout_day_source` dit lequel.
         $active = $request->activeProfile();
+        $rule = $active instanceof OwnerProfile
+            ? PayoutDay::of((int) $request->user()->id, $active->agency_id !== null ? (int) $active->agency_id : null)
+            : ['day' => null, 'source' => null];
 
         return $this->json([
             'data' => PayoutMethodResource::collection($methods)->resolve($request),
-            'meta' => ['payout_day' => $active instanceof OwnerProfile ? $active->payout_day : null],
+            'meta' => ['payout_day' => $rule['day'], 'payout_day_source' => $rule['source']],
         ]);
     }
 

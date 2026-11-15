@@ -271,6 +271,8 @@ export const PAYOUT_LIST_FIELDS = [
   'agency_id',
   'landlord_id',
   'payee_role',
+  // TCK-2910 — acompte ou solde (TCK-2909) : « Derniers reversements » de la fiche du bailleur.
+  'nature',
   'issued_by_id',
   'approved_by_id',
   'status',
@@ -461,7 +463,8 @@ export function useOwnerStatement(period: string, landlordId?: number) {
  */
 export function useMyPayoutMethods(enabled = true) {
   // TCK-2909 — `meta.payout_day` : le jour de versement du mandat du profil bailleur actif (1-28), `null` sinon.
-  return useApiQuery<ApiResponse<PayoutMethod[]> & { meta?: { payout_day?: number | null } }>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
+  // TCK-2915 — sinon celui de l'agence ; `payout_day_source` dit lequel (`mandate`, `agency`, `null`).
+  return useApiQuery<ApiResponse<PayoutMethod[]> & { meta?: { payout_day?: number | null; payout_day_source?: 'mandate' | 'agency' | null } }>(paymentsQueryKeys.myPayoutMethods, '/api/me/payout-methods', {
     enabled,
   });
 }

@@ -249,6 +249,8 @@ class LeaseResource extends BaseResource
                 : ['due_date' => $this->calendarDate($due['next_due']['due_date'])] + $due['next_due'];
             $out['overdue_count'] = $due['overdue_count'];
             $out['overdue_amount'] = $due['overdue_amount'];
+            // TCK-2915 — la date du prochain avis d'échéance (le rappel J-3), `null` sans avis à venir.
+            $out['next_due_notice_date'] = isset($due['next_due_notice_date']) ? $this->calendarDate($due['next_due_notice_date']) : null;
         }
 
         if ($lease->relationLoaded('landlord')) {

@@ -369,6 +369,10 @@ class PropertyResource extends BaseResource
         if (is_array($block['current_month'] ?? null)) {
             $block['current_month']['due_date'] = $this->calendarDate($block['current_month']['due_date']);
         }
+        // TCK-2915 — la date du prochain avis d'échéance (absente quand le bail n'est pas lisible).
+        if (array_key_exists('next_due_notice_date', $block)) {
+            $block['next_due_notice_date'] = $this->calendarDate($block['next_due_notice_date']);
+        }
 
         return $block;
     }

@@ -16,7 +16,8 @@ use App\Services\Documents\ArchiveDuCoffre;
  */
 class DocumentVaultArchiveRequest extends BaseFormRequest
 {
-    public const FORME = '/^(receipts:[0-9]{4}|(lease|property):[0-9]{1,18}|pieces|statements|bills)$/';
+    /** TCK-2915 — plus `receipts:all` et `receipts:lease:{id}`, les dossiers virtuels des quittances. */
+    public const FORME = '/^(receipts:[0-9]{4}|receipts:all|receipts:lease:[0-9]{1,18}|(lease|property):[0-9]{1,18}|pieces|statements|bills)$/';
 
     public function authorize(): bool
     {

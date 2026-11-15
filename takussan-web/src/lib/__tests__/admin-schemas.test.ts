@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   agencyFormSchema,
+  erreursDesReglagesSurLeurChamp,
   normaliseAgencyForm,
   reglagesDeLaFiche,
   validateAgencyLogoFile,
@@ -49,6 +50,7 @@ describe('agencyFormSchema', () => {
     offline_payment_wave_number: '',
     offline_payment_orange_money_number: '',
     offline_payment_bank_details: '',
+    payout_day: '', // TCK-2915
   };
 
   it('accepts minimal valid input', () => {
@@ -162,6 +164,17 @@ describe('agencyFormSchema', () => {
       expect(reglagesDeLaFiche({ owners_confirm_visits: 'oui' }).owners_confirm_visits).toBe(false);
     });
 
+    it('TCK-2915 — `payout_day` ne part que modifié, en nombre ; vidé, `null` ; borné à 1-28', () => {
+      expect(normaliseAgencyForm({ ...base, payout_day: '15' }, contexte(null)).settings).toEqual({ payout_day: 15 });
+      expect(normaliseAgencyForm({ ...base, payout_day: '' }, contexte({ payout_day: 15 })).settings).toEqual({ payout_day: null });
+      expect(normaliseAgencyForm({ ...base, payout_day: '15' }, contexte({ payout_day: 15 })).settings ?? {}).not.toHaveProperty('payout_day');
+      expect(reglagesDeLaFiche({ payout_day: 5 }).payout_day).toBe('5');
+      expect(reglagesDeLaFiche({}).payout_day).toBe('');
+      expect(agencyFormSchema.safeParse({ ...base, payout_day: '29' }).success).toBe(false);
+      expect(agencyFormSchema.safeParse({ ...base, payout_day: '28' }).success).toBe(true);
+      expect(erreursDesReglagesSurLeurChamp({ 'settings.payout_day': ['x'] })).toEqual({ payout_day: ['x'] });
+    });
+
     it('TCK-2487 — `require_team_two_factor` ne part jamais pour une agence individuelle', () => {
       const hote = (initialSettings: Record<string, unknown> | null) => ({ individual: true, initialThreshold: '', initialSettings });
       expect(normaliseAgencyForm({ ...base, require_team_two_factor: true }, hote(null)).settings ?? {}).not.toHaveProperty('require_team_two_factor');
@@ -272,6 +285,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     offline_payment_wave_number: '',
     offline_payment_orange_money_number: '',
     offline_payment_bank_details: '',
+    payout_day: '', // TCK-2915
   };
 
   it('ne renvoie pas un seuil inchangé', () => {

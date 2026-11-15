@@ -281,7 +281,14 @@ export type OwnerStatement = {
     processed_at: string | null;
     /** TCK-2651 — versé DANS la période (le « Déjà versé » du mois), pas seulement porteur d'une pièce. */
     paid_in_period?: boolean;
+    /** TCK-2915 — le moyen du reversement, et sa nature (TCK-2909 ; `null` avant la colonne). */
+    payment_method?: string | null;
+    nature?: 'advance' | 'balance' | 'refund' | 'deposit_refund' | 'provider_bill' | string | null;
   }>;
+  /** TCK-2915 — le compteur de l'onglet « Versements » : la longueur de `payouts[]`. */
+  payouts_count?: number;
+  /** TCK-2915 — la règle de versement : le jour du mandat, sinon celui de l'agence ; `null` sans règle. */
+  payout_rule?: { day: number | null; source: 'mandate' | 'agency' | null };
   /**
    * TCK-2321 (P177.05) — le relevé envoyé : un mois qui en a un est servi depuis lui, et ce qui a
    * été écrit depuis vient en rectificatif. Nuls hors instantané (mois non envoyé, attestation).
@@ -302,6 +309,11 @@ export type OwnerStatement = {
     payment_method: string | null;
     status: PayoutStatus | null;
     net_amount: number;
+    /** TCK-2915 — le compte du versement, MASQUÉ (« •••• 4521 »), et sa nature (`wave`, `bank_transfer`…). */
+    payout_method_kind?: string | null;
+    payout_method_masked?: string | null;
+    /** `payout` : le compte du reversement ; `default` : le moyen par défaut vérifié pour l'agence. */
+    payout_method_source?: 'payout' | 'default' | null;
   } | null;
   /** TCK-2649 — une ligne par bien du bailleur dans l'agence, sur la période. */
   properties?: OwnerStatementProperty[];
@@ -324,6 +336,14 @@ export type OwnerStatementProperty = {
   /** `refunded` : loyer échu reçu puis remboursé (TCK-2651, décision 18 du porteur). */
   month_status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'vacant' | 'refunded' | string;
   days_late: number | null;
+  /** TCK-2915 — la référence du bail de la ligne, la vignette du bien (`null` sans photo). */
+  lease_reference?: string | null;
+  photo_url?: string | null;
+  /**
+   * TCK-2915 (ADR-0105, amendement du 2026-11-15) — les relances NOTÉES par l'agence des échéances en
+   * retard de la période, de la plus récente à la plus ancienne. Jamais la note interne.
+   */
+  reminders?: Array<{ at: string | null; channel: 'whatsapp' | 'call' | string | null; by_name: string | null }>;
 };
 
 export type OwnerStatementTotals = OwnerStatement['totals'] & { clawback?: number };

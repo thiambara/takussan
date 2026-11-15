@@ -7079,7 +7079,18 @@
         "tauxDetail": "{taux} % des loyers",
         "leDate": "le {date}",
         "duMois": "En {mois}",
-        "encaissements": "{n, plural, one {# encaissement} other {# encaissements}}"
+        "encaissements": "{n, plural, one {# encaissement} other {# encaissements}}",
+        "leDateParMoyen": "le {date}, par {moyen}",
+        "moyens": {
+          "bank_transfer": "virement",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "espèces",
+          "check": "chèque",
+          "card": "carte"
+        }
       },
       "reglages": {
         "titre": "Réglages du mandat",
@@ -10232,7 +10243,9 @@
         "thresholdConfirm": "Confirmer",
         "thresholdConfirming": "Confirmation…",
         "thresholdConfirmed": "Le nouveau seuil s'applique.",
-        "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu."
+        "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu.",
+        "payoutDay": "Jour de versement aux bailleurs",
+        "payoutDayHint": "Le jour du mois (1 à 28) où partent les reversements, quand le mandat du bailleur n’en fixe pas. Vide : aucun jour annoncé."
       },
       "offlinePayment": {
         "title": "Paiement hors ligne",
@@ -17373,7 +17386,8 @@
       "thresholdInvalid": "Le seuil est un montant entier positif, sans décimales.",
       "legalNameTooLong": "La raison sociale ne doit pas dépasser 255 caractères.",
       "legalIdTooLong": "Ce numéro ne doit pas dépasser 30 caractères.",
-      "legalAddressTooLong": "L'adresse ne doit pas dépasser 1000 caractères."
+      "legalAddressTooLong": "L'adresse ne doit pas dépasser 1000 caractères.",
+      "payoutDayRange": "Le jour de versement est un nombre entre 1 et 28."
     },
     "common": {
       "emailTooLong": "L’adresse e-mail est trop longue.",

@@ -27,7 +27,8 @@ class PropertyOccupancyVisibilityTest extends ApiTestCase
     use FabriqueOccupation;
     use RefreshDatabase;
 
-    private const PRIVES = ['tenant', 'lease', 'rent', 'current_month'];
+    // TCK-2915 — `next_due_notice_date` (la date du prochain avis d'échéance) suit la même règle.
+    private const PRIVES = ['tenant', 'lease', 'rent', 'current_month', 'next_due_notice_date'];
 
     private Agency $agency;
 

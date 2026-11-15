@@ -51,6 +51,8 @@ export type BailDeLaListe = Lease & {
   readonly attention?: readonly EntreeDAttention[];
   readonly overdue_count?: number;
   readonly overdue_amount?: number;
+  /** TCK-2915 — `include=due_summary` : la date du prochain avis d'échéance (J-3), `null` sans avis à venir. */
+  readonly next_due_notice_date?: string | null;
 };
 
 /** Les onglets de l'agence, et la clé de `summary` qui compte chacun. */

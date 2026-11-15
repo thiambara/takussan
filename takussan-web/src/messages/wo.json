@@ -5841,7 +5841,18 @@
         "tauxDetail": "{taux} % des loyers",
         "leDate": "le {date}",
         "duMois": "En {mois}",
-        "encaissements": "{n, plural, one {# encaissement} other {# encaissements}}"
+        "encaissements": "{n, plural, one {# encaissement} other {# encaissements}}",
+        "leDateParMoyen": "le {date}, par {moyen}",
+        "moyens": {
+          "bank_transfer": "virement",
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "free_money": "Free Money",
+          "mobile_money": "Mobile Money",
+          "cash": "espèces",
+          "check": "chèque",
+          "card": "carte"
+        }
       },
       "reglages": {
         "titre": "Réglages du mandat",
@@ -8994,7 +9005,9 @@
         "thresholdConfirm": "Dëggal",
         "thresholdConfirming": "Dëggal gi…",
         "thresholdConfirmed": "Seuil bu bees bi moo ngi dox.",
-        "thresholdPendingSaved": "Denc nañu ko. Woyofal seuil bi dafa laaj benn approbateur bu ñaareel dëggal ko : xamal nañu ko."
+        "thresholdPendingSaved": "Denc nañu ko. Woyofal seuil bi dafa laaj benn approbateur bu ñaareel dëggal ko : xamal nañu ko.",
+        "payoutDay": "Jour de versement aux bailleurs",
+        "payoutDayHint": "Le jour du mois (1 à 28) où partent les reversements, quand le mandat du bailleur n’en fixe pas. Vide : aucun jour annoncé."
       },
       "offlinePayment": {
         "title": "Paiement hors ligne",
@@ -17398,7 +17411,8 @@
       "thresholdInvalid": "Seuil bi dafa war a nekk xaalis bu mat, amul décimales.",
       "legalNameTooLong": "Raison sociale bi warul ëpp 255 araf.",
       "legalIdTooLong": "Nimero bii warul ëpp 30 araf.",
-      "legalAddressTooLong": "Adrees bi warul ëpp 1000 araf."
+      "legalAddressTooLong": "Adrees bi warul ëpp 1000 araf.",
+      "payoutDayRange": "Le jour de versement est un nombre entre 1 et 28."
     },
     "booking": {
       "guestsRequired": "Limu nit ñi fàww la.",

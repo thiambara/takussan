@@ -50,11 +50,14 @@ export function SectionRegles() {
       <ConfirmationParLesBailleurs />
     </GroupeDeChamps>
   );
-  const reversements = peutRegler ? (
+  // TCK-2915 — le jour de versement s'écrit par `PATCH /api/agencies/{id}` (`settings.payout_day`), comme
+  // les autres réglages : il ne dépend pas du droit d'approuver, contrairement au seuil.
+  const reversements = (
     <GroupeDeChamps titre={tFiche('groupeReversements')}>
-      <Seuil />
+      <JourDeVersement />
+      {peutRegler ? <Seuil /> : null}
     </GroupeDeChamps>
-  ) : null;
+  );
   const securite = individuelle ? null : (
     <GroupeDeChamps titre={tFiche('groupeSecurite')}>
       <DoubleAuthentification />
@@ -151,6 +154,16 @@ function ConfirmationParLesBailleurs() {
         <InterrupteurAAide id="owners_confirm_visits" libelle={t('label')} aide={t('hint')} actif={field.value} onChange={field.onChange} />
       )}
     />
+  );
+}
+
+/** TCK-2915 — `settings.payout_day` : le jour de versement par défaut des bailleurs de l'agence. */
+function JourDeVersement() {
+  const tMoney = useTranslations('admin.agencyConfig.moneyOut');
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <ChampDeLaFiche name="payout_day" libelle={tMoney('payoutDay')} inputMode="numeric" aide={tMoney('payoutDayHint')} />
+    </div>
   );
 }
 

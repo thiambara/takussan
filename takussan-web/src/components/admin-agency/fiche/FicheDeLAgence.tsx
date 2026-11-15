@@ -140,6 +140,8 @@ const LIBELLES_DES_CHAMPS: Readonly<Record<string, CleDeLibelle>> = {
   hidden_modules: ['fiche', 'menu.titre'],
   default_tax_rate: ['argent', 'taxRate'],
   payout_approval_threshold: ['argent', 'threshold'],
+  // TCK-2915
+  payout_day: ['argent', 'payoutDay'],
   legal_name: ['argent', 'legalName'],
   ninea: ['argent', 'ninea'],
   rccm: ['argent', 'rccm'],

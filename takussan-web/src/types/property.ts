@@ -51,6 +51,11 @@ export interface OccupationDuBien {
     currency: string | null;
     payment_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
   } | null;
+  /**
+   * TCK-2915 — la date (`Y-m-d`) du prochain avis d'échéance (le rappel J-3 au locataire) ; `null`
+   * sans avis à venir. Absente, comme `lease`, pour qui ne lit pas le bail.
+   */
+  next_due_notice_date?: string | null;
   current_month: {
     /** `refunded` : échu, reçu puis remboursé (TCK-2651, décision 18 du porteur). */
     status: 'paid' | 'late' | 'partial' | 'due' | 'none' | 'refunded';

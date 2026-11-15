@@ -105,6 +105,13 @@ export const agencyFormSchema = z.object({
   offline_payment_wave_number: z.string().default(''),
   offline_payment_orange_money_number: z.string().default(''),
   offline_payment_bank_details: z.string().default(''),
+  // TCK-2915 — `settings.payout_day` : le jour du mois (1-28) où partent les reversements aux bailleurs
+  // dont le mandat n'en fixe pas ; vide = aucun. Mêmes bornes que `AgencySettings`.
+  payout_day: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (/^[0-9]{1,2}$/.test(v) && Number(v) >= 1 && Number(v) <= 28), msgValidation('agency.payoutDayRange'))
+    .default(''),
 });
 
 /** TCK-2536 — les trois clés de `settings` des moyens de paiement hors ligne (TCK-2504). */
@@ -131,6 +138,8 @@ export interface ReglagesDeLaFiche {
   offline_payment_wave_number: string;
   offline_payment_orange_money_number: string;
   offline_payment_bank_details: string;
+  /** TCK-2915 — `settings.payout_day` en texte de champ, `''` quand la clé est absente. */
+  payout_day: string;
 }
 
 /**
@@ -176,6 +185,8 @@ export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
     offline_payment_wave_number: texteDuReglage(lu.offline_payment_wave_number),
     offline_payment_orange_money_number: texteDuReglage(lu.offline_payment_orange_money_number),
     offline_payment_bank_details: texteDuReglage(lu.offline_payment_bank_details),
+    // TCK-2915 — un entier 1-28 (`AgencySettings::read`) ; toute autre valeur se lit « aucun ».
+    payout_day: typeof lu.payout_day === 'number' && Number.isInteger(lu.payout_day) ? String(lu.payout_day) : '',
   };
 }
 
@@ -195,7 +206,9 @@ export function erreursDesReglagesSurLeurChamp(
   return Object.fromEntries(
     Object.entries(errors).map(([cle, messages]) => {
       const reglage = cle.startsWith('settings.') ? cle.slice('settings.'.length) : null;
-      return [reglage !== null && (CLES_PAIEMENT_HORS_LIGNE as readonly string[]).includes(reglage) ? reglage : cle, messages];
+      // TCK-2915 — `settings.payout_day` sous son champ, comme les moyens de paiement hors ligne.
+      const surSonChamp = reglage !== null && ([...CLES_PAIEMENT_HORS_LIGNE, 'payout_day'] as readonly string[]).includes(reglage);
+      return [surSonChamp ? reglage : cle, messages];
     }),
   );
 }
@@ -307,6 +320,9 @@ export function normaliseAgencyForm(
     const saisi = (values[cle] ?? '').trim();
     if (saisi !== initial[cle].trim()) settings[cle] = saisi === '' ? null : saisi;
   }
+  // TCK-2915 — ne part que modifié ; vidé, `null` retire la clé (plus de jour d'agence).
+  const jour = (values.payout_day ?? '').trim();
+  if (jour !== initial.payout_day) settings.payout_day = jour === '' ? null : Number(jour);
 
   const slug = (values.slug ?? '').trim();
 

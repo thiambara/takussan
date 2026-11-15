@@ -99,6 +99,14 @@ final class AgencySettings
                 'type' => self::BOOL, 'default' => false,
                 'rules' => ['sometimes', 'nullable', 'boolean'],
             ],
+            // TCK-2915 — le jour du mois où partent les reversements aux bailleurs de l'agence, quand
+            // le mandat d'un bailleur n'en fixe pas (`owner_profiles.payout_day`, TCK-2909) :
+            // {@see \App\Services\Payout\PayoutDay}. Informatif : aucune préparation n'en dépend.
+            // `null` retire la clé.
+            'payout_day' => [
+                'type' => self::INT, 'default' => null,
+                'rules' => ['sometimes', 'nullable', 'integer', 'between:1,28'],
+            ],
             'hidden_modules' => [
                 'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
                 'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],

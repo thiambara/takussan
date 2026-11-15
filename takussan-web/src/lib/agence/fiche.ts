@@ -102,6 +102,8 @@ const SECTION_DE_LA_CLE: Readonly<Record<string, SectionDeLaFiche>> = {
   late_fee_online_collection: 'regles',
   owners_confirm_visits: 'regles',
   payout_approval_threshold: 'regles',
+  // TCK-2915
+  payout_day: 'regles',
   require_team_two_factor: 'regles',
   hidden_modules: 'menu',
 };

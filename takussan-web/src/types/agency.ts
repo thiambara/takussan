@@ -54,6 +54,11 @@ export interface AgencySettings {
    */
   owners_confirm_visits?: boolean;
   /**
+   * TCK-2915 — le jour du mois (1-28) où partent les reversements aux bailleurs dont le mandat n'en
+   * fixe pas ; absent = aucune règle d'agence.
+   */
+  payout_day?: number | null;
+  /**
    * TCK-2483 — les modules que l'agence retire du menu de son personnel (codes d'`AgencyModule`).
    * Lu par `modulesMasquesDe`, jamais tel quel : un code inconnu y est ignoré.
    */
