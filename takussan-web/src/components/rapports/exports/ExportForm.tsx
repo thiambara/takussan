@@ -18,7 +18,7 @@ import { PREREGLAGES, bornesDuPrereglage, prereglageDe } from '@/lib/rapports/ex
 import { cn } from '@/lib/utils';
 
 import { Segmente } from '../Segmente';
-import { useExportsPermis, useTelechargement } from './useExports';
+import { useCompteDeLExport, useExportsPermis, useTelechargement } from './useExports';
 
 interface ExportFormProps {
   /** Personnel d'une agence (agent, admin) : ses exports sont jugés par capacité. */
@@ -34,6 +34,11 @@ const FORMATS: readonly ExportFormat[] = ['csv', 'xlsx', 'pdf'];
  * L'export personnalisé (TCK-032 P2, TCK-587, TCK-1306, TCK-1308), refait par TCK-2629 sur la maquette
  * `app-rapports` (« Export personnalisé ») : le type en puces, le format, la période avec ses préréglages
  * (« Mois dernier · Ce mois · Année ») et ses deux dates, et les limites dites AVANT l'échec.
+ *
+ * TCK-2868 — « Trimestre » et « Autre… » (les deux dates, saisies) rejoignent les préréglages ; le nombre
+ * de lignes de l'export demandé est lu (`useCompteDeLExport`, anti-rebond) et dit — « 38 lignes à
+ * exporter. » —, et un export qui dépasserait le plafond de son format est refusé À L'ÉCRAN : le bouton
+ * se désactive et la phrase dit pourquoi. Tant que le compte n'est pas lu (ou en échec), rien ne bloque.
  *
  * Les types offerts sont ceux que les cartes prêtes et « Refaire » lisent aussi (`useExportsPermis`) ;
  * le téléchargement passe par le même relais (`useTelechargement`), nom de fichier rendu par l'API et
@@ -51,8 +56,12 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
   const entity = entities.includes(choix) ? choix : entities[0];
   const [format, setFormat] = useState<ExportFormat>(telephone ? 'pdf' : 'xlsx');
   const [periode, setPeriode] = useState(() => bornesDuPrereglage('moisDernier'));
+  // TCK-2868 — « Autre… » ne change aucune date : son état est tenu à part.
+  const [autre, setAutre] = useState(false);
   const telechargement = useTelechargement();
+  const compte = useCompteDeLExport({ entity: entity ?? 'payments', format, from: periode.from, to: periode.to });
   const idType = useId();
+  const idDu = useId();
   const idFormat = useId();
   const idPeriode = useId();
 
@@ -64,8 +73,10 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
     );
   }
 
-  const actif = prereglageDe(periode);
+  const actif = autre ? null : prereglageDe(periode);
   const enCours = telechargement.enCours === 'formulaire';
+  const plafonds = t('rowCap', { max: f.nombre(PLAFOND_LIGNES_EXPORT), pdf: f.nombre(PLAFOND_LIGNES_EXPORT_PDF) });
+  const tropDeLignes = compte !== null && compte.count > compte.limit;
 
   return (
     <div className={cn('space-y-4', className)} data-slot="export-personnalise">
@@ -96,15 +107,32 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
         </p>
         <div className="flex flex-wrap gap-2">
           {PREREGLAGES.map((p) => (
-            <PuceDeFiltre key={p} active={actif === p} onClick={() => setPeriode(bornesDuPrereglage(p))}>
+            <PuceDeFiltre
+              key={p}
+              active={actif === p}
+              onClick={() => {
+                setAutre(false);
+                setPeriode(bornesDuPrereglage(p));
+              }}
+            >
               {tR(`prereglages.${p}`, { annee: bornesDuPrereglage('annee').from.slice(0, 4) })}
             </PuceDeFiltre>
           ))}
+          <PuceDeFiltre
+            active={actif === null}
+            onClick={() => {
+              setAutre(true);
+              // Les dates restent celles d'avant : on les ajuste à partir d'elles.
+              document.getElementById(idDu)?.focus();
+            }}
+          >
+            {tR('prereglages.autre')}
+          </PuceDeFiltre>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <label className="flex min-w-0 flex-col gap-1 text-sm">
             <span className="font-medium text-foreground">{t('from')}</span>
-            <DatePicker value={periode.from} onValueChange={(from) => setPeriode((p) => ({ ...p, from }))} />
+            <DatePicker id={idDu} value={periode.from} onValueChange={(from) => setPeriode((p) => ({ ...p, from }))} />
           </label>
           <label className="flex min-w-0 flex-col gap-1 text-sm">
             <span className="font-medium text-foreground">{t('to')}</span>
@@ -113,13 +141,24 @@ export function ExportForm({ staff, telephone = false, className }: ExportFormPr
         </div>
       </div>
       {/* TCK-1306 (P112.01) — le plafond de lignes se dit : au-delà, le fichier est coupé. */}
-      <p className="rounded-lg bg-muted px-3 py-2 text-ui text-pretty text-foreground" data-testid="exports-row-cap">
-        {t('rowCap', { max: f.nombre(PLAFOND_LIGNES_EXPORT), pdf: f.nombre(PLAFOND_LIGNES_EXPORT_PDF) })}
+      {/* TCK-2868 — « 38 lignes à exporter. » devant les plafonds ; au-delà du plafond du format, le refus. */}
+      <p
+        className={cn('rounded-lg px-3 py-2 text-ui text-pretty', tropDeLignes ? 'bg-destructive/10 text-destructive' : 'bg-muted text-foreground')}
+        data-testid="exports-row-cap"
+        aria-live="polite"
+      >
+        {compte === null ? (
+          plafonds
+        ) : tropDeLignes ? (
+          tR('tropDeLignes', { n: compte.count, lignes: f.nombre(compte.count), limite: f.nombre(compte.limit) })
+        ) : (
+          `${tR('lignesAExporter', { n: compte.count, lignes: f.nombre(compte.count) })} ${plafonds}`
+        )}
       </p>
       <Button
         type="button"
         className="h-11 w-full"
-        disabled={telechargement.enCours !== null}
+        disabled={telechargement.enCours !== null || tropDeLignes}
         onClick={() =>
           void telechargement.telecharger('formulaire', {
             entity,

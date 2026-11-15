@@ -27,20 +27,27 @@ export interface Ecriture {
   readonly id: number;
   readonly sort_order?: number;
   readonly is_enabled?: boolean;
+  /** TCK-2868 — le libellé et le format d'un chiffre déjà affiché (`PATCH kpi-configs/{id}` les accepte). */
+  readonly label?: string;
+  readonly format?: KpiConfig['format'];
 }
 
 /**
  * Les écritures que « Terminé » envoie : le rang de chaque ligne devient son `sort_order` (0, 1, 2…), et
  * seules partent les lignes dont le rang ou `is_enabled` a changé — `PATCH kpi-configs/{id}` par ligne.
+ * TCK-2868 — le libellé et le format aussi, quand on les a changés en dépliant la ligne.
  */
 export function ecrituresDuReglage(avant: readonly ChiffreRegle[], apres: readonly ChiffreRegle[]): Ecriture[] {
   const parId = new Map(avant.map((c) => [c.id, c]));
   return apres.flatMap((c, rang) => {
     const ancien = parId.get(c.id);
     if (!ancien) return [];
-    const ecriture: { id: number; sort_order?: number; is_enabled?: boolean } = { id: c.id };
+    const ecriture: { id: number; sort_order?: number; is_enabled?: boolean; label?: string; format?: KpiConfig['format'] } = { id: c.id };
     if (ancien.sort_order !== rang) ecriture.sort_order = rang;
     if (ancien.is_enabled !== c.is_enabled) ecriture.is_enabled = c.is_enabled;
+    // TCK-2868 — le libellé (sans ses blancs de bord) et le format, quand ils ont changé.
+    if (ancien.label !== c.label.trim()) ecriture.label = c.label.trim();
+    if (ancien.format !== c.format) ecriture.format = c.format;
     return Object.keys(ecriture).length > 1 ? [ecriture] : [];
   });
 }
@@ -52,6 +59,8 @@ export function inverse(ecriture: Ecriture, avant: readonly ChiffreRegle[]): Ecr
     id: ecriture.id,
     ...(ecriture.sort_order !== undefined && ancien ? { sort_order: ancien.sort_order } : {}),
     ...(ecriture.is_enabled !== undefined && ancien ? { is_enabled: ancien.is_enabled } : {}),
+    ...(ecriture.label !== undefined && ancien ? { label: ancien.label } : {}),
+    ...(ecriture.format !== undefined && ancien ? { format: ancien.format } : {}),
   };
 }
 

@@ -27,6 +27,8 @@ import * as agentKycSubmit from '../me/agent-profiles/[id]/kyc/submit/route';
 import * as agentKycUpload from '../me/agent-profiles/[id]/kyc/upload/route';
 import * as agentSpecialization from '../me/agent-profiles/[id]/specialization/route';
 import * as meDataExports from '../me/data-exports/route';
+// TCK-2868 — « Retélécharger » un export gardé.
+import * as meExportDownload from '../me/exports/[id]/download/route';
 import * as ownerKycSubmit from '../me/owner-profiles/[id]/kyc/submit/route';
 import * as ownerKycUpload from '../me/owner-profiles/[id]/kyc/upload/route';
 import * as ownerProperties from '../me/owner-profiles/[id]/properties/route';
@@ -52,6 +54,8 @@ const relais: Array<{ nom: string; url: string; methode: string; appel: Appel; a
   { nom: 'me/agent-profiles/[id]/kyc/upload', url: '/api/me/agent-profiles/4/kyc/upload', methode: 'POST', appel: (r) => agentKycUpload.POST(r, avec({ id: '4' })), amont: /\/api\/me\/agent-profiles\/4\/kyc\/upload$/ },
   { nom: 'me/agent-profiles/[id]/specialization', url: '/api/me/agent-profiles/4/specialization', methode: 'PATCH', appel: (r) => agentSpecialization.PATCH(r, avec({ id: '4' })), amont: /\/api\/me\/agent-profiles\/4\/specialization$/ },
   { nom: 'me/data-exports', url: '/api/me/data-exports', methode: 'POST', appel: (r) => meDataExports.POST(r), amont: /\/api\/me\/data-exports$/ },
+  // TCK-2868
+  { nom: 'me/exports/[id]/download', url: '/api/me/exports/41/download', methode: 'GET', appel: (r) => meExportDownload.GET(r, avec({ id: '41' })), amont: /\/api\/me\/exports\/41\/download$/ },
   { nom: 'me/owner-profiles/[id]/kyc/submit', url: '/api/me/owner-profiles/4/kyc/submit', methode: 'POST', appel: (r) => ownerKycSubmit.POST(r, avec({ id: '4' })), amont: /\/api\/me\/owner-profiles\/4\/kyc\/submit$/ },
   { nom: 'me/owner-profiles/[id]/kyc/upload', url: '/api/me/owner-profiles/4/kyc/upload', methode: 'POST', appel: (r) => ownerKycUpload.POST(r, avec({ id: '4' })), amont: /\/api\/me\/owner-profiles\/4\/kyc\/upload$/ },
   { nom: 'me/owner-profiles/[id]/properties', url: '/api/me/owner-profiles/4/properties?page=2', methode: 'GET', appel: (r) => ownerProperties.GET(r, avec({ id: '4' })), amont: /\/api\/me\/owner-profiles\/4\/properties\?page=2$/ },

@@ -23,9 +23,10 @@ describe('ExportForm — plafond de lignes affiché (TCK-1306)', () => {
     render(withIntl(avecClient(<ExportForm staff />)));
 
     expect(screen.getByTestId('exports-row-cap')).toHaveTextContent(
-      /au plus 5\s000 lignes, 200 en PDF/,
+      // TCK-2868 — la phrase de la maquette : « 5 000 lignes au plus par export, 200 en PDF. »
+      /5\s000 lignes au plus par export, 200 en PDF/,
     );
     // TCK-2795 — au caractère près : le plafond groupe par U+00A0 (lib/format), pas par l'U+202F de `{x, number}`.
-    expect(screen.getByTestId('exports-row-cap').textContent).toContain('au plus 5\u00a0000 lignes');
+    expect(screen.getByTestId('exports-row-cap').textContent).toContain('5\u00a0000 lignes au plus');
   });
 });

@@ -1,10 +1,10 @@
 'use client';
 
-import { useId, useState, useTransition } from 'react';
+import { useEffect, useId, useState, useTransition } from 'react';
 import { BellRing, Loader2, MoreHorizontal, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { createThresholdAlertAction, deleteThresholdAlertAction, updateThresholdAlertAction } from '@/app/actions/alerts';
+import { createThresholdAlertAction, deleteThresholdAlertAction, recipientCandidatesAction, updateThresholdAlertAction } from '@/app/actions/alerts';
 import { StatusBadge, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { useActionDOnglet } from '@/components/rapports/ActionDeLOnglet';
@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { pourcentMesure, pourcentSaisi } from '@/lib/rapports/pourcentages';
-import type { ThresholdAlert } from '@/lib/queries/alerts';
+import { CANAUX_D_ALERTE, type AlertChannel, type ThresholdAlert } from '@/lib/queries/alerts';
 import {
   METRIQUES_D_ALERTE,
   dernierDeclenchement,
@@ -90,8 +90,12 @@ function useLectureDAlerte() {
     if (r.users.length > 0) return r.users.map((u) => u.name ?? t('sansNom')).join(', ');
     return t('destinatairesCompte', { n: r.count });
   };
+  // TCK-2868 — le canal CHOISI (`channel`, TCK-2866) : « E-mail », « WhatsApp », « E-mail et WhatsApp » (maquette).
+  // `channels` (la cloche + ce choix) ne sert plus qu'à une réponse sans `channel`.
+  const nomDuCanal = (c: AlertChannel) => t(`canaux.${c}`);
   const canal = (a: ThresholdAlert) => {
-    const c = (a.channels ?? []).map((x) => (x === 'email' || x === 'inapp' ? t(`canaux.${x}`) : x));
+    if (a.channel && (CANAUX_D_ALERTE as readonly string[]).includes(a.channel)) return nomDuCanal(a.channel);
+    const c = (a.channels ?? []).map((x) => (x === 'email' || x === 'inapp' || x === 'whatsapp' ? t(`canaux.${x}`) : x));
     return c.length > 0 ? new Intl.ListFormat(f.locale, { type: 'conjunction' }).format(c) : '—';
   };
   const severite = (s: string) => ((SEVERITIES as readonly string[]).includes(s) ? tA(`severities.${s}`) : s);
@@ -102,6 +106,7 @@ function useLectureDAlerte() {
     quand,
     destinataires,
     canal,
+    nomDuCanal,
     severite,
     ton,
     titre: (a: ThresholdAlert) => `${metrique(a.metric)} ${SYMBOLE[a.operator] ?? a.operator} ${chiffre(a.metric, a.threshold, { saisi: true })}`,
@@ -118,9 +123,9 @@ function useLectureDAlerte() {
  * canal, et le délai entre deux alertes. Au téléphone une carte par alerte, au bureau un tableau.
  *
  * Création ET modification dans le même formulaire (feuille du bas au téléphone, panneau droit au bureau) :
- * métrique, condition, seuil, sévérité, délai (24 h par défaut). Les destinataires (les admins actifs de
- * l'agence, `recipients`) et les canaux (ceux de l'événement) se LISENT : leur choix est hors périmètre.
- * « Évaluées toutes les heures » est dit à l'écran.
+ * métrique, condition, seuil, sévérité, délai (24 h par défaut). TCK-2868 — et « Qui est prévenu » (parmi
+ * les destinataires possibles de la mesure, `recipient-candidates` ; aucun choisi = tous) et « Canal »
+ * (E-mail · WhatsApp · Les deux), que l'API garde depuis TCK-2866. « Évaluées toutes les heures » est dit à l'écran.
  */
 export function AlertList({ initialAlerts, apercus }: AlertListProps) {
   const t = useTranslations('rapports.alertes');
@@ -135,7 +140,11 @@ export function AlertList({ initialAlerts, apercus }: AlertListProps) {
 
   const declenchees = alerts.filter((a) => jaugeDeLAlerte(a)?.sonne).length;
   const recents = alerts
-    .flatMap((a) => (a.triggers ?? []).filter((x) => x.at).map((x) => ({ alerte: a, at: x.at as string, value: x.value })))
+    .flatMap((a) =>
+      (a.triggers ?? [])
+        .filter((x) => x.at)
+        .map((x) => ({ alerte: a, at: x.at as string, value: x.value, channel: x.channel ?? null, n: x.recipients_count ?? null })),
+    )
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 5);
 
@@ -153,7 +162,12 @@ export function AlertList({ initialAlerts, apercus }: AlertListProps) {
   const dansRapports = useActionDOnglet(() => ouvrir(null));
   const fermer = () => setEdition((e) => (e ? { ...e, ouverte: false } : e));
   const enregistree = (a: ThresholdAlert) => {
-    setAlerts((prev) => (prev.some((x) => x.id === a.id) ? prev.map((x) => (x.id === a.id ? a : x)) : [a, ...prev]));
+    // TCK-2868 (AC7) — une réponse sans `triggers` ne vide pas « Déclenchements récents » de l'alerte modifiée.
+    setAlerts((prev) =>
+      prev.some((x) => x.id === a.id)
+        ? prev.map((x) => (x.id === a.id ? { ...a, triggers: a.triggers ?? x.triggers } : x))
+        : [a, ...prev],
+    );
     fermer();
   };
 
@@ -296,8 +310,16 @@ export function AlertList({ initialAlerts, apercus }: AlertListProps) {
             {recents.map((r) => (
               <li key={`${r.alerte.id}-${r.at}`} className="flex min-h-11 items-center gap-4 px-4">
                 <span className="w-28 flex-none tabular-nums text-muted-foreground">{f.jourMois(r.at)}</span>
-                <span className="min-w-0 flex-1 truncate font-medium">{l.titre(r.alerte)}</span>
+                <span className="w-56 min-w-0 shrink truncate font-medium">{l.titre(r.alerte)}</span>
                 <span className="w-24 flex-none text-right font-semibold tabular-nums">{l.chiffre(r.alerte.metric, r.value, { seuil: r.alerte.threshold })}</span>
+                {/* TCK-2868 — ce qui est parti : le canal et le nombre de personnes prévenues (journal du déclenchement). */}
+                <span className="min-w-0 flex-1 truncate text-muted-foreground" data-slot="suite-du-declenchement">
+                  {r.channel && (CANAUX_D_ALERTE as readonly string[]).includes(r.channel)
+                    ? r.n !== null
+                      ? t('suite', { canal: l.nomDuCanal(r.channel), n: r.n })
+                      : l.nomDuCanal(r.channel)
+                    : null}
+                </span>
               </li>
             ))}
           </ul>
@@ -329,7 +351,7 @@ function JaugeDuSeuil({ jauge, className }: { readonly jauge: Jauge | null; read
   );
 }
 
-/** Créer ou modifier une alerte : les cinq champs de l'API ; qui est prévenu et comment, en lecture. */
+/** Créer ou modifier une alerte : les cinq champs de l'API, et (TCK-2868) qui est prévenu et par quel canal. */
 function FormulaireDAlerte({
   alerte,
   apercus,
@@ -353,7 +375,33 @@ function FormulaireDAlerte({
     alerte && (SEVERITIES as readonly string[]).includes(alerte.severity) ? alerte.severity : 'warning',
   );
   const [cooldownHours, setCooldownHours] = useState(String(alerte?.cooldown_hours ?? 24));
+  // TCK-2868 — « Qui est prévenu » : le choix (`[]` = tous) parmi les destinataires possibles de la mesure,
+  // relus à chaque changement de mesure ; un choix qui n'en fait plus partie est retiré (l'API le refuserait).
+  const [recipientIds, setRecipientIds] = useState<number[]>(alerte?.recipient_ids ?? []);
+  const [candidats, setCandidats] = useState<{ id: number; name: string | null }[] | null>(
+    alerte?.recipient_candidates && alerte.recipient_candidates.length > 0 && alerte.metric === metric ? alerte.recipient_candidates : null,
+  );
+  const [channel, setChannel] = useState<AlertChannel>(alerte?.channel ?? 'email');
   const [error, setError] = useState<string | null>(null);
+
+  const nomDuCandidat = (x: number) =>
+    candidats?.find((c) => c.id === x)?.name ?? alerte?.recipients?.users.find((u) => u.id === x)?.name ?? t('sansNom');
+
+  useEffect(() => {
+    let actif = true;
+    void recipientCandidatesAction(metric).then((res) => {
+      if (!actif) return;
+      if (!res.ok) {
+        setCandidats((c) => c ?? []);
+        return;
+      }
+      setCandidats(res.data);
+      setRecipientIds((ids) => ids.filter((x) => res.data.some((c) => c.id === x)));
+    });
+    return () => {
+      actif = false;
+    };
+  }, [metric]);
   const [isPending, startTransition] = useTransition();
 
   const metricItems = METRIQUES_D_ALERTE.map((m) => ({ value: m, label: tMetric(m) }));
@@ -366,7 +414,16 @@ function FormulaireDAlerte({
       setError(tA('invalidThreshold'));
       return;
     }
-    const input = { metric, operator, threshold: parsed, severity, cooldown_hours: Number(cooldownHours) || 24 };
+    const input = {
+      metric,
+      operator,
+      threshold: parsed,
+      severity,
+      cooldown_hours: Number(cooldownHours) || 24,
+      // TCK-2868 — toujours envoyés : l'API re-juge le choix sur la mesure NOUVELLE (TCK-2866). Vide = tous.
+      recipient_ids: recipientIds.length > 0 ? recipientIds : null,
+      channel,
+    };
     startTransition(async () => {
       const res = alerte ? await updateThresholdAlertAction(alerte.id, input) : await createThresholdAlertAction(input);
       if (!res.ok) {
@@ -446,9 +503,47 @@ function FormulaireDAlerte({
           options={SEVERITIES.map((s) => ({ valeur: s, libelle: tA(`severities.${s}`) }))}
         />
       </div>
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-foreground">{t('quiEstPrevenu')}</p>
-        <p className="text-sm text-pretty text-muted-foreground">{t('quiEstPrevenuValeur')}</p>
+      {/* TCK-2868 — « Qui est prévenu » : un champ comme « Métrique » (maquette), à choix multiple parmi les
+          destinataires possibles de la mesure ; vide, il dit « Tous les administrateurs ». */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`${id}-destinataires`}>{t('quiEstPrevenu')}</Label>
+        <Select<string, true>
+          multiple
+          value={recipientIds.map(String)}
+          onValueChange={(v) => setRecipientIds((v ?? []).map(Number))}
+        >
+          <SelectTrigger id={`${id}-destinataires`} className="w-full" aria-describedby={`${id}-destinataires-aide`} data-slot="destinataires">
+            <SelectValue>
+              {(choisis: string[]) =>
+                choisis.length === 0
+                  ? t('tousLesAdministrateurs')
+                  : choisis.map((x) => nomDuCandidat(Number(x))).join(', ')
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {(candidats ?? []).map((c) => (
+              <SelectItem key={c.id} value={String(c.id)}>
+                {c.name ?? t('sansNom')}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p id={`${id}-destinataires-aide`} className="text-xs text-pretty text-muted-foreground">
+          {candidats === null ? t('destinatairesChargement') : t('quiEstPrevenuAide')}
+        </p>
+      </div>
+      <div>
+        <p id={`${id}-canal`} className="mb-1.5 text-sm font-medium text-foreground">
+          {t('colonnes.canal')}
+        </p>
+        <Segmente
+          idDuLibelle={`${id}-canal`}
+          valeur={channel}
+          onChange={setChannel}
+          options={CANAUX_D_ALERTE.map((c) => ({ valeur: c, libelle: t(`canalChoix.${c}`) }))}
+        />
+        {channel !== 'email' ? <p className="mt-1.5 text-xs text-pretty text-muted-foreground">{t('canalWhatsappAide')}</p> : null}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor={`${id}-cooldown`}>{tA('cooldown')}</Label>

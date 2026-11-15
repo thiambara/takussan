@@ -50,9 +50,13 @@ export function estUnFormat(format: unknown): format is ExportFormat {
   return format === 'csv' || format === 'xlsx' || format === 'pdf';
 }
 
-/** Les préréglages de période de l'export personnalisé (maquette : « Mois dernier · Ce mois · Année 2026 »). */
-export type Prereglage = 'moisDernier' | 'ceMois' | 'annee';
-export const PREREGLAGES: readonly Prereglage[] = ['moisDernier', 'ceMois', 'annee'];
+/**
+ * Les préréglages de période de l'export personnalisé. TCK-2868 — dans l'ordre de la maquette : « Ce mois ·
+ * Mois dernier · Trimestre · Année 2026 », suivis d'« Autre… » (les deux dates, saisies), qui n'est pas un
+ * préréglage.
+ */
+export type Prereglage = 'ceMois' | 'moisDernier' | 'trimestre' | 'annee';
+export const PREREGLAGES: readonly Prereglage[] = ['ceMois', 'moisDernier', 'trimestre', 'annee'];
 
 export interface Periode {
   readonly from: string;
@@ -74,6 +78,11 @@ export function bornesDuPrereglage(cle: Prereglage, maintenant: Date = new Date(
       return { from: jour(new Date(Date.UTC(annee, mois - 1, 1))), to: jour(new Date(Date.UTC(annee, mois, 0))) };
     case 'ceMois':
       return { from: jour(new Date(Date.UTC(annee, mois, 1))), to: jour(new Date(Date.UTC(annee, mois + 1, 0))) };
+    case 'trimestre': {
+      // TCK-2868 — le trimestre civil EN COURS : janvier–mars, avril–juin, juillet–septembre, octobre–décembre.
+      const premier = mois - (mois % 3);
+      return { from: jour(new Date(Date.UTC(annee, premier, 1))), to: jour(new Date(Date.UTC(annee, premier + 3, 0))) };
+    }
     case 'annee':
       return { from: `${annee}-01-01`, to: `${annee}-12-31` };
   }
