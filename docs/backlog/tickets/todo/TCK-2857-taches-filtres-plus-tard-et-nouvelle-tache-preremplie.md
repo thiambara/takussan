@@ -76,4 +76,18 @@ Relevé : audit-f3-coque.md, app-aujourdhui e1 et e2 ; écarts de TCK-2596 (aide
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_(2026-11-15, agent délégué — vague 92)_
+
+**Re-mesure de la prémisse.** `filter[taskable_type]` est un filtre EXACT (`HasQueryBuilder` → `AllowedFilter::exact`) ; la valeur stockée est la classe (`App\Models\Customer`, `App\Models\Property` : `StoreTaskRequest::TASKABLE_TYPES`, aucune morph map). `NouvelleTache` acceptait bien `rattachement` sans appelant. Écart trouvé : le libellé « prérempli » comparait l'id seul — après « Changer », un bien du même id que le client prérempli était dit « prérempli » ; corrigé (type + id), testé.
+
+**Choix.**
+- Aide du balayage : toujours montrée, comme la maquette (pas de préférence « vue une fois ») ; au téléphone (`md:hidden`), sous le premier groupe (l. 503 de la maquette) — et non « sous les pastilles ».
+- « Grouper par » (Échéance · Rattachement) et « Rattachée à » (Tout · Clients · Biens) : options PROPOSÉES, à confirmer par le porteur. URL : `?grouper=rattachement&rattachement=clients|biens` (défauts hors URL). Le filtre vaut pour la liste ET les comptes des pastilles (`filtreDePortee`). « Rattachement » regroupe par client ou bien (clé type + id), les tâches sans rattachement en dernier (« Sans rattachement »).
+- Le tableau s'affiche dès `md` (le « bureau » des filtres), pas dès `xl` : AC-F3 le mesure à 768 et 1024 ; il défile dans son conteneur (`overflow-x-auto`, `min-w-xl`). « Sans échéance » est aussi en tableau (la maquette range sa ligne dans « Plus tard »). En-têtes de colonnes en `sr-only` (la maquette n'en dessine pas).
+- « Reporter » : Demain · Lundi · Dans une semaine en ligne (`PATCH due_at`, sans ouvrir la fiche) ; « Choisir… » ouvre la fiche, où vit le calendrier. « Modifier » ouvre la fiche, le titre en édition (`FicheDeTache.enEdition`). Pas de gestes pour qui n'est ni assigné ni créateur.
+- « Nouvelle tâche » d'une fiche : un LIEN `/app/tasks?nouvelle=1&pour=<genre>:<id>` — la maquette e2 montre le formulaire au-dessus de la page « Tâches ». L'URL ne porte jamais le nom ; la page le relit au serveur (`lib/taches/rattachement-de-la-fiche.ts`, colonnes du libellé seules) ; une lecture refusée ouvre le formulaire sans préremplissage. Fiche client : le ⋯ du bureau (menu) et la feuille ⋯ du téléphone, personnel seul (la barre « + Tâche » du fil est inchangée). Fiche d'un bien : la tête du bureau et la feuille ⋯ du téléphone, personnel seul (`LienNouvelleTache`, composant sans traduction : la feuille est montée par la coque).
+- « Annuler » au pied, au bureau seulement (`max-xl:hidden` : le panneau droit commence à `xl`).
+
+**Mesures.** `npx vitest run` des fichiers touchés et de leurs voisins : 21 fichiers, 115 tests verts. 13 ablations, une à une, chacune rouge sans le correctif puis restaurée (md5 vérifié). `tsc --noEmit` propre ; ESLint propre ; `check:i18n` et `check-i18n-namespaces` verts (table inchangée) ; gardes `scripts/check-*.mjs` du front vertes ; à la racine, seul `check-models-spec` rougit, sur un modèle d'API d'un autre agent.
+
+**Non mesuré.** AC-F1 à AC-F3 (relevé au navigateur interdit dans ce lot) : la fiche de fidélité reste à faire.

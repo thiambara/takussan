@@ -22,15 +22,35 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
+import { echeanceDuReport, type Report } from '@/lib/journee/journee';
 import { useComptesDesTaches, useListeDesTaches, useMembresAssignables, useModifierTache, type TacheDeLaPage } from '@/lib/queries/taches';
-import { basculer, estActive, estFaite, grouper, rechercheDe, type EtatDesTaches, type Groupe, type Pastille, type Selection } from '@/lib/taches/taches';
+import {
+  basculer,
+  estActive,
+  estFaite,
+  grouper,
+  grouperParRattachement,
+  rechercheDe,
+  type EtatDesTaches,
+  type FiltreDeRattachement,
+  type Groupe,
+  type Pastille,
+  type Regroupement,
+  type Selection,
+} from '@/lib/taches/taches';
 import { cn } from '@/lib/utils';
 import { ChoixDansUneListe } from './ChoixDansUneListe';
 import { FicheDeTache, PiedDeFicheDeTache, peutModifier } from './FicheDeTache';
 import { LigneDeTache } from './LigneDeTache';
-import { EnvoiDeNouvelleTache, NouvelleTache, type EtatDEnvoi } from './NouvelleTache';
+import { EnvoiDeNouvelleTache, NouvelleTache, type EtatDEnvoi, type Rattachement } from './NouvelleTache';
+import { TableauDeTaches } from './TableauDeTaches';
 
 const PANNEAU = '(width >= 80rem)';
+/** TCK-2857 — le bureau (dès `md`) : les filtres de la tête, « Plus tard » en tableau. */
+const BUREAU = '(width >= 48rem)';
+
+/** TCK-2857 — les groupes rendus en tableau au bureau (la maquette y range aussi « Sans échéance »). */
+const EN_TABLEAU: readonly Groupe[] = ['plusTard', 'sans'];
 
 const PASTILLES: readonly Pastille[] = ['overdue', 'today', 'upcoming', 'none', 'done', 'all'];
 
@@ -46,6 +66,8 @@ interface PageDesTachesProps {
   readonly ouvrirNouvelle?: boolean;
   /** `crm.view_all` dans l'agence active : le filtre « Assignée à » de l'équipe (TCK-2595). */
   readonly equipeVisible?: boolean;
+  /** TCK-2857 — `?nouvelle=1&pour=customer:12` : « Rattachée à » prérempli (le libellé relu par la page). */
+  readonly rattachement?: Rattachement | null;
 }
 
 /**
@@ -55,7 +77,7 @@ interface PageDesTachesProps {
  * téléphone, en colonnes au bureau (dès `xl`) — ; toucher une ligne ouvre la tâche (feuille du bas,
  * panneau droit dès `xl`), « + » ouvre « Nouvelle tâche ».
  */
-export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisible = false }: PageDesTachesProps) {
+export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisible = false, rattachement = null }: PageDesTachesProps) {
   const t = useTranslations('taches');
   const f = useFormatteurs();
   const router = useRouter();
@@ -64,8 +86,11 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
   const messageErreur = useMessageErreurApi();
   const maintenant = useMinuteCourante();
   const enPanneau = useMatchesMedia(PANNEAU);
+  const auBureau = useMatchesMedia(BUREAU);
   const [etat, setEtat] = useState<EtatDesTaches>(etatInitial);
   const [ouverte, setOuverte] = useState<TacheDeLaPage | null>(null);
+  // TCK-2857 — « Modifier » du tableau : la fiche s'ouvre, le titre en édition.
+  const [enEdition, setEnEdition] = useState(false);
   const [nouvelle, setNouvelle] = useState(ouvrirNouvelle);
   const [envoi, setEnvoi] = useState<EtatDEnvoi>({ pret: false, enCours: false, echeance: 'demain' });
   const [enCours, setEnCours] = useState<number | null>(null);
@@ -96,6 +121,23 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
         onSettled: () => setEnCours(null),
       },
     );
+  };
+
+  // TCK-2857 — « Reporter » en ligne : la nouvelle échéance, sans ouvrir la fiche.
+  const reporter = (tache: TacheDeLaPage, r: Report) => {
+    setErreur(null);
+    setEnCours(tache.id);
+    cocher.mutate(
+      { id: tache.id, due_at: echeanceDuReport(r, maintenant) },
+      {
+        onError: (e) => setErreur(messageErreur(e, t('echecCoche'))),
+        onSettled: () => setEnCours(null),
+      },
+    );
+  };
+  const ouvrir = (tache: TacheDeLaPage, edition = false) => {
+    setEnEdition(edition);
+    setOuverte(tache);
   };
 
   const lignes = liste.data?.pages.flatMap((p) => p.data) ?? [];
@@ -132,9 +174,48 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
       dense={dense}
       enCours={enCours === tache.id || !peutModifier(tache, moi)}
       onCocher={basculerFaite}
-      onOuvrir={setOuverte}
-      onReporter={setOuverte}
+      onOuvrir={ouvrir}
+      onReporter={ouvrir}
     />
+  );
+
+  const tableau = (taches: readonly TacheDeLaPage[]) => (
+    <TableauDeTaches
+      taches={taches}
+      maintenant={maintenant}
+      bloquee={(tache) => enCours === tache.id || !peutModifier(tache, moi)}
+      modifiable={(tache) => peutModifier(tache, moi)}
+      onCocher={basculerFaite}
+      onOuvrir={ouvrir}
+      onReporter={reporter}
+      onChoisirLaDate={ouvrir}
+      onModifier={(tache) => ouvrir(tache, true)}
+    />
+  );
+
+  // TCK-2857 (maquette e1, l. 503) — l'aide du balayage, au téléphone, sous le premier groupe. Toujours
+  // montrée, comme la maquette (pas de préférence « vue une fois »).
+  const aideDuBalayage = (
+    <p data-slot="aide-du-balayage" className="px-4 pt-2 text-ui text-muted-foreground md:hidden">
+      {t('aideBalayage')}
+    </p>
+  );
+
+  const parRattachement = (
+    <div className="space-y-5 md:space-y-6">
+      {grouperParRattachement(lignes).map((g, i) => {
+        const titre = g.cible ? (g.cible.label ?? t(`ligne.cache.${g.cible.type}`)) : t('groupe.sansRattachement');
+        return (
+          <section key={g.cle} data-rattachement={g.cle} aria-label={titre} className="pt-5 md:pt-0">
+            <Etiquette className="px-4 pb-1 md:px-0 md:pb-2" compte={g.taches.length}>
+              {titre}
+            </Etiquette>
+            <ul className="divide-y divide-border md:overflow-hidden md:rounded-xl md:border md:border-border md:bg-card">{g.taches.map((tache) => ligne(tache, auBureau))}</ul>
+            {i === 0 ? aideDuBalayage : null}
+          </section>
+        );
+      })}
+    </div>
   );
 
   const corps = liste.isPending ? (
@@ -149,10 +230,22 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
     <div className="px-4 py-6 md:px-0">
       <EmptyState icon={<ListTodo className="size-8" aria-hidden="true" />} title={t(`vide.${selection.mode === 'periodes' ? (selection.periodes.length === 1 ? selection.periodes[0] : 'plusieurs') : selection.mode}`)} />
     </div>
+  ) : etat.grouper === 'rattachement' ? (
+    parRattachement
   ) : (
     <div className="xl:grid xl:grid-cols-3 xl:items-start xl:gap-5">
-      {[...groupes].map(([g, taches]) => {
+      {[...groupes].map(([g, taches], i) => {
         const colonne = EN_COLONNES.includes(g);
+        if (auBureau && EN_TABLEAU.includes(g)) {
+          return (
+            <section key={g} data-groupe={g} aria-label={t(`groupe.${g}`)} className="pt-8 xl:col-span-3 xl:pt-3">
+              <Etiquette className="pb-3" compte={compteDe(g, taches.length)}>
+                {t(`groupe.${g}`)}
+              </Etiquette>
+              {tableau(taches)}
+            </section>
+          );
+        }
         return (
           <section
             key={g}
@@ -177,6 +270,7 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
               </button>
             </div>
             <ul className="divide-y divide-border">{taches.map((tache) => ligne(tache, enPanneau))}</ul>
+            {i === 0 ? aideDuBalayage : null}
           </section>
         );
       })}
@@ -206,13 +300,34 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
       </div>
 
       <div className="z-10 border-b border-border/70 bg-background max-md:sticky max-md:top-0 md:mt-5 md:border-0">
-        <RangeeDePuces aria-label={t('pastilles.libelle')} className="md:px-0">
-          {PASTILLES.map((p) => (
-            <PuceDeFiltre key={p} active={estActive(selection, p)} compte={p === 'all' ? undefined : comptes[p]} onClick={() => choisir(p)}>
-              {t(`pastilles.${p}`)}
-            </PuceDeFiltre>
-          ))}
-        </RangeeDePuces>
+        <div className="md:flex md:items-center md:gap-2">
+          <RangeeDePuces aria-label={t('pastilles.libelle')} className="md:min-w-0 md:flex-1 md:px-0">
+            {PASTILLES.map((p) => (
+              <PuceDeFiltre key={p} active={estActive(selection, p)} compte={p === 'all' ? undefined : comptes[p]} onClick={() => choisir(p)}>
+                {t(`pastilles.${p}`)}
+              </PuceDeFiltre>
+            ))}
+          </RangeeDePuces>
+          {/* TCK-2857 (maquette e1, l. 726-727) — « Grouper par » et « Rattachée à », au bureau. */}
+          {auBureau ? (
+            <div className="flex flex-none items-center gap-2" data-slot="filtres-du-bureau">
+              <Filtre
+                id="taches-grouper"
+                libelle={t('grouper.libelle')}
+                valeur={etat.grouper}
+                options={(['echeance', 'rattachement'] as const).map((v) => ({ value: v, label: t(`grouper.${v}`) }))}
+                onChange={(v) => changer({ ...etat, grouper: v as Regroupement })}
+              />
+              <Filtre
+                id="taches-rattachement"
+                libelle={t('rattachement.libelle')}
+                valeur={etat.rattachement}
+                options={(['tout', 'customer', 'property'] as const).map((v) => ({ value: v, label: t(`rattachement.${v}`) }))}
+                onChange={(v) => changer({ ...etat, rattachement: v as FiltreDeRattachement })}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="md:hidden">{interrupteurAMoi('flex h-12 cursor-pointer items-center gap-3 border-b border-border px-4 text-corps')}</div>
 
@@ -266,7 +381,12 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
       <Feuille
         panneau={enPanneau}
         open={ouverte !== null}
-        onOpenChange={(o) => (o ? null : setOuverte(null))}
+        onOpenChange={(o) => {
+          if (!o) {
+            setOuverte(null);
+            setEnEdition(false);
+          }
+        }}
         titre={t('fiche.titreFeuille')}
         pied={ouverte ? <PiedDeFicheDeTache tache={ouverte} moi={moi} onModifiee={setOuverte} /> : null}
       >
@@ -279,14 +399,49 @@ export function PageDesTaches({ etatInitial, ouvrirNouvelle = false, equipeVisib
             membres={membres.data ?? []}
             onModifiee={setOuverte}
             onSupprimee={() => setOuverte(null)}
+            enEdition={enEdition}
           />
         ) : null}
       </Feuille>
 
-      <Feuille panneau={enPanneau} open={nouvelle} onOpenChange={setNouvelle} titre={t('nouvelle.titreFeuille')} pied={<EnvoiDeNouvelleTache etat={envoi} />}>
-        {nouvelle ? <NouvelleTache maintenant={maintenant} moi={moi} nomDeMoi={nomDeMoi} membres={membres.data ?? []} onCreee={() => setNouvelle(false)} onEtat={setEnvoi} /> : null}
+      <Feuille panneau={enPanneau} open={nouvelle} onOpenChange={setNouvelle} titre={t('nouvelle.titreFeuille')} pied={<EnvoiDeNouvelleTache etat={envoi} onAnnuler={() => setNouvelle(false)} />}>
+        {nouvelle ? (
+          <NouvelleTache
+            maintenant={maintenant}
+            moi={moi}
+            nomDeMoi={nomDeMoi}
+            membres={membres.data ?? []}
+            rattachement={rattachement}
+            onCreee={() => setNouvelle(false)}
+            onEtat={setEnvoi}
+          />
+        ) : null}
       </Feuille>
     </PagePleineLargeur>
+  );
+}
+
+/** TCK-2857 — un filtre de la tête du bureau : « Grouper par » [Échéance ▾]. */
+function Filtre({
+  id,
+  libelle,
+  valeur,
+  options,
+  onChange,
+}: {
+  readonly id: string;
+  readonly libelle: string;
+  readonly valeur: string;
+  readonly options: readonly { value: string; label: string }[];
+  readonly onChange: (v: string) => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <label htmlFor={id} className="whitespace-nowrap text-sm text-muted-foreground">
+        {libelle}
+      </label>
+      <ChoixDansUneListe id={id} className="w-auto min-w-32" valeur={valeur} options={options} onChange={onChange} />
+    </span>
   );
 }
 

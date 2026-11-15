@@ -24,6 +24,7 @@ import { PARAMETRE_BOOSTER } from '@/components/boost/parametre-booster';
 import { ProprietaireEtResponsable } from '@/components/property-dashboard/ProprietaireEtResponsable';
 import { ChangerLeTitulaire } from '@/components/property-dashboard/ChangerLeTitulaire';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
+import { LienNouvelleTache } from '@/components/taches/LienNouvelleTache';
 import { agenceDuBien } from '@/lib/visites/agence-du-bien';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
@@ -146,6 +147,12 @@ export default async function Page({ params, searchParams }: { params: Params; s
       <ChangerLeTitulaire propertyId={property.id} agencyId={property.agency.id} />
     ) : null;
 
+  // TCK-2857 — « Nouvelle tâche » (le personnel) : la page « Tâches », le formulaire ouvert, ce bien
+  // rattaché. Un lien, rendu au serveur : rien n'entre dans la feuille « ⋯ » montée par la coque.
+  const tTache = await getTranslations('taches.nouvelle');
+  const nouvelleTache = (telephone: boolean) =>
+    staff ? <LienNouvelleTache type="property" id={property.id} libelle={tTache('titreFeuille')} telephone={telephone} /> : null;
+
   const tFiche = await getTranslations('propertyDashboard.fiche.identite');
   const tMotif = await getTranslations('propertyDashboard.horsLigne');
   // TCK-2678 — pourquoi le bien est hors ligne, tel que l'API l'a jugé (`include=offlineReasons`). La
@@ -200,6 +207,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
         actions={
           <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="autres-gestes-du-bien">
             {planifier(false)}
+            {nouvelleTache(true)}
             {changerLeTitulaire}
             {/* « Ajouter un document » : ici au téléphone, dans l'onglet Documents partout (AC3). */}
             <PropertyHeaderActions property={property} ajouterUnDocument />
@@ -240,6 +248,7 @@ export default async function Page({ params, searchParams }: { params: Params; s
         actions={
           <div className="flex flex-wrap items-center gap-2 max-md:hidden" data-slot="gestes-de-l-en-tete">
             {planifier(staff)}
+            {nouvelleTache(false)}
             {changerLeTitulaire}
             <PropertyHeaderActions property={property} ouvrirBoost={ouvrirBoost} />
           </div>

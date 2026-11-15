@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Ellipsis, FilePlus2, Pencil, Phone, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { Ellipsis, FilePlus2, ListPlus, Pencil, Phone, Plus } from 'lucide-react';
 
 import { FilDAriane } from '@/components/console/PageHeader';
 import { CustomerReferent } from '@/components/crm/CustomerReferent';
@@ -14,7 +15,7 @@ import { InitialesDuClient } from '@/components/customer-dashboard/liste/pieces'
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { EcrireA } from '@/components/messages/EcrireA';
 import { SaisirUneDemande } from '@/components/bookings/SaisirUneDemande';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SheetClose } from '@/components/ui/sheet';
 import { usePersonnelActif } from '@/hooks/usePersonnelActif';
@@ -24,6 +25,7 @@ import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
 import { lecteurDuPersonnel, nomCourt, PARAMETRE_DE_SECTION } from '@/lib/crm/fiche-du-client';
 import { initiales } from '@/lib/fiche-publique';
+import { lienNouvelleTache } from '@/lib/taches/lien-nouvelle-tache';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import { formaterTelephone } from '@/lib/phone';
@@ -132,7 +134,7 @@ function GestesDeLaFiche({ customer, nom, joignable }: { readonly customer: Cust
  * « Saisir une demande » (le personnel actif seul) et « Ajouter un document ». « Inviter à créer son
  * compte » vit dans la ligne « Compte client » du dossier.
  */
-function ActionsDuBureau({ personnel, onOuvrir }: { readonly personnel: boolean; readonly onOuvrir: (d: Dialogue) => void }) {
+function ActionsDuBureau({ customerId, personnel, onOuvrir }: { readonly customerId: number; readonly personnel: boolean; readonly onOuvrir: (d: Dialogue) => void }) {
   const t = useTranslations('crm.fiche');
   const tActions = useTranslations('common.actions');
   const tSaisie = useTranslations('saisieDemande');
@@ -158,6 +160,13 @@ function ActionsDuBureau({ personnel, onOuvrir }: { readonly personnel: boolean;
               {tSaisie('entree')}
             </DropdownMenuItem>
           ) : null}
+          {/* TCK-2857 — « Nouvelle tâche » : la page « Tâches », le formulaire ouvert, ce client rattaché. */}
+          {personnel ? (
+            <DropdownMenuItem render={<Link href={lienNouvelleTache('customer', customerId)} />} className="gap-2.5 px-2.5 py-2" data-slot="nouvelle-tache">
+              <ListPlus className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+              {t('nouvelleTache')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onClick={() => onOuvrir('document')} className="gap-2.5 px-2.5 py-2">
             <Plus className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
             {tDocuments('add_document')}
@@ -173,6 +182,8 @@ interface LibellesDuTelephone {
   readonly modifier: string;
   readonly saisir: string;
   readonly document: string;
+  /** TCK-2857 — « Nouvelle tâche ». */
+  readonly nouvelleTache: string;
 }
 
 /**
@@ -185,10 +196,12 @@ interface LibellesDuTelephone {
  * Les libellés arrivent donc traduits, de l'arbre de la page.
  */
 function ActionsDuTelephone({
+  customerId,
   personnel,
   onOuvrir,
   libelles,
 }: {
+  readonly customerId: number;
   readonly personnel: boolean;
   readonly onOuvrir: (d: Dialogue) => void;
   readonly libelles: LibellesDuTelephone;
@@ -203,6 +216,14 @@ function ActionsDuTelephone({
     <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="actions-du-telephone">
       {action('modifier', Pencil, libelles.modifier)}
       {personnel ? action('saisir', FilePlus2, libelles.saisir) : null}
+      {/* TCK-2857 — « Nouvelle tâche » : la page « Tâches », le formulaire ouvert, ce client rattaché. */}
+      {/* Un lien simple : la page « Tâches » n'a pas de « ⋯ », la feuille de la coque se démonte. */}
+      {personnel ? (
+        <Link href={lienNouvelleTache('customer', customerId)} data-slot="nouvelle-tache" className={cn(buttonVariants({ variant: 'outline' }), 'h-12 w-full justify-start gap-3')}>
+          <ListPlus className="size-5" aria-hidden="true" />
+          {libelles.nouvelleTache}
+        </Link>
+      ) : null}
       {action('document', Plus, libelles.document)}
     </div>
   );
@@ -270,7 +291,7 @@ function TeteDeLaFiche({
             // TCK-2586 (AC3) — son bien d'intérêt, posé : jour, heure, Confirmer.
             property={customer.interested_property ? { id: customer.interested_property.id, libelle: customer.interested_property.title } : undefined}
           />
-          <ActionsDuBureau personnel={personnel} onOuvrir={onOuvrir} />
+          <ActionsDuBureau customerId={customer.id} personnel={personnel} onOuvrir={onOuvrir} />
         </div>
       </div>
     </header>
@@ -324,11 +345,13 @@ export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes,
   const tSaisie = useTranslations('saisieDemande');
   const tDocuments = useTranslations('documents.actions');
   const tCherche = useTranslations('crm.fiche.cherche');
-  const libellesDuTelephone = { modifier: tActions('edit'), saisir: tSaisie('entree'), document: tDocuments('add_document') };
+  const tFiche = useTranslations('crm.fiche');
+  // TCK-2857 — « Nouvelle tâche » s'ajoute aux libellés traduits dans l'arbre de la page.
+  const libellesDuTelephone = { modifier: tActions('edit'), saisir: tSaisie('entree'), document: tDocuments('add_document'), nouvelleTache: tFiche('nouvelleTache') };
 
   return (
     <PagePleineLargeur data-slot="fiche-du-client" className="max-md:pb-6">
-      <DeclarerEnTete forme="detail" titre={nom} repli="/app/customers" actions={<ActionsDuTelephone personnel={personnel} onOuvrir={setDialogue} libelles={libellesDuTelephone} />} />
+      <DeclarerEnTete forme="detail" titre={nom} repli="/app/customers" actions={<ActionsDuTelephone customerId={customer.id} personnel={personnel} onOuvrir={setDialogue} libelles={libellesDuTelephone} />} />
       <div className="px-4 pt-4 md:px-0 md:pt-0">
         <TeteDeLaFiche customer={customer} nom={nom} personnel={personnel} joignable={joignable} onOuvrir={setDialogue} />
       </div>
