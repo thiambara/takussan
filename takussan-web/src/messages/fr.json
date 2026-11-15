@@ -19927,7 +19927,9 @@
       "toutVoir": "Tout voir",
       "derniere": "Dernière opération : {date} · {delta} {count, plural, one {crédit} other {crédits}}",
       "nbLots": "{count, plural, one {# lot} other {# lots}}",
-      "expireLe": "expire le {date}"
+      "expireLe": "expire le {date}",
+      "rapport": "Rapport des 30 derniers jours",
+      "lotsPasses": "Lots épuisés ou expirés"
     },
     "reserve": {
       "titre": "Cette page est réservée aux administrateurs de l’espace",
@@ -19991,7 +19993,9 @@
         "vues": "Vues",
         "contacts": "Contacts",
         "visites": "Visites"
-      }
+      },
+      "comparaison": "{ratio} × plus de vues que la semaine d’avant",
+      "comparaisonCourt": "{ratio} × la sem. d’avant"
     },
     "pousser": {
       "titre": "À pousser",
@@ -20039,6 +20043,30 @@
       "echecAchat": "La mise en avant n’a pas pu être enregistrée.",
       "fait": "« {bien} » est mis en avant : {offre}.",
       "bienEnEchec": "Impossible de lire les mises en avant de ce bien."
+    },
+    "rapport": {
+      "periode": "Du {debut} au {fin}",
+      "parMiseEnAvant": "Par mise en avant",
+      "parJour": "Jour par jour",
+      "aucune": "Aucune mise en avant sur ces 30 jours.",
+      "total": "Total",
+      "col": {
+        "jour": "Jour",
+        "affichages": "Affichages",
+        "vues": "Vues",
+        "consultations": "Consultations"
+      },
+      "legende": "Affichages : la carte du bien montrée dans les résultats. Vues : la fiche ouverte depuis une mise en avant. Consultations : toutes les ouvertures de la fiche pendant une mise en avant.",
+      "periodeBoost": "depuis le {date}"
+    },
+    "lotsPasses": {
+      "vide": "Aucun lot épuisé ou expiré.",
+      "etat": {
+        "spent": "Épuisé",
+        "expired": "Expiré"
+      },
+      "expireLe": "expiré le {date}",
+      "recus": "{count, plural, one {# crédit reçu} other {# crédits reçus}} le {date}"
     }
   },
   "commissions": {

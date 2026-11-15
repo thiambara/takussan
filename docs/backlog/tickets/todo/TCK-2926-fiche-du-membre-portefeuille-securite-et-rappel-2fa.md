@@ -66,4 +66,22 @@ L'admin lit sur la fiche d'un membre ce qu'il suit, ce qu'on lui doit depuis qua
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_2026-11-15 — implémenté (agent délégué)._
+
+**Prémisses re-mesurées.** `users.last_login_at` seul, `two_factor_enabled` booléen : exact. Écarts :
+- `for_sale` n'est pas un `PropertyStatus` : `portfolio.properties` rend les statuts réels (`rented`, `available`, `draft`…).
+- La connexion OAuth (`OAuthSessionOpener`) n'écrivait **pas** `last_login_at` : corrigé (les trois voies passent par `LastLoginRecorder`).
+- Aucune base de villes hors ligne n'existe dans le dépôt : contrat `LoginCityResolver` lié par défaut à `NullLoginCityResolver` (`city: null`) — ADR-0124 § 2. Brancher une base (MMDB, licence) est un geste à part.
+- Le front transmet déjà `User-Agent` et `X-Forwarded-For` du visiteur (`apiFetch`/`apiRequest`, TCK-792/TCK-1218) : la famille lue est celle du navigateur.
+
+**Décisions tranchées (« valide tes choix »).**
+- ADR-0124 écrit avant le code : dernière connexion seule, écrasée ; famille d'appareil (`iPhone · Safari`, liste fermée `FamilleDAppareil`) et ville seule ; ni IP ni `User-Agent` stockés ; hors `User::$queryFields` et hors journal ; effacées par `AccountDeletionService` ; rendues par l'export des données.
+- `two_factor_enabled_at` posée par un `saving` du modèle `User` (tous les écrivains) ; comptes déjà protégés : `null`, aucune date inventée.
+- Portefeuille : archivés exclus comme la liste `GET /api/properties` (les vendus restent, comme la liste) — la fiche compte le même ensemble que `filter[agent]` (testé). Clients actifs = référent principal à relation `active` (la règle de `filter[referent]`). Visites de la semaine : lundi → dimanche à Dakar, annulées et absences exclues.
+- `commissions_due` : `{amount, leases, oldest_due_at}` — `oldest_due_at` est une date calendaire (jour de Dakar), comme l'AC2.
+- Autorisation : `AgentProfilePolicy::viewAny` pour l'agence (la règle de la liste de l'équipe), puis 404 `team.member_not_found` si la personne n'a ni profil d'agent ni d'admin dans l'agence.
+- Rappel : code `account.two_factor_reminder` (non désactivable, cible neuve `profile_security` → `/app/profile/security`, famille S « à traiter »), param `agency` ; 409 / 429 jugés sous le verrou de la ligne `users`, sur les lignes `app_notifications` du code des 24 dernières heures. Textes API fr/en/wo (title, body, mail_body, sms) et front `notifications.codes.account.two_factor_reminder`.
+- `filter[agent]` : borné aux membres de l'agence du personnel de l'appelant (sinon liste vide, même pour un agent d'ailleurs qui collabore sur un bien d'ici) ; super-admin sans agence : toutes agences.
+- L'inscription n'écrit pas la dernière connexion (inchangé).
+
+**Tests** : `TeamMemberSheetTest` (7), `TwoFactorReminderTest` (4), `LastLoginDeviceTest` (14, dont 9 agents). Ablations une à une, rouges sans correctif, restaurées par md5 : borne d'agence de `filter[agent]`, fenêtre de 24 h, hook de `two_factor_enabled_at`, écriture OAuth, réduction de l'agent en famille, exclusion des archivés.

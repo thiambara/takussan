@@ -528,6 +528,13 @@ return [
                 'body' => 'The verified phone number on your account was replaced. If this was not you, contact support.',
                 'sms' => 'Takussan: this number is no longer the one on your account. If you did not make this change, contact support.',
             ],
+            // TCK-2926 (ADR-0124 § 6) — l'admin rappelle au membre d'activer la double authentification.
+            'two_factor_reminder' => [
+                'title' => 'Turn on two-factor authentication',
+                'body' => ':agency asks you to turn on two-factor authentication for your account. Turn it on from your profile security settings.',
+                'mail_body' => ":agency asks you to turn on two-factor authentication for your Takussan account.\nIt protects access to the agency's data: turn it on from the Security page of your profile.",
+                'sms' => 'Takussan: :agency asks you to turn on two-factor authentication for your account (Profile > Security).',
+            ],
             'blocked' => [
                 'title' => 'Your account is blocked',
                 'body' => 'Your Takussan account has been blocked by the platform. Reason: :reason. Contact support with any question.',

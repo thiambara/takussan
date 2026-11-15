@@ -421,6 +421,10 @@ class AccountDeletionService
             'two_factor_enabled' => false,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
+            // TCK-2926 (ADR-0124 § 5) — la dernière connexion (famille d'appareil, ville) et la date de la 2FA.
+            'two_factor_enabled_at' => null,
+            'last_login_device' => null,
+            'last_login_city' => null,
             'metadata' => null,
             // TCK-1141 (P83.02) — la ville et les intentions déclarées (`city`, `search_intent`,
             // `entry_intent`). `timezone` et `preferred_language` restent : ils n'identifient personne.

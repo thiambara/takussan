@@ -72,6 +72,8 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         'google_id', 'facebook_id', 'apple_id',
         'two_factor_enabled', 'two_factor_secret', 'two_factor_recovery_codes',
         'force_2fa_at_first_login',
+        // TCK-2926 (ADR-0124) — la dernière connexion (famille d'appareil, ville seule) et la date de la 2FA.
+        'last_login_device', 'last_login_city', 'two_factor_enabled_at',
         'phone_verified_at',
         // TCK-633 (lot C) — les cases WhatsApp seulement. `secondary_phone*` et `terms_*` ne sont
         // PAS assignables en masse : leurs écrivains (`PhoneVerificationService`,
@@ -119,6 +121,8 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'password' => 'hashed',
             'status' => UserStatus::class,
             'two_factor_enabled' => 'boolean',
+            // TCK-2926 (ADR-0124) — posée par `booted()` quand `two_factor_enabled` change.
+            'two_factor_enabled_at' => 'datetime',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted',
             'force_2fa_at_first_login' => 'boolean',
@@ -662,6 +666,15 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             }
         });
 
+        // TCK-2926 (ADR-0124 § 4) — la date de la double authentification suit le drapeau, quel que soit
+        // l'écrivain (activation, renouvellement, support, effacement) : posée au passage à `true`,
+        // effacée au passage à `false`. Une écriture qui pose la date elle-même la garde.
+        static::saving(function (self $user): void {
+            if ($user->isDirty('two_factor_enabled') && ! $user->isDirty('two_factor_enabled_at')) {
+                $user->two_factor_enabled_at = $user->two_factor_enabled ? now() : null;
+            }
+        });
+
         // TCK-142 — flush any legacy `agency_id` value stashed before save
         // into a real OwnerProfile row. Covers `User::create(['agency_id' =>
         // X])`, `new User(['agency_id' => X]) + ->save()`, and any other
@@ -703,6 +716,8 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                 'password', 'password_set_at', 'remember_token',
                 'two_factor_secret', 'two_factor_recovery_codes',
                 'updated_at', 'last_login_at',
+                // TCK-2926 (ADR-0124) — la dernière connexion n'entre pas au journal.
+                'last_login_device', 'last_login_city',
             ])
             ->dontLogEmptyChanges();
     }

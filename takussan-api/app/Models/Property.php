@@ -23,6 +23,7 @@ use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Membership\TeamMemberSheet;
 use App\Services\Payments\RentMonthStatus;
 use App\Services\Property\HeuresDuSejour;
 use App\Services\Property\Occupation;
@@ -1161,6 +1162,31 @@ class Property extends AbstractModel implements HasMedia
                         ->where('agency_id', $profil->agency_id));
                 }
             });
+        });
+
+        // TCK-2926 (ADR-0124) — `filter[agent]={user_id}` : les biens que ce membre gère, par la règle de « Mes
+        // chiffres » ({@see scopeManagedBy()}), dans l'agence du PERSONNEL de l'appelant. Un compte qui n'est pas
+        // membre de cette agence (autre agence, inconnu) rend la même liste vide, jamais une erreur qui dirait
+        // qu'il existe ; `scopeManagedBy` seul laisserait passer l'agent d'ailleurs qui collabore sur un bien d'ici.
+        $filters[] = AllowedFilter::callback('agent', function (Builder $q, mixed $value): void {
+            $id = ParametreUnique::valeur($value);
+            if ($id === null || $id === '') {
+                return;
+            }
+            ExactIdentifierFilter::exiger($id, 'agent');
+            $viewer = request()->user();
+            $agencyId = $viewer?->staffAgencyId();
+            $agent = $viewer === null ? null : User::query()->find((int) $id, ['id']);
+            $lisible = $agent !== null && (
+                ($agencyId !== null && TeamMemberSheet::isMember($agencyId, (int) $agent->id))
+                || ($agencyId === null && $viewer->isSuperAdmin())
+            );
+            if (! $lisible) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->managedBy($agent, $agencyId);
         });
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {

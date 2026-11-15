@@ -257,6 +257,8 @@ enum NotificationCode: string
 
     // ─── Sécurité du compte (TCK-589 p3-1 : avis à l'ANCIEN numéro, qui n'a plus de compte) ─
     case AccountPhoneChanged = 'account.phone_changed';
+    /** TCK-2926 (ADR-0124 § 6) — au membre de l'équipe : l'admin lui rappelle d'activer la double authentification. */
+    case AccountTwoFactorReminder = 'account.two_factor_reminder';
 
     // ─── Console plateforme (TCK-600) ───────────────────────────────────────────────────
     /** À la cible, à la fermeture d'une session d'impersonation, quelle qu'en soit la cause (ADR-0055). */
@@ -404,6 +406,7 @@ enum NotificationCode: string
             self::ModerationReportUpheld, self::ModerationReportDismissed,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged => NotificationType::System,
+            self::AccountTwoFactorReminder /* TCK-2926 */ => NotificationType::System,
             // TCK-2609
             self::InvitationRenewalRequested => NotificationType::System,
             self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
@@ -506,6 +509,8 @@ enum NotificationCode: string
             self::InvitationRenewalRequested => null,
             // Un avis de sécurité : on ne s'en désabonne pas.
             self::AccountPhoneChanged => null,
+            // TCK-2926 — un avis de sécurité, borné à un par 24 h et par membre : non désactivable.
+            self::AccountTwoFactorReminder => null,
             // TCK-600 — avis de la plateforme sur le compte ou l'agence : non désactivables.
             self::ImpersonationEnded, self::AgencySuspended, self::AgencyReinstated,
             self::AccountBlocked, self::AccountReactivated, self::PropertyUnpublishedContactErased,
@@ -644,6 +649,8 @@ enum NotificationCode: string
             self::InvitationRenewalRequested => ['invitee' => self::PARAM_TEXT, 'role' => self::PARAM_ROLE, 'url' => self::PARAM_URL],
             // Aucun paramètre : ni l'ancien ni le nouveau numéro dans un SMS adressé à l'ancien.
             self::AccountPhoneChanged => [],
+            // TCK-2926 — l'agence qui le demande.
+            self::AccountTwoFactorReminder => ['agency' => self::PARAM_TEXT],
             self::ProspectMatchDigest => ['properties' => self::PARAM_COUNT, 'prospects' => self::PARAM_COUNT],
             // TCK-600 — le motif est la saisie d'un opérateur, jamais une phrase de l'API.
             self::ImpersonationEnded => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT, 'started_at' => self::PARAM_DATETIME, 'ended_at' => self::PARAM_DATETIME],

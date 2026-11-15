@@ -185,7 +185,8 @@ class PhoneLoginService
 
         // Le verrou du mot de passe n'est PAS levé : un canal ne solde pas l'autre (M1 b).
         $this->lock->clearNumber($phone);
-        $user->forceFill(['last_login_at' => now()])->save();
+        // TCK-2926 (ADR-0124 § 3) — la dernière connexion : l'heure, la famille d'appareil, la ville seule.
+        app(LastLoginRecorder::class)->record($user);
 
         $issued = $this->tokens->issue(
             $user,

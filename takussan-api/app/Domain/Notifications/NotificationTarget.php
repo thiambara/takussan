@@ -93,6 +93,8 @@ final class NotificationTarget
         'receipts_archive' => '/app/payments',
         // TCK-2913 — la fiche d'un état des lieux signé, où son PDF se télécharge (`InventoryPdfButton`).
         'inventory' => '/app/inventories/{id}',
+        // TCK-2926 — le rappel d'activer la double authentification ouvre la sécurité du compte.
+        'profile_security' => '/app/profile/security',
     ];
 
     /**

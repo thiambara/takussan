@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\AuthRefusal;
+use App\Services\Auth\LastLoginRecorder;
 use App\Services\Auth\LoginLock;
 use App\Services\Auth\PhoneChangeGuard;
 use App\Services\Auth\SessionTokenIssuer;
@@ -135,7 +136,8 @@ class AuthController extends Controller
 
         $this->lock->clear($user);
         Auth::setUser($user);
-        $user->update(['last_login_at' => now()]);
+        // TCK-2926 (ADR-0124 § 3) — la dernière connexion : l'heure, la famille d'appareil, la ville seule.
+        app(LastLoginRecorder::class)->record($user, $request);
 
         $tokenName = (string) ($request->input('device_name') ?: 'auth_token');
         // Un TOTP vient d'être saisi : le jeton naît avec un step-up de 10 min.

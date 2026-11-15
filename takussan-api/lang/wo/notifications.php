@@ -528,6 +528,13 @@ return [
                 'body' => 'Nimero telefon bu ñu dëggal ci sa kont, soppi nañu ko. Su dul yow, jokkoo ak support bi.',
                 'sms' => 'Takussan : nimero bii du nimero sa kont kenn. Su dul yow moo ko soppi, jokkoo ak support bi.',
             ],
+            // TCK-2926 (ADR-0124 § 6) — l'admin rappelle au membre d'activer la double authentification.
+            'two_factor_reminder' => [
+                'title' => 'Activez la double authentification',
+                'body' => ':agency vous demande d\'activer la double authentification sur votre compte. Activez-la depuis la sécurité de votre profil.',
+                'mail_body' => ":agency vous demande d'activer la double authentification sur votre compte Takussan.\nElle protège l'accès aux données de l'agence : activez-la depuis la page Sécurité de votre profil.",
+                'sms' => 'Takussan : :agency vous demande d\'activer la double authentification de votre compte (Profil > Sécurité).',
+            ],
             'blocked' => [
                 'title' => 'Sa kont tëj nañu ko',
                 'body' => 'Platform bi tëj na sa kont Takussan. Lu ko waral : :reason. Jokkool ak support bi su la soxlaa.',

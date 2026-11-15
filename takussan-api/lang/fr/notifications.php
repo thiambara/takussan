@@ -533,6 +533,13 @@ return [
                 'body' => 'Le numéro de téléphone vérifié de votre compte a été remplacé. Si ce n\'est pas vous, contactez le support.',
                 'sms' => 'Takussan : ce numéro n\'est plus celui de votre compte. Si vous n\'êtes pas à l\'origine de ce changement, contactez le support.',
             ],
+            // TCK-2926 (ADR-0124 § 6) — l'admin rappelle au membre d'activer la double authentification.
+            'two_factor_reminder' => [
+                'title' => 'Activez la double authentification',
+                'body' => ':agency vous demande d\'activer la double authentification sur votre compte. Activez-la depuis la sécurité de votre profil.',
+                'mail_body' => ":agency vous demande d'activer la double authentification sur votre compte Takussan.\nElle protège l'accès aux données de l'agence : activez-la depuis la page Sécurité de votre profil.",
+                'sms' => 'Takussan : :agency vous demande d\'activer la double authentification de votre compte (Profil > Sécurité).',
+            ],
             'blocked' => [
                 'title' => 'Votre compte est bloqué',
                 'body' => 'Votre compte Takussan a été bloqué par la plateforme. Motif : :reason. Contactez le support pour toute question.',

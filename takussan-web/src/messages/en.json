@@ -19927,7 +19927,9 @@
       "toutVoir": "See all",
       "derniere": "Last operation: {date} · {delta} {count, plural, one {credit} other {credits}}",
       "nbLots": "{count, plural, one {# lot} other {# lots}}",
-      "expireLe": "expires on {date}"
+      "expireLe": "expires on {date}",
+      "rapport": "Last 30 days report",
+      "lotsPasses": "Spent or expired lots"
     },
     "reserve": {
       "titre": "This page is reserved for the space’s administrators",
@@ -19991,7 +19993,9 @@
         "vues": "Views",
         "contacts": "Contacts",
         "visites": "Visits"
-      }
+      },
+      "comparaison": "{ratio} × more views than the week before",
+      "comparaisonCourt": "{ratio} × the week before"
     },
     "pousser": {
       "titre": "To push",
@@ -20039,6 +20043,30 @@
       "echecAchat": "The promotion could not be saved.",
       "fait": "“{bien}” is promoted: {offre}.",
       "bienEnEchec": "This property's promotions could not be loaded."
+    },
+    "rapport": {
+      "periode": "From {debut} to {fin}",
+      "parMiseEnAvant": "By promotion",
+      "parJour": "Day by day",
+      "aucune": "No promotion over these 30 days.",
+      "total": "Total",
+      "col": {
+        "jour": "Day",
+        "affichages": "Impressions",
+        "vues": "Views",
+        "consultations": "Page visits"
+      },
+      "legende": "Impressions: the listing card shown in results. Views: the listing opened from a promotion. Page visits: every opening of the listing during a promotion.",
+      "periodeBoost": "since {date}"
+    },
+    "lotsPasses": {
+      "vide": "No spent or expired lot.",
+      "etat": {
+        "spent": "Spent",
+        "expired": "Expired"
+      },
+      "expireLe": "expired on {date}",
+      "recus": "{count, plural, one {# credit received} other {# credits received}} on {date}"
     }
   },
   "commissions": {

@@ -247,6 +247,8 @@ final class NotificationClassification
 
         // ─── Compte, agence, plateforme ───────────────────────────────────────────────────
         'account.phone_changed' => [self::S, false],
+        // TCK-2926 — activer la double authentification : un geste attendu du membre.
+        'account.two_factor_reminder' => [self::S, true],
         'impersonation.ended' => [self::S, false],
         'agency.suspended' => [self::S, false],
         'agency.reinstated' => [self::S, false],
@@ -311,6 +313,8 @@ final class NotificationClassification
         'document_archive' => self::S,
         // TCK-2916 — la page des paiements, où se télécharge l'archive préparée des quittances.
         'receipts_archive' => self::S,
+        // TCK-2926 — la page de sécurité du compte (le rappel de la 2FA).
+        'profile_security' => self::S,
         // TCK-2913 — la fiche d'un état des lieux, où se télécharge son PDF signé.
         'inventory' => self::S,
     ];
