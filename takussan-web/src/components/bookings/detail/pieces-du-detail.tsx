@@ -32,6 +32,7 @@ export function SectionDuTelephone({
   action,
   children,
   className,
+  id,
 }: {
   readonly titre: string;
   readonly compte?: number;
@@ -39,6 +40,8 @@ export function SectionDuTelephone({
   readonly action?: ReactNode;
   readonly children: ReactNode;
   readonly className?: string;
+  /** TCK-2879 — l'ancre d'une section que la carte du client ouvre (`#dossier`). */
+  readonly id?: string;
 }) {
   const intertitre = (
     <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-surtitre text-muted-foreground">
@@ -47,7 +50,7 @@ export function SectionDuTelephone({
     </h2>
   );
   return (
-    <section className={cn('border-t border-border px-4 py-4', className)}>
+    <section id={id} className={cn('scroll-mt-16 border-t border-border px-4 py-4', className)}>
       {action ? (
         <div className="flex items-center justify-between gap-3">
           {intertitre}
@@ -67,15 +70,18 @@ export function CarteDuBureau({
   action,
   children,
   className,
+  id,
 }: {
   readonly titre: string;
   /** TCK-2875 — à droite du titre (la complétude du dossier). */
   readonly action?: ReactNode;
   readonly children: ReactNode;
   readonly className?: string;
+  /** TCK-2879 — l'ancre d'une carte que la carte du client ouvre (`#dossier`). */
+  readonly id?: string;
 }) {
   return (
-    <section className={cn('rounded-xl border border-border bg-card', className)}>
+    <section id={id} className={cn('scroll-mt-20 rounded-xl border border-border bg-card', className)}>
       {action ? (
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 className="truncate text-corps font-semibold">{titre}</h2>

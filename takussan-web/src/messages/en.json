@@ -9460,7 +9460,8 @@
         "counter_offer_expired": "Counter-offer expired",
         "lead_unhandled": "Request reopened",
         "data_export_redownloaded": "Export downloaded again",
-        "owner_mandate_terms_updated": "Landlord mandate updated"
+        "owner_mandate_terms_updated": "Landlord mandate updated",
+        "inventory_pdf_sent": "Inventory PDF sent to the parties"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -19258,6 +19259,12 @@
         "archive_failed": {
           "title": "Your archive could not be prepared",
           "body": "The document archive you requested could not be prepared. Try again from your documents."
+        }
+      },
+      "inventory": {
+        "signed_pdf_available": {
+          "title": "Inventory signed: lease {reference}",
+          "body": "The tenant and the landlord have signed the inventory of lease {reference} for {property}. Download its PDF from the inventory page."
         }
       }
     },

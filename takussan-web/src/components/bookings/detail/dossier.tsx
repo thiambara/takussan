@@ -1,19 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Check, CircleAlert, FileText } from 'lucide-react';
+import { Camera, Check, CircleAlert, FileText, Upload } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useAutresCandidaturesDuBien, useDemanderUnePiece, useDossierDeLaReservation } from '@/lib/queries/booking-dossier';
+import { PIECE_DU_DOSSIER_ACCEPT, PIECE_DU_DOSSIER_MAX_OCTETS, useDeposerUnePiece } from '@/lib/queries/booking-gestes-du-client';
 import { demandeeRecemment, syntheseDeLaCandidature } from '@/lib/reservations/candidature';
 import { codeDuRefus } from '@/lib/reservations/saisie-de-demande';
 import { cn } from '@/lib/utils';
-import type { Booking, PieceDuDossier } from '@/types/booking';
+import type { Booking, DossierPiece, PieceDuDossier } from '@/types/booking';
 
 import { InitialesDuClient, useAgeDeLaDemande, useNomDuClient } from '../liste/pieces';
 
@@ -51,7 +52,18 @@ export function Completude({ recues, total, court, className }: { readonly recue
  * Les pièces du dossier : ce qui est là s'ouvre (au personnel, par la fiche du document), ce qui
  * manque se demande (au personnel). Lues par `GET /api/bookings/{id}/dossier`.
  */
-export function PiecesDuDossier({ bookingId, personnel, maintenant }: { readonly bookingId: number; readonly personnel: boolean; readonly maintenant: Date }) {
+export function PiecesDuDossier({
+  bookingId,
+  personnel,
+  client = false,
+  maintenant,
+}: {
+  readonly bookingId: number;
+  readonly personnel: boolean;
+  /** TCK-2879 — le CLIENT de la réservation : il dépose lui-même chaque pièce manquante. */
+  readonly client?: boolean;
+  readonly maintenant: Date;
+}) {
   const t = useTranslations('bookings.fiche.dossier');
   const tCommon = useTranslations('common');
   const lecture = useDossierDeLaReservation(bookingId);
@@ -69,13 +81,25 @@ export function PiecesDuDossier({ bookingId, personnel, maintenant }: { readonly
   return (
     <ul data-slot="pieces-du-dossier" className="divide-y divide-border">
       {lecture.data.data.pieces.map((p) => (
-        <LigneDePiece key={p.piece} bookingId={bookingId} p={p} personnel={personnel} maintenant={maintenant} />
+        <LigneDePiece key={p.piece} bookingId={bookingId} p={p} personnel={personnel} client={client} maintenant={maintenant} />
       ))}
     </ul>
   );
 }
 
-function LigneDePiece({ bookingId, p, personnel, maintenant }: { readonly bookingId: number; readonly p: PieceDuDossier; readonly personnel: boolean; readonly maintenant: Date }) {
+function LigneDePiece({
+  bookingId,
+  p,
+  personnel,
+  client,
+  maintenant,
+}: {
+  readonly bookingId: number;
+  readonly p: PieceDuDossier;
+  readonly personnel: boolean;
+  readonly client: boolean;
+  readonly maintenant: Date;
+}) {
   const t = useTranslations('bookings.fiche.dossier');
   const f = useFormatteurs();
   const age = useAgeDeLaDemande(maintenant);
@@ -143,12 +167,94 @@ function LigneDePiece({ bookingId, p, personnel, maintenant }: { readonly bookin
           </Button>
         )
       ) : null}
+      {/* TCK-2879 — le client dépose la pièce qui manque (jamais au personnel, qui la demande). */}
+      {!recue && client && !personnel ? <DepotDeLaPiece bookingId={bookingId} piece={p.piece} nom={nom} /> : null}
       {retour ? (
         <p role={retour.erreur ? 'alert' : 'status'} className={cn('basis-full text-ui', retour.erreur ? 'text-destructive' : 'text-muted-foreground')}>
           {retour.texte}
         </p>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * TCK-2879 (ADR-0110 § 2) — le client dépose une pièce manquante : « Prendre une photo » au téléphone
+ * (l'appareil photo, `capture`), « Déposer » un fichier au bureau, comme l'ajout au coffre (TCK-2656).
+ * PDF, JPEG, PNG ou HEIC de 10 Mo au plus (`UploadBookingDossierPieceRequest`) ; la relecture du
+ * dossier la marque reçue, et la carte de « Mes réservations » passe à « 4/4 ».
+ */
+function DepotDeLaPiece({ bookingId, piece, nom }: { readonly bookingId: number; readonly piece: DossierPiece; readonly nom: string }) {
+  const t = useTranslations('bookings.fiche.dossier');
+  const messageErreur = useMessageErreurApi();
+  const deposer = useDeposerUnePiece(bookingId);
+  const photo = useRef<HTMLInputElement>(null);
+  const fichier = useRef<HTMLInputElement>(null);
+  const [retour, setRetour] = useState<{ readonly texte: string; readonly erreur: boolean } | null>(null);
+
+  async function envoyer(liste: FileList | null) {
+    const choisi = liste?.[0];
+    if (!choisi) return;
+    if (choisi.size > PIECE_DU_DOSSIER_MAX_OCTETS) {
+      setRetour({ texte: t('tropLourde'), erreur: true });
+      return;
+    }
+    setRetour(null);
+    try {
+      await deposer.mutateAsync({ piece, file: choisi });
+      setRetour({ texte: t('envoyee'), erreur: false });
+    } catch (e) {
+      setRetour({ texte: codeDuRefus(e) === 'booking.dossier_closed' ? t('erreurs.closed') : messageErreur(e), erreur: true });
+    }
+  }
+
+  const entree = (ref: typeof photo, attributs: { accept: string; capture?: 'environment' }) => (
+    <input
+      ref={ref}
+      type="file"
+      className="sr-only"
+      tabIndex={-1}
+      aria-hidden="true"
+      {...attributs}
+      onChange={(e) => {
+        void envoyer(e.target.files);
+        e.target.value = '';
+      }}
+    />
+  );
+
+  return (
+    <>
+      {entree(photo, { accept: 'image/*', capture: 'environment' })}
+      {entree(fichier, { accept: PIECE_DU_DOSSIER_ACCEPT })}
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 gap-1.5 px-3 md:hidden"
+        aria-label={t('prendrePhotoAria', { piece: nom })}
+        disabled={deposer.isPending}
+        onClick={() => photo.current?.click()}
+      >
+        <Camera className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        {deposer.isPending ? t('envoiEnCours') : t('prendrePhoto')}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-11 gap-1.5 px-3 max-md:hidden"
+        aria-label={t('deposerAria', { piece: nom })}
+        disabled={deposer.isPending}
+        onClick={() => fichier.current?.click()}
+      >
+        <Upload className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        {deposer.isPending ? t('envoiEnCours') : t('deposer')}
+      </Button>
+      {retour ? (
+        <p role={retour.erreur ? 'alert' : 'status'} className={cn('basis-full text-ui', retour.erreur ? 'text-destructive' : 'text-muted-foreground')}>
+          {retour.texte}
+        </p>
+      ) : null}
+    </>
   );
 }
 

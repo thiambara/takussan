@@ -47,6 +47,13 @@ const lu = vi.hoisted(() => ({
   fil: [] as EntreeDuFil[],
   filLu: 0,
 }));
+// TCK-2879 — les gestes du client (dépôt d'une pièce, réponse à la contre-offre) : la fiche les monte au client.
+vi.mock('@/lib/queries/booking-gestes-du-client', () => ({
+  PIECE_DU_DOSSIER_ACCEPT: 'application/pdf',
+  PIECE_DU_DOSSIER_MAX_OCTETS: 10 * 1024 * 1024,
+  useDeposerUnePiece: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRepondreALaContreOffre: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock('@/lib/queries/booking-dossier', () => ({
   useDossierDeLaReservation: () => ({ data: { data: { received: 3, required: 4, missing: [], pieces: lu.pieces } }, isPending: false, isError: false, refetch: vi.fn() }),
   useDemanderUnePiece: () => ({ mutateAsync: lu.demander, isPending: false }),
@@ -266,7 +273,9 @@ describe('BookingDetail — candidature, conditions et dossier (TCK-2875)', () =
     expect(document.querySelector('[data-slot="decision-de-la-candidature"]')).toBeNull();
     const pieces = document.querySelector<HTMLElement>('[data-slot="pieces-du-dossier"]')!;
     expect(within(pieces).queryByRole('link')).toBeNull();
-    expect(within(pieces).queryByRole('button')).toBeNull();
+    // TCK-2879 — ni « Demander » : ses seuls boutons sont le dépôt de ses pièces manquantes.
+    expect(within(pieces).queryByRole('button', { name: /Demander/ })).toBeNull();
+    for (const b of within(pieces).queryAllByRole('button')) expect(b.getAttribute('aria-label')).toMatch(/^(Prendre une photo|Déposer un fichier) : /);
   });
 
   it('une offre (TCK-2876) n’a ni section Dossier ni pastille Garant', () => {

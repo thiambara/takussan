@@ -29,7 +29,7 @@ import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { usePersonnelActif } from '@/hooks/usePersonnelActif';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
-import { jourDeLApi } from '@/lib/jour-de-l-api';
+import { clientPeutAnnuler, contreOffreARepondre } from '@/lib/reservations/appel-du-client';
 import { useFormatteurs, type Formatteurs } from '@/lib/format/useFormatteurs';
 import { montantDansLaNature, nuitsEntre } from '@/lib/reservations/liste-des-reservations';
 import { cn } from '@/lib/utils';
@@ -69,6 +69,8 @@ import { HistoriqueDeLaFiche, type EvenementDeLHistorique } from './detail/histo
 // TCK-2876 — la contre-offre, le financement et la feuille « Contre-proposer ».
 import { ContreOffreEnCours, contreOffreEnCours, useEvenementsDeLaContreOffre, useLibelleDuFinancement } from './detail/contre-offre';
 import { FeuilleDeContreOffre } from './feuilles/FeuilleDeContreOffre';
+import { ReponseALaContreOffre } from './liste/contre-offre-du-client';
+import { useAncreDeLaFiche } from './detail/useAncreDeLaFiche';
 // TCK-2878 — la candidature arrive (origine, réponse attendue, le fil du client), puis le bail repris.
 import { BandeauAcceptee, BandeauDOrigine, EtapeDuClient, FilDeLaCandidature, useDepotEnClair } from './detail/candidature-et-bail';
 import { GarantsDeLaCandidature } from './detail/garants';
@@ -174,6 +176,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const evenementsDeLaContreOffre = useEvenementsDeLaContreOffre();
   const bookingQuery = useBooking(bookingId);
   const { data, isLoading, isError } = bookingQuery;
+  // TCK-2879 — `#dossier` et `#paiement` (les gestes de la carte du client) : la section n'existe qu'une
+  // fois la réservation lue ; on y descend alors.
+  useAncreDeLaFiche(Boolean(data));
   const { user } = useAuth();
   // TCK-602 — lus sur le premier paiement en attente : agence et devise sont celles de la réservation.
   const { providers } = usePaymentProviders(
@@ -261,15 +266,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   // TCK-1301 (P115.01) — un séjour confirmé dont le premier jour est arrivé ne
   // s'annule plus : l'API le refuse (`booking.cannot_cancel`). Le premier jour se juge sur le
-  // jour de l'API, en UTC, pas sur celui du navigateur (P212.02).
-  const stayStarted =
-    booking.status === 'confirmed' &&
-    !!booking.start_date &&
-    booking.start_date.slice(0, 10) <= jourDeLApi();
-  const canCancel =
-    (isCustomer || staffMay(canCancelBookings)) &&
-    (booking.status === 'pending' || booking.status === 'confirmed') &&
-    !stayStarted;
+  // jour de l'API, en UTC, pas sur celui du navigateur (P212.02). TCK-2879 — la règle est partagée
+  // avec la carte de « Mes réservations » (`clientPeutAnnuler`).
+  const canCancel = (isCustomer || staffMay(canCancelBookings)) && clientPeutAnnuler(booking);
   const canConfirm = staffMay(canValidateBookings) && booking.status === 'pending';
   const canReject = staffMay(canValidateBookings) && booking.status === 'pending';
   // TCK-2876 (ADR-0110 § 5) — « Contre-proposer » : une OFFRE en attente, sous la capacité
@@ -598,7 +597,8 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     ) : null;
   const piecesDuDossier = dossier ? (
     <>
-      <PiecesDuDossier bookingId={booking.id} personnel={personnel} maintenant={maintenant} />
+      {/* TCK-2879 — le client dépose tant que la demande est ouverte (`booking.dossier_closed` sinon). */}
+      <PiecesDuDossier bookingId={booking.id} personnel={personnel} client={isCustomer && (booking.status === 'pending' || booking.status === 'confirmed')} maintenant={maintenant} />
       {garantsDeLaCandidature}
     </>
   ) : null;
@@ -617,8 +617,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
       <FilDeLaCandidature booking={booking} prenom={prenom} forme={forme} />
     ) : null;
 
+  // TCK-2879 — la contre-offre qui attend le client (où mène l'avis `counter_offer_received`) : sa réponse,
+  // comme sur la carte de « Mes réservations ».
+  const contreOffreDuClient = isCustomer ? contreOffreARepondre(booking) : null;
+  // TCK-2879 — `#paiement` : « Payer l'acompte » et « Payer le solde » de la carte du client mènent ici. Avec un
+  // paiement déjà en attente (le client revient de la passerelle), `CustomerPayCta` se tait et « Payer en ligne »
+  // vit dans la section Paiements : l'ancre y passe.
+  const ancreSurLesPaiements = isCustomer && avecPaiements && paiements.some((p) => p.status === 'pending');
   const avisEtPaiementDuClient = (
-    <>
+    <div id={ancreSurLesPaiements ? undefined : 'paiement'} className="scroll-mt-20 space-y-5 empty:hidden">
+      {contreOffreDuClient ? (
+        <ReponseALaContreOffre bookingId={booking.id} co={contreOffreDuClient} devise={devise} className="rounded-xl border border-border bg-card p-4 max-md:mx-4 max-md:my-4" />
+      ) : null}
       {!isDashboardAgent && canBookingLeaveReview(booking) && booking.property?.slug && (
         <LeaveReviewCta slug={booking.property.slug} context={t('reviewContext')} propertyTitle={booking.property.title} />
       )}
@@ -632,7 +642,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           providers={undefined}
         />
       )}
-    </>
+    </div>
   );
 
   /* ─────────────────────────────────── La suite ─────────────────────────────────── */
@@ -849,13 +859,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           {(nature !== 'stay' || isCustomer) && message ? <div className="mt-3">{message}</div> : null}
         </SectionDuTelephone>
         {dossier ? (
-          <SectionDuTelephone titre={tFiche('sections.dossier')} action={completude}>
+          <SectionDuTelephone id="dossier" titre={tFiche('sections.dossier')} action={completude}>
             {piecesDuDossier}
           </SectionDuTelephone>
         ) : null}
         {avisEtPaiementDuClient}
         {avecPaiements ? (
-          <SectionDuTelephone titre={tFiche('sections.paiements')} compte={paiements.length}>
+          <SectionDuTelephone id={ancreSurLesPaiements ? 'paiement' : undefined} titre={tFiche('sections.paiements')} compte={paiements.length}>
             {listeDesPaiements}
           </SectionDuTelephone>
         ) : null}
@@ -944,7 +954,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     ) : null;
 
   const carteDossier = dossier ? (
-    <CarteDuBureau titre={tFiche('sections.dossier')} action={completude}>
+    <CarteDuBureau id="dossier" titre={tFiche('sections.dossier')} action={completude}>
       <div className="px-4 py-1">{piecesDuDossier}</div>
     </CarteDuBureau>
   ) : null;
@@ -977,7 +987,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
     </CarteDuBureau>
   ) : null;
   const cartePaiements = avecPaiements ? (
-    <CarteDuBureau titre={tFiche('sections.paiements')}>
+    <CarteDuBureau id={ancreSurLesPaiements ? 'paiement' : undefined} titre={tFiche('sections.paiements')}>
       <div className={cn('px-4', paiements.length > 0 ? 'py-1' : 'py-4')}>{listeDesPaiements}</div>
       {nature === 'stay' ? <div className="border-t border-border px-4 py-3">{lignesDuQuoi}</div> : null}
     </CarteDuBureau>
@@ -1163,6 +1173,9 @@ function CustomerPayCta({
   if (hasPending) return null;
 
   if (booking.status !== 'pending' && booking.status !== 'confirmed') return null;
+  // TCK-2879 — un séjour seulement : le `total_amount` d'une candidature est le loyer du bien, celui d'une
+  // offre le prix proposé — rien que le client règle sur la réservation (`appelDuClient`, même règle).
+  if (booking.kind === 'application' || booking.kind === 'offer') return null;
   if (providers !== undefined && providers.length === 0) return null;
 
   // TCK-2877 — comme l'API (`dueFromCustomer`) : ni caution ni « autre ».

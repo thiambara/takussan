@@ -78,4 +78,61 @@ Audit des maquettes de `/app` du 2026-11-15, famille commerciale (`audit-f5-comm
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-15 — implémentation (agent délégué, vague 92).**
+
+Prémisses qui différaient (re-mesurées) :
+- **La liste ne sert pas les paiements** : `booking_payments` n'est émis que sous `whenLoaded('payments')`, l'index ne
+  charge pas `payments` et `$requestLoadable` ne l'ouvre pas ; l'ouvrir aurait coûté une requête `Payout` par paiement
+  (`BookingPaymentResource::paidOut`). **Corrigé côté API** (bloc TCK-2879) : `BookingController::index` somme le réglé
+  en une sous-requête pour la page (`withSum`, après `buildQuery` : le sparse fieldset garde ses colonnes), compté comme
+  `BookingPaymentService::dueFromCustomer` (paiements `paid`, ni caution ni « autre ») ; `BookingResource` émet
+  `amount_paid` quand la somme est là (liste seule, absent de la fiche). Registre `DateInventoryByValueTest` complété.
+- **« avant jeudi » n'a pas de source** : `responseDeadline()` est `null` hors `pending`, et aucune échéance d'acompte
+  n'existe dans l'API. L'échéance dite est le jour d'ARRIVÉE : le nom du jour dans les six jours (« avant jeudi »),
+  « avant le 21 nov. » au-delà, « dès maintenant » le jour venu.
+- **Paiements : séjour seulement.** Le `total_amount` d'une candidature est le loyer, celui d'une offre le prix proposé :
+  `CustomerPayCta` de la fiche offrait « Payer le solde » de tout ce montant au client d'une offre ou d'une candidature.
+  **Défaut voisin corrigé** : la fiche ne propose plus de paiement au client hors séjour (même règle que la carte, sinon
+  AC2 « 4/4 sans geste primaire » serait faux pour toute candidature).
+- **Dossier : candidature seulement**, comme la section de la fiche (TCK-2875) ; « Compléter mon dossier » n'est jamais
+  offert sur une offre, dont la fiche ne montre pas de dossier.
+- **AC5** : `PageHeader` est monté (caché par CSS sous `md`) et déclare son titre à la coque (`DeclarerEnTete`,
+  priorité `en-tete-de-page`) : la coque titre déjà « Mes réservations ». Prouvé par un test de composant ; le relevé au
+  navigateur n'a pas été fait (pas de navigateur dans ce lot).
+
+Livré :
+- `lib/reservations/appel-du-client.ts` (pur) : `appelDuClient` (contre-offre > acompte > pièce manquante > solde ;
+  « Dossier complet » sans geste), `clientPeutAnnuler` (la règle TCK-1301 de la fiche, désormais partagée),
+  `formeDeLEcheance`, `acomptesDus` ; `contreOffreARepondre`, que `detail/contre-offre.tsx` réutilise.
+- `lib/queries/booking-gestes-du-client.ts` : `useDeposerUnePiece` (multipart `file`) et `useRepondreALaContreOffre`
+  (`accept` / `decline`). Module à part : les tests de la fiche mockent `bookings.ts`, `booking-dossier.ts` et
+  `booking-counter-offer.ts` en fabrique fermée.
+- Carte : encart d'appel (alerte pour l'acompte, sourdine sinon — maquette), un seul geste (« Payer l'acompte » plein,
+  « Payer le solde » et « Compléter mon dossier » en contour, vers `#paiement` / `#dossier` de la fiche), « Annuler » par
+  la feuille de la fiche (`FeuilleDeDecision`, motif en toutes lettres) là où `clientPeutAnnuler` ; contre-offre :
+  encart, « Accepter » et « Décliner » (sans « Annuler » : trois gestes ne tiennent pas à 390, il reste dans la fiche).
+- Sous-titre du bureau : « 3 en cours, dont un acompte à payer avant jeudi » (première page des réservations en cours,
+  même lecture que la liste « En cours »).
+- Fiche du client : ancres `#paiement` (bloc avis et paiement ; la section Paiements quand un paiement est déjà en
+  attente — `CustomerPayCta` se tait alors et « Payer en ligne » vit là) et `#dossier` (section ou carte Dossier),
+  descente à l'ancre une fois la réservation lue (`detail/useAncreDeLaFiche.ts`) ; tant que la demande est ouverte
+  (`pending` / `confirmed`, `booking.dossier_closed` sinon), dépôt d'une pièce manquante (« Prendre une
+  photo » au téléphone, `capture`, « Déposer » un fichier au bureau ; 10 Mo, refus `booking.dossier_closed` dit sous la
+  pièce) ; la contre-offre qui attend le client s'y répond (l'avis `counter_offer_received` mène à la fiche).
+- Tests : `appel-du-client.tck-2879` (12), `booking-gestes-du-client.tck-2879` (2, routes réelles),
+  `MesReservations.gestes.tck-2879` (10), `DepotDeLaPiece.tck-2879` (6), `BookingDetail.client.tck-2879` (5), API
+  `BookingAmountPaidTest` (2). Tests mis à jour : `MesReservations.tck-2594` (l'en-tête lit la page « En cours »),
+  `BookingDetail.candidature.tck-2875` et `BookingDetail.offre.tck-2876` (le client dépose et répond désormais).
+- Dix-huit ablations une à une, toutes rouges puis restaurées (md5) : filtre caution/« autre » de la somme (API), priorité
+  de la contre-offre, séjour seul pour l'acompte, Annuler d'un séjour commencé, seuil des six jours, geste du dossier,
+  ancre `#dossier` de la carte, sous-titre de l'acompte, style plein de l'acompte, encart d'alerte, borne des 10 Mo,
+  dépôt au seul client, paiement hors séjour de la fiche, descente à l'ancre, ancre de la section Dossier, `#paiement`
+  sur la section Paiements avec un paiement en attente, dépôt fermé sur une candidature refusée, « avant le 28 nov. ».
+- Gardes : `tsc`, ESLint, `check:i18n`, `check:i18n-namespaces`, `check:vouvoiement`, `check:classes-emises` verts ;
+  toutes les `scripts/check-*.mjs` racine vertes sauf `check-status-badge-unique` (rouge sur
+  `components/payments/locataire/ToutTelechargerLesQuittances.tsx`, fichier non suivi d'un autre agent). API : les trois
+  balayages et les trois gardes d'architecture, `RequestLoadableEmittedTest` verts. 41 fichiers de test du domaine
+  réservations verts (312) ; les cinq `*.garde.test.*` du front verts.
+
+Fidélité : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2879.json` (contre-offre « hors maquette », échéance « donnée ») ;
+AC-F2 non mesuré (pas de navigateur dans ce lot).

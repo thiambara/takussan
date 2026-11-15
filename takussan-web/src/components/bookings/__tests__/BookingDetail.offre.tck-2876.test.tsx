@@ -29,6 +29,13 @@ vi.mock('@/lib/queries/bookings', () => ({
   useCreateBookingPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRefundBookingPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+// TCK-2879 — les gestes du client (dépôt d'une pièce, réponse à la contre-offre) : la fiche les monte au client.
+vi.mock('@/lib/queries/booking-gestes-du-client', () => ({
+  PIECE_DU_DOSSIER_ACCEPT: 'application/pdf',
+  PIECE_DU_DOSSIER_MAX_OCTETS: 10 * 1024 * 1024,
+  useDeposerUnePiece: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRepondreALaContreOffre: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock('@/lib/queries/booking-dossier', () => ({
   useDossierDeLaReservation: () => ({ data: undefined, isPending: true, isError: false, refetch: vi.fn() }),
   useDemanderUnePiece: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -245,9 +252,11 @@ describe('BookingDetail — l’offre, sa contre-offre et ses conditions (TCK-28
     expect(screen.getAllByRole('button', { name: 'Contre-proposer' }).length).toBeGreaterThan(0);
   });
 
-  it('le client ne lit ni la contre-offre en cours ni son historique ici (sa réponse est TCK-2879)', () => {
+  it('le client ne lit ni la contre-offre en cours ni son historique du personnel ; il y répond (TCK-2879)', () => {
     rendre({ ...OFFRE, counter_offer: CONTRE_OFFRE, awaiting: 'customer' }, { id: 40, roles: ['customer'] });
     expect(document.querySelector('[data-slot="contre-offre-en-cours"]')).toBeNull();
     expect(screen.queryByText((_, el) => el?.tagName === 'P' && texte(el) === 'Contre-offre de 90 000 000 F envoyée')).toBeNull();
+    // TCK-2879 — sa réponse : l'encart du client, « Accepter » et « Décliner ».
+    expect(document.querySelector('[data-slot="reponse-a-la-contre-offre"]')).not.toBeNull();
   });
 });

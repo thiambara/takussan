@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Reply } from 'lucide-react';
 
 import type { Formatteurs } from '@/lib/format/useFormatteurs';
+import { contreOffreARepondre } from '@/lib/reservations/appel-du-client';
 import type { Booking, BookingCounterOffer, OfferFinancing } from '@/types/booking';
 import type { EvenementDeLHistorique } from './historique';
 
@@ -15,9 +16,9 @@ import type { EvenementDeLHistorique } from './historique';
  */
 
 /** Ouverte : elle attend la réponse du client (`awaiting = customer`). Une déclinée ou échue n'est plus « en cours ». */
+// TCK-2879 — une seule règle pour la fiche et la carte du client (`lib/reservations/appel-du-client.ts`).
 export function contreOffreEnCours(b: Booking): BookingCounterOffer | null {
-  const co = b.counter_offer ?? null;
-  return b.status === 'pending' && co?.status === 'pending' && b.awaiting === 'customer' ? co : null;
+  return contreOffreARepondre(b);
 }
 
 /** « Ibrahima » → élision devant une voyelle : « en attente d’Ibrahima ». */

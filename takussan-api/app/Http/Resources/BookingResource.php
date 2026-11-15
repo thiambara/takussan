@@ -69,6 +69,12 @@ class BookingResource extends BaseResource
             // TCK-596 — le détail les attendait (`booking_payments`) et ne les recevait jamais : la
             // liste des paiements restait vide, et rien ne désignait l'acompte à rembourser.
             'booking_payments' => $this->whenLoaded('payments', fn (): array => BookingPaymentResource::collection($this->payments)->toArray($request)),
+            // TCK-2879 — le réglé (ni caution ni « autre »), quand la page l'a sommé (`withSum` de l'index) :
+            // jamais une requête par ligne, omis ailleurs. Mêmes lecteurs que `booking_payments`.
+            'amount_paid' => $this->when(
+                $this->resource instanceof Booking && array_key_exists('amount_paid', $this->resource->getAttributes()),
+                fn (): float => (float) ($this->resource->getAttributes()['amount_paid'] ?? 0),
+            ),
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             // TCK-2593 — le téléphone et l'étape de la fiche ne sortent que vers le personnel de

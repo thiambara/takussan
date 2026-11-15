@@ -196,6 +196,12 @@ export type Booking = {
   source?: BookingSource;
   /** TCK-2874 — le passage de la fiche client en Négociation à l'acceptation, au seul personnel ; `null` sans changement. */
   stage_change?: BookingStageChange | null;
+  // ── TCK-2879 ──
+  /**
+   * TCK-2879 — ce que le client a déjà réglé (paiements `paid`, ni caution ni « autre »), servi par la
+   * LISTE seule (`withSum` de l'index) ; absent de la fiche, qui lit `booking_payments`.
+   */
+  amount_paid?: number;
 };
 
 /** TCK-2870 / TCK-2876 — `OfferFinancing` côté API : comptant, crédit immobilier, apport et crédit. */

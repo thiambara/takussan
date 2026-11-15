@@ -63,6 +63,9 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2879
+        'App\Http\Resources\BookingResource::amount_paid' => '`when()` sur une somme que seul le `withSum` de '
+            .'`BookingController::index` pose (TCK-2879) : un MONTANT (float), jamais une date.',
         // TCK-2893 — posés par `BookingGuarantorFacts::prime()` pour le seul personnel de l'agence du bien.
         'App\Http\Resources\BookingResource::declared_monthly_income_masked' => '`when()` sur un masque que seul '
             .'`BookingGuarantorFacts::prime()` pose (TCK-2893) : `Masking::presence()`, `••••` ou `null` — jamais une date.',

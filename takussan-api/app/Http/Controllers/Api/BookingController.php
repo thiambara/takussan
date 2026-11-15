@@ -9,8 +9,10 @@ use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\BookingRejectionReason;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Booking\BookingCustomerFacts;
@@ -43,6 +45,14 @@ class BookingController extends Controller
 
         $paginator = Booking::buildQuery($base, $request)
             ->defaultSort('-created_at')
+            // TCK-2879 — `amount_paid` : ce que le client a déjà réglé, en une sous-requête pour la page,
+            // compté comme `BookingPaymentService::dueFromCustomer` (ni caution ni « autre ») — la carte
+            // de « Mes réservations » en dérive l'acompte ou le solde dû sans lire les paiements.
+            // Après `buildQuery` : un sparse fieldset remplace les colonnes, la somme s'y ajoute.
+            ->withSum(['payments as amount_paid' => fn (Builder $q) => $q
+                ->where('status', PaymentStatus::Paid->value)
+                ->whereNotIn('payment_type', [BookingPaymentType::SecurityDeposit->value, BookingPaymentType::Other->value]),
+            ], 'amount')
             ->paginate();
 
         // TCK-2593 — `visits_on_property` de la page, en une requête.
