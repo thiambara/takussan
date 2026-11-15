@@ -24,7 +24,7 @@ let utilisateur: { id: number } | null = { id: 5 };
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: utilisateur, token: null, isLoading: false }),
 }));
-const soumettre = vi.fn(async () => undefined);
+const soumettre = vi.fn(async (_donnees: unknown) => undefined);
 vi.mock('@/hooks/useBookingRequest', () => ({
   useBookingRequest: () => ({ submit: soumettre, submitting: false, error: null }),
 }));
