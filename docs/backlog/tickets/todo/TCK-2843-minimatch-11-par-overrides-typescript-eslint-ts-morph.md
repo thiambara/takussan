@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 90
 created: 2026-11-14
-updated: 2026-11-14
+updated: 2026-11-15
 depends_on: [TCK-2787]
 blocks: []
 spec_refs:
@@ -15,6 +15,11 @@ spec_refs:
   models: []
 tags: [technique, dependances, securite, npm, minimatch, front]
 ---
+
+## Décision du porteur (2026-11-15)
+
+Le ticket reste ouvert. On attend que typescript-eslint et ts-morph passent eux-mêmes à minimatch 11 en amont : on
+ne force pas la montée par une surcharge `overrides` d'une majeure transitive.
 
 ## Objectif utilisateur
 
